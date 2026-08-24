@@ -1,0 +1,113 @@
+{
+	"schemaVersion": 1,
+	"runtimeId": "sherpa-onnx-node",
+	"version": "1.13.5",
+	"runtimePrefix": "assistance/sherpa-onnx/1.13.5",
+	"commonPackage": {
+		"name": "sherpa-onnx-node",
+		"version": "1.13.5",
+		"sourceUrl": "https://registry.npmjs.org/sherpa-onnx-node/-/sherpa-onnx-node-1.13.5.tgz",
+		"integrity": "sha512-ECkDTszTbHd4wzhVMnUXeGJN9dmkTGdbrjEvjTr/bNseJZ4vMre6VkFUREsrSaSCVZDUiBeICPTJPG3/f2kwSA==",
+		"entry": "sherpa-onnx.js",
+		"files": {
+			"README.md": { "byteLength": 343, "sha256": "5706568eaac6a98ce8c7da76c5676086010b68254d0a0c307b742cb6357afb0b" },
+			"addon-static-import.js": { "byteLength": 2208, "sha256": "4e1cdabab1dc22ecff6882ea642aba56c6e03c543dd366e684ae5b853dd5f1b6" },
+			"addon.js": { "byteLength": 2760, "sha256": "ccdfdd81775611bb1b4de2f30fc22a987f9d6936b280c91b6a0c597e02f3c839" },
+			"audio-tagg.js": { "byteLength": 1285, "sha256": "4f38deacb6fd0dddc6adb717f54f515079a2bb8c7c077d45a4f59d7ed88664a5" },
+			"keyword-spotter.js": { "byteLength": 1609, "sha256": "de79f3c50dba37be650e8f3688f56cd1a6c400f1074d9034ed99f82941e74439" },
+			"non-streaming-asr.js": { "byteLength": 4509, "sha256": "768f5afe411e1f960c0e5c59d6bec8120520461704f2786fb110667ed3eeefea" },
+			"non-streaming-speaker-diarization.js": { "byteLength": 1164, "sha256": "ec2d8bae9365d6d1d6b43bb6ae31d641c7c7bce3cf31f1adb96cfed0d53b9233" },
+			"non-streaming-speech-denoiser.js": { "byteLength": 993, "sha256": "86b2562f53078f6bfa39895b77984e43556717de94cdf38b39cb9b4d0670ae52" },
+			"non-streaming-tts.js": { "byteLength": 3166, "sha256": "443a757bf1280d632e7dc67bac94446dcf7d12e4987579bcc906a3f2214e2b28" },
+			"online-speech-denoiser.js": { "byteLength": 1286, "sha256": "40c060d62e8080e4d37fbc4bce37273afaadd42ad19ff3f6ce35c008755b7eef" },
+			"package.json": { "byteLength": 1676, "sha256": "e2a9e102f4719f5f79cfd6070cc6f5ffdb7a350f4c9a5f6c832e84b7523c4dae" },
+			"punctuation.js": { "byteLength": 1186, "sha256": "723f7fd4920906418067ad5b63f1e5bdd12ccbce6f9af49c5dfc74e767bbaa2f" },
+			"resampler.js": { "byteLength": 2216, "sha256": "49f0eeaed2d256ad442e56a74182b3848dd276b96351a1adf9ff9a0928162dae" },
+			"sherpa-onnx.js": { "byteLength": 2080, "sha256": "120bb60c0f9042236573236abf44935c8403fa7e27cd6cbb3cbd08fe3900271a" },
+			"speaker-identification.js": { "byteLength": 3912, "sha256": "811ab1d07005c110593bbf3a3e17deeb6b1763b4f46f25c793554a41afa01aa2" },
+			"spoken-language-identification.js": { "byteLength": 1120, "sha256": "d7faace010316d0eb200e5afbef9fe3a6d2a2dbeab317c7f23fa2e685cb65a26" },
+			"streaming-asr.js": { "byteLength": 3052, "sha256": "d315c5ce80ed88f6323f8e87e49f09bf890954cc32c6834ab149b329945754aa" },
+			"types.js": { "byteLength": 22077, "sha256": "741774b8bf1f41c6172cf0e1858e7949cf142ababeae2fb3adf1f00acf4076a6" },
+			"vad.js": { "byteLength": 2971, "sha256": "516759499cfd4479f6feaf8dd81452d8189c4909ad402923dd983fba71496c38" }
+		}
+	},
+	"targets": {
+		"linux-x64": {
+			"status": "built",
+			"package": {
+				"name": "sherpa-onnx-linux-x64",
+				"version": "1.13.5",
+				"sourceUrl": "https://registry.npmjs.org/sherpa-onnx-linux-x64/-/sherpa-onnx-linux-x64-1.13.5.tgz",
+				"integrity": "sha512-eedC/AMCL2cvwhtPnmRlLHKXuwBmD7o2r+Kb+I0krg4PlQejR9y6O1oKqdLko5vFaWe2A8/rQORKGXE+We3y4Q==",
+				"files": {
+					"README.md": { "byteLength": 94, "sha256": "7404cc01ddc4bd97dd9722686b44944a5ca88c619cc263988da273e7e67e16d2" },
+					"index.js": { "byteLength": 48, "sha256": "3f0b863d77823f79278c60fae2473c62f7009b2f73ad4541ead097b1c2ade995" },
+					"libonnxruntime.so": { "byteLength": 26407985, "sha256": "c85f471e1bd5059a4556038f7f5288fa41141647613688452ae7de4879150903" },
+					"libsherpa-onnx-c-api.so": { "byteLength": 5097376, "sha256": "20ca49ee38a64d369ef91e580704a6899e9d0ba654ff4b6871619d91484820bf" },
+					"libsherpa-onnx-cxx-api.so": { "byteLength": 261792, "sha256": "67f3e35867ad5adf1532c708f19033478f2fbcdd71d7197fbdc3ef25b862d0ff" },
+					"package.json": { "byteLength": 1454, "sha256": "4eba22134e37a2b1b0b1babb1a6e2061ccb79984536408dd8543816194801bec" },
+					"sherpa-onnx.node": { "byteLength": 973056, "sha256": "1e7fec9326c78a68bd33b1e351b860835e4dae9f481ea41a651443b3ed4b75ea" }
+				}
+			}
+		},
+		"linux-arm64": {
+			"status": "built",
+			"package": {
+				"name": "sherpa-onnx-linux-arm64",
+				"version": "1.13.5",
+				"sourceUrl": "https://registry.npmjs.org/sherpa-onnx-linux-arm64/-/sherpa-onnx-linux-arm64-1.13.5.tgz",
+				"integrity": "sha512-1Jpkyv+Sg7wl+jCOlttcudVpVdlCNPXMf/RYT4+FU4/VmoMIx9MZbcSu2Nf8gtKq3mnYdkk7HtCK5AA3Dtuvwg==",
+				"files": {
+					"README.md": { "byteLength": 94, "sha256": "7404cc01ddc4bd97dd9722686b44944a5ca88c619cc263988da273e7e67e16d2" },
+					"index.js": { "byteLength": 48, "sha256": "3f0b863d77823f79278c60fae2473c62f7009b2f73ad4541ead097b1c2ade995" },
+					"libonnxruntime.so": { "byteLength": 33951528, "sha256": "d860f5968f5a1ed63533e9ed198aa747ca9fe289028129877f428556089f6874" },
+					"libsherpa-onnx-c-api.so": { "byteLength": 4610440, "sha256": "3b0503f2cd87c059abf4fe7c56de1566bdd78c3c2078ffdb62c2d1dae2538a8f" },
+					"libsherpa-onnx-cxx-api.so": { "byteLength": 281264, "sha256": "fd0aba81fc5b81a5aed15d4cd0ba05125c8379446ed2de66d200d98c3508f1c3" },
+					"package.json": { "byteLength": 1458, "sha256": "3754408e820462148455d1d64e22f927f8f2004ef6f0937eb0b737322b603ecf" },
+					"sherpa-onnx.node": { "byteLength": 794576, "sha256": "e39e5e9de630f5fcbfa84e1aa54b7d1bfca3a89056cc4a74c4ed8bc9fbaa944c" }
+				}
+			}
+		},
+		"mac-arm64": {
+			"status": "built",
+			"package": {
+				"name": "sherpa-onnx-darwin-arm64",
+				"version": "1.13.5",
+				"sourceUrl": "https://registry.npmjs.org/sherpa-onnx-darwin-arm64/-/sherpa-onnx-darwin-arm64-1.13.5.tgz",
+				"integrity": "sha512-weDBAV6da64j6PPYuuG1VYqHzmjthNFZmrFV9yyJ8YXxWrZvIe8kXXYvOIU2curODucvLObHosZU9kJ4uVwM3Q==",
+				"files": {
+					"README.md": { "byteLength": 94, "sha256": "7404cc01ddc4bd97dd9722686b44944a5ca88c619cc263988da273e7e67e16d2" },
+					"index.js": { "byteLength": 48, "sha256": "3f0b863d77823f79278c60fae2473c62f7009b2f73ad4541ead097b1c2ade995" },
+					"libonnxruntime.dylib": { "byteLength": 28308848, "sha256": "a02e26ab11a8265a6a43491e3e99ee0880e19fe51a7eebecc27a28d673f879c5" },
+					"libsherpa-onnx-c-api.dylib": { "byteLength": 4256968, "sha256": "97af3f203d35ff44da6a0fe9778e6f5721d18d7d871a0a9db7e3e947daabf048" },
+					"libsherpa-onnx-cxx-api.dylib": { "byteLength": 161776, "sha256": "edda55012ae384ed3a2d230edf901c827fc45ce6e064b80516d8e42cd73eb597" },
+					"package.json": { "byteLength": 1460, "sha256": "df48e132abd3153248387be01a2119291d41491c992377919b072459706dc941" },
+					"sherpa-onnx.node": { "byteLength": 626256, "sha256": "47d07ffa2d84188f9bb73f62ea7dee8affcf546084918ed9b84e389d878f329b" }
+				}
+			}
+		},
+		"win-x64": {
+			"status": "built",
+			"package": {
+				"name": "sherpa-onnx-win-x64",
+				"version": "1.13.5",
+				"sourceUrl": "https://registry.npmjs.org/sherpa-onnx-win-x64/-/sherpa-onnx-win-x64-1.13.5.tgz",
+				"integrity": "sha512-r1lKWEbFDquVjiij72nhNpmPBeqG7V06ZGx1uL2zWXFCYXmkpqawN5iHdkugVhb8QfYZ8x2tx88eYGHGMn88aA==",
+				"files": {
+					"README.md": { "byteLength": 97, "sha256": "33cc04186235622d194a4bfe157e50dfa5f99079ceed97d19ace4cb54067d2ed" },
+					"index.js": { "byteLength": 49, "sha256": "b6db53e997183ee97dd3f565ac0caea4d98f8f8d931c22ba91e0986700f760bc" },
+					"onnxruntime.dll": { "byteLength": 17378304, "sha256": "b9f6713c3602a4742680a7e6a77e3f9ac4a676ad9447bce609e53efcda795d7e" },
+					"onnxruntime_providers_shared.dll": { "byteLength": 104960, "sha256": "1f8b8ebfb07aad2c692669ba77c45b5a24e72b9c708bc3f2be4103ff29370c60" },
+					"package.json": { "byteLength": 1452, "sha256": "d5ead31ae6073298a4b3b72907ac507b60d08f5c1faa2c9dd3ad3ac36b4907c0" },
+					"sherpa-onnx-c-api.dll": { "byteLength": 4590592, "sha256": "223c0ad56b04e71df9dd4ce01e62ba0781771911987a6c302e4267b079d0a108" },
+					"sherpa-onnx-cxx-api.dll": { "byteLength": 258560, "sha256": "8349032fd2c183cdde0e72cc3e12535b0101a5d2be089a7edcb2dce2d9171fdb" },
+					"sherpa-onnx.node": { "byteLength": 671232, "sha256": "fe786f8424bd22bc2b1c1394f8c019d06d40aa88410f18ab56d5d225eb10cf51" }
+				}
+			}
+		},
+		"win-arm64": {
+			"status": "unsupported",
+			"blockedBy": "sherpa-onnx-node 1.13.5 publishes no Windows ARM64 native payload. Assistance remains unavailable on this target; editing remains complete."
+		}
+	}
+}

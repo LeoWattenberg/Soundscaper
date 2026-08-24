@@ -75,6 +75,7 @@ function createHarness(options: Partial<{
 					if (vendorFailure !== null) throw new Error(vendorFailure);
 					openRequests.push(request);
 					openedWindows.push(request.windowHandleId);
+					return request.windowHandleId;
 				},
 				closeVendorUi: (windowHandleId) => closedWindows.push(windowHandleId),
 			};

@@ -13,6 +13,8 @@ const DEFAULTS = Object.freeze({
 	modelsDirectory: null,
 	nativeProbeHelperEnabled: false,
 	nativeAudioHelperEnabled: false,
+	nativeAudioCalibrations: Object.freeze([]),
+	nativeAudioRoutePreference: null,
 	nativePluginDiscoveryEnabled: false,
 	nativeMediaEnabled: false,
 	nativeHardwareDecodeEnabled: false,
@@ -97,6 +99,39 @@ export class DesktopSettingsStore {
 			nativeAudioHelperEnabled: enabled === true,
 		}));
 		return settings.nativeAudioHelperEnabled;
+	}
+
+	resolveNativeAudioCalibration(identity) {
+		const normalized = nativeAudioCalibrationIdentity(identity);
+		const key = nativeAudioCalibrationKey(normalized);
+		const entry = this.#settings.nativeAudioCalibrations.find((candidate) => candidate.key === key);
+		return entry ? Math.round(entry.offsetMilliseconds * normalized.sampleRate / 1000) : null;
+	}
+
+	async persistNativeAudioCalibration(value) {
+		const identity = nativeAudioCalibrationIdentity(value?.identity);
+		const offsetFrames = boundedInteger(value?.offsetFrames, 0, 1_048_576, 'calibration frame offset');
+		const key = nativeAudioCalibrationKey(identity);
+		const entry = Object.freeze({
+			identity, key,
+			offsetMilliseconds: offsetFrames * 1000 / identity.sampleRate,
+			measuredAtEpochMs: Date.now(),
+		});
+		const settings = await this.#update((current) => ({
+			...current,
+			nativeAudioCalibrations: Object.freeze([
+				...current.nativeAudioCalibrations.filter((candidate) => candidate.key !== key), entry,
+			].sort((left, right) => right.measuredAtEpochMs - left.measuredAtEpochMs || compareCodeUnits(left.key, right.key)).slice(0, 64)),
+		}));
+		return settings.nativeAudioCalibrations.find((candidate) => candidate.key === key) ?? null;
+	}
+
+	async setNativeAudioRoutePreference(value) {
+		const preference = value === null ? null : nativeAudioRoutePreference(value);
+		const settings = await this.#update((current) => ({
+			...current, nativeAudioRoutePreference: preference,
+		}));
+		return settings.nativeAudioRoutePreference;
 	}
 
 	/** Native plug-in discovery stays off until the user turns it on. */
@@ -199,10 +234,109 @@ function validateSettings(value) {
 		modelsDirectory,
 		nativeProbeHelperEnabled: value.nativeProbeHelperEnabled === true,
 		nativeAudioHelperEnabled: value.nativeAudioHelperEnabled === true,
+		nativeAudioCalibrations: nativeAudioCalibrations(value.nativeAudioCalibrations),
+		nativeAudioRoutePreference: persistedNativeAudioRoutePreference(value.nativeAudioRoutePreference),
 		nativePluginDiscoveryEnabled: value.nativePluginDiscoveryEnabled === true,
 		nativeMediaEnabled: value.nativeMediaEnabled === true,
 		nativeHardwareDecodeEnabled: value.nativeHardwareDecodeEnabled === true,
 		nativeHardwareEncodeEnabled: value.nativeHardwareEncodeEnabled === true,
 		ofxConsentEnabled: value.ofxConsentEnabled === true,
 	};
+}
+
+const NATIVE_AUDIO_BACKENDS = Object.freeze(['coreaudio', 'wasapi', 'asio', 'pipewire', 'alsa', 'jack']);
+
+function nativeAudioCalibrations(value) {
+	if (!Array.isArray(value)) return Object.freeze([]);
+	const admitted = new Map();
+	for (const candidate of value.slice(0, 256)) {
+		try {
+			const identity = nativeAudioCalibrationIdentity(candidate?.identity);
+			const key = nativeAudioCalibrationKey(identity);
+			if (candidate?.key !== key || typeof candidate.offsetMilliseconds !== 'number'
+				|| !Number.isFinite(candidate.offsetMilliseconds) || candidate.offsetMilliseconds < 0
+				|| candidate.offsetMilliseconds > 2_000) continue;
+			const measuredAtEpochMs = boundedInteger(candidate.measuredAtEpochMs, 0, Number.MAX_SAFE_INTEGER, 'calibration time');
+			const entry = Object.freeze({ identity, key, offsetMilliseconds: candidate.offsetMilliseconds, measuredAtEpochMs });
+			const previous = admitted.get(key);
+			if (!previous || previous.measuredAtEpochMs <= measuredAtEpochMs) admitted.set(key, entry);
+		} catch { /* one stale or corrupt rig must not discard the remaining exact entries */ }
+	}
+	return Object.freeze([...admitted.values()]
+		.sort((left, right) => right.measuredAtEpochMs - left.measuredAtEpochMs || compareCodeUnits(left.key, right.key))
+		.slice(0, 64));
+}
+
+function nativeAudioCalibrationIdentity(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('A calibration identity is required.');
+	const backend = enumValue(value.backend, NATIVE_AUDIO_BACKENDS, 'native audio backend');
+	if (backend === 'jack') throw new TypeError('JACK is discovery-only and cannot identify a streaming calibration.');
+	const inputDeviceId = nativeAudioDeviceId(value.inputDeviceId, backend, 'in');
+	const outputDeviceId = nativeAudioDeviceId(value.outputDeviceId, backend, 'out');
+	return Object.freeze({
+		inputDeviceId, outputDeviceId, backend,
+		mode: enumValue(value.mode, ['shared', 'exclusive'], 'native audio mode'),
+		sampleRate: boundedInteger(value.sampleRate, 8_000, 768_000, 'sample rate'),
+		bufferFrames: boundedInteger(value.bufferFrames, 1, 16_384, 'buffer size'),
+	});
+}
+
+function nativeAudioCalibrationKey(identity) {
+	return `native-audio-calibration-v1:${JSON.stringify([
+		identity.inputDeviceId, identity.outputDeviceId, identity.backend, identity.mode,
+		identity.sampleRate, identity.bufferFrames,
+	])}`;
+}
+
+function nativeAudioDeviceId(value, backend, direction) {
+	if (typeof value !== 'string' || value.length > 512
+		|| !value.startsWith(`native:${backend}:${direction}:`) || /[\0/\\]/u.test(value)) {
+		throw new TypeError('A calibration device identity must be opaque and backend-scoped.');
+	}
+	return value;
+}
+
+function persistedNativeAudioRoutePreference(value) {
+	try { return value === null || value === undefined ? null : nativeAudioRoutePreference(value); }
+	catch { return null; }
+}
+
+function nativeAudioRoutePreference(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value) || !Array.isArray(value.candidates)
+		|| value.candidates.length < 1 || value.candidates.length > 4) {
+		throw new TypeError('A native audio route preference requires ordered candidates.');
+	}
+	const candidates = value.candidates.map((candidate) => {
+		const backend = enumValue(candidate?.backend, NATIVE_AUDIO_BACKENDS, 'native audio backend');
+		if (backend === 'jack') throw new TypeError('JACK is discovery-only and cannot be saved as a streaming route.');
+		if (typeof candidate?.deviceHandle !== 'string' || !candidate.deviceHandle
+			|| candidate.deviceHandle.length > 1_024 || /[\0/\\]/u.test(candidate.deviceHandle)) {
+			throw new TypeError('A saved native audio device handle must be opaque.');
+		}
+		return Object.freeze({ backend, deviceHandle: candidate.deviceHandle });
+	});
+	const mode = enumValue(value.mode, ['shared', 'exclusive'], 'native audio mode');
+	if (candidates.some((candidate) => candidate.backend === 'asio') && mode !== 'exclusive') throw new TypeError('ASIO route preferences are exclusive.');
+	return Object.freeze({
+		candidates: Object.freeze(candidates),
+		direction: enumValue(value.direction, ['input', 'output', 'duplex'], 'native audio direction'),
+		mode,
+		sampleRate: boundedInteger(value.sampleRate, 8_000, 768_000, 'sample rate'),
+		periodFrames: boundedInteger(value.periodFrames, 1, 16_384, 'period size'),
+		channelCount: boundedInteger(value.channelCount, 1, 32, 'channel count'),
+	});
+}
+
+function compareCodeUnits(left, right) {
+	return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function enumValue(value, values, label) {
+	if (typeof value !== 'string' || !values.includes(value)) throw new TypeError(`Invalid ${label}.`);
+	return value;
+}
+
+function boundedInteger(value, minimum, maximum, label) {
+	if (!Number.isSafeInteger(value) || value < minimum || value > maximum) throw new RangeError(`Invalid ${label}.`);
+	return value;
 }

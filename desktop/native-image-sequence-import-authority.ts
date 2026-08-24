@@ -52,6 +52,9 @@ import {
 	normalizeVideoSourceCharacteristicsV25,
 	type VideoSourceCharacteristicsV25,
 } from '../src/common/editor/video-source-professional-characteristics-v25.ts';
+import {
+	assertNativeImageSequenceRgba8DecodeCompatibility,
+} from '../src/common/editor/native-media-image-sequence-rgba8-admission.ts';
 import type {
 	FramescaperImageSequenceNativeAdmissionRequestV25,
 } from '../src/framescaper/editor-native-image-sequence-import-v25.ts';
@@ -97,7 +100,7 @@ export interface FramescaperNativeImageSequenceImportAuthorityOptions {
 		inventoryStorageKey: string;
 		sourcePackStorageKey: string;
 	}>) => Awaitable<boolean>;
-	readonly assetReferenced: (storageKey: string) => Awaitable<boolean>;
+	readonly assetReferenced: (storageKey: string, projectId?: string) => Awaitable<boolean>;
 	readonly mediaRuntime: Pick<FramescaperNativeMediaRuntime, 'available' | 'runJob'>;
 }
 
@@ -139,6 +142,7 @@ export type FramescaperNativeImageSequenceImportRequest =
 	| Readonly<{ operation: 'prepare-write'; transactionId: string; asset: AssetKind; offset: number; binding: HelperDataPlaneBinding }>
 	| Readonly<{ operation: 'await-write'; transactionId: string; asset: AssetKind; offset: number; streamId: string }>
 	| Readonly<{ operation: 'commit'; transactionId: string; asset: AssetKind; reference: Reference }>
+	| Readonly<{ operation: 'read'; transactionId: string; asset: AssetKind; offset: number; length: number }>
 	| Readonly<{ operation: 'admit'; transactionId: string; admission: FramescaperImageSequenceNativeAdmissionRequestV25 }>
 	| Readonly<{ operation: 'complete'; transactionId: string; sourceId: string; inventorySha256: string; sourcePackSha256: string }>
 	| Readonly<{ operation: 'discard'; transactionId: string }>;
@@ -162,6 +166,7 @@ export class FramescaperNativeImageSequenceImportAuthority {
 			case 'prepare-write': return this.#prepareWrite(owner, value);
 			case 'await-write': return this.#awaitWrite(owner, value);
 			case 'commit': return this.#commit(owner, value);
+			case 'read': return this.#read(owner, value);
 			case 'admit': return this.#admit(owner, value);
 			case 'complete': return this.#complete(owner, value);
 			case 'discard': return this.#discard(owner, value.transactionId);
@@ -218,7 +223,7 @@ export class FramescaperNativeImageSequenceImportAuthority {
 			catch { /* An unauthenticated transaction can own no trusted final object. */ }
 			for (const reference of manifest ? [manifest.pack, manifest.inventory] : []) {
 				if (!reference) continue;
-				if (await this.#options.assetReferenced(reference.storageKey)) assetsRetained += 1;
+				if (await this.#options.assetReferenced(reference.storageKey, manifest?.projectId)) assetsRetained += 1;
 				else if (await this.#removeAsset(reference)) assetsRemoved += 1;
 			}
 			await rm(directory, { recursive: true, force: true });
@@ -305,7 +310,7 @@ export class FramescaperNativeImageSequenceImportAuthority {
 			throw new Error('The image-sequence transaction capacity is exhausted.');
 		}
 		const generation = request.candidateGeneration;
-		if (generation !== 25 && generation !== 26) throw new TypeError('The candidate generation is unsupported.');
+		if (![25, 26, 28].includes(generation)) throw new TypeError('The candidate generation is unsupported.');
 		const projectId = framescaperNativeImageSequenceId(request.projectId, 'project ID');
 		const projectRevision = framescaperNativeImageSequenceInteger(request.projectRevision, 'project revision');
 		await this.#assertProject(projectId, generation, projectRevision);
@@ -370,6 +375,15 @@ export class FramescaperNativeImageSequenceImportAuthority {
 		return Object.freeze({ operation: 'committed', transactionId: transaction.id, asset: asset.kind, reference });
 	}
 
+	async #read(owner: object, request: Extract<FramescaperNativeImageSequenceImportRequest, { operation: 'read' }>): Promise<Uint8Array> {
+		const transaction = this.#owned(owner, request.transactionId);
+		const reference = assetFor(transaction, request.asset).reference;
+		if (!reference) throw new Error('Only a committed image-sequence transaction asset is readable.');
+		return this.readProjectBody({
+			storageKey: reference.storageKey, offset: request.offset, length: request.length,
+		});
+	}
+
 	async #admit(owner: object, request: Extract<FramescaperNativeImageSequenceImportRequest, { operation: 'admit' }>): Promise<unknown> {
 		const transaction = this.#owned(owner, request.transactionId);
 		await this.#assertEnabled();
@@ -413,6 +427,7 @@ export class FramescaperNativeImageSequenceImportAuthority {
 						validateResult: validateHelperProbeResult,
 					}));
 					const current = normalizeVideoSourceCharacteristicsV25(value.characteristics, { rate: admission.frameRate });
+					assertNativeImageSequenceRgba8DecodeCompatibility(current);
 					const verdict = evaluateNativeMediaProfileAdmission({
 						profileId: admission.profileId, source: current,
 						clearedPolicyRowIds: await this.#options.clearedPolicyRowIds(),
@@ -469,7 +484,9 @@ export class FramescaperNativeImageSequenceImportAuthority {
 		for (const asset of [transaction.pack, transaction.inventory]) {
 			await asset.handle?.close().catch(() => undefined);
 			asset.handle = null;
-			if (asset.reference && !await this.#options.assetReferenced(asset.reference.storageKey)) {
+			if (asset.reference && !await this.#options.assetReferenced(
+				asset.reference.storageKey, transaction.projectId,
+			)) {
 				await this.#removeAsset(asset.reference);
 			}
 		}

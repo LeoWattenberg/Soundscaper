@@ -26,7 +26,7 @@ test.describe('Framescaper selected-web nested-sequence authoring', () => {
 		await assertNestedMenuAccessibility(page, editor, browserName);
 		await saveProject(page, editor);
 		await expect.poll(() => storedNestedState(page, projectId)).toMatchObject({
-			schemaVersion: 27,
+			schemaVersion: 28,
 			sequenceIds: ['main-sequence', 'shared-sequence-1'],
 			subsequences: [],
 			requirementIds: [],

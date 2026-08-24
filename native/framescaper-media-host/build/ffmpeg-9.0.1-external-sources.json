@@ -1,0 +1,67 @@
+{
+	"schemaVersion": 1,
+	"sourceDateEpoch": 1786492800,
+	"activation": "blocked-policy",
+	"libraries": [
+		{
+			"id": "x264",
+			"version": "stable-b35605ac",
+			"revision": "b35605ace3ddf7c1a5d67a2eb553f034aef41d55",
+			"tag": null,
+			"url": "https://code.videolan.org/videolan/x264/-/archive/b35605ace3ddf7c1a5d67a2eb553f034aef41d55/x264-b35605ace3ddf7c1a5d67a2eb553f034aef41d55.tar.gz",
+			"byteLength": 1040327,
+			"sha256": "cd71a7515b0e9a012e1ac9b1f8415bebcaf6fc97d4db32286642ac4c0fbe24f9",
+			"extractedTree": {
+				"algorithm": "framescaper-portable-source-tree-sha256-v1",
+				"fileCount": 270,
+				"sha256": "076152c7f1d5923ec47da253de0d13e9881c3818dc53b4c1dfb0ea8505e0c4ad"
+			},
+			"ffmpegConfigureFlag": "--enable-libx264"
+		},
+		{
+			"id": "x265",
+			"version": "4.2",
+			"revision": "e444744c03978c1fb4e037168967020cf2648427",
+			"tag": "4.2",
+			"url": "https://bitbucket.org/multicoreware/x265_git/downloads/x265_4.2.tar.gz",
+			"byteLength": 1833442,
+			"sha256": "40b1ea0453e0309f0eba934e0ddf533f8f6295966679e8894e8f1c1c8d5e1210",
+			"extractedTree": {
+				"algorithm": "framescaper-portable-source-tree-sha256-v1",
+				"fileCount": 409,
+				"sha256": "fd3b109e8d617713fba18dfcbbef8c9a5135ee4dfc7321dba2b71f3b444809bb"
+			},
+			"ffmpegConfigureFlag": "--enable-libx265"
+		},
+		{
+			"id": "libvpx",
+			"version": "1.16.0",
+			"revision": "1024874c5919305883187e2953de8fcb4c3d7fa6",
+			"tag": "v1.16.0",
+			"url": "https://chromium.googlesource.com/webm/libvpx/+archive/refs/tags/v1.16.0.tar.gz",
+			"byteLength": 5683549,
+			"sha256": "c41cef6a4f18500a08df606a00d014707fac31c83f2788160bae51287ed027ab",
+			"extractedTree": {
+				"algorithm": "framescaper-portable-source-tree-sha256-v1",
+				"fileCount": 1250,
+				"sha256": "459375253b653cc26d057e102b134fb4ac3664a8eab5a01de87176d950a92594"
+			},
+			"ffmpegConfigureFlag": "--enable-libvpx"
+		},
+		{
+			"id": "libopus",
+			"version": "1.6",
+			"revision": "a8b13e40d751c7b40833b94fc9437c5c3439da89",
+			"tag": "v1.6",
+			"url": "https://downloads.xiph.org/releases/opus/opus-1.6.tar.gz",
+			"byteLength": 36317446,
+			"sha256": "b7637334527201fdfd6dd6a02e67aceffb0e5e60155bbd89175647a80301c92c",
+			"extractedTree": {
+				"algorithm": "framescaper-portable-source-tree-sha256-v1",
+				"fileCount": 482,
+				"sha256": "9c0e596e8baa8281d7728c8d27d3ae98624de30254bf9767f07b4d76a1a9869a"
+			},
+			"ffmpegConfigureFlag": "--enable-libopus"
+		}
+	]
+}

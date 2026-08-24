@@ -6,17 +6,18 @@ import {
 	HELPER_CONTRACT_VERSION,
 	HELPER_HEARTBEAT_INTERVAL_MS,
 	serializeHelperError,
-	type HelperOfxHostJobGrant,
 	type HelperOfxScanJobGrant,
 	validateHelperHostMessage,
 	validateHelperProcessMessage,
 } from './helper-contract.ts';
+import type { HelperOfxHostJobGrantV1OrV2 } from './helper-native-ofx-host-grant-v2.ts';
+import { isHelperOfxInteractJobGrantV1 } from './helper-native-ofx-interact-grant.ts';
 import type { HelperDataPlaneIoPort } from './helper-data-plane-io.ts';
 import type { FramescaperOpenFxHelperMode } from './framescaper-openfx-runtime.ts';
 
 export interface OpenFxHelperJobRequest {
 	readonly kind: 'ofx-scan' | 'ofx-host';
-	readonly grant: HelperOfxScanJobGrant | HelperOfxHostJobGrant;
+	readonly grant: HelperOfxScanJobGrant | HelperOfxHostJobGrantV1OrV2;
 	readonly ports: readonly HelperDataPlaneIoPort[];
 }
 
@@ -87,7 +88,7 @@ export function createOpenFxHelperWorker(options: OpenFxHelperWorkerOptions) {
 			|| !Array.isArray(ports)
 			|| ports.length !== openFxHelperTransferredPortCount(
 				message.kind as 'ofx-scan' | 'ofx-host',
-				message.grant as HelperOfxScanJobGrant | HelperOfxHostJobGrant,
+				message.grant as HelperOfxScanJobGrant | HelperOfxHostJobGrantV1OrV2,
 			)) {
 			dispose(1);
 			return;
@@ -96,7 +97,7 @@ export function createOpenFxHelperWorker(options: OpenFxHelperWorkerOptions) {
 		try {
 			handle = options.runner.run({
 				kind,
-				grant: message.grant as HelperOfxScanJobGrant | HelperOfxHostJobGrant,
+				grant: message.grant as HelperOfxScanJobGrant | HelperOfxHostJobGrantV1OrV2,
 				ports: ports as readonly HelperDataPlaneIoPort[],
 			});
 		} catch (error) {
@@ -158,9 +159,10 @@ export function createOpenFxHelperWorker(options: OpenFxHelperWorkerOptions) {
 
 export function openFxHelperTransferredPortCount(
 	kind: 'ofx-scan' | 'ofx-host',
-	grant: HelperOfxScanJobGrant | HelperOfxHostJobGrant,
+	grant: HelperOfxScanJobGrant | HelperOfxHostJobGrantV1OrV2,
 ): number {
 	if (kind === 'ofx-scan') return 1;
-	const host = grant as HelperOfxHostJobGrant;
+	const host = grant as HelperOfxHostJobGrantV1OrV2;
+	if (isHelperOfxInteractJobGrantV1(host)) return 0;
 	return 2 + (host.videoTimingAssets?.length ?? 0) + host.inputs.length;
 }

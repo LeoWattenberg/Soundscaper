@@ -14,6 +14,8 @@ import { dirname, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { COMMITTED_LOCALE_TAGS } from '../src/common/i18n/locales.js';
+import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
+import { stageAssistanceNativeRuntimePayload } from '../desktop/assistance-native-runtime-payload.mjs';
 import { generateDesktopIcon } from './desktop-icons.mjs';
 import {
 	compileDesktopProjectLibraryRuntime,
@@ -35,6 +37,11 @@ import {
 	stageVerifiedFramescaperNativeHostPayloads,
 	verifyFramescaperNativeHostPayloads,
 } from './lib/framescaper-native-host-payload-staging.mjs';
+import {
+	professionalNativePayloadOutputRoot,
+	stageVerifiedSoundscaperProfessionalNativePayload,
+	verifySoundscaperProfessionalNativePayload,
+} from './lib/soundscaper-professional-native-payload.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BUILD_ROOT = resolve(ROOT, '.desktop-build');
@@ -49,16 +56,22 @@ const DEFAULT_TRANSLATIONS_URL = 'https://translations.soundscaper.org/runtime/t
 // against these shipped registers. Executable payloads stay outside the asar;
 // only their authenticated pins live inside it.
 const ASSISTANCE_REGISTERS = Object.freeze([
+	'config/assistance-native-runtime-manifest.json',
 	'config/ffmpeg-runtime-manifest.json',
 	'config/framescaper-media-host-payload-manifest.json',
 	'config/framescaper-openfx-host-payload-manifest.json',
 	'config/local-model-catalog.json',
+	'config/milestone-5-native-isolation-review-policy.json',
+	'config/milestone-5-package-release-authentication-policy.json',
+	'config/milestone-5-native-source-acquisitions.json',
 	'config/native-addon-payload-manifest.json',
 	'config/production-licensing-matrix.json',
+	'config/soundscaper-professional-native-payload-manifest.json',
 ]);
 const PRODUCT_ID = process.env.SCAPE_PRODUCT === 'framescaper' ? 'framescaper' : 'soundscaper';
 const PRODUCT_NAME = PRODUCT_ID === 'framescaper' ? 'Framescaper' : 'Soundscaper';
 const APP_SCHEME = PRODUCT_ID === 'framescaper' ? 'framescaper-app' : 'soundscaper-app';
+const SOURCE_REVISION = /^(?:[a-f\d]{40}|[a-f\d]{64})$/u;
 
 async function main() {
 	const projectPackage = parseJson(await readFile(resolve(ROOT, 'package.json')), 'package.json');
@@ -84,6 +97,13 @@ async function main() {
 			targetSource: nativeTarget.source,
 		})
 		: null;
+	const soundscaperProfessionalNativeRelease = PRODUCT_ID === 'soundscaper'
+		? await verifySoundscaperProfessionalNativePayload({
+			repositoryRoot: ROOT,
+			target: nativeTarget.id,
+			targetSource: nativeTarget.source,
+		})
+		: null;
 	await admitDesktopFfmpegAssembly({
 		repositoryRoot: ROOT,
 		assemble: async (ffmpegRelease) => {
@@ -94,7 +114,21 @@ async function main() {
 				outputRoot: DESKTOP_RUNTIME_ROOT,
 			});
 			const ffmpeg = await stageFfmpeg(ffmpegRelease);
+			const assistanceNativeRuntime = await stageAssistanceNativeRuntimePayload({
+				manifest: assistanceNativeRuntimeManifest,
+				targetId: nativeTarget.id,
+				nodeModulesRoot: resolve(ROOT, 'node_modules'),
+				outputRoot: RUNTIME_ROOT,
+			});
 			const nativeAddons = await stageNativeAddons(nativeAddonRelease);
+			const soundscaperProfessionalNative = soundscaperProfessionalNativeRelease === null
+				? null
+				: await stageVerifiedSoundscaperProfessionalNativePayload({
+					release: soundscaperProfessionalNativeRelease,
+					outputRoot: professionalNativePayloadOutputRoot(
+						RUNTIME_ROOT, soundscaperProfessionalNativeRelease,
+					),
+				});
 			const framescaperNativeHosts = framescaperNativeHostRelease === null
 				? null
 				: await stageVerifiedFramescaperNativeHostPayloads({
@@ -112,13 +146,13 @@ async function main() {
 				schemaVersion: 1,
 				productId: PRODUCT_ID,
 				applicationVersion: projectPackage.version,
-				target: {
-					platform: process.env.SOUNDSCAPER_DESKTOP_TARGET_PLATFORM?.trim() || null,
-					arch: process.env.SOUNDSCAPER_DESKTOP_TARGET_ARCH?.trim() || null,
-				},
+				sourceRevision: resolveDesktopSourceRevision(),
+				target: resolveDesktopStageTarget(nativeTarget),
 				desktopRuntime,
+				assistanceNativeRuntime,
 				ffmpeg,
 				nativeAddons,
+				soundscaperProfessionalNative,
 				framescaperNativeHosts,
 				translations,
 			};
@@ -126,6 +160,22 @@ async function main() {
 			console.log(`Prepared ${PRODUCT_NAME} desktop ${projectPackage.version} in ${BUILD_ROOT}`);
 		},
 	});
+}
+
+export function resolveDesktopSourceRevision(
+	value = process.env.SOUNDSCAPER_SOURCE_REVISION,
+) {
+	const revision = value?.trim() ?? '';
+	if (revision === '') return null;
+	assert(SOURCE_REVISION.test(revision), 'Desktop source revision must be one Git object ID.');
+	return revision;
+}
+
+export function resolveDesktopStageTarget(nativeTarget) {
+	const match = /^(linux|mac|win)-(x64|arm64)$/u.exec(String(nativeTarget?.id ?? ''));
+	assert(match !== null && ['declared', 'build-host'].includes(nativeTarget?.source),
+		'Resolved desktop target is invalid.');
+	return { platform: match[1], arch: match[2] };
 }
 
 export async function admitDesktopFfmpegAssembly({ repositoryRoot = ROOT, assemble }) {

@@ -5,6 +5,7 @@ import {
 	normalizeVideoSourceCharacteristics,
 	type VideoSourceCharacteristics,
 } from './video-source-characteristics.ts';
+import { normalizeVideoSourceCharacteristicsForConsumer } from './video-source-characteristics-consumer.ts';
 import { normalizeVideoTimingAssetReference } from './video-timing-asset-reference.ts';
 import type { ResolvedVideoTimingProbe } from './video-timing-probe.ts';
 
@@ -252,7 +253,40 @@ function upgradeCharacteristics(
 	const extractedAudioStreamIndex = source.hasAudio === true && streams?.length === 1
 		? streams[0].index
 		: null;
-	return normalizeVideoSourceCharacteristics({ ...probed, extractedAudioStreamIndex }, { rate });
+	const reading = normalizeVideoSourceCharacteristics({ ...probed, extractedAudioStreamIndex }, { rate });
+	const existing = normalizeVideoSourceCharacteristicsForConsumer(
+		source.characteristics ?? null,
+		{ rate },
+	);
+	return sameValue(reading, historicalCharacteristicsProjection(existing, rate))
+		? existing
+		: reading;
+}
+
+/** Compare V14 probe output with only the inherited fields of the in-place V25 extension. */
+function historicalCharacteristicsProjection(
+	characteristics: VideoSourceCharacteristics,
+	rate: RationalRate,
+): VideoSourceCharacteristics {
+	return normalizeVideoSourceCharacteristics({
+		backend: characteristics.backend,
+		codedWidth: characteristics.codedWidth,
+		codedHeight: characteristics.codedHeight,
+		rotationDegrees: characteristics.rotationDegrees,
+		pixelAspectRatio: characteristics.pixelAspectRatio,
+		fieldOrder: characteristics.fieldOrder,
+		hasAlpha: characteristics.hasAlpha,
+		videoCodec: characteristics.videoCodec,
+		colour: {
+			primaries: characteristics.colour.primaries,
+			transfer: characteristics.colour.transfer,
+			matrix: characteristics.colour.matrix,
+			range: characteristics.colour.range,
+		},
+		audioStreams: characteristics.audioStreams,
+		extractedAudioStreamIndex: characteristics.extractedAudioStreamIndex,
+		startTimecode: characteristics.startTimecode,
+	}, { rate });
 }
 
 function upgradeTimingAsset(value: unknown, frameCount: number, source: DataRecord): DataRecord {

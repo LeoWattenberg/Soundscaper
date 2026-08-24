@@ -12,6 +12,10 @@ import type {
 	EngineSourceResolver,
 	UnknownRecord,
 } from './types.ts';
+import type {
+	EngineNativeEffectPdcCommit,
+	EngineNativeEffectPdcRevision,
+} from './native-effect-pdc-control.ts';
 
 export interface EngineAudioContext extends AudioContext {
 	setSinkId?(deviceId: string): Promise<void>;
@@ -187,6 +191,7 @@ export interface EnginePublicApi {
 	setLoop(loopOrEnabled: EngineLoop | boolean, startFrame?: number, endFrame?: number): NormalizedLoop;
 	getPositionFrames(): number;
 	getState(): EngineStateSnapshot;
+	commitNativeEffectPdcRevision(request: EngineNativeEffectPdcRevision): EngineNativeEffectPdcCommit;
 	subscribePosition(listener: (frame: number, durationFrames: number) => void): () => boolean | void;
 	subscribeMeters(listener: (meter: EngineMeterSnapshot) => void): () => boolean | void;
 	subscribeState(listener: (state: string) => void): () => boolean | void;

@@ -22,19 +22,29 @@ test('the native plug-in hosting row describes the out-of-process host that ship
 	assert.ok(fence, 'the surface fence must say what is and is not reachable');
 	assert.match(
 		fence.summary,
-		/every renderer plug-in channel the preload exposes is discovery-side.*availability, per-format consent, scan, inventory and quarantine clearance.*none of them instantiates, hosts, or renders/iu,
+		/Soundscaper V29.*insert.*native-plugin.*persistent supervised host.*real-time and offline.*V21 PDC.*vendor window/iu,
 	);
 	assert.match(
 		fence.summary,
-		/no production caller mints a plug-in-host grant.*PluginHostIsolationRegistry.*hostGrantFor.*tests/iu,
+		/Framescaper V28.*scan, enable and Add OFX.*context-aware V14 frame graph.*all six contexts.*Interact Suite V1.*DrawSuite V1/iu,
 	);
-	assert.match(fence.summary, /VST3, CLAP, Audio Units and LV2 remain fail-closed.*fixture/iu);
+	assert.match(fence.summary, /VST3, CLAP, Audio Units, LV2 and OpenFX remain fail-closed.*fixture/iu);
+	assert.match(fence.summary, /launcher source.*no authenticated built target payload\/launcher.*signed readiness/iu);
 	assertEvidence(fence, [
 		'desktop/preload.mjs',
 		'desktop/plugin-registration.mjs',
 		'desktop/plugin-registry.ts',
+		'desktop/plugin-host-service.ts',
+		'desktop/native-audio-session-service.ts',
+		'desktop/plugin-vendor-window-authority.mjs',
+		'desktop/native-child-isolation-launcher.ts',
+		'src/soundscaper/editor-native-plugin-actions-v29.ts',
+		'src/framescaper/editor-openfx-frame-graph-v28.ts',
 		'tests/desktop-protocol.test.js',
 		'tests/desktop-plugin-registry.test.ts',
+		'tests/desktop-plugin-host-service.test.ts',
+		'tests/desktop-native-child-isolation-launcher.test.ts',
+		'tests/audio-editor-framescaper-v28-openfx-frame-graph.test.ts',
 		'tests/production-licensing-matrix.test.js',
 	]);
 
@@ -121,17 +131,17 @@ test('the native plug-in hosting row keeps its gaps unsoftened', async () => {
 	assert.ok(authority, 'ambient authority must remain a named residual risk');
 	assert.match(
 		authority.exposure,
-		/dlopen.*user account's full authority.*no operating-system sandbox.*crash containment.*not a hostile-code boundary/iu,
+		/launcher source.*Linux namespaces\/Landlock\/seccomp.*macOS Seatbelt.*Windows AppContainer.*no authenticated built launcher.*crash containment.*(?:not|rather than) a demonstrated hostile-code boundary/iu,
 	);
-	assert.match(authority.exposure, /no signature or publisher-verification channel/iu);
+	assert.match(authority.exposure, /no accepted signature or publisher-verification channel/iu);
 
 	const unexercised = residuals.get('unexercised-plugin-hosting-gates');
 	assert.ok(unexercised, 'the unexercised hosting gates must remain a named residual risk');
 	assert.match(
 		unexercised.exposure,
-		/hosting gates above have no production caller.*exercised only by tests.*real-time hosting.*PDC handoff.*vendor-UI lifecycle.*crash recovery.*unproven end to end/iu,
+		/product callers.*Soundscaper V29.*real-time and offline hosting.*V21 PDC.*vendor-window lifecycle.*Framescaper V28.*all six contexts/iu,
 	);
-	assert.match(unexercised.exposure, /linux-x64.*fixture-format host tests skip/iu);
+	assert.match(unexercised.exposure, /external source audit is 0\/10.*OpenFX payload manifest is empty.*no authenticated built per-OS launcher.*no shipped process/iu);
 	for (const residual of risk.residualRisks) {
 		assert.ok(residual.requiredControl.length > 0, residual.id);
 		assert.ok(residual.acceptanceCriteria.length > 0, residual.id);
@@ -147,26 +157,26 @@ test('the native helper row stops describing hosting and device opening as absen
 	assert.doesNotMatch(residual.exposure, /opens no operating-system device/iu);
 	assert.match(
 		residual.exposure,
-		/plug-in scan and plug-in host job kinds are implemented.*no product surface reaches the device-open or hosting path/iu,
+		/Soundscaper V29\/V11.*native audio.*native-effect hosting.*Framescaper V28\/V14\/V19.*persistent services V3.*native media.*OpenFX frame graph/iu,
 	);
+	assert.match(residual.exposure, /0\/10.*all five Soundscaper professional rows.*both Framescaper payload manifests are empty.*zero accepted cohorts/iu);
 	assert.match(residual.acceptanceCriteria.join(' '), /m5-helper-fault-and-loopback-v1/u);
 });
 
-test('the threat-model narrative audits the hosting path instead of calling it out of scope', async () => {
+test('the threat-model narrative separates implemented hosting from external activation', async () => {
 	const threatModel = (await readFile(threatModelUrl, 'utf8')).replace(/\s+/gu, ' ');
 	assert.doesNotMatch(threatModel, /plug-in hosting remain out of scope/iu);
 	assert.doesNotMatch(threatModel, /discovers operating-system audio backends and opens no device/iu);
 	assert.match(
 		threatModel,
-		/planned and surface-disabled.*not offered to users.*not that no hosting code exists/iu,
+		/planned and surface-disabled.*not activated.*not (?:because|that) no product hosting code exists/iu,
 	);
 	assert.match(
 		threatModel,
-		/desktop\/plugin-host-isolation\.ts.*desktop\/native-helper-host-job\.js.*native\/soundscaper-helper-addon\/src\/plugin_host\.c.*must audit/iu,
+		/Soundscaper V29.*real-time and offline.*V21 PDC.*vendor.*Framescaper V28.*all six contexts.*Interact Suite V1.*DrawSuite V1/iu,
 	);
-	assert.match(threatModel, /`dlopen`s the bytes with `RTLD_NOW \| RTLD_LOCAL` inside its own utility process/iu);
-	assert.match(threatModel, /opens PipeWire and ALSA streams through an ordered candidate chain/iu);
-	assert.match(threatModel, /no helper job kind reaches that open path yet/iu);
+	assert.match(threatModel, /0\/10.*payload.*pending-external.*zero accepted cohorts/iu);
+	assert.match(threatModel, /launcher source.*Landlock.*Seatbelt.*AppContainer.*no authenticated built/iu);
 });
 
 function assertEvidence(control, paths) {

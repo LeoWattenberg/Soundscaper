@@ -1,8 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
-	projectEffectTailFrames,
-} from '../effects.js';
 import { projectHasAuthoredAudioWarp, renderExactAudioWarpToSink } from './audio-warp-fallback.ts';
 import {
 	createAsyncPlanarPcmSinkQueue,
@@ -16,8 +13,6 @@ import {
 import {
 	clamp,
 	clampFrame,
-	DEFAULT_SAMPLE_RATE,
-	MAX_EFFECT_TAIL_SECONDS,
 	positiveInteger,
 	sliceAudioBuffer,
 } from './buffer-math.ts';
@@ -62,45 +57,12 @@ import type {
 	EngineRuntimeMethodMap,
 	EngineRuntimeHost,
 } from './runtime-types.ts';
-import type { EngineProject } from './types.ts';
-
-const typedProjectEffectTailFrames = projectEffectTailFrames as (
-	project: EngineProject,
-	options?: Readonly<{
-		trackId?: unknown;
-		includeMaster?: boolean;
-		maximumSeconds?: number;
-	}>,
-) => number;
-
-function resolveTailSeconds(
-	project: EngineProject,
-	includeTail: boolean | number,
-	{ trackId = null, includeMaster = true }: Readonly<{
-		trackId?: unknown;
-		includeMaster?: boolean;
-	}> = {},
-): number {
-	if (!includeTail) return 0;
-	if (typeof includeTail === 'number' && Number.isFinite(includeTail)) {
-		return clamp(includeTail, 0, MAX_EFFECT_TAIL_SECONDS);
-	}
-	const sampleRate = project?.sampleRate || DEFAULT_SAMPLE_RATE;
-	return typedProjectEffectTailFrames(project, {
-		trackId: trackId == null ? null : String(trackId),
-		includeMaster,
-		maximumSeconds: MAX_EFFECT_TAIL_SECONDS,
-	}) / sampleRate;
-}
-
-function realtimeRenderUnderrunError(details: ScheduledChunkStreamUnderrun): Error {
-	const error = Object.assign(new Error('A streamed source underrun made the realtime render incomplete.'), {
-		code: 'REALTIME_RENDER_UNDERRUN',
-		details: Object.freeze({ ...details }),
-	});
-	error.name = 'RealtimeRenderUnderrunError';
-	return error;
-}
+import {
+	admitNativePluginRealtimeRender,
+	prepareNativePluginOfflineRuntimes,
+	renderNativePluginRealtimePcmIfRequired,
+} from './native-plugin-realtime-render.ts';
+import { realtimeRenderUnderrunError, resolveRenderTailSeconds } from './rendering-range.ts';
 
 export const engineRenderingMethods = {
 async renderMix(this: EngineRuntimeHost, {
@@ -117,12 +79,17 @@ async renderMix(this: EngineRuntimeHost, {
 		onProgress = null,
 	} = {}) {
 		if (!this.project) throw new Error('Load an audio editor project before rendering.');
+		const native = await renderNativePluginRealtimePcmIfRequired(this, {
+			startFrame, endFrame, includeTail, trackId, includeMaster, includeTrackPan,
+			respectMuteSolo, outputFrames: requestedOutputFrames, preRollFrames, signal, onProgress,
+		});
+		if (native) return native;
 		throwIfAborted(signal);
 		const fromFrame = clampFrame(startFrame, 0, this.durationFrames);
 		const toFrame = clampFrame(endFrame, fromFrame, this.durationFrames);
 		const renderFromFrame = Math.max(0, fromFrame - clampFrame(preRollFrames, 0, fromFrame));
 		const warmupFrames = fromFrame - renderFromFrame;
-		const tailFrames = Math.round(resolveTailSeconds(this.project, includeTail, { trackId, includeMaster }) * this.sampleRate);
+		const tailFrames = Math.round(resolveRenderTailSeconds(this.project, includeTail, { trackId, includeMaster }) * this.sampleRate);
 		const processingLatencyFrames = projectGraphLatencyFrames(this.project, {
 			trackId,
 			includeMaster,
@@ -246,6 +213,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		signal,
 	} = {}) {
 		if (!this.project) throw new Error('Load an audio editor project before rendering.');
+		admitNativePluginRealtimeRender(this.project, { trackId, includeMaster });
 		if (typeof onChunk !== 'function') throw new TypeError('Realtime rendering requires an onChunk callback.');
 		if (signal?.aborted) throw createAbortError();
 		if (projectHasAuthoredAudioWarp(this.project)
@@ -260,7 +228,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		const toFrame = clampFrame(endFrame, fromFrame, this.durationFrames);
 		const renderFromFrame = Math.max(0, fromFrame - clampFrame(preRollFrames, 0, fromFrame));
 		const warmupProjectFrames = fromFrame - renderFromFrame;
-		const tailFrames = Math.round(resolveTailSeconds(this.project, includeTail, { trackId, includeMaster }) * this.sampleRate);
+		const tailFrames = Math.round(resolveRenderTailSeconds(this.project, includeTail, { trackId, includeMaster }) * this.sampleRate);
 		const outputChannelCount = clamp(positiveInteger(this.project.masterChannels, 2), 1, 32);
 		const sinkAdmission = planRealtimePcmSinkQueueAdmission({
 			channelCount: outputChannelCount,
@@ -288,9 +256,11 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		let capture = null;
 		let silent = null;
 		let graph: ProjectGraph | null = null;
+		let nativeRuntimes: Awaited<ReturnType<typeof prepareNativePluginOfflineRuntimes>> | null = null;
 		try {
 			await context.audioWorklet.addModule(new URL('../render-capture-worklet.js', import.meta.url));
 			await ensureProjectWorklets(context, this.project);
+			nativeRuntimes = await prepareNativePluginOfflineRuntimes(context, this.project, { trackId, includeMaster });
 			outputFrames = requestedOutputFrames == null
 				? Math.max(1, scaleSampleFrame(
 						toFrame - fromFrame + tailFrames, this.sampleRate, context.sampleRate, 'point',
@@ -335,11 +305,13 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 					failParametricEqRender?.(parametricEqFailure);
 				},
 			});
+			await nativeRuntimes.activate();
 		} catch (error) {
 			if (graph) disposeGraph(graph, true);
 			try { capture?.disconnect(); } catch { /* The capture node may not have connected. */ }
 			try { silent?.disconnect(); } catch { /* The silent node may not have connected. */ }
 			if (context.state !== 'closed') await context.close?.();
+			await nativeRuntimes?.dispose();
 			throw parametricEqFailure || error;
 		}
 		const abortGraph = () => graph.abortController.abort();
@@ -383,6 +355,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 			try { capture.disconnect(); } catch { /* Already disconnected. */ }
 			try { silent.disconnect(); } catch { /* Already disconnected. */ }
 			if (context.state !== 'closed') await context.close?.();
+			await nativeRuntimes?.dispose();
 			throw streamUnderrunFailure || parametricEqFailure || error;
 		}
 
@@ -551,6 +524,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 				closeFailed = true;
 				closeFailure = error;
 			}
+			await nativeRuntimes?.dispose();
 			if (queue.state !== 'finished') {
 				queue.abort(renderFailed ? renderFailure : closeFailed ? closeFailure : createAbortError());
 			}

@@ -14,6 +14,7 @@
 #include <ofxGPURender.h>
 #include <ofxImageEffect.h>
 #include <ofxInteract.h>
+#include <ofxKeySyms.h>
 #include <ofxMemory.h>
 #include <ofxMessage.h>
 #include <ofxMultiThread.h>
@@ -194,6 +195,15 @@ struct OfxParametricParameterSuiteV1 {
 	OfxStatus (*parametricParamDeleteAllControlPoints)(OfxParamHandle, int);
 };
 
+struct OfxImageEffectOpenGLRenderSuiteV1 {
+	OfxStatus (*clipLoadTexture)(OfxImageClipHandle, OfxTime, const char*, const OfxRectD*, OfxPropertySetHandle*);
+	OfxStatus (*clipFreeTexture)(OfxPropertySetHandle);
+	OfxStatus (*flushResources)();
+};
+struct OfxOpenCLProgramSuiteV1 {
+	OfxStatus (*compileProgram)(const char*, int, void*);
+};
+
 #define kOfxStatOK 0
 #define kOfxStatFailed 1
 #define kOfxStatErrFatal 2
@@ -206,6 +216,8 @@ struct OfxParametricParameterSuiteV1 {
 #define kOfxStatErrBadIndex 10
 #define kOfxStatErrValue 11
 #define kOfxStatReplyDefault 14
+#define kOfxStatGPUOutOfMemory 1001
+#define kOfxStatGPURenderFailed 1002
 #define kOfxImageEffectPluginApi "OfxImageEffectPluginAPI"
 #define kOfxImageEffectPluginApiVersion 1
 #define kOfxPropertySuite "OfxPropertySuite"
@@ -220,6 +232,8 @@ struct OfxParametricParameterSuiteV1 {
 #define kOfxInteractSuite "OfxInteractSuite"
 #define kOfxDrawSuite "OfxDrawSuite"
 #define kOfxParametricParameterSuite "OfxParametricParameterSuite"
+#define kOfxOpenGLRenderSuite "OfxImageEffectOpenGLRenderSuite"
+#define kOfxOpenCLProgramSuite "OfxOpenCLProgramSuite"
 #define kOfxActionLoad "OfxActionLoad"
 #define kOfxActionUnload "OfxActionUnload"
 #define kOfxActionDescribe "OfxActionDescribe"
@@ -230,7 +244,15 @@ struct OfxParametricParameterSuiteV1 {
 #define kOfxActionEndInstanceChanged "OfxActionEndInstanceChanged"
 #define kOfxActionSyncPrivateData "OfxActionSyncPrivateData"
 #define kOfxActionPurgeCaches "OfxActionPurgeCaches"
-#define kOfxInteractActionDraw "OfxInteractActionDraw"
+	#define kOfxInteractActionDraw "OfxInteractActionDraw"
+	#define kOfxInteractActionPenMotion "OfxInteractActionPenMotion"
+	#define kOfxInteractActionPenDown "OfxInteractActionPenDown"
+	#define kOfxInteractActionPenUp "OfxInteractActionPenUp"
+	#define kOfxInteractActionKeyDown "OfxInteractActionKeyDown"
+	#define kOfxInteractActionKeyUp "OfxInteractActionKeyUp"
+	#define kOfxInteractActionKeyRepeat "OfxInteractActionKeyRepeat"
+	#define kOfxInteractActionGainFocus "OfxInteractActionGainFocus"
+	#define kOfxInteractActionLoseFocus "OfxInteractActionLoseFocus"
 #define kOfxImageEffectActionDescribeInContext "OfxImageEffectActionDescribeInContext"
 #define kOfxImageEffectActionGetRegionOfDefinition "OfxImageEffectActionGetRegionOfDefinition"
 #define kOfxImageEffectActionGetRegionsOfInterest "OfxImageEffectActionGetRegionsOfInterest"
@@ -240,6 +262,8 @@ struct OfxParametricParameterSuiteV1 {
 #define kOfxImageEffectActionBeginSequenceRender "OfxImageEffectActionBeginSequenceRender"
 #define kOfxImageEffectActionRender "OfxImageEffectActionRender"
 #define kOfxImageEffectActionEndSequenceRender "OfxImageEffectActionEndSequenceRender"
+#define kOfxActionOpenGLContextAttached "OfxActionOpenGLContextAttached"
+#define kOfxActionOpenGLContextDetached "kOfxActionOpenGLContextDetached"
 #define kOfxImageEffectContextGenerator "OfxImageEffectContextGenerator"
 #define kOfxImageEffectContextFilter "OfxImageEffectContextFilter"
 #define kOfxImageEffectContextTransition "OfxImageEffectContextTransition"
@@ -250,12 +274,56 @@ struct OfxParametricParameterSuiteV1 {
 #define kOfxImageEffectPropSupportedContexts "OfxImageEffectPropSupportedContexts"
 #define kOfxImageEffectPropSupportedPixelDepths "OfxImageEffectPropSupportedPixelDepths"
 #define kOfxImageEffectPropSupportedComponents "OfxImageEffectPropSupportedComponents"
-#define kOfxImageEffectPluginPropOverlayInteractV2 "OfxImageEffectPluginPropOverlayInteractV2"
-#define kOfxInteractPropDrawContext "OfxInteractPropDrawContext"
+	#define kOfxImageEffectPluginPropOverlayInteractV2 "OfxImageEffectPluginPropOverlayInteractV2"
+	#define kOfxInteractPropDrawContext "OfxInteractPropDrawContext"
+	#define kOfxInteractPropPixelScale "OfxInteractPropPixelScale"
+	#define kOfxInteractPropBackgroundColour "OfxInteractPropBackgroundColour"
+	#define kOfxInteractPropSuggestedColour "OfxInteractPropSuggestedColour"
+	#define kOfxInteractPropPenPosition "OfxInteractPropPenPosition"
+	#define kOfxInteractPropPenViewportPosition "OfxInteractPropPenViewportPosition"
+	#define kOfxInteractPropPenPressure "OfxInteractPropPenPressure"
+	#define kOfxInteractPropBitDepth "OfxInteractPropBitDepth"
+	#define kOfxInteractPropHasAlpha "OfxInteractPropHasAlpha"
+	#define kOfxPropKeySym "kOfxPropKeySym"
+	#define kOfxPropKeyString "kOfxPropKeyString"
+	#define kOfxKey_Unknown 0x0
+	#define kOfxKey_BackSpace 0xFF08
+	#define kOfxKey_Tab 0xFF09
+	#define kOfxKey_Return 0xFF0D
+	#define kOfxKey_Escape 0xFF1B
+	#define kOfxKey_Home 0xFF50
+	#define kOfxKey_Left 0xFF51
+	#define kOfxKey_Up 0xFF52
+	#define kOfxKey_Right 0xFF53
+	#define kOfxKey_Down 0xFF54
+	#define kOfxKey_Page_Up 0xFF55
+	#define kOfxKey_Page_Down 0xFF56
+	#define kOfxKey_End 0xFF57
+	#define kOfxKey_Insert 0xFF63
+	#define kOfxKey_KP_Enter 0xFF8D
+	#define kOfxKey_Delete 0xFFFF
 #define kOfxPropEffectInstance "OfxPropEffectInstance"
 #define kOfxPropTime "OfxPropTime"
 #define kOfxImageEffectPropRenderScale "OfxImageEffectPropRenderScale"
 #define kOfxImageEffectPropRenderWindow "OfxImageEffectPropRenderWindow"
+#define kOfxImageEffectPropCPURenderSupported "OfxImageEffectPropCPURenderSupported"
+#define kOfxImageEffectPropOpenGLRenderSupported "OfxImageEffectPropOpenGLRenderSupported"
+#define kOfxOpenGLPropPixelDepth "OfxOpenGLPropPixelDepth"
+#define kOfxImageEffectPropOpenGLEnabled "OfxImageEffectPropOpenGLEnabled"
+#define kOfxImageEffectPropOpenGLTextureIndex "OfxImageEffectPropOpenGLTextureIndex"
+#define kOfxImageEffectPropOpenGLTextureTarget "OfxImageEffectPropOpenGLTextureTarget"
+#define kOfxImageEffectPropCudaRenderSupported "OfxImageEffectPropCudaRenderSupported"
+#define kOfxImageEffectPropCudaEnabled "OfxImageEffectPropCudaEnabled"
+#define kOfxImageEffectPropCudaStreamSupported "OfxImageEffectPropCudaStreamSupported"
+#define kOfxImageEffectPropCudaStream "OfxImageEffectPropCudaStream"
+#define kOfxImageEffectPropMetalRenderSupported "OfxImageEffectPropMetalRenderSupported"
+#define kOfxImageEffectPropMetalEnabled "OfxImageEffectPropMetalEnabled"
+#define kOfxImageEffectPropMetalCommandQueue "OfxImageEffectPropMetalCommandQueue"
+#define kOfxImageEffectPropOpenCLRenderSupported "OfxImageEffectPropOpenCLRenderSupported"
+#define kOfxImageEffectPropOpenCLSupported "OfxImageEffectPropOpenCLSupported"
+#define kOfxImageEffectPropOpenCLEnabled "OfxImageEffectPropOpenCLEnabled"
+#define kOfxImageEffectPropOpenCLCommandQueue "OfxImageEffectPropOpenCLCommandQueue"
+#define kOfxImageEffectPropOpenCLImage "OfxImageEffectPropOpenCLImage"
 #define kOfxImagePropData "OfxImagePropData"
 #define kOfxImagePropBounds "OfxImagePropBounds"
 #define kOfxImagePropRowBytes "OfxImagePropRowBytes"
@@ -271,7 +339,10 @@ struct OfxParametricParameterSuiteV1 {
 #define kOfxImageEffectRenderUnsafe "OfxImageEffectRenderUnsafe"
 #define kOfxImageEffectRenderInstanceSafe "OfxImageEffectRenderInstanceSafe"
 #define kOfxImageEffectRenderFullySafe "OfxImageEffectRenderFullySafe"
-#define kOfxParamPropAnimates "OfxParamPropAnimates"
+	#define kOfxParamPropAnimates "OfxParamPropAnimates"
+	#define kOfxParamHostPropSupportsCustomInteract "OfxParamHostPropSupportsCustomInteract"
+	#define kOfxParamPropInteractV1 "OfxParamPropInteractV1"
+	#define kOfxParamPropInteractSize "OfxParamPropInteractSize"
 #define kOfxParamTypeInteger "OfxParamTypeInteger"
 #define kOfxParamTypeInteger2D "OfxParamTypeInteger2D"
 #define kOfxParamTypeInteger3D "OfxParamTypeInteger3D"

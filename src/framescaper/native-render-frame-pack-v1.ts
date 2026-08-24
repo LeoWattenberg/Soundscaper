@@ -4,6 +4,11 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 
 import {
+	NATIVE_RGBA_FRAME_PACK_V1_FILE_HEADER_BYTES,
+	NATIVE_RGBA_FRAME_PACK_V1_FRAME_HEADER_BYTES,
+	nativeRgbaFramePackV1ByteLength,
+} from '../common/editor/native-rgba-frame-pack-v1-contract.ts';
+import {
 	VIDEO_KEYFRAME_ENCODER_MAXIMUM_FRAME_BYTES,
 	VIDEO_KEYFRAME_ENCODER_MAXIMUM_FRAME_COUNT,
 	VIDEO_KEYFRAME_ENCODER_MAXIMUM_HEIGHT,
@@ -11,8 +16,6 @@ import {
 } from '../common/editor/video-keyframe-encoder-admission.ts';
 
 const MAGIC = new TextEncoder().encode('framescaper-rgba-frame-pack-v1\n');
-const FILE_HEADER_BYTES = 59;
-const FRAME_HEADER_BYTES = 32;
 const DEFAULT_CHUNK_BYTES = 16 * 1024 * 1024;
 const MINIMUM_CHUNK_BYTES = 32;
 
@@ -28,6 +31,7 @@ export interface FramescaperNativeRgbaFramePackV1Request {
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
 	readonly renderFrame: (ordinal: number, output: Uint8Array) => PromiseLike<void> | void;
+	readonly createCollector?: FramescaperNativeRgbaFramePackCollectorFactory;
 }
 
 export interface FramescaperNativeRgbaFramePackV1 {
@@ -36,6 +40,28 @@ export interface FramescaperNativeRgbaFramePackV1 {
 	readonly sha256: string;
 	readonly chunkCount: number;
 }
+
+export interface FramescaperNativeRgbaFramePackV1StreamResult {
+	readonly byteLength: number;
+	readonly sha256: string;
+	readonly chunkCount: number;
+}
+
+export interface FramescaperNativeRgbaFramePackV1Sink {
+	write(bytes: Uint8Array): PromiseLike<void> | void;
+}
+
+export interface FramescaperNativeRgbaFramePackCollector {
+	append(bytes: Uint8Array): PromiseLike<void> | void;
+	complete(type: string): PromiseLike<FramescaperNativeRgbaFramePackV1> | FramescaperNativeRgbaFramePackV1;
+	clear(): PromiseLike<void> | void;
+}
+
+export type FramescaperNativeRgbaFramePackCollectorFactory = (
+	maximumChunkBytes: number,
+	expectedByteLength: number,
+	signal: AbortSignal,
+) => PromiseLike<FramescaperNativeRgbaFramePackCollector> | FramescaperNativeRgbaFramePackCollector;
 
 /** Render and collect one canonical selected-V20 carrier without a frame schedule. */
 export async function createFramescaperNativeRgbaFramePackV1(
@@ -55,45 +81,91 @@ export async function createFramescaperNativeRgbaFramePackV1(
 		'frame-pack chunk bound',
 	);
 	if (!(request.signal instanceof AbortSignal) || typeof request.assertCurrent !== 'function'
-		|| typeof request.renderFrame !== 'function') {
+		|| typeof request.renderFrame !== 'function'
+		|| (request.createCollector !== undefined && typeof request.createCollector !== 'function')) {
 		throw new TypeError('Frame-pack production requires cancellation, currentness, and rendering authorities.');
 	}
 	const frameBytesBig = BigInt(width) * BigInt(height) * 4n;
 	if (frameBytesBig > BigInt(VIDEO_KEYFRAME_ENCODER_MAXIMUM_FRAME_BYTES)) {
 		throw new RangeError('The frame-pack picture exceeds the exact RGBA frame byte domain.');
 	}
-	const totalBytesBig = BigInt(FILE_HEADER_BYTES)
-		+ BigInt(frameCount) * (BigInt(FRAME_HEADER_BYTES) + frameBytesBig);
-	if (totalBytesBig > BigInt(FRAMESCAPER_RGBA_FRAME_PACK_MAXIMUM_BYTES)) {
+	const totalBytes = nativeRgbaFramePackV1ByteLength({ width, height, frameCount });
+	if (totalBytes > FRAMESCAPER_RGBA_FRAME_PACK_MAXIMUM_BYTES) {
 		throw new RangeError('The frame-pack byte domain exceeds the selected V20 16 GiB stage.');
 	}
-	const totalBytes = Number(totalBytesBig);
 	const frameBytes = Number(frameBytesBig);
-	const collector = new BoundedBlobCollector(maximumChunkBytes);
+	const collector = request.createCollector
+		? await request.createCollector(maximumChunkBytes, totalBytes, request.signal)
+		: new BoundedBlobCollector(maximumChunkBytes);
+	if (!collector || typeof collector.append !== 'function'
+		|| typeof collector.complete !== 'function' || typeof collector.clear !== 'function') {
+		throw new TypeError('Frame-pack production received an invalid direct collector.');
+	}
 	const pixels = new Uint8Array(frameBytes);
 	try {
 		assertReady(request);
-		collector.append(fileHeader(width, height, frameCount, numerator, denominator));
+		await collector.append(fileHeader(width, height, frameCount, numerator, denominator));
 		for (let ordinal = 0; ordinal < frameCount; ordinal += 1) {
 			assertReady(request);
 			pixels.fill(0);
 			await request.renderFrame(ordinal, pixels);
 			assertReady(request);
-			collector.append(frameHeader(ordinal, frameBytes));
-			collector.append(pixels);
+			await collector.append(frameHeader(ordinal, frameBytes));
+			await collector.append(pixels);
 		}
 		assertReady(request);
-		const completed = collector.complete('application/vnd.soundscaper.framescaper-rgba-frame-pack-v1');
+		const completed = await collector.complete('application/vnd.soundscaper.framescaper-rgba-frame-pack-v1');
 		if (completed.bytes.size !== totalBytes || completed.byteLength !== totalBytes) {
 			throw new Error('The exact RGBA frame pack completed with an inconsistent byte length.');
 		}
 		return completed;
 	} catch (error) {
-		collector.clear();
+		await collector.clear();
 		throw error;
 	} finally {
 		pixels.fill(0);
 	}
+}
+
+/** Direct, one-frame-memory production for long-form V14 helper input. */
+export async function streamFramescaperNativeRgbaFramePackV1(
+	request: FramescaperNativeRgbaFramePackV1Request,
+	sinkValue: FramescaperNativeRgbaFramePackV1Sink,
+): Promise<FramescaperNativeRgbaFramePackV1StreamResult> {
+	const width = integer(request.width, 1, VIDEO_KEYFRAME_ENCODER_MAXIMUM_WIDTH, 'frame-pack width');
+	const height = integer(request.height, 1, VIDEO_KEYFRAME_ENCODER_MAXIMUM_HEIGHT, 'frame-pack height');
+	const frameCount = integer(request.frameCount, 1,
+		VIDEO_KEYFRAME_ENCODER_MAXIMUM_FRAME_COUNT, 'frame-pack count');
+	const numerator = integer(request.frameRate?.num, 1, 0xffff_ffff, 'frame-pack rate numerator');
+	const denominator = integer(request.frameRate?.den, 1, 0xffff_ffff, 'frame-pack rate denominator');
+	const maximumChunkBytes = integer(request.maximumChunkBytes ?? DEFAULT_CHUNK_BYTES,
+		MINIMUM_CHUNK_BYTES, DEFAULT_CHUNK_BYTES, 'frame-pack chunk bound');
+	if (!(request.signal instanceof AbortSignal) || typeof request.assertCurrent !== 'function'
+		|| typeof request.renderFrame !== 'function' || !sinkValue
+		|| typeof sinkValue.write !== 'function') {
+		throw new TypeError('Frame-pack streaming requires cancellation, rendering, and one exact sink.');
+	}
+	const byteLength = nativeRgbaFramePackV1ByteLength({ width, height, frameCount });
+	const frameBytes = width * height * 4;
+	const hash = sha256.create();
+	let chunkCount = 0;
+	const write = async (bytes: Uint8Array): Promise<void> => {
+		for (let offset = 0; offset < bytes.byteLength; offset += maximumChunkBytes) {
+			assertReady(request);
+			const part = bytes.subarray(offset, Math.min(bytes.byteLength, offset + maximumChunkBytes));
+			hash.update(part); await sinkValue.write(part); chunkCount += 1;
+		}
+	};
+	const pixels = new Uint8Array(frameBytes);
+	try {
+		await write(fileHeader(width, height, frameCount, numerator, denominator));
+		for (let ordinal = 0; ordinal < frameCount; ordinal += 1) {
+			assertReady(request); pixels.fill(0); await request.renderFrame(ordinal, pixels);
+			await write(frameHeader(ordinal, frameBytes)); await write(pixels);
+		}
+		assertReady(request);
+		return Object.freeze({ byteLength, sha256: bytesToHex(hash.digest()), chunkCount });
+	} finally { pixels.fill(0); }
 }
 
 class BoundedBlobCollector {
@@ -161,7 +233,7 @@ function fileHeader(
 	numerator: number,
 	denominator: number,
 ): Uint8Array<ArrayBuffer> {
-	const bytes = new Uint8Array(FILE_HEADER_BYTES);
+	const bytes = new Uint8Array(NATIVE_RGBA_FRAME_PACK_V1_FILE_HEADER_BYTES);
 	bytes.set(MAGIC);
 	const view = new DataView(bytes.buffer);
 	view.setUint32(31, 1, true);
@@ -175,7 +247,7 @@ function fileHeader(
 }
 
 function frameHeader(ordinal: number, frameBytes: number): Uint8Array<ArrayBuffer> {
-	const bytes = new Uint8Array(FRAME_HEADER_BYTES);
+	const bytes = new Uint8Array(NATIVE_RGBA_FRAME_PACK_V1_FRAME_HEADER_BYTES);
 	const view = new DataView(bytes.buffer);
 	view.setBigUint64(0, BigInt(ordinal), true);
 	view.setBigInt64(8, BigInt(ordinal), true);

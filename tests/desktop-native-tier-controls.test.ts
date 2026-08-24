@@ -58,6 +58,13 @@ function harness(overrides: Partial<SettingsState> = {}) {
 			},
 			clearQuarantine: () => { calls.push(['clear-audio']); audioQuarantined = false; },
 		},
+		plugins: {
+			setEnabled: async (enabled: boolean) => {
+				calls.push(['set-effects', enabled]);
+				state.nativePluginDiscoveryEnabled = enabled;
+				return enabled;
+			},
+		},
 	};
 	return { calls, settings, state, tier };
 }

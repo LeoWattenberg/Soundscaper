@@ -20,7 +20,7 @@ test.describe('Framescaper dormant capture boundary', () => {
 	registerAudioEditorHooks();
 
 	for (const route of ['/framescaper/en/', '/framescaper/embed/en/']) {
-		test(`selected V27 exposes no capture authoring on ${route.includes('/embed/') ? 'embedded' : 'standalone'} route`, async ({ page }) => {
+		test(`selected V28 exposes no capture authoring on ${route.includes('/embed/') ? 'embedded' : 'standalone'} route`, async ({ page }) => {
 			await installCapturePermissionSentinel(page);
 			const editor = await bootEditor(page, route);
 
@@ -60,7 +60,7 @@ async function installCapturePermissionSentinel(page) {
 		const calls = [];
 		const reject = async (kind) => {
 			calls.push(kind);
-			throw new DOMException('Selected V27 must not request capture permission.', 'NotAllowedError');
+			throw new DOMException('Selected V28 must not request capture permission.', 'NotAllowedError');
 		};
 		Object.defineProperty(globalThis, '__framescaperCapturePermissionCalls', {
 			configurable: true,

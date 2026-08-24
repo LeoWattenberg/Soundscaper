@@ -14,45 +14,47 @@ import {
 } from '../scripts/lib/desktop-project-library-runtime.mjs';
 import { createHash as createSandboxHash } from '../desktop/project-library-v10-sandbox-crypto.ts';
 import {
-	createFramescaperDesktopProjectLibraryV18Handshake,
-} from '../desktop/project-library-v18-contract.ts';
+	createFramescaperDesktopProjectLibraryV19Handshake,
+} from '../desktop/project-library-v19-contract.ts';
 import {
-	createSoundscaperDesktopProjectLibraryV10Handshake,
-} from '../desktop/soundscaper-project-library-v10-contract.ts';
-import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v27.ts';
-import { createFramescaperProjectV27 } from '../src/framescaper/editor-project-v27.ts';
-import { createSoundscaperProjectV23 } from '../src/soundscaper/editor-project-v23.ts';
+	createSoundscaperDesktopProjectLibraryV11Handshake,
+} from '../desktop/soundscaper-project-library-v11-contract.ts';
+import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
+import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
+import { createSoundscaperProjectV29 } from '../src/soundscaper/editor-project-v29.ts';
 import {
 	SOUNDSCAPER_DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
-} from '../desktop/soundscaper-project-library-v10-contract.ts';
+} from '../desktop/soundscaper-project-library-v11-contract.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const COMPOSITION = 'desktop/project-library-product-runtime.js';
-const SOUNDSCAPER_SANDBOX_ENTRY = 'desktop/soundscaper-project-library-v10-sandbox-preload.ts';
-const SOUNDSCAPER_SANDBOX_BUNDLE = 'soundscaper-project-library-v10-sandbox-preload.cjs';
+const SOUNDSCAPER_SANDBOX_ENTRY = 'desktop/soundscaper-project-library-v11-sandbox-preload.ts';
+const SOUNDSCAPER_SANDBOX_BUNDLE = 'soundscaper-project-library-v11-sandbox-preload.cjs';
 const CHANNELS = Object.freeze([
-	'framescaper:v18:projects:handshake',
-	'framescaper:v18:projects:bundle',
-	'framescaper:v18:projects:bodies:read',
-	'framescaper:v18:projects:list',
-	'framescaper:v18:projects:delete',
-	'framescaper:v18:projects:duplicate',
-	'framescaper:v18:projects:publication:begin',
-	'framescaper:v18:projects:publication:chunk',
-	'framescaper:v18:projects:publication:finish',
-	'framescaper:v18:projects:publication:abort',
+	'framescaper:v19:projects:handshake',
+	'framescaper:v19:projects:bundle',
+	'framescaper:v19:projects:bodies:read',
+	'framescaper:v19:projects:list',
+	'framescaper:v19:projects:delete',
+	'framescaper:v19:projects:duplicate',
+	'framescaper:v19:projects:publication:begin',
+	'framescaper:v19:projects:publication:chunk',
+	'framescaper:v19:projects:publication:finish',
+	'framescaper:v19:projects:publication:abort',
 ]);
 const SOUNDSCAPER_CHANNELS = Object.freeze([
-	'soundscaper:v10:projects:handshake',
-	'soundscaper:v10:projects:bundle',
-	'soundscaper:v10:projects:bodies:read',
-	'soundscaper:v10:projects:list',
-	'soundscaper:v10:projects:delete',
-	'soundscaper:v10:projects:duplicate',
-	'soundscaper:v10:projects:publication:begin',
-	'soundscaper:v10:projects:publication:chunk',
-	'soundscaper:v10:projects:publication:finish',
-	'soundscaper:v10:projects:publication:abort',
+	'soundscaper:v11:projects:handshake',
+	'soundscaper:v11:projects:bundle',
+	'soundscaper:v11:projects:bodies:read',
+	'soundscaper:v11:projects:list',
+	'soundscaper:v11:projects:delete',
+	'soundscaper:v11:projects:duplicate',
+	'soundscaper:v11:projects:publication:begin',
+	'soundscaper:v11:projects:publication:chunk',
+	'soundscaper:v11:projects:publication:finish',
+	'soundscaper:v11:projects:publication:abort',
+	'soundscaper:v11:native-plugin-state:persist',
+	'soundscaper:v11:native-plugin-state:read',
 ]);
 
 test('sandbox hash seam preserves the exact SHA-256 contract without Node authority', () => {
@@ -63,7 +65,7 @@ test('sandbox hash seam preserves the exact SHA-256 contract without Node author
 	assert.throws(() => createSandboxHash('sha1'), /only SHA-256/iu);
 });
 
-test('maintained main selects Framescaper V18 and Soundscaper V10 with existing owner cleanup', async () => {
+test('maintained main selects Framescaper V19 and Soundscaper V11 with existing owner cleanup', async () => {
 	const [main, composition, preload, soundscaperSandboxEntry] = await Promise.all([
 		readFile(join(ROOT, 'desktop/main.mjs'), 'utf8'),
 		readFile(join(ROOT, COMPOSITION), 'utf8'),
@@ -77,12 +79,12 @@ test('maintained main selects Framescaper V18 and Soundscaper V10 with existing 
 		/did-start-navigation[\s\S]*revokeRendererSaveOwner[\s\S]*did-frame-navigate[\s\S]*activateRendererSaveOwner/u);
 	assert.match(main, /attachDesktopMainWindowRecovery\([\s\S]*rendererOwnershipCleanup\.drain/u);
 	assert.match(composition, /productId\s*===\s*'framescaper'/u);
-	assert.match(composition, /FramescaperDesktopProjectLibraryV18Main\.start/u);
-	assert.match(composition, /SoundscaperDesktopProjectLibraryV10Main\.start/u);
+	assert.match(composition, /FramescaperDesktopProjectLibraryV19Main\.start/u);
+	assert.match(composition, /SoundscaperDesktopProjectLibraryV11Main\.start/u);
 	assert.match(composition, /DesktopProjectLibraryHost\.start/u);
 	assert.match(composition, /registerPreloadScript/u);
 	assert.match(composition, /bridge\.dispose\(\)[\s\S]*#host\.close\(\)/u);
-	assert.match(soundscaperSandboxEntry, /createSoundscaperDesktopProjectLibraryV10MainPreloadBridge/u);
+	assert.match(soundscaperSandboxEntry, /createSoundscaperDesktopProjectLibraryV11MainPreloadBridge/u);
 	assert.match(preload, /projectLibrary:\s*framescaperProjectLibrary/u);
 	assert.match(preload, /exposeInMainWorld\('framescaperDesktop', framescaperBridge\)/u);
 	assert.doesNotMatch(preload, /framescaperProjectLibraryDesktop/u);
@@ -102,7 +104,7 @@ test('staged product selector isolates exact-generation handlers, preload, sessi
 	const session = {
 		registerPreloadScript(value: unknown) {
 			preloadRegistrations.push(value);
-			return `v10-preload-${String(preloadRegistrations.length)}`;
+		return `v11-preload-${String(preloadRegistrations.length)}`;
 		},
 		unregisterPreloadScript(id: string) { preloadRemovals.push(id); },
 	};
@@ -130,9 +132,9 @@ test('staged product selector isolates exact-generation handlers, preload, sessi
 	const handshake = await handlers.get(CHANNELS[0])!({ owner }, exactHandshake());
 	assert.deepEqual(handshake, exactHandshake());
 	assert.equal(runtime.snapshot().activeSessions, 1);
-	const project = createFramescaperProjectV27(FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE, {
-		id: 'framescaper-v27-package-witness',
-		title: 'Framescaper V27 package witness',
+	const project = createFramescaperProjectV28(FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, {
+		id: 'framescaper-v28-package-witness',
+		title: 'Framescaper V28 package witness',
 		revision: 0,
 		now: '2026-08-13T12:00:00.000Z',
 	});
@@ -168,7 +170,7 @@ test('staged product selector isolates exact-generation handlers, preload, sessi
 		project: {
 			projectId: project.id,
 			title: project.title,
-			projectSchemaVersion: 27,
+			projectSchemaVersion: 28,
 			projectRevision: project.revision,
 			metadataRevision: bundle.metadataRevision,
 			byteLength: bundle.project.byteLength,
@@ -216,9 +218,9 @@ test('staged product selector isolates exact-generation handlers, preload, sessi
 		await soundscaperHandlers.get(SOUNDSCAPER_CHANNELS[0])!({ owner: soundscaperOwner }, exactSoundscaperHandshake()),
 		exactSoundscaperHandshake(),
 	);
-	const soundscaperProject = createSoundscaperProjectV23({
-		id: 'soundscaper-v23-package-witness',
-		title: 'Soundscaper V23 package witness',
+	const soundscaperProject = createSoundscaperProjectV29({
+		id: 'soundscaper-v29-package-witness',
+		title: 'Soundscaper V29 package witness',
 		revision: 0,
 		now: '2026-08-14T12:00:00.000Z',
 	});
@@ -248,7 +250,7 @@ test('staged product selector isolates exact-generation handlers, preload, sessi
 		},
 	});
 	await soundscaperRegistration.dispose();
-	assert.deepEqual(preloadRemovals, ['v10-preload-1']);
+	assert.deepEqual(preloadRemovals, ['v11-preload-1']);
 	await soundscaper.close();
 });
 
@@ -297,7 +299,7 @@ test('Framescaper base preload exposes only the unversioned handshake-first publ
 		/libraryRoot|databasePath|managedMediaRoot|projectsRoot|lease|filePath/iu);
 });
 
-test('Soundscaper sandbox bundle exposes only its exact handshake-first V10 bridge', async (context) => {
+test('Soundscaper sandbox bundle exposes only its exact handshake-first V11 bridge', async (context) => {
 	const fixture = await stagedFixture(context);
 	const source = await readFile(join(fixture.applicationDesktopRoot, SOUNDSCAPER_SANDBOX_BUNDLE), 'utf8');
 	const calls: Array<{ channel: string; value: unknown }> = [];
@@ -317,7 +319,7 @@ test('Soundscaper sandbox bundle exposes only its exact handshake-first V10 brid
 		},
 	});
 	assert.deepEqual([...exposed.keys()], ['soundscaperProjectLibraryDesktop']);
-	const bridge = (exposed.get('soundscaperProjectLibraryDesktop') as { v10: PreloadBridge }).v10;
+	const bridge = (exposed.get('soundscaperProjectLibraryDesktop') as { v11: PreloadBridge }).v11;
 	await assert.rejects(() => bridge.readProjectBundle('project-before-handshake'), /handshake.*required/iu);
 	assert.equal(calls.length, 0);
 	assert.deepEqual(JSON.parse(JSON.stringify(await bridge.connect())), exactSoundscaperHandshake());
@@ -345,12 +347,12 @@ async function stagedFixture(context: TestContext): Promise<Readonly<{
 }
 
 function exactHandshake(): Readonly<Record<string, unknown>> {
-	return createFramescaperDesktopProjectLibraryV18Handshake() as unknown as
+	return createFramescaperDesktopProjectLibraryV19Handshake() as unknown as
 		Readonly<Record<string, unknown>>;
 }
 
 function exactSoundscaperHandshake(): Readonly<Record<string, unknown>> {
-	return createSoundscaperDesktopProjectLibraryV10Handshake() as unknown as
+	return createSoundscaperDesktopProjectLibraryV11Handshake() as unknown as
 		Readonly<Record<string, unknown>>;
 }
 

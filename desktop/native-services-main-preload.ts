@@ -60,6 +60,12 @@ import {
 	type FramescaperOpenFxPluginControlRequestV1,
 	type FramescaperOpenFxPluginProjectionV1,
 } from '../src/common/editor/native-ofx-service-contract.ts';
+import {
+	framescaperOpenFxInteractRequestV1,
+	framescaperOpenFxInteractResultV1,
+	type FramescaperOpenFxInteractRequestV1,
+	type FramescaperOpenFxInteractResultV1,
+} from '../src/common/editor/native-ofx-interact-contract.ts';
 
 export interface FramescaperNativeServicesMainPreloadBridge {
 	readonly capabilities: () => Promise<NativeMediaCapabilitySnapshotV1>;
@@ -76,6 +82,9 @@ export interface FramescaperNativeServicesMainPreloadBridge {
 	) => Promise<FramescaperNativeQueueProjection>;
 	readonly abandonRenderInputs: (request: Readonly<{ stageId: string }>) => Promise<boolean>;
 	readonly selectRoot: () => Promise<FramescaperNativeServicesSnapshot['roots'][number] | null>;
+	readonly reauthorizeQueueRoot: (
+		request: Readonly<{ jobId: string }>,
+	) => Promise<FramescaperNativeQueueProjection | null>;
 	readonly revalidateRoot: (request: Readonly<{ grantId: string }>) => Promise<boolean>;
 	readonly revokeRoot: (request: Readonly<{ grantId: string }>) => Promise<boolean>;
 	readonly createWatch: (
@@ -120,6 +129,9 @@ export interface FramescaperNativeServicesMainPreloadBridge {
 	readonly controlOpenFxPlugin: (
 		request: FramescaperOpenFxPluginControlRequestV1,
 	) => Promise<FramescaperOpenFxPluginProjectionV1>;
+	readonly runOpenFxInteract: (
+		request: FramescaperOpenFxInteractRequestV1,
+	) => Promise<FramescaperOpenFxInteractResultV1>;
 }
 
 /** Pathless API intended for `framescaperDesktop.v1.nativeServices`. */
@@ -189,6 +201,15 @@ export function createFramescaperNativeServicesMainPreloadBridge(
 				if (result === null) return null;
 				assertFramescaperNativeRootProjection(result);
 				return result as FramescaperNativeServicesSnapshot['roots'][number];
+			},
+			async reauthorizeQueueRoot(requestValue: Readonly<{ jobId: string }>) {
+				const request = framescaperNativeLifecycleIdRequest(requestValue, 'jobId');
+				const result = clone(await invoke(
+					FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.reauthorizeQueueRoot, request,
+				));
+				if (result === null) return null;
+				assertFramescaperNativeQueueProjection(result);
+				return result;
 			},
 			async revalidateRoot(requestValue: Readonly<{ grantId: string }>): Promise<boolean> {
 				const request = framescaperNativeLifecycleIdRequest(requestValue, 'grantId');
@@ -340,6 +361,12 @@ export function createFramescaperNativeServicesMainPreloadBridge(
 			return framescaperOpenFxPluginProjectionV1(clone(await invoke(
 				FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.openFxControl, request,
 			)));
+		},
+		async runOpenFxInteract(requestValue: FramescaperOpenFxInteractRequestV1) {
+			const request = framescaperOpenFxInteractRequestV1(requestValue);
+			return framescaperOpenFxInteractResultV1(clone(await invoke(
+				FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.openFxInteract, request,
+			)), request);
 		},
 	});
 }

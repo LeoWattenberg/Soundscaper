@@ -89,6 +89,8 @@ export interface SoundscaperAudioFreezeActionsOptionsV21 {
 	readonly createId?: (kind: 'source' | 'clip') => string;
 	/** Lower-only renderer test seam. */
 	readonly createRenderEngine?: () => SoundscaperAudioFreezeRenderEngineV21;
+	/** Product-owned live state must be captured before the immutable freeze ticket. */
+	readonly prepareProject?: () => PromiseLike<void> | void;
 }
 
 interface FreezeBody {
@@ -210,7 +212,11 @@ export function createSoundscaperAudioFreezeActionsV21(
 		void promise.finally(() => { if (active === entry) active = null; }).catch(() => undefined);
 		return promise;
 	};
-	const freeze = (trackId: string) => run(trackId, (signal) => coordinator.freeze({ trackId, signal }));
+	const freeze = (trackId: string) => run(trackId, async (signal) => {
+		await options.prepareProject?.();
+		throwIfAborted(signal);
+		return coordinator.freeze({ trackId, signal });
+	});
 	const actions = Object.freeze({
 		freeze,
 		refresh: freeze,

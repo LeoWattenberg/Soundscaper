@@ -4,10 +4,16 @@ import { documentationUrl } from '../../documentation-links.ts';
 import { moveAudioEditorTrackBlock, trackSourceRate } from '../application-menu-model.js';
 import createApplicationMenus from '../application-menus.js';
 import { createDesktopHostMenuItems } from '../desktop-host-menu.ts';
-import { framescaperNativeProjectActionRuntimeFor } from '../framescaper-native-project-actions.ts';
+import {
+	composeFramescaperNativeProjectActionRuntimes,
+	createFramescaperNativeProjectActionSubsetRuntime,
+	framescaperNativeProjectActionRuntimeFor,
+} from '../framescaper-native-project-actions.ts';
 import { framescaperCandidateAuthoringActionRuntimeFor } from '../framescaper-candidate-authoring-actions.ts';
 import { framescaperSelectedV27VisualAuthoringSurfaceId } from '../framescaper-selected-v27-visual-authoring-menu.ts';
 import { framescaperV27FinishingSurfaceId } from '../framescaper-v27-finishing-menu.ts';
+import { framescaperVideoProxyActionRuntimeFor } from '../../../../framescaper/editor-video-proxy-action-runtime-v20.ts';
+import { framescaperNativeOpenFxAuthoringRuntimeForV28 } from '../../../../framescaper/editor-native-openfx-action-v28.ts';
 import { createVideoTrimApplicationMenuActions } from './video-trim-application-menu-actions.ts';
 import {
 	resolveFramescaperNativeServicesWorkspaceRuntime,
@@ -73,10 +79,30 @@ export function createWorkspaceApplicationMenus({
 		uiFlags,
 		zoomProject,
 }) {
-	const soundscaperNativeServices = resolveSoundscaperNativeServicesWorkspaceRuntime({ productId, copy });
+	const soundscaperNativeServices = resolveSoundscaperNativeServicesWorkspaceRuntime({
+		productId, copy, engine: controller?.engine, controller,
+	});
+	const selectedNativeProjectActions = framescaperNativeProjectActionRuntimeFor(controller);
+	const proxyProjectActions = productId === 'framescaper'
+		&& framescaperVideoProxyActionRuntimeFor(controller) !== null
+		? createFramescaperNativeProjectActionSubsetRuntime([
+			'proxy-generate', 'proxy-attach', 'proxy-detach', 'proxy-relink',
+		], {
+			'proxy-generate': () => openSurface('video-proxy'),
+			'proxy-attach': () => openSurface('video-proxy'),
+			'proxy-detach': () => openSurface('video-proxy'),
+			'proxy-relink': () => openSurface('video-proxy'),
+		}) : null;
+	const projectActions = selectedNativeProjectActions === null ? proxyProjectActions
+		: proxyProjectActions === null ? selectedNativeProjectActions
+			: composeFramescaperNativeProjectActionRuntimes([
+				selectedNativeProjectActions, proxyProjectActions,
+			]);
 	const framescaperNativeServicesRuntime = resolveFramescaperNativeServicesWorkspaceRuntime({
 		productId, copy, project, projectCapabilities: capabilities,
-		projectActions: framescaperNativeProjectActionRuntimeFor(controller),
+		editingBlocked: editBlocked, readOnly: snapshot.readOnly === true,
+		projectActions,
+		openFxAuthoring: framescaperNativeOpenFxAuthoringRuntimeForV28(controller),
 	});
 	const framescaperNativeServices = wrapFramescaperNativeServicesMenuRuntime(
 		framescaperNativeServicesRuntime, run,
@@ -85,7 +111,7 @@ export function createWorkspaceApplicationMenus({
 	const framescaperCandidateAuthoring = candidateAuthoringRuntime === null ? null : Object.freeze({
 		surfaces: candidateAuthoringRuntime.surfaces,
 		open: (surface) => {
-			const selectedV27Surface = project?.schemaVersion === 27
+			const selectedV27Surface = (project?.schemaVersion === 27 || project?.schemaVersion === 28)
 				? framescaperSelectedV27VisualAuthoringSurfaceId(surface) : null;
 			if (selectedV27Surface !== null) return openSurface(selectedV27Surface);
 			return run(() => candidateAuthoringRuntime.run(surface));

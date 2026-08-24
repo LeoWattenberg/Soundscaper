@@ -199,7 +199,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			});
 			assertOwnership(operation.task, operation.projectToken);
 			const importedProject = runtime.adaptAudacityProject
-				? runtime.adaptAudacityProject(decoded.project)
+				? await runtime.adaptAudacityProject(decoded.project)
 				: runtime.migrateProject(decoded.project).project;
 			const decodedBytes = decoded.sources.reduce((total, source) => total + source.channels.reduce(
 				(channelTotal, channel) => channelTotal + channel.byteLength,
@@ -302,6 +302,9 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 				assertOwnership(operation.task, operation.projectToken);
 			}
 			snapshot = requireOwnedProject(snapshot.id);
+			const exportSnapshot = runtime.prepareAudacityProjectExport
+				? await runtime.prepareAudacityProjectExport(snapshot) : snapshot;
+			assertOwnership(operation.task, operation.projectToken);
 			activeClient = await getAup4Client();
 			assertOwnership(operation.task, operation.projectToken);
 			nativeId = sanitizeNativeId(runtime.createStableId('aup4-export'));
@@ -327,7 +330,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			assertOwnership(operation.task, operation.projectToken);
 			const written = await activeClient.writeSnapshot(
 				nativeId,
-				snapshot,
+				exportSnapshot,
 				readAup4SourceAudio(referencedSources, operation),
 				portable,
 			);

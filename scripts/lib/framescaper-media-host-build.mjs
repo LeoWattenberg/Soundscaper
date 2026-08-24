@@ -7,6 +7,10 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
 import {
+	framescaperMediaProductionReadinessReference,
+} from '../../desktop/framescaper-media-production-readiness.ts';
+
+import {
 	collectBoostHeaderClosure,
 	verifyBoostHeaderClosureManifest,
 } from './boost-header-closure.mjs';
@@ -28,6 +32,10 @@ export const FRAMESCAPER_MEDIA_HOST_TARGETS = Object.freeze([
 
 const SOURCE_EXCLUSIONS = new Set(['source-manifest.json']);
 const SHA256 = /^[a-f\d]{64}$/u;
+const TARGET_FIELDS = Object.freeze([
+	'runtime', 'status', 'blockedBy', 'toolchainIdentity', 'payload',
+	'isolationPayload', 'productionReadiness',
+]);
 
 export function readFramescaperMediaHostSourceManifest(repositoryRoot) {
 	const manifest = JSON.parse(readFileSync(
@@ -119,9 +127,14 @@ export function auditFramescaperMediaHost({ repositoryRoot }) {
 	findings.push(...auditClosedAdapters(hostRoot));
 	for (const target of FRAMESCAPER_MEDIA_HOST_TARGETS) {
 		const record = manifest.targets[target.id];
+		if (!sameFields(record, TARGET_FIELDS)) {
+			findings.push(`${target.id}: media-host target row is not an exact record.`);
+			continue;
+		}
 		if (record.runtime !== target.runtime) findings.push(`${target.id}: runtime identity mismatch.`);
 		if (record.status === 'pending-external') {
-			if (record.payload !== null || record.toolchainIdentity !== null) {
+			if (record.payload !== null || record.toolchainIdentity !== null
+				|| record.isolationPayload !== null || record.productionReadiness !== null) {
 				findings.push(`${target.id}: pending-external targets cannot carry payload claims.`);
 			}
 			if (typeof record.blockedBy !== 'string' || record.blockedBy.length < 16) {
@@ -140,17 +153,21 @@ function auditClosedAdapters(hostRoot) {
 	const findings = [];
 	const required = new Map([
 		['src/media_host.cpp', [
+			'framescaper-native-prores-proxy-mov-v1',
+		]],
+		['src/media_host_arguments.cpp', [
 			'--plan-sha256', '--source-sha256', '--source-byte-length', '--source-role',
 			'--video-timing-asset', '--video-timing-sha256', '--video-timing-byte-length',
 			'--sequence-profile', '--sequence-rate-num', '--decode-output', '--destination-root',
-			'--maximum-output-bytes', 'framescaper-native-prores-proxy-mov-v1',
+			'--maximum-output-bytes',
 		]],
 		['src/ffmpeg_media_engine.cpp', [
-			'avformat_open_input', 'avcodec_send_packet', 'avcodec_receive_frame',
 			'sws_scale', 'avformat_alloc_output_context2', 'avcodec_send_frame',
 			'av_interleaved_write_frame', 'framescaper-rgba-frame-pack-v1', 'prores_ks',
 			'execute_image_sequence_decode',
-			'backend-policy-unavailable',
+		]],
+		['src/ffmpeg_decode_session.cpp', [
+			'avformat_open_input', 'avcodec_send_packet', 'avcodec_receive_frame',
 		]],
 		['src/image_sequence_pack.cpp', [
 			'FSISPK01', 'source-pack frame index', 'sha256_file_ranges_match',
@@ -162,8 +179,12 @@ function auditClosedAdapters(hostRoot) {
 			'FRAMESCAPER_MEDIA_HOST_CONFORMANCE_IMAGE_SEQUENCE',
 		]],
 		['src/ffmpeg_simple_render.cpp', [
-			'single-full-frame-clip-v1', 'libx264', 'libvpx-vp9',
-			'codec-policy-unavailable', 'unsupported-rate-conversion',
+			'single-full-frame-clip-v1', 'avformat_alloc_output_context2',
+			'avcodec_send_frame', 'av_interleaved_write_frame', 'unsupported-rate-conversion',
+		]],
+		['src/ffmpeg_hardware_encode.cpp', [
+			'libx264', 'libvpx-vp9', 'codec-policy-unavailable',
+			'hardware-encoder-unavailable', 'sws_scale',
 		]],
 		['src/ffmpeg_selected_v20_adapter.cpp', [
 			'execute_selected_v20_frames', 'avcodec_get_supported_config', 'swr_convert',
@@ -237,7 +258,8 @@ function auditClosedAdapters(hostRoot) {
 		'src/ffmpeg_selected_v20_adapter.cpp', 'src/ffmpeg_selected_v20_render.cpp',
 		'src/ffmpeg_simple_render.cpp', 'src/image_sequence_pack.cpp',
 		'src/legacy_plan_semantics.cpp', 'src/legacy_plan_v8_filter_semantics.cpp',
-		'src/media_file_grants.cpp', 'src/media_plan.cpp', 'src/professional_source_probe.cpp',
+		'src/media_file_grants.cpp', 'src/media_host_arguments.cpp', 'src/media_plan.cpp',
+		'src/professional_source_probe.cpp',
 		'src/sha256.cpp', 'src/strict_json.cpp',
 		'src/selected_v20_frame_executor.cpp', 'src/selected_v20_frame_pack.cpp',
 		'src/selected_v20_plan_capture.cpp',
@@ -280,6 +302,9 @@ export function deriveFramescaperMediaHostPayloadManifest(sourceManifest) {
 				status: 'built',
 				blockedBy: null,
 				payload: { ...record.payload },
+				isolationPayload: cloneIsolationPayload(record.isolationPayload),
+				productionReadiness: record.productionReadiness === null
+					? null : { ...record.productionReadiness },
 			}
 			: {
 				id: target.id,
@@ -287,6 +312,8 @@ export function deriveFramescaperMediaHostPayloadManifest(sourceManifest) {
 				status: 'pending-external',
 				blockedBy: record.blockedBy,
 				payload: null,
+				isolationPayload: null,
+				productionReadiness: null,
 			};
 	});
 	return {
@@ -297,7 +324,9 @@ export function deriveFramescaperMediaHostPayloadManifest(sourceManifest) {
 		runtimePrefix: 'native/framescaper-media-host',
 		payloads: targets
 			.filter(({ status }) => status === 'built')
-			.map(({ id, runtime, payload }) => ({ id, runtime, ...payload })),
+			.map(({ id, runtime, payload, isolationPayload }) => ({
+				id, runtime, ...payload, isolationPayload: cloneIsolationPayload(isolationPayload),
+			})),
 		targets,
 	};
 }
@@ -311,10 +340,11 @@ export function verifyFramescaperMediaHostPayloadManifest({ repositoryRoot }) {
 	assert(canonicalJson(payload) === canonicalJson(derived),
 		'The Framescaper media-host payload manifest disagrees with its source manifest.');
 	for (const entry of payload.payloads) {
-		const target = audited.manifest.targets[entry.id];
-		const bytes = readFileSync(resolve(root, target.payload.path));
-		assert(bytes.byteLength === entry.byteLength && digest(bytes) === entry.sha256,
-			`The Framescaper media-host payload ${entry.id} does not match its digest.`);
+		for (const [label, descriptor] of payloadDescriptors(entry)) {
+			const bytes = readFileSync(resolve(root, descriptor.path));
+			assert(bytes.byteLength === descriptor.byteLength && digest(bytes) === descriptor.sha256,
+				`The Framescaper media-host payload ${entry.id} ${label} does not match its digest.`);
+		}
 	}
 	return Object.freeze({ source: audited.manifest, payload });
 }
@@ -352,7 +382,70 @@ function auditBuiltTarget(root, manifest, target, record) {
 	if (bytes.byteLength !== payload.byteLength || digest(bytes) !== payload.sha256) {
 		findings.push(`${target.id}: built payload bytes disagree with the pin.`);
 	}
+	findings.push(...auditIsolationPayload(root, target.id, record.isolationPayload));
+	if (record.productionReadiness !== null) {
+		try { framescaperMediaProductionReadinessReference(record.productionReadiness, target.id); }
+		catch { findings.push(`${target.id}: invalid media-host production-readiness reference.`); }
+	}
 	return findings;
+}
+
+function auditIsolationPayload(root, targetId, value) {
+	const findings = [];
+	if (!sameFields(value, [
+		'launcherPayload', 'sandboxProfilePayload', 'brokerPolicyPayload', 'runtimeLibraryPayloads',
+	]) || !Array.isArray(value.runtimeLibraryPayloads) || value.runtimeLibraryPayloads.length > 32) {
+		return [`${targetId}: invalid media-host isolation payload identity.`];
+	}
+	const suffix = targetId.startsWith('win-') ? '.exe' : '';
+	const prefix = `${FRAMESCAPER_MEDIA_HOST_ROOT}/prebuilt/${targetId}`;
+	const declarations = [
+		[value.launcherPayload, `${prefix}/isolation/milestone5-native-isolation-launcher${suffix}`],
+		[value.sandboxProfilePayload, `${prefix}/isolation/milestone5-native-isolation-profile.json`],
+		[value.brokerPolicyPayload, `${prefix}/isolation/milestone5-native-isolation-broker.json`],
+		...value.runtimeLibraryPayloads.map((descriptor) => [
+			descriptor, `${prefix}/lib/${descriptor?.path?.split('/').at(-1) ?? ''}`,
+		]),
+	];
+	const libraryPaths = value.runtimeLibraryPayloads.map(({ path }) => path);
+	if (libraryPaths.some((path, index) => index > 0
+		&& libraryPaths[index - 1].localeCompare(path, 'en') >= 0)) {
+		findings.push(`${targetId}: media-host runtime libraries are not uniquely ordered.`);
+	}
+	for (const [descriptor, expectedPath] of declarations) {
+		if (!sameFields(descriptor, ['path', 'byteLength', 'sha256'])
+			|| descriptor.path !== expectedPath || !Number.isSafeInteger(descriptor.byteLength)
+			|| descriptor.byteLength <= 0 || !SHA256.test(String(descriptor.sha256))) {
+			findings.push(`${targetId}: invalid media-host isolation payload descriptor.`);
+			continue;
+		}
+		try {
+			const bytes = readFileSync(resolve(root, descriptor.path));
+			if (bytes.byteLength !== descriptor.byteLength || digest(bytes) !== descriptor.sha256) {
+				findings.push(`${targetId}: media-host isolation payload bytes disagree with the pin.`);
+			}
+		} catch { findings.push(`${targetId}: media-host isolation payload is missing.`); }
+	}
+	return findings;
+}
+
+function cloneIsolationPayload(value) {
+	return {
+		launcherPayload: { ...value.launcherPayload },
+		sandboxProfilePayload: { ...value.sandboxProfilePayload },
+		brokerPolicyPayload: { ...value.brokerPolicyPayload },
+		runtimeLibraryPayloads: value.runtimeLibraryPayloads.map((entry) => ({ ...entry })),
+	};
+}
+
+function payloadDescriptors(entry) {
+	return [
+		['executable', entry],
+		['isolation launcher', entry.isolationPayload.launcherPayload],
+		['isolation profile', entry.isolationPayload.sandboxProfilePayload],
+		['isolation broker', entry.isolationPayload.brokerPolicyPayload],
+		...entry.isolationPayload.runtimeLibraryPayloads.map((descriptor) => ['runtime library', descriptor]),
+	];
 }
 
 function listFiles(directory) {
@@ -367,6 +460,11 @@ function listFiles(directory) {
 
 function digest(bytes) {
 	return createHash('sha256').update(bytes).digest('hex');
+}
+
+function sameFields(value, fields) {
+	return value !== null && typeof value === 'object' && !Array.isArray(value)
+		&& canonicalJson(Object.keys(value).sort()) === canonicalJson([...fields].sort());
 }
 
 function assert(condition, message) {

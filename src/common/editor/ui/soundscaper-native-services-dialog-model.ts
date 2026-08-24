@@ -14,11 +14,17 @@
 import type {
 	NativeAudioAvailability,
 	NativeAudioInventoryOutcome,
+	NativeAudioSessionOpenRequestV1,
+	NativeAudioSessionProjectionV1,
 	NativePluginAvailability,
 	NativePluginConsentAction,
+	NativePluginInstanceProjectionV1,
+	NativePluginOfflineOutcomeV1,
 	NativePluginQuarantineClearance,
 	NativePluginRegistryView,
 	NativePluginScanEntry,
+	NativePluginStateBodyV1,
+	NativePluginVendorWindowV1,
 	SoundscaperNativeServicesBridge,
 } from './soundscaper-native-services-bridge.ts';
 
@@ -37,6 +43,12 @@ export interface SoundscaperNativeServicesDialogState {
 	readonly plugins: NativePluginAvailability | null;
 	readonly registry: NativePluginRegistryView | null;
 	readonly devices: NativeAudioInventoryOutcome | null;
+	readonly audioSession: NativeAudioSessionProjectionV1 | null;
+	readonly pluginInstance: NativePluginInstanceProjectionV1 | null;
+	readonly pluginOffline: NativePluginOfflineOutcomeV1 | null;
+	readonly pluginStateBody: NativePluginStateBodyV1 | null;
+	readonly pluginStateGeneration: number;
+	readonly pluginVendorWindow: NativePluginVendorWindowV1 | null;
 	readonly scans: Readonly<Record<string, SoundscaperNativeScanState>>;
 	readonly pending: string | null;
 	readonly completed: string | null;
@@ -47,6 +59,11 @@ export type SoundscaperNativeServicesDialogAction =
 	| Readonly<{ type: 'refresh' }>
 	| Readonly<{ type: 'set-audio-enabled'; enabled: boolean }>
 	| Readonly<{ type: 'describe-devices'; backend: string }>
+	| Readonly<{ type: 'open-audio-session'; request: NativeAudioSessionOpenRequestV1 }>
+	| Readonly<{ type: 'bind-audio-session'; sessionId: string }>
+	| Readonly<{ type: 'audio-session-status'; sessionId: string }>
+	| Readonly<{ type: 'calibrate-audio-session'; sessionId: string }>
+	| Readonly<{ type: 'close-audio-session'; sessionId: string }>
 	| Readonly<{
 		type: 'consent';
 		format: string;
@@ -54,6 +71,20 @@ export type SoundscaperNativeServicesDialogAction =
 		rootId?: string;
 	}>
 	| Readonly<{ type: 'scan'; format: string; rootId: string }>
+	| Readonly<{ type: 'review-plugin'; installationId: string; review: 'allow' | 'select' }>
+	| Readonly<{ type: 'instantiate-plugin'; installationId: string }>
+	| Readonly<{ type: 'run-plugin-offline'; instanceId: string }>
+	| Readonly<{ type: 'set-plugin-bypassed'; instanceId: string; bypassed: boolean }>
+	| Readonly<{
+		type: 'persist-plugin-state'; instanceId: string; generation: number; bytes?: Uint8Array;
+	}>
+	| Readonly<{
+		type: 'restore-plugin-state'; instanceId: string; generation: number;
+		stateBody: NativePluginStateBodyV1;
+	}>
+	| Readonly<{ type: 'open-plugin-vendor-ui'; instanceId: string }>
+	| Readonly<{ type: 'close-plugin-vendor-ui'; instanceId: string; windowHandleId: string }>
+	| Readonly<{ type: 'close-plugin'; instanceId: string }>
 	| Readonly<{
 		type: 'clear-quarantine';
 		digest: string;
@@ -74,6 +105,12 @@ export interface SoundscaperNativeServicesActionResult {
 	readonly plugins?: NativePluginAvailability;
 	readonly registry?: NativePluginRegistryView;
 	readonly devices?: NativeAudioInventoryOutcome;
+	readonly audioSession?: NativeAudioSessionProjectionV1;
+	readonly pluginInstance?: NativePluginInstanceProjectionV1;
+	readonly pluginOffline?: NativePluginOfflineOutcomeV1;
+	readonly pluginStateBody?: NativePluginStateBodyV1;
+	readonly pluginStateGeneration?: number;
+	readonly pluginVendorWindow?: SoundscaperNativeServicesDialogState['pluginVendorWindow'];
 	readonly scan?: SoundscaperNativeScanState;
 }
 
@@ -83,6 +120,12 @@ export const EMPTY_SOUNDSCAPER_NATIVE_SERVICES_DIALOG_STATE: SoundscaperNativeSe
 		plugins: null,
 		registry: null,
 		devices: null,
+		audioSession: null,
+		pluginInstance: null,
+		pluginOffline: null,
+		pluginStateBody: null,
+		pluginStateGeneration: 0,
+		pluginVendorWindow: null,
 		scans: Object.freeze({}),
 		pending: null,
 		completed: null,
@@ -98,6 +141,20 @@ export function soundscaperNativeServicesActionKey(
 	if (action.type === 'describe-devices') return `describe-devices:${action.backend}`;
 	if (action.type === 'set-audio-enabled') return `set-audio-enabled:${String(action.enabled)}`;
 	if (action.type === 'clear-quarantine') return `clear-quarantine:${action.digest}:${action.clearance}`;
+	if (action.type === 'open-audio-session') return 'open-audio-session';
+	if (action.type === 'bind-audio-session') return `bind-audio-session:${action.sessionId}`;
+	if (action.type === 'audio-session-status') return `audio-session-status:${action.sessionId}`;
+	if (action.type === 'calibrate-audio-session') return `calibrate-audio-session:${action.sessionId}`;
+	if (action.type === 'close-audio-session') return `close-audio-session:${action.sessionId}`;
+	if (action.type === 'review-plugin') return `review-plugin:${action.review}:${action.installationId}`;
+	if (action.type === 'instantiate-plugin') return `instantiate-plugin:${action.installationId}`;
+	if (action.type === 'run-plugin-offline') return `run-plugin-offline:${action.instanceId}`;
+	if (action.type === 'set-plugin-bypassed') return `bypass-plugin:${action.instanceId}:${String(action.bypassed)}`;
+	if (action.type === 'persist-plugin-state') return `persist-plugin-state:${action.instanceId}`;
+	if (action.type === 'restore-plugin-state') return `restore-plugin-state:${action.instanceId}`;
+	if (action.type === 'open-plugin-vendor-ui') return `open-plugin-vendor-ui:${action.instanceId}`;
+	if (action.type === 'close-plugin-vendor-ui') return `close-plugin-vendor-ui:${action.instanceId}`;
+	if (action.type === 'close-plugin') return `close-plugin:${action.instanceId}`;
 	return 'refresh';
 }
 
@@ -151,6 +208,21 @@ export function reduceSoundscaperNativeServicesDialog(
 		devices: event.action.type === 'set-audio-enabled' && !event.action.enabled
 			? null
 			: result.devices ?? state.devices,
+		audioSession: event.action.type === 'close-audio-session'
+			|| (event.action.type === 'set-audio-enabled' && !event.action.enabled)
+			? null
+			: result.audioSession ?? state.audioSession,
+		pluginInstance: event.action.type === 'close-plugin'
+			? null
+			: result.pluginInstance ?? state.pluginInstance,
+		pluginOffline: event.action.type === 'close-plugin'
+			? null
+			: result.pluginOffline ?? state.pluginOffline,
+		pluginStateBody: result.pluginStateBody ?? state.pluginStateBody,
+		pluginStateGeneration: result.pluginStateGeneration ?? state.pluginStateGeneration,
+		pluginVendorWindow: event.action.type === 'close-plugin' || event.action.type === 'close-plugin-vendor-ui'
+			? null
+			: result.pluginVendorWindow ?? state.pluginVendorWindow,
 		scans: result.scan ? withScan(state.scans, key, result.scan) : state.scans,
 		pending: null,
 		completed: key,
@@ -192,6 +264,35 @@ async function perform(
 		await bridge.setNativeAudioHelperEnabled(action.enabled);
 		return Object.freeze({ audio: await bridge.nativeAudioHelperAvailability() });
 	}
+	if (action.type === 'open-audio-session') {
+		const opened = await bridge.openNativeAudioSession(action.request);
+		if (opened.status !== 'opened') throw new Error(opened.message);
+		return Object.freeze({
+			audioSession: await bridge.nativeAudioSessionStatus({ sessionId: opened.sessionId }),
+		});
+	}
+	if (action.type === 'bind-audio-session') {
+		await bridge.bindNativeAudioSession({ sessionId: action.sessionId, queueCapacity: 8 });
+		return Object.freeze({
+			audioSession: await bridge.nativeAudioSessionStatus({ sessionId: action.sessionId }),
+		});
+	}
+	if (action.type === 'audio-session-status') {
+		return Object.freeze({
+			audioSession: await bridge.nativeAudioSessionStatus({ sessionId: action.sessionId }),
+		});
+	}
+	if (action.type === 'calibrate-audio-session') {
+		return Object.freeze({
+			audioSession: await bridge.calibrateNativeAudioSession({ sessionId: action.sessionId }),
+		});
+	}
+	if (action.type === 'close-audio-session') {
+		if (!await bridge.closeNativeAudioSession({ sessionId: action.sessionId })) {
+			throw new Error('The native audio session did not close.');
+		}
+		return Object.freeze({});
+	}
 	if (action.type === 'consent') {
 		await bridge.setNativePluginConsent({
 			format: action.format,
@@ -227,6 +328,64 @@ async function perform(
 					entries: Object.freeze([]),
 				}),
 		});
+	}
+	if (action.type === 'review-plugin') {
+		return Object.freeze({
+			registry: await bridge.reviewNativePluginInstallation({
+				installationId: action.installationId, action: action.review,
+			}),
+		});
+	}
+	if (action.type === 'instantiate-plugin') {
+		return Object.freeze({
+			pluginInstance: await bridge.instantiateNativePlugin({
+				installationId: action.installationId, instanceId: null,
+			}),
+		});
+	}
+	if (action.type === 'run-plugin-offline') {
+		const pluginOffline = await bridge.runNativePluginOffline({ instanceId: action.instanceId });
+		return Object.freeze({ pluginOffline, pluginInstance: pluginOffline.instance });
+	}
+	if (action.type === 'set-plugin-bypassed') {
+		return Object.freeze({ pluginInstance: await bridge.setNativePluginBypassed({
+			instanceId: action.instanceId, bypassed: action.bypassed,
+		}) });
+	}
+	if (action.type === 'persist-plugin-state') {
+		const persisted = await bridge.persistNativePluginState({
+			instanceId: action.instanceId, generation: action.generation,
+		});
+		if (persisted.outcome.status !== 'persisted' || persisted.projectState === null) {
+			throw new Error('The native plug-in state was not admitted.');
+		}
+		return Object.freeze({
+			pluginStateBody: persisted.projectState.stateBody,
+			pluginStateGeneration: action.generation,
+		});
+	}
+	if (action.type === 'restore-plugin-state') {
+		await bridge.restoreNativePluginState({
+			instanceId: action.instanceId, generation: action.generation, stateBody: action.stateBody,
+		});
+		return Object.freeze({ pluginStateGeneration: action.generation });
+	}
+	if (action.type === 'open-plugin-vendor-ui') {
+		const outcome = await bridge.openNativePluginVendorUi({ instanceId: action.instanceId });
+		if (outcome.status !== 'opened') throw new Error(outcome.message);
+		return Object.freeze({ pluginVendorWindow: outcome.window });
+	}
+	if (action.type === 'close-plugin-vendor-ui') {
+		if (!await bridge.closeNativePluginVendorUi({
+			instanceId: action.instanceId, windowHandleId: action.windowHandleId,
+		})) throw new Error('The native plug-in vendor window did not close.');
+		return Object.freeze({ pluginVendorWindow: null });
+	}
+	if (action.type === 'close-plugin') {
+		if (!await bridge.closeNativePluginInstance({ instanceId: action.instanceId })) {
+			throw new Error('The native plug-in instance did not close.');
+		}
+		return Object.freeze({});
 	}
 	const clear = bridge.clearNativePluginQuarantine;
 	if (typeof clear !== 'function') {

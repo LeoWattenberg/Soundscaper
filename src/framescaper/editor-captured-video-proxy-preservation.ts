@@ -31,12 +31,16 @@ import { assertFramescaperProjectV20Profile } from './editor-project-v20-profile
 import { cloneFramescaperProjectV20, type FramescaperProjectV20 } from './editor-project-v20.ts';
 import { cloneFramescaperProjectV27, type FramescaperProjectV27 } from './editor-project-v27.ts';
 import { assertFramescaperProjectV27Profile } from './editor-project-runtime-profile-v27.ts';
+import { reconcileFramescaperProjectFeatureRequirementsV28 } from './editor-project-feature-requirements-v28.ts';
+import { assertFramescaperProjectV28Profile } from './editor-project-runtime-profile-v28.ts';
+import { cloneFramescaperProjectV28, type FramescaperProjectV28 } from './editor-project-v28.ts';
 
 const TEXT_ENCODER = new TextEncoder();
 
-export type FramescaperCapturedVideoProxySchemaVersion = 18 | 19 | 20 | 27;
+export type FramescaperCapturedVideoProxySchemaVersion = 18 | 19 | 20 | 27 | 28;
 export type FramescaperCapturedVideoProxyProject =
-	FramescaperProjectV18 | FramescaperProjectV19 | FramescaperProjectV20 | FramescaperProjectV27;
+	FramescaperProjectV18 | FramescaperProjectV19 | FramescaperProjectV20
+	| FramescaperProjectV27 | FramescaperProjectV28;
 
 export interface FramescaperCapturedVideoProxyPreservationPublication {
 	readonly expected: unknown;
@@ -383,7 +387,8 @@ function cloneProject(
 	if (schemaVersion === 18) return cloneFramescaperProjectV18(profile, project);
 	if (schemaVersion === 19) return cloneFramescaperProjectV19(profile, project);
 	if (schemaVersion === 20) return cloneFramescaperProjectV20(profile, project);
-	return cloneFramescaperProjectV27(profile, project);
+	if (schemaVersion === 27) return cloneFramescaperProjectV27(profile, project);
+	return cloneFramescaperProjectV28(profile, project);
 }
 
 function assertProfile(
@@ -393,7 +398,8 @@ function assertProfile(
 	if (schemaVersion === 18) assertFramescaperProjectV18Profile(profile);
 	else if (schemaVersion === 19) assertFramescaperProjectV19Profile(profile);
 	else if (schemaVersion === 20) assertFramescaperProjectV20Profile(profile);
-	else assertFramescaperProjectV27Profile(profile);
+	else if (schemaVersion === 27) assertFramescaperProjectV27Profile(profile);
+	else assertFramescaperProjectV28Profile(profile);
 }
 
 function reconcileRequirements(
@@ -404,7 +410,8 @@ function reconcileRequirements(
 	if (schemaVersion === 18) return reconcileFramescaperProjectFeatureRequirementsV18(profile, project);
 	if (schemaVersion === 19) return reconcileFramescaperProjectFeatureRequirementsV19(profile, project);
 	if (schemaVersion === 20) return reconcileFramescaperProjectFeatureRequirementsV20(profile, project);
-	return reconcileFramescaperProjectFeatureRequirementsV27(profile, project);
+	if (schemaVersion === 27) return reconcileFramescaperProjectFeatureRequirementsV27(profile, project);
+	return reconcileFramescaperProjectFeatureRequirementsV28(profile, project);
 }
 
 function exactSource(

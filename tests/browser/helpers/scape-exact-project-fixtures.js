@@ -2,19 +2,37 @@ import { Buffer } from 'node:buffer';
 
 import { framescaperProjectV20FoundationV27 } from '../../../src/framescaper/editor-project-v27-runtime.ts';
 import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from '../../../src/framescaper/editor-project-runtime-profile-v27.ts';
+import { framescaperProjectV27FoundationShapeV28 } from '../../../src/framescaper/editor-project-v28-foundation.ts';
 import { createSoundscaperProjectV23 } from '../../../src/soundscaper/editor-project-v23.ts';
+import { createSoundscaperProjectV29 } from '../../../src/soundscaper/editor-project-v29.ts';
 
 export async function promoteFramescaperArchiveToSoundscaperV23(
 	input,
 	{ id, title, mutate = () => {} },
 	rewriteArchive,
 ) {
+	return promoteFramescaperArchive(
+		input, { id, title, mutate }, rewriteArchive, createSoundscaperProjectV23,
+	);
+}
+
+export async function promoteFramescaperArchiveToSoundscaperV29(
+	input,
+	{ id, title, mutate = () => {} },
+	rewriteArchive,
+) {
+	return promoteFramescaperArchive(
+		input, { id, title, mutate }, rewriteArchive, createSoundscaperProjectV29,
+	);
+}
+
+async function promoteFramescaperArchive(input, { id, title, mutate }, rewriteArchive, createProject) {
 	return rewriteArchive(input, ({ project }) => {
-		const foundation = framescaperFoundationForSoundscaperV23(project);
+		const foundation = framescaperFoundationForSoundscaper(project);
 		foundation.id = id;
 		foundation.title = title;
 		mutate(foundation);
-		const promoted = structuredClone(createSoundscaperProjectV23(foundation));
+		const promoted = structuredClone(createProject(foundation));
 		for (const key of Object.keys(project)) delete project[key];
 		Object.assign(project, promoted);
 	});
@@ -57,10 +75,8 @@ export function createScapePcmPayload(source) {
 	return output;
 }
 
-function framescaperFoundationForSoundscaperV23(value) {
-	const project = structuredClone(value.schemaVersion === 27
-		? framescaperProjectV20FoundationV27(FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE, value)
-		: value);
+function framescaperFoundationForSoundscaper(value) {
+	const project = structuredClone(framescaperSelectedFoundation(value));
 	delete project.schemaVersion;
 	delete project.subsequences;
 	delete project.multicameraGroups;
@@ -76,6 +92,18 @@ function framescaperFoundationForSoundscaperV23(value) {
 		clips: project.projectBin.clips.map(withoutVideoComposition),
 	};
 	return project;
+}
+
+function framescaperSelectedFoundation(value) {
+	if (value.schemaVersion === 28) {
+		return framescaperProjectV20FoundationV27(
+			FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,
+			framescaperProjectV27FoundationShapeV28(value),
+		);
+	}
+	return value.schemaVersion === 27
+		? framescaperProjectV20FoundationV27(FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE, value)
+		: value;
 }
 
 function withoutVideoComposition(clip) {

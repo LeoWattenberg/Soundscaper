@@ -38,6 +38,7 @@ import {
 	framescaperOpenFxExecutionRequestV1,
 } from '../desktop/openfx-main-execution-request.ts';
 import { openFxHelperTransferredPortCount } from '../desktop/openfx-helper-worker.ts';
+import { openFxProductionReadinessFixture } from './helpers/openfx-production-readiness-fixture.ts';
 import {
 	createUnifiedExactOfxHostAttemptV1,
 	type OfxUnifiedHostAttemptResourcesV1,
@@ -108,14 +109,17 @@ const prepareWithTiming = prepareOpenFxMainAttemptV1 as unknown as PrepareWithTi
 
 test('CFR OpenFX grants keep the existing no-timing port order and accounting', () => {
 	const grant = validateHelperJobGrant('ofx-host', cfrGrant());
-	assert.equal(Object.hasOwn(grant, 'videoTimingAssets'), false);
-	const transfers = transfersFor(grant);
-	const admitted = admitHelperDataPlaneTransfers('ofx-host', grant, [...transfers].reverse());
+	if (!('invocation' in grant)) throw new Error('The CFR render grant admitted as Interact.');
+	if (grant.invocation.schemaVersion !== 1) throw new Error('The V1 fixture admitted as V2.');
+	const legacyGrant = grant as HelperOfxHostJobGrant;
+	assert.equal(Object.hasOwn(legacyGrant, 'videoTimingAssets'), false);
+	const transfers = transfersFor(legacyGrant);
+	const admitted = admitHelperDataPlaneTransfers('ofx-host', legacyGrant, [...transfers].reverse());
 	assert.deepEqual(admitted, transfers.map(({ port }) => port));
-	assert.equal(openFxHelperTransferredPortCount('ofx-host', grant), 3);
-	const usage = helperJobGrantResourceUsage('ofx-host', grant);
+	assert.equal(openFxHelperTransferredPortCount('ofx-host', legacyGrant), 3);
+	const usage = helperJobGrantResourceUsage('ofx-host', legacyGrant);
 	assert.equal(usage.dataPlaneBytes,
-		grant.plan.byteLength + grant.inputs[0]!.frame.byteLength + grant.output.frame.maximumByteLength);
+		legacyGrant.plan.byteLength + legacyGrant.inputs[0]!.frame.byteLength + legacyGrant.output.frame.maximumByteLength);
 });
 
 test('ofx-host grants close, account, and canonically order timing bindings', () => {
@@ -258,6 +262,10 @@ test('the OpenFX helper receives SCTI ports and emits only staged native timing 
 	const hostDescriptor: FramescaperOpenFxHostDescriptor = {
 		target: 'linux-x64', runtime: 'linux-x64', hostVersion: '1.0.0',
 		openfxVersion: '1.5.1', openfxCommit: 'ab77951', scanner, runtimeHost,
+		isolation: {
+			launcher: scanner, sandboxProfile: scanner, brokerPolicy: scanner, runtimeLibraries: [],
+		},
+		productionReadiness: openFxProductionReadinessFixture(scanner.sha256, runtimeHost.sha256),
 	};
 	let nativeTiming: unknown = null;
 	const runner = createOpenFxHelperJobRunner({
@@ -277,8 +285,9 @@ test('the OpenFX helper receives SCTI ports and emits only staged native timing 
 			})));
 			await writeFile(nativeGrant.output.path, OUTPUT, { flag: 'wx' });
 			return { exitCode: 0, stderr: '', stdout: JSON.stringify({
-				accepted: true, requestedBackend: 'cpu', backend: 'cpu',
+				accepted: true, planVersion: 12, requestedBackend: 'cpu', backend: 'cpu',
 				retriedOnCpu: false, reportsDegradation: false,
+				gpuContextSetup: false, gpuContextReleased: false,
 				outputStreamId: output.streamId, outputByteLength: OUTPUT.byteLength,
 				outputSha256: digest(OUTPUT), outputWidth: 2, outputHeight: 2, outputRowBytes: 8,
 			}) };
@@ -531,6 +540,7 @@ function scannerDescriptor(binarySha256: string): string {
 		bundleIdentity: `sha256:${binarySha256}`, binarySha256, architectureDirectory: 'Linux-x86-64',
 		supportedContexts: ['retimer'], parameters: [], components: ['RGBA'], pixelDepths: ['byte'],
 		threading: 'fully-safe',
+		renderBackends: ['cpu'],
 		requestedSuites: ['OfxImageEffectSuite', 'OfxPropertySuite', 'OfxParameterSuite'],
 	});
 }

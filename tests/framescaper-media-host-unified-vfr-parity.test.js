@@ -310,8 +310,8 @@ function buildProductionHost(context) {
 	const executable = join(directory, 'framescaper-media-host');
 	const files = [
 		'media_host.cpp', 'image_sequence_pack.cpp', 'legacy_plan_semantics.cpp',
-		'legacy_plan_v8_filter_semantics.cpp', 'media_file_grants.cpp', 'media_plan.cpp',
-		'sha256.cpp', 'strict_json.cpp',
+		'legacy_plan_v8_filter_semantics.cpp', 'media_file_grants.cpp',
+		'media_host_arguments.cpp', 'media_plan.cpp', 'sha256.cpp', 'strict_json.cpp',
 	].map((file) => join(sourceRoot, file));
 	const built = spawnSync('c++', [
 		'-std=c++20', '-Wall', '-Wextra', '-Wpedantic', '-Werror', ...boostArguments,

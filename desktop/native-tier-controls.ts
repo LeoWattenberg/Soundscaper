@@ -41,7 +41,6 @@ interface DesktopNativeTierControlSettings {
 		nativePluginDiscoveryEnabled: boolean;
 	}>;
 	setNativeProbeHelperEnabled(enabled: boolean): Promise<boolean> | boolean;
-	setNativePluginDiscoveryEnabled(enabled: boolean): Promise<boolean> | boolean;
 }
 
 interface DesktopNativeTierControlServices {
@@ -53,6 +52,9 @@ interface DesktopNativeTierControlServices {
 		controlSnapshot(): Readonly<{ enabled: boolean; quarantined: boolean }>;
 		setEnabled(enabled: boolean): Promise<boolean> | boolean;
 		clearQuarantine(): void;
+	};
+	readonly plugins: {
+		setEnabled(enabled: boolean): Promise<boolean> | boolean;
 	};
 }
 
@@ -105,7 +107,7 @@ export async function applyDesktopNativeTierControl(
 			tier.audio.clearQuarantine();
 			break;
 		case 'set-native-effect-discovery-enabled':
-			await settings.setNativePluginDiscoveryEnabled(request.enabled);
+			await tier.plugins.setEnabled(request.enabled);
 			break;
 	}
 	return readDesktopNativeTierControls(settings, tier);

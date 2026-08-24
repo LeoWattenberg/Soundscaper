@@ -6,6 +6,14 @@ import { createHash } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 import { basename, join, relative, resolve } from 'node:path';
 
+import {
+	openFxProductionReadinessReference,
+	verifyOpenFxProductionReadiness,
+	type OpenFxProductionReadinessEvidenceV1,
+	type OpenFxProductionReadinessReferenceV2,
+	type OpenFxRuntimeLibraryEvidenceV1,
+} from './openfx-production-readiness.ts';
+
 export const FRAMESCAPER_OPENFX_HOST_RUNTIME_TARGETS = Object.freeze({
 	'linux-x64': 'linux-x64',
 	'linux-arm64': 'linux-arm64',
@@ -22,8 +30,10 @@ export type FramescaperOpenFxHostUnavailableReason =
 	| 'unsupported-platform'
 	| 'payload-pending-external'
 	| 'production-readiness-unattested'
+	| 'isolation-launcher-unavailable'
 	| 'payload-missing'
 	| 'payload-digest-mismatch'
+	| 'production-readiness-evidence-mismatch'
 	| 'manifest-unreadable';
 
 export interface FramescaperOpenFxHostPayloadLocation {
@@ -50,6 +60,13 @@ export interface FramescaperOpenFxHostDescriptor {
 	readonly openfxCommit: 'ab77951';
 	readonly scanner: FramescaperOpenFxExecutableDescriptor;
 	readonly runtimeHost: FramescaperOpenFxExecutableDescriptor;
+	readonly isolation: Readonly<{
+		readonly launcher: FramescaperOpenFxExecutableDescriptor;
+		readonly sandboxProfile: FramescaperOpenFxExecutableDescriptor;
+		readonly brokerPolicy: FramescaperOpenFxExecutableDescriptor;
+		readonly runtimeLibraries: readonly FramescaperOpenFxExecutableDescriptor[];
+	}>;
+	readonly productionReadiness: OpenFxProductionReadinessEvidenceV1;
 }
 
 export type FramescaperOpenFxHostAvailability =
@@ -71,6 +88,9 @@ interface FileStat {
 export interface FramescaperOpenFxHostPayloadPorts {
 	readonly readFile: (path: string) => Promise<Buffer>;
 	readonly stat: (path: string) => Promise<FileStat>;
+	readonly resolveReviewPublicKey?: (
+		target: FramescaperOpenFxHostTargetId, reviewKeyId: string,
+	) => Promise<string | Buffer | null> | string | Buffer | null;
 }
 
 interface PayloadIdentity {
@@ -82,6 +102,12 @@ interface PayloadIdentity {
 interface PayloadPair {
 	readonly scannerPayload: PayloadIdentity;
 	readonly runtimeHostPayload: PayloadIdentity;
+	readonly isolationPayload: Readonly<{
+		readonly launcherPayload: PayloadIdentity;
+		readonly sandboxProfilePayload: PayloadIdentity;
+		readonly brokerPolicyPayload: PayloadIdentity;
+		readonly runtimeLibraryPayloads: readonly PayloadIdentity[];
+	}>;
 }
 
 interface PayloadRecord extends PayloadPair {
@@ -95,20 +121,7 @@ interface TargetRecord {
 	readonly status: 'built' | 'pending-external';
 	readonly blockedBy: string | null;
 	readonly payload: PayloadPair | null;
-	readonly productionReadiness: ProductionReadinessAttestation | null;
-}
-
-interface ProductionReadinessAttestation {
-	readonly schemaVersion: 1;
-	readonly status: 'reviewed';
-	readonly target: FramescaperOpenFxHostTargetId;
-	readonly scannerSha256: string;
-	readonly runtimeHostSha256: string;
-	readonly osIsolationAttested: true;
-	readonly realThirdPartyExecutionAttested: true;
-	readonly reviewedAt: string;
-	readonly reviewer: string;
-	readonly evidenceSha256: string;
+	readonly productionReadiness: OpenFxProductionReadinessReferenceV2 | null;
 }
 
 interface PayloadManifest {
@@ -130,6 +143,10 @@ const TARGET_RUNTIME = Object.freeze({
 	'win-x64': 'win32-x64',
 	'win-arm64': 'win32-arm64',
 } as const satisfies Readonly<Record<FramescaperOpenFxHostTargetId, string>>);
+const LINUX_RUNTIME_LOADERS = Object.freeze({
+	'linux-x64': 'ld-linux-x86-64.so.2',
+	'linux-arm64': 'ld-linux-aarch64.so.1',
+} as const);
 
 export function framescaperOpenFxHostTargetFor(
 	platform: string,
@@ -182,10 +199,32 @@ export async function describeFramescaperOpenFxHostAvailability(
 	const scannerPath = payloadPath(location, targetId, payload.scannerPayload.path);
 	const runtimePath = payloadPath(location, targetId, payload.runtimeHostPayload.path);
 	try {
-		const [scanner, runtimeHost] = await Promise.all([
+		const [scanner, runtimeHost, launcher, sandboxProfile, brokerPolicy, ...runtimeLibraries] = await Promise.all([
 			verifyPayload(scannerPath, payload.scannerPayload, ports),
 			verifyPayload(runtimePath, payload.runtimeHostPayload, ports),
+			...isolationPayloads(payload.isolationPayload).map((identity) => verifyPayload(
+				payloadPath(location, targetId, identity.path), identity, ports,
+			)),
 		]);
+		const productionReadiness = await verifyOpenFxProductionReadiness(
+			target.productionReadiness,
+			Object.freeze({
+				scannerSha256: scanner.sha256, runtimeHostSha256: runtimeHost.sha256,
+				isolation: Object.freeze({
+					launcherSha256: launcher!.sha256,
+					sandboxProfileSha256: sandboxProfile!.sha256,
+					brokerPolicySha256: brokerPolicy!.sha256,
+					runtimeLibraries: runtimeLibraryEvidence(runtimeLibraries),
+				}),
+			}),
+			Object.freeze({
+				readEvidence: (path: string) => ports.readFile(readinessEvidencePath(
+					location, targetId, path,
+				)),
+				resolveReviewPublicKey: ports.resolveReviewPublicKey
+					?? (() => null),
+			}),
+		);
 		return Object.freeze({
 			status: 'available' as const,
 			descriptor: Object.freeze({
@@ -196,15 +235,24 @@ export async function describeFramescaperOpenFxHostAvailability(
 				openfxCommit: 'ab77951' as const,
 				scanner,
 				runtimeHost,
+				isolation: Object.freeze({
+					launcher: launcher!, sandboxProfile: sandboxProfile!, brokerPolicy: brokerPolicy!,
+					runtimeLibraries: Object.freeze(runtimeLibraries),
+				}),
+				productionReadiness,
 			}),
 		});
 	} catch (error) {
 		const missing = isMissing(error);
+		const readiness = !missing && /production-readiness|signed OpenFX|trusted Ed25519/iu
+			.test(errorMessage(error));
 		return unavailable(
-			missing ? 'payload-missing' : 'payload-digest-mismatch',
+			missing ? 'payload-missing' : readiness
+				? 'production-readiness-evidence-mismatch' : 'payload-digest-mismatch',
 			missing
 				? `A Framescaper OpenFX-host payload is missing: ${errorMessage(error)}`
-				: 'The Framescaper OpenFX-host payloads do not match their pinned bytes and identities.',
+				: readiness ? errorMessage(error)
+					: 'The Framescaper OpenFX-host payloads do not match their pinned bytes and identities.',
 		);
 	}
 }
@@ -275,12 +323,6 @@ function payloadManifest(value: unknown): PayloadManifest {
 				|| !samePair(target.payload, matchingPayloads[0]!)) {
 				throw new TypeError(`Built OpenFX-host target ${id} has inconsistent payload identities.`);
 			}
-			if (target.productionReadiness !== null
-				&& (target.productionReadiness.scannerSha256 !== target.payload.scannerPayload.sha256
-					|| target.productionReadiness.runtimeHostSha256
-						!== target.payload.runtimeHostPayload.sha256)) {
-				throw new TypeError(`Built OpenFX-host target ${id} has stale production-readiness evidence.`);
-			}
 		} else if (target.payload !== null || typeof target.blockedBy !== 'string'
 			|| target.blockedBy.length < 16 || matchingPayloads.length !== 0
 			|| target.productionReadiness !== null) {
@@ -313,46 +355,14 @@ function targetRecord(value: unknown): TargetRecord {
 		blockedBy: record.blockedBy,
 		payload: record.payload === null ? null : payloadPair(record.payload, id),
 		productionReadiness: record.productionReadiness === null
-			? null : productionReadinessAttestation(record.productionReadiness, id),
-	});
-}
-
-function productionReadinessAttestation(
-	value: unknown,
-	target: FramescaperOpenFxHostTargetId,
-): ProductionReadinessAttestation {
-	const record = closedRecord(value, [
-		'schemaVersion', 'status', 'target', 'scannerSha256', 'runtimeHostSha256',
-		'osIsolationAttested', 'realThirdPartyExecutionAttested', 'reviewedAt',
-		'reviewer', 'evidenceSha256',
-	]);
-	if (record.schemaVersion !== 1 || record.status !== 'reviewed' || record.target !== target
-		|| typeof record.scannerSha256 !== 'string' || !SHA256.test(record.scannerSha256)
-		|| typeof record.runtimeHostSha256 !== 'string' || !SHA256.test(record.runtimeHostSha256)
-		|| record.osIsolationAttested !== true
-		|| record.realThirdPartyExecutionAttested !== true
-		|| typeof record.reviewedAt !== 'string' || !/^\d{4}-\d{2}-\d{2}$/u.test(record.reviewedAt)
-		|| typeof record.reviewer !== 'string' || record.reviewer.length < 3
-		|| record.reviewer.length > 128 || /[\u0000-\u001f\u007f]/u.test(record.reviewer)
-		|| typeof record.evidenceSha256 !== 'string' || !SHA256.test(record.evidenceSha256)) {
-		throw new TypeError('An OpenFX-host production-readiness attestation is invalid.');
-	}
-	return Object.freeze({
-		schemaVersion: 1,
-		status: 'reviewed',
-		target,
-		scannerSha256: record.scannerSha256,
-		runtimeHostSha256: record.runtimeHostSha256,
-		osIsolationAttested: true,
-		realThirdPartyExecutionAttested: true,
-		reviewedAt: record.reviewedAt,
-		reviewer: record.reviewer,
-		evidenceSha256: record.evidenceSha256,
+			? null : openFxProductionReadinessReference(record.productionReadiness, id),
 	});
 }
 
 function payloadRecord(value: unknown): PayloadRecord {
-	const record = closedRecord(value, ['id', 'runtime', 'scannerPayload', 'runtimeHostPayload']);
+	const record = closedRecord(value, [
+		'id', 'runtime', 'scannerPayload', 'runtimeHostPayload', 'isolationPayload',
+	]);
 	const id = targetId(record.id);
 	const runtime = record.runtime;
 	if (typeof runtime !== 'string' || runtime !== TARGET_RUNTIME[id]) {
@@ -364,26 +374,65 @@ function payloadRecord(value: unknown): PayloadRecord {
 		...payloadPair({
 			scannerPayload: record.scannerPayload,
 			runtimeHostPayload: record.runtimeHostPayload,
+			isolationPayload: record.isolationPayload,
 		}, id),
 	});
 }
 
 function payloadPair(value: unknown, id: FramescaperOpenFxHostTargetId): PayloadPair {
-	const record = closedRecord(value, ['scannerPayload', 'runtimeHostPayload']);
+	const record = closedRecord(value, ['scannerPayload', 'runtimeHostPayload', 'isolationPayload']);
 	return Object.freeze({
 		scannerPayload: payloadIdentity(record.scannerPayload, id, 'framescaper-ofx-scanner'),
 		runtimeHostPayload: payloadIdentity(record.runtimeHostPayload, id, 'framescaper-ofx-runtime-host'),
+		isolationPayload: isolationPayload(record.isolationPayload, id),
+	});
+}
+
+function isolationPayload(value: unknown, id: FramescaperOpenFxHostTargetId): PayloadPair['isolationPayload'] {
+	const record = closedRecord(value, [
+		'launcherPayload', 'sandboxProfilePayload', 'brokerPolicyPayload', 'runtimeLibraryPayloads',
+	]);
+	if (!Array.isArray(record.runtimeLibraryPayloads) || record.runtimeLibraryPayloads.length > 32) {
+		throw new TypeError('An OpenFX-host runtime-library inventory is invalid.');
+	}
+	const runtimeLibraryPayloads = record.runtimeLibraryPayloads.map((entry) => (
+		payloadIdentity(entry, id, null, 'lib')
+	));
+	if (runtimeLibraryPayloads.some((library, index) => index > 0
+		&& runtimeLibraryPayloads[index - 1]!.path.localeCompare(library.path, 'en') >= 0)) {
+		throw new TypeError('OpenFX-host runtime libraries must be uniquely ordered.');
+	}
+	if (id.startsWith('linux-')) {
+		const loader = LINUX_RUNTIME_LOADERS[id as keyof typeof LINUX_RUNTIME_LOADERS];
+		if (runtimeLibraryPayloads.filter(({ path }) => basename(path) === loader).length !== 1) {
+			throw new TypeError('A built Linux OpenFX host requires its exact staged runtime loader.');
+		}
+	}
+	const suffix = id.startsWith('win-') ? '.exe' : '';
+	return Object.freeze({
+		launcherPayload: payloadIdentity(record.launcherPayload, id,
+			`milestone5-native-isolation-launcher${suffix}`, 'isolation'),
+		sandboxProfilePayload: payloadIdentity(record.sandboxProfilePayload, id,
+			'milestone5-native-isolation-profile.json', 'isolation'),
+		brokerPolicyPayload: payloadIdentity(record.brokerPolicyPayload, id,
+			'milestone5-native-isolation-broker.json', 'isolation'),
+		runtimeLibraryPayloads: Object.freeze(runtimeLibraryPayloads),
 	});
 }
 
 function payloadIdentity(
 	value: unknown,
 	id: FramescaperOpenFxHostTargetId,
-	executableName: string,
+	executableName: string | null,
+	directory = 'bin',
 ): PayloadIdentity {
 	const record = closedRecord(value, ['path', 'byteLength', 'sha256']);
-	const expected = `${RUNTIME_PREFIX}/prebuilt/${id}/bin/${executableName}`;
-	if (record.path !== expected || !Number.isSafeInteger(record.byteLength) || Number(record.byteLength) <= 0
+	const prefix = `${RUNTIME_PREFIX}/prebuilt/${id}/${directory}/`;
+	const name = typeof record.path === 'string' ? record.path.slice(prefix.length) : '';
+	const expectedName = executableName ?? name;
+	if (record.path !== `${prefix}${expectedName}` || (executableName === null
+		&& !/^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$/u.test(name))
+		|| !Number.isSafeInteger(record.byteLength) || Number(record.byteLength) <= 0
 		|| typeof record.sha256 !== 'string' || !SHA256.test(record.sha256)) {
 		throw new TypeError('An OpenFX-host payload identity is invalid.');
 	}
@@ -403,11 +452,40 @@ function targetId(value: unknown): FramescaperOpenFxHostTargetId {
 
 function samePair(left: PayloadPair, right: PayloadPair): boolean {
 	return samePayload(left.scannerPayload, right.scannerPayload)
-		&& samePayload(left.runtimeHostPayload, right.runtimeHostPayload);
+		&& samePayload(left.runtimeHostPayload, right.runtimeHostPayload)
+		&& sameIsolationPayload(left.isolationPayload, right.isolationPayload);
+}
+
+function sameIsolationPayload(
+	left: PayloadPair['isolationPayload'],
+	right: PayloadPair['isolationPayload'],
+): boolean {
+	return samePayload(left.launcherPayload, right.launcherPayload)
+		&& samePayload(left.sandboxProfilePayload, right.sandboxProfilePayload)
+		&& samePayload(left.brokerPolicyPayload, right.brokerPolicyPayload)
+		&& left.runtimeLibraryPayloads.length === right.runtimeLibraryPayloads.length
+		&& left.runtimeLibraryPayloads.every((entry, index) => (
+			samePayload(entry, right.runtimeLibraryPayloads[index]!)
+		));
 }
 
 function samePayload(left: PayloadIdentity, right: PayloadIdentity): boolean {
 	return left.path === right.path && left.byteLength === right.byteLength && left.sha256 === right.sha256;
+}
+
+function isolationPayloads(value: PayloadPair['isolationPayload']): readonly PayloadIdentity[] {
+	return Object.freeze([
+		value.launcherPayload, value.sandboxProfilePayload, value.brokerPolicyPayload,
+		...value.runtimeLibraryPayloads,
+	]);
+}
+
+function runtimeLibraryEvidence(
+	libraries: readonly FramescaperOpenFxExecutableDescriptor[],
+): readonly OpenFxRuntimeLibraryEvidenceV1[] {
+	return Object.freeze(libraries.map((library) => Object.freeze({
+		name: basename(library.path), byteLength: library.byteLength, sha256: library.sha256,
+	})));
 }
 
 function payloadPath(
@@ -420,6 +498,18 @@ function payloadPath(
 		: location.packaged
 		? join(location.resourcesPath, 'runtime', RUNTIME_PREFIX, targetId, basename(pinnedPath))
 		: safeDevelopmentPath(location.applicationRoot, pinnedPath);
+}
+
+function readinessEvidencePath(
+	location: FramescaperOpenFxHostPayloadLocation,
+	targetId: FramescaperOpenFxHostTargetId,
+	referencePath: string,
+): string {
+	const name = 'framescaper-openfx-production-readiness.json';
+	if (location.packaged) {
+		return join(location.resourcesPath, 'runtime', RUNTIME_PREFIX, targetId, name);
+	}
+	return safeDevelopmentPath(location.applicationRoot, referencePath);
 }
 
 function safeDevelopmentPath(applicationRoot: string, payloadPath_: string): string {

@@ -6,11 +6,14 @@ import {
 } from '../common/editor/project-runtime-profile.ts';
 import { cloneSoundscaperProjectV21 } from './editor-project-v21.ts';
 import { cloneSoundscaperProjectV23 } from './editor-project-v23.ts';
+import { cloneSoundscaperProjectV29 } from './editor-project-v29.ts';
 import type { SoundscaperProductionProject } from './editor-project-production-validation.ts';
 import { SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v21.ts';
 import { SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v23.ts';
+import { SOUNDSCAPER_V29_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v29.ts';
 import { soundscaperProjectStoreAuthorityV21 } from './editor-project-store-v21.ts';
 import { soundscaperProjectStoreAuthorityV23 } from './editor-project-store-v23.ts';
+import { soundscaperProjectStoreAuthorityV29 } from './editor-project-store-v29.ts';
 
 /**
  * Authenticate a process-local Soundscaper production runtime authority.
@@ -25,7 +28,8 @@ export function assertSoundscaperProductionProfile(
 	profile: unknown,
 ): asserts profile is EditorProjectRuntimeProfile {
 	if (profile !== SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE
-		&& profile !== SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE) {
+		&& profile !== SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE
+		&& profile !== SOUNDSCAPER_V29_PROJECT_RUNTIME_PROFILE) {
 		throw new TypeError('An exact Soundscaper production runtime profile is required.');
 	}
 	editorProjectRuntimeProfileDefinition(profile);
@@ -42,6 +46,9 @@ export function assertSoundscaperProductionProfile(
  */
 export function soundscaperProductionStoreAuthority(profile: unknown, store: unknown): unknown {
 	assertSoundscaperProductionProfile(profile);
+	if (profile === SOUNDSCAPER_V29_PROJECT_RUNTIME_PROFILE) {
+		return soundscaperProjectStoreAuthorityV29(profile, store);
+	}
 	return profile === SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE
 		? soundscaperProjectStoreAuthorityV23(profile, store)
 		: soundscaperProjectStoreAuthorityV21(profile, store);
@@ -62,8 +69,10 @@ export function soundscaperProductionProjectClone(
 	project: unknown,
 ): SoundscaperProductionProject {
 	assertSoundscaperProductionProfile(profile);
-	const clone = profile === SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE
-		? cloneSoundscaperProjectV23(project)
-		: cloneSoundscaperProjectV21(project);
+	const clone = profile === SOUNDSCAPER_V29_PROJECT_RUNTIME_PROFILE
+		? cloneSoundscaperProjectV29(project)
+		: profile === SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE
+			? cloneSoundscaperProjectV23(project)
+			: cloneSoundscaperProjectV21(project);
 	return clone as unknown as SoundscaperProductionProject;
 }

@@ -36,6 +36,13 @@ const DELEGATED_SOURCE_IDS = Object.freeze([
 	'openfx',
 	'pipewire-public-headers',
 ]);
+export const MILESTONE_5_NATIVE_DELEGATED_SOURCE_PATHS = Object.freeze([
+	'config/boost-multiprecision-source-manifest.json',
+	'native/framescaper-media-host/source-manifest.json',
+	'native/framescaper-media-host/build/ffmpeg-9.0.1-external-sources.json',
+	'native/framescaper-openfx-host/source-manifest.json',
+	'vendor/pipewire-headers/UPSTREAM',
+]);
 const COMMIT_PATTERN = /^[a-f\d]{40}$/u;
 const SHA256_PATTERN = /^[a-f\d]{64}$/u;
 const SAFE_REPOSITORY_PATH = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[a-zA-Z\d._/-]+$/u;
@@ -43,21 +50,29 @@ const SAFE_ARCHIVE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,159}\.(?:tar\.gz|zip)$/u
 const AUDITED_REGISTERS = new WeakSet();
 const AUTHENTICATED_SOURCE_INPUTS = new WeakSet();
 const SNAPSHOTTED_SOURCE_INPUTS = new WeakSet();
+const SOURCE_REGISTER_INPUTS = new WeakMap();
 
 export function readMilestone5NativeSourceAcquisitions(
 	repositoryRoot,
 	manifestPath = MILESTONE_5_NATIVE_SOURCE_ACQUISITIONS,
 ) {
 	let register;
+	let manifestBytes;
 	try {
-		register = JSON.parse(readFileSync(resolve(repositoryRoot, manifestPath), 'utf8'));
+		manifestBytes = readFileSync(resolve(repositoryRoot, manifestPath));
+		register = JSON.parse(manifestBytes.toString('utf8'));
 	} catch (error) {
 		throw new Error(`Unable to read the Milestone 5 native source register: ${error.message}`, { cause: error });
 	}
 	validateRegister(register);
-	validateDelegatedFiles(repositoryRoot, register);
-	validateFramescaperExternalSourceClosure(repositoryRoot, register);
-	return deepFreeze(register);
+	const delegatedInputs = validateDelegatedFiles(repositoryRoot, register);
+	validateFramescaperExternalSourceClosure(register, delegatedInputs.bytes);
+	const frozen = deepFreeze(register);
+	SOURCE_REGISTER_INPUTS.set(frozen, deepFreeze({
+		[manifestPath]: fileDescriptor(manifestBytes),
+		...delegatedInputs.inputDigests,
+	}));
+	return frozen;
 }
 
 /**
@@ -341,12 +356,15 @@ function brandedAudit(register, cacheRoot, sources) {
 		purpose: register.purpose,
 		sources,
 		delegatedSources: register.delegatedSources.map((source) => ({ ...source })),
+		inputDigests: SOURCE_REGISTER_INPUTS.get(register),
 	});
 	AUDITED_REGISTERS.add(audit);
 	return audit;
 }
 
 function validateDelegatedFiles(repositoryRoot, register) {
+	const bytes = new Map();
+	const inputDigests = {};
 	for (const delegated of register.delegatedSources) {
 		const path = resolve(repositoryRoot, delegated.manifestPath);
 		let metadata;
@@ -357,7 +375,11 @@ function validateDelegatedFiles(repositoryRoot, register) {
 		}
 		assert(metadata.isFile() && !metadata.isSymbolicLink(),
 			`Delegated native source ${delegated.id} must be a regular non-symbolic file.`);
+		const value = readFileSync(path);
+		bytes.set(delegated.manifestPath, value);
+		inputDigests[delegated.manifestPath] = fileDescriptor(value);
 	}
+	return { bytes, inputDigests };
 }
 
 export function requireMilestone5NativeSource(register, sourceId) {
@@ -377,6 +399,9 @@ function validateRegister(register) {
 	assert(new Set(register.sources.map(({ archive }) => archive.fileName)).size === register.sources.length,
 		'The native source archive filenames must be unique.');
 	assertExactIds(register.delegatedSources, DELEGATED_SOURCE_IDS, 'delegated source');
+	assert(JSON.stringify(register.delegatedSources.map(({ manifestPath }) => manifestPath))
+		=== JSON.stringify(MILESTONE_5_NATIVE_DELEGATED_SOURCE_PATHS),
+	'The delegated native source manifest paths are incomplete or reordered.');
 	for (const delegated of register.delegatedSources) {
 		assert(SAFE_REPOSITORY_PATH.test(delegated.manifestPath),
 			`${delegated.id}: delegated manifestPath must be a repository-relative path.`);
@@ -420,11 +445,11 @@ function validateSource(source) {
 	assert(Array.isArray(source.uses) && source.uses.length > 0, `${source.id}: at least one use is required.`);
 }
 
-function validateFramescaperExternalSourceClosure(repositoryRoot, register) {
+function validateFramescaperExternalSourceClosure(register, delegatedBytes) {
 	const delegated = register.delegatedSources.find(({ id }) => id === 'ffmpeg-external-libraries');
 	let manifest;
 	try {
-		manifest = JSON.parse(readFileSync(resolve(repositoryRoot, delegated.manifestPath), 'utf8'));
+		manifest = JSON.parse(delegatedBytes.get(delegated.manifestPath).toString('utf8'));
 	} catch (error) {
 		throw new Error(`Unable to read the delegated FFmpeg external-source manifest: ${error.message}`, { cause: error });
 	}
@@ -451,6 +476,13 @@ function validateFramescaperExternalSourceClosure(repositoryRoot, register) {
 			&& library.extractedTree.sha256 === source.extractedTree.sha256,
 		`${library.id}: delegated extracted-tree identity does not match.`);
 	}
+}
+
+function fileDescriptor(bytes) {
+	return {
+		byteLength: bytes.byteLength,
+		sha256: createHash('sha256').update(bytes).digest('hex'),
+	};
 }
 
 function assertExactIds(records, expectedIds, label) {

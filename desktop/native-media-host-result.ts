@@ -33,6 +33,9 @@ export interface NativeMediaHostDecodeControl extends NativeMediaHostOutputContr
 	readonly frameCount: number;
 	readonly width: number;
 	readonly height: number;
+	readonly sourcePackVersion?: 1;
+	readonly profile?: 'decode-png-sequence' | 'decode-tiff-sequence' | 'decode-openexr-sequence';
+	readonly exportAuthority?: 'image-sequence-source-pack';
 }
 
 export interface NativeMediaHostEncodeControl extends NativeMediaHostOutputControl {
@@ -41,6 +44,16 @@ export interface NativeMediaHostEncodeControl extends NativeMediaHostOutputContr
 
 export interface NativeMediaHostRenderControl extends NativeMediaHostOutputControl {
 	readonly operation: 'media-render';
+}
+
+export interface NativeMediaHostSequenceControl {
+	readonly contractVersion: 1;
+	readonly operation: 'media-encode' | 'media-render';
+	readonly profileId: 'encode-png-sequence' | 'encode-tiff-sequence' | 'encode-openexr-sequence';
+	readonly frameCount: number;
+	readonly byteLength: number;
+	readonly manifestSha256: string;
+	readonly publication: 'temporary-directory';
 }
 
 export interface NativeMediaHostProxyControl extends NativeMediaHostOutputControl {
@@ -58,6 +71,7 @@ export type NativeMediaHostControl =
 	| NativeMediaHostDecodeControl
 	| NativeMediaHostEncodeControl
 	| NativeMediaHostRenderControl
+	| NativeMediaHostSequenceControl
 	| NativeMediaHostProxyControl;
 
 const PROBE_KEYS = Object.freeze([
@@ -68,7 +82,14 @@ const DECODE_KEYS = Object.freeze([
 	'contractVersion', 'operation', 'framePack', 'frameCount',
 	'width', 'height', 'byteLength', 'sha256',
 ]);
+const IMAGE_SEQUENCE_DECODE_KEYS = Object.freeze([
+	...DECODE_KEYS, 'sourcePackVersion', 'profile', 'exportAuthority',
+]);
 const OUTPUT_KEYS = Object.freeze(['contractVersion', 'operation', 'byteLength', 'sha256']);
+const SEQUENCE_KEYS = Object.freeze([
+	'contractVersion', 'operation', 'profileId', 'frameCount',
+	'byteLength', 'manifestSha256', 'publication',
+]);
 const PROXY_KEYS = Object.freeze([
 	'contractVersion', 'operation', 'container', 'codec', 'profile',
 	'width', 'height', 'exportAuthority', 'byteLength', 'sha256',
@@ -96,7 +117,23 @@ export function parseNativeMediaHostControl(
 	if (kind === 'probe-video-source') return probe(record);
 	if (kind === 'media-decode') return decode(record);
 	if (kind === 'media-proxy') return proxy(record);
-	return output(record, kind);
+	return record.publication === 'temporary-directory' ? sequence(record, kind) : output(record, kind);
+}
+
+function sequence(
+	record: Record<string, unknown>,
+	kind: 'media-encode' | 'media-render',
+): NativeMediaHostSequenceControl {
+	exactKeys(record, SEQUENCE_KEYS);
+	common(record, kind);
+	if (!['encode-png-sequence', 'encode-tiff-sequence', 'encode-openexr-sequence']
+		.includes(String(record.profileId)) || record.publication !== 'temporary-directory') invalid();
+	return Object.freeze({
+		contractVersion: 1, operation: kind,
+		profileId: record.profileId as NativeMediaHostSequenceControl['profileId'],
+		frameCount: positiveInteger(record.frameCount), byteLength: positiveInteger(record.byteLength),
+		manifestSha256: digest(record.manifestSha256), publication: 'temporary-directory',
+	});
 }
 
 function probe(record: Record<string, unknown>): NativeMediaHostProbeControl {
@@ -168,14 +205,24 @@ function nestedRecord(value: unknown): Record<string, unknown> {
 }
 
 function decode(record: Record<string, unknown>): NativeMediaHostDecodeControl {
-	exactKeys(record, DECODE_KEYS);
+	const imageSequence = Object.hasOwn(record, 'sourcePackVersion');
+	exactKeys(record, imageSequence ? IMAGE_SEQUENCE_DECODE_KEYS : DECODE_KEYS);
 	common(record, 'media-decode');
 	if (record.framePack !== 'framescaper-rgba-frame-pack-v1') invalid();
+	if (imageSequence && (record.sourcePackVersion !== 1
+		|| !['decode-png-sequence', 'decode-tiff-sequence', 'decode-openexr-sequence']
+			.includes(String(record.profile))
+		|| record.exportAuthority !== 'image-sequence-source-pack')) invalid();
 	return Object.freeze({
 		contractVersion: 1, operation: 'media-decode', framePack: record.framePack,
 		frameCount: nonNegativeInteger(record.frameCount),
 		width: positiveInteger(record.width), height: positiveInteger(record.height),
 		byteLength: nonNegativeInteger(record.byteLength), sha256: digest(record.sha256),
+		...(imageSequence ? {
+			sourcePackVersion: 1 as const,
+			profile: record.profile as NonNullable<NativeMediaHostDecodeControl['profile']>,
+			exportAuthority: 'image-sequence-source-pack' as const,
+		} : {}),
 	});
 }
 

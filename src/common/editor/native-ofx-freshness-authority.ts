@@ -17,14 +17,17 @@ import {
 	assertUnifiedExactRenderPlanWithDeferredTimingReferences,
 	type UnifiedExactRenderOpenFxNode,
 	type UnifiedExactRenderPlanV12,
+	type UnifiedExactRenderPlanV14,
 } from './unified-exact-render-plan.ts';
+
+type UnifiedExactOfxPlan = UnifiedExactRenderPlanV12 | UnifiedExactRenderPlanV14;
 
 export function deriveUnifiedExactOfxFreshnessV26(
 	planValue: unknown,
 	instanceId: string,
 	descriptorValue: unknown,
 ): OfxEffectFreshnessV26 {
-	assertDeferredV12Plan(planValue);
+	assertDeferredOfxPlan(planValue);
 	assertOfxPluginDescriptorV1(descriptorValue);
 	const plan = planValue;
 	const descriptor = descriptorValue;
@@ -44,19 +47,19 @@ export function deriveUnifiedExactOfxFreshnessV26(
 	});
 }
 
-function assertDeferredV12Plan(value: unknown): asserts value is UnifiedExactRenderPlanV12 {
+function assertDeferredOfxPlan(value: unknown): asserts value is UnifiedExactOfxPlan {
 	assertUnifiedExactRenderPlanWithDeferredTimingReferences(value);
-	if (value.version !== 12) throw new RangeError('OpenFX freshness requires exact render plan V12.');
+	if (value.version !== 12 && value.version !== 14) throw new RangeError('OpenFX freshness requires exact plan V12 or V14.');
 }
 
 function effectNode(
-	plan: UnifiedExactRenderPlanV12,
+	plan: UnifiedExactOfxPlan,
 	instanceId: string,
 ): UnifiedExactRenderOpenFxNode {
 	const matches = plan.nodes.filter((node): node is UnifiedExactRenderOpenFxNode => (
 		node.kind === 'openfx' && node.state.instanceId === instanceId
 	));
-	if (matches.length !== 1) throw new ReferenceError('OpenFX freshness requires one exact V12 instance.');
+	if (matches.length !== 1) throw new ReferenceError('OpenFX freshness requires one exact plan instance.');
 	return matches[0]!;
 }
 
@@ -75,7 +78,7 @@ function authoredState(state: OfxEffectStateV26): Readonly<Record<string, unknow
 	});
 }
 
-function renderIntent(plan: UnifiedExactRenderPlanV12): Readonly<Record<string, unknown>> {
+function renderIntent(plan: UnifiedExactOfxPlan): Readonly<Record<string, unknown>> {
 	return Object.freeze({
 		version: plan.version,
 		strategy: plan.strategy,
@@ -103,6 +106,7 @@ function nativeEffect(descriptor: OfxPluginDescriptorV1): Readonly<Record<string
 		components: descriptor.components,
 		pixelDepths: descriptor.pixelDepths,
 		threading: descriptor.threading,
+		renderBackends: descriptor.renderBackends,
 		requestedSuites: descriptor.requestedSuites,
 	});
 }

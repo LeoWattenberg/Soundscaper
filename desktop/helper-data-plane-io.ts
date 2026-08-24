@@ -6,12 +6,14 @@ import { open, rm } from 'node:fs/promises';
 
 import {
 	HELPER_DATA_CHUNK_MAXIMUM_BYTES,
+	HELPER_DATA_IN_FLIGHT_CHUNKS_MAXIMUM,
 	HELPER_DATA_PLANE_VERSION,
 	HelperDataPlaneReceiver,
 	HelperDataPlaneSender,
 	type HelperDataPlaneBinding,
 	type HelperDataPlaneCancelReason,
 	type HelperDataPlaneCompletion,
+	type HelperDataPlaneMessage,
 	validateHelperDataPlaneBinding,
 	validateHelperDataPlaneMessage,
 } from './helper-data-plane.ts';
@@ -21,6 +23,11 @@ import {
 	type HelperDataPlaneOutputReservation,
 	validateHelperDataPlaneOutputReservation,
 } from './helper-data-plane-output-reservation.ts';
+import {
+	HelperDataPlaneInputReceiver,
+	type HelperDataPlaneInputReservation,
+	validateHelperDataPlaneInputReservation,
+} from './helper-data-plane-input-reservation.ts';
 
 export interface HelperDataPlaneIoPort {
 	postMessage(message: unknown, transfer?: readonly ArrayBuffer[]): void;
@@ -29,6 +36,12 @@ export interface HelperDataPlaneIoPort {
 	removeListener?(event: 'message', listener: (event: unknown) => void): unknown;
 	start?(): void;
 	close(): void;
+}
+
+export interface HelperDataPlaneByteSink {
+	write(bytes: Uint8Array): PromiseLike<void> | void;
+	complete(): PromiseLike<void> | void;
+	abort(reason: unknown): PromiseLike<void> | void;
 }
 
 interface HelperDataPlaneFileRequest {
@@ -56,7 +69,7 @@ export async function receiveHelperDataPlaneFile(
 	request: HelperDataPlaneFileRequest,
 ): Promise<HelperDataPlaneCompletion> {
 	const binding = validateHelperDataPlaneBinding(request.binding);
-	const inbox = new PortInbox(request.port);
+	const inbox = new PortInbox(request.port, binding.maximumInFlightChunks);
 	let handle: Awaited<ReturnType<typeof open>> | null = null;
 	let completed = false;
 	try {
@@ -64,7 +77,7 @@ export async function receiveHelperDataPlaneFile(
 		handle = await open(request.path, 'wx', 0o600);
 		const receiver = new HelperDataPlaneReceiver(binding);
 		for (;;) {
-			const message = validateHelperDataPlaneMessage(await inbox.next(request.signal));
+			const message = await inbox.next(request.signal);
 			if (message.type === 'cancel') {
 				receiver.acceptCancel(message);
 				throw abortError('The remote helper data-plane sender cancelled the stream.');
@@ -105,12 +118,89 @@ export async function receiveHelperDataPlaneFile(
 	}
 }
 
+/** Relay one trailer-authenticated input directly into a bounded native-process sink. */
+export async function receiveHelperDataPlaneInputStream(request: Readonly<{
+	readonly reservation: HelperDataPlaneInputReservation;
+	readonly port: HelperDataPlaneIoPort;
+	readonly sink: HelperDataPlaneByteSink;
+	readonly signal?: AbortSignal;
+}>): Promise<HelperDataPlaneCompletion> {
+	const reservation = validateHelperDataPlaneInputReservation(request.reservation);
+	if (!request.sink || typeof request.sink.write !== 'function'
+		|| typeof request.sink.complete !== 'function' || typeof request.sink.abort !== 'function') {
+		throw new TypeError('A trailer-authenticated helper input requires an exact native sink.');
+	}
+	const inbox = new PortInbox(request.port, reservation.maximumInFlightChunks);
+	let completed = false;
+	let sinkAborted = false;
+	const abortSink = async (reason: unknown): Promise<void> => {
+		if (sinkAborted) return;
+		sinkAborted = true;
+		await Promise.resolve(request.sink.abort(reason)).catch(() => undefined);
+	};
+	try {
+		request.signal?.throwIfAborted();
+		const receiver = new HelperDataPlaneInputReceiver(reservation);
+		for (;;) {
+			const message = await inbox.next(request.signal);
+			if (message.type === 'cancel') {
+				receiver.acceptCancel(message);
+				throw abortError('The live helper input sender cancelled its stream.');
+			}
+			if (message.type === 'chunk') {
+				const admitted = receiver.acceptChunk(message);
+				await awaitNativeSink(
+					() => request.sink.write(admitted.message.bytes), request.signal, abortSink,
+				);
+				request.port.postMessage(admitted.ack);
+				continue;
+			}
+			if (message.type !== 'complete') {
+				throw new TypeError('A live helper input accepts only chunks, completion, or cancellation.');
+			}
+			const completion = receiver.acceptComplete(message);
+			await awaitNativeSink(() => request.sink.complete(), request.signal, abortSink);
+			completed = true;
+			return completion;
+		}
+	} catch (error) {
+		postCancellation(request.port, reservation.streamId,
+			request.signal?.aborted ? 'helper-abort' : 'protocol-fault');
+		await abortSink(error);
+		throw request.signal?.aborted ? abortError('The live helper input receive was cancelled.') : error;
+	} finally {
+		inbox.dispose();
+		if (!completed) await abortSink(new Error('The live helper input did not complete.'));
+		request.port.close();
+	}
+}
+
+async function awaitNativeSink(
+	operation: () => PromiseLike<void> | void,
+	signal: AbortSignal | undefined,
+	abortSink: (reason: unknown) => Promise<void>,
+): Promise<void> {
+	signal?.throwIfAborted();
+	if (!signal) { await operation(); return; }
+	let removeAbort = (): void => undefined;
+	const aborted = new Promise<never>((_resolve, reject) => {
+		const onAbort = (): void => {
+			void abortSink(signal.reason);
+			reject(abortError('The live native-input sink was cancelled.'));
+		};
+		signal.addEventListener('abort', onAbort, { once: true });
+		removeAbort = () => signal.removeEventListener('abort', onAbort);
+	});
+	try { await Promise.race([Promise.resolve().then(operation), aborted]); }
+	finally { removeAbort(); }
+}
+
 /** Receive one digest-on-completion helper output within its pre-negotiated length bound. */
 export async function receiveHelperDataPlaneReservedFile(
 	request: HelperDataPlaneReservedFileRequest,
 ): Promise<HelperDataPlaneCompletion> {
 	const reservation = validateHelperDataPlaneOutputReservation(request.reservation);
-	const inbox = new PortInbox(request.port);
+	const inbox = new PortInbox(request.port, reservation.maximumInFlightChunks);
 	let handle: Awaited<ReturnType<typeof open>> | null = null;
 	let completed = false;
 	try {
@@ -118,7 +208,7 @@ export async function receiveHelperDataPlaneReservedFile(
 		handle = await open(request.path, 'wx', 0o600);
 		const receiver = new HelperDataPlaneOutputReceiver(reservation);
 		for (;;) {
-			const message = validateHelperDataPlaneMessage(await inbox.next(request.signal));
+			const message = await inbox.next(request.signal);
 			if (message.type === 'cancel') {
 				receiver.acceptCancel(message);
 				throw abortError('The remote helper output sender cancelled the stream.');
@@ -167,7 +257,7 @@ export async function sendHelperDataPlaneFile(
 	if (binding.direction !== 'helper-to-host' && binding.direction !== 'host-to-helper') {
 		throw new TypeError('A helper data-plane send file has an unsupported direction.');
 	}
-	const inbox = new PortInbox(request.port);
+	const inbox = new PortInbox(request.port, binding.maximumInFlightChunks);
 	let handle: Awaited<ReturnType<typeof open>> | null = null;
 	try {
 		request.signal?.throwIfAborted();
@@ -193,7 +283,7 @@ export async function sendHelperDataPlaneFile(
 			const message = sender.createChunk(new Uint8Array(buffer.buffer, buffer.byteOffset, length));
 			request.port.postMessage(message, message.bytes.buffer instanceof ArrayBuffer
 				? [message.bytes.buffer] : []);
-			const acknowledgement = validateHelperDataPlaneMessage(await inbox.next(request.signal));
+			const acknowledgement = await inbox.next(request.signal);
 			if (acknowledgement.type === 'cancel') {
 				sender.acceptCancel(acknowledgement);
 				throw abortError('The remote helper data-plane receiver cancelled the stream.');
@@ -249,34 +339,42 @@ export async function sendHelperDataPlaneReservedFile(
 class PortInbox {
 	readonly #port: HelperDataPlaneIoPort;
 	readonly #listener: (event: unknown) => void;
-	readonly #messages: unknown[] = [];
+	readonly #maximumQueuedMessages: number;
+	readonly #messages: HelperDataPlaneMessage[] = [];
 	readonly #waiters: Array<Readonly<{
-		resolve: (value: unknown) => void;
+		resolve: (value: HelperDataPlaneMessage) => void;
 		reject: (error: Error) => void;
 		signal?: AbortSignal;
 		abort?: () => void;
 	}>> = [];
+	#failure: Error | null = null;
 	#disposed = false;
 
-	constructor(port: HelperDataPlaneIoPort) {
+	constructor(port: HelperDataPlaneIoPort, maximumQueuedMessages: number) {
 		if (!port || typeof port.postMessage !== 'function' || typeof port.on !== 'function'
 			|| typeof port.close !== 'function') {
 			throw new TypeError('A helper data-plane transfer requires one MessagePort.');
 		}
+		if (!Number.isSafeInteger(maximumQueuedMessages) || maximumQueuedMessages < 1
+			|| maximumQueuedMessages > HELPER_DATA_IN_FLIGHT_CHUNKS_MAXIMUM) {
+			throw new RangeError('A helper data-plane inbox requires its admitted in-flight bound.');
+		}
 		this.#port = port;
+		this.#maximumQueuedMessages = maximumQueuedMessages;
 		this.#listener = (event) => this.#accept(messageData(event));
 		port.on('message', this.#listener);
 		port.start?.();
 	}
 
-	next(signal?: AbortSignal): Promise<unknown> {
+	next(signal?: AbortSignal): Promise<HelperDataPlaneMessage> {
+		if (this.#failure) return Promise.reject(this.#failure);
 		if (this.#disposed) return Promise.reject(new Error('The helper data-plane port is closed.'));
 		if (signal?.aborted) return Promise.reject(abortError('The helper data-plane stream was cancelled.'));
 		const queued = this.#messages.shift();
 		if (queued !== undefined) return Promise.resolve(queued);
 		return new Promise((resolve, reject) => {
 			const waiter: {
-				resolve: (value: unknown) => void;
+				resolve: (value: HelperDataPlaneMessage) => void;
 				reject: (error: Error) => void;
 				signal?: AbortSignal;
 				abort?: () => void;
@@ -306,15 +404,39 @@ class PortInbox {
 		this.#messages.length = 0;
 	}
 
-	#accept(message: unknown): void {
+	#accept(value: unknown): void {
 		if (this.#disposed) return;
+		let message: HelperDataPlaneMessage;
+		try { message = validateHelperDataPlaneMessage(value); }
+		catch (error) {
+			this.#fail(error instanceof Error ? error : new Error('The helper data-plane message is invalid.'));
+			return;
+		}
 		const waiter = this.#waiters.shift();
 		if (!waiter) {
+			if (this.#messages.length >= this.#maximumQueuedMessages) {
+				this.#fail(new Error('The helper data-plane peer exceeded its admitted in-flight queue.'));
+				return;
+			}
 			this.#messages.push(message);
 			return;
 		}
 		if (waiter.abort) waiter.signal?.removeEventListener('abort', waiter.abort);
 		waiter.resolve(message);
+	}
+
+	#fail(error: Error): void {
+		if (this.#disposed) return;
+		this.#failure = error;
+		this.#disposed = true;
+		if (this.#port.off) this.#port.off('message', this.#listener);
+		else this.#port.removeListener?.('message', this.#listener);
+		this.#messages.length = 0;
+		for (const waiter of this.#waiters.splice(0)) {
+			if (waiter.abort) waiter.signal?.removeEventListener('abort', waiter.abort);
+			waiter.reject(error);
+		}
+		try { this.#port.close(); } catch { /* The failed inbox is already fenced. */ }
 	}
 }
 

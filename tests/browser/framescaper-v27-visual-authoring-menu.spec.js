@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 
-test('selected V27 owns visual authoring only through existing menus', async ({ page }) => {
+test('selected V28 owns visual authoring only through existing menus', async ({ page }) => {
 	await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({ status: 404, body: '' }));
 	await page.goto('/framescaper/en/');
 	const editor = page.locator('[data-audio-editor]');

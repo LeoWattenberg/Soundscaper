@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-08-23",
+	"groundedAt": "2026-08-24",
 	"platformTiers": [
 		"web-core",
 		"web-enhanced",
@@ -108,6 +108,15 @@
 					"evidence": [
 						"desktop/main.mjs",
 						"desktop/preload.mjs",
+						"desktop/soundscaper-project-library-v11-contract.ts",
+						"desktop/soundscaper-project-library-v11-database.ts",
+						"desktop/soundscaper-project-library-v11-main.ts",
+						"src/soundscaper/desktop-project-library-v11-renderer.ts",
+						"src/soundscaper/desktop-project-library-v11-store-adapter.ts",
+						"desktop/native-audio-session-service.ts",
+						"desktop/plugin-host-service.ts",
+						"src/common/editor/ui/soundscaper-native-renderer-bridge.ts",
+						"src/soundscaper/editor-project-v29.ts",
 						"desktop/desktop-smoke.js",
 						"desktop/project-library-projects.ts",
 						"desktop/project-library-host.ts",
@@ -170,7 +179,13 @@
 				},
 				"electron-only": {
 					"status": "partial",
-					"evidence": ["desktop/display-capture.js"]
+					"evidence": [
+						"desktop/display-capture.js",
+						"desktop/plugin-registration.mjs",
+						"desktop/native-helper-persistent-plugin-job.js",
+						"src/common/editor/native-plugin-realtime-node.js",
+						"src/common/editor/ui/dialogs/SoundscaperNativeServicesDialog.tsx"
+					]
 				}
 			},
 			"importFamilies": [
@@ -366,6 +381,19 @@
 				"electron-enhanced": {
 					"status": "partial",
 					"evidence": [
+						"desktop/project-library-v19-contract.ts",
+						"desktop/project-library-v19-database.ts",
+						"desktop/project-library-v19-import.ts",
+						"desktop/project-library-v19-main.ts",
+						"desktop/project-library-v19-main-ipc.ts",
+						"desktop/project-library-v19-writer.ts",
+						"src/framescaper/desktop-project-library-v19-renderer.ts",
+						"src/framescaper/desktop-project-library-v19-store-adapter.ts",
+						"desktop/native-services-runtime-v3.ts",
+						"desktop/native-media-v14-executor.ts",
+						"src/framescaper/editor-project-v28.ts",
+						"src/framescaper/editor-native-render-queue-action-v28.ts",
+						"tests/desktop-project-library-v12-packaged.test.ts",
 						"desktop/main.mjs",
 						"desktop/framescaper-web-vcr-capture-authority.ts",
 						"desktop/framescaper-web-vcr-contract.ts",
@@ -541,8 +569,13 @@
 					]
 				},
 				"electron-only": {
-					"status": "not-applicable",
-					"evidence": ["src/framescaper/product.js", "roadmap.md#8a-framescaper-recording-setup"]
+					"status": "partial",
+					"evidence": [
+						"desktop/native-services-controller-v3.ts",
+						"desktop/openfx-main-service.ts",
+						"src/common/editor/ui/framescaper-native-services-menu.ts",
+						"src/framescaper/editor-project-v28.ts"
+					]
 				}
 			},
 			"importFamilies": [
@@ -590,7 +623,7 @@
 				"multicamera": true,
 				"musicalTimeline": false,
 				"nestedSequences": true,
-				"ofxEffects": false,
+				"ofxEffects": true,
 				"timelineAnnotations": false,
 				"trackFolders": false,
 				"takeComp": false,

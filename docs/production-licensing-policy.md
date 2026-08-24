@@ -151,16 +151,27 @@ requirements are implemented:
 - native plug-ins need per-format and per-platform license and redistribution
   rules, user-installation policy, isolation, notices, and source delivery where
   required;
+- native audio needs an authenticated JUCE/SDK source closure, an explicit
+  license selection for each dual-licensed input, platform-API and ASIO
+  trademark review, target notices, signed packages, and provisioned device-lab
+  evidence;
 - native codecs need an exact codec/license inventory, corresponding source,
   package notices, and distribution-specific patent review; and
 - local models need licenses for code and weights, training-data provenance,
   model cards and use restrictions, exact hashes, and versioned offline notice
   delivery.
 
-### Native plug-in format and codec policy rows
+### Native audio, plug-in format, and codec policy rows
 
-The matrix's `nativeFormatPolicies` register carries one fail-closed row per
-plug-in format (VST3, CLAP, Audio Units, LV2, OFX). Native professional media
+The matrix's `nativeFormatPolicies` register carries one fail-closed row for
+the JUCE native-audio stack, one per operating-system backend (CoreAudio,
+WASAPI, ASIO, PipeWire and ALSA), and one per plug-in format (VST3, CLAP, Audio
+Units, LV2, OFX). The acquisition register pins the exact JUCE, CLAP, VST3,
+ASIO and LV2 source inputs and the four external native codec libraries. A
+verified archive hash proves source identity only: it does not satisfy legal,
+trademark, corresponding-source, signing, hardware, or activation review.
+
+Native professional media
 uses a finer inventory: each software operation is a distinct
 `operation`/`codec`/`container`/`profile` tuple. H.264 and HEVC decode have
 separate MP4 and MOV rows; AV1 decode has separate MP4 and WebM rows; VP9,
@@ -172,8 +183,9 @@ sequences—also owns its own row. A generic profile spanning two containers
 depends on both rows, so clearing one combination cannot authorize the other.
 
 Each row records the upstream licensing form, the compatibility direction
-into this AGPL-3.0-only work (GPLv3 SDK code combines one-way via GPLv3
-section 13; permissive SDKs combine trivially; operating-system APIs and
+into this AGPL-3.0-only work (the ASIO SDK's selected GPLv3 arm combines
+one-way via GPLv3 section 13; the VST3 3.8.0 SDK and other permissive SDKs
+combine trivially; operating-system APIs and
 platform encoder services are linkage, not combined source), the
 redistribution posture, and the named review still missing for that exact
 tuple. Every codec tuple remains `blocked`; it additionally depends on the

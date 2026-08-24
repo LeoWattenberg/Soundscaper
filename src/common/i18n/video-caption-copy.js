@@ -2,9 +2,9 @@
 
 export const VIDEO_CAPTION_COPY_BY_LOCALE = Object.freeze({
 	en: Object.freeze({
-		videoCaptionV27DeliveryUnavailable: 'Caption burn-in and mux are unavailable for selected Framescaper V27. Export SRT, WebVTT, or IMSC 1.1 sidecars from Tracks > Caption Tracks.',
+		videoCaptionV27DeliveryUnavailable: 'Caption burn-in and mux are unavailable for selected Framescaper V28. Export SRT, WebVTT, or IMSC 1.1 sidecars from Tracks > Caption Tracks.',
 	}),
 	de: Object.freeze({
-		videoCaptionV27DeliveryUnavailable: 'Untertitel-Einbrennen und -Muxing sind für das ausgewählte Framescaper V27 nicht verfügbar. SRT-, WebVTT- oder IMSC-1.1-Begleitdateien über Spuren > Untertitelspuren exportieren.',
+		videoCaptionV27DeliveryUnavailable: 'Untertitel-Einbrennen und -Muxing sind für das ausgewählte Framescaper V28 nicht verfügbar. SRT-, WebVTT- oder IMSC-1.1-Begleitdateien über Spuren > Untertitelspuren exportieren.',
 	}),
 });

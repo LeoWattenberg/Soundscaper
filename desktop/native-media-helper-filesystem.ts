@@ -15,15 +15,35 @@ import {
 	type NativeMediaFileAuthentication,
 	type NativeMediaFileLease,
 } from './native-media-filesystem-lease.ts';
+import {
+	acquireNativeMediaOutputTreeLease,
+	sealNativeMediaOutputTree,
+	type NativeMediaAuthenticatedOutputTree,
+	type NativeMediaOutputTreeIdentityV1,
+	type NativeMediaOutputTreeLease,
+} from './native-media-output-tree.ts';
 
-export interface NativeMediaHelperInspectedOutput extends NativeMediaAuthenticatedFile {
+export interface NativeMediaHelperInspectedFileOutput extends NativeMediaAuthenticatedFile {
 	readonly temporaryPath: string;
 }
 
+export type NativeMediaHelperInspectedOutput =
+	| Readonly<NativeMediaHelperInspectedFileOutput>
+	| Readonly<NativeMediaAuthenticatedOutputTree & { readonly temporaryPath: string }>;
+
 interface ExpectedOutput {
+	readonly kind: 'file';
 	readonly path: string;
 	readonly maximumBytes: number;
 	readonly insideReservation: boolean;
+}
+
+interface ExpectedOutputTree {
+	readonly kind: 'directory';
+	readonly path: string;
+	readonly maximumBytes: number;
+	readonly insideReservation: false;
+	readonly identity: NativeMediaOutputTreeIdentityV1;
 }
 
 /**
@@ -35,8 +55,8 @@ export class NativeMediaHelperFilesystem {
 	readonly #files: NativeMediaFileLease[] = [];
 	readonly #directories: NativeMediaDirectoryLease[] = [];
 	#reservation: NativeMediaDirectoryLease | null = null;
-	#expectedOutput: ExpectedOutput | null = null;
-	#output: NativeMediaFileLease | null = null;
+	#expectedOutput: ExpectedOutput | ExpectedOutputTree | null = null;
+	#output: NativeMediaFileLease | NativeMediaOutputTreeLease | null = null;
 	#settled = false;
 
 	async authenticateFile(
@@ -60,21 +80,45 @@ export class NativeMediaHelperFilesystem {
 		this.#reservation = await acquireNativeMediaDirectoryLease({ path });
 	}
 
-	async expectOutput(request: ExpectedOutput): Promise<void> {
+	async expectOutput(request: Omit<ExpectedOutput, 'kind'>): Promise<void> {
 		this.#assertActive();
 		if (this.#expectedOutput !== null) throw new Error('A native media job already named its exact output.');
 		await assertAbsent(request.path);
-		this.#expectedOutput = Object.freeze({ ...request });
+		this.#expectedOutput = Object.freeze({ ...request, kind: 'file' });
+	}
+
+	async expectOutputTree(request: Omit<ExpectedOutputTree, 'kind'>): Promise<void> {
+		this.#assertActive();
+		if (this.#expectedOutput !== null) throw new Error('A native media job already named its exact output.');
+		await assertAbsent(request.path);
+		this.#expectedOutput = Object.freeze({ kind: 'directory', ...request });
+	}
+
+	async sealOutputTree(nativeManifestSha256?: string): Promise<void> {
+		this.#assertActive();
+		if (this.#expectedOutput?.kind !== 'directory' || this.#output !== null) {
+			throw new Error('A native media job has no unsealed output tree.');
+		}
+		await sealNativeMediaOutputTree({
+			path: this.#expectedOutput.path, maximumBytes: this.#expectedOutput.maximumBytes,
+			identity: this.#expectedOutput.identity,
+			...(nativeManifestSha256 ? { nativeManifestSha256 } : {}),
+		});
 	}
 
 	async inspectOutput(): Promise<Readonly<NativeMediaHelperInspectedOutput>> {
 		this.#assertActive();
 		if (this.#expectedOutput === null) throw new Error('A native media job did not name an output to inspect.');
 		if (this.#output === null) {
-			this.#output = await acquireNativeMediaFileLease({
-				path: this.#expectedOutput.path,
-				maximumBytes: this.#expectedOutput.maximumBytes,
-			});
+			this.#output = this.#expectedOutput.kind === 'directory'
+				? await acquireNativeMediaOutputTreeLease({
+					path: this.#expectedOutput.path, maximumBytes: this.#expectedOutput.maximumBytes,
+					identity: this.#expectedOutput.identity,
+				})
+				: await acquireNativeMediaFileLease({
+					path: this.#expectedOutput.path,
+					maximumBytes: this.#expectedOutput.maximumBytes,
+				});
 		}
 		return inspectedOutput(this.#output);
 	}
@@ -113,6 +157,16 @@ export class NativeMediaHelperFilesystem {
 	async abort(): Promise<void> {
 		if (this.#settled) return;
 		const errors: unknown[] = [];
+		if (this.#expectedOutput?.kind === 'directory') {
+			await this.#abortOutputTree(errors);
+			try { await this.#removeReservation(); } catch (error) { errors.push(error); }
+			await this.#closeAuthority(errors);
+			this.#settled = true;
+			if (errors.length > 0) throw new AggregateError(
+				errors, 'Native media filesystem cleanup refused drifted directory authority.',
+			);
+			return;
+		}
 		await this.#captureExpectedOutputForCleanup(errors);
 		let reservationMayBeRemoved = true;
 		if (this.#output !== null && this.#expectedOutput?.insideReservation) {
@@ -153,11 +207,35 @@ export class NativeMediaHelperFilesystem {
 	}
 
 	async #captureExpectedOutputForCleanup(errors: unknown[]): Promise<void> {
-		if (this.#output !== null || this.#expectedOutput === null) return;
+		if (this.#output !== null || this.#expectedOutput === null
+			|| this.#expectedOutput.kind === 'directory') return;
 		try { await this.inspectOutput(); }
 		catch (error) {
 			if (!isMissing(error)) errors.push(error);
 		}
+	}
+
+	async #abortOutputTree(errors: unknown[]): Promise<void> {
+		const expected = this.#expectedOutput;
+		if (expected?.kind !== 'directory') return;
+		let directory: NativeMediaDirectoryLease | null = null;
+		try {
+			if (this.#output !== null) {
+				if (!('kind' in this.#output.authenticated)
+					|| this.#output.authenticated.kind !== 'directory') {
+					throw new Error('A native media output lease changed kind.');
+				}
+				await this.#output.revalidate();
+				const identity = this.#output.authenticated.identity;
+				await this.#output.close(); this.#output = null;
+				directory = await acquireNativeMediaDirectoryLease({ path: expected.path, identity });
+			} else {
+				directory = await acquireNativeMediaDirectoryLease({ path: expected.path });
+			}
+			await removeNativeMediaLeasedDirectory(directory); directory = null;
+		} catch (error) {
+			if (!isMissing(error)) errors.push(error);
+		} finally { await directory?.close().catch((error: unknown) => errors.push(error)); }
 	}
 
 	async #removeReservation(): Promise<void> {
@@ -183,11 +261,10 @@ export class NativeMediaHelperFilesystem {
 	}
 }
 
-function inspectedOutput(lease: NativeMediaFileLease): Readonly<NativeMediaHelperInspectedOutput> {
-	return Object.freeze({
-		temporaryPath: lease.path,
-		...lease.authenticated,
-	});
+function inspectedOutput(
+	lease: NativeMediaFileLease | NativeMediaOutputTreeLease,
+): Readonly<NativeMediaHelperInspectedOutput> {
+	return Object.freeze({ temporaryPath: lease.path, ...lease.authenticated });
 }
 
 async function assertAbsent(path: string): Promise<void> {

@@ -10,25 +10,48 @@
 
 ## Status and readiness
 
-**Status on 2026-08-16: 5A-0a, 5A-0b, 5A-0c, 5A-1, 5A-2 and 5A-3 are implemented
-provisionally in the local tree, and 5A-4's collector and verifier exist and
-deliberately refuse to publish. Nothing is qualified.** The plan was grounded at
-commit `9d8427dd`. Three facts bound every claim below and are repeated here
+**Status on 2026-08-24: the selected Soundscaper V29/V11 software route is
+complete across audio, discovery, hosting, persistence, isolation-launcher, and
+evidence contracts, but 5A has not exited and nothing is qualified or
+activated.** The earlier implementation record is retained below for audit
+history. Four facts bound every current claim and are
+repeated here
 because they are the ones most easily read as better than they are:
 
-1. **The native payload exists for `linux-x64` only.** The other four claimed
-   targets are `pending-external` with named blockers, stage no payload, and
-   report a typed unavailability.
-2. **Every third-party plug-in format remains fail-closed.** VST3, CLAP, Audio
+1. **The native-source acquisition audit authenticates 0 of 10 required exact
+   archive/extracted-tree inputs.** A pin or delegated source manifest is not an
+   authenticated external acquisition.
+2. **The old proof addon exists for `linux-x64` only; it is not the selected
+   professional release payload.** All five professional target rows are
+   `pending-external` with named blockers, stage no payload, and report a typed
+   unavailability. Five-target packaged and physical results remain
+   pending-external as well.
+3. **Every third-party plug-in format remains fail-closed.** VST3, CLAP, Audio
    Units and LV2 keep their blocked licensing rows. The scanner, registry,
    quarantine and host machinery is proven against a benign fixture format that
    is this project's own code, exactly as 5A-3 asks; the scanner reports real
    formats it finds as seen-and-not-enabled rather than skipping them. The
    format waits; the gate does not bend.
-3. **No latency, underrun, recovery or RSS number is qualified.**
+4. **No latency, underrun, recovery or RSS number is qualified.**
    `native-os-lab-matrix` is unprovisioned with five null fingerprints, so the
    M5 collector emits `pending-external` and refuses to run on a hosted runner
    at all.
+
+The selected product route now uses the direct helper-to-worklet `MessagePort`
+with a bounded reusable packet pool. One persistent helper session owns the
+device generation: input reaches canonical recording publication, while output
+feeds playback and monitoring, and loss closes exactly before the Web Core
+fallback resumes. Requested sample rate, period, channel topology, and mode are
+authenticated rather than inferred.
+
+The plug-in route instantiates a reviewed descriptor, performs project
+insertion as a `native-plugin` node in the canonical effect graph, and transfers
+one persistent helper `MessagePort` for real-time RPC. Vendor `save-state` and
+`load-state` are authenticated and bounded to 16 MiB; `.scape`, desktop-library,
+and AUP4 custody retain the exact opaque bytes. Exact V21 PDC remains the timing
+authority; truthful bypass or an already-authored fresh frozen result preserves
+state when an instance is missing, crashed, or quarantined. Vendor UI is
+helper-owned and owner-generation scoped.
 
 The prerequisite foundations are physically present:
 
@@ -51,9 +74,7 @@ The prerequisite foundations are physically present:
   and quality-result seams are sufficient anchors for the first implementation
   slice.
 
-That is a **yes** to continuing at 5A-0b. It is not a claim that 5A-1, 5A-2, or
-5A-3 already has its native implementation. The implemented local slice and
-remaining gaps are explicit:
+The implemented route and remaining gates are explicit:
 
 1. **5A-0a baseline and contract closure — implemented provisionally.** The
    reviewed smoke bridge now includes all four helper methods, the packaging
@@ -98,9 +119,11 @@ remaining gaps are explicit:
    `linux-x64` is built.** `linux-arm64`, `mac-arm64`, `win-x64` and `win-arm64`
    are `pending-external` with named blockers, stage no payload, and report a
    typed unavailability; filling one of those rows from another target's bytes
-   is forbidden. JUCE and CLAP source pins are not yet required because the
-   addon has no third-party source, and are owed by 5A-2/5A-3.
-4. **5A-0c real-time data plane — implemented provisionally, unproven.** The
+   is forbidden. The professional build plan now binds authenticated JUCE,
+   direct CLAP, VST3, LV2, ASIO, and Node-API source acquisitions; no missing
+   archive or target build may be inferred from that metadata.
+4. **5A-0c real-time data plane — implemented in the selected product route,
+   externally unproven.** The
    direct helper-to-worklet `MessagePort` transport exists: a closed protocol
    validator that a peer's first message reaches before any state exists to
    corrupt, a fixed reusable packet pool, generation, sequence and buffer-
@@ -108,22 +131,29 @@ remaining gaps are explicit:
    hands main only the far end. Both ends are required to speak that one
    vocabulary — the helper opens a generation before it sends audio, and a
    returned buffer is the only credit for another send — and a departure from
-   it closes the generation rather than replaying stale audio. What is not
-   proven: no product surface consumes the plane, and the packaged synthetic
-   loopback the 5A-0 acceptance names has never been run, so its M5 latency,
-   underrun, cancellation, recovery and RSS limits are unmet rather than met.
-5. **Product implementations and evidence — partly present.** The OS audio
-   backend, scanner, registry, plug-in host and M5 collector now exist; the
-   vendor UI host, a native fixture set built for any target other than
-   `linux-x64`, and the provisioned native lab do not. Signing identity and
-   hardware qualification may remain externally blocked while implementation
-   proceeds; no blocked row is promoted or simulated.
+   it closes the generation rather than replaying stale audio. Soundscaper V29
+   consumes the plane for native input, output, monitoring, and native-effect
+   RPC. The packaged synthetic audio loop remains pending-external, so its M5
+   latency, underrun, cancellation, recovery and RSS limits are unmet rather
+   than met.
+5. **Product software — complete; external evidence absent.** The OS audio
+   backend, scanner, registry, plug-in host, vendor-window lifecycle, automatic
+   state-quiescence hooks, M5 collector, and per-OS child-isolation launcher
+   source/contracts/tests now exist. The launcher source implements Linux
+   namespaces/Landlock/seccomp, macOS Seatbelt, and Windows AppContainer target
+   contracts. No authenticated built launcher or professional target payload,
+   independently signed isolation-readiness review, professional package/manual
+   run, accepted cohort, or provisioned native lab exists. Signing/notarization
+   identities, release keys, and target toolchains are likewise absent; no
+   blocked row is promoted or simulated.
 
-The entry rule is therefore exact: **the remaining work is external, not
-architectural.** What is owed is a build host per claimed target, a licensing
-review per plug-in format, and a provisioned native lab — not another design
-pass. Any of those arriving unblocks its row without changing the contract; none
-of them may be simulated, inferred, or filled in from a neighbouring target.
+The entry rule is therefore exact: external source acquisition, target builds,
+licensing/patent/notices/trademark clearance, signing/notarization, independent
+isolation review, and physical qualification cannot be simulated. There is no
+remaining in-repository 5A software packet, but third-party execution stays
+production-closed until an authenticated built per-OS launcher and exact target
+payload are bound to independently signed readiness evidence. Neither category
+may be inferred or filled from a neighbouring target.
 
 ## Non-negotiable invariants
 
@@ -282,35 +312,34 @@ of them may be simulated, inferred, or filled in from a neighbouring target.
 
 ## Packet map and sequencing
 
-1. **5A-0a — Implemented provisionally/local.** The baseline repairs, exact
+1. **5A-0a — Software complete; external acceptance open.** The baseline repairs, exact
    control bounds and directions, closed negotiated kinds and correlated
    grants, cancellation quiescence, qualifying-fault accounting, bounded
    progress callback, measured recovery test, and exact 10,000-case malformed
    corpus are present. Product task-progress/UI wiring remains follow-on.
-2. **5A-0b — Native payload and packaged proof.** Add the five-target native
-   build lock, source pins, addon ABI descriptor, digest manifest, staging and
-   pack verification, release inventory, notices, tamper tests, and an actual
-   packaged utility-process smoke. The smoke must cross Electron's real process
-   boundary; injected channels do not satisfy it.
-3. **5A-0c — Real-time transport proof.** Package a synthetic passthrough/
-   loopback native addon and prove direct helper-to-worklet port transfer,
-   bounded buffer ownership, clocks, backpressure, cancellation, crash, and
-   recovery. No OS backend or third-party SDK breadth lands before this proof.
-4. **5A-1 — Native audio.** Implement inventory and open/close control, then
-   CoreAudio, WASAPI, ASIO, JACK, and ALSA behind the one adapter, with routing
-   convergence, topology, destinations, monitoring metadata, calibration,
-   device-loss behavior, and truthful fallback.
-5. **5A-2 — Discovery and registry.** Implement explicit consent, roots,
-   scanner, stable registry, trust/signature/compatibility decisions, durable
-   quarantine, retry/revoke, and app-owned menu dialog. Discovery remains
-   unable to instantiate audio or vendor UI.
-6. **5A-3 — Isolated effects.** Add benign format fixtures first, then real-time
-   and offline DSP, bounded state, exact PDC, failure recovery, revocation, and
-   helper-owned vendor UI. VST3/CLAP land first; AU/LV2 remain platform-gated.
-7. **5A-4 — Exit evidence.** Add the M5 collector and verifier, ordinary-CI
-   correctness/fault suites, five-target packaged fixtures, and the no-retry
-   native-lab cohort. Keep every unavailable hardware/signing row named and
-   unaccepted.
+2. **5A-0b — Software complete; target payload proof open.** Build/source
+   registers, ABI descriptors, digest manifests, staging/pack verification,
+   release inventory, and tamper tests exist. All five professional payload rows
+   remain pending-external.
+3. **5A-0c — Software complete; packaged measurement open.** The direct
+   helper-to-worklet transport, bounded buffer ownership, clocks, backpressure,
+   cancellation, crash, and recovery paths exist; the synthetic packaged cohort
+   has not run.
+4. **5A-1 — Software complete; physical-device qualification open.** CoreAudio,
+   WASAPI, ASIO, PipeWire, ALSA, topology, routing, destinations, monitoring,
+   loss behavior, and truthful fallback are implemented; JACK remains
+   discovery-only by policy.
+5. **5A-2 — Software complete; packaged format evidence open.** Explicit
+   consent, roots, scanner, registry, trust/compatibility decisions, durable
+   quarantine, retry/revoke, and the menu-owned dialog are implemented.
+6. **5A-3 — Software complete; third-party activation open.** Real-time/offline
+   DSP, bounded state, exact PDC, recovery, revocation, helper-owned vendor UI,
+   and the reviewed per-OS launcher contracts exist. VST3, CLAP, AU, and LV2
+   remain licensing-, payload-, readiness-, signing-, and target-gated.
+7. **5A-4 — Evidence software complete; qualification open.** The collector,
+   verifier, and correctness/fault suites exist. Five-target packaged fixtures,
+   independently signed readiness, and the no-retry native-lab cohort remain
+   pending-external.
 
 5A-1 and 5A-2 may run in parallel only after their applicable 5A-0 exits. 5A-3
 requires 5A-0c, the 5A-2 registry/revocation model, and the already-implemented
@@ -332,9 +361,9 @@ accepted result before all product packets close.
   cannot create an unbounded main-process clone; five target identities select
   exactly one verified payload; the packaged synthetic audio loop meets the M5
   limits.
-- **Unmet:** the packaged synthetic audio loop has never been run against the
-  M5 limits, and no product surface consumes the real-time plane, so that
-  clause is outstanding rather than satisfied.
+- **Unmet:** the packaged synthetic audio loop remains pending-external and has
+  never been run against the M5 limits, so that clause is outstanding rather
+  than satisfied.
 - **Non-goals:** no real device API, third-party scan, or plug-in format.
 - **Stop:** stop on a required renderer sandbox relaxation, main-process native
   load, in-process host, unverified payload, or renderer-main real-time relay.
@@ -356,10 +385,9 @@ accepted result before all product packets close.
   open whose result differs from what the caller asked for must refuse and end
   the chain rather than report the substitute as granted. Backend absence is the
   only reason to try the next candidate.
-- **Unmet:** the 30-minute physical loopback has not been run on any claimed
-  target, and no helper job kind reaches the open path, so the device-loss,
-  route-restoration and fallback cases are exercised against the addon rather
-  than through the product.
+- **Unmet:** the 30-minute physical loopback remains pending-external on every
+  claimed target. Product routing exists, but no target may claim latency,
+  device-loss, route-restoration, or fallback qualification without that run.
 - **Non-goals:** MIDI, instruments, clock, MTC, control surfaces, or Framescaper
   capture.
 - **Stop:** stop if native inventory requires new renderer-owned device IDs, a
@@ -381,11 +409,13 @@ accepted result before all product packets close.
   native menu family and nowhere else, so the tier adds no permanent editor
   chrome, and it is the only place a format is granted, a folder admitted, a
   scan watched, its findings read, or a quarantined digest cleared.
-- **Unmet:** no packaged scan fixture has been run on any target. The scan path
-  is also POSIX-only: `soundscaper_plugin_list_candidates` and
-  `soundscaper_plugin_inspect` compile to a refusal on `win32` while per-format
-  consent still offers VST3, CLAP and the fixture format there, so a Windows
-  user can grant a format and admit a root that can never be scanned.
+- **Implementation:** JUCE supplies VST3, Audio Units, and LV2 discovery on its
+  applicable targets, while direct CLAP discovery preserves the CLAP ABI and
+  lifecycle. Authenticated bundle-tree identities, descriptor selection, and
+  durable quarantine remain separate from hosting permission.
+- **Unmet:** the packaged scan fixture remains pending-external on every
+  applicable target; source-level cross-platform scanning does not substitute
+  for a signed package run.
 - **Non-goals:** DSP execution, project insertion, vendor UI, or instrument
   exposure.
 - **Stop:** stop if a format requires loading into main/renderer, exposes a raw
@@ -401,6 +431,16 @@ accepted result before all product packets close.
   canonical state survival; truthful bypass/freeze choice; no renderer or
   in-process native load; packaged VST3/CLAP everywhere, AU on macOS, and LV2
   on Linux.
+- **Implementation:** the selected V29 route inserts reviewed `native-plugin`
+  effects into the canonical graph, carries one persistent helper RPC port,
+  renders real-time and offline, preserves bounded opaque state across `.scape`,
+  desktop-library V11, and AUP4, applies exact V21 PDC, owns a helper-native
+  vendor window, and retains bypass/fresh-frozen continuity after loss. The
+  per-OS isolation launcher source and target contracts are present.
+- **Unmet:** no third-party professional payload, authenticated built launcher,
+  signed independent readiness decision, packaged format fixture, or licensing
+  clearance exists, so the acceptance clause remains open and the route stays
+  unavailable.
 - **Non-goals:** instruments, MIDI, bridge-hosted DOM UI, preset marketplace,
   or automatic trust of newly changed binaries.
 - **Stop:** stop if any format demands in-process loading, if vendor UI needs

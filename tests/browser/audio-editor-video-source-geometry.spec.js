@@ -102,7 +102,7 @@ test.describe('3B-2b source display geometry qualification', () => {
 
 		// Production serves Framescaper with the isolation headers from
 		// public/_headers. Vite preview does not apply that deployment file, so
-		// reproduce the production response before exercising V27's bounded
+		// reproduce the production response before exercising V28's bounded
 		// SharedArrayBuffer frame stream.
 		await installProductionIsolationHeaders(page, '/framescaper/en/');
 		const editor = await openFramescaper(page);

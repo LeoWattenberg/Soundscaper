@@ -1,25 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-
 /**
- * The main-owned plug-in registry: stable identity, installations, and the
- * trust and compatibility decisions that make one of them usable.
- *
- * Identity is format plus the format-native stable id — never a path, because a
- * path is where a plug-in happens to live rather than what it is. An installation
- * adds the platform, architecture, version and binary digest that distinguish two
- * copies of the same identity. Two installations of one identity make the entry
- * ineligible until the user picks one: scan order is an accident of the
- * filesystem and must never decide silently. A changed digest is therefore a
- * *new* installation rather than an update, which is also what revokes an earlier
- * warning-and-allow decision — that decision authorizes one digest and no other.
- *
- * Instrument entries are recorded and never offered. There is no method here that
- * turns one into a host grant, which is the only reason the scanner is allowed to
- * classify them at all.
- *
- * `describe()` is the whole renderer-facing projection: opaque ids, bounded facts,
- * and display text with path separators removed. Binary paths and digests stay
- * behind `hostGrantFor()` and `digestFor()`.
+ * Main-owned plug-in identity, installation, trust, and compatibility registry.
+ * Scan order never selects among installations, changed digests revoke allowance,
+ * instruments are never granted, and `describe()` is the pathless public view.
  */
 
 import { createHash } from 'node:crypto';
@@ -32,6 +15,16 @@ import {
 	validateHelperJobGrant,
 } from './helper-job-grant.ts';
 import {
+	admitPluginBundleStableIds,
+	installationIdFor,
+	pluginBundleIdentityClaim,
+} from './plugin-bundle-identity.ts';
+import {
+	createPluginHostDescriptor,
+	selectPluginHostTopology,
+	type PluginHostDescriptor,
+} from './plugin-host-descriptor.ts';
+import {
 	PLUGIN_CLASSIFICATIONS,
 	type PluginClassification,
 	type PluginCompatibilityResult,
@@ -41,17 +34,10 @@ import {
 } from './plugin-scan-results.ts';
 
 export type PluginFormat = HelperPluginFormat;
+export type { PluginHostDescriptor } from './plugin-host-descriptor.ts';
+export { installationIdFor } from './plugin-bundle-identity.ts';
 
-/**
- * Classification is the one vocabulary the scanner and the registry genuinely
- * share, so it has one definition and is re-exported rather than restated.
- *
- * Trust and compatibility are *not* shared. The scanner reports what it found on
- * disk — a signature that verified, an architecture that does not match — while
- * the registry holds the decision that follows from it. They are named apart so
- * that importing the wrong sibling is a type error rather than a vocabulary
- * silently swapped for one with different members.
- */
+/** Shared scanner classification; trust and compatibility remain registry verdicts. */
 export { PLUGIN_CLASSIFICATIONS, type PluginClassification } from './plugin-scan-results.ts';
 
 export const PLUGIN_TRUST_VERDICTS = Object.freeze(['trusted', 'untrusted', 'unsigned', 'unverifiable'] as const);
@@ -84,6 +70,7 @@ export interface PluginChannelTopology {
 /** One scanner answer about one binary, already admitted off the helper wire. */
 export interface PluginScanObservation {
 	readonly format: PluginFormat; readonly stableId: string;
+	readonly bundleStableIds: readonly string[];
 	readonly name: string; readonly vendor: string; readonly version: string;
 	readonly platform: string; readonly architecture: string;
 	readonly binaryPath: string; readonly binaryBytes: number; readonly binarySha256: string;
@@ -174,7 +161,7 @@ export interface DesktopPluginRegistryOptions {
 export class DesktopPluginRegistry {
 	readonly #isQuarantined: (digest: string) => boolean;
 	readonly #entries = new Map<string, Entry>();
-	/** Digest → entry id, so the same bytes can never claim a second identity. */
+	/** Digest → exact format-native descriptor set. */
 	readonly #identities = new Map<string, string>();
 
 	constructor(options: DesktopPluginRegistryOptions) {
@@ -193,8 +180,9 @@ export class DesktopPluginRegistry {
 			return rejected('malformed', describeError(error));
 		}
 		const entryId = entryIdFor(admitted.format, admitted.stableId);
+		const identityClaim = pluginBundleIdentityClaim(admitted.format, admitted.bundleStableIds);
 		const claimed = this.#identities.get(admitted.binarySha256);
-		if (claimed !== undefined && claimed !== entryId) {
+		if (claimed !== undefined && claimed !== identityClaim) {
 			return rejected('identity-change',
 				'That binary previously reported a different plug-in identity and was not recorded.');
 		}
@@ -203,7 +191,7 @@ export class DesktopPluginRegistry {
 		}
 		const entry = this.#entries.get(entryId) ?? this.#createEntry(entryId, admitted);
 		if (!entry) return rejected('capacity', `The registry holds at most ${String(MAXIMUM_PLUGIN_ENTRIES)} plug-ins.`);
-		const installationId = installationIdFor(admitted.binarySha256);
+		const installationId = installationIdFor(admitted.binarySha256, admitted.stableId);
 		const existing = entry.installations.get(installationId);
 		if (!existing && entry.installations.size >= MAXIMUM_PLUGIN_INSTALLATIONS) {
 			return rejected('capacity',
@@ -223,7 +211,7 @@ export class DesktopPluginRegistry {
 		// Registered only now that it holds an installation, so no rejection above
 		// can leave an identity in the projection with nothing behind it.
 		this.#entries.set(entryId, entry);
-		this.#identities.set(admitted.binarySha256, entryId);
+		this.#identities.set(admitted.binarySha256, identityClaim);
 		return Object.freeze({
 			status: 'recorded' as const,
 			entryId,
@@ -243,9 +231,12 @@ export class DesktopPluginRegistry {
 			// keeping it would leave the one collection here that has no ceiling
 			// growing across every record-and-forget cycle. The durable quarantine
 			// remembers a binary that lied, and survives because this does not.
-			this.#identities.delete(installation.observation.binarySha256);
 			if (entry.selected === installationId) entry.selected = null;
 			if (entry.installations.size === 0) this.#entries.delete(entry.entryId);
+			if (![...this.#entries.values()].some(({ installations }) => [...installations.values()]
+				.some(({ observation }) => observation.binarySha256 === installation.observation.binarySha256))) {
+				this.#identities.delete(installation.observation.binarySha256);
+			}
 			return true;
 		}
 		return false;
@@ -294,6 +285,18 @@ export class DesktopPluginRegistry {
 	digestFor(installationId: string): string {
 		return this.#locate(installationId)[1].observation.binarySha256;
 	}
+	hostDescriptorFor(installationId: string): Readonly<PluginHostDescriptor> {
+		const [entry, installation] = this.#locate(installationId);
+		const topology = selectPluginHostTopology(installation.observation);
+		if (!topology) throw new PluginRegistryError('incompatible', 'That plug-in exposes no bounded single-main-bus effect topology.');
+		return createPluginHostDescriptor({
+			entryId: entry.entryId, installationId: installation.installationId,
+			stableId: entry.stableId, format: entry.format,
+			binarySha256: installation.observation.binarySha256,
+			inputChannels: topology.inputChannels, outputChannels: topology.outputChannels,
+			reportedLatencyFrames: installation.observation.reportedLatencyFrames,
+		});
+	}
 
 	/**
 	 * The only path from the registry to something that can run. It refuses an
@@ -316,6 +319,7 @@ export class DesktopPluginRegistry {
 			binaryBytes: observation.binaryBytes,
 			binarySha256: observation.binarySha256,
 			format: observation.format,
+			stableId: observation.stableId,
 			identity: observation.identity,
 		});
 	}
@@ -361,6 +365,7 @@ export class DesktopPluginRegistry {
 		if (observation.compatibility !== 'compatible') return 'incompatible';
 		if (observation.signature !== 'trusted' && !active.reviewed) return 'untrusted-code';
 		if (!observation.realtimeSupported && !observation.offlineSupported) return 'no-supported-mode';
+		if (!selectPluginHostTopology(observation)) return 'incompatible';
 		return null;
 	}
 
@@ -413,14 +418,6 @@ export function entryIdFor(format: PluginFormat, stableId: string): string {
 	return `e${createHash('sha256').update(`${format}\u0000${stableId}`).digest('hex').slice(0, 15)}`;
 }
 
-/**
- * Derived from the digest alone: an identity change is refused at admission,
- * so one digest belongs to at most one entry for the registry's lifetime.
- */
-export function installationIdFor(binarySha256: string): string {
-	return `i${createHash('sha256').update(binarySha256).digest('hex').slice(0, 15)}`;
-}
-
 function rejected(reason: PluginAdmissionRejection, detail: string): PluginRegistryAdmission {
 	return Object.freeze({ status: 'rejected' as const, reason, detail });
 }
@@ -431,6 +428,7 @@ export interface PluginScanEntryContext {
 	readonly platform: string;
 	readonly architecture: string;
 	readonly identity: Readonly<HelperFileIdentity>;
+	readonly bundleStableIds?: readonly string[];
 }
 
 const TRUST_FROM_SIGNATURE: Readonly<Record<PluginSignatureResult, PluginTrustVerdict>> = Object.freeze({
@@ -476,6 +474,7 @@ export function pluginObservationFromScanEntry(
 			format: context.format, platform: context.platform, architecture: context.architecture,
 			identity: context.identity, signature, compatibility,
 			stableId: entry.stableId, name: entry.name, vendor: entry.vendor, version: entry.version,
+			bundleStableIds: context.bundleStableIds ?? [entry.stableId],
 			binaryPath: entry.binaryPath, binaryBytes: entry.binaryBytes, binarySha256: entry.binarySha256,
 			classification: entry.classification, realtimeSupported: entry.realtime,
 			offlineSupported: entry.offline, reportedLatencyFrames: entry.reportedLatencyFrames,
@@ -496,13 +495,15 @@ function describeError(error: unknown): string {
 function admitObservation(value: unknown): PluginScanObservation {
 	const record = plainRecord(value, 'A plug-in scan observation');
 	const identity = plainRecord(record.identity, 'A plug-in scan identity');
+	const stableId = boundedText(record.stableId, 'format-native stable id');
 	const binarySha256 = record.binarySha256;
 	if (typeof binarySha256 !== 'string' || !SHA256.test(binarySha256)) {
 		throw new TypeError('A plug-in scan observation must carry a lowercase SHA-256 binary digest.');
 	}
 	const admitted: PluginScanObservation = {
 		format: enumValue(record.format, HELPER_PLUGIN_FORMATS, 'plug-in format'),
-		stableId: boundedText(record.stableId, 'format-native stable id'),
+		stableId,
+		bundleStableIds: admitPluginBundleStableIds(record.bundleStableIds ?? [stableId], stableId),
 		name: boundedText(record.name, 'plug-in name'),
 		vendor: boundedText(record.vendor, 'plug-in vendor'),
 		version: boundedText(record.version, 'plug-in version'),

@@ -28,6 +28,10 @@ test('the closed production report always names all six menu capability rows', (
 	assert.equal(report.entries.every((entry) => entry.detail !== null), true);
 	assert.equal(report.entries.every((entry) => entry.buildFingerprint === null), true);
 	assert.equal(report.entries.filter((entry) => entry.state === 'blocked-policy').length, 4);
+	assert.match(
+		report.entries.find(({ id }) => id === 'image-sequence-import')?.detail ?? '',
+		/only opaque 8-bit sRGB\/RGB\/full-range.*higher-bit-depth, HDR, alpha, or incompatible color/iu,
+	);
 });
 
 test('only an authenticated payload digest becomes a media build fingerprint', () => {
@@ -37,6 +41,7 @@ test('only an authenticated payload digest becomes a media build fingerprint', (
 		media: {
 			payloadBuilt: true, runtimeAvailable: true, selfTestPassed: true,
 			selectedV20RenderSelfTestPassed: false,
+			selectedV28V14RenderSelfTestPassed: false,
 			professionalCharacteristicsSelfTestPassed: false,
 			quarantined: false, degraded: false, buildFingerprint: fingerprint,
 			detail: 'Authenticated current-target media host passed its supervised self-test.',
@@ -68,12 +73,13 @@ test('only an authenticated payload digest becomes a media build fingerprint', (
 	assert.equal(report.entries.find((entry) => entry.id === 'isolated-host')?.state, 'blocked-policy');
 });
 
-test('the render queue requires a selected V20 plan-family self-test', () => {
+test('the render queue requires its separate selected V28/V14 carrier self-test', () => {
 	const report = createFramescaperNativeCapabilityReportV1({
 		preferences: { ...DISABLED, nativeMediaEnabled: true },
 		media: {
 			payloadBuilt: true, runtimeAvailable: true, selfTestPassed: true,
-			selectedV20RenderSelfTestPassed: false,
+			selectedV20RenderSelfTestPassed: true,
+			selectedV28V14RenderSelfTestPassed: false,
 			professionalCharacteristicsSelfTestPassed: false,
 			quarantined: false, degraded: false, buildFingerprint: 'cd'.repeat(32),
 			detail: 'The host passed its general FFmpeg and proxy self-test only.',
@@ -104,6 +110,7 @@ test('queue and proxy execution require a mounted capacity authority', () => {
 		media: {
 			payloadBuilt: true, runtimeAvailable: true, selfTestPassed: true,
 			selectedV20RenderSelfTestPassed: true,
+			selectedV28V14RenderSelfTestPassed: true,
 			professionalCharacteristicsSelfTestPassed: false,
 			quarantined: false, degraded: false, buildFingerprint: 'de'.repeat(32),
 			detail: 'Authenticated media runtime is available.',
@@ -137,6 +144,7 @@ test('a generic media-host self-test cannot claim V25 professional image-sequenc
 		media: {
 			payloadBuilt: true, runtimeAvailable: true, selfTestPassed: true,
 			selectedV20RenderSelfTestPassed: false,
+			selectedV28V14RenderSelfTestPassed: false,
 			professionalCharacteristicsSelfTestPassed: false,
 			quarantined: false, degraded: false, buildFingerprint: 'ef'.repeat(32),
 			detail: 'The generic FFmpeg, retime, and proxy self-test passed.',

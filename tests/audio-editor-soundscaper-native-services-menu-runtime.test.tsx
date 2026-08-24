@@ -56,6 +56,44 @@ function fakeBridge(overrides: Readonly<Record<string, unknown>> = {}) {
 		scanNativePlugins: () => Promise.resolve({ status: 'described', scan: { format: 'fixture', status: 'scanned', detail: '', entries: [] } }),
 		listNativePlugins: () => Promise.resolve({ entries: [] }),
 		clearNativePluginQuarantine: () => Promise.resolve(true),
+		openNativeAudioSession: () => Promise.resolve({
+			status: 'opened', sessionId: 'audio_session_01', backend: 'alsa',
+		}),
+		bindNativeAudioSession: () => Promise.resolve({ status: 'bound', generation: 1 }),
+		nativeAudioSessionStatus: () => Promise.resolve({
+			sessionId: 'audio_session_01', state: 'open', backend: 'alsa', calibrationFrames: null,
+		}),
+		calibrateNativeAudioSession: () => Promise.resolve({
+			sessionId: 'audio_session_01', state: 'bound', backend: 'alsa', calibrationFrames: 0,
+		}),
+		reportNativeAudioSessionTransfer: () => Promise.resolve({
+			sessionId: 'audio_session_01', state: 'open', backend: 'alsa', calibrationFrames: null,
+		}),
+		reportNativeAudioSessionLoss: () => Promise.resolve({
+			sessionId: 'audio_session_01', state: 'open', backend: 'alsa', calibrationFrames: null,
+		}),
+		closeNativeAudioSession: () => Promise.resolve(true),
+		reviewNativePluginInstallation: () => Promise.resolve({ entries: [] }),
+		instantiateNativePlugin: () => Promise.resolve({
+			instanceId: 'plugin_instance_01', format: 'fixture', state: 'hosted',
+			bypassed: false, latencySamples: 0,
+		}),
+		runNativePluginOffline: () => Promise.resolve({
+			instance: {
+				instanceId: 'plugin_instance_01', format: 'fixture', state: 'hosted',
+				bypassed: false, latencySamples: 0,
+			},
+			blocksRendered: 8, renderedSha256: 'a'.repeat(64),
+		}),
+		setNativePluginBypassed: () => Promise.resolve({
+			instanceId: 'plugin_instance_01', format: 'fixture', state: 'hosted',
+			bypassed: true, latencySamples: 0,
+		}),
+		persistNativePluginState: () => Promise.resolve({ outcome: { status: 'refused' }, projectState: null }),
+		restoreNativePluginState: () => Promise.resolve({}),
+		openNativePluginVendorUi: () => Promise.resolve({ status: 'refused', code: 'vendor-ui-unavailable' }),
+		closeNativePluginVendorUi: () => Promise.resolve(false),
+		closeNativePluginInstance: () => Promise.resolve(true),
 		...overrides,
 	};
 	return { bridge, calls };
@@ -133,6 +171,12 @@ test('a tier whose formats are all unconsented keeps the scan entry disabled but
 });
 
 test('a build with no desktop bridge advertises no native tier at all', () => {
+	assert.deepEqual(nativeEntries('soundscaper'), []);
+});
+
+test('an older shell missing one production runtime call advertises no partial native tier', (t) => {
+	const { bridge } = fakeBridge({ closeNativePluginInstance: undefined });
+	t.after(withBridge(bridge));
 	assert.deepEqual(nativeEntries('soundscaper'), []);
 });
 

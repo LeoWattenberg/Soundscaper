@@ -7,10 +7,13 @@ import { build } from 'esbuild';
 import { DESKTOP_5B_TRANSITIVE_RUNTIME_FILES, DESKTOP_RUNTIME_BUNDLED_LEAF_FILES } from './desktop-5b-transitive-runtime-files.mjs';
 import { DESKTOP_PROJECT_LIBRARY_EXACT_RUNTIME_FILES } from './desktop-project-library-exact-runtime-files.mjs';
 import { DESKTOP_PROJECT_LIBRARY_V27_RUNTIME_FILES } from './desktop-project-library-v27-runtime-files.mjs';
+import { DESKTOP_SOUNDSCAPER_V10_RUNTIME_FILES } from './desktop-soundscaper-v10-runtime-files.mjs';
+import { DESKTOP_SOUNDSCAPER_V11_RUNTIME_FILES } from './desktop-soundscaper-v11-runtime-files.mjs';
 
 const FRAMESCAPER_CAPTURE_PRELOAD_BUNDLE = 'framescaper-capture-sandbox-preload.cjs';
 const FRAMESCAPER_WEB_VCR_PRELOAD_BUNDLE = 'framescaper-web-vcr-sandbox-preload.cjs';
 const SOUNDSCAPER_V10_PRELOAD_BUNDLE = 'soundscaper-project-library-v10-sandbox-preload.cjs';
+const SOUNDSCAPER_V11_PRELOAD_BUNDLE = 'soundscaper-project-library-v11-sandbox-preload.cjs';
 // Staged sources ship no TypeScript loader. Package aliases resolve to source
 // TypeScript in the repository and compiled runtime members in the application.
 export const DESKTOP_RUNTIME_PACKAGE_IMPORTS = Object.freeze({
@@ -29,9 +32,13 @@ export const DESKTOP_RUNTIME_PACKAGE_IMPORTS = Object.freeze({
 const EXPECTED_RUNTIME_FILES = Object.freeze([
 	...DESKTOP_5B_TRANSITIVE_RUNTIME_FILES,
 	'desktop/application-lifecycle.js',
+	'desktop/assistance-helper-runtime.js',
+	'desktop/assistance-job-host.js',
+	'desktop/assistance-job-protocol.js',
 	'desktop/assistance-main-ipc.js',
 	'desktop/assistance-service.js',
 	'desktop/assistance-sherpa-recognizer.js',
+	'desktop/assistance-speech-job-contract.js',
 	'desktop/assistance-speech-runtime.js',
 	'desktop/framescaper-capture-desktop-port.js',
 	'desktop/framescaper-capture-main-channels.js',
@@ -54,17 +61,22 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/framescaper-web-vcr-security-policy.js',
 	'desktop/framescaper-web-vcr-target-observer.js',
 	'desktop/framescaper-web-vcr-target-tracker.js',
+	'desktop/helper-admission-gate.js',
 	'desktop/helper-contract.js',
 	'desktop/helper-data-plane-io.js',
 	'desktop/helper-data-plane-transfer.js',
 	'desktop/helper-data-plane.js',
 	'desktop/helper-job-grant.js',
+	'desktop/helper-job-subcontract.js',
+	'desktop/helper-persistent-port.js',
 	'desktop/helper-native-image-sequence-grant.js',
 	'desktop/helper-native-job-contract.js',
 	'desktop/helper-native-job-result.js',
 	'desktop/helper-native-media-file-roles.js',
 	'desktop/helper-native-ofx-host-grant.js',
 	'desktop/helper-probe-service.js',
+	'desktop/helper-resource-policy.js',
+	'desktop/helper-supervision-state.js',
 	'desktop/helper-supervisor.js',
 	'desktop/native-helper-service.js',
 	'desktop/native-helper-results.js',
@@ -270,28 +282,8 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/framescaper/editor-project-v18-sequence.js',
 	'src/framescaper/editor-project-v18-subsequence.js',
 	'src/framescaper/editor-project-v18-validation.js',
-	'desktop/soundscaper-project-library-v10-catalog.js',
-	'desktop/soundscaper-project-library-v10-contract.js',
-	'desktop/soundscaper-project-library-v10-current-project.js',
-	'desktop/soundscaper-project-library-v10-database.js',
-	'desktop/soundscaper-project-library-v10-handshake-gate.js',
-	'desktop/soundscaper-project-library-v10-ipc.js',
-	'desktop/soundscaper-project-library-v10-lifecycle-contract.js',
-	'desktop/soundscaper-project-library-v10-lifecycle-host.js',
-	'desktop/soundscaper-project-library-v10-main-channels.js',
-	'desktop/soundscaper-project-library-v10-main-ipc.js',
-	'desktop/soundscaper-project-library-v10-main-session.js',
-	'desktop/soundscaper-project-library-v10-main.js',
-	'desktop/soundscaper-project-library-v10-media-binding.js',
-	'desktop/soundscaper-project-library-v10-metadata.js',
-	'desktop/soundscaper-project-library-v10-persistence-codecs.js',
-	'desktop/soundscaper-project-library-v10-publication-contract.js',
-	'desktop/soundscaper-project-library-v10-publication-files.js',
-	'desktop/soundscaper-project-library-v10-publication-host.js',
-	'desktop/soundscaper-project-library-v10-publication-persistence.js',
-	'desktop/soundscaper-project-library-v10-publication-transport.js',
-	'desktop/soundscaper-project-library-v10-transfer-contract.js',
-	'desktop/soundscaper-project-library-v10-transfer-service.js',
+	...DESKTOP_SOUNDSCAPER_V10_RUNTIME_FILES,
+	...DESKTOP_SOUNDSCAPER_V11_RUNTIME_FILES,
 	'src/common/editor/audacity-effects/live.js',
 	'src/common/editor/audacity-effects/manifest.js',
 	'src/common/editor/audacity-effects/spectral.js',
@@ -494,6 +486,12 @@ export async function stageDesktopApplicationSources({
 		cryptoShim: join(sourceRoot, 'project-library-v10-sandbox-crypto.ts'),
 		outputPath: join(applicationRoot, SOUNDSCAPER_V10_PRELOAD_BUNDLE),
 		productName: 'Soundscaper V10',
+	});
+	await bundleSandboxPreload({
+		entryPoint: join(sourceRoot, 'soundscaper-project-library-v11-sandbox-preload.ts'),
+		cryptoShim: join(sourceRoot, 'project-library-v10-sandbox-crypto.ts'),
+		outputPath: join(applicationRoot, SOUNDSCAPER_V11_PRELOAD_BUNDLE),
+		productName: 'Soundscaper V11',
 	});
 	await bundleSandboxPreload({
 		entryPoint: join(sourceRoot, 'framescaper-capture-sandbox-preload.ts'),

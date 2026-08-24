@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Durable, main-owned admission for renderer-evaluated selected-V20 V7/V8 inputs. */
+/** Durable, main-owned admission for authenticated renderer-evaluated inputs. */
 
 import { constants as fsConstants } from 'node:fs';
 import {
@@ -8,17 +8,21 @@ import {
 } from 'node:fs/promises';
 import { isAbsolute, join, normalize } from 'node:path';
 
-import type { NativeMediaPlanEnvelopeV1 } from '../src/common/editor/native-media-plan-envelope.ts';
 import {
 	assertNativeQueueRecordV2,
 	type NativeQueueRecordV2,
 } from '../src/common/editor/native-queue-record.ts';
+import {
+	assertNativeQueueRecordV3,
+	type NativeQueueRecordV3,
+} from '../src/common/editor/native-queue-record-v3.ts';
 import type { HelperDataPlaneBinding } from './helper-data-plane.ts';
 import {
 	receiveHelperDataPlaneFile,
 	type HelperDataPlaneIoPort,
 } from './helper-data-plane-io.ts';
-import type { HelperFileInputGrant } from './helper-native-job-contract.ts';
+import type { HelperNativeInputGrant } from './helper-native-job-contract.ts';
+import type { HelperDataPlaneTransfer } from './helper-data-plane-transfer.ts';
 import {
 	FRAMESCAPER_NATIVE_RENDER_INPUT_MAXIMUM_PENDING_STAGES,
 	FRAMESCAPER_NATIVE_RENDER_INPUT_STAGE_VERSION,
@@ -29,7 +33,7 @@ import {
 	nativeRenderInputDeclaredBytes,
 	nativeRenderInputDescriptorsForPlan,
 	nativeRenderInputDigest,
-	nativeRenderInputExactV20Envelope,
+	nativeRenderInputExactEnvelope,
 	nativeRenderInputFingerprints,
 	nativeRenderInputIdentifier,
 	nativeRenderInputNonNegative,
@@ -42,6 +46,7 @@ import {
 	nativeRenderInputStageRequired,
 	type FramescaperNativeRenderInputStageAdmissionV1,
 	type FramescaperNativeRenderInputStageIdentity,
+	type NativeRenderInputEnvelope,
 } from './native-services-render-input-contract.ts';
 import {
 	createNativeRenderInputOwnedStage,
@@ -84,7 +89,13 @@ export type {
 
 export interface FramescaperNativeDerivedRenderInputs {
 	readonly byteLength: number;
-	readonly materialize: (directory: string) => Promise<readonly HelperFileInputGrant[]>;
+	/** Exact durable/helper scratch authority required by these derived inputs. */
+	readonly scratchByteLength?: number;
+	readonly materialize: (
+		directory: string,
+		signal?: AbortSignal,
+	) => Promise<readonly HelperNativeInputGrant[]>;
+	readonly transfers?: () => readonly HelperDataPlaneTransfer[];
 }
 
 export interface FramescaperNativeRenderInputStagingOptions {
@@ -100,15 +111,17 @@ export interface FramescaperNativeRenderInputReclamationResult {
 	readonly reclaimedDeclaredBytes: number;
 }
 
+type NativeRenderInputQueueRecord = NativeQueueRecordV2 | NativeQueueRecordV3;
+
 /** Queue-owned hooks; callers never receive a staging path or filesystem capability. */
 export interface FramescaperNativeRenderInputSettlementPort {
-	readonly revalidate: (record: NativeQueueRecordV2) => Promise<boolean>;
-	readonly inspect: (record: NativeQueueRecordV2) => Promise<FramescaperNativeDerivedRenderInputs>;
+	readonly revalidate: (record: NativeRenderInputQueueRecord) => Promise<boolean>;
+	readonly inspect: (record: NativeRenderInputQueueRecord) => Promise<FramescaperNativeDerivedRenderInputs>;
 	readonly settle: (
-		record: NativeQueueRecordV2,
+		record: NativeRenderInputQueueRecord,
 		outcome: 'succeeded' | 'paused' | 'cancelled' | 'failed',
 	) => Promise<void>;
-	readonly remove: (record: NativeQueueRecordV2) => Promise<void>;
+	readonly remove: (record: NativeRenderInputQueueRecord) => Promise<void>;
 }
 
 /** Main lifecycle hooks for renderer loss, explicit action failure, and startup recovery. */
@@ -116,14 +129,14 @@ export interface FramescaperNativeRenderInputLifecyclePort {
 	readonly abandon: (owner: object, value: Readonly<{ stageId: string }>) => Promise<void>;
 	readonly abandonOwner: (owner: object) => Promise<number>;
 	readonly reclaim: (
-		liveRecords: readonly NativeQueueRecordV2[],
+		liveRecords: readonly NativeRenderInputQueueRecord[],
 	) => Promise<FramescaperNativeRenderInputReclamationResult>;
 }
 
 interface PendingStage {
 	readonly owner: object;
 	readonly owned: NativeRenderInputOwnedStage;
-	readonly envelope: NativeMediaPlanEnvelopeV1 & Readonly<{ planVersion: 7 | 8 }>;
+	readonly envelope: NativeRenderInputEnvelope;
 	readonly identity: FramescaperNativeRenderInputStageIdentity;
 	readonly descriptors: readonly FramescaperNativeRenderInputDescriptorV1[];
 	readonly bindings: readonly HelperDataPlaneBinding[];
@@ -160,7 +173,7 @@ export class FramescaperNativeRenderInputStaging
 	async begin(ownerValue: unknown, value: unknown): Promise<FramescaperNativeRenderInputStageAdmissionV1> {
 		const owner = this.#activeOwner(requiredOwner(ownerValue));
 		const request = nativeRenderInputBeginRequest(value);
-		const envelope = nativeRenderInputExactV20Envelope(
+		const envelope = nativeRenderInputExactEnvelope(
 			request.planPayload, request.planFingerprint, request.planVersion,
 		);
 		const descriptors = nativeRenderInputDescriptorsForPlan(request.derivedInputs, envelope);
@@ -363,7 +376,7 @@ export class FramescaperNativeRenderInputStaging
 	}
 
 	async reclaim(
-		liveRecords: readonly NativeQueueRecordV2[],
+		liveRecords: readonly NativeRenderInputQueueRecord[],
 	): Promise<FramescaperNativeRenderInputReclamationResult> {
 		const live = exactLiveRecords(liveRecords);
 		return this.#mutate(async () => {
@@ -402,19 +415,24 @@ export class FramescaperNativeRenderInputStaging
 		});
 	}
 
-	async revalidate(record: NativeQueueRecordV2): Promise<boolean> {
-		if (record.planVersion !== 7 && record.planVersion !== 8) return true;
+	async revalidate(record: NativeRenderInputQueueRecord): Promise<boolean> {
+		if (record.planVersion !== 7 && record.planVersion !== 8 && record.planVersion !== 14) return true;
 		try {
-			assertNativeQueueRecordV2(record);
+			assertNativeRenderInputQueueRecord(record);
+			if (record.taskKind === 'proxy-generation') return true;
 			if (!nativeRenderInputStageRequired(exactRecordEnvelope(record))) return true;
 			await this.inspect(record);
 			return true;
 		} catch { return false; }
 	}
 
-	async inspect(recordValue: NativeQueueRecordV2): Promise<FramescaperNativeDerivedRenderInputs> {
-		assertNativeQueueRecordV2(recordValue);
-		if (recordValue.planVersion !== 7 && recordValue.planVersion !== 8) {
+	async inspect(recordValue: NativeRenderInputQueueRecord): Promise<FramescaperNativeDerivedRenderInputs> {
+		assertNativeRenderInputQueueRecord(recordValue);
+		if (recordValue.taskKind === 'proxy-generation') {
+			throw new Error('Native proxy generation never acquires a renderer-evaluated carrier.');
+		}
+		if (recordValue.planVersion !== 7 && recordValue.planVersion !== 8
+			&& recordValue.planVersion !== 14) {
 			throw new Error(
 				`Native render plan V${String(recordValue.planVersion)} has no durable evaluated RGBA carrier.`,
 			);
@@ -425,7 +443,7 @@ export class FramescaperNativeRenderInputStaging
 		const owned = await readNativeRenderInputOwnedStage(this.#root, recordValue.jobId);
 		if (owned === null) throw new Error('The durable native render-input ownership record is missing.');
 		const manifest = await assertNativeRenderInputLiveOwnedStage(owned, recordValue);
-		const envelope = nativeRenderInputExactV20Envelope(
+		const envelope = nativeRenderInputExactEnvelope(
 			recordValue.planPayload, recordValue.planFingerprint, recordValue.planVersion,
 		);
 		for (const file of manifest.files) {
@@ -440,7 +458,7 @@ export class FramescaperNativeRenderInputStaging
 			byteLength,
 			materialize: async (targetValue: string) => {
 				const target = await requireNativeRenderInputRoot(absolutePath(targetValue), false);
-				const grants: HelperFileInputGrant[] = [];
+				const grants: HelperNativeInputGrant[] = [];
 				for (const [index, file] of manifest.files.entries()) {
 					const source = join(owned.directory, file.name);
 					const path = join(target,
@@ -457,9 +475,11 @@ export class FramescaperNativeRenderInputStaging
 		});
 	}
 
-	async remove(recordValue: NativeQueueRecordV2): Promise<void> {
-		assertNativeQueueRecordV2(recordValue);
-		if (recordValue.planVersion !== 7 && recordValue.planVersion !== 8) return;
+	async remove(recordValue: NativeRenderInputQueueRecord): Promise<void> {
+		assertNativeRenderInputQueueRecord(recordValue);
+		if (recordValue.taskKind === 'proxy-generation') return;
+		if (recordValue.planVersion !== 7 && recordValue.planVersion !== 8
+			&& recordValue.planVersion !== 14) return;
 		if (!nativeRenderInputStageRequired(exactRecordEnvelope(recordValue))) return;
 		await this.#mutate(async () => {
 			const owned = await readNativeRenderInputOwnedStage(this.#root, recordValue.jobId);
@@ -478,7 +498,7 @@ export class FramescaperNativeRenderInputStaging
 	}
 
 	async settle(
-		record: NativeQueueRecordV2,
+		record: NativeRenderInputQueueRecord,
 		outcome: 'succeeded' | 'paused' | 'cancelled' | 'failed',
 	): Promise<void> {
 		if (!['succeeded', 'paused', 'cancelled', 'failed'].includes(outcome)) {
@@ -523,24 +543,33 @@ function assertClaimIdentity(
 	}
 }
 
-function exactRecordEnvelope(record: NativeQueueRecordV2) {
-	return nativeRenderInputExactV20Envelope(
-		record.planPayload, record.planFingerprint, record.planVersion as 7 | 8,
+function exactRecordEnvelope(record: NativeRenderInputQueueRecord) {
+	return nativeRenderInputExactEnvelope(
+		record.planPayload, record.planFingerprint, record.planVersion as 7 | 8 | 14,
 	);
 }
 
-function exactLiveRecords(records: readonly NativeQueueRecordV2[]): ReadonlyMap<string, NativeQueueRecordV2> {
+function exactLiveRecords(
+	records: readonly NativeRenderInputQueueRecord[],
+): ReadonlyMap<string, NativeRenderInputQueueRecord> {
 	if (!Array.isArray(records) || Reflect.ownKeys(records).length !== records.length + 1
 		|| records.length > 100_000) {
 		throw new TypeError('Native render-input reclamation requires a bounded dense queue snapshot.');
 	}
-	const live = new Map<string, NativeQueueRecordV2>();
+	const live = new Map<string, NativeRenderInputQueueRecord>();
 	for (const record of records) {
-		assertNativeQueueRecordV2(record);
+		assertNativeRenderInputQueueRecord(record);
 		if (live.has(record.jobId)) throw new Error('A native queue snapshot duplicated a job identity.');
 		live.set(record.jobId, record);
 	}
 	return live;
+}
+
+function assertNativeRenderInputQueueRecord(
+	value: NativeRenderInputQueueRecord,
+): asserts value is NativeRenderInputQueueRecord {
+	if (value.recordVersion === 3) assertNativeQueueRecordV3(value);
+	else assertNativeQueueRecordV2(value);
 }
 
 function requiredOwner(value: unknown): object {

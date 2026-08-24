@@ -37,8 +37,8 @@ const EXPECTED_FIXTURES = Object.freeze([
 const STORAGE_PROFILES = Object.freeze({
 	soundscaper: Object.freeze({
 		productId: 'soundscaper',
-		databaseName: 'kw-media-soundscaper-editor-v23',
-		opfsDirectoryName: 'soundscaper-editor-v23-sources',
+		databaseName: 'kw-media-soundscaper-editor-v29',
+		opfsDirectoryName: 'soundscaper-editor-v29-sources',
 	}),
 	framescaper: Object.freeze({
 		productId: 'framescaper',
@@ -290,7 +290,7 @@ export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan, stora
 
 	async function publicationSnapshot(globalScope, productId) {
 		const bridge = productId === 'soundscaper'
-			? globalScope.soundscaperProjectLibraryDesktop?.v10
+			? globalScope.soundscaperProjectLibraryDesktop?.v11
 			: globalScope.framescaperProjectLibraryDesktop?.v10;
 		if (typeof bridge?.listProjects !== 'function') return null;
 		try {
@@ -312,8 +312,14 @@ export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan, stora
 	function publicationDiagnostic(projectId, before, after, status) {
 		const prior = before?.projects?.find((project) => project.id === projectId) ?? null;
 		const current = after?.projects?.find((project) => project.id === projectId) ?? null;
-		const witnessFailure = /authoritative desktop V10 load witness/iu.test(status);
-		const stalePublication = /desktop V10 publication is stale/iu.test(status);
+		const desktopLibraryVersion = plan.productId === 'soundscaper' ? 'v11' : 'v10';
+		const normalizedStatus = status.toLowerCase();
+		const witnessFailure = normalizedStatus.includes(
+			`authoritative desktop ${desktopLibraryVersion} load witness`,
+		);
+		const stalePublication = normalizedStatus.includes(
+			`desktop ${desktopLibraryVersion} publication is stale`,
+		);
 		let classification = 'publication-state-unavailable';
 		if (before && after && !before.error && !after.error) {
 			if (!prior) classification = 'initial-save-missing';
@@ -352,9 +358,9 @@ export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan, stora
 		const framescaper = productId === 'framescaper';
 		if ((!framescaper && productId !== 'soundscaper') || profile.productId !== productId
 			|| profile.databaseName !== (framescaper
-				? 'kw-media-framescaper-editor-v20' : 'kw-media-soundscaper-editor-v23')
+				? 'kw-media-framescaper-editor-v20' : 'kw-media-soundscaper-editor-v29')
 			|| profile.opfsDirectoryName !== (framescaper
-				? 'framescaper-editor-v20-sources' : 'soundscaper-editor-v23-sources')) {
+				? 'framescaper-editor-v20-sources' : 'soundscaper-editor-v29-sources')) {
 			throw new TypeError('Desktop video timing-probe storage profile does not match its product');
 		}
 		return Object.freeze(profile);

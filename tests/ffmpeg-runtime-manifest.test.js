@@ -7,6 +7,11 @@ import { registerHooks } from 'node:module';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
 
+import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
+import {
+	assistanceNativeRuntimeStageSummary,
+	stageAssistanceNativeRuntimePayload,
+} from '../desktop/assistance-native-runtime-payload.mjs';
 import {
 	REQUIRED_LICENSING_GATES,
 	createFixture,
@@ -27,6 +32,11 @@ import {
 	stageVerifiedNativeAddonPayload,
 	verifyNativeAddonPayloadManifest,
 } from '../scripts/lib/native-addon-payload-manifest.mjs';
+import {
+	professionalNativePayloadOutputRoot,
+	stageVerifiedSoundscaperProfessionalNativePayload,
+	verifySoundscaperProfessionalNativePayload,
+} from '../scripts/lib/soundscaper-professional-native-payload.mjs';
 import verifyDesktopRuntimeBeforePack from '../scripts/desktop-before-pack.mjs';
 import { admitDesktopFfmpegAssembly } from '../scripts/desktop-prepare.mjs';
 import { validateDesktopRuntimeManifests } from '../scripts/desktop-release-assets.mjs';
@@ -122,12 +132,29 @@ test('desktop packaging revalidates staged bytes and the retained policy summary
 		release: nativeRelease,
 		outputRoot: join(fixture.root, '.desktop-build/runtime/native/linux-x64'),
 	});
+	const runtimeRoot = join(fixture.root, '.desktop-build/runtime');
+	const assistanceNativeRuntime = await stageAssistanceNativeRuntimePayload({
+		manifest: assistanceNativeRuntimeManifest,
+		targetId: 'linux-x64',
+		nodeModulesRoot: join(ROOT, 'node_modules'),
+		outputRoot: runtimeRoot,
+	});
+	const professionalRelease = await verifySoundscaperProfessionalNativePayload({
+		repositoryRoot: fixture.root,
+		target: 'linux-x64',
+	});
+	const soundscaperProfessionalNative = await stageVerifiedSoundscaperProfessionalNativePayload({
+		release: professionalRelease,
+		outputRoot: professionalNativePayloadOutputRoot(runtimeRoot, professionalRelease),
+	});
 	const stageManifestPath = join(fixture.root, '.desktop-build/stage-manifest.json');
 	await writeJson(stageManifestPath, {
 		schemaVersion: 1,
 		productId: 'soundscaper',
+		assistanceNativeRuntime,
 		ffmpeg: summary,
 		nativeAddons,
+		soundscaperProfessionalNative,
 		framescaperNativeHosts: null,
 	});
 	await assert.doesNotReject(verifyDesktopRuntimeBeforePack(packingLinuxX64(fixture.root)));
@@ -157,8 +184,10 @@ test('desktop packaging revalidates staged bytes and the retained policy summary
 	await writeJson(stageManifestPath, {
 		schemaVersion: 1,
 		productId: 'soundscaper',
+		assistanceNativeRuntime,
 		ffmpeg: summary,
 		nativeAddons,
+		soundscaperProfessionalNative,
 		framescaperNativeHosts: null,
 	});
 	await writeFile(join(outputRoot, 'manifest.json'), Buffer.from('post-prepare manifest tamper'));
@@ -245,6 +274,10 @@ test('desktop release assembly rejects identically corrupted platform manifests'
 	});
 	const nativeRelease = await verifyNativeAddonPayloadManifest({ repositoryRoot: fixture.root, target: 'linux-x64' });
 	const nativeAddons = nativeAddonPayloadStageSummary(nativeRelease);
+	const assistanceNativeRuntime = assistanceNativeRuntimeStageSummary(
+		assistanceNativeRuntimeManifest,
+		'linux-x64',
+	);
 	const corrupted = structuredClone(summary);
 	corrupted.files['ffmpeg-core.wasm'].sha256 = '0'.repeat(64);
 	const manifests = Array.from({ length: 6 }, (_, index) => ({
@@ -262,9 +295,29 @@ test('desktop release assembly rejects identically corrupted platform manifests'
 
 	const identified = (value) => [{
 		name: 'runtime-manifest-soundscaper-linux-x64.json',
-		value: { ffmpeg: summary, productId: 'soundscaper', target: { platform: 'linux', arch: 'x64' }, ...value },
+		value: {
+			ffmpeg: summary,
+			productId: 'soundscaper',
+			target: { platform: 'linux', arch: 'x64' },
+			assistanceNativeRuntime,
+			...value,
+		},
 	}];
 	assert.doesNotThrow(() => validateDesktopRuntimeManifests(identified({ nativeAddons }), release));
+	assert.throws(
+		() => validateDesktopRuntimeManifests(identified({ assistanceNativeRuntime: null, nativeAddons }), release),
+		/invalid assistance native-runtime evidence/iu,
+	);
+	assert.throws(
+		() => validateDesktopRuntimeManifests(identified({
+			assistanceNativeRuntime: {
+				...assistanceNativeRuntime,
+				manifestSha256: '0'.repeat(64),
+			},
+			nativeAddons,
+		}), release),
+		/invalid assistance native-runtime evidence/iu,
+	);
 	assert.throws(() => validateDesktopRuntimeManifests(identified({}), release),
 		/does not record a staged native addon payload summary/iu);
 	assert.throws(

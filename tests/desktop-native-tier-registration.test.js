@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -8,9 +7,11 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
 import vm from 'node:vm';
-
 import { IPC } from '../desktop/constants.js';
-
+import {
+	nativeTierPluginObservation as pluginObservation,
+	nativeTierScanEntry as scanEntry,
+} from './helpers/desktop-native-tier-fixtures.js';
 const ROOT = resolve(import.meta.dirname, '..');
 const RUNTIME_PREFIX = './project-library-runtime/desktop/';
 const ELECTRON_STUB = 'stub-electron:main';
@@ -18,6 +19,9 @@ const ELECTRON_STUB_SOURCE = `
 export const answers = { openDialog: { canceled: true, filePaths: [] } };
 export const app = { getAppMetrics: () => [] };
 export const dialog = { showOpenDialog: async () => answers.openDialog };
+export class MessageChannelMain {
+	constructor() { throw new Error('A stub MessageChannel is not opened unless a native stream passes its gate.'); }
+}
 export const utilityProcess = {
 	fork: () => { throw new Error('A stub Electron surface never forks a helper.'); },
 };
@@ -53,7 +57,10 @@ const {
 const {
 	disposeDesktopNativeTier,
 	registerDesktopNativeTier,
+	revokeDesktopNativeTierOwner,
 } = await import('../desktop/native-tier-registration.mjs');
+const { DesktopNativeAudioSessionService } = await import('../desktop/native-audio-session-service.ts');
+const { DesktopPluginHostService } = await import('../desktop/plugin-host-service.ts');
 const { DesktopPluginQuarantine, PLUGIN_FAULT_KINDS } = await import('../desktop/plugin-quarantine.ts');
 const { DesktopPluginRegistry } = await import('../desktop/plugin-registry.ts');
 
@@ -65,11 +72,25 @@ const NATIVE_CHANNELS = Object.freeze([
 	IPC.nativeAudioAvailability,
 	IPC.nativeAudioInventory,
 	IPC.nativeAudioSetEnabled,
+	IPC.nativeAudioSessionOpen,
+	IPC.nativeAudioSessionBind,
+	IPC.nativeAudioSessionStatus,
+	IPC.nativeAudioSessionCalibrate, IPC.nativeAudioSessionReport, IPC.nativeAudioSessionLoss,
+	IPC.nativeAudioSessionClose,
 	IPC.nativePluginAvailability,
 	IPC.nativePluginConsent,
 	IPC.nativePluginScan,
 	IPC.nativePluginInventory,
 	IPC.nativePluginClearQuarantine,
+	IPC.nativePluginReviewInstallation,
+	IPC.nativePluginInstantiate,
+	IPC.nativePluginRunOffline,
+	IPC.nativePluginSetBypassed,
+	IPC.nativePluginPersistState,
+	IPC.nativePluginRestoreState,
+	IPC.nativePluginOpenVendorUi,
+	IPC.nativePluginCloseVendorUi,
+	IPC.nativePluginCloseInstance,
 ]);
 
 test('the shared IPC map and the sandbox preload declare the very same channels', async () => {
@@ -92,13 +113,20 @@ test('registering the native tier claims every declared channel exactly once', a
 	assert.equal(new Set(registration.channels).size, registration.channels.length,
 		'a channel registered twice makes Electron refuse the second handler and exit the application');
 	assert.deepEqual([...registration.channels].sort(), [...NATIVE_CHANNELS].sort());
-	disposeDesktopNativeTier(registration.tier);
+	assert.notEqual(registration.tier.audio.supervisorPort, registration.tier.plugins.supervisorPort,
+		'audio sessions and plug-in scans must never share a process lifecycle or quarantine generation');
+	assert.ok(registration.tier.audio.sessions instanceof DesktopNativeAudioSessionService);
+	assert.ok(registration.tier.plugins.hostService instanceof DesktopPluginHostService);
+	await disposeDesktopNativeTier(registration.tier);
 });
 
 test('the native tier refuses an options bag missing a seam it forwards', async (context) => {
 	const userDataPath = await temporaryUserData(context);
 	const complete = registrationOptions(userDataPath);
-	for (const missing of ['channels', 'handle', 'ownerFor', 'settings', 'desktopRoot', 'userDataPath', 'parentWindow']) {
+	for (const missing of [
+		'channels', 'handle', 'ownerFor', 'settings', 'desktopRoot', 'userDataPath', 'parentWindow',
+		'productId', 'nativePluginStateAuthority',
+	]) {
 		const options = { ...complete };
 		delete options[missing];
 		assert.throws(() => registerDesktopNativeTier(options), new RegExp(missing, 'u'),
@@ -122,6 +150,147 @@ test('the renderer can change native-audio preference through the bounded main c
 	assert.equal(await registration.invoke(IPC.nativeAudioSetEnabled, 'true'), false,
 		'the main boundary must not coerce renderer input');
 	assert.equal(ownerReads, 2);
+});
+
+test('production audio-session IPC reaches the real service and keeps unavailable targets closed', async (context) => {
+	const registration = createRegistration(await temporaryUserData(context));
+	context.after(() => disposeDesktopNativeTier(registration.tier));
+	const outcome = await registration.invoke(IPC.nativeAudioSessionOpen, {
+		candidates: [{ backend: 'pipewire', deviceHandle: 'opaque-device-1' }],
+		direction: 'output', mode: 'shared', sampleRate: 48_000, periodFrames: 1_024, channelCount: 2,
+	});
+	assert.deepEqual(outcome, {
+		status: 'refused', code: 'backend-absent',
+		message: 'No requested audio backend is present.',
+		attempts: [{
+			backend: 'pipewire', status: 'backend-absent',
+			detail: 'That native audio backend remains behind its production activation gate.',
+		}],
+	});
+	assert.equal(registration.tier.audio.realtimeBroker.snapshot().owned, false);
+});
+
+test('checked-in production policy blocks third-party hosting before an available payload is consulted', async (context) => {
+	let helperCreations = 0;
+	const registration = createRegistration(await temporaryUserData(context), {}, {
+		isPluginHostFormatActivated: undefined,
+		createPluginHostHelper: () => {
+			helperCreations += 1;
+			return {
+				describePayload: () => Promise.resolve({ status: 'available' }),
+				supervisor: { runJob: () => Promise.reject(new Error('must not run')), dispose: () => undefined },
+			};
+		},
+	});
+	context.after(() => disposeDesktopNativeTier(registration.tier));
+	await registration.tier.ready();
+	const availability = await registration.invoke(IPC.nativePluginAvailability);
+	const vst3 = availability.consent.formats.find(({ format }) => format === 'vst3');
+	assert.deepEqual({ supported: vst3.supported, granted: vst3.granted, roots: vst3.roots }, {
+		supported: false, granted: false, roots: [],
+	});
+	await assert.rejects(
+		() => registration.invoke(IPC.nativePluginConsent, { format: 'vst3', action: 'grant' }),
+		/blocked by production policy/u,
+	);
+	assert.equal((await registration.invoke(IPC.nativePluginScan, {
+		format: 'vst3', rootId: 'renderer-cannot-name-a-path',
+	})).code, 'consent-required');
+	const admission = registration.tier.plugins.registry.record(pluginObservation({ format: 'vst3' }));
+	assert.equal(admission.status, 'recorded');
+	if (admission.status !== 'recorded') return;
+	await assert.rejects(
+		() => registration.invoke(IPC.nativePluginInstantiate, {
+			installationId: admission.installationId, instanceId: null, sampleRate: 48_000,
+		}),
+		/production activation gate/u,
+	);
+	assert.equal(helperCreations, 0, 'policy refusal must happen before payload or spawn authority is consulted');
+});
+
+test('checked-in production policy never offers or executes the fixture format', async (context) => {
+	const registration = createRegistration(await temporaryUserData(context), {}, {
+		isPluginHostFormatActivated: undefined,
+	});
+	context.after(() => disposeDesktopNativeTier(registration.tier));
+	await registration.tier.ready();
+	const fixture = (await registration.invoke(IPC.nativePluginAvailability)).consent.formats
+		.find(({ format }) => format === 'fixture');
+	assert.deepEqual({ supported: fixture.supported, granted: fixture.granted, roots: fixture.roots }, {
+		supported: false, granted: false, roots: [],
+	});
+	await assert.rejects(
+		() => registration.invoke(IPC.nativePluginConsent, { format: 'fixture', action: 'grant' }),
+		/blocked by production policy/u,
+	);
+	const admission = registration.tier.plugins.registry.record(pluginObservation());
+	assert.equal(admission.status, 'recorded');
+	if (admission.status !== 'recorded') return;
+	await assert.rejects(() => registration.invoke(IPC.nativePluginReviewInstallation, {
+		installationId: admission.installationId, action: 'allow',
+	}), /blocked by production policy/u);
+	await assert.rejects(() => registration.invoke(IPC.nativePluginInstantiate, {
+		installationId: admission.installationId, instanceId: null, sampleRate: 48_000,
+	}), /production activation gate/u);
+});
+
+test('production plug-in IPC instantiates, runs, stores state and drains its isolated host', async (context) => {
+	const owner = {};
+	const disposedHosts = [];
+	const registration = createRegistration(await temporaryUserData(context), {}, {
+		ownerFor: () => owner,
+		openPersistentPluginSession: async () => ({
+			closed: new Promise(() => {}),
+			transferTo: () => undefined,
+			authenticateState: (value) => Uint8Array.from(value.bytes),
+			vendorWindowCapability: (windowId) => `${windowId}.${'c'.repeat(64)}`,
+			close: async () => undefined,
+		}),
+		createPluginHostHelper: () => ({
+			describePayload: () => Promise.resolve({ status: 'available' }),
+			supervisor: {
+				runJob: () => Promise.resolve({
+					reportedLatencyFrames: 32, latencyStable: true, blocksRendered: 8,
+					renderedSha256: 'a'.repeat(64), stateBytes: 0, stateRefusal: null,
+				}),
+				dispose: () => { disposedHosts.push(true); },
+			},
+		}),
+	});
+	context.after(() => disposeDesktopNativeTier(registration.tier));
+	await registration.tier.ready();
+	const admission = registration.tier.plugins.registry.record(pluginObservation());
+	assert.equal(admission.status, 'recorded');
+	if (admission.status !== 'recorded') return;
+	assert.deepEqual(
+		await registration.invoke(IPC.nativePluginReviewInstallation, {
+			installationId: admission.installationId, action: 'allow',
+		}),
+		registration.tier.plugins.registry.describe(),
+	);
+	const instance = await registration.invoke(IPC.nativePluginInstantiate, {
+		installationId: admission.installationId, instanceId: null, sampleRate: 48_000,
+	});
+	assert.equal(instance.format, 'fixture');
+	assert.equal(registration.tier.plugins.hostIsolation.snapshot().hostCount, 1);
+	const offline = await registration.invoke(IPC.nativePluginRunOffline, { instanceId: instance.instanceId });
+	assert.equal(offline.blocksRendered, 8);
+	assert.equal(offline.instance.latencySamples, 32);
+	const persisted = await registration.invoke(IPC.nativePluginPersistState, {
+		instanceId: instance.instanceId, generation: 1, bytes: Uint8Array.of(1, 2, 3),
+	});
+	assert.equal(persisted.outcome.status, 'persisted');
+	assert.equal(persisted.projectState.stateBody.byteLength, 3);
+	assert.equal((await registration.invoke(IPC.nativePluginOpenVendorUi, {
+		instanceId: instance.instanceId,
+	})).status, 'opened');
+	await revokeDesktopNativeTierOwner(registration.tier, owner);
+	assert.equal(registration.tier.plugins.hostIsolation.snapshot().hostCount, 0);
+	assert.equal(disposedHosts.length, 1);
+	await assert.rejects(
+		() => registration.invoke(IPC.nativePluginRunOffline, { instanceId: instance.instanceId }),
+		/belongs to another renderer/u,
+	);
 });
 
 test('a renderer with no active owner cannot change native-audio authority', async (context) => {
@@ -213,7 +382,7 @@ test('plug-in consent and its picked folders survive a restart', async (context)
 	const first = createRegistration(userDataPath);
 	await first.tier.ready();
 	const rootId = await admitCustomRoot(first, rootPath);
-	disposeDesktopNativeTier(first.tier);
+	await disposeDesktopNativeTier(first.tier);
 
 	const second = createRegistration(userDataPath);
 	context.after(() => disposeDesktopNativeTier(second.tier));
@@ -309,6 +478,7 @@ test('the scan job answer fills the inventory on its way past', async (context) 
 
 function registrationOptions(userDataPath, overrides = {}) {
 	const owner = {};
+	const stateBodies = new Map();
 	return {
 		channels: IPC,
 		handle: () => {},
@@ -320,6 +490,24 @@ function registrationOptions(userDataPath, overrides = {}) {
 		resourcesPath: join(ROOT, 'resources'),
 		userDataPath,
 		parentWindow: () => null,
+		productId: 'soundscaper',
+		nativePluginStateAuthority: () => ({
+			persist(bytes) {
+				const copy = Uint8Array.from(bytes);
+				const sha256 = createHash('sha256').update(copy).digest('hex');
+				const bodyId = `native-plugin-state:${sha256}`;
+				stateBodies.set(bodyId, copy);
+				return Object.freeze({ kind: 'native-plugin-state', bodyId, byteLength: copy.byteLength, sha256 });
+			},
+			read(bodyId) {
+				const bytes = stateBodies.get(bodyId);
+				if (!bytes) return null;
+				return Object.freeze({
+					bytes: Uint8Array.from(bytes), byteLength: bytes.byteLength,
+					sha256: bodyId.slice('native-plugin-state:'.length),
+				});
+			},
+		}),
 		...overrides,
 	};
 }
@@ -328,12 +516,16 @@ function createRegistration(userDataPath, settingsState = {}, overrides = {}) {
 	const channels = [];
 	const handlers = new Map();
 	const settings = createSettings(settingsState);
+	const activation = Object.hasOwn(overrides, 'isPluginHostFormatActivated')
+		? {}
+		: { isPluginHostFormatActivated: (format) => format === 'fixture' };
 	const tier = registerDesktopNativeTier(registrationOptions(userDataPath, {
 		handle: (channel, listener) => {
 			channels.push(channel);
 			handlers.set(channel, listener);
 		},
 		settings,
+		...activation,
 		...overrides,
 	}));
 	return {
@@ -358,7 +550,7 @@ function createSettings(overrides = {}) {
 	return {
 		snapshot: () => ({ ...state }),
 		setNativeAudioHelperEnabled: (value) => (state.nativeAudioHelperEnabled = value),
-		setNativePluginDiscoveryEnabled: (value) => { state.nativePluginDiscoveryEnabled = value; },
+		setNativePluginDiscoveryEnabled: (value) => (state.nativePluginDiscoveryEnabled = value),
 		setNativeProbeHelperEnabled: (value) => { state.nativeProbeHelperEnabled = value; },
 	};
 }
@@ -405,24 +597,4 @@ async function admittedRootIds(registration, format) {
 	return (await consentFormat(registration, format)).roots
 		.filter((root) => root.admitted)
 		.map((root) => root.rootId);
-}
-
-function scanEntry({ binaryPath = '/opt/plug-ins/reverb.fixture' } = {}) {
-	return {
-		stableId: 'fixture:reverb',
-		name: 'Fixture Reverb',
-		vendor: 'Soundscaper',
-		version: '1.0.0',
-		binaryPath,
-		binaryBytes: 4_096,
-		binarySha256: 'd'.repeat(64),
-		classification: 'effect',
-		channelSupport: [{ inputs: 2, outputs: 2 }],
-		realtime: true,
-		offline: true,
-		reportedLatencyFrames: 0,
-		signature: 'signed-valid',
-		compatibility: 'compatible',
-		descriptorVersion: 1,
-	};
 }

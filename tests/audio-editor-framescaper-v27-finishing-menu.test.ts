@@ -47,6 +47,21 @@ test('selected Framescaper V27 exposes every finishing workflow through existing
 	assert.deepEqual(calls, ['visual-inspector', 'captions']);
 });
 
+test('selected Framescaper V28 retains every inherited V27 finishing menu route', () => {
+	const items = createFramescaperV27FinishingMenuItems({
+		productId: 'framescaper', project: { schemaVersion: 28 }, capabilities: CAPABILITIES,
+		editingBlocked: false, readOnly: false,
+	}, { open: () => undefined });
+	assert.deepEqual(items.tracks.map(({ id }) => id), [
+		'framescaper-v27-caption-tracks', 'framescaper-v27-audio-automation',
+	]);
+	assert.equal(items.effect[0]?.id, 'framescaper-v27-video-finishing');
+	assert.deepEqual(items.analyze.map(({ id }) => id), ['framescaper-v27-motion-tracking']);
+	assert.deepEqual(items.mixer.map(({ id }) => id), [
+		'framescaper-v27-mixer', 'framescaper-v27-dialogue-chain',
+	]);
+});
+
 test('V27 finishing menus fail closed outside selected mutable capability truth', () => {
 	for (const input of [
 		{ productId: 'soundscaper', project: { schemaVersion: 27 }, capabilities: CAPABILITIES },

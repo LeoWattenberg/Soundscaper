@@ -40,11 +40,13 @@ import {
 } from '../common/editor/video-source-professional-characteristics-v25.ts';
 import { FRAMESCAPER_V25_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v25.ts';
 import { FRAMESCAPER_V26_PROJECT_CANDIDATE_PROFILE } from './editor-project-runtime-profile-v26.ts';
+import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v28.ts';
 import type { FramescaperProjectV25 } from './editor-project-v25.ts';
 import type { FramescaperProjectV26 } from './editor-project-v26.ts';
+import type { FramescaperProjectV28 } from './editor-project-v28.ts';
 
 type Awaitable<Value> = Value | PromiseLike<Value>;
-type CandidateProject = FramescaperProjectV25 | FramescaperProjectV26;
+type CandidateProject = FramescaperProjectV25 | FramescaperProjectV26 | FramescaperProjectV28;
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
 const REQUIRED_PROJECT_CAPABILITIES = Object.freeze([
@@ -76,7 +78,7 @@ export interface FramescaperImageSequenceSelectionV25 {
 
 export interface FramescaperImageSequenceNativeAdmissionRequestV25 {
 	readonly kind: 'framescaper-image-sequence-admission-v1';
-	readonly candidateGeneration: 25 | 26;
+	readonly candidateGeneration: 25 | 26 | 28;
 	readonly projectId: string;
 	readonly projectRevision: number;
 	readonly sourceId: string;
@@ -200,10 +202,11 @@ export async function composeFramescaperImageSequenceImportV25(
 	}
 }
 
-function candidateGeneration(profile: unknown, project: CandidateProject): 25 | 26 {
+function candidateGeneration(profile: unknown, project: CandidateProject): 25 | 26 | 28 {
 	if (profile === FRAMESCAPER_V25_PROJECT_RUNTIME_PROFILE && project.schemaVersion === 25) return 25;
 	if (profile === FRAMESCAPER_V26_PROJECT_CANDIDATE_PROFILE && project.schemaVersion === 26) return 26;
-	throw new TypeError('Image-sequence import requires an exact dormant V25/V26 candidate project.');
+	if (profile === FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE && project.schemaVersion === 28) return 28;
+	throw new TypeError('Image-sequence import requires an exact V25/V26/V28 project.');
 }
 
 function assertProjectCapabilities(profile: unknown): void {
@@ -283,7 +286,7 @@ async function digestFile(file: FramescaperSelectedImageSequenceFileV25): Promis
 }
 
 function admissionRequest(input: Readonly<{
-	generation: 25 | 26;
+	generation: 25 | 26 | 28;
 	project: CandidateProject;
 	sourceId: string;
 	extension: string;
@@ -295,7 +298,7 @@ function admissionRequest(input: Readonly<{
 	return Object.freeze({
 		kind: 'framescaper-image-sequence-admission-v1',
 		candidateGeneration: input.generation,
-		projectId: input.project.id,
+		projectId: stableId(input.project.id, 'project id'),
 		projectRevision: nonNegativeInteger(input.project.revision, 'project revision'),
 		sourceId: input.sourceId,
 		profileId: decodeProfile(input.extension),

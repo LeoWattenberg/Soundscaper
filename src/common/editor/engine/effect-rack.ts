@@ -34,6 +34,12 @@ import {
 import { isParametricEqType } from './project-effects.ts';
 import type { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
 import type { EngineEffect, UnknownRecord } from './types.ts';
+import {
+	createNativePluginEffectNode,
+	isNativePluginEffect,
+	isNativePluginRealtimeWorkletLoaded,
+	nativePluginRuntimeLatencyFrames,
+} from '../native-plugin-realtime-node.js';
 
 export const PARAMETRIC_EQ_SPECTRUM_FFT_SIZE = 4_096;
 const MAX_DELAY_SECONDS = 5;
@@ -107,6 +113,10 @@ export function effectRackLatencyFrames(
 }
 
 export function effectLatencyFrames(effect: EngineEffect, sampleRate: number): number {
+	if (isNativePluginEffect(effect)) {
+		const fallback = nonNegativeInteger(effect.params?.latencyFrames, 0);
+		return nativePluginRuntimeLatencyFrames(effect.params?.instanceId, fallback);
+	}
 	if (effect.type === 'limiter') {
 		return Math.max(0, Math.ceil(finite(effect.params?.lookahead, 0) * sampleRate));
 	}
@@ -151,6 +161,18 @@ export function applyEffect(
 	const explicitSidechainInput = typeof effect.id === 'string'
 		? options.sidechainInputByEffectId?.get(effect.id) || null
 		: null;
+	if (isNativePluginEffect(effect)) {
+		if (explicitSidechainInput) throw new Error('Native plug-ins do not admit a sidechain in host contract v1.');
+		if (!isNativePluginRealtimeWorkletLoaded(context)) {
+			throw new Error('The native plug-in real-time processor was not loaded.');
+		}
+		const processor = addNode(nodes, createNativePluginEffectNode(
+			context, effect, clamp(positiveInteger(options.effectChannelCount, 2), 1, 32),
+		));
+		connect(input, processor);
+		if (typeof effect.id === 'string') options.effectNodes?.set(effect.id, processor);
+		return processor;
+	}
 	if (isAudacityLiveEffect(type)) {
 		if (!isAudacityWorkletLoaded(context)) {
 			throw new Error(`The Audacity real-time processor was not loaded for ${type}.`);

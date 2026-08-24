@@ -10,6 +10,8 @@
 
 #include <filesystem>
 #include <functional>
+#include <array>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
@@ -48,6 +50,8 @@ struct InvocationResult {
 	bool reports_degradation = false;
 	bool suites_dispatched = false;
 	bool cpu_rendered = false;
+	bool gpu_context_setup = false;
+	bool gpu_context_released = false;
 	bool cancellation_observed = false;
 	bool offscreen_ui_rendered = false;
 	int overlay_interact_version = 0;
@@ -57,12 +61,53 @@ struct InvocationResult {
 	std::size_t hydrated_keyframe_count = 0;
 	std::string host_standard_parameter;
 	bool host_standard_parameter_bound = false;
+	bool retimer_source_time_enforced = false;
 	RgbaFrame output_frame;
 };
 
 struct InvocationFrame final {
 	std::string name;
 	RgbaFrame frame;
+};
+
+struct InteractEvent final {
+	std::string kind;
+	std::string phase;
+	std::uint64_t sequence{};
+	double x{};
+	double y{};
+	int button{};
+	std::string key;
+	std::string code;
+	bool focused{};
+	std::vector<std::string> modifiers;
+};
+
+struct InteractRequest final {
+	std::string project_id;
+	std::uint64_t project_revision{};
+	std::string instance_id;
+	std::string effect_state_sha256;
+	std::string target;
+	std::string parameter_name;
+	std::vector<HydratedParameterState> parameters;
+	std::vector<InteractEvent> events;
+};
+
+struct InteractResult final {
+	std::string project_id;
+	std::uint64_t project_revision{};
+	std::string instance_id;
+	std::string effect_state_sha256;
+	std::string target;
+	std::string parameter_name;
+	std::vector<std::uint64_t> accepted_sequences;
+	bool redraw_requested{};
+	std::string surface_disposition;
+	std::vector<HydratedParameterState> parameter_mutations;
+	std::size_t draw_calls{};
+	std::size_t pixels_touched{};
+	std::array<unsigned char, 64U * 64U * 4U> rgba{};
 };
 
 struct InspectedParameter final {
@@ -77,12 +122,13 @@ struct PluginInspection final {
 	std::vector<std::string> components;
 	std::vector<std::string> pixel_depths;
 	std::string threading;
+	std::vector<std::string> render_backends;
 	std::vector<std::string> requested_suites;
 };
 
 class HostRuntime {
 public:
-	HostRuntime();
+	explicit HostRuntime(std::vector<Backend> qualified_backends = {Backend::cpu});
 	~HostRuntime();
 	HostRuntime(const HostRuntime&) = delete;
 	HostRuntime& operator=(const HostRuntime&) = delete;
@@ -103,6 +149,11 @@ public:
 		std::optional<double> host_standard_parameter_value = std::nullopt
 	);
 	std::optional<PluginInspection> inspect(OfxPlugin& plugin);
+	InteractResult run_interact(
+		OfxPlugin& plugin,
+		Context context,
+		const InteractRequest& request
+	);
 
 private:
 	class Impl;

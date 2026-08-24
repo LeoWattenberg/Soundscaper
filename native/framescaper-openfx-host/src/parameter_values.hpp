@@ -15,7 +15,11 @@ namespace framescaper::openfx {
 
 enum class ParameterValueKind { none, integer, real, string, parametric };
 using ParameterSnapshot = std::variant<std::monostate, std::vector<int>, std::vector<double>, std::string>;
-struct ParametricPoint { double key{}; double value{}; };
+struct ParametricPoint {
+	double key{};
+	double value{};
+	bool operator==(const ParametricPoint&) const = default;
+};
 
 struct ParameterValues final {
 	ParameterValueKind kind{ParameterValueKind::none};
@@ -29,6 +33,7 @@ struct ParameterValues final {
 /** Fully admitted V26 state ready for one exact plug-in parameter definition. */
 struct HydratedParameterState final {
 	std::string name;
+	std::string wire_type;
 	std::string ofx_type;
 	ParameterValues values;
 	std::size_t keyframe_count{};

@@ -2,7 +2,10 @@
 
 #include "ffmpeg_media_engine.hpp"
 #include "exact_retime_ordinal.hpp"
+#include "ffmpeg_decode_session.hpp"
+#include "ffmpeg_hardware_encode.hpp"
 #include "ffmpeg_image_sequence_decode.hpp"
+#include "ffmpeg_professional_sequence_encode.hpp"
 #include "ffmpeg_selected_v20_render.hpp"
 #include "ffmpeg_simple_render.hpp"
 #include "professional_source_probe.hpp"
@@ -21,6 +24,7 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
+#include <algorithm>
 #include <array>
 #include <cerrno>
 #include <csignal>
@@ -96,9 +100,9 @@ public:
 	exclusive_output(std::filesystem::path path, const std::uint64_t maximum_bytes)
 		: path_{std::move(path)}, maximum_bytes_{maximum_bytes} {
 #if defined(_WIN32)
-		if (_wfopen_s(&file_, path_.c_str(), L"w+bN") != 0 || file_ == nullptr) {
+		if (_wfopen_s(&file_, path_.c_str(), L"wbxN") != 0 || file_ == nullptr) {
 #else
-		file_ = std::fopen(path_.c_str(), "w+bx");
+		file_ = std::fopen(path_.c_str(), "wbx");
 		if (file_ == nullptr) {
 #endif
 			throw media_failure("output-create", "The authenticated output could not be created exclusively.", 74);
@@ -175,93 +179,9 @@ private:
 	bool committed_{};
 };
 
-struct decoder_session final {
-	AVFormatContext* format{};
-	AVCodecContext* codec{};
-	AVPacket* packet{};
-	AVFrame* frame{};
-	int stream_index{-1};
-	decoder_session() = default;
-	decoder_session(const decoder_session&) = delete;
-	decoder_session& operator=(const decoder_session&) = delete;
-	decoder_session(decoder_session&& other) noexcept
-		: format{std::exchange(other.format, nullptr)}, codec{std::exchange(other.codec, nullptr)},
-		packet{std::exchange(other.packet, nullptr)}, frame{std::exchange(other.frame, nullptr)},
-		stream_index{std::exchange(other.stream_index, -1)} {}
-	~decoder_session() {
-		av_frame_free(&frame);
-		av_packet_free(&packet);
-		avcodec_free_context(&codec);
-		avformat_close_input(&format);
-	}
-};
-
-[[nodiscard]] decoder_session open_decoder(const std::filesystem::path& path) {
-	decoder_session session;
-	session.format = avformat_alloc_context();
-	if (session.format == nullptr) throw media_failure("decode-allocation", "The input context cannot be allocated.");
-	session.format->interrupt_callback = AVIOInterruptCB{interrupted, nullptr};
-	AVDictionary* options = nullptr;
-	av_dict_set(&options, "protocol_whitelist", "file", 0);
-	av_dict_set(&options, "format_whitelist", "mov,matroska,webm,avi,mpegts,mpeg,ogg,wav,flac,png_pipe,tiff_pipe,exr_pipe,mjpeg,jpeg_pipe", 0);
-	const auto path_text = path.string();
-	auto status = avformat_open_input(&session.format, path_text.c_str(), nullptr, &options);
-	av_dict_free(&options);
-	require_ffmpeg(status, "Open the authenticated source");
-	require_ffmpeg(avformat_find_stream_info(session.format, nullptr), "Read source stream information");
-	const AVCodec* decoder = nullptr;
-	session.stream_index = av_find_best_stream(
-		session.format, AVMEDIA_TYPE_VIDEO, -1, -1, &decoder, 0
-	);
-	if (session.stream_index < 0 || decoder == nullptr) {
-		throw media_failure("video-stream-missing", "The authenticated source has no supported video stream.", 65);
-	}
-	session.codec = avcodec_alloc_context3(decoder);
-	if (session.codec == nullptr) throw media_failure("decode-allocation", "The decoder context cannot be allocated.");
-	require_ffmpeg(avcodec_parameters_to_context(
-		session.codec, session.format->streams[session.stream_index]->codecpar
-	), "Copy decoder parameters");
-	session.codec->thread_count = 0;
-	require_ffmpeg(avcodec_open2(session.codec, decoder, nullptr), "Open the CPU decoder");
-	session.packet = av_packet_alloc();
-	session.frame = av_frame_alloc();
-	if (session.packet == nullptr || session.frame == nullptr) {
-		throw media_failure("decode-allocation", "Decode frame storage cannot be allocated.");
-	}
-	return session;
-}
-
-void drain_decoder(decoder_session& session, const std::function<void(AVFrame*)>& consume) {
-	while (true) {
-		check_cancellation();
-		const auto status = avcodec_receive_frame(session.codec, session.frame);
-		if (status == AVERROR(EAGAIN) || status == AVERROR_EOF) return;
-		require_ffmpeg(status, "Receive a decoded frame");
-		consume(session.frame);
-		av_frame_unref(session.frame);
-	}
-}
-
-void decode_all(decoder_session& session, const std::function<void(AVFrame*)>& consume) {
-	while (true) {
-		check_cancellation();
-		const auto read = av_read_frame(session.format, session.packet);
-		if (read == AVERROR_EOF) break;
-		require_ffmpeg(read, "Read an authenticated source packet");
-		if (session.packet->stream_index == session.stream_index) {
-			const auto sent = avcodec_send_packet(session.codec, session.packet);
-			av_packet_unref(session.packet);
-			require_ffmpeg(sent, "Send a source packet to the decoder");
-			drain_decoder(session, consume);
-		} else av_packet_unref(session.packet);
-	}
-	require_ffmpeg(avcodec_send_packet(session.codec, nullptr), "Flush the source decoder");
-	drain_decoder(session, consume);
-}
-
 [[nodiscard]] engine_result probe_source(const invocation& job) {
 	const auto& source = job.sources.front();
-	auto session = open_decoder(source);
+	auto session = ffmpeg_decode_session::open(source, "native-cpu", interrupted);
 	std::size_t video = 0;
 	std::size_t audio = 0;
 	for (unsigned index = 0; index < session.format->nb_streams; ++index) {
@@ -284,7 +204,7 @@ void decode_all(decoder_session& session, const std::function<void(AVFrame*)>& c
 }
 
 [[nodiscard]] engine_result decode_to_frame_pack(const invocation& job) {
-	auto session = open_decoder(job.sources.front());
+	auto session = ffmpeg_decode_session::open(job.sources.front(), job.backend, interrupted);
 	if (session.codec->width <= 0 || session.codec->height <= 0) {
 		throw media_failure("decode-geometry", "The source video geometry is invalid.", 65);
 	}
@@ -318,7 +238,8 @@ void decode_all(decoder_session& session, const std::function<void(AVFrame*)>& c
 			planes.data(), strides.data(), rgba.data(), AV_PIX_FMT_RGBA,
 			session.codec->width, session.codec->height, 1
 		), "Lay out one RGBA frame");
-		decode_all(session, [&](AVFrame* frame) {
+		session.decode_all([&](AVFrame* frame) {
+			check_cancellation();
 			if (frame->width != session.codec->width || frame->height != session.codec->height
 				|| frame->format != session.codec->pix_fmt) {
 				throw media_failure("decode-format-change", "Mid-stream video format changes are not in this decode subset.", 78);
@@ -405,7 +326,7 @@ void drain_encoder(AVCodecContext* encoder, AVStream* stream, AVFormatContext* o
 }
 
 [[nodiscard]] engine_result create_proxy(const invocation& job) {
-	auto source = open_decoder(job.sources.front());
+	auto source = ffmpeg_decode_session::open(job.sources.front(), job.backend, interrupted);
 	const auto expected_geometry = exact_proxy_geometry(source.codec->width, source.codec->height);
 	if (job.proxy_width != expected_geometry.first || job.proxy_height != expected_geometry.second) {
 		throw media_failure(
@@ -468,7 +389,8 @@ void drain_encoder(AVCodecContext* encoder, AVStream* stream, AVFormatContext* o
 			SWS_BICUBIC, nullptr, nullptr, nullptr
 		);
 		if (scaler == nullptr) throw media_failure("proxy-scale", "The closed proxy scaler cannot be created.");
-		decode_all(source, [&](AVFrame* frame) {
+		source.decode_all([&](AVFrame* frame) {
+			check_cancellation();
 			if (frame->best_effort_timestamp == AV_NOPTS_VALUE) {
 				throw media_failure("proxy-timing", "A source frame lacks an exact presentation timestamp.", 78);
 			}
@@ -523,6 +445,27 @@ void drain_encoder(AVCodecContext* encoder, AVStream* stream, AVFormatContext* o
 	return exact_picture_ordinal(segment, 0, 0, 20) == 9;
 }
 
+[[nodiscard]] bool professional_component_set_available() {
+	for (const auto name : {"h264", "hevc", "vp9", "av1", "prores", "dnxhd", "png", "tiff", "exr"}) {
+		if (avcodec_find_decoder_by_name(name) == nullptr) return false;
+	}
+	for (const auto name : {"mov", "matroska", "mxf", "image2"}) {
+		if (av_find_input_format(name) == nullptr) return false;
+	}
+	for (const auto name : {"mp4", "webm", "mov", "mxf", "matroska", "image2"}) {
+		if (av_guess_format(name, nullptr, nullptr) == nullptr) return false;
+	}
+	for (const auto name : {"scale", "format", "aresample"}) {
+		if (avfilter_get_by_name(name) == nullptr) return false;
+	}
+	for (const auto codec : {AV_CODEC_ID_H264, AV_CODEC_ID_HEVC, AV_CODEC_ID_VP9, AV_CODEC_ID_AV1, AV_CODEC_ID_PNG}) {
+		auto* parser = av_parser_init(codec);
+		if (parser == nullptr) return false;
+		av_parser_close(parser);
+	}
+	return ffmpeg_professional_cpu_encoder_set_available();
+}
+
 [[nodiscard]] engine_result unsupported_graph(const invocation& job, const std::string_view error) {
 	return {78, "{\"error\":\"" + std::string{error} + "\",\"operation\":\""
 		+ std::string{operation_name(job.kind)} + "\",\"planVersion\":"
@@ -544,15 +487,18 @@ engine_result self_test_ffmpeg() {
 		&& AV_VERSION_MAJOR(swresample_version()) == 7;
 	const bool exact_retime_matches = exact_retime_self_test();
 	const bool proxy_encoder_present = avcodec_find_encoder_by_name("prores_ks") != nullptr;
+	const bool professional_components_present = professional_component_set_available();
 	const bool professional_characteristics_match = professional_source_characteristics_self_test();
 	std::ostringstream result;
 	result << "{\"contractVersion\":1,\"ffmpeg\":\"9.0.1\","
 		<< "\"networkInitialized\":false,\"versionsMatch\":" << (versions_match ? "true" : "false") << ','
 		<< "\"exactRetimeMatches\":" << (exact_retime_matches ? "true" : "false") << ','
 		<< "\"proresProxyEncoderPresent\":" << (proxy_encoder_present ? "true" : "false") << ','
+		<< "\"professionalComponentSetPresent\":"
+		<< (professional_components_present ? "true" : "false") << ','
 		<< "\"professionalCharacteristicsMatches\":"
 		<< (professional_characteristics_match ? "true" : "false") << '}';
-	return {versions_match && exact_retime_matches && proxy_encoder_present
+	return {versions_match && exact_retime_matches && proxy_encoder_present && professional_components_present
 		&& professional_characteristics_match ? 0 : 70, result.str()};
 }
 
@@ -563,21 +509,38 @@ engine_result execute_ffmpeg_job(const invocation& job) {
 	std::signal(SIGINT, request_cancellation);
 	try {
 		if (job.kind == operation::probe_video_source) return probe_source(job);
-		if (job.backend != "native-cpu") {
-			return {78, "{\"error\":\"backend-policy-unavailable\",\"operation\":\""
-				+ std::string{operation_name(job.kind)} + "\",\"requestedBackend\":\""
-				+ job.backend + "\",\"fallbackBackend\":\"native-cpu\"}"};
+		if (job.image_sequence) {
+			if (job.backend != "native-cpu") return unsupported_graph(job, "hardware-image-sequence-unavailable");
+			return execute_image_sequence_decode(job);
 		}
-		if (job.image_sequence) return execute_image_sequence_decode(job);
 		if (job.kind == operation::media_decode) return decode_to_frame_pack(job);
 		if (job.kind == operation::media_proxy) return create_proxy(job);
 		if (job.kind == operation::media_encode || job.kind == operation::media_render) {
 			if (job.admitted_plan.version == 7 || job.admitted_plan.version == 8) {
+				if (job.backend != "native-cpu") return unsupported_graph(job, "hardware-selected-v20-unavailable");
 				return execute_selected_v20_render_job(job);
+			}
+			if (job.admitted_plan.version == 14) {
+				const bool has_carrier = std::find(
+					job.source_roles.begin(), job.source_roles.end(), "evaluated-rgba-frame-pack"
+				) != job.source_roles.end();
+				const bool professional_sequence = job.admitted_plan.professional_profile_id == "encode-png-sequence"
+					|| job.admitted_plan.professional_profile_id == "encode-tiff-sequence"
+					|| job.admitted_plan.professional_profile_id == "encode-openexr-sequence";
+				if (professional_sequence) return execute_professional_image_sequence_encode(job);
+				if (has_carrier) {
+					return execute_v14_evaluated_rgba_render_job(job);
+				}
+				if (job.admitted_plan.simple_full_frame_clip) return execute_simple_render_job(job);
 			}
 			return unsupported_graph(job, "unsupported-render-subset");
 		}
 		return unsupported_graph(job, "unsupported-render-subset");
+	} catch (const ffmpeg_decode_failure& error) {
+		return {error.exit_code(), "{\"error\":\"" + error.code() + "\",\"operation\":\""
+			+ std::string{operation_name(job.kind)} + "\",\"requestedBackend\":\""
+			+ job.backend + "\",\"fallbackBackend\":\"native-cpu\",\"detail\":\""
+			+ escaped(error.what()) + "\"}"};
 	} catch (const media_failure& error) {
 		return {error.exit_code(), "{\"error\":\"" + error.code() + "\",\"operation\":\""
 			+ std::string{operation_name(job.kind)} + "\",\"detail\":\"" + escaped(error.what()) + "\"}"};

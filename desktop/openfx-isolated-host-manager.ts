@@ -9,11 +9,16 @@
 import {
 	validateHelperJobGrant,
 	validateHelperJobResult,
-	type HelperOfxHostJobGrant,
 	type HelperOfxScanJobGrant,
 	type HelperOfxScanJobResult,
 	type HelperStreamOutputJobResult,
+	type HelperOfxInteractJobResultV1,
 } from './helper-contract.ts';
+import type {
+	HelperOfxHostJobGrantV1OrV2,
+	HelperOfxRenderHostJobGrantV1OrV2,
+} from './helper-native-ofx-host-grant-v2.ts';
+import { isHelperOfxInteractJobGrantV1 } from './helper-native-ofx-interact-grant.ts';
 import type {
 	HelperJobRequest,
 	HelperSupervisorSnapshot,
@@ -24,6 +29,10 @@ import {
 	type OfxHostInvocationV1,
 	type OfxRenderBackendV1,
 } from '../src/common/editor/native-ofx-host-contract.ts';
+import {
+	assertOfxHostInvocationV2,
+	type OfxHostInvocationV2,
+} from '../src/common/editor/native-ofx-host-contract-v2.ts';
 import { canonicalizeNativeMediaSummaryValue } from '../src/common/editor/native-media-plan-canonical-form.ts';
 
 const MAXIMUM_RUNTIME_PROCESSES = 128;
@@ -47,6 +56,7 @@ export interface OfxIsolatedRuntimeSnapshot {
 	readonly pluginFingerprint: string;
 	readonly state: HelperSupervisorSnapshot['state'];
 	readonly quarantined: boolean;
+	readonly degradedBackends: readonly OfxRenderBackendV1[];
 }
 
 export interface OfxIsolatedHostManagerSnapshot {
@@ -55,8 +65,10 @@ export interface OfxIsolatedHostManagerSnapshot {
 }
 
 export interface OfxCpuAttempt {
-	readonly invocation: OfxHostInvocationV1;
-	readonly request: HelperJobRequest<'ofx-host'>;
+	readonly invocation: OfxHostInvocationV1 | OfxHostInvocationV2;
+	readonly request: Omit<HelperJobRequest<'ofx-host'>, 'grant'> & Readonly<{
+		grant: HelperOfxRenderHostJobGrantV1OrV2;
+	}>;
 }
 
 export interface OfxRenderWithCpuFallbackRequest extends OfxCpuAttempt {
@@ -75,6 +87,7 @@ export class OfxIsolatedHostManager {
 	readonly #createRuntime: OfxIsolatedHostManagerOptions['createRuntime'];
 	readonly #maximumRuntimeProcesses: number;
 	readonly #runtimes = new Map<string, OfxIsolatedWorkerPort>();
+	readonly #degradedBackends = new Map<string, Set<OfxRenderBackendV1>>();
 	#disposed = false;
 
 	constructor(options: OfxIsolatedHostManagerOptions) {
@@ -104,12 +117,15 @@ export class OfxIsolatedHostManager {
 	}
 
 	async host(
-		invocation: OfxHostInvocationV1,
+		invocation: OfxHostInvocationV1 | OfxHostInvocationV2,
 		request: HelperJobRequest<'ofx-host'>,
 	): Promise<HelperStreamOutputJobResult> {
 		this.#assertActive();
-		assertOfxHostInvocationV1(invocation);
-		const grant = validateHelperJobGrant('ofx-host', request.grant) as HelperOfxHostJobGrant;
+		assertOfxHostInvocationV1OrV2(invocation);
+		const grant = validateHelperJobGrant('ofx-host', request.grant) as HelperOfxHostJobGrantV1OrV2;
+		if (isHelperOfxInteractJobGrantV1(grant)) {
+			throw new Error('A frame invocation cannot cross into the OpenFX Interact host variant.');
+		}
 		if (grant.pluginBinary.sha256 !== invocation.pluginBinarySha256) {
 			throw new Error('The OpenFX runtime grant binary digest does not match its invocation fingerprint.');
 		}
@@ -119,13 +135,37 @@ export class OfxIsolatedHostManager {
 		}
 		const worker = this.#runtime(invocation.pluginFingerprint);
 		const result = await worker.runJob({ ...request, kind: 'ofx-host', grant });
-		return validateHelperJobResult('ofx-host', result, grant);
+		const admitted = validateHelperJobResult('ofx-host', result, grant);
+		if (!('output' in admitted)) throw new Error('An OpenFX frame host returned an Interact result.');
+		return admitted;
+	}
+
+	async interact(
+		pluginFingerprint: string,
+		request: HelperJobRequest<'ofx-host'>,
+	): Promise<HelperOfxInteractJobResultV1> {
+		this.#assertActive();
+		const grant = validateHelperJobGrant('ofx-host', request.grant) as HelperOfxHostJobGrantV1OrV2;
+		if (!isHelperOfxInteractJobGrantV1(grant) || grant.pluginFingerprint !== pluginFingerprint) {
+			throw new Error('An OpenFX Interact job does not bind its isolated binary fingerprint.');
+		}
+		const worker = this.#runtime(pluginFingerprint);
+		const result = await worker.runJob({ ...request, kind: 'ofx-host', grant });
+		const admitted = validateHelperJobResult('ofx-host', result, grant);
+		if (!('interact' in admitted)) throw new Error('An OpenFX Interact host returned a frame result.');
+		return admitted;
 	}
 
 	async renderWithCpuFallback(
 		request: OfxRenderWithCpuFallbackRequest,
 	): Promise<OfxRenderWithCpuFallbackResult> {
-		assertOfxHostInvocationV1(request.invocation);
+		assertOfxHostInvocationV1OrV2(request.invocation);
+		if (request.invocation.requestedBackend !== 'cpu'
+			&& this.backendDegraded(
+				request.invocation.pluginFingerprint, request.invocation.requestedBackend,
+			)) {
+			return this.#cpuFallback(request);
+		}
 		try {
 			const result = await this.host(request.invocation, request.request);
 			return Object.freeze({
@@ -138,31 +178,27 @@ export class OfxIsolatedHostManager {
 			if (request.request.signal?.aborted
 				|| request.invocation.requestedBackend === 'cpu'
 				|| !isOfxRetryableGpuError(error)) throw error;
-			const cpu = request.createCpuAttempt();
-			assertOfxHostInvocationV1(cpu.invocation);
-			if (cpu.invocation.requestedBackend !== 'cpu'
-				|| cpu.invocation.pluginFingerprint !== request.invocation.pluginFingerprint) {
-				throw new Error('An OpenFX GPU fallback must retry CPU for the identical binary fingerprint.');
-			}
-			const result = await this.host(cpu.invocation, cpu.request);
-			return Object.freeze({
-				backend: 'cpu' as const,
-				retriedOnCpu: true,
-				reportsDegradation: true,
-				result,
-			});
+			this.#degraded(request.invocation.pluginFingerprint)
+				.add(request.invocation.requestedBackend);
+			return this.#cpuFallback(request);
 		}
+	}
+
+	backendDegraded(pluginFingerprint: string, backend: OfxRenderBackendV1): boolean {
+		return backend !== 'cpu' && this.#degradedBackends.get(pluginFingerprint)?.has(backend) === true;
 	}
 
 	clearQuarantine(pluginFingerprint: string): void {
 		this.#assertActive();
 		this.#runtimes.get(pluginFingerprint)?.clearQuarantine();
+		this.#degradedBackends.delete(pluginFingerprint);
 	}
 
 	release(pluginFingerprint: string): void {
 		const runtime = this.#runtimes.get(pluginFingerprint);
 		if (!runtime) return;
 		this.#runtimes.delete(pluginFingerprint);
+		this.#degradedBackends.delete(pluginFingerprint);
 		runtime.dispose();
 	}
 
@@ -176,6 +212,9 @@ export class OfxIsolatedHostManager {
 						pluginFingerprint,
 						state: state.state,
 						quarantined: state.quarantined,
+						degradedBackends: Object.freeze([
+							...(this.#degradedBackends.get(pluginFingerprint) ?? []),
+						].sort()),
 					});
 				})),
 			disposed: this.#disposed,
@@ -187,6 +226,33 @@ export class OfxIsolatedHostManager {
 		this.#disposed = true;
 		for (const runtime of this.#runtimes.values()) runtime.dispose();
 		this.#runtimes.clear();
+		this.#degradedBackends.clear();
+	}
+
+	async #cpuFallback(
+		request: OfxRenderWithCpuFallbackRequest,
+	): Promise<OfxRenderWithCpuFallbackResult> {
+		const cpu = request.createCpuAttempt();
+		assertOfxHostInvocationV1OrV2(cpu.invocation);
+		if (cpu.invocation.schemaVersion !== request.invocation.schemaVersion) {
+			throw new Error('An OpenFX CPU fallback cannot cross invocation schema versions.');
+		}
+		if (cpu.invocation.requestedBackend !== 'cpu'
+			|| cpu.invocation.pluginFingerprint !== request.invocation.pluginFingerprint) {
+			throw new Error('An OpenFX GPU fallback must retry CPU for the identical binary fingerprint.');
+		}
+		const result = await this.host(cpu.invocation, cpu.request);
+		return Object.freeze({
+			backend: 'cpu' as const, retriedOnCpu: true, reportsDegradation: true, result,
+		});
+	}
+
+	#degraded(pluginFingerprint: string): Set<OfxRenderBackendV1> {
+		const current = this.#degradedBackends.get(pluginFingerprint);
+		if (current) return current;
+		const created = new Set<OfxRenderBackendV1>();
+		this.#degradedBackends.set(pluginFingerprint, created);
+		return created;
 	}
 
 	#runtime(pluginFingerprint: string): OfxIsolatedWorkerPort {
@@ -203,4 +269,19 @@ export class OfxIsolatedHostManager {
 	#assertActive(): void {
 		if (this.#disposed) throw new Error('The OpenFX isolated host manager is disposed.');
 	}
+}
+
+function assertOfxHostInvocationV1OrV2(
+	value: unknown,
+): asserts value is OfxHostInvocationV1 | OfxHostInvocationV2 {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('An isolated OpenFX invocation must be an object.');
+	}
+	const descriptor = Object.getOwnPropertyDescriptor(value, 'schemaVersion');
+	if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+		throw new TypeError('An isolated OpenFX invocation requires a schemaVersion data field.');
+	}
+	if (descriptor.value === 1) return assertOfxHostInvocationV1(value);
+	if (descriptor.value === 2) return assertOfxHostInvocationV2(value);
+	throw new RangeError('An isolated OpenFX invocation schema version is unsupported.');
 }

@@ -42,10 +42,12 @@ export function expectedOpenFxNativeScannerDescriptor(binarySha256) {
 		supportedContexts: ['generator', 'filter', 'transition', 'paint', 'retimer', 'general'],
 		parameters, components: ['RGBA', 'RGB', 'Alpha'],
 		pixelDepths: ['byte', 'short', 'float'], threading: 'fully-safe',
+		renderBackends: ['cpu', 'opengl', 'opencl', 'cuda', 'metal'],
 		requestedSuites: [
-			'OfxDialogSuite', 'OfxDrawSuite', 'OfxImageEffectSuite',
+			'OfxDialogSuite', 'OfxDrawSuite', 'OfxImageEffectOpenGLRenderSuite',
+			'OfxImageEffectSuite',
 			'OfxInteractSuite', 'OfxMemorySuite', 'OfxMessageSuite',
-			'OfxMultiThreadSuite', 'OfxParameterSuite',
+			'OfxMultiThreadSuite', 'OfxOpenCLProgramSuite', 'OfxParameterSuite',
 			'OfxParametricParameterSuite', 'OfxProgressSuite',
 			'OfxPropertySuite', 'OfxTimeLineSuite',
 		],
@@ -113,9 +115,12 @@ export function buildOpenFxNativeContractFixture(context) {
 	}
 	const hostSources = [
 		join(sources, 'sha256.cpp'), join(sources, 'dynamic_library.cpp'),
+		join(sources, 'gpu_runtime.cpp'),
 		join(sources, 'host_runtime.cpp'), join(sources, 'loaded_plugin_binary.cpp'),
+		join(sources, 'interact_v1_invocation.cpp'),
 		join(sources, 'parameter_values.cpp'), join(sources, 'v12_cancellation_channel.cpp'),
 		join(sources, 'v12_host_invocation.cpp'), join(sources, 'v12_video_timing_grants.cpp'),
+		join(sources, 'v12_gpu_qualification.cpp'),
 		join(sources, 'v12_retime_authority.cpp'),
 		join(sources, 'v12_output_file.cpp'), join(sources, 'v12_transition_authority.cpp'),
 		join(repositoryRoot, 'native/framescaper-media-host/src/strict_json.cpp'),

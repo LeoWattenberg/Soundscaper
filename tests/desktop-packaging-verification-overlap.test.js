@@ -38,9 +38,15 @@ test('afterPack starts the native payload verification without waiting for the F
 			},
 		},
 	};
-	const settled = hardenPackagedElectron(packagingContext, { repositoryRoot, flipFuses: async () => {} })
+	const settled = hardenPackagedElectron(packagingContext, {
+		repositoryRoot,
+		verifyPackagedSoundscaperProfessionalNativeResources: async () => { resourceCalls.push(resources); },
+		flipFuses: async () => {},
+		writeDesktopPackageContentManifest: async () => {},
+	})
 		.then(() => null, (error) => error);
-	assert.equal(resourceCalls.length, 1, 'the native payload verification must begin before the FFmpeg one settles');
+	assert.equal(resourceCalls.length, 3,
+		'the addon and assistance payload verifications must begin before the FFmpeg one settles');
 	await settled;
 });
 
@@ -55,13 +61,19 @@ test('beforePack verifies FFmpeg, addon, and Framescaper host runtimes at once',
 				started.push('ffmpeg');
 				await ffmpeg;
 			},
+			verifyStagedAssistanceNativeRuntime: async () => { started.push('assistance-native'); },
 			verifyStagedNativeAddonBeforePack: async () => { started.push('native'); },
+			verifyStagedSoundscaperProfessionalNativeBeforePack: async () => {
+				started.push('soundscaper-professional');
+			},
 			verifyStagedFramescaperNativeHostsBeforePack: async () => {
 				started.push('framescaper-native-hosts');
 			},
 		},
 	).then(() => null, (error) => error);
-	assert.deepEqual(started, ['ffmpeg', 'native', 'framescaper-native-hosts']);
+	assert.deepEqual(started, [
+		'ffmpeg', 'assistance-native', 'native', 'soundscaper-professional', 'framescaper-native-hosts',
+	]);
 	releaseFfmpeg();
 	assert.equal(await settled, null);
 });

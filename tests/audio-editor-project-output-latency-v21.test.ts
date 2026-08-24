@@ -75,8 +75,16 @@ test('the connected main output reaches the aggregate latency reported to render
 	);
 	assert.equal(graph.latencyFrames, 480);
 	const delays = context.created.filter((node) => node.kind.startsWith('delay-'));
-	assert.deepEqual(delays.map((node) => node.delayTime?.value), [0.01]);
-	assert.deepEqual(delays[0]?.connections, [context.destination]);
+	assert.deepEqual([...graph.pathPdcDelayParamsV21!.entries()].map(([key, param]) => [key, param.value]), [
+		['input:track:track', 0],
+		['edge:track-master', 0],
+		['edge:master-main', 0],
+		['edge:track-cue', 0],
+		['edge:cue-aux', 0],
+		['output:main', 0.01],
+	], 'every live PDC seam remains addressable even when its initial compensation is zero');
+	const outputDelay = delays.find((node) => node.delayTime?.value === 0.01);
+	assert.deepEqual(outputDelay?.connections, [context.destination]);
 });
 
 function projectWithSlowerAuxiliaryOutput() {

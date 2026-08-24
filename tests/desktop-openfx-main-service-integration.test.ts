@@ -29,6 +29,8 @@ import type {
 	HelperOfxHostJobGrant,
 	HelperOfxScanJobGrant,
 } from '../desktop/helper-contract.ts';
+import { isHelperOfxInteractJobGrantV1 } from '../desktop/helper-native-ofx-interact-grant.ts';
+import { openFxProductionReadinessFixture } from './helpers/openfx-production-readiness-fixture.ts';
 import {
 	assertUnifiedExactRenderPlanV12,
 	createUnifiedExactRenderPlan,
@@ -36,6 +38,10 @@ import {
 	type UnifiedExactRenderPlanV12,
 } from '../src/common/editor/unified-exact-render-plan.ts';
 import { nativeMediaPlanVideoTimingAssetInputs } from '../src/common/editor/native-media-plan-video-timing.ts';
+import {
+	framescaperOpenFxInteractEffectStateSha256V1,
+} from '../src/common/editor/native-ofx-interact-contract.ts';
+import type { OfxEffectStateV26 } from '../src/common/editor/native-ofx-state-v26.ts';
 import { createUnifiedExactRenderOfxRetimerSourceTime } from '../src/common/editor/unified-exact-render-plan-consumers.ts';
 import type { NativePlanVideoTimingAssetBytes } from '../desktop/native-services-video-timing-staging.ts';
 import { unifiedExactPlanFixture } from './helpers/unified-exact-render-plan-fixture.ts';
@@ -90,6 +96,53 @@ test('main owns an actual one-shot scan and exact V12 per-fingerprint execution 
 	assert.equal(JSON.stringify(fixture.service.inventory()).includes(fixture.pluginPath), false);
 });
 
+test('main carries one pathless offscreen Interact replay through the isolated host', async (context) => {
+	const fixture = await createFixture(context);
+	fixture.preferences.nativeMediaEnabled = true;
+	fixture.preferences.ofxConsentEnabled = true;
+	const scanned = await fixture.service.scan();
+	assert.ok(scanned);
+	await fixture.service.control({ pluginHandle: scanned.pluginHandle, action: 'enable' });
+	const events = [
+		{ kind: 'focus' as const, sequence: 0, focused: true },
+		{ kind: 'pointer' as const, phase: 'down' as const, sequence: 1,
+			x: 0.25, y: 0.75, button: 1, modifiers: ['shift' as const] },
+		{ kind: 'pointer' as const, phase: 'motion' as const, sequence: 2,
+			x: 0.5, y: 0.5, button: 1, modifiers: [] },
+		{ kind: 'pointer' as const, phase: 'up' as const, sequence: 3,
+			x: 0.5, y: 0.5, button: 1, modifiers: [] },
+		{ kind: 'keyboard' as const, phase: 'down' as const, sequence: 4,
+			key: 'Enter', code: 'Enter', modifiers: [] },
+	];
+	const effect = interactEffect(fixture.plan);
+	const result = await fixture.service.interact({
+		protocolVersion: 1, project: fixture.plan.project, pluginHandle: scanned.pluginHandle,
+		effect, effectStateSha256: framescaperOpenFxInteractEffectStateSha256V1(effect),
+		context: 'filter',
+		target: 'overlay', parameterName: null, events,
+	});
+	assert.deepEqual(result.acceptedSequences, [0, 1, 2, 3, 4]);
+	assert.equal(result.rgba.byteLength, 64 * 64 * 4);
+	assert.equal(result.instanceId, effect.instanceId);
+	assert.equal(result.effectStateSha256, framescaperOpenFxInteractEffectStateSha256V1(effect));
+	assert.equal(fixture.hostJobs, 1);
+	assert.equal(JSON.stringify(result).includes(fixture.pluginPath), false);
+	assert.deepEqual(await readdir(fixture.scratchRoot), []);
+
+	const stale = structuredClone({
+		...effect,
+		parameters: effect.parameters.map((parameter, index) => (
+			index === 0 ? { ...parameter, value: [2] } : parameter
+		)),
+	});
+	await assert.rejects(() => fixture.service.interact({
+		protocolVersion: 1, project: fixture.plan.project, pluginHandle: scanned.pluginHandle,
+		effect: stale, effectStateSha256: framescaperOpenFxInteractEffectStateSha256V1(stale),
+		context: 'filter', target: 'overlay', parameterName: null, events: [],
+	}), /current project|authority|stale/iu);
+	assert.equal(fixture.hostJobs, 1);
+});
+
 test('main resolves VFR timing authority before staging a dormant Retimer attempt', async (context) => {
 	const candidate = retimerVfrCandidate();
 	const fixture = await createFixture(context, {
@@ -130,7 +183,7 @@ test('default-off, policy, and missing-payload states fail before selection or h
 	assert.equal(fixture.scanJobs, 0);
 });
 
-test('changed and revoked binary handles cannot execute or inherit approval', async (context) => {
+test('revocation closes execution while immutable custody survives later source replacement', async (context) => {
 	const revokedFixture = await createFixture(context);
 	revokedFixture.preferences.nativeMediaEnabled = true;
 	revokedFixture.preferences.ofxConsentEnabled = true;
@@ -158,20 +211,15 @@ test('changed and revoked binary handles cannot execute or inherit approval', as
 	assert.ok(scanned);
 	await fixture.service.control({ pluginHandle: scanned.pluginHandle, action: 'enable' });
 	await writeFile(fixture.pluginPath, Buffer.from('changed plug-in bytes'));
-	const changed = await fixture.service.execute({
+	const retained = await fixture.service.execute({
 		pluginHandle: scanned.pluginHandle, plan: fixture.plan, instanceId: 'ofx-1',
 		requestedBackend: 'cpu', outputOrdinal: 3,
 		inputs: [{ name: 'Source', sourceRef: 'source-1', width: 2, height: 2, rowBytes: 8,
 			rgba: new Uint8Array(INPUT_BYTES) }],
 	});
-	assert.notEqual(changed.mode, 'render');
-	assert.equal(changed.availability, 'fingerprint-changed');
-	assert.equal(fixture.hostJobs, 0);
-	assert.equal(fixture.service.inventory()[0]?.state, 'revoked');
-	await assert.rejects(
-		() => fixture.service.control({ pluginHandle: scanned.pluginHandle, action: 'enable' }),
-		/revoked|changed/iu,
-	);
+	assert.equal(retained.mode, 'render');
+	assert.equal(fixture.hostJobs, 1);
+	assert.equal(fixture.service.inventory()[0]?.state, 'enabled');
 });
 
 test('runtime quarantine becomes consent authority and clearing requires a fresh scan and enable', async (context) => {
@@ -326,7 +374,9 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 				parameters: options.descriptorContext === 'retimer' ? []
 					: [{ name: 'radius', type: 'double', animates: true }],
 				components: ['RGBA'], pixelDepths: ['byte'], threading: 'fully-safe',
-				requestedSuites: ['OfxImageEffectSuite', 'OfxPropertySuite', 'OfxParameterSuite'],
+				renderBackends: ['cpu'],
+				requestedSuites: ['OfxImageEffectSuite', 'OfxPropertySuite', 'OfxParameterSuite',
+					'OfxInteractSuite', 'OfxDrawSuite'],
 			}));
 			const path = join(root, `scan-${String(scanJobs)}.json`);
 			await writeFile(path, descriptor);
@@ -340,6 +390,19 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 			hostJobs += 1;
 			const failure = runtimeState.failures.shift();
 			if (failure) throw failure;
+			if (isHelperOfxInteractJobGrantV1(request.grant)) {
+				assert.deepEqual(request.dataPlaneTransfers, []);
+				return { interact: { protocolVersion: 1,
+					project: request.grant.interact.project,
+					instanceId: request.grant.interact.effect.instanceId,
+					effectStateSha256: request.grant.interact.effectStateSha256,
+					width: 64, height: 64, rowBytes: 256,
+					target: request.grant.interact.target,
+					parameterName: request.grant.interact.parameterName,
+					acceptedSequences: request.grant.interact.events.map(({ sequence }) => sequence),
+					redrawRequested: true, surfaceDisposition: 'drawn', parameterMutations: [],
+					rgba: new Uint8Array(64 * 64 * 4) } };
+			}
 			const grant = request.grant as HelperOfxHostJobGrant;
 			const transfers = request.dataPlaneTransfers!;
 			await receiveHelperDataPlaneFile({ binding: grant.plan,
@@ -382,6 +445,10 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 				? { status: 'available' as const, descriptor: {
 					target: 'linux-x64' as const, runtime: 'linux-x64' as const, hostVersion: '1.0.0',
 					openfxVersion: '1.5.1' as const, openfxCommit: 'ab77951' as const, scanner, runtimeHost,
+					isolation: {
+						launcher: scanner, sandboxProfile: scanner, brokerPolicy: scanner, runtimeLibraries: [],
+					},
+					productionReadiness: openFxProductionReadinessFixture(scanner.sha256, runtimeHost.sha256),
 				} }
 				: { status: 'unavailable' as const, reason: 'payload-pending-external' as const,
 					detail: 'No authenticated OpenFX payload.' }; },
@@ -400,9 +467,11 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 			return { hostPort: channel.port1, helperPort: channel.port2 } as unknown as
 				FramescaperOpenFxMainServiceMessageChannel;
 		},
-		currentProject: ({ id, revision }) => {
+		currentProject: ({ id, revision }, effect) => {
 			currentProjectChecks += 1;
-			return id === plan.project.id && revision === plan.project.revision;
+			return id === plan.project.id && revision === plan.project.revision
+				&& effect !== undefined
+				&& JSON.stringify(effect) === JSON.stringify(interactEffect(plan));
 		},
 		videoTimingAssets: async (timingPlan) => {
 			videoTimingAuthorityChecks += 1;
@@ -467,6 +536,12 @@ function candidatePlan(): UnifiedExactRenderPlanV12 {
 	const plan = createUnifiedExactRenderPlan(raw);
 	assertUnifiedExactRenderPlanV12(plan);
 	return plan;
+}
+
+function interactEffect(plan: UnifiedExactRenderPlanV12): OfxEffectStateV26 {
+	const node = plan.nodes.find((candidate) => candidate.kind === 'openfx');
+	if (!node || node.kind !== 'openfx') throw new Error('The OpenFX fixture effect is unavailable.');
+	return structuredClone(node.state);
 }
 
 function executionRequest(

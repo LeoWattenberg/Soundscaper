@@ -12,6 +12,7 @@ import type {
 import type {
 	FramescaperSelectedVisualAuthoringSurfaceV27,
 } from './editor-selected-v27-visual-authoring-model.ts';
+import { framescaperProjectV27FoundationShapeV28 } from './editor-project-v28-foundation.ts';
 
 type Awaitable<Value> = Value | PromiseLike<Value>;
 
@@ -29,6 +30,8 @@ export interface FramescaperSelectedAuthoringControllerV27 {
 		readonly edit: Readonly<{ commit(command: unknown): Awaitable<unknown> }>;
 	}>;
 }
+
+export type FramescaperSelectedAuthoringControllerV28 = FramescaperSelectedAuthoringControllerV27;
 
 export interface FramescaperSelectedVisualAuthoringRuntimeV27 {
 	readonly run: (
@@ -54,6 +57,25 @@ export function bindFramescaperSelectedAuthoringControllerV27(options: Readonly<
 	readonly controller: FramescaperSelectedAuthoringControllerV27;
 	readonly store: AudioEditorProjectStore;
 }>): void {
+	bindSelectedAuthoringController(options, 27, (project) => project);
+}
+
+/** Bind inherited V27 authoring to selected V28 through its detached foundation view. */
+export function bindFramescaperSelectedAuthoringControllerV28(options: Readonly<{
+	readonly controller: FramescaperSelectedAuthoringControllerV28;
+	readonly store: AudioEditorProjectStore;
+}>): void {
+	bindSelectedAuthoringController(options, 28, framescaperProjectV27FoundationShapeV28);
+}
+
+function bindSelectedAuthoringController(
+	options: Readonly<{
+		readonly controller: FramescaperSelectedAuthoringControllerV27;
+		readonly store: AudioEditorProjectStore;
+	}>,
+	schema: 27 | 28,
+	projectForAuthoring: (project: unknown) => unknown,
+): void {
 	const { controller, store } = options;
 	let tail = Promise.resolve();
 	const enqueue = (operation: () => Promise<void>): Promise<void> => {
@@ -66,10 +88,11 @@ export function bindFramescaperSelectedAuthoringControllerV27(options: Readonly<
 			if (DIALOG_SURFACES.has(surface)) {
 				throw new Error('Selected V27 visual authoring requires its menu-opened dialog.');
 			}
-			const project = structuredClone(controller.project);
-			if (schemaVersion(project) !== 27) {
-				throw new Error('Selected visual authoring requires a writable Framescaper V27 project.');
+			const canonicalProject = structuredClone(controller.project);
+			if (schemaVersion(canonicalProject) !== schema) {
+				throw new Error(`Selected visual authoring requires a writable Framescaper V${String(schema)} project.`);
 			}
+			const project = projectForAuthoring(canonicalProject);
 			const workflow = await import('./editor-selected-v27-authoring-workflows.ts');
 			const prepared = await workflow.prepareFramescaperSelectedAuthoringV27(
 				surface, project, store,
@@ -82,7 +105,7 @@ export function bindFramescaperSelectedAuthoringControllerV27(options: Readonly<
 				try { await prepared.rollback(); }
 				catch (cleanupError) {
 					throw new AggregateError(
-						[error, cleanupError], 'V27 authoring commit and media rollback both failed.',
+						[error, cleanupError], `V${String(schema)} authoring commit and media rollback both failed.`,
 						{ cause: error },
 					);
 				}
@@ -95,7 +118,7 @@ export function bindFramescaperSelectedAuthoringControllerV27(options: Readonly<
 			request: FramescaperSelectedVisualAuthoringRequestV27): Promise<void> {
 			return enqueue(async () => {
 				const model = await import('./editor-selected-v27-visual-authoring-model.ts');
-				const state = runtimeState(controller);
+				const state = runtimeState(controller, schema, projectForAuthoring);
 				model.assertFramescaperSelectedVisualAuthoringRuntimeFenceV27({
 					project: state.project, fence: request.fence,
 					selectedClipId: state.selectedClipId, playheadSample: state.playheadSample,
@@ -107,7 +130,7 @@ export function bindFramescaperSelectedAuthoringControllerV27(options: Readonly<
 					capture: captureRuntime.framescaperSelectedFreezeCaptureV27For(controller),
 				});
 				try {
-					const current = runtimeState(controller);
+					const current = runtimeState(controller, schema, projectForAuthoring);
 					model.assertFramescaperSelectedVisualAuthoringRuntimeFenceV27({
 						project: current.project, fence: request.fence,
 						selectedClipId: current.selectedClipId,
@@ -120,7 +143,7 @@ export function bindFramescaperSelectedAuthoringControllerV27(options: Readonly<
 					catch (cleanupError) {
 						throw new AggregateError(
 							[error, cleanupError],
-							'V27 selected authoring and media rollback both failed.',
+							`V${String(schema)} selected authoring and media rollback both failed.`,
 							{ cause: error },
 						);
 					}
@@ -139,11 +162,16 @@ export function bindFramescaperSelectedAuthoringControllerV27(options: Readonly<
 		));
 }
 
-function runtimeState(controller: FramescaperSelectedAuthoringControllerV27) {
-	const project = structuredClone(controller.project);
-	if (schemaVersion(project) !== 27) {
-		throw new Error('Selected visual authoring requires a writable Framescaper V27 project.');
+function runtimeState(
+	controller: FramescaperSelectedAuthoringControllerV27,
+	schema: 27 | 28,
+	projectForAuthoring: (project: unknown) => unknown,
+) {
+	const canonicalProject = structuredClone(controller.project);
+	if (schemaVersion(canonicalProject) !== schema) {
+		throw new Error(`Selected visual authoring requires a writable Framescaper V${String(schema)} project.`);
 	}
+	const project = projectForAuthoring(canonicalProject);
 	const selectedClipId = controller.getSnapshot().selectedClipId;
 	const playhead = controller.getTelemetrySnapshot().positionFrame;
 	if (selectedClipId !== null && typeof selectedClipId !== 'string') {

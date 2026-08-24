@@ -54,7 +54,7 @@ export class FramescaperNativeRootRepository {
 		lease: FramescaperNativeServicesLease,
 		nowMs: number,
 	): FramescaperNativeRootGrant {
-		const grant = admitSelection(selection);
+		const grant = admitFramescaperNativeRootSelection(selection);
 		return this.#mutation(lease, nowMs, () => {
 			const existing = this.read(grant.grantId);
 			if (existing !== null) {
@@ -167,7 +167,9 @@ export class FramescaperNativeRootRepository {
 	}
 }
 
-function admitSelection(selection: FramescaperNativeRootSelection): FramescaperNativeRootSelection {
+export function admitFramescaperNativeRootSelection(
+	selection: FramescaperNativeRootSelection,
+): FramescaperNativeRootSelection {
 	return Object.freeze({
 		grantId: opaqueId(selection.grantId, 'grant id'),
 		rootPath: canonicalPath(selection.rootPath),

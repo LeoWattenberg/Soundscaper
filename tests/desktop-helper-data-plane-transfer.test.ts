@@ -81,6 +81,7 @@ test('missing, duplicate, wrong, or extra transfers fail before a helper is spaw
 
 function encodeGrant() {
 	return {
+		backend: 'native-cpu' as const,
 		executable: {
 			role: 'ffmpeg' as const,
 			path: '/runtime/framescaper-media-host',

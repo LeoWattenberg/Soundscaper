@@ -6,6 +6,7 @@ import test from 'node:test';
 
 import {
 	OfxIsolatedHostManager,
+	type OfxCpuAttempt,
 	type OfxIsolatedWorkerPort,
 } from '../desktop/openfx-isolated-host-manager.ts';
 import {
@@ -82,6 +83,7 @@ test('each scan is short lived and each exact binary fingerprint owns one runtim
 		pluginFingerprint: invocation.pluginFingerprint,
 		state: 'ready',
 		quarantined: false,
+		degradedBackends: [],
 	}]);
 
 	manager.dispose();
@@ -150,6 +152,20 @@ test('only typed GPU failures retry once on CPU in the same fingerprint process'
 					streamId: 'ef'.repeat(20), byteLength: STREAM_BYTES.byteLength, sha256: STREAM_SHA,
 				} },
 			});
+			const retained = await manager.renderWithCpuFallback({
+				invocation: gpuInvocation,
+				request: hostRequest(gpuInvocation),
+				createCpuAttempt: () => {
+					const invocation = invocationFor('cpu-retained', PLUGIN_SHA, 'cpu');
+					return { invocation, request: hostRequest(invocation) };
+				},
+			});
+			assert.equal(attempts, 3, 'a degraded GPU backend is not retried on each frame');
+			assert.equal(retained.backend, 'cpu');
+			assert.equal(retained.retriedOnCpu, true);
+			assert.deepEqual(manager.snapshot().runtimes[0]?.degradedBackends, ['cuda']);
+			manager.clearQuarantine(gpuInvocation.pluginFingerprint);
+			assert.deepEqual(manager.snapshot().runtimes[0]?.degradedBackends, []);
 			manager.dispose();
 		});
 	}
@@ -268,7 +284,7 @@ function scanRequest(pluginSha: string): HelperJobRequest<'ofx-scan'> {
 function hostRequest(
 	invocation: ReturnType<typeof invocationFor>,
 	options: Readonly<{ readonly pluginSha?: string; readonly signal?: AbortSignal }> = {},
-): HelperJobRequest<'ofx-host'> {
+): OfxCpuAttempt['request'] {
 	return {
 		kind: 'ofx-host',
 		grant: {

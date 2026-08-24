@@ -6,14 +6,17 @@ import {
 import {
 	createFramescaperCapturedVideoProxySchedulerV20,
 	createFramescaperCapturedVideoProxySchedulerV27,
+	createFramescaperCapturedVideoProxySchedulerV28,
 	type FramescaperCapturedVideoProxyRuntimeComposition,
 	type FramescaperCapturedVideoProxyScheduler,
 } from './editor-captured-video-proxy-scheduler.ts';
 import type { FramescaperEditorProjectEnvironmentV20 } from './editor-project-environment-v20.ts';
 import type { FramescaperEditorProjectEnvironmentV27 } from './editor-project-environment-v27.ts';
+import type { FramescaperEditorProjectEnvironmentV28 } from './editor-project-environment-v28.ts';
 
 type SessionV20 = Parameters<typeof createFramescaperCapturedVideoProxySchedulerV20>[1];
 type SessionV27 = Parameters<typeof createFramescaperCapturedVideoProxySchedulerV27>[1];
+type SessionV28 = Parameters<typeof createFramescaperCapturedVideoProxySchedulerV28>[1];
 
 /** Compose a one-operation, pathless existing-candidate scheduler for selected V20. */
 export function createFramescaperExistingVideoProxySchedulerV20(
@@ -37,6 +40,20 @@ export function createFramescaperExistingVideoProxySchedulerV27(
 	candidate: Blob,
 ): FramescaperCapturedVideoProxyScheduler {
 	return createFramescaperCapturedVideoProxySchedulerV27(
+		environment,
+		session,
+		existingCandidateComposition(composition, candidate),
+	);
+}
+
+/** Compose a one-operation, pathless existing-candidate scheduler for selected V28. */
+export function createFramescaperExistingVideoProxySchedulerV28(
+	environment: Readonly<FramescaperEditorProjectEnvironmentV28>,
+	session: SessionV28,
+	composition: FramescaperCapturedVideoProxyRuntimeComposition,
+	candidate: Blob,
+): FramescaperCapturedVideoProxyScheduler {
+	return createFramescaperCapturedVideoProxySchedulerV28(
 		environment,
 		session,
 		existingCandidateComposition(composition, candidate),

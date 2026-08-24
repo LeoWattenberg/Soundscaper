@@ -26,6 +26,7 @@ export interface ProjectSaveServiceDependencies<Project extends ProjectSaveSnaps
 	readonly hasUnsavedProjectChanges?: () => boolean;
 	readonly isReadOnly: () => boolean;
 	readonly cloneProject: (project: Project) => Project;
+	readonly prepareSnapshot?: (snapshot: Project) => PromiseLike<Project> | Project;
 	readonly admitProjectPublication: (bytes: number) => Promise<unknown>;
 	readonly collectProtectedLinkedOriginalSourceReferences?: (
 	) => Iterable<ProjectLinkedOriginalSourceReference>;
@@ -191,7 +192,13 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		return operation;
 	}
 
-	async function saveSnapshot(snapshot: Project, generation: number): Promise<void> {
+	async function saveSnapshot(snapshotValue: Project, generation: number): Promise<void> {
+		const snapshot = dependencies.prepareSnapshot
+			? await dependencies.prepareSnapshot(snapshotValue)
+			: snapshotValue;
+		if (!snapshot || snapshot.id !== snapshotValue.id) {
+			throw new Error('Project save preparation changed the project identity.');
+		}
 		state.pendingSaveSnapshots.add(snapshot);
 		try {
 			const protectedLinkedOriginalSourceReferences = dependencies.collectProtectedLinkedOriginalSourceReferences

@@ -26,6 +26,14 @@ import type { ExternalDisplayDescriptorV1 } from '../native-external-display.ts'
 import type { FramescaperNativeImageSequenceBridge } from './framescaper-native-image-sequence-bridge.ts';
 import type { FramescaperNativeOpenFxBridge } from './framescaper-native-openfx-bridge.ts';
 import {
+	FRAMESCAPER_NATIVE_LIVE_RENDER_METHODS,
+	type FramescaperNativeLiveRenderBridge,
+} from './framescaper-native-live-render-bridge.ts';
+import {
+	FRAMESCAPER_NATIVE_PROJECT_ASSET_METHODS,
+	type FramescaperNativeProjectAssetsBridge,
+} from './framescaper-native-project-assets-bridge.ts';
+import {
 	FRAMESCAPER_NATIVE_SERVICES_LIFECYCLE_METHODS,
 	createFramescaperNativeServicesLifecycleStore,
 	type FramescaperNativeRootProjection,
@@ -40,6 +48,7 @@ export type {
 	FramescaperNativeWatchCreateRendererRequest,
 	FramescaperNativeWatchProjection,
 } from './framescaper-native-services-lifecycle-bridge.ts';
+export type { FramescaperNativeWatchImportClaim } from './framescaper-native-project-assets-bridge.ts';
 
 export const FRAMESCAPER_NATIVE_SERVICES_RENDERER_REFRESH_INTERVAL_MS = 5_000;
 export const FRAMESCAPER_NATIVE_SERVICE_PREFERENCES = Object.freeze([
@@ -95,22 +104,10 @@ export interface FramescaperNativeServicesExternalDisplayProjection {
 	readonly activeDisplayId: string | null;
 }
 
-export interface FramescaperNativeWatchImportClaim {
-	readonly claimId: string;
-	readonly projectId: string;
-	readonly projectRevision: number;
-	readonly importMode: 'link' | 'copy';
-	readonly locatorId: string;
-	readonly locatorRevision: string;
-	readonly name: string;
-	readonly size: number;
-	readonly mimeType: string;
-	readonly lastModified: number;
-	readonly contentSha256: string;
-}
-
 export interface FramescaperNativeServicesBridge
-	extends FramescaperNativeServicesLifecycleBridge, FramescaperNativeImageSequenceBridge, FramescaperNativeOpenFxBridge {
+	extends FramescaperNativeServicesLifecycleBridge, FramescaperNativeImageSequenceBridge,
+		FramescaperNativeOpenFxBridge, FramescaperNativeProjectAssetsBridge,
+		FramescaperNativeLiveRenderBridge {
 	snapshot(): Promise<FramescaperNativeServicesProjection>;
 	control(request: Readonly<{
 		readonly jobId: string;
@@ -141,17 +138,6 @@ export interface FramescaperNativeServicesBridge
 		readonly rgbaSha256: string;
 		readonly rgba: Uint8Array;
 	}>): Promise<FramescaperNativeServicesExternalDisplayProjection>;
-	claimWatchImport?(request: Readonly<{
-		readonly projectId: string;
-		readonly projectRevision: number;
-	}>): Promise<FramescaperNativeWatchImportClaim | null>;
-	completeWatchImport?(request: Readonly<{
-		readonly claimId: string;
-		readonly projectId: string;
-		readonly expectedProjectRevision: number;
-		readonly committedProjectRevision: number;
-		readonly success: boolean;
-	}>): Promise<boolean>;
 }
 
 export interface FramescaperNativeServicesRendererSnapshot {
@@ -189,9 +175,14 @@ const REQUIRED_METHODS = Object.freeze(['snapshot', 'control', 'reorder', 'remov
 const OPTIONAL_METHODS = Object.freeze([
 	'capabilities', 'preferences', 'setPreference', 'externalDisplays', 'setExternalDisplay',
 	'presentExternalDisplay', 'abandonRenderInputs',
-		'claimWatchImport', 'completeWatchImport',
+	...FRAMESCAPER_NATIVE_PROJECT_ASSET_METHODS,
+	...FRAMESCAPER_NATIVE_LIVE_RENDER_METHODS,
 		'selectImageSequence', 'readImageSequenceFile', 'releaseImageSequence',
-		'scanOpenFxPlugin', 'listOpenFxPlugins', 'controlOpenFxPlugin',
+	'imageSequenceImport', 'writeImageSequenceImportChunk', 'readImageSequenceImportBody',
+	'decodeImageSequenceSource', 'cancelImageSequenceDecode',
+	'readImageSequenceDecode', 'releaseImageSequenceDecode',
+		'scanOpenFxPlugin', 'listOpenFxPlugins', 'controlOpenFxPlugin', 'openOpenFxFrameSession',
+		'runOpenFxInteract',
 	...FRAMESCAPER_NATIVE_SERVICES_LIFECYCLE_METHODS,
 ] as const);
 
@@ -393,7 +384,7 @@ function normalizeRootProjection(value: unknown): FramescaperNativeRootProjectio
 
 function normalizeWatchProjection(value: unknown): FramescaperNativeWatchProjection {
 	const row = closedRecord(value, [
-		'ruleId', 'grantId', 'projectId', 'extensions', 'importMode', 'generateProxies', 'enabled',
+		'ruleId', 'grantId', 'projectId', 'binId', 'extensions', 'importMode', 'generateProxies', 'enabled',
 	], 'Framescaper native watch rule');
 	if ((row.importMode !== 'link' && row.importMode !== 'copy')
 		|| typeof row.generateProxies !== 'boolean' || typeof row.enabled !== 'boolean') {
@@ -403,6 +394,7 @@ function normalizeWatchProjection(value: unknown): FramescaperNativeWatchProject
 		ruleId: exactOpaqueId(row.ruleId, 'watch rule id'),
 		grantId: exactOpaqueId(row.grantId, 'watch grant id'),
 		projectId: stableIdentifier(row.projectId, 'watch project id'),
+		binId: row.binId === null ? null : stableIdentifier(row.binId, 'watch bin id'),
 		extensions: boundedArray(row.extensions, 32, 'watch extensions')
 			.map((item) => stableExtension(item)),
 		importMode: row.importMode,

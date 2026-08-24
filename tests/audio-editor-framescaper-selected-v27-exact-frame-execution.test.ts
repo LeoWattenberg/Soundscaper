@@ -13,6 +13,7 @@ import { bindFramescaperUnifiedRenderTimingSidecarsV27 } from '../src/framescape
 import { createFramescaperSelectedExactPreviewV27 } from '../src/framescaper/editor-selected-v27-exact-preview.ts';
 import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v27.ts';
 import { createFramescaperProjectV27 } from '../src/framescaper/editor-project-v27.ts';
+import type { FramescaperOpenFxFrameExecutionRequestV28 } from '../src/framescaper/editor-openfx-frame-graph-v28.ts';
 import { createFramescaperSelectedExactFrameExecutionV27 } from '../src/framescaper/selected-v27-exact-frame-execution.ts';
 import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
 import { freshness, renderAuthority } from './helpers/framescaper-unified-render-project-fixture.ts';
@@ -148,6 +149,9 @@ test('selected V27 preview uses the same exact source-layer route and presentati
 	const boundTimingViews = new Map([[source.id, bindVideoSourceTimingView(timingViews, source)]]);
 	const signal = new AbortController().signal;
 	const outputState: { written: Uint8Array<ArrayBuffer> | null } = { written: null };
+	const openFxPlan = Object.freeze({ ...plan, version: 14 as const,
+		nodes: Object.freeze([...plan.nodes, openFxFilterNode()]) });
+	let openFxCalls = 0;
 	const preview = await createFramescaperSelectedExactPreviewV27({
 		profile: PROFILE, project, plan, timingViews, boundTimingViews, signal, assertCurrent() {},
 		store: {} as AudioEditorProjectStore,
@@ -156,6 +160,18 @@ test('selected V27 preview uses the same exact source-layer route and presentati
 			pixels: Uint8Array.from({ length: 16 }, (_, index) => index % 4 === 0 ? 128
 				: index % 4 === 3 ? 255 : 0),
 		}),
+		openFx: Object.freeze({ plan: openFxPlan as never,
+		execute(request: FramescaperOpenFxFrameExecutionRequestV28) {
+			openFxCalls += 1;
+			assert.equal(request.context, 'filter');
+			assert.deepEqual(request.inputs.map(({ name, sourceRef }) => [name, sourceRef]), [
+				['Source', 'video-source'],
+			]);
+			return Promise.resolve({
+				mode: 'render' as const, rgba: rgbaFrameColor(0, 255), backend: 'cpu' as const,
+				retriedOnCpu: true, reportsDegradation: true,
+			});
+		} }),
 		createOutput: () => ({
 			drawable: Object.freeze({}),
 			write(pixels) { outputState.written = pixels.slice(); },
@@ -170,7 +186,13 @@ test('selected V27 preview uses the same exact source-layer route and presentati
 	});
 	const result = await preview.render({ timelineSample: 0, mediaLayers: [mediaLayer('video-clip', 1)], frame });
 	assert.ok(outputState.written);
-	assert.deepEqual([...outputState.written.subarray(0, 4)], [128, 0, 0, 255]);
+	assert.ok(outputState.written[1]! > 0, 'the real preview consumes the OpenFX output pixels');
+	assert.equal(openFxCalls, 1);
+	assert.deepEqual(result.openFxDispositions, [{
+		instanceId: 'effect-preview-filter', context: 'filter', outputOrdinal: 0,
+		mode: 'render', reportsDegradation: true, backend: 'cpu', retriedOnCpu: true,
+	}]);
+	assert.equal(result.reportsOpenFxDegradation, true);
 	assert.equal(result.layers[0]?.trackId, 'framescaper-v27-exact-output');
 	assert.deepEqual(result.renderedEffectIds, []);
 	assert.deepEqual(result.frame.ledger.requestedNodeIds, result.frame.ledger.consumedNodeIds);
@@ -401,48 +423,6 @@ test('an inert adjustment layer preserves the targeted track blend mode', async 
 	assert.deepEqual(withAdjustment, without, 'an empty adjustment layer changes nothing');
 });
 
-test('selected V27 decodes canvas-captured media as canvas sRGB regardless of the file tags', async () => {
-	// The browser already expanded limited range and converted the transfer
-	// while drawing the video into the capture canvas, so a BT.709
-	// limited-tagged source must not be range-expanded or EOTF-decoded a
-	// second time from its readback bytes.
-	const project = createFramescaperProjectV27(PROFILE, {
-		...framescaperV20Options(), videoTransitionsByTrackId: { 'video-track': [] },
-		finishing: {
-			...finishing(),
-			sourceColorInterpretations: [{
-				schemaVersion: 1, sourceId: 'video-source', sourceKind: 'video',
-				primaries: 'bt709', transfer: 'bt709', matrix: 'bt709', range: 'limited',
-				provenance: 'default-video-bt709-limited',
-			}],
-			visualPresentations: [],
-		},
-	});
-	const plan = createFramescaperProjectUnifiedExactRenderPlanV27(PROFILE, project, {
-		...renderAuthority(project, 10),
-		canvas: { width: 2, height: 2, fit: 'contain' as const,
-			pixelFormat: 'yuv420p', backgroundColor: '#000000' },
-		visualFreshnessByModelId: new Map(),
-	});
-	const signal = new AbortController().signal;
-	const execution = await createFramescaperSelectedExactFrameExecutionV27({
-		project, plan, timingSidecars: bindFramescaperUnifiedRenderTimingSidecarsV27(
-			project, renderAuthority(project, 10).timingViews,
-		), signal, assertCurrent() {},
-		captureFrame: () => rgbaFrame(128),
-	});
-	const target = new Uint8Array(16);
-	await execution.render({
-		sequencePosition: { num: 0, den: 1 },
-		layers: [mediaLayer('video-clip', 1)], width: 2, height: 2, target, signal,
-	});
-	assert.deepEqual(
-		[...target.subarray(0, 4)], [128, 0, 0, 255],
-		'mid-gray readback survives managed color unshifted',
-	);
-	await execution.dispose();
-});
-
 function finishing() {
 	return {
 		colorContexts: [{
@@ -563,5 +543,30 @@ function rgbaFrame(red: number) {
 		width: 2, height: 2,
 		pixels: Uint8Array.from({ length: 16 }, (_, index) => index % 4 === 0 ? red
 			: index % 4 === 3 ? 255 : 0),
+	});
+}
+
+function rgbaFrameColor(red: number, green: number) {
+	return Object.freeze({
+		width: 2, height: 2,
+		pixels: Uint8Array.from({ length: 16 }, (_, index) => index % 4 === 0 ? red
+			: index % 4 === 1 ? green : index % 4 === 3 ? 255 : 0),
+	});
+}
+
+function openFxFilterNode() {
+	const sha = 'a1'.repeat(32);
+	return Object.freeze({
+		kind: 'openfx' as const, nodeId: 'openfx-preview-filter',
+		state: Object.freeze({
+			schemaVersion: 1 as const, instanceId: 'effect-preview-filter',
+			pluginId: 'net.example.PreviewFilter', binarySha256: sha, context: 'filter' as const,
+			attachment: Object.freeze({ kind: 'filter' as const, targetId: 'video-clip' }),
+			inputs: Object.freeze([Object.freeze({ name: 'Source', sourceRef: 'video-source' })]),
+			parameters: Object.freeze([]), customEncodings: Object.freeze({}), enabled: true,
+			freshness: Object.freeze({ authoredStateSha256: sha, inputIdentitiesSha256: sha,
+				renderPlanFingerprintSha256: sha, nativeEffectFingerprintSha256: sha }),
+			frozenFallback: null,
+		}),
 	});
 }

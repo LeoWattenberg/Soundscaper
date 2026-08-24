@@ -8,6 +8,7 @@ import {
 	flattenUnifiedExactLinearCompositionV13,
 	placeUnifiedExactLinearRgbaFrameV13,
 	straightUnifiedExactLinearFrameV13,
+	type UnifiedExactLinearCompositionEntryV13,
 } from '../common/editor/unified-exact-linear-rgba-v13.ts';
 import {
 	authoredCompositingOrder,
@@ -32,10 +33,7 @@ import {
 	type UnifiedExactRenderActiveAdjustmentV13,
 	type UnifiedExactRenderVisualFrameEntryV13,
 } from '../common/editor/unified-exact-render-visual-consumers-v13.ts';
-import {
-	materializeUnifiedExactRenderVisualEntryV13,
-	type UnifiedExactRenderVisualRgbaV13,
-} from '../common/editor/unified-exact-render-visual-materializer-v13.ts';
+import type { UnifiedExactRenderVisualRgbaV13 } from '../common/editor/unified-exact-render-visual-materializer-v13.ts';
 import type {
 	UnifiedExactRenderFinishingNode,
 	UnifiedExactRenderPlanV13,
@@ -43,6 +41,15 @@ import type {
 import type { UnifiedExactRenderTimingSidecars } from '../common/editor/unified-exact-render-timing-authority.ts';
 import { applyVideoExactBrowserEffectsV27 } from './editor-video-exact-browser-effects-v27.ts';
 import type { FramescaperProjectV27 } from './editor-project-v27.ts';
+import {
+	createFramescaperSelectedOpenFxCompositionV28,
+	type FramescaperSelectedOpenFxCompositionV28,
+} from './selected-v28-openfx-exact-composition.ts';
+import {
+	createFramescaperSelectedOpenFxExactPlanesV28,
+	type FramescaperSelectedOpenFxExecutionV28,
+} from './selected-v28-openfx-exact-planes.ts';
+import type { FramescaperOpenFxFrameDispositionV28 } from './editor-openfx-frame-graph-v28.ts';
 import { createFramescaperSelectedMotionAcceleratorV27 } from './selected-v27-motion-accelerator.ts';
 import type { FramescaperVideoFrameAddressV27 } from './video-frame-address-v27.ts';
 import {
@@ -53,6 +60,11 @@ import {
 	loadFramescaperVideoExportVisualAssetsV27,
 	type FramescaperVideoExportVisualAssetStoreV27,
 } from './video-export-visual-assets-v27.ts';
+import {
+	framescaperSelectedOpenFxFrozenFrameResolverV28,
+	materializeFramescaperSelectedOpenFxVisualsV28,
+	orderedFramescaperSelectedOpenFxVisualEntriesV28,
+} from './selected-v28-openfx-visual-inputs.ts';
 type Data = Readonly<Record<string, unknown>>;
 export interface FramescaperSelectedExactFrameExecutionV27 {
 	render(request: Readonly<{
@@ -62,7 +74,11 @@ export interface FramescaperSelectedExactFrameExecutionV27 {
 		readonly height: number;
 		readonly target: Uint8Array<ArrayBuffer>;
 		readonly signal: AbortSignal;
-	}>): Promise<Readonly<{ readonly consumedNodeIds: readonly string[] }>>;
+	}>): Promise<Readonly<{
+		readonly consumedNodeIds: readonly string[];
+		readonly openFxDispositions: readonly FramescaperOpenFxFrameDispositionV28[];
+		readonly reportsOpenFxDegradation: boolean;
+	}>>;
 	acceleratorDisposition(): Readonly<{
 		readonly attempted: boolean;
 		readonly active: boolean;
@@ -83,13 +99,16 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 	readonly sourceFrames?: FramescaperVideoFrameAddressV27;
 	readonly captureFrame?: CaptureFrameV27;
 	readonly applyEffects?: ApplyEffectsV27;
+	readonly openFx?: FramescaperSelectedOpenFxExecutionV28;
 	readonly createAcceleratorCanvas?: () => unknown;
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
 }>): Promise<FramescaperSelectedExactFrameExecutionV27> {
 	assertReady(options);
 	const finishingConsumer = createUnifiedExactRenderFinishingPreviewConsumerV13(options.plan, options.timingSidecars);
-	const visualConsumer = createUnifiedExactRenderVisualPreviewConsumerV13(options.plan, options.timingSidecars);
+	const visualConsumer = createUnifiedExactRenderVisualPreviewConsumerV13(
+		options.plan, options.timingSidecars, { allowExternalGenerators: options.openFx !== undefined },
+	);
 	const finishing = requiredFinishing(options.plan);
 	const finishingAssets = await loadFramescaperVideoExportFinishingAssetsV27({
 		project: options.project,
@@ -103,6 +122,16 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 	assertReady(options);
 	const captureFrame = options.captureFrame ?? captureBrowserFrame;
 	const applyEffects = options.applyEffects ?? applyVideoExactBrowserEffectsV27;
+	const openFxExecution = options.openFx === undefined ? undefined
+		: options.openFx.resolveFrozenFrame || !options.sourceFrames ? options.openFx
+			: Object.freeze({ ...options.openFx,
+				resolveFrozenFrame: framescaperSelectedOpenFxFrozenFrameResolverV28(
+					options.openFx.plan, options.sourceFrames,
+				) });
+	const openFxPlanes = openFxExecution === undefined ? null
+		: createFramescaperSelectedOpenFxExactPlanesV28({
+			foundationPlan: options.plan, openFx: openFxExecution, assertCurrent: options.assertCurrent,
+		});
 	const clips = new Map(options.plan.nodes.flatMap((node) => (
 		node.kind === 'clip' ? [[node.clipId, node] as const] : []
 	)));
@@ -147,24 +176,51 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 			}
 			accepted = true;
 			const visual = visualConsumer.resolveFrame({ sequencePosition: request.sequencePosition });
-			const rawVisuals = await materializeVisuals(
+			const rawVisuals = await materializeFramescaperSelectedOpenFxVisualsV28(
 				visual.layers.flatMap(({ entries }) => entries), visualAssets.stills,
-				width, height, signal,
+				width, height, signal, openFxPlanes,
 			);
 			const trackFrames = new Map<string, TrackOrderBucketV27[]>();
+			const clipCompositingOrders = new Map<string, number>();
+			const openFx = openFxPlanes === null ? null : createFramescaperSelectedOpenFxCompositionV28({
+				planes: openFxPlanes, plan: options.plan,
+				outputOrdinal: openFxPlanes.ordinal(request.sequencePosition),
+				transitionWeights: visual.transitionWeights,
+				maskGraphs: masks, maskInputs: rawVisuals, initialPlanes: rawVisuals,
+				width, height, signal,
+			});
 			const consumed = new Set(visual.ledger.consumedNodeIds);
 			consumed.add(finishing.nodeId);
 			const adjustmentEffects = new Set(visual.activeAdjustmentLayers.flatMap(({ effectIds }) => effectIds));
 			for (const layerValue of request.layers) await renderMediaLayer(
 				record(layerValue, 'Selected V27 media layer'), trackFrames,
-				rawVisuals, consumed, adjustmentEffects, width, height, signal,
+				clipCompositingOrders, rawVisuals, consumed, adjustmentEffects,
+				openFx, width, height, signal,
 			);
-			for (const layer of visual.layers) renderVisualLayer(
-				layer.trackId, layer.entries, trackFrames,
-				rawVisuals, width, height, signal,
+			if (openFx) {
+				const transitionFrames = new Map<string, UnifiedExactLinearCompositionEntryV13[]>();
+				await openFx.applyTransitions(transitionFrames);
+				const activeTransitionIds = new Set(visual.transitionWeights.map(({ transitionId }) => transitionId));
+				for (const [trackId, entries] of transitionFrames) {
+					const orders = new Set(options.plan.nodes.flatMap((node) => node.kind === 'transition'
+						&& node.edges.trackId === trackId && activeTransitionIds.has(node.transition.id)
+						&& openFxPlanes?.has('transition', node.transition.id)
+						? [clipCompositingOrders.get(node.edges.outgoing.clipId),
+							clipCompositingOrders.get(node.edges.incoming.clipId)] : [])
+						.filter((order): order is number => order !== undefined));
+					if (orders.size !== 1) {
+						throw new Error('Selected V28 OpenFX Transition changed authored compositing order.');
+					}
+					orderBucketEntries(trackFrames, trackId, [...orders][0]!).push(...entries);
+				}
+			}
+			for (const { trackId, entry } of orderedFramescaperSelectedOpenFxVisualEntriesV28(
+				visual.layers,
+			)) await renderVisualLayer(
+				trackId, [entry], trackFrames, rawVisuals, openFx, width, height, signal,
 			);
 			for (const adjustment of visual.activeAdjustmentLayers) await applyAdjustment(
-				adjustment, trackFrames, rawVisuals, width, height, signal,
+				adjustment, trackFrames, rawVisuals, openFx, width, height, signal,
 			);
 			const output = createUnifiedExactLinearPremultipliedFrameV13(
 				width, height, backgroundLinear(options.plan, finishing),
@@ -188,7 +244,14 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 			);
 			throwIfAborted(signal);
 			assertReady(options);
-			return Object.freeze({ consumedNodeIds: Object.freeze([...consumed].sort(compareText)) });
+			const disposition = openFx?.disposition() ?? Object.freeze({
+				effects: Object.freeze([]), reportsDegradation: false,
+			});
+			return Object.freeze({
+				consumedNodeIds: Object.freeze([...consumed].sort(compareText)),
+				openFxDispositions: disposition.effects,
+				reportsOpenFxDegradation: disposition.reportsDegradation,
+			});
 		} catch (error) {
 			if (accepted) request.target.fill(0);
 			throw error;
@@ -198,9 +261,11 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 	async function renderMediaLayer(
 		layer: Data,
 		trackFrames: Map<string, TrackOrderBucketV27[]>,
+		clipCompositingOrders: Map<string, number>,
 		maskInputs: ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>,
 		consumed: Set<string>,
 		adjustmentEffects: ReadonlySet<string>,
+		openFx: FramescaperSelectedOpenFxCompositionV28 | null,
 		width: number,
 		height: number,
 		signal: AbortSignal,
@@ -249,7 +314,10 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 			const mask = presentation.maskIds.length === 0 ? undefined
 				: combinedMask(presentation.maskIds, masks, width, height, maskInputs);
 			for (const id of presentation.maskIds) consumed.add(requiredVisual(maskNodeIds, id));
-			const placed = placeUnifiedExactLinearRgbaFrameV13({
+			const compositingOrder = authoredCompositingOrder(entry.renderDescription);
+			clipCompositingOrders.set(clipId, compositingOrder);
+			const target = orderBucketEntries(trackFrames, trackId, compositingOrder);
+			let placed = placeUnifiedExactLinearRgbaFrameV13({
 				frame: resolved,
 				displayWidth: dimension(entry.displayWidth, 'Selected V27 media display width'),
 				displayHeight: dimension(entry.displayHeight, 'Selected V27 media display height'),
@@ -259,34 +327,39 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 				opacity: presentation.opacity,
 				...(mask ? { mask } : {}),
 			});
-			addUnifiedExactLinearDissolveEntryV13(
-				orderBucketEntries(trackFrames, trackId, authoredCompositingOrder(entry.renderDescription)),
-				placed, presentation.blendMode ?? renderBlendMode(entry.renderDescription),
+			if (openFx) placed = await openFx.clip(placed, clipId, sourceId);
+			if (!openFx?.omitsDefaultClip(clipId)) addUnifiedExactLinearDissolveEntryV13(
+				target, placed, presentation.blendMode ?? renderBlendMode(entry.renderDescription),
 			);
 		}
 	}
 
-	function renderVisualLayer(
+	async function renderVisualLayer(
 		trackId: string,
 		entries: readonly UnifiedExactRenderVisualFrameEntryV13[],
 		trackFrames: Map<string, TrackOrderBucketV27[]>,
 		maskInputs: ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>,
+		openFx: FramescaperSelectedOpenFxCompositionV28 | null,
 		width: number,
 		height: number,
 		signal: AbortSignal,
-	): void {
+	): Promise<void> {
 		const target = orderBucketEntries(trackFrames, trackId, 0);
 		for (const entry of entries) {
 			const raw = requiredVisual(maskInputs, entry.modelId);
 			const linear = gradeVisual(finishing, entry, raw, finishingAssets.luts, signal);
 			const mask = entry.masks.length === 0 ? undefined
 				: combinedGraphs(entry.masks, width, height, maskInputs);
-			addUnifiedExactLinearCompositionEntryV13(target, placeUnifiedExactLinearRgbaFrameV13({
+			let placed = placeUnifiedExactLinearRgbaFrameV13({
 				frame: linear, displayWidth: width, displayHeight: height,
 				outputWidth: width, outputHeight: height,
 				renderDescription: identityDescription(width, height, entry.blendMode),
 				opacity: entry.opacity, ...(mask ? { mask } : {}),
-			}), entry.blendMode);
+			});
+			if (openFx && 'source' in entry.authoredState) {
+				placed = await openFx.visual(placed, entry.modelId, entry.authoredState.source.id);
+			}
+			addUnifiedExactLinearCompositionEntryV13(target, placed, entry.blendMode);
 		}
 	}
 
@@ -294,6 +367,7 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 		adjustment: UnifiedExactRenderActiveAdjustmentV13,
 		trackFrames: Map<string, TrackOrderBucketV27[]>,
 		maskInputs: ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>,
+		openFx: FramescaperSelectedOpenFxCompositionV28 | null,
 		width: number,
 		height: number,
 		signal: AbortSignal,
@@ -324,12 +398,13 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 					finishingAssets.luts, signal);
 				const mask = adjustment.masks.length === 0 ? undefined
 					: combinedGraphs(adjustment.masks, width, height, maskInputs);
-				const overlay = placeUnifiedExactLinearRgbaFrameV13({
+				let overlay = placeUnifiedExactLinearRgbaFrameV13({
 					frame: graded, displayWidth: width, displayHeight: height,
 					outputWidth: width, outputHeight: height,
 					renderDescription: identityDescription(width, height, adjustment.blendMode),
 					opacity: adjustment.opacity, ...(mask ? { mask } : {}),
 				});
+				if (openFx) overlay = await openFx.adjustment(overlay, adjustment.modelId);
 				compositeUnifiedExactLinearFrameV13(target, overlay, adjustment.blendMode);
 				bucket.entries = [Object.freeze({ frame: target, blendMode: preservedBlendMode })];
 			}
@@ -353,27 +428,6 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 	}
 
 	return Object.freeze({ render, acceleratorDisposition, dispose });
-}
-async function materializeVisuals(
-	entries: readonly UnifiedExactRenderVisualFrameEntryV13[],
-	stills: ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>,
-	width: number,
-	height: number,
-	signal: AbortSignal,
-): Promise<ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>> {
-	const result = new Map<string, UnifiedExactRenderVisualRgbaV13>();
-	for (const entry of entries) {
-		const raw = await materializeUnifiedExactRenderVisualEntryV13(Object.freeze({
-			...entry, masks: Object.freeze([]),
-		}), {
-			targetWidth: width, targetHeight: height,
-			decodeStill: (source) => Promise.resolve(requiredVisual(stills, source.id)),
-			signal,
-		});
-		result.set(entry.modelId, raw);
-		if ('source' in entry.authoredState) result.set(String(entry.authoredState.source.id), raw);
-	}
-	return result;
 }
 function checkedFrame(value: unknown, name: string): UnifiedExactRenderRgbaFrameV13 {
 	if (!value || typeof value !== 'object') throw new TypeError(`${name} must be an RGBA frame.`);

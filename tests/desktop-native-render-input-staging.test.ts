@@ -77,8 +77,11 @@ test('V7 evaluated RGBA and WAV staging survives restart and materializes exact 
 		assert.deepEqual(grants.map(({ role }) => role), [
 			'evaluated-rgba-frame-pack', 'staged-audio-mix',
 		]);
-		assert.deepEqual(await readFile(grants[0]!.path), carrier);
-		assert.deepEqual(await readFile(grants[1]!.path), audio);
+		assert.deepEqual(grants.map(({ type }) => type), ['file', 'file']);
+		if (grants[0]!.type !== 'file' || grants[1]!.type !== 'file')
+			throw new Error('Durable render-input staging must materialize file grants.');
+		assert.deepEqual(await readFile(grants[0].path), carrier);
+		assert.deepEqual(await readFile(grants[1].path), audio);
 	} finally {
 		await rm(root, { recursive: true, force: true });
 		await rm(senderRoot, { recursive: true, force: true });

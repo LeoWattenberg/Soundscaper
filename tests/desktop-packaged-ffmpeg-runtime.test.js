@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
+import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
+import { stageAssistanceNativeRuntimePayload } from '../desktop/assistance-native-runtime-payload.mjs';
 import hardenPackagedElectron from '../scripts/desktop-after-pack.mjs';
 import {
 	stageVerifiedFfmpegNotice,
@@ -14,6 +16,11 @@ import {
 	stageVerifiedNativeAddonPayload,
 	verifyNativeAddonPayloadManifest,
 } from '../scripts/lib/native-addon-payload-manifest.mjs';
+import {
+	professionalNativePayloadOutputRoot,
+	stageVerifiedSoundscaperProfessionalNativePayload,
+	verifySoundscaperProfessionalNativePayload,
+} from '../scripts/lib/soundscaper-professional-native-payload.mjs';
 
 test('afterPack verifies copied FFmpeg resources before fuse work', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-packaged-ffmpeg-'));
@@ -33,11 +40,25 @@ test('afterPack verifies copied FFmpeg resources before fuse work', async (conte
 		release: nativeRelease,
 		outputRoot: join(resources, 'runtime/native/linux-x64'),
 	});
+	const professional = await verifySoundscaperProfessionalNativePayload({
+		repositoryRoot: process.cwd(), target: 'linux-x64',
+	});
+	await stageVerifiedSoundscaperProfessionalNativePayload({
+		release: professional,
+		outputRoot: professionalNativePayloadOutputRoot(join(resources, 'runtime'), professional),
+	});
+	await stageAssistanceNativeRuntimePayload({
+		manifest: assistanceNativeRuntimeManifest,
+		targetId: 'linux-x64',
+		nodeModulesRoot: join(process.cwd(), 'node_modules'),
+		outputRoot: join(resources, 'runtime'),
+	});
 
 	const fuseCalls = [];
 	const invoke = () => hardenPackagedElectron(packagingContext(root, resources), {
 		repositoryRoot: process.cwd(),
 		flipFuses: async (...args) => { fuseCalls.push(args); },
+		writeDesktopPackageContentManifest: async () => {},
 	});
 	await invoke();
 	assert.equal(fuseCalls.length, 1);

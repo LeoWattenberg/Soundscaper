@@ -21,6 +21,8 @@ import {
 	createFramescaperVideoFrameAddressV27,
 	type FramescaperVideoFrameAddressV27,
 } from './video-frame-address-v27.ts';
+import type { FramescaperSelectedOpenFxExecutionV28 } from './selected-v28-openfx-exact-planes.ts';
+import type { FramescaperOpenFxFrameDispositionV28 } from './editor-openfx-frame-graph-v28.ts';
 
 type Data = Readonly<Record<string, unknown>>;
 
@@ -39,6 +41,8 @@ export interface FramescaperSelectedExactPreviewV27 {
 		readonly frame: ProductVideoVisualPreviewFrame;
 		readonly layers: readonly Data[];
 		readonly renderedEffectIds: readonly string[];
+		readonly openFxDispositions: readonly FramescaperOpenFxFrameDispositionV28[];
+		readonly reportsOpenFxDegradation: boolean;
 	}>>;
 	dispose(): void;
 }
@@ -54,6 +58,7 @@ export async function createFramescaperSelectedExactPreviewV27(options: Readonly
 	readonly signal: AbortSignal;
 	readonly assertCurrent: () => void;
 	readonly captureFrame?: CaptureFrameV27;
+	readonly openFx?: FramescaperSelectedOpenFxExecutionV28;
 	readonly createOutput?: (width: number, height: number) => PreviewOutputV27;
 }>): Promise<FramescaperSelectedExactPreviewV27> {
 	const output = (options.createOutput ?? createCanvasOutput)(
@@ -68,6 +73,7 @@ export async function createFramescaperSelectedExactPreviewV27(options: Readonly
 			timingSidecars: options.boundTimingViews,
 			...(sourceFrames ? { sourceFrames } : {}),
 			...(options.captureFrame ? { captureFrame: options.captureFrame } : {}),
+			...(options.openFx ? { openFx: options.openFx } : {}),
 			signal: options.signal, assertCurrent: options.assertCurrent,
 		});
 		const project = options.project as unknown as Data;
@@ -122,6 +128,8 @@ export async function createFramescaperSelectedExactPreviewV27(options: Readonly
 					frame: exactFrameLedger(request.frame, result.consumedNodeIds),
 					layers: publishedLayers,
 					renderedEffectIds: collectProductVideoVisualPreviewEffectIds(layers, request.frame),
+					openFxDispositions: result.openFxDispositions,
+					reportsOpenFxDegradation: result.reportsOpenFxDegradation,
 				});
 			} catch (error) {
 				target.fill(0);
@@ -184,8 +192,15 @@ async function createTemporalSourceFrames(options: Readonly<{
 	timingViews: ReadonlyMap<string, VideoSourceTimingView>;
 	signal: AbortSignal;
 	assertCurrent: () => void;
+	openFx?: FramescaperSelectedOpenFxExecutionV28;
 }>): Promise<FramescaperVideoFrameAddressV27 | undefined> {
-	const sourceIds = temporalSourceIds(options.project, options.plan);
+	const requiredTemporal = temporalSourceIds(options.project, options.plan);
+	const sourceIds = new Set(requiredTemporal);
+	for (const node of options.openFx?.plan.nodes ?? []) {
+		if (node.kind === 'openfx' && node.state.frozenFallback !== null) {
+			sourceIds.add(node.state.frozenFallback.externalMediaSourceId);
+		}
+	}
 	if (sourceIds.size === 0) return undefined;
 	const project = options.project as unknown as Data;
 	const byId = new Map(records(project.sources, 'Selected V27 preview temporal sources')
@@ -195,16 +210,25 @@ async function createTemporalSourceFrames(options: Readonly<{
 		options.assertCurrent();
 		throwIfAborted(options.signal);
 		const source = required(byId, sourceId, 'temporal source');
-		const original = await authenticatedBody(
-			options.store, String(source.storageKey ?? sourceId), String(source.contentSha256), options.signal,
-		);
-		const proxy = source.proxyAttachment == null ? null
-			: record(source.proxyAttachment, `Selected V27 proxy ${sourceId}`);
-		const body = original ?? (proxy === null ? null : await authenticatedBody(
-			options.store, String(proxy.storageKey), String(proxy.sha256), options.signal,
-		));
-		if (!body) throw new Error(`Selected V27 temporal source ${sourceId} is unavailable.`);
-		bodies.set(sourceId, body);
+		try {
+			const original = await authenticatedBody(
+				options.store, String(source.storageKey ?? sourceId), String(source.contentSha256), options.signal,
+			);
+			const proxy = source.proxyAttachment == null ? null
+				: record(source.proxyAttachment, `Selected V27 proxy ${sourceId}`);
+			const body = original ?? (proxy === null ? null : await authenticatedBody(
+				options.store, String(proxy.storageKey), String(proxy.sha256), options.signal,
+			));
+			if (!body) {
+				if (requiredTemporal.has(sourceId)) {
+					throw new Error(`Selected V27 temporal source ${sourceId} is unavailable.`);
+				}
+				continue;
+			}
+			bodies.set(sourceId, body);
+		} catch (error) {
+			if (requiredTemporal.has(sourceId) || options.signal.aborted) throw error;
+		}
 	}
 	return createFramescaperVideoFrameAddressV27({
 		sources: bodies, timingViewsBySourceId: options.timingViews,

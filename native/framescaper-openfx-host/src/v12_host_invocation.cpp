@@ -10,6 +10,7 @@
 #include "v12_retime_authority.hpp"
 #include "v12_transition_authority.hpp"
 #include "v12_video_timing_grants.hpp"
+#include "v12_gpu_qualification.hpp"
 
 #include <algorithm>
 #include <array>
@@ -28,7 +29,6 @@
 
 namespace framescaper::openfx {
 namespace {
-
 namespace json = framescaper::media::json;
 constexpr std::uintmax_t kMaximumControlBytes = 64U * 1024U;
 constexpr std::uintmax_t kMaximumPlanBytes = 16U * 1024U * 1024U;
@@ -187,7 +187,6 @@ void exact(const json::value& value, const std::initializer_list<std::string_vie
 	if (type == "rgba") return 4;
 	return 0;
 }
-
 [[nodiscard]] HydratedParameterState parameter_state(
 	const json::value& value,
 	const Context context,
@@ -202,7 +201,7 @@ void exact(const json::value& value, const std::initializer_list<std::string_vie
 		fail("admission", "Persisted state cannot override a host-owned OpenFX standard parameter.");
 	}
 	const auto type = text(json::member(value, "type"), "OpenFX parameter type", 32);
-	output.ofx_type = native_parameter_type(type);
+	output.wire_type = type; output.ofx_type = native_parameter_type(type);
 	if (!initialize_parameter_values(output.values, output.ofx_type)) {
 		fail("admission", "The native host cannot initialize the persisted OpenFX parameter type.");
 	}
@@ -303,6 +302,7 @@ void exact(const json::value& value, const std::initializer_list<std::string_vie
 struct ParsedInvocation final {
 	std::string invocation_id;
 	std::string plan_sha256;
+	int plan_version{};
 	std::string node_id;
 	std::string instance_id;
 	std::string plugin_id;
@@ -324,11 +324,14 @@ struct ParsedInvocation final {
 		"context", "action", "stateSha256", "inputFrameStreamIds", "outputFrameStreamId",
 		"outputOrdinal", "requestedBackend", "abortSignalId", "retimerSourceTime",
 	});
-	if (safe_integer(json::member(value, "schemaVersion"), "invocation schema", 1) != 1
-		|| safe_integer(json::member(value, "unifiedPlanVersion"), "plan version", 12) != 12) {
-		fail("admission", "The OpenFX invocation requires schema 1 and exact plan V12.");
+	const auto schema_version = safe_integer(json::member(value, "schemaVersion"), "invocation schema");
+	const auto plan_version = safe_integer(json::member(value, "unifiedPlanVersion"), "plan version");
+	if (!((schema_version == 1 && plan_version == 12)
+		|| (schema_version == 2 && plan_version == 14))) {
+		fail("admission", "The OpenFX invocation requires exact V1/V12 or V2/V14 dispatch.");
 	}
 	ParsedInvocation result;
+	result.plan_version = static_cast<int>(plan_version);
 	result.invocation_id = id(json::member(value, "invocationId"), "invocation ID");
 	result.plan_sha256 = digest(json::member(value, "unifiedPlanSha256"), "plan digest");
 	result.node_id = id(json::member(value, "nodeId"), "node ID", true);
@@ -433,14 +436,15 @@ V12HostInvocation authenticate_v12_host_invocation(
 		if (canonical_grant != grant_bytes) fail("admission", "The OpenFX V12 grant bytes are not canonical JSON.");
 		const auto* timing_value = json::optional_member(grant, "videoTimingAssets");
 		exact(grant, timing_value == nullptr
-			? std::initializer_list<std::string_view>{"schemaVersion", "pluginBinary", "invocation", "plan", "inputs", "output"}
-			: std::initializer_list<std::string_view>{"schemaVersion", "pluginBinary", "invocation", "plan", "videoTimingAssets", "inputs", "output"});
+			? std::initializer_list<std::string_view>{"schemaVersion", "qualifiedBackends", "pluginBinary", "invocation", "plan", "inputs", "output"}
+			: std::initializer_list<std::string_view>{"schemaVersion", "qualifiedBackends", "pluginBinary", "invocation", "plan", "videoTimingAssets", "inputs", "output"});
 		if (safe_integer(json::member(grant, "schemaVersion"), "grant schema", 1) != 1) {
 			fail("admission", "The OpenFX V12 grant schema is unsupported.");
 		}
 		const auto& plugin = json::member(grant, "pluginBinary");
 		exact(plugin, {"path", "sha256", "pluginIndex"});
 		V12HostInvocation result;
+		result.qualified_backends = authenticate_v12_gpu_qualification(json::member(grant, "qualifiedBackends"));
 		result.plugin_binary = absolute_path(json::member(plugin, "path"), "plug-in path");
 		result.plugin_binary_sha256 = digest(json::member(plugin, "sha256"), "plug-in digest");
 		result.plugin_index = static_cast<int>(safe_integer(json::member(plugin, "pluginIndex"), "plug-in index"));
@@ -449,6 +453,7 @@ V12HostInvocation authenticate_v12_host_invocation(
 		const auto parsed = invocation(json::member(grant, "invocation"));
 		result.invocation_id = parsed.invocation_id;
 		result.plan_sha256 = parsed.plan_sha256;
+		result.plan_version = parsed.plan_version;
 		result.node_id = parsed.node_id;
 		result.instance_id = parsed.instance_id;
 		result.plugin_id = parsed.plugin_id;
@@ -477,7 +482,7 @@ V12HostInvocation authenticate_v12_host_invocation(
 		const auto admitted = framescaper::media::authenticate_media_plan(
 			plan_path, plan_sha256, timing.grants
 		);
-		if (admitted.version != 12) fail("admission", "The OpenFX host admits only unified exact plan V12.");
+		if (admitted.version != parsed.plan_version) fail("admission", "The OpenFX plan version changed after exact invocation dispatch.");
 		if (parsed.output_ordinal >= admitted.output_frame_count) {
 			fail("admission", "The OpenFX output ordinal is outside the exact V12 output frame range.");
 		}

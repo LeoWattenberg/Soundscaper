@@ -20,12 +20,15 @@ endif()
 
 add_library(framescaper-openfx-host-contract STATIC
 	src/dynamic_library.cpp
+	src/gpu_runtime.cpp
 	src/host_runtime.cpp
+	src/interact_v1_invocation.cpp
 	src/loaded_plugin_binary.cpp
 	src/parameter_values.cpp
 	src/sha256.cpp
 	src/v12_cancellation_channel.cpp
 	src/v12_host_invocation.cpp
+	src/v12_gpu_qualification.cpp
 	src/v12_output_file.cpp
 	src/v12_retime_authority.cpp
 	src/v12_video_timing_grants.cpp

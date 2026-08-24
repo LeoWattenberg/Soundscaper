@@ -81,9 +81,9 @@ public:
 	exclusive_pack_output(std::filesystem::path path, const std::uint64_t maximum)
 		: path_{std::move(path)}, maximum_{maximum} {
 #if defined(_WIN32)
-		if (_wfopen_s(&file_, path_.c_str(), L"w+bN") != 0 || file_ == nullptr) {
+		if (_wfopen_s(&file_, path_.c_str(), L"wbxN") != 0 || file_ == nullptr) {
 #else
-		file_ = std::fopen(path_.c_str(), "w+bx");
+		file_ = std::fopen(path_.c_str(), "wbx");
 		if (file_ == nullptr) {
 #endif
 			throw sequence_decode_failure("output-create", "The sequence output cannot be created exclusively.", 74);

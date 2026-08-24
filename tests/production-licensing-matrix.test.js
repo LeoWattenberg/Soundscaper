@@ -37,6 +37,7 @@ const ENABLED_FFMPEG_LIBRARIES = [
 
 const FUTURE_GATE_IDS = [
 	'local-models',
+	'native-audio',
 	'native-codecs',
 	'native-plugins',
 	'web-effect-packages',
@@ -195,6 +196,12 @@ test('native plug-in format and codec policy rows stay fail-closed with named bl
 
 	assert.deepEqual(matrix.nativeFormatPolicies.map(({ id }) => id), [
 		'plugin-format-soundscaper-fixture',
+		'native-audio-stack',
+		'audio-backend-coreaudio',
+		'audio-backend-wasapi',
+		'audio-backend-asio',
+		'audio-backend-pipewire',
+		'audio-backend-alsa',
 		'plugin-format-vst3',
 		'plugin-format-clap',
 		'plugin-format-audio-units',
@@ -228,7 +235,7 @@ test('native plug-in format and codec policy rows stay fail-closed with named bl
 		'codec-encode-openexr-image-sequence',
 	]);
 	for (const row of matrix.nativeFormatPolicies) {
-		assert.match(row.kind, /^(?:plugin-format|codec-capability)$/u, row.id);
+		assert.match(row.kind, /^(?:plugin-format|native-audio-stack|audio-backend|codec-capability)$/u, row.id);
 		if (row.id === 'plugin-format-soundscaper-fixture') {
 			// The one implemented row is this project's own fixture format: no
 			// third-party code, so no gate to wait on. It is named explicitly
@@ -245,6 +252,12 @@ test('native plug-in format and codec policy rows stay fail-closed with named bl
 		assert.ok(row.agplCompatibilityDirection.length > 0, `${row.id} needs its compatibility direction`);
 		assert.ok(row.redistribution.length > 0, `${row.id} needs its redistribution posture`);
 		await assertEvidence(row.evidence);
+	}
+	for (const row of matrix.nativeFormatPolicies.filter(({ kind }) =>
+		kind === 'native-audio-stack' || kind === 'audio-backend')) {
+		assert.ok(row.evidence.includes('config/milestone-5-native-source-acquisitions.json'),
+			`${row.id} must bind the authenticated Milestone 5 source register`);
+		assert.match(row.blocker, /native-audio/u, row.id);
 	}
 	const ffmpegRow = matrix.nativeFormatPolicies.find(({ id }) => id === 'codec-native-ffmpeg-current-set');
 	assert.match(ffmpegRow.blocker, /ffmpeg-enabled-library-corresponding-source/u);

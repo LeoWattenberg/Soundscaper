@@ -17,6 +17,7 @@ const JOB_MESSAGE = Object.freeze({
 	type: 'job',
 	jobId: JOB_ID,
 	kind: 'probe-video-source',
+	jobContractVersion: 1,
 	grant: { mediaPath: '/media/example.mp4', mediaBytes: 64, identity: { dev: 1, ino: 2 } },
 	resourcePolicy: {
 		maximumInputBytes: 1024 ** 3,
@@ -190,6 +191,7 @@ test('probe helper refuses a globally known job kind it did not advertise', () =
 		type: 'job',
 		jobId: JOB_ID,
 		kind: 'audio-device',
+		jobContractVersion: 1,
 		grant: {
 			backend: 'coreaudio',
 			deviceHandle: 'main-owned-default-device',

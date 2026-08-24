@@ -14,7 +14,7 @@ const V27_OWNED = Object.freeze([
 	'videoStabilization',
 ] as const);
 
-test('the selected Framescaper product activates only the maintained V27 finishing consumers', () => {
+test('the selected Framescaper product owns maintained V27 finishing and V28 OpenFX state', () => {
 	const ids = PROJECT_FEATURE_CAPABILITY_IDS as Readonly<Record<string, string>>;
 	const availability = FRAMESCAPER_PROFILE.capabilities as Readonly<Record<string, unknown>>;
 
@@ -26,5 +26,5 @@ test('the selected Framescaper product activates only the maintained V27 finishi
 	assert.deepEqual([availability.videoKeyframes, availability.videoRetime], [true, true]);
 	assert.equal(availability.audioEffects, false,
 		'the bounded V27 dialogue command must not activate generic audio-effect workflows');
-	assert.equal(availability.ofxEffects, false);
+	assert.equal(availability.ofxEffects, true);
 });

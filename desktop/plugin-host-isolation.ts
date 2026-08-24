@@ -36,6 +36,10 @@ import {
 export { PLUGIN_HOST_BENIGN_STOP_REASONS, PLUGIN_HOST_FAULT_REASONS, type PluginHostBenignStopReason,
 	type PluginHostFaultReason, type PluginHostStopReason } from './plugin-instance-state.ts';
 import { PLUGIN_HOST_FAULT_LIMIT, PLUGIN_HOST_FAULT_WINDOW_MS } from './plugin-quarantine.ts';
+import { hasPluginHostProcessCapacity, pluginHostIsolationKey } from './plugin-host-process-admission.ts';
+import { openHelperOwnedVendorWindow } from './plugin-vendor-window-capability.ts';
+
+export { PLUGIN_HOST_MAXIMUM_PROCESSES, pluginHostIsolationKey } from './plugin-host-process-admission.ts';
 
 /**
  * The only vendor-UI surface 5A models. An embedded native child window is not
@@ -47,13 +51,12 @@ export const PLUGIN_VENDOR_UI_SURFACES = Object.freeze(['helper-owned-top-level'
 export const PLUGIN_VENDOR_UI_DENIED_CAPABILITIES = Object.freeze([
 	'renderer-bridge', 'dom', 'node', 'file-system', 'network', 'child-process', 'embedded-child-window',
 ] as const);
-
 export type PluginVendorUiSurface = (typeof PLUGIN_VENDOR_UI_SURFACES)[number];
 
 export type PluginHostRefusalCode =
 	| 'hosting-disabled' | 'disposed' | 'invalid-identity' | 'digest-revoked' | 'digest-quarantined'
 	| 'state-ineligible' | 'instance-conflict' | 'instance-not-hosted' | 'unknown-instance'
-	| 'owner-changed' | 'host-start-failed' | 'vendor-ui-unavailable';
+	| 'owner-changed' | 'host-capacity' | 'host-start-failed' | 'vendor-ui-unavailable';
 
 export interface PluginHostLaunch {
 	readonly hostId: string; readonly ownerId: string;
@@ -66,7 +69,8 @@ export interface PluginHostLaunch {
  */
 export interface PluginHostProcess {
 	readonly kill: () => void;
-	readonly openVendorUi: (request: Readonly<{ instanceId: string; windowHandleId: string }>) => void;
+	/** Exchanges a raw main id for the helper-authenticated opaque capability published to the renderer. */
+	readonly openVendorUi: (request: Readonly<{ instanceId: string; windowHandleId: string }>) => string;
 	readonly closeVendorUi: (windowHandleId: string) => void;
 }
 
@@ -158,11 +162,6 @@ const WITHHOLD_MESSAGES = Object.freeze({
 	'digest-quarantined': 'That plug-in binary is quarantined after repeated host faults.',
 });
 
-/** The isolation unit, spelled once so no caller can invent a looser one. */
-export function pluginHostIsolationKey(ownerId: string, binarySha256: string): string {
-	return `${ownerId}:${binarySha256}`;
-}
-
 export class PluginHostIsolationRegistry {
 	readonly #startHost: (launch: PluginHostLaunch) => Promise<PluginHostProcess>;
 	readonly #mintId: () => string;
@@ -224,7 +223,7 @@ export class PluginHostIsolationRegistry {
 			return refused('instance-conflict', 'That instance id already belongs to another owner or binary.');
 		}
 		const generation = owner.generation;
-		let host: HostEntry;
+		let host: HostEntry | null;
 		try {
 			host = await this.#ensureHost(pluginHostIsolationKey(owner.ownerId, digest), owner, generation, digest, format);
 		} catch (_error) {
@@ -232,6 +231,7 @@ export class PluginHostIsolationRegistry {
 			// resolved, and no renderer-facing refusal may carry a raw path.
 			return refused('host-start-failed', 'The plug-in host process could not be started.');
 		}
+		if (!host) return refused('host-capacity', 'Plug-in host process capacity is exhausted.');
 		// Re-checked after the await: a revocation, quarantine, owner loss or shutdown
 		// that landed while the process was starting must not be handed a live host.
 		const stale = this.#staleAfterStart(host, digest, owner, generation);
@@ -355,14 +355,14 @@ export class PluginHostIsolationRegistry {
 		// is already open, or a renderer could mint native windows without end.
 		const already = this.#windowFor(entry.instanceId);
 		if (already) return Object.freeze({ status: 'opened' as const, window: already });
-		const opened: PluginVendorUiWindow = Object.freeze({
-			windowHandleId: this.#mintId(), instanceId: entry.instanceId, hostId: host.hostId,
-			ownerGeneration: entry.ownerGeneration, surface: PLUGIN_VENDOR_UI_SURFACES[0],
-		});
+		let opened: PluginVendorUiWindow;
 		try {
 			// Two opaque ids and nothing else: the helper owns the window, and
 			// the registry hands it no bridge, no path and no handle to one.
-			process.openVendorUi(Object.freeze({ instanceId: entry.instanceId, windowHandleId: opened.windowHandleId }));
+			opened = openHelperOwnedVendorWindow({
+				process, rawWindowId: this.#mintId(), instanceId: entry.instanceId,
+				hostId: host.hostId, ownerGeneration: entry.ownerGeneration,
+			});
 		} catch (_error) {
 			// A window the helper never opened must not be published as open,
 			// and the helper's own message is not renderer-facing text.
@@ -432,7 +432,7 @@ export class PluginHostIsolationRegistry {
 	#ensureHost(
 		hostKey: string, owner: OwnerEntry, ownerGeneration: number,
 		binarySha256: string, format: HelperPluginFormat,
-	): Promise<HostEntry> {
+	): Promise<HostEntry | null> {
 		// Concurrent requests for one isolation unit share the one start, or
 		// the second request would spawn a second process for the same pair.
 		const pending = this.#starting.get(hostKey);
@@ -444,6 +444,7 @@ export class PluginHostIsolationRegistry {
 			hostId, hostKey, ownerId: owner.ownerId, ownerGeneration, binarySha256, format,
 			process: null, instanceIds: new Set<string>(), stopped: false,
 		};
+		if (!hasPluginHostProcessCapacity(this.#hosts.size)) return Promise.resolve(null);
 		// Registered before the first await, never after it. A revocation, an owner
 		// loss or a shutdown landing while the process starts has to find this host
 		// and stop it; a host that appears only once its process is up outlives the

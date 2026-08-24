@@ -27,9 +27,13 @@ test('the utility helper negotiates only probe and the four media operations', (
 
 test('the production utility entry attests the media host before creating its negotiated worker', async () => {
 	const source = await readFile(new URL('../desktop/native-media-helper-process.js', import.meta.url), 'utf8');
+	const reopen = source.indexOf('await reopenNativeMediaHelperDescriptor(config)');
 	const selfTest = source.indexOf('await runFramescaperMediaHostSelfTest(descriptor)');
 	const worker = source.indexOf('createNativeMediaHelperWorker({');
-	assert.ok(selfTest >= 0 && worker > selfTest);
+	assert.ok(reopen >= 0 && selfTest > reopen && worker > selfTest);
+	assert.match(source, /describeFramescaperMediaHostAvailability\(config\.location, ports\)/u);
+	assert.match(source, /createFramescaperMediaReviewPayloadPorts/u);
+	assert.doesNotMatch(source, /JSON\.parse[^;]+productionReadiness/su);
 	assert.doesNotMatch(source, /child_process|\bspawn\s*\(/u);
 });
 
@@ -98,6 +102,7 @@ function probeMessage() {
 		type: 'job',
 		jobId: JOB_ID,
 		kind: 'probe-video-source',
+		jobContractVersion: 1,
 		grant: { mediaPath: '/media/video.mov', mediaBytes: 12, identity: { dev: 1, ino: 2 } },
 		resourcePolicy: normalizeHelperResourcePolicy(undefined, 'probe-video-source'),
 	};

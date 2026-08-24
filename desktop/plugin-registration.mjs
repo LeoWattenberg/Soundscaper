@@ -7,18 +7,30 @@ import { readFileSync, statSync } from 'node:fs';
 import { createHash, randomBytes } from 'node:crypto';
 import { dirname, join } from 'node:path';
 
-import { dialog } from 'electron/main';
+import { dialog, MessageChannelMain } from 'electron/main';
 
 import { DesktopPluginConsent } from './project-library-runtime/desktop/plugin-consent.js';
 import { DesktopPluginQuarantine } from './project-library-runtime/desktop/plugin-quarantine.js';
+import { PluginHostIsolationRegistry } from './project-library-runtime/desktop/plugin-host-isolation.js';
+import { DesktopPluginHostService } from './project-library-runtime/desktop/plugin-host-service.js';
+import {
+	createNativePluginOfflineRunner,
+	openNativePersistentPluginSession,
+} from './project-library-runtime/desktop/native-plugin-helper-adapter.js';
 import {
 	DesktopPluginRegistry,
 	pluginObservationFromScanEntry,
 } from './project-library-runtime/desktop/plugin-registry.js';
 import { DesktopPluginScanService } from './project-library-runtime/desktop/plugin-scan-service.js';
+import { createDesktopNativeAddonHelperSupervisor } from './native-helper-registration.mjs';
+import { productionSoundscaperPluginFormatActivated } from './soundscaper-native-activation-policy.mjs';
+import { createPluginRegistryReviewStore } from './plugin-registry-review-store.mjs';
+import { authenticatePluginBinary } from './plugin-binary-authentication.mjs';
+import { registerPluginVendorWindowHost } from './plugin-vendor-window-authority.mjs';
 
 const CONSENT_FILE = 'native-plugin-consent-v1.json';
 const QUARANTINE_FILE = 'native-plugin-quarantine-v1.json';
+const REVIEW_FILE = 'native-plugin-review-v1.json';
 
 /**
  * The scan service names a fault in the vocabulary of a scan; the durable store
@@ -77,16 +89,15 @@ export function createScannerQuarantinePort(quarantine) {
 	});
 }
 
-/**
- * Feeds one described scan into the inventory. The scanner answers about
- * binaries and the registry holds identities; the translation between those two
- * vocabularies belongs to the registry and is imported rather than written a
- * second time here, where it could drift from the set the registry admits.
- */
-export function recordScannedPlugins(registry, result, { identityFor = fileIdentity } = {}) {
+export function recordScannedPlugins(registry, result, {
+	identityFor = pluginCandidateIdentity, onRecorded = () => undefined,
+} = {}) {
 	if (result.status !== 'scanned') return [];
 	return result.entries.map((entry) => {
 		const identity = identityFor(entry.binaryPath);
+		const bundleStableIds = result.entries.filter((candidate) => candidate.binaryPath === entry.binaryPath
+			&& candidate.binaryBytes === entry.binaryBytes && candidate.binarySha256 === entry.binarySha256)
+			.map((candidate) => candidate.stableId);
 		// A binary that has gone between the scan and this record is not an
 		// installation, and an entry the registry has no verdict for is the
 		// scanner's fault: both are refused by name, and neither costs the rest
@@ -95,12 +106,16 @@ export function recordScannedPlugins(registry, result, { identityFor = fileIdent
 			return Object.freeze({ status: 'rejected', reason: 'malformed', detail: 'That plug-in binary is no longer there.' });
 		}
 		try {
-			return registry.record(pluginObservationFromScanEntry(entry, {
+			const observation = pluginObservationFromScanEntry(entry, {
 				format: result.format,
 				platform: process.platform,
 				architecture: process.arch,
 				identity,
-			}));
+				bundleStableIds,
+			});
+			const admission = registry.record(observation);
+			if (admission.status === 'recorded') onRecorded(observation, admission);
+			return admission;
 		} catch (error) {
 			return Object.freeze({ status: 'rejected', reason: 'malformed', detail: describeError(error) });
 		}
@@ -113,11 +128,21 @@ export function recordScannedPlugins(registry, result, { identityFor = fileIdent
  * the renderer projection, which drops them by design — so the inventory is
  * filled here and the answer is handed back untouched.
  */
-export function observeScannedPlugins(supervisor, registry) {
+export function observeScannedPlugins(supervisor, registry, {
+	isFormatActivated = () => true, onRecorded = () => undefined,
+} = {}) {
 	return Object.freeze({
 		runJob: async (request) => {
+			if (request.kind === 'plugin-scan' && !isFormatActivated(request.grant?.format)) {
+				throw new Error('That plug-in format remains behind its production activation gate.');
+			}
 			const result = await supervisor.runJob(request);
-			if (request.kind === 'plugin-scan') recordScannedPlugins(registry, result);
+			if (request.kind === 'plugin-scan') {
+				if (!isFormatActivated(request.grant?.format)) {
+					throw new Error('That plug-in format activation changed while its scan was running.');
+				}
+				recordScannedPlugins(registry, result, { onRecorded });
+			}
 			return result;
 		},
 		snapshot: () => supervisor.snapshot(),
@@ -127,8 +152,23 @@ export function observeScannedPlugins(supervisor, registry) {
 }
 
 export function registerDesktopPluginDiscovery({
-	channels, handle, ownerFor, settings, supervisor, describePayload, userDataPath, parentWindow,
+	channels, handle, ownerFor, settings, supervisor: injectedSupervisor, describePayload: injectedDescribePayload,
+	userDataPath, parentWindow, desktopRoot, packaged, resourcesPath,
+	nativePluginStateAuthority = null,
+	isPluginHostFormatActivated = productionPluginFormatActivated,
+	createPluginHostHelper = null,
+	openPersistentPluginSession = openNativePersistentPluginSession,
 }) {
+	const helper = injectedSupervisor ? null : createDesktopNativeAddonHelperSupervisor({
+		desktopRoot,
+		packaged,
+		resourcesPath,
+		role: 'plugin-scanner',
+		serviceName: 'soundscaper-native-plugin-scanner',
+		payloadKind: 'professional',
+	});
+	const supervisor = injectedSupervisor ?? helper.supervisor;
+	const describePayload = injectedDescribePayload ?? helper.describePayload;
 	const durable = createDurableFileSystem();
 	const consentPath = join(userDataPath, CONSENT_FILE);
 	const quarantine = new DesktopPluginQuarantine({
@@ -154,13 +194,23 @@ export function registerDesktopPluginDiscovery({
 		return consentWrites;
 	};
 	const registry = new DesktopPluginRegistry({ isQuarantined: (digest) => quarantine.isQuarantined(digest) });
+	const reviews = createPluginRegistryReviewStore({
+		filePath: join(userDataPath, REVIEW_FILE), fileSystem: durable,
+		authenticateBinary: authenticatePluginBinary,
+	});
 	const scannerQuarantine = createScannerQuarantinePort(quarantine);
+	const formatIsActive = (format) => isPluginHostFormatActivated(format) === true;
 	const service = new DesktopPluginScanService({
-		supervisor: observeScannedPlugins(supervisor, registry),
-		consent,
+		supervisor: observeScannedPlugins(supervisor, registry, {
+			isFormatActivated: formatIsActive, onRecorded: reviews.observe,
+		}),
+		consent: Object.freeze({
+			isGranted: (format) => formatIsActive(format) && consent.isGranted(format),
+		}),
 		quarantine: scannerQuarantine,
 		roots: Object.freeze({
 			resolve: (rootId, format) => {
+				if (!formatIsActive(format)) return null;
 				try {
 					return scanRootLocation(consent.resolveRoot(format, rootId));
 				} catch {
@@ -173,19 +223,44 @@ export function registerDesktopPluginDiscovery({
 		isEnabled: () => settings.snapshot().nativePluginDiscoveryEnabled === true,
 		describePayload,
 	});
+	const hosting = nativePluginStateAuthority === null ? null : createDesktopPluginHostingRuntime({
+		registry,
+		quarantine,
+		settings,
+		stateBodies: nativePluginStateAuthority,
+		isFormatActivated: isPluginHostFormatActivated,
+		createHostHelper: createPluginHostHelper ?? ((launch) => createDesktopNativeAddonHelperSupervisor({
+			desktopRoot,
+			packaged,
+			resourcesPath,
+			role: 'plugin-host',
+			serviceName: `soundscaper-native-plugin-${launch.format}-${launch.binarySha256.slice(0, 12)}`,
+			payloadKind: 'professional',
+		})),
+		openPersistentPluginSession,
+	});
 
 	handle(channels.nativePluginAvailability, async () => Object.freeze({
 		...(await service.availability()),
-		consent: consent.describe(),
+		consent: activatedConsentProjection(consent.describe(), formatIsActive),
 		quarantine: quarantine.snapshot(),
 	}));
 	handle(channels.nativePluginConsent, async (event, value) => {
 		void ownerFor(event);
+		const format = String(value?.format || '');
+		if (!formatIsActive(format)) {
+			throw new Error('That plug-in format remains blocked by production policy and source activation.');
+		}
 		const outcome = await applyConsentAction(consent, {
 			action: String(value?.action || ''),
-			format: String(value?.format || ''),
+			format,
 			rootId: String(value?.rootId || ''),
 		});
+		if (!formatIsActive(format)) {
+			consent.revoke(format);
+			await persistConsent();
+			throw new Error('That plug-in format activation changed before consent completed.');
+		}
 		await persistConsent();
 		return outcome;
 	});
@@ -199,6 +274,8 @@ export function registerDesktopPluginDiscovery({
 		// in a log: a quarantine that did not persist is one the next start will
 		// not honour, and the scan would have looked clean either way.
 		await scannerQuarantine.settle();
+		reviews.apply(registry);
+		await reviews.capture(registry);
 		return outcome;
 	});
 	handle(channels.nativePluginInventory, () => registry.describe());
@@ -210,14 +287,216 @@ export function registerDesktopPluginDiscovery({
 		}
 		return Object.freeze({ cleared: await quarantine.clear(String(value?.digest || ''), clearance) });
 	});
+	handle(channels.nativePluginReviewInstallation, async (event, value) => {
+		void ownerFor(event);
+		const format = pluginInstallationFormat(registry, value?.installationId);
+		if (!formatIsActive(format)) {
+			throw new Error('That plug-in format remains blocked by production policy and source activation.');
+		}
+		if (value?.action === 'allow') registry.allow(value.installationId);
+		else if (value?.action === 'select') registry.select(value.installationId);
+		else throw new Error('A plug-in installation may only be allowed or selected explicitly.');
+		await reviews.capture(registry);
+		return registry.describe();
+	});
+	handle(channels.nativePluginInstantiate, async (event, value) => {
+		await rebindPluginInstallation(reviews, registry, value?.installationId);
+		const runtime = requireHosting(hosting);
+		const owner = ownerFor(event);
+		const instance = await runtime.service.instantiate(owner, value);
+		try {
+			await runtime.openRealtime(owner, instance.instanceId, event.sender, value?.sampleRate);
+			return instance;
+		} catch (error) {
+			runtime.service.close(owner, instance.instanceId);
+			throw error;
+		}
+	});
+	handle(channels.nativePluginRunOffline, (event, value) =>
+		requireHosting(hosting).service.runOffline(ownerFor(event), value?.instanceId));
+	handle(channels.nativePluginSetBypassed, (event, value) =>
+		requireHosting(hosting).service.setBypassed(ownerFor(event), value));
+	handle(channels.nativePluginPersistState, (event, value) =>
+		requireHosting(hosting).persistState(ownerFor(event), value));
+	handle(channels.nativePluginRestoreState, (event, value) =>
+		requireHosting(hosting).restoreState(ownerFor(event), value));
+	handle(channels.nativePluginOpenVendorUi, (event, value) =>
+		requireHosting(hosting).service.openVendorUi(ownerFor(event), value?.instanceId));
+	handle(channels.nativePluginCloseVendorUi, (event, value) =>
+		requireHosting(hosting).service.closeVendorUi(ownerFor(event), value));
+	handle(channels.nativePluginCloseInstance, async (event, value) => {
+		const runtime = requireHosting(hosting);
+		const owner = ownerFor(event);
+		await runtime.closeRealtime(value?.instanceId);
+		return runtime.service.close(owner, value?.instanceId);
+	});
 	return Object.freeze({
 		service,
+		hostService: hosting?.service ?? null,
+		hostIsolation: hosting?.isolation ?? null,
+		supervisorPort: supervisor,
 		registry,
 		quarantine,
-		ready: () => quarantine.load(),
-		revokeOwner: (owner) => service.revokeOwner(owner),
-		dispose: () => service.dispose(),
+		ready: async () => {
+			await quarantine.load();
+			return Object.freeze([]);
+		},
+		setEnabled: async (enabled) => {
+			const result = await settings.setNativePluginDiscoveryEnabled(enabled === true);
+			if (!result) {
+				await hosting?.closeAll();
+				hosting?.service.closeAll();
+			}
+			return result;
+		},
+		revokeOwner: (owner) => {
+			service.revokeOwner(owner);
+			void hosting?.revokeOwner(owner);
+			hosting?.service.revokeOwner(owner);
+		},
+		dispose: () => {
+			void hosting?.closeAll();
+			hosting?.service.dispose();
+			service.dispose();
+		},
 	});
+}
+
+/** Every format, including the test-only fixture, stays closed until an exact reviewed activation is injected. */
+export function productionPluginFormatActivated() {
+	return productionSoundscaperPluginFormatActivated(...arguments);
+}
+
+function pluginInstallationFormat(registry, installationId) {
+	for (const entry of registry.describe().entries) {
+		if (entry.installations.some((installation) => installation.installationId === installationId)) return entry.format;
+	}
+	throw new Error('That plug-in installation is not registered.');
+}
+
+function activatedConsentProjection(projection, isActive) {
+	return Object.freeze({
+		...projection,
+		scanningEnabled: projection.formats.some((entry) => isActive(entry.format)
+			&& entry.granted && entry.roots.some((root) => root.admitted)),
+		formats: Object.freeze(projection.formats.map((entry) => isActive(entry.format)
+			? entry
+			: Object.freeze({ ...entry, supported: false, granted: false, roots: Object.freeze([]) }))),
+	});
+}
+
+/** One supervised helper role per renderer owner and binary digest. */
+export function createDesktopPluginHostingRuntime({
+	registry, quarantine, settings, stateBodies, isFormatActivated, createHostHelper,
+	openPersistentPluginSession = openNativePersistentPluginSession,
+}) {
+	const hosts = new Map();
+	const realtime = new Map();
+	let isolation;
+	const offline = createNativePluginOfflineRunner(({ instanceId }) => {
+		const hostId = isolation.describeInstance(instanceId)?.hostId;
+		const host = hostId === null || hostId === undefined ? null : hosts.get(hostId);
+		if (!host) throw new Error('The isolated plug-in host is unavailable.');
+		return host.supervisor;
+	});
+	isolation = new PluginHostIsolationRegistry({
+		mintId: () => randomBytes(20).toString('hex'),
+		isEnabled: () => settings.snapshot().nativePluginDiscoveryEnabled === true,
+		isDigestQuarantined: (digest) => quarantine.isQuarantined(digest),
+		startHost: async (launch) => {
+			if (isFormatActivated(launch.format) !== true) {
+				throw new Error('That plug-in format remains behind its production activation gate.');
+			}
+			const helper = createHostHelper(launch);
+			const availability = await helper.describePayload();
+			if (isFormatActivated(launch.format) !== true) {
+				throw new Error('That plug-in format activation changed while its payload was verified.');
+			}
+			if (availability.status !== 'available') {
+				throw new Error('The authenticated native plug-in host payload is unavailable.');
+			}
+			return registerPluginVendorWindowHost({ launch, helper, hosts, realtime });
+		},
+	});
+	const service = new DesktopPluginHostService({
+		registry,
+		isolation,
+		stateBodies,
+		offline,
+		isFormatActivated,
+		onLatencyChanged: () => undefined,
+	});
+	const closeRealtime = async (instanceId) => {
+		const entry = realtime.get(instanceId);
+		if (!entry) return;
+		realtime.delete(instanceId);
+		await entry.session.close();
+	};
+	const openRealtime = async (owner, instanceId, destination, sampleRate) => {
+		if (!Number.isSafeInteger(sampleRate) || sampleRate < 8_000 || sampleRate > 768_000) {
+			throw new RangeError('A native plug-in real-time host requires the AudioContext sample rate.');
+		}
+		const hosted = isolation.describeInstance(instanceId);
+		const host = hosted?.hostId ? hosts.get(hosted.hostId) : null;
+		if (!host) throw new Error('The isolated plug-in host is unavailable.');
+		const descriptor = service.realtimeGrant(owner, instanceId);
+		const session = await openPersistentPluginSession({
+			supervisor: host.supervisor,
+			grant: descriptor.grant,
+			createChannel: () => new MessageChannelMain(),
+			sampleRate,
+			maximumFrames: 128,
+		});
+		if (isFormatActivated(descriptor.format) !== true) {
+			await session.close();
+			throw new Error('That plug-in format activation changed while its real-time processor opened.');
+		}
+		const entry = { owner, session };
+		realtime.set(instanceId, entry);
+		void session.closed.then((result) => {
+			if (realtime.get(instanceId) !== entry) return;
+			realtime.delete(instanceId);
+			try { service.reportInstanceHostStopped(owner, instanceId, stopReason(result)); }
+			catch { /* owner or policy was revoked concurrently */ }
+		});
+		session.transferTo(destination, { instanceId });
+	};
+	const persistState = (owner, value) => {
+		const instanceId = value?.instanceId;
+		const entry = realtime.get(instanceId);
+		if (!entry || entry.owner !== owner) throw new Error('The live native plug-in state RPC is unavailable.');
+		const bytes = entry.session.authenticateState(value);
+		return service.persistState(owner, { instanceId, generation: value?.generation, bytes });
+	};
+	const restoreState = (owner, value) => {
+		const entry = realtime.get(value?.instanceId);
+		if (!entry || entry.owner !== owner) throw new Error('The live native plug-in state RPC is unavailable.');
+		return service.restoreStateForRuntime(owner, value);
+	};
+	const closeAll = () => Promise.all([...realtime.keys()].map(closeRealtime));
+	const revokeOwner = (owner) => Promise.all([...realtime]
+		.filter(([, entry]) => entry.owner === owner).map(([instanceId]) => closeRealtime(instanceId)));
+	return Object.freeze({
+		isolation, service, openRealtime, closeRealtime, closeAll, revokeOwner, persistState, restoreState,
+	});
+}
+
+function stopReason(value) {
+	const reason = value?.reason;
+	if (['user-cancelled', 'device-loss', 'editor-shutdown'].includes(reason)) return reason;
+	if (['crash', 'hang', 'malformed-answer', 'resource-violation', 'oversize-state', 'identity-changed'].includes(reason)) return reason;
+	return reason === 'oversized-answer' ? 'oversize-state' : 'crash';
+}
+
+function requireHosting(hosting) {
+	if (!hosting) throw new Error('Native plug-in hosting is unavailable outside Soundscaper V11.');
+	return hosting;
+}
+
+async function rebindPluginInstallation(reviews, registry, installationId) {
+	if (await reviews.rebind(registry, installationId)) return;
+	try { registry.hostDescriptorFor(installationId); }
+	catch { throw new Error('That persisted plug-in installation could not be re-authenticated.'); }
 }
 
 /**
@@ -292,6 +571,10 @@ function fileIdentity(path, admits = (entry) => entry.isFile()) {
 	const ino = Number(entry.ino);
 	if (!Number.isSafeInteger(dev) || !Number.isSafeInteger(ino) || dev < 0 || ino < 0) return null;
 	return Object.freeze({ dev, ino });
+}
+
+function pluginCandidateIdentity(path) {
+	return fileIdentity(path, (entry) => entry.isFile() || entry.isDirectory());
 }
 
 function describeError(error) {

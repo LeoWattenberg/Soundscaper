@@ -67,8 +67,9 @@ export function applyEdgeCompensation(
 	nodes: AudioNodeArray,
 	input: AudioNode,
 	frames: number,
+	register?: (param: AudioParam) => void,
 ): AudioNode {
-	if (frames <= 0) return input;
+	if (frames <= 0 && !register) return input;
 	if (!Number.isSafeInteger(frames)) throw new RangeError('V21 PDC compensation must be an integer frame count.');
 	if (typeof context.createDelay !== 'function') {
 		throw new Error('This browser cannot apply V21 per-path delay compensation.');
@@ -79,6 +80,7 @@ export function applyEdgeCompensation(
 	}
 	const delay = addNode(nodes, context.createDelay(Math.max(1, seconds)));
 	setParam(delay.delayTime, seconds, context.currentTime);
+	register?.(delay.delayTime);
 	connect(input, delay);
 	return delay;
 }
@@ -150,4 +152,3 @@ export function endpointKey(endpoint: Exclude<MixerEdgeV21['destination'], { kin
 	| MixerEdgeV21['source']): string {
 	return endpoint.kind === 'master' ? 'master' : `${endpoint.kind}:${endpoint.id}`;
 }
-

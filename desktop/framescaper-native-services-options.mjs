@@ -64,7 +64,7 @@ export function imageSequenceImportAuthorityPort(value) {
 		const descriptor = Object.getOwnPropertyDescriptor(value, field);
 		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) return false;
 	}
-	return (value.candidateGeneration === 25 || value.candidateGeneration === 26)
+	return [25, 26, 28].includes(value.candidateGeneration)
 		&& value.projectMutationSurface === 'image-sequence-import'
 		&& value.professionalCharacteristicsContract === 'video-source-characteristics-v25'
 		&& typeof value.isRouted === 'function';
@@ -72,7 +72,7 @@ export function imageSequenceImportAuthorityPort(value) {
 
 export function projectAuthorityPort(value) {
 	return value === null || (value && typeof value === 'object' && !Array.isArray(value)
-		&& ['projectState', 'projectRecord', 'readProjectBundle', 'readBody']
+		&& ['projectState', 'projectRecord', 'readProjectBundle', 'readBody', 'materializeBody']
 			.every((method) => typeof value[method] === 'function'));
 }
 
@@ -99,4 +99,79 @@ export function externalDisplayOptions(value) {
 		&& (value.linuxSessionType === undefined || typeof value.linuxSessionType === 'string')
 		&& ['isEnabled', 'listDisplays', 'createWindow', 'sinkSelfTestPassed', 'subscribe', 'onError']
 			.every((method) => typeof value[method] === 'function');
+}
+
+/** Main-only V14 replay/working-space admission shared by staging and enqueue. */
+export function createFramescaperNativeQueueStorageAuthority(options) {
+	if (!options || typeof options !== 'object' || Array.isArray(options)
+		|| typeof options.projectAuthority !== 'function'
+		|| typeof options.renderInputStaging !== 'object'
+		|| typeof options.renderInputStaging.scratchReservation !== 'function'
+		|| typeof options.renderInputStaging.outstandingLiveScratchByteLength !== 'function'
+		|| typeof options.queueCapacity !== 'function' || typeof options.runtime !== 'function'
+		|| typeof options.reserveBackend !== 'function') {
+		throw new TypeError('Selected V14 storage admission requires exact main-owned authorities.');
+	}
+	const reservation = (request, replayScratchByteLength) => {
+		const authority = options.projectAuthority();
+		if (authority === null) throw new Error('Selected V14 project storage authority is unavailable.');
+		const base = authority.queueReservations(request, replayScratchByteLength);
+		return options.reserveBackend({ ...request, reservations: base });
+	};
+	return Object.freeze({
+		admitStage: async (request, replayScratchByteLength, outstandingReplayBytes, availableBytes) => {
+			const reserved = reservation({ ...request, taskKind: 'encoded-export' }, replayScratchByteLength);
+			const workingBytes = reservationWorkingBytes(reserved, replayScratchByteLength);
+			assertStorageAvailable(availableBytes, safeStorageSum([
+				outstandingReplayBytes, replayScratchByteLength, workingBytes, reserved.minimumFreeBytes,
+			]));
+		},
+		reserveQueue: async (owner, request) => {
+			const replayScratchByteLength = request.derivedInputStageId === null ? 0
+				: options.renderInputStaging.scratchReservation(owner, request);
+			const reserved = reservation(request, replayScratchByteLength);
+			const workingBytes = reservationWorkingBytes(reserved, replayScratchByteLength);
+			const runtime = await options.runtime();
+			const [outstandingReplayBytes, capacity] = await Promise.all([
+				options.renderInputStaging.outstandingLiveScratchByteLength(),
+				options.queueCapacity({ queue: runtime.queue.list(), scratch: runtime.scratch.list() }),
+			]);
+			assertStorageAvailable(capacity.volumeFreeBytes, safeStorageSum([
+				outstandingReplayBytes, workingBytes, reserved.minimumFreeBytes,
+			]));
+			return reserved;
+		},
+	});
+}
+
+export function failClosedFramescaperMediaRevalidation(helperBuildMatches, rootGrantAuthorized) {
+	return Object.freeze({
+		projectRevisionMatches: false, planFingerprintMatches: true,
+		inputFingerprintsMatch: false, rootGrantAuthorized, rootGrantValid: false,
+		licensingCleared: false, helperBuildMatches, scratchIdentityMatches: false,
+	});
+}
+
+function reservationWorkingBytes(reservation, replayScratchByteLength) {
+	if (!Number.isSafeInteger(replayScratchByteLength) || replayScratchByteLength < 0
+		|| !Number.isSafeInteger(reservation?.scratchBytes)
+		|| reservation.scratchBytes < replayScratchByteLength
+		|| !Number.isSafeInteger(reservation.minimumFreeBytes) || reservation.minimumFreeBytes < 0) {
+		throw new RangeError('Selected V14 queue storage exceeds the safe integer domain.');
+	}
+	return reservation.scratchBytes - replayScratchByteLength;
+}
+function assertStorageAvailable(availableBytes, requiredBytes) {
+	if (!Number.isSafeInteger(availableBytes) || availableBytes < requiredBytes) {
+		throw new RangeError('The selected V14 queue cannot reserve its replay and working storage.');
+	}
+}
+function safeStorageSum(values) {
+	return values.reduce((sum, value) => {
+		const next = sum + value;
+		if (!Number.isSafeInteger(next) || next < 0) {
+			throw new RangeError('Selected V14 queue storage exceeds the safe integer domain.');
+		}
+		return next;
+	}, 0);
 }

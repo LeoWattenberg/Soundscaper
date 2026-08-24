@@ -14,16 +14,24 @@ namespace framescaper::media {
 struct admitted_media_plan final {
 	int version{};
 	std::string strategy;
+	std::string professional_profile_id;
 	std::string container;
 	std::string video_codec;
 	std::string video_encoder;
+	std::string audio_codec;
+	std::string audio_encoder;
 	std::string pixel_format;
+	std::string quality;
+	std::string audio_layout;
 	std::vector<std::string> source_sha256;
 	std::uint32_t width{};
 	std::uint32_t height{};
 	std::uint64_t output_frame_count{};
 	std::uint32_t frame_rate_num{};
 	std::uint32_t frame_rate_den{};
+	std::uint64_t sample_start{};
+	std::uint64_t sample_rate{};
+	std::uint64_t audio_sample_count{};
 	std::uint64_t source_in_frame{};
 	std::uint64_t source_frame_count{};
 	bool includes_audio{};

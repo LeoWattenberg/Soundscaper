@@ -63,6 +63,7 @@ async function grantFor(name) {
 		binaryBytes: digest.byteLength,
 		binarySha256: digest.sha256,
 		format: 'fixture',
+		stableId: `fixture:${name}`,
 		identity: { dev: 1, ino: 2 },
 	};
 }
@@ -70,14 +71,17 @@ async function grantFor(name) {
 /** A stand-in for the addon that records the instance lifecycle it is given. */
 function recordingAddon({ failAtBlock = null } = {}) {
 	const events = [];
+	const selections = [];
 	let live = 0;
 	let processed = 0;
 	return {
 		events,
 		live: () => live,
+		selections,
 		addon: {
-			openPluginInstance: () => {
+			openPluginInstance: (...args) => {
 				live += 1;
+				selections.push(args[4]);
 				events.push('open');
 				return { instance: live };
 			},
@@ -104,6 +108,7 @@ const RECORDED_GRANT = Object.freeze({
 	binaryBytes: 16,
 	binarySha256: 'a'.repeat(64),
 	format: 'fixture',
+	stableId: 'fixture:gain',
 	identity: Object.freeze({ dev: 1, ino: 2 }),
 });
 
@@ -122,6 +127,7 @@ test('a hosted instance is released on the path that succeeds', async () => {
 	await recordedRunner(recorder)({ grant: RECORDED_GRANT, onProgress: () => {} }).completion;
 	assert.equal(recorder.live(), 0, 'a probed plug-in must not stay resident in a long-lived helper');
 	assert.equal(recorder.events.at(-1), 'close', 'the instance is released after its state is read');
+	assert.deepEqual(recorder.selections, ['fixture:gain']);
 });
 
 test('a hosted instance is released when the plug-in fails mid-probe', async () => {
@@ -217,6 +223,7 @@ test('a plug-in whose latency never settles is reported as unstable', { skip: !b
 test('the worker routes a host job to the host runner and never to the device runner', { skip: !built }, async () => {
 	const posted = [];
 	const worker = createNativeHelperWorker({
+		role: 'plugin-host',
 		post: (message) => posted.push(message),
 		runDeviceJob: () => { throw new Error('a host job must never reach the device runner'); },
 		runScanJob: () => { throw new Error('a host job must never reach the scan runner'); },
@@ -229,6 +236,7 @@ test('the worker routes a host job to the host runner and never to the device ru
 		type: 'job',
 		jobId: 'c'.repeat(40),
 		kind: 'plugin-host',
+		jobContractVersion: 1,
 		grant: await grantFor('clean-effect'),
 		resourcePolicy: { maximumInputBytes: 1_048_576, maximumJobDurationMs: 60_000, maximumRssBytes: 1_024 ** 3 },
 	});

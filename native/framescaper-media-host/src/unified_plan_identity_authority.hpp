@@ -26,6 +26,7 @@ enum class graph_identity_kind {
 	visual_model,
 	generator_source,
 	professional_media_node,
+	finishing_node,
 	openfx_node,
 	openfx_instance,
 };

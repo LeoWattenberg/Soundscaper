@@ -2,6 +2,7 @@
 	"schemaVersion": 1,
 	"sourceVersion": "9.0.1",
 	"sourceDateEpoch": 1786492800,
+	"externalSourceManifest": "build/ffmpeg-9.0.1-external-sources.json",
 	"environment": {
 		"TZ": "UTC",
 		"LC_ALL": "C",
@@ -25,20 +26,24 @@
 		"--enable-swresample",
 		"--enable-swscale",
 		"--enable-decoder=prores",
+		"--enable-decoder=pcm_f32le",
 		"--enable-encoder=prores_ks",
+		"--enable-encoder=pcm_s16le",
 		"--enable-demuxer=mov",
+		"--enable-demuxer=wav",
 		"--enable-muxer=mov",
-		"--enable-protocol=file"
+		"--enable-protocol=file",
+		"--enable-protocol=pipe"
 	],
 	"policy": {
 		"rawFfmpegArguments": false,
 		"network": false,
 		"externalLibraries": [],
-		"enabledDecoders": ["prores"],
-		"enabledEncoders": ["prores_ks"],
-		"enabledDemuxers": ["mov"],
+		"enabledDecoders": ["prores", "pcm_f32le"],
+		"enabledEncoders": ["prores_ks", "pcm_s16le"],
+		"enabledDemuxers": ["mov", "wav"],
 		"enabledMuxers": ["mov"],
-		"enabledProtocols": ["file"],
+		"enabledProtocols": ["file", "pipe"],
 		"blockedComponents": [
 			"av1",
 			"exr",

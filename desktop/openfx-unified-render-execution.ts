@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 /**
- * Main-owned V12-to-OpenFX execution seam.
+ * Main-owned legacy-V12/selected-V14-to-OpenFX execution seam.
  *
  * The main-owned broker may enter this seam only after exact payload, policy,
  * consent, fingerprint, project, and isolation checks. The selected product
@@ -13,16 +13,15 @@ import {
 	type HelperDataPlaneBinding,
 	type HelperDataPlaneOutputReservation,
 	type HelperExecutableGrant,
-	type HelperOfxHostJobGrant,
 	type HelperOfxInputFrameGrant,
 	type HelperScratchGrant,
 	validateHelperJobGrant,
 } from './helper-contract.ts';
+import type { HelperOfxRenderHostJobGrantV1OrV2 } from './helper-native-ofx-host-grant-v2.ts';
 import {
 	admitHelperDataPlaneTransfers,
 	type HelperDataPlaneTransfer,
 } from './helper-data-plane-transfer.ts';
-import type { HelperJobRequest } from './helper-supervisor.ts';
 import {
 	type OfxCpuAttempt,
 	type OfxIsolatedHostManager,
@@ -36,6 +35,7 @@ import {
 	createOfxHostInvocationV1,
 	type OfxRenderBackendV1,
 } from '../src/common/editor/native-ofx-host-contract.ts';
+import { createOfxHostInvocationV2 } from '../src/common/editor/native-ofx-host-contract-v2.ts';
 import type { OfxRetimerSourceTimeV1 } from '../src/common/editor/native-ofx-retimer-source-time.ts';
 import {
 	resolveOfxEffectStateV26,
@@ -48,7 +48,10 @@ import {
 	assertUnifiedExactRenderPlanWithDeferredTimingReferences,
 	type UnifiedExactRenderOpenFxNode,
 	type UnifiedExactRenderPlanV12,
+	type UnifiedExactRenderPlanV14,
 } from '../src/common/editor/unified-exact-render-plan.ts';
+
+type OfxUnifiedExactPlan = UnifiedExactRenderPlanV12 | UnifiedExactRenderPlanV14;
 
 export const OFX_CANDIDATE_EXECUTION_POLICIES = Object.freeze([
 	'production-unattested',
@@ -99,7 +102,7 @@ export interface OfxUnifiedHostAttemptResourcesV1 {
 }
 
 export interface OfxUnifiedNodeExecutionRequestV1 {
-	readonly plan: UnifiedExactRenderPlanV12;
+	readonly plan: OfxUnifiedExactPlan;
 	readonly instanceId: string;
 	readonly runtime: OfxEffectRuntimeV26;
 	readonly requestedBackend: OfxRenderBackendV1;
@@ -135,15 +138,15 @@ export type OfxUnifiedNodeExecutionResultV1 = Readonly<
 	}
 >;
 
-/** Build one helper attempt from a canonical V12 node and exact MessagePorts. */
+/** Build one helper attempt from a canonical V12/V14 node and exact MessagePorts. */
 export function createUnifiedExactOfxHostAttemptV1(
-	plan: UnifiedExactRenderPlanV12,
+	plan: OfxUnifiedExactPlan,
 	instanceId: string,
 	requestedBackend: OfxRenderBackendV1,
 	resources: OfxUnifiedHostAttemptResourcesV1,
 	signal?: AbortSignal,
 ): OfxCpuAttempt {
-	assertV12PlanReferences(plan);
+	assertOpenFxPlanReferences(plan);
 	const effect = effectNode(plan, instanceId);
 	if (!effect.state.enabled) throw new Error('A bypassed OpenFX V12 node cannot create a host attempt.');
 	const planFingerprint = fingerprintNativeMediaPlan(plan);
@@ -174,9 +177,8 @@ export function createUnifiedExactOfxHostAttemptV1(
 		throw new Error('The OpenFX evaluated frame geometry does not match the exact V12 canvas.');
 	}
 	const inputs = bindInputs(effect.state, resources.inputs);
-	const invocation = createOfxHostInvocationV1({
+	const invocationInput = {
 		invocationId: resources.invocationId,
-		unifiedPlanVersion: 12,
 		unifiedPlanSha256: planFingerprint.sha256,
 		nodeId: effect.nodeId,
 		instanceId: effect.state.instanceId,
@@ -191,7 +193,10 @@ export function createUnifiedExactOfxHostAttemptV1(
 		requestedBackend,
 		abortSignalId: resources.abortSignalId,
 		retimerSourceTime: resources.retimerSourceTime,
-	});
+	};
+	const invocation = plan.version === 14
+		? createOfxHostInvocationV2(invocationInput)
+		: createOfxHostInvocationV1({ ...invocationInput, unifiedPlanVersion: 12 });
 	const grant = validateHelperJobGrant('ofx-host', {
 		executable: resources.executable,
 		pluginBinary: resources.pluginBinary,
@@ -209,7 +214,7 @@ export function createUnifiedExactOfxHostAttemptV1(
 			frame: resources.output.binding,
 		},
 		scratch: resources.scratch,
-	}) as HelperOfxHostJobGrant;
+	}) as HelperOfxRenderHostJobGrantV1OrV2;
 	const transfers = Object.freeze([
 		transfer(resources.plan),
 		...videoTimingAssets.map(transfer),
@@ -217,7 +222,7 @@ export function createUnifiedExactOfxHostAttemptV1(
 		transfer(resources.output),
 	]);
 	admitHelperDataPlaneTransfers('ofx-host', grant, transfers);
-	const request: HelperJobRequest<'ofx-host'> = Object.freeze({
+	const request: OfxCpuAttempt['request'] = Object.freeze({
 		kind: 'ofx-host' as const,
 		grant,
 		dataPlaneTransfers: transfers,
@@ -231,7 +236,7 @@ export async function executeUnifiedExactOfxNodeV1(
 	manager: OfxIsolatedHostManager,
 	request: OfxUnifiedNodeExecutionRequestV1,
 ): Promise<OfxUnifiedNodeExecutionResultV1> {
-	assertV12PlanReferences(request.plan);
+	assertOpenFxPlanReferences(request.plan);
 	const effect = effectNode(request.plan, request.instanceId);
 	const initial = resolveOfxEffectStateV26(effect.state, request.runtime);
 	if (initial.mode !== 'render') {
@@ -293,13 +298,15 @@ export async function executeUnifiedExactOfxNodeV1(
 	}
 }
 
-function assertV12PlanReferences(value: unknown): asserts value is UnifiedExactRenderPlanV12 {
+function assertOpenFxPlanReferences(value: unknown): asserts value is OfxUnifiedExactPlan {
 	assertUnifiedExactRenderPlanWithDeferredTimingReferences(value);
-	if (value.version !== 12) throw new RangeError('OpenFX execution requires exact render plan V12.');
+	if (value.version !== 12 && value.version !== 14) {
+		throw new RangeError('OpenFX execution admits only legacy plan V12 or selected plan V14.');
+	}
 }
 
 function effectNode(
-	plan: UnifiedExactRenderPlanV12,
+	plan: OfxUnifiedExactPlan,
 	instanceId: string,
 ): UnifiedExactRenderOpenFxNode {
 	const node = plan.nodes.find((candidate): candidate is UnifiedExactRenderOpenFxNode => (

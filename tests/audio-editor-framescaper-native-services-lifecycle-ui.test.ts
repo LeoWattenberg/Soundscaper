@@ -29,6 +29,7 @@ test('renderer lifecycle actions call only exact bridge methods and refresh auth
 	const store = createFramescaperNativeServicesStore(fixture.bridge);
 	await store.refresh();
 	await store.selectRoot();
+	await store.reauthorizeQueueRoot({ jobId: JOB_ID });
 	await store.revalidateRoot({ grantId: ROOT_ID });
 	await store.createWatch({
 		grantId: ROOT_ID,
@@ -47,6 +48,7 @@ test('renderer lifecycle actions call only exact bridge methods and refresh auth
 
 	assert.deepEqual(fixture.calls.filter((call) => call[0] !== 'snapshot'), [
 		['selectRoot'],
+		['reauthorizeQueueRoot', JOB_ID],
 		['revalidateRoot', ROOT_ID],
 		['createWatch', ROOT_ID, 'project-1', null, 'wav,mov', 'link', false],
 		['setWatchEnabled', RULE_ID, false],
@@ -56,7 +58,7 @@ test('renderer lifecycle actions call only exact bridge methods and refresh auth
 		['settleScratch', JOB_ID],
 		['revokeRoot', ROOT_ID],
 	]);
-	assert.equal(fixture.calls.filter((call) => call[0] === 'snapshot').length, 10);
+	assert.equal(fixture.calls.filter((call) => call[0] === 'snapshot').length, 11);
 });
 
 test('renderer lifecycle requests reject stale/path-like or unsupported input before preload', async () => {
@@ -173,6 +175,10 @@ function lifecycleBridge(): Readonly<{
 			calls.push(['selectRoot']);
 			return Promise.resolve({ grantId: ROOT_ID, displayName: 'Exports', revoked: false });
 		},
+		reauthorizeQueueRoot: ({ jobId }) => {
+			calls.push(['reauthorizeQueueRoot', jobId]);
+			return Promise.resolve({ jobId });
+		},
 		revalidateRoot: ({ grantId }) => {
 			calls.push(['revalidateRoot', grantId]);
 			return Promise.resolve(true);
@@ -228,6 +234,7 @@ function watchRule() {
 		ruleId: RULE_ID,
 		grantId: ROOT_ID,
 		projectId: 'project-1',
+		binId: null,
 		extensions: ['wav'],
 		importMode: 'link' as const,
 		generateProxies: false,

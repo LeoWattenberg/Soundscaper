@@ -129,6 +129,7 @@ export interface OfxHostInvocationV1 {
 export type OfxInteractEventV1 = Readonly<
 	| {
 		readonly kind: 'pointer';
+		readonly phase: 'motion' | 'down' | 'up';
 		readonly sequence: number;
 		readonly x: number;
 		readonly y: number;
@@ -137,10 +138,10 @@ export type OfxInteractEventV1 = Readonly<
 	}
 	| {
 		readonly kind: 'keyboard';
+		readonly phase: 'down' | 'up';
 		readonly sequence: number;
 		readonly key: string;
 		readonly code: string;
-		readonly pressed: boolean;
 		readonly modifiers: readonly ('alt' | 'control' | 'meta' | 'shift')[];
 	}
 	| {
@@ -308,28 +309,31 @@ export function resolveOfxRenderBackendV1(value: unknown): OfxRenderBackendResol
 export function normalizeOfxInteractEventV1(value: unknown): OfxInteractEventV1 {
 	const event = record(value, 'offscreen OFX Interact event');
 	if (event.kind === 'pointer') {
-		exactKeys(event, ['kind', 'sequence', 'x', 'y', 'button', 'modifiers'], 'offscreen OFX Interact pointer event');
+		exactKeys(event, ['kind', 'phase', 'sequence', 'x', 'y', 'button', 'modifiers'], 'offscreen OFX Interact pointer event');
+		if (event.phase !== 'motion' && event.phase !== 'down' && event.phase !== 'up') {
+			throw new OfxHostContractError('An OFX pointer event phase is unsupported.');
+		}
 		const x = normalizedCoordinate(event.x, 'x');
 		const y = normalizedCoordinate(event.y, 'y');
 		const button = nonNegativeInteger(event.button, 'pointer button');
 		if (button > 7) throw new OfxHostContractError('An OFX pointer button is unsupported.');
 		return Object.freeze({
-			kind: 'pointer', sequence: sequence(event.sequence), x, y, button,
+			kind: 'pointer', phase: event.phase, sequence: sequence(event.sequence), x, y, button,
 			modifiers: modifiers(event.modifiers),
 		});
 	}
 	if (event.kind === 'keyboard') {
-		exactKeys(event, ['kind', 'sequence', 'key', 'code', 'pressed', 'modifiers'], 'offscreen OFX Interact keyboard event');
+		exactKeys(event, ['kind', 'phase', 'sequence', 'key', 'code', 'modifiers'], 'offscreen OFX Interact keyboard event');
+		if (event.phase !== 'down' && event.phase !== 'up') {
+			throw new OfxHostContractError('An OFX keyboard event phase is unsupported.');
+		}
 		if (typeof event.key !== 'string' || event.key.length > 64
 			|| typeof event.code !== 'string' || event.code.length > 64) {
 			throw new OfxHostContractError('An OFX keyboard event must carry bounded key identities.');
 		}
-		if (typeof event.pressed !== 'boolean') {
-			throw new OfxHostContractError('An OFX keyboard event must state whether its key is pressed.');
-		}
 		return Object.freeze({
-			kind: 'keyboard', sequence: sequence(event.sequence), key: event.key,
-			code: event.code, pressed: event.pressed, modifiers: modifiers(event.modifiers),
+			kind: 'keyboard', phase: event.phase, sequence: sequence(event.sequence), key: event.key,
+			code: event.code, modifiers: modifiers(event.modifiers),
 		});
 	}
 	if (event.kind === 'focus') {

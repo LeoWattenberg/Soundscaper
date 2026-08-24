@@ -3,7 +3,6 @@
 /** Main-owned authenticated composition of OpenFX scanner and per-fingerprint runtime processes. */
 
 import { randomBytes } from 'node:crypto';
-import { isAbsolute } from 'node:path';
 
 import {
 	createFramescaperOpenFxHostVerifier,
@@ -14,11 +13,10 @@ import {
 	type FramescaperOpenFxHostPayloadLocation,
 	type FramescaperOpenFxHostPayloadPorts,
 } from './framescaper-openfx-host-payload.ts';
-import type {
-	HelperChannel,
-	HelperJobRequest,
-} from './helper-supervisor.ts';
+import type { HelperJobRequest } from './helper-supervisor.ts';
 import { HelperSupervisor } from './helper-supervisor.ts';
+import { createIsolatedOpenFxNativeChildAuthority } from './openfx-isolated-native-child.ts';
+import { createOpenFxMainHelperChannel } from './openfx-main-helper-channel.ts';
 import {
 	OfxIsolatedHostManager,
 	type OfxIsolatedWorkerPort,
@@ -26,37 +24,11 @@ import {
 
 export type FramescaperOpenFxHelperMode = 'scanner' | 'runtime';
 
-const FRAMESCAPER_OPENFX_RUNTIME_IDENTITIES = Object.freeze({
-	'linux-x64': 'linux-x64',
-	'linux-arm64': 'linux-arm64',
-	'mac-arm64': 'darwin-arm64',
-	'win-x64': 'win32-x64',
-	'win-arm64': 'win32-arm64',
-} as const);
-const SHA256 = /^[a-f\d]{64}$/u;
-
 export interface FramescaperOpenFxRuntimeOptions {
 	readonly location: FramescaperOpenFxHostPayloadLocation;
 	readonly payloadPorts?: FramescaperOpenFxHostPayloadPorts;
 	readonly maximumRuntimeProcesses?: number;
-	readonly spawnHelper: (
-		descriptor: FramescaperOpenFxHostDescriptor,
-		mode: FramescaperOpenFxHelperMode,
-		pluginFingerprint: string | null,
-		processIdentity: string,
-	) => HelperChannel | Promise<HelperChannel>;
 	readonly mintJobId?: () => string;
-	readonly sampleRss?: (
-		mode: FramescaperOpenFxHelperMode,
-		pluginFingerprint: string | null,
-		processIdentity: string,
-	) => number | null;
-}
-
-export interface FramescaperOpenFxHelperProcessConfig {
-	readonly descriptor: FramescaperOpenFxHostDescriptor;
-	readonly mode: FramescaperOpenFxHelperMode;
-	readonly pluginFingerprint: string | null;
 }
 
 export interface FramescaperOpenFxRuntime {
@@ -79,6 +51,15 @@ export async function startFramescaperOpenFxRuntime(
 		return unavailableRuntime(availability, `${availability.reason}: ${availability.detail}`);
 	}
 	const selected = availability.descriptor;
+	const initialAuthority = createIsolatedOpenFxNativeChildAuthority(selected);
+	const initialReadiness = await initialAuthority.productionReady();
+	if (initialReadiness.status !== 'ready') {
+		return unavailableRuntime(Object.freeze({
+			status: 'unavailable' as const,
+			reason: 'isolation-launcher-unavailable' as const,
+			detail: initialReadiness.detail,
+		}), `isolation-launcher-unavailable: ${initialReadiness.detail}`);
+	}
 	const verify = createFramescaperOpenFxHostVerifier(options.location, options.payloadPorts);
 	let disposed = false;
 	let scannerSelfTestPassed = false;
@@ -88,19 +69,24 @@ export async function startFramescaperOpenFxRuntime(
 		pluginFingerprint: string | null,
 	): OfxIsolatedWorkerPort => {
 		let current = selected;
-		const processIdentity = randomBytes(20).toString('hex');
+		let authority = initialAuthority;
 		const expectedKind = mode === 'scanner' ? 'ofx-scan' : 'ofx-host';
 		const supervisor = new HelperSupervisor({
 			verifyBinary: async () => {
 				const next = await verify();
 				assertSameDescriptor(selected, next);
+				const nextAuthority = createIsolatedOpenFxNativeChildAuthority(next);
+				const readiness = await nextAuthority.productionReady();
+				if (readiness.status !== 'ready') {
+					throw new Error(`The OpenFX child-isolation launcher is unavailable: ${readiness.detail}`);
+				}
 				current = next;
+				authority = nextAuthority;
 			},
-			spawn: () => options.spawnHelper(current, mode, pluginFingerprint, processIdentity),
+			spawn: () => createOpenFxMainHelperChannel({
+				descriptor: current, mode, pluginFingerprint, invokeHost: authority.invoke,
+			}),
 			mintJobId: options.mintJobId ?? (() => randomBytes(20).toString('hex')),
-			...(options.sampleRss
-				? { sampleRss: () => options.sampleRss!(mode, pluginFingerprint, processIdentity) }
-				: {}),
 		});
 		return Object.freeze({
 			runJob: async <Kind extends 'ofx-scan' | 'ofx-host'>(
@@ -151,48 +137,6 @@ export async function startFramescaperOpenFxRuntime(
 	});
 }
 
-export function validateFramescaperOpenFxHelperProcessConfig(
-	value: unknown,
-): FramescaperOpenFxHelperProcessConfig {
-	const record = closedRecord(value, ['descriptor', 'mode', 'pluginFingerprint']);
-	const mode = record.mode;
-	if (mode !== 'scanner' && mode !== 'runtime') {
-		throw new TypeError('An OpenFX helper process mode is unsupported.');
-	}
-	const pluginFingerprint = record.pluginFingerprint;
-	if ((mode === 'scanner' && pluginFingerprint !== null)
-		|| (mode === 'runtime' && !validFingerprint(pluginFingerprint))) {
-		throw new TypeError('An OpenFX helper process has an invalid fingerprint boundary.');
-	}
-	const admittedPluginFingerprint = mode === 'scanner' ? null : pluginFingerprint as string;
-	const descriptorRecord = closedRecord(record.descriptor, [
-		'target', 'runtime', 'hostVersion', 'openfxVersion', 'openfxCommit', 'scanner', 'runtimeHost',
-	]);
-	const targets = Object.keys(FRAMESCAPER_OPENFX_RUNTIME_IDENTITIES);
-	if (typeof descriptorRecord.target !== 'string' || !targets.includes(descriptorRecord.target)
-		|| descriptorRecord.runtime !== FRAMESCAPER_OPENFX_RUNTIME_IDENTITIES[
-			descriptorRecord.target as keyof typeof FRAMESCAPER_OPENFX_RUNTIME_IDENTITIES
-		]
-		|| typeof descriptorRecord.hostVersion !== 'string'
-		|| !/^\d+\.\d+\.\d+$/u.test(descriptorRecord.hostVersion)
-		|| descriptorRecord.openfxVersion !== '1.5.1' || descriptorRecord.openfxCommit !== 'ab77951') {
-		throw new TypeError('An OpenFX helper process descriptor identity is invalid.');
-	}
-	return Object.freeze({
-		mode,
-		pluginFingerprint: admittedPluginFingerprint,
-		descriptor: Object.freeze({
-			target: descriptorRecord.target as FramescaperOpenFxHostDescriptor['target'],
-			runtime: descriptorRecord.runtime as string,
-			hostVersion: descriptorRecord.hostVersion,
-			openfxVersion: '1.5.1' as const,
-			openfxCommit: 'ab77951' as const,
-			scanner: processExecutable(descriptorRecord.scanner),
-			runtimeHost: processExecutable(descriptorRecord.runtimeHost),
-		}),
-	});
-}
-
 function unavailableRuntime(
 	availability: FramescaperOpenFxHostAvailability,
 	reason: string,
@@ -237,9 +181,24 @@ function assertSameDescriptor(
 		|| expected.hostVersion !== actual.hostVersion || expected.openfxVersion !== actual.openfxVersion
 		|| expected.openfxCommit !== actual.openfxCommit
 		|| !sameExecutable(expected.scanner, actual.scanner)
-		|| !sameExecutable(expected.runtimeHost, actual.runtimeHost)) {
+		|| !sameExecutable(expected.runtimeHost, actual.runtimeHost)
+		|| !sameIsolation(expected.isolation, actual.isolation)
+		|| JSON.stringify(expected.productionReadiness) !== JSON.stringify(actual.productionReadiness)) {
 		throw new Error('The Framescaper OpenFX-host payload identity changed after authentication.');
 	}
+}
+
+function sameIsolation(
+	left: FramescaperOpenFxHostDescriptor['isolation'],
+	right: FramescaperOpenFxHostDescriptor['isolation'],
+): boolean {
+	return sameExecutable(left.launcher, right.launcher)
+		&& sameExecutable(left.sandboxProfile, right.sandboxProfile)
+		&& sameExecutable(left.brokerPolicy, right.brokerPolicy)
+		&& left.runtimeLibraries.length === right.runtimeLibraries.length
+		&& left.runtimeLibraries.every((library, index) => (
+			sameExecutable(library, right.runtimeLibraries[index]!)
+		));
 }
 
 function sameExecutable(
@@ -249,43 +208,4 @@ function sameExecutable(
 	return left.path === right.path && left.byteLength === right.byteLength
 		&& left.sha256 === right.sha256 && left.identity.dev === right.identity.dev
 		&& left.identity.ino === right.identity.ino;
-}
-
-function processExecutable(value: unknown): FramescaperOpenFxExecutableDescriptor {
-	const record = closedRecord(value, ['path', 'byteLength', 'sha256', 'identity']);
-	if (typeof record.path !== 'string' || !isAbsolute(record.path) || record.path.includes('\0')
-		|| !Number.isSafeInteger(record.byteLength) || Number(record.byteLength) <= 0
-		|| typeof record.sha256 !== 'string' || !SHA256.test(record.sha256)) {
-		throw new TypeError('An OpenFX helper executable identity is invalid.');
-	}
-	const identity = closedRecord(record.identity, ['dev', 'ino']);
-	if (!Number.isSafeInteger(identity.dev) || Number(identity.dev) < 0
-		|| !Number.isSafeInteger(identity.ino) || Number(identity.ino) < 0) {
-		throw new TypeError('An OpenFX helper executable file identity is invalid.');
-	}
-	return Object.freeze({
-		path: record.path,
-		byteLength: Number(record.byteLength),
-		sha256: record.sha256,
-		identity: Object.freeze({ dev: Number(identity.dev), ino: Number(identity.ino) }),
-	});
-}
-
-function closedRecord(value: unknown, keys: readonly string[]): Record<string, unknown> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)
-		|| Object.getPrototypeOf(value) !== Object.prototype) {
-		throw new TypeError('An OpenFX helper process config must use plain records.');
-	}
-	const record = value as Record<string, unknown>;
-	const actual = Object.keys(record).sort();
-	const expected = [...keys].sort();
-	if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
-		throw new TypeError('An OpenFX helper process config has an invalid closed shape.');
-	}
-	return record;
-}
-
-function validFingerprint(value: unknown): value is string {
-	return typeof value === 'string'
-		&& /^[A-Za-z0-9][A-Za-z0-9 ._:-]{0,127}@[a-f\d]{64}$/u.test(value);
 }

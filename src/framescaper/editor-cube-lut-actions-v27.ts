@@ -274,7 +274,9 @@ function defaultGrade(): VideoColorGradeV1 {
 
 function projectRecord(value: unknown): Readonly<Record<string, unknown>> {
 	const project = record(value, 'Selected V27 cube LUT project');
-	if (project.schemaVersion !== 27) throw new RangeError('Cube LUT import requires selected schema V27.');
+	if (project.schemaVersion !== 27 && project.schemaVersion !== 28) {
+		throw new RangeError('Cube LUT import requires selected schema V27 or V28.');
+	}
 	return project;
 }
 

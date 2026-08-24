@@ -57,6 +57,8 @@ void authenticated_frame_pack_binds_exact_cadence() {
 		auto plan = keyed_plan();
 		pack.require_output_cadence(plan);
 		assert(pack.frame_count() == 3);
+		assert(pack.frame(0).rgba.front() == 10);
+		assert(pack.frame(1).rgba.front() == 11);
 		assert(pack.frame(2).rgba.front() == 12);
 		plan.output_rate = ExactRational(24);
 		try { pack.require_output_cadence(plan); assert(false); }

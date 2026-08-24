@@ -30,6 +30,7 @@ import { registerAssistance } from './assistance-registration.mjs';
 import { disposeDesktopCaptureSecurity, registerDesktopCaptureSecurity, revokeDesktopCaptureOwner } from './framescaper-capture-registration.mjs';
 import { createFramescaperNativeServicesElectronPorts } from './framescaper-native-services-electron-ports.mjs';
 import { startFramescaperNativeServicesRegistration } from './framescaper-native-services-registration.mjs';
+import { FRAMESCAPER_SELECTED_V28_IMAGE_SEQUENCE_IMPORT_AUTHORITY } from './framescaper-selected-v28-route-authorities.mjs';
 import { framescaperWebVcrSmokeQualification } from './framescaper-web-vcr-smoke-plan.js';
 import { disposeDesktopNativeTier, registerDesktopNativeTier, revokeDesktopNativeTierOwner } from './native-tier-registration.mjs';
 import { registerHostAffordances } from './host-affordances.mjs';
@@ -57,8 +58,7 @@ import {
 	installDesktopApplicationMenu,
 	onWindowStateChanged,
 	registerFocusedWindowAccelerators,
-	runWindowAction,
-	upgradePendingCloseRequestForQuit,
+	runWindowAction, upgradePendingCloseRequestForQuit,
 } from './window-chrome.mjs';
 import {
 	acceptsFile,
@@ -87,7 +87,7 @@ let projectLibraryIpc = null;
 let linkedVideoLocators = null;
 let nativeTier = null;
 let nativeServices = null;
-let captureSecurity = null;
+let captureSecurity = null, assistance = null;
 let allowNextClose = false;
 let applicationIsQuitting = false;
 
@@ -123,6 +123,7 @@ const applicationShutdown = new DesktopApplicationShutdown({
 		{ name: 'project library', run: closeProjectLibraryHost },
 		{ name: 'linked-video locators', run: () => linkedVideoLocators?.dispose() },
 		{ name: 'native tier', run: () => disposeDesktopNativeTier(nativeTier) },
+		{ name: 'assistance', run: () => assistance?.dispose() },
 		{ name: 'read capabilities', run: () => readCapabilities.dispose() },
 		{ name: 'save sessions', run: () => saves.dispose() },
 	],
@@ -213,12 +214,10 @@ async function startApplication() {
 		productId: PRODUCT_ID, userDataPath: app.getPath('userData'), instanceId: randomUUID(),
 		processId: process.pid, settings,
 		projectAuthority: projectLibraryRuntime.nativeServicesAuthority(),
-		imageSequenceImportAuthority: null,
+		imageSequenceImportAuthority: PRODUCT_ID === 'framescaper' ? FRAMESCAPER_SELECTED_V28_IMAGE_SEQUENCE_IMPORT_AUTHORITY : null,
 		watchImportAuthority: PRODUCT_ID === 'framescaper' ? Object.freeze({ currentOwner: currentRendererSaveOwner, isOwnerCurrent: isRendererSaveOwnerCurrent, locator: linkedVideoLocators.watchImportAuthority() }) : null,
 		onFenced: (error) => { console.error('Framescaper native services were fenced:', cleanError(error)); void exitApplication(1); },
-		...createFramescaperNativeServicesElectronPorts(settings, (error) => (
-			console.error('Framescaper native service failed:', cleanError(error))
-		)),
+		...createFramescaperNativeServicesElectronPorts(settings, (error) => console.error('Framescaper native service failed:', cleanError(error))),
 	});
 	releaseChecker = new ReleaseChecker({ currentVersion: app.getVersion(), settings, tagPrefix: UPDATE_TAG_PREFIX });
 
@@ -372,7 +371,7 @@ async function registerIpcHandlers(desktopSession) {
 	});
 	nativeServices?.registerRendererBridge({ handle, ownerFor: rendererSaveOwnerFor, removeHandler: (channel) => ipcMain.removeHandler(channel), on: (channel, listener) => ipcMain.on(channel, listener), removeListener: (channel, listener) => ipcMain.removeListener(channel, listener) });
 	linkedVideoLocators.registerIpc({ dialog, handle, ownerFor: rendererSaveOwnerFor, windowFor: () => mainWindow });
-	nativeTier = registerDesktopNativeTier({ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, readCapabilities, settings, desktopRoot: __dirname, packaged: app.isPackaged, resourcesPath: process.resourcesPath, userDataPath: app.getPath('userData'), parentWindow: () => mainWindow });
+	nativeTier = registerDesktopNativeTier({ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, readCapabilities, settings, desktopRoot: __dirname, packaged: app.isPackaged, resourcesPath: process.resourcesPath, userDataPath: app.getPath('userData'), parentWindow: () => mainWindow, productId: PRODUCT_ID, nativePluginStateAuthority: () => projectLibraryRuntime.nativePluginStateAuthority() });
 	await nativeTier.ready();
 	registerDesktopNativeTierControls({ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, settings, tier: nativeTier });
 	handle(IPC.environment, () => ({
@@ -409,7 +408,7 @@ async function registerIpcHandlers(desktopSession) {
 		return locale;
 	});
 	handle(IPC.checkForUpdates, () => checkForUpdates(true));
-	registerAssistance({ channels: IPC, handle, sendToRenderer, app, settings });
+	assistance = registerAssistance({ channels: IPC, handle, sendToRenderer, app, settings });
 	registerHostAffordances({ channels: IPC, handle, windowFor: () => mainWindow });
 	handle(IPC.windowAction, (_event, action) => runCurrentWindowAction(action));
 	on(IPC.rendererReady, () => {

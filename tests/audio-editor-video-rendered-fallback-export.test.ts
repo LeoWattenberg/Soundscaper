@@ -428,6 +428,23 @@ test('ordinary video export does not invoke rendered-fallback integrity admissio
 	assert.deepEqual(fixture.loadedStorageKeys, ['original-video-storage']);
 });
 
+test('video export awaits product-owned live state capture before reading the project', async () => {
+	const fixture = createFixture();
+	let captured = false;
+	const runtime = {
+		...fixture.runtime,
+		prepareProjectForExport: async (purpose: string) => {
+			assert.equal(purpose, 'video-export');
+			captured = true;
+		},
+		getProject: () => {
+			assert.equal(captured, true);
+			return fixture.runtime.getProject();
+		},
+	};
+	assert.equal((await createEditorExportService(runtime).exportVideo())?.mimeType, 'video/mp4');
+});
+
 test('video delivery rejects an unrepresented rendered fallback', () => {
 	const fixture = createFixture();
 	const delivery = fixture.runtime.playbackProjects.projectForVideoRenderedFallbackDelivery(fixture.canonical);

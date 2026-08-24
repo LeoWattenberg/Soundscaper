@@ -29,20 +29,34 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	let closes = 0;
 	let ipcDisposals = 0;
 	let mediaDisposals = 0;
+	let mediaActivations = 0;
+	let mediaDeactivations = 0;
+	let mediaRuntimeStartOptions;
 	let openFxDisposals = 0;
 	let openFxServiceDisposals = 0;
 	let openFxServiceDisables = 0;
+	let openFxFrameOwnerDisposals = 0;
+	let openFxFrameDisposals = 0;
 	let mediaAvailable = false;
 	let authorityOptions;
 	let renderInputOptions;
-	let selectedV20AuthorityOptions;
+	let selectedV28AuthorityOptions;
 	let queueCapacityOptions;
+	let queueReservationOptions;
 	let brokerOptions;
 	let nodePortOptions;
 	let brokerDisposals = 0;
 	let renderInputOwnerDisposals = 0;
 	let imageSequenceOwnerDisposals = 0;
 	let imageSequenceDisposals = 0;
+	let imageSequenceImportRegistrations = 0;
+	let imageSequenceImportRevocations = 0;
+	let imageSequenceImportDisposals = 0;
+	let imageSequenceImportOptions;
+	let openFxServiceOptions;
+	let openFxFrameOptions;
+	let proxyOutputOwnerDisposals = 0;
+	let proxyOutputDisposals = 0;
 	let failImageSequenceDispose = false;
 	let renderInputReclaims = 0;
 	let externalDisplayStops = 0;
@@ -54,6 +68,9 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 		snapshot: () => null,
 		selfTestEvidence: () => null,
 		selectedV20RenderSelfTestEvidence: () => null,
+		selectedV28V14RenderSelfTestEvidence: () => null,
+		activate: async () => { mediaActivations += 1; return true; },
+		deactivate: () => { mediaDeactivations += 1; return true; },
 		runJob: async () => ({ output: true }),
 		dispose: () => { mediaDisposals += 1; },
 	};
@@ -88,6 +105,7 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 		availableScratchBytes: 1024 ** 3, volumeFreeBytes: 20 * 1024 ** 3,
 		reservedFreeBytes: 10 * 1024 ** 3, busyHardwareBackends: [],
 	});
+	const reserveQueue = (request) => Object.freeze({ ...request.reservations, hardwareBackend: null });
 	const projectAuthorityRuntime = {
 		revalidate: async (_record, _root, rootAuthorized) => ({
 			projectRevisionMatches: true, planFingerprintMatches: true,
@@ -97,19 +115,48 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 		prepare: async () => prepared,
 		projectState: () => Object.freeze({ open: true, writable: true }),
 		watchProject: () => Object.freeze({ schemaVersion: 20, projectId: 'project-1', projectRevision: 1, open: true, writable: true }),
+		watchImportAlreadyPresent: async () => false,
+		watchImportState: async (projectId, binId, contentSha256) => Object.freeze({
+			projectId, projectRevision: 1, binId, sourceId: 'source-1',
+			contentSha256, proxyAttached: false,
+		}),
+		queueReservations: (_request, replayScratchByteLength) => Object.freeze({
+			cpuCores: 2, processTreeRssBytes: 4_096,
+			scratchBytes: replayScratchByteLength + 700,
+			minimumFreeBytes: 100, hardwareBackend: null,
+		}),
 	};
-	const renderInputStaging = Object.freeze({
+	const renderInputStaging = {
 		begin: async () => ({}), receive: async () => undefined, finalize: async () => ({}),
+		scratchReservation: () => 300,
+		outstandingLiveScratchByteLength: async () => 500,
+		mountOpenFxTransformFactory: (value) => { renderInputStaging.openFxFactory = value; },
 		abandonOwner: async () => { renderInputOwnerDisposals += 1; return 2; },
 		reclaim: async (records) => { renderInputReclaims += 1; assert.deepEqual(records, []); },
-	});
+	};
 	const watchImportBroker = {
 		offer: async () => true, recorded: () => true, claim: () => null,
 		complete: async () => true, dispose: async () => { brokerDisposals += 1; },
 	};
 	const registrationInput = options('framescaper');
+	const authoredEffect = Object.freeze({ instanceId: 'authored-effect', state: 'current' });
+	registrationInput.projectAuthority.projectRecord = (projectId) => projectId === 'project-1'
+		? { projectId, projectRevision: 7, projectSha256: 'a'.repeat(64) } : null;
+	registrationInput.projectAuthority.readProjectBundle = async (projectId) => projectId === 'project-1'
+		? { project: { projectRevision: 7, sha256: 'a'.repeat(64) }, document: JSON.stringify({
+			schemaVersion: 28, id: 'project-1', revision: 7, ofxEffects: [authoredEffect],
+		}) } : null;
 	const registration = await startFramescaperNativeServicesRegistration(registrationInput, {
 		modules: {
+			createV14QueueReservationAuthority: (value) => { queueReservationOptions = value; return reserveQueue; },
+			ProxyOutputBroker: class {
+			recordPublished() {}
+			claim() { return {}; }
+			read() { return new Uint8Array(); }
+			release() { return true; }
+			disposeOwner() { proxyOutputOwnerDisposals += 1; return 1; }
+			dispose() { proxyOutputDisposals += 1; }
+		},
 			ImageSequenceSelectionBroker: class extends TestImageSequenceSelectionBroker {
 				disposeOwner() { imageSequenceOwnerDisposals += 1; return 1; }
 				dispose() {
@@ -117,24 +164,40 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 					if (failImageSequenceDispose) throw new Error('selection cleanup failed');
 				}
 			},
-			startMediaRuntime: async () => mediaRuntime,
+			startMediaRuntime: async (value) => {
+				mediaRuntimeStartOptions = value;
+				return mediaRuntime;
+			},
 			startOpenFxRuntime: async () => openFxRuntime,
-			createOpenFxService: () => openFxService,
+			createOpenFxService: (value) => { openFxServiceOptions = value; return openFxService; },
+			createOpenFxFrameRegistration: async (value) => { openFxFrameOptions = value; return ({
+				open: () => ({}),
+				disposeOwner: () => { openFxFrameOwnerDisposals += 1; return 1; },
+				dispose: () => { openFxFrameDisposals += 1; },
+			}); },
 			createNodePorts: (value) => { nodePortOptions = value; return nodePorts; },
 			createExternalDisplayPort: () => externalDisplay,
 			createQueueCapacityProvider: (value) => { queueCapacityOptions = value; return queueCapacity; },
 			createCapabilityReport: (value) => Object.freeze({ value }),
 			createProjectAuthority: (value) => { authorityOptions = value; return projectAuthorityRuntime; },
 			createRenderInputStaging: (value) => { renderInputOptions = value; return renderInputStaging; },
-			createSelectedV20ProjectAuthority: (value) => {
-				selectedV20AuthorityOptions = value;
+			createSelectedV28ProjectAuthority: (value) => {
+				selectedV28AuthorityOptions = value;
 				return projectAuthorityRuntime;
 			},
 			createWatchImportBroker: (value) => { brokerOptions = value; return watchImportBroker; },
+			createImageSequenceImportRegistration: async (value) => {
+				imageSequenceImportOptions = value;
+				return {
+					registerRendererBridge: () => { imageSequenceImportRegistrations += 1; },
+					revokeOwner: async () => { imageSequenceImportRevocations += 1; },
+					dispose: async () => { imageSequenceImportDisposals += 1; },
+				};
+			},
 			externalDisplaySupport: () => Object.freeze({ supported: true, reason: null }),
 			startRuntime: (value) => {
 				runtimeOptions = value;
-				return { controller, queue: { list: () => [] }, ready: Promise.resolve(),
+				return { controller, queue: { list: () => [] }, scratch: { list: () => [] }, ready: Promise.resolve(),
 					close: () => { closes += 1; } };
 			},
 			registerIpc: (value) => {
@@ -143,7 +206,7 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 			},
 		},
 		loadCapabilityPolicy: async () => Object.freeze({
-			nativeCodecsCleared: true, proxyCodecCleared: true,
+			nativeCodecsCleared: true, selectedRenderCodecCleared: true, proxyCodecCleared: true,
 			imageSequencesCleared: true, openFxCleared: false,
 		}),
 	});
@@ -153,8 +216,11 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	assert.equal(renderInputReclaims, 1);
 	mediaAvailable = true;
 	assert.equal(runtimeOptions.runtimeAvailable(), true);
-	assert.equal(runtimeOptions.nativeQueueExecution.pool, mediaRuntime);
+	assert.equal(runtimeOptions.nativeQueueExecution.pool, undefined,
+		'selected V28 jobs execute through the prepared V14 authority, not a legacy raw helper request');
 	assert.equal(runtimeOptions.nativeQueueExecution.capacity, queueCapacity);
+	assert.equal(runtimeOptions.reserveQueue, reserveQueue);
+	assert.equal(queueReservationOptions.platform, 'linux');
 	assert.match(queueCapacityOptions.scratchRoot, /framescaper-native-scratch$/u);
 	const capabilities = runtimeOptions.capabilities();
 	assert.equal(capabilities.value.media.payloadBuilt, false);
@@ -164,7 +230,7 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	assert.equal(capabilities.value.queueSourceAuthorityMounted, true);
 	assert.equal(capabilities.value.queueCapacityAuthorityMounted, true);
 	assert.equal(capabilities.value.watchProjectMutationMounted, true);
-	assert.equal(capabilities.value.imageSequenceImportMounted, false);
+	assert.equal(capabilities.value.imageSequenceImportMounted, true);
 	assert.equal(capabilities.value.externalDisplay.placementSupported, true);
 	mediaRuntime.payloadAvailability = {
 		status: 'available', descriptor: { sha256: 'b'.repeat(64) },
@@ -172,11 +238,17 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	mediaRuntime.reason = null;
 	mediaRuntime.selfTestEvidence = () => ({ professionalCharacteristicsMatches: true });
 	mediaRuntime.selectedV20RenderSelfTestEvidence = () => ({ ready: true });
+	mediaRuntime.selectedV28V14RenderSelfTestEvidence = () => ({ ready: true });
 	const attestedCapabilities = runtimeOptions.capabilities();
 	assert.equal(attestedCapabilities.value.media.professionalCharacteristicsSelfTestPassed, true);
 	assert.equal(attestedCapabilities.value.media.selectedV20RenderSelfTestPassed, true);
-	assert.equal(attestedCapabilities.value.imageSequenceImportMounted, false,
-		'an attested probe does not route or ship the dormant V25 mutation surface');
+	assert.equal(attestedCapabilities.value.media.selectedV28V14RenderSelfTestPassed, true);
+	assert.equal(attestedCapabilities.value.imageSequenceImportMounted, true,
+		'the selected V28 route mounts only after its main-owned authority recovers');
+	assert.equal(imageSequenceImportOptions.route.candidateGeneration, 28);
+	assert.equal(imageSequenceImportOptions.project, registrationInput.projectAuthority);
+	assert.equal(imageSequenceImportOptions.controller, controller);
+	assert.equal(imageSequenceImportOptions.policyCleared, true);
 	assert.equal(await runtimeOptions.nativeQueueExecution.prepare({}, {}), prepared);
 	assert.deepEqual(await runtimeOptions.revalidate({ record: {}, root: {}, rootAuthorized: true }), {
 		projectRevisionMatches: true, planFingerprintMatches: true,
@@ -184,18 +256,38 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 		licensingCleared: false, helperBuildMatches: false, scratchIdentityMatches: true,
 	});
 	assert.equal(authorityOptions.project, registrationInput.projectAuthority);
+	assert.equal(await openFxServiceOptions.currentProject({ id: 'project-1', revision: 7 }), true);
+	assert.equal(await openFxServiceOptions.currentProject(
+		{ id: 'project-1', revision: 7 }, structuredClone(authoredEffect),
+	), true);
+	assert.equal(await openFxServiceOptions.currentProject(
+		{ id: 'project-1', revision: 7 }, { ...authoredEffect, state: 'stale' },
+	), false);
+	assert.equal(await openFxServiceOptions.currentProject(
+		{ id: 'project-1', revision: 8 }, structuredClone(authoredEffect),
+	), false);
+	assert.equal(await openFxFrameOptions.currentProject(
+		{ project: { id: 'project-1', revision: 7 } }, structuredClone(authoredEffect),
+	), true);
+	assert.equal(await openFxFrameOptions.currentProject(
+		{ project: { id: 'project-1', revision: 7 } }, { ...authoredEffect, state: 'stale' },
+	), false);
 	assert.equal(authorityOptions.checkpointStore, nodePorts.checkpointStore);
 	assert.equal(authorityOptions.checkpointInspectFor, nodePorts.checkpointInspectFor);
 	assert.match(renderInputOptions.root, /framescaper-native-render-inputs$/u);
 	assert.equal(renderInputOptions.mintStageId, nodePorts.mintOpaqueId);
-	assert.equal(selectedV20AuthorityOptions.project, projectAuthorityRuntime);
-	assert.equal(selectedV20AuthorityOptions.renderInputs, renderInputStaging);
+	assert.equal(typeof renderInputOptions.storageAdmission, 'function');
+	assert.equal(selectedV28AuthorityOptions.project, registrationInput.projectAuthority);
+	assert.equal(selectedV28AuthorityOptions.watch, projectAuthorityRuntime);
+	assert.equal(selectedV28AuthorityOptions.renderInputs, renderInputStaging);
 	assert.equal(runtimeOptions.checkpointStore, nodePorts.checkpointStore);
 	assert.equal(authorityOptions.licensingCleared({ taskKind: 'encoded-export' }), true);
 	assert.equal(authorityOptions.licensingCleared({ taskKind: 'proxy-generation' }), true);
 	assert.equal(authorityOptions.licensingCleared({ taskKind: 'image-sequence-export' }), true);
 	assert.equal(nodePortOptions.watchLocator, registrationInput.watchImportAuthority.locator);
 	assert.equal(runtimeOptions.nativeMediaEnabled(), false);
+	assert.equal(mediaRuntimeStartOptions.enabled(), false,
+		'the authenticated media payload starts behind the persisted default-off switch');
 	assert.equal(runtimeOptions.selectRoot, nodePorts.selectRoot);
 	assert.equal(runtimeOptions.watchScan, nodePorts.watchScan);
 	assert.equal(runtimeOptions.externalDisplay, externalDisplay);
@@ -212,12 +304,21 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	});
 	assert.equal(typeof runtimeOptions.watchImportRecorded, 'function');
 	assert.equal(brokerOptions.currentOwner, registrationInput.watchImportAuthority.currentOwner);
+	assert.deepEqual(await brokerOptions.inspectImported('project-1', 'project-bin', '12'.repeat(32)), {
+		projectId: 'project-1', projectRevision: 1, binId: 'project-bin',
+		sourceId: 'source-1', contentSha256: '12'.repeat(32), proxyAttached: false,
+	});
 	assert.deepEqual(runtimeOptions.preferences(), {
 		nativeMediaEnabled: false, hardwareDecodeEnabled: false,
 		hardwareEncodeEnabled: false, ofxConsentEnabled: false,
 	});
 	assert.equal(await runtimeOptions.setPreference('hardware-decode', true), true);
+	assert.equal(await runtimeOptions.setPreference('native-media', true), true);
+	assert.equal(mediaActivations, 1,
+		'the helper runtime activates only after the persisted opt-in succeeds');
 	assert.equal(await runtimeOptions.setPreference('native-media', false), false);
+	assert.equal(mediaDeactivations, 1,
+		'disabling the master tears down the native helper runtime');
 	assert.equal(externalDisplayStops, 1,
 		'disabling the master closes a still-presenting session immediately');
 	assert.equal(openFxServiceDisables, 1);
@@ -229,20 +330,26 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 		removeListener: () => undefined,
 		ownerFor: () => { owners += 1; return {}; },
 	});
+	assert.equal(imageSequenceImportRegistrations, 1);
 	assert.equal(ipcOptions.controller, controller);
 	assert.equal(typeof ipcOptions.imageSequenceSelections.select, 'function',
 		'the pathless picker remains mounted while project mutation stays fail closed');
 	assert.deepEqual(ipcOptions.authorizeOwner({}), {});
 	assert.equal(typeof ipcOptions.watchImports.claim, 'function');
 	assert.equal(ipcOptions.renderInputs, renderInputStaging);
+	assert.equal(typeof ipcOptions.queueReservations, 'function');
 	assert.equal(typeof ipcOptions.openFx.scan, 'function');
+	assert.equal(typeof ipcOptions.proxyOutputs.claim, 'function');
 	assert.deepEqual(await registration.executeOpenFx({}), { mode: 'bypass' });
 	assert.equal(owners, 1);
-	assert.equal(await registration.revokeOwner({}), 3);
+	assert.equal(await registration.revokeOwner({}), 5);
+	assert.equal(imageSequenceImportRevocations, 1);
 	assert.equal(openFxServiceDisables, 2,
 		'losing the renderer owner aborts scanner and per-fingerprint OpenFX work');
 	assert.equal(renderInputOwnerDisposals, 1);
 	assert.equal(imageSequenceOwnerDisposals, 1);
+	assert.equal(proxyOutputOwnerDisposals, 1);
+	assert.equal(openFxFrameOwnerDisposals, 1);
 	assert.throws(() => registration.registerRendererBridge({}), /already registered/iu);
 	failImageSequenceDispose = true;
 	await assert.rejects(() => registration.dispose(), /selection cleanup failed/u);
@@ -254,12 +361,20 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	assert.equal(openFxServiceDisposals, 1);
 	assert.equal(brokerDisposals, 1);
 	assert.equal(imageSequenceDisposals, 1);
+	assert.equal(imageSequenceImportDisposals, 1);
+	assert.equal(proxyOutputDisposals, 1);
+	assert.equal(openFxFrameDisposals, 1);
 });
 
 test('a runtime startup failure releases the session display subscription', async () => {
 	let disposals = 0;
 	await assert.rejects(() => startFramescaperNativeServicesRegistration(options('framescaper'), {
 		modules: {
+			createV14QueueReservationAuthority: () => (request) => request.reservations,
+			ProxyOutputBroker: class {
+				disposeOwner() { return 0; }
+				dispose() {}
+			},
 			ImageSequenceSelectionBroker: TestImageSequenceSelectionBroker,
 			startMediaRuntime: async () => ({ available: () => false, dispose: () => undefined }),
 			startOpenFxRuntime: async () => ({
@@ -271,6 +386,9 @@ test('a runtime startup failure releases the session display subscription', asyn
 				execute: async () => ({}), disable: () => undefined,
 				dispose: () => undefined,
 			}),
+			createOpenFxFrameRegistration: async () => ({
+				open: () => ({}), disposeOwner: () => 0, dispose: () => undefined,
+			}),
 			createNodePorts: () => ({}),
 			createExternalDisplayPort: () => ({ dispose: () => { disposals += 1; } }),
 			createProjectAuthority: () => ({
@@ -278,8 +396,10 @@ test('a runtime startup failure releases the session display subscription', asyn
 				projectState: () => ({ open: false, writable: false }),
 				watchProject: () => null,
 			}),
-			createRenderInputStaging: () => ({}),
-			createSelectedV20ProjectAuthority: ({ project }) => project,
+			createRenderInputStaging: () => ({
+				mountOpenFxTransformFactory: () => undefined,
+			}),
+			createSelectedV28ProjectAuthority: ({ project }) => project,
 			createWatchImportBroker: () => ({ dispose: async () => undefined }),
 			startRuntime: (value) => {
 				assert.equal(value.nativeQueueExecution, undefined);
@@ -291,7 +411,7 @@ test('a runtime startup failure releases the session display subscription', asyn
 			externalDisplaySupport: () => ({ supported: false, reason: 'unsupported-platform' }),
 		},
 		loadCapabilityPolicy: async () => ({
-			nativeCodecsCleared: false, proxyCodecCleared: false,
+			nativeCodecsCleared: false, selectedRenderCodecCleared: false, proxyCodecCleared: false,
 			imageSequencesCleared: false, openFxCleared: false,
 		}),
 	}), /startup failed/u);
@@ -300,12 +420,16 @@ test('a runtime startup failure releases the session display subscription', asyn
 
 test('desktop main mounts the Framescaper registration after settings and includes it in shutdown', async () => {
 	const source = await readFile(new URL('../desktop/main.mjs', import.meta.url), 'utf8');
+	const routes = await readFile(new URL(
+		'../desktop/framescaper-selected-v28-route-authorities.mjs', import.meta.url,
+	), 'utf8');
 	assert.match(source, /startFramescaperNativeServicesRegistration/u);
 	assert.match(source, /native services['"],\s*run:\s*\(\)\s*=>\s*nativeServices\?\.dispose/u);
 	assert.match(source, /nativeServices\?\.registerRendererBridge/u);
 	assert.match(source, /watchImportAuthority:[\s\S]*currentRendererSaveOwner[\s\S]*watchImportAuthority\(\)/u);
-	assert.match(source, /imageSequenceImportAuthority:\s*null/u,
-		'the selected V20 main composition must not attest a dormant V25 project mutation route');
+	assert.match(source, /imageSequenceImportAuthority:[\s\S]*FRAMESCAPER_SELECTED_V28_IMAGE_SEQUENCE_IMPORT_AUTHORITY/u);
+	assert.match(routes, /candidateGeneration:\s*28[\s\S]*projectMutationSurface:\s*'image-sequence-import'/u,
+		'the selected main composition must attest only the exact V28 project mutation route');
 	assert.ok(
 		source.indexOf('await settings.load') < source.indexOf('startFramescaperNativeServicesRegistration({'),
 		'native service settings authority must be loaded before its runtime starts',
@@ -314,7 +438,7 @@ test('desktop main mounts the Framescaper registration after settings and includ
 		'native watch claims must release their locator before the locator store closes');
 });
 
-test('only an exact routed V25/V26 mutation authority mounts image-sequence import', () => {
+test('only an exact routed V25/V26/V28 mutation authority mounts image-sequence import', () => {
 	const authority = Object.freeze({
 		candidateGeneration: 25,
 		projectMutationSurface: 'image-sequence-import',
@@ -323,6 +447,9 @@ test('only an exact routed V25/V26 mutation authority mounts image-sequence impo
 	});
 	assert.equal(framescaperImageSequenceImportAuthorityMounted(null), false);
 	assert.equal(framescaperImageSequenceImportAuthorityMounted(authority), true);
+	assert.equal(framescaperImageSequenceImportAuthorityMounted({
+		...authority, candidateGeneration: 28,
+	}), true);
 	assert.equal(framescaperImageSequenceImportAuthorityMounted({
 		...authority, isRouted: () => false,
 	}), false);
@@ -356,13 +483,19 @@ function options(productId) {
 		selectDirectory: async () => null,
 		selectImageSequenceFiles: async () => null,
 		selectOpenFxPluginBinary: async () => null,
-		imageSequenceImportAuthority: null,
+		imageSequenceImportAuthority: productId === 'framescaper' ? Object.freeze({
+			candidateGeneration: 28,
+			projectMutationSurface: 'image-sequence-import',
+			professionalCharacteristicsContract: 'video-source-characteristics-v25',
+			isRouted: () => true,
+		}) : null,
 		createMessageChannel: () => ({ hostPort: {}, helperPort: {} }),
 		projectAuthority: {
 			projectState: () => ({ open: true, writable: true }),
 			projectRecord: () => null,
 			readProjectBundle: async () => null,
 			readBody: async () => new Uint8Array(),
+			materializeBody: async () => ({ byteLength: 1, sha256: '0'.repeat(64) }),
 		},
 		watchImportAuthority: {
 			currentOwner: () => null,

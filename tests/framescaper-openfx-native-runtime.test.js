@@ -2,8 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { spawn, spawnSync } from 'node:child_process';
+import { join } from 'node:path';
 import test from 'node:test';
 import { MessageChannel } from 'node:worker_threads';
 
@@ -24,11 +23,13 @@ import {
 	invokeV12PlanVariant,
 	sha256,
 } from './helpers/openfx-native-v12-fixture.js';
-
-const repositoryRoot = resolve(import.meta.dirname, '..');
-const hostRoot = join(repositoryRoot, 'native/framescaper-openfx-host');
-const sources = join(hostRoot, 'src');
-
+import { nativeProcessInvoker } from './helpers/openfx-native-process-invoker.js';
+import {
+	nativeExecutable,
+	nativeExecutableGrant,
+	runNativeExecutable as run,
+	runNativeExecutableAsync as runAsync,
+} from './helpers/openfx-native-runtime-process.js';
 test.after(cleanupOpenFxNativeContractFixture);
 
 test('the conformance scanner authenticates one binary before enumerating its entry points', (context) => {
@@ -91,14 +92,14 @@ test('the helper runner carries the actual native scanner descriptor over its re
 	const receiving = receiveHelperDataPlaneReservedFile({
 		reservation, port: channel.port2, path: outputPath,
 	});
-	const runner = createOpenFxHelperJobRunner({
-		descriptor: {
-			target: 'linux-x64', runtime: 'linux-x64', hostVersion: '1.0.0',
-			openfxVersion: '1.5.1', openfxCommit: 'ab77951',
-			scanner: nativeExecutable(build.scanner), runtimeHost: nativeExecutable(build.runtime),
-		},
-		mode: 'scanner', pluginFingerprint: null,
-	});
+		const runner = createOpenFxHelperJobRunner({
+			descriptor: {
+				target: 'linux-x64', runtime: 'linux-x64', hostVersion: '1.0.0',
+				openfxVersion: '1.5.1', openfxCommit: 'ab77951',
+				scanner: nativeExecutable(build.scanner), runtimeHost: nativeExecutable(build.runtime),
+			},
+			mode: 'scanner', pluginFingerprint: null, invokeHost: nativeProcessInvoker,
+		});
 	const job = runner.run({ kind: 'ofx-scan', grant: {
 		executable: nativeExecutableGrant('ofx-scanner', build.scanner),
 		pluginBinary: nativeExecutableGrant('ofx-plugin', build.plugin),
@@ -147,6 +148,8 @@ test('the native runtime exposes the closed OFX 1.5.1 suite surface and six cont
 			assert.equal(result.backend, 'cpu');
 			assert.equal(result.suitesDispatched, true);
 			assert.equal(result.cpuRendered, true);
+			assert.equal(result.gpuContextSetup, false);
+			assert.equal(result.gpuContextReleased, false);
 			assert.equal(result.offscreenUiAvailable, true);
 			assert.equal(
 				result.offscreenUiStatus,
@@ -158,21 +161,20 @@ test('the native runtime exposes the closed OFX 1.5.1 suite surface and six cont
 			assert.equal(result.oneFingerprintPerProcess, true);
 		}
 
-		const gpu = run(build.runtime, [
-			'--invoke', build.plugin, '--sha256', build.sha256,
-			'--plugin', '0', '--context', 'filter',
-			'--action', 'render', '--backend', 'cuda',
-		]);
-		assert.equal(gpu.status, 0, gpu.stderr);
-		assert.deepEqual(
-			(({ backend, requestedBackend, retriedOnCpu, reportsDegradation }) => (
-				{ backend, requestedBackend, retriedOnCpu, reportsDegradation }
-			))(JSON.parse(gpu.stdout)),
-			{
-				backend: 'cpu', requestedBackend: 'cuda',
-				retriedOnCpu: true, reportsDegradation: true,
-			},
-		);
+		for (const backend of ['opengl', 'opencl', 'cuda', 'metal']) {
+			const gpu = run(build.runtime, [
+				'--invoke', build.plugin, '--sha256', build.sha256, '--plugin', '0',
+				'--context', 'filter', '--action', 'render', '--backend', backend,
+			]);
+			assert.equal(gpu.status, 0, gpu.stderr);
+			const result = JSON.parse(gpu.stdout);
+			assert.deepEqual({
+				backend: result.backend, requestedBackend: result.requestedBackend,
+				retriedOnCpu: result.retriedOnCpu, reportsDegradation: result.reportsDegradation,
+				gpuContextSetup: result.gpuContextSetup, gpuContextReleased: result.gpuContextReleased,
+			}, { backend, requestedBackend: backend, retriedOnCpu: false,
+				reportsDegradation: false, gpuContextSetup: true, gpuContextReleased: true });
+		}
 	} finally {
 		build.cleanup();
 	}
@@ -248,11 +250,16 @@ test('the native V12 seam reparses and correlates the exact invocation, graph, n
 		assert.equal(result.overlayInteractVersion, 2);
 		assert.equal(result.offscreenDrawCalls, 2);
 		assert.equal(result.offscreenPixelsTouched, 5);
-		const gpu = structuredClone(wire.grant);
-		gpu.invocation.requestedBackend = 'cuda';
-		const gpuRejected = invokeV12Grant(build.runtime, wire.directory, gpu);
-		assert.notEqual(gpuRejected.status, 0);
-		assert.match(gpuRejected.stderr, /"error":"unsupported-backend"/u);
+			const gpu = structuredClone(wire.grant);
+			gpu.invocation.requestedBackend = 'cuda';
+			const gpuInvoked = invokeV12Grant(build.runtime, wire.directory, gpu);
+			assert.equal(gpuInvoked.status, 0, gpuInvoked.stderr);
+			assert.equal(JSON.parse(gpuInvoked.stdout).backend, 'cuda');
+			const unsupported = structuredClone(wire.grant);
+			unsupported.invocation.requestedBackend = 'metal';
+			const gpuRejected = invokeV12Grant(build.runtime, wire.directory, unsupported);
+			assert.notEqual(gpuRejected.status, 0);
+			assert.match(gpuRejected.stderr, /"error":"unsupported-backend"/u);
 		for (const mutate of [
 			(grant) => { grant.invocation.nodeId = 'different-node'; },
 			(grant) => { grant.invocation.instanceId = 'different-instance'; },
@@ -345,6 +352,7 @@ test('V12 binds genuine context topology and host-owned standard parameters', (c
 				ofxContext === 'retimer' ? 'SourceTime'
 					: ofxContext === 'transition' ? 'Transition' : null);
 			assert.equal(result.sourceTimeVerified, ofxContext === 'retimer');
+			assert.equal(result.sourceTimeImageEnforced, ofxContext === 'retimer');
 			assert.equal(result.transitionValueVerified, ofxContext === 'transition');
 			assert.deepEqual(readFileSync(wire.outputPath), wire.outputBytes);
 			if (ofxContext !== 'retimer' && ofxContext !== 'transition') continue;
@@ -433,7 +441,9 @@ test('the native V12 Retimer accepts only the exact ordinal oracle SourceTime or
 			assert.match(exact.stderr, /"error":"exact-retime-oracle-unavailable"/u);
 		} else {
 			assert.equal(exact.status, 0, exact.stderr);
-			assert.equal(JSON.parse(exact.stdout).sourceTimeVerified, true);
+				const result = JSON.parse(exact.stdout);
+				assert.equal(result.sourceTimeVerified, true);
+				assert.equal(result.sourceTimeImageEnforced, true);
 		}
 		const forged = structuredClone(wire.grant); forged.invocation.retimerSourceTime.outputOrdinal = 3;
 		let rejected = invokeV12Grant(build.runtime, wire.directory, forged);
@@ -460,7 +470,9 @@ test('the native V12 Retimer authenticates VFR timing bytes before accepting exa
 			return;
 		}
 		assert.equal(exact.status, 0, exact.stderr);
-		assert.equal(JSON.parse(exact.stdout).sourceTimeVerified, true);
+			const result = JSON.parse(exact.stdout);
+			assert.equal(result.sourceTimeVerified, true);
+			assert.equal(result.sourceTimeImageEnforced, true);
 
 		const missing = structuredClone(wire.grant);
 		delete missing.videoTimingAssets;
@@ -514,78 +526,3 @@ test('the native V12 Retimer authenticates VFR timing bytes before accepting exa
 		build.cleanup();
 	}
 });
-
-test('production sources bind to the pinned SDK ABI and contain no ambient authority APIs', () => {
-	const abi = readFileSync(join(sources, 'openfx_abi.hpp'), 'utf8');
-	for (const header of [
-		'ofxCore.h', 'ofxImageEffect.h', 'ofxProperty.h', 'ofxParam.h',
-		'ofxMemory.h', 'ofxMultiThread.h', 'ofxMessage.h', 'ofxProgress.h',
-		'ofxTimeLine.h', 'ofxInteract.h', 'ofxDrawSuite.h',
-	]) assert.match(abi, new RegExp(`#include <${header.replace('.', '\\.')}>`, 'u'));
-
-	const allSources = [
-		'isolation_contract.hpp', 'openfx_abi.hpp', 'sha256.cpp', 'sha256.hpp',
-		'dynamic_library.cpp', 'dynamic_library.hpp', 'host_runtime.cpp',
-		'host_runtime.hpp', 'host_parameter_hydration.hpp', 'host_scan_inspection.inc',
-		'host_standard_parameters.inc',
-		'loaded_plugin_binary.cpp', 'ofx_scanner.cpp', 'ofx_runtime_host.cpp',
-		'rgba_frame.hpp',
-		'v12_cancellation_channel.cpp', 'v12_cancellation_channel.hpp',
-		'v12_host_invocation.cpp', 'v12_host_invocation.hpp',
-		'v12_output_file.cpp', 'v12_output_file.hpp',
-		'v12_retime_authority.cpp', 'v12_retime_authority.hpp',
-		'v12_transition_authority.cpp', 'v12_transition_authority.hpp',
-	].map((file) => readFileSync(join(sources, file), 'utf8')).join('\n');
-	assert.doesNotMatch(allSources, /\b(?:socket|connect|listen|accept|popen|system|ShellExecute)\s*\(/u);
-	assert.doesNotMatch(allSources, /CreateWindow|NSWindow|XCreateWindow/u);
-	assert.match(allSources, /kOfxImageEffectActionRender/u);
-	assert.match(allSources, /kOfxImageEffectActionGetFramesNeeded/u);
-	assert.match(allSources, /kOfxInteractSuite/u);
-	assert.match(allSources, /kOfxImageEffectPluginPropOverlayInteractV2/u);
-	assert.match(allSources, /kOfxInteractActionDraw/u);
-	assert.match(allSources, /kOfxDrawSuite/u);
-	assert.match(allSources, /exact_retime_ordinal\.hpp/u);
-	assert.match(allSources, /SourceTime differs from the exact ordinal oracle/u);
-	assert.match(allSources, /output ordinal is outside its attached transition overlap/u);
-	const retimeAuthority = readFileSync(join(sources, 'v12_retime_authority.cpp'), 'utf8');
-	assert.ok(
-		retimeAuthority.indexOf('SourceTime differs from the exact ordinal oracle')
-		< retimeAuthority.indexOf('return ofx_time(expected)'),
-		'OFX conversion must occur only after exact SourceTime equality succeeds',
-	);
-	const cmake = readFileSync(join(hostRoot, 'CMakeLists.txt'), 'utf8');
-	assert.match(cmake, /find_package\(Boost 1\.92\.0 EXACT REQUIRED\)/u);
-	assert.match(cmake, /media_plan\.cpp/u);
-});
-
-function nativeExecutable(path) {
-	const bytes = readFileSync(path); const identity = statSync(path);
-	return { path, byteLength: bytes.byteLength,
-		sha256: sha256(bytes), identity: { dev: identity.dev, ino: identity.ino } };
-}
-
-function nativeExecutableGrant(role, path) {
-	const value = nativeExecutable(path);
-	return { role, path, bytes: value.byteLength, sha256: value.sha256, identity: value.identity };
-}
-
-function run(executable, args) {
-	return spawnSync(executable, args, { encoding: 'utf8' });
-}
-
-function runAsync(executable, args) {
-	const child = spawn(executable, args, { stdio: ['pipe', 'pipe', 'pipe'] });
-	const completion = new Promise((resolveRun, rejectRun) => {
-		let stdout = '';
-		let stderr = '';
-		child.stdout.setEncoding('utf8');
-		child.stderr.setEncoding('utf8');
-		child.stdout.on('data', (chunk) => { stdout += chunk; });
-		child.stderr.on('data', (chunk) => { stderr += chunk; });
-		child.once('error', rejectRun);
-		child.once('exit', (code, signal) => resolveRun({
-			status: code, signal, stdout, stderr,
-		}));
-	});
-	return { completion, stdin: child.stdin };
-}

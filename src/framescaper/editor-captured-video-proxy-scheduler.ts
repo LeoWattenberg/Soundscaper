@@ -56,6 +56,7 @@ import {
 	capturedVideoProxySchedulerDependenciesV19,
 	capturedVideoProxySchedulerDependenciesV20,
 	capturedVideoProxySchedulerDependenciesV27,
+	capturedVideoProxySchedulerDependenciesV28,
 	type CapturedVideoProxySchedulerDependencies,
 	type FramescaperCapturedVideoProxyRuntimeComposition,
 } from './editor-captured-video-proxy-scheduler-composition.ts';
@@ -126,6 +127,16 @@ export function createFramescaperCapturedVideoProxySchedulerV27(
 	composition: FramescaperCapturedVideoProxyRuntimeComposition,
 ): FramescaperCapturedVideoProxyScheduler {
 	return createScheduler(capturedVideoProxySchedulerDependenciesV27(
+		environmentValue, sessionValue, composition,
+	));
+}
+
+export function createFramescaperCapturedVideoProxySchedulerV28(
+	environmentValue: unknown,
+	sessionValue: unknown,
+	composition: FramescaperCapturedVideoProxyRuntimeComposition,
+): FramescaperCapturedVideoProxyScheduler {
+	return createScheduler(capturedVideoProxySchedulerDependenciesV28(
 		environmentValue, sessionValue, composition,
 	));
 }

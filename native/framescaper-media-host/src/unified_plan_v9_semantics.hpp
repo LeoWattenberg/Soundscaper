@@ -62,6 +62,9 @@ struct clip_authority final {
 struct track_authority final {
 	std::string track_id;
 	std::int64_t sequence_order{};
+	bool mute{};
+	bool solo{};
+	bool hidden{};
 };
 
 struct temporal_authority final {
@@ -89,10 +92,10 @@ using track_index = std::map<std::string, track_authority>;
 		track_authority track{
 			stable_id(json::member(value, "trackId"), "track ID"),
 			safe_integer(json::member(value, "sequenceOrder"), "track sequence order"),
+			json::boolean(json::member(value, "mute"), "track mute"),
+			json::boolean(json::member(value, "solo"), "track solo"),
+			json::boolean(json::member(value, "hidden"), "track hidden"),
 		};
-		for (const auto key : {"mute", "solo", "hidden"}) {
-			static_cast<void>(json::boolean(json::member(value, key), key));
-		}
 		const auto order = std::pair{track.sequence_order, track.track_id};
 		if ((!previous.second.empty() && order <= previous)
 			|| !orders.insert(track.sequence_order).second

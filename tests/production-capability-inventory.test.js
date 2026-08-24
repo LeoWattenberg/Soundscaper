@@ -20,7 +20,7 @@ test('production capability inventory covers every product profile and platform 
 	const inventory = JSON.parse(await readFile(inventoryUrl, 'utf8'));
 
 	assert.equal(inventory.schemaVersion, 1);
-	assert.equal(inventory.groundedAt, '2026-08-23');
+	assert.equal(inventory.groundedAt, '2026-08-24');
 	assert.deepEqual(inventory.platformTiers, PLATFORM_TIERS);
 	assert.deepEqual(Object.keys(inventory.products).sort(), [...PRODUCT_IDS].sort());
 
@@ -102,8 +102,8 @@ test('MIDI stays absent while Framescaper capture is a separate application capa
 		'videoCaptions', 'videoColorManagement', 'videoDenoise', 'videoGrading',
 		'videoMotionTracking', 'videoStabilization',
 	]) assert.equal(inventory.products.soundscaper.projectFeatures[capability], false, capability);
-	assert.equal(inventory.products.framescaper.projectFeatures.ofxEffects, false);
-	assert.equal(inventory.products.framescaper.platforms['electron-only'].status, 'not-applicable');
+	assert.equal(inventory.products.framescaper.projectFeatures.ofxEffects, true);
+	assert.equal(inventory.products.framescaper.platforms['electron-only'].status, 'partial');
 	assert.deepEqual(dependencyNames.filter((name) => /midi/u.test(name)), []);
 });
 
@@ -115,7 +115,11 @@ test('Electron Enhanced inventory records product-owned current desktop boundari
 	assert.equal(framescaper.status, 'partial');
 	for (const path of [
 		'desktop/desktop-smoke.js',
-		'desktop/project-library-host.ts',
+		'desktop/soundscaper-project-library-v11-main.ts',
+		'desktop/native-audio-session-service.ts',
+		'desktop/plugin-host-service.ts',
+		'src/common/editor/ui/soundscaper-native-renderer-bridge.ts',
+		'src/soundscaper/editor-project-v29.ts',
 		'desktop/project-library-lease-smoke.js',
 		'scripts/lib/desktop-project-library-lease-matrix.mjs',
 		'tests/desktop-project-library-lease-matrix.test.js',
@@ -123,16 +127,36 @@ test('Electron Enhanced inventory records product-owned current desktop boundari
 	]) assert.ok(soundscaper.evidence.includes(path), `soundscaper is missing ${path}`);
 	for (const path of [
 		'desktop/desktop-smoke.js',
-		'desktop/framescaper-v18-artifact-smoke.js',
+		'desktop/project-library-v19-main.ts',
+		'desktop/native-services-runtime-v3.ts',
+		'desktop/native-media-v14-executor.ts',
+		'src/framescaper/editor-project-v28.ts',
+		'src/framescaper/editor-native-render-queue-action-v28.ts',
 		'desktop/project-library-product-runtime.js',
-		'desktop/project-library-v10-main.ts',
-		'desktop/project-library-v10-main-session.ts',
-		'desktop/project-library-v10-lifecycle-host.ts',
-		'src/framescaper/desktop-project-library-v10-renderer.ts',
-		'tests/desktop-project-library-v10-main.test.ts',
+		'tests/desktop-project-library-v12-packaged.test.ts',
 		'.github/workflows/desktop-preview.yml',
 	]) assert.ok(framescaper.evidence.includes(path), `framescaper is missing ${path}`);
 	assert.doesNotMatch(JSON.stringify(framescaper.evidence), /project-library-handoff-smoke/iu);
+});
+
+test('Electron Only inventory records the default-off native service surfaces', async () => {
+	const inventory = JSON.parse(await readFile(inventoryUrl, 'utf8'));
+	const soundscaper = inventory.products.soundscaper.platforms['electron-only'];
+	const framescaper = inventory.products.framescaper.platforms['electron-only'];
+	assert.equal(soundscaper.status, 'partial');
+	assert.equal(framescaper.status, 'partial');
+	for (const path of [
+		'desktop/plugin-registration.mjs',
+		'desktop/native-helper-persistent-plugin-job.js',
+		'src/common/editor/native-plugin-realtime-node.js',
+		'src/common/editor/ui/dialogs/SoundscaperNativeServicesDialog.tsx',
+	]) assert.ok(soundscaper.evidence.includes(path), `soundscaper Electron Only is missing ${path}`);
+	for (const path of [
+		'desktop/native-services-controller-v3.ts',
+		'desktop/openfx-main-service.ts',
+		'src/common/editor/ui/framescaper-native-services-menu.ts',
+		'src/framescaper/editor-project-v28.ts',
+	]) assert.ok(framescaper.evidence.includes(path), `framescaper Electron Only is missing ${path}`);
 });
 
 test('Linux x64 inventory pins the current product-aware artifact smoke', async () => {

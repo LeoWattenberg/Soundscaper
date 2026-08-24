@@ -80,6 +80,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			return exportVideo(requestedSettings);
 		}
 		if (state.exportAbort) return;
+		if (typeof runtime.prepareProjectForExport === 'function') await runtime.prepareProjectForExport('audio-export');
 		const canonicalProject = getProject();
 		const delivery = projectForAudioRenderedFallbackExport(canonicalProject, playbackProjects);
 		let settings: RuntimeValue;

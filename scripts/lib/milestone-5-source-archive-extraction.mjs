@@ -318,9 +318,16 @@ function assertSafeRelativePath(value, label) {
 		|| value.startsWith('/') || value.includes('\\') || value.includes('\0')
 		|| value.normalize('NFC') !== value
 		|| value.split('/').some((part) => part === '' || part === '.' || part === '..'
-			|| /[\u0000-\u001f\u007f]/u.test(part))) {
+			|| hasControlCharacter(part))) {
 		throw new Error(`The ${label} is not one safe portable relative path.`);
 	}
+}
+
+function hasControlCharacter(value) {
+	return [...value].some((character) => {
+		const codePoint = character.codePointAt(0);
+		return codePoint <= 0x1f || codePoint === 0x7f;
+	});
 }
 
 function assertSafeSymlink(path, target) {

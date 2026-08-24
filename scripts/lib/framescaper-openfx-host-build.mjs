@@ -1,9 +1,21 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createHash } from 'node:crypto';
-import { lstatSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import {
+	closeSync, constants, fstatSync, lstatSync, openSync, readFileSync, readdirSync,
+	realpathSync, statSync,
+} from 'node:fs';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 
+import {
+	openFxProductionReadinessReference,
+	verifyOpenFxProductionReadiness,
+} from '../../desktop/openfx-production-readiness.ts';
+import {
+	MILESTONE_5_NATIVE_ISOLATION_REVIEW_POLICY_PATH,
+	resolveNativeIsolationReviewPublicKey,
+	validateNativeIsolationReviewPolicy,
+} from '../../desktop/native-isolation-review-policy.mjs';
 import { lineEndingPolicyFindings } from './line-ending-policy.mjs';
 
 export const FRAMESCAPER_OPENFX_HOST_ROOT = 'native/framescaper-openfx-host';
@@ -11,30 +23,41 @@ export const FRAMESCAPER_OPENFX_SOURCE_MANIFEST =
 	`${FRAMESCAPER_OPENFX_HOST_ROOT}/source-manifest.json`;
 export const FRAMESCAPER_OPENFX_PAYLOAD_MANIFEST =
 	'config/framescaper-openfx-host-payload-manifest.json';
+export const FRAMESCAPER_OPENFX_READINESS_EVIDENCE_NAME =
+	'framescaper-openfx-production-readiness.json';
+export const FRAMESCAPER_OPENFX_REVIEW_POLICY_NAME =
+	'milestone-5-native-isolation-review-policy.json';
 
 const TARGET_IDS = Object.freeze([
 	'linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64',
 ]);
+const LINUX_RUNTIME_LOADERS = Object.freeze({
+	'linux-x64': 'ld-linux-x86-64.so.2',
+	'linux-arm64': 'ld-linux-aarch64.so.1',
+});
 const SHA256 = /^[a-f0-9]{64}$/u;
 const TARGET_FIELDS = Object.freeze([
 	'runtime', 'status', 'blockedBy', 'toolchainIdentity', 'scannerPayload',
-	'runtimeHostPayload', 'productionReadiness',
+	'runtimeHostPayload', 'isolationPayload', 'productionReadiness',
 ]);
-const PRODUCTION_READINESS_FIELDS = Object.freeze([
-	'schemaVersion', 'status', 'target', 'scannerSha256', 'runtimeHostSha256',
-	'osIsolationAttested', 'realThirdPartyExecutionAttested', 'reviewedAt',
-	'reviewer', 'evidenceSha256',
-]);
+const VERIFIED_PAYLOAD_RELEASES = new WeakSet();
 const REQUIRED_CONTRACT_FILES = Object.freeze([
 	'CMakeLists.txt',
+	'fixtures/conformance_interact.inc',
 	'fixtures/conformance_plugin.cpp',
 	'src/dynamic_library.cpp',
 	'src/dynamic_library.hpp',
+	'src/gpu_runtime.cpp',
+	'src/gpu_runtime.hpp',
 	'src/host_runtime.cpp',
 	'src/host_runtime.hpp',
+	'src/host_interact.inc',
+	'src/host_runtime_invoke.inc',
 	'src/host_scan_inspection.inc',
 	'src/host_standard_parameters.inc',
 	'src/isolation_contract.hpp',
+	'src/interact_v1_invocation.cpp',
+	'src/interact_v1_invocation.hpp',
 	'src/loaded_plugin_binary.cpp',
 	'src/parameter_values.cpp',
 	'src/parameter_values.hpp',
@@ -48,11 +71,15 @@ const REQUIRED_CONTRACT_FILES = Object.freeze([
 	'src/v12_output_file.hpp',
 	'src/v12_transition_authority.cpp',
 	'src/v12_transition_authority.hpp',
+	'src/v12_gpu_qualification.cpp',
+	'src/v12_gpu_qualification.hpp',
 ]);
 const REQUIRED_OPENFX_HEADERS = Object.freeze([
 	'ofxCore.h', 'ofxImageEffect.h', 'ofxProperty.h', 'ofxParam.h',
 	'ofxMemory.h', 'ofxMultiThread.h', 'ofxMessage.h', 'ofxProgress.h',
-	'ofxTimeLine.h', 'ofxInteract.h', 'ofxDrawSuite.h',
+	'ofxTimeLine.h', 'ofxInteract.h', 'ofxDrawSuite.h', 'ofxKeySyms.h',
+	'ofxKeySyms.h',
+	'ofxGPURender.h',
 ]);
 
 export function readFramescaperOpenFxSourceManifest(repositoryRoot) {
@@ -127,6 +154,8 @@ export function auditFramescaperOpenFxHost({ repositoryRoot }) {
 	}
 	const runtime = [
 		sourceText.get('src/host_runtime.cpp') ?? '',
+		sourceText.get('src/host_runtime_invoke.inc') ?? '',
+		sourceText.get('src/gpu_runtime.cpp') ?? '',
 		sourceText.get('src/loaded_plugin_binary.cpp') ?? '',
 	].join('\n');
 	for (const identity of [
@@ -136,6 +165,9 @@ export function auditFramescaperOpenFxHost({ repositoryRoot }) {
 		'kOfxMemorySuite', 'kOfxMultiThreadSuite', 'kOfxMessageSuite',
 		'kOfxProgressSuite', 'kOfxTimeLineSuite', 'kOfxInteractSuite',
 		'kOfxDrawSuite', 'kOfxDialogSuite', 'kOfxParametricParameterSuite',
+		'kOfxOpenGLRenderSuite', 'kOfxOpenCLProgramSuite',
+		'eglCreateContext', 'clCreateContext', 'cuCtxCreate_v2',
+		'MTLCreateSystemDefaultDevice',
 	]) {
 		if (!runtime.includes(identity)) findings.push(`The OpenFX native runtime contract omits ${identity}.`);
 	}
@@ -200,7 +232,8 @@ export function auditFramescaperOpenFxHost({ repositoryRoot }) {
 		}
 		if (target.status === 'pending-external') {
 			if (target.toolchainIdentity !== null || target.scannerPayload !== null
-				|| target.runtimeHostPayload !== null || typeof target.blockedBy !== 'string'
+				|| target.runtimeHostPayload !== null || target.isolationPayload !== null
+				|| typeof target.blockedBy !== 'string'
 				|| target.blockedBy.length < 16 || target.productionReadiness !== null) {
 				findings.push(`OpenFX target ${id} has an invalid pending-external record.`);
 			}
@@ -222,6 +255,7 @@ export function deriveFramescaperOpenFxPayloadManifest(sourceManifest) {
 				payload: {
 					scannerPayload: { ...target.scannerPayload },
 					runtimeHostPayload: { ...target.runtimeHostPayload },
+					isolationPayload: cloneIsolationPayload(target.isolationPayload),
 				},
 				productionReadiness: target.productionReadiness === null
 					? null : { ...target.productionReadiness },
@@ -245,6 +279,7 @@ export function deriveFramescaperOpenFxPayloadManifest(sourceManifest) {
 			id: target.id, runtime: target.runtime,
 			scannerPayload: { ...target.payload.scannerPayload },
 			runtimeHostPayload: { ...target.payload.runtimeHostPayload },
+			isolationPayload: cloneIsolationPayload(target.payload.isolationPayload),
 		})),
 		targets,
 	};
@@ -261,8 +296,7 @@ export function verifyFramescaperOpenFxPayloadManifest({ repositoryRoot }) {
 		throw new Error('The packaged OpenFX payload manifest disagrees with the pinned source manifest.');
 	}
 	for (const entry of payload.payloads) {
-		for (const field of ['scannerPayload', 'runtimeHostPayload']) {
-			const identity = entry[field];
+		for (const [field, identity] of payloadDescriptors(entry)) {
 			const bytes = readFileSync(resolve(repositoryRoot, identity.path));
 			if (bytes.byteLength !== identity.byteLength
 				|| createHash('sha256').update(bytes).digest('hex') !== identity.sha256) {
@@ -271,6 +305,91 @@ export function verifyFramescaperOpenFxPayloadManifest({ repositoryRoot }) {
 		}
 	}
 	return Object.freeze({ source: audit.manifest, payload });
+}
+
+/** Reopen and authenticate every declared per-target isolation review. */
+export async function verifyFramescaperOpenFxPayloadRelease({ repositoryRoot }) {
+	const root = resolve(repositoryRoot);
+	const release = verifyFramescaperOpenFxPayloadManifest({ repositoryRoot: root });
+	const reviewPolicyBytes = regularCanonicalFile(
+		root,
+		MILESTONE_5_NATIVE_ISOLATION_REVIEW_POLICY_PATH,
+		'OpenFX native-isolation review policy',
+	);
+	const reviewPolicy = parseJson(reviewPolicyBytes, 'OpenFX native-isolation review policy');
+	validateNativeIsolationReviewPolicy(reviewPolicy);
+	const productionReadiness = {};
+	for (const target of release.payload.targets) {
+		if (target.status !== 'built' || target.productionReadiness === null) {
+			productionReadiness[target.id] = null;
+			continue;
+		}
+		const reference = openFxProductionReadinessReference(
+			target.productionReadiness,
+			target.id,
+		);
+		const evidence = await verifyOpenFxProductionReadiness(reference, {
+			scannerSha256: target.payload.scannerPayload.sha256,
+			runtimeHostSha256: target.payload.runtimeHostPayload.sha256,
+			isolation: {
+				launcherSha256: target.payload.isolationPayload.launcherPayload.sha256,
+				sandboxProfileSha256: target.payload.isolationPayload.sandboxProfilePayload.sha256,
+				brokerPolicySha256: target.payload.isolationPayload.brokerPolicyPayload.sha256,
+				runtimeLibraries: target.payload.isolationPayload.runtimeLibraryPayloads.map((library) => ({
+					name: library.path.split('/').at(-1),
+					byteLength: library.byteLength,
+					sha256: library.sha256,
+				})),
+			},
+		}, {
+			readEvidence: async (path) => regularCanonicalFile(
+				root, path, `OpenFX ${target.id} production-readiness evidence`,
+			),
+			resolveReviewPublicKey: (_target, keyId) => resolveNativeIsolationReviewPublicKey(
+				reviewPolicy,
+				{ usage: 'framescaper-openfx-production-readiness', target: target.id, keyId },
+			),
+		});
+		const evidenceBytes = regularCanonicalFile(
+			root,
+			reference.evidence.path,
+			`reopened OpenFX ${target.id} production-readiness evidence`,
+		);
+		verifyDescriptor(evidenceBytes, reference.evidence,
+			`reopened OpenFX ${target.id} production-readiness evidence`);
+		productionReadiness[target.id] = Object.freeze({
+			reference,
+			evidence: Object.freeze({ status: 'authenticated', evidence }),
+			evidenceBytes,
+		});
+	}
+	const verified = Object.freeze({
+		...release,
+		reviewPolicy: Object.freeze({
+			name: FRAMESCAPER_OPENFX_REVIEW_POLICY_NAME,
+			byteLength: reviewPolicyBytes.byteLength,
+			sha256: digest(reviewPolicyBytes),
+			bytes: reviewPolicyBytes,
+		}),
+		productionReadiness: Object.freeze(productionReadiness),
+	});
+	VERIFIED_PAYLOAD_RELEASES.add(verified);
+	return verified;
+}
+
+export function framescaperOpenFxProductionReadinessStageSummary(release, targetId) {
+	assertVerifiedPayloadRelease(release);
+	const readiness = release.productionReadiness[targetId];
+	if (readiness === null) return null;
+	return deepFreeze({
+		reference: structuredClone(readiness.reference),
+		evidence: {
+			name: FRAMESCAPER_OPENFX_READINESS_EVIDENCE_NAME,
+			byteLength: readiness.evidenceBytes.byteLength,
+			sha256: digest(readiness.evidenceBytes),
+		},
+		verified: structuredClone(readiness.evidence),
+	});
 }
 
 function sourcePaths(root) {
@@ -296,13 +415,42 @@ function auditBuiltTarget(repositoryRoot, id, target) {
 	}
 	const suffix = id.startsWith('win-') ? '.exe' : '';
 	const prefix = `${FRAMESCAPER_OPENFX_HOST_ROOT}/prebuilt/${id}/bin/`;
-	for (const [field, name] of [
-		['scannerPayload', `framescaper-ofx-scanner${suffix}`],
-		['runtimeHostPayload', `framescaper-ofx-runtime-host${suffix}`],
-	]) {
-		const payload = target[field];
+	const isolationPrefix = `${FRAMESCAPER_OPENFX_HOST_ROOT}/prebuilt/${id}/isolation/`;
+	const isolation = target.isolationPayload;
+	if (!isolation || !sameFields(isolation, [
+		'launcherPayload', 'sandboxProfilePayload', 'brokerPolicyPayload', 'runtimeLibraryPayloads',
+	]) || !Array.isArray(isolation.runtimeLibraryPayloads) || isolation.runtimeLibraryPayloads.length > 32) {
+		findings.push(`OpenFX target ${id} has an invalid isolationPayload identity.`);
+	}
+	const declarations = [
+		['scannerPayload', target.scannerPayload, `${prefix}framescaper-ofx-scanner${suffix}`],
+		['runtimeHostPayload', target.runtimeHostPayload, `${prefix}framescaper-ofx-runtime-host${suffix}`],
+		['isolation launcherPayload', isolation?.launcherPayload,
+			`${isolationPrefix}milestone5-native-isolation-launcher${suffix}`],
+		['isolation sandboxProfilePayload', isolation?.sandboxProfilePayload,
+			`${isolationPrefix}milestone5-native-isolation-profile.json`],
+		['isolation brokerPolicyPayload', isolation?.brokerPolicyPayload,
+			`${isolationPrefix}milestone5-native-isolation-broker.json`],
+		...(Array.isArray(isolation?.runtimeLibraryPayloads)
+			? isolation.runtimeLibraryPayloads.map((payload) => [
+				'isolation runtimeLibraryPayloads', payload,
+				`${FRAMESCAPER_OPENFX_HOST_ROOT}/prebuilt/${id}/lib/${payload?.path?.split('/').at(-1) ?? ''}`,
+			]) : []),
+	];
+	const runtimePaths = Array.isArray(isolation?.runtimeLibraryPayloads)
+		? isolation.runtimeLibraryPayloads.map(({ path }) => path) : [];
+	if (runtimePaths.some((path, index) => index > 0
+		&& runtimePaths[index - 1].localeCompare(path, 'en') >= 0)) {
+		findings.push(`OpenFX target ${id} runtime libraries are not uniquely ordered.`);
+	}
+	if (id.startsWith('linux-') && runtimePaths.filter((path) => (
+		path.split('/').at(-1) === LINUX_RUNTIME_LOADERS[id]
+	)).length !== 1) {
+		findings.push(`OpenFX target ${id} requires its exact staged runtime loader.`);
+	}
+	for (const [field, payload, expectedPath] of declarations) {
 		if (!payload || !sameFields(payload, ['path', 'byteLength', 'sha256'])
-			|| payload.path !== `${prefix}${name}`
+			|| payload.path !== expectedPath
 			|| !Number.isSafeInteger(payload.byteLength) || payload.byteLength <= 0
 			|| !SHA256.test(String(payload.sha256))) {
 			findings.push(`OpenFX target ${id} has an invalid ${field} identity.`);
@@ -324,28 +472,96 @@ function auditBuiltTarget(repositoryRoot, id, target) {
 		}
 	}
 	if (target.productionReadiness !== null) {
-		const readiness = target.productionReadiness;
-		if (!sameFields(readiness, PRODUCTION_READINESS_FIELDS)
-			|| readiness.schemaVersion !== 1 || readiness.status !== 'reviewed'
-			|| readiness.target !== id || readiness.osIsolationAttested !== true
-			|| readiness.realThirdPartyExecutionAttested !== true
-			|| readiness.scannerSha256 !== target.scannerPayload?.sha256
-			|| readiness.runtimeHostSha256 !== target.runtimeHostPayload?.sha256
-			|| !/^\d{4}-\d{2}-\d{2}$/u.test(String(readiness.reviewedAt))
-			|| typeof readiness.reviewer !== 'string' || readiness.reviewer.length < 3
-			|| readiness.reviewer.length > 128 || hasControlCharacters(readiness.reviewer)
-			|| !SHA256.test(String(readiness.evidenceSha256))) {
+		try {
+			openFxProductionReadinessReference(target.productionReadiness, id);
+		} catch {
 			findings.push(`OpenFX target ${id} has an invalid production-readiness attestation.`);
 		}
 	}
 	return findings;
 }
 
-function hasControlCharacters(value) {
-	return [...value].some((character) => {
-		const code = character.codePointAt(0);
-		return code < 0x20 || code === 0x7f;
-	});
+function regularCanonicalFile(root, relativePath, label) {
+	const path = resolve(root, relativePath);
+	const localPath = relative(root, path);
+	if (!localPath || isAbsolute(localPath) || localPath === '..' || localPath.startsWith(`..${sep}`)) {
+		throw new Error(`${label} leaves its repository root.`);
+	}
+	const metadata = lstatSync(path);
+	if (metadata.isSymbolicLink() || !metadata.isFile() || realpathSync(path) !== path) {
+		throw new Error(`${label} is not a canonical regular file.`);
+	}
+	if (!Number.isSafeInteger(metadata.size) || metadata.size < 1 || metadata.size > 1024 * 1024) {
+		throw new Error(`${label} has an invalid byte length.`);
+	}
+	const descriptor = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+	try {
+		const opened = fstatSync(descriptor);
+		if (!opened.isFile() || opened.size !== metadata.size
+			|| (metadata.ino !== 0 && opened.ino !== 0
+				&& (opened.dev !== metadata.dev || opened.ino !== metadata.ino))) {
+			throw new Error(`${label} changed while it was opened.`);
+		}
+		const bytes = readFileSync(descriptor);
+		const after = fstatSync(descriptor);
+		if (after.size !== opened.size || bytes.byteLength !== opened.size) {
+			throw new Error(`${label} changed while it was read.`);
+		}
+		return bytes;
+	} finally {
+		closeSync(descriptor);
+	}
+}
+
+function verifyDescriptor(bytes, descriptor, label) {
+	if (bytes.byteLength !== descriptor.byteLength || digest(bytes) !== descriptor.sha256) {
+		throw new Error(`${label} changed bytes or digest.`);
+	}
+}
+
+function cloneIsolationPayload(value) {
+	return {
+		launcherPayload: { ...value.launcherPayload },
+		sandboxProfilePayload: { ...value.sandboxProfilePayload },
+		brokerPolicyPayload: { ...value.brokerPolicyPayload },
+		runtimeLibraryPayloads: value.runtimeLibraryPayloads.map((library) => ({ ...library })),
+	};
+}
+
+function payloadDescriptors(entry) {
+	return [
+		['scannerPayload', entry.scannerPayload],
+		['runtimeHostPayload', entry.runtimeHostPayload],
+		['isolation launcherPayload', entry.isolationPayload.launcherPayload],
+		['isolation sandboxProfilePayload', entry.isolationPayload.sandboxProfilePayload],
+		['isolation brokerPolicyPayload', entry.isolationPayload.brokerPolicyPayload],
+		...entry.isolationPayload.runtimeLibraryPayloads.map((library) => (
+			['isolation runtimeLibraryPayloads', library]
+		)),
+	];
+}
+
+function parseJson(bytes, label) {
+	try { return JSON.parse(String(bytes)); }
+	catch (error) { throw new Error(`${label} is invalid JSON.`, { cause: error }); }
+}
+
+function assertVerifiedPayloadRelease(release) {
+	if (!VERIFIED_PAYLOAD_RELEASES.has(release)) {
+		throw new Error('A verified Framescaper OpenFX payload release is required.');
+	}
+}
+
+function digest(bytes) {
+	return createHash('sha256').update(bytes).digest('hex');
+}
+
+function deepFreeze(value) {
+	if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+		Object.freeze(value);
+		for (const child of Object.values(value)) deepFreeze(child);
+	}
+	return value;
 }
 
 function sameFields(value, fields) {

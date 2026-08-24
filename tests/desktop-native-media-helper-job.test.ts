@@ -22,6 +22,7 @@ import {
 } from '../desktop/native-media-helper-job.ts';
 import { canonicalizeNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
 import { nativeQueueKeyedPlanV7 } from './helpers/native-queue-plan-fixture.ts';
+import { framescaperMediaHostDescriptorFixture } from './helpers/framescaper-media-host-descriptor-fixture.ts';
 
 const OUTPUT_BYTES = Buffer.from('encoded-output');
 
@@ -113,7 +114,7 @@ test('the helper spools a canonical plan, verifies every identity/digest, and in
 		const completion = runner.run({
 			kind: 'media-render',
 			grant: {
-				executable: executableGrant(harness.descriptor), plan,
+				backend: 'vaapi', executable: executableGrant(harness.descriptor), plan,
 				sources: [await fileInput(harness.sourcePath)],
 				output: {
 					rootPath: outputRoot, rootIdentity: await identity(outputRoot),
@@ -148,7 +149,7 @@ test('the helper spools a canonical plan, verifies every identity/digest, and in
 			temporaryOutputPath: admittedInvocation.temporaryOutputPath,
 		}, {
 			operation: 'media-render', planSha256: plan.sha256, sourceRoles: ['original'],
-			backend: 'native-cpu', maximumOutputBytes: 1_024,
+			backend: 'vaapi', maximumOutputBytes: 1_024,
 			destinationRoot: outputRoot, temporaryOutputPath: outputPath,
 		});
 		await assert.rejects(stat(join(scratchRoot, 'ef'.repeat(20))), /ENOENT/u);
@@ -217,7 +218,7 @@ test('a changed source, swapped executable, wrong port count, or oversized scrat
 		});
 		const plan = planBinding(harness.planBytes);
 		const grant = {
-			executable: executableGrant(harness.descriptor), plan,
+			backend: 'native-cpu' as const, executable: executableGrant(harness.descriptor), plan,
 			sources: [{ ...(await fileInput(harness.sourcePath)), sha256: '0'.repeat(64) }],
 			output: {
 				rootPath: outputRoot, rootIdentity: await identity(outputRoot),
@@ -258,7 +259,7 @@ test('a successful exit with a forged output digest is rejected and its temporar
 		const job = runner.run({
 			kind: 'media-render',
 			grant: {
-				executable: executableGrant(harness.descriptor), plan,
+				backend: 'native-cpu', executable: executableGrant(harness.descriptor), plan,
 				sources: [await fileInput(harness.sourcePath)],
 				output: {
 					rootPath: outputRoot, rootIdentity: await identity(outputRoot),
@@ -350,7 +351,7 @@ test('a direct source replaced while the native host runs rejects the result and
 		const job = runner.run({
 			kind: 'media-render',
 			grant: {
-				executable: executableGrant(harness.descriptor), plan,
+				backend: 'native-cpu', executable: executableGrant(harness.descriptor), plan,
 				sources: [await fileInput(harness.sourcePath)],
 				output: {
 					rootPath: outputRoot, rootIdentity: await identity(outputRoot),
@@ -400,7 +401,7 @@ test('a destination directory replaced while the native host runs rejects and un
 		const job = runner.run({
 			kind: 'media-render',
 			grant: {
-				executable: executableGrant(harness.descriptor), plan,
+				backend: 'native-cpu', executable: executableGrant(harness.descriptor), plan,
 				sources: [await fileInput(harness.sourcePath)],
 				output: {
 					rootPath: outputRoot, rootIdentity: await identity(outputRoot),
@@ -440,11 +441,11 @@ async function jobHarness() {
 		writeFile(planPath, planBytes),
 	]);
 	const executableIdentity = await identity(executablePath);
-	const descriptor: FramescaperMediaHostDescriptor = Object.freeze({
+	const descriptor: FramescaperMediaHostDescriptor = framescaperMediaHostDescriptorFixture(Object.freeze({
 		target: 'linux-x64', runtime: 'linux-x64', path: executablePath,
 		byteLength: executableBytes.byteLength, sha256: digest(executableBytes),
 		hostVersion: '1.0.0', ffmpegVersion: '9.0.1', identity: executableIdentity,
-	});
+	}));
 	return {
 		root, descriptor, sourcePath, planPath, planBytes,
 		dispose: () => rm(root, { recursive: true, force: true }),

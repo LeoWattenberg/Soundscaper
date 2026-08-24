@@ -14,7 +14,7 @@ test('Web VCR software evidence remains behind the false production capability',
 	const framescaper = capabilities.products.framescaper;
 	assert.equal(framescaper.applicationFeatures.framescaperWebVcr, false);
 	assert.equal(framescaper.platforms['electron-enhanced'].status, 'partial');
-	assert.equal(framescaper.platforms['electron-only'].status, 'not-applicable');
+	assert.equal(framescaper.platforms['electron-only'].status, 'partial');
 	for (const path of [
 		'src/common/editor/web-vcr-domain.ts',
 		'src/common/editor/web-vcr-geometry.ts',

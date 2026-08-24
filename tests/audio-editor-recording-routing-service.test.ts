@@ -7,6 +7,7 @@ import {
 	createRecordingRoutingService,
 	type RecordingRoutingServiceRuntime,
 } from '../src/common/editor/controller/recording-routing-service.ts';
+import { adaptNativeAudioInventory } from '../src/common/editor/controller/native-audio-inventory.ts';
 
 interface TestProject {
 	readonly id: string;
@@ -204,6 +205,39 @@ test('input access settles each device request once and tolerates partial failur
 	});
 	await assert.rejects(() => allFailed.service.requestInputAccess(), (error) => error === defaultError);
 	assert.deepEqual(allFailed.hardwareRequests.sort(), ['default', 'microphone-a', 'microphone-b']);
+});
+
+test('native inventory joins Web devices through the routing action without probing or Web sink substitution', async () => {
+	const sinkCalls: string[] = [];
+	const fixture = createFixture({
+		enumerateDevices: async () => [
+			{ kind: 'audioinput', deviceId: 'web-mic', label: 'Web mic', groupId: 'web' },
+			{ kind: 'audiooutput', deviceId: 'web-speaker', label: 'Web speaker', groupId: 'web' },
+		],
+		setOutputDevice: async (deviceId) => { sinkCalls.push(deviceId); return { activeDeviceId: deviceId }; },
+	});
+	const nativeInventory = adaptNativeAudioInventory({
+		backend: 'wasapi', status: 'available', detail: '', devices: [{
+			handle: 'studio-interface', label: 'Studio interface', direction: 'duplex',
+			channelCount: 32, isDefault: true,
+		}],
+	});
+	fixture.state.preferredOutputDeviceId = 'native:wasapi:out:studio-interface';
+	await fixture.service.refreshAudioDevices({ probe: false, nativeInventory });
+	assert.deepEqual(fixture.state.recordingDevices.map((device) => device.deviceId), [
+		'web-mic', 'native:wasapi:in:studio-interface',
+	]);
+	assert.deepEqual(fixture.state.audioOutputDevices.map((device) => device.deviceId), [
+		'web-speaker', 'native:wasapi:out:studio-interface',
+	]);
+	const nativeInput = fixture.state.recordingDevices[1];
+	assert.deepEqual({
+		groupId: nativeInput.groupId, channelCount: nativeInput.channelCount,
+		channels: (nativeInput.channels as readonly unknown[]).length, status: nativeInput.status,
+	}, { groupId: 'native:wasapi:studio-interface', channelCount: 32, channels: 32, status: 'available' });
+	assert.deepEqual(fixture.hardwareRequests, [], 'describing inventory must not open either Web or native capture');
+	assert.deepEqual(sinkCalls, [], 'a native preference is not passed to the browser setSinkId route');
+	assert.equal(fixture.state.audioOutputStatus, 'available');
 });
 
 test('audio output failures restore the preference and classify browser errors', async () => {

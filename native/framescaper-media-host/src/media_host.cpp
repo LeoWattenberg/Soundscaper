@@ -3,10 +3,10 @@
 #include "ffmpeg_media_engine.hpp"
 #include "ffmpeg_selected_v20_render.hpp"
 #include "media_file_grants.hpp"
+#include "media_host_arguments.hpp"
 #include "media_host_contract.hpp"
 #include "video_timing_asset.hpp"
 
-#include <charconv>
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
@@ -16,18 +16,15 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
-#include <unordered_set>
 #include <vector>
+
+#if defined(_WIN32)
+#include <fcntl.h>
+#include <io.h>
+#endif
 
 namespace framescaper::media {
 namespace {
-
-constexpr std::uint64_t maximum_native_file_bytes = 16ULL * 1024ULL * 1024ULL * 1024ULL * 1024ULL;
-
-class admission_error final : public std::runtime_error {
-public:
-	using std::runtime_error::runtime_error;
-};
 
 [[nodiscard]] std::string json_escape(const std::string_view value) {
 	std::string escaped;
@@ -49,177 +46,14 @@ public:
 	return escaped;
 }
 
-[[nodiscard]] std::filesystem::path admitted_path(
-	const std::string_view value,
-	const std::string_view label
-) {
-	if (value.empty() || value.size() > maximum_path_bytes) {
-		throw admission_error(std::string{label} + " path is empty or oversized.");
-	}
-	const std::filesystem::path path{value};
-	if (!path.is_absolute() || path != path.lexically_normal()) {
-		throw admission_error(std::string{label} + " path must be an exact normalized absolute grant.");
-	}
-	return path;
-}
-
-[[nodiscard]] std::uint64_t positive_integer(
-	const std::string_view value,
-	const std::string_view label,
-	const std::uint64_t maximum
-) {
-	if (value.empty() || (value.size() > 1 && value.front() == '0')) {
-		throw admission_error(std::string{label} + " is not a canonical positive integer.");
-	}
-	std::uint64_t result{};
-	const auto converted = std::from_chars(value.data(), value.data() + value.size(), result);
-	if (converted.ec != std::errc{} || converted.ptr != value.data() + value.size()
-		|| result == 0 || result > maximum) {
-		throw admission_error(std::string{label} + " is outside its closed numeric domain.");
-	}
-	return result;
-}
-
-struct parsed_arguments final {
-	bool self_test{};
-	bool capabilities{};
-	std::optional<std::string> self_test_operation;
-	std::optional<operation> kind;
-	std::optional<std::filesystem::path> plan;
-	std::optional<std::string> plan_sha256;
-	std::vector<std::filesystem::path> sources;
-	std::vector<std::string> source_sha256;
-	std::vector<std::uint64_t> source_byte_lengths;
-	std::vector<std::string> source_roles;
-	std::vector<std::filesystem::path> video_timing_assets;
-	std::vector<std::string> video_timing_sha256;
-	std::vector<std::uint64_t> video_timing_byte_lengths;
-	std::optional<std::filesystem::path> temporary_output;
-	std::optional<std::filesystem::path> decode_output;
-	std::optional<std::filesystem::path> destination_root;
-	std::optional<std::filesystem::path> scratch_root;
-	std::optional<std::string> backend;
-	std::optional<std::string> proxy_recipe;
-	std::optional<std::uint64_t> proxy_width;
-	std::optional<std::uint64_t> proxy_height;
-	std::optional<std::uint64_t> maximum_output_bytes;
-	std::optional<std::string> sequence_profile;
-	std::optional<std::uint64_t> sequence_rate_num;
-	std::optional<std::uint64_t> sequence_rate_den;
-};
-
-void unique_flag(std::unordered_set<std::string>& flags, const std::string& flag) {
-	if (!flags.insert(flag).second) throw admission_error("A host flag may not be repeated: " + flag);
-}
-
-[[nodiscard]] bool backend_is_known(const std::string_view value) {
-	static const std::unordered_set<std::string_view> backends{
-		"native-cpu", "d3d11va", "media-foundation", "qsv", "nvdec", "nvenc",
-		"amf", "videotoolbox", "vaapi",
-	};
-	return backends.contains(value);
-}
-
-[[nodiscard]] parsed_arguments parse_arguments(const int argc, char** argv) {
-	parsed_arguments parsed;
-	std::unordered_set<std::string> flags;
-	for (int index = 1; index < argc; ++index) {
-		const std::string flag{argv[index]};
-		if (flag == "--self-test" || flag == "--capabilities") {
-			unique_flag(flags, flag);
-			parsed.self_test = flag == "--self-test";
-			parsed.capabilities = flag == "--capabilities";
-			continue;
-		}
-		if (index + 1 >= argc) throw admission_error("A host flag is missing its value: " + flag);
-		const std::string_view value{argv[++index]};
-		if (flag == "--self-test-operation") {
-			unique_flag(flags, flag);
-			if (value != "selected-v20-render") {
-				throw admission_error("The operation-specific self-test is outside the closed registry.");
-			}
-			parsed.self_test_operation = std::string{value};
-		} else if (flag == "--operation") {
-			unique_flag(flags, flag);
-			parsed.kind = parse_operation(value);
-			if (!parsed.kind) throw admission_error("The host operation is outside helper contract v1.");
-		} else if (flag == "--plan") {
-			unique_flag(flags, flag); parsed.plan = admitted_path(value, "plan");
-		} else if (flag == "--plan-sha256") {
-			unique_flag(flags, flag); parsed.plan_sha256 = std::string{value};
-		} else if (flag == "--source") {
-			if (parsed.sources.size() >= maximum_sources) throw admission_error("The host source list exceeds its hard ceiling.");
-			parsed.sources.push_back(admitted_path(value, "source"));
-		} else if (flag == "--source-sha256") {
-			if (parsed.source_sha256.size() >= maximum_sources) throw admission_error("The host source digest list exceeds its hard ceiling.");
-			parsed.source_sha256.emplace_back(value);
-		} else if (flag == "--source-byte-length") {
-			if (parsed.source_byte_lengths.size() >= maximum_sources) throw admission_error("The host source length list exceeds its hard ceiling.");
-			parsed.source_byte_lengths.push_back(positive_integer(value, "source byte length", maximum_native_file_bytes));
-		} else if (flag == "--video-timing-asset") {
-			if (parsed.video_timing_assets.size() >= video_timing_asset_maximum_grants) {
-				throw admission_error("The host timing-asset list exceeds its hard ceiling.");
-			}
-			parsed.video_timing_assets.push_back(admitted_path(value, "video timing asset"));
-		} else if (flag == "--video-timing-sha256") {
-			if (parsed.video_timing_sha256.size() >= video_timing_asset_maximum_grants) {
-				throw admission_error("The host timing-digest list exceeds its hard ceiling.");
-			}
-			parsed.video_timing_sha256.emplace_back(value);
-		} else if (flag == "--video-timing-byte-length") {
-			if (parsed.video_timing_byte_lengths.size() >= video_timing_asset_maximum_grants) {
-				throw admission_error("The host timing-length list exceeds its hard ceiling.");
-			}
-			parsed.video_timing_byte_lengths.push_back(positive_integer(
-				value, "video timing asset byte length", video_timing_asset_maximum_bytes
-			));
-		} else if (flag == "--temporary-output") {
-			unique_flag(flags, flag); parsed.temporary_output = admitted_path(value, "temporary output");
-		} else if (flag == "--decode-output") {
-			unique_flag(flags, flag); parsed.decode_output = admitted_path(value, "decode output");
-		} else if (flag == "--destination-root") {
-			unique_flag(flags, flag); parsed.destination_root = admitted_path(value, "destination root");
-		} else if (flag == "--scratch") {
-			unique_flag(flags, flag); parsed.scratch_root = admitted_path(value, "scratch");
-		} else if (flag == "--backend") {
-			unique_flag(flags, flag);
-			if (!backend_is_known(value)) throw admission_error("The host backend is outside the closed build policy.");
-			parsed.backend = std::string{value};
-		} else if (flag == "--source-role") {
-			if (parsed.source_roles.size() >= maximum_sources) throw admission_error("The host source role list exceeds its hard ceiling.");
-			if (value != "original" && value != "evaluated-rgba-frame-pack"
-				&& value != "staged-audio-mix" && value != "image-sequence-pack"
-				&& value != "image-sequence-inventory") {
-				throw admission_error("A source role is outside the closed helper authority registry.");
-			}
-			parsed.source_roles.emplace_back(value);
-		} else if (flag == "--proxy-recipe") {
-			unique_flag(flags, flag); parsed.proxy_recipe = std::string{value};
-		} else if (flag == "--proxy-width") {
-			unique_flag(flags, flag); parsed.proxy_width = positive_integer(value, "proxy width (maximum 1280)", 1280);
-		} else if (flag == "--proxy-height") {
-			unique_flag(flags, flag); parsed.proxy_height = positive_integer(value, "proxy height (maximum 720)", 720);
-		} else if (flag == "--maximum-output-bytes") {
-			unique_flag(flags, flag);
-			parsed.maximum_output_bytes = positive_integer(value, "maximum output bytes", maximum_native_file_bytes);
-		} else if (flag == "--sequence-profile") {
-			unique_flag(flags, flag); parsed.sequence_profile = std::string{value};
-		} else if (flag == "--sequence-rate-num") {
-			unique_flag(flags, flag); parsed.sequence_rate_num = positive_integer(value, "sequence rate numerator", 1'000'000);
-		} else if (flag == "--sequence-rate-den") {
-			unique_flag(flags, flag); parsed.sequence_rate_den = positive_integer(value, "sequence rate denominator", 1'000'000);
-		} else throw admission_error("The host does not admit raw FFmpeg or unknown arguments: " + flag);
-	}
-	return parsed;
-}
-
 void require_source_authentication(
 	invocation& job,
 	const parsed_arguments& parsed,
 	const bool native_job
 ) {
-	if (parsed.sources.empty() || parsed.sources.size() != parsed.source_sha256.size()) {
-		throw admission_error("A media job requires paired exact source and source-sha256 grants.");
+	if (parsed.sources.empty() || parsed.sources.size() != parsed.source_sha256.size()
+		|| parsed.sources.size() != parsed.source_stream_fds.size()) {
+		throw admission_error("A media job requires one exact file or live source grant per input.");
 	}
 	if (native_job && (parsed.sources.size() != parsed.source_byte_lengths.size()
 		|| parsed.sources.size() != parsed.source_roles.size())) {
@@ -227,6 +61,16 @@ void require_source_authentication(
 	}
 	job.sources.reserve(parsed.sources.size());
 	for (std::size_t index = 0; index < parsed.sources.size(); ++index) {
+		if (parsed.source_stream_fds[index] >= 0) {
+			if (!native_job || !parsed.sources[index].empty() || !parsed.source_sha256[index].empty()) {
+				throw admission_error("Only a native media job may consume a pathless live source.");
+			}
+			job.sources.emplace_back();
+			continue;
+		}
+		if (parsed.source_sha256[index].empty()) {
+			throw admission_error("A file source requires its exact SHA-256 grant.");
+		}
 		const auto admitted = authenticate_regular_file(
 			parsed.sources[index], parsed.source_sha256[index], "source", maximum_native_file_bytes
 		);
@@ -238,6 +82,7 @@ void require_source_authentication(
 	job.source_sha256 = parsed.source_sha256;
 	job.source_byte_lengths = parsed.source_byte_lengths;
 	job.source_roles = parsed.source_roles;
+	job.source_stream_fds = parsed.source_stream_fds;
 }
 
 [[nodiscard]] std::vector<video_timing_asset_grant> video_timing_grants(
@@ -270,6 +115,20 @@ void require_plan_sources_match(const invocation& job, const std::vector<std::si
 	}
 }
 
+void require_proxy_source_matches_plan(const invocation& job) {
+	if (job.sources.size() != 1 || job.source_sha256.size() != 1
+		|| job.source_roles.size() != 1 || job.source_roles.front() != "original") {
+		throw admission_error("Proxy generation requires one exact original source grant.");
+	}
+	const auto matches = std::count(
+		job.admitted_plan.source_sha256.begin(), job.admitted_plan.source_sha256.end(),
+		job.source_sha256.front()
+	);
+	if (matches == 0) {
+		throw authentication_error("The proxy source digest is absent from its canonical V14 plan.");
+	}
+}
+
 [[nodiscard]] std::vector<std::size_t> original_source_indices(const invocation& job) {
 	std::vector<std::size_t> result;
 	for (std::size_t index = 0; index < job.source_roles.size(); ++index) {
@@ -280,7 +139,6 @@ void require_plan_sources_match(const invocation& job, const std::vector<std::si
 
 void require_exact_render_source_roles(const invocation& job) {
 	const auto originals = original_source_indices(job);
-	require_plan_sources_match(job, originals);
 	std::size_t carriers = 0;
 	std::size_t audio = 0;
 	bool extras_started = false;
@@ -298,9 +156,29 @@ void require_exact_render_source_roles(const invocation& job) {
 			if (++audio > 1) throw admission_error("An exact render admits one staged audio mix.");
 		} else throw admission_error("An exact render carries an unrelated source role.");
 	}
+	if (!originals.empty() || carriers == 0) require_plan_sources_match(job, originals);
 	if (job.admitted_plan.version >= 9) {
-		if (carriers != 0 || audio != 0) {
-			throw admission_error("An unsupported unified render cannot acquire derived media authority.");
+			if (job.admitted_plan.version == 14) {
+			if (carriers > 1 || (carriers == 0 && audio != 0)
+				|| (carriers == 1 && audio != static_cast<std::size_t>(job.admitted_plan.includes_audio))) {
+				throw admission_error("A selected V14 carrier must exactly match its RGBA and staged-audio authority.");
+			}
+			if (carriers == 1) {
+				const auto carrier = std::find(job.source_roles.begin(), job.source_roles.end(), "evaluated-rgba-frame-pack");
+				const auto carrier_index = static_cast<std::size_t>(carrier - job.source_roles.begin());
+				if (job.source_stream_fds[carrier_index] != 0) {
+					throw admission_error("The live V14 RGBA carrier requires its stdin grant.");
+				}
+				if (audio == 1) {
+					const auto staged = std::find(job.source_roles.begin(), job.source_roles.end(), "staged-audio-mix");
+					const auto audio_index = static_cast<std::size_t>(staged - job.source_roles.begin());
+					if (job.source_stream_fds[audio_index] != 3) {
+						throw admission_error("The live V14 audio carrier requires its fd 3 grant.");
+					}
+				}
+			}
+		} else if (carriers != 0 || audio != 0) {
+			throw admission_error("A dormant unified render cannot acquire derived media authority.");
 		}
 		return;
 	}
@@ -388,6 +266,11 @@ void require_exact_render_source_roles(const invocation& job) {
 	} else {
 		if (job.kind == operation::media_render || job.kind == operation::media_encode) {
 			require_exact_render_source_roles(job);
+		} else if (job.kind == operation::media_proxy) {
+			if (!job.admitted_plan.image_sequence_inventory_sha256.empty()) {
+				throw admission_error("Ordinary proxy generation cannot consume an image-sequence pack.");
+			}
+			require_proxy_source_matches_plan(job);
 		} else {
 			if (!job.admitted_plan.image_sequence_inventory_sha256.empty()) {
 				throw admission_error("Ordinary media jobs require no image-sequence inventory.");
@@ -464,6 +347,15 @@ engine_result self_test_selected_v20_render() {
 		"\"deliveryCodecSetAvailable\":false,"
 		"\"frameCoreReady\":false,\"ready\":false}"};
 }
+engine_result self_test_selected_v28_v14_render() {
+	return {78,
+		"{\"contractVersion\":1,\"operation\":\"media-render\","
+		"\"profile\":\"selected-v28-v14-carrier\",\"planVersion\":14,"
+		"\"rgbaFramePackVersion\":1,\"exactPictureOrdinals\":false,"
+		"\"evaluatedRgbaExecutor\":false,\"maximumInFlightFrames\":0,"
+		"\"stagedAudioInputBound\":false,\"deliveryCodecSetAvailable\":false,"
+		"\"ready\":false}"};
+}
 engine_result execute_ffmpeg_job(const invocation& job) {
 	const auto operation_text = std::string{operation_name(job.kind)};
 	if (job.image_sequence) return {
@@ -513,6 +405,16 @@ int main(const int argc, char** argv) {
 	using namespace framescaper::media;
 	try {
 		const auto parsed = parse_arguments(argc, argv);
+#if defined(_WIN32)
+		if (std::find(parsed.source_stream_fds.begin(), parsed.source_stream_fds.end(), 0)
+			!= parsed.source_stream_fds.end() && _setmode(_fileno(stdin), _O_BINARY) == -1) {
+			throw admission_error("The stdin live-source grant cannot enter binary mode.");
+		}
+		if (std::find(parsed.source_stream_fds.begin(), parsed.source_stream_fds.end(), 3)
+			!= parsed.source_stream_fds.end() && _setmode(3, _O_BINARY) == -1) {
+			throw admission_error("The fd 3 live-source grant cannot enter binary mode.");
+		}
+#endif
 		if (parsed.self_test || parsed.capabilities || parsed.self_test_operation) {
 			const auto diagnostic_count = static_cast<unsigned>(parsed.self_test)
 				+ static_cast<unsigned>(parsed.capabilities)
@@ -520,7 +422,8 @@ int main(const int argc, char** argv) {
 			if (diagnostic_count != 1) throw admission_error("Diagnostic modes are mutually exclusive.");
 			if (parsed.self_test_operation) {
 				if (argc != 3) throw admission_error("An operation-specific self-test admits only its exact selector.");
-				const auto result = self_test_selected_v20_render();
+				const auto result = *parsed.self_test_operation == "selected-v28-v14-render"
+					? self_test_selected_v28_v14_render() : self_test_selected_v20_render();
 				std::cout << result.control_json << '\n';
 				return result.exit_code;
 			}

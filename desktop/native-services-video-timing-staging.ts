@@ -10,6 +10,10 @@ import {
 	createNativeMediaPlanEnvelopeV1,
 	type NativeMediaPlanEnvelopeV1,
 } from '../src/common/editor/native-media-plan-envelope.ts';
+import {
+	createNativeMediaPlanEnvelopeV2,
+	type NativeMediaPlanEnvelopeV2,
+} from '../src/common/editor/native-media-plan-envelope-v2.ts';
 import { fingerprintNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
 import {
 	nativeMediaPlanVideoTimingAssetInputs,
@@ -57,6 +61,11 @@ export type AuthenticatedNativeProjectTimingBodies = Pick<
 	'envelope' | 'timingAssets' | 'requiredStagedBytes'
 >;
 
+export interface AuthenticatedNativeProjectTimingBodiesV1OrV2
+	extends Omit<AuthenticatedNativeProjectTimingBodies, 'envelope'> {
+	readonly envelope: NativeMediaPlanEnvelopeV1 | NativeMediaPlanEnvelopeV2;
+}
+
 export interface NativePlanVideoTimingAssetBytes {
 	readonly input: NativeMediaPlanVideoTimingAssetInput;
 	readonly bytes: Uint8Array;
@@ -66,6 +75,11 @@ export interface AuthenticatedNativePlanTimingAssets {
 	readonly envelope: NativeMediaPlanEnvelopeV1;
 	readonly timingAssets: readonly NativePlanVideoTimingAssetBytes[];
 	readonly requiredStagedBytes: number;
+}
+
+export interface AuthenticatedNativePlanTimingAssetsV1OrV2
+	extends Omit<AuthenticatedNativePlanTimingAssets, 'envelope'> {
+	readonly envelope: NativeMediaPlanEnvelopeV1 | NativeMediaPlanEnvelopeV2;
 }
 
 export function nativeProjectPlanBodyMetadataMatches(
@@ -109,7 +123,11 @@ export async function authenticateNativeProjectPlanBodies(input: Readonly<{
 		maximumStagedBytes: input.maximumStagedBytes,
 		requiredStagedBytes: timingRequiredBytes,
 	});
-	return Object.freeze({ ...timing, originals, requiredStagedBytes });
+	if (timing.envelope.envelopeVersion !== 1) {
+		throw new RangeError('Legacy native project plan bodies admit only envelope V1 plans.');
+	}
+	const legacy = timing as AuthenticatedNativeProjectTimingBodies;
+	return Object.freeze({ ...legacy, originals, requiredStagedBytes });
 }
 
 export async function authenticateNativeProjectTimingBodies(input: Readonly<{
@@ -118,6 +136,19 @@ export async function authenticateNativeProjectTimingBodies(input: Readonly<{
 	readonly readBody: (body: Readonly<NativeProjectMediaBody>) => Promise<Uint8Array>;
 	readonly maximumStagedBytes: number;
 }>): Promise<AuthenticatedNativeProjectTimingBodies> {
+	const authenticated = await authenticateNativeProjectTimingBodiesV1OrV2(input);
+	if (authenticated.envelope.envelopeVersion !== 1) {
+		throw new RangeError('Legacy project timing authentication admits only envelope V1 plans.');
+	}
+	return authenticated as AuthenticatedNativeProjectTimingBodies;
+}
+
+export async function authenticateNativeProjectTimingBodiesV1OrV2(input: Readonly<{
+	readonly plan: unknown;
+	readonly bodies: readonly Readonly<NativeProjectMediaBody>[];
+	readonly readBody: (body: Readonly<NativeProjectMediaBody>) => Promise<Uint8Array>;
+	readonly maximumStagedBytes: number;
+}>): Promise<AuthenticatedNativeProjectTimingBodiesV1OrV2> {
 	const timingInputs = nativeMediaPlanVideoTimingAssetInputs(input.plan);
 	const timings = exactTimingBodies(timingInputs, input.bodies);
 	const requiredStagedBytes = requiredTimingStagedBytes(input.plan, timingInputs);
@@ -138,7 +169,7 @@ async function loadAuthenticatedProjectTimingBodies(input: Readonly<{
 	readonly readBody: (body: Readonly<NativeProjectMediaBody>) => Promise<Uint8Array>;
 	readonly maximumStagedBytes: number;
 	readonly requiredStagedBytes: number;
-}>): Promise<AuthenticatedNativeProjectTimingBodies> {
+}>): Promise<AuthenticatedNativeProjectTimingBodiesV1OrV2> {
 	const loadedTimings: Array<AuthenticatedNativeProjectBody & Readonly<{
 		readonly input: NativeMediaPlanVideoTimingAssetInput;
 	}>> = [];
@@ -147,7 +178,7 @@ async function loadAuthenticatedProjectTimingBodies(input: Readonly<{
 			...await loadBody(body, input.readBody), input: timingInput,
 		}));
 	}
-	const authenticated = authenticateNativePlanVideoTimingAssets({
+	const authenticated = authenticateNativePlanVideoTimingAssetsV1OrV2({
 		plan: input.plan,
 		assets: loadedTimings,
 		maximumStagedBytes: input.maximumStagedBytes,
@@ -168,6 +199,18 @@ export function authenticateNativePlanVideoTimingAssets(input: Readonly<{
 	readonly assets: readonly NativePlanVideoTimingAssetBytes[];
 	readonly maximumStagedBytes: number;
 }>): AuthenticatedNativePlanTimingAssets {
+	const authenticated = authenticateNativePlanVideoTimingAssetsV1OrV2(input);
+	if (authenticated.envelope.envelopeVersion !== 1) {
+		throw new RangeError('Legacy native timing authentication admits only envelope V1 plans.');
+	}
+	return authenticated as AuthenticatedNativePlanTimingAssets;
+}
+
+export function authenticateNativePlanVideoTimingAssetsV1OrV2(input: Readonly<{
+	readonly plan: unknown;
+	readonly assets: readonly NativePlanVideoTimingAssetBytes[];
+	readonly maximumStagedBytes: number;
+}>): AuthenticatedNativePlanTimingAssetsV1OrV2 {
 	const timingInputs = nativeMediaPlanVideoTimingAssetInputs(input.plan);
 	if (!Array.isArray(input.assets) || input.assets.length !== timingInputs.length) {
 		throw new Error('The native plan requires its exact timing asset count in plan order.');
@@ -209,10 +252,10 @@ export function authenticateNativePlanVideoTimingAssets(input: Readonly<{
 		});
 		timingSidecars.set(loaded.input.sourceId, token);
 	}
-	const envelope = createNativeMediaPlanEnvelopeV1(
-		input.plan,
-		timingInputs.length === 0 ? undefined : timingSidecars,
-	);
+	const version = (input.plan as Readonly<{ version?: unknown }>).version;
+	const envelope = version === 14
+		? createNativeMediaPlanEnvelopeV2(input.plan, timingInputs.length === 0 ? undefined : timingSidecars)
+		: createNativeMediaPlanEnvelopeV1(input.plan, timingInputs.length === 0 ? undefined : timingSidecars);
 	return Object.freeze({
 		envelope,
 		timingAssets: Object.freeze(loadedTimings),

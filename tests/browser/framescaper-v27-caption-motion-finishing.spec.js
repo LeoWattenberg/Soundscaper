@@ -13,13 +13,13 @@ import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
-test('selected V27 imports and exports caption files and publishes built-in motion analysis', async ({ page }) => {
+test('selected V28 imports and exports caption files and publishes built-in motion analysis', async ({ page }) => {
 	test.setTimeout(180_000);
 	await installPinnedFfmpegRuntimeRoutes(page);
 	await disableNativeSavePicker(page);
 	const clientErrors = collectClientErrors(page);
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
-	await importFiles(editor, [createDeterministicAvFixture('v27-caption-motion.webm')]);
+	await importFiles(editor, [createDeterministicAvFixture('v28-caption-motion.webm')]);
 	await expect(editor).toHaveAttribute('data-clip-count', '2', { timeout: 30_000 });
 	const projectId = await editor.getAttribute('data-project-id');
 	expect(projectId).toBeTruthy();
@@ -42,7 +42,7 @@ test('selected V27 imports and exports caption files and publishes built-in moti
 	await chooseDropdown(page,
 		exportDialog.getByRole('group', { name: 'Format', exact: true }), 'MP4 video');
 	await expect(exportDialog.locator('[data-export-field="captionDeliveryUnavailable"]')).toContainText(
-		'Caption burn-in and mux are unavailable for selected Framescaper V27.',
+		'Caption burn-in and mux are unavailable for selected Framescaper V28.',
 	);
 	await expect(exportDialog.locator('[data-effect-field="captionTrack"]')).toHaveCount(0);
 	await expect(exportDialog.locator('[data-effect-field="captionDelivery"]')).toHaveCount(0);

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Closed control records for selected-V20 renderer-derived V7/V8 staging. */
+/** Closed control records for authenticated renderer-evaluated media staging. */
 
 import { createHash } from 'node:crypto';
 
@@ -11,6 +11,11 @@ import {
 	createNativeMediaPlanEnvelopeV1,
 	type NativeMediaPlanEnvelopeV1,
 } from '../src/common/editor/native-media-plan-envelope.ts';
+import {
+	createNativeMediaPlanEnvelopeV2,
+	type NativeMediaPlanEnvelopeV2,
+} from '../src/common/editor/native-media-plan-envelope-v2.ts';
+import { nativeMediaV14RequiresEvaluatedCarrier } from '../src/common/editor/native-media-v14-render-family.ts';
 import type { NativeQueueInputFingerprintV1 } from '../src/common/editor/native-queue-record.ts';
 import {
 	HELPER_DATA_CHUNK_MAXIMUM_BYTES,
@@ -35,7 +40,7 @@ const PROJECT_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u;
 
 export interface FramescaperNativeRenderInputStageBeginRequestV1 {
 	readonly stageVersion: typeof FRAMESCAPER_NATIVE_RENDER_INPUT_STAGE_VERSION;
-	readonly planVersion: 7 | 8;
+	readonly planVersion: 7 | 8 | 14;
 	readonly planFingerprint: string;
 	readonly planPayload: string;
 	readonly projectId: string;
@@ -43,6 +48,10 @@ export interface FramescaperNativeRenderInputStageBeginRequestV1 {
 	readonly inputFingerprints: readonly NativeQueueInputFingerprintV1[];
 	readonly derivedInputs: readonly FramescaperNativeRenderInputDescriptorV1[];
 }
+
+export type NativeRenderInputEnvelope =
+	| (NativeMediaPlanEnvelopeV1 & Readonly<{ readonly planVersion: 7 | 8 }>)
+	| (NativeMediaPlanEnvelopeV2 & Readonly<{ readonly planVersion: 14 }>);
 
 export interface FramescaperNativeRenderInputStageAdmissionV1 {
 	readonly stageVersion: typeof FRAMESCAPER_NATIVE_RENDER_INPUT_STAGE_VERSION;
@@ -68,12 +77,12 @@ export function nativeRenderInputBeginRequest(
 		'stageVersion', 'planVersion', 'planFingerprint', 'planPayload', 'projectId',
 		'projectRevision', 'inputFingerprints', 'derivedInputs',
 	], 'render-input stage begin request');
-	if (row.stageVersion !== 1 || (row.planVersion !== 7 && row.planVersion !== 8)
+	if (row.stageVersion !== 1 || ![7, 8, 14].includes(row.planVersion as number)
 		|| typeof row.planPayload !== 'string') {
-		throw new TypeError('Native render-input staging admits only canonical selected-V20 V7/V8 plans.');
+		throw new TypeError('Native render-input staging admits only canonical selected V7/V8 or V14 plans.');
 	}
 	return Object.freeze({
-		stageVersion: 1, planVersion: row.planVersion,
+		stageVersion: 1, planVersion: row.planVersion as 7 | 8 | 14,
 		planFingerprint: nativeRenderInputDigestValue(row.planFingerprint, 'plan fingerprint'),
 		planPayload: row.planPayload,
 		projectId: nativeRenderInputIdentifier(row.projectId, 'project id'),
@@ -99,13 +108,13 @@ export function nativeRenderInputClaimRequest(value: unknown) {
 		'derivedInputStageId', 'planVersion', 'planFingerprint', 'planPayload',
 		'projectId', 'projectRevision', 'inputFingerprints',
 	], 'render-input claim request');
-	if ((row.planVersion !== 7 && row.planVersion !== 8) || typeof row.planPayload !== 'string') {
-		throw new TypeError('A native render-input claim must name its selected-V20 V7/V8 plan.');
+	if (![7, 8, 14].includes(row.planVersion as number) || typeof row.planPayload !== 'string') {
+		throw new TypeError('A native render-input claim must name its selected V7/V8 or V14 plan.');
 	}
-	const envelope = nativeRenderInputExactV20Envelope(
+	const envelope = nativeRenderInputExactEnvelope(
 		row.planPayload,
 		nativeRenderInputDigestValue(row.planFingerprint, 'plan fingerprint'),
-		row.planVersion,
+		row.planVersion as 7 | 8 | 14,
 	);
 	return Object.freeze({
 		derivedInputStageId: nativeRenderInputStageId(row.derivedInputStageId),
@@ -120,12 +129,12 @@ export function nativeRenderInputClaimRequest(value: unknown) {
 
 export function nativeRenderInputDescriptorsForPlan(
 	value: readonly FramescaperNativeRenderInputDescriptorV1[],
-	envelope: NativeMediaPlanEnvelopeV1,
+	envelope: NativeRenderInputEnvelope,
 ): readonly FramescaperNativeRenderInputDescriptorV1[] {
 	if (!nativeRenderInputStageRequired(envelope)) {
 		throw new TypeError('A silent selected-V20 V8 plan has no derived-input stage.');
 	}
-	const expected = envelope.planVersion === 7
+	const expected = envelope.planVersion === 7 || envelope.planVersion === 14
 		? ['evaluated-rgba-frame-pack', ...(envelope.summary.includesAudio ? ['staged-audio-mix'] : [])]
 		: ['staged-audio-mix'];
 	if (value.length !== expected.length || value.some(({ role }, index) => role !== expected[index])) {
@@ -138,9 +147,31 @@ export function nativeRenderInputDescriptorsForPlan(
 	return value;
 }
 
-export function nativeRenderInputStageRequired(envelope: NativeMediaPlanEnvelopeV1): boolean {
-	if (envelope.planVersion !== 7 && envelope.planVersion !== 8) return false;
-	return envelope.planVersion === 7 || envelope.summary.includesAudio;
+export function nativeRenderInputStageRequired(envelope: NativeRenderInputEnvelope): boolean {
+	return envelope.planVersion === 14
+		? nativeMediaV14RequiresEvaluatedCarrier(envelope.plan)
+		: envelope.planVersion === 7 || envelope.summary.includesAudio;
+}
+
+export function nativeRenderInputExactEnvelope(
+	payload: string,
+	fingerprint: string,
+	expectedVersion?: 7 | 8 | 14,
+): NativeRenderInputEnvelope {
+	let plan: unknown;
+	try { plan = JSON.parse(payload) as unknown; }
+	catch { throw new TypeError('A native render-input plan payload must be JSON.'); }
+	const version = (plan as Readonly<{ readonly version?: unknown }> | null)?.version;
+	const envelope = version === 14
+		? createNativeMediaPlanEnvelopeV2(plan)
+		: createNativeMediaPlanEnvelopeV1(plan);
+	if ((envelope.planVersion !== 7 && envelope.planVersion !== 8 && envelope.planVersion !== 14)
+		|| (expectedVersion !== undefined && envelope.planVersion !== expectedVersion)
+		|| canonicalizeNativeMediaPlan(plan) !== payload
+		|| envelope.fingerprint !== fingerprint) {
+		throw new TypeError('The native render-input plan identity is not exact canonical selected V7/V8/V14.');
+	}
+	return envelope as NativeRenderInputEnvelope;
 }
 
 export function nativeRenderInputExactV20Envelope(
@@ -148,17 +179,11 @@ export function nativeRenderInputExactV20Envelope(
 	fingerprint: string,
 	expectedVersion?: 7 | 8,
 ) {
-	let plan: unknown;
-	try { plan = JSON.parse(payload) as unknown; }
-	catch { throw new TypeError('A native render-input plan payload must be JSON.'); }
-	const envelope = createNativeMediaPlanEnvelopeV1(plan);
-	if ((envelope.planVersion !== 7 && envelope.planVersion !== 8)
-		|| (expectedVersion !== undefined && envelope.planVersion !== expectedVersion)
-		|| canonicalizeNativeMediaPlan(plan) !== payload
-		|| envelope.fingerprint !== fingerprint) {
+	const envelope = nativeRenderInputExactEnvelope(payload, fingerprint, expectedVersion);
+	if (envelope.planVersion !== 7 && envelope.planVersion !== 8) {
 		throw new TypeError('The native render-input plan identity is not exact canonical selected-V20 V7/V8.');
 	}
-	return envelope as NativeMediaPlanEnvelopeV1 & Readonly<{ planVersion: 7 | 8 }>;
+	return envelope;
 }
 
 export function nativeRenderInputDataBinding(

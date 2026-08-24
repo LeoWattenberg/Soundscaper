@@ -2,7 +2,6 @@
 
 /** Exact filesystem/data-plane adapter around the closed Framescaper media-host CLI. */
 
-import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -12,11 +11,17 @@ import {
 import {
 	createNativeMediaPlanEnvelopeV1,
 } from '../src/common/editor/native-media-plan-envelope.ts';
+import { createNativeMediaPlanEnvelopeV2 } from '../src/common/editor/native-media-plan-envelope-v2.ts';
 import type { FramescaperMediaHostDescriptor } from './framescaper-media-host-payload.ts';
 import type { HelperDataPlaneBinding } from './helper-data-plane.ts';
+import type { HelperDataPlaneInputReservation } from './helper-data-plane-input-reservation.ts';
+import type { HelperDataPlaneOutputReservation } from './helper-data-plane-output-reservation.ts';
 import {
+	receiveHelperDataPlaneInputStream,
 	receiveHelperDataPlaneFile,
 	sendHelperDataPlaneFile,
+	sendHelperDataPlaneReservedFile,
+	type HelperDataPlaneByteSink,
 	type HelperDataPlaneIoPort,
 } from './helper-data-plane-io.ts';
 import {
@@ -35,16 +40,28 @@ import {
 	type NativeMediaHostProxyControl,
 } from './native-media-host-result.ts';
 import { NativeMediaHelperFilesystem } from './native-media-helper-filesystem.ts';
+import type { HelperNativeMediaEncodeBackend } from './helper-native-media-backend.ts';
+import {
+	inspectNativeMediaHelperOutput,
+	prepareNativeMediaHelperOutput,
+} from './native-media-helper-output.ts';
 
-export const NATIVE_MEDIA_HOST_CONTROL_MAXIMUM_BYTES = 64 * 1024;
+import {
+	NATIVE_MEDIA_HOST_CONTROL_MAXIMUM_BYTES,
+} from './native-media-host-process.ts';
+import { createIsolatedNativeMediaHostProcessInvoker } from './native-media-isolated-host-process.ts';
+export {
+	nativeMediaHostArguments, NATIVE_MEDIA_HOST_CONTROL_MAXIMUM_BYTES,
+} from './native-media-host-process.ts';
 export const NATIVE_MEDIA_PROXY_RECIPE_ID = 'framescaper-native-prores-proxy-mov-v1';
 
 export interface NativeMediaHostSourceInvocation {
-	readonly path: string;
-	readonly sha256: string;
+	readonly path: string | null;
+	readonly sha256: string | null;
 	readonly byteLength: number;
 	readonly role: 'original' | 'evaluated-rgba-frame-pack' | 'staged-audio-mix'
 		| 'image-sequence-pack' | 'image-sequence-inventory';
+	readonly liveInput?: HelperDataPlaneInputReservation;
 }
 
 export interface NativeMediaHostVideoTimingInvocation {
@@ -59,7 +76,7 @@ export interface NativeMediaHostInvocation {
 	readonly plan: Readonly<{ path: string; sha256: string }> | null;
 	readonly sources: readonly NativeMediaHostSourceInvocation[];
 	readonly videoTimingAssets: readonly NativeMediaHostVideoTimingInvocation[];
-	readonly backend: 'native-cpu';
+	readonly backend: HelperNativeMediaEncodeBackend;
 	readonly maximumOutputBytes: number;
 	readonly scratchPath: string | null;
 	readonly decodeOutputPath: string | null;
@@ -81,6 +98,10 @@ export interface NativeMediaHostProcessResult {
 
 export interface NativeMediaHostProcessHandle {
 	readonly completion: Promise<NativeMediaHostProcessResult>;
+	readonly inputs?: readonly Readonly<{
+		readonly role: NativeMediaHostSourceInvocation['role'];
+		readonly sink: HelperDataPlaneByteSink;
+	}>[];
 	cancel(): Promise<void>;
 }
 
@@ -97,6 +118,18 @@ export interface NativeMediaHelperJobRequest {
 	readonly onProgress?: (value: number | null) => void;
 }
 
+/** A closed host refusal that survives the helper wire through its `code`. */
+export class NativeMediaHostOperationError extends Error {
+	readonly code: string;
+	readonly exitCode: number;
+	constructor(code: string, exitCode: number, kind: NativeMediaHelperPoolJobKind) {
+		super(`The native media host ${kind} operation failed with code ${String(exitCode)} (${code}).`);
+		this.name = 'NativeMediaHostOperationError';
+		this.code = code;
+		this.exitCode = exitCode;
+	}
+}
+
 export interface NativeMediaHelperJobRunnerOptions {
 	readonly descriptor: FramescaperMediaHostDescriptor;
 	readonly invokeHost?: (invocation: NativeMediaHostInvocation) => NativeMediaHostProcessHandle;
@@ -108,7 +141,7 @@ export class NativeMediaHelperJobRunner {
 
 	constructor(options: NativeMediaHelperJobRunnerOptions) {
 		this.#descriptor = options.descriptor;
-		this.#invokeHost = options.invokeHost ?? invokeClosedNativeMediaHost;
+		this.#invokeHost = options.invokeHost ?? createIsolatedNativeMediaHostProcessInvoker(options.descriptor);
 	}
 
 	run(request: NativeMediaHelperJobRequest): NativeMediaHelperJobHandle {
@@ -120,7 +153,7 @@ export class NativeMediaHelperJobRunner {
 		if (request.signal?.aborted) relayAbort();
 		else request.signal?.addEventListener('abort', relayAbort, { once: true });
 		let host: NativeMediaHostProcessHandle | null = null;
-		const completion = this.#execute(request.kind, grant, bindings, ports, abort.signal, (value) => {
+		const completion = this.#execute(request.kind, grant, ports, abort.signal, (value) => {
 			host = value;
 		}, request.onProgress).finally(() => {
 			request.signal?.removeEventListener('abort', relayAbort);
@@ -138,7 +171,6 @@ export class NativeMediaHelperJobRunner {
 	async #execute(
 		kind: NativeMediaHelperPoolJobKind,
 		grant: HelperJobGrant<NativeMediaHelperPoolJobKind>,
-		bindings: readonly HelperDataPlaneBinding[],
 		ports: readonly HelperDataPlaneIoPort[],
 		signal: AbortSignal,
 		setHost: (handle: NativeMediaHostProcessHandle) => void,
@@ -181,7 +213,11 @@ export class NativeMediaHelperJobRunner {
 				: (nativeGrant as HelperMediaDecodeJobGrant).sources;
 			const sources: Array<NativeMediaHostSourceInvocation | null> = await Promise.all(
 				inputs.map(async (source) => {
-					if (source.type === 'stream') return null;
+					if (source.type === 'stream') return 'authentication' in source.binding
+						? Object.freeze({
+							path: null, sha256: null, byteLength: source.binding.byteLength,
+							role: source.role, liveInput: source.binding,
+						}) : null;
 					await filesystem.authenticateFile({
 						path: source.path, byteLength: source.bytes,
 						sha256: source.sha256, identity: source.identity,
@@ -214,8 +250,12 @@ export class NativeMediaHelperJobRunner {
 			});
 			await assertCanonicalPlan(planPath, nativeGrant.plan.sha256);
 			let portIndex = 1;
+			const livePorts: HelperDataPlaneIoPort[] = [];
 			for (const [index, source] of inputs.entries()) {
 				if (source.type === 'stream') {
+					if ('authentication' in source.binding) {
+						livePorts.push(ports[portIndex]!); portIndex += 1; continue;
+					}
 					const sourcePath = join(reservationPath, `source-${String(index).padStart(6, '0')}.bin`);
 					await receiveHelperDataPlaneFile({
 						binding: source.binding, port: ports[portIndex]!, path: sourcePath, signal,
@@ -236,31 +276,26 @@ export class NativeMediaHelperJobRunner {
 			let destinationRoot: string | null = null;
 			let temporaryOutputPath: string | null = null;
 			if (kind === 'media-decode') {
-				maximumOutputBytes = (nativeGrant as HelperMediaDecodeJobGrant).output.byteLength;
+				const output = (nativeGrant as HelperMediaDecodeJobGrant).output;
+				maximumOutputBytes = 'byteLength' in output
+					? output.byteLength : output.maximumByteLength;
 				decodeOutputPath = join(reservationPath, 'decoded-output.bin');
 				await filesystem.expectOutput({
 					path: decodeOutputPath, maximumBytes: maximumOutputBytes, insideReservation: true,
 				});
 			} else {
 				const output = (nativeGrant as HelperMediaEncodeJobGrant | HelperMediaProxyJobGrant).output;
-				await filesystem.authenticateDirectory({
-					path: output.rootPath, identity: output.rootIdentity,
-				});
-				maximumOutputBytes = output.maximumBytes;
-				destinationRoot = output.rootPath;
-				temporaryOutputPath = output.temporaryPath;
-				await filesystem.expectOutput({
-					path: output.temporaryPath,
-					maximumBytes: output.maximumBytes,
-					insideReservation: false,
-				});
+				const preparedOutput = await prepareNativeMediaHelperOutput(filesystem, output);
+				({ maximumOutputBytes, destinationRoot, temporaryOutputPath } = preparedOutput);
 			}
-			const handle = this.#invokeHost(invocation({
+			const hostInvocation = invocation({
 				descriptor: this.#descriptor,
 				kind,
 				plan: { path: planPath, sha256: nativeGrant.plan.sha256 },
 				sources: sources as NativeMediaHostSourceInvocation[],
 				videoTimingAssets,
+				backend: kind === 'media-encode' || kind === 'media-render'
+					? (nativeGrant as HelperMediaEncodeJobGrant).backend : 'native-cpu',
 				maximumOutputBytes,
 				scratchPath: reservationPath,
 				decodeOutputPath,
@@ -270,27 +305,68 @@ export class NativeMediaHelperJobRunner {
 					? (nativeGrant as HelperMediaProxyJobGrant).proxyRecipe : null,
 				imageSequence: kind === 'media-decode'
 					? ((nativeGrant as HelperMediaDecodeJobGrant).imageSequence ?? null) : null,
-			}));
+			});
+			const handle = this.#invokeHost(hostInvocation);
 			setHost(handle);
-			const completed = await successfulResult(handle.completion, kind);
-			const inspected = await filesystem.inspectOutput();
+			const liveSources = hostInvocation.sources.filter((source): source is NativeMediaHostSourceInvocation &
+				Readonly<{ liveInput: HelperDataPlaneInputReservation }> => source.liveInput !== undefined);
+			let completed: NativeMediaHostProcessResult;
+			if (liveSources.length === 0) completed = await successfulResult(handle.completion, kind);
+			else {
+				const mounted = exactLiveHostInputs(liveSources, livePorts, handle.inputs);
+				const liveAbort = new AbortController();
+				const relayLiveAbort = (): void => liveAbort.abort(signal.reason);
+				if (signal.aborted) relayLiveAbort();
+				else signal.addEventListener('abort', relayLiveAbort, { once: true });
+				const receiving = mounted.map(({ source, port, sink }) => receiveHelperDataPlaneInputStream({
+					reservation: source.liveInput, port, sink, signal: liveAbort.signal,
+				}));
+				try {
+					[completed] = await Promise.all([
+						successfulResult(handle.completion, kind),
+						...receiving,
+					]);
+				} catch (error) {
+					liveAbort.abort(error);
+					await handle.cancel().catch(() => undefined);
+					await Promise.allSettled(receiving);
+					throw error;
+				} finally { signal.removeEventListener('abort', relayLiveAbort); }
+			}
 			const hostResult = parseNativeMediaHostControl(kind, completed.stdout);
 			signal.throwIfAborted();
 			if (kind === 'media-decode') {
-				const output = (nativeGrant as HelperMediaDecodeJobGrant).output;
+				const inspected = await filesystem.inspectOutput();
+				const decodeGrant = nativeGrant as HelperMediaDecodeJobGrant;
+				const output = decodeGrant.output;
 				assertOutputControl(hostResult as NativeMediaHostDecodeControl, inspected);
-				if (inspected.byteLength !== output.byteLength || inspected.sha256 !== output.sha256) {
-					throw new Error('The decoded media output does not match its exact data-plane binding.');
+				let result;
+				if (decodeGrant.imageSequence === undefined) {
+					if (!('byteLength' in output) || inspected.byteLength !== output.byteLength
+						|| inspected.sha256 !== output.sha256) {
+						throw new Error('The decoded media output does not match its exact data-plane binding.');
+					}
+					result = await sendHelperDataPlaneFile({
+						binding: output, port: ports.at(-1)!, path: decodeOutputPath!, signal,
+					});
+				} else {
+					if (!('maximumByteLength' in output)) {
+						throw new Error('Image-sequence decode lost its bounded output reservation.');
+					}
+					result = await sendHelperDataPlaneReservedFile({
+						reservation: output,
+						completion: { streamId: output.streamId, ...inspected },
+						port: ports.at(-1)!, path: decodeOutputPath!, signal,
+					});
 				}
-				const result = await sendHelperDataPlaneFile({
-					binding: output, port: ports.at(-1)!, path: decodeOutputPath!, signal,
-				});
 				await filesystem.finish({ retainOutput: false });
 				onProgress?.(1);
 				return Object.freeze({ output: result });
 			}
-			assertOutputControl(
-				hostResult as Readonly<{ byteLength: number; sha256: string }>, inspected,
+			const publicationOutput = (nativeGrant as HelperMediaEncodeJobGrant | HelperMediaProxyJobGrant).output;
+			const inspected = await inspectNativeMediaHelperOutput(
+				filesystem, publicationOutput,
+				hostResult as Parameters<typeof inspectNativeMediaHelperOutput>[2],
 			);
 			if (kind === 'media-proxy') {
 				const control = hostResult as NativeMediaHostProxyControl;
@@ -315,101 +391,35 @@ export class NativeMediaHelperJobRunner {
 	}
 }
 
+function exactLiveHostInputs(
+	sources: readonly (NativeMediaHostSourceInvocation & Readonly<{
+		readonly liveInput: HelperDataPlaneInputReservation;
+	}>)[],
+	ports: readonly HelperDataPlaneIoPort[],
+	inputs: NativeMediaHostProcessHandle['inputs'],
+): readonly Readonly<{
+	readonly source: typeof sources[number];
+	readonly port: HelperDataPlaneIoPort;
+	readonly sink: HelperDataPlaneByteSink;
+}>[] {
+	if (!inputs || inputs.length !== sources.length || ports.length !== sources.length) {
+		throw new Error('The native media host did not mount every granted live input sink.');
+	}
+	return Object.freeze(sources.map((source, index) => {
+		const input = inputs[index]; const port = ports[index];
+		if (!input || !port || input.role !== source.role || !input.sink
+			|| typeof input.sink.write !== 'function' || typeof input.sink.complete !== 'function'
+			|| typeof input.sink.abort !== 'function') {
+			throw new Error('The native media host changed its live input role or sink authority.');
+		}
+		return Object.freeze({ source, port, sink: input.sink });
+	}));
+}
+
 export function createNativeMediaHelperJobRunner(
 	options: NativeMediaHelperJobRunnerOptions,
 ): NativeMediaHelperJobRunner {
 	return new NativeMediaHelperJobRunner(options);
-}
-
-export function nativeMediaHostArguments(invocation_: NativeMediaHostInvocation): readonly string[] {
-	const args = ['--operation', invocation_.operation];
-	if (invocation_.plan !== null) {
-		args.push('--plan', invocation_.plan.path, '--plan-sha256', invocation_.plan.sha256);
-	}
-	for (const source of invocation_.sources) {
-		args.push('--source', source.path, '--source-sha256', source.sha256);
-		if (invocation_.operation !== 'probe-video-source') {
-			args.push(
-				'--source-byte-length', String(source.byteLength),
-				'--source-role', source.role,
-			);
-		}
-	}
-	for (const timing of invocation_.videoTimingAssets) {
-		args.push(
-			'--video-timing-asset', timing.path,
-			'--video-timing-sha256', timing.sha256,
-			'--video-timing-byte-length', String(timing.byteLength),
-		);
-	}
-	if (invocation_.operation !== 'probe-video-source') {
-		args.push(
-			'--backend', invocation_.backend,
-			'--maximum-output-bytes', String(invocation_.maximumOutputBytes),
-			'--scratch', invocation_.scratchPath!,
-		);
-		if (invocation_.decodeOutputPath !== null) {
-			args.push('--decode-output', invocation_.decodeOutputPath);
-		} else {
-			args.push(
-				'--destination-root', invocation_.destinationRoot!,
-				'--temporary-output', invocation_.temporaryOutputPath!,
-			);
-		}
-		if (invocation_.proxyRecipe !== null) {
-			args.push(
-				'--proxy-recipe', invocation_.proxyRecipe.id,
-				'--proxy-width', String(invocation_.proxyRecipe.width),
-				'--proxy-height', String(invocation_.proxyRecipe.height),
-			);
-		}
-		if (invocation_.imageSequence !== null) {
-			args.push(
-				'--sequence-profile', invocation_.imageSequence.profileId,
-				'--sequence-rate-num', String(invocation_.imageSequence.frameRate.num),
-				'--sequence-rate-den', String(invocation_.imageSequence.frameRate.den),
-			);
-		}
-	}
-	return Object.freeze(args);
-}
-
-export function invokeClosedNativeMediaHost(
-	invocation_: NativeMediaHostInvocation,
-): NativeMediaHostProcessHandle {
-	const child = spawn(invocation_.executablePath, nativeMediaHostArguments(invocation_), {
-		stdio: ['ignore', 'pipe', 'pipe'], shell: false, windowsHide: true,
-	});
-	let stdout: Buffer<ArrayBufferLike> = Buffer.alloc(0);
-	let stderr: Buffer<ArrayBufferLike> = Buffer.alloc(0);
-	let oversized = false;
-	const append = (current: Buffer<ArrayBufferLike>, chunk: Buffer): Buffer<ArrayBufferLike> => {
-		const value = Buffer.concat([current, chunk]);
-		if (value.byteLength > NATIVE_MEDIA_HOST_CONTROL_MAXIMUM_BYTES) {
-			oversized = true;
-			child.kill();
-		}
-		return value;
-	};
-	child.stdout.on('data', (chunk: Buffer) => { stdout = append(stdout, chunk); });
-	child.stderr.on('data', (chunk: Buffer) => { stderr = append(stderr, chunk); });
-	const completion = new Promise<NativeMediaHostProcessResult>((resolvePromise, reject) => {
-		child.once('error', reject);
-		child.once('exit', (code, signal) => {
-			if (oversized) return reject(new Error('The native media host exceeded its 64 KiB control-output bound.'));
-			if (signal !== null) return reject(new Error(`The native media host exited on signal ${signal}.`));
-			resolvePromise(Object.freeze({
-				exitCode: code ?? 1, stdout: String(stdout), stderr: String(stderr),
-			}));
-		});
-	});
-	return Object.freeze({
-		completion,
-		cancel: async () => {
-			if (child.exitCode === null && child.signalCode === null) child.kill();
-			await completion.catch(() => undefined);
-		},
-	});
 }
 
 interface InvocationParts {
@@ -425,6 +435,7 @@ interface InvocationParts {
 	readonly temporaryOutputPath?: string | null;
 	readonly proxyRecipe?: NativeMediaHostInvocation['proxyRecipe'];
 	readonly imageSequence?: NativeMediaHostInvocation['imageSequence'];
+	readonly backend?: HelperNativeMediaEncodeBackend;
 }
 
 function invocation(parts: InvocationParts): NativeMediaHostInvocation {
@@ -434,7 +445,7 @@ function invocation(parts: InvocationParts): NativeMediaHostInvocation {
 		plan: parts.plan,
 		sources: Object.freeze([...parts.sources]),
 		videoTimingAssets: Object.freeze([...(parts.videoTimingAssets ?? [])]),
-		backend: 'native-cpu' as const,
+		backend: parts.backend ?? 'native-cpu',
 		maximumOutputBytes: parts.maximumOutputBytes,
 		scratchPath: parts.scratchPath ?? null,
 		decodeOutputPath: parts.decodeOutputPath ?? null,
@@ -448,7 +459,9 @@ function invocation(parts: InvocationParts): NativeMediaHostInvocation {
 function jobBindings(
 	kind: NativeMediaHelperPoolJobKind,
 	grant: HelperJobGrant<NativeMediaHelperPoolJobKind>,
-): readonly HelperDataPlaneBinding[] {
+): readonly (
+	HelperDataPlaneBinding | HelperDataPlaneInputReservation | HelperDataPlaneOutputReservation
+)[] {
 	if (kind === 'probe-video-source') return Object.freeze([]);
 	if (kind === 'media-proxy') {
 		const value = grant as HelperMediaProxyJobGrant;
@@ -462,7 +475,9 @@ function jobBindings(
 	]);
 }
 
-function streamBindings(inputs: readonly HelperNativeInputGrant[]): readonly HelperDataPlaneBinding[] {
+function streamBindings(inputs: readonly HelperNativeInputGrant[]): readonly (
+	HelperDataPlaneBinding | HelperDataPlaneInputReservation
+)[] {
 	return inputs.flatMap((input) => input.type === 'stream' ? [input.binding] : []);
 }
 
@@ -492,8 +507,15 @@ function scratchDemand(
 		? [(grant as HelperMediaProxyJobGrant).source]
 		: (grant as HelperMediaDecodeJobGrant).sources;
 	return grant.plan.byteLength
-		+ inputs.reduce((total, input) => total + (input.type === 'stream' ? input.binding.byteLength : 0), 0)
-		+ (kind === 'media-decode' ? (grant as HelperMediaDecodeJobGrant).output.byteLength : 0);
+		+ inputs.reduce((total, input) => total + (input.type === 'stream'
+			&& !('authentication' in input.binding) ? input.binding.byteLength : 0), 0)
+		+ (kind === 'media-decode' ? decodeOutputMaximum(
+			(grant as HelperMediaDecodeJobGrant).output,
+		) : 0);
+}
+
+function decodeOutputMaximum(output: HelperMediaDecodeJobGrant['output']): number {
+	return 'byteLength' in output ? output.byteLength : output.maximumByteLength;
 }
 
 function assertExecutableGrant(
@@ -513,7 +535,10 @@ async function assertCanonicalPlan(path: string, fingerprint: string): Promise<v
 	let plan: unknown;
 	try { plan = JSON.parse(String(bytes)) as unknown; }
 	catch { throw new Error('The helper-spooled native media plan is not JSON.'); }
-	const envelope = createNativeMediaPlanEnvelopeV1(plan);
+	const version = (plan as Readonly<{ version?: unknown }> | null)?.version;
+	const envelope = version === 13 || version === 14
+		? createNativeMediaPlanEnvelopeV2(plan)
+		: createNativeMediaPlanEnvelopeV1(plan);
 	if (Buffer.from(canonicalizeNativeMediaPlan(envelope.plan)).compare(bytes) !== 0
 		|| envelope.fingerprint !== fingerprint) {
 		throw new Error('The helper-spooled native media plan is not its exact canonical fingerprint.');
@@ -530,9 +555,21 @@ async function successfulResult(
 		throw new Error('The native media host exceeded its 64 KiB control-output bound.');
 	}
 	if (result.exitCode !== 0) {
-		throw new Error(`The native media host ${kind} operation failed with code ${String(result.exitCode)}.`);
+		throw new NativeMediaHostOperationError(
+			hostFailureCode(result.stdout, result.exitCode), result.exitCode, kind,
+		);
 	}
 	return result;
+}
+
+function hostFailureCode(stdout: string, exitCode: number): string {
+	try {
+		const value = JSON.parse(stdout) as Readonly<{ readonly error?: unknown }>;
+		if (typeof value?.error === 'string' && /^[a-z][a-z0-9-]{0,63}$/u.test(value.error)) {
+			return value.error;
+		}
+	} catch { /* A malformed host refusal stays fatal and retains only its exit identity. */ }
+	return `native-host-exit-${String(exitCode)}`;
 }
 
 function errorMessage(error: unknown): string {

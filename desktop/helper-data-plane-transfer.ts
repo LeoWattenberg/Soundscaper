@@ -3,9 +3,7 @@
 /** Bind out-of-band MessagePorts to the exact stream identities in a native job grant. */
 
 import type { HelperDataPlaneBinding } from './helper-data-plane.ts';
-import type {
-	HelperDataPlaneOutputReservation,
-} from './helper-data-plane-output-reservation.ts';
+import type { HelperDataPlaneInputReservation } from './helper-data-plane-input-reservation.ts';
 import type {
 	AnyHelperJobGrant,
 	HelperJobKind,
@@ -15,9 +13,10 @@ import type {
 	HelperMediaEncodeJobGrant,
 	HelperMediaProxyJobGrant,
 	HelperNativeInputGrant,
-	HelperOfxHostJobGrant,
 	HelperOfxScanJobGrant,
 } from './helper-native-job-contract.ts';
+import type { HelperOfxHostJobGrantV1OrV2 } from './helper-native-ofx-host-grant-v2.ts';
+import { isHelperOfxInteractJobGrantV1 } from './helper-native-ofx-interact-grant.ts';
 import { HelperContractViolationError } from './helper-wire-admission.ts';
 
 export interface HelperDataPlaneTransferPort {
@@ -72,10 +71,22 @@ export function admitHelperDataPlaneTransfers(
 	}));
 }
 
+/** Helper-side count check for ports delivered in canonical grant order. */
+export function helperJobTransferredPortCount(
+	kind: HelperJobKind,
+	grant: AnyHelperJobGrant,
+): number {
+	return nativeBindings(kind, grant).length;
+}
+
 function nativeBindings(
 	kind: HelperJobKind,
 	grant: AnyHelperJobGrant,
-): readonly (HelperDataPlaneBinding | HelperDataPlaneOutputReservation)[] {
+): readonly Readonly<{ streamId: string }>[] {
+	if (kind === 'audio-device' || kind === 'plugin-host') {
+		const binding = (grant as { persistentPort?: Readonly<{ streamId: string }> }).persistentPort;
+		return binding ? [binding] : [];
+	}
 	if (kind === 'media-decode') {
 		const value = grant as HelperMediaDecodeJobGrant;
 		return [value.plan, ...streamBindings(value.sources), value.output];
@@ -90,7 +101,8 @@ function nativeBindings(
 	}
 	if (kind === 'ofx-scan') return [(grant as HelperOfxScanJobGrant).descriptor];
 	if (kind === 'ofx-host') {
-		const value = grant as HelperOfxHostJobGrant;
+		const value = grant as HelperOfxHostJobGrantV1OrV2;
+		if (isHelperOfxInteractJobGrantV1(value)) return [];
 		return [value.plan,
 			...(value.videoTimingAssets ?? []).map(({ binding }) => binding),
 			...value.inputs.map(({ frame }) => frame), value.output.frame];
@@ -98,7 +110,9 @@ function nativeBindings(
 	return [];
 }
 
-function streamBindings(inputs: readonly HelperNativeInputGrant[]): readonly HelperDataPlaneBinding[] {
+function streamBindings(inputs: readonly HelperNativeInputGrant[]): readonly (
+	HelperDataPlaneBinding | HelperDataPlaneInputReservation
+)[] {
 	return inputs.flatMap((input) => input.type === 'stream' ? [input.binding] : []);
 }
 

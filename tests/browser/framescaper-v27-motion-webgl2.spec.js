@@ -7,11 +7,11 @@ import { fileURLToPath } from 'node:url';
 const HARNESS_ROUTE = '/__framescaper-v27-motion-webgl2__/harness.js';
 const HARNESS_SOURCE = buildHarness();
 
-test('selected V27 temporal denoise matches CPU through a real WebGL2 shader', async ({
+test('the V27 temporal denoise inherited by V28 matches CPU through a real WebGL2 shader', async ({
 	browserName,
 	page,
 }) => {
-	test.skip(browserName !== 'chromium', 'The selected enhanced route is qualified in maintained Chromium.');
+	test.skip(browserName !== 'chromium', 'The shared V27/V28 route is qualified in maintained Chromium.');
 	await page.route(`**${HARNESS_ROUTE}`, async (route) => {
 		await route.fulfill({ status: 200, contentType: 'text/javascript', body: HARNESS_SOURCE });
 	});

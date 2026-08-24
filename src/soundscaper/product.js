@@ -59,7 +59,7 @@ export const SOUNDSCAPER_PROFILE = {
 	desktop: {
 		appId: 'org.soundscaper.desktop',
 		scheme: 'soundscaper-app',
-		sessionPartition: 'persist:soundscaper-v1',
+		sessionPartition: 'persist:soundscaper-v29',
 		executableName: 'soundscaper',
 		category: 'AudioVideo;Audio',
 	},

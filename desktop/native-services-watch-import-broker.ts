@@ -1,62 +1,39 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { WatchRuleV1 } from '../src/common/editor/native-watch-rule.ts';
+import {
+	framescaperNativeWatchImportedWitness,
+	framescaperNativeWatchImportClaimRequest,
+	framescaperNativeWatchImportCompletionRequest,
+	framescaperNativeWatchImportOffer,
+	framescaperNativeWatchLinkedLocator,
+	framescaperNativeWatchRuleAdmitted,
+	framescaperNativeWatchUsableProject,
+	type FramescaperNativeWatchImportedWitness,
+	type FramescaperNativeWatchImportClaim,
+	type FramescaperNativeWatchImportCompletionRequest,
+	type FramescaperNativeWatchImportOffer,
+	type FramescaperNativeWatchLinkedLocator,
+	type FramescaperNativeWatchProjectWitness,
+} from './native-services-watch-import-contract.ts';
 import type { FramescaperNativeWatchEntry } from './native-services-watch-repository.ts';
 
+export {
+	framescaperNativeWatchImportClaim,
+	framescaperNativeWatchImportClaimRequest,
+	framescaperNativeWatchImportCompletionRequest,
+} from './native-services-watch-import-contract.ts';
+export type {
+	FramescaperNativeWatchImportedWitness,
+	FramescaperNativeWatchImportClaim,
+	FramescaperNativeWatchImportClaimRequest,
+	FramescaperNativeWatchImportCompletionRequest,
+	FramescaperNativeWatchImportOffer,
+	FramescaperNativeWatchLinkedLocator,
+	FramescaperNativeWatchProjectWitness,
+} from './native-services-watch-import-contract.ts';
+
 const OPAQUE_ID = /^[a-f0-9]{16,64}$/u;
-const SHA256 = /^[a-f0-9]{64}$/u;
-const PROJECT_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u;
 const MAXIMUM_PENDING_IMPORTS = 1_024;
-
-export interface FramescaperNativeWatchLinkedLocator {
-	readonly locatorId: string;
-	readonly locatorRevision: string;
-	readonly name: string;
-	readonly size: number;
-	readonly mimeType: string;
-	readonly lastModified: number;
-}
-
-export interface FramescaperNativeWatchProjectWitness {
-	readonly schemaVersion: 20;
-	readonly projectId: string;
-	readonly projectRevision: number;
-	readonly open: boolean;
-	readonly writable: boolean;
-}
-
-export interface FramescaperNativeWatchImportClaimRequest {
-	readonly projectId: string;
-	readonly projectRevision: number;
-}
-
-export interface FramescaperNativeWatchImportClaim {
-	readonly claimId: string;
-	readonly projectId: string;
-	readonly projectRevision: number;
-	readonly importMode: 'link' | 'copy';
-	readonly locatorId: string;
-	readonly locatorRevision: string;
-	readonly name: string;
-	readonly size: number;
-	readonly mimeType: string;
-	readonly lastModified: number;
-	readonly contentSha256: string;
-}
-
-export interface FramescaperNativeWatchImportCompletionRequest {
-	readonly claimId: string;
-	readonly projectId: string;
-	readonly expectedProjectRevision: number;
-	readonly committedProjectRevision: number;
-	readonly success: boolean;
-}
-
-export interface FramescaperNativeWatchImportOffer {
-	readonly rule: WatchRuleV1;
-	readonly entry: FramescaperNativeWatchEntry;
-	readonly contentSha256: string;
-}
 
 export interface FramescaperNativeWatchImportBrokerOptions {
 	readonly currentOwner: () => object | null;
@@ -66,6 +43,11 @@ export interface FramescaperNativeWatchImportBrokerOptions {
 		projectId: string,
 		contentSha256: string,
 	) => Promise<boolean>;
+	readonly inspectImported?: (
+		projectId: string,
+		binId: string | null,
+		contentSha256: string,
+	) => Promise<FramescaperNativeWatchImportedWitness | null>;
 	readonly createLocator: (
 		entry: FramescaperNativeWatchEntry,
 		contentSha256: string,
@@ -86,6 +68,8 @@ interface BrokerEntry {
 	readonly offer: FramescaperNativeWatchImportOffer;
 	readonly owner: object;
 	readonly projectRevision: number;
+	readonly projectSchemaVersion: 20 | 28;
+	readonly existingSourceId: string | null;
 	readonly locator: FramescaperNativeWatchLinkedLocator;
 	readonly promise: Promise<boolean>;
 	readonly resolve: (result: boolean) => void;
@@ -122,29 +106,39 @@ export class FramescaperNativeWatchImportBroker {
 
 	async offer(value: FramescaperNativeWatchImportOffer): Promise<boolean> {
 		if (this.#disposed) return false;
-		const offer = watchOffer(value);
+		const offer = framescaperNativeWatchImportOffer(value);
 		const key = offerKey(offer);
 		const existing = this.#entries.get(key);
 		if (existing) return existing.promise;
-		if (this.#entries.size >= MAXIMUM_PENDING_IMPORTS || !admittedRule(offer.rule)) return false;
+		if (this.#entries.size >= MAXIMUM_PENDING_IMPORTS) return false;
 		const owner = this.#options.currentOwner();
 		if (!owner || !this.#options.isOwnerCurrent(owner)) return false;
 		const project = this.#options.inspectProject(offer.rule.projectId);
-		if (!usableProject(project, offer.rule.projectId)) return false;
-		if (await this.#options.alreadyImported(offer.rule.projectId, offer.contentSha256)) {
-			const current = this.#options.inspectProject(offer.rule.projectId);
-			return this.#options.isOwnerCurrent(owner)
-				&& usableProject(current, offer.rule.projectId)
-				&& current.projectRevision === project.projectRevision;
+		if (!framescaperNativeWatchUsableProject(project, offer.rule.projectId)
+			|| !framescaperNativeWatchRuleAdmitted(offer.rule, project)) return false;
+		let existingSourceId: string | null = null;
+		if (project.schemaVersion === 28) {
+			if (!this.#options.inspectImported) return false;
+			const imported = framescaperNativeWatchImportedWitness(await this.#options.inspectImported(
+				offer.rule.projectId, offer.rule.binId, offer.contentSha256,
+			));
+			if (imported && !sameImportedTarget(imported, offer, project)) return false;
+			if (imported && (!offer.rule.generateProxies || imported.proxyAttached)) {
+				return this.#unchanged(owner, project);
+			}
+			existingSourceId = imported?.sourceId ?? null;
+		} else if (await this.#options.alreadyImported(offer.rule.projectId, offer.contentSha256)) {
+			return this.#unchanged(owner, project);
 		}
 		let locator: FramescaperNativeWatchLinkedLocator | null = null;
 		try {
-			locator = linkedLocator(await this.#options.createLocator(
+			locator = framescaperNativeWatchLinkedLocator(await this.#options.createLocator(
 				offer.entry, offer.contentSha256, owner,
 			));
 			if (!this.#options.isOwnerCurrent(owner)) throw new Error('Watch-import owner changed during locator admission.');
 			const current = this.#options.inspectProject(offer.rule.projectId);
-			if (!usableProject(current, offer.rule.projectId)
+			if (!framescaperNativeWatchUsableProject(current, offer.rule.projectId)
+				|| !framescaperNativeWatchRuleAdmitted(offer.rule, current)
 				|| current.projectRevision !== project.projectRevision) {
 				throw new Error('Watch-import project changed during locator admission.');
 			}
@@ -153,6 +147,7 @@ export class FramescaperNativeWatchImportBroker {
 			const entry: BrokerEntry = {
 				key, offer, owner, locator, promise, resolve,
 				projectRevision: project.projectRevision,
+				projectSchemaVersion: project.schemaVersion, existingSourceId,
 				claimId: null, completion: null, timer: null,
 			};
 			entry.timer = this.#schedule(() => { void this.#expire(entry); }, this.#timeoutMs);
@@ -166,13 +161,15 @@ export class FramescaperNativeWatchImportBroker {
 
 	claim(owner: object, value: unknown): FramescaperNativeWatchImportClaim | null {
 		if (this.#disposed || !this.#options.isOwnerCurrent(owner)) return null;
-		const request = claimRequest(value);
+		const request = framescaperNativeWatchImportClaimRequest(value);
 		for (const entry of this.#entries.values()) {
 			if (entry.owner !== owner || entry.completion !== null
 				|| entry.offer.rule.projectId !== request.projectId
 				|| entry.projectRevision !== request.projectRevision) continue;
 			const project = this.#options.inspectProject(request.projectId);
-			if (!usableProject(project, request.projectId)
+			if (!framescaperNativeWatchUsableProject(project, request.projectId)
+				|| !framescaperNativeWatchRuleAdmitted(entry.offer.rule, project)
+				|| project.schemaVersion !== entry.projectSchemaVersion
 				|| project.projectRevision !== request.projectRevision) continue;
 			if (entry.claimId === null) {
 				entry.claimId = opaqueId(this.#options.mintOpaqueId(), 'watch-import claim id');
@@ -184,21 +181,33 @@ export class FramescaperNativeWatchImportBroker {
 	}
 
 	async complete(owner: object, value: unknown): Promise<boolean> {
-		const request = completionRequest(value);
+		const request = framescaperNativeWatchImportCompletionRequest(value);
 		const entry = this.#claims.get(request.claimId);
 		if (!entry || entry.owner !== owner || !this.#options.isOwnerCurrent(owner)) return false;
 		if (entry.offer.rule.projectId !== request.projectId
-			|| entry.projectRevision !== request.expectedProjectRevision
-			|| request.committedProjectRevision !== request.expectedProjectRevision + 1) return false;
+			|| entry.projectRevision !== request.expectedProjectRevision) return false;
 		if (entry.completion !== null) return sameCompletion(entry.completion, request);
+		if (!validCompletionTarget(entry, request)) return false;
 		if (request.success) {
 			const project = this.#options.inspectProject(request.projectId);
-			if (!usableProject(project, request.projectId)
+			if (!framescaperNativeWatchUsableProject(project, request.projectId)
+				|| project.schemaVersion !== entry.projectSchemaVersion
 				|| project.projectRevision !== request.committedProjectRevision) return false;
+			if (entry.projectSchemaVersion === 28) {
+				const imported = await this.#inspectImported(entry);
+				if (!imported || imported.sourceId !== requestSourceId(request)
+					|| imported.projectRevision !== request.committedProjectRevision
+					|| (entry.offer.rule.generateProxies && !imported.proxyAttached)) return false;
+				const verifiedProject = this.#options.inspectProject(request.projectId);
+				if (!framescaperNativeWatchUsableProject(verifiedProject, request.projectId)
+					|| verifiedProject.schemaVersion !== 28
+					|| verifiedProject.projectRevision !== request.committedProjectRevision) return false;
+			}
 		}
 		entry.completion = request;
 		this.#cancelSchedule(entry.timer);
-		if (!request.success || entry.offer.rule.importMode === 'copy') {
+		if (!request.success || entry.offer.rule.importMode === 'copy'
+			|| entry.existingSourceId !== null) {
 			await this.#release(entry);
 		}
 		if (!request.success) this.#forget(entry);
@@ -208,7 +217,7 @@ export class FramescaperNativeWatchImportBroker {
 
 	/** Forget only after the durable watch-import row is committed. */
 	recorded(value: FramescaperNativeWatchImportOffer): boolean {
-		const entry = this.#entries.get(offerKey(watchOffer(value)));
+		const entry = this.#entries.get(offerKey(framescaperNativeWatchImportOffer(value)));
 		if (!entry?.completion?.success) return false;
 		this.#forget(entry);
 		return true;
@@ -235,7 +244,38 @@ export class FramescaperNativeWatchImportBroker {
 	}
 
 	async #release(entry: BrokerEntry): Promise<void> {
+		if (entry.projectSchemaVersion === 28 && entry.offer.rule.importMode === 'link'
+			&& entry.existingSourceId === null) {
+			try {
+				if (await this.#inspectImported(entry) !== null) return;
+			} catch {
+				// Uncertain project custody must not break a possibly landed linked source.
+				return;
+			}
+		}
 		await this.#options.releaseLocator(entry.locator, entry.owner).catch(() => false);
+	}
+
+	async #inspectImported(entry: BrokerEntry): Promise<FramescaperNativeWatchImportedWitness | null> {
+		if (!this.#options.inspectImported) return null;
+		const value = framescaperNativeWatchImportedWitness(await this.#options.inspectImported(
+			entry.offer.rule.projectId, entry.offer.rule.binId, entry.offer.contentSha256,
+		));
+		if (!value || !sameImportedTarget(value, entry.offer, {
+			schemaVersion: entry.projectSchemaVersion,
+			projectId: entry.offer.rule.projectId,
+			projectRevision: value.projectRevision,
+			open: true, writable: true, binId: entry.offer.rule.binId,
+		})) return null;
+		return value;
+	}
+
+	#unchanged(owner: object, project: FramescaperNativeWatchProjectWitness): boolean {
+		const current = this.#options.inspectProject(project.projectId);
+		return this.#options.isOwnerCurrent(owner)
+			&& framescaperNativeWatchUsableProject(current, project.projectId)
+			&& current.schemaVersion === project.schemaVersion
+			&& current.projectRevision === project.projectRevision;
 	}
 
 	#forget(entry: BrokerEntry): void {
@@ -245,106 +285,17 @@ export class FramescaperNativeWatchImportBroker {
 	}
 }
 
-function watchOffer(value: FramescaperNativeWatchImportOffer): FramescaperNativeWatchImportOffer {
-	if (!value?.rule || !value.entry || !SHA256.test(value.contentSha256)) {
-		throw new TypeError('A watch-import offer requires an exact rule, entry, and SHA-256.');
-	}
-	return value;
-}
-
-function admittedRule(rule: WatchRuleV1): boolean {
-	return rule.enabled && !rule.recursive && !rule.generateProxies && rule.binId === null
-		&& (rule.importMode === 'link' || rule.importMode === 'copy');
-}
-
-function usableProject(
-	value: FramescaperNativeWatchProjectWitness | null,
-	projectId: string,
-): value is FramescaperNativeWatchProjectWitness {
-	return value?.schemaVersion === 20 && value.projectId === projectId
-		&& value.open && value.writable && Number.isSafeInteger(value.projectRevision)
-		&& value.projectRevision >= 0;
-}
-
-function linkedLocator(value: FramescaperNativeWatchLinkedLocator): FramescaperNativeWatchLinkedLocator {
-	if (!value || Reflect.ownKeys(value).length !== 6
-		|| !OPAQUE_ID.test(value.locatorId) || !OPAQUE_ID.test(value.locatorRevision)
-		|| typeof value.name !== 'string' || !value.name || value.name.length > 255
-		|| !Number.isSafeInteger(value.size) || value.size < 1
-		|| typeof value.mimeType !== 'string' || !value.mimeType.startsWith('video/')
-		|| !Number.isSafeInteger(value.lastModified) || value.lastModified < 0) {
-		throw new TypeError('A watch-import locator is not an exact pathless video locator.');
-	}
-	return Object.freeze({ ...value });
-}
-
-function claimRequest(value: unknown): FramescaperNativeWatchImportClaimRequest {
-	const record = closedRecord(value, ['projectId', 'projectRevision'], 'watch-import claim request');
-	return Object.freeze({
-		projectId: projectId(record.projectId),
-		projectRevision: nonNegativeInteger(record.projectRevision, 'watch-import project revision'),
-	});
-}
-
-export function framescaperNativeWatchImportClaimRequest(
-	value: unknown,
-): FramescaperNativeWatchImportClaimRequest {
-	return claimRequest(value);
-}
-
-function completionRequest(value: unknown): FramescaperNativeWatchImportCompletionRequest {
-	const record = closedRecord(value, [
-		'claimId', 'projectId', 'expectedProjectRevision', 'committedProjectRevision', 'success',
-	], 'watch-import completion request');
-	if (typeof record.success !== 'boolean') throw new TypeError('Watch-import success must be boolean.');
-	return Object.freeze({
-		claimId: opaqueId(record.claimId, 'watch-import claim id'),
-		projectId: projectId(record.projectId),
-		expectedProjectRevision: nonNegativeInteger(record.expectedProjectRevision, 'expected project revision'),
-		committedProjectRevision: nonNegativeInteger(record.committedProjectRevision, 'committed project revision'),
-		success: record.success,
-	});
-}
-
-export function framescaperNativeWatchImportCompletionRequest(
-	value: unknown,
-): FramescaperNativeWatchImportCompletionRequest {
-	return completionRequest(value);
-}
-
-export function framescaperNativeWatchImportClaim(
-	value: unknown,
-): FramescaperNativeWatchImportClaim {
-	const record = closedRecord(value, [
-		'claimId', 'projectId', 'projectRevision', 'importMode',
-		'locatorId', 'locatorRevision', 'name', 'size', 'mimeType',
-		'lastModified', 'contentSha256',
-	], 'watch-import claim');
-	if (record.importMode !== 'link' && record.importMode !== 'copy') {
-		throw new TypeError('Invalid watch-import mode.');
-	}
-	const locator = linkedLocator({
-		locatorId: record.locatorId as string, locatorRevision: record.locatorRevision as string,
-		name: record.name as string, size: record.size as number, mimeType: record.mimeType as string,
-		lastModified: record.lastModified as number,
-	});
-	const contentSha256 = record.contentSha256;
-	if (typeof contentSha256 !== 'string' || !SHA256.test(contentSha256)) {
-		throw new TypeError('Invalid watch-import content digest.');
-	}
-	return Object.freeze({
-		claimId: opaqueId(record.claimId, 'watch-import claim id'),
-		projectId: projectId(record.projectId),
-		projectRevision: nonNegativeInteger(record.projectRevision, 'watch-import project revision'),
-		importMode: record.importMode, ...locator, contentSha256,
-	});
-}
-
 function claimProjection(entry: BrokerEntry): FramescaperNativeWatchImportClaim {
-	return Object.freeze({
+	const claim = {
 		claimId: entry.claimId!, projectId: entry.offer.rule.projectId,
 		projectRevision: entry.projectRevision, importMode: entry.offer.rule.importMode,
 		...entry.locator, contentSha256: entry.offer.contentSha256,
+	} as const;
+	if (entry.projectSchemaVersion === 20) return Object.freeze(claim);
+	return Object.freeze({
+		...claim, projectSchemaVersion: 28 as const, binId: entry.offer.rule.binId!,
+		generateProxies: entry.offer.rule.generateProxies,
+		existingSourceId: entry.existingSourceId,
 	});
 }
 
@@ -352,40 +303,50 @@ function sameCompletion(
 	left: FramescaperNativeWatchImportCompletionRequest,
 	right: FramescaperNativeWatchImportCompletionRequest,
 ): boolean {
-	return left.claimId === right.claimId && left.projectId === right.projectId
-		&& left.expectedProjectRevision === right.expectedProjectRevision
-		&& left.committedProjectRevision === right.committedProjectRevision
-		&& left.success === right.success;
+	return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function validCompletionTarget(
+	entry: BrokerEntry,
+	request: FramescaperNativeWatchImportCompletionRequest,
+): boolean {
+	if (entry.projectSchemaVersion === 20) {
+		return !('projectSchemaVersion' in request)
+			&& request.committedProjectRevision === request.expectedProjectRevision + 1;
+	}
+	if (!('projectSchemaVersion' in request)
+		|| request.projectSchemaVersion !== 28
+		|| request.binId !== entry.offer.rule.binId
+		|| request.contentSha256 !== entry.offer.contentSha256) return false;
+	if (!request.success) {
+		return request.committedProjectRevision === request.expectedProjectRevision;
+	}
+	const revisionDelta = entry.existingSourceId === null && entry.offer.rule.generateProxies ? 2 : 1;
+	return request.sourceId !== null
+		&& request.committedProjectRevision === request.expectedProjectRevision + revisionDelta;
+}
+
+function requestSourceId(request: FramescaperNativeWatchImportCompletionRequest): string | null {
+	return 'projectSchemaVersion' in request ? request.sourceId : null;
+}
+
+function sameImportedTarget(
+	value: FramescaperNativeWatchImportedWitness,
+	offer: FramescaperNativeWatchImportOffer,
+	project: FramescaperNativeWatchProjectWitness,
+): boolean {
+	return value.projectId === offer.rule.projectId
+		&& value.projectRevision === project.projectRevision
+		&& value.binId === offer.rule.binId
+		&& value.contentSha256 === offer.contentSha256;
 }
 
 function offerKey(value: FramescaperNativeWatchImportOffer): string {
 	return JSON.stringify([value.rule.ruleId, value.entry.fileIdentity, value.contentSha256]);
 }
 
-function closedRecord<const Field extends string>(
-	value: unknown,
-	fields: readonly Field[],
-	label: string,
-): Readonly<Record<Field, unknown>> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)
-		|| (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)) {
-		throw new TypeError(`${label} must be a plain record.`);
-	}
-	const keys = Reflect.ownKeys(value);
-	if (keys.length !== fields.length
-		|| keys.some((key) => typeof key !== 'string' || !fields.includes(key as Field))) {
-		throw new TypeError(`${label} has missing or unsupported fields.`);
-	}
-	return value as Readonly<Record<Field, unknown>>;
-}
-
 function opaqueId(value: unknown, label: string): string {
 	if (typeof value !== 'string' || !OPAQUE_ID.test(value)) throw new TypeError(`Invalid ${label}.`);
-	return value;
-}
-
-function projectId(value: unknown): string {
-	if (typeof value !== 'string' || !PROJECT_ID.test(value)) throw new TypeError('Invalid watch-import project id.');
 	return value;
 }
 

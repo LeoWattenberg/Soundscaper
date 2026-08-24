@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { FramescaperNativeServicesController } from './native-services-controller.ts';
+import { FramescaperNativeServicesControllerV3 } from './native-services-controller-v3.ts';
 import {
 	registerFramescaperExternalDisplayFramePort,
 	type FramescaperExternalDisplayFramePortRegistration,
@@ -11,13 +12,16 @@ import type {
 import type {
 	FramescaperNativeImageSequenceSelectionBroker,
 } from './native-image-sequence-selection.ts';
-import { framescaperNativeQueueEnqueueRequest } from './native-services-lifecycle.ts';
+import type { FramescaperNativeProxyOutputBroker } from './native-services-proxy-output-broker.ts';
+import { framescaperNativeQueueEnqueueRequest } from './native-services-lifecycle-contracts.ts';
 import {
 	FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS,
 	registerFramescaperNativeRenderInputMainIpc,
 } from './native-services-render-input-main-ipc.ts';
-import type { FramescaperNativeRenderInputStaging } from './native-services-render-input-staging.ts';
+import type { FramescaperNativeRenderInputRouter } from './native-services-render-input-router.ts';
 import type { FramescaperOpenFxMainService } from './openfx-main-service.ts';
+import type { FramescaperOpenFxFramePortBroker } from './framescaper-openfx-frame-port.ts';
+import type { NativeQueueReservationsV1 } from '../src/common/editor/native-queue-record.ts';
 
 export const FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS = Object.freeze({
 	capabilities: 'framescaper:v1:native-services:capabilities',
@@ -26,6 +30,7 @@ export const FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS = Object.freeze({
 	reorder: 'framescaper:v1:native-services:queue:reorder',
 	remove: 'framescaper:v1:native-services:queue:remove',
 	enqueue: 'framescaper:v1:native-services:queue:enqueue',
+	reauthorizeQueueRoot: 'framescaper:v1:native-services:queue:reauthorize-root',
 	selectRoot: 'framescaper:v1:native-services:root:select',
 	revalidateRoot: 'framescaper:v1:native-services:root:revalidate',
 	revokeRoot: 'framescaper:v1:native-services:root:revoke',
@@ -46,13 +51,21 @@ export const FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS = Object.freeze({
 	selectImageSequence: 'framescaper:v1:native-services:image-sequence:select',
 	readImageSequenceFile: 'framescaper:v1:native-services:image-sequence:read',
 	releaseImageSequence: 'framescaper:v1:native-services:image-sequence:release',
+	claimProxyOutput: 'framescaper:v1:native-services:proxy-output:claim',
+	readProxyOutput: 'framescaper:v1:native-services:proxy-output:read',
+	releaseProxyOutput: 'framescaper:v1:native-services:proxy-output:release',
 	openFxScan: 'framescaper:v1:native-services:openfx:scan',
 	openFxInventory: 'framescaper:v1:native-services:openfx:inventory',
 	openFxControl: 'framescaper:v1:native-services:openfx:control',
+	openFxInteract: 'framescaper:v1:native-services:openfx:interact',
+	openFxFrame: 'framescaper:v1:native-services:openfx:frame-port',
 	renderInputBegin: FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.begin,
 	renderInputPort: FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.port,
 	renderInputFinalize: FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.finalize,
 	renderInputAbandon: FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.abandon,
+	renderInputBeginLive: FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.beginLive,
+	renderInputWriteLive: FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.writeLive,
+	renderInputCompleteLive: FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.completeLive,
 } as const);
 
 type Handler = (
@@ -68,17 +81,24 @@ export interface FramescaperNativeServicesMainIpcOptions {
 	readonly removeListener?: (channel: string, listener: (event: unknown, value?: unknown) => void) => void;
 	/** Connect this to the selected desktop generation's authenticated owner. */
 	readonly authorizeOwner: (event: unknown) => boolean | object;
-	readonly controller: FramescaperNativeServicesController;
+	readonly controller: FramescaperNativeServicesController | FramescaperNativeServicesControllerV3;
 	readonly renderInputs?: Pick<
-		FramescaperNativeRenderInputStaging,
-		'begin' | 'receive' | 'finalize' | 'abandon' | 'claim' | 'rollbackClaim'
+		FramescaperNativeRenderInputRouter,
+		'begin' | 'beginLive' | 'receive' | 'finalize' | 'writeLive' | 'completeLive'
+			| 'abandon' | 'claim' | 'rollbackClaim'
 	>;
+	readonly queueReservations?: (
+		owner: object,
+		request: ReturnType<typeof framescaperNativeQueueEnqueueRequest>,
+	) => Promise<NativeQueueReservationsV1>;
 	readonly watchImports?: Pick<FramescaperNativeWatchImportBroker, 'claim' | 'complete'>;
 	readonly imageSequenceSelections?: Pick<
 		FramescaperNativeImageSequenceSelectionBroker,
 		'select' | 'read' | 'release'
 	>;
-	readonly openFx?: Pick<FramescaperOpenFxMainService, 'scan' | 'inventory' | 'control'>;
+	readonly proxyOutputs?: Pick<FramescaperNativeProxyOutputBroker, 'claim' | 'read' | 'release'>;
+	readonly openFx?: Pick<FramescaperOpenFxMainService, 'scan' | 'inventory' | 'control' | 'interact'>;
+	readonly openFxFrames?: Pick<FramescaperOpenFxFramePortBroker, 'open'>;
 }
 
 export interface FramescaperNativeServicesMainIpcRegistration {
@@ -93,14 +113,22 @@ export function registerFramescaperNativeServicesMainIpc(
 	const hasWatchImports = Boolean(value && typeof value === 'object' && Object.hasOwn(value, 'watchImports'));
 	const hasImageSequenceSelections = Boolean(value && typeof value === 'object'
 		&& Object.hasOwn(value, 'imageSequenceSelections'));
+	const hasProxyOutputs = Boolean(value && typeof value === 'object'
+		&& Object.hasOwn(value, 'proxyOutputs'));
 	const hasRenderInputs = Boolean(value && typeof value === 'object' && Object.hasOwn(value, 'renderInputs'));
+	const hasQueueReservations = Boolean(value && typeof value === 'object'
+		&& Object.hasOwn(value, 'queueReservations'));
 	const hasOpenFx = Boolean(value && typeof value === 'object' && Object.hasOwn(value, 'openFx'));
+	const hasOpenFxFrames = Boolean(value && typeof value === 'object' && Object.hasOwn(value, 'openFxFrames'));
 	const fields = ['handle', 'removeHandler', 'authorizeOwner', 'controller',
 		...(hasPortSeams ? ['on', 'removeListener'] : []),
 		...(hasWatchImports ? ['watchImports'] : []),
 		...(hasImageSequenceSelections ? ['imageSequenceSelections'] : []),
+		...(hasProxyOutputs ? ['proxyOutputs'] : []),
 		...(hasRenderInputs ? ['renderInputs'] : []),
+		...(hasQueueReservations ? ['queueReservations'] : []),
 		...(hasOpenFx ? ['openFx'] : []),
+		...(hasOpenFxFrames ? ['openFxFrames'] : []),
 	] as const;
 	const options = closedRecord(
 		value, fields,
@@ -108,7 +136,8 @@ export function registerFramescaperNativeServicesMainIpc(
 	);
 	if (typeof options.handle !== 'function' || typeof options.removeHandler !== 'function'
 		|| typeof options.authorizeOwner !== 'function'
-		|| !(options.controller instanceof FramescaperNativeServicesController)) {
+		|| (!(options.controller instanceof FramescaperNativeServicesController)
+			&& !(options.controller instanceof FramescaperNativeServicesControllerV3))) {
 		throw new TypeError('Framescaper native-services IPC requires exact main-owned seams.');
 	}
 	const handle = options.handle as FramescaperNativeServicesMainIpcOptions['handle'];
@@ -131,16 +160,34 @@ export function registerFramescaperNativeServicesMainIpc(
 		|| Reflect.ownKeys(imageSequenceSelections).length !== 3)) {
 		throw new TypeError('Framescaper native-services IPC requires an exact image-sequence selection broker.');
 	}
+	const proxyOutputs = hasProxyOutputs ? options.proxyOutputs as Record<string, unknown> : null;
+	if (proxyOutputs && (Reflect.ownKeys(proxyOutputs).length !== 3
+		|| ['claim', 'read', 'release'].some((method) => typeof proxyOutputs[method] !== 'function'))) {
+		throw new TypeError('Framescaper native-services IPC requires an exact proxy-output broker.');
+	}
 	const renderInputs = hasRenderInputs
 		? options.renderInputs as FramescaperNativeServicesMainIpcOptions['renderInputs'] : null;
-	if (renderInputs && (!hasPortSeams || ['begin', 'receive', 'finalize', 'claim', 'rollbackClaim']
+	if (renderInputs && (!hasPortSeams || ['begin', 'beginLive', 'receive', 'finalize',
+		'writeLive', 'completeLive', 'claim', 'rollbackClaim']
 		.some((method) => typeof renderInputs[method as keyof typeof renderInputs] !== 'function'))) {
 		throw new TypeError('Framescaper native-services IPC requires exact render-input staging and port seams.');
 	}
+	const queueReservations = hasQueueReservations
+		? options.queueReservations as FramescaperNativeServicesMainIpcOptions['queueReservations'] : null;
+	if (queueReservations !== null && (!renderInputs || typeof queueReservations !== 'function')) {
+		throw new TypeError('Framescaper native queue reservations require exact render-input staging.');
+	}
 	const openFx = hasOpenFx ? options.openFx as Record<string, unknown> : null;
-	if (openFx && (Reflect.ownKeys(openFx).length !== 3
-		|| ['scan', 'inventory', 'control'].some((method) => typeof openFx[method] !== 'function'))) {
+	if (openFx && (Reflect.ownKeys(openFx).length !== 4
+		|| ['scan', 'inventory', 'control', 'interact']
+			.some((method) => typeof openFx[method] !== 'function'))) {
 		throw new TypeError('Framescaper native-services IPC requires an exact main-owned OpenFX service.');
+	}
+	const openFxFrames = hasOpenFxFrames
+		? options.openFxFrames as FramescaperNativeServicesMainIpcOptions['openFxFrames'] : null;
+	if (openFxFrames && (Reflect.ownKeys(openFxFrames).length !== 1
+		|| typeof openFxFrames.open !== 'function')) {
+		throw new TypeError('Framescaper native-services IPC requires an exact OpenFX frame-port broker.');
 	}
 	const registered: string[] = [];
 	let framePort: FramescaperExternalDisplayFramePortRegistration | null = null;
@@ -180,20 +227,39 @@ export function registerFramescaperNativeServicesMainIpc(
 		register(FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.reorder, (_event, request) => controller.reorder(request));
 		register(FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.remove, (_event, request) => controller.remove(request));
 		register(FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.enqueue, async (_event, value, authorization) => {
-			const request = framescaperNativeQueueEnqueueRequest(value);
+			let request = framescaperNativeQueueEnqueueRequest(value);
 			controller.authorizeQueueEnqueue(request);
-			if (request.planVersion !== 7 && request.planVersion !== 8) return controller.enqueue(request);
-			if (request.derivedInputStageId === null) return controller.enqueue(request);
-			if (!renderInputs) throw new Error('Durable selected-V20 render-input staging is unavailable.');
+			if (request.planVersion !== 7 && request.planVersion !== 8
+				&& request.planVersion !== 14) return controller.enqueue(request);
+			if (request.derivedInputStageId === null) {
+				if (queueReservations !== null && request.planVersion === 14) request = Object.freeze({
+					...request, reservations: await queueReservations(requiredOwner(authorization), request),
+				});
+				return controller.enqueue(request);
+			}
+			if (!renderInputs) throw new Error('Durable selected render-input staging is unavailable.');
 			const owner = requiredOwner(authorization);
 			await renderInputs.claim(owner, request);
-			try { return controller.enqueue(request); }
+			try {
+				if (queueReservations !== null) request = Object.freeze({
+					...request, reservations: await queueReservations(owner, request),
+				});
+				const resumed = 'resumeRegeneratedQueue' in controller
+					? await controller.resumeRegeneratedQueue(request) : null;
+				return resumed ?? controller.enqueue(request);
+			}
 			catch (error) {
 				await renderInputs.rollbackClaim(owner, { stageId: request.derivedInputStageId });
 				throw error;
 			}
 		});
 		register(FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.selectRoot, () => controller.selectRoot());
+		register(FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.reauthorizeQueueRoot, (_event, request) => {
+			if (!('reauthorizeQueueRoot' in controller)) {
+				throw new Error('This desktop generation cannot reauthorize a queued destination.');
+			}
+			return controller.reauthorizeQueueRoot(request);
+		});
 		register(FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.revalidateRoot, (_event, request) => (
 			controller.revalidateRoot(request)
 		));
@@ -271,6 +337,23 @@ export function registerFramescaperNativeServicesMainIpc(
 					[requiredOwner(authorization), request],
 				));
 		}
+		if (proxyOutputs) {
+			register(FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.claimProxyOutput,
+				(_event, request, authorization) => Reflect.apply(
+					proxyOutputs.claim as (...args: unknown[]) => unknown,
+					proxyOutputs, [requiredOwner(authorization), request],
+				));
+			register(FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.readProxyOutput,
+				(_event, request, authorization) => Reflect.apply(
+					proxyOutputs.read as (...args: unknown[]) => unknown,
+					proxyOutputs, [requiredOwner(authorization), request],
+				));
+			register(FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.releaseProxyOutput,
+				(_event, request, authorization) => Reflect.apply(
+					proxyOutputs.release as (...args: unknown[]) => unknown,
+					proxyOutputs, [requiredOwner(authorization), request],
+				));
+		}
 		if (openFx) {
 			register(FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.openFxScan,
 				() => Reflect.apply(openFx.scan as (...args: unknown[]) => unknown, openFx, []));
@@ -280,7 +363,15 @@ export function registerFramescaperNativeServicesMainIpc(
 				(_event, request) => Reflect.apply(
 					openFx.control as (...args: unknown[]) => unknown, openFx, [request],
 				));
+			register(FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.openFxInteract,
+				(_event, request) => Reflect.apply(
+					openFx.interact as (...args: unknown[]) => unknown, openFx, [request],
+				));
 		}
+		if (openFxFrames) register(FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.openFxFrame,
+			(event, request, authorization) => openFxFrames.open(
+				requiredOwner(authorization), requiredSender(event), request as never,
+			));
 	} catch (error) {
 		renderInputPort?.dispose();
 		framePort?.dispose();
@@ -305,6 +396,18 @@ function requiredOwner(value: boolean | object | undefined): object {
 		throw new Error('Native services require the exact renderer save owner.');
 	}
 	return value;
+}
+
+function requiredSender(value: unknown): Readonly<{
+	postMessage(channel: string, message: unknown, ports: readonly unknown[]): void;
+}> {
+	const sender = value && typeof value === 'object'
+		? (value as Readonly<{ sender?: unknown }>).sender : null;
+	if (!sender || typeof sender !== 'object'
+		|| typeof (sender as Readonly<{ postMessage?: unknown }>).postMessage !== 'function') {
+		throw new Error('OpenFX frame execution requires an authorized Electron sender.');
+	}
+	return sender as Readonly<{ postMessage(channel: string, message: unknown, ports: readonly unknown[]): void }>;
 }
 
 function projectIdFromRequest(value: unknown): unknown {

@@ -1,6 +1,6 @@
 # Soundscaper and Framescaper production roadmap
 
-> Grounded against the repository on 2026-08-23. Milestones are ordered by dependency and close only when their exit gates pass. They are not release-date promises.
+> Grounded against the repository on 2026-08-24. Milestones are ordered by dependency and close only when their exit gates pass. They are not release-date promises.
 
 Soundscaper and Framescaper are two focused products over one local-first, mixed-media editor and one canonical `.scape` project format. The destination is an end-to-end professional workflow for recording, editing, mixing, picture editorial, finishing, and delivery on the web and in Electron. It is not parity with every specialist creative suite.
 
@@ -143,8 +143,9 @@ Known architectural constraints that drive later work:
 - browser storage remains quota- and eviction-bound;
 - Electron has explicit managed handoff for canonical PCM and retained original
   video, but not a complete cross-product managed-media library;
-- no native codec worker, audio backend, plug-in host, or background job service
-  exists; and
+- native codec, audio, plug-in, and persistent-service product routes now exist
+  behind fail-closed payload and activation policy, but none is externally
+  qualified; and
 - Safari, fixed-GPU, whole-process memory, and broad OS/architecture evidence
   remain incomplete.
 
@@ -156,7 +157,7 @@ Known architectural constraints that drive later work:
 | 2. Shared platform/storage/media | **In progress — current priority** | Finish safe scale, handoff, media ownership, and compatibility foundations. |
 | 3. Editorial foundations | **In progress — parallel tracks** | Add professional time, arrangement, and editorial models. |
 | 4. Production surfaces | **In progress — local implementation complete; qualification open** | Complete automation, routing, compositing, captions, and finishing. |
-| 5. Electron-native services | **In progress — 5A provisional, 5B substrate inert** | Add isolated native media, audio, render, and plug-in services. |
+| 5. Electron-native services | **In progress — software complete; qualification and activation open** | Add isolated native media, audio, render, and plug-in services. |
 | 6. Delivery/interchange | **In progress — web tier implemented, none qualified** | Add professional masters, queues, exchange, and archives. |
 | 7. Local assistance | **Optional** | Add removable on-device assistance without becoming a dependency. |
 | 8. Capture and MIDI | **8A substrate implemented, dormant; 8B Blocked** | Framescaper recording code is retained as an unactivated historical substrate; selected-route activation and external qualification remain open, and MIDI waits for upstream design review. |
@@ -184,6 +185,7 @@ runtime fingerprint requires driver, power, and display identity that the
 retained artifact does not contain alongside its recorded device identity. The historical result remains audit
 evidence, but closes no current formal row: M1, M3 long-form, M4 production
 parity, and M4B-2 are all `pending-external` until a fresh owner-host run.
+That reference pass does not close milestone 1 or milestone 4.
 Details live in `docs/quality-budgets.md`.
 
 ### Remaining work
@@ -281,12 +283,13 @@ update an item's status only after its listed acceptance conditions pass.
 - `m2-electron-lease-matrix`
 
 The executable matrix runs seven product-specific workflows independently against
-the Soundscaper desktop-library V10 and Framescaper desktop-library V18.
+the selected Soundscaper desktop-library V11 and Framescaper desktop-library V19.
 `cross-product-simultaneous-open` runs once across the paired packages.
-Framescaper V18 owns schema 27, SQLite `user_version` 20 and scope `v18`; its
-crash-resumable first open copies V12 to V17 when needed, then reimports exact
-V20 documents into V27 without reopening, rewriting, or deleting either source:
-V17 or V12. Each product holds a separate process-lifetime renewable fenced
+Soundscaper V11 owns schema 29, SQLite `user_version` 13 and scope `v11`.
+Framescaper V19 owns schema 28, SQLite `user_version` 21 and scope `v19`; its
+crash-resumable first open settles V18 when needed, then reimports the exact V27 documents
+read from V18 into V28 without reopening, rewriting, or deleting V18 or its inherited
+V17 and V12 lineage. Each product holds a separate process-lifetime renewable fenced
 lease with journal recovery, admission fencing, drain, and exact release.
 Windows x64 and Linux x64 accepted packaged results remain absent, so the gate
 is **Partial**.
@@ -613,51 +616,33 @@ clearance does not close either track or milestone exit gate.
 **Depends on:** milestones 2–4. Research may begin after milestone 2, but product
 integration waits for the owning shared contract.
 
-**Status:** **In progress — 5A is provisionally local; bounded 5B source candidates exist and none is qualified.** Only `linux-x64` has a 5A payload; no 5B target has one. Licensing stays fail-closed, the lab is unprovisioned, and contract-v1 media/OFX jobs plus their data plane activate no native capability.
+**Status:** **In progress — selected Soundscaper V29/V11 and Framescaper V28/V14/V19 software routes are complete, but neither is qualified or activated.** The source audit authenticates 0/10 exact archive/extracted-tree inputs; all five Soundscaper professional rows are `pending-external`; both Framescaper payload manifests are empty and every row is `pending-external`. Per-OS launcher source/contracts/tests exist, but authenticated target payloads and independently signed readiness do not.
 
-**Goal:** make Electron materially more capable without weakening the renderer
-sandbox or creating a second editor engine.
+Licensing/patent/corresponding-source/notices/trademark clearance, target toolchains, signing/notarization identities and keys, packages, manual runs, readiness signatures, and native-lab cohorts remain open. The qualification audit reports `qualificationReady: false`, `pending-external`, and zero accepted cohorts. Milestones 1–4 are assumed formally validated for this implementation branch; that assumption does not close Milestone 5.
 
-The [milestone-5 plan](docs/milestone-5-plan.md) owns sequencing and the shared
-contract; the [milestone-5A plan](docs/milestone-5a-soundscaper-native.md) and
-[milestone-5B plan](docs/milestone-5b-framescaper-native-tier.md) own each
-product's readiness, architecture, and acceptance.
+**Goal:** make Electron materially more capable without weakening the renderer sandbox or creating a second editor engine.
+
+The [milestone-5 plan](docs/milestone-5-plan.md) owns sequencing and the shared contract; the [milestone-5A plan](docs/milestone-5a-soundscaper-native.md) and [milestone-5B plan](docs/milestone-5b-framescaper-native-tier.md) own product readiness and acceptance.
 
 ### Native service architecture
 
-- **Electron Enhanced — Implemented contract candidate, not qualified:** contract v1 has closed jobs/grants, cancellation, heartbeats, quarantine, progress, 64 KiB control and authenticated 16 MiB-chunk data planes; five-target execution remains open.
-- **Electron Enhanced — In progress:** the real off-by-default probe enforces
-  input, duration, concurrency, and RSS limits. Native payloads are now target-
-  selected, digest-pinned, and re-verified at staging, pack time and every spawn
-  across a real `utilityProcess`; helpers still cannot publish revisions.
-- **Electron Only — In progress:** out-of-process scanning, descriptors, durable
-  quarantine and isolated hosting, proven against a benign fixture format; VST3,
-  CLAP, AU and LV2 stay fail-closed. Instruments never materialize before 8B.
+- **Electron Enhanced — Software complete, not qualified:** contract v1 closes jobs/grants, supervision, 64 KiB control and authenticated data planes. Launcher source/contracts/tests implement Linux namespaces/Landlock/seccomp, macOS Seatbelt, and Windows AppContainer; authenticated built launchers remain absent.
+- **Electron Enhanced — Software complete, not activated:** off-by-default routes enforce resource, custody, and publication bounds; payloads are reverified at staging, pack, and spawn, and helpers cannot publish project revisions.
+- **Electron Only — Software complete, production-closed:** scanning, quarantine, isolated hosting, continuity, and helper-owned vendor windows are fixture-tested. VST3, CLAP, AU, LV2, and OFX remain fail-closed; instruments wait for 8B.
 
 ### Soundscaper native tier
 
-- **Electron Enhanced — In progress:** appropriate low-latency OS audio backends,
-  with exclusive/shared modes, channel topology, recording destinations, monitoring
-  metadata, latency calibration, underrun reporting, and Web Core fallback. The
-  addon opens PipeWire and ALSA streams through an ordered candidate chain; JACK
-  stays discovery-only, and no helper job reaches the open path yet.
-- **Electron Only — Blocked on licensing:** VST3 and CLAP cross-platform, Audio
-  Units on macOS, LV2 on Linux. The hosting machinery exists and is proven against
-  a fixture format; each waits on its licensing row. Vendor UI gets no authority.
-- **Blocked until milestone 8:** MIDI devices, MPE, instrument plug-ins, control
-  surfaces, MIDI clock, and MTC.
+- **Electron Enhanced — Product route implemented, not qualified:** V29 native audio uses a persistent helper and direct `MessagePort` to an `AudioWorklet`; input feeds canonical recording publication, output feeds playback/monitoring, and loss preserves Web Core fallback. CoreAudio/WASAPI/PipeWire/ALSA are implemented; JACK stays discovery-only.
+- **Electron Only — Blocked on licensing:** V29 inserts reviewed `native-plugin` effects with persistent RPC, real-time/offline render, exact V21 PDC, bounded state, bypass/frozen continuity, and helper-owned vendor windows. Every format still waits on payload, licensing, signed readiness, and lab evidence.
+- **Blocked until milestone 8:** MIDI, instruments, control surfaces, clock, and MTC.
 
 ### Framescaper native tier
 
-- **Electron Enhanced — Source candidate, not activated:** V7–V12 envelopes, unified authority, exact retime, pool policy and a fully extracted-tree-authenticated FFmpeg 9.0.1 recipe exist. V7 has bounded CPU frame execution: renderer production emits one authenticated evaluated-RGBA frame pack plus optional float32 WAV; main durably stages, claims and reclaims those inputs, and the historical candidate carrier adapter encodes exact-timestamp H.264/AAC or VP9/Opus while rechecking source/output identity. V8 instead uses authenticated original-source authority and emits no RGBA carrier: an audio-bearing plan may stage one WAV, while silent V8 has no derived-input stage. Its closed admission captures detached static visual authority for residual presentation, render-description consistency and decomposition, layer order, effect/filter redundancy, delivery color, intervals and overlap opacity. That capture is not source decode, static-geometry execution or an output adapter. V8 mux, burn-in and sidecar captions refuse first with typed unsupported-caption-adapter; all other historical V20 V8 requests return the legacy-identified typed unsupported-selected-v20-static-adapter. The authenticated historical-V20 candidate operation self-test remains not ready, and a recipe-authenticated delivery codec set is also absent. V9–V12 receive closed semantic admission without serializing presentation ticks into canonical plans and cross renderer, sandbox preload and main queue with a required null derived-input stage, bypassing the legacy carrier repository. Their production queue/helper route resolves exact V12 timing bodies, preflights scratch, stages bodies sequentially, mints dedicated timing grants and authenticates exact VFR ordinals in the media host. The dormant V26 main path additionally resolves current-project SCTI bodies, stages ordered digest-bound MessagePort timing grants, and has the helper/native host authenticate VFR boundaries before comparing exact Retimer `SourceTime`. V9–V12 and V26 remain dormant; broader graph execution remains typed unsupported after authority and timing authentication, and shipped VFR/Retimer execution remains unavailable. All five payload rows remain pending-external.
-- **Electron Enhanced — Dormant V25:** professional characteristics, compact
-  image-sequence packs, proxy lifecycle and one pathless menu/CAS import exist.
-  Closed recipes have no authenticated PNG, TIFF or OpenEXR evidence; codec,
-  payload, signing and hardware rows remain blocked.
-- **Electron Only — Controller candidate, not activated:** main-owned V2 services, pathless preload/image-sequence selection, digest-bound restart checkpoints, renderer-fed display and menu surfaces remain behind default-off capabilities and blocked native-lab evidence. Queue execution is constructed only with both project/source authority and a main-owned physical-capacity sampler; each pass closes current CPU, free-memory, scratch-volume, durable-reservation and hardware budgets before the lease-fenced repository writer-atomically claims queued rows. Without that capacity authority, render-queue and proxy capabilities remain unavailable.
-- **Electron Only — Dormant V26:** fingerprint-bound state, isolated-host recipes, exact V12/Retimer grants, a verified two-executable selector, one-shot scanner utility processes and per-fingerprint runtime supervisors exist. Main owns current-project SCTI resolution and ordered digest-bound timing ports; the helper stages those bytes inside its reservation, and the native host authenticates VFR boundaries before comparing exact Retimer `SourceTime`. The owned conformance fixture transports bounded full RGBA planes with named inputs, padded rows and digest-verified output, and rasterizes offscreen events through the `kOfxImageEffectPluginPropOverlayInteractV2` property backed by Interact Suite V1 and DrawSuite V1. Its menu-only inventory/scan/enable/Add source route and verified future-payload stager are source-implemented and candidate-tested, but shipped activation remains unavailable because manifests are empty and no readiness, isolation, signing or target evidence exists. The interactive React event/compositing route and production-attested third-party execution remain absent; no shipped build loads a plug-in binary.
-- **Blocked until milestone 8:** no new Framescaper capture IPC, permissions,
-  entitlements, or UI.
+- **Electron Enhanced — Selected software route, not activated:** Framescaper V28 uses exact V14 authority and authenticates one evaluated-RGBA carrier plus optional float32 audio through persistent services V3. Native Windows/macOS/Linux hardware encode permits exactly one identical-plan CPU retry. If both native attempts fail, production returns a typed `web-core-required` result and directs the user to the existing renderer-owned Web Core export route; it neither runs that route in main nor publishes a false native receipt. Empty payload rows make no codec/performance claim.
+- **Electron Enhanced — Professional media, not activated:** pathless sequence/proxy actions are menu-owned. Helper scratch seals an exact regular-file output tree and main revalidates it before no-clobber publication; PNG/TIFF/OpenEXR and codec evidence remain blocked.
+- **Electron Only — Persistent services V3, not activated:** V28 queue, capacity, scratch, checkpoints, watch/bin/proxy flow, lease-fenced publication, and external display are implemented; missing authority preserves project state and reports unavailable.
+- **Electron Only — OpenFX, production-closed:** menu-owned scan, enable, and Add OFX use a shared context-aware exact frame graph for all six contexts across preview/export/carrier. The bounded React route uses Interact Suite V1, custom parameters, DrawSuite V1, normalized events, and no native window; missing/crashed effects preserve state with bypass or verified frozen continuity. The empty payload manifest keeps third-party execution unavailable.
+- **Blocked until milestone 8:** no new Framescaper capture surface.
 
 ### Exit gate
 

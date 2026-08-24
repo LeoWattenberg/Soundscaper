@@ -142,7 +142,7 @@ import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js'; import { 
 import { ENGLISH_COPY } from '../i18n/catalogs.js';
 import { normalizeBcp47Locale } from '../i18n/locale.js';
 import { EditorControllerLifetime, EditorProjectGeneration, isEditorDisposedError } from './controller/lifecycle.ts';
-import { connectProductNativeRenderInputAuthority } from './controller/product-native-render-input-authority.ts';
+import { connectProductNativeRenderInputAuthority } from './controller/product-native-render-input-authority.ts'; import { renderProductNativeAudioToSink } from './controller/product-native-render-audio-stream.ts';
 import { createAudioAnalysisService } from './controller/analysis-service.ts';
 import { createEditorAnalysisVisuals } from './controller/analysis-visuals.ts';
 import { createGroupedEditorActions } from './controller/action-facade.ts';
@@ -622,7 +622,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getProject: () => project,
 		hasHistory: () => Boolean(state.history), hasUnsavedProjectChanges: () => Boolean(project && sessionTab(project.id)?.dirty),
 		isReadOnly: () => state.readOnly || Boolean(state.takeCycleRecovery || state.takeCycleRecoveryInspecting),
-		cloneProject: projectRuntime.cloneProject, admitProjectPublication: (bytes) => preflightStorage(bytes, 'project'), collectProtectedLinkedOriginalSourceReferences: () => projectRetentionService.liveSessionLinkedOriginalSourceReferences(),
+		cloneProject: projectRuntime.cloneProject, prepareSnapshot: typeof options.prepareProjectSnapshot === 'function' ? async (snapshot) => { await options.prepareProjectSnapshot('project-save', snapshot); if (!project || project.id !== snapshot.id) throw new Error('The active project changed during save preparation.'); return projectRuntime.cloneProject(project); } : undefined, admitProjectPublication: (bytes) => preflightStorage(bytes, 'project'), collectProtectedLinkedOriginalSourceReferences: () => projectRetentionService.liveSessionLinkedOriginalSourceReferences(),
 		saveProject: (snapshot, options) => store.saveProject(snapshot, options),
 		persistActiveProjectId: async (projectId) => {
 			await persistSetting(lastProjectSettingKey, projectId);
@@ -880,7 +880,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		createAup4Client,
 		initialAup4Client: options.aup4Client || null,
 		aup4Options: options.aup4 || {}, adaptAudacityProject: options.adaptAudacityProject,
-		migrateProject: projectRuntime.migrateProject,
+		prepareAudacityProjectExport: options.prepareAudacityProjectExport, migrateProject: projectRuntime.migrateProject,
 		importScapeProject: options.scapeProjectRuntime?.importScapeProject || importScapeProject,
 		exportScapeProject: options.scapeProjectRuntime?.exportScapeProject || exportScapeProject,
 		copyFutureScapeArchive: options.scapeProjectRuntime?.copyScapeArchive || copyFutureScapeArchive,
@@ -1199,7 +1199,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		ffmpeg, fileService, findClip, findSource,
 		handleError, hasMissingTimelineSources, lifetime, normalizeExportSettings, playbackProjects: playbackProjectService,
 		normalizeProjectSampleRate, options, preflightStorage, prepareCommittedTimePitchCaches,
-		getProject: () => project, productName: product.name, projectGeneration, projectSampleRate, publishDocumentSnapshot,
+		getProject: () => project, productName: product.name, projectGeneration, projectSampleRate, publishDocumentSnapshot, prepareProjectForExport: options.prepareProjectForExport,
 		resampleBuffer, setStatus, sourceBuffers, sourceChunkProviders, state,
 		stemProject, store, throwIfAborted, toggleExport,
 		updateExportProgress, taskProgress, verifyProjectFallbackIntegrity,
@@ -1877,7 +1877,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	if (options.productNativeRenderInputAuthority) connectProductNativeRenderInputAuthority(options.productNativeRenderInputAuthority, () => {
 		const currentProject = project; if (!currentProject) throw new Error('A current project is required for native render-input production.');
 		const projectToken = projectGeneration.capture(currentProject.id), snapshot = projectRuntime.cloneProject(currentProject), task = lifetime.startTask('product-native-render-input'), assertCurrent = () => { task.assertCurrent(); projectGeneration.assertCurrent(projectToken); if (project !== currentProject) throw abortError(); };
-		return Object.freeze({ project: snapshot, signal: task.signal, assertCurrent, finish: task.finish, renderAudio: async (renderProject, range) => { assertCurrent(); const rendered = await renderSnapshot(renderProject, range, sourceBuffers, task.signal); assertCurrent(); return rendered; } }); });
+		return Object.freeze({ project: snapshot, signal: task.signal, assertCurrent, finish: task.finish, renderAudio: async (renderProject, range) => { assertCurrent(); const rendered = await renderSnapshot(renderProject, range, sourceBuffers, task.signal); assertCurrent(); return rendered; }, renderAudioToSink: (renderProject, range, sink) => renderProductNativeAudioToSink({ sourceBuffers, signal: task.signal, assertCurrent, createRenderEngine: createCacheAwareRenderEngine, prepareCommittedTimePitchCaches }, renderProject, range, sink) }); });
 
 	return {
 		ready,
@@ -2372,8 +2372,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return recordingRoutingService.refreshRecordingInputs({ probe });
 	}
 
-	async function refreshAudioDevices({ probe = true, publish = true } = {}) {
-		return recordingRoutingService.refreshAudioDevices({ probe, publish });
+	async function refreshAudioDevices({ probe = true, publish = true, nativeInventory = null } = {}) {
+		return recordingRoutingService.refreshAudioDevices({ probe, publish, nativeInventory });
 	}
 
 	async function setPreferredInputDevice(deviceId) {
@@ -2588,8 +2588,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return rackEffectService.addEffect(request);
 	}
 
-	function updateRackEffect(scope, trackId, effectId, changes = {}) {
-		return rackEffectService.updateRackEffect(scope, trackId, effectId, changes);
+	function updateRackEffect(scope, trackId, effectId, changes = {}, options = {}) {
+		return rackEffectService.updateRackEffect(scope, trackId, effectId, changes, options);
 	}
 
 	function beginRackEffectGesture(scope, targetId, effectId) {

@@ -13,6 +13,7 @@ import {
 import { audioEffectTypes, createEffect, normalizeEffect } from '../effects.js';
 import { createStableId } from '../stable-id.js';
 import { serializeAudacityNoiseProfile } from './source-audio.ts';
+import { createNativePluginEffect } from '../native-plugin-effect.ts';
 
 export type RackEffectScope = EngineEffectScope;
 export type EffectParameters = Readonly<Record<string, unknown>>;
@@ -200,7 +201,7 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 			throw new TypeError('A mixer bus ID is required.');
 		}
 		const type = request.type;
-		if (!audioEffectTypes().includes(type)) throw new Error(copy.effectUnsupported);
+		if (type !== 'native-plugin' && !audioEffectTypes().includes(type)) throw new Error(copy.effectUnsupported);
 		const effectOptions = { ...(request.options || {}) };
 		if (type === 'audacity-auto-duck') {
 			const candidates = project.tracks.filter((track) => (
@@ -221,7 +222,7 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 			};
 			if (!effectOptions.context.noiseProfile) effectOptions.enabled = false;
 		}
-		const effect = createEffect(type, effectOptions) as ControllerRackEffect;
+		const effect = (type === 'native-plugin' ? createNativePluginEffect(effectOptions) : createEffect(type, effectOptions)) as ControllerRackEffect;
 		commit(rackCommand('effect/add', scope, trackId, { effect: effect as unknown as CommandObject }));
 		if (type === 'audacity-noise-reduction' && !effectOptions.context?.noiseProfile) {
 			setStatus(copy.noiseReductionAddedDisabled);
@@ -234,6 +235,7 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 		trackId: string | null,
 		effectId: string,
 		changes: CommandObject = {},
+		options: RackEffectCommitOptions = {},
 	): RackEffectProject {
 		const effect = effectStack(scope, trackId).find((candidate) => candidate.id === effectId);
 		if (!effect) throw new Error(copy.rackEffectNotFound);
@@ -243,7 +245,7 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 			const activationOnly = keys.every((key) => key === 'enabled');
 			if (!replacing && !activationOnly) throw new Error(copy.missingEffectReadOnly);
 		}
-		const result = commit(rackCommand('effect/update', rackScope(scope), trackId, { effectId, changes }));
+		const result = commit(rackCommand('effect/update', rackScope(scope), trackId, { effectId, changes }), {}, options);
 		state.rackEffectGestures.delete(effectGestureKey(scope, trackId, effectId));
 		state.parametricEqGestures.delete(effectGestureKey(scope, trackId, effectId));
 		return result;

@@ -17,6 +17,7 @@ import {
 	normalizeVideoSourceCharacteristics,
 	type VideoSourceCharacteristics,
 } from '../src/common/editor/video-source-characteristics.ts';
+import { normalizeVideoSourceCharacteristicsV25 } from '../src/common/editor/video-source-professional-characteristics-v25.ts';
 
 const CONTENT_SHA256 = 'ab'.repeat(32);
 const OTHER_SHA256 = 'cd'.repeat(32);
@@ -271,6 +272,45 @@ test('a re-read that agrees with the document changes nothing', () => {
 		presented: { width: 640, height: 360 },
 		clips: [clip('clip-whole', 0, 240)],
 	});
+	assert.deepEqual(plan.changedFields, []);
+	assert.deepEqual(plan.clips, []);
+	assert.equal(plan.upgraded, false);
+});
+
+test('an agreeing historical probe preserves the source\'s V25 professional facts', () => {
+	const asset = timing(240);
+	const characteristics = {
+		backend: 'ffmpeg',
+		codedWidth: 640,
+		codedHeight: 360,
+		rotationDegrees: 0,
+		videoCodec: 'h264',
+	};
+	const professional = normalizeVideoSourceCharacteristicsV25({
+		...characteristics,
+		bitDepth: 10,
+		pixelFormat: 'yuv420p10le',
+		chromaFormat: '4:2:0',
+	}, { rate: EXACT_RATE });
+	const source = unprobedSource({
+		frameRate: EXACT_RATE,
+		sourceFrameCount: 240,
+		timingAsset: asset.reference,
+		timingDecision: { mode: 'exact', rate: EXACT_RATE, backend: 'ffmpeg' },
+		characteristics: professional,
+		videoCodec: 'h264',
+		hasAudio: false,
+		audioCodec: null,
+	});
+	const { probe: exact, reference } = probe(240, characteristics);
+	const plan = planVideoSourceUpgrade({
+		source,
+		probe: exact,
+		timingAsset: reference,
+		presented: { width: 640, height: 360 },
+		clips: [clip('clip-whole', 0, 240)],
+	});
+
 	assert.deepEqual(plan.changedFields, []);
 	assert.deepEqual(plan.clips, []);
 	assert.equal(plan.upgraded, false);

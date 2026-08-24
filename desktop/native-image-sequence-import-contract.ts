@@ -12,7 +12,7 @@ import { imageSequenceStorageSha256 } from './native-image-sequence-import-stora
 
 export const FRAMESCAPER_NATIVE_IMAGE_SEQUENCE_IMPORT_CONTROL_MAXIMUM_BYTES = 64 * 1024;
 
-export type FramescaperNativeImageSequenceCandidateGeneration = 25 | 26;
+export type FramescaperNativeImageSequenceCandidateGeneration = 25 | 26 | 28;
 export type FramescaperNativeImageSequenceAssetKind = 'pack' | 'inventory';
 export type FramescaperNativeImageSequenceReference =
 	| NativeMediaImageSequenceSourcePackReferenceV25
@@ -39,6 +39,7 @@ const REQUEST_FIELDS = Object.freeze({
 	'prepare-write': ['operation', 'transactionId', 'asset', 'offset', 'binding'],
 	'await-write': ['operation', 'transactionId', 'asset', 'offset', 'streamId'],
 	commit: ['operation', 'transactionId', 'asset', 'reference'],
+	read: ['operation', 'transactionId', 'asset', 'offset', 'length'],
 	admit: ['operation', 'transactionId', 'admission'],
 	complete: [
 		'operation', 'transactionId', 'sourceId', 'inventorySha256', 'sourcePackSha256',
@@ -115,8 +116,8 @@ export function normalizeFramescaperNativeImageSequenceAdmission(
 		'frameRate', 'frameCount', 'inventory', 'sourcePack',
 	], 'admission');
 	if (record.kind !== 'framescaper-image-sequence-admission-v1'
-		|| (record.candidateGeneration !== 25 && record.candidateGeneration !== 26)) {
-		throw new TypeError('Admission is not an exact V25/V26 request.');
+		|| ![25, 26, 28].includes(record.candidateGeneration as number)) {
+		throw new TypeError('Admission is not an exact V25/V26/V28 request.');
 	}
 	framescaperNativeImageSequenceId(record.projectId, 'project ID');
 	framescaperNativeImageSequenceId(record.sourceId, 'source ID');
@@ -142,14 +143,14 @@ export function parseFramescaperNativeImageSequenceManifest(
 	);
 	if (record.version !== 1 || record.transactionId !== expectedTransactionId
 		|| !TRANSACTION_ID.test(expectedTransactionId)
-		|| (record.generation !== 25 && record.generation !== 26)
+		|| ![25, 26, 28].includes(record.generation as number)
 		|| (record.sourceId !== null && typeof record.sourceId !== 'string')) {
 		throw new Error('Invalid image-sequence recovery identity.');
 	}
 	const body = Object.freeze({
 		version: 1 as const,
 		transactionId: expectedTransactionId,
-		generation: record.generation,
+		generation: record.generation as FramescaperNativeImageSequenceCandidateGeneration,
 		projectId: framescaperNativeImageSequenceId(record.projectId, 'project ID'),
 		projectRevision: framescaperNativeImageSequenceInteger(
 			record.projectRevision, 'project revision',

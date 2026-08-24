@@ -1,12 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdtemp, symlink, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
 import {
+	FRAMESCAPER_NATIVE_IMAGE_SEQUENCE_MAXIMUM_ACTIVE_SELECTIONS,
+	FRAMESCAPER_NATIVE_IMAGE_SEQUENCE_MAXIMUM_ACTIVE_SELECTIONS_PER_OWNER,
 	FramescaperNativeImageSequenceSelectionBroker,
 } from '../desktop/native-image-sequence-selection.ts';
 
@@ -72,11 +74,52 @@ test('the image-sequence broker refuses changed, linked, duplicate, and mixed-fo
 		selectionId: selected.selectionId, fileId: selected.files[0]!.fileId,
 		offset: 0, length: 1,
 	}), /changed/u);
-
 	for (const paths of [[first, first], [first, duplicate]]) {
 		const hostile = new FramescaperNativeImageSequenceSelectionBroker({
 			selectFiles: async () => paths, mintOpaqueId: () => 'b'.repeat(40),
 		});
 		await assert.rejects(() => hostile.select(owner), /duplicate|one sequence/u);
 	}
+	await unlink(first);
+	await symlink(duplicate, first);
+	await assert.rejects(() => broker.read(owner, {
+		selectionId: selected.selectionId, fileId: selected.files[0]!.fileId,
+		offset: 0, length: 1,
+	}), /changed|symbolic|ELOOP/iu,
+	'opening the selected pathname never follows a replacement symbolic link');
+});
+
+test('the image-sequence broker bounds retained selections per owner and globally', async () => {
+	assert.equal(FRAMESCAPER_NATIVE_IMAGE_SEQUENCE_MAXIMUM_ACTIVE_SELECTIONS, 8);
+	assert.equal(FRAMESCAPER_NATIVE_IMAGE_SEQUENCE_MAXIMUM_ACTIVE_SELECTIONS_PER_OWNER, 2);
+	const directory = await mkdtemp(join(tmpdir(), 'framescaper-image-sequence-capacity-'));
+	const frame = join(directory, 'shot.0001.png');
+	await writeFile(frame, Uint8Array.from([1, 2, 3]));
+	let opaque = 0;
+	let chooserCalls = 0;
+	const broker = new FramescaperNativeImageSequenceSelectionBroker({
+		selectFiles: async () => { chooserCalls += 1; return [frame]; },
+		mintOpaqueId: () => `${(++opaque).toString(16).padStart(40, '0')}`,
+	});
+	const owner = Object.freeze({ id: 'one-owner' });
+	const first = await broker.select(owner);
+	const second = await broker.select(owner);
+	assert.ok(first && second);
+	await assert.rejects(() => broker.select(owner), /capacity/u);
+	assert.equal(chooserCalls, 2, 'capacity is reserved before opening another chooser');
+	assert.equal(await broker.release(owner, { selectionId: first.selectionId }), true);
+	assert.ok(await broker.select(owner));
+
+	broker.dispose();
+	const globalBroker = new FramescaperNativeImageSequenceSelectionBroker({
+		selectFiles: async () => [frame],
+		mintOpaqueId: () => `${(++opaque).toString(16).padStart(40, '0')}`,
+	});
+	for (let index = 0; index < FRAMESCAPER_NATIVE_IMAGE_SEQUENCE_MAXIMUM_ACTIVE_SELECTIONS;
+		index += 1) {
+		assert.ok(await globalBroker.select(Object.freeze({ index })));
+	}
+	await assert.rejects(
+		() => globalBroker.select(Object.freeze({ index: 99 })), /capacity/u,
+	);
 });

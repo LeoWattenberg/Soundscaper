@@ -9,9 +9,15 @@ import type {
 	FramescaperNativeServicesStore,
 	FramescaperNativeWatchCreateRendererRequest,
 } from './framescaper-native-services-bridge.ts';
+import {
+	runFramescaperNativeCarrierRegeneration,
+	type FramescaperNativeProjectActionRuntime,
+} from './framescaper-native-project-actions.ts';
 
 export type FramescaperNativeQueueUiAction =
 	| FramescaperNativeQueueRendererAction
+	| 'regenerate-carrier'
+	| 'reauthorize-root'
 	| 'remove';
 
 export type FramescaperNativeServicesDialogAction =
@@ -21,6 +27,8 @@ export type FramescaperNativeServicesDialogAction =
 		readonly jobId: string;
 		readonly action: FramescaperNativeQueueRendererAction;
 	}>
+	| Readonly<{ readonly type: 'queue-regenerate-carrier'; readonly jobId: string }>
+	| Readonly<{ readonly type: 'queue-reauthorize-root'; readonly jobId: string }>
 	| Readonly<{ readonly type: 'queue-remove'; readonly jobId: string }>
 	| Readonly<{ readonly type: 'queue-reorder'; readonly jobId: string; readonly index: number }>
 	| (Readonly<{ readonly type: 'queue-enqueue' }> & FramescaperNativeQueueEnqueueRendererRequest)
@@ -71,6 +79,8 @@ export function framescaperNativeServicesActionKey(
 	action: FramescaperNativeServicesDialogAction,
 ): string {
 	if (action.type === 'queue-control') return `queue:${action.jobId}:${action.action}`;
+	if (action.type === 'queue-regenerate-carrier') return `queue:${action.jobId}:regenerate-carrier`;
+	if (action.type === 'queue-reauthorize-root') return `queue:${action.jobId}:reauthorize-root`;
 	if (action.type === 'queue-remove') return `queue:${action.jobId}:remove`;
 	if (action.type === 'queue-reorder') return `queue:${action.jobId}:reorder:${String(action.index)}`;
 	if (action.type === 'queue-enqueue') return `queue:enqueue:${action.projectId}`;
@@ -113,9 +123,10 @@ export function reduceFramescaperNativeServicesDialog(
 export async function runFramescaperNativeServicesAction(
 	store: FramescaperNativeServicesStore,
 	action: FramescaperNativeServicesDialogAction,
+	projectActions: FramescaperNativeProjectActionRuntime | null = null,
 ): Promise<FramescaperNativeServicesDialogEvent> {
 	try {
-		const snapshot = await perform(store, action);
+		const snapshot = await perform(store, action, projectActions);
 		return Object.freeze({ type: 'settled' as const, action, snapshot });
 	} catch (error) {
 		return Object.freeze({
@@ -131,6 +142,12 @@ export function framescaperNativeQueueUiActions(
 	runtimeUsable: boolean,
 ): readonly FramescaperNativeQueueUiAction[] {
 	if (job.state === 'completed') return Object.freeze(['remove']);
+	if (job.state === 'paused' && job.lastFailureCode === 'awaiting-carrier-regeneration') {
+		return Object.freeze(runtimeUsable ? ['regenerate-carrier', 'cancel'] : ['cancel']);
+	}
+	if (job.state === 'needs-authorization') {
+		return Object.freeze(runtimeUsable ? ['reauthorize-root', 'cancel'] : ['cancel']);
+	}
 	if (job.state === 'failed' || job.state === 'cancelled') {
 		return Object.freeze(runtimeUsable ? ['retry', 'remove'] : ['remove']);
 	}
@@ -149,8 +166,22 @@ export function framescaperNativeQueueUiActions(
 async function perform(
 	store: FramescaperNativeServicesStore,
 	action: FramescaperNativeServicesDialogAction,
+	projectActions: FramescaperNativeProjectActionRuntime | null,
 ): Promise<FramescaperNativeServicesRendererSnapshot> {
 	if (action.type === 'refresh') return store.refresh();
+	if (action.type === 'queue-regenerate-carrier') {
+		if (projectActions === null) throw new Error('The current project cannot regenerate this renderer carrier.');
+		const snapshot = await store.refresh();
+		const row = snapshot.services.queue.find(({ jobId }) => jobId === action.jobId);
+		if (row?.state !== 'paused' || row.lastFailureCode !== 'awaiting-carrier-regeneration') {
+			throw new Error('The renderer carrier is no longer awaiting regeneration.');
+		}
+		await runFramescaperNativeCarrierRegeneration(projectActions, action.jobId);
+		return store.refresh();
+	}
+	if (action.type === 'queue-reauthorize-root') {
+		return store.reauthorizeQueueRoot({ jobId: action.jobId });
+	}
 	if (action.type === 'queue-control') {
 		return store.control({ jobId: action.jobId, action: action.action });
 	}

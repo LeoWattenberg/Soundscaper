@@ -10,7 +10,9 @@ import {
 import { fingerprintNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
 import { applyFramescaperProjectCommandV27 } from '../src/framescaper/editor-project-v27-commands.ts';
 import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v27.ts';
+import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
 import { reimportFramescaperProjectV27 } from '../src/framescaper/editor-project-v27.ts';
+import { reimportFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
 import { framescaperProjectV24FoundationV27 } from '../src/framescaper/editor-project-v27-validation.ts';
 import { prepareFramescaperSelectedAuthoringV27 } from '../src/framescaper/editor-selected-v27-authoring-workflows.ts';
 import { createFramescaperSelectedProjectBinThumbnailV27 } from '../src/framescaper/editor-selected-v27-visual-preview.ts';
@@ -56,6 +58,22 @@ test('selected visual inspector materializes generator, presentation, and linked
 	const output = mask?.nodes.find(({ id }) => id === mask.outputNodeId);
 	assert.equal(output?.kind === 'vector-shape' ? output.width : null, 0.5);
 	assert.equal(updatedFoundation.revision, number(record(projectFoundation).revision) + 1);
+});
+
+test('selected V28 retains the inherited visual inspector through its exact V27 foundation', () => {
+	const project = reimportFramescaperProjectV28(
+		FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE,
+		reimportFramescaperProjectV27(PROFILE, visualProject()),
+	);
+	const model = createFramescaperV27VisualInspectorModel({
+		project, selectedClipId: 'generator-clip',
+	});
+	assert.equal(model.kind, 'title');
+	const command = createFramescaperV27VisualInspectorCommand(project, 'generator-clip', {
+		generator: model.generator, opacity: 0.75, blendMode: 'screen',
+		maskId: null, maskWidth: 1, presetId: null,
+	});
+	assert.equal((command as Readonly<{ type?: unknown }>).type, 'video-visual-presentation/set');
 });
 
 test('generator presets are executable only while a retained owning source binds their digest', () => {

@@ -131,7 +131,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, on
 	const captionDeliveryUnavailable = framescaperV27CaptionDeliveryUnavailable(
 		productId, snapshot.project,
 	);
-	// Generic video delivery captions from label tracks. Selected V27 owns its
+	// Generic video delivery captions from label tracks. Selected Framescaper owns its
 	// explicit caption tracks and sidecar export through the gated menu surface.
 	const labelTracks = (snapshot.project?.tracks || []).filter((track) => track?.type === 'label');
 	const admRequired = settings.format === 'bw64' && settings.adm == null;

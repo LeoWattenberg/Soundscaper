@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 /** Closed milestone-5 helper wire; renderers never receive its concrete authority. */
 
-import { admitLowerOnly } from '../src/common/editor/lower-only-seam.ts';
 import {
 	VIDEO_TIMING_ASSET_HEADER_BYTES,
 	VIDEO_TIMING_ASSET_MAXIMUM_BYTES,
@@ -16,6 +15,19 @@ import {
 	HelperContractViolationError,
 	assertHelperWireEnvelope,
 } from './helper-wire-admission.ts';
+import {
+	admitsHelperJobSubcontract,
+	helperJobSubcontractVersion,
+	type HelperJobSubcontractVersion,
+} from './helper-job-subcontract.ts';
+import {
+	type HelperJobResourcePolicy,
+	validateHelperWireResourcePolicy,
+} from './helper-resource-policy.ts';
+import {
+	isHelperOutputDirectoryGrant,
+	type HelperOutputGrant,
+} from './helper-native-output-grant.ts';
 
 export {
 	HELPER_AUDIO_BACKENDS,
@@ -48,7 +60,20 @@ export type {
 	HelperProbeJobGrant,
 } from './helper-job-grant.ts';
 export * from './helper-data-plane.ts';
+export * from './helper-data-plane-input-reservation.ts';
 export * from './helper-data-plane-output-reservation.ts';
+export { helperJobTransferredPortCount } from './helper-data-plane-transfer.ts';
+export {
+	HELPER_PERSISTENT_PORT_CONTRACT_VERSION,
+	HELPER_PERSISTENT_PORT_MAXIMUM_IN_FLIGHT_MESSAGES,
+	HELPER_PERSISTENT_PORT_MAXIMUM_MESSAGE_BYTES,
+	HELPER_PERSISTENT_PORT_PURPOSES,
+	validateHelperPersistentPortBinding,
+} from './helper-persistent-port.ts';
+export type {
+	HelperPersistentPortBinding,
+	HelperPersistentPortPurpose,
+} from './helper-persistent-port.ts';
 export {
 	HELPER_EXECUTABLE_ROLES,
 	HELPER_NATIVE_INPUT_ROLES,
@@ -73,12 +98,15 @@ export type {
 	HelperNativeJobResourceUsage,
 	HelperOfxInputFrameGrant,
 	HelperOfxHostJobGrant,
+	HelperOpenFxPluginCustody, HelperOpenFxPluginRuntimeFile,
 	HelperOfxScanJobGrant, HelperOfxScanJobResult, HelperOfxOutputFrameGrant,
-	HelperOfxVideoTimingAssetGrant, HelperOutputFileGrant,
+	HelperOfxHostJobResult, HelperOfxInteractJobGrantV1, HelperOfxInteractJobResultV1,
+	HelperOfxVideoTimingAssetGrant, HelperOutputDirectoryGrant, HelperOutputFileGrant, HelperOutputGrant,
 	HelperScratchGrant,
 	HelperStreamInputGrant,
 	HelperStreamOutputJobResult,
 	HelperTemporaryOutputResult,
+	HelperTemporaryOutputTreeResult,
 	HelperVideoTimingAssetGrant,
 } from './helper-job-grant.ts';
 export {
@@ -86,6 +114,19 @@ export {
 	MAXIMUM_HELPER_WIRE_MESSAGE_BYTES,
 } from './helper-wire-admission.ts';
 export type { HelperContractViolationCode } from './helper-wire-admission.ts';
+export {
+	HELPER_JOB_SUBCONTRACT_VERSIONS,
+	admitsHelperJobSubcontract,
+	helperJobSubcontractVersion,
+} from './helper-job-subcontract.ts';
+export type { HelperJobSubcontractVersion } from './helper-job-subcontract.ts';
+export {
+	HELPER_JOB_DURATION_HARD_LIMITS,
+	HELPER_JOB_RESOURCE_HARD_LIMITS,
+	HELPER_RESOURCE_HARD_LIMITS,
+	normalizeHelperResourcePolicy,
+} from './helper-resource-policy.ts';
+export type { HelperJobResourcePolicy } from './helper-resource-policy.ts';
 export const HELPER_CONTRACT_VERSION = 1;
 
 /** Fixed-length lowercase-hex job identifier minted by the main process. */
@@ -100,118 +141,12 @@ export const HELPER_CRASH_DETECTION_MS = 2_000;
 /** Cancellation must be acknowledged within this budget (p95 ≤ 1000 ms). */
 export const HELPER_CANCELLATION_BUDGET_MS = 1_000;
 
-/** Common hard lower-only ceilings; the legacy duration field is the probe ceiling. */
-export const HELPER_RESOURCE_HARD_LIMITS = Object.freeze({
-	maximumInputBytes: 4 * 1024 ** 3,
-	maximumJobDurationMs: 10 * 60 * 1_000,
-	maximumRssBytes: 1024 ** 3,
-	maximumConcurrentJobs: 1,
-});
-
-export const HELPER_JOB_DURATION_HARD_LIMITS = Object.freeze({
-	'probe-video-source': 10 * 60_000,
-	'audio-device': 24 * 60 * 60_000,
-	'plugin-scan': 60 * 60_000,
-	'plugin-host': 24 * 60 * 60_000,
-	'media-decode': 24 * 60 * 60_000,
-	'media-encode': 24 * 60 * 60_000,
-	'media-render': 24 * 60 * 60_000,
-	'media-proxy': 24 * 60 * 60_000,
-	'ofx-scan': 60 * 60_000,
-	'ofx-host': 24 * 60 * 60_000,
-} as const satisfies Readonly<Record<HelperJobKind, number>>);
-
-const MAXIMUM_NATIVE_FILE_BYTES = 16 * 1024 ** 4;
-const MAXIMUM_NATIVE_OFX_BYTES = 64 * 1024 ** 3;
-const NATIVE_JOB_LIMITS = Object.freeze({
-	maximumInputBytes: MAXIMUM_NATIVE_FILE_BYTES,
-	maximumOutputBytes: MAXIMUM_NATIVE_FILE_BYTES,
-	maximumScratchBytes: MAXIMUM_NATIVE_FILE_BYTES,
-	maximumDataPlaneBytes: MAXIMUM_NATIVE_FILE_BYTES,
-	maximumInFlightChunks: 8,
-	maximumRssBytes: HELPER_RESOURCE_HARD_LIMITS.maximumRssBytes,
-});
-const OFX_JOB_LIMITS = Object.freeze({
-	maximumInputBytes: MAXIMUM_NATIVE_OFX_BYTES,
-	maximumOutputBytes: MAXIMUM_NATIVE_OFX_BYTES,
-	maximumScratchBytes: MAXIMUM_NATIVE_OFX_BYTES,
-	maximumDataPlaneBytes: MAXIMUM_NATIVE_OFX_BYTES,
-	maximumInFlightChunks: 8,
-	maximumRssBytes: HELPER_RESOURCE_HARD_LIMITS.maximumRssBytes,
-});
-
-/** Exact hard policy shape for every negotiated kind. */
-export const HELPER_JOB_RESOURCE_HARD_LIMITS = Object.freeze({
-	'probe-video-source': Object.freeze({
-		...HELPER_RESOURCE_HARD_LIMITS,
-		maximumJobDurationMs: HELPER_JOB_DURATION_HARD_LIMITS['probe-video-source'],
-	}),
-	'audio-device': Object.freeze({
-		...HELPER_RESOURCE_HARD_LIMITS,
-		maximumJobDurationMs: HELPER_JOB_DURATION_HARD_LIMITS['audio-device'],
-	}),
-	'plugin-scan': Object.freeze({
-		...HELPER_RESOURCE_HARD_LIMITS,
-		maximumJobDurationMs: HELPER_JOB_DURATION_HARD_LIMITS['plugin-scan'],
-	}),
-	'plugin-host': Object.freeze({
-		...HELPER_RESOURCE_HARD_LIMITS,
-		maximumJobDurationMs: HELPER_JOB_DURATION_HARD_LIMITS['plugin-host'],
-	}),
-	'media-decode': Object.freeze({
-		...NATIVE_JOB_LIMITS,
-		maximumJobDurationMs: HELPER_JOB_DURATION_HARD_LIMITS['media-decode'],
-	}),
-	'media-encode': Object.freeze({
-		...NATIVE_JOB_LIMITS,
-		maximumJobDurationMs: HELPER_JOB_DURATION_HARD_LIMITS['media-encode'],
-	}),
-	'media-render': Object.freeze({
-		...NATIVE_JOB_LIMITS,
-		maximumJobDurationMs: HELPER_JOB_DURATION_HARD_LIMITS['media-render'],
-	}),
-	'media-proxy': Object.freeze({
-		...NATIVE_JOB_LIMITS,
-		maximumJobDurationMs: HELPER_JOB_DURATION_HARD_LIMITS['media-proxy'],
-	}),
-	'ofx-scan': Object.freeze({
-		...OFX_JOB_LIMITS,
-		maximumJobDurationMs: HELPER_JOB_DURATION_HARD_LIMITS['ofx-scan'],
-	}),
-	'ofx-host': Object.freeze({
-		...OFX_JOB_LIMITS,
-		maximumJobDurationMs: HELPER_JOB_DURATION_HARD_LIMITS['ofx-host'],
-	}),
-} as const satisfies Readonly<Record<HelperJobKind, Readonly<{
-	maximumInputBytes: number;
-	maximumJobDurationMs: number;
-	maximumRssBytes: number;
-}>>>);
-
-/**
- * Ambient resource authority stays deny-only in v1. Exact native job grants
- * may name one verified executable, output and scratch reservation without
- * turning these broad booleans on. Kind-aware lower-only ceilings bind those
- * grants while older probe messages continue to normalize all booleans false.
- */
-export interface HelperJobResourcePolicy {
-	readonly maximumInputBytes: number;
-	readonly maximumJobDurationMs: number;
-	readonly maximumRssBytes: number;
-	readonly maximumOutputBytes?: number;
-	readonly maximumScratchBytes?: number;
-	readonly maximumDataPlaneBytes?: number;
-	readonly maximumInFlightChunks?: number;
-	readonly allowNetwork: false;
-	readonly allowChildProcesses: false;
-	readonly allowOutputFiles: false;
-}
-
 export interface HelperJobMessageFor<Kind extends HelperJobKind> {
 	readonly contractVersion: typeof HELPER_CONTRACT_VERSION;
 	readonly type: 'job';
 	readonly jobId: string;
 	readonly kind: Kind;
+	readonly jobContractVersion: HelperJobSubcontractVersion<Kind>;
 	readonly grant: HelperJobGrant<Kind>;
 	readonly resourcePolicy: HelperJobResourcePolicy;
 }
@@ -291,7 +226,9 @@ const HOST_MESSAGE_TYPES = Object.freeze(['job', 'cancel', 'shutdown'] as const)
 const PROCESS_MESSAGE_TYPES = Object.freeze([
 	'hello', 'heartbeat', 'progress', 'result', 'error', 'cancelled',
 ] as const);
-const JOB_KEYS = Object.freeze(['contractVersion', 'type', 'jobId', 'kind', 'grant', 'resourcePolicy']);
+const JOB_KEYS = Object.freeze([
+	'contractVersion', 'type', 'jobId', 'kind', 'jobContractVersion', 'grant', 'resourcePolicy',
+]);
 const CANCEL_KEYS = Object.freeze(['contractVersion', 'type', 'jobId']);
 const SHUTDOWN_KEYS = Object.freeze(['contractVersion', 'type']);
 const HELLO_KEYS = Object.freeze(['contractVersion', 'type', 'kinds']);
@@ -299,11 +236,6 @@ const HEARTBEAT_KEYS = Object.freeze(['contractVersion', 'type', 'jobId']);
 const PROGRESS_KEYS = Object.freeze(['contractVersion', 'type', 'jobId', 'value']);
 const RESULT_KEYS = Object.freeze(['contractVersion', 'type', 'jobId', 'result']);
 const ERROR_KEYS = Object.freeze(['contractVersion', 'type', 'jobId', 'error']);
-const POLICY_KEYS = Object.freeze(['maximumInputBytes', 'maximumJobDurationMs', 'maximumRssBytes']);
-const POLICY_DENY_KEYS = Object.freeze(['allowNetwork', 'allowChildProcesses', 'allowOutputFiles']);
-const POLICY_NATIVE_KEYS = Object.freeze([
-	'maximumOutputBytes', 'maximumScratchBytes', 'maximumDataPlaneBytes', 'maximumInFlightChunks',
-]);
 const WIRE_ERROR_KEYS = Object.freeze(['name', 'message', 'code']);
 
 export function assertHelperJobId(value: unknown): string {
@@ -313,40 +245,6 @@ export function assertHelperJobId(value: unknown): string {
 		throw new HelperContractViolationError('malformed', 'A helper job id must be fixed-length lowercase hex.');
 	}
 	return value;
-}
-
-export function normalizeHelperResourcePolicy(
-	value?: Partial<HelperJobResourcePolicy>,
-	kind: HelperJobKind = 'probe-video-source',
-): HelperJobResourcePolicy {
-	if (!(HELPER_JOB_KINDS as readonly string[]).includes(kind)) {
-		throw new RangeError('Helper resource policy requires a known contract-v1 job kind.');
-	}
-	const hard = HELPER_JOB_RESOURCE_HARD_LIMITS[kind];
-	const base = {
-		maximumInputBytes: lowerOnlyLimit(value?.maximumInputBytes, hard.maximumInputBytes, 'input bytes'),
-		maximumJobDurationMs: lowerOnlyLimit(value?.maximumJobDurationMs, hard.maximumJobDurationMs, 'job duration'),
-		maximumRssBytes: lowerOnlyLimit(value?.maximumRssBytes, hard.maximumRssBytes, 'peak RSS'),
-		allowNetwork: denyOnly(value?.allowNetwork, 'network'),
-		allowChildProcesses: denyOnly(value?.allowChildProcesses, 'child-process'),
-		allowOutputFiles: denyOnly(value?.allowOutputFiles, 'output-file'),
-	};
-	if (!('maximumOutputBytes' in hard)) return Object.freeze(base);
-	return Object.freeze({
-		...base,
-		maximumOutputBytes: lowerOnlyLimit(value?.maximumOutputBytes, hard.maximumOutputBytes, 'output bytes'),
-		maximumScratchBytes: lowerOnlyLimit(value?.maximumScratchBytes, hard.maximumScratchBytes, 'scratch bytes'),
-		maximumDataPlaneBytes: lowerOnlyLimit(
-			value?.maximumDataPlaneBytes,
-			hard.maximumDataPlaneBytes,
-			'data-plane bytes',
-		),
-		maximumInFlightChunks: lowerOnlyLimit(
-			value?.maximumInFlightChunks,
-			hard.maximumInFlightChunks,
-			'in-flight chunks',
-		),
-	});
 }
 
 /**
@@ -375,14 +273,28 @@ export function validateHelperHostMessage(value: unknown): HelperHostMessage {
 	if (typeof kind !== 'string' || !(HELPER_JOB_KINDS as readonly string[]).includes(kind)) {
 		throw new HelperContractViolationError('unknown-kind', 'The helper job kind is not part of contract v1.');
 	}
+	const jobId = assertHelperJobId(record.jobId);
+	const admittedGrant = validateHelperJobGrant(kind as HelperJobKind, record.grant);
+	assertNativeOutputJobIdentity(kind as HelperJobKind, jobId, admittedGrant);
 	return Object.freeze({
 		contractVersion: HELPER_CONTRACT_VERSION,
 		type: 'job',
-		jobId: assertHelperJobId(record.jobId),
+		jobId,
 		kind: kind as HelperJobKind,
-		grant: validateHelperJobGrant(kind as HelperJobKind, record.grant),
-		resourcePolicy: validateWirePolicy(record.resourcePolicy, kind as HelperJobKind),
+		jobContractVersion: validateJobSubcontractVersion(kind as HelperJobKind, record.jobContractVersion),
+		grant: admittedGrant,
+		resourcePolicy: validateHelperWireResourcePolicy(record.resourcePolicy, kind as HelperJobKind),
 	}) as HelperJobMessage;
+}
+
+function assertNativeOutputJobIdentity(kind: HelperJobKind, jobId: string, grant: unknown): void {
+	if (kind !== 'media-encode' && kind !== 'media-render') return;
+	const output = (grant as Readonly<{ readonly output?: HelperOutputGrant }>).output;
+	if (output && isHelperOutputDirectoryGrant(output) && output.treeIdentity.jobId !== jobId) {
+		throw new HelperContractViolationError(
+			'unsafe-grant', 'A helper output tree identity disagrees with its exact job id.',
+		);
+	}
 }
 
 export function validateHelperProcessMessage(value: unknown): HelperProcessMessage {
@@ -467,17 +379,17 @@ export function deserializeHelperError(value: HelperWireError): Error {
 	return error;
 }
 
-function validateWirePolicy(value: unknown, kind: HelperJobKind): HelperJobResourcePolicy {
-	const record = wireRecord(value);
-	const optional = 'maximumOutputBytes' in HELPER_JOB_RESOURCE_HARD_LIMITS[kind]
-		? [...POLICY_DENY_KEYS, ...POLICY_NATIVE_KEYS]
-		: POLICY_DENY_KEYS;
-	exactOptionalWireKeys(record, POLICY_KEYS, optional);
-	try {
-		return normalizeHelperResourcePolicy(record as Partial<HelperJobResourcePolicy>, kind);
-	} catch (error) {
-		throw new HelperContractViolationError('malformed', error instanceof Error ? error.message : String(error));
+function validateJobSubcontractVersion<Kind extends HelperJobKind>(
+	kind: Kind,
+	version: unknown,
+): HelperJobSubcontractVersion<Kind> {
+	if (!admitsHelperJobSubcontract(kind, version)) {
+		throw new HelperContractViolationError(
+			'unsupported-version',
+			`The ${kind} helper job subcontract version is unsupported.`,
+		);
 	}
+	return helperJobSubcontractVersion(kind);
 }
 
 function validateHelperWireError(value: unknown): HelperWireError {
@@ -563,36 +475,6 @@ function exactWireKeys(record: Record<string, unknown>, keys: readonly string[])
 	if (present.length !== keys.length || present.some((key) => !keys.includes(key))) {
 		throw new HelperContractViolationError('malformed', 'A helper wire message must carry exactly its schema keys.');
 	}
-}
-
-function exactOptionalWireKeys(
-	record: Record<string, unknown>,
-	required: readonly string[],
-	optional: readonly string[],
-): void {
-	const present = Object.keys(record);
-	if (required.some((key) => !present.includes(key))
-		|| present.some((key) => !required.includes(key) && !optional.includes(key))) {
-		throw new HelperContractViolationError('malformed', 'A helper wire record carries unsupported or missing keys.');
-	}
-}
-
-function lowerOnlyLimit(value: unknown, hardMaximum: number, label: string): number {
-	return admitLowerOnly(value, {
-		ceiling: hardMaximum,
-		floor: 1,
-		absent: 'ceiling',
-		refuse: () => new RangeError(
-			`Helper ${label} must be a lower-only safe integer no greater than ${hardMaximum}.`,
-		),
-	});
-}
-
-function denyOnly(value: unknown, label: string): false {
-	if (value !== undefined && value !== false) {
-		throw new RangeError(`Helper ${label} authority is deny-only in contract v1.`);
-	}
-	return false;
 }
 
 function bounded(value: string): string {

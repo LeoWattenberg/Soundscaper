@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Closed main-only request for one exact V12 OpenFX node evaluation. */
+/** Closed main-only request for one exact legacy-V12 or selected-V14 OpenFX evaluation. */
 
 import type { OfxRenderBackendV1 } from '../src/common/editor/native-ofx-host-contract.ts';
 import {
@@ -16,7 +16,10 @@ import {
 import {
 	assertUnifiedExactRenderPlanWithDeferredTimingReferences,
 	type UnifiedExactRenderPlanV12,
+	type UnifiedExactRenderPlanV14,
 } from '../src/common/editor/unified-exact-render-plan.ts';
+
+export type FramescaperOpenFxExecutionPlan = UnifiedExactRenderPlanV12 | UnifiedExactRenderPlanV14;
 
 export interface FramescaperOpenFxInputFrameV1 {
 	readonly name: string;
@@ -29,7 +32,7 @@ export interface FramescaperOpenFxInputFrameV1 {
 
 export interface FramescaperOpenFxExecutionRequestV1 {
 	readonly pluginHandle: string;
-	readonly plan: UnifiedExactRenderPlanV12;
+	readonly plan: FramescaperOpenFxExecutionPlan;
 	readonly instanceId: string;
 	readonly requestedBackend: OfxRenderBackendV1;
 	readonly outputOrdinal: number;
@@ -50,12 +53,12 @@ export function framescaperOpenFxExecutionRequestV1(
 	const allowed = [...REQUIRED_KEYS, 'retimerSourceTime', 'signal'];
 	const record = closedRecord(value, allowed, REQUIRED_KEYS, 'OpenFX execution request');
 	const plan = record.plan;
-	assertDeferredV12Plan(plan);
+	assertDeferredOpenFxPlan(plan);
 	if (typeof record.pluginHandle !== 'string' || !HANDLE.test(record.pluginHandle)
 		|| typeof record.instanceId !== 'string' || !ID.test(record.instanceId)
-		|| typeof record.requestedBackend !== 'string'
-		|| !['cpu', 'cuda', 'opengl', 'opencl', 'metal'].includes(record.requestedBackend)
-		|| !Number.isSafeInteger(record.outputOrdinal) || Number(record.outputOrdinal) < 0
+			|| typeof record.requestedBackend !== 'string'
+			|| !['cpu', 'cuda', 'opengl', 'opencl', 'metal'].includes(record.requestedBackend)
+			|| !Number.isSafeInteger(record.outputOrdinal) || Number(record.outputOrdinal) < 0
 		|| Number(record.outputOrdinal) >= plan.output.frameCount
 		|| !Array.isArray(record.inputs) || record.inputs.length > 16
 		|| (record.signal !== undefined && !(record.signal instanceof AbortSignal))) {
@@ -105,7 +108,7 @@ export function framescaperOpenFxExecutionRequestV1(
 		});
 	if (inputs.some((input) => input.width !== plan.output.canvas.width
 		|| input.height !== plan.output.canvas.height)) {
-		throw new TypeError('Each evaluated OpenFX input must match the exact V12 output canvas.');
+		throw new TypeError(`Each evaluated OpenFX input must match the exact V${String(plan.version)} output canvas.`);
 	}
 	return Object.freeze({
 		pluginHandle: record.pluginHandle,
@@ -119,9 +122,11 @@ export function framescaperOpenFxExecutionRequestV1(
 	});
 }
 
-function assertDeferredV12Plan(value: unknown): asserts value is UnifiedExactRenderPlanV12 {
+function assertDeferredOpenFxPlan(value: unknown): asserts value is FramescaperOpenFxExecutionPlan {
 	assertUnifiedExactRenderPlanWithDeferredTimingReferences(value);
-	if (value.version !== 12) throw new RangeError('OpenFX execution requires exact render plan V12.');
+	if (value.version !== 12 && value.version !== 14) {
+		throw new RangeError('OpenFX execution admits only legacy plan V12 or selected plan V14.');
+	}
 }
 
 function closedRecord(

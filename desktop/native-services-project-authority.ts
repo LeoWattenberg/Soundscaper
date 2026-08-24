@@ -69,6 +69,7 @@ export interface FramescaperNativeProjectAuthorityPort {
 	projectRecord(projectId: string): ProjectRecord | null;
 	readProjectBundle(projectId: string): Promise<unknown>;
 	readBody(body: unknown): Promise<Uint8Array>;
+	materializeBody?(body: unknown, destination: string, signal?: AbortSignal): Promise<unknown>;
 }
 
 export interface FramescaperNativeProjectAuthorityMessageChannel {
@@ -310,7 +311,7 @@ export class FramescaperNativeProjectAuthority {
 				...base, source: onlySource(sources),
 				proxyRecipe: proxyRecipe(bundle, record.inputFingerprints[0]?.sourceId),
 			})
-			: Object.freeze({ ...base, sources: Object.freeze(sources) });
+			: Object.freeze({ ...base, backend: 'native-cpu' as const, sources: Object.freeze(sources) });
 		const request = Object.freeze({
 			kind,
 			grant,

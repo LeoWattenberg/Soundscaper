@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
+import { createUnreportedVideoSourceCharacteristicsV25 } from '../../src/common/editor/video-source-professional-characteristics-v25.ts';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
@@ -135,7 +136,7 @@ async function openSourceProperties(editor, page) {
  * this is the state the upgrade exists to repair, not an invalid fixture.
  */
 async function degradeToUnprobedIngest(page) {
-	await page.evaluate(async ({ databaseName, rate, frameCount, exactFrameCount }) => {
+	await page.evaluate(async ({ databaseName, rate, frameCount, exactFrameCount, characteristics }) => {
 		const request = (input) => new Promise((resolve, reject) => {
 			input.onsuccess = () => resolve(input.result);
 			input.onerror = () => reject(input.error);
@@ -156,20 +157,7 @@ async function degradeToUnprobedIngest(page) {
 						reason: 'timing-probe-unavailable',
 						failures: [],
 					};
-					source.characteristics = {
-						backend: null,
-						codedWidth: null,
-						codedHeight: null,
-						rotationDegrees: null,
-						pixelAspectRatio: null,
-						fieldOrder: null,
-						hasAlpha: null,
-						videoCodec: null,
-						colour: { primaries: null, transfer: null, matrix: null, range: null },
-						audioStreams: null,
-						extractedAudioStreamIndex: null,
-						startTimecode: null,
-					};
+					source.characteristics = characteristics;
 					source.videoCodec = 'unknown';
 				}
 				// An ingest that reported nothing owned neither a characteristics
@@ -202,6 +190,7 @@ async function degradeToUnprobedIngest(page) {
 		rate: FABRICATED_RATE,
 		frameCount: FABRICATED_FRAME_COUNT,
 		exactFrameCount: EXACT_FRAME_COUNT,
+		characteristics: createUnreportedVideoSourceCharacteristicsV25(),
 	});
 }
 

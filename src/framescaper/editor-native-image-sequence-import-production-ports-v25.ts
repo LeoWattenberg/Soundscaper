@@ -22,6 +22,12 @@ const TRANSACTION_ID = /^[a-f0-9]{40}$/u;
 
 export interface FramescaperNativeImageSequenceImportRendererPortV25 {
 	imageSequenceImport(request: unknown): Promise<unknown>;
+	readImageSequenceImportBody(request: Readonly<{
+		transactionId: string;
+		asset: 'pack' | 'inventory';
+		offset: number;
+		length: number;
+	}>): Promise<Uint8Array>;
 	writeImageSequenceImportChunk(request: Readonly<{
 		transactionId: string;
 		asset: 'pack' | 'inventory';
@@ -34,15 +40,26 @@ export interface FramescaperImageSequenceProductionPortsOptionsV25 {
 	readonly bridge: FramescaperNativeImageSequenceImportRendererPortV25 & Readonly<{
 		capabilities(): Promise<unknown>;
 	}>;
-	readonly candidateGeneration: 25 | 26;
+	readonly candidateGeneration: 25 | 26 | 28;
 	readonly projectId: string;
 	readonly projectRevision: number;
+}
+
+export interface FramescaperImageSequenceProductionPortsV25
+	extends FramescaperImageSequenceImportPortsV25 {
+	readCommittedBody(request: Readonly<{
+		asset: 'pack' | 'inventory';
+		reference: NativeMediaImageSequenceInventoryReferenceV25
+			| NativeMediaImageSequenceSourcePackReferenceV25;
+		offset: number;
+		length: number;
+	}>): Promise<Uint8Array>;
 }
 
 /** One factory instance owns one import transaction and cannot be replayed. */
 export function createFramescaperImageSequenceProductionPortsV25(
 	options: FramescaperImageSequenceProductionPortsOptionsV25,
-): FramescaperImageSequenceImportPortsV25 {
+): FramescaperImageSequenceProductionPortsV25 {
 	let transactionId: string | null = null;
 	let packReference: NativeMediaImageSequenceSourcePackReferenceV25 | null = null;
 	let inventoryReference: NativeMediaImageSequenceInventoryReferenceV25 | null = null;
@@ -59,6 +76,17 @@ export function createFramescaperImageSequenceProductionPortsV25(
 	return Object.freeze({
 		capabilities: () => options.bridge.capabilities(),
 		clearedPolicyRowIds: () => NATIVE_MEDIA_IMAGE_SEQUENCE_DECODE_POLICY_ROW_IDS,
+		async readCommittedBody(request: Parameters<FramescaperImageSequenceProductionPortsV25['readCommittedBody']>[0]) {
+			const id = activeTransaction(transactionId, disposed);
+			const reference = request.asset === 'pack' ? packReference : inventoryReference;
+			if (reference === null || JSON.stringify(reference) !== JSON.stringify(request.reference)) {
+				throw new Error('The image-sequence body read does not name this committed transaction asset.');
+			}
+			return options.bridge.readImageSequenceImportBody({
+				transactionId: id, asset: request.asset,
+				offset: request.offset, length: request.length,
+			});
+		},
 		async createSourcePackWriter(): Promise<NativeMediaImageSequenceSourcePackWriterV25> {
 			if (writerCreated || disposed) throw new Error('The candidate image-sequence writer is single-use.');
 			writerCreated = true;

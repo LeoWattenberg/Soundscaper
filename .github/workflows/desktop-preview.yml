@@ -253,6 +253,9 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          # Accepted native-lab evidence binds its measured ancestor and the
+          # handoff verifies the evidence-only descendant relationship.
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
@@ -272,6 +275,7 @@ jobs:
         env:
           SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
           SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
+          SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
 
       - name: Package ${{ matrix.product }} ${{ matrix.target.platform }} ${{ matrix.target.arch }}
         run: npx electron-builder --config electron-builder.config.cjs --${{ matrix.target.platform }} --${{ matrix.target.arch }} --publish never
@@ -352,6 +356,24 @@ jobs:
           cp .desktop-build/stage-manifest.json "release/desktop/runtime-manifest-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json"
           cp desktop/ffmpeg-corresponding-source.json release/desktop/ffmpeg-corresponding-source.json
 
+      - name: Assemble the fail-closed Milestone 5 handoff
+        run: >-
+          node scripts/assemble-milestone-5-handoff.mjs --output
+          "${{ runner.temp }}/milestone-5-handoff-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json"
+          --product "${{ matrix.product }}"
+          --target "${{ matrix.target.platform }}-${{ matrix.target.arch }}"
+          --package-root "release/desktop"
+        env:
+          SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
+
+      - name: Upload the Milestone 5 handoff
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: milestone-5-handoff-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}
+          path: ${{ runner.temp }}/milestone-5-handoff-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload ${{ matrix.product }} packages
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -363,6 +385,61 @@ jobs:
             release/desktop/*.exe
             release/desktop/*.zip
             release/desktop/*.json
+          if-no-files-found: error
+          retention-days: 14
+
+  milestone-5-handoff-matrix:
+    name: Aggregate the exact Milestone 5 package matrix
+    if: >-
+      always()
+      && needs.package.result == 'success'
+      && (
+        (github.event_name == 'push' && github.ref_type == 'tag')
+        || github.event_name == 'schedule'
+        || (github.event_name == 'workflow_dispatch' && inputs.artifact_variant == 'nightly')
+      )
+    needs: package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out the aggregated source revision
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install the pinned project dependencies
+        run: npm ci
+
+      - name: Install cross-format package inspectors
+        timeout-minutes: 10
+        run: bash scripts/ci-apt-install.sh p7zip-full squashfs-tools
+
+      - name: Download all ten audited package roots
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: nightly-*
+          path: ${{ runner.temp }}/milestone-5-packages
+
+      - name: Re-audit and aggregate the authenticated package matrix
+        run: >-
+          node scripts/aggregate-milestone-5-handoffs.mjs
+          --package-directory "${{ runner.temp }}/milestone-5-packages"
+          --output "${{ runner.temp }}/milestone-5-handoff-matrix.json"
+        env:
+          SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
+
+      - name: Upload the Milestone 5 matrix assessment
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: milestone-5-handoff-matrix
+          path: ${{ runner.temp }}/milestone-5-handoff-matrix.json
           if-no-files-found: error
           retention-days: 14
 
@@ -512,7 +589,7 @@ jobs:
           retention-days: 14
 
   soundscaper-project-library-lease-matrix:
-    name: Soundscaper V10 + Framescaper V18 packaged lease matrix / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
+    name: Soundscaper V11 + Framescaper V19 packaged lease matrix / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
     if: >-
       (github.event_name == 'push' && github.ref_type == 'tag')
       || github.event_name == 'schedule'
@@ -551,7 +628,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build unpacked Soundscaper V10 and Framescaper V18 products
+      - name: Build unpacked Soundscaper V11 and Framescaper V19 products
         shell: bash
         run: |
           for product in soundscaper framescaper; do
@@ -590,12 +667,12 @@ jobs:
         env:
           SOUNDSCAPER_SMOKE_ARCH: ${{ matrix.target.arch }}
           SOUNDSCAPER_SMOKE_XVFB: ${{ matrix.target.platform == 'linux' && 'true' || 'false' }}
-          SOUNDSCAPER_LEASE_MATRIX_RESULT: ${{ runner.temp }}/soundscaper-v10-framescaper-v18-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
+          SOUNDSCAPER_LEASE_MATRIX_RESULT: ${{ runner.temp }}/soundscaper-v11-framescaper-v19-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
 
       - name: Upload bounded lease-matrix result
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: soundscaper-v10-framescaper-v18-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}
-          path: ${{ runner.temp }}/soundscaper-v10-framescaper-v18-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
+          name: soundscaper-v11-framescaper-v19-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}
+          path: ${{ runner.temp }}/soundscaper-v11-framescaper-v19-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
           if-no-files-found: error
           retention-days: 14

@@ -6,7 +6,7 @@ import test from 'node:test';
 
 const root = new URL('../', import.meta.url);
 
-test('5B status distinguishes implemented candidate routes from shipped activation', async () => {
+test('5B status records the selected V28/V14 route without claiming external activation', async () => {
 	const [roadmap, parentPlan, pickup, threatModel, compatibility] = await Promise.all([
 		text('roadmap.md'),
 		text('docs/milestone-5-plan.md'),
@@ -18,41 +18,21 @@ test('5B status distinguishes implemented candidate routes from shipped activati
 	const mediaPayloads = await json('config/framescaper-media-host-payload-manifest.json');
 	const openFxPayloads = await json('config/framescaper-openfx-host-payload-manifest.json');
 
-	assert.match(pickup, /V27 is the selected M1–M4\s+activation candidate.*does not select or qualify V20.V26 native candidates/isu);
-	assert.match(pickup, /V20.*through V26 labels.*historical foundations.*dormant custody.*no 5B activation/isu);
-	assert.match(pickup, /earlier claim.*whole software substrate.*inaccurate/isu);
-	assert.doesNotMatch(roadmap, /whole 5B software substrate.*implemented/iu);
-
-	assert.match(parentPlan, /source-body handoff.*watch-project\s+mutation.*exist/isu);
-	assert.match(parentPlan, /empty payload manifest.*self-test.*not ready.*dispatch fail-closed/isu);
-	assert.doesNotMatch(parentPlan, /unavailable source-body\/watch mutation bindings/iu);
-	assert.match(parentPlan, /payload manifests.*selectors.*stagers.*exist/isu);
-	assert.doesNotMatch(parentPlan, /No generic native-payload manifest or target selector exists yet/iu);
-
-	for (const document of [pickup, roadmap]) {
-		assert.match(document, /scan\/enable\/Add.*source route.*candidate-tested/isu);
-		assert.match(document, /future-payload stager.*source-(?:implemented|tested)/isu);
-		assert.match(document, /shipped activation.*unavailable/isu);
-		assert.doesNotMatch(document, /Renderer(?:-facing)? scan\/Add execution.*(?:absent|unavailable)/iu);
-	}
-	assert.doesNotMatch(pickup, /future built-payload staging.*remain unavailable/iu);
-	assert.doesNotMatch(pickup, /copier that\s+would stage a future verified payload row/iu);
-
-	const hosting = security.risks.find(({ id }) => id === 'native-plugin-hosting');
-	assert.ok(hosting);
-	const residual = hosting.residualRisks.find(({ id }) => id === 'unexercised-plugin-hosting-gates');
-	assert.ok(residual);
-	for (const document of [pickup, roadmap, residual.exposure]) {
-		assert.match(
-			document,
-			/OverlayInteractV2.*property.*Interact Suite V1.*DrawSuite V1/isu,
-		);
-		assert.doesNotMatch(document, /Overlay Interact V2\/DrawSuite V1/iu);
+	assert.match(pickup, /V28.*selected.*Milestone 5.*V14.*desktop library V19/isu);
+	assert.match(pickup, /V20.*through V27.*historical.*V25\/V26.*opaque.*read-only/isu);
+	assert.match(roadmap, /Framescaper V28.*exact V14.*evaluated-RGBA.*carrier/isu);
+	assert.match(parentPlan, /selected V28.*V14.*render queue.*persistent services V3/isu);
+	for (const document of [pickup, roadmap, parentPlan]) {
+		assert.match(document, /five.*target.*pending-external/isu);
+		assert.match(document, /payload.*(?:empty|no authenticated)/isu);
+		assert.doesNotMatch(document, /whole 5B software substrate.*implemented/iu);
 	}
 
-	assert.match(threatModel, /media decode\/encode\/render source candidates.*outside the enacted payload surface/isu);
-	assert.doesNotMatch(threatModel, /decode\/encode and render helpers remain out of scope/iu);
-	assert.match(compatibility, /^## Framescaper V27 product isolation$/mu);
+	const helper = security.risks.find(({ id }) => id === 'native-helper-processes');
+	assert.ok(helper);
+	assert.match(JSON.stringify(helper), /V14.*evaluated-RGBA.*carrier/isu);
+	assert.match(threatModel, /selected V28.*V14.*carrier/isu);
+	assert.match(compatibility, /^## Framescaper V28 product isolation$/mu);
 
 	for (const manifest of [mediaPayloads, openFxPayloads]) {
 		assert.deepEqual(manifest.payloads, []);
@@ -62,6 +42,19 @@ test('5B status distinguishes implemented candidate routes from shipped activati
 		)));
 	}
 	assert.ok(openFxPayloads.targets.every(({ productionReadiness }) => productionReadiness === null));
+});
+
+test('5B status preserves the OpenFX route while keeping execution unavailable', async () => {
+	const [roadmap, pickup] = await Promise.all([
+		text('roadmap.md'),
+		text('docs/milestone-5b-framescaper-native-tier.md'),
+	]);
+	for (const document of [pickup, roadmap]) {
+		assert.match(document, /scan.*enable.*Add OFX.*menu/isu);
+		assert.match(document, /all six contexts.*Interact Suite V1.*DrawSuite V1/isu);
+		assert.match(document, /payload.*empty.*third-party.*unavailable/isu);
+		assert.match(document, /state.*(?:bypass|frozen).*preserv/isu);
+	}
 });
 
 async function text(path) {

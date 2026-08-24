@@ -67,6 +67,7 @@ function descriptor() {
 		architectureDirectory: 'Linux-x86-64', supportedContexts: ['retimer'],
 		parameters: [{ name: 'speed', type: 'double', animates: true }],
 		components: ['RGBA'], pixelDepths: ['byte'], threading: 'fully-safe',
+		renderBackends: ['cpu'],
 		requestedSuites: ['OfxImageEffectSuite', 'OfxPropertySuite', 'OfxParameterSuite'],
 	};
 }

@@ -22,6 +22,8 @@ export interface FramescaperNativeCapabilityRuntimeV1 {
 	readonly selfTestPassed: boolean;
 	/** Exact selected V20 V7/V8 render families and their codecs passed end-to-end. */
 	readonly selectedV20RenderSelfTestPassed: boolean;
+	/** Exact selected V28 plan-V14 carrier operation passed its separate self-test. */
+	readonly selectedV28V14RenderSelfTestPassed: boolean;
 	/** Full V25 bit-depth, pixel/chroma, range, colour/HDR, and alpha probe semantics passed. */
 	readonly professionalCharacteristicsSelfTestPassed: boolean;
 	readonly quarantined: boolean;
@@ -53,6 +55,8 @@ export interface FramescaperNativeCapabilityReportOptionsV1 {
 	}>;
 }
 
+const IMAGE_SEQUENCE_RGBA8_BOUNDARY = 'The selected image-sequence decoder admits only opaque 8-bit sRGB/RGB/full-range pixels; higher-bit-depth, HDR, alpha, or incompatible color is refused before import.';
+
 /**
  * Report software, policy, payload, self-test, and user-switch observations
  * separately. A verified payload digest is the only accepted build fingerprint.
@@ -70,9 +74,9 @@ export function createFramescaperNativeCapabilityReportV1(
 		? `Queue source authority is not mounted. ${media.detail}`
 		: !options.queueCapacityAuthorityMounted
 			? `Queue capacity authority is not mounted. ${media.detail}`
-			: media.selectedV20RenderSelfTestPassed
+			: media.selectedV28V14RenderSelfTestPassed
 				? media.detail
-				: `Selected V20 V7/V8 render execution is not self-tested. ${media.detail}`;
+				: `Selected V28/V14 carrier render execution is not self-tested. ${media.detail}`;
 	const proxyQueueDetail = !options.queueSourceAuthorityMounted
 		? `Proxy project/source authority is not mounted. ${media.detail}`
 		: !options.queueCapacityAuthorityMounted
@@ -86,9 +90,9 @@ export function createFramescaperNativeCapabilityReportV1(
 				...NATIVE_MEDIA_CAPABILITY_IDS.renderQueue,
 				policyCleared: options.policy.nativeCodecsCleared,
 				buildSupported: media.payloadBuilt && queueExecutionMounted
-					&& media.selectedV20RenderSelfTestPassed,
+					&& media.selectedV28V14RenderSelfTestPassed,
 				probeSucceeded: mediaProbe,
-				selfTestPassed: media.selfTestPassed && media.selectedV20RenderSelfTestPassed,
+				selfTestPassed: media.selfTestPassed && media.selectedV28V14RenderSelfTestPassed,
 				quarantined: media.quarantined,
 				degraded: media.degraded,
 				userEnabled: mediaEnabled,
@@ -130,10 +134,10 @@ export function createFramescaperNativeCapabilityReportV1(
 				userEnabled: mediaEnabled,
 				buildFingerprint: media.buildFingerprint,
 				detail: !options.imageSequenceImportMounted
-					? `Image-sequence project mutation authority is not routed; the pathless picker alone cannot admit professional source characteristics. ${media.detail}`
+					? `Image-sequence project mutation authority is not routed; the pathless picker alone cannot admit professional source characteristics. ${IMAGE_SEQUENCE_RGBA8_BOUNDARY} ${media.detail}`
 					: media.professionalCharacteristicsSelfTestPassed
-						? media.detail
-						: `The current native probe has no verified full V25 professional source characteristics result. ${media.detail}`,
+						? `${IMAGE_SEQUENCE_RGBA8_BOUNDARY} ${media.detail}`
+						: `The current native probe has no verified full V25 professional source characteristics result. ${IMAGE_SEQUENCE_RGBA8_BOUNDARY} ${media.detail}`,
 			},
 			{
 				...NATIVE_MEDIA_CAPABILITY_IDS.externalDisplay,
@@ -169,6 +173,7 @@ export function framescaperClosedNativeCapabilityReportV1(
 			runtimeAvailable: false,
 			selfTestPassed: false,
 			selectedV20RenderSelfTestPassed: false,
+			selectedV28V14RenderSelfTestPassed: false,
 			professionalCharacteristicsSelfTestPassed: false,
 			quarantined: false,
 			degraded: false,

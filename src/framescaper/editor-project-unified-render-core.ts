@@ -10,6 +10,7 @@ import {
 	type UnifiedExactRenderPlanVersion,
 	type UnifiedExactRenderTrackAuthorityV1,
 } from '../common/editor/unified-exact-render-plan.ts';
+import type { NativeMediaV14EncodeProfileId } from '../common/editor/native-media-v14-native-dispatch.ts';
 import { createVideoRetimeExportIntentV6 } from '../common/editor/video-retime-export-plan.ts';
 import {
 	bindVideoSourceTimingView,
@@ -48,9 +49,10 @@ const FOUNDATION_TIMING_SIDECARS = new WeakMap<object, ReadonlyMap<string, Bound
 export function createFramescaperUnifiedRenderFoundation(
 	projectValue: unknown,
 	authority: FramescaperUnifiedExactRenderAuthority,
+	planVersion: UnifiedExactRenderPlanVersion = 9,
 ): FramescaperUnifiedRenderFoundation {
 	const project = record(projectValue, 'Framescaper candidate project');
-	if (authority.includeAudio === true) {
+	if (authority.includeAudio === true && planVersion !== 14) {
 		throw new RangeError('Audio authority is not represented by unified plans V9-V13 without an exact audio media graph; export must fail closed.');
 	}
 	const sampleRate = positiveInteger(data(project, 'sampleRate', 'project'), 'project.sampleRate');
@@ -203,16 +205,25 @@ export function finalizeFramescaperUnifiedRenderPlan<Version extends UnifiedExac
 	foundation: FramescaperUnifiedRenderFoundation,
 	version: Version,
 	extraNodes: readonly UnifiedExactRenderNode[] | readonly Readonly<Record<string, unknown>>[],
+	deliveryProfile?: NativeMediaV14EncodeProfileId,
 ): UnifiedExactRenderPlan & Readonly<{ readonly version: Version }> {
 	const timingSidecars = FOUNDATION_TIMING_SIDECARS.get(foundation);
 	if (!timingSidecars) throw new TypeError('An authenticated unified render foundation is required.');
 	const plan = createUnifiedExactRenderPlanWithTimingSidecars({
 		version,
+		...(version === 14 ? { deliveryProfile: requiredV14DeliveryProfile(deliveryProfile) } : {}),
 		...foundation.rawPlanBase,
 		nodes: [...foundation.baseNodes, ...extraNodes],
 	}, new Map(timingSidecars));
 	if (plan.version !== version) throw new RangeError('Unified render plan generation changed during normalization.');
 	return plan as UnifiedExactRenderPlan & Readonly<{ readonly version: Version }>;
+}
+
+function requiredV14DeliveryProfile(
+	value: NativeMediaV14EncodeProfileId | undefined,
+): NativeMediaV14EncodeProfileId {
+	if (value === undefined) throw new TypeError('A V14 render requires one exact professional delivery profile.');
+	return value;
 }
 
 export function generatedNodeId(

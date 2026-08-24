@@ -28,7 +28,10 @@ const OfxTimeLineSuiteV1* timeline = nullptr;
 const OfxParametricParameterSuiteV1* parametrics = nullptr;
 const OfxInteractSuiteV1* interacts = nullptr;
 const OfxDrawSuiteV1* draws = nullptr;
+const OfxImageEffectOpenGLRenderSuiteV1* open_gl = nullptr;
+const OfxOpenCLProgramSuiteV1* opencl_programs = nullptr;
 bool suites_ok = false;
+bool open_gl_attached = false;
 
 template <typename Suite>
 const Suite* suite(const char* name, int version = 1) {
@@ -53,16 +56,18 @@ bool load_suites() {
 	parametrics = suite<OfxParametricParameterSuiteV1>(kOfxParametricParameterSuite);
 	interacts = suite<OfxInteractSuiteV1>(kOfxInteractSuite);
 	draws = suite<OfxDrawSuiteV1>(kOfxDrawSuite);
+	open_gl = suite<OfxImageEffectOpenGLRenderSuiteV1>(kOfxOpenGLRenderSuite);
+	opencl_programs = suite<OfxOpenCLProgramSuiteV1>(kOfxOpenCLProgramSuite);
 	const bool dispatched = properties != nullptr && images != nullptr && parameters != nullptr
 		&& memory != nullptr && threads != nullptr && progress != nullptr
 		&& suite<OfxMessageSuiteV2>(kOfxMessageSuite, 2) != nullptr
 		&& timeline != nullptr
 		&& interacts != nullptr && draws != nullptr
 		&& suite<OfxDialogSuiteV1>(kOfxDialogSuite) != nullptr
-		&& parametrics != nullptr
+		&& parametrics != nullptr && open_gl != nullptr && opencl_programs != nullptr
 		&& host->fetchSuite(host->host, kOfxInteractSuite, 2) == nullptr
 		&& host->fetchSuite(host->host, "OfxNetworkSuite", 1) == nullptr
-		&& host->fetchSuite(host->host, "OfxImageEffectOpenGLRenderSuite", 1) == nullptr;
+		&& host->fetchSuite(host->host, "OfxCudaVendorSuite", 1) == nullptr;
 	if (!dispatched) return false;
 	void* bytes = nullptr;
 	if (memory->memoryAlloc(nullptr, 32, &bytes) != kOfxStatOK || bytes == nullptr
@@ -220,36 +225,7 @@ bool declare_supported_components(
 #endif
 }
 
-OfxStatus overlay_interact(
-	const char* action,
-	const void* handle,
-	OfxPropertySetHandle input,
-	OfxPropertySetHandle
-) {
-	if (action == nullptr || handle == nullptr) return kOfxStatErrValue;
-	if (std::strcmp(action, kOfxActionDescribe) == 0
-		|| std::strcmp(action, kOfxActionCreateInstance) == 0
-		|| std::strcmp(action, kOfxActionDestroyInstance) == 0) return kOfxStatOK;
-	if (std::strcmp(action, kOfxInteractActionDraw) != 0 || input == nullptr) {
-		return kOfxStatReplyDefault;
-	}
-	void* raw_context = nullptr;
-	if (properties->propGetPointer(input, kOfxInteractPropDrawContext, 0, &raw_context) != kOfxStatOK
-		|| raw_context == nullptr) return kOfxStatFailed;
-	auto context = reinterpret_cast<OfxDrawContextHandle>(raw_context);
-	const OfxRGBAColourF colour{0.2F, 0.6F, 0.9F, 1.0F};
-	const OfxPointD line[]{{2, 2}, {24, 18}};
-	const OfxPointD label{4, 28};
-	return draws->setLineWidth(context, 0) == kOfxStatErrValue
-		&& draws->draw(context, kOfxDrawPrimitiveLines, line, 65'537) == kOfxStatErrValue
-		&& draws->setColour(context, &colour) == kOfxStatOK
-		&& draws->setLineWidth(context, 2) == kOfxStatOK
-		&& draws->draw(context, kOfxDrawPrimitiveLines, line, 2) == kOfxStatOK
-		&& draws->drawText(context, "OFX", &label, 0) == kOfxStatOK
-		&& interacts->interactSwapBuffers(
-			reinterpret_cast<OfxInteractHandle>(const_cast<void*>(handle))
-		) == kOfxStatOK ? kOfxStatOK : kOfxStatFailed;
-}
+#include "conformance_interact.inc"
 
 OfxStatus describe(const void* handle) {
 	OfxPropertySetHandle effect_properties = nullptr;
@@ -268,7 +244,14 @@ OfxStatus describe(const void* handle) {
 		|| properties->propSetString(
 		effect_properties, kOfxImageEffectPluginRenderThreadSafety, 0,
 		kOfxImageEffectRenderFullySafe
-	) != kOfxStatOK || properties->propSetPointer(
+	) != kOfxStatOK
+		|| properties->propSetString(effect_properties, kOfxImageEffectPropCPURenderSupported, 0, "true") != kOfxStatOK
+		|| properties->propSetString(effect_properties, kOfxImageEffectPropOpenGLRenderSupported, 0, "true") != kOfxStatOK
+		|| properties->propSetString(effect_properties, kOfxImageEffectPropOpenCLRenderSupported, 0, "true") != kOfxStatOK
+		|| properties->propSetString(effect_properties, kOfxImageEffectPropCudaRenderSupported, 0, "true") != kOfxStatOK
+		|| properties->propSetString(effect_properties, kOfxImageEffectPropCudaStreamSupported, 0, "true") != kOfxStatOK
+		|| properties->propSetString(effect_properties, kOfxImageEffectPropMetalRenderSupported, 0, "true") != kOfxStatOK
+		|| properties->propSetPointer(
 		effect_properties, kOfxImageEffectPluginPropOverlayInteractV2, 0,
 		reinterpret_cast<void*>(overlay_interact)
 	) != kOfxStatOK) return kOfxStatFailed;
@@ -288,7 +271,14 @@ OfxStatus describe(const void* handle) {
 	};
 	for (std::size_t index = 0; index < types.size(); ++index) {
 		const auto name = std::string{"parameter"} + std::to_string(index);
-		if (parameters->paramDefine(set, types[index], name.c_str(), nullptr) != kOfxStatOK) return kOfxStatFailed;
+		OfxPropertySetHandle parameter_properties = nullptr;
+		if (parameters->paramDefine(
+			set, types[index], name.c_str(), index == 15 ? &parameter_properties : nullptr
+		) != kOfxStatOK) return kOfxStatFailed;
+		if (index == 15 && (parameter_properties == nullptr || properties->propSetPointer(
+			parameter_properties, kOfxParamPropInteractV1, 0,
+			reinterpret_cast<void*>(custom_parameter_interact)
+		) != kOfxStatOK)) return kOfxStatFailed;
 	}
 	return parameter_conformance(set) ? kOfxStatOK : kOfxStatFailed;
 }
@@ -366,6 +356,22 @@ OfxStatus render(const void* handle, OfxPropertySetHandle input) {
 		|| properties->propGetDouble(input, kOfxPropTime, 0, &render_time) != kOfxStatOK
 		|| timeline->getTime(effect, &timeline_time) != kOfxStatOK
 		|| render_time != timeline_time) return kOfxStatFailed;
+	int open_gl_enabled = 0;
+	int opencl_enabled = 0;
+	int cuda_enabled = 0;
+	int metal_enabled = 0;
+	void* opencl_queue = nullptr;
+	void* cuda_stream = nullptr;
+	void* metal_queue = nullptr;
+	if (properties->propGetInt(input, kOfxImageEffectPropOpenGLEnabled, 0, &open_gl_enabled) != kOfxStatOK
+		|| properties->propGetInt(input, kOfxImageEffectPropOpenCLEnabled, 0, &opencl_enabled) != kOfxStatOK
+		|| properties->propGetInt(input, kOfxImageEffectPropCudaEnabled, 0, &cuda_enabled) != kOfxStatOK
+		|| properties->propGetInt(input, kOfxImageEffectPropMetalEnabled, 0, &metal_enabled) != kOfxStatOK
+		|| open_gl_enabled + opencl_enabled + cuda_enabled + metal_enabled > 1
+		|| (open_gl_enabled != 0 && !open_gl_attached)) return kOfxStatFailed;
+	if (opencl_enabled != 0 && (properties->propGetPointer(input, kOfxImageEffectPropOpenCLCommandQueue, 0, &opencl_queue) != kOfxStatOK || opencl_queue == nullptr)) return kOfxStatFailed;
+	if (cuda_enabled != 0 && (properties->propGetPointer(input, kOfxImageEffectPropCudaStream, 0, &cuda_stream) != kOfxStatOK || cuda_stream == nullptr)) return kOfxStatFailed;
+	if (metal_enabled != 0 && (properties->propGetPointer(input, kOfxImageEffectPropMetalCommandQueue, 0, &metal_queue) != kOfxStatOK || metal_queue == nullptr)) return kOfxStatFailed;
 	OfxParamSetHandle set = nullptr;
 	OfxParamHandle speed = nullptr;
 	OfxParamHandle cancellation_iterations = nullptr;
@@ -415,12 +421,23 @@ OfxStatus render(const void* handle, OfxPropertySetHandle input) {
 	OfxPropertySetHandle source_image = nullptr;
 	OfxPropertySetHandle second_image = nullptr;
 	OfxPropertySetHandle image = nullptr;
-	if ((!generator && images->clipGetImage(source, render_time, nullptr, &source_image) != kOfxStatOK)
+	const OfxTime source_image_time = standard_name != nullptr
+		&& std::strcmp(standard_name, "SourceTime") == 0 ? standard_value : render_time;
+	if (source_image_time != render_time
+		&& images->clipGetImage(source, render_time, nullptr, &source_image) != kOfxStatErrValue) {
+		return kOfxStatFailed;
+	}
+	if ((!generator && images->clipGetImage(source, source_image_time, nullptr, &source_image) != kOfxStatOK)
 		|| ((transition || paint || general)
 			&& images->clipGetImage(second, render_time, nullptr, &second_image) != kOfxStatOK)
 		|| images->clipGetImage(output, render_time, nullptr, &image) != kOfxStatOK) {
 		return kOfxStatFailed;
 	}
+	OfxPropertySetHandle source_texture = nullptr;
+	OfxPropertySetHandle output_texture = nullptr;
+	if (open_gl_enabled != 0
+		&& ((!generator && open_gl->clipLoadTexture(source, source_image_time, nullptr, nullptr, &source_texture) != kOfxStatOK)
+			|| open_gl->clipLoadTexture(output, render_time, nullptr, nullptr, &output_texture) != kOfxStatOK)) return kOfxStatGPURenderFailed;
 	void* source_data = nullptr;
 	void* second_data = nullptr;
 	void* data = nullptr;
@@ -481,7 +498,9 @@ OfxStatus render(const void* handle, OfxPropertySetHandle input) {
 	}
 	if ((!generator && images->clipReleaseImage(source_image) != kOfxStatOK)
 		|| ((transition || paint || general) && images->clipReleaseImage(second_image) != kOfxStatOK)
-		|| images->clipReleaseImage(image) != kOfxStatOK) return kOfxStatFailed;
+		|| images->clipReleaseImage(image) != kOfxStatOK
+		|| (source_texture != nullptr && open_gl->clipFreeTexture(source_texture) != kOfxStatOK)
+		|| (output_texture != nullptr && open_gl->clipFreeTexture(output_texture) != kOfxStatOK)) return kOfxStatFailed;
 	if (progress->progressStart(effect, "Render", "framescaper.render") != kOfxStatOK
 		|| progress->progressUpdate(effect, 1) != kOfxStatOK
 		|| progress->progressEnd(effect) != kOfxStatOK) return kOfxStatFailed;
@@ -494,6 +513,8 @@ OfxStatus entry(const char* action, const void* handle, OfxPropertySetHandle inp
 	if (!suites_ok) return kOfxStatFailed;
 	if (std::strcmp(action, kOfxActionDescribe) == 0) return describe(handle);
 	if (std::strcmp(action, kOfxImageEffectActionDescribeInContext) == 0) return describe_context(handle, input);
+	if (std::strcmp(action, kOfxActionOpenGLContextAttached) == 0) { if (open_gl_attached) return kOfxStatFailed; open_gl_attached = true; return kOfxStatOK; }
+	if (std::strcmp(action, kOfxActionOpenGLContextDetached) == 0) { if (!open_gl_attached) return kOfxStatFailed; open_gl_attached = false; return kOfxStatOK; }
 	if (std::strcmp(action, kOfxImageEffectActionRender) == 0) return render(handle, input);
 	if (std::strcmp(action, kOfxActionUnload) == 0) { suites_ok = false; return kOfxStatOK; }
 	return kOfxStatReplyDefault;

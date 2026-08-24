@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { soundscaperNativeAudioCaptureSource } from '../soundscaper-native-audio-capture.ts';
+
 export interface RecordingDeviceRoute {
 	readonly kind: 'device';
 	readonly deviceId: string;
@@ -76,6 +78,7 @@ interface NodeLoudnessMeter extends InputLoudnessMeter {
 export interface MicrophoneMeterSession {
 	readonly analysers: readonly AnalyserNodePort[];
 	readonly deviceId: string;
+	readonly disconnectSource: () => void;
 	readonly endedListeners: readonly (() => void)[];
 	interval: unknown;
 	readonly loudnessMeter: NodeLoudnessMeter | null;
@@ -272,6 +275,7 @@ export function createMicrophoneMeterService(
 			? retainedStream
 			: null;
 		let source: AudioNodePort | null = null;
+		let disconnectSource = (): void => undefined;
 		let splitter: AudioNodePort | null = null;
 		let merger: AudioNodePort | null = null;
 		let loudnessMeter: NodeLoudnessMeter | null = null;
@@ -290,13 +294,27 @@ export function createMicrophoneMeterService(
 				releaseIfUnused(deviceId);
 				return false;
 			}
-			if (!context?.createMediaStreamSource || !context?.createAnalyser) {
+			const nativeSource = soundscaperNativeAudioCaptureSource(
+				stream as MediaStream, context as unknown as BaseAudioContext,
+			) as unknown as AudioNodePort | null;
+			if ((!nativeSource && !context?.createMediaStreamSource) || !context?.createAnalyser) {
 				throw new Error('Microphone metering is not supported by this AudioContext.');
 			}
-			source = context.createMediaStreamSource(stream);
+			source = nativeSource || context.createMediaStreamSource(stream);
+			const sourceConnections: AudioNodePort[] = [];
+			const connectSource = (destination: AudioNodePort): void => {
+				source?.connect?.(destination);
+				sourceConnections.push(destination);
+			};
+			disconnectSource = () => {
+				for (const destination of sourceConnections) {
+					try { (source?.disconnect as ((value: AudioNodePort) => void) | undefined)?.(destination); }
+					catch { /* already disconnected */ }
+				}
+			};
 			if (context.createChannelSplitter) {
 				splitter = context.createChannelSplitter(requestedChannels);
-				source.connect?.(splitter);
+				connectSource(splitter);
 				for (let index = 0; index < route.channelCount; index += 1) {
 					const analyser = createAnalyser(context);
 					splitter.connect?.(analyser, route.channelStart + index);
@@ -304,7 +322,7 @@ export function createMicrophoneMeterService(
 				}
 			} else {
 				const analyser = createAnalyser(context);
-				source.connect?.(analyser);
+				connectSource(analyser);
 				analysers.push(analyser);
 			}
 			try {
@@ -323,7 +341,7 @@ export function createMicrophoneMeterService(
 						splitter.connect?.(merger, route.channelStart + index, index);
 					}
 					merger.connect?.(loudnessMeter.node);
-				} else source.connect?.(loudnessMeter.node);
+				} else connectSource(loudnessMeter.node);
 				loudnessMeter.node.connect?.(context.destination);
 			} catch {
 				loudnessMeter = null;
@@ -334,6 +352,7 @@ export function createMicrophoneMeterService(
 			const nextSession: MicrophoneMeterSession = {
 				analysers,
 				deviceId,
+				disconnectSource,
 				endedListeners,
 				interval: null,
 				loudnessMeter,
@@ -373,7 +392,7 @@ export function createMicrophoneMeterService(
 			dependencies.publishDocumentSnapshot();
 			return true;
 		} catch (error) {
-			disconnect(source);
+			disconnectSource();
 			disconnect(splitter);
 			disconnect(merger);
 			loudnessMeter?.dispose?.();
@@ -394,7 +413,7 @@ export function createMicrophoneMeterService(
 		targetKey = null;
 		if (stoppedSession?.interval != null) dependencies.clearInterval(stoppedSession.interval);
 		for (const remove of stoppedSession?.endedListeners || []) remove();
-		disconnect(stoppedSession?.source);
+		stoppedSession?.disconnectSource();
 		disconnect(stoppedSession?.splitter);
 		disconnect(stoppedSession?.merger);
 		stoppedSession?.loudnessMeter?.dispose?.();

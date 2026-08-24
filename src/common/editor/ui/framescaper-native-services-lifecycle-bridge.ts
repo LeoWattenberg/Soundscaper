@@ -9,6 +9,8 @@ import {
 	NATIVE_MEDIA_PLAN_CANONICAL_MAXIMUM_BYTES,
 	createNativeMediaPlanEnvelopeV1,
 } from '../native-media-plan-envelope.ts';
+import { createNativeMediaPlanEnvelopeV2 } from '../native-media-plan-envelope-v2.ts';
+import { nativeMediaV14RequiresEvaluatedCarrier } from '../native-media-v14-render-family.ts';
 import {
 	canonicalizeNativeMediaPlan,
 	fingerprintNativeMediaPlan,
@@ -38,6 +40,7 @@ export interface FramescaperNativeWatchProjection {
 	readonly ruleId: string;
 	readonly grantId: string;
 	readonly projectId: string;
+	readonly binId: string | null;
 	readonly extensions: readonly string[];
 	readonly importMode: 'link' | 'copy';
 	readonly generateProxies: boolean;
@@ -55,7 +58,7 @@ export interface FramescaperNativeWatchCreateRendererRequest {
 
 export interface FramescaperNativeQueueEnqueueRendererRequest {
 	readonly taskKind: NativeQueueTaskKind;
-	readonly planVersion: 7 | 8 | 9 | 10 | 11 | 12;
+	readonly planVersion: 7 | 8 | 9 | 10 | 11 | 12 | 14;
 	readonly derivedInputStageId: string | null;
 	readonly planFingerprint: string;
 	readonly planPayload: string;
@@ -77,7 +80,7 @@ export interface FramescaperNativeRenderInputV1 {
 
 export interface FramescaperNativeRenderInputStageRendererRequestV1 {
 	readonly stageVersion: 1;
-	readonly planVersion: 7 | 8;
+	readonly planVersion: 7 | 8 | 14;
 	readonly planFingerprint: string;
 	readonly planPayload: string;
 	readonly projectId: string;
@@ -92,6 +95,7 @@ export interface FramescaperNativeServicesLifecycleBridge {
 		Promise<Readonly<{ readonly stageId: string }>>;
 	abandonRenderInputs?(request: Readonly<{ readonly stageId: string }>): Promise<boolean>;
 	selectRoot?(): Promise<FramescaperNativeRootProjection | null>;
+	reauthorizeQueueRoot?(request: Readonly<{ readonly jobId: string }>): Promise<unknown>;
 	revalidateRoot?(request: Readonly<{ readonly grantId: string }>): Promise<boolean>;
 	revokeRoot?(request: Readonly<{ readonly grantId: string }>): Promise<boolean>;
 	createWatch?(request: FramescaperNativeWatchCreateRendererRequest):
@@ -108,6 +112,7 @@ export interface FramescaperNativeServicesLifecycleBridge {
 export interface FramescaperNativeServicesLifecycleStore<Snapshot> {
 	enqueue(request: FramescaperNativeQueueEnqueueRendererRequest): Promise<Snapshot>;
 	selectRoot(): Promise<Snapshot>;
+	reauthorizeQueueRoot(request: Readonly<{ readonly jobId: string }>): Promise<Snapshot>;
 	revalidateRoot(request: Readonly<{ readonly grantId: string }>): Promise<Snapshot>;
 	revokeRoot(request: Readonly<{ readonly grantId: string }>): Promise<Snapshot>;
 	createWatch(request: FramescaperNativeWatchCreateRendererRequest): Promise<Snapshot>;
@@ -121,7 +126,7 @@ export interface FramescaperNativeServicesLifecycleStore<Snapshot> {
 }
 
 export const FRAMESCAPER_NATIVE_SERVICES_LIFECYCLE_METHODS = Object.freeze([
-	'enqueue', 'selectRoot', 'revalidateRoot', 'revokeRoot', 'createWatch',
+	'enqueue', 'selectRoot', 'reauthorizeQueueRoot', 'revalidateRoot', 'revokeRoot', 'createWatch',
 	'setWatchEnabled', 'removeWatch', 'reconcileWatch', 'cleanupScratch', 'settleScratch',
 ] as const);
 
@@ -161,6 +166,9 @@ export function createFramescaperNativeServicesLifecycleStore<Snapshot>(
 			run('enqueue', queueEnqueueRequest(value), recordResult)
 		),
 		selectRoot: async () => run('selectRoot', undefined, optionalRootResult),
+		reauthorizeQueueRoot: async (value: Readonly<{ jobId: string }>) => run(
+			'reauthorizeQueueRoot', idRequest(value, 'jobId', JOB_ID), optionalRecordResult,
+		),
 		revalidateRoot: async (value: Readonly<{ grantId: string }>) => run(
 			'revalidateRoot', idRequest(value, 'grantId', OPAQUE_ID), trueResult,
 		),
@@ -196,7 +204,9 @@ function queueEnqueueRequest(value: unknown): FramescaperNativeQueueEnqueueRende
 	try { plan = JSON.parse(planPayload) as unknown; } catch {
 		throw new TypeError('A Framescaper queue plan payload must be canonical JSON.');
 	}
-	const envelope = createNativeMediaPlanEnvelopeV1(plan);
+	const envelope = row.planVersion === 14
+		? createNativeMediaPlanEnvelopeV2(plan)
+		: createNativeMediaPlanEnvelopeV1(plan);
 	const fingerprint = fingerprintNativeMediaPlan(plan);
 	if (canonicalizeNativeMediaPlan(plan) !== planPayload
 		|| fingerprint.sha256 !== row.planFingerprint
@@ -206,18 +216,22 @@ function queueEnqueueRequest(value: unknown): FramescaperNativeQueueEnqueueRende
 	const taskKind = member(row.taskKind, NATIVE_QUEUE_TASK_KINDS, 'task kind');
 	const derivedInputStageId = row.derivedInputStageId === null
 		? null : pattern(row.derivedInputStageId, JOB_ID, 'derived input stage id');
-	if (envelope.planVersion >= 9) {
+	if (envelope.planVersion >= 9 && envelope.planVersion !== 14) {
 		if (derivedInputStageId !== null) {
 			throw new TypeError(
 				`Unified V${String(envelope.planVersion)} queue requests cannot name a derived-input stage.`,
 			);
 		}
 	} else {
-		const stageRequired = envelope.planVersion === 7 || envelope.summary.includesAudio;
+		const stageRequired = taskKind === 'proxy-generation' ? false : envelope.planVersion === 14
+			? nativeMediaV14RequiresEvaluatedCarrier(envelope.plan)
+			: envelope.planVersion === 7 || envelope.summary.includesAudio;
 		if ((derivedInputStageId !== null) !== stageRequired) {
 			throw new TypeError(stageRequired
-				? 'This selected-V20 V7/V8 queue request requires one durable derived-input stage.'
-				: 'A silent selected-V20 V8 queue request cannot name a derived-input stage.');
+				? `This selected V${String(envelope.planVersion)} queue request requires one durable derived-input stage.`
+				: taskKind === 'proxy-generation'
+					? 'Selected V14 proxy generation cannot name a derived-input stage.'
+					: 'A silent selected-V20 V8 queue request cannot name a derived-input stage.');
 		}
 	}
 	const recoveryClass = member(row.recoveryClass, NATIVE_QUEUE_RECOVERY_CLASSES, 'recovery class');
@@ -227,7 +241,7 @@ function queueEnqueueRequest(value: unknown): FramescaperNativeQueueEnqueueRende
 	assertNativeMediaRelativeDestination(row.relativeDestination);
 	return Object.freeze({
 		taskKind,
-		planVersion: envelope.planVersion,
+		planVersion: row.planVersion as FramescaperNativeQueueEnqueueRendererRequest['planVersion'],
 		derivedInputStageId,
 		planFingerprint: digest(row.planFingerprint, 'plan fingerprint'),
 		planPayload,
@@ -302,7 +316,7 @@ function optionalRootResult(value: unknown): FramescaperNativeRootProjection | n
 
 function watchResult(value: unknown): FramescaperNativeWatchProjection {
 	const row = closedRecord(value, [
-		'ruleId', 'grantId', 'projectId', 'extensions', 'importMode', 'generateProxies', 'enabled',
+		'ruleId', 'grantId', 'projectId', 'binId', 'extensions', 'importMode', 'generateProxies', 'enabled',
 	], 'watch result');
 	if (typeof row.generateProxies !== 'boolean' || typeof row.enabled !== 'boolean') {
 		throw new TypeError('A Framescaper watch result has invalid state.');
@@ -311,6 +325,7 @@ function watchResult(value: unknown): FramescaperNativeWatchProjection {
 		ruleId: pattern(row.ruleId, OPAQUE_ID, 'watch rule id'),
 		grantId: pattern(row.grantId, OPAQUE_ID, 'watch grant id'),
 		projectId: identifier(row.projectId, 'watch project id'),
+		binId: row.binId === null ? null : identifier(row.binId, 'watch bin id'),
 		extensions: Object.freeze(denseArray(row.extensions, 32, 'watch extensions')
 			.map((entry) => pattern(entry, EXTENSION, 'watch extension'))),
 		importMode: member(row.importMode, ['link', 'copy'] as const, 'watch import mode'),
@@ -338,6 +353,10 @@ function recordResult(value: unknown): Readonly<Record<string, unknown>> {
 		throw new TypeError('A Framescaper native lifecycle result must be a record.');
 	}
 	return value as Readonly<Record<string, unknown>>;
+}
+
+function optionalRecordResult(value: unknown): Readonly<Record<string, unknown>> | null {
+	return value === null ? null : recordResult(value);
 }
 
 function inputFingerprints(value: unknown): readonly NativeQueueInputFingerprintV1[] {

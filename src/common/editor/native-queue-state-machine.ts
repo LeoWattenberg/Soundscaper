@@ -26,6 +26,11 @@ import {
 	type NativeQueueRecordV2,
 	type NativeQueueState,
 } from './native-queue-record.ts';
+import {
+	assertNativeQueueRecordV3,
+	isNativeQueueRecordV3Dispatchable,
+	type NativeQueueRecordV3,
+} from './native-queue-record-v3.ts';
 
 export const NATIVE_QUEUE_TERMINAL_STATES: readonly NativeQueueState[] = Object.freeze([
 	'completed', 'failed', 'cancelled',
@@ -51,6 +56,7 @@ export type NativeQueueTransitionV1 =
 	| Readonly<{ kind: 'dispatch' }>
 	| Readonly<{ kind: 'report-progress'; value: number }>
 	| Readonly<{ kind: 'pause' }>
+	| Readonly<{ kind: 'await-carrier-regeneration' }>
 	| Readonly<{ kind: 'resume' }>
 	| Readonly<{ kind: 'cancel' }>
 	| Readonly<{ kind: 'complete' }>
@@ -58,7 +64,7 @@ export type NativeQueueTransitionV1 =
 	| Readonly<{ kind: 'retry' }>
 	| Readonly<{ kind: 'block'; code: NativeQueueBlockCode }>
 	| Readonly<{ kind: 'require-authorization' }>
-	| Readonly<{ kind: 'authorize' }>
+	| Readonly<{ kind: 'authorize'; rootGrantId?: string }>
 	| Readonly<{ kind: 'reorder'; position: number }>;
 
 export interface NativeQueueTransitionResultV1 {
@@ -110,6 +116,7 @@ export function applyNativeQueueTransition(
 		case 'dispatch': return dispatch(record, timestamp);
 		case 'report-progress': return reportProgress(record, transition.value, timestamp);
 		case 'pause': return pause(record, timestamp);
+		case 'await-carrier-regeneration': return awaitCarrierRegeneration(record, timestamp);
 		case 'resume': return resume(record, timestamp);
 		case 'cancel': return cancel(record, timestamp);
 		case 'complete': return complete(record, timestamp);
@@ -117,7 +124,7 @@ export function applyNativeQueueTransition(
 		case 'retry': return retry(record, timestamp);
 		case 'block': return block(record, transition.code, timestamp);
 		case 'require-authorization': return requireAuthorization(record, timestamp);
-		case 'authorize': return authorize(record, timestamp);
+		case 'authorize': return authorize(record, timestamp, transition.rootGrantId);
 		case 'reorder': return reorder(record, transition.position, timestamp);
 		default: throw new NativeQueueTransitionError(record.state, 'apply an unknown transition');
 	}
@@ -240,11 +247,28 @@ function pause(record: NativeQueueRecordV1, atMs: number): NativeQueueTransition
 	};
 }
 
+function awaitCarrierRegeneration(
+	record: NativeQueueRecordV1,
+	atMs: number,
+): NativeQueueTransitionResultV1 {
+	if (record.state !== 'queued' && record.state !== 'running') {
+		throw new NativeQueueTransitionError(record.state, 'await carrier regeneration');
+	}
+	return {
+		record: next(record, {
+			state: 'paused', progress: null,
+			lastFailureCode: 'awaiting-carrier-regeneration', updatedAtMs: atMs,
+		}),
+		discardedPartialOutput: true,
+		idempotent: false,
+	};
+}
+
 function resume(record: NativeQueueRecordV1, atMs: number): NativeQueueTransitionResultV1 {
 	if (record.state === 'queued') return unchanged(record);
 	if (record.state !== 'paused') throw new NativeQueueTransitionError(record.state, 'resume');
 	return {
-		record: next(record, { state: 'queued', updatedAtMs: atMs }),
+		record: next(record, { state: 'queued', lastFailureCode: null, updatedAtMs: atMs }),
 		discardedPartialOutput: false,
 		idempotent: false,
 	};
@@ -333,12 +357,19 @@ function requireAuthorization(
 	};
 }
 
-function authorize(record: NativeQueueRecordV1, atMs: number): NativeQueueTransitionResultV1 {
+function authorize(
+	record: NativeQueueRecordV1,
+	atMs: number,
+	rootGrantId: string | undefined,
+): NativeQueueTransitionResultV1 {
 	if (record.state !== 'needs-authorization' && record.state !== 'blocked') {
 		throw new NativeQueueTransitionError(record.state, 'be authorized');
 	}
 	return {
-		record: next(record, { state: 'queued', lastFailureCode: null, updatedAtMs: atMs }),
+		record: next(record, {
+			state: 'queued', lastFailureCode: null, updatedAtMs: atMs,
+			...(rootGrantId === undefined ? {} : { rootGrantId }),
+		}),
 		discardedPartialOutput: false,
 		idempotent: false,
 	};
@@ -376,7 +407,9 @@ function assertCurrentOrHistoricalRecord(
 	record: NativeQueueRecordV1,
 ): asserts record is NativeQueueRecordV1 | NativeQueueRecordV2 {
 	if (Object.hasOwn(record, 'recordVersion')) {
-		assertNativeQueueRecordV2(record);
+		if ((record as Readonly<{ recordVersion?: unknown }>).recordVersion === 3) {
+			assertNativeQueueRecordV3(record);
+		} else assertNativeQueueRecordV2(record);
 		return;
 	}
 	assertNativeQueueRecordV1(record);
@@ -384,7 +417,9 @@ function assertCurrentOrHistoricalRecord(
 
 function isPermanentlyUnsupported(record: NativeQueueRecordV1): boolean {
 	return Object.hasOwn(record, 'recordVersion')
-		&& !isNativeQueueRecordV2Dispatchable(record as NativeQueueRecordV2);
+		&& ((record as Readonly<{ recordVersion?: unknown }>).recordVersion === 3
+			? !isNativeQueueRecordV3Dispatchable(record as NativeQueueRecordV3)
+			: !isNativeQueueRecordV2Dispatchable(record as NativeQueueRecordV2));
 }
 
 function timestampAtOrAfter(record: NativeQueueRecordV1, atMs: number): number {

@@ -23,47 +23,256 @@
 		"license": "BSD-3-Clause"
 	},
 	"sourceFiles": [
-		{ "path": "CMakeLists.txt", "byteLength": 2884, "sha256": "0b19483e45477796e79eb39fd4b6492abcd544e1c81787f9edb5c8da1149a21a" },
-		{ "path": "CMakePresets.json", "byteLength": 1262, "sha256": "813684008642a1861901b49c6c1964b8aafefd504b3aedc70a969e9a94544ccc" },
-		{ "path": "THIRD_PARTY_NOTICES.md", "byteLength": 1044, "sha256": "e8a24b3e1983134a4798ad298b0a7de0114a437c1b156b5e1f810cb71096b687" },
-		{ "path": "build/recipe-driver.mjs", "byteLength": 28219, "sha256": "90c20f738c3b6d530c16cc7ac5654c2545c8e312e6e23cfaa9a3381c4ee7eb3d" },
-		{ "path": "build/source-authentication.mjs", "byteLength": 334, "sha256": "92dbafcf17c91278d2efdbbaf0ae4d9c10aac5c4b084ff87ec330c612af97dbf" },
-		{ "path": "build/targets.json", "byteLength": 1013, "sha256": "2bc079d2d76f5ae27b109501416b8108c8f83dcb808391228f2d31b3c621aba0" },
-		{ "path": "build/toolchains/linux-arm64.cmake", "byteLength": 453, "sha256": "f4b4c453e0a0edb7664db9b36fe529ee1c60566ac0a02412a217e5ec1d263163" },
-		{ "path": "build/toolchains/linux-x64.cmake", "byteLength": 452, "sha256": "e9a909e154778538d3d250afa903944db3dea7dfecbb246cb4469de5588d9701" },
-		{ "path": "build/toolchains/mac-arm64.cmake", "byteLength": 491, "sha256": "4b4cb6dd0768a1c36f7a0ef9b1258d839b115e1b4e37d25c6d059e882a4be6df" },
-		{ "path": "build/toolchains/win-arm64.cmake", "byteLength": 455, "sha256": "2dbeb9844e99431f96092047d9f391e19eaad42251f7a00ec4c9bb3ba5ec2197" },
-		{ "path": "build/toolchains/win-x64.cmake", "byteLength": 453, "sha256": "6c855769b6c354d441497b108f5344bf02db7e6b037ea9e59511cbb008367588" },
-		{ "path": "fixtures/conformance_plugin.cpp", "byteLength": 24070, "sha256": "4f75c916fcbfbe4397ed814a344302199829520ba0de5d99b27f04aa2b4dfd38" },
-		{ "path": "src/dynamic_library.cpp", "byteLength": 2821, "sha256": "e46dc316e02d6906b12fc4986aa5cf49650a96e6e454d695838380d2f89dcb70" },
-		{ "path": "src/dynamic_library.hpp", "byteLength": 734, "sha256": "ab87ac4af918c331f8d9590a41ec6c7abdc9fa108ebb52298c21779b20f1d8f2" },
-		{ "path": "src/host_parameter_hydration.hpp", "byteLength": 1218, "sha256": "cf66aa099308c89f6499ab71703a5ba9a2fd1b377fede17548e07a48bdce0445" },
-		{ "path": "src/host_runtime.cpp", "byteLength": 45251, "sha256": "b499c815cc3ef10068cda2fb877041e51966828e4f413398f5fc06a12a2c8d61" },
-		{ "path": "src/host_runtime.hpp", "byteLength": 3015, "sha256": "41f595e8757e26d29c0edbda9cfb97f2d6f61c02e275c211460d2069d28613ff" },
-		{ "path": "src/host_scan_inspection.inc", "byteLength": 8752, "sha256": "afa5ed127628a6757ba04b9d45372775928ae59dab99ce785a665534ab19da76" },
-		{ "path": "src/host_standard_parameters.inc", "byteLength": 1532, "sha256": "89895887b1585a40d4dd6bdb58df4b517aeadcae58d600c4abc0643b7b620629" },
-		{ "path": "src/isolation_contract.hpp", "byteLength": 4728, "sha256": "addf7969560af7428639200d9bfa50edae087b9bc63d7a2e9321c41339cda2c7" },
-		{ "path": "src/loaded_plugin_binary.cpp", "byteLength": 1809, "sha256": "9ea404eb95c95922f3c10a43b67a9e99c125de3d774f44b1bd431291f5421a50" },
-		{ "path": "src/ofx_runtime_host.cpp", "byteLength": 10160, "sha256": "93a62cd6c905bab696dc98c13bfd2f19122250ace9737d813897b7914daf4e28" },
-		{ "path": "src/ofx_scanner.cpp", "byteLength": 4541, "sha256": "b670471181713aff62e31720313d12f20b0ca57458db32a502ca614400f08c0c" },
-		{ "path": "src/openfx_abi.hpp", "byteLength": 14161, "sha256": "1b7a22d48cba5d48b4ced6b6a967c9d51f3fe8ace34420b60e4ad0ebf0b2da4d" },
-		{ "path": "src/parameter_values.cpp", "byteLength": 17780, "sha256": "e4714edb6836b89af25cc5d68606af8a258a5a88260ca8898cdfbee7882ac34e" },
-		{ "path": "src/parameter_values.hpp", "byteLength": 2927, "sha256": "c81db719509497cfe503a8945f56321ba7c203b82ffb78e292cc5a613f0d4fb4" },
-		{ "path": "src/rgba_frame.hpp", "byteLength": 1245, "sha256": "bc632b3f8057516130452c120bcc3a2af64def5fc0e0d63e37230d86493a0c25" },
-		{ "path": "src/sha256.cpp", "byteLength": 4514, "sha256": "11c88df6f312113f0abe9d74a63c4ab97371462f202afb742e015655b0acfa54" },
-		{ "path": "src/sha256.hpp", "byteLength": 230, "sha256": "3b7cca5e9611925b7c40866ac5d2aeaf21a572aa0a27ed3e3a40fe7e15be31b0" },
-		{ "path": "src/v12_cancellation_channel.cpp", "byteLength": 2012, "sha256": "c79399ad24cf47a05f58aa3f15ea933ce5d560f559d9d1f1d75e0aba3b638fd8" },
-		{ "path": "src/v12_cancellation_channel.hpp", "byteLength": 993, "sha256": "10f444e75b7a0ba29a8b5ad0e12e2bfadf4aa9a0aeff2f3e71994b02b44dad9a" },
-		{ "path": "src/v12_host_invocation.cpp", "byteLength": 28056, "sha256": "1ee9ab933a75c705bd602fa702ba190e0fc145510bc5f227860a8f7c38ba51f4" },
-		{ "path": "src/v12_host_invocation.hpp", "byteLength": 1699, "sha256": "5f8ac106dcb74746d930f956231906b076b198c3baf25c8c8ce990763e4c4b58" },
-		{ "path": "src/v12_output_file.cpp", "byteLength": 3078, "sha256": "cdd0fe8842ada84069e39f29377c01f92793d16776b68b52135fedd37329d7f1" },
-		{ "path": "src/v12_output_file.hpp", "byteLength": 405, "sha256": "3b1e87b90d1fadd62ea288b7ae0810373a14dc5e7f633ebfd417ceb85fdef08f" },
-		{ "path": "src/v12_retime_authority.cpp", "byteLength": 14020, "sha256": "2338951e110bd89f4a7dc12882de6777edd4c01338d74a4e7028ca185d37a9e0" },
-		{ "path": "src/v12_retime_authority.hpp", "byteLength": 521, "sha256": "3bb8457e1ed7bdb78e9b5db62a3377ea3d3fee2840462fb37fde4c2537491396" },
-		{ "path": "src/v12_transition_authority.cpp", "byteLength": 12434, "sha256": "6712c14c32b5833d7f9affba9f6e672b83ef643352009c54d4dea082423a4b43" },
-		{ "path": "src/v12_transition_authority.hpp", "byteLength": 449, "sha256": "3259c1668a9aa310f99f9c488b929a779964c2a48e81e05ade84dceab95bdc1c" },
-		{ "path": "src/v12_video_timing_grants.cpp", "byteLength": 2595, "sha256": "be525b668cf067f9e59aa4f8d9ba19b451a6e96b8c849cac8b2695eaf02e5ce8" },
-		{ "path": "src/v12_video_timing_grants.hpp", "byteLength": 694, "sha256": "04b9e283464ad28f627014390d09256ddce7fbdb6c2d43371f5609fcf06479c1" }
+		{
+			"path": "CMakeLists.txt",
+			"byteLength": 2968,
+			"sha256": "c94d7c94b0efedf0e3dfd7b37e39de44b003cedd87e710f784cca857896dcce9"
+		},
+		{
+			"path": "CMakePresets.json",
+			"byteLength": 1262,
+			"sha256": "813684008642a1861901b49c6c1964b8aafefd504b3aedc70a969e9a94544ccc"
+		},
+		{
+			"path": "THIRD_PARTY_NOTICES.md",
+			"byteLength": 1044,
+			"sha256": "e8a24b3e1983134a4798ad298b0a7de0114a437c1b156b5e1f810cb71096b687"
+		},
+		{
+			"path": "build/recipe-driver.mjs",
+			"byteLength": 28274,
+			"sha256": "7e3740c6ce0c7069c68af5ec2b94087d3f8d8925916bc5e6476c79dacc35733a"
+		},
+		{
+			"path": "build/source-authentication.mjs",
+			"byteLength": 334,
+			"sha256": "92dbafcf17c91278d2efdbbaf0ae4d9c10aac5c4b084ff87ec330c612af97dbf"
+		},
+		{
+			"path": "build/targets.json",
+			"byteLength": 1013,
+			"sha256": "2bc079d2d76f5ae27b109501416b8108c8f83dcb808391228f2d31b3c621aba0"
+		},
+		{
+			"path": "build/toolchains/linux-arm64.cmake",
+			"byteLength": 453,
+			"sha256": "f4b4c453e0a0edb7664db9b36fe529ee1c60566ac0a02412a217e5ec1d263163"
+		},
+		{
+			"path": "build/toolchains/linux-x64.cmake",
+			"byteLength": 452,
+			"sha256": "e9a909e154778538d3d250afa903944db3dea7dfecbb246cb4469de5588d9701"
+		},
+		{
+			"path": "build/toolchains/mac-arm64.cmake",
+			"byteLength": 491,
+			"sha256": "4b4cb6dd0768a1c36f7a0ef9b1258d839b115e1b4e37d25c6d059e882a4be6df"
+		},
+		{
+			"path": "build/toolchains/win-arm64.cmake",
+			"byteLength": 455,
+			"sha256": "2dbeb9844e99431f96092047d9f391e19eaad42251f7a00ec4c9bb3ba5ec2197"
+		},
+		{
+			"path": "build/toolchains/win-x64.cmake",
+			"byteLength": 453,
+			"sha256": "6c855769b6c354d441497b108f5344bf02db7e6b037ea9e59511cbb008367588"
+		},
+		{
+			"path": "fixtures/conformance_interact.inc",
+			"byteLength": 7621,
+			"sha256": "a42485cbddcbabc11d8b89c81707c7584befd383c0346a62f2c8facb26f706f9"
+		},
+		{
+			"path": "fixtures/conformance_plugin.cpp",
+			"byteLength": 26542,
+			"sha256": "e5cd97306e14f79443bf570db905f480842893887a067bd9641827b0d92b6bbc"
+		},
+		{
+			"path": "src/dynamic_library.cpp",
+			"byteLength": 2821,
+			"sha256": "e46dc316e02d6906b12fc4986aa5cf49650a96e6e454d695838380d2f89dcb70"
+		},
+		{
+			"path": "src/dynamic_library.hpp",
+			"byteLength": 734,
+			"sha256": "ab87ac4af918c331f8d9590a41ec6c7abdc9fa108ebb52298c21779b20f1d8f2"
+		},
+		{
+			"path": "src/gpu_runtime.cpp",
+			"byteLength": 27372,
+			"sha256": "3c8b322d3f0cc46140c457881f01687bd52a3a7b8f5c3d50bc4ac8f152aefe8a"
+		},
+		{
+			"path": "src/gpu_runtime.hpp",
+			"byteLength": 1991,
+			"sha256": "6e379b789945388ea42fe336db6a7ccaf037668e0f7b7183d0e1592a1c163c54"
+		},
+		{
+			"path": "src/host_interact.inc",
+			"byteLength": 11198,
+			"sha256": "31f500e2909ac01dcd823f01333d3640442f35daa0f544c7cd23d0eb80813a02"
+		},
+		{
+			"path": "src/host_parameter_hydration.hpp",
+			"byteLength": 1218,
+			"sha256": "cf66aa099308c89f6499ab71703a5ba9a2fd1b377fede17548e07a48bdce0445"
+		},
+		{
+			"path": "src/host_runtime.cpp",
+			"byteLength": 45639,
+			"sha256": "f64d0ae0e1eb9fbea39c76c1d7004d3d1d2971f10befbb1a8e02e62dea94e289"
+		},
+		{
+			"path": "src/host_runtime.hpp",
+			"byteLength": 4379,
+			"sha256": "5e5dbc011949349723c228920bd193a8ebda07e564cd534f624344d74795eee3"
+		},
+		{
+			"path": "src/host_runtime_invoke.inc",
+			"byteLength": 10045,
+			"sha256": "5471de4b1fec9b6b8c368c4b4f778838f1c352f5038bd2c6b3851cb0936c83de"
+		},
+		{
+			"path": "src/host_scan_inspection.inc",
+			"byteLength": 10555,
+			"sha256": "876d786d7a4e2552e6d325c08a0f054f3e0b367ca16a1264a17683c68a54ceb9"
+		},
+		{
+			"path": "src/host_standard_parameters.inc",
+			"byteLength": 1532,
+			"sha256": "89895887b1585a40d4dd6bdb58df4b517aeadcae58d600c4abc0643b7b620629"
+		},
+		{
+			"path": "src/interact_v1_invocation.cpp",
+			"byteLength": 19164,
+			"sha256": "5ef3a24f7036f5b40db92381d7c5bb26091ce91dc09f9057dbc099d0e31cbc67"
+		},
+		{
+			"path": "src/interact_v1_invocation.hpp",
+			"byteLength": 875,
+			"sha256": "3b2c766eedf6309ef7d6604e41c4b5e4d89eed28cd42512eeb7a93c9a0dfa62e"
+		},
+		{
+			"path": "src/isolation_contract.hpp",
+			"byteLength": 4728,
+			"sha256": "addf7969560af7428639200d9bfa50edae087b9bc63d7a2e9321c41339cda2c7"
+		},
+		{
+			"path": "src/loaded_plugin_binary.cpp",
+			"byteLength": 1809,
+			"sha256": "9ea404eb95c95922f3c10a43b67a9e99c125de3d774f44b1bd431291f5421a50"
+		},
+		{
+			"path": "src/ofx_runtime_host.cpp",
+			"byteLength": 19137,
+			"sha256": "0183503ac513481ccc8b27d1b7123f4dda8bb8f4cb4491bdbacdbff30ccc7f2f"
+		},
+		{
+			"path": "src/ofx_scanner.cpp",
+			"byteLength": 4625,
+			"sha256": "33cc92af5be067d1007414db1397f5289d46c50f972f427bc6efe1c5823241e1"
+		},
+		{
+			"path": "src/openfx_abi.hpp",
+			"byteLength": 18142,
+			"sha256": "b88d690591d015d0e4083375e8aaadcfde501ebc2ee543c0f721052cc21fdff2"
+		},
+		{
+			"path": "src/parameter_values.cpp",
+			"byteLength": 17780,
+			"sha256": "e4714edb6836b89af25cc5d68606af8a258a5a88260ca8898cdfbee7882ac34e"
+		},
+		{
+			"path": "src/parameter_values.hpp",
+			"byteLength": 3011,
+			"sha256": "69c6a35d45a558a69ebcbc29dfbdd9584eca88090c1b2e93763a56bbffb2cb59"
+		},
+		{
+			"path": "src/rgba_frame.hpp",
+			"byteLength": 1245,
+			"sha256": "bc632b3f8057516130452c120bcc3a2af64def5fc0e0d63e37230d86493a0c25"
+		},
+		{
+			"path": "src/sha256.cpp",
+			"byteLength": 4514,
+			"sha256": "11c88df6f312113f0abe9d74a63c4ab97371462f202afb742e015655b0acfa54"
+		},
+		{
+			"path": "src/sha256.hpp",
+			"byteLength": 230,
+			"sha256": "3b7cca5e9611925b7c40866ac5d2aeaf21a572aa0a27ed3e3a40fe7e15be31b0"
+		},
+		{
+			"path": "src/v12_cancellation_channel.cpp",
+			"byteLength": 2012,
+			"sha256": "c79399ad24cf47a05f58aa3f15ea933ce5d560f559d9d1f1d75e0aba3b638fd8"
+		},
+		{
+			"path": "src/v12_cancellation_channel.hpp",
+			"byteLength": 993,
+			"sha256": "10f444e75b7a0ba29a8b5ad0e12e2bfadf4aa9a0aeff2f3e71994b02b44dad9a"
+		},
+		{
+			"path": "src/v12_gpu_qualification.cpp",
+			"byteLength": 1319,
+			"sha256": "83a8bedb6df80fa4e89c8a8f729f0eda38260981758a5075d4061cac8ac9df02"
+		},
+		{
+			"path": "src/v12_gpu_qualification.hpp",
+			"byteLength": 363,
+			"sha256": "f312003147d6825f2db724a089f364587d33496ebbd755f844d9155b019de4ad"
+		},
+		{
+			"path": "src/v12_host_invocation.cpp",
+			"byteLength": 28552,
+			"sha256": "c40129089b5bbeebdbb9c1b7fadcb2852f1b3a04ee6a7f96c943900547922001"
+		},
+		{
+			"path": "src/v12_host_invocation.hpp",
+			"byteLength": 1762,
+			"sha256": "84e5012c0c41522489048cef538ad06c8543a705e73a468cfa50b558b16f15c3"
+		},
+		{
+			"path": "src/v12_output_file.cpp",
+			"byteLength": 3078,
+			"sha256": "cdd0fe8842ada84069e39f29377c01f92793d16776b68b52135fedd37329d7f1"
+		},
+		{
+			"path": "src/v12_output_file.hpp",
+			"byteLength": 405,
+			"sha256": "3b1e87b90d1fadd62ea288b7ae0810373a14dc5e7f633ebfd417ceb85fdef08f"
+		},
+		{
+			"path": "src/v12_retime_authority.cpp",
+			"byteLength": 14020,
+			"sha256": "2338951e110bd89f4a7dc12882de6777edd4c01338d74a4e7028ca185d37a9e0"
+		},
+		{
+			"path": "src/v12_retime_authority.hpp",
+			"byteLength": 521,
+			"sha256": "3bb8457e1ed7bdb78e9b5db62a3377ea3d3fee2840462fb37fde4c2537491396"
+		},
+		{
+			"path": "src/v12_transition_authority.cpp",
+			"byteLength": 12434,
+			"sha256": "6712c14c32b5833d7f9affba9f6e672b83ef643352009c54d4dea082423a4b43"
+		},
+		{
+			"path": "src/v12_transition_authority.hpp",
+			"byteLength": 449,
+			"sha256": "3259c1668a9aa310f99f9c488b929a779964c2a48e81e05ade84dceab95bdc1c"
+		},
+		{
+			"path": "src/v12_video_timing_grants.cpp",
+			"byteLength": 2595,
+			"sha256": "be525b668cf067f9e59aa4f8d9ba19b451a6e96b8c849cac8b2695eaf02e5ce8"
+		},
+		{
+			"path": "src/v12_video_timing_grants.hpp",
+			"byteLength": 694,
+			"sha256": "04b9e283464ad28f627014390d09256ddce7fbdb6c2d43371f5609fcf06479c1"
+		}
 	],
 	"targets": {
 		"linux-x64": {
@@ -73,6 +282,7 @@
 			"toolchainIdentity": null,
 			"scannerPayload": null,
 			"runtimeHostPayload": null,
+			"isolationPayload": null,
 			"productionReadiness": null
 		},
 		"linux-arm64": {
@@ -82,6 +292,7 @@
 			"toolchainIdentity": null,
 			"scannerPayload": null,
 			"runtimeHostPayload": null,
+			"isolationPayload": null,
 			"productionReadiness": null
 		},
 		"mac-arm64": {
@@ -91,6 +302,7 @@
 			"toolchainIdentity": null,
 			"scannerPayload": null,
 			"runtimeHostPayload": null,
+			"isolationPayload": null,
 			"productionReadiness": null
 		},
 		"win-x64": {
@@ -100,6 +312,7 @@
 			"toolchainIdentity": null,
 			"scannerPayload": null,
 			"runtimeHostPayload": null,
+			"isolationPayload": null,
 			"productionReadiness": null
 		},
 		"win-arm64": {
@@ -109,6 +322,7 @@
 			"toolchainIdentity": null,
 			"scannerPayload": null,
 			"runtimeHostPayload": null,
+			"isolationPayload": null,
 			"productionReadiness": null
 		}
 	}

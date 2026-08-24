@@ -19,9 +19,19 @@ import {
 	type FramescaperProjectHistoryV27,
 	validateFramescaperProjectHistoryV27,
 } from './editor-project-v27-history.ts';
-import { assertFramescaperProjectV27Profile } from './editor-project-runtime-profile-v27.ts';
+import {
+	FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,
+	assertFramescaperProjectV27Profile,
+} from './editor-project-runtime-profile-v27.ts';
 import { framescaperProjectV20FoundationV27 } from './editor-project-v27-runtime.ts';
 import type { FramescaperProjectV27 } from './editor-project-v27.ts';
+import {
+	type FramescaperProjectHistoryV28,
+	validateFramescaperProjectHistoryV28,
+} from './editor-project-v28-history.ts';
+import { framescaperProjectV27FoundationShapeV28 } from './editor-project-v28-foundation.ts';
+import { assertFramescaperProjectV28Profile } from './editor-project-runtime-profile-v28.ts';
+import type { FramescaperProjectV28 } from './editor-project-v28.ts';
 
 export interface FramescaperClaimCleanupProjectProfile {
 	project(value: unknown): FramescaperProjectV18;
@@ -47,10 +57,26 @@ export function framescaperClaimCleanupProjectProfile(
 			catch (v20Error) {
 				try { assertFramescaperProjectV27Profile(profile); }
 				catch (v27Error) {
-					throw new AggregateError(
-						[v18Error, v19Error, v20Error, v27Error],
-						'An exact maintained Framescaper capture-cleanup runtime profile is required.',
+					try { assertFramescaperProjectV28Profile(profile); }
+					catch (v28Error) {
+						throw new AggregateError(
+							[v18Error, v19Error, v20Error, v27Error, v28Error],
+							'An exact maintained Framescaper capture-cleanup runtime profile is required.',
+						);
+					}
+					const project = (value: unknown) => v20FoundationProject(
+						framescaperProjectV20FoundationV27(
+							FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,
+							framescaperProjectV27FoundationShapeV28(value as FramescaperProjectV28),
+						),
 					);
+					return Object.freeze({
+						project,
+						historyProjects: (value: unknown) => {
+							validateFramescaperProjectHistoryV28(profile, value);
+							return historyProjectRootsV28(value as FramescaperProjectHistoryV28, project);
+						},
+					});
 				}
 				const project = (value: unknown) => v20FoundationProject(
 					framescaperProjectV20FoundationV27(profile, value as FramescaperProjectV27),
@@ -106,6 +132,17 @@ function v20FoundationProject(value: unknown): FramescaperProjectV18 {
 
 function historyProjectRoots(
 	history: FramescaperProjectHistoryV27,
+	project: (value: unknown) => FramescaperProjectV18,
+): readonly FramescaperProjectV18[] {
+	return Object.freeze([
+		project(history.present),
+		...history.undoStack.map(({ project: snapshot }) => project(snapshot)),
+		...history.redoStack.map(({ project: snapshot }) => project(snapshot)),
+	]);
+}
+
+function historyProjectRootsV28(
+	history: FramescaperProjectHistoryV28,
 	project: (value: unknown) => FramescaperProjectV18,
 ): readonly FramescaperProjectV18[] {
 	return Object.freeze([

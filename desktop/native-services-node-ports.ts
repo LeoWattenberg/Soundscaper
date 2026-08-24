@@ -2,18 +2,20 @@
 
 import { constants } from 'node:fs';
 import {
-	link, lstat, open, opendir, realpath, rm, unlink,
+	lstat, open, opendir, realpath, rm,
 } from 'node:fs/promises';
 import { createHash, randomBytes } from 'node:crypto';
-import { dirname, isAbsolute, join, normalize, relative, resolve } from 'node:path';
+import { isAbsolute, join, normalize } from 'node:path';
 
-import { assertNativeMediaRelativeDestination } from '../src/common/editor/native-media-atomic-publication.ts';
 import type { WatchRuleV1 } from '../src/common/editor/native-watch-rule.ts';
 import type {
 	FramescaperNativePublicationPort,
-	FramescaperNativePublishedFileObservation,
 	NativeImageSequenceCheckpointFrameV1,
 } from './native-services-publication.ts';
+import {
+	createFramescaperNativePublicationNodePort,
+	inspectFramescaperGrantedFile,
+} from './native-services-publication-node-port.ts';
 import {
 	createFramescaperNativeFilesystemCheckpointStore,
 	type FramescaperNativeCheckpointStore,
@@ -248,38 +250,7 @@ export function createFramescaperNativeServicesNodePorts(
 
 	const publicationPortFor = (
 		grant: FramescaperNativeRootGrant,
-	): FramescaperNativePublicationPort => Object.freeze({
-		inspect: (relativePath: string) => inspectGrantedFile(grant, relativePath),
-		renameTemporarySibling: async (temporaryRelativePath: string, relativeDestination: string) => {
-			const temporary = await grantedPath(grant, temporaryRelativePath, true);
-			const destination = await grantedPath(grant, relativeDestination, false);
-			if (dirname(temporary) !== dirname(destination)) {
-				throw new Error('Native publication requires a same-directory temporary sibling.');
-			}
-			if ((await lstat(temporary)).isSymbolicLink()) {
-				throw new Error('Native publication refuses a symbolic-link temporary sibling.');
-			}
-			try {
-				await lstat(destination);
-				throw new Error('Native publication refuses to replace an existing destination.');
-			} catch (error) {
-				if (!missing(error)) throw error;
-			}
-			await link(temporary, destination);
-			await unlink(temporary);
-		},
-		removePublishedOutput: async (
-			relativeDestination: string,
-			expected: FramescaperNativePublishedFileObservation,
-		) => {
-			const observed = await inspectGrantedFile(grant, relativeDestination);
-			if (observed === null || observed.symbolicLink
-				|| observed.byteLength !== expected.byteLength || observed.sha256 !== expected.sha256) {
-				throw new Error('Native publication cleanup refuses an output whose identity changed.');
-			}
-			await unlink(await grantedPath(grant, relativeDestination, true));
-		},
-	});
+	): FramescaperNativePublicationPort => createFramescaperNativePublicationNodePort(grant);
 
 	return Object.freeze({
 		mintOpaqueId,
@@ -299,7 +270,7 @@ export function createFramescaperNativeServicesNodePorts(
 		publicationPortFor,
 		checkpointInspectFor: (grant: FramescaperNativeRootGrant) => (
 			frame: NativeImageSequenceCheckpointFrameV1,
-		) => inspectGrantedFile(grant, frame.relativePath),
+		) => inspectFramescaperGrantedFile(grant, frame.relativePath),
 		checkpointStore: createFramescaperNativeFilesystemCheckpointStore(scratchRoot),
 	});
 }
@@ -339,53 +310,6 @@ async function inspectScratchManifest(
 		if (missing(error) || error instanceof SyntaxError) return null;
 		throw error;
 	}
-}
-
-async function inspectGrantedFile(
-	grant: FramescaperNativeRootGrant,
-	relativePath: string,
-): Promise<Readonly<{ byteLength: number; sha256: string; symbolicLink: boolean }> | null> {
-	const path = await grantedPath(grant, relativePath, false);
-	try {
-		const stat = await lstat(path);
-		if (stat.isSymbolicLink()) {
-			return Object.freeze({ byteLength: 0, sha256: '0'.repeat(64), symbolicLink: true });
-		}
-		if (!stat.isFile()) throw new Error('A native media output must be a regular file.');
-		return Object.freeze({ ...await inspectRegularFile(path), symbolicLink: false });
-	} catch (error) {
-		if (missing(error)) return null;
-		throw error;
-	}
-}
-
-async function grantedPath(
-	grant: FramescaperNativeRootGrant,
-	relativePath: string,
-	requireTarget: boolean,
-): Promise<string> {
-	await assertDirectoryIdentity(grant);
-	const relativeDestination = publicationRelativePath(relativePath);
-	const target = resolve(grant.rootPath, ...relativeDestination.split('/'));
-	if (relative(grant.rootPath, target).startsWith('..') || isAbsolute(relative(grant.rootPath, target))) {
-		throw new Error('A native media path escaped its durable root.');
-	}
-	const parts = relativeDestination.split('/');
-	let current = grant.rootPath;
-	for (let index = 0; index < parts.length; index += 1) {
-		current = join(current, parts[index]!);
-		try {
-			const stat = await lstat(current);
-			if (stat.isSymbolicLink()) throw new Error('A native media path contains a symbolic link.');
-			if (index < parts.length - 1 && !stat.isDirectory()) {
-				throw new Error('A native media path parent is not a directory.');
-			}
-		} catch (error) {
-			if (!missing(error) || requireTarget || index < parts.length - 1) throw error;
-			break;
-		}
-	}
-	return target;
 }
 
 async function assertDirectoryIdentity(grant: FramescaperNativeRootGrant): Promise<void> {
@@ -445,17 +369,6 @@ function scratchDirectoryPath(scratchRoot: string, directoryName: string): strin
 		throw new TypeError('A native scratch cleanup path must be a deterministic job directory.');
 	}
 	return join(scratchRoot, directoryName);
-}
-
-function publicationRelativePath(value: string): string {
-	if (typeof value === 'string') {
-		const temporary = /^(.*)\.[a-f0-9]{16}\.partial$/u.exec(value);
-		if (temporary) {
-			assertNativeMediaRelativeDestination(temporary[1]);
-			return value;
-		}
-	}
-	return assertNativeMediaRelativeDestination(value);
 }
 
 function absoluteCanonicalPath(value: string, label: string): string {

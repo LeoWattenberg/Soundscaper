@@ -23,6 +23,7 @@ import {
 	SYNTHETIC_LOOPBACK_DEVICE_HANDLE,
 	createNativeDeviceJobRunner,
 	createNativeHelperWorker,
+	createProfessionalNativeHelperRoleSeams,
 	loadVerifiedNativeAddon,
 } from '../desktop/native-helper-process.js';
 import {
@@ -46,7 +47,7 @@ const GRANT = Object.freeze({
 const POLICY = Object.freeze({ maximumInputBytes: 1_024, maximumJobDurationMs: 30_000, maximumRssBytes: 1_024 ** 3 });
 
 function jobMessage(jobId = JOB_ID, grant = GRANT, kind = 'audio-device') {
-	return { contractVersion: 1, type: 'job', jobId, kind, grant, resourcePolicy: POLICY };
+	return { contractVersion: 1, type: 'job', jobId, kind, jobContractVersion: 1, grant, resourcePolicy: POLICY };
 }
 
 function createWorker(runDeviceJob) {
@@ -98,8 +99,43 @@ function fakeAddon({ failAt = null } = {}) {
 test('the helper announces exactly the kinds it implements', () => {
 	const { types, posted } = createWorker(() => manualJob().handle);
 	assert.deepEqual(types(), ['hello']);
-	assert.deepEqual(posted[0].kinds, [...NATIVE_HELPER_JOB_KINDS]);
+	assert.deepEqual(posted[0].kinds, ['audio-device']);
 	assert.deepEqual([...NATIVE_HELPER_JOB_KINDS], ['audio-device', 'plugin-scan', 'plugin-host']);
+});
+
+test('professional scanner and host roles reopen signed authority and select only the isolated peer', async () => {
+	const artifact = (path) => Object.freeze({
+		path, byteLength: 10, sha256: 'a'.repeat(64), identity: Object.freeze({ dev: 1, ino: 2 }),
+	});
+	const peer = Object.freeze({ describe: async () => ({ pluginFormats: ['vst3'] }) });
+	const descriptor = Object.freeze({
+		target: 'linux-x64', path: '/trusted-audio.node', sha256: 'b'.repeat(64),
+		productionReadiness: Object.freeze({ status: 'authenticated' }),
+		pluginPeer: artifact('/runtime/soundscaper_professional_peer'),
+		isolation: Object.freeze({
+			launcher: artifact('/runtime/isolation-launcher'),
+			sandboxProfile: artifact('/runtime/profile.json'),
+			brokerPolicy: artifact('/runtime/broker.json'),
+			entrypoint: artifact('/runtime/soundscaper_professional_peer'), runtimeClosure: Object.freeze([]),
+		}),
+	});
+	let launcherOptions = null;
+	let peerOptions = null;
+	for (const role of ['plugin-scanner', 'plugin-host']) {
+		const seams = await createProfessionalNativeHelperRoleSeams({}, role, {
+			verifyPayload: async () => descriptor,
+			createLauncher: (options) => {
+				launcherOptions = options;
+				return { productionReady: async () => ({ status: 'ready' }) };
+			},
+			createPeer: (options) => { peerOptions = options; return peer; },
+		});
+		assert.equal(await seams.loadAddon(), peer);
+		assert.equal(seams.addonPath, descriptor.pluginPeer.path);
+		assert.equal(launcherOptions.reviewedContract, descriptor.productionReadiness);
+		assert.equal(peerOptions.peerExecutable, descriptor.pluginPeer);
+		assert.equal(peerOptions.entryExecutable, descriptor.isolation.entrypoint);
+	}
 });
 
 test('an unannounced kind is refused without taking the helper down', () => {
@@ -122,6 +158,42 @@ test('an announced kind with no runner is refused rather than run as a device jo
 	assert.deepEqual(types(), ['hello', 'error']);
 	assert.match(posted[1].error.message, /does not implement plugin-scan jobs/u);
 	assert.deepEqual(exits, []);
+});
+
+test('a persistent audio job receives only its exactly bound MessagePort', async () => {
+	let received = null;
+	const pending = manualJob();
+	const { worker, exits } = createWorker(({ ports }) => {
+		received = ports;
+		return pending.handle;
+	});
+	const port = { postMessage() {}, close() {} };
+	worker.handleMessage(jobMessage(JOB_ID, {
+		...GRANT,
+		persistentPort: {
+			portContractVersion: 1,
+			transport: 'message-port',
+			purpose: 'audio-realtime',
+			streamId: 'cd'.repeat(20),
+			generation: 1,
+			maximumMessageBytes: 128 * 1024,
+			maximumInFlightMessages: 8,
+		},
+	}), [port]);
+	assert.deepEqual(received, [port]);
+	assert.deepEqual(exits, []);
+	pending.settle.resolve({ ok: true });
+	await Promise.resolve();
+
+	const missing = createWorker(() => manualJob().handle);
+	missing.worker.handleMessage(jobMessage(JOB_ID, {
+		...GRANT,
+		persistentPort: {
+			portContractVersion: 1, transport: 'message-port', purpose: 'audio-realtime',
+			streamId: 'ef'.repeat(20), generation: 1, maximumMessageBytes: 1, maximumInFlightMessages: 1,
+		},
+	}));
+	assert.deepEqual(missing.exits, [1], 'a bound persistent port may not be omitted at the process boundary');
 });
 
 test('a second concurrent job and a malformed host message each fail closed', () => {

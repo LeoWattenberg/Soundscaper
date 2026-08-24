@@ -123,6 +123,7 @@ export function buildProjectGraphV21(
 	const effectAnalysers = new Map<string, EffectAnalyserEntry>();
 	const effectMessageSequences = new Map<string, number>();
 	const productionStripAnalysersV21 = new Map<string, StripMeterAnalyserBankV21>();
+	const pathPdcDelayParamsV21 = new Map<string, AudioParam>();
 	const trackWidths = resolveTerminalChannelWidths(project, project.masterChannels).tracks;
 	const compensatedTrackInputs = new Map<string, AudioNode>();
 	for (const track of tracks) {
@@ -133,6 +134,7 @@ export function buildProjectGraphV21(
 			nodes,
 			input,
 			plan.nodeInputLatencyFrames.get(`track:${track.id}`) ?? 0,
+			(param) => pathPdcDelayParamsV21.set(`input:track:${track.id}`, param),
 		));
 	}
 	const mixerInputs = new Map<string, AudioNode>();
@@ -267,7 +269,10 @@ export function buildProjectGraphV21(
 			? admTerminalStrip(graph, edge.source)
 			: null;
 		if (!admTerminal) output = applyChannelMap(context, nodes, output, source.width, destinationWidth, edge);
-		output = applyEdgeCompensation(context, nodes, output, plan.edgeCompensationFrames.get(edge.id) ?? 0);
+		output = applyEdgeCompensation(
+			context, nodes, output, plan.edgeCompensationFrames.get(edge.id) ?? 0,
+			(param) => pathPdcDelayParamsV21.set(`edge:${edge.id}`, param),
+		);
 		// The level node sits after the compensation delay so an edge-level
 		// ramp is output-referred like every other automation class: its
 		// registered latency includes the edge compensation, which is only the
@@ -288,6 +293,7 @@ export function buildProjectGraphV21(
 		nodes,
 		mainConnection,
 		plan.latencyFrames - (plan.outputLatencyFrames.get(mainOutput.id) ?? 0),
+		(param) => pathPdcDelayParamsV21.set(`output:${mainOutput.id}`, param),
 	);
 	const masterAnalyser = metering ? createAnalyser(context, nodes) : null;
 	if (masterAnalyser) {
@@ -319,6 +325,7 @@ export function buildProjectGraphV21(
 		effectMessageSequences,
 		mixerEdgeGainParams: edgeGainParams,
 		pathPdcPlanV21: plan,
+		pathPdcDelayParamsV21,
 		productionStripAnalysersV21,
 		latencyFrames: plan.latencyFrames,
 	};

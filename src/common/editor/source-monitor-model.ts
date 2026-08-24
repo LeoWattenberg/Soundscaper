@@ -2,7 +2,7 @@
 
 import { sequenceFrameAtSample } from './sequence-frame-navigation.ts';
 import { proportionalSourceFrame, sourceFrameTimecodeLabel } from './source-properties-model.ts';
-import { normalizeVideoSourceCharacteristics } from './video-source-characteristics.ts';
+import { normalizeVideoSourceCharacteristicsForConsumer } from './video-source-characteristics-consumer.ts';
 import { videoFrameToSampleFrame, type RationalRate } from './timeline-time.ts';
 import {
 	resolveVideoRetimeProgramOrdinal,
@@ -156,7 +156,9 @@ export function mediaSecondsToSourceFrame(
 export function sourceMonitorTimecodeLabel(sourceValue: unknown, frame: number): string {
 	const source = record(sourceValue, 'source');
 	const rate = frameRate(source.frameRate);
-	const characteristics = normalizeVideoSourceCharacteristics(source.characteristics ?? null, { rate });
+	const characteristics = normalizeVideoSourceCharacteristicsForConsumer(
+		source.characteristics ?? null, { rate },
+	);
 	return sourceFrameTimecodeLabel(rate, characteristics.startTimecode, Math.max(0, Math.trunc(frame)));
 }
 

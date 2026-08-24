@@ -57,9 +57,11 @@ function createRegistry(quarantined: ReadonlySet<string> = new Set()): DesktopPl
 }
 
 function observation(overrides: Partial<PluginScanObservation> = {}): PluginScanObservation {
+	const stableId = overrides.stableId ?? 'com.example.reverb';
 	return {
 		format: 'vst3',
-		stableId: 'com.example.reverb',
+		stableId,
+		bundleStableIds: [stableId],
 		name: 'Room Reverb',
 		vendor: 'Example Audio',
 		version: '1.2.0',
@@ -131,7 +133,7 @@ test('identity is the format plus the format-native stable id, never the path', 
 	})));
 	assert.notEqual(first.entryId, sameIdOtherFormat.entryId, 'a shared stable id in two formats is two plug-ins');
 	assert.equal(first.entryId, entryIdFor('vst3', 'com.example.reverb'));
-	assert.equal(first.installationId, installationIdFor(DIGEST_A));
+	assert.equal(first.installationId, installationIdFor(DIGEST_A, 'com.example.reverb'));
 	assert.equal(registry.describe().entries.length, 2);
 
 	// The same bytes rescanned from another folder stay one installation.
@@ -182,11 +184,11 @@ test('a stable-id collision is ineligible until the user selects, whatever the s
 				'scan order must never pick an installation silently');
 		}
 
-		const chosen = installationIdFor(DIGEST_B);
+		const chosen = installationIdFor(DIGEST_B, 'com.example.reverb');
 		registry.select(chosen);
 		assert.equal(entry(registry, entryId).eligible, true);
 		assert.equal(registry.hostGrantFor(chosen).binaryPath, '/opt/vendor/RoomReverb.vst3');
-		assert.equal(registryErrorCode(() => registry.hostGrantFor(installationIdFor(DIGEST_A))),
+		assert.equal(registryErrorCode(() => registry.hostGrantFor(installationIdFor(DIGEST_A, 'com.example.reverb'))),
 			'not-active-installation');
 	}
 });
@@ -264,13 +266,25 @@ test('classification, compatibility and supported modes each block eligibility',
 	}
 });
 
-test('one binary may never claim a second identity', () => {
+test('one bundle may expose its exact descriptor set without ambiguous installations', () => {
 	const registry = createRegistry();
-	const first = recorded(registry.record(observation()));
-	assert.equal(rejection(registry.record(observation({ stableId: 'com.example.other' }))), 'identity-change');
-	assert.equal(rejection(registry.record(observation({ format: 'clap' }))), 'identity-change');
-	assert.equal(registry.describe().entries.length, 1, 'a rejected identity change records nothing');
-	assert.equal(entry(registry, first.entryId).installations.length, 1);
+	const ids = ['com.example.delay', 'com.example.reverb'] as const;
+	const delay = recorded(registry.record(observation({ stableId: ids[0], bundleStableIds: ids })));
+	const reverb = recorded(registry.record(observation({ stableId: ids[1], bundleStableIds: ids })));
+	assert.notEqual(delay.entryId, reverb.entryId);
+	assert.notEqual(delay.installationId, reverb.installationId);
+	assert.equal(registry.hostGrantFor(delay.installationId).stableId, ids[0]);
+	assert.equal(registry.hostGrantFor(reverb.installationId).stableId, ids[1]);
+	assert.equal(rejection(registry.record(observation({
+		stableId: 'com.example.other', bundleStableIds: ['com.example.other'],
+	}))), 'identity-change');
+	assert.equal(rejection(registry.record(observation({
+		format: 'clap', stableId: ids[0], bundleStableIds: ids,
+	}))), 'identity-change');
+	assert.equal(registry.forget(delay.installationId), true);
+	assert.equal(rejection(registry.record(observation({
+		stableId: 'com.example.other', bundleStableIds: ['com.example.other'],
+	}))), 'identity-change', 'a sibling descriptor keeps the exact bundle claim alive');
 });
 
 test('a quarantined digest is refused at admission and ineligible afterwards', () => {
@@ -313,11 +327,22 @@ test('the registry records the whole scan report and projects it back', () => {
 	assert.equal(installation.descriptorVersion, 7);
 	assert.equal(installation.selected, true);
 	assert.equal(registry.digestFor(admission.installationId), DIGEST_A);
+	assert.deepEqual(registry.hostDescriptorFor(admission.installationId), {
+		entryId: admission.entryId,
+		installationId: admission.installationId,
+		stableId: 'com.example.reverb',
+		format: 'vst3',
+		binarySha256: DIGEST_A,
+		inputChannels: 2,
+		outputChannels: 2,
+		reportedLatencyFrames: 512,
+	});
 	assert.deepEqual(registry.hostGrantFor(admission.installationId), {
 		binaryPath: '/usr/lib/vst3/RoomReverb.vst3',
 		binaryBytes: 4_096,
 		binarySha256: DIGEST_A,
 		format: 'vst3',
+		stableId: 'com.example.reverb',
 		identity: { dev: 66_305, ino: 12_345 },
 	});
 });
@@ -413,7 +438,7 @@ test('a colliding installation cannot rename the identity behind the user', () =
 	assert.equal(entry(registry, first.entryId).name, 'Room Reverb');
 
 	// Once the newcomer is the installation in use, its own text is the truth.
-	registry.select(installationIdFor(DIGEST_B));
+	registry.select(installationIdFor(DIGEST_B, 'com.example.reverb'));
 	assert.equal(entry(registry, first.entryId).name, 'System Update');
 	assert.equal(entry(registry, first.entryId).vendor, 'Nobody At All');
 });

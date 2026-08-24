@@ -16,6 +16,7 @@ const STATEMENT_FIELDS = Object.freeze([
 	'applicationVersion', 'controls', 'keyId', 'packages', 'productId', 'reviewedAt',
 	'reviewer', 'schemaVersion', 'sourceRevision', 'statementType', 'targetId',
 ]);
+const PREAUTHENTICATED = new WeakMap();
 
 export function milestone5PackageReleaseAuthenticationEvidenceName(productId, targetId) {
 	if (!['soundscaper', 'framescaper'].includes(productId)
@@ -34,11 +35,45 @@ export async function auditMilestone5PackageReleaseAuthentication({
 	sourceRevision,
 	packages,
 	policyPath = resolve(repositoryRoot, MILESTONE_5_PACKAGE_RELEASE_AUTHENTICATION_POLICY),
+	policyBytes,
 }) {
+	const preauthentication = await preauthenticateMilestone5PackageReleaseAuthentication({
+		repositoryRoot,
+		packageRoot,
+		productId,
+		targetId,
+		applicationVersion,
+		sourceRevision,
+		packages,
+		policyPath,
+		...(policyBytes === undefined ? {} : { policyBytes }),
+	});
+	return completeMilestone5PackageReleaseAuthentication({ preauthentication, packages });
+}
+
+/** Verify trusted signer, cell identity, controls, and raw package hashes before extraction. */
+export async function preauthenticateMilestone5PackageReleaseAuthentication({
+	repositoryRoot,
+	packageRoot,
+	productId,
+	targetId,
+	applicationVersion,
+	sourceRevision,
+	packages,
+	policyPath = resolve(repositoryRoot, MILESTONE_5_PACKAGE_RELEASE_AUTHENTICATION_POLICY),
+	policyBytes: suppliedPolicyBytes,
+}) {
+	const policyBytes = suppliedPolicyBytes === undefined
+		? await readFile(policyPath)
+		: Buffer.from(suppliedPolicyBytes);
 	const policy = validatePolicy(parseJson(
-		await readFile(policyPath),
+		policyBytes,
 		'Milestone 5 package release-authentication policy',
 	));
+	const policyEvidence = descriptor(
+		MILESTONE_5_PACKAGE_RELEASE_AUTHENTICATION_POLICY,
+		policyBytes,
+	);
 	const name = milestone5PackageReleaseAuthenticationEvidenceName(productId, targetId);
 	const path = resolve(packageRoot, name);
 	if (dirname(path) !== packageRoot || basename(path) !== name) {
@@ -52,6 +87,7 @@ export async function auditMilestone5PackageReleaseAuthentication({
 		status: 'pending-external',
 		blockedBy: policy.blockedBy,
 		evidence: null,
+		policyEvidence,
 	});
 	if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.size < 1
 		|| metadata.size > MAXIMUM_EVIDENCE_BYTES || await realpath(path) !== path) {
@@ -62,19 +98,13 @@ export async function auditMilestone5PackageReleaseAuthentication({
 	validateEnvelope(envelope);
 	const key = policy.trustedKeys.find(({ id }) => id === envelope.statement.keyId);
 	if (!key) throw new Error('Milestone 5 package release-authentication evidence uses an untrusted key.');
-	const expectedPackages = packages.map(({ label, name: packageName, byteLength, sha256, content }) => ({
-		label,
-		name: packageName,
-		byteLength,
-		sha256,
-		content,
-	}));
 	const statement = envelope.statement;
 	if (statement.statementType !== policy.statementType
 		|| statement.productId !== productId || statement.targetId !== targetId
 		|| statement.applicationVersion !== applicationVersion
 		|| statement.sourceRevision !== sourceRevision
-		|| !isDeepStrictEqual(statement.packages, expectedPackages)
+		|| !isDeepStrictEqual(statement.packages.map(rawPackageDescriptor),
+			packages.map(rawPackageDescriptor))
 		|| !isDeepStrictEqual(statement.controls, {
 			artifactSignatures: 'accepted',
 			platformTrust: 'accepted',
@@ -87,18 +117,34 @@ export async function auditMilestone5PackageReleaseAuthentication({
 	if (!verify(null, signedBytes, key.publicKey, signature)) {
 		throw new Error('Milestone 5 package release-authentication signature is invalid.');
 	}
-	return deepFreeze({
-		status: 'authenticated',
+	const preauthentication = deepFreeze({
+		status: 'authenticated-preflight',
 		blockedBy: null,
 		keyId: statement.keyId,
 		reviewer: statement.reviewer,
 		reviewedAt: statement.reviewedAt,
 		controls: { ...statement.controls },
-		evidence: {
-			name,
-			byteLength: bytes.byteLength,
-			sha256: createHash('sha256').update(bytes).digest('hex'),
-		},
+		evidence: descriptor(name, bytes),
+		policyEvidence,
+	});
+	PREAUTHENTICATED.set(preauthentication, statement);
+	return preauthentication;
+}
+
+/** Complete signer authentication only after extracted content matches the signed summaries. */
+export function completeMilestone5PackageReleaseAuthentication({ preauthentication, packages }) {
+	if (preauthentication?.status === 'pending-external') return preauthentication;
+	const statement = PREAUTHENTICATED.get(preauthentication);
+	if (statement === undefined) {
+		throw new Error('Milestone 5 package release completion requires branded preauthentication.');
+	}
+	const expectedPackages = packages.map(packageDescriptor);
+	if (!isDeepStrictEqual(statement.packages, expectedPackages)) {
+		throw new Error('Milestone 5 package release-authentication statement is not bound to extracted package content.');
+	}
+	return deepFreeze({
+		...preauthentication,
+		status: 'authenticated',
 	});
 }
 
@@ -161,6 +207,22 @@ function validateStatement(value) {
 			throw new TypeError('Milestone 5 package release-authentication package descriptor is invalid.');
 		}
 	}
+}
+
+function rawPackageDescriptor({ label, name, byteLength, sha256 }) {
+	return { label, name, byteLength, sha256 };
+}
+
+function packageDescriptor({ label, name, byteLength, sha256, content }) {
+	return { label, name, byteLength, sha256, content };
+}
+
+function descriptor(name, bytes) {
+	return {
+		name,
+		byteLength: bytes.byteLength,
+		sha256: createHash('sha256').update(bytes).digest('hex'),
+	};
 }
 
 function canonicalBase64(value) {

@@ -32,6 +32,7 @@ app.whenReady().then(async () => {
 	let settle;
 	const finished = new Promise((resolve) => { settle = resolve; });
 	const child = utilityProcess.fork(plan.helperModulePath, [
+		'--helper-role=audio',
 		`--helper-addon-config=${JSON.stringify({ addonPath: plan.addonPath, addonSha256: plan.addonSha256 })}`,
 	], { serviceName: 'soundscaper-native-helper-smoke' });
 
@@ -68,6 +69,7 @@ app.whenReady().then(async () => {
 				type: 'job',
 				jobId: plan.firstJobId,
 				kind: 'audio-device',
+				jobContractVersion: 1,
 				grant: plan.grant,
 				resourcePolicy: plan.resourcePolicy,
 			});
@@ -80,6 +82,7 @@ app.whenReady().then(async () => {
 				type: 'job',
 				jobId: plan.secondJobId,
 				kind: 'audio-device',
+				jobContractVersion: 1,
 				grant: plan.grant,
 				resourcePolicy: plan.resourcePolicy,
 			});
@@ -92,6 +95,7 @@ app.whenReady().then(async () => {
 				type: 'job',
 				jobId: plan.thirdJobId,
 				kind: 'audio-device',
+				jobContractVersion: 1,
 				grant: { ...plan.grant, deviceHandle: 'synthetic:not-a-device' },
 				resourcePolicy: plan.resourcePolicy,
 			});

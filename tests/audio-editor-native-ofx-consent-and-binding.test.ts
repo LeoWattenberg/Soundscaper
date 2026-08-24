@@ -258,6 +258,7 @@ function descriptor(overrides: Record<string, unknown> = {}): OfxPluginDescripto
 		components: ['RGBA'],
 		pixelDepths: ['float'],
 		threading: 'fully-safe',
+		renderBackends: ['cpu'],
 		requestedSuites: ['OfxImageEffectSuite', 'OfxPropertySuite', 'OfxParameterSuite'],
 		...overrides,
 	} as OfxPluginDescriptorV1;

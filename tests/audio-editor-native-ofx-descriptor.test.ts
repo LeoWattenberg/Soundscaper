@@ -54,6 +54,8 @@ test('a plug-in that asks for a suite this host does not implement is refused', 
 	);
 	assert.equal(OFX_HOST_SUITES.includes('OfxDrawSuite'), true);
 	assert.equal(OFX_HOST_SUITES.includes('OfxParametricParameterSuite'), true);
+	assert.equal(OFX_HOST_SUITES.includes('OfxImageEffectOpenGLRenderSuite'), true);
+	assert.equal(OFX_HOST_SUITES.includes('OfxOpenCLProgramSuite'), true);
 });
 
 test('a descriptor missing a mandatory suite is refused', () => {
@@ -71,6 +73,8 @@ test('hostile descriptor input is rejected before it reaches the host', () => {
 		[{ pixelDepths: ['double'] }, /not a known OpenFX value/u],
 		[{ components: ['YUV'] }, /not a known OpenFX value/u],
 		[{ threading: 'mostly-safe' }, /known threading safety level/u],
+		[{ renderBackends: ['cpu', 'vulkan'] }, /renderBackends.*known OpenFX/iu],
+		[{ renderBackends: ['opengl'] }, /CPU rendering/iu],
 		[{ binarySha256: 'not-a-digest' }, /binarySha256 is not in its canonical form/u],
 		[{ version: { major: -1, minor: 0 } }, /non-negative integers/u],
 		[{ parameters: [{ name: 'gain', type: 'quaternion', animates: true }] }, /known OpenFX type/u],
@@ -217,6 +221,7 @@ function descriptor(overrides: Record<string, unknown> = {}): OfxPluginDescripto
 		components: ['RGBA'],
 		pixelDepths: ['float'],
 		threading: 'fully-safe',
+		renderBackends: ['cpu'],
 		requestedSuites: [...OFX_MANDATORY_SUITES],
 		...overrides,
 	} as OfxPluginDescriptorV1;

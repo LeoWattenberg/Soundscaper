@@ -17,6 +17,7 @@ import {
 	createOpenFxHelperJobRunner,
 	openFxHostProcessArguments,
 	selfTestFramescaperOpenFxHelper,
+	type OpenFxHostProcessAuthority,
 	type OpenFxHostProcessInvocation,
 } from '../desktop/openfx-helper-job.ts';
 import {
@@ -31,6 +32,7 @@ import { createOfxHostInvocationV1 } from '../src/common/editor/native-ofx-host-
 import { createUnifiedExactRenderPlan } from '../src/common/editor/unified-exact-render-plan.ts';
 import { fingerprintNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
 import { unifiedExactPlanFixture } from './helpers/unified-exact-render-plan-fixture.ts';
+import { openFxProductionReadinessFixture } from './helpers/openfx-production-readiness-fixture.ts';
 
 test('the scanner runner authenticates both executables and publishes only exact descriptor bytes', async (context) => {
 	const fixture = await createFixture(context);
@@ -38,12 +40,14 @@ test('the scanner runner authenticates both executables and publishes only exact
 	const descriptorBinding = outputReservation('ef'.repeat(20), null, 64 * 1024);
 	const channel = new MessageChannel();
 	const invocations: OpenFxHostProcessInvocation[] = [];
+	const authorities: OpenFxHostProcessAuthority[] = [];
 	const runner = createOpenFxHelperJobRunner({
 		descriptor: fixture.descriptor,
 		mode: 'scanner',
 		pluginFingerprint: null,
-		invokeHost: (invocation) => {
+		invokeHost: (invocation, authority) => {
 			invocations.push(invocation);
+			authorities.push(authority);
 			return processHandle(Promise.resolve({
 				exitCode: 0, stdout: String(descriptorBytes), stderr: '',
 			}));
@@ -73,6 +77,11 @@ test('the scanner runner authenticates both executables and publishes only exact
 			'--sha256', fixture.plugin.sha256,
 		],
 	}]);
+	assert.equal(authorities[0]!.plugin?.path,
+		join(fixture.scratch.rootPath, fixture.scratch.reservationId, 'plugin-binary.ofx'));
+	assert.equal(authorities[0]!.plugin?.kind, 'file');
+	assert.deepEqual(authorities[0]!.readOnly, []);
+	assert.deepEqual(authorities[0]!.writeOnly, []);
 });
 
 test('a per-fingerprint runner refuses a grant for a sibling plug-in before invoking native code', async (context) => {
@@ -238,12 +247,14 @@ test('a spooled OpenFX input replaced while the runtime runs cannot publish a re
 			channel.port1.close(); channel.port2.close();
 		}
 	});
-	const runtimeInvoked = deferred<Readonly<{ grantPath: string }>>();
+	const runtimeInvoked = deferred<Readonly<{
+		grantPath: string; authority: OpenFxHostProcessAuthority;
+	}>>();
 	const finishRuntime = deferred<void>();
 	const runner = createOpenFxHelperJobRunner({
 		descriptor: fixture.descriptor, mode: 'runtime',
 		pluginFingerprint: invocation.pluginFingerprint,
-		invokeHost: (nativeInvocation) => {
+		invokeHost: (nativeInvocation, authority) => {
 			if (nativeInvocation.arguments[0] === '--scan') {
 				return processHandle(Promise.resolve({
 					exitCode: 0, stderr: '',
@@ -251,7 +262,7 @@ test('a spooled OpenFX input replaced while the runtime runs cannot publish a re
 				}));
 			}
 			const grantPath = nativeInvocation.arguments[1]!;
-			runtimeInvoked.resolve({ grantPath });
+			runtimeInvoked.resolve({ grantPath, authority });
 			return processHandle(finishRuntime.promise.then(async () => {
 				const nativeGrant = JSON.parse(String(await readFile(grantPath))) as {
 					output: { path: string };
@@ -261,6 +272,7 @@ test('a spooled OpenFX input replaced while the runtime runs cannot publish a re
 					exitCode: 0, stderr: '', stdout: JSON.stringify({
 						accepted: true, requestedBackend: 'cpu', backend: 'cpu',
 						retriedOnCpu: false, reportsDegradation: false,
+						gpuContextSetup: false, gpuContextReleased: false,
 						outputStreamId: outputBinding.streamId,
 						outputByteLength: outputBytes.byteLength,
 						outputSha256: digest(outputBytes), outputWidth: 1,
@@ -299,7 +311,14 @@ test('a spooled OpenFX input replaced while the runtime runs cannot publish a re
 			path: inputPath,
 		}),
 	]);
-	const { grantPath } = await runtimeInvoked.promise;
+	const { grantPath, authority } = await runtimeInvoked.promise;
+	assert.equal(authority.plugin?.kind, 'file');
+	assert.deepEqual(authority.readOnly.map(({ path }) => path.split('/').at(-1)), [
+		'canonical-plan.json', 'input-00.rgba', 'v12-host-grant.json',
+	]);
+	assert.deepEqual(authority.writeOnly.map(({ path, kind }) => ({
+		name: path.split('/').at(-1), kind,
+	})), [{ name: 'native-output', kind: 'directory' }]);
 	const nativeGrant = JSON.parse(String(await readFile(grantPath))) as {
 		inputs: Array<{ path: string }>;
 	};
@@ -323,6 +342,7 @@ test('runtime output admits exact CPU reporting and rejects hidden GPU degradati
 	const exact = {
 		accepted: true, requestedBackend: 'cpu', backend: 'cpu',
 		retriedOnCpu: false, reportsDegradation: false,
+		gpuContextSetup: false, gpuContextReleased: false,
 		outputStreamId: '90'.repeat(20), outputByteLength: bytes.byteLength,
 		outputSha256: inspected.sha256, outputWidth: 1, outputHeight: 1, outputRowBytes: 4,
 	};
@@ -378,6 +398,9 @@ test('native scanner and runtime arguments are closed and shell-free', () => {
 		arguments: ['--invoke-v12-grant', '/scratch/grant.json', '--grant-sha256', 'ab'.repeat(32)],
 	};
 	assert.deepEqual(openFxHostProcessArguments({ ...v12, cancellationFrame }), v12.arguments);
+	assert.deepEqual(openFxHostProcessArguments({ executablePath: '/runtime/host',
+		arguments: ['--interact-v1-grant', '/scratch/interact.json', '--grant-sha256', 'ab'.repeat(32)],
+	}), ['--interact-v1-grant', '/scratch/interact.json', '--grant-sha256', 'ab'.repeat(32)]);
 	assert.throws(() => openFxHostProcessArguments(v12), /cancellation frame/iu);
 	assert.throws(() => openFxHostProcessArguments({
 		...v12, cancellationFrame: cancellationFrame.replace('abort-1', 'abort-2') + 'trailing',
@@ -439,6 +462,10 @@ async function createFixture(context: test.TestContext) {
 	const descriptor: FramescaperOpenFxHostDescriptor = {
 		target: 'linux-x64', runtime: 'linux-x64', hostVersion: '1.0.0',
 		openfxVersion: '1.5.1', openfxCommit: 'ab77951', scanner, runtimeHost,
+		isolation: {
+			launcher: scanner, sandboxProfile: scanner, brokerPolicy: scanner, runtimeLibraries: [],
+		},
+		productionReadiness: openFxProductionReadinessFixture(scanner.sha256, runtimeHost.sha256),
 	};
 	return {
 		root, descriptor, plugin,
@@ -508,6 +535,7 @@ function scannerDescriptorBytes(binarySha256: string): Buffer {
 		binarySha256, architectureDirectory: 'Linux-x86-64',
 		supportedContexts: ['filter'], parameters: [], components: ['RGBA'],
 		pixelDepths: ['byte'], threading: 'fully-safe',
+		renderBackends: ['cpu'],
 		requestedSuites: ['OfxImageEffectSuite', 'OfxPropertySuite', 'OfxParameterSuite'],
 	}));
 }

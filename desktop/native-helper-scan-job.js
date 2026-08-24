@@ -17,11 +17,9 @@
  * offered.
  */
 
-/** Formats this build can actually inspect. Everything else is gate-blocked. */
-export const SCANNABLE_PLUGIN_FORMATS = Object.freeze({ fixture: '.scapefx' });
-
-/** Formats the register knows about but keeps fail-closed, with their reason. */
-export const GATE_BLOCKED_PLUGIN_FORMATS = Object.freeze({
+/** Closed format-to-candidate mapping; the verified payload declares its subset. */
+export const SCANNABLE_PLUGIN_FORMATS = Object.freeze({
+	fixture: '.scapefx',
 	vst3: '.vst3',
 	clap: '.clap',
 	au: '.component',
@@ -35,45 +33,49 @@ export function createNativePluginScanJobRunner({ loadAddon, addonPath, addonSha
 	if (typeof hashFile !== 'function') throw new TypeError('A file digest function is required.');
 	let addon = null;
 
-	return ({ grant, onProgress }) => {
+	return ({ grant, resourcePolicy, onProgress }) => {
 		let cancelled = false;
 		const completion = (async () => {
 			const format = grant.format;
-			const scannable = Object.hasOwn(SCANNABLE_PLUGIN_FORMATS, format);
-			if (!scannable && !Object.hasOwn(GATE_BLOCKED_PLUGIN_FORMATS, format)) {
+			if (!Object.hasOwn(SCANNABLE_PLUGIN_FORMATS, format)) {
 				return refusal(format, 'unsupported-format', `This build does not implement the ${format} format.`);
 			}
 			addon ??= await loadAddon({ addonPath, addonSha256 });
-			const suffix = scannable ? SCANNABLE_PLUGIN_FORMATS[format] : GATE_BLOCKED_PLUGIN_FORMATS[format];
+			const declared = (await addon.describe?.())?.pluginFormats;
+			const supported = Array.isArray(declared) ? declared.includes(format) : format === 'fixture';
+			if (!supported) {
+				return refusal(format, 'unsupported-format', `This authenticated payload does not implement ${format}.`);
+			}
+			const suffix = SCANNABLE_PLUGIN_FORMATS[format];
 			let candidates;
 			try {
-				candidates = addon.listPluginCandidates(grant.rootPath, suffix);
+				candidates = await addon.listPluginCandidates(grant.rootPath, suffix);
 			} catch (error) {
 				return refusal(format, 'root-unreadable', error instanceof Error ? error.message : String(error));
 			}
-			if (!scannable) {
-				// The format is present on disk and the gate is closed. Saying so is
-				// the honest answer; silently returning nothing would look like the
-				// user's folder was empty.
-				return refusal(format, 'unsupported-format',
-					`Found ${String(candidates.length)} ${format} candidate(s), but the ${format} licensing row is not cleared.`);
-			}
 			const entries = [];
+			let oversized = candidates.length > MAXIMUM_SCAN_ENTRIES;
 			for (const [index, path] of candidates.slice(0, MAXIMUM_SCAN_ENTRIES).entries()) {
 				if (cancelled) break;
 				// Announced BEFORE the dangerous call, never after: a crash during
 				// the inspection must leave main holding this candidate's identity.
 				onProgress((index + 1) / Math.min(candidates.length, MAXIMUM_SCAN_ENTRIES));
 				const digest = await hashFile(path);
-				const inspection = addon.inspectPluginCandidate(path);
-				entries.push(describeEntry(path, digest, inspection));
+				const inspections = inspectionsFor(await addon.inspectPluginCandidate(path, format, {
+					identity: digest.identity, byteLength: digest.byteLength, sha256: digest.sha256, resourcePolicy,
+				}), digest);
+				for (const inspection of inspections) {
+					if (entries.length >= MAXIMUM_SCAN_ENTRIES) { oversized = true; break; }
+					entries.push(describeEntry(path, digest, inspection));
+				}
+				if (oversized) break;
 				await new Promise((resolve) => { setTimeout(resolve, 0); });
 			}
 			return Object.freeze({
 				format,
-				status: 'scanned',
-				detail: candidates.length > MAXIMUM_SCAN_ENTRIES
-					? `Only the first ${String(MAXIMUM_SCAN_ENTRIES)} candidates of ${String(candidates.length)} were inspected.`
+				status: oversized ? 'root-oversized' : 'scanned',
+				detail: oversized
+					? `Only the first ${String(MAXIMUM_SCAN_ENTRIES)} descriptors were inspected.`
 					: '',
 				entries: Object.freeze(entries),
 			});
@@ -86,6 +88,20 @@ export function createNativePluginScanJobRunner({ loadAddon, addonPath, addonSha
 			},
 		});
 	};
+}
+
+function inspectionsFor(value, digest) {
+	if (!Array.isArray(value)) return [value];
+	if (value.length < 1 || value.length > MAXIMUM_SCAN_ENTRIES || value.some((entry, index) => (
+		!entry || typeof entry !== 'object' || !validStableId(entry.stableId)
+		|| value.findIndex((candidate) => candidate?.stableId === entry.stableId) !== index
+	))) return [{ status: 'malformed', detail: 'The bundle descriptor set is ambiguous.', stableId: `unreadable:${digest.sha256}` }];
+	return [...value].sort((left, right) => left.stableId < right.stableId ? -1 : left.stableId > right.stableId ? 1 : 0);
+}
+
+function validStableId(value) {
+	return typeof value === 'string' && value.length > 0 && !value.includes('\0')
+		&& new TextEncoder().encode(value).byteLength <= 512;
 }
 
 function describeEntry(path, digest, inspection) {

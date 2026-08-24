@@ -22,7 +22,7 @@ export const FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES = Object.freeze([
 export type FramescaperNativeProjectActionSurface =
 	(typeof FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES)[number];
 
-type FramescaperNativeProjectAction = () => void | PromiseLike<void>;
+type FramescaperNativeProjectAction = (request?: unknown) => void | PromiseLike<void>;
 
 export type FramescaperNativeProjectActions = Readonly<{
 	[Surface in FramescaperNativeProjectActionSurface]: FramescaperNativeProjectAction;
@@ -30,12 +30,13 @@ export type FramescaperNativeProjectActions = Readonly<{
 
 export interface FramescaperNativeProjectActionRuntime {
 	readonly surfaces: readonly FramescaperNativeProjectActionSurface[];
-	run(surface: FramescaperNativeProjectActionSurface): Promise<void>;
+	run(surface: FramescaperNativeProjectActionSurface, request?: unknown): Promise<void>;
 }
 
 const SURFACE_SET = new Set<string>(FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES);
 const RUNTIMES = new WeakSet<FramescaperNativeProjectActionRuntime>();
 const OWNER_RUNTIMES = new WeakMap<object, FramescaperNativeProjectActionRuntime>();
+const CARRIER_REGENERATORS = new WeakMap<FramescaperNativeProjectActionRuntime, (jobId: string) => Promise<void>>();
 
 export function createFramescaperNativeProjectActionRuntime(
 	actionsValue: FramescaperNativeProjectActions,
@@ -55,15 +56,78 @@ export function createFramescaperNativeProjectActionSubsetRuntime(
 	const actions = exactActions(actionsValue, surfaces);
 	const runtime = Object.freeze({
 		surfaces,
-		run: async (surfaceValue: FramescaperNativeProjectActionSurface): Promise<void> => {
+		run: async (
+			surfaceValue: FramescaperNativeProjectActionSurface,
+			request?: unknown,
+		): Promise<void> => {
 			const surface = exactSurface(surfaceValue);
 			const action = actions[surface];
 			if (!action) throw new Error(`Framescaper candidate action ${surface} is unavailable.`);
-			await action();
+			await action(request);
 		},
 	});
 	RUNTIMES.add(runtime);
 	return runtime;
+}
+
+/** Join disjoint menu-owned action slices without replacing another owner binding. */
+export function composeFramescaperNativeProjectActionRuntimes(
+	value: readonly FramescaperNativeProjectActionRuntime[],
+): FramescaperNativeProjectActionRuntime {
+	if (!Array.isArray(value) || value.length === 0
+		|| value.length > FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES.length
+		|| Reflect.ownKeys(value).length !== value.length + 1
+		|| value.some((runtime) => !isFramescaperNativeProjectActionRuntime(runtime))) {
+		throw new TypeError('Framescaper project-action composition requires exact runtimes.');
+	}
+	const actions: Partial<Record<FramescaperNativeProjectActionSurface, FramescaperNativeProjectAction>> = {};
+	const surfaces: FramescaperNativeProjectActionSurface[] = [];
+	for (const runtime of value as readonly FramescaperNativeProjectActionRuntime[]) {
+		for (const surface of runtime.surfaces) {
+			if (surfaces.includes(surface)) {
+				throw new Error(`Framescaper project action ${surface} has more than one owner.`);
+			}
+			surfaces.push(surface);
+			actions[surface] = (request) => runtime.run(surface, request);
+		}
+	}
+	const composed = createFramescaperNativeProjectActionSubsetRuntime(surfaces, actions);
+	const carrierOwner = value.find((runtime) => CARRIER_REGENERATORS.has(runtime));
+	if (carrierOwner) CARRIER_REGENERATORS.set(composed,
+		(jobId) => runFramescaperNativeCarrierRegeneration(carrierOwner, jobId));
+	return composed;
+}
+
+export function bindFramescaperNativeCarrierRegeneration(
+	runtime: FramescaperNativeProjectActionRuntime,
+	action: (jobId: string) => Promise<void>,
+): void {
+	if (!isFramescaperNativeProjectActionRuntime(runtime)
+		|| !runtime.surfaces.includes('render-queue-enqueue') || typeof action !== 'function'
+		|| CARRIER_REGENERATORS.has(runtime)) {
+		throw new TypeError('Carrier regeneration requires its exact render-queue runtime owner.');
+	}
+	CARRIER_REGENERATORS.set(runtime, action);
+}
+
+export async function runFramescaperNativeCarrierRegeneration(
+	runtime: FramescaperNativeProjectActionRuntime,
+	jobId: unknown,
+): Promise<void> {
+	if (!isFramescaperNativeProjectActionRuntime(runtime)
+		|| typeof jobId !== 'string' || !/^[a-f0-9]{40}$/u.test(jobId)) {
+		throw new TypeError('Carrier regeneration requires an exact durable queue job.');
+	}
+	const action = CARRIER_REGENERATORS.get(runtime);
+	if (!action) throw new Error('The selected project cannot regenerate this renderer carrier.');
+	await action(jobId);
+}
+
+export function hasFramescaperNativeCarrierRegeneration(
+	runtime: FramescaperNativeProjectActionRuntime | null,
+): boolean {
+	return runtime !== null && isFramescaperNativeProjectActionRuntime(runtime)
+		&& CARRIER_REGENERATORS.has(runtime);
 }
 
 export function isFramescaperNativeProjectActionRuntime(

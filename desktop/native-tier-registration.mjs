@@ -13,6 +13,7 @@
 import { registerDesktopHelperProbe } from './helper-registration.mjs';
 import { registerDesktopNativeAudioHelper } from './native-helper-registration.mjs';
 import { registerDesktopPluginDiscovery } from './plugin-registration.mjs';
+import { createSoundscaperNativeActivationPolicy } from './soundscaper-native-activation-policy.mjs';
 
 /**
  * What every registrar behind this seam is entitled to receive. Spreading an
@@ -31,39 +32,77 @@ const REQUIRED_SEAMS = Object.freeze({
 	resourcesPath: 'string',
 	userDataPath: 'string',
 	parentWindow: 'function',
+	productId: 'string',
+	nativePluginStateAuthority: 'function',
 });
 
 export function registerDesktopNativeTier(options) {
 	const seams = requireNativeTierSeams(options);
-	const audio = registerDesktopNativeAudioHelper(seams);
+	let activation = createSoundscaperNativeActivationPolicy({
+		sourceAudit: options.nativeSourceAudit ?? null,
+		productionReadiness: options.nativeProductionReadiness ?? null,
+		pluginIsolationEnforced: options.nativePluginIsolationEnforced === true,
+	});
+	const backendActivated = typeof options.isBackendActivated === 'function'
+		? options.isBackendActivated : (backend) => activation.audioBackend(backend);
+	const pluginFormatActivated = typeof options.isPluginHostFormatActivated === 'function'
+		? options.isPluginHostFormatActivated : (format) => activation.pluginFormat(format);
+	const audio = registerDesktopNativeAudioHelper({
+		...seams, isBackendActivated: backendActivated,
+	});
 	const plugins = registerDesktopPluginDiscovery({
 		...seams,
-		// Discovery reuses the audio helper's supervisor because contract v1
-		// admits one concurrent job: two supervisors over one payload would let a
-		// scan and a device session run at once, which the contract forbids.
-		supervisor: audio.supervisorPort,
-		describePayload: audio.describePayload,
+		isPluginHostFormatActivated: pluginFormatActivated,
+		nativePluginStateAuthority: seams.productId === 'soundscaper'
+			? seams.nativePluginStateAuthority()
+			: null,
 	});
 	return Object.freeze({
 		probe: registerDesktopHelperProbe(seams),
 		audio,
 		plugins,
 		/** The durable stores the surfaces consult, loaded before a window exists. */
-		ready: () => plugins.ready(),
+		ready: async () => {
+			if (seams.productId === 'soundscaper' && options.nativeSourceAudit === undefined) {
+				const payload = await audio.describePayload();
+				if (payload.status === 'available') {
+					activation = createSoundscaperNativeActivationPolicy({
+						sourceAudit: payload.descriptor.sourceAudit,
+						productionReadiness: payload.descriptor.productionReadiness,
+						// The current utilityProcess host is same-UID and has no
+						// authenticated OS launcher, regardless of signed review bytes.
+						pluginIsolationEnforced: false,
+					});
+				}
+			}
+			return plugins.ready();
+		},
 	});
 }
 
-export function disposeDesktopNativeTier(tier) {
-	tier?.probe?.dispose();
-	tier?.audio?.dispose();
-	tier?.plugins?.dispose();
+export async function disposeDesktopNativeTier(tier) {
+	const results = await Promise.allSettled([
+		tier?.probe?.dispose(),
+		tier?.audio?.dispose(),
+		tier?.plugins?.dispose(),
+	]);
+	throwNativeTierFailures(results, 'Desktop native-tier shutdown failed');
 }
 
 /** Every native surface drains together when a renderer goes away. */
-export function revokeDesktopNativeTierOwner(tier, owner) {
-	tier?.probe?.revokeOwner(owner);
-	tier?.audio?.revokeOwner(owner);
-	tier?.plugins?.revokeOwner(owner);
+export async function revokeDesktopNativeTierOwner(tier, owner) {
+	const results = await Promise.allSettled([
+		tier?.probe?.revokeOwner(owner),
+		tier?.audio?.revokeOwner(owner),
+		tier?.plugins?.revokeOwner(owner),
+	]);
+	throwNativeTierFailures(results, 'Desktop native-tier owner revocation failed');
+}
+
+function throwNativeTierFailures(results, message) {
+	const failures = results.filter(({ status }) => status === 'rejected').map(({ reason }) => reason);
+	if (failures.length === 1) throw failures[0];
+	if (failures.length > 1) throw new AggregateError(failures, message);
 }
 
 function requireNativeTierSeams(options) {

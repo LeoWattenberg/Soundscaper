@@ -3,6 +3,7 @@
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../project.js';
 import { RECORDING_CHANNEL_COUNT_MAXIMUM } from '../recording.js';
 import { RECORDING_DEFAULT_DEVICE_ID } from '../recording-routing.js';
+import { soundscaperNativeAudioCaptureChannelCount } from '../soundscaper-native-audio-capture.ts';
 import { scaleSampleFrame } from '../timeline-time.ts';
 
 const LIVE_RECORDING_WAVEFORM_BUCKET_FRAMES = 64;
@@ -92,6 +93,8 @@ export function normalizePreferredOutputDeviceId(deviceId: unknown): string {
 }
 
 export function streamAudioChannelCount(stream: MediaStreamLike | null | undefined): number {
+	const native = stream ? soundscaperNativeAudioCaptureChannelCount(stream as MediaStream) : null;
+	if (native !== null) return native;
 	let channelCount = 1;
 	for (const track of stream?.getAudioTracks?.() || []) {
 		channelCount = Math.max(

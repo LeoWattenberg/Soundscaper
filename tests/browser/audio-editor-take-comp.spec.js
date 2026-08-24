@@ -6,9 +6,9 @@ import {
 } from '../../src/common/editor/project-media-factory.ts';
 import { exportScapeProject, SCAPE_MIME_TYPE } from '../../src/common/editor/scape-project.js';
 import { createProjectStore } from '../../src/common/editor/storage.js';
-import { FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v20.ts';
-import { createFramescaperProjectV20 } from '../../src/framescaper/editor-project-v20.ts';
-import { createSoundscaperProjectV21 } from '../../src/soundscaper/editor-project-v21.ts';
+import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v28.ts';
+import { createFramescaperProjectV28 } from '../../src/framescaper/editor-project-v28.ts';
+import { createSoundscaperProjectV29 } from '../../src/soundscaper/editor-project-v29.ts';
 import {
 	assertAccessibleBasics,
 	assertNoSeriousAxeViolations,
@@ -181,8 +181,8 @@ async function createTakeCompArchive(productId) {
 			persistTone(store, sources[1], 660),
 		]);
 		const createProject = productId === 'soundscaper'
-			? createSoundscaperProjectV21
-			: (options) => createFramescaperProjectV20(FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE, options);
+			? createSoundscaperProjectV29
+			: (options) => createFramescaperProjectV28(FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, options);
 		const project = createProject({
 			id: PROJECT_ID,
 			title: 'Browser take comp project',

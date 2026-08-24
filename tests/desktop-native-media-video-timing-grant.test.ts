@@ -35,6 +35,7 @@ const PLAN = Object.freeze({
 
 function renderGrant() {
 	return {
+		backend: 'native-cpu' as const,
 		executable: {
 			role: 'ffmpeg' as const, path: '/app/framescaper-media-host', bytes: 4_096,
 			sha256: SHA('c'), identity: { dev: 7, ino: 9 },

@@ -153,8 +153,11 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 		controller,
 		renderInputs: {
 			begin: async () => { throw new Error('unused'); },
+			beginLive: async () => { throw new Error('unused'); },
 			receive: async () => { throw new Error('unused'); },
 			finalize: async () => { throw new Error('unused'); },
+			writeLive: async () => { throw new Error('unused'); },
+			completeLive: async () => { throw new Error('unused'); },
 			abandon: async (_owner: object, request: Readonly<{ stageId: string }>) => {
 				abandonedRenderInputs.push(request.stageId);
 			},
@@ -297,7 +300,7 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 	assert.equal(await bridge.revokeRoot({ grantId: GRANT_ID }), true);
 
 	for (const method of [
-		'enqueue', 'abandonRenderInputs', 'selectRoot', 'revalidateRoot', 'revokeRoot', 'createWatch', 'setWatchEnabled',
+		'enqueue', 'abandonRenderInputs', 'selectRoot', 'reauthorizeQueueRoot', 'revalidateRoot', 'revokeRoot', 'createWatch', 'setWatchEnabled',
 		'removeWatch', 'reconcileWatch', 'cleanupScratch', 'publish', 'checkpoint',
 		'externalDisplays', 'setExternalDisplay',
 	] as const) assert.equal(typeof bridge[method], 'function', method);

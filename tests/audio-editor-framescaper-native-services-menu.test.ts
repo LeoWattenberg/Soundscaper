@@ -77,7 +77,7 @@ test('the surfaces sit in the menu families the plan names', () => {
 	]);
 	assert.deepEqual(items.effect.map((item) => item.id), ['framescaper-video-effects']);
 	assert.deepEqual(items.effect[0]?.items?.map((item) => item.id), [
-		'framescaper-ofx-add', 'framescaper-ofx-manage',
+		'framescaper-ofx-add', 'framescaper-ofx-manage', 'framescaper-ofx-interact',
 	]);
 });
 
@@ -352,6 +352,7 @@ function surfaceFor(id: string): FramescaperNativeServiceSurface | null {
 		'framescaper-native-media-preferences': 'native-media-preferences',
 		'framescaper-ofx-add': 'ofx-add',
 		'framescaper-ofx-manage': 'ofx-manage',
+		'framescaper-ofx-interact': 'ofx-interact',
 	};
 	return map[id] ?? null;
 }

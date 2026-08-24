@@ -10,8 +10,9 @@
  *
  * Candidate V25/V26 custody keeps two entries reachable even while the native
  * tier is switched off or unavailable: preferences and OFX management. The
- * selected V27 route is Milestone 1–4 only and exposes none of this Milestone 5
- * surface. Everything else is disabled with the capability it needs.
+ * historical V27 route is Milestone 1–4 only and exposes none of this surface.
+ * Selected V28 exposes each operation only when its capability and action port
+ * are both authenticated. Everything else is disabled with the capability it needs.
  */
 
 import {
@@ -47,6 +48,7 @@ export const FRAMESCAPER_NATIVE_SERVICE_SURFACES = Object.freeze([
 	'native-media-preferences',
 	'ofx-add',
 	'ofx-manage',
+	'ofx-interact',
 ] as const);
 
 export type FramescaperNativeServiceSurface =
@@ -63,6 +65,7 @@ export const FRAMESCAPER_ACTIONABLE_NATIVE_SERVICE_SURFACES:
 	readonly FramescaperNativeServiceSurface[] = Object.freeze([
 		...FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES,
 		'background-jobs', 'watch-folders', 'native-media-preferences', 'ofx-manage',
+		'ofx-interact',
 	]);
 
 const ACTIONABLE_SURFACES = new Set(FRAMESCAPER_ACTIONABLE_NATIVE_SERVICE_SURFACES);
@@ -150,8 +153,9 @@ export function createFramescaperNativeServicesMenuItems(
 		input.projectActionSurfaces?.includes(surface) === true
 	);
 	const schemaVersion = projectSchemaVersion(input.project);
-	const professionalMediaProject = schemaVersion === 25 || schemaVersion === 26;
-	const openFxProject = schemaVersion === 26;
+	const professionalMediaProject = schemaVersion === 25 || schemaVersion === 26
+		|| schemaVersion === 28;
+	const openFxProject = schemaVersion === 26 || schemaVersion === 28;
 	const leaf = (
 		id: string,
 		label: string,
@@ -215,6 +219,8 @@ export function createFramescaperNativeServicesMenuItems(
 					&& projectAction('ofx-add')),
 			// Always reachable: this is where consent is granted and quarantine cleared.
 			leaf('framescaper-ofx-manage', copy.ofxManage, 'ofx-manage', true),
+			leaf('framescaper-ofx-interact', copy.ofxInteract, 'ofx-interact',
+				openFxProject && projectCapability('ofxEffects') && ofxUsable),
 		])]),
 	});
 }

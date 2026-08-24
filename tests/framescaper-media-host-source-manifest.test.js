@@ -76,11 +76,11 @@ test('the candidate recipe disables network, raw FFmpeg arguments, and external 
 		rawFfmpegArguments: false,
 		network: false,
 		externalLibraries: [],
-		enabledDecoders: ['prores'],
-		enabledEncoders: ['prores_ks'],
-		enabledDemuxers: ['mov'],
+		enabledDecoders: ['prores', 'pcm_f32le'],
+		enabledEncoders: ['prores_ks', 'pcm_s16le'],
+		enabledDemuxers: ['mov', 'wav'],
 		enabledMuxers: ['mov'],
-		enabledProtocols: ['file'],
+		enabledProtocols: ['file', 'pipe'],
 		blockedComponents: [
 			'av1', 'exr', 'h264', 'hevc', 'libvpx-vp9', 'libx264', 'png', 'tiff', 'vp9',
 		],
@@ -128,7 +128,8 @@ test('the C++20 contract fixture self-tests and rejects raw FFmpeg arguments', (
 			'-DFRAMESCAPER_MEDIA_HOST_CONTRACT_ONLY=1', '-I', join(hostRoot, 'src'),
 			...[
 				'media_host.cpp', 'image_sequence_pack.cpp', 'legacy_plan_semantics.cpp',
-				'legacy_plan_v8_filter_semantics.cpp', 'media_file_grants.cpp', 'media_plan.cpp',
+				'legacy_plan_v8_filter_semantics.cpp', 'media_file_grants.cpp',
+				'media_host_arguments.cpp', 'media_plan.cpp',
 				'sha256.cpp', 'strict_json.cpp',
 			].map((file) => join(hostRoot, 'src', file)),
 			'-o', executable,
@@ -151,6 +152,16 @@ test('the C++20 contract fixture self-tests and rejects raw FFmpeg arguments', (
 			staticGeometryAdapterBound: false, captionDeliveryAdapterBound: false,
 			stagedAudioInputBound: false, deliveryCodecSetAvailable: false,
 			frameCoreReady: false, ready: false,
+		});
+		const selectedV14 = spawnSync(
+			executable, ['--self-test-operation', 'selected-v28-v14-render'], { encoding: 'utf8' },
+		);
+		assert.equal(selectedV14.status, 78, selectedV14.stderr);
+		assert.deepEqual(JSON.parse(selectedV14.stdout), {
+			contractVersion: 1, operation: 'media-render', profile: 'selected-v28-v14-carrier',
+			planVersion: 14, rgbaFramePackVersion: 1, exactPictureOrdinals: false,
+			evaluatedRgbaExecutor: false, maximumInFlightFrames: 0,
+			stagedAudioInputBound: false, deliveryCodecSetAvailable: false, ready: false,
 		});
 		const capabilities = spawnSync(executable, ['--capabilities'], { encoding: 'utf8' });
 		assert.deepEqual(JSON.parse(capabilities.stdout), {

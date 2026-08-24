@@ -1,12 +1,11 @@
 # Milestone 5B pickup: Framescaper native tier
 
-> **Current-route note (2026-08-23):** Framescaper V27 is the selected M1–M4
-> activation candidate. Packaged Framescaper mounts a dormant fail-closed M5
-> services bridge, but V27 binds no native-media or OpenFX menu, project
-> mutation, or execution authority to it. V20 through V26 labels below identify
-> historical foundations, candidate contracts, typed errors, or dormant custody—
-> not the selected product route. V25/V26 stay recognized, opaque, read-only,
-> and no 5B activation is claimed.
+> **Current-route note (2026-08-24):** Framescaper V28 is the selected Milestone
+> 5 product schema, with exact render plan V14 and desktop library V19. V20
+> through V27 labels below identify historical foundations or re-import sources;
+> V25/V26 remain recognized, opaque, read-only custody rather than an activation
+> shortcut. The selected source routes are still fail-closed at payload and
+> readiness policy, and no 5B qualification or release activation is claimed.
 
 > Owning pickup contract for the Framescaper half of milestone 5. The
 > [milestone-5 plan](milestone-5-plan.md) owns the shared 5.0 helper contract
@@ -17,25 +16,60 @@
 
 ## Pickup status and sequencing
 
-**Audited status on 2026-08-22:** 5B is in progress and is not qualified. The
-earlier claim that the whole software substrate was implemented was inaccurate:
-it described validated domain records and fail-closed policy seams as though
-the native controller, persistent repositories, media executors, packaged
-helpers, and isolated OpenFX hosts also existed. The implementation record below
-now distinguishes those layers. Framescaper V27 is the selected M1–M4
-activation candidate for web and desktop, pending guided-local sign-off and
-external qualification. It does not select or qualify V20–V26 native candidates
-or satisfy any licensing, binary, signing, hardware, display, or manual gate.
+**Audited status on 2026-08-24:** the selected Framescaper V28/V14/V19 Milestone
+5B software route is complete, but 5B is not qualified or activated. V20 through
+V27 remain historical implementation foundations or explicit re-import sources;
+V25/V26 documents retain opaque, read-only custody and provide no activation
+shortcut. This record distinguishes source-complete product software from every
+external payload, readiness, platform, and release claim.
 
-Milestones 2 through 4 and the milestone 5.0 acceptance checks are all still
-open, and 5B does not exit ahead of them. The locally green historical V20 route
-was the coding prerequisite for the V22/V24/V25/V26 candidates; each candidate remains
-dormant until its own exact-schema, migration, compatibility, licensing,
-payload, self-test, target, signing, and manual gates pass. No native capability
-is activated merely because its source contract exists. Native media, hardware
-decode, hardware encode, and OpenFX consent all default off. Runtime manifests
-may name only payloads that were actually built and digest-verified; an
-unavailable target remains absent or `pending-external`.
+Framescaper V28 is therefore the selected Milestone 5 route with exact V14
+render authority and desktop library V19; that identity is an implementation
+boundary, not a qualification verdict.
+
+V28 owns exact V14 project/render authority, one evaluated-RGBA carrier plus
+optional float32 audio, a main-owned render queue and persistent services V3,
+pathless source-body staging, the exact watch/bin/proxy flow, and lease-fenced
+publication. Proxy and image-sequence actions are connected only through their
+existing menu families. Native hardware encode dispatch uses the admitted
+Windows, macOS, and Linux backends; a typed hardware failure permits exactly one
+native-CPU retry with the identical plan and fingerprint. Image-sequence output
+is built under helper scratch, sealed as an exact regular-file tree, and
+revalidated before broker-relative no-clobber main-owned destination
+publication. Completed broker trees cannot replace one another because every
+authenticated tree is non-empty. Node 26 has no portable directory
+`RENAME_NOREPLACE`, however, so an external same-user process can race an empty
+destination into the preflight/rename window; cross-process atomic no-clobber
+remains unqualified.
+
+The OpenFX route is also software-complete and production-closed. The selected
+menu model owns scan, enable, and Add OFX menu actions. One shared context-aware
+exact frame graph maps all six contexts at their true intermediate planes for
+preview, browser export, and native V14 carrier creation. The bounded React
+Interact route uses Interact Suite V1, custom parameters, DrawSuite V1,
+normalized pointer/keyboard/focus events, and no native plug-in window. Authored
+state selects bypass or an already-verified frozen result while preserving every
+parameter when a binary is missing, changed, crashed, or quarantined.
+
+The native-source audit authenticates 0 of 10 required exact
+archive/extracted-tree inputs. Both five-target 5B payload manifests are empty,
+every target is `pending-external`, and every OpenFX target has null production
+readiness. Per-OS launcher source/contracts/tests exist, but authenticated built
+launchers and independently signed readiness do not. Source execution tests
+therefore create no codec, third-party-execution, package, performance, GPU, or
+platform-support claim.
+
+For this implementation branch, milestones 1 through 4 are accepted as
+formally validated prerequisites. Milestone 5.0 acceptance; codec/container,
+hardware, FFmpeg corresponding-source/patent/notices, OpenFX, and trademark
+clearance; payload and target toolchains; signed/notarized packages and release
+keys; independent isolation review; readiness signatures; manual runs; and
+native-lab qualification remain independent and open. No accepted cohort or
+manual package exists. No native capability is activated merely because its
+source contract exists. Native media, hardware decode/encode, and OpenFX consent
+remain default-off and fail closed. Runtime manifests may name only payloads
+that were actually built and digest-verified; an unavailable target remains
+absent or `pending-external`.
 
 The milestone-7 assistance implementation is not a 5.0-conformant substrate
 unless it has first been re-audited and revised under the shared helper
@@ -91,7 +125,7 @@ Research changes land on a clean branch as narrow docs, fixture, or test-only
 commits. They do not edit the 5.0 wire contract or claim qualification from an
 unprovisioned lab.
 
-## Implementation record (audited 2026-08-22)
+## Implementation record (audited 2026-08-24)
 
 This packet is split by what the repository actually contains. A validated
 record, menu model, or port declaration is useful substrate, but is not an
@@ -104,12 +138,13 @@ registered evidence row is not a measured result.
 | Project | Desktop library / SQLite / scope | Clipboard | Render plan | Route status |
 | --- | --- | ---: | ---: | --- |
 | V19 | V11 / 13 / `v11` | V5 | V8 | Reserved dormant boundary |
-| V20 | V12 / 14 / `v12` | V6 | V7 keyed + V8 static | Historical provisional route; superseded by V27 |
+| V20 | V12 / 14 / `v12` | V6 | V7 keyed + V8 static | Historical provisional route; superseded by V28 |
 | V22 | V13 / 15 / `v13` | V7 | V9 | Dormant transitions candidate |
 | V24 | V14 / 16 / `v14` | V8 | V10 | Dormant visual-model candidate |
 | V25 | V15 / 17 / `v15` | V9 | V11 | Dormant professional-media candidate |
 | V26 | V16 / 18 / `v16` | V10 | V12 | Dormant OpenFX candidate |
-| V27 | V18 / 20 / `v18` | V11 | V13 | Selected M1–M4 activation candidate; no M5 authority; guided/external qualification open |
+| V27 | V18 / 20 / `v18` | V11 | V13 | Maintained historical re-import source for V28 |
+| V28 | V19 / 21 / `v19` | V12 | V14 | Selected Milestone 5 route; software complete, external qualification open |
 
 V18 and V19 project media still requires typed re-import; the historical
 desktop V10 library is not migrated. Future schemas remain opaque read-only,
@@ -121,15 +156,16 @@ generation identity is authenticated inside each handshake.
 
 | Area | Implemented scope |
 | --- | --- |
-| Historical V20 foundation | Both App branches authenticated V20, enabled `videoKeyframes`, preserved V18/V19-owned behavior, and used the distinct desktop V17 boundary with immutable V12 copy-forward. Selected V27 supersedes this route; the V20 native machinery remains dormant historical candidate state. |
+| Selected V28 route | V28/V14/V19 owns the maintained project, queue, body-custody, proxy, image-sequence, and OpenFX state/action boundaries. Production admission remains the intersection of project capability, authenticated payload, readiness, licensing, user opt-in, and capacity; unavailable native work preserves Web Core or a typed requirement without mutating the project. |
+| Historical V20 foundation | Both App branches authenticated V20, enabled `videoKeyframes`, preserved V18/V19-owned behavior, and used the distinct desktop V17 boundary with immutable V12 copy-forward. Selected V28 supersedes this route; the V20 native machinery remains historical implementation state. |
 | Milestone-4 prerequisites | V22 transition and dissolve state plus V24 still/generator/adjustment/preset/mask/matte/freeze models include validation, commands/history where applicable, clipboard, archive, storage, desktop transport, and dormant capability profiles. |
 | Exact render authority | Unified V9–V12 validators, canonical serializers/fingerprints, native envelopes, Web/native summaries and goldens exist. The exact retime ordinal oracle uses bounded arbitrary-precision rational arithmetic with a pinned Boost.Multiprecision 1.92.0 header closure. |
-| Helper/media contract | Contract v1 owns exact media/OFX grants and results, 64 KiB control messages and a digest/length-bound 16 MiB-chunk MessagePort data plane. The one-to-four-worker pool defaults to two, runs one job per worker, self-tests before work and falls back hardware → native CPU → Web without plan drift. |
-| Native media source | A C++20 FFmpeg 9.0.1 source pin, five-target build recipes, full extracted-tree authentication, exact Boost-header-closure verification and an empty fail-closed payload manifest exist. The closed recipe enables only ProRes decode/encode, MOV demux/mux and local files. Opt-in ambient developer-binary fixtures can exercise probe, bounded RGBA, ProRes Proxy/MOV and narrow identity-render paths, but they are not authenticated to that recipe. A bounded dormant historical-V20 V7 CPU frame core captures exact cadence, source ordinals, opacity and layered composition one frame at a time. V7 renderer production emits one authenticated evaluated-RGBA frame pack plus optional float32 WAV; main durably stages, claims and reclaims those inputs, and the carrier adapter applies exact rational timestamps, performs bounded H.264/AAC or VP9/Opus CPU encode, observes cancellation, and rechecks every source plus the temporary output before publication. V8 uses authenticated original-source authority and emits no RGBA carrier: an audio-bearing plan may stage one WAV, while silent V8 has no derived-input stage. Its closed admission captures detached residual presentation, render-description consistency and decomposition, layer order, effect/filter redundancy, delivery color, intervals and overlap opacity; this is static-semantic admission, not decode, static-geometry execution or an adapter. V8 mux, burn-in and sidecar captions refuse first with typed unsupported-caption-adapter; any other historical V20 V8 request returns the legacy-identified typed unsupported-selected-v20-static-adapter. The authenticated historical-V20 candidate operation self-test therefore remains not ready, and recipe-authenticated delivery codec evidence is also absent. V9–V12 receive closed semantic admission without serializing presentation ticks into canonical plans and cross renderer, sandbox preload and main queue with a required null derived-input stage, bypassing the legacy carrier repository. Their production queue/helper route retains declarative SCTI references, resolves exact V12 timing bodies, preflights scratch, stages bodies sequentially, mints dedicated timing grants and authenticates exact VFR ordinals in the native host. The dormant V26 route resolves current-project SCTI bodies, stages ordered digest-bound MessagePort timing grants, and authenticates VFR boundaries in the helper/native host before exact Retimer `SourceTime` comparison. V9–V12 and V26 remain dormant; broader graph execution remains typed unsupported after authority and timing authentication, and shipped VFR/Retimer execution remains unavailable, so production remains disabled. |
-| Persistent services | Native-services database V2, legacy-plan blocking, queue/root/watch/scratch repositories, lease fencing, recovery, idempotent publication, external-display controller, main registration and pathless preload/controller bridge exist. The dormant native-services composition mounts exact V17 project authority, digest-bound source-body handoff, historical V20 queue admission, renderer-fed display, recovery staging, and a pathless watch-import mutation broker. Queue execution additionally requires a mounted main-owned physical-capacity authority. Each pass closes host CPU, free-memory, scratch-volume, durable-reservation, minimum-free-space and hardware budgets before the lease-fenced repository writer-atomically claims queued rows; the dispatcher executes only returned claims, and absent capacity authority keeps queue/proxy capability unavailable. Image-sequence checkpoints bind the plan fingerprint, source-inventory digest and frame count; recovery re-hashes the retained contiguous prefix and treats stale, malformed or tampered evidence as zero progress. Restart recovery detects the exact project-bin digest before recording a save whose watch acknowledgement was interrupted. Packaged Framescaper mounts this substrate fail-closed, while selected V27 binds no M5 menu, project mutation, or execution authority and does not activate the queue. Operations remain unavailable unless every off-by-default capability and runtime gate agrees. |
-| V25 professional media | The existing characteristics model carries color/HDR/alpha detail; compact digest-bound image-sequence inventories and packs plus proxy generate/attach/detach/relink/reattest/adaptive/offline/cleanup state are persisted in a dormant exact candidate. Its menu-owned action accepts only pathless selected streams, resolves numeric order, rejects gaps and duplicates, publishes inventory and pack through rollback ports, binds native admission to project/revision/source/digests, and commits the source plus Project Bin clip in one history/CAS mutation. The historical V20 registration supplied no V25 mutation authority, and selected V27 keeps V25 opaque and read-only. The native probe source reports the full V25 bit-depth, pixel/chroma, range, color/HDR and alpha schema and its source self-test matches those characteristics; `alphaInterpretation` and start timecode may truthfully remain null. No authenticated payload exists, so shipped capability remains unavailable despite the implemented probe and self-test. The host source authenticates the compact sequence pack, and an opt-in ambient PNG fixture exists, but the closed recipe enables no PNG, TIFF or OpenEXR decoder and no recipe-authenticated codec evidence exists. Originals and source packs remain export authority. |
-| V26 OpenFX | The OpenFX 1.5.1 signed tag is pinned; fingerprint-bound effect state, context/input/parameter/keyframe/fallback contracts and separate short-lived scanner/per-fingerprint runtime source recipes exist. A closed two-executable selector re-verifies byte length, digest and file identity before every spawn. Even a future built row is unavailable without a reviewed readiness record binding the target and both executable digests to OS isolation and real third-party execution evidence; every current row has `productionReadiness: null`. Electron main owns one-shot scanner utility processes and one supervised runtime per plug-in fingerprint; their adapters authenticate scanner grants and exact V12 data-plane jobs. Utility self-tests reject fixture mode, ambient authority, absent isolation, absent third-party execution, or the wrong pinned OFX identity before hello. Main resolves declarative SCTI references only through current-project custody and stages ordered digest-bound timing ports; the helper and native host reauthenticate the bytes and VFR boundaries before comparing Retimer `SourceTime` to the exact ordinal oracle. The controlled fixture exercises all six contexts and the V1 suite surface with bounded full RGBA planes, named inputs, padded rows and digest-verified output, and rasterizes offscreen events through the `kOfxImageEffectPluginPropOverlayInteractV2` property backed by Interact Suite V1 and DrawSuite V1. The renderer-facing inventory/scan/enable/Add source route and verified future-payload stager are source-implemented and candidate-tested. Shipped activation remains unavailable because V26/ofxEffects and runtime readiness are false, both manifests are empty, and genuine payload, signing, isolation and target evidence are absent. The interactive React event/compositing route and production-attested third-party execution/frame integration also remain unavailable; production therefore refuses third-party loading and no shipped process loads a plug-in binary. |
-| Product/evidence surfaces | Framescaper-only menu models, lazy native-services dialogs, default-off settings and five strict workload-runner, measurement-validator, and digest-bound evidence-writer pipelines are present. Dormant V22/V24 transition and visual commands plus V25/V26 native actions are reachable through existing menus only when their exact candidate controller, project profile and runtime capabilities agree; selected V27 does not bind those M5 actions. Image-sequence selection keeps paths in main and exposes owner-bound opaque range capabilities. Each evidence pipeline can directly spawn one absolute executable without a shell, under bounded time/output, and admits exactly one pipeline-bound JSON diagnostic; hosted execution is refused. Accepted publication still occurs only when the exact lab environment, target fingerprint, fixture, workload, threshold cohort, and observed measurement all agree. Browser coverage exercises keyboard/focus return, forced colors and serious/critical axe checks. Soundscaper receives no 5B surface. |
+| Helper/media contract | Contract v1 owns exact media/OFX grants and results, 64 KiB control messages and a digest/length-bound 16 MiB-chunk MessagePort data plane. The one-to-four-worker pool defaults to two, runs one job per worker, self-tests before work, and permits hardware → native CPU without plan drift. Exhausting both native attempts returns a typed requirement for the existing renderer-owned Web Core route rather than executing Web work in main or claiming a native result. |
+| Native media source | The selected V28 route binds immutable exact V14 authority, an evaluated-RGBA carrier plus optional float32 WAV, current-project/body/timing custody, bounded helper execution, and broker-relative no-clobber publication. OS-native hardware encode dispatch covers the admitted Windows MF/QSV/NVENC/AMF, macOS VideoToolbox, and Linux VAAPI/QSV/NVENC/AMF paths; decode-only mechanisms are refused for encode. A typed hardware failure permits one exact native-CPU retry with identical plan/fingerprint. If both native attempts fail, production reports `web-core-required` and directs the user to the existing renderer-owned Web Core export route; it does not synthesize a native receipt or automatically execute that renderer route. An image-sequence output tree is created only in helper scratch, seals the exact regular-file inventory and aggregate digest, detects symlink/replacement/tamper/replay, and is revalidated before main-owned destination publication. Completed broker trees cannot replace one another, but Node's lack of a portable directory no-replace rename leaves external same-user empty-destination races unqualified. Source recipes and local contract fixtures exist, but the external acquisition audit remains 0/10 and the media payload manifest remains empty. |
+| Persistent services | Persistent services V3 mount exact V28/V14/V19 project authority, selected queue admission, current-project/body custody, physical-capacity sampling, pathless watch/bin/proxy mutation, scratch reservations, checkpoint recovery, idempotent lease-fenced publication, and external display. The watch broker binds exact project-bin/proxy digests, records landed state before acknowledgement, and resumes proxy-only work after restart without replaying a project mutation. Missing capacity, payload, readiness, or capability authority leaves operations unavailable without mutating the project. |
+| Professional media | V28 consumes the V25 characteristics, image-sequence, and proxy contracts through selected menu-owned actions. Pathless selection, numeric ordering, gap/duplicate refusal, Project Bin CAS, exact inventory/pack identity, generate/attach/detach/relink/reattest/adaptive/offline/cleanup, and authenticated sequence publication are source-complete. The selected decode carrier admits only opaque 8-bit sRGB/RGB/full-range pixels; 16-bit PNG/TIFF, float OpenEXR, HDR, alpha, and incompatible or unreported color are typed refusals before project mutation, not silently flattened. Image-sequence export may preserve the evaluated RGBA8 carrier's 8-bit alpha, but does not upgrade its precision or HDR metadata. No authenticated PNG, TIFF, OpenEXR, codec, hardware, signing, or package payload evidence exists, so originals remain export authority and the shipped capability stays unavailable. |
+| OpenFX | The selected V28 route retains fingerprint-bound state, descriptors, all 16 parameter types, keyframes, named inputs, fallback, one-shot scan, per-fingerprint supervision, exact V14 frame grants, and the menu-owned scan/enable/Add OFX flow. A shared context-aware exact graph maps Generator, Filter, Transition, Paint, Retimer, and General at true intermediate planes for preview, browser export, and native carrier execution, including transition SourceFrom/SourceTo, Retimer SourceTime, masks, and named inputs. The bounded React Interact route uses Interact Suite V1/custom parameters/DrawSuite V1 and normalized events without native windows. The payload manifest is empty, production readiness is null on every target, and no shipped process loads a third-party binary. |
+| Product/evidence surfaces | Framescaper-only menu models, lazy native-services dialogs, default-off settings, and strict workload runners/validators/writers are implemented for V28. Accepted evidence publication still requires the exact lab, target fingerprint, fixture, threshold cohort, and observed measurement. The audit currently reports zero accepted cohorts and no manual or readiness-signature evidence. Soundscaper receives no 5B surface. |
 
 The `PersistentRenderQueuePortV1` and `ExternalDisplayPortV1` contracts remain
 registered in platform policy. HEVC/AV1, image-sequence still formats,
@@ -138,25 +174,13 @@ with named blockers.
 
 ### Still open and release-blocking
 
-- **Native payloads and executable feature depth.** Both 5B payload manifests
-  contain zero payloads and all five targets are `pending-external`. The media
-  host's V7 evaluated-RGBA/optional-audio encoder, carrierless V8
-  original-source/static-semantic admission, and the OpenFX scanner/runtime
-  V12 conformance seam are source candidates, not shipped
-  decode/encode/render/proxy or third-party hosting. The historical-V20
-  candidate operation self-test remains not ready until native static-geometry execution/adapter,
-  caption-delivery evidence and recipe-authenticated delivery codecs exist. The
-  native media queue/helper route authenticates digest-bound VFR timing bytes, and
-  the dormant OpenFX candidate now authenticates project-custodied SCTI before exact
-  `SourceTime` comparison, but shipped and production-attested Retimer execution,
-  transitions, visual/mask/generator graphs, broader
-  V9–V12 execution, broader professional-media graphs and
-  hardware backends remain typed fail-closed. OpenFX's inventory/scan/enable/Add
-  source route and verified future-payload stager are candidate-tested, but
-  shipped activation remains unavailable because no genuine built row or
-  readiness evidence exists. The interactive React event/compositing route,
-  production-attested third-party execution/frame integration and reviewed isolation remain
-  absent.
+- **Native sources and payloads.** The acquisition audit authenticates 0/10
+  exact archive/extracted-tree inputs. Both 5B payload manifests contain zero
+  payloads; all five targets are `pending-external`, and every OpenFX readiness
+  field is null. The complete selected media, hardware retry, professional
+  sequence/proxy, persistent V3, OpenFX frame-graph, and Interact software routes
+  therefore remain non-shipping source implementation rather than codec,
+  third-party execution, GPU, performance, or platform evidence.
 - **Licensing clearance.** Professional codec/container, hardware, FFmpeg
   corresponding-source/patent, and OpenFX rows remain blocked. Source pins and
   notices do not clear a licensing or redistribution gate.
@@ -166,12 +190,15 @@ with named blockers.
   a CLI override—and additionally requires the exact registered target
   fingerprint and qualified workload/fixture cohort. No throughput, timing,
   RSS, display, GPU or hardware claim is qualified.
-- **Packaging and signing evidence.** No five-target packaged execution,
-  Windows Arm64EC or Linux aarch64 host proof, signing, notarization, codec,
-  display, GPU, or manual qualification result exists.
-- **Activation.** V22 through V26 stay dormant, native media/hardware/OFX
-  settings default off, and all operational actions remain unavailable unless
-  both project and authenticated runtime capabilities permit them.
+- **Packaging, review, and signing evidence.** No authenticated built launcher
+  or target payload, independent signed isolation-readiness decision,
+  five-target packaged execution, Windows Arm64EC or Linux aarch64 host proof,
+  signing/notarization identity, release key, codec/display/GPU result, manual
+  run, or accepted qualification cohort exists.
+- **Activation.** Native media/hardware/OFX settings default off. Menu-owned V28
+  actions are present, but operational work remains unavailable unless exact
+  project, capability, authenticated payload, licensing, readiness, capacity,
+  and user-consent authorities all agree.
 
 Security and threat-model rows follow the enacted pathless controller and
 source candidates while retaining these blockers. A build recipe is never
@@ -297,6 +324,16 @@ The required professional baseline is:
 | --- | --- |
 | Decode | AVC/H.264, HEVC/H.265, VP9, AV1, ProRes, DNxHR, PNG/TIFF/OpenEXR sequences |
 | Encode | Existing MP4/WebM profiles, ProRes/MOV, DNxHR/MXF, FFV1/Matroska, alpha PNG/TIFF/OpenEXR sequences |
+
+The current selected image-sequence decode carrier accepts only opaque 8-bit
+sRGB/RGB/full-range pixels. Its PNG/TIFF/OpenEXR decode profile rows therefore
+declare an 8-bit preservation ceiling, no HDR preservation, and no alpha
+support. Higher-bit-depth or float sources, HDR, alpha, and incompatible or
+unreported color are typed refusals before import or decode. Sequence export
+can preserve the evaluated RGBA8 carrier's 8-bit alpha into the selected file
+format, but does not upgrade precision or preserve HDR metadata. The remaining
+high-precision/HDR/alpha-decode baseline stays open rather than being
+relabelled as preserved.
 
 Every operation, codec, container, profile, and hardware combination has a
 fail-closed licensing and provenance row. Because this baseline is required,

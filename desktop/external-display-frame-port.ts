@@ -14,7 +14,6 @@ import {
 	validateHelperDataPlaneBinding,
 	validateHelperDataPlaneMessage,
 } from './helper-data-plane.ts';
-import type { FramescaperNativeServicesController } from './native-services-controller.ts';
 
 export const FRAMESCAPER_EXTERNAL_DISPLAY_FRAME_PORT_CHANNEL =
 	'framescaper:v1:native-services:display:frame-port';
@@ -53,7 +52,12 @@ export interface FramescaperExternalDisplayFramePortOptions {
 	readonly on: (channel: string, listener: FramePortListener) => void;
 	readonly removeListener: (channel: string, listener: FramePortListener) => void;
 	readonly authorizeOwner: (event: unknown) => boolean;
-	readonly controller: FramescaperNativeServicesController;
+	readonly controller: FramescaperExternalDisplayControllerPort;
+}
+
+interface FramescaperExternalDisplayControllerPort {
+	externalDisplays(): Readonly<{ readonly activeDisplayId: string | null }>;
+	presentExternalDisplay(frame: FramescaperExternalDisplayFrame): unknown;
 }
 
 export interface FramescaperExternalDisplayFramePortRegistration {
@@ -100,7 +104,7 @@ export function registerFramescaperExternalDisplayFramePort(
 }
 
 async function acceptFrame(
-	controller: FramescaperNativeServicesController,
+	controller: FramescaperExternalDisplayControllerPort,
 	event: unknown,
 	value: unknown,
 	signal: AbortSignal,

@@ -1,16 +1,17 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Streaming validation for selected-V20 renderer-derived V7/V8 carriers. */
+/** Streaming validation for exact renderer-evaluated V7/V8/V14 carriers. */
 
 import { createHash } from 'node:crypto';
 import { lstat, open } from 'node:fs/promises';
 
-import type { NativeMediaPlanEnvelopeV1 } from '../src/common/editor/native-media-plan-envelope.ts';
 import { nativeMediaEvaluatedCarrierCadenceV1 } from '../src/common/editor/native-media-evaluated-carrier-v1.ts';
+import type { NativeMediaPlanEnvelopeV2 } from '../src/common/editor/native-media-plan-envelope-v2.ts';
 import { HELPER_DATA_CHUNK_MAXIMUM_BYTES } from './helper-data-plane.ts';
 import type { HelperNativeFileIdentity } from './helper-native-job-contract.ts';
+import type { NativeRenderInputEnvelope } from './native-services-render-input-contract.ts';
 
-export const FRAMESCAPER_NATIVE_RENDER_AUDIO_MAXIMUM_BYTES = 2 * 1_024 ** 3;
+export const FRAMESCAPER_NATIVE_RENDER_AUDIO_MAXIMUM_BYTES = 16 * 1_024 ** 3;
 const CARRIER_MAGIC = Buffer.from('framescaper-rgba-frame-pack-v1\n', 'ascii');
 const HEADER_BYTES = 59;
 const FRAME_HEADER_BYTES = 32;
@@ -28,11 +29,11 @@ export interface FramescaperNativeRenderInputDescriptorV1 {
 export async function inspectNativeRenderDerivedFile(
 	path: string,
 	descriptor: FramescaperNativeRenderInputDescriptorV1,
-	envelope: NativeMediaPlanEnvelopeV1 & Readonly<{ planVersion: 7 | 8 }>,
+	envelope: NativeRenderInputEnvelope,
 ): Promise<void> {
 	await inspectExactNativeRenderInputFile(path, descriptor);
 	if (descriptor.role === 'evaluated-rgba-frame-pack') {
-		if (envelope.planVersion !== 7) {
+		if (envelope.planVersion !== 7 && envelope.planVersion !== 14) {
 			throw new Error('A selected-V20 V8 plan cannot acquire an evaluated RGBA carrier.');
 		}
 		await inspectFramePack(path, envelope);
@@ -80,9 +81,9 @@ export function sameNativeRenderInputFileIdentity(
 
 async function inspectFramePack(
 	path: string,
-	envelope: NativeMediaPlanEnvelopeV1 & Readonly<{ planVersion: 7 | 8 }>,
+	envelope: NativeRenderInputEnvelope,
 ): Promise<void> {
-	const cadence = nativeMediaEvaluatedCarrierCadenceV1(envelope);
+	const cadence = evaluatedCarrierCadence(envelope);
 	const handle = await open(path, 'r');
 	try {
 		const header = await readExactly(handle, 0, HEADER_BYTES);
@@ -116,9 +117,19 @@ async function inspectFramePack(
 	} finally { await handle.close(); }
 }
 
+function evaluatedCarrierCadence(envelope: NativeRenderInputEnvelope): Readonly<{
+	readonly num: number;
+	readonly den: number;
+}> {
+	if (envelope.planVersion !== 14) return nativeMediaEvaluatedCarrierCadenceV1(envelope);
+	const rate = (envelope as NativeMediaPlanEnvelopeV2).summary.frameRate;
+	if (rate.kind !== 'rational') throw new TypeError('A selected V14 carrier requires rational cadence.');
+	return Object.freeze({ num: rate.num, den: rate.den });
+}
+
 async function inspectFloat32Wav(
 	path: string,
-	envelope: NativeMediaPlanEnvelopeV1 & Readonly<{ planVersion: 7 | 8 }>,
+	envelope: NativeRenderInputEnvelope,
 ): Promise<void> {
 	const handle = await open(path, 'r');
 	try {
@@ -148,14 +159,32 @@ async function inspectFloat32Wav(
 			}
 			offset = payload + padded;
 		}
-		const inputs = envelope.plan.inputs;
-		if (!Array.isArray(inputs)) invalidWav();
-		const audio = inputs.at(-1) as Record<string, unknown>;
+		const audio = audioAuthority(envelope);
 		if (!format || dataBytes === null || dataBytes < 1 || dataBytes % format.blockAlign !== 0
-			|| dataBytes / format.blockAlign !== envelope.summary.durationFrames
+			|| dataBytes / format.blockAlign !== audio.sampleCount
 			|| (audio.channelLayout === 'mono' && format.channels !== 1)
 			|| (audio.channelLayout === 'stereo' && format.channels !== 2)) invalidWav();
 	} finally { await handle.close(); }
+}
+
+function audioAuthority(envelope: NativeRenderInputEnvelope): Readonly<{
+	readonly channelLayout: unknown;
+	readonly sampleCount: number;
+}> {
+	if (envelope.planVersion === 14) {
+		if (!envelope.plan.output.includeAudio || envelope.plan.output.audioLayout === null) invalidWav();
+		return Object.freeze({
+			channelLayout: envelope.plan.output.audioLayout,
+			sampleCount: envelope.plan.timebase.sampleDuration,
+		});
+	}
+	const inputs = envelope.plan.inputs;
+	if (!Array.isArray(inputs)) invalidWav();
+	const audio = inputs.at(-1) as Record<string, unknown>;
+	return Object.freeze({
+		channelLayout: audio.channelLayout,
+		sampleCount: envelope.summary.durationFrames,
+	});
 }
 
 async function readExactly(

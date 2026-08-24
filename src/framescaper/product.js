@@ -35,7 +35,8 @@ export const FRAMESCAPER_PROFILE = {
 		multicamera: true,
 		musicalTimeline: false,
 		nestedSequences: true,
-		ofxEffects: false,
+		// V28 owns OFX authoring/state; execution remains a default-off desktop service gate.
+		ofxEffects: true,
 		timelineAnnotations: false,
 		trackFolders: false,
 		takeComp: false,

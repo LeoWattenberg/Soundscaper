@@ -8,7 +8,6 @@ import { join, resolve } from 'node:path';
 import test from 'node:test';
 
 import {
-	GATE_BLOCKED_PLUGIN_FORMATS,
 	SCANNABLE_PLUGIN_FORMATS,
 	createNativePluginScanJobRunner,
 } from '../desktop/native-helper-scan-job.js';
@@ -25,8 +24,9 @@ const hostTarget = nativeHelperAddonTargetForRuntime(process.platform, process.a
 const built = hostTarget !== null && manifest.fixturePlugins?.targets?.[hostTarget.id]?.status === 'built';
 
 /** A stand-in addon so the contract paths are testable with no compiler. */
-function fakeAddon(candidates, inspections = {}) {
+function fakeAddon(candidates, inspections = {}, pluginFormats = ['fixture']) {
 	return {
+		describe: () => ({ pluginFormats }),
 		listPluginCandidates: (root, suffix) => {
 			if (root === '/unreadable') throw new Error('The plug-in root could not be read.');
 			return candidates.filter((path) => path.endsWith(suffix));
@@ -45,21 +45,77 @@ function runner(addon, hashFile = async (path) => ({ byteLength: path.length, sh
 	});
 }
 
-test('every gate-blocked format is reported as seen, not silently skipped', async () => {
-	const scan = runner(fakeAddon(['/roots/a.vst3', '/roots/b.vst3']));
+test('an authenticated professional payload can inspect an admitted VST3 bundle', async () => {
+	const inspected = [];
+	const addon = fakeAddon(['/roots/a.vst3'], {}, ['vst3']);
+	const scan = runner({
+		...addon,
+		inspectPluginCandidate: (path, format) => {
+			inspected.push([path, format]);
+			return addon.inspectPluginCandidate(path, format);
+		},
+	});
 	const result = await scan({
 		grant: { rootPath: '/roots', format: 'vst3', identity: { dev: 1, ino: 2 } },
 		onProgress: () => {},
 	}).completion;
-	assert.equal(result.status, 'unsupported-format');
-	assert.deepEqual(result.entries, []);
-	assert.match(result.detail, /Found 2 vst3 candidate\(s\)/u);
-	assert.match(result.detail, /licensing row is not cleared/u);
+	assert.equal(result.status, 'scanned');
+	assert.deepEqual(inspected, [['/roots/a.vst3', 'vst3']]);
+	assert.equal(result.entries[0].binaryPath, '/roots/a.vst3');
 });
 
-test('the closed formats are named, so none is enabled by omission', () => {
-	assert.deepEqual(Object.keys(GATE_BLOCKED_PLUGIN_FORMATS).sort(), ['au', 'clap', 'lv2', 'vst3']);
-	assert.deepEqual(Object.keys(SCANNABLE_PLUGIN_FORMATS), ['fixture']);
+test('one authenticated bundle publishes each exact format-native descriptor', async () => {
+	let hashes = 0;
+	const result = await runner(fakeAddon(['/roots/multi.clap'], {
+		'/roots/multi.clap': [
+			{ status: 'ok', stableId: 'org.example.delay', name: 'Delay', vendor: 'Example', version: '1',
+				classification: 'effect', inputChannels: 1, outputChannels: 2,
+				realtime: true, offline: true, reportedLatencyFrames: 7 },
+			{ status: 'ok', stableId: 'org.example.reverb', name: 'Reverb', vendor: 'Example', version: '1',
+				classification: 'effect', inputChannels: 2, outputChannels: 2,
+				realtime: true, offline: true, reportedLatencyFrames: 11 },
+		],
+	}, ['clap']), async () => {
+		hashes += 1;
+		return { byteLength: 99, sha256: '9'.repeat(64) };
+	})({
+		grant: { rootPath: '/roots', format: 'clap', identity: { dev: 1, ino: 2 } },
+		onProgress: () => {},
+	}).completion;
+	assert.equal(hashes, 1, 'a bundle body has one identity no matter how many descriptors it exposes');
+	assert.deepEqual(result.entries.map(({ stableId }) => stableId), [
+		'org.example.delay', 'org.example.reverb',
+	]);
+	assert.deepEqual(result.entries.map(({ binaryPath, binarySha256 }) => ({ binaryPath, binarySha256 })), [
+		{ binaryPath: '/roots/multi.clap', binarySha256: '9'.repeat(64) },
+		{ binaryPath: '/roots/multi.clap', binarySha256: '9'.repeat(64) },
+	]);
+});
+
+test('a bundle descriptor set refuses empty, unbounded, or duplicate native IDs', async () => {
+	for (const stableIds of [[''], ['x'.repeat(513)], ['duplicate', 'duplicate']]) {
+		const result = await runner(fakeAddon(['/roots/ambiguous.clap'], {
+			'/roots/ambiguous.clap': stableIds.map((stableId) => ({
+				status: 'ok', stableId, name: 'Ambiguous', vendor: 'Example', version: '1',
+				classification: 'effect', inputChannels: 2, outputChannels: 2,
+				realtime: true, offline: true, reportedLatencyFrames: 0,
+			})),
+		}, ['clap']))({
+			grant: { rootPath: '/roots', format: 'clap', identity: { dev: 1, ino: 2 } },
+			onProgress: () => {},
+		}).completion;
+		assert.equal(result.entries.length, 1);
+		assert.equal(result.entries[0].compatibility, 'malformed');
+		assert.match(result.entries[0].stableId, /^unreadable:/u);
+	}
+});
+
+test('the helper names every implemented suffix but requires payload capability', async () => {
+	assert.deepEqual(Object.keys(SCANNABLE_PLUGIN_FORMATS), ['fixture', 'vst3', 'clap', 'au', 'lv2']);
+	const result = await runner(fakeAddon(['/roots/a.vst3']))({
+		grant: { rootPath: '/roots', format: 'vst3', identity: { dev: 1, ino: 2 } }, onProgress: () => {},
+	}).completion;
+	assert.equal(result.status, 'unsupported-format');
 });
 
 test('an unreadable root is a status rather than a thrown scan', async () => {
@@ -138,18 +194,20 @@ test('a cancelled scan stops early and keeps what it already inspected', async (
 test('the helper announces scanning and routes a scan job to the scan runner', async () => {
 	const posted = [];
 	const worker = createNativeHelperWorker({
+		role: 'plugin-scanner',
 		post: (message) => posted.push(message),
 		runDeviceJob: () => { throw new Error('a scan must never reach the device runner'); },
 		runScanJob: runner(fakeAddon(['/roots/one.scapefx'])),
 		heartbeatIntervalMs: 1_000_000,
 		exit: () => undefined,
 	});
-	assert.deepEqual(posted[0].kinds, ['audio-device', 'plugin-scan', 'plugin-host']);
+	assert.deepEqual(posted[0].kinds, ['plugin-scan']);
 	worker.handleMessage({
 		contractVersion: 1,
 		type: 'job',
 		jobId: 'a'.repeat(40),
 		kind: 'plugin-scan',
+		jobContractVersion: 1,
 		grant: { rootPath: '/roots', format: 'fixture', identity: { dev: 1, ino: 2 } },
 		resourcePolicy: { maximumInputBytes: 1_024, maximumJobDurationMs: 60_000, maximumRssBytes: 1_024 ** 3 },
 	});

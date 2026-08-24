@@ -5,9 +5,10 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import type {
-	NativePluginAvailability,
-	SoundscaperNativeServicesBridge,
+import {
+	resolveSoundscaperNativeServicesBridge,
+	type NativePluginAvailability,
+	type SoundscaperNativeServicesBridge,
 } from '../src/common/editor/ui/soundscaper-native-services-bridge.ts';
 import {
 	EMPTY_SOUNDSCAPER_NATIVE_SERVICES_DIALOG_STATE,
@@ -109,10 +110,102 @@ function fakeBridge(overrides: Partial<SoundscaperNativeServicesBridge> = {}) {
 			calls.push(['clearNativePluginQuarantine', request]);
 			return Promise.resolve(true);
 		},
+		openNativeAudioSession: (request: unknown) => {
+			calls.push(['openNativeAudioSession', request]);
+			return Promise.resolve({ status: 'opened' as const, sessionId: 'audio_session_01', backend: 'alsa' });
+		},
+		bindNativeAudioSession: (request: unknown) => {
+			calls.push(['bindNativeAudioSession', request]);
+			return Promise.resolve({ status: 'bound', generation: 1 });
+		},
+		nativeAudioSessionStatus: (request: unknown) => {
+			calls.push(['nativeAudioSessionStatus', request]);
+			return Promise.resolve({
+				sessionId: 'audio_session_01', state: 'open' as const, backend: 'alsa', calibrationFrames: null,
+			});
+		},
+		reportNativeAudioSessionTransfer: (request: unknown) => {
+			calls.push(['reportNativeAudioSessionTransfer', request]);
+			return Promise.resolve({});
+		},
+		reportNativeAudioSessionLoss: (request: unknown) => {
+			calls.push(['reportNativeAudioSessionLoss', request]);
+			return Promise.resolve({});
+		},
+		calibrateNativeAudioSession: (request: unknown) => {
+			calls.push(['calibrateNativeAudioSession', request]);
+			return Promise.resolve({
+				sessionId: 'audio_session_01', state: 'bound' as const, backend: 'alsa', calibrationFrames: 32,
+			});
+		},
+		closeNativeAudioSession: (request: unknown) => {
+			calls.push(['closeNativeAudioSession', request]);
+			return Promise.resolve(true);
+		},
+		reviewNativePluginInstallation: (request: unknown) => {
+			calls.push(['reviewNativePluginInstallation', request]);
+			return Promise.resolve({ entries: [] });
+		},
+		instantiateNativePlugin: (request: unknown) => {
+			calls.push(['instantiateNativePlugin', request]);
+			return Promise.resolve(pluginInstance());
+		},
+		runNativePluginOffline: (request: unknown) => {
+			calls.push(['runNativePluginOffline', request]);
+			return Promise.resolve({ instance: pluginInstance({ latencySamples: 32 }), blocksRendered: 8, renderedSha256: 'a'.repeat(64) });
+		},
+		setNativePluginBypassed: (request: Readonly<{ bypassed: boolean }>) => {
+			calls.push(['setNativePluginBypassed', request]);
+			return Promise.resolve(pluginInstance({ bypassed: request.bypassed }));
+		},
+		persistNativePluginState: (request: Readonly<{ generation: number }>) => {
+			calls.push(['persistNativePluginState', request]);
+			const sha256 = 'b'.repeat(64);
+			return Promise.resolve({
+				outcome: { status: 'persisted' },
+				projectState: { stateBody: { kind: 'native-plugin-state' as const, bodyId: `native-plugin-state:${sha256}`, byteLength: 0, sha256 } },
+			});
+		},
+		restoreNativePluginState: (request: unknown) => {
+			calls.push(['restoreNativePluginState', request]);
+			return Promise.resolve({});
+		},
+		openNativePluginVendorUi: (request: Readonly<{ instanceId: string }>) => {
+			calls.push(['openNativePluginVendorUi', request]);
+			return Promise.resolve({ status: 'opened' as const, window: {
+				windowHandleId: 'window_01', instanceId: request.instanceId,
+				surface: 'helper-owned-top-level' as const,
+			} });
+		},
+		closeNativePluginVendorUi: (request: unknown) => {
+			calls.push(['closeNativePluginVendorUi', request]);
+			return Promise.resolve(true);
+		},
+		closeNativePluginInstance: (request: unknown) => {
+			calls.push(['closeNativePluginInstance', request]);
+			return Promise.resolve(true);
+		},
 		...overrides,
 	} as unknown as SoundscaperNativeServicesBridge;
 	return { bridge, calls };
 }
+
+function pluginInstance(overrides: Readonly<Record<string, unknown>> = {}) {
+	return {
+		instanceId: 'plugin_instance_01', format: 'fixture', state: 'hosted',
+		bypassed: false, latencySamples: 0, ...overrides,
+	};
+}
+
+test('the desktop bridge resolver requires native audio transfer and loss reporting', () => {
+	const complete = fakeBridge().bridge;
+	assert.equal(resolveSoundscaperNativeServicesBridge({ scapeDesktop: { v1: complete } }), complete);
+	for (const missing of ['reportNativeAudioSessionTransfer', 'reportNativeAudioSessionLoss'] as const) {
+		assert.equal(resolveSoundscaperNativeServicesBridge({
+			scapeDesktop: { v1: { ...complete, [missing]: undefined } },
+		}), null);
+	}
+});
 
 async function settle(
 	state: SoundscaperNativeServicesDialogState,
@@ -173,6 +266,84 @@ test('native audio preferences can enable the desktop tier and re-read its state
 		['setNativeAudioHelperEnabled', true],
 	]);
 	assert.equal(state.audio?.enabled, true);
+});
+
+test('the menu dialog drives the complete native audio session lifecycle through the bridge', async () => {
+	const { bridge, calls } = fakeBridge();
+	let state = await settle(EMPTY_SOUNDSCAPER_NATIVE_SERVICES_DIALOG_STATE, bridge, {
+		type: 'open-audio-session',
+		request: {
+			candidates: [{ backend: 'alsa', deviceHandle: 'opaque-device' }],
+			direction: 'output', mode: 'shared', sampleRate: 48_000,
+			periodFrames: 1_024, channelCount: 2,
+		},
+	});
+	assert.equal(state.audioSession?.sessionId, 'audio_session_01');
+	state = await settle(state, bridge, { type: 'bind-audio-session', sessionId: 'audio_session_01' });
+	state = await settle(state, bridge, { type: 'audio-session-status', sessionId: 'audio_session_01' });
+	state = await settle(state, bridge, { type: 'calibrate-audio-session', sessionId: 'audio_session_01' });
+	assert.equal(state.audioSession?.calibrationFrames, 32);
+	state = await settle(state, bridge, { type: 'close-audio-session', sessionId: 'audio_session_01' });
+	assert.equal(state.audioSession, null);
+	assert.deepEqual(calls.filter(([name]) => String(name).includes('AudioSession')), [
+		['openNativeAudioSession', {
+			candidates: [{ backend: 'alsa', deviceHandle: 'opaque-device' }],
+			direction: 'output', mode: 'shared', sampleRate: 48_000, periodFrames: 1_024, channelCount: 2,
+		}],
+		['nativeAudioSessionStatus', { sessionId: 'audio_session_01' }],
+		['bindNativeAudioSession', { sessionId: 'audio_session_01', queueCapacity: 8 }],
+		['nativeAudioSessionStatus', { sessionId: 'audio_session_01' }],
+		['nativeAudioSessionStatus', { sessionId: 'audio_session_01' }],
+		['calibrateNativeAudioSession', { sessionId: 'audio_session_01' }],
+		['closeNativeAudioSession', { sessionId: 'audio_session_01' }],
+	]);
+});
+
+test('the menu dialog drives isolated hosting, DSP, bypass and opaque state custody', async () => {
+	const { bridge, calls } = fakeBridge();
+	let state = await settle(EMPTY_SOUNDSCAPER_NATIVE_SERVICES_DIALOG_STATE, bridge, {
+		type: 'review-plugin', installationId: 'i0123456789abcde', review: 'allow',
+	});
+	state = await settle(state, bridge, {
+		type: 'instantiate-plugin', installationId: 'i0123456789abcde',
+	});
+	state = await settle(state, bridge, {
+		type: 'run-plugin-offline', instanceId: 'plugin_instance_01',
+	});
+	assert.equal(state.pluginOffline?.blocksRendered, 8);
+	state = await settle(state, bridge, {
+		type: 'set-plugin-bypassed', instanceId: 'plugin_instance_01', bypassed: true,
+	});
+	state = await settle(state, bridge, {
+		type: 'persist-plugin-state', instanceId: 'plugin_instance_01', generation: 1,
+		bytes: new Uint8Array(),
+	});
+	assert.equal(state.pluginStateBody?.byteLength, 0);
+	state = await settle(state, bridge, {
+		type: 'restore-plugin-state', instanceId: 'plugin_instance_01', generation: 2,
+		stateBody: state.pluginStateBody!,
+	});
+	state = await settle(state, bridge, {
+		type: 'open-plugin-vendor-ui', instanceId: 'plugin_instance_01',
+	});
+	assert.equal(state.pluginVendorWindow?.windowHandleId, 'window_01');
+	state = await settle(state, bridge, {
+		type: 'close-plugin-vendor-ui', instanceId: 'plugin_instance_01', windowHandleId: 'window_01',
+	});
+	assert.equal(state.pluginVendorWindow, null);
+	state = await settle(state, bridge, { type: 'close-plugin', instanceId: 'plugin_instance_01' });
+	assert.equal(state.pluginInstance, null);
+	assert.deepEqual(calls.filter(([name]) => [
+		'reviewNativePluginInstallation', 'instantiateNativePlugin', 'runNativePluginOffline',
+		'setNativePluginBypassed', 'persistNativePluginState', 'restoreNativePluginState',
+		'openNativePluginVendorUi', 'closeNativePluginVendorUi',
+		'closeNativePluginInstance',
+	].includes(String(name))).map(([name]) => name), [
+		'reviewNativePluginInstallation', 'instantiateNativePlugin', 'runNativePluginOffline',
+		'setNativePluginBypassed', 'persistNativePluginState', 'restoreNativePluginState',
+		'openNativePluginVendorUi', 'closeNativePluginVendorUi',
+		'closeNativePluginInstance',
+	]);
 });
 
 test('turning native audio off clears its device inventory', async () => {
@@ -333,7 +504,7 @@ test('the dialog is an accessible modal that shows progress, results, consent an
 		'device discovery must remain unavailable while native audio is off');
 });
 
-test('the menu-opened surface mounts and unmounts one host, and nothing before it is opened', () => {
+test('the menu-opened surface mounts and unmounts one host, and nothing before it is opened', async () => {
 	const rendered: unknown[] = [];
 	const removed: string[] = [];
 	let unmounted = 0;
@@ -363,7 +534,39 @@ test('the menu-opened surface mounts and unmounts one host, and nothing before i
 	assert.equal(rendered.length, 2, 'reopening reuses the one host rather than stacking dialogs');
 	assert.equal(appended.length, 1, 'one container, however often the menu opens the surface');
 	assert.equal(container.dataset.editorSurface, 'soundscaper-native-services');
-	host.dispose();
+	await host.dispose();
 	assert.equal(unmounted, 1);
 	assert.deepEqual(removed, ['container']);
+});
+
+test('the pathless host reconciles once per project state and releases its captured editor runtime', async () => {
+	let restores = 0;
+	let disposals = 0;
+	const project = { nativePluginStates: [] as unknown[] };
+	const controller = { project };
+	const host = createSoundscaperNativeServicesSurfaceHost({
+		bridge: fakeBridge().bridge,
+		engine: {} as never,
+		controller: controller as never,
+		createRendererBridge: (() => ({
+			bridge: fakeBridge().bridge,
+			restoreProjectNativePlugins: async () => {
+				restores += 1;
+				return Object.freeze([]);
+			},
+			dispose: () => { disposals += 1; },
+		})) as never,
+	});
+
+	await Promise.all([host.restoreProjectNativePlugins(), host.restoreProjectNativePlugins()]);
+	await host.restoreProjectNativePlugins();
+	assert.equal(restores, 1, 'menu rerenders must not reconcile an unchanged project twice');
+	project.nativePluginStates.push({
+		instanceId: 'p1', enabled: true, bypassed: false, continuity: 'live', latencySamples: 0,
+		stateBody: { sha256: 'a'.repeat(64), byteLength: 1 },
+	});
+	await host.restoreProjectNativePlugins();
+	assert.equal(restores, 2, 'a native-state revision must trigger reconciliation');
+	await host.dispose();
+	assert.equal(disposals, 1, 'unmount must release the renderer that captured this controller and engine');
 });

@@ -55,6 +55,8 @@ export interface SpeechModelPaths {
 }
 
 export interface SpeechRecognitionRequest {
+	/** Stable catalog identity when available; exact artifact digests remain authority. */
+	readonly modelId?: string;
 	readonly audioPath: string;
 	readonly model: SpeechModelPaths;
 	readonly language?: string | null;

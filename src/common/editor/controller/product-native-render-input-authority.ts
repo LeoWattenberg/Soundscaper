@@ -9,6 +9,19 @@ export interface ProductNativeRenderInputOperation {
 		project: Readonly<Record<string, unknown>>,
 		range: Readonly<Record<string, unknown>>,
 	): Promise<unknown>;
+	renderAudioToSink?(
+		project: Readonly<Record<string, unknown>>,
+		range: Readonly<Record<string, unknown>>,
+		sink: (
+			channels: readonly Float32Array[],
+			metadata: Readonly<{ readonly frameOffset?: number; readonly sampleRate: number; readonly frames?: number }>,
+		) => PromiseLike<void> | void,
+	): Promise<Readonly<{
+		readonly sampleRate: number;
+		readonly channelCount: number;
+		readonly frameCount: number;
+		readonly chunkCount: number;
+	}>>;
 	finish(): void;
 }
 
@@ -61,6 +74,7 @@ function operation(value: unknown): ProductNativeRenderInputOperation {
 		|| !(row.signal instanceof AbortSignal)
 		|| typeof row.assertCurrent !== 'function'
 		|| typeof row.renderAudio !== 'function'
+		|| (row.renderAudioToSink !== undefined && typeof row.renderAudioToSink !== 'function')
 		|| typeof row.finish !== 'function') {
 		throw new TypeError('The controller returned an invalid native render-input operation.');
 	}

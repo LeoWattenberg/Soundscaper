@@ -11,6 +11,7 @@ import {
 	snapshotFramescaperOwnedFinishingCommandV27,
 	type FramescaperOwnedFinishingCommandV27,
 } from '../../../framescaper/editor-project-v27-finishing-command.ts';
+import { framescaperProjectV27FoundationShapeV28 } from '../../../framescaper/editor-project-v28-foundation.ts';
 import type { FramescaperV27FinishingSurface } from './framescaper-v27-finishing-menu.ts';
 
 export interface FramescaperV27FinishingDialogModel {
@@ -303,9 +304,13 @@ function exactDocument(value: unknown, fields: readonly string[]): Record<string
 }
 
 function projectRecord(value: unknown): Record<string, unknown> {
-	const project = record(value, 'Framescaper V27 project');
-	if (project.schemaVersion !== 27) throw new RangeError('The selected Framescaper V27 project is required.');
-	return project;
+	const input = record(value, 'Framescaper V27 or V28 project');
+	if (input.schemaVersion !== 27 && input.schemaVersion !== 28) {
+		throw new RangeError('The selected Framescaper V27 or V28 project is required.');
+	}
+	return input.schemaVersion === 28
+		? record(framescaperProjectV27FoundationShapeV28(input), 'Framescaper V28 finishing foundation')
+		: input;
 }
 
 function positiveInteger(value: unknown, name: string): number {

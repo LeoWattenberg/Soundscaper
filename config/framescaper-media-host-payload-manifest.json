@@ -14,35 +14,45 @@
 			"runtime": "linux-x64",
 			"status": "pending-external",
 			"blockedBy": "The FFmpeg licensing and corresponding-source gates are blocked and no FFmpeg 9.0.1-linked release payload has been built and reviewed on Linux x64.",
-			"payload": null
+			"payload": null,
+			"isolationPayload": null,
+			"productionReadiness": null
 		},
 		{
 			"id": "linux-arm64",
 			"runtime": "linux-arm64",
 			"status": "pending-external",
 			"blockedBy": "No Linux ARM64 build host or FFmpeg 9.0.1-linked signed payload evidence is provisioned; licensing gates also remain blocked.",
-			"payload": null
+			"payload": null,
+			"isolationPayload": null,
+			"productionReadiness": null
 		},
 		{
 			"id": "mac-arm64",
 			"runtime": "darwin-arm64",
 			"status": "pending-external",
 			"blockedBy": "No macOS ARM64 build, signing, notarization, or FFmpeg 9.0.1-linked hardware evidence is provisioned; licensing gates also remain blocked.",
-			"payload": null
+			"payload": null,
+			"isolationPayload": null,
+			"productionReadiness": null
 		},
 		{
 			"id": "win-x64",
 			"runtime": "win32-x64",
 			"status": "pending-external",
 			"blockedBy": "No Windows x64 build, signing, or FFmpeg 9.0.1-linked hardware evidence is provisioned; licensing gates also remain blocked.",
-			"payload": null
+			"payload": null,
+			"isolationPayload": null,
+			"productionReadiness": null
 		},
 		{
 			"id": "win-arm64",
 			"runtime": "win32-arm64",
 			"status": "pending-external",
 			"blockedBy": "No Windows Arm64EC build, signing, or FFmpeg 9.0.1-linked hardware evidence is provisioned; licensing gates also remain blocked.",
-			"payload": null
+			"payload": null,
+			"isolationPayload": null,
+			"productionReadiness": null
 		}
 	]
 }

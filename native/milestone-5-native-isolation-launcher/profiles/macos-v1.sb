@@ -1,0 +1,7 @@
+;; SPDX-License-Identifier: AGPL-3.0-only
+(version 1)
+(deny default)
+(allow process-info*)
+(allow signal (target self))
+(allow sysctl-read)
+;; Exact file literals are appended by the authenticated broker from reopened FDs.

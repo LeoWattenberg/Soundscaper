@@ -89,16 +89,43 @@ bool HostState::rgba_byte_ready() const {
 		&& std::find(components->begin(), components->end(), "RGBA") != components->end();
 }
 
+std::optional<std::vector<std::string>> HostState::declared_render_backends() const {
+	std::vector<std::string> result;
+	const auto declared = [&](const char* name, const bool default_value, const bool needed = false) -> std::optional<bool> {
+		const auto found = effect_record.properties.values.find(name);
+		if (found == effect_record.properties.values.end()) return default_value;
+		if (found->second.size() != 1) return std::nullopt;
+		const auto* value = std::get_if<std::string>(&found->second.front());
+		if (value == nullptr || (*value != "true" && *value != "false" && (!needed || *value != "needed"))) return std::nullopt;
+		return *value == "true" || (needed && *value == "needed");
+	};
+	const auto cpu = declared(kOfxImageEffectPropCPURenderSupported, true);
+	const auto opengl = declared(kOfxImageEffectPropOpenGLRenderSupported, false, true);
+	const auto opencl_buffers = declared(kOfxImageEffectPropOpenCLRenderSupported, false);
+	const auto opencl_images = declared(kOfxImageEffectPropOpenCLSupported, false);
+	const auto cuda = declared(kOfxImageEffectPropCudaRenderSupported, false);
+	const auto metal = declared(kOfxImageEffectPropMetalRenderSupported, false);
+	if (!cpu.has_value() || !opengl.has_value() || !opencl_buffers.has_value()
+		|| !opencl_images.has_value() || !cuda.has_value() || !metal.has_value()) return std::nullopt;
+	if (*cpu) result.emplace_back("cpu");
+	if (*opengl) result.emplace_back("opengl");
+	if (*opencl_buffers || *opencl_images) result.emplace_back("opencl");
+	if (*cuda) result.emplace_back("cuda");
+	if (*metal) result.emplace_back("metal");
+	return result;
+}
+
 std::optional<PluginInspection> HostState::inspection() const {
 	PluginInspection result;
 	const auto contexts = effect_record.properties.values.find(kOfxImageEffectPropSupportedContexts);
 	const auto threading = effect_record.properties.values.find(kOfxImageEffectPluginRenderThreadSafety);
 	const auto pixel_depths = normalized_pixel_depths(effect_record);
 	const auto components = normalized_components(effect_record);
+	const auto render_backends = declared_render_backends();
 	if (contexts == effect_record.properties.values.end()
 		|| threading == effect_record.properties.values.end()
 		|| threading->second.size() != 1 || !pixel_depths.has_value()
-		|| !components.has_value()) return std::nullopt;
+		|| !components.has_value() || !render_backends.has_value()) return std::nullopt;
 	for (const auto& value : contexts->second) {
 		const auto* official = std::get_if<std::string>(&value);
 		if (official == nullptr) return std::nullopt;
@@ -116,6 +143,7 @@ std::optional<PluginInspection> HostState::inspection() const {
 	else return std::nullopt;
 	result.components = *components;
 	result.pixel_depths = *pixel_depths;
+	result.render_backends = *render_backends;
 	for (const auto& [name, parameter] : effect_record.parameters.parameters) {
 		const auto animates = parameter->properties.values.find(kOfxParamPropAnimates);
 		const auto type = normalized_parameter_type(parameter->type);
@@ -184,6 +212,7 @@ std::optional<PluginInspection> inspect_plugin_contexts(
 			&& accepted_status(call(plugin, kOfxActionUnload, nullptr));
 		if (!inspected.has_value() || !context_unloaded
 			|| inspected->contexts != base->contexts || inspected->threading != base->threading
+			|| inspected->render_backends != base->render_backends
 			|| inspected->pixel_depths != base->pixel_depths
 			|| (!first_context
 				&& (!same_parameter_contract(result.parameters, inspected->parameters)

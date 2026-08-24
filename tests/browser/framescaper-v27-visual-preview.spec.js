@@ -27,7 +27,7 @@ const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob 
 const WEBGL2_COMPOSITED_PREVIEW_REQUIRED = 'The exact composited preview and its pixel assertions require WebGL2, '
 	+ 'which this browser environment refuses; the DOM fallback tier is qualified separately.';
 
-test.describe('selected V27 exact visual preview', () => {
+test.describe('selected V28 exact visual preview', () => {
 	test.describe.configure({ mode: 'serial' });
 
 	test.beforeEach(async ({ page }) => {

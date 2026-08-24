@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Selected V27 owns caption sidecars outside the generic video-file delivery. */
+/** Selected V27/V28 own caption sidecars outside the generic video-file delivery. */
 export function framescaperV27CaptionDeliveryUnavailable(
 	productId: unknown,
 	project: unknown,
@@ -11,5 +11,5 @@ export function framescaperV27CaptionDeliveryUnavailable(
 	const descriptor = Object.getOwnPropertyDescriptor(project, 'schemaVersion');
 	return descriptor?.enumerable === true
 		&& Object.hasOwn(descriptor, 'value')
-		&& descriptor.value === 27;
+		&& (descriptor.value === 27 || descriptor.value === 28);
 }

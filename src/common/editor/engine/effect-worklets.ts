@@ -5,6 +5,7 @@ import { loadParametricEqWasmModule } from '../parametric-eq/wasm-loader.js';
 import { loadPffftWasmModule } from '../pffft-wasm-loader.js';
 import { isParametricEqType, projectEffectRacks } from './project-effects.ts';
 import type { EngineProject } from './types.ts';
+import { ensureNativePluginRealtimeWorklet } from '../native-plugin-realtime-node.js';
 
 const dynamicsWorkletContexts = new WeakSet<BaseAudioContext>();
 const delayWorkletContexts = new WeakSet<BaseAudioContext>();
@@ -54,7 +55,9 @@ export async function ensureProjectWorklets(
 	const usesParametricEq = projectUsesParametricEqWorklet(project);
 	const needsParametricEq = usesParametricEq && !parametricEqWorkletContexts.has(context);
 	const needsParametricEqWasm = usesParametricEq && !parametricEqWasmModules.has(context);
-	if (!needsDynamics && !needsDelay && !needsAudacity && !needsParametricEq && !needsParametricEqWasm) return;
+	const usesNativePlugin = projectUsesNativePluginWorklet(project);
+	if (!needsDynamics && !needsDelay && !needsAudacity && !needsParametricEq
+		&& !needsParametricEqWasm && !usesNativePlugin) return;
 	if (!context.audioWorklet?.addModule || typeof globalThis.AudioWorkletNode !== 'function') {
 		if (needsAudacity) throw new Error('This browser cannot run Audacity real-time effects without bypassing them.');
 		if (needsParametricEq || needsParametricEqWasm) throw new Error('This browser cannot run the parametric EQ without bypassing it.');
@@ -62,6 +65,7 @@ export async function ensureProjectWorklets(
 		return;
 	}
 	const loads: Promise<unknown>[] = [];
+	if (usesNativePlugin) loads.push(ensureNativePluginRealtimeWorklet(context));
 	if (usesParametricEq) loads.push(ensureParametricEqWorklet(context));
 	if (needsDynamics) {
 		loads.push(addWorkletModuleOnce(
@@ -237,6 +241,10 @@ function projectUsesAudacityWorklet(project: EngineProject): boolean {
 
 function projectUsesParametricEqWorklet(project: EngineProject): boolean {
 	return projectUsesEffect(project, isParametricEqType);
+}
+
+function projectUsesNativePluginWorklet(project: EngineProject): boolean {
+	return projectUsesEffect(project, (type) => type === 'native-plugin');
 }
 
 function projectUsesEffect(project: EngineProject, predicate: (type: string) => boolean): boolean {

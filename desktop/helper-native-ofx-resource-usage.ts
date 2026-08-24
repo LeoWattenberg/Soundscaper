@@ -2,16 +2,29 @@
 
 /** Exact aggregate resource accounting for one admitted isolated OpenFX host job. */
 
-import type { HelperOfxHostJobGrant } from './helper-native-ofx-host-grant.ts';
+import type { HelperOfxHostJobGrantV1OrV2 } from './helper-native-ofx-host-grant-v2.ts';
+import { isHelperOfxInteractJobGrantV1 } from './helper-native-ofx-interact-grant.ts';
 import { HelperContractViolationError } from './helper-wire-admission.ts';
 
-export function helperNativeOfxHostResourceUsage(value: HelperOfxHostJobGrant) {
+export function helperNativeOfxHostResourceUsage(value: HelperOfxHostJobGrantV1OrV2) {
+	if (isHelperOfxInteractJobGrantV1(value)) return Object.freeze({
+		inputBytes: safeSum([
+			value.executable.bytes,
+			value.pluginBinary.custody?.byteLength ?? value.pluginBinary.bytes,
+		]),
+		outputBytes: 64 * 64 * 4,
+		scratchBytes: value.scratch.maximumBytes,
+		dataPlaneBytes: 0,
+		maximumInFlightChunks: 0,
+	});
 	const output = value.output.frame;
 	const timing = (value.videoTimingAssets ?? []).map(({ binding }) => binding);
 	const inputs = value.inputs.map(({ frame }) => frame);
 	return Object.freeze({
 		inputBytes: safeSum([
-			value.executable.bytes, value.pluginBinary.bytes, value.plan.byteLength,
+			value.executable.bytes,
+			value.pluginBinary.custody?.byteLength ?? value.pluginBinary.bytes,
+			value.plan.byteLength,
 			...timing.map(({ byteLength }) => byteLength),
 			...inputs.map(({ byteLength }) => byteLength),
 		]),

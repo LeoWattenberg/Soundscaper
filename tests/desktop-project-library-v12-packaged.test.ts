@@ -13,31 +13,31 @@ import {
 	stageDesktopApplicationSources,
 } from '../scripts/lib/desktop-project-library-runtime.mjs';
 import {
-	createFramescaperDesktopProjectLibraryV18Handshake,
-} from '../desktop/project-library-v18-contract.ts';
-import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v27.ts';
-import { createFramescaperProjectV27 } from '../src/framescaper/editor-project-v27.ts';
+	createFramescaperDesktopProjectLibraryV19Handshake,
+} from '../desktop/project-library-v19-contract.ts';
+import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
+import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CHANNELS = Object.freeze([
-	'framescaper:v18:projects:handshake',
-	'framescaper:v18:projects:bundle',
-	'framescaper:v18:projects:bodies:read',
-	'framescaper:v18:projects:list',
-	'framescaper:v18:projects:delete',
-	'framescaper:v18:projects:duplicate',
-	'framescaper:v18:projects:publication:begin',
-	'framescaper:v18:projects:publication:chunk',
-	'framescaper:v18:projects:publication:finish',
-	'framescaper:v18:projects:publication:abort',
+	'framescaper:v19:projects:handshake',
+	'framescaper:v19:projects:bundle',
+	'framescaper:v19:projects:bodies:read',
+	'framescaper:v19:projects:list',
+	'framescaper:v19:projects:delete',
+	'framescaper:v19:projects:duplicate',
+	'framescaper:v19:projects:publication:begin',
+	'framescaper:v19:projects:publication:chunk',
+	'framescaper:v19:projects:publication:finish',
+	'framescaper:v19:projects:publication:abort',
 ]);
 
-test('packaged Framescaper selects V18 while preserving the public framescaperDesktop.v1 bridge', async (context) => {
+test('packaged Framescaper selects V19 while preserving the public framescaperDesktop.v1 bridge', async (context) => {
 	const fixture = await stagedFixture(context);
 	await assert.rejects(
 		() => access(join(fixture.applicationDesktopRoot, 'project-library-v10-sandbox-preload.cjs')),
 		/ENOENT/u,
-		'the selected V18 application must not stage the historical Framescaper V10 preload',
+		'the selected V19 application must not stage the historical Framescaper V10 preload',
 	);
 	const basePreload = await readFile(join(fixture.applicationDesktopRoot, 'preload.mjs'), 'utf8');
 	assert.match(basePreload, /projectLibrary/u);
@@ -58,7 +58,7 @@ test('packaged Framescaper selects V18 while preserving the public framescaperDe
 		productId: 'framescaper',
 		appDataPath: fixture.appDataPath,
 		processId: 8120,
-		instanceId: 'framescaper-v18-packaged',
+		instanceId: 'framescaper-v19-packaged',
 		onLeaseLost: () => {},
 		leaseQualification: null,
 	});
@@ -71,18 +71,18 @@ test('packaged Framescaper selects V18 while preserving the public framescaperDe
 		ownerFor: (event: unknown) => (event as { owner: object }).owner,
 		removeHandler: (channel: string) => { removed.push(channel); handlers.delete(channel); },
 		session: {
-			registerPreloadScript(value: unknown) { preloads.push(value); return 'framescaper-v18-preload'; },
+			registerPreloadScript(value: unknown) { preloads.push(value); return 'framescaper-v19-preload'; },
 			unregisterPreloadScript(id: string) { preloadRemovals.push(id); },
 		},
 	});
 	assert.deepEqual([...handlers.keys()], CHANNELS);
 	assert.deepEqual(preloads, [], 'the selected base preload owns the public Framescaper bridge');
 	const owner = {};
-	const handshake = createFramescaperDesktopProjectLibraryV18Handshake();
+	const handshake = createFramescaperDesktopProjectLibraryV19Handshake();
 	assert.deepEqual(await handlers.get(CHANNELS[0])!({ owner }, handshake), handshake);
-	const project = createFramescaperProjectV27(FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE, {
-		id: 'framescaper-v18-packaged-project',
-		title: 'Framescaper V18 packaged project',
+	const project = createFramescaperProjectV28(FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, {
+		id: 'framescaper-v19-packaged-project',
+		title: 'Framescaper V19 packaged project',
 		revision: 0,
 		now: '2026-08-22T12:00:00.000Z',
 	});
@@ -102,7 +102,7 @@ test('packaged Framescaper selects V18 while preserving the public framescaperDe
 		project: {
 			projectId: project.id,
 			title: project.title,
-			projectSchemaVersion: 27,
+			projectSchemaVersion: 28,
 			projectRevision: 0,
 			metadataRevision: 1,
 			byteLength: new TextEncoder().encode(JSON.stringify(project)).byteLength,
@@ -149,7 +149,7 @@ test('packaged base preload exposes one unversioned pathless handshake-first Fra
 				ipcRenderer: { invoke: (channel: string, value: unknown) => {
 					calls.push({ channel, value });
 					if (channel === CHANNELS[0]) return Promise.resolve(value);
-					throw new Error(`Unexpected V18 invocation: ${channel}`);
+					throw new Error(`Unexpected V19 invocation: ${channel}`);
 				}, send() {}, on() {}, removeListener() {} },
 			};
 		},
@@ -163,9 +163,9 @@ test('packaged base preload exposes one unversioned pathless handshake-first Fra
 		connect(): Promise<unknown>; handshakeState(): string; listProjects(): Promise<unknown>;
 	};
 	await assert.rejects(() => bridge.listProjects(), /handshake.*required/iu);
-	assert.deepEqual(JSON.parse(JSON.stringify(await bridge.connect())), createFramescaperDesktopProjectLibraryV18Handshake());
+	assert.deepEqual(JSON.parse(JSON.stringify(await bridge.connect())), createFramescaperDesktopProjectLibraryV19Handshake());
 	assert.equal(bridge.handshakeState(), 'admitted');
-	assert.deepEqual(JSON.parse(JSON.stringify(calls)), [{ channel: CHANNELS[0], value: createFramescaperDesktopProjectLibraryV18Handshake() }]);
+	assert.deepEqual(JSON.parse(JSON.stringify(calls)), [{ channel: CHANNELS[0], value: createFramescaperDesktopProjectLibraryV19Handshake() }]);
 	assert.doesNotMatch(JSON.stringify({ calls, keys: Object.keys(bridge) }), /libraryRoot|databasePath|managedMediaRoot|projectsRoot|filePath/iu);
 });
 

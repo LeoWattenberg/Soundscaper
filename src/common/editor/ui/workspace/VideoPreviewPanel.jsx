@@ -8,7 +8,6 @@ import {
 	resolveVideoKeyframePreviewState,
 } from '../../video-keyframe-preview-state.ts';
 import { resolveActiveVideoLayers } from '../../video-timeline.js';
-import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import {
 	createVideoPreviewCompositor,
 	createVideoPreviewCompositorFallbackReport,
@@ -24,13 +23,11 @@ import { createVideoPreviewTimelineState } from './video-preview-timeline-state.
 import {
 	EMPTY_VIDEO_EFFECT_STACK,
 	clearVideoPreviewCompositorLayers,
-	findVideoPreviewTimelineInterval,
 	primeVideoPreviewCompositorPool,
 	releaseRetiredVideoPreviewElements,
 	synchronizeVideoPreviewCompositorLayers,
 } from './video-preview-compositor-pool.js';
 import {
-	boundedOmissionSummary,
 	createVideoPreviewFallbackLedgerLayers,
 	resolveVideoPreviewRenderIssue,
 	shouldHideVideoPreviewIdentityFallback,
@@ -38,6 +35,13 @@ import {
 import { publishEvaluatedVideoPreviewFrame } from './video-preview-external-display.ts';
 import { bindFramescaperV27PreviewFreezeCapture } from './video-preview-freeze-capture.ts';
 import { resolveRegisteredVideoRetimePreview } from './video-preview-retime.ts';
+import {
+	VideoPreviewOpenFxStatus,
+	boundedVideoPreviewOmissionSummary,
+	useVideoPreviewOpenFxIssue,
+	videoPreviewOpenFxDispositionAttribute,
+} from './video-preview-openfx-status.jsx';
+import { useVideoPreviewTransportState } from './use-video-preview-transport-state.js';
 
 export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 	const canvasRef = useRef(null);
@@ -52,12 +56,6 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 	const retiredVideoElementsRef = useRef([]);
 	const displaySizesRef = useRef(new Map());
 	const failedVideoSourcesRef = useRef(new Map());
-	const previewPositionSelectionRef = useRef({
-		gpuPlaying: false,
-		interval: null,
-		observedFrame: 0,
-		published: { frame: 0 },
-	});
 	const playheadRef = useRef({
 		positionFrame: 0,
 		transportState: 'stopped',
@@ -69,54 +67,16 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 	const freezeEvaluatedFrameRef = useRef(null);
 	const [compositorState, setCompositorState] = useState('pending');
 	const [renderIssue, setRenderIssue] = useState(() => resolveVideoPreviewRenderIssue(null));
+	const { issue: openFxIssue, update: updateOpenFxIssue } = useVideoPreviewOpenFxIssue();
 	const [mediaErrorRevision, setMediaErrorRevision] = useState(0);
 	const [keyframeFailureProject, setKeyframeFailureProject] = useState(null);
 	const compositorStateRef = useRef('pending');
 	const renderIssueSignatureRef = useRef('');
-	const positionSelection = useAudioEditorTelemetrySelector(
+	const { positionFrame, transportState, playbackRate } = useVideoPreviewTransportState({
 		controller,
-		(value) => {
-			const nextFrame = Math.max(0, Number(value.positionFrame) || 0);
-			const state = previewPositionSelectionRef.current;
-			const nextInterval = findVideoPreviewTimelineInterval(
-				compositorTimelineRef.current.intervals,
-				nextFrame,
-			);
-			const gpuPlaying = value.transportState === 'playing'
-				&& compositorStateRef.current !== 'pending'
-				&& compositorStateRef.current !== 'fallback';
-			const sampleRate = Math.max(1, Number(controller.engine?.sampleRate) || 48_000);
-			const actualAdvance = nextFrame - state.observedFrame;
-			// Telemetry normally arrives every 50 ms. Allow a generous delayed
-			// sample before treating a forward jump as an explicit transport seek.
-			const maximumExpectedAdvance = sampleRate * (
-				Math.max(0.001, Number(value.playbackRate) || 1) * 0.2 + 0.1
-			);
-			const discontinuity = actualAdvance < 0
-				|| actualAdvance > maximumExpectedAdvance;
-			const shouldPublish = !gpuPlaying
-				|| !state.gpuPlaying
-				|| nextInterval !== state.interval
-				|| discontinuity;
-			state.gpuPlaying = gpuPlaying;
-			state.interval = nextInterval;
-			state.observedFrame = nextFrame;
-			if (shouldPublish && (
-				state.published.frame !== nextFrame
-				|| gpuPlaying
-			)) state.published = { frame: nextFrame };
-			return state.published;
-		},
-	);
-	const positionFrame = positionSelection.frame;
-	const transportState = useAudioEditorTelemetrySelector(
-		controller,
-		(value) => value.transportState || 'stopped',
-	);
-	const playbackRate = useAudioEditorTelemetrySelector(
-		controller,
-		(value) => Math.max(0.001, Number(value.playbackRate) || 1),
-	);
+		compositorTimelineRef,
+		compositorStateRef,
+	});
 	const project = snapshot.videoPreviewProject || snapshot.project;
 	const canonicalProject = snapshot.project;
 	freezeCaptureProjectRef.current = canonicalProject;
@@ -302,8 +262,10 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 			composedLayersRef.current = [];
 			updateVisualPreviewFrame(null, error instanceof Error ? error.message : String(error));
 			updateCompositorState('fallback');
+			updateOpenFxIssue([], true);
 		};
-		const publishProductFrame = (productFrame, composedLayers, hasSession, renderedEffectIds) => {
+		const publishProductFrame = (productFrame, composedLayers, hasSession, renderedEffectIds,
+			openFxDispositions = [], reportsOpenFxDegradation = false) => {
 			composedLayersRef.current = composedLayers;
 			if (hasSession) updateVisualPreviewFrame(productFrame);
 			let report;
@@ -313,8 +275,10 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 				report = createVideoPreviewCompositorFallbackReport(composedLayersRef.current);
 			}
 			updateRenderIssue(report, renderedEffectIds);
+			updateOpenFxIssue(openFxDispositions, reportsOpenFxDegradation);
 			const freezeProject = freezeCaptureProjectRef.current;
-			if (report.status !== 'fallback' && freezeProject?.schemaVersion === 27) {
+			if (report.status !== 'fallback'
+				&& (freezeProject?.schemaVersion === 27 || freezeProject?.schemaVersion === 28)) {
 				freezeEvaluatedFrameRef.current = {
 					projectId: freezeProject.id,
 					projectRevision: freezeProject.revision,
@@ -343,7 +307,8 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 					timelineSample: timelineFrame, mediaLayers: compositorLayersRef.current,
 				}).then((result) => {
 					if (visualSessionRef.current === visualSession) {
-						publishProductFrame(result.frame, result.layers, true, result.renderedEffectIds);
+						publishProductFrame(result.frame, result.layers, true, result.renderedEffectIds,
+							result.openFxDispositions, result.reportsOpenFxDegradation);
 					}
 				}).catch((error) => {
 					if (visualSessionRef.current === visualSession) failProductFrame(error);
@@ -359,7 +324,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 				compositorLayersRef.current, productFrame,
 			), Boolean(visualSession));
 		} catch (error) { failProductFrame(error); }
-	}, [controller, project, updateCompositorState, updateRenderIssue, updateVisualPreviewFrame,
+	}, [controller, project, updateCompositorState, updateOpenFxIssue, updateRenderIssue, updateVisualPreviewFrame,
 		videoEffectBypass, visualSessionRef]);
 	const requestPreviewFrame = useCallback(() => {
 		if (animationFrameRef.current) return;
@@ -443,7 +408,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 		};
 	}, [requestPreviewFrame, updateCompositorState, updateRenderIssue]);
 	useEffect(() => {
-		if (canonicalProject?.schemaVersion !== 27) return undefined;
+		if (canonicalProject?.schemaVersion !== 27 && canonicalProject?.schemaVersion !== 28) return undefined;
 		let disposed = false;
 		let release = () => {};
 		void bindFramescaperV27PreviewFreezeCapture({
@@ -504,6 +469,8 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 			data-video-preview-omitted-composition-count={renderIssue.omittedCompositionClipIds.length}
 			data-video-preview-omitted-composition-clip-ids={renderIssue.omittedCompositionClipIds.join(' ')}
 			data-video-preview-renderer={compositorState}
+			data-video-preview-openfx-degraded={openFxIssue.degraded ? 'true' : 'false'}
+			data-video-preview-openfx-dispositions={videoPreviewOpenFxDispositionAttribute(openFxIssue)}
 			data-video-preview-keyframe-error={keyframePreviewFailed ? 'true' : 'false'}
 			data-video-preview-visual-pending={visualPreviewState.pending ? 'true' : 'false'}
 			data-video-preview-visual-error={visualPreviewState.error || ''}
@@ -586,14 +553,14 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 						: copy.videoPreviewEffectsUnavailable}
 					{(renderIssue.omittedEffectIds.length > 0
 						|| renderIssue.omittedCompositionClipIds.length > 0) && (
-						<small>{boundedOmissionSummary([
+						<small>{boundedVideoPreviewOmissionSummary([
 							...renderIssue.omittedEffectIds,
 							...renderIssue.omittedCompositionClipIds,
 						])}</small>
 					)}
 				</div>
 			)}
+			<VideoPreviewOpenFxStatus issue={openFxIssue} copy={copy} />
 		</div>
 	);
 }
-

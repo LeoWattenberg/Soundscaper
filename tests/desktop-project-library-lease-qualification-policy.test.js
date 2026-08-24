@@ -14,12 +14,12 @@ test('current desktop lease qualification is product-isolated and remains pendin
 	assert.ok(rule);
 	assert.equal(rule.status, 'partial');
 	const claim = `${rule.requiredOutcome} ${rule.currentBehavior}`;
-	assert.match(claim, /Soundscaper.*V10.*process-lifetime.*main-owned.*lease/isu);
-	assert.match(claim, /Framescaper.*V18.*process-lifetime.*main-owned.*lease/isu);
-	assert.match(claim, /Framescaper V18.*V17.*V12.*immutable/isu);
+	assert.match(claim, /Soundscaper.*V11.*process-lifetime.*main-owned.*lease/isu);
+	assert.match(claim, /Framescaper.*V19.*process-lifetime.*main-owned.*lease/isu);
+	assert.match(claim, /Framescaper V19.*V18.*V17.*V12.*immutable/isu);
 	assert.match(claim, /seven product-specific workflows.*both products/isu);
 	assert.match(claim, /cross-product-simultaneous-open.*once.*paired packages/isu);
-	for (const product of ['Soundscaper V10', 'Framescaper V18']) {
+	for (const product of ['Soundscaper V11', 'Framescaper V19']) {
 		for (const target of ['Windows x64', 'Linux x64']) {
 			assert.match(claim, new RegExp(`${product}.*${target}.*pending-external`, 'isu'));
 		}
@@ -34,11 +34,11 @@ test('current desktop lease qualification is product-isolated and remains pendin
 	const framescaper = controls.get('framescaper-v20-desktop-v17-isolation');
 	assert.ok(leaseMatrix);
 	assert.ok(framescaper);
-	assert.match(leaseMatrix.summary, /Soundscaper.*V10.*Framescaper.*V18.*process-lifetime/isu);
+	assert.match(leaseMatrix.summary, /Soundscaper.*V11.*Framescaper.*V19.*process-lifetime/isu);
 	assert.match(leaseMatrix.summary, /crash-restart-recovery for both products.*cross-product-simultaneous-open once/isu);
 	assert.match(leaseMatrix.summary, /Windows x64.*Linux x64.*pending-external/isu);
-	assert.match(framescaper.summary, /desktop-library V18.*user_version 20.*scope v18/isu);
-	assert.match(framescaper.summary, /V17.*read-only.*reimports.*V20-to-V27.*resumes idempotently/isu);
+	assert.match(framescaper.summary, /desktop-library V19.*user_version 21.*scope v19/isu);
+	assert.match(framescaper.summary, /V18.*read-only.*reimports.*V27.*V28.*resumes idempotently/isu);
 	assert.match(leaseMatrix.summary, /separate storage scope and database.*storage and fencing isolation/isu);
 });
 
@@ -58,11 +58,11 @@ test('roadmap binds the M2 inventory to the selected product generations', async
 	]);
 
 	const roadmap = await text('roadmap.md');
-	assert.match(roadmap, /seven product-specific workflows.*Soundscaper desktop-library V10.*Framescaper desktop-library V18/isu);
+	assert.match(roadmap, /seven product-specific workflows.*Soundscaper desktop-library V11.*Framescaper desktop-library V19/isu);
 	assert.match(roadmap, /cross-product-simultaneous-open.*once.*paired packages/isu);
-	assert.match(roadmap, /user_version.*20.*scope.*v18/isu);
-	assert.match(roadmap, /reimports.*V17.*V20.*V27|V20 documents.*V27/isu);
-	assert.match(roadmap, /without reopening, rewriting, or deleting.*V17 or V12/isu);
+	assert.match(roadmap, /user_version.*21.*scope.*v19/isu);
+	assert.match(roadmap, /reimports.*V18.*V27.*V28|V27 documents.*V28/isu);
+	assert.match(roadmap, /without reopening, rewriting, or deleting.*V18.*V17.*V12/isu);
 	assert.match(roadmap, /Windows x64.*Linux x64.*accepted packaged results.*absent.*Partial/isu);
 });
 
@@ -88,21 +88,20 @@ test('current capability inventory names the selected desktop lease owners', asy
 	for (const path of [
 		'desktop/project-library-host.ts',
 		'desktop/project-library-lease-smoke.js',
+		'desktop/soundscaper-project-library-v11-main.ts',
 		'scripts/lib/desktop-project-library-lease-matrix.mjs',
 	]) assert.ok(soundscaper.evidence.includes(path), path);
 	for (const path of [
 		'desktop/project-library-product-runtime.js',
-		'desktop/project-library-v18-contract.ts',
-		'desktop/project-library-v18-database.ts',
-		'desktop/project-library-v18-import.ts',
-		'desktop/project-library-v18-main.ts',
-		'desktop/project-library-v18-main-ipc.ts',
-		'desktop/project-library-v18-writer.ts',
-		'desktop/framescaper-v27-artifact-smoke.js',
-		'src/framescaper/desktop-project-library-v18-renderer.ts',
-		'src/framescaper/desktop-project-library-v18-store-adapter.ts',
-		'tests/desktop-project-library-v18-main.test.ts',
-		'tests/audio-editor-framescaper-desktop-v18-renderer.test.ts',
+		'desktop/project-library-v19-contract.ts',
+		'desktop/project-library-v19-database.ts',
+		'desktop/project-library-v19-import.ts',
+		'desktop/project-library-v19-main.ts',
+		'desktop/project-library-v19-main-ipc.ts',
+		'desktop/project-library-v19-writer.ts',
+		'src/framescaper/desktop-project-library-v19-renderer.ts',
+		'src/framescaper/desktop-project-library-v19-store-adapter.ts',
+		'tests/desktop-project-library-v12-packaged.test.ts',
 		'tests/desktop-project-library-lease-matrix.test.js',
 		'tests/desktop-project-library-lease-smoke.test.js',
 		'tests/desktop-smoke.test.js',

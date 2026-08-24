@@ -32,8 +32,8 @@ const EMPTY: FramescaperCandidateAuthoringMenuItems = Object.freeze({
 	tracks: Object.freeze([]), generate: Object.freeze([]), effect: Object.freeze([]),
 });
 
-const TRANSITION_SCHEMAS = new Set([22, 24, 25, 26, 27]);
-const VISUAL_SCHEMAS = new Set([24, 25, 26, 27]);
+const TRANSITION_SCHEMAS = new Set([22, 24, 25, 26, 27, 28]);
+const VISUAL_SCHEMAS = new Set([24, 25, 26, 27, 28]);
 
 /** Generation-owned menu entries. V20 and every Soundscaper generation return no rows. */
 export function createFramescaperCandidateAuthoringMenuItems(
@@ -71,7 +71,7 @@ export function createFramescaperCandidateAuthoringMenuItems(
 		return Object.freeze({ tracks: Object.freeze([]), generate: Object.freeze([]),
 			effect: Object.freeze([transitions]) });
 	}
-	const selectedV27 = schemaVersion === 27;
+	const selectedV27 = schemaVersion === 27 || schemaVersion === 28;
 	const generators = branch(
 		'framescaper-video-generators', copy.videoGenerators ?? 'Video Generators', [
 			leaf('framescaper-add-video-title', 'addVideoTitle', 'Add Title/Text…',

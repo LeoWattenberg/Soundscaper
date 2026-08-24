@@ -1,24 +1,33 @@
 # Milestone 5 plan: Electron-native services and extensibility
 
-> **Current-route note (2026-08-23):** Framescaper V27 is the selected M1–M4
-> activation candidate and grants no Milestone-5 native-media or OpenFX
-> authority. V20 through V26 native machinery described below is historical or
-> dormant candidate state; V25/V26 remain recognized, opaque, read-only custody.
-> No 5B activation or qualification is claimed.
+> **Current-route note (2026-08-24):** selected Soundscaper V29/V11 and
+> Framescaper V28/V14/V19 software routes are complete. Selected V28 owns exact
+> V14 render authority, the main render queue, persistent services V3, the exact watch/bin/proxy flow, native
+> media and OpenFX routes; historical V20 through V27 machinery remains an
+> implementation source or explicit re-import boundary, and V25/V26 retain
+> opaque, read-only custody. No Milestone 5 qualification or release activation
+> is claimed.
+
+> The source audit authenticates 0/10 required exact archive/extracted-tree
+> inputs. All five Soundscaper professional payload rows are `pending-external`;
+> both five-target Framescaper payload manifests are empty and every row is
+> `pending-external`. Per-OS launcher source/contracts/tests exist, but
+> authenticated target payloads, independently signed readiness, licensing and
+> redistribution clearance, signing/notarization identities and keys, accepted
+> packages/manual runs, and native-lab cohorts do not.
 
 > Owning source for milestone-5 sequencing, the helper-contract and
 > plug-in/codec decisions, their invariants, and the bounded work
 > packets. The
 > [roadmap](../roadmap.md#5-electron-native-services-and-extensibility)
 > owns scope and status; the threat model, security matrix, licensing
-> policy, and quality budgets own their claims. Re-grounded on
-> 2026-08-14 at commit `9d8427dd`, where the first real utility-process
-> helper and the Soundscaper V21 PDC/freeze prerequisites are present.
-> The 5.0 implementation record distinguishes landed code from the
-> still-open real-process, packaged, and native-lab acceptance. The
+> policy, and quality budgets own their claims. Re-grounded on 2026-08-24 for
+> the software-complete Milestone 5 implementation branch, with milestones 1
+> through 4 assumed formally validated as prerequisites. The implementation
+> record distinguishes landed code from still-open source, licensing, payload,
+> signed-readiness, packaged, manual, and native-lab acceptance. The
 > [5A Soundscaper plan](milestone-5a-soundscaper-native.md) owns the
-> current Soundscaper readiness verdict and every remaining 5A implementation
-> slice.
+> current Soundscaper readiness verdict and external acceptance gates.
 
 ## Goals and ordering principle
 
@@ -47,17 +56,15 @@ integration waits for the owning shared contract (roadmap.md:565-566).
 
 ## What exists today (verified baseline)
 
-- **One enacted native helper boundary.** Main now owns a real
-  `utilityProcess.fork()` proof surface in
-  `desktop/helper-registration.mjs`. Contract v1, supervision, the probe
-  service, the helper control process, and its per-job engine worker live in
-  `desktop/helper-contract.ts`, `desktop/helper-supervisor.ts`,
-  `desktop/helper-probe-service.ts`, `desktop/helper-probe-process.js`, and
-  `desktop/helper-probe-engine.js`. The renderer receives only an opaque
-  read-capability interface, the surface is menu-reached and off by default,
-  and helper failure visibly falls back to the existing WebAssembly probe.
-  This proves the construction seam; no current test crosses Electron's real
-  utility-process boundary, so packaged execution remains an acceptance gap.
+- **One enacted helper architecture.** Main owns supervised
+  `utilityProcess.fork()` surfaces for probe, persistent native audio/effects,
+  media, and per-fingerprint OpenFX work. Contract v1, pathless grants, bounded
+  data planes, heartbeats, cancellation, quarantine, and exact payload custody
+  are shared. The renderer receives opaque authority only, each product surface
+  is menu-reached and off by default, and refusal or loss preserves a truthful
+  Web Core fallback. The per-OS child launcher source/contracts/tests implement
+  Linux namespaces/Landlock/seccomp, macOS Seatbelt, and Windows AppContainer;
+  no authenticated target launcher/payload set or signed readiness exists.
 - **A hardened IPC discipline to extend, not reinvent.** Every channel
   passes the trust gate (`assertTrustedIpc`,
   `desktop/main.mjs:362-382`: sender identity, main-frame check,
@@ -102,29 +109,24 @@ integration waits for the owning shared contract (roadmap.md:565-566).
   (`src/common/editor/platform-capabilities.ts:153-158`). Milestone 7
   names this dependency explicitly
   (docs/milestone-7-plan.md:847-849).
-- **Audio is Web Audio only.** Device enumeration exists in exactly one
-  place (`src/common/editor/controller/recording-routing-service.ts:88-100`);
-  there is no exclusive mode, channel-topology API, latency
-  calibration, or underrun counter.
-- **Grounding baseline had no job queue.** The task-progress coordinator is a
-  single-foreground-task UI model whose `begin()` overwrites the active
-  task (`src/common/editor/controller/task-progress.ts:45-71`); the
-  abortable `render-job-port` interface remains the Web-facing seam. The 5B
-  candidate now adds a main-owned V2 persistent queue, controller and helper
-  dispatcher. Its digest-bound source-body handoff and pathless watch-project
-  mutation broker exist, but the empty payload manifest and selected-operation
-  self-test's `not ready` verdict keep production dispatch fail-closed.
-- **The helper security surface is partially enacted.**
-  `native-helper-processes` is now `partial` and conditionally released for
-  the off-by-default probe surface. It records the pathless bridge, contract-v1
-  wire validation, supervised lifecycle, and verified engine payload. Its
-  residual still requires every new helper tier's fault suite and the native
-  fault/loopback qualification.
-  `native-plugin-hosting`: planned, surface-disabled, `ownerMilestone:
-  "5 and 8B"`, residual acceptance "Host compromise, crash recovery,
-  denial, scanning, consent, revocation, and per-platform packaging
-  tests pass before discovery is enabled". 5A deliberately splits scanner
-  and host controls before either surface is enabled.
+- **Selected Soundscaper audio/effects software exists.** V29/V11 owns native
+  device inventory/open/close, direct helper-to-`AudioWorklet` packet transport,
+  input recording publication, output/monitoring, reviewed effect insertion,
+  real-time/offline RPC, exact V21 PDC, bounded opaque state, continuity, and
+  helper-owned vendor windows. The five professional payload rows and all
+  physical qualification remain pending-external.
+- **Selected Framescaper queue and render software exists.** Persistent services
+  V3 own V28/V14/V19 queue, capacity, scratch, recovery, watch/bin/proxy,
+  image-sequence tree publication, and lease-fenced output. Native hardware
+  encode permits one exact CPU retry; one context-aware OpenFX graph serves
+  preview, browser export, and native carrier execution. Empty payload manifests
+  keep production dispatch fail-closed.
+- **The helper security surface remains partial by evidence, not by software
+  reach.** Product callers, reviewed isolation-launcher contracts, pathless
+  bridges, supervision, vendor-window ownership, and fail-closed activation now
+  exist. The residual risks are unauthenticated external source trees and target
+  payloads, missing independent signed readiness and publisher provenance,
+  blocked licensing, and zero accepted native-lab cohorts.
 
 ## The helper contract (the milestone's one-way door)
 
@@ -166,24 +168,19 @@ assistance helper retrofitted onto them — conforms:
    (docs/production-licensing-policy.md:69-71): the ffmpeg-runtime
    pipeline generalized.
 
-The seven elements remain the target contract. The provisional local 5A-0a
-slice generalizes contract v1 to a closed set of probe, audio-device,
-plug-in-scan, and plug-in-host jobs with kind-correlated main grants, deny-only
-resource controls, direction-correct validation, and an exact 64 KiB limit on
-every control family. Main-side preflight prevents invalid grants from spawning
-a helper; cancellation waits for engine quiescence; qualifying forced
-terminations feed session quarantine; and bounded monotonic progress reaches a
-supervisor callback. The product task-progress/UI hookup, durable plug-in
-quarantine, native-payload selection, packaged real-process proof, and
-real-time data-plane negotiation remain open. 5A-0b and 5A-0c own those latter
-proofs without growing the contract and supervisor files toward their line
-ceilings.
+The seven elements are implemented across the selected product routes. Contract
+v1 carries the closed probe, audio-device, plug-in-scan/host, media, and OpenFX
+families with kind-correlated main grants, deny-only resource controls,
+direction-correct validation, an exact 64 KiB control bound, and separately
+bounded authenticated data planes. Main preflight prevents invalid grants from
+spawning a helper; cancellation waits for engine quiescence; qualifying forced
+terminations feed quarantine; and bounded progress reaches product UI. The
+remaining gates are external payload, licensing, signed-readiness, package,
+manual, and native-lab evidence rather than another helper-contract slice.
 
-The probe implementation moved `native-helper-processes` to **partial** in the
-same change that enabled its off-by-default surface. Each additional helper
-kind adds its controls and tests before enablement. Scanner and host controls
-are separated during 5A because discovery consent is not permission to execute
-project audio.
+`native-helper-processes` remains **partial** because none of the professional
+target matrices is qualified. Scanner and host controls remain separate because
+discovery consent is not permission to execute project audio or video.
 
 ### Packaging decision for native code
 
@@ -200,16 +197,16 @@ decision, never an incidental build change.
 
 ## Licensing decisions
 
-The application is AGPL-3.0-only. The licensing register now has fail-closed
+The application is AGPL-3.0-only. The licensing register has fail-closed
 `nativeFormatPolicies` rows for VST3, CLAP, Audio Units, LV2, OFX, the current
 native FFmpeg set, hardware acceleration, and advanced codec families, in
 addition to the coarse `native-plugins` and `native-codecs` gates. Every row is
 still blocked pending its named platform/source/notices/security work; a row's
-presence is not enablement. The VST3 row's upstream-license description is
-stale and must be re-reviewed against the exact source revision selected by
-5A-0. JUCE 9 plus the direct CLAP ABI are the 5A integration decision, but no
-JUCE/CLAP source, digest, build, or notice is yet repository evidence. 5A-0 adds
-those exact pins before compiling native code. Milestone 5 also respects the two
+presence is not enablement. JUCE 9 plus the direct CLAP ABI are the 5A
+integration decision and their source acquisition rows are pinned, but the
+shared external audit currently authenticates none of the required exact
+archive/extracted-tree inputs. Licensing, corresponding-source, patent,
+notices, and trademark review remain open. Milestone 5 also respects the two
 already-blocked FFmpeg release gates
 (`ffmpeg-enabled-library-corresponding-source`,
 `ffmpeg-enabled-codec-patent-review`): a native FFmpeg
@@ -315,38 +312,17 @@ to this contract rather than create another helper protocol.
   one no-retry packaged timing-probe run passed both pinned CFR and VFR
   fixtures. This is product persistence/smoke evidence, not the still-missing
   packaged `utilityProcess` execution proof.
-- **Milestone-7 assistance helper conformance disposition: not present.**
-  No assistance helper surface has shipped: the in-repo assistance job
-  host is an unwired in-process double excluded from the packaged runtime
-  build (`desktop/assistance-job-host.ts` is absent from
-  tsconfig.desktop-runtime.json), and the preload exposes only
-  model-management channels. Its protocol constants (protocol version 1,
-  30 s heartbeat, 2 000 ms cancellation budget under the milestone-7
-  assistance budget) are structurally convergent with contract v1; the
-  packet that first wires assistance into a packaged build must conform
-  it to this contract or revise the contract deliberately.
-- **WP-5.0.2 is enacted only for the shipped probe surface.** The packaging decision
-  stands as designed: the JavaScript control entrypoints ship in the protected
-  asar and the helper engine executes only verified extraResources bytes (the
-  probe helper's engine is the digest-pinned
-  FFmpeg runtime, re-verified at staging, at pack time, before every
-  spawn, and inside the engine thread), `asar` remains unbroken with no
-  `asarUnpack` and no rebuild step, and the runtime manifest now ships
-  inside the application archive so spawn-time verification reads its
-  pins from fuse-protected bytes. The per-format and per-codec licensing
-  rows exist as the fail-closed `nativeFormatPolicies` register
-  (config/production-licensing-matrix.json,
-  tests/production-licensing-matrix.test.js), each with a named blocker,
-  and the two blocked FFmpeg release gates are inherited unchanged by any
-  future native FFmpeg helper binary. The signing chain is enacted but
-  identity-gated in electron-builder.config.cjs: **the named blocker is
-  that no signing identity has been acquired** — providing
-  `SOUNDSCAPER_MAC_SIGNING_IDENTITY` (plus notarization credentials) or
-  the standard `CSC_*` variables turns the chain on without further
-  configuration change, and until then previews remain ad-hoc/unsigned
-  exactly as the threat model records. This does not yet provide the generic
-  five-target native-addon manifest, selector, release inventory, source pins,
-  or packaged native smoke that 5A needs.
+- **Milestone-7 assistance helper conformance is implemented but remains
+  independently dormant.** Its native runtime now uses the shared helper
+  supervision and payload discipline rather than executing speech inference in
+  Electron main. Milestone 7 still owns model payload and activation evidence.
+- **WP-5.0.2 software is enacted across the selected helper families.** Control
+  entrypoints remain in the protected asar; manifests, selectors, release
+  inventories, staging, pack checks, and every spawn reauthenticate exact
+  external payload bytes. The per-format/per-codec licensing rows remain
+  fail-closed. The signing chain is configured but identity-gated: no signing
+  or notarization identity, release key, signed result, or workflow secret is
+  present, and no pending target row may borrow another target's bytes.
 - **Recorded limits and follow-ups.** The probe helper reads the granted
   file into the engine's in-memory filesystem, so probe admission bounds
   input bytes (lower-only, 4 GiB hard ceiling) and oversized inputs
@@ -445,29 +421,24 @@ only its status and ordering boundary. 5B is decomposed at pickup.
 
 ### 5A plan (Soundscaper native tier)
 
-5A-0a is implemented provisionally/local. All remaining work—5A-0b native
-payload provenance and packaged process proof, 5A-0c real-time transport,
-5A-1 native audio, 5A-2 discovery, 5A-3 isolated effects, and 5A-4 exit
-evidence—now lives only in the
-[Milestone 5A Soundscaper plan](milestone-5a-soundscaper-native.md). Its packet
-map, invariants, architecture decisions, acceptance criteria, non-goals, stop
-conditions, open dependencies, and handoff checklist are authoritative. This
-parent plan retains the ordering rule: no 5A product breadth opens before the
-applicable 5A-0 proof closes.
+The selected Soundscaper V29/V11 software packets 5A-0 through 5A-4 are
+implemented. The
+[Milestone 5A Soundscaper plan](milestone-5a-soundscaper-native.md) owns their
+invariants and the still-open external source, five-target payload, licensing,
+signed-readiness, package/manual, and native-lab acceptance. No professional
+surface activates before those exact gates close.
 
 ### 5B packets (Framescaper native tier; slice docs at pickup)
 
 The owning pickup contract is
 [`milestone-5b-framescaper-native-tier.md`](milestone-5b-framescaper-native-tier.md).
-Its implementation record is authoritative for what has landed: 5B status is
-no longer summarized as a single “software substrate” claim. Selected V27
-grants no M5 authority; V20 through V26 unified plans, persistent-service
-controllers, native source hosts, and menu surfaces are historical or dormant
-candidates with explicit executable gaps. No 5B payload is built or staged, and licensing,
-isolation, signing, five-target hardware and manual qualification remain open.
-The helper contract now admits closed media and OFX families, so the threat
-model and security matrix record the enacted controller/source boundaries even
-though no 5B helper can spawn from an empty payload manifest.
+Its implementation record is authoritative for what has landed: selected
+V28/V14/V19 binds the complete media, professional sequence/proxy, persistent
+services V3, and context-aware OpenFX routes. V20 through V27 remain historical
+or re-import sources and V25/V26 retain opaque read-only custody. No 5B payload
+is built or staged; source authentication, licensing, reviewed target isolation,
+signing, five-target hardware, package/manual, and native-lab qualification
+remain open. Empty payload manifests prevent any shipped 5B helper spawn.
 
 - **5B-1 — Native media engine helper.** Outcome: multithreaded FFmpeg
   decode/encode and hardware acceleration as per-feature opt-ins with
@@ -538,10 +509,10 @@ though no 5B helper can spawn from an empty payload manifest.
 
 ## Known constraints this plan absorbs
 
-- **Soundscaper 5A constraints and remaining gates are delegated.** The
+- **Soundscaper 5A external gates are delegated.** The
   [Milestone 5A Soundscaper plan](milestone-5a-soundscaper-native.md) owns the
-  5A-0b/0c implementation boundary, unprovisioned native lab, provisional
-  milestone-4 dependencies, capture/MIDI fences, and every product packet.
+  source/payload/readiness/licensing/signing/qualification boundary,
+  unprovisioned native lab, capture/MIDI fences, and every product packet.
 - **The milestone-2 lease matrix** (`m2-electron-lease-matrix`,
   roadmap.md:290-296) is the standing concurrency substrate under all
   desktop evidence; still open at grounding.

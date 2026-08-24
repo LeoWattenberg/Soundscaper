@@ -49,7 +49,8 @@ export interface FramescaperDesktopExactBodyDescriptor {
 	readonly kind:
 		| 'video-original' | 'video-proxy' | 'video-timing'
 		| 'framescaper-still' | 'framescaper-freeze-render'
-		| 'framescaper-cube-lut' | 'framescaper-motion-analysis';
+		| 'framescaper-cube-lut' | 'framescaper-motion-analysis'
+		| 'image-sequence-inventory' | 'image-sequence-source-pack';
 	readonly encoding: string;
 	readonly bindingId?: string;
 	readonly sourceId: string;
@@ -246,7 +247,9 @@ export function framescaperDesktopExactMediaPath(
 		: body.kind === 'video-proxy' ? '.proxy'
 			: body.kind === 'video-timing' ? '.scti'
 				: body.kind === 'framescaper-cube-lut' ? '.cube'
-					: body.kind === 'framescaper-motion-analysis' ? '.json' : '.image';
+					: body.kind === 'framescaper-motion-analysis' ? '.json'
+						: body.kind === 'image-sequence-inventory' ? '.inventory.json'
+							: body.kind === 'image-sequence-source-pack' ? '.sequence-pack' : '.image';
 	return join(paths.managedMediaRoot, body.kind, body.sha256.slice(0, 2), `${body.sha256}${extension}`);
 }
 

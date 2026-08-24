@@ -6,6 +6,11 @@ import {
 	evaluateNativeMediaPublication,
 	type NativeMediaPublicationPlanV1,
 } from '../src/common/editor/native-media-atomic-publication.ts';
+import {
+	admitNativeMediaOutputTreeSummary,
+	type NativeMediaAuthenticatedOutputTree,
+	type NativeMediaOutputTreeSummaryV1,
+} from './native-media-output-tree.ts';
 
 const SHA256 = /^[a-f0-9]{64}$/u;
 const MAXIMUM_CHECKPOINT_FRAMES = 2_000_000;
@@ -30,6 +35,20 @@ export interface FramescaperNativePublicationPort {
 		relativeDestination: string,
 		expected: FramescaperNativePublishedFileObservation,
 	) => Promise<void>;
+	/** Self-authenticate every bounded regular file in a sealed output tree. */
+	readonly inspectOutputTree?: (
+		relativePath: string,
+	) => Promise<NativeMediaAuthenticatedOutputTree | null>;
+	/** Exclusive-broker, same-filesystem atomic directory rename; never copy. */
+	readonly renameTemporaryOutputTree?: (
+		temporaryRelativePath: string,
+		relativeDestination: string,
+	) => Promise<void>;
+	/** Remove only the exact directory identity this publication just created. */
+	readonly removePublishedOutputTree?: (
+		relativeDestination: string,
+		expected: NativeMediaAuthenticatedOutputTree,
+	) => Promise<void>;
 }
 
 export interface FramescaperNativePublicationFence {
@@ -45,6 +64,7 @@ export interface FramescaperNativePublicationRequest {
 	readonly finalized: boolean;
 	readonly declaredByteLength: number;
 	readonly declaredSha256: string;
+	readonly tree?: NativeMediaOutputTreeSummaryV1;
 }
 
 export type FramescaperNativePublicationResult = Readonly<{
@@ -64,6 +84,7 @@ export async function publishVerifiedNativeMediaOutput(
 	fence?: FramescaperNativePublicationFence,
 ): Promise<FramescaperNativePublicationResult> {
 	const plan = exactPublicationPlan(request.plan);
+	if (request.tree !== undefined) return publishVerifiedOutputTree(request, plan, port, fence);
 	const declaredByteLength = byteCount(request.declaredByteLength, 'declared output length');
 	const declaredSha256 = digest(request.declaredSha256, 'declared output');
 	const destination = await port.inspect(plan.relativeDestination);
@@ -103,6 +124,85 @@ export async function publishVerifiedNativeMediaOutput(
 		throw fenceError;
 	}
 	return result('published', plan, published);
+}
+
+async function publishVerifiedOutputTree(
+	request: FramescaperNativePublicationRequest,
+	plan: NativeMediaPublicationPlanV1,
+	port: FramescaperNativePublicationPort,
+	fence?: FramescaperNativePublicationFence,
+): Promise<FramescaperNativePublicationResult> {
+	const inspect = port.inspectOutputTree;
+	const rename = port.renameTemporaryOutputTree;
+	const remove = port.removePublishedOutputTree;
+	if (!inspect || !rename || !remove) {
+		throw new Error('Native image-sequence publication requires its authenticated directory port.');
+	}
+	if (request.tree === undefined) throw new Error('Native image-sequence publication requires its tree receipt.');
+	const expectedTree = expectedOutputTree(request.tree, plan);
+	const declaredByteLength = byteCount(request.declaredByteLength, 'declared output-tree length');
+	const declaredSha256 = digest(request.declaredSha256, 'declared output tree');
+	if (expectedTree.manifestSha256 !== declaredSha256) {
+		throw new Error('The native media output-tree receipt disagrees with its declared digest.');
+	}
+	const destination = await inspect(plan.relativeDestination);
+	if (destination !== null) {
+		assertExpectedTree(destination, expectedTree, declaredByteLength, declaredSha256, 'published destination');
+		assertPublicationVerdict(request, plan, destination);
+		await fence?.beforePublication();
+		await fence?.afterPublication();
+		return result('already-published', plan, destination);
+	}
+	const temporary = await inspect(plan.temporaryRelativePath);
+	if (temporary === null) throw new Error('The verified native media temporary output tree is missing.');
+	assertExpectedTree(temporary, expectedTree, declaredByteLength, declaredSha256, 'temporary output tree');
+	assertPublicationVerdict(request, plan, temporary);
+	await fence?.beforePublication();
+	await rename(plan.temporaryRelativePath, plan.relativeDestination);
+	const published = await inspect(plan.relativeDestination);
+	if (published === null) throw new Error('The native media atomic tree publication did not materialize its destination.');
+	assertExpectedTree(published, expectedTree, declaredByteLength, declaredSha256, 'published destination');
+	if (JSON.stringify(published.identity) !== JSON.stringify(temporary.identity)) {
+		throw new Error('The native media output-tree directory identity changed during publication.');
+	}
+	try {
+		await fence?.afterPublication();
+	} catch (fenceError) {
+		try { await remove(plan.relativeDestination, published); }
+		catch (cleanupError) {
+			throw new AggregateError(
+				[fenceError, cleanupError],
+				'Native media tree publication lost its fence and its exact output could not be removed.',
+			);
+		}
+		throw fenceError;
+	}
+	return result('published', plan, published);
+}
+
+function expectedOutputTree(
+	value: NativeMediaOutputTreeSummaryV1,
+	plan: NativeMediaPublicationPlanV1,
+): NativeMediaOutputTreeSummaryV1 {
+	const tree = admitNativeMediaOutputTreeSummary(value);
+	if (tree.identity.jobId !== plan.jobId || tree.identity.planFingerprint !== plan.planFingerprint
+		|| tree.identity.relativeDestination !== plan.relativeDestination) {
+		throw new Error('The native media output tree is stale against its job, plan, or destination.');
+	}
+	return tree;
+}
+
+function assertExpectedTree(
+	observed: NativeMediaAuthenticatedOutputTree,
+	expected: NativeMediaOutputTreeSummaryV1,
+	byteLength: number,
+	sha256: string,
+	label: string,
+): void {
+	if (observed.kind !== 'directory' || observed.byteLength !== byteLength || observed.sha256 !== sha256
+		|| JSON.stringify(observed.tree) !== JSON.stringify(expected)) {
+		throw new Error(`The native media ${label} contains a different output tree.`);
+	}
 }
 
 export interface NativeImageSequenceCheckpointFrameV1 {
@@ -196,7 +296,7 @@ function exactPublicationPlan(value: NativeMediaPublicationPlanV1): NativeMediaP
 function assertPublicationVerdict(
 	request: FramescaperNativePublicationRequest,
 	plan: NativeMediaPublicationPlanV1,
-	observed: FramescaperNativePublishedFileObservation,
+	observed: Pick<FramescaperNativePublishedFileObservation, 'byteLength' | 'sha256'>,
 ): void {
 	const verdict = evaluateNativeMediaPublication({
 		plan,
@@ -216,7 +316,7 @@ function assertPublicationVerdict(
 function result(
 	outcome: FramescaperNativePublicationResult['outcome'],
 	plan: NativeMediaPublicationPlanV1,
-	observation: FramescaperNativePublishedFileObservation,
+	observation: Pick<FramescaperNativePublishedFileObservation, 'byteLength' | 'sha256'>,
 ): FramescaperNativePublicationResult {
 	return Object.freeze({
 		outcome,

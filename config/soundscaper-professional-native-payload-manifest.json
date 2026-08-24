@@ -1,0 +1,84 @@
+{
+	"schemaVersion": 1,
+	"id": "soundscaper-professional-native-host-1.0.0",
+	"addon": {
+		"name": "soundscaper-professional-native-host",
+		"version": "1.0.0",
+		"napiVersion": 8,
+		"license": "AGPL-3.0-only",
+		"payloadName": "soundscaper_professional.node",
+		"sourceRoot": "native/soundscaper-professional-host"
+	},
+	"pluginPeer": {
+		"payloadName": "soundscaper_professional_peer",
+		"protocol": "M5F1",
+		"license": "AGPL-3.0-only"
+	},
+	"isolation": {
+		"launcherName": "milestone5-native-isolation-launcher",
+		"profileName": "native-isolation-profile-v1.json",
+		"brokerPolicyName": "native-isolation-broker-v1.json",
+		"runtimeDirectory": "runtime"
+	},
+	"staging": {
+		"runtimePrefix": "native/soundscaper-professional-host",
+		"manifestName": "soundscaper-professional-native-payload-manifest.json"
+	},
+	"targets": [
+		{
+			"id": "linux-x64",
+			"status": "pending-external",
+			"blockedBy": "No authenticated JUCE 9.0.1, CLAP 1.2.4, LV2 1.18.10 professional Node-API payload has been built and reviewed on Linux x64.",
+			"toolchainIdentity": null,
+			"sourceAuthentication": null,
+			"productionReadiness": null,
+			"payload": null,
+			"pluginPeer": null,
+			"isolation": null
+		},
+		{
+			"id": "linux-arm64",
+			"status": "pending-external",
+			"blockedBy": "No authenticated professional Node-API payload or Linux ARM64 build-host evidence is available.",
+			"toolchainIdentity": null,
+			"sourceAuthentication": null,
+			"productionReadiness": null,
+			"payload": null,
+			"pluginPeer": null,
+			"isolation": null
+		},
+		{
+			"id": "mac-arm64",
+			"status": "pending-external",
+			"blockedBy": "No authenticated professional Node-API payload, macOS SDK build, signing, or notarization evidence is available.",
+			"toolchainIdentity": null,
+			"sourceAuthentication": null,
+			"productionReadiness": null,
+			"payload": null,
+			"pluginPeer": null,
+			"isolation": null
+		},
+		{
+			"id": "win-x64",
+			"status": "pending-external",
+			"blockedBy": "No authenticated JUCE, CLAP, VST3, ASIO 2.3.4 professional Node-API payload or Windows signing evidence is available.",
+			"toolchainIdentity": null,
+			"sourceAuthentication": null,
+			"productionReadiness": null,
+			"payload": null,
+			"pluginPeer": null,
+			"isolation": null
+		},
+		{
+			"id": "win-arm64",
+			"status": "pending-external",
+			"blockedBy": "No authenticated professional Node-API payload, Windows ARM64 build-host, or signing evidence is available.",
+			"toolchainIdentity": null,
+			"sourceAuthentication": null,
+			"productionReadiness": null,
+			"payload": null,
+			"pluginPeer": null,
+			"isolation": null
+		}
+	]
+}

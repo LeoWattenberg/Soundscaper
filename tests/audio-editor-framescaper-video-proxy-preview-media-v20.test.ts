@@ -123,7 +123,14 @@ test('explicit Proxy refuses a missing attachment while Original and Auto keep t
 		getPressure: () => null,
 	});
 	const request = { project: project as never, source: source as never, sourceTimingIndex: null };
-	await assert.rejects(resolver(request), /Proxy preview.*attachment|attachment.*unavailable/iu);
+	await assert.rejects(resolver(request), (error: unknown) => {
+		const failure = error as Error & { code?: unknown; reason?: unknown };
+		assert.equal(failure.code, 'FRAMESCAPER_PROXY_PREVIEW_UNAVAILABLE');
+		assert.equal(failure.reason, 'attachment-unavailable');
+		assert.equal(failure.cause, undefined);
+		assert.equal(Object.hasOwn(failure, 'cause'), false);
+		return true;
+	});
 	mode = 'original';
 	assert.equal(await resolver(request), null);
 	mode = 'auto';

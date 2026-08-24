@@ -7,23 +7,24 @@ import test from 'node:test';
 
 const ROOT = resolve(import.meta.dirname, '..');
 
-test('Electron main owns OpenFX utility-process spawning and never exposes a plug-in path', async () => {
+test('Electron main keeps readiness branded while the actual OpenFX native child owns isolation', async () => {
 	const source = await readFile(join(ROOT, 'desktop/framescaper-openfx-electron-runtime.mjs'), 'utf8');
-	assert.match(source, /utilityProcess\.fork/iu);
-	assert.match(source, /openfx-helper-process\.js/iu);
 	assert.match(source, /startFramescaperOpenFxRuntime/iu);
-	assert.match(source, /framescaper-openfx-fingerprint-runtime/iu);
 	assert.match(source, /externalRuntimeRoot.*resourcesPath.*runtime.*\.\..*runtime/su,
 		'the packaged and prepared-development hosts must both resolve from external runtime resources');
-	assert.doesNotMatch(source, /child_process|shell:\s*true/iu);
+	assert.doesNotMatch(source, /utilityProcess|openfx-helper-process|child_process|shell:\s*true/iu);
+	const runtime = await readFile(join(ROOT, 'desktop/framescaper-openfx-runtime.ts'), 'utf8');
+	assert.match(runtime, /createIsolatedOpenFxNativeChildAuthority\(selected\)/u);
+	assert.match(runtime, /createOpenFxMainHelperChannel/u);
+	assert.doesNotMatch(runtime, /spawnHelper|productionLauncher/u);
+	const isolated = await readFile(join(ROOT, 'desktop/openfx-isolated-native-child.ts'), 'utf8');
+	assert.match(isolated, /createNativeChildIsolationLauncher/u);
+	assert.match(isolated, /isEnforcedNativeChildLaunch/u);
 });
 
-test('the utility-process entry self-tests before negotiating one closed OpenFX kind', async () => {
+test('the retired utility-process entry cannot receive structured-cloned readiness authority', async () => {
 	const source = await readFile(join(ROOT, 'desktop/openfx-helper-process.js'), 'utf8');
-	const selfTest = source.indexOf('await selfTestFramescaperOpenFxHelper');
-	const worker = source.indexOf('createOpenFxHelperWorker({');
-	assert.ok(selfTest >= 0 && worker > selfTest);
-	assert.match(source, /validateFramescaperOpenFxHelperProcessConfig/iu);
-	assert.match(source, /createOpenFxHelperJobRunner\(config\)/u);
-	assert.doesNotMatch(source, /executeJavaScript|BrowserWindow|ipcRenderer/iu);
+	assert.match(source, /Retired fail-closed entry/iu);
+	assert.match(source, /throw new Error/iu);
+	assert.doesNotMatch(source, /parentPort|createOpenFxHelperWorker|child_process|utilityProcess/iu);
 });

@@ -3,81 +3,308 @@
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
+	chooseNestedCommandAction,
 	getMenuItem,
 	openNestedCommandMenu,
 } from './audio-editor-test-helpers.js';
 
-for (const advertised of [false, true]) {
-	test(`selected V27 excludes ${advertised ? 'advertised' : 'blocked'} native and OpenFX services`, async ({ page }) => {
-		await installNativeServicesFixture(page, advertised);
-		const editor = await bootEditor(page, '/framescaper/embed/en/');
+test('selected V28 exposes native work only through menus, defaults off, and runs queue control after opt-in', async ({ page }) => {
+	await installNativeServicesFixture(page);
+	const editor = await bootEditor(page, '/framescaper/embed/en/');
+	await expect.poll(() => page.evaluate(() => globalThis.__framescaperNativeCalls
+		.filter(([kind]) => kind === 'snapshot').length)).toBeGreaterThan(0);
 
-		const tools = await openNestedCommandMenu(page, editor, 'Tools', []);
-		for (const label of ['Background jobs…', 'Watch folders…', 'Native media and scratch…']) {
-			await expect(getMenuItem(tools, label)).toHaveCount(0);
-		}
-		await page.keyboard.press('Escape');
+	await expect(page.locator('[data-framescaper-native-services-dialog="true"]')).toHaveCount(0);
+	await expect(editor.getByRole('button', { name: /native|OpenFX|proxy/iu })).toHaveCount(0);
 
-		const effect = await openNestedCommandMenu(page, editor, 'Effect', []);
-		await expect(getMenuItem(effect, 'Video Transitions')).toBeEnabled();
-		await expect(getMenuItem(effect, 'Video Finishing')).toBeEnabled();
-		await expect(getMenuItem(effect, 'Video effects')).toHaveCount(0);
-		await expect(getMenuItem(effect, 'Add OFX…')).toHaveCount(0);
-		await expect(getMenuItem(effect, 'Manage OFX…')).toHaveCount(0);
-		await page.keyboard.press('Escape');
+	let fileExport = await openNestedCommandMenu(page, editor, 'File', ['Export other']);
+	await expect(getMenuItem(fileExport, 'Add to render queue…')).toBeDisabled();
+	await page.keyboard.press('Escape');
 
-		await expect(page.locator('[data-framescaper-native-services-dialog="true"]')).toHaveCount(0);
-		await expect(page.locator('[data-framescaper-openfx-scan="true"]')).toHaveCount(0);
-		await expect.poll(() => page.evaluate(() => globalThis.__framescaperOpenFxCalls)).toEqual([]);
+	let tools = await openNestedCommandMenu(page, editor, 'Tools', []);
+	await expect(getMenuItem(tools, 'Background jobs…')).toBeDisabled();
+	await expect(getMenuItem(tools, 'Watch folders…')).toBeDisabled();
+	const preferencesItem = getMenuItem(tools, 'Native media and scratch…');
+	await expect(preferencesItem).toBeEnabled();
+	await preferencesItem.click();
+
+	let dialog = page.locator('[data-framescaper-native-services-dialog="true"]');
+	await expect(dialog).toBeVisible();
+	const master = dialog.locator('[data-native-service-preference="native-media"]');
+	await expect(master).not.toBeChecked();
+	await master.check();
+	await expect.poll(() => page.evaluate(() => globalThis.__framescaperNativeCalls)).toContainEqual([
+		'setPreference', 'native-media', true,
+	]);
+	await expect(master).toBeChecked();
+	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+	await expect(dialog).toBeHidden();
+
+	fileExport = await openNestedCommandMenu(page, editor, 'File', ['Export other']);
+	await expect(getMenuItem(fileExport, 'Add to render queue…')).toBeEnabled();
+	await page.keyboard.press('Escape');
+
+	tools = await openNestedCommandMenu(page, editor, 'Tools', []);
+	const jobs = getMenuItem(tools, 'Background jobs…');
+	await expect(jobs).toBeEnabled();
+	await jobs.click();
+	dialog = page.locator('[data-framescaper-native-services-dialog="true"]');
+	const queueRow = dialog.locator(`[data-native-queue-job="${'12'.repeat(20)}"]`);
+	await expect(queueRow).toContainText('exports/reel.mov');
+	await queueRow.getByRole('button', { name: 'Pause', exact: true }).click();
+	await expect.poll(() => page.evaluate(() => globalThis.__framescaperNativeCalls)).toContainEqual([
+		'control', 'pause',
+	]);
+	await expect(queueRow).toContainText('paused');
+});
+
+test('a Framescaper bridge cannot surface Framescaper native menus in Soundscaper', async ({ page }) => {
+	await installNativeServicesFixture(page);
+	const editor = await bootEditor(page, '/soundscaper/embed/en/');
+
+	const tools = await openNestedCommandMenu(page, editor, 'Tools', []);
+	for (const label of ['Background jobs…', 'Watch folders…', 'Native media and scratch…']) {
+		await expect(getMenuItem(tools, label)).toHaveCount(0);
+	}
+	await page.keyboard.press('Escape');
+	const effect = await openNestedCommandMenu(page, editor, 'Effect', []);
+	await expect(getMenuItem(effect, 'Video effects')).toHaveCount(0);
+	await expect(page.locator('[data-framescaper-native-services-dialog="true"]')).toHaveCount(0);
+});
+
+test('selected V28 authors typed OpenFX state only from the opted-in Effect menu', async ({ page }) => {
+	test.setTimeout(90_000);
+	await installNativeServicesFixture(page);
+	const editor = await bootEditor(page, '/framescaper/embed/en/');
+	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid…']);
+	await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toHaveCount(1);
+	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 30_000 });
+	const tools = await openNestedCommandMenu(page, editor, 'Tools', []);
+	await getMenuItem(tools, 'Native media and scratch…').click();
+	let dialog = page.locator('[data-framescaper-native-services-dialog="true"]');
+	await dialog.locator('[data-native-service-preference="native-media"]').check();
+	await dialog.locator('[data-native-service-preference="ofx-consent"]').check();
+	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+
+	const effects = await openNestedCommandMenu(page, editor, 'Effect', ['Video effects']);
+	const add = getMenuItem(effects, 'Add OFX…');
+	await expect(add).toBeEnabled();
+	await add.click();
+	dialog = page.locator('[data-framescaper-native-services-dialog="true"]');
+	const form = dialog.locator('[data-framescaper-openfx-add-form="true"]');
+	await expect(form).toBeVisible();
+	await form.locator('[data-openfx-parameter-type="boolean"] input').check();
+	await form.getByLabel('customState', { exact: true }).fill('opaque-state');
+	await form.getByLabel('Custom encoding for customState', { exact: true }).fill('vendor-v1');
+	await form.getByRole('button', { name: 'Add OpenFX effect', exact: true }).click();
+	await expect(form.getByRole('status')).toContainText('OpenFX effect added.', { timeout: 30_000 });
+	await expect.poll(() => page.evaluate(() => globalThis.__framescaperNativeCalls)).toContainEqual([
+		'listOpenFxPlugins',
+	]);
+});
+
+test('selected V28 runs one cumulative accessible OpenFX Interact workflow without a vendor window', async ({ page, browserName }) => {
+	test.setTimeout(120_000);
+	await page.emulateMedia({ forcedColors: 'active' });
+	await installNativeServicesFixture(page);
+	const editor = await bootEditor(page, '/framescaper/embed/en/');
+	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid…']);
+	await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toHaveCount(1);
+	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 30_000 });
+	const tools = await openNestedCommandMenu(page, editor, 'Tools', []);
+	await getMenuItem(tools, 'Native media and scratch…').click();
+	let dialog = page.locator('[data-framescaper-native-services-dialog="true"]');
+	await dialog.locator('[data-native-service-preference="native-media"]').check();
+	await dialog.locator('[data-native-service-preference="ofx-consent"]').check();
+	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+	let effects = await openNestedCommandMenu(page, editor, 'Effect', ['Video effects']);
+	await getMenuItem(effects, 'Add OFX…').click();
+	dialog = page.locator('[data-framescaper-native-services-dialog="true"]');
+	const form = dialog.locator('[data-framescaper-openfx-add-form="true"]');
+	await form.locator('[data-openfx-parameter-type="boolean"] input').check();
+	await form.getByLabel('customState', { exact: true }).fill('opaque-state');
+	await form.getByLabel('Custom encoding for customState', { exact: true }).fill('vendor-v1');
+	await form.getByRole('button', { name: 'Add OpenFX effect', exact: true }).click();
+	await expect(form.getByRole('status')).toContainText('OpenFX effect added.', { timeout: 30_000 });
+	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+
+	const effectButton = editor.getByRole('menuitem', { name: 'Effect', exact: true });
+	effects = await openNestedCommandMenu(page, editor, 'Effect', ['Video effects']);
+	const interact = getMenuItem(effects, 'Open OFX Interact…');
+	await expect(interact).toBeEnabled();
+	await interact.click();
+	dialog = page.locator('[data-framescaper-native-services-dialog="true"]');
+	const canvas = dialog.locator('[data-framescaper-openfx-interact-canvas="64x64"]');
+	await expect(canvas).toBeVisible();
+	await expect(dialog).toContainText('No vendor window opens.');
+	await expect(canvas).toHaveAttribute('role', 'application');
+	await expect(canvas).toHaveAttribute('width', '64');
+	await expect(canvas).toHaveAttribute('height', '64');
+	// WebKit does not implement forced-color-adjust, so its computed value is
+	// empty there rather than the authored 'none'.
+	if (browserName !== 'webkit') await expect(canvas).toHaveCSS('forced-color-adjust', 'none');
+	await expect(canvas).toHaveCSS('border-top-width', '2px');
+	await expect(dialog.locator('[data-framescaper-openfx-interact-instance="true"] option')).toHaveCount(1);
+
+	await canvas.focus();
+	await canvas.dispatchEvent('pointerdown', {
+		pointerId: 7, clientX: 80, clientY: 96, button: 1, shiftKey: true,
 	});
-}
+	await canvas.dispatchEvent('pointermove', {
+		pointerId: 7, clientX: 144, clientY: 160, button: 1, shiftKey: true,
+	});
+	await canvas.dispatchEvent('pointerup', {
+		pointerId: 7, clientX: 144, clientY: 160, button: 1,
+	});
+	await canvas.press('Enter');
+	await dialog.locator('[data-framescaper-openfx-interact-target="true"]').focus();
+	await expect.poll(() => page.evaluate(() => globalThis.__framescaperNativeCalls
+		.filter(([kind]) => kind === 'runOpenFxInteract').at(-1)?.[1].events.length), {
+		timeout: 30_000,
+	}).toBe(7);
+	const replay = await page.evaluate(() => globalThis.__framescaperNativeCalls
+		.filter(([kind]) => kind === 'runOpenFxInteract').at(-1)[1]);
+	expect(replay).toMatchObject({
+		protocolVersion: 1, context: 'filter', target: 'overlay', parameterName: null,
+		effect: { schemaVersion: 1, pluginId: 'net.example.BrowserFilter', context: 'filter' },
+	});
+	expect(replay.project.revision).toBeGreaterThanOrEqual(0);
+	expect(replay.effect.instanceId).toBeTruthy();
+	expect(replay.effectStateSha256).toMatch(/^[a-f\d]{64}$/u);
+	expect(replay.events.map(({ sequence }) => sequence)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+	expect(replay.events.map((event) => event.kind === 'focus'
+		? `focus:${event.focused}` : `${event.kind}:${event.phase}`)).toEqual([
+		'focus:true', 'pointer:down', 'pointer:motion', 'pointer:up',
+		'keyboard:down', 'keyboard:up', 'focus:false',
+	]);
 
-async function installNativeServicesFixture(page, advertised) {
-	await page.addInitScript(({ nativeTierAdvertised }) => {
+	const retainedPixel = await canvas.evaluate((element) => Array.from(
+		element.getContext('2d').getImageData(0, 0, 1, 1).data,
+	));
+	await dialog.locator('[data-framescaper-openfx-interact-target="true"]')
+		.selectOption('custom:customState');
+	await expect.poll(() => page.evaluate(() => globalThis.__framescaperNativeCalls
+		.filter(([kind]) => kind === 'runOpenFxInteract').at(-1)?.[1]), {
+		timeout: 30_000,
+	}).toMatchObject({
+		target: 'custom-parameter', parameterName: 'customState', events: [],
+	});
+	const committed = await page.evaluate(() => globalThis.__framescaperNativeCalls
+		.filter(([kind]) => kind === 'runOpenFxInteract').at(-1)[1]);
+	expect(committed.project.revision).toBeGreaterThan(replay.project.revision);
+	expect(committed.effect.parameters.find(({ name }) => name === 'enabled').value).toBe(false);
+	const afterRetained = await canvas.evaluate((element) => Array.from(
+		element.getContext('2d').getImageData(0, 0, 1, 1).data,
+	));
+	expect(afterRetained).toEqual(retainedPixel);
+	await expect(dialog.locator('[data-framescaper-openfx-interact-status="true"]'))
+		.toContainText(/ready/iu);
+	expect(page.context().pages()).toHaveLength(1);
+	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+	await expect(effectButton).toBeFocused();
+});
+
+async function installNativeServicesFixture(page) {
+	await page.addInitScript(() => {
 		const calls = [];
 		const preferences = {
-			nativeMediaEnabled: nativeTierAdvertised,
-			hardwareDecodeEnabled: nativeTierAdvertised,
-			hardwareEncodeEnabled: nativeTierAdvertised,
-			ofxConsentEnabled: nativeTierAdvertised,
+			nativeMediaEnabled: false,
+			hardwareDecodeEnabled: false,
+			hardwareEncodeEnabled: false,
+			ofxConsentEnabled: false,
 		};
+		let queueState = 'queued';
+		const queueRow = () => ({
+			jobId: '12'.repeat(20), taskKind: 'encoded-export', projectId: 'browser-v28',
+			relativeDestination: 'exports/reel.mov', state: queueState,
+			position: 0, progress: null, attempt: 0, lastFailureCode: null,
+		});
+		const capability = (domain, id, userEnabled = preferences.nativeMediaEnabled) => ({
+			domain, id,
+			state: preferences.nativeMediaEnabled ? 'available' : 'disabled',
+			reason: preferences.nativeMediaEnabled ? 'ready' : 'master-switch-off',
+			userEnabled, buildFingerprint: null, detail: null,
+		});
 		const nativeServices = {
-			snapshot: async () => ({
-				snapshotVersion: 1,
-				runtimeAvailable: nativeTierAdvertised,
-				nativeMediaEnabled: nativeTierAdvertised,
-				queue: [], roots: [], watchRules: [],
-			}),
-			control: async () => { throw new Error('No native queue job belongs to this fixture.'); },
-			reorder: async () => [],
+			snapshot: async () => {
+				calls.push(['snapshot']);
+				return {
+					snapshotVersion: 1, runtimeAvailable: true,
+					nativeMediaEnabled: preferences.nativeMediaEnabled,
+					queue: [queueRow()], roots: [], watchRules: [],
+				};
+			},
+			control: async ({ action }) => {
+				calls.push(['control', action]);
+				queueState = action === 'pause' ? 'paused' : queueState;
+				return queueRow();
+			},
+			reorder: async () => [queueRow()],
 			remove: async () => false,
 			capabilities: async () => ({
 				snapshotVersion: 1,
-				masterEnabled: nativeTierAdvertised,
+				masterEnabled: preferences.nativeMediaEnabled,
 				buildFingerprint: null,
-				entries: nativeTierAdvertised ? [{
-					domain: 'ofx', id: 'isolated-host', state: 'available', reason: 'ready',
-					userEnabled: true, buildFingerprint: null, detail: null,
-				}] : [],
+				entries: [
+					capability('queue', 'persistent-render-queue'),
+					capability('watch', 'watch-folders'),
+					capability('codec', 'encode-mov-prores-proxy'),
+					capability('operation', 'image-sequence-import'),
+					capability('display', 'external-display'),
+					capability('ofx', 'isolated-host', preferences.ofxConsentEnabled),
+				],
 			}),
 			preferences: async () => ({ ...preferences }),
-			setPreference: async ({ enabled }) => enabled,
-			scanOpenFxPlugin: async () => {
-				calls.push(['scan']);
-				throw new Error('Selected V27 must not scan OpenFX plug-ins.');
+			setPreference: async ({ preference, enabled }) => {
+				calls.push(['setPreference', preference, enabled]);
+				const fields = {
+					'native-media': 'nativeMediaEnabled',
+					'hardware-decode': 'hardwareDecodeEnabled',
+					'hardware-encode': 'hardwareEncodeEnabled',
+					'ofx-consent': 'ofxConsentEnabled',
+				};
+				preferences[fields[preference]] = enabled;
+				return enabled;
 			},
 			listOpenFxPlugins: async () => {
-				calls.push(['inventory']);
-				return [];
+				calls.push(['listOpenFxPlugins']);
+				return [{
+					pluginHandle: '12'.repeat(20), pluginId: 'net.example.BrowserFilter',
+					vendor: 'Example', version: { major: 1, minor: 0 },
+					binarySha256: 'ab'.repeat(32), supportedContexts: ['filter'],
+					parameters: [
+						{ name: 'enabled', type: 'boolean', animates: false },
+						{ name: 'customState', type: 'custom', animates: false },
+					],
+					components: ['RGBA'], pixelDepths: ['byte'], threading: 'instance-safe',
+					state: 'enabled', quarantined: false,
+				}];
 			},
-			controlOpenFxPlugin: async () => {
-				calls.push(['control']);
-				throw new Error('Selected V27 must not control OpenFX plug-ins.');
+			runOpenFxInteract: async (request) => {
+				const copied = structuredClone(request);
+				calls.push(['runOpenFxInteract', copied]);
+				const terminal = copied.events.at(-1)?.kind === 'focus'
+					&& copied.events.at(-1).focused === false;
+				const retained = copied.target === 'custom-parameter' && copied.events.length === 0;
+				const enabled = copied.effect.parameters.find(({ name }) => name === 'enabled');
+				return {
+					protocolVersion: 1, project: copied.project,
+					instanceId: copied.effect.instanceId,
+					effectStateSha256: copied.effectStateSha256,
+					width: 64, height: 64, rowBytes: 256,
+					target: copied.target, parameterName: copied.parameterName,
+					acceptedSequences: copied.events.map(({ sequence }) => sequence),
+					redrawRequested: !retained && copied.events.length > 0,
+					surfaceDisposition: retained ? 'retained' : 'drawn',
+					parameterMutations: terminal && enabled ? [{
+						parameter: { ...enabled, value: false },
+					}] : [],
+					rgba: new Uint8Array(64 * 64 * 4).fill(retained ? 0 : 0x33),
+				};
 			},
 		};
-		Object.defineProperty(globalThis, '__framescaperOpenFxCalls', {
-			configurable: true,
-			value: calls,
+		Object.defineProperty(globalThis, '__framescaperNativeCalls', {
+			configurable: true, value: calls,
 		});
 		Object.defineProperty(globalThis, 'framescaperDesktop', {
 			configurable: true,
@@ -85,20 +312,16 @@ async function installNativeServicesFixture(page, advertised) {
 			value: Object.freeze({ v1: Object.freeze({
 				nativeServices: Object.freeze(nativeServices),
 				readNativeTierControls: async () => ({
-					probeHelperEnabled: nativeTierAdvertised,
-					probeHelperQuarantined: false,
-					audioHelperEnabled: nativeTierAdvertised,
-					audioHelperQuarantined: false,
-					nativeEffectDiscoveryEnabled: nativeTierAdvertised,
+					probeHelperEnabled: false, probeHelperQuarantined: false,
+					audioHelperEnabled: false, audioHelperQuarantined: false,
+					nativeEffectDiscoveryEnabled: false,
 				}),
 				applyNativeTierControl: async () => ({
-					probeHelperEnabled: nativeTierAdvertised,
-					probeHelperQuarantined: false,
-					audioHelperEnabled: nativeTierAdvertised,
-					audioHelperQuarantined: false,
-					nativeEffectDiscoveryEnabled: nativeTierAdvertised,
+					probeHelperEnabled: false, probeHelperQuarantined: false,
+					audioHelperEnabled: false, audioHelperQuarantined: false,
+					nativeEffectDiscoveryEnabled: false,
 				}),
 			}) }),
 		});
-	}, { nativeTierAdvertised: advertised });
+	});
 }

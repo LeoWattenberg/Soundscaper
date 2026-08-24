@@ -93,9 +93,14 @@ export function createFramescaperVideoProxyPreviewMediaResolverV20(
 	return async (request) => {
 		const sourceId = String(request?.source?.id ?? '');
 		if (!sourceId || request.source.kind !== 'video'
-			|| (request.project.schemaVersion !== 20 && request.project.schemaVersion !== 27)) return null;
+			|| ![20, 27, 28].includes(Number(request.project.schemaVersion))) return null;
 		const mode = options.getMode(sourceId);
 		const attachmentValue = request.source.proxyAttachment;
+		if (attachmentValue == null) {
+			reportTrust(options, sourceId, attachmentValue, 'unavailable');
+			if (mode === 'original') return null;
+			return unavailable(mode, 'attachment-unavailable');
+		}
 		let attachment: Readonly<VideoProxyAttachmentV18>;
 		try {
 			attachment = normalizeVideoProxyAttachmentV18(attachmentValue);
@@ -139,6 +144,10 @@ export function createFramescaperVideoProxyPreviewMediaResolverV20(
 
 /** V27 retains the same web-core source/attachment carrier and verification route. */
 export const createFramescaperVideoProxyPreviewMediaResolverV27 =
+	createFramescaperVideoProxyPreviewMediaResolverV20;
+
+/** V28 retains the exact source-domain proxy verification route. */
+export const createFramescaperVideoProxyPreviewMediaResolverV28 =
 	createFramescaperVideoProxyPreviewMediaResolverV20;
 
 function unavailable(

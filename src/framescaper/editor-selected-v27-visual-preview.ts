@@ -44,6 +44,7 @@ import {
 } from '../common/editor/video-visual-model-v24.ts';
 import { createFramescaperProjectUnifiedExactRenderPlanV27 } from './editor-project-unified-render-plan-v27.ts';
 import { createFramescaperSelectedExactPreviewV27 } from './editor-selected-v27-exact-preview.ts';
+import type { CreateFramescaperOpenFxExactExecutionV28 } from './video-export-exact-execution-v27.ts';
 import {
 	assertFramescaperProjectV27Profile,
 } from './editor-project-runtime-profile-v27.ts';
@@ -57,6 +58,7 @@ export interface FramescaperSelectedVisualPreviewOptionsV27
 	extends ProductVideoVisualPreviewCreateRequest {
 	readonly profile: unknown;
 	readonly store: AudioEditorProjectStore;
+	readonly createOpenFxExecution?: CreateFramescaperOpenFxExactExecutionV28;
 }
 
 export interface FramescaperSelectedProjectBinThumbnailOptionsV27
@@ -87,6 +89,7 @@ export async function createFramescaperSelectedVisualPreviewSessionV27(
 	const plan = createPreviewPlan(options.profile, project, canvas, timingViews);
 	const consumer = createUnifiedExactRenderVisualPreviewConsumerV13(
 		plan, previewTimingSidecars(project, timingViews),
+		{ allowExternalGenerators: options.createOpenFxExecution !== undefined },
 	);
 	const abort = new AbortController();
 	const drawables = await materializeDrawables(
@@ -97,6 +100,9 @@ export async function createFramescaperSelectedVisualPreviewSessionV27(
 		project: options.project as never, plan, store: options.store, timingViews,
 		boundTimingViews: previewTimingSidecars(project, timingViews), signal: abort.signal,
 		assertCurrent() { if (abort.signal.aborted) throw abort.signal.reason; },
+		...(options.createOpenFxExecution ? { openFx: options.createOpenFxExecution({
+			foundationPlan: plan, timingViews,
+		}) } : {}),
 	});
 	const effectsById = exactEffectsById(plan);
 	let disposed = false;
@@ -365,7 +371,9 @@ async function materializeDrawables(
 			.layers.flatMap(({ entries }) => entries).find(({ modelId }) => modelId === node.modelId);
 		if (!entry) throw new ReferenceError(`Active V13 visual ${node.modelId} was not resolved.`);
 		const size = previewSourceSize(node, canvas);
-		const frame = await materializeUnifiedExactRenderVisualEntryV13(entry, {
+		const frame = entry.modelKind === 'external-generator' ? Object.freeze({
+			width: size.width, height: size.height, pixels: new Uint8Array(size.width * size.height * 4),
+		}) : await materializeUnifiedExactRenderVisualEntryV13(entry, {
 			targetWidth: size.width,
 			targetHeight: size.height,
 			decodeStill: (source) => decodeStill(store, source.storageKey, source.contentSha256, signal),

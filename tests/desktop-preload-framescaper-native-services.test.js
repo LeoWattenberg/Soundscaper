@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
+import { createHash, webcrypto } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import vm from 'node:vm';
@@ -40,6 +40,28 @@ test('hostile native capability snapshots never become renderer state', async ()
 	malformed.entries[0].secretPath = '/tmp/native-host';
 	const fixture = await loadPreload([malformed]);
 	await assert.rejects(() => fixture.bridge.nativeServices.capabilities(), /capability entry|fields/iu);
+});
+
+test('OpenFX frame offers preserve the exact renderer request capability nonce', async () => {
+	const requestNonce = '31'.repeat(20);
+	const sessionId = '42'.repeat(20);
+	const fixture = await loadPreload([{ protocolVersion: 1, sessionId, requestNonce }]);
+	const request = openFxFrameRequest(requestNonce);
+	assert.deepEqual({ ...await fixture.bridge.nativeServices.openOpenFxFrameSession(request) }, {
+		protocolVersion: 1, sessionId, requestNonce,
+	});
+	assert.throws(() => fixture.bridge.nativeServices.openOpenFxFrameSession({
+		...request, planPayload: 'x'.repeat(16 * 1024 * 1024 + 1),
+	}), /OpenFX frame|plan|bound/iu);
+	assert.equal(fixture.invocations.length, 1);
+	const missing = await loadPreload([{ protocolVersion: 1, sessionId }]);
+	await assert.rejects(() => missing.bridge.nativeServices.openOpenFxFrameSession(request),
+		/frame offer|requestNonce|fields/iu);
+	const forged = await loadPreload([{
+		protocolVersion: 1, sessionId, requestNonce, path: '/private/frame.rgba',
+	}]);
+	await assert.rejects(() => forged.bridge.nativeServices.openOpenFxFrameSession(request),
+		/frame offer|fields/iu);
 });
 
 test('queue controls are exact in both directions and reject malformed requests before IPC', async () => {
@@ -231,6 +253,35 @@ test('watch mutation crosses preload only as an exact pathless claim and complet
 	}), /fields/iu);
 });
 
+test('selected V28 watch mutation carries only target-bin, proxy, source, and digest authority', async () => {
+	const claim = {
+		claimId: '12'.repeat(16), projectId: 'project-28', projectRevision: 3,
+		projectSchemaVersion: 28, binId: 'project-bin', generateProxies: true,
+		existingSourceId: null, importMode: 'link', locatorId: '34'.repeat(16),
+		locatorRevision: '56'.repeat(16), name: 'clip.mp4', size: 4,
+		mimeType: 'video/mp4', lastModified: 8, contentSha256: '78'.repeat(32),
+	};
+	const completion = {
+		claimId: claim.claimId, projectId: claim.projectId, projectSchemaVersion: 28,
+		binId: 'project-bin', sourceId: 'source-28', contentSha256: claim.contentSha256,
+		expectedProjectRevision: 3, committedProjectRevision: 5, success: true,
+	};
+	const fixture = await loadPreload([claim, true]);
+	assert.deepEqual({ ...await fixture.bridge.nativeServices.claimWatchImport({
+		projectId: 'project-28', projectRevision: 3,
+	}) }, claim);
+	assert.equal(await fixture.bridge.nativeServices.completeWatchImport(completion), true);
+	assert.equal(JSON.stringify(fixture.invocations).includes('/private'), false);
+	assert.deepEqual({ ...fixture.invocations[1][1] }, completion);
+	const hostile = await loadPreload([{ ...claim, path: '/private/clip.mp4' }]);
+	await assert.rejects(() => hostile.bridge.nativeServices.claimWatchImport({
+		projectId: 'project-28', projectRevision: 3,
+	}), /fields/iu);
+	assert.throws(() => fixture.bridge.nativeServices.completeWatchImport({
+		...completion, binId: 'another-bin',
+	}), /selected|completion/iu);
+});
+
 test('image-sequence selection crosses preload only as opaque files and exact ranges', async () => {
 	const selection = {
 		selectionId: '9a'.repeat(20),
@@ -259,6 +310,64 @@ test('image-sequence selection crosses preload only as opaque files and exact ra
 	]);
 	const hostile = await loadPreload([{ ...selection, path: '/private/shot.0001.png' }]);
 	await assert.rejects(() => hostile.bridge.nativeServices.selectImageSequence(), /selection|fields/iu);
+});
+
+test('completed native proxy output crosses preload only as an authenticated range claim', async () => {
+	const claim = {
+		claimId: '7b'.repeat(20), byteLength: 3,
+		sha256: createHash('sha256').update(Uint8Array.of(1, 2, 3)).digest('hex'),
+		mimeType: 'video/quicktime',
+	};
+	const fixture = await loadPreload([claim, Uint8Array.of(1, 2, 3), true]);
+	assert.deepEqual({ ...await fixture.bridge.nativeServices.claimProxyOutput({ jobId: JOB_ID }) }, claim);
+	assert.deepEqual([...await fixture.bridge.nativeServices.readProxyOutput({
+		claimId: claim.claimId, offset: 0, length: 3,
+	})], [1, 2, 3]);
+	assert.equal(await fixture.bridge.nativeServices.releaseProxyOutput({ claimId: claim.claimId }), true);
+	assert.deepEqual(fixture.invocations.map(([channel, request]) => [channel, { ...request }]), [
+		['framescaper:v1:native-services:proxy-output:claim', { jobId: JOB_ID }],
+		['framescaper:v1:native-services:proxy-output:read', {
+			claimId: claim.claimId, offset: 0, length: 3,
+		}],
+		['framescaper:v1:native-services:proxy-output:release', { claimId: claim.claimId }],
+	]);
+	assert.throws(() => fixture.bridge.nativeServices.readProxyOutput({
+		claimId: claim.claimId, offset: 0, length: 1024 * 1024 + 1,
+	}), /range/iu);
+	const hostile = await loadPreload([{ ...claim, path: '/private/proxy.mov' }]);
+	await assert.rejects(() => hostile.bridge.nativeServices.claimProxyOutput({ jobId: JOB_ID }), /fields/iu);
+});
+
+test('image-sequence publication uses exact control and a digest-bound pathless data plane', async () => {
+	const transactionId = '7a'.repeat(20);
+	const bytes = Uint8Array.of(1, 2, 3);
+	const fixture = await loadPreload([
+		{ operation: 'begun', transactionId },
+		{ operation: 'write-prepared' },
+		{ operation: 'written', transactionId, asset: 'pack', offset: 3 },
+		bytes,
+	]);
+	assert.deepEqual(await fixture.bridge.nativeServices.imageSequenceImport({
+		operation: 'begin', candidateGeneration: 28,
+		projectId: 'project-1', projectRevision: 4,
+	}), { operation: 'begun', transactionId });
+	assert.deepEqual(await fixture.bridge.nativeServices.writeImageSequenceImportChunk({
+		transactionId, asset: 'pack', offset: 0, bytes,
+	}), { operation: 'written', transactionId, asset: 'pack', offset: 3 });
+	assert.deepEqual([...await fixture.bridge.nativeServices.readImageSequenceImportBody({
+		transactionId, asset: 'pack', offset: 0, length: 3,
+	})], [1, 2, 3]);
+	assert.deepEqual(fixture.invocations.map(([channel]) => channel), [
+		'framescaper:v1:native-services:image-sequence:import',
+		'framescaper:v1:native-services:image-sequence:import',
+		'framescaper:v1:native-services:image-sequence:import-port',
+		'framescaper:v1:native-services:image-sequence:import',
+		'framescaper:v1:native-services:image-sequence:import',
+	]);
+	assert.deepEqual(fixture.dataPlaneChunks, [{ sequence: 0, offset: 0, byteLength: 3 }]);
+	assert.throws(() => fixture.bridge.nativeServices.imageSequenceImport({
+		operation: 'discard', transactionId, path: '/private/sequence.pack',
+	}), /fields|image-sequence/iu);
 });
 
 test('OpenFX scan, inventory, and control cross the public bridge without plug-in paths', async () => {
@@ -310,6 +419,7 @@ test('root, watch, scratch, publication, checkpoint, and display lifecycle stay 
 	const root = { grantId: 'cd'.repeat(8), displayName: 'Exports', revoked: false };
 	const watch = {
 		ruleId: 'ef'.repeat(8), grantId: root.grantId, projectId: 'project-1',
+		binId: null,
 		extensions: ['mov'], importMode: 'link', generateProxies: false, enabled: true,
 	};
 	const display = {
@@ -318,12 +428,13 @@ test('root, watch, scratch, publication, checkpoint, and display lifecycle stay 
 		activeDisplayId: null,
 	};
 	const fixture = await loadPreload([
-		root, true, true, watch, { ...watch, enabled: false }, true, snapshot(), [JOB_ID], 'released',
+		root, snapshot().queue[0], true, true, watch, { ...watch, enabled: false }, true, snapshot(), [JOB_ID], 'released',
 		{ outcome: 'published', relativeDestination: 'exports/programme.mov', byteLength: 12, sha256: '12'.repeat(32) },
 		{ verifiedFrameCount: 1, plannedFrameCount: 1, complete: true },
 		display, { ...display, activeDisplayId: 'display-2' }, { ...display, activeDisplayId: 'display-2' },
 	]);
 	assert.equal((await fixture.bridge.nativeServices.selectRoot()).grantId, root.grantId);
+	assert.equal((await fixture.bridge.nativeServices.reauthorizeQueueRoot({ jobId: JOB_ID })).jobId, JOB_ID);
 	assert.equal(await fixture.bridge.nativeServices.revalidateRoot({ grantId: root.grantId }), true);
 	assert.equal(await fixture.bridge.nativeServices.revokeRoot({ grantId: root.grantId }), true);
 	assert.equal((await fixture.bridge.nativeServices.createWatch({ grantId: root.grantId, projectId: 'project-1',
@@ -344,7 +455,8 @@ test('root, watch, scratch, publication, checkpoint, and display lifecycle stay 
 		evaluationFingerprint: '78'.repeat(32), width: 2, height: 1, dynamicRange: 'sdr',
 		rgbaSha256: createHash('sha256').update(rgba).digest('hex'), rgba });
 	assert.deepEqual(fixture.invocations.map(([channel]) => channel), [
-		'framescaper:v1:native-services:root:select', 'framescaper:v1:native-services:root:revalidate',
+		'framescaper:v1:native-services:root:select', 'framescaper:v1:native-services:queue:reauthorize-root',
+		'framescaper:v1:native-services:root:revalidate',
 		'framescaper:v1:native-services:root:revoke', 'framescaper:v1:native-services:watch:create',
 		'framescaper:v1:native-services:watch:enabled', 'framescaper:v1:native-services:watch:remove',
 		'framescaper:v1:native-services:watch:reconcile', 'framescaper:v1:native-services:scratch:cleanup',
@@ -374,6 +486,14 @@ test('clean-display frames larger than 16 MiB are transferred as sequential boun
 	]);
 });
 
+function openFxFrameRequest(requestNonce) {
+	return {
+		schemaVersion: 1, planPayload: '{}', planFingerprint: '12'.repeat(32),
+		instanceId: 'effect-1', outputOrdinal: 0, requestedBackend: 'cpu',
+		transitionProgress: null, inputs: [], inputBinding: null, requestNonce,
+	};
+}
+
 function snapshot() {
 	return {
 		snapshotVersion: 1,
@@ -393,6 +513,7 @@ function snapshot() {
 		roots: [{ grantId: 'cd'.repeat(8), displayName: 'Exports', revoked: false, rootPath: '/secret' }],
 		watchRules: [{
 			ruleId: 'ef'.repeat(8), grantId: 'cd'.repeat(8), projectId: 'project-1',
+			binId: null,
 			extensions: ['mov'], importMode: 'link', generateProxies: false, enabled: true,
 		}],
 		secretPath: '/tmp/native-services.sqlite',
@@ -434,6 +555,7 @@ async function loadPreload(results) {
 	vm.runInNewContext(source, {
 		AggregateError, Array, ArrayBuffer, JSON, Number, Object, Promise, RangeError, String,
 		TypeError, Uint8Array, URL, Blob, MessageChannel, setTimeout, clearTimeout,
+		crypto: webcrypto, structuredClone,
 		require: () => ({
 			contextBridge: { exposeInMainWorld(name, value) { if (name === 'framescaperDesktop') bridge = value.v1; } },
 			ipcRenderer: {
@@ -447,7 +569,7 @@ async function loadPreload(results) {
 								byteLength: message.bytes.byteLength });
 							port.postMessage({ dataPlaneVersion: 1, type: 'ack', streamId: message.streamId, sequence: message.sequence, receivedBytes: message.offset + message.bytes.byteLength });
 						}
-						else if (message.type === 'complete') port.postMessage({ dataPlaneVersion: 1, type: 'result', streamId: message.streamId, projection: results.shift() });
+						else if (message.type === 'complete' && !channel.endsWith(':image-sequence:import-port')) port.postMessage({ dataPlaneVersion: 1, type: 'result', streamId: message.streamId, projection: results.shift() });
 					});
 					port.start();
 				},

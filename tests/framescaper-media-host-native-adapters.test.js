@@ -326,27 +326,36 @@ test('only exact V7 through V12 plan authorities are recognized and graph gaps a
 });
 
 test('FFmpeg adapter source uses libav APIs and contains no argv or filter-string seam', () => {
+	const decodeSession = readFileSync(join(sourceRoot, 'ffmpeg_decode_session.cpp'), 'utf8');
 	const engine = readFileSync(join(sourceRoot, 'ffmpeg_media_engine.cpp'), 'utf8');
+	const videoEncode = readFileSync(join(sourceRoot, 'ffmpeg_hardware_encode.cpp'), 'utf8');
 	const simple = readFileSync(join(sourceRoot, 'ffmpeg_simple_render.cpp'), 'utf8');
 	const selected = readFileSync(join(sourceRoot, 'ffmpeg_selected_v20_adapter.cpp'), 'utf8');
 	const selectedRender = readFileSync(join(sourceRoot, 'ffmpeg_selected_v20_render.cpp'), 'utf8');
 	const selectedCapture = readFileSync(join(sourceRoot, 'selected_v20_plan_capture.cpp'), 'utf8');
 	const framePack = readFileSync(join(sourceRoot, 'selected_v20_frame_pack.cpp'), 'utf8');
+	for (const api of ['avformat_open_input', 'avcodec_send_packet', 'avcodec_receive_frame']) {
+		assert.match(decodeSession, new RegExp(api, 'u'));
+	}
 	for (const api of [
-		'avformat_open_input', 'avcodec_send_packet', 'avcodec_receive_frame',
 		'sws_scale', 'avformat_alloc_output_context2', 'avcodec_send_frame',
 		'av_interleaved_write_frame',
 	]) assert.match(engine, new RegExp(api, 'u'));
-	assert.doesNotMatch(engine, /avfilter_graph_parse|system\s*\(|popen\s*\(|execv/iu);
-	assert.doesNotMatch(engine, /-vf|-filter_complex|-codec:|-c:v/iu);
+	for (const source of [decodeSession, engine, videoEncode]) {
+		assert.doesNotMatch(source, /avfilter_graph_parse|system\s*\(|popen\s*\(|execv/iu);
+		assert.doesNotMatch(source, /-vf|-filter_complex|-codec:|-c:v/iu);
+	}
 	assert.match(engine, /prores_ks/u);
 	assert.match(engine, /framescaper-rgba-frame-pack-v1/u);
+	for (const token of ['libx264', 'libvpx-vp9', 'codec-policy-unavailable']) {
+		assert.match(videoEncode, new RegExp(token, 'u'));
+	}
 	for (const token of [
-		'single-full-frame-clip-v1', 'libx264', 'libvpx-vp9',
-		'codec-policy-unavailable', 'unsupported-rate-conversion',
+		'single-full-frame-clip-v1', 'unsupported-rate-conversion',
 		'avcodec_send_frame', 'av_interleaved_write_frame',
 	]) assert.match(simple, new RegExp(token, 'u'));
-	assert.doesNotMatch(engine, /execute_simple_render_job\(job\)/u);
+	assert.match(engine,
+		/admitted_plan\.version\s*==\s*14[\s\S]*simple_full_frame_clip\) return execute_simple_render_job\(job\)/u);
 	assert.match(engine, /admitted_plan\.version\s*==\s*7[\s\S]*admitted_plan\.version\s*==\s*8[\s\S]*execute_selected_v20_render_job/u);
 	assert.doesNotMatch(simple, /avfilter_graph_parse|system\s*\(|popen\s*\(|execv/iu);
 	assert.doesNotMatch(simple, /-vf|-filter_complex|-codec:|-c:v/iu);
@@ -384,8 +393,8 @@ function buildContractHost(context) {
 	const executable = join(directory, 'framescaper-media-host');
 	const files = [
 		'media_host.cpp', 'image_sequence_pack.cpp', 'legacy_plan_semantics.cpp',
-		'legacy_plan_v8_filter_semantics.cpp', 'media_file_grants.cpp', 'media_plan.cpp', 'sha256.cpp',
-		'strict_json.cpp',
+		'legacy_plan_v8_filter_semantics.cpp', 'media_file_grants.cpp',
+		'media_host_arguments.cpp', 'media_plan.cpp', 'sha256.cpp', 'strict_json.cpp',
 	].map((file) => join(sourceRoot, file));
 	const built = spawnSync('c++', [
 		'-std=c++20', '-Wall', '-Wextra', '-Wpedantic', '-Werror',

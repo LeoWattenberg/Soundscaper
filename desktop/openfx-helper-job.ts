@@ -1,10 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Filesystem/data-plane adapter around the closed OpenFX scanner and V12 runtime-host CLIs. */
+/** Filesystem/data-plane adapter around the closed OpenFX scanner and V12/V14 runtime host. */
 
-import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFile, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import type {
@@ -19,17 +18,40 @@ import {
 } from './helper-data-plane-io.ts';
 import {
 	type HelperExecutableGrant,
-	type HelperOfxHostJobGrant,
 	type HelperOfxScanJobGrant,
 	validateHelperJobGrant,
 } from './helper-contract.ts';
+import type {
+	HelperOfxHostJobGrantV1OrV2,
+	HelperOfxRenderHostJobGrantV1OrV2,
+} from './helper-native-ofx-host-grant-v2.ts';
+import { isHelperOfxInteractJobGrantV1 } from './helper-native-ofx-interact-grant.ts';
+import { runOpenFxInteractHelperJobV1 } from './openfx-helper-interact-job.ts';
 import { NativeMediaHelperFilesystem } from './native-media-helper-filesystem.ts';
 import type {
 	OpenFxHelperJobHandle,
 	OpenFxHelperJobRequest,
 	OpenFxHelperJobRunnerPort,
 } from './openfx-helper-worker.ts';
-import { stageOpenFxPluginBinary } from './openfx-helper-plugin-staging.ts';
+import {
+	createOpenFxV12CancellationFrame,
+	type OpenFxHostProcessAuthority,
+	type OpenFxHostProcessHandle,
+	type OpenFxHostProcessInvoker,
+	type OpenFxHostProcessResult,
+} from './openfx-host-process-contract.ts';
+export {
+	createOpenFxV12CancellationFrame,
+	openFxHostProcessArguments,
+	type OpenFxHostProcessAuthority,
+	type OpenFxHostProcessHandle,
+	type OpenFxHostProcessInvocation,
+	type OpenFxHostProcessResult,
+} from './openfx-host-process-contract.ts';
+import {
+	stageOpenFxPluginBinary,
+	type StagedOpenFxPlugin,
+} from './openfx-helper-plugin-staging.ts';
 import { canonicalOpenFxV12NativeGrant } from './openfx-helper-v12-native-grant.ts';
 import { stageOpenFxVideoTimingAssetsV1 } from './openfx-helper-video-timing-staging.ts';
 import {
@@ -43,29 +65,11 @@ import { assertUnifiedExactRenderPlanWithDeferredTimingReferences,
 
 export const OPENFX_HOST_CONTROL_MAXIMUM_BYTES = 64 * 1024;
 
-export interface OpenFxHostProcessInvocation {
-	readonly executablePath: string;
-	readonly arguments: readonly string[];
-	/** Exact one-shot frame written before force-termination of a V12 render. */
-	readonly cancellationFrame?: string;
-}
-
-export interface OpenFxHostProcessResult {
-	readonly exitCode: number;
-	readonly stdout: string;
-	readonly stderr: string;
-}
-
-export interface OpenFxHostProcessHandle {
-	readonly completion: Promise<OpenFxHostProcessResult>;
-	cancel(): Promise<void>;
-}
-
 export interface OpenFxHelperJobRunnerOptions {
 	readonly descriptor: FramescaperOpenFxHostDescriptor;
 	readonly mode: FramescaperOpenFxHelperMode;
 	readonly pluginFingerprint: string | null;
-	readonly invokeHost?: (invocation: OpenFxHostProcessInvocation) => OpenFxHostProcessHandle;
+	readonly invokeHost: OpenFxHostProcessInvoker;
 }
 
 export class OpenFxHelperJobRunner implements OpenFxHelperJobRunnerPort {
@@ -77,13 +81,14 @@ export class OpenFxHelperJobRunner implements OpenFxHelperJobRunnerPort {
 	constructor(options: OpenFxHelperJobRunnerOptions) {
 		if (!options || (options.mode !== 'scanner' && options.mode !== 'runtime')
 			|| (options.mode === 'scanner' && options.pluginFingerprint !== null)
-			|| (options.mode === 'runtime' && !validFingerprint(options.pluginFingerprint))) {
+			|| (options.mode === 'runtime' && !validFingerprint(options.pluginFingerprint))
+			|| typeof options.invokeHost !== 'function') {
 			throw new TypeError('An OpenFX job runner requires one exact scanner or runtime identity.');
 		}
 		this.#descriptor = options.descriptor;
 		this.#mode = options.mode;
 		this.#pluginFingerprint = options.pluginFingerprint;
-		this.#invokeHost = options.invokeHost ?? invokeClosedOpenFxHost;
+		this.#invokeHost = options.invokeHost;
 	}
 
 	run(request: OpenFxHelperJobRequest): OpenFxHelperJobHandle {
@@ -92,22 +97,31 @@ export class OpenFxHelperJobRunner implements OpenFxHelperJobRunnerPort {
 			throw new Error(`An OpenFX ${this.#mode} runner cannot execute ${request.kind}.`);
 		}
 		if (request.kind === 'ofx-host') {
-			const fingerprint = (request.grant as HelperOfxHostJobGrant).invocation?.pluginFingerprint;
+			const host = request.grant as HelperOfxHostJobGrantV1OrV2;
+			const fingerprint = isHelperOfxInteractJobGrantV1(host)
+				? host.pluginFingerprint : host.invocation.pluginFingerprint;
 			if (fingerprint !== this.#pluginFingerprint) {
 				throw new Error('An OpenFX runtime job crossed its authenticated plug-in fingerprint boundary.');
 			}
 		}
 		const grant = validateHelperJobGrant(request.kind, request.grant);
-		const ports = admittedPorts(request.ports, request.kind === 'ofx-scan'
-			? 1 : 2 + ((grant as HelperOfxHostJobGrant).videoTimingAssets?.length ?? 0)
-				+ (grant as HelperOfxHostJobGrant).inputs.length);
+		const hostGrant = request.kind === 'ofx-host'
+			? grant as HelperOfxHostJobGrantV1OrV2 : null;
+		const ports = admittedPorts(request.ports, request.kind === 'ofx-scan' ? 1
+			: isHelperOfxInteractJobGrantV1(hostGrant) ? 0
+				: 2 + (hostGrant!.videoTimingAssets?.length ?? 0) + hostGrant!.inputs.length);
 		const abort = new AbortController();
 		let process: OpenFxHostProcessHandle | null = null;
 		const completion = (request.kind === 'ofx-scan'
 			? this.#scan(grant as HelperOfxScanJobGrant, ports[0]!, abort.signal, (value) => {
 				process = value;
 			})
-			: this.#host(grant as HelperOfxHostJobGrant, ports, abort.signal, (value) => {
+			: isHelperOfxInteractJobGrantV1(hostGrant)
+				? runOpenFxInteractHelperJobV1({
+					descriptor: this.#descriptor, grant: hostGrant, signal: abort.signal,
+					invokeHost: this.#invokeHost, setProcess: (value) => { process = value; },
+				})
+				: this.#host(hostGrant as HelperOfxRenderHostJobGrantV1OrV2, ports, abort.signal, (value) => {
 				process = value;
 			}));
 		return Object.freeze({
@@ -143,20 +157,23 @@ export class OpenFxHelperJobRunner implements OpenFxHelperJobRunnerPort {
 			}
 			const reservation = join(grant.scratch.rootPath, grant.scratch.reservationId);
 			await filesystem.createReservation(reservation);
-			const pluginPath = await stageOpenFxPluginBinary(
+			const plugin = await stageOpenFxPluginBinary(
 				filesystem, reservation, grant.pluginBinary, signal,
 			);
+			const pluginGrant = await filePathGrant(plugin.path);
 			const outputPath = join(reservation, 'descriptor.json');
 			await filesystem.expectOutput({
 				path: outputPath, maximumBytes: grant.descriptor.maximumByteLength,
 				insideReservation: true,
 			});
+			await filesystem.revalidate();
 			const process = this.#invokeHost({
 				executablePath: this.#descriptor.scanner.path,
-				arguments: ['--scan', pluginPath, '--sha256', grant.pluginBinary.sha256],
-			});
+				arguments: ['--scan', plugin.path, '--sha256', grant.pluginBinary.sha256],
+			}, authority(pluginGrant, plugin));
 			setProcess(process);
 			const result = await successfulResult(process.completion, 'scanner');
+			await plugin.revalidate();
 			await filesystem.revalidate();
 			assertScannerDescriptor(result.stdout, grant.pluginBinary.sha256);
 			await writeFile(outputPath, result.stdout, { flag: 'wx', mode: 0o600 });
@@ -180,7 +197,7 @@ export class OpenFxHelperJobRunner implements OpenFxHelperJobRunnerPort {
 	}
 
 	async #host(
-		grant: HelperOfxHostJobGrant,
+		grant: HelperOfxRenderHostJobGrantV1OrV2,
 		ports: readonly HelperDataPlaneIoPort[],
 		signal: AbortSignal,
 		setProcess: (value: OpenFxHostProcessHandle) => void,
@@ -209,12 +226,13 @@ export class OpenFxHelperJobRunner implements OpenFxHelperJobRunnerPort {
 			}
 			const reservation = join(grant.scratch.rootPath, grant.scratch.reservationId);
 			await filesystem.createReservation(reservation);
-			const pluginPath = await stageOpenFxPluginBinary(
+			const plugin = await stageOpenFxPluginBinary(
 				filesystem, reservation, grant.pluginBinary, signal,
 			);
+			const pluginGrant = await filePathGrant(plugin.path);
 			const planPath = join(reservation, 'canonical-plan.json');
 			await receiveHelperDataPlaneFile({ binding: grant.plan, port: ports[0]!, path: planPath, signal });
-			await assertCanonicalV12Plan(planPath, grant.plan.sha256);
+			await assertCanonicalOpenFxPlan(planPath, grant.plan.sha256, grant.invocation.unifiedPlanVersion);
 			await filesystem.authenticateFile({
 				path: planPath, byteLength: grant.plan.byteLength, sha256: grant.plan.sha256,
 			});
@@ -235,16 +253,25 @@ export class OpenFxHelperJobRunner implements OpenFxHelperJobRunnerPort {
 				});
 				inputPaths.push(path);
 			}
-			const pluginIndex = await this.#pluginIndex(grant, pluginPath, signal, setProcess);
+			const pluginIndex = await this.#pluginIndex(
+				grant, plugin, pluginGrant, signal, setProcess,
+			);
 			await filesystem.revalidate();
 			signal.throwIfAborted();
-			const outputPath = join(reservation, 'output.rgba');
+			const outputRoot = join(reservation, 'native-output');
+			await mkdir(outputRoot, { recursive: false, mode: 0o700 });
+			await filesystem.authenticateDirectory({ path: outputRoot });
+			const outputGrant = await directoryPathGrant(outputRoot);
+			const outputPath = join(outputRoot, 'output.rgba');
 			await filesystem.expectOutput({
 				path: outputPath, maximumBytes: grant.output.frame.maximumByteLength,
 				insideReservation: true,
 			});
 			const canonicalGrant = canonicalOpenFxV12NativeGrant({
-				grant, pluginPath, pluginIndex, planPath, timingAssets, inputPaths, outputPath,
+				grant, pluginPath: plugin.path, pluginIndex, planPath, timingAssets, inputPaths, outputPath,
+				qualifiedBackends: Object.freeze([
+					'cpu', ...this.#descriptor.productionReadiness.qualifiedGpuBackends,
+				]),
 				maximumControlBytes: OPENFX_HOST_CONTROL_MAXIMUM_BYTES,
 			});
 			if (demand + Buffer.byteLength(canonicalGrant) > grant.scratch.maximumBytes) {
@@ -252,17 +279,28 @@ export class OpenFxHelperJobRunner implements OpenFxHelperJobRunnerPort {
 			}
 			const grantPath = join(reservation, 'v12-host-grant.json');
 			await writeFile(grantPath, canonicalGrant, { flag: 'wx', mode: 0o600 });
-			signal.throwIfAborted();
 			const grantSha256 = sha256(Buffer.from(canonicalGrant));
+			await filesystem.authenticateFile({
+				path: grantPath, byteLength: Buffer.byteLength(canonicalGrant), sha256: grantSha256,
+			});
+			const readOnly = await Promise.all([
+				planPath, ...timingAssets.map(({ path }) => path), ...inputPaths, grantPath,
+			].map(filePathGrant));
+			await filesystem.revalidate();
+			signal.throwIfAborted();
 			const process = this.#invokeHost({
 				executablePath: this.#descriptor.runtimeHost.path,
 				arguments: ['--invoke-v12-grant', grantPath, '--grant-sha256', grantSha256],
 				cancellationFrame: createOpenFxV12CancellationFrame(grant.invocation),
-			});
+			}, authority(pluginGrant, plugin, readOnly, [outputGrant]));
 			setProcess(process);
 			const result = await successfulResult(process.completion, 'runtime host');
 			signal.throwIfAborted();
+			await plugin.revalidate();
 			await filesystem.revalidate();
+			if (!sameNames(await readdir(outputRoot), ['output.rgba'])) {
+				throw new Error('The OpenFX runtime created an unadmitted sibling output.');
+			}
 			const inspected = await filesystem.inspectOutput();
 			assertOpenFxHostOutput(result.stdout, grant, inspected);
 			await filesystem.revalidate();
@@ -284,16 +322,17 @@ export class OpenFxHelperJobRunner implements OpenFxHelperJobRunnerPort {
 	}
 
 	async #pluginIndex(
-		grant: HelperOfxHostJobGrant,
-		pluginPath: string,
+		grant: HelperOfxRenderHostJobGrantV1OrV2,
+		plugin: StagedOpenFxPlugin,
+		pluginGrant: Awaited<ReturnType<typeof filePathGrant>>,
 		signal: AbortSignal,
 		setProcess: (value: OpenFxHostProcessHandle) => void,
 	): Promise<number> {
 		signal.throwIfAborted();
 		const process = this.#invokeHost({
 			executablePath: this.#descriptor.scanner.path,
-			arguments: ['--scan', pluginPath, '--sha256', grant.pluginBinary.sha256],
-		});
+			arguments: ['--scan', plugin.path, '--sha256', grant.pluginBinary.sha256],
+		}, authority(pluginGrant, plugin));
 		setProcess(process);
 		const result = await successfulResult(process.completion, 'scanner');
 		signal.throwIfAborted();
@@ -307,108 +346,10 @@ export function createOpenFxHelperJobRunner(
 	return new OpenFxHelperJobRunner(options);
 }
 
-export function openFxHostProcessArguments(
-	invocation: OpenFxHostProcessInvocation,
-): readonly string[] {
-	const args = [...invocation.arguments];
-	const scan = args.length === 4 && args[0] === '--scan' && args[2] === '--sha256';
-	const invoke = args.length === 4 && args[0] === '--invoke-v12-grant'
-		&& args[2] === '--grant-sha256';
-	const selfTest = args.length === 1 && args[0] === '--self-test';
-	if (!scan && !invoke && !selfTest) throw new TypeError('A closed OpenFX host invocation is required.');
-	if ((invoke && !validOpenFxV12CancellationFrame(invocation.cancellationFrame))
-		|| (!invoke && invocation.cancellationFrame !== undefined)) {
-		throw new TypeError('A V12 runtime invocation requires one exact bounded cancellation frame.');
-	}
-	return Object.freeze(args);
-}
-
-export function createOpenFxV12CancellationFrame(
-	invocation: Readonly<{ invocationId: string; abortSignalId: string }>,
-): string {
-	const frame = `${canonicalizeNativeMediaPlan({
-		schemaVersion: 1,
-		type: 'cancel',
-		invocationId: invocation.invocationId,
-		abortSignalId: invocation.abortSignalId,
-	})}\n`;
-	if (!validOpenFxV12CancellationFrame(frame)) {
-		throw new TypeError('An OpenFX cancellation frame exceeds its closed one-shot domain.');
-	}
-	return frame;
-}
-
-export function invokeClosedOpenFxHost(
-	invocation: OpenFxHostProcessInvocation,
-): OpenFxHostProcessHandle {
-	const arguments_ = openFxHostProcessArguments(invocation);
-	const cancellationFrame = invocation.cancellationFrame;
-	const child = spawn(invocation.executablePath, arguments_, {
-		stdio: [cancellationFrame === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
-		shell: false, windowsHide: true,
-	});
-	let stdout: Buffer<ArrayBufferLike> = Buffer.alloc(0);
-	let stderr: Buffer<ArrayBufferLike> = Buffer.alloc(0);
-	let oversized = false;
-	let settled = false;
-	const stdoutPipe = child.stdout;
-	const stderrPipe = child.stderr;
-	if (stdoutPipe === null || stderrPipe === null) {
-		child.kill();
-		throw new Error('The OpenFX host did not provide its closed control pipes.');
-	}
-	const append = (current: Buffer<ArrayBufferLike>, chunk: Buffer): Buffer<ArrayBufferLike> => {
-		const value = Buffer.concat([current, chunk]);
-		if (value.byteLength > OPENFX_HOST_CONTROL_MAXIMUM_BYTES) {
-			oversized = true;
-			child.kill();
-		}
-		return value;
-	};
-	stdoutPipe.on('data', (chunk: Buffer) => { stdout = append(stdout, chunk); });
-	stderrPipe.on('data', (chunk: Buffer) => { stderr = append(stderr, chunk); });
-	const completion = new Promise<OpenFxHostProcessResult>((resolve, reject) => {
-		child.once('error', (error) => { settled = true; reject(error); });
-		child.once('exit', (code, signal) => {
-			settled = true;
-			if (oversized) return reject(new Error('The OpenFX host exceeded its 64 KiB control-output bound.'));
-			if (signal !== null) return reject(new Error(`The OpenFX host exited on signal ${signal}.`));
-			resolve(Object.freeze({ exitCode: code ?? 1, stdout: String(stdout), stderr: String(stderr) }));
-		});
-	});
-	return Object.freeze({
-		completion,
-		cancel: async () => {
-			if (!settled && cancellationFrame !== undefined && child.stdin !== null) {
-				child.stdin.on('error', () => undefined);
-				child.stdin.end(cancellationFrame);
-				await Promise.race([
-					completion.then(() => undefined, () => undefined),
-					new Promise<void>((resolveGrace) => setTimeout(resolveGrace, 250)),
-				]);
-			}
-			if (!settled && child.exitCode === null && child.signalCode === null) child.kill();
-			await completion.catch(() => undefined);
-		},
-	});
-}
-
-function validOpenFxV12CancellationFrame(value: unknown): value is string {
-	if (typeof value !== 'string' || Buffer.byteLength(value) > 4_096 || !value.endsWith('\n')) return false;
-	try {
-		const parsed = JSON.parse(value.slice(0, -1)) as unknown;
-		return canonicalizeNativeMediaPlan(parsed) === value.slice(0, -1)
-			&& !!parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-			&& Object.keys(parsed).join(',') === 'schemaVersion,type,invocationId,abortSignalId'
-			&& (parsed as Record<string, unknown>).schemaVersion === 1
-			&& (parsed as Record<string, unknown>).type === 'cancel';
-	} catch { return false; }
-}
-
 export async function selfTestFramescaperOpenFxHelper(
 	descriptor: FramescaperOpenFxHostDescriptor,
 	mode: FramescaperOpenFxHelperMode,
-	invokeHost: (invocation: OpenFxHostProcessInvocation) => OpenFxHostProcessHandle = invokeClosedOpenFxHost,
+	invokeHost: OpenFxHostProcessInvoker,
 ): Promise<void> {
 	const executable = mode === 'scanner' ? descriptor.scanner : descriptor.runtimeHost;
 	const filesystem = new NativeMediaHelperFilesystem();
@@ -417,7 +358,7 @@ export async function selfTestFramescaperOpenFxHelper(
 		await authenticateDescriptor(filesystem, executable);
 		const result = await successfulResult(invokeHost({
 			executablePath: executable.path, arguments: ['--self-test'],
-		}).completion, mode);
+		}, authority(null)).completion, mode);
 		const value = jsonRecord(result.stdout, 'OpenFX self-test');
 		const expectedMode = mode === 'scanner' ? 'short-lived-scanner' : 'per-binary-fingerprint-runtime';
 		if (value.contractVersion !== 1 || value.mode !== expectedMode
@@ -457,7 +398,7 @@ function admittedPorts(
 	return Object.freeze([...value]);
 }
 
-function assertExecutableGrant(
+export function assertExecutableGrant(
 	grant: HelperExecutableGrant,
 	descriptor: FramescaperOpenFxExecutableDescriptor,
 	label: string,
@@ -469,7 +410,7 @@ function assertExecutableGrant(
 	}
 }
 
-async function authenticateDescriptor(
+export async function authenticateDescriptor(
 	filesystem: NativeMediaHelperFilesystem,
 	descriptor: FramescaperOpenFxExecutableDescriptor,
 ): Promise<void> {
@@ -479,7 +420,7 @@ async function authenticateDescriptor(
 	});
 }
 
-async function authenticateGrant(
+export async function authenticateGrant(
 	filesystem: NativeMediaHelperFilesystem,
 	grant: HelperExecutableGrant,
 ): Promise<void> {
@@ -488,16 +429,21 @@ async function authenticateGrant(
 	});
 }
 
-async function assertCanonicalV12Plan(path: string, expectedSha256: string): Promise<void> {
+async function assertCanonicalOpenFxPlan(
+	path: string,
+	expectedSha256: string,
+	expectedVersion: 12 | 14,
+): Promise<void> {
 	const bytes = await readFile(path);
 	let plan: unknown;
 	try { plan = JSON.parse(String(bytes)) as unknown; }
 	catch { throw new Error('The helper-spooled OpenFX plan is not JSON.'); }
 	assertUnifiedExactRenderPlanWithDeferredTimingReferences(plan);
 	const fingerprint = fingerprintNativeMediaPlan(plan);
-	if (plan.version !== 12 || fingerprint.sha256 !== expectedSha256
+	if (plan.version !== expectedVersion || ![12, 14].includes(plan.version)
+		|| fingerprint.sha256 !== expectedSha256
 		|| Buffer.from(canonicalizeNativeMediaPlan(plan)).compare(bytes) !== 0) {
-		throw new Error('The helper-spooled OpenFX plan is not exact canonical V12.');
+		throw new Error('The helper-spooled OpenFX plan is not its exact dispatched version.');
 	}
 }
 
@@ -505,7 +451,7 @@ function assertScannerDescriptor(stdout: string, binarySha256: string): void {
 	void scannerPluginIndex(stdout, binarySha256, null);
 }
 
-function scannerPluginIndex(stdout: string, binarySha256: string, pluginId: string | null): number {
+export function scannerPluginIndex(stdout: string, binarySha256: string, pluginId: string | null): number {
 	let value: unknown;
 	try { value = JSON.parse(stdout) as unknown; }
 	catch { throw new Error('The OpenFX scanner returned an unauthenticated descriptor.'); }
@@ -523,14 +469,17 @@ function scannerPluginIndex(stdout: string, binarySha256: string, pluginId: stri
 
 export function assertOpenFxHostOutput(
 	stdout: string,
-	grant: HelperOfxHostJobGrant,
+	grant: HelperOfxRenderHostJobGrantV1OrV2,
 	inspected: Readonly<{ byteLength: number; sha256: string }>,
 ): void {
 	const value = jsonRecord(stdout, 'OpenFX runtime output');
-	if (value.accepted !== true || value.outputStreamId !== grant.output.frame.streamId
+	if (value.accepted !== true || value.planVersion !== grant.invocation.unifiedPlanVersion
+		|| value.outputStreamId !== grant.output.frame.streamId
 		|| value.requestedBackend !== grant.invocation.requestedBackend
 		|| value.backend !== grant.invocation.requestedBackend
 		|| value.retriedOnCpu !== false || value.reportsDegradation !== false
+		|| value.gpuContextSetup !== (grant.invocation.requestedBackend !== 'cpu')
+		|| value.gpuContextReleased !== (grant.invocation.requestedBackend !== 'cpu')
 		|| value.outputByteLength !== grant.output.frame.exactByteLength
 		|| value.outputByteLength !== inspected.byteLength
 		|| value.outputSha256 !== inspected.sha256
@@ -542,7 +491,7 @@ export function assertOpenFxHostOutput(
 	}
 }
 
-async function successfulResult(
+export async function successfulResult(
 	completion: Promise<OpenFxHostProcessResult>,
 	label: string,
 ): Promise<OpenFxHostProcessResult> {
@@ -579,4 +528,49 @@ function sha256(bytes: Uint8Array): string {
 function validFingerprint(value: unknown): value is string {
 	return typeof value === 'string'
 		&& /^[A-Za-z0-9][A-Za-z0-9 ._:-]{0,127}@[a-f\d]{64}$/u.test(value);
+}
+
+export async function filePathGrant(path: string) {
+	const details = await lstat(path);
+	if (!details.isFile() || details.isSymbolicLink()
+		|| !Number.isSafeInteger(details.dev) || details.dev < 0
+		|| !Number.isSafeInteger(details.ino) || details.ino < 0) {
+		throw new Error('An OpenFX child file grant is not one exact regular file.');
+	}
+	return Object.freeze({
+		path, kind: 'file' as const,
+		identity: Object.freeze({ dev: details.dev, ino: details.ino }),
+	});
+}
+
+async function directoryPathGrant(path: string) {
+	const details = await lstat(path);
+	if (!details.isDirectory() || details.isSymbolicLink()
+		|| !Number.isSafeInteger(details.dev) || details.dev < 0
+		|| !Number.isSafeInteger(details.ino) || details.ino < 0) {
+		throw new Error('An OpenFX child directory grant is not one exact directory.');
+	}
+	return Object.freeze({
+		path, kind: 'directory' as const,
+		identity: Object.freeze({ dev: details.dev, ino: details.ino }),
+	});
+}
+
+export function authority(
+	plugin: Awaited<ReturnType<typeof filePathGrant>> | null,
+	staged: StagedOpenFxPlugin | null = null,
+	readOnly: readonly Awaited<ReturnType<typeof filePathGrant>>[] = [],
+	writeOnly: readonly Awaited<ReturnType<typeof directoryPathGrant>>[] = [],
+): OpenFxHostProcessAuthority {
+	return Object.freeze({
+		plugin,
+		pluginResources: staged?.resources ?? Object.freeze([]),
+		pluginRuntime: staged?.runtimeClosure ?? Object.freeze([]),
+		readOnly: Object.freeze([...readOnly]),
+		writeOnly: Object.freeze([...writeOnly]),
+	});
+}
+
+function sameNames(actual: readonly string[], expected: readonly string[]): boolean {
+	return actual.length === expected.length && actual.every((name, index) => name === expected[index]);
 }

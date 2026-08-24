@@ -149,6 +149,7 @@ export function createEditorVideoExportAction(
 
 	return async function exportVideo(requestedSettings: RuntimeValue = {}) {
 		if (state.exportAbort) return null;
+		if (typeof runtime.prepareProjectForExport === 'function') await runtime.prepareProjectForExport('video-export');
 		const canonicalProject = getProject();
 		const delivery = projectForVideoRenderedFallbackExport(canonicalProject, playbackProjects);
 		const deliveredProject = projectTrackFolderMediaStateV12(delivery.project);

@@ -4,6 +4,7 @@ import {
 	createEbuR128MeterNode,
 } from '../ebu-r128-node.js';
 import { configureNativeSurroundDestination } from '../surround-monitoring.ts';
+import { soundscaperNativeAudioDestination } from '../soundscaper-native-audio-renderer.ts';
 import { isProductionMixerProjectSchema } from '../project-schema-version.ts';
 import {
 	addNode,
@@ -158,7 +159,8 @@ async [ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this: EngineRuntimeHost, fromFra
 		}
 		source.buffer = prepared.audioBuffer;
 		let masterAnalyser = null;
-		const meterDestination = this.masterLoudnessMeter?.node || context.destination;
+		const meterDestination = this.masterLoudnessMeter?.node
+			|| soundscaperNativeAudioDestination(context, context.destination);
 		if (this.meterListeners.size > 0) {
 			masterAnalyser = createAnalyser(context, nodes);
 			connect(source, masterAnalyser);
@@ -226,7 +228,7 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 		this.positionFrame = fromFrame;
 		this.graph = buildProjectGraph(
 			context,
-			this.masterLoudnessMeter?.node || context.destination,
+			this.masterLoudnessMeter?.node || soundscaperNativeAudioDestination(context, context.destination),
 			this.project,
 			{
 			metering: this.meterListeners.size > 0,
@@ -307,7 +309,7 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 						: null;
 				},
 			});
-			meter.node.connect(context.destination);
+			meter.node.connect(soundscaperNativeAudioDestination(context, context.destination));
 			this.masterLoudnessMeter = meter;
 			return meter;
 		} catch (error) {

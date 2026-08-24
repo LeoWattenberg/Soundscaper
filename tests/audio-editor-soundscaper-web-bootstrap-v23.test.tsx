@@ -86,15 +86,14 @@ test('Soundscaper V23 bootstrap accepts presentation only and stays surface-free
 	assert.doesNotMatch(markup, /<(?:button|input|select|textarea)\b/iu);
 });
 
-test('the shared Soundscaper site route selects only the product-owned V23 bootstrap', async () => {
+test('the historical V23 bootstrap remains isolated after the shared route advances', async () => {
 	const [main, bootstrap, controller, environment] = await Promise.all([
 		readSource('src/common/site/App.jsx'),
 		readSource('src/soundscaper/ui/SoundscaperAudioEditorBootstrapV23.tsx'),
 		readSource('src/soundscaper/editor-controller-v23.ts'),
 		readSource('src/soundscaper/editor-project-environment-v23.ts'),
 	]);
-	assert.match(main, /lazy\(\(\)\s*=>\s*import\('\.\.\/\.\.\/soundscaper\/ui\/SoundscaperAudioEditorBootstrapV23\.tsx'\)\)/u);
-	assert.match(main, /productId\s*!==\s*'framescaper'\s*\?\s*SoundscaperAudioEditorBootstrapV23/su);
+	assert.doesNotMatch(main, /SoundscaperAudioEditorBootstrapV23/u);
 	assert.match(bootstrap, /createSoundscaperEditorProjectEnvironmentV23/u);
 	assert.match(bootstrap, /createSoundscaperAudioEditorControllerV23/u);
 	assert.ok(

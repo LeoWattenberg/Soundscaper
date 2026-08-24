@@ -4,6 +4,7 @@ import type { ProductVideoExportStrategyEncodeRequest } from '../common/editor/c
 import type { VideoKeyframeExportFrame } from '../common/editor/video-keyframe-export-frame-source.ts';
 import type { VideoKeyframeOfflineRgbaCompositor } from '../common/editor/ui/video-keyframe-offline-rgba-renderer.ts';
 import type { UnifiedExactRenderPlanV13 } from '../common/editor/unified-exact-render-plan.ts';
+import type { VideoSourceTimingView } from '../common/editor/video-source-timing-view.ts';
 import type { FramescaperProjectV27 } from './editor-project-v27.ts';
 import {
 	createFramescaperSelectedExactFrameExecutionV27,
@@ -15,6 +16,12 @@ import {
 	type FramescaperVideoExportVisualAssetStoreV27,
 } from './video-export-visual-execution-v27.ts';
 import { createFramescaperVideoFrameAddressV27 } from './video-frame-address-v27.ts';
+import type { FramescaperSelectedOpenFxExecutionV28 } from './selected-v28-openfx-exact-planes.ts';
+
+export type CreateFramescaperOpenFxExactExecutionV28 = (options: Readonly<{
+	readonly foundationPlan: UnifiedExactRenderPlanV13;
+	readonly timingViews: ReadonlyMap<string, VideoSourceTimingView>;
+}>) => FramescaperSelectedOpenFxExecutionV28;
 
 export interface FramescaperVideoExportExactExecutionV27 {
 	readonly compositor: VideoKeyframeOfflineRgbaCompositor;
@@ -30,6 +37,7 @@ export async function createFramescaperVideoExportExactExecutionV27(options: Rea
 	readonly store?: FramescaperVideoExportVisualAssetStoreV27;
 	readonly captureFrame?: CaptureFrameV27;
 	readonly createAcceleratorCanvas?: () => unknown;
+	readonly createOpenFxExecution?: CreateFramescaperOpenFxExactExecutionV28;
 }>): Promise<FramescaperVideoExportExactExecutionV27> {
 	const timingViewsBySourceId = rawTiming(options.request);
 	const visual = await createFramescaperVideoExportVisualExecutionV27({
@@ -48,6 +56,9 @@ export async function createFramescaperVideoExportExactExecutionV27(options: Rea
 			...(options.captureFrame ? { captureFrame: options.captureFrame } : {}),
 			...(options.createAcceleratorCanvas
 				? { createAcceleratorCanvas: options.createAcceleratorCanvas } : {}),
+			...(options.createOpenFxExecution ? { openFx: options.createOpenFxExecution({
+				foundationPlan: visual.exactPlan, timingViews: timingViewsBySourceId,
+			}) } : {}),
 			sourceFrames, signal: options.request.signal,
 			assertCurrent: options.request.assertCurrent,
 		});
@@ -57,6 +68,10 @@ export async function createFramescaperVideoExportExactExecutionV27(options: Rea
 		throw error;
 	}
 	let renderedFrameCount = 0;
+	const openFxDispositions = [] as Array<
+		Awaited<ReturnType<typeof exact.render>>['openFxDispositions'][number]
+	>;
+	let reportsOpenFxDegradation = false;
 	const compositor: VideoKeyframeOfflineRgbaCompositor = async ({
 		frame, layers, width, height, rgba, signal,
 	}) => {
@@ -65,13 +80,19 @@ export async function createFramescaperVideoExportExactExecutionV27(options: Rea
 			layers, width, height, target: rgba, signal,
 		});
 		visual.accountFrame(frame, result.consumedNodeIds);
+		openFxDispositions.push(...result.openFxDispositions);
+		reportsOpenFxDegradation ||= result.reportsOpenFxDegradation;
 		renderedFrameCount += 1;
 	};
 	function disposition(): FramescaperVideoExportPictureDispositionV27 {
 		if (renderedFrameCount < 1) {
 			throw new Error('Selected V27 encoder did not invoke its exact source-layer compositor.');
 		}
-		return visual.disposition();
+		return Object.freeze({
+			...visual.disposition(),
+			openFxDispositions: Object.freeze([...openFxDispositions]),
+			reportsOpenFxDegradation,
+		});
 	}
 	async function dispose(): Promise<void> {
 		const failures: unknown[] = [];

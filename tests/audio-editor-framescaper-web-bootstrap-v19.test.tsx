@@ -73,18 +73,18 @@ test('Framescaper V19 bootstrap accepts presentation only and adds no always-vis
 	assert.doesNotMatch(markup, /<(?:button|input|select|textarea)\b/iu);
 });
 
-test('the reserved V19 bootstrap remains unselected when the shared site route selects V27', async () => {
+test('the reserved V19 bootstrap remains unselected when the shared site route selects V28', async () => {
 	const [main, soundscaperBootstrap, framescaperBootstrap] = await Promise.all([
 		readSource('src/common/site/App.jsx'),
 		readSource('src/common/editor/ui/AudioEditorBootstrap.jsx'),
-		readSource('src/framescaper/ui/FramescaperAudioEditorBootstrapV27.tsx'),
+		readSource('src/framescaper/ui/FramescaperAudioEditorBootstrapV28.tsx'),
 	]);
-	assert.match(main, /lazy\(\(\)\s*=>\s*import\('\.\.\/\.\.\/framescaper\/ui\/FramescaperAudioEditorBootstrapV27\.tsx'\)\)/u);
-	assert.doesNotMatch(main, /FramescaperAudioEditorBootstrapV(?:19|20)\.tsx/u);
+	assert.match(main, /lazy\(\(\)\s*=>\s*import\('\.\.\/\.\.\/framescaper\/ui\/FramescaperAudioEditorBootstrapV28\.tsx'\)\)/u);
+	assert.doesNotMatch(main, /FramescaperAudioEditorBootstrapV(?:19|20|27)\.tsx/u);
 	assert.doesNotMatch(soundscaperBootstrap,
 		/FRAMESCAPER_V20|createFramescaper|editor-project-runtime-profile-v20|framescaper\/ui/iu);
-	assert.match(framescaperBootstrap, /createFramescaperEditorProjectEnvironmentV27/u);
-	assert.match(framescaperBootstrap, /createFramescaperAudioEditorControllerV27/u);
+	assert.match(framescaperBootstrap, /createFramescaperEditorProjectEnvironmentV28/u);
+	assert.match(framescaperBootstrap, /createFramescaperAudioEditorControllerV28/u);
 	assert.doesNotMatch(framescaperBootstrap,
 		/from\s+['"]\.\.\/\.\.\/common\/editor\/app\.js|createAudioEditorController\s*\(/u);
 });

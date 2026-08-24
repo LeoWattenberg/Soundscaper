@@ -15,6 +15,7 @@ import {
 	normalizeVideoVisualPresentationV1,
 	type VideoVisualPresentationV1,
 } from '../video-visual-presentation-v27.ts';
+import { framescaperProjectV27FoundationShapeV28 } from '../../../framescaper/editor-project-v28-foundation.ts';
 
 type Data = Readonly<Record<string, unknown>>;
 
@@ -50,8 +51,7 @@ export function createFramescaperV27VisualInspectorModel(input: Readonly<{
 	readonly project: unknown;
 	readonly selectedClipId?: unknown;
 }>): FramescaperV27VisualInspectorModel {
-	const project = record(input?.project, 'V27 visual inspector project');
-	if (project.schemaVersion !== 27) throw new RangeError('The visual inspector requires Framescaper V27.');
+	const project = projectRecord(input?.project);
 	const selectedClipId = selectedId(input.selectedClipId, project);
 	const clipValue = records(project.clips, 'project clips').find(({ id }) => id === selectedClipId);
 	if (!clipValue || (clipValue.kind !== 'still' && clipValue.kind !== 'generator')) return emptyModel(project);
@@ -90,7 +90,7 @@ export function createFramescaperV27VisualInspectorCommand(
 	clipIdValue: unknown,
 	draft: FramescaperV27VisualInspectorDraft,
 ): unknown {
-	const project = record(projectValue, 'V27 visual inspector project');
+	const project = projectRecord(projectValue);
 	const clipId = stableId(clipIdValue, 'selected visual clip ID');
 	const clip = records(project.clips, 'project clips').find(({ id }) => id === clipId);
 	if (!clip || (clip.kind !== 'still' && clip.kind !== 'generator')) {
@@ -148,6 +148,16 @@ function emptyModel(project: Data): FramescaperV27VisualInspectorModel {
 		masks: Object.freeze(supportedMasks(project).map(({ id }) => Object.freeze({ id, name: id }))),
 		presets: boundGeneratorPresets(project),
 	});
+}
+
+function projectRecord(value: unknown): Data {
+	const input = record(value, 'V27 or V28 visual inspector project');
+	if (input.schemaVersion !== 27 && input.schemaVersion !== 28) {
+		throw new RangeError('The visual inspector requires Framescaper V27 or V28.');
+	}
+	return input.schemaVersion === 28
+		? record(framescaperProjectV27FoundationShapeV28(input), 'V28 visual inspector foundation')
+		: input;
 }
 
 function boundGeneratorPresets(project: Data): readonly FramescaperV27VisualInspectorPreset[] {

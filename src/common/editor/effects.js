@@ -10,6 +10,7 @@ import {
 	audacityLiveEffectTailFrames,
 } from './audacity-effects/live.js';
 import { canonicalCopyValue, effectNameCopyKey } from '../i18n/canonical-extras.js';
+import { normalizeNativePluginEffect, updateNativePluginEffect } from './native-plugin-effect.ts';
 import {
 	REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_DEFINITION, REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_LABEL,
 	REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE,
@@ -323,6 +324,7 @@ function normalizeAudacityRackEffectParams(type, params) {
 export function normalizeEffect(effect) {
 	if (!effect || typeof effect !== 'object') throw new TypeError('An effect is required.');
 	if (typeof effect.id !== 'string' || !effect.id) throw new TypeError('Every effect needs a stable ID.');
+	if (effect.type === 'native-plugin') return normalizeNativePluginEffect(effect);
 	if (effect.type === MISSING_EFFECT_TYPE) return createMissingEffect(effect);
 	const type = PARAMETRIC_EQ_EFFECT_ALIASES.has(effect.type) ? 'eq' : effect.type;
 	return createEffect(type, { ...effect, type });
@@ -335,6 +337,7 @@ export function validateEffect(effect) {
 
 export function updateEffect(effect, changes = {}) {
 	const current = normalizeEffect(effect);
+	if (current.type === 'native-plugin') return updateNativePluginEffect(current, changes);
 	if (current.type === MISSING_EFFECT_TYPE && (!changes.type || changes.type === MISSING_EFFECT_TYPE)) {
 		return createMissingEffect({
 			...current,

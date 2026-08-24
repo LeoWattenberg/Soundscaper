@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
+import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import {
 	cpSync,
 	lstatSync,
@@ -37,16 +37,33 @@ const TARGET = 'linux-x64';
 const MEDIA_ROOT = 'native/framescaper-media-host';
 const OPENFX_ROOT = 'native/framescaper-openfx-host';
 const MEDIA_PATH = `${MEDIA_ROOT}/prebuilt/${TARGET}/framescaper-media-host`;
+const MEDIA_LAUNCHER_PATH =
+	`${MEDIA_ROOT}/prebuilt/${TARGET}/isolation/milestone5-native-isolation-launcher`;
+const MEDIA_PROFILE_PATH =
+	`${MEDIA_ROOT}/prebuilt/${TARGET}/isolation/milestone5-native-isolation-profile.json`;
+const MEDIA_BROKER_PATH =
+	`${MEDIA_ROOT}/prebuilt/${TARGET}/isolation/milestone5-native-isolation-broker.json`;
+const MEDIA_LIBRARY_PATH = `${MEDIA_ROOT}/prebuilt/${TARGET}/lib/libframescaper-media.so`;
 const SCANNER_PATH = `${OPENFX_ROOT}/prebuilt/${TARGET}/bin/framescaper-ofx-scanner`;
 const RUNTIME_PATH = `${OPENFX_ROOT}/prebuilt/${TARGET}/bin/framescaper-ofx-runtime-host`;
+const LAUNCHER_PATH = `${OPENFX_ROOT}/prebuilt/${TARGET}/isolation/milestone5-native-isolation-launcher`;
+const PROFILE_PATH = `${OPENFX_ROOT}/prebuilt/${TARGET}/isolation/milestone5-native-isolation-profile.json`;
+const BROKER_PATH = `${OPENFX_ROOT}/prebuilt/${TARGET}/isolation/milestone5-native-isolation-broker.json`;
+const LIBRARY_PATH = `${OPENFX_ROOT}/prebuilt/${TARGET}/lib/ld-linux-x86-64.so.2`;
 const MEDIA_BYTES = Buffer.from('verified-framescaper-media-host');
+const MEDIA_LIBRARY_BYTES = Buffer.from('verified-framescaper-media-runtime-library');
 const SCANNER_BYTES = Buffer.from('verified-framescaper-ofx-scanner');
 const RUNTIME_BYTES = Buffer.from('verified-framescaper-ofx-runtime-host');
+const LAUNCHER_BYTES = Buffer.from('verified-native-isolation-launcher');
+const PROFILE_BYTES = Buffer.from('verified-native-isolation-profile');
+const BROKER_BYTES = Buffer.from('verified-native-isolation-broker');
+const LIBRARY_BYTES = Buffer.from('verified-openfx-runtime-library');
 
 test('pending-external current targets stage no host bytes or target directories', async (context) => {
 	const outputRoot = temporaryRoot(context, 'framescaper-pending-host-stage-');
+	const repositoryRoot = pendingFixture(context);
 	const release = await verifyFramescaperNativeHostPayloads({
-		repositoryRoot: REPOSITORY_ROOT,
+		repositoryRoot,
 		target: TARGET,
 		targetSource: 'build-host',
 	});
@@ -69,12 +86,28 @@ test('a built target stages only its exact verified media and two OpenFX executa
 	});
 	const summary = await stageVerifiedFramescaperNativeHostPayloads({ release, outputRoot });
 	assert.equal(summary.mediaHost.status, 'built');
+	assert.equal(summary.mediaHost.productionReadiness, null);
+	assert.deepEqual(Object.keys(summary.mediaHost.reviewPolicy).sort(), [
+		'byteLength', 'name', 'sha256',
+	]);
 	assert.equal(summary.openFxHost.status, 'built');
+	assert.equal(summary.openFxHost.productionReadiness, null);
+	assert.deepEqual(Object.keys(summary.openFxHost.reviewPolicy).sort(), [
+		'byteLength', 'name', 'sha256',
+	]);
 	const mediaOutput = join(outputRoot, 'native/framescaper-media-host', TARGET);
 	const openFxOutput = join(outputRoot, 'native/framescaper-openfx-host', TARGET);
-	assert.deepEqual(await readdir(mediaOutput), ['framescaper-media-host']);
+	assert.deepEqual((await readdir(mediaOutput)).sort(), [
+		'framescaper-media-host', 'libframescaper-media.so',
+		'milestone-5-native-isolation-review-policy.json',
+		'milestone5-native-isolation-broker.json', 'milestone5-native-isolation-launcher',
+		'milestone5-native-isolation-profile.json',
+	]);
 	assert.deepEqual((await readdir(openFxOutput)).sort(), [
-		'framescaper-ofx-runtime-host', 'framescaper-ofx-scanner',
+		'framescaper-ofx-runtime-host', 'framescaper-ofx-scanner', 'ld-linux-x86-64.so.2',
+		'milestone-5-native-isolation-review-policy.json',
+		'milestone5-native-isolation-broker.json', 'milestone5-native-isolation-launcher',
+		'milestone5-native-isolation-profile.json',
 	]);
 	assert.deepEqual(readFileSync(join(mediaOutput, 'framescaper-media-host')), MEDIA_BYTES);
 	assert.deepEqual(readFileSync(join(openFxOutput, 'framescaper-ofx-scanner')), SCANNER_BYTES);
@@ -84,6 +117,56 @@ test('a built target stages only its exact verified media and two OpenFX executa
 		() => stageVerifiedFramescaperNativeHostPayloads({ release, outputRoot }),
 		/Framescaper (?:media|OpenFX)-host payload root already exists/iu,
 	);
+});
+
+test('signed OpenFX readiness and its scoped review policy survive exact staging', async (context) => {
+	const repositoryRoot = builtFixture(context, 'framescaper-reviewed-host-fixture-');
+	attachOpenFxReadiness(repositoryRoot);
+	const outputRoot = temporaryRoot(context, 'framescaper-reviewed-host-stage-');
+	const release = await verifyFramescaperNativeHostPayloads({
+		repositoryRoot, target: TARGET, targetSource: 'declared',
+	});
+	const summary = await stageVerifiedFramescaperNativeHostPayloads({ release, outputRoot });
+	assert.equal(summary.openFxHost.productionReadiness.verified.status, 'authenticated');
+	assert.equal(
+		summary.openFxHost.productionReadiness.verified.evidence.target,
+		TARGET,
+	);
+	const openFxOutput = join(outputRoot, 'native/framescaper-openfx-host', TARGET);
+	assert.deepEqual((await readdir(openFxOutput)).sort(), [
+		'framescaper-ofx-runtime-host',
+		'framescaper-ofx-scanner',
+		'framescaper-openfx-production-readiness.json',
+		'ld-linux-x86-64.so.2',
+		'milestone-5-native-isolation-review-policy.json',
+		'milestone5-native-isolation-broker.json',
+		'milestone5-native-isolation-launcher',
+		'milestone5-native-isolation-profile.json',
+	]);
+	await assert.doesNotReject(() => verifyStagedFramescaperNativeHostPayloads({ release, outputRoot }));
+	await writeFile(
+		join(openFxOutput, 'framescaper-openfx-production-readiness.json'),
+		Buffer.from('changed readiness evidence'),
+	);
+	await assert.rejects(
+		() => verifyStagedFramescaperNativeHostPayloads({ release, outputRoot }),
+		/OpenFX.*production-readiness.*(?:byte length|digest)/iu,
+	);
+});
+
+test('signed media-host readiness and its independent review policy survive exact staging', async (context) => {
+	const repositoryRoot = builtFixture(context, 'framescaper-reviewed-media-host-fixture-');
+	attachMediaReadiness(repositoryRoot);
+	const outputRoot = temporaryRoot(context, 'framescaper-reviewed-media-host-stage-');
+	const release = await verifyFramescaperNativeHostPayloads({
+		repositoryRoot, target: TARGET, targetSource: 'declared',
+	});
+	const summary = await stageVerifiedFramescaperNativeHostPayloads({ release, outputRoot });
+	assert.equal(summary.mediaHost.productionReadiness.verified.status, 'authenticated');
+	assert.equal(summary.mediaHost.productionReadiness.verified.evidence.target, TARGET);
+	const mediaOutput = join(outputRoot, 'native/framescaper-media-host', TARGET);
+	assert.ok((await readdir(mediaOutput)).includes('framescaper-media-host-production-readiness.json'));
+	await assert.doesNotReject(() => verifyStagedFramescaperNativeHostPayloads({ release, outputRoot }));
 });
 
 test('verification rejects tamper, substitution, traversal, symlinks, and incomplete rows before staging', async (context) => {
@@ -225,20 +308,24 @@ test('afterPack re-verifies the exact Framescaper native-host resource tree', as
 });
 
 function builtFixture(context, prefix = 'framescaper-built-host-fixture-') {
-	const root = temporaryRoot(context, prefix);
-	mkdirSync(join(root, 'config'), { recursive: true });
-	cpSync(join(REPOSITORY_ROOT, MEDIA_ROOT), join(root, MEDIA_ROOT), { recursive: true });
-	cpSync(join(REPOSITORY_ROOT, OPENFX_ROOT), join(root, OPENFX_ROOT), { recursive: true });
-	cpSync(
-		join(REPOSITORY_ROOT, 'config/boost-multiprecision-source-manifest.json'),
-		join(root, 'config/boost-multiprecision-source-manifest.json'),
-	);
-	cpSync(join(REPOSITORY_ROOT, '.gitattributes'), join(root, '.gitattributes'));
+	const root = sourceFixture(context, prefix);
 	mkdirSync(join(root, MEDIA_ROOT, 'prebuilt', TARGET), { recursive: true });
+	mkdirSync(join(root, MEDIA_ROOT, 'prebuilt', TARGET, 'isolation'), { recursive: true });
+	mkdirSync(join(root, MEDIA_ROOT, 'prebuilt', TARGET, 'lib'), { recursive: true });
 	mkdirSync(join(root, OPENFX_ROOT, 'prebuilt', TARGET, 'bin'), { recursive: true });
+	mkdirSync(join(root, OPENFX_ROOT, 'prebuilt', TARGET, 'isolation'), { recursive: true });
+	mkdirSync(join(root, OPENFX_ROOT, 'prebuilt', TARGET, 'lib'), { recursive: true });
 	writeFileSync(join(root, MEDIA_PATH), MEDIA_BYTES);
+	writeFileSync(join(root, MEDIA_LAUNCHER_PATH), LAUNCHER_BYTES);
+	writeFileSync(join(root, MEDIA_PROFILE_PATH), PROFILE_BYTES);
+	writeFileSync(join(root, MEDIA_BROKER_PATH), BROKER_BYTES);
+	writeFileSync(join(root, MEDIA_LIBRARY_PATH), MEDIA_LIBRARY_BYTES);
 	writeFileSync(join(root, SCANNER_PATH), SCANNER_BYTES);
 	writeFileSync(join(root, RUNTIME_PATH), RUNTIME_BYTES);
+	writeFileSync(join(root, LAUNCHER_PATH), LAUNCHER_BYTES);
+	writeFileSync(join(root, PROFILE_PATH), PROFILE_BYTES);
+	writeFileSync(join(root, BROKER_PATH), BROKER_BYTES);
+	writeFileSync(join(root, LIBRARY_PATH), LIBRARY_BYTES);
 
 	const mediaSourcePath = join(root, MEDIA_ROOT, 'source-manifest.json');
 	const mediaSource = JSON.parse(readFileSync(mediaSourcePath, 'utf8'));
@@ -246,6 +333,13 @@ function builtFixture(context, prefix = 'framescaper-built-host-fixture-') {
 		runtime: TARGET, status: 'built', blockedBy: null,
 		toolchainIdentity: digest(Buffer.from('media-toolchain')),
 		payload: descriptor(MEDIA_PATH, MEDIA_BYTES),
+		isolationPayload: {
+			launcherPayload: descriptor(MEDIA_LAUNCHER_PATH, LAUNCHER_BYTES),
+			sandboxProfilePayload: descriptor(MEDIA_PROFILE_PATH, PROFILE_BYTES),
+			brokerPolicyPayload: descriptor(MEDIA_BROKER_PATH, BROKER_BYTES),
+			runtimeLibraryPayloads: [descriptor(MEDIA_LIBRARY_PATH, MEDIA_LIBRARY_BYTES)],
+		},
+		productionReadiness: null,
 	};
 	writeJson(mediaSourcePath, mediaSource);
 	writeJson(
@@ -260,6 +354,12 @@ function builtFixture(context, prefix = 'framescaper-built-host-fixture-') {
 		toolchainIdentity: digest(Buffer.from('openfx-toolchain')),
 		scannerPayload: descriptor(SCANNER_PATH, SCANNER_BYTES),
 		runtimeHostPayload: descriptor(RUNTIME_PATH, RUNTIME_BYTES),
+		isolationPayload: {
+			launcherPayload: descriptor(LAUNCHER_PATH, LAUNCHER_BYTES),
+			sandboxProfilePayload: descriptor(PROFILE_PATH, PROFILE_BYTES),
+			brokerPolicyPayload: descriptor(BROKER_PATH, BROKER_BYTES),
+			runtimeLibraryPayloads: [descriptor(LIBRARY_PATH, LIBRARY_BYTES)],
+		},
 		productionReadiness: null,
 	};
 	writeJson(openFxSourcePath, openFxSource);
@@ -268,6 +368,189 @@ function builtFixture(context, prefix = 'framescaper-built-host-fixture-') {
 		deriveFramescaperOpenFxPayloadManifest(openFxSource),
 	);
 	return root;
+}
+
+function pendingFixture(context) {
+	const root = sourceFixture(context, 'framescaper-pending-host-fixture-');
+	const media = JSON.parse(readFileSync(join(root, MEDIA_ROOT, 'source-manifest.json'), 'utf8'));
+	const openFx = JSON.parse(readFileSync(join(root, OPENFX_ROOT, 'source-manifest.json'), 'utf8'));
+	writeJson(join(root, 'config/framescaper-media-host-payload-manifest.json'),
+		deriveFramescaperMediaHostPayloadManifest(media));
+	writeJson(join(root, 'config/framescaper-openfx-host-payload-manifest.json'),
+		deriveFramescaperOpenFxPayloadManifest(openFx));
+	return root;
+}
+
+function sourceFixture(context, prefix) {
+	const root = temporaryRoot(context, prefix);
+	mkdirSync(join(root, 'config'), { recursive: true });
+	cpSync(join(REPOSITORY_ROOT, MEDIA_ROOT), join(root, MEDIA_ROOT), { recursive: true });
+	cpSync(join(REPOSITORY_ROOT, OPENFX_ROOT), join(root, OPENFX_ROOT), { recursive: true });
+	cpSync(
+		join(REPOSITORY_ROOT, 'config/boost-multiprecision-source-manifest.json'),
+		join(root, 'config/boost-multiprecision-source-manifest.json'),
+	);
+	cpSync(
+		join(REPOSITORY_ROOT, 'config/milestone-5-native-isolation-review-policy.json'),
+		join(root, 'config/milestone-5-native-isolation-review-policy.json'),
+	);
+	cpSync(join(REPOSITORY_ROOT, '.gitattributes'), join(root, '.gitattributes'));
+	repinFixtureSources(root, MEDIA_ROOT);
+	repinFixtureSources(root, OPENFX_ROOT);
+	return root;
+}
+
+function repinFixtureSources(root, nativeRoot) {
+	const manifestPath = join(root, nativeRoot, 'source-manifest.json');
+	const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+	if (nativeRoot === MEDIA_ROOT) {
+		for (const path of ['src/media_host_arguments.cpp', 'src/media_host_arguments.hpp']) {
+			if (!manifest.sourceFiles.some((entry) => entry.path === path)) {
+				manifest.sourceFiles.push({ path, byteLength: 0, sha256: '' });
+			}
+		}
+		manifest.sourceFiles.sort((left, right) => left.path.localeCompare(right.path, 'en'));
+	}
+	for (const source of manifest.sourceFiles) {
+		const bytes = readFileSync(join(root, nativeRoot, source.path));
+		source.byteLength = bytes.byteLength;
+		source.sha256 = digest(bytes);
+	}
+	writeJson(manifestPath, manifest);
+}
+
+function attachOpenFxReadiness(root) {
+	const sourcePath = join(root, OPENFX_ROOT, 'source-manifest.json');
+	const source = JSON.parse(readFileSync(sourcePath, 'utf8'));
+	const target = source.targets[TARGET];
+	const evidence = {
+		schemaVersion: 1,
+		kind: 'framescaper-openfx-production-readiness',
+		target: TARGET,
+		scannerSha256: target.scannerPayload.sha256,
+		runtimeHostSha256: target.runtimeHostPayload.sha256,
+		qualifiedGpuBackends: ['opengl', 'opencl', 'cuda'],
+		runtimeLibraries: target.isolationPayload.runtimeLibraryPayloads.map((library) => ({
+			name: library.path.split('/').at(-1),
+			byteLength: library.byteLength,
+			sha256: library.sha256,
+		})),
+		launcher: {
+			schemaVersion: 1,
+			target: TARGET,
+			launcherId: 'framescaper-linux-landlock-seccomp-namespaces-v1',
+			launcherPayloadSha256: target.isolationPayload.launcherPayload.sha256,
+			sandboxProfileSha256: target.isolationPayload.sandboxProfilePayload.sha256,
+			brokerPolicySha256: target.isolationPayload.brokerPolicyPayload.sha256,
+			filesystem: 'broker-only',
+			network: 'denied',
+			childProcesses: 'denied',
+			dynamicCode: 'admitted-plugin-only',
+		},
+		openfxVersion: '1.5.1',
+		osIsolationAttested: true,
+		hostilePluginDenialAttested: true,
+		realThirdPartyExecutionAttested: true,
+		reviewedAt: '2026-08-24',
+		reviewer: 'synthetic OpenFX isolation reviewer',
+	};
+	const evidenceBytes = Buffer.from(JSON.stringify(evidence));
+	const key = generateKeyPairSync('ed25519');
+	const keyId = 'synthetic-openfx-isolation-review-v1';
+	const evidencePath = `config/framescaper-openfx-production-readiness/${TARGET}.json`;
+	mkdirSync(join(root, 'config/framescaper-openfx-production-readiness'), { recursive: true });
+	writeFileSync(join(root, evidencePath), evidenceBytes);
+	target.productionReadiness = {
+		schemaVersion: 2,
+		status: 'reviewed',
+		target: TARGET,
+		evidence: descriptor(evidencePath, evidenceBytes),
+		signature: {
+			algorithm: 'ed25519',
+			reviewKeyId: keyId,
+			valueBase64: sign(null, evidenceBytes, key.privateKey).toString('base64'),
+		},
+	};
+	writeJson(sourcePath, source);
+	writeJson(
+		join(root, 'config/framescaper-openfx-host-payload-manifest.json'),
+		deriveFramescaperOpenFxPayloadManifest(source),
+	);
+	writeJson(join(root, 'config/milestone-5-native-isolation-review-policy.json'), {
+		schemaVersion: 1,
+		algorithm: 'Ed25519',
+		trustedKeys: [{
+			id: keyId,
+			status: 'accepted',
+			usages: ['framescaper-openfx-production-readiness'],
+			targets: [TARGET],
+			publicKeyPem: key.publicKey.export({ type: 'spki', format: 'pem' }),
+		}],
+		blockedBy: 'Synthetic tests bind this key only to the exact OpenFX isolation readiness usage and target.',
+	});
+}
+
+function attachMediaReadiness(root) {
+	const sourcePath = join(root, MEDIA_ROOT, 'source-manifest.json');
+	const source = JSON.parse(readFileSync(sourcePath, 'utf8'));
+	const target = source.targets[TARGET];
+	const evidence = {
+		schemaVersion: 1,
+		kind: 'framescaper-media-host-production-readiness',
+		target: TARGET,
+		mediaHostSha256: target.payload.sha256,
+		runtimeLibraries: target.isolationPayload.runtimeLibraryPayloads.map((library) => ({
+			name: library.path.split('/').at(-1),
+			byteLength: library.byteLength,
+			sha256: library.sha256,
+		})),
+		launcher: {
+			schemaVersion: 1,
+			target: TARGET,
+			launcherId: 'framescaper-linux-landlock-seccomp-namespaces-v1',
+			launcherPayloadSha256: target.isolationPayload.launcherPayload.sha256,
+			sandboxProfileSha256: target.isolationPayload.sandboxProfilePayload.sha256,
+			brokerPolicySha256: target.isolationPayload.brokerPolicyPayload.sha256,
+			filesystem: 'broker-grant-only',
+			network: 'denied',
+			childProcesses: 'denied',
+			dynamicCode: 'denied',
+		},
+		ffmpegVersion: '9.0.1',
+		osIsolationAttested: true,
+		hostileMediaDenialAttested: true,
+		dualStreamFdRemapAttested: true,
+		twoHourContinuityAttested: true,
+		reviewedAt: '2026-08-24',
+		reviewer: 'synthetic media isolation reviewer',
+	};
+	const evidenceBytes = Buffer.from(JSON.stringify(evidence));
+	const key = generateKeyPairSync('ed25519');
+	const keyId = 'synthetic-media-isolation-review-v1';
+	const evidencePath = `config/framescaper-media-host-production-readiness/${TARGET}.json`;
+	mkdirSync(join(root, 'config/framescaper-media-host-production-readiness'), { recursive: true });
+	writeFileSync(join(root, evidencePath), evidenceBytes);
+	target.productionReadiness = {
+		schemaVersion: 2, status: 'reviewed', target: TARGET,
+		evidence: descriptor(evidencePath, evidenceBytes),
+		signature: {
+			algorithm: 'ed25519', reviewKeyId: keyId,
+			valueBase64: sign(null, evidenceBytes, key.privateKey).toString('base64'),
+		},
+	};
+	writeJson(sourcePath, source);
+	writeJson(join(root, 'config/framescaper-media-host-payload-manifest.json'),
+		deriveFramescaperMediaHostPayloadManifest(source));
+	writeJson(join(root, 'config/milestone-5-native-isolation-review-policy.json'), {
+		schemaVersion: 1,
+		algorithm: 'Ed25519',
+		trustedKeys: [{
+			id: keyId, status: 'accepted',
+			usages: ['framescaper-media-host-production-readiness'], targets: [TARGET],
+			publicKeyPem: key.publicKey.export({ type: 'spki', format: 'pem' }),
+		}],
+		blockedBy: 'Synthetic tests bind this key only to the exact media-host isolation readiness usage and target.',
+	});
 }
 
 function mutateMediaPayload(root, overrides) {

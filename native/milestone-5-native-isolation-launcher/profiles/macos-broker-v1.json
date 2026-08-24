@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"milestone5-macos-seatbelt-broker-v1","maximumGrants":64,"pathAuthority":"fcntl-f-getpath-from-inherited-fd","filesystem":"seatbelt-exact-literals","network":"denied","childProcesses":"fork-denied-exec-peer-only","environment":"fixed-empty","attestation":"post-sandbox-pre-exec-pipe-v1"}

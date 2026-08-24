@@ -84,6 +84,13 @@ test('the production candidate ports stream pathless bytes over the negotiated M
 	}
 	await writer.commit(assets.pack);
 	await ports.publishInventory(assets.inventory.bytes, assets.inventory.reference);
+	assert.deepEqual(await ports.readCommittedBody({
+		asset: 'pack', reference: assets.pack, offset: 0, length: assets.pack.byteLength,
+	}), assets.packBytes, 'the renderer can mirror only its own committed transaction body');
+	assert.deepEqual(await ports.readCommittedBody({
+		asset: 'inventory', reference: assets.inventory.reference,
+		offset: 0, length: assets.inventory.reference.byteLength,
+	}), assets.inventory.bytes);
 	const request = admission('unused', assets);
 	const result = await ports.admit(request) as Readonly<{ admitted: boolean }>;
 	assert.equal(result.admitted, true);
@@ -95,6 +102,13 @@ test('the production candidate ports stream pathless bytes over the negotiated M
 	assert.equal(controlValues.some((value) => JSON.stringify(value).includes(fixture.root)), false);
 	assert.equal(controlValues.some((value) => containsBytes(value)), false,
 		'control IPC never carries media bytes');
+	const transactionId = String((controlValues.find((value) => (
+		(value as { operation?: string }).operation === 'prepare-write'
+	)) as { transactionId: string }).transactionId);
+	await assert.rejects(() => fixture.authority.request({}, {
+		operation: 'read', transactionId,
+		asset: 'pack', offset: 0, length: 1,
+	}), /owner/iu, 'a caller cannot read another renderer transaction by digest or ID');
 	await registration.dispose();
 	assert.equal(handlers.has(FRAMESCAPER_NATIVE_IMAGE_SEQUENCE_IMPORT_CHANNELS.control), false);
 });
@@ -361,9 +375,9 @@ function capabilitySnapshot(usable: boolean) {
 function characteristics() {
 	return normalizeVideoSourceCharacteristicsV25({
 		backend: 'framescaper-media-host', codedWidth: 1_920, codedHeight: 1_080,
-		hasAlpha: true, videoCodec: 'png', bitDepth: 8, pixelFormat: 'rgba',
-		chromaFormat: '4:4:4', alphaMode: 'straight', alphaInterpretation: 'transparency',
-		colour: { primaries: 'bt709', transfer: 'bt709', matrix: 'bt709', range: 'full' },
+		hasAlpha: false, videoCodec: 'png', bitDepth: 8, pixelFormat: 'rgb24',
+		chromaFormat: '4:4:4', alphaMode: null, alphaInterpretation: null,
+		colour: { primaries: 'srgb', transfer: 'iec61966-2-1', matrix: 'rgb', range: 'full' },
 	});
 }
 

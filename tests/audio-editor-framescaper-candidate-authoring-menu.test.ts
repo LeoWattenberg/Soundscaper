@@ -107,24 +107,26 @@ test('V24 candidates expose visual authoring in existing menus', async () => {
 	}
 });
 
-test('selected V27 exposes maintained visual workflows without the M5 external generator', () => {
-	const items = createFramescaperCandidateAuthoringMenuItems({
-		productId: 'framescaper', project: { schemaVersion: 27 }, editingBlocked: false,
-		projectCapabilities: {
-			videoTransitions: true, videoTransitionDissolve: true, videoStills: true,
-			videoGenerators: true, videoAdjustmentLayers: true, videoMasksMattes: true,
-			videoFreeze: true,
-		},
-		actionSurfaces: SELECTED_V27,
-	}, { open: () => undefined });
-	assert.deepEqual(items.generate[1]?.items?.map(({ id, disabled }) => ({ id, disabled })), [
-		{ id: 'framescaper-add-video-title', disabled: false },
-		{ id: 'framescaper-add-video-text', disabled: false },
-		{ id: 'framescaper-add-video-shape', disabled: false },
-		{ id: 'framescaper-add-video-solid', disabled: false },
-		{ id: 'framescaper-save-video-visual-preset', disabled: false },
-	]);
-	assert.equal(JSON.stringify(items).includes('external-video-generator'), false);
+test('selected V27 and V28 expose maintained visual workflows without the M5 external generator', () => {
+	for (const schemaVersion of [27, 28]) {
+		const items = createFramescaperCandidateAuthoringMenuItems({
+			productId: 'framescaper', project: { schemaVersion }, editingBlocked: false,
+			projectCapabilities: {
+				videoTransitions: true, videoTransitionDissolve: true, videoStills: true,
+				videoGenerators: true, videoAdjustmentLayers: true, videoMasksMattes: true,
+				videoFreeze: true,
+			},
+			actionSurfaces: SELECTED_V27,
+		}, { open: () => undefined });
+		assert.deepEqual(items.generate[1]?.items?.map(({ id, disabled }) => ({ id, disabled })), [
+			{ id: 'framescaper-add-video-title', disabled: false },
+			{ id: 'framescaper-add-video-text', disabled: false },
+			{ id: 'framescaper-add-video-shape', disabled: false },
+			{ id: 'framescaper-add-video-solid', disabled: false },
+			{ id: 'framescaper-save-video-visual-preset', disabled: false },
+		]);
+		assert.equal(JSON.stringify(items).includes('external-video-generator'), false);
+	}
 });
 
 test('candidate visual entries fail closed for read-only, missing actions, and missing capabilities', () => {

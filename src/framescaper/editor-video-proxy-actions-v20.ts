@@ -77,7 +77,7 @@ export interface FramescaperVideoProxyActionsV20Options {
 }
 
 export interface FramescaperVideoProxyActionsOptions extends FramescaperVideoProxyActionsV20Options {
-	readonly schemaVersion: 20 | 27;
+	readonly schemaVersion: 20 | 27 | 28;
 	readonly createDetachCommand?: (
 		sourceId: string,
 		expectedAttachment: unknown,
@@ -89,6 +89,7 @@ export interface FramescaperVideoProxyActionsV27Options extends FramescaperVideo
 	readonly createDetachCommand: NonNullable<FramescaperVideoProxyActionsOptions['createDetachCommand']>;
 }
 
+export type FramescaperVideoProxyActionsV28Options = FramescaperVideoProxyActionsV27Options;
 /** Bind selected V20 editorial proxy actions to its authenticated controller. */
 export function bindFramescaperVideoProxyActionsV20(
 	environment: Readonly<FramescaperEditorProjectEnvironmentV20>,
@@ -126,6 +127,12 @@ export function createFramescaperVideoProxyActionsV27(
 	options: FramescaperVideoProxyActionsV27Options,
 ): FramescaperVideoProxyActionRuntime {
 	return createFramescaperVideoProxyActions({ ...options, schemaVersion: 27 });
+}
+
+export function createFramescaperVideoProxyActionsV28(
+	options: FramescaperVideoProxyActionsV28Options,
+): FramescaperVideoProxyActionRuntime {
+	return createFramescaperVideoProxyActions({ ...options, schemaVersion: 28 });
 }
 
 /** Shared selected-project seam; V27 injects its exact scheduler and command wire. */
@@ -507,7 +514,7 @@ function proxyRequest(
 
 function exactProject(
 	value: unknown,
-	schemaVersion: 20 | 27,
+	schemaVersion: 20 | 27 | 28,
 ): Readonly<Record<string, unknown>> {
 	if (!value || typeof value !== 'object' || Array.isArray(value)
 		|| (value as Readonly<Record<string, unknown>>).schemaVersion !== schemaVersion) {
@@ -581,8 +588,8 @@ function secureSessionId(): string {
 function assertOptions(options: FramescaperVideoProxyActionsOptions): void {
 	if (!options?.owner || typeof options.owner !== 'object'
 		|| typeof options.createScheduler !== 'function'
-		|| (options.schemaVersion !== 20 && options.schemaVersion !== 27)
-		|| (options.schemaVersion === 27 && typeof options.createAttachExistingScheduler !== 'function')
+		|| ![20, 27, 28].includes(options.schemaVersion)
+		|| (options.schemaVersion !== 20 && typeof options.createAttachExistingScheduler !== 'function')
 		|| (options.previewTrust !== undefined && typeof options.previewTrust !== 'function')
 		|| !options.cleanup || typeof options.cleanup.prepareReplacement !== 'function'
 		|| typeof options.cleanup.cancel !== 'function' || typeof options.cleanup.settle !== 'function'

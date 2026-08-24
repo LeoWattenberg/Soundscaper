@@ -458,6 +458,14 @@
 			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/production-licensing-policy.md"]
 		},
 		{
+			"id": "native-audio",
+			"status": "disabled",
+			"scope": "soundscaper-native-audio-stack-and-os-backends",
+			"blocker": "Authenticated sources and fail-closed build recipes exist, but legal/trademark, notice, five-target packaging/signing, device-lab and no-retry cohort approval are not recorded.",
+			"enableRequires": ["authenticated-source-closure", "per-backend-license-and-trademark-review", "notice-and-corresponding-source-delivery", "five-target-signing-and-packaging", "provisioned-device-lab-cohort"],
+			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/milestone-5a-soundscaper-native.md", "docs/production-licensing-policy.md", "native/soundscaper-helper-addon/source-manifest.json"]
+		},
+		{
 			"id": "native-codecs",
 			"status": "disabled",
 			"enableRequires": ["codec-license-inventory", "corresponding-source-where-required", "jurisdiction-specific-patent-review", "package-notice-delivery"],
@@ -487,14 +495,74 @@
 			]
 		},
 		{
+			"id": "native-audio-stack",
+			"kind": "native-audio-stack",
+			"upstreamLicensing": "JUCE 9.0.1 is selected under AGPL-3.0-only; the repository-owned N-API adapter remains AGPL-3.0-only.",
+			"agplCompatibilityDirection": "The selected JUCE AGPL arm and repository adapter combine into the AGPL-3.0-only application without using the commercial arm.",
+			"redistribution": "No JUCE-derived native payload ships until exact corresponding source, notices, target builds, signatures and notarization are assembled and audited.",
+			"status": "blocked",
+			"blocker": "The native-audio gate is disabled pending legal/notice review, five-target payloads, signatures and the provisioned no-retry device cohort.",
+			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/milestone-5a-soundscaper-native.md", "native/soundscaper-helper-addon/source-manifest.json", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
+			"id": "audio-backend-coreaudio",
+			"kind": "audio-backend",
+			"upstreamLicensing": "CoreAudio is an operating-system API supplied by the selected macOS SDK; JUCE adapter source is selected under AGPL-3.0-only.",
+			"agplCompatibilityDirection": "System-framework linkage is used and the JUCE adapter is combined under its AGPL arm.",
+			"redistribution": "No Apple SDK is redistributed; the application payload and applicable source/notices require target-specific audit and notarization.",
+			"status": "blocked",
+			"blocker": "The native-audio gate has no accepted macOS ARM64 build, notarization, CoreAudio device-loss or latency cohort.",
+			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/milestone-5a-soundscaper-native.md", "native/soundscaper-helper-addon/src/audio_backends.c"]
+		},
+		{
+			"id": "audio-backend-wasapi",
+			"kind": "audio-backend",
+			"upstreamLicensing": "WASAPI is an operating-system API supplied by Windows SDK 10.0.26100; JUCE adapter source is selected under AGPL-3.0-only.",
+			"agplCompatibilityDirection": "System-API linkage is used and the JUCE adapter is combined under its AGPL arm.",
+			"redistribution": "No Windows SDK is redistributed; x64 and ARM64 application payloads and notices require target-specific audit and signing.",
+			"status": "blocked",
+			"blocker": "The native-audio gate has no accepted Windows x64/ARM64 shared/exclusive build, signature, device-loss or latency cohort.",
+			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/milestone-5a-soundscaper-native.md", "native/soundscaper-helper-addon/src/audio_backends.c"]
+		},
+		{
+			"id": "audio-backend-asio",
+			"kind": "audio-backend",
+			"upstreamLicensing": "ASIO SDK 2.3.4 is selected under GPL-3.0-only; its alternative proprietary license is not selected.",
+			"agplCompatibilityDirection": "The selected GPLv3 SDK code combines one-way into the AGPL-3.0-only application via GPLv3 section 13.",
+			"redistribution": "No ASIO-derived payload or ASIO trademark/logo claim ships before corresponding source, notices, trademark review and signed Windows packages are approved.",
+			"status": "blocked",
+			"blocker": "The native-audio gate is blocked on ASIO legal/trademark review and accepted Windows x64/ARM64 driver/device cohorts.",
+			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/milestone-5a-soundscaper-native.md", "native/soundscaper-helper-addon/src/audio_backends.c", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
+			"id": "audio-backend-pipewire",
+			"kind": "audio-backend",
+			"upstreamLicensing": "Vendored PipeWire 1.0.5 public headers are MIT; libpipewire is resolved from the user's system with dlopen and is not linked or redistributed.",
+			"agplCompatibilityDirection": "The permissive public headers combine into the AGPL-3.0-only adapter; the system library stays outside the distributed work.",
+			"redistribution": "Only the pinned public header subset and its MIT notice are carried; no PipeWire library is redistributed.",
+			"status": "blocked",
+			"blocker": "The native-audio gate has no accepted Linux x64/ARM64 PipeWire graph, disconnect, recovery or no-retry latency cohort.",
+			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/milestone-5a-soundscaper-native.md", "native/soundscaper-helper-addon/src/pipewire_session.c", "vendor/pipewire-headers/UPSTREAM", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
+			"id": "audio-backend-alsa",
+			"kind": "audio-backend",
+			"upstreamLicensing": "ALSA is a Linux system ABI; the native adapter resolves the user's installed system library and redistributes no ALSA library or headers.",
+			"agplCompatibilityDirection": "Runtime system-library linkage is used; repository adapter code remains AGPL-3.0-only.",
+			"redistribution": "No ALSA library is redistributed; Linux application payloads still require target-specific source, notice and signing audit.",
+			"status": "blocked",
+			"blocker": "The native-audio gate has no accepted Linux x64/ARM64 direct-hardware, device-loss, recovery or no-retry latency cohort.",
+			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/milestone-5a-soundscaper-native.md", "native/soundscaper-helper-addon/src/audio_backends.c"]
+		},
+		{
 			"id": "plugin-format-vst3",
 			"kind": "plugin-format",
-			"upstreamLicensing": "Dual: proprietary Steinberg VST 3 license or GPL-3.0-only",
-			"agplCompatibilityDirection": "GPLv3 SDK code combines one-way into this AGPL-3.0-only work via GPLv3 section 13; the proprietary arm is not usable here.",
-			"redistribution": "The SDK's GPL arm may ship with corresponding source; user-installed third-party plug-in binaries are never redistributed by this project.",
+			"upstreamLicensing": "MIT at the pinned VST3 SDK 3.8.0_build_66 revision",
+			"agplCompatibilityDirection": "The permissive MIT SDK code combines into this AGPL-3.0-only work trivially.",
+			"redistribution": "The SDK source may ship with its MIT copyright and permission notice; user-installed third-party plug-in binaries are never redistributed by this project.",
 			"status": "blocked",
-			"blocker": "No per-platform SDK review, redistribution policy, or notices are recorded; hosting also waits on the native-plugins gate and the milestone-5A sandbox review.",
-			"evidence": ["docs/production-licensing-policy.md", "roadmap.md#5-electron-native-services-and-extensibility"]
+			"blocker": "The exact meta-repository and JUCE-carried SDK closure are authenticated, but per-platform notice/trademark review, signed packaged-host evidence and native-plugins activation are not accepted.",
+			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/production-licensing-policy.md", "roadmap.md#5-electron-native-services-and-extensibility"]
 		},
 		{
 			"id": "plugin-format-clap",

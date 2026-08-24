@@ -13,11 +13,11 @@ import {
 	createDesktopProjectLibraryLeaseMatrixDocument,
 } from '../scripts/lib/desktop-project-library-lease-matrix.mjs';
 import {
-	createSoundscaperDesktopProjectLibraryV10Handshake,
-} from '../desktop/soundscaper-project-library-v10-contract.ts';
-import { SoundscaperDesktopProjectLibraryV10Main } from '../desktop/soundscaper-project-library-v10-main.ts';
-import { createFramescaperDesktopProjectLibraryV18Handshake } from '../desktop/project-library-v18-contract.ts';
-import { FramescaperDesktopProjectLibraryV18Main } from '../desktop/project-library-v18-main.ts';
+	createSoundscaperDesktopProjectLibraryV11Handshake,
+} from '../desktop/soundscaper-project-library-v11-contract.ts';
+import { SoundscaperDesktopProjectLibraryV11Main } from '../desktop/soundscaper-project-library-v11-main.ts';
+import { createFramescaperDesktopProjectLibraryV19Handshake } from '../desktop/project-library-v19-contract.ts';
+import { FramescaperDesktopProjectLibraryV19Main } from '../desktop/project-library-v19-main.ts';
 
 const PROJECT_ID = 'lease-matrix-renderer';
 
@@ -26,16 +26,16 @@ const PROJECT_ID = 'lease-matrix-renderer';
 // sequence the renderer smoke issues is the one main admits, without needing a
 // packaged build to find out.
 test('the lease renderer smoke creates, observes, advances, and reports conflict against real main', async (context) => {
-	const root = await mkdtemp(join(tmpdir(), 'soundscaper-v10-lease-renderer-'));
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-v11-lease-renderer-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
-	const main = await SoundscaperDesktopProjectLibraryV10Main.start({
+	const main = await SoundscaperDesktopProjectLibraryV11Main.start({
 		appDataPath: root,
 		owner: { product: 'soundscaper', processId: 921, instanceId: 'lease-renderer-main' },
-		handshake: createSoundscaperDesktopProjectLibraryV10Handshake(),
+		handshake: createSoundscaperDesktopProjectLibraryV11Handshake(),
 		qualification: null,
 	});
 	context.after(() => main.close());
-	const session = main.openSession(createSoundscaperDesktopProjectLibraryV10Handshake());
+	const session = main.openSession(createSoundscaperDesktopProjectLibraryV11Handshake());
 	context.after(() => session.close());
 	const scope = rendererScope(session);
 
@@ -90,16 +90,16 @@ test('the lease renderer smoke creates, observes, advances, and reports conflict
 });
 
 test('the lease renderer smoke refuses a create whose destination already exists', async (context) => {
-	const root = await mkdtemp(join(tmpdir(), 'soundscaper-v10-lease-create-'));
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-v11-lease-create-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
-	const main = await SoundscaperDesktopProjectLibraryV10Main.start({
+	const main = await SoundscaperDesktopProjectLibraryV11Main.start({
 		appDataPath: root,
 		owner: { product: 'soundscaper', processId: 922, instanceId: 'lease-renderer-create' },
-		handshake: createSoundscaperDesktopProjectLibraryV10Handshake(),
+		handshake: createSoundscaperDesktopProjectLibraryV11Handshake(),
 		qualification: null,
 	});
 	context.after(() => main.close());
-	const session = main.openSession(createSoundscaperDesktopProjectLibraryV10Handshake());
+	const session = main.openSession(createSoundscaperDesktopProjectLibraryV11Handshake());
 	context.after(() => session.close());
 	const scope = rendererScope(session);
 
@@ -120,16 +120,16 @@ test('the lease renderer smoke refuses a create whose destination already exists
 // The matrix hands both canonical contenders the same base revision. Whichever
 // arrives second publishes against a base main has already superseded.
 test('the lease renderer smoke publishes a contender against the base it was handed', async (context) => {
-	const root = await mkdtemp(join(tmpdir(), 'soundscaper-v10-lease-contend-'));
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-v11-lease-contend-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
-	const main = await SoundscaperDesktopProjectLibraryV10Main.start({
+	const main = await SoundscaperDesktopProjectLibraryV11Main.start({
 		appDataPath: root,
 		owner: { product: 'soundscaper', processId: 923, instanceId: 'lease-renderer-contend' },
-		handshake: createSoundscaperDesktopProjectLibraryV10Handshake(),
+		handshake: createSoundscaperDesktopProjectLibraryV11Handshake(),
 		qualification: null,
 	});
 	context.after(() => main.close());
-	const session = main.openSession(createSoundscaperDesktopProjectLibraryV10Handshake());
+	const session = main.openSession(createSoundscaperDesktopProjectLibraryV11Handshake());
 	context.after(() => session.close());
 	const scope = rendererScope(session);
 
@@ -162,7 +162,7 @@ test('the lease renderer smoke publishes a contender against the base it was han
 });
 
 test('the lease renderer smoke rethrows failures that are not a refusal by main', async () => {
-	const closed = failingBridge(new Error('Soundscaper V10 main session is closed'));
+	const closed = failingBridge(new Error('Soundscaper V11 main session is closed'));
 	await assert.rejects(runDesktopProjectLibraryLeaseRendererSmoke(closed, {
 		action: 'commit',
 		projectId: PROJECT_ID,
@@ -170,8 +170,8 @@ test('the lease renderer smoke rethrows failures that are not a refusal by main'
 	}), /session is closed/u);
 	const refused = await runDesktopProjectLibraryLeaseRendererSmoke(
 		failingBridge(new Error(
-			"Error invoking remote method 'soundscaper:v10:projects:publication:begin': "
-			+ 'Error: Soundscaper V10 expected project failed compare-and-swap',
+			"Error invoking remote method 'soundscaper:v11:projects:publication:begin': "
+			+ 'Error: Soundscaper V11 expected project failed compare-and-swap',
 		)),
 		{
 			action: 'commit',
@@ -183,13 +183,13 @@ test('the lease renderer smoke rethrows failures that are not a refusal by main'
 	assert.equal(conflictReason(refused), 'compare-and-swap');
 });
 
-test('the product-neutral renderer smoke publishes through the selected Framescaper V18 bridge', async (context) => {
-	const root = await mkdtemp(join(tmpdir(), 'framescaper-v18-lease-renderer-'));
+test('the product-neutral renderer smoke publishes through the selected Framescaper V19 bridge', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'framescaper-v19-lease-renderer-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
-	const handshake = createFramescaperDesktopProjectLibraryV18Handshake();
-	const main = await FramescaperDesktopProjectLibraryV18Main.start({
+	const handshake = createFramescaperDesktopProjectLibraryV19Handshake();
+	const main = await FramescaperDesktopProjectLibraryV19Main.start({
 		appDataPath: root,
-		owner: { product: 'framescaper', processId: 924, instanceId: 'framescaper-lease-renderer' },
+		owner: { product: 'framescaper', processId: 924, instanceId: 'framescaper-v19-lease-renderer' },
 		handshake,
 		onLeaseLost: () => undefined,
 		qualification: null,
@@ -226,8 +226,8 @@ function failingBridge(failure: Error): Record<string, unknown> {
 	return {
 		crypto: globalThis.crypto,
 		soundscaperProjectLibraryDesktop: {
-			v10: {
-				connect: async () => createSoundscaperDesktopProjectLibraryV10Handshake(),
+			v11: {
+				connect: async () => createSoundscaperDesktopProjectLibraryV11Handshake(),
 				listProjects: async () => ({ metadataRevision: 1, projects: [] }),
 				readProjectBundle: async () => null,
 				beginPublication: async () => { throw failure; },
@@ -246,14 +246,14 @@ function document(revision: number, title: string): string {
 	return createDesktopProjectLibraryLeaseMatrixDocument(PROJECT_ID, revision, title) as string;
 }
 
-type MainSession = ReturnType<SoundscaperDesktopProjectLibraryV10Main['openSession']>;
+type MainSession = ReturnType<SoundscaperDesktopProjectLibraryV11Main['openSession']>;
 
 function rendererScope(session: MainSession): Record<string, unknown> {
 	return {
 		crypto: globalThis.crypto,
 		soundscaperProjectLibraryDesktop: {
-			v10: {
-				connect: async () => createSoundscaperDesktopProjectLibraryV10Handshake(),
+			v11: {
+				connect: async () => createSoundscaperDesktopProjectLibraryV11Handshake(),
 				listProjects: () => session.listProjects(),
 				readProjectBundle: (projectId: string) => session.readProjectBundle(projectId),
 				beginPublication: (value: unknown) => session.beginPublication(value),
@@ -267,9 +267,9 @@ function rendererScope(session: MainSession): Record<string, unknown> {
 /** Reports the base an earlier reader saw, so main arbitrates the losing publication. */
 function staleBaseScope(session: MainSession, projectSha256: string): Record<string, unknown> {
 	const scope = rendererScope(session) as {
-		soundscaperProjectLibraryDesktop: { v10: Record<string, unknown> };
+		soundscaperProjectLibraryDesktop: { v11: Record<string, unknown> };
 	};
-	const bridge = scope.soundscaperProjectLibraryDesktop.v10;
+	const bridge = scope.soundscaperProjectLibraryDesktop.v11;
 	bridge.readProjectBundle = async (projectId: string) => {
 		const bundle = await session.readProjectBundle(projectId);
 		if (!bundle) return null;

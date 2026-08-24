@@ -11,6 +11,7 @@ import {
 	fingerprintNativeMediaPlan,
 	type NativeMediaPlanFingerprint,
 } from './native-media-plan-canonical-form.ts';
+import type { NativeMediaV14EncodeProfileId } from './native-media-v14-native-dispatch.ts';
 import { isVideoCanvasFit, type VideoCanvasFit } from './video-canvas-fit.ts';
 import { isVideoDeliveryAudioLayout, type VideoDeliveryAudioLayout } from './video-delivery-audio-layout.ts';
 import { isVideoDeliveryQuality, type VideoDeliveryQuality } from './video-delivery-quality.ts';
@@ -31,6 +32,11 @@ import {
 	exactRenderStableId as stableId,
 	exactRenderText as text,
 } from './unified-exact-render-plan-primitives.ts';
+import {
+	normalizeUnifiedExactRenderDeliveryProfile,
+	normalizeUnifiedExactRenderFormat,
+	type UnifiedExactRenderFormat,
+} from './unified-exact-render-plan-format.ts';
 import {
 	createUnifiedExactRenderIdentityIndex,
 	type UnifiedExactRenderIdentityClaim,
@@ -93,7 +99,7 @@ export type {
 	UnifiedExactRenderTimingSidecars,
 };
 
-export const UNIFIED_EXACT_RENDER_PLAN_VERSIONS = Object.freeze([9, 10, 11, 12, 13] as const);
+export const UNIFIED_EXACT_RENDER_PLAN_VERSIONS = Object.freeze([9, 10, 11, 12, 13, 14] as const);
 export type UnifiedExactRenderPlanVersion = (typeof UNIFIED_EXACT_RENDER_PLAN_VERSIONS)[number];
 
 export type UnifiedExactRenderNode =
@@ -108,11 +114,9 @@ export interface UnifiedExactRenderPlan extends Readonly<Record<string, unknown>
 	readonly version: UnifiedExactRenderPlanVersion;
 	readonly strategy: 'framescaper-unified-exact-v1';
 	readonly project: Readonly<{ readonly id: string; readonly revision: number }>;
-	readonly format: Readonly<{
-		readonly container: 'mp4' | 'webm';
-		readonly extension: 'mp4' | 'webm';
-		readonly mimeType: 'video/mp4' | 'video/webm';
-	}>;
+	readonly format: UnifiedExactRenderFormat;
+	/** Present only in V14; closes the exact professional encoder/profile tuple. */
+	readonly deliveryProfile?: NativeMediaV14EncodeProfileId;
 	readonly codecs: Readonly<{
 		readonly video: string;
 		readonly videoEncoder: string;
@@ -151,12 +155,13 @@ export type UnifiedExactRenderPlanV10 = UnifiedExactRenderPlan & Readonly<{ read
 export type UnifiedExactRenderPlanV11 = UnifiedExactRenderPlan & Readonly<{ readonly version: 11 }>;
 export type UnifiedExactRenderPlanV12 = UnifiedExactRenderPlan & Readonly<{ readonly version: 12 }>;
 export type UnifiedExactRenderPlanV13 = UnifiedExactRenderPlan & Readonly<{ readonly version: 13 }>;
+export type UnifiedExactRenderPlanV14 = UnifiedExactRenderPlan & Readonly<{ readonly version: 14 }>;
 
 const PLAN_FIELDS = Object.freeze([
 	'version', 'strategy', 'project', 'format', 'codecs', 'timebase', 'output', 'tracks', 'sources', 'nodes',
 ]);
+const PLAN_V14_FIELDS = Object.freeze([...PLAN_FIELDS, 'deliveryProfile']);
 const PROJECT_FIELDS = Object.freeze(['id', 'revision']);
-const FORMAT_FIELDS = Object.freeze(['container', 'extension', 'mimeType']);
 const CODEC_FIELDS = Object.freeze(['video', 'videoEncoder', 'audio', 'audioEncoder', 'pixelFormat']);
 const TIMEBASE_FIELDS = Object.freeze([
 	'sampleStart', 'sampleDuration', 'sampleRate', 'sequenceId', 'sequenceRate',
@@ -249,7 +254,11 @@ export function assertUnifiedExactRenderPlanV12(value: unknown): asserts value i
 export function assertUnifiedExactRenderPlanV13(value: unknown): asserts value is UnifiedExactRenderPlanV13 {
 	assertGeneration(value, 13);
 }
-
+export function assertUnifiedExactRenderPlanV14(
+	value: unknown,
+): asserts value is UnifiedExactRenderPlanV14 {
+	assertGeneration(value, 14);
+}
 export function canonicalizeUnifiedExactRenderPlan(value: unknown): string {
 	assertUnifiedExactRenderPlan(value);
 	return canonicalizeNativeMediaPlan(value);
@@ -281,17 +290,26 @@ function normalizePlan(
 	timingSidecars?: UnifiedExactRenderTimingSidecars,
 	deferTiming = false,
 ): UnifiedExactRenderPlan {
-	const input = readClosedDomainRecord(value, 'unified exact render plan', PLAN_FIELDS);
+	const candidate = value && typeof value === 'object' && !Array.isArray(value)
+		? value as Readonly<Record<string, unknown>> : null;
+	const input = readClosedDomainRecord(
+		value, 'unified exact render plan', candidate?.version === 14 ? PLAN_V14_FIELDS : PLAN_FIELDS,
+	);
 	const version = planVersion(field(input, 'version', 'unified exact render plan'));
+	const deliveryProfile = version === 14
+		? normalizeUnifiedExactRenderDeliveryProfile(field(input, 'deliveryProfile', 'unified exact render plan'))
+		: undefined;
 	if (field(input, 'strategy', 'unified exact render plan') !== 'framescaper-unified-exact-v1') {
 		throw new RangeError('A unified exact render plan has an unsupported strategy.');
 	}
 	const project = normalizeProject(field(input, 'project', 'unified exact render plan'));
-	const format = normalizeFormat(field(input, 'format', 'unified exact render plan'));
+	const format = normalizeUnifiedExactRenderFormat(
+		field(input, 'format', 'unified exact render plan'), version,
+	);
 	const codecs = normalizeCodecs(field(input, 'codecs', 'unified exact render plan'));
 	const timebase = normalizeTimebase(field(input, 'timebase', 'unified exact render plan'));
-	const output = normalizeOutput(field(input, 'output', 'unified exact render plan'), codecs);
-	assertUnifiedExactRenderOutputAdmission({ version, format, codecs, output });
+	const output = normalizeOutput(field(input, 'output', 'unified exact render plan'), codecs, version);
+	assertUnifiedExactRenderOutputAdmission({ version, format, codecs, output, deliveryProfile });
 	const expectedCount = ceilingRatio(
 		BigInt(timebase.sampleDuration) * BigInt(output.frameRate.num),
 		BigInt(timebase.sampleRate) * BigInt(output.frameRate.den),
@@ -322,6 +340,7 @@ function normalizePlan(
 		strategy: 'framescaper-unified-exact-v1',
 		project,
 		format,
+		...(deliveryProfile === undefined ? {} : { deliveryProfile }),
 		codecs,
 		timebase,
 		output,
@@ -369,25 +388,25 @@ function normalizeNodes(
 				candidates[index], context.sequenceId, sources.bySourceId, tracks,
 			);
 		} else if (kind === 'professional-media') {
-			requireDormantGeneration(version, [11, 12], kind);
+			requireDormantGeneration(version, [11, 12, 14], kind);
 			node = normalizeUnifiedExactRenderProfessionalNode(candidates[index], sources.byNodeId);
 			if (professionalSourceNodeIds.has(node.sourceNodeId)) {
 				throw new RangeError('A unified professional-media source may have at most one authority node.');
 			}
 			professionalSourceNodeIds.add(node.sourceNodeId);
 		} else if (kind === 'finishing') {
-			requireSelectedGeneration(version, 13, kind);
+			if (version !== 14) requireSelectedGeneration(version, 13, kind);
 			finishingNodeCount += 1;
 			if (finishingNodeCount > 1) throw new RangeError('A V13 plan requires exactly one finishing node.');
 			node = normalizeUnifiedExactRenderFinishingNode(candidates[index], context.sequenceId, sources.bySourceId);
 		} else throw new RangeError('Unified exact render plan node kind is unsupported.');
 		normalized.set(index, node);
 	}
-	if (version === 13 && finishingNodeCount !== 1) throw new RangeError('A selected V13 plan requires exactly one finishing node.');
+	if ((version === 13 || version === 14) && finishingNodeCount !== 1) throw new RangeError('A selected finishing plan requires exactly one finishing node.');
 	const identities = graphIdentities(projectId, context.sequenceId, tracks, sources, normalized.values());
 	for (let index = 0; index < candidates.length; index += 1) {
 		if (kinds[index] !== 'openfx') continue;
-		requireDormantGeneration(version, [12], 'openfx');
+		requireDormantGeneration(version, [12, 14], 'openfx');
 		const effect = normalizeUnifiedExactRenderOpenFxNode(
 			candidates[index], identities, sources.bySourceId, context.outputFrameCount,
 		);
@@ -498,17 +517,6 @@ function normalizeProject(value: unknown) {
 	});
 }
 
-function normalizeFormat(value: unknown): UnifiedExactRenderPlan['format'] {
-	const record = readClosedDomainRecord(value, 'unified render format', FORMAT_FIELDS);
-	const container = field(record, 'container', 'unified render format');
-	if (container !== 'mp4' && container !== 'webm') throw new RangeError('Unified render container is unsupported.');
-	if (field(record, 'extension', 'unified render format') !== container
-		|| field(record, 'mimeType', 'unified render format') !== `video/${container}`) {
-		throw new RangeError('Unified render format metadata is not canonical.');
-	}
-	return Object.freeze({ container, extension: container, mimeType: `video/${container}` });
-}
-
 function normalizeCodecs(value: unknown): UnifiedExactRenderPlan['codecs'] {
 	const record = readClosedDomainRecord(value, 'unified render codecs', CODEC_FIELDS);
 	const audio = nullableText(field(record, 'audio', 'unified render codecs'), 'unified render codecs.audio');
@@ -539,7 +547,7 @@ function normalizeTimebase(value: unknown): UnifiedExactRenderPlan['timebase'] {
 
 function normalizeOutput(
 	value: unknown,
-	codecs: UnifiedExactRenderPlan['codecs'],
+	codecs: UnifiedExactRenderPlan['codecs'], version: UnifiedExactRenderPlanVersion,
 ): UnifiedExactRenderPlan['output'] {
 	const record = readClosedDomainRecord(value, 'unified render output', OUTPUT_FIELDS);
 	const canvasRecord = readClosedDomainRecord(field(record, 'canvas', 'unified render output'), 'unified render canvas', CANVAS_FIELDS);
@@ -556,7 +564,7 @@ function normalizeOutput(
 		: (audioLayout !== null || codecs.audio !== null)) {
 		throw new RangeError('Unified render audio metadata is inconsistent.');
 	}
-	if (includeAudio) {
+	if (includeAudio && version !== 14) {
 		throw new RangeError('Unified plans V9-V13 cannot include audio until an exact audio media graph is represented.');
 	}
 	const backgroundColor = field(canvasRecord, 'backgroundColor', 'unified render canvas');

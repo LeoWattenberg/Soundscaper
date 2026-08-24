@@ -71,10 +71,11 @@ test('future built targets require two exact target-root payloads before derivat
 	const runtime = payload(
 		copiedHost, 'linux-x64', 'framescaper-ofx-runtime-host', 'runtime',
 	);
+	const isolation = isolationPayload(copiedHost, 'linux-x64');
 	manifest.targets['linux-x64'] = {
 		runtime: 'linux-x64', status: 'built', blockedBy: null,
 		toolchainIdentity: '12'.repeat(32), scannerPayload: scanner,
-		runtimeHostPayload: runtime, productionReadiness: null,
+		runtimeHostPayload: runtime, isolationPayload: isolation, productionReadiness: null,
 	};
 	writeFileSync(manifestPath, `${JSON.stringify(manifest, null, '\t')}\n`);
 
@@ -83,12 +84,54 @@ test('future built targets require two exact target-root payloads before derivat
 	const derived = deriveFramescaperOpenFxPayloadManifest(audit.manifest);
 	assert.deepEqual(derived.payloads, [{
 		id: 'linux-x64', runtime: 'linux-x64',
-		scannerPayload: scanner, runtimeHostPayload: runtime,
+		scannerPayload: scanner, runtimeHostPayload: runtime, isolationPayload: isolation,
 	}]);
 	assert.deepEqual(derived.targets[0].payload, {
-		scannerPayload: scanner, runtimeHostPayload: runtime,
+		scannerPayload: scanner, runtimeHostPayload: runtime, isolationPayload: isolation,
 	});
 	assert.equal(derived.targets[0].productionReadiness, null);
+
+	manifest.targets['linux-x64'].productionReadiness = {
+		schemaVersion: 1,
+		status: 'reviewed',
+		target: 'linux-x64',
+		scannerSha256: scanner.sha256,
+		runtimeHostSha256: runtime.sha256,
+		osIsolationAttested: true,
+		realThirdPartyExecutionAttested: true,
+		reviewedAt: '2026-08-24',
+		reviewer: 'obsolete-inline-review',
+		evidenceSha256: '34'.repeat(32),
+	};
+	writeFileSync(manifestPath, `${JSON.stringify(manifest, null, '\t')}\n`);
+	assert.match(
+		auditFramescaperOpenFxHost({ repositoryRoot: directory }).findings.join('\n'),
+		/invalid production-readiness/iu,
+	);
+
+	const signedReference = {
+		schemaVersion: 2,
+		status: 'reviewed',
+		target: 'linux-x64',
+		evidence: {
+			path: 'config/framescaper-openfx-production-readiness/linux-x64.json',
+			byteLength: 256,
+			sha256: '45'.repeat(32),
+		},
+		signature: {
+			algorithm: 'ed25519',
+			reviewKeyId: 'openfx-isolation-review-v1',
+			valueBase64: Buffer.alloc(64, 7).toString('base64'),
+		},
+	};
+	manifest.targets['linux-x64'].productionReadiness = signedReference;
+	writeFileSync(manifestPath, `${JSON.stringify(manifest, null, '\t')}\n`);
+	const signedAudit = auditFramescaperOpenFxHost({ repositoryRoot: directory });
+	assert.deepEqual(signedAudit.findings, []);
+	assert.deepEqual(
+		deriveFramescaperOpenFxPayloadManifest(signedAudit.manifest).targets[0].productionReadiness,
+		signedReference,
+	);
 
 	writeFileSync(join(directory, runtime.path), 'tampered-runtime');
 	assert.match(
@@ -116,10 +159,13 @@ test('contract-only scanner and per-fingerprint runtime fixtures self-test separ
 		const common = [
 			join(hostRoot, 'src', 'sha256.cpp'),
 			join(hostRoot, 'src', 'dynamic_library.cpp'),
+			join(hostRoot, 'src', 'gpu_runtime.cpp'),
 			join(hostRoot, 'src', 'host_runtime.cpp'),
+			join(hostRoot, 'src', 'interact_v1_invocation.cpp'),
 			join(hostRoot, 'src', 'loaded_plugin_binary.cpp'),
 			join(hostRoot, 'src', 'parameter_values.cpp'),
 			join(hostRoot, 'src', 'v12_cancellation_channel.cpp'),
+			join(hostRoot, 'src', 'v12_gpu_qualification.cpp'),
 			join(hostRoot, 'src', 'v12_host_invocation.cpp'),
 			join(hostRoot, 'src', 'v12_video_timing_grants.cpp'),
 			join(hostRoot, 'src', 'v12_output_file.cpp'),
@@ -180,6 +226,26 @@ function payload(copiedHost, target, name, contents) {
 		path: relativePath, byteLength: bytes.byteLength,
 		sha256: createHash('sha256').update(bytes).digest('hex'),
 	};
+}
+
+function isolationPayload(copiedHost, target) {
+	return {
+		launcherPayload: payloadAt(copiedHost, target, 'isolation/milestone5-native-isolation-launcher', 'launcher'),
+		sandboxProfilePayload: payloadAt(copiedHost, target,
+			'isolation/milestone5-native-isolation-profile.json', 'profile'),
+		brokerPolicyPayload: payloadAt(copiedHost, target,
+			'isolation/milestone5-native-isolation-broker.json', 'broker'),
+		runtimeLibraryPayloads: [payloadAt(copiedHost, target, 'lib/ld-linux-x86-64.so.2', 'library')],
+	};
+}
+
+function payloadAt(copiedHost, target, suffix, contents) {
+	const relativePath = `native/framescaper-openfx-host/prebuilt/${target}/${suffix}`;
+	const path = join(copiedHost, 'prebuilt', target, suffix);
+	mkdirSync(join(path, '..'), { recursive: true });
+	writeFileSync(path, contents);
+	const bytes = readFileSync(path);
+	return { path: relativePath, byteLength: bytes.byteLength, sha256: createHash('sha256').update(bytes).digest('hex') };
 }
 
 function sourcePins(root) {

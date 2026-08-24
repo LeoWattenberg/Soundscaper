@@ -7,24 +7,27 @@
  * contract duties are exercised without platform authority and the real
  * process boundary is exercised separately by the real-process smoke.
  *
- * This is the only place the native addon is ever loaded. Main never dlopens
- * it, the preload never sees it, and the renderer cannot name it: the helper
- * receives an already-verified absolute payload path and its expected digest,
- * re-checks the bytes itself, and refuses to load anything else.
+ * This is the only place the trusted audio addon is loaded. Professional
+ * plug-in roles instead reopen signed staged authority and proxy the actual
+ * third-party-loading peer through the enforced child launcher.
  */
 
-import { createNativePluginHostJobRunner } from './native-helper-host-job.js';
-import { createNativePluginScanJobRunner } from './native-helper-scan-job.js';
-import {
-	HELPER_CONTRACT_VERSION,
-	HELPER_HEARTBEAT_INTERVAL_MS,
-	serializeHelperError,
-	validateHelperHostMessage,
-	validateHelperProcessMessage,
-} from '#desktop-runtime/helper-contract';
+import { createSingleKindHelperWorker } from './helper-single-kind-worker.js';
+import { createNativePersistentAudioJobRunner } from './native-helper-persistent-audio-job.js';
+import { createNativePersistentPluginJobRunner } from './native-helper-persistent-plugin-job.js';
+import { authenticatePluginCandidate } from './plugin-candidate-authentication.mjs';
 
-/** The kinds this helper implements today; unannounced kinds are refused. */
-export const NATIVE_HELPER_JOB_KINDS = Object.freeze(['audio-device', 'plugin-scan', 'plugin-host']);
+/** One process role owns one native authority family. */
+export const NATIVE_HELPER_ROLES = Object.freeze({
+	audio: Object.freeze({ kind: 'audio-device', serviceName: 'soundscaper-native-audio-helper' }),
+	'plugin-scanner': Object.freeze({ kind: 'plugin-scan', serviceName: 'soundscaper-native-plugin-scanner' }),
+	'plugin-host': Object.freeze({ kind: 'plugin-host', serviceName: 'soundscaper-native-plugin-host' }),
+});
+
+/** Aggregate vocabulary for callers selecting a dedicated role. */
+export const NATIVE_HELPER_JOB_KINDS = Object.freeze(
+	Object.values(NATIVE_HELPER_ROLES).map(({ kind }) => kind),
+);
 
 /** The loopback device the synthetic backend exposes for the transport proof. */
 export const SYNTHETIC_LOOPBACK_DEVICE_HANDLE = 'synthetic:loopback';
@@ -65,162 +68,44 @@ export const SYNTHETIC_ENGINE_FAULTS = Object.freeze({
 });
 
 export function createNativeHelperWorker({
+	role = 'audio',
 	post,
-	runDeviceJob,
+	runJob = null,
+	// Transitional injected names keep the focused runner tests source-stable;
+	// only the runner matching `role` is ever retained or callable.
+	runDeviceJob = null,
 	runScanJob = null,
 	runHostJob = null,
-	heartbeatIntervalMs = HELPER_HEARTBEAT_INTERVAL_MS,
+	heartbeatIntervalMs,
 	setIntervalImpl = setInterval,
 	clearIntervalImpl = clearInterval,
 	exit = () => {},
 }) {
-	if (typeof post !== 'function') throw new TypeError('A helper post seam is required.');
-	if (typeof runDeviceJob !== 'function') throw new TypeError('A native device job runner is required.');
-	const runners = Object.freeze({
-		'audio-device': runDeviceJob,
-		'plugin-scan': runScanJob,
+	const descriptor = nativeHelperRole(role);
+	const selectedRunner = runJob ?? ({
+		audio: runDeviceJob,
+		'plugin-scanner': runScanJob,
 		'plugin-host': runHostJob,
+	})[role];
+	if (typeof selectedRunner !== 'function') {
+		throw new TypeError(`The ${role} native helper role needs its one job runner.`);
+	}
+	return createSingleKindHelperWorker({
+		kind: descriptor.kind,
+		post,
+		runJob: selectedRunner,
+		heartbeatIntervalMs,
+		setIntervalImpl,
+		clearIntervalImpl,
+		exit,
 	});
-	let activeJob = null;
-	let disposed = false;
+}
 
-	const heartbeat = setIntervalImpl(() => {
-		send({ contractVersion: HELPER_CONTRACT_VERSION, type: 'heartbeat', jobId: activeJob?.jobId ?? null });
-	}, heartbeatIntervalMs);
-	if (typeof heartbeat?.unref === 'function') heartbeat.unref();
-	send({ contractVersion: HELPER_CONTRACT_VERSION, type: 'hello', kinds: [...NATIVE_HELPER_JOB_KINDS] });
-
-	function send(message) {
-		if (disposed) return;
-		try {
-			post(validateHelperProcessMessage(message));
-		} catch {
-			dispose(1);
-		}
+export function nativeHelperRole(value) {
+	if (typeof value !== 'string' || !Object.hasOwn(NATIVE_HELPER_ROLES, value)) {
+		throw new RangeError('A native helper process requires one closed role.');
 	}
-
-	function sendError(jobId, error) {
-		send({
-			contractVersion: HELPER_CONTRACT_VERSION,
-			type: 'error',
-			jobId,
-			error: serializeHelperError(error),
-		});
-	}
-
-	function handleMessage(value) {
-		if (disposed) return;
-		let message;
-		try {
-			message = validateHelperHostMessage(value);
-		} catch {
-			// A host that violates its own contract cannot be reasoned with.
-			dispose(1);
-			return;
-		}
-		if (message.type === 'shutdown') {
-			dispose(0);
-			return;
-		}
-		if (message.type === 'cancel') {
-			const job = activeJob;
-			if (!job || job.jobId !== message.jobId) return;
-			void cancelJob(job);
-			return;
-		}
-		if (activeJob) {
-			// Contract v1 admits one concurrent job; a second is a host defect.
-			dispose(1);
-			return;
-		}
-		// Exhaustive by construction: a kind with no entry, or an entry this build
-		// was constructed without, is refused. Falling back to any runner would
-		// answer a scan with a device runner's diagnosis of a device it never had.
-		const runner = Object.hasOwn(runners, message.kind) ? runners[message.kind] : null;
-		if (!NATIVE_HELPER_JOB_KINDS.includes(message.kind) || typeof runner !== 'function') {
-			sendError(message.jobId, new RangeError(`This helper does not implement ${message.kind} jobs.`));
-			return;
-		}
-		startJob(message, runner);
-	}
-
-	function startJob(message, runner) {
-		// The job record is published before the runner starts, because a runner
-		// that reports progress synchronously would otherwise emit against a job
-		// the worker does not yet own — and that progress would be dropped.
-		const job = { jobId: message.jobId, handle: null, cancelling: false, settled: false };
-		activeJob = job;
-		let handle;
-		try {
-			handle = runner({
-				grant: message.grant,
-				resourcePolicy: message.resourcePolicy,
-				onProgress: (value) => {
-					if (activeJob !== job || job.cancelling) return;
-					send({ contractVersion: HELPER_CONTRACT_VERSION, type: 'progress', jobId: message.jobId, value });
-				},
-			});
-		} catch (error) {
-			activeJob = null;
-			sendError(message.jobId, error);
-			return;
-		}
-		job.handle = handle;
-		if (job.cancelling) void handle.cancel();
-		handle.completion.then(
-			(result) => settle(job, () => send({
-				contractVersion: HELPER_CONTRACT_VERSION,
-				type: 'result',
-				jobId: job.jobId,
-				result,
-			})),
-			(error) => settle(job, () => sendError(job.jobId, error)),
-		);
-	}
-
-	function settle(job, emit) {
-		if (job.settled || activeJob !== job) return;
-		job.settled = true;
-		activeJob = null;
-		// A cancelled job answers `cancelled` and nothing else: the supervisor
-		// treats a terminal result after cancellation as a protocol violation.
-		if (job.cancelling) return;
-		emit();
-	}
-
-	async function cancelJob(job) {
-		if (job.cancelling || job.settled) return;
-		job.cancelling = true;
-		try {
-			await job.handle?.cancel();
-		} catch {
-			// Cancellation is best effort; quiescence is what is acknowledged.
-		}
-		if (activeJob === job) {
-			job.settled = true;
-			activeJob = null;
-		}
-		send({ contractVersion: HELPER_CONTRACT_VERSION, type: 'cancelled', jobId: job.jobId });
-	}
-
-	function dispose(code) {
-		if (disposed) return;
-		disposed = true;
-		clearIntervalImpl(heartbeat);
-		const job = activeJob;
-		activeJob = null;
-		if (job && !job.settled) {
-			job.settled = true;
-			try {
-				void Promise.resolve(job.handle.cancel()).catch(() => undefined);
-			} catch {
-				// The process is going away; termination is best effort.
-			}
-		}
-		exit(code);
-	}
-
-	return Object.freeze({ handleMessage, dispose });
+	return NATIVE_HELPER_ROLES[value];
 }
 
 /**
@@ -394,19 +279,67 @@ const parentPort = globalThis.process?.parentPort;
 if (parentPort && typeof parentPort.on === 'function') {
 	const argument = process.argv.find((value) => value.startsWith('--helper-addon-config='));
 	const config = JSON.parse(argument ? argument.slice('--helper-addon-config='.length) : '{}');
+	const roleArgument = process.argv.find((value) => value.startsWith('--helper-role='));
+	const role = roleArgument ? roleArgument.slice('--helper-role='.length) : '';
+	nativeHelperRole(role);
 	const { createHash } = await import('node:crypto');
-	const { readFile } = await import('node:fs/promises');
-	const addonSeams = { addonPath: config.addonPath, addonSha256: config.addonSha256, loadAddon: loadVerifiedNativeAddon };
-	const hashFile = async (path) => {
-		const bytes = await readFile(path);
-		return { byteLength: bytes.byteLength, sha256: createHash('sha256').update(bytes).digest('hex') };
-	};
+	const addonSeams = config.payloadKind === 'professional'
+		? await createProfessionalNativeHelperRoleSeams(config.location, role)
+		: { addonPath: config.addonPath, addonSha256: config.addonSha256, loadAddon: loadVerifiedNativeAddon };
+	const hashFile = authenticatePluginCandidate;
+	let runJob;
+	if (role === 'audio') {
+		const runOneShot = createNativeDeviceJobRunner({ ...addonSeams, hash: () => createHash('sha256') });
+		const runPersistent = createNativePersistentAudioJobRunner(addonSeams);
+		runJob = (request) => request.grant.persistentPort ? runPersistent(request) : runOneShot(request);
+	} else if (role === 'plugin-scanner') {
+		const { createNativePluginScanJobRunner } = await import('./native-helper-scan-job.js');
+		runJob = createNativePluginScanJobRunner({ ...addonSeams, hashFile });
+	} else {
+		const { createNativePluginHostJobRunner } = await import('./native-helper-host-job.js');
+		const runOneShot = createNativePluginHostJobRunner({ ...addonSeams, hashFile, hash: () => createHash('sha256') });
+		const runPersistent = createNativePersistentPluginJobRunner({ ...addonSeams, hashFile });
+		runJob = (request) => request.grant.persistentPort ? runPersistent(request) : runOneShot(request);
+	}
 	const worker = createNativeHelperWorker({
+		role,
 		post: (message) => parentPort.postMessage(message),
-		runDeviceJob: createNativeDeviceJobRunner({ ...addonSeams, hash: () => createHash('sha256') }),
-		runScanJob: createNativePluginScanJobRunner({ ...addonSeams, hashFile }),
-		runHostJob: createNativePluginHostJobRunner({ ...addonSeams, hashFile, hash: () => createHash('sha256') }),
+		runJob,
 		exit: (code) => process.exit(code),
 	});
-	parentPort.on('message', (event) => worker.handleMessage(event.data));
+	parentPort.on('message', (event) => worker.handleMessage(event.data, event.ports ?? []));
+}
+
+export async function createProfessionalNativeHelperRoleSeams(location, role, ports = {}) {
+	const { createSoundscaperProfessionalNativeVerifier } = await import('./soundscaper-professional-native-payload.mjs');
+	const descriptor = await (ports.verifyPayload ?? createSoundscaperProfessionalNativeVerifier(location))();
+	if (role === 'audio') {
+		return { addonPath: descriptor.path, addonSha256: descriptor.sha256, loadAddon: loadVerifiedNativeAddon };
+	}
+	if (!descriptor.productionReadiness || !descriptor.pluginPeer || !descriptor.isolation?.entrypoint) {
+		throw new Error('Professional plug-in roles require reopened signed peer/isolation readiness.');
+	}
+	const createLauncher = ports.createLauncher ?? (await import(
+		'./project-library-runtime/desktop/native-child-isolation-launcher.js')).createNativeChildIsolationLauncher;
+	const createPeer = ports.createPeer ?? (await import(
+		'./project-library-runtime/desktop/soundscaper-professional-plugin-peer.js')).createSoundscaperProfessionalPluginPeer;
+	const launcher = createLauncher({
+		target: descriptor.target,
+		reviewedContract: descriptor.productionReadiness,
+		artifacts: {
+			launcher: descriptor.isolation.launcher,
+			sandboxProfile: descriptor.isolation.sandboxProfile,
+			brokerPolicy: descriptor.isolation.brokerPolicy,
+		},
+	});
+	const ready = await launcher.productionReady();
+	if (ready.status !== 'ready') throw new Error(`The professional child launcher is unavailable: ${ready.detail}`);
+	const formats = descriptor.target.startsWith('mac-') ? ['vst3', 'clap', 'au']
+		: descriptor.target.startsWith('linux-') ? ['vst3', 'clap', 'lv2'] : ['vst3', 'clap'];
+	const peer = createPeer({
+		launcher, peerExecutable: descriptor.pluginPeer, entryExecutable: descriptor.isolation.entrypoint,
+		runtimeReadExecute: descriptor.isolation.runtimeClosure, pluginFormats: formats,
+	});
+	return { addonPath: descriptor.pluginPeer.path, addonSha256: descriptor.pluginPeer.sha256,
+		loadAddon: async () => peer };
 }

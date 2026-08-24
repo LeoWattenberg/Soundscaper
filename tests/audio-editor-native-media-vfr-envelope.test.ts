@@ -44,8 +44,8 @@ test('declarative timing inventory rejects duplicate and future-generation refer
 		/duplicate.*timing.*reference/iu,
 	);
 	assert.throws(
-		() => nativeMediaPlanVideoTimingAssetInputs({ ...fixture.plan, version: 13 }),
-		/only.*V9.*V12|generation/iu,
+		() => nativeMediaPlanVideoTimingAssetInputs({ ...fixture.plan, version: 15 }),
+		/only.*V9.*V14|generation/iu,
 	);
 });
 

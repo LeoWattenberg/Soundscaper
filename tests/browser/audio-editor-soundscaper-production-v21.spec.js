@@ -2,7 +2,7 @@
 
 import { expect, test } from '@playwright/test';
 
-import { SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION } from '../../src/common/editor/project-schema-version.ts';
+import { SOUNDSCAPER_PROJECT_V29_SCHEMA_VERSION } from '../../src/common/editor/project-schema-version.ts';
 import {
 	addRackEffect,
 	assertAccessibleBasics,
@@ -23,9 +23,9 @@ import {
 import { chooseUncheckedTrackMenuAction } from './helpers/track-menu.js';
 import { longTone } from './audio-editor-test-fixtures.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
+import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
-const SOUNDSCAPER_DATABASE = 'kw-media-soundscaper-editor-v23';
 const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
 const FREEZE_SAMPLE_RATE = 48_000;
 const FREEZE_INPUT_FRAMES = 256;
@@ -34,7 +34,7 @@ const FREEZE_DELAY_FRAMES = 48;
 const productionTone = createProductionTone();
 const freezeImpulse = createFreezeImpulse();
 
-test.describe('Soundscaper exact V23 production UI', () => {
+test.describe('Soundscaper exact V29 production UI', () => {
 	registerAudioEditorHooks();
 
 	test('keeps production surfaces lazy and reaches them through their owned menus', async ({ browserName, page }) => {
@@ -46,9 +46,9 @@ test.describe('Soundscaper exact V23 production UI', () => {
 		for (const label of ['Automation', 'Routing graph', 'Restoration', 'Production meters', 'Reviewed effects']) {
 			await expect(editor.getByRole('button', { name: label, exact: true })).toHaveCount(0);
 		}
-		await expect.poll(() => page.evaluate(async () => (
-			(await indexedDB.databases()).some(({ name }) => name === 'kw-media-soundscaper-editor-v23')
-		))).toBe(true);
+		await expect.poll(() => page.evaluate(async (databaseName) => (
+			(await indexedDB.databases()).some(({ name }) => name === databaseName)
+		), SOUNDSCAPER_DATABASE_NAME)).toBe(true);
 
 		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'Audio track']);
 		await expect(editor.locator('[data-track-row]')).toHaveCount(2);
@@ -106,13 +106,13 @@ test.describe('Soundscaper exact V23 production UI', () => {
 		expect(clientErrors).toEqual([]);
 	});
 
-	test('imports exact-timing A/V with one aligned V23 media-lane duration', async ({ page }, testInfo) => {
+	test('imports exact-timing A/V with one aligned V29 media-lane duration', async ({ page }, testInfo) => {
 		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
 		test.setTimeout(90_000);
 		await installPinnedFfmpegRuntimeRoutes(page);
 		const clientErrors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
-		await importFiles(editor, [createDeterministicAvFixture('v23-exact-timing.webm')]);
+		await importFiles(editor, [createDeterministicAvFixture('v29-exact-timing.webm')]);
 		await expect(editor).toHaveAttribute('data-clip-count', '2');
 		const projectId = await editor.getAttribute('data-project-id');
 		expect(projectId).toBeTruthy();
@@ -124,7 +124,7 @@ test.describe('Soundscaper exact V23 production UI', () => {
 		const video = stored.clips.find(({ kind }) => kind === 'video');
 		const audio = stored.clips.find(({ kind }) => kind === 'audio');
 		const sequence = stored.sequences.find(({ id }) => id === video?.sequenceId);
-		expect(stored.schemaVersion).toBe(SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION);
+		expect(stored.schemaVersion).toBe(SOUNDSCAPER_PROJECT_V29_SCHEMA_VERSION);
 		expect(videoSource).toMatchObject({
 			sourceFrameCount: 32, sampleFrameCount: 103_296, timingDecision: { mode: 'exact' },
 		});
@@ -264,7 +264,7 @@ test.describe('Soundscaper exact V23 production UI', () => {
 		await chooseFileAction(page, editor, 'Save project');
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
 		const stored = await readStoredSoundscaperProject(page, projectId);
-		expect(stored.schemaVersion).toBe(SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION);
+		expect(stored.schemaVersion).toBe(SOUNDSCAPER_PROJECT_V29_SCHEMA_VERSION);
 		expect(stored.automationLanes).toHaveLength(1);
 		expect(stored.automationLanes[0].id).toBe(lane.id);
 		expect(stored.automationLanes[0]).not.toEqual(lane);
@@ -641,7 +641,7 @@ async function readFrozenRawPcm(page, projectId, trackId) {
 			database.close();
 		}
 	}, {
-		databaseName: SOUNDSCAPER_DATABASE,
+		databaseName: SOUNDSCAPER_DATABASE_NAME,
 		requestedProjectId: projectId,
 		requestedTrackId: trackId,
 	});
@@ -730,7 +730,7 @@ async function readStoredSoundscaperProject(page, projectId) {
 				resolve(request.result ?? null);
 			};
 		};
-	}), { databaseName: SOUNDSCAPER_DATABASE, id: projectId });
+	}), { databaseName: SOUNDSCAPER_DATABASE_NAME, id: projectId });
 }
 
 async function openMenu(page, editor, label) {

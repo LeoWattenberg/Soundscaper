@@ -22,6 +22,10 @@ import { FramescaperNativeQueueRepository } from '../desktop/native-services-que
 import { FramescaperNativeRootRepository } from '../desktop/native-services-root-repository.ts';
 import { FramescaperNativeWatchRepository } from '../desktop/native-services-watch-repository.ts';
 import { createNativeQueueRecordV2 } from '../src/common/editor/native-queue-record.ts';
+import {
+	framescaperOpenFxInteractEffectStateSha256V1,
+	framescaperOpenFxInteractRequestV1,
+} from '../src/common/editor/native-ofx-interact-contract.ts';
 import { nativeQueueKeyedPlanV7 } from './helpers/native-queue-plan-fixture.ts';
 import { framescaperClosedNativeCapabilityReportV1 } from '../desktop/native-media-capability-report.ts';
 import {
@@ -81,6 +85,7 @@ test('the authenticated pathless bridge reports blocked state and permits safe q
 	const owner = {};
 	const watchCalls: unknown[][] = [];
 	const imageSequenceCalls: unknown[][] = [];
+	const proxyOutputCalls: unknown[][] = [];
 	const openFxCalls: unknown[][] = [];
 	const openFxProjection = {
 		pluginHandle: '8b'.repeat(20), pluginId: 'net.example.Blur', vendor: 'Example',
@@ -129,12 +134,38 @@ test('the authenticated pathless bridge reports blocked state and permits safe q
 				return true;
 			},
 		}),
+		proxyOutputs: Object.freeze({
+			claim: (claimedOwner: object, request: unknown) => {
+				proxyOutputCalls.push([claimedOwner, request]);
+				return { claimId: '7b'.repeat(20), byteLength: 3,
+					sha256: '8c'.repeat(32), mimeType: 'video/quicktime' };
+			},
+			read: (claimedOwner: object, request: unknown) => {
+				proxyOutputCalls.push([claimedOwner, request]);
+				return Uint8Array.from([1, 2, 3]);
+			},
+			release: (claimedOwner: object, request: unknown) => {
+				proxyOutputCalls.push([claimedOwner, request]);
+				return true;
+			},
+		}),
 		openFx: Object.freeze({
 			scan: () => { openFxCalls.push(['scan']); return openFxProjection; },
 			inventory: () => { openFxCalls.push(['inventory']); return [openFxProjection]; },
 			control: (request: unknown) => { openFxCalls.push(['control', request]); return {
 				...openFxProjection, state: 'enabled',
 			}; },
+			interact: (request: unknown) => {
+				openFxCalls.push(['interact', request]);
+				const admitted = framescaperOpenFxInteractRequestV1(request);
+				return { protocolVersion: 1, project: admitted.project,
+					instanceId: admitted.effect.instanceId,
+					effectStateSha256: admitted.effectStateSha256,
+					width: 64, height: 64, rowBytes: 256,
+					target: 'overlay', parameterName: null, acceptedSequences: [0],
+					redrawRequested: true, surfaceDisposition: 'drawn', parameterMutations: [],
+					rgba: new Uint8Array(64 * 64 * 4) };
+			},
 		}),
 	});
 	const bridge = createFramescaperNativeServicesMainPreloadBridge({
@@ -186,9 +217,31 @@ test('the authenticated pathless bridge reports blocked state and permits safe q
 	assert.equal((await bridge.controlOpenFxPlugin({
 		pluginHandle: '8b'.repeat(20), action: 'enable',
 	})).state, 'enabled');
+	const interactEffect = openFxEffect();
+	const interactRequest = { protocolVersion: 1 as const,
+		project: { id: 'project-v28', revision: 3 }, pluginHandle: '8b'.repeat(20),
+		effect: interactEffect,
+		effectStateSha256: framescaperOpenFxInteractEffectStateSha256V1(interactEffect),
+		context: 'filter' as const, target: 'overlay' as const, parameterName: null,
+		events: [{ kind: 'focus' as const, sequence: 0, focused: true }] };
+	const interact = await bridge.runOpenFxInteract(interactRequest);
+	assert.equal(interact.rgba.byteLength, 64 * 64 * 4);
+	assert.notEqual(interact.rgba, (await bridge.runOpenFxInteract(interactRequest)).rgba);
 	assert.deepEqual(openFxCalls, [
 		['scan'], ['inventory'], ['control', { pluginHandle: '8b'.repeat(20), action: 'enable' }],
+		['interact', interactRequest], ['interact', interactRequest],
 	]);
+	assert.deepEqual(await handlers.get(FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.claimProxyOutput)?.(
+		owner, { jobId: '6a'.repeat(20) },
+	), { claimId: '7b'.repeat(20), byteLength: 3,
+		sha256: '8c'.repeat(32), mimeType: 'video/quicktime' });
+	assert.deepEqual(await handlers.get(FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.readProxyOutput)?.(
+		owner, { claimId: '7b'.repeat(20), offset: 0, length: 3 },
+	), Uint8Array.from([1, 2, 3]));
+	assert.equal(await handlers.get(FRAMESCAPER_NATIVE_SERVICES_MAIN_CHANNELS.releaseProxyOutput)?.(
+		owner, { claimId: '7b'.repeat(20) },
+	), true);
+	assert.deepEqual(proxyOutputCalls.map((call) => call[0]), [owner, owner, owner]);
 	await assert.rejects(
 		() => bridge.control({ jobId: '1a'.repeat(20), action: 'resume', extra: true } as never),
 		/unsupported fields/u,
@@ -206,6 +259,20 @@ test('the authenticated pathless bridge reports blocked state and permits safe q
 	assert.equal(handlers.size, 0);
 	database.close();
 });
+
+function openFxEffect() {
+	const sha = '11'.repeat(32);
+	return {
+		schemaVersion: 1 as const, instanceId: 'effect-1', pluginId: 'net.example.Blur',
+		binarySha256: '9c'.repeat(32), context: 'filter' as const,
+		attachment: { kind: 'filter' as const, targetId: 'clip-1' }, inputs: [],
+		parameters: [{ name: 'radius', type: 'double' as const, value: [0.5], keyframes: [] }],
+		customEncodings: {}, enabled: true,
+		freshness: { authoredStateSha256: sha, inputIdentitiesSha256: sha,
+			renderPlanFingerprintSha256: sha, nativeEffectFingerprintSha256: sha },
+		frozenFallback: null,
+	};
+}
 
 test('direct queue reorder requires a writable owning project after capability admission', () => {
 	const database = new DatabaseSync(':memory:');

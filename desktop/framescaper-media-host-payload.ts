@@ -6,6 +6,14 @@ import { createHash } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 import { basename, join, relative, resolve } from 'node:path';
 
+import {
+	framescaperMediaProductionReadinessReference,
+	verifyFramescaperMediaProductionReadiness,
+	type FramescaperMediaProductionReadinessEvidenceV1,
+	type FramescaperMediaProductionReadinessReferenceV2,
+	type FramescaperMediaRuntimeLibraryEvidenceV1,
+} from './framescaper-media-production-readiness.ts';
+
 export const FRAMESCAPER_MEDIA_HOST_RUNTIME_TARGETS = Object.freeze({
 	'linux-x64': 'linux-x64',
 	'linux-arm64': 'linux-arm64',
@@ -21,8 +29,11 @@ export type FramescaperMediaHostTargetId =
 export type FramescaperMediaHostUnavailableReason =
 	| 'unsupported-platform'
 	| 'payload-pending-external'
+	| 'production-readiness-unattested'
+	| 'isolation-launcher-unavailable'
 	| 'payload-missing'
 	| 'payload-digest-mismatch'
+	| 'production-readiness-evidence-mismatch'
 	| 'manifest-unreadable';
 
 export interface FramescaperMediaHostPayloadLocation {
@@ -42,6 +53,20 @@ export interface FramescaperMediaHostDescriptor {
 	readonly sha256: string;
 	readonly hostVersion: string;
 	readonly ffmpegVersion: '9.0.1';
+	readonly identity: Readonly<{ dev: number; ino: number }>;
+	readonly isolation: Readonly<{
+		readonly launcher: FramescaperMediaHostExecutableDescriptor;
+		readonly sandboxProfile: FramescaperMediaHostExecutableDescriptor;
+		readonly brokerPolicy: FramescaperMediaHostExecutableDescriptor;
+		readonly runtimeLibraries: readonly FramescaperMediaHostExecutableDescriptor[];
+	}>;
+	readonly productionReadiness: FramescaperMediaProductionReadinessEvidenceV1;
+}
+
+export interface FramescaperMediaHostExecutableDescriptor {
+	readonly path: string;
+	readonly byteLength: number;
+	readonly sha256: string;
 	readonly identity: Readonly<{ dev: number; ino: number }>;
 }
 
@@ -64,6 +89,9 @@ interface FileStat {
 export interface FramescaperMediaHostPayloadPorts {
 	readonly readFile: (path: string) => Promise<Buffer>;
 	readonly stat: (path: string) => Promise<FileStat>;
+	readonly resolveReviewPublicKey?: (
+		target: FramescaperMediaHostTargetId, reviewKeyId: string,
+	) => Promise<string | Buffer | null> | string | Buffer | null;
 }
 
 const DEFAULT_PORTS: FramescaperMediaHostPayloadPorts = Object.freeze({ readFile, stat });
@@ -86,9 +114,17 @@ interface PayloadIdentity {
 	readonly sha256: string;
 }
 
+interface IsolationPayloadIdentity {
+	readonly launcherPayload: PayloadIdentity;
+	readonly sandboxProfilePayload: PayloadIdentity;
+	readonly brokerPolicyPayload: PayloadIdentity;
+	readonly runtimeLibraryPayloads: readonly PayloadIdentity[];
+}
+
 interface PayloadRecord extends PayloadIdentity {
 	readonly id: FramescaperMediaHostTargetId;
 	readonly runtime: string;
+	readonly isolationPayload: IsolationPayloadIdentity;
 }
 
 interface TargetRecord {
@@ -97,6 +133,8 @@ interface TargetRecord {
 	readonly status: 'built' | 'pending-external';
 	readonly blockedBy: string | null;
 	readonly payload: PayloadIdentity | null;
+	readonly isolationPayload: IsolationPayloadIdentity | null;
+	readonly productionReadiness: FramescaperMediaProductionReadinessReferenceV2 | null;
 }
 
 interface PayloadManifest {
@@ -146,44 +184,68 @@ export async function describeFramescaperMediaHostAvailability(
 			target.blockedBy ?? `No Framescaper media-host payload has been built for ${targetId}.`,
 		);
 	}
+	if (target.productionReadiness === null) {
+		return unavailable(
+			'production-readiness-unattested',
+			`The ${targetId} media host has no independent OS-isolation and hostile-media review.`,
+		);
+	}
 	const payload = manifest.payloads.find(({ id }) => id === targetId)!;
-	const path = location.externalRuntimeRoot
-		? join(resolve(location.externalRuntimeRoot), RUNTIME_PREFIX, targetId, basename(payload.path))
-		: location.packaged
-		? join(location.resourcesPath, 'runtime', RUNTIME_PREFIX, targetId, basename(payload.path))
-		: safeDevelopmentPath(location.applicationRoot, payload.path);
-	let bytes: Buffer;
-	let details: FileStat;
 	try {
-		[bytes, details] = await Promise.all([ports.readFile(path), ports.stat(path)]);
+		const [mediaHost, launcher, sandboxProfile, brokerPolicy, ...runtimeLibraries] = await Promise.all([
+			verifyPayload(payloadPath(location, targetId, payload.path), payload, ports),
+			...isolationPayloads(payload.isolationPayload).map((identity) => verifyPayload(
+				payloadPath(location, targetId, identity.path), identity, ports,
+			)),
+		]);
+		const productionReadiness = await verifyFramescaperMediaProductionReadiness(
+			target.productionReadiness,
+			Object.freeze({
+				mediaHostSha256: mediaHost.sha256,
+				isolation: Object.freeze({
+					launcherSha256: launcher!.sha256,
+					sandboxProfileSha256: sandboxProfile!.sha256,
+					brokerPolicySha256: brokerPolicy!.sha256,
+					runtimeLibraries: runtimeLibraryEvidence(runtimeLibraries),
+				}),
+			}),
+			Object.freeze({
+				readEvidence: (path: string) => ports.readFile(readinessEvidencePath(
+					location, targetId, path,
+				)),
+				resolveReviewPublicKey: ports.resolveReviewPublicKey ?? (() => null),
+			}),
+		);
+		return Object.freeze({
+			status: 'available' as const,
+			descriptor: Object.freeze({
+				target: targetId,
+				runtime: target.runtime,
+				path: mediaHost.path,
+				byteLength: mediaHost.byteLength,
+				sha256: mediaHost.sha256,
+				hostVersion: manifest.id.slice('framescaper-media-host-'.length),
+				ffmpegVersion: '9.0.1' as const,
+				identity: mediaHost.identity,
+				isolation: Object.freeze({
+					launcher: launcher!, sandboxProfile: sandboxProfile!, brokerPolicy: brokerPolicy!,
+					runtimeLibraries: Object.freeze(runtimeLibraries),
+				}),
+				productionReadiness,
+			}),
+		});
 	} catch (error) {
+		const missing = isMissing(error);
+		const readiness = !missing && /production-readiness|signed media|trusted Ed25519/iu
+			.test(errorMessage(error));
 		return unavailable(
-			'payload-missing',
-			`The Framescaper media-host payload is missing at ${path}: ${errorMessage(error)}`,
+			missing ? 'payload-missing' : readiness
+				? 'production-readiness-evidence-mismatch' : 'payload-digest-mismatch',
+			missing ? `A Framescaper media-host payload is missing: ${errorMessage(error)}`
+				: readiness ? errorMessage(error)
+					: 'The Framescaper media-host payload closure does not match its pinned bytes.',
 		);
 	}
-	if (!details.isFile() || details.isSymbolicLink?.() === true
-		|| !safeIdentity(details.dev) || !safeIdentity(details.ino)
-		|| details.size !== payload.byteLength || bytes.byteLength !== payload.byteLength
-		|| createHash('sha256').update(bytes).digest('hex') !== payload.sha256) {
-		return unavailable(
-			'payload-digest-mismatch',
-			`The Framescaper media-host payload at ${path} does not match its pinned bytes and identity.`,
-		);
-	}
-	return Object.freeze({
-		status: 'available' as const,
-		descriptor: Object.freeze({
-			target: targetId,
-			runtime: target.runtime,
-			path,
-			byteLength: payload.byteLength,
-			sha256: payload.sha256,
-			hostVersion: manifest.id.slice('framescaper-media-host-'.length),
-			ffmpegVersion: '9.0.1' as const,
-			identity: Object.freeze({ dev: details.dev, ino: details.ino }),
-		}),
-	});
 }
 
 export function createFramescaperMediaHostVerifier(
@@ -227,11 +289,13 @@ function payloadManifest(value: unknown): PayloadManifest {
 		const target = matchingTargets[0]!;
 		const matchingPayloads = payloads.filter((payload) => payload.id === id);
 		if (target.status === 'built') {
-			if (target.blockedBy !== null || target.payload === null || matchingPayloads.length !== 1
-				|| !samePayload(target.payload, matchingPayloads[0]!)) {
+			if (target.blockedBy !== null || target.payload === null || target.isolationPayload === null
+				|| matchingPayloads.length !== 1 || !samePayload(target.payload, matchingPayloads[0]!)
+				|| !sameIsolationPayload(target.isolationPayload, matchingPayloads[0]!.isolationPayload)) {
 				throw new TypeError(`Built media-host target ${id} has an inconsistent payload identity.`);
 			}
-		} else if (target.payload !== null || typeof target.blockedBy !== 'string'
+		} else if (target.payload !== null || target.isolationPayload !== null
+			|| target.productionReadiness !== null || typeof target.blockedBy !== 'string'
 			|| target.blockedBy.length < 16 || matchingPayloads.length !== 0) {
 			throw new TypeError(`Pending media-host target ${id} carries a payload claim.`);
 		}
@@ -248,7 +312,9 @@ function payloadManifest(value: unknown): PayloadManifest {
 }
 
 function targetRecord(value: unknown): TargetRecord {
-	const record = closedRecord(value, ['id', 'runtime', 'status', 'blockedBy', 'payload']);
+	const record = closedRecord(value, [
+		'id', 'runtime', 'status', 'blockedBy', 'payload', 'isolationPayload', 'productionReadiness',
+	]);
 	const id = targetId(record.id);
 	const runtime = record.runtime;
 	const status = record.status;
@@ -264,11 +330,17 @@ function targetRecord(value: unknown): TargetRecord {
 		status,
 		blockedBy,
 		payload: record.payload === null ? null : payloadIdentity(record.payload, id),
+		isolationPayload: record.isolationPayload === null
+			? null : isolationPayload(record.isolationPayload, id),
+		productionReadiness: record.productionReadiness === null
+			? null : framescaperMediaProductionReadinessReference(record.productionReadiness, id),
 	});
 }
 
 function payloadRecord(value: unknown): PayloadRecord {
-	const record = closedRecord(value, ['id', 'runtime', 'path', 'byteLength', 'sha256']);
+	const record = closedRecord(value, [
+		'id', 'runtime', 'path', 'byteLength', 'sha256', 'isolationPayload',
+	]);
 	const id = targetId(record.id);
 	const runtime = record.runtime;
 	if (typeof runtime !== 'string' || runtime !== TARGET_RUNTIME[id]) {
@@ -282,6 +354,56 @@ function payloadRecord(value: unknown): PayloadRecord {
 			byteLength: record.byteLength,
 			sha256: record.sha256,
 		}, id),
+		isolationPayload: isolationPayload(record.isolationPayload, id),
+	});
+}
+
+function isolationPayload(
+	value: unknown,
+	id: FramescaperMediaHostTargetId,
+): IsolationPayloadIdentity {
+	const record = closedRecord(value, [
+		'launcherPayload', 'sandboxProfilePayload', 'brokerPolicyPayload', 'runtimeLibraryPayloads',
+	]);
+	if (!Array.isArray(record.runtimeLibraryPayloads) || record.runtimeLibraryPayloads.length > 32) {
+		throw new TypeError('A media-host runtime-library inventory is invalid.');
+	}
+	const suffix = id.startsWith('win-') ? '.exe' : '';
+	const runtimeLibraryPayloads = record.runtimeLibraryPayloads.map((entry) => (
+		isolationPayloadIdentity(entry, id, null, 'lib')
+	));
+	if (runtimeLibraryPayloads.some((library, index) => index > 0
+		&& runtimeLibraryPayloads[index - 1]!.path.localeCompare(library.path, 'en') >= 0)) {
+		throw new TypeError('Media-host runtime libraries must be uniquely ordered.');
+	}
+	return Object.freeze({
+		launcherPayload: isolationPayloadIdentity(record.launcherPayload, id,
+			`milestone5-native-isolation-launcher${suffix}`),
+		sandboxProfilePayload: isolationPayloadIdentity(record.sandboxProfilePayload, id,
+			'milestone5-native-isolation-profile.json'),
+		brokerPolicyPayload: isolationPayloadIdentity(record.brokerPolicyPayload, id,
+			'milestone5-native-isolation-broker.json'),
+		runtimeLibraryPayloads: Object.freeze(runtimeLibraryPayloads),
+	});
+}
+
+function isolationPayloadIdentity(
+	value: unknown,
+	id: FramescaperMediaHostTargetId,
+	expectedName: string | null,
+	directory = 'isolation',
+): PayloadIdentity {
+	const record = closedRecord(value, ['path', 'byteLength', 'sha256']);
+	const prefix = `${RUNTIME_PREFIX}/prebuilt/${id}/${directory}/`;
+	const name = typeof record.path === 'string' ? record.path.slice(prefix.length) : '';
+	if (record.path !== `${prefix}${expectedName ?? name}` || (expectedName === null
+		&& !/^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$/u.test(name))
+		|| !Number.isSafeInteger(record.byteLength) || Number(record.byteLength) <= 0
+		|| typeof record.sha256 !== 'string' || !SHA256.test(record.sha256)) {
+		throw new TypeError('A media-host isolation payload identity is invalid.');
+	}
+	return Object.freeze({
+		path: record.path, byteLength: Number(record.byteLength), sha256: record.sha256,
 	});
 }
 
@@ -310,6 +432,79 @@ function targetId(value: unknown): FramescaperMediaHostTargetId {
 
 function samePayload(left: PayloadIdentity, right: PayloadRecord): boolean {
 	return left.path === right.path && left.byteLength === right.byteLength && left.sha256 === right.sha256;
+}
+
+function sameIsolationPayload(left: IsolationPayloadIdentity, right: IsolationPayloadIdentity): boolean {
+	return samePayloadIdentity(left.launcherPayload, right.launcherPayload)
+		&& samePayloadIdentity(left.sandboxProfilePayload, right.sandboxProfilePayload)
+		&& samePayloadIdentity(left.brokerPolicyPayload, right.brokerPolicyPayload)
+		&& left.runtimeLibraryPayloads.length === right.runtimeLibraryPayloads.length
+		&& left.runtimeLibraryPayloads.every((entry, index) => (
+			samePayloadIdentity(entry, right.runtimeLibraryPayloads[index]!)
+		));
+}
+
+function samePayloadIdentity(left: PayloadIdentity, right: PayloadIdentity): boolean {
+	return left.path === right.path && left.byteLength === right.byteLength && left.sha256 === right.sha256;
+}
+
+function isolationPayloads(value: IsolationPayloadIdentity): readonly PayloadIdentity[] {
+	return Object.freeze([
+		value.launcherPayload, value.sandboxProfilePayload, value.brokerPolicyPayload,
+		...value.runtimeLibraryPayloads,
+	]);
+}
+
+async function verifyPayload(
+	path: string,
+	payload: PayloadIdentity,
+	ports: FramescaperMediaHostPayloadPorts,
+): Promise<FramescaperMediaHostExecutableDescriptor> {
+	const [bytes, details] = await Promise.all([ports.readFile(path), ports.stat(path)]);
+	if (!details.isFile() || details.isSymbolicLink?.() === true
+		|| !safeIdentity(details.dev) || !safeIdentity(details.ino)
+		|| details.size !== payload.byteLength || bytes.byteLength !== payload.byteLength
+		|| createHash('sha256').update(bytes).digest('hex') !== payload.sha256) {
+		throw new TypeError('payload-digest-mismatch');
+	}
+	return Object.freeze({
+		path, byteLength: payload.byteLength, sha256: payload.sha256,
+		identity: Object.freeze({ dev: details.dev, ino: details.ino }),
+	});
+}
+
+function runtimeLibraryEvidence(
+	libraries: readonly FramescaperMediaHostExecutableDescriptor[],
+): readonly FramescaperMediaRuntimeLibraryEvidenceV1[] {
+	return Object.freeze(libraries.map((library) => Object.freeze({
+		name: basename(library.path), byteLength: library.byteLength, sha256: library.sha256,
+	})));
+}
+
+function payloadPath(
+	location: FramescaperMediaHostPayloadLocation,
+	targetId: FramescaperMediaHostTargetId,
+	pinnedPath: string,
+): string {
+	return location.externalRuntimeRoot
+		? join(resolve(location.externalRuntimeRoot), RUNTIME_PREFIX, targetId, basename(pinnedPath))
+		: location.packaged
+		? join(location.resourcesPath, 'runtime', RUNTIME_PREFIX, targetId, basename(pinnedPath))
+		: safeDevelopmentPath(location.applicationRoot, pinnedPath);
+}
+
+function readinessEvidencePath(
+	location: FramescaperMediaHostPayloadLocation,
+	targetId: FramescaperMediaHostTargetId,
+	referencePath: string,
+): string {
+	if (location.packaged) {
+		return join(
+			location.resourcesPath, 'runtime', RUNTIME_PREFIX, targetId,
+			'framescaper-media-host-production-readiness.json',
+		);
+	}
+	return safeDevelopmentPath(location.applicationRoot, referencePath);
 }
 
 function safeDevelopmentPath(applicationRoot: string, payloadPath: string): string {
@@ -349,4 +544,9 @@ function unavailable(
 
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
+}
+
+function isMissing(error: unknown): boolean {
+	return typeof error === 'object' && error !== null
+		&& (error as NodeJS.ErrnoException).code === 'ENOENT';
 }

@@ -10,7 +10,13 @@ import React, {
 } from 'react';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import FramescaperNativeProjectActionPanel from './FramescaperNativeProjectActionPanel.tsx';
+import FramescaperOpenFxAddPanel from './FramescaperOpenFxAddPanel.tsx';
 import FramescaperOpenFxManagePanel from './FramescaperOpenFxManagePanel.tsx';
+import FramescaperOpenFxInteractPanel from './FramescaperOpenFxInteractPanel.tsx';
+import type {
+	FramescaperNativeOpenFxAuthoringRuntimeV28,
+} from '../../../../framescaper/editor-native-openfx-action-v28.ts';
 import {
 	DEFAULT_FRAMESCAPER_NATIVE_SERVICE_PREFERENCES,
 	framescaperNativeServicesStoreFor,
@@ -36,6 +42,7 @@ import {
 	type FramescaperNativeServicesCopy,
 } from '../framescaper-native-services-copy.ts';
 import {
+	hasFramescaperNativeCarrierRegeneration,
 	isFramescaperNativeProjectActionSurface,
 	type FramescaperNativeProjectActionRuntime,
 } from '../framescaper-native-project-actions.ts';
@@ -48,6 +55,7 @@ export interface FramescaperNativeServicesDialogProps {
 	readonly copy?: Readonly<Record<string, string | undefined>>;
 	readonly context?: FramescaperNativeServicesDialogContext;
 	readonly projectActions?: FramescaperNativeProjectActionRuntime | null;
+	readonly openFxAuthoring?: FramescaperNativeOpenFxAuthoringRuntimeV28 | null;
 	readonly onClose: () => void;
 }
 
@@ -64,6 +72,7 @@ export default function FramescaperNativeServicesDialog({
 	copy: hostCopy,
 	context = Object.freeze({ projectId: null, binId: null, allowProxyGeneration: false }),
 	projectActions = null,
+	openFxAuthoring = null,
 	onClose,
 }: FramescaperNativeServicesDialogProps) {
 	const copy = useMemo(() => resolveFramescaperNativeServicesCopy(hostCopy), [hostCopy]);
@@ -84,8 +93,8 @@ export default function FramescaperNativeServicesDialog({
 	const snapshot = externalSnapshot ?? state.snapshot ?? pendingSnapshot();
 	const perform = useCallback((action: FramescaperNativeServicesDialogAction): void => {
 		dispatch({ type: 'begin', action });
-		void runFramescaperNativeServicesAction(store, action).then(dispatch);
-	}, [store]);
+		void runFramescaperNativeServicesAction(store, action, projectActions).then(dispatch);
+	}, [projectActions, store]);
 	useEffect(() => { perform({ type: 'refresh' }); }, [perform]);
 	const busy = state.pending !== null;
 
@@ -119,6 +128,7 @@ export default function FramescaperNativeServicesDialog({
 				context={context}
 				lifecycleMethods={lifecycleMethods}
 				projectActions={projectActions}
+				openFxAuthoring={openFxAuthoring}
 			/>
 		</div>
 	</AudioEditorDialogShell>;
@@ -126,6 +136,7 @@ export default function FramescaperNativeServicesDialog({
 
 function SurfacePanel({
 	bridge, surface, copy, snapshot, busy, perform, context, lifecycleMethods, projectActions,
+	openFxAuthoring,
 }: Readonly<{
 	bridge: FramescaperNativeServicesBridge;
 	surface: FramescaperNativeServiceSurface;
@@ -136,9 +147,11 @@ function SurfacePanel({
 	context: FramescaperNativeServicesDialogContext;
 	lifecycleMethods: readonly FramescaperNativeServicesLifecycleMethod[];
 	projectActions: FramescaperNativeProjectActionRuntime | null;
+	openFxAuthoring: FramescaperNativeOpenFxAuthoringRuntimeV28 | null;
 }>) {
 	if (surface === 'background-jobs') {
-		return <QueuePanel copy={copy} snapshot={snapshot} busy={busy} perform={perform} />;
+		return <QueuePanel copy={copy} snapshot={snapshot} busy={busy} perform={perform}
+			projectActions={projectActions} />;
 	}
 	if (surface === 'watch-folders') {
 		return <WatchPanel {...{ copy, snapshot, busy, perform, context, lifecycleMethods }} />;
@@ -154,40 +167,19 @@ function SurfacePanel({
 			<CapabilityReport copy={copy} snapshot={snapshot} />
 		</>;
 	}
+	if (surface === 'ofx-add' && openFxAuthoring !== null) {
+		return <FramescaperOpenFxAddPanel runtime={openFxAuthoring} copy={copy} />;
+	}
+	if (surface === 'ofx-interact' && openFxAuthoring !== null) {
+		return <FramescaperOpenFxInteractPanel bridge={bridge} runtime={openFxAuthoring} copy={copy} />;
+	}
 	if (isFramescaperNativeProjectActionSurface(surface)) {
 		return projectActions?.surfaces.includes(surface) === true
-			? <ProjectActionPanel {...{ copy, surface, projectActions }} />
+			? <FramescaperNativeProjectActionPanel {...{ copy, surface, projectActions }}
+				title={surfaceTitle(copy, surface)} />
 			: <CapabilityPanel copy={copy} snapshot={snapshot} surface={surface} />;
 	}
 	return <CapabilityPanel copy={copy} snapshot={snapshot} surface={surface} />;
-}
-
-function ProjectActionPanel({ copy, surface, projectActions }: Readonly<{
-	copy: FramescaperNativeServicesCopy;
-	surface: Parameters<FramescaperNativeProjectActionRuntime['run']>[0];
-	projectActions: FramescaperNativeProjectActionRuntime;
-}>) {
-	const [status, setStatus] = useState<'ready' | 'working' | 'complete'>('ready');
-	const [error, setError] = useState('');
-	const run = (): void => {
-		setStatus('working');
-		setError('');
-		void projectActions.run(surface).then(
-			() => setStatus('complete'),
-			(failure: unknown) => {
-				setStatus('ready');
-				setError(failure instanceof Error ? failure.message : String(failure));
-			},
-		);
-	};
-	return <section aria-label={surfaceTitle(copy, surface)}>
-		<p role="status" aria-live="polite">{error || (status === 'ready'
-			? copy.projectActionReady
-			: status === 'working' ? copy.working : copy.projectActionComplete)}</p>
-		<p><button type="button" disabled={status === 'working'}
-			data-framescaper-native-project-action={surface}
-			onClick={run}>{copy.projectActionRun}</button></p>
-	</section>;
 }
 
 function RuntimeNotice({ copy, snapshot }: Readonly<{
@@ -199,11 +191,12 @@ function RuntimeNotice({ copy, snapshot }: Readonly<{
 	return null;
 }
 
-function QueuePanel({ copy, snapshot, busy, perform }: Readonly<{
+function QueuePanel({ copy, snapshot, busy, perform, projectActions }: Readonly<{
 	copy: FramescaperNativeServicesCopy;
 	snapshot: FramescaperNativeServicesRendererSnapshot;
 	busy: boolean;
 	perform: (action: FramescaperNativeServicesDialogAction) => void;
+	projectActions: FramescaperNativeProjectActionRuntime | null;
 }>) {
 	const queue = snapshot.services.queue;
 	if (queue.length === 0) return <p>{copy.noQueueJobs}</p>;
@@ -213,7 +206,8 @@ function QueuePanel({ copy, snapshot, busy, perform }: Readonly<{
 			<p><strong>{job.relativeDestination}</strong></p>
 			<p>{`${copy.queueState}: ${job.state}`}</p>
 			{job.progress !== null && <p>{`${copy.queueProgress}: ${String(Math.round(job.progress * 100))}%`}</p>}
-			{job.lastFailureCode !== null && <p>{job.lastFailureCode}</p>}
+			{job.lastFailureCode !== null && <p>{job.lastFailureCode === 'web-core-required'
+				? copy.queueWebCoreRequired : job.lastFailureCode}</p>}
 			<div className="kw-audio-editor-dialog__actions">
 				{framescaperNativeQueueUiActions(job, runtimeUsable).map((action) => (
 					<QueueActionButton
@@ -221,7 +215,8 @@ function QueuePanel({ copy, snapshot, busy, perform }: Readonly<{
 						action={action}
 						job={job}
 						copy={copy}
-						disabled={busy}
+							disabled={busy || action === 'regenerate-carrier'
+								&& !hasFramescaperNativeCarrierRegeneration(projectActions)}
 						perform={perform}
 					/>
 				))}
@@ -253,6 +248,10 @@ function QueueActionButton({ action, job, copy, disabled, perform }: Readonly<{
 		data-native-queue-action={action}
 		onClick={() => perform(action === 'remove'
 			? { type: 'queue-remove', jobId: job.jobId }
+			: action === 'regenerate-carrier'
+				? { type: 'queue-regenerate-carrier', jobId: job.jobId }
+			: action === 'reauthorize-root'
+				? { type: 'queue-reauthorize-root', jobId: job.jobId }
 			: { type: 'queue-control', jobId: job.jobId, action })}
 	>{queueActionLabel(copy, action)}</button>;
 }
@@ -464,6 +463,8 @@ function queueActionLabel(
 	if (action === 'resume') return copy.queueResume;
 	if (action === 'cancel') return copy.queueCancel;
 	if (action === 'retry') return copy.queueRetry;
+	if (action === 'regenerate-carrier') return copy.queueRegenerateCarrier;
+	if (action === 'reauthorize-root') return copy.queueReauthorizeRoot;
 	return copy.queueRemove;
 }
 
@@ -486,6 +487,7 @@ function surfaceTitle(
 	if (surface === 'native-media-preferences') return copy.nativeMediaPreferences;
 	if (surface === 'ofx-add') return copy.ofxAdd;
 	if (surface === 'ofx-manage') return copy.ofxManage;
+	if (surface === 'ofx-interact') return copy.ofxInteract;
 	return copy.nativeServices;
 }
 

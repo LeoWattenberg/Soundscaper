@@ -39,7 +39,7 @@ export interface FramescaperVideoSourceV25 extends Readonly<Record<string, unkno
 
 export interface FramescaperProxyProjectV25 extends Readonly<Record<string, unknown>> {
 	/** V26 is cumulative and retains the exact V25 professional-media model. */
-	readonly schemaVersion: 25 | 26;
+	readonly schemaVersion: 25 | 26 | 28;
 	readonly id: string;
 	readonly revision: number;
 	readonly sources: readonly FramescaperVideoSourceV25[];
@@ -360,7 +360,7 @@ export class FramescaperVideoProxyLifecycleV25 {
 
 	#project(): FramescaperProxyProjectV25 {
 		const project = this.#ports.getProject();
-		if ((project?.schemaVersion !== 25 && project?.schemaVersion !== 26) || !Array.isArray(project.sources)
+		if (![25, 26, 28].includes(project?.schemaVersion) || !Array.isArray(project.sources)
 			|| !Number.isSafeInteger(project.revision) || project.revision < 0) {
 			throw new TypeError('The professional proxy lifecycle requires an exact V25 or V26 project.');
 		}

@@ -67,6 +67,15 @@ test('the media host admits only exact per-operation successful-control schemas'
 			contractVersion: 1, operation, byteLength: 128, sha256: SHA256,
 		})), { contractVersion: 1, operation, byteLength: 128, sha256: SHA256 });
 	}
+	assert.deepEqual(parseNativeMediaHostControl('media-render', JSON.stringify({
+		contractVersion: 1, operation: 'media-render', profileId: 'encode-png-sequence',
+		frameCount: 4, byteLength: 128, manifestSha256: SHA256,
+		publication: 'temporary-directory',
+	})), {
+		contractVersion: 1, operation: 'media-render', profileId: 'encode-png-sequence',
+		frameCount: 4, byteLength: 128, manifestSha256: SHA256,
+		publication: 'temporary-directory',
+	});
 	assert.deepEqual(parseNativeMediaHostControl('media-proxy', JSON.stringify({
 		contractVersion: 1, operation: 'media-proxy', container: 'mov', codec: 'prores_ks',
 		profile: 'proxy', width: 960, height: 540, exportAuthority: 'original',
@@ -94,6 +103,11 @@ test('wrong operations, extra keys, invalid geometry, and malformed digests fail
 	assert.throws(() => parseNativeMediaHostControl(
 		'media-render', JSON.stringify({ ...render, sha256: SHA256.toUpperCase() }),
 	), /malformed/u);
+	assert.throws(() => parseNativeMediaHostControl('media-render', JSON.stringify({
+		contractVersion: 1, operation: 'media-render', profileId: 'encode-png-sequence',
+		frameCount: 4, byteLength: 128, manifestSha256: SHA256, sha256: SHA256,
+		publication: 'temporary-directory',
+	})), /malformed/u);
 	const probe = {
 		contractVersion: 1, operation: 'probe-video-source', format: 'mov,mp4',
 		durationTimeBase: 1, videoStreams: 1, audioStreams: 1, width: 1920, height: 1080,

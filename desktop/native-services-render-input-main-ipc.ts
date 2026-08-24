@@ -3,13 +3,16 @@
 /** Exact invoke/MessagePort ingress for durable selected-V20 V7/V8 inputs. */
 
 import type { HelperDataPlaneIoPort } from './helper-data-plane-io.ts';
-import type { FramescaperNativeRenderInputStaging } from './native-services-render-input-staging.ts';
+import type { FramescaperNativeRenderInputRouter } from './native-services-render-input-router.ts';
 
 export const FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS = Object.freeze({
 	begin: 'framescaper:v1:native-services:render-inputs:begin',
 	port: 'framescaper:v1:native-services:render-inputs:port',
 	finalize: 'framescaper:v1:native-services:render-inputs:finalize',
 	abandon: 'framescaper:v1:native-services:render-inputs:abandon',
+	beginLive: 'framescaper:v1:native-services:render-inputs:live:begin',
+	writeLive: 'framescaper:v1:native-services:render-inputs:live:write',
+	completeLive: 'framescaper:v1:native-services:render-inputs:live:complete',
 } as const);
 
 type Listener = (event: unknown, value?: unknown) => void;
@@ -21,7 +24,8 @@ export interface FramescaperNativeRenderInputMainIpcOptions {
 	readonly removeListener: (channel: string, listener: Listener) => void;
 	readonly authorizeOwner: (event: unknown) => boolean | object;
 	readonly staging: Pick<
-		FramescaperNativeRenderInputStaging, 'begin' | 'receive' | 'finalize' | 'abandon'
+		FramescaperNativeRenderInputRouter,
+		'begin' | 'beginLive' | 'receive' | 'finalize' | 'writeLive' | 'completeLive' | 'abandon'
 	>;
 }
 
@@ -40,6 +44,15 @@ export function registerFramescaperNativeRenderInputMainIpc(
 	};
 	options.handle(FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.begin, (event, value) => (
 		options.staging.begin(owner(event), value)
+	));
+	options.handle(FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.beginLive, (event, value) => (
+		options.staging.beginLive(owner(event), value)
+	));
+	options.handle(FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.writeLive, (event, value) => (
+		options.staging.writeLive(owner(event), value)
+	));
+	options.handle(FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.completeLive, (event, value) => (
+		options.staging.completeLive(owner(event), value)
 	));
 	options.handle(FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.finalize, (event, value) => (
 		options.staging.finalize(owner(event), value)
@@ -65,9 +78,14 @@ export function registerFramescaperNativeRenderInputMainIpc(
 		dispose: () => {
 			if (disposed) return;
 			disposed = true;
-			options.removeHandler(FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.begin);
-			options.removeHandler(FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.finalize);
-			options.removeHandler(FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.abandon);
+			for (const channel of [
+				FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.begin,
+				FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.beginLive,
+				FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.writeLive,
+				FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.completeLive,
+				FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.finalize,
+				FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.abandon,
+			]) options.removeHandler(channel);
 			options.removeListener(FRAMESCAPER_NATIVE_RENDER_INPUT_MAIN_CHANNELS.port, listener);
 			for (const port of active) port.close();
 			active.clear();

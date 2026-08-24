@@ -33,6 +33,7 @@ import { resetProductionMeterSessionV21 } from './production-meter-runtime-sessi
 import {
 	disposeGraph,
 } from './transport-scheduler.ts';
+import { soundscaperNativeAudioDestination } from '../soundscaper-native-audio-renderer.ts';
 import {
 	ENGINE_ASSERT_ACTIVE,
 	ENGINE_CANCEL_SCRUB,
@@ -305,7 +306,7 @@ async scrub(frame, { durationMs = DEFAULT_SCRUB_FRAME_MS } = {}) {
 		const frameCount = Math.max(1, Math.round(frameMs / 1000 * this.sampleRate));
 		const toFrame = Math.min(this.playbackDurationFrames, fromFrame + frameCount);
 		if (toFrame <= fromFrame) return this.positionFrame;
-		const graph = buildProjectGraph(context, context.destination, this.project, {
+		const graph = buildProjectGraph(context, soundscaperNativeAudioDestination(context, context.destination), this.project, {
 			metering: false,
 			respectMuteSolo: true,
 			monitoring: true,

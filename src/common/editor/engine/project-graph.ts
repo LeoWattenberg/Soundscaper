@@ -88,6 +88,7 @@ export interface ProjectGraph {
 	readonly effectMessageSequences: Map<string, number>;
 	readonly mixerEdgeGainParams?: ReadonlyMap<string, ScheduledGainParam>;
 	readonly pathPdcPlanV21?: ProjectPathPdcPlanV21;
+	readonly pathPdcDelayParamsV21?: ReadonlyMap<string, AudioParam>;
 	readonly productionStripAnalysersV21?: ReadonlyMap<string, StripMeterAnalyserBankV21>;
 	readonly latencyFrames: number;
 }

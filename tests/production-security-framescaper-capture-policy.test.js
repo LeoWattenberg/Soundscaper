@@ -176,7 +176,7 @@ test('capability, quality, and roadmap records retain dormant implementation wit
 	assert.equal(framescaper.platforms['web-core'].status, 'available');
 	assert.equal(framescaper.platforms['web-enhanced'].status, 'partial');
 	assert.equal(framescaper.platforms['electron-enhanced'].status, 'partial');
-	assert.equal(framescaper.platforms['electron-only'].status, 'not-applicable');
+	assert.equal(framescaper.platforms['electron-only'].status, 'partial');
 	for (const [tier, paths] of Object.entries({
 		'web-core': [
 			'src/common/editor/controller/framescaper-capture-session-service.ts',

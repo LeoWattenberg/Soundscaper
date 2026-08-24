@@ -95,27 +95,31 @@ interface ConsumerIndex {
 	readonly masksById: ReadonlyMap<string, VideoMaskMatteGraphV1>;
 	readonly orderByTrackId: ReadonlyMap<string, number>;
 	readonly sourceIdByNodeId: ReadonlyMap<string, string>;
+	readonly allowExternalGenerators: boolean;
 }
 
 /** Preview and export deliberately receive the same consumer implementation. */
 export function createUnifiedExactRenderVisualPreviewConsumerV13(
 	plan: UnifiedExactRenderPlanV13,
 	timingSidecars?: UnifiedExactRenderTimingSidecars,
+	options?: Readonly<{ readonly allowExternalGenerators?: boolean }>,
 ): UnifiedExactRenderVisualConsumerV13 {
-	return createConsumer(plan, timingSidecars);
+	return createConsumer(plan, timingSidecars, options);
 }
 
 /** Preview and export deliberately receive the same consumer implementation. */
 export function createUnifiedExactRenderVisualExportConsumerV13(
 	plan: UnifiedExactRenderPlanV13,
 	timingSidecars?: UnifiedExactRenderTimingSidecars,
+	options?: Readonly<{ readonly allowExternalGenerators?: boolean }>,
 ): UnifiedExactRenderVisualConsumerV13 {
-	return createConsumer(plan, timingSidecars);
+	return createConsumer(plan, timingSidecars, options);
 }
 
 function createConsumer(
 	plan: UnifiedExactRenderPlanV13,
 	timingSidecars?: UnifiedExactRenderTimingSidecars,
+	options?: Readonly<{ readonly allowExternalGenerators?: boolean }>,
 ): UnifiedExactRenderVisualConsumerV13 {
 	if (timingSidecars === undefined) assertUnifiedExactRenderPlanV13(plan);
 	else {
@@ -140,6 +144,7 @@ function createConsumer(
 			[trackId, sequenceOrder] as const
 		))),
 		sourceIdByNodeId: new Map(plan.sources.map(({ nodeId, sourceId }) => [nodeId, sourceId] as const)),
+		allowExternalGenerators: options?.allowExternalGenerators === true,
 	});
 	return Object.freeze({
 		plan,
@@ -161,7 +166,7 @@ function resolveFrame(
 		if (!isPlacedVisual(node) || !trackRenders(index, node.placement.trackId)
 			|| !rangeContains(node.authoredState.clip, position)) continue;
 		requested.add(node.nodeId);
-		if (node.modelKind === 'external-generator') continue;
+		if (node.modelKind === 'external-generator' && !index.allowExternalGenerators) continue;
 		const presentation = presentationState(index, node);
 		const entry = Object.freeze({
 			nodeId: node.nodeId,

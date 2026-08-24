@@ -71,6 +71,34 @@ test('two surfaces sharing one supervisor queue behind each other instead of col
 	assert.equal(supervisor.snapshot().recentCrashes, 0, 'a collision between surfaces is nobody\'s fault');
 });
 
+test('a persistent role receives exactly its bound port under its job subcontract', async () => {
+	const streamId = 'ab'.repeat(20);
+	const port = { postMessage: (_message: unknown) => undefined, close: () => undefined };
+	const { supervisor, latest } = createHarness({ kinds: ['audio-device'] });
+	const job = supervisor.runJob({
+		kind: 'audio-device',
+		grant: {
+			backend: 'coreaudio', deviceHandle: 'default-output', direction: 'output', mode: 'shared',
+			persistentPort: {
+				portContractVersion: 1, transport: 'message-port', purpose: 'audio-realtime',
+				streamId, generation: 1, maximumMessageBytes: 16_384, maximumInFlightMessages: 4,
+			},
+		},
+		dataPlaneTransfers: [{ streamId, port }],
+	});
+	await settled();
+	const channel = latest();
+	assert.deepEqual(channel.transfers, [[port]]);
+	const message = channel.posted[0];
+	assert.equal(message.type, 'job');
+	if (message.type !== 'job') return;
+	assert.equal(message.jobContractVersion, 1);
+	channel.receive({
+		contractVersion: HELPER_CONTRACT_VERSION, type: 'result', jobId: message.jobId, result: { closed: true },
+	});
+	assert.deepEqual(await job, { closed: true });
+});
+
 test('a queued job that is disposed or quarantined before its turn never reaches the helper', async () => {
 	const { supervisor, latest } = createHarness();
 	const active = supervisor.runJob({ kind: JOB_KIND, grant: GRANT });
@@ -91,11 +119,16 @@ test('a queued job cancelled while it waits its turn is never posted', async () 
 	await settled();
 	const channel = latest();
 	controller.abort(new HelperSupervisionError('cancelled', 'The inventory owner went away.'));
+	await assert.rejects(queued, (error: unknown) => supervisionCause(error) === 'cancelled');
+	const replacement = supervisor.runJob({ kind: JOB_KIND, grant: GRANT });
+	assert.equal(channel.posted.length, 1, 'a cancelled waiter settles while the first job remains active');
 	const jobId = (channel.posted[0] as { jobId: string }).jobId;
 	channel.receive({ contractVersion: HELPER_CONTRACT_VERSION, type: 'result', jobId, result: 'ok' });
 	assert.equal(await active, 'ok');
-	await assert.rejects(queued, (error: unknown) => supervisionCause(error) === 'cancelled');
-	assert.equal(channel.posted.length, 1, 'a cancelled queue entry must not be posted after its turn arrives');
+	await settled();
+	const replacementId = (channel.posted[1] as { jobId: string }).jobId;
+	channel.receive({ contractVersion: HELPER_CONTRACT_VERSION, type: 'result', jobId: replacementId, result: 'next' });
+	assert.equal(await replacement, 'next');
 });
 
 test('helper supervisor cannot resume verification or spawn after disposal', { timeout: 1_000 }, async () => {

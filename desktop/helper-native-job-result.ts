@@ -18,10 +18,22 @@ import type {
 	HelperNativeFileIdentity,
 	HelperNativeJobGrantByKind,
 	HelperNativeJobKind,
-	HelperOfxHostJobGrant,
 	HelperOfxScanJobGrant,
-	HelperOutputFileGrant,
 } from './helper-native-job-contract.ts';
+import {
+	type HelperOutputGrant,
+	isHelperOutputDirectoryGrant,
+} from './helper-native-output-grant.ts';
+import {
+	admitNativeMediaOutputTreeSummary,
+	type NativeMediaOutputTreeSummaryV1,
+} from './native-media-output-tree.ts';
+import type { HelperOfxRenderHostJobGrantV1OrV2 } from './helper-native-ofx-host-grant-v2.ts';
+import { isHelperOfxInteractJobGrantV1 } from './helper-native-ofx-interact-grant.ts';
+import {
+	framescaperOpenFxInteractResultV1,
+	type FramescaperOpenFxInteractResultV1,
+} from '../src/common/editor/native-ofx-interact-contract.ts';
 import {
 	HelperContractViolationError,
 	assertHelperWireEnvelope,
@@ -34,17 +46,32 @@ export interface HelperTemporaryOutputResult {
 	readonly identity: Readonly<HelperNativeFileIdentity>;
 }
 
+export interface HelperTemporaryOutputTreeResult {
+	readonly kind: 'directory';
+	readonly temporaryPath: string;
+	readonly byteLength: number;
+	readonly sha256: string;
+	readonly identity: Readonly<HelperNativeFileIdentity>;
+	readonly tree: NativeMediaOutputTreeSummaryV1;
+}
+
 export interface HelperStreamOutputJobResult {
 	readonly output: HelperDataPlaneCompletion;
 }
 
 export interface HelperFileOutputJobResult {
-	readonly output: HelperTemporaryOutputResult;
+	readonly output: HelperTemporaryOutputResult | HelperTemporaryOutputTreeResult;
 }
 
 export interface HelperOfxScanJobResult {
 	readonly descriptor: HelperDataPlaneCompletion;
 }
+
+export interface HelperOfxInteractJobResultV1 {
+	readonly interact: FramescaperOpenFxInteractResultV1;
+}
+
+export type HelperOfxHostJobResult = HelperStreamOutputJobResult | HelperOfxInteractJobResultV1;
 
 export interface HelperNativeJobResultByKind {
 	readonly 'media-decode': HelperStreamOutputJobResult;
@@ -52,12 +79,14 @@ export interface HelperNativeJobResultByKind {
 	readonly 'media-render': HelperFileOutputJobResult;
 	readonly 'media-proxy': HelperFileOutputJobResult;
 	readonly 'ofx-scan': HelperOfxScanJobResult;
-	readonly 'ofx-host': HelperStreamOutputJobResult;
+	readonly 'ofx-host': HelperOfxHostJobResult;
 }
 
 const STREAM_RESULT_KEYS = Object.freeze(['output']);
 const SCAN_RESULT_KEYS = Object.freeze(['descriptor']);
+const INTERACT_RESULT_KEYS = Object.freeze(['interact']);
 const TEMPORARY_OUTPUT_KEYS = Object.freeze(['temporaryPath', 'byteLength', 'sha256', 'identity']);
+const TEMPORARY_TREE_OUTPUT_KEYS = Object.freeze([...TEMPORARY_OUTPUT_KEYS, 'kind', 'tree']);
 const COMPLETION_KEYS = Object.freeze(['streamId', 'byteLength', 'sha256']);
 const IDENTITY_KEYS = Object.freeze(['dev', 'ino']);
 const SHA256 = /^[a-f\d]{64}$/u;
@@ -77,14 +106,22 @@ export function validateHelperNativeJobResult<Kind extends HelperNativeJobKind>(
 			),
 		}) as HelperNativeJobResultByKind[Kind];
 	}
+	if (kind === 'ofx-host' && isHelperOfxInteractJobGrantV1(grant)) {
+		exactKeys(record, INTERACT_RESULT_KEYS);
+		return Object.freeze({
+			interact: framescaperOpenFxInteractResultV1(record.interact),
+		}) as HelperNativeJobResultByKind[Kind];
+	}
 	if (kind === 'media-decode' || kind === 'ofx-host') {
 		exactKeys(record, STREAM_RESULT_KEYS);
+		const decode = kind === 'media-decode' ? grant as HelperMediaDecodeJobGrant : null;
 		return Object.freeze({
 			output: kind === 'media-decode'
-				? streamCompletion(record.output, (grant as HelperMediaDecodeJobGrant).output)
-				: reservedStreamCompletion(
-					record.output, (grant as HelperOfxHostJobGrant).output.frame,
-				),
+				? decode?.imageSequence === undefined
+					? streamCompletion(record.output, decode!.output)
+					: reservedStreamCompletion(record.output, decode.output)
+				: reservedStreamCompletion(record.output,
+					(grant as HelperOfxRenderHostJobGrantV1OrV2).output.frame),
 		}) as HelperNativeJobResultByKind[Kind];
 	}
 	if (kind === 'media-encode' || kind === 'media-render' || kind === 'media-proxy') {
@@ -118,8 +155,12 @@ function streamCompletion(value: unknown, binding: HelperDataPlaneBinding): Help
 	});
 }
 
-function temporaryOutput(value: unknown, grant: HelperOutputFileGrant): HelperTemporaryOutputResult {
+function temporaryOutput(
+	value: unknown,
+	grant: HelperOutputGrant,
+): HelperTemporaryOutputResult | HelperTemporaryOutputTreeResult {
 	const record = plainRecord(value);
+	if (isHelperOutputDirectoryGrant(grant)) return temporaryTreeOutput(record, grant);
 	exactKeys(record, TEMPORARY_OUTPUT_KEYS);
 	const byteLength = boundedBytes(record.byteLength);
 	if (record.temporaryPath !== grant.temporaryPath || byteLength > grant.maximumBytes) {
@@ -130,6 +171,25 @@ function temporaryOutput(value: unknown, grant: HelperOutputFileGrant): HelperTe
 		byteLength,
 		sha256: sha256(record.sha256),
 		identity: identity(record.identity),
+	});
+}
+
+function temporaryTreeOutput(
+	record: Record<string, unknown>,
+	grant: Extract<HelperOutputGrant, Readonly<{ readonly kind: 'directory' }>>,
+): HelperTemporaryOutputTreeResult {
+	exactKeys(record, TEMPORARY_TREE_OUTPUT_KEYS);
+	const byteLength = boundedBytes(record.byteLength);
+	let tree: NativeMediaOutputTreeSummaryV1;
+	try { tree = admitNativeMediaOutputTreeSummary(record.tree, grant.treeIdentity); }
+	catch { return malformed('A helper directory result has a malformed output-tree summary.'); }
+	if (record.kind !== 'directory' || record.temporaryPath !== grant.temporaryPath
+		|| byteLength > grant.maximumBytes || record.sha256 !== tree.manifestSha256) {
+		malformed('A helper directory result exceeds or disagrees with its exact output-tree grant.');
+	}
+	return Object.freeze({
+		kind: 'directory', temporaryPath: grant.temporaryPath, byteLength,
+		sha256: sha256(record.sha256), identity: identity(record.identity), tree,
 	});
 }
 

@@ -11,6 +11,21 @@ import {
 	assertHelperWireEnvelope,
 } from './helper-wire-admission.ts';
 import {
+	assistanceSpeechGrantInputBytes,
+	validateAssistanceSpeechJobGrant,
+	validateAssistanceSpeechJobResult,
+	type AssistanceSpeechJobGrant,
+	type AssistanceSpeechJobResult,
+} from './assistance-speech-job-contract.ts';
+import {
+	HELPER_JOB_KINDS,
+	type HelperJobKind,
+} from './helper-job-subcontract.ts';
+import {
+	validateHelperPersistentPortBinding,
+	type HelperPersistentPortBinding,
+} from './helper-persistent-port.ts';
+import {
 	HELPER_NATIVE_JOB_KINDS,
 	type HelperNativeJobGrantByKind,
 	type HelperNativeJobKind,
@@ -49,27 +64,31 @@ export type {
 	HelperNativeJobResourceUsage,
 	HelperOfxInputFrameGrant,
 	HelperOfxHostJobGrant,
+	HelperOfxHostJobGrantV1OrV2,
+	HelperOfxHostJobGrantV2,
 	HelperOfxOutputFrameGrant,
+	HelperOpenFxPluginCustody,
+	HelperOpenFxPluginRuntimeFile,
 	HelperOfxVideoTimingAssetGrant,
 	HelperOfxScanJobGrant,
 	HelperOfxScanJobResult,
+	HelperOfxHostJobResult,
+	HelperOfxInteractJobResultV1,
+	HelperOfxInteractJobGrantV1,
+	HelperOutputDirectoryGrant,
+	HelperOutputGrant,
 	HelperOutputFileGrant,
 	HelperScratchGrant,
 	HelperStreamInputGrant,
 	HelperStreamOutputJobResult,
 	HelperTemporaryOutputResult,
+	HelperTemporaryOutputTreeResult,
 	HelperVideoTimingAssetGrant,
 } from './helper-native-job-contract.ts';
-
-export const HELPER_JOB_KINDS = Object.freeze([
-	'probe-video-source',
-	'audio-device',
-	'plugin-scan',
-	'plugin-host',
-	...HELPER_NATIVE_JOB_KINDS,
-] as const);
-
-export type HelperJobKind = (typeof HELPER_JOB_KINDS)[number];
+export { HELPER_JOB_KINDS } from './helper-job-subcontract.ts';
+export type { HelperJobKind } from './helper-job-subcontract.ts';
+export type { AssistanceSpeechJobGrant, AssistanceSpeechJobResult } from './assistance-speech-job-contract.ts';
+export type { HelperPersistentPortBinding } from './helper-persistent-port.ts';
 
 /** The current probe utility must not advertise unimplemented future kinds. */
 export const HELPER_PROBE_JOB_KINDS = Object.freeze([
@@ -133,6 +152,7 @@ export interface HelperAudioDeviceJobGrant {
 	readonly deviceHandle: string;
 	readonly direction: 'input' | 'output' | 'duplex';
 	readonly mode: 'shared' | 'exclusive';
+	readonly persistentPort?: HelperPersistentPortBinding;
 }
 
 export interface HelperPluginScanJobGrant {
@@ -146,7 +166,9 @@ export interface HelperPluginHostJobGrant {
 	readonly binaryBytes: number;
 	readonly binarySha256: string;
 	readonly format: HelperPluginFormat;
+	readonly stableId: string;
 	readonly identity: Readonly<HelperFileIdentity>;
+	readonly persistentPort?: HelperPersistentPortBinding;
 }
 
 export interface HelperLegacyJobGrantByKind {
@@ -156,7 +178,13 @@ export interface HelperLegacyJobGrantByKind {
 	readonly 'plugin-host': HelperPluginHostJobGrant;
 }
 
-export type HelperJobGrantByKind = HelperLegacyJobGrantByKind & HelperNativeJobGrantByKind;
+export interface HelperAssistanceJobGrantByKind {
+	readonly 'assistance-speech': AssistanceSpeechJobGrant;
+}
+
+export type HelperJobGrantByKind = HelperLegacyJobGrantByKind
+	& HelperNativeJobGrantByKind
+	& HelperAssistanceJobGrantByKind;
 
 export interface HelperLegacyJobResultByKind {
 	readonly 'probe-video-source': unknown;
@@ -165,7 +193,13 @@ export interface HelperLegacyJobResultByKind {
 	readonly 'plugin-host': unknown;
 }
 
-export type HelperJobResultByKind = HelperLegacyJobResultByKind & HelperNativeJobResultByKind;
+export interface HelperAssistanceJobResultByKind {
+	readonly 'assistance-speech': AssistanceSpeechJobResult;
+}
+
+export type HelperJobResultByKind = HelperLegacyJobResultByKind
+	& HelperNativeJobResultByKind
+	& HelperAssistanceJobResultByKind;
 
 /** The default keeps the existing probe supervisor/service source-compatible. */
 export type HelperJobGrant<Kind extends HelperJobKind = 'probe-video-source'> =
@@ -178,7 +212,7 @@ const PROBE_KEYS = Object.freeze(['mediaPath', 'mediaBytes', 'identity']);
 const AUDIO_DEVICE_KEYS = Object.freeze(['backend', 'deviceHandle', 'direction', 'mode']);
 const PLUGIN_SCAN_KEYS = Object.freeze(['rootPath', 'format', 'identity']);
 const PLUGIN_HOST_KEYS = Object.freeze([
-	'binaryPath', 'binaryBytes', 'binarySha256', 'format', 'identity',
+	'binaryPath', 'binaryBytes', 'binarySha256', 'format', 'stableId', 'identity',
 ]);
 const IDENTITY_KEYS = Object.freeze(['dev', 'ino']);
 const SHA256 = /^[a-f0-9]{64}$/u;
@@ -195,6 +229,7 @@ export function validateHelperJobGrant<Kind extends HelperJobKind>(
 	if (kind === 'audio-device') return validateAudioDeviceGrant(value) as HelperJobGrant<Kind>;
 	if (kind === 'plugin-scan') return validatePluginScanGrant(value) as HelperJobGrant<Kind>;
 	if (kind === 'plugin-host') return validatePluginHostGrant(value) as HelperJobGrant<Kind>;
+	if (kind === 'assistance-speech') return validateAssistanceSpeechJobGrant(value) as HelperJobGrant<Kind>;
 	return validateHelperNativeJobGrant(
 		kind as HelperNativeJobKind,
 		value,
@@ -216,6 +251,15 @@ export function helperJobGrantResourceUsage(
 			kind as HelperNativeJobKind,
 			grant as HelperNativeJobGrantByKind[HelperNativeJobKind],
 		);
+	}
+	if (kind === 'assistance-speech') {
+		return Object.freeze({
+			inputBytes: assistanceSpeechGrantInputBytes(grant),
+			outputBytes: 0,
+			scratchBytes: 0,
+			dataPlaneBytes: 0,
+			maximumInFlightChunks: 0,
+		});
 	}
 	let inputBytes = 0;
 	if ('mediaBytes' in grant) inputBytes = grant.mediaBytes;
@@ -259,6 +303,9 @@ export function validateHelperJobResult<Kind extends HelperJobKind>(
 			admittedGrant as HelperNativeJobGrantByKind[HelperNativeJobKind],
 		) as HelperJobResult<Kind>;
 	}
+	if (kind === 'assistance-speech') {
+		return validateAssistanceSpeechJobResult(value, admittedGrant) as HelperJobResult<Kind>;
+	}
 	assertHelperWireEnvelope(value);
 	return value as HelperJobResult<Kind>;
 }
@@ -275,13 +322,21 @@ function validateProbeGrant(value: unknown): HelperProbeJobGrant {
 
 function validateAudioDeviceGrant(value: unknown): HelperAudioDeviceJobGrant {
 	const record = grantRecord(value);
-	exactKeys(record, AUDIO_DEVICE_KEYS);
+	exactOptionalKeys(record, AUDIO_DEVICE_KEYS, ['persistentPort']);
 	const backend = enumValue(record.backend, HELPER_AUDIO_BACKENDS, 'audio backend');
 	const deviceHandle = boundedText(record.deviceHandle, 1_024, 'audio device handle');
 	if (deviceHandle.includes('\0')) unsafe('A helper audio device handle must not contain NUL.');
 	const direction = enumValue(record.direction, ['input', 'output', 'duplex'] as const, 'audio direction');
 	const mode = enumValue(record.mode, ['shared', 'exclusive'] as const, 'audio mode');
-	return Object.freeze({ backend, deviceHandle, direction, mode });
+	return Object.freeze({
+		backend,
+		deviceHandle,
+		direction,
+		mode,
+		...(record.persistentPort === undefined ? {} : {
+			persistentPort: validateHelperPersistentPortBinding(record.persistentPort, 'audio-realtime'),
+		}),
+	});
 }
 
 function validatePluginScanGrant(value: unknown): HelperPluginScanJobGrant {
@@ -296,7 +351,7 @@ function validatePluginScanGrant(value: unknown): HelperPluginScanJobGrant {
 
 function validatePluginHostGrant(value: unknown): HelperPluginHostJobGrant {
 	const record = grantRecord(value);
-	exactKeys(record, PLUGIN_HOST_KEYS);
+	exactOptionalKeys(record, PLUGIN_HOST_KEYS, ['persistentPort']);
 	if (typeof record.binarySha256 !== 'string' || !SHA256.test(record.binarySha256)) {
 		unsafe('A helper plug-in binary grant must carry a lowercase SHA-256 digest.');
 	}
@@ -305,8 +360,18 @@ function validatePluginHostGrant(value: unknown): HelperPluginHostJobGrant {
 		binaryBytes: byteCount(record.binaryBytes, 'plug-in binary'),
 		binarySha256: record.binarySha256,
 		format: pluginFormat(record.format),
+		stableId: stablePluginId(record.stableId),
 		identity: fileIdentity(record.identity),
+		...(record.persistentPort === undefined ? {} : {
+			persistentPort: validateHelperPersistentPortBinding(record.persistentPort, 'plugin-rpc'),
+		}),
 	});
+}
+
+function stablePluginId(value: unknown): string {
+	const result = boundedText(value, 512, 'stable plug-in ID');
+	if (result.includes('\0')) unsafe('A helper stable plug-in ID cannot contain NUL.');
+	return result;
 }
 
 function fileIdentity(value: unknown): Readonly<HelperFileIdentity> {
@@ -368,6 +433,18 @@ function grantRecord(value: unknown): Record<string, unknown> {
 function exactKeys(record: Record<string, unknown>, keys: readonly string[]): void {
 	const present = Object.keys(record);
 	if (present.length !== keys.length || present.some((key) => !keys.includes(key))) {
+		unsafe('A helper capability grant must carry exactly its kind-specific schema keys.');
+	}
+}
+
+function exactOptionalKeys(
+	record: Record<string, unknown>,
+	required: readonly string[],
+	optional: readonly string[],
+): void {
+	const present = Object.keys(record);
+	if (required.some((key) => !present.includes(key))
+		|| present.some((key) => !required.includes(key) && !optional.includes(key))) {
 		unsafe('A helper capability grant must carry exactly its kind-specific schema keys.');
 	}
 }

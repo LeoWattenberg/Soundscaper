@@ -7,6 +7,14 @@ import {
 	validateHelperDataPlaneBinding,
 } from './helper-data-plane.ts';
 import {
+	type HelperDataPlaneInputReservation,
+	validateHelperDataPlaneInputReservation,
+} from './helper-data-plane-input-reservation.ts';
+import {
+	type HelperDataPlaneOutputReservation,
+	validateHelperDataPlaneOutputReservation,
+} from './helper-data-plane-output-reservation.ts';
+import {
 	HelperContractViolationError,
 	assertHelperWireEnvelope,
 } from './helper-wire-admission.ts';
@@ -17,27 +25,35 @@ import {
 	validateHelperNativeInputRole,
 } from './helper-native-image-sequence-grant.ts';
 import {
-	type HelperOfxHostJobGrant,
-	validateHelperOfxHostJobGrant,
-} from './helper-native-ofx-host-grant.ts';
+	type HelperOfxHostJobGrantV1OrV2,
+	validateHelperOfxHostJobGrantV1OrV2,
+} from './helper-native-ofx-host-grant-v2.ts';
 import { helperNativeOfxHostResourceUsage } from './helper-native-ofx-resource-usage.ts';
+import {
+	type HelperOpenFxPluginCustody,
+	validateHelperOpenFxPluginCustody,
+} from './helper-native-ofx-plugin-custody.ts';
 import {
 	type HelperOfxScanJobGrant,
 	validateHelperOfxScanJobGrant,
 } from './helper-native-ofx-scan-grant.ts';
 import { assertHelperMediaFileRoles } from './helper-native-media-file-roles.ts';
+import { type HelperNativeMediaEncodeBackend, validateHelperNativeMediaEncodeBackend } from './helper-native-media-backend.ts';
 import {
 	type HelperMediaProxyRecipeGrant,
 	validateHelperMediaProxyRecipeGrant,
 } from './helper-native-proxy-recipe-grant.ts';
 import {
+	type HelperOutputFileGrant,
+	type HelperOutputGrant,
+	isHelperOutputDirectoryGrant,
+	validateHelperOutputGrant,
+} from './helper-native-output-grant.ts';
+import {
 	type HelperVideoTimingAssetGrant,
 	validateHelperVideoTimingAssetGrants,
 } from './helper-native-video-timing-grant.ts';
-
-export {
-	HELPER_NATIVE_INPUT_ROLES,
-} from './helper-native-image-sequence-grant.ts';
+export { HELPER_NATIVE_INPUT_ROLES } from './helper-native-image-sequence-grant.ts';
 export {
 	OFX_RGBA_FRAME_MAXIMUM_BYTES,
 	OFX_RGBA_FRAME_MAXIMUM_DIMENSION,
@@ -49,6 +65,11 @@ export type {
 	HelperNativeInputRole,
 } from './helper-native-image-sequence-grant.ts';
 export type { HelperVideoTimingAssetGrant } from './helper-native-video-timing-grant.ts';
+export type {
+	HelperOutputDirectoryGrant,
+	HelperOutputFileGrant,
+	HelperOutputGrant,
+} from './helper-native-output-grant.ts';
 export type { HelperOfxVideoTimingAssetGrant } from './helper-native-ofx-video-timing-grant.ts';
 export type { HelperMediaProxyRecipeGrant } from './helper-native-proxy-recipe-grant.ts';
 export type {
@@ -56,8 +77,16 @@ export type {
 	HelperOfxInputFrameGrant,
 	HelperOfxOutputFrameGrant,
 } from './helper-native-ofx-host-grant.ts';
+export type {
+	HelperOfxHostJobGrantV1OrV2,
+	HelperOfxHostJobGrantV2,
+} from './helper-native-ofx-host-grant-v2.ts';
+export type { HelperOfxInteractJobGrantV1 } from './helper-native-ofx-interact-grant.ts';
 export type { HelperOfxScanJobGrant } from './helper-native-ofx-scan-grant.ts';
-
+export type {
+	HelperOpenFxPluginCustody,
+	HelperOpenFxPluginRuntimeFile,
+} from './helper-native-ofx-plugin-custody.ts';
 export {
 	validateHelperNativeJobResult,
 } from './helper-native-job-result.ts';
@@ -66,37 +95,33 @@ export type {
 	HelperNativeJobResultByKind,
 	HelperOfxScanJobResult,
 	HelperStreamOutputJobResult,
+	HelperOfxHostJobResult,
+	HelperOfxInteractJobResultV1,
 	HelperTemporaryOutputResult,
+	HelperTemporaryOutputTreeResult,
 } from './helper-native-job-result.ts';
-
 export const HELPER_NATIVE_JOB_KINDS = Object.freeze([
-	'media-decode',
-	'media-encode',
-	'media-render',
-	'media-proxy',
+	'media-decode', 'media-encode', 'media-render', 'media-proxy',
 	'ofx-scan',
 	'ofx-host',
 ] as const);
 export type HelperNativeJobKind = (typeof HELPER_NATIVE_JOB_KINDS)[number];
-
 export const HELPER_EXECUTABLE_ROLES = Object.freeze([
 	'ffmpeg', 'ffprobe', 'ofx-scanner', 'ofx-host', 'ofx-plugin',
 ] as const);
 export type HelperExecutableRole = (typeof HELPER_EXECUTABLE_ROLES)[number];
-
 export interface HelperNativeFileIdentity {
 	readonly dev: number;
 	readonly ino: number;
 }
-
 export interface HelperExecutableGrant {
 	readonly role: HelperExecutableRole;
 	readonly path: string;
 	readonly bytes: number;
 	readonly sha256: string;
 	readonly identity: Readonly<HelperNativeFileIdentity>;
+	readonly custody?: HelperOpenFxPluginCustody;
 }
-
 export interface HelperFileInputGrant {
 	readonly type: 'file';
 	readonly role: HelperNativeInputRole;
@@ -105,23 +130,13 @@ export interface HelperFileInputGrant {
 	readonly sha256: string;
 	readonly identity: Readonly<HelperNativeFileIdentity>;
 }
-
 export interface HelperStreamInputGrant {
 	readonly type: 'stream';
 	readonly role: HelperNativeInputRole;
-	readonly binding: HelperDataPlaneBinding;
+	readonly binding: HelperDataPlaneBinding | HelperDataPlaneInputReservation;
 }
 
 export type HelperNativeInputGrant = HelperFileInputGrant | HelperStreamInputGrant;
-
-export interface HelperOutputFileGrant {
-	readonly rootPath: string;
-	readonly rootIdentity: Readonly<HelperNativeFileIdentity>;
-	readonly temporaryPath: string;
-	readonly finalPath: string;
-	readonly maximumBytes: number;
-}
-
 export interface HelperScratchGrant {
 	readonly rootPath: string;
 	readonly rootIdentity: Readonly<HelperNativeFileIdentity>;
@@ -134,24 +149,27 @@ interface HelperMediaStreamJobGrantBase {
 	readonly plan: HelperDataPlaneBinding;
 	readonly sources: readonly HelperNativeInputGrant[];
 	readonly videoTimingAssets?: readonly HelperVideoTimingAssetGrant[];
-	readonly output: HelperDataPlaneBinding;
 	readonly scratch: HelperScratchGrant;
 }
 
 export interface HelperMediaOrdinaryDecodeJobGrant extends HelperMediaStreamJobGrantBase {
+	readonly output: HelperDataPlaneBinding;
 	readonly imageSequence?: never;
 }
 
 export interface HelperMediaImageSequenceDecodeJobGrant extends HelperMediaStreamJobGrantBase {
+	/** Still decode has no caller-known digest; completion authenticates it inside this bound. */
+	readonly output: HelperDataPlaneOutputReservation;
 	readonly imageSequence: HelperMediaImageSequenceDecodeGrant;
 }
 
 interface HelperMediaFileJobGrant {
 	readonly executable: HelperExecutableGrant;
+	readonly backend: HelperNativeMediaEncodeBackend;
 	readonly plan: HelperDataPlaneBinding;
 	readonly sources: readonly HelperNativeInputGrant[];
 	readonly videoTimingAssets?: readonly HelperVideoTimingAssetGrant[];
-	readonly output: HelperOutputFileGrant;
+	readonly output: HelperOutputGrant;
 	readonly scratch: HelperScratchGrant;
 }
 
@@ -177,7 +195,7 @@ export interface HelperNativeJobGrantByKind {
 	readonly 'media-render': HelperMediaRenderJobGrant;
 	readonly 'media-proxy': HelperMediaProxyJobGrant;
 	readonly 'ofx-scan': HelperOfxScanJobGrant;
-	readonly 'ofx-host': HelperOfxHostJobGrant;
+	readonly 'ofx-host': HelperOfxHostJobGrantV1OrV2;
 }
 
 export interface HelperNativeJobResourceUsage {
@@ -190,17 +208,15 @@ export interface HelperNativeJobResourceUsage {
 
 const MEDIA_STREAM_KEYS = Object.freeze(['executable', 'plan', 'sources', 'output', 'scratch']);
 const MEDIA_SEQUENCE_STREAM_KEYS = Object.freeze([...MEDIA_STREAM_KEYS, 'imageSequence']);
-const MEDIA_FILE_KEYS = MEDIA_STREAM_KEYS;
+const MEDIA_FILE_KEYS = Object.freeze([...MEDIA_STREAM_KEYS, 'backend']);
 const TIMING_KEY = 'videoTimingAssets';
 const MEDIA_PROXY_KEYS = Object.freeze([
 	'executable', 'plan', 'source', 'proxyRecipe', 'output', 'scratch',
 ]);
 const EXECUTABLE_KEYS = Object.freeze(['role', 'path', 'bytes', 'sha256', 'identity']);
+const PLUGIN_EXECUTABLE_KEYS = Object.freeze([...EXECUTABLE_KEYS, 'custody']);
 const FILE_INPUT_KEYS = Object.freeze(['type', 'role', 'path', 'bytes', 'sha256', 'identity']);
 const STREAM_INPUT_KEYS = Object.freeze(['type', 'role', 'binding']);
-const OUTPUT_KEYS = Object.freeze([
-	'rootPath', 'rootIdentity', 'temporaryPath', 'finalPath', 'maximumBytes',
-]);
 const SCRATCH_KEYS = Object.freeze(['rootPath', 'rootIdentity', 'reservationId', 'maximumBytes']);
 const IDENTITY_KEYS = Object.freeze(['dev', 'ino']);
 const SHA256 = /^[a-f\d]{64}$/u;
@@ -222,7 +238,7 @@ export function validateHelperNativeJobGrant<Kind extends HelperNativeJobKind>(
 		if (kind === 'ofx-scan') return validateHelperOfxScanJobGrant(value, {
 			executable, scratch,
 		}) as HelperNativeJobGrantByKind[Kind];
-		if (kind === 'ofx-host') return validateHelperOfxHostJobGrant(value, {
+		if (kind === 'ofx-host') return validateHelperOfxHostJobGrantV1OrV2(value, {
 			executable, dataBinding, scratch,
 		}) as HelperNativeJobGrantByKind[Kind];
 		return unsafe('The native helper grant kind is not part of contract v1.');
@@ -255,14 +271,15 @@ export function helperNativeJobGrantResourceUsage<Kind extends HelperNativeJobKi
 	if (kind === 'ofx-scan') {
 		const value = admitted as HelperOfxScanJobGrant;
 		return Object.freeze({
-			inputBytes: safeSum([value.executable.bytes, value.pluginBinary.bytes]),
+			inputBytes: safeSum([value.executable.bytes, value.pluginBinary.custody?.byteLength
+				?? value.pluginBinary.bytes]),
 			outputBytes: value.descriptor.maximumByteLength,
 			scratchBytes: value.scratch.maximumBytes,
 			dataPlaneBytes: value.descriptor.maximumByteLength,
 			maximumInFlightChunks: value.descriptor.maximumInFlightChunks,
 		});
 	}
-	const value = admitted as HelperOfxHostJobGrant;
+	const value = admitted as HelperOfxHostJobGrantV1OrV2;
 	return helperNativeOfxHostResourceUsage(value);
 }
 
@@ -289,12 +306,14 @@ function validateMediaStreamGrant(value: unknown): HelperMediaDecodeJobGrant {
 		plan: dataBinding(record.plan, 'host-to-helper', 'plan'),
 		sources: sourceValues,
 		...(timing === null ? {} : { videoTimingAssets: timing }),
-		output: dataBinding(record.output, 'helper-to-host', 'output'),
 		scratch: scratch(record.scratch),
 	};
 	return sequenceValue === null
-		? Object.freeze(base)
-		: Object.freeze({ ...base, imageSequence: sequenceValue });
+		? Object.freeze({ ...base, output: dataBinding(record.output, 'helper-to-host', 'output') })
+		: Object.freeze({
+			...base, output: validateHelperDataPlaneOutputReservation(record.output),
+			imageSequence: sequenceValue,
+		});
 }
 
 function validateMediaFileGrant(value: unknown): HelperMediaEncodeJobGrant {
@@ -308,12 +327,18 @@ function validateMediaFileGrant(value: unknown): HelperMediaEncodeJobGrant {
 		'media file job',
 	);
 	assertHelperMediaFileRoles(sourceValues);
+	const plan = dataBinding(record.plan, 'host-to-helper', 'plan');
+	const output = validateHelperOutputGrant(record.output);
+	if (isHelperOutputDirectoryGrant(output) && output.treeIdentity.planFingerprint !== plan.sha256) {
+		unsafe('A helper output tree identity disagrees with its exact plan fingerprint.');
+	}
 	return Object.freeze({
 		executable: executable(record.executable, 'ffmpeg'),
-		plan: dataBinding(record.plan, 'host-to-helper', 'plan'),
+		backend: validateHelperNativeMediaEncodeBackend(record.backend),
+		plan,
 		sources: sourceValues,
 		...(timing === null ? {} : { videoTimingAssets: timing }),
-		output: outputFile(record.output),
+		output,
 		scratch: scratch(record.scratch),
 	});
 }
@@ -324,13 +349,15 @@ function validateMediaProxyGrant(value: unknown): HelperMediaProxyJobGrant {
 	exactKeys(record, withTiming(MEDIA_PROXY_KEYS, timing));
 	const sourceValue = input(record.source);
 	assertRoles([sourceValue], ['original'], 'media proxy');
+	const output = validateHelperOutputGrant(record.output);
+	if (isHelperOutputDirectoryGrant(output)) unsafe('A media proxy output must be one regular file.');
 	return Object.freeze({
 		executable: executable(record.executable, 'ffmpeg'),
 		plan: dataBinding(record.plan, 'host-to-helper', 'plan'),
 		source: sourceValue,
 		...(timing === null ? {} : { videoTimingAssets: timing }),
 		proxyRecipe: validateHelperMediaProxyRecipeGrant(record.proxyRecipe),
-		output: outputFile(record.output),
+		output,
 		scratch: scratch(record.scratch),
 	});
 }
@@ -346,15 +373,19 @@ function withTiming(keys: readonly string[], timing: readonly HelperVideoTimingA
 
 function executable(value: unknown, expectedRole: HelperExecutableRole): HelperExecutableGrant {
 	const record = plainRecord(value);
-	exactKeys(record, EXECUTABLE_KEYS);
+	const hasCustody = expectedRole === 'ofx-plugin' && Object.hasOwn(record, 'custody');
+	exactKeys(record, hasCustody ? PLUGIN_EXECUTABLE_KEYS : EXECUTABLE_KEYS);
 	if (record.role !== expectedRole) unsafe(`A helper job requires the exact ${expectedRole} executable role.`);
-	return Object.freeze({
+	const base = {
 		role: expectedRole,
 		path: absolutePath(record.path, 'executable'),
 		bytes: bytes(record.bytes, 'executable'),
 		sha256: sha256(record.sha256, true),
 		identity: identity(record.identity),
-	});
+	};
+	return Object.freeze(hasCustody ? {
+		...base, custody: validateHelperOpenFxPluginCustody(record.custody, base),
+	} : base);
 }
 
 function inputs(value: unknown): readonly HelperNativeInputGrant[] {
@@ -379,10 +410,13 @@ function input(value: unknown): HelperNativeInputGrant {
 	}
 	if (record.type === 'stream') {
 		exactKeys(record, STREAM_INPUT_KEYS);
+		const binding = plainRecord(record.binding);
 		return Object.freeze({
 			type: 'stream',
 			role: validateHelperNativeInputRole(record.role),
-			binding: dataBinding(record.binding, 'host-to-helper', 'input'),
+			binding: Object.hasOwn(binding, 'authentication')
+				? validateHelperDataPlaneInputReservation(binding)
+				: dataBinding(binding, 'host-to-helper', 'input'),
 		});
 	}
 	return unsafe('A helper native input must be an exact file or MessagePort stream grant.');
@@ -396,25 +430,6 @@ function assertRoles(
 	if (values.some(({ role }) => !allowed.includes(role))) {
 		unsafe(`A ${label} grant contains an input role outside its closed authority.`);
 	}
-}
-
-function outputFile(value: unknown): HelperOutputFileGrant {
-	const record = plainRecord(value);
-	exactKeys(record, OUTPUT_KEYS);
-	const rootPath = absolutePath(record.rootPath, 'output root');
-	const temporaryPath = absolutePath(record.temporaryPath, 'temporary output');
-	const finalPath = absolutePath(record.finalPath, 'final output');
-	if (temporaryPath === finalPath || !isInside(rootPath, temporaryPath) || !isInside(rootPath, finalPath)
-		|| parentPath(temporaryPath) !== parentPath(finalPath)) {
-		unsafe('A helper output grant must name distinct sibling files inside its exact destination root.');
-	}
-	return Object.freeze({
-		rootPath,
-		rootIdentity: identity(record.rootIdentity),
-		temporaryPath,
-		finalPath,
-		maximumBytes: bytes(record.maximumBytes, 'output maximum'),
-	});
 }
 
 function scratch(value: unknown): HelperScratchGrant {
@@ -445,11 +460,12 @@ function usage(
 	executableBytes: number,
 	plan: HelperDataPlaneBinding,
 	inputs_: readonly HelperNativeInputGrant[],
-	output: HelperDataPlaneBinding | HelperOutputFileGrant,
+	output: HelperDataPlaneBinding | HelperDataPlaneOutputReservation | HelperOutputGrant,
 	scratch_: HelperScratchGrant,
 	timing: readonly HelperVideoTimingAssetGrant[] | undefined,
 ): HelperNativeJobResourceUsage {
-	const outputBytes = 'byteLength' in output ? output.byteLength : output.maximumBytes;
+	const outputBytes = 'byteLength' in output ? output.byteLength
+		: 'maximumByteLength' in output ? output.maximumByteLength : output.maximumBytes;
 	return Object.freeze({
 		inputBytes: safeSum([
 			executableBytes, plan.byteLength, ...inputs_.map(inputBytes),
@@ -460,17 +476,24 @@ function usage(
 		dataPlaneBytes: safeSum([
 			plan.byteLength,
 			...inputs_.map(inputDataPlaneBytes),
-			...('byteLength' in output ? [output.byteLength] : []),
+			...('byteLength' in output ? [output.byteLength]
+				: 'maximumByteLength' in output ? [output.maximumByteLength] : []),
 		]),
 		maximumInFlightChunks: maximumInFlightChunks(
-			[plan, ...('byteLength' in output ? [output] : [])],
+			[plan, ...(isDataPlaneOutput(output) ? [output] : [])],
 			inputs_,
 		),
 	});
 }
 
+function isDataPlaneOutput(
+	value: HelperDataPlaneBinding | HelperDataPlaneOutputReservation | HelperOutputGrant,
+): value is HelperDataPlaneBinding | HelperDataPlaneOutputReservation {
+	return 'maximumInFlightChunks' in value;
+}
+
 function maximumInFlightChunks(
-	bindings: readonly HelperDataPlaneBinding[],
+	bindings: readonly Readonly<{ maximumInFlightChunks: number }>[],
 	inputs_: readonly HelperNativeInputGrant[] = [],
 ): number {
 	return Math.max(
@@ -528,21 +551,6 @@ function sha256(value: unknown, grant: boolean): string {
 		malformed('A helper file result must carry lowercase SHA-256.');
 	}
 	return value;
-}
-
-function isInside(rootPath: string, childPath: string): boolean {
-	const root = normalizedPath(rootPath).replace(/\/$/u, '');
-	const child = normalizedPath(childPath);
-	return child.startsWith(`${root}/`) && child.length > root.length + 1;
-}
-
-function parentPath(value: string): string {
-	const normalized = normalizedPath(value);
-	return normalized.slice(0, normalized.lastIndexOf('/'));
-}
-
-function normalizedPath(value: string): string {
-	return value.replace(/\\/gu, '/').replace(/\/{2,}/gu, '/');
 }
 
 function plainRecord(value: unknown, grant = true): Record<string, unknown> {

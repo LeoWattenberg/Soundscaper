@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	desktopReleaseTargetPackageInventory,
 	desktopTranslationSourceName,
 	regularDesktopReleaseFileNames,
 	validateDesktopReleasePackageInventory,
@@ -22,6 +23,29 @@ const PACKAGES = [
 	`Soundscaper-${VERSION}-win-arm64.exe`,
 	`Soundscaper-${VERSION}-win-arm64.zip`,
 ];
+const FRAMESCAPER_PACKAGES = PACKAGES
+	.filter((name) => name !== 'ffmpeg-corresponding-source.json')
+	.map((name) => name.replace('Soundscaper-', 'Framescaper-'));
+
+test('target package inventory is the exact shared naming authority', () => {
+	const linux = desktopReleaseTargetPackageInventory('framescaper', 'linux-x64', VERSION);
+	assert.deepEqual(linux.map(({ label }) => label), [
+		'Linux x64 AppImage',
+		'Linux x64 Debian package',
+	]);
+	assert.equal(linux[0].pattern.test(`Framescaper-${VERSION}-linux-x64.AppImage`), true);
+	assert.equal(linux[1].pattern.test(`Framescaper-${VERSION}-linux-amd64.deb`), true);
+	assert.equal(linux[0].pattern.test(`Soundscaper-${VERSION}-linux-x64.AppImage`), false);
+	const windows = desktopReleaseTargetPackageInventory('soundscaper', 'win-arm64', VERSION);
+	assert.deepEqual(windows.map(({ label }) => label), [
+		'Windows ARM64 installer',
+		'Windows ARM64 ZIP',
+	]);
+	assert.throws(
+		() => desktopReleaseTargetPackageInventory('soundscaper', 'mac-x64', VERSION),
+		/target/iu,
+	);
+});
 
 test('Soundscaper release inventory is exact and version-bound', () => {
 	assert.doesNotThrow(() => validateDesktopReleasePackageInventory(PACKAGES, VERSION));
@@ -41,6 +65,23 @@ test('Soundscaper release inventory is exact and version-bound', () => {
 		assert.throws(() => validateDesktopReleasePackageInventory([...PACKAGES, name], VERSION),
 			/Unexpected desktop release input/iu);
 	}
+});
+
+test('suite release inventory requires exact packages for both desktop products', () => {
+	const suite = [...PACKAGES, ...FRAMESCAPER_PACKAGES];
+	assert.doesNotThrow(() => validateDesktopReleasePackageInventory(
+		suite,
+		VERSION,
+		['soundscaper', 'framescaper'],
+	));
+	assert.throws(
+		() => validateDesktopReleasePackageInventory(
+			suite.filter((name) => name !== `Framescaper-${VERSION}-mac-arm64.dmg`),
+			VERSION,
+			['soundscaper', 'framescaper'],
+		),
+		/Framescaper macOS Apple silicon DMG/iu,
+	);
 });
 
 test('release roots reject symbolic or non-regular entries', () => {

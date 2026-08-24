@@ -32,7 +32,7 @@ import {
 } from './helpers/unified-exact-render-plan-fixture.ts';
 
 test('V9 through V12 carry cumulative closed executable authority', () => {
-	assert.deepEqual(UNIFIED_EXACT_RENDER_PLAN_VERSIONS, [9, 10, 11, 12, 13]);
+	assert.deepEqual(UNIFIED_EXACT_RENDER_PLAN_VERSIONS, [9, 10, 11, 12, 13, 14]);
 	for (const version of [9, 10, 11, 12] as const) {
 		const plan = createUnifiedExactRenderPlan(unifiedExactPlanFixture(version));
 		assert.equal(plan.version, version);

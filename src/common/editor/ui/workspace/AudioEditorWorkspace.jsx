@@ -43,7 +43,7 @@ export default function AudioEditorWorkspace({
 }) {
 	const product = useMemo(() => productProfile(productId), [productId]);
 	useFramescaperNativeServicesMenuRefresh({ productId });
-	useSoundscaperNativeServicesMenuRefresh({ productId });
+	useSoundscaperNativeServicesMenuRefresh({ productId, copy, engine: controller?.engine, controller });
 	const capabilities = product.capabilities;
 	const aboutLabel = productId === 'framescaper' ? copy.aboutFramescaper : copy.aboutEditor;
 	const editorThemeVariables = useAudioEditorThemeVariables();

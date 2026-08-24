@@ -3,6 +3,11 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
+import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
+import {
+	assistanceNativeRuntimeStageSummary,
+	verifyAssistanceNativeRuntimePayload,
+} from '../desktop/assistance-native-runtime-payload.mjs';
 import {
 	verifyFfmpegRuntimeManifest,
 	verifyStagedFfmpegRuntime,
@@ -17,6 +22,11 @@ import {
 	verifyFramescaperNativeHostPayloads,
 	verifyStagedFramescaperNativeHostPayloads,
 } from './lib/framescaper-native-host-payload-staging.mjs';
+import {
+	professionalNativePayloadOutputRoot,
+	verifySoundscaperProfessionalNativePayload,
+	verifyStagedSoundscaperProfessionalNativePayload,
+} from './lib/soundscaper-professional-native-payload.mjs';
 
 /**
  * Electron Builder beforePack hook. Re-verify the policy-bound runtime after
@@ -29,14 +39,67 @@ export default async function verifyDesktopRuntimeBeforePack(context = {}, depen
 	const stageManifestPath = resolve(repositoryRoot, '.desktop-build/stage-manifest.json');
 	const packagedTarget = nativeAddonPayloadTargetForPackagingContext(context);
 	const verifyFfmpeg = dependencies.verifyStagedFfmpegBeforePack ?? verifyStagedFfmpegBeforePack;
+	const verifyAssistance = dependencies.verifyStagedAssistanceNativeRuntime
+		?? verifyStagedAssistanceNativeRuntime;
 	const verifyNativeAddon = dependencies.verifyStagedNativeAddonBeforePack ?? verifyStagedNativeAddonBeforePack;
 	const verifyNativeHosts = dependencies.verifyStagedFramescaperNativeHostsBeforePack
 		?? verifyStagedFramescaperNativeHostsBeforePack;
+	const verifyProfessional = dependencies.verifyStagedSoundscaperProfessionalNativeBeforePack
+		?? verifyStagedSoundscaperProfessionalNativeBeforePack;
 	await Promise.all([
 		verifyFfmpeg({ repositoryRoot, stageManifestPath }),
+		verifyAssistance({
+			repositoryRoot, stageManifestPath, packagedTarget,
+		}),
 		verifyNativeAddon({ repositoryRoot, stageManifestPath, packagedTarget }),
+		verifyProfessional({ repositoryRoot, stageManifestPath, packagedTarget }),
 		verifyNativeHosts({ repositoryRoot, stageManifestPath, packagedTarget }),
 	]);
+}
+
+export async function verifyStagedSoundscaperProfessionalNativeBeforePack({
+	repositoryRoot, stageManifestPath, packagedTarget,
+}) {
+	const stage = JSON.parse(await readFile(stageManifestPath, 'utf8'));
+	if (stage?.productId === 'framescaper') {
+		if (stage.soundscaperProfessionalNative !== null) {
+			throw new Error('A Framescaper desktop stage cannot carry the Soundscaper professional payload.');
+		}
+		return null;
+	}
+	if (stage?.productId !== 'soundscaper' || stage.soundscaperProfessionalNative?.target !== packagedTarget) {
+		throw new Error('The Soundscaper desktop stage has no exact professional native payload authority.');
+	}
+	const release = await verifySoundscaperProfessionalNativePayload({
+		repositoryRoot,
+		target: packagedTarget,
+		targetSource: stage.soundscaperProfessionalNative.targetSource === 'build-host' ? 'build-host' : 'declared',
+	});
+	return verifyStagedSoundscaperProfessionalNativePayload({
+		release,
+		outputRoot: professionalNativePayloadOutputRoot(resolve(repositoryRoot, '.desktop-build/runtime'), release),
+		stageManifestPath,
+	});
+}
+
+export async function verifyStagedAssistanceNativeRuntime({
+	repositoryRoot,
+	stageManifestPath,
+	packagedTarget,
+}) {
+	const stage = JSON.parse(await readFile(stageManifestPath, 'utf8'));
+	const expected = assistanceNativeRuntimeStageSummary(
+		assistanceNativeRuntimeManifest,
+		packagedTarget,
+	);
+	if (JSON.stringify(stage.assistanceNativeRuntime) !== JSON.stringify(expected)) {
+		throw new Error('The desktop stage manifest has invalid assistance native-runtime evidence.');
+	}
+	return verifyAssistanceNativeRuntimePayload({
+		manifest: assistanceNativeRuntimeManifest,
+		targetId: packagedTarget,
+		outputRoot: resolve(repositoryRoot, '.desktop-build/runtime'),
+	});
 }
 
 export async function verifyStagedFfmpegBeforePack({ repositoryRoot, stageManifestPath }) {

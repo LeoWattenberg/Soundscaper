@@ -14,6 +14,7 @@ import {
 	DESKTOP_RUNTIME_PACKAGE_IMPORTS,
 } from '../scripts/lib/desktop-project-library-runtime.mjs';
 import { DESKTOP_5B_TRANSITIVE_RUNTIME_FILES } from '../scripts/lib/desktop-5b-transitive-runtime-files.mjs';
+import { DESKTOP_SOUNDSCAPER_V11_RUNTIME_FILES } from '../scripts/lib/desktop-soundscaper-v11-runtime-files.mjs';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import { DESKTOP_PROJECT_LIBRARY_V27_RUNTIME_FIXTURE } from './helpers/desktop-project-library-v27-runtime-fixture.js';
 
@@ -27,9 +28,13 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 	assert.deepEqual(result.files, [
 		...DESKTOP_5B_TRANSITIVE_RUNTIME_FILES,
 		'desktop/application-lifecycle.js',
+		'desktop/assistance-helper-runtime.js',
+		'desktop/assistance-job-host.js',
+		'desktop/assistance-job-protocol.js',
 		'desktop/assistance-main-ipc.js',
 		'desktop/assistance-service.js',
 		'desktop/assistance-sherpa-recognizer.js',
+		'desktop/assistance-speech-job-contract.js',
 		'desktop/assistance-speech-runtime.js',
 		'desktop/external-display-controller.js',
 		'desktop/external-display-frame-port.js',
@@ -54,12 +59,15 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'desktop/framescaper-web-vcr-security-policy.js',
 		'desktop/framescaper-web-vcr-target-observer.js',
 		'desktop/framescaper-web-vcr-target-tracker.js',
+		'desktop/helper-admission-gate.js',
 		'desktop/helper-contract.js',
 		'desktop/helper-data-plane-io.js',
 		'desktop/helper-data-plane-output-reservation.js',
 		'desktop/helper-data-plane-transfer.js',
 		'desktop/helper-data-plane.js',
 		'desktop/helper-job-grant.js',
+		'desktop/helper-job-subcontract.js',
+		'desktop/helper-persistent-port.js',
 		'desktop/helper-native-image-sequence-grant.js',
 		'desktop/helper-native-job-contract.js',
 		'desktop/helper-native-job-result.js',
@@ -67,6 +75,8 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'desktop/helper-native-ofx-host-grant.js',
 		'desktop/helper-native-ofx-scan-grant.js',
 		'desktop/helper-probe-service.js',
+		'desktop/helper-resource-policy.js',
+		'desktop/helper-supervision-state.js',
 		'desktop/helper-supervisor.js',
 		'desktop/native-addon-payload.js',
 		'desktop/native-helper-results.js',
@@ -303,6 +313,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 		'desktop/soundscaper-project-library-v10-publication-transport.js',
 		'desktop/soundscaper-project-library-v10-transfer-contract.js',
 		'desktop/soundscaper-project-library-v10-transfer-service.js',
+		...DESKTOP_SOUNDSCAPER_V11_RUNTIME_FILES,
 		'src/common/editor/audacity-effects/live.js',
 		'src/common/editor/audacity-effects/manifest.js',
 		'src/common/editor/audacity-effects/spectral.js',

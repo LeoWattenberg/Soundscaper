@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Own one exact V12 OpenFX attempt's staged files, MessagePorts, and cleanup. */
+/** Own one exact V12/V14 OpenFX attempt's staged files, MessagePorts, and cleanup. */
 
 import { createHash, randomBytes } from 'node:crypto';
 import { lstat, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
@@ -24,7 +24,7 @@ import type { FramescaperOpenFxExecutableDescriptor } from './framescaper-openfx
 import type { framescaperOpenFxExecutionRequestV1 } from './openfx-main-execution-request.ts';
 import type { OfxUnifiedHostAttemptResourcesV1 } from './openfx-unified-render-execution.ts';
 import {
-	authenticateNativePlanVideoTimingAssets,
+	authenticateNativePlanVideoTimingAssetsV1OrV2,
 	type NativePlanVideoTimingAssetBytes,
 } from './native-services-video-timing-staging.ts';
 import { canonicalizeNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
@@ -86,7 +86,7 @@ async function prepareAt(
 	const hostRoot = join(options.base, 'host');
 	await Promise.all([mkdir(helperRoot, { mode: 0o700 }), mkdir(hostRoot, { mode: 0o700 })]);
 	abort.signal.throwIfAborted();
-	const timing = authenticateNativePlanVideoTimingAssets({
+	const timing = authenticateNativePlanVideoTimingAssetsV1OrV2({
 		plan: request.plan,
 		assets: options.videoTimingAssets ?? [],
 		maximumStagedBytes: HELPER_DATA_PLANE_MAXIMUM_BYTES,

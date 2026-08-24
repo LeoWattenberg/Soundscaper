@@ -2,12 +2,13 @@
 
 /** Canonical native-host document derived only from an admitted helper grant. */
 
-import type { HelperOfxHostJobGrant } from './helper-contract.ts';
+import type { HelperOfxRenderHostJobGrantV1OrV2 } from './helper-native-ofx-host-grant-v2.ts';
 import type { StagedOpenFxVideoTimingAssetV1 } from './openfx-helper-video-timing-staging.ts';
+import type { OfxRenderBackendV1 } from '../src/common/editor/native-ofx-host-contract.ts';
 import { canonicalizeNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
 
 export function canonicalOpenFxV12NativeGrant(input: Readonly<{
-	readonly grant: HelperOfxHostJobGrant;
+	readonly grant: HelperOfxRenderHostJobGrantV1OrV2;
 	readonly pluginPath: string;
 	readonly pluginIndex: number;
 	readonly planPath: string;
@@ -15,10 +16,12 @@ export function canonicalOpenFxV12NativeGrant(input: Readonly<{
 	readonly inputPaths: readonly string[];
 	readonly outputPath: string;
 	readonly maximumControlBytes: number;
+	readonly qualifiedBackends: readonly OfxRenderBackendV1[];
 }>): string {
 	const { grant } = input;
 	const document = {
 		schemaVersion: 1,
+		qualifiedBackends: input.qualifiedBackends,
 		pluginBinary: {
 			path: input.pluginPath,
 			sha256: grant.pluginBinary.sha256,

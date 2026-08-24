@@ -51,7 +51,7 @@ export function validateHelperNativeAddonReport(value: unknown): HelperNativeAdd
 		addonVersion: boundedText(record.addonVersion, MAXIMUM_TEXT_BYTES, 'addon version'),
 		buildId: boundedText(record.buildId, MAXIMUM_TEXT_BYTES, 'addon build id'),
 		napiVersion: boundedInteger(record.napiVersion, 8, 1_024, 'addon Node-API version'),
-		maximumChannelCount: boundedInteger(record.maximumChannelCount, 1, 4_096, 'addon channel ceiling'),
+		maximumChannelCount: boundedInteger(record.maximumChannelCount, 1, 32, 'addon channel ceiling'),
 		maximumFrameCount: boundedInteger(record.maximumFrameCount, 1, 1_048_576, 'addon frame ceiling'),
 	});
 }
@@ -59,7 +59,7 @@ export function validateHelperNativeAddonReport(value: unknown): HelperNativeAdd
 export function validateHelperAudioDeviceOpenResult(value: unknown): HelperAudioDeviceOpenResult {
 	const record = plainRecord(value, 'A native audio device result');
 	exactKeys(record, OPEN_RESULT_KEYS, 'A native audio device result');
-	const channelCount = boundedInteger(record.channelCount, 1, 4_096, 'device channel count');
+	const channelCount = boundedInteger(record.channelCount, 1, 32, 'device channel count');
 	const blockFrames = boundedInteger(record.blockFrames, 1, 1_048_576, 'device block frames');
 	const blocksRendered = boundedInteger(record.blocksRendered, 0, 1_000_000_000, 'rendered block count');
 	const framesRendered = boundedInteger(record.framesRendered, 0, Number.MAX_SAFE_INTEGER, 'rendered frame count');
@@ -128,7 +128,7 @@ export const MAXIMUM_NATIVE_AUDIO_DEVICES = 128;
  */
 export const MAXIMUM_NATIVE_AUDIO_DEVICE_TEXT_BYTES = 192;
 export const MAXIMUM_NATIVE_AUDIO_INVENTORY_DETAIL_BYTES = 1_024;
-export const MAXIMUM_NATIVE_AUDIO_DEVICE_CHANNELS = 4_096;
+export const MAXIMUM_NATIVE_AUDIO_DEVICE_CHANNELS = 32;
 
 const INVENTORY_KEYS = Object.freeze(['backend', 'status', 'detail', 'devices']);
 const DEVICE_KEYS = Object.freeze(['handle', 'label', 'direction']);

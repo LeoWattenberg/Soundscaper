@@ -486,7 +486,7 @@ test('Audacity open uses its dedicated project adapter instead of general native
 			inspect: async () => ({}),
 			delete: async () => undefined,
 		}),
-		adaptAudacityProject: (value) => {
+		adaptAudacityProject: async (value) => {
 			adapterCalls += 1;
 			assert.strictEqual(value, decodedProject);
 			return importedProject;
@@ -503,6 +503,29 @@ test('Audacity open uses its dedicated project adapter instead of general native
 	assert.equal((result?.project as NativeProjectDocument).schemaVersion, 21);
 	assert.equal(adapterCalls, 1);
 	assert.equal(migrationCalls, 0);
+});
+
+test('AUP4 save awaits the optional product-owned export preparation hook', async () => {
+	const snapshot = project();
+	let writtenTitle: string | null = null;
+	const fixture = createFixture({
+		getProject: () => snapshot,
+		prepareAudacityProjectExport: async (value) => ({ ...value, title: 'Portable native state' }),
+		createAup4Client: () => ({
+			initialize: async () => ({ opfs: false }),
+			create: async () => undefined,
+			openFile: async () => ({ readOnly: false }),
+			decode: async () => ({ project: snapshot, sources: [] }),
+			writeSnapshot: async (_id, value) => { writtenTitle = String(value.title); return {}; },
+			commit: async () => undefined,
+			export: async () => ({ bytes: Uint8Array.of(1) }),
+			inspect: async () => ({}),
+			delete: async () => undefined,
+		}),
+	});
+	const service = createNativeProjectService(fixture.runtime);
+	await service.saveAup4({ useFileSystemAccess: false });
+	assert.equal(writtenTitle, 'Portable native state');
 });
 
 test('cancelled desktop targets and retryable initialization do not mutate save state', async () => {

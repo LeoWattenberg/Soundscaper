@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createHash } from 'node:crypto';
-import { lstatSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
+import {
+	closeSync, constants, fstatSync, lstatSync, openSync, readFileSync, readdirSync,
+	readSync, realpathSync, statSync,
+} from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 export const EXTRACTED_SOURCE_TREE_ALGORITHM =
@@ -11,11 +14,14 @@ export const BOOST_HEADER_CLOSURE_ALGORITHM = 'boost-include-closure-sha256-v1';
 const SOURCE_RECEIPT = '.framescaper-source-identity.json';
 const BOOST_INCLUDE = /^\s*#\s*include\s*[<"](boost\/[^>"]+)[>"]/gmu;
 const DIGEST = /^[a-f0-9]{64}$/u;
+const MAXIMUM_SOURCE_FILES = 100_000;
+const MAXIMUM_SOURCE_FILE_BYTES = 512 * 1024 * 1024;
+const MAXIMUM_SOURCE_TREE_BYTES = 4 * 1024 * 1024 * 1024;
 
 export function collectExtractedSourceTree(sourceRoot) {
 	const root = canonicalDirectory(sourceRoot, 'extracted source root');
 	const files = [];
-	collectFiles(root, '', files);
+	collectFiles(root, '', files, { totalBytes: 0, inodes: new Set() });
 	files.sort(comparePath);
 	const portablePaths = new Set();
 	for (const file of files) {
@@ -98,27 +104,96 @@ export function verifySourceAuthenticationWitness(witness) {
 	return false;
 }
 
-function collectFiles(root, prefix, files) {
+function collectFiles(root, prefix, files, budget) {
 	for (const name of readdirSync(join(root, prefix)).sort(compareStrings)) {
 		if (prefix === '' && name === SOURCE_RECEIPT) continue;
-		if (!/^[a-zA-Z0-9._-]+$/u.test(name) || name === '.' || name === '..') {
-			throw new Error(`Extracted source path ${name} is not one normalized POSIX path segment.`);
-		}
+		assertPortableSourceSegment(name);
 		const path = prefix === '' ? name : `${prefix}/${name}`;
 		const absolute = join(root, ...path.split('/'));
 		const info = lstatSync(absolute);
 		if (info.isDirectory()) {
-			collectFiles(root, path, files);
+			if (info.isSymbolicLink() || realpathSync(absolute) !== absolute) {
+				throw new Error(`Extracted source directory ${path} is not canonical.`);
+			}
+			collectFiles(root, path, files, budget);
 			continue;
 		}
 		if (!info.isFile() || info.isSymbolicLink() || realpathSync(absolute) !== absolute) {
 			throw new Error(`Extracted source entry ${path} is not one canonical regular file.`);
 		}
-		const bytes = readFileSync(absolute);
-		files.push(Object.freeze({
-			path, type: 'file', byteLength: bytes.byteLength, sha256: digest(bytes),
-		}));
+		if (info.size > MAXIMUM_SOURCE_FILE_BYTES) {
+			throw new Error(`Extracted source entry ${path} exceeds its file limit.`);
+		}
+		const inode = info.ino === 0 ? null : `${String(info.dev)}:${String(info.ino)}`;
+		if (inode !== null && budget.inodes.has(inode)) {
+			throw new Error(`Extracted source entry ${path} is a hard-linked duplicate.`);
+		}
+		if (inode !== null) budget.inodes.add(inode);
+		const descriptor = describeCanonicalFile(absolute, path, info);
+		budget.totalBytes += descriptor.byteLength;
+		if (files.length >= MAXIMUM_SOURCE_FILES || budget.totalBytes > MAXIMUM_SOURCE_TREE_BYTES) {
+			throw new Error('Extracted source tree exceeds its admission budget.');
+		}
+		files.push(Object.freeze(descriptor));
 	}
+}
+
+function describeCanonicalFile(absolute, path, before) {
+	const handle = openSync(absolute, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+	try {
+		const opened = fstatSync(handle);
+		if (!opened.isFile() || opened.size !== before.size
+			|| (before.ino !== 0 && opened.ino !== 0
+				&& (before.dev !== opened.dev || before.ino !== opened.ino))) {
+			throw new Error(`Extracted source entry ${path} changed while opening.`);
+		}
+		const hash = createHash('sha256');
+		const buffer = Buffer.allocUnsafe(1024 * 1024);
+		let byteLength = 0;
+		for (;;) {
+			const bytesRead = readSync(handle, buffer, 0, buffer.byteLength, null);
+			if (bytesRead === 0) break;
+			byteLength += bytesRead;
+			if (byteLength > MAXIMUM_SOURCE_FILE_BYTES) {
+				throw new Error(`Extracted source entry ${path} exceeds its file limit.`);
+			}
+			hash.update(buffer.subarray(0, bytesRead));
+		}
+		const after = fstatSync(handle);
+		if (byteLength !== opened.size || after.size !== opened.size
+			|| after.mtimeMs !== opened.mtimeMs || after.ctimeMs !== opened.ctimeMs) {
+			throw new Error(`Extracted source entry ${path} changed while hashing.`);
+		}
+		return { path, type: 'file', byteLength, sha256: hash.digest('hex') };
+	} finally {
+		closeSync(handle);
+	}
+}
+
+/**
+ * Admit NFC Unicode archive names shared by POSIX, APFS, and Windows. Upstream
+ * SDKs legitimately use spaces, `@`, parentheses, and registered-mark glyphs;
+ * the Windows forbidden/reserved sets remain excluded so one tree identity is
+ * extractable on every qualified target.
+ */
+function assertPortableSourceSegment(name) {
+	const windowsBase = name.split('.')[0].toUpperCase();
+	if (name.length < 1 || name === '.' || name === '..'
+		|| name.normalize('NFC') !== name
+		|| hasControlCharacter(name)
+		|| /[<>:"/\\|?*]/u.test(name)
+		|| /[ .]$/u.test(name)
+		|| Buffer.byteLength(name, 'utf8') > 255
+		|| /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/u.test(windowsBase)) {
+		throw new Error(`Extracted source path ${name} is not one portable canonical path segment.`);
+	}
+}
+
+function hasControlCharacter(value) {
+	return [...value].some((character) => {
+		const codePoint = character.codePointAt(0);
+		return codePoint <= 0x1f || codePoint === 0x7f;
+	});
 }
 
 function exactIdentity(value, algorithm, label) {

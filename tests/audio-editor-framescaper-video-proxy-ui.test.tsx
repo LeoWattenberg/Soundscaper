@@ -19,9 +19,9 @@ import {
 	registerFramescaperVideoProxyActionRuntime,
 } from '../src/framescaper/editor-video-proxy-action-runtime-v20.ts';
 
-test('selected V20 and V27 expose one existing-menu proxy manager with product isolation', () => {
+test('selected V28 retains V20/V27 proxy projects in one existing menu with product isolation', () => {
 	let opens = 0;
-	for (const schemaVersion of [20, 27]) {
+	for (const schemaVersion of [20, 27, 28]) {
 		const items = createFramescaperVideoProxyApplicationMenuItems({
 			productId: 'framescaper', project: project(schemaVersion),
 			copy: {}, open: () => { opens += 1; },
@@ -31,7 +31,7 @@ test('selected V20 and V27 expose one existing-menu proxy manager with product i
 		assert.equal(items[0]?.disabled, false);
 		items[0]?.onClick();
 	}
-	assert.equal(opens, 2);
+	assert.equal(opens, 3);
 	assert.deepEqual(createFramescaperVideoProxyApplicationMenuItems({
 		productId: 'soundscaper', project: project(20), copy: {}, open: () => undefined,
 	}), []);

@@ -22,6 +22,7 @@ struct invocation final {
 	std::vector<std::string> source_sha256;
 	std::vector<std::uint64_t> source_byte_lengths;
 	std::vector<std::string> source_roles;
+	std::vector<int> source_stream_fds;
 	std::filesystem::path temporary_output;
 	std::filesystem::path decode_output;
 	std::filesystem::path destination_root;

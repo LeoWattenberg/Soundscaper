@@ -16,6 +16,7 @@ import {
 	deserializeHelperError,
 	helperJobGrantExceedsResourcePolicy,
 	helperJobGrantResourceUsage,
+	helperJobSubcontractVersion,
 	normalizeHelperResourcePolicy,
 	validateHelperJobGrant,
 	validateHelperJobResult,
@@ -26,44 +27,27 @@ import {
 	admitHelperDataPlaneTransfers,
 	type HelperDataPlaneTransfer, type HelperDataPlaneTransferPort,
 } from './helper-data-plane-transfer.ts';
+import {
+	HelperCrashLedger,
+	HelperSupervisionError,
+	type HelperSupervisorSnapshot,
+	type HelperSupervisorState,
+} from './helper-supervision-state.ts';
+import { HelperAdmissionGate } from './helper-admission-gate.ts';
+
+export { HelperSupervisionError } from './helper-supervision-state.ts';
+export type {
+	HelperFailureCause,
+	HelperSupervisorSnapshot,
+	HelperSupervisorState,
+} from './helper-supervision-state.ts';
+export { HELPER_SUPERVISOR_MAXIMUM_GATE_HOLDERS } from './helper-admission-gate.ts';
+
 export interface HelperChannel {
 	postMessage(message: HelperHostMessage, transfer?: readonly HelperDataPlaneTransferPort[]): void;
 	onMessage(listener: (message: unknown) => void): void;
 	onExit(listener: (code: number | null) => void): void;
 	kill(): void;
-}
-export type HelperFailureCause =
-	| 'binary-mismatch'
-	| 'handshake'
-	| 'invalid-request'
-	| 'unsupported-kind'
-	| 'heartbeat'
-	| 'malformed-message'
-	| 'job-mismatch'
-	| 'helper-error'
-	| 'helper-exit'
-	| 'cancelled'
-	| 'cancellation-timeout'
-	| 'resource-violation'
-	| 'quarantined'
-	| 'disposed';
-
-export class HelperSupervisionError extends Error {
-	readonly cause_: HelperFailureCause;
-
-	constructor(cause: HelperFailureCause, message: string) {
-		super(message);
-		this.name = 'HelperSupervisionError';
-		this.cause_ = cause;
-	}
-}
-
-export type HelperSupervisorState = 'idle' | 'starting' | 'ready' | 'busy' | 'quarantined' | 'disposed';
-
-export interface HelperSupervisorSnapshot {
-	readonly state: HelperSupervisorState;
-	readonly recentCrashes: number;
-	readonly quarantined: boolean;
 }
 
 export interface HelperJobRequest<Kind extends HelperJobKind = 'probe-video-source'> {
@@ -114,23 +98,18 @@ export class HelperSupervisor {
 	readonly #options: Required<Pick<HelperSupervisorOptions, 'spawn' | 'verifyBinary' | 'mintJobId'>>;
 	readonly #crashDetectionMs: number;
 	readonly #cancellationBudgetMs: number;
-	readonly #quarantineCrashLimit: number;
-	readonly #quarantineWindowMs: number;
 	readonly #sampleRss: (() => number | null) | null;
-	readonly #now: () => number;
 	readonly #setTimeout: typeof setTimeout;
 	readonly #clearTimeout: typeof clearTimeout;
+	readonly #crashes: HelperCrashLedger;
 	#channel: HelperChannel | null = null;
 	#channelReady = false;
 	#supportedKinds = new Set<HelperJobKind>();
 	#watchdog: ReturnType<typeof setTimeout> | null = null;
 	#job: ActiveJob | null = null;
 	#jobAdmissionPending = false;
-	#gate: Promise<void> = Promise.resolve();
-	#gateHolders = 0;
+	readonly #gate = new HelperAdmissionGate();
 	#pendingHandshake: { resolve: () => void; reject: (error: Error) => void } | null = null;
-	#crashTimestamps: number[] = [];
-	#quarantined = false;
 	#disposed = false;
 
 	constructor(options: HelperSupervisorOptions) {
@@ -141,26 +120,27 @@ export class HelperSupervisor {
 		};
 		this.#crashDetectionMs = options.crashDetectionMs ?? HELPER_CRASH_DETECTION_MS;
 		this.#cancellationBudgetMs = options.cancellationBudgetMs ?? HELPER_CANCELLATION_BUDGET_MS;
-		this.#quarantineCrashLimit = options.quarantineCrashLimit ?? 3;
-		this.#quarantineWindowMs = options.quarantineWindowMs ?? 60_000;
 		this.#sampleRss = options.sampleRss ?? null;
-		this.#now = options.now ?? (() => Date.now());
 		this.#setTimeout = options.setTimeoutImpl ?? setTimeout;
 		this.#clearTimeout = options.clearTimeoutImpl ?? clearTimeout;
+		this.#crashes = new HelperCrashLedger({
+			crashLimit: options.quarantineCrashLimit ?? 3,
+			windowMs: options.quarantineWindowMs ?? 60_000,
+			now: options.now ?? (() => Date.now()),
+		});
 	}
 
 	snapshot(): HelperSupervisorSnapshot {
 		return Object.freeze({
 			state: this.#state(),
-			recentCrashes: this.#recentCrashes().length,
-			quarantined: this.#quarantined,
+			recentCrashes: this.#crashes.recentCount,
+			quarantined: this.#crashes.quarantined,
 		});
 	}
 
 	/** Explicit user action is the only path out of quarantine mid-session. */
 	clearQuarantine(): void {
-		this.#crashTimestamps = [];
-		this.#quarantined = false;
+		this.#crashes.clear();
 	}
 	async start(): Promise<void> { await this.#ensureChannel(); }
 	/**
@@ -172,7 +152,7 @@ export class HelperSupervisor {
 	 */
 	async runJob<Kind extends HelperJobKind>(request: HelperJobRequest<Kind>): Promise<unknown> {
 		this.#assertNotDisposed();
-		if (this.#quarantined) {
+		if (this.#crashes.quarantined) {
 			throw new HelperSupervisionError('quarantined', 'The helper is quarantined after repeated crashes.');
 		}
 		request.signal?.throwIfAborted();
@@ -195,16 +175,11 @@ export class HelperSupervisor {
 			throw new HelperSupervisionError('resource-violation',
 				'The helper job exceeds its exact input, output, scratch, or data-plane resource policy.');
 		}
-		const contended = this.#gateHolders > 0;
-		this.#gateHolders += 1;
-		const turn = this.#gate;
-		let release: () => void = () => undefined;
-		this.#gate = new Promise<void>((resolve) => { release = resolve; });
+		const admission = this.#gate.acquire(request.signal);
+		const release = typeof admission === 'function' ? admission : await admission;
 		try {
-			if (contended) await turn;
 			return await this.#admitJob(request, admittedGrant, resourcePolicy, dataPlanePorts);
 		} finally {
-			this.#gateHolders -= 1;
 			release();
 		}
 	}
@@ -217,7 +192,7 @@ export class HelperSupervisor {
 		dataPlanePorts: readonly HelperDataPlaneTransferPort[],
 	): Promise<unknown> {
 		this.#assertNotDisposed();
-		if (this.#quarantined) {
+		if (this.#crashes.quarantined) {
 			throw new HelperSupervisionError('quarantined', 'The helper is quarantined after repeated crashes.');
 		}
 		request.signal?.throwIfAborted();
@@ -242,6 +217,7 @@ export class HelperSupervisor {
 					type: 'job',
 					jobId,
 					kind: request.kind,
+					jobContractVersion: helperJobSubcontractVersion(request.kind),
 					grant: admittedGrant,
 					resourcePolicy,
 				});
@@ -299,6 +275,7 @@ export class HelperSupervisor {
 		if (this.#disposed) return;
 		this.#disposed = true;
 		const disposed = new HelperSupervisionError('disposed', 'The helper supervisor is disposed.');
+		this.#gate.dispose();
 		const job = this.#job;
 		if (job) this.#settleJob(job, disposed);
 		const handshake = this.#pendingHandshake;
@@ -309,7 +286,7 @@ export class HelperSupervisor {
 
 	#state(): HelperSupervisorState {
 		if (this.#disposed) return 'disposed';
-		if (this.#quarantined) return 'quarantined';
+		if (this.#crashes.quarantined) return 'quarantined';
 		if (this.#job) return 'busy';
 		if (this.#channelReady) return 'ready';
 		if (this.#channel) return 'starting';
@@ -506,13 +483,7 @@ export class HelperSupervisor {
 	}
 
 	#recordCrash(): void {
-		this.#crashTimestamps = [...this.#recentCrashes(), this.#now()];
-		if (this.#crashTimestamps.length >= this.#quarantineCrashLimit) this.#quarantined = true;
-	}
-
-	#recentCrashes(): number[] {
-		const cutoff = this.#now() - this.#quarantineWindowMs;
-		return this.#crashTimestamps.filter((timestamp) => timestamp > cutoff);
+		this.#crashes.record();
 	}
 
 	#failJob(

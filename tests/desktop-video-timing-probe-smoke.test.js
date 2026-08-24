@@ -23,8 +23,8 @@ import {
 	FRAMESCAPER_V20_PROJECT_STORAGE_PROFILE,
 } from '../src/framescaper/editor-project-storage-profile-v20.ts';
 import {
-	SOUNDSCAPER_V23_PROJECT_STORAGE_PROFILE,
-} from '../src/soundscaper/editor-project-storage-profile-v23.ts';
+	SOUNDSCAPER_V29_PROJECT_STORAGE_PROFILE,
+} from '../src/soundscaper/editor-project-storage-profile-v29.ts';
 import {
 	editorProjectStorageProfileNames,
 } from '../src/common/editor/storage/project-storage-profile.ts';
@@ -44,7 +44,7 @@ test('packaged timing probe keeps startup margin outside its renderer deadlines'
 // makes the next revision flip fail here, in seconds, instead of in the nightly
 // packaged run.
 test('packaged timing-probe storage profiles are the ones each product mounts', () => {
-	const soundscaper = editorProjectStorageProfileNames(SOUNDSCAPER_V23_PROJECT_STORAGE_PROFILE);
+	const soundscaper = editorProjectStorageProfileNames(SOUNDSCAPER_V29_PROJECT_STORAGE_PROFILE);
 	const framescaper = editorProjectStorageProfileNames(FRAMESCAPER_V20_PROJECT_STORAGE_PROFILE);
 	assert.deepEqual(createDesktopVideoTimingProbeStorageProfile('soundscaper'), {
 		productId: 'soundscaper',
@@ -175,7 +175,7 @@ test('timing probe identifies a revision jump before the first import publicatio
 		state: 'success',
 		getAttribute(name) { return name === 'data-state' ? this.state : null; },
 		get textContent() { return this.state === 'error'
-			? 'The desktop V10 publication is stale against its private revision witness.'
+			? 'The desktop V11 publication is stale against its private revision witness.'
 			: 'Ready'; },
 	};
 	const importButton = {
@@ -209,7 +209,10 @@ test('timing probe identifies a revision jump before the first import publicatio
 		},
 		indexedDB: { open: () => successfulRequest(database) },
 		setTimeout: (resolve) => { resolve(); },
-		soundscaperProjectLibraryDesktop: { v10: { listProjects: async () => catalog } },
+		soundscaperProjectLibraryDesktop: {
+			v10: { listProjects: async () => { throw new Error('Historical V10 bridge was consulted'); } },
+			v11: { listProjects: async () => catalog },
+		},
 	};
 
 	await assert.rejects(

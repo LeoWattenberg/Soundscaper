@@ -13,6 +13,7 @@ import {
 	HelperContractViolationError,
 	deserializeHelperError,
 	helperJobGrantInputBytes,
+	helperJobTransferredPortCount,
 	normalizeHelperResourcePolicy,
 	serializeHelperError,
 	validateHelperHostMessage,
@@ -31,6 +32,7 @@ const VALID_JOB = Object.freeze({
 	type: 'job',
 	jobId: JOB_ID,
 	kind: 'probe-video-source',
+	jobContractVersion: 1,
 	grant: { mediaPath: '/media/example.mp4', mediaBytes: 1024, identity: { dev: 3, ino: 42 } },
 	resourcePolicy: {
 		maximumInputBytes: 1024 ** 3,
@@ -67,6 +69,7 @@ const VALID_FUTURE_JOBS = Object.freeze([
 			binaryBytes: 4_096,
 			binarySha256: 'a'.repeat(64),
 			format: 'vst3',
+			stableId: 'com.example.reverb',
 			identity: { dev: 3, ino: 44 },
 		},
 	},
@@ -106,6 +109,7 @@ test('helper contract v1 negotiates closed job families and kind-correlated main
 	assert.deepEqual(HELPER_JOB_KINDS, [
 		'probe-video-source', 'audio-device', 'plugin-scan', 'plugin-host',
 		'media-decode', 'media-encode', 'media-render', 'media-proxy', 'ofx-scan', 'ofx-host',
+		'assistance-speech',
 	]);
 	assert.deepEqual(HELPER_PROBE_JOB_KINDS, ['probe-video-source']);
 	const hello = validateHelperProcessMessage({
@@ -119,6 +123,11 @@ test('helper contract v1 negotiates closed job families and kind-correlated main
 	assert.equal(helperJobGrantInputBytes('audio-device', VALID_FUTURE_JOBS[0].grant), 0);
 	assert.equal(helperJobGrantInputBytes('plugin-scan', VALID_FUTURE_JOBS[1].grant), 0);
 	assert.equal(helperJobGrantInputBytes('plugin-host', VALID_FUTURE_JOBS[2].grant), 4_096);
+	assert.throws(() => validateHelperHostMessage({ ...VALID_JOB, jobContractVersion: 2 }),
+		(error: unknown) => error instanceof HelperContractViolationError && error.code === 'unsupported-version');
+	const withoutSubcontract = { ...VALID_JOB } as Record<string, unknown>;
+	delete withoutSubcontract.jobContractVersion;
+	assert.throws(() => validateHelperHostMessage(withoutSubcontract), HelperContractViolationError);
 	assert.throws(() => helperJobGrantInputBytes('audio-device', VALID_JOB.grant), HelperContractViolationError);
 	assert.throws(() => helperJobGrantInputBytes(
 		'unknown-kind' as 'audio-device', VALID_FUTURE_JOBS[0].grant,
@@ -133,6 +142,7 @@ test('helper contract v1 negotiates closed job families and kind-correlated main
 		{ ...VALID_FUTURE_JOBS[1], grant: { ...VALID_FUTURE_JOBS[1].grant, rootPath: `/${'é'.repeat(2_048)}` } },
 		{ ...VALID_FUTURE_JOBS[1], grant: { ...VALID_FUTURE_JOBS[1].grant, format: 'dll' } },
 		{ ...VALID_FUTURE_JOBS[2], grant: { ...VALID_FUTURE_JOBS[2].grant, binarySha256: 'A'.repeat(64) } },
+		{ ...VALID_FUTURE_JOBS[2], grant: { ...VALID_FUTURE_JOBS[2].grant, stableId: '' } },
 		{ ...VALID_FUTURE_JOBS[2], grant: { ...VALID_FUTURE_JOBS[2].grant, binaryPath: `/${'e'.repeat(4_097)}` } },
 	]) {
 		assert.throws(() => validateHelperHostMessage(value), (error: unknown) => (
@@ -144,6 +154,36 @@ test('helper contract v1 negotiates closed job families and kind-correlated main
 		type: 'hello',
 		kinds: ['plugin-host', 'plugin-host'],
 	}), HelperContractViolationError);
+});
+
+test('persistent audio and plug-in ports are exact purpose-bound subcontracts', () => {
+	const persistentPort = {
+		portContractVersion: 1,
+		transport: 'message-port',
+		purpose: 'audio-realtime',
+		streamId: 'cd'.repeat(20),
+		generation: 1,
+		maximumMessageBytes: 128 * 1024,
+		maximumInFlightMessages: 8,
+	};
+	const audio = validateHelperHostMessage({
+		...VALID_FUTURE_JOBS[0],
+		grant: { ...VALID_FUTURE_JOBS[0].grant, persistentPort },
+	});
+	assert.equal(audio.type, 'job');
+	assert.equal(audio.type === 'job' ? helperJobTransferredPortCount(audio.kind, audio.grant) : 0, 1);
+	assert.throws(() => validateHelperHostMessage({
+		...VALID_FUTURE_JOBS[0],
+		grant: { ...VALID_FUTURE_JOBS[0].grant, persistentPort: { ...persistentPort, purpose: 'plugin-rpc' } },
+	}), (error: unknown) => error instanceof HelperContractViolationError && error.code === 'unsafe-grant');
+	const hosted = validateHelperHostMessage({
+		...VALID_FUTURE_JOBS[2],
+		grant: {
+			...VALID_FUTURE_JOBS[2].grant,
+			persistentPort: { ...persistentPort, purpose: 'plugin-rpc' },
+		},
+	});
+	assert.equal(hosted.type === 'job' ? helperJobTransferredPortCount(hosted.kind, hosted.grant) : 0, 1);
 });
 
 test('helper contract v1 rejects every well-formed message in the wrong direction', () => {

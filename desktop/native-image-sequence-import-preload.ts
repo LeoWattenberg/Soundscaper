@@ -32,6 +32,12 @@ export interface FramescaperNativeImageSequenceImportPreloadOptions {
 
 export interface FramescaperNativeImageSequenceImportRendererBridge {
 	imageSequenceImport(request: unknown): Promise<unknown>;
+	readImageSequenceImportBody(request: Readonly<{
+		transactionId: string;
+		asset: 'pack' | 'inventory';
+		offset: number;
+		length: number;
+	}>): Promise<Uint8Array>;
 	writeImageSequenceImportChunk(request: Readonly<{
 		transactionId: string;
 		asset: 'pack' | 'inventory';
@@ -48,6 +54,19 @@ export function createFramescaperNativeImageSequenceImportPreloadTransport(
 			FRAMESCAPER_NATIVE_IMAGE_SEQUENCE_IMPORT_CHANNELS.control,
 			structuredClone(request),
 		),
+		async readImageSequenceImportBody(request: Readonly<{
+			transactionId: string; asset: 'pack' | 'inventory'; offset: number; length: number;
+		}>) {
+			const value = readRequest(request);
+			const result = await options.invoke(
+				FRAMESCAPER_NATIVE_IMAGE_SEQUENCE_IMPORT_CHANNELS.control,
+				{ operation: 'read', ...value },
+			);
+			if (!(result instanceof Uint8Array) || result.byteLength !== value.length) {
+				throw new Error('Main returned an inexact image-sequence body range.');
+			}
+			return result.slice();
+		},
 		async writeImageSequenceImportChunk(value: Readonly<{
 			transactionId: string; asset: 'pack' | 'inventory'; offset: number; bytes: Uint8Array;
 		}>) {
@@ -93,6 +112,29 @@ export function createFramescaperNativeImageSequenceImportPreloadTransport(
 				});
 			} finally { port.close(); }
 		},
+	});
+}
+
+function readRequest(value: unknown): Readonly<{
+	transactionId: string; asset: 'pack' | 'inventory'; offset: number; length: number;
+}> {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('An image-sequence body read must be a record.');
+	}
+	const record = value as Record<string, unknown>;
+	const keys = Reflect.ownKeys(record);
+	if (keys.length !== 4 || keys.some((key) => typeof key !== 'string'
+		|| !['transactionId', 'asset', 'offset', 'length'].includes(key))
+		|| typeof record.transactionId !== 'string' || !/^[a-f0-9]{40}$/u.test(record.transactionId)
+		|| (record.asset !== 'pack' && record.asset !== 'inventory')
+		|| !Number.isSafeInteger(record.offset) || Number(record.offset) < 0
+		|| !Number.isSafeInteger(record.length) || Number(record.length) < 1
+		|| Number(record.length) > HELPER_DATA_CHUNK_MAXIMUM_BYTES) {
+		throw new TypeError('An image-sequence body read has an invalid bounded identity.');
+	}
+	return Object.freeze({
+		transactionId: record.transactionId, asset: record.asset,
+		offset: Number(record.offset), length: Number(record.length),
 	});
 }
 

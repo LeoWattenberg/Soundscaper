@@ -287,8 +287,11 @@ export function assertUnifiedExactVisualReferences(
 				identities, state.source.generator.bindingId,
 				EXTERNAL_GENERATOR_BINDING_KINDS, 'external generator binding',
 			);
-			if (binding.kind === 'openfx-instance' && binding.role !== 'generator') {
-				throw new ReferenceError('Unified external generator binding must target a generator-context OpenFX instance.');
+			if (binding.kind === 'openfx-instance'
+				&& binding.role !== 'generator' && binding.role !== 'general') {
+				throw new ReferenceError(
+					'Unified external generator binding must target a Generator or General OpenFX instance.',
+				);
 			}
 			for (const input of state.source.generator.inputs) {
 				requireUnifiedExactRenderIdentity(

@@ -39,12 +39,14 @@ struct V12HostInvocation final {
 	int plugin_index{};
 	std::string invocation_id;
 	std::string plan_sha256;
+	int plan_version{};
 	std::string node_id;
 	std::string instance_id;
 	std::string plugin_id;
 	std::string state_sha256;
 	Context context{};
 	Backend requested_backend{};
+	std::vector<Backend> qualified_backends;
 	std::string abort_signal_id;
 	std::vector<HydratedParameterState> parameters;
 	std::vector<V12NamedInputFrame> inputs;

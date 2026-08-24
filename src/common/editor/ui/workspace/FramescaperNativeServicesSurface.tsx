@@ -4,6 +4,16 @@
 
 import React, { useEffect, useSyncExternalStore } from 'react';
 import { createRoot } from 'react-dom/client';
+import {
+	NATIVE_MEDIA_CAPABILITY_IDS,
+	isNativeMediaCapabilityUsable,
+	nativeMediaCapabilityEntry,
+} from '../../native-media-capability-snapshot.ts';
+import {
+	FRAMESCAPER_SELECTED_V28_WATCH_BIN_ID,
+	framescaperSelectedV28WatchTargetAvailable,
+	type FramescaperSelectedV28WatchContextAuthority,
+} from '../../native-watch-target.ts';
 
 import {
 	DEFAULT_FRAMESCAPER_NATIVE_SERVICE_PREFERENCES,
@@ -22,6 +32,9 @@ import {
 import type {
 	FramescaperNativeServicesDialogContext,
 } from '../dialogs/FramescaperNativeServicesDialog.tsx';
+import type {
+	FramescaperNativeOpenFxAuthoringRuntimeV28,
+} from '../../../../framescaper/editor-native-openfx-action-v28.ts';
 import {
 	isFramescaperNativeProjectActionRuntime,
 	type FramescaperNativeProjectActionRuntime,
@@ -79,6 +92,7 @@ export interface FramescaperNativeServicesSurfaceHostOptions {
 	readonly bridge: FramescaperNativeServicesBridge;
 	readonly copy?: Readonly<Record<string, string | undefined>>;
 	readonly projectActions?: FramescaperNativeProjectActionRuntime | null;
+	readonly openFxAuthoring?: FramescaperNativeOpenFxAuthoringRuntimeV28 | null;
 	readonly documentValue?: Document | null;
 	readonly createHostRoot?: (container: HTMLElement) => FramescaperNativeServicesHostRoot;
 }
@@ -107,6 +121,7 @@ export function createFramescaperNativeServicesSurfaceHost(
 					copy={options.copy}
 					context={context}
 					projectActions={options.projectActions}
+					openFxAuthoring={options.openFxAuthoring}
 					onClose={close}
 				/>
 			</React.Suspense>);
@@ -154,7 +169,10 @@ export function resolveFramescaperNativeServicesWorkspaceRuntime(input: Readonly
 	copy?: Readonly<Record<string, string | undefined>>;
 	project?: unknown;
 	projectCapabilities?: Readonly<Record<string, unknown>>;
+	editingBlocked?: boolean;
+	readOnly?: boolean;
 	projectActions?: FramescaperNativeProjectActionRuntime | null;
+	openFxAuthoring?: FramescaperNativeOpenFxAuthoringRuntimeV28 | null;
 }>): Readonly<FramescaperNativeServicesWorkspaceRuntime> | null {
 	const schemaVersion = projectSchemaVersion(input.project);
 	const projectActions = isFramescaperNativeProjectActionRuntime(input.projectActions)
@@ -167,7 +185,18 @@ export function resolveFramescaperNativeServicesWorkspaceRuntime(input: Readonly
 	store.refreshIfStale();
 	const snapshot = store.getSnapshot() ?? PENDING_FRAMESCAPER_NATIVE_SERVICES_SNAPSHOT;
 	const lifecycleMethods = availableFramescaperNativeServicesLifecycleMethods(bridge);
-	const context = framescaperNativeServicesDialogContextForProject(input.project);
+	const proxyEntry = snapshot.capabilitySnapshot === null ? null : nativeMediaCapabilityEntry(
+		snapshot.capabilitySnapshot,
+		NATIVE_MEDIA_CAPABILITY_IDS.proxyCodec.domain,
+		NATIVE_MEDIA_CAPABILITY_IDS.proxyCodec.id,
+	);
+	const context = framescaperNativeServicesDialogContextForProject(input.project, {
+		writable: input.editingBlocked !== true && input.readOnly !== true,
+		videoImportAvailable: input.projectCapabilities?.videoImport === true,
+		proxyGenerationAvailable: input.projectCapabilities?.sourceCharacteristics === true
+			&& projectActions?.surfaces.includes('proxy-generate') === true
+			&& isNativeMediaCapabilityUsable(proxyEntry),
+	});
 	return Object.freeze({
 		services: snapshot.services,
 		capabilitySnapshot: snapshot.capabilitySnapshot,
@@ -180,6 +209,7 @@ export function resolveFramescaperNativeServicesWorkspaceRuntime(input: Readonly
 			if (!host) {
 				host = createFramescaperNativeServicesSurfaceHost({
 					bridge, copy: input.copy, projectActions,
+					openFxAuthoring: input.openFxAuthoring,
 				});
 				HOSTS.set(bridge, host);
 			}
@@ -205,17 +235,21 @@ export function wrapFramescaperNativeServicesMenuRuntime(
 
 export function framescaperNativeServicesDialogContextForProject(
 	project: unknown,
+	authority: FramescaperSelectedV28WatchContextAuthority = Object.freeze({
+		writable: false, videoImportAvailable: false, proxyGenerationAvailable: false,
+	}),
 ): FramescaperNativeServicesDialogContext {
 	const row = project !== null && typeof project === 'object' && !Array.isArray(project)
 		? project as Readonly<Record<string, unknown>> : null;
 	const idValue = ownData(row, 'id');
 	const projectId = typeof idValue === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(idValue)
 		? idValue : null;
+	const targetAvailable = projectId !== null
+		&& framescaperSelectedV28WatchTargetAvailable(project, authority);
 	return Object.freeze({
 		projectId,
-		binId: null,
-		// The selected watch-import client does not yet compose V25 proxy jobs.
-		allowProxyGeneration: false,
+		binId: targetAvailable ? FRAMESCAPER_SELECTED_V28_WATCH_BIN_ID : null,
+		allowProxyGeneration: targetAvailable && authority.proxyGenerationAvailable,
 	});
 }
 

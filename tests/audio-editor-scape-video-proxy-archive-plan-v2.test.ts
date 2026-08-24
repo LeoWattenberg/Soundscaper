@@ -199,6 +199,9 @@ test('has only closed reviewed consumers and cannot change the V17 archive owner
 		if ((await readSource(file)).includes(MODULE_STEM)) references.push(file);
 	}
 	assert.deepEqual(references, [
+		// The packaged M5 runtime inventory carries the inherited V2 archive
+		// planner needed by selected V28 project-library publication.
+		'scripts/lib/desktop-5b-transitive-runtime-files.mjs',
 		'src/framescaper/desktop-project-library-v10-renderer-contract.ts',
 		// V25 extends the existing proxy archive relationship instead of creating a
 		// parallel custody format.

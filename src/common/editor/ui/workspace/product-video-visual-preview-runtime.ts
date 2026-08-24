@@ -36,6 +36,13 @@ export interface ProductVideoVisualPreviewSession {
 		readonly frame: ProductVideoVisualPreviewFrame;
 		readonly layers: readonly Readonly<Record<string, unknown>>[];
 		readonly renderedEffectIds: readonly string[];
+		readonly openFxDispositions?: readonly Readonly<{
+			readonly instanceId: string;
+			readonly outputOrdinal: number;
+			readonly mode: 'render' | 'frozen' | 'bypass';
+			readonly reportsDegradation: boolean;
+		}>[];
+		readonly reportsOpenFxDegradation?: boolean;
 	}>>;
 	dispose(): void;
 }

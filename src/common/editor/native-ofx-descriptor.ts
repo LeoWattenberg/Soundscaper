@@ -64,6 +64,12 @@ export const OFX_THREADING_DECLARATIONS = Object.freeze([
 
 export type OfxThreadingDeclaration = (typeof OFX_THREADING_DECLARATIONS)[number];
 
+export const OFX_DESCRIPTOR_RENDER_BACKENDS = Object.freeze([
+	'cpu', 'opengl', 'opencl', 'cuda', 'metal',
+] as const);
+
+export type OfxDescriptorRenderBackend = (typeof OFX_DESCRIPTOR_RENDER_BACKENDS)[number];
+
 /**
  * The OpenFX 1.5.1 host surface. Every suite here is implemented; a plug-in
  * that asks for one outside this list gets a refusal rather than a stub, since
@@ -82,6 +88,8 @@ export const OFX_HOST_SUITES: readonly string[] = Object.freeze([
 	'OfxInteractSuite',
 	'OfxDrawSuite',
 	'OfxParametricParameterSuite',
+	'OfxImageEffectOpenGLRenderSuite',
+	'OfxOpenCLProgramSuite',
 ]);
 
 /** Suites a conforming plug-in may always assume are present. */
@@ -114,6 +122,7 @@ export interface OfxPluginDescriptorV1 {
 	readonly components: readonly OfxComponent[];
 	readonly pixelDepths: readonly OfxPixelDepth[];
 	readonly threading: OfxThreadingDeclaration;
+	readonly renderBackends: readonly OfxDescriptorRenderBackend[];
 	readonly requestedSuites: readonly string[];
 }
 
@@ -135,7 +144,7 @@ const ARCHITECTURE_DIRECTORIES: ReadonlySet<string> = new Set(
 const DESCRIPTOR_KEYS = Object.freeze([
 	'pluginId', 'vendor', 'version', 'bundleIdentity', 'binarySha256',
 	'architectureDirectory', 'supportedContexts', 'parameters', 'components',
-	'pixelDepths', 'threading', 'requestedSuites',
+	'pixelDepths', 'threading', 'renderBackends', 'requestedSuites',
 ]);
 
 const { digest, exactKeys, pattern, plainRecord: record } = createNativeValidators({
@@ -164,6 +173,10 @@ export function assertOfxPluginDescriptorV1(
 	if (typeof descriptor.threading !== 'string'
 		|| !(OFX_THREADING_DECLARATIONS as readonly string[]).includes(descriptor.threading)) {
 		throw new OfxDescriptorError('An OFX descriptor must declare a known threading safety level.');
+	}
+	uniqueMembers(descriptor.renderBackends, OFX_DESCRIPTOR_RENDER_BACKENDS, 'renderBackends', true);
+	if (!(descriptor.renderBackends as readonly unknown[]).includes('cpu')) {
+		throw new OfxDescriptorError('An OFX descriptor must retain mandatory CPU rendering.');
 	}
 	parameters(descriptor.parameters);
 	requestedSuites(descriptor.requestedSuites);

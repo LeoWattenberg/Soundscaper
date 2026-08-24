@@ -56,6 +56,9 @@ export const NATIVE_MEDIA_IMAGE_SEQUENCE_DECODE_POLICY_ROW_IDS: readonly string[
 	'codec-decode-openexr-image-sequence',
 ]);
 
+/** Selected sequence decode/export currently crosses one authenticated RGBA8 carrier. */
+export const NATIVE_MEDIA_IMAGE_SEQUENCE_MAXIMUM_PRESERVED_BIT_DEPTH = 8;
+
 const ALL_CHROMA = VIDEO_SOURCE_V25_CHROMA_FORMATS;
 const UPTO_422: readonly string[] = Object.freeze(['4:0:0', '4:2:0', '4:2:2']);
 const UPTO_420: readonly string[] = Object.freeze(['4:0:0', '4:2:0']);
@@ -72,13 +75,25 @@ export const NATIVE_MEDIA_PROFESSIONAL_PROFILES: readonly NativeMediaProfileV1[]
 	decode('decode-av1', 'av1', 'any', rows(...AV1_DECODE), 12, ALL_CHROMA, true, true),
 	decode('decode-prores', 'prores', 'mov', rows('codec-decode-prores-mov'), 12, ALL_CHROMA, true, false),
 	decode('decode-dnxhr', 'dnxhr', 'mxf', rows('codec-decode-dnxhr-mxf'), 12, ALL_CHROMA, false, false),
-	sequenceDecode('decode-png-sequence', 'png', rows('codec-decode-png-image-sequence'), 16),
-	sequenceDecode('decode-tiff-sequence', 'tiff', rows('codec-decode-tiff-image-sequence'), 16),
-	sequenceDecode('decode-openexr-sequence', 'exr', rows('codec-decode-openexr-image-sequence'), 32),
+	sequenceDecode('decode-png-sequence', 'png', rows('codec-decode-png-image-sequence')),
+	sequenceDecode('decode-tiff-sequence', 'tiff', rows('codec-decode-tiff-image-sequence')),
+	sequenceDecode('decode-openexr-sequence', 'exr', rows('codec-decode-openexr-image-sequence')),
 	encode({
 		id: 'encode-mp4-h264', codec: 'libx264', container: 'mp4',
 		policyRowIds: rows('codec-encode-h264-mp4'),
 		maximumBitDepth: 8, chromaFormats: UPTO_420, longGop: true,
+	}),
+	encode({
+		id: 'encode-hevc-main10-hdr10', codec: 'libx265', container: 'mp4',
+		policyRowIds: rows('codec-encode-hevc-mp4-main10-hdr10'),
+		maximumBitDepth: 10, chromaFormats: UPTO_420,
+		preservesHdrMetadata: true, longGop: true,
+	}),
+	encode({
+		id: 'encode-hevc-main10-sdr', codec: 'libx265', container: 'mp4',
+		policyRowIds: rows('codec-encode-hevc-mp4-main10-sdr'),
+		maximumBitDepth: 10, chromaFormats: UPTO_420,
+		preservesHdrMetadata: false, longGop: true,
 	}),
 	encode({
 		id: 'encode-webm-vp9', codec: 'libvpx-vp9', container: 'webm',
@@ -111,9 +126,9 @@ export const NATIVE_MEDIA_PROFESSIONAL_PROFILES: readonly NativeMediaProfileV1[]
 		maximumBitDepth: 16, chromaFormats: ALL_CHROMA, supportsAlpha: true,
 		preservesHdrMetadata: true, lossless: true,
 	}),
-	sequenceEncode('encode-png-sequence', 'png', rows('codec-encode-png-image-sequence'), 16),
-	sequenceEncode('encode-tiff-sequence', 'tiff', rows('codec-encode-tiff-image-sequence'), 16),
-	sequenceEncode('encode-openexr-sequence', 'exr', rows('codec-encode-openexr-image-sequence'), 32),
+	sequenceEncode('encode-png-sequence', 'png', rows('codec-encode-png-image-sequence')),
+	sequenceEncode('encode-tiff-sequence', 'tiff', rows('codec-encode-tiff-image-sequence')),
+	sequenceEncode('encode-openexr-sequence', 'exr', rows('codec-encode-openexr-image-sequence')),
 ]);
 
 function rows(...exactRowIds: readonly string[]): readonly string[] {
@@ -318,10 +333,13 @@ function sequenceDecode(
 	id: string,
 	codec: string,
 	policyRowIds: readonly string[],
-	maximumBitDepth: number,
 ): NativeMediaProfileV1 {
 	return Object.freeze({
-		...decode(id, codec, 'image-sequence', policyRowIds, maximumBitDepth, ALL_CHROMA, true, false),
+		...decode(
+			id, codec, 'image-sequence', policyRowIds,
+			NATIVE_MEDIA_IMAGE_SEQUENCE_MAXIMUM_PRESERVED_BIT_DEPTH, ALL_CHROMA, false, false,
+		),
+		preservesHdrMetadata: false,
 		imageSequence: true,
 	});
 }
@@ -359,14 +377,13 @@ function sequenceEncode(
 	id: string,
 	codec: string,
 	policyRowIds: readonly string[],
-	maximumBitDepth: number,
 ): NativeMediaProfileV1 {
 	return encode({
 		id,
 		codec,
 		container: 'image-sequence',
 		policyRowIds,
-		maximumBitDepth,
+		maximumBitDepth: NATIVE_MEDIA_IMAGE_SEQUENCE_MAXIMUM_PRESERVED_BIT_DEPTH,
 		chromaFormats: ALL_CHROMA,
 		supportsAlpha: true,
 		lossless: true,

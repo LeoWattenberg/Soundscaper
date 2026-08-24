@@ -28,7 +28,7 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 		let releaseEditorChunk;
 		let editorChunkIntercepted = false;
 		const editorChunkGate = new Promise((resolve) => { releaseEditorChunk = resolve; });
-		await page.route(/\/assets\/SoundscaperAudioEditorBootstrapV23-[^/]+\.js$/u, async (route) => {
+		await page.route(/\/assets\/SoundscaperAudioEditorBootstrapV29-[^/]+\.js$/u, async (route) => {
 			editorChunkIntercepted = true;
 			await editorChunkGate;
 			await route.continue();
@@ -105,7 +105,7 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 		await expect(page.getByRole('menu', { name: 'Help', exact: true }).getByRole('menuitem', { name: 'About Framescaper', exact: true })).toBeVisible();
 	});
 
-	test('the File menu explains the exact V23 and selected V27 cross-product editing fence', async ({ page }) => {
+	test('the File menu explains the exact V29 and selected V28 cross-product editing fence', async ({ page }) => {
 		await page.goto('/en/');
 		const soundscaper = await readyEditor(page, 'soundscaper');
 		const soundscaperProjectId = await soundscaper.getAttribute('data-project-id');
@@ -138,9 +138,9 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 		await page.keyboard.press('Escape');
 
 		await expect.poll(() => storedProject(page, SOUNDSCAPER_DATABASE_NAME, soundscaperProjectId))
-			.toEqual({ id: soundscaperProjectId, schemaVersion: 23 });
+			.toEqual({ id: soundscaperProjectId, schemaVersion: 29 });
 		await expect.poll(() => storedProject(page, FRAMESCAPER_DATABASE_NAME, framescaperProjectId))
-			.toEqual({ id: framescaperProjectId, schemaVersion: 27 });
+			.toEqual({ id: framescaperProjectId, schemaVersion: 28 });
 		expect(await storedProject(page, SOUNDSCAPER_DATABASE_NAME, framescaperProjectId)).toBeNull();
 		expect(await storedProject(page, FRAMESCAPER_DATABASE_NAME, soundscaperProjectId)).toBeNull();
 

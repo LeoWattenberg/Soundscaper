@@ -33,8 +33,8 @@ export function nativeMediaPlanVideoTimingAssetInputs(
 ): readonly NativeMediaPlanVideoTimingAssetInput[] {
 	const plan = record(value, 'native media plan');
 	if (plan.version === 7 || plan.version === 8) return Object.freeze([]);
-	if (![9, 10, 11, 12].includes(Number(plan.version))) {
-		throw new RangeError('Only unified native media plans V9 through V12 may declare timing assets.');
+	if (![9, 10, 11, 12, 13, 14].includes(Number(plan.version))) {
+		throw new RangeError('Only unified native media plans V9 through V14 may declare timing assets.');
 	}
 	if (!Array.isArray(plan.sources) || plan.sources.length > MAXIMUM_SOURCES) {
 		throw new TypeError('A unified native media plan requires its bounded source array.');

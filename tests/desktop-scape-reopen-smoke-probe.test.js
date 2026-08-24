@@ -15,6 +15,9 @@ import {
 	validateScapeReopenSmokeResult,
 } from '../desktop/scape-reopen-smoke.js';
 import {
+	SOUNDSCAPER_DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
+} from '../desktop/soundscaper-project-library-v11-contract.ts';
+import {
 	createDesktopSmokeProbe,
 	parseDesktopSmokeConfiguration,
 } from '../desktop/desktop-smoke.js';
@@ -43,6 +46,10 @@ test('persisted-reopen plans use one closed canonical descriptor-free contract',
 	assert.equal(Object.isFrozen(decodeScapeReopenSmokePlan(encoded).project), true);
 	assert.equal(DESKTOP_SCAPE_REOPEN_SMOKE_MODE, PLAN.mode);
 	assert.equal(DESKTOP_SCAPE_REOPEN_SMOKE_PREFIX, 'SOUNDSCAPER_DESKTOP_SCAPE_REOPEN_SMOKE');
+	assert.equal(
+		SOUNDSCAPER_SCAPE_REOPEN_PROJECT_SCHEMA_VERSION,
+		SOUNDSCAPER_DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
+	);
 	assert.deepEqual(parseDesktopSmokeConfiguration(smokeArgv(encoded)), {
 		mode: PLAN.mode,
 		plan: PLAN,
@@ -413,7 +420,15 @@ function rendererFixture(plan, {
 			},
 		},
 		soundscaperProjectLibraryDesktop: {
-			v10: {
+			v10: Object.freeze({
+				async connect() {
+					throw new Error('Historical V10 bridge must stay dormant in the selected smoke');
+				},
+				async readProjectBundle() {
+					throw new Error('Historical V10 bridge must stay dormant in the selected smoke');
+				},
+			}),
+			v11: {
 				async connect() {
 					connectCalls += 1;
 				},

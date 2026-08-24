@@ -256,14 +256,16 @@ test('a provisioned FFmpeg 9.0.1 host publishes decode, proxy, render, and encod
 		const hardware = run(executable, [
 			'--operation', 'media-render',
 			...common.map(
-				(value) => value === 'native-cpu' ? 'nvenc' : value,
+				(value) => value === 'native-cpu' ? 'media-foundation' : value,
 			),
 			'--destination-root', destination, '--temporary-output', hardwareOutput,
 		]);
 		assert.equal(hardware.status, 78);
-		assert.deepEqual(JSON.parse(hardware.stdout), {
-			error: 'backend-policy-unavailable', operation: 'media-render',
-			requestedBackend: 'nvenc', fallbackBackend: 'native-cpu',
+		assert.deepEqual((({ error, operation, requestedBackend, fallbackBackend }) => ({
+			error, operation, requestedBackend, fallbackBackend,
+		}))(JSON.parse(hardware.stdout)), {
+			error: 'hardware-backend-unavailable', operation: 'media-render',
+			requestedBackend: 'media-foundation', fallbackBackend: 'native-cpu',
 		});
 		assert.equal(existsSync(hardwareOutput), false);
 	} finally {

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 #include "host_runtime.hpp"
+#include "gpu_runtime.hpp"
 #include "host_parameter_hydration.hpp"
 #include "parameter_values.hpp"
 #include <algorithm>
@@ -61,6 +62,8 @@ struct Clip {
 	std::uint64_t magic = kClipMagic;
 	PropertySet properties;
 	Image image;
+	std::string name;
+	std::optional<OfxTime> exact_image_time;
 };
 struct Effect {
 	std::uint64_t magic = kEffectMagic;
@@ -256,7 +259,7 @@ OfxStatus image_get_params(OfxImageEffectHandle h, OfxParamSetHandle* out) { aut
 OfxStatus clip_define(OfxImageEffectHandle h, const char* name, OfxPropertySetHandle* out) {
 	auto* e = effect(h); if (e == nullptr || !valid_plugin_id(name == nullptr ? "" : name)) return kOfxStatErrBadHandle;
 	if (e->clips.contains(name)) return kOfxStatErrExists;
-	auto value = std::make_unique<Clip>(); value->properties.owner = e->properties.owner; value->image.properties.owner = e->properties.owner;
+	auto value = std::make_unique<Clip>(); value->name = name; value->properties.owner = e->properties.owner; value->image.properties.owner = e->properties.owner;
 	prop_set_pointer(handle(value->image.properties), kOfxImagePropData, 0, value->image.frame.rgba.data());
 	prop_set_int(handle(value->image.properties), kOfxImagePropRowBytes, 0, 4);
 	const int bounds[]{0, 0, 1, 1}; prop_set_int_n(handle(value->image.properties), kOfxImagePropBounds, 4, bounds);
@@ -271,9 +274,9 @@ OfxStatus clip_get(OfxImageEffectHandle h, const char* name, OfxImageClipHandle*
 	*out = reinterpret_cast<OfxImageClipHandle>(found->second.get()); if (props != nullptr) *props = handle(found->second->properties); return kOfxStatOK;
 }
 OfxStatus clip_props(OfxImageClipHandle h, OfxPropertySetHandle* out) { auto* c = clip(h); if (c == nullptr || out == nullptr) return kOfxStatErrBadHandle; *out = handle(c->properties); return kOfxStatOK; }
-OfxStatus clip_image(OfxImageClipHandle h, OfxTime, const OfxRectD*, OfxPropertySetHandle* out) { auto* c = clip(h); if (c == nullptr || out == nullptr) return kOfxStatErrBadHandle; *out = handle(c->image.properties); return kOfxStatOK; }
+OfxStatus clip_image(OfxImageClipHandle h, OfxTime time, const OfxRectD*, OfxPropertySetHandle* out) { auto* c = clip(h); if (c == nullptr || out == nullptr) return kOfxStatErrBadHandle; if (!std::isfinite(time) || (c->exact_image_time.has_value() && time != *c->exact_image_time)) return kOfxStatErrValue; *out = handle(c->image.properties); return kOfxStatOK; }
 OfxStatus release_image(OfxPropertySetHandle h) { return property_set(h) == nullptr ? kOfxStatErrBadHandle : kOfxStatOK; }
-OfxStatus clip_rod(OfxImageClipHandle h, OfxTime, OfxRectD* bounds) { auto* value = clip(h); if (value == nullptr || bounds == nullptr) return kOfxStatErrBadHandle; *bounds = {0, 0, static_cast<double>(value->image.frame.layout.width), static_cast<double>(value->image.frame.layout.height)}; return kOfxStatOK; }
+OfxStatus clip_rod(OfxImageClipHandle h, OfxTime time, OfxRectD* bounds) { auto* value = clip(h); if (value == nullptr || bounds == nullptr) return kOfxStatErrBadHandle; if (!std::isfinite(time) || (value->exact_image_time.has_value() && time != *value->exact_image_time)) return kOfxStatErrValue; *bounds = {0, 0, static_cast<double>(value->image.frame.layout.width), static_cast<double>(value->image.frame.layout.height)}; return kOfxStatOK; }
 int image_abort(OfxImageEffectHandle h) { return observe_cancellation(effect(h)) ? 1 : 0; }
 std::mutex allocation_mutex;
 std::unordered_set<void*> allocations;
@@ -342,10 +345,17 @@ OfxStatus parametric_set_point(OfxParamHandle h, int c, double t, int i, double 
 OfxStatus parametric_add_point(OfxParamHandle h, int c, double t, double x, double v, bool a) { auto* p = parameter(h); return p == nullptr ? kOfxStatErrBadHandle : framescaper::openfx::parametric_add_point(p->values, c, t, x, v, a); }
 OfxStatus parametric_delete_point(OfxParamHandle h, int c, int i) { auto* p = parameter(h); return p == nullptr ? kOfxStatErrBadHandle : framescaper::openfx::parametric_delete_point(p->values, c, i); }
 OfxStatus parametric_delete_all(OfxParamHandle h, int c) { auto* p = parameter(h); return p == nullptr ? kOfxStatErrBadHandle : parametric_delete_all_points(p->values, c); }
+OfxStatus open_gl_load_texture(OfxImageClipHandle, OfxTime, const char*, const OfxRectD*, OfxPropertySetHandle*);
+OfxStatus open_gl_free_texture(OfxPropertySetHandle);
+OfxStatus open_gl_flush();
+OfxStatus opencl_compile_program(const char*, int, void*);
 struct HostState {
 	PropertySet host_properties;
 	Effect effect_record;
 	std::set<std::string> requested_suites;
+	GpuRenderSession* gpu_session{};
+	struct TextureRecord { PropertySet properties; std::uint32_t index{}; bool output{}; };
+	std::map<PropertySet*, std::unique_ptr<TextureRecord>> textures;
 	OfxPropertySuiteV1 property_suite{prop_set_pointer, prop_set_string, prop_set_double, prop_set_int, prop_set_pointer_n, prop_set_string_n, prop_set_double_n, prop_set_int_n, prop_get_pointer, prop_get_string, prop_get_double, prop_get_int, prop_get_pointer_n, prop_get_string_n, prop_get_double_n, prop_get_int_n, prop_reset, prop_dimension};
 	OfxImageEffectSuiteV1 image_suite{image_get_props, image_get_params, clip_define, clip_get, clip_props, clip_image, release_image, clip_rod, image_abort, image_memory_alloc, image_memory_free, image_memory_lock, image_memory_unlock};
 	OfxParameterSuiteV1 parameter_suite{param_define, param_get_handle, param_set_props, param_props, param_get_value, param_get_value_at, param_derivative, param_integral, param_set_value, param_set_value_at, param_num_keys, param_key_time, param_key_index, param_delete_key, param_delete_all, param_copy, param_edit_begin, param_edit_end};
@@ -360,10 +370,20 @@ struct HostState {
 	OfxDrawSuiteV1 draw_suite{draw_colour, draw_set_colour, draw_width, draw_stipple, draw_primitive, draw_text};
 	OfxDialogSuiteV1 dialog_suite{deny_vendor_dialog, redraw_pending};
 	OfxParametricParameterSuiteV1 parametric_suite{parametric_value, parametric_count, parametric_get_point, parametric_set_point, parametric_add_point, parametric_delete_point, parametric_delete_all};
+	OfxImageEffectOpenGLRenderSuiteV1 open_gl_suite{open_gl_load_texture, open_gl_free_texture, open_gl_flush};
+	OfxOpenCLProgramSuiteV1 opencl_program_suite{opencl_compile_program};
 	OfxHost host_record{};
 	HostState() {
 		host_properties.owner = this; effect_record.properties.owner = this;
 		effect_record.parameters.properties.owner = this;
+		prop_set_string(handle(host_properties), kOfxImageEffectPropCPURenderSupported, 0, "true");
+		prop_set_string(handle(host_properties), kOfxImageEffectPropOpenGLRenderSupported, 0, "true");
+		prop_set_string(handle(host_properties), kOfxImageEffectPropOpenCLRenderSupported, 0, "true");
+		prop_set_string(handle(host_properties), kOfxImageEffectPropOpenCLSupported, 0, "false");
+		prop_set_string(handle(host_properties), kOfxImageEffectPropCudaRenderSupported, 0, "true");
+		prop_set_string(handle(host_properties), kOfxImageEffectPropCudaStreamSupported, 0, "true");
+			prop_set_string(handle(host_properties), kOfxImageEffectPropMetalRenderSupported, 0, "true");
+			prop_set_int(handle(host_properties), kOfxParamHostPropSupportsCustomInteract, 0, 1);
 		host_record = {handle(host_properties), fetch_suite};
 	}
 	static const void* fetch_suite(OfxPropertySetHandle host, const char* name, int version) {
@@ -384,10 +404,12 @@ struct HostState {
 		if (std::strcmp(name, kOfxDrawSuite) == 0 && version == 1) return expose(&state.draw_suite);
 		if (std::strcmp(name, kOfxDialogSuite) == 0 && version == 1) return expose(&state.dialog_suite);
 		if (std::strcmp(name, kOfxParametricParameterSuite) == 0 && version == 1) return expose(&state.parametric_suite);
+		if (std::strcmp(name, kOfxOpenGLRenderSuite) == 0 && version == 1) return expose(&state.open_gl_suite);
+		if (std::strcmp(name, kOfxOpenCLProgramSuite) == 0 && version == 1) return expose(&state.opencl_program_suite);
 		return nullptr;
 	}
 	void reset(bool cancelled, std::function<bool()> cancellation_probe = {}) {
-		requested_suites.clear(); effect_record.cancelled = cancelled; effect_record.cancellation_probe = std::move(cancellation_probe); effect_record.time = 0;
+		requested_suites.clear(); gpu_session = nullptr; textures.clear(); effect_record.cancelled = cancelled; effect_record.cancellation_probe = std::move(cancellation_probe); effect_record.time = 0;
 		effect_record.properties.values.clear(); effect_record.parameters.properties.values.clear();
 		effect_record.parameters.parameters.clear(); effect_record.clips.clear();
 	}
@@ -417,8 +439,44 @@ struct HostState {
 		return contains_required;
 	}
 	bool rgba_byte_ready() const;
+	std::optional<std::vector<std::string>> declared_render_backends() const;
 	std::optional<PluginInspection> inspection() const;
 };
+
+OfxStatus open_gl_load_texture(OfxImageClipHandle clip_handle, OfxTime time, const char*, const OfxRectD*, OfxPropertySetHandle* output) {
+	auto* value = clip(clip_handle);
+	if (value == nullptr || output == nullptr || value->properties.owner == nullptr
+		|| !std::isfinite(time) || (value->exact_image_time.has_value() && time != *value->exact_image_time)
+		|| value->properties.owner->gpu_session == nullptr
+		|| value->properties.owner->gpu_session->backend() != Backend::opengl) return kOfxStatErrBadHandle;
+	try {
+		auto record = std::make_unique<HostState::TextureRecord>();
+		record->properties.owner = value->properties.owner; record->output = value->name == "Output";
+		record->index = value->properties.owner->gpu_session->open_gl_texture(value->image.frame, record->output);
+		prop_set_int(handle(record->properties), kOfxImageEffectPropOpenGLTextureIndex, 0, static_cast<int>(record->index));
+		prop_set_int(handle(record->properties), kOfxImageEffectPropOpenGLTextureTarget, 0, static_cast<int>(value->properties.owner->gpu_session->open_gl_target()));
+		prop_set_string(handle(record->properties), kOfxImageEffectPropPixelDepth, 0, kOfxBitDepthByte);
+		prop_set_string(handle(record->properties), kOfxImageEffectPropComponents, 0, kOfxImageComponentRGBA);
+		prop_set_int(handle(record->properties), kOfxImagePropRowBytes, 0, static_cast<int>(value->image.frame.layout.row_bytes));
+		const int bounds[]{0, 0, static_cast<int>(value->image.frame.layout.width), static_cast<int>(value->image.frame.layout.height)};
+		prop_set_int_n(handle(record->properties), kOfxImagePropBounds, 4, bounds);
+		auto* key = &record->properties; *output = handle(*key);
+		value->properties.owner->textures.emplace(key, std::move(record)); return kOfxStatOK;
+	} catch (const gpu_runtime_error&) { return kOfxStatGPURenderFailed; }
+}
+OfxStatus open_gl_free_texture(OfxPropertySetHandle texture_handle) {
+	auto* properties = property_set(texture_handle);
+	if (properties == nullptr || properties->owner == nullptr) return kOfxStatErrBadHandle;
+	const auto found = properties->owner->textures.find(properties);
+	if (found == properties->owner->textures.end() || properties->owner->gpu_session == nullptr) return kOfxStatErrBadHandle;
+	properties->owner->gpu_session->free_open_gl_texture(found->second->index, found->second->output);
+	properties->owner->textures.erase(found); return kOfxStatOK;
+}
+OfxStatus open_gl_flush() {
+	try { auto* session = active_gpu_session(); if (session == nullptr || session->backend() != Backend::opengl) return kOfxStatErrMissingHostFeature; session->flush(); return kOfxStatOK; }
+	catch (const gpu_runtime_error&) { return kOfxStatGPURenderFailed; }
+}
+OfxStatus opencl_compile_program(const char* source, int optional, void* result) { return compile_active_opencl_program(source, optional, result); }
 
 bool accepted_status(OfxStatus status);
 OfxStatus call(
@@ -487,93 +545,28 @@ const char* official_action(std::string_view action) {
 	return nullptr;
 }
 } // namespace
-class HostRuntime::Impl { public: HostState state; };
-HostRuntime::HostRuntime() : impl_(std::make_unique<Impl>()) {}
+class HostRuntime::Impl {
+public:
+	explicit Impl(std::vector<Backend> backends) : qualified_backends{std::move(backends)} {}
+	HostState state;
+	std::vector<Backend> qualified_backends;
+};
+HostRuntime::HostRuntime(std::vector<Backend> qualified_backends) {
+	if (qualified_backends.empty() || qualified_backends.front() != Backend::cpu) {
+		throw std::invalid_argument("The OpenFX qualified backend set must be canonical and include CPU.");
+	}
+	for (std::size_t index = 1; index < qualified_backends.size(); ++index) {
+		if (static_cast<std::size_t>(qualified_backends[index]) <= static_cast<std::size_t>(qualified_backends[index - 1])) throw std::invalid_argument("The OpenFX qualified backend set is not canonically ordered.");
+	}
+	impl_ = std::make_unique<Impl>(std::move(qualified_backends));
+}
 HostRuntime::~HostRuntime() = default;
 OfxHost* HostRuntime::host() { return &impl_->state.host_record; }
 std::optional<PluginInspection> HostRuntime::inspect(OfxPlugin& plugin) {
 	return inspect_plugin_contexts(impl_->state, host(), plugin);
 }
-InvocationResult HostRuntime::invoke(OfxPlugin& plugin, Context context, std::string_view action,
-	Backend backend, bool cancelled,
-	std::vector<InvocationFrame> inputs,
-	const std::vector<HydratedParameterState>& parameters,
-	std::function<bool()> cancellation_probe,
-	RgbaFrameLayout output_layout,
-	bool exact_frames,
-	OfxTime render_time,
-	std::optional<double> host_standard_parameter_value) {
-	if (!member_of(action, kActions)) throw std::invalid_argument("The OpenFX action is outside the closed host contract.");
-	if (!std::isfinite(render_time) || render_time < 0) throw std::invalid_argument("The OpenFX render time is outside its exact frame domain.");
-	if (exact_frames && backend != Backend::cpu) throw std::runtime_error("The exact V12 host has no authenticated GPU backend.");
-	InvocationResult result; result.requested_backend = kRenderBackends[static_cast<std::size_t>(backend)];
-	result.backend = "cpu"; result.retried_on_cpu = backend != Backend::cpu; result.reports_degradation = result.retried_on_cpu;
-	result.suites_dispatched = impl_->state.suites_ready();
-	if (cancelled || action == "abort") { result.cancellation_observed = true; return result; }
-	impl_->state.reset(false, std::move(cancellation_probe)); impl_->state.effect_record.time = render_time; plugin.setHost(host());
-	auto& state = impl_->state; auto* target = &state.effect_record;
-	PropertySet context_args; context_args.owner = &state; prop_set_string(handle(context_args), kOfxImageEffectPropContext, 0, official_context(context));
-	const bool loaded = accepted_status(call(plugin, kOfxActionLoad, nullptr));
-	const bool described = loaded && accepted_status(call(plugin, kOfxActionDescribe, target));
-	const bool in_context = described && state.descriptor_valid(context)
-		&& accepted_status(call(plugin, kOfxImageEffectActionDescribeInContext, target, &context_args));
-	bool frames_bound = in_context;
-	if (frames_bound) {
-		std::set<std::string> names;
-		const auto output = state.effect_record.clips.find("Output");
-		if (!valid_rgba_frame_layout(output_layout) || output == state.effect_record.clips.end()) {
-			frames_bound = false;
-		} else {
-			try { output->second->image.frame = {output_layout, std::vector<unsigned char>(output_layout.byte_length)}; }
-			catch (...) { frames_bound = false; }
-		}
-		for (auto& input : inputs) {
-			const auto found = state.effect_record.clips.find(input.name);
-			if (input.name == "Output" || !names.insert(input.name).second
-				|| found == state.effect_record.clips.end()
-				|| !valid_rgba_frame_layout(input.frame.layout)
-				|| input.frame.rgba.size() != input.frame.layout.byte_length) {
-				frames_bound = false;
-				break;
-			}
-			found->second->image.frame = std::move(input.frame);
-		}
-		if (exact_frames && state.effect_record.clips.size() != inputs.size() + 1U) frames_bound = false;
-		for (auto& clip_entry : state.effect_record.clips) {
-			auto& image = clip_entry.second->image;
-			prop_set_pointer(handle(image.properties), kOfxImagePropData, 0, image.frame.rgba.data());
-			prop_set_int(handle(image.properties), kOfxImagePropRowBytes, 0, static_cast<int>(image.frame.layout.row_bytes));
-			const int bounds[]{0, 0, static_cast<int>(image.frame.layout.width), static_cast<int>(image.frame.layout.height)};
-			prop_set_int_n(handle(image.properties), kOfxImagePropBounds, 4, bounds);
-		}
-	}
-	PropertySet render_args; render_args.owner = &state; prop_set_double(handle(render_args), kOfxPropTime, 0, render_time); const double scale[]{1, 1}; prop_set_double_n(handle(render_args), kOfxImageEffectPropRenderScale, 2, scale); const int window[]{0, 0, static_cast<int>(output_layout.width), static_cast<int>(output_layout.height)}; prop_set_int_n(handle(render_args), kOfxImageEffectPropRenderWindow, 4, window);
-	const bool parameters_bound = frames_bound && bind_host_standard_parameter(
-		state.effect_record.parameters, context, host_standard_parameter_value, result
-	) && hydrate_parameter_state(
-		state.effect_record.parameters, parameters,
-		result.hydrated_parameter_count, result.hydrated_keyframe_count
-	);
-	const bool created = parameters_bound && !observe_cancellation(target)
-		&& accepted_status(call(plugin, kOfxActionCreateInstance, target));
-	if (created) static_cast<void>(render_overlay_interact_v2(state, result));
-	bool invoked = false;
-	if (created) {
-		if (const auto* mapped = official_action(action); mapped != nullptr) {
-			invoked = accepted_status(call(plugin, mapped, target, action == "render" ? &render_args : &context_args));
-			if (invoked && action == "render"
-				&& state.effect_record.clips.find("Output") == state.effect_record.clips.end()) invoked = false;
-		}
-		else if (action == "get-frame-varying") invoked = true;
-	}
-	const bool cancellation_observed = observe_cancellation(target);
-	if (created) call(plugin, kOfxActionDestroyInstance, target);
-	if (loaded) call(plugin, kOfxActionUnload, nullptr);
-	if (cancellation_observed) { result.cancellation_observed = true; return result; }
-	if (!created || !invoked) throw std::runtime_error("The OpenFX plug-in failed the admitted action lifecycle.");
-	if (action == "render") result.output_frame = std::move(state.effect_record.clips.at("Output")->image.frame);
-	result.cpu_rendered = action == "render"; return result;
-}
+#include "host_interact.inc"
+#include "host_runtime_invoke.inc"
 bool valid_plugin_entry(const OfxPlugin& plugin) {
 	return plugin.pluginApi != nullptr && std::strcmp(plugin.pluginApi, kOfxImageEffectPluginApi) == 0
 		&& plugin.apiVersion == kOfxImageEffectPluginApiVersion

@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Exact durable manifest/claim validation for selected-V20 V7/V8 input stages. */
+/** Exact durable manifest/claim validation for selected V7/V8/V14 input stages. */
 
 import { lstat, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import type { NativeQueueRecordV2 } from '../src/common/editor/native-queue-record.ts';
+import type { NativeQueueRecordV3 } from '../src/common/editor/native-queue-record-v3.ts';
 import type { HelperNativeFileIdentity } from './helper-native-job-contract.ts';
 import {
 	nativeRenderInputClosedRecord,
@@ -13,7 +14,7 @@ import {
 	nativeRenderInputDigest,
 	nativeRenderInputDigestValue,
 	nativeRenderInputDescriptorsForPlan,
-	nativeRenderInputExactV20Envelope,
+	nativeRenderInputExactEnvelope,
 	nativeRenderInputFingerprints,
 	nativeRenderInputIdentifier,
 	nativeRenderInputNonNegative,
@@ -36,23 +37,25 @@ export interface NativeRenderInputStagedFile extends FramescaperNativeRenderInpu
 export interface NativeRenderInputStageManifest extends FramescaperNativeRenderInputStageIdentity {
 	readonly stageVersion: 1;
 	readonly stageId: string;
-	readonly planVersion: 7 | 8;
+	readonly planVersion: 7 | 8 | 14;
 	readonly files: readonly NativeRenderInputStagedFile[];
 }
 
+type NativeRenderInputQueueRecord = NativeQueueRecordV2 | NativeQueueRecordV3;
+
 export async function assertNativeRenderInputLiveOwnedStage(
 	owned: NativeRenderInputOwnedStage,
-	record: NativeQueueRecordV2,
+	record: NativeRenderInputQueueRecord,
 ): Promise<NativeRenderInputStageManifest> {
-	if ((record.planVersion !== 7 && record.planVersion !== 8)
+	if (![7, 8, 14].includes(record.planVersion)
 		|| record.jobId !== owned.ownership.stageId
 		|| !owned.directoryPresent || !owned.claimedMarkerPresent) {
 		throw new Error('A durable selected-V20 stage does not match one exact live queue record.');
 	}
 	const manifest = await readNativeRenderInputStageManifest(owned.directory);
 	assertRecordIdentity(manifest, record);
-	const envelope = nativeRenderInputExactV20Envelope(
-		record.planPayload, record.planFingerprint, record.planVersion,
+	const envelope = nativeRenderInputExactEnvelope(
+		record.planPayload, record.planFingerprint, record.planVersion as 7 | 8 | 14,
 	);
 	nativeRenderInputDescriptorsForPlan(manifest.files, envelope);
 	await requireNativeRenderInputStageClaim(owned.directory, record.jobId);
@@ -92,13 +95,13 @@ export async function readNativeRenderInputStageManifest(
 		'stageVersion', 'stageId', 'planVersion', 'planFingerprint', 'projectId',
 		'projectRevision', 'inputFingerprints', 'files',
 	], 'render-input manifest');
-	if (row.stageVersion !== 1 || (row.planVersion !== 7 && row.planVersion !== 8)) {
+	if (row.stageVersion !== 1 || ![7, 8, 14].includes(row.planVersion as number)) {
 		throw new Error('The render-input manifest version is unsupported.');
 	}
 	const manifest: NativeRenderInputStageManifest = Object.freeze({
 		stageVersion: 1,
 		stageId: nativeRenderInputStageId(row.stageId),
-		planVersion: row.planVersion,
+		planVersion: row.planVersion as 7 | 8 | 14,
 		planFingerprint: nativeRenderInputDigestValue(row.planFingerprint, 'manifest plan'),
 		projectId: nativeRenderInputIdentifier(row.projectId, 'manifest project'),
 		projectRevision: nativeRenderInputNonNegative(row.projectRevision, 'manifest project revision'),
@@ -162,7 +165,7 @@ async function requireNativeRenderInputStageClaim(directory: string, id: string)
 
 function assertRecordIdentity(
 	manifest: NativeRenderInputStageManifest,
-	record: NativeQueueRecordV2,
+	record: NativeRenderInputQueueRecord,
 ): void {
 	if (manifest.stageId !== record.jobId || manifest.planFingerprint !== record.planFingerprint
 		|| manifest.planVersion !== record.planVersion

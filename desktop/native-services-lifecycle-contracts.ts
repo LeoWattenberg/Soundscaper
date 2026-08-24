@@ -4,7 +4,7 @@ import type { NativeQueueInputFingerprintV1, NativeQueueRecoveryClass,
 	NativeQueueReservationsV1, NativeQueueTaskKind } from '../src/common/editor/native-queue-record.ts';
 import type { NativeImageSequenceCheckpointFrameV1 } from './native-services-publication.ts';
 import {
-	nativeRenderInputExactV20Envelope,
+	nativeRenderInputExactEnvelope,
 	nativeRenderInputStageRequired,
 } from './native-services-render-input-contract.ts';
 
@@ -29,7 +29,7 @@ export interface FramescaperNativeWatchEnabledRequest {
 
 export interface FramescaperNativeQueueEnqueueRequest {
 	readonly taskKind: NativeQueueTaskKind;
-	readonly planVersion: 7 | 8 | 9 | 10 | 11 | 12;
+	readonly planVersion: 7 | 8 | 9 | 10 | 11 | 12 | 14;
 	readonly derivedInputStageId: string | null;
 	readonly planFingerprint: string;
 	readonly planPayload: string;
@@ -88,7 +88,7 @@ export function framescaperNativeQueueEnqueueRequest(
 		'reservations', 'recoveryClass',
 	], 'queue enqueue request');
 	if (!['encoded-export', 'image-sequence-export', 'proxy-generation'].includes(request.taskKind as string)
-		|| ![7, 8, 9, 10, 11, 12].includes(request.planVersion as number)
+		|| ![7, 8, 9, 10, 11, 12, 14].includes(request.planVersion as number)
 		|| typeof request.planPayload !== 'string' || request.planPayload.length === 0
 		|| TEXT_ENCODER.encode(request.planPayload).byteLength > CONTROL_MESSAGE_MAXIMUM_BYTES) {
 		throw new TypeError('A native-services enqueue request has an unsupported plan or task.');
@@ -103,17 +103,20 @@ export function framescaperNativeQueueEnqueueRequest(
 			);
 		}
 	} else {
-		if (![7, 8].includes(request.planVersion as number)) {
-			throw new TypeError('Selected-V20 native renders require an exact V7/V8 plan.');
+		if (![7, 8, 14].includes(request.planVersion as number)) {
+			throw new TypeError('Selected native renders require an exact V7/V8/V14 plan.');
 		}
-		const envelope = nativeRenderInputExactV20Envelope(
-			request.planPayload, planFingerprint, request.planVersion as 7 | 8,
+		const envelope = nativeRenderInputExactEnvelope(
+			request.planPayload, planFingerprint, request.planVersion as 7 | 8 | 14,
 		);
-		const stageRequired = nativeRenderInputStageRequired(envelope);
+		const stageRequired = request.taskKind !== 'proxy-generation'
+			&& nativeRenderInputStageRequired(envelope);
 		if ((derivedInputStageId !== null) !== stageRequired) {
 			throw new TypeError(stageRequired
-				? 'This selected-V20 V7/V8 native render requires one durable derived-input stage.'
-				: 'A silent selected-V20 V8 native render cannot name a derived-input stage.');
+				? `This selected V${String(request.planVersion)} native render requires one durable derived-input stage.`
+				: request.taskKind === 'proxy-generation'
+					? 'Selected V14 proxy generation cannot name a derived-input stage.'
+					: 'A silent selected-V20 V8 native render cannot name a derived-input stage.');
 		}
 	}
 	return Object.freeze({

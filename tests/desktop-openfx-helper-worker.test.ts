@@ -33,7 +33,7 @@ test('a scanner worker refuses host jobs and a runtime worker refuses scan jobs'
 			exit: (code) => exits.push(code),
 		});
 		worker.handleMessage({
-			contractVersion: 1, type: 'job', jobId: '12'.repeat(20), kind,
+			contractVersion: 1, type: 'job', jobId: '12'.repeat(20), kind, jobContractVersion: 1,
 			grant: {}, resourcePolicy: resourcePolicy(),
 		}, []);
 		assert.deepEqual(exits, [1]);

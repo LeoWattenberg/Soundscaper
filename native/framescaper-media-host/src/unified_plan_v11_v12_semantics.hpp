@@ -164,7 +164,21 @@ inline void validate_proxy(const json::value& value, const source_authority& sou
 	));
 }
 
-inline void validate_professional(
+[[nodiscard]] inline bool professional_characteristics_unreported(const json::value& value) {
+	for (const auto key : {"backend", "codedWidth", "codedHeight", "rotationDegrees",
+		"pixelAspectRatio", "fieldOrder", "hasAlpha", "videoCodec", "audioStreams",
+		"extractedAudioStreamIndex", "startTimecode", "bitDepth", "pixelFormat",
+		"chromaFormat", "alphaMode", "alphaInterpretation"}) {
+		if (json::member(value, key).kind != json::type::null_value) return false;
+	}
+	const auto& colour = json::member(value, "colour");
+	for (const auto key : {"primaries", "transfer", "matrix", "range", "masteringDisplay", "contentLight"}) {
+		if (json::member(colour, key).kind != json::type::null_value) return false;
+	}
+	return true;
+}
+
+[[nodiscard]] inline bool validate_professional(
 	const json::value& node,
 	const source_index& sources,
 	admitted_media_plan& result
@@ -192,6 +206,8 @@ inline void validate_professional(
 	const auto& proxy = json::member(node, "proxyAttachment");
 	if (proxy.kind != json::type::null_value) validate_proxy(proxy, found->second);
 	literal(json::member(node, "exportAuthority"), "original", "professional export authority");
+	return sequence.kind == json::type::null_value
+		&& professional_characteristics_unreported(characteristics);
 }
 
 inline bool known_ofx_context(const std::string& value) {

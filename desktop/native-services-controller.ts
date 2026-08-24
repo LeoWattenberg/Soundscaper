@@ -32,6 +32,15 @@ import type {
 	FramescaperNativeRootRepository,
 } from './native-services-root-repository.ts';
 import type { FramescaperNativeWatchRepository } from './native-services-watch-repository.ts';
+import {
+	assertFramescaperNativeWatchProjection,
+	framescaperNativeWatchProjection as watchProjection,
+	type FramescaperNativeWatchProjectState,
+	type FramescaperNativeWatchProjection,
+} from './native-services-watch-controller-contract.ts';
+
+export { assertFramescaperNativeWatchProjection } from './native-services-watch-controller-contract.ts';
+export type { FramescaperNativeWatchProjection } from './native-services-watch-controller-contract.ts';
 
 export const FRAMESCAPER_NATIVE_SERVICES_SNAPSHOT_VERSION = 1;
 
@@ -64,16 +73,6 @@ export interface FramescaperNativeQueueProjection {
 	readonly progress: number | null;
 	readonly attempt: number;
 	readonly lastFailureCode: string | null;
-}
-
-export interface FramescaperNativeWatchProjection {
-	readonly ruleId: string;
-	readonly grantId: string;
-	readonly projectId: string;
-	readonly extensions: readonly string[];
-	readonly importMode: 'link' | 'copy';
-	readonly generateProxies: boolean;
-	readonly enabled: boolean;
 }
 
 export interface FramescaperNativeServicesSnapshot {
@@ -120,7 +119,7 @@ export interface FramescaperNativeServicesControllerOptions {
 		record: NativeQueueRecordV2,
 		action: FramescaperNativeQueueRendererAction,
 	) => void;
-	readonly projectState?: (projectId: string) => Readonly<{ open: boolean; writable: boolean }>;
+	readonly projectState?: (projectId: string) => Readonly<FramescaperNativeWatchProjectState>;
 }
 
 export class FramescaperNativeServicesController {
@@ -485,26 +484,6 @@ function queueProjection(record: Readonly<{
 	});
 }
 
-function watchProjection(rule: Readonly<{
-	ruleId: string;
-	grantId: string;
-	projectId: string;
-	extensions: readonly string[];
-	importMode: 'link' | 'copy';
-	generateProxies: boolean;
-	enabled: boolean;
-}>): FramescaperNativeWatchProjection {
-	return Object.freeze({
-		ruleId: rule.ruleId,
-		grantId: rule.grantId,
-		projectId: rule.projectId,
-		extensions: Object.freeze([...rule.extensions]),
-		importMode: rule.importMode,
-		generateProxies: rule.generateProxies,
-		enabled: rule.enabled,
-	});
-}
-
 function commonGrant(grant: FramescaperNativeRootGrant): DurableRootGrantV1 {
 	return Object.freeze({
 		grantId: grant.grantId,
@@ -538,18 +517,6 @@ export function assertFramescaperNativeRootProjection(value: unknown): void {
 	boundedText(root.grantId, 'grant id');
 	boundedText(root.displayName, 'display name');
 	if (typeof root.revoked !== 'boolean') throw new TypeError('A native root projection revoked flag is invalid.');
-}
-
-export function assertFramescaperNativeWatchProjection(value: unknown): void {
-	const rule = closedRecord(value, [
-		'ruleId', 'grantId', 'projectId', 'extensions', 'importMode', 'generateProxies', 'enabled',
-	], 'native watch projection');
-	for (const key of ['ruleId', 'grantId', 'projectId'] as const) boundedText(rule[key], key);
-	boundedArray(rule.extensions, 32, 'native watch extensions').forEach((extension) => boundedText(extension, 'extension'));
-	if (rule.importMode !== 'link' && rule.importMode !== 'copy') throw new TypeError('A native watch import mode is invalid.');
-	if (typeof rule.generateProxies !== 'boolean' || typeof rule.enabled !== 'boolean') {
-		throw new TypeError('A native watch projection flag is invalid.');
-	}
 }
 
 function closedRecord<const Field extends string>(

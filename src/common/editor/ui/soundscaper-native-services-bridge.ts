@@ -19,13 +19,16 @@ export interface NativeAudioAvailability {
 	readonly quarantined: boolean;
 	readonly payload: Readonly<{ status: string; reason: string | null; detail: string }>;
 	readonly backends: readonly string[];
+	readonly routePreference?: NativeAudioSessionOpenRequestV1 | null;
 }
 
 export interface NativeAudioInventory {
 	readonly backend: string;
 	readonly status: string;
 	readonly detail: string;
-	readonly devices: readonly Readonly<{ handle: string; label: string; direction: string }>[];
+	readonly devices: readonly Readonly<{
+		handle: string; label: string; direction: string; channelCount?: number; isDefault?: boolean;
+	}>[];
 }
 
 export type NativeAudioInventoryOutcome =
@@ -123,7 +126,146 @@ export type NativePluginConsentAction = 'grant' | 'revoke' | 'add-standard-root'
 /** The quarantine's only exit, named by the clearance the store accepts. */
 export type NativePluginQuarantineClearance = 'rescan' | 're-enable';
 
-export interface SoundscaperNativeServicesBridge {
+export interface NativeAudioSessionOpenRequestV1 {
+	readonly candidates: readonly Readonly<{
+		readonly backend: 'coreaudio' | 'wasapi' | 'asio' | 'pipewire' | 'alsa' | 'jack';
+		readonly deviceHandle: string;
+	}>[];
+	readonly direction: 'input' | 'output' | 'duplex';
+	readonly mode: 'shared' | 'exclusive';
+	readonly sampleRate: number;
+	readonly periodFrames: number;
+	readonly channelCount: number;
+}
+
+export interface NativeAudioSessionProjectionV1 {
+	readonly sessionId: string;
+	readonly state: 'open' | 'bound' | 'device-lost';
+	readonly backend: string;
+	readonly format: Readonly<{
+		direction: 'input' | 'output' | 'duplex'; mode: 'shared' | 'exclusive';
+		sampleRate: number; periodFrames: number; channelCount: number;
+	}>;
+	readonly attempts: readonly Readonly<{ backend: string; status: string; detail: string }>[];
+	readonly framesTransferred: number;
+	readonly lostFrames: number;
+	readonly calibrationFrames: number | null;
+	readonly calibrationAvailable: boolean;
+	readonly calibrationUnavailableReason: 'duplex-required' | 'bind-required' | 'device-lost' | 'renderer-busy' | null;
+	readonly transport: 'native' | 'web-core' | 'unavailable';
+	readonly fallback: Readonly<{
+		active: boolean; eligible: boolean; reason: string;
+	}> | null;
+}
+
+export type NativeAudioSessionOpenOutcomeV1 =
+	| Readonly<{
+		status: 'opened'; sessionId: string; backend: string; deviceHandle: string;
+		format: NativeAudioSessionProjectionV1['format'];
+		attempts: NativeAudioSessionProjectionV1['attempts'];
+	}>
+	| Readonly<{
+		status: 'refused'; code: string; message: string;
+		attempts: NativeAudioSessionProjectionV1['attempts'];
+	}>;
+
+export interface NativePluginInstanceProjectionV1 {
+	readonly instanceId: string;
+	readonly entryId: string;
+	readonly stablePluginId: string;
+	readonly format: string;
+	readonly binarySha256: string;
+	readonly inputChannels: number;
+	readonly outputChannels: number;
+	readonly state: string;
+	readonly enabled: boolean;
+	readonly bypassed: boolean;
+	readonly latencySamples: number;
+}
+
+export interface NativePluginStateBodyV1 {
+	readonly kind: 'native-plugin-state';
+	readonly bodyId: string;
+	readonly byteLength: number;
+	readonly sha256: string;
+}
+
+export interface NativePluginOfflineOutcomeV1 {
+	readonly instance: NativePluginInstanceProjectionV1;
+	readonly blocksRendered: number;
+	readonly renderedSha256: string;
+}
+
+export interface NativePluginVendorWindowV1 {
+	readonly windowHandleId: string;
+	readonly instanceId: string;
+	readonly surface: 'helper-owned-top-level';
+}
+
+export type NativePluginVendorUiOutcomeV1 =
+	| Readonly<{ status: 'opened'; window: NativePluginVendorWindowV1 }>
+	| Readonly<{ status: 'refused'; code: string; message: string }>;
+
+export interface NativePluginProjectStateV1 {
+	readonly instanceId: string;
+	readonly format: string;
+	readonly stablePluginId: string;
+	readonly binarySha256: string;
+	readonly stateBody: NativePluginStateBodyV1;
+	readonly enabled: boolean;
+	readonly bypassed: boolean;
+	readonly continuity: 'live' | 'bypass' | 'frozen';
+	readonly latencySamples: number;
+}
+
+export interface SoundscaperNativeAudioRuntimeBridgeV1 {
+	openNativeAudioSession(request: NativeAudioSessionOpenRequestV1): Promise<NativeAudioSessionOpenOutcomeV1>;
+	bindNativeAudioSession(request: Readonly<{ sessionId: string; queueCapacity: number }>): Promise<unknown>;
+	nativeAudioSessionStatus(request: Readonly<{ sessionId: string }>): Promise<NativeAudioSessionProjectionV1>;
+	calibrateNativeAudioSession(request: Readonly<{
+		sessionId: string; calibrationFrames?: number;
+	}>): Promise<NativeAudioSessionProjectionV1>;
+	reportNativeAudioSessionTransfer(request: Readonly<{
+		sessionId: string; framesTransferred: number; lostFrames: number;
+	}>): Promise<NativeAudioSessionProjectionV1>;
+	reportNativeAudioSessionLoss(request: Readonly<{
+		sessionId: string; reason: string;
+	}>): Promise<NativeAudioSessionProjectionV1>;
+	closeNativeAudioSession(request: Readonly<{ sessionId: string }>): Promise<boolean>;
+}
+
+export interface SoundscaperNativePluginHostBridgeV1 {
+	reviewNativePluginInstallation(request: Readonly<{
+		installationId: string; action: 'allow' | 'select';
+	}>): Promise<NativePluginRegistryView>;
+	instantiateNativePlugin(request: Readonly<{
+		installationId: string; instanceId: string | null; sampleRate?: number;
+	}>): Promise<NativePluginInstanceProjectionV1>;
+	runNativePluginOffline(request: Readonly<{
+		instanceId: string;
+	}>): Promise<NativePluginOfflineOutcomeV1>;
+	setNativePluginBypassed(request: Readonly<{
+		instanceId: string; bypassed: boolean;
+	}>): Promise<NativePluginInstanceProjectionV1>;
+	persistNativePluginState(request: Readonly<{
+		instanceId: string; generation: number;
+	}>): Promise<Readonly<{
+		outcome: Readonly<{ status: string }>;
+		projectState: NativePluginProjectStateV1 | null;
+	}>>;
+	restoreNativePluginState(request: Readonly<{
+		instanceId: string; generation: number; stateBody: NativePluginStateBodyV1;
+	}>): Promise<Readonly<{ projectState: NativePluginProjectStateV1 }>>;
+	openNativePluginVendorUi(request: Readonly<{ instanceId: string }>): Promise<NativePluginVendorUiOutcomeV1>;
+	closeNativePluginVendorUi(request: Readonly<{
+		instanceId: string; windowHandleId: string;
+	}>): Promise<boolean>;
+	closeNativePluginInstance(request: Readonly<{ instanceId: string }>): Promise<boolean>;
+}
+
+export interface SoundscaperNativeServicesBridge extends
+	SoundscaperNativeAudioRuntimeBridgeV1,
+	SoundscaperNativePluginHostBridgeV1 {
 	nativeAudioHelperAvailability(): Promise<NativeAudioAvailability>;
 	setNativeAudioHelperEnabled(enabled: boolean): Promise<boolean>;
 	describeNativeAudioBackend(request: Readonly<{ backend: string }>): Promise<NativeAudioInventoryOutcome>;
@@ -146,6 +288,22 @@ const REQUIRED_BRIDGE_METHODS: readonly (keyof SoundscaperNativeServicesBridge)[
 	'setNativePluginConsent',
 	'scanNativePlugins',
 	'listNativePlugins',
+	'openNativeAudioSession',
+	'bindNativeAudioSession',
+	'nativeAudioSessionStatus',
+	'calibrateNativeAudioSession',
+	'reportNativeAudioSessionTransfer',
+	'reportNativeAudioSessionLoss',
+	'closeNativeAudioSession',
+	'reviewNativePluginInstallation',
+	'instantiateNativePlugin',
+	'runNativePluginOffline',
+	'setNativePluginBypassed',
+	'persistNativePluginState',
+	'restoreNativePluginState',
+	'openNativePluginVendorUi',
+	'closeNativePluginVendorUi',
+	'closeNativePluginInstance',
 ]);
 
 /**

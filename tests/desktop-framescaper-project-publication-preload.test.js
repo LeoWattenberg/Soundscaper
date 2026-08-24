@@ -8,8 +8,8 @@ import { createContext, runInContext } from 'node:vm';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const PUBLICATION_ID = 'ab'.repeat(24);
-const HANDSHAKE_CHANNEL = 'framescaper:v18:projects:handshake';
-const BEGIN_CHANNEL = 'framescaper:v18:projects:publication:begin';
+const HANDSHAKE_CHANNEL = 'framescaper:v19:projects:handshake';
+const BEGIN_CHANNEL = 'framescaper:v19:projects:publication:begin';
 const MAXIMUM_CHUNK_BYTES = 4 * 1024 * 1024;
 
 /**

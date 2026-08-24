@@ -179,6 +179,7 @@ export function ffmpegRuntimeStageSummary(release) {
 		license: release.manifest.package.license,
 		runtimeManifest: {
 			id: release.manifest.id,
+			name: release.manifest.publication.manifestName,
 			sha256: release.manifestSha256,
 		},
 		files: Object.fromEntries(release.runtimeFiles.map(({ name, byteLength, sha256: digest }) => [

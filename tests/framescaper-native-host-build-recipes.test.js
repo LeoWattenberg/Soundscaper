@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import {
 	appendFileSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync,
-	rmSync, writeFileSync,
+	rmSync, symlinkSync, writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -26,12 +26,17 @@ import {
 	collectBoostHeaderClosure,
 	collectExtractedSourceTree,
 } from '../native/framescaper-media-host/build/source-authentication.mjs';
+import {
+	FRAMESCAPER_MEDIA_HOST_EXTERNAL_SOURCE_IDS,
+	validateFramescaperMediaHostExternalSourceManifest,
+} from '../native/framescaper-media-host/build/external-source-authentication.mjs';
 
 const repositoryRoot = resolve(import.meta.dirname, '..');
 const SOURCE_DATE_EPOCH = 1786492800;
 const BOOST_ARCHIVE_SHA256 = '5c1d40cb8e19adbf740a4ec2da35b3e58f3f5804b1dce44deb53df72193cbc6c';
 const MEDIA_INPUTS = Object.freeze([
-	'CMakeLists.txt', 'CMakePresets.json', 'build/ffmpeg-9.0.1-configure.json',
+	'CMakeLists.txt', 'CMakePresets.json', 'build/external-source-authentication.mjs',
+	'build/ffmpeg-9.0.1-configure.json', 'build/ffmpeg-9.0.1-external-sources.json',
 	'build/recipe-driver.mjs', 'build/source-authentication.mjs', 'build/targets.json',
 	...FRAMESCAPER_MEDIA_HOST_BUILD_TARGETS.map(({ toolchainFile }) => toolchainFile),
 ].sort());
@@ -71,13 +76,23 @@ test('both recipes own exactly five pending targets and FFmpeg starts from a clo
 	));
 	assert.equal(configuration.configureFlags[0], '--disable-everything');
 	assert.deepEqual(configuration.configureFlags.filter((flag) => /--enable-(?:decoder|encoder|demuxer|muxer|protocol)=/u.test(flag)), [
-		'--enable-decoder=prores', '--enable-encoder=prores_ks', '--enable-demuxer=mov',
-		'--enable-muxer=mov', '--enable-protocol=file',
+		'--enable-decoder=prores', '--enable-decoder=pcm_f32le',
+		'--enable-encoder=prores_ks', '--enable-encoder=pcm_s16le',
+		'--enable-demuxer=mov', '--enable-demuxer=wav',
+		'--enable-muxer=mov', '--enable-protocol=file', '--enable-protocol=pipe',
 	]);
 	assert.deepEqual(configuration.policy.externalLibraries, []);
 	assert.equal(configuration.policy.rawFfmpegArguments, false);
 	assert.equal(configuration.policy.network, false);
 	assert.doesNotMatch(configuration.configureFlags.join('\n'), /libx264|libvpx|hevc|av1|png|tiff|exr/iu);
+	const external = validateFramescaperMediaHostExternalSourceManifest(json(join(
+		repositoryRoot, 'native/framescaper-media-host/build/ffmpeg-9.0.1-external-sources.json',
+	)));
+	assert.equal(external.activation, 'blocked-policy');
+	assert.deepEqual(external.libraries.map(({ id }) => id), FRAMESCAPER_MEDIA_HOST_EXTERNAL_SOURCE_IDS);
+	assert.ok(external.libraries.every(({ sha256, extractedTree }) => (
+		/^[a-f0-9]{64}$/u.test(sha256) && /^[a-f0-9]{64}$/u.test(extractedTree.sha256)
+	)));
 });
 
 test('all five media and OpenFX targets emit immutable closed dry-run recipes', (context) => {
@@ -285,6 +300,39 @@ test('actual FFmpeg, OpenFX, and Boost content cannot be authorized by forged so
 		() => createFramescaperMediaHostBuildRecipe(boostDrift.options),
 		/Boost source receipt is not the pinned/iu,
 	);
+});
+
+test('source-tree authentication admits genuine SDK names and rejects nonportable entries', (context) => {
+	const accepted = mkdtempSync(join(tmpdir(), 'framescaper-portable-source-'));
+	context.after(() => rmSync(accepted, { recursive: true, force: true }));
+	mkdirSync(join(accepted, 'docs'));
+	for (const path of [
+		'docs/CMake API.md', 'Icon-29@3x.png', 'juce_(generated)+source~1.cpp', 'hash#percent%.txt',
+	]) {
+		writeFileSync(join(accepted, ...path.split('/')), path);
+	}
+	assert.deepEqual(collectExtractedSourceTree(accepted).files.map(({ path }) => path), [
+		'Icon-29@3x.png', 'docs/CMake API.md', 'hash#percent%.txt', 'juce_(generated)+source~1.cpp',
+	]);
+
+	for (const name of ['bad:name', 'bad\\name', 'trailing.', 'trailing ', 'CON', 'lpt1.txt', 'line\nbreak']) {
+		const rejected = mkdtempSync(join(tmpdir(), 'framescaper-nonportable-source-'));
+		context.after(() => rmSync(rejected, { recursive: true, force: true }));
+		writeFileSync(join(rejected, name), 'bytes');
+		assert.throws(() => collectExtractedSourceTree(rejected), /portable canonical path segment/u);
+	}
+	const collision = mkdtempSync(join(tmpdir(), 'framescaper-case-source-'));
+	context.after(() => rmSync(collision, { recursive: true, force: true }));
+	writeFileSync(join(collision, 'Case.h'), 'upper');
+	writeFileSync(join(collision, 'case.h'), 'lower');
+	if (readdirSync(collision).length === 2) {
+		assert.throws(() => collectExtractedSourceTree(collision), /not portable across target filesystems/u);
+	}
+	const linked = mkdtempSync(join(tmpdir(), 'framescaper-linked-source-'));
+	context.after(() => rmSync(linked, { recursive: true, force: true }));
+	writeFileSync(join(linked, 'actual.h'), 'bytes');
+	symlinkSync(join(linked, 'actual.h'), join(linked, 'alias.h'));
+	assert.throws(() => collectExtractedSourceTree(linked), /canonical regular file/u);
 });
 
 test('admitted source-tree and Boost-closure witnesses are rechecked before execution', (context) => {

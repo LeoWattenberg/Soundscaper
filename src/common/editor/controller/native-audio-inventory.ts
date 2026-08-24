@@ -154,7 +154,7 @@ function compareAdmittedNativeAudioDevices(first: AdmittedNativeAudioDevice, sec
 }
 
 export function isOpaqueNativeAudioHandle(handle: string): boolean {
-	return !handle.includes('\0') && !handle.includes('\\') && !/^[\\/]/u.test(handle) && !/^[A-Za-z]:[\\/]/u.test(handle);
+	return !handle.includes('\0') && !handle.includes('\\') && !handle.includes('/');
 }
 
 /** Code-unit order, so a device list does not reorder itself with the locale. */

@@ -6,6 +6,8 @@ import { dirname, join, resolve } from 'node:path';
 
 import { flipFuses as flipElectronFuses, FuseVersion, FuseV1Options } from '@electron/fuses';
 
+import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
+import { verifyAssistanceNativeRuntimePayload } from '../desktop/assistance-native-runtime-payload.mjs';
 import {
 	verifyFfmpegRuntimeManifest,
 	verifyStagedFfmpegRuntime,
@@ -21,12 +23,20 @@ import {
 	verifyFramescaperNativeHostPayloads,
 	verifyStagedFramescaperNativeHostPayloads,
 } from './lib/framescaper-native-host-payload-staging.mjs';
+import {
+	PROFESSIONAL_NATIVE_RUNTIME_PREFIX,
+	professionalNativePayloadOutputRoot,
+	verifySoundscaperProfessionalNativePayload,
+	verifyStagedSoundscaperProfessionalNativePayload,
+} from './lib/soundscaper-professional-native-payload.mjs';
+import { writeDesktopPackageContentManifest } from './lib/desktop-package-content-manifest.mjs';
 
 const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const FRAMESCAPER_NATIVE_HOST_PREFIXES = Object.freeze([
 	'framescaper-media-host',
 	'framescaper-openfx-host',
 ]);
+const SOUNDSCAPER_PROFESSIONAL_PREFIX = PROFESSIONAL_NATIVE_RUNTIME_PREFIX.split('/').at(-1);
 
 /**
  * Electron Builder afterPack hook. Fuses are flipped before macOS ad-hoc or
@@ -37,7 +47,10 @@ export default async function hardenPackagedElectron(context, dependencies = {})
 	// is a full multi-file read-and-hash pass, so they run together.
 	await Promise.all([
 		verifyPackagedFfmpegResources(context, dependencies),
+		verifyPackagedAssistanceNativeRuntime(context, dependencies),
 		verifyPackagedNativeAddonResources(context, dependencies),
+		(dependencies.verifyPackagedSoundscaperProfessionalNativeResources
+			?? verifyPackagedSoundscaperProfessionalNativeResources)(context, dependencies),
 		verifyPackagedFramescaperNativeHostResources(context, dependencies),
 	]);
 	const extension = {
@@ -69,6 +82,33 @@ export default async function hardenPackagedElectron(context, dependencies = {})
 		[FuseV1Options.GrantFileProtocolExtraPrivileges]: false,
 		[FuseV1Options.WasmTrapHandlers]: true,
 	});
+	const resourcesRoot = context.packager.getResourcesDir(context.appOutDir);
+	const repositoryRoot = resolve(dependencies.repositoryRoot ?? REPOSITORY_ROOT);
+	const writeContentManifest = dependencies.writeDesktopPackageContentManifest
+		?? writeDesktopPackageContentManifest;
+	await writeContentManifest({
+		resourcesRoot: resolve(resourcesRoot),
+		runtimeManifestPath: resolve(repositoryRoot, '.desktop-build/stage-manifest.json'),
+		productId: packagingProductId(context),
+		targetId: nativeAddonPayloadTargetForPackagingContext(context),
+	});
+}
+
+export async function verifyPackagedAssistanceNativeRuntime(context, dependencies = {}) {
+	const resourcesRoot = context?.packager?.getResourcesDir?.(context.appOutDir);
+	if (typeof resourcesRoot !== 'string' || resourcesRoot.length === 0) {
+		throw new TypeError('Electron packaged resources directory is unavailable.');
+	}
+	const targetId = nativeAddonPayloadTargetForPackagingContext(context);
+	try {
+		return await verifyAssistanceNativeRuntimePayload({
+			manifest: dependencies.assistanceNativeRuntimeManifest ?? assistanceNativeRuntimeManifest,
+			targetId,
+			outputRoot: resolve(resourcesRoot, 'runtime'),
+		});
+	} catch (error) {
+		throw packagedResourceError(error);
+	}
 }
 
 export async function verifyPackagedFfmpegResources(context, dependencies = {}) {
@@ -114,7 +154,9 @@ export async function verifyPackagedNativeAddonResources(context, dependencies =
 		throw new Error(`Packaged Soundscaper resources carry Framescaper native-host payloads: ${unexpectedHostPrefixes.map(({ name }) => name).join(', ')}.`);
 	}
 	const targets = entries
-		.filter((entry) => entry.isDirectory() && !FRAMESCAPER_NATIVE_HOST_PREFIXES.includes(entry.name))
+		.filter((entry) => entry.isDirectory()
+			&& !FRAMESCAPER_NATIVE_HOST_PREFIXES.includes(entry.name)
+			&& entry.name !== SOUNDSCAPER_PROFESSIONAL_PREFIX)
 		.map(({ name }) => name);
 	if (targets.length !== 1) {
 		throw new Error(`Packaged native addon payload must carry exactly one target; found ${targets.join(', ') || '<none>'}.`);
@@ -127,6 +169,31 @@ export async function verifyPackagedNativeAddonResources(context, dependencies =
 		return await verifyStagedNativeAddonPayload({
 			release,
 			outputRoot: nativeAddonPayloadOutputRoot(runtimeRoot, release),
+		});
+	} catch (error) {
+		throw packagedResourceError(error);
+	}
+}
+
+export async function verifyPackagedSoundscaperProfessionalNativeResources(context, dependencies = {}) {
+	const repositoryRoot = resolve(dependencies.repositoryRoot ?? REPOSITORY_ROOT);
+	const resourcesRoot = context?.packager?.getResourcesDir?.(context.appOutDir);
+	if (typeof resourcesRoot !== 'string' || resourcesRoot.length === 0) {
+		throw new TypeError('Electron packaged resources directory is unavailable.');
+	}
+	const product = packagingProductId(context);
+	const prefix = resolve(resourcesRoot, 'runtime', PROFESSIONAL_NATIVE_RUNTIME_PREFIX);
+	if (product === 'framescaper') {
+		const entries = await readdir(prefix).catch(() => []);
+		if (entries.length !== 0) throw new Error('Packaged Framescaper resources carry the Soundscaper professional payload.');
+		return null;
+	}
+	const target = nativeAddonPayloadTargetForPackagingContext(context);
+	const release = await verifySoundscaperProfessionalNativePayload({ repositoryRoot, target });
+	try {
+		return await verifyStagedSoundscaperProfessionalNativePayload({
+			release,
+			outputRoot: professionalNativePayloadOutputRoot(resolve(resourcesRoot, 'runtime'), release),
 		});
 	} catch (error) {
 		throw packagedResourceError(error);

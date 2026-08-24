@@ -5,6 +5,7 @@ import { engineEffectControlMethods } from './effect-control.ts';
 import { engineLifecycleMethods } from './lifecycle.ts';
 import { installEngineMethodMaps } from './method-installer.ts';
 import { engineRenderingMethods } from './rendering.ts';
+import { engineNativeEffectPdcControlMethods } from './native-effect-pdc-control.ts';
 import {
 	engineTransportAccessors,
 	engineTransportControlMethods,
@@ -40,6 +41,7 @@ export const ENGINE_PUBLIC_METHOD_NAMES = [
 	'getPositionFrames',
 	'sampleRate',
 	'getState',
+	'commitNativeEffectPdcRevision',
 	'subscribePosition',
 	'subscribeMeters',
 	'subscribeState',
@@ -70,6 +72,7 @@ export function installEngineRuntimeMethods(target: object): void {
 		engineTransportAccessors,
 		engineAutomationControlMethods,
 		engineEffectControlMethods,
+		engineNativeEffectPdcControlMethods,
 		engineRenderingMethods,
 		engineTransportSchedulerMethods,
 	]);

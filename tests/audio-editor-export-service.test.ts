@@ -50,6 +50,23 @@ test('an export never re-validates the delivery projection through the product c
 	assert.equal(fixture.state.exportAbort, null, 'a failed clone used to wedge the export flag');
 });
 
+test('audio export awaits product-owned live state capture before reading the project', async () => {
+	const fixture = createFixture();
+	let captured = false;
+	const runtime = {
+		...fixture.runtime,
+		prepareProjectForExport: async (purpose: string) => {
+			assert.equal(purpose, 'audio-export');
+			captured = true;
+		},
+		getProject: () => {
+			assert.equal(captured, true);
+			return fixture.runtime.getProject();
+		},
+	};
+	assert.equal((await createEditorExportService(runtime).handleExportAction('export')).fileName, 'mix.wav');
+});
+
 test('offline WAV and AIFF exports replace prior output and chain cleanup', async () => {
 	const fixture = createFixture();
 	fixture.state.outputUrl = 'blob:old';

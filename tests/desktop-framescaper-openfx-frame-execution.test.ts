@@ -1,0 +1,197 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import {
+	canonicalizeNativeMediaPlan,
+	fingerprintNativeMediaPlan,
+} from '../src/common/editor/native-media-plan-canonical-form.ts';
+import { createUnifiedExactRenderPlan } from '../src/common/editor/unified-exact-render-plan.ts';
+import { createFramescaperNativeRenderPlanAuthorityV28 } from '../src/framescaper/editor-native-render-plan-authority-v28.ts';
+import { createFramescaperProjectUnifiedExactRenderPlanV28 } from '../src/framescaper/editor-project-unified-render-plan-v28.ts';
+import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
+import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
+import {
+	createFramescaperOpenFxFrameExecutionService,
+} from '../desktop/framescaper-openfx-frame-execution.ts';
+import type { FramescaperOpenFxExecutionRequestV1 } from '../desktop/openfx-main-execution-request.ts';
+import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+
+const SHA = 'a7'.repeat(32);
+
+test('main reopens exact canonical V14 authority and resolves the enabled fingerprint itself', async () => {
+	const fixture = requestFixture();
+	const observed: FramescaperOpenFxExecutionRequestV1[] = [];
+	const projectEffects: unknown[] = [];
+	const service = createFramescaperOpenFxFrameExecutionService({
+		inventory: () => [plugin()] as never,
+		qualifiedGpuBackends: () => ['opengl'],
+		currentProject: (_plan, effect) => {
+			projectEffects.push(effect);
+			return Boolean(effect && typeof effect === 'object'
+				&& (effect as unknown as Record<string, unknown>).instanceId === 'ofx-1');
+		},
+		timingAssets: async () => [],
+		execute: async (request) => {
+			observed.push(request);
+			return { mode: 'render', rgba: new Uint8Array(fixture.frameBytes).fill(23),
+				availability: 'available', authoredStatePreserved: true,
+				backend: 'cpu', retriedOnCpu: true, reportsDegradation: true,
+				output: { streamId: 'ab'.repeat(20), byteLength: fixture.frameBytes, sha256: SHA },
+			};
+		},
+	});
+	const result = await service.execute(fixture.request);
+	assert.equal(observed[0]?.pluginHandle, 'opaque-main-handle');
+	assert.equal(observed[0]?.instanceId, 'ofx-1');
+	assert.equal(observed[0]?.inputs[0]?.sourceRef, 'video-source');
+	assert.equal(projectEffects.length, 1);
+	assert.equal(result.mode, 'render');
+	if (result.mode === 'render') {
+		assert.equal(result.rgba.pixels[0], 23);
+		assert.equal(result.retriedOnCpu, true);
+	}
+});
+
+test('main refuses renderer-authored handles, changed fingerprints, input identities and noncanonical plans', async () => {
+	const fixture = requestFixture();
+	let inventory = [plugin()] as never;
+	const service = createFramescaperOpenFxFrameExecutionService({
+		inventory: () => inventory,
+		qualifiedGpuBackends: () => [],
+		currentProject: () => true,
+		timingAssets: async () => [],
+		execute: async () => bypass('missing'),
+	});
+	await assert.rejects(() => service.execute({ ...fixture.request,
+		inputs: [{ ...fixture.request.inputs[0]!, sourceRef: 'forged-source' }],
+	}), /named planes|identity/iu);
+	inventory = [{ ...plugin(), binarySha256: 'b8'.repeat(32) }] as never;
+	assert.deepEqual(await service.execute(fixture.request), {
+		mode: 'bypass', availability: 'fingerprint-changed', reportsDegradation: true,
+	});
+	inventory = [plugin()] as never;
+	await assert.rejects(() => service.execute({ ...fixture.request,
+		planPayload: `${fixture.request.planPayload}\n`,
+	}), /canonical/iu);
+	await assert.rejects(() => service.execute({ ...fixture.request,
+		inputs: [{ ...fixture.request.inputs[0]!, rgba: new Uint8Array(3) }],
+	}), /RGBA/iu);
+});
+
+test('main projects unavailable execution without mutating the exact authored plan', async () => {
+	const fixture = requestFixture();
+	const before = fixture.request.planPayload;
+	const service = createFramescaperOpenFxFrameExecutionService({
+		inventory: () => [plugin()] as never,
+		qualifiedGpuBackends: () => [],
+		currentProject: () => true,
+		timingAssets: async () => [],
+		execute: async () => bypass('quarantined'),
+	});
+	assert.deepEqual(await service.execute(fixture.request), {
+		mode: 'bypass', availability: 'quarantined', reportsDegradation: true,
+	});
+	assert.equal(fixture.request.planPayload, before);
+});
+
+test('a canonical same-revision forged effect is refused before missing-plugin fallback', async () => {
+	const fixture = requestFixture();
+	const raw = JSON.parse(fixture.request.planPayload) as unknown as {
+		nodes: Array<{ kind: string; state?: { pluginId: string } }>;
+	};
+	const effect = raw.nodes.find((node) => node.kind === 'openfx');
+	if (!effect?.state) throw new Error('OpenFX fixture node is unavailable.');
+	effect.state.pluginId = 'net.example.Forged';
+	const plan = createUnifiedExactRenderPlan(raw);
+	let inventories = 0;
+	const service = createFramescaperOpenFxFrameExecutionService({
+		inventory: () => { inventories += 1; return []; },
+		qualifiedGpuBackends: () => [],
+		currentProject: (_plan, authored) => authored.pluginId === 'net.example.Filter',
+		timingAssets: async () => [],
+		execute: async () => bypass('missing'),
+	});
+	await assert.rejects(() => service.execute({
+		...fixture.request,
+		planPayload: canonicalizeNativeMediaPlan(plan),
+		planFingerprint: fingerprintNativeMediaPlan(plan).sha256,
+	}), /current V28 project revision/iu);
+	assert.equal(inventories, 0, 'fallback resolution cannot precede exact authored-effect authority');
+});
+
+test('main admits only signed GPU qualification and reports exact CPU degradation otherwise', async () => {
+	const fixture = requestFixture();
+	let qualified = ['opengl'] as const;
+	const backends: string[] = [];
+	const service = createFramescaperOpenFxFrameExecutionService({
+		inventory: () => [plugin()] as never,
+		qualifiedGpuBackends: () => qualified,
+		currentProject: () => true,
+		timingAssets: async () => [],
+		execute: async (request) => {
+			backends.push(request.requestedBackend);
+			return { mode: 'render', rgba: new Uint8Array(fixture.frameBytes),
+				availability: 'available', authoredStatePreserved: true,
+				backend: request.requestedBackend, retriedOnCpu: false, reportsDegradation: false,
+				output: { streamId: 'ab'.repeat(20), byteLength: fixture.frameBytes, sha256: SHA },
+			};
+		},
+	});
+	const preferred = await service.execute({
+		...fixture.request, requestedBackend: 'qualified-preferred',
+	});
+	assert.equal(preferred.mode === 'render' ? preferred.backend : null, 'opengl');
+	qualified = [] as never;
+	const refused = await service.execute({ ...fixture.request, requestedBackend: 'metal' });
+	assert.deepEqual(backends, ['opengl', 'cpu']);
+	assert.equal(refused.mode === 'render' ? refused.backend : null, 'cpu');
+	assert.equal(refused.mode === 'render' ? refused.retriedOnCpu : false, true);
+	assert.equal(refused.reportsDegradation, true);
+});
+
+function requestFixture() {
+	const options = framescaperV20Options();
+	options.ofxEffects = [{
+		schemaVersion: 1, instanceId: 'ofx-1', pluginId: 'net.example.Filter', binarySha256: SHA,
+		context: 'filter', attachment: { kind: 'filter', targetId: 'video-clip' },
+		inputs: [{ name: 'Source', sourceRef: 'video-source' }], parameters: [], customEncodings: {}, enabled: true,
+		freshness: { authoredStateSha256: SHA, inputIdentitiesSha256: SHA,
+			renderPlanFingerprintSha256: SHA, nativeEffectFingerprintSha256: SHA }, frozenFallback: null,
+	}];
+	const project = createFramescaperProjectV28(FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, options);
+	const original = createFramescaperProjectUnifiedExactRenderPlanV28(
+		FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, project,
+		createFramescaperNativeRenderPlanAuthorityV28(project),
+	);
+	const raw = structuredClone(original) as unknown as Record<string, unknown>;
+	const output = raw.output as Record<string, unknown>;
+	output.canvas = { ...(output.canvas as Record<string, unknown>), width: 2, height: 2 };
+	const plan = createUnifiedExactRenderPlan(raw);
+	const planPayload = canonicalizeNativeMediaPlan(plan);
+	const planFingerprint = fingerprintNativeMediaPlan(plan).sha256;
+	return {
+		frameBytes: 16,
+		request: {
+			schemaVersion: 1 as const, planPayload, planFingerprint, instanceId: 'ofx-1',
+			outputOrdinal: 0, requestedBackend: 'cpu' as const, transitionProgress: null,
+			inputs: [{ name: 'Source', sourceRef: 'video-source', width: 2, height: 2,
+				rgba: new Uint8Array(16).fill(7) }],
+		},
+	};
+}
+
+function plugin() {
+	return {
+		pluginHandle: 'opaque-main-handle', pluginId: 'net.example.Filter', binarySha256: SHA,
+		state: 'enabled', quarantined: false,
+	};
+}
+
+function bypass(availability: 'missing' | 'quarantined') {
+	return {
+		mode: 'bypass' as const, availability, reason: availability,
+		authoredStatePreserved: true as const, reportsDegradation: true, frozenFallback: null,
+	};
+}

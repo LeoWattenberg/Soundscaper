@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Runs the pinned host attestation inside the isolated media utility process. */
-
-import { spawn } from 'node:child_process';
+/** Runs the pinned host attestation through the independently reviewed OS launcher. */
 
 import type { FramescaperMediaHostDescriptor } from './framescaper-media-host-payload.ts';
 import { authenticateNativeMediaFile } from './native-media-file-auth.ts';
+import {
+	runIsolatedNativeMediaHostControl,
+	type IsolatedNativeMediaHostControlResult,
+} from './native-media-isolated-host-process.ts';
 
 export interface FramescaperMediaHostSelfTestResult {
 	readonly contractVersion: 1;
@@ -35,11 +37,31 @@ export interface FramescaperMediaHostSelectedV20RenderSelfTestResult {
 	readonly ready: boolean;
 }
 
+export interface FramescaperMediaHostSelectedV28V14RenderSelfTestResult {
+	readonly contractVersion: 1;
+	readonly operation: 'media-render';
+	readonly profile: 'selected-v28-v14-carrier';
+	readonly planVersion: 14;
+	readonly rgbaFramePackVersion: 1;
+	readonly exactPictureOrdinals: boolean;
+	readonly evaluatedRgbaExecutor: boolean;
+	readonly maximumInFlightFrames: 0 | 1;
+	readonly stagedAudioInputBound: boolean;
+	readonly deliveryCodecSetAvailable: boolean;
+	readonly ready: boolean;
+}
+
 export const FRAMESCAPER_MEDIA_HOST_SELF_TEST_TIMEOUT_MS = 30_000;
 const FRAMESCAPER_MEDIA_HOST_SELF_TEST_TIMEOUT_MAXIMUM_MS = 60_000;
 
 export interface FramescaperMediaHostSelfTestOptions {
 	readonly timeoutMs?: number;
+	/** Test-only process seam. Production always uses the branded isolated launcher. */
+	readonly invokeControl?: (
+		descriptor: FramescaperMediaHostDescriptor,
+		arguments_: readonly string[],
+		maximumDurationMs: number,
+	) => Promise<IsolatedNativeMediaHostControlResult>;
 }
 
 export function assertFramescaperMediaHostSelfTest(
@@ -111,12 +133,46 @@ export function assertFramescaperMediaHostSelectedV20RenderSelfTest(
 	}
 }
 
+export function assertFramescaperMediaHostSelectedV28V14RenderSelfTest(
+	value: unknown,
+): asserts value is FramescaperMediaHostSelectedV28V14RenderSelfTestResult {
+	if (!value || typeof value !== 'object' || Array.isArray(value)
+		|| Object.getPrototypeOf(value) !== Object.prototype) {
+		throw selectedV28V14SelfTestError();
+	}
+	const record = value as Record<string, unknown>;
+	const expected = [
+		'contractVersion', 'operation', 'profile', 'planVersion', 'rgbaFramePackVersion',
+		'exactPictureOrdinals', 'evaluatedRgbaExecutor', 'maximumInFlightFrames',
+		'stagedAudioInputBound', 'deliveryCodecSetAvailable', 'ready',
+	].sort();
+	const actual = Object.keys(record).sort();
+	if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])
+		|| record.contractVersion !== 1 || record.operation !== 'media-render'
+		|| record.profile !== 'selected-v28-v14-carrier' || record.planVersion !== 14
+		|| record.rgbaFramePackVersion !== 1
+		|| (record.maximumInFlightFrames !== 0 && record.maximumInFlightFrames !== 1)
+		|| [record.exactPictureOrdinals, record.evaluatedRgbaExecutor,
+			record.stagedAudioInputBound, record.deliveryCodecSetAvailable, record.ready]
+			.some((entry) => typeof entry !== 'boolean')) {
+		throw selectedV28V14SelfTestError();
+	}
+	const ready = record.exactPictureOrdinals === true
+		&& record.evaluatedRgbaExecutor === true && record.maximumInFlightFrames === 1
+		&& record.stagedAudioInputBound === true && record.deliveryCodecSetAvailable === true;
+	if (record.ready !== ready) throw selectedV28V14SelfTestError();
+}
+
 export function runFramescaperMediaHostSelfTest(
 	descriptor: FramescaperMediaHostDescriptor,
 	options: FramescaperMediaHostSelfTestOptions = {},
 ): Promise<FramescaperMediaHostSelfTestResult> {
 	return verifyDescriptor(descriptor).then(async () => {
-		const result = await runSelfTestProcess(descriptor, ['--self-test'], selfTestTimeout(options));
+		const timeout = selfTestTimeout(options);
+		const result = await (options.invokeControl ?? runIsolatedNativeMediaHostControl)(
+			descriptor, ['--self-test'], timeout,
+		);
+		assertBoundedControlResult(result);
 		if (result.exitCode !== 0) throw new Error(
 			`The media-host self-test failed (${String(result.exitCode)}): ${result.stderr}`,
 		);
@@ -131,11 +187,13 @@ export function runFramescaperMediaHostSelectedV20RenderSelfTest(
 	options: FramescaperMediaHostSelfTestOptions = {},
 ): Promise<FramescaperMediaHostSelectedV20RenderSelfTestResult> {
 	return verifyDescriptor(descriptor).then(async () => {
-		const result = await runSelfTestProcess(
+		const timeout = selfTestTimeout(options);
+		const result = await (options.invokeControl ?? runIsolatedNativeMediaHostControl)(
 			descriptor,
 			['--self-test-operation', 'selected-v20-render'],
-			selfTestTimeout(options),
+			timeout,
 		);
+		assertBoundedControlResult(result);
 		if (result.exitCode !== 0 && result.exitCode !== 78) throw new Error(
 			`The selected-V20 media-render self-test failed (${String(result.exitCode)}): ${result.stderr}`,
 		);
@@ -148,49 +206,25 @@ export function runFramescaperMediaHostSelectedV20RenderSelfTest(
 	});
 }
 
-function runSelfTestProcess(
+export function runFramescaperMediaHostSelectedV28V14RenderSelfTest(
 	descriptor: FramescaperMediaHostDescriptor,
-	arguments_: readonly string[],
-	timeoutMs: number,
-): Promise<Readonly<{ exitCode: number; stdout: string; stderr: string }>> {
-	return new Promise((resolvePromise, reject) => {
-		const child = spawn(descriptor.path, arguments_, {
-			stdio: ['ignore', 'pipe', 'pipe'], shell: false, windowsHide: true,
-		});
-		let stdout: Buffer<ArrayBufferLike> = Buffer.alloc(0);
-		let stderr: Buffer<ArrayBufferLike> = Buffer.alloc(0);
-		let outputBytes = 0;
-		let oversized = false;
-		let settled = false;
-		const settle = (action: () => void): void => {
-			if (settled) return;
-			settled = true;
-			clearTimeout(timeout);
-			action();
-		};
-		const timeout = setTimeout(() => {
-			child.kill('SIGKILL');
-			settle(() => reject(new Error(`The media-host self-test timed out after ${String(timeoutMs)} ms.`)));
-		}, timeoutMs);
-		timeout.unref?.();
-		const append = (current: Buffer<ArrayBufferLike>, chunk: Buffer): Buffer<ArrayBufferLike> => {
-			outputBytes += chunk.byteLength;
-			if (outputBytes > 64 * 1024) { oversized = true; child.kill(); return current; }
-			return Buffer.concat([current, chunk]);
-		};
-		child.stdout.on('data', (chunk: Buffer) => { stdout = append(stdout, chunk); });
-		child.stderr.on('data', (chunk: Buffer) => { stderr = append(stderr, chunk); });
-		child.once('error', (error) => settle(() => reject(error)));
-		child.once('exit', (code, signal) => {
-			if (settled) return;
-			if (oversized) return settle(() => reject(new Error('The media-host self-test exceeded 64 KiB.')));
-			if (signal !== null || code === null) return settle(() => reject(new Error(
-				`The media-host self-test failed (${signal ?? 'missing-exit-code'}): ${String(stderr)}`,
-			)));
-			settle(() => resolvePromise(Object.freeze({
-				exitCode: code, stdout: String(stdout), stderr: String(stderr),
-			})));
-		});
+	options: FramescaperMediaHostSelfTestOptions = {},
+): Promise<FramescaperMediaHostSelectedV28V14RenderSelfTestResult> {
+	return verifyDescriptor(descriptor).then(async () => {
+		const timeout = selfTestTimeout(options);
+		const result = await (options.invokeControl ?? runIsolatedNativeMediaHostControl)(
+			descriptor, ['--self-test-operation', 'selected-v28-v14-render'], timeout,
+		);
+		assertBoundedControlResult(result);
+		if (result.exitCode !== 0 && result.exitCode !== 78) throw new Error(
+			`The selected-V28/V14 media-render self-test failed (${String(result.exitCode)}): ${result.stderr}`,
+		);
+		const value = parseSelfTestJson(result.stdout);
+		assertFramescaperMediaHostSelectedV28V14RenderSelfTest(value);
+		if ((result.exitCode === 0) !== value.ready) {
+			throw new Error('The selected-V28/V14 media-render self-test exit status does not match its readiness evidence.');
+		}
+		return value;
 	});
 }
 
@@ -199,15 +233,32 @@ function parseSelfTestJson(stdout: string): unknown {
 	catch { throw new Error('The media-host self-test returned malformed JSON.'); }
 }
 
+function assertBoundedControlResult(value: IsolatedNativeMediaHostControlResult): void {
+	if (!value || typeof value !== 'object' || Array.isArray(value)
+		|| Reflect.ownKeys(value).length !== 3
+		|| typeof value.stdout !== 'string' || typeof value.stderr !== 'string'
+		|| !Number.isSafeInteger(value.exitCode)
+		|| Buffer.byteLength(value.stdout) + Buffer.byteLength(value.stderr) > 64 * 1024) {
+		throw new Error('The media-host self-test returned an invalid or oversized control result.');
+	}
+}
+
 function selectedV20SelfTestError(): TypeError {
 	return new TypeError(
 		'The selected-V20 media-render self-test did not return its exact closed readiness evidence.',
 	);
 }
 
+function selectedV28V14SelfTestError(): TypeError {
+	return new TypeError(
+		'The selected-V28/V14 carrier self-test did not return its exact closed readiness evidence.',
+	);
+}
+
 function selfTestTimeout(options: FramescaperMediaHostSelfTestOptions): number {
 	if (!options || typeof options !== 'object' || Array.isArray(options)
-		|| Reflect.ownKeys(options).some((key) => key !== 'timeoutMs')) {
+		|| Reflect.ownKeys(options).some((key) => key !== 'timeoutMs' && key !== 'invokeControl')
+		|| (options.invokeControl !== undefined && typeof options.invokeControl !== 'function')) {
 		throw new TypeError('Framescaper media-host self-test options are invalid.');
 	}
 	const value = options.timeoutMs ?? FRAMESCAPER_MEDIA_HOST_SELF_TEST_TIMEOUT_MS;

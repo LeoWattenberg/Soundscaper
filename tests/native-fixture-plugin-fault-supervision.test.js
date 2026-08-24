@@ -84,6 +84,7 @@ function harnessSource() {
 		"\treturn { byteLength: bytes.byteLength, sha256: createHash('sha256').update(bytes).digest('hex') };",
 		'};',
 		'const worker = createNativeHelperWorker({',
+		"\trole: 'plugin-scanner',",
 		'\tpost: (message) => process.send(message),',
 		"\trunDeviceJob: () => { throw new Error('this helper serves plug-in scans only'); },",
 		'\trunScanJob: createNativePluginScanJobRunner({',

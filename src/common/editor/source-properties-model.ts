@@ -6,11 +6,11 @@ import {
 	type VideoDisplayGeometry,
 } from './video-display-geometry.ts';
 import {
-	normalizeVideoSourceCharacteristics,
 	type VideoSourceAudioStream,
 	type VideoSourceCharacteristics,
 	type VideoSourceStartTimecode,
 } from './video-source-characteristics.ts';
+import { normalizeVideoSourceCharacteristicsForConsumer } from './video-source-characteristics-consumer.ts';
 import { sequenceFrameAtSample } from './sequence-frame-navigation.ts';
 import {
 	formatSequenceTimecode,
@@ -73,7 +73,7 @@ export function resolveVideoSourcePropertiesView(sourceValue: unknown): SourcePr
 	const source = record(sourceValue, 'source');
 	if (source.kind !== 'video') throw new TypeError('Source properties describe a video source.');
 	const frameRate = rationalRate(source.frameRate);
-	const characteristics = normalizeVideoSourceCharacteristics(
+	const characteristics = normalizeVideoSourceCharacteristicsForConsumer(
 		source.characteristics ?? null,
 		{ rate: frameRate },
 	);
@@ -190,7 +190,7 @@ export function resolveSourceTimecodeAtSample(
 			&& candidate.id === value.sourceId && candidate.kind === 'video');
 		if (!isRecord(source)) continue;
 		const rate = rationalRate(source.frameRate);
-		const characteristics = normalizeVideoSourceCharacteristics(
+		const characteristics = normalizeVideoSourceCharacteristicsForConsumer(
 			source.characteristics ?? null,
 			{ rate },
 		);

@@ -9,17 +9,40 @@ import {
 	ffmpegRuntimeStageSummary,
 	verifyFfmpegRuntimeManifest,
 } from './lib/ffmpeg-runtime-manifest.mjs';
+import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
+import { assistanceNativeRuntimeStageSummary } from '../desktop/assistance-native-runtime-payload.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ASSET_ROOT = resolve(process.argv[2] || resolve(ROOT, 'release/desktop'));
 const TRANSLATION_BASE_URL = 'https://translations.soundscaper.org/runtime/translations/audacity/4/';
-const EXPECTED_RUNTIME_MANIFESTS = Object.freeze([
-	'runtime-manifest-soundscaper-linux-arm64.json',
-	'runtime-manifest-soundscaper-linux-x64.json',
-	'runtime-manifest-soundscaper-mac-arm64.json',
-	'runtime-manifest-soundscaper-win-arm64.json',
-	'runtime-manifest-soundscaper-win-x64.json',
+const RELEASE_PRODUCTS = Object.freeze(['soundscaper', 'framescaper']);
+const RELEASE_TARGETS = Object.freeze([
+	'linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64',
 ]);
+const RELEASE_TARGET_PACKAGE_ROWS = Object.freeze({
+	'linux-arm64': Object.freeze([
+		['Linux ARM64 AppImage', 'linux-arm64\\.AppImage'],
+		['Linux ARM64 Debian package', 'linux-arm64\\.deb'],
+	]),
+	'linux-x64': Object.freeze([
+		['Linux x64 AppImage', 'linux-(?:x64|x86_64)\\.AppImage'],
+		['Linux x64 Debian package', 'linux-(?:x64|amd64)\\.deb'],
+	]),
+	'mac-arm64': Object.freeze([
+		['macOS Apple silicon DMG', 'mac-arm64\\.dmg'],
+	]),
+	'win-arm64': Object.freeze([
+		['Windows ARM64 installer', 'win-arm64\\.exe'],
+		['Windows ARM64 ZIP', 'win-arm64\\.zip'],
+	]),
+	'win-x64': Object.freeze([
+		['Windows x64 installer', 'win-x64\\.exe'],
+		['Windows x64 ZIP', 'win-x64\\.zip'],
+	]),
+});
+const EXPECTED_RUNTIME_MANIFESTS = Object.freeze(RELEASE_PRODUCTS.flatMap((productId) => (
+	RELEASE_TARGETS.map((target) => `runtime-manifest-${productId}-${target}.json`)
+)).sort());
 
 export async function main() {
 	const runtimeRelease = await verifyFfmpegRuntimeManifest({
@@ -46,7 +69,10 @@ export async function main() {
 		assert(manifest.value.translations?.releaseId === canonical.translations?.releaseId,
 			`${manifest.name} has a different translation release.`);
 	}
-	validateDesktopReleasePackageInventory(packageFiles, canonical.applicationVersion);
+	validateDesktopReleasePackageInventory(packageFiles,
+		canonical.applicationVersion,
+		RELEASE_PRODUCTS,
+	);
 	const sourceSidecarPath = resolve(ASSET_ROOT, 'ffmpeg-corresponding-source.json');
 	assert((await readFile(sourceSidecarPath)).equals(runtimeRelease.evidence.correspondingSource.bytes),
 		'FFmpeg corresponding-source sidecar does not match the policy manifest.');
@@ -87,21 +113,26 @@ export async function main() {
 	console.log(`Prepared ${releaseFiles.length} release assets and SHA256SUMS in ${ASSET_ROOT}`);
 }
 
-export function validateDesktopReleasePackageInventory(packageFiles, applicationVersion) {
+export function validateDesktopReleasePackageInventory(
+	packageFiles,
+	applicationVersion,
+	productIds = ['soundscaper'],
+) {
 	assert(typeof applicationVersion === 'string' && applicationVersion.length > 0,
 		'Desktop runtime manifests have no application version.');
-	const version = escapeRegex(applicationVersion);
-	const requiredPackages = [
-		['Linux x64 AppImage', new RegExp(`^Soundscaper-${version}-linux-(?:x64|x86_64)\\.AppImage$`, 'u')],
-		['Linux x64 Debian package', new RegExp(`^Soundscaper-${version}-linux-(?:x64|amd64)\\.deb$`, 'u')],
-		['Linux ARM64 AppImage', new RegExp(`^Soundscaper-${version}-linux-arm64\\.AppImage$`, 'u')],
-		['Linux ARM64 Debian package', new RegExp(`^Soundscaper-${version}-linux-arm64\\.deb$`, 'u')],
-		['macOS Apple silicon DMG', new RegExp(`^Soundscaper-${version}-mac-arm64\\.dmg$`, 'u')],
-		['Windows x64 installer', new RegExp(`^Soundscaper-${version}-win-x64\\.exe$`, 'u')],
-		['Windows x64 ZIP', new RegExp(`^Soundscaper-${version}-win-x64\\.zip$`, 'u')],
-		['Windows ARM64 installer', new RegExp(`^Soundscaper-${version}-win-arm64\\.exe$`, 'u')],
-		['Windows ARM64 ZIP', new RegExp(`^Soundscaper-${version}-win-arm64\\.zip$`, 'u')],
-	];
+	assert(Array.isArray(productIds) && productIds.length > 0
+		&& productIds.every((id) => RELEASE_PRODUCTS.includes(id))
+		&& new Set(productIds).size === productIds.length,
+		'An exact desktop release product set is required.');
+	const requiredPackages = productIds.flatMap((productId) => RELEASE_TARGETS.flatMap((targetId) => (
+		desktopReleaseTargetPackageInventory(productId, targetId, applicationVersion)
+			.map(({ label, pattern }) => [
+				productIds.length === 1 && productId === 'soundscaper'
+					? label
+					: `${productId === 'framescaper' ? 'Framescaper' : 'Soundscaper'} ${label}`,
+				pattern,
+			])
+	)));
 	const releasePackages = packageFiles.filter((name) => /\.(?:AppImage|deb|dmg|exe|zip)$/u.test(name));
 	for (const [label, pattern] of requiredPackages) {
 		assert(releasePackages.filter((name) => pattern.test(name)).length === 1, `Expected exactly one ${label}.`);
@@ -110,10 +141,26 @@ export function validateDesktopReleasePackageInventory(packageFiles, application
 		`Unexpected or duplicate desktop package: ${releasePackages.join(', ') || '<none>'}.`);
 	assert(packageFiles.includes('ffmpeg-corresponding-source.json'),
 		'Missing FFmpeg corresponding-source sidecar.');
-	const allowedInputs = new Set([...releasePackages, ...EXPECTED_RUNTIME_MANIFESTS, 'ffmpeg-corresponding-source.json']);
+	const runtimeManifests = productIds.flatMap((productId) => RELEASE_TARGETS.map(
+		(target) => `runtime-manifest-${productId}-${target}.json`,
+	));
+	const allowedInputs = new Set([...releasePackages, ...runtimeManifests, 'ffmpeg-corresponding-source.json']);
 	const unexpectedInputs = packageFiles.filter((name) => !allowedInputs.has(name));
 	assert(unexpectedInputs.length === 0,
 		`Unexpected desktop release input: ${unexpectedInputs.join(', ')}.`);
+}
+
+export function desktopReleaseTargetPackageInventory(productId, targetId, applicationVersion) {
+	assert(RELEASE_PRODUCTS.includes(productId), 'Desktop release product is invalid.');
+	assert(RELEASE_TARGETS.includes(targetId), 'Desktop release target is invalid.');
+	assert(typeof applicationVersion === 'string' && applicationVersion.length > 0,
+		'Desktop release application version is invalid.');
+	const productName = productId === 'framescaper' ? 'Framescaper' : 'Soundscaper';
+	const version = escapeRegex(applicationVersion);
+	return Object.freeze(RELEASE_TARGET_PACKAGE_ROWS[targetId].map(([label, suffix]) => Object.freeze({
+		label,
+		pattern: new RegExp(`^${productName}-${version}-${suffix}$`, 'u'),
+	})));
 }
 
 export function regularDesktopReleaseFileNames(entries) {
@@ -159,10 +206,39 @@ export function validateDesktopRuntimeManifests(manifests, runtimeRelease) {
 	for (const manifest of manifests) {
 		assert(JSON.stringify(manifest.value.ffmpeg) === expected,
 			`${manifest.name} does not match the verified FFmpeg runtime policy manifest.`);
-		const identity = /^runtime-manifest-soundscaper-(linux|mac|win)-(arm64|x64)\.json$/u.exec(manifest.name);
-		assert(manifest.value.productId === 'soundscaper' && manifest.value.target?.platform === identity?.[1]
-			&& manifest.value.target?.arch === identity?.[2], `${manifest.name} has invalid product or target identity.`);
-		validateDesktopNativeAddonSummary(manifest, `${identity?.[1]}-${identity?.[2]}`);
+		const identity = /^runtime-manifest-(soundscaper|framescaper)-(linux|mac|win)-(arm64|x64)\.json$/u.exec(manifest.name);
+		assert(manifest.value.productId === identity?.[1] && manifest.value.target?.platform === identity?.[2]
+			&& manifest.value.target?.arch === identity?.[3], `${manifest.name} has invalid product or target identity.`);
+		const targetId = `${identity?.[2]}-${identity?.[3]}`;
+		assert(JSON.stringify(manifest.value.assistanceNativeRuntime)
+			=== JSON.stringify(assistanceNativeRuntimeStageSummary(assistanceNativeRuntimeManifest, targetId)),
+			`${manifest.name} has invalid assistance native-runtime evidence.`);
+		validateDesktopNativeAddonSummary(manifest, targetId);
+		if (identity?.[1] === 'framescaper') validateFramescaperNativeHostSummary(manifest, targetId);
+		else assert(manifest.value.framescaperNativeHosts === null
+			|| manifest.value.framescaperNativeHosts === undefined,
+			`${manifest.name} unexpectedly carries Framescaper native-host state.`);
+	}
+}
+
+export function validateFramescaperNativeHostSummary(manifest, targetId) {
+	const summary = manifest.value.framescaperNativeHosts;
+	assert(summary && typeof summary === 'object',
+		`${manifest.name} does not record Framescaper native-host payloads.`);
+	assert(summary.target === targetId && summary.targetSource === 'declared',
+		`${manifest.name} has an invalid Framescaper target or target source.`);
+	for (const [field, label] of [['mediaHost', 'media host'], ['openFxHost', 'OpenFX host']]) {
+		const host = summary[field];
+		assert(host && typeof host === 'object' && ['built', 'pending-external'].includes(host.status),
+			`${manifest.name} has an invalid Framescaper ${label} status.`);
+		assert(host.payloadManifest && typeof host.payloadManifest.id === 'string'
+			&& /^[a-f\d]{64}$/u.test(host.payloadManifest.sha256),
+		`${manifest.name} has an invalid Framescaper ${label} manifest pin.`);
+		assert(host.status === 'built'
+			? host.blockedBy === null && Array.isArray(host.payloads) && host.payloads.length > 0
+			: typeof host.blockedBy === 'string' && host.blockedBy.trim().length >= 8
+				&& Array.isArray(host.payloads) && host.payloads.length === 0,
+		`${manifest.name} has inconsistent Framescaper ${label} payload state.`);
 	}
 }
 

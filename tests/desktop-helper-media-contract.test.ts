@@ -153,6 +153,7 @@ const MEDIA_JOBS = Object.freeze([
 		kind: 'media-encode',
 		grant: {
 			executable: EXECUTABLE,
+			backend: 'native-cpu',
 			plan: PLAN,
 			sources: [SOURCE],
 			output: OUTPUT,
@@ -163,6 +164,7 @@ const MEDIA_JOBS = Object.freeze([
 		kind: 'media-render',
 		grant: {
 			executable: EXECUTABLE,
+			backend: 'native-cpu',
 			plan: PLAN,
 			sources: [SOURCE],
 			output: OUTPUT,
@@ -231,6 +233,7 @@ test('helper contract v1 closes the six native media and OFX job families', () =
 		'media-proxy',
 		'ofx-scan',
 		'ofx-host',
+		'assistance-speech',
 	]);
 	assert.equal((HELPER_JOB_KINDS as readonly string[]).includes('watch'), false,
 		'watch reconciliation remains main-owned');
@@ -240,6 +243,7 @@ test('helper contract v1 closes the six native media and OFX job families', () =
 			type: 'job',
 			jobId: JOB_ID,
 			kind: job.kind,
+			jobContractVersion: 1,
 			grant: structuredClone(job.grant),
 			resourcePolicy: resourcePolicy(job.kind),
 		});
@@ -270,6 +274,7 @@ test('new job grants admit only exact executable, input, output, root, and scrat
 			type: 'job',
 			jobId: JOB_ID,
 			kind: encode.kind,
+			jobContractVersion: 1,
 			grant,
 			resourcePolicy: resourcePolicy(encode.kind),
 		}), (error: unknown) => error instanceof HelperContractViolationError && error.code === 'unsafe-grant');
@@ -298,7 +303,7 @@ test('OpenFX helper grants authenticate the invocation and exact named frame str
 		{ ...host.grant, plan: { ...PLAN, streamId: OFX_INPUT_FRAME.streamId } },
 	]) {
 		assert.throws(() => validateHelperHostMessage({
-			contractVersion: 1, type: 'job', jobId: JOB_ID, kind: 'ofx-host', grant,
+			contractVersion: 1, type: 'job', jobId: JOB_ID, kind: 'ofx-host', jobContractVersion: 1, grant,
 			resourcePolicy: resourcePolicy('ofx-host'),
 		}), (error: unknown) => error instanceof HelperContractViolationError
 			&& error.code === 'unsafe-grant');
@@ -317,10 +322,11 @@ test('image-sequence decode grants require exact per-input pack and inventory ro
 	const grant = {
 		...MEDIA_JOBS[0].grant,
 		sources: [pack, inventory],
+		output: Object.freeze(outputReservation('bd'.repeat(20), 4_096)),
 		imageSequence: IMAGE_SEQUENCE,
 	};
 	assert.deepEqual(validateHelperHostMessage({
-		contractVersion: 1, type: 'job', jobId: JOB_ID, kind: 'media-decode', grant,
+		contractVersion: 1, type: 'job', jobId: JOB_ID, kind: 'media-decode', jobContractVersion: 1, grant,
 		resourcePolicy: resourcePolicy('media-decode'),
 	}).type, 'job');
 	for (const sources of [
@@ -330,17 +336,17 @@ test('image-sequence decode grants require exact per-input pack and inventory ro
 		[pack, { ...inventory, type: 'stream', binding: PLAN }],
 	]) {
 		assert.throws(() => validateHelperHostMessage({
-			contractVersion: 1, type: 'job', jobId: JOB_ID, kind: 'media-decode',
+			contractVersion: 1, type: 'job', jobId: JOB_ID, kind: 'media-decode', jobContractVersion: 1,
 			grant: { ...grant, sources }, resourcePolicy: resourcePolicy('media-decode'),
 		}), HelperContractViolationError);
 	}
 	assert.throws(() => validateHelperHostMessage({
-		contractVersion: 1, type: 'job', jobId: JOB_ID, kind: 'media-decode',
+		contractVersion: 1, type: 'job', jobId: JOB_ID, kind: 'media-decode', jobContractVersion: 1,
 		grant: { ...MEDIA_JOBS[0].grant, sources: [pack] },
 		resourcePolicy: resourcePolicy('media-decode'),
 	}), HelperContractViolationError, 'pack roles cannot alias an ordinary decode');
 	assert.throws(() => validateHelperHostMessage({
-		contractVersion: 1, type: 'job', jobId: JOB_ID, kind: 'media-decode',
+		contractVersion: 1, type: 'job', jobId: JOB_ID, kind: 'media-decode', jobContractVersion: 1,
 		grant: { ...grant, imageSequence: { ...IMAGE_SEQUENCE, frameRate: { num: 48, den: 2 } } },
 		resourcePolicy: resourcePolicy('media-decode'),
 	}), HelperContractViolationError, 'the exact rational rate is canonical and reduced');
@@ -358,20 +364,30 @@ test('selected V20 media file grants admit one ordered RGBA carrier and staged m
 	const render = MEDIA_JOBS[2];
 	for (const sources of [[SOURCE, carrier], [SOURCE, carrier, audio], [SOURCE, audio]]) {
 		assert.equal(validateHelperHostMessage({
-			contractVersion: 1, type: 'job', jobId: JOB_ID, kind: 'media-render',
+			contractVersion: 1, type: 'job', jobId: JOB_ID, kind: 'media-render', jobContractVersion: 1,
 			grant: { ...render.grant, sources }, resourcePolicy: resourcePolicy('media-render'),
 		}).type, 'job');
+	}
+	assert.equal(validateHelperHostMessage({
+		contractVersion: 1, type: 'job', jobId: JOB_ID, kind: 'media-render', jobContractVersion: 1,
+		grant: { ...render.grant, backend: 'vaapi' }, resourcePolicy: resourcePolicy('media-render'),
+	}).type, 'job');
+	for (const backend of [undefined, 'web-core', 'd3d11va', 'nvdec']) {
+		assert.throws(() => validateHelperHostMessage({
+			contractVersion: 1, type: 'job', jobId: JOB_ID, kind: 'media-render', jobContractVersion: 1,
+			grant: { ...render.grant, backend }, resourcePolicy: resourcePolicy('media-render'),
+		}), HelperContractViolationError);
 	}
 	for (const sources of [
 		[carrier, SOURCE], [SOURCE, carrier, carrier], [SOURCE, audio, carrier], [SOURCE, audio, audio],
 	]) {
 		assert.throws(() => validateHelperHostMessage({
-			contractVersion: 1, type: 'job', jobId: JOB_ID, kind: 'media-render',
+			contractVersion: 1, type: 'job', jobId: JOB_ID, kind: 'media-render', jobContractVersion: 1,
 			grant: { ...render.grant, sources }, resourcePolicy: resourcePolicy('media-render'),
 		}), HelperContractViolationError);
 	}
 	assert.throws(() => validateHelperHostMessage({
-		contractVersion: 1, type: 'job', jobId: JOB_ID, kind: 'media-decode',
+		contractVersion: 1, type: 'job', jobId: JOB_ID, kind: 'media-decode', jobContractVersion: 1,
 		grant: { ...MEDIA_JOBS[0].grant, sources: [carrier] },
 		resourcePolicy: resourcePolicy('media-decode'),
 	}), HelperContractViolationError);

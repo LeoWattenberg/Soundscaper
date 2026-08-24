@@ -6,6 +6,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
+import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
+import { stageAssistanceNativeRuntimePayload } from '../desktop/assistance-native-runtime-payload.mjs';
 import hardenPackagedElectron, { verifyPackagedNativeAddonResources } from '../scripts/desktop-after-pack.mjs';
 import {
 	stageVerifiedFfmpegNotice,
@@ -16,6 +18,11 @@ import {
 	stageVerifiedNativeAddonPayload,
 	verifyNativeAddonPayloadManifest,
 } from '../scripts/lib/native-addon-payload-manifest.mjs';
+import {
+	professionalNativePayloadOutputRoot,
+	stageVerifiedSoundscaperProfessionalNativePayload,
+	verifySoundscaperProfessionalNativePayload,
+} from '../scripts/lib/soundscaper-professional-native-payload.mjs';
 
 const BUILT_TARGET = 'linux-x64';
 const PENDING_TARGET = 'mac-arm64';
@@ -34,6 +41,21 @@ async function packagedResources(context, target = BUILT_TARGET) {
 	const release = await verifyNativeAddonPayloadManifest({ repositoryRoot: process.cwd(), target });
 	const nativeRoot = join(resources, `runtime/native/${target}`);
 	await stageVerifiedNativeAddonPayload({ release, outputRoot: nativeRoot });
+	const professional = await verifySoundscaperProfessionalNativePayload({
+		repositoryRoot: process.cwd(), target,
+	});
+	await stageVerifiedSoundscaperProfessionalNativePayload({
+		release: professional,
+		outputRoot: professionalNativePayloadOutputRoot(join(resources, 'runtime'), professional),
+	});
+	if (target === BUILT_TARGET) {
+		await stageAssistanceNativeRuntimePayload({
+			manifest: assistanceNativeRuntimeManifest,
+			targetId: target,
+			nodeModulesRoot: join(process.cwd(), 'node_modules'),
+			outputRoot: join(resources, 'runtime'),
+		});
+	}
 	return { root, resources, nativeRoot, release };
 }
 
@@ -65,6 +87,7 @@ test('afterPack verifies the packaged native addon payload before any fuse work'
 	const invoke = () => hardenPackagedElectron(packagingContext(root, resources), {
 		repositoryRoot: process.cwd(),
 		flipFuses: async (...args) => { fuseCalls.push(args); },
+		writeDesktopPackageContentManifest: async () => {},
 	});
 	await invoke();
 	assert.equal(fuseCalls.length, 1);

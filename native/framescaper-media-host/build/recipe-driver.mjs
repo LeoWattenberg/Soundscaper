@@ -14,6 +14,9 @@ import {
 	addSourceTreeWitness,
 	verifySourceAuthenticationWitness,
 } from './source-authentication.mjs';
+import {
+	validateFramescaperMediaHostExternalSourceManifest,
+} from './external-source-authentication.mjs';
 
 const HOST_ROOT = 'native/framescaper-media-host';
 const SOURCE_RECEIPT = '.framescaper-source-identity.json';
@@ -43,18 +46,20 @@ const FFMPEG_CONFIGURE_FLAGS = Object.freeze([
 	'--disable-programs', '--disable-shared', '--disable-network', '--enable-static',
 	'--enable-pic', '--enable-gpl', '--enable-avcodec', '--enable-avfilter',
 	'--enable-avformat', '--enable-swresample', '--enable-swscale',
-	'--enable-decoder=prores', '--enable-encoder=prores_ks', '--enable-demuxer=mov',
-	'--enable-muxer=mov', '--enable-protocol=file',
+	'--enable-decoder=prores', '--enable-decoder=pcm_f32le',
+	'--enable-encoder=prores_ks', '--enable-encoder=pcm_s16le',
+	'--enable-demuxer=mov', '--enable-demuxer=wav',
+	'--enable-muxer=mov', '--enable-protocol=file', '--enable-protocol=pipe',
 ]);
 const FFMPEG_POLICY = Object.freeze({
 	rawFfmpegArguments: false,
 	network: false,
 	externalLibraries: Object.freeze([]),
-	enabledDecoders: Object.freeze(['prores']),
-	enabledEncoders: Object.freeze(['prores_ks']),
-	enabledDemuxers: Object.freeze(['mov']),
+	enabledDecoders: Object.freeze(['prores', 'pcm_f32le']),
+	enabledEncoders: Object.freeze(['prores_ks', 'pcm_s16le']),
+	enabledDemuxers: Object.freeze(['mov', 'wav']),
 	enabledMuxers: Object.freeze(['mov']),
-	enabledProtocols: Object.freeze(['file']),
+	enabledProtocols: Object.freeze(['file', 'pipe']),
 	blockedComponents: Object.freeze([
 		'av1', 'exr', 'h264', 'hevc', 'libvpx-vp9', 'libx264', 'png', 'tiff', 'vp9',
 	]),
@@ -93,6 +98,9 @@ export function createFramescaperMediaHostBuildRecipe(value) {
 	assertSeparateRoots([hostRoot, outputRoot, ffmpegSourceRoot, boostSourceRoot]);
 	const configure = pinnedJson(hostRoot, manifest, 'build/ffmpeg-9.0.1-configure.json', witnesses);
 	assertFfmpegConfigure(configure, manifest);
+	validateFramescaperMediaHostExternalSourceManifest(pinnedJson(
+		hostRoot, manifest, configure.externalSourceManifest, witnesses,
+	));
 	verifyFfmpegSource(ffmpegSourceRoot, manifest, witnesses);
 	verifyBoostSource(boostSourceRoot, manifest, witnesses);
 	const tools = verifyToolchain(
@@ -280,9 +288,11 @@ function assertPendingTargets(manifest) {
 		const state = manifest.targets[target.id];
 		closedRecord(state, [
 			'runtime', 'status', 'blockedBy', 'toolchainIdentity', 'payload',
+			'isolationPayload', 'productionReadiness',
 		], `media-host ${target.id} target state`);
 		if (state?.status !== 'pending-external' || state.toolchainIdentity !== null
-			|| state.payload !== null || state.runtime !== target.runtime
+			|| state.payload !== null || state.isolationPayload !== null
+			|| state.productionReadiness !== null || state.runtime !== target.runtime
 			|| typeof state.blockedBy !== 'string' || state.blockedBy.length === 0) {
 			throw new Error(`Target ${target.id} must remain pending-external with no payload claim.`);
 		}
@@ -291,12 +301,14 @@ function assertPendingTargets(manifest) {
 
 function assertFfmpegConfigure(recipe, manifest) {
 	closedRecord(recipe, [
-		'schemaVersion', 'sourceVersion', 'sourceDateEpoch', 'environment', 'configureFlags', 'policy',
+		'schemaVersion', 'sourceVersion', 'sourceDateEpoch', 'externalSourceManifest',
+		'environment', 'configureFlags', 'policy',
 	], 'pinned FFmpeg configure recipe');
 	closedRecord(recipe.environment, ['TZ', 'LC_ALL', 'ARFLAGS', 'ZERO_AR_DATE'], 'FFmpeg environment');
 	closedRecord(recipe.policy, Object.keys(FFMPEG_POLICY), 'FFmpeg component policy');
 	if (recipe.schemaVersion !== 1 || recipe.sourceVersion !== manifest.ffmpeg.version
 		|| recipe.sourceDateEpoch !== manifest.sourceDateEpoch
+		|| recipe.externalSourceManifest !== 'build/ffmpeg-9.0.1-external-sources.json'
 		|| canonicalJson(recipe.configureFlags) !== canonicalJson(FFMPEG_CONFIGURE_FLAGS)
 		|| canonicalJson(recipe.policy) !== canonicalJson(FFMPEG_POLICY)) {
 		throw new Error('The pinned FFmpeg configure recipe is not closed.');
@@ -327,6 +339,7 @@ function verifyPinnedSourceClosure(root, manifest, witnesses) {
 	}
 	for (const required of [
 		'CMakeLists.txt', 'CMakePresets.json', 'build/ffmpeg-9.0.1-configure.json',
+		'build/external-source-authentication.mjs', 'build/ffmpeg-9.0.1-external-sources.json',
 		'build/recipe-driver.mjs', 'build/targets.json',
 		...TARGETS.map(({ toolchainFile }) => toolchainFile),
 	]) if (!paths.includes(required)) throw new Error(`Required build input ${required} is not pinned.`);

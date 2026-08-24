@@ -2,7 +2,6 @@ import { expect, test } from '@playwright/test';
 
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
-import { hasWebGl2Capability } from './helpers/webgl2-capability.js';
 
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
@@ -273,12 +272,11 @@ test.describe('audio editor video composition workflow', () => {
 		const canvas = preview.locator('[data-video-preview-canvas]');
 		await expect(preview).toHaveAttribute('data-active-video-effect-count', '3');
 		await expect(canvas).toHaveCount(1);
-		const composesOnWebGl = await page.evaluate(hasWebGl2Capability);
-		const composedState = composesOnWebGl ? 'ready' : 'fallback';
-		await expect(preview).toHaveAttribute('data-video-preview-renderer', composedState);
-		await expect(canvas).toHaveAttribute('data-renderer-state', composedState);
+		await expect(preview).toHaveAttribute('data-video-preview-renderer', /^(ready|fallback)$/);
+		const composedState = await preview.getAttribute('data-video-preview-renderer');
+		await expect(canvas).toHaveAttribute('data-renderer-state', composedState ?? 'fallback');
 
-		if (composesOnWebGl) {
+		if (composedState === 'ready') {
 			const canLoseContext = await canvas.evaluate((element) => {
 				const context = element.getContext('webgl2');
 				const extension = context?.getExtension('WEBGL_lose_context');

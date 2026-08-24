@@ -129,6 +129,75 @@ test('the settings mutation queue remains live after a rolled-back write', async
 	assert.equal(durable.modelsDirectory, memory.modelsDirectory);
 });
 
+test('native audio calibration and route preferences persist only for their exact opaque tuple', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-native-audio-settings-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const filePath = join(root, 'settings.json');
+	const settings = new DesktopSettingsStore(filePath);
+	await settings.load(['en']);
+	const identity = {
+		inputDeviceId: 'native:wasapi:in:device-1',
+		outputDeviceId: 'native:wasapi:out:device-1',
+		backend: 'wasapi', mode: 'exclusive', sampleRate: 48_000, bufferFrames: 256,
+	};
+	await settings.persistNativeAudioCalibration({ identity, offsetFrames: 384 });
+	await settings.setNativeAudioRoutePreference({
+		candidates: [
+			{ backend: 'wasapi', deviceHandle: 'device-1' },
+			{ backend: 'asio', deviceHandle: 'device-2' },
+		],
+		direction: 'duplex', mode: 'exclusive', sampleRate: 48_000,
+		periodFrames: 256, channelCount: 2,
+	});
+	assert.equal(settings.resolveNativeAudioCalibration(identity), 384);
+	for (const changed of [
+		{ ...identity, outputDeviceId: 'native:wasapi:out:device-2' },
+		{ ...identity, mode: 'shared' },
+		{ ...identity, sampleRate: 44_100 },
+		{ ...identity, bufferFrames: 512 },
+	]) assert.equal(settings.resolveNativeAudioCalibration(changed), null);
+
+	const reloaded = new DesktopSettingsStore(filePath);
+	await reloaded.load(['en']);
+	assert.equal(reloaded.resolveNativeAudioCalibration(identity), 384,
+		'frames are restored through the explicitly persisted millisecond value');
+	assert.deepEqual(reloaded.snapshot().nativeAudioRoutePreference.candidates, [
+		{ backend: 'wasapi', deviceHandle: 'device-1' },
+		{ backend: 'asio', deviceHandle: 'device-2' },
+	]);
+	await assert.rejects(() => reloaded.setNativeAudioRoutePreference({
+		candidates: [{ backend: 'asio', deviceHandle: '/dev/not-opaque' }],
+		direction: 'duplex', mode: 'shared', sampleRate: 48_000,
+		periodFrames: 256, channelCount: 2,
+	}), /opaque|exclusive/iu);
+	await reloaded.setNativeAudioRoutePreference({
+		candidates: [{ backend: 'wasapi', deviceHandle: 'device-1' }],
+		direction: 'duplex', mode: 'exclusive', sampleRate: 48_000,
+		periodFrames: 256, channelCount: 32,
+	});
+	for (const invalid of [
+		{
+			candidates: [{ backend: 'wasapi', deviceHandle: 'device-1' }],
+			direction: 'duplex', mode: 'exclusive', sampleRate: 48_000,
+			periodFrames: 256, channelCount: 33,
+		},
+		{
+			candidates: [{ backend: 'wasapi', deviceHandle: 'device-1' }, { backend: 'asio', deviceHandle: 'device-2' }],
+			direction: 'duplex', mode: 'shared', sampleRate: 48_000,
+			periodFrames: 256, channelCount: 2,
+		},
+		{
+			candidates: [{ backend: 'jack', deviceHandle: 'device-3' }],
+			direction: 'duplex', mode: 'exclusive', sampleRate: 48_000,
+			periodFrames: 256, channelCount: 2,
+		},
+	]) await assert.rejects(() => reloaded.setNativeAudioRoutePreference(invalid), /channel|ASIO|JACK/iu);
+	assert.throws(() => reloaded.resolveNativeAudioCalibration({
+		...identity, backend: 'jack',
+		inputDeviceId: 'native:jack:in:device-1', outputDeviceId: 'native:jack:out:device-1',
+	}), /JACK/iu);
+});
+
 test('semantic release selection respects preview and stable channels', () => {
 	assert.equal(compareVersions('1.0.0-beta.2', '1.0.0-beta.1'), 1);
 	assert.equal(compareVersions('1.0.0', '1.0.0-beta.9'), 1);

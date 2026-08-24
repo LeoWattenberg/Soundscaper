@@ -1,3 +1,5 @@
+import { acquireSoundscaperNativeAudioCapture, soundscaperNativeAudioCaptureSource, subscribeSoundscaperNativeAudioCaptureLoss } from './soundscaper-native-audio-capture.ts';
+
 const DEFAULT_PROCESSOR_NAME = 'kw-audio-recorder';
 const DISPLAY_INPUT_KEY = 'display';
 const DISPLAY_REPLACEMENT_KEY = 'display:replacement';
@@ -17,11 +19,7 @@ export async function requestMicrophone(constraints = { audio: true }) {
 	return mediaDevices.getUserMedia.call(mediaDevices, constraints);
 }
 
-/**
- * Request one exact hardware input without browser speech processing. The
- * requested channel count is an ideal/maximum hint; callers must inspect the
- * returned audio track because browsers may expose fewer device channels.
- */
+/** Request exact hardware input without browser speech processing. */
 export async function requestHardwareInput({
 	deviceId,
 	channelCount = 2,
@@ -29,6 +27,8 @@ export async function requestHardwareInput({
 	audioConstraints = {},
 	mediaDevices = getMediaDevices(),
 } = {}) {
+	const nativeStream = acquireSoundscaperNativeAudioCapture({ deviceId, channelCount, sampleRate });
+	if (nativeStream) return nativeStream;
 	if (!mediaDevices?.getUserMedia) {
 		throw new Error('Hardware audio recording is not supported in this browser.');
 	}
@@ -49,11 +49,7 @@ export async function requestHardwareInput({
 	return mediaDevices.getUserMedia.call(mediaDevices, { audio });
 }
 
-/**
- * Request tab/window/system audio. Display capture always includes video at
- * the API boundary; consumers may leave that track disconnected while keeping
- * it alive for the lifetime of the capture permission.
- */
+/** Request tab/window/system audio while retaining its required video track. */
 export async function requestDisplayInput({
 	audioConstraints = true,
 	videoConstraints = true,
@@ -73,11 +69,7 @@ export async function requestDisplayInput({
 	});
 }
 
-/**
- * Set up a microphone -> AudioWorklet recording pipeline. `onChunk` may return
- * a promise (for example an IndexedDB write); calls are serialized and an
- * overrun stops capture rather than retaining an unbounded queue in memory.
- */
+/** Set up a bounded, serialized microphone -> AudioWorklet recording pipeline. */
 export async function createRecordingController({
 	context,
 	stream,
@@ -97,10 +89,11 @@ export async function createRecordingController({
 	setTimeout: setTimeoutFn = globalThis.setTimeout?.bind(globalThis),
 	clearTimeout: clearTimeoutFn = globalThis.clearTimeout?.bind(globalThis),
 } = {}) {
-	if (!context?.audioWorklet?.addModule || !context?.createMediaStreamSource) {
+	if (!stream) throw new Error('An audio MediaStream is required.');
+	const nativeSource = soundscaperNativeAudioCaptureSource(stream, context);
+	if (!context?.audioWorklet?.addModule || (!nativeSource && !context?.createMediaStreamSource)) {
 		throw new Error('AudioWorklet recording is not supported by this AudioContext.');
 	}
-	if (!stream) throw new Error('An audio MediaStream is required.');
 	const normalizedChannelCount = normalizeRecordingChannelCount(channelCount);
 	let currentInputGain = normalizeRecordingInputGain(inputGain);
 	const normalizedStopTimeoutMs = normalizeRecordingStopTimeout(stopTimeoutMs);
@@ -112,7 +105,7 @@ export async function createRecordingController({
 		}
 		return new globalThis.AudioWorkletNode(audioContext, name, options);
 	});
-	const source = context.createMediaStreamSource(stream);
+	const source = nativeSource || context.createMediaStreamSource(stream);
 	const nodeOptions = {
 		numberOfInputs: 1,
 		numberOfOutputs: 1,
@@ -145,6 +138,11 @@ export async function createRecordingController({
 		event?.error || new Error('The recording worklet stopped unexpectedly.'),
 	);
 	node.port.start?.();
+	const unsubscribeNativeLoss = nativeSource
+		? subscribeSoundscaperNativeAudioCaptureLoss(stream, () => {
+			if (state === 'recording' || state === 'paused') void beginStop().catch(() => undefined);
+		})
+		: () => undefined;
 
 	const controller = {
 		get state() { return state; },
@@ -198,7 +196,8 @@ export async function createRecordingController({
 				node.port.onmessage = null;
 				node.port.onmessageerror = null;
 				node.onprocessorerror = null;
-				try { source.disconnect(); } catch { /* Already disconnected. */ }
+				unsubscribeNativeLoss();
+				try { nativeSource ? source.disconnect(node) : source.disconnect(); } catch { /* Already disconnected. */ }
 				try { node.disconnect(); } catch { /* Already disconnected. */ }
 				if (stopTracks) {
 					for (const track of stream.getTracks?.() || []) {

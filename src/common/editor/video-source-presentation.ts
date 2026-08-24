@@ -6,9 +6,9 @@ import {
 } from './video-display-geometry.ts';
 import {
 	VIDEO_SOURCE_MAXIMUM_CODED_DIMENSION,
-	normalizeVideoSourceCharacteristics,
 	type VideoSourceCharacteristics,
 } from './video-source-characteristics.ts';
+import { normalizeVideoSourceCharacteristicsForConsumer } from './video-source-characteristics-consumer.ts';
 
 /**
  * What an FFmpeg render still owes a source after FFmpeg's own decode.
@@ -98,7 +98,9 @@ function readCharacteristics(source: unknown): VideoSourceCharacteristics | null
 	if (!candidate) return null;
 	try {
 		// A persisted start timecode is only legible at the source's own rate.
-		return normalizeVideoSourceCharacteristics(candidate, { rate: sourceRate(record.frameRate) });
+		return normalizeVideoSourceCharacteristicsForConsumer(
+			candidate, { rate: sourceRate(record.frameRate) },
+		);
 	} catch {
 		// An unreadable record is not source truth; the decoder stays authoritative.
 		return null;

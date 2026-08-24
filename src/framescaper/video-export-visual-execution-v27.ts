@@ -39,6 +39,8 @@ import { getVideoExportFormat } from '../common/editor/video-export.js';
 import type { ProductVideoExportPlan } from '../common/editor/controller/product-video-export-strategy.ts';
 import type { VideoSourceTimingView } from '../common/editor/video-source-timing-view.ts';
 import type { FramescaperProjectV27 } from './editor-project-v27.ts';
+import type { FramescaperOpenFxFrameDispositionV28 } from './editor-openfx-frame-graph-v28.ts';
+import { framescaperVisualSequencePositionV27 } from './video-export-visual-frame-geometry-v27.ts';
 import { createFramescaperProjectUnifiedExactRenderPlanV27 } from './editor-project-unified-render-plan-v27.ts';
 import { bindFramescaperUnifiedRenderTimingSidecarsV27 } from './editor-project-unified-render-timing-v27.ts';
 import {
@@ -61,6 +63,8 @@ export interface FramescaperVideoExportPictureDispositionV27 {
 	readonly audioDisposition: 'shared-v21-delivery';
 	readonly originalSourceIds: readonly string[];
 	readonly unexplainedOmittedNodeIds: readonly string[];
+	readonly openFxDispositions?: readonly FramescaperOpenFxFrameDispositionV28[];
+	readonly reportsOpenFxDegradation?: boolean;
 }
 
 export interface FramescaperVideoExportVisualExecutionV27 {
@@ -139,7 +143,7 @@ export async function createFramescaperVideoExportVisualExecutionV27(
 		assertReady(request);
 		throwIfAborted(executionSignal);
 		const resolved = consumer.resolveFrame({
-			sequencePosition: sequencePosition(frame, exactPlan),
+			sequencePosition: framescaperVisualSequencePositionV27(frame, exactPlan),
 		});
 		for (const nodeId of resolved.ledger.consumedNodeIds) executed.add(nodeId);
 		for (const nodeId of resolved.ledger.omittedNodeIds) unexplained.add(nodeId);
@@ -369,19 +373,6 @@ function frameClipIds(frame: VideoKeyframeExportFrame): readonly string[] {
 	return result;
 }
 
-function sequencePosition(frame: VideoKeyframeExportFrame, plan: UnifiedExactRenderPlanV13) {
-	const numerator = BigInt(frame.timelinePosition.num) * BigInt(plan.timebase.sequenceRate.num);
-	const denominator = BigInt(frame.timelinePosition.den) * BigInt(plan.timebase.sampleRate)
-		* BigInt(plan.timebase.sequenceRate.den);
-	const divisor = gcd(numerator, denominator);
-	const num = Number(numerator / divisor);
-	const den = Number(denominator / divisor);
-	if (!Number.isSafeInteger(num) || !Number.isSafeInteger(den)) {
-		throw new RangeError('V27 visual sequence position exceeds its exact domain.');
-	}
-	return Object.freeze({ num, den });
-}
-
 function requiredFinishing(plan: UnifiedExactRenderPlanV13): UnifiedExactRenderFinishingNode {
 	const nodes = plan.nodes.filter((node): node is UnifiedExactRenderFinishingNode => node.kind === 'finishing');
 	if (nodes.length !== 1) throw new ReferenceError('V27 visual execution requires one finishing node.');
@@ -414,13 +405,6 @@ function assertReady(request: Pick<CreateRequest, 'signal' | 'assertCurrent'>): 
 
 function throwIfAborted(signal: AbortSignal): void {
 	if (signal.aborted) throw signal.reason ?? new DOMException('V27 visual export was cancelled.', 'AbortError');
-}
-
-function gcd(left: bigint, right: bigint): bigint {
-	let a = left < 0n ? -left : left;
-	let b = right;
-	while (b !== 0n) [a, b] = [b, a % b];
-	return a;
 }
 
 function compareText(left: string, right: string): number { return left.localeCompare(right); }

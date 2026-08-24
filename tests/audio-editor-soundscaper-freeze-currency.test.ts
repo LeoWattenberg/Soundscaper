@@ -164,6 +164,7 @@ test('a rack another strip keys cannot be frozen into a self-keyed render', asyn
 		},
 	} as never, { now: '2026-08-19T12:00:01.000Z' });
 
+	let prepared = 0;
 	const binding = createSoundscaperAudioFreezeActionsV21(
 		{
 			store: {
@@ -176,10 +177,12 @@ test('a rack another strip keys cannot be frozen into a self-keyed render', asyn
 			} as never,
 		},
 		{ project: keyed, actions: { edit: { commit: () => keyed } } } as never,
+		{ prepareProject: async () => { prepared += 1; } },
 	);
 
 	await assert.rejects(() => binding.actions.freeze('voice'), /sidechain/iu);
 	// The track that is not keyed is unaffected.
 	await assert.rejects(() => binding.actions.freeze('music'), /empty|clip|range/iu);
+	assert.equal(prepared, 2, 'each freeze ticket follows exact live-state capture');
 	await binding.dispose();
 });

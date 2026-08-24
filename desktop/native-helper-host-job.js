@@ -25,19 +25,19 @@ export function createNativePluginHostJobRunner({ loadAddon, addonPath, addonSha
 	if (typeof hash !== 'function') throw new TypeError('A block digest function is required.');
 	let addon = null;
 
-	return ({ grant, onProgress }) => {
+	return ({ grant, resourcePolicy, onProgress }) => {
 		let cancelled = false;
 		let instance = null;
 		// Teardown is deterministic rather than left to the Node-API finalizer: a
 		// helper that hosts one probe after another would otherwise keep every
 		// binary it has ever opened resident until a collection that may not come
 		// before the supervisor's RSS ceiling does.
-		const release = () => {
+		const release = async () => {
 			const open = instance;
 			instance = null;
 			if (open === null) return;
 			try {
-				addon?.closePluginInstance?.(open);
+				await addon?.closePluginInstance?.(open);
 			} catch {
 				// The instance is unreachable from here either way.
 			}
@@ -52,9 +52,12 @@ export function createNativePluginHostJobRunner({ loadAddon, addonPath, addonSha
 				});
 			}
 			addon ??= await loadAddon({ addonPath, addonSha256 });
-			instance = addon.openPluginInstance(grant.binaryPath, 48_000, HOST_PROBE_BLOCK_FRAMES);
+			instance = await addon.openPluginInstance(
+				grant.binaryPath, 48_000, HOST_PROBE_BLOCK_FRAMES, grant.format, grant.stableId,
+				{ identity: grant.identity, byteLength: grant.binaryBytes, sha256: grant.binarySha256, resourcePolicy },
+			);
 			try {
-				const reportedLatency = addon.pluginLatencyFrames(instance);
+				const reportedLatency = await addon.pluginLatencyFrames(instance);
 				const channels = [new Float32Array(HOST_PROBE_BLOCK_FRAMES), new Float32Array(HOST_PROBE_BLOCK_FRAMES)];
 				const input = [new Float32Array(HOST_PROBE_BLOCK_FRAMES), new Float32Array(HOST_PROBE_BLOCK_FRAMES)];
 				const rendered = hash();
@@ -69,12 +72,12 @@ export function createNativePluginHostJobRunner({ loadAddon, addonPath, addonSha
 							plane[frame] = ((block * HOST_PROBE_BLOCK_FRAMES + frame) % 128) / 128 + channel;
 						}
 					}
-					addon.processPluginBlock(instance, HOST_PROBE_BLOCK_FRAMES, input, channels);
+					await addon.processPluginBlock(instance, HOST_PROBE_BLOCK_FRAMES, input, channels);
 					for (const plane of channels) {
 						rendered.update(Buffer.from(plane.buffer, plane.byteOffset, plane.byteLength));
 					}
 					blocks += 1;
-					latencies.push(addon.pluginLatencyFrames(instance));
+					latencies.push(await addon.pluginLatencyFrames(instance));
 					onProgress(blocks / HOST_PROBE_BLOCKS);
 					await new Promise((resolve) => { setTimeout(resolve, 0); });
 				}
@@ -84,7 +87,7 @@ export function createNativePluginHostJobRunner({ loadAddon, addonPath, addonSha
 				// it for state would be a call the caller believes cannot happen.
 				if (!cancelled) {
 					try {
-						stateBytes = addon.savePluginState(instance).byteLength;
+						stateBytes = (await addon.savePluginState(instance)).byteLength;
 					} catch (error) {
 						// An oversize or rejected state makes the instance ineligible; it
 						// does not fail the job, and it never discards what was persisted.
@@ -105,7 +108,7 @@ export function createNativePluginHostJobRunner({ loadAddon, addonPath, addonSha
 					stateRefusal,
 				};
 			} finally {
-				release();
+				await release();
 			}
 		})();
 		return Object.freeze({

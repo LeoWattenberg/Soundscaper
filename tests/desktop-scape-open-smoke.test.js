@@ -13,9 +13,9 @@ import {
 } from '@zip.js/zip.js';
 
 import {
-	SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION,
-	validateSoundscaperProjectV23,
-} from '../src/soundscaper/editor-project-v23.ts';
+	SOUNDSCAPER_PROJECT_V29_SCHEMA_VERSION,
+	validateSoundscaperProjectV29,
+} from '../src/soundscaper/editor-project-v29.ts';
 import {
 	DESKTOP_SCAPE_OPEN_ARCHIVE_MAXIMUM_BYTES,
 	DESKTOP_SCAPE_OPEN_ARCHIVE_MINIMUM_BYTES,
@@ -36,9 +36,9 @@ import {
 
 const TOKEN = '0123456789abcdef0123456789abcdef';
 const ARCHIVE_BYTES = 70_000;
-const EXPORTED_FIXTURE_BYTES = 70_623;
+const EXPORTED_FIXTURE_BYTES = 70_647;
 
-test('Scape-open fixture is a production-exported exact Soundscaper V23 mono project with bounded range geometry', async (t) => {
+test('Scape-open fixture is a production-exported exact Soundscaper V29 mono project with bounded range geometry', async (t) => {
 	const profile = await mkdtemp(join(tmpdir(), 'scape-open-fixture-test-'));
 	t.after(() => rm(profile, { recursive: true, force: true }));
 	const fixture = await createDesktopScapeOpenFixture(profile);
@@ -65,8 +65,8 @@ test('Scape-open fixture is a production-exported exact Soundscaper V23 mono pro
 		const projectEntry = entries.find(({ filename }) => filename === 'project.json');
 		assert.ok(projectEntry);
 		const project = JSON.parse(await projectEntry.getData(new TextWriter()));
-		assert.equal(validateSoundscaperProjectV23(project), true);
-		assert.equal(project.schemaVersion, SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION);
+		assert.equal(validateSoundscaperProjectV29(project), true);
+		assert.equal(project.schemaVersion, SOUNDSCAPER_PROJECT_V29_SCHEMA_VERSION);
 		assert.equal(project.createdAt, DESKTOP_SCAPE_OPEN_FIXTURE.project.createdAt);
 		assert.equal(project.updatedAt, DESKTOP_SCAPE_OPEN_FIXTURE.project.updatedAt);
 		assert.equal(project.sampleRate, 48_000);

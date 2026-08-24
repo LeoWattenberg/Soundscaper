@@ -12,13 +12,16 @@ import {
 import {
 	FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,
 } from '../src/framescaper/editor-project-runtime-profile-v27.ts';
+import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
 import { createFramescaperProjectV27 } from '../src/framescaper/editor-project-v27.ts';
+import { reimportFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
 import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
 
 const PROJECT = createFramescaperProjectV27(
 	FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,
 	framescaperV20Options(),
 );
+const PROJECT_V28 = reimportFramescaperProjectV28(FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, PROJECT);
 
 test('V27 finishing dialog documents compile to owned atomic commands', () => {
 	const color = createFramescaperV27FinishingDialogModel({
@@ -51,6 +54,17 @@ test('V27 finishing dialog documents compile to owned atomic commands', () => {
 	assert.throws(() => createFramescaperV27FinishingCommand(
 		'automation', PROJECT, automation.documentText,
 	), /no.*change/iu);
+});
+
+test('selected V28 projects retain inherited finishing models and commands', () => {
+	const model = createFramescaperV27FinishingDialogModel({
+		surface: 'color-management', project: PROJECT_V28,
+	});
+	const draft = JSON.parse(model.documentText) as Record<string, Array<Record<string, unknown>>>;
+	draft.videoColorContexts![0]!.outputSpace = 'srgb';
+	assert.equal(commandTypes(createFramescaperV27FinishingCommand(
+		'color-management', PROJECT_V28, JSON.stringify(draft),
+	))[0], 'video-color-context/set');
 });
 
 test('caption workflow imports and exports only strict sidecars with sequence binding supplied by V27', () => {

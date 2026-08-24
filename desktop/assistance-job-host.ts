@@ -1,30 +1,19 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/**
- * Supervises assistance jobs running in a helper process.
- *
- * The channel is injected rather than constructed here: in the application it
- * is an Electron utility process, and in tests it is an in-process double, so
- * the supervision rules are provable without a packaged app. Native inference
- * never runs in a worker thread, where one segmentation fault would take the
- * editor with it; a helper crash resolves the job as a typed failure and
- * leaves the project untouched.
- */
+/** Speech-specific façade over the shared M5 helper supervisor. */
 
 import {
 	ASSISTANCE_CANCELLATION_BUDGET_MS,
-	ASSISTANCE_JOB_HEARTBEAT_MS,
-	validateAssistanceHelperMessage,
 	validateAssistanceJobRequest,
 	type AssistanceJobRequest,
 } from './assistance-job-protocol.ts';
+import {
+	HelperSupervisionError,
+	HelperSupervisor,
+	type HelperChannel,
+} from './helper-supervisor.ts';
 
-export interface AssistanceHelperChannel {
-	postMessage(message: unknown): void;
-	onMessage(listener: (message: unknown) => void): void;
-	onExit(listener: (code: number | null) => void): void;
-	kill(): void;
-}
+export type AssistanceHelperChannel = HelperChannel;
 
 export interface AssistanceJobProgress {
 	readonly completed: number;
@@ -32,9 +21,11 @@ export interface AssistanceJobProgress {
 }
 
 export interface AssistanceJobHostOptions {
-	readonly spawn: () => AssistanceHelperChannel;
-	readonly heartbeatMs?: number;
+	readonly spawn: () => AssistanceHelperChannel | Promise<AssistanceHelperChannel>;
+	readonly verifyBinary?: () => Promise<void>;
 	readonly cancellationBudgetMs?: number;
+	readonly crashDetectionMs?: number;
+	readonly sampleRss?: () => number | null;
 	readonly setTimeoutImpl?: typeof setTimeout;
 	readonly clearTimeoutImpl?: typeof clearTimeout;
 }
@@ -47,7 +38,6 @@ export interface AssistanceJobRun {
 
 export class AssistanceJobError extends Error {
 	readonly jobId: string;
-
 	readonly cause: string;
 
 	constructor(jobId: string, message: string, cause: string) {
@@ -58,162 +48,80 @@ export class AssistanceJobError extends Error {
 	}
 }
 
-interface ActiveJob {
-	readonly request: AssistanceJobRequest;
-	readonly channel: AssistanceHelperChannel;
-	resolve: (value: unknown) => void;
-	reject: (error: Error) => void;
-	settled: boolean;
-	heartbeat: ReturnType<typeof setTimeout> | null;
-}
-
-/**
- * Runs one job at a time. Assistance is background work competing with the
- * editor for memory and cores, so admission is serialized rather than queued
- * deeply; a caller that wants more parallelism creates another host.
- */
 export function createAssistanceJobHost(options: AssistanceJobHostOptions) {
-	const heartbeatMs = options.heartbeatMs ?? ASSISTANCE_JOB_HEARTBEAT_MS;
-	const cancellationBudgetMs = options.cancellationBudgetMs ?? ASSISTANCE_CANCELLATION_BUDGET_MS;
-	const setTimeoutImpl = options.setTimeoutImpl ?? setTimeout;
-	const clearTimeoutImpl = options.clearTimeoutImpl ?? clearTimeout;
-	let active: ActiveJob | null = null;
-
-	function settle(job: ActiveJob, error: Error | null, value?: unknown): void {
-		if (job.settled) return;
-		job.settled = true;
-		if (job.heartbeat) clearTimeoutImpl(job.heartbeat);
-		job.heartbeat = null;
-		active = null;
-		try {
-			job.channel.kill();
-		} catch {
-			// A channel that is already gone needs no teardown.
-		}
-		if (error) job.reject(error);
-		else job.resolve(value);
-	}
-
-	function armHeartbeat(job: ActiveJob): void {
-		if (job.heartbeat) clearTimeoutImpl(job.heartbeat);
-		job.heartbeat = setTimeoutImpl(() => {
-			settle(job, new AssistanceJobError(
-				job.request.jobId,
-				'The assistance helper stopped reporting progress.',
-				'heartbeat',
-			));
-		}, heartbeatMs);
-	}
+	let nextJobId: string | null = null;
+	let active: Readonly<{ jobId: string; controller: AbortController; completed: Promise<unknown> }> | null = null;
+	const supervisor = new HelperSupervisor({
+		spawn: options.spawn,
+		verifyBinary: options.verifyBinary ?? (() => Promise.resolve()),
+		mintJobId: () => {
+			if (nextJobId === null) throw new Error('The assistance host has no admitted job identity.');
+			const value = nextJobId;
+			nextJobId = null;
+			return value;
+		},
+		cancellationBudgetMs: options.cancellationBudgetMs ?? ASSISTANCE_CANCELLATION_BUDGET_MS,
+		crashDetectionMs: options.crashDetectionMs,
+		sampleRss: options.sampleRss,
+		setTimeoutImpl: options.setTimeoutImpl,
+		clearTimeoutImpl: options.clearTimeoutImpl,
+	});
 
 	function start(
 		request: unknown,
 		onProgress?: (progress: AssistanceJobProgress) => void,
 	): AssistanceJobRun {
-		if (active) {
-			throw new Error('An assistance job is already running.');
-		}
-		const validated = validateAssistanceJobRequest(request);
-		const channel = options.spawn();
-		let resolve!: (value: unknown) => void;
-		let reject!: (error: Error) => void;
-		const completed = new Promise<unknown>((resolveFn, rejectFn) => {
-			resolve = resolveFn;
-			reject = rejectFn;
+		if (active) throw new Error('An assistance job is already running.');
+		const validated: AssistanceJobRequest = validateAssistanceJobRequest(request);
+		const controller = new AbortController();
+		nextJobId = validated.jobId;
+		const completed = supervisor.runJob({
+			kind: 'assistance-speech',
+			grant: validated.grant,
+			signal: controller.signal,
+			onProgress: (value) => onProgress?.(Object.freeze({ completed: value ?? 0, total: 1 })),
+		}).catch((error: unknown) => {
+			throw translateError(validated.jobId, error);
+		}).finally(() => {
+			if (active?.jobId === validated.jobId) active = null;
 		});
-		const job: ActiveJob = {
-			request: validated,
-			channel,
-			resolve,
-			reject,
-			settled: false,
-			heartbeat: null,
-		};
-		active = job;
-
-		channel.onMessage((raw) => {
-			if (job.settled) return;
-			let message;
-			try {
-				message = validateAssistanceHelperMessage(raw);
-			} catch (error) {
-				settle(job, new AssistanceJobError(
-					validated.jobId,
-					'The assistance helper sent a message the editor could not validate.',
-					'malformed-message',
-				));
-				void error;
-				return;
-			}
-			if (message.jobId !== validated.jobId) {
-				settle(job, new AssistanceJobError(
-					validated.jobId,
-					'The assistance helper answered for a different job.',
-					'job-mismatch',
-				));
-				return;
-			}
-			switch (message.type) {
-				case 'progress':
-					armHeartbeat(job);
-					onProgress?.(Object.freeze({ completed: message.completed, total: message.total }));
-					return;
-				case 'result':
-					settle(job, null, message.payload);
-					return;
-				case 'cancelled':
-					settle(job, new AssistanceJobError(validated.jobId, 'The assistance job was cancelled.', 'cancelled'));
-					return;
-				default:
-					settle(job, new AssistanceJobError(validated.jobId, message.reason, 'helper-error'));
-			}
-		});
-
-		channel.onExit((code) => {
-			settle(job, new AssistanceJobError(
-				validated.jobId,
-				`The assistance helper exited before finishing (code ${String(code)}).`,
-				'helper-exit',
-			));
-		});
-
-		armHeartbeat(job);
-		channel.postMessage(validated);
-
+		active = Object.freeze({ jobId: validated.jobId, controller, completed });
 		return Object.freeze({
 			jobId: validated.jobId,
 			completed,
 			async cancel(): Promise<void> {
-				if (job.settled) return;
-				try {
-					channel.postMessage({ type: 'cancel', jobId: validated.jobId });
-				} catch {
-					// A dead channel is already cancelled.
-				}
-				const deadline = setTimeoutImpl(() => {
-					settle(job, new AssistanceJobError(
-						validated.jobId,
-						'The assistance helper did not acknowledge cancellation in time.',
-						'cancellation-timeout',
-					));
-				}, cancellationBudgetMs);
-				try {
-					await completed.catch(() => undefined);
-				} finally {
-					clearTimeoutImpl(deadline);
-				}
+				if (active?.jobId !== validated.jobId) return;
+				controller.abort();
+				await completed.catch(() => undefined);
 			},
 		});
 	}
 
 	return Object.freeze({
 		start,
-		get isBusy(): boolean {
-			return active !== null;
-		},
+		get isBusy(): boolean { return active !== null; },
 		dispose(): void {
-			if (active) {
-				settle(active, new AssistanceJobError(active.request.jobId, 'The assistance host was disposed.', 'disposed'));
-			}
+			if (active) active.controller.abort();
+			supervisor.dispose();
 		},
 	});
+}
+
+function translateError(jobId: string, error: unknown): AssistanceJobError {
+	if (error instanceof AssistanceJobError) return error;
+	if (error instanceof HelperSupervisionError) {
+		return new AssistanceJobError(jobId, error.message, assistanceCause(error.cause_));
+	}
+	return new AssistanceJobError(jobId, error instanceof Error ? error.message : String(error), 'helper-error');
+}
+
+function assistanceCause(cause: HelperSupervisionError['cause_']): string {
+	if (cause === 'malformed-message') return 'malformed-message';
+	if (cause === 'job-mismatch') return 'job-mismatch';
+	if (cause === 'heartbeat') return 'heartbeat';
+	if (cause === 'helper-exit') return 'helper-exit';
+	if (cause === 'cancelled') return 'cancelled';
+	if (cause === 'cancellation-timeout') return 'cancellation-timeout';
+	if (cause === 'disposed') return 'disposed';
+	return 'helper-error';
 }

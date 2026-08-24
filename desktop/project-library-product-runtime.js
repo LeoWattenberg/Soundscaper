@@ -9,7 +9,7 @@ const BRIDGE_FIELDS = Object.freeze([
 	'desktopRoot', 'handle', 'ownerFor', 'removeHandler', 'session',
 ]);
 const EXACT_PRELOAD_BY_PRODUCT = Object.freeze({
-	soundscaper: 'soundscaper-project-library-v10-sandbox-preload.cjs',
+	soundscaper: 'soundscaper-project-library-v11-sandbox-preload.cjs',
 });
 
 /** Selects exactly one main-owned library generation from the packaged product profile. */
@@ -26,56 +26,56 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 		throw new TypeError('Desktop project-library startup seams are invalid');
 	}
 	if (productId === 'framescaper') {
-		const [{ createFramescaperDesktopProjectLibraryV18Handshake },
-			{ FramescaperDesktopProjectLibraryV18Main },
-			{ registerFramescaperDesktopProjectLibraryV18MainIpc }] = await Promise.all([
-			import('./project-library-runtime/desktop/project-library-v18-contract.js'),
-			import('./project-library-runtime/desktop/project-library-v18-main.js'),
-			import('./project-library-runtime/desktop/project-library-v18-main-ipc.js'),
+		const [{ createFramescaperDesktopProjectLibraryV19Handshake },
+			{ FramescaperDesktopProjectLibraryV19Main },
+			{ registerFramescaperDesktopProjectLibraryV19MainIpc }] = await Promise.all([
+			import('./project-library-runtime/desktop/project-library-v19-contract.js'),
+			import('./project-library-runtime/desktop/project-library-v19-main.js'),
+			import('./project-library-runtime/desktop/project-library-v19-main-ipc.js'),
 		]);
-		const host = await FramescaperDesktopProjectLibraryV18Main.start({
+		const host = await FramescaperDesktopProjectLibraryV19Main.start({
 			appDataPath,
 			owner,
-			handshake: createFramescaperDesktopProjectLibraryV18Handshake(),
+			handshake: createFramescaperDesktopProjectLibraryV19Handshake(),
 			onLeaseLost: options.onLeaseLost,
 			qualification: framescaperQualification(options.leaseQualification),
 		});
 		return new DesktopProjectLibraryProductRuntime({
 			productId,
 			host,
-			register: (bridge) => registerFramescaperDesktopProjectLibraryV18MainIpc({
+			register: (bridge) => registerFramescaperDesktopProjectLibraryV19MainIpc({
 				handle: bridge.handle,
 				removeHandler: bridge.removeHandler,
 				ownerFor: bridge.ownerFor,
 				main: host,
 			}),
-			smokeEvidence: (projectId) => createExactSmokeEvidence(host, projectId, 'Framescaper', 'V18'),
+			smokeEvidence: (projectId) => createExactSmokeEvidence(host, projectId, 'Framescaper', 'V19'),
 		});
 	}
 	if (productId === 'soundscaper') {
-		const [{ createSoundscaperDesktopProjectLibraryV10Handshake },
-			{ SoundscaperDesktopProjectLibraryV10Main },
-			{ registerSoundscaperDesktopProjectLibraryV10MainIpc }] = await Promise.all([
-			import('./project-library-runtime/desktop/soundscaper-project-library-v10-contract.js'),
-			import('./project-library-runtime/desktop/soundscaper-project-library-v10-main.js'),
-			import('./project-library-runtime/desktop/soundscaper-project-library-v10-main-ipc.js'),
+		const [{ createSoundscaperDesktopProjectLibraryV11Handshake },
+			{ SoundscaperDesktopProjectLibraryV11Main },
+			{ registerSoundscaperDesktopProjectLibraryV11MainIpc }] = await Promise.all([
+			import('./project-library-runtime/desktop/soundscaper-project-library-v11-contract.js'),
+			import('./project-library-runtime/desktop/soundscaper-project-library-v11-main.js'),
+			import('./project-library-runtime/desktop/soundscaper-project-library-v11-main-ipc.js'),
 		]);
-		const host = await SoundscaperDesktopProjectLibraryV10Main.start({
+		const host = await SoundscaperDesktopProjectLibraryV11Main.start({
 			appDataPath,
 			owner,
-			handshake: createSoundscaperDesktopProjectLibraryV10Handshake(),
+			handshake: createSoundscaperDesktopProjectLibraryV11Handshake(),
 			qualification: soundscaperQualification(options.leaseQualification),
 		});
 		return new DesktopProjectLibraryProductRuntime({
 			productId,
 			host,
-			register: (bridge) => registerSoundscaperDesktopProjectLibraryV10MainIpc({
+			register: (bridge) => registerSoundscaperDesktopProjectLibraryV11MainIpc({
 				handle: bridge.handle,
 				removeHandler: bridge.removeHandler,
 				ownerFor: bridge.ownerFor,
 				main: host,
 			}),
-			smokeEvidence: (projectId) => createExactSmokeEvidence(host, projectId, 'Soundscaper', 'V10'),
+			smokeEvidence: (projectId) => createExactSmokeEvidence(host, projectId, 'Soundscaper', 'V11'),
 		});
 	}
 	const [{ registerDesktopProjectLibraryIpc }, { createDesktopProjectLibrarySmokeEvidence },
@@ -197,12 +197,26 @@ class DesktopProjectLibraryProductRuntime {
 			|| typeof this.#host.nativeProjectState !== 'function'
 			|| typeof this.#host.nativeProjectRecord !== 'function'
 			|| typeof this.#host.readNativeProjectBundle !== 'function'
-			|| typeof this.#host.readNativeBody !== 'function') return null;
+			|| typeof this.#host.readNativeBody !== 'function'
+			|| typeof this.#host.materializeNativeBody !== 'function') return null;
 		return Object.freeze({
 			projectState: (projectId) => this.#host.nativeProjectState(projectId),
 			projectRecord: (projectId) => this.#host.nativeProjectRecord(projectId),
 			readProjectBundle: (projectId) => this.#host.readNativeProjectBundle(projectId),
 			readBody: (body) => this.#host.readNativeBody(body),
+			materializeBody: (body, destination, signal) => (
+				this.#host.materializeNativeBody(body, destination, signal)
+			),
+		});
+	}
+
+	nativePluginStateAuthority() {
+		if (this.#productId !== 'soundscaper'
+			|| typeof this.#host.persistNativePluginState !== 'function'
+			|| typeof this.#host.readNativePluginState !== 'function') return null;
+		return Object.freeze({
+			persist: (bytes) => this.#host.persistNativePluginState(bytes),
+			read: (bodyId) => this.#host.readNativePluginState(bodyId),
 		});
 	}
 

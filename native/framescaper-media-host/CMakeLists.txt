@@ -19,8 +19,12 @@ pkg_check_modules(FFMPEG_901 REQUIRED IMPORTED_TARGET
 
 add_executable(framescaper-media-host
 	src/media_host.cpp
+	src/media_host_arguments.cpp
+	src/ffmpeg_decode_session.cpp
+	src/ffmpeg_hardware_encode.cpp
 	src/ffmpeg_media_engine.cpp
 	src/ffmpeg_image_sequence_decode.cpp
+	src/ffmpeg_professional_sequence_encode.cpp
 	src/ffmpeg_selected_v20_adapter.cpp
 	src/ffmpeg_selected_v20_render.cpp
 	src/ffmpeg_simple_render.cpp

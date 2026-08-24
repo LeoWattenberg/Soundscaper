@@ -16,6 +16,7 @@ import {
 import {
 	evaluateNativeMediaProfileAdmission,
 	nativeMediaProfile,
+	NATIVE_MEDIA_IMAGE_SEQUENCE_MAXIMUM_PRESERVED_BIT_DEPTH,
 	NATIVE_MEDIA_PROFESSIONAL_PROFILES,
 	NATIVE_MEDIA_PROFILE_POLICY_ROW_IDS,
 } from '../src/common/editor/native-media-professional-profiles.ts';
@@ -148,13 +149,59 @@ test('the required professional baseline covers every named decode and encode ro
 		'decode-png-sequence', 'decode-tiff-sequence', 'decode-openexr-sequence',
 	]);
 	assert.deepEqual(ids.filter((id) => id.startsWith('encode-')), [
-		'encode-mp4-h264', 'encode-webm-vp9',
+		'encode-mp4-h264', 'encode-hevc-main10-hdr10', 'encode-hevc-main10-sdr',
+		'encode-webm-vp9',
 		'encode-mov-prores-proxy', 'encode-mov-prores-422-hq', 'encode-mov-prores-4444',
 		'encode-mxf-dnxhr-hqx', 'encode-matroska-ffv1',
 		'encode-png-sequence', 'encode-tiff-sequence', 'encode-openexr-sequence',
 	]);
 	assert.equal(new Set(ids).size, ids.length);
 	assert.equal(NATIVE_MEDIA_PROFESSIONAL_PROFILES.every((profile) => profile.policyRowIds.length > 0), true);
+});
+
+test('image-sequence profiles disclose the selected RGBA8 SDR preservation ceiling', () => {
+	assert.equal(NATIVE_MEDIA_IMAGE_SEQUENCE_MAXIMUM_PRESERVED_BIT_DEPTH, 8);
+	for (const id of [
+		'decode-png-sequence', 'decode-tiff-sequence', 'decode-openexr-sequence',
+		'encode-png-sequence', 'encode-tiff-sequence', 'encode-openexr-sequence',
+	]) {
+		const profile = nativeMediaProfile(id);
+		assert.equal(profile?.maximumBitDepth, 8, `${id} must not claim high-precision preservation`);
+		assert.equal(profile?.preservesHdrMetadata, false, `${id} must not claim HDR preservation`);
+		assert.equal(
+			profile?.supportsAlpha, id.startsWith('encode-'),
+			`${id} must report the selected decode/export alpha boundary`,
+		);
+	}
+	for (const [profileId, bitDepth, colourTransfer, refusals] of [
+		['decode-png-sequence', 16, 'bt709', ['bit-depth-not-preserved']],
+		['decode-tiff-sequence', 16, 'bt709', ['bit-depth-not-preserved']],
+		['decode-openexr-sequence', 32, 'smpte2084', [
+			'bit-depth-not-preserved', 'hdr-metadata-not-preserved',
+		]],
+	] as const) {
+		const verdict = evaluateNativeMediaProfileAdmission({
+			profileId,
+			source: source({
+				bitDepth, chromaFormat: '4:4:4', hasAlpha: true,
+				colourTransfer, colourPrimaries: colourTransfer === 'smpte2084' ? 'bt2020' : 'bt709',
+			}),
+			clearedPolicyRowIds: ALL_ROWS,
+			requirements: { preserveBitDepth: true, preserveHdrMetadata: true },
+		});
+		assert.equal(verdict.admitted, false);
+		assert.deepEqual(verdict.refusals, refusals);
+	}
+	const alpha = evaluateNativeMediaProfileAdmission({
+		profileId: 'decode-png-sequence',
+		source: source({
+			bitDepth: 8, chromaFormat: '4:4:4', hasAlpha: true,
+			colourPrimaries: 'bt709', colourTransfer: 'iec61966-2-1',
+		}),
+		clearedPolicyRowIds: ALL_ROWS,
+		requirements: { preserveAlpha: true },
+	});
+	assert.deepEqual(alpha.refusals, ['alpha-not-preserved']);
 });
 
 test('every profile policy row exists in the licensing register and stays fail-closed', async () => {

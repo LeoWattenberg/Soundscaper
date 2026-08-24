@@ -131,14 +131,48 @@ export function SoundscaperNativeEffectManagePanel({
 	const entries = state.registry?.entries ?? [];
 	const records = state.plugins?.quarantine.records ?? [];
 	return <div className="audio-editor-soundscaper-native-manage">
+		{state.pluginInstance !== null && <PluginInstanceControls
+			copy={copy}
+			state={state}
+			disabled={disabled}
+			perform={perform}
+		/>}
 		<section>
 			<h3>{copy.installedPlugins}</h3>
 			{entries.length === 0
 				? <p>{copy.noInstalledPlugins}</p>
 				: <ul>
 					{entries.map((entry) => <li key={entry.entryId} data-native-plugin-entry={entry.entryId}>
-						{`${entry.name} — ${entry.vendor} (${entry.format})`}
-						{!entry.eligible && <span>{` — ${entry.ineligibleReason ?? ''}`}</span>}
+						<p>{`${entry.name} — ${entry.vendor} (${entry.format})`}</p>
+						{!entry.eligible && <p>{entry.ineligibleReason ?? ''}</p>}
+						<ul>{entry.installations.map((installation) => <li
+							key={installation.installationId}
+							data-native-plugin-installation={installation.installationId}
+						>
+							<span>{installation.version}</span>
+							{!installation.reviewed && <button type="button" disabled={disabled}
+								data-native-plugin-review="allow"
+								onClick={() => perform({
+									type: 'review-plugin', installationId: installation.installationId, review: 'allow',
+								})}
+							>{copy.allowPluginInstallation}</button>}
+							{entry.installations.length > 1 && !installation.selected && <button
+								type="button"
+								disabled={disabled}
+								data-native-plugin-review="select"
+								onClick={() => perform({
+									type: 'review-plugin', installationId: installation.installationId, review: 'select',
+								})}
+							>{copy.selectPluginInstallation}</button>}
+							<button type="button"
+								disabled={disabled || !entry.eligible || state.pluginInstance !== null
+									|| (entry.installations.length > 1 && !installation.selected)}
+								data-native-plugin-instantiate={installation.installationId}
+								onClick={() => perform({
+									type: 'instantiate-plugin', installationId: installation.installationId,
+								})}
+							>{copy.instantiatePlugin}</button>
+						</li>)}</ul>
 					</li>)}
 				</ul>}
 		</section>
@@ -157,6 +191,52 @@ export function SoundscaperNativeEffectManagePanel({
 				</ul>}
 		</section>
 	</div>;
+}
+
+function PluginInstanceControls({ copy, state, disabled, perform }: SoundscaperNativeEffectPanelProps) {
+	const instance = state.pluginInstance;
+	if (instance === null) return null;
+	const nextGeneration = state.pluginStateGeneration + 1;
+	const vendorWindow = state.pluginVendorWindow;
+	return <section data-native-plugin-instance={instance.instanceId}>
+		<h3>{`${instance.format} — ${instance.state}`}</h3>
+		<p>{`${instance.latencySamples} latency frames`}</p>
+		<button type="button" disabled={disabled} data-native-plugin-run-offline="true"
+			onClick={() => perform({ type: 'run-plugin-offline', instanceId: instance.instanceId })}
+		>{copy.runPluginOffline}</button>
+		<button type="button" disabled={disabled} data-native-plugin-bypass={String(!instance.bypassed)}
+			onClick={() => perform({
+				type: 'set-plugin-bypassed', instanceId: instance.instanceId, bypassed: !instance.bypassed,
+			})}
+		>{instance.bypassed ? copy.enablePlugin : copy.bypassPlugin}</button>
+		<button type="button" disabled={disabled} data-native-plugin-persist-state="true"
+			onClick={() => perform({
+				type: 'persist-plugin-state', instanceId: instance.instanceId,
+				generation: nextGeneration,
+			})}
+		>{copy.storePluginState}</button>
+		<button type="button" disabled={disabled || state.pluginStateBody === null}
+			data-native-plugin-restore-state="true"
+			onClick={() => { if (state.pluginStateBody !== null) perform({
+				type: 'restore-plugin-state', instanceId: instance.instanceId,
+				generation: nextGeneration, stateBody: state.pluginStateBody,
+			}); }}
+		>{copy.restorePluginState}</button>
+		{vendorWindow === null
+			? <button type="button" disabled={disabled} data-native-plugin-open-vendor-ui="true"
+				onClick={() => perform({ type: 'open-plugin-vendor-ui', instanceId: instance.instanceId })}
+			>{copy.openVendorUi}</button>
+			: <button type="button" disabled={disabled} data-native-plugin-close-vendor-ui="true"
+				onClick={() => perform({
+					type: 'close-plugin-vendor-ui', instanceId: instance.instanceId,
+					windowHandleId: vendorWindow.windowHandleId,
+				})}
+			>{copy.closeVendorUi}</button>}
+		<button type="button" disabled={disabled} data-native-plugin-close="true"
+			onClick={() => perform({ type: 'close-plugin', instanceId: instance.instanceId })}
+		>{copy.closePlugin}</button>
+		{state.pluginOffline !== null && <p>{`${state.pluginOffline.blocksRendered} blocks rendered`}</p>}
+	</section>;
 }
 
 function QuarantineRecord({ copy, record, disabled, perform }: Readonly<{

@@ -45,9 +45,10 @@ test('the closed V26 host surface covers all contexts, suites, actions, interact
 		'OfxMemorySuite', 'OfxMultiThreadSuite', 'OfxMessageSuite',
 		'OfxProgressSuite', 'OfxTimeLineSuite', 'OfxDialogSuite', 'OfxInteractSuite',
 		'OfxDrawSuite', 'OfxParametricParameterSuite',
+		'OfxImageEffectOpenGLRenderSuite', 'OfxOpenCLProgramSuite',
 	]) assert.equal(OFX_HOST_EXECUTION_CONTRACT_V1.suites.includes(suite), true, suite);
 	for (const unimplementedSuite of [
-		'OfxImageEffectOpenGLRenderSuite', 'OfxImageEffectPlaneSuite',
+		'OfxImageEffectPlaneSuite', 'OfxVendorCudaSuite',
 	]) assert.equal(OFX_HOST_EXECUTION_CONTRACT_V1.suites.includes(unimplementedSuite), false);
 	for (const action of ['describe', 'describe-in-context', 'frames-needed', 'render', 'abort']) {
 		assert.equal(OFX_HOST_ACTIONS_V1.includes(action as never), true, action);
@@ -176,17 +177,17 @@ test('GPU failure visibly retries CPU without mutating authored state', () => {
 
 test('offscreen Interact events are normalized and cannot request native windows', () => {
 	assert.deepEqual(normalizeOfxInteractEventV1({
-		kind: 'pointer', sequence: 3, x: 0.25, y: 0.75, button: 1,
+		kind: 'pointer', phase: 'down', sequence: 3, x: 0.25, y: 0.75, button: 1,
 		modifiers: ['alt', 'shift'],
 	}), {
-		kind: 'pointer', sequence: 3, x: 0.25, y: 0.75, button: 1,
+		kind: 'pointer', phase: 'down', sequence: 3, x: 0.25, y: 0.75, button: 1,
 		modifiers: ['alt', 'shift'],
 	});
 	assert.throws(() => normalizeOfxInteractEventV1({
 		kind: 'vendor-window', sequence: 4,
 	}), /unsupported|offscreen/iu);
 	assert.throws(() => normalizeOfxInteractEventV1({
-		kind: 'pointer', sequence: 5, x: 1.1, y: 0, button: 0, modifiers: [],
+		kind: 'pointer', phase: 'motion', sequence: 5, x: 1.1, y: 0, button: 0, modifiers: [],
 	}), /normalized/iu);
 });
 

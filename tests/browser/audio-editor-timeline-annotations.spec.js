@@ -166,7 +166,7 @@ test.describe('native timeline annotations', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('keeps Framescaper unavailable and preserves annotations after an exact-schema handoff refusal', async ({ browser, page, browserName }) => {
+	test('opens Soundscaper V29 as opaque read-only in Framescaper and preserves annotations at home', async ({ browser, page, browserName }) => {
 		test.skip(browserName === 'webkit', 'Milestone 3 qualifies this boundary in Chromium and Firefox.');
 		test.setTimeout(90_000);
 		const originErrors = collectClientErrors(page);
@@ -194,16 +194,14 @@ test.describe('native timeline annotations', () => {
 			await routeTranslations(framesPage);
 			const frameErrors = collectClientErrors(framesPage);
 			const framescaper = await bootEditor(framesPage, '/framescaper/embed/en/');
-			const framescaperProjectId = await framescaper.getAttribute('data-project-id');
 			await openScapeArchive(framescaper, outbound, 'timeline-annotations.scape');
 			await expect(framescaper.locator('[data-status]')).toHaveAttribute('data-state', 'error', {
 				timeout: 20_000,
 			});
-			await expect(framescaper.locator('[data-status]')).toContainText(
-				/Framescaper schema 23 is not an admitted V27 reimport source/iu,
-			);
+			await expect(framescaper.locator('[data-status]')).toHaveText('This project is read-only.');
 			await expect(framescaper).toHaveAttribute('data-product', 'framescaper');
-			await expect(framescaper).toHaveAttribute('data-project-id', framescaperProjectId);
+			await expect(framescaper).toHaveAttribute('data-project-id', projectId);
+			await expect(framescaper).toHaveAttribute('data-edit-block-reason', 'read-only');
 			await expect(framescaper.getByRole('region', { name: 'Markers and named regions' })).toHaveCount(0);
 			await expect(framescaper.getByRole('listbox', { name: 'Markers and named regions' })).toHaveCount(0);
 			await expect(framesPage.getByRole('dialog', { name: 'Project features unavailable' }))

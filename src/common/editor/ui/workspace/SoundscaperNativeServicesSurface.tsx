@@ -11,9 +11,9 @@
  * — the surface itself always re-reads the tier when it opens, so nothing a user
  * acts on is ever drawn from a stale menu.
  *
- * The host is created on the first menu activation and never before, so a
- * Soundscaper window that nobody sends to the native menus mounts nothing at
- * all, and the editor surface itself gains no chrome from the tier existing.
+ * The pathless control host is mounted when the project runtime is composed so
+ * an authored native rack can restore before playback. Its dialog DOM remains
+ * absent until an existing menu explicitly opens it, so the tier adds no chrome.
  */
 
 import React, { useEffect, useSyncExternalStore } from 'react';
@@ -29,6 +29,12 @@ import type {
 	SoundscaperNativeServiceSurface,
 	SoundscaperNativeServicesSnapshot,
 } from '../soundscaper-native-services-menu.ts';
+import { createSoundscaperNativeRendererBridge } from '../soundscaper-native-renderer-bridge.ts';
+import {
+	createSoundscaperNativeServicesDialogRuntime,
+	type SoundscaperNativeServicesDialogRuntime,
+} from '../soundscaper-native-services-dialog-runtime.ts';
+import type { EnginePublicApi } from '../../engine/public-api.ts';
 
 const SoundscaperNativeServicesDialog = React.lazy(() => (
 	import('../dialogs/SoundscaperNativeServicesDialog.tsx')
@@ -55,9 +61,12 @@ export interface SoundscaperNativeServicesWorkspaceRuntime {
 }
 
 export interface SoundscaperNativeServicesSurfaceHost {
+	readonly dialogRuntime: SoundscaperNativeServicesDialogRuntime;
+	restoreProjectNativePlugins(): Promise<readonly unknown[]>;
+	setCopy(copy: Readonly<Record<string, string | undefined>> | undefined): void;
 	open(surface: SoundscaperNativeServiceSurface): void;
 	close(): void;
-	dispose(): void;
+	dispose(): Promise<void>;
 }
 
 interface SoundscaperNativeServicesHostRoot {
@@ -67,9 +76,12 @@ interface SoundscaperNativeServicesHostRoot {
 
 export interface SoundscaperNativeServicesSurfaceHostOptions {
 	readonly bridge: SoundscaperNativeServicesBridge;
+	readonly engine?: EnginePublicApi | null;
+	readonly controller?: Parameters<typeof createSoundscaperNativeRendererBridge>[0]['controller'];
 	readonly copy?: Readonly<Record<string, string | undefined>>;
 	readonly documentValue?: Document | null;
 	readonly createHostRoot?: (container: HTMLElement) => SoundscaperNativeServicesHostRoot;
+	readonly createRendererBridge?: typeof createSoundscaperNativeRendererBridge;
 }
 
 export function createSoundscaperNativeServicesSurfaceHost(
@@ -79,10 +91,77 @@ export function createSoundscaperNativeServicesSurfaceHost(
 		?? (typeof document === 'undefined' ? null : document);
 	let container: HTMLElement | null = null;
 	let root: SoundscaperNativeServicesHostRoot | null = null;
-	const close = (): void => { root?.render(null); };
+	let returnFocus: HTMLElement | null = null;
+	let copy = options.copy;
+	let openSurface: SoundscaperNativeServiceSurface | null = null;
+	const renderer = options.engine
+		? (options.createRendererBridge ?? createSoundscaperNativeRendererBridge)({
+			bridge: options.bridge, engine: options.engine, controller: options.controller,
+		})
+		: null;
+	const bridge = renderer?.bridge ?? options.bridge;
+	const dialogRuntime = createSoundscaperNativeServicesDialogRuntime(bridge);
+	let restoredProject: unknown = Symbol('unrestored');
+	let restoredStateKey = '';
+	let restoration: Promise<readonly unknown[]> | null = null;
+	let restorationResult: Promise<readonly unknown[]> | null = null;
+	let disposal: Promise<void> | null = null;
+	const close = (): void => {
+		openSurface = null;
+		root?.render(null);
+		const target = returnFocus;
+		returnFocus = null;
+		if (!target) return;
+		const restore = () => { if (target.isConnected) target.focus({ preventScroll: true }); };
+		const animationFrame = documentValue?.defaultView?.requestAnimationFrame;
+		if (animationFrame) animationFrame.call(documentValue.defaultView, restore);
+		else queueMicrotask(restore);
+	};
+	const renderDialog = (surface: SoundscaperNativeServiceSurface): void => {
+		root?.render(<React.Suspense fallback={null}>
+			<SoundscaperNativeServicesDialog
+				bridge={bridge}
+				runtime={dialogRuntime}
+				initialSurface={surface}
+				copy={copy}
+				onClose={close}
+			/>
+		</React.Suspense>);
+	};
 	return Object.freeze({
+		dialogRuntime,
+		restoreProjectNativePlugins: () => {
+			if (!renderer) return Promise.resolve([]);
+			const project = options.controller?.project;
+			const stateKey = projectNativeStateKey(project);
+			if (restorationResult && restoredProject === project && restoredStateKey === stateKey) {
+				return restorationResult;
+			}
+			restoredProject = project;
+			restoredStateKey = stateKey;
+			restoration = renderer.restoreProjectNativePlugins().catch((error: unknown) => {
+				if (restoredProject === project && restoredStateKey === stateKey) {
+					restoredProject = Symbol('failed-restore');
+					restorationResult = null;
+				}
+				throw error;
+			}).finally(() => { restoration = null; });
+			restorationResult = restoration;
+			return restoration;
+		},
+		setCopy: (next: Readonly<Record<string, string | undefined>> | undefined) => {
+			if (copy === next) return;
+			copy = next;
+			if (openSurface !== null) renderDialog(openSurface);
+		},
 		open: (surface: SoundscaperNativeServiceSurface) => {
 			if (!documentValue) return;
+			openSurface = surface;
+			const activeElement = focusableElement(documentValue.activeElement)
+				? documentValue.activeElement : null;
+			returnFocus = documentValue.querySelector<HTMLElement>(
+				'[data-application-menubar] [role="menuitem"][aria-expanded="true"]',
+			) ?? activeElement;
 			if (!container) {
 				container = documentValue.createElement('div');
 				container.dataset.editorSurface = 'soundscaper-native-services';
@@ -91,26 +170,38 @@ export function createSoundscaperNativeServicesSurfaceHost(
 				(documentValue.querySelector('[data-audio-editor]') ?? documentValue.body).append(container);
 			}
 			root ??= (options.createHostRoot ?? ((element: HTMLElement) => createRoot(element)))(container);
-			root.render(<React.Suspense fallback={null}>
-				<SoundscaperNativeServicesDialog
-					bridge={options.bridge}
-					initialSurface={surface}
-					copy={options.copy}
-					onClose={close}
-				/>
-			</React.Suspense>);
+			renderDialog(surface);
 		},
 		close,
 		dispose: () => {
-			root?.unmount();
-			root = null;
-			container?.remove();
-			container = null;
+			disposal ??= (async () => {
+				root?.unmount();
+				root = null;
+				openSurface = null;
+				returnFocus = null;
+				container?.remove();
+				container = null;
+				restoration = null;
+				restorationResult = null;
+				await renderer?.dispose();
+			})();
+			return disposal;
 		},
 	});
 }
 
-const HOSTS = new WeakMap<SoundscaperNativeServicesBridge, SoundscaperNativeServicesSurfaceHost>();
+function focusableElement(value: unknown): value is HTMLElement {
+	return value !== null && typeof value === 'object'
+		&& typeof (value as Readonly<{ readonly focus?: unknown }>).focus === 'function';
+}
+
+interface OwnedHost {
+	readonly bridge: SoundscaperNativeServicesBridge;
+	readonly engine: EnginePublicApi | null;
+	readonly host: SoundscaperNativeServicesSurfaceHost;
+}
+
+const HOSTS = new WeakMap<object, OwnedHost>();
 const EMPTY_SUBSCRIBE = (): (() => void) => () => {};
 const EMPTY_SNAPSHOT = (): null => null;
 
@@ -118,8 +209,12 @@ const EMPTY_SNAPSHOT = (): null => null;
 export function useSoundscaperNativeServicesMenuRefresh(input: Readonly<{
 	productId: string;
 	bridge?: SoundscaperNativeServicesBridge | null;
+	copy?: Readonly<Record<string, string | undefined>>;
+	engine?: EnginePublicApi | null;
+	controller?: Parameters<typeof createSoundscaperNativeRendererBridge>[0]['controller'];
 }>): void {
 	const bridge = resolveBridge(input);
+	const { controller } = input;
 	const store = bridge === null ? null : soundscaperNativeServicesStoreFor(bridge);
 	useSyncExternalStore(
 		store?.subscribe ?? EMPTY_SUBSCRIBE,
@@ -135,6 +230,11 @@ export function useSoundscaperNativeServicesMenuRefresh(input: Readonly<{
 		);
 		return () => globalThis.clearInterval(interval);
 	}, [store]);
+	useEffect(() => {
+		if (bridge === null) return undefined;
+		const owner = hostOwner(controller, bridge);
+		return () => { void releaseOwnedHost(owner).catch(reportRuntimeReleaseFailure); };
+	}, [bridge, controller]);
 }
 
 /**
@@ -146,22 +246,67 @@ export function resolveSoundscaperNativeServicesWorkspaceRuntime(input: Readonly
 	productId: string;
 	bridge?: SoundscaperNativeServicesBridge | null;
 	copy?: Readonly<Record<string, string | undefined>>;
+	engine?: EnginePublicApi | null;
+	controller?: Parameters<typeof createSoundscaperNativeRendererBridge>[0]['controller'];
 }>): Readonly<SoundscaperNativeServicesWorkspaceRuntime> | null {
 	const bridge = resolveBridge(input);
 	if (bridge === null) return null;
 	const store = soundscaperNativeServicesStoreFor(bridge);
 	store.refreshIfStale();
+	const owner = hostOwner(input.controller, bridge);
+	let owned = HOSTS.get(owner);
+	if (!owned || owned.bridge !== bridge || owned.engine !== (input.engine ?? null)) {
+		if (owned) void owned.host.dispose().catch(reportRuntimeReleaseFailure);
+		const host = createSoundscaperNativeServicesSurfaceHost({
+			bridge, copy: input.copy, engine: input.engine, controller: input.controller,
+		});
+		owned = Object.freeze({ bridge, engine: input.engine ?? null, host });
+		HOSTS.set(owner, owned);
+	}
+	const { host } = owned;
+	host.setCopy(input.copy);
+	void host.restoreProjectNativePlugins().catch((error: unknown) => {
+		console.error('Persisted native plug-ins could not be restored:', error);
+	});
 	return Object.freeze({
 		snapshot: store.getSnapshot() ?? PENDING_SOUNDSCAPER_NATIVE_SERVICES_SNAPSHOT,
 		open: (surface: SoundscaperNativeServiceSurface) => {
-			let host = HOSTS.get(bridge);
-			if (!host) {
-				host = createSoundscaperNativeServicesSurfaceHost({ bridge, copy: input.copy });
-				HOSTS.set(bridge, host);
-			}
 			host.open(surface);
 		},
 	});
+}
+
+export function releaseSoundscaperNativeServicesWorkspaceRuntime(owner: object): void {
+	void releaseOwnedHost(owner).catch(reportRuntimeReleaseFailure);
+}
+
+async function releaseOwnedHost(owner: object): Promise<void> {
+	const owned = HOSTS.get(owner);
+	if (!owned) return;
+	HOSTS.delete(owner);
+	await owned.host.dispose();
+}
+
+function reportRuntimeReleaseFailure(error: unknown): void {
+	console.error('The Soundscaper native workspace runtime did not close cleanly:', error);
+}
+
+function hostOwner(
+	controller: object | null | undefined,
+	bridge: SoundscaperNativeServicesBridge,
+): object {
+	return controller ?? bridge;
+}
+
+function projectNativeStateKey(project: unknown): string {
+	const states = (project as { readonly nativePluginStates?: unknown } | null)?.nativePluginStates;
+	if (!Array.isArray(states)) return '';
+	return states.map((state) => {
+		const value = state as Record<string, unknown>;
+		const body = value?.stateBody as Record<string, unknown> | undefined;
+		return [value?.instanceId, value?.enabled, value?.bypassed, value?.continuity,
+			value?.latencySamples, body?.sha256, body?.byteLength].join(':');
+	}).join('|');
 }
 
 function resolveBridge(input: Readonly<{
