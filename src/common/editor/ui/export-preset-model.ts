@@ -119,6 +119,7 @@ export function statedVideoQuality(
  */
 export function statedVideoDeliveryTarget(
 	settings: Readonly<Record<string, unknown>> | undefined,
+	licensingMatrix?: unknown,
 ): Readonly<{
 	presetId: string;
 	options: Readonly<Record<string, unknown>>;
@@ -128,14 +129,20 @@ export function statedVideoDeliveryTarget(
 	if (!requested) return null;
 	let preset = requested;
 	const seen = new Set<string>();
-	while (!resolvePlatformDeliveryAvailability(preset).available) {
+	// A target degrades through its named fallback while it is blocked OR while
+	// its execution resolves no plan in this tier: a licensing-cleared native
+	// preset still cannot run from the web dialog, and returning null here
+	// would build a request naming no target at all — the hidden conversion
+	// that "degrade visibly" forbids.
+	while (!resolvePlatformDeliveryAvailability(preset, licensingMatrix).available
+		|| resolvePlatformDeliveryPlanOptions(preset, licensingMatrix) === null) {
 		if (seen.has(preset.id)) return null;
 		seen.add(preset.id);
 		const fallback = findPlatformDeliveryPreset(preset.fallbackPresetId);
 		if (!fallback) return null;
 		preset = fallback;
 	}
-	const options = resolvePlatformDeliveryPlanOptions(preset);
+	const options = resolvePlatformDeliveryPlanOptions(preset, licensingMatrix);
 	if (!options) return null;
 	return Object.freeze({
 		presetId: preset.id,
