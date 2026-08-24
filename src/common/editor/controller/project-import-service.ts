@@ -17,6 +17,7 @@ import {
 import { createIncrementalWavImporter } from './incremental-wav-import-service.ts';
 import { createLinkedAudioImportAdmission } from './linked-audio-import-admission.ts';
 import { createLinkedPcmImporter } from './linked-wav-import-service.ts';
+import { decodeStandaloneAudioForImport } from './standalone-audio-import-decoder.ts';
 import { createAddTimelineAnnotationCommand } from '../commands/factories.ts';
 import {
 	createOmittedRiffAnnotationImportReport,
@@ -355,18 +356,16 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			return importIncrementalWav(file, wavDescriptor, wavMetadata.importOptions, wavMetadata, { requireChunkStream });
 		}
 		await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');
-		const context = await engine.getAudioContext({ resume: false });
-		let decoded;
-		let originalSampleRate = null;
-		try {
-			const encoded = await file.arrayBuffer();
-			originalSampleRate = inspectEncodedAudioSampleRate(encoded);
-			decoded = await engine.decodeAudioData(encoded);
-		} catch {
-			const fallback = await ffmpeg.decode(file, { sampleRate: projectSampleRate() });
-			decoded = await bufferFromChannels(fallback.channels, fallback.sampleRate, context, copy);
-			originalSampleRate ??= fallback.sampleRate;
-		}
+		const { context, decoded, originalSampleRate } = await decodeStandaloneAudioForImport({
+			file, codecRuntime: ffmpeg, sampleRate: projectSampleRate(),
+			getAudioContext: () => engine.getAudioContext({ resume: false }),
+			decodeWithWebAudio: (encoded) => engine.decodeAudioData(encoded),
+			decodeWithCodec: (input, settings) => ffmpeg.decode(input, settings),
+			bufferFromChannels: (channels, sampleRate, audioContext) => (
+				bufferFromChannels(channels, sampleRate, audioContext, copy)
+			),
+			inspectEncodedSampleRate: inspectEncodedAudioSampleRate,
+		});
 		const canonical = await canonicalizeBuffer(decoded, context, null, copy);
 		await preflightStorage(canonical.length * canonical.numberOfChannels * Float32Array.BYTES_PER_ELEMENT, 'import');
 		const sourceId = createStableId('source');

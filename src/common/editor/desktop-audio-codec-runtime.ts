@@ -15,6 +15,7 @@ import {
 	FFMPEG_OUTPUT_STREAM_MAXIMUM_CHUNK_BYTES, abortFfmpegOutputSink,
 	assertFfmpegOutputReady, streamFfmpegOutputFile, type FfmpegOutputSink,
 } from './ffmpeg-output-stream.ts';
+import { DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER } from './desktop-main-audio-codec-runtime-marker.ts';
 import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
 import type { WavPcmDescriptor } from './wav-pcm-chunk-reader.ts';
 export interface DesktopAudioCodecRendererBridge {
@@ -79,8 +80,7 @@ export interface DesktopAudioCodecRuntime {
 	runVideoKeyframeEncoderOperation(...arguments_: unknown[]): Promise<never>;
 	runTrimMediaOperation(...arguments_: unknown[]): Promise<never>;
 	runProxyMediaOperation(...arguments_: unknown[]): Promise<never>;
-	dispose(): void;
-	capabilities(): DesktopAudioCodecCapabilities;
+	dispose(): void; capabilities(): DesktopAudioCodecCapabilities; readonly [DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER]: true;
 }
 
 interface NormalizedMediaSettings {
@@ -209,7 +209,7 @@ export function createDesktopAudioCodecRuntime(bridgeValue: DesktopAudioCodecRen
 			const reason = new DesktopAudioCodecRuntimeDisposedError();
 			for (const request of [...active.values()]) request.cancel(reason);
 		},
-		capabilities: () => CAPABILITIES,
+		[DESKTOP_MAIN_AUDIO_CODEC_RUNTIME_MARKER]: true as const, capabilities: () => CAPABILITIES,
 	});
 	return runtime;
 
