@@ -12,6 +12,8 @@ import { createFramescaperNativeRenderPlanAuthorityV28 } from '../src/framescape
 import { createFramescaperProjectUnifiedExactRenderPlanV28 } from '../src/framescaper/editor-project-unified-render-plan-v28.ts';
 import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
 import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
+import { createUnreportedVideoSourceCharacteristicsV25 } from '../src/common/editor/video-source-professional-characteristics-v25.ts';
+import { normalizeNativeMediaImageSequenceSourceV25 } from '../src/common/editor/native-media-image-sequence-v25.ts';
 import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
 
 test('selected V14 retries only a typed closed backend refusal through Web Core', async () => {
@@ -49,6 +51,83 @@ test('selected V14 never downgrades authority or publication failures', async ()
 		assert.equal(webCalls, 0);
 	}
 });
+
+test('a carrier-owned image-sequence source requires no original-body grant', async () => {
+	const fixture = sequenceExecutionFixture();
+	assert.equal(fixture.envelope.plan.nodes.some((node) => (
+		node.kind === 'professional-media' && node.imageSequence !== null
+	)), true, 'the fixture plan must carry a carrier-owned sequence source');
+	let nativeCalls = 0;
+	// The sequence source's pixels arrive through the evaluated carrier, so the
+	// executor must dispatch with no original-body grants instead of refusing.
+	const result = await executeNativeMediaPlanV14({
+		...fixture,
+		sources: [],
+		native: {
+			async execute(attempt) {
+				nativeCalls += 1;
+				assert.deepEqual(attempt.sources, []);
+				return fixture.receipt;
+			},
+		},
+		web: { async execute() { throw new Error('the web fallback must not run'); } },
+	});
+	assert.equal(result.outcome, 'native');
+	assert.equal(nativeCalls, 1);
+});
+
+function sequenceExecutionFixture() {
+	const profile = FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE;
+	const options = framescaperV20Options();
+	const source = (options.sources as Record<string, unknown>[])[0]!;
+	const characteristics = createUnreportedVideoSourceCharacteristicsV25();
+	const packSha256 = 'aa'.repeat(32);
+	const inventorySha256 = 'bb'.repeat(32);
+	source.storageKey = `image-sequence-pack-sha256:${packSha256}`;
+	source.contentSha256 = packSha256;
+	source.characteristics = characteristics;
+	source.imageSequence = normalizeNativeMediaImageSequenceSourceV25({
+		kind: 'video', sourceType: 'image-sequence', version: 1,
+		id: 'video-source', name: 'Video', stem: 'shot_', extension: 'png',
+		frameNumberWidth: 4, firstFrameNumber: 1, lastFrameNumber: 10,
+		frameCount: 10, frameRate: { num: 10, den: 1 },
+		inventory: {
+			kind: 'image-sequence-inventory', version: 1,
+			storageKey: `image-sequence-inventory-sha256:${inventorySha256}`,
+			sha256: inventorySha256, byteLength: 512, frameCount: 10,
+			firstFrameNumber: 1, lastFrameNumber: 10,
+		},
+		sourcePack: {
+			kind: 'image-sequence-source-pack',
+			storageKey: `image-sequence-pack-sha256:${packSha256}`,
+			sha256: packSha256, byteLength: 8_192,
+		},
+		characteristics,
+	});
+	const project = createFramescaperProjectV28(profile, {
+		...options, id: 'v14-sequence-executor', title: 'V14 sequence executor',
+		videoTransitionsByTrackId: { 'video-track': [] },
+	});
+	const plan = createFramescaperProjectUnifiedExactRenderPlanV28(
+		profile, project, createFramescaperNativeRenderPlanAuthorityV28(project),
+	);
+	const envelope = createNativeMediaPlanEnvelopeV2(plan);
+	return Object.freeze({
+		jobId: '34'.repeat(20),
+		envelope,
+		backendPlan: Object.freeze({
+			platform: 'linux' as const, operation: 'encode' as const,
+			attempts: Object.freeze([NATIVE_MEDIA_CPU_BACKEND]),
+			fallback: NATIVE_MEDIA_WEB_BACKEND, reason: 'cpu-only' as const,
+		}),
+		rootGrantId: 'cd'.repeat(16),
+		relativeDestination: 'renders/v14-sequence.mov',
+		receipt: Object.freeze({
+			planFingerprint: envelope.fingerprint, byteLength: 128,
+			sha256: 'ef'.repeat(32), publication: 'verified-temporary' as const,
+		}),
+	});
+}
 
 function executionFixture() {
 	const profile = FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE;

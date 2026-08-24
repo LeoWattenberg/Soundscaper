@@ -205,16 +205,31 @@ function assertSelectedBackendPlan(plan: NativeMediaBackendPlanV1): void {
 	}
 }
 
+/**
+ * The plan sources the native path materializes as original bodies. A source
+ * whose professional authority is a carrier-owned image sequence has no
+ * original video body by design — its pixels arrive through the evaluated
+ * carrier — so demanding a grant for it refused every sequence-bearing plan
+ * at execution while enqueue-time admission had already accepted the job.
+ */
+function materializedPlanSources(envelope: NativeMediaPlanEnvelopeV2) {
+	const sequenceSourceNodeIds = new Set(envelope.plan.nodes.flatMap((node) => (
+		node.kind === 'professional-media' && node.imageSequence !== null ? [node.sourceNodeId] : []
+	)));
+	return envelope.plan.sources.filter((source) => !sequenceSourceNodeIds.has(source.nodeId));
+}
+
 function snapshotSources(
 	envelope: NativeMediaPlanEnvelopeV2,
 	value: readonly NativeMediaV14SourceGrant[],
 ): readonly NativeMediaV14SourceGrant[] {
-	if (!Array.isArray(value) || value.length !== envelope.plan.sources.length) {
-		throw new RangeError('Selected V14 execution requires one pathless grant per plan source.');
+	const materialized = materializedPlanSources(envelope);
+	if (!Array.isArray(value) || value.length !== materialized.length) {
+		throw new RangeError('Selected V14 execution requires one pathless grant per materialized plan source.');
 	}
 	const grants = new Map(value.map((grant) => [grant.sourceId, grant]));
 	if (grants.size !== value.length) throw new RangeError('Selected V14 source grants must be unique.');
-	return Object.freeze(envelope.plan.sources.map((source) => {
+	return Object.freeze(materialized.map((source) => {
 		const grant = grants.get(source.sourceId);
 		if (!grant || grant.contentSha256 !== source.contentSha256) {
 			throw new Error(`Selected V14 source grant ${source.sourceId} disagrees with its plan.`);
