@@ -206,6 +206,24 @@ test('repeated host crashes quarantine the digest durably, and the explicit clea
 	assert.equal(rehosted.state, 'hosted');
 });
 
+test('an oversized root still records the prefix of plug-ins it reported', () => {
+	const registry = new DesktopPluginRegistry({ isQuarantined: () => false });
+	const result = {
+		format: 'fixture', status: 'root-oversized',
+		detail: 'the folder holds more candidates than one scan admits',
+		entries: [scanEntry()],
+	};
+	// The renderer projection lists these entries, so dropping them from the
+	// registry made every plug-in from a large folder visible in the results
+	// dialog yet impossible to review, select, or host, with no stated reason.
+	assert.deepEqual(
+		recordScannedPlugins(registry, result, { identityFor: () => ({ dev: 7, ino: 11 }) })
+			.map(({ status }) => status),
+		['recorded'],
+	);
+	assert.equal(registry.describe().entries.length, 1);
+});
+
 test('a binary re-claiming a different identity is announced for durable quarantine', () => {
 	const registry = new DesktopPluginRegistry({ isQuarantined: () => false });
 	const identityChanged = [];

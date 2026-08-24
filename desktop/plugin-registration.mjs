@@ -93,7 +93,10 @@ export function recordScannedPlugins(registry, result, {
 	identityFor = pluginCandidateIdentity, onRecorded = () => undefined,
 	onIdentityChanged = () => undefined,
 } = {}) {
-	if (result.status !== 'scanned') return [];
+	// An oversized root still reports the prefix that fits; those entries are
+	// shown to the user, so refusing to record them left every plug-in from a
+	// large folder visible in the results yet impossible to review or host.
+	if (!['scanned', 'root-oversized'].includes(result.status)) return [];
 	return result.entries.map((entry) => {
 		const identity = identityFor(entry.binaryPath);
 		const bundleStableIds = result.entries.filter((candidate) => candidate.binaryPath === entry.binaryPath
