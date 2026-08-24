@@ -144,7 +144,7 @@ test('an abort landing during the begin round-trip still cancels the helper job'
 	});
 	const port = createDesktopHelperVideoTimingProbe({ bridge });
 	assert.ok(port);
-	await assert.rejects(port.probe(media, { signal: controller.signal }));
+	await assert.rejects(Promise.resolve(port.probe(media, { signal: controller.signal })));
 	assert.ok(calls.some(([name]) => name === 'cancel'),
 		'the helper job must not run to natural completion after the caller aborted');
 });
