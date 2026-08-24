@@ -1,104 +1,124 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
 
-import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
-import { stageAssistanceNativeRuntimePayload } from '../desktop/assistance-native-runtime-payload.mjs';
 import hardenPackagedElectron from '../scripts/desktop-after-pack.mjs';
-import {
-	stageVerifiedFfmpegNotice,
-	stageVerifiedFfmpegRuntime,
-	verifyFfmpegRuntimeManifest,
-} from '../scripts/lib/ffmpeg-runtime-manifest.mjs';
-import {
-	stageVerifiedNativeAddonPayload,
-	verifyNativeAddonPayloadManifest,
-} from '../scripts/lib/native-addon-payload-manifest.mjs';
-import {
-	professionalNativePayloadOutputRoot,
-	stageVerifiedSoundscaperProfessionalNativePayload,
-	verifySoundscaperProfessionalNativePayload,
-} from '../scripts/lib/soundscaper-professional-native-payload.mjs';
+import { auditStagedDesktopCodecPolicy } from '../scripts/desktop-before-pack.mjs';
+import { DESKTOP_CODEC_POLICY } from '../scripts/lib/desktop-codec-policy.mjs';
 
-test('afterPack verifies copied FFmpeg resources before fuse work', async (context) => {
-	const root = await mkdtemp(join(tmpdir(), 'soundscaper-packaged-ffmpeg-'));
-	context.after(() => rm(root, { recursive: true, force: true }));
-	const release = await verifyFfmpegRuntimeManifest({
-		repositoryRoot: process.cwd(),
-		purpose: 'desktop-assembly',
-	});
-	const resources = join(root, 'resources');
-	const runtimeRoot = join(resources, `runtime/ffmpeg/${release.manifest.package.version}`);
-	const noticePath = join(resources, 'licenses/THIRD_PARTY_LICENSES.md');
-	await stageVerifiedFfmpegRuntime({ release, outputRoot: runtimeRoot });
-	await mkdir(join(resources, 'licenses'), { recursive: true });
-	await stageVerifiedFfmpegNotice({ release, outputPath: noticePath });
-	const nativeRelease = await verifyNativeAddonPayloadManifest({ repositoryRoot: process.cwd(), target: 'linux-x64' });
-	await stageVerifiedNativeAddonPayload({
-		release: nativeRelease,
-		outputRoot: join(resources, 'runtime/native/linux-x64'),
-	});
-	const professional = await verifySoundscaperProfessionalNativePayload({
-		repositoryRoot: process.cwd(), target: 'linux-x64',
-	});
-	await stageVerifiedSoundscaperProfessionalNativePayload({
-		release: professional,
-		outputRoot: professionalNativePayloadOutputRoot(join(resources, 'runtime'), professional),
-	});
-	await stageAssistanceNativeRuntimePayload({
-		manifest: assistanceNativeRuntimeManifest,
-		targetId: 'linux-x64',
-		nodeModulesRoot: join(process.cwd(), 'node_modules'),
-		outputRoot: join(resources, 'runtime'),
-	});
-
+test('afterPack proves FFmpeg absence before fuse work', async (context) => {
+	const fixture = await packagedFixture(context);
 	const fuseCalls = [];
-	const invoke = () => hardenPackagedElectron(packagingContext(root, resources), {
+	const invoke = () => hardenPackagedElectron(fixture.packagingContext, {
 		repositoryRoot: process.cwd(),
+		stageManifestPath: fixture.stageManifestPath,
 		flipFuses: async (...args) => { fuseCalls.push(args); },
 		writeDesktopPackageContentManifest: async () => {},
+		...nativeVerifierStubs(),
 	});
 	await invoke();
 	assert.equal(fuseCalls.length, 1);
 
-	const wasm = release.runtimeFiles.find(({ name }) => name === 'ffmpeg-core.wasm');
-	assert.ok(wasm);
-	fuseCalls.length = 0;
-	await writeFile(join(runtimeRoot, wasm.name), 'tampered packaged WebAssembly');
-	await assert.rejects(invoke(), /packaged runtime file ffmpeg-core\.wasm.*(?:byte length|digest)/iu);
-	assert.equal(fuseCalls.length, 0);
-	await writeFile(join(runtimeRoot, wasm.name), wasm.bytes);
-
-	await writeFile(join(runtimeRoot, release.manifest.publication.manifestName), '{}\n');
-	await assert.rejects(invoke(), /packaged FFmpeg runtime manifest.*verified policy manifest/iu);
-	assert.equal(fuseCalls.length, 0);
-	await writeFile(join(runtimeRoot, release.manifest.publication.manifestName), release.manifestBytes);
-
-	await writeFile(noticePath, 'tampered packaged notice\n');
-	await assert.rejects(invoke(), /packaged FFmpeg notice.*(?:byte length|digest)/iu);
-	assert.equal(fuseCalls.length, 0);
-	await writeFile(noticePath, release.evidence.notices.bytes);
-
-	await writeFile(join(runtimeRoot, 'unexpected-runtime.bin'), 'unexpected');
-	await assert.rejects(invoke(), /packaged FFmpeg runtime inventory mismatch/iu);
-	assert.equal(fuseCalls.length, 0);
+	for (const name of [
+		'runtime/ffmpeg/0.12.10/manifest.json',
+		'renderer/assets/ffmpeg-core.wasm',
+		'runtime/native/linux-x64/avcodec-61.dll',
+		'runtime/native/linux-x64/libavformat.so.61',
+		'desktop/ffmpeg-corresponding-source.json',
+	]) {
+		fuseCalls.length = 0;
+		const path = join(fixture.resources, name);
+		await mkdir(dirname(path), { recursive: true });
+		await writeFile(path, 'forbidden desktop payload');
+		await assert.rejects(invoke(), /packaged desktop resources.*forbidden bundled FFmpeg\/libav/iu, name);
+		assert.equal(fuseCalls.length, 0, name);
+		await rm(path);
+		if (name.startsWith('runtime/ffmpeg/')) {
+			await rm(join(fixture.resources, 'runtime/ffmpeg'), { recursive: true });
+		}
+	}
 });
 
-function packagingContext(appOutDir, resourcesDir) {
+test('stage and package gates reject missing or changed desktop codec policy', async (context) => {
+	const fixture = await packagedFixture(context);
+	await writeFile(fixture.stageManifestPath, `${JSON.stringify({
+		desktopCodecPolicy: { ...DESKTOP_CODEC_POLICY, bundledFfmpeg: true },
+	}, null, 2)}\n`);
+	await assert.rejects(
+		() => auditStagedDesktopCodecPolicy({
+			repositoryRoot: fixture.root,
+			stageManifestPath: fixture.stageManifestPath,
+		}),
+		/desktop stage codec policy/iu,
+	);
+	let fuses = 0;
+	await assert.rejects(() => hardenPackagedElectron(fixture.packagingContext, {
+		stageManifestPath: fixture.stageManifestPath,
+		flipFuses: async () => { fuses += 1; },
+		writeDesktopPackageContentManifest: async () => {},
+		...nativeVerifierStubs(),
+	}), /packaged desktop codec policy/iu);
+	assert.equal(fuses, 0);
+});
+
+test('beforePack rejects forbidden content anywhere in the staged desktop tree', async (context) => {
+	const fixture = await packagedFixture(context);
+	assert.equal((await auditStagedDesktopCodecPolicy({
+		repositoryRoot: fixture.root,
+		stageManifestPath: fixture.stageManifestPath,
+	})).status, 'no-bundled-ffmpeg');
+	const payload = join(fixture.root, '.desktop-build/renderer/assets/ffmpeg-core.js');
+	await mkdir(dirname(payload), { recursive: true });
+	await writeFile(payload, 'forbidden staged core');
+	await assert.rejects(
+		() => auditStagedDesktopCodecPolicy({
+			repositoryRoot: fixture.root,
+			stageManifestPath: fixture.stageManifestPath,
+		}),
+		/staged desktop resources.*ffmpeg-core\.js/iu,
+	);
+});
+
+async function packagedFixture(context) {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-packaged-codec-policy-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const resources = join(root, 'resources');
+	const stageManifestPath = join(root, '.desktop-build/stage-manifest.json');
+	await mkdir(resources, { recursive: true });
+	await mkdir(dirname(stageManifestPath), { recursive: true });
+	await writeFile(stageManifestPath, `${JSON.stringify({
+		schemaVersion: 1,
+		desktopCodecPolicy: DESKTOP_CODEC_POLICY,
+	}, null, 2)}\n`);
 	return {
-		electronPlatformName: 'linux',
-		// electron-builder passes its own Arch enum ordinal; 1 is x64.
-		arch: 1,
-		appOutDir,
-		packager: {
-			executableName: 'soundscaper',
-			appInfo: { productFilename: 'Soundscaper' },
-			getResourcesDir(value) {
-				assert.equal(value, appOutDir);
-				return resourcesDir;
+		root,
+		resources,
+		stageManifestPath,
+		packagingContext: {
+			electronPlatformName: 'linux',
+			arch: 1,
+			appOutDir: root,
+			packager: {
+				executableName: 'soundscaper',
+				appInfo: { productFilename: 'Soundscaper' },
+				getResourcesDir(value) {
+					assert.equal(value, root);
+					return resources;
+				},
 			},
 		},
+	};
+}
+
+function nativeVerifierStubs() {
+	return {
+		verifyPackagedAssistanceNativeRuntime: async () => {},
+		verifyPackagedNativeAddonResources: async () => {},
+		verifyPackagedSoundscaperProfessionalNativeResources: async () => {},
+		verifyPackagedFramescaperNativeHostResources: async () => {},
 	};
 }

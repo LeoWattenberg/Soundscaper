@@ -2,16 +2,13 @@
 
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { access, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { registerHooks } from 'node:module';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
 
 import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
-import {
-	assistanceNativeRuntimeStageSummary,
-	stageAssistanceNativeRuntimePayload,
-} from '../desktop/assistance-native-runtime-payload.mjs';
+import { assistanceNativeRuntimeStageSummary } from '../desktop/assistance-native-runtime-payload.mjs';
 import {
 	REQUIRED_LICENSING_GATES,
 	createFixture,
@@ -22,32 +19,18 @@ import {
 } from './helpers/ffmpeg-runtime-fixture.mjs';
 
 import {
-	stageVerifiedFfmpegNotice,
 	stageVerifiedFfmpegRuntime,
 	verifyFfmpegRuntimeManifest,
 } from '../scripts/lib/ffmpeg-runtime-manifest.mjs';
 import { publishFfmpegRuntime } from '../scripts/lib/ffmpeg-runtime-publisher.mjs';
 import {
 	nativeAddonPayloadStageSummary,
-	stageVerifiedNativeAddonPayload,
 	verifyNativeAddonPayloadManifest,
 } from '../scripts/lib/native-addon-payload-manifest.mjs';
-import {
-	professionalNativePayloadOutputRoot,
-	stageVerifiedSoundscaperProfessionalNativePayload,
-	verifySoundscaperProfessionalNativePayload,
-} from '../scripts/lib/soundscaper-professional-native-payload.mjs';
-import verifyDesktopRuntimeBeforePack from '../scripts/desktop-before-pack.mjs';
-import { admitDesktopFfmpegAssembly } from '../scripts/desktop-prepare.mjs';
+import { DESKTOP_CODEC_POLICY } from '../scripts/lib/desktop-codec-policy.mjs';
 import { validateDesktopRuntimeManifests } from '../scripts/desktop-release-assets.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
-
-// The beforePack hook is handed electron-builder's platform name and its Arch
-// enum ordinal, and cross-checks the staged payload against them.
-function packingLinuxX64(projectDir) {
-	return { electronPlatformName: 'linux', arch: 1, packager: { projectDir } };
-}
 
 test('a policy manifest stages and publishes only its verified buffered bytes', async (context) => {
 	const fixture = await createFixture(context);
@@ -117,96 +100,6 @@ test('tampered runtime bytes fail both gates before upload or desktop output mut
 	await assertNoSideEffects(fixture, /ffmpeg-core\.wasm.*(?:byte length|digest)/iu);
 });
 
-test('desktop packaging revalidates staged bytes and the retained policy summary', async (context) => {
-	const fixture = await createFixture(context);
-	const release = await verifyFfmpegRuntimeManifest({
-		repositoryRoot: fixture.root,
-		purpose: 'desktop-assembly',
-	});
-	const outputRoot = join(fixture.root, '.desktop-build/runtime/ffmpeg/0.12.10');
-	const noticePath = join(fixture.root, '.desktop-build/licenses/THIRD_PARTY_LICENSES.md');
-	const summary = await stageVerifiedFfmpegRuntime({ release, outputRoot });
-	await stageVerifiedFfmpegNotice({ release, outputPath: noticePath });
-	const nativeRelease = await verifyNativeAddonPayloadManifest({ repositoryRoot: fixture.root, target: 'linux-x64' });
-	const nativeAddons = await stageVerifiedNativeAddonPayload({
-		release: nativeRelease,
-		outputRoot: join(fixture.root, '.desktop-build/runtime/native/linux-x64'),
-	});
-	const runtimeRoot = join(fixture.root, '.desktop-build/runtime');
-	const assistanceNativeRuntime = await stageAssistanceNativeRuntimePayload({
-		manifest: assistanceNativeRuntimeManifest,
-		targetId: 'linux-x64',
-		nodeModulesRoot: join(ROOT, 'node_modules'),
-		outputRoot: runtimeRoot,
-	});
-	const professionalRelease = await verifySoundscaperProfessionalNativePayload({
-		repositoryRoot: fixture.root,
-		target: 'linux-x64',
-	});
-	const soundscaperProfessionalNative = await stageVerifiedSoundscaperProfessionalNativePayload({
-		release: professionalRelease,
-		outputRoot: professionalNativePayloadOutputRoot(runtimeRoot, professionalRelease),
-	});
-	const stageManifestPath = join(fixture.root, '.desktop-build/stage-manifest.json');
-	await writeJson(stageManifestPath, {
-		schemaVersion: 1,
-		productId: 'soundscaper',
-		assistanceNativeRuntime,
-		ffmpeg: summary,
-		nativeAddons,
-		soundscaperProfessionalNative,
-		framescaperNativeHosts: null,
-	});
-	await assert.doesNotReject(verifyDesktopRuntimeBeforePack(packingLinuxX64(fixture.root)));
-
-	const nativePayloadPath = join(fixture.root, '.desktop-build/runtime/native/linux-x64/soundscaper_helper.node');
-	const nativePayload = await readFile(nativePayloadPath);
-	await writeFile(nativePayloadPath, Buffer.from('post-prepare native tamper'));
-	await assert.rejects(
-		verifyDesktopRuntimeBeforePack(packingLinuxX64(fixture.root)),
-		/staged native addon payload linux-x64.*(?:byte length|digest)/iu,
-	);
-	await writeFile(nativePayloadPath, nativePayload);
-
-	await writeFile(join(outputRoot, 'ffmpeg-core.wasm'), Buffer.from('post-prepare tamper'));
-	await assert.rejects(
-		verifyDesktopRuntimeBeforePack(packingLinuxX64(fixture.root)),
-		/staged runtime file ffmpeg-core\.wasm.*(?:byte length|digest)/iu,
-	);
-	await writeFile(join(outputRoot, 'ffmpeg-core.wasm'), fixture.wasm);
-	const stage = JSON.parse(await readFile(stageManifestPath, 'utf8'));
-	stage.ffmpeg.runtimeManifest.sha256 = '0'.repeat(64);
-	await writeJson(stageManifestPath, stage);
-	await assert.rejects(
-		verifyDesktopRuntimeBeforePack(packingLinuxX64(fixture.root)),
-		/stage manifest.*verified FFmpeg runtime summary/iu,
-	);
-	await writeJson(stageManifestPath, {
-		schemaVersion: 1,
-		productId: 'soundscaper',
-		assistanceNativeRuntime,
-		ffmpeg: summary,
-		nativeAddons,
-		soundscaperProfessionalNative,
-		framescaperNativeHosts: null,
-	});
-	await writeFile(join(outputRoot, 'manifest.json'), Buffer.from('post-prepare manifest tamper'));
-	await assert.rejects(
-		verifyDesktopRuntimeBeforePack(packingLinuxX64(fixture.root)),
-		/staged FFmpeg runtime manifest.*verified policy manifest/iu,
-	);
-	await writeFile(join(outputRoot, 'manifest.json'), release.manifestBytes);
-	await writeFile(noticePath, Buffer.from('post-prepare notice tamper'));
-	await assert.rejects(
-		verifyDesktopRuntimeBeforePack(packingLinuxX64(fixture.root)),
-		/staged FFmpeg notice.*(?:byte length|digest)/iu,
-	);
-	await rm(noticePath);
-	await symlink(join(fixture.root, 'THIRD_PARTY_LICENSES.md'), noticePath);
-	await assert.rejects(verifyDesktopRuntimeBeforePack(packingLinuxX64(fixture.root)),
-		/staged FFmpeg notice is not a regular file/iu);
-});
-
 test('desktop staging refuses pre-existing output without mutation', async (context) => {
 	const fixture = await createFixture(context);
 	const release = await verifyFfmpegRuntimeManifest({
@@ -262,50 +155,52 @@ test('publisher rejects fabricated, mutated, or post-validation-corrupted releas
 	assert.equal(calls, 0);
 });
 
-test('desktop release assembly rejects identically corrupted platform manifests', async (context) => {
+test('desktop release assembly requires the immutable no-FFmpeg provider policy', async (context) => {
 	const fixture = await createFixture(context);
-	const release = await verifyFfmpegRuntimeManifest({
-		repositoryRoot: fixture.root,
-		purpose: 'desktop-assembly',
-	});
-	const summary = await stageVerifiedFfmpegRuntime({
-		release,
-		outputRoot: join(fixture.root, 'release-fixture-runtime'),
-	});
 	const nativeRelease = await verifyNativeAddonPayloadManifest({ repositoryRoot: fixture.root, target: 'linux-x64' });
 	const nativeAddons = nativeAddonPayloadStageSummary(nativeRelease);
 	const assistanceNativeRuntime = assistanceNativeRuntimeStageSummary(
 		assistanceNativeRuntimeManifest,
 		'linux-x64',
 	);
-	const corrupted = structuredClone(summary);
-	corrupted.files['ffmpeg-core.wasm'].sha256 = '0'.repeat(64);
 	const manifests = Array.from({ length: 6 }, (_, index) => ({
 		name: `runtime-manifest-${index}.json`,
-		value: { ffmpeg: structuredClone(corrupted), nativeAddons: structuredClone(nativeAddons) },
+		value: {
+			desktopCodecPolicy: { ...DESKTOP_CODEC_POLICY, bundledFfmpeg: true },
+			nativeAddons: structuredClone(nativeAddons),
+		},
 	}));
 	assert.throws(
-		() => validateDesktopRuntimeManifests(manifests, release),
-		/does not match the verified FFmpeg runtime policy manifest/iu,
+		() => validateDesktopRuntimeManifests(manifests),
+		/desktop codec policy/iu,
 	);
 	assert.throws(() => validateDesktopRuntimeManifests([{
 		name: 'runtime-manifest-soundscaper-linux-x64.json',
-		value: { ffmpeg: summary, nativeAddons, productId: 'framescaper', target: { platform: 'linux', arch: 'x64' } },
-	}], release), /invalid product or target identity/iu);
+		value: {
+			desktopCodecPolicy: DESKTOP_CODEC_POLICY,
+			nativeAddons,
+			productId: 'framescaper',
+			target: { platform: 'linux', arch: 'x64' },
+		},
+	}]), /invalid product or target identity/iu);
 
 	const identified = (value) => [{
 		name: 'runtime-manifest-soundscaper-linux-x64.json',
 		value: {
-			ffmpeg: summary,
+			desktopCodecPolicy: DESKTOP_CODEC_POLICY,
 			productId: 'soundscaper',
 			target: { platform: 'linux', arch: 'x64' },
 			assistanceNativeRuntime,
 			...value,
 		},
 	}];
-	assert.doesNotThrow(() => validateDesktopRuntimeManifests(identified({ nativeAddons }), release));
+	assert.doesNotThrow(() => validateDesktopRuntimeManifests(identified({ nativeAddons })));
 	assert.throws(
-		() => validateDesktopRuntimeManifests(identified({ assistanceNativeRuntime: null, nativeAddons }), release),
+		() => validateDesktopRuntimeManifests(identified({ ffmpeg: {}, nativeAddons })),
+		/legacy bundled FFmpeg runtime summary/iu,
+	);
+	assert.throws(
+		() => validateDesktopRuntimeManifests(identified({ assistanceNativeRuntime: null, nativeAddons })),
 		/invalid assistance native-runtime evidence/iu,
 	);
 	assert.throws(
@@ -315,21 +210,21 @@ test('desktop release assembly rejects identically corrupted platform manifests'
 				manifestSha256: '0'.repeat(64),
 			},
 			nativeAddons,
-		}), release),
+		})),
 		/invalid assistance native-runtime evidence/iu,
 	);
-	assert.throws(() => validateDesktopRuntimeManifests(identified({}), release),
+	assert.throws(() => validateDesktopRuntimeManifests(identified({})),
 		/does not record a staged native addon payload summary/iu);
 	assert.throws(
-		() => validateDesktopRuntimeManifests(identified({ nativeAddons: { ...nativeAddons, target: 'win-x64' } }), release),
+		() => validateDesktopRuntimeManifests(identified({ nativeAddons: { ...nativeAddons, target: 'win-x64' } })),
 		/records the native addon payload for win-x64 rather than linux-x64/iu,
 	);
 	assert.throws(
-		() => validateDesktopRuntimeManifests(identified({ nativeAddons: { ...nativeAddons, targetSource: 'build-host' } }), release),
+		() => validateDesktopRuntimeManifests(identified({ nativeAddons: { ...nativeAddons, targetSource: 'build-host' } })),
 		/build-host native addon target; release evidence requires a declared target/iu,
 	);
 	assert.throws(
-		() => validateDesktopRuntimeManifests(identified({ nativeAddons: { ...nativeAddons, payload: null } }), release),
+		() => validateDesktopRuntimeManifests(identified({ nativeAddons: { ...nativeAddons, payload: null } })),
 		/status that disagrees with its payload/iu,
 	);
 });
@@ -427,19 +322,24 @@ test('the checked-in manifest permits verification and desktop staging but block
 	);
 });
 
-test('desktop entry points verify the policy runtime before assembly and recheck before packing', async () => {
-	const [releaseAssets, builderConfig, packageMetadata] = await Promise.all([
+test('desktop entry points enforce absence without consuming the browser FFmpeg manifest', async () => {
+	const [prepare, beforePack, afterPack, releaseAssets, builderConfig, packageMetadata] = await Promise.all([
+		readFile(join(ROOT, 'scripts/desktop-prepare.mjs'), 'utf8'),
+		readFile(join(ROOT, 'scripts/desktop-before-pack.mjs'), 'utf8'),
+		readFile(join(ROOT, 'scripts/desktop-after-pack.mjs'), 'utf8'),
 		readFile(join(ROOT, 'scripts/desktop-release-assets.mjs'), 'utf8'),
 		readFile(join(ROOT, 'electron-builder.config.cjs'), 'utf8'),
 		readFile(join(ROOT, 'package.json'), 'utf8').then(JSON.parse),
 	]);
-	const releaseVerification = releaseAssets.indexOf('await verifyFfmpegRuntimeManifest');
-	const releaseRead = releaseAssets.indexOf('await readdir(ASSET_ROOT');
 	const platformValidation = releaseAssets.indexOf('validateDesktopRuntimeManifests(manifests');
 	const packagePreflight = releaseAssets.indexOf('validateDesktopReleasePackageInventory(packageFiles');
 	const sourceFetch = releaseAssets.indexOf('await fetchVerified(');
-	assert.ok(releaseVerification >= 0 && releaseRead >= 0 && releaseVerification < releaseRead,
-		'public desktop release validates its policy before reading assembly inputs');
+	for (const [name, source] of Object.entries({ prepare, beforePack, afterPack, releaseAssets })) {
+		assert.doesNotMatch(source, /from ['"]\.\/lib\/ffmpeg-runtime-manifest\.mjs['"]/u, name);
+	}
+	assert.match(prepare, /delete environment\.PUBLIC_FFMPEG_CORE_BASE_URL/u);
+	assert.doesNotMatch(prepare, /PUBLIC_FFMPEG_CORE_BASE_URL:\s*/u);
+	assert.doesNotMatch(releaseAssets, /ffmpeg-corresponding-source|ffmpeg-runtime-manifest\.json/iu);
 	assert.ok(
 		platformValidation >= 0 && sourceFetch >= 0 && platformValidation < sourceFetch,
 		'public desktop release validates every runtime manifest before network fetches',
@@ -499,19 +399,6 @@ async function assertNoSideEffects(fixture, expectedError) {
 		);
 	}
 
-	const outputRoot = join(fixture.root, 'unwritten-desktop-runtime');
-	let assemblies = 0;
-	await assert.rejects(
-		admitDesktopFfmpegAssembly({
-			repositoryRoot: fixture.root,
-			assemble: async () => {
-				assemblies += 1;
-				await mkdir(outputRoot, { recursive: true });
-			},
-		}),
-		expectedError,
-	);
-	assert.equal(assemblies, 0, 'invalid desktop manifest never enters assembly');
 	let calls = 0;
 	await assert.rejects(
 		publishFfmpegRuntime({
@@ -524,7 +411,6 @@ async function assertNoSideEffects(fixture, expectedError) {
 		expectedError,
 	);
 	assert.equal(calls, 0, 'invalid publication constructs no Wrangler operation');
-	await assert.rejects(access(outputRoot), /ENOENT/u);
 }
 
 async function readdirNames(path) {

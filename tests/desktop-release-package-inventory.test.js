@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import test from 'node:test';
 
 import {
@@ -12,7 +14,6 @@ import {
 
 const VERSION = '0.2.0-beta.1';
 const PACKAGES = [
-	'ffmpeg-corresponding-source.json',
 	`Soundscaper-${VERSION}-linux-x64.AppImage`,
 	`Soundscaper-${VERSION}-linux-amd64.deb`,
 	`Soundscaper-${VERSION}-linux-arm64.AppImage`,
@@ -24,7 +25,6 @@ const PACKAGES = [
 	`Soundscaper-${VERSION}-win-arm64.zip`,
 ];
 const FRAMESCAPER_PACKAGES = PACKAGES
-	.filter((name) => name !== 'ffmpeg-corresponding-source.json')
 	.map((name) => name.replace('Soundscaper-', 'Framescaper-'));
 
 test('target package inventory is the exact shared naming authority', () => {
@@ -64,6 +64,16 @@ test('Soundscaper release inventory is exact and version-bound', () => {
 	for (const name of [`Soundscaper-${VERSION}-win-x64.EXE`, `Soundscaper-${VERSION}-win-x64.msi`]) {
 		assert.throws(() => validateDesktopReleasePackageInventory([...PACKAGES, name], VERSION),
 			/Unexpected desktop release input/iu);
+	}
+	for (const name of [
+		'ffmpeg-corresponding-source.json',
+		'ffmpeg-runtime-manifest.json',
+		'ffmpeg-9.0.1.tar.xz',
+	]) {
+		assert.throws(
+			() => validateDesktopReleasePackageInventory([...PACKAGES, name], VERSION),
+			/forbidden bundled FFmpeg|Unexpected desktop release input/iu,
+		);
 	}
 });
 
@@ -106,4 +116,10 @@ test('translation source output is bound to a positive release ID and release pa
 		...descriptor,
 		path: 'releases/123/source/%2e%2e/%2e%2e/999/source/evil.zip',
 	}), /path does not match its release/iu);
+});
+
+test('desktop preview workflow retains only the no-FFmpeg stage manifest', async () => {
+	const workflow = await readFile(resolve(import.meta.dirname, '../.github/workflows/desktop-preview.yml'), 'utf8');
+	assert.match(workflow, /cp \.desktop-build\/stage-manifest\.json/u);
+	assert.doesNotMatch(workflow, /cp desktop\/ffmpeg-corresponding-source\.json/u);
 });

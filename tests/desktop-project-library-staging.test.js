@@ -75,6 +75,10 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'external-display-sink.html'));
 	await access(join(applicationDesktopRoot, 'external-display-sink-preload.cjs'));
 	await access(join(applicationDesktopRoot, 'native-media-helper-process.js'));
+	await assert.rejects(
+		() => access(join(applicationDesktopRoot, 'ffmpeg-corresponding-source.json')),
+		/ENOENT/u,
+	);
 	await access(join(applicationDesktopRoot, 'framescaper-native-media-electron-runtime.mjs'));
 	await access(join(applicationDesktopRoot, 'openfx-helper-process.js'));
 	await access(join(applicationDesktopRoot, 'framescaper-openfx-electron-runtime.mjs'));

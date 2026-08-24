@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readdir } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 
@@ -9,9 +9,9 @@ import { flipFuses as flipElectronFuses, FuseVersion, FuseV1Options } from '@ele
 import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
 import { verifyAssistanceNativeRuntimePayload } from '../desktop/assistance-native-runtime-payload.mjs';
 import {
-	verifyFfmpegRuntimeManifest,
-	verifyStagedFfmpegRuntime,
-} from './lib/ffmpeg-runtime-manifest.mjs';
+	assertDesktopCodecPolicy,
+	auditDesktopFfmpegAbsence,
+} from './lib/desktop-codec-policy.mjs';
 import {
 	NATIVE_ADDON_RUNTIME_PREFIX,
 	nativeAddonPayloadOutputRoot,
@@ -43,15 +43,24 @@ const SOUNDSCAPER_PROFESSIONAL_PREFIX = PROFESSIONAL_NATIVE_RUNTIME_PREFIX.split
  * production signing, so no signature reset is needed here.
  */
 export default async function hardenPackagedElectron(context, dependencies = {}) {
-	// The runtimes occupy disjoint resource subtrees, and each verification
-	// is a full multi-file read-and-hash pass, so they run together.
+	const auditCodecPolicy = dependencies.auditPackagedDesktopCodecPolicy
+		?? auditPackagedDesktopCodecPolicy;
+	const verifyAssistance = dependencies.verifyPackagedAssistanceNativeRuntime
+		?? verifyPackagedAssistanceNativeRuntime;
+	const verifyNativeAddon = dependencies.verifyPackagedNativeAddonResources
+		?? verifyPackagedNativeAddonResources;
+	const verifyProfessional = dependencies.verifyPackagedSoundscaperProfessionalNativeResources
+		?? verifyPackagedSoundscaperProfessionalNativeResources;
+	const verifyNativeHosts = dependencies.verifyPackagedFramescaperNativeHostResources
+		?? verifyPackagedFramescaperNativeHostResources;
+	// The absence audit and native payload verifiers cover disjoint policy
+	// concerns, so they run together before fuse or signing work begins.
 	await Promise.all([
-		verifyPackagedFfmpegResources(context, dependencies),
-		verifyPackagedAssistanceNativeRuntime(context, dependencies),
-		verifyPackagedNativeAddonResources(context, dependencies),
-		(dependencies.verifyPackagedSoundscaperProfessionalNativeResources
-			?? verifyPackagedSoundscaperProfessionalNativeResources)(context, dependencies),
-		verifyPackagedFramescaperNativeHostResources(context, dependencies),
+		auditCodecPolicy(context, dependencies),
+		verifyAssistance(context, dependencies),
+		verifyNativeAddon(context, dependencies),
+		verifyProfessional(context, dependencies),
+		verifyNativeHosts(context, dependencies),
 	]);
 	const extension = {
 		darwin: '.app',
@@ -111,22 +120,20 @@ export async function verifyPackagedAssistanceNativeRuntime(context, dependencie
 	}
 }
 
-export async function verifyPackagedFfmpegResources(context, dependencies = {}) {
+export async function auditPackagedDesktopCodecPolicy(context, dependencies = {}) {
 	const repositoryRoot = resolve(dependencies.repositoryRoot ?? REPOSITORY_ROOT);
-	const release = await verifyFfmpegRuntimeManifest({ repositoryRoot, purpose: 'desktop-assembly' });
+	const stageManifestPath = resolve(dependencies.stageManifestPath
+		?? resolve(repositoryRoot, '.desktop-build/stage-manifest.json'));
+	const stage = JSON.parse(await readFile(stageManifestPath, 'utf8'));
+	assertDesktopCodecPolicy(stage?.desktopCodecPolicy, 'The packaged desktop codec policy');
 	const resourcesRoot = context?.packager?.getResourcesDir?.(context.appOutDir);
 	if (typeof resourcesRoot !== 'string' || resourcesRoot.length === 0) {
 		throw new TypeError('Electron packaged resources directory is unavailable.');
 	}
-	try {
-		return await verifyStagedFfmpegRuntime({
-			release,
-			outputRoot: resolve(resourcesRoot, `runtime/ffmpeg/${release.manifest.package.version}`),
-			noticePath: resolve(resourcesRoot, 'licenses/THIRD_PARTY_LICENSES.md'),
-		});
-	} catch (error) {
-		throw packagedResourceError(error);
-	}
+	return auditDesktopFfmpegAbsence({
+		root: resolve(resourcesRoot),
+		label: 'Packaged desktop resources',
+	});
 }
 
 /**

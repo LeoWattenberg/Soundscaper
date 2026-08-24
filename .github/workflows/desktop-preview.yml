@@ -362,7 +362,6 @@ jobs:
         shell: bash
         run: |
           cp .desktop-build/stage-manifest.json "release/desktop/runtime-manifest-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json"
-          cp desktop/ffmpeg-corresponding-source.json release/desktop/ffmpeg-corresponding-source.json
 
       - name: Assemble the fail-closed Milestone 5 handoff
         run: >-

@@ -14,6 +14,9 @@ const FRAMESCAPER_CAPTURE_PRELOAD_BUNDLE = 'framescaper-capture-sandbox-preload.
 const FRAMESCAPER_WEB_VCR_PRELOAD_BUNDLE = 'framescaper-web-vcr-sandbox-preload.cjs';
 const SOUNDSCAPER_V10_PRELOAD_BUNDLE = 'soundscaper-project-library-v10-sandbox-preload.cjs';
 const SOUNDSCAPER_V11_PRELOAD_BUNDLE = 'soundscaper-project-library-v11-sandbox-preload.cjs';
+const DESKTOP_ONLY_EXCLUDED_SOURCES = Object.freeze(new Set([
+	'ffmpeg-corresponding-source.json',
+]));
 // Staged sources ship no TypeScript loader. Package aliases resolve to source
 // TypeScript in the repository and compiled runtime members in the application.
 export const DESKTOP_RUNTIME_PACKAGE_IMPORTS = Object.freeze({
@@ -477,7 +480,8 @@ export async function stageDesktopApplicationSources({
 	assertExpectedRuntime(runtimeFiles);
 	await cp(sourceRoot, applicationRoot, {
 		recursive: true,
-		filter: (source) => extname(source) !== '.ts',
+		filter: (source) => extname(source) !== '.ts'
+			&& !DESKTOP_ONLY_EXCLUDED_SOURCES.has(source.slice(sourceRoot.length + 1).replaceAll('\\', '/')),
 	});
 	await cp(compiledRoot, join(applicationRoot, 'project-library-runtime'), { recursive: true });
 	await assertNoStagedTypeScriptImports(applicationRoot);

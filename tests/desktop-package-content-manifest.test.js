@@ -11,6 +11,7 @@ import {
 	auditExtractedDesktopPackageContent,
 	writeDesktopPackageContentManifest,
 } from '../scripts/lib/desktop-package-content-manifest.mjs';
+import { DESKTOP_CODEC_POLICY } from '../scripts/lib/desktop-codec-policy.mjs';
 
 const REVISION = 'a'.repeat(40);
 
@@ -23,7 +24,7 @@ test('the embedded package-content manifest binds the exact installed resource c
 		targetId: 'linux-x64',
 	});
 	assert.equal(written.status, 'installed-resource-closure-audited');
-	assert.equal(written.fileCount, 15);
+	assert.equal(written.fileCount, 13);
 	const audit = await auditExtractedDesktopPackageContent({
 		extractedRoot: fixture.extractedRoot,
 		runtimeManifestBytes: await readFile(fixture.runtimeManifestPath),
@@ -32,7 +33,7 @@ test('the embedded package-content manifest binds the exact installed resource c
 	});
 	assert.equal(audit.contentManifestSha256, written.contentManifestSha256);
 	assert.equal(audit.sourceRevision, REVISION);
-	assert.equal(audit.fileCount, 15);
+	assert.equal(audit.fileCount, 13);
 	assert.match(audit.installedClosureSha256, /^[a-f\d]{64}$/u);
 	assert.match(audit.resourcesPath, /usr\/lib\/soundscaper\/resources$/u);
 });
@@ -87,6 +88,29 @@ test('content audit binds the embedded and adjacent runtime manifests exactly', 
 	}), /runtime manifest/iu);
 });
 
+test('package-content authority rejects bundled FFmpeg and legacy runtime summaries', async (context) => {
+	const bundled = await packageTree(context);
+	await mkdir(join(bundled.resourcesRoot, 'runtime/ffmpeg/9'), { recursive: true });
+	await writeFile(join(bundled.resourcesRoot, 'runtime/ffmpeg/9/ffmpeg-core.wasm'), 'forbidden core');
+	await assert.rejects(writeDesktopPackageContentManifest({
+		resourcesRoot: bundled.resourcesRoot,
+		runtimeManifestPath: bundled.runtimeManifestPath,
+		productId: 'soundscaper',
+		targetId: 'linux-x64',
+	}), /forbidden bundled FFmpeg.*runtime\/ffmpeg/iu);
+
+	const legacy = await packageTree(context);
+	legacy.runtimeManifest.ffmpeg = { version: '5.1.4' };
+	await writeFile(legacy.runtimeManifestPath,
+		`${JSON.stringify(legacy.runtimeManifest, null, 2)}\n`);
+	await assert.rejects(writeDesktopPackageContentManifest({
+		resourcesRoot: legacy.resourcesRoot,
+		runtimeManifestPath: legacy.runtimeManifestPath,
+		productId: 'soundscaper',
+		targetId: 'linux-x64',
+	}), /legacy bundled FFmpeg runtime summary/iu);
+});
+
 test('Framescaper content closure binds media and OpenFX readiness with their review policy', async (context) => {
 	const fixture = await framescaperPackageTree(context);
 	const written = await writeDesktopPackageContentManifest({
@@ -134,8 +158,6 @@ async function packageTree(context) {
 	const resourcesRoot = join(applicationRoot, 'resources');
 	const payloads = {
 		'app.asar': Buffer.from('authenticated application'),
-		'runtime/ffmpeg/1/core.wasm': Buffer.from('authenticated ffmpeg payload'),
-		'runtime/ffmpeg/1/manifest.json': Buffer.from('authenticated ffmpeg manifest'),
 		'runtime/native/linux-x64/native-addon-payload-manifest.json': Buffer.from('authenticated addon manifest'),
 		'runtime/native/linux-x64/addon.node': Buffer.from('authenticated native payload'),
 		'runtime/native/soundscaper-professional-host/linux-x64/soundscaper-professional-native-payload-manifest.json':
@@ -175,11 +197,7 @@ async function packageTree(context) {
 		applicationVersion: '0.2.0-beta.1',
 		sourceRevision: REVISION,
 		target: { platform: 'linux', arch: 'x64' },
-		ffmpeg: {
-			version: '1',
-			runtimeManifest: { name: 'manifest.json', sha256: descriptor('runtime/ffmpeg/1/manifest.json').sha256 },
-			files: { 'core.wasm': descriptor('runtime/ffmpeg/1/core.wasm') },
-		},
+		desktopCodecPolicy: DESKTOP_CODEC_POLICY,
 		nativeAddons: {
 			target: 'linux-x64', status: 'built',
 			payloadManifest: { sha256: descriptor('runtime/native/linux-x64/native-addon-payload-manifest.json').sha256 },

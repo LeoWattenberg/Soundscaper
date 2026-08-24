@@ -9,9 +9,9 @@ import {
 	verifyAssistanceNativeRuntimePayload,
 } from '../desktop/assistance-native-runtime-payload.mjs';
 import {
-	verifyFfmpegRuntimeManifest,
-	verifyStagedFfmpegRuntime,
-} from './lib/ffmpeg-runtime-manifest.mjs';
+	assertDesktopCodecPolicy,
+	auditDesktopFfmpegAbsence,
+} from './lib/desktop-codec-policy.mjs';
 import {
 	nativeAddonPayloadOutputRoot,
 	nativeAddonPayloadTargetForPackagingContext,
@@ -31,14 +31,15 @@ import {
 /**
  * Electron Builder beforePack hook. Re-verify the policy-bound runtime after
  * preparation so a changed staging tree never reaches ASAR/resource assembly.
- * The two runtimes occupy disjoint subtrees of the build directory and each
- * verification is a full multi-file read-and-hash pass, so they run together.
+ * Payload verification and the authoritative no-FFmpeg audit cover disjoint
+ * policy concerns, so they run together.
  */
 export default async function verifyDesktopRuntimeBeforePack(context = {}, dependencies = {}) {
 	const repositoryRoot = resolve(context.packager?.projectDir ?? resolve(import.meta.dirname, '..'));
 	const stageManifestPath = resolve(repositoryRoot, '.desktop-build/stage-manifest.json');
 	const packagedTarget = nativeAddonPayloadTargetForPackagingContext(context);
-	const verifyFfmpeg = dependencies.verifyStagedFfmpegBeforePack ?? verifyStagedFfmpegBeforePack;
+	const auditCodecPolicy = dependencies.auditStagedDesktopCodecPolicy
+		?? auditStagedDesktopCodecPolicy;
 	const verifyAssistance = dependencies.verifyStagedAssistanceNativeRuntime
 		?? verifyStagedAssistanceNativeRuntime;
 	const verifyNativeAddon = dependencies.verifyStagedNativeAddonBeforePack ?? verifyStagedNativeAddonBeforePack;
@@ -47,7 +48,7 @@ export default async function verifyDesktopRuntimeBeforePack(context = {}, depen
 	const verifyProfessional = dependencies.verifyStagedSoundscaperProfessionalNativeBeforePack
 		?? verifyStagedSoundscaperProfessionalNativeBeforePack;
 	await Promise.all([
-		verifyFfmpeg({ repositoryRoot, stageManifestPath }),
+		auditCodecPolicy({ repositoryRoot, stageManifestPath }),
 		verifyAssistance({
 			repositoryRoot, stageManifestPath, packagedTarget,
 		}),
@@ -102,16 +103,12 @@ export async function verifyStagedAssistanceNativeRuntime({
 	});
 }
 
-export async function verifyStagedFfmpegBeforePack({ repositoryRoot, stageManifestPath }) {
-	const release = await verifyFfmpegRuntimeManifest({
-		repositoryRoot,
-		purpose: 'desktop-assembly',
-	});
-	return verifyStagedFfmpegRuntime({
-		release,
-		outputRoot: resolve(repositoryRoot, `.desktop-build/runtime/ffmpeg/${release.manifest.package.version}`),
-		stageManifestPath,
-		noticePath: resolve(repositoryRoot, '.desktop-build/licenses/THIRD_PARTY_LICENSES.md'),
+export async function auditStagedDesktopCodecPolicy({ repositoryRoot, stageManifestPath }) {
+	const stage = JSON.parse(await readFile(stageManifestPath, 'utf8'));
+	assertDesktopCodecPolicy(stage?.desktopCodecPolicy, 'The desktop stage codec policy');
+	return auditDesktopFfmpegAbsence({
+		root: resolve(repositoryRoot, '.desktop-build'),
+		label: 'Staged desktop resources',
 	});
 }
 

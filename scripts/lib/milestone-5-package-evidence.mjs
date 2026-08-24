@@ -21,7 +21,6 @@ import {
 	milestone5PackageReleaseAuthenticationEvidenceName,
 	preauthenticateMilestone5PackageReleaseAuthentication,
 } from './milestone-5-package-release-authentication.mjs';
-import { verifyFfmpegRuntimeManifest } from './ffmpeg-runtime-manifest.mjs';
 import {
 	boundedString,
 	deepFreeze,
@@ -99,25 +98,7 @@ export async function auditMilestone5PackageEvidence(optionsValue, dependencies 
 		throw new Error('Milestone 5 staged runtime manifest source revision is invalid.');
 	}
 	const sourceRevision = manifest.sourceRevision;
-	const runtimeRelease = await verifyFfmpegRuntimeManifest({
-		repositoryRoot,
-		// This authenticates evidence; the handoff separately reports and blocks
-		// uncleared release authorizations instead of making the audit disappear.
-		purpose: 'audit',
-	});
-	const correspondingSourceName = 'ffmpeg-corresponding-source.json';
-	const correspondingSourceFile = await readAndDescribeRegularFile({
-		canonicalRoot,
-		label: 'Milestone 5 FFmpeg corresponding-source sidecar',
-		maximumBytes: MAXIMUM_RUNTIME_MANIFEST_BYTES,
-		name: correspondingSourceName,
-		packageRoot,
-		retainBytes: true,
-	});
-	if (!correspondingSourceFile.bytes.equals(runtimeRelease.evidence.correspondingSource.bytes)) {
-		throw new Error('Milestone 5 FFmpeg corresponding-source sidecar disagrees with policy evidence.');
-	}
-	validateDesktopRuntimeManifests([{ name: manifestName, value: manifest }], runtimeRelease);
+	validateDesktopRuntimeManifests([{ name: manifestName, value: manifest }]);
 	const projectPackage = parseJson(
 		await readFile(resolve(repositoryRoot, 'package.json')),
 		'project package metadata',
@@ -150,7 +131,6 @@ export async function auditMilestone5PackageEvidence(optionsValue, dependencies 
 	);
 	const expectedRootNames = new Set([
 		manifestName,
-		correspondingSourceName,
 		...selected.map(({ name }) => name),
 		...(rootNames.includes(releaseAuthenticationName) ? [releaseAuthenticationName] : []),
 	]);
@@ -203,8 +183,6 @@ export async function auditMilestone5PackageEvidence(optionsValue, dependencies 
 				manifest,
 				manifestName,
 				runtimeFile,
-				correspondingSourceName,
-				correspondingSourceFile,
 				packages,
 			});
 		}
@@ -253,8 +231,6 @@ export async function auditMilestone5PackageEvidence(optionsValue, dependencies 
 			manifest,
 			manifestName,
 			runtimeFile,
-			correspondingSourceName,
-			correspondingSourceFile,
 			packages,
 		});
 	} finally {
@@ -272,8 +248,6 @@ function packageAudit({
 	manifest,
 	manifestName,
 	runtimeFile,
-	correspondingSourceName,
-	correspondingSourceFile,
 	packages: packageDescriptors,
 }) {
 	const audit = deepFreeze({
@@ -290,11 +264,7 @@ function packageAudit({
 			sha256: runtimeFile.sha256,
 			value: manifest,
 		},
-		correspondingSource: {
-			name: correspondingSourceName,
-			byteLength: correspondingSourceFile.byteLength,
-			sha256: correspondingSourceFile.sha256,
-		},
+		desktopCodecPolicy: manifest.desktopCodecPolicy,
 		packages: packageDescriptors,
 		packageCount: packageDescriptors.length,
 		totalPackageBytes: packageDescriptors.reduce(

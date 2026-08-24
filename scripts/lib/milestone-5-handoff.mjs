@@ -288,7 +288,6 @@ export async function assembleMilestone5Handoff(
 		}
 		for (const descriptor of [
 			inputs.packageAudit.runtimeManifest,
-			inputs.packageAudit.correspondingSource,
 			...inputs.packageAudit.packages,
 			...(inputs.packageAudit.releaseAuthentication.evidence === null
 				? [] : [inputs.packageAudit.releaseAuthentication.evidence]),
@@ -511,7 +510,7 @@ function packageEvidenceSummary(audit) {
 			byteLength: audit.runtimeManifest.byteLength,
 			sha256: audit.runtimeManifest.sha256,
 		},
-		correspondingSource: { ...audit.correspondingSource },
+		desktopCodecPolicy: structuredClone(audit.desktopCodecPolicy),
 		packages: audit.packages.map(({ label, name, byteLength, sha256: digest, content }) => ({
 			label, name, byteLength, sha256: digest,
 			content: content === null ? null : { ...content },
