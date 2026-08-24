@@ -23,8 +23,13 @@ import {
 	findPlatformDeliveryPreset,
 	type PlatformNativeMediaV15Execution,
 } from '../common/editor/platform-delivery-presets.ts';
+import type { DeliveryReportItem } from '../common/editor/delivery-report.ts';
 import type { UnifiedExactRenderCaptionDeliveryV15 } from '../common/editor/unified-exact-render-delivery-v15.ts';
 import type { UnifiedExactRenderTimingSidecars } from '../common/editor/unified-exact-render-plan.ts';
+import {
+	videoBurnInCuesOverlap,
+	videoBurnInUndrawableCharacters,
+} from '../common/editor/video-caption-burn-in.ts';
 import type { FramescaperProjectUnifiedRenderDeliveryBundleV15 } from './editor-project-unified-render-delivery-v15.ts';
 import type { FramescaperCaptionDeliveryDocumentV28 } from './video-caption-delivery-v28.ts';
 
@@ -49,6 +54,13 @@ export interface FramescaperNativeDeliveryClosureV1 {
 	readonly captionDisposition: FramescaperNativeCaptionDispositionV1;
 	readonly requiredArtifactManifest: readonly FramescaperNativeDeliveryArtifactManifestEntryV1[];
 	readonly requiredConformanceCheckIds: readonly string[];
+	/**
+	 * Disclosures the planned report must already carry: what the burn-in stage
+	 * knows it cannot draw or keeps on screen at once. The web delivery
+	 * inventory names both; a native delivery that stayed silent about them
+	 * would be exactly the hidden conversion the delivery gate forbids.
+	 */
+	readonly requiredReportItems: readonly DeliveryReportItem[];
 }
 
 export function deriveFramescaperNativeDeliveryClosureV1(input: Readonly<{
@@ -153,7 +165,43 @@ export function deriveFramescaperNativeDeliveryClosureV1(input: Readonly<{
 		captionDisposition: captionDisposition(caption ?? null),
 		requiredArtifactManifest: Object.freeze(manifest),
 		requiredConformanceCheckIds: Object.freeze(checks),
+		requiredReportItems: burnInDisclosureItems(adapter),
 	});
+}
+
+/**
+ * The disclosures a burn-in stage owes the report, in the web inventory's
+ * exact vocabulary: overlapping cues render stacked, and characters no staged
+ * font subset can draw are blanks in the picture. Naming them is the
+ * difference between a stated omission and a delivery quietly missing words.
+ */
+function burnInDisclosureItems(
+	adapter: FramescaperProjectUnifiedRenderDeliveryBundleV15['captionAdapter'],
+): readonly DeliveryReportItem[] {
+	const stage = adapter?.burnInStage ?? null;
+	if (stage === null) return Object.freeze([]);
+	const trackId = adapter!.track.id;
+	const items: DeliveryReportItem[] = [];
+	if (videoBurnInCuesOverlap(stage)) {
+		items.push(Object.freeze({
+			code: 'delivery.captions-overlapping',
+			severity: 'warning' as const,
+			disposition: 'converted' as const,
+			scope: Object.freeze({ kind: 'track', id: trackId }),
+			data: Object.freeze({ trackId }),
+		}));
+	}
+	const undrawable = videoBurnInUndrawableCharacters(stage);
+	if (undrawable.length > 0) {
+		items.push(Object.freeze({
+			code: 'delivery.captions-undrawable',
+			severity: 'warning' as const,
+			disposition: 'omitted' as const,
+			scope: Object.freeze({ kind: 'track', id: trackId }),
+			data: Object.freeze({ trackId, characters: undrawable.join('') }),
+		}));
+	}
+	return Object.freeze(items);
 }
 
 function coherentV15Bundle(

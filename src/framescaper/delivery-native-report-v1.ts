@@ -19,11 +19,18 @@ import {
 	type FramescaperNativeDeliveryArtifactManifestEntryV1,
 } from './delivery-native-report-closure-v1.ts';
 import type {
-	DeliveryDisposition,
 	DeliveryReport,
 	DeliveryReportItem,
-	DeliveryReportSubject,
 } from '../common/editor/delivery-report.ts';
+import {
+	deepFreeze,
+	denseArray,
+	exactRecord,
+	integer,
+	member,
+	snapshotDeliveryReport,
+	text,
+} from './delivery-native-report-validation-v1.ts';
 
 export type {
 	FramescaperNativeCaptionDispositionV1,
@@ -90,7 +97,6 @@ const CAPTION_DISPOSITIONS = Object.freeze([
 	'none', 'sidecar', 'mux', 'burn-in', 'mux-and-burn-in',
 	'mux-and-sidecar', 'burn-in-and-sidecar', 'mux-and-burn-in-and-sidecar',
 ] as const);
-const DISPOSITIONS = Object.freeze(['preserved', 'converted', 'missing', 'omitted'] as const);
 
 export function createFramescaperNativeDeliveryReportSeedV1(input: Readonly<{
 	readonly jobId: string;
@@ -109,7 +115,7 @@ export function createFramescaperNativeDeliveryReportSeedV1(input: Readonly<{
 		timingSidecars: row.timingSidecars as UnifiedExactRenderTimingSidecars | undefined,
 		deliveryBundle: row.deliveryBundle,
 	});
-	return createSeed({
+	const seed = createSeed({
 		jobId: row.jobId,
 		planFingerprint: authority.planFingerprint,
 		targetId: row.targetId,
@@ -119,6 +125,8 @@ export function createFramescaperNativeDeliveryReportSeedV1(input: Readonly<{
 		requiredConformanceCheckIds: authority.requiredConformanceCheckIds,
 		plannedReport: row.plannedReport,
 	});
+	assertRequiredDisclosuresPlanned(authority.requiredReportItems, seed.plannedReport);
+	return seed;
 }
 
 function createSeed(input: Readonly<{
@@ -184,9 +192,25 @@ export function assertFramescaperNativeDeliveryReportSeedV1(
 export function sealFramescaperNativeDeliveryReportV1(
 	seedValue: unknown,
 	resultValue: unknown,
+	closureValue: unknown,
 ): FramescaperNativeDeliveryReportV1 {
 	assertFramescaperNativeDeliveryReportSeedV1(seedValue);
 	const seed = seedValue;
+	// The seed's fingerprint proves only self-consistency, never plan custody:
+	// a re-fingerprinted seed with an impoverished manifest passes the assert.
+	// Sealing therefore re-derives the closure from the plan envelope itself
+	// and refuses a seed whose inventory is not the plan's.
+	const closureInput = exactRecord(closureValue, [
+		'envelope', 'timingSidecars', 'deliveryBundle',
+	], 'native delivery closure authority', ['timingSidecars', 'deliveryBundle']);
+	const authority = deriveFramescaperNativeDeliveryClosureV1({
+		targetId: seed.targetId,
+		envelope: closureInput.envelope,
+		timingSidecars: closureInput.timingSidecars as UnifiedExactRenderTimingSidecars | undefined,
+		deliveryBundle: closureInput.deliveryBundle,
+	});
+	assertSeedClosureAuthority(seed, authority);
+	assertRequiredDisclosuresPlanned(authority.requiredReportItems, seed.plannedReport);
 	const result = exactRecord(resultValue, [
 		'status', 'backendAttempts', 'conformance', 'artifacts', 'publication', 'finalReport',
 	], 'native delivery report result');
@@ -244,6 +268,55 @@ function nativeTargetExecution(
 		);
 	}
 	return preset.execution;
+}
+
+function assertSeedClosureAuthority(
+	seed: FramescaperNativeDeliveryReportSeedV1,
+	authority: ReturnType<typeof deriveFramescaperNativeDeliveryClosureV1>,
+): void {
+	if (seed.planFingerprint !== authority.planFingerprint
+		|| seed.profileId !== authority.profileId
+		|| seed.hardwarePolicy !== authority.hardwarePolicy
+		|| seed.captionDisposition !== authority.captionDisposition
+		|| fingerprintNativeMediaPlan(seed.requiredArtifactManifest).canonical
+			!== fingerprintNativeMediaPlan(authority.requiredArtifactManifest).canonical
+		|| fingerprintNativeMediaPlan(seed.requiredConformanceCheckIds).canonical
+			!== fingerprintNativeMediaPlan(authority.requiredConformanceCheckIds).canonical) {
+		throw new Error('The native delivery seed is not bound to its plan envelope closure.');
+	}
+}
+
+/**
+ * Disclosures the closure derives must already sit in the planned report:
+ * assertPlannedReportPreserved then carries them into every sealed final
+ * report, so a burn-in delivery can never seal while staying silent about
+ * blanks in its picture.
+ */
+function assertRequiredDisclosuresPlanned(
+	required: readonly DeliveryReportItem[],
+	planned: DeliveryReport,
+): void {
+	const available = new Map<string, number>();
+	for (const item of planned.items) {
+		const canonical = disclosureCanonical(item);
+		available.set(canonical, (available.get(canonical) ?? 0) + 1);
+	}
+	for (const item of required) {
+		const canonical = disclosureCanonical(item);
+		const count = available.get(canonical) ?? 0;
+		if (count === 0) {
+			throw new Error(`The planned native delivery report is missing its required ${item.code} disclosure.`);
+		}
+		available.set(canonical, count - 1);
+	}
+}
+
+/** Items compare without their human-facing message; the data is the claim. */
+function disclosureCanonical(item: DeliveryReportItem): string {
+	return fingerprintNativeMediaPlan({
+		code: item.code, severity: item.severity, disposition: item.disposition,
+		scope: item.scope, data: item.data,
+	}).canonical;
 }
 
 function assertPlannedReportPreserved(planned: DeliveryReport, final: DeliveryReport): void {
@@ -415,140 +488,4 @@ function artifactRows(value: unknown): readonly FramescaperNativeDeliveryArtifac
 			sha256: text(row.sha256, SHA256, 'native delivery artifact SHA-256'),
 		});
 	}));
-}
-
-function snapshotDeliveryReport(value: unknown): DeliveryReport {
-	const row = exactRecord(value, [
-		'schemaVersion', 'format', 'direction', 'subject', 'items', 'counts',
-	], 'sealed delivery report');
-	if (row.schemaVersion !== 1 || row.format !== 'delivery' || row.direction !== 'export') {
-		throw new TypeError('A native delivery job requires a sealed delivery report.');
-	}
-	const subject = reportSubject(row.subject);
-	const items = denseArray(row.items, 0, 100_000, 'delivery report items').map(reportItem);
-	const counts = exactRecord(row.counts, DISPOSITIONS, 'delivery report counts');
-	const normalizedCounts = Object.fromEntries(DISPOSITIONS.map((disposition) => {
-		const count = integer(counts[disposition], 0, 100_000, `delivery report ${disposition} count`);
-		if (count !== items.filter((item) => item.disposition === disposition).length) {
-			throw new Error('Delivery report counts do not describe its items.');
-		}
-		return [disposition, count];
-	})) as Record<DeliveryDisposition, number>;
-	return deepFreeze({
-		schemaVersion: 1 as const, format: 'delivery' as const, direction: 'export' as const,
-		subject, items: Object.freeze(items), counts: Object.freeze(normalizedCounts),
-	});
-}
-
-function reportSubject(value: unknown): DeliveryReportSubject {
-	const row = exactRecord(value, [
-		'format', 'container', 'codec', 'sampleRate', 'channelCount', 'lossless',
-	], 'delivery report subject');
-	return Object.freeze({
-		format: boundedText(row.format, 1, 512, 'delivery report format'),
-		container: nullableBoundedText(row.container, 'delivery report container'),
-		codec: nullableBoundedText(row.codec, 'delivery report codec'),
-		sampleRate: nullableNumber(row.sampleRate, 'delivery report sample rate'),
-		channelCount: nullableNumber(row.channelCount, 'delivery report channel count'),
-		lossless: row.lossless === null || typeof row.lossless === 'boolean'
-			? row.lossless : invalid('Delivery report lossless flag is invalid.'),
-	});
-}
-
-function reportItem(value: unknown): DeliveryReportItem {
-	const row = exactRecord(value, [
-		'code', 'severity', 'disposition', 'scope', 'data', 'message',
-	], 'delivery report item', ['message']);
-	const severity = member(row.severity, ['info', 'warning', 'error'] as const, 'delivery report severity');
-	const disposition = member(row.disposition, DISPOSITIONS, 'delivery report disposition');
-	return Object.freeze({
-		code: boundedText(row.code, 1, 512, 'delivery report item code'), severity, disposition,
-		scope: snapshotPlainRecord(row.scope, 'delivery report item scope'),
-		data: snapshotPlainRecord(row.data, 'delivery report item data'),
-		...(row.message === undefined ? {} : {
-			message: boundedText(row.message, 1, 4_096, 'delivery report item message'),
-		}),
-	});
-}
-
-function snapshotPlainRecord(value: unknown, name: string): Readonly<Record<string, unknown>> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)
-		|| (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)) {
-		throw new TypeError(`${name} must be a plain record.`);
-	}
-	const cloned = structuredClone(value) as Record<string, unknown>;
-	fingerprintNativeMediaPlan(cloned);
-	return deepFreeze(cloned);
-}
-
-function exactRecord(
-	value: unknown,
-	fields: readonly string[],
-	name: string,
-	optional: readonly string[] = [],
-): Record<string, unknown> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)
-		|| (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)) {
-		throw new TypeError(`${name} must be a closed plain record.`);
-	}
-	const keys = Reflect.ownKeys(value);
-	if (keys.some((key) => typeof key !== 'string' || !fields.includes(key))
-		|| fields.some((field) => !optional.includes(field) && !Object.hasOwn(value, field))) {
-		throw new TypeError(`${name} has missing or unsupported fields.`);
-	}
-	return value as Record<string, unknown>;
-}
-
-function denseArray(value: unknown, minimum: number, maximum: number, name: string): unknown[] {
-	if (!Array.isArray(value) || value.length < minimum || value.length > maximum
-		|| Reflect.ownKeys(value).length !== value.length + 1) {
-		throw new TypeError(`${name} must be a bounded dense array.`);
-	}
-	return [...value];
-}
-
-function member<const Value extends string>(value: unknown, values: readonly Value[], name: string): Value {
-	if (typeof value !== 'string' || !(values as readonly string[]).includes(value)) {
-		throw new RangeError(`${name} is unsupported.`);
-	}
-	return value as Value;
-}
-
-function text(value: unknown, pattern: RegExp, name: string): string {
-	if (typeof value !== 'string' || !pattern.test(value)) throw new TypeError(`${name} is invalid.`);
-	return value;
-}
-
-function boundedText(value: unknown, minimum: number, maximum: number, name: string): string {
-	if (typeof value !== 'string' || value.length < minimum || value.length > maximum || value.includes('\0')) {
-		throw new TypeError(`${name} is invalid.`);
-	}
-	return value;
-}
-
-function nullableBoundedText(value: unknown, name: string): string | null {
-	return value === null ? null : boundedText(value, 1, 512, name);
-}
-
-function nullableNumber(value: unknown, name: string): number | null {
-	if (value === null) return null;
-	if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) throw new TypeError(`${name} is invalid.`);
-	return value;
-}
-
-function integer(value: unknown, minimum: number, maximum: number, name: string): number {
-	if (!Number.isSafeInteger(value) || Number(value) < minimum || Number(value) > maximum) {
-		throw new RangeError(`${name} is invalid.`);
-	}
-	return Number(value);
-}
-
-function invalid(message: string): never { throw new TypeError(message); }
-
-function deepFreeze<Value>(value: Value): Value {
-	if (value && typeof value === 'object' && !Object.isFrozen(value)) {
-		for (const nested of Object.values(value as Record<string, unknown>)) deepFreeze(nested);
-		Object.freeze(value);
-	}
-	return value;
 }

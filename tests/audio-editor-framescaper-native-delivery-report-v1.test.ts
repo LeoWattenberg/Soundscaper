@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { addDeliveryReportItem, createDeliveryReport, sealDeliveryReport } from '../src/common/editor/delivery-report.ts';
+import { fingerprintNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
 import { createNativeMediaPlanEnvelopeV2 } from '../src/common/editor/native-media-plan-envelope-v2.ts';
 import {
 	createFramescaperNativeDeliveryReportSeedV1,
@@ -68,7 +69,9 @@ test('native delivery reports derive plan identity and caption state from one ex
 		deliveryBundle: Object.freeze({ ...bundle, plan: structuredClone(bundle.plan) }),
 		plannedReport: report,
 	}), /bundle plan|envelope plan/iu);
-	const sealed = sealFramescaperNativeDeliveryReportV1(seed, successfulResult(seed, report));
+	const sealed = sealFramescaperNativeDeliveryReportV1(
+		seed, successfulResult(seed, report), { envelope, deliveryBundle: bundle },
+	);
 	assert.equal(sealed.jobId, JOB_ID);
 	assert.equal(sealed.seedFingerprint, seed.seedFingerprint);
 	assert.equal(sealed.status, 'succeeded');
@@ -120,8 +123,9 @@ test('V15 success closes the exact derived artifact manifest and conformance inv
 		'target-profile',
 	]);
 
+	const closure = { envelope: bundle.envelope, deliveryBundle: bundle };
 	const valid = successfulResult(seed, plannedReport());
-	assert.doesNotThrow(() => sealFramescaperNativeDeliveryReportV1(seed, valid));
+	assert.doesNotThrow(() => sealFramescaperNativeDeliveryReportV1(seed, valid, closure));
 	for (const [label, mutate] of [
 		['missing artifact', (value: Record<string, unknown>) => {
 			(value.artifacts as unknown[]).pop();
@@ -154,7 +158,7 @@ test('V15 success closes the exact derived artifact manifest and conformance inv
 		const changed = structuredClone(valid) as Record<string, unknown>;
 		mutate(changed);
 		assert.throws(
-			() => sealFramescaperNativeDeliveryReportV1(seed, changed),
+			() => sealFramescaperNativeDeliveryReportV1(seed, changed, closure),
 			/artifact|conformance|closure|manifest/iu,
 			label,
 		);
@@ -162,7 +166,7 @@ test('V15 success closes the exact derived artifact manifest and conformance inv
 	const forgedSeed = structuredClone(seed);
 	(forgedSeed.requiredConformanceCheckIds as string[]).pop();
 	assert.throws(
-		() => sealFramescaperNativeDeliveryReportV1(forgedSeed, valid),
+		() => sealFramescaperNativeDeliveryReportV1(forgedSeed, valid, closure),
 		/seed.*exact derived|fingerprint/iu,
 	);
 });
@@ -180,7 +184,7 @@ test('hardware delivery permits exactly one identical-plan CPU retry and reports
 			{ attempt: 1, backend: 'media-foundation', outcome: 'failed', failureCode: 'hardware-encode-failed' },
 			{ attempt: 2, backend: 'native-cpu', outcome: 'succeeded', failureCode: null },
 		],
-	});
+	}, { envelope: H264_ENVELOPE });
 	assert.deepEqual(sealed.backendAttempts.map(({ attempt, backend }) => [attempt, backend]), [
 		[1, 'media-foundation'], [2, 'native-cpu'],
 	]);
@@ -213,7 +217,7 @@ test('native report policy refuses arbitrary targets, profile mismatches, and ha
 			conformance: [{ checkId: 'duration', passed: true, detail: null }],
 			artifacts: [{ relativePath: 'master.mov', byteLength: 512, sha256: SHA_B }],
 			publication: 'complete', finalReport: reportWithItems([]),
-		}), /hardware policy|native-cpu|retry/iu);
+		}, { envelope: V14_ENVELOPE }), /hardware policy|native-cpu|retry/iu);
 	}
 });
 
@@ -228,7 +232,7 @@ test('failed and web-core-required jobs never receive a false native receipt', (
 			attempt: 1, backend: 'native-cpu', outcome: 'web-core-required', failureCode: 'web-core-required',
 		}],
 		conformance: [], artifacts: [], publication: 'not-published', finalReport: plannedReport(),
-	});
+	}, { envelope: V14_ENVELOPE });
 	assert.equal(failed.status, 'failed');
 	assert.equal(failed.publication, 'not-published');
 	assert.deepEqual(failed.artifacts, []);
@@ -246,7 +250,10 @@ test('failed and web-core-required jobs never receive a false native receipt', (
 			conformance: [], artifacts: [], publication: 'not-published', finalReport: plannedReport(),
 		} as Record<string, unknown>;
 		mutate(input);
-		assert.throws(() => sealFramescaperNativeDeliveryReportV1(seed, input), /failed|publication|artifact|succeeded/iu);
+		assert.throws(
+			() => sealFramescaperNativeDeliveryReportV1(seed, input, { envelope: V14_ENVELOPE }),
+			/failed|publication|artifact|succeeded/iu,
+		);
 	}
 });
 
@@ -268,7 +275,7 @@ test('native report sealing rejects unreported conversion errors and forged retr
 			status: 'succeeded', backendAttempts, conformance: [],
 			artifacts: [{ relativePath: 'master.mov', byteLength: 1, sha256: SHA_B }],
 			publication: 'complete', finalReport: plannedReport(),
-		}), /attempt|conformance/iu);
+		}, { envelope: V14_ENVELOPE }), /attempt|conformance/iu);
 	}
 });
 
@@ -346,7 +353,7 @@ test('image-sequence closure requires its tree and exact companion-audio artifac
 		plannedReport: reportWithItems([]),
 	}), /companion-audio authority payload/iu);
 	assert.doesNotThrow(() => sealFramescaperNativeDeliveryReportV1(
-		seed, successfulResult(seed, reportWithItems([])),
+		seed, successfulResult(seed, reportWithItems([])), { envelope: bundle.envelope, deliveryBundle: bundle },
 	));
 });
 
@@ -359,21 +366,99 @@ test('native report sealing preserves every planned conversion item exactly', ()
 	const base = successfulResult(seed, planned);
 	assert.throws(() => sealFramescaperNativeDeliveryReportV1(seed, {
 		...base, finalReport: reportWithItems([]),
-	}), /planned.*report item|drop/iu);
+	}, { envelope: V14_ENVELOPE }), /planned.*report item|drop/iu);
 	assert.throws(() => sealFramescaperNativeDeliveryReportV1(seed, {
 		...base,
 		finalReport: reportWithItems([{
 			code: 'caption-mux', disposition: 'converted', data: { codec: 'webvtt' },
 		}]),
-	}), /planned.*report item|chang/iu);
+	}, { envelope: V14_ENVELOPE }), /planned.*report item|chang/iu);
 	const extended = sealFramescaperNativeDeliveryReportV1(seed, {
 		...base,
 		finalReport: reportWithItems([
 			{ code: 'caption-mux', disposition: 'converted', data: { codec: 'mov_text' } },
 			{ code: 'native-reopen', disposition: 'preserved', data: { passed: true } },
 		]),
-	});
+	}, { envelope: V14_ENVELOPE });
 	assert.equal(extended.report.items.length, 2);
+});
+
+test('sealing refuses a re-fingerprinted seed whose inventory is not the plan closure', () => {
+	// The seed fingerprint proves self-consistency, never custody: a forged
+	// seed can drop the sidecar from its manifest and check inventory, then
+	// re-fingerprint itself and pair with an equally impoverished result.
+	// Only re-deriving the closure from the envelope at seal time catches it.
+	const bundle = v15Bundle({ trackId: 'captions-en', mux: false, burnIn: false, sidecar: 'srt' });
+	const closure = { envelope: bundle.envelope, deliveryBundle: bundle };
+	const seed = createFramescaperNativeDeliveryReportSeedV1({
+		jobId: JOB_ID, targetId: 'native-mezzanine-prores',
+		envelope: bundle.envelope, deliveryBundle: bundle, plannedReport: plannedReport(),
+	});
+	const foundation = structuredClone(seed) as unknown as Record<string, unknown>;
+	delete foundation.seedFingerprint;
+	foundation.requiredArtifactManifest = seed.requiredArtifactManifest
+		.filter(({ artifactId }) => artifactId !== 'caption-sidecar');
+	foundation.requiredConformanceCheckIds = seed.requiredConformanceCheckIds
+		.filter((checkId) => !checkId.includes('sidecar'));
+	const forged = Object.freeze({
+		...foundation, seedFingerprint: fingerprintNativeMediaPlan(foundation).sha256,
+	});
+	const impoverished = successfulResult(
+		forged as unknown as ReturnType<typeof createFramescaperNativeDeliveryReportSeedV1>,
+		plannedReport(),
+	);
+	assert.throws(
+		() => sealFramescaperNativeDeliveryReportV1(forged, impoverished, closure),
+		/not bound to its plan envelope closure/u,
+	);
+});
+
+test('a burn-in delivery cannot seal while silent about what it cannot draw', () => {
+	// The web delivery inventory names undrawable characters and overlapping
+	// cues; a native burn-in that stays silent about blanks in its own picture
+	// is exactly the hidden conversion the delivery gate forbids.
+	const project = createFramescaperProjectV28(PROFILE, {
+		...framescaperV20Options(),
+		finishing: { captionTracks: [{
+			...captionTrack(),
+			cues: [{
+				schemaVersion: 1, id: 'cue-1', startFrame: 0, endFrame: 48_000, text: '漢字',
+				styleId: null, regionId: null, speakerId: null, words: [],
+			}, {
+				schemaVersion: 1, id: 'cue-2', startFrame: 24_000, endFrame: 72_000, text: 'Overlap',
+				styleId: null, regionId: null, speakerId: null, words: [],
+			}],
+		}] },
+	});
+	const authority = createFramescaperNativeRenderPlanAuthorityV28(project);
+	const bundle = createFramescaperProjectUnifiedRenderDeliveryBundleV15(PROFILE, project, authority, {
+		deliveryProfile: 'encode-mov-prores-422-hq',
+		captionRequest: { trackId: 'captions-en', mux: false, burnIn: true, sidecar: null },
+	});
+	assert.throws(() => createFramescaperNativeDeliveryReportSeedV1({
+		jobId: JOB_ID, targetId: 'native-mezzanine-prores',
+		envelope: bundle.envelope, deliveryBundle: bundle, plannedReport: plannedReport(),
+	}), /delivery\.captions-(undrawable|overlapping) disclosure/u);
+
+	const disclosed = reportWithItems([{
+		code: 'delivery.captions-overlapping', disposition: 'converted', severity: 'warning',
+		scope: { kind: 'track', id: 'captions-en' }, data: { trackId: 'captions-en' },
+	}, {
+		code: 'delivery.captions-undrawable', disposition: 'omitted', severity: 'warning',
+		scope: { kind: 'track', id: 'captions-en' },
+		data: { trackId: 'captions-en', characters: '漢字' },
+	}]);
+	const seed = createFramescaperNativeDeliveryReportSeedV1({
+		jobId: JOB_ID, targetId: 'native-mezzanine-prores',
+		envelope: bundle.envelope, deliveryBundle: bundle, plannedReport: disclosed,
+	});
+	const sealed = sealFramescaperNativeDeliveryReportV1(
+		seed, successfulResult(seed, disclosed), { envelope: bundle.envelope, deliveryBundle: bundle },
+	);
+	assert.equal(
+		sealed.report.items.filter(({ code }) => code.startsWith('delivery.captions-')).length,
+		2,
+	);
 });
 
 function plannedReport() {
@@ -385,6 +470,8 @@ function plannedReport() {
 function reportWithItems(items: readonly Readonly<{
 	readonly code: string;
 	readonly disposition: 'preserved' | 'converted' | 'missing' | 'omitted';
+	readonly severity?: 'info' | 'warning' | 'error';
+	readonly scope?: Readonly<Record<string, unknown>>;
 	readonly data: Readonly<Record<string, unknown>>;
 }>[]) {
 	const report = createDeliveryReport({
