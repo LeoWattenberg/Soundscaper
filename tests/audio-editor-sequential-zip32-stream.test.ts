@@ -142,6 +142,17 @@ test('sequential ZIP32 streams slice byte inputs and await each sink write', asy
 	firstWrite.resolve();
 	await addition;
 	assert.equal(sliceCount > 1, true);
+	// The qualified m2-direct-stem workload publishes a 65,536-byte maximum
+	// input-slice counter; the bound is asserted here, not merely configured.
+	assert.equal(
+		Math.max(...sink.chunks.map(({ byteLength }) => byteLength)) <= 65_536,
+		true,
+		'no sink write exceeds the qualified 64 KiB input-slice bound',
+	);
+	assert.equal(
+		sliceCount, Math.ceil(input.byteLength / 65_536),
+		'the input is sliced exactly at the qualified 64 KiB bound',
+	);
 	const result = await archive.finish();
 	assert.equal(unzipSync(result.output)['bounded.raw']?.byteLength, input.byteLength);
 });

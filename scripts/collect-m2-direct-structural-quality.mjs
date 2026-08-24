@@ -18,6 +18,9 @@ const TEST_FILES = Object.freeze({
 		'tests/audio-editor-export-direct-compressed-stem-stream.test.ts',
 		'tests/audio-editor-export-direct-seven-zip-stem-stream.test.ts',
 		'tests/audio-editor-export-direct-stem-stream.test.ts',
+		// Asserts the published 64 KiB maximum input-slice bound the evidence
+		// metrics republish from the fixture specification.
+		'tests/audio-editor-sequential-zip32-stream.test.ts',
 		'tests/production-direct-stem-zip-security.test.js',
 	]),
 	'm2-direct-compressed-output-v2': Object.freeze([
