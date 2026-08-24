@@ -57,6 +57,7 @@ export const SOUNDSCAPER_NATIVE_SERVICES_COPY = Object.freeze({
 	installedPlugins: 'Installed native effects',
 	noInstalledPlugins: 'Nothing has been discovered yet.',
 	allowPluginInstallation: 'Allow this binary',
+	revokePluginInstallation: 'Revoke this binary',
 	selectPluginInstallation: 'Use this version',
 	instantiatePlugin: 'Start isolated host',
 	runPluginOffline: 'Run offline probe',

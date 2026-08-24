@@ -71,7 +71,7 @@ export type SoundscaperNativeServicesDialogAction =
 		rootId?: string;
 	}>
 	| Readonly<{ type: 'scan'; format: string; rootId: string }>
-	| Readonly<{ type: 'review-plugin'; installationId: string; review: 'allow' | 'select' }>
+	| Readonly<{ type: 'review-plugin'; installationId: string; review: 'allow' | 'select' | 'revoke' }>
 	| Readonly<{ type: 'instantiate-plugin'; installationId: string }>
 	| Readonly<{ type: 'run-plugin-offline'; instanceId: string }>
 	| Readonly<{ type: 'set-plugin-bypassed'; instanceId: string; bypassed: boolean }>

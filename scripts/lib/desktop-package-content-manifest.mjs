@@ -3,14 +3,13 @@
 /** Embedded, re-extractable authority for the installed desktop resource closure. */
 import { constants } from 'node:fs';
 import { createHash } from 'node:crypto';
-import {
-	lstat, open, readFile, readdir, readlink, realpath, writeFile,
-} from 'node:fs/promises';
-import {
-	basename, dirname, isAbsolute, relative, resolve, sep,
-} from 'node:path';
+import { lstat, open, readFile, readdir, readlink, realpath, writeFile } from 'node:fs/promises';
+import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path';
+
+import { assertProfessionalNativeBuiltClosure } from './desktop-package-professional-closure.mjs';
 
 export const DESKTOP_PACKAGE_CONTENT_MANIFEST_NAME = 'milestone-5-package-content.json';
+
 const PRODUCTS = Object.freeze(['soundscaper', 'framescaper']);
 const TARGETS = Object.freeze(['linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64']);
 const SHA256 = /^[a-f\d]{64}$/u;
@@ -239,33 +238,9 @@ function assertRuntimePayloadClosure(runtime, files) {
 		if (professional.status === 'built') {
 			requireFile(`${professionalPrefix}${professional.payload?.name}`, professional.payload,
 				'professional native payload', professionalPrefix);
-			// A built row stages its whole reviewed closure — plug-in peer,
-			// isolation launcher, sandbox profile, broker policy, and runtime
-			// libraries — and the manifest validator requires them, so an audit
-			// that admits only the payload rejects every genuine built release
-			// as unexpected files under the closed prefix.
-			const relative = (path) => {
-				const sourcePrefix = `native/soundscaper-professional-host/prebuilt/${native.target}/`;
-				if (typeof path !== 'string' || !path.startsWith(sourcePrefix)) {
-					throw new Error('A professional native artifact escaped its target root.');
-				}
-				return path.slice(sourcePrefix.length);
-			};
-			const isolation = professional.isolation;
-			if (!plainRecord(professional.pluginPeer) || !plainRecord(isolation)
-				|| !Array.isArray(isolation.runtimeClosure)) {
-				throw new Error('A built professional native target requires its reviewed isolation closure.');
-			}
-			for (const [label, artifact] of [
-				['plug-in peer', professional.pluginPeer],
-				['isolation launcher', isolation.launcher],
-				['isolation sandbox profile', isolation.sandboxProfile],
-				['isolation broker policy', isolation.brokerPolicy],
-				...isolation.runtimeClosure.map((entry, index) => [`runtime closure entry ${index}`, entry]),
-			]) {
-				requireFile(`${professionalPrefix}${relative(artifact?.path)}`, artifact,
-					`professional native ${label}`, professionalPrefix);
-			}
+			assertProfessionalNativeBuiltClosure({
+				professional, target: native.target, prefix: professionalPrefix, requireFile,
+			});
 			if (professional.productionReadiness !== null) {
 				requireFile(`${professionalPrefix}${professional.productionReadiness?.evidence?.name}`,
 					professional.productionReadiness?.evidence,

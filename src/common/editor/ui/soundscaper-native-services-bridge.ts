@@ -236,7 +236,7 @@ export interface SoundscaperNativeAudioRuntimeBridgeV1 {
 
 export interface SoundscaperNativePluginHostBridgeV1 {
 	reviewNativePluginInstallation(request: Readonly<{
-		installationId: string; action: 'allow' | 'select';
+		installationId: string; action: 'allow' | 'select' | 'revoke';
 	}>): Promise<NativePluginRegistryView>;
 	instantiateNativePlugin(request: Readonly<{
 		installationId: string; instanceId: string | null; sampleRate?: number;

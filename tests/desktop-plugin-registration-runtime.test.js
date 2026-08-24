@@ -206,6 +206,71 @@ test('repeated host crashes quarantine the digest durably, and the explicit clea
 	assert.equal(rehosted.state, 'hosted');
 });
 
+test('active revocation kills the matching host and only an explicit re-allow rehosts it', async (t) => {
+	const { mkdtemp, rm } = await import('node:fs/promises');
+	const { tmpdir } = await import('node:os');
+	const { join } = await import('node:path');
+	const userDataPath = await mkdtemp(join(tmpdir(), 'plugin-revocation-'));
+	t.after(() => rm(userDataPath, { recursive: true, force: true }));
+	const owner = {};
+	const handlers = new Map();
+	const disposals = [];
+	const channels = new Proxy({}, { get: (_target, name) => String(name) });
+	const registration = registerDesktopPluginDiscovery({
+		channels,
+		handle: (channel, handler) => handlers.set(channel, handler),
+		ownerFor: () => owner,
+		settings: { snapshot: () => ({ nativePluginDiscoveryEnabled: true }) },
+		supervisor: {
+			runJob: async () => { throw new Error('no scans in this test'); },
+			snapshot: () => ({ state: 'idle', quarantined: false }),
+			clearQuarantine: () => undefined,
+			dispose: () => undefined,
+		},
+		describePayload: async () => ({ status: 'available' }),
+		userDataPath,
+		parentWindow: () => null,
+		desktopRoot: userDataPath,
+		packaged: false,
+		resourcesPath: userDataPath,
+		nativePluginStateAuthority: { persist: () => { throw new Error('unused'); }, read: () => null },
+		isPluginHostFormatActivated: () => true,
+		createPluginHostHelper: () => ({
+			describePayload: async () => ({ status: 'available' }),
+			supervisor: { dispose: () => disposals.push('host') },
+		}),
+		openPersistentPluginSession: async () => ({
+			format: 'clap', reportedLatencyFrames: 0, closed: new Promise(() => undefined),
+			transferTo: () => undefined,
+			authenticateState: () => { throw new Error('unused'); },
+			vendorWindowCapability: (windowId) => `${windowId}.${'c'.repeat(64)}`,
+			close: async () => undefined,
+		}),
+	});
+	t.after(() => registration.dispose());
+	await registration.ready();
+	const admission = recordFixtureInstallation(registration.registry);
+	if (admission.status !== 'recorded') return;
+	const event = { sender: { postMessage: () => undefined } };
+	const instantiate = () => handlers.get('nativePluginInstantiate')(event, {
+		installationId: admission.installationId, instanceId: null, sampleRate: 48_000,
+	});
+	const instance = await instantiate();
+	assert.equal(instance.state, 'hosted');
+	// The 5A-3 acceptance names active revocation: the allowance is withdrawn,
+	// the matching host dies, and nothing restarts the digest by itself.
+	await handlers.get('nativePluginReviewInstallation')(event, {
+		installationId: admission.installationId, action: 'revoke',
+	});
+	assert.deepEqual(disposals, ['host'], 'revocation must kill the matching host');
+	await assert.rejects(instantiate);
+	await handlers.get('nativePluginReviewInstallation')(event, {
+		installationId: admission.installationId, action: 'allow',
+	});
+	const rehosted = await instantiate();
+	assert.equal(rehosted.state, 'hosted', 'the explicit re-allow is the one way back');
+});
+
 test('an oversized root still records the prefix of plug-ins it reported', () => {
 	const registry = new DesktopPluginRegistry({ isQuarantined: () => false });
 	const result = {

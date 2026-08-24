@@ -314,9 +314,20 @@ export function registerDesktopPluginDiscovery({
 		if (!formatIsActive(format)) {
 			throw new Error('That plug-in format remains blocked by production policy and source activation.');
 		}
-		if (value?.action === 'allow') registry.allow(value.installationId);
+		if (value?.action === 'allow') {
+			registry.allow(value.installationId);
+			// An explicit re-allow is the one way back from an active revocation.
+			hosting?.isolation.restoreDigest(registry.installationDigest(value.installationId));
+		}
 		else if (value?.action === 'select') registry.select(value.installationId);
-		else throw new Error('A plug-in installation may only be allowed or selected explicitly.');
+		else if (value?.action === 'revoke') {
+			// Active revocation, as 5A-3 acceptance names it: the allowance is
+			// withdrawn, every matching host dies, and nothing restarts the
+			// digest until the user explicitly re-allows this installation.
+			registry.withdrawAllowance(value.installationId);
+			hosting?.isolation.revokeDigest(registry.installationDigest(value.installationId));
+		}
+		else throw new Error('A plug-in installation may only be allowed, selected, or revoked explicitly.');
 		await reviews.capture(registry);
 		return registry.describe();
 	});

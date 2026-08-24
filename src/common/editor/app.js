@@ -1021,8 +1021,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		copy, label: sequenceTimingService.label, setStatus,
 	});
 	const videoSourceReprobeService = createVideoSourceReprobeService({
-		lifetime, store, ffmpeg, helperTimingProbe: fileService.helperTimingProbe,
-		getProject: () => project, editingBlocked, commit, publishProjectState,
+		lifetime, store, ffmpeg, helperTimingProbe: fileService.helperTimingProbe, getProject: () => project, editingBlocked, commit, publishProjectState,
 		captureProject: (projectId) => projectGeneration.capture(projectId),
 		assertProject: (token) => projectGeneration.assertCurrent(token),
 		createAudioEditorVideoFrameExtractor,

@@ -8,11 +8,8 @@
 import { createHash } from 'node:crypto';
 
 import {
-	type HelperFileIdentity,
-	type HelperPluginFormat,
-	type HelperPluginHostJobGrant,
-	HELPER_PLUGIN_FORMATS,
-	validateHelperJobGrant,
+	type HelperFileIdentity, type HelperPluginFormat, type HelperPluginHostJobGrant,
+	HELPER_PLUGIN_FORMATS, validateHelperJobGrant,
 } from './helper-job-grant.ts';
 import {
 	admitPluginBundleStableIds,
@@ -265,6 +262,9 @@ export class DesktopPluginRegistry {
 	withdrawAllowance(installationId: string): void {
 		this.#locate(installationId)[1].reviewed = false;
 	}
+
+	/** Main-private: the exact binary digest behind one installation. */
+	installationDigest(installationId: string): string { return this.#locate(installationId)[1].observation.binarySha256; }
 
 	describe(): PluginRegistryView {
 		return Object.freeze({

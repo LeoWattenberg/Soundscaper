@@ -156,6 +156,12 @@ export function SoundscaperNativeEffectManagePanel({
 									type: 'review-plugin', installationId: installation.installationId, review: 'allow',
 								})}
 							>{copy.allowPluginInstallation}</button>}
+							{installation.reviewed && <button type="button" disabled={disabled}
+								data-native-plugin-review="revoke"
+								onClick={() => perform({
+									type: 'review-plugin', installationId: installation.installationId, review: 'revoke',
+								})}
+							>{copy.revokePluginInstallation}</button>}
 							{entry.installations.length > 1 && !installation.selected && <button
 								type="button"
 								disabled={disabled}
