@@ -116,17 +116,17 @@ test('desktop selection refusal owns bundled profile drift outside the dialog co
 	const wavpack = capabilitiesFor('wavpack');
 	assert.match(desktopExportSelectionReason({
 		format: 'wavpack', sampleFormat: 'int24', compressionLevel: '5',
-	}, wavpack), /compression level 2/iu);
+	}, wavpack) ?? '', /compression level 2/iu);
 	assert.equal(desktopExportSelectionReason({
 		format: 'wavpack', sampleFormat: 'int24', compressionLevel: '2',
 	}, wavpack), null);
 	const flac = capabilitiesFor('flac');
 	assert.match(desktopExportSelectionReason({
 		format: 'flac', sampleFormat: 'int16', compressionLevel: '5',
-	}, flac), /signed 24-bit/iu);
+	}, flac) ?? '', /signed 24-bit/iu);
 	assert.match(desktopExportSelectionReason({
 		format: 'flac', sampleFormat: 'int24', compressionLevel: '9',
-	}, flac), /0 through 8/iu);
+	}, flac) ?? '', /0 through 8/iu);
 	assert.equal(desktopExportSelectionReason({
 		format: 'flac', sampleFormat: 'int24', compressionLevel: '5',
 	}, flac), null);
