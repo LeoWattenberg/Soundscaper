@@ -1,0 +1,119 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import {
+	desktopAudioCodecTargetFor,
+	registerDesktopAudioCodecs,
+} from '../desktop/desktop-audio-codec-registration.mjs';
+
+const CHANNELS = Object.freeze({
+	desktopAudioCodecExecute: 'soundscaper:v1:codecs:audio:execute',
+	desktopAudioCodecCancel: 'soundscaper:v1:codecs:audio:cancel',
+	externalFfmpegStatus: 'soundscaper:v1:ffmpeg:status',
+});
+
+test('desktop audio codec registration maps only the five supported targets', () => {
+	assert.deepEqual([
+		['linux', 'x64'], ['linux', 'arm64'], ['darwin', 'arm64'],
+		['win32', 'x64'], ['win32', 'arm64'],
+	].map(([platform, architecture]) => desktopAudioCodecTargetFor(platform, architecture)), [
+		'linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64',
+	]);
+	assert.throws(
+		() => desktopAudioCodecTargetFor('darwin', 'x64'),
+		/macOS x64 desktop audio codecs are explicitly unsupported/u,
+	);
+	for (const [platform, architecture] of [
+		['linux', 'ia32'], ['darwin', 'ia32'], ['win32', 'ia32'], ['freebsd', 'x64'],
+	]) {
+		assert.throws(
+			() => desktopAudioCodecTargetFor(platform, architecture),
+			/desktop audio codec target is unsupported/u,
+		);
+	}
+});
+
+test('registration composes main-owned runtime and bounded IPC from one private scratch root', async () => {
+	const directories = [];
+	const compositionOptions = [];
+	const ipcOptions = [];
+	const revoked = [];
+	let disposals = 0;
+	const service = Object.freeze({ execute: async () => ({}) });
+	const externalFfmpegPreferences = Object.freeze({ admission: () => null });
+	const handle = () => undefined;
+	const removeHandler = () => undefined;
+	const ownerFor = () => ({ id: 'renderer' });
+	const registration = await registerDesktopAudioCodecs({
+		channels: CHANNELS, handle, removeHandler, ownerFor,
+		externalFfmpegPreferences,
+		platform: 'darwin', architecture: 'arm64', userDataPath: '/user-data',
+		mkdir: async (...arguments_) => { directories.push(arguments_); },
+		loadModules: async () => ({
+			createDesktopAudioCodecRuntimeComposition(options) {
+				compositionOptions.push(options);
+				return service;
+			},
+			registerDesktopAudioCodecMainIpc(options) {
+				ipcOptions.push(options);
+				return {
+					revokeOwner: async (owner) => { revoked.push(owner); return true; },
+					dispose: () => { disposals += 1; },
+				};
+			},
+		}),
+	});
+
+	assert.deepEqual(directories, [[
+		'/user-data/desktop-audio-codecs', { recursive: true, mode: 0o700 },
+	]]);
+	assert.equal(compositionOptions.length, 1);
+	assert.deepEqual(Reflect.ownKeys(compositionOptions[0]), [
+		'target', 'scratchRoot', 'externalFfmpegPreferences',
+	]);
+	assert.equal(compositionOptions[0].target, 'mac-arm64');
+	assert.equal(compositionOptions[0].scratchRoot, '/user-data/desktop-audio-codecs');
+	assert.equal(compositionOptions[0].externalFfmpegPreferences, externalFfmpegPreferences);
+	assert.equal(ipcOptions.length, 1);
+	assert.deepEqual(ipcOptions[0].channels, {
+		desktopAudioCodecExecute: CHANNELS.desktopAudioCodecExecute,
+		desktopAudioCodecCancel: CHANNELS.desktopAudioCodecCancel,
+	});
+	assert.equal(ipcOptions[0].handle, handle);
+	assert.equal(ipcOptions[0].removeHandler, removeHandler);
+	assert.equal(ipcOptions[0].ownerFor, ownerFor);
+	assert.equal(ipcOptions[0].service, service);
+	assert.deepEqual(Reflect.ownKeys(registration), ['revokeOwner', 'dispose']);
+	assert.equal(Object.isFrozen(registration), true);
+	const owner = { id: 'owner' };
+	assert.equal(await registration.revokeOwner(owner), true);
+	assert.deepEqual(revoked, [owner]);
+	registration.dispose();
+	registration.dispose();
+	assert.equal(disposals, 1);
+});
+
+test('unsupported targets and invalid runtime modules fail before IPC registration', async () => {
+	let loads = 0;
+	let directories = 0;
+	await assert.rejects(() => registerDesktopAudioCodecs({
+		channels: CHANNELS, handle() {}, removeHandler() {}, ownerFor: () => ({}),
+		externalFfmpegPreferences: { admission: () => null },
+		platform: 'darwin', architecture: 'x64', userDataPath: '/user-data',
+		mkdir: async () => { directories += 1; },
+		loadModules: async () => { loads += 1; return {}; },
+	}), /macOS x64 desktop audio codecs are explicitly unsupported/u);
+	assert.equal(loads, 0);
+	assert.equal(directories, 0);
+
+	await assert.rejects(() => registerDesktopAudioCodecs({
+		channels: CHANNELS, handle() {}, removeHandler() {}, ownerFor: () => ({}),
+		externalFfmpegPreferences: { admission: () => null },
+		platform: 'linux', architecture: 'x64', userDataPath: '/user-data',
+		mkdir: async () => { directories += 1; },
+		loadModules: async () => ({ createDesktopAudioCodecRuntimeComposition() {} }),
+	}), /desktop audio codec runtime modules are invalid/u);
+	assert.equal(directories, 0);
+});

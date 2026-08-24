@@ -35,6 +35,7 @@ import { framescaperWebVcrSmokeQualification } from './framescaper-web-vcr-smoke
 import { disposeDesktopNativeTier, registerDesktopNativeTier, revokeDesktopNativeTierOwner } from './native-tier-registration.mjs';
 import { registerHostAffordances } from './host-affordances.mjs';
 import { registerExternalFfmpegPreferences } from './external-ffmpeg-registration.mjs';
+import { registerDesktopAudioCodecs } from './desktop-audio-codec-registration.mjs';
 import { ReadCapabilityStore, throwAfterReadCapabilityRollback } from './file-capabilities.js';
 import {
 	createPendingProjectDelivery, PendingProjectQueue, extractProjectPaths,
@@ -86,12 +87,12 @@ let projectLibraryIpc = null;
 let linkedVideoLocators = null;
 let nativeTier = null;
 let nativeServices = null;
-let captureSecurity = null, assistance = null, externalFfmpegPreferences = null;
+let captureSecurity = null, assistance = null, externalFfmpegPreferences = null, desktopAudioCodecs = null;
 let allowNextClose = false;
 let applicationIsQuitting = false;
-
 const rendererOwnershipCleanup = new DesktopRendererOwnershipCleanup({
 	revokeCapture: (owner) => revokeDesktopCaptureOwner(captureSecurity, owner),
+	revokeDesktopAudioCodecs: (owner) => desktopAudioCodecs?.revokeOwner(owner),
 	revokeNativeServices: (owner) => nativeServices?.revokeOwner(owner),
 	revokeNativeTier: (owner) => revokeDesktopNativeTierOwner(nativeTier, owner),
 	linkedVideoLocators: () => linkedVideoLocators,
@@ -101,7 +102,6 @@ const rendererOwnershipCleanup = new DesktopRendererOwnershipCleanup({
 	reportError: (error) => console.error('Desktop renderer ownership cleanup failed:', cleanError(error)),
 	saves,
 });
-
 const pendingOpenProjects = new PendingProjectQueue(createPendingProjectDelivery({
 	isReady: () => rendererReady && mainWindow && !mainWindow.isDestroyed(),
 	currentOwner: () => rendererSaveOwnership.currentOwnerFor(mainWindow.webContents),
@@ -114,9 +114,9 @@ const pendingOpenProjects = new PendingProjectQueue(createPendingProjectDelivery
 	},
 	reportError: reportPendingProjectError,
 }));
-
 const applicationShutdown = new DesktopApplicationShutdown({
 	tasks: [
+		{ name: 'desktop audio codecs', run: () => desktopAudioCodecs?.dispose() },
 		{ name: 'external FFmpeg preferences', run: () => externalFfmpegPreferences?.dispose() },
 		{ name: 'capture security', run: () => disposeDesktopCaptureSecurity(captureSecurity) },
 		{ name: 'native services', run: () => nativeServices?.dispose() },
@@ -141,7 +141,6 @@ const desktopSmokeProbe = createDesktopSmokeProbe({
 	projectLibraryEvidence: projectLibrarySmokeEvidence,
 	projectLibrarySnapshot: () => projectLibraryRuntime?.snapshot(),
 });
-
 app.setName(APP_NAME);
 app.commandLine.appendSwitch('enable-gpu');
 app.enableSandbox();
@@ -375,6 +374,7 @@ async function registerIpcHandlers(desktopSession) {
 	await nativeTier.ready();
 	registerDesktopNativeTierControls({ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, settings, tier: nativeTier });
 	externalFfmpegPreferences = await registerExternalFfmpegPreferences({ channels: IPC, handle, removeHandler: (channel) => ipcMain.removeHandler(channel), settings, dialog, windowFor: () => mainWindow, platform: process.platform, architecture: process.arch, userDataPath: app.getPath('userData'), environment: process.env });
+	desktopAudioCodecs = await registerDesktopAudioCodecs({ channels: IPC, handle, removeHandler: (channel) => ipcMain.removeHandler(channel), ownerFor: rendererSaveOwnerFor, externalFfmpegPreferences: externalFfmpegPreferences.service, platform: process.platform, architecture: process.arch, userDataPath: app.getPath('userData') });
 	handle(IPC.environment, () => ({
 		platform: process.platform,
 		arch: process.arch,
