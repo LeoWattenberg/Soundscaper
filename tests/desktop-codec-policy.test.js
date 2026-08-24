@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -12,6 +13,13 @@ import {
 	auditDesktopFfmpegAbsence,
 	isForbiddenDesktopFfmpegPath,
 } from '../scripts/lib/desktop-codec-policy.mjs';
+
+const require = createRequire(import.meta.url);
+
+test('desktop packaging replaces Electron proprietary codecs with its alternate FFmpeg library', () => {
+	const configuration = require('../electron-builder.config.cjs');
+	assert.equal(configuration.downloadAlternateFFmpeg, true);
+});
 
 test('desktop codec policy is immutable and fixes provider priority without bundled FFmpeg', () => {
 	assert.deepEqual(DESKTOP_CODEC_POLICY, {

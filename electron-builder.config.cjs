@@ -19,6 +19,10 @@ module.exports = {
 	artifactName: '${productName}-${version}-${os}-${arch}.${ext}',
 	compression: 'maximum',
 	asar: true,
+	// Stock Electron enables proprietary codecs in its Chromium FFmpeg library.
+	// Replace it with Electron's matching alternate release asset before signing;
+	// this framework library is not a Soundscaper codec-provider tier.
+	downloadAlternateFFmpeg: true,
 	npmRebuild: false,
 	beforePack: './scripts/desktop-before-pack.mjs',
 	afterPack: './scripts/desktop-after-pack.mjs',
