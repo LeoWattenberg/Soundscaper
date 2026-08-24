@@ -319,6 +319,11 @@ export class DesktopPluginHostService {
 	close(owner: object, instanceId: unknown): boolean {
 		const entry = this.#owned(owner, instanceId, true)
 		this.#instances.delete(entry.instanceId)
+		// The retained opaque state goes with the instance, exactly as revoke
+		// and close-all already do. Leaving it filled the 256-slot retention
+		// ceiling with orphans until quiescence captures failed session-wide,
+		// and let a re-acquired instance id inherit another plug-in's state.
+		this.#states.forget(entry.instanceId)
 		return this.#isolation.releaseInstance(entry.instanceId)
 	}
 

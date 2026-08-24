@@ -126,6 +126,27 @@ test('plug-in state is content addressed, survives restore, and supplies exact P
 	assert.deepEqual(fixture.pdc, [64, 128])
 })
 
+test('closing an instance releases its retained opaque state with it', async () => {
+	const fixture = harness()
+	const instance = await fixture.service.instantiate(OWNER, {
+		installationId: fixture.installation, instanceId: 'closing_instance_01', sampleRate: 48_000,
+	})
+	const persisted = fixture.service.persistState(OWNER, {
+		instanceId: instance.instanceId, generation: 1, bytes: Uint8Array.from([9, 9, 9, 9]),
+	})
+	assert.equal(persisted.outcome.status, 'persisted')
+	assert.equal(fixture.service.close(OWNER, instance.instanceId), true)
+	// A re-acquired instance id must start clean: retained state left behind
+	// filled the retention ceiling with orphans and bound plug-in A's state
+	// summary to whatever occupied the id next.
+	const reacquired = await fixture.service.instantiate(OWNER, {
+		installationId: fixture.installation, instanceId: 'closing_instance_01', sampleRate: 48_000,
+	})
+	assert.equal(reacquired.opaqueState.retained, null,
+		'a closed instance must not bequeath its opaque state to the next occupant')
+	fixture.service.close(OWNER, reacquired.instanceId)
+})
+
 test('vendor UI is helper-owned and crash continuity retains state as bypass', async () => {
 	const fixture = harness()
 	const instance = await fixture.service.instantiate(OWNER, {
