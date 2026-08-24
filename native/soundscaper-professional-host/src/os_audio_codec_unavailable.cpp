@@ -1,0 +1,13 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+#include "os_audio_codec.h"
+
+extern "C" soundscaper_pro_os_mp3_decode_result soundscaper_pro_os_mp3_decode(
+	const soundscaper_pro_os_mp3_decode_request *request)
+{
+	soundscaper_pro_os_mp3_decode_result result{};
+	result.status = request == nullptr
+		? SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST
+		: SOUNDSCAPER_PRO_OS_CODEC_API_UNAVAILABLE;
+	return result;
+}

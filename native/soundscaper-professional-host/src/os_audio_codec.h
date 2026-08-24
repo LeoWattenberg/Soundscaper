@@ -1,0 +1,54 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+/** Narrow operating-system audio-codec ABI used only by the trusted utility addon. */
+
+#ifndef SOUNDSCAPER_PRO_OS_AUDIO_CODEC_H
+#define SOUNDSCAPER_PRO_OS_AUDIO_CODEC_H
+
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef enum soundscaper_pro_os_codec_status {
+	SOUNDSCAPER_PRO_OS_CODEC_OK = 0,
+	SOUNDSCAPER_PRO_OS_CODEC_API_UNAVAILABLE = 1,
+	SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED = 2,
+	SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST = 3,
+	SOUNDSCAPER_PRO_OS_CODEC_INPUT_CHANGED = 4,
+	SOUNDSCAPER_PRO_OS_CODEC_OUTPUT_LIMIT = 5,
+	SOUNDSCAPER_PRO_OS_CODEC_IO_FAILED = 6,
+	SOUNDSCAPER_PRO_OS_CODEC_DECODE_FAILED = 7
+} soundscaper_pro_os_codec_status;
+
+typedef struct soundscaper_pro_os_mp3_decode_request {
+	const char *input_path_utf8;
+	const char *output_path_utf8;
+	uint64_t input_bytes;
+	uint64_t maximum_output_bytes;
+} soundscaper_pro_os_mp3_decode_request;
+
+typedef struct soundscaper_pro_os_mp3_decode_result {
+	soundscaper_pro_os_codec_status status;
+	uint32_t native_api_reached;
+	uint32_t exact_tuple_passed;
+	uint64_t output_bytes;
+	uint64_t frame_count;
+	uint32_t sample_rate;
+	uint32_t channel_count;
+} soundscaper_pro_os_mp3_decode_result;
+
+/**
+ * Decodes one authenticated MP3 file to tightly interleaved native-endian
+ * float32 PCM. The caller owns both private scratch paths and removes every
+ * partial output after a non-OK result.
+ */
+soundscaper_pro_os_mp3_decode_result soundscaper_pro_os_mp3_decode(
+	const soundscaper_pro_os_mp3_decode_request *request);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
