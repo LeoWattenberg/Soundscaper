@@ -149,7 +149,7 @@ test('selected V27 preview uses the same exact source-layer route and presentati
 	const signal = new AbortController().signal;
 	const outputState: { written: Uint8Array<ArrayBuffer> | null } = { written: null };
 	const preview = await createFramescaperSelectedExactPreviewV27({
-		project, plan, timingViews, boundTimingViews, signal, assertCurrent() {},
+		profile: PROFILE, project, plan, timingViews, boundTimingViews, signal, assertCurrent() {},
 		store: {} as AudioEditorProjectStore,
 		captureFrame: () => ({
 			width: 2, height: 2,
@@ -210,7 +210,7 @@ test('selected V27 preview resolves descriptors on the export point-rounded fram
 	const observedCells: unknown[] = [];
 	const signal = new AbortController().signal;
 	const preview = await createFramescaperSelectedExactPreviewV27({
-		project, plan, timingViews, boundTimingViews, signal, assertCurrent() {},
+		profile: PROFILE, project, plan, timingViews, boundTimingViews, signal, assertCurrent() {},
 		store: {} as AudioEditorProjectStore,
 		captureFrame: (entry) => {
 			const descriptor = (entry as {
@@ -233,6 +233,76 @@ test('selected V27 preview resolves descriptors on the export point-rounded fram
 	await preview.render({ timelineSample: 3_203, mediaLayers: [mediaLayer('video-clip', 1)], frame });
 	preview.dispose();
 	assert.deepEqual(observedCells, [2], 'the boundary sample resolves the export grid cell');
+});
+
+test('selected V27 preview constructs its exact oracle with sequence-placed visual clips present', async () => {
+	// A freeze-authored still or a menu-authored generator only carries
+	// sequence-domain placement in the canonical V27 document. The exact
+	// ordinal oracle consumes runtime coordinates, so the preview must resolve
+	// it through the product runtime projection: projecting the canonical
+	// document routes 'still' and 'generator' clips through the audio/legacy
+	// resolver, which fails with "clip.timelineStartFrame must be a safe
+	// integer." and drops the whole workspace preview into its non-exact
+	// fallback.
+	const options = framescaperV20Options();
+	(options.clips as Record<string, unknown>[]).push({
+		schemaVersion: 1, kind: 'generator', id: 'generator-clip',
+		sourceId: 'generator-source', sequenceId: 'main-sequence',
+		sequenceStartFrame: 10, sequenceFrameCount: 10,
+		sourceInFrame: 0, sourceFrameCount: 10,
+	});
+	((options.tracks as Record<string, unknown>[])[0]!.clipIds as string[]).push('generator-clip');
+	const project = createFramescaperProjectV27(PROFILE, {
+		...options, videoTransitionsByTrackId: { 'video-track': [] },
+		visualModel: {
+			generatorSources: [{
+				schemaVersion: 1, kind: 'generator', id: 'generator-source', name: 'Wash',
+				width: 1_920, height: 1_080, frameRate: { num: 10, den: 1 }, frameCount: 100,
+				generator: { kind: 'solid', color: '#ffffff80' },
+			}],
+		},
+		finishing: finishing(),
+	});
+	const generatorClip = (project.clips as readonly Readonly<Record<string, unknown>>[])
+		.find((clip) => clip.id === 'generator-clip')!;
+	const generatorSource = (project.sources as readonly Readonly<Record<string, unknown>>[])
+		.find((candidate) => candidate.id === 'generator-source')!;
+	const plan = createFramescaperProjectUnifiedExactRenderPlanV27(PROFILE, project, {
+		...renderAuthority(project, 20),
+		canvas: { width: 2, height: 2, fit: 'contain' as const,
+			pixelFormat: 'yuv420p', backgroundColor: '#000000' },
+		visualFreshnessByModelId: new Map([
+			['generator-clip', freshness({ source: generatorSource, clip: generatorClip })],
+		]),
+	});
+	const source = (project.sources as readonly VideoSourceFixture[])
+		.find((candidate) => candidate.kind === 'video')!;
+	const timingViews = new Map([[source.id, Object.freeze({
+		kind: 'cfr' as const, rate: source.frameRate, frameCount: source.sourceFrameCount,
+	})]]);
+	const boundTimingViews = new Map([[source.id, bindVideoSourceTimingView(timingViews, source)]]);
+	const signal = new AbortController().signal;
+	const outputState: { written: Uint8Array<ArrayBuffer> | null } = { written: null };
+	const preview = await createFramescaperSelectedExactPreviewV27({
+		profile: PROFILE, project, plan, timingViews, boundTimingViews, signal, assertCurrent() {},
+		store: {} as AudioEditorProjectStore,
+		captureFrame: () => rgbaFrame(128),
+		createOutput: () => ({
+			drawable: Object.freeze({}),
+			write(pixels) { outputState.written = pixels.slice(); },
+			dispose() {},
+		}),
+	});
+	const frame = Object.freeze({
+		layers: Object.freeze([]), adjustments: Object.freeze([]),
+		activeFreezeNodeIds: Object.freeze([]), availablePresetIds: Object.freeze([]),
+		ledger: Object.freeze({ requestedNodeIds: Object.freeze([]),
+			consumedNodeIds: Object.freeze([]), omittedNodeIds: Object.freeze([]) }),
+	});
+	await preview.render({ timelineSample: 0, mediaLayers: [mediaLayer('video-clip', 1)], frame });
+	preview.dispose();
+	assert.ok(outputState.written, 'the exact preview rendered with a still clip in the document');
+	assert.deepEqual([...outputState.written.subarray(0, 4)], [128, 0, 0, 255]);
 });
 
 test('selected V27 honors authored compositingOrder across tracks', async () => {

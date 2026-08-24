@@ -93,6 +93,7 @@ export async function createFramescaperSelectedVisualPreviewSessionV27(
 		plan, consumer, options.store, canvas, abort.signal,
 	);
 	const exact = await createFramescaperSelectedExactPreviewV27({
+		profile: options.profile,
 		project: options.project as never, plan, store: options.store, timingViews,
 		boundTimingViews: previewTimingSidecars(project, timingViews), signal: abort.signal,
 		assertCurrent() { if (abort.signal.aborted) throw abort.signal.reason; },

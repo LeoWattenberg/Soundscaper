@@ -9,9 +9,9 @@ import type { ProductVideoVisualPreviewFrame } from '../common/editor/ui/workspa
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../common/editor/video-clip-composition.ts';
 import { createVideoKeyframeExportPresentationAuthority } from '../common/editor/video-keyframe-export-presentation-authority.ts';
 import { createVideoRetimeWebCoreOrdinalAuthority } from '../common/editor/video-retime-web-core-ordinal-authority.ts';
-import { videoTimelineDurationFrames } from '../common/editor/video-timeline.js';
 import { resolveVideoRenderDescription } from '../common/editor/video-render-description.ts';
 import type { BoundVideoSourceTimingView, VideoSourceTimingView } from '../common/editor/video-source-timing-view.ts';
+import { framescaperProjectForRuntimeConsumersV27 } from './editor-project-v27-runtime.ts';
 import type { FramescaperProjectV27 } from './editor-project-v27.ts';
 import {
 	createFramescaperSelectedExactFrameExecutionV27,
@@ -45,6 +45,7 @@ export interface FramescaperSelectedExactPreviewV27 {
 
 /** Create the same authenticated per-source V13 route used by selected export. */
 export async function createFramescaperSelectedExactPreviewV27(options: Readonly<{
+	readonly profile: unknown;
 	readonly project: FramescaperProjectV27;
 	readonly plan: UnifiedExactRenderPlanV13;
 	readonly store: AudioEditorProjectStore;
@@ -78,13 +79,15 @@ export async function createFramescaperSelectedExactPreviewV27(options: Readonly
 		// the same exact ordinal oracle the export uses, whose outer cell comes
 		// from the point-rounded sequence grid. Resolving from exact frame
 		// fractions instead disagrees with export on NTSC boundary samples.
+		// The oracle consumes runtime sample coordinates, and the canonical V27
+		// document places still and generator clips in sequence frames only, so
+		// its composition must come from the same product runtime projection the
+		// export resolves — never from the canonical document.
 		const presentation = clips.size === 0 ? null : createVideoKeyframeExportPresentationAuthority({
 			project, timingBySourceId: options.boundTimingViews,
 			exactOrdinalAuthority: createVideoRetimeWebCoreOrdinalAuthority({
-				project,
+				project: framescaperProjectForRuntimeConsumersV27(options.profile, options.project),
 				timingBySourceId: options.boundTimingViews,
-				startFrame: 0,
-				endFrame: videoTimelineDurationFrames(project),
 				outputRate: { num: options.plan.timebase.sampleRate, den: 1 },
 			}),
 		});
