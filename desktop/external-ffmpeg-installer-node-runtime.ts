@@ -5,6 +5,8 @@
 import { spawn as nodeSpawn } from 'node:child_process';
 import { posix, win32 } from 'node:path';
 
+import { shouldDetachProcessTree, terminateProcessTree } from './process-tree-termination.ts';
+
 import type {
 	ExternalFfmpegInstallRunner,
 	ExternalFfmpegInstallRunnerRequest,
@@ -16,6 +18,7 @@ interface InstallerReadable {
 }
 
 export interface ExternalFfmpegInstallerChildProcess {
+	readonly pid?: number;
 	stdout: InstallerReadable;
 	stderr: InstallerReadable;
 	once(event: 'error', listener: (error: NodeJS.ErrnoException) => void): unknown;
@@ -32,6 +35,7 @@ export interface ExternalFfmpegInstallerSpawnOptions {
 	readonly shell: false;
 	readonly stdio: readonly ['ignore', 'pipe', 'pipe'];
 	readonly windowsHide: true;
+	readonly detached: boolean;
 }
 
 export type ExternalFfmpegInstallerSpawn = (
@@ -122,7 +126,7 @@ function runChild(
 			if (settled || termination !== null) return;
 			termination = next;
 			if (timeout !== null) clearTimeout(timeout);
-			try { child.kill('SIGKILL'); } catch { /* The bounded close wait still settles. */ }
+			void terminateProcessTree(child, 'SIGKILL', { environment: request.options.env });
 			if (!settled) terminationWait = setTimeout(finishTermination, terminationWaitMs);
 		};
 		function onAbort(): void {
@@ -190,9 +194,10 @@ function defaultSpawn(
 	return nodeSpawn(executable, [...argv], {
 		cwd: options.cwd,
 		env: { ...options.env },
-		shell: false,
-		stdio: ['ignore', 'pipe', 'pipe'],
-		windowsHide: true,
+			shell: false,
+			stdio: ['ignore', 'pipe', 'pipe'],
+			windowsHide: true,
+			detached: shouldDetachProcessTree(),
 	}) as unknown as ExternalFfmpegInstallerChildProcess;
 }
 
@@ -205,6 +210,7 @@ function spawnOptions(
 		shell: false,
 		stdio: Object.freeze(['ignore', 'pipe', 'pipe'] as const),
 		windowsHide: true,
+		detached: shouldDetachProcessTree(),
 	});
 }
 

@@ -8,6 +8,7 @@ import { chmod, mkdir, mkdtemp, open, rm, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
 import { readBoundedRegularFile } from './bounded-regular-file.ts';
+import { shouldDetachProcessTree, terminateProcessTree } from './process-tree-termination.ts';
 
 export interface ExternalFfmpegAudioOperationFiles {
 	readonly inputPath: string;
@@ -83,6 +84,7 @@ interface ChildReadable {
 }
 
 export interface ExternalFfmpegAudioChildProcess {
+	readonly pid?: number;
 	readonly stdout: ChildReadable;
 	readonly stderr: ChildReadable;
 	once(event: 'error', listener: (error: NodeJS.ErrnoException) => void): unknown;
@@ -99,6 +101,7 @@ export interface ExternalFfmpegAudioLaunchOptions {
 	readonly shell: false;
 	readonly stdio: readonly ['ignore', 'pipe', 'pipe'];
 	readonly windowsHide: true;
+	readonly detached: boolean;
 }
 
 export type ExternalFfmpegAudioSpawn = (
@@ -323,9 +326,10 @@ async function runProcess(options: Readonly<{
 	return new Promise((resolve) => {
 		let child: ExternalFfmpegAudioChildProcess;
 		try {
-			child = options.launch(options.executablePath, options.arguments_, Object.freeze({
-				cwd: options.cwd, env: options.environment, shell: false,
-				stdio: Object.freeze(['ignore', 'pipe', 'pipe'] as const), windowsHide: true,
+				child = options.launch(options.executablePath, options.arguments_, Object.freeze({
+					cwd: options.cwd, env: options.environment, shell: false,
+					stdio: Object.freeze(['ignore', 'pipe', 'pipe'] as const), windowsHide: true,
+					detached: shouldDetachProcessTree(),
 			}));
 		} catch (error) { resolve(spawnFailure(error)); return; }
 
@@ -336,6 +340,7 @@ async function runProcess(options: Readonly<{
 		let runtimeTimer: ReturnType<typeof setTimeout> | null = null;
 		let graceTimer: ReturnType<typeof setTimeout> | null = null;
 		let killTimer: ReturnType<typeof setTimeout> | null = null;
+		let windowsTreeTerminationStarted = false;
 		const log = (): string => Buffer.concat(chunks).toString('utf8');
 		const clearTimers = (): void => {
 			if (runtimeTimer !== null) clearTimeout(runtimeTimer);
@@ -356,10 +361,13 @@ async function runProcess(options: Readonly<{
 			if (settled || terminating !== null) return;
 			terminating = reason;
 			if (runtimeTimer !== null) clearTimeout(runtimeTimer);
-			try { child.kill('SIGTERM'); } catch { /* Escalation below remains bounded. */ }
+			windowsTreeTerminationStarted = true;
+			void terminateProcessTree(child, 'SIGTERM', { environment: options.environment });
 			if (settled) return;
 			graceTimer = setTimeout(() => {
-				try { child.kill('SIGKILL'); } catch { /* The final wait still settles. */ }
+				if (shouldDetachProcessTree() || !windowsTreeTerminationStarted) {
+					void terminateProcessTree(child, 'SIGKILL', { environment: options.environment });
+				}
 				if (settled) return;
 				killTimer = setTimeout(finishTermination, options.limits.killWait);
 				killTimer.unref?.();
@@ -522,6 +530,7 @@ function defaultSpawn(
 	return nodeSpawn(executablePath, [...arguments_], {
 		cwd: options.cwd, env: { ...options.env }, shell: false,
 		stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
+		detached: options.detached,
 	}) as unknown as ExternalFfmpegAudioChildProcess;
 }
 

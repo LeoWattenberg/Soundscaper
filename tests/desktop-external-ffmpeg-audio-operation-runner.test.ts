@@ -82,8 +82,9 @@ test('an admitted operation launches only main-built argv in a private scratch d
 			TMP: dirname(files.inputPath), TMPDIR: dirname(files.inputPath),
 			USERPROFILE: dirname(files.inputPath), WINDIR: 'C:\\Windows',
 		},
-		shell: false, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
-	});
+			shell: false, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
+			detached: true,
+		});
 	await assertRemoved(dirname(files.inputPath));
 });
 

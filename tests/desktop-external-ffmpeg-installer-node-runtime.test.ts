@@ -49,8 +49,9 @@ test('the Node adapter launches the exact executable and argv with no shell or s
 		argv: request.argv,
 		options: {
 			cwd: '/installer-cwd', env: { PATH: '/safe/bin', NO_COLOR: '1' },
-			shell: false, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
-		},
+				shell: false, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
+				detached: true,
+			},
 	});
 	assert.equal(launched?.argv, request.argv, 'the adapter must not rewrite package-manager arguments');
 });
