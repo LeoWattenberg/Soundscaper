@@ -28,6 +28,7 @@
 		"desktop/desktop-audio-codec-operation-contract.ts",
 		"desktop/desktop-audio-codec-runtime-composition.ts",
 		"desktop/desktop-audio-ffmpeg-plan.ts",
+		"desktop/desktop-audio-ffmpeg-wave-output.ts",
 		"desktop/framescaper-capture-desktop-port.ts",
 		"desktop/framescaper-capture-main-channels.js",
 		"desktop/framescaper-capture-session-security.ts",

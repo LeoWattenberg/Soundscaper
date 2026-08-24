@@ -53,14 +53,19 @@ test('all seven canonical encode formats normalize to owned bounded requests', (
 	}
 });
 
-test('decode normalization fixes the renderer representation to interleaved f32le', () => {
+test('decode normalization fixes interleaved f32le and leaves source geometry unresolved', () => {
 	const request = normalizeDesktopAudioCodecRequest({
 		operation: 'audio-decode', format: 'aac-m4a', input: new Uint8Array([1, 2, 3]),
-		sampleRate: 48_000, channelCount: 2, settings: { sampleFormat: 'f32le' },
+		sampleRate: null, channelCount: null, settings: { sampleFormat: 'f32le' },
 		maximumOutputBytes: 8_192,
 	});
 	assert.deepEqual(request.settings, { sampleFormat: 'f32le' });
+	assert.equal(request.sampleRate, null);
+	assert.equal(request.channelCount, null);
 	assert.equal(Object.hasOwn(request, 'requestId'), false);
+	assert.throws(() => assertDesktopAudioCodecRequest({
+		...request, sampleRate: 48_000, channelCount: 2,
+	}), /source-authoritative/iu);
 });
 
 test('the request boundary rejects paths, URLs, argv, custom FFmpeg and unknown fields', () => {
@@ -93,11 +98,11 @@ test('the request boundary enforces byte, output, rate, channel and PCM-frame bo
 	assert.throws(() => assertDesktopAudioCodecRequest({
 		...decodeRequest(), maximumOutputBytes: DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES + 1,
 	}), /maximum output/u);
-	assert.throws(() => assertDesktopAudioCodecRequest({ ...decodeRequest(), sampleRate: 7_999 }), /sample rate/u);
+	assert.throws(() => assertDesktopAudioCodecRequest({ ...encodeRequest('flac'), sampleRate: 7_999 }), /sample rate/u);
 	assert.doesNotThrow(() => assertDesktopAudioCodecRequest({
 		...encodeRequest('opus'), channelCount: 8, input: new Uint8Array(32), sampleRate: 48_000,
 	}));
-	assert.throws(() => assertDesktopAudioCodecRequest({ ...decodeRequest(), channelCount: 9 }), /channel count/u);
+	assert.throws(() => assertDesktopAudioCodecRequest({ ...decodeRequest(), channelCount: 9 }), /source-authoritative/u);
 	assert.throws(() => assertDesktopAudioCodecRequest({
 		...encodeRequest('mp3'), channelCount: 3, input: new Uint8Array(12),
 	}), /channel count/u);
@@ -130,10 +135,12 @@ test('format-specific settings and encode constraints are exact', () => {
 test('result builders return owned closed bytes and renderer metadata', () => {
 	const decode = normalizeDesktopAudioCodecRequest(decodeRequest());
 	const decodedSource = new Uint8Array(32);
-	const decoded = createDesktopAudioCodecResult(decode, decodedSource);
+	const decoded = createDesktopAudioCodecResult(decode, decodedSource, {
+		sampleRate: 44_100, channelCount: 1, frameCount: 8,
+	});
 	assert.deepEqual(decoded.metadata, {
 		kind: 'decoded-audio', sourceFormat: 'flac', sampleFormat: 'f32le',
-		interleaving: 'interleaved', sampleRate: 48_000, channelCount: 2, frameCount: 4,
+		interleaving: 'interleaved', sampleRate: 44_100, channelCount: 1, frameCount: 8,
 	});
 	assert.notEqual(decoded.bytes, decodedSource);
 	decodedSource[0] = 255;
@@ -163,6 +170,7 @@ test('result builders return owned closed bytes and renderer metadata', () => {
 test('results reject unknown metadata, forged PCM geometry and oversized bytes', () => {
 	const result = createDesktopAudioCodecResult(
 		normalizeDesktopAudioCodecRequest(decodeRequest()), new Uint8Array(8),
+		{ sampleRate: 48_000, channelCount: 2, frameCount: 1 },
 	);
 	assert.throws(() => assertDesktopAudioCodecResult({ ...result, path: '/tmp/result' }), /inexact shape/u);
 	assert.throws(() => assertDesktopAudioCodecResult({
@@ -174,12 +182,19 @@ test('results reject unknown metadata, forged PCM geometry and oversized bytes',
 	const normalized = normalizeDesktopAudioCodecResult(result, 8);
 	assert.notEqual(normalized.bytes, result.bytes);
 	assert.throws(() => normalizeDesktopAudioCodecResult(result, 7), /bytes/u);
+	assert.throws(() => createDesktopAudioCodecResult(
+		normalizeDesktopAudioCodecRequest(decodeRequest()), new Uint8Array(8),
+	), /decoded geometry/u);
+	assert.throws(() => createDesktopAudioCodecResult(
+		normalizeDesktopAudioCodecRequest(decodeRequest()), new Uint8Array(8),
+		{ sampleRate: 44_100, channelCount: 1, frameCount: 1 },
+	), /frame count/u);
 });
 
 test('capability tuples cover the exact demux, decode, encode, mux and conversion chain', () => {
 	assert.deepEqual(deriveDesktopAudioFfmpegCapabilityTuple(decodeRequest()), {
 		direction: 'decode', demuxerAnyOf: ['flac'], decoderAnyOf: ['flac'],
-		encoderAnyOf: ['pcm_f32le'], muxerAnyOf: ['f32le'], filterAllOf: ['aresample'],
+		encoderAnyOf: ['pcm_f32le'], muxerAnyOf: ['wav'], filterAllOf: [],
 	});
 	assert.deepEqual(deriveDesktopAudioFfmpegCapabilityTuple(encodeRequest('mp3')), {
 		direction: 'encode', demuxerAnyOf: ['f32le'], decoderAnyOf: ['pcm_f32le'],
@@ -195,7 +210,7 @@ test('capability evaluation uses any-of alternatives and requires every chain ca
 	const tuple = deriveDesktopAudioFfmpegCapabilityTuple({ ...decodeRequest(), format: 'mp3' });
 	const capabilities = {
 		demuxers: ['mp3'], decoders: ['mp3float'], encoders: ['pcm_f32le'],
-		muxers: ['f32le'], filters: ['aresample'],
+		muxers: ['wav'], filters: [],
 	};
 	assert.equal(isDesktopAudioFfmpegCapabilityTupleSatisfied(tuple, capabilities), true);
 	assert.equal(isDesktopAudioFfmpegCapabilityTupleSatisfied(tuple, {
@@ -206,14 +221,17 @@ test('capability evaluation uses any-of alternatives and requires every chain ca
 test('decode plans use only fixed relative names and closed FFmpeg 4.4-9 arguments', () => {
 	const plan = buildDesktopAudioFfmpegPlan(decodeRequest());
 	assert.equal(plan.inputName, DESKTOP_AUDIO_FFMPEG_INPUT_NAME);
-	assert.equal(plan.outputName, 'soundscaper-codec-output.f32le');
+	assert.equal(plan.outputName, 'soundscaper-codec-output.wav');
 	assert.equal(plan.arguments.at(-1), plan.outputName);
 	assert.deepEqual(plan.arguments.slice(0, 7), [
 		'-nostdin', '-hide_banner', '-loglevel', 'error', '-nostats', '-xerror', '-y',
 	]);
 	assert.deepEqual(argumentValue(plan.arguments, '-protocol_whitelist'), 'file');
 	assert.deepEqual(argumentValue(plan.arguments, '-f'), 'flac');
-	assert.deepEqual(argumentValue(plan.arguments, '-af'), 'aresample');
+	assert.equal(plan.arguments.includes('-af'), false);
+	assert.equal(plan.arguments.includes('-ar'), false);
+	assert.equal(plan.arguments.includes('-ac'), false);
+	assert.equal(plan.arguments.includes('wav'), true);
 	assert.equal(plan.arguments.includes('/tmp'), false);
 	assert.equal(plan.arguments.some((argument) => argument.includes('://')), false);
 	assert.deepEqual(argumentValue(plan.arguments, '-fs'), '8192');
@@ -249,7 +267,7 @@ test('FFmpeg planning revalidates typed-looking objects instead of accepting aut
 function decodeRequest(): Record<string, unknown> {
 	return {
 		operation: 'audio-decode', format: 'flac', input: new Uint8Array([1, 2, 3]),
-		sampleRate: 48_000, channelCount: 2, settings: { sampleFormat: 'f32le' },
+		sampleRate: null, channelCount: null, settings: { sampleFormat: 'f32le' },
 		maximumOutputBytes: 8_192,
 	};
 }

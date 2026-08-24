@@ -331,17 +331,24 @@ function cloneCapability(value: DesktopCodecCapability): DesktopCodecCapability 
 }
 
 function matchesCapability(operation: DesktopCodecOperation, admitted: DesktopCodecCapability): boolean {
+	const unresolvedDecodeGeometry = operation.direction === 'decode' && operation.mediaKind === 'audio'
+		&& operation.sampleRate === null && operation.channelCount === null;
 	return operation.direction === admitted.direction && operation.mediaKind === admitted.mediaKind
 		&& operation.container === admitted.container && operation.codec === admitted.codec
 		&& operation.profile === admitted.profile && operation.sampleFormat === admitted.sampleFormat
 		&& operation.pixelFormat === admitted.pixelFormat
-		&& matchesInteger(operation.sampleRate, admitted.sampleRate)
-		&& matchesInteger(operation.channelCount, admitted.channelCount)
+		&& matchesInteger(operation.sampleRate, admitted.sampleRate, unresolvedDecodeGeometry)
+		&& matchesInteger(operation.channelCount, admitted.channelCount, unresolvedDecodeGeometry)
 		&& matchesInteger(operation.width, admitted.width)
 		&& matchesInteger(operation.height, admitted.height);
 }
 
-function matchesInteger(value: number | null, constraint: DesktopCodecIntegerConstraint | null): boolean {
+function matchesInteger(
+	value: number | null,
+	constraint: DesktopCodecIntegerConstraint | null,
+	allowUnknown = false,
+): boolean {
+	if (value === null && allowUnknown && constraint !== null) return true;
 	if (constraint === null || typeof constraint === 'number') return value === constraint;
 	return value !== null && value >= constraint.minimum && value <= constraint.maximum
 		&& value % constraint.multipleOf === 0;

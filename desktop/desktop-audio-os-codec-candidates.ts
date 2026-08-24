@@ -77,16 +77,11 @@ function candidateSet(
 }
 
 function reviewedOperationFromRequest(request: DesktopAudioCodecRequest): DesktopCodecOperation | null {
+	if (request.operation === 'audio-decode') return null;
 	if (request.format === 'aac-m4a') return Object.freeze({
-		direction: request.operation === 'audio-decode' ? 'decode' : 'encode',
+		direction: 'encode',
 		mediaKind: 'audio', container: 'm4a', codec: 'aac', profile: 'lc',
 		sampleFormat: 'f32p', pixelFormat: null,
-		sampleRate: request.sampleRate, channelCount: request.channelCount,
-		width: null, height: null,
-	});
-	if (request.format === 'mp3' && request.operation === 'audio-decode') return Object.freeze({
-		direction: 'decode', mediaKind: 'audio', container: 'mp3', codec: 'mp3',
-		profile: null, sampleFormat: 'f32', pixelFormat: null,
 		sampleRate: request.sampleRate, channelCount: request.channelCount,
 		width: null, height: null,
 	});

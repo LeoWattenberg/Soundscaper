@@ -127,6 +127,28 @@ test('OS providers expose only exact canary-qualified tuples and Linux stays una
 	assert.equal(linux.resolve(exact), null);
 });
 
+test('unknown audio decode geometry may select a ranged capability but encode remains exact', async () => {
+	const range = Object.freeze({ minimum: 8_000, maximum: 192_000, multipleOf: 1 });
+	const capability: DesktopCodecCapability = {
+		id: 'wmf-mp3-source-geometry', direction: 'decode', mediaKind: 'audio',
+		container: 'mp3', codec: 'mp3', profile: null, sampleFormat: 'f32', pixelFormat: null,
+		sampleRate: range, channelCount: { minimum: 1, maximum: 2, multipleOf: 1 },
+		width: null, height: null,
+	};
+	const provider = createOperatingSystemDesktopCodecProvider({
+		target: 'win-x64', osVersion: '10.0.26100', capabilityGeneration: 'canary-audio',
+		canaryQualifiedCapabilities: [{ capability, implementation: 'media-foundation-mp3' }],
+	});
+	const unresolved = operation({
+		direction: capability.direction, mediaKind: capability.mediaKind,
+		container: capability.container, codec: capability.codec, profile: capability.profile,
+		sampleFormat: capability.sampleFormat, pixelFormat: capability.pixelFormat,
+		sampleRate: null, channelCount: null, width: null, height: null,
+	});
+	assert.equal((await provider.preflight(unresolved, {})).disposition, 'supported');
+	assert.equal((await provider.preflight({ ...unresolved, direction: 'encode' }, {})).disposition, 'unsupported');
+});
+
 test('external FFmpeg requires both an exact tuple and every probed implementation', async () => {
 	const qualified = [{
 		capability: { ...videoCapability('ffmpeg-av1', 'av1', 'main', 'yuv420p'), direction: 'encode' as const },

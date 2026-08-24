@@ -52,7 +52,10 @@ test('desktop codec composition routes audio through file service while video st
 			},
 			runDesktopAudioCodecOperation(request: DesktopAudioCodecRequest) {
 				requests.push(request);
-				return createDesktopAudioCodecResult(request, interleavedF32([0.25, -0.5]));
+				return createDesktopAudioCodecResult(
+					request, interleavedF32([0.25, -0.5]),
+					{ sampleRate: 44_100, channelCount: 1, frameCount: 2 },
+				);
 			},
 			cancelDesktopAudioCodecOperation(requestId: string) { cancelled.push(requestId); return true; },
 		},
@@ -62,9 +65,12 @@ test('desktop codec composition routes audio through file service while video st
 		sampleRate: 48_000, channelCount: 1, maximumOutputBytes: 64,
 	});
 	assert.deepEqual(decoded.channels.map((channel) => [...channel]), [[0.25, -0.5]]);
+	assert.equal(decoded.sampleRate, 44_100);
 	assert.equal(requests.length, 1);
 	assert.equal(requests[0]?.operation, 'audio-decode');
 	assert.equal(requests[0]?.format, 'flac');
+	assert.equal(requests[0]?.sampleRate, null);
+	assert.equal(requests[0]?.channelCount, null);
 	assert.deepEqual(cancelled, []);
 	await assert.rejects(() => runtime.encodeVideo({}, null, {}, {}), /video/iu);
 	await assert.rejects(() => runtime.runProxyMediaOperation({}), /video/iu);

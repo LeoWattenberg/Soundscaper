@@ -35,7 +35,7 @@ test('all seven closed audio formats derive exact encode and decode operation tu
 		readonly decodeSampleFormat: string;
 		readonly encodeSampleFormat: string;
 	}>>> = {
-		flac: { container: 'flac', codec: 'flac', profile: null, decodeSampleFormat: 's24', encodeSampleFormat: 's24' },
+		flac: { container: 'flac', codec: 'flac', profile: null, decodeSampleFormat: 'f32', encodeSampleFormat: 's24' },
 		mp3: { container: 'mp3', codec: 'mp3', profile: null, decodeSampleFormat: 'f32', encodeSampleFormat: 'f32p' },
 		'ogg-vorbis': { container: 'ogg', codec: 'vorbis', profile: null, decodeSampleFormat: 'f32p', encodeSampleFormat: 'f32p' },
 		opus: { container: 'ogg', codec: 'opus', profile: null, decodeSampleFormat: 'f32p', encodeSampleFormat: 'f32p' },
@@ -54,7 +54,8 @@ test('all seven closed audio formats derive exact encode and decode operation tu
 				sampleFormat: direction === 'decode'
 					? expected[format].decodeSampleFormat
 					: expected[format].encodeSampleFormat,
-				pixelFormat: null, sampleRate: 48_000, channelCount: 2,
+				pixelFormat: null, sampleRate: direction === 'decode' ? null : 48_000,
+				channelCount: direction === 'decode' ? null : 2,
 				width: null, height: null,
 			});
 			assert.equal(Object.isFrozen(operation), true);
@@ -157,16 +158,44 @@ test('a supported bundled runtime wins without preflighting or executing lower p
 	] as const;
 	const broker = createDesktopAudioCodecBroker({
 		runtimes: [
-			runtime(providers[0], () => { trace.push('execute:bundled'); return executed(new Array(8).fill(0)); }),
+			runtime(providers[0], () => {
+				trace.push('execute:bundled');
+				return executed(new Array(8).fill(0), { sampleRate: 48_000, channelCount: 2, frameCount: 1 });
+			}),
 			runtime(providers[1], () => { trace.push('execute:operating-system'); return executed([2]); }),
 			runtime(providers[2], () => { trace.push('execute:external-ffmpeg'); return executed([3]); }),
 		],
 	});
 	const outcome = await broker.execute(decodeRequest('flac'));
-	assert.deepEqual(trace, ['preflight:bundled', 'execute:bundled']);
+	assert.deepEqual(trace, ['preflight:bundled', 'execute:bundled', 'preflight:bundled']);
 	assert.equal(outcome.receipt.provider.kind, 'bundled');
 	assert.equal(outcome.result.metadata.kind, 'decoded-audio');
 	assert.equal(outcome.result.metadata.frameCount, 1);
+});
+
+test('decode provider geometry is authoritative for result metadata and the operation receipt', async () => {
+	const trace: string[] = [];
+	const providers = [
+		provider('bundled', 'supported', trace),
+		provider('operating-system', 'supported', trace),
+		provider('external-ffmpeg', 'supported', trace),
+	] as const;
+	const broker = createDesktopAudioCodecBroker({ runtimes: [
+		runtime(providers[0], () => executed(new Array(8).fill(0), {
+			sampleRate: 44_100, channelCount: 1, frameCount: 2,
+		})),
+		runtime(providers[1], () => executed([2])),
+		runtime(providers[2], () => executed([3])),
+	] });
+
+	const outcome = await broker.execute(decodeRequest('flac'));
+	assert.deepEqual(outcome.result.metadata, {
+		kind: 'decoded-audio', sourceFormat: 'flac', sampleFormat: 'f32le',
+		interleaving: 'interleaved', sampleRate: 44_100, channelCount: 1, frameCount: 2,
+	});
+	assert.equal(outcome.receipt.operation.sampleRate, 44_100);
+	assert.equal(outcome.receipt.operation.channelCount, 1);
+	assert.deepEqual(trace, ['preflight:bundled', 'preflight:bundled']);
 });
 
 for (const reason of [
@@ -203,7 +232,9 @@ test('throws, malformed execution results, and invalid output bytes are terminal
 	for (const [label, execute, expectedReason] of [
 		['throw', () => Promise.reject(new Error('private failure')), 'execution-failed'],
 		['malformed', () => Promise.resolve({ status: 'executed', output: Uint8Array.of(1), extra: true }), 'result-failed'],
-		['invalid-pcm', () => executed([1, 2, 3]), 'result-failed'],
+		['invalid-pcm', () => executed([1, 2, 3], {
+			sampleRate: 48_000, channelCount: 2, frameCount: 1,
+		}), 'result-failed'],
 	] as const) {
 		const trace: string[] = [];
 		const providers = [
@@ -292,22 +323,30 @@ function runtime(
 	return Object.freeze({ provider: providerValue, execute });
 }
 
-function executed(bytes: readonly number[]): Promise<Readonly<{
+function executed(
+	bytes: readonly number[],
+	decodedGeometry?: Readonly<{ readonly sampleRate: number; readonly channelCount: number; readonly frameCount: number }>,
+): Promise<Readonly<{
 	readonly status: 'executed'; readonly output: Uint8Array;
+	readonly decodedGeometry?: Readonly<{ readonly sampleRate: number; readonly channelCount: number; readonly frameCount: number }>;
 }>> {
-	return Promise.resolve({ status: 'executed', output: Uint8Array.from(bytes) });
+	return Promise.resolve({
+		status: 'executed', output: Uint8Array.from(bytes),
+		...(decodedGeometry === undefined ? {} : { decodedGeometry }),
+	});
 }
 
 function decodeRequest(format: DesktopAudioCodecFormat): DesktopAudioCodecRequest {
 	return {
 		operation: 'audio-decode', format, input: Uint8Array.of(1, 2, 3),
-		sampleRate: 48_000, channelCount: 2, settings: { sampleFormat: 'f32le' },
+		sampleRate: null, channelCount: null, settings: { sampleFormat: 'f32le' },
 		maximumOutputBytes: 1_024,
 	};
 }
 
 function encodeRequest(format: DesktopAudioCodecFormat): DesktopAudioCodecRequest {
-	const settings = format === 'flac' || format === 'wavpack' ? { compressionLevel: 5 }
+	const settings = format === 'flac' ? { compressionLevel: 5, bitDepth: 24 as const }
+		: format === 'wavpack' ? { compressionLevel: 5 }
 		: format === 'ogg-vorbis' ? { quality: 7 }
 			: { bitrateKbps: format === 'mp2' ? 192 : 128 };
 	return {

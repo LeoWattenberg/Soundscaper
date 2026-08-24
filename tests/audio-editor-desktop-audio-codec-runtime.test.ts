@@ -93,10 +93,6 @@ test('an unavailable exact tuple refuses before the operation bridge executes', 
 		() => runtime.encode(wav, 'opus', { bitRate: 128 }),
 		/Preferences > General/iu,
 	);
-	await assert.rejects(
-		() => runtime.decode(new File([Uint8Array.of(1)], 'project.flac'), { sampleRate: 48_000 }),
-		/Preferences > General/iu,
-	);
 	assert.equal(executions, 0);
 });
 
@@ -144,16 +140,16 @@ test('integer staged WAVs reuse the WAV reader and multichannel open formats ret
 	assert.equal(requests.length, 2);
 });
 
-test('native FLAC STREAMINFO supplies decode geometry instead of project defaults', async () => {
+test('main-reported source geometry supplies decode geometry instead of project defaults', async () => {
 	const requests: DesktopAudioCodecRequest[] = [];
 	const runtime = createDesktopAudioCodecRuntime(successBridge((request) => {
 		requests.push(request);
 		return new Uint8Array(Float32Array.of(0.25).buffer);
-	}));
+	}, () => ({ sampleRate: 96_000, channelCount: 1, frameCount: 1 })));
 	const decoded = await runtime.decode(new File([flacStreamInfo(96_000, 1, 1)], 'mono.flac'));
 	assert.equal(requests[0]?.operation, 'audio-decode');
-	assert.equal(requests[0]?.sampleRate, 96_000);
-	assert.equal(requests[0]?.channelCount, 1);
+	assert.equal(requests[0]?.sampleRate, null);
+	assert.equal(requests[0]?.channelCount, null);
 	assert.equal(decoded.sampleRate, 96_000);
 	assert.equal(decoded.channels.length, 1);
 	assert.equal(decoded.frameCount, 1);
@@ -269,10 +265,21 @@ test('result correlation rejects malformed or cross-request bridge evidence', as
 
 function successBridge(
 	output: (request: DesktopAudioCodecRequest) => Uint8Array = () => Uint8Array.of(1),
+	geometry: (request: DesktopAudioCodecRequest, output: Uint8Array) => Readonly<{
+		readonly sampleRate: number; readonly channelCount: number; readonly frameCount: number;
+	}> = (_request, bytes) => ({
+		sampleRate: 48_000, channelCount: 2,
+		frameCount: bytes.byteLength / (2 * Float32Array.BYTES_PER_ELEMENT),
+	}),
 ): DesktopAudioCodecRendererBridge {
 	return {
 		capabilities: admittedCapabilities,
-		execute(request) { return createDesktopAudioCodecResult(request, output(request)); },
+		execute(request) {
+			const bytes = output(request);
+			return createDesktopAudioCodecResult(
+				request, bytes, request.operation === 'audio-decode' ? geometry(request, bytes) : undefined,
+			);
+		},
 		cancel() {},
 	};
 }

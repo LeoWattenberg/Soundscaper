@@ -162,21 +162,16 @@ function createRuntime(
 			try {
 				await yieldControl();
 				throwIfAborted(options.signal);
-				const output = request.operation === 'audio-encode'
-					? encode(request, codec)
-					: decode(request, codec);
+				const executed = request.operation === 'audio-encode'
+					? Object.freeze({ status: 'executed' as const, output: encode(request, codec) })
+					: Object.freeze({ status: 'executed' as const, ...decode(request, codec) });
 				throwIfAborted(options.signal);
-				return Object.freeze({ status: 'executed', output });
+				return executed;
 			} catch (error) {
 				if (options.signal?.aborted || isAbortError(error)) throw abortReason(options.signal, error);
 				if (error instanceof BundledFlacStreamError || error instanceof FlacDecodeIntegrityError
 					|| error instanceof FlacPcmInputError) {
-					return failed('security-failed', error instanceof FlacGeometryMismatchError
-						? 'The FLAC source geometry does not match the decode request.'
-						: 'The FLAC input stream or PCM failed bounded validation.');
-				}
-				if (error instanceof FlacGeometryMismatchError) {
-					return failed('security-failed', 'The FLAC source geometry does not match the decode request.');
+					return failed('security-failed', 'The FLAC input stream or PCM failed bounded validation.');
 				}
 				if (error instanceof FlacOutputBoundError) return failed('result-failed', error.message);
 				return failed('execution-failed', 'The reviewed FLAC payload could not complete the operation.');
@@ -209,19 +204,30 @@ function encode(
 function decode(
 	request: Extract<DesktopAudioCodecRequest, { readonly operation: 'audio-decode' }>,
 	codec: FlacCodec,
-): Uint8Array {
+): Readonly<{
+	readonly output: Uint8Array;
+	readonly decodedGeometry: Readonly<{
+		readonly sampleRate: number;
+		readonly channelCount: number;
+		readonly frameCount: number;
+	}>;
+}> {
 	const geometry = parseBundledFlacStream(request.input);
-	if (geometry.sampleRate !== request.sampleRate || geometry.channelCount !== request.channelCount) {
-		throw new FlacGeometryMismatchError();
-	}
 	const outputBytes = geometry.frameCount * geometry.channelCount * Float32Array.BYTES_PER_ELEMENT;
 	if (!Number.isSafeInteger(outputBytes) || outputBytes > request.maximumOutputBytes) {
 		throw new FlacOutputBoundError('The decoded FLAC PCM exceeds the requested output bound.');
 	}
 	try {
-		return codec.decode(request.input, {
+		const output = codec.decode(request.input, {
 			frameCount: geometry.frameCount, channelCount: geometry.channelCount,
 			sampleRate: geometry.sampleRate, outputBytes,
+		});
+		return Object.freeze({
+			output,
+			decodedGeometry: Object.freeze({
+				sampleRate: geometry.sampleRate, channelCount: geometry.channelCount,
+				frameCount: geometry.frameCount,
+			}),
 		});
 	} catch (error) {
 		if (error instanceof FlacCodecResultError) throw new FlacDecodeIntegrityError();
@@ -377,22 +383,24 @@ function bundledProvider(target: DesktopCodecTarget): DesktopCodecProvider {
 }
 
 function supportedOperation(operation: DesktopCodecOperation): boolean {
+	const resolvedGeometry = Number.isSafeInteger(operation.sampleRate) && operation.sampleRate! >= 8_000
+		&& operation.sampleRate! <= MAXIMUM_SAMPLE_RATE
+		&& Number.isSafeInteger(operation.channelCount) && operation.channelCount! >= 1
+		&& operation.channelCount! <= MAXIMUM_CHANNEL_COUNT;
+	const geometrySupported = resolvedGeometry || operation.direction === 'decode'
+		&& operation.sampleRate === null && operation.channelCount === null;
 	return !!operation && operation.mediaKind === 'audio'
 		&& (operation.direction === 'encode' || operation.direction === 'decode')
 		&& operation.container === 'flac' && operation.codec === 'flac'
 		&& operation.profile === null
 		&& operation.sampleFormat === (operation.direction === 'encode' ? 's24' : 'f32')
 		&& operation.pixelFormat === null && operation.width === null && operation.height === null
-		&& Number.isSafeInteger(operation.sampleRate) && operation.sampleRate! >= 8_000
-		&& operation.sampleRate! <= MAXIMUM_SAMPLE_RATE
-		&& Number.isSafeInteger(operation.channelCount) && operation.channelCount! >= 1
-		&& operation.channelCount! <= MAXIMUM_CHANNEL_COUNT;
+		&& geometrySupported;
 }
 
 class FlacRuntimeError extends Error {}
 class FlacCodecResultError extends Error {}
 class FlacDecodeIntegrityError extends Error {}
-class FlacGeometryMismatchError extends Error {}
 class FlacOutputBoundError extends Error {}
 class FlacPcmInputError extends Error {}
 

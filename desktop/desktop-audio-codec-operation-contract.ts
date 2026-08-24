@@ -28,8 +28,6 @@ export type DesktopAudioAacEncodeSettings = Readonly<{ readonly bitrateKbps: num
 
 interface DesktopAudioCodecRequestBase {
 	readonly input: Uint8Array;
-	readonly sampleRate: number;
-	readonly channelCount: number;
 	readonly maximumOutputBytes: number;
 	readonly requestId?: string;
 }
@@ -37,10 +35,16 @@ interface DesktopAudioCodecRequestBase {
 export interface DesktopAudioDecodeRequest extends DesktopAudioCodecRequestBase {
 	readonly operation: 'audio-decode';
 	readonly format: DesktopAudioCodecFormat;
+	/** Null means the admitted source stream, never project geometry, is authoritative. */
+	readonly sampleRate: null;
+	readonly channelCount: null;
 	readonly settings: DesktopAudioDecodeSettings;
 }
 
-export type DesktopAudioEncodeRequest = DesktopAudioCodecRequestBase & (
+export type DesktopAudioEncodeRequest = DesktopAudioCodecRequestBase & Readonly<{
+	readonly sampleRate: number;
+	readonly channelCount: number;
+}> & (
 	| Readonly<{ readonly operation: 'audio-encode'; readonly format: 'flac'; readonly settings: DesktopAudioFlacEncodeSettings }>
 	| Readonly<{ readonly operation: 'audio-encode'; readonly format: 'mp3'; readonly settings: DesktopAudioMp3EncodeSettings }>
 	| Readonly<{ readonly operation: 'audio-encode'; readonly format: 'ogg-vorbis'; readonly settings: DesktopAudioVorbisEncodeSettings }>
@@ -57,6 +61,13 @@ export interface DesktopDecodedAudioMetadata {
 	readonly sourceFormat: DesktopAudioCodecFormat;
 	readonly sampleFormat: 'f32le';
 	readonly interleaving: 'interleaved';
+	readonly sampleRate: number;
+	readonly channelCount: number;
+	readonly frameCount: number;
+}
+
+/** Geometry measured by the selected decoder from the admitted source stream. */
+export interface DesktopDecodedAudioGeometry {
 	readonly sampleRate: number;
 	readonly channelCount: number;
 	readonly frameCount: number;
@@ -139,20 +150,24 @@ export function assertDesktopAudioCodecRequest(value: unknown): asserts value is
 	}
 	const format = audioFormat(record.format);
 	bytes(record.input, DESKTOP_AUDIO_CODEC_INPUT_LIMIT_BYTES, 'input');
-	const sampleRate = integer(
-		record.sampleRate, DESKTOP_AUDIO_CODEC_MINIMUM_SAMPLE_RATE,
-		DESKTOP_AUDIO_CODEC_MAXIMUM_SAMPLE_RATE, 'sample rate',
-	);
-	const channelCount = integer(
-		record.channelCount, 1, DESKTOP_AUDIO_CODEC_MAXIMUM_CHANNEL_COUNT, 'channel count',
-	);
-	if (channelCount > maximumChannelCount(format)) {
-		throw new RangeError(`The desktop audio ${format} channel count is unsupported.`);
-	}
 	integer(record.maximumOutputBytes, 1, DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES, 'maximum output');
 	if (Object.hasOwn(record, 'requestId')) requestId(record.requestId);
-	if (operation === 'audio-decode') validateDecodeSettings(record.settings);
-	else {
+	if (operation === 'audio-decode') {
+		if (record.sampleRate !== null || record.channelCount !== null) {
+			throw new TypeError('Desktop audio decode geometry must be source-authoritative null values.');
+		}
+		validateDecodeSettings(record.settings);
+	} else {
+		const sampleRate = integer(
+			record.sampleRate, DESKTOP_AUDIO_CODEC_MINIMUM_SAMPLE_RATE,
+			DESKTOP_AUDIO_CODEC_MAXIMUM_SAMPLE_RATE, 'sample rate',
+		);
+		const channelCount = integer(
+			record.channelCount, 1, DESKTOP_AUDIO_CODEC_MAXIMUM_CHANNEL_COUNT, 'channel count',
+		);
+		if (channelCount > maximumChannelCount(format)) {
+			throw new RangeError(`The desktop audio ${format} channel count is unsupported.`);
+		}
 		validateEncodeSampleRate(format, sampleRate);
 		validateEncodeSettings(format, record.settings);
 		if ((record.input as Uint8Array).byteLength % (Float32Array.BYTES_PER_ELEMENT * channelCount) !== 0) {
@@ -178,21 +193,18 @@ export function normalizeDesktopAudioCodecRequest(value: unknown): DesktopAudioC
 export function createDesktopAudioCodecResult(
 	request: DesktopAudioCodecRequest,
 	outputBytes: Uint8Array,
+	decodedGeometry?: DesktopDecodedAudioGeometry,
 ): DesktopAudioCodecResult {
 	assertDesktopAudioCodecRequest(request);
 	bytes(outputBytes, request.maximumOutputBytes, 'result bytes');
 	const ownedBytes = new Uint8Array(outputBytes);
 	if (request.operation === 'audio-decode') {
-		const bytesPerFrame = Float32Array.BYTES_PER_ELEMENT * request.channelCount;
-		if (ownedBytes.byteLength % bytesPerFrame !== 0) {
-			throw new RangeError('The decoded desktop audio bytes do not contain complete PCM frames.');
-		}
+		const geometry = validateDecodedGeometry(decodedGeometry, request.format, ownedBytes);
 		return Object.freeze({
 			operation: request.operation, bytes: ownedBytes,
 			metadata: Object.freeze({
 				kind: 'decoded-audio', sourceFormat: request.format, sampleFormat: 'f32le',
-				interleaving: 'interleaved', sampleRate: request.sampleRate,
-				channelCount: request.channelCount, frameCount: ownedBytes.byteLength / bytesPerFrame,
+				interleaving: 'interleaved', ...geometry,
 			}),
 			...(request.requestId === undefined ? {} : { requestId: request.requestId }),
 		});
@@ -214,6 +226,32 @@ export function createDesktopAudioCodecResult(
 		}),
 		...(request.requestId === undefined ? {} : { requestId: request.requestId }),
 	});
+}
+
+function validateDecodedGeometry(
+	value: unknown,
+	format: DesktopAudioCodecFormat,
+	output: Uint8Array,
+): DesktopDecodedAudioGeometry {
+	const geometry = exactRecord(value, 'decoded geometry');
+	const fields = ['sampleRate', 'channelCount', 'frameCount'];
+	exactKeys(geometry, fields, fields, 'decoded geometry');
+	const sampleRate = integer(
+		geometry.sampleRate, DESKTOP_AUDIO_CODEC_MINIMUM_SAMPLE_RATE,
+		DESKTOP_AUDIO_CODEC_MAXIMUM_SAMPLE_RATE, 'decoded sample rate',
+	);
+	const channelCount = integer(
+		geometry.channelCount, 1, DESKTOP_AUDIO_CODEC_MAXIMUM_CHANNEL_COUNT,
+		'decoded channel count',
+	);
+	if (channelCount > maximumChannelCount(format)) {
+		throw new RangeError(`The decoded desktop audio ${format} channel count is unsupported.`);
+	}
+	const frameCount = integer(geometry.frameCount, 1, Number.MAX_SAFE_INTEGER, 'decoded frame count');
+	if (frameCount * channelCount * Float32Array.BYTES_PER_ELEMENT !== output.byteLength) {
+		throw new RangeError('The decoded desktop audio frame count is invalid.');
+	}
+	return Object.freeze({ sampleRate, channelCount, frameCount });
 }
 
 export function assertDesktopAudioCodecResult(

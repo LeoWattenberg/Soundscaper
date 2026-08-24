@@ -11,6 +11,7 @@ import {
 	type DesktopAudioCodecFormat,
 	type DesktopAudioCodecRequest,
 	type DesktopAudioCodecResult,
+	type DesktopDecodedAudioGeometry,
 } from './desktop-audio-codec-operation-contract.ts';
 import {
 	createDesktopCodecCoordinator,
@@ -31,7 +32,11 @@ export type DesktopAudioCodecProviderFailureReason =
 	| 'result-failed';
 
 export type DesktopAudioCodecProviderExecutionResult =
-	| Readonly<{ readonly status: 'executed'; readonly output: Uint8Array }>
+	| Readonly<{
+		readonly status: 'executed';
+		readonly output: Uint8Array;
+		readonly decodedGeometry?: DesktopDecodedAudioGeometry;
+	}>
 	| Readonly<{
 		readonly status: 'failed';
 		readonly reason: DesktopAudioCodecProviderFailureReason;
@@ -230,14 +235,14 @@ async function runSelectedRuntime(
 	if (signal?.aborted) throw providerError(
 		runtime.provider, 'cancelled', 'The selected provider operation was cancelled.',
 	);
-	const inspected = inspectProviderResult(rawResult);
+	const inspected = inspectProviderResult(rawResult, request);
 	if (inspected.status === 'failed') {
 		throw providerError(runtime.provider, inspected.reason, inspected.detail);
 	}
 	let result: DesktopAudioCodecResult;
 	try {
 		result = normalizeDesktopAudioCodecResult(
-			createDesktopAudioCodecResult(request, inspected.output),
+			createDesktopAudioCodecResult(request, inspected.output, inspected.decodedGeometry),
 			request.maximumOutputBytes,
 		);
 	} catch {
@@ -246,10 +251,18 @@ async function runSelectedRuntime(
 			'The selected provider returned invalid desktop audio bytes.',
 		);
 	}
+	const resolvedOperation = result.operation === 'audio-decode'
+		? Object.freeze({
+			...operation,
+			sampleRate: result.metadata.sampleRate,
+			channelCount: result.metadata.channelCount,
+		})
+		: undefined;
 	return Object.freeze({
 		value: result,
 		outputDigest: sha256(result.bytes),
 		timing: null,
+		...(resolvedOperation === undefined ? {} : { resolvedOperation }),
 	});
 }
 
@@ -303,13 +316,24 @@ function validateExecutionOptions(value: unknown): void {
 	}
 }
 
-function inspectProviderResult(value: unknown): DesktopAudioCodecProviderExecutionResult {
+function inspectProviderResult(
+	value: unknown,
+	request: DesktopAudioCodecRequest,
+): DesktopAudioCodecProviderExecutionResult {
 	if (!plainRecord(value)) return failedResult();
 	const keys = Reflect.ownKeys(value);
 	if (value.status === 'executed') {
-		if (keys.length !== 2 || !keys.includes('status') || !keys.includes('output')
+		const decode = request.operation === 'audio-decode';
+		const expectedKeys = decode ? 3 : 2;
+		if (keys.length !== expectedKeys || !keys.includes('status') || !keys.includes('output')
+			|| decode !== keys.includes('decodedGeometry')
 			|| !(value.output instanceof Uint8Array)) return failedResult();
-		return Object.freeze({ status: 'executed', output: new Uint8Array(value.output) });
+		if (!decode) return Object.freeze({ status: 'executed', output: new Uint8Array(value.output) });
+		const geometry = cloneDecodedGeometry(value.decodedGeometry);
+		if (geometry === null) return failedResult();
+		return Object.freeze({
+			status: 'executed', output: new Uint8Array(value.output), decodedGeometry: geometry,
+		});
 	}
 	if (value.status === 'failed') {
 		if (keys.length !== 3 || !keys.includes('status') || !keys.includes('reason') || !keys.includes('detail')
@@ -324,6 +348,20 @@ function inspectProviderResult(value: unknown): DesktopAudioCodecProviderExecuti
 		});
 	}
 	return failedResult();
+}
+
+function cloneDecodedGeometry(value: unknown): DesktopDecodedAudioGeometry | null {
+	if (!plainRecord(value)) return null;
+	const fields = ['sampleRate', 'channelCount', 'frameCount'];
+	const keys = Reflect.ownKeys(value);
+	if (keys.length !== fields.length || keys.some((key) => typeof key !== 'string' || !fields.includes(key))) {
+		return null;
+	}
+	return Object.freeze({
+		sampleRate: value.sampleRate as number,
+		channelCount: value.channelCount as number,
+		frameCount: value.frameCount as number,
+	});
 }
 
 function failedResult(): Extract<DesktopAudioCodecProviderExecutionResult, { status: 'failed' }> {

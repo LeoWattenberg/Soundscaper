@@ -191,9 +191,73 @@ test('external execution uses one immutable admission snapshot and the fixed pat
 	assert.ok(capturedRunnerOptions);
 	const runnerOptions = capturedRunnerOptions as unknown as ExternalFfmpegAudioOperationRunnerOptions<DesktopAudioCodecRequest>;
 	assert.equal(runnerOptions.maximumInputBytes, 32 * 1_024 * 1_024);
-	assert.equal(runnerOptions.maximumOutputBytes, 128 * 1_024 * 1_024);
+	assert.equal(runnerOptions.maximumOutputBytes, 129 * 1_024 * 1_024);
 	assert.equal(observations[0]?.receipt.provider.version, '9.0.1');
 	assert.equal('receipt' in result, false);
+});
+
+test('external decode preserves float-WAV source geometry without resampling or remixing', async () => {
+	const pcm = new Uint8Array(Float32Array.from([0.25, -0.5, 0.75]).buffer);
+	const wave = floatWave(44_100, 1, pcm);
+	const observations: Array<Readonly<{ readonly receipt: {
+		readonly operation: { readonly sampleRate: number | null; readonly channelCount: number | null };
+	} }>> = [];
+	const service = createDesktopAudioCodecRuntimeComposition({
+		target: 'linux-x64', scratchRoot: SCRATCH,
+		externalFfmpegPreferences: { admission: () => opusAdmission('/tools/ffmpeg') },
+		createExternalRunner: (options) => ({
+			execute(invocation) {
+				const admitted = options.contract.admitOperation(invocation.operation);
+				assert.equal(admitted.status, 'admitted');
+				if (admitted.status !== 'admitted') throw new Error('decode request rejected');
+				assert.equal(admitted.operation.sampleRate, null);
+				assert.equal(admitted.operation.channelCount, null);
+				const maximumOutputBytes = options.contract.maximumOutputBytes?.(admitted.operation);
+				assert.equal(maximumOutputBytes, 1_024 * 1_024 + 1_024);
+				if (maximumOutputBytes === undefined) throw new Error('decode output bound unavailable');
+				const files = {
+					inputPath: '/private/job/input.media', outputPath: '/private/job/output.media',
+					maximumOutputBytes,
+				};
+				const argv = options.contract.buildArguments(admitted.operation, files);
+				assert.ok(Array.isArray(argv));
+				if (!Array.isArray(argv)) throw new Error('decode argv unavailable');
+				assert.equal(argv.includes('-ar'), false);
+				assert.equal(argv.includes('-ac'), false);
+				assert.equal(argv.includes('-af'), false);
+				assert.equal(argv.includes('wav'), true);
+				return Promise.resolve({ status: 'executed', output: wave, log: '' });
+			},
+		}),
+		onReceipt: (observation) => { observations.push(observation); },
+	});
+
+	const result = await service.execute(decodeRequest('opus'), executionOptions());
+	assert.deepEqual(result.bytes, pcm);
+	assert.deepEqual(result.metadata, {
+		kind: 'decoded-audio', sourceFormat: 'opus', sampleFormat: 'f32le',
+		interleaving: 'interleaved', sampleRate: 44_100, channelCount: 1, frameCount: 3,
+	});
+	assert.equal(observations[0]?.receipt.operation.sampleRate, 44_100);
+	assert.equal(observations[0]?.receipt.operation.channelCount, 1);
+});
+
+test('malformed external decode geometry is terminal at the selected provider', async () => {
+	const service = createDesktopAudioCodecRuntimeComposition({
+		target: 'linux-x64', scratchRoot: SCRATCH,
+		externalFfmpegPreferences: { admission: () => opusAdmission('/tools/ffmpeg') },
+		createExternalRunner: () => ({
+			execute: () => Promise.resolve({
+				status: 'executed', output: Uint8Array.of(1, 2, 3), log: '',
+			}),
+		}),
+	});
+	await assert.rejects(() => service.execute(decodeRequest('opus'), executionOptions()), (error: unknown) => {
+		assert.ok(error instanceof DesktopAudioCodecProviderError);
+		assert.equal(error.providerKind, 'external-ffmpeg');
+		assert.equal(error.reason, 'result-failed');
+		return true;
+	});
 });
 
 test('an admitted FFmpeg missing one exact tuple component stays unsupported and never launches', async () => {
@@ -303,7 +367,7 @@ function opusAdmission(
 		},
 		capabilities: {
 			encoders: ['libopus', 'pcm_f32le'], decoders: ['pcm_f32le', 'opus'],
-			muxers: ['opus', 'f32le'], demuxers: ['f32le', 'ogg'], filters: ['aresample'],
+			muxers: ['opus', 'wav'], demuxers: ['f32le', 'ogg'], filters: ['aresample'],
 		},
 	};
 }
@@ -316,6 +380,33 @@ function encodeRequest(format: 'flac' | 'opus'): DesktopAudioCodecRequest {
 		settings: format === 'flac' ? { compressionLevel: 5, bitDepth: 24 } : { bitrateKbps: 128 },
 		maximumOutputBytes: 1_024, requestId: 'audio-runtime-1',
 	} as DesktopAudioCodecRequest;
+}
+
+function decodeRequest(format: 'opus'): DesktopAudioCodecRequest {
+	return {
+		operation: 'audio-decode', format, input: Uint8Array.of(1, 2, 3),
+		sampleRate: null, channelCount: null, settings: { sampleFormat: 'f32le' },
+		maximumOutputBytes: 1_024, requestId: 'audio-runtime-decode-1',
+	};
+}
+
+function floatWave(sampleRate: number, channelCount: number, pcm: Uint8Array): Uint8Array {
+	const output = new Uint8Array(44 + pcm.byteLength);
+	output.set([0x52, 0x49, 0x46, 0x46], 0);
+	output.set([0x57, 0x41, 0x56, 0x45, 0x66, 0x6d, 0x74, 0x20], 8);
+	output.set([0x64, 0x61, 0x74, 0x61], 36);
+	const view = new DataView(output.buffer);
+	view.setUint32(4, output.byteLength - 8, true);
+	view.setUint32(16, 16, true);
+	view.setUint16(20, 3, true);
+	view.setUint16(22, channelCount, true);
+	view.setUint32(24, sampleRate, true);
+	view.setUint32(28, sampleRate * channelCount * 4, true);
+	view.setUint16(32, channelCount * 4, true);
+	view.setUint16(34, 32, true);
+	view.setUint32(40, pcm.byteLength, true);
+	output.set(pcm, 44);
+	return output;
 }
 
 function executionOptions(): Readonly<{ readonly signal: AbortSignal }> {

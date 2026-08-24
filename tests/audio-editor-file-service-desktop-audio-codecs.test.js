@@ -9,7 +9,7 @@ test('desktop file service forwards only the three preload audio codec calls', a
 	const calls = [];
 	const request = Object.freeze({
 		operation: 'audio-decode', format: 'flac', input: Uint8Array.of(1, 2, 3),
-		sampleRate: 48_000, channelCount: 2, settings: Object.freeze({ sampleFormat: 'f32le' }),
+		sampleRate: null, channelCount: null, settings: Object.freeze({ sampleFormat: 'f32le' }),
 		maximumOutputBytes: 64, requestId: 'desktop-audio-request-1',
 	});
 	const result = Object.freeze({ status: 'main-result' });

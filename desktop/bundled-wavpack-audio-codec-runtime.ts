@@ -149,11 +149,6 @@ function createRuntime(
 				disposition: 'unsupported',
 				reason: 'The WavPack input uses a valid profile outside the reviewed float32 checksum surface.',
 			});
-			if (inspection.geometry.sampleRate !== request.sampleRate
-				|| inspection.geometry.channelCount !== request.channelCount) return Object.freeze({
-				disposition: 'rejected',
-				reason: 'The WavPack source geometry does not match the decode request.',
-			});
 			return Object.freeze({ disposition: 'supported', reason: null });
 		},
 		async execute(
@@ -178,18 +173,21 @@ function createRuntime(
 				);
 			}
 			try {
-				const output = request.operation === 'audio-encode'
-					? await encode(request, codec, yieldControl, options.signal)
-					: await decode(request, codec, yieldControl, options.signal);
+				const executed = request.operation === 'audio-encode'
+					? Object.freeze({
+						status: 'executed' as const,
+						output: await encode(request, codec, yieldControl, options.signal),
+					})
+					: Object.freeze({
+						status: 'executed' as const,
+						...await decode(request, codec, yieldControl, options.signal),
+					});
 				throwIfAborted(options.signal);
-				return Object.freeze({ status: 'executed', output });
+				return executed;
 			} catch (error) {
 				if (options.signal?.aborted || isAbortError(error)) throw abortReason(options.signal, error);
 				if (error instanceof BundledWavPackStreamError) {
 					return failed('security-failed', 'The WavPack input stream failed bounded validation.');
-				}
-				if (error instanceof WavPackGeometryMismatchError) {
-					return failed('security-failed', 'The WavPack source geometry does not match the decode request.');
 				}
 				if (error instanceof WavPackOutputBoundError) {
 					return failed('result-failed', error.message);
@@ -243,11 +241,15 @@ async function decode(
 	codec: WavPackCodec,
 	yieldControl: () => Promise<void>,
 	signal?: AbortSignal,
-): Promise<Uint8Array> {
+): Promise<Readonly<{
+	readonly output: Uint8Array;
+	readonly decodedGeometry: Readonly<{
+		readonly sampleRate: number;
+		readonly channelCount: number;
+		readonly frameCount: number;
+	}>;
+}>> {
 	const geometry = parseBundledWavPackStream(request.input);
-	if (geometry.sampleRate !== request.sampleRate || geometry.channelCount !== request.channelCount) {
-		throw new WavPackGeometryMismatchError();
-	}
 	const outputBytes = geometry.frameCount * geometry.channelCount * Float32Array.BYTES_PER_ELEMENT;
 	if (!Number.isSafeInteger(outputBytes) || outputBytes > request.maximumOutputBytes) {
 		throw new WavPackOutputBoundError('The decoded WavPack PCM exceeds the requested output bound.');
@@ -265,7 +267,13 @@ async function decode(
 		if (index + 1 < geometry.groups.length) await yieldControl();
 	}
 	throwIfAborted(signal);
-	return output;
+	return Object.freeze({
+		output,
+		decodedGeometry: Object.freeze({
+			sampleRate: geometry.sampleRate, channelCount: geometry.channelCount,
+			frameCount: geometry.frameCount,
+		}),
+	});
 }
 
 interface WavPackCodec {
@@ -368,15 +376,18 @@ function bundledProvider(target: DesktopCodecTarget): DesktopCodecProvider {
 }
 
 function supportedOperation(operation: DesktopCodecOperation): boolean {
+	const resolvedGeometry = Number.isSafeInteger(operation.sampleRate) && operation.sampleRate! >= 8_000
+		&& operation.sampleRate! <= MAXIMUM_SAMPLE_RATE
+		&& Number.isSafeInteger(operation.channelCount) && operation.channelCount! >= 1
+		&& operation.channelCount! <= MAXIMUM_CHANNEL_COUNT;
+	const geometrySupported = resolvedGeometry || operation.direction === 'decode'
+		&& operation.sampleRate === null && operation.channelCount === null;
 	return !!operation && operation.mediaKind === 'audio'
 		&& (operation.direction === 'encode' || operation.direction === 'decode')
 		&& operation.container === 'wavpack' && operation.codec === 'wavpack'
 		&& operation.profile === null && operation.sampleFormat === 'f32'
 		&& operation.pixelFormat === null && operation.width === null && operation.height === null
-		&& Number.isSafeInteger(operation.sampleRate) && operation.sampleRate! >= 8_000
-		&& operation.sampleRate! <= MAXIMUM_SAMPLE_RATE
-		&& Number.isSafeInteger(operation.channelCount) && operation.channelCount! >= 1
-		&& operation.channelCount! <= MAXIMUM_CHANNEL_COUNT;
+		&& geometrySupported;
 }
 
 function planarChunk(
@@ -431,7 +442,6 @@ function verifyCanary(codec: WavPackCodec): void {
 	}
 }
 
-class WavPackGeometryMismatchError extends Error {}
 class WavPackOutputBoundError extends Error {}
 
 function failed(

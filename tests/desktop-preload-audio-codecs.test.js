@@ -74,6 +74,28 @@ test('sandbox preload exposes the closed audio execute and cancel bridge', async
 	assert.deepEqual(calls[1], ['soundscaper:v1:codecs:audio:cancel', REQUEST.requestId]);
 });
 
+test('sandbox preload preserves main-reported decoded source geometry', async () => {
+	const request = Object.freeze({
+		operation: 'audio-decode', format: 'flac', input: Uint8Array.of(1, 2, 3),
+		sampleRate: null, channelCount: null, settings: Object.freeze({ sampleFormat: 'f32le' }),
+		maximumOutputBytes: 64, requestId: `desktop-audio-${'c'.repeat(32)}`,
+	});
+	const result = Object.freeze({
+		operation: 'audio-decode', bytes: new Uint8Array(8), requestId: request.requestId,
+		metadata: Object.freeze({
+			kind: 'decoded-audio', sourceFormat: 'flac', sampleFormat: 'f32le',
+			interleaving: 'interleaved', sampleRate: 44_100, channelCount: 1, frameCount: 2,
+		}),
+	});
+	const bridge = await preloadBridge(() => Promise.resolve(result));
+	const decoded = await bridge.v1.runDesktopAudioCodecOperation(request);
+	assert.equal(decoded.metadata.sampleRate, 44_100);
+	assert.equal(decoded.metadata.channelCount, 1);
+	await assert.rejects(() => bridge.v1.runDesktopAudioCodecOperation({
+		...request, sampleRate: 48_000, channelCount: 2,
+	}), /geometry authority/iu);
+});
+
 test('sandbox preload rejects renderer paths, argv, malformed results, and cross-request IDs', async () => {
 	let invocations = 0;
 	const bridge = await preloadBridge(() => { invocations += 1; return Promise.resolve(RESULT); });

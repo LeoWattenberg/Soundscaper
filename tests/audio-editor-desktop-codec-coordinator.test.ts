@@ -103,6 +103,38 @@ test('execution failure is terminal and does not retry through external FFmpeg',
 	assert.deepEqual(calls, ['preflight:bundled', 'run:bundled']);
 });
 
+test('a selected provider may resolve unknown decode geometry and is re-preflighted before receipt', async () => {
+	const calls: string[] = [];
+	const providerValue = provider('bundled', 'bundled', 'supported', calls);
+	const coordinator = createDesktopCodecCoordinator({ providers: [providerValue] });
+	const unresolved = Object.freeze({
+		...OPERATION, direction: 'decode' as const, sampleRate: null, channelCount: null,
+	});
+	const resolved = Object.freeze({ ...unresolved, sampleRate: 44_100, channelCount: 1 });
+	const result = await coordinator.execute(unresolved, {
+		inputDigests: [],
+		run: () => Promise.resolve({
+			value: null, outputDigest: '0'.repeat(64), timing: null,
+			resolvedOperation: resolved,
+		}),
+	});
+	assert.deepEqual(calls, ['preflight:bundled', 'preflight:bundled']);
+	assert.deepEqual(result.receipt.operation, resolved);
+});
+
+test('resolved execution geometry cannot change the selected codec operation', async () => {
+	const coordinator = createDesktopCodecCoordinator({ providers: [
+		provider('bundled', 'bundled', 'supported', []),
+	] });
+	await assert.rejects(() => coordinator.execute(OPERATION, {
+		inputDigests: [],
+		run: () => Promise.resolve({
+			value: null, outputDigest: '0'.repeat(64), timing: null,
+			resolvedOperation: { ...OPERATION, codec: 'aac' },
+		}),
+	}), /resolved operation/iu);
+});
+
 test('cancellation before or during resolution is terminal', async () => {
 	const alreadyCancelled = new AbortController();
 	alreadyCancelled.abort(new DOMException('cancel', 'AbortError'));

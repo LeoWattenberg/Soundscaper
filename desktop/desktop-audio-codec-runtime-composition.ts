@@ -14,12 +14,19 @@ import {
 } from './desktop-audio-codec-capability-contract.ts';
 import {
 	DESKTOP_AUDIO_CODEC_INPUT_LIMIT_BYTES,
+	DESKTOP_AUDIO_CODEC_MAXIMUM_CHANNEL_COUNT,
+	DESKTOP_AUDIO_CODEC_MAXIMUM_SAMPLE_RATE,
+	DESKTOP_AUDIO_CODEC_MINIMUM_SAMPLE_RATE,
 	DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES,
 	normalizeDesktopAudioCodecRequest,
 	normalizeDesktopAudioCodecResult,
 	type DesktopAudioCodecRequest,
 	type DesktopAudioCodecResult,
 } from './desktop-audio-codec-operation-contract.ts';
+import {
+	DESKTOP_AUDIO_FFMPEG_WAVE_OVERHEAD_LIMIT_BYTES,
+	parseDesktopAudioFfmpegWaveOutput,
+} from './desktop-audio-ffmpeg-wave-output.ts';
 import {
 	buildDesktopAudioFfmpegPlan,
 	deriveDesktopAudioFfmpegCapabilityTuple,
@@ -50,6 +57,7 @@ import type {
 import {
 	DESKTOP_CODEC_TARGETS,
 	createExternalFfmpegDesktopCodecProvider,
+	type DesktopCodecCapability,
 	type DesktopCodecTarget,
 	type ExternalFfmpegCapabilityRequirements,
 } from '../src/common/editor/desktop-codec-provider-catalog.ts';
@@ -224,6 +232,7 @@ function capabilityRequest(tuple: DesktopAudioCodecCapabilityTuple): DesktopAudi
 		: Uint8Array.of(0);
 	return normalizeDesktopAudioCodecRequest({
 		...tuple, input,
+		...(tuple.operation === 'audio-decode' ? { sampleRate: null, channelCount: null } : {}),
 		settings: tuple.operation === 'audio-decode'
 			? { sampleFormat: 'f32le' }
 			: capabilityEncodeSettings(tuple.format),
@@ -280,15 +289,28 @@ function externalRuntime(options: Readonly<{
 						ffmpegSha256: snapshot.identity.ffmpegSha256,
 					})),
 					maximumInputBytes: DESKTOP_AUDIO_CODEC_INPUT_LIMIT_BYTES,
-					maximumOutputBytes: DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES,
+					maximumOutputBytes: DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES
+						+ DESKTOP_AUDIO_FFMPEG_WAVE_OVERHEAD_LIMIT_BYTES,
 				});
 				const outcome = await runner.execute(Object.freeze({
 					operation: request, input: request.input,
 					...(executionOptions.signal ? { signal: executionOptions.signal } : {}),
 				}));
-				return outcome.status === 'executed'
-					? Object.freeze({ status: 'executed', output: outcome.output })
-					: failed(RUNNER_FAILURES[outcome.reason], outcome.detail);
+				if (outcome.status !== 'executed') {
+					return failed(RUNNER_FAILURES[outcome.reason], outcome.detail);
+				}
+				if (request.operation === 'audio-encode') {
+					return Object.freeze({ status: 'executed', output: outcome.output });
+				}
+				try {
+					return Object.freeze({
+						status: 'executed',
+						...parseDesktopAudioFfmpegWaveOutput(outcome.output, request.maximumOutputBytes),
+					});
+				} catch {
+					return failed('result-failed',
+						'The external FFmpeg decoder returned invalid float WAV geometry.');
+				}
 			} finally { options.gate.active = false; }
 		},
 	});
@@ -304,10 +326,13 @@ function externalProvider(
 		const operation = deriveDesktopAudioCodecOperation(request);
 		const tuple = deriveDesktopAudioFfmpegCapabilityTuple(request);
 		const requirements = satisfiedRequirements(tuple, admission.capabilities);
+		const capability = externalCapability(operation, request);
 		const qualifiedCapabilities = requirements === null ? [] : [Object.freeze({
 			capability: Object.freeze({
-				id: `external-audio-${operation.direction}-${request.format}-${String(request.sampleRate)}-${String(request.channelCount)}`,
-				...operation,
+				id: `external-audio-${operation.direction}-${request.format}`
+					+ (request.operation === 'audio-encode'
+						? `-${String(request.sampleRate)}-${String(request.channelCount)}` : '-source-geometry'),
+				...capability,
 			}),
 			implementation: `ffmpeg-${selectedImplementation(tuple, admission.capabilities)}`,
 			requires: requirements,
@@ -319,6 +344,27 @@ function externalProvider(
 			qualifiedCapabilities,
 		});
 	} catch { return unavailableProvider('external-ffmpeg', target); }
+}
+
+function externalCapability(
+	operation: DesktopCodecOperation,
+	request: DesktopAudioCodecRequest,
+): Omit<DesktopCodecCapability, 'id'> {
+	if (request.operation === 'audio-encode') return operation;
+	return Object.freeze({
+		...operation,
+		sampleRate: Object.freeze({
+			minimum: DESKTOP_AUDIO_CODEC_MINIMUM_SAMPLE_RATE,
+			maximum: DESKTOP_AUDIO_CODEC_MAXIMUM_SAMPLE_RATE,
+			multipleOf: 1,
+		}),
+		channelCount: Object.freeze({
+			minimum: 1,
+			maximum: request.format === 'mp3' || request.format === 'mp2'
+				? 2 : DESKTOP_AUDIO_CODEC_MAXIMUM_CHANNEL_COUNT,
+			multipleOf: 1,
+		}),
+	});
 }
 
 function satisfiedRequirements(
@@ -362,7 +408,8 @@ function fixedFfmpegContract(
 		},
 		maximumOutputBytes(operation: DesktopAudioCodecRequest) {
 			if (operation !== request) throw new TypeError('The fixed FFmpeg request changed.');
-			return request.maximumOutputBytes;
+			return request.maximumOutputBytes + (request.operation === 'audio-decode'
+				? DESKTOP_AUDIO_FFMPEG_WAVE_OVERHEAD_LIMIT_BYTES : 0);
 		},
 		buildArguments(operation: DesktopAudioCodecRequest, files: ExternalFfmpegAudioOperationFiles) {
 			if (operation !== request) throw new TypeError('The fixed FFmpeg request changed.');
@@ -391,7 +438,7 @@ function adaptedArguments(
 	}
 	const arguments_ = ['-xerror', ...plan.arguments.slice(PLAN_PREFIX.length)];
 	const outputLimitIndex = arguments_.lastIndexOf('-fs');
-	if (outputLimitIndex < 0 || arguments_[outputLimitIndex + 1] !== String(files.maximumOutputBytes)
+	if (outputLimitIndex < 0 || arguments_[outputLimitIndex + 1] !== String(request.maximumOutputBytes)
 		|| arguments_.indexOf('-fs') !== outputLimitIndex) {
 		throw new TypeError('The fixed FFmpeg output limit changed.');
 	}

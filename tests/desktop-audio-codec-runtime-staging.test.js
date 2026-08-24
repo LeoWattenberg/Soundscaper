@@ -34,6 +34,7 @@ const AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'desktop/desktop-audio-codec-operation-contract.js',
 	'desktop/desktop-audio-codec-runtime-composition.js',
 	'desktop/desktop-audio-ffmpeg-plan.js',
+	'desktop/desktop-audio-ffmpeg-wave-output.js',
 	'desktop/external-ffmpeg-audio-operation-runner.js',
 	'desktop/process-tree-termination.js',
 	'src/common/editor/desktop-codec-coordinator.js',

@@ -56,6 +56,9 @@ test('encode reports and preserves a lossless FLAC stream over explicit signed-2
 	const decoded = await execute(runtime, decodeRequest(encoded.output, 1));
 	assert.equal(decoded.status, 'executed');
 	if (decoded.status !== 'executed') return;
+	assert.deepEqual(decoded.decodedGeometry, {
+		sampleRate: 48_000, channelCount: 1, frameCount: 9,
+	});
 	const values = floats(decoded.output);
 	assert.deepEqual(values.map((value) => Math.round(value * 8_388_608)), [
 		-8_388_608, -8_388_608, -6_291_456, -1_048_576, 0,
@@ -96,10 +99,10 @@ test('decode trusts bounded STREAMINFO geometry and rejects corruption', async (
 	const encoded = await execute(runtime, encodeRequest(floatBytes([0.25, -0.5, 0.75, -1]), 2, 2, 5));
 	assert.equal(encoded.status, 'executed');
 	if (encoded.status !== 'executed') return;
-	const wrongChannels = await execute(runtime, decodeRequest(encoded.output, 1));
-	assert.deepEqual(wrongChannels, {
-		status: 'failed', reason: 'security-failed',
-		detail: 'The FLAC source geometry does not match the decode request.',
+	const sourceGeometry = await execute(runtime, decodeRequest(encoded.output, 1));
+	assert.equal(sourceGeometry.status, 'executed');
+	if (sourceGeometry.status === 'executed') assert.deepEqual(sourceGeometry.decodedGeometry, {
+		sampleRate: 48_000, channelCount: 2, frameCount: 2,
 	});
 	const tooSmall = await execute(runtime, { ...decodeRequest(encoded.output, 2), maximumOutputBytes: 15 });
 	assert.deepEqual(tooSmall, {
@@ -161,9 +164,10 @@ function encodeRequest(
 }
 
 function decodeRequest(input: Uint8Array, channelCount: number): DesktopAudioCodecRequest {
+	assert.ok(channelCount > 0);
 	return Object.freeze({
-		operation: 'audio-decode', format: 'flac', input, sampleRate: 48_000,
-		channelCount, settings: Object.freeze({ sampleFormat: 'f32le' }),
+		operation: 'audio-decode', format: 'flac', input, sampleRate: null,
+		channelCount: null, settings: Object.freeze({ sampleFormat: 'f32le' }),
 		maximumOutputBytes: 1024 * 1024, requestId: 'flac-decode',
 	});
 }

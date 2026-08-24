@@ -77,8 +77,8 @@ const AUDIO_MAP_ARGUMENTS = Object.freeze([
 const PCM_DEMUXERS = Object.freeze(['f32le']);
 const PCM_DECODERS = Object.freeze(['pcm_f32le']);
 const PCM_ENCODERS = Object.freeze(['pcm_f32le']);
-const PCM_MUXERS = Object.freeze(['f32le']);
-const REQUIRED_FILTERS = Object.freeze(['aresample']);
+const PCM_WAVE_MUXERS = Object.freeze(['wav']);
+const REQUIRED_ENCODE_FILTERS = Object.freeze(['aresample']);
 
 export function deriveDesktopAudioFfmpegCapabilityTuple(
 	request: unknown,
@@ -89,14 +89,14 @@ export function deriveDesktopAudioFfmpegCapabilityTuple(
 		return Object.freeze({
 			direction: 'decode', demuxerAnyOf: format.demuxerAnyOf,
 			decoderAnyOf: format.decoderAnyOf, encoderAnyOf: PCM_ENCODERS,
-			muxerAnyOf: PCM_MUXERS, filterAllOf: REQUIRED_FILTERS,
+			muxerAnyOf: PCM_WAVE_MUXERS, filterAllOf: Object.freeze([]),
 		});
 	}
 	const format = ENCODE_FORMATS[request.format];
 	return Object.freeze({
 		direction: 'encode', demuxerAnyOf: PCM_DEMUXERS, decoderAnyOf: PCM_DECODERS,
 		encoderAnyOf: Object.freeze([format.encoder]), muxerAnyOf: Object.freeze([format.muxer]),
-		filterAllOf: REQUIRED_FILTERS,
+		filterAllOf: REQUIRED_ENCODE_FILTERS,
 	});
 }
 
@@ -121,7 +121,7 @@ export function buildDesktopAudioFfmpegPlan(
 ): Readonly<DesktopAudioFfmpegPlan> {
 	assertDesktopAudioCodecRequest(request);
 	const outputExtension = request.operation === 'audio-decode'
-		? '.f32le'
+		? '.wav'
 		: getDesktopAudioFormatDescriptor(request.format).fileExtension;
 	const outputName = `${DESKTOP_AUDIO_FFMPEG_OUTPUT_BASENAME}${outputExtension}`;
 	const inputFormat = request.operation === 'audio-decode'
@@ -129,7 +129,7 @@ export function buildDesktopAudioFfmpegPlan(
 		: 'f32le';
 	if (inputFormat === undefined) throw new TypeError('The desktop audio FFmpeg input format is unavailable.');
 	const outputFormat = request.operation === 'audio-decode'
-		? 'f32le'
+		? 'wav'
 		: ENCODE_FORMATS[request.format].muxer;
 	const encoder = request.operation === 'audio-decode'
 		? 'pcm_f32le'
@@ -146,8 +146,9 @@ export function buildDesktopAudioFfmpegPlan(
 			: []),
 		'-i', DESKTOP_AUDIO_FFMPEG_INPUT_NAME,
 		...AUDIO_MAP_ARGUMENTS,
-		'-af', 'aresample',
-		'-ar', String(request.sampleRate), '-ac', String(request.channelCount),
+		...(request.operation === 'audio-encode'
+			? ['-af', 'aresample', '-ar', String(request.sampleRate), '-ac', String(request.channelCount)]
+			: []),
 		'-c:a', encoder,
 		...codecArguments,
 		'-threads', '1',

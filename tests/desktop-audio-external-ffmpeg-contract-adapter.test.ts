@@ -121,11 +121,11 @@ test('capability admission checks the exact request tuple and decoder alternativ
 	const request = decodeRequest('mp3');
 	const admission = runtimeAdmission({
 		demuxers: ['mp3'], decoders: ['mp3float'], encoders: ['pcm_f32le'],
-		muxers: ['f32le'], filters: ['aresample'],
+		muxers: ['wav'], filters: [],
 	});
 	assert.equal(externalFfmpegAdmissionSupportsDesktopAudioRequest(request, admission), true);
 	assert.equal(externalFfmpegAdmissionSupportsDesktopAudioRequest(request, runtimeAdmission({
-		...admission.capabilities, filters: [],
+		...admission.capabilities, muxers: [],
 	})), false);
 	assert.equal(externalFfmpegAdmissionSupportsDesktopAudioRequest(
 		{ ...request, argv: ['-version'] }, admission,
@@ -168,7 +168,7 @@ function encodeRequest(overrides: Readonly<Record<string, unknown>> = {}): Recor
 function decodeRequest(format: string): Record<string, unknown> {
 	return {
 		operation: 'audio-decode', format, input: Uint8Array.of(1, 2, 3),
-		sampleRate: 48_000, channelCount: 2, settings: { sampleFormat: 'f32le' },
+		sampleRate: null, channelCount: null, settings: { sampleFormat: 'f32le' },
 		maximumOutputBytes: 8_192,
 	};
 }

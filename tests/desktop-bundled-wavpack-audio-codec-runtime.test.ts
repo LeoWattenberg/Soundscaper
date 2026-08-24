@@ -113,9 +113,12 @@ test('the bundled provider encodes and decodes multi-block interleaved float PCM
 	assert.equal(geometry.groups.slice(1).flatMap(({ blocks }) => blocks)
 		.some(({ metadataIds }) => metadataIds.includes(0x21)), false);
 
-	const decoded = await execute(runtime, decodeRequest(encoded.output, frameCount, channelCount));
+	const decoded = await execute(runtime, decodeRequest(encoded.output));
 	assert.equal(decoded.status, 'executed');
 	if (decoded.status !== 'executed') return;
+	assert.deepEqual(decoded.decodedGeometry, {
+		sampleRate: 48_000, channelCount, frameCount,
+	});
 	assert.deepEqual(new Uint32Array(decoded.output.buffer), new Uint32Array(input.buffer));
 });
 
@@ -253,7 +256,7 @@ test('valid unreviewed WavPack requests fall through while malformed input remai
 			return request.operation === 'audio-decode' ? undefined : Uint8Array.of(1);
 		}),
 	] });
-	await assert.rejects(() => broker.execute(decodeRequest(integer, 4_096, 2)), (error: unknown) => {
+	await assert.rejects(() => broker.execute(decodeRequest(integer)), (error: unknown) => {
 		assert.ok(error instanceof DesktopAudioCodecProviderError);
 		assert.equal(error.providerKind, 'external-ffmpeg');
 		assert.equal(error.reason, 'unavailable');
@@ -261,7 +264,7 @@ test('valid unreviewed WavPack requests fall through while malformed input remai
 	});
 	assert.equal(externalExecutions, 1);
 
-	await assert.rejects(() => broker.execute(decodeRequest(checksumFault, 4_096, 2)), (error: unknown) => {
+	await assert.rejects(() => broker.execute(decodeRequest(checksumFault)), (error: unknown) => {
 		assert.ok(error instanceof DesktopCodecOperationError);
 		assert.equal(error.code, 'DESKTOP_CODEC_PREFLIGHT_REJECTED');
 		assert.equal(error.providerId, bundled.provider.id);
@@ -316,19 +319,19 @@ test('decode trusts parsed WavPack geometry, enforces output bounds, and fails c
 	assert.equal(encoded.status, 'executed');
 	if (encoded.status !== 'executed') return;
 
-	const wrongGeometry = await execute(runtime, decodeRequest(encoded.output, frameCount, 1));
-	assert.deepEqual(wrongGeometry, {
-		status: 'failed', reason: 'security-failed',
-		detail: 'The WavPack source geometry does not match the decode request.',
+	const sourceGeometry = await execute(runtime, decodeRequest(encoded.output));
+	assert.equal(sourceGeometry.status, 'executed');
+	if (sourceGeometry.status === 'executed') assert.deepEqual(sourceGeometry.decodedGeometry, {
+		sampleRate: 48_000, channelCount: 2, frameCount,
 	});
 	const tooSmall = await execute(runtime, {
-		...decodeRequest(encoded.output, frameCount, 2), maximumOutputBytes: input.byteLength - 1,
+		...decodeRequest(encoded.output), maximumOutputBytes: input.byteLength - 1,
 	});
 	assert.deepEqual(tooSmall, {
 		status: 'failed', reason: 'result-failed',
 		detail: 'The decoded WavPack PCM exceeds the requested output bound.',
 	});
-	const truncated = await execute(runtime, decodeRequest(encoded.output.subarray(0, encoded.output.byteLength - 1), frameCount, 2));
+	const truncated = await execute(runtime, decodeRequest(encoded.output.subarray(0, encoded.output.byteLength - 1)));
 	assert.equal(truncated.status, 'failed');
 	if (truncated.status === 'failed') assert.equal(truncated.reason, 'security-failed');
 });
@@ -352,7 +355,7 @@ test('high-entropy float bits encode without a raw-size assumption and honor the
 	if (encoded.status !== 'executed') return;
 	assert.ok(encoded.output.byteLength > input.byteLength,
 		'the fixture exercises WavPack expansion beyond raw PCM');
-	const decoded = await execute(runtime, decodeRequest(encoded.output, frameCount, 1));
+	const decoded = await execute(runtime, decodeRequest(encoded.output));
 	assert.equal(decoded.status, 'executed');
 	if (decoded.status === 'executed') {
 		assert.deepEqual(new Uint32Array(decoded.output.buffer), words);
@@ -412,13 +415,10 @@ function encodeRequest(
 
 function decodeRequest(
 	input: Uint8Array,
-	frameCount: number,
-	channelCount: number,
 ): Extract<DesktopAudioCodecRequest, { readonly operation: 'audio-decode' }> {
-	assert.ok(frameCount > 0);
 	return Object.freeze({
 		operation: 'audio-decode' as const, format: 'wavpack' as const, input,
-		sampleRate: 48_000, channelCount, settings: Object.freeze({ sampleFormat: 'f32le' as const }),
+		sampleRate: null, channelCount: null, settings: Object.freeze({ sampleFormat: 'f32le' as const }),
 		maximumOutputBytes: 128 * 1024 * 1024, requestId: 'bundled-wavpack-decode',
 	});
 }

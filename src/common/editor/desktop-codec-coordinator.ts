@@ -51,6 +51,8 @@ export interface DesktopCodecExecutionResult<Value> {
 	readonly value: Value;
 	readonly outputDigest: string;
 	readonly timing: DesktopCodecTimingReceipt | null;
+	/** A decoder may replace only audio geometry with values measured from its source/output. */
+	readonly resolvedOperation?: DesktopCodecOperation;
 }
 
 export interface DesktopCodecOperationReceipt {
@@ -163,12 +165,28 @@ export function createDesktopCodecCoordinator(options: Readonly<{
 				const executed = validateExecutionResult(await executionOptions.run(Object.freeze({
 					provider, operation,
 					...(executionOptions.signal ? { signal: executionOptions.signal } : {}),
-				})));
+				})), operation);
 				throwIfAborted(executionOptions.signal);
+				const receiptOperation = executed.resolvedOperation ?? operation;
+				if (receiptOperation !== operation) {
+					const resolvedPreflight = validatePreflight(await provider.preflight(
+						receiptOperation,
+						Object.freeze({ ...(executionOptions.signal ? { signal: executionOptions.signal } : {}) }),
+					));
+					throwIfAborted(executionOptions.signal);
+					if (resolvedPreflight.disposition !== 'supported') {
+						throw new DesktopCodecOperationError({
+							code: 'DESKTOP_CODEC_PREFLIGHT_REJECTED',
+							message: `Desktop codec provider ${provider.id} does not admit its resolved decode geometry: ${resolvedPreflight.reason}.`,
+							providerId: provider.id,
+							attempts,
+						});
+					}
+				}
 				return Object.freeze({
 					value: executed.value,
 					receipt: Object.freeze({
-						operation,
+						operation: receiptOperation,
 						provider: Object.freeze({
 							kind: provider.kind, id: provider.id,
 							implementation: provider.implementation, version: provider.version,
@@ -264,13 +282,40 @@ function validatePreflight(value: unknown): DesktopCodecPreflightResult {
 	return Object.freeze({ disposition: result.disposition, reason: result.reason });
 }
 
-function validateExecutionResult<Value>(value: DesktopCodecExecutionResult<Value>): DesktopCodecExecutionResult<Value> {
+function validateExecutionResult<Value>(
+	value: DesktopCodecExecutionResult<Value>,
+	requestedOperation: DesktopCodecOperation,
+): DesktopCodecExecutionResult<Value> {
 	if (!value || typeof value !== 'object' || Array.isArray(value) || !Object.hasOwn(value, 'value')) {
 		throw new TypeError('The desktop codec execution result is invalid.');
 	}
 	const outputDigest = digest(value.outputDigest, 'output');
 	const timing = value.timing === null ? null : validateTiming(value.timing);
-	return Object.freeze({ value: value.value, outputDigest, timing });
+	const resolvedOperation = value.resolvedOperation === undefined
+		? undefined
+		: validateResolvedOperation(requestedOperation, value.resolvedOperation);
+	return Object.freeze({
+		value: value.value, outputDigest, timing,
+		...(resolvedOperation === undefined ? {} : { resolvedOperation }),
+	});
+}
+
+function validateResolvedOperation(
+	requested: DesktopCodecOperation,
+	value: DesktopCodecOperation,
+): DesktopCodecOperation {
+	const resolved = validateOperation(value);
+	if (requested.direction !== 'decode' || requested.mediaKind !== 'audio'
+		|| requested.sampleRate !== null || requested.channelCount !== null
+		|| resolved.direction !== requested.direction || resolved.mediaKind !== requested.mediaKind
+		|| resolved.container !== requested.container || resolved.codec !== requested.codec
+		|| resolved.profile !== requested.profile || resolved.sampleFormat !== requested.sampleFormat
+		|| resolved.pixelFormat !== requested.pixelFormat || resolved.width !== requested.width
+		|| resolved.height !== requested.height || resolved.sampleRate === null
+		|| resolved.channelCount === null) {
+		throw new TypeError('The desktop codec resolved operation may replace only decoded audio geometry.');
+	}
+	return resolved;
 }
 
 function validateTiming(value: DesktopCodecTimingReceipt): DesktopCodecTimingReceipt {

@@ -14,37 +14,58 @@ import {
 	type OperatingSystemCodecCanaryRequest,
 } from '../desktop/os-codec-capability-adapter.ts';
 
-test('Windows x64 and ARM64 derive exact Media Foundation AAC and MP3 decode candidates', () => {
+test('Windows x64 and ARM64 derive exact Media Foundation AAC encode candidates', () => {
 	for (const target of ['win-x64', 'win-arm64'] as const) {
-		for (const request of [aacRequest('audio-encode', 48_000, 6), aacRequest('audio-decode', 44_100, 2), mp3DecodeRequest()]) {
-			const result = deriveDesktopAudioOperatingSystemCandidates(target, request);
-			const operation = deriveDesktopAudioCodecOperation(request);
-			assert.equal(result.target, target);
-			assert.equal(result.implementation, 'windows-media-foundation');
-			assert.equal(result.candidates.length, 1);
-			assert.deepEqual(result.candidates[0]?.capability, {
-				id: expectedId('windows-media-foundation', operation),
-				...operation,
-			});
-			assert.equal(result.candidates[0]?.capability.sampleRate, request.sampleRate);
-			assert.equal(result.candidates[0]?.capability.channelCount, request.channelCount);
-			assert.equal(Object.isFrozen(result), true);
-			assert.equal(Object.isFrozen(result.candidates), true);
-			assert.equal(Object.isFrozen(result.candidates[0]), true);
-			assert.equal(Object.isFrozen(result.candidates[0]?.capability), true);
-		}
+		const request = aacRequest('audio-encode', 48_000, 6);
+		const result = deriveDesktopAudioOperatingSystemCandidates(target, request);
+		const operation = deriveDesktopAudioCodecOperation(request);
+		assert.equal(result.target, target);
+		assert.equal(result.implementation, 'windows-media-foundation');
+		assert.equal(result.candidates.length, 1);
+		assert.deepEqual(result.candidates[0]?.capability, {
+			id: expectedId('windows-media-foundation', operation),
+			...operation,
+		});
+		assert.equal(Object.isFrozen(result), true);
+		assert.equal(Object.isFrozen(result.candidates), true);
+		assert.equal(Object.isFrozen(result.candidates[0]), true);
+		assert.equal(Object.isFrozen(result.candidates[0]?.capability), true);
 	}
 });
 
-test('macOS ARM64 derives the same reviewed tuples with the Apple audio binding', () => {
-	for (const request of [aacRequest('audio-encode', 96_000, 2), aacRequest('audio-decode', 48_000, 1), mp3DecodeRequest()]) {
-		const result = deriveDesktopAudioOperatingSystemCandidates('mac-arm64', request);
-		const operation = deriveDesktopAudioCodecOperation(request);
-		assert.equal(result.implementation, 'apple-audiotoolbox-avfoundation');
-		assert.deepEqual(result.candidates[0]?.capability, {
-			id: expectedId('apple-audiotoolbox-avfoundation', operation),
-			...operation,
-		});
+test('macOS ARM64 derives the same reviewed encode tuple with the Apple audio binding', () => {
+	const request = aacRequest('audio-encode', 96_000, 2);
+	const result = deriveDesktopAudioOperatingSystemCandidates('mac-arm64', request);
+	const operation = deriveDesktopAudioCodecOperation(request);
+	assert.equal(result.implementation, 'apple-audiotoolbox-avfoundation');
+	assert.deepEqual(result.candidates[0]?.capability, {
+		id: expectedId('apple-audiotoolbox-avfoundation', operation),
+		...operation,
+	});
+});
+
+test('decode canary candidates require explicit resolved source geometry', () => {
+	for (const [target, implementation] of [
+		['win-x64', 'windows-media-foundation'],
+		['mac-arm64', 'apple-audiotoolbox-avfoundation'],
+	] as const) {
+		for (const operation of [
+			resolvedDecodeOperation('aac-m4a', 44_100, 2),
+			resolvedDecodeOperation('mp3', 48_000, 1),
+		]) {
+			const result = deriveDesktopAudioOperatingSystemCandidatesFromOperation(target, operation);
+			assert.deepEqual(result.candidates[0]?.capability, {
+				id: expectedId(implementation, operation), ...operation,
+			});
+		}
+		assert.deepEqual(
+			deriveDesktopAudioOperatingSystemCandidates(target, aacRequest('audio-decode')).candidates,
+			[],
+		);
+		assert.deepEqual(
+			deriveDesktopAudioOperatingSystemCandidates(target, mp3DecodeRequest()).candidates,
+			[],
+		);
 	}
 });
 
@@ -63,7 +84,7 @@ test('Linux has no OS provider candidate and macOS x64 is explicitly unsupported
 
 test('open codecs remain bundled-owner territory and MP3 encode is not claimed by the OS', () => {
 	for (const request of [
-		encodeRequest('flac', { compressionLevel: 5 }),
+		encodeRequest('flac', { compressionLevel: 5, bitDepth: 24 }),
 		encodeRequest('ogg-vorbis', { quality: 6 }),
 		encodeRequest('opus', { bitrateKbps: 128 }),
 		encodeRequest('wavpack', { compressionLevel: 2 }),
@@ -104,7 +125,7 @@ test('a valid but unreviewed operation tuple returns no candidate', () => {
 		deriveDesktopAudioOperatingSystemCandidatesFromOperation('win-arm64', mp3Encode).candidates,
 		[],
 	);
-	const changedProfile = { ...deriveDesktopAudioCodecOperation(aacRequest('audio-decode')), profile: 'he' };
+	const changedProfile = { ...resolvedDecodeOperation('aac-m4a', 48_000, 2), profile: 'he' };
 	assert.deepEqual(
 		deriveDesktopAudioOperatingSystemCandidatesFromOperation('mac-arm64', changedProfile).candidates,
 		[],
@@ -112,8 +133,8 @@ test('a valid but unreviewed operation tuple returns no candidate', () => {
 });
 
 test('derived candidates bind canonically through the existing canary admission seam', async () => {
-	const candidateSet = deriveDesktopAudioOperatingSystemCandidates(
-		'mac-arm64', aacRequest('audio-decode', 48_000, 2),
+	const candidateSet = deriveDesktopAudioOperatingSystemCandidatesFromOperation(
+		'mac-arm64', resolvedDecodeOperation('aac-m4a', 48_000, 2),
 	);
 	const received: OperatingSystemCodecCanaryRequest[] = [];
 	const admission = await qualifyOperatingSystemCodecCapabilities({
@@ -156,11 +177,18 @@ function mp3DecodeRequest(): Record<string, unknown> {
 }
 
 function decodeRequest(format: string, sampleRate = 48_000, channelCount = 2): Record<string, unknown> {
+	assert.ok(sampleRate > 0 && channelCount > 0);
 	return {
 		operation: 'audio-decode', format, input: Uint8Array.of(1, 2, 3),
-		sampleRate, channelCount, settings: { sampleFormat: 'f32le' },
+		sampleRate: null, channelCount: null, settings: { sampleFormat: 'f32le' },
 		maximumOutputBytes: 8_192,
 	};
+}
+
+function resolvedDecodeOperation(format: 'aac-m4a' | 'mp3', sampleRate: number, channelCount: number) {
+	return Object.freeze({
+		...deriveDesktopAudioCodecOperation(decodeRequest(format)), sampleRate, channelCount,
+	});
 }
 
 function encodeRequest(

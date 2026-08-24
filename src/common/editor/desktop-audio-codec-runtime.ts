@@ -10,15 +10,18 @@ import {
 	normalizeDesktopAudioCodecCapabilityQuery, normalizeDesktopAudioCodecCapabilityResult, type DesktopAudioCodecCapabilityQuery,
 	type DesktopAudioCodecCapabilityResult, type DesktopAudioCodecCapabilityTuple,
 } from '../../../desktop/desktop-audio-codec-capability-contract.ts';
-import { parseBundledFlacStream } from '../../../desktop/bundled-flac-stream.ts';
 import {
 	createDesktopAudioCodecCapabilityQuery, desktopAudioCodecCapabilityReason,
 	desktopAudioCodecMediaExportCapabilities, queryDesktopAudioCodecCapability,
 	type DesktopAudioCodecCapabilities,
 } from './desktop-audio-codec-capabilities.ts';
 import {
+	assertDesktopAudioCodecResultCorrelation, projectDesktopAudioDecodeResult,
+	type DesktopAudioCodecDecodedResult,
+} from './desktop-audio-codec-result.ts';
+import {
 	applyMediaChannelMapping, canonicalMediaExportFormat, createMediaExportCapabilities,
-	normalizeMediaDecodeSampleRate, normalizeMediaExportSettings,
+	normalizeMediaExportSettings,
 } from './media-export.js';
 import {
 	FFMPEG_OUTPUT_STREAM_MAXIMUM_CHUNK_BYTES, abortFfmpegOutputSink,
@@ -52,9 +55,7 @@ export interface DesktopAudioCodecEncodedResult {
 	readonly bytes: Uint8Array; readonly extension: string; readonly mimeType: string;
 }
 
-export interface DesktopAudioCodecDecodedResult {
-	readonly sampleRate: number; readonly channels: readonly Float32Array[]; readonly frameCount: number;
-}
+export type { DesktopAudioCodecDecodedResult } from './desktop-audio-codec-result.ts';
 
 export interface DesktopAudioCodecStreamResult<Output> {
 	readonly output: Output; readonly byteLength: number; readonly chunkCount: number;
@@ -189,21 +190,14 @@ export function createDesktopAudioCodecRuntime(bridgeValue: DesktopAudioCodecRen
 			throwIfAborted(settings.signal);
 			const input = await boundedInputBytes(file, settings.signal);
 			const format = decodeFormat(file, input, settings.format);
-			const flacGeometry = format === 'flac' && signatureFormat(input) === 'flac'
-				? parseBundledFlacStream(input)
-				: null;
-			const sampleRate = flacGeometry?.sampleRate
-				?? normalizeMediaDecodeSampleRate(settings.sampleRate ?? 48_000) as number;
-			const channelCount = flacGeometry?.channelCount ?? settings.channelCount ?? 2;
 			const maximumOutputBytes = settings.maximumOutputBytes ?? DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES;
 			const request = normalizeDesktopAudioCodecRequest({
-				operation: 'audio-decode', format, input, sampleRate, channelCount,
+				operation: 'audio-decode', format, input, sampleRate: null, channelCount: null,
 				settings: { sampleFormat: 'f32le' }, maximumOutputBytes,
 				requestId: mintRequestId(active),
 			});
-			await assertCapability(request, settings.signal);
 			const result = await executeRequest(request, settings.signal);
-			return decodedResult(result, request);
+			return projectDesktopAudioDecodeResult(result);
 		},
 		encodeVideo: rejectVideo,
 		encodeVideoToSink: rejectVideo,
@@ -280,7 +274,7 @@ export function createDesktopAudioCodecRuntime(bridgeValue: DesktopAudioCodecRen
 			const execution = Promise.resolve().then(() => cancelled ? cancellation : bridge.execute(request));
 			const value = await Promise.race([execution, cancellation]);
 			const result = normalizeDesktopAudioCodecResult(value, request.maximumOutputBytes);
-			assertCorrelatedResult(result, request);
+			assertDesktopAudioCodecResultCorrelation(result, request);
 			return result;
 		} finally {
 			signal?.removeEventListener('abort', onAbort);
@@ -381,49 +375,6 @@ function encodeSettings(format: DesktopAudioCodecFormat, media: NormalizedMediaS
 		return Object.freeze({ quality: requiredInteger(media.quality, 'Vorbis quality') });
 	}
 	return Object.freeze({ bitrateKbps: requiredInteger(media.bitRate, `${format} bitrate`) });
-}
-
-function decodedResult(result: DesktopAudioCodecResult, request: DesktopAudioCodecRequest,
-): DesktopAudioCodecDecodedResult {
-	if (result.operation !== 'audio-decode') throw new Error('The desktop audio bridge returned an encode result for decode.');
-	const channels = Array.from({ length: result.metadata.channelCount }, () => (
-		new Float32Array(result.metadata.frameCount)
-	));
-	const view = new DataView(result.bytes.buffer, result.bytes.byteOffset, result.bytes.byteLength);
-	for (let frame = 0; frame < result.metadata.frameCount; frame += 1) {
-		for (let channel = 0; channel < channels.length; channel += 1) {
-			const sample = view.getFloat32((frame * channels.length + channel) * 4, true);
-			channels[channel]![frame] = Number.isFinite(sample) ? sample : 0;
-		}
-	}
-	return Object.freeze({
-		sampleRate: request.sampleRate,
-		channels: Object.freeze(channels),
-		frameCount: result.metadata.frameCount,
-	});
-}
-
-function assertCorrelatedResult(result: DesktopAudioCodecResult, request: DesktopAudioCodecRequest): void {
-	if (result.requestId !== request.requestId) {
-		throw new Error('The desktop audio bridge result request ID does not match its request.');
-	}
-	if (result.operation !== request.operation) {
-		throw new Error('The desktop audio bridge result operation does not match its request.');
-	}
-	if (result.operation === 'audio-decode') {
-		if (request.operation !== 'audio-decode' || result.metadata.sourceFormat !== request.format
-			|| result.metadata.sampleRate !== request.sampleRate
-			|| result.metadata.channelCount !== request.channelCount) {
-			throw new Error('The desktop audio bridge decoded metadata does not match its request.');
-		}
-		return;
-	}
-	if (request.operation !== 'audio-encode' || result.metadata.format !== request.format
-		|| result.metadata.sampleRate !== request.sampleRate
-		|| result.metadata.channelCount !== request.channelCount
-		|| result.metadata.frameCount !== request.input.byteLength / (request.channelCount * 4)) {
-		throw new Error('The desktop audio bridge encoded metadata does not match its request.');
-	}
 }
 
 async function boundedInputBytes(value: Blob | ArrayBuffer | ArrayBufferView, signal?: AbortSignal,
