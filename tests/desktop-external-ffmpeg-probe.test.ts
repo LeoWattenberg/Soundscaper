@@ -88,7 +88,7 @@ test('versioned FFmpeg CLI builds from 4.4 through 9.x are admitted', () => {
 		['4.4', '4.4.0'],
 		['n4.4.8', '4.4.8'],
 		['7.1.1-full_build-www.gyan.dev', '7.1.1'],
-		['8.1.2-21-gabcdef', '8.1.2'],
+		['n8.1.2-21-gabcdef', '8.1.2'],
 		['9.0.1', '9.0.1'],
 	] as const) {
 		const parsed = parseExternalFfmpegVersionOutput(
