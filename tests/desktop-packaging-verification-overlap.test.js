@@ -34,6 +34,7 @@ test('afterPack starts payload verification without waiting for the codec absenc
 			started.push('codec-absence');
 			await audit;
 		},
+		verifyPackagedElectronAlternateFfmpeg: async () => { started.push('electron-ffmpeg'); },
 		verifyPackagedAssistanceNativeRuntime: async () => { started.push('assistance-native'); },
 		verifyPackagedNativeAddonResources: async () => { started.push('native'); },
 		verifyPackagedSoundscaperProfessionalNativeResources: async () => {
@@ -47,7 +48,7 @@ test('afterPack starts payload verification without waiting for the codec absenc
 	})
 		.then(() => null, (error) => error);
 	assert.deepEqual(started, [
-		'codec-absence', 'assistance-native', 'native', 'soundscaper-professional',
+		'codec-absence', 'electron-ffmpeg', 'assistance-native', 'native', 'soundscaper-professional',
 		'framescaper-native-hosts',
 	]);
 	releaseAudit();

@@ -12,6 +12,7 @@ import {
 	assertDesktopCodecPolicy,
 	auditDesktopFfmpegAbsence,
 } from './lib/desktop-codec-policy.mjs';
+import { verifyPackagedElectronAlternateFfmpeg } from './lib/electron-alternate-ffmpeg.mjs';
 import {
 	NATIVE_ADDON_RUNTIME_PREFIX,
 	nativeAddonPayloadOutputRoot,
@@ -53,10 +54,13 @@ export default async function hardenPackagedElectron(context, dependencies = {})
 		?? verifyPackagedSoundscaperProfessionalNativeResources;
 	const verifyNativeHosts = dependencies.verifyPackagedFramescaperNativeHostResources
 		?? verifyPackagedFramescaperNativeHostResources;
+	const verifyElectronFfmpeg = dependencies.verifyPackagedElectronAlternateFfmpeg
+		?? verifyPackagedElectronAlternateFfmpeg;
 	// The absence audit and native payload verifiers cover disjoint policy
 	// concerns, so they run together before fuse or signing work begins.
 	await Promise.all([
 		auditCodecPolicy(context, dependencies),
+		verifyElectronFfmpeg(context, dependencies),
 		verifyAssistance(context, dependencies),
 		verifyNativeAddon(context, dependencies),
 		verifyProfessional(context, dependencies),

@@ -78,6 +78,7 @@ test('afterPack verifies the packaged native addon payload before any fuse work'
 	const invoke = () => hardenPackagedElectron(packagingContext(root, resources), {
 		repositoryRoot: process.cwd(),
 		stageManifestPath,
+		verifyPackagedElectronAlternateFfmpeg: async () => {},
 		flipFuses: async (...args) => { fuseCalls.push(args); },
 		writeDesktopPackageContentManifest: async () => {},
 	});

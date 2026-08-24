@@ -116,6 +116,7 @@ async function packagedFixture(context) {
 
 function nativeVerifierStubs() {
 	return {
+		verifyPackagedElectronAlternateFfmpeg: async () => {},
 		verifyPackagedAssistanceNativeRuntime: async () => {},
 		verifyPackagedNativeAddonResources: async () => {},
 		verifyPackagedSoundscaperProfessionalNativeResources: async () => {},
