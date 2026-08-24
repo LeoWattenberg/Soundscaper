@@ -5,7 +5,7 @@ import {
 	planVideoSourceUpgrade,
 	type VideoSourceUpgradePlan,
 } from '../video-source-upgrade.ts';
-import { createFfmpegVideoTimingProbe, probeVideoTiming } from '../video-timing-probe.ts';
+import { createFfmpegVideoTimingProbe, probeVideoTiming, type VideoTimingProbePort } from '../video-timing-probe.ts';
 import { digestMediaContent } from '../storage/media-content-digest.ts';
 import { publishVideoTimingAsset, type VideoTimingMediaStore } from '../video-timing-storage.ts';
 import type { AudioEditorCommand } from '../commands/protocol.ts';
@@ -45,6 +45,8 @@ export interface VideoSourceReprobeDependencies {
 	readonly lifetime: Pick<EditorControllerLifetime, 'assertActive'>;
 	readonly store: VideoSourceReprobeStore;
 	readonly ffmpeg: DataRecord;
+	/** The native helper probe, ordered ahead of the wasm probe when present. */
+	readonly helperTimingProbe?: VideoTimingProbePort | null;
 	getProject(): DataRecord;
 	captureProject(): unknown;
 	assertProject(token: unknown): void;
@@ -93,8 +95,12 @@ export function createVideoSourceReprobeService(
 			);
 		}
 		const ffmpegProbe = createFfmpegVideoTimingProbe(dependencies.ffmpeg);
+		// The helper probe leads and the wasm probe visibly takes over on its
+		// failure, matching import, proxy, and capture; re-probe was the one
+		// surface that never attempted the helper it is documented to drive.
 		const probe = await probeVideoTiming(media, {
-			probes: ffmpegProbe ? [ffmpegProbe] : [],
+			probes: [dependencies.helperTimingProbe ?? null, ffmpegProbe]
+				.filter((candidate): candidate is VideoTimingProbePort => Boolean(candidate)),
 			signal: options.signal,
 		});
 		const presented = await presentedSize(dependencies, media);

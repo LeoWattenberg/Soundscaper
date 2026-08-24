@@ -115,6 +115,7 @@ async function harness(overrides: Readonly<Record<string, unknown>> = {}) {
 	const service = createVideoSourceReprobeService({
 		lifetime: new EditorControllerLifetime(),
 		store,
+		helperTimingProbe: (overrides.helperTimingProbe as never) ?? null,
 		ffmpeg: {
 			probeVideoTiming: overrides.probeVideoTiming as never ?? (() => Promise.resolve({
 				nominalRate: EXACT_RATE,
@@ -169,6 +170,23 @@ test('a re-probe reads the source\'s own bytes and commits one command', async (
 	assert.equal(store.assets.size, 1);
 	// The registered timing index came from the old reading, so it is re-bound.
 	assert.equal(activated.length, 1);
+});
+
+test('a re-probe attempts the native helper first and falls to wasm visibly', async () => {
+	const helperCalls: unknown[] = [];
+	const { service } = await harness({
+		helperTimingProbe: {
+			id: 'native-helper',
+			probe: (_input: Blob, probeOptions: Readonly<{ signal?: AbortSignal }> = {}) => {
+				helperCalls.push(probeOptions.signal ?? null);
+				return Promise.reject(new Error('helper unavailable in this fixture'));
+			},
+		},
+	});
+	const result = await service.reprobe('video-source');
+	assert.equal(helperCalls.length, 1,
+		'the re-probe command must drive the helper probe ahead of the wasm probe');
+	assert.equal(result.upgraded, true, 'the wasm probe still takes over when the helper fails');
 });
 
 test('a probe that cannot reach exact timing commits nothing and keeps no asset', async () => {
