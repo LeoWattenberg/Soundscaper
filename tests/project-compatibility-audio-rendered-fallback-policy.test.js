@@ -46,7 +46,7 @@ test('compatibility policy qualifies role-defined audio whole-mix fallback playb
 	);
 	assert.match(
 		rule.currentBehavior,
-		/standalone audio delivery projection.*only.*audio rendered fallback.*does not compose.*video rendered fallback.*bypass.*simultaneous rendered fallback.*reject/iu,
+		/standalone audio delivery projection.*audio rendered fallback.*reapplies the audio effect bypass.*does not compose the video.*rendered fallback.*simultaneous rendered fallback.*reject/iu,
 	);
 	assert.match(rule.currentBehavior, /final-video delivery.*compose.*one.*audio whole-mix.*one.*maintained video fallback.*single.*integrity admission/iu);
 	assert.match(
@@ -141,7 +141,7 @@ test('compatibility policy qualifies role-defined audio whole-mix fallback playb
 	assert.match(documentation, /each canonical playback reapply.*replaceable controller-lifetime task.*newer reapply.*successful project switch.*abort.*metadata.*audio-context.*decoded-body.*exact signal reason.*late settlement.*buffer.*provider.*engine-source.*missing-source.*status.*only the newest source-ready projection.*engine/isu);
 	assert.match(documentation, /engine.*already entered.*not abortable.*transactional.*engine-side effects.*later activation.*failure.*successful commit.*does not roll back.*ordinary-source loading.*outside.*cache-fit policy.*does not.*prefetch or revalidate/isu);
 	assert.match(documentation, /explicit desktop handoff.*manifest reachability.*fallback.*no timeline or Project Bin clip.*Soundscaper.*org\.example\.future-mixer.*feature-requirement report.*current writable project lock.*unchanged.*without flushing.*declared read-only.*future-schema.*lock-contended.*reject.*fresh Framescaper.*canonical original and fallback PCM.*exact managed.*bodies.*canonical project shadow.*transfer.*managed descriptor and body digest.*controller.*manifest fallback digest.*before.*read-only activation.*engine.*synthetic whole-mix.*exact fallback samples.*document snapshot.*canonical project/isu);
-	assert.match(documentation, /standalone audio-delivery projection.*only.*audio rendered fallback.*does not compose.*video rendered fallback.*bypass.*simultaneous rendered fallback.*reject/isu);
+	assert.match(documentation, /standalone audio-delivery projection.*audio rendered fallback.*reapplies the audio effect bypass.*does not compose the video.*rendered fallback.*simultaneous rendered fallback.*reject/isu);
 	assert.match(documentation, /final-video delivery.*compose.*one.*audio whole-mix.*one.*maintained video fallback.*single.*integrity admission/isu);
 	assert.match(documentation, /final-mix.*only.*stems.*BW64.*ADM.*reject.*before.*verification.*planning.*destination.*render/isu);
 	assert.match(documentation, /operation-time.*selector.*requirement ID.*feature ID.*audio kind.*source ID.*SHA-256.*full canonical.*chunk scan.*private.*chunk provider.*sole.*render source.*global.*cache.*unchanged/isu);

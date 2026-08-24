@@ -63,7 +63,7 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 	);
 	assert.match(
 		rule.currentBehavior,
-		/video delivery projection.*audio rendered-fallback projection of either closed audio role.*then.*video rendered fallback.*at most one.*audio.*one.*video.*bypass projections.*not applied.*unrepresented.*duplicate same-kind.*reject.*full-project plan.*only video input.*clip-local plan.*selected target input.*unaffected clip-local video inputs.*ordinary loading/iu,
+		/video delivery projection.*audio rendered-fallback projection of either closed audio role.*then.*video rendered fallback.*at most one.*audio.*one.*video.*reapplies exactly the audio and video effect bypasses playback applied.*unrepresented.*duplicate same-kind.*reject.*full-project plan.*only video input.*clip-local plan.*selected target input.*unaffected clip-local video inputs.*ordinary loading/iu,
 	);
 	assert.match(
 		rule.currentBehavior,

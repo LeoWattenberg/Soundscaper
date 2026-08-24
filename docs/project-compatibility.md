@@ -1781,9 +1781,11 @@ the switch does so before teardown. Late settlement is fenced from
 buffer, provider, engine-source, missing-source, and status publication. In the
 tested stalled-preparation race, only the newest source-ready projection enters
 the engine.
-The standalone audio-delivery projection invokes only the
-audio rendered fallback. It does not compose the video rendered fallback or
-either bypass projection, and a simultaneous rendered fallback rejects
+The standalone audio-delivery projection invokes the
+audio rendered fallback and reapplies the audio effect bypass playback
+applied — playback and delivery are the same render, so a bypassed effect
+never reappears in the delivered file. It does not compose the video
+rendered fallback, and a simultaneous rendered fallback rejects
 instead of delivering a partial projection. Maintained final-video delivery
 is the separate composed path: it may compose one audio whole-mix fallback
 with one maintained video fallback through a single joint integrity
@@ -1907,8 +1909,10 @@ projected clip's exact source identity rather than assuming canonical clip state
 The maintained video-delivery projection applies the active audio
 rendered-fallback projection — the audio whole-mix or the track render —
 first and then the selected video rendered fallback. It represents at most one
-audio and one video rendered fallback and applies no bypass projections;
-unrepresented, duplicate same-kind, unsupported-role, or additional rendered
+audio and one video rendered fallback and reapplies exactly the audio and
+video effect bypasses playback applied, so a bypassed effect never
+reappears in the delivered file; unrepresented, duplicate same-kind,
+unsupported-role, or additional rendered
 fallbacks reject instead of delivering a partial projection. Standalone
 final-audio delivery does not compose and still rejects simultaneous rendered
 fallbacks. The verified `Blob` is the whole-project plan's only video input or
@@ -2023,7 +2027,7 @@ workspace never traverses future-schema `featureRequirements` state.
 A separate read-only affected-object pass names the canonical objects behind
 each unavailable or unknown requirement, including publisher feature identities
 the maintained first-party inventories cannot name, and says plainly when it can
-name none. It runs only for exact schema 17 with a `soundscaper-project` report
+name none. It runs for every maintained feature schema with a `soundscaper-project` report
 whose `compatible` value is exactly `false`, and it returns one entry per report
 item reported unavailable or unknown, or no index at all when no item qualifies.
 A compatible report, an available-only report, an absent, item-less, or
