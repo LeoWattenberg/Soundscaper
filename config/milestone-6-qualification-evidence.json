@@ -1,0 +1,31 @@
+{
+	"schemaVersion": 1,
+	"workloadId": "m6-reference-master-delivery",
+	"evidenceRoot": "qualification/milestone-6",
+	"status": "pending-external",
+	"blockedBy": "The owner-controlled fixed RTX 3090 run and complete 18-profile native OS lab matrix have not published accepted Milestone 6 evidence.",
+	"sourceRevision": null,
+	"budgetSha256": null,
+	"cohort": { "path": null, "byteLength": null, "sha256": null },
+	"measurements": [
+		{ "profileId": "fixed-rtx3090", "environmentId": "owner-qualified-windows-x64-rtx3090-01", "path": null, "byteLength": null, "sha256": null },
+		{ "profileId": "soundscaper-windows-x64-wasapi-shared", "environmentId": "native-os-lab-matrix", "path": null, "byteLength": null, "sha256": null },
+		{ "profileId": "soundscaper-windows-x64-wasapi-exclusive", "environmentId": "native-os-lab-matrix", "path": null, "byteLength": null, "sha256": null },
+		{ "profileId": "soundscaper-windows-x64-asio", "environmentId": "native-os-lab-matrix", "path": null, "byteLength": null, "sha256": null },
+		{ "profileId": "soundscaper-windows-arm64-wasapi-shared", "environmentId": "native-os-lab-matrix", "path": null, "byteLength": null, "sha256": null },
+		{ "profileId": "soundscaper-windows-arm64-wasapi-exclusive", "environmentId": "native-os-lab-matrix", "path": null, "byteLength": null, "sha256": null },
+		{ "profileId": "soundscaper-windows-arm64-asio", "environmentId": "native-os-lab-matrix", "path": null, "byteLength": null, "sha256": null },
+		{ "profileId": "soundscaper-macos-arm64-coreaudio", "environmentId": "native-os-lab-matrix", "path": null, "byteLength": null, "sha256": null },
+		{ "profileId": "soundscaper-linux-x64-pipewire", "environmentId": "native-os-lab-matrix", "path": null, "byteLength": null, "sha256": null },
+		{ "profileId": "soundscaper-linux-x64-alsa", "environmentId": "native-os-lab-matrix", "path": null, "byteLength": null, "sha256": null },
+		{ "profileId": "soundscaper-linux-arm64-pipewire", "environmentId": "native-os-lab-matrix", "path": null, "byteLength": null, "sha256": null },
+		{ "profileId": "soundscaper-linux-arm64-alsa", "environmentId": "native-os-lab-matrix", "path": null, "byteLength": null, "sha256": null },
+		{ "profileId": "framescaper-windows-x64-d3d11va-mf-opengl", "environmentId": "native-os-lab-matrix", "path": null, "byteLength": null, "sha256": null },
+		{ "profileId": "framescaper-windows-arm64-d3d11va-mf-opengl", "environmentId": "native-os-lab-matrix", "path": null, "byteLength": null, "sha256": null },
+		{ "profileId": "framescaper-macos-arm64-videotoolbox-metal", "environmentId": "native-os-lab-matrix", "path": null, "byteLength": null, "sha256": null },
+		{ "profileId": "framescaper-linux-x64-vaapi-opengl-x11", "environmentId": "native-os-lab-matrix", "path": null, "byteLength": null, "sha256": null },
+		{ "profileId": "framescaper-linux-x64-vaapi-opengl-xwayland", "environmentId": "native-os-lab-matrix", "path": null, "byteLength": null, "sha256": null },
+		{ "profileId": "framescaper-linux-arm64-vaapi-opengl-x11", "environmentId": "native-os-lab-matrix", "path": null, "byteLength": null, "sha256": null },
+		{ "profileId": "framescaper-linux-arm64-vaapi-opengl-xwayland", "environmentId": "native-os-lab-matrix", "path": null, "byteLength": null, "sha256": null }
+	]
+}
