@@ -4,9 +4,10 @@
 
 import { spawn as nodeSpawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { constants as fsConstants } from 'node:fs';
 import { chmod, mkdir, mkdtemp, open, rm, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
+
+import { readBoundedRegularFile } from './bounded-regular-file.ts';
 
 export interface ExternalFfmpegAudioOperationFiles {
 	readonly inputPath: string;
@@ -289,8 +290,12 @@ async function executeStaged<Operation>(options: Readonly<{
 		limits: options.limits, signal: options.request.signal, launch: options.launch,
 	});
 	if (processResult.status === 'unavailable') return processResult;
-	const output = await readBoundedOutput(options.files.outputPath, options.files.maximumOutputBytes);
-	if (output.status === 'unavailable') return { ...output, log: processResult.log };
+	const output = await readBoundedRegularFile(options.files.outputPath, options.files.maximumOutputBytes);
+	if (output.status === 'unavailable') return {
+		...unavailable(output.reason === 'limit' ? 'output-limit'
+			: output.reason === 'missing' ? 'output-missing' : 'output-invalid'),
+		log: processResult.log,
+	};
 	return Object.freeze({ status: 'executed', output: output.bytes, log: processResult.log });
 }
 
@@ -507,34 +512,6 @@ function childEnvironment(
 		...base, TEMP: scratchDirectory, TMP: scratchDirectory, TMPDIR: scratchDirectory,
 		USERPROFILE: scratchDirectory,
 	});
-}
-
-async function readBoundedOutput(
-	path: string,
-	maximumBytes: number,
-): Promise<Readonly<{ readonly status: 'available'; readonly bytes: Uint8Array }>
-	| Extract<ExternalFfmpegAudioOperationResult, { status: 'unavailable' }>> {
-	let handle;
-	try { handle = await open(path, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW); }
-	catch (error) { return unavailable(errorCode(error) === 'ENOENT' ? 'output-missing' : 'output-invalid'); }
-	try {
-		const metadata = await handle.stat();
-		if (!metadata.isFile()) return unavailable('output-invalid');
-		if (!Number.isSafeInteger(metadata.size) || metadata.size > maximumBytes) return unavailable('output-limit');
-		if (metadata.size < 1) return unavailable('output-missing');
-		const buffer = Buffer.alloc(metadata.size);
-		let offset = 0;
-		while (offset < buffer.byteLength) {
-			const { bytesRead } = await handle.read(buffer, offset, buffer.byteLength - offset, offset);
-			if (bytesRead < 1) break;
-			offset += bytesRead;
-		}
-		const overflow = Buffer.alloc(1);
-		if ((await handle.read(overflow, 0, 1, offset)).bytesRead > 0) return unavailable('output-limit');
-		if (offset < 1) return unavailable('output-missing');
-		return Object.freeze({ status: 'available', bytes: Uint8Array.from(buffer.subarray(0, offset)) });
-	} catch { return unavailable('output-invalid'); }
-	finally { await handle.close().catch(() => undefined); }
 }
 
 function defaultSpawn(
