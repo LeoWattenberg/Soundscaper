@@ -22,6 +22,7 @@ import {
 	createOmittedRiffAnnotationImportReport,
 	createRiffAnnotationImport,
 } from '../timeline-annotation-riff-interchange.ts';
+import { scaleSampleFrame } from '../timeline-time.ts';
 
 export interface ProjectImportRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -412,7 +413,9 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			sourceId,
 			timelineStartFrame: 0,
 			sourceStartFrame: 0,
-			durationFrames: Math.max(1, Math.round(canonical.length * projectSampleRate() / canonical.sampleRate)),
+				durationFrames: Math.max(1, scaleSampleFrame(
+					canonical.length, canonical.sampleRate, projectSampleRate(), 'point',
+				)),
 		}, trackName, wavMetadata.importOptions, wavMetadata.projectBext, wavDescriptor?.markers || [], wavDescriptor?.sampleRate || canonical.sampleRate, wavMetadata.projectIxml, wavMetadata.projectCart, wavMetadata.projectAdmCandidate, wavDescriptor);
 		cacheSourceBuffer(sourceId, canonical);
 		try {

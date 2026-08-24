@@ -12,7 +12,7 @@ import {
 } from './sound-activated-recording-capture-session.ts';
 import { compactSoundActivationSegments } from './sound-activated-recording-chunk.ts';
 import { calculateAudioEditorCountInFrames } from './transport-model.ts';
-import { countInSampleFrames } from '../timeline-time.ts';
+import { countInSampleFrames, scaleSampleFrame, secondsToSampleFrame } from '../timeline-time.ts';
 import type {
 	RecordingMediaStream,
 	RecordingRoute,
@@ -484,8 +484,10 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 				: 0;
 			const availableLeadInFrames = Math.min(leadInFrames, requestedStartFrame);
 			const setRecorderSchedule = (contextStartTime: number) => {
-				const startFrame = Math.ceil(
-					(contextStartTime + availableLeadInFrames / sampleRate) * context.sampleRate,
+				const startFrame = secondsToSampleFrame(
+					contextStartTime + availableLeadInFrames / sampleRate,
+					context.sampleRate,
+					'enclosingEnd',
 				);
 				for (const session of sourceSessions) {
 					const selectionProjectFrames = selection
@@ -493,7 +495,9 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 						: 0;
 					session.startFrame = startFrame;
 					session.stopFrame = selection
-						? startFrame + Math.ceil(selectionProjectFrames * context.sampleRate / sampleRate)
+						? startFrame + scaleSampleFrame(
+							selectionProjectFrames, sampleRate, context.sampleRate, 'enclosingEnd',
+						)
 						: undefined;
 					for (const entry of session.entries) {
 						state.recordingRouteHealth[entry.trackId] = timedStart ? 'open' : 'recording';

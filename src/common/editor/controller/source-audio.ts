@@ -1,6 +1,7 @@
 import { createPlanarPcmChunkCoalescer } from '../pcm-chunks.js';
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../project.js';
 import { createStreamingWindowedSincResampler } from '../resample.js';
+import { scaleSampleFrame } from '../timeline-time.ts';
 import { abortError, throwIfAborted } from './app-helpers.ts';
 
 export const SOURCE_CHUNK_FRAMES = 65_536;
@@ -337,7 +338,9 @@ export async function resampleBuffer(
 		throw new RangeError('Resampled output frames must be a positive safe integer.');
 	}
 	if (input.sampleRate === sampleRate && (outputFrames === null || outputFrames === input.length)) return input;
-	const length = outputFrames ?? Math.max(1, Math.round(input.length * sampleRate / input.sampleRate));
+	const length = outputFrames ?? Math.max(1, scaleSampleFrame(
+		input.length, input.sampleRate, sampleRate, 'point',
+	));
 	const sourceChannels = Array.from({ length: input.numberOfChannels }, (_, channel) => input.getChannelData(channel));
 	const channels = resampleChannelsWindowedSinc(sourceChannels, input.sampleRate, sampleRate, length);
 	return bufferFromChannels(channels, sampleRate, context, copy);

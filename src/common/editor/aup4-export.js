@@ -12,6 +12,7 @@ import {
 import { flattenAup4MusicalMaps, isCurrentAup4MusicalSnapshot } from './aup4-musical-export.ts';
 import { projectForRuntimeConsumers } from './project-current-runtime.ts';
 import { projectTrackFolderMediaStateV12 } from './track-folder-media-runtime.ts';
+import { scaleSampleFrame } from './timeline-time.ts';
 import { flattenAup4TimelineAnnotations } from './aup4-annotation-interchange.ts';
 import {
 	scaleBoundary,
@@ -855,7 +856,7 @@ function mixInto(output, input, gain) {
 }
 
 function resampleChannels(channels, inputRate, outputRate) {
-	const outputFrames = Math.max(1, Math.round(channels[0].length * outputRate / inputRate));
+	const outputFrames = Math.max(1, scaleSampleFrame(channels[0].length, inputRate, outputRate, 'point'));
 	const resampler = createStreamingWindowedSincResampler(inputRate, outputRate, channels.length);
 	const head = resampler.push(channels);
 	const tail = resampler.finish(outputFrames);

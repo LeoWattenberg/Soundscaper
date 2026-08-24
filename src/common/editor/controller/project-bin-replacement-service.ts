@@ -22,6 +22,7 @@ import {
 	type ProjectBinReplacementShortfallMode,
 	type ProjectBinSource,
 } from './project-bin-types.ts';
+import { scaleSampleFrame } from '../timeline-time.ts';
 
 const PROJECT_BIN_REPLACEMENT_TASK = 'project-bin-replacement';
 
@@ -153,8 +154,8 @@ export function createProjectBinReplacementService(
 				if (!oldSource || !newSource) return true;
 				const newRate = Math.max(1, newSource.sampleRate || baseProject.sampleRate);
 				const oldRate = Math.max(1, oldSource.sampleRate || baseProject.sampleRate);
-				const start = Math.round(clip.sourceStartFrame / oldRate * newRate);
-				const duration = Math.round(clip.sourceDurationFrames / oldRate * newRate);
+				const start = scaleSampleFrame(clip.sourceStartFrame, oldRate, newRate, 'point');
+				const duration = scaleSampleFrame(clip.sourceDurationFrames, oldRate, newRate, 'point');
 				return start + duration > newSource.frameCount;
 			}).map((clip) => clip.id);
 			assertCurrent(task, projectToken);

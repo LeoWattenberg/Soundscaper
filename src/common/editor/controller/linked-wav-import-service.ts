@@ -3,6 +3,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- This focused seam narrows the legacy import runtime without widening its public JavaScript contract. */
 
 import { linkedAudioLocatorReferenceFromImportOptions } from './project-import-options.ts';
+import { scaleSampleFrame } from '../timeline-time.ts';
 
 type LegacyPort = (...args: any[]) => any;
 
@@ -111,8 +112,8 @@ export function createLinkedPcmImporter(runtime: LinkedPcmImportRuntime) {
 				sourceId,
 				timelineStartFrame: 0,
 				sourceStartFrame: 0,
-				durationFrames: Math.max(1, Math.round(
-					descriptor.frameCount * projectSampleRate() / descriptor.sampleRate,
+				durationFrames: Math.max(1, scaleSampleFrame(
+					descriptor.frameCount, descriptor.sampleRate, projectSampleRate(), 'point',
 				)),
 			}, trackName, pcmMetadata.importOptions, pcmMetadata.projectBext,
 			pcmMetadataDescriptorMarkers(descriptorValue), descriptor.sampleRate,

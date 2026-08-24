@@ -14,7 +14,7 @@ import {
 import { compactSoundActivationSegments } from './sound-activated-recording-chunk.ts';
 import { recordingCapturePeakDb } from './recording-capture-channels.ts';
 import { calculateAudioEditorCountInFrames } from './transport-model.ts';
-import { countInSampleFrames } from '../timeline-time.ts';
+import { countInSampleFrames, scaleSampleFrame, secondsToSampleFrame } from '../timeline-time.ts';
 
 function errorName(error: unknown): string | undefined {
 	return (error as Readonly<{ name?: string }> | null)?.name;
@@ -217,13 +217,17 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 				? selection.endFrame - selection.startFrame + sourceOffsetProjectFrames
 				: 0;
 			const recorderSchedule = (contextStartTime: number) => {
-				const startFrame = Math.ceil(
-					(contextStartTime + availableLeadInFrames / sampleRate) * context.sampleRate,
+				const startFrame = secondsToSampleFrame(
+					contextStartTime + availableLeadInFrames / sampleRate,
+					context.sampleRate,
+					'enclosingEnd',
 				);
 				return {
 					startFrame,
 					stopFrame: selection
-						? startFrame + Math.ceil(selectionProjectFrames * context.sampleRate / sampleRate)
+						? startFrame + scaleSampleFrame(
+							selectionProjectFrames, sampleRate, context.sampleRate, 'enclosingEnd',
+						)
 						: undefined,
 				};
 			};

@@ -23,6 +23,7 @@ import { createRiffAnnotationExport } from './timeline-annotation-riff-interchan
 import { resolveBinauralDelivery } from './binaural-delivery.ts';
 import { resolveMasteringSequenceExport } from './mastering-sequence-export.ts';
 import { planExportOfflineRenderStrategyAdmission } from './export-render-admission.ts';
+import { scaleSampleFrame } from './timeline-time.ts';
 
 export const EXPORT_FORMAT_DEFAULTS = Object.freeze({
 	wav: { bitDepth: 24 },
@@ -227,8 +228,12 @@ export function createExportPlan(project, options = {}) {
 	const tailFrames = masteringSequence
 		? 0
 		: determineTailFrames(runtimeProject, mode, options.includeTail !== false);
-	const rangeOutputFrames = Math.ceil(range.durationFrames * sampleRate / runtimeProject.sampleRate);
-	const tailOutputFrames = Math.ceil(tailFrames * sampleRate / runtimeProject.sampleRate);
+	const rangeOutputFrames = scaleSampleFrame(
+		range.durationFrames, runtimeProject.sampleRate, sampleRate, 'enclosingEnd',
+	);
+	const tailOutputFrames = scaleSampleFrame(
+		tailFrames, runtimeProject.sampleRate, sampleRate, 'enclosingEnd',
+	);
 	const outputFrames = masteringSequence
 		? masteringSequence.outputFrames
 		: rangeOutputFrames + tailOutputFrames;

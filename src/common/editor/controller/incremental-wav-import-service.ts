@@ -2,6 +2,8 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- This focused seam narrows legacy project-import ports without changing their public JavaScript contract. */
 
+import { scaleSampleFrame } from '../timeline-time.ts';
+
 type LegacyPort = (...args: any[]) => any;
 
 export interface IncrementalWavImportRuntime {
@@ -106,9 +108,9 @@ export function createIncrementalWavImporter(runtime: IncrementalWavImportRuntim
 			sourceId,
 			timelineStartFrame: 0,
 			sourceStartFrame: 0,
-			durationFrames: Math.max(1, Math.round(
-				descriptor.frameCount * projectSampleRate() / descriptor.sampleRate,
-			)),
+				durationFrames: Math.max(1, scaleSampleFrame(
+					descriptor.frameCount, descriptor.sampleRate, projectSampleRate(), 'point',
+				)),
 		}, trackName, importOptions, wavMetadata.projectBext, descriptor.markers || [],
 		descriptor.sampleRate, wavMetadata.projectIxml, wavMetadata.projectCart,
 		wavMetadata.projectAdmCandidate, descriptor);

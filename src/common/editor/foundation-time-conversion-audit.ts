@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { TimeRoundingPolicy } from './timeline-time.ts';
+import { FOUNDATION_RATE_CONVERSION_AUDIT_SITES } from './foundation-rate-conversion-audit-sites.ts';
 
 export type FoundationTimeConversionPolicy = TimeRoundingPolicy | 'exact';
 
@@ -245,8 +246,12 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 	{
 		id: 'legacy-recording-count-in',
 		file: 'src/common/editor/controller/legacy-recording-capture-service.ts',
-		behavior: 'Legacy capture delegates current projects to the authoritative map schedule and retains one point-rounded default-map fallback for map-absent callers.',
-		conversions: [{ helper: 'countInSampleFrames', policies: ['point'] }],
+		behavior: 'Legacy capture delegates count-in to the authoritative map, encloses the recorder start after its context-time projection, and encloses any finite selected stop after changing sample-rate basis.',
+		conversions: [
+			{ helper: 'countInSampleFrames', policies: ['point'] },
+			{ helper: 'secondsToSampleFrame', policies: ['enclosingEnd'] },
+			{ helper: 'scaleSampleFrame', policies: ['enclosingEnd'] },
+		],
 	},
 	{
 		id: 'nyquist-active-map-tempo',
@@ -257,8 +262,12 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 	{
 		id: 'routed-recording-count-in',
 		file: 'src/common/editor/controller/routed-recording-capture-service.ts',
-		behavior: 'Routed capture shares the authoritative map schedule and retains the same point-rounded default-map fallback for map-absent callers.',
-		conversions: [{ helper: 'countInSampleFrames', policies: ['point'] }],
+		behavior: 'Routed capture shares the authoritative count-in map, encloses its recorder context start, and independently encloses each routed source stop after changing sample-rate basis.',
+		conversions: [
+			{ helper: 'countInSampleFrames', policies: ['point'] },
+			{ helper: 'secondsToSampleFrame', policies: ['enclosingEnd'] },
+			{ helper: 'scaleSampleFrame', policies: ['enclosingEnd'] },
+		],
 	},
 	{
 		id: 'timeline-annotation-controller-conversion',
@@ -524,6 +533,7 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		behavior: 'A trimmed video source states its length in pictures, and the sample-frame length the document also holds is derived from that count with the enclosing-end policy, so the audio side is never shorter than the pictures it accompanies.',
 		conversions: [{ helper: 'videoFrameToSampleFrame', policies: ['enclosingEnd'] }],
 	},
+	...FOUNDATION_RATE_CONVERSION_AUDIT_SITES,
 	{
 		id: 'tempo-map-sample-inverse',
 		file: 'src/common/editor/timeline-tempo-inverse.ts',

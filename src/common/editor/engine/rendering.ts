@@ -25,6 +25,7 @@ import {
 	AUDIO_EDITOR_RENDER_STREAM_PREBUFFER_PACKETS,
 	AUDIO_EDITOR_RENDER_STREAM_QUEUE_PACKETS,
 } from '../chunk-stream.js';
+import { scaleSampleFrame } from '../timeline-time.ts';
 import {
 	scheduleProjectClips,
 	type ScheduledChunkStreamUnderrun,
@@ -291,10 +292,14 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 			await context.audioWorklet.addModule(new URL('../render-capture-worklet.js', import.meta.url));
 			await ensureProjectWorklets(context, this.project);
 			outputFrames = requestedOutputFrames == null
-				? Math.max(1, Math.round((toFrame - fromFrame + tailFrames) / this.sampleRate * context.sampleRate))
+				? Math.max(1, scaleSampleFrame(
+						toFrame - fromFrame + tailFrames, this.sampleRate, context.sampleRate, 'point',
+					))
 				: positiveInteger(requestedOutputFrames, 1);
 			startTime = context.currentTime + 0.08;
-			const warmupContextFrames = Math.round(warmupProjectFrames / this.sampleRate * context.sampleRate);
+			const warmupContextFrames = scaleSampleFrame(
+				warmupProjectFrames, this.sampleRate, context.sampleRate, 'point',
+			);
 			const processingLatencyFrames = projectGraphLatencyFrames(this.project, {
 				trackId,
 				includeMaster,

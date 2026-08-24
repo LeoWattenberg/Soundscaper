@@ -3,6 +3,7 @@
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../project.js';
 import { RECORDING_CHANNEL_COUNT_MAXIMUM } from '../recording.js';
 import { RECORDING_DEFAULT_DEVICE_ID } from '../recording-routing.js';
+import { scaleSampleFrame } from '../timeline-time.ts';
 
 const LIVE_RECORDING_WAVEFORM_BUCKET_FRAMES = 64;
 const LIVE_RECORDING_WAVEFORM_MAXIMUM_BUCKETS = 2_048;
@@ -64,7 +65,7 @@ export function scaleRecordingFrames(
 	const frames = Math.max(0, Math.floor(Number(frameCount) || 0));
 	const inputRate = Math.max(1, Math.floor(Number(inputSampleRate) || AUDIO_EDITOR_SAMPLE_RATE));
 	const outputRate = Math.max(1, Math.floor(Number(outputSampleRate) || AUDIO_EDITOR_SAMPLE_RATE));
-	return Math.max(0, Math.round(frames * outputRate / inputRate));
+	return scaleSampleFrame(frames, inputRate, outputRate, 'point');
 }
 
 export function normalizeAudioDevicePreferences(value: unknown): Readonly<AudioDevicePreferences> {

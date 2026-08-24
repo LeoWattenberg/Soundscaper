@@ -9,6 +9,7 @@ import {
 } from './mastering-sequence.ts';
 import type { DeliveryDisposition, DeliverySeverity } from './delivery-report.ts';
 import type { RiffMarkerInput } from './riff-markers.ts';
+import { scaleSampleFrame } from './timeline-time.ts';
 
 /**
  * Turning a mastering sequence into the timeline a delivery renders.
@@ -139,7 +140,9 @@ export function scaleMasteringSequenceDeliveryPlan(
 		}
 	}
 	if (sourceSampleRate === outputSampleRate) return plan;
-	const scale = (frames: number): number => Math.round(frames * outputSampleRate / sourceSampleRate);
+	const scale = (frames: number): number => scaleSampleFrame(
+		frames, sourceSampleRate, outputSampleRate, 'point',
+	);
 
 	const segments: MasteringSequenceDeliverySegment[] = [];
 	let outputFrame = 0;

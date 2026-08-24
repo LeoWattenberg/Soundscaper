@@ -10,6 +10,7 @@ import {
 import { normalizeProjectBextMetadata } from '../project-bext-metadata.ts';
 import { authoredAdmChannelCount, normalizeAdmProjectMetadata } from '../adm-project-metadata.ts';
 import { isTimelineAnnotationProjectSchema } from '../project-schema-version.ts';
+import { scaleSampleFrame } from '../timeline-time.ts';
 import {
 	collectRelatedClipIds,
 	removeClips,
@@ -407,9 +408,11 @@ function replaceProjectBinMedia(project, command) {
 function remapReplacementClip(project, clip, oldSource, newSource) {
 	const oldRate = Math.max(1, Number(oldSource.sampleRate) || project.sampleRate);
 	const newRate = Math.max(1, Number(newSource.sampleRate) || project.sampleRate);
-	const sourceStartFrame = Math.max(0, Math.round(clip.sourceStartFrame / oldRate * newRate));
+	const sourceStartFrame = Math.max(0, scaleSampleFrame(clip.sourceStartFrame, oldRate, newRate, 'point'));
 	if (sourceStartFrame >= newSource.frameCount) return null;
-	const requestedSourceDuration = Math.max(1, Math.round(clip.sourceDurationFrames / oldRate * newRate));
+	const requestedSourceDuration = Math.max(1, scaleSampleFrame(
+		clip.sourceDurationFrames, oldRate, newRate, 'point',
+	));
 	const sourceDurationFrames = Math.min(requestedSourceDuration, newSource.frameCount - sourceStartFrame);
 	const durationFrames = Math.max(1, Math.round(clip.durationFrames * sourceDurationFrames / requestedSourceDuration));
 	return normalizeClipForProject(project, {

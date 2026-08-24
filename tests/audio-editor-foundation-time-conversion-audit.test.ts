@@ -93,6 +93,41 @@ test('the helper inventory is discovered from exported frame-conversion APIs', a
 	assert.deepEqual([...FOUNDATION_TIME_CONVERSION_HELPERS].sort(), [...discovered].sort());
 });
 
+test('raw sample-rate changes of basis cannot bypass shared timeline policy', async () => {
+	// Resampler state owns a fractional input phase, so these are DSP buffer
+	// geometry rather than integer timeline conversions.
+	assert.deepEqual(await collectRawSampleRateChanges(), new Map([
+		['src/common/editor/resample.js', [
+			'Math.ceil((combined[0].length + 1) * outputRate / inputRate)',
+			'Math.round(totalInputFrames * outputRate / inputRate)',
+			'Math.round((totalInputFrames - initialInputPosition) * outputRate / inputRate)',
+		]],
+	]));
+});
+
+async function collectRawSampleRateChanges(): Promise<Map<string, string[]>> {
+	const result = new Map<string, string[]>();
+	for (const absoluteFile of await sourceFiles(new URL('.', EDITOR_ROOT).pathname)) {
+		const source = await readFile(absoluteFile, 'utf8');
+		const file = relative(new URL('.', REPOSITORY_ROOT).pathname, absoluteFile).replaceAll('\\', '/');
+		const parsed = createSourceFile(file, source, ScriptTarget.Latest, true, scriptKind(file));
+		visit(parsed, (node) => {
+			if (!isCallExpression(node)) return;
+			if (!/^Math\.(?:round|ceil|floor|trunc)$/u.test(node.expression.getText(parsed))) return;
+			const arithmetic = node.arguments[0]?.getText(parsed) ?? '';
+			const rateOccurrences = arithmetic.match(
+				/\b(?:inputRate|outputRate|oldRate|newRate|projectSampleRate|sourceSampleRate|sampleRate)\b/gu,
+			)?.length ?? 0;
+			if (rateOccurrences < 2 || !/(?:frame|length|duration|selection|start|tail|warmup)/iu.test(arithmetic)
+				|| !/[*/]/u.test(arithmetic)) return;
+			const calls = result.get(file) ?? [];
+			calls.push(node.getText(parsed).replace(/\s+/gu, ' '));
+			result.set(file, calls);
+		});
+	}
+	return result;
+}
+
 async function collectConversionSites(): Promise<Map<string, Map<string, Set<FoundationTimeConversionPolicy>>>> {
 	const result = new Map<string, Map<string, Set<FoundationTimeConversionPolicy>>>();
 	for (const absoluteFile of await sourceFiles(new URL('.', EDITOR_ROOT).pathname)) {

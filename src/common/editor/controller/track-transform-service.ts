@@ -7,6 +7,7 @@ import {
 	createReplaceClipSourceCommand,
 } from '../commands/factories.ts';
 import type { AudioEditorCommand } from '../commands/protocol.ts';
+import { scaleSampleFrame } from '../timeline-time.ts';
 import type { DerivedSourceService } from './derived-source-service.ts';
 import type {
 	EditorControllerLifetime,
@@ -113,7 +114,7 @@ export function createTrackTransformService(
 		const sourcesToResample = sources.filter((source) => source.sampleRate !== sampleRate);
 		if (!sourcesToResample.length) return track.id;
 		const estimatedBytes = sourcesToResample.reduce((sum, source) => (
-			sum + Math.max(1, Math.round(source.frameCount * sampleRate / source.sampleRate))
+				sum + Math.max(1, scaleSampleFrame(source.frameCount, source.sampleRate, sampleRate, 'point'))
 				* source.channelCount * Float32Array.BYTES_PER_ELEMENT
 		), 0);
 		return runTransform(dependencies.copy.resamplingTrack || dependencies.copy.audacityProcessing, async (ownership) => {
@@ -125,7 +126,9 @@ export function createTrackTransformService(
 				for (const source of sourcesToResample) {
 					const input = await dependencies.derivedSources.sourceChannelsForEdit(source);
 					assertOwned(ownership);
-					const outputFrames = Math.max(1, Math.round(source.frameCount * sampleRate / source.sampleRate));
+					const outputFrames = Math.max(1, scaleSampleFrame(
+						source.frameCount, source.sampleRate, sampleRate, 'point',
+					));
 					const channels = dependencies.resampleChannels(input, source.sampleRate, sampleRate, outputFrames);
 					const name = `${source.name || track.name} (${sampleRate} Hz)`;
 					const record = await dependencies.derivedSources.persistDerivedSource({

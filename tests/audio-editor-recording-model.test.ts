@@ -29,6 +29,11 @@ test('recording preferences and timing inputs are normalized at the controller b
 	assert.equal(normalizeTimedRecordingStart('2026-01-02T03:04:05.000Z'), 1_767_323_045_000);
 	assert.throws(() => normalizeTimedRecordingStart('not a date'), /valid timer recording start time/u);
 	assert.equal(scaleRecordingFrames(48_000, 48_000, 96_000), 96_000);
+	assert.equal(
+		scaleRecordingFrames(Number.MAX_SAFE_INTEGER, 96_000, 32_000),
+		3_002_399_751_580_330,
+		'large frame changes of basis use exact integer arithmetic',
+	);
 });
 
 test('recording stream inspection accounts for channels and display-video lifetime', () => {

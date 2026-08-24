@@ -258,3 +258,23 @@ test('a delivery is expressed in the rate it is written at, part by part', () =>
 		'and an unchanged rate is the same plan, not a copy of it',
 	);
 });
+
+test('delivery rate conversion preserves exact point rounding near the safe-integer boundary', () => {
+	const maximum = Number.MAX_SAFE_INTEGER;
+	const plan = Object.freeze({
+		sequenceId: 'boundary',
+		segments: Object.freeze([Object.freeze({
+			entryId: 'entry', annotationId: 'annotation', title: 'Boundary',
+			gapBeforeFrames: 0, outputStartFrame: 0, outputEndFrame: maximum,
+			sourceStartFrame: 0, sourceEndFrame: maximum,
+			fadeInFrames: maximum, fadeOutFrames: 0, metadata: Object.freeze({}),
+		})]),
+		totalFrames: maximum,
+	});
+	const scaled = scaleMasteringSequenceDeliveryPlan(plan, {
+		sourceSampleRate: 96_000,
+		outputSampleRate: 32_000,
+	});
+	assert.equal(scaled.totalFrames, 3_002_399_751_580_330);
+	assert.equal(scaled.segments[0]?.fadeInFrames, 3_002_399_751_580_330);
+});
