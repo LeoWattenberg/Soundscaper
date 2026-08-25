@@ -11,8 +11,6 @@ import {
 	createVideoTimingAssetPublication,
 	VIDEO_TIMING_ASSET_MIME_TYPE,
 } from '../src/common/editor/video-timing-asset.ts';
-import { bindVideoSourceTimingView } from '../src/common/editor/video-source-timing-view.ts';
-import { resolveVideoSourceTimingViews } from '../src/common/editor/video-source-timing-views.ts';
 import {
 	createFramescaperCapturedVideoProxySchedulerV18,
 	createFramescaperCapturedVideoProxySchedulerV19,
@@ -23,12 +21,7 @@ import {
 } from '../src/framescaper/editor-project-environment-v18.ts';
 import {
 	resolveFramescaperVideoProxyPreviewV18,
-	type FramescaperVideoProxyPreviewPortsV18,
 } from '../src/framescaper/editor-video-proxy-preview-v18.ts';
-import type {
-	FramescaperVideoProxyBodyRequestV18,
-	FramescaperVideoProxyOriginalRequestV18,
-} from '../src/framescaper/editor-video-proxy-reattestation-contract-v18.ts';
 import { acquireFramescaperVideoProxyAttachmentBudgetV18 } from '../src/framescaper/editor-video-proxy-attachment-capacity-v18.ts';
 import {
 	FramescaperDesktopV10MainFixture,
@@ -36,6 +29,7 @@ import {
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 import {
 	capturedProxyRequest as request,
+	capturedProxyPreviewPorts as previewPorts,
 	capturedProxyStorageInventory,
 	capturedVideoSource as videoSource,
 	createCapturedProxyFixture as createFixture,
@@ -503,57 +497,6 @@ test('scheduler disposal cancels a queued product proxy budget waiter', { timeou
 		assert.equal(fixture.relationship.counters.generatorCalls, 0);
 	} finally { releaseBudget(); }
 });
-
-function previewPorts(
-	environment: Readonly<FramescaperEditorProjectEnvironmentV18>,
-	project: unknown,
-): FramescaperVideoProxyPreviewPortsV18 {
-	const task = Object.freeze({ project });
-	return Object.freeze({
-		profile: environment.runtime.profile,
-		getProject: () => project,
-		captureTask: () => task,
-		assertTaskCurrent: (value: unknown) => {
-			if (value !== task) throw new DOMException('Preview task changed.', 'AbortError');
-		},
-		acquireBody: async (bodyRequest: Readonly<FramescaperVideoProxyBodyRequestV18>) => {
-			const body = await environment.store.loadMediaAsset(bodyRequest.expected.storageKey);
-			if (!(body instanceof Blob)) throw new Error('The reopened proxy body is unavailable.');
-			return Object.freeze({
-				identity: Object.freeze({
-					...bodyRequest.expected,
-					generationToken: `${bodyRequest.expected.kind}:${bodyRequest.expected.sha256}`,
-				}),
-				body,
-				assertCurrent() {},
-				release() {},
-			});
-		},
-		observeOriginal: async (originalRequest: Readonly<FramescaperVideoProxyOriginalRequestV18>) => {
-			const body = await environment.store.loadMediaAsset(originalRequest.storageKey);
-			if (!(body instanceof Blob)) throw new Error('The reopened original body is unavailable.');
-			const source = videoSource(project, originalRequest.sourceId);
-			return Object.freeze({
-				identity: Object.freeze({
-					authority: 'owned' as const,
-					projectId: originalRequest.projectId,
-					sourceId: originalRequest.sourceId,
-					storageKey: originalRequest.storageKey,
-					mimeType: originalRequest.mimeType,
-					byteLength: body.size,
-					sha256: originalRequest.contentSha256,
-					generationToken: `owned:${originalRequest.storageKey}:${originalRequest.contentSha256}`,
-				}),
-				timing: bindVideoSourceTimingView(
-					resolveVideoSourceTimingViews(project),
-					source,
-				),
-				assertCurrent() {},
-				release() {},
-			});
-		},
-	});
-}
 
 function releaseThrowingSession(session: Fixture['session']): unknown {
 	let plannedFailure = true;
