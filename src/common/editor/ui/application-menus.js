@@ -16,6 +16,7 @@ import { createPitchAndTempoApplicationMenuItems } from './pitch-tempo-applicati
 import { projectTrackFolderMediaStateV12 } from '../track-folder-media-runtime.ts';
 import { createVisibleVideoTrackPredicate } from '../video-track-visibility.js';
 import { createLocalModelManagerMenuItems } from './local-model-manager-menu.ts';
+import { createLocalAssistanceMenuItems } from './local-assistance-menu.ts';
 
 /**
  * The video tracks an edit list would describe.
@@ -537,6 +538,7 @@ export default function createApplicationMenus({
 			items: [
 				createRepeatAnalyzerMenuItem(importAnalysisMenuContext),
 				divider(),
+				...createLocalAssistanceMenuItems({ desktopAvailable: typeof actions.openLocalAssistance === 'function', capabilityActive: capabilities.assistanceAssets === true, copy }, { open: actions.openLocalAssistance }),
 				...productItems.analyze,
 				{ id: 'analysis', label: copy.analysisCommand, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('levels') },
 				{ id: 'plot-spectrum', label: copy.plotSpectrum, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('spectrum') },

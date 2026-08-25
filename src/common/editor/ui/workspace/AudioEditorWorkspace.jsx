@@ -39,6 +39,7 @@ export default function AudioEditorWorkspace({
 	productId = 'soundscaper',
 	controller,
 	fileService,
+	selectedMediaPreparation = controller?.selectedMediaPreparation ?? null,
 	projectForRuntimeConsumers,
 	crossProductHandoffAvailable = false,
 }) {
@@ -567,6 +568,7 @@ export default function AudioEditorWorkspace({
 		saveText,
 		scapeOpenDecision,
 		searchEntries,
+		selectedMediaPreparation,
 		setActiveSurface,
 		setDialog,
 		setDialogSourceKey,
