@@ -138,6 +138,24 @@ test('selected V27, V28, and F31 expose maintained visual workflows without the 
 	}
 });
 
+test('selected V30 exposes Add Images through Generate when the image action is bound', () => {
+	const calls: FramescaperCandidateAuthoringSurface[] = [];
+	const items = createFramescaperCandidateAuthoringMenuItems({
+		productId: 'framescaper', project: { schemaVersion: 30 }, editingBlocked: false,
+		projectCapabilities: { videoStills: true },
+		actionSurfaces: ['video-still'],
+	}, { open: (surface) => { calls.push(surface); } });
+	assert.deepEqual(items.generate.map(({ id }) => id), [
+		'framescaper-add-video-still', 'framescaper-video-generators',
+	]);
+	assert.deepEqual({
+		label: items.generate[0]?.label,
+		disabled: items.generate[0]?.disabled,
+	}, { label: 'Add Images…', disabled: false });
+	items.generate[0]?.onClick?.();
+	assert.deepEqual(calls, ['video-still']);
+});
+
 test('candidate visual entries fail closed for read-only, missing actions, and missing capabilities', () => {
 	const items = createFramescaperCandidateAuthoringMenuItems({
 		productId: 'framescaper', project: { schemaVersion: 26 }, editingBlocked: false, readOnly: true,
