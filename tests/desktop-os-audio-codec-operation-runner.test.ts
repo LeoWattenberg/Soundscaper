@@ -12,7 +12,7 @@ import {
 	type OperatingSystemAudioCodecChild,
 	type OperatingSystemAudioCodecChildConfiguration,
 } from '../desktop/os-audio-codec-operation-runner.ts';
-import { aacLcM4a48_000Fixture } from './helpers/os-audio-codec-fixtures.ts';
+import { aacLcM4a48_000Fixture, mp3Mpeg1Fixture } from './helpers/os-audio-codec-fixtures.ts';
 
 const digest = (value: Uint8Array): string => createHash('sha256').update(value).digest('hex');
 
@@ -212,6 +212,58 @@ test('runner stages exact float PCM and authenticates AAC-LC M4A encode output',
 	assert.deepEqual(await readdir(scratchRoot), []);
 });
 
+test('runner authenticates exact Windows MP3 encode and refuses macOS before spawn', async (context) => {
+	const scratchRoot = await scratch(context);
+	const output = mp3Mpeg1Fixture(1, 11);
+	const input = new Uint8Array(new Float32Array([0.25, -0.25, 0.5, -0.5]).buffer);
+	const encodeRequest = Object.freeze({
+		operation: 'audio-encode' as const, format: 'mp3' as const, input,
+		sampleRate: 48_000, channelCount: 2, settings: Object.freeze({ bitrateKbps: 192 }),
+		maximumOutputBytes: 4_096, requestId: 'encode-mp3',
+	});
+	let spawns = 0;
+	const windowsDescriptor = Object.freeze({ ...descriptor, target: 'win-x64' as const });
+	const runner = createOperatingSystemAudioCodecOperationRunner({
+		scratchRoot, verifyAddon: async () => windowsDescriptor,
+		spawn: () => {
+			spawns += 1;
+			const child = new FakeChild((message) => {
+				const job = message as { request: {
+					format: string; outputPath: string; bitrateKbps: number;
+				} };
+				void (async () => {
+					assert.equal(job.request.format, 'mp3');
+					assert.equal(job.request.bitrateKbps, 192);
+					assert.match(job.request.outputPath, /output\.mp3$/u);
+					await writeFile(job.request.outputPath, output, { flag: 'wx' });
+					child.emitMessage({
+						contractVersion: 1, type: 'result', result: {
+							contractVersion: 1, status: 'encoded', nativeApiReached: true,
+							exactTuplePassed: true, outputBytes: output.byteLength,
+							outputSha256: digest(output), encodedTuple: {
+								sampleRate: 48_000, channelCount: 2, frameCount: 2, bitrateKbps: 192,
+							},
+						},
+					});
+					child.emitExit(0);
+				})();
+			});
+			queueMicrotask(() => child.emitMessage({
+				contractVersion: 1, type: 'ready', target: 'win-x64',
+			}));
+			return child;
+		},
+	});
+	assert.deepEqual(await runner.execute(encodeRequest), { status: 'executed', output });
+	assert.equal(spawns, 1);
+
+	const macRunner = createOperatingSystemAudioCodecOperationRunner({
+		scratchRoot, verifyAddon: async () => descriptor,
+		spawn: () => { assert.fail('macOS MP3 encode must fail before spawn'); },
+	});
+	assert.equal((await macRunner.execute(encodeRequest)).status, 'unavailable');
+});
+
 test('runner fails closed for unavailable payloads and unsupported requests', async (context) => {
 	const scratchRoot = await scratch(context);
 	let spawns = 0;
@@ -227,7 +279,7 @@ test('runner fails closed for unavailable payloads and unsupported requests', as
 	assert.equal(spawns, 0);
 	assert.deepEqual(await runner.execute({ ...request, format: 'opus' }), {
 		status: 'unavailable', reason: 'request-rejected',
-		detail: 'The OS audio codec runtime admits only reviewed MP3/AAC decode or exact AAC-LC M4A encode.',
+		detail: 'The OS audio codec runtime admits only reviewed MP3/AAC decode or exact AAC/MP3 encode.',
 	});
 	assert.deepEqual(await runner.execute({
 		operation: 'audio-encode', format: 'aac-m4a', input: new Uint8Array(8),
@@ -235,8 +287,15 @@ test('runner fails closed for unavailable payloads and unsupported requests', as
 		maximumOutputBytes: 1024,
 	}), {
 		status: 'unavailable', reason: 'request-rejected',
-		detail: 'The OS audio codec runtime admits only reviewed MP3/AAC decode or exact AAC-LC M4A encode.',
+		detail: 'The OS audio codec runtime admits only reviewed MP3/AAC decode or exact AAC/MP3 encode.',
 	});
+	const unsupportedMp3 = await runner.execute({
+		operation: 'audio-encode', format: 'mp3', input: new Uint8Array(8),
+		sampleRate: 48_000, channelCount: 2, settings: { bitrateKbps: 160 },
+		maximumOutputBytes: 1024,
+	});
+	assert.equal(unsupportedMp3.status, 'unavailable');
+	if (unsupportedMp3.status === 'unavailable') assert.equal(unsupportedMp3.reason, 'request-rejected');
 	assert.equal(spawns, 0);
 	assert.deepEqual(await readdir(scratchRoot), []);
 });

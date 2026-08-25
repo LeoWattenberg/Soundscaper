@@ -6,8 +6,12 @@ import test from 'node:test';
 
 import {
 	inspectOperatingSystemAudioSource,
+	inspectOperatingSystemMp3SourceProfile,
 } from '../desktop/os-audio-codec-source-inspection.ts';
-import { aacLcM4a44_100Fixture } from './helpers/os-audio-codec-fixtures.ts';
+import {
+	aacLcM4a44_100Fixture,
+	mp3Mpeg1Fixture,
+} from './helpers/os-audio-codec-fixtures.ts';
 
 const nativeSelfTest = readFileSync(new URL(
 	'../native/soundscaper-professional-host/tests/os_audio_codec_self_test.cpp', import.meta.url,
@@ -21,26 +25,28 @@ function nativeFixture(name: string): Uint8Array {
 	return new Uint8Array(Buffer.from(encoded, 'base64'));
 }
 
-function mp3Fixture(sampleRateIndex: 0 | 1, channelMode = 0): Uint8Array {
-	const sampleRate = sampleRateIndex === 0 ? 44_100 : 48_000;
-	const frameBytes = Math.floor(144_000 * 128 / sampleRate);
-	const bytes = new Uint8Array(frameBytes * 2);
-	const header = 0xffe0_0000 | 3 << 19 | 1 << 17 | 1 << 16
-		| 9 << 12 | sampleRateIndex << 10 | channelMode << 6;
-	const view = new DataView(bytes.buffer);
-	view.setUint32(0, header, false);
-	view.setUint32(frameBytes, header, false);
-	return bytes;
-}
-
 test('source inspection preserves the exact reviewed MP3 frame-chain gate', () => {
-	assert.deepEqual(inspectOperatingSystemAudioSource('mp3', mp3Fixture(1)), {
+	assert.deepEqual(inspectOperatingSystemAudioSource('mp3', mp3Mpeg1Fixture(1)), {
 		sampleRate: 48_000, channelCount: 2,
 	});
-	assert.deepEqual(inspectOperatingSystemAudioSource('mp3', mp3Fixture(0, 3)), {
+	assert.deepEqual(inspectOperatingSystemAudioSource('mp3', mp3Mpeg1Fixture(0, 9, 3)), {
 		sampleRate: 44_100, channelCount: 1,
 	});
-	assert.equal(inspectOperatingSystemAudioSource('mp3', mp3Fixture(1).subarray(0, 20)), null);
+	assert.equal(inspectOperatingSystemAudioSource('mp3', mp3Mpeg1Fixture(1).subarray(0, 20)), null);
+});
+
+test('MP3 profile inspection binds the exact constant bitrate output tuple', () => {
+	assert.deepEqual(inspectOperatingSystemMp3SourceProfile(mp3Mpeg1Fixture(1, 11)), {
+		sampleRate: 48_000, channelCount: 2, bitrateKbps: 192,
+	});
+	assert.deepEqual(inspectOperatingSystemMp3SourceProfile(mp3Mpeg1Fixture(1, 9)), {
+		sampleRate: 48_000, channelCount: 2, bitrateKbps: 128,
+	});
+	const mixed = mp3Mpeg1Fixture(1, 11);
+	const second = Math.floor(144_000 * 192 / 48_000);
+	new DataView(mixed.buffer).setUint32(second,
+		0xffe0_0000 | 3 << 19 | 1 << 17 | 1 << 16 | 10 << 12 | 1 << 10, false);
+	assert.equal(inspectOperatingSystemMp3SourceProfile(mixed), null);
 });
 
 test('source inspection admits exact AAC-LC M4A geometry and refuses ADTS or malformed boxes', () => {

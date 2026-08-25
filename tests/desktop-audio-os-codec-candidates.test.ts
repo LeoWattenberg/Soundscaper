@@ -82,14 +82,13 @@ test('Linux has no OS provider candidate and macOS x64 is explicitly unsupported
 	), /target.*unsupported/iu);
 });
 
-test('open codecs remain bundled-owner territory and MP3 encode is not claimed by the OS', () => {
+test('open codecs remain bundled-owner territory outside the reviewed Windows MP3 encoder', () => {
 	for (const request of [
 		encodeRequest('flac', { compressionLevel: 5, bitDepth: 24 }),
 		encodeRequest('ogg-vorbis', { quality: 6 }),
 		encodeRequest('opus', { bitrateKbps: 128 }),
 		encodeRequest('wavpack', { compressionLevel: 2 }),
 		encodeRequest('mp2', { bitrateKbps: 192 }),
-		encodeRequest('mp3', { bitrateKbps: 192 }),
 		decodeRequest('flac'), decodeRequest('ogg-vorbis'), decodeRequest('opus'),
 		decodeRequest('wavpack'), decodeRequest('mp2'),
 	]) {
@@ -100,6 +99,24 @@ test('open codecs remain bundled-owner territory and MP3 encode is not claimed b
 			);
 		}
 	}
+	const request = encodeRequest('mp3', { bitrateKbps: 192 });
+	const operation = deriveDesktopAudioCodecOperation(request);
+	for (const target of ['win-x64', 'win-arm64'] as const) {
+		assert.deepEqual(
+			deriveDesktopAudioOperatingSystemCandidates(target, request).candidates[0]?.capability,
+			{ id: expectedId('windows-media-foundation', operation), ...operation },
+		);
+	}
+	assert.deepEqual(
+		deriveDesktopAudioOperatingSystemCandidates('mac-arm64', request).candidates,
+		[],
+	);
+	assert.deepEqual(
+		deriveDesktopAudioOperatingSystemCandidates(
+			'win-x64', encodeRequest('mp3', { bitrateKbps: 160 }),
+		).candidates,
+		[],
+	);
 });
 
 test('direct derived operations produce the same tuple and reject inexact operation shapes', () => {
@@ -119,11 +136,14 @@ test('direct derived operations produce the same tuple and reject inexact operat
 	), /audio operation/u);
 });
 
-test('a valid but unreviewed operation tuple returns no candidate', () => {
+test('direct MP3 encode candidates stay Windows-only and changed AAC profiles remain unreviewed', () => {
 	const mp3Encode = deriveDesktopAudioCodecOperation(encodeRequest('mp3', { bitrateKbps: 192 }));
+	assert.equal(
+		deriveDesktopAudioOperatingSystemCandidatesFromOperation('win-arm64', mp3Encode).candidates.length,
+		1,
+	);
 	assert.deepEqual(
-		deriveDesktopAudioOperatingSystemCandidatesFromOperation('win-arm64', mp3Encode).candidates,
-		[],
+		deriveDesktopAudioOperatingSystemCandidatesFromOperation('mac-arm64', mp3Encode).candidates, [],
 	);
 	const changedProfile = { ...resolvedDecodeOperation('aac-m4a', 48_000, 2), profile: 'he' };
 	assert.deepEqual(

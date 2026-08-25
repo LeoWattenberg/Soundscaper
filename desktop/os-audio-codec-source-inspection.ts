@@ -11,6 +11,16 @@ export interface OperatingSystemAudioSourceGeometry {
 
 interface Mp3FrameHeader extends OperatingSystemAudioSourceGeometry {
 	readonly frameBytes: number;
+	readonly bitrateKbps: number;
+}
+
+export interface OperatingSystemMp3SourceProfile extends OperatingSystemAudioSourceGeometry {
+	readonly bitrateKbps: number;
+}
+
+interface Mp3Inspection {
+	readonly geometry: OperatingSystemAudioSourceGeometry;
+	readonly bitrateKbps: number | null;
 }
 
 interface IsoBox {
@@ -60,12 +70,24 @@ export function inspectOperatingSystemAudioSource(
 ): OperatingSystemAudioSourceGeometry | null {
 	if (!(input instanceof Uint8Array) || input.byteLength < 1
 		|| input.byteLength > MAXIMUM_INPUT_BYTES) return null;
-	if (format === 'mp3') return inspectMp3SourceGeometry(input);
+	if (format === 'mp3') return inspectMp3Source(input)?.geometry ?? null;
 	if (format === 'aac-m4a') return inspectAacLcM4a(input);
 	throw new TypeError('The OS audio source inspection format is unsupported.');
 }
 
-function inspectMp3SourceGeometry(input: Uint8Array): OperatingSystemAudioSourceGeometry | null {
+export function inspectOperatingSystemMp3SourceProfile(
+	input: Uint8Array,
+): OperatingSystemMp3SourceProfile | null {
+	if (!(input instanceof Uint8Array) || input.byteLength < 1
+		|| input.byteLength > MAXIMUM_INPUT_BYTES) return null;
+	const inspected = inspectMp3Source(input);
+	if (inspected === null || inspected.bitrateKbps === null) return null;
+	return Object.freeze({
+		...inspected.geometry, bitrateKbps: inspected.bitrateKbps,
+	});
+}
+
+function inspectMp3Source(input: Uint8Array): Mp3Inspection | null {
 	let offset = 0;
 	if (input.byteLength >= 3 && input[0] === 0x49 && input[1] === 0x44 && input[2] === 0x33) {
 		if (input.byteLength < 10 || input[6]! >= 0x80 || input[7]! >= 0x80
@@ -76,6 +98,7 @@ function inspectMp3SourceGeometry(input: Uint8Array): OperatingSystemAudioSource
 		if (!Number.isSafeInteger(offset) || offset > input.byteLength) return null;
 	}
 	let geometry: OperatingSystemAudioSourceGeometry | null = null;
+	let bitrateKbps: number | null = null;
 	let frameCount = 0;
 	while (offset + 4 <= input.byteLength) {
 		const frame = mp3FrameHeader(input, offset);
@@ -85,13 +108,16 @@ function inspectMp3SourceGeometry(input: Uint8Array): OperatingSystemAudioSource
 		geometry ??= Object.freeze({
 			sampleRate: frame.sampleRate, channelCount: frame.channelCount,
 		});
+		bitrateKbps = frameCount === 0 ? frame.bitrateKbps
+			: bitrateKbps === frame.bitrateKbps ? bitrateKbps : null;
 		frameCount += 1;
 		offset += frame.frameBytes;
 	}
 	if (geometry === null || frameCount < 2) return null;
 	const id3v1 = input.byteLength - offset === 128
 		&& input[offset] === 0x54 && input[offset + 1] === 0x41 && input[offset + 2] === 0x47;
-	return offset === input.byteLength || id3v1 ? geometry : null;
+	return offset === input.byteLength || id3v1
+		? Object.freeze({ geometry, bitrateKbps }) : null;
 }
 
 function mp3FrameHeader(input: Uint8Array, offset: number): Mp3FrameHeader | null {
@@ -113,6 +139,7 @@ function mp3FrameHeader(input: Uint8Array, offset: number): Mp3FrameHeader | nul
 		sampleRate,
 		channelCount: (header >>> 6 & 0x03) === 3 ? 1 : 2,
 		frameBytes,
+		bitrateKbps,
 	});
 }
 

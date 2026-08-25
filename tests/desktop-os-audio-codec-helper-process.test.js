@@ -22,7 +22,8 @@ async function fixture(context, format = 'mp3', operation = 'audio-decode') {
 	const addonPath = join(root, 'soundscaper_professional.node');
 	const inputPath = join(root, operation === 'audio-encode'
 		? 'input.f32le' : format === 'mp3' ? 'input.mp3' : 'input.m4a');
-	const outputPath = join(root, operation === 'audio-encode' ? 'output.m4a' : 'output.f32le');
+	const outputPath = join(root, operation === 'audio-encode'
+		? format === 'mp3' ? 'output.mp3' : 'output.m4a' : 'output.f32le');
 	const addonBytes = Buffer.from('authenticated-addon');
 	const input = operation === 'audio-encode'
 		? new Uint8Array(new Float32Array([0.25, -0.25, 0.5, -0.5]).buffer)
@@ -38,7 +39,7 @@ async function fixture(context, format = 'mp3', operation = 'audio-decode') {
 			contractVersion: 1, operation, format, inputPath, outputPath, inputBytes: input.byteLength,
 			inputSha256: sha256(input), maximumOutputBytes: 1024,
 			...(operation === 'audio-encode'
-				? { sampleRate: 48_000, channelCount: 2, bitrateKbps: 160 }
+				? { sampleRate: 48_000, channelCount: 2, bitrateKbps: format === 'mp3' ? 192 : 160 }
 				: {}),
 		},
 	};
@@ -111,6 +112,40 @@ test('helper dispatches exact AAC-LC M4A encode and binds its source tuple', asy
 			sampleRate: 48_000, channelCount: 2, frameCount: 2, bitrateKbps: 160,
 		},
 	});
+});
+
+test('helper dispatches exact Windows MP3 encode and rejects it on macOS before addon load', async (context) => {
+	const value = await fixture(context, 'mp3', 'audio-encode');
+	value.configuration.target = 'win-arm64';
+	const output = Buffer.from('bounded-mp3-output');
+	let calls = 0;
+	const result = await runOperatingSystemAudioCodecJob(job(value), {
+		loadAddon: async () => Object.freeze({
+			encodeOperatingSystemAacM4a: () => assert.fail('MP3 must not dispatch to AAC'),
+			encodeOperatingSystemMp3: async (request) => {
+				calls += 1;
+				assert.deepEqual(request, {
+					inputPath: value.inputPath, outputPath: value.outputPath,
+					inputBytes: 16, maximumOutputBytes: 1024,
+					sampleRate: 48_000, channelCount: 2, bitrateKbps: 192,
+				});
+				await writeFile(value.outputPath, output, { flag: 'wx' });
+				return {
+					status: 'encoded', nativeApiReached: true, exactTuplePassed: true,
+					outputBytes: output.byteLength, frameCount: 2,
+					sampleRate: 48_000, channelCount: 2, bitrateKbps: 192,
+				};
+			},
+		}),
+	});
+	assert.equal(calls, 1);
+	assert.equal(result.status, 'encoded');
+	assert.equal(result.encodedTuple.bitrateKbps, 192);
+
+	const macValue = await fixture(context, 'mp3', 'audio-encode');
+	await assert.rejects(() => runOperatingSystemAudioCodecJob(job(macValue), {
+		loadAddon: async () => assert.fail('macOS MP3 encode must fail before addon load'),
+	}), /unavailable.*target/iu);
 });
 
 test('helper dispatches AAC-LC M4A only to the reviewed native AAC method', async (context) => {

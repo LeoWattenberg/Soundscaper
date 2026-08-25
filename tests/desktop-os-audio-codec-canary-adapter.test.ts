@@ -9,13 +9,14 @@ import {
 	createOperatingSystemAudioCodecCanaryAdapter,
 	OPERATING_SYSTEM_AAC_M4A_ENCODE_CANARY_SHA256,
 	OPERATING_SYSTEM_AAC_M4A_CANARY_SHA256,
+	OPERATING_SYSTEM_MP3_ENCODE_CANARY_SHA256,
 	OPERATING_SYSTEM_MP3_CANARY_SHA256,
 } from '../desktop/os-audio-codec-canary-adapter.ts';
 import type { OperatingSystemCodecCanaryRequest } from '../desktop/os-codec-capability-adapter.ts';
 import type {
 	OperatingSystemAudioCodecOperationRunner,
 } from '../desktop/os-audio-codec-operation-runner.ts';
-import { aacLcM4a48_000Fixture } from './helpers/os-audio-codec-fixtures.ts';
+import { aacLcM4a48_000Fixture, mp3Mpeg1Fixture } from './helpers/os-audio-codec-fixtures.ts';
 
 const digest = (value: string): string => createHash('sha256').update(value).digest('hex');
 
@@ -35,6 +36,12 @@ const aacEncodeCapability = Object.freeze({
 	id: 'windows-media-foundation-encode-m4a-aac-lc-f32p-48000hz-2ch',
 	direction: 'encode' as const, mediaKind: 'audio' as const,
 	container: 'm4a', codec: 'aac', profile: 'lc', sampleFormat: 'f32p',
+	pixelFormat: null, sampleRate: 48_000, channelCount: 2, width: null, height: null,
+});
+const mp3EncodeCapability = Object.freeze({
+	id: 'windows-media-foundation-encode-mp3-mp3-default-f32p-48000hz-2ch',
+	direction: 'encode' as const, mediaKind: 'audio' as const,
+	container: 'mp3', codec: 'mp3', profile: null, sampleFormat: 'f32p',
 	pixelFormat: null, sampleRate: 48_000, channelCount: 2, width: null, height: null,
 });
 
@@ -146,6 +153,45 @@ test('canary encodes deterministic float PCM and verifies exact AAC-LC M4A outpu
 	assert.match(result.evidenceDigest, /^[a-f0-9]{64}$/u);
 });
 
+test('canary qualifies exact Windows MP3 encode but never advertises it on macOS', async () => {
+	const output = mp3Mpeg1Fixture(1, 11);
+	let calls = 0;
+	const runner: OperatingSystemAudioCodecOperationRunner = {
+		execute: async (encodeRequest) => {
+			calls += 1;
+			assert.equal(encodeRequest.operation, 'audio-encode');
+			if (encodeRequest.operation !== 'audio-encode') assert.fail('encode canary required');
+			assert.equal(encodeRequest.format, 'mp3');
+			assert.deepEqual(encodeRequest.settings, { bitrateKbps: 192 });
+			assert.equal(createHash('sha256').update(encodeRequest.input).digest('hex'),
+				OPERATING_SYSTEM_MP3_ENCODE_CANARY_SHA256);
+			return { status: 'executed', output };
+		},
+	};
+	const mp3Request = request({
+		capability: mp3EncodeCapability,
+		capabilityDigest: digest(JSON.stringify(mp3EncodeCapability)),
+	});
+	const result = await createOperatingSystemAudioCodecCanaryAdapter({
+		target: 'win-x64', runner,
+	}).runCanary(mp3Request, new AbortController().signal);
+	assert.equal(result.status, 'qualified');
+	assert.equal(calls, 1);
+
+	const macRequest = request({
+		target: 'mac-arm64', osVersion: '15.6.1',
+		implementation: 'apple-audiotoolbox-avfoundation',
+		capability: mp3EncodeCapability,
+		capabilityDigest: digest(JSON.stringify(mp3EncodeCapability)),
+	});
+	assert.deepEqual(await createOperatingSystemAudioCodecCanaryAdapter({
+		target: 'mac-arm64', runner,
+	}).runCanary(macRequest, new AbortController().signal), {
+		contractVersion: 1, status: 'unavailable', reason: 'canary-refused',
+	});
+	assert.equal(calls, 1);
+});
+
 test('canary refuses mismatched tuples, silent output, and non-native runner failures', async () => {
 	let calls = 0;
 	const runner: OperatingSystemAudioCodecOperationRunner = {
@@ -214,5 +260,7 @@ test('startup canary is byte-identical to the target-native self-test fixture', 
 		view.setFloat32(frame * 8 + 4, -left * 0.5, true);
 	}
 	assert.equal(createHash('sha256').update(encodeBytes).digest('hex'),
+		OPERATING_SYSTEM_AAC_M4A_ENCODE_CANARY_SHA256);
+	assert.equal(OPERATING_SYSTEM_MP3_ENCODE_CANARY_SHA256,
 		OPERATING_SYSTEM_AAC_M4A_ENCODE_CANARY_SHA256);
 });

@@ -2,6 +2,7 @@
 
 #include "os_audio_codec.h"
 #include "os_aac_m4a_profile.h"
+#include "os_mp3_profile.h"
 
 #include <algorithm>
 #include <array>
@@ -187,6 +188,24 @@ bool validEncode(
 		&& soundscaper::os_audio::exactAacLcM4a(bytes, 48000u, 2u);
 }
 
+#if defined(_WIN32)
+bool validMp3Encode(
+	const soundscaper_pro_os_mp3_encode_result &result,
+	const std::filesystem::path &outputPath)
+{
+	std::error_code error;
+	if (result.status != SOUNDSCAPER_PRO_OS_CODEC_OK || result.native_api_reached != 1u
+		|| result.exact_tuple_passed != 1u || result.sample_rate != 48000u
+		|| result.channel_count != 2u || result.bitrate_kbps != 192u
+		|| result.frame_count != encodeCanaryFrameCount || result.output_bytes == 0u
+		|| std::filesystem::file_size(outputPath, error) != result.output_bytes || error) return false;
+	std::ifstream encoded(outputPath, std::ios::binary);
+	const std::vector<uint8_t> bytes(std::istreambuf_iterator<char>(encoded), {});
+	return !encoded.bad() && bytes.size() == result.output_bytes
+		&& soundscaper::os_audio::exactMp3(bytes, 48000u, 2u, 192u);
+}
+#endif
+
 } // namespace
 
 int main()
@@ -205,6 +224,9 @@ int main()
 	const auto encodeOutputPath = root / "encode.m4a";
 	const auto encodeDecodePath = root / "encode-decoded.f32le";
 	const auto unsupportedEncodePath = root / "unsupported-encode.m4a";
+	const auto mp3EncodeOutputPath = root / "encode.mp3";
+	const auto mp3EncodeDecodePath = root / "encode-mp3-decoded.f32le";
+	const auto unsupportedMp3EncodePath = root / "unsupported-encode.mp3";
 	std::error_code error;
 	if (!std::filesystem::create_directory(root, error) || error) return 1;
 	const auto mp3Input = base64Bytes(canaryBase64);
@@ -281,6 +303,36 @@ int main()
 	if (unsupportedEncode.status != SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST
 		|| unsupportedEncode.native_api_reached != 0u || unsupportedEncode.exact_tuple_passed != 0u
 		|| unsupportedEncode.output_bytes != 0u || std::filesystem::exists(unsupportedEncodePath)) return 12;
+#if defined(_WIN32) || defined(__APPLE__)
+	const std::string mp3EncodeOutputText = mp3EncodeOutputPath.string();
+	const soundscaper_pro_os_mp3_encode_request mp3EncodeRequest{
+		encodeInputText.c_str(), mp3EncodeOutputText.c_str(), encodeInput.size() * sizeof(float),
+		1024u * 1024u, 48000u, 2u, 192u,
+	};
+#if defined(_WIN32)
+	if (!validMp3Encode(soundscaper_pro_os_mp3_encode(&mp3EncodeRequest), mp3EncodeOutputPath)) return 13;
+	const std::string mp3EncodeDecodeText = mp3EncodeDecodePath.string();
+	const soundscaper_pro_os_mp3_decode_request encodedMp3DecodeRequest{
+		mp3EncodeOutputText.c_str(), mp3EncodeDecodeText.c_str(),
+		std::filesystem::file_size(mp3EncodeOutputPath), 1024u * 1024u,
+	};
+	if (!validDecode(soundscaper_pro_os_mp3_decode(&encodedMp3DecodeRequest), mp3EncodeDecodePath)) return 14;
+	const std::string unsupportedMp3EncodeText = unsupportedMp3EncodePath.string();
+	auto unsupportedMp3EncodeRequest = mp3EncodeRequest;
+	unsupportedMp3EncodeRequest.output_path_utf8 = unsupportedMp3EncodeText.c_str();
+	unsupportedMp3EncodeRequest.bitrate_kbps = 160u;
+	const auto unsupportedMp3Encode = soundscaper_pro_os_mp3_encode(&unsupportedMp3EncodeRequest);
+	if (unsupportedMp3Encode.status != SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST
+		|| unsupportedMp3Encode.native_api_reached != 0u || unsupportedMp3Encode.exact_tuple_passed != 0u
+		|| unsupportedMp3Encode.output_bytes != 0u
+		|| std::filesystem::exists(unsupportedMp3EncodePath)) return 15;
+#elif defined(__APPLE__)
+	const auto unavailableMp3Encode = soundscaper_pro_os_mp3_encode(&mp3EncodeRequest);
+	if (unavailableMp3Encode.status != SOUNDSCAPER_PRO_OS_CODEC_API_UNAVAILABLE
+		|| unavailableMp3Encode.native_api_reached != 0u || unavailableMp3Encode.exact_tuple_passed != 0u
+		|| unavailableMp3Encode.output_bytes != 0u || std::filesystem::exists(mp3EncodeOutputPath)) return 13;
+#endif
+#endif
 	std::filesystem::remove_all(root, error);
-	return error ? 13 : 0;
+	return error ? 16 : 0;
 }

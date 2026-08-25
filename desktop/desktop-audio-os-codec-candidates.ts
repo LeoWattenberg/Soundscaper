@@ -44,7 +44,7 @@ export function deriveDesktopAudioOperatingSystemCandidates(
 ): DesktopAudioOperatingSystemCandidateSet {
 	const target = desktopTarget(targetValue);
 	const request = normalizeDesktopAudioCodecRequest(requestValue);
-	const operation = reviewedOperationFromRequest(request);
+	const operation = reviewedOperationFromRequest(request, target);
 	return candidateSet(target, operation);
 }
 
@@ -54,7 +54,7 @@ export function deriveDesktopAudioOperatingSystemCandidatesFromOperation(
 ): DesktopAudioOperatingSystemCandidateSet {
 	const target = desktopTarget(targetValue);
 	const operation = canonicalAudioOperation(operationValue);
-	return candidateSet(target, reviewedOperation(operation) ? operation : null);
+	return candidateSet(target, reviewedOperation(operation, target) ? operation : null);
 }
 
 function candidateSet(
@@ -76,11 +76,19 @@ function candidateSet(
 	});
 }
 
-function reviewedOperationFromRequest(request: DesktopAudioCodecRequest): DesktopCodecOperation | null {
+function reviewedOperationFromRequest(
+	request: DesktopAudioCodecRequest,
+	target: DesktopCodecTarget,
+): DesktopCodecOperation | null {
 	if (request.operation === 'audio-decode') return null;
-	if (request.format === 'aac-m4a') return Object.freeze({
+	if (request.format === 'aac-m4a' || (request.format === 'mp3'
+		&& target.startsWith('win-') && request.sampleRate === 48_000
+		&& request.channelCount === 2 && request.settings.bitrateKbps === 192)) return Object.freeze({
 		direction: 'encode',
-		mediaKind: 'audio', container: 'm4a', codec: 'aac', profile: 'lc',
+		mediaKind: 'audio',
+		container: request.format === 'aac-m4a' ? 'm4a' : 'mp3',
+		codec: request.format === 'aac-m4a' ? 'aac' : 'mp3',
+		profile: request.format === 'aac-m4a' ? 'lc' : null,
 		sampleFormat: 'f32p', pixelFormat: null,
 		sampleRate: request.sampleRate, channelCount: request.channelCount,
 		width: null, height: null,
@@ -88,13 +96,17 @@ function reviewedOperationFromRequest(request: DesktopAudioCodecRequest): Deskto
 	return null;
 }
 
-function reviewedOperation(operation: DesktopCodecOperation): boolean {
-	return operation.container === 'm4a' && operation.codec === 'aac'
+function reviewedOperation(operation: DesktopCodecOperation, target: DesktopCodecTarget): boolean {
+	return (operation.container === 'm4a' && operation.codec === 'aac'
 		&& operation.profile === 'lc' && operation.sampleFormat === 'f32p'
-		&& (operation.direction === 'encode' || operation.direction === 'decode')
-		|| operation.container === 'mp3' && operation.codec === 'mp3'
+		&& (operation.direction === 'encode' || operation.direction === 'decode'))
+		|| (operation.container === 'mp3' && operation.codec === 'mp3'
 			&& operation.profile === null && operation.sampleFormat === 'f32'
-			&& operation.direction === 'decode';
+			&& operation.direction === 'decode')
+		|| (target.startsWith('win-') && operation.container === 'mp3'
+			&& operation.codec === 'mp3' && operation.profile === null
+			&& operation.sampleFormat === 'f32p' && operation.direction === 'encode'
+			&& operation.sampleRate === 48_000 && operation.channelCount === 2);
 }
 
 function canonicalAudioOperation(value: unknown): DesktopCodecOperation {

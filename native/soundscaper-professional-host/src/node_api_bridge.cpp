@@ -367,7 +367,12 @@ napi_value decodeOperatingSystemAacM4a(napi_env env, napi_callback_info info)
 	return decodeOperatingSystemAudio(env, info, soundscaper_pro_os_aac_m4a_decode);
 }
 
-napi_value encodeOperatingSystemAacM4a(napi_env env, napi_callback_info info)
+template<typename Request, typename Encode>
+napi_value encodeOperatingSystemAudio(
+	napi_env env,
+	napi_callback_info info,
+	Encode encode,
+	const char *requestError)
 {
 	size_t argc = 1u;
 	napi_value argv[1];
@@ -388,13 +393,13 @@ napi_value encodeOperatingSystemAacM4a(napi_env env, napi_callback_info info)
 		|| !unsignedProperty(env, argv[0], "channelCount", channelCount)
 		|| !unsignedProperty(env, argv[0], "bitrateKbps", bitrateKbps)
 		|| inputPath == outputPath) {
-		return typeError(env, "An operating-system AAC encode requires exact bounded scratch files.");
+		return typeError(env, requestError);
 	}
-	const soundscaper_pro_os_aac_m4a_encode_request request{
+	const Request request{
 		inputPath.c_str(), outputPath.c_str(), inputBytes, maximumOutputBytes,
 		sampleRate, channelCount, bitrateKbps,
 	};
-	const auto outcome = soundscaper_pro_os_aac_m4a_encode(&request);
+	const auto outcome = encode(&request);
 	napi_value result;
 	CHECK(napi_create_object(env, &result));
 	if (!setText(env, result, "status", osCodecStatusName(outcome.status, "encoded", "encode-failed"))
@@ -406,6 +411,20 @@ napi_value encodeOperatingSystemAacM4a(napi_env env, napi_callback_info info)
 		|| !setNumber(env, result, "channelCount", outcome.channel_count)
 		|| !setNumber(env, result, "bitrateKbps", outcome.bitrate_kbps)) return nullptr;
 	return result;
+}
+
+napi_value encodeOperatingSystemAacM4a(napi_env env, napi_callback_info info)
+{
+	return encodeOperatingSystemAudio<soundscaper_pro_os_aac_m4a_encode_request>(env, info,
+		soundscaper_pro_os_aac_m4a_encode,
+		"An operating-system AAC encode requires exact bounded scratch files.");
+}
+
+napi_value encodeOperatingSystemMp3(napi_env env, napi_callback_info info)
+{
+	return encodeOperatingSystemAudio<soundscaper_pro_os_mp3_encode_request>(env, info,
+		soundscaper_pro_os_mp3_encode,
+		"An operating-system MP3 encode requires exact bounded scratch files.");
 }
 
 void collectCandidates(const std::filesystem::path &root, const std::string &suffix,
@@ -462,6 +481,7 @@ NAPI_MODULE_INIT()
 		{ "decodeOperatingSystemMp3", nullptr, decodeOperatingSystemMp3, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "decodeOperatingSystemAacM4a", nullptr, decodeOperatingSystemAacM4a, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "encodeOperatingSystemAacM4a", nullptr, encodeOperatingSystemAacM4a, nullptr, nullptr, nullptr, napi_default, nullptr },
+		{ "encodeOperatingSystemMp3", nullptr, encodeOperatingSystemMp3, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "listPluginCandidates", nullptr, listPluginCandidates, nullptr, nullptr, nullptr, napi_default, nullptr },
 	};
 	if (napi_define_properties(env, exports, std::size(properties), properties) != napi_ok) {

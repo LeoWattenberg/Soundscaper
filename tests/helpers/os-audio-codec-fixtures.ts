@@ -62,3 +62,27 @@ export function aacLcM4a48_000Fixture(): Uint8Array {
 	);
 	return bytes;
 }
+
+export function mp3Mpeg1Fixture(
+	sampleRateIndex: 0 | 1,
+	bitrateIndex = 9,
+	channelMode = 0,
+	secondSampleRateIndex: 0 | 1 = sampleRateIndex,
+): Uint8Array {
+	const bitrates = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0];
+	const bitrateKbps = bitrates[bitrateIndex];
+	assert.ok(bitrateKbps !== undefined && bitrateKbps > 0);
+	const sampleRate = sampleRateIndex === 0 ? 44_100 : 48_000;
+	const secondSampleRate = secondSampleRateIndex === 0 ? 44_100 : 48_000;
+	const frameBytes = Math.floor(144_000 * bitrateKbps / sampleRate);
+	const secondFrameBytes = Math.floor(144_000 * bitrateKbps / secondSampleRate);
+	const bytes = new Uint8Array(frameBytes + secondFrameBytes);
+	const header = 0xffe0_0000 | 3 << 19 | 1 << 17 | 1 << 16
+		| bitrateIndex << 12 | sampleRateIndex << 10 | channelMode << 6;
+	const secondHeader = 0xffe0_0000 | 3 << 19 | 1 << 17 | 1 << 16
+		| bitrateIndex << 12 | secondSampleRateIndex << 10 | channelMode << 6;
+	const view = new DataView(bytes.buffer);
+	view.setUint32(0, header, false);
+	view.setUint32(frameBytes, secondHeader, false);
+	return bytes;
+}

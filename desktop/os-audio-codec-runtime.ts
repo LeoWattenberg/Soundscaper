@@ -105,8 +105,22 @@ const AAC_M4A_ENCODE_CANARY_OPERATION: DesktopCodecOperation = Object.freeze({
 	width: null,
 	height: null,
 });
+const MP3_ENCODE_CANARY_OPERATION: DesktopCodecOperation = Object.freeze({
+	direction: 'encode',
+	mediaKind: 'audio',
+	container: 'mp3',
+	codec: 'mp3',
+	profile: null,
+	sampleFormat: 'f32p',
+	pixelFormat: null,
+	sampleRate: 48_000,
+	channelCount: 2,
+	width: null,
+	height: null,
+});
 const CANARY_OPERATIONS = Object.freeze([
 	MP3_CANARY_OPERATION, AAC_M4A_CANARY_OPERATION, AAC_M4A_ENCODE_CANARY_OPERATION,
+	MP3_ENCODE_CANARY_OPERATION,
 ]);
 const OPERATION_FIELDS = Object.freeze([
 	'direction', 'mediaKind', 'container', 'codec', 'profile', 'sampleFormat',
@@ -120,6 +134,8 @@ const SOURCE_TUPLE_REASON: Readonly<Record<OperatingSystemAudioSourceFormat, str
 });
 const AAC_ENCODE_TUPLE_REASON =
 	'The OS AAC-LC M4A encoder admits only 48 kHz stereo float PCM at 160 kbps.';
+const MP3_ENCODE_TUPLE_REASON =
+	'The Windows OS MP3 encoder admits only 48 kHz stereo float PCM at 192 kbps.';
 
 type RequestAdmission = Readonly<{
 	readonly disposition: 'supported';
@@ -202,7 +218,7 @@ export async function loadOperatingSystemAudioCodecRuntime(
 			}>,
 		): Promise<DesktopCodecPreflightResult> {
 			throwIfAborted(executionOptions?.signal);
-			const admission = requestAdmission(requestValue, executionOptions?.operation);
+			const admission = requestAdmission(requestValue, executionOptions?.operation, target);
 			return admission.disposition === 'rejected'
 				? rejectedRequest()
 				: admission.disposition === 'unsupported'
@@ -217,7 +233,7 @@ export async function loadOperatingSystemAudioCodecRuntime(
 			}>,
 		): Promise<DesktopAudioCodecProviderExecutionResult> {
 			throwIfAborted(executionOptions?.signal);
-			const admission = requestAdmission(requestValue, executionOptions?.operation);
+			const admission = requestAdmission(requestValue, executionOptions?.operation, target);
 			if (admission.disposition !== 'supported') {
 				return admission.disposition === 'rejected'
 					? failed('security-failed', 'The OS audio request does not match its admitted operation.')
@@ -277,6 +293,7 @@ export function mapOperatingSystemAudioCodecOperationResult(
 function requestAdmission(
 	requestValue: DesktopAudioCodecRequest,
 	operationValue: DesktopCodecOperation | undefined,
+	target: OperatingSystemAudioCodecTarget,
 ): RequestAdmission {
 	let request: DesktopAudioCodecRequest;
 	try { request = normalizeDesktopAudioCodecRequest(requestValue); }
@@ -285,11 +302,18 @@ function requestAdmission(
 		return Object.freeze({ disposition: 'rejected' });
 	}
 	if (request.operation === 'audio-encode') {
-		if (request.format !== 'aac-m4a') return Object.freeze({ disposition: 'rejected' });
+		if (request.format !== 'aac-m4a' && request.format !== 'mp3') {
+			return Object.freeze({ disposition: 'rejected' });
+		}
+		if (request.format === 'mp3' && !target.startsWith('win-')) {
+			return Object.freeze({ disposition: 'unsupported', reason: MP3_ENCODE_TUPLE_REASON });
+		}
+		const bitrateKbps = request.format === 'mp3' ? 192 : 160;
 		return request.sampleRate === 48_000 && request.channelCount === 2
-			&& request.settings.bitrateKbps === 160
+			&& request.settings.bitrateKbps === bitrateKbps
 			? Object.freeze({ disposition: 'supported', request })
-			: Object.freeze({ disposition: 'unsupported', reason: AAC_ENCODE_TUPLE_REASON });
+			: Object.freeze({ disposition: 'unsupported', reason: request.format === 'mp3'
+				? MP3_ENCODE_TUPLE_REASON : AAC_ENCODE_TUPLE_REASON });
 	}
 	if (request.format !== 'mp3' && request.format !== 'aac-m4a') {
 		return Object.freeze({ disposition: 'rejected' });

@@ -504,3 +504,14 @@ extern "C" soundscaper_pro_os_aac_m4a_encode_result soundscaper_pro_os_aac_m4a_e
 {
 	return encodeOperatingSystemAacM4a(request);
 }
+
+/* Apple documents MP3 as decode-only in the system Core Audio codec set. */
+extern "C" soundscaper_pro_os_mp3_encode_result soundscaper_pro_os_mp3_encode(
+	const soundscaper_pro_os_mp3_encode_request *request)
+{
+	soundscaper_pro_os_mp3_encode_result result{};
+	result.status = request == nullptr
+		? SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST
+		: SOUNDSCAPER_PRO_OS_CODEC_API_UNAVAILABLE;
+	return result;
+}

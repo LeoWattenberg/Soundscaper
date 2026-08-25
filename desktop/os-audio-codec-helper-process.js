@@ -31,6 +31,10 @@ export async function runOperatingSystemAudioCodecJob(value, ports = {}) {
 	const envelope = exactRecord(value, ['configuration', 'request'], 'OS audio codec helper job');
 	const configuration = codecConfiguration(envelope.configuration);
 	const request = codecRequest(envelope.request);
+	if (request.operation === 'audio-encode' && request.format === 'mp3'
+		&& !configuration.target.startsWith('win-')) {
+		throw new TypeError('OS MP3 encoding is unavailable on this process target.');
+	}
 	if (dirname(request.inputPath) !== dirname(request.outputPath)
 		|| request.inputPath === request.outputPath) {
 		throw new TypeError('The OS audio codec request must use sibling private scratch files.');
@@ -198,9 +202,10 @@ function codecRequest(value) {
 		throw new TypeError('The OS audio codec operation is unsupported.');
 	}
 	const format = audioFormat(record.format);
-	if (operation === 'audio-encode' && format !== 'aac-m4a') {
+	if (operation === 'audio-encode' && format !== 'aac-m4a' && format !== 'mp3') {
 		throw new TypeError('The OS audio codec encode format is unsupported.');
 	}
+	const bitrateKbps = format === 'mp3' ? 192 : 160;
 	return Object.freeze({
 		contractVersion: 1,
 		operation,
@@ -215,7 +220,7 @@ function codecRequest(value) {
 		...(operation === 'audio-encode' ? {
 			sampleRate: integer(record.sampleRate, 48_000, 48_000, 'encode sample rate'),
 			channelCount: integer(record.channelCount, 2, 2, 'encode channel count'),
-			bitrateKbps: integer(record.bitrateKbps, 160, 160, 'encode bitrate'),
+			bitrateKbps: integer(record.bitrateKbps, bitrateKbps, bitrateKbps, 'encode bitrate'),
 		} : {}),
 	});
 }
@@ -323,7 +328,7 @@ async function loadVerifiedAddon({ addonPath, addonSha256 }) {
 function addonMethod(value, request) {
 	if (!value || typeof value !== 'object') throw new TypeError('The OS audio codec addon is invalid.');
 	const name = request.operation === 'audio-encode'
-		? 'encodeOperatingSystemAacM4a'
+		? request.format === 'mp3' ? 'encodeOperatingSystemMp3' : 'encodeOperatingSystemAacM4a'
 		: request.format === 'mp3' ? 'decodeOperatingSystemMp3' : 'decodeOperatingSystemAacM4a';
 	const method = Object.getOwnPropertyDescriptor(value, name);
 	if (!method || !Object.hasOwn(method, 'value') || typeof method.value !== 'function') {

@@ -11,7 +11,10 @@ import {
 	normalizeDesktopAudioCodecRequest,
 	type DesktopAudioCodecRequest,
 } from './desktop-audio-codec-operation-contract.ts';
-import { inspectOperatingSystemAudioSource } from './os-audio-codec-source-inspection.ts';
+import {
+	inspectOperatingSystemAudioSource,
+	inspectOperatingSystemMp3SourceProfile,
+} from './os-audio-codec-source-inspection.ts';
 
 export type OperatingSystemAudioCodecTarget = 'mac-arm64' | 'win-x64' | 'win-arm64';
 
@@ -118,12 +121,12 @@ type ReviewedAudioDecodeRequest = Extract<
 	{ readonly operation: 'audio-decode' }
 > & Readonly<{ readonly format: 'mp3' | 'aac-m4a' }>;
 
-type ReviewedAacEncodeRequest = Extract<
+type ReviewedAudioEncodeRequest = Extract<
 	DesktopAudioCodecRequest,
-	{ readonly operation: 'audio-encode'; readonly format: 'aac-m4a' }
->;
+	{ readonly operation: 'audio-encode' }
+> & Readonly<{ readonly format: 'aac-m4a' | 'mp3' }>;
 
-type ReviewedAudioCodecRequest = ReviewedAudioDecodeRequest | ReviewedAacEncodeRequest;
+type ReviewedAudioCodecRequest = ReviewedAudioDecodeRequest | ReviewedAudioEncodeRequest;
 
 const SHA256 = /^[a-f0-9]{64}$/u;
 const TARGETS = new Set<string>(['mac-arm64', 'win-x64', 'win-arm64']);
@@ -143,7 +146,7 @@ const DETAILS: Readonly<Record<OperatingSystemAudioCodecUnavailableReason, strin
 	'helper-timeout': 'The OS audio codec helper exceeded its runtime limit.',
 	'output-invalid': 'The OS audio codec helper output failed exact authentication.',
 	'payload-unavailable': 'No authenticated target-native OS audio codec payload is available.',
-	'request-rejected': 'The OS audio codec runtime admits only reviewed MP3/AAC decode or exact AAC-LC M4A encode.',
+	'request-rejected': 'The OS audio codec runtime admits only reviewed MP3/AAC decode or exact AAC/MP3 encode.',
 	'scratch-failed': 'The OS audio codec scratch files could not be prepared.',
 	'spawn-failed': 'The OS audio codec helper could not be started.',
 	'tuple-unsupported': 'The operating-system audio codec rejected this exact stream tuple.',
@@ -192,11 +195,13 @@ export function createOperatingSystemAudioCodecOperationRunner(
 function reviewedAudioCodecRequest(
 	request: DesktopAudioCodecRequest,
 ): request is ReviewedAudioCodecRequest {
-	return request.operation === 'audio-decode'
-		&& (request.format === 'mp3' || request.format === 'aac-m4a')
-		|| request.operation === 'audio-encode' && request.format === 'aac-m4a'
-			&& request.sampleRate === 48_000 && request.channelCount === 2
-			&& request.settings.bitrateKbps === 160;
+	if (request.operation === 'audio-decode') {
+		return request.format === 'mp3' || request.format === 'aac-m4a';
+	}
+	return request.operation === 'audio-encode'
+		&& (request.format === 'aac-m4a' || request.format === 'mp3')
+		&& request.sampleRate === 48_000 && request.channelCount === 2
+		&& request.settings.bitrateKbps === (request.format === 'mp3' ? 192 : 160);
 }
 
 async function executeActive(options: Readonly<{
@@ -215,8 +220,8 @@ async function executeActive(options: Readonly<{
 		const files: StagedFiles = Object.freeze({
 			inputPath: join(scratchDirectory, options.request.operation === 'audio-encode'
 				? 'input.f32le' : options.request.format === 'mp3' ? 'input.mp3' : 'input.m4a'),
-			outputPath: join(scratchDirectory,
-				options.request.operation === 'audio-encode' ? 'output.m4a' : 'output.f32le'),
+			outputPath: join(scratchDirectory, options.request.operation === 'audio-encode'
+				? options.request.format === 'mp3' ? 'output.mp3' : 'output.m4a' : 'output.f32le'),
 		});
 		await writeFile(files.inputPath, Buffer.from(options.request.input), { flag: 'wx', mode: 0o600 });
 		result = await executeStaged({ ...options, files });
@@ -243,6 +248,8 @@ async function executeStaged(options: Readonly<{
 	let descriptor: OperatingSystemAudioCodecAddonDescriptor;
 	try { descriptor = addonDescriptor(await options.verifyAddon()); }
 	catch { return unavailable('payload-unavailable'); }
+	if (options.request.operation === 'audio-encode' && options.request.format === 'mp3'
+		&& !descriptor.target.startsWith('win-')) return unavailable('tuple-unsupported');
 	if (options.signal?.aborted) return unavailable('cancelled');
 	const configuration: OperatingSystemAudioCodecChildConfiguration = Object.freeze({
 		contractVersion: 1,
@@ -275,13 +282,19 @@ async function executeStaged(options: Readonly<{
 		const tuple = helperResult.encodedTuple;
 		const frameCount = options.request.input.byteLength
 			/ (options.request.channelCount * Float32Array.BYTES_PER_ELEMENT);
-		const inspected = inspectOperatingSystemAudioSource('aac-m4a', output.bytes);
+		const mp3Profile = options.request.format === 'mp3'
+			? inspectOperatingSystemMp3SourceProfile(output.bytes) : null;
+		const inspected = options.request.format === 'mp3'
+			? mp3Profile
+			: inspectOperatingSystemAudioSource('aac-m4a', output.bytes);
 		if (tuple.sampleRate !== options.request.sampleRate
 			|| tuple.channelCount !== options.request.channelCount
 			|| tuple.frameCount !== frameCount
 			|| tuple.bitrateKbps !== options.request.settings.bitrateKbps
 			|| inspected?.sampleRate !== options.request.sampleRate
-			|| inspected?.channelCount !== options.request.channelCount) return unavailable('output-invalid');
+			|| inspected?.channelCount !== options.request.channelCount
+			|| options.request.format === 'mp3'
+				&& mp3Profile?.bitrateKbps !== options.request.settings.bitrateKbps) return unavailable('output-invalid');
 		return Object.freeze({ status: 'executed', output: output.bytes });
 	}
 	if (helperResult.status !== 'decoded') return unavailable('output-invalid');

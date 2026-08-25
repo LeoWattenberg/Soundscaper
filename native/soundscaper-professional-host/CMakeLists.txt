@@ -31,7 +31,8 @@ endif()
 add_subdirectory("${SOUNDSCAPER_JUCE_ROOT}" "${CMAKE_CURRENT_BINARY_DIR}/juce" EXCLUDE_FROM_ALL)
 
 add_library(soundscaper_professional_audio STATIC
-	src/juce_audio_adapter.cpp src/os_aac_m4a_profile.cpp src/professional_host.cpp
+	src/juce_audio_adapter.cpp src/os_aac_m4a_profile.cpp src/os_mp3_profile.cpp
+	src/professional_host.cpp
 )
 add_library(soundscaper_professional_plugin STATIC
 	src/direct_clap_adapter.cpp src/juce_message_dispatcher.cpp
@@ -79,7 +80,8 @@ if(APPLE)
 	target_compile_definitions(soundscaper_professional_plugin PRIVATE
 		JUCE_PLUGINHOST_AU=1 JUCE_PLUGINHOST_LV2=0 JUCE_ASIO=0)
 elseif(WIN32)
-	target_sources(soundscaper_professional_audio PRIVATE src/os_audio_codec_windows.cpp)
+	target_sources(soundscaper_professional_audio PRIVATE
+		src/os_audio_codec_windows.cpp src/os_mp3_encode_windows.cpp)
 	target_link_libraries(soundscaper_professional_audio PRIVATE
 		mfplat mfreadwrite mfuuid ole32)
 	if(NOT DEFINED SOUNDSCAPER_ASIO_ROOT OR NOT EXISTS "${SOUNDSCAPER_ASIO_ROOT}/common/asio.h")
@@ -120,6 +122,15 @@ else()
 endif()
 
 include(CTest)
+if(BUILD_TESTING)
+	add_executable(soundscaper_os_mp3_profile_self_test
+		src/os_mp3_profile.cpp tests/os_mp3_profile_self_test.cpp)
+	target_compile_features(soundscaper_os_mp3_profile_self_test PRIVATE cxx_std_20)
+	target_include_directories(soundscaper_os_mp3_profile_self_test PRIVATE
+		"${CMAKE_CURRENT_SOURCE_DIR}/src")
+	add_test(NAME soundscaper_os_mp3_profile_self_test
+		COMMAND soundscaper_os_mp3_profile_self_test)
+endif()
 if(BUILD_TESTING AND (APPLE OR WIN32))
 	add_executable(soundscaper_os_audio_codec_self_test tests/os_audio_codec_self_test.cpp)
 	target_compile_features(soundscaper_os_audio_codec_self_test PRIVATE cxx_std_20)
