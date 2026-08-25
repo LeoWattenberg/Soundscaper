@@ -23,7 +23,7 @@ const products = Object.freeze([
 		shortcuts: Object.freeze({ disabledCommandIds: Object.freeze([]) }),
 		importChoices: Object.freeze(['scape', 'audio']),
 		exportChoices: Object.freeze(['scape', 'audio', 'video']),
-		capabilities: Object.freeze({ audioImport: true, videoEffects: false }),
+		capabilities: Object.freeze({ assistanceAssets: true, audioImport: true, videoEffects: false }),
 	}),
 	Object.freeze({
 		id: 'framescaper',
@@ -31,7 +31,7 @@ const products = Object.freeze([
 		shortcuts: Object.freeze({ disabledCommandIds: Object.freeze(['generate']) }),
 		importChoices: Object.freeze(['scape', 'video']),
 		exportChoices: Object.freeze(['scape', 'audio', 'video']),
-		capabilities: Object.freeze({ audioImport: true, videoEffects: true }),
+		capabilities: Object.freeze({ assistanceAssets: true, audioImport: true, videoEffects: true }),
 	}),
 ]);
 
@@ -123,6 +123,7 @@ test('capability reference renders product-owned families and a reviewed feature
 	const rendered = renderCapabilityReference({ products });
 
 	assert.match(rendered, /Audio import.*Enabled.*Enabled/u);
+	assert.match(rendered, /Local assistance assets.*Enabled.*Enabled/u);
 	assert.doesNotMatch(rendered, /\n# Product capabilities\n/u, 'frontmatter supplies the page heading');
 	assert.match(rendered, /Video effects.*Not enabled.*Enabled/u);
 	assert.match(rendered, /Soundscaper.*\.scape, Audio/u);
