@@ -10,6 +10,7 @@ import { parentPort, workerData } from 'node:worker_threads';
 import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
 import { verifyAssistanceNativeRuntimePayload } from './assistance-native-runtime-payload.mjs';
 import { createSherpaRecognizerFactory } from './project-library-runtime/desktop/assistance-sherpa-recognizer.js';
+import { createSherpaVadFactory } from './project-library-runtime/desktop/assistance-sherpa-vad.js';
 import { createSpeechRuntimeAdapter } from './project-library-runtime/desktop/assistance-speech-runtime.js';
 import { validateAssistanceSpeechJobGrant } from './project-library-runtime/desktop/assistance-speech-job-contract.js';
 
@@ -32,8 +33,20 @@ void run().then(
 async function run() {
 	const grant = validateAssistanceSpeechJobGrant(workerData);
 	if (grant.operation === 'status') return runtime.status();
-	for (const file of [grant.audio, ...Object.values(grant.model)]) await verifyGrantedFile(file);
+	const modelFiles = grant.operation === 'recognize' ? Object.values(grant.model) : [grant.model];
+	for (const file of [grant.audio, ...modelFiles]) await verifyGrantedFile(file);
 	parentPort?.postMessage({ type: 'progress', value: 0 });
+	if (grant.operation === 'detect-voice-activity') {
+		const detector = createSherpaVadFactory(await loadVerifiedRuntime());
+		return detector.detect({
+			modelId: grant.modelId,
+			audioPath: grant.audio.path,
+			model: { model: grant.model.path },
+			onProgress: ({ completed, total }) => parentPort?.postMessage({
+				type: 'progress', value: total === 0 ? 1 : completed / total,
+			}),
+		});
+	}
 	return runtime.recognize({
 		modelId: grant.modelId,
 		audioPath: grant.audio.path,

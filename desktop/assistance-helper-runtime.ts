@@ -27,6 +27,11 @@ import {
 	type AssistanceSpeechFileGrant,
 	type AssistanceSpeechJobGrant,
 } from './assistance-speech-job-contract.ts';
+import {
+	type VoiceActivityRequest,
+	type VoiceActivityResult,
+	type VoiceActivityRuntimeAdapter,
+} from './assistance-vad-runtime.ts';
 
 export interface AssistanceSpeechHostPort {
 	start(
@@ -49,7 +54,7 @@ export interface AssistanceFileReadStream extends AsyncIterable<Uint8Array> {
 
 export function createAssistanceHelperRuntimeAdapter(
 	options: AssistanceHelperRuntimeOptions,
-): SpeechRuntimeAdapter & Readonly<{ dispose(): void }> {
+): SpeechRuntimeAdapter & VoiceActivityRuntimeAdapter & Readonly<{ dispose(): void }> {
 	const mintJobId = options.mintJobId ?? (() => randomBytes(20).toString('hex'));
 	const openFileReadStream = options.openFileReadStream
 		?? ((path: string): AssistanceFileReadStream => createReadStream(path));
@@ -81,7 +86,34 @@ export function createAssistanceHelperRuntimeAdapter(
 				onProgress: request.onProgress,
 			}));
 		},
+		async detect(request: VoiceActivityRequest): Promise<VoiceActivityResult> {
+			const grant = await authorizeVoiceActivity(request, openFileReadStream);
+			return validateAssistanceSpeechJobResult(await run(grant, {
+				signal: request.signal,
+				onProgress: request.onProgress,
+			}), grant) as VoiceActivityResult;
+		},
 		dispose: () => options.host.dispose(),
+	});
+}
+
+async function authorizeVoiceActivity(
+	request: VoiceActivityRequest,
+	openFileReadStream: (path: string) => AssistanceFileReadStream,
+): Promise<AssistanceSpeechJobGrant> {
+	if (!request || typeof request.audioPath !== 'string' || !request.model) {
+		throw new TypeError('Voice activity needs one audio file and one Silero model.');
+	}
+	request.signal?.throwIfAborted();
+	const [audio, model] = await Promise.all([
+		fileGrant(request.audioPath, 'audio', request.signal, openFileReadStream),
+		fileGrant(request.model.model, 'vad-model', request.signal, openFileReadStream),
+	]);
+	request.signal?.throwIfAborted();
+	return Object.freeze({
+		operation: 'detect-voice-activity', moduleId: SPEECH_RUNTIME_MODULE_ID,
+		modelId: request.modelId ?? `local.${model.sha256.slice(0, 16)}`,
+		audio, model,
 	});
 }
 
