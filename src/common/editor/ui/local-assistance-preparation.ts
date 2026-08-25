@@ -14,8 +14,10 @@ import {
 import type {
 	LocalAssistanceInputRole,
 	LocalAssistanceModel,
+	LocalAssistanceOutputClaim,
 	LocalAssistanceOutputRole,
 } from './local-assistance-bridge.ts';
+import type { LocalAssistanceOutputReview } from './local-assistance-result-review.ts';
 
 export type LocalAssistanceMediaKind =
 	| 'audio' | 'video' | 'frame-pack' | 'transcript' | 'text' | 'editorial-context';
@@ -58,6 +60,18 @@ export interface LocalAssistanceSelectedMediaPreparationPort {
 		operation: AssistanceOperation;
 		signal?: AbortSignal;
 	}>): Promise<unknown>;
+	acceptValidatedResult?(request: LocalAssistanceValidatedResultAcceptanceRequest): Promise<void>;
+}
+
+export interface LocalAssistanceValidatedResultAcceptanceRequest {
+	readonly sourceId: string;
+	readonly operation: AssistanceOperation;
+	readonly selectionFence: AssistanceSelectionFence;
+	readonly model: LocalAssistanceModel;
+	readonly outputs: readonly Readonly<{
+		readonly claim: LocalAssistanceOutputClaim;
+		readonly review: LocalAssistanceOutputReview;
+	}>[];
 }
 
 interface OperationSpec {

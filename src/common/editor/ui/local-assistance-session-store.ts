@@ -17,6 +17,7 @@ import {
 	normalizeLocalAssistanceSelectedMediaInventory,
 	type LocalAssistanceSelectedMediaPreparationPort,
 	type LocalAssistanceSelectedMediaSource,
+	type LocalAssistanceValidatedResultAcceptanceRequest,
 } from './local-assistance-preparation.ts';
 import {
 	reviewLocalAssistanceOutput,
@@ -25,7 +26,8 @@ import {
 
 export type LocalAssistancePhase =
 	| 'idle' | 'loading' | 'selection-required' | 'ready' | 'preparing' | 'running'
-	| 'cancelling' | 'completed' | 'cancelled' | 'unavailable' | 'error';
+	| 'cancelling' | 'completed' | 'accepting' | 'accepted'
+	| 'cancelled' | 'unavailable' | 'error';
 
 export type LocalAssistanceUiUnavailableReason =
 	| LocalAssistanceUnavailableReason
@@ -59,8 +61,7 @@ export interface LocalAssistanceSnapshot {
 	readonly canRun: boolean;
 	readonly canCancel: boolean;
 	readonly canReview: boolean;
-	/** Canonical acceptance is intentionally outside this Milestone-7 UI slice. */
-	readonly canAccept: false;
+	readonly canAccept: boolean;
 }
 
 export interface LocalAssistanceSessionStore {
@@ -74,6 +75,7 @@ export interface LocalAssistanceSessionStore {
 	setConsent(consent: boolean): void;
 	run(): Promise<void>;
 	cancel(): Promise<void>;
+	accept(): Promise<void>;
 	dispose(): Promise<void>;
 }
 
@@ -89,11 +91,12 @@ export function createLocalAssistanceSessionStore(
 	options: StoreOptions,
 ): LocalAssistanceSessionStore {
 	const listeners = new Set<() => void>();
+	let pendingAcceptance: LocalAssistanceValidatedResultAcceptanceRequest | null = null;
 	let snapshot = freezeSnapshot({
 		phase: 'idle', sources: EMPTY_SOURCES, models: EMPTY_MODELS,
 		selectedSourceId: null, selectedOperation: null, selectedModelId: null,
 		consent: false, progress: null, result: null, unavailableReason: null, error: null,
-	});
+	}, false);
 	let progressDisconnect: (() => void) | null = null;
 	let activeJobId: string | null = null;
 	let activeOperation: AssistanceOperation | null = null;
@@ -106,7 +109,8 @@ export function createLocalAssistanceSessionStore(
 
 	const emit = () => listeners.forEach((listener) => listener());
 	const update = (change: Partial<LocalAssistanceSnapshot>) => {
-		snapshot = freezeSnapshot({ ...snapshot, ...change });
+		snapshot = freezeSnapshot({ ...snapshot, ...change }, pendingAcceptance !== null
+			&& typeof options.preparation?.acceptValidatedResult === 'function');
 		emit();
 	};
 	const connect = () => {
@@ -129,6 +133,7 @@ export function createLocalAssistanceSessionStore(
 
 	const load = async (): Promise<void> => {
 		if (disposed) return;
+		pendingAcceptance = null;
 		if (!options.preparation) {
 			update({ phase: 'selection-required', sources: EMPTY_SOURCES, models: EMPTY_MODELS,
 				unavailableReason: 'selection-required', error: null });
@@ -161,6 +166,7 @@ export function createLocalAssistanceSessionStore(
 		if (!snapshot.sources.some((source) => source.sourceId === sourceId)) {
 			throw new TypeError('The selected local-assistance source is unavailable.');
 		}
+		pendingAcceptance = null;
 		update({ phase: 'ready', selectedSourceId: sourceId, selectedOperation: null,
 			selectedModelId: null, consent: false, progress: null, result: null,
 			unavailableReason: null, error: null });
@@ -171,6 +177,7 @@ export function createLocalAssistanceSessionStore(
 			throw new TypeError('The selected media does not admit that assistance operation.');
 		}
 		const compatible = snapshot.models.filter((model) => localAssistanceModelCompatible(operation, model));
+		pendingAcceptance = null;
 		update({ phase: compatible.length ? 'ready' : 'unavailable', selectedOperation: operation,
 			selectedModelId: null, consent: false, progress: null, result: null,
 			unavailableReason: compatible.length ? null : 'no-compatible-model', error: null });
@@ -181,6 +188,7 @@ export function createLocalAssistanceSessionStore(
 		if (!operation || !model || !localAssistanceModelCompatible(operation, model)) {
 			throw new TypeError('The selected local-assistance model is incompatible.');
 		}
+		pendingAcceptance = null;
 		update({ phase: 'ready', selectedModelId: modelId, consent: false, result: null,
 			unavailableReason: null, error: null });
 	};
@@ -200,8 +208,10 @@ export function createLocalAssistanceSessionStore(
 		activeOperation = operation;
 		lastProgressSequence = -1;
 		lastProgressPhase = -1;
+		pendingAcceptance = null;
 		update({ phase: 'preparing', progress: null, result: null, unavailableReason: null, error: null });
 		let completed: LocalAssistanceValidatedResult | null = null;
+		let completedAcceptance: LocalAssistanceValidatedResultAcceptanceRequest | null = null;
 		let unavailableReason: LocalAssistanceUnavailableReason | null = null;
 		let consentDeclined = false;
 		let failure: unknown = null;
@@ -245,6 +255,13 @@ export function createLocalAssistanceSessionStore(
 					return Object.freeze({ claim, bytes, review });
 				}));
 				completed = Object.freeze({ operation, outputs: Object.freeze(bodies) });
+				completedAcceptance = Object.freeze({
+					sourceId,
+					operation,
+					selectionFence: prepared.selectionFence,
+					model,
+					outputs: Object.freeze(bodies.map(({ claim, review }) => Object.freeze({ claim, review }))),
+				});
 			}
 		} catch (error) {
 			failure = error;
@@ -270,6 +287,7 @@ export function createLocalAssistanceSessionStore(
 			update({ phase: 'unavailable', result: null, progress: null,
 				error: null, unavailableReason });
 		} else if (completed) {
+			pendingAcceptance = completedAcceptance;
 			update({ phase: 'completed', result: completed, progress: null,
 				error: null, unavailableReason: null });
 		} else {
@@ -293,8 +311,29 @@ export function createLocalAssistanceSessionStore(
 			catch { /* The run path still owns the mandatory release attempt. */ }
 		}
 	};
+	const accept = async (): Promise<void> => {
+		const port = options.preparation?.acceptValidatedResult;
+		const request = pendingAcceptance;
+		if (!snapshot.canAccept || !port || !request) {
+			throw new Error('No reviewed local-assistance proposal is ready to accept.');
+		}
+		pendingAcceptance = null;
+		update({ phase: 'accepting', error: null, unavailableReason: null });
+		try {
+			await port.call(options.preparation, request);
+			if (!disposed) update({ phase: 'accepted', error: null, unavailableReason: null });
+		} catch (error) {
+			if (!disposed) update({
+				phase: 'error',
+				error: error instanceof Error
+					? error.message : 'The assistance proposal could not be accepted.',
+				unavailableReason: null,
+			});
+		}
+	};
 	const dispose = async (): Promise<void> => {
 		disposed = true;
+		pendingAcceptance = null;
 		cancelRequested = true;
 		preparationController?.abort(new CancelledSession());
 		if (activeJobId && options.bridge) {
@@ -309,12 +348,14 @@ export function createLocalAssistanceSessionStore(
 	return Object.freeze({
 		getSnapshot: () => snapshot,
 		subscribe(listener: () => void) { listeners.add(listener); return () => listeners.delete(listener); },
-		connect, load, selectSource, selectOperation, selectModel, setConsent, run, cancel, dispose,
+		connect, load, selectSource, selectOperation, selectModel, setConsent, run, cancel, accept, dispose,
 	});
 }
 
 function freezeSnapshot(value: Omit<LocalAssistanceSnapshot,
-	'canRun' | 'canCancel' | 'canReview' | 'canAccept'>): LocalAssistanceSnapshot {
+	'canRun' | 'canCancel' | 'canReview' | 'canAccept'>,
+	acceptanceAvailable: boolean,
+): LocalAssistanceSnapshot {
 	const source = selectedSource(value);
 	const model = value.models.find(({ modelId }) => modelId === value.selectedModelId);
 	const selectionReady = Boolean(source && value.selectedOperation
@@ -324,7 +365,8 @@ function freezeSnapshot(value: Omit<LocalAssistanceSnapshot,
 		canRun: value.phase === 'ready' && selectionReady && value.consent,
 		canCancel: value.phase === 'preparing' || value.phase === 'running' || value.phase === 'cancelling',
 		canReview: value.phase === 'completed' && Boolean(value.result?.outputs.length),
-		canAccept: false,
+		canAccept: value.phase === 'completed' && Boolean(value.result?.outputs.length)
+			&& acceptanceAvailable,
 	});
 }
 
