@@ -156,7 +156,12 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 		const installed = await store.commitInstall({
 			modelId: entry.modelId, version: entry.version, artifacts: entry.artifacts,
 		});
-		return entryView(entry, 'installed', installed.totalBytes);
+		return entryView(
+			entry,
+			'installed',
+			installed.totalBytes,
+			attributionById.get(entry.modelId) === true,
+		);
 	}
 
 	/** Removes a model and reports the bytes reclaimed. */

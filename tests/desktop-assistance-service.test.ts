@@ -130,6 +130,7 @@ test('installing fetches, verifies, and reports the model as installed', { timeo
 
 	assert.equal(view.availability, 'installed');
 	assert.equal(view.installedBytes, ENCODER.length + TOKENS.length);
+	assert.equal(view.attributionRequired, true);
 	assert.deepEqual(progress, [`encoder.onnx:${ENCODER.length}`, `tokens.txt:${TOKENS.length}`]);
 
 	const status = await service.status();
