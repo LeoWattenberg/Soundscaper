@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough, Writable } from 'node:stream';
@@ -420,6 +420,25 @@ test('service disposal is a barrier for running child termination and scratch cl
 		assert.deepEqual(await readdir(root), []);
 	} finally {
 		await fixture.service.dispose();
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
+test('service disposal reports cleanup failures after draining every cleanup task', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-dispose-failure-'));
+	const fixture = serviceFixture(root, () => fakeChild(new PassThrough(), null));
+	await mkdir(join(root, 'qualification'));
+	await chmod(root, 0o000);
+	try {
+		const disposal = fixture.service.dispose();
+		assert.strictEqual(fixture.service.dispose(), disposal);
+		await assert.rejects(disposal, (error: unknown) => {
+			assert.ok(error instanceof AggregateError);
+			assert.match(String(error.errors[0]), /EACCES|permission/iu);
+			return true;
+		});
+	} finally {
+		await chmod(root, 0o700);
 		await rm(root, { recursive: true, force: true });
 	}
 });

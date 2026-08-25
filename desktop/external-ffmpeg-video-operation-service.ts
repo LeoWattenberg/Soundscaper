@@ -347,7 +347,12 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 				...active.map(async (session) => {
 					await session.execution?.catch(() => undefined); await cleanup(session);
 				}),
-			]).then(() => undefined);
+			]).then((results) => {
+				const failures = results.flatMap((result) => result.status === 'rejected' ? [result.reason] : []);
+				if (failures.length > 0) throw new AggregateError(
+					failures, 'Desktop external FFmpeg video cleanup failed.',
+				);
+			});
 			return disposal;
 		},
 	});
