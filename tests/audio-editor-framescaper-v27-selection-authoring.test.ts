@@ -10,6 +10,10 @@ import {
 	createFramescaperProjectV27,
 	reimportFramescaperProjectV27,
 } from '../src/framescaper/editor-project-v27.ts';
+import { reimportFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
+import { reimportFramescaperProjectV31 } from '../src/framescaper/editor-project-v31.ts';
+import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
+import { FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v31.ts';
 import {
 	createFramescaperSelectedVisualAuthoringModelV27,
 } from '../src/framescaper/editor-selected-v27-visual-authoring-model.ts';
@@ -20,6 +24,24 @@ import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.t
 import { visualProject } from './helpers/framescaper-unified-render-project-fixture.ts';
 
 const PROFILE = FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE;
+
+test('selected F31 opens inherited visual authoring through its exact V28 foundation', () => {
+	const project = reimportFramescaperProjectV31(
+		FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE,
+		reimportFramescaperProjectV28(
+			FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE,
+			reimportFramescaperProjectV27(PROFILE, visualProject()),
+		),
+	);
+	const model = createFramescaperSelectedVisualAuthoringModelV27({
+		surface: 'video-visual-preset', project,
+		selectedClipId: 'generator-clip', playheadSample: 96_000,
+	});
+	assert.equal(model.selectedClipId, 'generator-clip');
+	assert.equal(model.selectedClipKind, 'generator');
+	assert.equal(model.fence.projectId, project.id);
+	assert.equal(model.fence.projectRevision, project.revision);
+});
 
 test('dissolve authoring uses the explicit adjacent pair and moves both linked A/V occurrences', async () => {
 	const project = linkedPairProject();
