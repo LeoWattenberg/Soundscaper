@@ -9,6 +9,7 @@ import {
 	validateAssistanceOutputClaim,
 	type AssistanceOutputClaim,
 } from './assistance-data-claims.ts';
+import type { SpeakerDiarizationRuntimeAdapter } from './assistance-diarization-runtime.ts';
 import {
 	ASSISTANCE_OPERATION_CONTRACT_VERSION,
 	AssistanceOperationProgressTracker,
@@ -31,6 +32,7 @@ import {
 export const ASSISTANCE_OPERATION_BRIDGE_VERSION = 1;
 const MAXIMUM_ACTIVE_JOBS = 32;
 const REQUIRED_SPEECH_MODEL_ROLES = Object.freeze(['encoder', 'decoder', 'joiner', 'tokens'] as const);
+const ERES2NET_MODEL_ROLE = '3dspeaker_speech_eres2net_sv_en_voxceleb_16k';
 
 export interface AssistanceOperationJob {
 	readonly contractVersion: typeof ASSISTANCE_OPERATION_BRIDGE_VERSION;
@@ -98,6 +100,7 @@ export interface AssistanceOperationServiceOptions {
 	readonly models: Pick<AssistanceService, 'status' | 'listInstalled' | 'resolveModelPaths'>;
 	readonly runtime: SpeechRuntimeAdapter;
 	readonly voiceActivityRuntime?: VoiceActivityRuntimeAdapter;
+	readonly diarizationRuntime?: SpeakerDiarizationRuntimeAdapter;
 	readonly onProgress?: (progress: AssistanceOperationProgress) => void;
 	readonly mintStreamId?: () => string;
 }
@@ -176,7 +179,8 @@ export function createAssistanceOperationService(options: AssistanceOperationSer
 		emit('staging-input');
 		const inputPaths = await Promise.all(request.inputs.map((claim) =>
 			options.registry.resolveInputPathForMain(request.jobId, claim, signal)));
-		if (request.operation !== 'speech-recognition' && request.operation !== 'voice-activity-detection') {
+		if (request.operation !== 'speech-recognition' && request.operation !== 'voice-activity-detection'
+			&& request.operation !== 'speaker-diarization') {
 			emit('finalizing');
 			return unavailable(request, 'adapter-unavailable');
 		}
@@ -185,9 +189,14 @@ export function createAssistanceOperationService(options: AssistanceOperationSer
 			return unavailable(request, 'adapter-unavailable');
 		}
 		emit('loading-model');
-		const resultBody = request.operation === 'speech-recognition'
-			? await executeSpeech(request, inputPaths[0]!, signal, emit, options)
-			: await executeVoiceActivity(request, inputPaths[0]!, signal, emit, options);
+		let resultBody: unknown | AssistanceOperationUnavailableReason;
+		if (request.operation === 'speech-recognition') {
+			resultBody = await executeSpeech(request, inputPaths[0]!, signal, emit, options);
+		} else if (request.operation === 'voice-activity-detection') {
+			resultBody = await executeVoiceActivity(request, inputPaths[0]!, signal, emit, options);
+		} else {
+			resultBody = await executeSpeakerDiarization(request, inputPaths[0]!, signal, emit, options);
+		}
 		if (isUnavailableReason(resultBody)) {
 			emit('finalizing');
 			return unavailable(request, resultBody);
@@ -273,9 +282,9 @@ async function executeSpeech(
 	emit: ProgressEmitter,
 	options: AssistanceOperationServiceOptions,
 ): Promise<unknown | AssistanceOperationUnavailableReason> {
-	const resolved = await resolveInstalledModel(request, options.models, 'speech-recognition');
+	const resolved = await resolveInstalledModels(request, options.models, ['speech-recognition']);
 	if (resolved === null) return 'model-unavailable';
-	const model = speechModelPaths(resolved);
+	const model = speechModelPaths(resolved[0]!.paths);
 	if (model === null) return 'model-unavailable';
 	const runtimeStatus = await options.runtime.status();
 	if (!runtimeStatus.available) return 'runtime-unavailable';
@@ -295,8 +304,9 @@ async function executeVoiceActivity(
 ): Promise<unknown | AssistanceOperationUnavailableReason> {
 	const runtime = options.voiceActivityRuntime;
 	if (!runtime) return 'adapter-unavailable';
-	const resolved = await resolveInstalledModel(request, options.models, 'voice-activity-detection');
-	if (resolved === null || typeof resolved.silero_vad !== 'string' || resolved.silero_vad === '') {
+	const resolved = await resolveInstalledModels(request, options.models, ['voice-activity-detection']);
+	const modelPath = resolved?.[0]?.paths.silero_vad;
+	if (typeof modelPath !== 'string' || modelPath === '') {
 		return 'model-unavailable';
 	}
 	const runtimeStatus = await runtime.status();
@@ -304,7 +314,39 @@ async function executeVoiceActivity(
 	emit('running');
 	return runtime.detect({
 		modelId: request.models[0]!.modelId, audioPath,
-		model: { model: resolved.silero_vad }, signal,
+		model: { model: modelPath }, signal,
+		onProgress: ({ completed, total }) => emit('running', completed, total),
+	});
+}
+
+async function executeSpeakerDiarization(
+	request: AssistanceOperationRequest,
+	audioPath: string,
+	signal: AbortSignal,
+	emit: ProgressEmitter,
+	options: AssistanceOperationServiceOptions,
+): Promise<unknown | AssistanceOperationUnavailableReason> {
+	const runtime = options.diarizationRuntime;
+	if (!runtime) return 'adapter-unavailable';
+	const resolved = await resolveInstalledModels(request, options.models,
+		['speaker-segmentation', 'speaker-embedding']);
+	const segmentation = resolved?.[0];
+	const embedding = resolved?.[1];
+	const segmentationPath = segmentation?.paths.model;
+	const embeddingPath = embedding?.paths[ERES2NET_MODEL_ROLE];
+	if (!segmentation || !embedding || typeof segmentationPath !== 'string' || segmentationPath === ''
+		|| typeof embeddingPath !== 'string' || embeddingPath === '') return 'model-unavailable';
+	const runtimeStatus = await runtime.status();
+	if (!runtimeStatus.available) return 'runtime-unavailable';
+	emit('running');
+	return runtime.diarize({
+		audioPath,
+		modelIds: {
+			segmentation: segmentation.binding.modelId,
+			embedding: embedding.binding.modelId,
+		},
+		models: { segmentation: segmentationPath, embedding: embeddingPath },
+		signal,
 		onProgress: ({ completed, total }) => emit('running', completed, total),
 	});
 }
@@ -318,28 +360,43 @@ function speechModelPaths(resolved: Readonly<Record<string, string>>): SpeechMod
 	});
 }
 
-async function resolveInstalledModel(
+interface ResolvedOperationModel {
+	readonly binding: AssistanceOperationRequest['models'][number];
+	readonly paths: Readonly<Record<string, string>>;
+}
+
+async function resolveInstalledModels(
 	request: AssistanceOperationRequest,
 	models: AssistanceOperationServiceOptions['models'],
-	task: string,
-): Promise<Readonly<Record<string, string>> | null> {
-	if (request.models.length !== 1) throw new TypeError(`${request.operation} requires one exact model binding.`);
-	const binding = request.models[0]!;
-	const status = await models.status();
-	const view = status.models.find(({ modelId }) => modelId === binding.modelId);
-	if (!view || view.task !== task || view.version !== binding.version
-		|| view.availability !== 'installed') return null;
-	const installed = (await models.listInstalled()).find(({ modelId }) => modelId === binding.modelId);
-	if (!installed || installed.version !== binding.version) return null;
-	const actualDigests = installed.artifacts.map(({ sha256 }) => sha256).sort();
-	if (actualDigests.length !== binding.artifactSha256s.length
-		|| actualDigests.some((digest, index) => digest !== binding.artifactSha256s[index])) {
-		throw new Error('The assistance model binding disagrees with its authenticated artifact inventory.');
+	tasks: readonly string[],
+): Promise<readonly ResolvedOperationModel[] | null> {
+	if (request.models.length !== tasks.length) {
+		throw new TypeError(`${request.operation} requires ${tasks.length} exact model binding(s).`);
 	}
-	let resolved: Record<string, string>;
-	try { resolved = await models.resolveModelPaths(binding.modelId); }
-	catch (error) { if (modelEvidenceUnavailable(error)) return null; throw error; }
-	return Object.freeze({ ...resolved });
+	const [status, installedModels] = await Promise.all([models.status(), models.listInstalled()]);
+	const used = new Set<string>();
+	const resolved: ResolvedOperationModel[] = [];
+	for (const task of tasks) {
+		const candidates = request.models.filter((binding) => status.models.some((view) => (
+			view.modelId === binding.modelId && view.task === task && view.version === binding.version
+			&& view.availability === 'installed'
+		)));
+		if (candidates.length !== 1 || used.has(candidates[0]!.modelId)) return null;
+		const binding = candidates[0]!;
+		used.add(binding.modelId);
+		const installed = installedModels.find(({ modelId }) => modelId === binding.modelId);
+		if (!installed || installed.version !== binding.version) return null;
+		const actualDigests = installed.artifacts.map(({ sha256 }) => sha256).sort();
+		if (actualDigests.length !== binding.artifactSha256s.length
+			|| actualDigests.some((digest, index) => digest !== binding.artifactSha256s[index])) {
+			throw new Error('The assistance model binding disagrees with its authenticated artifact inventory.');
+		}
+		let paths: Record<string, string>;
+		try { paths = await models.resolveModelPaths(binding.modelId); }
+		catch (error) { if (modelEvidenceUnavailable(error)) return null; throw error; }
+		resolved.push(Object.freeze({ binding, paths: Object.freeze({ ...paths }) }));
+	}
+	return Object.freeze(resolved);
 }
 
 function unavailable(

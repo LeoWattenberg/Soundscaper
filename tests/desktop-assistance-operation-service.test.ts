@@ -12,6 +12,7 @@ import {
 	createAssistanceOperationService,
 	type AssistanceOperationServiceOptions,
 } from '../desktop/assistance-operation-service.ts';
+import type { SpeakerDiarizationRuntimeAdapter } from '../desktop/assistance-diarization-runtime.ts';
 import { AssistanceStagingRegistry } from '../desktop/assistance-staging-registry.ts';
 import type { SpeechRuntimeAdapter } from '../desktop/assistance-speech-runtime.ts';
 import type { VoiceActivityRuntimeAdapter } from '../desktop/assistance-vad-runtime.ts';
@@ -29,6 +30,7 @@ const FENCE = Object.freeze({
 async function fixture(t: TestContext, overrides: Readonly<{
 	runtime?: SpeechRuntimeAdapter;
 	voiceActivityRuntime?: VoiceActivityRuntimeAdapter;
+	diarizationRuntime?: SpeakerDiarizationRuntimeAdapter;
 	availability?: 'installed' | 'installable' | 'unsupported-platform' | 'insufficient-memory';
 	models?: AssistanceOperationServiceOptions['models'];
 }> = {}) {
@@ -60,6 +62,7 @@ async function fixture(t: TestContext, overrides: Readonly<{
 	const progress: unknown[] = [];
 	const service = createAssistanceOperationService({ registry, models, runtime,
 		...(overrides.voiceActivityRuntime ? { voiceActivityRuntime: overrides.voiceActivityRuntime } : {}),
+		...(overrides.diarizationRuntime ? { diarizationRuntime: overrides.diarizationRuntime } : {}),
 		onProgress: (value) => progress.push(value) });
 	return { service, registry, runtime, stagingRoot, modelPaths, progress };
 }
@@ -81,6 +84,24 @@ async function voiceActivityRequest(
 		contractVersion: 1 as const, jobId, operation: 'voice-activity-detection' as const,
 		selectionFence: FENCE,
 		models: Object.freeze([{ modelId, version, artifactSha256s: digests }]),
+		inputs: Object.freeze([input]), outputs: Object.freeze([output]),
+	});
+}
+
+async function speakerDiarizationRequest(
+	service: ReturnType<typeof createAssistanceOperationService>,
+	bindings: readonly Readonly<{ modelId: string; version: string; artifactSha256s: readonly string[] }>[],
+) {
+	const { jobId } = await service.createJob();
+	const input = await service.stageInput({
+		jobId, role: 'audio', mediaType: 'audio/wav', byteLength: 16, bytes: bytes('RIFF-diarization'),
+	});
+	const output = await service.reserveOutput({
+		jobId, role: 'speaker-turns', mediaType: 'application/json', maximumByteLength: 8_192,
+	});
+	return Object.freeze({
+		contractVersion: 1 as const, jobId, operation: 'speaker-diarization' as const,
+		selectionFence: FENCE, models: Object.freeze(bindings),
 		inputs: Object.freeze([input]), outputs: Object.freeze([output]),
 	});
 }
@@ -179,6 +200,68 @@ test('voice activity executes the authenticated Silero model through the native 
 	assert.equal(await readFile(opened.path, 'utf8'), JSON.stringify(detected));
 	assert.deepEqual((progress as Array<{ phase: string }>).map(({ phase }) => phase),
 		['queued', 'staging-input', 'loading-model', 'running', 'staging-output', 'finalizing']);
+});
+
+test('speaker diarization executes exact Pyannote and ERes2Net bindings through the helper', async (t) => {
+	const segmentation = Object.freeze({
+		modelId: 'pyannote-segmentation-3.0', version: '3.0.0', digest: '7'.repeat(64),
+	});
+	const embedding = Object.freeze({
+		modelId: 'speech-3d-speaker-eres2net', version: '1.0.0', digest: '8'.repeat(64),
+	});
+	const diarized = Object.freeze({
+		sampleRate: 16_000,
+		turns: Object.freeze([{ startSample: 0, sampleCount: 8_000, speakerId: 0 }]),
+	});
+	const requests: Array<Parameters<SpeakerDiarizationRuntimeAdapter['diarize']>[0]> = [];
+	const diarizationRuntime: SpeakerDiarizationRuntimeAdapter = Object.freeze({
+		status: async () => ({ available: true, reason: null, moduleId: 'test-runtime' }),
+		diarize: async (request: Parameters<SpeakerDiarizationRuntimeAdapter['diarize']>[0]) => {
+			requests.push(request); return diarized;
+		},
+	});
+	const models: AssistanceOperationServiceOptions['models'] = Object.freeze({
+		status: async () => ({ runtimeAvailable: true, runtimeReason: null, models: [
+			{ modelId: segmentation.modelId, version: segmentation.version, task: 'speaker-segmentation',
+				availability: 'installed' as const, downloadBytes: 1, installedBytes: 1,
+				attributionRequired: false },
+			{ modelId: embedding.modelId, version: embedding.version, task: 'speaker-embedding',
+				availability: 'installed' as const, downloadBytes: 1, installedBytes: 1,
+				attributionRequired: false },
+		] }),
+		listInstalled: async () => [
+			{ modelId: segmentation.modelId, version: segmentation.version, totalBytes: 1,
+				artifacts: [{ fileName: 'model.onnx', byteLength: 1, sha256: segmentation.digest }] },
+			{ modelId: embedding.modelId, version: embedding.version, totalBytes: 1,
+				artifacts: [{ fileName: '3dspeaker.onnx', byteLength: 1, sha256: embedding.digest }] },
+		],
+		resolveModelPaths: async (modelId: string): Promise<Record<string, string>> => modelId === segmentation.modelId
+			? { model: '/models/pyannote.onnx' }
+			: { '3dspeaker_speech_eres2net_sv_en_voxceleb_16k': '/models/eres2net.onnx' },
+	});
+	const { service, progress } = await fixture(t, { models, diarizationRuntime });
+	const request = await speakerDiarizationRequest(service, [
+		{ modelId: embedding.modelId, version: embedding.version, artifactSha256s: [embedding.digest] },
+		{ modelId: segmentation.modelId, version: segmentation.version,
+			artifactSha256s: [segmentation.digest] },
+	]);
+
+	const outcome = await service.run(request);
+
+	assert.equal(outcome.outcome, 'completed');
+	if (outcome.outcome !== 'completed') return;
+	assert.equal(requests.length, 1);
+	assert.deepEqual(requests[0]?.modelIds, {
+		segmentation: segmentation.modelId, embedding: embedding.modelId,
+	});
+	assert.deepEqual(requests[0]?.models, {
+		segmentation: '/models/pyannote.onnx', embedding: '/models/eres2net.onnx',
+	});
+	assert.match(requests[0]?.audioPath ?? '', /private-staging/u);
+	assert.deepEqual((progress as Array<{ phase: string }>).map(({ phase }) => phase),
+		['queued', 'staging-input', 'loading-model', 'running', 'staging-output', 'finalizing']);
+	const opened = await service.openOutput({ jobId: request.jobId, claim: outcome.result.outputs[0] });
+	assert.equal(await readFile(opened.path, 'utf8'), JSON.stringify(diarized));
 });
 
 test('model choices expose exact authenticated bindings without filesystem paths', async (t) => {
