@@ -7,6 +7,7 @@ import type {
 	ControllerRuntimeProject,
 	ControllerTrackDuplicateRequest,
 } from '../common/editor/controller/project-runtime.ts';
+import { AUDIO_EDITOR_HISTORY_LIMIT } from '../common/editor/history.js';
 import { acquireProjectLock } from '../common/editor/project-lock.js';
 import { resolveRuntimeProjectProjection } from '../common/editor/runtime-clip-projection.ts';
 import { createAudioEditorSessionController } from '../common/editor/session.js';
@@ -17,6 +18,10 @@ import {
 	applySoundscaperProjectCommandV30,
 	soundscaperProjectForCommandConsumersV30,
 } from './editor-project-v30-commands.ts';
+import {
+	createSoundscaperOpaqueCustodyConsumerProjectV30,
+	type SoundscaperOpaqueCustodyConsumerProjectV30,
+} from './editor-project-opaque-custody-v30.ts';
 import {
 	createSoundscaperProjectHistoryV30,
 	executeSoundscaperProjectCommandV30,
@@ -43,6 +48,17 @@ import {
 	prepareCurrentSoundscaperTrackDuplicateCarrierV8,
 } from './editor-session-clipboard-v8.ts';
 
+interface SoundscaperOpaqueCustodyHistoryV30 {
+	readonly limit: number;
+	readonly present: SoundscaperOpaqueCustodyConsumerProjectV30;
+	readonly undoStack: readonly never[];
+	readonly redoStack: readonly never[];
+}
+
+type SoundscaperProjectHistorySelectionV30 =
+	| SoundscaperProjectHistoryV30
+	| SoundscaperOpaqueCustodyHistoryV30;
+
 export interface SoundscaperProjectRuntimeV30Selection {
 	readonly runtimeProfile: typeof SOUNDSCAPER_V30_PROJECT_RUNTIME_PROFILE;
 	readonly storageProfile: typeof SOUNDSCAPER_V30_PROJECT_STORAGE_PROFILE;
@@ -57,7 +73,7 @@ export interface SoundscaperProjectRuntimeV30Selection {
 		readonly migrated: boolean;
 		readonly fromVersion: number;
 	}>;
-	readonly createHistory: (project: unknown) => SoundscaperProjectHistoryV30 & ControllerRuntimeHistory;
+	readonly createHistory: (project: unknown) => SoundscaperProjectHistorySelectionV30 & ControllerRuntimeHistory;
 	readonly createSessionController: () => ReturnType<typeof createAudioEditorSessionController>;
 	readonly createProjectStore: (options?: AudioEditorProjectStoreOptions) => AudioEditorProjectStore;
 	readonly acquireProjectLock: typeof acquireProjectLock;
@@ -95,15 +111,8 @@ export function createSoundscaperProjectRuntimeV30Selection(): Readonly<Soundsca
 				fromVersion,
 			});
 		},
-		projectForCommandConsumers: (project: unknown) => (
-			soundscaperProjectForCommandConsumersV30(project) as ControllerRuntimeProject
-		),
-		projectForRuntimeConsumers: (project: unknown) => {
-			validateSoundscaperProjectV30(project);
-			return resolveRuntimeProjectProjection(
-				project as SoundscaperProjectV30,
-			) as unknown as ControllerRuntimeProject;
-		},
+		projectForCommandConsumers: (project: unknown) => projectForConsumers(project, 'command'),
+		projectForRuntimeConsumers: (project: unknown) => projectForConsumers(project, 'runtime'),
 		prepareEditClipboardDescriptor: (project: unknown, descriptor: AudioEditorClipboard) => (
 			createAudioEditorSessionClipboard(
 				soundscaperProjectForCommandConsumersV30(project),
@@ -113,22 +122,26 @@ export function createSoundscaperProjectRuntimeV30Selection(): Readonly<Soundsca
 		prepareTrackDuplicateCarrier: (project: unknown, request: ControllerTrackDuplicateRequest) => (
 			prepareCurrentSoundscaperTrackDuplicateCarrierV8(project, request)
 		),
-		createHistory: (project: unknown) => (
-			createSoundscaperProjectHistoryV30(project) as SoundscaperProjectHistoryV30 & ControllerRuntimeHistory
-		),
+		createHistory: (project: unknown) => createHistory(project),
 		applyCommand: (project: unknown, command: AudioEditorCommand, options = {}) => (
 			applySoundscaperProjectCommandV30(project, command, options) as SoundscaperProjectV30 & ControllerRuntimeProject
 		),
 		executeCommand: (
-			history: SoundscaperProjectHistoryV30,
+			history: SoundscaperProjectHistorySelectionV30,
 			command: AudioEditorCommand,
 			options = {},
-		) => executeSoundscaperProjectCommandV30(history, command, options) as SoundscaperProjectHistoryV30 & ControllerRuntimeHistory,
-		undo: (history: SoundscaperProjectHistoryV30, options = {}) => (
-			undoSoundscaperProjectCommandV30(history, options) as SoundscaperProjectHistoryV30 & ControllerRuntimeHistory
+		) => executeSoundscaperProjectCommandV30(
+			writableHistory(history), command, options,
+		) as SoundscaperProjectHistoryV30 & ControllerRuntimeHistory,
+		undo: (history: SoundscaperProjectHistorySelectionV30, options = {}) => (
+			undoSoundscaperProjectCommandV30(
+				writableHistory(history), options,
+			) as SoundscaperProjectHistoryV30 & ControllerRuntimeHistory
 		),
-		redo: (history: SoundscaperProjectHistoryV30, options = {}) => (
-			redoSoundscaperProjectCommandV30(history, options) as SoundscaperProjectHistoryV30 & ControllerRuntimeHistory
+		redo: (history: SoundscaperProjectHistorySelectionV30, options = {}) => (
+			redoSoundscaperProjectCommandV30(
+				writableHistory(history), options,
+			) as SoundscaperProjectHistoryV30 & ControllerRuntimeHistory
 		),
 		canUndo: (history: ControllerRuntimeHistory) => history.undoStack.length > 0,
 		canRedo: (history: ControllerRuntimeHistory) => history.redoStack.length > 0,
@@ -142,6 +155,50 @@ export function createSoundscaperProjectRuntimeV30Selection(): Readonly<Soundsca
 		),
 	};
 	return Object.freeze(selection) as unknown as Readonly<SoundscaperProjectRuntimeV30Selection>;
+}
+
+function projectForConsumers(
+	project: unknown,
+	kind: 'command' | 'runtime',
+): ControllerRuntimeProject {
+	if (readSchemaVersion(project) !== SOUNDSCAPER_PROJECT_V30_SCHEMA_VERSION) {
+		return createSoundscaperOpaqueCustodyConsumerProjectV30(project);
+	}
+	if (kind === 'command') {
+		return soundscaperProjectForCommandConsumersV30(project) as ControllerRuntimeProject;
+	}
+	validateSoundscaperProjectV30(project);
+	return resolveRuntimeProjectProjection(
+		project as SoundscaperProjectV30,
+	) as unknown as ControllerRuntimeProject;
+}
+
+function createHistory(
+	project: unknown,
+): SoundscaperProjectHistorySelectionV30 & ControllerRuntimeHistory {
+	if (readSchemaVersion(project) === SOUNDSCAPER_PROJECT_V30_SCHEMA_VERSION) {
+		return createSoundscaperProjectHistoryV30(project) as SoundscaperProjectHistoryV30
+			& ControllerRuntimeHistory;
+	}
+	const loaded = loadSoundscaperProjectV30(project);
+	if (!loaded.intrinsicReadOnly) {
+		throw new Error('Only an intrinsically read-only project may use opaque V30 custody history.');
+	}
+	return Object.freeze({
+		limit: AUDIO_EDITOR_HISTORY_LIMIT,
+		present: createSoundscaperOpaqueCustodyConsumerProjectV30(loaded.project),
+		undoStack: Object.freeze([]),
+		redoStack: Object.freeze([]),
+	});
+}
+
+function writableHistory(
+	history: SoundscaperProjectHistorySelectionV30,
+): SoundscaperProjectHistoryV30 {
+	if (readSchemaVersion(history.present) !== SOUNDSCAPER_PROJECT_V30_SCHEMA_VERSION) {
+		throw new Error('Opaque Soundscaper project custody is read-only.');
+	}
+	return history as SoundscaperProjectHistoryV30;
 }
 
 function createSelectedSession(): ReturnType<typeof createAudioEditorSessionController> {
