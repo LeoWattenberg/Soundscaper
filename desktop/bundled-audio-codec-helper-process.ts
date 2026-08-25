@@ -10,16 +10,16 @@ import { pathToFileURL } from 'node:url';
 import type {
 	DesktopAudioCodecProviderExecutionResult,
 	DesktopAudioCodecProviderRuntime,
-} from './desktop-audio-codec-broker.ts';
+} from './desktop-audio-codec-broker.js';
 import type {
 	DesktopAudioCodecFormat,
 	DesktopAudioCodecRequest,
-} from './desktop-audio-codec-operation-contract.ts';
+} from './desktop-audio-codec-operation-contract.js';
 import type {
 	DesktopCodecOperation,
 	DesktopCodecPreflightResult,
-} from '../src/common/editor/desktop-codec-coordinator.ts';
-import type { DesktopCodecTarget } from '../src/common/editor/desktop-codec-provider-catalog.ts';
+} from '../src/common/editor/desktop-codec-coordinator.js';
+import type { DesktopCodecTarget } from '../src/common/editor/desktop-codec-provider-catalog.js';
 
 export const BUNDLED_AUDIO_CODEC_IDS = Object.freeze([
 	'flac', 'lame', 'mpg123', 'opus', 'twolame', 'vorbis', 'wavpack',
