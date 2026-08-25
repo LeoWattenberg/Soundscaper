@@ -161,12 +161,13 @@ Known architectural constraints that drive later work:
 | 6. Delivery/interchange | **Web tier implemented; native activation blocked; none qualified** | Add professional masters, queues, exchange, and archives. |
 | 7. Local assistance | **Bounded 7A/7B routes active; remaining operations unavailable; qualification open** | Add removable on-device assistance without becoming a dependency. |
 | 8. Capture and MIDI | **8A active — qualification open; 8B Blocked** | Selected Framescaper F31 activates recording on web and desktop while real-device and owner-lab qualification remains open; MIDI waits for upstream design review. |
+| 8+I. Framescaper timeline images | **In progress — implementation and qualification** | Import retained static, animated, and multipage raster assets as authenticated timeline media through reviewed browser, FFmpeg, and ImageMagick conversion tiers. |
 | 8+. Framescaper Web VCR | **Software substrate implemented — provisional, disabled** | Keep the dormant contracts, security seams, controller, crop pipeline, and UI behind `framescaperWebVcr: false` until post-milestone-8 runtime qualification. |
 | 9. Final qualification | **Planned** | Requalify the complete product, including the accepted post-milestone-8 extension, and release matrix. |
 
 Earlier milestones may ship independently. The complete roadmap does not close
-until milestone 8, the Web VCR extension, and milestone 9 close. Milestone 7
-may be skipped.
+until milestone 8, every accepted post-milestone-8 extension, and milestone 9
+close. Milestone 7 may be skipped.
 
 ## 1. Baseline contracts and quality budgets
 
@@ -870,6 +871,26 @@ If the upstream design remains unavailable, milestone 8B remains **Blocked**.
 Earlier milestones may ship, but the roadmap may not claim the full DAW goal or
 invent an interim Soundscaper-only design.
 
+## 8+I. Post-milestone-8 Framescaper image extension
+
+**Status:** **In progress — implementation and qualification.** The owning
+[image plan](docs/post-milestone-8-framescaper-image-plan.md) freezes the V30
+model, authenticated asset, decoder/color policy, import placement, runtime
+trust boundary, work packets, and activation gates.
+
+**Goal:** import static, animated, and multipage raster files into the normal
+Framescaper Project Bin, timeline, editing, archive, and delivery workflows
+without making browser decoder availability part of project reproducibility.
+
+The menu-reached Add Images workflow retains each original with a deterministic
+V30 sRGB frame pack. Reviewed browser and FFmpeg decoders precede a lazy pinned
+Q16-HDRI ImageMagick fallback; one reader serves preview, editing, renders,
+`.scape`, and handoff. V28 stills and image sequences remain distinct.
+
+**Exit gate:** every advertised route needs licensed deterministic fixtures,
+fail-closed resource/security tests, render/archive parity, atomic workflow
+coverage, and a reproducible digest-pinned runtime with notices and source.
+
 ## 8+. Post-milestone-8 Framescaper Web VCR extension
 
 **Status:** **Software substrate Implemented (provisional; disabled).** `framescaperWebVcr` remains `false`, so the normal production product exposes no Web VCR entry and creates no remote guest or capture grant. Milestone 8 and the applicable milestone-5B gates must close before activation; activation is also blocked on packaged and real-runtime capture, audio, encoder, security, lifecycle, and long-session qualification. Sequencing, decisions, and work packets are owned by the [Web VCR plan](docs/post-milestone-8-web-vcr-plan.md).
@@ -892,7 +913,7 @@ invent an interim Soundscaper-only design.
 
 ## 9. Final convergence and qualification
 
-**Depends on:** milestones 1–6, both milestone-8 sub-phases, and every accepted Web VCR platform tier above.
+**Depends on:** milestones 1–6, both milestone-8 sub-phases, and every accepted post-milestone-8 extension and platform tier above.
 
 **Goal:** qualify the complete products as coherent systems.
 
