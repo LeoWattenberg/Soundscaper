@@ -118,10 +118,13 @@ test('startup canary uses its short deadline and drains a killed child', async (
 		spawn: () => new FakeChild(), canaryDurationMs: 5_001,
 	}), /canary duration/iu);
 	let child: FakeChild;
+	let resolveCanarySpawn: (() => void) | undefined;
+	const canarySpawned = new Promise<void>((resolve) => { resolveCanarySpawn = resolve; });
 	const runner = createBundledAudioCodecOperationRunner({
 		target: 'linux-x64', scratchRoot, verifyPayload: async () => configuration,
 		spawn: () => {
 			child = new FakeChild();
+			resolveCanarySpawn?.();
 			queueMicrotask(() => child.emitMessage({
 				contractVersion: 1, type: 'ready', target: 'linux-x64', codec: 'flac',
 			}));
@@ -130,6 +133,7 @@ test('startup canary uses its short deadline and drains a killed child', async (
 		maximumDurationMs: 1_000, canaryDurationMs: 5, killWaitMs: 50,
 	});
 	const canary = runner.canary('flac');
+	await canarySpawned;
 	await new Promise((resolve) => setTimeout(resolve, 10));
 	assert.equal(child!.killed, true);
 	child!.emitExit(null);
@@ -247,10 +251,13 @@ test('abort kills the helper and waits for child exit before resolving', async (
 test('timeout and malformed or duplicate messages kill and drain the child', async (context) => {
 	const timeoutRoot = await scratch(context);
 	let timeoutChild: FakeChild;
+	let resolveTimeoutSpawn: (() => void) | undefined;
+	const timeoutSpawned = new Promise<void>((resolve) => { resolveTimeoutSpawn = resolve; });
 	const timeoutRunner = createBundledAudioCodecOperationRunner({
 		target: 'linux-x64', scratchRoot: timeoutRoot, verifyPayload: async () => configuration,
 		spawn: () => {
 			timeoutChild = new FakeChild();
+			resolveTimeoutSpawn?.();
 			queueMicrotask(() => timeoutChild.emitMessage({
 				contractVersion: 1, type: 'ready', target: 'linux-x64', codec: 'flac',
 			}));
@@ -259,6 +266,7 @@ test('timeout and malformed or duplicate messages kill and drain the child', asy
 		maximumDurationMs: 5, killWaitMs: 20,
 	});
 	const timeout = timeoutRunner.execute('flac', request, operation);
+	await timeoutSpawned;
 	await new Promise((resolve) => setTimeout(resolve, 10));
 	assert.equal(timeoutChild!.killed, true);
 	timeoutChild!.emitExit(null);
