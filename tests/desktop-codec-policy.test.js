@@ -25,7 +25,7 @@ test('desktop codec policy is immutable and fixes provider priority without bund
 	assert.deepEqual(DESKTOP_CODEC_POLICY, {
 		schemaVersion: 1,
 		bundledFfmpeg: false,
-		providerOrder: ['bundled-open-codecs', 'os', 'external-user-install'],
+		providerOrder: ['bundled-reviewed-codecs', 'os', 'external-user-install'],
 	});
 	assert.equal(Object.isFrozen(DESKTOP_CODEC_POLICY), true);
 	assert.equal(Object.isFrozen(DESKTOP_CODEC_POLICY.providerOrder), true);
@@ -36,7 +36,7 @@ test('desktop codec policy is immutable and fixes provider priority without bund
 	}), /desktop codec policy/iu);
 	assert.throws(() => assertDesktopCodecPolicy({
 		...DESKTOP_CODEC_POLICY,
-		providerOrder: ['os', 'bundled-open-codecs', 'external-user-install'],
+		providerOrder: ['os', 'bundled-reviewed-codecs', 'external-user-install'],
 	}), /desktop codec policy/iu);
 });
 

@@ -92,7 +92,7 @@ test('a genuine package audit binds one exact target manifest and every packaged
 	assert.deepEqual(audit.desktopCodecPolicy, {
 		schemaVersion: 1,
 		bundledFfmpeg: false,
-		providerOrder: ['bundled-open-codecs', 'os', 'external-user-install'],
+		providerOrder: ['bundled-reviewed-codecs', 'os', 'external-user-install'],
 	});
 	assert.equal(audit.totalPackageBytes, appImageBytes.byteLength + debianBytes.byteLength);
 

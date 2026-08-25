@@ -235,7 +235,7 @@ function cell({ productId, targetId }, ready = false) {
 			desktopCodecPolicy: {
 				schemaVersion: 1,
 				bundledFfmpeg: false,
-				providerOrder: ['bundled-open-codecs', 'os', 'external-user-install'],
+				providerOrder: ['bundled-reviewed-codecs', 'os', 'external-user-install'],
 			},
 			packages,
 			packageCount: packages.length,

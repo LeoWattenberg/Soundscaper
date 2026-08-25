@@ -4,7 +4,7 @@ import { lstat, readdir } from 'node:fs/promises';
 import { relative, resolve, sep } from 'node:path';
 
 const PROVIDER_ORDER = Object.freeze([
-	'bundled-open-codecs',
+	'bundled-reviewed-codecs',
 	'os',
 	'external-user-install',
 ]);

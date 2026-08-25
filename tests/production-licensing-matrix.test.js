@@ -164,7 +164,7 @@ test('runtime provenance entries and release gates fail closed without claiming 
 		[codecPolicy.bundledFfmpeg, codecPolicy.bundledLibav, codecPolicy.bundledFfmpegWasm],
 		[false, false, false],
 	);
-	assert.deepEqual(codecPolicy.providerOrder, ['bundled-open-codecs', 'os', 'external-user-install']);
+	assert.deepEqual(codecPolicy.providerOrder, ['bundled-reviewed-codecs', 'os', 'external-user-install']);
 	assert.deepEqual(Object.keys(codecPolicy.bundledProviders), [
 		'flac', 'opus', 'vorbis', 'wavpack', 'mpg123', 'lame', 'twolame',
 	]);

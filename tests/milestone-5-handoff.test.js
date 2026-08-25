@@ -218,7 +218,7 @@ test('repository assembly binds an exact package and rejects a drifted staged pa
 	assert.deepEqual(handoff.packageEvidence.desktopCodecPolicy, {
 		schemaVersion: 1,
 		bundledFfmpeg: false,
-		providerOrder: ['bundled-open-codecs', 'os', 'external-user-install'],
+		providerOrder: ['bundled-reviewed-codecs', 'os', 'external-user-install'],
 	});
 	assert.ok(handoff.inputDigests[
 		`desktop-package:soundscaper:linux-x64:${manifestName}`
