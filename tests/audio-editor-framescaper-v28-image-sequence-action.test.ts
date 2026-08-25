@@ -55,6 +55,32 @@ test('selected V28 imports a pathless sequence through main admission, local bod
 	]);
 });
 
+test('selected V28 binds image-sequence import before its controller has loaded a project', async () => {
+	// The desktop controller binds its native surfaces while it is being
+	// constructed, so `owner.project` is still null; requiring a project here
+	// threw before the editor could mount and took packaged Framescaper down.
+	const fixture = actionFixture();
+	fixture.detachProject();
+	bindFramescaperNativeImageSequenceActionV28({
+		profile: FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE,
+		owner: fixture.controller,
+		store: fixture.store,
+		bridge: fixture.bridge,
+		mintId: fixture.mintId,
+	});
+	assert.deepEqual(framescaperNativeProjectActionRuntimeFor(fixture.controller)?.surfaces, [
+		'render-queue-enqueue', 'image-sequence-import',
+	]);
+	await assert.rejects(() => framescaperNativeProjectActionRuntimeFor(fixture.controller)!.run(
+		'image-sequence-import', { frameRate: { num: 24_000, den: 1_001 } },
+	), /Framescaper V28 project must be an object/u, 'the import itself still requires a project');
+	fixture.attachProject();
+	await framescaperNativeProjectActionRuntimeFor(fixture.controller)!.run(
+		'image-sequence-import', { frameRate: { num: 24_000, den: 1_001 } },
+	);
+	assert.equal(fixture.controller.project.sources.some(({ id }) => id === 'sequence-source'), true);
+});
+
 test('a failed V28 save undoes project state and discards only newly mirrored bodies', async () => {
 	const fixture = actionFixture();
 	fixture.failSave = true;
@@ -206,6 +232,8 @@ function actionFixture() {
 	return {
 		controller, bridge, store, events,
 		mintId: () => (++id === 1 ? 'sequence-source' : 'sequence-bin'),
+		detachProject() { current = null as unknown as typeof project; },
+		attachProject() { current = project; },
 		get failSave() { return failSave; },
 		set failSave(value: boolean) { failSave = value; },
 	};

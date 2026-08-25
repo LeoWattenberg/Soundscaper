@@ -298,7 +298,9 @@ function assertCurrentProject(
 }
 
 function assertOptions(options: BindFramescaperNativeImageSequenceActionV28Options): void {
-	cloneFramescaperProjectV28(options.profile, options.owner?.project);
+	// The controller binds its native surfaces while it is still being built, so
+	// it has no project yet. Every path that reads one clones and validates it
+	// then; demanding one here only refuses the binding that installs them.
 	if (!options.store || typeof options.store.getMediaAssetMetadata !== 'function'
 		|| typeof options.store.beginMediaAssetWrite !== 'function'
 		|| !options.owner?.actions || typeof options.owner.actions.edit?.commit !== 'function'
