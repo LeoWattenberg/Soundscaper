@@ -147,6 +147,7 @@ export function createWorkspaceApplicationMenus({
 			actionRuntime: parityRuntime.actions,
 			actions: {
 				openLocalModels: fileService.isDesktop ? () => openSurface('local-models') : undefined,
+				openLocalAssistance: fileService.isDesktop ? () => openSurface('local-assistance') : undefined,
 				framescaperCandidateAuthoring,
 				openFramescaperV27Finishing: (surface) => openSurface(
 					framescaperV27FinishingSurfaceId(surface),

@@ -4,6 +4,7 @@ import SoundscaperProductionWorkspaceOverlay from './SoundscaperProductionWorksp
 import { framescaperV27FinishingSurface } from '../framescaper-v27-finishing-menu.ts';
 import { framescaperSelectedV27VisualAuthoringSurface } from '../framescaper-selected-v27-visual-authoring-menu.ts';
 import { resolveLocalModelManagerBridge } from '../local-model-manager-bridge.ts';
+import { resolveLocalAssistanceBridge } from '../local-assistance-bridge.ts';
 
 const AudioEditorEffectsOverlay = React.lazy(() => import('../inspector/AudioEditorEffectsOverlay.jsx'));
 const AudioEditorMacroManagerDialog = React.lazy(() => import('../inspector/AudioEditorMacroManagerDialog.jsx'));
@@ -30,6 +31,7 @@ const WorkspacePreferencesDialog = React.lazy(() => import('../dialogs/Workspace
 const RawPcmImportDialog = React.lazy(() => import('../dialogs/ImportAnalysisDialogs.tsx').then((module) => ({ default: module.RawPcmImportDialog })));
 const RegularIntervalAnnotationDialog = React.lazy(() => import('../dialogs/ImportAnalysisDialogs.tsx').then((module) => ({ default: module.RegularIntervalAnnotationDialog })));
 const LocalModelManagerDialog = React.lazy(() => import('../dialogs/LocalModelManagerDialog.tsx'));
+const LocalAssistanceDialog = React.lazy(() => import('../dialogs/LocalAssistanceDialog.tsx'));
 
 function LazyInspectorFallback({ copy }) {
 	return <div className="audio-editor-timeline-loading" role="status" aria-live="polite">{copy.loading}</div>;
@@ -67,6 +69,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 		setDialogValue,
 		setEffectWindow,
 		setMacroDraft,
+		selectedMediaPreparation,
 		settleScapeOpenDecision,
 		showArmControls,
 		snapshot,
@@ -75,6 +78,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 	const framescaperFinishingSurface = framescaperV27FinishingSurface(activeSurface);
 	const selectedV27AuthoringSurface = framescaperSelectedV27VisualAuthoringSurface(activeSurface);
 	const localModelManagerBridge = resolveLocalModelManagerBridge(fileService.bridge);
+	const localAssistanceBridge = resolveLocalAssistanceBridge(fileService.bridge);
 	return <>
 			<SoundscaperProductionWorkspaceOverlay model={model} />
 
@@ -417,6 +421,18 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 							bridge={localModelManagerBridge}
 							copy={copy}
 							locale={locale}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
+				</div>
+			)}
+			{fileService.isDesktop && capabilities.assistanceAssets && activeSurface === 'local-assistance' && (
+				<div data-editor-surface="local-assistance">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<LocalAssistanceDialog
+							bridge={localAssistanceBridge}
+							preparation={selectedMediaPreparation}
+							copy={copy}
 							onClose={() => setActiveSurface(null)}
 						/>
 					</React.Suspense>
