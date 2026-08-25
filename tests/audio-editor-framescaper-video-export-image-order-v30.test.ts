@@ -37,14 +37,14 @@ test('selected V30 export paints a same-track image after inherited visual entri
 			placement: { scope: 'timeline', trackId: 'video-track' },
 		}],
 	});
-	let rendered: Uint8Array<ArrayBuffer> | null = null;
+	const rendered: Uint8Array<ArrayBuffer>[] = [];
 	const strategy = createFramescaperVideoExportStrategyV30(PROFILE, {
 		async encodeOffline() { throw new Error('visual-only export must not use the V20 renderer'); },
 		async encodeOfflineToSink() { throw new Error('sink path is not used'); },
 		async encodePicture(_editorFfmpeg: unknown, request: VideoKeyframeVideoEncoderRequest) {
 			const pixels = new Uint8Array(request.producer.byteLength);
 			await request.producer.produce(request.frameSource.frame(0), pixels, { signal: request.signal! });
-			rendered = pixels;
+			rendered.push(pixels);
 			return encodedResult();
 		},
 	}, {
@@ -77,8 +77,8 @@ test('selected V30 export paints a same-track image after inherited visual entri
 		assertCurrent() {},
 		maximumOutputBytes: 1_024,
 	});
-	assert.ok(rendered);
-	assert.deepEqual([...rendered.subarray(0, 4)], [180, 0, 180, 255]);
+	assert.equal(rendered.length, 1);
+	assert.deepEqual([...rendered[0]!.subarray(0, 4)], [180, 0, 180, 255]);
 });
 
 function blueGeneratorProject() {

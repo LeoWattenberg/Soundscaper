@@ -65,6 +65,10 @@ import {
 	materializeFramescaperSelectedOpenFxVisualsV28,
 	orderedFramescaperSelectedOpenFxVisualEntriesV28,
 } from './selected-v28-openfx-visual-inputs.ts';
+import {
+	framescaperSupplementalPictureIdentityV27,
+	validatedFramescaperSupplementalPictureIdsV27,
+} from './selected-v27-supplemental-picture-authority.ts';
 type Data = Readonly<Record<string, unknown>>;
 export interface FramescaperSelectedExactFrameExecutionV27 {
 	render(request: Readonly<{
@@ -198,10 +202,25 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 			}
 			accepted = true;
 			const visual = visualConsumer.resolveFrame({ sequencePosition: request.sequencePosition });
-			const rawVisuals = await materializeFramescaperSelectedOpenFxVisualsV28(
-				visual.layers.flatMap(({ entries }) => entries), visualAssets.stills,
-				width, height, signal, openFxPlanes,
+			const visualEntries = visual.layers.flatMap(({ entries }) => entries);
+			const activeVisualIds = new Set(visualEntries.map(({ modelId }) => modelId));
+			const supplementalPictureIds = validatedFramescaperSupplementalPictureIdsV27(
+				request.supplementalPictures ?? [], supplementalVisuals, activeVisualIds,
 			);
+			const rawVisuals = new Map(await materializeFramescaperSelectedOpenFxVisualsV28(
+				visualEntries.filter(({ modelId }) => !supplementalPictureIds.has(modelId)), visualAssets.stills,
+				width, height, signal, openFxPlanes,
+			));
+			if (supplementalPictureIds.size > 0) {
+				const transparent = Object.freeze({
+					width, height, pixels: new Uint8Array(width * height * 4),
+				});
+				for (const entry of visualEntries) {
+					if (!supplementalPictureIds.has(entry.modelId)) continue;
+					rawVisuals.set(entry.modelId, transparent);
+					if ('source' in entry.authoredState) rawVisuals.set(entry.authoredState.source.id, transparent);
+				}
+			}
 			const trackFrames = new Map<string, TrackOrderBucketV27[]>();
 			const clipCompositingOrders = new Map<string, number>();
 			const openFx = openFxPlanes === null ? null : createFramescaperSelectedOpenFxCompositionV28({
@@ -219,9 +238,6 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 				clipCompositingOrders, rawVisuals, consumed, adjustmentEffects,
 				openFx, width, height, signal,
 			);
-			const activeVisualIds = new Set(visual.layers.flatMap(({ entries }) => (
-				entries.map(({ modelId }) => modelId)
-			)));
 			if (openFx) {
 				const transitionFrames = new Map<string, UnifiedExactLinearCompositionEntryV13[]>();
 				await openFx.applyTransitions(transitionFrames);
@@ -241,9 +257,12 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 			}
 			for (const { trackId, entry } of orderedFramescaperSelectedOpenFxVisualEntriesV28(
 				visual.layers,
-			)) await renderVisualLayer(
-				trackId, [entry], trackFrames, rawVisuals, openFx, width, height, signal,
-			);
+			)) {
+				if (supplementalPictureIds.has(entry.modelId)) continue;
+				await renderVisualLayer(
+					trackId, [entry], trackFrames, rawVisuals, openFx, width, height, signal,
+				);
+			}
 			// V30 preview coalesces inherited visual entries before its authenticated
 			// image entries on each track; export preserves that painter order.
 			for (const picture of request.supplementalPictures ?? []) renderSupplementalPicture(
@@ -297,16 +316,9 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 		height: number,
 	): void {
 		const picture = record(pictureValue, 'Selected V27 supplemental picture');
-		const clipId = stableId(picture.clipId, 'Selected V27 supplemental clip ID');
-		const sourceId = stableId(picture.sourceId, 'Selected V27 supplemental source ID');
-		const trackId = stableId(picture.trackId, 'Selected V27 supplemental track ID');
-		const visual = visuals.get(clipId);
-		if (!visual || !activeVisualIds.has(clipId)
-			|| visual.trackId !== trackId
-			|| visual.sourceId !== sourceId
-			|| visual.clipId !== clipId) {
-			throw new Error(`Selected V27 supplemental picture ${clipId} changed exact visual authority.`);
-		}
+		const { trackId } = framescaperSupplementalPictureIdentityV27(
+			picture, visuals, activeVisualIds,
+		);
 		const frame = checkedFrame(picture.frame, 'Selected V27 supplemental linear frame');
 		const renderDescription = picture.renderDescription;
 		const placed = placeUnifiedExactLinearRgbaFrameV13({
