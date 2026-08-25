@@ -8,14 +8,14 @@ const CUSTODY_VIEW_TIMESTAMP = '1970-01-01T00:00:00.000Z';
 export interface FramescaperOpaqueCustodyConsumerProjectV31 extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly title: string;
-	readonly schemaVersion: 31;
+	readonly schemaVersion: number;
 	readonly sampleRate: number;
 	readonly sources: readonly never[];
 	readonly clips: readonly never[];
 	readonly tracks: readonly never[];
 }
 
-/** Expose an inert F31-shaped consumer shell while retaining canonical opaque custody separately. */
+/** Expose an inert consumer shell while retaining canonical opaque custody separately. */
 export function createFramescaperOpaqueCustodyConsumerProjectV31(
 	value: unknown,
 ): FramescaperOpaqueCustodyConsumerProjectV31 {
@@ -30,7 +30,9 @@ export function createFramescaperOpaqueCustodyConsumerProjectV31(
 	});
 	return Object.freeze({
 		...shell,
-		schemaVersion: 31,
+		// Retain the held schema marker so exact-F31 validators never grant this
+		// deliberately incomplete consumer view native document authority.
+		schemaVersion: project.schemaVersion,
 		sources: Object.freeze([]),
 		clips: Object.freeze([]),
 		tracks: Object.freeze([]),
