@@ -63,6 +63,7 @@
 		"desktop/plugin-candidate-authentication.mjs",
 		"desktop/native-audio-helper-adapter.ts",
 		"desktop/native-audio-session-service.ts",
+		"desktop/native-realtime-broker.ts",
 		"desktop/native-plugin-helper-adapter.ts",
 		"desktop/native-media-helper-pool.ts",
 		"desktop/native-media-execution.ts",

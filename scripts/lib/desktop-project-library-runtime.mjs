@@ -9,6 +9,10 @@ import { DESKTOP_PROJECT_LIBRARY_EXACT_RUNTIME_FILES } from './desktop-project-l
 import { DESKTOP_PROJECT_LIBRARY_V27_RUNTIME_FILES } from './desktop-project-library-v27-runtime-files.mjs';
 import { DESKTOP_SOUNDSCAPER_V10_RUNTIME_FILES } from './desktop-soundscaper-v10-runtime-files.mjs';
 import { DESKTOP_SOUNDSCAPER_V11_RUNTIME_FILES } from './desktop-soundscaper-v11-runtime-files.mjs';
+import {
+	assertNoTypeScriptImportSpecifiers,
+	assertStagedDesktopImportsResolve,
+} from './desktop-staged-import-hygiene.mjs';
 
 const FRAMESCAPER_CAPTURE_PRELOAD_BUNDLE = 'framescaper-capture-sandbox-preload.cjs';
 const FRAMESCAPER_WEB_VCR_PRELOAD_BUNDLE = 'framescaper-web-vcr-sandbox-preload.cjs';
@@ -29,7 +33,7 @@ export const DESKTOP_RUNTIME_PACKAGE_IMPORTS = Object.freeze({
 		'./desktop/project-library-runtime/src/common/editor/video-timing-asset.js',
 });
 
-const EXPECTED_RUNTIME_FILES = Object.freeze([
+export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	...DESKTOP_5B_TRANSITIVE_RUNTIME_FILES,
 	'desktop/application-lifecycle.js',
 	'desktop/assistance-helper-runtime.js',
@@ -110,6 +114,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/native-media-queue-dispatcher.js',
 	'desktop/native-media-runtime.js',
 	'desktop/native-queue-capacity-provider.js',
+	'desktop/native-realtime-broker.js',
 	'desktop/native-services-checkpoint-recovery.js',
 	'desktop/native-services-controller.js',
 	'desktop/native-services-database.js',
@@ -197,6 +202,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/audio-warp-runtime-authority.js',
 	'src/common/editor/broadcast-wave.js',
 	'src/common/editor/cart-metadata.js',
+	'src/common/editor/chunk-stream.js',
 	'src/common/editor/closed-domain-value.js',
 	'src/common/editor/commands/mastering-sequence.js',
 	'src/common/editor/commands/protocol.js',
@@ -209,6 +215,7 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/ixml.js',
 	'src/common/editor/lower-only-seam.js',
 	'src/common/editor/musical-map-contract.js',
+	'src/common/editor/pcm-chunks.js',
 	'src/common/editor/persisted-audio-effect-validation.js',
 	'src/common/editor/project-bext-metadata.js',
 	'src/common/editor/project-feature-capabilities.js',
@@ -357,6 +364,8 @@ const EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/native-queue-admission.js',
 	'src/common/editor/native-queue-record.js',
 	'src/common/editor/native-queue-state-machine.js',
+	'src/common/editor/native-realtime-client.js',
+	'src/common/editor/native-realtime-protocol.js',
 	'src/common/editor/native-scratch-policy.js',
 	'src/common/editor/native-validation.js',
 	'src/common/editor/native-watch-reconciliation.js',
@@ -480,7 +489,7 @@ export async function stageDesktopApplicationSources({
 		filter: (source) => extname(source) !== '.ts',
 	});
 	await cp(compiledRoot, join(applicationRoot, 'project-library-runtime'), { recursive: true });
-	await assertNoStagedTypeScriptImports(applicationRoot);
+	await assertStagedDesktopImportsResolve(applicationRoot);
 	assertRuntimePackageImportTargets();
 	await bundleSandboxPreload({
 		entryPoint: join(sourceRoot, 'soundscaper-project-library-v10-sandbox-preload.ts'),
@@ -508,26 +517,11 @@ export async function stageDesktopApplicationSources({
 	});
 }
 
-async function assertNoStagedTypeScriptImports(applicationRoot) {
-	const staged = await listRuntimeFiles(applicationRoot);
-	for (const name of staged) {
-		if (!/\.[cm]?js$/u.test(name)) continue;
-		const source = await readFile(join(applicationRoot, name), 'utf8');
-		assertNoTypeScriptImportSpecifiers(`Staged desktop source ${name}`, source);
-	}
-}
-
-function assertNoTypeScriptImportSpecifiers(label, source) {
-	if (/(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"][^'"]*\.[cm]?tsx?['"]/u.test(source)) {
-		throw new Error(`${label} retained a TypeScript import`);
-	}
-}
-
 function assertRuntimePackageImportTargets() {
 	const runtimePrefix = './desktop/project-library-runtime/';
 	for (const [alias, target] of Object.entries(DESKTOP_RUNTIME_PACKAGE_IMPORTS)) {
 		if (!target.startsWith(runtimePrefix)
-			|| !EXPECTED_RUNTIME_FILES.includes(target.slice(runtimePrefix.length))) {
+			|| !DESKTOP_EXPECTED_RUNTIME_FILES.includes(target.slice(runtimePrefix.length))) {
 			throw new Error(`Desktop package import ${alias} does not resolve to a shipped runtime member`);
 		}
 	}
@@ -564,11 +558,11 @@ async function listRuntimeFiles(root, relativeRoot = '') {
 }
 
 function assertExpectedRuntime(files) {
-	if (files.length !== EXPECTED_RUNTIME_FILES.length
-		|| files.some((name, index) => name !== EXPECTED_RUNTIME_FILES[index])) {
-		const expected = new Set(EXPECTED_RUNTIME_FILES);
+	if (files.length !== DESKTOP_EXPECTED_RUNTIME_FILES.length
+		|| files.some((name, index) => name !== DESKTOP_EXPECTED_RUNTIME_FILES[index])) {
+		const expected = new Set(DESKTOP_EXPECTED_RUNTIME_FILES);
 		const actual = new Set(files);
-		const missing = EXPECTED_RUNTIME_FILES.filter((name) => !actual.has(name));
+		const missing = DESKTOP_EXPECTED_RUNTIME_FILES.filter((name) => !actual.has(name));
 		const unexpected = files.filter((name) => !expected.has(name));
 		throw new Error(
 			`Desktop runtime output is incomplete or stale; missing: ${missing.join(', ') || '(none)'}; unexpected: ${unexpected.join(', ') || '(none)'}`,
