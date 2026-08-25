@@ -37,6 +37,23 @@ function claim(bytes: Uint8Array) {
 	});
 }
 
+async function completeInput(
+	transfers: AssistanceOperationTransfers,
+	offer: ReturnType<AssistanceOperationTransfers['prepareInput']>,
+	body: Uint8Array,
+): Promise<void> {
+	const [mainPort, rendererPort] = portPair();
+	const receiving = transfers.acceptInputPort({
+		jobId: JOB_ID, streamId: offer.streamId, reservation: offer.reservation,
+	}, mainPort);
+	const sender = new HelperDataPlaneInputSender(offer.reservation);
+	rendererPort.postMessage(sender.createChunk(body));
+	const [ack] = await once(rendererPort, 'message');
+	sender.acceptAck(ack);
+	rendererPort.postMessage(sender.complete());
+	await receiving;
+}
+
 test('a negotiated input port streams bounded bytes into staging and authenticates its claim', async () => {
 	const body = Buffer.from('RIFF-audio');
 	const staged: Uint8Array[] = [];
@@ -155,4 +172,58 @@ test('job cancellation rejects unattached negotiations and waits for attached po
 	assert.equal(released, true);
 	await awaited;
 	await assert.rejects(attached, /cancel/iu);
+});
+
+test('cancel and job release do not leak completed inputs when awaitInput is omitted', async () => {
+	const body = Buffer.from('x');
+	let stream = 10;
+	const transfers = new AssistanceOperationTransfers({
+		operations: {
+			assertJob: () => undefined,
+			stageInput: async (request) => {
+				const chunks: Uint8Array[] = [];
+				for await (const chunk of request.bytes) chunks.push(chunk);
+				return claim(Buffer.concat(chunks));
+			},
+			openOutput: async () => { throw new Error('unused'); },
+		},
+		mintStreamId: () => (stream++).toString(16).padStart(40, '0'),
+	});
+
+	for (let index = 0; index < 65; index += 1) {
+		const offer = transfers.prepareInput({
+			jobId: JOB_ID, role: 'audio', mediaType: 'audio/wav', byteLength: body.byteLength,
+			sha256: claim(body).sha256,
+		});
+		await completeInput(transfers, offer, body);
+		await transfers.cancelJob(JOB_ID);
+	}
+});
+
+test('dispose deletes an attached input even when awaitInput is omitted', async () => {
+	const body = Buffer.from('x');
+	const transfers = new AssistanceOperationTransfers({
+		operations: {
+			assertJob: () => undefined,
+			stageInput: async (request) => {
+				for await (const _chunk of request.bytes) { /* drain */ }
+				return claim(body);
+			},
+			openOutput: async () => { throw new Error('unused'); },
+		},
+		mintStreamId: () => '7'.repeat(40),
+	});
+	const first = transfers.prepareInput({
+		jobId: JOB_ID, role: 'audio', mediaType: 'audio/wav', byteLength: body.byteLength,
+		sha256: claim(body).sha256,
+	});
+	await completeInput(transfers, first, body);
+	await transfers.dispose();
+
+	const second = transfers.prepareInput({
+		jobId: JOB_ID, role: 'audio', mediaType: 'audio/wav', byteLength: body.byteLength,
+		sha256: claim(body).sha256,
+	});
+	assert.equal(second.streamId, first.streamId);
+	await transfers.dispose();
 });
