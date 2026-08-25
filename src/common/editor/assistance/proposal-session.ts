@@ -105,7 +105,7 @@ export function createAssistanceProposalSession(
 		|| typeof options.discardStaged !== 'function') {
 		throw new TypeError('An assistance proposal session requires its transaction ports.');
 	}
-	const expectedFence = normalizeFence(options.fence);
+	const expectedFence = validateAssistanceSelectionFence(options.fence);
 	const proposals = normalizeProposals(options.proposals);
 	const proposalById = new Map(proposals.map((proposal) => [proposal.id, proposal]));
 	const assistanceAssets = normalizeAssets(options.assistanceAssets ?? []);
@@ -132,7 +132,7 @@ export function createAssistanceProposalSession(
 		const accepted = normalizeDecision(proposalIds, proposalById);
 		phase = 'accepting';
 		try {
-			const current = normalizeFence(await options.currentFence());
+			const current = validateAssistanceSelectionFence(await options.currentFence());
 			if (!sameFence(expectedFence, current)) throw new AssistanceProposalStaleError();
 			await options.commit(Object.freeze({
 				fence: expectedFence,
@@ -162,7 +162,8 @@ export function createAssistanceProposalSession(
 	return Object.freeze({ signal: controller.signal, snapshot, accept, reject, cancel });
 }
 
-function normalizeFence(value: unknown): AssistanceSelectionFence {
+/** Normalize the exact authority shared by inference and proposal acceptance. */
+export function validateAssistanceSelectionFence(value: unknown): AssistanceSelectionFence {
 	const record = exactRecord(value, FENCE_FIELDS, 'assistance selection fence fields');
 	const sourceStartFrame = integer(record.sourceStartFrame, 0, 'source start frame');
 	const sourceEndFrame = integer(record.sourceEndFrame, 1, 'source end frame');
