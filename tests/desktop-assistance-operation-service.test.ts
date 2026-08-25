@@ -27,7 +27,7 @@ const FENCE = Object.freeze({
 
 async function fixture(t: TestContext, overrides: Readonly<{
 	runtime?: SpeechRuntimeAdapter;
-	availability?: 'installed' | 'installable';
+	availability?: 'installed' | 'installable' | 'unsupported-platform' | 'insufficient-memory';
 	models?: AssistanceOperationServiceOptions['models'];
 }> = {}) {
 	const temporary = await mkdtemp(join(tmpdir(), 'assistance-operation-service-'));
@@ -47,7 +47,7 @@ async function fixture(t: TestContext, overrides: Readonly<{
 	const modelPaths = Object.freeze({ encoder: '/models/encoder', decoder: '/models/decoder', joiner: '/models/joiner', tokens: '/models/tokens' });
 	const models = overrides.models ?? Object.freeze({
 		status: async () => ({
-			modelsDirectory: '/models', runtimeAvailable: true, runtimeReason: null,
+			runtimeAvailable: true, runtimeReason: null,
 			models: [{ modelId: MODEL_ID, version: VERSION, task: 'speech-recognition',
 				availability: overrides.availability ?? 'installed', downloadBytes: 4, installedBytes: 4,
 				attributionRequired: true }],
@@ -136,7 +136,7 @@ test('model choices omit only an externally deleted or tampered model', async (t
 	const installation = (modelId: string) => ({ modelId, version: VERSION,
 		artifacts: [{ fileName: 'encoder.onnx', byteLength: 1, sha256: DIGESTS[0]! }], totalBytes: 1 });
 	const { service } = await fixture(t, { models: {
-		status: async () => ({ modelsDirectory: '/models', runtimeAvailable: true, runtimeReason: null,
+		status: async () => ({ runtimeAvailable: true, runtimeReason: null,
 			models: [model(MODEL_ID), model(secondId)] }),
 		listInstalled: async () => [installation(MODEL_ID), installation(secondId)],
 		resolveModelPaths: async (modelId) => {
@@ -152,7 +152,7 @@ test('model choices omit only an externally deleted or tampered model', async (t
 
 test('model choices surface systemic store failures', async (t) => {
 	const { service } = await fixture(t, { models: {
-		status: async () => ({ modelsDirectory: '/models', runtimeAvailable: true, runtimeReason: null,
+		status: async () => ({ runtimeAvailable: true, runtimeReason: null,
 			models: [{ modelId: MODEL_ID, version: VERSION, task: 'speech-recognition',
 				availability: 'installed', downloadBytes: 4, installedBytes: 4, attributionRequired: true }] }),
 		listInstalled: async () => [{ modelId: MODEL_ID, version: VERSION,
@@ -204,9 +204,21 @@ test('missing current model and unavailable runtime are distinct pathless outcom
 	});
 });
 
+test('platform- and memory-incompatible models are not advertised for execution', async (t) => {
+	for (const availability of ['unsupported-platform', 'insufficient-memory'] as const) {
+		const incompatible = await fixture(t, { availability });
+		assert.deepEqual(await incompatible.service.models(), []);
+		const request = await speechRequest(incompatible.service);
+		assert.deepEqual(await incompatible.service.run(request), {
+			contractVersion: 1, jobId: request.jobId, operation: 'speech-recognition',
+			outcome: 'unavailable', reason: 'model-unavailable',
+		});
+	}
+});
+
 test('an authenticated but incompatible speech model is a typed model-unavailable outcome', async (t) => {
 	const { service } = await fixture(t, { models: {
-		status: async () => ({ modelsDirectory: '/models', runtimeAvailable: true, runtimeReason: null,
+		status: async () => ({ runtimeAvailable: true, runtimeReason: null,
 			models: [{ modelId: MODEL_ID, version: VERSION, task: 'speech-recognition',
 				availability: 'installed', downloadBytes: 4, installedBytes: 4, attributionRequired: true }] }),
 		listInstalled: async () => [{ modelId: MODEL_ID, version: VERSION,
@@ -226,7 +238,7 @@ test('model disappearance is unavailable while catalog and artifact integrity fa
 		[`${MODEL_ID} artifact model.onnx failed its integrity check.`, false],
 	] as const) {
 		const next = await fixture(t, { models: {
-			status: async () => ({ modelsDirectory: '/models', runtimeAvailable: true, runtimeReason: null,
+			status: async () => ({ runtimeAvailable: true, runtimeReason: null,
 				models: [{ modelId: MODEL_ID, version: VERSION, task: 'speech-recognition',
 					availability: 'installed', downloadBytes: 4, installedBytes: 4, attributionRequired: true }] }),
 			listInstalled: async () => [{ modelId: MODEL_ID, version: VERSION,

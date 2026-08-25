@@ -40,7 +40,6 @@ const INSTALLED_MODEL = Object.freeze({
 
 function status(models: readonly LocalModelManagerModel[] = [INSTALLABLE_MODEL]) {
 	return Object.freeze({
-		modelsDirectory: '/private/models',
 		runtimeAvailable: true,
 		runtimeReason: null,
 		models: Object.freeze(models),
@@ -318,6 +317,20 @@ test('the manager view exposes runtime, sizes, correlated progress, and explicit
 		onShowNotices={() => undefined} onRelocate={() => undefined}
 	/>);
 	assert.match(installedMarkup, />Remove</u);
+	const incompatibleInstalledMarkup = renderToStaticMarkup(<LocalModelManagerDialogView
+		copy={ENGLISH_COPY} locale="en"
+		snapshot={Object.freeze({
+			...snapshot, models: Object.freeze([{ ...INSTALLED_MODEL, availability: 'unsupported-platform' as const }]),
+			busyModelIds: Object.freeze([]), progress: Object.freeze([]),
+		})}
+		onClose={() => undefined} onInstall={() => undefined}
+		onInstallPreseeded={() => undefined} onCancelInstall={() => undefined}
+		onRemove={() => undefined} onRetry={() => undefined}
+		onReconcile={() => undefined} onGarbageCollect={() => undefined}
+		onShowNotices={() => undefined} onRelocate={() => undefined}
+	/>);
+	assert.match(incompatibleInstalledMarkup, />Remove</u);
+	assert.doesNotMatch(incompatibleInstalledMarkup, />Install</u);
 	const offlineMarkup = renderToStaticMarkup(<LocalModelManagerDialogView
 		copy={ENGLISH_COPY} locale="en"
 		snapshot={Object.freeze({

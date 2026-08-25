@@ -114,6 +114,31 @@ test('the service is built once, on first use', async () => {
 	assert.equal(builtCount(), 1);
 });
 
+test('status projection cannot expose service paths or extra fields', async () => {
+	const { handlers } = harness({
+		status: async () => ({
+			modelsDirectory: '/private/models',
+			runtimeAvailable: false,
+			runtimeReason: "dlopen '/private/runtime.node' failed",
+			models: [{
+				modelId: 'silero-vad-v6', version: '6.2.1', task: 'voice-activity-detection',
+				availability: 'installed', downloadBytes: 1, installedBytes: 1,
+				attributionRequired: false, artifactPath: '/private/models/model.onnx',
+			}],
+			privateStorePath: '/private/store',
+		}),
+	});
+
+	const status = await handlers.get(CHANNELS.listAssistanceModels)?.(null) as Record<string, unknown>;
+	assert.equal(Array.isArray(status.models), true);
+	assert.deepEqual(Object.keys((status.models as Record<string, unknown>[])[0] ?? {}).sort(), [
+		'attributionRequired', 'availability', 'downloadBytes', 'installedBytes',
+		'modelId', 'task', 'version',
+	]);
+	assert.doesNotMatch(JSON.stringify(status), /private|path/iu);
+	assert.equal(status.runtimeReason, 'The optional speech runtime failed to load.');
+});
+
 test('install progress is forwarded to the renderer', async () => {
 	const { handlers, sent } = harness({
 		install: async (_modelId: string, onProgress: (value: unknown) => void) => {

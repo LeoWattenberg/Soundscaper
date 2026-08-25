@@ -50,7 +50,6 @@ export interface AssistanceModelView {
 }
 
 export interface AssistanceStatusView {
-	readonly modelsDirectory: string;
 	readonly runtimeAvailable: boolean;
 	readonly runtimeReason: string | null;
 	readonly models: readonly AssistanceModelView[];
@@ -182,6 +181,18 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 		return entry;
 	}
 
+	function assertMachineCompatible(entry: LocalModelCatalogEntry): void {
+		const availability = describeModelAvailability(entry, {
+			platform, totalMemoryBytes, installedModelIds: [],
+		});
+		if (availability === 'unsupported-platform') {
+			throw new Error(`Local model ${entry.modelId} is not supported on this platform.`);
+		}
+		if (availability === 'insufficient-memory') {
+			throw new Error(`Local model ${entry.modelId} cannot run with this machine's available memory.`);
+		}
+	}
+
 	async function withInstall<T>(
 		entry: LocalModelCatalogEntry,
 		externalSignal: AbortSignal | undefined,
@@ -246,10 +257,14 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 		}));
 		const installedIds = [...currentById.keys()];
 		const runtime = await options.runtime.status();
+		const runtimeReason = runtime.available || runtime.reason === null
+			? null
+			: runtime.reason === 'The optional speech runtime is not installed.'
+				? runtime.reason
+				: 'The optional speech runtime failed to load.';
 		return Object.freeze({
-			modelsDirectory: rootPath,
 			runtimeAvailable: runtime.available,
-			runtimeReason: runtime.reason,
+			runtimeReason,
 			models: Object.freeze(catalog.entries.map((entry) => entryView(
 				entry,
 				describeModelAvailability(entry, {
@@ -274,6 +289,7 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 		signal?: AbortSignal,
 	): Promise<AssistanceModelView> {
 		const entry = entryFor(modelId);
+		assertMachineCompatible(entry);
 		return withInstall(entry, signal, async (installSignal) => {
 			installSignal.throwIfAborted();
 			await store.initialize();
@@ -335,6 +351,7 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 		sourceDirectory: string,
 	): Promise<AssistanceModelView> {
 		const entry = entryFor(modelId);
+		assertMachineCompatible(entry);
 		return withInstall(entry, undefined, async (signal) => {
 			const installed = await installPreseededLocalModel({
 				store, entry, sourceDirectory, capacity, signal,
@@ -358,7 +375,9 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 
 	/** Reconciles complete content-addressed blobs the user pre-seeded directly. */
 	function reconcilePreseeded(): Promise<PreseededLocalModelReconciliation> {
-		return withExclusiveMutation(() => reconcilePreseededLocalModels(store, catalog.entries));
+		return withExclusiveMutation(() => reconcilePreseededLocalModels(store, catalog.entries, {
+			admitEntry: ({ modelId }) => assertMachineCompatible(entryFor(modelId)),
+		}));
 	}
 
 	/** Garbage collection is never implicit; callers must request it explicitly. */
@@ -405,6 +424,7 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 		const manifest = await store.readManifest(modelId);
 		if (!manifest) throw new Error(`${modelId} is not installed.`);
 		const entry = entryFor(modelId);
+		assertMachineCompatible(entry);
 		if (!currentInstallation(entry, [manifest])) {
 			throw new Error(`${modelId} does not match the current authenticated catalog entry.`);
 		}

@@ -404,18 +404,14 @@ export interface LocalModelAvailabilityContext {
 	readonly installedModelIds: readonly string[];
 }
 
-/**
- * What the model manager should show for an entry. Installation is reported
- * before capability, because a model already on disk stays usable and
- * removable on a machine that could no longer install it.
- */
+/** What the model manager should show for an entry on this machine. */
 export function describeModelAvailability(
 	entry: LocalModelCatalogEntry,
 	context: LocalModelAvailabilityContext,
 ): LocalModelAvailability {
-	if (context.installedModelIds.includes(entry.modelId)) return 'installed';
 	if (!entry.platforms.includes(context.platform as LocalModelPlatform)) return 'unsupported-platform';
 	if (context.totalMemoryBytes < entry.minimumMemoryBytes) return 'insufficient-memory';
+	if (context.installedModelIds.includes(entry.modelId)) return 'installed';
 	return 'installable';
 }
 

@@ -180,7 +180,7 @@ function ModelRow({
 	onCancelInstall: (modelId: string) => unknown;
 	onRemove: (modelId: string) => unknown;
 }>) {
-	const installed = model.availability === 'installed';
+	const installed = model.installedBytes !== null;
 	const actionAvailable = installed || model.availability === 'installable';
 	const size = installed ? model.installedBytes : model.downloadBytes;
 	const sizeLabel = installed
