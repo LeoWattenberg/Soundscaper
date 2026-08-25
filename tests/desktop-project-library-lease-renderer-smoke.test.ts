@@ -16,8 +16,8 @@ import {
 	createSoundscaperDesktopProjectLibraryV11Handshake,
 } from '../desktop/soundscaper-project-library-v11-contract.ts';
 import { SoundscaperDesktopProjectLibraryV11Main } from '../desktop/soundscaper-project-library-v11-main.ts';
-import { createFramescaperDesktopProjectLibraryV19Handshake } from '../desktop/project-library-v19-contract.ts';
-import { FramescaperDesktopProjectLibraryV19Main } from '../desktop/project-library-v19-main.ts';
+import { createFramescaperDesktopProjectLibraryV20Handshake } from '../desktop/project-library-v20-contract.ts';
+import { FramescaperDesktopProjectLibraryV20Main } from '../desktop/project-library-v20-main.ts';
 
 const PROJECT_ID = 'lease-matrix-renderer';
 
@@ -183,13 +183,13 @@ test('the lease renderer smoke rethrows failures that are not a refusal by main'
 	assert.equal(conflictReason(refused), 'compare-and-swap');
 });
 
-test('the product-neutral renderer smoke publishes through the selected Framescaper V19 bridge', async (context) => {
-	const root = await mkdtemp(join(tmpdir(), 'framescaper-v19-lease-renderer-'));
+test('the product-neutral renderer smoke publishes through the selected Framescaper V20 bridge', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'framescaper-v20-lease-renderer-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
-	const handshake = createFramescaperDesktopProjectLibraryV19Handshake();
-	const main = await FramescaperDesktopProjectLibraryV19Main.start({
+	const handshake = createFramescaperDesktopProjectLibraryV20Handshake();
+	const main = await FramescaperDesktopProjectLibraryV20Main.start({
 		appDataPath: root,
-		owner: { product: 'framescaper', processId: 924, instanceId: 'framescaper-v19-lease-renderer' },
+		owner: { product: 'framescaper', processId: 924, instanceId: 'framescaper-v20-lease-renderer' },
 		handshake,
 		onLeaseLost: () => undefined,
 		qualification: null,
