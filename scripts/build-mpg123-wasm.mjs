@@ -10,6 +10,8 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
+import { readBundledCodecSourceInput } from './lib/bundled-codec-source-input.mjs';
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sourceDirectory = join(root, 'src/common/editor/mpg123');
 const manifest = JSON.parse(readFileSync(join(sourceDirectory, 'source-manifest.json'), 'utf8'));
@@ -35,11 +37,14 @@ try {
 	const keyPath = join(temporaryDirectory, 'signing-key.asc');
 	const [archive, signature, signingKey] = await Promise.all([
 		fetchPinned(manifest.mpg123.archiveUrl, manifest.mpg123.archiveRedirectUrl,
-			manifest.mpg123.archiveSha256, 512 * 1024, 4 * 1024 * 1024, 'source archive'),
+			manifest.mpg123.archiveSha256, 512 * 1024, 4 * 1024 * 1024,
+			'mpg123-1.33.7.tar.bz2', 'source archive'),
 		fetchPinned(manifest.mpg123.signatureUrl, manifest.mpg123.signatureRedirectUrl,
-			manifest.mpg123.signatureSha256, 256, 4 * 1024, 'detached signature'),
+			manifest.mpg123.signatureSha256, 256, 4 * 1024,
+			'mpg123-1.33.7.tar.bz2.sig', 'detached signature'),
 		fetchPinned(manifest.mpg123.signingKeyUrl, manifest.mpg123.signingKeyRedirectUrl,
-			manifest.mpg123.signingKeySha256, 1024, 16 * 1024, 'signing key'),
+			manifest.mpg123.signingKeySha256, 1024, 16 * 1024,
+			'mpg123-1.33.7-signing-key.asc', 'signing key'),
 	]);
 	writeFileSync(archivePath, archive, { flag: 'wx', mode: 0o600 });
 	writeFileSync(signaturePath, signature, { flag: 'wx', mode: 0o600 });
@@ -101,12 +106,18 @@ try {
 	rmSync(temporaryDirectory, { recursive: true, force: true });
 }
 
-async function fetchPinned(url, redirectedUrl, digest, minimumBytes, maximumBytes, label) {
-	const response = await fetch(url, { redirect: 'follow' });
-	if (!response.ok || response.url !== redirectedUrl) {
-		throw new Error(`Could not fetch the exact mpg123 ${label} (${String(response.status)}).`);
-	}
-	const bytes = new Uint8Array(await response.arrayBuffer());
+async function fetchPinned(url, redirectedUrl, digest, minimumBytes, maximumBytes, fileName, label) {
+	const bytes = await readBundledCodecSourceInput({
+		fileName,
+		maximumBytes,
+		readRemote: async () => {
+			const response = await fetch(url, { redirect: 'follow' });
+			if (!response.ok || response.url !== redirectedUrl) {
+				throw new Error(`Could not fetch the exact mpg123 ${label} (${String(response.status)}).`);
+			}
+			return new Uint8Array(await response.arrayBuffer());
+		},
+	});
 	if (bytes.byteLength < minimumBytes || bytes.byteLength > maximumBytes || sha256(bytes) !== digest) {
 		throw new Error(`The mpg123 ${label} does not match its exact digest.`);
 	}

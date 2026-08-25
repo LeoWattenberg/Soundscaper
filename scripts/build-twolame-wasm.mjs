@@ -10,6 +10,8 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
+import { readBundledCodecSourceInput } from './lib/bundled-codec-source-input.mjs';
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const twolameDirectory = join(root, 'src/common/editor/twolame');
 const manifest = JSON.parse(readFileSync(join(twolameDirectory, 'source-manifest.json'), 'utf8'));
@@ -36,11 +38,17 @@ verifyCompiler();
 const temporaryDirectory = mkdtempSync(join(tmpdir(), 'soundscaper-twolame-wasm-'));
 try {
 	const archivePath = join(temporaryDirectory, 'twolame-0.4.0.tar.gz');
-	const response = await fetch(manifest.twolame.archiveUrl, { redirect: 'follow' });
-	if (!response.ok || !admittedSourceForgeUrl(response.url)) {
-		throw new Error(`Could not fetch the exact TwoLAME source archive (${String(response.status)}).`);
-	}
-	const archive = new Uint8Array(await response.arrayBuffer());
+	const archive = await readBundledCodecSourceInput({
+		fileName: 'twolame-0.4.0.tar.gz',
+		maximumBytes: 2 * 1024 * 1024,
+		readRemote: async () => {
+			const response = await fetch(manifest.twolame.archiveUrl, { redirect: 'follow' });
+			if (!response.ok || !admittedSourceForgeUrl(response.url)) {
+				throw new Error(`Could not fetch the exact TwoLAME source archive (${String(response.status)}).`);
+			}
+			return new Uint8Array(await response.arrayBuffer());
+		},
+	});
 	if (archive.byteLength < 512 * 1024 || archive.byteLength > 2 * 1024 * 1024
 		|| sha256(archive) !== manifest.twolame.archiveSha256) {
 		throw new Error('The TwoLAME source archive does not match its exact release digest.');

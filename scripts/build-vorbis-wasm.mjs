@@ -10,6 +10,8 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
+import { readBundledCodecSourceInput } from './lib/bundled-codec-source-input.mjs';
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const vorbisDirectory = join(root, 'src/common/editor/vorbis');
 const manifest = JSON.parse(readFileSync(join(vorbisDirectory, 'source-manifest.json'), 'utf8'));
@@ -32,8 +34,12 @@ verifyCompiler();
 
 const temporaryDirectory = mkdtempSync(join(tmpdir(), 'soundscaper-vorbis-wasm-'));
 try {
-	const vorbisArchive = await fetchArchive(manifest.vorbis, temporaryDirectory, 'vorbis.tar.xz');
-	const oggArchive = await fetchArchive(manifest.ogg, temporaryDirectory, 'ogg.tar.xz');
+	const vorbisArchive = await fetchArchive(
+		manifest.vorbis, temporaryDirectory, 'vorbis.tar.xz', 'libvorbis-1.3.7.tar.xz',
+	);
+	const oggArchive = await fetchArchive(
+		manifest.ogg, temporaryDirectory, 'ogg.tar.xz', 'libogg-1.3.6.tar.xz',
+	);
 	run('tar', ['-xJf', vorbisArchive, '-C', temporaryDirectory]);
 	run('tar', ['-xJf', oggArchive, '-C', temporaryDirectory]);
 	const vorbisSource = join(temporaryDirectory, 'libvorbis-1.3.7');
@@ -116,12 +122,18 @@ try {
 	rmSync(temporaryDirectory, { recursive: true, force: true });
 }
 
-async function fetchArchive(admission, directory, filename) {
-	const response = await fetch(admission.archiveUrl, { redirect: 'follow' });
-	if (!response.ok || response.url !== admission.archiveRedirectUrl) {
-		throw new Error(`Could not fetch exact ${admission.tag} source archive (${String(response.status)}).`);
-	}
-	const bytes = new Uint8Array(await response.arrayBuffer());
+async function fetchArchive(admission, directory, filename, bundledFileName) {
+	const bytes = await readBundledCodecSourceInput({
+		fileName: bundledFileName,
+		maximumBytes: 16 * 1024 * 1024,
+		readRemote: async () => {
+			const response = await fetch(admission.archiveUrl, { redirect: 'follow' });
+			if (!response.ok || response.url !== admission.archiveRedirectUrl) {
+				throw new Error(`Could not fetch exact ${admission.tag} source archive (${String(response.status)}).`);
+			}
+			return new Uint8Array(await response.arrayBuffer());
+		},
+	});
 	if (bytes.byteLength < 256 * 1024 || bytes.byteLength > 16 * 1024 * 1024
 		|| sha256(bytes) !== admission.archiveSha256) {
 		throw new Error(`The ${admission.tag} source archive does not match its exact release digest.`);

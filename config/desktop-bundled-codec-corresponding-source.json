@@ -1,0 +1,175 @@
+{
+	"schemaVersion": 1,
+	"nodeVersion": "26.5.0",
+	"archiveTimestamp": "1980-01-01T00:00:00.000Z",
+	"instructions": {
+		"path": "docs/desktop-bundled-codec-corresponding-source.md",
+		"sha256": "c3a94d5f2bf3dee31d10522a1dabd9660bbb7f84b03421067baf8bcf6d68a8ac"
+	},
+	"soundscaperLicense": {
+		"path": "LICENSE",
+		"sha256": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef"
+	},
+	"supportFiles": [
+		{
+			"path": "scripts/lib/bundled-codec-source-input.mjs",
+			"sha256": "596aeb64c7eed21f83c83ece36721d23d4ec3331bf9c4795d3b9e0523f1bd655"
+		},
+		{
+			"path": "scripts/lib/wavpack-wasm-toolchain.mjs",
+			"sha256": "a38b58d49a713a867bf90478dae5f2bdebd16bd82c3023a78f7492f6dd2606d9"
+		}
+	],
+	"codecs": [
+		{
+			"id": "flac",
+			"sourceManifest": {
+				"path": "src/common/editor/flac/source-manifest.json",
+				"sha256": "159f77a3449cca02f5e7b937fbb84a6ca910570675d8016e145121bc4c214205"
+			},
+			"buildScript": {
+				"path": "scripts/build-flac-wasm.mjs",
+				"sha256": "723df3f50626b7c532c6096dcafa9bc7c6b653bc1090da4ef20ed88f4129e86f"
+			},
+			"archives": [
+				{
+					"manifestKey": "flac",
+					"kind": "archive",
+					"fileName": "flac-1.5.0.tar.xz",
+					"byteLength": 1078872
+				}
+			]
+		},
+		{
+			"id": "lame",
+			"sourceManifest": {
+				"path": "src/common/editor/lame/source-manifest.json",
+				"sha256": "2304d77adcb2f368772572890ed427b1c513614fb4a255b57d612af4d228352f"
+			},
+			"buildScript": {
+				"path": "scripts/build-lame-wasm.mjs",
+				"sha256": "6f82d920d826af0f048c188faf5b2a6b348b88696749409df6be047bcd7a5913"
+			},
+			"archives": [
+				{
+					"manifestKey": "lame",
+					"kind": "archive",
+					"fileName": "lame-4.0.tar.gz",
+					"byteLength": 1496810
+				}
+			]
+		},
+		{
+			"id": "mpg123",
+			"sourceManifest": {
+				"path": "src/common/editor/mpg123/source-manifest.json",
+				"sha256": "f81f3e4481285e4e7f0969ee54ae3b42f9f5d75c7e69937b57d660508e7603dd"
+			},
+			"buildScript": {
+				"path": "scripts/build-mpg123-wasm.mjs",
+				"sha256": "6554d31b5db0bf0ff1a2025e180954dfc7227b07d5e564f4d2762f3d6706431b"
+			},
+			"archives": [
+				{
+					"manifestKey": "mpg123",
+					"kind": "archive",
+					"fileName": "mpg123-1.33.7.tar.bz2",
+					"byteLength": 1126376
+				},
+				{
+					"manifestKey": "mpg123",
+					"kind": "detached-signature",
+					"fileName": "mpg123-1.33.7.tar.bz2.sig",
+					"byteLength": 566
+				},
+				{
+					"manifestKey": "mpg123",
+					"kind": "signing-key",
+					"fileName": "mpg123-1.33.7-signing-key.asc",
+					"byteLength": 3104
+				}
+			]
+		},
+		{
+			"id": "opus",
+			"sourceManifest": {
+				"path": "src/common/editor/opus/source-manifest.json",
+				"sha256": "2ac693e7223efc0d91ff58720fac822fd99a52c08b264d0331bda31a0b20ea1b"
+			},
+			"buildScript": {
+				"path": "scripts/build-opus-wasm.mjs",
+				"sha256": "875c7dd8df636aabf42779fcf59252ef20baeed5f0af762f2e62dd24ce945cbf"
+			},
+			"archives": [
+				{
+					"manifestKey": "opus",
+					"kind": "archive",
+					"fileName": "opus-1.6.1.tar.gz",
+					"byteLength": 10472813
+				},
+				{
+					"manifestKey": "ogg",
+					"kind": "archive",
+					"fileName": "libogg-1.3.6.tar.xz",
+					"byteLength": 439952
+				}
+			]
+		},
+		{
+			"id": "twolame",
+			"sourceManifest": {
+				"path": "src/common/editor/twolame/source-manifest.json",
+				"sha256": "f5818e4421642ce8f6756835a62574f0f0a1e6373441d4296bc975612a6b4049"
+			},
+			"buildScript": {
+				"path": "scripts/build-twolame-wasm.mjs",
+				"sha256": "c73bb2db55b607c0fdb3ade338fd247f86dea13d1b6ce97d3baf182e7fd90f12"
+			},
+			"archives": [
+				{
+					"manifestKey": "twolame",
+					"kind": "archive",
+					"fileName": "twolame-0.4.0.tar.gz",
+					"byteLength": 890908
+				}
+			]
+		},
+		{
+			"id": "vorbis",
+			"sourceManifest": {
+				"path": "src/common/editor/vorbis/source-manifest.json",
+				"sha256": "6df823dd769e33a4d284c019a23a5b24f217eb4ae38aecf006345627800dc5c9"
+			},
+			"buildScript": {
+				"path": "scripts/build-vorbis-wasm.mjs",
+				"sha256": "0b826fcea1afe5199d1d35a19b37912b29112ab05a53c367e78ed439c23c1717"
+			},
+			"archives": [
+				{
+					"manifestKey": "vorbis",
+					"kind": "archive",
+					"fileName": "libvorbis-1.3.7.tar.xz",
+					"byteLength": 1203792
+				},
+				{
+					"manifestKey": "ogg",
+					"kind": "archive",
+					"fileName": "libogg-1.3.6.tar.xz",
+					"byteLength": 439952
+				}
+			]
+		},
+		{
+			"id": "wavpack",
+			"sourceManifest": {
+				"path": "src/common/editor/wavpack/source-manifest.json",
+				"sha256": "0de11c4ee94b4c88b70adfdbe9e3d4ecbe8578b3f9be5e2d3a0b5a5791c7a2ca"
+			},
+			"buildScript": {
+				"path": "scripts/build-wavpack-wasm.mjs",
+				"sha256": "318423246b38d3d31492a53c754b1966ad09c6ef0594b4b1c0367c66bf95d9e1"
+			},
+			"archives": []
+		}
+	]
+}

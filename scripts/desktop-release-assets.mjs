@@ -9,6 +9,7 @@ import {
 	assertDesktopCodecPolicy,
 	isForbiddenDesktopFfmpegPath,
 } from './lib/desktop-codec-policy.mjs';
+import { stageDesktopBundledCodecCorrespondingSource } from './lib/desktop-bundled-codec-corresponding-source.mjs';
 import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
 import { assistanceNativeRuntimeStageSummary } from '../desktop/assistance-native-runtime-payload.mjs';
 
@@ -78,6 +79,11 @@ export async function main() {
 	);
 	await writeFile(resolve(ASSET_ROOT, 'Soundscaper-AGPL-3.0.txt'), await readFile(resolve(ROOT, 'LICENSE')), { flag: 'wx' });
 	await writeFile(resolve(ASSET_ROOT, 'THIRD_PARTY_LICENSES.md'), await readFile(resolve(ROOT, 'THIRD_PARTY_LICENSES.md')), { flag: 'wx' });
+	await stageDesktopBundledCodecCorrespondingSource({
+		repositoryRoot: ROOT,
+		outputRoot: ASSET_ROOT,
+		applicationVersion: canonical.applicationVersion,
+	});
 
 	const releaseFiles = regularDesktopReleaseFileNames(await readdir(ASSET_ROOT, { withFileTypes: true }))
 		.filter((name) => name !== 'SHA256SUMS')

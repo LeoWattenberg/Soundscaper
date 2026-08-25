@@ -128,6 +128,24 @@ distribution through a durable, versioned delivery path. A build-repository
 archive is not automatically complete corresponding source for the binary it
 produces, especially when its build downloads additional libraries.
 
+Each desktop release therefore emits and checksums
+`Soundscaper-<version>-bundled-codecs-corresponding-source.zip` as the preferred
+source delivery for its seven exact reviewed audio codec WebAssembly modules.
+Before any upstream request, release assembly binds each source manifest and
+build script by SHA-256, verifies its local wrappers, WavPack source snapshot,
+licenses, build helpers, and exact shipped WebAssembly identity, and rejects
+unknown, missing, symbolic, stale, or oversized inputs. It then fetches the
+manifest-pinned FLAC, LAME, mpg123, Ogg, Opus, TwoLAME, and Vorbis source inputs
+over HTTPS, verifies their exact digests and bounds (including mpg123's detached
+signature and signing key), and emits a deterministic ZIP receipt covering
+every included byte. The bundled scripts prefer those archived inputs and pin
+Node.js 26.5.0 and the digest-qualified Emscripten 3.1.64 toolchain. The rebuild
+and replacement instructions explain that each upstream library and
+Soundscaper wrapper is statically linked only inside a separately replaceable
+WebAssembly module, not Electron itself. This closes source delivery only for
+those seven desktop modules; it does not close the Web FFmpeg enabled-library
+gate, any OS or external provider, or any patent review.
+
 The Web `@ffmpeg/core` configuration enables FFmpeg plus x264, x265,
 libvpx, LAME, libtheora, libvorbis, libopus, zlib, libwebp, FreeType, FriBidi,
 libass, and zimg. The existing corresponding-source manifest pins an FFmpeg

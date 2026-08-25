@@ -134,6 +134,7 @@ test('runtime provenance entries and release gates fail closed without claiming 
 
 	assert.equal(gates.size, matrix.releaseGates.length, 'release gate IDs must be unique');
 	assert.equal(gates.get('desktop-notice-delivery').status, 'implemented');
+	assert.equal(gates.get('desktop-bundled-codec-corresponding-source').status, 'implemented');
 	assert.equal(gates.get('ffmpeg-runtime-manifest-integrity').status, 'implemented');
 	assert.equal(gates.get('web-notice-delivery').status, 'blocked');
 	assert.equal(gates.get('ffmpeg-enabled-library-corresponding-source').status, 'blocked');
@@ -142,6 +143,16 @@ test('runtime provenance entries and release gates fail closed without claiming 
 		assert.ok(gates.get('desktop-notice-delivery').evidence.includes(path),
 			'desktop-notice-delivery must retain post-copy verification evidence');
 	}
+	for (const path of [
+		'config/desktop-bundled-codec-corresponding-source.json',
+		'scripts/lib/desktop-bundled-codec-corresponding-source.mjs',
+		'tests/desktop-bundled-codec-corresponding-source.test.js',
+	]) {
+		assert.ok(gates.get('desktop-bundled-codec-corresponding-source').evidence.includes(path),
+			'desktop source delivery must retain exact assembly evidence');
+	}
+	const desktopRelease = matrix.distributionSurfaces.find(({ id }) => id === 'desktop-release-assets');
+	assert.match(desktopRelease.description, /preferred corresponding-source ZIP/iu);
 	assert.ok(gates.get('ffmpeg-runtime-manifest-integrity').evidence.includes('scripts/publish-runtime-assets.mjs'));
 	assert.equal(gates.get('ffmpeg-runtime-manifest-integrity').evidence.includes('scripts/desktop-prepare.mjs'), false);
 	assert.deepEqual(matrix.ffmpeg.enabledExternalLibraries, ENABLED_FFMPEG_LIBRARIES);

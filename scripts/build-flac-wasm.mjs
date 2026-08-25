@@ -15,6 +15,8 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
+import { readBundledCodecSourceInput } from './lib/bundled-codec-source-input.mjs';
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const flacDirectory = join(root, 'src/common/editor/flac');
 const manifest = JSON.parse(readFileSync(join(flacDirectory, 'source-manifest.json'), 'utf8'));
@@ -37,11 +39,17 @@ verifyCompiler();
 const temporaryDirectory = mkdtempSync(join(tmpdir(), 'soundscaper-flac-wasm-'));
 try {
 	const archivePath = join(temporaryDirectory, 'flac.tar.xz');
-	const response = await fetch(manifest.flac.archiveUrl, { redirect: 'follow' });
-	if (!response.ok || response.url !== manifest.flac.archiveRedirectUrl) {
-		throw new Error(`Could not fetch the exact FLAC source archive (${String(response.status)}).`);
-	}
-	const archive = new Uint8Array(await response.arrayBuffer());
+	const archive = await readBundledCodecSourceInput({
+		fileName: 'flac-1.5.0.tar.xz',
+		maximumBytes: 2 * 1024 * 1024,
+		readRemote: async () => {
+			const response = await fetch(manifest.flac.archiveUrl, { redirect: 'follow' });
+			if (!response.ok || response.url !== manifest.flac.archiveRedirectUrl) {
+				throw new Error(`Could not fetch the exact FLAC source archive (${String(response.status)}).`);
+			}
+			return new Uint8Array(await response.arrayBuffer());
+		},
+	});
 	if (archive.byteLength < 512 * 1024 || archive.byteLength > 2 * 1024 * 1024
 		|| sha256(archive) !== manifest.flac.archiveSha256) {
 		throw new Error('The FLAC source archive does not match its exact release digest.');
