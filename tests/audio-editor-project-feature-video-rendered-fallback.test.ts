@@ -102,6 +102,7 @@ test('every registered first-party video capability can bind one full-render fal
 		PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
 		PROJECT_FEATURE_CAPABILITY_IDS.videoCompositing,
 		PROJECT_FEATURE_CAPABILITY_IDS.sequenceTiming,
+		PROJECT_FEATURE_CAPABILITY_IDS.timelineImages,
 		PROJECT_FEATURE_CAPABILITY_IDS.videoRetime,
 		PROJECT_FEATURE_CAPABILITY_IDS.videoTimingAssets,
 	]);
