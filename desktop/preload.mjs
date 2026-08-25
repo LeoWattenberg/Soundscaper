@@ -223,7 +223,7 @@ function nativeOpenFxFrameSessionRequest(value) { nativeRecord(value, ['schemaVe
 	return Object.freeze({ ...nativeOpenFxFrameOffer({ protocolVersion: value.protocolVersion,
 		sessionId: value.sessionId }), requestNonce: opaqueId(value.requestNonce, 40) });
 }
-const ASSISTANCE_AVAILABILITY = ['installed', 'installable', 'pending-artifacts', 'unsupported-platform', 'insufficient-memory'];
+const ASSISTANCE_AVAILABILITY = ['installed', 'installable', 'unsupported-platform', 'insufficient-memory'];
 function assistanceModelId(value) {
 	const modelId = text(value, 64); if (!/^[a-z\d][a-z\d.-]*[a-z\d]$/u.test(modelId)) throw new TypeError('Unsupported assistance model id'); return modelId;
 }

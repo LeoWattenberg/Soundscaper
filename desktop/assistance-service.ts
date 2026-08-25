@@ -19,6 +19,7 @@ import type {
 	LocalModelCatalog,
 	LocalModelCatalogEntry,
 } from './local-model-catalog.ts';
+import type { LocalModelCatalogSignatureOptions } from './local-model-catalog-signature.ts';
 import { downloadLocalModelArtifact } from './local-model-download.ts';
 import { FileLocalModelStore, resolveLocalModelRoot } from './local-model-store.ts';
 import type { SpeechRuntimeAdapter } from './assistance-speech-runtime.ts';
@@ -29,7 +30,7 @@ export interface AssistanceModelView {
 	readonly version: string;
 	readonly task: string;
 	readonly availability: LocalModelAvailability;
-	readonly downloadBytes: number | null;
+	readonly downloadBytes: number;
 	readonly installedBytes: number | null;
 	readonly attributionRequired: boolean;
 }
@@ -52,8 +53,9 @@ export interface AssistanceServiceOptions {
 	readonly userDataPath: string;
 	readonly settingsDirectory?: string | null;
 	readonly catalog: unknown;
-	readonly evidenceIds: readonly string[];
+	readonly licensingEvidence: readonly unknown[];
 	readonly refusedIds?: readonly string[];
+	readonly catalogSignatureOptions?: LocalModelCatalogSignatureOptions;
 	readonly runtime: SpeechRuntimeAdapter;
 	readonly platform?: string;
 	readonly totalMemoryBytes?: number;
@@ -64,17 +66,16 @@ function entryView(
 	entry: LocalModelCatalogEntry,
 	availability: LocalModelAvailability,
 	installedBytes: number | null,
+	attributionRequired: boolean,
 ): AssistanceModelView {
 	return Object.freeze({
 		modelId: entry.modelId,
 		version: entry.version,
 		task: entry.task,
 		availability,
-		downloadBytes: entry.artifacts === null
-			? null
-			: entry.artifacts.reduce((total, artifact) => total + artifact.byteLength, 0),
+		downloadBytes: entry.artifacts.reduce((total, artifact) => total + artifact.byteLength, 0),
 		installedBytes,
-		attributionRequired: false,
+		attributionRequired,
 	});
 }
 
@@ -85,9 +86,9 @@ function entryView(
  */
 export function createAssistanceService(options: AssistanceServiceOptions) {
 	const catalog: LocalModelCatalog = validateLocalModelCatalog(options.catalog, {
-		evidenceIds: options.evidenceIds,
+		licensingEvidence: options.licensingEvidence,
 		refusedIds: options.refusedIds,
-	});
+	}, options.catalogSignatureOptions);
 	const rootPath = resolveLocalModelRoot({
 		userDataPath: options.userDataPath,
 		settingsDirectory: options.settingsDirectory ?? null,
@@ -95,6 +96,11 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 	const store = new FileLocalModelStore(rootPath);
 	const platform = options.platform ?? `${process.platform}-${process.arch}`;
 	const totalMemoryBytes = options.totalMemoryBytes ?? 0;
+	const attributionById = new Map(options.licensingEvidence.flatMap((value) => {
+		if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+		const row = value as Readonly<Record<string, unknown>>;
+		return typeof row.id === 'string' ? [[row.id, row.attributionRequired === true] as const] : [];
+	}));
 
 	function entryFor(modelId: string): LocalModelCatalogEntry {
 		const entry = catalog.entries.find((candidate) => candidate.modelId === modelId);
@@ -118,6 +124,7 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 					installedModelIds: installedIds,
 				}),
 				installed.find(({ modelId }) => modelId === entry.modelId)?.totalBytes ?? null,
+				attributionById.get(entry.modelId) === true,
 			))),
 		});
 	}
@@ -133,9 +140,6 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 		signal?: AbortSignal,
 	): Promise<AssistanceModelView> {
 		const entry = entryFor(modelId);
-		if (entry.artifacts === null) {
-			throw new Error(`${modelId} has no mirrored artifacts to install.`);
-		}
 		await store.initialize();
 		for (const artifact of entry.artifacts) {
 			await downloadLocalModelArtifact({

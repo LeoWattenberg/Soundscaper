@@ -1,53 +1,46 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { generateKeyPairSync, sign } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { canonicalJson, localModelEvidenceSha256 } from '../desktop/local-model-catalog-signature.ts';
 import {
 	catalogEntryDownloadBytes,
 	describeModelAvailability,
 	LOCAL_MODEL_CATALOG_SCHEMA_VERSION,
 	plannedMirrorLocation,
-	validateLocalModelCatalog,
+	validateLocalModelCatalog as validateCatalog,
 } from '../desktop/local-model-catalog.ts';
 
 const catalogUrl = new URL('../config/local-model-catalog.json', import.meta.url);
 const matrixUrl = new URL('../config/production-licensing-matrix.json', import.meta.url);
 
 const GIB = 1024 ** 3;
+const { privateKey, publicKey } = generateKeyPairSync('ed25519');
+const TEST_KEY_ID = 'local-model-catalog-test';
+const TEST_SIGNATURE_OPTIONS = Object.freeze({
+	trustedKeys: Object.freeze({
+		[TEST_KEY_ID]: publicKey.export({ type: 'spki', format: 'pem' }).toString(),
+	}),
+});
 
 async function readJson(url: URL): Promise<Record<string, unknown>> {
 	return JSON.parse(String(await readFile(url)));
 }
 
-/** Loosely typed on purpose: these fixtures probe runtime rejection. */
-function entry(overrides: Record<string, unknown> = {}): unknown {
+function evidenceFor(id: string, distributionStatus = 'permitted'): Record<string, unknown> {
 	return {
-		modelId: 'silero-vad-v6',
-		version: '6.2.1',
-		task: 'voice-activity-detection',
-		platforms: ['linux-x64'],
-		minimumMemoryBytes: 2 * GIB,
-		artifacts: null,
-		...overrides,
+		id,
+		distributionStatus,
+		blockedBy: distributionStatus === 'permitted' ? [] : ['weights-and-code-license-review'],
+		requirements: {
+			'weights-and-code-license-review': { status: 'recorded', summary: 'Test evidence.' },
+		},
+		evidence: ['tests/desktop-local-model-catalog.test.ts'],
 	};
 }
-
-function binding(overrides: { evidenceIds?: string[]; refusedIds?: string[] } = {}) {
-	return {
-		evidenceIds: ['silero-vad-v6', 'parakeet-tdt-0.6b-v2'],
-		refusedIds: ['crisperwhisper'],
-		...overrides,
-	};
-}
-
-const PUBLICATION = Object.freeze({
-	bucket: 'soundscaper-assets',
-	prefix: 'models',
-	publicBaseUrl: 'https://assets.soundscaper.org/models/',
-	jurisdiction: 'eu',
-});
 
 const UPSTREAM_ARTIFACT = Object.freeze({
 	fileName: 'model.onnx',
@@ -60,8 +53,58 @@ function upstreamOf(artifacts: unknown[] = [UPSTREAM_ARTIFACT]): unknown {
 	return { source: 'https://upstream.invalid/repo', revision: 'abc123', artifacts };
 }
 
-function catalogOf(entries: unknown[], publication: unknown = PUBLICATION): unknown {
-	return { schemaVersion: LOCAL_MODEL_CATALOG_SCHEMA_VERSION, publication, entries };
+/** Loosely typed on purpose: these fixtures probe runtime rejection. */
+function entry(overrides: Record<string, unknown> = {}): unknown {
+	const modelId = typeof overrides.modelId === 'string' ? overrides.modelId : 'silero-vad-v6';
+	const record = evidenceFor(modelId);
+	return {
+		modelId,
+		version: '6.2.1',
+		task: 'voice-activity-detection',
+		platforms: ['linux-x64'],
+		minimumMemoryBytes: 2 * GIB,
+		licensingEvidence: { id: modelId, sha256: localModelEvidenceSha256(record) },
+		upstream: upstreamOf(),
+		distribution: { kind: 'identity-mirrored' },
+		artifacts: [{ ...UPSTREAM_ARTIFACT, url: `https://assets.soundscaper.org/models/${modelId}/6.2.1/model.onnx` }],
+		...overrides,
+	};
+}
+
+function binding(overrides: { evidenceIds?: string[]; refusedIds?: string[] } = {}) {
+	const ids = overrides.evidenceIds ?? ['silero-vad-v6', 'parakeet-tdt-0.6b-v2'];
+	return {
+		licensingEvidence: ids.map((id) => evidenceFor(id)),
+		refusedIds: ['crisperwhisper'],
+		...(overrides.refusedIds === undefined ? {} : { refusedIds: overrides.refusedIds }),
+	};
+}
+
+const PUBLICATION = Object.freeze({
+	bucket: 'soundscaper-assets',
+	prefix: 'models',
+	publicBaseUrl: 'https://assets.soundscaper.org/models/',
+	jurisdiction: 'eu',
+});
+
+function catalogOf(
+	entries: unknown[],
+	publication: unknown = PUBLICATION,
+	schemaVersion: unknown = LOCAL_MODEL_CATALOG_SCHEMA_VERSION,
+): unknown {
+	const payload = { schemaVersion, publication, entries };
+	return {
+		...payload,
+		signature: {
+			algorithm: 'Ed25519',
+			keyId: TEST_KEY_ID,
+			value: sign(null, Buffer.from(canonicalJson(payload)), privateKey).toString('base64'),
+		},
+	};
+}
+
+function validateLocalModelCatalog(value: unknown, catalogBinding: Parameters<typeof validateCatalog>[1]) {
+	return validateCatalog(value, catalogBinding, TEST_SIGNATURE_OPTIONS);
 }
 
 test('the checked-in catalog agrees with the licensing register', async () => {
@@ -70,7 +113,7 @@ test('the checked-in catalog agrees with the licensing register', async () => {
 		refusedLocalModels: { id: string }[];
 	};
 	const catalog = validateLocalModelCatalog(await readJson(catalogUrl), {
-		evidenceIds: matrix.localModelEvidence.map(({ id }) => id),
+		licensingEvidence: matrix.localModelEvidence,
 		refusedIds: matrix.refusedLocalModels.map(({ id }) => id),
 	});
 
@@ -83,10 +126,10 @@ test('the checked-in catalog agrees with the licensing register', async () => {
 	}
 });
 
-test('a cataloged model is installable exactly when its artifacts are pinned', async () => {
+test('every offered catalog model is installable because V2 requires pinned artifacts', async () => {
 	const matrix = await readJson(matrixUrl) as { localModelEvidence: { id: string }[] };
 	const catalog = validateLocalModelCatalog(await readJson(catalogUrl), {
-		evidenceIds: matrix.localModelEvidence.map(({ id }) => id),
+		licensingEvidence: matrix.localModelEvidence,
 	});
 
 	const availability = (candidate: (typeof catalog.entries)[number]) => describeModelAvailability(candidate, {
@@ -104,17 +147,14 @@ test('a cataloged model is installable exactly when its artifacts are pinned', a
 		'https://assets.soundscaper.org/models/silero-vad-v6/6.2.1/silero_vad.onnx',
 	);
 
-	for (const candidate of catalog.entries) {
-		if (candidate.artifacts !== null) continue;
-		assert.equal(catalogEntryDownloadBytes(candidate), null);
-		assert.equal(availability(candidate), 'pending-artifacts');
-	}
+	assert.ok(catalog.entries.every((candidate) => catalogEntryDownloadBytes(candidate) > 0));
+	assert.ok(catalog.entries.every((candidate) => availability(candidate) === 'installable'));
 });
 
 test('a model without a licensing evidence record cannot be cataloged', () => {
 	assert.throws(
 		() => validateLocalModelCatalog(catalogOf([entry({ modelId: 'unreviewed-model' })]), binding()),
-		/need a licensing evidence record/iu,
+		/needs exactly one licensing evidence record/iu,
 	);
 });
 
@@ -180,7 +220,7 @@ test('the catalog refuses entries it cannot offer safely', () => {
 		/minimumMemoryBytes must be a positive integer/iu,
 	);
 	assert.throws(
-		() => validateLocalModelCatalog({ schemaVersion: 2, publication: PUBLICATION, entries: [] }, binding()),
+		() => validateLocalModelCatalog(catalogOf([], PUBLICATION, 3), binding()),
 		/schema version is unsupported/iu,
 	);
 });
@@ -208,14 +248,14 @@ test('a pinned artifact must be hashed and fetched over https', () => {
 	);
 	assert.throws(
 		() => validateLocalModelCatalog(catalogOf([entry({ upstream: upstreamOf(), artifacts: [] })]), binding()),
-		/null or a non-empty array/iu,
+		/distribution artifacts must be a non-empty array/iu,
 	);
 });
 
 test('the audio launch models pin their upstream bytes at an immutable revision', async () => {
 	const matrix = await readJson(matrixUrl) as { localModelEvidence: { id: string }[] };
 	const catalog = validateLocalModelCatalog(await readJson(catalogUrl), {
-		evidenceIds: matrix.localModelEvidence.map(({ id }) => id),
+		licensingEvidence: matrix.localModelEvidence,
 	});
 	const byId = new Map(catalog.entries.map((candidate) => [candidate.modelId, candidate]));
 
@@ -237,7 +277,7 @@ test('the audio launch models pin their upstream bytes at an immutable revision'
 test('a speech-recognition model ships the three graphs the runtime loads', async () => {
 	const matrix = await readJson(matrixUrl) as { localModelEvidence: { id: string }[] };
 	const catalog = validateLocalModelCatalog(await readJson(catalogUrl), {
-		evidenceIds: matrix.localModelEvidence.map(({ id }) => id),
+		licensingEvidence: matrix.localModelEvidence,
 	});
 
 	// The transducer is encoder, decoder and joiner as separate graphs. Exports
@@ -265,7 +305,7 @@ test('a speech-recognition model ships the three graphs the runtime loads', asyn
 test('a recognised-text model ships the dictionary its recogniser was built against', async () => {
 	const matrix = await readJson(matrixUrl) as { localModelEvidence: { id: string }[] };
 	const catalog = validateLocalModelCatalog(await readJson(catalogUrl), {
-		evidenceIds: matrix.localModelEvidence.map(({ id }) => id),
+		licensingEvidence: matrix.localModelEvidence,
 	});
 
 	// The recogniser emits one class per dictionary entry plus a blank and a
@@ -284,7 +324,7 @@ test('a recognised-text model ships the dictionary its recogniser was built agai
 test('an image-text model ships both towers so its two embedding spaces can meet', async () => {
 	const matrix = await readJson(matrixUrl) as { localModelEvidence: { id: string }[] };
 	const catalog = validateLocalModelCatalog(await readJson(catalogUrl), {
-		evidenceIds: matrix.localModelEvidence.map(({ id }) => id),
+		licensingEvidence: matrix.localModelEvidence,
 	});
 
 	// Searching frames by text needs both towers projecting into one space, and
@@ -304,7 +344,7 @@ test('an image-text model ships both towers so its two embedding spaces can meet
 test('the video models pin their upstream bytes at an immutable revision', async () => {
 	const matrix = await readJson(matrixUrl) as { localModelEvidence: { id: string }[] };
 	const catalog = validateLocalModelCatalog(await readJson(catalogUrl), {
-		evidenceIds: matrix.localModelEvidence.map(({ id }) => id),
+		licensingEvidence: matrix.localModelEvidence,
 	});
 	const videoTasks = new Set([
 		'face-detection', 'object-detection', 'saliency-detection',
@@ -342,9 +382,10 @@ test('a mirror copies bytes rather than re-encoding them', () => {
 	);
 	assert.throws(
 		() => validateLocalModelCatalog(catalogOf([entry({
+			upstream: null,
 			artifacts: [{ ...UPSTREAM_ARTIFACT, url: 'https://assets.soundscaper.org/models/x.onnx' }],
 		})]), binding()),
-		/need the upstream they were taken from/iu,
+		/offered models need pinned upstream provenance/iu,
 	);
 });
 
@@ -376,7 +417,7 @@ test('upstream provenance must pin an immutable point over https', () => {
 test('the publication block names the bucket and public host', async () => {
 	const matrix = await readJson(matrixUrl) as { localModelEvidence: { id: string }[] };
 	const catalog = validateLocalModelCatalog(await readJson(catalogUrl), {
-		evidenceIds: matrix.localModelEvidence.map(({ id }) => id),
+		licensingEvidence: matrix.localModelEvidence,
 	});
 
 	assert.deepEqual(catalog.publication, {
@@ -415,8 +456,9 @@ test('an unusable publication block is refused', () => {
 		() => validateLocalModelCatalog(catalogOf([], { ...PUBLICATION, jurisdiction: 'atlantis' }), binding()),
 		/jurisdiction is unrecognised/iu,
 	);
+	const { jurisdiction: _jurisdiction, ...publicationWithoutJurisdiction } = PUBLICATION;
 	assert.equal(
-		validateLocalModelCatalog(catalogOf([], { ...PUBLICATION, jurisdiction: undefined }), binding())
+		validateLocalModelCatalog(catalogOf([], publicationWithoutJurisdiction), binding())
 			.publication.jurisdiction,
 		null,
 		'an absent jurisdiction means the default one, not a missing field',

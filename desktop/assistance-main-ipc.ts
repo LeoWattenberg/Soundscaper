@@ -74,6 +74,7 @@ export interface AssistanceServiceFactoryOptions {
 	readonly licensingMatrix: unknown;
 	readonly runtime: Parameters<typeof createAssistanceService>[0]['runtime'];
 	readonly totalMemoryBytes: number;
+	readonly catalogSignatureOptions?: Parameters<typeof createAssistanceService>[0]['catalogSignatureOptions'];
 }
 
 /**
@@ -83,7 +84,7 @@ export interface AssistanceServiceFactoryOptions {
  */
 export function assistanceServiceFrom(options: AssistanceServiceFactoryOptions): AssistanceService {
 	const register = options.licensingMatrix as {
-		localModelEvidence?: { id: string }[];
+		localModelEvidence?: unknown[];
 		refusedLocalModels?: { id: string }[];
 	};
 	if (!Array.isArray(register?.localModelEvidence)) {
@@ -93,8 +94,11 @@ export function assistanceServiceFrom(options: AssistanceServiceFactoryOptions):
 		userDataPath: options.userDataPath,
 		settingsDirectory: options.settingsDirectory,
 		catalog: options.catalog,
-		evidenceIds: register.localModelEvidence.map(({ id }) => id),
+		licensingEvidence: register.localModelEvidence,
 		refusedIds: (register.refusedLocalModels ?? []).map(({ id }) => id),
+		...(options.catalogSignatureOptions
+			? { catalogSignatureOptions: options.catalogSignatureOptions }
+			: {}),
 		runtime: options.runtime,
 		totalMemoryBytes: options.totalMemoryBytes,
 	});

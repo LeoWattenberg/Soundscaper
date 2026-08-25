@@ -10,6 +10,12 @@ import {
 	assistanceServiceFrom,
 	registerAssistanceIpc,
 } from '../desktop/assistance-main-ipc.ts';
+import {
+	signedTestLocalModelCatalog,
+	testLocalModelEvidence,
+	testLocalModelEvidencePin,
+	TEST_LOCAL_MODEL_CATALOG_SIGNATURE_OPTIONS,
+} from './helpers/local-model-catalog-v2-fixture.ts';
 
 const CHANNELS = Object.freeze({
 	listAssistanceModels: 'soundscaper:v1:assistance:list',
@@ -18,8 +24,9 @@ const CHANNELS = Object.freeze({
 	assistanceInstallProgress: 'soundscaper:v1:event:assistance-progress',
 });
 
-const CATALOG = Object.freeze({
-	schemaVersion: 1,
+const EVIDENCE = testLocalModelEvidence('silero-vad-v6');
+const CATALOG = signedTestLocalModelCatalog({
+	schemaVersion: 2,
 	publication: {
 		bucket: 'soundscaper-assets',
 		prefix: 'models',
@@ -32,8 +39,20 @@ const CATALOG = Object.freeze({
 		task: 'voice-activity-detection',
 		platforms: ['linux-x64'],
 		minimumMemoryBytes: 1024,
-		upstream: null,
-		artifacts: null,
+		licensingEvidence: testLocalModelEvidencePin(EVIDENCE),
+		upstream: {
+			source: 'https://upstream.invalid/repo',
+			revision: 'abc123',
+			artifacts: [{
+				fileName: 'model.onnx', byteLength: 1, sha256: 'a'.repeat(64),
+				url: 'https://upstream.invalid/model.onnx',
+			}],
+		},
+		distribution: { kind: 'identity-mirrored' },
+		artifacts: [{
+			fileName: 'model.onnx', byteLength: 1, sha256: 'a'.repeat(64),
+			url: 'https://assets.soundscaper.org/models/silero-vad-v6/6.2.1/model.onnx',
+		}],
 	}],
 });
 
@@ -125,9 +144,10 @@ test('the licensing binding comes from the shipped register', async (t) => {
 		settingsDirectory: null,
 		catalog: CATALOG,
 		licensingMatrix: {
-			localModelEvidence: [{ id: 'silero-vad-v6' }],
+			localModelEvidence: [EVIDENCE],
 			refusedLocalModels: [{ id: 'crisperwhisper' }],
 		},
+		catalogSignatureOptions: TEST_LOCAL_MODEL_CATALOG_SIGNATURE_OPTIONS,
 		runtime,
 		totalMemoryBytes: 8 * 1024 ** 3,
 	});
@@ -149,6 +169,7 @@ test('a register with no model evidence is refused rather than assumed empty', a
 			settingsDirectory: null,
 			catalog: CATALOG,
 			licensingMatrix: {},
+			catalogSignatureOptions: TEST_LOCAL_MODEL_CATALOG_SIGNATURE_OPTIONS,
 			runtime,
 			totalMemoryBytes: 1024,
 		}),
