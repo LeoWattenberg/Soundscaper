@@ -29,6 +29,7 @@ export interface FramescaperTimelineImagePublicationRequestV30 {
 	readonly clip: FramescaperImageClipV1;
 	readonly body: Blob;
 	readonly command: FramescaperProjectCommandV30;
+	readonly signal?: AbortSignal;
 }
 
 export interface FramescaperTimelineImagePublicationPortV30 {
@@ -151,6 +152,7 @@ export async function importFramescaperTimelineImagesV30(
 					type: FRAMESCAPER_IMAGE_ASSET_MIME_TYPE,
 				}),
 				command,
+				...(request.signal ? { signal: request.signal } : {}),
 			});
 			trackReady = true;
 			cursor = safeAdd(cursor, item.sequenceFrameCount, 'image import cursor');
