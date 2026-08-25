@@ -1,11 +1,11 @@
 # Milestone 4A pickup: Soundscaper production
 
-> **Current-status note (2026-08-23):** Soundscaper V23 remains the selected,
-> implementation-complete route. Guided-local and remaining external
-> qualification stay open. Framescaper V20 allocation and availability
-> statements below are historical; the current Framescaper V27 activation
-> candidate reuses the V21 automation/mixer infrastructure under its own exact
-> project profile.
+> **Current-status note (2026-08-26):** selected Soundscaper S30 inherits this
+> implementation-complete production surface through exact S29. Selected
+> Framescaper F31 delegates its shared audio finishing through immutable exact
+> V28. Guided-local and remaining external qualification stays open. V20, V23,
+> and V27 selection/allocation statements below are dated historical pickup
+> records, not current product routing.
 
 > Owning pickup contract for the Soundscaper half of milestone 4. The
 > [milestone-4 plan](milestone-4-plan.md) owns shared sequencing and the
@@ -16,7 +16,7 @@
 
 ## Pickup status and sequencing authority
 
-**Status on 2026-08-22: Implemented (provisional).** Soundscaper V23 is the
+**Historical status on 2026-08-22: Implemented (provisional).** Soundscaper V23 is the
 selected maintained Soundscaper App/runtime/storage route and retains V21's
 automation, mixer, PDC and freeze foundation. Packets 4A-1 through 4A-6 are
 implemented locally, and 4A-7's local automated acceptance is green.

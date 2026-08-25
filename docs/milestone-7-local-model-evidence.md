@@ -1,5 +1,17 @@
 # Milestone 7.0.0a: local model evidence records
 
+> **Historical slice record:** delivered on 2026-08-13 as the first
+> milestone-7 slice. Its disabled-gate and all-records-blocked statements
+> describe that exact historical checkpoint, not current admission. As of
+> 2026-08-26, `local-models` is enabled, thirteen complete permitted evidence
+> records supply the signed catalog, and Spleeter, Demucs, and TransNetV2 remain
+> blocked and absent from the offered set. The current executable scope is
+> still narrower than the catalog: only authenticated Parakeet speech
+> recognition has an operation adapter; every other operation stays typed
+> unavailable. Manual and owner-lab qualification remains pending and
+> nonblocking, while licensing, signature, digest, runtime/platform,
+> selected-media, storage, and consent gates stay fail closed.
+>
 > **Implemented:** delivered on 2026-08-13, the first milestone-7 slice.
 > Decomposes the licensing half of WP-7.0.0 in
 > [the milestone-7 plan](milestone-7-plan.md), which

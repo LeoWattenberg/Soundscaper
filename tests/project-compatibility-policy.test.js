@@ -18,6 +18,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'legacy-schema-migration': 'implemented',
 		'current-schema-editing': 'implemented', 'current-video-retime-v16-preservation': 'implemented',
 		'framescaper-v18-product-isolation': 'implemented',
+		'current-local-assistance-transcript-custody': 'implemented',
 		'framescaper-v22-v26-compatibility-custody': 'implemented',
 		'framescaper-v18-nested-sequence-native': 'implemented',
 		'framescaper-v18-multicamera-native': 'implemented',

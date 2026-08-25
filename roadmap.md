@@ -393,7 +393,7 @@ Packet boundaries, dependencies, and acceptance are owned by
   route to it. Bus nesting below that single layer stays milestone-4 work and
   is not approximated here.
 - **Shared / Web Core — Implemented:** take groups introduced in V17 and
-  retained by selected Soundscaper V23 persist stable,
+  retained by selected Soundscaper S30 through its exact S29 foundation persist stable,
   ordered lane, take, and non-overlapping comp-region identities. Soundscaper's
   menu-reached workflow auditions and promotes takes, edits comp boundaries,
   and flattens explicitly as one reversible edit while retaining referenced
@@ -421,10 +421,11 @@ Packet boundaries, dependencies, and acceptance are owned by
   milestone-3 manifest count is zero planned actions.
 - **Shared qualification — Implemented (provisional):** 3A-7 builds the pinned
   two-hour, 24-audio-track, two-proxy-video-track, 10,000-edit workload and
-  measures A/V clocks, seeking, scrolling, and retained heap against selected
-  Soundscaper V23. `nightly-with-tests` runs it in the packaged product through
+  measures A/V clocks, seeking, scrolling, and retained heap against the
+  historical Soundscaper V23 profile now inherited through S29 by selected
+  S30. `nightly-with-tests` runs it in the packaged product through
   the formal owner-host verifier. No fresh artifact exists for this profile and
-  budget digest, so long-form qualification and all four timing rows remain
+  budget digest, and no fresh selected-S30 artifact exists, so long-form qualification and all four timing rows remain
   `pending-external`. WebKit remains deferred under milestone-2 scope revision 2.
 
 Soundscaper packets 3A-1 through 3A-6 are implemented, but packet 3A-7 and
@@ -479,29 +480,29 @@ Packet boundaries, dependencies, and acceptance are owned by
   sequences** are implemented locally; their remaining qualification evidence
   stays open and the slices are linked from
   [the 3B work packets](docs/milestone-3b-work-packets.md).
-- **Shared / Web Core — Implementation complete; activation candidate pending
-  guided-local sign-off; qualification open:** Selected V27
-  forward-ports the maintained V20 nested-sequence and retime authority and
+- **Shared / Web Core — Selected implementation active; qualification open:**
+  Selected F31 delegates through its immutable exact V28 foundation, which
+  retains the V27-forwarded V20 nested-sequence and retime authority, and
   exposes set/reset, constant, ramp, reverse, and freeze authoring through the
   existing Edit menu with one-step history. One exact ordinal authority drives maintained preview and browser export across integer, NTSC, CFR, verified VFR,
   reverse, freeze, ramps, nested compositions, and random seeks. Linked audio remains forward and unwarped (`audioWarp:false`). `videoRetime` is available
   only where that web-core consumer is registered; packaged Electron uses the embedded web-core path and does not claim milestone-5 native execution. See the
   [retime export plan](docs/milestone-3b-video-retime-export-plan.md).
-- **Web Core — Implementation complete; activation candidate pending
-  guided-local sign-off; qualification open:** Selected V27 retains
-  V18 multicamera identity and completes the maintained editorial proxy
+- **Web Core — Selected implementation active; qualification open:** Selected
+  F31 delegates through exact V28, retains V18 multicamera identity, and
+  completes the maintained editorial proxy
   lifecycle after retime: menu-reached generation, attach, detach, relink, regenerate, Original/Proxy/Auto selection, progress and cancellation,
   adaptive preview, offline editing, atomic cleanup, and original relink. A
   proxy frame is selected in the source domain before the occurrence retime is
   evaluated, so a conformant proxy never becomes timing authority. Delivery is
   still original-authoritative and visibly refuses if the original is
-  unavailable. Soundscaper V23 preserves but does not interpret this private
+  unavailable. Soundscaper S30 preserves but does not interpret this private
   state.
 
-The retired `m3-framescaper-v18-exit` workload is no longer an M3 gate. Local
-implementation and route activation are complete only after the checked-in
-guided sign-off; fixed-GPU, Safari, Windows, signing, and other external rows
-remain independent qualification work and do not downgrade selected V27.
+The retired `m3-framescaper-v18-exit` workload is no longer an M3 gate.
+Selected F31 route activation is current, but fixed-GPU, Safari, Windows,
+signing, guided-manual, and other external rows remain independent open
+qualification work. Milestone-7/8A activation does not relabel those rows.
 
 ### Shared exit gate
 
@@ -529,14 +530,14 @@ remain independent qualification work and do not downgrade selected V27.
 ## 4. Parallel production surfaces
 
 **Depends on:** milestone 3.
-**Status:** **In progress — Soundscaper V23 is implementation-complete; Framescaper V27 is the selected activation candidate for browser and desktop, pending guided-local sign-off; external qualification remains open.** V27 forward-ports maintained V20 retime/proxy and V24 visual lineage without inheriting dormant V25/V26 native-media or OpenFX authority. The historical RTX 3090 diagnostics remain audit evidence, but the corrected packaged-runtime fingerprint now requires driver, device, power, and display identity, so fixed-GPU profiles require a fresh owner-host run. Windows, Safari, signing, guided-manual, and whole-milestone qualification remain open.
+**Status:** **In progress — selected Soundscaper S30 and Framescaper F31 software routes are active, while external and guided-manual qualification remains open.** S30 inherits the implemented production surface through exact S29. F31 delegates through immutable exact V28 to the maintained V20 retime/proxy and V24 visual lineages without inheriting dormant V25/V26 candidate authority. The historical RTX 3090 diagnostics remain audit evidence, but the corrected packaged-runtime fingerprint requires driver, device, power, and display identity, so fixed-GPU profiles require a fresh owner-host run. Windows, Safari, signing, guided-manual, and whole-milestone qualification remain open; Milestone-7/8A activation does not close them.
 **Goal:** complete non-MIDI Soundscaper production and non-recording Framescaper
 finishing over the stable editorial models.
 
 Sequencing, the automation/keyframe and mixer-graph decisions, their
 invariants, and the bounded work packets are owned by the
-[milestone-4 plan](docs/milestone-4-plan.md). The selected V23 route retains the
-exact Soundscaper V21 packet contract in the
+[milestone-4 plan](docs/milestone-4-plan.md). Selected S30 retains the exact
+Soundscaper V21 packet contract through its immutable S29 foundation in the
 [milestone-4A pickup](docs/milestone-4a-soundscaper-production.md); sequencing
 clearance does not close either track or milestone exit gate.
 
@@ -551,7 +552,7 @@ clearance does not close either track or milestone exit gate.
   assignments, pre/post-fader sends, VCAs, cue/control-room mixes, output placeholders,
   sidechains, channel mapping, and cycle validation. Nested buses lift the
   milestone-3 single-layer folder rule so a track folder at any depth can own a
-  bus; the selected V23 revision retains per-path
+  bus; selected S30 retains per-path
   plug-in delay compensation.
 - **Web Core — Implemented (provisional):** plug-in delay compensation across
   playback, monitoring, automation, buses, sidechains, render, and freeze.
@@ -568,30 +569,27 @@ clearance does not close either track or milestone exit gate.
 
 ### Framescaper track
 
-- **Shared / Web Core — Implementation complete; activation candidate pending
-  guided-local sign-off; qualification open:** V27 retains
-  V19 transform/crop/compositing and V20 hold, linear, eased, and Bézier
+- **Shared / Web Core — Selected implementation active; qualification open:**
+  F31 delegates through immutable exact V28 and retains V19
+  transform/crop/compositing and V20 hold, linear, eased, and Bézier
   keyframes, then forward-ports V22 dissolve transitions and V24 stills, titles,
   text, shapes, solids, adjustment layers, presets, masks/mattes, and freeze
   frames. All authoring is reached through existing menus and commits through
-  selected V27 history. One V13 exact render plan is shared by preview and
+  selected F31 history. One exact V14 render authority is shared by preview and
   browser delivery; unsupported work refuses instead of being omitted.
-- **Web Core — Implementation complete; activation candidate pending guided-local
-  sign-off; qualification open:** managed SDR grading
+- **Web Core — Selected implementation active; qualification open:** managed SDR grading
   uses a linear Rec.709 working space with deterministic sRGB/Rec.709 output.
   Unknown stills disclose sRGB/full-range assumptions and unknown video discloses BT.709 limited-range assumptions; operators can override those
   interpretations explicitly. Older reimported media remains visibly legacy
   unmanaged rather than receiving a silent managed-color claim.
-- **Web Enhanced — Implementation complete with CPU parity; activation candidate
-  pending guided-local sign-off; qualification open:**
+- **Web Enhanced — Selected implementation active with CPU parity;
+  qualification open:**
   built-in deterministic feature tracking, similarity stabilization, and temporal denoise have WebGL2 acceleration with a CPU-equivalent fallback.
   Optical flow is admitted only as a stabilization/denoise motion provider and never as retime interpolation.
-- **Web Core — Implementation complete; activation candidate pending guided-local
-  sign-off; qualification open:** explicit caption
+- **Web Core — Selected implementation active; qualification open:** explicit caption
   tracks support strict SRT, WebVTT, and the bounded IMSC 1.1 subset. Caption
   burn-in and mux remain outside milestones 1–4 and are visibly unavailable.
-- **Shared / Web Core — Implementation complete; activation candidate pending
-  guided-local sign-off; qualification open:** Framescaper
+- **Shared / Web Core — Selected implementation active; qualification open:** Framescaper
   audio uses shared V21 automation, mixer routing, loudness targets, and render
   infrastructure. Its menu-reached dialogue chain is highpass → gate → EQ →
   compressor → limiter with optional profiled noise reduction after highpass.
@@ -727,22 +725,11 @@ invariants, and the bounded work packets are owned by the
 **Depends on:** milestone 2. **Optional:** never blocks milestones 8 or 9.
 The optional milestone-7 speech helper uses the milestone-5 supervision and pathless-data-plane foundation; manual helper and owner-lab qualification is documentary, nonblocking evidence.
 
-**Status:** **Active on selected Soundscaper S30 and Framescaper F31 as an optional Electron
-foundation; operation coverage is partial and qualification remains open.** Both selected
-schemas preserve digest-bound transcript asset references,
-and the desktop products expose menu-reached local-model and local-assistance
-flows. The signed catalog, licensing pins, digest-authenticated install/store
-lifecycle, main-private pathless job custody, selection fences, validated-result
-review, progress, cancellation, and explicit-unavailability outcomes are active
-without owner-lab sign-off. Real inference is narrower than the closed operation
-vocabulary: only an installed, authenticated Parakeet transducer can use the
-verified Sherpa speech-recognition adapter. Every other operation, model/runtime
-mismatch, and unsupported target refuses with a typed adapter, model, or runtime
-unavailable result; no substitute inference or automatic install is permitted.
-The catalog records the intended EU R2 mirror, but this status does not assert
-that any remote object was uploaded or that external qualification evidence was
-accepted. Licensing, catalog signature, artifact digest, runtime compatibility, and selected-media
-authority remain fail-closed. The current review UI cannot create a proposal session, enable acceptance, or mutate canonical project state.
+**Status:** **Active on selected Soundscaper S30 and Framescaper F31 as an optional Electron foundation; operation coverage is partial and qualification remains open.** Both selected schemas preserve digest-bound transcript asset references, and the desktop products expose menu-reached local-model and local-assistance flows.
+The signed catalog, licensing pins, digest-authenticated install/store lifecycle, main-private pathless job custody, selection fences, validated-result review, progress, cancellation, and explicit-unavailability outcomes are active without owner-lab sign-off.
+Real inference is narrower than the closed operation vocabulary: only an installed, authenticated Parakeet transducer can use the verified Sherpa speech-recognition adapter. Every other operation, model/runtime mismatch, and unsupported target refuses with a typed unavailable result (`adapter-unavailable`, `model-unavailable`, or `runtime-unavailable`); no substitute inference or automatic install is permitted.
+The catalog records the intended EU R2 mirror, but this status does not assert durable remote upload/readback evidence or accepted external qualification evidence. A reviewed Parakeet transcript can be accepted explicitly: the controller revalidates its complete current selection fence, publishes a canonical content-addressed external body, and commits its strict reference with a deterministic ordinary label track as one undoable S30/F31 edit. Stale authority or publication failure rolls back.
+Licensing, catalog signature, artifact digest, runtime/platform compatibility, selected-media authority, storage integrity, and explicit consent remain fail-closed. Manual and owner-lab evidence remains pending, unprovisioned, documentary, and nonblocking; qualification remains open.
 
 Sequencing, runtime and model-catalog decisions, lifecycle invariants, and bounded work packets
 are owned by the [milestone-7 plan](docs/milestone-7-plan.md).
@@ -753,13 +740,16 @@ are owned by the [milestone-7 plan](docs/milestone-7-plan.md).
   recognition has an execution adapter; the other operations remain visible as typed
   unavailable outcomes rather than being simulated. Re-tiered from Web Enhanced /
   Electron Enhanced by user decision on 2026-08-11: inference is native-only. The web
-  products run no inference, and the current desktop review does not publish labels or assets.
+  products run no inference, but retain and edit explicitly accepted ordinary
+  transcript labels and their strict project reference.
 - Models are opt-in, separately downloaded into a user-settable directory,
   digest-pinned, removable, licensed, and offline after installation.
 - Assistance may consume selected-F31 recordings only after they become
   ordinary persisted media; it cannot initiate, authorize, or own capture.
-- Selected media and validated results remain on-device. The current UI cannot accept
-  or publish them; any future accepted result must become ordinary, inspectable state.
+- Selected media and validated results remain on-device. Only reviewed Parakeet
+  speech recognition currently reaches explicit acceptance; it becomes
+  ordinary inspectable label/project state. Every other operation remains typed
+  unavailable until its own adapter and hard admission checks exist.
 - Deterministic non-AI editing and delivery remain complete without this
   milestone.
 

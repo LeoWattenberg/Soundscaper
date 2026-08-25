@@ -2,11 +2,13 @@
 
 > **Superseded selection route.** The
 > [Milestones 1–4 activation plan](milestones-1-to-4-activation-plan.md) now
-> owns M4 implementation and activation: Soundscaper V23 is implementation-
-> complete; Framescaper V27 is the selected activation candidate pending guided-
-> local sign-off and external qualification; and V25/V26 native-media/OpenFX
-> state remains opaque read-only custody. The detailed work packets below are
-> retained as historical design context.
+> owns the historical M4 implementation record. As of 2026-08-26, selected
+> Soundscaper S30 inherits that production surface through exact S29 and
+> selected Framescaper F31 inherits finishing through immutable exact V28.
+> Guided-local and external qualification remains open, and V25/V26
+> native-media/OpenFX state remains opaque read-only custody. V23/V27 selection
+> and activation-candidate language below is retained as dated historical
+> design context, not current product routing.
 
 > Owning source for milestone-4 sequencing, the automation/keyframe and
 > mixer-graph decisions, their invariants, and the bounded work packets.
@@ -418,7 +420,7 @@ per the standing duties (roadmap.md:844-846).
 | 4A | Parallel track | Soundscaper production: automation lanes and modes, mixer graph, per-path PDC, freeze, restoration/metering, reviewed effect packages |
 | 4B | Parallel track | Framescaper finishing: transforms/keyframes, transitions, new kinds and inspector, color/motion, styled captions, Framescaper audio finishing |
 
-**Implementation status (2026-08-22):** shared phase 4.0 is implemented and
+**Historical implementation status (2026-08-22):** shared phase 4.0 is implemented and
 its hosted correctness acceptance is green. Formal qualification for
 Soundscaper M4 production and M4B-2 remains `pending-external`, and
 milestone 3 remains recorded **In progress** with its
