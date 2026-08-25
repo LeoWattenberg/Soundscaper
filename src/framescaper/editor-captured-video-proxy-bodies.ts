@@ -271,7 +271,9 @@ async function verifyStoredTiming(
 function assertBodyMetadata(value: unknown, spec: BodySpec): void {
 	if (!value || typeof value !== 'object') throw new Error('The captured proxy body row is missing.');
 	const row = value as Record<string, unknown>;
-	if (row.sourceId !== spec.key || row.kind !== spec.kind || row.encoding !== spec.encoding
+	const encodingMatches = row.encoding === spec.encoding
+		|| (spec.bodyKind === 'timing' && row.encoding === undefined);
+	if (row.sourceId !== spec.key || row.kind !== spec.kind || !encodingMatches
 		|| row.sha256 !== spec.sha256 || row.size !== spec.byteLength || row.mimeType !== spec.mimeType) {
 		throw new Error('The captured proxy body conflicts with its immutable descriptor.');
 	}

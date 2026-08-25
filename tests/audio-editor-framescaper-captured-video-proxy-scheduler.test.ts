@@ -7,6 +7,10 @@ import {
 	createFramescaperCaptureProxyActiveProjectSynchronizer,
 } from '../src/common/editor/controller/framescaper-capture-derivative-scheduler.ts';
 import { digestMediaContent } from '../src/common/editor/storage/media-content-digest.ts';
+import {
+	createVideoTimingAssetPublication,
+	VIDEO_TIMING_ASSET_MIME_TYPE,
+} from '../src/common/editor/video-timing-asset.ts';
 import { bindVideoSourceTimingView } from '../src/common/editor/video-source-timing-view.ts';
 import { resolveVideoSourceTimingViews } from '../src/common/editor/video-source-timing-views.ts';
 import {
@@ -44,6 +48,7 @@ import {
 import {
 	ORIGINAL_SOURCE_ID,
 	deferred,
+	exactProbeResult,
 } from './helpers/video-proxy-relationship-fixtures.ts';
 
 for (const schemaVersion of [18, 19, 20, 27, 31] as const) {
@@ -245,6 +250,39 @@ test('a second-body failure releases a reused first claim without deleting its b
 	);
 	assert.deepEqual(await capturedProxyStorageInventory(fixture.environment), {
 		bodyKeys: [proxyKey], claimKeys: [], tombstoneKeys: [],
+	});
+});
+
+test('F31 proxy scheduling reuses canonical capture timing without a proxy-specific encoding', async (context) => {
+	const fixture = await createFixture(context, 31);
+	const candidateSha256 = await digestMediaContent(fixture.relationship.candidate());
+	const timing = createVideoTimingAssetPublication(candidateSha256, exactProbeResult());
+	await writeCapturedProxyOrdinaryBody(
+		fixture,
+		timing.reference.storageKey,
+		new Blob([timing.bytes.slice()], { type: VIDEO_TIMING_ASSET_MIME_TYPE }),
+		{
+			name: `${timing.reference.sha256}.scti`,
+			kind: 'video-timing',
+			mimeType: VIDEO_TIMING_ASSET_MIME_TYPE,
+		},
+	);
+	const canonicalMetadata = await fixture.environment.store.getMediaAssetMetadata(
+		timing.reference.storageKey,
+	);
+	assert.equal((canonicalMetadata as Record<string, unknown>).encoding, undefined);
+
+	await fixture.schedule(request(fixture.origin, ORIGINAL_SOURCE_ID, fixture.originalSha256));
+
+	const committed = await fixture.controllerStore.loadProject(String(fixture.origin.id));
+	assert.ok(committed);
+	const attachment = videoSource(committed, ORIGINAL_SOURCE_ID).proxyAttachment;
+	assert.ok(attachment);
+	assert.equal(attachment.timingAsset.storageKey, timing.reference.storageKey);
+	assert.deepEqual(await capturedProxyStorageInventory(fixture.environment), {
+		bodyKeys: [attachment.storageKey, timing.reference.storageKey].sort(),
+		claimKeys: [],
+		tombstoneKeys: [],
 	});
 });
 
