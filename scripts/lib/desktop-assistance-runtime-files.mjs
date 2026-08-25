@@ -1,0 +1,32 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+/** Exact compiled closure owned by desktop local assistance and its model store. */
+export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
+	'desktop/assistance-data-claims.js',
+	'desktop/assistance-helper-runtime.js',
+	'desktop/assistance-job-host.js',
+	'desktop/assistance-job-protocol.js',
+	'desktop/assistance-main-ipc.js',
+	'desktop/assistance-operation-contract.js',
+	'desktop/assistance-operation-main-ipc.js',
+	'desktop/assistance-operation-service.js',
+	'desktop/assistance-operation-transfers.js',
+	'desktop/assistance-service.js',
+	'desktop/assistance-sherpa-recognizer.js',
+	'desktop/assistance-speech-job-contract.js',
+	'desktop/assistance-speech-runtime.js',
+	'desktop/assistance-staging-private-files.js',
+	'desktop/assistance-staging-registry.js',
+	'desktop/local-model-capacity.js',
+	'desktop/local-model-catalog.js',
+	'desktop/local-model-catalog-signature.js',
+	'desktop/local-model-download.js',
+	'desktop/local-model-garbage-collection.js',
+	'desktop/local-model-install-plan.js',
+	'desktop/local-model-notices.js',
+	'desktop/local-model-preseed.js',
+	'desktop/local-model-relocation.js',
+	'desktop/local-model-store.js',
+	'src/common/editor/assistance/operation.js',
+	'src/common/editor/assistance/proposal-session.js',
+]);
