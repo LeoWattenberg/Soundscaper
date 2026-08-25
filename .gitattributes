@@ -29,3 +29,11 @@ patches/**/*.patch text eol=lf
 /vendor/pipewire-headers/** text eol=lf
 /docs/production-threat-model.md text eol=lf
 /r2-cors.json text eol=lf
+
+# Desktop codec notices, license texts, and source manifests ship byte-for-byte
+# and are verified against reviewed digests while staging. A CRLF checkout on a
+# Windows runner changes those bytes and fails the stage, so pin them to LF.
+/src/common/editor/*/NOTICE.md text eol=lf
+/src/common/editor/*/SOURCE.md text eol=lf
+/src/common/editor/*/source-manifest.json text eol=lf
+/src/common/editor/*/licenses/*.txt text eol=lf

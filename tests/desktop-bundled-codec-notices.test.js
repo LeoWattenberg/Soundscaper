@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -110,6 +111,24 @@ test('desktop codec notice staging refuses source and destination symlinks', asy
 		}),
 		/regular file|symbolic link/iu,
 	);
+});
+
+test('every reviewed codec notice is checked out with the line endings it was hashed with', () => {
+	// These files ship byte-for-byte and are verified against the digests above.
+	// A Windows runner checks text out as CRLF unless .gitattributes says
+	// otherwise, which changes the bytes and fails desktop staging on Windows
+	// alone — invisible from a Linux checkout, and from CI until a package job
+	// runs. Ask git what it would actually do with each reviewed path.
+	const sources = DESKTOP_BUNDLED_CODEC_NOTICE_FILES.map((file) => file.source);
+	const outcome = spawnSync('git', ['check-attr', 'eol', '--', ...sources],
+		{ cwd: ROOT, encoding: 'utf8' });
+	assert.equal(outcome.status, 0, outcome.stderr);
+	const declared = new Map(outcome.stdout.split('\n').filter(Boolean).map((line) => {
+		const separator = line.lastIndexOf(': eol: ');
+		return [line.slice(0, separator), line.slice(separator + ': eol: '.length)];
+	}));
+	assert.deepEqual(sources.filter((source) => declared.get(source) !== 'lf'), [],
+		'add the path to .gitattributes with "text eol=lf" before shipping its digest');
 });
 
 test('Electron packages the aggregate and complete staged codec license trees', () => {
