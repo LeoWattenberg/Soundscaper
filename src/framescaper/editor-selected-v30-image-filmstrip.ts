@@ -15,6 +15,10 @@ import {
 	type FramescaperImageFramePackReaderV1,
 	type FramescaperImageSourceV1,
 } from './editor-selected-v30-image-frame-source.ts';
+import {
+	admitFramescaperImageTimelineFilmstripResourcesV30,
+	assertFramescaperImagePreviewReaderMetadataV30,
+} from './editor-selected-v30-image-preview-resources.ts';
 import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v27.ts';
 import { framescaperProjectV27FoundationShapeV28 } from './editor-project-v28-foundation.ts';
 import { framescaperProjectV28FoundationShapeV30 } from './editor-project-v30-foundation.ts';
@@ -69,17 +73,24 @@ export async function createFramescaperSelectedTimelineFilmstripV30(
 		if (!sequence) throw new ReferenceError(`V30 image sequence ${clip.sequenceId} is unavailable.`);
 		images.push({ index, request, clip, source, sequenceRate: sequence.rate });
 	}
+	admitFramescaperImageTimelineFilmstripResourcesV30(images.map(({ source }) => ({
+		source, width, height,
+	})));
 	const output = new Array<ProductVideoTimelineFilmstripFrame>(frames.length);
+	const inheritedFactory = options.createInheritedFilmstrip ?? ((request) => (
+		createDefaultInheritedFilmstrip(request, options.store)
+	));
 	const inheritedPromise = inheritedRequests.length === 0 ? Promise.resolve(Object.freeze([]))
-		: (options.createInheritedFilmstrip ?? ((request) => (
-			createDefaultInheritedFilmstrip(request, options.store)
-		)))({ ...options, project, frames: inheritedRequests });
+		: Promise.resolve().then(() => inheritedFactory({ ...options, project, frames: inheritedRequests }));
 	const readers = new Map<string, Promise<FramescaperImageFramePackReaderV1>>();
 	const scaledFrames = new Map<string, Uint8Array<ArrayBuffer>>();
+	let inheritedOutput: readonly ProductVideoTimelineFilmstripFrame[] | null = null;
+	let published = false;
 	try {
 		const [imageResult, inheritedResult] = await Promise.allSettled([
 			materializeImages(), inheritedPromise,
 		]);
+		if (inheritedResult.status === 'fulfilled') inheritedOutput = inheritedResult.value;
 		if (imageResult.status === 'rejected' && inheritedResult.status === 'rejected') {
 			throw new AggregateError(
 				[imageResult.reason, inheritedResult.reason],
@@ -99,9 +110,14 @@ export async function createFramescaperSelectedTimelineFilmstripV30(
 		if (output.some((frame) => frame === undefined)) {
 			throw new Error('The V30 timeline filmstrip omitted a requested frame.');
 		}
+		published = true;
 		return Object.freeze(output);
 	} finally {
 		for (const pixels of scaledFrames.values()) pixels.fill(0);
+		scaledFrames.clear();
+		readers.clear();
+		if (!published) disposeUnpublishedOutputs(output, inheritedOutput);
+		images.length = 0;
 	}
 
 	async function materializeImages(): Promise<void> {
@@ -110,7 +126,9 @@ export async function createFramescaperSelectedTimelineFilmstripV30(
 			let readerPromise = readers.get(context.source.id);
 			if (!readerPromise) {
 				readerPromise = openFramescaperStoredImageFramePackV30(
-					options.store, context.source, options.signal,
+					options.store, context.source, options.signal, (byteLength) => {
+						assertFramescaperImagePreviewReaderMetadataV30(context.source, byteLength);
+					},
 				);
 				readers.set(context.source.id, readerPromise);
 			}
@@ -139,6 +157,15 @@ export async function createFramescaperSelectedTimelineFilmstripV30(
 				pixels: pixels.slice() as Uint8Array<ArrayBuffer>,
 			});
 		}
+	}
+}
+
+function disposeUnpublishedOutputs(
+	output: readonly (ProductVideoTimelineFilmstripFrame | undefined)[],
+	inherited: readonly ProductVideoTimelineFilmstripFrame[] | null,
+): void {
+	for (const frame of [...output, ...(inherited ?? [])]) {
+		try { frame?.pixels.fill(0); } catch { /* Continue releasing sibling output frames. */ }
 	}
 }
 

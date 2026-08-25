@@ -22,6 +22,12 @@ import {
 	type FramescaperImageFramePackReaderV1,
 	type FramescaperImageSourceV1,
 } from './editor-selected-v30-image-frame-source.ts';
+import {
+	admitFramescaperImageProjectBinThumbnailResourcesV30,
+	admitFramescaperImageTimelinePreviewResourcesV30,
+	assertFramescaperImagePreviewReaderMetadataV30,
+	FRAMESCAPER_IMAGE_PREVIEW_MAXIMUM_CONTEXTS_V30,
+} from './editor-selected-v30-image-preview-resources.ts';
 import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v27.ts';
 import { framescaperProjectV27FoundationShapeV28 } from './editor-project-v28-foundation.ts';
 import { framescaperProjectV28FoundationShapeV30 } from './editor-project-v30-foundation.ts';
@@ -81,7 +87,13 @@ interface LoadedImageSourceV30 {
 	readonly reader: FramescaperImageFramePackReaderV1;
 	readonly width: number;
 	readonly height: number;
-	readonly frames: readonly Uint8Array<ArrayBuffer>[];
+	readonly frames: Uint8Array<ArrayBuffer>[];
+}
+
+interface PlannedImageSourceV30 {
+	readonly source: FramescaperImageSourceV1;
+	readonly width: number;
+	readonly height: number;
 }
 
 interface ImageClipPreviewV30 {
@@ -101,18 +113,40 @@ export async function createFramescaperSelectedVisualPreviewSessionV30(
 	const project = admittedProject(options?.profile, options?.project);
 	const canvas = previewCanvas(options?.width, options?.height);
 	throwIfFramescaperImagePreviewAbortedV30(options.signal);
-	const inheritedPromise = (options.createInheritedSession ?? ((request) => (
+	const contexts = imageClipContexts(project);
+	const plannedSources = planTimelineSources(project, contexts, canvas);
+	admitFramescaperImageTimelinePreviewResourcesV30(contexts.map(({ clip }) => {
+		const planned = required(plannedSources, clip.sourceId, 'planned image source');
+		return { source: planned.source, width: planned.width, height: planned.height };
+	}));
+	const inheritedFactory = options.createInheritedSession ?? ((request) => (
 		createDefaultInheritedSession(request, options.store)
-	)))({ project, ...canvas });
-	let inherited: ProductVideoVisualPreviewSession | null = null;
-	let loaded: LoadedImageSourceV30[] = [];
+	));
+	const inheritedPromise = Promise.resolve().then(() => inheritedFactory({ project, ...canvas }));
+	const imagePromise = loadTimelineSources(
+		options.store, [...plannedSources.values()], options.signal,
+	);
+	const [inheritedResult, imageResult] = await Promise.allSettled([
+		inheritedPromise, imagePromise,
+	]);
+	if (inheritedResult.status === 'rejected' && imageResult.status === 'rejected') {
+		throw new AggregateError(
+			[inheritedResult.reason, imageResult.reason],
+			'The V30 inherited and image preview routes both failed.',
+		);
+	}
+	if (inheritedResult.status === 'rejected') {
+		if (imageResult.status === 'fulfilled') disposeLoadedSources(imageResult.value);
+		throw inheritedResult.reason;
+	}
+	if (imageResult.status === 'rejected') {
+		disposeInheritedSession(inheritedResult.value);
+		throw imageResult.reason;
+	}
+	const inherited = inheritedResult.value;
+	const loaded = imageResult.value;
 	const clips: ImageClipPreviewV30[] = [];
 	try {
-		const contexts = imageClipContexts(project);
-		[inherited, loaded] = await Promise.all([
-			inheritedPromise,
-			loadTimelineSources(options.store, project, contexts, canvas, options.signal),
-		]);
 		throwIfFramescaperImagePreviewAbortedV30(options.signal);
 		const bySourceId = new Map(loaded.map((source) => [source.source.id, source]));
 		const createDrawable = options.createImageDrawable ?? createCanvasDrawable;
@@ -125,14 +159,13 @@ export async function createFramescaperSelectedVisualPreviewSessionV30(
 				height: source.height,
 			});
 			try { assertDrawable(drawable, source.width, source.height); }
-			catch (error) { drawable.dispose(); throw error; }
+			catch (error) { disposeDrawable(drawable); throw error; }
 			clips.push({ ...context, loaded: source, drawable, lastFrameIndex: -1 });
 		}
 	} catch (error) {
-		for (const clip of clips) clip.drawable.dispose();
+		disposeClipDrawables(clips);
 		disposeLoadedSources(loaded);
-		if (inherited) inherited.dispose();
-		else void inheritedPromise.then((session) => session?.dispose()).catch(() => undefined);
+		disposeInheritedSession(inherited);
 		throw error;
 	}
 	if (inherited === null && clips.length === 0) return null;
@@ -172,9 +205,9 @@ export async function createFramescaperSelectedVisualPreviewSessionV30(
 		dispose(): void {
 			if (disposed) return;
 			disposed = true;
-			for (const clip of clips) clip.drawable.dispose();
+			disposeClipDrawables(clips);
 			disposeLoadedSources(loaded);
-			inherited?.dispose();
+			disposeInheritedSession(inherited);
 		},
 	});
 }
@@ -193,21 +226,27 @@ export async function createFramescaperSelectedProjectBinThumbnailV30(
 	}
 	const clip = clipValue as FramescaperImageClipV1;
 	const source = framescaperImageSourceForClipV30(project.sources, clip);
-	const reader = await openFramescaperStoredImageFramePackV30(options.store, source, options.signal);
+	const width = positiveDimension(options.width, 'V30 Project Bin thumbnail width');
+	const height = positiveDimension(options.height, 'V30 Project Bin thumbnail height');
+	admitFramescaperImageProjectBinThumbnailResourcesV30(source, width, height);
+	const reader = await openFramescaperStoredImageFramePackV30(
+		options.store, source, options.signal,
+		(byteLength) => { assertFramescaperImagePreviewReaderMetadataV30(source, byteLength); },
+	);
 	const frameIndex = reader.frameIndexAtTicks(BigInt(clip.sourceStartTicks));
 	const rgba = await reader.readFrame(frameIndex, options.signal);
 	let pixels: Uint8Array<ArrayBuffer>;
 	try {
 		pixels = scaleFramescaperImageRgbaV30(
 			rgba, source.canonical.width, source.canonical.height,
-			options.width, options.height, options.signal,
+			width, height, options.signal,
 		);
 	} finally { rgba.fill(0); }
 	return Object.freeze({
 		clipId,
 		sourceId: source.id,
-		width: positiveDimension(options.width, 'V30 Project Bin thumbnail width'),
-		height: positiveDimension(options.height, 'V30 Project Bin thumbnail height'),
+		width,
+		height,
 		pixels,
 		opacity: 1,
 		blendMode: 'normal',
@@ -226,35 +265,55 @@ function imageClipContexts(project: FramescaperProjectV30): readonly Omit<ImageC
 	const visible = new Set(videoTracks.filter((track) => (
 		soloed ? track.solo === true : track.hidden !== true
 	)).map(({ id }) => id));
-	return Object.freeze(project.clips.flatMap((value) => {
-		if (value.kind !== 'image') return [];
+	const output: Omit<ImageClipPreviewV30, 'loaded' | 'drawable' | 'lastFrameIndex'>[] = [];
+	for (const value of project.clips) {
+		if (value.kind !== 'image') continue;
 		const clip = value as FramescaperImageClipV1;
-		if (clip.sequenceId !== sequence.id) return [];
+		if (clip.sequenceId !== sequence.id) continue;
 		const owner = videoTracks.find(({ clipIds }) => clipIds.includes(clip.id));
-		if (!owner || !visible.has(owner.id)) return [];
+		if (!owner || !visible.has(owner.id)) continue;
 		const trackIndex = sequence.trackIds.indexOf(owner.id);
 		if (trackIndex < 0) throw new ReferenceError(`V30 image track ${owner.id} is outside its sequence.`);
-		return [{ clip, trackId: owner.id, trackIndex, sequenceRate: sequence.rate }];
-	}).sort((left, right) => left.trackIndex - right.trackIndex
+		output.push({ clip, trackId: owner.id, trackIndex, sequenceRate: sequence.rate });
+		if (output.length > FRAMESCAPER_IMAGE_PREVIEW_MAXIMUM_CONTEXTS_V30) {
+			throw new RangeError('V30 image timeline preview exceeds its context count bound.');
+		}
+	}
+	return Object.freeze(output.sort((left, right) => left.trackIndex - right.trackIndex
 		|| left.clip.sequenceStartFrame - right.clip.sequenceStartFrame
 		|| compareText(left.clip.id, right.clip.id)));
 }
 
-async function loadTimelineSources(
-	store: AudioEditorProjectStore,
+function planTimelineSources(
 	project: FramescaperProjectV30,
 	contexts: readonly Omit<ImageClipPreviewV30, 'loaded' | 'drawable' | 'lastFrameIndex'>[],
 	canvas: Readonly<{ width: number; height: number }>,
+): ReadonlyMap<string, PlannedImageSourceV30> {
+	const output = new Map<string, PlannedImageSourceV30>();
+	for (const { clip } of contexts) {
+		if (output.has(clip.sourceId)) continue;
+		const source = framescaperImageSourceForClipV30(project.sources, clip);
+		output.set(source.id, Object.freeze({
+			source,
+			...fitFramescaperImagePreviewSizeV30(source, canvas.width, canvas.height),
+		}));
+	}
+	return output;
+}
+
+async function loadTimelineSources(
+	store: AudioEditorProjectStore,
+	plannedSources: readonly PlannedImageSourceV30[],
 	signal?: AbortSignal,
 ): Promise<LoadedImageSourceV30[]> {
-	const sources = new Map(contexts.map(({ clip }) => [clip.sourceId, clip]));
 	const output: LoadedImageSourceV30[] = [];
 	try {
-		for (const [sourceId, clip] of [...sources].sort(([left], [right]) => compareText(left, right))) {
-			const source = framescaperImageSourceForClipV30(project.sources, clip);
-			if (source.id !== sourceId) throw new ReferenceError('V30 image preview source identity changed.');
-			const reader = await openFramescaperStoredImageFramePackV30(store, source, signal);
-			const size = fitFramescaperImagePreviewSizeV30(source, canvas.width, canvas.height);
+		for (const { source, width, height } of [...plannedSources]
+			.sort((left, right) => compareText(left.source.id, right.source.id))) {
+			const reader = await openFramescaperStoredImageFramePackV30(
+				store, source, signal,
+				(byteLength) => { assertFramescaperImagePreviewReaderMetadataV30(source, byteLength); },
+			);
 			const frames: Uint8Array<ArrayBuffer>[] = [];
 			try {
 				for (let index = 0; index < source.canonical.frameCount; index += 1) {
@@ -262,15 +321,16 @@ async function loadTimelineSources(
 					try {
 						frames.push(scaleFramescaperImageRgbaV30(
 							raw, source.canonical.width, source.canonical.height,
-							size.width, size.height, signal,
+							width, height, signal,
 						));
 					} finally { raw.fill(0); }
 				}
 			} catch (error) {
 				for (const frame of frames) frame.fill(0);
+				frames.length = 0;
 				throw error;
 			}
-			output.push(Object.freeze({ source, reader, ...size, frames: Object.freeze(frames) }));
+			output.push(Object.freeze({ source, reader, width, height, frames }));
 		}
 		return output;
 	} catch (error) {
@@ -437,7 +497,11 @@ function createCanvasDrawable(request: Readonly<{
 				new Uint8ClampedArray(rgba), request.width, request.height,
 			), 0, 0);
 		},
-		dispose() { context.clearRect(0, 0, request.width, request.height); },
+		dispose() {
+			context.clearRect(0, 0, request.width, request.height);
+			canvas.width = 0;
+			canvas.height = 0;
+		},
 	});
 }
 
@@ -449,8 +513,25 @@ function assertDrawable(value: FramescaperImagePreviewDrawableV30, width: number
 	}
 }
 
-function disposeLoadedSources(sources: readonly LoadedImageSourceV30[]): void {
-	for (const source of sources) for (const frame of source.frames) frame.fill(0);
+function disposeLoadedSources(sources: LoadedImageSourceV30[]): void {
+	for (const source of sources) {
+		for (const frame of source.frames) frame.fill(0);
+		source.frames.length = 0;
+	}
+	sources.length = 0;
+}
+
+function disposeClipDrawables(clips: ImageClipPreviewV30[]): void {
+	for (const clip of clips) disposeDrawable(clip.drawable);
+	clips.length = 0;
+}
+
+function disposeDrawable(drawable: FramescaperImagePreviewDrawableV30): void {
+	try { drawable.dispose(); } catch { /* Continue releasing sibling preview resources. */ }
+}
+
+function disposeInheritedSession(session: ProductVideoVisualPreviewSession | null): void {
+	try { session?.dispose(); } catch { /* Continue releasing V30 image resources. */ }
 }
 
 function admittedProject(profile: unknown, value: unknown): FramescaperProjectV30 {
