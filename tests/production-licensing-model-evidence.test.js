@@ -84,12 +84,12 @@ function assertRefused(records, pattern, validatorOptions = options()) {
 	assert.throws(() => validateLocalModelEvidence(records, validatorOptions), pattern);
 }
 
-test('the local-models gate names the requirements every evidence record must answer', async () => {
+test('the enabled local-models gate names the requirements every evidence record must answer', async () => {
 	const matrix = await readJson(matrixUrl);
 	const gate = matrix.futureDistributionGates.find(({ id }) => id === 'local-models');
 
 	assert.ok(gate, 'the local-models gate must remain in the matrix');
-	assert.equal(gate.status, 'disabled', 'records satisfy the gate; they never open it');
+	assert.equal(gate.status, 'enabled', 'the gate admits only records that satisfy every requirement');
 	assert.deepEqual([...gate.enableRequires].sort(), [...LOCAL_MODEL_REQUIREMENT_IDS].sort());
 
 	for (const record of matrix.localModelEvidence) {
