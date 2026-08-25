@@ -48,7 +48,7 @@ const DEFAULT_DEPENDENCIES: SoundscaperVideoExportStrategyV29Dependencies = Obje
 
 /** Expose the keyed route only to the desktop file-service authority. */
 export function createSoundscaperDesktopVideoExportStrategyV29(
-	runtime: Pick<ControllerProjectRuntime, 'projectForRuntimeConsumers'>,
+	runtime: Pick<ControllerProjectRuntime, 'cloneProject' | 'projectForRuntimeConsumers'>,
 	fileService: unknown,
 ): ProductVideoExportStrategy | undefined {
 	if (!ownDesktopFlag(fileService)) return undefined;
@@ -57,10 +57,11 @@ export function createSoundscaperDesktopVideoExportStrategyV29(
 
 /** Own the selected Soundscaper V29 keyed-RGBA desktop delivery. */
 export function createSoundscaperVideoExportStrategyV29(
-	runtime: Pick<ControllerProjectRuntime, 'projectForRuntimeConsumers'>,
+	runtime: Pick<ControllerProjectRuntime, 'cloneProject' | 'projectForRuntimeConsumers'>,
 	dependenciesValue: SoundscaperVideoExportStrategyV29Dependencies | unknown = DEFAULT_DEPENDENCIES,
 ): ProductVideoExportStrategy {
-	if (!runtime || typeof runtime.projectForRuntimeConsumers !== 'function') {
+	if (!runtime || typeof runtime.cloneProject !== 'function'
+		|| typeof runtime.projectForRuntimeConsumers !== 'function') {
 		throw new TypeError('Soundscaper V29 video export requires selected runtime projection authority.');
 	}
 	const dependencies = snapshotDependencies(dependenciesValue);
@@ -69,7 +70,8 @@ export function createSoundscaperVideoExportStrategyV29(
 	return Object.freeze({
 		createExportProject(request: ProductVideoExportProjectRequest) {
 			assertFallbackFreeDelivery(request.delivery);
-			const projection = runtime.projectForRuntimeConsumers(request.canonicalProject);
+			const detached = runtime.cloneProject(request.canonicalProject);
+			const projection = runtime.projectForRuntimeConsumers(detached);
 			const exportProject = freezeExportProject(projectTrackFolderMediaStateV12(projection));
 			exportAuthorities.set(exportProject, request.canonicalProject);
 			return exportProject;

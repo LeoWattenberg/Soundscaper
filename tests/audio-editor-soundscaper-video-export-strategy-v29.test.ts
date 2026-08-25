@@ -15,6 +15,11 @@ import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.t
 test('Soundscaper V29 keyed strategy reaches buffered and sink encoders with one exact active pair', async () => {
 	const runtime = createSoundscaperProjectRuntimeV29Selection();
 	const project = createSoundscaperProjectV29(framescaperV20Options() as never);
+	const canonicalJson = JSON.stringify(project);
+	const canonicalSource = project.sources[0]!;
+	const canonicalTempoMap = project.tempoMap;
+	assert.equal(Object.isFrozen(canonicalSource), false);
+	assert.equal(Object.isFrozen(canonicalTempoMap), false);
 	const calls: Array<Readonly<Record<string, unknown>>> = [];
 	const strategy = createSoundscaperVideoExportStrategyV29(runtime, {
 		async encodeOffline(request) {
@@ -30,6 +35,9 @@ test('Soundscaper V29 keyed strategy reaches buffered and sink encoders with one
 		canonicalProject: project,
 		delivery: fallbackFreeDelivery(project),
 	});
+	assert.equal(JSON.stringify(project), canonicalJson);
+	assert.equal(Object.isFrozen(canonicalSource), false);
+	assert.equal(Object.isFrozen(canonicalTempoMap), false);
 	const plan = strategy.createPlan({
 		canonicalProject: project, exportProject, format: 'mp4', range: 'project',
 		includeAudio: true, canvas: undefined,
