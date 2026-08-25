@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { AudioEditorProjectStore } from '../src/common/editor/storage.js';
+import type { BlobLike } from '../src/common/editor/storage/media-records.ts';
 import { createFramescaperImageFramePackV1 } from '../src/common/editor/timeline-image-frame-pack-v1.ts';
 import {
 	FRAMESCAPER_IMAGE_ASSET_MIME_TYPE,
@@ -12,6 +13,10 @@ import {
 } from '../src/common/editor/timeline-image-model-v30.ts';
 import type { ProductVideoVisualPreviewSession } from '../src/common/editor/ui/workspace/product-video-visual-preview-runtime.ts';
 import { applyFramescaperProjectCommandV30 } from '../src/framescaper/editor-project-v30-commands.ts';
+import {
+	openFramescaperStoredImageFramePackV30,
+	type FramescaperStoredImageAssetStoreV30,
+} from '../src/framescaper/editor-selected-v30-image-frame-source.ts';
 import {
 	createFramescaperSelectedProjectBinThumbnailV30,
 	createFramescaperSelectedVisualPreviewSessionV30,
@@ -164,9 +169,38 @@ test('every V30 image preview consumer fails closed on changed frame-pack bytes'
 	}), /complete body digest binding/iu);
 });
 
+test('V30 stored image readers snapshot structural bodies before authenticating ranges', async () => {
+	const authentic = imageProject('timeline');
+	const switched = imageProject('timeline', '0', [0, 0, 255, 255]);
+	assert.equal(switched.bytes.byteLength, authentic.bytes.byteLength);
+	let sliceReads = 0;
+	let transferred: ArrayBuffer | null = null;
+	const body: BlobLike = {
+		size: authentic.bytes.byteLength,
+		arrayBuffer() {
+			transferred = ownedBuffer(authentic.bytes);
+			return Promise.resolve(transferred);
+		},
+		slice(start = 0, end = authentic.bytes.byteLength): BlobLike {
+			const selected = sliceReads++ === 0 ? authentic.bytes : switched.bytes;
+			return fixedBody(selected.subarray(start, end));
+		},
+	};
+	const store: FramescaperStoredImageAssetStoreV30 = {
+		loadMediaAsset: () => Promise.resolve(body),
+	};
+	const source = authentic.project.sources.find(({ kind }) => kind === 'image');
+	assert.ok(source);
+	const reader = await openFramescaperStoredImageFramePackV30(store, source);
+	assert.deepEqual([...await reader.readFrame(0)].slice(0, 4), RED);
+	assert.equal(sliceReads, 0, 'authentication must use one owned body snapshot, not mutable range reads');
+	assert.equal(transferred?.byteLength, 0, 'the structural body cannot retain mutable snapshot authority');
+});
+
 function imageProject(
 	placement: 'timeline' | 'project-bin',
 	sourceStartTicks = '0',
+	firstFrame: readonly [number, number, number, number] = RED,
 ): Readonly<{ project: FramescaperProjectV30; bytes: Uint8Array }> {
 	const publication = createFramescaperImageFramePackV1({
 		original: new TextEncoder().encode('authenticated APNG original'),
@@ -177,7 +211,7 @@ function imageProject(
 		frames: [{
 			presentationTicks: 0n,
 			durationTicks: 1_000_000n,
-			rgba: Uint8Array.of(...RED, 0, 0, 0, 0),
+			rgba: Uint8Array.of(...firstFrame, 0, 0, 0, 0),
 		}, {
 			presentationTicks: 1_000_000n,
 			durationTicks: 4_000_000n,
@@ -255,6 +289,21 @@ function storeFor(bytes: Uint8Array, loaded: string[] = []): AudioEditorProjectS
 			return new Blob([owned]);
 		},
 	} as unknown as AudioEditorProjectStore;
+}
+
+function fixedBody(bytes: Uint8Array): BlobLike {
+	const owned = Uint8Array.from(bytes);
+	return {
+		size: owned.byteLength,
+		arrayBuffer: () => Promise.resolve(ownedBuffer(owned)),
+		slice(start = 0, end = owned.byteLength): BlobLike {
+			return fixedBody(owned.subarray(start, end));
+		},
+	};
+}
+
+function ownedBuffer(bytes: Uint8Array): ArrayBuffer {
+	return Uint8Array.from(bytes).buffer;
 }
 
 function inheritedSession(dispose: () => void): ProductVideoVisualPreviewSession {

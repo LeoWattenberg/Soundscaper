@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { sequenceFrameAtSample } from '../common/editor/sequence-frame-navigation.ts';
-import type { AudioEditorProjectStore } from '../common/editor/storage.js';
+import type { BlobLike } from '../common/editor/storage/media-records.ts';
 import {
 	openFramescaperImageFramePackV1,
 	type FramescaperImageFramePackReaderV1,
@@ -20,9 +20,17 @@ export interface FramescaperStoredImageFrameV30 {
 	readonly pixels: Uint8Array<ArrayBuffer>;
 }
 
-/** Load one immutable body and authenticate its complete frame-pack graph before use. */
+/** Narrow stored-body port whose arrayBuffer result is transferred into V30 reader custody. */
+export interface FramescaperStoredImageAssetStoreV30 {
+	loadMediaAsset(
+		storageKey: string,
+		options?: Readonly<{ readonly signal?: AbortSignal }>,
+	): PromiseLike<BlobLike | null>;
+}
+
+/** Own one body snapshot and authenticate its complete frame-pack graph before use. */
 export async function openFramescaperStoredImageFramePackV30(
-	store: AudioEditorProjectStore,
+	store: FramescaperStoredImageAssetStoreV30,
 	sourceValue: unknown,
 	signal?: AbortSignal,
 ): Promise<FramescaperImageFramePackReaderV1> {
@@ -33,17 +41,24 @@ export async function openFramescaperStoredImageFramePackV30(
 	throwIfAborted(signal);
 	const body = await store.loadMediaAsset(source.storageKey, { ...(signal ? { signal } : {}) });
 	throwIfAborted(signal);
-	if (!(body instanceof Blob) || body.size !== source.assetByteLength) {
+	if (!body || body.size !== source.assetByteLength
+		|| typeof body.slice !== 'function' || typeof body.arrayBuffer !== 'function') {
 		throw new Error(`V30 image frame pack ${source.id} is unavailable or has the wrong byte length.`);
 	}
+	const loaded = await body.arrayBuffer();
+	throwIfAborted(signal);
+	if (!(loaded instanceof ArrayBuffer) || loaded.byteLength !== source.assetByteLength) {
+		throw new Error(`V30 image frame pack ${source.id} changed while its body was snapshotted.`);
+	}
+	const snapshot = new Uint8Array(
+		structuredClone(loaded, { transfer: [loaded] }),
+	) as Uint8Array<ArrayBuffer>;
 	return openFramescaperImageFramePackV1({
 		source,
 		signal,
-		async read(offset, length) {
+		read(offset, length) {
 			throwIfAborted(signal);
-			const bytes = new Uint8Array(await body.slice(offset, offset + length).arrayBuffer());
-			throwIfAborted(signal);
-			return bytes;
+			return Promise.resolve(snapshot.slice(offset, offset + length));
 		},
 	});
 }
