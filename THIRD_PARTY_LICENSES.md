@@ -240,8 +240,8 @@ mpg123 encoder is included.
 - retained terms: [`MPG123.txt`](src/common/editor/mpg123/licenses/MPG123.txt)
 - detailed notice: [`NOTICE.md`](src/common/editor/mpg123/NOTICE.md)
 - source/build manifest: [`source-manifest.json`](src/common/editor/mpg123/source-manifest.json)
-- exact `mpg123.wasm`: 172,327 bytes; SHA-256
-  `2c5a60ce737adb0adb98df8301c76804bffeb59373fe7fbce2c8383e926dd7be`
+- exact `mpg123.wasm`: 172,329 bytes; SHA-256
+  `d2b5686a16141ec97dbeb4e4f2a1ce28b756dd3eaf6438b31379356c8dd958ae`
 
 The build contains only the reusable libmpg123 memory-feed path and finite
 interleaved float32 output. It contains no CLI, filesystem or network reader,
