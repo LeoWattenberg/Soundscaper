@@ -37,7 +37,7 @@ const REQUIRED_SOURCE_COMBINATIONS = Object.freeze([
 test.describe('selected Framescaper F31 recoverable capture', () => {
 	registerAudioEditorHooks();
 
-	test('is default-hidden and opens setup without implicit device access', async ({ page }) => {
+	test('is default-hidden and opens setup without implicit device access', async ({ page, browserName }) => {
 		await installCaptureHarness(page);
 		const editor = await bootEditor(page, '/framescaper/en/');
 		const workspacePanel = recordingSetupWorkspacePanel(editor);
@@ -59,7 +59,7 @@ test.describe('selected Framescaper F31 recoverable capture', () => {
 		await assertAccessibleBasics(panel);
 		await assertNoSeriousAxeViolations(page, '[data-workspace-panel="recording-setup"]');
 		await page.emulateMedia({ forcedColors: 'active' });
-		await expect(panel.getByRole('status')).toHaveCSS('forced-color-adjust', 'none');
+		await assertCaptureForcedColorContract(page, panel.getByRole('status'), browserName);
 		await page.emulateMedia({ forcedColors: 'none' });
 
 		const toolbarRecord = editor.getByRole('button', { name: 'Recording setup', exact: true });
@@ -387,6 +387,22 @@ function recordingSetupWorkspacePanel(editor) {
 	return editor.locator('[data-workspace-panel="recording-setup"]');
 }
 
+async function assertCaptureForcedColorContract(page, status, browserName) {
+	if (browserName !== 'webkit') {
+		await expect(status).toHaveCSS('forced-color-adjust', 'none');
+		return;
+	}
+	const authored = await page.evaluate(async () => {
+		const links = [...document.querySelectorAll('link[rel="stylesheet"][href]')];
+		const styles = await Promise.all(links.map(async ({ href }) => (await fetch(href)).text()));
+		return styles.some((css) => (
+			/@media\s*\(forced-colors:\s*active\)\s*\{[^}]*kw-framescaper-capture__status[^}]*\{[^}]*forced-color-adjust:\s*none/isu
+				.test(css)
+		));
+	});
+	expect(authored).toBe(true);
+}
+
 async function expectCapturePhase(panel, phase, timeout = 10_000) {
 	await expect(panel).toHaveAttribute('data-capture-phase', phase, { timeout });
 }
@@ -507,7 +523,7 @@ async function installCaptureHarness(page, options = {}) {
 					candidate.role === role && !candidate.stopped
 				));
 				if (!entry) return false;
-				entry.track.dispatchEvent(new Event('ended'));
+				entry.end();
 				return true;
 			},
 		};
@@ -516,7 +532,11 @@ async function installCaptureHarness(page, options = {}) {
 			value: harness,
 		});
 		if (persistentQuota) {
-			Object.defineProperties(navigator.storage, {
+			const storage = navigator.storage ?? {};
+			if (!navigator.storage) {
+				Object.defineProperty(navigator, 'storage', { configurable: true, value: storage });
+			}
+			Object.defineProperties(storage, {
 				estimate: { configurable: true, value: async () => ({ usage: 0, quota: 1024 * 1024 * 1024 }) },
 				persisted: { configurable: true, value: async () => true },
 				persist: { configurable: true, value: async () => true },
@@ -525,7 +545,13 @@ async function installCaptureHarness(page, options = {}) {
 
 		function instrumentTrack(track, role, cleanup, settings, capabilities) {
 			const nativeStop = track.stop.bind(track);
-			const entry = { track, role, stopped: false };
+			const nativeAddEventListener = track.addEventListener.bind(track);
+			const nativeRemoveEventListener = track.removeEventListener.bind(track);
+			const endedEvents = new EventTarget();
+			const entry = {
+				track, role, stopped: false,
+				end: () => endedEvents.dispatchEvent(new Event('ended')),
+			};
 			harness.trackEntries.push(entry);
 			harness.createdTracks += 1;
 			try {
@@ -538,6 +564,16 @@ async function installCaptureHarness(page, options = {}) {
 			Object.defineProperty(track, 'getCapabilities', {
 				configurable: true,
 				value: () => ({ ...capabilities }),
+			});
+			Object.defineProperty(track, 'addEventListener', {
+				configurable: true,
+				value: (type, ...args) => type === 'ended'
+					? endedEvents.addEventListener(type, ...args) : nativeAddEventListener(type, ...args),
+			});
+			Object.defineProperty(track, 'removeEventListener', {
+				configurable: true,
+				value: (type, ...args) => type === 'ended'
+					? endedEvents.removeEventListener(type, ...args) : nativeRemoveEventListener(type, ...args),
 			});
 			Object.defineProperty(track, 'stop', {
 				configurable: true,
