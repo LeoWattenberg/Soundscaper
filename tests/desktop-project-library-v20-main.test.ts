@@ -6,7 +6,7 @@ import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 
 import { createVideoSource } from '../src/common/editor/project-media-factory.ts';
 import {
@@ -20,10 +20,22 @@ import {
 } from '../desktop/project-library-v20-contract.ts';
 import { FramescaperDesktopProjectLibraryV20Main } from '../desktop/project-library-v20-main.ts';
 import { framescaperDesktopExactMediaPath } from '../desktop/project-library-exact-generation-storage.ts';
+import {
+	prepareFramescaperDesktopV28PublicationBodies,
+} from '../src/framescaper/desktop-project-library-v28-body-transfer.ts';
 import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
-import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
+import { createFramescaperProjectStoreV28 } from '../src/framescaper/editor-project-store-v28.ts';
+import {
+	createFramescaperProjectV28,
+	reimportFramescaperProjectV28,
+} from '../src/framescaper/editor-project-v28.ts';
 import { FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v31.ts';
 import { reimportFramescaperProjectV31 } from '../src/framescaper/editor-project-v31.ts';
+import {
+	createFramescaperV27DurableBodyFixture,
+	seedFramescaperV27DurableBodies,
+} from './helpers/framescaper-v27-durable-body-fixture.ts';
+import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
 const NOW = '2026-08-25T12:00:00.000Z';
 
@@ -103,6 +115,113 @@ test('V20 reimports settled V19 documents, preserves bodies, and retires its sou
 	await reopenedSession.close();
 	await reopened.close();
 });
+
+test('V20 authenticates and preserves the complete document-bound V28 body inventory', async (context) => {
+	const appDataPath = await mkdtemp(join(tmpdir(), 'framescaper-v20-v28-bodies-'));
+	context.after(() => rm(appDataPath, { recursive: true, force: true }));
+	const { project, prepared } = await v28BodyFixture(context);
+	assert.ok(prepared.some(({ descriptor }) => descriptor.kind === 'framescaper-cube-lut'));
+	assert.ok(prepared.some(({ descriptor }) => descriptor.kind === 'framescaper-motion-analysis'));
+
+	const source = await startV19(appDataPath, 1911, 'v19-v28-bodies');
+	const sourceSession = source.openSession(source.localHandshake);
+	const publicationId = 'c3'.repeat(24);
+	await sourceSession.beginPublication({
+		publicationId,
+		expectedMetadataRevision: 0,
+		expectedProject: null,
+		project,
+		bodies: prepared.map(({ descriptor }) => descriptor),
+	});
+	for (const [bodyIndex, body] of prepared.entries()) {
+		await sourceSession.writePublicationChunk({
+			publicationId,
+			bodyIndex,
+			offset: 0,
+			bytes: new Uint8Array(await body.blob.arrayBuffer()),
+		});
+	}
+	await sourceSession.finishPublication({ publicationId });
+	await sourceSession.close();
+	await source.close();
+
+	const migrated = await startV20(appDataPath, 2011, 'v20-v28-bodies');
+	const migratedSession = migrated.openSession(migrated.localHandshake);
+	const bundle = await migratedSession.readProjectBundle(String(project.id)) as {
+		readonly bodies: readonly unknown[];
+	};
+	assert.deepEqual(bundle.bodies, prepared.map(({ descriptor }) => descriptor));
+	for (const [index, body] of prepared.entries()) {
+		assert.deepEqual(
+			await migrated.readNativeBody(bundle.bodies[index]),
+			new Uint8Array(await body.blob.arrayBuffer()),
+			body.descriptor.kind,
+		);
+	}
+	await migratedSession.close();
+	await migrated.close();
+});
+
+test('V20 rejects a descriptor-valid V19 inventory that is no longer document-bound', async (context) => {
+	const appDataPath = await mkdtemp(join(tmpdir(), 'framescaper-v20-v19-unbound-'));
+	context.after(() => rm(appDataPath, { recursive: true, force: true }));
+	const { project, prepared } = await v28BodyFixture(context);
+	const source = await startV19(appDataPath, 1921, 'v19-unbound');
+	const session = source.openSession(source.localHandshake);
+	const publicationId = 'c4'.repeat(24);
+	await session.beginPublication({
+		publicationId, expectedMetadataRevision: 0, expectedProject: null,
+		project, bodies: prepared.map(({ descriptor }) => descriptor),
+	});
+	for (const [bodyIndex, body] of prepared.entries()) {
+		await session.writePublicationChunk({
+			publicationId, bodyIndex, offset: 0,
+			bytes: new Uint8Array(await body.blob.arrayBuffer()),
+		});
+	}
+	await session.finishPublication({ publicationId });
+	await session.close();
+	await source.close();
+
+	const sourceDatabase = new DatabaseSync(
+		createFramescaperDesktopProjectLibraryV19Paths(appDataPath).databasePath,
+	);
+	const projectId = String(project.id);
+	const bodies = JSON.parse(String(sourceDatabase.prepare(
+		'SELECT bodies_json FROM projects WHERE project_id = ?',
+	).get(projectId)?.bodies_json)) as Array<Readonly<{ kind: string }>>;
+	sourceDatabase.prepare('UPDATE projects SET bodies_json = ? WHERE project_id = ?').run(
+		JSON.stringify(bodies.filter(({ kind }) => kind !== 'framescaper-cube-lut')),
+		projectId,
+	);
+	sourceDatabase.close();
+	await assert.rejects(
+		startV20(appDataPath, 2021, 'v20-unbound'),
+		/body.*missing|inventory/iu,
+	);
+});
+
+async function v28BodyFixture(context: TestContext) {
+	const fixture = await createFramescaperV27DurableBodyFixture();
+	const project = reimportFramescaperProjectV28(
+		FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE,
+		fixture.project,
+	);
+	const bodyStore = createFramescaperProjectStoreV28(FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, {
+		indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory,
+		preferOpfs: false,
+	});
+	await bodyStore.ready();
+	context.after(() => bodyStore.close());
+	await seedFramescaperV27DurableBodies(bodyStore, fixture);
+	const projectSha256 = createHash('sha256').update(JSON.stringify(project)).digest('hex');
+	const prepared = await prepareFramescaperDesktopV28PublicationBodies(
+		project,
+		projectSha256,
+		bodyStore,
+	);
+	return { project, prepared };
+}
 
 function startV19(appDataPath: string, processId: number, instanceId: string) {
 	return FramescaperDesktopProjectLibraryV19Main.start({

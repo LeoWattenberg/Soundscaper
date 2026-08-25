@@ -12,13 +12,13 @@ import type { FramescaperDesktopProjectLibraryExactGenerationPaths } from './pro
 import { framescaperDesktopProjectLibraryExactGenerationMetadataRevision as metadataRevision } from './project-library-exact-generation-database.ts';
 import {
 	framescaperDesktopExactMediaPath,
-	parseFramescaperDesktopExactBodies,
 	type FramescaperDesktopExactBodyDescriptor,
 } from './project-library-exact-generation-storage.ts';
 import { createFramescaperDesktopProjectLibraryV19Paths } from './project-library-v19-contract.ts';
 import { validateFramescaperDesktopV19CurrentProjectV28 } from './project-library-v19-current-project.ts';
 import { FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v31.ts';
 import { reimportFramescaperProjectV31 } from '../src/framescaper/editor-project-v31.ts';
+import { validateFramescaperDesktopV28Bodies } from '../src/framescaper/desktop-project-library-v28-body-contract.ts';
 
 interface SourceRow {
 	readonly entry_id: string;
@@ -172,6 +172,11 @@ async function migrateRow(
 		|| Date.parse(String(sourceProject.updatedAt)) !== row.updated_at_ms) {
 		throw new Error('Framescaper V19 project row disagrees with its exact document');
 	}
+	const bodies = validateFramescaperDesktopV28Bodies(
+		sourceProject,
+		row.sha256,
+		JSON.parse(row.bodies_json) as unknown,
+	);
 	const project = reimportFramescaperProjectV31(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, sourceProject);
 	if (project.id !== row.project_id || project.title !== row.title
 		|| project.revision !== row.project_revision
@@ -187,7 +192,6 @@ async function migrateRow(
 	const documentFile = `${row.entry_id}/${String(row.project_revision)}-${sha256}.json`;
 	const destinationDocument = containedPath(destinationPaths.projectsRoot, documentFile, 'V20 document');
 	await writeExactFile(destinationDocument, bytes, sha256);
-	const bodies = parseFramescaperDesktopExactBodies(row.bodies_json, 'Framescaper V19 import');
 	for (const body of bodies) {
 		await copyBody(sourcePaths, destinationPaths, body);
 	}
