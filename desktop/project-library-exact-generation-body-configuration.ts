@@ -17,6 +17,7 @@ export interface ExactGenerationProject extends Record<string, unknown> {
 
 export interface FramescaperDesktopProjectLibraryExactGenerationBodyConfiguration {
 	readonly label: string;
+	readonly maximumBodies?: number;
 	readonly validateBodyDescriptor?: (
 		value: unknown,
 		label: string,
@@ -42,9 +43,12 @@ export function framescaperDesktopExactConfiguredBodies(
 	projectSha256: string,
 	value: unknown,
 ): readonly Readonly<FramescaperDesktopExactBodyDescriptor>[] {
+	const maximumBodies = configuration.maximumBodies ?? MAXIMUM_BODIES;
 	if (configuration.validateBodies) {
-		return Object.freeze([...configuration.validateBodies(project, projectSha256, value)]);
+		const bodies = [...configuration.validateBodies(project, projectSha256, value)];
+		if (bodies.length > maximumBodies) throw new RangeError(`${configuration.label} has too many bodies`);
+		return Object.freeze(bodies);
 	}
-	return Object.freeze(denseArray(value, MAXIMUM_BODIES, `${configuration.label} bodies`)
+	return Object.freeze(denseArray(value, maximumBodies, `${configuration.label} bodies`)
 		.map((body) => framescaperDesktopExactConfiguredBody(configuration, body)));
 }
