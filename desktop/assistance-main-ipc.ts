@@ -96,6 +96,15 @@ function noticeView(notice: InstalledLocalModelNotice): AssistanceInstalledModel
 	});
 }
 
+async function pathlessOperation<T>(operation: () => PromiseLike<T>, message: string): Promise<T> {
+	try {
+		return await operation();
+	} catch {
+		// Native selections and store paths remain main-process-only, including in errors.
+		throw new Error(message);
+	}
+}
+
 export function registerAssistanceIpc(options: AssistanceIpcOptions): void {
 	const {
 		channels,
@@ -112,52 +121,62 @@ export function registerAssistanceIpc(options: AssistanceIpcOptions): void {
 		return service;
 	};
 
-	handle(channels.listAssistanceModels, (): Promise<AssistanceStatusView> => resolve().status());
+	handle(channels.listAssistanceModels, (): Promise<AssistanceStatusView> =>
+		pathlessOperation(() => resolve().status(), 'Local-model status could not be read.'));
 
 	handle(channels.installAssistanceModel, (_event, modelId): Promise<AssistanceModelView> => {
 		const id = assertModelId(modelId);
-		return resolve().install(id, (progress) => {
+		return pathlessOperation(() => resolve().install(id, (progress) => {
 			sendToRenderer(channels.assistanceInstallProgress, progress);
-		});
+		}), 'The local model could not be installed.');
 	});
 
 	handle(channels.cancelAssistanceModelInstall, (_event, modelId): Promise<AssistanceInstallCancellation> => {
 		const id = assertModelId(modelId);
-		return resolve().cancelInstall(id);
+		return pathlessOperation(() => resolve().cancelInstall(id),
+			'The local-model installation could not be cancelled.');
 	});
 
 	handle(channels.installPreseededAssistanceModel, async (_event, modelId): Promise<AssistanceModelView | null> => {
 		const id = assertModelId(modelId);
-		const sourceDirectory = selectedDirectory(await choosePreseedDirectory(id));
-		return sourceDirectory === null ? null : resolve().installPreseeded(id, sourceDirectory);
+		return pathlessOperation(async () => {
+			const sourceDirectory = selectedDirectory(await choosePreseedDirectory(id));
+			return sourceDirectory === null ? null : resolve().installPreseeded(id, sourceDirectory);
+		}, 'The selected offline model files could not be authenticated or installed.');
 	});
 
 	handle(channels.reconcileAssistanceModels, (): Promise<PreseededLocalModelReconciliation> =>
-		resolve().reconcilePreseeded());
+		pathlessOperation(() => resolve().reconcilePreseeded(),
+			'Pre-seeded local-model files could not be reconciled.'));
 
 	handle(channels.collectAssistanceModelGarbage, (): Promise<LocalModelGarbageCollectionReport> =>
-		resolve().garbageCollect());
+		pathlessOperation(() => resolve().garbageCollect(),
+			'Unused local-model files could not be collected.'));
 
 	handle(channels.listAssistanceModelNotices, async (): Promise<readonly AssistanceInstalledModelNoticeView[]> =>
-		Object.freeze((await resolve().installedNotices()).map(noticeView)));
+		pathlessOperation(async () =>
+			Object.freeze((await resolve().installedNotices()).map(noticeView)),
+		'Installed local-model notices could not be read.'));
 
 	handle(channels.relocateAssistanceModels, async (): Promise<AssistanceRelocationView | null> => {
-		const targetDirectory = selectedDirectory(await chooseRelocationDirectory());
-		if (targetDirectory === null) return null;
-		const result = await resolve().relocate(targetDirectory);
-		return Object.freeze({
-			contractVersion: ASSISTANCE_RELOCATION_CONTRACT_VERSION,
-			totalBytes: result.totalBytes,
-			fileCount: result.fileCount,
-			sourceRemoved: result.sourceRemoved,
-		});
+		return pathlessOperation(async () => {
+			const targetDirectory = selectedDirectory(await chooseRelocationDirectory());
+			if (targetDirectory === null) return null;
+			const result = await resolve().relocate(targetDirectory);
+			return Object.freeze({
+				contractVersion: ASSISTANCE_RELOCATION_CONTRACT_VERSION,
+				totalBytes: result.totalBytes,
+				fileCount: result.fileCount,
+				sourceRemoved: result.sourceRemoved,
+			});
+		}, 'Local-model storage could not be relocated safely.');
 	});
 
 	handle(channels.removeAssistanceModel, (_event, modelId): Promise<number> => {
 		// Validate before resolving: argument evaluation would otherwise build the
 		// service, and its filesystem access, for an id that is about to be refused.
 		const id = assertModelId(modelId);
-		return resolve().remove(id);
+		return pathlessOperation(() => resolve().remove(id), 'The local model could not be removed.');
 	});
 }
 
