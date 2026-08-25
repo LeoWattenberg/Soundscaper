@@ -12,6 +12,7 @@ import {
 	packagedExecutableCandidates,
 	resolveSmokeArchitecture,
 } from '../scripts/lib/desktop-smoke.mjs';
+import { FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY } from '../desktop/framescaper-v27-artifact-smoke.js';
 
 const EXPECTED_BRIDGE = DESKTOP_SMOKE_EXPECTED_BRIDGE;
 const FRAMESCAPER_EXPECTED_BRIDGE = FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE;
@@ -280,7 +281,7 @@ function validFramescaperV27Payload() {
 	const project = {
 		projectId: 'framescaper-artifact-v27',
 		title: 'Untitled project',
-		projectSchemaVersion: 27,
+		projectSchemaVersion: FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.projectSchemaVersion,
 		projectRevision: 0,
 		metadataRevision: 1,
 		byteLength: 4_096,
@@ -306,13 +307,13 @@ function validFramescaperV27Payload() {
 				kind: 'framescaper-project-library-handshake',
 				version: 1,
 				owner: 'framescaper',
-				projectSchemaVersion: 27,
+				projectSchemaVersion: FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.projectSchemaVersion,
 				scapeFormatVersions: [1, 2],
 				attachedScapeFormatVersion: 2,
-				storageDatabaseName: 'kw-media-framescaper-editor-v27',
-				desktopLibrarySchemaVersion: 18,
-				desktopDatabaseUserVersion: 20,
-				desktopLibraryScope: ['kw.media', 'scape-project-library', 'v18'],
+				storageDatabaseName: FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.storageDatabaseName,
+				desktopLibrarySchemaVersion: FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.desktopLibrarySchemaVersion,
+				desktopDatabaseUserVersion: FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.desktopDatabaseUserVersion,
+				desktopLibraryScope: [...FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.desktopLibraryScope],
 			},
 			ui: { projectId: project.projectId, title: project.title, trackCount: 1, clipCount: 0 },
 			project,

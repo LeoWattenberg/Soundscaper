@@ -322,7 +322,6 @@ test('keeps the catalog isolated while allowing only its maintained V10 lifecycl
 		'desktop/project-library-v10-main.ts',
 		'desktop/soundscaper-project-library-v10-lifecycle-host.ts',
 		'desktop/soundscaper-project-library-v10-main.ts',
-		'tests/desktop-project-library-packaging.test.js',
 		TEST_MODULE,
 		'tests/desktop-project-library-v10-lifecycle-host.test.ts',
 	]);

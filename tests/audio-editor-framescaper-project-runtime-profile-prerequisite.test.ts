@@ -382,7 +382,6 @@ test('keeps the product prerequisite within maintained Framescaper and packaging
 		TEST_MODULE,
 		FINAL_TEST_MODULE,
 		'tests/audio-editor-framescaper-project-storage-profile.test.ts',
-		'tests/desktop-project-library-packaging.test.js',
 	]);
 	assert.deepEqual(storageReferences, [
 		PRODUCT_MODULE,

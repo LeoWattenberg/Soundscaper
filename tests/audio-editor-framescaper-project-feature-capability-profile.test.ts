@@ -370,7 +370,6 @@ test('keeps private capability ownership within the closed cumulative domain set
 		TEST_MODULE,
 		FINAL_TEST_MODULE,
 		'tests/audio-editor-mastering-sequence-capability.test.ts',
-		'tests/desktop-project-library-packaging.test.js',
 	]);
 	assert.deepEqual(genericPathReferences, [
 		'scripts/lib/desktop-5b-transitive-runtime-files.mjs',
@@ -408,7 +407,6 @@ test('keeps private capability ownership within the closed cumulative domain set
 		'tests/audio-editor-mastering-sequence-capability.test.ts',
 		'tests/audio-editor-soundscaper-v21-feature-registration.test.ts',
 		'tests/audio-editor-soundscaper-v23-runtime-selection.test.ts',
-		'tests/desktop-project-library-packaging.test.js',
 		'tests/helpers/desktop-project-library-v27-runtime-fixture.js',
 	]);
 	assert.deepEqual(privateIdReferences, [
