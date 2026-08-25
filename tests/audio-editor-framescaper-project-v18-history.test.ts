@@ -325,6 +325,44 @@ test('V18 sequence authoring is strict, history-owned, and refuses unsafe deleti
 	}), /duplicate.*sequence|already exists/iu);
 });
 
+test('V18 track commands populate and remove an explicit folderless secondary sequence through history', () => {
+	const profile = FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE;
+	const initial = createFramescaperProjectV18(profile, {
+		id: 'sequence-track-authoring', title: 'Sequence track authoring', now: CREATED,
+	});
+	const secondary = emptySequence('secondary', 'Secondary sequence', initial.sequences[0]!);
+	const created = applyFramescaperProjectCommandV18(profile, initial, {
+		type: 'sequence/create', sequence: secondary,
+	});
+	let history = createFramescaperProjectHistoryV18(profile, created);
+	history = executeFramescaperProjectCommandV18(profile, history, {
+		type: 'track/add',
+		track: createVideoTrack({ id: 'secondary-video', name: 'Secondary video', clipIds: [] }),
+		sequenceId: 'secondary',
+	});
+	assert.deepEqual(history.present.trackFolders, []);
+	assert.deepEqual(history.present.sequences[0]?.trackIds, []);
+	assert.deepEqual(history.present.sequences[1]?.trackIds, ['secondary-video']);
+	assert.deepEqual(history.present.sequences[1]?.trackNodes, [{
+		kind: 'track', id: 'secondary-video', parentFolderId: null,
+	}]);
+
+	const added = history.present;
+	history = executeFramescaperProjectCommandV18(profile, history, {
+		type: 'track/remove', trackId: 'secondary-video',
+	});
+	assert.deepEqual(history.present.tracks, []);
+	assert.deepEqual(history.present.sequences[1]?.trackIds, []);
+	assert.deepEqual(history.present.sequences[1]?.trackNodes, []);
+	const restored = undoFramescaperProjectCommandV18(profile, history);
+	assert.deepEqual(restored.present.tracks, added.tracks);
+	assert.deepEqual(restored.present.sequences, added.sequences);
+	assert.ok(restored.present.revision > added.revision);
+	const removedAgain = redoFramescaperProjectCommandV18(profile, restored);
+	assert.deepEqual(removedAgain.present.tracks, []);
+	assert.deepEqual(removedAgain.present.sequences[1]?.trackNodes, []);
+});
+
 function emptySequence(
 	id: string,
 	name: string,
