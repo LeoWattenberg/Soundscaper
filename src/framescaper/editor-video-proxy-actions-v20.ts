@@ -22,14 +22,15 @@ import { createFramescaperCapturedVideoProxySchedulerV20 } from './editor-captur
 import { createFramescaperExistingVideoProxySchedulerV20 } from './editor-existing-video-proxy-scheduler.ts';
 import type { FramescaperEditorProjectEnvironmentV20 } from './editor-project-environment-v20.ts';
 import type { FramescaperVideoProxyModeV20 } from './editor-video-proxy-use-policy-v20.ts';
-import {
-	resolveFramescaperVideoProxyUseV20,
-	type FramescaperVideoProxyPressureV20,
-} from './editor-video-proxy-use-policy-v20.ts';
+import type { FramescaperVideoProxyPressureV20 } from './editor-video-proxy-use-policy-v20.ts';
 import {
 	type FramescaperVideoProxyCleanupClaimV20,
 	type FramescaperVideoProxyCleanupCoordinatorV20,
 } from './editor-video-proxy-cleanup-v20.ts';
+import {
+	framescaperVideoProxyPressureSelectsProxyV20 as pressureSelectsProxy,
+	snapshotFramescaperVideoProxyPressureV20 as snapshotPressure,
+} from './editor-video-proxy-pressure-v20.ts';
 
 type SessionV20 = Parameters<typeof createFramescaperCapturedVideoProxySchedulerV20>[1];
 type SchedulerFactory = () => FramescaperCapturedVideoProxyScheduler;
@@ -472,27 +473,6 @@ export function createFramescaperVideoProxyActions(
 	async function refresh(sourceId: string): Promise<void> {
 		await options.owner.actions.video.reloadSourceVisual(sourceId);
 	}
-}
-
-function snapshotPressure(
-	value: Readonly<FramescaperVideoProxyPressureV20>,
-): Readonly<FramescaperVideoProxyPressureV20> {
-	resolveFramescaperVideoProxyUseV20({
-		purpose: 'preview', mode: 'auto', originalAvailable: true,
-		proxyTrust: 'attested', pressure: value,
-	});
-	return Object.freeze({
-		droppedFrameRatio: value.droppedFrameRatio,
-		decodeQueueDepth: value.decodeQueueDepth,
-		viewportScale: value.viewportScale,
-	});
-}
-
-function pressureSelectsProxy(value: Readonly<FramescaperVideoProxyPressureV20> | null): boolean {
-	return resolveFramescaperVideoProxyUseV20({
-		purpose: 'preview', mode: 'auto', originalAvailable: true,
-		proxyTrust: 'attested', pressure: value,
-	}).kind === 'proxy';
 }
 
 function proxyRequest(
