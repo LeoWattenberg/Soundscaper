@@ -338,7 +338,8 @@ function sameBodyRow(row: Record<string, unknown>, claim: Readonly<VideoProxyCla
 	const identity = claim.rowIdentity;
 	return row.sourceId === identity.sourceId
 		&& row.kind === identity.kind
-		&& row.encoding === identity.encoding
+		&& (row.encoding === identity.encoding
+			|| (claim.bodyKind === 'timing' && row.encoding === undefined))
 		&& row.storage === identity.storage
 		&& (row.path ?? null) === identity.path
 		&& (row.mediaChunkToken ?? null) === identity.mediaChunkToken
