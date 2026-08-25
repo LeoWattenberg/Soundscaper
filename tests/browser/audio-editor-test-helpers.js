@@ -111,7 +111,20 @@ export function clipField(editor, name) {
 }
 
 export async function commitInput(input, value) {
-	await input.fill(value);
+	// Playwright fills a React-controlled input by writing `.value` and then
+	// dispatching `input`. A re-render landing between those two steps writes the
+	// component's unchanged state back to the node and refreshes React's value
+	// tracker, so the event that follows reads as a no-op and the typed value is
+	// silently dropped — the input keeps exactly what it held before. A real
+	// keystroke cannot interleave that way, but a busy machine makes that window
+	// wide enough to hit, which is what made the caption round-trip flaky on
+	// WebKit. Retry only that signature, so an input that legitimately reformats
+	// what it was given is left alone.
+	for (let attempt = 0; attempt < 3; attempt += 1) {
+		const before = await input.inputValue();
+		await input.fill(value);
+		if (before === value || await input.inputValue() !== before) break;
+	}
 	await input.blur();
 }
 
