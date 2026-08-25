@@ -101,6 +101,7 @@ function project(assistanceAssets: readonly unknown[] = [assistanceAsset()]) {
 
 test('selected V30 profiles isolate storage while retaining the V29 desktop library', () => {
 	const selected = createSoundscaperProjectRuntimeV30Selection();
+	assert.equal(selected.assistanceAssetCommands, true);
 	const runtime = editorProjectRuntimeProfileDefinition(selected.runtimeProfile);
 	const prerequisite = editorProjectRuntimeProfilePrerequisiteDefinition(runtime.prerequisite);
 	assert.equal(prerequisite.projectSchemaVersion, 30);

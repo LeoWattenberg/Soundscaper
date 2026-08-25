@@ -61,6 +61,7 @@ type SoundscaperProjectHistorySelectionV30 =
 	| SoundscaperOpaqueCustodyHistoryV30;
 
 export interface SoundscaperProjectRuntimeV30Selection {
+	readonly assistanceAssetCommands: true;
 	readonly runtimeProfile: typeof SOUNDSCAPER_V30_PROJECT_RUNTIME_PROFILE;
 	readonly storageProfile: typeof SOUNDSCAPER_V30_PROJECT_STORAGE_PROFILE;
 	readonly createProject: (options?: SoundscaperProjectV30Options) => SoundscaperProjectV30 & ControllerRuntimeProject;
@@ -101,6 +102,7 @@ export interface SoundscaperProjectRuntimeV30Selection {
 /** Select exact V30 document, command, history, session, and storage authority. */
 export function createSoundscaperProjectRuntimeV30Selection(): Readonly<SoundscaperProjectRuntimeV30Selection> {
 	const selection = {
+		assistanceAssetCommands: true as const,
 		runtimeProfile: SOUNDSCAPER_V30_PROJECT_RUNTIME_PROFILE,
 		storageProfile: SOUNDSCAPER_V30_PROJECT_STORAGE_PROFILE,
 		createProject: (options: SoundscaperProjectV30Options = {}) => (
