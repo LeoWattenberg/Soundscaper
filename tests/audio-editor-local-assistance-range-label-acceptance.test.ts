@@ -6,6 +6,9 @@ import test from 'node:test';
 import {
 	createLocalAssistanceRangeLabelAcceptance,
 } from '../src/common/editor/controller/local-assistance-range-label-acceptance.ts';
+import {
+	createLocalAssistanceResultAcceptance,
+} from '../src/common/editor/controller/local-assistance-result-acceptance.ts';
 
 const SOURCE_SHA256 = 'ab'.repeat(32);
 const MODEL_SHA256 = '12'.repeat(32);
@@ -86,7 +89,7 @@ function diarizationRequest(selectionFence = fence()) {
 test('accepted VAD creates one stable silence label track in selected timeline coordinates', async () => {
 	const current = authority();
 	const commands: Readonly<Record<string, unknown>>[] = [];
-	const acceptance = createLocalAssistanceRangeLabelAcceptance({
+	const acceptance = createLocalAssistanceResultAcceptance({
 		currentAuthority: () => current,
 		captureProject: () => current.fence,
 		assertProject: (token) => { assert.equal(token, current.fence); },
