@@ -8,6 +8,12 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { createAssistanceService } from '../desktop/assistance-service.ts';
+import {
+	signedTestLocalModelCatalog,
+	testLocalModelEvidence,
+	testLocalModelEvidencePin,
+	TEST_LOCAL_MODEL_CATALOG_SIGNATURE_OPTIONS,
+} from './helpers/local-model-catalog-v2-fixture.ts';
 
 const GIB = 1024 ** 3;
 const ENCODER = 'encoder weights';
@@ -17,8 +23,9 @@ function digest(value: string): string {
 	return createHash('sha256').update(value).digest('hex');
 }
 
-const CATALOG = Object.freeze({
-	schemaVersion: 1,
+const EVIDENCE = testLocalModelEvidence('silero-vad-v6', { attributionRequired: true });
+const CATALOG = signedTestLocalModelCatalog({
+	schemaVersion: 2,
 	publication: {
 		bucket: 'soundscaper-assets',
 		prefix: 'models',
@@ -32,6 +39,7 @@ const CATALOG = Object.freeze({
 			task: 'voice-activity-detection',
 			platforms: ['linux-x64'],
 			minimumMemoryBytes: 2 * GIB,
+			licensingEvidence: testLocalModelEvidencePin(EVIDENCE),
 			upstream: {
 				source: 'https://upstream.invalid/repo',
 				revision: 'abc123',
@@ -40,19 +48,11 @@ const CATALOG = Object.freeze({
 					{ fileName: 'tokens.txt', byteLength: TOKENS.length, sha256: digest(TOKENS), url: 'https://upstream.invalid/tokens.txt' },
 				],
 			},
+			distribution: { kind: 'identity-mirrored' },
 			artifacts: [
 				{ fileName: 'encoder.onnx', byteLength: ENCODER.length, sha256: digest(ENCODER), url: 'https://assets.soundscaper.org/models/silero-vad-v6/6.2.1/encoder.onnx' },
 				{ fileName: 'tokens.txt', byteLength: TOKENS.length, sha256: digest(TOKENS), url: 'https://assets.soundscaper.org/models/silero-vad-v6/6.2.1/tokens.txt' },
 			],
-		},
-		{
-			modelId: 'spleeter',
-			version: '2.0.0',
-			task: 'source-separation',
-			platforms: ['linux-x64'],
-			minimumMemoryBytes: 4 * GIB,
-			upstream: null,
-			artifacts: null,
 		},
 	],
 });
@@ -87,7 +87,8 @@ async function serviceIn(t: { after: (fn: () => unknown) => void }, overrides = 
 	return createAssistanceService({
 		userDataPath,
 		catalog: CATALOG,
-		evidenceIds: ['silero-vad-v6', 'spleeter'],
+		licensingEvidence: [EVIDENCE],
+		catalogSignatureOptions: TEST_LOCAL_MODEL_CATALOG_SIGNATURE_OPTIONS,
 		runtime: runtimeStub(true),
 		platform: 'linux-x64',
 		totalMemoryBytes: 16 * GIB,
@@ -104,10 +105,10 @@ test('status reports the models directory and every offered model', { timeout: 2
 	assert.equal(status.runtimeAvailable, true);
 	assert.deepEqual(status.models.map(({ modelId, availability }) => [modelId, availability]), [
 		['silero-vad-v6', 'installable'],
-		['spleeter', 'pending-artifacts'],
 	]);
 	assert.equal(status.models[0]?.downloadBytes, ENCODER.length + TOKENS.length);
 	assert.equal(status.models[0]?.installedBytes, null);
+	assert.equal(status.models[0]?.attributionRequired, true);
 });
 
 test('a chosen models directory overrides the default', { timeout: 20_000 }, async (t) => {
@@ -136,10 +137,9 @@ test('installing fetches, verifies, and reports the model as installed', { timeo
 	assert.equal(status.models[0]?.installedBytes, ENCODER.length + TOKENS.length);
 });
 
-test('a model with no mirrored artifacts cannot be installed', { timeout: 20_000 }, async (t) => {
+test('a model outside the authenticated catalog cannot be installed', { timeout: 20_000 }, async (t) => {
 	const service = await serviceIn(t);
 
-	await assert.rejects(service.install('spleeter'), /no mirrored artifacts/iu);
 	await assert.rejects(service.install('absent-model'), /not offered by this build/iu);
 });
 
@@ -151,7 +151,7 @@ test('installed artifacts resolve to store paths by role', { timeout: 20_000 }, 
 	assert.deepEqual(Object.keys(paths).sort(), ['encoder', 'tokens']);
 	assert.ok(paths.encoder?.includes(`sha256-${digest(ENCODER)}`), 'paths are content-addressed');
 
-	await assert.rejects(service.resolveModelPaths('spleeter'), /is not installed/iu);
+	await assert.rejects(service.resolveModelPaths('absent-model'), /is not installed/iu);
 });
 
 test('runtime path resolution rehashes installed artifacts', { timeout: 20_000 }, async (t) => {
@@ -194,10 +194,11 @@ test('a catalog that disagrees with the licensing register fails at construction
 		() => createAssistanceService({
 			userDataPath,
 			catalog: CATALOG,
-			evidenceIds: ['silero-vad-v6'],
+			licensingEvidence: [],
+			catalogSignatureOptions: TEST_LOCAL_MODEL_CATALOG_SIGNATURE_OPTIONS,
 			runtime: runtimeStub(true),
 		}),
-		/need a licensing evidence record/iu,
+		/needs exactly one licensing evidence record/iu,
 		'a build whose catalog and register disagree fails at startup',
 	);
 });
