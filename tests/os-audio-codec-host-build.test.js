@@ -56,6 +56,8 @@ test('the codec-only CMake and Node-API surfaces have no device or plug-in autho
 	assert.match(buildScript, /'result'/u);
 	assert.match(buildScript, /O_EXCL/u);
 	assert.match(buildScript, /Build result output is not one new regular file/u);
+	assert.match(buildScript, /JSON\.stringify\(value, null, 2\)/u,
+		'the build CLI must emit the same canonical JSON grammar consumed by desktop staging');
 	assert.equal(JSON.parse(packageJson).scripts['build:os-audio-codec-host'],
 		'node scripts/build-os-audio-codec-host.mjs');
 });

@@ -84,7 +84,7 @@ function exclusiveDirectory(path) {
 
 function writeExclusiveJson(path, value) {
 	canonicalDirectory(dirname(path), 'Build result parent');
-	const bytes = Buffer.from(`${JSON.stringify(value, null, '\t')}\n`);
+	const bytes = Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
 	if (bytes.byteLength > 64 * 1024) throw new Error('Build result exceeds its byte budget.');
 	const handle = openSync(path,
 		constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0),
