@@ -26,8 +26,8 @@ import {
 	createEditorProjectRuntimeV28Selection,
 } from '../src/framescaper/editor-project-runtime-v28-selection.ts';
 import {
-	SOUNDSCAPER_V29_PROJECT_STORAGE_PROFILE,
-} from '../src/soundscaper/editor-project-storage-profile-v29.ts';
+	SOUNDSCAPER_V30_PROJECT_STORAGE_PROFILE,
+} from '../src/soundscaper/editor-project-storage-profile-v30.ts';
 import {
 	editorProjectStorageProfileNames,
 } from '../src/common/editor/storage/project-storage-profile.ts';
@@ -50,7 +50,7 @@ test('packaged timing probe keeps startup margin outside its renderer deadlines'
 // the same staleness one level up: this check kept passing against the retired
 // V20 profile while packaged Framescaper had already moved to V28.
 test('packaged timing-probe storage profiles are the ones each product mounts', async () => {
-	const soundscaper = editorProjectStorageProfileNames(SOUNDSCAPER_V29_PROJECT_STORAGE_PROFILE);
+	const soundscaper = editorProjectStorageProfileNames(SOUNDSCAPER_V30_PROJECT_STORAGE_PROFILE);
 	const framescaper = editorProjectStorageProfileNames(createEditorProjectRuntimeV28Selection(
 		FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE,
 	).storageProfile);

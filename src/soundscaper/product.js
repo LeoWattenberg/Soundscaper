@@ -14,7 +14,7 @@ export const SOUNDSCAPER_PROFILE = {
 	applicationFeatures: {},
 	capabilities: {
 		...SHARED_CAPABILITIES,
-		assistanceAssets: false,
+		assistanceAssets: true,
 		audioRecording: true,
 		audioGenerators: true,
 		audioEffects: true,

@@ -71,7 +71,7 @@ test('current packaged lease qualification admits Soundscaper V11 and Framescape
 	assert.deepEqual([
 		JSON.parse(createDesktopProjectLibraryLeaseMatrixDocument('sound', 7, 'Sound', 'soundscaper')).schemaVersion,
 		JSON.parse(createDesktopProjectLibraryLeaseMatrixDocument('frame', 8, 'Frame', 'framescaper')).schemaVersion,
-	], [29, 28]);
+	], [30, 28]);
 });
 
 test('desktop preview CI runs both selected products on qualified x64 targets', async () => {

@@ -21,19 +21,19 @@ const assetLoader = `
 register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.url);
 
 const {
-	createSoundscaperWebEditorRuntimeV29,
-	default: SoundscaperAudioEditorBootstrapV29,
-} = await import('../src/soundscaper/ui/SoundscaperAudioEditorBootstrapV29.tsx');
+	createSoundscaperWebEditorRuntimeV30,
+	default: SoundscaperAudioEditorBootstrapV30,
+} = await import('../src/soundscaper/ui/SoundscaperAudioEditorBootstrapV30.tsx');
 
 const ROOT = new URL('../', import.meta.url);
 
-test('selected Soundscaper web runtime reaches exact V29 and its native action seam', async (context) => {
+test('selected Soundscaper web runtime reaches exact V30 and its native action seam', async (context) => {
 	installIndexedDB(context);
-	const runtime = await createSoundscaperWebEditorRuntimeV29({ locale: 'en', copy: {} });
+	const runtime = await createSoundscaperWebEditorRuntimeV30({ locale: 'en', copy: {} });
 	context.after(async () => { await runtime.dispose(); });
 	const ready = await runtime.controller.ready;
 	assert.equal(ready.phase, 'ready', JSON.stringify(ready.status));
-	assert.equal(ready.project.schemaVersion, 29);
+	assert.equal(ready.project.schemaVersion, 30);
 	assert.equal(ready.readOnly, false);
 	assert.equal(typeof runtime.controller.actions.nativePlugins.upsert, 'function');
 	assert.deepEqual(Object.keys(runtime), ['controller', 'fileService', 'dispose']);
@@ -44,20 +44,20 @@ test('selected Soundscaper web runtime reaches exact V29 and its native action s
 	assert.equal(runtime.controller.getSnapshot().phase, 'disposed');
 });
 
-test('Soundscaper V29 bootstrap accepts presentation only and stays surface-free while loading', async () => {
+test('Soundscaper V30 bootstrap accepts presentation only and stays surface-free while loading', async () => {
 	let getterCalls = 0;
 	const hostile = Object.defineProperty({ locale: 'en', copy: {} }, 'store', {
 		enumerable: true,
 		get() { getterCalls += 1; throw new Error('store getter'); },
 	});
 	await assert.rejects(
-		createSoundscaperWebEditorRuntimeV29(
+		createSoundscaperWebEditorRuntimeV30(
 			hostile as unknown as { locale: string; copy: Record<string, unknown> },
 		),
 		/unsupported|presentation/iu,
 	);
 	assert.equal(getterCalls, 0);
-	const markup = renderToStaticMarkup(<SoundscaperAudioEditorBootstrapV29
+	const markup = renderToStaticMarkup(<SoundscaperAudioEditorBootstrapV30
 		locale="en"
 		fallbackCopy={{ loading: 'Loading Soundscaper', genericError: 'Error: {message}' }}
 	/>);

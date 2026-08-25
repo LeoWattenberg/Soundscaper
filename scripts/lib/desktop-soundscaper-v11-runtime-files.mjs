@@ -38,6 +38,7 @@ export const DESKTOP_SOUNDSCAPER_V11_RUNTIME_FILES = Object.freeze([
 	'desktop/soundscaper-project-library-v11-publication-transport.js',
 	'desktop/soundscaper-project-library-v11-transfer-contract.js',
 	'desktop/soundscaper-project-library-v11-transfer-service.js',
+	'src/common/editor/assistance/assistance-asset-reference-v1.js',
 	'src/common/editor/engine/native-plugin-offline-admission.js',
 	'src/common/editor/native-plugin-effect.js',
 	'src/common/editor/native-plugin-realtime-node.js',
@@ -45,5 +46,7 @@ export const DESKTOP_SOUNDSCAPER_V11_RUNTIME_FILES = Object.freeze([
 	'src/soundscaper/editor-native-plugin-playback-v29.js',
 	'src/soundscaper/editor-native-plugin-state-v29.js',
 	'src/soundscaper/editor-project-feature-requirements-v29.js',
+	'src/soundscaper/editor-project-feature-requirements-v30.js',
 	'src/soundscaper/editor-project-v29-validation.js',
+	'src/soundscaper/editor-project-v30-validation.js',
 ]);

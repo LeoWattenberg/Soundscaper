@@ -3,8 +3,8 @@
 import { isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
 
 export const SOUNDSCAPER_DESKTOP_LIBRARY_SCHEMA_VERSION = 11 as const;
-export const SOUNDSCAPER_DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION = 29 as const;
-export const SOUNDSCAPER_DESKTOP_LIBRARY_STORAGE_DATABASE_NAME = 'kw-media-soundscaper-editor-v29';
+export const SOUNDSCAPER_DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION = 30 as const;
+export const SOUNDSCAPER_DESKTOP_LIBRARY_STORAGE_DATABASE_NAME = 'kw-media-soundscaper-editor-v30';
 export const SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_V11_APPLICATION_ID = 0x53534350;
 export const DESKTOP_PROJECT_LIBRARY_V11_APPLICATION_ID =
 	SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_V11_APPLICATION_ID;
@@ -46,7 +46,7 @@ export interface SoundscaperDesktopProjectLibraryV11Handshake {
 	readonly kind: 'soundscaper-project-library-handshake';
 	readonly version: 1;
 	readonly owner: 'soundscaper';
-	readonly projectSchemaVersion: 29;
+	readonly projectSchemaVersion: 30;
 	readonly scapeFormatVersions: readonly [1, 2];
 	readonly attachedScapeFormatVersion: 2;
 	readonly storageDatabaseName: typeof SOUNDSCAPER_DESKTOP_LIBRARY_STORAGE_DATABASE_NAME;

@@ -12,7 +12,7 @@ import {
 } from '../../desktop/project-library-lease-smoke.js';
 import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v28.ts';
 import { createFramescaperProjectV28 } from '../../src/framescaper/editor-project-v28.ts';
-import { createSoundscaperProjectV29 } from '../../src/soundscaper/editor-project-v29.ts';
+import { createSoundscaperProjectV30 } from '../../src/soundscaper/editor-project-v30.ts';
 import { packagedExecutableCandidates, resolveSmokeArchitecture } from './desktop-smoke.mjs';
 
 export const DESKTOP_PROJECT_LIBRARY_LEASE_MATRIX_PREFIX = 'SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_LEASE_MATRIX ';
@@ -512,7 +512,7 @@ export function createDesktopProjectLibraryLeaseMatrixDocument(
 		}));
 	}
 	if (productId !== 'soundscaper') throw new TypeError('Lease matrix document product is unsupported');
-	const base = createSoundscaperProjectV29({ id, title });
+	const base = createSoundscaperProjectV30({ id, title });
 	return JSON.stringify({ ...base, revision, metadata: { ...base.metadata, title } });
 }
 function deepFreeze(value) {
