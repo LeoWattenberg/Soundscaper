@@ -9,7 +9,10 @@ import type { VideoKeyframeVideoEncoderRequest } from '../src/common/editor/vide
 import type { VideoSourceTimingView } from '../src/common/editor/video-source-timing-view.ts';
 import { createFramescaperPlaybackProjectServiceV30 } from '../src/framescaper/editor-project-playback-v30.ts';
 import { FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v30.ts';
-import { createFramescaperProjectV30 } from '../src/framescaper/editor-project-v30.ts';
+import {
+	cloneFramescaperProjectV30,
+	createFramescaperProjectV30,
+} from '../src/framescaper/editor-project-v30.ts';
 import { createFramescaperVideoExportStrategyV30 } from '../src/framescaper/video-export-strategy-v30.ts';
 import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
 import { createFramescaperV30ImageFixture } from './helpers/framescaper-v30-image-fixture.ts';
@@ -93,6 +96,43 @@ test('selected V30 browser strategy renders authenticated timeline image frames'
 	assert.equal(hasVisibleChannel(rendered[0]!, 0), true, 'the first packed frame renders red');
 	assert.equal(hasVisibleChannel(rendered[1]!, 1), true, 'the second packed frame renders green');
 	assert.equal(hasVisibleChannel(rendered[1]!, 2), true, 'the second packed frame retains blue');
+});
+
+test('selected V30 image export honors the delivery canvas fit', async () => {
+	const fixture = createFramescaperV30ImageFixture({ imageOnly: true });
+	let rendered: Uint8Array<ArrayBuffer> | null = null;
+	const strategy = createFramescaperVideoExportStrategyV30(PROFILE, {
+		async encodeOffline() { throw new Error('image-only export must not use V20'); },
+		async encodeOfflineToSink() { throw new Error('sink path is not used'); },
+		async encodePicture(_editorFfmpeg: unknown, request: VideoKeyframeVideoEncoderRequest) {
+			const pixels = new Uint8Array(request.producer.byteLength);
+			await request.producer.produce(request.frameSource.frame(0), pixels, { signal: request.signal! });
+			rendered = pixels;
+			return encodedResult();
+		},
+	}, {
+		loadMediaAsset: () => Promise.resolve(imageBlob(fixture.bytes)),
+	});
+	const exportProject = strategy.createExportProject({
+		canonicalProject: fixture.project, delivery: delivery(fixture.project),
+	});
+	const plan = strategy.createPlan({
+		canonicalProject: fixture.project,
+		exportProject,
+		format: 'mp4',
+		range: 'project',
+		includeAudio: false,
+		canvas: { size: { width: 2, height: 4 }, fit: 'stretch' },
+	});
+	assert.ok(plan);
+	await strategy.encode(imageOnlyEncodeRequest(fixture.project, exportProject, plan));
+	assert.ok(rendered);
+	assert.deepEqual([...rendered], [
+		255, 0, 0, 255, 0, 0, 0, 255,
+		255, 0, 0, 255, 0, 0, 0, 255,
+		255, 0, 0, 255, 0, 0, 0, 255,
+		255, 0, 0, 255, 0, 0, 0, 255,
+	]);
 });
 
 test('selected V30 image export fails closed on changed frame-pack bytes', async () => {
@@ -195,6 +235,216 @@ test('selected V30 keyed export retains an image tail beyond inherited video', a
 	assert.equal(hasVisibleChannel(rendered, 2), true);
 });
 
+test('selected V30 keyed export composites image alpha in authored track order', async () => {
+	const fixture = createFramescaperV30ImageFixture({
+		firstFrameRgba: [255, 0, 0, 128, 0, 0, 0, 0],
+	});
+	const results = new Map<'above' | 'below', readonly number[]>();
+	for (const placement of ['above', 'below'] as const) {
+		const project = overlappingImageProject(fixture.project, placement);
+		const strategy = createFramescaperVideoExportStrategyV30(PROFILE, {
+			captureExactFrame: captureFramescaperExactExportTestFrame,
+			async encodeOffline(request) {
+				const pixels = new Uint8Array(request.canvas.width * request.canvas.height * 4);
+				await composeFramescaperExactExportTestFrame(request, {
+					index: 0,
+					timelineSample: 0,
+					timelinePosition: { num: 0, den: 1 },
+					layers: [{ trackId: 'video-track', clips: [{
+						clipId: 'video-clip', sourceId: 'video-source',
+						presentationDescriptor: { drawableSourceFrame: 0, outerCell: 0 },
+					}] }],
+				}, pixels, [0, 0, 255, 255]);
+				results.set(placement, [...pixels.subarray(0, 4)]);
+				return encodedResult();
+			},
+			async encodeOfflineToSink() { throw new Error('sink path is not used'); },
+		}, {
+			loadMediaAsset: () => Promise.resolve(imageBlob(fixture.bytes)),
+		});
+		const exportProject = strategy.createExportProject({
+			canonicalProject: project, delivery: delivery(project),
+		});
+		const plan = strategy.createPlan({
+			canonicalProject: project, exportProject, format: 'mp4', range: 'project',
+			includeAudio: false, canvas: { size: { width: 2, height: 2 }, fit: 'stretch' },
+		});
+		assert.ok(plan);
+		await strategy.encode({
+			...imageOnlyEncodeRequest(project, exportProject, plan),
+			timingViewsBySourceId: rawTiming(project),
+			videoBlobs: new Map([['video-source', new Blob(['video'])]]),
+		});
+	}
+	assert.deepEqual(results.get('above'), [180, 0, 180, 255]);
+	assert.deepEqual(results.get('below'), [0, 0, 255, 255]);
+});
+
+test('selected V30 image export keeps same-revision project authorities isolated', async () => {
+	const first = createFramescaperV30ImageFixture({ imageOnly: true, originalText: 'first image body' });
+	const second = createFramescaperV30ImageFixture({ imageOnly: true, originalText: 'second image body' });
+	let rendered: Uint8Array<ArrayBuffer> | null = null;
+	const strategy = createFramescaperVideoExportStrategyV30(PROFILE, {
+		async encodeOffline() { throw new Error('image-only export must not use V20'); },
+		async encodeOfflineToSink() { throw new Error('sink path is not used'); },
+		async encodePicture(_editorFfmpeg: unknown, request: VideoKeyframeVideoEncoderRequest) {
+			const pixels = new Uint8Array(request.producer.byteLength);
+			await request.producer.produce(request.frameSource.frame(0), pixels, { signal: request.signal! });
+			rendered = pixels;
+			return encodedResult();
+		},
+	}, {
+		loadMediaAsset: () => Promise.resolve(imageBlob(first.bytes)),
+	});
+	const firstExport = strategy.createExportProject({
+		canonicalProject: first.project, delivery: delivery(first.project),
+	});
+	const firstPlan = strategy.createPlan({
+		canonicalProject: first.project, exportProject: firstExport,
+		format: 'mp4', range: 'project', includeAudio: false,
+		canvas: { maximumWidth: 2, maximumHeight: 2 },
+	});
+	assert.ok(firstPlan);
+	strategy.createExportProject({
+		canonicalProject: second.project, delivery: delivery(second.project),
+	});
+	await strategy.encode(imageOnlyEncodeRequest(first.project, firstExport, firstPlan));
+	assert.ok(rendered);
+	assert.equal(hasVisibleChannel(rendered, 0), true);
+});
+
+test('selected V30 image export detects in-place image authority changes', () => {
+	const fixture = createFramescaperV30ImageFixture({ imageOnly: true });
+	const strategy = createFramescaperVideoExportStrategyV30(PROFILE);
+	const exportProject = strategy.createExportProject({
+		canonicalProject: fixture.project, delivery: delivery(fixture.project),
+	});
+	const source = fixture.project.sources.find(({ kind }) => kind === 'image');
+	assert.ok(source);
+	(source as unknown as Record<string, unknown>).contentSha256 = 'ab'.repeat(32);
+	assert.throws(() => strategy.createPlan({
+		canonicalProject: fixture.project,
+		exportProject,
+		format: 'mp4',
+		range: 'project',
+		includeAudio: false,
+		canvas: { maximumWidth: 2, maximumHeight: 2 },
+	}), /stale/iu);
+});
+
+test('selected V30 image export retains valid null-prototype project authority', () => {
+	const fixture = createFramescaperV30ImageFixture({ imageOnly: true });
+	const project = Object.assign(Object.create(null), fixture.project) as typeof fixture.project;
+	const strategy = createFramescaperVideoExportStrategyV30(PROFILE);
+	const exportProject = strategy.createExportProject({
+		canonicalProject: project, delivery: delivery(project),
+	});
+	assert.doesNotThrow(() => strategy.createPlan({
+		canonicalProject: project,
+		exportProject,
+		format: 'mp4',
+		range: 'project',
+		includeAudio: false,
+		canvas: { maximumWidth: 2, maximumHeight: 2 },
+	}));
+});
+
+test('selected V30 export does not open image bodies outside the exact range', async () => {
+	const fixture = createFramescaperV30ImageFixture();
+	const moved = structuredClone(fixture.project);
+	const imageClip = moved.clips.find(({ kind }) => kind === 'image');
+	assert.ok(imageClip);
+	(imageClip as unknown as Record<string, unknown>).sequenceStartFrame = 10;
+	const project = cloneFramescaperProjectV30(PROFILE, moved);
+	let encodeCalls = 0;
+	const strategy = createFramescaperVideoExportStrategyV30(PROFILE, {
+		captureExactFrame: captureFramescaperExactExportTestFrame,
+		async encodeOffline(request) {
+			encodeCalls += 1;
+			const pixels = new Uint8Array(request.canvas.width * request.canvas.height * 4);
+			await composeFramescaperExactExportTestFrame(request, {
+				index: 0,
+				timelineSample: 0,
+				timelinePosition: { num: 0, den: 1 },
+				layers: [{ clips: [{
+					clipId: 'video-clip', sourceId: 'video-source',
+					presentationDescriptor: { drawableSourceFrame: 0, outerCell: 0 },
+				}] }],
+			}, pixels, [0, 0, 0, 255]);
+			return encodedResult();
+		},
+		async encodeOfflineToSink() { throw new Error('sink path is not used'); },
+	});
+	const exportProject = strategy.createExportProject({
+		canonicalProject: project, delivery: delivery(project),
+	});
+	const plan = strategy.createPlan({
+		canonicalProject: project,
+		exportProject,
+		format: 'mp4',
+		range: { startFrame: 0, endFrame: 48_000 },
+		includeAudio: false,
+		canvas: { maximumWidth: 2, maximumHeight: 2 },
+	});
+	assert.ok(plan);
+	await strategy.encode({
+		canonicalProject: project,
+		exportProject,
+		plan,
+		timingBySourceId: new Map<string, never>(),
+		timingViewsBySourceId: rawTiming(project),
+		videoBlobs: new Map([['video-source', new Blob(['video'])]]),
+		audioMix: null,
+		editorFfmpeg: {},
+		webCodecs: null,
+		signal: new AbortController().signal,
+		assertCurrent() {},
+		maximumOutputBytes: 1_024,
+	});
+	assert.equal(encodeCalls, 1);
+});
+
+test('selected V30 export admits aggregate active image assets before reading storage', async () => {
+	const fixture = createFramescaperV30ImageFixture({ imageOnly: true });
+	const expanded = structuredClone(fixture.project);
+	const source = expanded.sources.find(({ kind }) => kind === 'image');
+	const clip = expanded.clips.find(({ kind }) => kind === 'image');
+	const track = expanded.tracks.find(({ type }) => type === 'video');
+	assert.ok(source && clip && track);
+	(source as unknown as Record<string, unknown>).assetByteLength = 300 * 1024 * 1024;
+	const secondSource = structuredClone(source) as unknown as Record<string, unknown>;
+	secondSource.id = 'image-source-2';
+	secondSource.storageKey = 'image-source-2';
+	const secondClip = structuredClone(clip) as unknown as Record<string, unknown>;
+	secondClip.id = 'image-clip-2';
+	secondClip.sourceId = 'image-source-2';
+	(expanded.sources as unknown as Record<string, unknown>[]).push(secondSource);
+	(expanded.clips as unknown as Record<string, unknown>[]).push(secondClip);
+	(track.clipIds as string[]).push('image-clip-2');
+	const project = cloneFramescaperProjectV30(PROFILE, expanded);
+	let reads = 0;
+	const strategy = createFramescaperVideoExportStrategyV30(PROFILE, {
+		async encodeOffline() { throw new Error('image-only export must not use V20'); },
+		async encodeOfflineToSink() { throw new Error('sink path is not used'); },
+		async encodePicture() { throw new Error('aggregate admission must precede encoding'); },
+	}, {
+		loadMediaAsset() { reads += 1; return Promise.resolve(imageBlob(fixture.bytes)); },
+	});
+	const exportProject = strategy.createExportProject({
+		canonicalProject: project, delivery: delivery(project),
+	});
+	const plan = strategy.createPlan({
+		canonicalProject: project, exportProject, format: 'mp4', range: 'project',
+		includeAudio: false, canvas: { maximumWidth: 2, maximumHeight: 2 },
+	});
+	assert.ok(plan);
+	await assert.rejects(
+		strategy.encode(imageOnlyEncodeRequest(project, exportProject, plan)),
+		/active image assets exceed their byte bound/iu,
+	);
+	assert.equal(reads, 0);
+});
+
 function generatorProject() {
 	const options = framescaperV20Options();
 	options.sources = [];
@@ -233,6 +483,38 @@ function generatorProject() {
 	});
 }
 
+function overlappingImageProject(
+	projectValue: ReturnType<typeof createFramescaperProjectV30>,
+	placement: 'above' | 'below',
+) {
+	const project = structuredClone(projectValue);
+	const videoTrack = project.tracks.find(({ id }) => id === 'video-track');
+	const sequence = project.sequences.find(({ id }) => id === project.primarySequenceId);
+	if (!videoTrack || !sequence) throw new Error('The overlap fixture lost its primary video lane.');
+	(videoTrack as unknown as Record<string, unknown>).clipIds = videoTrack.clipIds
+		.filter((id) => id !== 'image-clip-1');
+	const imageTrack = structuredClone(videoTrack) as unknown as Record<string, unknown>;
+	imageTrack.id = 'image-track';
+	imageTrack.name = 'Images';
+	imageTrack.clipIds = ['image-clip-1'];
+	const tracks = project.tracks as unknown as Record<string, unknown>[];
+	const projectVideoIndex = tracks.findIndex(({ id }) => id === 'video-track');
+	tracks.splice(placement === 'above' ? projectVideoIndex : projectVideoIndex + 1, 0, imageTrack);
+	const trackIds = sequence.trackIds.filter((id) => id !== 'image-track');
+	const videoIndex = trackIds.indexOf('video-track');
+	const insertionIndex = placement === 'above' ? videoIndex : videoIndex + 1;
+	trackIds.splice(insertionIndex, 0, 'image-track');
+	(sequence as unknown as Record<string, unknown>).trackIds = trackIds;
+	const trackNodes = structuredClone(
+		(sequence as unknown as Record<string, unknown>).trackNodes,
+	) as Record<string, unknown>[];
+	trackNodes.splice(insertionIndex, 0, {
+		kind: 'track', id: 'image-track', parentFolderId: null,
+	});
+	(sequence as unknown as Record<string, unknown>).trackNodes = trackNodes;
+	return cloneFramescaperProjectV30(PROFILE, project);
+}
+
 function delivery(project: ReturnType<typeof createFramescaperProjectV30>): ProductVideoExportDelivery {
 	return createFramescaperPlaybackProjectServiceV30(PROFILE)
 		.projectForVideoRenderedFallbackDelivery!(project) as ProductVideoExportDelivery;
@@ -263,6 +545,27 @@ function imageBlob(bytes: Uint8Array): Blob {
 	const owned = new Uint8Array(bytes.byteLength);
 	owned.set(bytes);
 	return new Blob([owned]);
+}
+
+function imageOnlyEncodeRequest(
+	project: ReturnType<typeof createFramescaperProjectV30>,
+	exportProject: Readonly<Record<string, unknown>>,
+	plan: NonNullable<ReturnType<ReturnType<typeof createFramescaperVideoExportStrategyV30>['createPlan']>>,
+) {
+	return {
+		canonicalProject: project,
+		exportProject,
+		plan,
+		timingBySourceId: new Map<string, never>(),
+		timingViewsBySourceId: new Map<string, VideoSourceTimingView>(),
+		videoBlobs: new Map<string, Blob>(),
+		audioMix: null,
+		editorFfmpeg: {},
+		webCodecs: null,
+		signal: new AbortController().signal,
+		assertCurrent() {},
+		maximumOutputBytes: 1_024,
+	};
 }
 
 function rawTiming(project: ReturnType<typeof createFramescaperProjectV30>): ReadonlyMap<string, VideoSourceTimingView> {

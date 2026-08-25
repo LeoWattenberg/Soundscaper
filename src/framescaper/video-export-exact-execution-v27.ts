@@ -38,6 +38,7 @@ export interface FramescaperVideoExportSupplementalPictureExecutionV27 {
 
 export type CreateFramescaperVideoExportSupplementalPictureExecutionV27 = (
 	options: Readonly<{
+		readonly canonicalProject: Readonly<Record<string, unknown>>;
 		readonly foundationPlan: UnifiedExactRenderPlanV13;
 		readonly signal: AbortSignal;
 		readonly assertCurrent: () => void;
@@ -91,15 +92,21 @@ export async function createFramescaperVideoExportExactExecutionV27(options: Rea
 		throw error;
 	}
 	let supplemental: FramescaperVideoExportSupplementalPictureExecutionV27 | null = null;
+	let supplementalCandidate: unknown = null;
 	try {
-		supplemental = await options.createSupplementalPictureExecution?.({
+		supplementalCandidate = await options.createSupplementalPictureExecution?.({
+			canonicalProject: options.request.canonicalProject,
 			foundationPlan: visual.exactPlan,
 			signal: options.request.signal,
 			assertCurrent: options.request.assertCurrent,
 		}) ?? null;
-		assertSupplementalExecution(supplemental);
+		assertSupplementalExecution(supplementalCandidate);
+		supplemental = supplementalCandidate;
 	} catch (error) {
 		const failures: unknown[] = [error];
+		try { await disposeSupplementalCandidate(supplementalCandidate); } catch (cleanupError) {
+			failures.push(cleanupError);
+		}
 		try { await exact.dispose(); } catch (cleanupError) { failures.push(cleanupError); }
 		try { await sourceFrames.dispose(); } catch (cleanupError) { failures.push(cleanupError); }
 		try { visual.dispose(); } catch (cleanupError) { failures.push(cleanupError); }
@@ -154,13 +161,22 @@ export async function createFramescaperVideoExportExactExecutionV27(options: Rea
 }
 
 function assertSupplementalExecution(
-	value: FramescaperVideoExportSupplementalPictureExecutionV27 | null,
-): void {
+	value: unknown,
+): asserts value is FramescaperVideoExportSupplementalPictureExecutionV27 | null {
 	if (value === null) return;
-	if (!value || typeof value !== 'object'
-		|| typeof value.resolve !== 'function' || typeof value.dispose !== 'function') {
+	if (!value || typeof value !== 'object') {
 		throw new TypeError('Selected V27 supplemental picture execution is invalid.');
 	}
+	const candidate = value as Readonly<Record<PropertyKey, unknown>>;
+	if (typeof candidate.resolve !== 'function' || typeof candidate.dispose !== 'function') {
+		throw new TypeError('Selected V27 supplemental picture execution is invalid.');
+	}
+}
+
+async function disposeSupplementalCandidate(value: unknown): Promise<void> {
+	if (!value || typeof value !== 'object') return;
+	const dispose = Reflect.get(value, 'dispose') as unknown;
+	if (typeof dispose === 'function') await Reflect.apply(dispose, value, []) as unknown;
 }
 
 function rawTiming(request: ProductVideoExportStrategyEncodeRequest) {

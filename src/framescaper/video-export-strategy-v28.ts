@@ -42,6 +42,7 @@ export function createFramescaperVideoExportStrategyV28(
 	createSupplementalPictureExecution?: CreateFramescaperVideoExportSupplementalPictureExecutionV27,
 ): ProductVideoExportStrategy {
 	const authorities = new Map<string, ExportAuthorityV28>();
+	const foundationAuthorities = new WeakMap<object, ExportAuthorityV28>();
 	const createOpenFxExecution = openFxExecute === undefined ? undefined
 		: ({ foundationPlan, timingViews }: Parameters<NonNullable<
 			Parameters<typeof createFramescaperVideoExportStrategyV27>[3]
@@ -53,16 +54,26 @@ export function createFramescaperVideoExportStrategyV28(
 				foundationPlan, timingViews, execute: openFxExecute,
 			});
 		};
+	const createSupplementalExecution = createSupplementalPictureExecution === undefined ? undefined
+		: (options: Parameters<CreateFramescaperVideoExportSupplementalPictureExecutionV27>[0]) => {
+			const authority = foundationAuthorities.get(options.canonicalProject);
+			if (!authority) throw new Error('Selected V28 supplemental export lost its exact project authority.');
+			return createSupplementalPictureExecution({
+				...options,
+				canonicalProject: authority.canonicalProject,
+			});
+		};
 	const delegate = createFramescaperVideoExportStrategyV27(
 		FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE, dependencies, assetStore, createOpenFxExecution,
-		createSupplementalPictureExecution,
+		createSupplementalExecution,
 	);
 	const exports = new WeakMap<object, ExportAuthorityV28>();
 	const plans = new WeakMap<object, ExportAuthorityV28>();
 	return Object.freeze({
 		createExportProject(request: ProductVideoExportProjectRequest) {
 			const authority = projectAuthority(profile, request.canonicalProject, openFxExecute !== undefined);
-			authorities.set(projectKey(authority.canonicalProject), authority);
+			if (openFxExecute !== undefined) authorities.set(projectKey(authority.canonicalProject), authority);
+			foundationAuthorities.set(authority.inheritedProject, authority);
 			const exportProject = delegate.createExportProject({
 				canonicalProject: authority.inheritedProject,
 				delivery: request.delivery,

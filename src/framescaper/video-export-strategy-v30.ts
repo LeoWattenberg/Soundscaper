@@ -2,7 +2,6 @@
 
 import type { FfmpegOutputSink } from '../common/editor/ffmpeg-output-stream.ts';
 import { resolveVideoExportRange } from '../common/editor/video-export.js';
-import type { AudioEditorProjectStore } from '../common/editor/storage.js';
 import {
 	normalizeFramescaperImageClipV1,
 	normalizeFramescaperImageSourceV1,
@@ -28,10 +27,11 @@ import {
 	type FramescaperProjectV28,
 } from './editor-project-v28.ts';
 import {
-	validateFramescaperProjectV30,
+	cloneFramescaperProjectV30,
 	type FramescaperProjectV30,
 } from './editor-project-v30.ts';
 import { createFramescaperVideoExportImageExecutionV30 } from './video-export-image-execution-v30.ts';
+import type { FramescaperStoredImageAssetStoreV30 } from './editor-selected-v30-image-frame-source.ts';
 import {
 	createFramescaperVideoExportStrategyV28,
 } from './video-export-strategy-v28.ts';
@@ -40,31 +40,37 @@ import type { FramescaperVideoExportVisualAssetStoreV27 } from './video-export-v
 
 interface ExportAuthorityV30 {
 	readonly canonicalProject: Readonly<Record<string, unknown>>;
+	readonly canonicalSnapshot: FramescaperProjectV30;
 	readonly inheritedProject: Readonly<Record<string, unknown>>;
 	readonly hasTimelineImages: boolean;
 }
+
+export type FramescaperVideoExportAssetStoreV30 = FramescaperVideoExportVisualAssetStoreV27
+	& FramescaperStoredImageAssetStoreV30;
 
 /** Retain V28 browser delivery and supplement it with authenticated V30 image pictures. */
 export function createFramescaperVideoExportStrategyV30(
 	profile: unknown,
 	dependencies?: FramescaperVideoExportStrategyV27Dependencies,
-	assetStore?: FramescaperVideoExportVisualAssetStoreV27,
+	assetStore?: FramescaperVideoExportAssetStoreV30,
 ): ProductVideoExportStrategy {
-	const authorities = new Map<string, ExportAuthorityV30>();
-	const createSupplementalPictureExecution = async ({ foundationPlan, signal, assertCurrent }: Readonly<{
+	const foundationAuthorities = new WeakMap<object, ExportAuthorityV30>();
+	const createSupplementalPictureExecution = async ({
+		canonicalProject, foundationPlan, signal, assertCurrent,
+	}: Readonly<{
+		readonly canonicalProject: Readonly<Record<string, unknown>>;
 		readonly foundationPlan: Parameters<typeof createFramescaperVideoExportImageExecutionV30>[0]['foundationPlan'];
 		readonly signal: AbortSignal;
 		readonly assertCurrent: () => void;
 	}>) => {
-		const authority = authorities.get(projectKey(foundationPlan.project));
+		const authority = foundationAuthorities.get(canonicalProject);
 		if (!authority) throw new Error('Selected V30 image export lost its exact project authority.');
 		if (!authority.hasTimelineImages) return null;
-		if (!assetStore) throw new Error('Selected V30 image export requires its authenticated asset store.');
 		return createFramescaperVideoExportImageExecutionV30({
 			profile,
-			project: authority.canonicalProject as unknown as FramescaperProjectV30,
+			project: authority.canonicalSnapshot,
 			foundationPlan,
-			store: assetStore as unknown as AudioEditorProjectStore,
+			store: assetStore,
 			signal,
 			assertCurrent,
 		});
@@ -78,7 +84,7 @@ export function createFramescaperVideoExportStrategyV30(
 	return Object.freeze({
 		createExportProject(request: ProductVideoExportProjectRequest) {
 			const authority = projectAuthority(profile, request.canonicalProject);
-			authorities.set(projectKey(authority.canonicalProject), authority);
+			foundationAuthorities.set(authority.inheritedProject, authority);
 			const exportProject = delegate.createExportProject({
 				canonicalProject: authority.inheritedProject,
 				delivery: request.delivery,
@@ -98,7 +104,7 @@ export function createFramescaperVideoExportStrategyV30(
 				...request,
 				canonicalProject: authority.inheritedProject,
 				...(authority.hasTimelineImages && request.range === 'project'
-					? { range: completeProjectRange(profile, request.canonicalProject) } : {}),
+					? { range: completeProjectRange(profile, authority.canonicalSnapshot) } : {}),
 			});
 			if (plan) plans.set(plan, authority);
 			return plan;
@@ -127,11 +133,13 @@ function projectAuthority(
 	profile: unknown,
 	project: Readonly<Record<string, unknown>>,
 ): ExportAuthorityV30 {
-	validateFramescaperProjectV30(profile, project);
-	const hasTimelineImages = records(project.clips, 'V30 export clips').some(({ kind }) => kind === 'image');
+	const canonicalSnapshot = cloneFramescaperProjectV30(profile, project);
+	const hasTimelineImages = records(canonicalSnapshot.clips, 'V30 export clips')
+		.some(({ kind }) => kind === 'image');
 	return Object.freeze({
 		canonicalProject: project,
-		inheritedProject: imageExportFoundation(project),
+		canonicalSnapshot,
+		inheritedProject: imageExportFoundation(canonicalSnapshot),
 		hasTimelineImages,
 	});
 }
@@ -148,8 +156,8 @@ function currentAuthority(
 	if (!authority || authority.canonicalProject !== request.canonicalProject) {
 		throw new TypeError('The browser export projection is not owned by this exact V30 project.');
 	}
-	const current = projectAuthority(profile, request.canonicalProject);
-	if (!sameProjectSnapshot(current.inheritedProject, authority.inheritedProject)) {
+	const currentSnapshot = cloneFramescaperProjectV30(profile, request.canonicalProject);
+	if (!sameProjectSnapshot(currentSnapshot, authority.canonicalSnapshot)) {
 		throw new Error('The selected V30 browser export projection is stale.');
 	}
 	return authority;
@@ -253,13 +261,6 @@ function completeProjectRange(
 		throw new RangeError('The V30 image export project range is invalid.');
 	}
 	return Object.freeze({ startFrame: range.startFrame, endFrame: range.endFrame });
-}
-
-function projectKey(value: Readonly<{ readonly id?: unknown; readonly revision?: unknown }>): string {
-	if (typeof value.id !== 'string' || !Number.isSafeInteger(value.revision)) {
-		throw new TypeError('Selected V30 image export project identity is invalid.');
-	}
-	return `${value.id}\0${String(value.revision)}`;
 }
 
 function rational(value: unknown, name: string): Readonly<{ readonly num: number; readonly den: number }> {
