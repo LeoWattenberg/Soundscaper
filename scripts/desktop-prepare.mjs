@@ -19,6 +19,11 @@ import { stageAssistanceNativeRuntimePayload } from '../desktop/assistance-nativ
 import { generateDesktopIcon } from './desktop-icons.mjs';
 import { stageDesktopBundledCodecNotices } from './lib/desktop-bundled-codec-notices.mjs';
 import {
+	prepareDesktopOsAudioCodecNativeRelease,
+	resolveDesktopOsAudioCodecNativeRequirement,
+	stageDesktopOsAudioCodecNativeRelease,
+} from './lib/desktop-os-audio-codec-native-staging.mjs';
+import {
 	compileDesktopProjectLibraryRuntime,
 	DESKTOP_RUNTIME_PACKAGE_IMPORTS,
 	stageDesktopApplicationSources,
@@ -104,6 +109,15 @@ async function main() {
 			targetSource: nativeTarget.source,
 		})
 		: null;
+	const osAudioCodecNativeRelease = PRODUCT_ID === 'soundscaper'
+		? await prepareDesktopOsAudioCodecNativeRelease({
+			buildResultPath: process.env.SOUNDSCAPER_OS_AUDIO_CODEC_BUILD_RESULT ?? null,
+			target: nativeTarget.id,
+			required: resolveDesktopOsAudioCodecNativeRequirement(
+				process.env.SOUNDSCAPER_REQUIRE_OS_AUDIO_CODEC_NATIVE,
+			),
+		})
+		: null;
 	await rm(BUILD_ROOT, { recursive: true, force: true });
 	await mkdir(BUILD_ROOT, { recursive: true });
 	const desktopRuntime = await compileDesktopProjectLibraryRuntime({
@@ -117,6 +131,12 @@ async function main() {
 		outputRoot: RUNTIME_ROOT,
 	});
 	const nativeAddons = await stageNativeAddons(nativeAddonRelease);
+	const osAudioCodecNative = osAudioCodecNativeRelease === null
+		? null
+		: await stageDesktopOsAudioCodecNativeRelease({
+			release: osAudioCodecNativeRelease,
+			runtimeRoot: RUNTIME_ROOT,
+		});
 	const soundscaperProfessionalNative = soundscaperProfessionalNativeRelease === null
 		? null
 		: await stageVerifiedSoundscaperProfessionalNativePayload({
@@ -150,6 +170,7 @@ async function main() {
 		desktopCodecPolicy: DESKTOP_CODEC_POLICY,
 		desktopNotices,
 		nativeAddons,
+		osAudioCodecNative,
 		soundscaperProfessionalNative,
 		framescaperNativeHosts,
 		translations,
