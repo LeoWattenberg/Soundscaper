@@ -19,6 +19,7 @@ import {
 } from './editor-project-runtime-profile-v31.ts';
 
 const LABEL = 'Framescaper F31 project';
+const MAXIMUM_INHERITED_CANONICALIZATION_PASSES = 8;
 
 /** Reconcile inherited F28 state first, then append F31's owned assistance requirement. */
 export function reconcileFramescaperProjectFeatureRequirementsV31(
@@ -29,11 +30,7 @@ export function reconcileFramescaperProjectFeatureRequirementsV31(
 	const candidate = record(project, LABEL);
 	const actual = normalizeManifest(candidate);
 	const common = reconcileProjectOwnedAssistanceRequirement(candidate, actual);
-	const foundation = framescaperProjectV28FoundationShapeV31({
-		...candidate,
-		featureRequirements: common,
-	});
-	const inherited = foundation.featureRequirements;
+	const inherited = canonicalInheritedRequirements(candidate, common);
 	const assistance = common.requirements.filter(({ id }) => (
 		id === PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.assistanceAssets
 	));
@@ -41,6 +38,23 @@ export function reconcileFramescaperProjectFeatureRequirementsV31(
 		schemaVersion: inherited.schemaVersion,
 		requirements: Object.freeze([...inherited.requirements, ...assistance]),
 	});
+}
+
+function canonicalInheritedRequirements(
+	project: Record<string, unknown>,
+	manifest: ProjectFeatureRequirementsManifest,
+): ProjectFeatureRequirementsManifest {
+	let inherited = framescaperProjectV28FoundationShapeV31({
+		...project, featureRequirements: manifest,
+	}).featureRequirements;
+	for (let pass = 0; pass < MAXIMUM_INHERITED_CANONICALIZATION_PASSES; pass += 1) {
+		const next = framescaperProjectV28FoundationShapeV31({
+			...project, featureRequirements: inherited,
+		}).featureRequirements;
+		if (JSON.stringify(next) === JSON.stringify(inherited)) return inherited;
+		inherited = next;
+	}
+	throw new Error(`${LABEL} inherited feature requirements did not converge.`);
 }
 
 export function validateFramescaperProjectFeatureRequirementsV31(
