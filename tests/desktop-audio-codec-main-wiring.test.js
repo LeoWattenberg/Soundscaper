@@ -21,6 +21,7 @@ test('desktop main registers codec IPC after preferences and joins owner and shu
 	assert.match(registrationSource, /import\('\.\/project-library-runtime\/desktop\/desktop-audio-codec-main-ipc\.js'\)/u);
 	assert.match(registrationSource, /import\('\.\/project-library-runtime\/desktop\/bundled-audio-codec-runtime\.js'\)/u);
 	assert.match(registrationSource, /import\('\.\/project-library-runtime\/desktop\/bundled-flac-audio-codec-runtime\.js'\)/u);
+	assert.match(registrationSource, /import\('\.\/project-library-runtime\/desktop\/bundled-twolame-audio-codec-runtime\.js'\)/u);
 	assert.match(registrationSource, /import\('\.\/project-library-runtime\/desktop\/bundled-wavpack-audio-codec-runtime\.js'\)/u);
 	assert.match(registrationSource, /import\('\.\/project-library-runtime\/desktop\/os-audio-codec-runtime\.js'\)/u);
 	assert.match(registrationSource, /import\('\.\/os-audio-codec-electron-spawn\.mjs'\)/u);

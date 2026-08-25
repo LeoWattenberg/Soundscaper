@@ -97,6 +97,7 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	for (const name of [
 		'bundled-audio-codec-runtime.js',
 		'bundled-flac-audio-codec-runtime.js', 'bundled-flac-stream.js',
+		'bundled-twolame-audio-codec-runtime.js',
 		'bundled-wavpack-audio-codec-runtime.js', 'bundled-wavpack-stream.js',
 		'desktop-audio-codec-broker.js', 'desktop-audio-codec-main-ipc.js',
 		'desktop-audio-codec-operation-contract.js', 'desktop-audio-codec-runtime-composition.js',
@@ -112,6 +113,9 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	]) await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor', name));
 	await access(join(
 		applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/flac/flac.wasm',
+	));
+	await access(join(
+		applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/twolame/twolame.wasm',
 	));
 	await access(join(
 		applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/wavpack/wavpack.wasm',

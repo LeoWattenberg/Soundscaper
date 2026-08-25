@@ -44,6 +44,7 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 	const flacLoads = [];
 	const mpg123Loads = [];
 	const opusLoads = [];
+	const twolameLoads = [];
 	const vorbisLoads = [];
 	const operatingSystemLoads = [];
 	const payloadLocations = [];
@@ -56,6 +57,7 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 	const flacRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
 	const mpg123Runtime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
 	const opusRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
+	const twolameRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
 	const vorbisRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
 	const compositeRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
 	const operatingSystemRuntime = Object.freeze({
@@ -91,6 +93,11 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 				mpg123Loads.push(options);
 				await Promise.resolve();
 				return mpg123Runtime;
+			},
+			async loadBundledTwolameAudioCodecRuntime(options) {
+				twolameLoads.push(options);
+				await Promise.resolve();
+				return twolameRuntime;
 			},
 			async loadBundledVorbisAudioCodecRuntime(options) {
 				vorbisLoads.push(options);
@@ -140,10 +147,11 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 	assert.deepEqual(flacLoads, [{ target: 'mac-arm64' }]);
 	assert.deepEqual(opusLoads, [{ target: 'mac-arm64' }]);
 	assert.deepEqual(mpg123Loads, [{ target: 'mac-arm64' }]);
+	assert.deepEqual(twolameLoads, [{ target: 'mac-arm64' }]);
 	assert.deepEqual(vorbisLoads, [{ target: 'mac-arm64' }]);
 	assert.deepEqual(bundledCompositions, [{
 		target: 'mac-arm64', runtimes: [
-			bundledRuntime, flacRuntime, opusRuntime, mpg123Runtime, vorbisRuntime,
+			bundledRuntime, flacRuntime, opusRuntime, mpg123Runtime, twolameRuntime, vorbisRuntime,
 		],
 	}]);
 	assert.deepEqual(payloadLocations, [{
@@ -208,6 +216,10 @@ test('registration fails closed without any admitted bundled runtime', async () 
 				return null;
 			},
 			loadBundledMpg123AudioCodecRuntime: async ({ target }) => {
+				assert.equal(target, 'win-arm64');
+				return null;
+			},
+			loadBundledTwolameAudioCodecRuntime: async ({ target }) => {
 				assert.equal(target, 'win-arm64');
 				return null;
 			},

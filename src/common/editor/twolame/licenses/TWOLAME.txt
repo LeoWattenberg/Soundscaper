@@ -1,0 +1,15 @@
+TwoLAME: an optimized MPEG Audio Layer Two encoder
+
+Copyright (C) 2001-2004 Michael Cheng
+Copyright (C) 2004-2018 The TwoLAME Project
+
+This library is free software; you can redistribute it and/or modify it under
+the terms of the GNU Lesser General Public License as published by the Free
+Software Foundation; either version 2.1 of the License, or (at your option) any
+later version.
+
+This library is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
+details. The complete upstream COPYING file is included in the exact source
+archive fetched and verified by scripts/build-twolame-wasm.mjs.

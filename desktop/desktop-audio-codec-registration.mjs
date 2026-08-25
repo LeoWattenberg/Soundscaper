@@ -17,7 +17,7 @@ const MODULE_METHODS = Object.freeze([
 	'createOperatingSystemAudioCodecElectronSpawn', 'createSoundscaperProfessionalNativeVerifier',
 	'loadBundledFlacAudioCodecRuntime', 'loadBundledOpusAudioCodecRuntime',
 	'loadBundledMpg123AudioCodecRuntime', 'loadBundledVorbisAudioCodecRuntime',
-	'loadBundledWavPackAudioCodecRuntime',
+	'loadBundledTwolameAudioCodecRuntime', 'loadBundledWavPackAudioCodecRuntime',
 	'loadOperatingSystemAudioCodecRuntime',
 	'registerDesktopAudioCodecMainIpc',
 ]);
@@ -45,6 +45,7 @@ export async function registerDesktopAudioCodecs(options) {
 		modules.loadBundledFlacAudioCodecRuntime({ target }),
 		modules.loadBundledOpusAudioCodecRuntime({ target }),
 		modules.loadBundledMpg123AudioCodecRuntime({ target }),
+		modules.loadBundledTwolameAudioCodecRuntime({ target }),
 		modules.loadBundledVorbisAudioCodecRuntime({ target }),
 	])).filter((runtime) => runtime !== null);
 	const bundledRuntime = reviewedRuntimes.length === 0
@@ -93,7 +94,7 @@ export async function registerDesktopAudioCodecs(options) {
 }
 
 async function loadRuntimeModules() {
-	const [bundled, composition, electronSpawn, flac, ipc, mpg123, operatingSystem, opus, professional, vorbis, wavPack]
+	const [bundled, composition, electronSpawn, flac, ipc, mpg123, operatingSystem, opus, professional, twolame, vorbis, wavPack]
 		= await Promise.all([
 		import('./project-library-runtime/desktop/bundled-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/desktop-audio-codec-runtime-composition.js'),
@@ -104,6 +105,7 @@ async function loadRuntimeModules() {
 		import('./project-library-runtime/desktop/os-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/bundled-opus-audio-codec-runtime.js'),
 		import('./soundscaper-professional-native-payload.mjs'),
+		import('./project-library-runtime/desktop/bundled-twolame-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/bundled-vorbis-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/bundled-wavpack-audio-codec-runtime.js'),
 	]);
@@ -115,6 +117,7 @@ async function loadRuntimeModules() {
 		loadBundledFlacAudioCodecRuntime: flac.loadBundledFlacAudioCodecRuntime,
 		loadBundledMpg123AudioCodecRuntime: mpg123.loadBundledMpg123AudioCodecRuntime,
 		loadBundledOpusAudioCodecRuntime: opus.loadBundledOpusAudioCodecRuntime,
+		loadBundledTwolameAudioCodecRuntime: twolame.loadBundledTwolameAudioCodecRuntime,
 		loadBundledVorbisAudioCodecRuntime: vorbis.loadBundledVorbisAudioCodecRuntime,
 		loadBundledWavPackAudioCodecRuntime: wavPack.loadBundledWavPackAudioCodecRuntime,
 		loadOperatingSystemAudioCodecRuntime: operatingSystem.loadOperatingSystemAudioCodecRuntime,

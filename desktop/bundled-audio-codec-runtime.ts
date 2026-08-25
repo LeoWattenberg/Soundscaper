@@ -109,6 +109,7 @@ function compositeProvider(
 		...(implementations.some((value) => value.includes('libflac')) ? ['libflac'] : []),
 		...(implementations.some((value) => value.includes('libmpg123')) ? ['mpg123'] : []),
 		...(implementations.some((value) => value.includes('libopus')) ? ['libopus-libogg'] : []),
+		...(implementations.some((value) => value.includes('twolame')) ? ['twolame'] : []),
 		...(implementations.some((value) => value.includes('libvorbis')) ? ['libvorbis-libogg'] : []),
 		...(implementations.some((value) => value.includes('wavpack')) ? ['wavpack'] : []),
 	];

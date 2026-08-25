@@ -7,6 +7,7 @@ import { createBundledDesktopAudioCodecRuntime } from '../desktop/bundled-audio-
 import { loadBundledFlacAudioCodecRuntime } from '../desktop/bundled-flac-audio-codec-runtime.ts';
 import { loadBundledMpg123AudioCodecRuntime } from '../desktop/bundled-mpg123-audio-codec-runtime.ts';
 import { loadBundledOpusAudioCodecRuntime } from '../desktop/bundled-opus-audio-codec-runtime.ts';
+import { loadBundledTwolameAudioCodecRuntime } from '../desktop/bundled-twolame-audio-codec-runtime.ts';
 import { loadBundledVorbisAudioCodecRuntime } from '../desktop/bundled-vorbis-audio-codec-runtime.ts';
 import { loadBundledWavPackAudioCodecRuntime } from '../desktop/bundled-wavpack-audio-codec-runtime.ts';
 import {
@@ -26,21 +27,24 @@ test('the composite exposes one bundled tier and delegates every reviewed audio 
 	const flac = await loadBundledFlacAudioCodecRuntime({ target: 'linux-x64' });
 	const mpg123 = await loadBundledMpg123AudioCodecRuntime({ target: 'linux-x64' });
 	const opus = await loadBundledOpusAudioCodecRuntime({ target: 'linux-x64' });
+	const twolame = await loadBundledTwolameAudioCodecRuntime({ target: 'linux-x64' });
 	const wavpack = await loadBundledWavPackAudioCodecRuntime({ target: 'linux-x64' });
 	const vorbis = await loadBundledVorbisAudioCodecRuntime({ target: 'linux-x64' });
 	assert.ok(flac);
 	assert.ok(mpg123);
 	assert.ok(opus);
+	assert.ok(twolame);
 	assert.ok(wavpack);
 	assert.ok(vorbis);
 	const runtime = createBundledDesktopAudioCodecRuntime({
-		target: 'linux-x64', runtimes: [wavpack, flac, opus, mpg123, vorbis],
+		target: 'linux-x64', runtimes: [wavpack, flac, opus, mpg123, vorbis, twolame],
 	});
 	assert.equal(runtime.provider.kind, 'bundled');
 	assert.equal(runtime.provider.implementation, 'soundscaper-reviewed-audio-codecs');
 	assert.match(runtime.provider.capabilityGeneration, /libflac/u);
 	assert.match(runtime.provider.capabilityGeneration, /mpg123/u);
 	assert.match(runtime.provider.capabilityGeneration, /libopus-libogg/u);
+	assert.match(runtime.provider.capabilityGeneration, /twolame/u);
 	assert.match(runtime.provider.capabilityGeneration, /libvorbis-libogg/u);
 	assert.match(runtime.provider.capabilityGeneration, /wavpack/u);
 
@@ -91,6 +95,16 @@ test('the composite exposes one bundled tier and delegates every reviewed audio 
 	}) as { readonly status: string; readonly output?: Uint8Array };
 	assert.equal(vorbisResult.status, 'executed');
 	assert.equal(Buffer.from(vorbisResult.output?.subarray(0, 4) ?? []).toString('ascii'), 'OggS');
+	const mp2EncodeRequest: DesktopAudioCodecRequest = {
+		operation: 'audio-encode', format: 'mp2', input: opusRequest.input,
+		sampleRate: 48_000, channelCount: 2,
+		settings: { bitrateKbps: 192 }, maximumOutputBytes: 64 * 1024,
+	};
+	const mp2EncodeResult = await runtime.execute(mp2EncodeRequest, {
+		operation: deriveDesktopAudioCodecOperation(mp2EncodeRequest),
+	}) as { readonly status: string; readonly output?: Uint8Array };
+	assert.equal(mp2EncodeResult.status, 'executed');
+	assert.equal(mp2EncodeResult.output?.[0], 0xff);
 	const mp2Request: DesktopAudioCodecRequest = {
 		operation: 'audio-decode', format: 'mp2',
 		input: testMpegAudioStream({ layer: 2, sampleRate: 48_000, channelCount: 2 }),
@@ -114,15 +128,17 @@ test('broker receipts attribute bundled encode and decode to each concrete revie
 	const flac = await loadBundledFlacAudioCodecRuntime({ target: 'linux-x64' });
 	const mpg123 = await loadBundledMpg123AudioCodecRuntime({ target: 'linux-x64' });
 	const opus = await loadBundledOpusAudioCodecRuntime({ target: 'linux-x64' });
+	const twolame = await loadBundledTwolameAudioCodecRuntime({ target: 'linux-x64' });
 	const wavpack = await loadBundledWavPackAudioCodecRuntime({ target: 'linux-x64' });
 	const vorbis = await loadBundledVorbisAudioCodecRuntime({ target: 'linux-x64' });
 	assert.ok(flac);
 	assert.ok(mpg123);
 	assert.ok(opus);
+	assert.ok(twolame);
 	assert.ok(wavpack);
 	assert.ok(vorbis);
 	const bundled = createBundledDesktopAudioCodecRuntime({
-		target: 'linux-x64', runtimes: [wavpack, flac, opus, mpg123, vorbis],
+		target: 'linux-x64', runtimes: [wavpack, flac, opus, mpg123, vorbis, twolame],
 	});
 	const broker = createDesktopAudioCodecBroker({ runtimes: [
 		bundled, unreachableRuntime('operating-system'), unreachableRuntime('external-ffmpeg'),
@@ -176,6 +192,27 @@ test('broker receipts attribute bundled encode and decode to each concrete revie
 		assertConcreteReceipt(decoded.receipt, mpg123.provider);
 		assert.equal(decoded.result.operation, 'audio-decode');
 	}
+	const twolamePcm = stereoSinePcm(4_608, 48_000);
+	const mp2Encoded = await broker.execute({
+		operation: 'audio-encode', format: 'mp2', input: twolamePcm,
+		sampleRate: 48_000, channelCount: 2, settings: { bitrateKbps: 192 },
+		maximumOutputBytes: 256 * 1024,
+	});
+	assertConcreteReceipt(mp2Encoded.receipt, twolame.provider);
+	assert.equal(mp2Encoded.result.operation, 'audio-encode');
+	const mp2Decoded = await broker.execute({
+		operation: 'audio-decode', format: 'mp2', input: mp2Encoded.result.bytes,
+		sampleRate: null, channelCount: null, settings: { sampleFormat: 'f32le' },
+		maximumOutputBytes: 256 * 1024,
+	});
+	assertConcreteReceipt(mp2Decoded.receipt, mpg123.provider);
+	assert.equal(mp2Decoded.result.operation, 'audio-decode');
+	assert.deepEqual(mp2Decoded.result.metadata, {
+		kind: 'decoded-audio', sourceFormat: 'mp2', sampleFormat: 'f32le',
+		interleaving: 'interleaved', sampleRate: 48_000, channelCount: 2, frameCount: 4_608,
+	});
+	assert.ok(bestAlignedSnr(twolamePcm, mp2Decoded.result.bytes, 2, 1_024) > 20,
+		'TwoLAME -> mpg123 should preserve a modest aligned signal-to-noise ratio');
 });
 
 test('the composite remains fail closed for an empty or wrong-tier runtime list', () => {
@@ -207,4 +244,43 @@ function assertConcreteReceipt(
 		implementation: provider.implementation, version: provider.version,
 	});
 	assert.equal(receipt.capabilityGeneration, provider.capabilityGeneration);
+}
+
+function stereoSinePcm(frameCount: number, sampleRate: number): Uint8Array {
+	const values = new Float32Array(frameCount * 2);
+	for (let frame = 0; frame < frameCount; frame++) {
+		values[frame * 2] = Math.sin(2 * Math.PI * 440 * frame / sampleRate) * 0.35;
+		values[frame * 2 + 1] = Math.sin(2 * Math.PI * 660 * frame / sampleRate) * 0.25;
+	}
+	return new Uint8Array(values.buffer);
+}
+
+function bestAlignedSnr(
+	expectedBytes: Uint8Array,
+	actualBytes: Uint8Array,
+	channelCount: number,
+	maximumLag: number,
+): number {
+	const expected = new Float32Array(
+		expectedBytes.buffer, expectedBytes.byteOffset, expectedBytes.byteLength / Float32Array.BYTES_PER_ELEMENT,
+	);
+	const actual = new Float32Array(
+		actualBytes.buffer, actualBytes.byteOffset, actualBytes.byteLength / Float32Array.BYTES_PER_ELEMENT,
+	);
+	const frameCount = expected.length / channelCount;
+	let best = Number.NEGATIVE_INFINITY;
+	for (let lag = 0; lag <= maximumLag; lag++) {
+		let signal = 0;
+		let error = 0;
+		for (let frame = maximumLag; frame + lag < frameCount; frame++) {
+			for (let channel = 0; channel < channelCount; channel++) {
+				const source = expected[frame * channelCount + channel]!;
+				const decoded = actual[(frame + lag) * channelCount + channel]!;
+				signal += source * source;
+				error += (source - decoded) ** 2;
+			}
+		}
+		best = Math.max(best, 10 * Math.log10(signal / error));
+	}
+	return best;
 }

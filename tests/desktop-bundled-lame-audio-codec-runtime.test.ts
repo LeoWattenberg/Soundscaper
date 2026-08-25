@@ -210,7 +210,9 @@ function encodeRequest(options: Readonly<{
 	readonly frameCount: number;
 	readonly input?: Uint8Array;
 	readonly maximumOutputBytes?: number;
-}>): DesktopAudioCodecRequest {
+}>): Extract<DesktopAudioCodecRequest, {
+	readonly operation: 'audio-encode'; readonly format: 'mp3';
+}> {
 	return Object.freeze({
 		operation: 'audio-encode', format: 'mp3',
 		input: options.input ?? sinePcm(options.frameCount, options.channelCount, options.sampleRate),
