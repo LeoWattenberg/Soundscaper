@@ -108,8 +108,10 @@ test('CI orchestration keeps all inputs and outputs in RUNNER_TEMP and publishes
 			assert.equal(arguments_.some((value) => value.startsWith('--macos-sdk=')), false);
 			return writeFile(plan.resultPath, '{}\n', { flag: 'wx' });
 		},
-		async verifyResult({ resultPath, target }) {
+		async verifyResult({ resultPath, repositoryRoot, signingIdentity, target }) {
 			calls.push('verify');
+			assert.equal(repositoryRoot, ROOT);
+			assert.equal(signingIdentity, undefined);
 			assert.equal(target, 'win-arm64');
 			assert.equal(String(await readFile(resultPath)), '{}\n');
 		},
@@ -147,7 +149,11 @@ test('macOS CI binds the canonical SDK and ad-hoc signing before publishing the 
 			buildArguments = arguments_;
 			await writeFile(plan.resultPath, '{}\n', { flag: 'wx' });
 		},
-		verifyResult: async () => {},
+		verifyResult: async ({ repositoryRoot, signingIdentity, target }) => {
+			assert.equal(repositoryRoot, ROOT);
+			assert.equal(signingIdentity, '-');
+			assert.equal(target, 'mac-arm64');
+		},
 	});
 	assert.ok(buildArguments);
 	assert.equal(buildArguments.includes(`--macos-sdk=${sdkPath}`), true);

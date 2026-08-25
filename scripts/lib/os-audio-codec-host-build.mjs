@@ -52,6 +52,62 @@ const MAXIMUM_TOOLCHAIN_BYTES = 4 * 1024;
 const MAXIMUM_STEP_OUTPUT_BYTES = 8 * 1024 * 1024;
 const MAXIMUM_SIGNING_IDENTITY_BYTES = 512;
 const AUTHENTICATED_PLANS = new WeakSet();
+const TRUSTED_POLICIES = new WeakSet();
+
+export function deriveOsAudioCodecHostPolicyIdentity(options) {
+	const target = targetValue(options?.target);
+	const signing = signingValue(target, options?.signingIdentity);
+	const repositoryRoot = canonicalDirectory(options?.repositoryRoot, 'Repository root');
+	const register = readMilestone5NativeSourceAcquisitions(
+		repositoryRoot, options?.sourceManifestPath,
+	);
+	const headerSource = requireMilestone5NativeSource(register, HEADER_SOURCE_ID);
+	validateHeaderSource(headerSource);
+	const electronHeaders = electronHeaderIdentity(headerSource, {
+		archive: headerSource.archive,
+		extractedTree: headerSource.extractedTree,
+	});
+	const sourceIdentity = sourceClosureIdentity(repositoryRoot);
+	const buildPlan = buildPlanIdentity({
+		target,
+		electronHeaders,
+		sourceIdentity,
+		signing: signing.identity,
+		portable: portableCommands(target, signing.identity.mode),
+	});
+	const policy = deepFreeze({
+		target,
+		electronHeaders,
+		sourceIdentity,
+		sourceRevision: sourceIdentity.sha256,
+		buildPlan,
+		buildPlanSha256: buildPlan.sha256,
+		signing: signing.identity,
+	});
+	TRUSTED_POLICIES.add(policy);
+	return policy;
+}
+
+export function assertOsAudioCodecHostBuildMatchesPolicy(build, policy) {
+	assert(policy && typeof policy === 'object' && TRUSTED_POLICIES.has(policy),
+		'OS audio codec build verification requires trusted checkout policy.');
+	if (!sameJson(build?.electronHeaders, policy.electronHeaders)) {
+		throw new TypeError('The OS audio codec Electron headers do not match trusted checkout policy.');
+	}
+	if (!sameJson(build?.sourceIdentity, policy.sourceIdentity)
+		|| build?.sourceRevision !== policy.sourceRevision) {
+		throw new TypeError('The OS audio codec source identity does not match trusted checkout policy.');
+	}
+	if (!sameJson(build?.buildPlan, policy.buildPlan)
+		|| build?.buildPlanSha256 !== policy.buildPlanSha256) {
+		throw new TypeError('The OS audio codec build plan does not match trusted checkout policy.');
+	}
+	if (build?.signing?.mode !== policy.signing.mode
+		|| build?.signing?.identitySha256 !== policy.signing.identitySha256) {
+		throw new TypeError('The OS audio codec signing identity does not match trusted checkout policy.');
+	}
+	return policy;
+}
 
 export function createOsAudioCodecHostBuildPlan(options) {
 	const target = targetValue(options?.target);
@@ -98,19 +154,12 @@ export function createOsAudioCodecHostBuildPlan(options) {
 		: command('codesign', materialize(portable.sign, replacements));
 	const signatureVerification = portable.signatureVerification === null ? null
 		: command('codesign', materialize(portable.signatureVerification, replacements));
-	const buildPlan = deepFreeze({
-		algorithm: BUILD_PLAN_ALGORITHM,
-		sha256: sha256(Buffer.from(JSON.stringify({
-			schemaVersion: 1, target, napiVersion: 8, artifactName: ARTIFACT_NAME,
-			electronHeaders: headerIdentity, sourceIdentity, signing: signing.identity,
-			configure: { command: 'cmake', argv: portable.configure },
-			build: { command: 'cmake', argv: portable.build },
-			nativeCanary: { command: 'ctest', argv: portable.nativeCanary },
-			install: { command: 'cmake', argv: portable.install },
-			sign: portable.sign === null ? null : { command: 'codesign', argv: portable.sign },
-			signatureVerification: portable.signatureVerification === null ? null
-				: { command: 'codesign', argv: portable.signatureVerification },
-		}))),
+	const buildPlan = buildPlanIdentity({
+		target,
+		electronHeaders: headerIdentity,
+		sourceIdentity,
+		signing: signing.identity,
+		portable,
 	});
 	const plan = deepFreeze({
 		schemaVersion: 1, target, repositoryRoot, sourceRoot, buildRoot, installRoot,
@@ -121,6 +170,23 @@ export function createOsAudioCodecHostBuildPlan(options) {
 	});
 	AUTHENTICATED_PLANS.add(plan);
 	return plan;
+}
+
+function buildPlanIdentity({ target, electronHeaders, sourceIdentity, signing, portable }) {
+	return deepFreeze({
+		algorithm: BUILD_PLAN_ALGORITHM,
+		sha256: sha256(Buffer.from(JSON.stringify({
+			schemaVersion: 1, target, napiVersion: 8, artifactName: ARTIFACT_NAME,
+			electronHeaders, sourceIdentity, signing,
+			configure: { command: 'cmake', argv: portable.configure },
+			build: { command: 'cmake', argv: portable.build },
+			nativeCanary: { command: 'ctest', argv: portable.nativeCanary },
+			install: { command: 'cmake', argv: portable.install },
+			sign: portable.sign === null ? null : { command: 'codesign', argv: portable.sign },
+			signatureVerification: portable.signatureVerification === null ? null
+				: { command: 'codesign', argv: portable.signatureVerification },
+		}))),
+	});
 }
 
 export function osAudioCodecHostBuildPlanIdentity(plan) {
@@ -422,6 +488,10 @@ function stepFailure(value) {
 function equalIdentity(left, right) {
 	return left.algorithm === right.algorithm && left.fileCount === right.fileCount
 		&& left.sha256 === right.sha256;
+}
+
+function sameJson(left, right) {
+	return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function sha256(bytes) {

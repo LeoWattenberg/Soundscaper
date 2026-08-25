@@ -6,7 +6,7 @@ import {
 	chmod, mkdir, mkdtemp, rm, writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 
 import { verifyPackagedOsAudioCodecNativeResources } from '../scripts/desktop-after-pack.mjs';
@@ -14,6 +14,7 @@ import { verifyStagedOsAudioCodecNativeBeforePack } from '../scripts/desktop-bef
 import {
 	stageDesktopOsAudioCodecNativeRelease,
 } from '../scripts/lib/desktop-os-audio-codec-native-staging.mjs';
+import { deriveOsAudioCodecHostPolicyIdentity } from '../scripts/lib/os-audio-codec-host-build.mjs';
 import {
 	OS_AUDIO_CODEC_NATIVE_PAYLOAD_NAME,
 	OS_AUDIO_CODEC_NATIVE_RUNTIME_PREFIX,
@@ -21,11 +22,13 @@ import {
 } from '../scripts/lib/os-audio-codec-native-payload.mjs';
 
 const TARGET = 'win-x64';
+const ROOT = resolve(import.meta.dirname, '..');
 
 test('beforePack authenticates the exact built codec-only subtree and its stage evidence', async (context) => {
 	const fixture = await stagedTree(context);
 	assert.deepEqual(await verifyStagedOsAudioCodecNativeBeforePack({
 		repositoryRoot: fixture.root,
+		policyRepositoryRoot: ROOT,
 		stageManifestPath: fixture.stageManifestPath,
 		packagedTarget: TARGET,
 	}), fixture.summary);
@@ -35,6 +38,7 @@ test('beforePack authenticates the exact built codec-only subtree and its stage 
 	await writeJson(fixture.stageManifestPath, changedSummary);
 	await assert.rejects(() => verifyStagedOsAudioCodecNativeBeforePack({
 		repositoryRoot: fixture.root,
+		policyRepositoryRoot: ROOT,
 		stageManifestPath: fixture.stageManifestPath,
 		packagedTarget: TARGET,
 	}), /stage manifest.*OS audio codec.*evidence/iu);
@@ -43,6 +47,7 @@ test('beforePack authenticates the exact built codec-only subtree and its stage 
 	await writeJson(fixture.stageManifestPath, changedSummary);
 	await assert.rejects(() => verifyStagedOsAudioCodecNativeBeforePack({
 		repositoryRoot: fixture.root,
+		policyRepositoryRoot: ROOT,
 		stageManifestPath: fixture.stageManifestPath,
 		packagedTarget: TARGET,
 	}), /stage manifest.*OS audio codec.*evidence/iu);
@@ -80,6 +85,7 @@ test('beforePack rejects changed bytes and foreign codec target siblings', async
 	await writeFile(payloadPath, 'changed');
 	await assert.rejects(() => verifyStagedOsAudioCodecNativeBeforePack({
 		repositoryRoot: changed.root,
+		policyRepositoryRoot: ROOT,
 		stageManifestPath: changed.stageManifestPath,
 		packagedTarget: TARGET,
 	}), /payload.*(?:byte length|digest)/iu);
@@ -90,9 +96,26 @@ test('beforePack rejects changed bytes and foreign codec target siblings', async
 	), { recursive: true });
 	await assert.rejects(() => verifyStagedOsAudioCodecNativeBeforePack({
 		repositoryRoot: foreign.root,
+		policyRepositoryRoot: ROOT,
 		stageManifestPath: foreign.stageManifestPath,
 		packagedTarget: TARGET,
 	}), /unexpected.*subtree/iu);
+});
+
+test('beforePack and afterPack reject canonical self-consistent forged provenance', async (context) => {
+	const staged = await stagedTree(context, { forgedSource: true });
+	await assert.rejects(() => verifyStagedOsAudioCodecNativeBeforePack({
+		repositoryRoot: staged.root,
+		policyRepositoryRoot: ROOT,
+		stageManifestPath: staged.stageManifestPath,
+		packagedTarget: TARGET,
+	}), /trusted checkout.*(?:source identity|build plan)|(?:source identity|build plan).*trusted checkout/iu);
+
+	const packaged = await packagedTree(context, { forgedPlan: true });
+	await assert.rejects(() => verifyPackagedOsAudioCodecNativeResources(
+		packagingContext(packaged.root, packaged.resourcesRoot, TARGET),
+		{ stageManifestPath: packaged.stageManifestPath },
+	), /trusted checkout.*(?:source identity|build plan)|(?:source identity|build plan).*trusted checkout/iu);
 });
 
 test('afterPack authenticates packaged codec bytes and refuses unexpected content', async (context) => {
@@ -126,8 +149,8 @@ test('afterPack enforces package target/product identity even when the codec tie
 	}), null);
 });
 
-async function stagedTree(context) {
-	const fixture = await releaseFixture(context, TARGET);
+async function stagedTree(context, options = {}) {
+	const fixture = await releaseFixture(context, TARGET, options);
 	const runtimeRoot = join(fixture.root, '.desktop-build/runtime');
 	const summary = await stageDesktopOsAudioCodecNativeRelease({
 		release: fixture.release, runtimeRoot,
@@ -138,8 +161,8 @@ async function stagedTree(context) {
 	return { ...fixture, runtimeRoot, summary, stage, stageManifestPath };
 }
 
-async function packagedTree(context) {
-	const fixture = await releaseFixture(context, TARGET);
+async function packagedTree(context, options = {}) {
+	const fixture = await releaseFixture(context, TARGET, options);
 	const resourcesRoot = join(fixture.root, 'resources');
 	const runtimeRoot = join(resourcesRoot, 'runtime');
 	const summary = await stageDesktopOsAudioCodecNativeRelease({
@@ -162,15 +185,22 @@ async function absentTree(context, productId, target) {
 	return { root, resourcesRoot, runtimeRoot, stageManifestPath };
 }
 
-async function releaseFixture(context, target) {
+async function releaseFixture(context, target, {
+	forgedSource = false, forgedPlan = false,
+} = {}) {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-packaged-os-codec-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
 	const artifactPath = join(root, 'build', OS_AUDIO_CODEC_NATIVE_PAYLOAD_NAME);
 	const bytes = Buffer.from('authenticated packaged OS audio codec');
 	await mkdir(dirname(artifactPath), { recursive: true });
 	await writeFile(artifactPath, bytes);
-	const sourceRevision = '3'.repeat(64);
-	const buildPlanSha256 = '4'.repeat(64);
+	const policy = deriveOsAudioCodecHostPolicyIdentity({ repositoryRoot: ROOT, target });
+	const sourceIdentity = structuredClone(policy.sourceIdentity);
+	const buildPlan = structuredClone(policy.buildPlan);
+	if (forgedSource) sourceIdentity.sha256 = '3'.repeat(64);
+	if (forgedPlan) buildPlan.sha256 = '4'.repeat(64);
+	const sourceRevision = sourceIdentity.sha256;
+	const buildPlanSha256 = buildPlan.sha256;
 	const build = {
 		schemaVersion: 1,
 		status: 'built',
@@ -188,16 +218,9 @@ async function releaseFixture(context, target) {
 				sha256: '9eae0a9eb7630b1b53f98e4b7c69951aee2a159ff1f564eeed06b78580de62eb',
 			},
 		},
-		sourceIdentity: {
-			algorithm: 'soundscaper-os-audio-codec-source-closure-sha256-v1',
-			fileCount: 12,
-			sha256: sourceRevision,
-		},
+		sourceIdentity,
 		sourceRevision,
-		buildPlan: {
-			algorithm: 'soundscaper-os-audio-codec-build-plan-sha256-v1',
-			sha256: buildPlanSha256,
-		},
+		buildPlan,
 		buildPlanSha256,
 		toolchainIdentity: {
 			cmake: '3.31.6', generator: 'Visual Studio 17 2022',

@@ -63,12 +63,16 @@ export default async function verifyDesktopRuntimeBeforePack(context = {}, depen
 }
 
 export async function verifyStagedOsAudioCodecNativeBeforePack({
-	repositoryRoot, stageManifestPath, packagedTarget,
+	repositoryRoot, policyRepositoryRoot = repositoryRoot, stageManifestPath, packagedTarget,
 }) {
 	const stage = JSON.parse(await readFile(stageManifestPath, 'utf8'));
 	assertStagePackageIdentity(stage, packagedTarget);
 	return verifyDesktopOsAudioCodecNativePackageTree({
 		runtimeRoot: resolve(repositoryRoot, '.desktop-build/runtime'),
+		repositoryRoot: policyRepositoryRoot,
+		...(packagedTarget === 'mac-arm64' ? {
+			signingIdentity: process.env.SOUNDSCAPER_MAC_SIGNING_IDENTITY ?? '-',
+		} : {}),
 		productId: stage.productId,
 		target: packagedTarget,
 		summary: stage.osAudioCodecNative,

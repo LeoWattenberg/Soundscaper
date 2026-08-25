@@ -110,7 +110,12 @@ export async function runOsAudioCodecHostCi(options, dependencies = {}) {
 		]),
 	];
 	await runBuild({ command: process.execPath, arguments: arguments_, plan });
-	await verifyResult({ resultPath: plan.resultPath, target });
+	await verifyResult({
+		resultPath: plan.resultPath,
+		repositoryRoot,
+		target,
+		...(signingIdentity === null ? {} : { signingIdentity }),
+	});
 	await publishBuildEnvironment({
 		githubEnvironmentPath, resultPath: plan.resultPath,
 	});
@@ -206,9 +211,13 @@ function executeBuildCommand({ command, arguments: arguments_, plan }) {
 	assertSuccessful(outcome, 'OS audio codec host build');
 }
 
-async function verifyCanonicalBuildResult({ resultPath, target }) {
+async function verifyCanonicalBuildResult({ resultPath, repositoryRoot, signingIdentity, target }) {
 	const release = await prepareDesktopOsAudioCodecNativeRelease({
-		buildResultPath: resultPath, target, required: true,
+		buildResultPath: resultPath,
+		repositoryRoot,
+		...(signingIdentity === undefined ? {} : { signingIdentity }),
+		target,
+		required: true,
 	});
 	if (release === null) throw new Error('OS audio codec build result did not produce a verified release.');
 }

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 
 import {
@@ -12,16 +12,20 @@ import {
 	resolveDesktopOsAudioCodecNativeRequirement,
 	stageDesktopOsAudioCodecNativeRelease,
 } from '../scripts/lib/desktop-os-audio-codec-native-staging.mjs';
+import { deriveOsAudioCodecHostPolicyIdentity } from '../scripts/lib/os-audio-codec-host-build.mjs';
 import {
 	OS_AUDIO_CODEC_NATIVE_MANIFEST_NAME,
 	OS_AUDIO_CODEC_NATIVE_PAYLOAD_NAME,
 	OS_AUDIO_CODEC_NATIVE_RUNTIME_PREFIX,
 } from '../scripts/lib/os-audio-codec-native-payload.mjs';
 
+const ROOT = resolve(import.meta.dirname, '..');
+
 test('a target-native build result is authenticated before the desktop build tree is staged', async (context) => {
 	const fixture = await buildFixture(context, 'win-arm64');
 	const release = await prepareDesktopOsAudioCodecNativeRelease({
-		buildResultPath: fixture.resultPath, target: 'win-arm64', required: true,
+		buildResultPath: fixture.resultPath, repositoryRoot: ROOT,
+		target: 'win-arm64', required: true,
 	});
 	assert.ok(release);
 	const runtimeRoot = join(fixture.root, 'runtime');
@@ -37,6 +41,36 @@ test('a target-native build result is authenticated before the desktop build tre
 		])).map((bytes) => bytes.byteLength > 0),
 		[true, true],
 	);
+});
+
+test('a canonical self-consistent result forged outside the trusted checkout policy is rejected', async (context) => {
+	const fixture = await buildFixture(context, 'win-x64');
+	const forged = structuredClone(fixture.build);
+	forged.sourceIdentity.sha256 = '3'.repeat(64);
+	forged.sourceRevision = forged.sourceIdentity.sha256;
+	forged.buildPlan.sha256 = '4'.repeat(64);
+	forged.buildPlanSha256 = forged.buildPlan.sha256;
+	await writeFile(fixture.resultPath, `${JSON.stringify(forged, null, 2)}\n`);
+	await assert.rejects(() => prepareDesktopOsAudioCodecNativeRelease({
+		buildResultPath: fixture.resultPath,
+		repositoryRoot: ROOT,
+		target: 'win-x64',
+		required: true,
+	}), /trusted checkout|source (?:identity|revision)|build plan/iu);
+});
+
+test('a self-consistent forged build-plan identity is rejected independently', async (context) => {
+	const fixture = await buildFixture(context, 'win-x64');
+	const forged = structuredClone(fixture.build);
+	forged.buildPlan.sha256 = '4'.repeat(64);
+	forged.buildPlanSha256 = forged.buildPlan.sha256;
+	await writeFile(fixture.resultPath, `${JSON.stringify(forged, null, 2)}\n`);
+	await assert.rejects(() => prepareDesktopOsAudioCodecNativeRelease({
+		buildResultPath: fixture.resultPath,
+		repositoryRoot: ROOT,
+		target: 'win-x64',
+		required: true,
+	}), /build plan.*trusted checkout/iu);
 });
 
 test('optional local builds stay absent while release packaging can require the OS tier', async () => {
@@ -112,8 +146,7 @@ async function buildFixture(context, target) {
 	const artifact = Buffer.from(`native-${target}`);
 	await mkdir(dirname(artifactPath), { recursive: true });
 	await writeFile(artifactPath, artifact);
-	const sourceRevision = '3'.repeat(64);
-	const buildPlanSha256 = '4'.repeat(64);
+	const policy = deriveOsAudioCodecHostPolicyIdentity({ repositoryRoot: ROOT, target });
 	const arm = target.endsWith('arm64');
 	const build = {
 		schemaVersion: 1,
@@ -132,17 +165,10 @@ async function buildFixture(context, target) {
 				sha256: '9eae0a9eb7630b1b53f98e4b7c69951aee2a159ff1f564eeed06b78580de62eb',
 			},
 		},
-		sourceIdentity: {
-			algorithm: 'soundscaper-os-audio-codec-source-closure-sha256-v1',
-			fileCount: 12,
-			sha256: sourceRevision,
-		},
-		sourceRevision,
-		buildPlan: {
-			algorithm: 'soundscaper-os-audio-codec-build-plan-sha256-v1',
-			sha256: buildPlanSha256,
-		},
-		buildPlanSha256,
+		sourceIdentity: policy.sourceIdentity,
+		sourceRevision: policy.sourceRevision,
+		buildPlan: policy.buildPlan,
+		buildPlanSha256: policy.buildPlanSha256,
 		toolchainIdentity: {
 			cmake: '3.31.6',
 			generator: target.startsWith('mac-') ? 'Ninja' : 'Visual Studio 17 2022',

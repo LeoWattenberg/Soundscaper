@@ -164,6 +164,10 @@ export async function verifyPackagedOsAudioCodecNativeResources(context, depende
 	try {
 		return await verifyDesktopOsAudioCodecNativePackageTree({
 			runtimeRoot: resolve(resourcesRoot, 'runtime'),
+			repositoryRoot,
+			...(target === 'mac-arm64' ? {
+				signingIdentity: process.env.SOUNDSCAPER_MAC_SIGNING_IDENTITY ?? '-',
+			} : {}),
 			productId,
 			target,
 			summary: stage.osAudioCodecNative,

@@ -18,9 +18,13 @@ import {
 	verifyOsAudioCodecNativeBuildResult,
 	verifyStagedOsAudioCodecNativePayload,
 } from './os-audio-codec-native-payload.mjs';
+import {
+	assertOsAudioCodecHostBuildMatchesPolicy,
+	deriveOsAudioCodecHostPolicyIdentity,
+} from './os-audio-codec-host-build.mjs';
 
 export async function verifyDesktopOsAudioCodecNativePackageTree({
-	runtimeRoot, productId, target, summary, placement,
+	runtimeRoot, repositoryRoot, signingIdentity, productId, target, summary, placement,
 }) {
 	const prefix = resolve(runtimeRoot, OS_AUDIO_CODEC_NATIVE_RUNTIME_PREFIX);
 	const supported = productId === 'soundscaper' && OS_AUDIO_CODEC_NATIVE_TARGETS.includes(target);
@@ -43,11 +47,20 @@ export async function verifyDesktopOsAudioCodecNativePackageTree({
 	const outputRoot = resolve(prefix, target);
 	const manifestBytes = await readFile(resolve(outputRoot, OS_AUDIO_CODEC_NATIVE_MANIFEST_NAME));
 	const manifest = parseCanonicalOsAudioCodecNativeManifest(manifestBytes, target);
-	const release = await verifyOsAudioCodecNativeBuildResult({
-		build: buildResultFromManifest(manifest, resolve(outputRoot, OS_AUDIO_CODEC_NATIVE_PAYLOAD_NAME)),
+	const build = buildResultFromManifest(
+		manifest, resolve(outputRoot, OS_AUDIO_CODEC_NATIVE_PAYLOAD_NAME),
+	);
+	const policy = deriveOsAudioCodecHostPolicyIdentity({
+		repositoryRoot,
 		target,
-		sourceRevision: manifest.sourceRevision,
-		buildPlanSha256: manifest.buildPlan.sha256,
+		...(signingIdentity === undefined ? {} : { signingIdentity }),
+	});
+	assertOsAudioCodecHostBuildMatchesPolicy(build, policy);
+	const release = await verifyOsAudioCodecNativeBuildResult({
+		build,
+		target,
+		sourceRevision: policy.sourceRevision,
+		buildPlanSha256: policy.buildPlanSha256,
 	});
 	const verified = await verifyStagedOsAudioCodecNativePayload({
 		release,

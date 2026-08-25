@@ -11,6 +11,10 @@ import {
 	stageVerifiedOsAudioCodecNativePayload,
 	verifyOsAudioCodecNativeBuildResult,
 } from './os-audio-codec-native-payload.mjs';
+import {
+	assertOsAudioCodecHostBuildMatchesPolicy,
+	deriveOsAudioCodecHostPolicyIdentity,
+} from './os-audio-codec-host-build.mjs';
 
 const DESKTOP_TARGETS = new Set([
 	'linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64',
@@ -24,7 +28,7 @@ export function resolveDesktopOsAudioCodecNativeRequirement(value) {
 }
 
 export async function prepareDesktopOsAudioCodecNativeRelease({
-	buildResultPath, target, required,
+	buildResultPath, repositoryRoot, signingIdentity, target, required,
 }) {
 	const selectedTarget = desktopTarget(target);
 	if (typeof required !== 'boolean') {
@@ -51,11 +55,20 @@ export async function prepareDesktopOsAudioCodecNativeRelease({
 	if (!bytes.equals(Buffer.from(`${JSON.stringify(build, null, 2)}\n`))) {
 		throw new TypeError('The OS audio codec native build result is not canonical JSON.');
 	}
+	if (build?.target !== selectedTarget) {
+		throw new TypeError('The OS audio codec native build target does not match the requested target.');
+	}
+	const policy = deriveOsAudioCodecHostPolicyIdentity({
+		repositoryRoot,
+		target: selectedTarget,
+		...(signingIdentity === undefined ? {} : { signingIdentity }),
+	});
+	assertOsAudioCodecHostBuildMatchesPolicy(build, policy);
 	return verifyOsAudioCodecNativeBuildResult({
 		build,
 		target: selectedTarget,
-		sourceRevision: build?.sourceRevision,
-		buildPlanSha256: build?.buildPlanSha256,
+		sourceRevision: policy.sourceRevision,
+		buildPlanSha256: policy.buildPlanSha256,
 	});
 }
 

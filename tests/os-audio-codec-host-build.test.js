@@ -16,6 +16,7 @@ import {
 	OS_AUDIO_CODEC_HOST_SOURCE_FILES,
 	OS_AUDIO_CODEC_HOST_TARGETS,
 	createOsAudioCodecHostBuildPlan,
+	deriveOsAudioCodecHostPolicyIdentity,
 	executeOsAudioCodecHostBuild,
 	osAudioCodecHostBuildPlanIdentity,
 } from '../scripts/lib/os-audio-codec-host-build.mjs';
@@ -122,6 +123,13 @@ test('build plans authenticate exact Electron 43.1.1 headers and close the targe
 	}
 
 	const windows = plan(fixture, 'win-x64', 'windows-one');
+	const windowsPolicy = deriveOsAudioCodecHostPolicyIdentity({
+		repositoryRoot: ROOT, sourceManifestPath: fixture.manifestPath, target: 'win-x64',
+	});
+	assert.deepEqual(windowsPolicy.sourceIdentity, windows.sourceIdentity);
+	assert.deepEqual(windowsPolicy.electronHeaders, windows.electronHeaders);
+	assert.deepEqual(windowsPolicy.buildPlan, windows.buildPlan);
+	assert.deepEqual(windowsPolicy.signing, windows.signing);
 	assert.deepEqual(windows.configure.argv.slice(4, 8), [
 		'-G', 'Visual Studio 17 2022', '-A', 'x64',
 	]);
@@ -146,6 +154,12 @@ test('build plans authenticate exact Electron 43.1.1 headers and close the targe
 	const mac = plan(fixture, 'mac-arm64', 'mac', {
 		macosSdkPath: macSdk, signingIdentity: '-',
 	});
+	const macPolicy = deriveOsAudioCodecHostPolicyIdentity({
+		repositoryRoot: ROOT, sourceManifestPath: fixture.manifestPath,
+		target: 'mac-arm64', signingIdentity: '-',
+	});
+	assert.deepEqual(macPolicy.buildPlan, mac.buildPlan);
+	assert.deepEqual(macPolicy.signing, mac.signing);
 	assert.deepEqual(mac.configure.argv.slice(4, 6), ['-G', 'Ninja']);
 	assert.match(mac.configure.argv.join('\n'), /CMAKE_OSX_ARCHITECTURES=arm64/u);
 	assert.match(mac.configure.argv.join('\n'), /CMAKE_OSX_SYSROOT=/u);
@@ -163,6 +177,10 @@ test('build plans authenticate exact Electron 43.1.1 headers and close the targe
 	const production = plan(fixture, 'mac-arm64', 'mac-production', {
 		macosSdkPath: macSdk, signingIdentity: developerIdentity,
 	});
+	assert.deepEqual(deriveOsAudioCodecHostPolicyIdentity({
+		repositoryRoot: ROOT, sourceManifestPath: fixture.manifestPath,
+		target: 'mac-arm64', signingIdentity: developerIdentity,
+	}).buildPlan, production.buildPlan);
 	assert.deepEqual(production.signing, {
 		mode: 'developer-id', identitySha256: sha256(Buffer.from(developerIdentity)),
 	});
