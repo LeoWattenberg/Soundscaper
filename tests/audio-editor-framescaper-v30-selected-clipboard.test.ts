@@ -7,6 +7,9 @@ import {
 	createClipboardDescriptor,
 	preparePasteCommand,
 } from '../src/common/editor/commands/clipboard-runtime.js';
+import type {
+	AudioEditorCommandPayloads,
+} from '../src/common/editor/commands/protocol.ts';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import { createEditorProjectRuntimeV30Selection } from '../src/framescaper/editor-project-runtime-v30-selection.ts';
 import { FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v30.ts';
@@ -14,6 +17,9 @@ import { createFramescaperV30ImageFixture } from './helpers/framescaper-v30-imag
 
 const PROFILE = FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE;
 type Store = ReturnType<typeof createProjectStore>;
+type ClipboardPasteCommand = Readonly<{
+	readonly type: 'clipboard/paste';
+} & AudioEditorCommandPayloads['clipboard/paste']>;
 
 test('selected V30 runtime copies and pastes an image through V13 with explicit body ownership', async (context) => {
 	const fixture = createFramescaperV30ImageFixture();
@@ -39,7 +45,7 @@ test('selected V30 runtime copies and pastes an image through V13 with explicit 
 		atFrame: 720_000,
 		trackMap: { 'video-track': 'video-track' },
 		mode: 'overlap',
-	}, createId);
+	}, createId) as ClipboardPasteCommand;
 	const prepared = runtime.prepareEditClipboardPaste(
 		fixture.project, clipboard, base, createId,
 	);

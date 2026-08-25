@@ -66,10 +66,13 @@ test('timeline and Project Bin route image clips through product visual thumbnai
 			dragging={false}
 			invalidOverlap={false}
 			hidden={false}
-			blocked={false}
-			copy={{ videoClip: 'Video clip', clipName: 'Clip name' }}
-			onOpenMenu={() => undefined}
-		/>);
+				blocked={false}
+				copy={{ videoClip: 'Video clip', clipName: 'Clip name' }}
+				onOpenMenu={() => undefined}
+				onRename={() => undefined}
+				renameRequestId={undefined}
+				onRenameFinished={() => undefined}
+			/>);
 	} finally {
 		if (reactDescriptor) Object.defineProperty(globalThis, 'React', reactDescriptor);
 		else Reflect.deleteProperty(globalThis, 'React');

@@ -69,6 +69,7 @@ test('selected V30 Scape collision import rekeys image source, clip, storage, an
 	assert.ok(source && source.kind === 'image');
 	assert.ok(clip && clip.kind === 'image');
 	assert.notEqual(source.id, fixture.source.id);
+	if (typeof source.storageKey !== 'string') throw new TypeError('Imported image storage key is invalid.');
 	assert.equal(source.storageKey, source.id);
 	assert.equal(clip.sourceId, source.id);
 	assert.deepEqual(await bodyBytes(recipient, source.storageKey), fixture.bytes);
