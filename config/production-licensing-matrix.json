@@ -901,7 +901,7 @@
 		},
 		{
 			"id": "local-models",
-			"status": "disabled",
+			"status": "enabled",
 			"enableRequires": ["weights-and-code-license-review", "training-data-provenance-record", "model-card-and-use-restrictions", "versioned-download-notices-and-hashes"],
 			"evidence": ["roadmap.md#7-optional-local-assistance", "docs/production-licensing-policy.md", "docs/milestone-7-local-model-evidence.md", "scripts/lib/local-model-evidence.mjs", "tests/production-licensing-model-evidence.test.js"]
 		}

@@ -337,13 +337,13 @@ test('runtime provenance entries and release gates fail closed without claiming 
 	assert.doesNotMatch(JSON.stringify(matrix), /legally[- ]cleared|legal approval|patent[- ]free/iu);
 });
 
-test('future third-party execution and model surfaces remain disabled behind explicit gates', async () => {
+test('only the evidenced local-model surface is enabled among future distribution gates', async () => {
 	const matrix = await readJson(matrixUrl);
 	const gates = new Map(matrix.futureDistributionGates.map((gate) => [gate.id, gate]));
 
 	assert.deepEqual(matrix.futureDistributionGates.map(({ id }) => id).sort(), FUTURE_GATE_IDS);
 	for (const gate of matrix.futureDistributionGates) {
-		assert.equal(gate.status, 'disabled');
+		assert.equal(gate.status, gate.id === 'local-models' ? 'enabled' : 'disabled');
 		assert.ok(gate.enableRequires.length >= 3, `${gate.id} needs concrete enablement requirements`);
 		await assertEvidence(gate.evidence);
 	}
