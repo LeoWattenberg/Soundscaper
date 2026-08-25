@@ -20,9 +20,22 @@ This file answers the same four questions as the main roadmap:
 4. What is explicitly outside the current scope?
 
 It is not an implementation log or an evidence register. Sequencing decisions,
-invariants, and bounded work packets belong to an owning plan document created
-when a milestone starts, following the existing pattern
-(`docs/lightscaper-1-plan.md` and so on). Machine-readable claims stay in the
+invariants, decision records, and bounded work packets belong to the owning
+plan document for each milestone, which carries the `path:line` evidence this
+file deliberately omits:
+
+- L1 product seam: [L1 plan](docs/lightscaper-1-plan.md);
+- L2 catalog and develop contracts: [L2 plan](docs/lightscaper-2-plan.md);
+- L3 photo library: [L3 plan](docs/lightscaper-3-plan.md);
+- L4 develop, global adjustments: [L4 plan](docs/lightscaper-4-plan.md);
+- L5 export and handoff: [L5 plan](docs/lightscaper-5-plan.md);
+- L6 local adjustments and repair: [L6 plan](docs/lightscaper-6-plan.md);
+- L7 raw and deep color: [L7 plan](docs/lightscaper-7-plan.md);
+- L8 desktop tier: [L8 plan](docs/lightscaper-8-plan.md); and
+- L9 final qualification: [L9 plan](docs/lightscaper-9-plan.md).
+
+Each plan is grounded at the commit named in its own header; re-ground its
+citations at pickup. Machine-readable claims stay in the
 policies the main roadmap already names: capabilities in the
 [capability inventory](config/production-capabilities.json), licensing in the
 [production licensing policy](docs/production-licensing-policy.md), budgets in
