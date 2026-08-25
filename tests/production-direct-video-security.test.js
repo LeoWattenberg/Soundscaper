@@ -167,7 +167,7 @@ test('exact direct MP4 and WebM publication has narrow capability and rollback c
 	);
 	assert.match(
 		publication.summary,
-		/browser V6.*WORKERFS\/MEMFS.*browser V7.*SharedArrayBuffer.*desktop Soundscaper V29.*exact V7 keyed-RGBA.*forces the desktop provider.*WebCodecs/isu,
+		/browser V6.*WORKERFS\/MEMFS.*browser V7.*SharedArrayBuffer.*desktop Soundscaper S30.*exact S29 implementation.*exact V7 keyed-RGBA.*forces the desktop provider.*WebCodecs/isu,
 	);
 	assert.match(
 		publication.summary,
@@ -286,7 +286,7 @@ test('selected keyed V20 admission and encoding reuse the existing video publica
 	assert.match(encoder.summary, /two SharedArrayBuffer.*rings.*16 MiB/isu);
 	assert.match(
 		encoder.summary,
-		/desktop Soundscaper V29.*same exact plan.*pathless.*at-most-1-MiB chunks.*owner-scoped main-private FFmpeg pipes.*main-private scratch.*deadline.*owner loss.*process tree/isu,
+		/desktop Soundscaper S30.*exact S29 implementation.*same exact plan.*pathless.*at-most-1-MiB chunks.*owner-scoped main-private FFmpeg pipes.*main-private scratch.*deadline.*owner loss.*process tree/isu,
 	);
 	assert.match(encoder.summary, /float32 WAV.*2 GiB.*8,000 through 768,000/isu);
 	assert.match(
@@ -412,7 +412,7 @@ test('the threat and quality documents limit direct video claims to the proved t
 
 	assert.match(
 		threatDocumentation,
-		/direct MP4.*WebM.*version[- ]6.*version[- ]7 keyed.*SHA-256.*stat.*committed.*at-most-1-MiB.*browser V6.*WORKERFS\/MEMFS.*browser V7.*SharedArrayBuffer.*desktop Soundscaper V29.*live canary.*H\.264\/AAC.*VP9\/Opus.*main-private pipes.*main-private scratch/isu,
+		/direct MP4.*WebM.*version[- ]6.*version[- ]7 keyed.*SHA-256.*stat.*committed.*at-most-1-MiB.*browser V6.*WORKERFS\/MEMFS.*browser V7.*SharedArrayBuffer.*desktop Soundscaper S30.*exact S29 implementation.*live canary.*H\.264\/AAC.*VP9\/Opus.*main-private pipes.*main-private scratch/isu,
 	);
 	assert.match(
 		threatDocumentation,

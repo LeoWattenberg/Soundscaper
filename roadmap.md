@@ -282,17 +282,16 @@ update an item's status only after its listed acceptance conditions pass.
 
 - `m2-electron-lease-matrix`
 
-The executable matrix runs seven product-specific workflows independently against
-the selected Soundscaper desktop-library V11 and Framescaper desktop-library V19.
-`cross-product-simultaneous-open` runs once across the paired packages.
-Soundscaper V11 owns schema 29, SQLite `user_version` 13 and scope `v11`.
-Framescaper V19 owns schema 28, SQLite `user_version` 21 and scope `v19`; its
-crash-resumable first open settles V18 when needed, then reimports the exact V27 documents
-read from V18 into V28 without reopening, rewriting, or deleting V18 or its inherited
-V17 and V12 lineage. Each product holds a separate process-lifetime renewable fenced
-lease with journal recovery, admission fencing, drain, and exact release.
-Windows x64 and Linux x64 accepted packaged results remain absent, so the gate
-is **Partial**.
+The selected owners are Soundscaper desktop-library V11 and Framescaper
+desktop-library V20. Soundscaper V11 owns schema 30, SQLite `user_version` 13 and
+scope `v11`; Framescaper V20 owns schema 31, SQLite `user_version` 22 and scope
+`v20`. V20 opens only a settled V19 source read-only, explicitly reimports its
+exact V28 documents into F31, and copy-forwards managed bodies without rewriting
+V19 or its inherited V18/V17/V12 lineage. The executable matrix runs seven
+product-specific workflows against V11 and V20, with
+`cross-product-simultaneous-open` once across those packages. Its Windows x64 and
+Linux x64 rows remain pending; no accepted V20 packaged result is checked in, so
+the gate is **Partial**.
 
 The closed compatibility items fix the fallback role set at exactly
 `project-audio-mix-v1`, `audio-track-render-v1`, `project-video-render-v1`,
@@ -617,7 +616,7 @@ clearance does not close either track or milestone exit gate.
 **Depends on:** milestones 2–4. Research may begin after milestone 2, but product
 integration waits for the owning shared contract.
 
-**Status:** **In progress — selected Soundscaper V29/V11 and Framescaper V28/V14/V19 software routes are complete, but neither is qualified or activated.** The source audit authenticates 0/10 exact archive/extracted-tree inputs; all five Soundscaper professional rows are `pending-external`; both Framescaper payload manifests are empty and every row is `pending-external`. Per-OS launcher source/contracts/tests exist, but authenticated target payloads and independently signed readiness do not.
+**Status:** **In progress — selected Soundscaper S30/V11 and Framescaper F31/V14/V20 source routes are complete, but neither native tier is qualified or activated.** S30 inherits its established native behavior through exact S29; F31 delegates native behavior through its immutable V28/V14 foundation. Milestone 7/8A activation does not activate native media, native plug-ins, or OpenFX. The source audit authenticates 0/10 exact archive/extracted-tree inputs; all five Soundscaper professional rows are `pending-external`; both Framescaper payload manifests are empty and every row is `pending-external`. Per-OS launcher source/contracts/tests exist, but authenticated target payloads and independently signed readiness do not.
 
 Licensing/patent/corresponding-source/notices/trademark clearance, target toolchains, signing/notarization identities and keys, packages, manual runs, readiness signatures, and native-lab cohorts remain open. The qualification audit reports `qualificationReady: false`, `pending-external`, and zero accepted cohorts. Milestones 1–4 are assumed formally validated for this implementation branch; that assumption does not close Milestone 5.
 
@@ -633,15 +632,15 @@ The [milestone-5 plan](docs/milestone-5-plan.md) owns sequencing and the shared 
 
 ### Soundscaper native tier
 
-- **Electron Enhanced — Product route implemented, not qualified:** V29 native audio uses a persistent helper and direct `MessagePort` to an `AudioWorklet`; input feeds canonical recording publication, output feeds playback/monitoring, and loss preserves Web Core fallback. CoreAudio/WASAPI/PipeWire/ALSA are implemented; JACK stays discovery-only.
-- **Electron Only — Blocked on licensing:** V29 inserts reviewed `native-plugin` effects with persistent RPC, real-time/offline render, exact V21 PDC, bounded state, bypass/frozen continuity, and helper-owned vendor windows. Every format still waits on payload, licensing, signed readiness, and lab evidence.
+- **Electron Enhanced — Product route implemented, not qualified:** S30 inherits its exact S29 native-audio implementation: a persistent helper and direct `MessagePort` to an `AudioWorklet`; input feeds canonical recording publication, output feeds playback/monitoring, and loss preserves Web Core fallback. CoreAudio/WASAPI/PipeWire/ALSA are implemented; JACK stays discovery-only.
+- **Electron Only — Blocked on licensing:** S30 delegates through exact S29 and inserts reviewed `native-plugin` effects with persistent RPC, real-time/offline render, exact V21 PDC, bounded state, bypass/frozen continuity, and helper-owned vendor windows. Every format still waits on payload, licensing, signed readiness, and lab evidence.
 - **Blocked until milestone 8:** MIDI, instruments, control surfaces, clock, and MTC.
 
 ### Framescaper native tier
 
-- **Electron Enhanced — Selected software route, not activated:** Framescaper V28 uses exact V14 authority and authenticates one evaluated-RGBA carrier plus optional float32 audio through persistent services V3. Native Windows/macOS/Linux hardware encode permits exactly one identical-plan CPU retry. If both native attempts fail, production returns a typed `web-core-required` result and directs the user to the existing renderer-owned Web Core export route; it neither runs that route in main nor publishes a false native receipt. Empty payload rows make no codec/performance claim.
+- **Electron Enhanced — Selected software route, not activated:** Framescaper F31 delegates through its immutable V28 foundation to exact V14 authority and authenticates one evaluated-RGBA carrier plus optional float32 audio through persistent services V3. Native Windows/macOS/Linux hardware encode permits exactly one identical-plan CPU retry. If both native attempts fail, production returns a typed `web-core-required` result and directs the user to the existing renderer-owned Web Core export route; it neither runs that route in main nor publishes a false native receipt. Empty payload rows make no codec/performance claim.
 - **Electron Enhanced — Professional media, not activated:** pathless sequence/proxy actions are menu-owned. Helper scratch seals an exact regular-file output tree and main revalidates it before no-clobber publication; PNG/TIFF/OpenEXR and codec evidence remain blocked.
-- **Electron Only — Persistent services V3, not activated:** V28 queue, capacity, scratch, checkpoints, watch/bin/proxy flow, lease-fenced publication, and external display are implemented; missing authority preserves project state and reports unavailable.
+- **Electron Only — Persistent services V3, not activated:** F31 reaches the V28-founded queue, capacity, scratch, checkpoints, watch/bin/proxy flow, lease-fenced publication, and external display; missing authority preserves project state and reports unavailable.
 - **Electron Only — OpenFX, production-closed:** menu-owned scan, enable, and Add OFX use a shared context-aware exact frame graph for all six contexts across preview/export/carrier. The bounded React route uses Interact Suite V1, custom parameters, DrawSuite V1, normalized events, and no native window; missing/crashed effects preserve state with bypass or verified frozen continuity. The empty payload manifest keeps third-party execution unavailable.
 - **Delivered in milestone 8A:** the selected F31 web and desktop capture route
   reuses the pathless consent boundary without activating the native-media tier.

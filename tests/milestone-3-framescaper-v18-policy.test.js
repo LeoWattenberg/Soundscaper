@@ -6,14 +6,14 @@ import test from 'node:test';
 
 const root = new URL('../', import.meta.url);
 
-test('selected V28 retains V18 editorial foundations and completes the V14 proxy carrier route', async () => {
+test('selected F31 retains V18 editorial foundations through V28 and completes the V14 proxy carrier route', async () => {
 	const register = await json('config/project-compatibility.json');
 	const rules = new Map(register.rules.map((rule) => [rule.id, rule]));
 	assert.equal(rules.size, register.rules.length, 'compatibility rule IDs must remain unique');
 
 	const expected = new Map([
 		['framescaper-v18-product-isolation', [
-			/selected exact V28.*library V19.*Soundscaper.*project V29.*desktop library V11/isu,
+			/selected exact F31.*immutable exact V28 foundation.*library V20.*Soundscaper.*project S30.*desktop library V11/isu,
 			/V20 through V24.*historical reimport.*V25 and V26.*opaque read-only/isu,
 		]],
 		['framescaper-v18-nested-sequence-native', [
@@ -27,8 +27,8 @@ test('selected V28 retains V18 editorial foundations and completes the V14 proxy
 			/playback.*delivery/isu,
 		]],
 		['framescaper-v18-video-proxy-preservation', [
-			/format 2.*desktop library V19/isu,
-			/Selected V28 reaches generation, attach, detach, relink, regenerate/isu,
+			/format 2.*desktop library V20/isu,
+			/Selected F31 delegates generation, attach, detach, relink, regenerate/isu,
 			/Original, Proxy, or Auto.*lazy menu dialog/isu,
 			/source domain before occurrence retime.*delivery.*authenticated original/isu,
 		]],
@@ -50,7 +50,7 @@ test('selected V28 retains V18 editorial foundations and completes the V14 proxy
 	assert.doesNotMatch(proxyPreservation.currentBehavior,
 		/delete and duplicate remain fail-closed/iu);
 	assert.match(proxyPreservation.currentBehavior,
-		/desktop library V19.*delete.*duplicate.*main-first.*(?:CAS|compare-and-swap)/isu);
+		/desktop library V20.*delete.*duplicate.*main-first.*(?:CAS|compare-and-swap)/isu);
 	assert.match(proxyPreservation.currentBehavior,
 		/retains immutable.*(?:revisions|bodies).*no physical reclamation.*never reuses.*project ID/isu);
 	assert.match(proxyPreservation.currentBehavior,
@@ -71,7 +71,7 @@ test('selected V28 retains V18 editorial foundations and completes the V14 proxy
 	assert.match(proxyUse.currentBehavior, /delivery.*refuse.*unavailable/isu);
 });
 
-test('production capability and security registers select only executable V28 surfaces', async () => {
+test('production capability and security registers select F31 over its executable V28 foundation', async () => {
 	const capabilities = await json('config/production-capabilities.json');
 	assert.equal(capabilities.products.soundscaper.projectFeatures.nestedSequences, false);
 	assert.equal(capabilities.products.soundscaper.projectFeatures.multicamera, false);
@@ -83,11 +83,11 @@ test('production capability and security registers select only executable V28 su
 	const risks = new Map(security.risks.map((risk) => [risk.id, risk]));
 	const projectAdmission = control(risks, 'external-project-document-validation',
 		'framescaper-v18-editorial-document-admission');
-	assert.match(projectAdmission.summary, /profile.*before.*travers/isu);
-	assert.match(projectAdmission.summary, /schema 28.*unified exact V14/isu);
-	assert.match(projectAdmission.summary, /V20 retime\/proxy.*V22 dissolve.*V24 visual/isu);
-	assert.match(projectAdmission.summary, /desktop-library V19.*user_version 21.*scope v19/isu);
-	assert.match(projectAdmission.summary, /Soundscaper.*project V29.*desktop library V11/isu);
+	assert.match(projectAdmission.summary, /authenticates.*selected exact F31.*before.*travers/isu);
+	assert.match(projectAdmission.summary, /schema 31.*unified exact V14.*immutable exact V28 foundation/isu);
+	assert.match(projectAdmission.summary, /inherited retime\/proxy, dissolve, visual/isu);
+	assert.match(projectAdmission.summary, /desktop-library V20.*user_version 22.*scope v20/isu);
+	assert.match(projectAdmission.summary, /Soundscaper.*project S30.*desktop library V11.*exact S29/isu);
 
 	const proxyAdmission = control(risks, 'external-media-parser-bounds',
 		'framescaper-v18-proxy-reattestation');
@@ -101,8 +101,8 @@ test('production capability and security registers select only executable V28 su
 	assert.match(historicalDesktop.summary, /unselected compatibility-boundary/isu);
 	const selectedDesktop = control(risks, 'shared-desktop-project-library-integrity',
 		'framescaper-v20-desktop-v17-isolation');
-	assert.match(selectedDesktop.summary, /desktop-library V19.*project schema 28.*user_version 21.*scope v19/isu);
-	assert.match(selectedDesktop.summary, /V18.*read-only.*V27.*reimports.*V28.*resumes idempotently/isu);
+	assert.match(selectedDesktop.summary, /desktop-library V20.*project schema 31.*user_version 22.*scope v20/isu);
+	assert.match(selectedDesktop.summary, /V19.*read-only.*V28.*reimports.*F31.*resumes idempotently/isu);
 
 	for (const item of [projectAdmission, proxyAdmission, historicalDesktop, selectedDesktop]) {
 		for (const reference of item.evidence) await evidenceExists(reference.path);

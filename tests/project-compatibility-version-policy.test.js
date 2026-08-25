@@ -24,34 +24,34 @@ test('project compatibility policy matches the maintained schema and archive for
 	);
 });
 
-test('Framescaper revision identities select V28 and keep dormant candidates inert', async () => {
+test('Framescaper revision identities select F31/V20 and keep older custody inert', async () => {
 	const policy = JSON.parse(await readFile(policyUrl, 'utf8'));
 	const contract = policy.framescaperRevisionContract;
 	assert.deepEqual(contract.selected, {
-		browserProjectVersion: 28,
-		desktopProjectVersion: 28,
-		status: 'selected-milestone-5-software-complete-not-qualified',
+		browserProjectVersion: 31,
+		desktopProjectVersion: 31,
+		status: 'selected-active-native-qualification-open',
 	});
 	assert.deepEqual(contract.historicalReimportPolicy, {
-		projectVersions: [27],
-		desktopLibraryVersion: 18,
-		behavior: 'explicit-validated-reimport-creates-v28-source-remains-immutable',
+		projectVersions: [28],
+		desktopLibraryVersion: 19,
+		behavior: 'explicit-validated-reimport-creates-f31-source-remains-immutable',
 	});
 	assert.deepEqual(contract.desktopLibraryImport, {
-		sourceLibraryVersion: 18,
-		sourceSqliteUserVersion: 20,
-		sourceScope: 'v18',
-		targetLibraryVersion: 19,
-		targetSqliteUserVersion: 21,
-		targetScope: 'v19',
+		sourceLibraryVersion: 19,
+		sourceSqliteUserVersion: 21,
+		sourceScope: 'v19',
+		targetLibraryVersion: 20,
+		targetSqliteUserVersion: 22,
+		targetScope: 'v20',
 		behavior: 'idempotent-crash-resumable-copy-forward-source-immutable',
 	});
 	assert.deepEqual(contract.dormantCandidateCustody, {
 		minimumProjectVersion: 25,
 		maximumProjectVersion: 26,
 		candidateProjectVersions: [25, 26],
-		unownedProjectVersions: [],
-		selectedV28Behavior: 'opaque-read-only-no-candidate-validation-migration-authoring-or-overwrite',
+		unownedProjectVersions: [29, 30],
+		selectedF31Behavior: 'opaque-read-only-no-candidate-validation-migration-authoring-or-overwrite',
 		candidateBehavior: 'exact-version-only-authenticated-dormant-profile',
 		custodyBehavior: 'preserve-opaque-read-only-no-activation-native-authority-or-release-qualification',
 		capabilityBehavior: 'known-unavailable-default-off',
@@ -64,7 +64,8 @@ test('Framescaper revision identities select V28 and keep dormant candidates ine
 		[25, 15, 17, 'v15', 9, [11], 'dormant-professional-media-candidate'],
 		[26, 16, 18, 'v16', 10, [12], 'dormant-openfx-candidate'],
 		[27, 18, 20, 'v18', 11, [13], 'maintained-explicit-reimport-source'],
-		[28, 19, 21, 'v19', 12, [14], 'selected-milestone-5-software-complete-not-qualified'],
+		[28, 19, 21, 'v19', 12, [14], 'maintained-direct-reimport-source-and-native-foundation'],
+		[31, 20, 22, 'v20', 12, [14], 'selected-active-native-qualification-open'],
 	].map(([projectVersion, desktopLibraryVersion, sqliteUserVersion, scope,
 		clipboardVersion, renderPlanVersions, status]) => ({
 		projectVersion, desktopLibraryVersion, sqliteUserVersion, scope,
@@ -74,7 +75,7 @@ test('Framescaper revision identities select V28 and keep dormant candidates ine
 	const custody = policy.rules.find(({ id }) => id === 'framescaper-v22-v26-compatibility-custody');
 	assert.ok(custody);
 	assert.equal(custody.status, 'implemented');
-	assert.match(custody.requiredOutcome, /V22 through V27.*custody.*V28.*V25\/V26/iu);
-	assert.match(custody.currentBehavior, /V28.*explicitly reimports.*V27.*V25 and V26.*opaque read-only/iu);
+	assert.match(custody.requiredOutcome, /V22 through V30.*custody.*F31.*V25\/V26/iu);
+	assert.match(custody.currentBehavior, /F31.*explicitly reimports.*V28.*V25 and V26.*opaque read-only.*V29 and V30.*unowned/iu);
 	assert.match(custody.currentBehavior, /default-off/iu);
 });

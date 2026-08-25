@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-08-24",
+	"groundedAt": "2026-08-25",
 	"platformTiers": [
 		"web-core",
 		"web-enhanced",
@@ -116,6 +116,8 @@
 						"desktop/native-audio-session-service.ts",
 						"desktop/plugin-host-service.ts",
 						"src/common/editor/ui/soundscaper-native-renderer-bridge.ts",
+						"src/soundscaper/editor-project-v30.ts",
+						"src/soundscaper/editor-project-v30-foundation.ts",
 						"src/soundscaper/editor-project-v29.ts",
 						"desktop/desktop-smoke.js",
 						"desktop/project-library-projects.ts",
@@ -382,6 +384,17 @@
 				"electron-enhanced": {
 					"status": "partial",
 					"evidence": [
+						"desktop/project-library-v20-contract.ts",
+						"desktop/project-library-v20-database.ts",
+						"desktop/project-library-v20-import.ts",
+						"desktop/project-library-v20-main.ts",
+						"desktop/project-library-v20-main-ipc.ts",
+						"desktop/project-library-v20-writer.ts",
+						"src/framescaper/desktop-project-library-v20-renderer.ts",
+						"src/framescaper/desktop-project-library-v20-store-adapter.ts",
+						"src/framescaper/editor-project-v31.ts",
+						"src/framescaper/editor-project-environment-v31.ts",
+						"src/framescaper/editor-project-v31-foundation.ts",
 						"desktop/project-library-v19-contract.ts",
 						"desktop/project-library-v19-database.ts",
 						"desktop/project-library-v19-import.ts",
@@ -575,6 +588,8 @@
 						"desktop/native-services-controller-v3.ts",
 						"desktop/openfx-main-service.ts",
 						"src/common/editor/ui/framescaper-native-services-menu.ts",
+						"src/framescaper/editor-controller-v31-inherited-bindings.ts",
+						"src/framescaper/editor-project-v31-foundation.ts",
 						"src/framescaper/editor-project-v28.ts"
 					]
 				}
