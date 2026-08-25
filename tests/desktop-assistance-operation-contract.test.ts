@@ -40,12 +40,20 @@ const MODEL = Object.freeze({
 });
 
 function input(role: string) {
+	const mediaTypes: Readonly<Record<string, string>> = {
+		audio: 'audio/wav',
+		video: 'video/mp4',
+		'frame-pack': 'application/vnd.soundscaper.frame-pack',
+		transcript: 'application/json',
+		text: 'text/plain',
+		'editorial-context': 'application/json',
+	};
 	return {
 		claimVersion: ASSISTANCE_DATA_CLAIM_VERSION,
 		claimId: INPUT_ID,
 		jobId: JOB_ID,
 		role,
-		mediaType: role === 'audio' ? 'audio/wav' : 'application/json',
+		mediaType: mediaTypes[role] ?? 'application/json',
 		byteLength: 1_024,
 		sha256: SHA256,
 	};
@@ -57,7 +65,9 @@ function output(role: string) {
 		claimId: OUTPUT_ID,
 		jobId: JOB_ID,
 		role,
-		mediaType: 'application/json',
+		mediaType: ['enhanced-audio', 'separated-audio'].includes(role)
+			? 'audio/wav'
+			: 'application/json',
 		maximumByteLength: 16 * 1024 * 1024,
 	};
 }
@@ -210,7 +220,7 @@ test('every planned operation has one admitted pathless input/output route', () 
 		const inputs = inputRoles.map((role, index) => ({
 			...input(role),
 			claimId: String(index + 1).padStart(40, '0'),
-			mediaType: role === 'audio' ? 'audio/wav' : 'application/json',
+			mediaType: input(role).mediaType,
 		}));
 		const outputs = [{ ...output(outputRole), claimId: '99'.repeat(20) }];
 		assert.equal(validateAssistanceOperationRequest(request({
