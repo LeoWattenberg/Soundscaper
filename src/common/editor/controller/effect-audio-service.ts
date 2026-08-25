@@ -18,7 +18,14 @@ import {
 	MAXIMUM_SPECTRAL_EDIT_USEFUL_BINARY_BYTES,
 	planSpectralEditWorkflowAdmission,
 } from '../spectral-edit-admission.ts';
-import { createLocalAssistanceSelectedMediaPreparation } from './local-assistance-selected-media.ts';
+import {
+	createLocalAssistanceSelectedMediaPreparation,
+	resolveLocalAssistanceSelectedMediaAuthority,
+} from './local-assistance-selected-media.ts';
+import {
+	createLocalAssistanceTranscriptAcceptance,
+	type LocalAssistanceTranscriptAcceptanceStore,
+} from './local-assistance-transcript-acceptance.ts';
 
 const NOISE_PROFILE_TASK = 'selection-effect-noise-profile';
 const SPECTRAL_EFFECT_TASK = 'selection-effect-spectral';
@@ -203,6 +210,7 @@ export interface EffectAudioServiceRuntime {
 		}>,
 	) => Promise<Float32Array[]>;
 	readonly serializeNoiseProfile: (profile: unknown) => unknown;
+	readonly assistanceStore?: LocalAssistanceTranscriptAcceptanceStore;
 	readonly commit: (command: Readonly<Record<string, unknown>>) => void;
 	readonly persistAudacityEffectResults: (
 		results: readonly SelectionEffectResult[],
@@ -490,12 +498,29 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 		}
 	}
 
-	const selectedMediaPreparation = createLocalAssistanceSelectedMediaPreparation({
+	const selectedMediaDependencies = {
 		getProject: runtime.getProject,
 		getSelectedClipId: () => runtime.state.selectedClipId,
 		captureProject: runtime.captureProject,
-		assertProject: (token) => runtime.assertProject(token as EditorProjectToken),
+		assertProject: (token: unknown) => runtime.assertProject(token as EditorProjectToken),
 		renderDryTrackRange,
+	};
+	const transcriptAcceptance = runtime.assistanceStore
+		? createLocalAssistanceTranscriptAcceptance({
+			currentAuthority: () => resolveLocalAssistanceSelectedMediaAuthority(
+				selectedMediaDependencies,
+			),
+			captureProject: runtime.captureProject,
+			assertProject: (token) => runtime.assertProject(token as EditorProjectToken),
+			store: runtime.assistanceStore,
+			commit: runtime.commit,
+		})
+		: null;
+	const selectedMediaPreparation = createLocalAssistanceSelectedMediaPreparation({
+		...selectedMediaDependencies,
+		...(transcriptAcceptance ? {
+			acceptValidatedResult: transcriptAcceptance.acceptValidatedResult,
+		} : {}),
 	});
 
 	return Object.freeze({

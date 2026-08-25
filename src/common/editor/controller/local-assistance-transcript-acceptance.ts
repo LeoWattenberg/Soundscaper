@@ -37,6 +37,7 @@ const RECIPE_VERSION = 1;
 const ASSET_ID_PREFIX = 'assistance-transcript:';
 const TRACK_ID_PREFIX = 'assistance-transcript-track:';
 const TRACK_EXTENSION_KEY = 'org.soundscaper.assistance-transcript-v1';
+const BODY_KIND = 'assistance-transcript';
 const BODY_ENCODING = 'canonical-json-v1';
 const MAXIMUM_WRITER_CHUNK_BYTES = 4 * 1024 * 1024;
 const UTF8 = new TextEncoder();
@@ -346,7 +347,7 @@ async function publishTranscriptBody(
 	try {
 		writer = await store.beginMediaAssetWrite(body.storageKey, {
 			name: `Transcript ${publication.reference.id}`,
-			kind: 'assistance-transcript-v1',
+			kind: BODY_KIND,
 			encoding: BODY_ENCODING,
 			mimeType: body.mimeType,
 		}, { expectedBytes: body.byteLength, expectedSha256: body.sha256 });
@@ -405,8 +406,10 @@ function assertStoredMetadata(
 ): void {
 	const metadata = dataRecord(value);
 	const body = publication.reference.body;
-	if (!metadata || metadata.size !== body.byteLength || metadata.sha256 !== body.sha256
-		|| metadata.mimeType !== body.mimeType) {
+	if (!metadata || metadata.sourceId !== body.storageKey
+		|| metadata.size !== body.byteLength || metadata.sha256 !== body.sha256
+		|| metadata.mimeType !== body.mimeType || metadata.kind !== BODY_KIND
+		|| metadata.encoding !== BODY_ENCODING) {
 		throw new Error('The stored assistance transcript metadata conflicts with its reference.');
 	}
 }

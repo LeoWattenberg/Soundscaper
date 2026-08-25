@@ -55,6 +55,19 @@ test('real controller exposes linked-audio relink classification to the Project 
 	}
 });
 
+test('real controller owns reviewed local-assistance result acceptance', async () => {
+	const controller = createController([]);
+	try {
+		await controller.ready;
+		assert.equal(
+			typeof controller.selectedMediaPreparation.acceptValidatedResult,
+			'function',
+		);
+	} finally {
+		await controller.dispose();
+	}
+});
+
 test('real Framescaper capture open action reveals Recording Setup without opening media', async () => {
 	const controller = createAudioEditorController(null, {
 		headless: true,

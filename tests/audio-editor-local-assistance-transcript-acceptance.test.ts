@@ -19,7 +19,7 @@ interface TestTranscriptReference {
 	readonly body: Readonly<{ readonly storageKey: string; readonly sha256: string }>;
 }
 
-interface TestLabelTrack {
+interface TestLabelTrack extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly type: string;
 	readonly labels: readonly Readonly<Record<string, unknown>>[];
@@ -137,7 +137,7 @@ class TranscriptStore {
 				for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
 				assert.equal(bytes.byteLength, options.expectedBytes);
 				const record = Object.freeze({
-					...metadata, size: bytes.byteLength, sha256: options.expectedSha256,
+					...metadata, sourceId: key, size: bytes.byteLength, sha256: options.expectedSha256,
 				});
 				const body = new Blob([bytes], { type: String(metadata.mimeType ?? '') });
 				this.bodies.set(key, body);
@@ -195,6 +195,8 @@ test('reviewed speech acceptance publishes one authenticated body and timeline l
 	});
 	const body = store.bodies.get(command.reference.body.storageKey);
 	assert.ok(body);
+	assert.equal(store.metadata.get(command.reference.body.storageKey)?.kind, 'assistance-transcript');
+	assert.equal(store.metadata.get(command.reference.body.storageKey)?.encoding, 'canonical-json-v1');
 	const transcript = JSON.parse(await body.text()) as Readonly<{
 		segments: readonly Readonly<{ startFrame: number; endFrame: number }>[];
 	}>;
