@@ -45,15 +45,22 @@ async function verifyEngineDescriptor(descriptor, label) {
 
 export function registerDesktopHelperProbe({ channels, handle, ownerFor, readCapabilities, settings, desktopRoot, packaged, resourcesPath }) {
 	let channel = null;
-	const engineConfigPromise = resolveEngineConfig({ desktopRoot, packaged, resourcesPath });
+	// Resolved on first use, not at registration: desktop codec policy ships no
+	// bundled FFmpeg, so a packaged application has neither the manifest nor the
+	// engine beside it. Reading them eagerly turned that absence into an
+	// unhandled rejection during startup instead of a refusal the helper owns.
+	let engineConfigPromise = null;
+	const engineConfigFor = () => (engineConfigPromise ??= resolveEngineConfig({
+		desktopRoot, packaged, resourcesPath,
+	}));
 	const supervisor = new HelperSupervisor({
 		verifyBinary: async () => {
-			const engineConfig = await engineConfigPromise;
+			const engineConfig = await engineConfigFor();
 			await verifyEngineDescriptor(engineConfig.coreJavascript, 'helper engine JavaScript');
 			await verifyEngineDescriptor(engineConfig.coreWasm, 'helper engine wasm');
 		},
 		spawn: async () => {
-			const engineConfig = await engineConfigPromise;
+			const engineConfig = await engineConfigFor();
 			const child = utilityProcess.fork(
 				join(desktopRoot, 'helper-probe-process.js'),
 				[`--helper-engine-config=${JSON.stringify(engineConfig)}`],
