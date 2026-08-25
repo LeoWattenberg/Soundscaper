@@ -30,25 +30,25 @@ import {
 	createFramescaperProjectV27,
 	reimportFramescaperProjectV27,
 } from '../src/framescaper/editor-project-v27.ts';
-import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
-import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
+import { FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v31.ts';
+import { createFramescaperProjectV31 } from '../src/framescaper/editor-project-v31.ts';
 import { FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v20.ts';
 import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v20.ts';
 
 const NOW = '2026-08-23T12:00:00.000Z';
 
-test('packaged lease fixture is an exact source-free selected V28 document', () => {
+test('packaged lease fixture is an exact source-free selected F31 document', () => {
 	const document = createDesktopProjectLibraryLeaseMatrixDocument(
 		'framescaper-v18-lease-fixture', 3, 'V18 lease fixture', 'framescaper',
 	);
 	const project = JSON.parse(document) as Record<string, unknown>;
-	assert.equal(project.schemaVersion, 28);
+	assert.equal(project.schemaVersion, 31);
 	assert.equal(project.revision, 3);
 	assert.deepEqual(project.sources, []);
 	assert.deepEqual(project.clips, []);
 	assert.deepEqual(project.tracks, []);
 	assert.deepEqual(
-		createFramescaperProjectV28(FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, {
+		createFramescaperProjectV31(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, {
 			id: 'framescaper-v18-lease-fixture', title: 'V18 lease fixture', revision: 3,
 			now: '2026-08-24T12:00:00.000Z',
 		}),
