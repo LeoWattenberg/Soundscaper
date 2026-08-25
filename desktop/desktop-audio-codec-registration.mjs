@@ -13,12 +13,10 @@ const TARGETS = Object.freeze(new Map([
 	['win32:arm64', 'win-arm64'],
 ]));
 const MODULE_METHODS = Object.freeze([
-	'createBundledDesktopAudioCodecRuntime', 'createDesktopAudioCodecRuntimeComposition',
+	'createBundledAudioCodecElectronSpawn', 'createBundledAudioCodecRuntimeVerifier',
+	'createDesktopAudioCodecRuntimeComposition',
 	'createOperatingSystemAudioCodecElectronSpawn', 'createOsAudioCodecNativeVerifier',
-	'loadBundledFlacAudioCodecRuntime', 'loadBundledLameAudioCodecRuntime',
-	'loadBundledOpusAudioCodecRuntime',
-	'loadBundledMpg123AudioCodecRuntime', 'loadBundledVorbisAudioCodecRuntime',
-	'loadBundledTwolameAudioCodecRuntime', 'loadBundledWavPackAudioCodecRuntime',
+	'loadIsolatedBundledAudioCodecRuntime',
 	'loadOperatingSystemAudioCodecRuntime',
 	'registerDesktopAudioCodecMainIpc',
 ]);
@@ -41,18 +39,19 @@ export async function registerDesktopAudioCodecs(options) {
 	validateModules(modules);
 	const scratchRoot = resolve(options.userDataPath, 'desktop-audio-codecs');
 	await (options.mkdir ?? nodeMkdir)(scratchRoot, { recursive: true, mode: 0o700 });
-	const reviewedRuntimes = (await Promise.all([
-		modules.loadBundledWavPackAudioCodecRuntime({ target }),
-		modules.loadBundledFlacAudioCodecRuntime({ target }),
-		modules.loadBundledOpusAudioCodecRuntime({ target }),
-		modules.loadBundledMpg123AudioCodecRuntime({ target }),
-		modules.loadBundledLameAudioCodecRuntime({ target }),
-		modules.loadBundledTwolameAudioCodecRuntime({ target }),
-		modules.loadBundledVorbisAudioCodecRuntime({ target }),
-	])).filter((runtime) => runtime !== null);
-	const bundledRuntime = reviewedRuntimes.length === 0
-		? null
-		: modules.createBundledDesktopAudioCodecRuntime({ target, runtimes: reviewedRuntimes });
+	const verifyBundledPayload = modules.createBundledAudioCodecRuntimeVerifier(Object.freeze({
+		desktopRoot: options.desktopRoot, target,
+	}));
+	const spawnBundled = modules.createBundledAudioCodecElectronSpawn({
+		fork: options.forkUtilityProcess,
+		helperPath: join(
+			options.desktopRoot,
+			'project-library-runtime/desktop/bundled-audio-codec-helper-process.js',
+		),
+	});
+	const bundledRuntime = await modules.loadIsolatedBundledAudioCodecRuntime({
+		target, scratchRoot, verifyPayload: verifyBundledPayload, spawn: spawnBundled,
+	});
 	const verifyAddon = modules.createOsAudioCodecNativeVerifier(Object.freeze({
 		runtimeRoot: options.runtimeRoot, platform: options.platform, arch: options.architecture,
 	}));
@@ -95,34 +94,24 @@ export async function registerDesktopAudioCodecs(options) {
 }
 
 async function loadRuntimeModules() {
-	const [bundled, composition, electronSpawn, flac, ipc, lame, mpg123, operatingSystem, opus, nativePayload, twolame, vorbis, wavPack]
+	const [bundled, bundledPayload, bundledSpawn, composition, ipc, operatingSystem, electronSpawn, nativePayload]
 		= await Promise.all([
-		import('./project-library-runtime/desktop/bundled-audio-codec-runtime.js'),
+		import('./project-library-runtime/desktop/bundled-audio-codec-isolated-runtime.js'),
+		import('./bundled-audio-codec-runtime-payload.mjs'),
+		import('./bundled-audio-codec-electron-spawn.mjs'),
 		import('./project-library-runtime/desktop/desktop-audio-codec-runtime-composition.js'),
-		import('./os-audio-codec-electron-spawn.mjs'),
-		import('./project-library-runtime/desktop/bundled-flac-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/desktop-audio-codec-main-ipc.js'),
-		import('./project-library-runtime/desktop/bundled-lame-audio-codec-runtime.js'),
-		import('./project-library-runtime/desktop/bundled-mpg123-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/os-audio-codec-runtime.js'),
-		import('./project-library-runtime/desktop/bundled-opus-audio-codec-runtime.js'),
+		import('./os-audio-codec-electron-spawn.mjs'),
 		import('./os-audio-codec-native-payload.mjs'),
-		import('./project-library-runtime/desktop/bundled-twolame-audio-codec-runtime.js'),
-		import('./project-library-runtime/desktop/bundled-vorbis-audio-codec-runtime.js'),
-		import('./project-library-runtime/desktop/bundled-wavpack-audio-codec-runtime.js'),
 	]);
 	return Object.freeze({
-		createBundledDesktopAudioCodecRuntime: bundled.createBundledDesktopAudioCodecRuntime,
+		createBundledAudioCodecElectronSpawn: bundledSpawn.createBundledAudioCodecElectronSpawn,
+		createBundledAudioCodecRuntimeVerifier: bundledPayload.createBundledAudioCodecRuntimeVerifier,
 		createDesktopAudioCodecRuntimeComposition: composition.createDesktopAudioCodecRuntimeComposition,
 		createOperatingSystemAudioCodecElectronSpawn: electronSpawn.createOperatingSystemAudioCodecElectronSpawn,
 		createOsAudioCodecNativeVerifier: nativePayload.createOsAudioCodecNativeVerifier,
-		loadBundledFlacAudioCodecRuntime: flac.loadBundledFlacAudioCodecRuntime,
-		loadBundledLameAudioCodecRuntime: lame.loadBundledLameAudioCodecRuntime,
-		loadBundledMpg123AudioCodecRuntime: mpg123.loadBundledMpg123AudioCodecRuntime,
-		loadBundledOpusAudioCodecRuntime: opus.loadBundledOpusAudioCodecRuntime,
-		loadBundledTwolameAudioCodecRuntime: twolame.loadBundledTwolameAudioCodecRuntime,
-		loadBundledVorbisAudioCodecRuntime: vorbis.loadBundledVorbisAudioCodecRuntime,
-		loadBundledWavPackAudioCodecRuntime: wavPack.loadBundledWavPackAudioCodecRuntime,
+		loadIsolatedBundledAudioCodecRuntime: bundled.loadIsolatedBundledAudioCodecRuntime,
 		loadOperatingSystemAudioCodecRuntime: operatingSystem.loadOperatingSystemAudioCodecRuntime,
 		registerDesktopAudioCodecMainIpc: ipc.registerDesktopAudioCodecMainIpc,
 	});

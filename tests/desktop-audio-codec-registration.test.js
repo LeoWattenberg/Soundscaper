@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
@@ -36,32 +37,38 @@ test('desktop audio codec registration maps only the five supported targets', ()
 	}
 });
 
+test('registration imports only the isolated bundled codec boundary', async () => {
+	const source = await readFile(new URL(
+		'../desktop/desktop-audio-codec-registration.mjs', import.meta.url,
+	), 'utf8');
+	assert.match(source, /bundled-audio-codec-isolated-runtime\.js/u);
+	assert.match(source, /bundled-audio-codec-runtime-payload\.mjs/u);
+	assert.match(source, /bundled-audio-codec-electron-spawn\.mjs/u);
+	for (const directLoader of [
+		'bundled-flac-audio-codec-runtime.js',
+		'bundled-lame-audio-codec-runtime.js',
+		'bundled-mpg123-audio-codec-runtime.js',
+		'bundled-opus-audio-codec-runtime.js',
+		'bundled-twolame-audio-codec-runtime.js',
+		'bundled-vorbis-audio-codec-runtime.js',
+		'bundled-wavpack-audio-codec-runtime.js',
+	]) assert.doesNotMatch(source, new RegExp(directLoader.replace('.', '\\.'), 'u'));
+});
+
 test('registration composes main-owned runtime and bounded IPC from one private scratch root', async () => {
 	const directories = [];
 	const compositionOptions = [];
 	const ipcOptions = [];
-	const wavPackLoads = [];
-	const flacLoads = [];
-	const lameLoads = [];
-	const mpg123Loads = [];
-	const opusLoads = [];
-	const twolameLoads = [];
-	const vorbisLoads = [];
+	const isolatedLoads = [];
 	const operatingSystemLoads = [];
 	const payloadLocations = [];
 	const spawnOptions = [];
-	const bundledCompositions = [];
+	const bundledPayloadLocations = [];
+	const bundledSpawnOptions = [];
 	const revoked = [];
 	let disposals = 0;
 	const service = Object.freeze({ execute: async () => ({}), capabilities: async () => ({}) });
 	const bundledRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
-	const flacRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
-	const lameRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
-	const mpg123Runtime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
-	const opusRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
-	const twolameRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
-	const vorbisRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
-	const compositeRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
 	const operatingSystemRuntime = Object.freeze({
 		provider: Object.freeze({ kind: 'operating-system' }), execute: async () => ({}),
 	});
@@ -78,42 +85,16 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 		operatingSystemVersion: '15.6.1', forkUtilityProcess() {},
 		mkdir: async (...arguments_) => { directories.push(arguments_); },
 		loadModules: async () => ({
-			createBundledDesktopAudioCodecRuntime(options) {
-				bundledCompositions.push(options);
-				return compositeRuntime;
+			createBundledAudioCodecRuntimeVerifier(options) {
+				bundledPayloadLocations.push(options);
+				return async () => ({});
 			},
-			async loadBundledFlacAudioCodecRuntime(options) {
-				flacLoads.push(options);
-				await Promise.resolve();
-				return flacRuntime;
+			createBundledAudioCodecElectronSpawn(options) {
+				bundledSpawnOptions.push(options);
+				return () => ({});
 			},
-			async loadBundledLameAudioCodecRuntime(options) {
-				lameLoads.push(options);
-				await Promise.resolve();
-				return lameRuntime;
-			},
-			async loadBundledOpusAudioCodecRuntime(options) {
-				opusLoads.push(options);
-				await Promise.resolve();
-				return opusRuntime;
-			},
-			async loadBundledMpg123AudioCodecRuntime(options) {
-				mpg123Loads.push(options);
-				await Promise.resolve();
-				return mpg123Runtime;
-			},
-			async loadBundledTwolameAudioCodecRuntime(options) {
-				twolameLoads.push(options);
-				await Promise.resolve();
-				return twolameRuntime;
-			},
-			async loadBundledVorbisAudioCodecRuntime(options) {
-				vorbisLoads.push(options);
-				await Promise.resolve();
-				return vorbisRuntime;
-			},
-			async loadBundledWavPackAudioCodecRuntime(options) {
-				wavPackLoads.push(options);
+			async loadIsolatedBundledAudioCodecRuntime(options) {
+				isolatedLoads.push(options);
 				await Promise.resolve();
 				return bundledRuntime;
 			},
@@ -151,19 +132,20 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 		'target', 'scratchRoot', 'externalFfmpegPreferences', 'createBundledRuntime',
 		'createOperatingSystemRuntime', 'onReceipt',
 	]);
-	assert.deepEqual(wavPackLoads, [{ target: 'mac-arm64' }]);
-	assert.deepEqual(flacLoads, [{ target: 'mac-arm64' }]);
-	assert.deepEqual(lameLoads, [{ target: 'mac-arm64' }]);
-	assert.deepEqual(opusLoads, [{ target: 'mac-arm64' }]);
-	assert.deepEqual(mpg123Loads, [{ target: 'mac-arm64' }]);
-	assert.deepEqual(twolameLoads, [{ target: 'mac-arm64' }]);
-	assert.deepEqual(vorbisLoads, [{ target: 'mac-arm64' }]);
-	assert.deepEqual(bundledCompositions, [{
-		target: 'mac-arm64', runtimes: [
-			bundledRuntime, flacRuntime, opusRuntime, mpg123Runtime, lameRuntime, twolameRuntime,
-			vorbisRuntime,
-		],
+	assert.deepEqual(bundledPayloadLocations, [{
+		desktopRoot: '/app/desktop', target: 'mac-arm64',
 	}]);
+	assert.equal(bundledSpawnOptions.length, 1);
+	assert.equal(
+		bundledSpawnOptions[0].helperPath,
+		'/app/desktop/project-library-runtime/desktop/bundled-audio-codec-helper-process.js',
+	);
+	assert.equal(typeof bundledSpawnOptions[0].fork, 'function');
+	assert.equal(isolatedLoads.length, 1);
+	assert.equal(isolatedLoads[0].target, 'mac-arm64');
+	assert.equal(isolatedLoads[0].scratchRoot, '/user-data/desktop-audio-codecs');
+	assert.equal(typeof isolatedLoads[0].verifyPayload, 'function');
+	assert.equal(typeof isolatedLoads[0].spawn, 'function');
 	assert.deepEqual(payloadLocations, [{
 		runtimeRoot: '/runtime', platform: 'darwin', arch: 'arm64',
 	}]);
@@ -179,7 +161,7 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 	assert.equal(compositionOptions[0].target, 'mac-arm64');
 	assert.equal(compositionOptions[0].scratchRoot, '/user-data/desktop-audio-codecs');
 	assert.equal(compositionOptions[0].externalFfmpegPreferences, externalFfmpegPreferences);
-	assert.equal(compositionOptions[0].createBundledRuntime({ target: 'mac-arm64' }), compositeRuntime);
+	assert.equal(compositionOptions[0].createBundledRuntime({ target: 'mac-arm64' }), bundledRuntime);
 	assert.equal(compositionOptions[0].createOperatingSystemRuntime({ target: 'mac-arm64' }), operatingSystemRuntime);
 	const observation = Object.freeze({ requestId: 'request-a', receipt: Object.freeze({ provider: {} }) });
 	compositionOptions[0].onReceipt(observation);
@@ -216,32 +198,9 @@ test('registration fails closed without any admitted bundled runtime', async () 
 		operatingSystemVersion: '10.0.26100', forkUtilityProcess() {},
 		mkdir: async () => undefined,
 		loadModules: async () => ({
-			createBundledDesktopAudioCodecRuntime: () => { throw new Error('must not compose'); },
-			loadBundledFlacAudioCodecRuntime: async ({ target }) => {
-				assert.equal(target, 'win-arm64');
-				return null;
-			},
-			loadBundledLameAudioCodecRuntime: async ({ target }) => {
-				assert.equal(target, 'win-arm64');
-				return null;
-			},
-			loadBundledOpusAudioCodecRuntime: async ({ target }) => {
-				assert.equal(target, 'win-arm64');
-				return null;
-			},
-			loadBundledMpg123AudioCodecRuntime: async ({ target }) => {
-				assert.equal(target, 'win-arm64');
-				return null;
-			},
-			loadBundledTwolameAudioCodecRuntime: async ({ target }) => {
-				assert.equal(target, 'win-arm64');
-				return null;
-			},
-			loadBundledVorbisAudioCodecRuntime: async ({ target }) => {
-				assert.equal(target, 'win-arm64');
-				return null;
-			},
-			loadBundledWavPackAudioCodecRuntime: async ({ target }) => {
+			createBundledAudioCodecRuntimeVerifier: () => async () => ({}),
+			createBundledAudioCodecElectronSpawn: () => () => ({}),
+			loadIsolatedBundledAudioCodecRuntime: async ({ target }) => {
 				assert.equal(target, 'win-arm64');
 				return null;
 			},
