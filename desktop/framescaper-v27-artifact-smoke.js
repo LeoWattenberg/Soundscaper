@@ -29,6 +29,23 @@ const HANDSHAKE_FIELDS = Object.freeze([
 ]);
 const DIGEST = /^[a-f0-9]{64}$/u;
 
+/**
+ * The library generation the packaged renderer must report. It is passed into
+ * the injected smoke as data rather than written into it, because that function
+ * is stringified into the renderer and cannot import the desktop contract it is
+ * checking. `tests/desktop-framescaper-artifact-smoke-identity.test.js` pins
+ * these values to that contract, so the next generation bump fails a unit test
+ * instead of every packaged Framescaper smoke in the nightly.
+ */
+export const FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY = Object.freeze({
+	projectSchemaVersion: 28,
+	storageDatabaseName: 'kw-media-framescaper-editor-v28',
+	desktopLibrarySchemaVersion: 19,
+	desktopDatabaseUserVersion: 21,
+	desktopLibraryScope: Object.freeze(['kw.media', 'scape-project-library', 'v19']),
+});
+
+
 /** Runs only after the selected renderer has activated its V27 controller and V27 store. */
 export async function runFramescaperV27ArtifactRendererSmoke(scope, expected) {
 	const fail = (message) => { throw new Error(`Framescaper V27 artifact smoke ${message}`); };
@@ -40,9 +57,11 @@ export async function runFramescaperV27ArtifactRendererSmoke(scope, expected) {
 		return value;
 	};
 	if (!expected || typeof expected !== 'object'
-		|| typeof expected.appName !== 'string' || typeof expected.appOrigin !== 'string') {
+		|| typeof expected.appName !== 'string' || typeof expected.appOrigin !== 'string'
+		|| !expected.library || typeof expected.library !== 'object') {
 		fail('requires an expected application identity');
 	}
+	const library = expected.library;
 	if (scope?.location?.href !== `${expected.appOrigin}/`
 		|| scope?.document?.title !== expected.appName) {
 		fail('loaded an unexpected application identity');
@@ -91,13 +110,14 @@ export async function runFramescaperV27ArtifactRendererSmoke(scope, expected) {
 		|| handshake.kind !== 'framescaper-project-library-handshake'
 		|| handshake.version !== 1
 		|| handshake.owner !== 'framescaper'
-		|| handshake.projectSchemaVersion !== 27
+		|| handshake.projectSchemaVersion !== library.projectSchemaVersion
 		|| JSON.stringify(handshake.scapeFormatVersions) !== '[1,2]'
 		|| handshake.attachedScapeFormatVersion !== 2
-		|| handshake.storageDatabaseName !== 'kw-media-framescaper-editor-v27'
-		|| handshake.desktopLibrarySchemaVersion !== 18
-		|| handshake.desktopDatabaseUserVersion !== 20
-		|| JSON.stringify(handshake.desktopLibraryScope) !== '["kw.media","scape-project-library","v18"]') {
+		|| handshake.storageDatabaseName !== library.storageDatabaseName
+		|| handshake.desktopLibrarySchemaVersion !== library.desktopLibrarySchemaVersion
+		|| handshake.desktopDatabaseUserVersion !== library.desktopDatabaseUserVersion
+		|| JSON.stringify(handshake.desktopLibraryScope)
+			!== JSON.stringify(library.desktopLibraryScope)) {
 		fail('received a drifted V18 handshake');
 	}
 
@@ -118,9 +138,10 @@ export async function runFramescaperV27ArtifactRendererSmoke(scope, expected) {
 	try { document = JSON.parse(bundle.document); }
 	catch { fail('requires a JSON V27 project document'); }
 	if (JSON.stringify(document) !== bundle.document) fail('requires a canonical V27 project document');
-	if (document?.schemaVersion !== 27 || document?.id !== projectId
+	if (document?.schemaVersion !== library.projectSchemaVersion || document?.id !== projectId
 		|| document?.title !== uiTitle || row.projectId !== projectId || row.name !== uiTitle
-		|| row.preferredProduct !== 'framescaper' || row.projectSchemaVersion !== 27
+		|| row.preferredProduct !== 'framescaper'
+		|| row.projectSchemaVersion !== library.projectSchemaVersion
 		|| row.projectRevision !== document?.revision
 		|| !Array.isArray(document?.tracks) || document.tracks.length !== trackCount
 		|| !Array.isArray(document?.clips) || document.clips.length !== clipCount) {
@@ -155,7 +176,7 @@ export async function runFramescaperV27ArtifactRendererSmoke(scope, expected) {
 			project: {
 				projectId,
 				title: uiTitle,
-				projectSchemaVersion: 27,
+				projectSchemaVersion: library.projectSchemaVersion,
 				projectRevision: row.projectRevision,
 				metadataRevision: bundle.metadataRevision,
 				byteLength: row.byteLength,
@@ -238,7 +259,8 @@ function validateProject(value) {
 		sha256: record.sha256,
 		bodyCount: record.bodyCount,
 	});
-	if (project.projectSchemaVersion !== 27 || typeof project.sha256 !== 'string'
+	if (project.projectSchemaVersion !== FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.projectSchemaVersion
+		|| typeof project.sha256 !== 'string'
 		|| !DIGEST.test(project.sha256) || project.bodyCount !== 0) {
 		throw new Error('Framescaper V27 project evidence is invalid');
 	}
@@ -248,10 +270,12 @@ function validateProject(value) {
 function validateHandshake(value) {
 	const record = closedRecord(value, HANDSHAKE_FIELDS, 'Framescaper V18 handshake evidence');
 	if (record.kind !== 'framescaper-project-library-handshake' || record.version !== 1
-		|| record.owner !== 'framescaper' || record.projectSchemaVersion !== 27
+		|| record.owner !== 'framescaper'
+		|| record.projectSchemaVersion !== FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.projectSchemaVersion
 		|| record.attachedScapeFormatVersion !== 2
-		|| record.storageDatabaseName !== 'kw-media-framescaper-editor-v27'
-		|| record.desktopLibrarySchemaVersion !== 18 || record.desktopDatabaseUserVersion !== 20) {
+		|| record.storageDatabaseName !== FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.storageDatabaseName
+		|| record.desktopLibrarySchemaVersion !== FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.desktopLibrarySchemaVersion
+		|| record.desktopDatabaseUserVersion !== FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.desktopDatabaseUserVersion) {
 		throw new Error('Framescaper V18 handshake evidence is invalid');
 	}
 	return Object.freeze({
@@ -268,7 +292,7 @@ function validateHandshake(value) {
 		desktopDatabaseUserVersion: record.desktopDatabaseUserVersion,
 		desktopLibraryScope: exactStringArray(
 			record.desktopLibraryScope,
-			['kw.media', 'scape-project-library', 'v18'],
+			FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.desktopLibraryScope,
 			'Framescaper V18 library scope',
 		),
 	});

@@ -31,6 +31,7 @@ import {
 	DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_OUTPUT_PREFIX,
 } from './project-library-source-bearing-smoke.js';
 import {
+	FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY,
 	joinFramescaperV27ArtifactEvidence,
 	runFramescaperV27ArtifactRendererSmoke,
 } from './framescaper-v27-artifact-smoke.js';
@@ -256,6 +257,7 @@ export function createDesktopSmokeProbe(options) {
 					`(${runFramescaperV27ArtifactRendererSmoke.toString()})(globalThis, ${JSON.stringify({
 						appName,
 						appOrigin,
+						library: FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY,
 					})})`,
 				)
 				: await window.webContents.executeJavaScript(ARTIFACT_SMOKE_SCRIPT);

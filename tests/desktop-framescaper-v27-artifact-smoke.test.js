@@ -6,7 +6,10 @@ import test from 'node:test';
 import vm from 'node:vm';
 
 import { createDesktopSmokeProbe } from '../desktop/desktop-smoke.js';
-import { runFramescaperV27ArtifactRendererSmoke } from '../desktop/framescaper-v27-artifact-smoke.js';
+import {
+	FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY,
+	runFramescaperV27ArtifactRendererSmoke,
+} from '../desktop/framescaper-v27-artifact-smoke.js';
 
 test('Framescaper artifact renderer witnesses the exact ready UI, V18 preload, handshake, and V27 bundle', async () => {
 	const fixture = rendererFixture();
@@ -14,6 +17,7 @@ test('Framescaper artifact renderer witnesses the exact ready UI, V18 preload, h
 	const result = await injectedSmoke(fixture.scope, {
 		appName: 'Framescaper',
 		appOrigin: 'framescaper-app://bundle',
+		library: FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY,
 	});
 
 	assert.deepEqual(JSON.parse(JSON.stringify(result)), fixture.expected);
@@ -26,6 +30,7 @@ test('Framescaper artifact renderer refuses preload drift and UI/bundle disagree
 	await assert.rejects(
 		() => runFramescaperV27ArtifactRendererSmoke(missingMethod.scope, {
 			appName: 'Framescaper', appOrigin: 'framescaper-app://bundle',
+			library: FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY,
 		}),
 		/exact V18 preload bridge/iu,
 	);
@@ -34,6 +39,7 @@ test('Framescaper artifact renderer refuses preload drift and UI/bundle disagree
 	await assert.rejects(
 		() => runFramescaperV27ArtifactRendererSmoke(driftedUi.scope, {
 			appName: 'Framescaper', appOrigin: 'framescaper-app://bundle',
+			library: FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY,
 		}),
 		/UI.*V27 bundle|title.*match/iu,
 	);
@@ -85,7 +91,7 @@ test('Framescaper artifact probe rejects renderer and main V27 readback disagree
 
 function rendererFixture({ omitPreloadMethod = null, uiTitle = 'Untitled project' } = {}) {
 	const projectDocument = {
-		schemaVersion: 27,
+		schemaVersion: FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.projectSchemaVersion,
 		id: 'framescaper-artifact-v27',
 		title: 'Untitled project',
 		revision: 0,
@@ -98,7 +104,7 @@ function rendererFixture({ omitPreloadMethod = null, uiTitle = 'Untitled project
 	const project = {
 		projectId: projectDocument.id,
 		title: projectDocument.title,
-		projectSchemaVersion: 27,
+		projectSchemaVersion: FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.projectSchemaVersion,
 		projectRevision: 0,
 		metadataRevision: 1,
 		byteLength: bytes.byteLength,
@@ -128,7 +134,8 @@ function rendererFixture({ omitPreloadMethod = null, uiTitle = 'Untitled project
 					metadataFile: `opaque-entry-id/0-${sha256}.json`,
 					preferredProduct: 'framescaper',
 					updatedAtMs: 1,
-					projectSchemaVersion: 27,
+					projectSchemaVersion:
+						FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.projectSchemaVersion,
 					projectRevision: 0,
 					byteLength: bytes.byteLength,
 					sha256,
@@ -203,13 +210,15 @@ function exactHandshake() {
 		kind: 'framescaper-project-library-handshake',
 		version: 1,
 		owner: 'framescaper',
-		projectSchemaVersion: 27,
+		projectSchemaVersion: FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.projectSchemaVersion,
 		scapeFormatVersions: [1, 2],
 		attachedScapeFormatVersion: 2,
-		storageDatabaseName: 'kw-media-framescaper-editor-v27',
-		desktopLibrarySchemaVersion: 18,
-		desktopDatabaseUserVersion: 20,
-		desktopLibraryScope: ['kw.media', 'scape-project-library', 'v18'],
+		storageDatabaseName: FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.storageDatabaseName,
+		desktopLibrarySchemaVersion:
+			FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.desktopLibrarySchemaVersion,
+		desktopDatabaseUserVersion:
+			FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.desktopDatabaseUserVersion,
+		desktopLibraryScope: [...FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.desktopLibraryScope],
 	};
 }
 
