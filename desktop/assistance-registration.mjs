@@ -10,7 +10,7 @@
  */
 
 import { totalmem } from 'node:os';
-import { join } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 
 import { utilityProcess } from 'electron/main';
 
@@ -29,7 +29,29 @@ import { assistanceServiceFrom, registerAssistanceIpc } from './project-library-
  * The service is built on first use, so a user who never opens assistance pays
  * no filesystem access, catalog validation, or runtime probe for it.
  */
-export function registerAssistance({ channels, handle, sendToRenderer, app, settings }) {
+function nativeDirectory(result) {
+	if (!result || result.canceled === true) return null;
+	if (!Array.isArray(result.filePaths) || result.filePaths.length !== 1
+		|| typeof result.filePaths[0] !== 'string' || !isAbsolute(result.filePaths[0])
+		|| result.filePaths[0].length > 4_096 || result.filePaths[0].includes('\0')) {
+		throw new TypeError('The assistance directory selection result is invalid.');
+	}
+	return resolve(result.filePaths[0]);
+}
+
+async function chooseDirectory(dialog, window, title) {
+	const options = {
+		title,
+		properties: ['openDirectory', 'createDirectory'],
+	};
+	return nativeDirectory(await (window
+		? dialog.showOpenDialog(window, options)
+		: dialog.showOpenDialog(options)));
+}
+
+export function registerAssistance({
+	channels, handle, sendToRenderer, app, settings, dialog, windowFor,
+}) {
 	let child = null;
 	const runtimeRoot = join(process.resourcesPath, 'runtime');
 	const targetId = assistanceNativeRuntimeTargetId({ platform: process.platform, arch: process.arch });
@@ -77,6 +99,15 @@ export function registerAssistance({ channels, handle, sendToRenderer, app, sett
 		channels,
 		handle,
 		sendToRenderer,
+		choosePreseedDirectory: () => chooseDirectory(
+			dialog, windowFor(), 'Choose offline local-model files',
+		),
+		chooseRelocationDirectory: async () => {
+			const parent = await chooseDirectory(
+				dialog, windowFor(), 'Choose parent folder for local-model storage',
+			);
+			return parent === null ? null : join(parent, 'Soundscaper Local Models');
+		},
 		createService: () => assistanceServiceFrom({
 			userDataPath: app.getPath('userData'),
 			settingsDirectory: settings.snapshot().modelsDirectory,
@@ -84,6 +115,7 @@ export function registerAssistance({ channels, handle, sendToRenderer, app, sett
 			licensingMatrix,
 			runtime,
 			totalMemoryBytes: totalmem(),
+			persistModelsDirectory: (directory) => settings.setModelsDirectory(directory),
 		}),
 	});
 	return Object.freeze({ dispose: () => runtime.dispose() });
