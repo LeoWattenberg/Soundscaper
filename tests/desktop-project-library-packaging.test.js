@@ -13,7 +13,7 @@ import {
 	DESKTOP_RUNTIME_PACKAGE_IMPORTS,
 } from '../scripts/lib/desktop-project-library-runtime.mjs';
 import { DESKTOP_5B_TRANSITIVE_RUNTIME_FILES } from '../scripts/lib/desktop-5b-transitive-runtime-files.mjs';
-import { DESKTOP_AUDIO_CODEC_RUNTIME_FILES } from '../scripts/lib/desktop-external-ffmpeg-runtime-files.mjs';
+import { DESKTOP_CODEC_RUNTIME_FILES } from '../scripts/lib/desktop-external-ffmpeg-runtime-files.mjs';
 import { DESKTOP_SOUNDSCAPER_V11_RUNTIME_FILES } from '../scripts/lib/desktop-soundscaper-v11-runtime-files.mjs';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import { DESKTOP_PROJECT_LIBRARY_V27_RUNTIME_FIXTURE } from './helpers/desktop-project-library-v27-runtime-fixture.js';
@@ -26,7 +26,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 	const outputRoot = join(temporaryRoot, 'runtime');
 	const result = await compileDesktopProjectLibraryRuntime({ repositoryRoot: ROOT, outputRoot });
 	assert.deepEqual(result.files, [
-		...DESKTOP_5B_TRANSITIVE_RUNTIME_FILES, ...DESKTOP_AUDIO_CODEC_RUNTIME_FILES,
+		...DESKTOP_5B_TRANSITIVE_RUNTIME_FILES, ...DESKTOP_CODEC_RUNTIME_FILES,
 		'desktop/application-lifecycle.js',
 		'desktop/assistance-helper-runtime.js',
 		'desktop/assistance-job-host.js',
