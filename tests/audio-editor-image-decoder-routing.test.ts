@@ -18,6 +18,16 @@ test('qualified common static sRGB8 files take the browser route first', () => {
 	}
 });
 
+test('qualified browser ImageDecoder animations keep their embedded frame timing', () => {
+	for (const format of ['png', 'gif', 'webp'] as const) {
+		assert.deepEqual(route(format, 'srgb-8-bit', 'animated', ['browser-native', 'ffmpeg']), {
+			status: 'ready',
+			decoder: 'browser-native',
+			normalization: 'sdr-srgb-rgba8',
+		}, format);
+	}
+});
+
 test('FFmpeg is the explicit current route for standardized precision, PQ, and reviewed raster codecs', () => {
 	for (const [format, colour, topology, normalization] of [
 		['png', 'standardized-sdr-high-precision', 'single', 'standardized-sdr-to-srgb-rgba8'],

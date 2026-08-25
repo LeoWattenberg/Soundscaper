@@ -81,7 +81,7 @@ const COLOUR_SET = new Set<string>(IMAGE_COLOUR_ADMISSIONS);
 const TOPOLOGY_SET = new Set<string>(IMAGE_TOPOLOGIES);
 const DECODER_SET = new Set<string>(IMAGE_DECODER_IDS);
 
-const BROWSER_STATIC_FORMATS = new Set<ReviewedImageFormat>([
+const BROWSER_FORMATS = new Set<ReviewedImageFormat>([
 	'jpeg', 'png', 'gif', 'webp', 'bmp', 'dib',
 ]);
 const FFMPEG_SINGLE_FORMATS = new Set<ReviewedImageFormat>([
@@ -116,7 +116,8 @@ export function routeImageDecoder(requestValue: ImageDecoderRoutingRequest): Ima
 	}
 
 	const candidates: ImageDecoderId[] = [];
-	if (colour === 'srgb-8-bit' && topology === 'single' && BROWSER_STATIC_FORMATS.has(format)) {
+	if (colour === 'srgb-8-bit' && (topology === 'single' || topology === 'animated')
+		&& BROWSER_FORMATS.has(format)) {
 		candidates.push('browser-native');
 	}
 	if (colour !== 'icc-sdr' && ffmpegRouteSupports(format, topology)) {
