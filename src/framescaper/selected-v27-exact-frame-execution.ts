@@ -70,6 +70,7 @@ export interface FramescaperSelectedExactFrameExecutionV27 {
 	render(request: Readonly<{
 		readonly sequencePosition: Readonly<{ readonly num: number; readonly den: number }>;
 		readonly layers: readonly unknown[];
+		readonly supplementalPictures?: readonly FramescaperSelectedExactSupplementalPictureV27[];
 		readonly width: number;
 		readonly height: number;
 		readonly target: Uint8Array<ArrayBuffer>;
@@ -85,6 +86,18 @@ export interface FramescaperSelectedExactFrameExecutionV27 {
 		readonly fallbackReasons: readonly string[];
 	}>;
 	dispose(): Promise<void>;
+}
+
+/** A plan-authenticated straight-linear picture supplied by a newer product generation. */
+export interface FramescaperSelectedExactSupplementalPictureV27 {
+	readonly trackId: string;
+	readonly clipId: string;
+	readonly sourceId: string;
+	readonly frame: UnifiedExactRenderRgbaFrameV13;
+	readonly displayWidth: number;
+	readonly displayHeight: number;
+	readonly renderDescription: unknown;
+	readonly opacity: number;
 }
 export type CaptureFrameV27 = (entry: Data, signal: AbortSignal) => (
 	PromiseLike<UnifiedExactRenderRgbaFrameV13> | UnifiedExactRenderRgbaFrameV13
@@ -138,6 +151,15 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 	const sourceIdByNodeId = new Map(options.plan.sources.map(({ nodeId, sourceId }) => [nodeId, sourceId]));
 	const effectsById = new Map(options.plan.nodes.flatMap((node) => node.kind !== 'clip' ? []
 		: node.pictureState.videoEffects.map((effect) => [effect.id, effect] as const)));
+	const supplementalVisuals = new Map(options.plan.nodes.flatMap((node) => {
+		if (node.kind !== 'visual' || !('source' in node.authoredState)
+			|| node.authoredState.source.kind !== 'generator' || node.placement === null) return [];
+		return [[node.modelId, Object.freeze({
+			trackId: node.placement.trackId,
+			sourceId: node.authoredState.source.id,
+			clipId: node.authoredState.clip.id,
+		})] as const];
+	}));
 	const masks = new Map(options.plan.nodes.flatMap((node) => (
 		node.kind === 'visual' && node.modelKind === 'mask-matte' && 'inputs' in node.authoredState
 			? [[node.modelId, node.authoredState] as const] : []
@@ -196,6 +218,12 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 				record(layerValue, 'Selected V27 media layer'), trackFrames,
 				clipCompositingOrders, rawVisuals, consumed, adjustmentEffects,
 				openFx, width, height, signal,
+			);
+			const activeVisualIds = new Set(visual.layers.flatMap(({ entries }) => (
+				entries.map(({ modelId }) => modelId)
+			)));
+			for (const picture of request.supplementalPictures ?? []) renderSupplementalPicture(
+				picture, supplementalVisuals, activeVisualIds, trackFrames, width, height,
 			);
 			if (openFx) {
 				const transitionFrames = new Map<string, UnifiedExactLinearCompositionEntryV13[]>();
@@ -256,6 +284,43 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 			if (accepted) request.target.fill(0);
 			throw error;
 		} finally { active = false; }
+	}
+
+	function renderSupplementalPicture(
+		pictureValue: FramescaperSelectedExactSupplementalPictureV27,
+		visuals: typeof supplementalVisuals,
+		activeVisualIds: ReadonlySet<string>,
+		trackFrames: Map<string, TrackOrderBucketV27[]>,
+		width: number,
+		height: number,
+	): void {
+		const picture = record(pictureValue, 'Selected V27 supplemental picture');
+		const clipId = stableId(picture.clipId, 'Selected V27 supplemental clip ID');
+		const sourceId = stableId(picture.sourceId, 'Selected V27 supplemental source ID');
+		const trackId = stableId(picture.trackId, 'Selected V27 supplemental track ID');
+		const visual = visuals.get(clipId);
+		if (!visual || !activeVisualIds.has(clipId)
+			|| visual.trackId !== trackId
+			|| visual.sourceId !== sourceId
+			|| visual.clipId !== clipId) {
+			throw new Error(`Selected V27 supplemental picture ${clipId} changed exact visual authority.`);
+		}
+		const frame = checkedFrame(picture.frame, 'Selected V27 supplemental linear frame');
+		const renderDescription = picture.renderDescription;
+		const placed = placeUnifiedExactLinearRgbaFrameV13({
+			frame,
+			displayWidth: dimension(picture.displayWidth, 'Selected V27 supplemental display width'),
+			displayHeight: dimension(picture.displayHeight, 'Selected V27 supplemental display height'),
+			outputWidth: width,
+			outputHeight: height,
+			renderDescription,
+			opacity: unit(picture.opacity, 'Selected V27 supplemental opacity'),
+		});
+		addUnifiedExactLinearCompositionEntryV13(
+			orderBucketEntries(trackFrames, trackId, authoredCompositingOrder(renderDescription)),
+			placed,
+			renderBlendMode(renderDescription),
+		);
 	}
 
 	async function renderMediaLayer(

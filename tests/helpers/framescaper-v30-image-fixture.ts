@@ -25,7 +25,12 @@ export interface FramescaperV30ImageFixture {
 }
 
 export function createFramescaperV30ImageFixture(
-	options: Readonly<{ sourceId?: string; clipId?: string; originalText?: string }> = {},
+	options: Readonly<{
+		sourceId?: string;
+		clipId?: string;
+		originalText?: string;
+		imageOnly?: boolean;
+	}> = {},
 ): FramescaperV30ImageFixture {
 	const sourceId = options.sourceId ?? 'image-source-1';
 	const clipId = options.clipId ?? 'image-clip-1';
@@ -71,9 +76,21 @@ export function createFramescaperV30ImageFixture(
 		},
 		conversionReceiptSha256: publication.conversionReceiptSha256,
 	};
+	const baseOptions = framescaperV20Options();
+	if (options.imageOnly === true) {
+		baseOptions.sources = (baseOptions.sources as Readonly<Record<string, unknown>>[])
+			.filter(({ kind }) => kind !== 'video');
+		baseOptions.clips = (baseOptions.clips as Readonly<Record<string, unknown>>[])
+			.filter(({ kind }) => kind !== 'video');
+		(baseOptions.projectBin as Record<string, unknown>).clips = [];
+		const baseVideoTrack = (baseOptions.tracks as Record<string, unknown>[])
+			.find(({ type }) => type === 'video');
+		if (!baseVideoTrack) throw new Error('The V30 image fixture requires a video track.');
+		baseVideoTrack.clipIds = [];
+	}
 	const base = createFramescaperProjectV30(
 		FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE,
-		framescaperV20Options(),
+		baseOptions,
 	);
 	const videoTrack = base.tracks.find(({ type }) => type === 'video');
 	if (!videoTrack) throw new Error('The V30 image fixture requires a video track.');

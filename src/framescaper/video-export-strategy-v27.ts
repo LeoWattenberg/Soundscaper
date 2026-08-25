@@ -51,6 +51,7 @@ import {
 import {
 	createFramescaperVideoExportExactExecutionV27,
 	type CreateFramescaperOpenFxExactExecutionV28,
+	type CreateFramescaperVideoExportSupplementalPictureExecutionV27,
 	type FramescaperVideoExportExactExecutionV27,
 } from './video-export-exact-execution-v27.ts';
 import {
@@ -95,6 +96,7 @@ interface ExactExecutionDependenciesV27 {
 	readonly captureFrame?: CaptureFrameV27;
 	readonly createAcceleratorCanvas?: () => unknown;
 	readonly createOpenFxExecution?: CreateFramescaperOpenFxExactExecutionV28;
+	readonly createSupplementalPictureExecution?: CreateFramescaperVideoExportSupplementalPictureExecutionV27;
 }
 
 const DEFAULT_PICTURE_ENCODERS = Object.freeze({
@@ -122,10 +124,13 @@ export function createFramescaperVideoExportStrategyV27(
 	dependencies?: FramescaperVideoExportStrategyV27Dependencies,
 	assetStore?: FramescaperVideoExportVisualAssetStoreV27,
 	createOpenFxExecution?: CreateFramescaperOpenFxExactExecutionV28,
+	createSupplementalPictureExecution?: CreateFramescaperVideoExportSupplementalPictureExecutionV27,
 ): ProductVideoExportStrategy {
 	assertFramescaperProjectV27Profile(profile);
 	const pictureEncoders = snapshotPictureEncoders(dependencies);
-	const exactDependencies = snapshotExactExecutionDependencies(dependencies, createOpenFxExecution);
+	const exactDependencies = snapshotExactExecutionDependencies(
+		dependencies, createOpenFxExecution, createSupplementalPictureExecution,
+	);
 	const delegate = createFramescaperVideoExportStrategyV20(
 		FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE, dependencies,
 		{ forceKeyed: true },
@@ -402,8 +407,12 @@ function snapshotPictureEncoders(
 function snapshotExactExecutionDependencies(
 	value: FramescaperVideoExportStrategyV27Dependencies | undefined,
 	createOpenFxExecution?: CreateFramescaperOpenFxExactExecutionV28,
+	createSupplementalPictureExecution?: CreateFramescaperVideoExportSupplementalPictureExecutionV27,
 ): ExactExecutionDependenciesV27 {
-	if (!value) return Object.freeze({ ...(createOpenFxExecution ? { createOpenFxExecution } : {}) });
+	if (!value) return Object.freeze({
+		...(createOpenFxExecution ? { createOpenFxExecution } : {}),
+		...(createSupplementalPictureExecution ? { createSupplementalPictureExecution } : {}),
+	});
 	const captureFrame = optionalExactFunction(value, 'captureExactFrame');
 	const createAcceleratorCanvas = optionalExactFunction(value, 'createExactAcceleratorCanvas');
 	return Object.freeze({
@@ -412,6 +421,7 @@ function snapshotExactExecutionDependencies(
 			createAcceleratorCanvas: createAcceleratorCanvas as () => unknown,
 		} : {}),
 		...(createOpenFxExecution ? { createOpenFxExecution } : {}),
+		...(createSupplementalPictureExecution ? { createSupplementalPictureExecution } : {}),
 	});
 }
 

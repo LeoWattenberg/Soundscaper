@@ -18,6 +18,9 @@ import {
 	createFramescaperVideoExportStrategyV27,
 	type FramescaperVideoExportStrategyV27Dependencies,
 } from './video-export-strategy-v27.ts';
+import type {
+	CreateFramescaperVideoExportSupplementalPictureExecutionV27,
+} from './video-export-exact-execution-v27.ts';
 import type { FramescaperVideoExportVisualAssetStoreV27 } from './video-export-visual-execution-v27.ts';
 import type { FramescaperSelectedOpenFxExecutionV28 } from './selected-v28-openfx-exact-planes.ts';
 import { createFramescaperOpenFxExecutionForFoundationV28 } from './selected-v28-openfx-execution.ts';
@@ -36,6 +39,7 @@ export function createFramescaperVideoExportStrategyV28(
 	dependencies?: FramescaperVideoExportStrategyV27Dependencies,
 	assetStore?: FramescaperVideoExportVisualAssetStoreV27,
 	openFxExecute?: FramescaperSelectedOpenFxExecutionV28['execute'],
+	createSupplementalPictureExecution?: CreateFramescaperVideoExportSupplementalPictureExecutionV27,
 ): ProductVideoExportStrategy {
 	const authorities = new Map<string, ExportAuthorityV28>();
 	const createOpenFxExecution = openFxExecute === undefined ? undefined
@@ -51,6 +55,7 @@ export function createFramescaperVideoExportStrategyV28(
 		};
 	const delegate = createFramescaperVideoExportStrategyV27(
 		FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE, dependencies, assetStore, createOpenFxExecution,
+		createSupplementalPictureExecution,
 	);
 	const exports = new WeakMap<object, ExportAuthorityV28>();
 	const plans = new WeakMap<object, ExportAuthorityV28>();
