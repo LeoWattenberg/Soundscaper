@@ -378,6 +378,28 @@ test('requires Blobs and timing only for visible sources intersecting the export
 	assert.deepEqual(capturedAssets(dependencies)[0]?.clipIds, [CLIP_ID]);
 });
 
+test('retains effective folder visibility through the actual keyed offline encode path', async () => {
+	const fixture = await exportFixture({ inactiveSources: true, trackFolders: true });
+	const events: string[] = [];
+	const dependencies = harnessDependencies(events);
+	const result = await encodeVideoKeyframeOfflineVideo({
+		project: fixture.project,
+		timingBySourceId: fixture.timing,
+		sources: [{ sourceId: SOURCE_ID, blob: fixture.blob }],
+		canvas: { width: 64, height: 32, frameRate: RATE },
+		startFrame: 0,
+		endFrame: 48_000,
+		format: 'mp4',
+		editorFfmpeg: editorPort(),
+		signal: new AbortController().signal,
+		assertCurrent: () => undefined,
+	}, dependencies);
+
+	assert.deepEqual([...result.bytes], [9, 8, 7]);
+	assert.deepEqual(capturedAssets(dependencies).map(({ sourceId }) => sourceId), [SOURCE_ID]);
+	assert.ok(events.includes('encode'));
+});
+
 test('captures decoder-rotated geometry separately from PAR display geometry', async () => {
 	const fixture = await exportFixture({ rotationDegrees: 90 });
 	const dependencies = harnessDependencies([]);

@@ -25,6 +25,7 @@ import {
 	AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
 } from './project-validation-budget.ts';
 import { MAXIMUM_PROJECT_PUBLICATION_DOCUMENT_BYTES } from './project-publication-admission.ts';
+import { inheritTrackFolderMediaStateProjectionV12 } from './track-folder-media-runtime.ts';
 
 interface ExportProject extends Readonly<Record<string, unknown>> {
 	readonly sampleRate?: unknown;
@@ -530,7 +531,10 @@ function immutableProjectSnapshot(project: ExportProject): ExportProject {
 	} catch (cause) {
 		throw new TypeError('Video keyframe export project must be structured-clone data.', { cause });
 	}
-	return freezeProjectSnapshot(snapshot) as ExportProject;
+	return inheritTrackFolderMediaStateProjectionV12(
+		project,
+		freezeProjectSnapshot(snapshot) as ExportProject,
+	);
 }
 
 function assertSnapshotPayloadBound(value: object): void {
