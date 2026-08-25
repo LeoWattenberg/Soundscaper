@@ -192,6 +192,36 @@ Vorbis preserves decoded frame geometry but is not sample-exact. The BSD-style
 copyright licenses and this technical review do not establish patent clearance
 or non-infringement for any use or territory.
 
+## LAME 4.0 WebAssembly
+
+Soundscaper distributes one exact Emscripten build of the LAME 4.0
+`libmp3lame` encoder under LGPL-2.0-or-later terms. It is a desktop bundled MP3
+encode provider on Linux x64/ARM64, macOS ARM64, and Windows x64/ARM64. macOS
+x64 is unsupported. No LAME decoder, command-line frontend, filesystem,
+network, thread, SIMD, or VBR support is included.
+
+- official upstream release: <https://lame.sourceforge.io/>
+- exact source archive: <https://downloads.sourceforge.net/project/lame/lame/4.0/lame-4.0.tar.gz>
+- source archive SHA-256:
+  `3df5124d5ad3a98312ffd7ba6a9b36230e4f8a3e66d3ce0f425e336c32d216eb`
+- retained terms: [`LAME.txt`](src/common/editor/lame/licenses/LAME.txt) and
+  [`LGPL-2.0.txt`](src/common/editor/lame/licenses/LGPL-2.0.txt)
+- detailed notice: [`NOTICE.md`](src/common/editor/lame/NOTICE.md)
+- source/build manifest: [`source-manifest.json`](src/common/editor/lame/source-manifest.json)
+- exact `lame.wasm`: 212,205 bytes; SHA-256
+  `654d08f946851134755513c8c0cd4486e8c9d2024df2318dc48b262e4ad7a502`
+
+The admitted profile is MPEG-1 Layer III CBR at 32, 44.1, or 48 kHz, mono or
+stereo, for the exact bitrate tuples accepted by the request preflight. A
+strict bounded MPEG inspector validates every output frame and requires the
+LAME gapless delay/padding tag. Run `npm run build:lame` to reproduce the
+artifact and `npm run audit:lame` to recheck source identity, retained terms,
+archive members, build constraints, WebAssembly authority, memory limits, and
+the encode/decode canary. LAME-to-mpg123 interoperability tests verify the
+decoded frame count and a bounded lossy signal-to-noise floor. These license,
+identity, and technical checks do not establish patent clearance or
+non-infringement for any use or territory.
+
 ## mpg123 1.33.7 WebAssembly
 
 Soundscaper distributes one exact memory-fed Emscripten build of the reusable
@@ -233,6 +263,34 @@ exact decoded frame counts and PCM digests. Upstream's patent discussion is
 explicitly not legal advice; the LGPL terms, technical review, and
 interoperability results do not establish patent clearance or non-infringement
 for any use or territory.
+
+## TwoLAME 0.4.0 WebAssembly
+
+Soundscaper distributes one exact Emscripten build of the TwoLAME 0.4.0
+MPEG-1 Layer II encoder under LGPL-2.1-or-later terms. It is a desktop bundled
+MP2 encode provider on Linux x64/ARM64, macOS ARM64, and Windows x64/ARM64.
+macOS x64 is unsupported. No decoder, command-line frontend, filesystem,
+network, thread, SIMD, or VBR support is included.
+
+- official upstream release: <https://www.twolame.org/>
+- exact source archive: <https://downloads.sourceforge.net/project/twolame/twolame/0.4.0/twolame-0.4.0.tar.gz>
+- source archive SHA-256:
+  `cc35424f6019a88c6f52570b63e1baf50f62963a3eac52a03a800bb070d7c87d`
+- retained terms: [`TWOLAME.txt`](src/common/editor/twolame/licenses/TWOLAME.txt)
+- detailed notice: [`NOTICE.md`](src/common/editor/twolame/NOTICE.md)
+- source/build manifest: [`source-manifest.json`](src/common/editor/twolame/source-manifest.json)
+- exact `twolame.wasm`: 146,820 bytes; SHA-256
+  `b4b166bed688504b548adcee02cda391d4d8b25a44aec914c3fe1082f466ed1b`
+
+The admitted profile is MPEG-1 Layer II CBR at 32, 44.1, or 48 kHz, mono or
+stereo, for the exact bitrate tuples accepted by request preflight. TwoLAME
+quantizes finite float input to signed 16-bit PCM and pads a final partial
+1,152-sample frame; its output is therefore neither lossless nor gapless.
+Run `npm run build:twolame` to reproduce the artifact and
+`npm run audit:twolame` to recheck its closed authority and evidence. Stock
+TwoLAME-to-mpg123 tests verify structural framing and a bounded lossy
+signal-to-noise floor. These checks do not establish patent clearance or
+non-infringement for any use or territory.
 
 ## WavPack 5.9.0 WebAssembly
 

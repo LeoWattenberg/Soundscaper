@@ -107,6 +107,7 @@ function compositeProvider(
 	const generations = runtimes.map(({ provider }) => provider.capabilityGeneration).sort();
 	const labels = [
 		...(implementations.some((value) => value.includes('libflac')) ? ['libflac'] : []),
+		...(implementations.some((value) => value.includes('lame')) ? ['lame'] : []),
 		...(implementations.some((value) => value.includes('libmpg123')) ? ['mpg123'] : []),
 		...(implementations.some((value) => value.includes('libopus')) ? ['libopus-libogg'] : []),
 		...(implementations.some((value) => value.includes('twolame')) ? ['twolame'] : []),

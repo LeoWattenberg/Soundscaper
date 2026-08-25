@@ -10,6 +10,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { compileDesktopProjectLibraryRuntime } from '../scripts/lib/desktop-project-library-runtime.mjs';
 import { stageDesktopBundledFlacRuntime } from '../scripts/lib/desktop-bundled-flac-runtime.mjs';
+import { stageDesktopBundledLameRuntime } from '../scripts/lib/desktop-bundled-lame-runtime.mjs';
 import { stageDesktopBundledMpg123Runtime } from '../scripts/lib/desktop-bundled-mpg123-runtime.mjs';
 import { stageDesktopBundledOpusRuntime } from '../scripts/lib/desktop-bundled-opus-runtime.mjs';
 import { stageDesktopBundledTwolameRuntime } from '../scripts/lib/desktop-bundled-twolame-runtime.mjs';
@@ -18,6 +19,7 @@ import { stageDesktopBundledWavPackRuntime } from '../scripts/lib/desktop-bundle
 import {
 	DESKTOP_AUDIO_CODEC_RUNTIME_FILES,
 	DESKTOP_BUNDLED_FLAC_WASM,
+	DESKTOP_BUNDLED_LAME_WASM,
 	DESKTOP_BUNDLED_MPG123_WASM,
 	DESKTOP_BUNDLED_OPUS_WASM,
 	DESKTOP_BUNDLED_TWOLAME_WASM,
@@ -34,6 +36,7 @@ const AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'desktop/bundled-audio-codec-runtime.js',
 	'desktop/bundled-flac-audio-codec-runtime.js',
 	'desktop/bundled-flac-stream.js',
+	'desktop/bundled-lame-audio-codec-runtime.js',
 	'desktop/bundled-mpeg-audio-stream.js',
 	'desktop/bundled-mpg123-audio-codec-runtime.js',
 	'desktop/bundled-opus-audio-codec-runtime.js',
@@ -63,6 +66,7 @@ const AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/desktop-codec-provider-catalog.js',
 	'src/common/editor/desktop-wavpack-codec-profile.js',
 	'src/common/editor/flac/flac.wasm',
+	'src/common/editor/lame/lame.wasm',
 	'src/common/editor/mpg123/mpg123.wasm',
 	'src/common/editor/opus/opus.wasm',
 	'src/common/editor/twolame/twolame.wasm',
@@ -89,6 +93,11 @@ test('desktop codec runtime inventory contains only exact reviewed audio payload
 		file: 'src/common/editor/flac/flac.wasm',
 		byteLength: 153_044,
 		sha256: '34acff0d67e3ac7f34816217ed7f5f859bf9a1c70f33eb3c347049f5fdf0d443',
+	});
+	assert.deepEqual(DESKTOP_BUNDLED_LAME_WASM, {
+		file: 'src/common/editor/lame/lame.wasm',
+		byteLength: 212_205,
+		sha256: '654d08f946851134755513c8c0cd4486e8c9d2024df2318dc48b262e4ad7a502',
 	});
 	assert.deepEqual(DESKTOP_BUNDLED_WAVPACK_WASM, {
 		file: 'src/common/editor/wavpack/wavpack.wasm',
@@ -118,7 +127,8 @@ test('desktop codec runtime inventory contains only exact reviewed audio payload
 	assert.deepEqual(
 		DESKTOP_CODEC_RUNTIME_FILES.filter((file) => file.endsWith('.wasm')),
 		[
-			DESKTOP_BUNDLED_FLAC_WASM.file, DESKTOP_BUNDLED_MPG123_WASM.file,
+			DESKTOP_BUNDLED_FLAC_WASM.file, DESKTOP_BUNDLED_LAME_WASM.file,
+			DESKTOP_BUNDLED_MPG123_WASM.file,
 			DESKTOP_BUNDLED_OPUS_WASM.file, DESKTOP_BUNDLED_TWOLAME_WASM.file,
 			DESKTOP_BUNDLED_VORBIS_WASM.file, DESKTOP_BUNDLED_WAVPACK_WASM.file,
 		],
@@ -126,6 +136,9 @@ test('desktop codec runtime inventory contains only exact reviewed audio payload
 	const flacProvider = await import('../desktop/bundled-flac-audio-codec-runtime.ts');
 	assert.equal(flacProvider.BUNDLED_FLAC_WASM_BYTE_LENGTH, DESKTOP_BUNDLED_FLAC_WASM.byteLength);
 	assert.equal(flacProvider.BUNDLED_FLAC_WASM_SHA256, DESKTOP_BUNDLED_FLAC_WASM.sha256);
+	const lameProvider = await import('../desktop/bundled-lame-audio-codec-runtime.ts');
+	assert.equal(lameProvider.BUNDLED_LAME_WASM_BYTE_LENGTH, DESKTOP_BUNDLED_LAME_WASM.byteLength);
+	assert.equal(lameProvider.BUNDLED_LAME_WASM_SHA256, DESKTOP_BUNDLED_LAME_WASM.sha256);
 	const opusProvider = await import('../desktop/bundled-opus-audio-codec-runtime.ts');
 	assert.equal(opusProvider.BUNDLED_OPUS_WASM_BYTE_LENGTH, DESKTOP_BUNDLED_OPUS_WASM.byteLength);
 	assert.equal(opusProvider.BUNDLED_OPUS_WASM_SHA256, DESKTOP_BUNDLED_OPUS_WASM.sha256);
@@ -157,7 +170,8 @@ test('compiled desktop audio main entry points are importable from the staged ru
 	assert.deepEqual(
 		result.files.filter((file) => file.endsWith('.wasm')),
 		[
-			DESKTOP_BUNDLED_FLAC_WASM.file, DESKTOP_BUNDLED_MPG123_WASM.file,
+			DESKTOP_BUNDLED_FLAC_WASM.file, DESKTOP_BUNDLED_LAME_WASM.file,
+			DESKTOP_BUNDLED_MPG123_WASM.file,
 			DESKTOP_BUNDLED_OPUS_WASM.file, DESKTOP_BUNDLED_TWOLAME_WASM.file,
 			DESKTOP_BUNDLED_VORBIS_WASM.file, DESKTOP_BUNDLED_WAVPACK_WASM.file,
 		],
@@ -165,6 +179,9 @@ test('compiled desktop audio main entry points are importable from the staged ru
 	const stagedFlac = await readFile(join(outputRoot, DESKTOP_BUNDLED_FLAC_WASM.file));
 	assert.equal(stagedFlac.byteLength, DESKTOP_BUNDLED_FLAC_WASM.byteLength);
 	assert.equal(createHash('sha256').update(stagedFlac).digest('hex'), DESKTOP_BUNDLED_FLAC_WASM.sha256);
+	const stagedLame = await readFile(join(outputRoot, DESKTOP_BUNDLED_LAME_WASM.file));
+	assert.equal(stagedLame.byteLength, DESKTOP_BUNDLED_LAME_WASM.byteLength);
+	assert.equal(createHash('sha256').update(stagedLame).digest('hex'), DESKTOP_BUNDLED_LAME_WASM.sha256);
 	const stagedOpus = await readFile(join(outputRoot, DESKTOP_BUNDLED_OPUS_WASM.file));
 	assert.equal(stagedOpus.byteLength, DESKTOP_BUNDLED_OPUS_WASM.byteLength);
 	assert.equal(createHash('sha256').update(stagedOpus).digest('hex'), DESKTOP_BUNDLED_OPUS_WASM.sha256);
@@ -265,6 +282,22 @@ test('mpg123 staging refuses a pre-existing destination symlink', async (context
 	await symlink(victim, destination);
 	await assert.rejects(
 		stageDesktopBundledMpg123Runtime({ repositoryRoot: ROOT, outputRoot }),
+		/(?:EEXIST|file already exists)/iu,
+	);
+	assert.equal(await readFile(victim, 'utf8'), 'preserve-me');
+});
+
+test('LAME staging refuses a pre-existing destination symlink', async (context) => {
+	const temporaryRoot = await mkdtemp(join(tmpdir(), 'soundscaper-lame-link-'));
+	context.after(() => rm(temporaryRoot, { recursive: true, force: true }));
+	const outputRoot = join(temporaryRoot, 'runtime');
+	const destination = join(outputRoot, DESKTOP_BUNDLED_LAME_WASM.file);
+	const victim = join(temporaryRoot, 'victim.wasm');
+	await mkdir(dirname(destination), { recursive: true });
+	await writeFile(victim, 'preserve-me');
+	await symlink(victim, destination);
+	await assert.rejects(
+		stageDesktopBundledLameRuntime({ repositoryRoot: ROOT, outputRoot }),
 		/(?:EEXIST|file already exists)/iu,
 	);
 	assert.equal(await readFile(victim, 'utf8'), 'preserve-me');

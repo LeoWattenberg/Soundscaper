@@ -20,6 +20,7 @@
 		"desktop/bundled-audio-codec-runtime.ts",
 		"desktop/bundled-flac-audio-codec-runtime.ts",
 		"desktop/bundled-flac-stream.ts",
+		"desktop/bundled-lame-audio-codec-runtime.ts",
 		"desktop/bundled-mpeg-audio-stream.ts",
 		"desktop/bundled-mpg123-audio-codec-runtime.ts",
 		"desktop/bundled-opus-audio-codec-runtime.ts",

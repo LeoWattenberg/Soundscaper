@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import { createBundledDesktopAudioCodecRuntime } from '../desktop/bundled-audio-codec-runtime.ts';
 import { loadBundledFlacAudioCodecRuntime } from '../desktop/bundled-flac-audio-codec-runtime.ts';
+import { loadBundledLameAudioCodecRuntime } from '../desktop/bundled-lame-audio-codec-runtime.ts';
 import { loadBundledMpg123AudioCodecRuntime } from '../desktop/bundled-mpg123-audio-codec-runtime.ts';
 import { loadBundledOpusAudioCodecRuntime } from '../desktop/bundled-opus-audio-codec-runtime.ts';
 import { loadBundledTwolameAudioCodecRuntime } from '../desktop/bundled-twolame-audio-codec-runtime.ts';
@@ -25,23 +26,26 @@ import { testMpegAudioStream } from './helpers/mpeg-audio-fixture.ts';
 
 test('the composite exposes one bundled tier and delegates every reviewed audio runtime', async () => {
 	const flac = await loadBundledFlacAudioCodecRuntime({ target: 'linux-x64' });
+	const lame = await loadBundledLameAudioCodecRuntime({ target: 'linux-x64' });
 	const mpg123 = await loadBundledMpg123AudioCodecRuntime({ target: 'linux-x64' });
 	const opus = await loadBundledOpusAudioCodecRuntime({ target: 'linux-x64' });
 	const twolame = await loadBundledTwolameAudioCodecRuntime({ target: 'linux-x64' });
 	const wavpack = await loadBundledWavPackAudioCodecRuntime({ target: 'linux-x64' });
 	const vorbis = await loadBundledVorbisAudioCodecRuntime({ target: 'linux-x64' });
 	assert.ok(flac);
+	assert.ok(lame);
 	assert.ok(mpg123);
 	assert.ok(opus);
 	assert.ok(twolame);
 	assert.ok(wavpack);
 	assert.ok(vorbis);
 	const runtime = createBundledDesktopAudioCodecRuntime({
-		target: 'linux-x64', runtimes: [wavpack, flac, opus, mpg123, vorbis, twolame],
+		target: 'linux-x64', runtimes: [wavpack, flac, opus, mpg123, lame, vorbis, twolame],
 	});
 	assert.equal(runtime.provider.kind, 'bundled');
 	assert.equal(runtime.provider.implementation, 'soundscaper-reviewed-audio-codecs');
 	assert.match(runtime.provider.capabilityGeneration, /libflac/u);
+	assert.match(runtime.provider.capabilityGeneration, /lame/u);
 	assert.match(runtime.provider.capabilityGeneration, /mpg123/u);
 	assert.match(runtime.provider.capabilityGeneration, /libopus-libogg/u);
 	assert.match(runtime.provider.capabilityGeneration, /twolame/u);
@@ -105,6 +109,16 @@ test('the composite exposes one bundled tier and delegates every reviewed audio 
 	}) as { readonly status: string; readonly output?: Uint8Array };
 	assert.equal(mp2EncodeResult.status, 'executed');
 	assert.equal(mp2EncodeResult.output?.[0], 0xff);
+	const mp3EncodeRequest: DesktopAudioCodecRequest = {
+		operation: 'audio-encode', format: 'mp3', input: stereoSinePcm(4_608, 48_000),
+		sampleRate: 48_000, channelCount: 2,
+		settings: { bitrateKbps: 192 }, maximumOutputBytes: 64 * 1024,
+	};
+	const mp3EncodeResult = await runtime.execute(mp3EncodeRequest, {
+		operation: deriveDesktopAudioCodecOperation(mp3EncodeRequest),
+	}) as { readonly status: string; readonly output?: Uint8Array };
+	assert.equal(mp3EncodeResult.status, 'executed');
+	assert.equal(mp3EncodeResult.output?.[0], 0xff);
 	const mp2Request: DesktopAudioCodecRequest = {
 		operation: 'audio-decode', format: 'mp2',
 		input: testMpegAudioStream({ layer: 2, sampleRate: 48_000, channelCount: 2 }),
@@ -126,19 +140,21 @@ test('the composite exposes one bundled tier and delegates every reviewed audio 
 
 test('broker receipts attribute bundled encode and decode to each concrete reviewed runtime', async () => {
 	const flac = await loadBundledFlacAudioCodecRuntime({ target: 'linux-x64' });
+	const lame = await loadBundledLameAudioCodecRuntime({ target: 'linux-x64' });
 	const mpg123 = await loadBundledMpg123AudioCodecRuntime({ target: 'linux-x64' });
 	const opus = await loadBundledOpusAudioCodecRuntime({ target: 'linux-x64' });
 	const twolame = await loadBundledTwolameAudioCodecRuntime({ target: 'linux-x64' });
 	const wavpack = await loadBundledWavPackAudioCodecRuntime({ target: 'linux-x64' });
 	const vorbis = await loadBundledVorbisAudioCodecRuntime({ target: 'linux-x64' });
 	assert.ok(flac);
+	assert.ok(lame);
 	assert.ok(mpg123);
 	assert.ok(opus);
 	assert.ok(twolame);
 	assert.ok(wavpack);
 	assert.ok(vorbis);
 	const bundled = createBundledDesktopAudioCodecRuntime({
-		target: 'linux-x64', runtimes: [wavpack, flac, opus, mpg123, vorbis, twolame],
+		target: 'linux-x64', runtimes: [wavpack, flac, opus, mpg123, lame, vorbis, twolame],
 	});
 	const broker = createDesktopAudioCodecBroker({ runtimes: [
 		bundled, unreachableRuntime('operating-system'), unreachableRuntime('external-ffmpeg'),
@@ -213,6 +229,26 @@ test('broker receipts attribute bundled encode and decode to each concrete revie
 	});
 	assert.ok(bestAlignedSnr(twolamePcm, mp2Decoded.result.bytes, 2, 1_024) > 20,
 		'TwoLAME -> mpg123 should preserve a modest aligned signal-to-noise ratio');
+	const lamePcm = stereoSinePcm(4_608, 48_000);
+	const mp3Encoded = await broker.execute({
+		operation: 'audio-encode', format: 'mp3', input: lamePcm,
+		sampleRate: 48_000, channelCount: 2, settings: { bitrateKbps: 192 },
+		maximumOutputBytes: 256 * 1024,
+	});
+	assertConcreteReceipt(mp3Encoded.receipt, lame.provider);
+	assert.equal(mp3Encoded.result.operation, 'audio-encode');
+	const mp3Decoded = await broker.execute({
+		operation: 'audio-decode', format: 'mp3', input: mp3Encoded.result.bytes,
+		sampleRate: null, channelCount: null, settings: { sampleFormat: 'f32le' },
+		maximumOutputBytes: 256 * 1024,
+	});
+	assertConcreteReceipt(mp3Decoded.receipt, mpg123.provider);
+	assert.deepEqual(mp3Decoded.result.metadata, {
+		kind: 'decoded-audio', sourceFormat: 'mp3', sampleFormat: 'f32le',
+		interleaving: 'interleaved', sampleRate: 48_000, channelCount: 2, frameCount: 4_608,
+	});
+	assert.ok(bestAlignedSnr(lamePcm, mp3Decoded.result.bytes, 2, 1_024) > 20,
+		'LAME -> mpg123 should preserve a modest aligned signal-to-noise ratio');
 });
 
 test('the composite remains fail closed for an empty or wrong-tier runtime list', () => {
