@@ -20,7 +20,6 @@ import {
 	releaseVideoProxyRelationshipAdoptionLease,
 	type VideoProxyRelationshipAdoptionLease,
 } from '../common/editor/video-proxy-relationship.ts';
-import type { VideoProxyAttachmentV18 } from '../common/editor/video-proxy-attachment-v18.ts';
 import {
 	CapturedVideoProxyBodyStagingError,
 	createCapturedVideoProxyAttachment,
@@ -51,6 +50,12 @@ import {
 	CapturedVideoProxyAutomaticReconciliation,
 	CapturedVideoProxyBoundedState,
 } from './editor-captured-video-proxy-scheduler-state.ts';
+import {
+	capturedVideoProxyAbortError as abortError,
+	assertMatchingCapturedVideoProxyAttachment as assertMatchingExistingAttachment,
+	capturedVideoProxySource as videoSource,
+	throwIfCapturedVideoProxyAborted as throwIfAborted,
+} from './editor-captured-video-proxy-scheduler-guards.ts';
 import {
 	capturedVideoProxySchedulerDependenciesV18,
 	capturedVideoProxySchedulerDependenciesV19,
@@ -573,39 +578,4 @@ async function loadAdmittedBase(
 			&& projectFingerprint(dependencies, pending.base) === projectFingerprint(dependencies, base));
 	if (!admitted) throw abortError('The captured proxy origin revision is no longer current.');
 	return base;
-}
-
-function videoSource(
-	project: FramescaperCapturedVideoProxyProject,
-	sourceId: string,
-): Record<string, unknown> & { proxyAttachment: VideoProxyAttachmentV18 | null } {
-	const sources = (project as unknown as {
-		readonly sources: readonly Readonly<Record<string, unknown>>[];
-	}).sources;
-	const matches = sources.filter((source) => source.id === sourceId);
-	if (matches.length !== 1 || matches[0]!.kind !== 'video') {
-		throw new ReferenceError(`Captured video proxy source ${sourceId} is missing or ambiguous.`);
-	}
-	return matches[0] as unknown as Record<string, unknown> & {
-		proxyAttachment: VideoProxyAttachmentV18 | null;
-	};
-}
-
-function assertMatchingExistingAttachment(source: Readonly<Record<string, unknown>>, digest: string): void {
-	const attachment = source.proxyAttachment as Readonly<Record<string, unknown>> | null;
-	if (!attachment || attachment.originalSha256 !== digest) {
-		throw new Error('The captured video already has a proxy for a different source generation.');
-	}
-}
-
-function abortError(message: string): Error {
-	return typeof DOMException === 'function'
-		? new DOMException(message, 'AbortError')
-		: Object.assign(new Error(message), { name: 'AbortError' });
-}
-
-function throwIfAborted(signal: AbortSignal): void {
-	if (!signal.aborted) return;
-	if (signal.reason !== undefined) throw signal.reason;
-	throw abortError('Captured video proxy work was cancelled.');
 }
