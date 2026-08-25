@@ -223,13 +223,16 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 				|| bytes.byteLength > input.expectedBytes - input.writtenBytes) {
 				throw operationError('input-drift', 'Desktop video input offset or byte count drifted.');
 			}
-			await session.started.promise;
-			if (session.state !== 'running' || !input.stream) throw operationError('not-running', 'Desktop video process is not running.');
 			input.writing = true;
-			try { await writeExternalFfmpegVideoInput(input.stream, bytes, session.controller.signal); }
-			finally { input.writing = false; }
-			input.writtenBytes += bytes.byteLength;
-			return Object.freeze({ offset: input.writtenBytes });
+			try {
+				await session.started.promise;
+				if (session.state !== 'running' || !input.stream) {
+					throw operationError('not-running', 'Desktop video process is not running.');
+				}
+				await writeExternalFfmpegVideoInput(input.stream, bytes, session.controller.signal);
+				input.writtenBytes += bytes.byteLength;
+				return Object.freeze({ offset: input.writtenBytes });
+			} finally { input.writing = false; }
 		},
 		async closeInput(
 			ownerValue: Owner,

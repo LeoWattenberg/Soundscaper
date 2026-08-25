@@ -120,6 +120,38 @@ test('video service rejects byte drift and quarantines stale executable identity
 	}
 });
 
+test('video service reserves an input offset while process startup is still pending', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-concurrent-write-'));
+	const callbacks: Array<() => void> = [];
+	const fixture = serviceFixture(root, () => fakeChild(new Writable({
+		write(_chunk, _encoding, callback) { callbacks.push(callback); },
+	}), null));
+	try {
+		const session = await fixture.service.begin(fixture.owner, PLAN);
+		const first = fixture.service.writeInput(fixture.owner, {
+			operationId: session.operationId, role: 'video', offset: 0,
+			bytes: new Uint8Array(16),
+		});
+		const concurrent = fixture.service.writeInput(fixture.owner, {
+			operationId: session.operationId, role: 'video', offset: 0,
+			bytes: new Uint8Array(16),
+		});
+		const concurrentOutcome = concurrent.then(() => 'resolved', () => 'rejected');
+		const executing = fixture.service.execute(fixture.owner, session.operationId);
+		await waitFor(() => callbacks.length === 1);
+		callbacks.shift()?.();
+		await first;
+		await new Promise<void>((resolve) => setImmediate(resolve));
+		callbacks.shift()?.();
+		assert.equal(await concurrentOutcome, 'rejected');
+		await fixture.service.cancel(fixture.owner, session.operationId);
+		await assert.rejects(executing);
+	} finally {
+		fixture.service.dispose();
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
 test('video service cancellation terminates the child and owner revocation drains the session', async () => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-cancel-'));
 	let killed = 0;
