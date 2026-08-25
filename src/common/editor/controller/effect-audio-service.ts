@@ -18,6 +18,7 @@ import {
 	MAXIMUM_SPECTRAL_EDIT_USEFUL_BINARY_BYTES,
 	planSpectralEditWorkflowAdmission,
 } from '../spectral-edit-admission.ts';
+import { createLocalAssistanceSelectedMediaPreparation } from './local-assistance-selected-media.ts';
 
 const NOISE_PROFILE_TASK = 'selection-effect-noise-profile';
 const SPECTRAL_EFFECT_TASK = 'selection-effect-spectral';
@@ -484,10 +485,19 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 		}
 	}
 
+	const selectedMediaPreparation = createLocalAssistanceSelectedMediaPreparation({
+		getProject: runtime.getProject,
+		getSelectedClipId: () => runtime.state.selectedClipId,
+		captureProject: runtime.captureProject,
+		assertProject: (token) => runtime.assertProject(token as EditorProjectToken),
+		renderDryTrackRange,
+	});
+
 	return Object.freeze({
 		applySpectralSelection,
 		captureRackNoiseProfile,
 		captureSelectedNoiseProfile,
+		selectedMediaPreparation,
 		renderDryTrackRange,
 		renderRackPrefixRange,
 	});
