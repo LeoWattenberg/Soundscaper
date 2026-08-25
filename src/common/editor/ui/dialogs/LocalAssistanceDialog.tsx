@@ -6,7 +6,7 @@ import { ASSISTANCE_OPERATIONS, type AssistanceOperation } from '../../assistanc
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import LocalAssistanceOutputReviewList from './LocalAssistanceOutputReview.tsx';
 import type { LocalAssistanceBridge } from '../local-assistance-bridge.ts';
-import { localAssistanceModelCompatible,
+import { localAssistanceModelTaskSlots,
 	type LocalAssistanceSelectedMediaPreparationPort } from '../local-assistance-preparation.ts';
 import {
 	createLocalAssistanceSessionStore,
@@ -75,9 +75,9 @@ export function LocalAssistanceDialogView({
 }: LocalAssistanceDialogViewProps) {
 	const source = snapshot.sources.find(({ sourceId }) => sourceId === snapshot.selectedSourceId) ?? null;
 	const operationSet = new Set(source?.operations ?? []);
-	const compatibleModels = snapshot.selectedOperation
-		? snapshot.models.filter((model) => localAssistanceModelCompatible(snapshot.selectedOperation!, model))
-		: [];
+	const modelTaskSlots = snapshot.selectedOperation
+		? localAssistanceModelTaskSlots(snapshot.selectedOperation)
+		: EMPTY_MODEL_TASK_SLOTS;
 	const message = phaseMessage(copy, snapshot);
 	return <AudioEditorDialogShell
 		title={text(copy, 'localAssistance', 'Local Assistance')}
@@ -116,16 +116,27 @@ export function LocalAssistanceDialogView({
 						disabled={!operationSet.has(operation)}>{operation}</option>)}
 				</select>
 			</label>
-			<label>{text(copy, 'localAssistanceModel', 'Installed compatible model')}
-				<select value={snapshot.selectedModelId ?? ''}
-					disabled={!snapshot.selectedOperation || busy(snapshot)}
-					onChange={(event) => { void onSelectModel(event.currentTarget.value); }}>
-					<option value="" disabled>{text(copy, 'localAssistanceChoose', 'Choose')}</option>
-					{compatibleModels.map((model) => <option value={model.modelId} key={model.modelId}>
-						{model.modelId} · {model.version}
-					</option>)}
-				</select>
-			</label>
+			{modelTaskSlots.map((slot) => {
+				const compatibleModels = snapshot.models.filter((model) => slot.includes(model.task));
+				const selectedModelId = snapshot.selectedModelIds.find(
+					(modelId) => compatibleModels.some((model) => model.modelId === modelId),
+				) ?? '';
+				return <label key={slot.join('|') || 'unselected-operation'}>
+					{text(copy, 'localAssistanceModel', 'Installed compatible model')}
+					{modelTaskSlots.length > 1 && ` · ${slot.join(' / ')}`}
+					<select value={selectedModelId}
+						disabled={!snapshot.selectedOperation || busy(snapshot)}
+						onChange={(event) => { void onSelectModel(event.currentTarget.value); }}>
+						<option value="" disabled>{text(copy, 'localAssistanceChoose', 'Choose')}</option>
+						{compatibleModels.map((model) => <option value={model.modelId} key={model.modelId}>
+							{model.modelId} · {model.version}
+						</option>)}
+					</select>
+				</label>;
+			})}
+			{snapshot.selectedOperation && modelTaskSlots.length === 0 && <p>
+				{text(copy, 'localAssistanceNoModelRequired', 'This operation requires no installed model binding.')}
+			</p>}
 		</div>
 		<label className="kw-local-assistance__consent">
 			<input type="checkbox" checked={snapshot.consent} disabled={busy(snapshot)}
@@ -209,6 +220,8 @@ function busy(snapshot: LocalAssistanceSnapshot): boolean {
 	return snapshot.phase === 'preparing' || snapshot.phase === 'running'
 		|| snapshot.phase === 'cancelling' || snapshot.phase === 'accepting';
 }
+
+const EMPTY_MODEL_TASK_SLOTS = Object.freeze([Object.freeze([])]) as readonly (readonly string[])[];
 
 function text(copy: Copy, key: string, fallback: string): string {
 	return copy[key] || fallback;

@@ -13,6 +13,7 @@ import {
 } from '../src/common/editor/ui/local-assistance-bridge.ts';
 import { createLocalAssistanceMenuItems } from '../src/common/editor/ui/local-assistance-menu.ts';
 import {
+	localAssistanceModelTaskSlots,
 	type LocalAssistanceSelectedMediaPreparationPort,
 } from '../src/common/editor/ui/local-assistance-preparation.ts';
 import {
@@ -41,6 +42,18 @@ const FENCE = Object.freeze({
 const MODEL = Object.freeze({
 	modelId: 'speech-model', version: '1.2.3', task: 'speech-recognition',
 	artifactSha256s: Object.freeze([MODEL_SHA256]),
+});
+const SEGMENTATION_MODEL = Object.freeze({
+	modelId: 'segmentation-model', version: '2.0.0', task: 'speaker-segmentation',
+	artifactSha256s: Object.freeze(['d'.repeat(64)]),
+});
+const SECOND_SEGMENTATION_MODEL = Object.freeze({
+	modelId: 'segmentation-model-alternate', version: '2.1.0', task: 'speaker-segmentation',
+	artifactSha256s: Object.freeze(['e'.repeat(64)]),
+});
+const EMBEDDING_MODEL = Object.freeze({
+	modelId: 'embedding-model', version: '3.0.0', task: 'speaker-embedding',
+	artifactSha256s: Object.freeze(['c'.repeat(64)]),
 });
 
 const INVENTORY = Object.freeze({
@@ -144,6 +157,59 @@ function rawBridgeFixture(outputBody = new Blob([TRANSCRIPT_BODY], {
 	return { api, calls, emit(value: unknown) { progress?.(value); } };
 }
 
+function diarizationFixture(models = Object.freeze([
+	EMBEDDING_MODEL, SECOND_SEGMENTATION_MODEL, SEGMENTATION_MODEL,
+])) {
+	const requests: Parameters<LocalAssistanceBridge['run']>[0][] = [];
+	const bridge: LocalAssistanceBridge = Object.freeze({
+		models: async () => models,
+		createJob: async () => Object.freeze({ contractVersion: 1 as const, jobId: JOB_ID }),
+		stageInput: async (request: Parameters<LocalAssistanceBridge['stageInput']>[0]) => Object.freeze({
+			claimVersion: 1 as const, claimId: INPUT_CLAIM_ID, jobId: request.jobId,
+			role: request.role, mediaType: request.mediaType, byteLength: request.byteLength,
+			sha256: INPUT_SHA256,
+		}),
+		reserveOutput: async (request: Parameters<LocalAssistanceBridge['reserveOutput']>[0]) => Object.freeze({
+			claimVersion: 1 as const, claimId: OUTPUT_CLAIM_ID, jobId: request.jobId,
+			role: request.role, mediaType: request.mediaType,
+			maximumByteLength: request.maximumByteLength,
+		}),
+		run: async (request: Parameters<LocalAssistanceBridge['run']>[0]) => {
+			requests.push(request);
+			return Object.freeze({
+				contractVersion: 1 as const, jobId: request.jobId, operation: request.operation,
+				outcome: 'unavailable' as const, reason: 'adapter-unavailable' as const,
+			});
+		},
+		cancel: async (jobId: string) => Object.freeze({
+			contractVersion: 1 as const, jobId, outcome: 'not-active' as const,
+		}),
+		readOutput: async () => { throw new Error('An unavailable adapter has no output.'); },
+		release: async () => true,
+		onProgress: () => () => undefined,
+	});
+	const preparation: LocalAssistanceSelectedMediaPreparationPort = Object.freeze({
+		listSelectedMedia: async () => Object.freeze({ sources: Object.freeze([Object.freeze({
+			sourceId: 'source-1', label: 'Interview selection', mediaKind: 'audio' as const,
+			operations: Object.freeze(['speaker-diarization' as const]),
+		})]) }),
+		prepareSelectedMedia: async () => Object.freeze({
+			sourceId: 'source-1', operation: 'speaker-diarization' as const,
+			selectionFence: FENCE,
+			inputs: Object.freeze([Object.freeze({
+				role: 'audio' as const, mediaType: 'audio/wav',
+				bytes: new Blob(['audio'], { type: 'audio/wav' }),
+			})]),
+			outputs: Object.freeze([Object.freeze({
+				role: 'speaker-turns' as const,
+				mediaType: 'application/vnd.soundscaper.speaker-turns+json',
+				maximumByteLength: 4096,
+			})]),
+		}),
+	});
+	return { bridge, preparation, requests };
+}
+
 test('the renderer admits only the exact nested pathless local-assistance bridge', () => {
 	const fixture = rawBridgeFixture();
 	const bridge = resolveLocalAssistanceBridge({ localAssistance: fixture.api });
@@ -179,6 +245,92 @@ test('the session never runs implicitly and requires explicit source, operation,
 	assert.equal(store.getSnapshot().canRun, false);
 	disconnect();
 });
+
+test('speaker diarization is unavailable without both installed model tasks', async () => {
+	for (const models of [
+		Object.freeze([SEGMENTATION_MODEL]), Object.freeze([EMBEDDING_MODEL]),
+	]) {
+		const fixture = diarizationFixture(models);
+		const store = createLocalAssistanceSessionStore(fixture);
+		await store.load();
+		store.selectSource('source-1');
+		store.selectOperation('speaker-diarization');
+		assert.equal(store.getSnapshot().phase, 'unavailable');
+		assert.equal(store.getSnapshot().unavailableReason, 'no-compatible-model');
+		assert.deepEqual(store.getSnapshot().selectedModelIds, []);
+	}
+});
+
+test('speaker diarization submits one exact binding per task independent of selection order', async () => {
+	const cases = Object.freeze([
+		Object.freeze({
+			selection: Object.freeze([EMBEDDING_MODEL.modelId, SEGMENTATION_MODEL.modelId]),
+			expectedSegmentation: SEGMENTATION_MODEL,
+		}),
+		Object.freeze({
+			selection: Object.freeze([
+				SEGMENTATION_MODEL.modelId, EMBEDDING_MODEL.modelId,
+				SECOND_SEGMENTATION_MODEL.modelId,
+			]),
+			expectedSegmentation: SECOND_SEGMENTATION_MODEL,
+		}),
+	]);
+	for (const { selection, expectedSegmentation } of cases) {
+		const fixture = diarizationFixture();
+		const store = createLocalAssistanceSessionStore(fixture);
+		await store.load();
+		store.selectSource('source-1');
+		store.selectOperation('speaker-diarization');
+		for (const modelId of selection) store.selectModel(modelId);
+		assert.deepEqual(store.getSnapshot().selectedModelIds, [
+			expectedSegmentation.modelId, EMBEDDING_MODEL.modelId,
+		]);
+		assert.equal(store.getSnapshot().canRun, false);
+		store.setConsent(true);
+		assert.equal(store.getSnapshot().canRun, true);
+		await store.run();
+		assert.deepEqual(fixture.requests[0]?.models, [
+			{
+				modelId: expectedSegmentation.modelId, version: expectedSegmentation.version,
+				artifactSha256s: expectedSegmentation.artifactSha256s,
+			},
+			{
+				modelId: EMBEDDING_MODEL.modelId, version: EMBEDDING_MODEL.version,
+				artifactSha256s: EMBEDDING_MODEL.artifactSha256s,
+			},
+		]);
+	}
+});
+
+test('speaker diarization renders one installed-model selector per required task', () => {
+	const snapshot: LocalAssistanceSnapshot = Object.freeze({
+		phase: 'ready',
+		sources: Object.freeze([Object.freeze({
+			sourceId: 'source-1', label: 'Interview selection', mediaKind: 'audio' as const,
+			operations: Object.freeze(['speaker-diarization' as const]),
+		})]),
+		models: Object.freeze([EMBEDDING_MODEL, SECOND_SEGMENTATION_MODEL, SEGMENTATION_MODEL]),
+		selectedSourceId: 'source-1', selectedOperation: 'speaker-diarization',
+		selectedModelIds: Object.freeze([SEGMENTATION_MODEL.modelId, EMBEDDING_MODEL.modelId]),
+		consent: false, progress: null, result: null, unavailableReason: null, error: null,
+		canRun: false, canCancel: false, canReview: false, canAccept: false,
+	});
+	const markup = renderToStaticMarkup(<LocalAssistanceDialogView
+		copy={ENGLISH_COPY} snapshot={snapshot} onClose={() => undefined}
+		onSelectSource={() => undefined} onSelectOperation={() => undefined}
+		onSelectModel={() => undefined} onConsentChange={() => undefined}
+		onRun={() => undefined} onCancel={() => undefined}
+		onReview={() => undefined} onAccept={() => undefined}
+	/>);
+	assert.match(markup, /Installed compatible model · speaker-segmentation/u);
+	assert.match(markup, /Installed compatible model · speaker-embedding/u);
+	assert.match(markup, /<option value="segmentation-model" selected="">/u);
+	assert.match(markup, /<option value="embedding-model" selected="">/u);
+	assert.equal(markup.match(/<select/gu)?.length, 4);
+});
+
+test('preparation represents shot detection as a zero-model operation contract', () =>
+	assert.deepEqual(localAssistanceModelTaskSlots('shot-detection'), []));
 
 test('one explicit run stages Blob input, validates output, and releases custody', async () => {
 	const fixture = rawBridgeFixture();
@@ -408,7 +560,7 @@ test('the focused EN/DE catalog and dialog expose all operations without an impl
 	assert.equal(GERMAN_COPY.localAssistance, 'Lokale Assistenz');
 	const snapshot: LocalAssistanceSnapshot = Object.freeze({
 		phase: 'ready', sources: INVENTORY.sources, models: Object.freeze([MODEL]),
-		selectedSourceId: 'source-1', selectedOperation: null, selectedModelId: null, consent: false,
+		selectedSourceId: 'source-1', selectedOperation: null, selectedModelIds: Object.freeze([]), consent: false,
 		progress: null, result: null, unavailableReason: null, error: null,
 		canRun: false, canCancel: false, canReview: false, canAccept: false,
 	});

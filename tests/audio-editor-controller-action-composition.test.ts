@@ -104,10 +104,10 @@ test('real controller accepts one reviewed transcript into storage and one undo 
 		await controller.selectedMediaPreparation.acceptValidatedResult?.({
 			sourceId: 'assistance-source', operation: 'speech-recognition',
 			selectionFence: prepared.selectionFence,
-			model: {
+			models: [{
 				modelId: 'parakeet-tdt-0.6b-v3', version: '1', task: 'speech-recognition',
 				artifactSha256s: ['12'.repeat(32)],
-			},
+			}],
 			outputs: [{
 				claim: {
 					claimVersion: 1, claimId: 'a'.repeat(40), jobId: 'b'.repeat(40),
