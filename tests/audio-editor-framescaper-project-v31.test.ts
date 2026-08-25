@@ -36,12 +36,16 @@ import {
 	editorProjectFeatureCapabilityProfileDefinition,
 } from '../src/common/editor/project-feature-capability-profile.ts';
 import { createVideoTimingAssetPublication } from '../src/common/editor/video-timing-asset.ts';
+import { normalizeVideoSourceCharacteristicsV25 } from '../src/common/editor/video-source-professional-characteristics-v25.ts';
 import {
 	FRAMESCAPER_V28_PROJECT_FEATURE_CAPABILITY_PROFILE,
 } from '../src/framescaper/editor-project-feature-capability-profile-v28.ts';
 import {
 	FRAMESCAPER_V31_PROJECT_FEATURE_CAPABILITY_PROFILE,
 } from '../src/framescaper/editor-project-feature-capability-profile-v31.ts';
+import {
+	reconcileFramescaperProjectFeatureRequirementsV31,
+} from '../src/framescaper/editor-project-feature-requirements-v31.ts';
 import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
 import { FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v31.ts';
 import { createEditorProjectRuntimeV31Selection } from '../src/framescaper/editor-project-runtime-v31-selection.ts';
@@ -222,6 +226,27 @@ test('F31 inherited edits, runtime projection and undo retain exact assistance c
 	assert.deepEqual(undone.present.assistanceAssets, held.assistanceAssets);
 	assert.equal((undone.present.tracks as readonly Readonly<{ readonly id: string }>[])
 		.some(({ id }) => id === 'dialogue-track'), false);
+});
+
+test('F31 feature reconciliation is canonical when a proxy joins other inherited requirements', () => {
+	const held = structuredClone(project([])) as unknown as Record<string, unknown>;
+	const heldSource = (held.sources as Record<string, unknown>[])[0]!;
+	heldSource.characteristics = normalizeVideoSourceCharacteristicsV25({
+		backend: 'ffmpeg', codedWidth: 640, codedHeight: 360, videoCodec: 'h264',
+	});
+	held.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV31(
+		FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, held,
+	);
+	heldSource.proxyAttachment = {};
+	const first = reconcileFramescaperProjectFeatureRequirementsV31(
+		FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, held,
+	);
+	held.featureRequirements = first;
+
+	assert.deepEqual(
+		reconcileFramescaperProjectFeatureRequirementsV31(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, held),
+		first,
+	);
 });
 
 test('F31 inherited automation survives undo and redo without losing assistance custody', () => {
