@@ -7,8 +7,6 @@ import type {
 
 interface BrowserImageTrackLike {
 	readonly frameCount?: number;
-	readonly codedWidth?: number;
-	readonly codedHeight?: number;
 }
 
 interface BrowserImageTracksLike {
@@ -70,9 +68,15 @@ async function openImageDecoder(
 		await decoder.tracks.ready;
 		cancelled(signal);
 		const track = decoder.tracks.selectedTrack;
-		const width = positiveInteger(track?.codedWidth, 'ImageDecoder coded width');
-		const height = positiveInteger(track?.codedHeight, 'ImageDecoder coded height');
 		const frameCount = positiveInteger(track?.frameCount, 'ImageDecoder frame count');
+		const probe = await decoder.decode({ frameIndex: 0, completeFramesOnly: true });
+		let width: number;
+		let height: number;
+		try {
+			cancelled(signal);
+			width = positiveInteger(probe.image.displayWidth, 'ImageDecoder display width');
+			height = positiveInteger(probe.image.displayHeight, 'ImageDecoder display height');
+		} finally { probe.image.close(); }
 		let closed = false;
 		return Object.freeze({
 			metadata: Object.freeze({
