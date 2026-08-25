@@ -7,7 +7,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { createAssistanceService } from '../desktop/assistance-service.ts';
+import {
+	AssistanceInstallCancelledError,
+	createAssistanceService,
+} from '../desktop/assistance-service.ts';
 import { LocalModelCapacity } from '../desktop/local-model-capacity.ts';
 import { localModelBlobName } from '../desktop/local-model-store.ts';
 import {
@@ -105,6 +108,12 @@ async function serviceIn(t: { after: (fn: () => unknown) => void }, overrides = 
 	});
 }
 
+function deferred<Value>() {
+	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined;
+	const promise = new Promise<Value>((complete) => { resolve = complete; });
+	return { promise, resolve };
+}
+
 test('status reports the models directory and every offered model', { timeout: 20_000 }, async (t) => {
 	const service = await serviceIn(t);
 	const status = await service.status();
@@ -160,6 +169,53 @@ test('capacity is admitted before the first model download request', { timeout: 
 	assert.equal(fetches, 0);
 });
 
+test('install cancellation is typed and acknowledges only after transfer quiescence', { timeout: 20_000 }, async (t) => {
+	const transferStarted = deferred<void>();
+	const cleanupStarted = deferred<void>();
+	const releaseCleanup = deferred<void>();
+	const fetchImpl = (async (_url: unknown, init?: { signal?: AbortSignal }) => ({
+		status: 200,
+		headers: { get: () => String(ENCODER.length) },
+		body: (async function* stream() {
+			try {
+				transferStarted.resolve();
+				await new Promise<void>((resolve) => init?.signal?.addEventListener('abort', () => resolve(), { once: true }));
+				init?.signal?.throwIfAborted();
+				yield new Uint8Array(Buffer.from(ENCODER));
+			} finally {
+				cleanupStarted.resolve();
+				await releaseCleanup.promise;
+			}
+		})(),
+	})) as unknown as typeof fetch;
+	const service = await serviceIn(t, { fetchImpl });
+	const install = service.install('silero-vad-v6');
+	void install.catch(() => undefined);
+	await transferStarted.promise;
+
+	let acknowledged = false;
+	const cancellation = service.cancelInstall('silero-vad-v6').then((result) => {
+		acknowledged = true;
+		return result;
+	});
+	await cleanupStarted.promise;
+	assert.equal(acknowledged, false, 'the helper body has not quiesced yet');
+	releaseCleanup.resolve();
+
+	assert.deepEqual(await cancellation, {
+		contractVersion: 1, modelId: 'silero-vad-v6', outcome: 'cancelled',
+	});
+	await assert.rejects(install, (error: unknown) => {
+		assert.ok(error instanceof AssistanceInstallCancelledError);
+		assert.equal(error.code, 'ASSISTANCE_INSTALL_CANCELLED');
+		assert.equal(error.modelId, 'silero-vad-v6');
+		return true;
+	});
+	assert.deepEqual(await service.cancelInstall('silero-vad-v6'), {
+		contractVersion: 1, modelId: 'silero-vad-v6', outcome: 'not-active',
+	});
+});
+
 test('an explicit seed-directory install has no network fallback', { timeout: 20_000 }, async (t) => {
 	const source = await mkdtemp(join(tmpdir(), 'scape-assistance-seed-'));
 	t.after(() => rm(source, { recursive: true, force: true }));
@@ -174,6 +230,39 @@ test('an explicit seed-directory install has no network fallback', { timeout: 20
 	assert.equal(installed.availability, 'installed');
 	assert.equal(fetches, 0);
 	assert.equal((await service.listInstalled())[0]?.modelId, 'silero-vad-v6');
+});
+
+test('offline install cancellation also waits for the active filesystem operation', { timeout: 20_000 }, async (t) => {
+	const source = await mkdtemp(join(tmpdir(), 'scape-assistance-seed-cancel-'));
+	t.after(() => rm(source, { recursive: true, force: true }));
+	await writeFile(join(source, 'encoder.onnx'), ENCODER);
+	await writeFile(join(source, 'tokens.txt'), TOKENS);
+	const capacityEntered = deferred<void>();
+	const releaseCapacity = deferred<void>();
+	class DelayedCapacity extends LocalModelCapacity {
+		override async reserve(rootPath: string, byteLength: number) {
+			capacityEntered.resolve();
+			await releaseCapacity.promise;
+			return super.reserve(rootPath, byteLength);
+		}
+	}
+	const service = await serviceIn(t, { capacity: new DelayedCapacity() });
+	const install = service.installPreseeded('silero-vad-v6', source);
+	void install.catch(() => undefined);
+	await capacityEntered.promise;
+
+	let acknowledged = false;
+	const cancellation = service.cancelInstall('silero-vad-v6').then((result) => {
+		acknowledged = true;
+		return result;
+	});
+	await Promise.resolve();
+	assert.equal(acknowledged, false);
+	releaseCapacity.resolve();
+
+	assert.equal((await cancellation).outcome, 'cancelled');
+	await assert.rejects(install, AssistanceInstallCancelledError);
+	assert.deepEqual(await service.listInstalled(), []);
 });
 
 test('direct content-addressed pre-seeds reconcile with zero network', { timeout: 20_000 }, async (t) => {

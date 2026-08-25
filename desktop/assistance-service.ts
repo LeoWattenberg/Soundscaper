@@ -63,6 +63,44 @@ export interface AssistanceInstallProgress {
 	readonly totalBytes: number;
 }
 
+export const ASSISTANCE_INSTALL_CANCELLATION_CONTRACT_VERSION = 1;
+
+export interface AssistanceInstallCancellation {
+	readonly contractVersion: typeof ASSISTANCE_INSTALL_CANCELLATION_CONTRACT_VERSION;
+	readonly modelId: string;
+	readonly outcome: 'cancelled' | 'not-active';
+}
+
+export class AssistanceInstallCancelledError extends Error {
+	readonly code = 'ASSISTANCE_INSTALL_CANCELLED';
+	readonly modelId: string;
+
+	constructor(modelId: string, options: ErrorOptions = {}) {
+		super(`Local model ${modelId} installation was cancelled.`, options);
+		this.name = 'AssistanceInstallCancelledError';
+		this.modelId = modelId;
+	}
+}
+
+function cancellation(
+	modelId: string,
+	outcome: AssistanceInstallCancellation['outcome'],
+): AssistanceInstallCancellation {
+	return Object.freeze({
+		contractVersion: ASSISTANCE_INSTALL_CANCELLATION_CONTRACT_VERSION,
+		modelId,
+		outcome,
+	});
+}
+
+interface ActiveAssistanceInstall {
+	readonly controller: AbortController;
+	readonly digests: ReadonlySet<string>;
+	readonly quiesced: Promise<void>;
+	settle(): void;
+	outcome: 'active' | 'completed' | 'cancelled' | 'failed';
+}
+
 export interface AssistanceServiceOptions {
 	readonly userDataPath: string;
 	readonly settingsDirectory?: string | null;
@@ -130,7 +168,7 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 	const capacity = options.capacity ?? new LocalModelCapacity();
 	const platform = options.platform ?? `${process.platform}-${process.arch}`;
 	const totalMemoryBytes = options.totalMemoryBytes ?? 0;
-	const activeInstallArtifacts = new Map<string, ReadonlySet<string>>();
+	const activeInstalls = new Map<string, ActiveAssistanceInstall>();
 	let exclusiveMutation = false;
 	const attributionById = new Map(options.licensingEvidence.flatMap((value) => {
 		if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
@@ -146,27 +184,50 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 
 	async function withInstall<T>(
 		entry: LocalModelCatalogEntry,
-		operation: () => Promise<T>,
+		externalSignal: AbortSignal | undefined,
+		operation: (signal: AbortSignal) => Promise<T>,
 	): Promise<T> {
-		if (exclusiveMutation || activeInstallArtifacts.has(entry.modelId)) {
+		if (exclusiveMutation || activeInstalls.has(entry.modelId)) {
 			throw new Error(`A local-model operation for ${entry.modelId} is already active.`);
 		}
 		const digests = new Set(entry.artifacts.map(({ sha256 }) => sha256));
-		for (const active of activeInstallArtifacts.values()) {
-			if ([...digests].some((digest) => active.has(digest))) {
+		for (const active of activeInstalls.values()) {
+			if ([...digests].some((digest) => active.digests.has(digest))) {
 				throw new Error('A shared local-model artifact is already being installed.');
 			}
 		}
-		activeInstallArtifacts.set(entry.modelId, digests);
+		const controller = new AbortController();
+		let settle: () => void = () => undefined;
+		const quiesced = new Promise<void>((resolve) => { settle = resolve; });
+		const active: ActiveAssistanceInstall = {
+			controller, digests, quiesced, settle, outcome: 'active',
+		};
+		activeInstalls.set(entry.modelId, active);
+		const signal = externalSignal
+			? AbortSignal.any([controller.signal, externalSignal])
+			: controller.signal;
 		try {
-			return await operation();
+			const result = await operation(signal);
+			active.outcome = 'completed';
+			return result;
+		} catch (error) {
+			if (signal.aborted) {
+				active.outcome = 'cancelled';
+				if (error instanceof AssistanceInstallCancelledError) throw error;
+				throw new AssistanceInstallCancelledError(entry.modelId, {
+					cause: signal.reason ?? error,
+				});
+			}
+			active.outcome = 'failed';
+			throw error;
 		} finally {
-			activeInstallArtifacts.delete(entry.modelId);
+			activeInstalls.delete(entry.modelId);
+			active.settle();
 		}
 	}
 
 	async function withExclusiveMutation<T>(operation: () => Promise<T>): Promise<T> {
-		if (exclusiveMutation || activeInstallArtifacts.size > 0) {
+		if (exclusiveMutation || activeInstalls.size > 0) {
 			throw new Error('Another local-model operation is already active.');
 		}
 		exclusiveMutation = true;
@@ -213,8 +274,8 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 		signal?: AbortSignal,
 	): Promise<AssistanceModelView> {
 		const entry = entryFor(modelId);
-		return withInstall(entry, async () => {
-			signal?.throwIfAborted();
+		return withInstall(entry, signal, async (installSignal) => {
+			installSignal.throwIfAborted();
 			await store.initialize();
 			const plan = await planLocalModelTransfers(store, entry.artifacts);
 			const reservation = await capacity.reserve(rootPath, plan.totalBytes);
@@ -228,7 +289,7 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 						store,
 						artifact,
 						url: artifact.url,
-						signal,
+						signal: installSignal,
 						fetchImpl: options.fetchImpl,
 						onProgress: ({ completedBytes, totalBytes }) => {
 							const desiredConsumption = Math.min(
@@ -246,6 +307,7 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 						},
 					});
 				}
+				installSignal.throwIfAborted();
 				const installed = await store.commitInstall({
 					modelId: entry.modelId, version: entry.version, artifacts: entry.artifacts,
 				});
@@ -273,15 +335,25 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 		sourceDirectory: string,
 	): Promise<AssistanceModelView> {
 		const entry = entryFor(modelId);
-		return withInstall(entry, async () => {
+		return withInstall(entry, undefined, async (signal) => {
 			const installed = await installPreseededLocalModel({
-				store, entry, sourceDirectory, capacity,
+				store, entry, sourceDirectory, capacity, signal,
 			});
 			return entryView(
 				entry, 'installed', installed.totalBytes,
 				attributionById.get(entry.modelId) === true,
 			);
 		});
+	}
+
+	/** Cancels one active install and resolves only after its body and handles quiesce. */
+	async function cancelInstall(modelId: string): Promise<AssistanceInstallCancellation> {
+		entryFor(modelId);
+		const active = activeInstalls.get(modelId);
+		if (!active) return cancellation(modelId, 'not-active');
+		active.controller.abort(new AssistanceInstallCancelledError(modelId));
+		await active.quiesced;
+		return cancellation(modelId, active.outcome === 'cancelled' ? 'cancelled' : 'not-active');
 	}
 
 	/** Reconciles complete content-addressed blobs the user pre-seeded directly. */
@@ -351,6 +423,7 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 		get modelsDirectory() { return rootPath; },
 		status,
 		install,
+		cancelInstall,
 		installPreseeded,
 		reconcilePreseeded,
 		remove,

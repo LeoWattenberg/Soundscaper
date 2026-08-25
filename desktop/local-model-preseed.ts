@@ -23,6 +23,7 @@ export interface InstallPreseededLocalModelOptions {
 	readonly entry: PreseededLocalModelEntry;
 	readonly sourceDirectory: string;
 	readonly capacity?: LocalModelCapacity;
+	readonly signal?: AbortSignal;
 }
 
 export interface RejectedPreseededLocalModel {
@@ -49,9 +50,13 @@ function errorCode(error: unknown): string | undefined {
 		: undefined;
 }
 
-async function digestOf(path: string): Promise<string> {
+async function digestOf(path: string, signal?: AbortSignal): Promise<string> {
 	const digest = createHash('sha256');
-	for await (const chunk of createReadStream(path)) digest.update(chunk as Uint8Array);
+	for await (const chunk of createReadStream(path, { signal })) {
+		signal?.throwIfAborted();
+		digest.update(chunk as Uint8Array);
+	}
+	signal?.throwIfAborted();
 	return digest.digest('hex');
 }
 
@@ -87,15 +92,21 @@ async function publishedPathExists(store: FileLocalModelStore, artifact: LocalMo
 	}
 }
 
-async function authenticateSource(path: string, artifact: LocalModelArtifact): Promise<void> {
+async function authenticateSource(
+	path: string,
+	artifact: LocalModelArtifact,
+	signal?: AbortSignal,
+): Promise<void> {
+	signal?.throwIfAborted();
 	const metadata = await lstat(path);
+	signal?.throwIfAborted();
 	if (!metadata.isFile() || metadata.isSymbolicLink()) {
 		throw new Error(`Seed artifact ${artifact.fileName} must be a regular non-symbolic file.`);
 	}
 	if (metadata.size !== artifact.byteLength) {
 		throw new RangeError(`Seed artifact ${artifact.fileName} does not match its recorded byte length.`);
 	}
-	if (await digestOf(path) !== artifact.sha256) {
+	if (await digestOf(path, signal) !== artifact.sha256) {
 		throw new Error(`Seed artifact ${artifact.fileName} does not match its recorded digest.`);
 	}
 }
@@ -109,14 +120,18 @@ export async function installPreseededLocalModel(
 	options: InstallPreseededLocalModelOptions,
 ): Promise<InstalledLocalModel> {
 	const { store, entry } = options;
+	const { signal } = options;
 	validateEntry(store, entry);
+	signal?.throwIfAborted();
 	if (typeof options.sourceDirectory !== 'string' || !isAbsolute(options.sourceDirectory)) {
 		throw new TypeError('A pre-seeded local-model source directory must be absolute.');
 	}
 	const sourceDirectory = resolve(options.sourceDirectory);
 	await store.initialize();
+	signal?.throwIfAborted();
 	const missing = new Map<string, AuthenticatedSeed>();
 	for (const artifact of entry.artifacts) {
+		signal?.throwIfAborted();
 		if (missing.has(artifact.sha256)) continue;
 		if (await publishedPathExists(store, artifact)) {
 			if (!await store.verifyArtifact(artifact)) {
@@ -125,7 +140,7 @@ export async function installPreseededLocalModel(
 			continue;
 		}
 		const sourcePath = join(sourceDirectory, artifact.fileName);
-		await authenticateSource(sourcePath, artifact);
+		await authenticateSource(sourcePath, artifact, signal);
 		missing.set(artifact.sha256, Object.freeze({ artifact, sourcePath }));
 	}
 	const copyBytes = [...missing.values()].reduce((total, { artifact }) => {
@@ -133,12 +148,15 @@ export async function installPreseededLocalModel(
 		if (!Number.isSafeInteger(next)) throw new RangeError('A pre-seeded install exceeds the safe byte domain.');
 		return next;
 	}, 0);
+	signal?.throwIfAborted();
 	const reservation = await (options.capacity ?? DEFAULT_CAPACITY).reserve(store.rootPath, copyBytes);
 	try {
 		for (const { artifact, sourcePath } of missing.values()) {
+			signal?.throwIfAborted();
 			const stagedPath = await store.stagingPath();
 			try {
 				await copyFile(sourcePath, stagedPath, fsConstants.COPYFILE_EXCL);
+				signal?.throwIfAborted();
 				reservation.consume(artifact.byteLength);
 				await store.publishBlob(stagedPath, artifact);
 			} catch (error) {
@@ -146,6 +164,7 @@ export async function installPreseededLocalModel(
 				throw error;
 			}
 		}
+		signal?.throwIfAborted();
 		return store.commitInstall(entry);
 	} finally {
 		reservation.release();
