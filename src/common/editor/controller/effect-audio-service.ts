@@ -173,6 +173,8 @@ export interface EffectAudioServiceRuntime {
 	readonly renderSnapshot: (
 		project: EffectAudioProject,
 		options: Readonly<Record<string, unknown>>,
+		sourceMap?: unknown,
+		signal?: AbortSignal | null,
 	) => Promise<EffectAudioBuffer>;
 	readonly prepareCommittedTimePitchCaches: (project: EffectAudioProject) => Promise<unknown>;
 	readonly createRenderEngine: () => EffectAudioRenderEngine;
@@ -218,7 +220,9 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 		endFrame: number,
 		requestedChannelCount: number | null = null,
 		requestedClipIds: readonly string[] | null = null,
+		signal: AbortSignal | null = null,
 	): Promise<Float32Array[]> {
+		signal?.throwIfAborted();
 		const project = runtime.getProject();
 		const token = runtime.captureProject();
 		const track = findTrack(project, trackId);
@@ -262,7 +266,8 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 			includeTrackPan: false,
 			respectMuteSolo: false,
 			outputFrames: endFrame - startFrame,
-		});
+		}, runtime.sourceBuffers, signal);
+		signal?.throwIfAborted();
 		runtime.assertProject(token);
 		return runtime.matchAudacitySelectionChannels(runtime.audioBufferChannels(rendered), channelCount);
 	}

@@ -13,13 +13,14 @@ import {
 	validateAssistanceSelectionFence,
 	type AssistanceSelectionFence,
 } from '../assistance/proposal-session.ts';
-import { resampleChannelsWindowedSinc } from './source-audio.ts';
+import { createStreamingWindowedSincResampler } from '../resample.js';
 import { scaleSampleFrame } from '../timeline-time.ts';
 import { encodeWav } from '../wav.js';
 
 const TARGET_SAMPLE_RATE = 16_000;
 const MAXIMUM_SELECTION_SECONDS = 10 * 60;
 const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
+const PREPARATION_CHUNK_FRAMES = 65_536;
 const TEXT_ENCODER = new TextEncoder();
 const SHA256 = /^[a-f\d]{64}$/u;
 
@@ -60,6 +61,7 @@ export interface LocalAssistanceSelectedMediaPreparationDependencies {
 		endFrame: number,
 		requestedChannelCount: null,
 		requestedClipIds: readonly string[],
+		signal?: AbortSignal,
 	) => Promise<readonly Float32Array[]>;
 }
 
@@ -93,6 +95,7 @@ export interface LocalAssistanceSelectedMediaPreparation {
 	prepareSelectedMedia(request: Readonly<{
 		sourceId: string;
 		operation: AssistanceOperation;
+		signal?: AbortSignal;
 	}>): Promise<LocalAssistanceSelectedMediaPrepared>;
 }
 
@@ -135,8 +138,10 @@ export function createLocalAssistanceSelectedMediaPreparation(
 	async function prepareSelectedMedia(value: Readonly<{
 		sourceId: string;
 		operation: AssistanceOperation;
+		signal?: AbortSignal;
 	}>): Promise<LocalAssistanceSelectedMediaPrepared> {
 		const request = prepareRequest(value);
+		request.signal?.throwIfAborted();
 		if (!AUDIO_OPERATION_SET.has(request.operation)) {
 			throw new RangeError('This operation has no exact selected audio input preparation.');
 		}
@@ -145,13 +150,18 @@ export function createLocalAssistanceSelectedMediaPreparation(
 		if (text(selected.source.id, 'source id') !== request.sourceId) {
 			throw new Error('The requested assistance source is no longer the selected occurrence.');
 		}
-		const channels = await dependencies.renderDryTrackRange(
+		const renderArgs = [
 			text(selected.track.id, 'track id'), selected.startFrame, selected.endFrame,
 			null, Object.freeze([text(selected.clip.id, 'clip id')]),
-		);
+		] as const;
+		const channels = request.signal
+			? await dependencies.renderDryTrackRange(...renderArgs, request.signal)
+			: await dependencies.renderDryTrackRange(...renderArgs);
+		request.signal?.throwIfAborted();
 		dependencies.assertProject(token);
-		const input = createSpeechWave(channels, selected.endFrame - selected.startFrame,
-			selected.project.sampleRate);
+		const input = await createSpeechWave(channels, selected.endFrame - selected.startFrame,
+			selected.project.sampleRate, request.signal);
+		request.signal?.throwIfAborted();
 		dependencies.assertProject(token);
 		return Object.freeze({
 			sourceId: request.sourceId,
@@ -253,36 +263,71 @@ function createFence(
 	});
 }
 
-function createSpeechWave(
+async function createSpeechWave(
 	channelsValue: readonly Float32Array[],
 	expectedFrames: number,
 	inputSampleRate: number,
-): Blob {
+	signal?: AbortSignal,
+): Promise<Blob> {
 	if (!Array.isArray(channelsValue) || channelsValue.length < 1 || channelsValue.length > 64
 		|| channelsValue.some((channel) => !(channel instanceof Float32Array)
 			|| channel.length !== expectedFrames)) {
 		throw new Error('The selected audio render returned inexact channel geometry.');
 	}
 	const mono = new Float32Array(expectedFrames);
-	for (const channel of channelsValue) {
-		for (let frame = 0; frame < expectedFrames; frame += 1) mono[frame]! += channel[frame]!;
-	}
-	if (channelsValue.length > 1) {
-		const scale = 1 / channelsValue.length;
-		for (let frame = 0; frame < mono.length; frame += 1) mono[frame]! *= scale;
+	const scale = 1 / channelsValue.length;
+	for (let start = 0; start < expectedFrames; start += PREPARATION_CHUNK_FRAMES) {
+		signal?.throwIfAborted();
+		const end = Math.min(expectedFrames, start + PREPARATION_CHUNK_FRAMES);
+		for (let frame = start; frame < end; frame += 1) {
+			let sample = 0;
+			for (const channel of channelsValue) sample += channel[frame]!;
+			mono[frame] = sample * scale;
+		}
+		if (end < expectedFrames) await yieldForCancellation(signal);
 	}
 	const outputFrames = Number(scaleSampleFrame(expectedFrames, inputSampleRate,
 		TARGET_SAMPLE_RATE, 'point'));
-	const [resampled] = resampleChannelsWindowedSinc(
-		[mono], inputSampleRate, TARGET_SAMPLE_RATE, outputFrames,
-	);
-	if (!resampled || resampled.length !== outputFrames) {
+	const resampler = createStreamingWindowedSincResampler(
+		inputSampleRate, TARGET_SAMPLE_RATE, 1,
+	) as unknown as Readonly<{
+		push(channels: Float32Array[]): Float32Array[];
+		finish(outputFrames: number): Float32Array[];
+	}>;
+	const parts: Float32Array[] = [];
+	for (let start = 0; start < mono.length; start += PREPARATION_CHUNK_FRAMES) {
+		signal?.throwIfAborted();
+		const end = Math.min(mono.length, start + PREPARATION_CHUNK_FRAMES);
+		const output = resampler.push([mono.subarray(start, end)])[0];
+		if (output?.length) parts.push(output);
+		if (end < mono.length) await yieldForCancellation(signal);
+	}
+	const tail = resampler.finish(outputFrames)[0];
+	if (tail?.length) parts.push(tail);
+	const resampled = new Float32Array(outputFrames);
+	let written = 0;
+	for (const part of parts) {
+		if (written + part.length > resampled.length) {
+			throw new Error('The selected audio resampler exceeded its exact geometry.');
+		}
+		resampled.set(part, written);
+		written += part.length;
+	}
+	if (written !== outputFrames) {
 		throw new Error('The selected audio resampler returned inexact geometry.');
 	}
+	signal?.throwIfAborted();
 	const bytes = encodeWav([resampled], {
 		sampleRate: TARGET_SAMPLE_RATE, bitDepth: 32, float: true, dither: false,
 	});
+	signal?.throwIfAborted();
 	return new Blob([bytes.slice().buffer], { type: 'audio/wav' });
+}
+
+async function yieldForCancellation(signal?: AbortSignal): Promise<void> {
+	signal?.throwIfAborted();
+	await new Promise<void>((resolve) => setTimeout(resolve, 0));
+	signal?.throwIfAborted();
 }
 
 function outputFor(operation: AudioOperation): Readonly<{
@@ -302,16 +347,23 @@ function outputFor(operation: AudioOperation): Readonly<{
 }
 
 function prepareRequest(value: unknown): Readonly<{
-	sourceId: string; operation: AssistanceOperation;
+	sourceId: string; operation: AssistanceOperation; signal?: AbortSignal;
 }> {
 	if (!value || typeof value !== 'object' || Array.isArray(value)
-		|| Reflect.ownKeys(value).length !== 2
-		|| !Object.hasOwn(value, 'sourceId') || !Object.hasOwn(value, 'operation')) {
+		|| Reflect.ownKeys(value).length < 2 || Reflect.ownKeys(value).length > 3
+		|| !Object.hasOwn(value, 'sourceId') || !Object.hasOwn(value, 'operation')
+		|| (Reflect.ownKeys(value).length === 3 && !Object.hasOwn(value, 'signal'))) {
 		throw new TypeError('Selected-media preparation requires its exact request.');
 	}
 	const record = value as DataRecord;
+	const signal = record.signal;
+	if (signal !== undefined && !(signal instanceof AbortSignal)) {
+		throw new TypeError('Selected-media preparation requires a valid cancellation signal.');
+	}
 	return Object.freeze({ sourceId: text(record.sourceId, 'requested source id'),
-		operation: normalizeAssistanceOperation(record.operation) });
+		operation: normalizeAssistanceOperation(record.operation),
+		...(signal ? { signal } : {}),
+	});
 }
 
 function selectedProject(value: unknown): SelectedMediaProject {

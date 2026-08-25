@@ -259,6 +259,37 @@ test('cancellation is explicit and release is attempted after the run quiesces',
 	assert.deepEqual(fixture.calls.slice(-2), ['cancel', 'release']);
 });
 
+test('cancellation aborts selected-media preparation before a job is created', { timeout: 5_000 }, async () => {
+	const fixture = rawBridgeFixture();
+	let started: (() => void) | null = null;
+	const preparing = new Promise<void>((resolve) => { started = resolve; });
+	const preparation: LocalAssistanceSelectedMediaPreparationPort = Object.freeze({
+		listSelectedMedia: async () => INVENTORY,
+		prepareSelectedMedia: (request) => new Promise((_resolve, reject) => {
+			const { signal } = request;
+			assert.ok(signal instanceof AbortSignal);
+			started?.();
+			signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+		}),
+	});
+	const bridge = resolveLocalAssistanceBridge({ localAssistance: fixture.api });
+	assert.ok(bridge);
+	const store = createLocalAssistanceSessionStore({ bridge, preparation });
+	store.connect();
+	await store.load();
+	store.selectSource('source-1');
+	store.selectOperation('speech-recognition');
+	store.selectModel('speech-model');
+	store.setConsent(true);
+	const running = store.run();
+	await preparing;
+	await store.cancel();
+	await running;
+
+	assert.equal(store.getSnapshot().phase, 'cancelled');
+	assert.deepEqual(fixture.calls, ['models'], 'cancelled preparation never creates privileged custody');
+});
+
 test('missing selected-media preparation is truthful and never invents bytes', async () => {
 	const fixture = rawBridgeFixture();
 	const bridge = resolveLocalAssistanceBridge({ localAssistance: fixture.api });
