@@ -13,17 +13,54 @@ const ELECTRON_EVIDENCE = [
 	'tests/desktop-electron-alternate-ffmpeg.test.js',
 	'tests/production-security-desktop-codec-policy.test.js',
 ];
-const WAVPACK_EVIDENCE = [
+const BUNDLED_CODEC_EVIDENCE = [
+	'src/common/editor/flac/source-manifest.json',
+	'src/common/editor/opus/source-manifest.json',
+	'src/common/editor/vorbis/source-manifest.json',
 	'src/common/editor/wavpack/source-manifest.json',
+	'src/common/editor/mpg123/source-manifest.json',
+	'src/common/editor/lame/source-manifest.json',
+	'src/common/editor/twolame/source-manifest.json',
 	'src/common/editor/wavpack/NOTICE.md',
 	'docs/desktop-codec-provider-plan.md',
 	'src/common/editor/desktop-wavpack-codec-profile.ts',
+	'scripts/audit-flac-wasm.mjs',
+	'scripts/audit-opus-wasm.mjs',
+	'scripts/audit-vorbis-wasm.mjs',
 	'scripts/audit-wavpack-wasm.mjs',
-	'scripts/lib/desktop-bundled-wavpack-runtime.mjs',
+	'scripts/audit-mpg123-wasm.mjs',
+	'scripts/audit-lame-wasm.mjs',
+	'scripts/audit-twolame-wasm.mjs',
+	'scripts/lib/desktop-bundled-audio-runtime.mjs',
+	'desktop/bundled-flac-audio-codec-runtime.ts',
+	'desktop/bundled-opus-audio-codec-runtime.ts',
+	'desktop/bundled-vorbis-audio-codec-runtime.ts',
 	'desktop/bundled-wavpack-audio-codec-runtime.ts',
 	'desktop/bundled-wavpack-stream.ts',
+	'desktop/bundled-mpg123-audio-codec-runtime.ts',
+	'desktop/bundled-lame-audio-codec-runtime.ts',
+	'desktop/bundled-twolame-audio-codec-runtime.ts',
+	'tests/desktop-bundled-flac-audio-codec-runtime.test.ts',
+	'tests/desktop-bundled-opus-audio-codec-runtime.test.ts',
+	'tests/desktop-bundled-vorbis-audio-codec-runtime.test.ts',
 	'tests/desktop-bundled-wavpack-audio-codec-runtime.test.ts',
+	'tests/desktop-bundled-mpg123-audio-codec-runtime.test.ts',
+	'tests/desktop-bundled-lame-audio-codec-runtime.test.ts',
+	'tests/desktop-bundled-twolame-audio-codec-runtime.test.ts',
 	'tests/desktop-audio-codec-runtime-staging.test.js',
+];
+const OS_CODEC_EVIDENCE = [
+	'desktop/os-audio-codec-runtime.ts',
+	'desktop/os-audio-codec-canary-adapter.ts',
+	'config/soundscaper-professional-native-payload-manifest.json',
+	'tests/desktop-os-audio-codec-runtime.test.ts',
+];
+const EXTERNAL_CODEC_EVIDENCE = [
+	'desktop/external-ffmpeg-audio-operation-runner.ts',
+	'desktop/external-ffmpeg-installer.ts',
+	'src/common/editor/ui/dialogs/DesktopFfmpegPreferencePanel.tsx',
+	'tests/desktop-external-ffmpeg-audio-operation-runner.test.ts',
+	'tests/desktop-external-ffmpeg-installer.test.ts',
 ];
 
 test('desktop codec security separates Electron framework, application, and external FFmpeg', async () => {
@@ -37,7 +74,9 @@ test('desktop codec security separates Electron framework, application, and exte
 	const packageIntegrity = control(risks, 'runtime-supply-chain', 'desktop-fuse-and-package-integrity');
 
 	assertEvidence(helperPayload, ELECTRON_EVIDENCE);
-	assertEvidence(helperPayload, WAVPACK_EVIDENCE);
+	assertEvidence(helperPayload, BUNDLED_CODEC_EVIDENCE);
+	assertEvidence(helperPayload, OS_CODEC_EVIDENCE);
+	assertEvidence(helperPayload, EXTERNAL_CODEC_EVIDENCE);
 	assertEvidence(helperPayload, [
 		'src/common/editor/controller/desktop-audio-export-capability.ts',
 		'tests/audio-editor-desktop-export-capability.test.ts',
@@ -46,40 +85,58 @@ test('desktop codec security separates Electron framework, application, and exte
 	]);
 	assert.match(
 		helperPayload.summary,
-		/application supplies no FFmpeg helper engine.*application-supplied FFmpeg.*libav.*WebAssembly.*stock Electron 43\.1\.1.*proprietary codec support.*alternate framework library.*omit proprietary codec support.*electron-alternate-ffmpeg-manifest\.json.*not passed to the helper or audio broker.*not a Soundscaper codec-provider tier/iu,
+		/application supplies no FFmpeg helper engine.*application-supplied FFmpeg.*libav.*FFmpeg WebAssembly.*alternate Chromium libffmpeg.*framework exception.*never a Soundscaper provider tier/iu,
 	);
 	assert.match(
 		helperPayload.summary,
-		/exactly one bundled compressed-codec runtime.*145,537-byte WavPack 5\.9\.0 WebAssembly.*c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908.*linux-x64.*linux-arm64.*mac-arm64.*win-x64.*win-arm64.*never mac-x64.*float32.*compression level 2.*exact bytes.*encode\/parse\/decode canary.*strict.*checksum.*output bounds.*stock WavPack 5\.9\.0 decoder witness.*No other bundled.*no operating-system execution factory.*user-installed external FFmpeg.*exact reviewed slice.*patent clearance/iu,
+		/seven exact reviewed compressed-audio WebAssembly payloads.*linux-x64.*linux-arm64.*mac-arm64.*win-x64.*win-arm64.*never mac-x64.*153,044-byte libFLAC 1\.5\.0.*385,789-byte libopus 1\.6\.1.*523,227-byte libvorbis 1\.3\.7.*145,537-byte WavPack 5\.9\.0.*172,329-byte mpg123 1\.33\.7.*212,205-byte LAME 4\.0.*146,820-byte TwoLAME 0\.4\.0.*exact settings.*libsndfile is not bundled/iu,
+	);
+	assert.match(
+		helperPayload.summary,
+		/32 MiB input.*128 MiB output.*whole buffers.*synchronous WASM.*cannot be interrupted.*aggregate copies.*RSS.*Media Foundation.*AudioToolbox.*every production native payload row is pending-external.*OS tier.*fails closed/iu,
+	);
+	assert.match(
+		helperPayload.summary,
+		/user-installed FFmpeg\/ffprobe 4\.4 through 9\.x.*Edit > Preferences > General.*WinGet\/Homebrew.*do not close hash-before-path-spawn TOCTOU.*impose an OS RSS\/CPU sandbox.*malicious selected executable.*network authority.*null timing.*audio-only.*no WebM\/AV1 payload.*five-target AV1 evidence.*fail closed.*neither patent clearance nor non-infringement/iu,
 	);
 	assertEvidence(packageIntegrity, [
 		'.github/workflows/desktop-preview.yml',
 		...ELECTRON_EVIDENCE,
-		...WAVPACK_EVIDENCE,
+		...BUNDLED_CODEC_EVIDENCE,
 		'scripts/lib/desktop-codec-policy.mjs',
 		'scripts/lib/desktop-renderer-codec-audit.mjs',
+		'scripts/lib/desktop-bundled-codec-notices.mjs',
 		'scripts/desktop-prepare.mjs',
 		'scripts/desktop-before-pack.mjs',
 		'scripts/desktop-after-pack.mjs',
 		'scripts/desktop-release-assets.mjs',
 		'tests/desktop-packaged-ffmpeg-runtime.test.js',
+		'tests/desktop-bundled-codec-notices.test.js',
 		'tests/desktop-release-package-inventory.test.js',
 	]);
 	assert.match(
 		packageIntegrity.summary,
-		/application-codec policy.*renderer composition.*reject application-supplied FFmpeg.*libav.*WebAssembly.*static FFmpeg host.*one admitted non-FFmpeg compressed-codec payload.*WavPack 5\.9\.0 WebAssembly.*exact regular 145,537-byte file.*c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908.*no other codec WASM.*downloadAlternateFFmpeg.*stock Electron 43\.1\.1.*proprietary codec support.*alternate framework library.*omit proprietary codec support.*afterPack verifies.*linux-x64.*linux-arm64.*mac-arm64.*win-x64.*win-arm64.*no mac-x64 target.*WavPack.*no patent-clearance.*not a Soundscaper codec-provider tier.*User-installed external FFmpeg.*distinct.*never copied/iu,
+		/application-codec policy.*reject application-supplied FFmpeg.*libav.*FFmpeg WebAssembly.*static FFmpeg host.*WebM\/AV1 payloads.*exactly seven reviewed compressed-audio WASM files.*libFLAC.*libopus.*libvorbis.*WavPack.*mpg123.*LAME.*TwoLAME.*exact-length.*SHA-256.*undeclared codec WASM.*all five production payload rows are pending-external.*downloadAlternateFFmpeg.*linux-x64.*linux-arm64.*mac-arm64.*win-x64.*win-arm64.*no mac-x64 target.*neither patent clearance nor non-infringement.*user-installed external FFmpeg.*WinGet\/Homebrew.*never copied/iu,
 	);
 	assert.match(
 		plan,
-		/Implementation status.*first bundled compressed-codec slice is implemented.*WavPack 5\.9\.0.*145,537-byte.*c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908.*compression level 2.*shared profile constant.*pre-render export.*capability gate.*desktop dialog/isu,
+		/Implementation status.*seven\s+reviewed compressed-audio WebAssembly payloads.*libFLAC 1\.5\.0.*libopus 1\.6\.1.*libvorbis 1\.3\.7.*WavPack 5\.9\.0.*mpg123 1\.33\.7.*LAME 4\.0.*TwoLAME 0\.4\.0/isu,
 	);
 	assert.match(
 		plan,
-		/regular-file.*during staging.*startup.*byte length and digest.*encode\/parse\/decode canary.*strict bounded parser/isu,
+		/libsndfile is intentionally not added.*32 MiB.*128 MiB.*synchronous WASM.*Cancellation.*cannot interrupt.*WASM invocation/isu,
 	);
 	assert.match(
 		plan,
-		/stock WavPack 5\.9\.0.*b7f8cd1d8e1a00374f618587eb2c5872fcd250d8686c9cbda0b46e00003ea40f.*All other bundled.*operating-system.*fail\s+closed.*not patent\s+clearance/isu,
+		/Media Foundation.*AudioToolbox.*all five target rows.*pending-external.*OS tier fails\s+closed.*FFmpeg CLI.*4\.4 through 9\.x.*Edit > Preferences > General.*BtbN\.FFmpeg\.GPL\.8\.1.*brew install ffmpeg/isu,
+	);
+	assert.match(
+		plan,
+		/WebM\/AV1 execution tier is not implemented.*dav1d.*SVT-AV1.*libaom.*no libwebm\/libvpx\/dav1d\/SVT-AV1\/libaom\s+payload.*audio operations only.*fail.*closed/isu,
+	);
+	assert.match(
+		plan,
+		/time-of-check\/time-of-use.*no operating-\s*system RSS or CPU sandbox.*malicious user-selected executable/isu,
 	);
 	assert.doesNotMatch(plan, /patent[- ]free/iu);
 });

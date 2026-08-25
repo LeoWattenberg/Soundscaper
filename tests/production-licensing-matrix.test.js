@@ -155,78 +155,59 @@ test('runtime provenance entries and release gates fail closed without claiming 
 	assert.deepEqual(ffmpegCore.artifactSurfaces, ['web-runtime-assets']);
 	assert.deepEqual(ffmpegWrapper.artifactSurfaces, ['web-pages-bundle']);
 	assert.deepEqual(provenance.get('ffmpeg-core-wasm').artifactSurfaces, ['web-runtime-assets']);
-	assert.deepEqual(matrix.desktopCodecPolicy, {
-		scope: 'soundscaper-application-codec-provider-layer-excluding-electron-framework-internals',
-		artifactSurfaces: ['electron-renderer', 'electron-runtime-assets', 'electron-shell', 'desktop-release-assets'],
-		bundledFfmpeg: false,
-		bundledLibav: false,
-		bundledFfmpegWasm: false,
-		electronFrameworkFfmpeg: {
-			status: 'distributed-verified-framework-exception',
-			electronVersion: '43.1.1',
-			profile: 'electron-alternate-without-proprietary-codecs',
-			upstreamIntent: 'omit-proprietary-codec-support',
-			providerTier: false,
-			manifest: 'config/electron-alternate-ffmpeg-manifest.json',
-			targets: ['linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64'],
-			qualification: 'exact-bytes-only-no-codec-or-patent-clearance',
-		},
-		providerOrder: ['bundled-open-codecs', 'os', 'external-user-install'],
-		bundledProviders: {
-			wavpack: {
-				status: 'admitted',
-				version: '5.9.0',
-				license: 'BSD-3-Clause',
-				directions: ['encode', 'decode'],
-				container: 'wavpack',
-				codec: 'wavpack',
-				sampleFormat: 'f32',
-				compressionLevel: 2,
-				byteLength: 145537,
-				sha256: 'c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908',
-				targets: ['linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64'],
-				startupAdmission: ['exact-byte-length', 'sha256', 'encode-parse-decode-canary'],
-				streamValidation: 'strict-bounded-reviewed-float32-profile',
-				interoperability: 'narrow-stock-wvunpack-5-9-0-witness',
-				qualification: 'exact-reviewed-slice-no-patent-clearance',
-			},
-		},
-		executionStatus: {
-			firstPartyPcmReaders: 'existing-application-code',
-			bundledCompressedCodecs: 'wavpack-f32-admitted-all-others-unqualified-fail-closed',
-			operatingSystemCodecs: 'unqualified-fail-closed',
-			externalFfmpeg: 'user-installed-no-redistribution',
-		},
-		patentPosition: 'No patent clearance or non-infringement representation is made for any codec, provider, use, or territory.',
-		evidence: [
-			'scripts/lib/desktop-codec-policy.mjs',
-			'scripts/lib/desktop-renderer-codec-audit.mjs',
-			'scripts/desktop-prepare.mjs',
-			'scripts/desktop-before-pack.mjs',
-			'scripts/desktop-after-pack.mjs',
-			'scripts/desktop-release-assets.mjs',
-			'electron-builder.config.cjs',
-			'config/electron-alternate-ffmpeg-manifest.json',
-			'scripts/lib/electron-alternate-ffmpeg.mjs',
-			'tests/desktop-electron-alternate-ffmpeg.test.js',
-			'src/common/editor/wavpack/source-manifest.json',
-			'src/common/editor/wavpack/NOTICE.md',
-			'src/common/editor/desktop-wavpack-codec-profile.ts',
-			'src/common/editor/controller/desktop-audio-export-capability.ts',
-			'scripts/audit-wavpack-wasm.mjs',
-			'scripts/lib/desktop-bundled-wavpack-runtime.mjs',
-			'desktop/bundled-wavpack-audio-codec-runtime.ts',
-			'desktop/bundled-wavpack-stream.ts',
-			'tests/desktop-bundled-wavpack-audio-codec-runtime.test.ts',
-			'tests/desktop-audio-codec-runtime-staging.test.js',
-			'tests/audio-editor-desktop-export-capability.test.ts',
-			'tests/audio-editor-desktop-export-codec-model.test.ts',
-			'tests/audio-editor-desktop-export-dialog-capability.test.js',
-			'desktop/desktop-audio-codec-registration.mjs',
-			'desktop/external-ffmpeg-registration.mjs',
-			'THIRD_PARTY_LICENSES.md',
-		],
-	});
+	const codecPolicy = matrix.desktopCodecPolicy;
+	assert.equal(codecPolicy.scope,
+		'soundscaper-application-codec-provider-layer-excluding-electron-framework-internals');
+	assert.deepEqual(codecPolicy.artifactSurfaces,
+		['electron-renderer', 'electron-runtime-assets', 'electron-shell', 'desktop-release-assets']);
+	assert.deepEqual(
+		[codecPolicy.bundledFfmpeg, codecPolicy.bundledLibav, codecPolicy.bundledFfmpegWasm],
+		[false, false, false],
+	);
+	assert.deepEqual(codecPolicy.providerOrder, ['bundled-open-codecs', 'os', 'external-user-install']);
+	assert.deepEqual(Object.keys(codecPolicy.bundledProviders), [
+		'flac', 'opus', 'vorbis', 'wavpack', 'mpg123', 'lame', 'twolame',
+	]);
+	const expectedAudioPayloads = {
+		flac: ['1.5.0', 'BSD-3-Clause', 153044, '34acff0d67e3ac7f34816217ed7f5f859bf9a1c70f33eb3c347049f5fdf0d443'],
+		opus: ['libopus-1.6.1+libogg-1.3.6', 'BSD-3-Clause', 385789, 'c4c9f7ac85071b24b2545f966943c4319fff023a65c899146cfcb016ae0a8853'],
+		vorbis: ['libvorbis-1.3.7+libogg-1.3.6', 'BSD-3-Clause', 523227, 'c03037c33f35dbf85e1e963058156399b995b2dedb5479f6eb3f3b30148eeee5'],
+		wavpack: ['5.9.0', 'BSD-3-Clause', 145537, 'c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908'],
+		mpg123: ['1.33.7', 'LGPL-2.1-only', 172329, 'd2b5686a16141ec97dbeb4e4f2a1ce28b756dd3eaf6438b31379356c8dd958ae'],
+		lame: ['4.0', 'LGPL-2.0-or-later', 212205, '654d08f946851134755513c8c0cd4486e8c9d2024df2318dc48b262e4ad7a502'],
+		twolame: ['0.4.0', 'LGPL-2.1-or-later', 146820, 'b4b166bed688504b548adcee02cda391d4d8b25a44aec914c3fe1082f466ed1b'],
+	};
+	for (const [id, [version, license, byteLength, sha256]] of Object.entries(expectedAudioPayloads)) {
+		const provider = codecPolicy.bundledProviders[id];
+		assert.equal(provider.status, 'admitted', id);
+		assert.deepEqual([provider.version, provider.license, provider.byteLength, provider.sha256],
+			[version, license, byteLength, sha256], id);
+		assert.deepEqual(provider.targets, ['linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64']);
+		assert.equal(provider.targets.includes('mac-x64'), false, id);
+		assert.equal(provider.qualification, 'exact-reviewed-slice-no-patent-clearance', id);
+	}
+	assert.deepEqual(codecPolicy.firstPartyPcm.containers, ['wav', 'bwf', 'bw64', 'aiff']);
+	assert.match(codecPolicy.firstPartyPcm.libsndfile, /not-bundled-redundant/u);
+	assert.match(codecPolicy.operatingSystemProvider.payloadStatus, /all-five-targets-pending-external-fail-closed/u);
+	assert.deepEqual(codecPolicy.operatingSystemProvider.windows.targets, ['win-x64', 'win-arm64']);
+	assert.deepEqual(codecPolicy.operatingSystemProvider.macos.targets, ['mac-arm64']);
+	assert.match(codecPolicy.externalFfmpegProvider.versionRange, />=4\.4\.0 <10\.0\.0/u);
+	assert.equal(codecPolicy.externalFfmpegProvider.redistributed, false);
+	assert.deepEqual(codecPolicy.externalFfmpegProvider.requestLimits,
+		{ inputBytes: 32 * 1024 * 1024, outputBytes: 128 * 1024 * 1024 });
+	assert.match(codecPolicy.videoProvider.desktopBridge, /audio-only/u);
+	assert.match(codecPolicy.videoProvider.av1, /no-dav1d.*five-target.*fail-closed/iu);
+	assert.match(codecPolicy.executionStatus.bundledExecutionModel,
+		/whole-buffer.*non-interruptible/iu);
+	assert.equal(codecPolicy.executionStatus.receiptTiming, 'null-no-timing-claim');
+	assert.equal(codecPolicy.patentPosition,
+		'No patent clearance or non-infringement representation is made for any codec, provider, use, or territory.');
+	await assertEvidence(codecPolicy.evidence);
+	for (const id of [
+		'flac-1-5-0-desktop-wasm', 'opus-1-6-1-ogg-1-3-6-desktop-wasm',
+		'vorbis-1-3-7-ogg-1-3-6-desktop-wasm', 'mpg123-1-33-7-desktop-wasm',
+		'lame-4-0-desktop-wasm', 'twolame-0-4-0-desktop-wasm',
+	]) assert.equal(provenance.get(id).status, 'documented', id);
 	assert.deepEqual(provenance.get('wavpack-wasm'), {
 		id: 'wavpack-wasm',
 		status: 'documented',
@@ -260,7 +241,6 @@ test('runtime provenance entries and release gates fail closed without claiming 
 			'THIRD_PARTY_LICENSES.md',
 		],
 	});
-	assert.equal(matrix.desktopCodecPolicy.bundledProviders.wavpack.targets.includes('mac-x64'), false);
 	assert.deepEqual(provenance.get('electron-alternate-ffmpeg-framework-43-1-1'), {
 		id: 'electron-alternate-ffmpeg-framework-43-1-1',
 		status: 'documented',
@@ -316,9 +296,9 @@ test('future third-party execution and model surfaces remain disabled behind exp
 	assert.equal(gates.get('web-effect-packages').scope, 'externally-authored-or-non-repository-owned-packages');
 	assert.match(gates.get('web-effect-packages').blocker, /Utility Gain.*repository-owned.*does not admit/iu);
 	assert.equal(gates.get('native-codecs').scope,
-		'additional-bundled-native-and-operating-system-codec-execution');
+		'additional-bundled-video-and-target-native-operating-system-codec-execution');
 	assert.match(gates.get('native-codecs').blocker,
-		/exact reviewed WavPack 5\.9\.0 float32 WebAssembly provider is admitted.*no other bundled compressed-codec execution factory.*no operating-system codec execution factory.*fail closed.*Electron.*not a provider tier.*user-installed external FFmpeg.*outside/iu);
+		/Seven exact reviewed compressed-audio WebAssembly providers.*libsndfile is not bundled.*Media Foundation.*AudioToolbox.*all five production native-payload rows are pending-external.*OS tier fails closed.*audio-only.*no libwebm.*dav1d.*SVT-AV1.*libaom.*WebM\/AV1 execution fails closed.*Electron.*rather than a provider tier.*user-installed external FFmpeg.*outside/iu);
 	for (const path of [
 		'src/common/editor/reviewed-effects/catalog.ts',
 		'src/common/editor/reviewed-effects/utility-gain-package.ts',

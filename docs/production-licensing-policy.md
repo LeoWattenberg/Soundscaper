@@ -41,9 +41,11 @@ The matrix treats these as separate distributions:
 - optional versioned web runtime assets, including FFmpeg;
 - the desktop-specific Electron renderer, whose composition excludes the Web
   FFmpeg wrapper and core;
-- translation and separately admitted native runtime assets staged beside that
-  renderer, including the exact reviewed WavPack 5.9.0 WebAssembly provider but
-  excluding application-supplied FFmpeg/libav and FFmpeg WebAssembly;
+- translation and separately admitted runtime assets staged beside that
+  renderer, including exact reviewed libFLAC, libopus/libogg,
+  libvorbis/libogg, WavPack, mpg123, LAME, and TwoLAME WebAssembly audio
+  providers but excluding application-supplied FFmpeg/libav, FFmpeg
+  WebAssembly, and unqualified WebM/AV1 payloads;
 - the Electron shell with embedded Chromium and Node.js, including Electron's
   exact alternate framework libffmpeg for the selected target; and
 - public desktop packages and their release/source archive set.
@@ -62,6 +64,10 @@ runs `scripts/lib/electron-alternate-ffmpeg.mjs` to verify its exact target,
 file type, byte length, and SHA-256 against
 `config/electron-alternate-ffmpeg-manifest.json` before fuse or signing work.
 Packaging also validates the aggregate notice.
+In addition, desktop assembly copies and audits the 28 exact codec component
+NOTICE, license, source-manifest, and shared toolchain-license files under the
+codec license resource tree; the aggregate notice is not the only notice
+artifact shipped for these payloads.
 The current web application has no versioned route or deployed notice artifact
 for `THIRD_PARTY_LICENSES.md`; web notice delivery therefore remains blocked
 even though the repository notice exists.
@@ -84,12 +90,16 @@ the work:
   one exact five-target manifest covering Electron version, release archive,
   archive digest, installed library name, byte length, and library digest.
 
-The WavPack 5.9.0 runtime meets the generated-WebAssembly rule with a pinned
-BSD-3-Clause source and notice closure, Emscripten 3.1.64 build definition,
-145,537-byte artifact, SHA-256
-`c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908`,
-and `scripts/audit-wavpack-wasm.mjs`. Desktop staging and startup independently
-recheck that exact artifact before it can become a provider.
+Seven desktop compressed-audio runtimes meet the generated-WebAssembly rule:
+libFLAC 1.5.0; libopus 1.6.1 with libogg 1.3.6; libvorbis 1.3.7 with libogg
+1.3.6; WavPack 5.9.0; mpg123 1.33.7; LAME 4.0; and TwoLAME 0.4.0. Each has a
+pinned source archive or revision, license and notice closure, Emscripten
+3.1.64 build recipe, exact artifact byte length and SHA-256, a fail-fast audit,
+and exact-identity desktop staging and startup checks. The matrix records the
+individual values and evidence paths rather than treating a family name as an
+artifact identity. This is engineering provenance and exact-slice qualification,
+not a copyright-license, corresponding-source, or patent conclusion beyond the
+facts separately recorded for each component.
 
 An audit status of `documented` means that checked-in provenance evidence is
 present and its existing automated audit remains enabled. It is not a legal
@@ -146,9 +156,12 @@ verification establishes the selected framework bytes, not a complete codec
 inventory, observed codec behavior, absence of patent exposure, or patent
 clearance.
 
-WavPack's BSD-3-Clause copyright license, exact artifact review, and observed
-stock WavPack 5.9.0 decoder interoperability likewise do not establish absence
-of patent exposure, patent clearance, or non-infringement in any territory.
+The bundled providers' BSD or LGPL copyright licenses, exact artifact reviews,
+codec canaries, and narrow interoperability witnesses likewise do not establish
+absence of patent exposure, patent clearance, or non-infringement in any
+territory. The same rule applies to an operating-system codec and to a
+user-installed FFmpeg executable; moving execution or distribution ownership
+does not itself answer a patent question.
 
 ## Notices
 
@@ -190,9 +203,10 @@ requirements are implemented:
   license selection for each dual-licensed input, platform-API and ASIO
   trademark review, target notices, signed packages, and provisioned device-lab
   evidence;
-- additional bundled native and operating-system codecs need an exact
-  codec/license inventory, corresponding source, package notices, and
-  distribution-specific patent review; and
+- additional bundled video and target-native operating-system codec execution
+  needs an exact codec/license inventory, corresponding source, package notices,
+  target payload and qualification evidence, and distribution-specific patent
+  review; and
 - local models need licenses for code and weights, training-data provenance,
   model cards and use restrictions, exact hashes, and versioned offline notice
   delivery.
@@ -208,23 +222,53 @@ make it a bundled, operating-system, or external Soundscaper provider tier.
 
 The desktop codec provider order is bundled implementation, operating-system
 service, then user-installed external FFmpeg. That order is a selection policy,
-not a general availability or qualification claim. Existing first-party PCM
-container readers remain ordinary application code. One bundled compressed
-provider is admitted: the exact 145,537-byte WavPack 5.9.0 WASM with SHA-256
-`c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908`
-supports lossless public `.wv` float32 encode/decode at compression level 2 on
-the five supported targets. One shared profile constant binds that level in the
-main runtime, rejects other bundled levels at the export capability gate before
-rendering, and limits the desktop dialog to level 2. Exact-hash staging and
-startup checks, a startup encode/parse/decode canary, a strict bounded stream
-parser, lossless multi-block tests, and an independent stock `wvunpack` 5.9.0
-decode witness qualify that narrow provider slice. They do not qualify other
-WavPack profiles, versions, or producers. No other bundled compressed-codec
-execution factory is registered, and neither the Windows nor macOS
-operating-system adapter has a registered execution factory. Every other
-bundled tuple and every operating-system tuple therefore fails closed as
-unavailable; their catalogs, candidate filters, and canary contracts do not
-establish execution, conformance, platform availability, or patent clearance.
+not a general availability, legal, or performance claim. The specialized
+first-party WAV/BWF/BW64 and AIFF PCM paths remain ordinary application code.
+libsndfile is not bundled because those owners plus the direct libFLAC provider
+cover the admitted matrix without adding a redundant general-purpose file
+parser and its broader format surface.
+
+Seven exact compressed-audio WebAssembly providers are admitted on Linux x64,
+Linux ARM64, macOS ARM64, Windows x64, and Windows ARM64, never macOS x64:
+libFLAC 1.5.0 for signed-24-bit FLAC encode/decode; libopus 1.6.1 plus libogg
+1.3.6 for 48 kHz mono/stereo Ogg Opus encode/decode; libvorbis 1.3.7 plus
+libogg 1.3.6 for 8–192 kHz mono/stereo Ogg Vorbis encode/decode; WavPack 5.9.0
+for the float32, compression-level-2 slice; mpg123 1.33.7 for feed-only
+MPEG-1 Layer II/III decode at 32, 44.1, or 48 kHz, mono or stereo; LAME 4.0 for
+the admitted MPEG-1 Layer III CBR encode combinations at those rates; and
+TwoLAME 0.4.0 for the admitted MPEG-1 Layer II CBR encode combinations at
+those rates. The matrix pins every payload's exact byte length and SHA-256.
+Valid but unreviewed settings fall through; malformed input, validation failure,
+security failure, execution failure, cancellation, or partial output is
+terminal. WavPack retains its independent stock `wvunpack` 5.9.0 witness; that
+witness does not qualify other WavPack profiles, versions, or producers.
+
+The desktop audio wire caps each input at 32 MiB and each returned output at
+128 MiB. The compressed providers retain whole input and output buffers. Other
+than WavPack's block loop, each codec performs one synchronous WASM invocation
+after yielding to the main loop; cancellation checks before and after the call
+cannot interrupt an active invocation. The contract is not an aggregate bound
+on JavaScript copies, WASM linear memory, codec working state, process RSS,
+CPU time, or elapsed time. Operation receipts retain bounded provider identity,
+settings, capability generation, and input/output digests, but their timing is
+`null` and makes no timing or padding measurement claim.
+
+Windows Media Foundation and macOS ARM64 AudioToolbox source adapters, bounded
+source inspection, output validation, and live startup canaries exist for exact
+48 kHz stereo MP3/AAC decode and AAC-LC/M4A encode; the AAC encoder tuple is
+160 kbps and Windows additionally has a 192 kbps MP3 encoder tuple. macOS has
+no admitted MP3 encoder. All five rows in the production native payload
+manifest remain `pending-external`, so no authenticated, signed target helper
+is staged and every OS tuple currently fails closed. Linux has no uniform OS
+provider. Source and portable tests do not establish target execution,
+availability, signing, or package qualification.
+
+The desktop bridge is audio-only. It contains no libwebm, libvpx, dav1d,
+SVT-AV1, or libaom payload and no complete twelve-case benchmark decision on
+each of the five targets. WebM and AV1 execution therefore remain disabled.
+The qualification model names dav1d as the decoder candidate, SVT-AV1 as the
+primary encoder candidate, and libaom only as a conditional Windows ARM64
+encoder fallback; those candidate names do not admit execution.
 
 The final tier executes an FFmpeg program already installed on the user's
 machine, whether found by bounded discovery, chosen explicitly, or installed
@@ -234,9 +278,27 @@ any network fetch and system installation; the application does not itself
 fetch or copy FFmpeg bytes, package them, sublicense them, or redistribute that
 program or its libraries, so those external bytes are outside the production
 artifact closure. They are distinct from Electron's packaged alternate
-framework library. Parser and command-contract
-support for a version range is not release qualification of every version or
-codec tuple in that range.
+framework library. Edit > Preferences > General displays the canonical
+location and probe status and provides Browse, Clear, Rescan, and Install. The
+Windows plan is the exact WinGet id `BtbN.FFmpeg.GPL.8.1`; the macOS and Linux
+plan invokes `brew install ffmpeg` only through an already installed trusted
+Homebrew executable. Neither plan bootstraps a package manager, invokes `sudo`,
+runs at startup, or silently accepts changed package agreements.
+
+The CLI adapter admits a matching `ffmpeg`/`ffprobe` pair with a normalized
+released version `>=4.4.0` and `<10.0.0`, fingerprints both programs and their
+declared file closure, probes capability sets, and binds exact codec settings.
+This command-contract support is not release qualification of every version or
+codec tuple in that range. The audio runner uses fixed argument templates,
+`shell: false`, `-nostdin`, a local protocol allowlist, a curated environment,
+private scratch files, duration/log/output limits, cancellation, and strict
+output validation. It hashes the admitted executable again before path-based
+spawn but does not retain an executable file descriptor across spawn, leaving
+a time-of-check/time-of-use replacement window. It has no operating-system RSS
+or CPU sandbox. Its protocol allowlist constrains cooperative FFmpeg behavior,
+not a malicious user-selected executable, which keeps its ordinary user-account
+and network authority. These limits are security boundaries and residual risks,
+not evidence about the external program's license or patent posture.
 
 The matrix's `nativeFormatPolicies` register carries one fail-closed row for
 the JUCE native-audio stack, one per operating-system backend (CoreAudio,
