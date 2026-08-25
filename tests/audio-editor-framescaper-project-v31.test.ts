@@ -39,6 +39,7 @@ import { FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/edit
 import { createEditorProjectRuntimeV31Selection } from '../src/framescaper/editor-project-runtime-v31-selection.ts';
 import { FRAMESCAPER_PROFILE } from '../src/framescaper/product.js';
 import { FRAMESCAPER_V31_PRODUCT_ROUTE } from '../src/framescaper/product-route-v31.ts';
+import { createFramescaperScapeNativeRuntimeV31 } from '../src/framescaper/editor-scape-native-v31.ts';
 import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
 import {
 	FramescaperProjectV31ReimportRequiredError,
@@ -204,4 +205,17 @@ test('F31 route ownership selects capture, assistance UI and the product route',
 	assert.equal(FRAMESCAPER_V31_PRODUCT_ROUTE.assistanceUi, true);
 	assert.equal(FRAMESCAPER_PROFILE.applicationFeatures.framescaperCapture, true);
 	assert.equal(FRAMESCAPER_PROFILE.capabilities.assistanceAssets, true);
+});
+
+test('F31 portable export projects inherited native state through the V27 asset authority', async () => {
+	const runtime = createFramescaperScapeNativeRuntimeV31(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE);
+	const portable = createFramescaperProjectV31(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, {
+		id: 'framescaper-v31-portable', title: 'Portable F31', now: NOW,
+	} as never);
+	const exported = await runtime.exportScapeProject(portable, {
+		async *readSourceChunks() { /* Empty F31 fixture has no audio source bodies. */ },
+		async loadMediaAsset() { return null; },
+	} as never);
+	assert.ok(exported.blob);
+	assert.equal(exported.manifest.project.schemaVersion, FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION);
 });

@@ -11,6 +11,7 @@ import { readFramescaperProjectSchemaVersion } from './editor-project-v18.ts';
 import { rebindFramescaperSourceIdentitiesV27 } from './editor-project-v27-source-rebind.ts';
 import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v27.ts';
 import { assertFramescaperProjectV31Profile } from './editor-project-runtime-profile-v31.ts';
+import { framescaperProjectV27FoundationShapeV28 } from './editor-project-v28-foundation.ts';
 import { framescaperProjectV28FoundationShapeV31 } from './editor-project-v31-foundation.ts';
 import {
 	cloneFramescaperProjectV31,
@@ -96,13 +97,19 @@ function createAssetExtension(profile: unknown): Readonly<ScapeProjectAssetExten
 		...v27,
 		planExportAssets: (request) => v27.planExportAssets({
 			...request,
-			project: framescaperProjectV28FoundationShapeV31(request.project),
+			project: v27Foundation(request.project),
 		}),
 		validateImportAssets: (project, manifest) => v27.validateImportAssets(
-			framescaperProjectV28FoundationShapeV31(project),
+			v27Foundation(project),
 			manifest,
 		),
 		validateReboundProject: (project) => { validateFramescaperProjectV31(profile, project); },
 	};
 	return Object.freeze(extension);
+}
+
+function v27Foundation(project: unknown) {
+	return framescaperProjectV27FoundationShapeV28(
+		framescaperProjectV28FoundationShapeV31(project),
+	);
 }
