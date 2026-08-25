@@ -280,6 +280,22 @@ export class FileLocalModelStore {
 		}
 	}
 
+	/** Re-authenticates a published artifact before a runtime may execute it. */
+	async verifyArtifact(artifact: LocalModelArtifact): Promise<boolean> {
+		const expected = normalizeArtifact(artifact);
+		try {
+			const path = this.blobPath(expected.sha256);
+			const metadata = await lstat(path);
+			return metadata.isFile()
+				&& !metadata.isSymbolicLink()
+				&& metadata.size === expected.byteLength
+				&& await digestOf(path) === expected.sha256;
+		} catch (error) {
+			if (errorCode(error) === 'ENOENT') return false;
+			throw error;
+		}
+	}
+
 	async #hasArtifact(artifact: LocalModelArtifact): Promise<boolean> {
 		try {
 			const metadata = await lstat(this.blobPath(artifact.sha256));
