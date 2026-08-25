@@ -6,7 +6,7 @@ import test from 'node:test';
 
 const root = new URL('../', import.meta.url);
 
-test('5B status records the selected V28/V14 route without claiming external activation', async () => {
+test('5B status records selected F31/V14/V20 over the V28 foundation without claiming native activation', async () => {
 	const [roadmap, parentPlan, pickup, threatModel, compatibility] = await Promise.all([
 		text('roadmap.md'),
 		text('docs/milestone-5-plan.md'),
@@ -18,10 +18,10 @@ test('5B status records the selected V28/V14 route without claiming external act
 	const mediaPayloads = await json('config/framescaper-media-host-payload-manifest.json');
 	const openFxPayloads = await json('config/framescaper-openfx-host-payload-manifest.json');
 
-	assert.match(pickup, /V28.*selected.*Milestone 5.*V14.*desktop library V19/isu);
+	assert.match(pickup, /F31.*selected.*Milestone 5.*V14.*desktop library V20.*immutable V28 foundation/isu);
 	assert.match(pickup, /V20.*through V27.*historical.*V25\/V26.*opaque.*read-only/isu);
-	assert.match(roadmap, /Framescaper V28.*exact V14.*evaluated-RGBA.*carrier/isu);
-	assert.match(parentPlan, /selected V28.*V14.*render queue.*persistent services V3/isu);
+	assert.match(roadmap, /Framescaper F31.*immutable V28 foundation.*exact V14.*evaluated-RGBA.*carrier/isu);
+	assert.match(parentPlan, /selected F31.*immutable V28 foundation.*V14.*render queue.*persistent services V3/isu);
 	for (const document of [pickup, roadmap, parentPlan]) {
 		assert.match(document, /five.*target.*pending-external/isu);
 		assert.match(document, /payload.*(?:empty|no authenticated)/isu);
@@ -31,8 +31,8 @@ test('5B status records the selected V28/V14 route without claiming external act
 	const helper = security.risks.find(({ id }) => id === 'native-helper-processes');
 	assert.ok(helper);
 	assert.match(JSON.stringify(helper), /V14.*evaluated-RGBA.*carrier/isu);
-	assert.match(threatModel, /selected V28.*V14.*carrier/isu);
-	assert.match(compatibility, /^## Framescaper V28 product isolation$/mu);
+	assert.match(threatModel, /selected F31.*V28 foundation.*V14.*carrier/isu);
+	assert.match(compatibility, /^## Framescaper F31 product isolation$/mu);
 
 	for (const manifest of [mediaPayloads, openFxPayloads]) {
 		assert.deepEqual(manifest.payloads, []);

@@ -20,7 +20,7 @@ test('production capability inventory covers every product profile and platform 
 	const inventory = JSON.parse(await readFile(inventoryUrl, 'utf8'));
 
 	assert.equal(inventory.schemaVersion, 1);
-	assert.equal(inventory.groundedAt, '2026-08-24');
+	assert.equal(inventory.groundedAt, '2026-08-25');
 	assert.deepEqual(inventory.platformTiers, PLATFORM_TIERS);
 	assert.deepEqual(Object.keys(inventory.products).sort(), [...PRODUCT_IDS].sort());
 
@@ -119,6 +119,8 @@ test('Electron Enhanced inventory records product-owned current desktop boundari
 		'desktop/native-audio-session-service.ts',
 		'desktop/plugin-host-service.ts',
 		'src/common/editor/ui/soundscaper-native-renderer-bridge.ts',
+		'src/soundscaper/editor-project-v30.ts',
+		'src/soundscaper/editor-project-v30-foundation.ts',
 		'src/soundscaper/editor-project-v29.ts',
 		'desktop/project-library-lease-smoke.js',
 		'scripts/lib/desktop-project-library-lease-matrix.mjs',
@@ -127,9 +129,11 @@ test('Electron Enhanced inventory records product-owned current desktop boundari
 	]) assert.ok(soundscaper.evidence.includes(path), `soundscaper is missing ${path}`);
 	for (const path of [
 		'desktop/desktop-smoke.js',
-		'desktop/project-library-v19-main.ts',
+		'desktop/project-library-v20-main.ts',
 		'desktop/native-services-runtime-v3.ts',
 		'desktop/native-media-v14-executor.ts',
+		'src/framescaper/editor-project-v31.ts',
+		'src/framescaper/editor-project-v31-foundation.ts',
 		'src/framescaper/editor-project-v28.ts',
 		'src/framescaper/editor-native-render-queue-action-v28.ts',
 		'desktop/project-library-product-runtime.js',
@@ -155,6 +159,8 @@ test('Electron Only inventory records the default-off native service surfaces', 
 		'desktop/native-services-controller-v3.ts',
 		'desktop/openfx-main-service.ts',
 		'src/common/editor/ui/framescaper-native-services-menu.ts',
+		'src/framescaper/editor-controller-v31-inherited-bindings.ts',
+		'src/framescaper/editor-project-v31-foundation.ts',
 		'src/framescaper/editor-project-v28.ts',
 	]) assert.ok(framescaper.evidence.includes(path), `framescaper Electron Only is missing ${path}`);
 });

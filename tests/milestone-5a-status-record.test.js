@@ -11,11 +11,11 @@ async function flattened(url) {
 	return (await readFile(url, 'utf8')).replace(/\s+/gu, ' ');
 }
 
-test('the roadmap records the selected V29 native audio production route', async () => {
+test('the roadmap records selected S30 over the exact S29 native-audio foundation', async () => {
 	const roadmap = await flattened(roadmapUrl);
 	assert.match(
 		roadmap,
-		/Soundscaper V29.*native audio.*persistent helper.*MessagePort.*AudioWorklet/iu,
+		/Soundscaper.*S30.*exact S29 native-audio implementation.*persistent helper.*MessagePort.*AudioWorklet/iu,
 	);
 	assert.match(
 		roadmap,

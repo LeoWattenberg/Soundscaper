@@ -15,11 +15,12 @@ test('current desktop lease qualification is product-isolated and remains pendin
 	assert.equal(rule.status, 'partial');
 	const claim = `${rule.requiredOutcome} ${rule.currentBehavior}`;
 	assert.match(claim, /Soundscaper.*V11.*process-lifetime.*main-owned.*lease/isu);
-	assert.match(claim, /Framescaper.*V19.*process-lifetime.*main-owned.*lease/isu);
-	assert.match(claim, /Framescaper V19.*V18.*V17.*V12.*immutable/isu);
+	assert.match(claim, /Soundscaper V11.*project (?:schema|generation) 30.*user_version 13.*scope v11/isu);
+	assert.match(claim, /Framescaper.*V20.*process-lifetime.*main-owned.*lease/isu);
+	assert.match(claim, /Framescaper V20.*V19.*V18.*V17.*V12.*immutable/isu);
 	assert.match(claim, /seven product-specific workflows.*both products/isu);
 	assert.match(claim, /cross-product-simultaneous-open.*once.*paired packages/isu);
-	for (const product of ['Soundscaper V11', 'Framescaper V19']) {
+	for (const product of ['Soundscaper V11', 'Framescaper V20']) {
 		for (const target of ['Windows x64', 'Linux x64']) {
 			assert.match(claim, new RegExp(`${product}.*${target}.*pending-external`, 'isu'));
 		}
@@ -34,11 +35,11 @@ test('current desktop lease qualification is product-isolated and remains pendin
 	const framescaper = controls.get('framescaper-v20-desktop-v17-isolation');
 	assert.ok(leaseMatrix);
 	assert.ok(framescaper);
-	assert.match(leaseMatrix.summary, /Soundscaper.*V11.*Framescaper.*V19.*process-lifetime/isu);
-	assert.match(leaseMatrix.summary, /crash-restart-recovery for both products.*cross-product-simultaneous-open once/isu);
+	assert.match(leaseMatrix.summary, /Soundscaper.*V11.*Framescaper.*V20.*process-lifetime/isu);
+	assert.match(leaseMatrix.summary, /crash-restart-recovery for both selected products.*cross-product-simultaneous-open once/isu);
 	assert.match(leaseMatrix.summary, /Windows x64.*Linux x64.*pending-external/isu);
-	assert.match(framescaper.summary, /desktop-library V19.*user_version 21.*scope v19/isu);
-	assert.match(framescaper.summary, /V18.*read-only.*reimports.*V27.*V28.*resumes idempotently/isu);
+	assert.match(framescaper.summary, /desktop-library V20.*user_version 22.*scope v20/isu);
+	assert.match(framescaper.summary, /V19.*read-only.*V28.*reimports.*F31.*resumes idempotently/isu);
 	assert.match(leaseMatrix.summary, /separate storage scope and database.*storage and fencing isolation/isu);
 });
 
@@ -58,12 +59,13 @@ test('roadmap binds the M2 inventory to the selected product generations', async
 	]);
 
 	const roadmap = await text('roadmap.md');
-	assert.match(roadmap, /seven product-specific workflows.*Soundscaper desktop-library V11.*Framescaper desktop-library V19/isu);
-	assert.match(roadmap, /cross-product-simultaneous-open.*once.*paired packages/isu);
-	assert.match(roadmap, /user_version.*21.*scope.*v19/isu);
-	assert.match(roadmap, /reimports.*V18.*V27.*V28|V27 documents.*V28/isu);
-	assert.match(roadmap, /without reopening, rewriting, or deleting.*V18.*V17.*V12/isu);
-	assert.match(roadmap, /Windows x64.*Linux x64.*accepted packaged results.*absent.*Partial/isu);
+	assert.match(roadmap, /selected owners.*Soundscaper desktop-library V11.*Framescaper.*desktop-library V20/isu);
+	assert.match(roadmap, /seven.*product-specific workflows.*V11 and V20/isu);
+	assert.match(roadmap, /cross-product-simultaneous-open.*once.*those packages/isu);
+	assert.match(roadmap, /user_version.*22.*scope.*v20/isu);
+	assert.match(roadmap, /V19.*read-only.*reimports.*V28.*F31/isu);
+	assert.match(roadmap, /without rewriting.*V19.*V18\/V17\/V12/isu);
+	assert.match(roadmap, /Windows x64.*Linux x64.*pending.*no accepted V20 packaged result.*Partial/isu);
 });
 
 test('current capability inventory names the selected desktop lease owners', async () => {
@@ -89,18 +91,19 @@ test('current capability inventory names the selected desktop lease owners', asy
 		'desktop/project-library-host.ts',
 		'desktop/project-library-lease-smoke.js',
 		'desktop/soundscaper-project-library-v11-main.ts',
+		'src/soundscaper/editor-project-v30.ts',
 		'scripts/lib/desktop-project-library-lease-matrix.mjs',
 	]) assert.ok(soundscaper.evidence.includes(path), path);
 	for (const path of [
 		'desktop/project-library-product-runtime.js',
-		'desktop/project-library-v19-contract.ts',
-		'desktop/project-library-v19-database.ts',
-		'desktop/project-library-v19-import.ts',
-		'desktop/project-library-v19-main.ts',
-		'desktop/project-library-v19-main-ipc.ts',
-		'desktop/project-library-v19-writer.ts',
-		'src/framescaper/desktop-project-library-v19-renderer.ts',
-		'src/framescaper/desktop-project-library-v19-store-adapter.ts',
+		'desktop/project-library-v20-contract.ts',
+		'desktop/project-library-v20-database.ts',
+		'desktop/project-library-v20-import.ts',
+		'desktop/project-library-v20-main.ts',
+		'desktop/project-library-v20-main-ipc.ts',
+		'desktop/project-library-v20-writer.ts',
+		'src/framescaper/desktop-project-library-v20-renderer.ts',
+		'src/framescaper/desktop-project-library-v20-store-adapter.ts',
 		'tests/desktop-project-library-v12-packaged.test.ts',
 		'tests/desktop-project-library-lease-matrix.test.js',
 		'tests/desktop-project-library-lease-smoke.test.js',
