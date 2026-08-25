@@ -208,7 +208,8 @@ export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan, stora
 		const diagnostic = publicationDiagnostic(
 			activeProjectId, publicationBefore, publicationAfter, status,
 		);
-		throw new Error(`Desktop video timing-probe import did not persist both timing bodies: ${status}; publication diagnostic ${JSON.stringify(diagnostic)}`);
+		const storage = await storageDiagnostic(scope, sourceNames);
+		throw new Error(`Desktop video timing-probe import did not persist both timing bodies: ${status}; publication diagnostic ${JSON.stringify(diagnostic)}; storage diagnostic ${JSON.stringify(storage)}`);
 	}
 	return {
 		schemaVersion: 1,
@@ -221,6 +222,67 @@ export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan, stora
 			return { id, ...fixture };
 		}),
 	};
+
+	// A desktop save is admitted against the local store but published to the
+	// project library, so on that path the document never lands in the renderer's
+	// `projects` store. Read it back over the same bridge the editor published
+	// through; the timing bodies themselves do stay in the local media stores.
+	async function desktopLibraryProject(globalScope, names) {
+		const library = desktopProjectLibraryBridge(globalScope, plan.productId);
+		if (typeof library?.readProjectBundle !== 'function' || !activeProjectId) return null;
+		try {
+			const bundle = await library.readProjectBundle(activeProjectId);
+			if (!bundle || typeof bundle.document !== 'string') return null;
+			const document = JSON.parse(bundle.document);
+			return names.every((name) => (
+				document?.sources?.some((source) => source?.name === name)
+			)) ? document : null;
+		} catch {
+			return null;
+		}
+	}
+
+	// Bounded counts only: which stores the product actually wrote, so a probe
+	// that finds nothing says whether the import missed the database, the
+	// project, or just the timing bodies. No keys, paths or bytes cross this.
+	async function storageDiagnostic(globalScope, names) {
+		const request = (input) => new Promise((resolve, reject) => {
+			input.onsuccess = () => resolve(input.result);
+			input.onerror = () => reject(input.error);
+		});
+		try {
+			const database = await request(globalScope.indexedDB.open(storageProfile.databaseName));
+			try {
+				const stores = [...database.objectStoreNames];
+				if (!['projects', 'mediaAssets', 'mediaAssetChunks'].every((name) => stores.includes(name))) {
+					return { stores };
+				}
+				const transaction = database.transaction(['projects', 'mediaAssets', 'mediaAssetChunks'], 'readonly');
+				const [projects, mediaAssets, mediaChunks] = await Promise.all([
+					request(transaction.objectStore('projects').getAll()),
+					request(transaction.objectStore('mediaAssets').getAll()),
+					request(transaction.objectStore('mediaAssetChunks').getAll()),
+				]);
+				const sources = projects.flatMap((project) => (
+					Array.isArray(project?.sources) ? project.sources : []
+				));
+				return {
+					stores,
+					projects: projects.length,
+					sources: sources.length,
+					matchedSources: sources.filter((source) => names.includes(source?.name)).length,
+					sourcesWithTimingAsset: sources.filter((source) => Boolean(source?.timingAsset)).length,
+					mediaAssets: mediaAssets.length,
+					mediaAssetChunks: mediaChunks.length,
+				};
+			} finally {
+				database.close();
+			}
+		} catch (error) {
+			const message = typeof error?.message === 'string' ? error.message : String(error);
+			return { error: message.slice(0, 256) };
+		}
+	}
 
 	async function persistedTimingEvidence(globalScope, names) {
 		const request = (input) => new Promise((resolve, reject) => {
@@ -237,7 +299,7 @@ export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan, stora
 			]);
 			const project = projects.find((candidate) => names.every((name) => (
 				candidate.sources?.some((source) => source.name === name)
-			)));
+			))) ?? await desktopLibraryProject(globalScope, names);
 			if (!project) return [];
 			const evidence = [];
 			for (const source of project.sources.filter(({ name }) => names.includes(name))) {
@@ -288,10 +350,14 @@ export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan, stora
 		return bytes;
 	}
 
-	async function publicationSnapshot(globalScope, productId) {
-		const bridge = productId === 'soundscaper'
+	function desktopProjectLibraryBridge(globalScope, productId) {
+		return productId === 'soundscaper'
 			? globalScope.soundscaperProjectLibraryDesktop?.v11
-			: globalScope.framescaperProjectLibraryDesktop?.v10;
+			: globalScope.framescaperDesktop?.v1?.projectLibrary;
+	}
+
+	async function publicationSnapshot(globalScope, productId) {
+		const bridge = desktopProjectLibraryBridge(globalScope, productId);
 		if (typeof bridge?.listProjects !== 'function') return null;
 		try {
 			const snapshot = await bridge.listProjects();
@@ -312,7 +378,7 @@ export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan, stora
 	function publicationDiagnostic(projectId, before, after, status) {
 		const prior = before?.projects?.find((project) => project.id === projectId) ?? null;
 		const current = after?.projects?.find((project) => project.id === projectId) ?? null;
-		const desktopLibraryVersion = plan.productId === 'soundscaper' ? 'v11' : 'v10';
+		const desktopLibraryVersion = plan.productId === 'soundscaper' ? 'v11' : 'v19';
 		const normalizedStatus = status.toLowerCase();
 		const witnessFailure = normalizedStatus.includes(
 			`authoritative desktop ${desktopLibraryVersion} load witness`,

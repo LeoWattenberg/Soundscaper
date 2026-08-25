@@ -246,6 +246,84 @@ test('timing probe identifies a revision jump before the first import publicatio
 	);
 });
 
+test('timing probe reads a project the desktop path published rather than stored locally', async (context) => {
+	// Bound the retry deadline so a regression fails in milliseconds, not 75s.
+	let clockReads = 0;
+	context.mock.method(Date, 'now', () => (clockReads++ < 8 ? 0 : 100_000));
+	// A Framescaper desktop save is admitted against the local store but
+	// published to the project library, so the renderer database holds the media
+	// bodies and no project row at all. Reading only the local `projects` store
+	// found nothing and the packaged probe waited out its whole deadline.
+	const plan = timingPlan('framescaper');
+	const names = plan.fixtures.map(({ name }) => name);
+	// The published document is JSON, so every tick count crosses it as a string.
+	const document = {
+		id: 'project-1',
+		sources: videoTimingProbeMedia.map((fixture) => ({
+			name: fixture.file.name,
+			contentSha256: fixture.sourceSha256,
+			frameRate: fixture.nominalRate,
+			sourceFrameCount: fixture.presentationTicks.length,
+			timingDecision: fixture.kind,
+			timingAsset: {
+				storageKey: `timing-${fixture.id}`,
+				sha256: fixture.timingSha256,
+				sourceSha256: fixture.sourceSha256,
+				frameCount: fixture.presentationTicks.length,
+				timescale: fixture.timescale,
+				finalFrameDurationTicks: String(fixture.finalFrameDurationTicks),
+				byteLength: 3,
+			},
+		})),
+	};
+	const mediaAssets = videoTimingProbeMedia.map((fixture) => ({
+		sourceId: `timing-${fixture.id}`,
+		blob: new Blob([new Uint8Array([1, 2, 3])]),
+	}));
+	const stores = { projects: [], mediaAssets, mediaAssetChunks: [] };
+	const database = {
+		close() {},
+		objectStoreNames: Object.keys(stores),
+		transaction() {
+			return { objectStore: (name) => ({ getAll: () => successfulRequest(stores[name]) }) };
+		},
+	};
+	const status = { getAttribute: () => 'success', textContent: 'Done.' };
+	const editor = {
+		getAttribute: (name) => name === 'data-audio-editor-bound' ? 'true' : null,
+		querySelector: (selector) => selector === '[data-status]' ? status : null,
+	};
+	const scope = {
+		Blob,
+		document: {
+			querySelector(selector) {
+				if (selector === '[data-audio-editor]') return editor;
+				if (selector === '[data-project-bin-import] button') return { disabled: false, click() {} };
+				if (selector === '[data-project-id]') return { getAttribute: () => 'project-1' };
+				return null;
+			},
+			querySelectorAll: () => [],
+		},
+		indexedDB: { open: () => successfulRequest(database) },
+		setTimeout: (resolve) => { resolve(); },
+		framescaperDesktop: {
+			v1: {
+				projectLibrary: {
+					listProjects: async () => ({ metadataRevision: 1, projects: [{ id: 'project-1', revision: 1 }] }),
+					readProjectBundle: async (projectId) => (projectId === 'project-1'
+						? { document: JSON.stringify(document) } : null),
+				},
+			},
+		},
+	};
+
+	const result = await runDesktopVideoTimingProbeRendererSmoke(
+		scope, plan, createDesktopVideoTimingProbeStorageProfile('framescaper'),
+	);
+	assert.deepEqual(result.fixtures.map(({ name }) => name), names);
+	assert.deepEqual(result.fixtures.map(({ timingBytes }) => timingBytes), [[1, 2, 3], [1, 2, 3]]);
+});
+
 test('desktop smoke routing admits the ordinary media chooser once and emits only a validated result', async () => {
 	const plan = timingPlan();
 	const argv = [
