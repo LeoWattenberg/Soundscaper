@@ -15,6 +15,7 @@
 
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -22,9 +23,17 @@ import { fileURLToPath } from 'node:url';
 import { MILESTONE_5_HANDOFF_INPUT_PATHS } from '../scripts/lib/milestone-5-handoff.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const ACQUISITIONS = 'config/milestone-5-native-source-acquisitions.json';
 
 test('every Milestone 5 handoff authority is pinned to LF in the working tree', () => {
-	const unpinned = Object.values(MILESTONE_5_HANDOFF_INPUT_PATHS).filter((path) => {
+	// The acquisitions register delegates to further source manifests, and those
+	// are digested the same way, so the set to pin is the transitive one: a
+	// delegated manifest left unpinned refuses the handoff exactly as a
+	// top-level authority does.
+	const register = JSON.parse(readFileSync(resolve(ROOT, ACQUISITIONS), 'utf8'));
+	const delegated = (register.delegatedSources ?? [])
+		.map(({ manifestPath }) => manifestPath).filter(Boolean);
+	const unpinned = [...Object.values(MILESTONE_5_HANDOFF_INPUT_PATHS), ...delegated].filter((path) => {
 		const attribute = execFileSync('git', ['check-attr', 'eol', '--', path], {
 			cwd: ROOT, encoding: 'utf8',
 		}).trim();

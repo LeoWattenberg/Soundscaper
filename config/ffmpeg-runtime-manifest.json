@@ -49,8 +49,8 @@
 	"evidence": {
 		"lineEndings": {
 			"path": ".gitattributes",
-			"byteLength": 1557,
-			"sha256": "6577f3c88e68995ac37b21467e50a130d158ec2dfdc66be135db3ceabb1eb751"
+			"byteLength": 1619,
+			"sha256": "323603b07dd7cf4514da8a39515900914865446319d06a9b56026691792e6b2a"
 		},
 		"correspondingSource": {
 			"path": "desktop/ffmpeg-corresponding-source.json",
@@ -123,6 +123,6 @@
 			"desktop-release-policy",
 			"runtime-publication-policy"
 		],
-		"payloadSha256": "62231e19bfe37a74b30578c1ca7b09b229e984c51f1591d6d56c59a58034706e"
+		"payloadSha256": "a0f3eb9a586f8932b83afd6151262bc3841cb7615359103510e9c6c125bb4171"
 	}
 }

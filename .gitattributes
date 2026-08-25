@@ -6,6 +6,7 @@ patches/**/*.patch text eol=lf
 /config/framescaper-media-host-payload-manifest.json text eol=lf
 /config/framescaper-openfx-host-payload-manifest.json text eol=lf
 /config/native-addon-payload-manifest.json text eol=lf
+/config/boost-multiprecision-source-manifest.json text eol=lf
 /config/milestone-5-native-isolation-review-policy.json text eol=lf
 /config/milestone-5-native-source-acquisitions.json text eol=lf
 /config/milestone-5-package-release-authentication-policy.json text eol=lf
