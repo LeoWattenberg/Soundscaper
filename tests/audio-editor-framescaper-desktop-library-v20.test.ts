@@ -13,7 +13,10 @@ import {
 import { FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_V20_HANDSHAKE } from '../src/framescaper/desktop-project-library-v20-renderer-contract.ts';
 import { createFramescaperEditorProjectEnvironmentV31 } from '../src/framescaper/editor-project-environment-v31.ts';
 import { FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v31.ts';
-import { createFramescaperProjectV31 } from '../src/framescaper/editor-project-v31.ts';
+import {
+	cloneFramescaperProjectV31,
+	createFramescaperProjectV31,
+} from '../src/framescaper/editor-project-v31.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
 const SOURCE_SHA256 = 'ab'.repeat(32);
@@ -100,6 +103,47 @@ test('desktop V20 renderer publishes and reacquires transcript bodies with F31 i
 	assert.deepEqual(new Uint8Array(await restored.arrayBuffer()), body);
 });
 
+test('desktop V20 reconciles main-first create, save, and current read into exact F31 revisions', async (context) => {
+	const harness = installPublicationDesktopLibrary(context);
+	const environment = await createFramescaperEditorProjectEnvironmentV31({
+		storeOptions: {
+			indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory,
+			preferOpfs: false,
+		},
+	});
+	context.after(() => environment.close());
+	const initial = createFramescaperProjectV31(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, {
+		id: 'framescaper-v31-shadow', title: 'Shadow revision zero',
+		now: '2026-08-25T10:00:00.000Z',
+	});
+	harness.setBeforeFinish(async () => {
+		assert.equal(await environment.store.loadProject(String(initial.id)), null);
+	});
+	assert.deepEqual(await environment.createProjectIfAbsent(initial as never), initial);
+	assert.deepEqual(await environment.store.loadProject(String(initial.id)), initial);
+	assert.deepEqual(await environment.store.loadProject(String(initial.id), { revision: 0 }), initial);
+
+	const draft = structuredClone(initial) as unknown as Record<string, unknown>;
+	draft.title = 'Shadow revision one';
+	draft.revision = 1;
+	draft.updatedAt = '2026-08-25T10:00:01.000Z';
+	const next = cloneFramescaperProjectV31(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, draft);
+	harness.setBeforeFinish(async () => {
+		assert.deepEqual(await environment.store.loadProject(String(initial.id)), initial);
+		assert.equal(await environment.store.loadProject(String(initial.id), { revision: 1 }), null);
+	});
+	assert.deepEqual(await environment.controllerStore.saveProject(next), next);
+	assert.deepEqual(await environment.store.loadProject(String(initial.id)), next);
+	assert.deepEqual(await environment.store.loadProject(String(initial.id), { revision: 0 }), initial);
+	assert.deepEqual(await environment.store.loadProject(String(initial.id), { revision: 1 }), next);
+
+	await environment.store.deleteProject(String(initial.id));
+	assert.equal(await environment.store.loadProject(String(initial.id)), null);
+	assert.deepEqual(await environment.controllerStore.loadProject(String(initial.id)), next);
+	assert.deepEqual(await environment.store.loadProject(String(initial.id)), next);
+	assert.deepEqual(await environment.store.loadProject(String(initial.id), { revision: 1 }), next);
+});
+
 function installDesktopLibrary(
 	context: TestContext,
 	handshake: Readonly<Record<string, unknown>>,
@@ -133,6 +177,7 @@ function installDesktopLibrary(
 
 function installPublicationDesktopLibrary(context: TestContext): Readonly<{
 	readonly publishedKinds: string[];
+	setBeforeFinish(callback: (() => PromiseLike<void> | void) | null): void;
 }> {
 	const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'framescaperDesktop');
 	let metadataRevision = 0;
@@ -141,6 +186,7 @@ function installPublicationDesktopLibrary(context: TestContext): Readonly<{
 	let pendingBytes: Uint8Array[][] = [];
 	const committedBytes = new Map<string, Uint8Array>();
 	const publishedKinds: string[] = [];
+	let beforeFinish: (() => PromiseLike<void> | void) | null = null;
 	const projectLibrary = Object.freeze({
 		abortPublication: async () => { pending = null; pendingBytes = []; return true; },
 		beginPublication: async (request: Record<string, unknown>) => {
@@ -160,6 +206,7 @@ function installPublicationDesktopLibrary(context: TestContext): Readonly<{
 		duplicateProject: async () => { throw new Error('not used'); },
 		finishPublication: async () => {
 			if (!pending) throw new Error('missing publication');
+			await beforeFinish?.();
 			const project = pending.project as Record<string, unknown>;
 			const bodies = pending.bodies as Record<string, unknown>[];
 			for (const [index, body] of bodies.entries()) {
@@ -219,7 +266,10 @@ function installPublicationDesktopLibrary(context: TestContext): Readonly<{
 		if (descriptor) Object.defineProperty(globalThis, 'framescaperDesktop', descriptor);
 		else Reflect.deleteProperty(globalThis, 'framescaperDesktop');
 	});
-	return { publishedKinds };
+	return {
+		publishedKinds,
+		setBeforeFinish(callback) { beforeFinish = callback; },
+	};
 }
 
 function projectWithTranscript(bodySha256 = BODY_SHA256, bodyByteLength = 1_024) {

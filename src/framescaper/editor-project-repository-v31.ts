@@ -16,7 +16,7 @@ import {
 
 const REQUIRED_METHODS = Object.freeze([
 	'createIfAbsent', 'createForScapeImportIfAbsent', 'save', 'saveIfCurrent',
-	'load', 'list', 'listRevisions', 'delete',
+	'load', 'list', 'listRevisions', 'restore', 'delete',
 ] as const);
 
 /** Exact-write F31 repository with inherited proxy fencing and opaque custody. */
@@ -91,6 +91,40 @@ export class FramescaperProjectRepositoryV31 implements ProjectRepositoryPort {
 		return (await this.#delegate.listRevisions(projectId)).map((entry) => ({
 			revision: entry.revision,
 			project: this.#custody(entry.project),
+		}));
+	}
+
+	async restore(projectId: string, snapshot: Readonly<{
+		readonly current: ProjectDocument | null;
+		readonly revisions: readonly Readonly<{
+			readonly revision: number;
+			readonly project: ProjectDocument;
+		}>[];
+	}>): Promise<void> {
+		if (typeof projectId !== 'string' || !projectId || !snapshot || typeof snapshot !== 'object'
+			|| !Array.isArray(snapshot.revisions)) {
+			throw new TypeError('An exact F31 project snapshot is required.');
+		}
+		const current = snapshot.current === null ? null : this.#exact(snapshot.current);
+		if (current && current.id !== projectId) {
+			throw new Error('The F31 restore current document changed project identity.');
+		}
+		const seen = new Set<number>();
+		const revisions = snapshot.revisions.map((entry) => {
+			if (!entry || !Number.isSafeInteger(entry.revision) || entry.revision < 0
+				|| seen.has(entry.revision)) {
+				throw new TypeError('The F31 restore revision inventory is invalid.');
+			}
+			seen.add(entry.revision);
+			const project = this.#exact(entry.project);
+			if (project.id !== projectId || project.revision !== entry.revision) {
+				throw new Error('The F31 restore revision changed its document identity.');
+			}
+			return Object.freeze({ revision: entry.revision, project: project as ProjectDocument });
+		});
+		await this.#delegate.restore!(projectId, Object.freeze({
+			current: current as ProjectDocument | null,
+			revisions: Object.freeze(revisions),
 		}));
 	}
 
