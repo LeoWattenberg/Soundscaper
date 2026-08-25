@@ -47,6 +47,7 @@ const CAPABILITY_LABELS = Object.freeze({
 	takeComp: 'Take comping',
 	audioWarp: 'Audio warping',
 	sequenceTiming: 'Sequence timing',
+	timelineImages: 'Timeline images',
 	videoRetime: 'Video retiming',
 	videoCaptions: 'Video captions',
 	videoColorManagement: 'Video color management',

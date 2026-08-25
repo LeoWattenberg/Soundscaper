@@ -52,6 +52,7 @@ Families describe product entry points, not every file extension a decoder might
 | Spectral audio editing | Enabled | Not enabled |
 | Take comping | Enabled | Not enabled |
 | Timeline annotations | Enabled | Enabled |
+| Timeline images | Not enabled | Enabled |
 | Track folders | Enabled | Not enabled |
 | Video adjustment layers | Not enabled | Enabled |
 | Video captions | Not enabled | Enabled |
