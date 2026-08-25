@@ -15,8 +15,14 @@ import {
 import {
 	createSoundscaperProjectFeatureCompatibilityServiceV30,
 } from './editor-project-feature-compatibility-v30.ts'
+import {
+	createSoundscaperOpaqueCustodyConsumerProjectV30,
+} from './editor-project-opaque-custody-v30.ts'
+import { SOUNDSCAPER_PROJECT_V30_SCHEMA_VERSION } from './editor-project-v30.ts'
 import { validateSoundscaperProjectV30 } from './editor-project-v30-validation.ts'
 import { projectNativePluginPlaybackV30 } from './editor-native-plugin-playback-v30.ts'
+
+const EMPTY = Object.freeze([]) as readonly string[]
 
 /** Apply exact V30 compatibility before any transient playback or delivery projection. */
 export function createSoundscaperPlaybackProjectServiceV30(): PlaybackProjectService {
@@ -28,6 +34,7 @@ export function createSoundscaperPlaybackProjectServiceV30(): PlaybackProjectSer
 	})
 
 	function projectForPlayback<Project extends object>(project: Project): PlaybackProjectProjection<Project> {
+		if (!isExactV30(project)) return opaque(project)
 		validateSoundscaperProjectV30(project)
 		const featureRequirementsReport = compatibility.evaluate(project)
 		const mediaProject = projectTrackFolderMediaStateV12(project)
@@ -68,6 +75,7 @@ export function createSoundscaperPlaybackProjectServiceV30(): PlaybackProjectSer
 	}
 
 	function projectForAudioRenderedFallbackDelivery<Project extends object>(project: Project) {
+		if (!isExactV30(project)) return opaque(project)
 		validateSoundscaperProjectV30(project)
 		const featureRequirementsReport = compatibility.evaluate(project)
 		const mediaProject = projectTrackFolderMediaStateV12(project)
@@ -86,6 +94,7 @@ export function createSoundscaperPlaybackProjectServiceV30(): PlaybackProjectSer
 	}
 
 	function projectForVideoRenderedFallbackDelivery<Project extends object>(project: Project) {
+		if (!isExactV30(project)) return opaque(project)
 		validateSoundscaperProjectV30(project)
 		const featureRequirementsReport = compatibility.evaluate(project)
 		const mediaProject = projectTrackFolderMediaStateV12(project)
@@ -110,4 +119,25 @@ export function createSoundscaperPlaybackProjectServiceV30(): PlaybackProjectSer
 			),
 		})
 	}
+}
+
+function isExactV30(project: unknown): boolean {
+	if (!project || typeof project !== 'object' || Array.isArray(project)) return false
+	const descriptor = Object.getOwnPropertyDescriptor(project, 'schemaVersion')
+	return Boolean(descriptor?.enumerable && Object.hasOwn(descriptor, 'value')
+		&& descriptor.value === SOUNDSCAPER_PROJECT_V30_SCHEMA_VERSION)
+}
+
+function opaque<Project extends object>(project: Project): PlaybackProjectProjection<Project> {
+	const shell = createSoundscaperOpaqueCustodyConsumerProjectV30(project)
+	return Object.freeze({
+		project: shell as unknown as Project,
+		featureRequirementsReport: null,
+		audioEffectPlaybackBypass: null,
+		audioRenderedFallback: null,
+		videoEffectPlaybackBypass: null,
+		videoRenderedFallback: null,
+		requiredAudioSourceIds: EMPTY,
+		requiredVideoSourceIds: EMPTY,
+	})
 }

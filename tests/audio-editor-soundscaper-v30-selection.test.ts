@@ -151,6 +151,45 @@ test('selected V30 repository and session round-trip assistance references exact
 	assert.deepEqual(soundscaperProductionProjectClone(selected.runtimeProfile, held), held);
 });
 
+test('selected V30 activates future custody through an inert read-only session', () => {
+	const selected = createSoundscaperProjectRuntimeV30Selection();
+	const future = {
+		...project(), schemaVersion: 31,
+		futureCustody: { retained: true },
+	};
+	const migrated = selected.migrateProject(future);
+	assert.equal(migrated.readOnly, true);
+	assert.deepEqual(migrated.project, future);
+
+	const history = selected.createHistory(migrated.project);
+	assert.equal(history.present.schemaVersion, 31);
+	assert.deepEqual(history.present.sources, []);
+	assert.deepEqual(history.present.clips, []);
+	assert.deepEqual(history.present.tracks, []);
+	assert.equal(Object.hasOwn(history.present, 'futureCustody'), false);
+
+	const session = selected.createSessionController();
+	session.openProject(history.present, { history, readOnly: true });
+	const [tab] = session.getSnapshot().tabs;
+	assert.equal(tab.readOnly, true);
+	assert.equal(tab.history.present.schemaVersion, 31);
+	assert.deepEqual(tab.history.present.sources, []);
+
+	const runtimeProject = selected.projectForRuntimeConsumers(history.present);
+	assert.equal(runtimeProject.schemaVersion, 31);
+	assert.deepEqual(runtimeProject.sources, []);
+	const playback = createSoundscaperPlaybackProjectServiceV30().projectForPlayback(
+		history.present,
+	);
+	assert.equal(playback.project.schemaVersion, 31);
+	assert.deepEqual(playback.requiredAudioSourceIds, []);
+	assert.deepEqual(playback.requiredVideoSourceIds, []);
+	assert.throws(() => selected.applyCommand(history.present, {
+		type: 'project/rename', title: 'No authority',
+	}), /V30|schema|unsupported/iu);
+	assert.deepEqual(migrated.project, future);
+});
+
 function repositoryDelegate() {
 	let saved: unknown = null;
 	return {
