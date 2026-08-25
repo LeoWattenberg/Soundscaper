@@ -151,10 +151,12 @@ class CleanupFixture {
 		}, {
 			selectionFence: authority.fence,
 			review: REVIEW,
-			model: Object.freeze({
+			models: Object.freeze([Object.freeze({
 				modelId: 'parakeet-tdt-0.6b-v2',
+				version: '1',
+				task: 'speech-recognition',
 				artifactSha256s: Object.freeze([MODEL_SHA256]),
-			}),
+			})]),
 			options: { fillerLexicon: ['um', 'uh'] },
 		});
 	}
