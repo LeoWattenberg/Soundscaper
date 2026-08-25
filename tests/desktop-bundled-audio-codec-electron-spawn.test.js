@@ -11,6 +11,10 @@ const configuration = Object.freeze({
 	contractVersion: 1, target: 'linux-x64', codec: 'flac',
 	runtimeRoot: '/app/desktop/project-library-runtime',
 	moduleBytes: 10_000, moduleSha256: 'a'.repeat(64),
+	dependencies: Object.freeze([Object.freeze({
+		path: 'desktop/desktop-audio-codec-operation-contract.js',
+		byteLength: 1_000, sha256: 'c'.repeat(64),
+	})]),
 	wasmBytes: 153_044, wasmSha256: 'b'.repeat(64),
 });
 

@@ -15,27 +15,16 @@ import type {
 	DesktopAudioCodecFormat,
 	DesktopAudioCodecRequest,
 } from './desktop-audio-codec-operation-contract.js';
+import {
+	bundledAudioCodecSpec,
+	normalizeBundledAudioCodecHelperConfiguration,
+	type BundledAudioCodecHelperConfiguration,
+	type BundledAudioCodecId,
+} from './bundled-audio-codec-helper-configuration.js';
 import type {
 	DesktopCodecOperation,
 	DesktopCodecPreflightResult,
 } from '../src/common/editor/desktop-codec-coordinator.js';
-import type { DesktopCodecTarget } from '../src/common/editor/desktop-codec-provider-catalog.js';
-
-export const BUNDLED_AUDIO_CODEC_IDS = Object.freeze([
-	'flac', 'lame', 'mpg123', 'opus', 'twolame', 'vorbis', 'wavpack',
-] as const);
-export type BundledAudioCodecId = typeof BUNDLED_AUDIO_CODEC_IDS[number];
-
-export interface BundledAudioCodecHelperConfiguration {
-	readonly contractVersion: 1;
-	readonly target: DesktopCodecTarget;
-	readonly codec: BundledAudioCodecId;
-	readonly runtimeRoot: string;
-	readonly moduleBytes: number;
-	readonly moduleSha256: string;
-	readonly wasmBytes: number;
-	readonly wasmSha256: string;
-}
 
 export interface BundledAudioCodecHelperWorker {
 	handleMessage(value: unknown): void;
@@ -49,17 +38,10 @@ interface HelperPorts {
 	readonly importRuntime?: (
 		modulePath: string,
 		options: Readonly<{
-			readonly target: DesktopCodecTarget;
+		readonly target: BundledAudioCodecHelperConfiguration['target'];
 			readonly readPayload: () => Promise<Uint8Array>;
 		}>,
 	) => Promise<DesktopAudioCodecProviderRuntime | null>;
-}
-
-interface CodecSpec {
-	readonly moduleFile: string;
-	readonly wasmFile: string;
-	readonly loaderName: string;
-	readonly providerId: (target: DesktopCodecTarget) => string;
 }
 
 type HelperPreflightResult = Readonly<{
@@ -90,22 +72,13 @@ type HelperExecutionResult = Readonly<{
 
 type HelperJobResult = HelperPreflightResult | HelperExecutionResult;
 
-const TARGETS = new Set<string>([
-	'linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64',
-]);
-const CODEC_IDS = new Set<string>(BUNDLED_AUDIO_CODEC_IDS);
 const SHA256 = /^[a-f0-9]{64}$/u;
 const MAXIMUM_INPUT_BYTES = 32 * 1024 * 1024;
 const MAXIMUM_OUTPUT_BYTES = 128 * 1024 * 1024;
-const MAXIMUM_MODULE_BYTES = 2 * 1024 * 1024;
 const PATH_BYTES = 4_096;
 const DETAIL_BYTES = 2_048;
 const FAILURE_REASONS = new Set<string>([
 	'unavailable', 'cancelled', 'execution-failed', 'security-failed', 'process-failed', 'result-failed',
-]);
-const CONFIGURATION_FIELDS = Object.freeze([
-	'contractVersion', 'target', 'codec', 'runtimeRoot', 'moduleBytes', 'moduleSha256',
-	'wasmBytes', 'wasmSha256',
 ]);
 const JOB_FIELDS = Object.freeze(['contractVersion', 'type', 'phase', 'operation', 'request']);
 const REQUEST_FIELDS = Object.freeze([
@@ -116,51 +89,6 @@ const OPERATION_FIELDS = Object.freeze([
 	'direction', 'mediaKind', 'container', 'codec', 'profile', 'sampleFormat', 'pixelFormat',
 	'sampleRate', 'channelCount', 'width', 'height',
 ]);
-const CODECS: Readonly<Record<BundledAudioCodecId, Readonly<CodecSpec>>> = Object.freeze({
-	flac: Object.freeze({
-		moduleFile: 'desktop/bundled-flac-audio-codec-runtime.js',
-		wasmFile: 'src/common/editor/flac/flac.wasm',
-		loaderName: 'loadBundledFlacAudioCodecRuntime',
-		providerId: (target: DesktopCodecTarget) => `bundled-libflac-wasm-${target}`,
-	}),
-	lame: Object.freeze({
-		moduleFile: 'desktop/bundled-lame-audio-codec-runtime.js',
-		wasmFile: 'src/common/editor/lame/lame.wasm',
-		loaderName: 'loadBundledLameAudioCodecRuntime',
-		providerId: (target: DesktopCodecTarget) => `bundled-lame-wasm-${target}`,
-	}),
-	mpg123: Object.freeze({
-		moduleFile: 'desktop/bundled-mpg123-audio-codec-runtime.js',
-		wasmFile: 'src/common/editor/mpg123/mpg123.wasm',
-		loaderName: 'loadBundledMpg123AudioCodecRuntime',
-		providerId: (target: DesktopCodecTarget) => `bundled-mpg123-wasm-${target}`,
-	}),
-	opus: Object.freeze({
-		moduleFile: 'desktop/bundled-opus-audio-codec-runtime.js',
-		wasmFile: 'src/common/editor/opus/opus.wasm',
-		loaderName: 'loadBundledOpusAudioCodecRuntime',
-		providerId: (target: DesktopCodecTarget) => `bundled-libopus-libogg-wasm-${target}`,
-	}),
-	twolame: Object.freeze({
-		moduleFile: 'desktop/bundled-twolame-audio-codec-runtime.js',
-		wasmFile: 'src/common/editor/twolame/twolame.wasm',
-		loaderName: 'loadBundledTwolameAudioCodecRuntime',
-		providerId: (target: DesktopCodecTarget) => `bundled-twolame-wasm-${target}`,
-	}),
-	vorbis: Object.freeze({
-		moduleFile: 'desktop/bundled-vorbis-audio-codec-runtime.js',
-		wasmFile: 'src/common/editor/vorbis/vorbis.wasm',
-		loaderName: 'loadBundledVorbisAudioCodecRuntime',
-		providerId: (target: DesktopCodecTarget) => `bundled-libvorbis-libogg-wasm-${target}`,
-	}),
-	wavpack: Object.freeze({
-		moduleFile: 'desktop/bundled-wavpack-audio-codec-runtime.js',
-		wasmFile: 'src/common/editor/wavpack/wavpack.wasm',
-		loaderName: 'loadBundledWavPackAudioCodecRuntime',
-		providerId: (target: DesktopCodecTarget) => `bundled-wavpack-wasm-${target}`,
-	}),
-});
-
 export async function createBundledAudioCodecHelperWorker(options: Readonly<{
 	readonly configuration: unknown;
 	readonly post: (message: unknown) => void;
@@ -173,7 +101,7 @@ export async function createBundledAudioCodecHelperWorker(options: Readonly<{
 		|| options.schedule !== undefined && typeof options.schedule !== 'function') {
 		throw new TypeError('The bundled audio codec helper worker ports are invalid.');
 	}
-	const configuration = codecConfiguration(options.configuration);
+	const configuration = normalizeBundledAudioCodecHelperConfiguration(options.configuration);
 	const runtime = await loadAuthenticatedRuntime(configuration, options.ports ?? {});
 	let phase: 'ready' | 'running' | 'terminal' | 'failed' = 'ready';
 	const schedule = options.schedule ?? ((callback: () => void) => { setImmediate(callback); });
@@ -211,7 +139,7 @@ export async function runBundledAudioCodecHelperJob(options: Readonly<{
 	readonly value: unknown;
 	readonly ports?: HelperPorts;
 }>): Promise<HelperJobResult> {
-	const configuration = codecConfiguration(options.configuration);
+	const configuration = normalizeBundledAudioCodecHelperConfiguration(options.configuration);
 	const runtime = inspectedRuntime(options.runtime, configuration);
 	const job = exactRecord(options.value, JOB_FIELDS, 'bundled audio codec helper job');
 	if (job.contractVersion !== 1 || job.type !== 'job'
@@ -260,10 +188,17 @@ async function loadAuthenticatedRuntime(
 	configuration: BundledAudioCodecHelperConfiguration,
 	ports: HelperPorts,
 ): Promise<DesktopAudioCodecProviderRuntime> {
-	const spec = CODECS[configuration.codec];
+	const spec = bundledAudioCodecSpec(configuration.codec);
 	const operations = fileOperations(ports);
 	const modulePath = join(configuration.runtimeRoot, spec.moduleFile);
 	const wasmPath = join(configuration.runtimeRoot, spec.wasmFile);
+	for (const dependency of configuration.dependencies) {
+		await inspectAuthenticatedFile({
+			path: join(configuration.runtimeRoot, dependency.path),
+			expectedBytes: dependency.byteLength, expectedSha256: dependency.sha256,
+			label: 'dependency', operations,
+		});
+	}
 	await inspectAuthenticatedFile({
 		path: modulePath, expectedBytes: configuration.moduleBytes,
 		expectedSha256: configuration.moduleSha256, label: 'module', operations,
@@ -288,6 +223,13 @@ async function loadAuthenticatedRuntime(
 		path: modulePath, expectedBytes: configuration.moduleBytes,
 		expectedSha256: configuration.moduleSha256, label: 'module', operations,
 	});
+	for (const dependency of configuration.dependencies) {
+		await inspectAuthenticatedFile({
+			path: join(configuration.runtimeRoot, dependency.path),
+			expectedBytes: dependency.byteLength, expectedSha256: dependency.sha256,
+			label: 'dependency', operations,
+		});
+	}
 	return inspectedRuntime(runtime, configuration);
 }
 
@@ -368,29 +310,12 @@ function inspectedRuntime(
 	}
 	const runtime = value as DesktopAudioCodecProviderRuntime;
 	if (runtime.provider?.kind !== 'bundled'
-		|| runtime.provider.id !== CODECS[configuration.codec].providerId(configuration.target)
+		|| runtime.provider.id !== bundledAudioCodecSpec(configuration.codec).providerId(configuration.target)
 		|| typeof runtime.provider.preflight !== 'function' || typeof runtime.execute !== 'function'
 		|| runtime.preflightRequest !== undefined && typeof runtime.preflightRequest !== 'function') {
 		throw new TypeError('The isolated bundled codec runtime identity is invalid.');
 	}
 	return runtime;
-}
-
-function codecConfiguration(value: unknown): BundledAudioCodecHelperConfiguration {
-	const record = exactRecord(value, CONFIGURATION_FIELDS, 'bundled audio codec configuration');
-	if (record.contractVersion !== 1 || typeof record.target !== 'string' || !TARGETS.has(record.target)
-		|| typeof record.codec !== 'string' || !CODEC_IDS.has(record.codec)) {
-		throw new TypeError('The bundled audio codec helper target is invalid.');
-	}
-	return Object.freeze({
-		contractVersion: 1, target: record.target as DesktopCodecTarget,
-		codec: record.codec as BundledAudioCodecId,
-		runtimeRoot: absolutePath(record.runtimeRoot, 'runtime root'),
-		moduleBytes: integer(record.moduleBytes, 1, MAXIMUM_MODULE_BYTES, 'module byte length'),
-		moduleSha256: sha256(record.moduleSha256, 'module'),
-		wasmBytes: integer(record.wasmBytes, 8, MAXIMUM_MODULE_BYTES, 'wasm byte length'),
-		wasmSha256: sha256(record.wasmSha256, 'wasm'),
-	});
 }
 
 function codecRequest(value: unknown, codec: BundledAudioCodecId) {

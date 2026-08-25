@@ -2,7 +2,7 @@
 
 /** Static main-safe provider identities for bundled codecs executed only in utility processes. */
 
-import type { BundledAudioCodecId } from './bundled-audio-codec-helper-process.js';
+import type { BundledAudioCodecId } from './bundled-audio-codec-helper-configuration.js';
 import type {
 	DesktopCodecOperation,
 	DesktopCodecPreflightResult,

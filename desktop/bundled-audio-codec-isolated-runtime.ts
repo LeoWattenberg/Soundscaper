@@ -9,7 +9,7 @@ import {
 	BUNDLED_AUDIO_CODEC_IDS,
 	type BundledAudioCodecHelperConfiguration,
 	type BundledAudioCodecId,
-} from './bundled-audio-codec-helper-process.js';
+} from './bundled-audio-codec-helper-configuration.js';
 import {
 	createBundledAudioCodecOperationRunner,
 	type BundledAudioCodecChild,
@@ -162,7 +162,11 @@ function inspectConfiguration(
 		|| configuration.codec !== codec || typeof configuration.runtimeRoot !== 'string'
 		|| !isAbsolute(configuration.runtimeRoot) || !Number.isSafeInteger(configuration.moduleBytes)
 		|| configuration.moduleBytes < 1 || typeof configuration.moduleSha256 !== 'string'
-		|| !SHA256.test(configuration.moduleSha256) || !Number.isSafeInteger(configuration.wasmBytes)
+		|| !SHA256.test(configuration.moduleSha256) || !Array.isArray(configuration.dependencies)
+		|| configuration.dependencies.length < 1 || configuration.dependencies.some((dependency) => (
+			typeof dependency.path !== 'string' || !Number.isSafeInteger(dependency.byteLength)
+				|| dependency.byteLength < 1 || !SHA256.test(dependency.sha256)
+		)) || !Number.isSafeInteger(configuration.wasmBytes)
 		|| configuration.wasmBytes < 8 || typeof configuration.wasmSha256 !== 'string'
 		|| !SHA256.test(configuration.wasmSha256)) throw new TypeError('Invalid identity.');
 }

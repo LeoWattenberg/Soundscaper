@@ -12,7 +12,7 @@ import {
 import type {
 	BundledAudioCodecHelperConfiguration,
 	BundledAudioCodecId,
-} from '../desktop/bundled-audio-codec-helper-process.ts';
+} from '../desktop/bundled-audio-codec-helper-configuration.ts';
 import type { BundledAudioCodecOperationRunner } from '../desktop/bundled-audio-codec-operation-runner.ts';
 import type { DesktopAudioCodecProviderRuntime } from '../desktop/desktop-audio-codec-broker.ts';
 import type { DesktopAudioCodecRequest } from '../desktop/desktop-audio-codec-operation-contract.ts';
@@ -25,6 +25,10 @@ const configurations = Object.freeze(Object.fromEntries(IDS.map((codec) => [code
 	contractVersion: 1 as const, target: 'linux-x64' as const, codec,
 	runtimeRoot: '/app/desktop/project-library-runtime', moduleBytes: 1_000,
 	moduleSha256: codec.padEnd(64, 'a').slice(0, 64).replace(/[^a-f0-9]/gu, 'a'),
+	dependencies: Object.freeze([Object.freeze({
+		path: 'desktop/desktop-audio-codec-operation-contract.js',
+		byteLength: 500, sha256: 'c'.repeat(64),
+	})]),
 	wasmBytes: 10_000, wasmSha256: codec.padEnd(64, 'b').slice(0, 64).replace(/[^a-f0-9]/gu, 'b'),
 })])) as Record<BundledAudioCodecId, BundledAudioCodecHelperConfiguration>);
 

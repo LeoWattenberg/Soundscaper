@@ -10,8 +10,10 @@ import test, { type TestContext } from 'node:test';
 import {
 	createBundledAudioCodecHelperWorker,
 	runBundledAudioCodecHelperJob,
-	type BundledAudioCodecHelperConfiguration,
 } from '../desktop/bundled-audio-codec-helper-process.ts';
+import type {
+	BundledAudioCodecHelperConfiguration,
+} from '../desktop/bundled-audio-codec-helper-configuration.ts';
 import type { DesktopAudioCodecProviderRuntime } from '../desktop/desktop-audio-codec-broker.ts';
 
 const digest = (value: Uint8Array): string => createHash('sha256').update(value).digest('hex');
@@ -24,8 +26,14 @@ async function fixture(context: TestContext) {
 	const modulePath = join(runtimeRoot, 'desktop/bundled-flac-audio-codec-runtime.js');
 	const wasmPath = join(runtimeRoot, 'src/common/editor/flac/flac.wasm');
 	const helperPath = join(runtimeRoot, 'desktop/bundled-audio-codec-helper-process.js');
+	const dependencies = Object.freeze([
+		'desktop/bundled-flac-stream.js',
+		'desktop/desktop-audio-codec-operation-contract.js',
+		'src/common/editor/desktop-codec-provider-catalog.js',
+	].map((path) => Object.freeze({ path, bytes: Buffer.from(`reviewed ${path}`) })));
 	await mkdir(join(runtimeRoot, 'desktop'), { recursive: true });
 	await mkdir(join(runtimeRoot, 'src/common/editor/flac'), { recursive: true });
+	await mkdir(join(runtimeRoot, 'src/common/editor'), { recursive: true });
 	await mkdir(scratchRoot, { recursive: true });
 	const moduleBytes = Buffer.from('export const reviewed = true;\n');
 	const wasmBytes = Uint8Array.of(0, 97, 115, 109, 1, 0, 0, 0);
@@ -33,12 +41,21 @@ async function fixture(context: TestContext) {
 	await writeFile(modulePath, moduleBytes);
 	await writeFile(wasmPath, wasmBytes);
 	await writeFile(helperPath, helperBytes);
+	for (const dependency of dependencies) await writeFile(
+		join(runtimeRoot, dependency.path), dependency.bytes,
+	);
 	const configuration: BundledAudioCodecHelperConfiguration = Object.freeze({
 		contractVersion: 1, target: 'linux-x64', codec: 'flac', runtimeRoot,
 		moduleBytes: moduleBytes.byteLength, moduleSha256: digest(moduleBytes),
+		dependencies: Object.freeze(dependencies.map(({ path, bytes }) => Object.freeze({
+			path, byteLength: bytes.byteLength, sha256: digest(bytes),
+		}))),
 		wasmBytes: wasmBytes.byteLength, wasmSha256: digest(wasmBytes),
 	});
-	return { root, runtimeRoot, scratchRoot, modulePath, wasmPath, configuration };
+	return {
+		root, runtimeRoot, scratchRoot, modulePath, moduleBytes, wasmPath,
+		dependencyPath: join(runtimeRoot, dependencies[0]!.path), configuration,
+	};
 }
 
 function runtime(options: Readonly<{
@@ -115,6 +132,15 @@ test('helper authenticates its fixed codec module and wasm before announcing rea
 		configuration: files.configuration, post() {}, exit() {},
 		ports: { importRuntime: async () => runtime() },
 	}), /module.*identity|module.*digest/iu);
+
+	await writeFile(files.modulePath, files.moduleBytes);
+	await writeFile(files.dependencyPath, 'changed dependency');
+	let imported = false;
+	await assert.rejects(() => createBundledAudioCodecHelperWorker({
+		configuration: files.configuration, post() {}, exit() {},
+		ports: { importRuntime: async () => { imported = true; return runtime(); } },
+	}), /dependency.*identity|dependency.*digest/iu);
+	assert.equal(imported, false, 'a changed dependency fails before the codec module import');
 });
 
 test('helper runs bounded preflight and execution jobs through private files', async (context) => {

@@ -9,7 +9,7 @@ const CODECS = new Set(['flac', 'lame', 'mpg123', 'opus', 'twolame', 'vorbis', '
 const SHA256 = /^[a-f0-9]{64}$/u;
 const FIELDS = Object.freeze([
 	'contractVersion', 'target', 'codec', 'runtimeRoot', 'moduleBytes', 'moduleSha256',
-	'wasmBytes', 'wasmSha256',
+	'dependencies', 'wasmBytes', 'wasmSha256',
 ]);
 
 export function createBundledAudioCodecElectronSpawn(options) {
@@ -47,16 +47,37 @@ function codecConfiguration(value) {
 		|| !Number.isSafeInteger(record.moduleBytes) || record.moduleBytes < 1
 		|| record.moduleBytes > 2 * 1024 * 1024
 		|| typeof record.moduleSha256 !== 'string' || !SHA256.test(record.moduleSha256)
+		|| !Array.isArray(record.dependencies) || record.dependencies.length < 1
+		|| record.dependencies.length > 8
 		|| !Number.isSafeInteger(record.wasmBytes) || record.wasmBytes < 8
 		|| record.wasmBytes > 2 * 1024 * 1024
 		|| typeof record.wasmSha256 !== 'string' || !SHA256.test(record.wasmSha256)) {
 		throw new TypeError('The bundled audio codec child configuration is invalid.');
 	}
+	const dependencies = record.dependencies.map((value) => dependency(value));
+	if (new Set(dependencies.map(({ path }) => path)).size !== dependencies.length) {
+		throw new TypeError('The bundled audio codec child dependency inventory is invalid.');
+	}
 	return Object.freeze({
 		contractVersion: 1, target: record.target, codec: record.codec,
 		runtimeRoot: record.runtimeRoot, moduleBytes: record.moduleBytes,
-		moduleSha256: record.moduleSha256, wasmBytes: record.wasmBytes,
+		moduleSha256: record.moduleSha256, dependencies: Object.freeze(dependencies),
+		wasmBytes: record.wasmBytes,
 		wasmSha256: record.wasmSha256,
+	});
+}
+
+function dependency(value) {
+	const record = exactRecord(value, ['path', 'byteLength', 'sha256'], 'bundled codec dependency');
+	if (typeof record.path !== 'string' || record.path.startsWith('/') || record.path.includes('\\')
+		|| record.path.split('/').includes('..') || Buffer.byteLength(record.path) > 4_096
+		|| !Number.isSafeInteger(record.byteLength) || record.byteLength < 1
+		|| record.byteLength > 2 * 1024 * 1024
+		|| typeof record.sha256 !== 'string' || !SHA256.test(record.sha256)) {
+		throw new TypeError('The bundled audio codec child dependency inventory is invalid.');
+	}
+	return Object.freeze({
+		path: record.path, byteLength: record.byteLength, sha256: record.sha256,
 	});
 }
 

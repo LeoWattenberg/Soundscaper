@@ -10,7 +10,7 @@ import {
 	BUNDLED_AUDIO_CODEC_IDS,
 	type BundledAudioCodecHelperConfiguration,
 	type BundledAudioCodecId,
-} from './bundled-audio-codec-helper-process.js';
+} from './bundled-audio-codec-helper-configuration.js';
 import { readBoundedRegularFile } from './bounded-regular-file.js';
 import type {
 	DesktopAudioCodecProviderExecutionResult,
@@ -90,7 +90,7 @@ const FAILURE_REASONS = new Set<string>([
 ]);
 const CONFIGURATION_FIELDS = Object.freeze([
 	'contractVersion', 'target', 'codec', 'runtimeRoot', 'moduleBytes', 'moduleSha256',
-	'wasmBytes', 'wasmSha256',
+	'dependencies', 'wasmBytes', 'wasmSha256',
 ]);
 
 const DETAILS = Object.freeze({
@@ -492,9 +492,31 @@ function helperConfiguration(
 		contractVersion: 1, target, codec, runtimeRoot: record.runtimeRoot,
 		moduleBytes: integer(record.moduleBytes, 1, 2 * 1024 * 1024, 'module byte length'),
 		moduleSha256: record.moduleSha256,
+		dependencies: dependencyDescriptors(record.dependencies),
 		wasmBytes: integer(record.wasmBytes, 8, 2 * 1024 * 1024, 'wasm byte length'),
 		wasmSha256: record.wasmSha256,
 	});
+}
+
+function dependencyDescriptors(value: unknown) {
+	if (!Array.isArray(value) || value.length < 1 || value.length > 8) {
+		throw new TypeError('The helper dependency inventory is invalid.');
+	}
+	const paths = new Set<string>();
+	return Object.freeze(value.map((candidate) => {
+		const record = exactRecord(candidate, ['path', 'byteLength', 'sha256'], 'helper dependency');
+		if (typeof record.path !== 'string' || record.path.startsWith('/') || record.path.includes('\\')
+			|| record.path.split('/').includes('..') || paths.has(record.path)
+			|| typeof record.sha256 !== 'string' || !SHA256.test(record.sha256)) {
+			throw new TypeError('The helper dependency inventory is invalid.');
+		}
+		paths.add(record.path);
+		return Object.freeze({
+			path: record.path,
+			byteLength: integer(record.byteLength, 1, 2 * 1024 * 1024, 'dependency byte length'),
+			sha256: record.sha256,
+		});
+	}));
 }
 
 function validateOptions(options: Readonly<{
