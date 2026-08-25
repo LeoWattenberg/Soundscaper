@@ -175,18 +175,17 @@ function capturingWritable(chunks: Buffer[]): Writable {
 	return new Writable({ write(chunk, _encoding, callback) { chunks.push(Buffer.from(chunk)); callback(); } });
 }
 
-interface FakeChild extends ExternalFfmpegVideoChildProcess, EventEmitter {
+type FakeChild = ExternalFfmpegVideoChildProcess & EventEmitter & Readonly<{
 	stdio: [null, PassThrough, PassThrough, Writable, Writable];
-	kill: (signal: NodeJS.Signals) => boolean;
-}
+}>;
 
 function fakeChild(video: Writable, audio: Writable): FakeChild {
-	const child = new EventEmitter() as FakeChild;
-	child.pid = 12_345;
-	child.stdout = new PassThrough(); child.stderr = new PassThrough();
-	child.stdio = [null, child.stdout, child.stderr, video, audio];
-	child.kill = () => true;
-	return child;
+	const stdout = new PassThrough();
+	const stderr = new PassThrough();
+	return Object.assign(new EventEmitter(), {
+		pid: 12_345, stdout, stderr, stdio: [null, stdout, stderr, video, audio],
+		kill: () => true,
+	}) as unknown as FakeChild;
 }
 
 function validMp4(): Uint8Array {

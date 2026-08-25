@@ -80,7 +80,7 @@ test('desktop video adapter exact-checks renderer-local paths and argv before br
 		read() { throw new Error('unused'); }, delete() { throw new Error('unused'); }, cancel() { return true; },
 	});
 	await assert.rejects(
-		() => runner(async (lease) => lease.exec(['-i', '/renderer/chosen'], -1), {
+		async () => await runner(async (lease) => lease.exec(['-i', '/renderer/chosen'], -1), {
 			desktopExternalFfmpeg: {
 				plan: plan(), videoInputPath: '/logical/input.rgba', outputPath: '/logical/output.mp4',
 				ffmpegArguments: ['-fixed', '/logical/output.mp4'],

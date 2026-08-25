@@ -18,17 +18,25 @@ test('desktop video IPC exposes only closed primitive DTOs and forwards renderer
 	const owner = {};
 	const calls: Array<readonly [string, unknown, unknown]> = [];
 	const service = Object.freeze({
-		capabilities: () => ({ schemaVersion: 1, formats: {} }),
-		begin(owner_: object, value: unknown) { calls.push(['begin', owner_, value]); return { operationId: `desktop-video-${'1'.repeat(32)}` }; },
-		writeInput(owner_: object, value: unknown) { calls.push(['write', owner_, value]); return { offset: 1 }; },
-		closeInput(owner_: object, value: unknown) { calls.push(['close', owner_, value]); return { offset: 1 }; },
-		execute(owner_: object, value: unknown) { calls.push(['execute', owner_, value]); return { exitCode: 0 }; },
-		statOutput(owner_: object, value: unknown) { calls.push(['stat', owner_, value]); return { byteLength: 1 }; },
-		readOutput(owner_: object, value: unknown) { calls.push(['read', owner_, value]); return Uint8Array.of(1); },
-		delete(owner_: object, value: unknown) { calls.push(['delete', owner_, value]); return true; },
-		cancel(owner_: object, value: unknown) { calls.push(['cancel', owner_, value]); return true; },
+		async capabilities() {
+			return {
+				schemaVersion: 1 as const,
+				formats: {
+					mp4: { available: false, provider: null, reason: 'test unavailable' },
+					webm: { available: false, provider: null, reason: 'test unavailable' },
+				},
+			};
+		},
+		async begin(owner_: object, value: unknown) { calls.push(['begin', owner_, value]); return { operationId: `desktop-video-${'1'.repeat(32)}` }; },
+		async writeInput(owner_: object, value: unknown) { calls.push(['write', owner_, value]); return { offset: 1 }; },
+		async closeInput(owner_: object, value: unknown) { calls.push(['close', owner_, value]); return { offset: 1 }; },
+		async execute(owner_: object, value: unknown) { calls.push(['execute', owner_, value]); return { exitCode: 0 as const }; },
+		async statOutput(owner_: object, value: unknown) { calls.push(['stat', owner_, value]); return { byteLength: 1 }; },
+		async readOutput(owner_: object, value: unknown) { calls.push(['read', owner_, value]); return Uint8Array.of(1); },
+		async delete(owner_: object, value: unknown) { calls.push(['delete', owner_, value]); return true; },
+		async cancel(owner_: object, value: unknown) { calls.push(['cancel', owner_, value]); return true; },
 		revokeOwner: async () => false,
-		dispose() {},
+		async dispose() {},
 	});
 	const registration = registerDesktopVideoCodecMainIpc({
 		channels: CHANNELS,

@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { ProductVideoExportStrategyEncodeRequest } from '../src/common/editor/controller/product-video-export-strategy.ts';
+import type { FfmpegOutputSink } from '../src/common/editor/ffmpeg-output-stream.ts';
+import type { VideoKeyframeOfflineVideoExportRequest } from '../src/common/editor/ui/video-keyframe-offline-video-export.ts';
 import { createSoundscaperProjectRuntimeV29Selection } from '../src/soundscaper/editor-project-runtime-v29-selection.ts';
 import { createSoundscaperProjectV29 } from '../src/soundscaper/editor-project-v29.ts';
 import {
@@ -22,11 +24,14 @@ test('Soundscaper V29 keyed strategy reaches buffered and sink encoders with one
 	assert.equal(Object.isFrozen(canonicalTempoMap), false);
 	const calls: Array<Readonly<Record<string, unknown>>> = [];
 	const strategy = createSoundscaperVideoExportStrategyV29(runtime, {
-		async encodeOffline(request) {
+		async encodeOffline(request: VideoKeyframeOfflineVideoExportRequest) {
 			calls.push(request as unknown as Readonly<Record<string, unknown>>);
 			return encoderResult('mp4');
 		},
-		async encodeOfflineToSink(request, sink) {
+		async encodeOfflineToSink(
+			request: VideoKeyframeOfflineVideoExportRequest,
+			sink: FfmpegOutputSink<unknown>,
+		) {
 			calls.push(request as unknown as Readonly<Record<string, unknown>>);
 			return { ...encoderResult('mp4'), output: sink, outputChunkCount: 1 };
 		},

@@ -32,13 +32,13 @@ test('video service owns shell-free argv, streams with backpressure, and retains
 	const owner = {};
 	const foreignOwner = {};
 	const launches: Array<{ executable: string; arguments_: readonly string[]; options: unknown }> = [];
-	let releaseWrite: (() => void) | null = null;
+	const releaseWrite = { current: null as (() => void) | null };
 	const videoBytes: Buffer[] = [];
 	const spawn: ExternalFfmpegVideoSpawn = (executable, arguments_, options) => {
 		const child = fakeChild(new Writable({
 			write(chunk, _encoding, callback) {
 				videoBytes.push(Buffer.from(chunk));
-				releaseWrite = callback;
+				releaseWrite.current = callback;
 			},
 		}), null);
 		launches.push({ executable, arguments_, options });
@@ -65,9 +65,9 @@ test('video service owns shell-free argv, streams with backpressure, and retains
 			operationId: session.operationId, role: 'video', offset: 0,
 			bytes: new Uint8Array(32),
 		});
-		await waitFor(() => releaseWrite !== null);
+		await waitFor(() => releaseWrite.current !== null);
 		assert.equal(await pending(writing), true);
-		releaseWrite?.();
+		releaseWrite.current?.();
 		await writing;
 		await fixture.service.closeInput(owner, {
 			operationId: session.operationId, role: 'video', offset: 32,
@@ -182,11 +182,11 @@ test('video service rejects pending input when a ready session is cancelled or e
 
 test('video service reserves input close while its private stream is finishing', async () => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-concurrent-close-'));
-	let finishInput: (() => void) | null = null;
+	const finishInput = { current: null as (() => void) | null };
 	const fixture = serviceFixture(root, () => {
 		const child = fakeChild(new Writable({
 			write(_chunk, _encoding, callback) { callback(); },
-			final(callback) { finishInput = callback; },
+			final(callback) { finishInput.current = callback; },
 		}), null);
 		child.stdio[3]!.once('finish', () => child.emit('close', 0, null));
 		return child;
@@ -200,11 +200,11 @@ test('video service reserves input close while its private stream is finishing',
 		const closing = fixture.service.closeInput(fixture.owner, {
 			operationId: session.operationId, role: 'video', offset: 32,
 		});
-		await waitFor(() => finishInput !== null);
+		await waitFor(() => finishInput.current !== null);
 		await assert.rejects(() => fixture.service.closeInput(fixture.owner, {
 			operationId: session.operationId, role: 'video', offset: 32,
 		}), /drift|closed/u);
-		finishInput?.();
+		finishInput.current?.();
 		await closing;
 		await assert.rejects(executing, /output/u);
 	} finally {
@@ -307,8 +307,7 @@ test('post-spawn private-pipe setup failure terminates the admitted child tree',
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-pipe-'));
 	let killed = 0;
 	const fixture = serviceFixture(root, () => {
-		const child = fakeChild(new PassThrough(), null);
-		child.stdio = [null, child.stdout, child.stderr] as unknown as FakeChild['stdio'];
+		const child = fakeChild(new PassThrough(), null, true);
 		child.kill = () => { killed += 1; queueMicrotask(() => child.emit('close', null, 'SIGKILL')); return true; };
 		return child;
 	});
@@ -434,15 +433,15 @@ test('owner revocation cancels and drains a begin that is awaiting qualification
 
 test('service disposal aborts and drains an in-flight real qualification child', async () => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-dispose-qualification-'));
-	let child: FakeChild | null = null;
+	const child = { current: null as FakeChild | null };
 	let killed = 0;
 	let markSpawned!: () => void;
 	const spawned = new Promise<void>((resolve) => { markSpawned = resolve; });
 	const fixture = serviceFixture(root, () => {
-		child = fakeChild(new PassThrough(), new PassThrough());
-		child.kill = () => { killed += 1; return true; };
+		child.current = fakeChild(new PassThrough(), new PassThrough());
+		child.current.kill = () => { killed += 1; return true; };
 		markSpawned();
-		return child;
+		return child.current;
 	}, { qualify: null });
 	try {
 		const capabilities = assert.rejects(fixture.service.capabilities(), /abort|stopped/iu);
@@ -450,7 +449,7 @@ test('service disposal aborts and drains an in-flight real qualification child',
 		const disposal = fixture.service.dispose();
 		await waitFor(() => killed > 0);
 		assert.equal(await pending(disposal), true);
-		child?.emit('close', null, 'SIGTERM');
+		child.current?.emit('close', null, 'SIGTERM');
 		await disposal;
 		await capabilities;
 		assert.deepEqual(await readdir(root), []);
@@ -462,21 +461,21 @@ test('service disposal aborts and drains an in-flight real qualification child',
 
 test('service disposal is a barrier for running child termination and scratch cleanup', async () => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-dispose-running-'));
-	let child: FakeChild | null = null;
+	const child = { current: null as FakeChild | null };
 	let killed = 0;
 	const fixture = serviceFixture(root, () => {
-		child = fakeChild(new PassThrough(), null);
-		child.kill = () => { killed += 1; return true; };
-		return child;
+		child.current = fakeChild(new PassThrough(), null);
+		child.current.kill = () => { killed += 1; return true; };
+		return child.current;
 	});
 	try {
 		const session = await fixture.service.begin(fixture.owner, PLAN);
 		const executing = fixture.service.execute(fixture.owner, session.operationId);
-		await waitFor(() => child !== null);
+		await waitFor(() => child.current !== null);
 		const disposal = fixture.service.dispose();
 		await waitFor(() => killed > 0);
 		assert.equal(await pending(disposal), true);
-		child?.emit('close', null, 'SIGTERM');
+		child.current?.emit('close', null, 'SIGTERM');
 		await disposal;
 		await assert.rejects(executing, /cancelled/iu);
 		assert.deepEqual(await readdir(root), []);
@@ -539,7 +538,13 @@ function serviceFixture(
 		scratchRoot: root,
 		preferences: {
 			admission: () => currentAdmission,
-			invalidateAdmission: async (_expected, reason) => { invalidations.push(reason); return {}; },
+			invalidateAdmission: async (_expected, reason) => {
+				invalidations.push(reason);
+				return Object.freeze({
+					state: 'quarantined' as const, location: '/opt/ffmpeg', version: null,
+					detail: reason, canInstall: false, canBrowse: true, canClear: true,
+				});
+			},
 		},
 		spawn,
 		digestExecutable: overrides.digest ?? (async (path) => path.endsWith('ffmpeg') ? HASH_A : HASH_B),
@@ -559,19 +564,19 @@ function serviceFixture(
 	};
 }
 
-interface FakeChild extends ExternalFfmpegVideoChildProcess, EventEmitter {
-	stdio: [null, PassThrough, PassThrough, Writable, Writable?];
-	kill: (signal: NodeJS.Signals) => boolean;
-}
+type FakeChild = ExternalFfmpegVideoChildProcess & Pick<EventEmitter, 'emit'> & Readonly<{
+	stdio: [null, PassThrough, PassThrough, Writable, Writable?] | [null, PassThrough, PassThrough];
+}>;
 
-function fakeChild(video: Writable, audio: Writable | null): FakeChild {
-	const child = new EventEmitter() as FakeChild;
-	child.pid = 12_345;
-	child.stdout = new PassThrough();
-	child.stderr = new PassThrough();
-	child.stdio = [null, child.stdout, child.stderr, video, ...(audio ? [audio] : [])];
-	child.kill = () => true;
-	return child;
+function fakeChild(video: Writable, audio: Writable | null, omitPrivatePipes = false): FakeChild {
+	const stdout = new PassThrough();
+	const stderr = new PassThrough();
+	const stdio = omitPrivatePipes
+		? [null, stdout, stderr]
+		: [null, stdout, stderr, video, ...(audio ? [audio] : [])];
+	return Object.assign(new EventEmitter(), {
+		pid: 12_345, stdout, stderr, stdio, kill: () => true,
+	}) as unknown as FakeChild;
 }
 
 async function pending(promise: Promise<unknown>): Promise<boolean> {
