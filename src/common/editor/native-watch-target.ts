@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Selected V28 has one exact writable media destination: its project bin. */
+/** Selected V28/F31 have one exact writable media destination: their project bin. */
 export const FRAMESCAPER_SELECTED_V28_WATCH_BIN_ID = 'project-bin' as const;
 
 export interface FramescaperSelectedV28WatchContextAuthority {
@@ -16,7 +16,8 @@ export function framescaperSelectedV28WatchTargetAvailable(
 	if (!authority.writable || !authority.videoImportAvailable
 		|| !project || typeof project !== 'object' || Array.isArray(project)) return false;
 	const row = project as Readonly<Record<string, unknown>>;
-	if (data(row, 'schemaVersion') !== 28) return false;
+	const schemaVersion = data(row, 'schemaVersion');
+	if (schemaVersion !== 28 && schemaVersion !== 31) return false;
 	const bin = data(row, 'projectBin');
 	if (!bin || typeof bin !== 'object' || Array.isArray(bin)
 		|| Reflect.ownKeys(bin).length !== 1) return false;

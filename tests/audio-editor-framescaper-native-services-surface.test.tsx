@@ -455,6 +455,18 @@ test('selected V28 watch context derives only its exact writable project bin', (
 	});
 });
 
+test('selected F31 watch context retains the inherited writable project bin', () => {
+	const project = Object.freeze({
+		id: 'project-31', schemaVersion: 31,
+		projectBin: Object.freeze({ clips: Object.freeze([]) }),
+	});
+	assert.deepEqual(framescaperNativeServicesDialogContextForProject(project, {
+		writable: true, videoImportAvailable: true, proxyGenerationAvailable: true,
+	}), {
+		projectId: 'project-31', binId: 'project-bin', allowProxyGeneration: true,
+	});
+});
+
 test('workspace resolution admits only a branded candidate project-action runtime', () => {
 	const actions = candidateActions();
 	const runtime = resolveFramescaperNativeServicesWorkspaceRuntime({
