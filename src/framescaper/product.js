@@ -41,6 +41,7 @@ export const FRAMESCAPER_PROFILE = {
 		timelineAnnotations: true,
 		trackFolders: false,
 		takeComp: false,
+		timelineImages: true,
 		audioWarp: false,
 		sequenceTiming: true,
 		videoRetime: true,

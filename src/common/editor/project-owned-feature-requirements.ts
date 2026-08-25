@@ -32,6 +32,7 @@ export const PROJECT_OWNED_FEATURE_REQUIREMENT_IDS = Object.freeze({
 	masteringSequences: 'soundscaper.mastering-sequences',
 	immersiveAdm: 'soundscaper.immersive-adm',
 	sequenceTiming: 'framescaper.sequence-timing',
+	timelineImages: 'framescaper.timeline-images-v1',
 	videoRetime: 'framescaper.video-retime',
 	videoTimingAssets: 'framescaper.video-timing-assets',
 	sourceCharacteristics: 'framescaper.source-characteristics',

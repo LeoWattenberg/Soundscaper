@@ -40,6 +40,7 @@ export const SOUNDSCAPER_PROFILE = {
 		timelineAnnotations: true,
 		trackFolders: true,
 		takeComp: true,
+		timelineImages: false,
 		audioWarp: true,
 		sequenceTiming: true,
 		videoRetime: false,

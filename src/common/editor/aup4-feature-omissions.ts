@@ -87,6 +87,7 @@ export const AUP4_OWNED_FEATURE_CARRIAGE: Readonly<Record<OwnedFeatureKey, Aup4F
 		code: 'SEQUENCE_TIMING_OMITTED',
 		message: 'Audacity has one flat timeline. Per-sequence timing was omitted from this exported copy.',
 	}),
+	timelineImages: Object.freeze({ carriage: 'reported', code: 'VIDEO_OMITTED' }),
 	videoRetime: Object.freeze({ carriage: 'reported', code: 'VIDEO_OMITTED' }),
 	videoTimingAssets: Object.freeze({ carriage: 'reported', code: 'VIDEO_OMITTED' }),
 	sourceCharacteristics: Object.freeze({
