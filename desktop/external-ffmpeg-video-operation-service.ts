@@ -27,6 +27,7 @@ import type {
 	ExternalFfmpegRuntimeInvalidationReason,
 } from './external-ffmpeg-preference-service.js';
 import {
+	createExternalFfmpegVideoBeginGate,
 	createExternalFfmpegVideoQualifiedCapabilities,
 	type DesktopVideoCodecProductId,
 	type ExternalFfmpegVideoQualifier,
@@ -37,7 +38,6 @@ import {
 	guardExternalFfmpegVideoArguments,
 	launchExternalFfmpegVideoProcess,
 	writeExternalFfmpegVideoInput,
-	type ExternalFfmpegVideoChildProcess,
 	type ExternalFfmpegVideoSpawn,
 } from './external-ffmpeg-video-process.js';
 
@@ -89,7 +89,7 @@ export interface ExternalFfmpegVideoOperationService<Owner extends object = obje
 	delete(owner: Owner, operationId: string): Promise<boolean>;
 	cancel(owner: Owner, operationId: string): Promise<boolean>;
 	revokeOwner(owner: Owner): Promise<boolean>;
-	dispose(): void;
+	dispose(): Promise<void>;
 }
 
 interface InputState {
@@ -114,7 +114,6 @@ interface Session<Owner extends object> {
 	readonly controller: AbortController;
 	readonly started: Deferred<void>;
 	state: 'ready' | 'starting' | 'running' | 'executed' | 'failed' | 'deleted';
-	child: ExternalFfmpegVideoChildProcess | null;
 	execution: Promise<0> | null;
 	output: FileHandle | null;
 	outputBytes: number;
@@ -144,7 +143,11 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 ): ExternalFfmpegVideoOperationService<Owner> {
 	validateOptions(options);
 	const sessions = new Map<string, Session<Owner>>();
-	const beginningOwners = new Set<Owner>();
+	const beginGate = createExternalFfmpegVideoBeginGate({
+		activeCount: () => sessions.size,
+		hasActiveOwner: (owner: Owner) => [...sessions.values()].some((session) => session.owner === owner),
+		maximum: MAXIMUM_SESSIONS, error: operationError,
+	});
 	const digest = options.digestExecutable ?? sha256File;
 	const launch = options.spawn;
 	const mint = options.mintOperationId ?? (() => `desktop-video-${randomBytes(16).toString('hex')}`);
@@ -161,6 +164,7 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 		...(options.qualifyAdmission ? { qualify: options.qualifyAdmission } : {}),
 	});
 	let disposed = false;
+	let disposal: Promise<void> | null = null;
 
 	const cleanup = (session: Session<Owner>): Promise<void> => {
 		if (session.cleanup) return session.cleanup;
@@ -181,15 +185,16 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 			assertAvailable(disposed);
 			const owner = owned(ownerValue);
 			const plan = normalizeDesktopVideoCodecOperationPlan(planValue);
-			const releaseBegin = reserveBegin(sessions, beginningOwners, owner);
+			const reservation = beginGate.reserve(owner);
 			try {
 				const admission = await qualifiedCapabilities.admission(plan.format);
+				beginGate.assertCurrent(reservation, disposed);
 				const pair = executablePair(admission);
 				const operationId = operationIdValue(mint());
 				if (sessions.has(operationId)) throw operationError('id-collision', 'Desktop video operation ID collision.');
 				await mkdir(options.scratchRoot, { recursive: true, mode: 0o700 });
 				const scratchDirectory = await mkdtemp(join(options.scratchRoot, 'video-operation-'));
-				try { await chmod(scratchDirectory, 0o700); }
+				try { await chmod(scratchDirectory, 0o700); beginGate.assertCurrent(reservation, disposed); }
 				catch (error) {
 					await rm(scratchDirectory, { recursive: true, force: true }).catch(() => undefined);
 					throw error;
@@ -208,7 +213,7 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 						video: inputState(plan.videoInputBytes),
 						audio: plan.audioInputBytes === null ? null : inputState(plan.audioInputBytes),
 					}),
-					controller: new AbortController(), started, state: 'ready', child: null,
+					controller: new AbortController(), started, state: 'ready',
 					execution: null, output: null, outputBytes: 0, cleanup: null, idleTimer: null,
 				};
 				sessions.set(operationId, session);
@@ -218,7 +223,7 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 					void cleanup(session).catch(() => undefined);
 				}, idle); session.idleTimer.unref?.();
 				return Object.freeze({ operationId });
-			} finally { releaseBegin(); }
+			} finally { beginGate.release(reservation); }
 		},
 		async writeInput(
 			ownerValue: Owner,
@@ -324,17 +329,26 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 		async revokeOwner(ownerValue: Owner) {
 			const owner = owned(ownerValue);
 			const revoked = [...sessions.values()].filter((session) => session.owner === owner);
-			await Promise.all(revoked.map((session) => service.cancel(owner, session.id)));
-			return revoked.length > 0;
+			const results = await Promise.all([
+				beginGate.revoke(owner), ...revoked.map((session) => service.cancel(owner, session.id)),
+			]);
+			return results.some(Boolean);
 		},
 		dispose() {
-			if (disposed) return;
+			if (disposal) return disposal;
 			disposed = true;
-			for (const session of sessions.values()) {
+			const active = [...sessions.values()];
+			for (const session of active) {
 				const reason = abortError('The desktop video service stopped.');
 				session.controller.abort(reason); session.started.reject(reason);
-				void (session.execution ?? Promise.resolve()).catch(() => undefined).then(() => cleanup(session));
 			}
+			disposal = Promise.allSettled([
+				qualifiedCapabilities.dispose(), beginGate.dispose(),
+				...active.map(async (session) => {
+					await session.execution?.catch(() => undefined); await cleanup(session);
+				}),
+			]).then(() => undefined);
+			return disposal;
 		},
 	});
 	return service;
@@ -373,7 +387,6 @@ async function runSession<Owner extends object>(
 		...(options.launch ? { spawn: options.launch } : {}),
 		error: operationError,
 	});
-	session.child = process.child;
 	session.inputs.video!.stream = process.videoInput;
 	if (session.inputs.audio) session.inputs.audio.stream = process.audioInput;
 	session.state = 'running';
@@ -440,27 +453,11 @@ function executablePair(admission: ExternalFfmpegRuntimeAdmission): ExternalFfmp
 }
 
 function sameAdmission(left: ExternalFfmpegRuntimeAdmission | null, right: ExternalFfmpegRuntimeAdmission): boolean {
-	return left !== null && left.executablePath === right.executablePath
-		&& left.capabilityGeneration === right.capabilityGeneration
-		&& left.identity.executablePairClosureSha256 === right.identity.executablePairClosureSha256;
+	return left === right;
 }
 
 function inputState(expectedBytes: number): InputState {
 	return { expectedBytes, writtenBytes: 0, closed: false, closing: false, writing: false, stream: null };
-}
-
-function reserveBegin<Owner extends object>(
-	sessions: ReadonlyMap<string, Session<Owner>>,
-	beginningOwners: Set<Owner>,
-	owner: Owner,
-): () => void {
-	if (sessions.size + beginningOwners.size >= MAXIMUM_SESSIONS
-		|| beginningOwners.has(owner)
-		|| [...sessions.values()].some((session) => session.owner === owner)) {
-		throw operationError('busy', 'A desktop video session is already active.');
-	}
-	beginningOwners.add(owner);
-	return () => { beginningOwners.delete(owner); };
 }
 
 function ownedSession<Owner extends object>(

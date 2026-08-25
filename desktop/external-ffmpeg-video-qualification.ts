@@ -38,6 +38,7 @@ export interface ExternalFfmpegVideoQualificationOptions {
 	readonly maximumLogBytes?: number;
 	readonly terminationGraceMs?: number;
 	readonly killWaitMs?: number;
+	readonly signal?: AbortSignal;
 }
 
 const FORMATS = Object.freeze(['mp4', 'webm'] as const);
@@ -59,6 +60,7 @@ export async function qualifyExternalFfmpegVideoAdmission(
 	options: ExternalFfmpegVideoQualificationOptions,
 ): Promise<DesktopExternalFfmpegVideoCapabilities> {
 	validateOptions(options);
+	throwIfAborted(options.signal);
 	const tokenCapabilities = createDesktopExternalFfmpegVideoCapabilities(options.admission);
 	const pair = executablePair(options.admission);
 	await assertIdentity(pair, options.digestExecutable);
@@ -67,10 +69,12 @@ export async function qualifyExternalFfmpegVideoAdmission(
 		webm: tokenCapabilities.formats.webm,
 	};
 	for (const format of FORMATS) {
+		throwIfAborted(options.signal);
 		if (!formats[format].available) continue;
 		try { await qualifyFormat(format, pair, options); }
 		catch (error) {
 			if (error instanceof ExternalFfmpegVideoQualificationIdentityError) throw error;
+			throwIfAborted(options.signal);
 			formats[format] = Object.freeze({
 				available: false, provider: null,
 				reason: `The configured FFmpeg failed exact ${format === 'mp4' ? 'H264/AAC MP4' : 'VP9/Opus WebM'} execution qualification. Manage or rescan it in Edit > Preferences > General.`,
@@ -78,6 +82,7 @@ export async function qualifyExternalFfmpegVideoAdmission(
 		}
 		await assertIdentity(pair, options.digestExecutable);
 	}
+	throwIfAborted(options.signal);
 	return Object.freeze({ schemaVersion: 1, formats: Object.freeze(formats) });
 }
 
@@ -88,12 +93,15 @@ async function qualifyFormat(
 ): Promise<void> {
 	await mkdir(options.scratchRoot, { recursive: true, mode: 0o700 });
 	const scratchDirectory = await mkdtemp(join(options.scratchRoot, `video-${format}-qualification-`));
+	const controller = new AbortController();
+	const onAbort = (): void => controller.abort(options.signal?.reason);
+	options.signal?.addEventListener('abort', onAbort, { once: true });
 	try {
 		await chmod(scratchDirectory, 0o700);
+		throwIfAborted(options.signal);
 		const outputPath = join(scratchDirectory, `canary.${format}`);
 		const plan = canaryPlan(format);
 		const execution = createDesktopExternalFfmpegVideoWorkload(plan, { outputPath });
-		const controller = new AbortController();
 		const process = launchExternalFfmpegVideoProcess({
 			executablePath: pair.executablePath,
 			arguments: guardExternalFfmpegVideoArguments(execution.ffmpegArguments, OUTPUT_LIMIT),
@@ -131,6 +139,7 @@ async function qualifyFormat(
 		}
 		assertFiniteVideoKeyframeContainer(bytes, format);
 	} finally {
+		options.signal?.removeEventListener('abort', onAbort);
 		await rm(scratchDirectory, { recursive: true, force: true, maxRetries: 2, retryDelay: 25 });
 	}
 }
@@ -210,12 +219,17 @@ function processEnvironment(): Readonly<Record<string, string | undefined>> {
 	return process.env;
 }
 
+function throwIfAborted(signal: AbortSignal | undefined): void {
+	if (signal?.aborted) throw signal.reason ?? new DOMException('Video qualification was aborted.', 'AbortError');
+}
+
 function validateOptions(options: ExternalFfmpegVideoQualificationOptions): void {
 	if (!options || typeof options !== 'object' || typeof options.scratchRoot !== 'string'
 		|| !isAbsolute(options.scratchRoot) || options.scratchRoot.length > 4_096
 		|| options.scratchRoot.includes('\0') || !options.admission
 		|| typeof options.digestExecutable !== 'function'
 		|| options.spawn !== undefined && typeof options.spawn !== 'function'
+		|| options.signal !== undefined && !(options.signal instanceof AbortSignal)
 		|| options.environment !== undefined && (!options.environment
 			|| typeof options.environment !== 'object')) {
 		throw new TypeError('External FFmpeg video qualification options are invalid.');

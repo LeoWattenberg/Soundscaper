@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough, Writable } from 'node:stream';
@@ -98,7 +98,7 @@ test('video service owns shell-free argv, streams with backpressure, and retains
 		assert.equal(await fixture.service.delete(owner, session.operationId), true);
 		await assert.rejects(() => fixture.service.statOutput(owner, session.operationId), /unknown/u);
 	} finally {
-		fixture.service.dispose();
+		await fixture.service.dispose();
 		await rm(root, { recursive: true, force: true });
 	}
 });
@@ -117,7 +117,7 @@ test('video service rejects byte drift and quarantines stale executable identity
 		assert.equal(launches, 0);
 		assert.deepEqual(fixture.invalidations, ['identity-changed']);
 	} finally {
-		fixture.service.dispose();
+		await fixture.service.dispose();
 		await rm(root, { recursive: true, force: true });
 	}
 });
@@ -149,7 +149,7 @@ test('video service reserves an input offset while process startup is still pend
 		await fixture.service.cancel(fixture.owner, session.operationId);
 		await assert.rejects(executing);
 	} finally {
-		fixture.service.dispose();
+		await fixture.service.dispose();
 		await rm(root, { recursive: true, force: true });
 	}
 });
@@ -173,7 +173,7 @@ test('video service rejects pending input when a ready session is cancelled or e
 			assert.equal(launches, 0);
 			await fixture.service.begin(fixture.owner, PLAN);
 		} finally {
-			fixture.service.dispose();
+			await fixture.service.dispose();
 			await rm(root, { recursive: true, force: true });
 		}
 	}
@@ -207,7 +207,7 @@ test('video service reserves input close while its private stream is finishing',
 		await closing;
 		await assert.rejects(executing, /output/u);
 	} finally {
-		fixture.service.dispose();
+		await fixture.service.dispose();
 		await rm(root, { recursive: true, force: true });
 	}
 });
@@ -236,7 +236,7 @@ test('video service cancellation terminates the child and owner revocation drain
 		assert.equal(await fixture.service.revokeOwner(fixture.owner), true);
 		assert.equal(await fixture.service.revokeOwner(fixture.owner), false);
 	} finally {
-		fixture.service.dispose();
+		await fixture.service.dispose();
 		await rm(root, { recursive: true, force: true });
 	}
 });
@@ -255,7 +255,7 @@ test('post-spawn private-pipe setup failure terminates the admitted child tree',
 		await assert.rejects(() => fixture.service.execute(fixture.owner, session.operationId), /private input pipe/u);
 		await waitFor(() => killed > 0);
 	} finally {
-		fixture.service.dispose();
+		await fixture.service.dispose();
 		await rm(root, { recursive: true, force: true });
 	}
 });
@@ -293,7 +293,7 @@ test('video service coalesces qualification, reruns it for a new admission, and 
 		assert.equal(qualificationCalls, 2);
 		await assert.rejects(() => fixture.service.begin(fixture.owner, PLAN), /execution qualification/iu);
 	} finally {
-		fixture.service.dispose();
+		await fixture.service.dispose();
 		await rm(root, { recursive: true, force: true });
 	}
 });
@@ -315,7 +315,111 @@ test('video service reserves owner capacity while asynchronous qualification is 
 		const session = await first;
 		assert.equal(await fixture.service.cancel(fixture.owner, session.operationId), true);
 	} finally {
-		fixture.service.dispose();
+		await fixture.service.dispose();
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
+test('an identical rescan admission cannot inherit in-flight qualification authority', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-rescan-identity-'));
+	let release!: () => void;
+	const qualificationReady = new Promise<void>((resolve) => { release = resolve; });
+	let calls = 0;
+	const fixture = serviceFixture(root, () => fakeChild(new PassThrough(), null), {
+		qualify: async (value) => {
+			calls += 1; await qualificationReady;
+			return createDesktopExternalFfmpegVideoCapabilities(value);
+		},
+	});
+	try {
+		const first = fixture.service.capabilities();
+		await waitFor(() => calls === 1);
+		fixture.setAdmission(Object.freeze({ ...fixture.admission }));
+		release();
+		assert.equal((await first).formats.mp4.available, false);
+		assert.equal((await fixture.service.capabilities()).formats.mp4.available, true);
+		assert.equal(calls, 2);
+	} finally {
+		await fixture.service.dispose();
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
+test('owner revocation cancels and drains a begin that is awaiting qualification', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-revoke-begin-'));
+	let release!: () => void;
+	const qualificationReady = new Promise<void>((resolve) => { release = resolve; });
+	const fixture = serviceFixture(root, () => fakeChild(new PassThrough(), null), {
+		qualify: async (value) => {
+			await qualificationReady;
+			return createDesktopExternalFfmpegVideoCapabilities(value);
+		},
+	});
+	try {
+		const beginning = fixture.service.begin(fixture.owner, PLAN);
+		const revoking = fixture.service.revokeOwner(fixture.owner);
+		assert.equal(await pending(revoking), true);
+		release();
+		assert.equal(await revoking, true);
+		await assert.rejects(beginning, /revoked|cancelled/iu);
+		const session = await fixture.service.begin(fixture.owner, PLAN);
+		await fixture.service.cancel(fixture.owner, session.operationId);
+	} finally {
+		await fixture.service.dispose();
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
+test('service disposal aborts and drains an in-flight real qualification child', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-dispose-qualification-'));
+	let child: FakeChild | null = null;
+	let killed = 0;
+	let markSpawned!: () => void;
+	const spawned = new Promise<void>((resolve) => { markSpawned = resolve; });
+	const fixture = serviceFixture(root, () => {
+		child = fakeChild(new PassThrough(), new PassThrough());
+		child.kill = () => { killed += 1; return true; };
+		markSpawned();
+		return child;
+	}, { qualify: null });
+	try {
+		const capabilities = assert.rejects(fixture.service.capabilities(), /abort|stopped/iu);
+		await spawned;
+		const disposal = fixture.service.dispose();
+		await waitFor(() => killed > 0);
+		assert.equal(await pending(disposal), true);
+		child?.emit('close', null, 'SIGTERM');
+		await disposal;
+		await capabilities;
+		assert.deepEqual(await readdir(root), []);
+	} finally {
+		await fixture.service.dispose();
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
+test('service disposal is a barrier for running child termination and scratch cleanup', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-dispose-running-'));
+	let child: FakeChild | null = null;
+	let killed = 0;
+	const fixture = serviceFixture(root, () => {
+		child = fakeChild(new PassThrough(), null);
+		child.kill = () => { killed += 1; return true; };
+		return child;
+	});
+	try {
+		const session = await fixture.service.begin(fixture.owner, PLAN);
+		const executing = fixture.service.execute(fixture.owner, session.operationId);
+		await waitFor(() => child !== null);
+		const disposal = fixture.service.dispose();
+		await waitFor(() => killed > 0);
+		assert.equal(await pending(disposal), true);
+		child?.emit('close', null, 'SIGTERM');
+		await disposal;
+		await assert.rejects(executing, /cancelled/iu);
+		assert.deepEqual(await readdir(root), []);
+	} finally {
+		await fixture.service.dispose();
 		await rm(root, { recursive: true, force: true });
 	}
 });
@@ -326,7 +430,7 @@ function serviceFixture(
 	overrides: Readonly<{
 		digest?: (path: string) => Promise<string>;
 		maximumIdleMs?: number;
-		qualify?: ExternalFfmpegVideoQualifier;
+		qualify?: ExternalFfmpegVideoQualifier | null;
 	}> = {},
 ) {
 	const owner = {};
@@ -359,8 +463,10 @@ function serviceFixture(
 		spawn,
 		digestExecutable: overrides.digest ?? (async (path) => path.endsWith('ffmpeg') ? HASH_A : HASH_B),
 		mintOperationId: () => `desktop-video-${'1'.repeat(32)}`,
-		qualifyAdmission: overrides.qualify
-			?? (async (value) => createDesktopExternalFfmpegVideoCapabilities(value)),
+		...(overrides.qualify === null ? {} : {
+			qualifyAdmission: overrides.qualify
+				?? (async (value) => createDesktopExternalFfmpegVideoCapabilities(value)),
+		}),
 		maximumDurationMs: 5_000,
 		terminationGraceMs: 10,
 		killWaitMs: 10,
