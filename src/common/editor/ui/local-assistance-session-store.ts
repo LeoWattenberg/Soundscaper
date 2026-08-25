@@ -92,6 +92,7 @@ export function createLocalAssistanceSessionStore(
 	let progressDisconnect: (() => void) | null = null;
 	let activeJobId: string | null = null;
 	let activeOperation: AssistanceOperation | null = null;
+	let preparationController: AbortController | null = null;
 	let cancelRequested = false;
 	let lastProgressSequence = -1;
 	let lastProgressPhase = -1;
@@ -201,7 +202,11 @@ export function createLocalAssistanceSessionStore(
 		let failure: unknown = null;
 		let released = false;
 		try {
-			const preparedValue = await options.preparation.prepareSelectedMedia({ sourceId, operation });
+			preparationController = new AbortController();
+			const preparedValue = await options.preparation.prepareSelectedMedia({
+				sourceId, operation, signal: preparationController.signal,
+			});
+			preparationController = null;
 			const prepared = normalizeLocalAssistancePreparedMedia(preparedValue, { sourceId, operation });
 			if (cancelRequested) throw new CancelledSession();
 			const job = await options.bridge.createJob();
@@ -237,6 +242,7 @@ export function createLocalAssistanceSessionStore(
 		} catch (error) {
 			failure = error;
 		} finally {
+			preparationController = null;
 			if (activeJobId !== null) {
 				try { released = await options.bridge.release(activeJobId); }
 				catch (error) { failure = error; }
@@ -274,6 +280,7 @@ export function createLocalAssistanceSessionStore(
 		if (!running || !snapshot.canCancel || !options.bridge) return;
 		cancelRequested = true;
 		update({ phase: 'cancelling' });
+		preparationController?.abort(new CancelledSession());
 		if (activeJobId) {
 			try { await options.bridge.cancel(activeJobId); }
 			catch { /* The run path still owns the mandatory release attempt. */ }
@@ -282,6 +289,7 @@ export function createLocalAssistanceSessionStore(
 	const dispose = async (): Promise<void> => {
 		disposed = true;
 		cancelRequested = true;
+		preparationController?.abort(new CancelledSession());
 		if (activeJobId && options.bridge) {
 			try { await options.bridge.cancel(activeJobId); } catch { /* Release remains in run finally. */ }
 		}

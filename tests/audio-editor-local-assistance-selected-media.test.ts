@@ -126,6 +126,52 @@ test('selection fences change with link and timing authority and preparation rec
 	}), { name: 'AbortError' });
 });
 
+test('selected-media preparation forwards cancellation into the dry render', async () => {
+	const controller = new AbortController();
+	let renderStarted: (() => void) | null = null;
+	const started = new Promise<void>((resolve) => { renderStarted = resolve; });
+	const preparation = createLocalAssistanceSelectedMediaPreparation({
+		getProject: () => project(), getSelectedClipId: () => 'voice-clip',
+		captureProject: () => ({ id: 'project-1', revision: 4 }), assertProject: () => undefined,
+		renderDryTrackRange: async (_trackId, _start, _end, _channels, _clipIds, signal) => {
+			assert.equal(signal, controller.signal);
+			renderStarted?.();
+			return new Promise((_resolve, reject) => signal?.addEventListener(
+				'abort', () => reject(signal.reason), { once: true },
+			));
+		},
+	});
+	const pending = preparation.prepareSelectedMedia({
+		sourceId: 'voice-source', operation: 'speech-recognition', signal: controller.signal,
+	});
+	await started;
+	controller.abort(new DOMException('cancelled', 'AbortError'));
+	await assert.rejects(pending, { name: 'AbortError' });
+});
+
+test('selected-media preparation yields to cancellation while conforming rendered audio', async () => {
+	const frameCount = 3 * 65_536;
+	const extended = project({
+		selection: { startFrame: 24_000, endFrame: 24_000 + frameCount,
+			clipIds: ['voice-clip'], trackIds: ['voice-track'] },
+		sources: project().sources.map((source) => ({ ...source, frameCount: 24_000 + frameCount })),
+		clips: project().clips.map((clip) => clip.id === 'voice-clip'
+			? { ...clip, durationFrames: frameCount, sourceDurationFrames: frameCount }
+			: clip),
+	});
+	const controller = new AbortController();
+	const preparation = createLocalAssistanceSelectedMediaPreparation({
+		getProject: () => extended, getSelectedClipId: () => 'voice-clip',
+		captureProject: () => ({ id: 'project-1', revision: 4 }), assertProject: () => undefined,
+		renderDryTrackRange: async () => [new Float32Array(frameCount)],
+	});
+	const pending = preparation.prepareSelectedMedia({
+		sourceId: 'voice-source', operation: 'speech-recognition', signal: controller.signal,
+	});
+	setTimeout(() => controller.abort(new DOMException('cancelled', 'AbortError')), 0);
+	await assert.rejects(pending, { name: 'AbortError' });
+});
+
 test('ambiguous, transformed, unsupported, and oversized selections refuse before rendering', async () => {
 	for (const [name, changed, pattern] of [
 		['no selected clip', project(), /selected audio occurrence/iu],

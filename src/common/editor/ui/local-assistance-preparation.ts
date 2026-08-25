@@ -56,6 +56,7 @@ export interface LocalAssistanceSelectedMediaPreparationPort {
 	prepareSelectedMedia(request: Readonly<{
 		sourceId: string;
 		operation: AssistanceOperation;
+		signal?: AbortSignal;
 	}>): Promise<unknown>;
 }
 
