@@ -28,7 +28,7 @@ const JOB_ID = 'a'.repeat(40);
 const INPUT_CLAIM_ID = 'b'.repeat(40);
 const OUTPUT_CLAIM_ID = 'c'.repeat(40);
 const INPUT_SHA256 = '6ed8919ce20490a5e3ad8630a4fab69475297abd07db73918dd5f36fcfaeb11b';
-const OUTPUT_SHA256 = 'f6a214f7a5fcda0c2cee9660b7fc29f5649e3c68aad48e20e950137c98913a68';
+const OUTPUT_SHA256 = '44463f127fa35586d028e070ac4d510ba7d7d2e7411f0f3491b4bcedf240c404';
 const MODEL_SHA256 = 'f'.repeat(64);
 
 const FENCE = Object.freeze({
@@ -79,9 +79,13 @@ interface RawLocalAssistanceApi {
 	onProgress(listener: (value: unknown) => void): () => void;
 }
 
-function rawBridgeFixture(outputBody = new Blob(['result'], {
+const TRANSCRIPT_BODY = JSON.stringify({ language: 'en', segments: [{
+	startSeconds: 0, endSeconds: 1.25, text: 'Hello from the interview.', words: [], speaker: null,
+}] });
+
+function rawBridgeFixture(outputBody = new Blob([TRANSCRIPT_BODY], {
 	type: 'application/vnd.soundscaper.transcript+json',
-})) {
+}), outputSha256 = OUTPUT_SHA256) {
 	const calls: string[] = [];
 	let progress: ((value: unknown) => void) | null = null;
 	const api: RawLocalAssistanceApi = {
@@ -114,7 +118,7 @@ function rawBridgeFixture(outputBody = new Blob(['result'], {
 					operation: 'speech-recognition', outputs: [{ claimVersion: 1,
 						claimId: OUTPUT_CLAIM_ID, jobId: JOB_ID, role: 'transcript',
 						mediaType: 'application/vnd.soundscaper.transcript+json',
-						byteLength: outputBody.size, sha256: OUTPUT_SHA256 }] } };
+						byteLength: outputBody.size, sha256: outputSha256 }] } };
 		},
 		cancel: async () => {
 			calls.push('cancel');
@@ -191,8 +195,37 @@ test('one explicit run stages Blob input, validates output, and releases custody
 	const snapshot = store.getSnapshot();
 	assert.equal(snapshot.phase, 'completed');
 	assert.equal(snapshot.result?.outputs[0]?.bytes instanceof Blob, true);
+	assert.equal(snapshot.result?.outputs[0]?.review.kind, 'transcript');
+	assert.equal(snapshot.result?.outputs[0]?.review.segments[0]?.text, 'Hello from the interview.');
 	assert.equal(snapshot.canReview, true);
 	assert.equal(snapshot.canAccept, false);
+	const markup = renderToStaticMarkup(<LocalAssistanceDialogView
+		copy={ENGLISH_COPY} snapshot={snapshot} reviewOpen onClose={() => undefined}
+		onSelectSource={() => undefined} onSelectOperation={() => undefined}
+		onSelectModel={() => undefined} onConsentChange={() => undefined}
+		onRun={() => undefined} onCancel={() => undefined}
+		onReview={() => undefined} onAccept={() => undefined}
+	/>);
+	assert.match(markup, /Hello from the interview\./u);
+});
+
+test('invalid transcript JSON and schema are refused before review', async () => {
+	for (const [body, sha256] of [
+		['not json', '7ccfa1fbf3940e6f0c0375d87c0f9235a50514e14cb427bdfaf5077987b26ccf'],
+		[JSON.stringify({ language: 'en', segments: [{ startSeconds: 0, endSeconds: 1 }] }),
+			'95d33cf2f510efffc877bf3b3f56534d51fd3563216db6626594229ffadd35cc'],
+	] as const) {
+		const fixture = rawBridgeFixture(new Blob([body], {
+			type: 'application/vnd.soundscaper.transcript+json',
+		}), sha256);
+		const bridge = resolveLocalAssistanceBridge({ localAssistance: fixture.api });
+		assert.ok(bridge);
+		const store = selectedStore(bridge, preparationFixture());
+		await store.run();
+		assert.equal(store.getSnapshot().phase, 'error');
+		assert.equal(store.getSnapshot().result, null);
+		assert.equal(store.getSnapshot().canReview, false);
+	}
 });
 
 test('unavailable operation outcomes remain typed and still release custody', async () => {
@@ -265,7 +298,9 @@ test('cancellation aborts selected-media preparation before a job is created', {
 	const preparing = new Promise<void>((resolve) => { started = resolve; });
 	const preparation: LocalAssistanceSelectedMediaPreparationPort = Object.freeze({
 		listSelectedMedia: async () => INVENTORY,
-		prepareSelectedMedia: (request) => new Promise((_resolve, reject) => {
+		prepareSelectedMedia: (request: Parameters<
+			LocalAssistanceSelectedMediaPreparationPort['prepareSelectedMedia']
+		>[0]) => new Promise((_resolve, reject) => {
 			const { signal } = request;
 			assert.ok(signal instanceof AbortSignal);
 			started?.();
