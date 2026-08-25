@@ -17,6 +17,11 @@
 	"include": [
 		"desktop/application-lifecycle.ts",
 		"desktop/bounded-regular-file.ts",
+		"desktop/bundled-audio-codec-helper-configuration.ts",
+		"desktop/bundled-audio-codec-helper-process.ts",
+		"desktop/bundled-audio-codec-isolated-runtime.ts",
+		"desktop/bundled-audio-codec-operation-runner.ts",
+		"desktop/bundled-audio-codec-provider-catalog.ts",
 		"desktop/bundled-audio-codec-runtime.ts",
 		"desktop/bundled-flac-audio-codec-runtime.ts",
 		"desktop/bundled-flac-stream.ts",

@@ -89,12 +89,20 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'framescaper-native-services-options.mjs'));
 	await access(join(applicationDesktopRoot, 'read-selection-service.js'));
 	await access(join(applicationDesktopRoot, 'renderer-save-owner.js'));
+	await access(join(applicationDesktopRoot, 'bundled-audio-codec-electron-spawn.mjs'));
+	await access(join(applicationDesktopRoot, 'bundled-audio-codec-runtime-payload.mjs'));
+	await access(join(applicationDesktopRoot, 'bundled-audio-codec-runtime-manifest.json'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-editor-service.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/framescaper-media-host-payload.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/framescaper-openfx-host-payload.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/framescaper-openfx-runtime.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/external-display-frame-port.js'));
 	for (const name of [
+		'bundled-audio-codec-helper-configuration.js',
+		'bundled-audio-codec-helper-process.js',
+		'bundled-audio-codec-isolated-runtime.js',
+		'bundled-audio-codec-operation-runner.js',
+		'bundled-audio-codec-provider-catalog.js',
 		'bundled-audio-codec-runtime.js',
 		'bundled-flac-audio-codec-runtime.js', 'bundled-flac-stream.js',
 		'bundled-lame-audio-codec-runtime.js',
@@ -109,6 +117,17 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 		'external-ffmpeg-preference-node-probe.js', 'external-ffmpeg-preference-service.js',
 		'external-ffmpeg-probe.js',
 	]) await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop', name));
+	const bundledPayload = await import(pathToFileURL(
+		join(applicationDesktopRoot, 'bundled-audio-codec-runtime-payload.mjs'),
+	).href);
+	const verifyBundledPayload = bundledPayload.createBundledAudioCodecRuntimeVerifier({
+		desktopRoot: applicationDesktopRoot, target: 'linux-x64',
+	});
+	for (const codec of ['flac', 'lame', 'mpg123', 'opus', 'twolame', 'vorbis', 'wavpack']) {
+		const configuration = await verifyBundledPayload(codec);
+		assert.equal(configuration.codec, codec);
+		assert.ok(configuration.dependencies.length >= 3, codec);
+	}
 	for (const name of [
 		'desktop-codec-coordinator.js', 'desktop-codec-provider-catalog.js',
 	]) await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor', name));

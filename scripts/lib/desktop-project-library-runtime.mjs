@@ -11,14 +11,13 @@ import { DESKTOP_PROJECT_LIBRARY_EXACT_RUNTIME_FILES } from './desktop-project-l
 import { DESKTOP_PROJECT_LIBRARY_V27_RUNTIME_FILES } from './desktop-project-library-v27-runtime-files.mjs';
 import { DESKTOP_SOUNDSCAPER_V10_RUNTIME_FILES } from './desktop-soundscaper-v10-runtime-files.mjs';
 import { DESKTOP_SOUNDSCAPER_V11_RUNTIME_FILES } from './desktop-soundscaper-v11-runtime-files.mjs';
+import { stageBundledAudioCodecRuntimeManifest } from './desktop-bundled-audio-codec-runtime-closure.mjs';
 
 const FRAMESCAPER_CAPTURE_PRELOAD_BUNDLE = 'framescaper-capture-sandbox-preload.cjs';
 const FRAMESCAPER_WEB_VCR_PRELOAD_BUNDLE = 'framescaper-web-vcr-sandbox-preload.cjs';
 const SOUNDSCAPER_V10_PRELOAD_BUNDLE = 'soundscaper-project-library-v10-sandbox-preload.cjs';
 const SOUNDSCAPER_V11_PRELOAD_BUNDLE = 'soundscaper-project-library-v11-sandbox-preload.cjs';
-const DESKTOP_ONLY_EXCLUDED_SOURCES = Object.freeze(new Set([
-	'ffmpeg-corresponding-source.json',
-]));
+const DESKTOP_ONLY_EXCLUDED_SOURCES = Object.freeze(new Set(['bundled-audio-codec-runtime-manifest.json', 'ffmpeg-corresponding-source.json']));
 // Staged sources ship no TypeScript loader. Package aliases resolve to source
 // TypeScript in the repository and compiled runtime members in the application.
 export const DESKTOP_RUNTIME_PACKAGE_IMPORTS = Object.freeze({
@@ -487,6 +486,7 @@ export async function stageDesktopApplicationSources({
 			&& !DESKTOP_ONLY_EXCLUDED_SOURCES.has(source.slice(sourceRoot.length + 1).replaceAll('\\', '/')),
 	});
 	await cp(compiledRoot, join(applicationRoot, 'project-library-runtime'), { recursive: true });
+	await stageBundledAudioCodecRuntimeManifest({ desktopRoot: applicationRoot });
 	await assertNoStagedTypeScriptImports(applicationRoot);
 	assertRuntimePackageImportTargets();
 	await bundleSandboxPreload({
