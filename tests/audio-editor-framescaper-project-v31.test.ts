@@ -7,7 +7,14 @@ import {
 	ASSISTANCE_TRANSCRIPT_BODY_MIME_TYPE_V1,
 	createAssistanceAssetReferenceV1,
 } from '../src/common/editor/assistance/assistance-asset-reference-v1.ts';
-import { createAddTrackCommand } from '../src/common/editor/commands/factories.ts';
+import {
+	snapshotAssistanceAssetUpsertCommandV1,
+} from '../src/common/editor/assistance/assistance-asset-command-v1.ts';
+import {
+	createAddLabelCommand,
+	createAddLabelTrackCommand,
+	createAddTrackCommand,
+} from '../src/common/editor/commands/factories.ts';
 import { createVideoSource } from '../src/common/editor/project-media-factory.ts';
 import {
 	PROJECT_OWNED_FEATURE_REQUIREMENT_IDS,
@@ -240,6 +247,51 @@ test('F31 inherited automation survives undo and redo without losing assistance 
 	const redone = runtime.redo(undone, { now: NOW });
 	assert.deepEqual(redone.present.automationLanes, [lane]);
 	assert.deepEqual(redone.present.assistanceAssets, held.assistanceAssets);
+});
+
+test('selected F31 history upserts one transcript reference as one undoable commit', () => {
+	const runtime = createEditorProjectRuntimeV31Selection(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE);
+	const initial = project([]);
+	const command = snapshotAssistanceAssetUpsertCommandV1({
+		type: 'assistance-asset/upsert', expectedReference: null, reference: transcript(),
+		commands: [
+			createAddLabelTrackCommand({ id: 'transcript-labels', name: 'Transcript' }),
+			createAddLabelCommand('transcript-labels', {
+				id: 'transcript-label-01', title: 'Speaker 1', startFrame: 0, endFrame: 48_000,
+			}),
+		],
+	});
+	const executed = runtime.executeCommand(runtime.createHistory(initial), command, { now: NOW });
+	assert.equal(executed.undoStack.length, 1);
+	assert.equal(Number(executed.present.revision), Number(initial.revision) + 1);
+	assert.deepEqual(executed.present.assistanceAssets, [createAssistanceAssetReferenceV1(transcript())]);
+	assert.deepEqual(executed.present.sources, initial.sources);
+	assert.deepEqual(executed.present.ofxEffects, initial.ofxEffects);
+	const executedTracks = executed.present.tracks as readonly Readonly<{ id: string }>[];
+	assert.equal(executedTracks.some(({ id }) => id === 'transcript-labels'), true);
+	assert.equal(executed.present.featureRequirements.requirements.some(({ id }) => (
+		id === PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.assistanceAssets
+	)), true);
+	assert.throws(() => runtime.applyCommand(executed.present, command), /expected.*stale/iu);
+	const failing = snapshotAssistanceAssetUpsertCommandV1({
+		type: 'assistance-asset/upsert', expectedReference: null, reference: transcript(),
+		commands: [createAddLabelCommand('missing-label-track', {
+			id: 'orphan-label', title: 'Orphan', startFrame: 0, endFrame: 1,
+		})],
+	});
+	assert.throws(() => runtime.applyCommand(executed.present, failing), /expected.*stale/iu);
+	assert.throws(() => runtime.applyCommand(initial, failing), /track|missing|unknown/iu);
+	assert.deepEqual(initial.assistanceAssets, []);
+	const initialTracks = initial.tracks as readonly Readonly<{ id: string }>[];
+	assert.equal(initialTracks.some(({ id }) => id === 'transcript-labels'), false);
+	const undone = runtime.undo(executed, { now: NOW });
+	assert.deepEqual(undone.present.assistanceAssets, []);
+	assert.deepEqual(undone.present.tracks, initial.tracks);
+	const redone = runtime.redo(undone, { now: NOW });
+	assert.deepEqual(redone.present.assistanceAssets, [createAssistanceAssetReferenceV1(transcript())]);
+	const redoneTracks = redone.present.tracks as readonly Readonly<{ id: string }>[];
+	assert.equal(redoneTracks.some(({ id }) => id === 'transcript-labels'), true);
+	assert.deepEqual(redone.present.sources, initial.sources);
 });
 
 test('F31 route ownership selects capture, assistance UI and the product route', () => {

@@ -11,8 +11,18 @@ import { editorProjectFeatureCapabilityProfileDefinition } from '../src/common/e
 import { editorProjectStorageProfileNames } from '../src/common/editor/storage/project-storage-profile.ts';
 import { createAudioSource } from '../src/common/editor/project-media-factory.ts';
 import {
+	PROJECT_OWNED_FEATURE_REQUIREMENT_IDS,
+} from '../src/common/editor/project-owned-feature-requirements.ts';
+import {
 	ASSISTANCE_TRANSCRIPT_BODY_MIME_TYPE_V1,
 } from '../src/common/editor/assistance/assistance-asset-reference-v1.ts';
+import {
+	snapshotAssistanceAssetUpsertCommandV1,
+} from '../src/common/editor/assistance/assistance-asset-command-v1.ts';
+import {
+	createAddLabelCommand,
+	createAddLabelTrackCommand,
+} from '../src/common/editor/commands/factories.ts';
 import { SOUNDSCAPER_PROFILE } from '../src/soundscaper/product.js';
 import {
 	assertSoundscaperProductionProfile,
@@ -80,12 +90,12 @@ function assistanceAsset() {
 	};
 }
 
-function project() {
+function project(assistanceAssets: readonly unknown[] = [assistanceAsset()]) {
 	return createSoundscaperProjectV30({
 		id: 'selected-v30', title: 'Selected V30', now: NOW,
 		sources: [source()],
 		tracks: [{ type: 'audio', id: 'voice-track', name: 'Voice' }],
-		assistanceAssets: [assistanceAsset()],
+		assistanceAssets,
 	} as never);
 }
 
@@ -129,6 +139,49 @@ test('V30 commands and history preserve exact assistance custody through inherit
 	const redone = redoSoundscaperProjectCommandV30(undone);
 	assert.deepEqual(redone.present.assistanceAssets, initial.assistanceAssets);
 	assert.equal(validateSoundscaperProjectV30(redone.present), true);
+});
+
+test('selected V30 history upserts one transcript reference as one undoable commit', () => {
+	const selected = createSoundscaperProjectRuntimeV30Selection();
+	const initial = project([]);
+	const command = snapshotAssistanceAssetUpsertCommandV1({
+		type: 'assistance-asset/upsert', expectedReference: null, reference: assistanceAsset(),
+		commands: [
+			createAddLabelTrackCommand({ id: 'transcript-labels', name: 'Transcript' }),
+			createAddLabelCommand('transcript-labels', {
+				id: 'transcript-label-01', title: 'Speaker 1', startFrame: 0, endFrame: 48_000,
+			}),
+		],
+	});
+	const executed = selected.executeCommand(selected.createHistory(initial), command, { now: NOW });
+	assert.equal(executed.undoStack.length, 1);
+	assert.equal(executed.present.revision, initial.revision + 1);
+	assert.deepEqual(executed.present.assistanceAssets, [assistanceAsset()]);
+	assert.deepEqual(executed.present.sources, initial.sources);
+	assert.equal(executed.present.tracks.some(({ id }) => id === 'transcript-labels'), true);
+	assert.deepEqual(executed.present.nativePluginStates, initial.nativePluginStates);
+	assert.equal(executed.present.featureRequirements.requirements.some(({ id }) => (
+		id === PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.assistanceAssets
+	)), true);
+	assert.throws(() => selected.applyCommand(executed.present, command), /expected.*stale/iu);
+	const failing = snapshotAssistanceAssetUpsertCommandV1({
+		type: 'assistance-asset/upsert', expectedReference: null, reference: assistanceAsset(),
+		commands: [createAddLabelCommand('missing-label-track', {
+			id: 'orphan-label', title: 'Orphan', startFrame: 0, endFrame: 1,
+		})],
+	});
+	assert.throws(() => selected.applyCommand(executed.present, failing), /expected.*stale/iu);
+	assert.throws(() => selected.applyCommand(initial, failing), /track|missing|unknown/iu);
+	assert.deepEqual(initial.assistanceAssets, []);
+	assert.equal(initial.tracks.some(({ id }) => id === 'transcript-labels'), false);
+	const undone = selected.undo(executed, { now: NOW });
+	assert.deepEqual(undone.present.assistanceAssets, []);
+	assert.deepEqual(undone.present.tracks, initial.tracks);
+	const redone = selected.redo(undone, { now: NOW });
+	assert.deepEqual(redone.present.assistanceAssets, [assistanceAsset()]);
+	const redoneTracks = redone.present.tracks as readonly Readonly<{ id: string }>[];
+	assert.equal(redoneTracks.some(({ id }) => id === 'transcript-labels'), true);
+	assert.deepEqual(redone.present.sources, initial.sources);
 });
 
 test('selected V30 repository and session round-trip assistance references exactly', async (context) => {

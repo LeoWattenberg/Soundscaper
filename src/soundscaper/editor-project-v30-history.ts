@@ -14,7 +14,7 @@ import {
 import {
 	applySoundscaperProjectCommandV30,
 	snapshotSoundscaperProjectCommandV30,
-	type SoundscaperNativePluginStateCommandV30,
+	type SoundscaperProjectCommandV30,
 	type SoundscaperProjectCommandOptionsV30,
 } from './editor-project-v30-commands.ts';
 import { cloneSoundscaperProjectV30, type SoundscaperProjectV30 } from './editor-project-v30.ts';
@@ -22,7 +22,7 @@ import { validateSoundscaperProjectV30 } from './editor-project-v30-validation.t
 
 export interface SoundscaperProjectHistoryEntryV30 {
 	readonly project: SoundscaperProjectV30;
-	readonly command: AudioEditorCommand | SoundscaperNativePluginStateCommandV30;
+	readonly command: SoundscaperProjectCommandV30;
 }
 
 export interface SoundscaperProjectHistoryV30 {
@@ -69,7 +69,7 @@ export function cloneSoundscaperProjectHistoryV30(
 
 export function executeSoundscaperProjectCommandV30(
 	history: SoundscaperProjectHistoryV30 | unknown,
-	command: AudioEditorCommand | SoundscaperNativePluginStateCommandV30,
+	command: SoundscaperProjectCommandV30,
 	options: SoundscaperProjectCommandOptionsV30 = {},
 ): SoundscaperProjectHistoryV30 {
 	return asV30(executeSoundscaperProductionCommand(history, command as AudioEditorCommand, V30, options));
