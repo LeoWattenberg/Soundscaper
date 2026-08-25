@@ -54,6 +54,17 @@ test('staging refuses a target whose packaging did not produce every release fil
 	}), /runtime-manifest-soundscaper-linux-x64\.json/u);
 });
 
+test('staging refuses an output root that would swallow the packaging output', async (context) => {
+	const { packageRoot } = await packagingOutput(context);
+	await assert.rejects(() => stageMilestone5PackageRoot({
+		repositoryRoot: ROOT,
+		packageRoot,
+		outputRoot: dirname(packageRoot),
+		productId: 'soundscaper',
+		targetId: 'linux-x64',
+	}), /cannot contain the packaging output/u);
+});
+
 async function packagingOutput(context) {
 	const root = await mkdtemp(join(tmpdir(), 'm5-package-root-'));
 	context.after(() => rm(root, { recursive: true, force: true }));

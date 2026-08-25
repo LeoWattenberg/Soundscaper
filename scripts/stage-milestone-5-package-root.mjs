@@ -16,7 +16,7 @@
  */
 
 import { copyFile, link, mkdir, readdir, readFile, rm } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { desktopReleaseTargetPackageInventory } from './desktop-release-assets.mjs';
@@ -31,7 +31,11 @@ export async function stageMilestone5PackageRoot({
 }) {
 	const source = resolve(repositoryRoot, requiredValue(packageRoot, 'package root'));
 	const output = resolve(repositoryRoot, requiredValue(outputRoot, 'output root'));
-	if (output === source) throw new Error('The staged package root cannot be the packaging output.');
+	// The staged root is rebuilt from scratch, so it must not be, or contain, the
+	// packaging output it is copying from.
+	if (output === source || source.startsWith(`${output}${sep}`)) {
+		throw new Error('The staged package root cannot contain the packaging output.');
+	}
 	const projectPackage = JSON.parse(await readFile(resolve(repositoryRoot, 'package.json'), 'utf8'));
 	const inventory = desktopReleaseTargetPackageInventory(
 		requiredValue(productId, 'product'), requiredValue(targetId, 'target'), projectPackage.version,
