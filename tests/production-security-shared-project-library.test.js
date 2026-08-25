@@ -50,14 +50,14 @@ test('shared desktop project publication is fenced and remains narrowly partial'
 		'desktop/preload.mjs',
 		'desktop/main.mjs',
 		'desktop/linked-video-locator-ipc.js',
-		'desktop/project-library-ipc.js',
+		'desktop/project-library-ipc.js', 'desktop/desktop-video-codec-main-ipc.ts',
 	]);
 	for (const path of [
 		'desktop/linked-video-locator-ipc.js',
 		'desktop/project-library-ipc.js',
 		'tests/desktop-linked-video-locator-ipc.test.js',
 		'tests/desktop-preload-linked-video-original.test.js',
-		'tests/desktop-project-library-ipc.test.js',
+		'tests/desktop-project-library-ipc.test.js', 'tests/desktop-video-codec-main-ipc.test.ts',
 	]) assert.ok(rendererBoundary.evidence.some((item) => item.path === path));
 	assert.ok(preloadControl);
 	assert.ok(revocationControl);
