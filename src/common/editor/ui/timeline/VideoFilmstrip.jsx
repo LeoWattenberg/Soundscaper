@@ -4,6 +4,7 @@ import { CLIP_CONTENT_OFFSET } from '@dilsonspickles/components';
 import { framesToSeconds } from '../../design-system-adapters.js';
 import { selectVideoThumbnailTimestamps } from '../../video-timeline.js';
 import { productVideoVisualPreviewRuntimeFor } from '../workspace/product-video-visual-preview-runtime.ts';
+import { selectProductVisualThumbnailPoints } from './product-visual-thumbnail-points.ts';
 import { createVideoRateBadgeModel } from './video-rate-badge-model.ts';
 
 export function VideoFilmstripClip({
@@ -43,6 +44,15 @@ export function VideoFilmstripClip({
 	const thumbnailPoints = useMemo(() => {
 		if (!source || visibleEndFrame <= visibleStartFrame) return [];
 		try {
+			if (clip.kind === 'image') return selectProductVisualThumbnailPoints({
+				clip,
+				visibleStartFrame,
+				visibleEndFrame,
+				projectSampleRate: sampleRate,
+				pixelsPerSecond,
+				baseIntervalSeconds: 5,
+				minimumSpacingPixels: 72,
+			});
 			return selectVideoThumbnailTimestamps(clip, source, {
 				projectSampleRate: sampleRate,
 				visibleStartFrame,
@@ -66,8 +76,10 @@ export function VideoFilmstripClip({
 	const thumbnailModels = useMemo(() => thumbnailPoints.map((point, index) => ({
 		key: `${point.timelineFrame}:${point.sourceFrame}:${index}`,
 		point,
-		sourceUrl: videoThumbnailUrl(visualData, point, index),
-	})), [thumbnailPoints, visualData]);
+		sourceUrl: clip.kind === 'image'
+			? `product-image:${String(clip.sourceId)}`
+			: videoThumbnailUrl(visualData, point, index),
+	})), [clip.kind, clip.sourceId, thumbnailPoints, visualData]);
 	const presentationThumbnails = useProductTimelineFilmstrip({
 		controller, project, clip, thumbnailModels,
 	});
@@ -107,7 +119,7 @@ export function VideoFilmstripClip({
 		<div
 			className="audio-editor-video-clip"
 			data-clip-id={clip.id}
-			data-clip-kind="video"
+			data-clip-kind={clip.kind === 'image' ? 'image' : 'video'}
 			data-rate-stretch-preview={clip.rateStretchPreview ? 'true' : undefined}
 			data-slip-slide-source-preview={clip.sourceSlipPreview ? 'true' : undefined}
 			data-slip-slide-preview-source-start={clip.sourceSlipPreview
@@ -121,7 +133,7 @@ export function VideoFilmstripClip({
 			data-invalid-overlap={invalidOverlap ? 'true' : undefined}
 			role="group"
 			tabIndex={-1}
-			aria-label={`${copy.videoClip || 'Video clip'}: ${clip.title}`}
+			aria-label={`${clip.kind === 'image' ? 'Image clip' : copy.videoClip || 'Video clip'}: ${clip.title}`}
 			style={{ left, width }}
 			onContextMenu={(event) => {
 				event.preventDefault();
@@ -241,7 +253,9 @@ export function VideoFilmstripClip({
 						<span className="audio-editor-video-clip__thumbnail audio-editor-video-clip__thumbnail--fallback">
 							{!presentationThumbnails.supported && fallbackPosterUrl
 								? <img src={fallbackPosterUrl} alt="" draggable="false" />
-								: <span className="audio-editor-video-clip__thumbnail-time">{copy.videoClip || 'Video'}</span>}
+									: <span className="audio-editor-video-clip__thumbnail-time">{
+										clip.kind === 'image' ? 'Image' : copy.videoClip || 'Video'
+									}</span>}
 						</span>
 					)}
 				</div>

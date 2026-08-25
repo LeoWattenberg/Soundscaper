@@ -50,7 +50,7 @@ export default function ProjectBinCard({
 	const duration = formatProjectBinDuration(clip.durationFrames, project?.sampleRate, locale);
 	const videoClip = itemClips.find((itemClip) => itemClip.kind === 'video') || null;
 	const visualClip = itemClips.find((itemClip) => (
-		itemClip.kind === 'still' || itemClip.kind === 'generator'
+		itemClip.kind === 'still' || itemClip.kind === 'generator' || itemClip.kind === 'image'
 	)) || null;
 	const visualThumbnail = useProductVisualThumbnail({
 		controller, project, clipId: visualClip?.id || null,
