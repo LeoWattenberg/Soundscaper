@@ -213,8 +213,11 @@ export class AssistanceOperationTransfers {
 	async cancelJob(jobIdValue: unknown): Promise<void> {
 		const jobId = opaqueId(jobIdValue, 'job');
 		const tasks: Promise<unknown>[] = [];
+		const inputStreamIds: string[] = [];
+		const outputStreamIds: string[] = [];
 		for (const [streamId, pending] of this.#inputs) {
 			if (pending.jobId !== jobId) continue;
+			inputStreamIds.push(streamId);
 			const error = abortError('The assistance input transfer was cancelled.');
 			pending.controller.abort(error); pending.reject(error); clearTimeout(pending.timeout);
 			if (pending.transfer) tasks.push(pending.transfer);
@@ -222,11 +225,14 @@ export class AssistanceOperationTransfers {
 		}
 		for (const [streamId, pending] of this.#outputs) {
 			if (pending.jobId !== jobId) continue;
+			outputStreamIds.push(streamId);
 			pending.controller.abort(abortError('The assistance output transfer was cancelled.'));
 			if (pending.transfer) tasks.push(pending.transfer);
 			else this.#outputs.delete(streamId);
 		}
 		await Promise.allSettled(tasks);
+		for (const streamId of inputStreamIds) this.#inputs.delete(streamId);
+		for (const streamId of outputStreamIds) this.#outputs.delete(streamId);
 	}
 
 	async dispose(): Promise<void> {
