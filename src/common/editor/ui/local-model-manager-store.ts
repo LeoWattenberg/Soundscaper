@@ -3,12 +3,21 @@
 import {
 	localModelByteCount,
 	localModelId,
+	normalizeLocalModelGarbageCollection,
 	normalizeLocalModelInstallProgress,
+	normalizeLocalModelInstallCancellation,
+	normalizeLocalModelInstalledNotices,
 	normalizeLocalModelManagerModel,
 	normalizeLocalModelManagerStatus,
+	normalizeLocalModelReconciliation,
+	normalizeLocalModelRelocation,
+	type LocalModelGarbageCollection,
+	type LocalModelInstalledNotice,
 	type LocalModelInstallProgress,
 	type LocalModelManagerBridge,
 	type LocalModelManagerModel,
+	type LocalModelReconciliation,
+	type LocalModelRelocation,
 } from './local-model-manager-bridge.ts';
 
 export type LocalModelManagerPhase = 'idle' | 'loading' | 'ready' | 'error';
@@ -18,13 +27,25 @@ export interface LocalModelManagerError {
 	readonly message: string;
 }
 
+export type LocalModelMaintenanceOperation = 'reconcile' | 'garbage-collect' | 'notices' | 'relocate';
+export type LocalModelManagerResult =
+	| Readonly<{ kind: 'reconcile'; value: LocalModelReconciliation }>
+	| Readonly<{ kind: 'garbage-collect'; value: LocalModelGarbageCollection }>
+	| Readonly<{ kind: 'relocate'; value: LocalModelRelocation }>;
+
 export interface LocalModelManagerSnapshot {
 	readonly phase: LocalModelManagerPhase;
 	readonly runtimeAvailable: boolean | null;
 	readonly runtimeReason: string | null;
 	readonly models: readonly LocalModelManagerModel[];
 	readonly busyModelIds: readonly string[];
+	readonly installingModelIds: readonly string[];
+	readonly cancellingModelIds: readonly string[];
 	readonly progress: readonly LocalModelInstallProgress[];
+	readonly maintenanceOperation: LocalModelMaintenanceOperation | null;
+	readonly lastResult: LocalModelManagerResult | null;
+	readonly notices: readonly LocalModelInstalledNotice[];
+	readonly noticesLoaded: boolean;
 	readonly error: LocalModelManagerError | null;
 }
 
@@ -34,13 +55,21 @@ export interface LocalModelManagerStore {
 	readonly connect: () => () => void;
 	readonly load: () => Promise<void>;
 	readonly install: (modelId: string) => Promise<void>;
+	readonly installPreseeded: (modelId: string) => Promise<void>;
+	readonly cancelInstall: (modelId: string) => Promise<void>;
 	readonly remove: (modelId: string) => Promise<void>;
+	readonly reconcile: () => Promise<void>;
+	readonly garbageCollect: () => Promise<void>;
+	readonly showNotices: () => Promise<void>;
+	readonly relocate: () => Promise<void>;
 }
 
 const EMPTY_SNAPSHOT: LocalModelManagerSnapshot = Object.freeze({
 	phase: 'idle', runtimeAvailable: null, runtimeReason: null,
 	models: Object.freeze([]), busyModelIds: Object.freeze([]),
-	progress: Object.freeze([]), error: null,
+	installingModelIds: Object.freeze([]), cancellingModelIds: Object.freeze([]),
+	progress: Object.freeze([]), maintenanceOperation: null, lastResult: null,
+	notices: Object.freeze([]), noticesLoaded: false, error: null,
 });
 const STORES = new WeakMap<LocalModelManagerBridge, LocalModelManagerStore>();
 
@@ -62,7 +91,9 @@ export function createLocalModelManagerStore(
 	let connectionCount = 0;
 	let unsubscribeProgress: (() => void) | null = null;
 	const listeners = new Set<() => void>();
-	const activeModels = new Set<string>();
+	const activeModels = new Map<string, 'install' | 'preseed' | 'remove'>();
+	const cancellingModels = new Set<string>();
+	let maintenanceOperation: LocalModelMaintenanceOperation | null = null;
 	const progressByModelId = new Map<string, LocalModelInstallProgress>();
 
 	const publish = (changes: Partial<LocalModelManagerSnapshot>): void => {
@@ -73,9 +104,14 @@ export function createLocalModelManagerStore(
 	const publishOperationState = (
 		error: LocalModelManagerError | null = snapshot.error,
 	): void => publish({
-		busyModelIds: Object.freeze([...activeModels].sort()),
+		busyModelIds: Object.freeze([...activeModels.keys()].sort()),
+		installingModelIds: Object.freeze([...activeModels]
+			.filter(([, operation]) => operation !== 'remove')
+			.map(([modelId]) => modelId).sort()),
+		cancellingModelIds: Object.freeze([...cancellingModels].sort()),
 		progress: Object.freeze([...progressByModelId.values()]
 			.sort((left, right) => left.modelId.localeCompare(right.modelId))),
+		maintenanceOperation,
 		error,
 	});
 
@@ -104,15 +140,15 @@ export function createLocalModelManagerStore(
 	const install = async (rawModelId: string): Promise<void> => {
 		const modelId = localModelId(rawModelId);
 		const model = actionableModel(snapshot.models, modelId, 'installable');
-		if (!model || activeModels.has(modelId)) return;
-		activeModels.add(modelId);
+		if (!model || activeModels.has(modelId) || maintenanceOperation) return;
+		activeModels.set(modelId, 'install');
 		progressByModelId.delete(modelId);
 		publishOperationState(null);
 		try {
 			normalizeLocalModelManagerModel(await bridge.installAssistanceModel(modelId));
 			await refresh(false);
 		} catch (error) {
-			publishOperationState(managerError(modelId, error));
+			if (!cancellingModels.has(modelId)) publishOperationState(managerError(modelId, error));
 		} finally {
 			activeModels.delete(modelId);
 			progressByModelId.delete(modelId);
@@ -120,11 +156,52 @@ export function createLocalModelManagerStore(
 		}
 	};
 
+	const installPreseeded = async (rawModelId: string): Promise<void> => {
+		const modelId = localModelId(rawModelId);
+		const model = actionableModel(snapshot.models, modelId, 'installable');
+		if (!model || activeModels.has(modelId) || maintenanceOperation) return;
+		activeModels.set(modelId, 'preseed');
+		progressByModelId.delete(modelId);
+		publishOperationState(null);
+		try {
+			const installed = await bridge.installPreseededAssistanceModel(modelId);
+			if (installed !== null) {
+				normalizeLocalModelManagerModel(installed);
+				await refresh(false);
+			}
+		} catch (error) {
+			if (!cancellingModels.has(modelId)) publishOperationState(managerError(modelId, error));
+		} finally {
+			activeModels.delete(modelId);
+			progressByModelId.delete(modelId);
+			publishOperationState();
+		}
+	};
+
+	const cancelInstall = async (rawModelId: string): Promise<void> => {
+		const modelId = localModelId(rawModelId);
+		if (!activeModels.has(modelId) || activeModels.get(modelId) === 'remove'
+			|| cancellingModels.has(modelId)) return;
+		cancellingModels.add(modelId);
+		publishOperationState(null);
+		try {
+			normalizeLocalModelInstallCancellation(
+				await bridge.cancelAssistanceModelInstall(modelId),
+			);
+			await refresh(false);
+		} catch (error) {
+			publishOperationState(managerError(modelId, error));
+		} finally {
+			cancellingModels.delete(modelId);
+			publishOperationState();
+		}
+	};
+
 	const remove = async (rawModelId: string): Promise<void> => {
 		const modelId = localModelId(rawModelId);
 		const model = actionableModel(snapshot.models, modelId, 'installed');
-		if (!model || activeModels.has(modelId)) return;
-		activeModels.add(modelId);
+		if (!model || activeModels.has(modelId) || maintenanceOperation) return;
+		activeModels.set(modelId, 'remove');
 		publishOperationState(null);
 		try {
 			localModelByteCount(await bridge.removeAssistanceModel(modelId), 'reclaimed byte count');
@@ -138,13 +215,88 @@ export function createLocalModelManagerStore(
 		}
 	};
 
+	const canMaintain = (): boolean => maintenanceOperation === null && activeModels.size === 0;
+
+	const reconcile = async (): Promise<void> => {
+		if (!canMaintain()) return;
+		maintenanceOperation = 'reconcile';
+		publishOperationState(null);
+		try {
+			const value = normalizeLocalModelReconciliation(await bridge.reconcileAssistanceModels());
+			publish({ lastResult: Object.freeze({ kind: 'reconcile', value }) });
+			await refresh(false);
+		} catch (error) {
+			publishOperationState(managerError(null, error));
+		} finally {
+			maintenanceOperation = null;
+			publishOperationState();
+		}
+	};
+
+	const garbageCollect = async (): Promise<void> => {
+		if (!canMaintain()) return;
+		maintenanceOperation = 'garbage-collect';
+		publishOperationState(null);
+		try {
+			const value = normalizeLocalModelGarbageCollection(
+				await bridge.collectAssistanceModelGarbage(),
+			);
+			publish({ lastResult: Object.freeze({ kind: 'garbage-collect', value }) });
+			await refresh(false);
+		} catch (error) {
+			publishOperationState(managerError(null, error));
+		} finally {
+			maintenanceOperation = null;
+			publishOperationState();
+		}
+	};
+
+	const showNotices = async (): Promise<void> => {
+		if (!canMaintain()) return;
+		maintenanceOperation = 'notices';
+		publishOperationState(null);
+		try {
+			publish({
+				notices: normalizeLocalModelInstalledNotices(
+					await bridge.listAssistanceModelNotices(),
+				),
+				noticesLoaded: true,
+			});
+		} catch (error) {
+			publishOperationState(managerError(null, error));
+		} finally {
+			maintenanceOperation = null;
+			publishOperationState();
+		}
+	};
+
+	const relocate = async (): Promise<void> => {
+		if (!canMaintain()) return;
+		maintenanceOperation = 'relocate';
+		publishOperationState(null);
+		try {
+			const result = await bridge.relocateAssistanceModels();
+			if (result !== null) {
+				const value = normalizeLocalModelRelocation(result);
+				publish({ lastResult: Object.freeze({ kind: 'relocate', value }) });
+				await refresh(false);
+			}
+		} catch (error) {
+			publishOperationState(managerError(null, error));
+		} finally {
+			maintenanceOperation = null;
+			publishOperationState();
+		}
+	};
+
 	const connect = (): (() => void) => {
 		connectionCount += 1;
 		if (connectionCount === 1) {
 			unsubscribeProgress = bridge.onAssistanceInstallProgress((value) => {
 				try {
 					const progress = normalizeLocalModelInstallProgress(value);
-					if (!activeModels.has(progress.modelId)) return;
+					if (!activeModels.has(progress.modelId)
+						|| activeModels.get(progress.modelId) === 'remove') return;
 					progressByModelId.set(progress.modelId, progress);
 					publishOperationState();
 				} catch {
@@ -170,7 +322,8 @@ export function createLocalModelManagerStore(
 			listeners.add(listener);
 			return () => listeners.delete(listener);
 		},
-		connect, load, install, remove,
+		connect, load, install, installPreseeded, cancelInstall, remove,
+		reconcile, garbageCollect, showNotices, relocate,
 	});
 }
 

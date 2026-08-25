@@ -29,7 +29,13 @@ export interface LocalModelManagerDialogViewProps {
 	readonly snapshot: LocalModelManagerSnapshot;
 	readonly onClose: () => void;
 	readonly onInstall: (modelId: string) => unknown;
+	readonly onInstallPreseeded: (modelId: string) => unknown;
+	readonly onCancelInstall: (modelId: string) => unknown;
 	readonly onRemove: (modelId: string) => unknown;
+	readonly onReconcile: () => unknown;
+	readonly onGarbageCollect: () => unknown;
+	readonly onShowNotices: () => unknown;
+	readonly onRelocate: () => unknown;
 	readonly onRetry: () => unknown;
 }
 
@@ -42,6 +48,8 @@ export default function LocalModelManagerDialog({
 	const unavailable = useMemo<LocalModelManagerSnapshot>(() => Object.freeze({
 		phase: 'error', runtimeAvailable: null, runtimeReason: null,
 		models: Object.freeze([]), busyModelIds: Object.freeze([]), progress: Object.freeze([]),
+		installingModelIds: Object.freeze([]), cancellingModelIds: Object.freeze([]),
+		maintenanceOperation: null, lastResult: null, notices: Object.freeze([]), noticesLoaded: false,
 		error: Object.freeze({ modelId: null, message: text(copy, 'localModelsUnavailable',
 			'Local-model management is unavailable in this desktop build.') }),
 	}), [copy]);
@@ -64,16 +72,26 @@ export default function LocalModelManagerDialog({
 		snapshot={snapshot}
 		onClose={onClose}
 		onInstall={(modelId) => store?.install(modelId)}
+		onInstallPreseeded={(modelId) => store?.installPreseeded(modelId)}
+		onCancelInstall={(modelId) => store?.cancelInstall(modelId)}
 		onRemove={(modelId) => store?.remove(modelId)}
+		onReconcile={() => store?.reconcile()}
+		onGarbageCollect={() => store?.garbageCollect()}
+		onShowNotices={() => store?.showNotices()}
+		onRelocate={() => store?.relocate()}
 		onRetry={() => store?.load()}
 	/>;
 }
 
 export function LocalModelManagerDialogView({
-	copy, locale, snapshot, onClose, onInstall, onRemove, onRetry,
+	copy, locale, snapshot, onClose, onInstall, onInstallPreseeded, onCancelInstall,
+	onRemove, onReconcile, onGarbageCollect, onShowNotices, onRelocate, onRetry,
 }: LocalModelManagerDialogViewProps) {
 	const progress = new Map(snapshot.progress.map((entry) => [entry.modelId, entry]));
 	const busy = new Set(snapshot.busyModelIds);
+	const installing = new Set(snapshot.installingModelIds);
+	const cancelling = new Set(snapshot.cancellingModelIds);
+	const globallyBusy = busy.size > 0 || snapshot.maintenanceOperation !== null;
 	const runtimeSummary = snapshot.runtimeAvailable === true
 		? text(copy, 'localModelsRuntimeReady', 'The local inference runtime is available.')
 		: snapshot.runtimeAvailable === false
@@ -97,6 +115,17 @@ export function LocalModelManagerDialogView({
 		)}>
 			<p role="status" aria-live="polite">{runtimeSummary}</p>
 		</section>}
+		<MaintenanceControls
+			copy={copy}
+			busy={globallyBusy}
+			operation={snapshot.maintenanceOperation}
+			onReconcile={onReconcile}
+			onGarbageCollect={onGarbageCollect}
+			onShowNotices={onShowNotices}
+			onRelocate={onRelocate}
+		/>
+		{snapshot.lastResult && <OperationResult copy={copy} locale={locale} result={snapshot.lastResult} />}
+		{snapshot.noticesLoaded && <InstalledNotices copy={copy} notices={snapshot.notices} />}
 		{(snapshot.phase === 'idle' || snapshot.phase === 'loading') && <p
 			className="kw-local-model-manager__message"
 			role="status"
@@ -121,8 +150,13 @@ export function LocalModelManagerDialogView({
 				copy={copy}
 				locale={locale}
 				busy={busy.has(model.modelId)}
+				installing={installing.has(model.modelId)}
+				cancelling={cancelling.has(model.modelId)}
+				maintenanceBusy={snapshot.maintenanceOperation !== null}
 				progress={progress.get(model.modelId) ?? null}
 				onInstall={onInstall}
+				onInstallPreseeded={onInstallPreseeded}
+				onCancelInstall={onCancelInstall}
 				onRemove={onRemove}
 			/>)}
 		</ul>}
@@ -130,14 +164,20 @@ export function LocalModelManagerDialogView({
 }
 
 function ModelRow({
-	model, copy, locale, busy, progress, onInstall, onRemove,
+	model, copy, locale, busy, installing, cancelling, maintenanceBusy, progress,
+	onInstall, onInstallPreseeded, onCancelInstall, onRemove,
 }: Readonly<{
 	model: LocalModelManagerModel;
 	copy: Copy;
 	locale: string;
 	busy: boolean;
+	installing: boolean;
+	cancelling: boolean;
+	maintenanceBusy: boolean;
 	progress: LocalModelManagerSnapshot['progress'][number] | null;
 	onInstall: (modelId: string) => unknown;
+	onInstallPreseeded: (modelId: string) => unknown;
+	onCancelInstall: (modelId: string) => unknown;
 	onRemove: (modelId: string) => unknown;
 }>) {
 	const installed = model.availability === 'installed';
@@ -171,17 +211,131 @@ function ModelRow({
 				value={progress.completedBytes} max={progress.totalBytes} />
 		</div>}
 		{actionAvailable && <div className="kw-local-model-manager__actions">
-			<button type="button" disabled={busy} onClick={() => {
-				void (installed ? onRemove(model.modelId) : onInstall(model.modelId));
+			{installed && <button type="button" disabled={busy || maintenanceBusy} onClick={() => {
+				void onRemove(model.modelId);
 			}}>{busy
-				? installed
-					? text(copy, 'localModelsRemoving', 'Removing…')
-					: text(copy, 'localModelsInstalling', 'Installing…')
-				: installed
-					? text(copy, 'localModelsRemove', 'Remove')
-					: text(copy, 'localModelsInstall', 'Install')}</button>
+				? text(copy, 'localModelsRemoving', 'Removing…')
+				: text(copy, 'localModelsRemove', 'Remove')}</button>}
+			{!installed && !installing && <>
+				<button type="button" disabled={maintenanceBusy} onClick={() => { void onInstall(model.modelId); }}>
+					{text(copy, 'localModelsInstall', 'Install')}
+				</button>
+				<button type="button" disabled={maintenanceBusy} onClick={() => { void onInstallPreseeded(model.modelId); }}>
+					{text(copy, 'localModelsInstallFromFolder', 'Install from folder…')}
+				</button>
+			</>}
+			{!installed && installing && <>
+				<button type="button" disabled>{text(copy, 'localModelsInstalling', 'Installing…')}</button>
+				<button type="button" disabled={cancelling} onClick={() => { void onCancelInstall(model.modelId); }}>
+					{cancelling
+						? text(copy, 'localModelsCancelling', 'Cancelling…')
+						: text(copy, 'localModelsCancelInstall', 'Cancel install')}
+				</button>
+			</>}
 		</div>}
 	</li>;
+}
+
+function MaintenanceControls({
+	copy, busy, operation, onReconcile, onGarbageCollect, onShowNotices, onRelocate,
+}: Readonly<{
+	copy: Copy;
+	busy: boolean;
+	operation: LocalModelManagerSnapshot['maintenanceOperation'];
+	onReconcile: () => unknown;
+	onGarbageCollect: () => unknown;
+	onShowNotices: () => unknown;
+	onRelocate: () => unknown;
+}>) {
+	return <section className="kw-local-model-manager__maintenance" aria-labelledby="local-model-maintenance-title">
+		<h3 id="local-model-maintenance-title">{text(copy, 'localModelsMaintenance', 'Storage and verification')}</h3>
+		<p>{text(copy, 'localModelsMaintenanceDescription',
+			'These operations run only when you request them.')}</p>
+		<div className="kw-local-model-manager__maintenance-actions">
+			<button type="button" disabled={busy} onClick={() => { void onReconcile(); }}>
+				{text(copy, 'localModelsReconcile', 'Reconcile pre-seeded files')}
+			</button>
+			<button type="button" disabled={busy} onClick={() => { void onGarbageCollect(); }}>
+				{text(copy, 'localModelsGarbageCollect', 'Collect unused files')}
+			</button>
+			<button type="button" disabled={busy} onClick={() => { void onRelocate(); }}>
+				{text(copy, 'localModelsRelocate', 'Relocate model storage…')}
+			</button>
+			<button type="button" disabled={busy} onClick={() => { void onShowNotices(); }}>
+				{text(copy, 'localModelsShowNotices', 'Show installed notices')}
+			</button>
+		</div>
+		{operation && <p role="status" aria-live="polite">{maintenanceOperationLabel(copy, operation)}</p>}
+	</section>;
+}
+
+function OperationResult({ copy, locale, result }: Readonly<{
+	copy: Copy;
+	locale: string;
+	result: NonNullable<LocalModelManagerSnapshot['lastResult']>;
+}>) {
+	let message: string;
+	if (result.kind === 'reconcile') {
+		message = template(text(copy, 'localModelsReconcileResult',
+			'Reconciled {installed}; {incomplete} incomplete; {rejected} rejected.'), {
+			installed: String(result.value.installedModelIds.length),
+			incomplete: String(result.value.incompleteModelIds.length),
+			rejected: String(result.value.rejected.length),
+		});
+	} else if (result.kind === 'garbage-collect') {
+		message = template(text(copy, 'localModelsGarbageCollectResult',
+			'Reclaimed {bytes}; removed {partials} incomplete files and {manifests} invalid records.'), {
+			bytes: formatBytes(result.value.reclaimedBytes, locale, '0 B'),
+			partials: String(result.value.discardedPartialCount),
+			manifests: String(result.value.discardedManifestCount),
+		});
+	} else {
+		message = template(text(copy, 'localModelsRelocateResult',
+			'Relocated {files} files ({bytes}). The previous store was {sourceState}.'), {
+			files: String(result.value.fileCount),
+			bytes: formatBytes(result.value.totalBytes, locale, '0 B'),
+			sourceState: result.value.sourceRemoved
+				? text(copy, 'localModelsRelocateSourceRemoved', 'removed')
+				: text(copy, 'localModelsRelocateSourceRetained', 'retained as a verified copy'),
+		});
+	}
+	return <p className="kw-local-model-manager__result" role="status" aria-live="polite">{message}</p>;
+}
+
+function InstalledNotices({ copy, notices }: Readonly<{
+	copy: Copy;
+	notices: LocalModelManagerSnapshot['notices'];
+}>) {
+	return <section className="kw-local-model-manager__notices" aria-labelledby="local-model-notices-title">
+		<h3 id="local-model-notices-title">{text(copy, 'localModelsNotices', 'Installed model notices')}</h3>
+		{notices.length === 0
+			? <p>{text(copy, 'localModelsNoNotices', 'No authenticated installed-model notices are available.')}</p>
+			: <ul>{notices.map((notice) => <li key={notice.modelId}>
+				<strong>{notice.modelId} {notice.version}</strong>
+				<p>{notice.purpose}</p>
+				<dl>
+					<div><dt>{text(copy, 'localModelsCodeLicense', 'Code license')}</dt><dd>{notice.codeLicense}</dd></div>
+					<div><dt>{text(copy, 'localModelsWeightsLicense', 'Weights license')}</dt><dd>{notice.weightsLicense}</dd></div>
+					<div><dt>{text(copy, 'localModelsRevision', 'Upstream revision')}</dt><dd>{notice.upstreamRevision}</dd></div>
+				</dl>
+				<ul aria-label={text(copy, 'localModelsSources', 'Provenance sources')}>
+					{notice.provenanceSources.map((source) => <li key={source}><a href={source} target="_blank" rel="noreferrer">{source}</a></li>)}
+				</ul>
+			</li>)}</ul>}
+	</section>;
+}
+
+function maintenanceOperationLabel(
+	copy: Copy,
+	operation: NonNullable<LocalModelManagerSnapshot['maintenanceOperation']>,
+): string {
+	const labels = {
+		reconcile: text(copy, 'localModelsReconciling', 'Reconciling pre-seeded files…'),
+		'garbage-collect': text(copy, 'localModelsGarbageCollecting', 'Collecting unused files…'),
+		notices: text(copy, 'localModelsLoadingNotices', 'Loading installed notices…'),
+		relocate: text(copy, 'localModelsRelocating', 'Relocating model storage…'),
+	};
+	return labels[operation];
 }
 
 function availabilityLabel(copy: Copy, availability: LocalModelAvailability): string {

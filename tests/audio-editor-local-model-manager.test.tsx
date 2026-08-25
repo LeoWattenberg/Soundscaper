@@ -71,6 +71,36 @@ function bridgeFixture() {
 			calls.push(`install:${modelId}`);
 			return install.promise;
 		},
+		cancelAssistanceModelInstall: async (modelId) => {
+			calls.push(`cancel:${modelId}`);
+			install.reject(new Error('Local-model installation was cancelled.'));
+			await Promise.resolve();
+			return { contractVersion: 1, modelId, outcome: 'cancelled' };
+		},
+		installPreseededAssistanceModel: async (modelId) => {
+			calls.push(`preseed:${modelId}`);
+			return null;
+		},
+		reconcileAssistanceModels: async () => {
+			calls.push('reconcile');
+			return { installedModelIds: [], incompleteModelIds: [INSTALLABLE_MODEL.modelId], rejected: [] };
+		},
+		collectAssistanceModelGarbage: async () => {
+			calls.push('garbage');
+			return { reclaimedBlobBytes: 10, discardedManifestCount: 1, discardedPartialCount: 2,
+				discardedPartialBytes: 20, reclaimedBytes: 30 };
+		},
+		listAssistanceModelNotices: async () => {
+			calls.push('notices');
+			return [{ schemaVersion: 1, modelId: INSTALLED_MODEL.modelId, version: INSTALLED_MODEL.version,
+				purpose: 'Speech recognition', codeLicense: 'MIT', weightsLicense: 'CC-BY-4.0',
+				attributionRequired: true, provenanceSources: ['https://upstream.invalid/model'],
+				upstreamRevision: 'abc123', distributionKind: 'identity-mirrored' }];
+		},
+		relocateAssistanceModels: async () => {
+			calls.push('relocate');
+			return { contractVersion: 1, totalBytes: 40, fileCount: 3, sourceRemoved: true };
+		},
 		removeAssistanceModel: async (modelId) => {
 			calls.push(`remove:${modelId}`);
 			currentStatus = status();
@@ -158,6 +188,45 @@ test('explicit installs accept only progress correlated to their active model', 
 	disconnect();
 });
 
+test('install cancellation stays explicit and clears activity only after acknowledgement', async () => {
+	const fixture = bridgeFixture();
+	const store = createLocalModelManagerStore(fixture.bridge);
+	await store.load();
+	const install = store.install(INSTALLABLE_MODEL.modelId);
+
+	assert.deepEqual(store.getSnapshot().installingModelIds, [INSTALLABLE_MODEL.modelId]);
+	const cancellation = store.cancelInstall(INSTALLABLE_MODEL.modelId);
+	assert.deepEqual(store.getSnapshot().cancellingModelIds, [INSTALLABLE_MODEL.modelId]);
+	await cancellation;
+	await install;
+
+	assert.deepEqual(fixture.calls, [
+		'list', `install:${INSTALLABLE_MODEL.modelId}`, `cancel:${INSTALLABLE_MODEL.modelId}`, 'list',
+	]);
+	assert.deepEqual(store.getSnapshot().busyModelIds, []);
+	assert.deepEqual(store.getSnapshot().cancellingModelIds, []);
+	assert.equal(store.getSnapshot().error, null);
+});
+
+test('offline seeds and maintenance operations run only when explicitly requested', async () => {
+	const fixture = bridgeFixture();
+	const store = createLocalModelManagerStore(fixture.bridge);
+	await store.load();
+	await store.installPreseeded(INSTALLABLE_MODEL.modelId);
+	await store.reconcile();
+	await store.garbageCollect();
+	await store.showNotices();
+	await store.relocate();
+
+	assert.deepEqual(fixture.calls, [
+		'list', `preseed:${INSTALLABLE_MODEL.modelId}`, 'reconcile', 'list',
+		'garbage', 'list', 'notices', 'relocate', 'list',
+	]);
+	assert.equal(store.getSnapshot().noticesLoaded, true);
+	assert.equal(store.getSnapshot().notices[0]?.codeLicense, 'MIT');
+	assert.equal(store.getSnapshot().lastResult?.kind, 'relocate');
+});
+
 test('installed models are removed only by an explicit row action', async () => {
 	const fixture = bridgeFixture();
 	fixture.installComplete();
@@ -195,10 +264,16 @@ test('the manager view exposes runtime, sizes, correlated progress, and explicit
 		runtimeReason: 'Native inference runtime is unavailable.',
 		models: Object.freeze([INSTALLABLE_MODEL]),
 		busyModelIds: Object.freeze([INSTALLABLE_MODEL.modelId]),
+		installingModelIds: Object.freeze([INSTALLABLE_MODEL.modelId]),
+		cancellingModelIds: Object.freeze([]),
 		progress: Object.freeze([{
 			modelId: INSTALLABLE_MODEL.modelId,
 			fileName: 'encoder.onnx', completedBytes: 100, totalBytes: 1_000,
 		}]),
+		maintenanceOperation: null,
+		lastResult: null,
+		notices: Object.freeze([]),
+		noticesLoaded: false,
 		error: null,
 	});
 	const markup = renderToStaticMarkup(<LocalModelManagerDialogView
@@ -207,7 +282,13 @@ test('the manager view exposes runtime, sizes, correlated progress, and explicit
 		snapshot={snapshot}
 		onClose={() => undefined}
 		onInstall={() => undefined}
+		onInstallPreseeded={() => undefined}
+		onCancelInstall={() => undefined}
 		onRemove={() => undefined}
+		onReconcile={() => undefined}
+		onGarbageCollect={() => undefined}
+		onShowNotices={() => undefined}
+		onRelocate={() => undefined}
 		onRetry={() => undefined}
 	/>);
 
@@ -218,6 +299,11 @@ test('the manager view exposes runtime, sizes, correlated progress, and explicit
 	assert.match(markup, /encoder\.onnx/u);
 	assert.match(markup, /<progress[^>]*value="100"[^>]*max="1000"/u);
 	assert.match(markup, /Installing/u);
+	assert.match(markup, /Cancel install/u);
+	assert.match(markup, /Reconcile pre-seeded files/u);
+	assert.match(markup, /Collect unused files/u);
+	assert.match(markup, /Relocate model storage/u);
+	assert.match(markup, /Show installed notices/u);
 	assert.match(markup, /disabled=""/u);
 	const installedMarkup = renderToStaticMarkup(<LocalModelManagerDialogView
 		copy={ENGLISH_COPY} locale="en"
@@ -226,9 +312,34 @@ test('the manager view exposes runtime, sizes, correlated progress, and explicit
 			busyModelIds: Object.freeze([]), progress: Object.freeze([]),
 		})}
 		onClose={() => undefined} onInstall={() => undefined}
+		onInstallPreseeded={() => undefined} onCancelInstall={() => undefined}
 		onRemove={() => undefined} onRetry={() => undefined}
+		onReconcile={() => undefined} onGarbageCollect={() => undefined}
+		onShowNotices={() => undefined} onRelocate={() => undefined}
 	/>);
 	assert.match(installedMarkup, />Remove</u);
+	const offlineMarkup = renderToStaticMarkup(<LocalModelManagerDialogView
+		copy={ENGLISH_COPY} locale="en"
+		snapshot={Object.freeze({
+			...snapshot, busyModelIds: Object.freeze([]), installingModelIds: Object.freeze([]),
+			progress: Object.freeze([]), noticesLoaded: true,
+			notices: Object.freeze([{
+				schemaVersion: 1 as const, modelId: INSTALLABLE_MODEL.modelId, version: '2.0.0',
+				purpose: 'Speech recognition', codeLicense: 'MIT', weightsLicense: 'CC-BY-4.0',
+				attributionRequired: true, provenanceSources: Object.freeze(['https://upstream.invalid/model']),
+				upstreamRevision: 'abc123', distributionKind: 'identity-mirrored' as const,
+			}]),
+		})}
+		onClose={() => undefined} onInstall={() => undefined}
+		onInstallPreseeded={() => undefined} onCancelInstall={() => undefined}
+		onRemove={() => undefined} onRetry={() => undefined}
+		onReconcile={() => undefined} onGarbageCollect={() => undefined}
+		onShowNotices={() => undefined} onRelocate={() => undefined}
+	/>);
+	assert.match(offlineMarkup, /Install from folder/u);
+	assert.match(offlineMarkup, /Installed model notices/u);
+	assert.match(offlineMarkup, /CC-BY-4\.0/u);
+	assert.match(offlineMarkup, /https:\/\/upstream\.invalid\/model/u);
 });
 
 test('loading and load failure states are announced accessibly', () => {
@@ -242,12 +353,18 @@ test('loading and load failure states are announced accessibly', () => {
 	const failed: LocalModelManagerSnapshot = Object.freeze({
 		phase: 'error', runtimeAvailable: null, runtimeReason: null,
 		models: Object.freeze([]), busyModelIds: Object.freeze([]),
-		progress: Object.freeze([]), error: Object.freeze({ modelId: null, message: 'No catalog.' }),
+		installingModelIds: Object.freeze([]), cancellingModelIds: Object.freeze([]),
+		progress: Object.freeze([]), maintenanceOperation: null, lastResult: null,
+		notices: Object.freeze([]), noticesLoaded: false,
+		error: Object.freeze({ modelId: null, message: 'No catalog.' }),
 	});
 	const errorMarkup = renderToStaticMarkup(<LocalModelManagerDialogView
 		copy={ENGLISH_COPY} locale="en" snapshot={failed}
 		onClose={() => undefined} onInstall={() => undefined}
+		onInstallPreseeded={() => undefined} onCancelInstall={() => undefined}
 		onRemove={() => undefined} onRetry={() => undefined}
+		onReconcile={() => undefined} onGarbageCollect={() => undefined}
+		onShowNotices={() => undefined} onRelocate={() => undefined}
 	/>);
 	assert.match(errorMarkup, /role="alert"/u);
 	assert.match(errorMarkup, /No catalog/u);
