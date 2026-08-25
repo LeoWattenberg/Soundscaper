@@ -26,8 +26,16 @@ import {
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
+/**
+ * Where packaging stages the release inputs. It has to be one named constant
+ * because it also has to be listed in `.gitignore`: the handoff authenticates
+ * its source revision against a clean worktree, so a staged root git can see
+ * refuses the release it was staged for.
+ */
+export const MILESTONE_5_PACKAGE_ROOT = 'release/milestone-5-package';
+
 export async function stageMilestone5PackageRoot({
-	repositoryRoot = ROOT, packageRoot, outputRoot, productId, targetId,
+	repositoryRoot = ROOT, packageRoot, outputRoot = MILESTONE_5_PACKAGE_ROOT, productId, targetId,
 }) {
 	const source = resolve(repositoryRoot, requiredValue(packageRoot, 'package root'));
 	const output = resolve(repositoryRoot, requiredValue(outputRoot, 'output root'));

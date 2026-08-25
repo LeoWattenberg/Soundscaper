@@ -17,6 +17,7 @@ release/desktop-handoff/
 release/desktop-lease-matrix/
 release/desktop-nightly-tests/
 release/desktop-nightly-products/
+release/milestone-5-package/
 .env
 .env.*
 !.env.example

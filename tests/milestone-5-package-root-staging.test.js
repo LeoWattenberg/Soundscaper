@@ -11,13 +11,17 @@
  */
 
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { stageMilestone5PackageRoot } from '../scripts/stage-milestone-5-package-root.mjs';
+import {
+	MILESTONE_5_PACKAGE_ROOT,
+	stageMilestone5PackageRoot,
+} from '../scripts/stage-milestone-5-package-root.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -63,6 +67,15 @@ test('staging refuses an output root that would swallow the packaging output', a
 		productId: 'soundscaper',
 		targetId: 'linux-x64',
 	}), /cannot contain the packaging output/u);
+});
+
+test('the staged package root is invisible to git', () => {
+	// The handoff authenticates its source revision against a clean worktree, so
+	// a staged root git can see refuses the very release it was staged for — the
+	// packaged macOS jobs died on "worktree and index must be clean" for exactly
+	// that reason. Ignoring it is part of the contract, not housekeeping.
+	const ignored = spawnSync('git', ['check-ignore', '--quiet', `${MILESTONE_5_PACKAGE_ROOT}/`], { cwd: ROOT });
+	assert.equal(ignored.status, 0, `${MILESTONE_5_PACKAGE_ROOT}/ must be listed in .gitignore`);
 });
 
 async function packagingOutput(context) {

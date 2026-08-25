@@ -368,7 +368,6 @@ jobs:
         run: >-
           node scripts/stage-milestone-5-package-root.mjs
           --package-root "release/desktop"
-          --output "release/milestone-5-package"
           --product "${{ matrix.product }}"
           --target "${{ matrix.target.platform }}-${{ matrix.target.arch }}"
 
