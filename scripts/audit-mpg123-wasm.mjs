@@ -83,7 +83,7 @@ function auditArtifact(wasm, manifest, findings) {
 	const path = join(sourceDirectory, manifest.wasm.path);
 	if (statSync(path).size > manifest.wasm.maximumBytes) findings.push('mpg123 artifact exceeds its byte limit.');
 	const hash = sha256(wasm);
-	if (manifest.wasm.sha256 !== '2c5a60ce737adb0adb98df8301c76804bffeb59373fe7fbce2c8383e926dd7be') {
+	if (manifest.wasm.sha256 !== 'd2b5686a16141ec97dbeb4e4f2a1ce28b756dd3eaf6438b31379356c8dd958ae') {
 		findings.push('mpg123 artifact digest is not the reviewed value.');
 	} else if (hash !== manifest.wasm.sha256) findings.push(`mpg123 artifact digest mismatch: ${hash}`);
 	if (wasm.includes(Buffer.from(root))) findings.push('mpg123 artifact embeds the local checkout path.');

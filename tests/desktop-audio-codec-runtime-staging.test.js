@@ -111,8 +111,8 @@ test('desktop codec runtime inventory contains only exact reviewed audio payload
 	});
 	assert.deepEqual(DESKTOP_BUNDLED_MPG123_WASM, {
 		file: 'src/common/editor/mpg123/mpg123.wasm',
-		byteLength: 172_327,
-		sha256: '2c5a60ce737adb0adb98df8301c76804bffeb59373fe7fbce2c8383e926dd7be',
+		byteLength: 172_329,
+		sha256: 'd2b5686a16141ec97dbeb4e4f2a1ce28b756dd3eaf6438b31379356c8dd958ae',
 	});
 	assert.deepEqual(DESKTOP_BUNDLED_TWOLAME_WASM, {
 		file: 'src/common/editor/twolame/twolame.wasm',

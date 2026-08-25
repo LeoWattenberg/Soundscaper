@@ -10,7 +10,9 @@ import {
 	BUNDLED_MPG123_WASM_SHA256,
 	loadBundledMpg123AudioCodecRuntime,
 } from '../desktop/bundled-mpg123-audio-codec-runtime.ts';
+import { loadBundledTwolameAudioCodecRuntime } from '../desktop/bundled-twolame-audio-codec-runtime.ts';
 import { deriveDesktopAudioCodecOperation } from '../desktop/desktop-audio-codec-broker.ts';
+import { parseBundledMpegAudioStream } from '../desktop/bundled-mpeg-audio-stream.ts';
 import type {
 	DesktopAudioCodecProviderExecutionResult,
 	DesktopAudioCodecProviderRuntime,
@@ -93,6 +95,47 @@ test('mpg123 interoperates with upstream LAME and stock TwoLAME streams', async 
 			result.output.buffer, result.output.byteOffset, result.output.byteLength / 4,
 		).some((sample) => Math.abs(sample) > 0.01), true);
 	}
+});
+
+test('mpg123 decodes a valid one-frame TwoLAME MP2 stream without next-frame readahead', async () => {
+	const encoder = await loadBundledTwolameAudioCodecRuntime({ target: 'linux-x64' });
+	assert.ok(encoder);
+	const frameCount = 1_152;
+	const channelCount = 2;
+	const sampleRate = 48_000;
+	const input = new Float32Array(frameCount * channelCount);
+	for (let frame = 0; frame < frameCount; frame++) {
+		input[frame * channelCount] = Math.sin(2 * Math.PI * 440 * frame / sampleRate) * 0.35;
+		input[frame * channelCount + 1] = Math.sin(2 * Math.PI * 660 * frame / sampleRate) * 0.25;
+	}
+	const encodeRequest: DesktopAudioCodecRequest = Object.freeze({
+		operation: 'audio-encode', format: 'mp2', input: new Uint8Array(input.buffer),
+		sampleRate, channelCount, settings: Object.freeze({ bitrateKbps: 192 }),
+		maximumOutputBytes: 64 * 1024, requestId: 'mpg123-one-frame-source',
+	});
+	const encoded = await execute(encoder, encodeRequest);
+	assert.equal(encoded.status, 'executed');
+	if (encoded.status !== 'executed') return;
+	assert.deepEqual(parseBundledMpegAudioStream(encoded.output, 'mp2'), {
+		format: 'mp2', layer: 2, mpegVersion: 1, sampleRate, channelCount,
+		frameCount, mpegFrameCount: 1, samplesPerFrame: 1_152, bitrateKbps: 192,
+		encoderDelay: 0, endPadding: 0, gapless: 'none',
+	});
+
+	const runtime = await requiredRuntime('linux-x64');
+	const request = decodeRequest('mp2', encoded.output);
+	assert.deepEqual(await runtime.preflightRequest?.(request, {
+		operation: deriveDesktopAudioCodecOperation(request),
+	}), { disposition: 'supported', reason: null });
+	const decoded = await execute(runtime, request);
+	assert.equal(decoded.status, 'executed');
+	if (decoded.status !== 'executed') return;
+	assert.deepEqual(decoded.decodedGeometry, { sampleRate, channelCount, frameCount });
+	assert.equal(decoded.output.byteLength, frameCount * channelCount * Float32Array.BYTES_PER_ELEMENT);
+	assert.equal(new Float32Array(
+		decoded.output.buffer, decoded.output.byteOffset,
+		decoded.output.byteLength / Float32Array.BYTES_PER_ELEMENT,
+	).some((sample) => Math.abs(sample) > 0.01), true);
 });
 
 test('valid unreviewed streams fall through while malformed streams and bounds fail terminally', async () => {

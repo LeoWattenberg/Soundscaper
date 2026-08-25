@@ -50,7 +50,8 @@ int scmp_decode_float32(
 	decoder = mpg123_new("generic", &error);
 	if (!decoder || error != MPG123_OK
 		|| mpg123_param(decoder, MPG123_FLAGS,
-			MPG123_GAPLESS | MPG123_QUIET | MPG123_NO_RESYNC | MPG123_FORCE_FLOAT, 0.0) != MPG123_OK
+			MPG123_GAPLESS | MPG123_QUIET | MPG123_NO_RESYNC | MPG123_FORCE_FLOAT
+				| MPG123_NO_READAHEAD, 0.0) != MPG123_OK
 		|| mpg123_param(decoder, MPG123_RESYNC_LIMIT, 0, 0.0) != MPG123_OK
 		|| mpg123_param(decoder, MPG123_FEEDPOOL, 1, 0.0) != MPG123_OK
 		|| mpg123_format_none(decoder) != MPG123_OK

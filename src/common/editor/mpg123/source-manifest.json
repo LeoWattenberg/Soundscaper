@@ -70,7 +70,7 @@
 	"localFiles": [
 		{
 			"path": "native/soundscaper_mpg123.c",
-			"sha256": "a0d5fbc3117a3999b2a06b0a52e20718831bbac52a2a59d2a5819ed3a9db548b"
+			"sha256": "e9561b824b56a9dc1e174272824276f35974808afee21780375e57275bab7f75"
 		},
 		{
 			"path": "NOTICE.md",
@@ -83,7 +83,7 @@
 	],
 	"wasm": {
 		"path": "mpg123.wasm",
-		"sha256": "2c5a60ce737adb0adb98df8301c76804bffeb59373fe7fbce2c8383e926dd7be",
+		"sha256": "d2b5686a16141ec97dbeb4e4f2a1ce28b756dd3eaf6438b31379356c8dd958ae",
 		"maximumBytes": 524288,
 		"initialMemoryBytes": 8388608,
 		"maximumMemoryBytes": 268435456,
