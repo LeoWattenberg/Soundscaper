@@ -22,6 +22,19 @@ import {
 export const OS_AUDIO_CODEC_HOST_TARGETS = Object.freeze([
 	'mac-arm64', 'win-x64', 'win-arm64',
 ]);
+/**
+ * CMake picks the newest Visual Studio installed on the runner. The Windows x64
+ * and ARM64 images do not carry the same release — windows-2025 ships only
+ * Visual Studio 2026 while windows-11-arm still ships 2022 — and GitHub rolls
+ * them independently, so pinning one generator fails configuration outright on
+ * the other image. The plan therefore leaves the choice to CMake and admits a
+ * closed reviewed set, which the recorded toolchain identity is checked against.
+ */
+export const OS_AUDIO_CODEC_HOST_ADMITTED_GENERATORS = Object.freeze({
+	'mac-arm64': Object.freeze(['Ninja']),
+	'win-x64': Object.freeze(['Visual Studio 17 2022', 'Visual Studio 18 2026']),
+	'win-arm64': Object.freeze(['Visual Studio 17 2022', 'Visual Studio 18 2026']),
+});
 export const OS_AUDIO_CODEC_HOST_SOURCE_FILES = Object.freeze([
 	'native/os-audio-codec-host/CMakeLists.txt',
 	'native/os-audio-codec-host/src/node_api_bridge.cpp',
@@ -256,7 +269,7 @@ function portableCommands(target, signingMode) {
 		'-DCMAKE_OSX_ARCHITECTURES=arm64', '-DCMAKE_OSX_SYSROOT=$MACOS_SDK',
 	);
 	else configure.push(
-		'-G', 'Visual Studio 17 2022', '-A', target === 'win-arm64' ? 'ARM64' : 'x64',
+		'-A', target === 'win-arm64' ? 'ARM64' : 'x64',
 		'-DBUILD_TESTING=ON', '-DSOUNDSCAPER_NODE_API_INCLUDE=$ELECTRON_HEADERS/include/node',
 		'-DCMAKE_SYSTEM_VERSION=10.0.26100',
 	);
@@ -384,11 +397,11 @@ function readToolchainIdentity(plan) {
 		&& typeof value.systemName === 'string' && value.systemName.length <= 32
 		&& typeof value.systemProcessor === 'string' && value.systemProcessor.length <= 32,
 	'CMake emitted an invalid OS audio codec toolchain identity.');
-	const expectedGenerator = plan.target === 'mac-arm64' ? 'Ninja' : 'Visual Studio 17 2022';
+	const admittedGenerators = OS_AUDIO_CODEC_HOST_ADMITTED_GENERATORS[plan.target];
 	const expectedSystem = plan.target === 'mac-arm64' ? 'Darwin' : 'Windows';
 	const processors = plan.target.endsWith('arm64')
 		? new Set(['ARM64', 'aarch64', 'arm64']) : new Set(['AMD64', 'x86_64', 'x64']);
-	assert(value.generator === expectedGenerator && value.systemName === expectedSystem
+	assert(admittedGenerators.includes(value.generator) && value.systemName === expectedSystem
 		&& processors.has(value.systemProcessor),
 	'CMake toolchain identity does not match the selected OS audio codec target.');
 	return deepFreeze(value);

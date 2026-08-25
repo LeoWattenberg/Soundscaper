@@ -13,6 +13,7 @@ import test from 'node:test';
 import { create as createTar } from 'tar';
 
 import {
+	OS_AUDIO_CODEC_HOST_ADMITTED_GENERATORS,
 	OS_AUDIO_CODEC_HOST_SOURCE_FILES,
 	OS_AUDIO_CODEC_HOST_TARGETS,
 	createOsAudioCodecHostBuildPlan,
@@ -130,9 +131,9 @@ test('build plans authenticate exact Electron 43.1.1 headers and close the targe
 	assert.deepEqual(windowsPolicy.electronHeaders, windows.electronHeaders);
 	assert.deepEqual(windowsPolicy.buildPlan, windows.buildPlan);
 	assert.deepEqual(windowsPolicy.signing, windows.signing);
-	assert.deepEqual(windows.configure.argv.slice(4, 8), [
-		'-G', 'Visual Studio 17 2022', '-A', 'x64',
-	]);
+	assert.deepEqual(windows.configure.argv.slice(4, 6), ['-A', 'x64']);
+	assert.equal(windows.configure.argv.includes('-G'), false,
+		'a pinned Visual Studio generator fails outright on the image that ships the other one.');
 	assert.match(windows.configure.argv.join('\n'), /CMAKE_SYSTEM_VERSION=10\.0\.26100/u);
 	assert.match(windows.configure.argv.join('\n'), /electron-node-api-headers\/include\/node/u);
 	assert.doesNotMatch(windows.configure.argv.join('\n'), /juce|clap|vst3|asio/iu);
@@ -330,6 +331,47 @@ test('the portable exact MP3 profile canary remains buildable without a target O
 	assert.equal(built.status, 0, built.stderr || built.stdout);
 	const executed = spawnSync(executable, [], { encoding: 'utf8' });
 	assert.equal(executed.status, 0, executed.stderr || executed.stdout);
+});
+
+test('the codec toolchain admits every Visual Studio release the runner images ship', async (context) => {
+	// windows-2025 now ships only Visual Studio 2026 while windows-11-arm still
+	// ships 2022, and GitHub rolls the two images independently. The build plan
+	// lets CMake select the newest installed release and admits the reviewed set,
+	// so a generator outside it still fails the build closed.
+	assert.deepEqual(OS_AUDIO_CODEC_HOST_ADMITTED_GENERATORS, {
+		'mac-arm64': ['Ninja'],
+		'win-x64': ['Visual Studio 17 2022', 'Visual Studio 18 2026'],
+		'win-arm64': ['Visual Studio 17 2022', 'Visual Studio 18 2026'],
+	});
+
+	const fixture = await electronHeaderFixture(context);
+	const built = (name, generator) => {
+		const buildPlan = plan(fixture, 'win-x64', name);
+		return executeOsAudioCodecHostBuild(buildPlan, {
+			run(command, argv) {
+				if (argv.includes('-S')) {
+					mkdirSync(buildPlan.buildRoot, { recursive: true });
+					writeFileSync(join(buildPlan.buildRoot, 'soundscaper-os-audio-codec-toolchain.json'),
+						JSON.stringify({
+							cmake: '4.4.2', generator,
+							cxxCompilerId: 'MSVC', cxxCompilerVersion: '19.50.36000.0',
+							systemName: 'Windows', systemProcessor: 'AMD64',
+						}));
+				}
+				if (argv[0] === '--install') {
+					mkdirSync(buildPlan.installRoot, { recursive: true });
+					writeFileSync(buildPlan.artifactPath, Buffer.from('exact-addon-fixture'));
+				}
+				return { status: 0, signal: null, error: undefined, stdout: '', stderr: '' };
+			},
+		});
+	};
+	assert.equal(built('vs2026', 'Visual Studio 18 2026').toolchainIdentity.generator,
+		'Visual Studio 18 2026');
+	assert.equal(built('vs2022', 'Visual Studio 17 2022').toolchainIdentity.generator,
+		'Visual Studio 17 2022');
+	assert.throws(() => built('mingw', 'MinGW Makefiles'),
+		/toolchain identity does not match/iu);
 });
 
 test('every Windows translation unit in the codec build suppresses the min and max macros', async () => {
