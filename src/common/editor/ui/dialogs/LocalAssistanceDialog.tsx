@@ -144,10 +144,19 @@ export function LocalAssistanceDialogView({
 		{snapshot.result && <p role="status">{template(text(copy, 'localAssistanceOutputs',
 			'{count} validated outputs'), { count: String(snapshot.result.outputs.length) })}</p>}
 		{reviewOpen && snapshot.result && <ul className="kw-local-assistance__outputs">
-			{snapshot.result.outputs.map(({ claim }) => <li key={claim.claimId}>
+			{snapshot.result.outputs.map(({ claim, review }) => <li key={claim.claimId}>
 				{template(text(copy, 'localAssistanceOutputRow', '{role} · {mediaType} · {bytes} B'), {
 					role: claim.role, mediaType: claim.mediaType, bytes: String(claim.byteLength),
 				})}
+				{review.kind === 'transcript' && <ol className="kw-local-assistance__transcript">
+					{review.segments.map((segment, index) => <li
+						key={`${segment.startSeconds}:${segment.endSeconds}:${index}`}>
+						<span>{segment.speaker ? `${segment.speaker}: ${segment.text}` : segment.text}</span>
+						<small>{template(text(copy, 'localAssistanceTranscriptTime', '{start}–{end} s'), {
+							start: formatSeconds(segment.startSeconds), end: formatSeconds(segment.endSeconds),
+						})}</small>
+					</li>)}
+				</ol>}
 			</li>)}
 		</ul>}
 		<p className="kw-local-assistance__deferred">{text(copy, 'localAssistanceAcceptanceDeferred',
@@ -217,4 +226,8 @@ function text(copy: Copy, key: string, fallback: string): string {
 function template(value: string, variables: Readonly<Record<string, string>>): string {
 	return Object.entries(variables).reduce((result, [key, replacement]) =>
 		result.replaceAll(`{${key}}`, replacement), value);
+}
+
+function formatSeconds(value: number): string {
+	return value.toFixed(3).replace(/(?:\.0+|(\.\d*?)0+)$/u, '$1');
 }

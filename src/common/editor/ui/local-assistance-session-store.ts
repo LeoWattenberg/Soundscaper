@@ -18,6 +18,10 @@ import {
 	type LocalAssistanceSelectedMediaPreparationPort,
 	type LocalAssistanceSelectedMediaSource,
 } from './local-assistance-preparation.ts';
+import {
+	reviewLocalAssistanceOutput,
+	type LocalAssistanceOutputReview,
+} from './local-assistance-result-review.ts';
 
 export type LocalAssistancePhase =
 	| 'idle' | 'loading' | 'selection-required' | 'ready' | 'preparing' | 'running'
@@ -32,6 +36,7 @@ export type LocalAssistanceUiUnavailableReason =
 export interface LocalAssistanceOutputBody {
 	readonly claim: LocalAssistanceOutputClaim;
 	readonly bytes: Blob;
+	readonly review: LocalAssistanceOutputReview;
 }
 
 export interface LocalAssistanceValidatedResult {
@@ -234,9 +239,11 @@ export function createLocalAssistanceSessionStore(
 			if (outcome.outcome === 'consent-declined') consentDeclined = true;
 			else if (outcome.outcome === 'unavailable') unavailableReason = outcome.reason;
 			else {
-				const bodies = await Promise.all(outcome.result.outputs.map(async (claim) => Object.freeze({
-					claim, bytes: await options.bridge!.readOutput({ jobId: job.jobId, claim }),
-				})));
+				const bodies = await Promise.all(outcome.result.outputs.map(async (claim) => {
+					const bytes = await options.bridge!.readOutput({ jobId: job.jobId, claim });
+					const review = await reviewLocalAssistanceOutput(claim, bytes);
+					return Object.freeze({ claim, bytes, review });
+				}));
 				completed = Object.freeze({ operation, outputs: Object.freeze(bodies) });
 			}
 		} catch (error) {
