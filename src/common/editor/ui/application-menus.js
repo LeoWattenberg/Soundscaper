@@ -15,6 +15,7 @@ import { createImportAnalysisToolMenuItems, createRepeatAnalyzerMenuItem, create
 import { createPitchAndTempoApplicationMenuItems } from './pitch-tempo-application-menu.ts';
 import { projectTrackFolderMediaStateV12 } from '../track-folder-media-runtime.ts';
 import { createVisibleVideoTrackPredicate } from '../video-track-visibility.js';
+import { createLocalModelManagerMenuItems } from './local-model-manager-menu.ts';
 
 /**
  * The video tracks an edit list would describe.
@@ -551,6 +552,7 @@ export default function createApplicationMenus({
 			label: copy.toolsMenu,
 			items: [
 				...createImportAnalysisToolMenuItems(importAnalysisMenuContext),
+				...createLocalModelManagerMenuItems({ desktopAvailable: typeof actions.openLocalModels === 'function', copy }, { open: actions.openLocalModels }),
 				...productItems.tools,
 				...desktopHost.tools,
 				{ id: 'manage-macros', label: copy.macroManager, disabled: !project, onClick: actions.openMacroManager },
