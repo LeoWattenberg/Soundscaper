@@ -1897,7 +1897,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getTelemetrySnapshot,
 		subscribeTelemetry: (listener) => telemetryChannel.subscribe(listener),
 		getClipVisualData,
-		getProjectBinClipVisualData,
+		getProjectBinClipVisualData, selectedMediaPreparation: effectAudioService.selectedMediaPreparation,
 		actions,
 		dispose() {
 			if (disposePromise) return disposePromise;
