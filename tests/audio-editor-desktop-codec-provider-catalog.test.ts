@@ -12,16 +12,12 @@ import {
 	type DesktopCodecCapability,
 } from '../src/common/editor/desktop-codec-provider-catalog.ts';
 import type { DesktopCodecOperation } from '../src/common/editor/desktop-codec-coordinator.ts';
-import type {
-	Av1TargetQualificationDecisionV1,
-} from '../src/common/editor/av1-codec-qualification.ts';
 
 const VIDEO_RANGE = Object.freeze({ minimum: 16, maximum: 8_192, multipleOf: 2 });
 const AV1_ENCODE = operation({
 	direction: 'encode', mediaKind: 'video', container: 'webm', codec: 'av1',
 	profile: 'main', pixelFormat: 'yuv420p', width: 1_920, height: 1_080,
 });
-const AV1_DECODE = operation({ ...AV1_ENCODE, direction: 'decode' });
 
 test('the desktop target matrix is closed and macOS x64 is rejected', () => {
 	assert.deepEqual(DESKTOP_CODEC_TARGETS, [
@@ -32,27 +28,40 @@ test('the desktop target matrix is closed and macOS x64 is rejected', () => {
 	}), /target/iu);
 });
 
-test('bundled capabilities are admitted only when every reviewed payload is present', async () => {
-	const inventory: Partial<Record<BundledDesktopCodecComponent, string>> = {
-		'specialized-pcm': '1.0.0', libsndfile: '1.2.2', libflac: '1.5.0',
-		libogg: '1.3.6', libvorbis: '1.3.7', libopus: '1.5.2', mpg123: '1.33.7',
-		lame: '3.100', twolame: '0.4.0', wavpack: '5.8.1', libwebm: '1.0.0.32',
-		libvpx: '1.15.2', dav1d: '1.5.4', 'svt-av1': '4.2.0',
-	};
+test('bundled audio capabilities match the executable reviewed runtime tuples', async () => {
 	const complete = createBundledDesktopCodecProvider({
-		target: 'linux-x64', capabilityGeneration: 'review-42', inventory,
+		target: 'linux-x64', capabilityGeneration: 'review-42', inventory: reviewedAudioInventory(),
 	});
 	for (const candidate of [
 		operation({ direction: 'encode', mediaKind: 'audio', container: 'bw64', codec: 'pcm', sampleFormat: 's24', sampleRate: 96_000, channelCount: 8 }),
-		operation({ direction: 'decode', mediaKind: 'audio', container: 'flac', codec: 'flac', sampleFormat: 's24', sampleRate: 192_000, channelCount: 6 }),
-		operation({ direction: 'encode', mediaKind: 'audio', container: 'ogg', codec: 'vorbis', sampleFormat: 'f32p', sampleRate: 48_000, channelCount: 2 }),
+		operation({ direction: 'encode', mediaKind: 'audio', container: 'flac', codec: 'flac', sampleFormat: 's24', sampleRate: 192_000, channelCount: 8 }),
+		operation({ direction: 'decode', mediaKind: 'audio', container: 'flac', codec: 'flac', sampleFormat: 'f32', sampleRate: 8_000, channelCount: 1 }),
+		operation({ direction: 'encode', mediaKind: 'audio', container: 'ogg', codec: 'vorbis', sampleFormat: 'f32p', sampleRate: 8_000, channelCount: 1 }),
+		operation({ direction: 'decode', mediaKind: 'audio', container: 'ogg', codec: 'vorbis', sampleFormat: 'f32p', sampleRate: 192_000, channelCount: 2 }),
+		operation({ direction: 'encode', mediaKind: 'audio', container: 'ogg', codec: 'opus', sampleFormat: 'f32p', sampleRate: 48_000, channelCount: 1 }),
+		operation({ direction: 'decode', mediaKind: 'audio', container: 'ogg', codec: 'opus', sampleFormat: 'f32p', sampleRate: 48_000, channelCount: 2 }),
 		operation({ direction: 'decode', mediaKind: 'audio', container: 'mp3', codec: 'mp3', sampleFormat: 'f32', sampleRate: 44_100, channelCount: 2 }),
 		operation({ direction: 'encode', mediaKind: 'audio', container: 'mp3', codec: 'mp3', sampleFormat: 'f32p', sampleRate: 48_000, channelCount: 2 }),
 		operation({ direction: 'encode', mediaKind: 'audio', container: 'mp2', codec: 'mp2', sampleFormat: 'f32p', sampleRate: 48_000, channelCount: 2 }),
 		operation({ direction: 'decode', mediaKind: 'audio', container: 'mp2', codec: 'mp2', sampleFormat: 'f32', sampleRate: 48_000, channelCount: 2 }),
-		operation({ direction: 'decode', mediaKind: 'audio', container: 'wavpack', codec: 'wavpack', sampleFormat: 's32', sampleRate: 192_000, channelCount: 8 }),
-		operation({ direction: 'encode', mediaKind: 'video', container: 'webm', codec: 'vp9', profile: 'profile-0', pixelFormat: 'yuv420p', width: 1_920, height: 1_080 }),
+		operation({ direction: 'encode', mediaKind: 'audio', container: 'wavpack', codec: 'wavpack', sampleFormat: 'f32', sampleRate: 8_000, channelCount: 1 }),
+		operation({ direction: 'decode', mediaKind: 'audio', container: 'wavpack', codec: 'wavpack', sampleFormat: 'f32', sampleRate: 192_000, channelCount: 8 }),
 	]) assert.equal((await complete.preflight(candidate, {})).disposition, 'supported');
+
+	for (const candidate of [
+		operation({ direction: 'encode', mediaKind: 'audio', container: 'flac', codec: 'flac', sampleFormat: 'f32', sampleRate: 48_000, channelCount: 2 }),
+		operation({ direction: 'decode', mediaKind: 'audio', container: 'flac', codec: 'flac', sampleFormat: 's24', sampleRate: 48_000, channelCount: 2 }),
+		operation({ direction: 'encode', mediaKind: 'audio', container: 'flac', codec: 'flac', sampleFormat: 's24', sampleRate: 7_999, channelCount: 2 }),
+		operation({ direction: 'encode', mediaKind: 'audio', container: 'ogg', codec: 'vorbis', sampleFormat: 'f32p', sampleRate: 192_001, channelCount: 2 }),
+		operation({ direction: 'decode', mediaKind: 'audio', container: 'ogg', codec: 'vorbis', sampleFormat: 'f32p', sampleRate: 48_000, channelCount: 3 }),
+		operation({ direction: 'encode', mediaKind: 'audio', container: 'ogg', codec: 'opus', sampleFormat: 'f32p', sampleRate: 24_000, channelCount: 2 }),
+		operation({ direction: 'decode', mediaKind: 'audio', container: 'ogg', codec: 'opus', sampleFormat: 'f32p', sampleRate: 48_000, channelCount: 3 }),
+		operation({ direction: 'decode', mediaKind: 'audio', container: 'mp3', codec: 'mp3', sampleFormat: 'f32', sampleRate: 24_000, channelCount: 2 }),
+		operation({ direction: 'encode', mediaKind: 'audio', container: 'mp2', codec: 'mp2', sampleFormat: 'f32p', sampleRate: 48_000, channelCount: 3 }),
+		operation({ direction: 'decode', mediaKind: 'audio', container: 'wavpack', codec: 'wavpack', sampleFormat: 's24', sampleRate: 48_000, channelCount: 2 }),
+		operation({ direction: 'encode', mediaKind: 'audio', container: 'wavpack', codec: 'wavpack', sampleFormat: 'f32', sampleRate: 192_001, channelCount: 2 }),
+	]) assert.equal((await complete.preflight(candidate, {})).disposition, 'unsupported');
+
 	const bundledMp2Decode = operation({
 		direction: 'decode', mediaKind: 'audio', container: 'mp2', codec: 'mp2',
 		sampleFormat: 'f32', sampleRate: 44_100, channelCount: 1,
@@ -64,7 +73,7 @@ test('bundled capabilities are admitted only when every reviewed payload is pres
 
 	const missingContainer = createBundledDesktopCodecProvider({
 		target: 'linux-x64', capabilityGeneration: 'review-43',
-		inventory: { libopus: '1.5.2' },
+		inventory: { libopus: '1.6.1' },
 	});
 	assert.equal((await missingContainer.preflight(operation({
 		direction: 'encode', mediaKind: 'audio', container: 'ogg', codec: 'opus',
@@ -73,58 +82,27 @@ test('bundled capabilities are admitted only when every reviewed payload is pres
 	assert.equal(missingContainer.capabilities.length, 0);
 });
 
-test('bundled AV1 stays unavailable without complete same-target qualification', async () => {
-	for (const target of DESKTOP_CODEC_TARGETS) {
-		const unqualified = createBundledDesktopCodecProvider({
-			target, capabilityGeneration: `review-${target}`,
-			inventory: av1Inventory(),
+test('caller-supplied inventory cannot synthesize bundled video runtimes', async () => {
+	const provider = createBundledDesktopCodecProvider({
+		target: 'win-arm64', capabilityGeneration: 'review-audio-only',
+		inventory: reviewedAudioInventory(),
+	});
+	assert.equal(provider.capabilities.every(({ mediaKind }) => mediaKind === 'audio'), true);
+	for (const codec of ['vp8', 'vp9', 'av1']) {
+		const candidate = operation({
+			direction: 'decode', mediaKind: 'video', container: 'webm', codec,
+			profile: codec === 'vp8' ? null : 'main', pixelFormat: 'yuv420p',
+			width: 1_920, height: 1_080,
 		});
-		assert.equal((await unqualified.preflight(AV1_DECODE, {})).disposition, 'unsupported');
-		assert.equal((await unqualified.preflight(AV1_ENCODE, {})).disposition, 'unsupported');
-
-		const incomplete = createBundledDesktopCodecProvider({
-			target, capabilityGeneration: `review-${target}-incomplete`, inventory: av1Inventory(),
-			av1Qualification: av1Qualification(target, { complete: false }),
-		});
-		assert.equal((await incomplete.preflight(AV1_DECODE, {})).disposition, 'unsupported');
-		assert.equal((await incomplete.preflight(AV1_ENCODE, {})).disposition, 'unsupported');
+		assert.equal((await provider.preflight(candidate, {})).disposition, 'unsupported');
+		assert.equal(provider.resolve(candidate), null);
 	}
 	assert.throws(() => createBundledDesktopCodecProvider({
-		target: 'linux-x64', capabilityGeneration: 'review-cross-target', inventory: av1Inventory(),
-		av1Qualification: av1Qualification('win-x64'),
-	}), /same desktop target/iu);
-});
-
-test('complete target evidence admits dav1d decode and its exact qualified encoder', async () => {
-	for (const target of DESKTOP_CODEC_TARGETS) {
-		const provider = bundledAv1(target, 'svt-av1');
-		assert.equal((await provider.preflight(AV1_DECODE, {})).disposition, 'supported');
-		assert.equal(provider.resolve(AV1_DECODE)?.implementation, 'dav1d');
-		assert.notEqual(provider.resolve(AV1_DECODE)?.implementation, 'libaom');
-		assert.equal((await provider.preflight(AV1_ENCODE, {})).disposition, 'supported');
-		assert.equal(provider.resolve(AV1_ENCODE)?.implementation, 'svt-av1');
-	}
-	const fallbackArm = bundledAv1('win-arm64', 'libaom');
-	assert.equal(fallbackArm.resolve(AV1_ENCODE)?.implementation, 'libaom');
-
-	const nonArmFallback = bundledAv1('win-x64', 'libaom');
-	assert.equal((await nonArmFallback.preflight(AV1_ENCODE, {})).disposition, 'unsupported');
-	const missingSelectedPayload = createBundledDesktopCodecProvider({
-		target: 'win-arm64', capabilityGeneration: 'review-win-arm64-missing-payload',
-		inventory: { libwebm: '1.0.0.32', dav1d: '1.5.4', 'svt-av1': '4.2.0' },
-		av1Qualification: av1Qualification('win-arm64', { encoder: 'libaom' }),
-	});
-	assert.equal((await missingSelectedPayload.preflight(AV1_ENCODE, {})).disposition, 'unsupported');
-});
-
-test('AV1 decisions are bound to the exact codec versions measured by their benchmark', async () => {
-	const versionDrift = createBundledDesktopCodecProvider({
-		target: 'linux-x64', capabilityGeneration: 'review-version-drift',
-		inventory: { ...av1Inventory(), dav1d: '1.5.5', 'svt-av1': '4.3.0' },
-		av1Qualification: av1Qualification('linux-x64'),
-	});
-	assert.equal((await versionDrift.preflight(AV1_DECODE, {})).disposition, 'unsupported');
-	assert.equal((await versionDrift.preflight(AV1_ENCODE, {})).disposition, 'unsupported');
+		target: 'linux-x64', capabilityGeneration: 'legacy-video-inventory',
+		inventory: { libwebm: '1.0.0.32', libvpx: '1.15.2' } as unknown as Partial<
+			Record<BundledDesktopCodecComponent, string>
+		>,
+	}), /inventory component/iu);
 });
 
 test('OS providers expose only exact canary-qualified tuples and Linux stays unavailable', async () => {
@@ -224,64 +202,12 @@ test('provider identities and admitted capabilities are immutable copies', () =>
 	}, TypeError);
 });
 
-function bundledAv1(
-	target: typeof DESKTOP_CODEC_TARGETS[number], encoder: 'svt-av1' | 'libaom',
-) {
-	return createBundledDesktopCodecProvider({
-		target, capabilityGeneration: `review-${target}`,
-		inventory: av1Inventory(), av1Qualification: av1Qualification(target, { encoder }),
-	});
-}
-
-function av1Inventory(): Partial<Record<BundledDesktopCodecComponent, string>> {
+function reviewedAudioInventory(): Partial<Record<BundledDesktopCodecComponent, string>> {
 	return {
-		libwebm: '1.0.0.32', dav1d: '1.5.4', 'svt-av1': '4.2.0', libaom: '3.14.1',
+		'specialized-pcm': '1.0.0', libflac: '1.5.0', libogg: '1.3.6',
+		libvorbis: '1.3.7', libopus: '1.6.1', mpg123: '1.33.7', lame: '4.0',
+		twolame: '0.4.0', wavpack: '5.9.0',
 	};
-}
-
-function av1Qualification(
-	target: typeof DESKTOP_CODEC_TARGETS[number],
-	options: Readonly<{ complete?: boolean; encoder?: 'svt-av1' | 'libaom' }> = {},
-): Av1TargetQualificationDecisionV1 {
-	const complete = options.complete !== false;
-	const encoder = options.encoder ?? 'svt-av1';
-	const fallback = target === 'win-arm64';
-	const operatingSystem: 'linux' | 'macos' | 'windows' = target.startsWith('linux-')
-		? 'linux' : target.startsWith('win-') ? 'windows' : 'macos';
-	const cpuArchitecture: 'x64' | 'arm64' = target.endsWith('-x64') ? 'x64' : 'arm64';
-	const decision: Av1TargetQualificationDecisionV1 = {
-		target,
-		benchmark: {
-			environment: {
-				operatingSystem,
-				operatingSystemVersion: '1.0.0', cpuModel: 'Synthetic-CPU',
-				cpuArchitecture, logicalCoreCount: 8,
-			},
-			toolchain: {
-				dav1d: { version: '1.5.4', buildSha256: 'a'.repeat(64) },
-				libaom: { version: '3.14.1', buildSha256: 'b'.repeat(64) },
-				'svt-av1': { version: '4.2.0', buildSha256: 'c'.repeat(64) },
-				benchmarkHarnessSha256: 'd'.repeat(64),
-			},
-			encoderSettings: {
-				settingsSha256: 'e'.repeat(64), threadCount: 8,
-				svtAv1Preset: 'preset-8', libaomPreset: 'cpu-used-6',
-			},
-		},
-		evidenceComplete: complete, evidenceCaseCount: complete ? 12 : 11,
-		decode: {
-			defaultCandidate: 'dav1d', comparedAgainst: 'libaom', admitted: complete,
-			selected: complete ? 'dav1d' : null,
-			failures: complete ? [] : ['incomplete-corpus-evidence'],
-		},
-		encode: {
-			defaultCandidate: 'svt-av1', fallbackCandidate: fallback ? 'libaom' : null,
-			admitted: complete, selected: complete ? encoder : null,
-			defaultFailures: complete && encoder === 'svt-av1' ? [] : ['correctness-failed'],
-			fallbackFailures: fallback ? [] : null,
-		},
-	};
-	return Object.freeze(decision);
 }
 
 function videoCapability(

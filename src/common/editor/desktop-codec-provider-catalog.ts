@@ -15,9 +15,8 @@ export const DESKTOP_CODEC_TARGETS = Object.freeze([
 export type DesktopCodecTarget = typeof DESKTOP_CODEC_TARGETS[number];
 
 export type BundledDesktopCodecComponent =
-	| 'specialized-pcm' | 'libsndfile' | 'libflac' | 'libogg' | 'libvorbis'
-	| 'libopus' | 'mpg123' | 'lame' | 'twolame' | 'wavpack' | 'libwebm'
-	| 'libvpx' | 'dav1d' | 'svt-av1' | 'libaom';
+	| 'specialized-pcm' | 'libflac' | 'libogg' | 'libvorbis' | 'libopus'
+	| 'mpg123' | 'lame' | 'twolame' | 'wavpack';
 
 export interface DesktopCodecIntegerRange {
 	readonly minimum: number;
@@ -59,37 +58,6 @@ export interface BundledDesktopCodecProviderOptions {
 	readonly capabilityGeneration: string;
 	/** Presence means the reviewed payload for this target was admitted; the value is its release version. */
 	readonly inventory: Readonly<Partial<Record<BundledDesktopCodecComponent, string>>>;
-	/** Same-target benchmark decision; absence or incomplete evidence admits no bundled AV1 capability. */
-	readonly av1Qualification?: BundledDesktopAv1QualificationDecision;
-}
-
-/** Runtime view of the complete decision produced by decideAv1CodecQualification. */
-export interface BundledDesktopAv1QualificationDecision {
-	readonly target: DesktopCodecTarget;
-	readonly benchmark: Readonly<{
-		readonly toolchain: Readonly<{
-			readonly dav1d: Readonly<{ readonly version: string }>;
-			readonly libaom: Readonly<{ readonly version: string }>;
-			readonly 'svt-av1': Readonly<{ readonly version: string }>;
-		}>;
-	}> | null;
-	readonly evidenceComplete: boolean;
-	readonly evidenceCaseCount: number;
-	readonly decode: Readonly<{
-		readonly defaultCandidate: 'dav1d';
-		readonly comparedAgainst: 'libaom';
-		readonly admitted: boolean;
-		readonly selected: 'dav1d' | null;
-		readonly failures: readonly unknown[];
-	}>;
-	readonly encode: Readonly<{
-		readonly defaultCandidate: 'svt-av1';
-		readonly fallbackCandidate: 'libaom' | null;
-		readonly admitted: boolean;
-		readonly selected: 'svt-av1' | 'libaom' | null;
-		readonly defaultFailures: readonly unknown[];
-		readonly fallbackFailures: readonly unknown[] | null;
-	}>;
 }
 
 export interface DesktopCodecQualifiedCapability {
@@ -140,7 +108,9 @@ const TARGETS = new Set<string>(DESKTOP_CODEC_TARGETS);
 const TOKEN = /^[A-Za-z0-9][A-Za-z0-9+._:/-]{0,127}$/u;
 const AUDIO_RATE = Object.freeze({ minimum: 1, maximum: 768_000, multipleOf: 1 });
 const AUDIO_CHANNELS = Object.freeze({ minimum: 1, maximum: 64, multipleOf: 1 });
-const VIDEO_DIMENSION = Object.freeze({ minimum: 16, maximum: 8_192, multipleOf: 2 });
+const REVIEWED_AUDIO_RATE = Object.freeze({ minimum: 8_000, maximum: 192_000, multipleOf: 1 });
+const REVIEWED_EIGHT_CHANNELS = Object.freeze({ minimum: 1, maximum: 8, multipleOf: 1 });
+const REVIEWED_STEREO = Object.freeze({ minimum: 1, maximum: 2, multipleOf: 1 });
 
 export function createBundledDesktopCodecProvider(
 	options: BundledDesktopCodecProviderOptions,
@@ -148,8 +118,7 @@ export function createBundledDesktopCodecProvider(
 	const target = desktopTarget(options?.target);
 	const generation = token(options?.capabilityGeneration, 'bundled capability generation');
 	const inventory = validateBundledInventory(options?.inventory);
-	const qualification = targetAv1Qualification(target, options?.av1Qualification);
-	const bindings = bundledBindings(target, inventory, qualification);
+	const bindings = bundledBindings(inventory);
 	return provider({
 		kind: 'bundled', target, id: `bundled-codecs-${target}`,
 		implementation: 'soundscaper-reviewed-codecs', version: 'catalog-1',
@@ -244,9 +213,7 @@ function provider(options: Readonly<{
 }
 
 function bundledBindings(
-	target: DesktopCodecTarget,
 	inventory: Readonly<Partial<Record<BundledDesktopCodecComponent, string>>>,
-	av1Qualification: BundledDesktopAv1QualificationDecision | null,
 ): readonly CapabilityBinding[] {
 	const definitions: Array<CapabilityBinding & { readonly components: readonly BundledDesktopCodecComponent[] }> = [];
 	const audio = (
@@ -266,101 +233,30 @@ function bundledBindings(
 			});
 		}
 	};
-	const video = (
-		codec: string, directions: readonly ('encode' | 'decode')[], profilesAndFormats: readonly (readonly [string | null, string])[],
-		implementation: string, components: readonly BundledDesktopCodecComponent[],
-	) => {
-		for (const direction of directions) for (const [profile, pixelFormat] of profilesAndFormats) definitions.push({
-			capability: capability({
-				id: `${implementation}-${direction}-webm-${profile ?? 'default'}-${pixelFormat}`,
-				direction, mediaKind: 'video', container: 'webm', codec, profile,
-				sampleFormat: null, pixelFormat, sampleRate: null, channelCount: null,
-				width: VIDEO_DIMENSION, height: VIDEO_DIMENSION,
-			}), implementation, components,
-		});
-	};
 	audio(['wav', 'bwf', 'bw64', 'aiff'], 'pcm', ['encode', 'decode'],
 		['u8', 's16', 's24', 's32', 'f32', 'f64'], [AUDIO_RATE], AUDIO_CHANNELS,
 		'specialized-pcm', ['specialized-pcm']);
-	audio(['flac'], 'flac', ['encode', 'decode'], ['s16', 's24'], [AUDIO_RATE],
-		{ minimum: 1, maximum: 8, multipleOf: 1 }, 'libflac', ['libsndfile', 'libflac']);
-	audio(['ogg'], 'vorbis', ['encode', 'decode'], ['f32p'], [AUDIO_RATE],
-		{ minimum: 1, maximum: 8, multipleOf: 1 }, 'libvorbis', ['libsndfile', 'libogg', 'libvorbis']);
-	audio(['ogg'], 'opus', ['encode', 'decode'], ['f32p'], [8_000, 12_000, 16_000, 24_000, 48_000],
-		{ minimum: 1, maximum: 8, multipleOf: 1 }, 'libopus', ['libogg', 'libopus']);
+	audio(['flac'], 'flac', ['encode'], ['s24'], [REVIEWED_AUDIO_RATE],
+		REVIEWED_EIGHT_CHANNELS, 'libflac', ['libflac']);
+	audio(['flac'], 'flac', ['decode'], ['f32'], [REVIEWED_AUDIO_RATE],
+		REVIEWED_EIGHT_CHANNELS, 'libflac', ['libflac']);
+	audio(['ogg'], 'vorbis', ['encode', 'decode'], ['f32p'], [REVIEWED_AUDIO_RATE],
+		REVIEWED_STEREO, 'libvorbis', ['libogg', 'libvorbis']);
+	audio(['ogg'], 'opus', ['encode', 'decode'], ['f32p'], [48_000],
+		REVIEWED_STEREO, 'libopus', ['libogg', 'libopus']);
 	audio(['mp3'], 'mp3', ['decode'], ['f32'], [32_000, 44_100, 48_000],
-		{ minimum: 1, maximum: 2, multipleOf: 1 }, 'mpg123', ['mpg123']);
+		REVIEWED_STEREO, 'mpg123', ['mpg123']);
 	audio(['mp3'], 'mp3', ['encode'], ['f32p'], [32_000, 44_100, 48_000],
-		{ minimum: 1, maximum: 2, multipleOf: 1 }, 'lame', ['lame']);
+		REVIEWED_STEREO, 'lame', ['lame']);
 	audio(['mp2'], 'mp2', ['encode'], ['f32p'], [32_000, 44_100, 48_000],
-		{ minimum: 1, maximum: 2, multipleOf: 1 }, 'twolame', ['twolame']);
+		REVIEWED_STEREO, 'twolame', ['twolame']);
 	audio(['mp2'], 'mp2', ['decode'], ['f32'], [32_000, 44_100, 48_000],
-		{ minimum: 1, maximum: 2, multipleOf: 1 }, 'mpg123', ['mpg123']);
-	audio(['wavpack'], 'wavpack', ['encode', 'decode'], ['s16', 's24', 's32', 'f32'], [AUDIO_RATE],
-		{ minimum: 1, maximum: 8, multipleOf: 1 }, 'wavpack', ['wavpack']);
-	video('vp8', ['encode', 'decode'], [[null, 'yuv420p']], 'libvpx', ['libwebm', 'libvpx']);
-	video('vp9', ['encode', 'decode'], [['profile-0', 'yuv420p'], ['profile-2', 'yuv420p10le']],
-		'libvpx', ['libwebm', 'libvpx']);
-	if (qualifiedAv1Decoder(av1Qualification, inventory)) {
-		video('av1', ['decode'], [['main', 'yuv420p'], ['main', 'yuv420p10le']],
-			'dav1d', ['libwebm', 'dav1d']);
-	}
-	const encoder = qualifiedAv1Encoder(target, av1Qualification, inventory);
-	if (encoder === 'svt-av1') {
-		video('av1', ['encode'], [['main', 'yuv420p'], ['main', 'yuv420p10le']],
-			'svt-av1', ['libwebm', 'svt-av1']);
-	} else if (encoder === 'libaom') {
-		video('av1', ['encode'], [['main', 'yuv420p'], ['main', 'yuv420p10le']],
-			'libaom', ['libwebm', 'libaom']);
-	}
+		REVIEWED_STEREO, 'mpg123', ['mpg123']);
+	audio(['wavpack'], 'wavpack', ['encode', 'decode'], ['f32'], [REVIEWED_AUDIO_RATE],
+		REVIEWED_EIGHT_CHANNELS, 'wavpack', ['wavpack']);
 	return Object.freeze(definitions
 		.filter(({ components }) => components.every((component) => inventory[component] !== undefined))
 		.map(({ capability: admitted, implementation }) => Object.freeze({ capability: admitted, implementation })));
-}
-
-function targetAv1Qualification(
-	target: DesktopCodecTarget, value: BundledDesktopAv1QualificationDecision | undefined,
-): BundledDesktopAv1QualificationDecision | null {
-	if (value === undefined) return null;
-	if (!value || typeof value !== 'object' || Array.isArray(value) || value.target !== target) {
-		throw new TypeError('Bundled AV1 qualification must name the same desktop target as its provider.');
-	}
-	return value;
-}
-
-function completeAv1Qualification(
-	value: BundledDesktopAv1QualificationDecision | null,
-): value is BundledDesktopAv1QualificationDecision & Readonly<{
-	benchmark: NonNullable<BundledDesktopAv1QualificationDecision['benchmark']>;
-}> {
-	return value !== null && value.evidenceComplete === true && value.evidenceCaseCount === 12
-		&& value.benchmark !== null;
-}
-
-function qualifiedAv1Decoder(
-	value: BundledDesktopAv1QualificationDecision | null,
-	inventory: Readonly<Partial<Record<BundledDesktopCodecComponent, string>>>,
-): boolean {
-	return completeAv1Qualification(value)
-		&& value.decode.defaultCandidate === 'dav1d' && value.decode.comparedAgainst === 'libaom'
-		&& value.decode.admitted === true && value.decode.selected === 'dav1d'
-		&& value.decode.failures.length === 0
-		&& value.benchmark.toolchain.dav1d.version === inventory.dav1d;
-}
-
-function qualifiedAv1Encoder(
-	target: DesktopCodecTarget, value: BundledDesktopAv1QualificationDecision | null,
-	inventory: Readonly<Partial<Record<BundledDesktopCodecComponent, string>>>,
-): 'svt-av1' | 'libaom' | null {
-	if (!completeAv1Qualification(value) || value.encode.admitted !== true) return null;
-	if (value.encode.selected === 'svt-av1' && value.encode.defaultCandidate === 'svt-av1'
-		&& value.encode.defaultFailures.length === 0
-		&& value.benchmark.toolchain['svt-av1'].version === inventory['svt-av1']) return 'svt-av1';
-	if (target === 'win-arm64' && value.encode.selected === 'libaom'
-		&& value.encode.defaultCandidate === 'svt-av1' && value.encode.defaultFailures.length > 0
-		&& value.encode.fallbackCandidate === 'libaom' && value.encode.fallbackFailures?.length === 0
-		&& value.benchmark.toolchain.libaom.version === inventory.libaom) return 'libaom';
-	return null;
 }
 
 function capability(value: DesktopCodecCapability): DesktopCodecCapability {
@@ -437,8 +333,8 @@ function matchesInteger(
 function validateBundledInventory(value: unknown): Readonly<Partial<Record<BundledDesktopCodecComponent, string>>> {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Bundled codec inventory is invalid.');
 	const known = new Set<BundledDesktopCodecComponent>([
-		'specialized-pcm', 'libsndfile', 'libflac', 'libogg', 'libvorbis', 'libopus', 'mpg123',
-		'lame', 'twolame', 'wavpack', 'libwebm', 'libvpx', 'dav1d', 'svt-av1', 'libaom',
+		'specialized-pcm', 'libflac', 'libogg', 'libvorbis', 'libopus', 'mpg123',
+		'lame', 'twolame', 'wavpack',
 	]);
 	const result: Partial<Record<BundledDesktopCodecComponent, string>> = {};
 	for (const [component, version] of Object.entries(value)) {
