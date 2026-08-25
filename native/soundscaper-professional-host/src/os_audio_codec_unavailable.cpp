@@ -17,3 +17,13 @@ extern "C" soundscaper_pro_os_mp3_decode_result soundscaper_pro_os_aac_m4a_decod
 {
 	return soundscaper_pro_os_mp3_decode(request);
 }
+
+extern "C" soundscaper_pro_os_aac_m4a_encode_result soundscaper_pro_os_aac_m4a_encode(
+	const soundscaper_pro_os_aac_m4a_encode_request *request)
+{
+	soundscaper_pro_os_aac_m4a_encode_result result{};
+	result.status = request == nullptr
+		? SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST
+		: SOUNDSCAPER_PRO_OS_CODEC_API_UNAVAILABLE;
+	return result;
+}

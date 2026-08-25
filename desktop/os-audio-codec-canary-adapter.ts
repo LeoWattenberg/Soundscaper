@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Live startup canaries for reviewed target-native decoders through the production helper. */
+/** Live startup canaries for reviewed target-native codecs through the production helper. */
 
 import { createHash } from 'node:crypto';
 
@@ -12,11 +12,14 @@ import type {
 	OperatingSystemAudioCodecOperationRunner,
 	OperatingSystemAudioCodecTarget,
 } from './os-audio-codec-operation-runner.ts';
+import { inspectOperatingSystemAudioSource } from './os-audio-codec-source-inspection.ts';
 
 export const OPERATING_SYSTEM_MP3_CANARY_SHA256 =
 	'90971a846ba5d03488be96ada4f9ea6698aa47e7f487adfe65d606519b0270f2';
 export const OPERATING_SYSTEM_AAC_M4A_CANARY_SHA256 =
 	'1db255988826f9f6f8322f6cfb6c82c6ee7873c3252c822bc0ac1793d5729451';
+export const OPERATING_SYSTEM_AAC_M4A_ENCODE_CANARY_SHA256 =
+	'9e752b61eca88c56fd7981f151614479106874d054333aafb961662a78ca3be6';
 
 export interface OperatingSystemAudioCodecCanaryAdapter {
 	runCanary(
@@ -30,13 +33,27 @@ export interface OperatingSystemAudioCodecCanaryAdapterOptions {
 	readonly runner: OperatingSystemAudioCodecOperationRunner;
 }
 
-interface ReviewedCanary {
+interface ReviewedDecodeCanary {
+	readonly operation: 'audio-decode';
 	readonly format: 'mp3' | 'aac-m4a';
 	readonly bytes: Uint8Array;
 	readonly sha256: string;
 	readonly sampleRate: 48_000;
 	readonly channelCount: 2;
 }
+
+interface ReviewedEncodeCanary {
+	readonly operation: 'audio-encode';
+	readonly format: 'aac-m4a';
+	readonly bytes: Uint8Array;
+	readonly sha256: string;
+	readonly sampleRate: 48_000;
+	readonly channelCount: 2;
+	readonly frameCount: 2_048;
+	readonly bitrateKbps: 160;
+}
+
+type ReviewedCanary = ReviewedDecodeCanary | ReviewedEncodeCanary;
 
 /* Generated only as test media with digest-pinned mwader/static-ffmpeg 9.0
  * (sha256:b90574a4e2ae62b763c39c384526689e7eb435da6398f4fb3f6c3f1c6a14ce33).
@@ -105,6 +122,14 @@ if (AAC_M4A_CANARY_BYTES.byteLength !== 1_909
 	throw new Error('The embedded OS AAC M4A canary failed its source digest.');
 }
 
+/* Deterministic interleaved f32le input shared byte-for-byte with the target CTest.
+ * It is deliberately synthetic and small; the resulting M4A is separately parsed. */
+const AAC_M4A_ENCODE_CANARY_BYTES = encodeCanaryBytes();
+if (AAC_M4A_ENCODE_CANARY_BYTES.byteLength !== 16_384
+	|| sha256(AAC_M4A_ENCODE_CANARY_BYTES) !== OPERATING_SYSTEM_AAC_M4A_ENCODE_CANARY_SHA256) {
+	throw new Error('The embedded OS AAC M4A encode canary failed its source digest.');
+}
+
 export function createOperatingSystemAudioCodecCanaryAdapter(
 	options: OperatingSystemAudioCodecCanaryAdapterOptions,
 ): OperatingSystemAudioCodecCanaryAdapter {
@@ -119,33 +144,42 @@ export function createOperatingSystemAudioCodecCanaryAdapter(
 			signal.throwIfAborted();
 			const canary = reviewedCanary(request, target);
 			if (canary === null) return unavailable('canary-refused');
-			const result = await runner.execute(Object.freeze({
-				operation: 'audio-decode' as const,
-				format: canary.format,
-				input: new Uint8Array(canary.bytes),
-				sampleRate: null,
-				channelCount: null,
-				settings: Object.freeze({ sampleFormat: 'f32le' as const }),
-				maximumOutputBytes: 1024 * 1024,
-			}), { signal });
+			const operation = canary.operation === 'audio-encode'
+				? Object.freeze({
+					operation: 'audio-encode' as const,
+					format: 'aac-m4a' as const,
+					input: new Uint8Array(canary.bytes),
+					sampleRate: canary.sampleRate,
+					channelCount: canary.channelCount,
+					settings: Object.freeze({ bitrateKbps: canary.bitrateKbps }),
+					maximumOutputBytes: 1024 * 1024,
+				})
+				: Object.freeze({
+					operation: 'audio-decode' as const,
+					format: canary.format,
+					input: new Uint8Array(canary.bytes),
+					sampleRate: null,
+					channelCount: null,
+					settings: Object.freeze({ sampleFormat: 'f32le' as const }),
+					maximumOutputBytes: 1024 * 1024,
+				});
+			const result = await runner.execute(operation, { signal });
 			signal.throwIfAborted();
 			if (result.status !== 'executed') {
 				return unavailable(result.reason === 'api-unavailable' ? 'api-unavailable'
 					: result.reason === 'tuple-unsupported' ? 'tuple-unsupported' : 'canary-refused');
 			}
-			if (result.decodedGeometry.sampleRate !== canary.sampleRate
-				|| result.decodedGeometry.channelCount !== canary.channelCount
-				|| result.decodedGeometry.frameCount < 1
-				|| result.output.byteLength !== result.decodedGeometry.frameCount * canary.channelCount
-					* Float32Array.BYTES_PER_ELEMENT
-				|| !finiteNonSilentFloat32(result.output)) return unavailable('canary-refused');
+			const evidence = canary.operation === 'audio-encode'
+				? inspectEncodedCanary(canary, result)
+				: inspectDecodedCanary(canary, result);
+			if (evidence === null) return unavailable('canary-refused');
 			const evidenceDigest = sha256(Buffer.from(JSON.stringify({
 				schemaVersion: 1, target, osVersion: request.osVersion,
 				implementation: request.implementation,
 				capabilityDigest: request.capabilityDigest,
 				inputSha256: canary.sha256,
 				outputSha256: sha256(result.output),
-				decodedGeometry: result.decodedGeometry,
+				...evidence,
 			})));
 			return Object.freeze({
 				contractVersion: 1, status: 'qualified', target,
@@ -169,25 +203,93 @@ function reviewedCanary(
 		? 'windows-media-foundation' : 'apple-audiotoolbox-avfoundation';
 	if (request.implementation !== implementation) return null;
 	const capability = request.capability;
-	if (!capability || capability.direction !== 'decode' || capability.mediaKind !== 'audio'
+	if (!capability || capability.mediaKind !== 'audio'
 		|| capability.pixelFormat !== null || capability.sampleRate !== 48_000
 		|| capability.channelCount !== 2 || capability.width !== null || capability.height !== null) return null;
-	if (capability.container === 'mp3' && capability.codec === 'mp3'
+	if (capability.direction === 'decode' && capability.container === 'mp3' && capability.codec === 'mp3'
 		&& capability.profile === null && capability.sampleFormat === 'f32') {
 		return Object.freeze({
+			operation: 'audio-decode',
 			format: 'mp3', bytes: CANARY_BYTES, sha256: OPERATING_SYSTEM_MP3_CANARY_SHA256,
 			sampleRate: 48_000, channelCount: 2,
 		});
 	}
-	if (capability.container === 'm4a' && capability.codec === 'aac'
+	if (capability.direction === 'decode' && capability.container === 'm4a' && capability.codec === 'aac'
 		&& capability.profile === 'lc' && capability.sampleFormat === 'f32p') {
 		return Object.freeze({
+			operation: 'audio-decode',
 			format: 'aac-m4a', bytes: AAC_M4A_CANARY_BYTES,
 			sha256: OPERATING_SYSTEM_AAC_M4A_CANARY_SHA256,
 			sampleRate: 48_000, channelCount: 2,
 		});
 	}
+	if (capability.direction === 'encode' && capability.container === 'm4a'
+		&& capability.codec === 'aac' && capability.profile === 'lc'
+		&& capability.sampleFormat === 'f32p') {
+		return Object.freeze({
+			operation: 'audio-encode', format: 'aac-m4a',
+			bytes: AAC_M4A_ENCODE_CANARY_BYTES,
+			sha256: OPERATING_SYSTEM_AAC_M4A_ENCODE_CANARY_SHA256,
+			sampleRate: 48_000, channelCount: 2, frameCount: 2_048, bitrateKbps: 160,
+		});
+	}
 	return null;
+}
+
+function inspectDecodedCanary(
+	canary: ReviewedDecodeCanary,
+	result: Extract<Awaited<ReturnType<OperatingSystemAudioCodecOperationRunner['execute']>>, {
+		readonly status: 'executed';
+	}>,
+): Readonly<{ readonly decodedGeometry: Readonly<{
+	readonly sampleRate: number;
+	readonly channelCount: number;
+	readonly frameCount: number;
+}> }> | null {
+	if (!('decodedGeometry' in result)
+		|| result.decodedGeometry.sampleRate !== canary.sampleRate
+		|| result.decodedGeometry.channelCount !== canary.channelCount
+		|| result.decodedGeometry.frameCount < 1
+		|| result.output.byteLength !== result.decodedGeometry.frameCount * canary.channelCount
+			* Float32Array.BYTES_PER_ELEMENT
+		|| !finiteNonSilentFloat32(result.output)) return null;
+	return Object.freeze({ decodedGeometry: result.decodedGeometry });
+}
+
+function inspectEncodedCanary(
+	canary: ReviewedEncodeCanary,
+	result: Extract<Awaited<ReturnType<OperatingSystemAudioCodecOperationRunner['execute']>>, {
+		readonly status: 'executed';
+	}>,
+): Readonly<{ readonly encodedTuple: Readonly<{
+	readonly sampleRate: number;
+	readonly channelCount: number;
+	readonly frameCount: number;
+	readonly bitrateKbps: number;
+}> }> | null {
+	if ('decodedGeometry' in result || result.output.byteLength < 1) return null;
+	const geometry = inspectOperatingSystemAudioSource('aac-m4a', result.output);
+	if (geometry?.sampleRate !== canary.sampleRate
+		|| geometry.channelCount !== canary.channelCount) return null;
+	return Object.freeze({
+		encodedTuple: Object.freeze({
+			sampleRate: canary.sampleRate,
+			channelCount: canary.channelCount,
+			frameCount: canary.frameCount,
+			bitrateKbps: canary.bitrateKbps,
+		}),
+	});
+}
+
+function encodeCanaryBytes(): Uint8Array {
+	const bytes = new Uint8Array(2_048 * 2 * Float32Array.BYTES_PER_ELEMENT);
+	const view = new DataView(bytes.buffer);
+	for (let frame = 0; frame < 2_048; frame += 1) {
+		const left = (frame % 31 - 15) / 16;
+		view.setFloat32(frame * 8, left, true);
+		view.setFloat32(frame * 8 + 4, -left * 0.5, true);
+	}
+	return bytes;
 }
 
 function finiteNonSilentFloat32(value: Uint8Array): boolean {

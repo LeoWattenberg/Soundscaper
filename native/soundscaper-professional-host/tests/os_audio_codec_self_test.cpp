@@ -131,6 +131,28 @@ bool writeFixture(const std::filesystem::path &path, const std::vector<uint8_t> 
 	return static_cast<bool>(file);
 }
 
+constexpr uint64_t encodeCanaryFrameCount = 2048u;
+
+std::vector<float> encodeCanarySamples()
+{
+	std::vector<float> samples;
+	samples.reserve(encodeCanaryFrameCount * 2u);
+	for (uint64_t frame = 0u; frame < encodeCanaryFrameCount; ++frame) {
+		const float left = static_cast<float>(static_cast<int32_t>(frame % 31u) - 15) / 16.0f;
+		samples.push_back(left);
+		samples.push_back(-left * 0.5f);
+	}
+	return samples;
+}
+
+bool writeFloatFixture(const std::filesystem::path &path, const std::vector<float> &samples)
+{
+	std::ofstream file(path, std::ios::binary | std::ios::out);
+	file.write(reinterpret_cast<const char *>(samples.data()),
+		static_cast<std::streamsize>(samples.size() * sizeof(float)));
+	return static_cast<bool>(file);
+}
+
 bool validDecode(
 	const soundscaper_pro_os_mp3_decode_result &result,
 	const std::filesystem::path &outputPath)
@@ -149,6 +171,22 @@ bool validDecode(
 	}) && !std::all_of(samples.begin(), samples.end(), [](float value) { return value == 0.0f; });
 }
 
+bool validEncode(
+	const soundscaper_pro_os_aac_m4a_encode_result &result,
+	const std::filesystem::path &outputPath)
+{
+	std::error_code error;
+	if (result.status != SOUNDSCAPER_PRO_OS_CODEC_OK || result.native_api_reached != 1u
+		|| result.exact_tuple_passed != 1u || result.sample_rate != 48000u
+		|| result.channel_count != 2u || result.bitrate_kbps != 160u
+		|| result.frame_count != encodeCanaryFrameCount || result.output_bytes == 0u
+		|| std::filesystem::file_size(outputPath, error) != result.output_bytes || error) return false;
+	std::ifstream encoded(outputPath, std::ios::binary);
+	const std::vector<uint8_t> bytes(std::istreambuf_iterator<char>(encoded), {});
+	return !encoded.bad() && bytes.size() == result.output_bytes
+		&& soundscaper::os_audio::exactAacLcM4a(bytes, 48000u, 2u);
+}
+
 } // namespace
 
 int main()
@@ -163,11 +201,16 @@ int main()
 	const auto adtsOutputPath = root / "adts.f32le";
 	const auto heInputPath = root / "implicit-he.m4a";
 	const auto heOutputPath = root / "implicit-he.f32le";
+	const auto encodeInputPath = root / "encode.f32le";
+	const auto encodeOutputPath = root / "encode.m4a";
+	const auto encodeDecodePath = root / "encode-decoded.f32le";
+	const auto unsupportedEncodePath = root / "unsupported-encode.m4a";
 	std::error_code error;
 	if (!std::filesystem::create_directory(root, error) || error) return 1;
 	const auto mp3Input = base64Bytes(canaryBase64);
 	const auto m4aInput = base64Bytes(aacM4aCanaryBase64);
 	const auto adtsInput = base64Bytes(aacAdtsCanaryBase64);
+	const auto encodeInput = encodeCanarySamples();
 	if (mp3Input.size() != 1536u || m4aInput.size() != 1909u || adtsInput.size() != 1115u) return 2;
 	/* Same M4A with the AudioSpecificConfig sync-extension SBR-present bit set.
 	 * This declares implicit HE-AAC and must not inherit the AAC-LC admission.
@@ -181,7 +224,8 @@ int main()
 	if (!soundscaper::os_audio::exactAacLcM4a(m4aInput, 48000u, 2u)
 		|| soundscaper::os_audio::exactAacLcM4a(heInput, 48000u, 2u)) return 4;
 	if (!writeFixture(mp3InputPath, mp3Input) || !writeFixture(m4aInputPath, m4aInput)
-		|| !writeFixture(adtsInputPath, adtsInput) || !writeFixture(heInputPath, heInput)) return 5;
+		|| !writeFixture(adtsInputPath, adtsInput) || !writeFixture(heInputPath, heInput)
+		|| !writeFloatFixture(encodeInputPath, encodeInput)) return 5;
 	const std::string mp3InputText = mp3InputPath.string();
 	const std::string mp3OutputText = mp3OutputPath.string();
 	const soundscaper_pro_os_mp3_decode_request mp3Request{
@@ -216,6 +260,27 @@ int main()
 		|| heResult.output_bytes != 0u || heResult.frame_count != 0u
 		|| std::filesystem::exists(heOutputPath)) return 9;
 #endif
+	const std::string encodeInputText = encodeInputPath.string();
+	const std::string encodeOutputText = encodeOutputPath.string();
+	const soundscaper_pro_os_aac_m4a_encode_request encodeRequest{
+		encodeInputText.c_str(), encodeOutputText.c_str(), encodeInput.size() * sizeof(float),
+		1024u * 1024u, 48000u, 2u, 160u,
+	};
+	if (!validEncode(soundscaper_pro_os_aac_m4a_encode(&encodeRequest), encodeOutputPath)) return 10;
+	const std::string encodeDecodeText = encodeDecodePath.string();
+	const soundscaper_pro_os_mp3_decode_request encodedDecodeRequest{
+		encodeOutputText.c_str(), encodeDecodeText.c_str(),
+		std::filesystem::file_size(encodeOutputPath), 1024u * 1024u,
+	};
+	if (!validDecode(soundscaper_pro_os_aac_m4a_decode(&encodedDecodeRequest), encodeDecodePath)) return 11;
+	const std::string unsupportedEncodeText = unsupportedEncodePath.string();
+	auto unsupportedEncodeRequest = encodeRequest;
+	unsupportedEncodeRequest.output_path_utf8 = unsupportedEncodeText.c_str();
+	unsupportedEncodeRequest.bitrate_kbps = 192u;
+	const auto unsupportedEncode = soundscaper_pro_os_aac_m4a_encode(&unsupportedEncodeRequest);
+	if (unsupportedEncode.status != SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST
+		|| unsupportedEncode.native_api_reached != 0u || unsupportedEncode.exact_tuple_passed != 0u
+		|| unsupportedEncode.output_bytes != 0u || std::filesystem::exists(unsupportedEncodePath)) return 12;
 	std::filesystem::remove_all(root, error);
-	return error ? 10 : 0;
+	return error ? 13 : 0;
 }

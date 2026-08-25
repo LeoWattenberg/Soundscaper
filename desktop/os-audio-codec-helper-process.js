@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Authenticated utility-process boundary for reviewed target-native audio decoders. */
+/** Authenticated utility-process boundary for reviewed target-native audio codecs. */
 
 import { createHash } from 'node:crypto';
 import { lstat, readFile, realpath } from 'node:fs/promises';
@@ -13,17 +13,21 @@ const MAXIMUM_INPUT_BYTES = 32 * 1024 * 1024;
 const MAXIMUM_OUTPUT_BYTES = 128 * 1024 * 1024;
 const PATH_BYTES = 4096;
 const CONFIGURATION_FIELDS = ['contractVersion', 'target', 'addonPath', 'addonSha256'];
-const REQUEST_FIELDS = [
-	'contractVersion', 'format', 'inputPath', 'outputPath', 'inputBytes', 'inputSha256',
+const DECODE_REQUEST_FIELDS = [
+	'contractVersion', 'operation', 'format', 'inputPath', 'outputPath', 'inputBytes', 'inputSha256',
 	'maximumOutputBytes',
 ];
-const NATIVE_RESULT_FIELDS = [
+const ENCODE_REQUEST_FIELDS = [
+	...DECODE_REQUEST_FIELDS, 'sampleRate', 'channelCount', 'bitrateKbps',
+];
+const NATIVE_DECODE_RESULT_FIELDS = [
 	'status', 'nativeApiReached', 'exactTuplePassed', 'outputBytes', 'frameCount',
 	'sampleRate', 'channelCount',
 ];
+const NATIVE_ENCODE_RESULT_FIELDS = [...NATIVE_DECODE_RESULT_FIELDS, 'bitrateKbps'];
 const NATIVE_UNAVAILABLE = new Set(['api-unavailable', 'tuple-unsupported']);
 
-export async function runOperatingSystemAudioDecodeJob(value, ports = {}) {
+export async function runOperatingSystemAudioCodecJob(value, ports = {}) {
 	const envelope = exactRecord(value, ['configuration', 'request'], 'OS audio codec helper job');
 	const configuration = codecConfiguration(envelope.configuration);
 	const request = codecRequest(envelope.request);
@@ -50,17 +54,22 @@ export async function runOperatingSystemAudioDecodeJob(value, ports = {}) {
 		addonPath: configuration.addonPath,
 		addonSha256: configuration.addonSha256,
 	});
-	const method = addonMethod(addon, request.format);
+	const method = addonMethod(addon, request);
 	const nativeResult = inspectNativeResult(await method(Object.freeze({
 		inputPath: request.inputPath,
 		outputPath: request.outputPath,
 		inputBytes: request.inputBytes,
 		maximumOutputBytes: request.maximumOutputBytes,
-	})));
-	if (nativeResult.status !== 'decoded') {
+		...(request.operation === 'audio-encode' ? {
+			sampleRate: request.sampleRate,
+			channelCount: request.channelCount,
+			bitrateKbps: request.bitrateKbps,
+		} : {}),
+	})), request);
+	if (nativeResult.status !== expectedNativeSuccess(request.operation)) {
 		await assertAbsent(request.outputPath, operations.lstat);
 		if (!NATIVE_UNAVAILABLE.has(nativeResult.status)) {
-			throw new Error('The native OS audio decoder failed after admission.');
+			throw new Error('The native OS audio codec failed after admission.');
 		}
 		return Object.freeze({
 			contractVersion: 1,
@@ -71,6 +80,31 @@ export async function runOperatingSystemAudioDecodeJob(value, ports = {}) {
 	}
 	const output = await inspectBoundedOutput(request.outputPath,
 		request.maximumOutputBytes, operations);
+	if (request.operation === 'audio-encode') {
+		const expectedFrames = request.inputBytes
+			/ (request.channelCount * Float32Array.BYTES_PER_ELEMENT);
+		if (nativeResult.status !== 'encoded' || nativeResult.outputBytes !== output.bytes.byteLength
+			|| nativeResult.frameCount !== expectedFrames
+			|| nativeResult.sampleRate !== request.sampleRate
+			|| nativeResult.channelCount !== request.channelCount
+			|| nativeResult.bitrateKbps !== request.bitrateKbps) {
+			throw new Error('The native OS audio encoder result does not match its output file.');
+		}
+		return Object.freeze({
+			contractVersion: 1, status: 'encoded', nativeApiReached: true,
+			exactTuplePassed: true, outputBytes: output.bytes.byteLength,
+			outputSha256: digest(output.bytes),
+			encodedTuple: Object.freeze({
+				sampleRate: nativeResult.sampleRate,
+				channelCount: nativeResult.channelCount,
+				frameCount: nativeResult.frameCount,
+				bitrateKbps: nativeResult.bitrateKbps,
+			}),
+		});
+	}
+	if (nativeResult.status !== 'decoded') {
+		throw new Error('The native OS audio decoder returned an inconsistent success.');
+	}
 	const expectedBytes = nativeResult.frameCount * nativeResult.channelCount * Float32Array.BYTES_PER_ELEMENT;
 	if (!Number.isSafeInteger(expectedBytes) || expectedBytes !== nativeResult.outputBytes
 		|| output.bytes.byteLength !== nativeResult.outputBytes) {
@@ -91,8 +125,9 @@ export async function runOperatingSystemAudioDecodeJob(value, ports = {}) {
 	});
 }
 
-/** Retained for callers deployed with the original MP3-only helper export. */
-export const runOperatingSystemMp3DecodeJob = runOperatingSystemAudioDecodeJob;
+/** Retained for callers deployed with the original decode-only helper exports. */
+export const runOperatingSystemAudioDecodeJob = runOperatingSystemAudioCodecJob;
+export const runOperatingSystemMp3DecodeJob = runOperatingSystemAudioCodecJob;
 
 export function createOperatingSystemAudioCodecHelperWorker(options) {
 	const configuration = codecConfiguration(options?.configuration);
@@ -105,7 +140,7 @@ export function createOperatingSystemAudioCodecHelperWorker(options) {
 		&& typeof options.exit !== 'function') {
 		throw new TypeError('The OS audio codec helper worker ports are invalid.');
 	}
-	const runJob = options.runJob ?? runOperatingSystemAudioDecodeJob;
+	const runJob = options.runJob ?? runOperatingSystemAudioCodecJob;
 	const exit = options.exit ?? (() => undefined);
 	let active = false;
 	let disposed = false;
@@ -155,11 +190,21 @@ function codecConfiguration(value) {
 }
 
 function codecRequest(value) {
-	const record = exactRecord(value, REQUEST_FIELDS, 'OS audio codec helper request');
+	const operation = dataProperty(value, 'operation', 'OS audio codec helper request');
+	const record = exactRecord(value, operation === 'audio-encode'
+		? ENCODE_REQUEST_FIELDS : DECODE_REQUEST_FIELDS, 'OS audio codec helper request');
 	if (record.contractVersion !== 1) throw new TypeError('The OS audio codec helper contract is unsupported.');
+	if (operation !== 'audio-decode' && operation !== 'audio-encode') {
+		throw new TypeError('The OS audio codec operation is unsupported.');
+	}
+	const format = audioFormat(record.format);
+	if (operation === 'audio-encode' && format !== 'aac-m4a') {
+		throw new TypeError('The OS audio codec encode format is unsupported.');
+	}
 	return Object.freeze({
 		contractVersion: 1,
-		format: audioFormat(record.format),
+		operation,
+		format,
 		inputPath: absolutePath(record.inputPath, 'input'),
 		outputPath: absolutePath(record.outputPath, 'output'),
 		inputBytes: integer(record.inputBytes, 1, MAXIMUM_INPUT_BYTES, 'input byte length'),
@@ -167,32 +212,44 @@ function codecRequest(value) {
 		maximumOutputBytes: integer(
 			record.maximumOutputBytes, 1, MAXIMUM_OUTPUT_BYTES, 'maximum output byte length',
 		),
+		...(operation === 'audio-encode' ? {
+			sampleRate: integer(record.sampleRate, 48_000, 48_000, 'encode sample rate'),
+			channelCount: integer(record.channelCount, 2, 2, 'encode channel count'),
+			bitrateKbps: integer(record.bitrateKbps, 160, 160, 'encode bitrate'),
+		} : {}),
 	});
 }
 
-function inspectNativeResult(value) {
-	const record = exactRecord(value, NATIVE_RESULT_FIELDS, 'native OS audio decode result');
+function inspectNativeResult(value, request) {
+	const encoding = request.operation === 'audio-encode';
+	const record = exactRecord(value, encoding
+		? NATIVE_ENCODE_RESULT_FIELDS : NATIVE_DECODE_RESULT_FIELDS, 'native OS audio codec result');
 	if (typeof record.status !== 'string'
 		|| record.nativeApiReached !== true && record.nativeApiReached !== false
 		|| record.exactTuplePassed !== true && record.exactTuplePassed !== false) {
-		throw new TypeError('The native OS audio decode result is malformed.');
+		throw new TypeError('The native OS audio codec result is malformed.');
 	}
-	if (record.status === 'decoded') {
+	const success = expectedNativeSuccess(request.operation);
+	if (record.status === success) {
 		if (record.nativeApiReached !== true || record.exactTuplePassed !== true) {
-			throw new TypeError('The native OS audio decode success lacks exact native evidence.');
+			throw new TypeError('The native OS audio codec success lacks exact native evidence.');
 		}
 		return Object.freeze({
-			status: 'decoded', nativeApiReached: true, exactTuplePassed: true,
+			status: success, nativeApiReached: true, exactTuplePassed: true,
 			outputBytes: integer(record.outputBytes, 1, MAXIMUM_OUTPUT_BYTES, 'native output byte length'),
 			frameCount: integer(record.frameCount, 1, Number.MAX_SAFE_INTEGER, 'native frame count'),
 			sampleRate: integer(record.sampleRate, 8_000, 192_000, 'native sample rate'),
 			channelCount: integer(record.channelCount, 1, 8, 'native channel count'),
+			...(encoding ? {
+				bitrateKbps: integer(record.bitrateKbps, 1, 1_000, 'native bitrate'),
+			} : {}),
 		});
 	}
 	integer(record.outputBytes, 0, 0, 'unavailable native output byte length');
 	integer(record.frameCount, 0, 0, 'unavailable native frame count');
 	integer(record.sampleRate, 0, 0, 'unavailable native sample rate');
 	integer(record.channelCount, 0, 0, 'unavailable native channel count');
+	if (encoding) integer(record.bitrateKbps, 0, 0, 'unavailable native bitrate');
 	if (record.exactTuplePassed !== false) {
 		throw new TypeError('An unavailable native OS audio decode cannot pass its exact tuple.');
 	}
@@ -204,6 +261,7 @@ function inspectNativeResult(value) {
 		frameCount: 0,
 		sampleRate: 0,
 		channelCount: 0,
+		...(encoding ? { bitrateKbps: 0 } : {}),
 	});
 }
 
@@ -262,14 +320,20 @@ async function loadVerifiedAddon({ addonPath, addonSha256 }) {
 	return createRequire(import.meta.url)(addonPath);
 }
 
-function addonMethod(value, format) {
+function addonMethod(value, request) {
 	if (!value || typeof value !== 'object') throw new TypeError('The OS audio codec addon is invalid.');
-	const name = format === 'mp3' ? 'decodeOperatingSystemMp3' : 'decodeOperatingSystemAacM4a';
+	const name = request.operation === 'audio-encode'
+		? 'encodeOperatingSystemAacM4a'
+		: request.format === 'mp3' ? 'decodeOperatingSystemMp3' : 'decodeOperatingSystemAacM4a';
 	const method = Object.getOwnPropertyDescriptor(value, name);
 	if (!method || !Object.hasOwn(method, 'value') || typeof method.value !== 'function') {
-		throw new TypeError('The OS audio codec addon does not expose its reviewed decoder.');
+		throw new TypeError('The OS audio codec addon does not expose its reviewed method.');
 	}
 	return method.value.bind(value);
+}
+
+function expectedNativeSuccess(operation) {
+	return operation === 'audio-encode' ? 'encoded' : 'decoded';
 }
 
 function audioFormat(value) {
@@ -290,6 +354,13 @@ function exactRecord(value, fields, label) {
 		throw new TypeError(`${label} has an inexact shape.`);
 	}
 	return value;
+}
+
+function dataProperty(value, name, label) {
+	if (!value || typeof value !== 'object') throw new TypeError(`${label} is invalid.`);
+	const descriptor = Object.getOwnPropertyDescriptor(value, name);
+	if (!descriptor || !Object.hasOwn(descriptor, 'value')) throw new TypeError(`${label} is invalid.`);
+	return descriptor.value;
 }
 
 function absolutePath(value, label) {

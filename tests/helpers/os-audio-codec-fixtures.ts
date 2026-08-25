@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 
 /* Valid but deliberately unqualified AAC-LC M4A media: 44.1 kHz stereo, generated
  * from a 997 Hz 50 ms source with the digest-pinned mwader/static-ffmpeg 9.0 image
@@ -41,6 +42,23 @@ export function aacLcM4a44_100Fixture(): Uint8Array {
 	assert.equal(
 		createHash('sha256').update(bytes).digest('hex'),
 		'421d7b9a1beeb1fefb3463c32f13aa91f81dde4730087df490afea1e5a8b3106',
+	);
+	return bytes;
+}
+
+export function aacLcM4a48_000Fixture(): Uint8Array {
+	const source = readFileSync(new URL(
+		'../../native/soundscaper-professional-host/tests/os_audio_codec_self_test.cpp',
+		import.meta.url,
+	), 'utf8');
+	const block = /constexpr char aacM4aCanaryBase64\[\] =([\s\S]*?);/u.exec(source)?.[1];
+	assert.ok(block !== undefined);
+	const encoded = [...block.matchAll(/"([^"]*)"/gu)].map((match) => match[1]).join('');
+	const bytes = new Uint8Array(Buffer.from(encoded, 'base64'));
+	assert.equal(bytes.byteLength, 1_909);
+	assert.equal(
+		createHash('sha256').update(bytes).digest('hex'),
+		'1db255988826f9f6f8322f6cfb6c82c6ee7873c3252c822bc0ac1793d5729451',
 	);
 	return bytes;
 }

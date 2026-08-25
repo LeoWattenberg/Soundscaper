@@ -14,6 +14,7 @@ import {
 } from '../desktop/os-audio-codec-runtime.ts';
 import { createDesktopAudioCodecBroker } from '../desktop/desktop-audio-codec-broker.ts';
 import {
+	OPERATING_SYSTEM_AAC_M4A_ENCODE_CANARY_SHA256,
 	OPERATING_SYSTEM_AAC_M4A_CANARY_SHA256,
 	OPERATING_SYSTEM_MP3_CANARY_SHA256,
 } from '../desktop/os-audio-codec-canary-adapter.ts';
@@ -23,7 +24,10 @@ import type {
 	OperatingSystemAudioCodecTarget,
 } from '../desktop/os-audio-codec-operation-runner.ts';
 import type { DesktopCodecOperation } from '../src/common/editor/desktop-codec-coordinator.ts';
-import { aacLcM4a44_100Fixture } from './helpers/os-audio-codec-fixtures.ts';
+import {
+	aacLcM4a44_100Fixture,
+	aacLcM4a48_000Fixture,
+} from './helpers/os-audio-codec-fixtures.ts';
 
 const digest = (value: Uint8Array): string => createHash('sha256').update(value).digest('hex');
 const decoded = new Uint8Array(new Float32Array([0.25, -0.25, 0.5, -0.5]).buffer);
@@ -104,6 +108,29 @@ const aacOperation = Object.freeze({
 	width: null,
 	height: null,
 });
+const aacEncodeRequest = Object.freeze({
+	operation: 'audio-encode' as const,
+	format: 'aac-m4a' as const,
+	input: decoded,
+	sampleRate: 48_000,
+	channelCount: 2,
+	settings: Object.freeze({ bitrateKbps: 160 }),
+	maximumOutputBytes: 4_096,
+	requestId: 'os-aac-encode-one',
+});
+const aacEncodeOperation = Object.freeze({
+	direction: 'encode' as const,
+	mediaKind: 'audio' as const,
+	container: 'm4a',
+	codec: 'aac',
+	profile: 'lc',
+	sampleFormat: 'f32p',
+	pixelFormat: null,
+	sampleRate: 48_000,
+	channelCount: 2,
+	width: null,
+	height: null,
+});
 
 class FakeChild implements OperatingSystemAudioCodecChild {
 	readonly posted: unknown[] = [];
@@ -159,14 +186,33 @@ function successfulSpawn(
 		assert.equal(configuration.target, target);
 		const child = new FakeChild((message) => {
 			const envelope = message as Readonly<{
-				request: Readonly<{ inputSha256: string; outputPath: string }>;
+				request: Readonly<{
+					operation: 'audio-decode' | 'audio-encode'; inputSha256: string;
+					inputBytes: number; outputPath: string; sampleRate?: number;
+					channelCount?: number; bitrateKbps?: number;
+				}>;
 			}>;
 			inputDigests.push(envelope.request.inputSha256);
-			void writeFile(envelope.request.outputPath, decoded, { flag: 'wx' }).then(() => {
+			const encoding = envelope.request.operation === 'audio-encode';
+			const output = encoding ? aacLcM4a48_000Fixture() : decoded;
+			void writeFile(envelope.request.outputPath, output, { flag: 'wx' }).then(() => {
 				child.emitMessage({
 					contractVersion: 1,
 					type: 'result',
-					result: {
+					result: encoding ? {
+						contractVersion: 1,
+						status: 'encoded',
+						nativeApiReached: true,
+						exactTuplePassed: true,
+						outputBytes: output.byteLength,
+						outputSha256: digest(output),
+						encodedTuple: {
+							sampleRate: envelope.request.sampleRate,
+							channelCount: envelope.request.channelCount,
+							frameCount: envelope.request.inputBytes / (2 * Float32Array.BYTES_PER_ELEMENT),
+							bitrateKbps: envelope.request.bitrateKbps,
+						},
+					} : {
 						contractVersion: 1,
 						status: 'decoded',
 						nativeApiReached: true,
@@ -217,10 +263,11 @@ test('loader composes authenticated helper, embedded canary, exact provider, and
 		status: 'executed', output: decoded,
 		decodedGeometry: { sampleRate: 48_000, channelCount: 2, frameCount: 2 },
 	});
-	assert.equal(verifications, 3);
+	assert.equal(verifications, 4);
 	assert.deepEqual(inputDigests, [
 		OPERATING_SYSTEM_MP3_CANARY_SHA256,
 		OPERATING_SYSTEM_AAC_M4A_CANARY_SHA256,
+		OPERATING_SYSTEM_AAC_M4A_ENCODE_CANARY_SHA256,
 		digest(request.input),
 	]);
 	assert.deepEqual(await readdir(scratchRoot), []);
@@ -257,7 +304,51 @@ test('loader qualifies and executes AAC-LC M4A through the registered OS runtime
 	assert.deepEqual(inputDigests, [
 		OPERATING_SYSTEM_MP3_CANARY_SHA256,
 		OPERATING_SYSTEM_AAC_M4A_CANARY_SHA256,
+		OPERATING_SYSTEM_AAC_M4A_ENCODE_CANARY_SHA256,
 		digest(aacRequest.input),
+	]);
+	assert.deepEqual(await readdir(scratchRoot), []);
+});
+
+test('loader qualifies exact AAC-LC M4A encode and rejects other settings before spawn', async (context) => {
+	const scratchRoot = await scratch(context);
+	const inputDigests: string[] = [];
+	let helperSpawns = 0;
+	const spawn = successfulSpawn('win-arm64', inputDigests);
+	const runtime = await loadOperatingSystemAudioCodecRuntime({
+		target: 'win-arm64', osVersion: '10.0.26100', scratchRoot,
+		verifyAddon: async () => ({
+			target: 'win-arm64', path: '/authenticated/soundscaper_professional.node',
+			sha256: '4'.repeat(64),
+		}),
+		spawn: (configuration) => { helperSpawns += 1; return spawn(configuration); },
+	});
+	assert.notEqual(runtime, null);
+	assert.deepEqual(await runtime?.provider.preflight(aacEncodeOperation, {}), {
+		disposition: 'supported', reason: null,
+	});
+	assert.deepEqual(await runtime?.preflightRequest?.(
+		aacEncodeRequest, { operation: aacEncodeOperation },
+	), { disposition: 'supported', reason: null });
+	const output = aacLcM4a48_000Fixture();
+	assert.deepEqual(await runtime?.execute(aacEncodeRequest, { operation: aacEncodeOperation }), {
+		status: 'executed', output,
+	});
+	const unsupported = Object.freeze({
+		...aacEncodeRequest, settings: Object.freeze({ bitrateKbps: 192 }),
+	});
+	assert.deepEqual(await runtime?.preflightRequest?.(
+		unsupported, { operation: aacEncodeOperation },
+	), {
+		disposition: 'unsupported',
+		reason: 'The OS AAC-LC M4A encoder admits only 48 kHz stereo float PCM at 160 kbps.',
+	});
+	assert.equal(helperSpawns, 4, 'three startup canaries and one exact encode may spawn');
+	assert.deepEqual(inputDigests, [
+		OPERATING_SYSTEM_MP3_CANARY_SHA256,
+		OPERATING_SYSTEM_AAC_M4A_CANARY_SHA256,
+		OPERATING_SYSTEM_AAC_M4A_ENCODE_CANARY_SHA256,
+		digest(aacEncodeRequest.input),
 	]);
 	assert.deepEqual(await readdir(scratchRoot), []);
 });
@@ -383,7 +474,7 @@ test('exact request gate rejects request/operation substitution before helper ex
 		status: 'failed', reason: 'security-failed',
 		detail: 'The OS audio request does not match its admitted operation.',
 	});
-	assert.equal(spawns, 2, 'only the two startup canaries may spawn');
+	assert.equal(spawns, 3, 'only the three startup canaries may spawn');
 });
 
 test('nonqualified MP3 source geometry falls through before the OS helper executes', async (context) => {
@@ -448,7 +539,7 @@ test('nonqualified MP3 source geometry falls through before the OS helper execut
 	const result = await broker.execute(outsideTuple);
 	assert.equal(result.receipt.provider.kind, 'external-ffmpeg');
 	assert.equal(externalExecutions, 1);
-	assert.equal(helperSpawns, 2, 'only the two startup canaries may spawn');
+	assert.equal(helperSpawns, 3, 'only the three startup canaries may spawn');
 });
 
 test('unqualified AAC profile falls through before the OS helper executes', async (context) => {
@@ -472,7 +563,7 @@ test('unqualified AAC profile falls through before the OS helper executes', asyn
 		disposition: 'unsupported',
 		reason: 'The OS AAC-LC M4A source is outside the exact canary-qualified tuple.',
 	});
-	assert.equal(helperSpawns, 2, 'only the two startup canaries may spawn');
+	assert.equal(helperSpawns, 3, 'only the three startup canaries may spawn');
 });
 
 test('valid unreviewed AAC-LC geometry falls through before the OS helper executes', async (context) => {
@@ -492,5 +583,5 @@ test('valid unreviewed AAC-LC geometry falls through before the OS helper execut
 		disposition: 'unsupported',
 		reason: 'The OS AAC-LC M4A source is outside the exact canary-qualified tuple.',
 	});
-	assert.equal(helperSpawns, 2, 'only the two startup canaries may spawn');
+	assert.equal(helperSpawns, 3, 'only the three startup canaries may spawn');
 });

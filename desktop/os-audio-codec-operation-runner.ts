@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Main-owned staging and one-shot utility-process supervision for reviewed OS audio decode. */
+/** Main-owned staging and one-shot utility-process supervision for reviewed OS audio codecs. */
 
 import { createHash } from 'node:crypto';
 import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -11,6 +11,7 @@ import {
 	normalizeDesktopAudioCodecRequest,
 	type DesktopAudioCodecRequest,
 } from './desktop-audio-codec-operation-contract.ts';
+import { inspectOperatingSystemAudioSource } from './os-audio-codec-source-inspection.ts';
 
 export type OperatingSystemAudioCodecTarget = 'mac-arm64' | 'win-x64' | 'win-arm64';
 
@@ -59,6 +60,9 @@ export type OperatingSystemAudioCodecOperationResult = Readonly<{
 		readonly frameCount: number;
 	}>;
 }> | Readonly<{
+	readonly status: 'executed';
+	readonly output: Uint8Array;
+}> | Readonly<{
 	readonly status: 'unavailable';
 	readonly reason: OperatingSystemAudioCodecUnavailableReason;
 	readonly detail: string;
@@ -97,12 +101,29 @@ type HelperResult = Readonly<{
 		readonly channelCount: number;
 		readonly frameCount: number;
 	}>;
+}> | Readonly<{
+	readonly status: 'encoded';
+	readonly outputBytes: number;
+	readonly outputSha256: string;
+	readonly encodedTuple: Readonly<{
+		readonly sampleRate: number;
+		readonly channelCount: number;
+		readonly frameCount: number;
+		readonly bitrateKbps: number;
+	}>;
 }> | Extract<OperatingSystemAudioCodecOperationResult, { readonly status: 'unavailable' }>;
 
 type ReviewedAudioDecodeRequest = Extract<
 	DesktopAudioCodecRequest,
 	{ readonly operation: 'audio-decode' }
 > & Readonly<{ readonly format: 'mp3' | 'aac-m4a' }>;
+
+type ReviewedAacEncodeRequest = Extract<
+	DesktopAudioCodecRequest,
+	{ readonly operation: 'audio-encode'; readonly format: 'aac-m4a' }
+>;
+
+type ReviewedAudioCodecRequest = ReviewedAudioDecodeRequest | ReviewedAacEncodeRequest;
 
 const SHA256 = /^[a-f0-9]{64}$/u;
 const TARGETS = new Set<string>(['mac-arm64', 'win-x64', 'win-arm64']);
@@ -112,7 +133,7 @@ const DEFAULT_KILL_WAIT_MS = 1_000;
 const MAXIMUM_KILL_WAIT_MS = 5_000;
 
 const DETAILS: Readonly<Record<OperatingSystemAudioCodecUnavailableReason, string>> = Object.freeze({
-	'api-unavailable': 'The target operating-system audio decoder API is unavailable.',
+	'api-unavailable': 'The target operating-system audio codec API is unavailable.',
 	busy: 'Another OS audio codec operation is already active.',
 	cancelled: 'The OS audio codec operation was cancelled.',
 	'cleanup-failed': 'The OS audio codec scratch directory could not be removed.',
@@ -122,10 +143,10 @@ const DETAILS: Readonly<Record<OperatingSystemAudioCodecUnavailableReason, strin
 	'helper-timeout': 'The OS audio codec helper exceeded its runtime limit.',
 	'output-invalid': 'The OS audio codec helper output failed exact authentication.',
 	'payload-unavailable': 'No authenticated target-native OS audio codec payload is available.',
-	'request-rejected': 'The OS audio codec runtime admits only reviewed MP3 or AAC-LC M4A decode.',
+	'request-rejected': 'The OS audio codec runtime admits only reviewed MP3/AAC decode or exact AAC-LC M4A encode.',
 	'scratch-failed': 'The OS audio codec scratch files could not be prepared.',
 	'spawn-failed': 'The OS audio codec helper could not be started.',
-	'tuple-unsupported': 'The operating-system audio decoder rejected this exact stream tuple.',
+	'tuple-unsupported': 'The operating-system audio codec rejected this exact stream tuple.',
 });
 
 export function createOperatingSystemAudioCodecOperationRunner(
@@ -150,7 +171,7 @@ export function createOperatingSystemAudioCodecOperationRunner(
 			let request: DesktopAudioCodecRequest;
 			try { request = normalizeDesktopAudioCodecRequest(requestValue); }
 			catch { return unavailable('request-rejected'); }
-			if (!reviewedAudioDecodeRequest(request)) {
+			if (!reviewedAudioCodecRequest(request)) {
 				return unavailable('request-rejected');
 			}
 			const signal = executionSignal(executionOptions?.signal);
@@ -168,15 +189,18 @@ export function createOperatingSystemAudioCodecOperationRunner(
 	});
 }
 
-function reviewedAudioDecodeRequest(
+function reviewedAudioCodecRequest(
 	request: DesktopAudioCodecRequest,
-): request is ReviewedAudioDecodeRequest {
+): request is ReviewedAudioCodecRequest {
 	return request.operation === 'audio-decode'
-		&& (request.format === 'mp3' || request.format === 'aac-m4a');
+		&& (request.format === 'mp3' || request.format === 'aac-m4a')
+		|| request.operation === 'audio-encode' && request.format === 'aac-m4a'
+			&& request.sampleRate === 48_000 && request.channelCount === 2
+			&& request.settings.bitrateKbps === 160;
 }
 
 async function executeActive(options: Readonly<{
-	request: ReviewedAudioDecodeRequest;
+	request: ReviewedAudioCodecRequest;
 	signal: AbortSignal | undefined;
 	scratchRoot: string;
 	verifyAddon: () => Promise<OperatingSystemAudioCodecAddonDescriptor>;
@@ -189,9 +213,10 @@ async function executeActive(options: Readonly<{
 	try {
 		scratchDirectory = await prepareScratch(options.scratchRoot);
 		const files: StagedFiles = Object.freeze({
-			inputPath: join(scratchDirectory,
-				options.request.format === 'mp3' ? 'input.mp3' : 'input.m4a'),
-			outputPath: join(scratchDirectory, 'output.f32le'),
+			inputPath: join(scratchDirectory, options.request.operation === 'audio-encode'
+				? 'input.f32le' : options.request.format === 'mp3' ? 'input.mp3' : 'input.m4a'),
+			outputPath: join(scratchDirectory,
+				options.request.operation === 'audio-encode' ? 'output.m4a' : 'output.f32le'),
 		});
 		await writeFile(files.inputPath, Buffer.from(options.request.input), { flag: 'wx', mode: 0o600 });
 		result = await executeStaged({ ...options, files });
@@ -206,7 +231,7 @@ async function executeActive(options: Readonly<{
 }
 
 async function executeStaged(options: Readonly<{
-	request: ReviewedAudioDecodeRequest;
+	request: ReviewedAudioCodecRequest;
 	signal: AbortSignal | undefined;
 	files: StagedFiles;
 	verifyAddon: () => Promise<OperatingSystemAudioCodecAddonDescriptor>;
@@ -230,8 +255,14 @@ async function executeStaged(options: Readonly<{
 	catch { return unavailable('spawn-failed'); }
 	const helperResult = await superviseChild({
 		child, configuration, files: options.files,
+		operation: options.request.operation,
 		format: options.request.format,
 		input: options.request.input, maximumOutputBytes: options.request.maximumOutputBytes,
+		...(options.request.operation === 'audio-encode' ? {
+			sampleRate: options.request.sampleRate,
+			channelCount: options.request.channelCount,
+			bitrateKbps: options.request.settings.bitrateKbps,
+		} : {}),
 		signal: options.signal, maximumDurationMs: options.maximumDurationMs,
 		killWaitMs: options.killWaitMs,
 	});
@@ -239,6 +270,21 @@ async function executeStaged(options: Readonly<{
 	const output = await readBoundedRegularFile(options.files.outputPath, options.request.maximumOutputBytes);
 	if (output.status !== 'available' || output.bytes.byteLength !== helperResult.outputBytes
 		|| digest(output.bytes) !== helperResult.outputSha256) return unavailable('output-invalid');
+	if (options.request.operation === 'audio-encode') {
+		if (helperResult.status !== 'encoded') return unavailable('output-invalid');
+		const tuple = helperResult.encodedTuple;
+		const frameCount = options.request.input.byteLength
+			/ (options.request.channelCount * Float32Array.BYTES_PER_ELEMENT);
+		const inspected = inspectOperatingSystemAudioSource('aac-m4a', output.bytes);
+		if (tuple.sampleRate !== options.request.sampleRate
+			|| tuple.channelCount !== options.request.channelCount
+			|| tuple.frameCount !== frameCount
+			|| tuple.bitrateKbps !== options.request.settings.bitrateKbps
+			|| inspected?.sampleRate !== options.request.sampleRate
+			|| inspected?.channelCount !== options.request.channelCount) return unavailable('output-invalid');
+		return Object.freeze({ status: 'executed', output: output.bytes });
+	}
+	if (helperResult.status !== 'decoded') return unavailable('output-invalid');
 	const geometry = helperResult.decodedGeometry;
 	const expectedBytes = geometry.frameCount * geometry.channelCount * Float32Array.BYTES_PER_ELEMENT;
 	if (!Number.isSafeInteger(expectedBytes) || expectedBytes !== output.bytes.byteLength) {
@@ -261,9 +307,13 @@ function superviseChild(options: Readonly<{
 	child: OperatingSystemAudioCodecChild;
 	configuration: OperatingSystemAudioCodecChildConfiguration;
 	files: StagedFiles;
+	operation: 'audio-decode' | 'audio-encode';
 	format: 'mp3' | 'aac-m4a';
 	input: Uint8Array;
 	maximumOutputBytes: number;
+	sampleRate?: number;
+	channelCount?: number;
+	bitrateKbps?: number;
 	signal: AbortSignal | undefined;
 	maximumDurationMs: number;
 	killWaitMs: number;
@@ -291,18 +341,24 @@ function superviseChild(options: Readonly<{
 						contractVersion: 1, type: 'job',
 						request: Object.freeze({
 							contractVersion: 1,
+							operation: options.operation,
 							format: options.format,
 							inputPath: options.files.inputPath,
 							outputPath: options.files.outputPath,
 							inputBytes: options.input.byteLength,
 							inputSha256: digest(options.input),
 							maximumOutputBytes: options.maximumOutputBytes,
+							...(options.operation === 'audio-encode' ? {
+								sampleRate: options.sampleRate,
+								channelCount: options.channelCount,
+								bitrateKbps: options.bitrateKbps,
+							} : {}),
 						}),
 					}));
 					return;
 				}
 				if (phase !== 'running') throw new TypeError('Duplicate terminal helper message.');
-				terminal = inspectTerminal(value);
+				terminal = inspectTerminal(value, options.operation);
 				phase = 'terminal';
 			} catch { stop('helper-protocol'); }
 		}
@@ -342,7 +398,10 @@ function inspectReady(value: unknown, target: OperatingSystemAudioCodecTarget): 
 	}
 }
 
-function inspectTerminal(value: unknown): HelperResult {
+function inspectTerminal(
+	value: unknown,
+	operation: 'audio-decode' | 'audio-encode',
+): HelperResult {
 	const type = dataProperty(value, 'type', 'OS audio codec helper terminal message');
 	if (type === 'error') {
 		const record = exactRecord(value, ['contractVersion', 'type', 'code'], 'OS audio codec helper error');
@@ -369,6 +428,26 @@ function inspectTerminal(value: unknown): HelperResult {
 		}
 		return unavailable(record.reason);
 	}
+	if (operation === 'audio-encode') {
+		const record = exactRecord(envelope.result, [
+			'contractVersion', 'status', 'nativeApiReached', 'exactTuplePassed',
+			'outputBytes', 'outputSha256', 'encodedTuple',
+		], 'OS audio codec helper encoded result');
+		if (record.contractVersion !== 1 || record.status !== 'encoded'
+			|| record.nativeApiReached !== true || record.exactTuplePassed !== true
+			|| typeof record.outputSha256 !== 'string' || !SHA256.test(record.outputSha256)) {
+			throw new TypeError('The OS audio codec helper encoded result is invalid.');
+		}
+		const tuple = encodedTuple(record.encodedTuple);
+		return Object.freeze({
+			status: 'encoded',
+			outputBytes: boundedInteger(
+				record.outputBytes, 1, 128 * 1024 * 1024, 'OS audio codec output byte length',
+			),
+			outputSha256: record.outputSha256,
+			encodedTuple: tuple,
+		});
+	}
 	const record = exactRecord(envelope.result, [
 		'contractVersion', 'status', 'nativeApiReached', 'exactTuplePassed',
 		'outputBytes', 'outputSha256', 'decodedGeometry',
@@ -387,6 +466,19 @@ function inspectTerminal(value: unknown): HelperResult {
 	}
 	return Object.freeze({
 		status: 'decoded', outputBytes, outputSha256: record.outputSha256, decodedGeometry: geometry,
+	});
+}
+
+function encodedTuple(value: unknown): Extract<HelperResult, { status: 'encoded' }>['encodedTuple'] {
+	const record = exactRecord(
+		value, ['sampleRate', 'channelCount', 'frameCount', 'bitrateKbps'],
+		'OS audio codec encoded tuple',
+	);
+	return Object.freeze({
+		sampleRate: boundedInteger(record.sampleRate, 8_000, 192_000, 'encoded sample rate'),
+		channelCount: boundedInteger(record.channelCount, 1, 8, 'encoded channel count'),
+		frameCount: boundedInteger(record.frameCount, 1, Number.MAX_SAFE_INTEGER, 'encoded frame count'),
+		bitrateKbps: boundedInteger(record.bitrateKbps, 1, 1_000, 'encoded bitrate'),
 	});
 }
 

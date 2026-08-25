@@ -23,6 +23,37 @@ test('target native ABI and Node bridge expose bounded AAC-LC M4A decode', async
 	assert.match(unavailable, /soundscaper_pro_os_aac_m4a_decode/u);
 });
 
+test('target native ABI and bridge expose exact bounded AAC-LC M4A encode', async () => {
+	const [header, bridge, windows, mac, unavailable, selfTest] = await Promise.all([
+		readFile(join(SOURCE, 'src/os_audio_codec.h'), 'utf8'),
+		readFile(join(SOURCE, 'src/node_api_bridge.cpp'), 'utf8'),
+		readFile(join(SOURCE, 'src/os_audio_codec_windows.cpp'), 'utf8'),
+		readFile(join(SOURCE, 'src/os_audio_codec_mac.mm'), 'utf8'),
+		readFile(join(SOURCE, 'src/os_audio_codec_unavailable.cpp'), 'utf8'),
+		readFile(join(SOURCE, 'tests/os_audio_codec_self_test.cpp'), 'utf8'),
+	]);
+	for (const witness of [
+		'soundscaper_pro_os_aac_m4a_encode', 'sample_rate', 'channel_count',
+		'bitrate_kbps', 'maximum_output_bytes',
+	]) assert.match(header, new RegExp(witness, 'u'), witness);
+	assert.match(bridge, /encodeOperatingSystemAacM4a/u);
+	assert.match(unavailable, /soundscaper_pro_os_aac_m4a_encode/u);
+	for (const witness of [
+		'MFAudioFormat_AAC', 'MFCreateSinkWriterFromURL', 'MF_MT_AUDIO_AVG_BYTES_PER_SECOND',
+		'MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION', 'MF_MT_AAC_PAYLOAD_TYPE',
+		'exactAacLcM4a',
+	]) assert.match(windows, new RegExp(witness, 'u'), witness);
+	for (const witness of [
+		'ExtAudioFileCreateWithURL', 'kAudioFileM4AType', 'kAudioFormatMPEG4AAC',
+		'kAudioConverterEncodeBitRate', 'kExtAudioFileProperty_ConverterConfig', 'exactAacLcM4a',
+	]) assert.match(mac, new RegExp(witness, 'u'), witness);
+	assert.match(mac, /fileFormat\.mFormatFlags = 0u/u);
+	assert.match(mac, /converter = nullptr;[\s\S]*kExtAudioFileProperty_AudioConverter/u);
+	assert.match(selfTest, /soundscaper_pro_os_aac_m4a_encode/u);
+	assert.match(selfTest, /160u/u);
+	assert.match(selfTest, /exactAacLcM4a/u);
+});
+
 test('Windows AAC decoder proves M4A mp4a and AAC-LC before emitting float PCM', async () => {
 	const source = await readFile(join(SOURCE, 'src/os_audio_codec_windows.cpp'), 'utf8');
 	for (const witness of [

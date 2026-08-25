@@ -9,20 +9,24 @@ import test from 'node:test';
 
 import {
 	createOperatingSystemAudioCodecHelperWorker,
+	runOperatingSystemAudioCodecJob,
 	runOperatingSystemAudioDecodeJob,
 } from '../desktop/os-audio-codec-helper-process.js';
 
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const job = (value) => ({ configuration: value.configuration, request: value.request });
 
-async function fixture(context, format = 'mp3') {
+async function fixture(context, format = 'mp3', operation = 'audio-decode') {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-os-codec-helper-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
 	const addonPath = join(root, 'soundscaper_professional.node');
-	const inputPath = join(root, format === 'mp3' ? 'input.mp3' : 'input.m4a');
-	const outputPath = join(root, 'output.f32le');
+	const inputPath = join(root, operation === 'audio-encode'
+		? 'input.f32le' : format === 'mp3' ? 'input.mp3' : 'input.m4a');
+	const outputPath = join(root, operation === 'audio-encode' ? 'output.m4a' : 'output.f32le');
 	const addonBytes = Buffer.from('authenticated-addon');
-	const input = Uint8Array.of(1, 2, 3, 4);
+	const input = operation === 'audio-encode'
+		? new Uint8Array(new Float32Array([0.25, -0.25, 0.5, -0.5]).buffer)
+		: Uint8Array.of(1, 2, 3, 4);
 	await writeFile(addonPath, addonBytes);
 	await writeFile(inputPath, input);
 	return {
@@ -31,8 +35,11 @@ async function fixture(context, format = 'mp3') {
 			contractVersion: 1, target: 'mac-arm64', addonPath, addonSha256: sha256(addonBytes),
 		},
 		request: {
-			contractVersion: 1, format, inputPath, outputPath, inputBytes: input.byteLength,
+			contractVersion: 1, operation, format, inputPath, outputPath, inputBytes: input.byteLength,
 			inputSha256: sha256(input), maximumOutputBytes: 1024,
+			...(operation === 'audio-encode'
+				? { sampleRate: 48_000, channelCount: 2, bitrateKbps: 160 }
+				: {}),
 		},
 	};
 }
@@ -70,6 +77,40 @@ test('helper reauthenticates its addon and input then returns exact decoded geom
 		decodedGeometry: { sampleRate: 48_000, channelCount: 2, frameCount: 2 },
 	});
 	assert.deepEqual(new Uint8Array(await readFile(value.outputPath)), output);
+});
+
+test('helper dispatches exact AAC-LC M4A encode and binds its source tuple', async (context) => {
+	const value = await fixture(context, 'aac-m4a', 'audio-encode');
+	const output = Buffer.from('bounded-m4a-output');
+	let calls = 0;
+	const result = await runOperatingSystemAudioCodecJob(job(value), {
+		loadAddon: async () => Object.freeze({
+			decodeOperatingSystemAacM4a: () => assert.fail('encode must not dispatch to decode'),
+			encodeOperatingSystemAacM4a: async (request) => {
+				calls += 1;
+				assert.deepEqual(request, {
+					inputPath: value.inputPath, outputPath: value.outputPath,
+					inputBytes: 16, maximumOutputBytes: 1024,
+					sampleRate: 48_000, channelCount: 2, bitrateKbps: 160,
+				});
+				await writeFile(value.outputPath, output, { flag: 'wx' });
+				return {
+					status: 'encoded', nativeApiReached: true, exactTuplePassed: true,
+					outputBytes: output.byteLength, frameCount: 2,
+					sampleRate: 48_000, channelCount: 2, bitrateKbps: 160,
+				};
+			},
+		}),
+	});
+	assert.equal(calls, 1);
+	assert.deepEqual(result, {
+		contractVersion: 1, status: 'encoded', nativeApiReached: true,
+		exactTuplePassed: true, outputBytes: output.byteLength,
+		outputSha256: sha256(output),
+		encodedTuple: {
+			sampleRate: 48_000, channelCount: 2, frameCount: 2, bitrateKbps: 160,
+		},
+	});
 });
 
 test('helper dispatches AAC-LC M4A only to the reviewed native AAC method', async (context) => {

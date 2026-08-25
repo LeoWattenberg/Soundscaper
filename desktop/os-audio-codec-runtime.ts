@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Canary-qualified operating-system audio decode runtime for desktop main. */
+/** Canary-qualified operating-system audio codec runtime for desktop main. */
 
 import {
 	DESKTOP_AUDIO_CODEC_MAXIMUM_CHANNEL_COUNT,
@@ -92,7 +92,22 @@ const AAC_M4A_CANARY_OPERATION: DesktopCodecOperation = Object.freeze({
 	width: null,
 	height: null,
 });
-const CANARY_OPERATIONS = Object.freeze([MP3_CANARY_OPERATION, AAC_M4A_CANARY_OPERATION]);
+const AAC_M4A_ENCODE_CANARY_OPERATION: DesktopCodecOperation = Object.freeze({
+	direction: 'encode',
+	mediaKind: 'audio',
+	container: 'm4a',
+	codec: 'aac',
+	profile: 'lc',
+	sampleFormat: 'f32p',
+	pixelFormat: null,
+	sampleRate: 48_000,
+	channelCount: 2,
+	width: null,
+	height: null,
+});
+const CANARY_OPERATIONS = Object.freeze([
+	MP3_CANARY_OPERATION, AAC_M4A_CANARY_OPERATION, AAC_M4A_ENCODE_CANARY_OPERATION,
+]);
 const OPERATION_FIELDS = Object.freeze([
 	'direction', 'mediaKind', 'container', 'codec', 'profile', 'sampleFormat',
 	'pixelFormat', 'sampleRate', 'channelCount', 'width', 'height',
@@ -103,6 +118,8 @@ const SOURCE_TUPLE_REASON: Readonly<Record<OperatingSystemAudioSourceFormat, str
 	mp3: 'The OS MP3 source geometry is outside the exact canary-qualified tuple.',
 	'aac-m4a': 'The OS AAC-LC M4A source is outside the exact canary-qualified tuple.',
 });
+const AAC_ENCODE_TUPLE_REASON =
+	'The OS AAC-LC M4A encoder admits only 48 kHz stereo float PCM at 160 kbps.';
 
 type RequestAdmission = Readonly<{
 	readonly disposition: 'supported';
@@ -111,7 +128,7 @@ type RequestAdmission = Readonly<{
 	readonly disposition: 'rejected';
 }> | Readonly<{
 	readonly disposition: 'unsupported';
-	readonly format: OperatingSystemAudioSourceFormat;
+	readonly reason: string;
 }>;
 
 const FAILURE_REASON: Readonly<Record<
@@ -189,7 +206,7 @@ export async function loadOperatingSystemAudioCodecRuntime(
 			return admission.disposition === 'rejected'
 				? rejectedRequest()
 				: admission.disposition === 'unsupported'
-					? unsupportedSourceTuple(admission.format)
+					? unsupportedTuple(admission.reason)
 					: Object.freeze({ disposition: 'supported', reason: null });
 		},
 		async execute(
@@ -204,26 +221,35 @@ export async function loadOperatingSystemAudioCodecRuntime(
 			if (admission.disposition !== 'supported') {
 				return admission.disposition === 'rejected'
 					? failed('security-failed', 'The OS audio request does not match its admitted operation.')
-					: failed('unavailable', SOURCE_TUPLE_REASON[admission.format]);
+					: failed('unavailable', admission.reason);
 			}
 			const result = await runner.execute(admission.request, Object.freeze({
 				...(executionOptions?.signal ? { signal: executionOptions.signal } : {}),
 			}));
-			return mapOperatingSystemAudioCodecOperationResult(result);
+			return mapOperatingSystemAudioCodecOperationResult(result, admission.request.operation);
 		},
 	});
 }
 
 export function mapOperatingSystemAudioCodecOperationResult(
 	value: OperatingSystemAudioCodecOperationResult,
+	operation: 'audio-decode' | 'audio-encode' = 'audio-decode',
 ): DesktopAudioCodecProviderExecutionResult {
 	if (!plainRecord(value)) return invalidRunnerResult();
 	if (value.status === 'executed') {
 		const fields = Reflect.ownKeys(value);
-		if (fields.length !== 3 || !fields.includes('status') || !fields.includes('output')
-			|| !fields.includes('decodedGeometry') || !(value.output instanceof Uint8Array)) {
+		const decoding = operation === 'audio-decode';
+		if (fields.length !== (decoding ? 3 : 2)
+			|| !fields.includes('status') || !fields.includes('output')
+			|| decoding !== fields.includes('decodedGeometry')
+			|| !(value.output instanceof Uint8Array)) {
 			return invalidRunnerResult();
 		}
+		if (!decoding) {
+			try { return Object.freeze({ status: 'executed', output: new Uint8Array(value.output) }); }
+			catch { return invalidRunnerResult(); }
+		}
+		if (!('decodedGeometry' in value)) return invalidRunnerResult();
 		const geometry = decodedGeometry(value.decodedGeometry);
 		if (geometry === null) return invalidRunnerResult();
 		const expectedBytes = geometry.frameCount * geometry.channelCount
@@ -255,9 +281,17 @@ function requestAdmission(
 	let request: DesktopAudioCodecRequest;
 	try { request = normalizeDesktopAudioCodecRequest(requestValue); }
 	catch { return Object.freeze({ disposition: 'rejected' }); }
-	if (request.operation !== 'audio-decode'
-		|| request.format !== 'mp3' && request.format !== 'aac-m4a'
-		|| !sameOperation(operationValue, deriveDesktopAudioCodecOperation(request))) {
+	if (!sameOperation(operationValue, deriveDesktopAudioCodecOperation(request))) {
+		return Object.freeze({ disposition: 'rejected' });
+	}
+	if (request.operation === 'audio-encode') {
+		if (request.format !== 'aac-m4a') return Object.freeze({ disposition: 'rejected' });
+		return request.sampleRate === 48_000 && request.channelCount === 2
+			&& request.settings.bitrateKbps === 160
+			? Object.freeze({ disposition: 'supported', request })
+			: Object.freeze({ disposition: 'unsupported', reason: AAC_ENCODE_TUPLE_REASON });
+	}
+	if (request.format !== 'mp3' && request.format !== 'aac-m4a') {
 		return Object.freeze({ disposition: 'rejected' });
 	}
 	const geometry = inspectOperatingSystemAudioSource(request.format, request.input);
@@ -265,7 +299,7 @@ function requestAdmission(
 	return geometry?.sampleRate === reviewedOperation.sampleRate
 		&& geometry.channelCount === reviewedOperation.channelCount
 		? Object.freeze({ disposition: 'supported', request })
-		: Object.freeze({ disposition: 'unsupported', format: request.format });
+		: Object.freeze({ disposition: 'unsupported', reason: SOURCE_TUPLE_REASON[request.format] });
 }
 
 function sameOperation(
@@ -318,8 +352,8 @@ function rejectedRequest(): DesktopCodecPreflightResult {
 	});
 }
 
-function unsupportedSourceTuple(format: OperatingSystemAudioSourceFormat): DesktopCodecPreflightResult {
-	return Object.freeze({ disposition: 'unsupported', reason: SOURCE_TUPLE_REASON[format] });
+function unsupportedTuple(reason: string): DesktopCodecPreflightResult {
+	return Object.freeze({ disposition: 'unsupported', reason });
 }
 
 function invalidRunnerResult(): Extract<

@@ -12,6 +12,7 @@ import {
 	type OperatingSystemAudioCodecChild,
 	type OperatingSystemAudioCodecChildConfiguration,
 } from '../desktop/os-audio-codec-operation-runner.ts';
+import { aacLcM4a48_000Fixture } from './helpers/os-audio-codec-fixtures.ts';
 
 const digest = (value: Uint8Array): string => createHash('sha256').update(value).digest('hex');
 
@@ -162,6 +163,55 @@ test('runner stages AAC M4A through the same supervised one-shot protocol', asyn
 	assert.deepEqual(await readdir(scratchRoot), []);
 });
 
+test('runner stages exact float PCM and authenticates AAC-LC M4A encode output', async (context) => {
+	const scratchRoot = await scratch(context);
+	const output = aacLcM4a48_000Fixture();
+	const input = new Uint8Array(new Float32Array([0.25, -0.25, 0.5, -0.5]).buffer);
+	const encodeRequest = Object.freeze({
+		operation: 'audio-encode' as const, format: 'aac-m4a' as const, input,
+		sampleRate: 48_000, channelCount: 2,
+		settings: Object.freeze({ bitrateKbps: 160 }),
+		maximumOutputBytes: 4_096, requestId: 'encode-aac',
+	});
+	const runner = createOperatingSystemAudioCodecOperationRunner({
+		scratchRoot, verifyAddon: async () => descriptor,
+		spawn: () => {
+			const child = new FakeChild((message) => {
+				const job = message as { request: {
+					operation: string; format: string; inputPath: string; outputPath: string;
+					sampleRate: number; channelCount: number; bitrateKbps: number;
+				} };
+				void (async () => {
+					assert.equal(job.request.operation, 'audio-encode');
+					assert.equal(job.request.format, 'aac-m4a');
+					assert.match(job.request.inputPath, /input\.f32le$/u);
+					assert.match(job.request.outputPath, /output\.m4a$/u);
+					assert.equal(job.request.sampleRate, 48_000);
+					assert.equal(job.request.channelCount, 2);
+					assert.equal(job.request.bitrateKbps, 160);
+					await writeFile(job.request.outputPath, output, { flag: 'wx' });
+					child.emitMessage({
+						contractVersion: 1, type: 'result', result: {
+							contractVersion: 1, status: 'encoded', nativeApiReached: true,
+							exactTuplePassed: true, outputBytes: output.byteLength,
+							outputSha256: digest(output), encodedTuple: {
+								sampleRate: 48_000, channelCount: 2, frameCount: 2, bitrateKbps: 160,
+							},
+						},
+					});
+					child.emitExit(0);
+				})();
+			});
+			queueMicrotask(() => child.emitMessage({
+				contractVersion: 1, type: 'ready', target: 'mac-arm64',
+			}));
+			return child;
+		},
+	});
+	assert.deepEqual(await runner.execute(encodeRequest), { status: 'executed', output });
+	assert.deepEqual(await readdir(scratchRoot), []);
+});
+
 test('runner fails closed for unavailable payloads and unsupported requests', async (context) => {
 	const scratchRoot = await scratch(context);
 	let spawns = 0;
@@ -177,7 +227,15 @@ test('runner fails closed for unavailable payloads and unsupported requests', as
 	assert.equal(spawns, 0);
 	assert.deepEqual(await runner.execute({ ...request, format: 'opus' }), {
 		status: 'unavailable', reason: 'request-rejected',
-		detail: 'The OS audio codec runtime admits only reviewed MP3 or AAC-LC M4A decode.',
+		detail: 'The OS audio codec runtime admits only reviewed MP3/AAC decode or exact AAC-LC M4A encode.',
+	});
+	assert.deepEqual(await runner.execute({
+		operation: 'audio-encode', format: 'aac-m4a', input: new Uint8Array(8),
+		sampleRate: 48_000, channelCount: 2, settings: { bitrateKbps: 192 },
+		maximumOutputBytes: 1024,
+	}), {
+		status: 'unavailable', reason: 'request-rejected',
+		detail: 'The OS audio codec runtime admits only reviewed MP3/AAC decode or exact AAC-LC M4A encode.',
 	});
 	assert.equal(spawns, 0);
 	assert.deepEqual(await readdir(scratchRoot), []);

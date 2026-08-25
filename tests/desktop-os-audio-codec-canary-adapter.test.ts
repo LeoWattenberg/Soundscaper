@@ -7,6 +7,7 @@ import test from 'node:test';
 
 import {
 	createOperatingSystemAudioCodecCanaryAdapter,
+	OPERATING_SYSTEM_AAC_M4A_ENCODE_CANARY_SHA256,
 	OPERATING_SYSTEM_AAC_M4A_CANARY_SHA256,
 	OPERATING_SYSTEM_MP3_CANARY_SHA256,
 } from '../desktop/os-audio-codec-canary-adapter.ts';
@@ -14,6 +15,7 @@ import type { OperatingSystemCodecCanaryRequest } from '../desktop/os-codec-capa
 import type {
 	OperatingSystemAudioCodecOperationRunner,
 } from '../desktop/os-audio-codec-operation-runner.ts';
+import { aacLcM4a48_000Fixture } from './helpers/os-audio-codec-fixtures.ts';
 
 const digest = (value: string): string => createHash('sha256').update(value).digest('hex');
 
@@ -26,6 +28,12 @@ const capability = Object.freeze({
 const aacCapability = Object.freeze({
 	id: 'windows-media-foundation-decode-m4a-aac-lc-f32p-48000hz-2ch',
 	direction: 'decode' as const, mediaKind: 'audio' as const,
+	container: 'm4a', codec: 'aac', profile: 'lc', sampleFormat: 'f32p',
+	pixelFormat: null, sampleRate: 48_000, channelCount: 2, width: null, height: null,
+});
+const aacEncodeCapability = Object.freeze({
+	id: 'windows-media-foundation-encode-m4a-aac-lc-f32p-48000hz-2ch',
+	direction: 'encode' as const, mediaKind: 'audio' as const,
 	container: 'm4a', codec: 'aac', profile: 'lc', sampleFormat: 'f32p',
 	pixelFormat: null, sampleRate: 48_000, channelCount: 2, width: null, height: null,
 });
@@ -105,6 +113,39 @@ test('canary decodes embedded AAC-LC M4A through the reviewed native method', as
 	assert.match(result.evidenceDigest, /^[a-f0-9]{64}$/u);
 });
 
+test('canary encodes deterministic float PCM and verifies exact AAC-LC M4A output', async () => {
+	const output = aacLcM4a48_000Fixture();
+	let calls = 0;
+	const runner: OperatingSystemAudioCodecOperationRunner = {
+		execute: async (encodeRequest, options) => {
+			calls += 1;
+			assert.equal(encodeRequest.operation, 'audio-encode');
+			if (encodeRequest.operation !== 'audio-encode') assert.fail('encode canary required');
+			assert.equal(encodeRequest.format, 'aac-m4a');
+			assert.equal(encodeRequest.sampleRate, 48_000);
+			assert.equal(encodeRequest.channelCount, 2);
+			assert.deepEqual(encodeRequest.settings, { bitrateKbps: 160 });
+			assert.equal(encodeRequest.input.byteLength, 16_384);
+			assert.equal(createHash('sha256').update(encodeRequest.input).digest('hex'),
+				OPERATING_SYSTEM_AAC_M4A_ENCODE_CANARY_SHA256);
+			assert.equal(options?.signal instanceof AbortSignal, true);
+			return { status: 'executed', output };
+		},
+	};
+	const adapter = createOperatingSystemAudioCodecCanaryAdapter({ target: 'win-arm64', runner });
+	const encodeRequest = request({
+		target: 'win-arm64', implementation: 'windows-media-foundation',
+		capability: aacEncodeCapability,
+		capabilityDigest: digest(JSON.stringify(aacEncodeCapability)),
+	});
+	const result = await adapter.runCanary(encodeRequest, new AbortController().signal);
+	assert.equal(calls, 1);
+	assert.equal(result.status, 'qualified');
+	if (result.status !== 'qualified') assert.fail('The exact AAC encode canary must qualify.');
+	assert.equal(result.capabilityId, aacEncodeCapability.id);
+	assert.match(result.evidenceDigest, /^[a-f0-9]{64}$/u);
+});
+
 test('canary refuses mismatched tuples, silent output, and non-native runner failures', async () => {
 	let calls = 0;
 	const runner: OperatingSystemAudioCodecOperationRunner = {
@@ -162,4 +203,16 @@ test('startup canary is byte-identical to the target-native self-test fixture', 
 	assert.equal(aacFixture.byteLength, 1_909);
 	assert.equal(createHash('sha256').update(aacFixture).digest('hex'),
 		OPERATING_SYSTEM_AAC_M4A_CANARY_SHA256);
+	assert.match(source, /constexpr uint64_t encodeCanaryFrameCount = 2048u;/u);
+	assert.match(source, /frame % 31u/u);
+	assert.match(source, /samples\.push_back\(-left \* 0\.5f\)/u);
+	const encodeBytes = new Uint8Array(16_384);
+	const view = new DataView(encodeBytes.buffer);
+	for (let frame = 0; frame < 2_048; frame += 1) {
+		const left = (frame % 31 - 15) / 16;
+		view.setFloat32(frame * 8, left, true);
+		view.setFloat32(frame * 8 + 4, -left * 0.5, true);
+	}
+	assert.equal(createHash('sha256').update(encodeBytes).digest('hex'),
+		OPERATING_SYSTEM_AAC_M4A_ENCODE_CANARY_SHA256);
 });

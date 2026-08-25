@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 #include "os_audio_codec.h"
+#include "os_aac_m4a_profile.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -10,6 +11,7 @@
 #include <wrl/client.h>
 
 #include <algorithm>
+#include <cstdint>
 #include <cmath>
 #include <cstring>
 #include <iterator>
@@ -26,6 +28,12 @@ enum class ReviewedCodec {
 	aacM4a,
 };
 
+enum class EncodedOutputInspection {
+	exact,
+	invalid,
+	overLimit,
+};
+
 soundscaper_pro_os_mp3_decode_result answer(
 	soundscaper_pro_os_codec_status status,
 	bool nativeApiReached = false)
@@ -36,16 +44,33 @@ soundscaper_pro_os_mp3_decode_result answer(
 	return result;
 }
 
+soundscaper_pro_os_aac_m4a_encode_result encodeAnswer(
+	soundscaper_pro_os_codec_status status,
+	bool nativeApiReached = false)
+{
+	soundscaper_pro_os_aac_m4a_encode_result result{};
+	result.status = status;
+	result.native_api_reached = nativeApiReached ? 1u : 0u;
+	return result;
+}
+
+bool requestShapeValues(
+	const char *inputPath,
+	const char *outputPath,
+	uint64_t inputBytes,
+	uint64_t maximumOutputBytes)
+{
+	return inputPath != nullptr && outputPath != nullptr && inputBytes > 0u
+		&& maximumOutputBytes > 0u && std::strlen(inputPath) > 0u
+		&& std::strlen(inputPath) <= 4096u && std::strlen(outputPath) > 0u
+		&& std::strlen(outputPath) <= 4096u && std::strcmp(inputPath, outputPath) != 0;
+}
+
 bool requestShape(const soundscaper_pro_os_mp3_decode_request *request)
 {
-	return request != nullptr && request->input_path_utf8 != nullptr
-		&& request->output_path_utf8 != nullptr && request->input_bytes > 0u
-		&& request->maximum_output_bytes > 0u
-		&& std::strlen(request->input_path_utf8) > 0u
-		&& std::strlen(request->input_path_utf8) <= 4096u
-		&& std::strlen(request->output_path_utf8) > 0u
-		&& std::strlen(request->output_path_utf8) <= 4096u
-		&& std::strcmp(request->input_path_utf8, request->output_path_utf8) != 0;
+	return request != nullptr && requestShapeValues(
+		request->input_path_utf8, request->output_path_utf8,
+		request->input_bytes, request->maximum_output_bytes);
 }
 
 bool widePath(const char *value, std::wstring &result)
@@ -68,6 +93,91 @@ bool exactInputFile(const std::wstring &path, uint64_t expectedBytes)
 	size.HighPart = metadata.nFileSizeHigh;
 	size.LowPart = metadata.nFileSizeLow;
 	return size.QuadPart == expectedBytes;
+}
+
+bool readAll(HANDLE input, BYTE *bytes, size_t length);
+
+bool exactEncodeRequest(const soundscaper_pro_os_aac_m4a_encode_request *request)
+{
+	return request != nullptr && requestShapeValues(
+		request->input_path_utf8, request->output_path_utf8,
+		request->input_bytes, request->maximum_output_bytes)
+		&& request->input_bytes <= 32u * 1024u * 1024u
+		&& request->maximum_output_bytes <= 128u * 1024u * 1024u
+		&& request->input_bytes % (2u * sizeof(float)) == 0u
+		&& request->sample_rate == 48000u && request->channel_count == 2u
+		&& request->bitrate_kbps == 160u;
+}
+
+bool readExactFloatInput(
+	const std::wstring &path,
+	uint64_t expectedBytes,
+	std::vector<int16_t> &pcm,
+	uint64_t &frameCount)
+{
+	if (expectedBytes == 0u || expectedBytes > 32u * 1024u * 1024u
+		|| expectedBytes % (2u * sizeof(float)) != 0u
+		|| expectedBytes > std::numeric_limits<DWORD>::max()) return false;
+	HANDLE input = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+	if (input == INVALID_HANDLE_VALUE) return false;
+	BY_HANDLE_FILE_INFORMATION information{};
+	ULARGE_INTEGER size{};
+	const bool metadata = GetFileInformationByHandle(input, &information) != 0;
+	size.HighPart = information.nFileSizeHigh;
+	size.LowPart = information.nFileSizeLow;
+	std::vector<BYTE> bytes(static_cast<size_t>(expectedBytes));
+	const bool read = metadata && (information.dwFileAttributes
+		& (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) == 0u
+		&& size.QuadPart == expectedBytes
+		&& readAll(input, bytes.data(), bytes.size());
+	const bool closed = CloseHandle(input) != 0;
+	if (!read || !closed) return false;
+	pcm.resize(bytes.size() / sizeof(float));
+	for (size_t index = 0u; index < pcm.size(); ++index) {
+		const size_t offset = index * sizeof(float);
+		const uint32_t bits = static_cast<uint32_t>(bytes[offset])
+			| static_cast<uint32_t>(bytes[offset + 1u]) << 8u
+			| static_cast<uint32_t>(bytes[offset + 2u]) << 16u
+			| static_cast<uint32_t>(bytes[offset + 3u]) << 24u;
+		float sample = 0.0f;
+		std::memcpy(&sample, &bits, sizeof(sample));
+		if (!std::isfinite(sample)) return false;
+		pcm[index] = sample <= -1.0f ? std::numeric_limits<int16_t>::min()
+			: sample >= 1.0f ? std::numeric_limits<int16_t>::max()
+				: static_cast<int16_t>(std::lround(sample * 32767.0f));
+	}
+	frameCount = pcm.size() / 2u;
+	return frameCount > 0u;
+}
+
+EncodedOutputInspection inspectEncodedOutput(
+	const std::wstring &path,
+	uint64_t maximumBytes,
+	uint64_t &outputBytes)
+{
+	WIN32_FILE_ATTRIBUTE_DATA metadata{};
+	if (!GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &metadata)
+		|| (metadata.dwFileAttributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) != 0u) {
+		return EncodedOutputInspection::invalid;
+	}
+	ULARGE_INTEGER size{};
+	size.HighPart = metadata.nFileSizeHigh;
+	size.LowPart = metadata.nFileSizeLow;
+	if (size.QuadPart == 0u) return EncodedOutputInspection::invalid;
+	if (size.QuadPart > maximumBytes) return EncodedOutputInspection::overLimit;
+	if (size.QuadPart > std::numeric_limits<DWORD>::max()) return EncodedOutputInspection::invalid;
+	HANDLE input = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+	if (input == INVALID_HANDLE_VALUE) return EncodedOutputInspection::invalid;
+	std::vector<uint8_t> bytes(static_cast<size_t>(size.QuadPart));
+	const bool read = readAll(input, bytes.data(), bytes.size());
+	const bool closed = CloseHandle(input) != 0;
+	if (!read || !closed || !soundscaper::os_audio::exactAacLcM4a(bytes, 48000u, 2u)) {
+		return EncodedOutputInspection::invalid;
+	}
+	outputBytes = size.QuadPart;
+	return EncodedOutputInspection::exact;
 }
 
 bool exactUnsigned(IMFMediaType *type, REFGUID key, uint32_t expected)
@@ -147,6 +257,19 @@ bool writeAll(HANDLE output, const BYTE *bytes, DWORD length)
 		DWORD written = 0u;
 		if (!WriteFile(output, bytes + offset, length - offset, &written, nullptr) || written == 0u) return false;
 		offset += written;
+	}
+	return true;
+}
+
+bool readAll(HANDLE input, BYTE *bytes, size_t length)
+{
+	size_t offset = 0u;
+	while (offset < length) {
+		const DWORD requested = static_cast<DWORD>(std::min<size_t>(
+			length - offset, std::numeric_limits<DWORD>::max()));
+		DWORD readBytes = 0u;
+		if (!ReadFile(input, bytes + offset, requested, &readBytes, nullptr) || readBytes == 0u) return false;
+		offset += readBytes;
 	}
 	return true;
 }
@@ -300,6 +423,145 @@ soundscaper_pro_os_mp3_decode_result decodeOperatingSystemAudio(
 	return finish(result);
 }
 
+soundscaper_pro_os_aac_m4a_encode_result encodeOperatingSystemAacM4a(
+	const soundscaper_pro_os_aac_m4a_encode_request *request)
+{
+	if (!exactEncodeRequest(request)) return encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST);
+	std::wstring inputPath;
+	std::wstring outputPath;
+	if (!widePath(request->input_path_utf8, inputPath) || !widePath(request->output_path_utf8, outputPath)) {
+		return encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST);
+	}
+	if (!exactInputFile(inputPath, request->input_bytes)) {
+		return encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_INPUT_CHANGED);
+	}
+	if (GetFileAttributesW(outputPath.c_str()) != INVALID_FILE_ATTRIBUTES) {
+		return encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST);
+	}
+	std::vector<int16_t> pcm;
+	uint64_t frameCount = 0u;
+	if (!readExactFloatInput(inputPath, request->input_bytes, pcm, frameCount)) {
+		return encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST);
+	}
+
+	const HRESULT comStatus = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+	const bool uninitializeCom = SUCCEEDED(comStatus);
+	if (FAILED(comStatus) && comStatus != RPC_E_CHANGED_MODE) {
+		return encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_API_UNAVAILABLE);
+	}
+	const HRESULT startupStatus = MFStartup(MF_VERSION, MFSTARTUP_FULL);
+	if (FAILED(startupStatus)) {
+		if (uninitializeCom) CoUninitialize();
+		return encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_API_UNAVAILABLE);
+	}
+	bool keepOutput = false;
+	ComPtr<IMFSinkWriter> writer;
+	auto finish = [&](soundscaper_pro_os_aac_m4a_encode_result result) {
+		writer.Reset();
+		if (!keepOutput) DeleteFileW(outputPath.c_str());
+		MFShutdown();
+		if (uninitializeCom) CoUninitialize();
+		return result;
+	};
+
+	if (FAILED(MFCreateSinkWriterFromURL(outputPath.c_str(), nullptr, nullptr, &writer))) {
+		return finish(encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_ENCODE_FAILED, true));
+	}
+	ComPtr<IMFMediaType> outputType;
+	if (FAILED(MFCreateMediaType(&outputType))
+		|| FAILED(outputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio))
+		|| FAILED(outputType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_AAC))
+		|| FAILED(outputType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16u))
+		|| FAILED(outputType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, request->sample_rate))
+		|| FAILED(outputType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, request->channel_count))
+		|| FAILED(outputType->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND,
+			request->bitrate_kbps * 1000u / 8u))
+		|| FAILED(outputType->SetUINT32(MF_MT_AVG_BITRATE, request->bitrate_kbps * 1000u))
+		|| FAILED(outputType->SetUINT32(MF_MT_AAC_PAYLOAD_TYPE, 0u))
+		|| FAILED(outputType->SetUINT32(MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION, 0x29u))) {
+		return finish(encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, true));
+	}
+	DWORD streamIndex = 0u;
+	if (FAILED(writer->AddStream(outputType.Get(), &streamIndex))) {
+		return finish(encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, true));
+	}
+	ComPtr<IMFMediaType> inputType;
+	constexpr UINT32 pcmBlockAlignment = 2u * sizeof(int16_t);
+	if (FAILED(MFCreateMediaType(&inputType))
+		|| FAILED(inputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio))
+		|| FAILED(inputType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM))
+		|| FAILED(inputType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16u))
+		|| FAILED(inputType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, request->sample_rate))
+		|| FAILED(inputType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, request->channel_count))
+		|| FAILED(inputType->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, pcmBlockAlignment))
+		|| FAILED(inputType->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND,
+			request->sample_rate * pcmBlockAlignment))
+		|| FAILED(writer->SetInputMediaType(streamIndex, inputType.Get(), nullptr))) {
+		return finish(encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, true));
+	}
+	if (FAILED(writer->BeginWriting())) {
+		return finish(encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_ENCODE_FAILED, true));
+	}
+	constexpr uint64_t blockFrames = 1024u;
+	for (uint64_t frameOffset = 0u; frameOffset < frameCount;) {
+		const uint64_t frames = std::min(blockFrames, frameCount - frameOffset);
+		const uint64_t bufferBytes64 = frames * pcmBlockAlignment;
+		if (bufferBytes64 > std::numeric_limits<DWORD>::max()) {
+			return finish(encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_ENCODE_FAILED, true));
+		}
+		const DWORD bufferBytes = static_cast<DWORD>(bufferBytes64);
+		ComPtr<IMFMediaBuffer> buffer;
+		BYTE *destination = nullptr;
+		DWORD capacity = 0u;
+		DWORD current = 0u;
+		if (FAILED(MFCreateMemoryBuffer(bufferBytes, &buffer))
+			|| FAILED(buffer->Lock(&destination, &capacity, &current))) {
+			return finish(encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_ENCODE_FAILED, true));
+		}
+		if (capacity < bufferBytes) {
+			(void)buffer->Unlock();
+			return finish(encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_ENCODE_FAILED, true));
+		}
+		std::memcpy(destination, pcm.data() + frameOffset * request->channel_count, bufferBytes);
+		if (FAILED(buffer->Unlock()) || FAILED(buffer->SetCurrentLength(bufferBytes))) {
+			return finish(encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_ENCODE_FAILED, true));
+		}
+		ComPtr<IMFSample> sample;
+		const LONGLONG sampleTime = static_cast<LONGLONG>(
+			frameOffset * 10000000u / request->sample_rate);
+		const LONGLONG nextTime = static_cast<LONGLONG>(
+			(frameOffset + frames) * 10000000u / request->sample_rate);
+		if (nextTime <= sampleTime || FAILED(MFCreateSample(&sample))
+			|| FAILED(sample->AddBuffer(buffer.Get()))
+			|| FAILED(sample->SetSampleTime(sampleTime))
+			|| FAILED(sample->SetSampleDuration(nextTime - sampleTime))
+			|| FAILED(writer->WriteSample(streamIndex, sample.Get()))) {
+			return finish(encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_ENCODE_FAILED, true));
+		}
+		frameOffset += frames;
+	}
+	if (FAILED(writer->Finalize())) {
+		return finish(encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_ENCODE_FAILED, true));
+	}
+	writer.Reset();
+	uint64_t outputBytes = 0u;
+	const auto inspected = inspectEncodedOutput(outputPath, request->maximum_output_bytes, outputBytes);
+	if (inspected != EncodedOutputInspection::exact) {
+		return finish(encodeAnswer(inspected == EncodedOutputInspection::overLimit
+			? SOUNDSCAPER_PRO_OS_CODEC_OUTPUT_LIMIT
+			: SOUNDSCAPER_PRO_OS_CODEC_ENCODE_FAILED, true));
+	}
+	soundscaper_pro_os_aac_m4a_encode_result result = encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_OK, true);
+	result.exact_tuple_passed = 1u;
+	result.output_bytes = outputBytes;
+	result.frame_count = frameCount;
+	result.sample_rate = request->sample_rate;
+	result.channel_count = request->channel_count;
+	result.bitrate_kbps = request->bitrate_kbps;
+	keepOutput = true;
+	return finish(result);
+}
+
 } // namespace
 
 extern "C" soundscaper_pro_os_mp3_decode_result soundscaper_pro_os_mp3_decode(
@@ -312,4 +574,10 @@ extern "C" soundscaper_pro_os_mp3_decode_result soundscaper_pro_os_aac_m4a_decod
 	const soundscaper_pro_os_mp3_decode_request *request)
 {
 	return decodeOperatingSystemAudio(request, ReviewedCodec::aacM4a);
+}
+
+extern "C" soundscaper_pro_os_aac_m4a_encode_result soundscaper_pro_os_aac_m4a_encode(
+	const soundscaper_pro_os_aac_m4a_encode_request *request)
+{
+	return encodeOperatingSystemAacM4a(request);
 }
