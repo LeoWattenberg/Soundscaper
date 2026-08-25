@@ -213,11 +213,14 @@ test('unavailable operation outcomes remain typed and still release custody', as
 	assert.equal(store.getSnapshot().canReview, false);
 });
 
-test('cancellation is explicit and release is attempted after the run quiesces', async () => {
+test('cancellation is explicit and release is attempted after the run quiesces', { timeout: 5_000 }, async () => {
 	const fixture = rawBridgeFixture();
 	let finish: ((value: unknown) => void) | null = null;
+	let markStarted: (() => void) | null = null;
+	const started = new Promise<void>((resolve) => { markStarted = resolve; });
 	fixture.api.run = () => {
 		fixture.calls.push('run');
+		markStarted?.();
 		return new Promise((resolve) => { finish = resolve; });
 	};
 	fixture.api.cancel = async () => {
@@ -230,9 +233,7 @@ test('cancellation is explicit and release is attempted after the run quiesces',
 	assert.ok(bridge);
 	const store = selectedStore(bridge, preparationFixture());
 	const running = store.run();
-	for (let attempt = 0; attempt < 20 && !fixture.calls.includes('run'); attempt += 1) {
-		await new Promise<void>((resolve) => { setImmediate(resolve); });
-	}
+	await started;
 	assert.equal(fixture.calls.includes('run'), true);
 	await store.cancel();
 	await running;
