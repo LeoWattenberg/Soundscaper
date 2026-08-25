@@ -43,11 +43,11 @@ test('the frozen Milestone 2 handoff evidence cannot authorize Framescaper V17 a
 	}
 
 	assert.doesNotMatch(browserEvidence, /LEGACY_SHARED_PROJECT_SCHEMA_VERSION = 17/u);
-	assert.match(browserEvidence, /SOUNDSCAPER_PROJECT_V29_SCHEMA_VERSION/u);
-	assert.match(browserEvidence, /FRAMESCAPER_PROJECT_V28_SCHEMA_VERSION/u);
+	assert.match(browserEvidence, /SOUNDSCAPER_PROJECT_V30_SCHEMA_VERSION/u);
+	assert.match(browserEvidence, /FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION/u);
 	assert.match(browserEvidence, /exact selected-schema cross-product Scape handoffs/u);
-	assert.match(browserEvidence, /Framescaper V28 holds V29 opaquely/iu);
-	assert.match(browserEvidence, /Soundscaper V29 refuses a Framescaper V28 document/iu);
+	assert.match(browserEvidence, /Framescaper F31 holds S30 opaquely/iu);
+	assert.match(browserEvidence, /Soundscaper S30 holds F31 opaquely/iu);
 });
 
 test('the reviewed Milestone 3 contract records V18 as authoritative and atomically selected', async () => {
