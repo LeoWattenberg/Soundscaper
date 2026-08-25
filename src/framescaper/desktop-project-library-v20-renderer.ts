@@ -15,6 +15,10 @@ import {
 	validateFramescaperDesktopV31Bodies,
 	type FramescaperDesktopV31BodyDescriptor,
 } from './desktop-project-library-v31-body-transfer.ts';
+import {
+	createFramescaperDesktopProjectLibraryV20Shadow,
+	type FramescaperDesktopProjectLibraryV20Shadow,
+} from './desktop-project-library-v20-shadow.ts';
 import { assertFramescaperProjectV31Profile } from './editor-project-runtime-profile-v31.ts';
 import { framescaperProjectStoreAuthorityV31 } from './editor-project-store-v31.ts';
 import { cloneFramescaperProjectV31, type FramescaperProjectV31 } from './editor-project-v31.ts';
@@ -73,7 +77,10 @@ interface V20Bundle {
 	readonly bodies: readonly Readonly<FramescaperDesktopV31BodyDescriptor>[];
 }
 
-type V20Store = FramescaperDesktopV12BodyStore & Readonly<{ databaseName: string }>;
+type V20Store = FramescaperDesktopV12BodyStore & Readonly<{
+	databaseName: string;
+	shadow: FramescaperDesktopProjectLibraryV20Shadow;
+}>;
 
 export interface FramescaperDesktopProjectLibraryV20ProjectSummary {
 	readonly id: string;
@@ -162,7 +169,7 @@ class Renderer implements FramescaperDesktopProjectLibraryV20Renderer {
 				snapshot.project, snapshot.bundle.project.sha256, snapshot.bundle.bodies,
 				this.#bridge, this.#store, options.signal,
 			);
-			return snapshot.project;
+			return this.#store.shadow.reconcileCommittedProject(snapshot.project, options.signal);
 		});
 	}
 
@@ -193,6 +200,7 @@ class Renderer implements FramescaperDesktopProjectLibraryV20Renderer {
 			);
 			const publicationId = randomPublicationId();
 			let admitted = false;
+			let finished = false;
 			try {
 				const admission = exactRecord(await this.#bridge.beginPublication({
 					publicationId,
@@ -215,15 +223,15 @@ class Renderer implements FramescaperDesktopProjectLibraryV20Renderer {
 				throwIfAborted(request.signal);
 				if (request.beforeFinish) await request.beforeFinish();
 				throwIfAborted(request.signal);
-				const result = validateBundle(
-					this.#profile, await this.#bridge.finishPublication({ publicationId }), projectId,
-				);
+				const rawResult = await this.#bridge.finishPublication({ publicationId });
+				finished = true;
+				const result = validateBundle(this.#profile, rawResult, projectId);
 				if (JSON.stringify(result.project) !== JSON.stringify(project)) {
 					throw new Error('Framescaper V20 publication readback changed the project.');
 				}
-				return result.project;
+				return await this.#store.shadow.reconcileCommittedProject(result.project);
 			} catch (error) {
-				if (admitted) await this.#bridge.abortPublication({ publicationId }).catch(() => false);
+				if (admitted && !finished) await this.#bridge.abortPublication({ publicationId }).catch(() => false);
 				throw error;
 			}
 		});
@@ -233,7 +241,10 @@ class Renderer implements FramescaperDesktopProjectLibraryV20Renderer {
 		const projectId = projectIdValue_(projectIdValue);
 		return this.#exclusive(async () => {
 			const raw = await this.#bridge.readProjectBundle(projectId);
-			if (raw === null) return;
+			if (raw === null) {
+				await this.#store.shadow.deleteCommittedProject(projectId);
+				return;
+			}
 			const current = validateBundle(this.#profile, raw, projectId);
 			const result = exactRecord(await this.#bridge.deleteProject({
 				projectId,
@@ -246,6 +257,7 @@ class Renderer implements FramescaperDesktopProjectLibraryV20Renderer {
 			if (result.projectId !== projectId || result.deleted !== true) {
 				throw new Error('Framescaper V20 delete acknowledgement changed.');
 			}
+			await this.#store.shadow.deleteCommittedProject(projectId);
 		});
 	}
 
@@ -273,7 +285,7 @@ class Renderer implements FramescaperDesktopProjectLibraryV20Renderer {
 				snapshot.project, snapshot.bundle.project.sha256, snapshot.bundle.bodies,
 				this.#bridge, this.#store,
 			);
-			return snapshot.project;
+			return this.#store.shadow.reconcileCommittedProject(snapshot.project);
 		});
 	}
 
@@ -423,7 +435,11 @@ function durableStore(profile: EditorProjectRuntimeProfile, value: unknown): V20
 		if (typeof method !== 'function') throw new TypeError(`The exact V31 body store requires ${field}.`);
 		return [field, (...args: unknown[]) => method.apply(value, args)];
 	})));
-	return Object.freeze({ databaseName, ...methods }) as unknown as V20Store;
+	return Object.freeze({
+		databaseName,
+		...methods,
+		shadow: createFramescaperDesktopProjectLibraryV20Shadow(profile, value),
+	}) as unknown as V20Store;
 }
 
 function inheritedData(value: object, field: string): ((...args: unknown[]) => unknown) | undefined {
