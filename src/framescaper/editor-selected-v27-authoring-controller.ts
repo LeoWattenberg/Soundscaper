@@ -13,6 +13,7 @@ import type {
 	FramescaperSelectedVisualAuthoringSurfaceV27,
 } from './editor-selected-v27-visual-authoring-model.ts';
 import { framescaperProjectV27FoundationShapeV28 } from './editor-project-v28-foundation.ts';
+import { framescaperProjectV28FoundationShapeV30 } from './editor-project-v30-foundation.ts';
 
 type Awaitable<Value> = Value | PromiseLike<Value>;
 
@@ -32,6 +33,7 @@ export interface FramescaperSelectedAuthoringControllerV27 {
 }
 
 export type FramescaperSelectedAuthoringControllerV28 = FramescaperSelectedAuthoringControllerV27;
+export type FramescaperSelectedAuthoringControllerV30 = FramescaperSelectedAuthoringControllerV27;
 
 export interface FramescaperSelectedVisualAuthoringRuntimeV27 {
 	readonly run: (
@@ -82,12 +84,22 @@ export function bindFramescaperSelectedAuthoringControllerV28(options: Readonly<
 	bindSelectedAuthoringController(options, 28, framescaperProjectV27FoundationShapeV28);
 }
 
+/** Retain inherited V27 menu authoring through the exact V30 foundation. */
+export function bindFramescaperSelectedAuthoringControllerV30(options: Readonly<{
+	readonly controller: FramescaperSelectedAuthoringControllerV30;
+	readonly store: AudioEditorProjectStore;
+}>): void {
+	bindSelectedAuthoringController(options, 30, (project) => framescaperProjectV27FoundationShapeV28(
+		framescaperProjectV28FoundationShapeV30(project),
+	));
+}
+
 function bindSelectedAuthoringController(
 	options: Readonly<{
 		readonly controller: FramescaperSelectedAuthoringControllerV27;
 		readonly store: AudioEditorProjectStore;
 	}>,
-	schema: 27 | 28,
+	schema: 27 | 28 | 30,
 	projectForAuthoring: (project: unknown) => unknown,
 ): void {
 	const { controller, store } = options;
@@ -180,7 +192,7 @@ function bindSelectedAuthoringController(
 
 function runtimeState(
 	controller: FramescaperSelectedAuthoringControllerV27,
-	schema: 27 | 28,
+	schema: 27 | 28 | 30,
 	projectForAuthoring: (project: unknown) => unknown,
 ) {
 	const canonicalProject = structuredClone(controller.project);

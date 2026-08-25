@@ -5,6 +5,8 @@ import { sampleFrameToVideoFrame } from '../common/editor/timeline-time.ts';
 import {
 	bindFramescaperCandidateAuthoringActionRuntime,
 	createFramescaperCandidateAuthoringActionSubsetRuntime,
+	framescaperCandidateAuthoringActionRuntimeFor,
+	type FramescaperCandidateAuthoringSurface,
 } from '../common/editor/ui/framescaper-candidate-authoring-actions.ts';
 import {
 	importFramescaperTimelineImagesV30,
@@ -83,12 +85,16 @@ export function bindFramescaperSelectedImageAuthoringControllerV30(
 		tail = operation.then(() => undefined, () => undefined);
 		return operation;
 	};
-	bindFramescaperCandidateAuthoringActionRuntime(
-		controller as object,
-		createFramescaperCandidateAuthoringActionSubsetRuntime(
-			['video-still'], { 'video-still': run },
-		),
-	);
+	const inherited = framescaperCandidateAuthoringActionRuntimeFor(controller as object);
+	const surfaces = inherited?.surfaces.includes('video-still')
+		? inherited.surfaces
+		: Object.freeze([...(inherited?.surfaces ?? []), 'video-still'] as const);
+	const actions = Object.fromEntries(surfaces.map((surface) => [
+		surface,
+		surface === 'video-still' ? run : () => inherited!.run(surface),
+	])) as Partial<Record<FramescaperCandidateAuthoringSurface, () => Promise<void>>>;
+	bindFramescaperCandidateAuthoringActionRuntime(controller as object,
+		createFramescaperCandidateAuthoringActionSubsetRuntime(surfaces, actions));
 
 	async function importSelected(): Promise<void> {
 		const files = await selectFiles();
