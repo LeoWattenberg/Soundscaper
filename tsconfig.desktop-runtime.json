@@ -22,6 +22,8 @@
 		"desktop/bundled-flac-stream.ts",
 		"desktop/bundled-opus-audio-codec-runtime.ts",
 		"desktop/bundled-opus-stream.ts",
+		"desktop/bundled-vorbis-audio-codec-runtime.ts",
+		"desktop/bundled-vorbis-stream.ts",
 		"desktop/bundled-wavpack-audio-codec-runtime.ts",
 		"desktop/bundled-wavpack-stream.ts",
 		"desktop/desktop-audio-codec-broker.ts",

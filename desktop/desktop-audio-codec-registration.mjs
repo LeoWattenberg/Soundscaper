@@ -16,6 +16,7 @@ const MODULE_METHODS = Object.freeze([
 	'createBundledDesktopAudioCodecRuntime', 'createDesktopAudioCodecRuntimeComposition',
 	'createOperatingSystemAudioCodecElectronSpawn', 'createSoundscaperProfessionalNativeVerifier',
 	'loadBundledFlacAudioCodecRuntime', 'loadBundledOpusAudioCodecRuntime',
+	'loadBundledVorbisAudioCodecRuntime',
 	'loadBundledWavPackAudioCodecRuntime',
 	'loadOperatingSystemAudioCodecRuntime',
 	'registerDesktopAudioCodecMainIpc',
@@ -43,6 +44,7 @@ export async function registerDesktopAudioCodecs(options) {
 		modules.loadBundledWavPackAudioCodecRuntime({ target }),
 		modules.loadBundledFlacAudioCodecRuntime({ target }),
 		modules.loadBundledOpusAudioCodecRuntime({ target }),
+		modules.loadBundledVorbisAudioCodecRuntime({ target }),
 	])).filter((runtime) => runtime !== null);
 	const bundledRuntime = reviewedRuntimes.length === 0
 		? null
@@ -90,7 +92,7 @@ export async function registerDesktopAudioCodecs(options) {
 }
 
 async function loadRuntimeModules() {
-	const [bundled, composition, electronSpawn, flac, ipc, operatingSystem, opus, professional, wavPack]
+	const [bundled, composition, electronSpawn, flac, ipc, operatingSystem, opus, professional, vorbis, wavPack]
 		= await Promise.all([
 		import('./project-library-runtime/desktop/bundled-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/desktop-audio-codec-runtime-composition.js'),
@@ -100,6 +102,7 @@ async function loadRuntimeModules() {
 		import('./project-library-runtime/desktop/os-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/bundled-opus-audio-codec-runtime.js'),
 		import('./soundscaper-professional-native-payload.mjs'),
+		import('./project-library-runtime/desktop/bundled-vorbis-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/bundled-wavpack-audio-codec-runtime.js'),
 	]);
 	return Object.freeze({
@@ -109,6 +112,7 @@ async function loadRuntimeModules() {
 		createSoundscaperProfessionalNativeVerifier: professional.createSoundscaperProfessionalNativeVerifier,
 		loadBundledFlacAudioCodecRuntime: flac.loadBundledFlacAudioCodecRuntime,
 		loadBundledOpusAudioCodecRuntime: opus.loadBundledOpusAudioCodecRuntime,
+		loadBundledVorbisAudioCodecRuntime: vorbis.loadBundledVorbisAudioCodecRuntime,
 		loadBundledWavPackAudioCodecRuntime: wavPack.loadBundledWavPackAudioCodecRuntime,
 		loadOperatingSystemAudioCodecRuntime: operatingSystem.loadOperatingSystemAudioCodecRuntime,
 		registerDesktopAudioCodecMainIpc: ipc.registerDesktopAudioCodecMainIpc,

@@ -161,6 +161,37 @@ disclosures from Xiph.Org, Microsoft, and Broadcom. Those disclosures, the
 BSD-style copyright licenses, and this technical review do not establish patent
 clearance or non-infringement for any use or territory.
 
+## libvorbis 1.3.7 and libogg 1.3.6 WebAssembly
+
+Soundscaper distributes one exact memory-only Emscripten build of libvorbis
+1.3.7 and libogg 1.3.6 under their retained BSD-style terms as a desktop
+bundled Ogg Vorbis encode/decode provider on Linux x64/ARM64, macOS ARM64, and
+Windows x64/ARM64. macOS x64 is unsupported.
+
+- libvorbis upstream: <https://gitlab.xiph.org/xiph/vorbis/-/tree/v1.3.7>
+- pinned libvorbis commit: `0657aee69dec8508a0011f47f3b69d7538e9d262`
+- libvorbis source archive SHA-256: `b33cc4934322bcbf6efcbacf49e3ca01aadbea4114ec9589d1b1e9d20f72954b`
+- libogg upstream: <https://gitlab.xiph.org/xiph/ogg/-/tree/v1.3.6>
+- pinned libogg commit: `be05b13e98b048f0b5a0f5fa8ce514d56db5f822`
+- libogg source archive SHA-256: `5c8253428e181840cd20d41f3ca16557a9cc04bad4a3d04cce84808677fa1061`
+- retained terms: [`VORBIS.txt`](src/common/editor/vorbis/licenses/VORBIS.txt) and
+  [`OGG.txt`](src/common/editor/vorbis/licenses/OGG.txt)
+- detailed notice: [`NOTICE.md`](src/common/editor/vorbis/NOTICE.md)
+- source/build manifest: [`source-manifest.json`](src/common/editor/vorbis/source-manifest.json)
+- exact `vorbis.wasm`: 523,227 bytes; SHA-256
+  `c03037c33f35dbf85e1e963058156399b995b2dedb5479f6eb3f3b30148eeee5`
+
+The admitted public profile is a single Ogg Vorbis logical stream, mono or
+stereo, at the contract's 8–192 kHz sample rates with integer quality settings
+0–10. A strict bounded parser validates Ogg framing, CRC, continuity, headers,
+comments, granules, EOS, and source geometry before libvorbisfile independently
+probes and decodes the stream. Valid wider profiles fall through; malformed
+streams are terminal. Staging and startup independently recheck the artifact
+length and digest, and startup runs a lossy encode/parse/probe/decode canary.
+Vorbis preserves decoded frame geometry but is not sample-exact. The BSD-style
+copyright licenses and this technical review do not establish patent clearance
+or non-infringement for any use or territory.
+
 ## WavPack 5.9.0 WebAssembly
 
 Soundscaper distributes one exact Emscripten build of WavPack 5.9.0 under the
@@ -263,8 +294,9 @@ or patent clearance.
 
 The maintained first-party PCM container readers remain application source.
 The exact libFLAC 1.5.0 signed-24, libopus 1.6.1 plus libogg 1.3.6 Ogg Opus,
-and WavPack 5.9.0 float32 providers described above are the admitted bundled
-compressed-codec runtimes in the shipped desktop composition. Every other
+libvorbis 1.3.7 plus libogg 1.3.6 Ogg Vorbis, and WavPack 5.9.0 float32
+providers described above are the admitted bundled compressed-codec runtimes
+in the shipped desktop composition. Every other
 bundled compressed-codec candidate provides policy and tuple contracts only
 and fails closed as unavailable. Operating-system codecs remain limited to
 their separately qualified exact target profiles.

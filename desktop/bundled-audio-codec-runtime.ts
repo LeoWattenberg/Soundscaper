@@ -108,6 +108,7 @@ function compositeProvider(
 	const labels = [
 		...(implementations.some((value) => value.includes('libflac')) ? ['libflac'] : []),
 		...(implementations.some((value) => value.includes('libopus')) ? ['libopus-libogg'] : []),
+		...(implementations.some((value) => value.includes('libvorbis')) ? ['libvorbis-libogg'] : []),
 		...(implementations.some((value) => value.includes('wavpack')) ? ['wavpack'] : []),
 	];
 	return Object.freeze({

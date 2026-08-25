@@ -1,0 +1,110 @@
+{
+	"schemaVersion": 1,
+	"vorbis": {
+		"repository": "https://gitlab.xiph.org/xiph/vorbis.git",
+		"tag": "v1.3.7",
+		"revision": "0657aee69dec8508a0011f47f3b69d7538e9d262",
+		"license": "BSD-3-Clause",
+		"archiveUrl": "https://downloads.xiph.org/releases/vorbis/libvorbis-1.3.7.tar.xz",
+		"archiveRedirectUrl": "https://ftp.osuosl.org/pub/xiph/releases/vorbis/libvorbis-1.3.7.tar.xz",
+		"archiveSha256": "b33cc4934322bcbf6efcbacf49e3ca01aadbea4114ec9589d1b1e9d20f72954b"
+	},
+	"ogg": {
+		"repository": "https://gitlab.xiph.org/xiph/ogg.git",
+		"tag": "v1.3.6",
+		"revision": "be05b13e98b048f0b5a0f5fa8ce514d56db5f822",
+		"license": "BSD-3-Clause",
+		"archiveUrl": "https://downloads.xiph.org/releases/ogg/libogg-1.3.6.tar.xz",
+		"archiveRedirectUrl": "https://ftp.osuosl.org/pub/xiph/releases/ogg/libogg-1.3.6.tar.xz",
+		"archiveSha256": "5c8253428e181840cd20d41f3ca16557a9cc04bad4a3d04cce84808677fa1061"
+	},
+	"toolchain": {
+		"emscriptenVersion": "3.1.64",
+		"dockerImage": "emscripten/emsdk:3.1.64",
+		"dockerImageDigest": "sha256:8847dad4171ebc8a53d9ae5cda86a2546ef5b2e68834c14dc1ba2b2962e125cc",
+		"sourceDateEpoch": "1593820800"
+	},
+	"configureArguments": {
+		"vorbis": [
+			"--disable-shared",
+			"--enable-static",
+			"--disable-dependency-tracking",
+			"--disable-docs",
+			"--disable-examples",
+			"--disable-oggtest"
+		],
+		"ogg": [
+			"--disable-shared",
+			"--enable-static",
+			"--disable-dependency-tracking"
+		]
+	},
+	"buildFeatures": {
+		"files": false,
+		"maximumChannels": 2,
+		"maximumSampleRate": 192000,
+		"minimumSampleRate": 8000,
+		"qualityMaximum": 10,
+		"qualityMinimum": 0,
+		"simd": false,
+		"threads": false
+	},
+	"compiledArchiveEvidence": {
+		"vorbisMemberCount": 20,
+		"vorbisMembersSha256": "7a6013f07ece1762054788649a68479ead8c52aa7d65a4f87b42a35fe5089909",
+		"vorbisEncMemberCount": 1,
+		"vorbisEncMembersSha256": "50efbd758bbe46436e1672369ddbb0b8ce2a51af12bfa0fde9e7739ac5b05b5a",
+		"vorbisFileMemberCount": 1,
+		"vorbisFileMembersSha256": "a9fca99c38f498c08428c59e3b904db0200c9414256d9796aef335b4f55739da",
+		"oggMemberCount": 2,
+		"oggMembersSha256": "54ff59975ee6f8cf0011df44e673d566d34dfe917e948cb805a832d30d28710a"
+	},
+	"localFiles": [
+		{
+			"path": "native/soundscaper_vorbis.c",
+			"sha256": "c809d70d4367b1b4517c9466586539384fd03ac843cb0408ba55e78e708a1b19"
+		},
+		{
+			"path": "NOTICE.md",
+			"sha256": "5e81e5b95eefc5624cddf32306904541c61d46a75694ab202d3c5d1f0ae3ee21"
+		},
+		{
+			"path": "licenses/VORBIS.txt",
+			"sha256": "ec1815db59fcd302846df949d7424876cb2e2dc5ed1606c5fb0b36787b1cf43a"
+		},
+		{
+			"path": "licenses/OGG.txt",
+			"sha256": "d2ab5758336489da61c12cc5bb757da5339c4ae9001f9bb0562b4370249af814"
+		}
+	],
+	"wasm": {
+		"path": "vorbis.wasm",
+		"sha256": "c03037c33f35dbf85e1e963058156399b995b2dedb5479f6eb3f3b30148eeee5",
+		"maximumBytes": 786432,
+		"initialMemoryBytes": 8388608,
+		"maximumMemoryBytes": 268435456,
+		"stackBytes": 1048576,
+		"requiredExports": [
+			"memory",
+			"_initialize",
+			"scvb_abi_version",
+			"scvb_minimum_sample_rate",
+			"scvb_maximum_sample_rate",
+			"scvb_maximum_channels",
+			"scvb_maximum_frames",
+			"scvb_initial_memory_bytes",
+			"scvb_maximum_memory_bytes",
+			"scvb_allocate",
+			"scvb_free",
+			"scvb_validate",
+			"scvb_probe",
+			"scvb_encode_float32",
+			"scvb_decode_float32"
+		],
+		"allowedFunctionImports": [
+			"env.emscripten_notify_memory_growth",
+			"wasi_snapshot_preview1.fd_write",
+			"wasi_snapshot_preview1.proc_exit"
+		]
+	}
+}

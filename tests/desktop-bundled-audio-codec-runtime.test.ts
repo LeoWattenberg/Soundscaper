@@ -6,6 +6,7 @@ import test from 'node:test';
 import { createBundledDesktopAudioCodecRuntime } from '../desktop/bundled-audio-codec-runtime.ts';
 import { loadBundledFlacAudioCodecRuntime } from '../desktop/bundled-flac-audio-codec-runtime.ts';
 import { loadBundledOpusAudioCodecRuntime } from '../desktop/bundled-opus-audio-codec-runtime.ts';
+import { loadBundledVorbisAudioCodecRuntime } from '../desktop/bundled-vorbis-audio-codec-runtime.ts';
 import { loadBundledWavPackAudioCodecRuntime } from '../desktop/bundled-wavpack-audio-codec-runtime.ts';
 import {
 	createDesktopAudioCodecBroker,
@@ -19,20 +20,23 @@ import type {
 	DesktopCodecProviderKind,
 } from '../src/common/editor/desktop-codec-coordinator.ts';
 
-test('the composite exposes one bundled tier and delegates exact FLAC, Opus, and WavPack operations', async () => {
+test('the composite exposes one bundled tier and delegates exact FLAC, Opus, Vorbis, and WavPack operations', async () => {
 	const flac = await loadBundledFlacAudioCodecRuntime({ target: 'linux-x64' });
 	const opus = await loadBundledOpusAudioCodecRuntime({ target: 'linux-x64' });
 	const wavpack = await loadBundledWavPackAudioCodecRuntime({ target: 'linux-x64' });
+	const vorbis = await loadBundledVorbisAudioCodecRuntime({ target: 'linux-x64' });
 	assert.ok(flac);
 	assert.ok(opus);
 	assert.ok(wavpack);
+	assert.ok(vorbis);
 	const runtime = createBundledDesktopAudioCodecRuntime({
-		target: 'linux-x64', runtimes: [wavpack, flac, opus],
+		target: 'linux-x64', runtimes: [wavpack, flac, opus, vorbis],
 	});
 	assert.equal(runtime.provider.kind, 'bundled');
 	assert.equal(runtime.provider.implementation, 'soundscaper-reviewed-audio-codecs');
 	assert.match(runtime.provider.capabilityGeneration, /libflac/u);
 	assert.match(runtime.provider.capabilityGeneration, /libopus-libogg/u);
+	assert.match(runtime.provider.capabilityGeneration, /libvorbis-libogg/u);
 	assert.match(runtime.provider.capabilityGeneration, /wavpack/u);
 
 	const flacRequest: DesktopAudioCodecRequest = {
@@ -72,6 +76,16 @@ test('the composite exposes one bundled tier and delegates exact FLAC, Opus, and
 	}) as { readonly status: string; readonly output?: Uint8Array };
 	assert.equal(opusResult.status, 'executed');
 	assert.equal(Buffer.from(opusResult.output?.subarray(0, 4) ?? []).toString('ascii'), 'OggS');
+	const vorbisRequest: DesktopAudioCodecRequest = {
+		operation: 'audio-encode', format: 'ogg-vorbis',
+		input: opusRequest.input, sampleRate: 48_000, channelCount: 2,
+		settings: { quality: 6 }, maximumOutputBytes: 64 * 1024,
+	};
+	const vorbisResult = await runtime.execute(vorbisRequest, {
+		operation: deriveDesktopAudioCodecOperation(vorbisRequest),
+	}) as { readonly status: string; readonly output?: Uint8Array };
+	assert.equal(vorbisResult.status, 'executed');
+	assert.equal(Buffer.from(vorbisResult.output?.subarray(0, 4) ?? []).toString('ascii'), 'OggS');
 	const wrongRate = { ...opusRequest, sampleRate: 24_000 } as DesktopAudioCodecRequest;
 	assert.equal((await runtime.preflightRequest?.(wrongRate, {
 		operation: deriveDesktopAudioCodecOperation(wrongRate),
@@ -82,11 +96,13 @@ test('broker receipts attribute bundled encode and decode to each concrete revie
 	const flac = await loadBundledFlacAudioCodecRuntime({ target: 'linux-x64' });
 	const opus = await loadBundledOpusAudioCodecRuntime({ target: 'linux-x64' });
 	const wavpack = await loadBundledWavPackAudioCodecRuntime({ target: 'linux-x64' });
+	const vorbis = await loadBundledVorbisAudioCodecRuntime({ target: 'linux-x64' });
 	assert.ok(flac);
 	assert.ok(opus);
 	assert.ok(wavpack);
+	assert.ok(vorbis);
 	const bundled = createBundledDesktopAudioCodecRuntime({
-		target: 'linux-x64', runtimes: [wavpack, flac, opus],
+		target: 'linux-x64', runtimes: [wavpack, flac, opus, vorbis],
 	});
 	const broker = createDesktopAudioCodecBroker({ runtimes: [
 		bundled, unreachableRuntime('operating-system'), unreachableRuntime('external-ffmpeg'),
@@ -110,8 +126,13 @@ test('broker receipts attribute bundled encode and decode to each concrete revie
 			sampleRate: 48_000, channelCount: 2,
 			settings: { bitrateKbps: 128 }, maximumOutputBytes: 256 * 1024,
 		}],
+		['ogg-vorbis', vorbis, {
+			operation: 'audio-encode', format: 'ogg-vorbis', input: pcm,
+			sampleRate: 48_000, channelCount: 2,
+			settings: { quality: 6 }, maximumOutputBytes: 256 * 1024,
+		}],
 	] as const satisfies readonly (readonly [
-		'flac' | 'wavpack' | 'opus', DesktopAudioCodecProviderRuntime, DesktopAudioCodecRequest,
+		'flac' | 'wavpack' | 'opus' | 'ogg-vorbis', DesktopAudioCodecProviderRuntime, DesktopAudioCodecRequest,
 	])[];
 
 	for (const [format, concrete, request] of fixtures) {
