@@ -15,7 +15,7 @@
 		"planPath": "desktop/desktop-audio-ffmpeg-plan.ts",
 		"planSha256": "8c15d77a7407149bb2a1370a8d0e2b91e5c9b5d9dec76f1d4f27c0c3de8736b1",
 		"probePath": "desktop/external-ffmpeg-probe.ts",
-		"probeSha256": "c89441a1b34b4ebc68e2496cb75a1bfee4abc6f3ee6c08b65f6a8c67f359c30e",
+		"probeSha256": "7ab8966d62e94cf14f0bf337078f46000cd2f8f511ebcfc2a86bc9583892bf04",
 		"waveParserPath": "desktop/desktop-audio-ffmpeg-wave-output.ts",
 		"waveParserSha256": "03645a8e61e8c8e1c7813dec609b382c6bd8651c1580c02d6a7a832fa60770e0",
 		"runnerPath": "scripts/lib/external-ffmpeg-cli-compatibility-lab.mjs",
