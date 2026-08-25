@@ -350,6 +350,38 @@
 			]
 		},
 		{
+			"id": "current-local-assistance-transcript-custody",
+			"status": "implemented",
+			"requiredOutcome": "Selected Soundscaper S30 and Framescaper F31 accept only an explicitly reviewed authenticated speech transcript into ordinary editable project state, retain its content-addressed external body through maintained custody routes, and keep every unavailable assistance operation non-authoritative.",
+			"currentBehavior": "Selected Soundscaper S30 and Framescaper F31 own the closed assistanceAssets collection and org.soundscaper.capability.assistance-assets. The active desktop workflow can accept only a reviewed authenticated speech-recognition result. Acceptance revalidates the exact project revision, sequence, selected occurrence, source digest and range, link membership, and timing authority through an AssistanceProposalSession; stages one canonical content-addressed transcript-v1 JSON body; and commits its digest-bound reference with a deterministic ordinary label track as one undoable project command. A whole rerun replaces that owned transcript track and reference instead of merging inferred text. A stale fence, reference race, body-publication fault, or project-commit failure refuses the edit and rolls back newly owned body publication. History, reopen, clone, selected-product storage retention, and current-format .scape export/import preserve the strict reference and body; .scape authenticates descriptor, size, SHA-256, source binding, sample rate, model artifacts, and canonical transcript semantics, and collision import rebinds the source, body, and immutable reference together. AUP4 reports transcript and source-binding omission explicitly. Web routes retain and edit the resulting ordinary label/project state but run no model inference. A missing or corrupt external body cannot become a valid assistance result or archive export and grants no inference authority. Only the selected S30 and F31 runtime profiles advertise the assistance-asset command; generic V17/V18 and historical product profiles do not acquire it. Every non-speech operation still returns its typed unavailable result unless its own adapter is implemented and passes the same hard licensing, catalog-signature, artifact-integrity, runtime, selected-media, and consent gates. Pending manual or owner-lab qualification neither disables this bounded implemented path nor relaxes any hard gate.",
+			"evidence": [
+				"src/common/editor/assistance/assistance-asset-reference-v1.ts",
+				"src/common/editor/assistance/assistance-asset-command-v1.ts",
+				"src/common/editor/assistance/proposal-session.ts",
+				"src/common/editor/assistance/transcript-body-publication-v1.ts",
+				"src/common/editor/assistance/transcript-scape-asset-extension-v1.ts",
+				"src/common/editor/controller/local-assistance-transcript-acceptance.ts",
+				"src/common/editor/controller/local-assistance-selected-media.ts",
+				"src/common/editor/controller/project-runtime.ts",
+				"src/common/editor/aup4-feature-omissions.ts",
+				"src/common/editor/retention.js",
+				"src/common/editor/controller/project-retention-service.ts",
+				"src/soundscaper/editor-project-v30.ts",
+				"src/soundscaper/editor-project-v30-commands.ts",
+				"src/soundscaper/editor-project-runtime-v30-selection.ts",
+				"src/soundscaper/editor-scape-native-v30.ts",
+				"src/framescaper/editor-project-v31.ts",
+				"src/framescaper/editor-project-v31-commands.ts",
+				"src/framescaper/editor-project-runtime-v31-selection.ts",
+				"src/framescaper/editor-scape-native-v31.ts",
+				"tests/audio-editor-local-assistance-transcript-acceptance.test.ts",
+				"tests/audio-editor-assistance-transcript-scape-v1.test.ts",
+				"tests/audio-editor-soundscaper-v30-selection.test.ts",
+				"tests/audio-editor-framescaper-project-v31.test.ts",
+				"tests/audio-editor-aup4-feature-omissions.test.ts"
+			]
+		},
+		{
 			"id": "framescaper-v22-v26-compatibility-custody",
 			"status": "implemented",
 			"requiredOutcome": "Every Framescaper project version from V22 through V30 has an explicit compatibility and custody outcome while F31 is selected, only exact V28 enters F31 through explicit reimport, and dormant V25/V26 native-media and OpenFX state never becomes authority merely through custody.",

@@ -11,21 +11,24 @@
 > source-verified on 2026-08-11 and must be re-verified against the pinned
 > artifact when each model is actually cataloged.
 
-**Activation status (2026-08-25):** the optional foundation is active on the
-selected Soundscaper S30 and Framescaper F31 routes even though manual and
-owner-lab qualification remains open. This activates the signed catalog and
+**Activation status (2026-08-26):** the optional foundation and its bounded
+first workflow are active on selected Soundscaper S30 and Framescaper F31 even
+though manual and owner-lab qualification remains open. The signed catalog and
 model lifecycle, menu-reached model and assistance surfaces, pathless fenced
-jobs, S30/F31 transcript-asset references, and validated-result review. It
-does not turn planned adapters into implementations: only an installed,
-authenticated Parakeet model has a real Sherpa speech-recognition path. Every
-other closed operation, incompatible model, missing runtime, and unsupported
-target must return typed unavailable state. Manual evidence is documentary and
-nonblocking; licensing permission, catalog signatures, artifact digests,
-runtime compatibility, selected-media authority, and explicit consent remain
-hard fail-closed gates. The review UI does not ingest output into an
-`AssistanceProposalSession`; proposal acceptance and canonical mutation remain
-unwired and fail closed. No remote model upload or accepted external
-qualification result is asserted by this activation.
+jobs, S30/F31 transcript-asset references, validated-result review, and
+explicit reviewed transcript acceptance are active. Acceptance revalidates the
+current selection through an `AssistanceProposalSession`, publishes one
+canonical content-addressed external body, and commits its strict reference
+with a deterministic ordinary label track as one undoable edit; stale or
+failed publication rolls back. Operation coverage remains partial: only an
+installed authenticated Parakeet model has a real Sherpa speech-recognition
+path. Every other closed operation, incompatible model, missing runtime, and
+unsupported target returns typed unavailable state. Manual evidence is
+documentary and nonblocking; licensing permission, catalog signatures,
+artifact digests, runtime/platform compatibility, selected-media authority,
+storage integrity, and explicit consent remain hard fail-closed gates. No
+durable remote upload/readback evidence or accepted external qualification
+result is asserted by this activation.
 
 ## Goals and ordering principle
 
@@ -96,11 +99,10 @@ plan ships no web inference at all:
   documented Web Core fallback (roadmap.md:148) is deliberately dropped;
   the Electron Only contract — "projects still open safely on web"
   (roadmap.md:150) — is supported structurally by the S30/F31 reference
-  schemas and disconnected result-domain primitives. The current desktop UI
-  stops at validated-result review and creates no accepted project state. A
-  future acceptance workflow must publish only ordinary commands or derived
-  assets that the web products can read like other project state; the web
-  products cannot run new analysis.
+  schemas and result-domain primitives. Explicit acceptance of a reviewed
+  Parakeet transcript now publishes only an ordinary label-track command and a
+  strict external-body reference that the web products can retain and edit like
+  other project state; the web products cannot run new analysis.
 - The user-settable model directory requires arbitrary filesystem access
   no web origin has, and the model tiers worth shipping (0.5–2.5 GB) are
   outside sane browser-storage budgets. The kw.media post-mortem shows the
@@ -548,8 +550,8 @@ manual sign-off as an execution switch:
 | Model lifecycle | A user-settable, content-addressed filesystem store supports capacity preflight, explicit resumable install, cancellation after quiescence, preseed, relocation by copy/verify/swap, removal, garbage collection, notices, and reconciliation after external deletion. **Tools > Local Models > Manage Models…** is lazy and desktop-only. No model is installed or repaired implicitly. |
 | Native runtime | Sherpa ONNX 1.13.5 has an exact packaged runtime manifest for linux-x64, linux-arm64, mac-arm64, and win-x64; win-arm64 is explicitly unsupported. Main authenticates the payload before spawning the utility process and the inference worker authenticates it again before native import. |
 | Job and data boundary | Fifteen operations share one closed request/result/progress vocabulary, digest-bound model identities, exact selected-media fences, authenticated input/output claims, bounded main-private staging, pathless MessagePort transfer, cancellation that waits for helper and transfer quiescence, and release cleanup. The current activation branch projects those controls through a frozen preload bridge; unsupported execution returns typed unavailable state. |
-| Product state | Selected Soundscaper S30 and Framescaper F31 preserve digest-bound transcript asset references and their owned body-custody contracts. The current operation UI validates output metadata and body for review but does not create an `AssistanceProposalSession`, expose acceptance, or mutate canonical project state. |
-| Implemented feature domains | Canonical transcript ingest and label, disfluency/silence proposal, deterministic scene-score shot-derivation, and proposal-session primitives exist as disconnected domain foundations. No current operation workflow connects reviewed output to those primitives or publishes a label or asset. |
+| Product state | Selected Soundscaper S30 and Framescaper F31 preserve digest-bound transcript asset references and their owned body-custody contracts. The speech-recognition review path exposes explicit acceptance, revalidates an `AssistanceProposalSession`, publishes the canonical transcript body, and commits its reference plus deterministic ordinary label track as one undoable project edit. History, reopen, retention, and current-format `.scape` custody retain the body; AUP4 reports its omission. |
+| Implemented feature domains | Authenticated Parakeet speech recognition is connected end to end through review and transcript acceptance. Canonical transcript, disfluency/silence proposal, deterministic scene-score shot-derivation, and broader proposal primitives exist, but no other operation adapter currently connects them to inference or canonical acceptance. |
 
 Activation has four explicit boundaries:
 
@@ -571,13 +573,12 @@ Activation has four explicit boundaries:
    it does not disable the bounded optional foundation or weaken any hard
    admission check.
 4. **No result applies itself.** Assistance can read only the explicitly
-   selected persisted media staged for its job. The current UI keeps validated
-   output in private job/review state and exposes no acceptance action; it does
-   not create an `AssistanceProposalSession` or mutate canonical state. Wiring
-   proposal acceptance remains future work and must revalidate every proposal
-   and selection claim before any explicit user acceptance. Deterministic
-   editing remains complete when the runtime, models, or assistance state is
-   absent.
+   selected persisted media staged for its job. A reviewed Parakeet transcript
+   remains private session state until the user chooses Accept. That action
+   revalidates every selection claim, stages the authenticated body, and
+   commits one ordinary atomic project edit; Reject, stale authority, or a
+   failure produces no canonical mutation. Deterministic editing remains
+   complete when the runtime, models, or assistance state is absent.
 
 ## Phase structure
 
@@ -730,8 +731,10 @@ typed unavailable state rather than being inferred from the shared protocol.
 
 **Current status:** the task kind, closed operation/data contracts, selected
 media fence, main-private custody, and menu-reached consent and validated-result
-review are active on S30/F31. Result-to-proposal ingestion, acceptance, and
-canonical mutation remain unwired and fail closed. The registered external
+review are active on S30/F31. Reviewed Parakeet transcript output now enters a
+bounded proposal session and can be accepted explicitly into one authenticated
+external body, assistance reference, and ordinary label track. All other
+result-to-proposal operation paths remain unavailable. The registered external
 privacy workload has no accepted owner-lab result and remains documentary;
 collectors not present in the repository are still planned work.
 
@@ -777,6 +780,11 @@ collectors not present in the repository are still planned work.
   round-trip. Non-goals: no styled captions
   (milestone 4), no live/streaming transcription (capture is fenced).
   Stop: stop if word timing would need a non-commercial aligner.
+  **Current bounded slice:** authenticated Parakeet speech recognition,
+  review, canonical transcript-body publication, and explicit labels-as-track
+  acceptance are active. VAD orchestration, Whisper, WER/owner-lab evidence,
+  SRT/VTT workflow integration, and the remaining acceptance conditions are
+  still open; this is not the complete 7A-1 packet.
 - **7A-2 — Filler and silence cleanup proposals.** Outcome: disfluency +
   silence proposal list with audition; accept commits one disjoint-range
   ripple batch. Invariants: proposals are session state; only accepted
@@ -949,7 +957,9 @@ collectors not present in the repository are still planned work.
 - **The browser has custody but no inference.** Web Soundscaper and
   Framescaper preserve the schema-defined ordinary project state, while new
   model execution and the filesystem model manager remain Electron-only. The
-  current desktop review UI does not produce accepted project state.
+  current desktop UI can accept a reviewed Parakeet transcript into ordinary
+  label/project state; web routes retain and edit that state but cannot run new
+  inference.
 - **Remote model availability is not established here.** A real R2 upload and
   read-back require the separately scoped publisher credentials and evidence;
   the product continues to fail closed or use explicit authenticated preseed

@@ -57,6 +57,15 @@ export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 		wrap: 80,
 	}),
 	Object.freeze({
+		marker: 'current-local-assistance-transcript-custody',
+		register: 'config/project-compatibility.json',
+		ruleId: 'current-local-assistance-transcript-custody',
+		field: 'currentBehavior',
+		document: 'docs/project-compatibility.md',
+		intro: null,
+		wrap: 80,
+	}),
+	Object.freeze({
 		marker: 'framescaper-v22-v26-compatibility-custody',
 		register: 'config/project-compatibility.json',
 		ruleId: 'framescaper-v22-v26-compatibility-custody',

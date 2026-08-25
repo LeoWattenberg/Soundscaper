@@ -117,6 +117,37 @@ edit, activation, migration, native feature authority, shared catalog authority,
 or release qualification.
 <!-- /policy-narrative:framescaper-v18-product-isolation -->
 
+## Current local-assistance transcript custody
+
+<!-- policy-narrative:current-local-assistance-transcript-custody -->
+Selected Soundscaper S30 and Framescaper F31 own the closed assistanceAssets
+collection and org.soundscaper.capability.assistance-assets. The active desktop
+workflow can accept only a reviewed authenticated speech-recognition result.
+Acceptance revalidates the exact project revision, sequence, selected
+occurrence, source digest and range, link membership, and timing authority
+through an AssistanceProposalSession; stages one canonical content-addressed
+transcript-v1 JSON body; and commits its digest-bound reference with a
+deterministic ordinary label track as one undoable project command. A whole
+rerun replaces that owned transcript track and reference instead of merging
+inferred text. A stale fence, reference race, body-publication fault, or
+project-commit failure refuses the edit and rolls back newly owned body
+publication. History, reopen, clone, selected-product storage retention, and
+current-format .scape export/import preserve the strict reference and body;
+.scape authenticates descriptor, size, SHA-256, source binding, sample rate,
+model artifacts, and canonical transcript semantics, and collision import
+rebinds the source, body, and immutable reference together. AUP4 reports
+transcript and source-binding omission explicitly. Web routes retain and edit
+the resulting ordinary label/project state but run no model inference. A missing
+or corrupt external body cannot become a valid assistance result or archive
+export and grants no inference authority. Only the selected S30 and F31 runtime
+profiles advertise the assistance-asset command; generic V17/V18 and historical
+product profiles do not acquire it. Every non-speech operation still returns its
+typed unavailable result unless its own adapter is implemented and passes the
+same hard licensing, catalog-signature, artifact-integrity, runtime,
+selected-media, and consent gates. Pending manual or owner-lab qualification
+neither disables this bounded implemented path nor relaxes any hard gate.
+<!-- /policy-narrative:current-local-assistance-transcript-custody -->
+
 ## Framescaper V22–V30 compatibility and custody
 
 <!-- policy-narrative:framescaper-v22-v26-compatibility-custody -->

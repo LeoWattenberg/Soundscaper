@@ -1,11 +1,12 @@
 # Milestone 3 plan: parallel editorial foundations
 
-> **Current-status note (2026-08-23):** the selected Framescaper V27
-> activation candidate forward-ports the maintained V20 retime/proxy work and
-> locally implements its menu-reached authoring and consumer routes. Guided-
-> local sign-off and external qualification remain open. Statements below that
-> present V20 as selected or retime/proxy authoring as unavailable are retained
-> only as the historical milestone-3 sequencing record.
+> **Current-status note (2026-08-26):** selected Framescaper F31 is active on
+> browser and packaged-desktop source routes and delegates through its immutable
+> exact V28 foundation, which retains the V27-forwarded V20 retime/proxy work
+> and menu-reached authoring/consumer routes. Guided-local and external
+> qualification remain open. Statements below that present V20 or V27 as
+> selected, or retime/proxy authoring as unavailable, are retained only as the
+> historical milestone-3 sequencing record.
 
 > Owning source for milestone-3 sequencing, the shared time-model decision,
 > its invariants, and the bounded work packets. The
@@ -91,18 +92,19 @@ cheap and permitted.
 3A and 3B must not begin until every 3.0 acceptance check passes. Within
 3A/3B, agents follow the coordination rules below.
 
-### Current implementation checkpoint
+### Historical implementation checkpoint (2026-08-23)
 
-The Framescaper track now has a selected V27 browser and packaged-desktop
-activation candidate. It preserves the V18 nested-sequence, multicamera, and
-proxy-attachment contracts; forward-ports maintained V20 composition,
-keyframe, retime, and proxy work; and carries the V24 visual lineage. The
-menu-reached retime and proxy authoring/consumer routes are locally implemented,
+At this checkpoint the Framescaper track had a selected V27 browser and
+packaged-desktop activation candidate. It preserved the V18 nested-sequence,
+multicamera, and proxy-attachment contracts; forward-ported maintained V20
+composition, keyframe, retime, and proxy work; and carried the V24 visual
+lineage. The menu-reached retime and proxy authoring/consumer routes were locally implemented,
 with export and delivery remaining original-authoritative. V27 exposes no M5
-native execution authority. These implemented slices do not close milestone 3:
+native execution authority. These implemented slices did not close milestone 3:
 guided-local sign-off, the packaged Electron timing rows, a current M3
 long-form owner-host qualification artifact, and the external resource matrix
-remain open.
+remain open. Current selected F31 subsequently inherited this work through
+exact V28; this paragraph does not describe the current selected generation.
 
 The former `m3-framescaper-v18-exit` qualification is retired because V18 is
 no longer the maintained Framescaper exit authority. Its two-hour exact

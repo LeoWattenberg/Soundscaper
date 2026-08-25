@@ -1,5 +1,24 @@
 # Milestone 7 and 8A activation plan
 
+## Delivered boundary (2026-08-26)
+
+This branch activates the implemented Milestone 7 substrate without using
+manual or owner-lab qualification as an execution switch, but it does not
+complete every 7A and 7B workflow described by this plan. The executable model
+path is the authenticated Parakeet speech-recognition adapter through the
+verified Sherpa runtime. Its reviewed acceptance publishes a canonical
+content-addressed transcript body and an ordinary label track as one undoable
+S30/F31 edit with current-selection and rollback fences. Every other operation
+still returns its typed `adapter-unavailable`, `model-unavailable`,
+`runtime-unavailable`, or `target-unavailable` state; no missing adapter is
+simulated. The selected F31 standalone capture route is
+active on web and desktop, while its real-device and owner-lab qualification
+remains pending and unprovisioned. Licensing, catalog signatures, artifact
+digests, runtime/platform compatibility, selected-media authority, storage
+integrity, explicit consent, and capture permission/grant checks remain hard
+fail-closed gates. The objectives below remain the full target, not a claim
+that absent operation adapters were delivered.
+
 ## Outcome
 
 - Complete and activate every baseline Milestone 7 workflow for both desktop
@@ -169,7 +188,8 @@
 
 - Full Milestone 7 means every 7A and 7B workflow is active with its selected
   baseline model. Optional size or acceleration tiers remain conditional on
-  installation and hard hardware/runtime admission.
+  installation and hard hardware/runtime admission. The delivered boundary
+  above explicitly does not claim that full definition yet.
 - Manual qualification remains visible only in documentation and diagnostics;
   users see ordinary availability, consent, integrity, and hardware errors.
 - Existing user-owned work is preserved and reconciled rather than reset.

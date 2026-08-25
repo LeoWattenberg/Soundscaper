@@ -10,8 +10,9 @@
 
 ## Status and readiness
 
-**Status on 2026-08-24: the selected Soundscaper V29/V11 software route is
-complete across audio, discovery, hosting, persistence, isolation-launcher, and
+**Status on 2026-08-26: the selected Soundscaper S30/V11 software route,
+inherited through exact S29, is complete across audio, discovery, hosting,
+persistence, isolation-launcher, and
 evidence contracts, but 5A has not exited and nothing is qualified or
 activated.** The earlier implementation record is retained below for audit
 history. Four facts bound every current claim and are
@@ -131,9 +132,10 @@ The implemented route and remaining gates are explicit:
    hands main only the far end. Both ends are required to speak that one
    vocabulary — the helper opens a generation before it sends audio, and a
    returned buffer is the only credit for another send — and a departure from
-   it closes the generation rather than replaying stale audio. Soundscaper V29
-   consumes the plane for native input, output, monitoring, and native-effect
-   RPC. The packaged synthetic audio loop remains pending-external, so its M5
+   it closes the generation rather than replaying stale audio. Selected
+   Soundscaper S30 delegates through exact S29, which consumes the plane for
+   native input, output, monitoring, and native-effect RPC. The packaged
+   synthetic audio loop remains pending-external, so its M5
    latency, underrun, cancellation, recovery and RSS limits are unmet rather
    than met.
 5. **Product software — complete; external evidence absent.** The OS audio
@@ -431,8 +433,9 @@ accepted result before all product packets close.
   canonical state survival; truthful bypass/freeze choice; no renderer or
   in-process native load; packaged VST3/CLAP everywhere, AU on macOS, and LV2
   on Linux.
-- **Implementation:** the selected V29 route inserts reviewed `native-plugin`
-  effects into the canonical graph, carries one persistent helper RPC port,
+- **Implementation:** selected S30 delegates to the exact V29 foundation that
+  inserts reviewed `native-plugin` effects into the canonical graph, carries
+  one persistent helper RPC port,
   renders real-time and offline, preserves bounded opaque state across `.scape`,
   desktop-library V11, and AUP4, applies exact V21 PDC, owns a helper-native
   vendor window, and retains bypass/fresh-frozen continuity after loss. The
