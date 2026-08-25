@@ -23,6 +23,21 @@ The first release does not provide editable PSD layers, vector or document
 rendering, animation-loop controls, RAW-development controls, or speculative
 interpretation of ambiguous HDR data.
 
+## Implementation checkpoint
+
+As of 2026-08-25, the browser-native vertical slice is implemented. V30 owns
+strict image source and clip records, authenticated deterministic frame packs,
+atomic commands and publication, storage/archive/clipboard retention,
+menu-reached authoring, collision-safe placement, timeline and Project Bin
+previews, save/reopen, and exact browser video export. The qualified native
+decoder tier currently covers signature-admitted JPEG, PNG, GIF, WebP, and BMP
+inputs, including animated frames where the browser exposes them.
+
+The FFmpeg and ImageMagick converter tiers, the remaining reviewed formats,
+multipage and high-precision/color-managed paths, packaged native render
+parity, and the full qualification matrix remain open. Unsupported inputs fail
+closed; the implemented slice does not claim arbitrary-format support.
+
 ## Product and timeline contract
 
 - Rename Framescaper's `Generate > Add Still…` command to `Add Images…` while

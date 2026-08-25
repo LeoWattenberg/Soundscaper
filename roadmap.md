@@ -161,7 +161,7 @@ Known architectural constraints that drive later work:
 | 6. Delivery/interchange | **Web tier implemented; native activation blocked; none qualified** | Add professional masters, queues, exchange, and archives. |
 | 7. Local assistance | **Bounded 7A/7B routes active; remaining operations unavailable; qualification open** | Add removable on-device assistance without becoming a dependency. |
 | 8. Capture and MIDI | **8A active — qualification open; 8B Blocked** | Selected Framescaper F31 activates recording on web and desktop while real-device and owner-lab qualification remains open; MIDI waits for upstream design review. |
-| 8+I. Framescaper timeline images | **In progress — implementation and qualification** | Import retained static, animated, and multipage raster assets as authenticated timeline media through reviewed browser, FFmpeg, and ImageMagick conversion tiers. |
+| 8+I. Framescaper timeline images | **Browser-native vertical slice implemented; converter and qualification work open** | Import retained raster assets as authenticated timeline media; FFmpeg, ImageMagick, multipage, and extended color/format tiers remain open. |
 | 8+. Framescaper Web VCR | **Software substrate implemented — provisional, disabled** | Keep the dormant contracts, security seams, controller, crop pipeline, and UI behind `framescaperWebVcr: false` until post-milestone-8 runtime qualification. |
 | 9. Final qualification | **Planned** | Requalify the complete product, including the accepted post-milestone-8 extension, and release matrix. |
 
@@ -873,7 +873,8 @@ invent an interim Soundscaper-only design.
 
 ## 8+I. Post-milestone-8 Framescaper image extension
 
-**Status:** **In progress — implementation and qualification.** The owning
+**Status:** **Browser-native vertical slice implemented; converter and
+qualification work open.** The owning
 [image plan](docs/post-milestone-8-framescaper-image-plan.md) freezes the V30
 model, authenticated asset, decoder/color policy, import placement, runtime
 trust boundary, work packets, and activation gates.
@@ -886,6 +887,12 @@ The menu-reached Add Images workflow retains each original with a deterministic
 V30 sRGB frame pack. Reviewed browser and FFmpeg decoders precede a lazy pinned
 Q16-HDRI ImageMagick fallback; one reader serves preview, editing, renders,
 `.scape`, and handoff. V28 stills and image sequences remain distinct.
+
+The implemented browser tier admits JPEG, PNG, GIF, WebP, and BMP by signature
+and carries authenticated frames through authoring, preview, persistence,
+archive/clipboard retention, and browser video export. FFmpeg and ImageMagick
+fallbacks, remaining formats, multipage/high-precision conversion, packaged
+render parity, and release qualification are not yet implemented or accepted.
 
 **Exit gate:** every advertised route needs licensed deterministic fixtures,
 fail-closed resource/security tests, render/archive parity, atomic workflow
