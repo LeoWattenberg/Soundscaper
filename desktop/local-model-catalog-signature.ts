@@ -10,12 +10,20 @@
 import { createHash, createPublicKey, verify } from 'node:crypto';
 
 export const LOCAL_MODEL_CATALOG_SIGNATURE_ALGORITHM = 'Ed25519' as const;
+export const LOCAL_MODEL_CATALOG_CURRENT_KEY_ID = 'soundscaper-local-model-catalog-2026-08' as const;
+export const LOCAL_MODEL_CATALOG_NEXT_KEY_ID = 'soundscaper-local-model-catalog-2027-01' as const;
 
 /** Public keys trusted by production builds. Add the successor before rotating. */
 export const LOCAL_MODEL_CATALOG_TRUSTED_KEYS = Object.freeze({
-	'soundscaper-local-model-catalog-2026-08': [
+	[LOCAL_MODEL_CATALOG_CURRENT_KEY_ID]: [
 		'-----BEGIN PUBLIC KEY-----',
 		'MCowBQYDK2VwAyEAvDGS1WkOsRAO0Oe1h6Rs1nwzxGrv7mZ7FyPQmr261fk=',
+		'-----END PUBLIC KEY-----',
+		'',
+	].join('\n'),
+	[LOCAL_MODEL_CATALOG_NEXT_KEY_ID]: [
+		'-----BEGIN PUBLIC KEY-----',
+		'MCowBQYDK2VwAyEAmY7m1C89oOgdxZr6ggF32jn8gMgThaz0nbsk1iWGR2M=',
 		'-----END PUBLIC KEY-----',
 		'',
 	].join('\n'),

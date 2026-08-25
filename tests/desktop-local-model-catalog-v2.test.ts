@@ -1,12 +1,16 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { generateKeyPairSync, sign } from 'node:crypto';
+import { createPublicKey, generateKeyPairSync, sign } from 'node:crypto';
 import test from 'node:test';
 
 import {
 	canonicalJson,
+	LOCAL_MODEL_CATALOG_CURRENT_KEY_ID,
+	LOCAL_MODEL_CATALOG_NEXT_KEY_ID,
+	LOCAL_MODEL_CATALOG_TRUSTED_KEYS,
 	localModelEvidenceSha256,
+	verifyLocalModelCatalogSignature,
 } from '../desktop/local-model-catalog-signature.ts';
 import {
 	LOCAL_MODEL_CATALOG_SCHEMA_VERSION,
@@ -165,6 +169,28 @@ test('an unsigned, corruptly signed, or unknown-key catalog is refused', () => {
 		() => validate(signedCatalog([entryFor(record)], { keyId: 'unknown-key' }), [record]),
 		/signing key is not trusted/iu,
 	);
+});
+
+test('production pins distinct current and successor Ed25519 catalog keys', async () => {
+	assert.deepEqual(Object.keys(LOCAL_MODEL_CATALOG_TRUSTED_KEYS), [
+		LOCAL_MODEL_CATALOG_CURRENT_KEY_ID,
+		LOCAL_MODEL_CATALOG_NEXT_KEY_ID,
+	]);
+	assert.notEqual(
+		LOCAL_MODEL_CATALOG_TRUSTED_KEYS[LOCAL_MODEL_CATALOG_CURRENT_KEY_ID],
+		LOCAL_MODEL_CATALOG_TRUSTED_KEYS[LOCAL_MODEL_CATALOG_NEXT_KEY_ID],
+	);
+	for (const pem of Object.values(LOCAL_MODEL_CATALOG_TRUSTED_KEYS)) {
+		assert.equal(createPublicKey(pem).asymmetricKeyType, 'ed25519');
+	}
+
+	const checkedIn = (await import('../config/local-model-catalog.json', {
+		with: { type: 'json' },
+	})).default;
+	assert.equal(checkedIn.signature.keyId, LOCAL_MODEL_CATALOG_CURRENT_KEY_ID);
+	assert.doesNotThrow(() => verifyLocalModelCatalogSignature(checkedIn, {
+		trustedKeys: { [LOCAL_MODEL_CATALOG_CURRENT_KEY_ID]: TEST_TRUST.trustedKeys[TEST_KEY_ID]! },
+	}));
 });
 
 test('blocked, refused, unresolved, missing, or changed evidence cannot admit a model', () => {
