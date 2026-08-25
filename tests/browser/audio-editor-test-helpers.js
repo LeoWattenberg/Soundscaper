@@ -8,6 +8,14 @@ import {
 import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { settleFiniteAnimations } from './helpers/settle-finite-animations.js';
 
+// Re-exported so every spec keeps reaching its page stubs through one helper.
+export {
+	disableNativeSavePicker,
+	disableOfflineAudio,
+	stubDisplayCapture,
+	stubStorageEstimate,
+} from './helpers/browser-environment-stubs.js';
+
 export function registerAudioEditorHooks() {
 	test.beforeEach(async ({ page }) => {
 		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
@@ -357,72 +365,6 @@ export async function dispatchPinch(timeline) {
 	await timeline.dispatchEvent('pointermove', { bubbles: true, pointerId: 102, pointerType: 'touch', isPrimary: false, button: 0, clientX: box.x + 290, clientY: y });
 	await timeline.dispatchEvent('pointerup', { bubbles: true, pointerId: 101, pointerType: 'touch', isPrimary: true, button: 0, clientX: box.x + 180, clientY: y });
 	await timeline.dispatchEvent('pointerup', { bubbles: true, pointerId: 102, pointerType: 'touch', isPrimary: false, button: 0, clientX: box.x + 290, clientY: y });
-}
-
-export async function disableNativeSavePicker(page) {
-	await page.addInitScript(() => {
-		Object.defineProperty(globalThis, 'showSaveFilePicker', { configurable: true, value: undefined });
-	});
-}
-
-export async function disableOfflineAudio(page) {
-	await page.addInitScript(() => {
-		Object.defineProperty(globalThis, 'OfflineAudioContext', { configurable: true, value: undefined });
-		Object.defineProperty(globalThis, 'webkitOfflineAudioContext', { configurable: true, value: undefined });
-	});
-}
-
-export async function stubDisplayCapture(page) {
-	await page.addInitScript(() => {
-		globalThis.__soundscaperDisplayCaptureRequests = 0;
-		const mediaDevices = navigator.mediaDevices ?? {};
-		const createTrack = (kind) => {
-			const target = new EventTarget();
-			let readyState = 'live';
-			Object.defineProperties(target, {
-				kind: { value: kind },
-				readyState: { get: () => readyState },
-				getSettings: { value: () => kind === 'audio' ? { channelCount: 2 } : {} },
-				stop: { value: () => {
-					if (readyState === 'ended') return;
-					readyState = 'ended';
-					target.dispatchEvent(new Event('ended'));
-				} },
-			});
-			return target;
-		};
-		Object.defineProperty(mediaDevices, 'getDisplayMedia', {
-			configurable: true,
-			value: async () => {
-				globalThis.__soundscaperDisplayCaptureRequests += 1;
-				const audioTrack = createTrack('audio');
-				const videoTrack = createTrack('video');
-				return {
-					getAudioTracks: () => [audioTrack],
-					getVideoTracks: () => [videoTrack],
-					getTracks: () => [audioTrack, videoTrack],
-				};
-			},
-		});
-		Object.defineProperty(navigator, 'mediaDevices', {
-			configurable: true,
-			value: mediaDevices,
-		});
-	});
-}
-
-export async function stubStorageEstimate(page, estimate) {
-	await page.addInitScript((value) => {
-		const storage = navigator.storage ?? {};
-		Object.defineProperty(storage, 'estimate', {
-			configurable: true,
-			value: () => Promise.resolve(value),
-		});
-		Object.defineProperty(navigator, 'storage', {
-			configurable: true,
-			value: storage,
-		});
-	}, estimate);
 }
 
 export async function assertAccessibleBasics(root) {
