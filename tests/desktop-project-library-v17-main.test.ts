@@ -181,8 +181,12 @@ test('V17 copy-forward resumes after an injected post-row interruption without d
 test('V17 renews one writer lease, refuses a concurrent admission, and transfers monotonically', async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'framescaper-v17-lease-'));
 	context.after(() => rm(appDataPath, { recursive: true, force: true }));
+	// Renewal has to outrun expiry across more than two lease periods, which is
+	// what the wait below measures. The ratio is what matters, not the absolute
+	// values: at a 100ms lease one stalled event loop on a busy runner lets the
+	// lease lapse, and the admission this refuses is then legitimately admitted.
 	const qualification = {
-		leaseTtlMs: 100, renewIntervalMs: 20, checkpoint: null, importCheckpoint: null,
+		leaseTtlMs: 1_000, renewIntervalMs: 200, checkpoint: null, importCheckpoint: null,
 	};
 	const first = await FramescaperDesktopProjectLibraryV17Main.start({
 		appDataPath,
@@ -191,7 +195,7 @@ test('V17 renews one writer lease, refuses a concurrent admission, and transfers
 		onLeaseLost: () => undefined,
 		qualification,
 	});
-	await new Promise((resolve) => setTimeout(resolve, 240));
+	await new Promise((resolve) => setTimeout(resolve, 2_400));
 	const session = first.openSession(first.localHandshake);
 	assert.equal((await session.listProjects() as { projects: unknown[] }).projects.length, 0);
 	await assert.rejects(FramescaperDesktopProjectLibraryV17Main.start({
