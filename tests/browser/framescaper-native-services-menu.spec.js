@@ -8,7 +8,7 @@ import {
 	openNestedCommandMenu,
 } from './audio-editor-test-helpers.js';
 
-test('selected V28 exposes native work only through menus, defaults off, and runs queue control after opt-in', async ({ page }) => {
+test('selected F31 exposes native work only through menus and retains its watch target', async ({ page }) => {
 	await installNativeServicesFixture(page);
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
 	await expect.poll(() => page.evaluate(() => globalThis.__framescaperNativeCalls
@@ -56,6 +56,26 @@ test('selected V28 exposes native work only through menus, defaults off, and run
 		'control', 'pause',
 	]);
 	await expect(queueRow).toContainText('paused');
+	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+
+	tools = await openNestedCommandMenu(page, editor, 'Tools', []);
+	const watchFolders = getMenuItem(tools, 'Watch folders…');
+	await expect(watchFolders).toBeEnabled();
+	await watchFolders.click();
+	dialog = page.locator('[data-framescaper-native-services-dialog="true"]');
+	const proxies = dialog.getByRole('checkbox', { name: 'Generate proxies', exact: true });
+	await expect(proxies).toBeVisible();
+	await proxies.check();
+	await dialog.getByRole('button', { name: 'Add watch folder', exact: true }).click();
+	const projectId = await editor.getAttribute('data-project-id');
+	await expect.poll(() => page.evaluate(() => globalThis.__framescaperNativeCalls
+		.find(([kind]) => kind === 'createWatch'))).toEqual([
+		'createWatch', {
+			grantId: 'ab'.repeat(16), projectId, binId: 'project-bin',
+			extensions: ['wav', 'mp3', 'mp4', 'mov'], importMode: 'link', generateProxies: true,
+		},
+	]);
+	await expect(dialog.getByRole('list', { name: 'Watch folders…' })).toContainText('Generate…');
 });
 
 test('a Framescaper bridge cannot surface Framescaper native menus in Soundscaper', async ({ page }) => {
@@ -219,6 +239,7 @@ async function installNativeServicesFixture(page) {
 			ofxConsentEnabled: false,
 		};
 		let queueState = 'queued';
+		let watchRules = [];
 		const queueRow = () => ({
 			jobId: '12'.repeat(20), taskKind: 'encoded-export', projectId: 'browser-v28',
 			relativeDestination: 'exports/reel.mov', state: queueState,
@@ -236,7 +257,9 @@ async function installNativeServicesFixture(page) {
 				return {
 					snapshotVersion: 1, runtimeAvailable: true,
 					nativeMediaEnabled: preferences.nativeMediaEnabled,
-					queue: [queueRow()], roots: [], watchRules: [],
+					queue: [queueRow()],
+					roots: [{ grantId: 'ab'.repeat(16), displayName: 'Media', revoked: false }],
+					watchRules,
 				};
 			},
 			control: async ({ action }) => {
@@ -271,6 +294,23 @@ async function installNativeServicesFixture(page) {
 				preferences[fields[preference]] = enabled;
 				return enabled;
 			},
+			createWatch: async (request) => {
+				calls.push(['createWatch', structuredClone(request)]);
+				const rule = {
+					ruleId: 'cd'.repeat(16), ...structuredClone(request), enabled: true,
+				};
+				watchRules = [rule];
+				return rule;
+			},
+			setWatchEnabled: async ({ ruleId, enabled }) => {
+				watchRules = watchRules.map((rule) => rule.ruleId === ruleId ? { ...rule, enabled } : rule);
+				return watchRules.find((rule) => rule.ruleId === ruleId);
+			},
+			removeWatch: async ({ ruleId }) => {
+				watchRules = watchRules.filter((rule) => rule.ruleId !== ruleId);
+				return true;
+			},
+			reconcileWatch: async () => ({ reconciled: watchRules.length }),
 			listOpenFxPlugins: async () => {
 				calls.push(['listOpenFxPlugins']);
 				return [{
