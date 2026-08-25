@@ -49,6 +49,10 @@ export class FramescaperProjectV31ReimportRequiredError extends RangeError {
 	}
 }
 
+const OPAQUE_CUSTODY_SCHEMA_VERSIONS: readonly number[] = Object.freeze([
+	22, 23, 24, 25, 26, 29, 30,
+]);
+
 export function createFramescaperProjectV31(
 	profile: unknown,
 	options: FramescaperProjectV31Options = {},
@@ -74,14 +78,14 @@ export function cloneFramescaperProjectV31(
 	return reconcile(profile, draft);
 }
 
-/** Load exact F31, retain dormant/future custody, and require explicit V28 reimport. */
+/** Load exact F31, retain historical/unowned/future custody, and require explicit V28 reimport. */
 export function loadFramescaperProjectV31(
 	profile: unknown,
 	value: unknown,
 ): LoadedFramescaperProjectV31 {
 	assertFramescaperProjectV31Profile(profile);
 	const schemaVersion = readFramescaperProjectSchemaVersion(value);
-	if (schemaVersion === 25 || schemaVersion === 26) return Object.freeze({
+	if (OPAQUE_CUSTODY_SCHEMA_VERSIONS.includes(schemaVersion)) return Object.freeze({
 		project: snapshotFramescaperOpaqueProject(value),
 		readOnly: true,
 		intrinsicReadOnly: true,
