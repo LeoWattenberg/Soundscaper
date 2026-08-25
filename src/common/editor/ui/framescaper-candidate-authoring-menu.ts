@@ -95,7 +95,7 @@ export function createFramescaperCandidateAuthoringMenuItems(
 				'Add Video Adjustment Layer…', 'video-adjustment-layer', 'videoAdjustmentLayers'),
 		]),
 		generate: Object.freeze([
-			leaf('framescaper-add-video-still', 'addVideoStill', 'Add Still…',
+			leaf('framescaper-add-video-still', 'addVideoStill', 'Add Images…',
 				'video-still', 'videoStills'),
 			generators,
 		]),

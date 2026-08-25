@@ -118,6 +118,15 @@ test('selected V27, V28, and F31 expose maintained visual workflows without the 
 			},
 			actionSurfaces: SELECTED_V27,
 		}, { open: () => undefined });
+		assert.deepEqual({
+			id: items.generate[0]?.id,
+			label: items.generate[0]?.label,
+			disabled: items.generate[0]?.disabled,
+		}, {
+			id: 'framescaper-add-video-still',
+			label: 'Add Images…',
+			disabled: false,
+		});
 		assert.deepEqual(items.generate[1]?.items?.map(({ id, disabled }) => ({ id, disabled })), [
 			{ id: 'framescaper-add-video-title', disabled: false },
 			{ id: 'framescaper-add-video-text', disabled: false },
@@ -160,6 +169,7 @@ test('the product menu seam places dormant authoring in Tracks, Generate, and Ef
 	assert.deepEqual(items.generate.map(({ id }: { id: string }) => id), [
 		'framescaper-add-video-still', 'framescaper-video-generators',
 	]);
+	assert.equal(items.generate[0]?.label, 'Add Images…');
 	assert.equal(items.effect.some(({ id }: { id: string }) => (
 		id === 'framescaper-video-transitions'
 	)), true);
