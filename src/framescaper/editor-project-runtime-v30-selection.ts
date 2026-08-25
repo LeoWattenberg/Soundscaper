@@ -16,7 +16,6 @@ import {
 	type FramescaperOpaqueCustodyProjectV30,
 } from './editor-project-opaque-custody-v30.ts';
 import { readFramescaperProjectSchemaVersion } from './editor-project-v18.ts';
-import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v28.ts';
 import {
 	FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE,
 	assertFramescaperProjectV30Profile,
@@ -27,7 +26,6 @@ import {
 	applyFramescaperProjectCommandV30,
 	type FramescaperProjectCommandV30,
 } from './editor-project-v30-commands.ts';
-import { framescaperProjectV28FoundationShapeV30 } from './editor-project-v30-foundation.ts';
 import {
 	createFramescaperProjectHistoryV30,
 	executeFramescaperProjectCommandV30,
@@ -55,11 +53,17 @@ import {
 	FRAMESCAPER_PROJECT_V30_SCHEMA_VERSION,
 	validateFramescaperProjectV30,
 } from './editor-project-v30-validation.ts';
-import { prepareFramescaperSessionClipboardPasteCommandV12 } from './editor-session-clipboard-v12-controller.ts';
 import {
-	createFramescaperSessionClipboardV12,
-	type FramescaperSessionClipboardV12,
-} from './editor-session-clipboard-v12.ts';
+	prepareFramescaperSessionClipboardPasteV13,
+	stageFramescaperSessionClipboardImageBodiesV13,
+	type FramescaperImageClipboardBodyStageV13,
+	type FramescaperImageClipboardBodyStoreV13,
+	type FramescaperSessionClipboardPasteV13,
+} from './editor-session-clipboard-v13-paste.ts';
+import {
+	createFramescaperSessionClipboardV13,
+	type FramescaperSessionClipboardV13,
+} from './editor-session-clipboard-v13.ts';
 
 type LockFactory = (projectId: string, options?: Record<string, unknown>) => Promise<unknown>;
 type SessionFactory = () => ReturnType<typeof createAudioEditorSessionController>;
@@ -97,17 +101,28 @@ export interface EditorProjectRuntimeV30Selection {
 	readonly createSessionClipboard: (
 		project: unknown,
 		descriptor: AudioEditorClipboard,
-	) => FramescaperSessionClipboardV12;
+	) => FramescaperSessionClipboardV13;
 	readonly createEditSessionClipboard: (
 		project: unknown,
 		descriptor: AudioEditorClipboard,
-	) => FramescaperSessionClipboardV12;
+	) => FramescaperSessionClipboardV13;
+	readonly prepareEditClipboardPaste: (
+		project: unknown,
+		clipboard: unknown,
+		command: AudioEditorCommand,
+		createId: (prefix?: string) => string,
+	) => FramescaperSessionClipboardPasteV13;
 	readonly prepareEditClipboardPasteCommand: (
 		project: unknown,
 		clipboard: unknown,
 		command: AudioEditorCommand,
 		createId: (prefix?: string) => string,
 	) => FramescaperProjectCommandV30;
+	readonly stageEditClipboardPasteBodies: (
+		prepared: FramescaperSessionClipboardPasteV13,
+		store: FramescaperImageClipboardBodyStoreV13,
+		options?: Readonly<{ signal?: AbortSignal }>,
+	) => Promise<FramescaperImageClipboardBodyStageV13>;
 	readonly prepareEditClipboardDescriptor: (
 		project: unknown,
 		descriptor: AudioEditorClipboard,
@@ -159,13 +174,19 @@ export function createEditorProjectRuntimeV30Selection(
 		),
 		createSessionClipboard: (project, descriptor) => createClipboard(project, descriptor),
 		createEditSessionClipboard: (project, descriptor) => createClipboard(project, descriptor),
+		prepareEditClipboardPaste: (project, clipboard, command, createId) => (
+			prepareFramescaperSessionClipboardPasteV13(
+				profile, project, clipboard, command, createId,
+			)
+		),
 		prepareEditClipboardPasteCommand: (project, clipboard, command, createId) => (
-			prepareFramescaperSessionClipboardPasteCommandV12(
-				FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE,
-				clipboardFoundation(profile, project),
-				clipboard,
-				command,
-				createId,
+			prepareFramescaperSessionClipboardPasteV13(
+				profile, project, clipboard, command, createId,
+			).command
+		),
+		stageEditClipboardPasteBodies: (prepared, store, options = {}) => (
+			stageFramescaperSessionClipboardImageBodiesV13(
+				prepared.bodyTransfers, store, options,
 			)
 		),
 		prepareEditClipboardDescriptor: (project, descriptor) => createClipboard(project, descriptor).descriptor,
@@ -209,17 +230,8 @@ export function createEditorProjectRuntimeV30Selection(
 	return Object.freeze(selection);
 
 	function createClipboard(project: unknown, descriptor: AudioEditorClipboard) {
-		return createFramescaperSessionClipboardV12(
-			FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE,
-			clipboardFoundation(profile, project),
-			descriptor,
-		);
+		return createFramescaperSessionClipboardV13(profile, project, descriptor);
 	}
-}
-
-function clipboardFoundation(profile: unknown, project: unknown) {
-	validateFramescaperProjectV30(profile, project);
-	return framescaperProjectV28FoundationShapeV30(project);
 }
 
 function createSelectedSession(profile: unknown): ReturnType<typeof createAudioEditorSessionController> {

@@ -5,6 +5,7 @@ import {
 	resolveRuntimeClipProjection,
 	type RuntimeClipProject,
 } from '../common/editor/runtime-clip-projection.ts';
+import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../common/editor/video-clip-composition.ts';
 import {
 	framescaperProjectForCommandConsumersV28,
 	framescaperProjectForEditClipboardConsumersV28,
@@ -35,16 +36,25 @@ export function framescaperProjectForCommandConsumersV30(
 	return projectForConsumers(profile, projectValue, 'command');
 }
 
-/** Clipboard V12 is intentionally image-blind until its separately owned V13 contract lands. */
+/** Dedicated common-clipboard view: V30 images impersonate video only during descriptor creation. */
 export function framescaperProjectForEditClipboardConsumersV30(
 	profile: unknown,
 	projectValue: unknown,
 ): Readonly<DataRecord> {
 	validateFramescaperProjectV30(profile, projectValue);
-	return framescaperProjectForEditClipboardConsumersV28(
+	const project = projectValue as FramescaperProjectV30;
+	const projected = structuredClone(framescaperProjectForEditClipboardConsumersV28(
 		FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE,
 		framescaperProjectV28FoundationShapeV30(projectValue),
-	);
+	)) as DataRecord;
+	mergeImageState(projected, project, 'command');
+	projected.sources = records(projected.sources, 'V30 clipboard sources').map((source) => (
+		isImage(source) ? { ...source, kind: 'video' } : source
+	));
+	projected.clips = records(projected.clips, 'V30 clipboard clips').map(imageClipboardClip);
+	const bin = record(projected.projectBin, 'V30 clipboard Project Bin');
+	bin.clips = records(bin.clips, 'V30 clipboard Project Bin clips').map(imageClipboardClip);
+	return Object.freeze(projected);
 }
 
 function projectForConsumers(
@@ -111,6 +121,25 @@ function runtimeImageClip(project: FramescaperProjectV30, clip: DataRecord): Dat
 		title: source.name,
 		sourceStartTicks: clip.sourceStartTicks,
 	});
+}
+
+function imageClipboardClip(clip: DataRecord): DataRecord {
+	if (!isImage(clip)) return clip;
+	return {
+		...clip,
+		kind: 'video',
+		trimStartFrames: 0,
+		trimEndFrames: 0,
+		groupId: null,
+		color: 'auto',
+		speedRatio: 1,
+		avLinkId: null,
+		binItemId: null,
+		opaqueExtensions: {},
+		videoEffects: [],
+		retimeMap: null,
+		videoComposition: structuredClone(DEFAULT_VIDEO_CLIP_COMPOSITION),
+	};
 }
 
 function mergeTracks(
