@@ -152,6 +152,10 @@ async function buildFixture(context, target) {
 			systemProcessor: arm ? 'ARM64' : 'AMD64',
 		},
 		nativeCanary: { status: 'passed', testCommand: 'ctest' },
+		signing: {
+			mode: 'not-applicable', identitySha256: null,
+			verificationStatus: 'not-applicable',
+		},
 	};
 	const resultPath = join(root, 'build-result.json');
 	await writeFile(resultPath, `${JSON.stringify(build, null, 2)}\n`);

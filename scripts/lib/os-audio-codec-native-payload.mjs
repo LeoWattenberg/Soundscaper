@@ -66,6 +66,7 @@ export async function verifyOsAudioCodecNativeBuildResult({
 		buildPlan: build.buildPlan,
 		toolchainIdentity: build.toolchainIdentity,
 		nativeCanary: build.nativeCanary,
+		signing: build.signing,
 	});
 	const manifestBytes = Buffer.from(serializeOsAudioCodecNativeManifest(manifest));
 	const release = Object.freeze({
@@ -111,6 +112,7 @@ export function osAudioCodecNativePayloadStageSummary(release) {
 		sourceRevision: release.manifest.sourceRevision,
 		buildPlanSha256: release.manifest.buildPlan.sha256,
 		nativeCanary: release.manifest.nativeCanary.status,
+		signing: structuredClone(release.manifest.signing),
 	});
 }
 
@@ -158,6 +160,7 @@ function validateBuildResultShape(build) {
 	closed(build, [
 		'schemaVersion', 'status', 'target', 'artifact', 'electronHeaders', 'sourceIdentity',
 		'sourceRevision', 'buildPlan', 'buildPlanSha256', 'toolchainIdentity', 'nativeCanary',
+		'signing',
 	], 'build result');
 	if (build.schemaVersion !== 1 || build.status !== 'built') {
 		throw new TypeError('The OS audio codec native build result identity is invalid.');
