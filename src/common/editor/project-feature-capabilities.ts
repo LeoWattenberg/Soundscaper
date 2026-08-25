@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 export const PROJECT_FEATURE_CAPABILITY_IDS = Object.freeze({
+	assistanceAssets: 'org.soundscaper.capability.assistance-assets',
 	project: 'org.soundscaper.capability.project',
 	projectBin: 'org.soundscaper.capability.project-bin',
 	audioImport: 'org.soundscaper.capability.audio-import',

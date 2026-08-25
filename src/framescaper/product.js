@@ -14,6 +14,7 @@ export const FRAMESCAPER_PROFILE = {
 	applicationFeatures: { framescaperCapture: false, framescaperWebVcr: false },
 	capabilities: {
 		...SHARED_CAPABILITIES,
+		assistanceAssets: false,
 		audioRecording: false,
 		audioGenerators: false,
 		audioEffects: false,

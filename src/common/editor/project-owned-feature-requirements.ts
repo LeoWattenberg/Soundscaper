@@ -19,6 +19,7 @@ import { resolveTerminalChannelWidths } from './terminal-channel-widths.ts';
 import { VIDEO_EFFECT_TYPES } from './video-effects.js';
 
 export const PROJECT_OWNED_FEATURE_REQUIREMENT_IDS = Object.freeze({
+	assistanceAssets: 'soundscaper.assistance-assets',
 	audioEffects: 'soundscaper.audio-effects',
 	videoEffects: 'soundscaper.video-effects',
 	musicalTimeline: 'soundscaper.musical-timeline',
@@ -63,6 +64,7 @@ const OWNED_VIDEO_EFFECT_REQUIREMENT: ProjectFeatureRequirement = Object.freeze(
 	fallback: null,
 });
 const FOUNDATION_REQUIREMENTS = Object.freeze({
+	assistanceAssets: requirement('assistanceAssets', 'Assistance assets'),
 	musicalTimeline: requirement('musicalTimeline', 'Musical timeline'),
 	timelineAnnotations: requirement('timelineAnnotations', 'Timeline markers and regions'),
 	trackFolders: requirement('trackFolders', 'Nested track folders'),
@@ -88,6 +90,11 @@ const OWNED_FEATURE_REQUIREMENTS: readonly OwnedFeatureRequirement[] = Object.fr
 		conflictMessage: 'The reserved owned video-effects requirement conflicts with publisher data.',
 		projectNeedsRequirement: projectHasMaintainedVideoEffects,
 	}),
+	foundationOwned(
+		FOUNDATION_REQUIREMENTS.assistanceAssets,
+		(project) => dataArray(project, 'assistanceAssets').length > 0,
+		() => true,
+	),
 	foundationOwned(FOUNDATION_REQUIREMENTS.musicalTimeline, projectHasMusicalTimeline),
 	foundationOwned(
 		FOUNDATION_REQUIREMENTS.timelineAnnotations,
@@ -133,7 +140,7 @@ const OWNED_FEATURE_REQUIREMENTS: readonly OwnedFeatureRequirement[] = Object.fr
 ]);
 
 function requirement(
-	key: 'musicalTimeline' | 'timelineAnnotations' | 'trackFolders' | 'takeComp' | 'audioWarp'
+	key: 'assistanceAssets' | 'musicalTimeline' | 'timelineAnnotations' | 'trackFolders' | 'takeComp' | 'audioWarp'
 		| 'audioAutomation' | 'audioMixerGraph' | 'masteringSequences' | 'immersiveAdm' | 'sequenceTiming'
 		| 'videoRetime' | 'videoTimingAssets' | 'sourceCharacteristics',
 	displayName: string,

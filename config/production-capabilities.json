@@ -204,6 +204,7 @@
 				"stems"
 			],
 			"projectFeatures": {
+				"assistanceAssets": false,
 				"project": true,
 				"projectBin": true,
 				"audioImport": true,
@@ -592,6 +593,7 @@
 				"labels"
 			],
 			"projectFeatures": {
+				"assistanceAssets": false,
 				"project": true,
 				"projectBin": true,
 				"audioImport": true,
