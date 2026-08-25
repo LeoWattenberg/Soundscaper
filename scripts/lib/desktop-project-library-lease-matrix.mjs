@@ -33,8 +33,15 @@ export const DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS = Object.freeze(
 	),
 );
 
-const TTL_MS = 1_000;
-const LEASE_EXPIRY_MARGIN_MS = 250;
+// The lease every case runs under. A live holder has to renew inside this
+// window, and a packaged Electron instance on a shared runner can lose a whole
+// second to scheduling — at a one-second lease that expired the lease under its
+// own holder, and `writer-lease-transfer` failed with "lease holder no longer
+// owns the lease". Nothing here tests how short a lease can be, so the window
+// is wide enough that only a genuinely dead holder loses it. The cases that
+// need expiry wait it out explicitly instead of racing it.
+const TTL_MS = 5_000;
+const LEASE_EXPIRY_MARGIN_MS = 500;
 const CHILD_TIMEOUT_MS = 90_000;
 const MAXIMUM_OUTPUT_BYTES = 1024 * 1024;
 const MAXIMUM_EVIDENCE_CHARACTERS = 2_000;
