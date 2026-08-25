@@ -105,7 +105,7 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 		await expect(page.getByRole('menu', { name: 'Help', exact: true }).getByRole('menuitem', { name: 'About Framescaper', exact: true })).toBeVisible();
 	});
 
-	test('the File menu explains the exact V30 and selected V28 cross-product editing fence', async ({ page }) => {
+	test('the File menu explains the exact V30 and selected F31 cross-product editing fence', async ({ page }) => {
 		await page.goto('/en/');
 		const soundscaper = await readyEditor(page, 'soundscaper');
 		const soundscaperProjectId = await soundscaper.getAttribute('data-project-id');
@@ -140,7 +140,7 @@ test.describe('Soundscaper and Framescaper product surfaces', () => {
 		await expect.poll(() => storedProject(page, SOUNDSCAPER_DATABASE_NAME, soundscaperProjectId))
 			.toEqual({ id: soundscaperProjectId, schemaVersion: 30 });
 		await expect.poll(() => storedProject(page, FRAMESCAPER_DATABASE_NAME, framescaperProjectId))
-			.toEqual({ id: framescaperProjectId, schemaVersion: 28 });
+			.toEqual({ id: framescaperProjectId, schemaVersion: 31 });
 		expect(await storedProject(page, SOUNDSCAPER_DATABASE_NAME, framescaperProjectId)).toBeNull();
 		expect(await storedProject(page, FRAMESCAPER_DATABASE_NAME, soundscaperProjectId)).toBeNull();
 

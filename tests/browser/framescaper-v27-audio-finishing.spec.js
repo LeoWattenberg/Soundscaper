@@ -14,7 +14,7 @@ import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
-test.describe('selected Framescaper V28 audio finishing', () => {
+test.describe('selected Framescaper F31 audio finishing', () => {
 	test.beforeEach(async ({ page }) => {
 		await installPinnedFfmpegRuntimeRoutes(page);
 	});
@@ -85,7 +85,7 @@ test.describe('selected Framescaper V28 audio finishing', () => {
 		await closeFinishing(dialog);
 
 		await expect.poll(() => storedAudioFinishing(page, projectId, trackId)).toMatchObject({
-			schemaVersion: 28,
+			schemaVersion: 31,
 			mixerOutputName: 'Programme',
 			automationLaneIds: ['dialogue-gain'],
 			effectTypes: ['highpass', 'gate', 'eq', 'compressor', 'limiter'],
