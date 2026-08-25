@@ -36,7 +36,10 @@ interface TestPresets {
 	readonly source: unknown;
 }
 
-function createFixture(options: Readonly<{ genericReconciliation?: boolean }> = {}) {
+function createFixture(options: Readonly<{
+	genericReconciliation?: boolean;
+	automaticAudioDeviceEnumeration?: boolean;
+}> = {}) {
 	const lifetime = new EditorControllerLifetime();
 	const settings = new Map<string, unknown>();
 	let ready: () => PromiseLike<unknown> | unknown = () => Promise.resolve();
@@ -122,6 +125,7 @@ function createFixture(options: Readonly<{ genericReconciliation?: boolean }> = 
 			},
 			removeEventListener() { events.push('unlisten-devices'); },
 		},
+		automaticAudioDeviceEnumeration: options.automaticAudioDeviceEnumeration,
 		productSettingKey: (key) => `product:${key}`,
 		audioDevicePreferencesSettingKey: 'audio-devices',
 		recordingInputGainDefault: 1,
@@ -276,6 +280,17 @@ test('bootstrap applies settings before opening the saved project', async () => 
 	assert.equal(fixture.events.filter((event) => event.startsWith('refresh-devices:')).length, 2);
 	fixture.removeDeviceListener();
 	assert.ok(fixture.events.includes('unlisten-devices'));
+});
+
+test('bootstrap leaves device inventory cold when the product requires explicit media opt-in', async () => {
+	const fixture = createFixture({ automaticAudioDeviceEnumeration: false });
+
+	await fixture.service.bootstrap(fixture.lifetime.capture());
+	fixture.deviceChange();
+	await Promise.resolve();
+
+	assert.equal(fixture.events.some((event) => event.startsWith('refresh-devices:')), false);
+	assert.equal(fixture.events.includes('listen-devices'), false);
 });
 
 test('bootstrap defers its initial save and temporary cleanup behind open recovery', async () => {
