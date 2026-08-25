@@ -666,7 +666,8 @@
 					"mp4": "keyed-rgba-h264-libx264-aac",
 					"webm": "keyed-rgba-vp9-libvpx-vp9-opus-libopus"
 				},
-				"qualification": "live-16x16-one-frame-audio-video-canary-per-exact-format-with-finite-container-validation",
+				"qualification": "live-16x16-one-frame-rgba-plus-48khz-stereo-audio-canary-per-exact-format-with-finite-container-validation-and-exact-ffprobe-two-track-codec-geometry-attestation",
+				"qualificationInspection": "exact-admitted-ffprobe-two-stream-indices-0-and-1-16x16-yuv420p-48khz-stereo-five-second-64kib-private-environment-tree-terminated",
 				"rendererAuthority": "owner-scoped-pathless-sessions-main-owned-fixed-arguments-private-pipes-and-scratch",
 				"privateInputs": ["fd3-rgba", "fd4-optional-float-wav"],
 				"maximumSessions": 2,
@@ -791,6 +792,7 @@
 			"desktop/external-ffmpeg-video-process.ts",
 			"desktop/external-ffmpeg-video-operation-service.ts",
 			"desktop/external-ffmpeg-video-qualification.ts",
+			"desktop/external-ffmpeg-video-canary-inspection.ts",
 			"desktop/external-ffmpeg-video-qualified-capabilities.ts",
 			"desktop/desktop-video-codec-main-ipc.ts",
 			"desktop/desktop-video-codec-registration.mjs",
@@ -798,6 +800,7 @@
 			"src/common/editor/desktop-video-codec-runtime.ts",
 			"src/common/editor/editor-codec-runtime.desktop.ts",
 			"tests/external-ffmpeg-video-qualification.test.ts",
+			"tests/external-ffmpeg-video-canary-inspection.test.ts",
 			"tests/external-ffmpeg-video-operation-service.test.ts",
 			"tests/desktop-video-codec-main-ipc.test.ts",
 			"tests/desktop-video-codec-registration.test.js",
@@ -894,7 +897,7 @@
 			"scope": "additional-bundled-video-codec-execution",
 			"blocker": "Seven exact reviewed compressed-audio WebAssembly providers are admitted outside this future gate and execute in authenticated, isolated one-shot Electron utility processes: libFLAC, libopus/libogg, libvorbis/libogg, WavPack, mpg123, LAME, and TwoLAME. Specialized first-party PCM readers remain application code and libsndfile is not bundled. Windows Media Foundation and macOS ARM64 AudioToolbox use a target-native codec-only build for macOS ARM64, Windows x64, and Windows ARM64; the build runs native canaries, macOS signs before hashing, and staging, package, content-manifest, and startup checks bind one exact manifest and payload. Linux has no uniform OS tier and macOS x64 is unsupported. User-installed external FFmpeg has an exact live-qualified keyed-RGBA H.264/AAC MP4 and VP9/Opus WebM path, but those external bytes remain outside the production artifact closure. There is no admitted bundled or operating-system video provider and no libwebm, libvpx, dav1d, SVT-AV1, or libaom payload or complete five-target AV1 evidence, so bundled and operating-system WebM/AV1 execution fails closed. Electron's exact alternate framework libffmpeg is Chromium infrastructure rather than a provider tier, while user-installed external FFmpeg remains outside the production artifact closure.",
 			"enableRequires": ["codec-license-inventory", "corresponding-source-where-required", "jurisdiction-specific-patent-review", "package-notice-delivery", "target-payload-and-five-target-qualification"],
-			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/production-licensing-policy.md", "docs/desktop-codec-provider-plan.md", "desktop/desktop-audio-codec-registration.mjs", "desktop/bundled-audio-codec-runtime.ts", "desktop/bundled-audio-codec-helper-process.ts", "desktop/bundled-audio-codec-operation-runner.ts", "desktop/bundled-audio-codec-runtime-payload.mjs", "desktop/os-audio-codec-runtime.ts", "desktop/os-audio-codec-native-payload.mjs", "desktop/external-ffmpeg-video-operation-service.ts", "desktop/external-ffmpeg-video-qualification.ts", "desktop/desktop-video-codec-main-ipc.ts", "src/common/editor/desktop-video-codec-runtime.ts", "native/os-audio-codec-host/CMakeLists.txt", "scripts/lib/os-audio-codec-host-ci.mjs", "scripts/lib/desktop-os-audio-codec-native-staging.mjs", "scripts/lib/desktop-os-audio-codec-native-package-verification.mjs", "src/common/editor/av1-codec-qualification.ts", "tests/desktop-audio-codec-runtime-staging.test.js", "tests/desktop-bundled-audio-codec-operation-runner.test.ts", "tests/desktop-packaged-os-audio-codec-native.test.js", "tests/external-ffmpeg-video-qualification.test.ts", "tests/desktop-video-codec-main-ipc.test.ts", "tests/production-security-desktop-codec-policy.test.js"]
+			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/production-licensing-policy.md", "docs/desktop-codec-provider-plan.md", "desktop/desktop-audio-codec-registration.mjs", "desktop/bundled-audio-codec-runtime.ts", "desktop/bundled-audio-codec-helper-process.ts", "desktop/bundled-audio-codec-operation-runner.ts", "desktop/bundled-audio-codec-runtime-payload.mjs", "desktop/os-audio-codec-runtime.ts", "desktop/os-audio-codec-native-payload.mjs", "desktop/external-ffmpeg-video-operation-service.ts", "desktop/external-ffmpeg-video-qualification.ts", "desktop/external-ffmpeg-video-canary-inspection.ts", "desktop/desktop-video-codec-main-ipc.ts", "src/common/editor/desktop-video-codec-runtime.ts", "native/os-audio-codec-host/CMakeLists.txt", "scripts/lib/os-audio-codec-host-ci.mjs", "scripts/lib/desktop-os-audio-codec-native-staging.mjs", "scripts/lib/desktop-os-audio-codec-native-package-verification.mjs", "src/common/editor/av1-codec-qualification.ts", "tests/desktop-audio-codec-runtime-staging.test.js", "tests/desktop-bundled-audio-codec-operation-runner.test.ts", "tests/desktop-packaged-os-audio-codec-native.test.js", "tests/external-ffmpeg-video-qualification.test.ts", "tests/external-ffmpeg-video-canary-inspection.test.ts", "tests/desktop-video-codec-main-ipc.test.ts", "tests/production-security-desktop-codec-policy.test.js"]
 		},
 		{
 			"id": "local-models",

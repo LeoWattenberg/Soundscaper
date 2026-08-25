@@ -119,8 +119,11 @@ manager, invokes `sudo`, or fetches/copies FFmpeg into its packages.
 The external tier also implements the closed desktop keyed-RGBA delivery path:
 H.264/AAC in MP4 through `libx264`/`aac`, and VP9/Opus in WebM through
 `libvpx-vp9`/`libopus`. Capability tokens are only a prerequisite. Each exact
-format must also pass a live, one-frame 16x16 RGBA plus 48 kHz audio canary, and
-the resulting finite MP4 or WebM structure must validate, before it is exposed.
+format must also pass a live, one-frame 16x16 RGBA plus 48 kHz stereo-audio
+canary. The resulting finite MP4 or WebM structure must validate, then the exact
+admitted `ffprobe` must report exactly two streams at indices 0 and 1: 16x16
+`yuv420p` H.264 plus 48 kHz stereo AAC for MP4, or 16x16 `yuv420p` VP9 plus
+48 kHz stereo Opus for WebM, before the format is exposed.
 Renderer requests remain pathless and owner-scoped. Main binds video to private
 descriptor 3 and optional audio to descriptor 4, creates private scratch and
 the output path, and accepts or returns IPC ranges of at most 1 MiB. Admission
@@ -275,8 +278,13 @@ Primary references: [dav1d project and release](https://images.videolan.org/proj
   and one per renderer owner; expire idle sessions, enforce exact input offsets
   and lengths, supervise time/log/output bounds, and terminate and drain work on
   cancel, renderer revocation, or shutdown. An exact H.264/AAC MP4 or VP9/Opus
-  WebM tuple is available only after its live 16x16 one-frame A/V canary and
-  finite-container validation pass against the current executable-pair identity.
+  WebM tuple is available only after its live 16x16 one-frame RGBA plus 48 kHz
+  stereo-audio canary and finite-container validation pass against the current
+  executable-pair identity. A shell-free exact `ffprobe` inspection then
+  requires two streams at indices 0 and 1 with 16x16 `yuv420p` H.264/AAC or
+  VP9/Opus and 48 kHz stereo audio. That inspector runs in the canary's private
+  working directory and HOME/TMP environment, with a five-second deadline,
+  64 KiB aggregate output bound, cancellation, and process-tree termination.
   The downstream keyframe output reader revalidates structure and SHA-256
   evidence before publication. This WebM path uses VP9, not AV1.
 

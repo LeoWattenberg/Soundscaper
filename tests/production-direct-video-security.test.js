@@ -37,6 +37,7 @@ const PUBLICATION_EVIDENCE = Object.freeze([
 	'src/soundscaper/video-export-strategy-v29.ts',
 	'desktop/external-ffmpeg-video-operation-service.ts',
 	'desktop/external-ffmpeg-video-qualification.ts',
+	'desktop/external-ffmpeg-video-canary-inspection.ts',
 	'desktop/save-targets.js',
 	'tests/audio-editor-ffmpeg-output-range-patch.test.js',
 	'tests/audio-editor-ffmpeg-output-stream.test.ts',
@@ -49,6 +50,7 @@ const PUBLICATION_EVIDENCE = Object.freeze([
 	'tests/audio-editor-soundscaper-video-export-strategy-v29.test.ts',
 	'tests/external-ffmpeg-video-operation-service.test.ts',
 	'tests/external-ffmpeg-video-qualification.test.ts',
+	'tests/external-ffmpeg-video-canary-inspection.test.ts',
 	'tests/audio-editor-file-service.test.js',
 	'tests/desktop-save-capacity.test.js',
 	'tests/desktop-save.test.js',
@@ -169,7 +171,7 @@ test('exact direct MP4 and WebM publication has narrow capability and rollback c
 	);
 	assert.match(
 		publication.summary,
-		/live canary.*current external ffmpeg\/ffprobe pair.*H\.264\/AAC MP4.*`libx264`.*`aac`.*WebM.*VP9\/Opus.*`libvpx-vp9`.*`libopus`/isu,
+		/live canary.*current external ffmpeg\/ffprobe pair.*H\.264\/AAC MP4.*`libx264`.*`aac`.*WebM.*VP9\/Opus.*`libvpx-vp9`.*`libopus`.*exact ffprobe.*two streams.*16x16.*yuv420p.*48 kHz stereo/isu,
 	);
 	assert.match(
 		publication.summary,

@@ -344,14 +344,20 @@ The external tier also has a closed, owner-scoped video-session contract for
 exact keyed-RGBA H.264/AAC MP4 through `libx264`/`aac` and VP9/Opus WebM through
 `libvpx-vp9`/`libopus`. Encoder/muxer tokens alone do not enable either tuple:
 the current executable pair must complete a live one-frame 16x16 RGBA plus
-48 kHz audio canary and produce a structurally valid finite container. Renderer
-requests carry no filesystem paths. Main owns fixed command construction,
+48 kHz stereo-audio canary and produce a structurally valid finite container.
+The exact admitted `ffprobe` must then attest exactly two streams at indices 0
+and 1: 16x16 `yuv420p` H.264 plus 48 kHz stereo AAC for MP4, or 16x16 `yuv420p`
+VP9 plus 48 kHz stereo Opus for WebM. Renderer requests carry no filesystem
+paths. Main owns fixed command construction,
 private descriptor 3 for video, optional descriptor 4 for audio, private scratch
 and output files, exact sequential input lengths, and output range reads. IPC
 chunks are at most 1 MiB; no more than two sessions may exist globally and one
 per renderer owner. Idle, duration, log, and output bounds, executable-identity
 checks, cancellation, renderer revocation, shutdown draining, cleanup, container
-validation, and digest evidence guard output publication. These controls do not
+validation, bounded track attestation, and digest evidence guard output
+publication. The five-second, 64 KiB `ffprobe` inspection uses a private
+cwd/HOME/TMP environment,
+fixed shell-free arguments, and process-tree termination. These controls do not
 put FFmpeg or its dynamically loaded dependencies inside the Soundscaper
 artifact closure and do not establish a copyright, patent, availability, or
 performance conclusion for a user's installation.

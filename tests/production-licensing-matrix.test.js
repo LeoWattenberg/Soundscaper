@@ -231,7 +231,7 @@ test('runtime provenance entries and release gates fail closed without claiming 
 	assert.equal(codecPolicy.externalFfmpegProvider.video.maximumOutputBytes, 512 * 1024 * 1024);
 	assert.equal(codecPolicy.externalFfmpegProvider.video.maximumContractOutputBytes, 2 * 1024 ** 3);
 	assert.match(codecPolicy.externalFfmpegProvider.video.qualification,
-		/live-16x16-one-frame-audio-video-canary-per-exact-format/u);
+		/live-16x16-one-frame-rgba-plus-48khz-stereo-audio.*finite-container.*exact-ffprobe-two-track-codec-geometry-attestation/u);
 	assert.equal(codecPolicy.videoProvider.bundled.status, 'disabled');
 	assert.equal(codecPolicy.videoProvider.operatingSystem.status, 'disabled');
 	assert.match(codecPolicy.videoProvider.external.webm, /VP9\/Opus.*not-AV1/iu);
@@ -249,10 +249,12 @@ test('runtime provenance entries and release gates fail closed without claiming 
 		'desktop/bundled-audio-codec-runtime-payload.mjs',
 		'desktop/external-ffmpeg-video-operation-service.ts',
 		'desktop/external-ffmpeg-video-qualification.ts',
+		'desktop/external-ffmpeg-video-canary-inspection.ts',
 		'desktop/desktop-video-codec-main-ipc.ts',
 		'src/common/editor/desktop-video-codec-runtime.ts',
 		'tests/desktop-bundled-audio-codec-operation-runner.test.ts',
 		'tests/external-ffmpeg-video-qualification.test.ts',
+		'tests/external-ffmpeg-video-canary-inspection.test.ts',
 	]) assert.ok(codecPolicy.evidence.includes(path), `desktop codec evidence needs ${path}`);
 	await assertEvidence(codecPolicy.evidence);
 	for (const id of [
