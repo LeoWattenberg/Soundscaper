@@ -21,7 +21,13 @@ export const DESKTOP_DIRECT_WAV_SMOKE_STAGE_KEY = '__scapeDirectWavSmokeStage';
 // that function is stringified into the renderer; desktop-direct-wav-smoke.test.js
 // reads the table through directWavRendererSmokeContract and holds this budget
 // above its total.
-export const DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS = 20 * 60 * 1000;
+// Measured at roughly ten and a half minutes on a healthy CI runner, so a
+// twenty-minute budget left barely a factor of two. A runner whose GPU drops
+// the packaged application to software rendering takes longer than that, and
+// the smoke then reports a timeout for a build that works — which is how a
+// fully green matrix lost its last job. Three times the measured cost still
+// fires long before the job's own hour.
+export const DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS = 30 * 60 * 1000;
 export const DIRECT_AIFF_SMOKE_FILE_BYTES = 202_751_798;
 export const DIRECT_BW64_SMOKE_FILE_BYTES = 202_755_508;
 export const DIRECT_BWF_SMOKE_FILE_BYTES = 202_752_510;
