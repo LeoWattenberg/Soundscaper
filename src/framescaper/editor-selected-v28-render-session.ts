@@ -141,6 +141,17 @@ export function framescaperSelectedRenderSessionRuntimeV28For(
 		? OWNER_RUNTIMES.get(owner as object) ?? null : null;
 }
 
+/** Product-version adapter seam; the runtime still executes exact selected V28 authority. */
+export function bindFramescaperSelectedRenderSessionRuntimeV28Instance(
+	owner: object,
+	runtime: FramescaperSelectedRenderSessionRuntimeV28,
+): void {
+	if (!owner || typeof owner !== 'object' || typeof runtime?.create !== 'function') {
+		throw new TypeError('A selected V28 render-session runtime and owner are required.');
+	}
+	OWNER_RUNTIMES.set(owner, runtime);
+}
+
 function bindExactTiming(
 	projectValue: unknown,
 	authority: FramescaperUnifiedExactVisualRenderAuthority,

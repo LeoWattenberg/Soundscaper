@@ -52,6 +52,18 @@ export function framescaperSelectedVisualAuthoringRuntimeV27For(
 	return VISUAL_RUNTIMES.get(owner) ?? null;
 }
 
+/** Rebind one inherited runtime after a product-version foundation projection. */
+export function adoptFramescaperSelectedVisualAuthoringRuntimeV27(
+	from: object,
+	to: object,
+): void {
+	const runtime = VISUAL_RUNTIMES.get(from);
+	if (!runtime || !to || typeof to !== 'object') {
+		throw new TypeError('Selected visual authoring adoption requires exact owners.');
+	}
+	VISUAL_RUNTIMES.set(to, runtime);
+}
+
 /** Bind only maintained web-core V27 authoring; native/M5 surfaces are absent. */
 export function bindFramescaperSelectedAuthoringControllerV27(options: Readonly<{
 	readonly controller: FramescaperSelectedAuthoringControllerV27;

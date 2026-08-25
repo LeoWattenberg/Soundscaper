@@ -1,7 +1,18 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createAudioEditorController } from '../common/editor/app.js';
+import { createProductNativeRenderInputAuthorityBinding } from '../common/editor/controller/product-native-render-input-authority.ts';
 import { createVideoRetimeProgramOrdinalBridge } from '../common/editor/video-retime-program-ordinal-bridge.ts';
+import { resolveFramescaperNativeServicesBridge } from '../common/editor/ui/framescaper-native-services-bridge.ts';
+import { createFramescaperNativeOpenFxFrameRuntimeV28 } from '../common/editor/ui/framescaper-native-openfx-frame-runtime.ts';
+import {
+	createFramescaperCapturedVideoProxySchedulerV31,
+	createFramescaperExistingVideoProxySchedulerV31,
+} from './editor-captured-video-proxy-scheduler-v31.ts';
+import type {
+	FramescaperCapturedVideoProxyRuntimeComposition,
+} from './editor-captured-video-proxy-scheduler.ts';
+import { bindFramescaperInheritedProductRuntimesV31 } from './editor-controller-v31-inherited-bindings.ts';
 import {
 	assertFramescaperEditorProjectEnvironmentV31,
 	type FramescaperEditorProjectEnvironmentV31,
@@ -9,8 +20,19 @@ import {
 import { createFramescaperMulticameraActionsV18 } from './editor-project-v18-multicam-actions.ts';
 import { createFramescaperSequenceActionsV18 } from './editor-project-v18-sequence-actions.ts';
 import { createFramescaperVideoRetimeActionsV20 } from './editor-project-v20-retime-actions.ts';
+import { createFramescaperVideoProxyDetachCommandV27 } from './editor-project-v27-commands.ts';
 import type { FramescaperProjectCommandV31 } from './editor-project-v31-commands.ts';
 import { createFramescaperScapeNativeRuntimeV31 } from './editor-scape-native-v31.ts';
+import { createFramescaperNativeRenderInputStreamProducerV31 } from './editor-native-render-input-stream-producer-v31.ts';
+import { FRAMESCAPER_NATIVE_RENDER_INPUT_PRODUCER_DEPENDENCIES_V28 } from './editor-native-render-input-producer-v28.ts';
+import { createFramescaperNativeProResProxyCandidateObserverV31 } from './editor-native-prores-proxy-candidate-v31.ts';
+import { createFramescaperVideoExportStrategyV31 } from './video-export-strategy-v31.ts';
+import { createFramescaperVideoProxyActions } from './editor-video-proxy-actions-v20.ts';
+import type {
+	FramescaperVideoProxyActionRuntime,
+	FramescaperVideoProxyPreviewTrustV20,
+} from './editor-video-proxy-action-runtime-v20.ts';
+import { createFramescaperVideoProxyPreviewMediaResolverV28 } from './editor-video-proxy-preview-media-v20.ts';
 
 const PRESENTATION_FIELDS = ['locale', 'copy', 'fileService'] as const;
 
@@ -20,7 +42,7 @@ export interface FramescaperAudioEditorControllerPresentationV31 {
 	readonly fileService?: unknown;
 }
 
-/** Prepared F31 common controller; native route binders remain selected by the activation commit. */
+/** Bind the complete selected-V28 product runtime to exact F31 document custody. */
 export function createFramescaperAudioEditorControllerV31(
 	environmentValue: FramescaperEditorProjectEnvironmentV31 | unknown,
 	presentationValue: FramescaperAudioEditorControllerPresentationV31 | unknown = {},
@@ -43,11 +65,41 @@ export function createFramescaperAudioEditorControllerV31(
 		retimeFreeze: videoRetime.freeze,
 		retimeRamp: videoRetime.ramp,
 	});
-	const controller = createAudioEditorController(null, {
+	const sessionController = environment.runtime.createSessionController();
+	const nativeBridge = resolveFramescaperNativeServicesBridge();
+	const openFxFrames = createFramescaperNativeOpenFxFrameRuntimeV28(nativeBridge);
+	const openFxExecute = openFxFrames?.execute.bind(openFxFrames);
+	const nativeRenderInputAuthority = createProductNativeRenderInputAuthorityBinding();
+	const prepareNativeRenderInputStreamV31 = createFramescaperNativeRenderInputStreamProducerV31(
+		environment.runtime.profile,
+		{ authority: nativeRenderInputAuthority, store: environment.controllerStore },
+		openFxExecute ? Object.freeze({
+			...FRAMESCAPER_NATIVE_RENDER_INPUT_PRODUCER_DEPENDENCIES_V28,
+			openFxExecute,
+		}) : FRAMESCAPER_NATIVE_RENDER_INPUT_PRODUCER_DEPENDENCIES_V28,
+	);
+	let proxyComposition: FramescaperCapturedVideoProxyRuntimeComposition | null = null;
+	let proxyActions: FramescaperVideoProxyActionRuntime | null = null;
+	const proxyTrust = new Map<string, Readonly<{
+		attachment: unknown;
+		status: FramescaperVideoProxyPreviewTrustV20;
+	}>>();
+	let controller: ReturnType<typeof createAudioEditorController> | null = null;
+	const resolveProductVideoPreviewMedia = createFramescaperVideoProxyPreviewMediaResolverV28({
+		bodyStore: environment.store,
+		originalStore: environment.controllerStore,
+		getProject: () => controller?.project ?? null,
+		getMode: (sourceId) => proxyActions?.mode(sourceId) ?? 'auto',
+		getPressure: (sourceId) => proxyActions?.pressure(sourceId) ?? null,
+		onTrustStatus: (sourceId, attachment, status) => {
+			proxyTrust.set(sourceId, Object.freeze({ attachment, status }));
+		},
+	});
+	controller = createAudioEditorController(null, {
 		headless: true,
 		productId: 'framescaper',
 		store: environment.controllerStore,
-		sessionController: environment.runtime.createSessionController(),
+		sessionController,
 		acquireProjectLock: environment.runtime.acquireProjectLock,
 		projectRuntime: environment.runtime,
 		playbackProjectService: environment.playback,
@@ -55,9 +107,62 @@ export function createFramescaperAudioEditorControllerV31(
 		scapeProjectRuntime: createFramescaperScapeNativeRuntimeV31(environment.runtime.profile),
 		productSequenceActions,
 		createProductVideoRetimeProgramOrdinalBridge: createVideoRetimeProgramOrdinalBridge,
+		productVideoExportStrategy: createFramescaperVideoExportStrategyV31(
+			environment.runtime.profile, undefined, environment.controllerStore, openFxExecute,
+		),
+		resolveProductVideoPreviewMedia,
+		reportProductVideoPreviewPressure: (
+			sourceId: string,
+			pressure: Parameters<FramescaperVideoProxyActionRuntime['reportPreviewPressure']>[1],
+		) => proxyActions?.reportPreviewPressure(sourceId, pressure),
+		createFramescaperCaptureProxyScheduler: (composition: Readonly<Record<string, unknown>>) => {
+			const base = composition as unknown as FramescaperCapturedVideoProxyRuntimeComposition;
+			const candidateObserver = createFramescaperNativeProResProxyCandidateObserverV31({
+				profile: environment.runtime.profile,
+				getProject: () => controller?.project ?? null,
+				composition: base,
+			});
+			proxyComposition = candidateObserver === null ? base : Object.freeze({
+				...base, candidateObserver,
+			});
+			return createFramescaperCapturedVideoProxySchedulerV31(
+				environment, sessionController, proxyComposition,
+			);
+		},
+		productNativeRenderInputAuthority: nativeRenderInputAuthority,
 		...presentation,
 	});
+	Object.defineProperty(controller, 'prepareNativeRenderInputStreamV31', {
+		enumerable: false, configurable: false, writable: false,
+		value: prepareNativeRenderInputStreamV31,
+	});
 	executeProductSequenceCommand = (command) => controller.actions.edit.commit(command);
+	const selectedProxyComposition = proxyComposition;
+	if (!selectedProxyComposition) throw new Error('The selected F31 editor did not compose its proxy runtime.');
+	proxyActions = createFramescaperVideoProxyActions({
+		owner: controller,
+		schemaVersion: 31,
+		cleanup: environment.videoProxyCleanup,
+		createScheduler: () => createFramescaperCapturedVideoProxySchedulerV31(
+			environment, sessionController, selectedProxyComposition,
+		),
+		createAttachExistingScheduler: (candidate) => createFramescaperExistingVideoProxySchedulerV31(
+			environment, sessionController, selectedProxyComposition, candidate,
+		),
+		createDetachCommand: createFramescaperVideoProxyDetachCommandV27,
+		previewTrust: (sourceId, attachment) => {
+			const entry = proxyTrust.get(sourceId);
+			return entry !== undefined && entry.attachment === attachment
+				? entry.status : 'unverified';
+		},
+	});
+	bindFramescaperInheritedProductRuntimesV31({
+		controller,
+		environment,
+		bridge: nativeBridge,
+		prepareNativeRenderInputStreamV31,
+		...(openFxExecute ? { openFxExecute } : {}),
+	});
 	return controller;
 }
 

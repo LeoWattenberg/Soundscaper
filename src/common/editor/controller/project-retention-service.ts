@@ -26,6 +26,9 @@ export interface RetentionProject extends Readonly<Record<string, unknown>>, Tak
 			}> | null;
 		}>[];
 	}>;
+	readonly assistanceAssets?: readonly Readonly<{
+		readonly sourceId?: string | null;
+	}>[];
 }
 
 export interface RetentionHistory<Project extends RetentionProject> {
@@ -147,7 +150,9 @@ export function createProjectRetentionService<
 		const currentHistory = dependencies.state.history;
 		const nextHistory = currentHistory
 			? dependencies.compactHistory(currentHistory, {
-				preservePresentSourceIds: clipboardSourceIds(),
+				preservePresentSourceIds: retainedSourceIds(
+					currentHistory.present, clipboardSourceIds(),
+				),
 			})
 			: null;
 		dependencies.state.history = nextHistory;
@@ -171,6 +176,11 @@ export function createProjectRetentionService<
 
 	function liveSessionSourceIds(): Set<string> {
 		const sourceIds = new Set(Object.keys(dependencies.getSourceReferenceCounts()));
+		for (const tab of dependencies.getSessionTabs()) {
+			for (const project of dependencies.editorHistoryProjects(tab.history)) {
+				for (const sourceId of assistanceSourceIds(project)) sourceIds.add(sourceId);
+			}
+		}
 		for (const sourceId of transientAudioSourceIds()) sourceIds.add(sourceId);
 		return sourceIds;
 	}
@@ -204,6 +214,10 @@ export function createProjectRetentionService<
 					if (kind) add(kind, fallback.sourceId);
 				}
 				for (const sourceId of collectTakeGroupSourceIds(project)) {
+					const kind = sourceKind(sourceId);
+					if (kind) add(kind, sourceId);
+				}
+				for (const sourceId of assistanceSourceIds(project)) {
 					const kind = sourceKind(sourceId);
 					if (kind) add(kind, sourceId);
 				}
@@ -244,6 +258,19 @@ export function createProjectRetentionService<
 	function retainLiveClipIds(): void {
 		dependencies.clipCache.retainClipIds?.(liveSessionClipIds());
 	}
+}
+
+function retainedSourceIds(
+	project: RetentionProject,
+	initial: ReadonlySet<string>,
+): ReadonlySet<string> {
+	return new Set([...initial, ...assistanceSourceIds(project)]);
+}
+
+function assistanceSourceIds(project: RetentionProject): readonly string[] {
+	return (project.assistanceAssets ?? []).flatMap((asset) => (
+		typeof asset.sourceId === 'string' && asset.sourceId ? [asset.sourceId] : []
+	));
 }
 
 function linkedOriginalKind(value: unknown): 'audio' | 'video' | null {

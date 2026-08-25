@@ -5,7 +5,10 @@ import type { LinkedVideoOriginalPort } from '../common/editor/storage/linked-vi
 import type {
 	FramescaperNativeServicesBridge,
 } from '../common/editor/ui/framescaper-native-services-bridge.ts';
-import type { FramescaperNativeWatchImportClaimV28 } from '../common/editor/ui/framescaper-native-project-assets-bridge.ts';
+import type {
+	FramescaperNativeWatchImportClaimV28,
+	FramescaperNativeWatchImportClaimV31,
+} from '../common/editor/ui/framescaper-native-project-assets-bridge.ts';
 import { framescaperVideoProxyActionRuntimeFor } from './editor-video-proxy-action-runtime-v20.ts';
 
 const OPAQUE_ID = /^[a-f0-9]{16,64}$/u;
@@ -22,7 +25,7 @@ interface WatchVideoSource extends Readonly<Record<string, unknown>> {
 }
 
 interface WatchImportProject extends Readonly<Record<string, unknown>> {
-	readonly schemaVersion: 28;
+	readonly schemaVersion: 28 | 31;
 	readonly id: string;
 	readonly revision: number;
 	readonly sources: readonly Readonly<Record<string, unknown>>[];
@@ -56,6 +59,13 @@ export interface FramescaperNativeWatchImportClientV28 {
 
 /** Menu-invisible selected-V28 consumer of strict pathless main-owned watch claims. */
 export function createFramescaperNativeWatchImportClientV28(
+	options: FramescaperNativeWatchImportClientV28Options,
+): Readonly<FramescaperNativeWatchImportClientV28> {
+	return createFramescaperNativeWatchImportClientForSchema(28, options);
+}
+
+export function createFramescaperNativeWatchImportClientForSchema(
+	schemaVersion: 28 | 31,
 	options: FramescaperNativeWatchImportClientV28Options,
 ): Readonly<FramescaperNativeWatchImportClientV28> {
 	const controller = options?.controller;
@@ -101,14 +111,14 @@ export function createFramescaperNativeWatchImportClientV28(
 	});
 
 	async function poll(): Promise<boolean> {
-		const before = exactV28Project(controller.project);
+		const before = exactProject(controller.project, schemaVersion);
 		if (!before) return false;
 		const claimValue = await bridge!.claimWatchImport!({
 			projectId: before.id, projectRevision: before.revision,
 		});
 		if (claimValue === null) return false;
-		let claim: FramescaperNativeWatchImportClaimV28;
-		try { claim = watchClaim(claimValue); } catch (error) { report(error); return false; }
+		let claim: WatchImportClaim;
+		try { claim = watchClaim(claimValue, schemaVersion); } catch (error) { report(error); return false; }
 		let committed: WatchImportProject | null = null;
 		let sourceId: string | null = null;
 		try {
@@ -124,7 +134,7 @@ export function createFramescaperNativeWatchImportClientV28(
 						linkedVideoLocatorRevision: claim.locatorRevision,
 					} : {}),
 				}));
-				committed = exactRevision(controller.project, before, before.revision + 1);
+				committed = exactRevision(controller.project, before, before.revision + 1, schemaVersion);
 				source = newlyImportedSource(committed, claim, previousSourceIds);
 				sourceId = source.id;
 				await flushExact(committed);
@@ -140,7 +150,7 @@ export function createFramescaperNativeWatchImportClientV28(
 				if (!proxy) throw new Error('The selected authenticated proxy scheduler is unavailable.');
 				const prior = committed ?? before;
 				await proxy.generate(source.id);
-				committed = exactRevision(controller.project, prior, prior.revision + 1);
+				committed = exactRevision(controller.project, prior, prior.revision + 1, schemaVersion);
 				source = sourceInSelectedBin(committed, source.id, claim.contentSha256);
 				if (!proxyAttached(source, claim.contentSha256)) {
 					throw new Error('Requested proxy generation did not publish an exact attachment.');
@@ -154,7 +164,7 @@ export function createFramescaperNativeWatchImportClientV28(
 		} catch (error) {
 			report(error);
 			if (committed !== null && sourceId !== null) return retryCommitted(claim, sourceId, committed);
-			if (sameProject(controller.project, before)) {
+			if (sameProject(controller.project, before, schemaVersion)) {
 				await acknowledge(claim, null, before.revision, false).catch(report);
 			}
 			return false;
@@ -162,10 +172,10 @@ export function createFramescaperNativeWatchImportClientV28(
 	}
 
 	async function materializeClaim(
-		claim: FramescaperNativeWatchImportClaimV28,
+		claim: WatchImportClaim,
 		before: WatchImportProject,
 	): Promise<Blob> {
-		assertSameProject(controller.project, before);
+		assertSameProject(controller.project, before, schemaVersion);
 		const loaded = await port!.load(claim.locatorId, { expectedRevision: claim.locatorRevision });
 		if (!loaded || loaded.locatorRevision !== claim.locatorRevision) {
 			throw new Error('The watched linked-video locator is unavailable or stale.');
@@ -174,17 +184,17 @@ export function createFramescaperNativeWatchImportClientV28(
 		if (await digestMediaContent(file) !== claim.contentSha256) {
 			throw new Error('The watched video digest changed before import.');
 		}
-		assertSameProject(controller.project, before);
+		assertSameProject(controller.project, before, schemaVersion);
 		return file;
 	}
 
 	async function flushExact(project: WatchImportProject): Promise<void> {
 		await controller.actions.project.flush({ forceCurrentSnapshot: true });
-		assertSameProject(controller.project, project);
+		assertSameProject(controller.project, project, schemaVersion);
 	}
 
 	async function retryCommitted(
-		claim: FramescaperNativeWatchImportClaimV28,
+		claim: WatchImportClaim,
 		committedSourceId: string,
 		project: WatchImportProject,
 	): Promise<boolean> {
@@ -198,13 +208,13 @@ export function createFramescaperNativeWatchImportClientV28(
 	}
 
 	async function acknowledge(
-		claim: FramescaperNativeWatchImportClaimV28,
+		claim: WatchImportClaim,
 		committedSourceId: string | null,
 		committedProjectRevision: number,
 		success: boolean,
 	): Promise<boolean> {
 		return bridge!.completeWatchImport!({
-			claimId: claim.claimId, projectId: claim.projectId, projectSchemaVersion: 28,
+			claimId: claim.claimId, projectId: claim.projectId, projectSchemaVersion: schemaVersion,
 			binId: claim.binId, sourceId: committedSourceId, contentSha256: claim.contentSha256,
 			expectedProjectRevision: claim.projectRevision, committedProjectRevision, success,
 		});
@@ -215,7 +225,9 @@ export function createFramescaperNativeWatchImportClientV28(
 	}
 }
 
-function watchClaim(value: unknown): FramescaperNativeWatchImportClaimV28 {
+type WatchImportClaim = FramescaperNativeWatchImportClaimV28 | FramescaperNativeWatchImportClaimV31;
+
+function watchClaim(value: unknown, schemaVersion: 28 | 31): WatchImportClaim {
 	const fields = [
 		'claimId', 'projectId', 'projectRevision', 'projectSchemaVersion', 'binId',
 		'generateProxies', 'existingSourceId', 'importMode', 'locatorId', 'locatorRevision',
@@ -226,8 +238,8 @@ function watchClaim(value: unknown): FramescaperNativeWatchImportClaimV28 {
 		|| Reflect.ownKeys(value).some((key) => typeof key !== 'string' || !fields.includes(key))) {
 		throw new TypeError('A selected watch-import claim must be an exact pathless record.');
 	}
-	const claim = value as FramescaperNativeWatchImportClaimV28;
-	if (claim.projectSchemaVersion !== 28 || claim.binId !== SELECTED_BIN_ID
+	const claim = value as WatchImportClaim;
+	if (claim.projectSchemaVersion !== schemaVersion || claim.binId !== SELECTED_BIN_ID
 		|| typeof claim.generateProxies !== 'boolean'
 		|| (claim.existingSourceId !== null && !IDENTIFIER.test(claim.existingSourceId))
 		|| !OPAQUE_ID.test(claim.claimId) || !OPAQUE_ID.test(claim.locatorId)
@@ -243,16 +255,16 @@ function watchClaim(value: unknown): FramescaperNativeWatchImportClaimV28 {
 	return Object.freeze({ ...claim });
 }
 
-function assertClaimTarget(claim: FramescaperNativeWatchImportClaimV28, before: WatchImportProject): void {
+function assertClaimTarget(claim: WatchImportClaim, before: WatchImportProject): void {
 	if (claim.projectId !== before.id || claim.projectRevision !== before.revision) {
 		throw new Error('A watch-import claim targets a stale selected project.');
 	}
-	assertSameProject(before, before);
+	assertSameProject(before, before, before.schemaVersion);
 }
 
 function newlyImportedSource(
 	project: WatchImportProject,
-	claim: FramescaperNativeWatchImportClaimV28,
+	claim: WatchImportClaim,
 	previousSourceIds: ReadonlySet<string>,
 ): WatchVideoSource {
 	const matching = project.sources.filter((candidate) => candidate.kind === 'video'
@@ -281,7 +293,7 @@ function proxyAttached(source: WatchVideoSource, contentSha256: string): boolean
 		&& typeof attachment.sha256 === 'string' && SHA256.test(attachment.sha256);
 }
 
-function exactClaimFile(blob: unknown, claim: FramescaperNativeWatchImportClaimV28): Blob {
+function exactClaimFile(blob: unknown, claim: WatchImportClaim): Blob {
 	const file = blob as Blob & Readonly<{ name?: string; lastModified?: number }>;
 	if (!(blob instanceof Blob) || file.size !== claim.size || file.type !== claim.mimeType
 		|| file.name !== claim.name || file.lastModified !== claim.lastModified) {
@@ -290,10 +302,10 @@ function exactClaimFile(blob: unknown, claim: FramescaperNativeWatchImportClaimV
 	return file;
 }
 
-function exactV28Project(value: unknown): WatchImportProject | null {
+function exactProject(value: unknown, schemaVersion: 28 | 31): WatchImportProject | null {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
 	const project = value as Partial<WatchImportProject>;
-	if (project.schemaVersion !== 28 || typeof project.id !== 'string' || !IDENTIFIER.test(project.id)
+	if (project.schemaVersion !== schemaVersion || typeof project.id !== 'string' || !IDENTIFIER.test(project.id)
 		|| !Number.isSafeInteger(project.revision) || Number(project.revision) < 0
 		|| !Array.isArray(project.sources) || !project.projectBin
 		|| Reflect.ownKeys(project.projectBin).length !== 1
@@ -301,21 +313,25 @@ function exactV28Project(value: unknown): WatchImportProject | null {
 	return project as WatchImportProject;
 }
 
-function exactRevision(value: unknown, previous: WatchImportProject, revision: number): WatchImportProject {
-	const current = exactV28Project(value);
+function exactRevision(
+	value: unknown, previous: WatchImportProject, revision: number, schemaVersion: 28 | 31,
+): WatchImportProject {
+	const current = exactProject(value, schemaVersion);
 	if (!current || current.id !== previous.id || current.revision !== revision) {
 		throw new Error('The selected watch mutation did not commit one exact project revision.');
 	}
 	return current;
 }
 
-function sameProject(value: unknown, expected: WatchImportProject): boolean {
-	const current = exactV28Project(value);
+function sameProject(value: unknown, expected: WatchImportProject, schemaVersion: 28 | 31): boolean {
+	const current = exactProject(value, schemaVersion);
 	return current?.id === expected.id && current.revision === expected.revision;
 }
 
-function assertSameProject(value: unknown, expected: WatchImportProject): void {
-	if (!sameProject(value, expected)) throw new Error('The active selected project changed during watch import.');
+function assertSameProject(value: unknown, expected: WatchImportProject, schemaVersion: 28 | 31): void {
+	if (!sameProject(value, expected, schemaVersion)) {
+		throw new Error('The active selected project changed during watch import.');
+	}
 }
 
 function positiveInteger(value: unknown, label: string): number {
