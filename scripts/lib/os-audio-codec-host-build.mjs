@@ -50,10 +50,12 @@ const MAXIMUM_SOURCE_BYTES = 2 * 1024 * 1024;
 const MAXIMUM_ARTIFACT_BYTES = 16 * 1024 * 1024;
 const MAXIMUM_TOOLCHAIN_BYTES = 4 * 1024;
 const MAXIMUM_STEP_OUTPUT_BYTES = 8 * 1024 * 1024;
+const MAXIMUM_SIGNING_IDENTITY_BYTES = 512;
 const AUTHENTICATED_PLANS = new WeakSet();
 
 export function createOsAudioCodecHostBuildPlan(options) {
 	const target = targetValue(options?.target);
+	const signing = signingValue(target, options?.signingIdentity);
 	const repositoryRoot = canonicalDirectory(options?.repositoryRoot, 'Repository root');
 	const buildRoot = absentOutputPath(options?.buildRoot, 'Codec build root');
 	const installRoot = absentOutputPath(options?.installRoot, 'Codec install root');
@@ -77,34 +79,45 @@ export function createOsAudioCodecHostBuildPlan(options) {
 	const sourceRoot = resolve(repositoryRoot, NATIVE_ROOT);
 	const sourceIdentity = sourceClosureIdentity(repositoryRoot);
 	const headerIdentity = electronHeaderIdentity(headerSource, headerAuthentication);
-	const portable = portableCommands(target);
+	const portable = portableCommands(target, signing.identity.mode);
 	const macosSdkPath = target === 'mac-arm64'
 		? canonicalDirectory(options?.macosSdkPath, 'macOS SDK root') : null;
+	const artifactPath = resolve(installRoot, ARTIFACT_NAME);
 	const replacements = new Map([
 		['$SOURCE_ROOT', sourceRoot], ['$BUILD_ROOT', buildRoot],
 		['$INSTALL_ROOT', installRoot], ['$ELECTRON_HEADERS', headerSnapshot],
+		['$ARTIFACT', artifactPath],
+		...(signing.raw === null ? [] : [['$SIGNING_IDENTITY', signing.raw]]),
 		...(macosSdkPath === null ? [] : [['$MACOS_SDK', macosSdkPath]]),
 	]);
 	const configure = command('cmake', materialize(portable.configure, replacements));
 	const build = command('cmake', materialize(portable.build, replacements));
 	const nativeCanary = command('ctest', materialize(portable.nativeCanary, replacements));
 	const install = command('cmake', materialize(portable.install, replacements));
+	const sign = portable.sign === null ? null
+		: command('codesign', materialize(portable.sign, replacements));
+	const signatureVerification = portable.signatureVerification === null ? null
+		: command('codesign', materialize(portable.signatureVerification, replacements));
 	const buildPlan = deepFreeze({
 		algorithm: BUILD_PLAN_ALGORITHM,
 		sha256: sha256(Buffer.from(JSON.stringify({
 			schemaVersion: 1, target, napiVersion: 8, artifactName: ARTIFACT_NAME,
-			electronHeaders: headerIdentity, sourceIdentity,
+			electronHeaders: headerIdentity, sourceIdentity, signing: signing.identity,
 			configure: { command: 'cmake', argv: portable.configure },
 			build: { command: 'cmake', argv: portable.build },
 			nativeCanary: { command: 'ctest', argv: portable.nativeCanary },
 			install: { command: 'cmake', argv: portable.install },
+			sign: portable.sign === null ? null : { command: 'codesign', argv: portable.sign },
+			signatureVerification: portable.signatureVerification === null ? null
+				: { command: 'codesign', argv: portable.signatureVerification },
 		}))),
 	});
 	const plan = deepFreeze({
 		schemaVersion: 1, target, repositoryRoot, sourceRoot, buildRoot, installRoot,
-		artifactPath: resolve(installRoot, ARTIFACT_NAME), sourceSnapshotRoot,
+		artifactPath, sourceSnapshotRoot,
 		headerSnapshot, headerAuthentication, electronHeaders: headerIdentity,
-		sourceIdentity, buildPlan, configure, build, nativeCanary, install,
+		sourceIdentity, buildPlan, signing: signing.identity, configure, build, nativeCanary,
+		install, sign, signatureVerification,
 	});
 	AUTHENTICATED_PLANS.add(plan);
 	return plan;
@@ -134,7 +147,9 @@ export function executeOsAudioCodecHostBuild(plan, options = {}) {
 		assertRegularFile(resolve(snapshot.extractedTree.root, 'include/node/node_api.h'),
 			'Authenticated Electron Node-API header snapshot');
 		const run = options.run ?? spawnSync;
-		for (const step of [plan.configure, plan.build, plan.nativeCanary, plan.install]) {
+		const steps = [plan.configure, plan.build, plan.nativeCanary, plan.install,
+			...(plan.sign === null ? [] : [plan.sign, plan.signatureVerification])];
+		for (const step of steps) {
 			const outcome = run(step.command, step.argv, {
 				encoding: 'utf8', shell: false, maxBuffer: MAXIMUM_STEP_OUTPUT_BYTES,
 				env: { ...process.env, SOURCE_DATE_EPOCH: '0', TZ: 'UTC', LC_ALL: 'C' },
@@ -160,13 +175,14 @@ export function executeOsAudioCodecHostBuild(plan, options = {}) {
 			buildPlanSha256: plan.buildPlan.sha256,
 			toolchainIdentity,
 			nativeCanary: { status: 'passed', testCommand: 'ctest' },
+			signing: signingResult(plan.signing),
 		});
 	} finally {
 		if (snapshot !== undefined) removeMilestone5NativeSourceSnapshot(snapshot);
 	}
 }
 
-function portableCommands(target) {
+function portableCommands(target, signingMode) {
 	const configure = ['-S', '$SOURCE_ROOT', '-B', '$BUILD_ROOT'];
 	if (target === 'mac-arm64') configure.push(
 		'-G', 'Ninja', '-DCMAKE_BUILD_TYPE=Release', '-DBUILD_TESTING=ON',
@@ -189,15 +205,56 @@ function portableCommands(target) {
 			'--test-dir', '$BUILD_ROOT', '-C', 'Release', '--output-on-failure', '--no-tests=error',
 		],
 		install: ['--install', '$BUILD_ROOT', '--config', 'Release', '--prefix', '$INSTALL_ROOT'],
+		sign: target === 'mac-arm64'
+			? signingMode === 'developer-id'
+				? [
+					'--force', '--timestamp', '--options', 'runtime', '--sign',
+					'$SIGNING_IDENTITY', '$ARTIFACT',
+				]
+				: ['--force', '--sign', '$SIGNING_IDENTITY', '$ARTIFACT']
+			: null,
+		signatureVerification: target === 'mac-arm64'
+			? ['--verify', '--strict', '$ARTIFACT'] : null,
 	});
 }
 
-function materialize(arguments_, replacements) {
-	return arguments_.map((argument) => {
-		let result = argument;
-		for (const [placeholder, value] of replacements) result = result.replaceAll(placeholder, value);
-		return result;
+function signingValue(target, value) {
+	if (target !== 'mac-arm64') {
+		assert(value === undefined, 'Windows OS audio codec builds must not accept a signing identity.');
+		return deepFreeze({ identity: {
+			mode: 'not-applicable', identitySha256: null,
+		}, raw: null });
+	}
+	if (value === undefined) {
+		throw new TypeError('A mac-arm64 signing identity is required.');
+	}
+	if (value === '-') return deepFreeze({
+		identity: { mode: 'ad-hoc', identitySha256: sha256(Buffer.from(value)) }, raw: value,
 	});
+	const prefix = 'Developer ID Application: ';
+	if (typeof value !== 'string' || value !== value.normalize('NFC')
+		|| !value.startsWith(prefix) || value.length <= prefix.length || value.length > 256
+		|| Buffer.byteLength(value, 'utf8') > MAXIMUM_SIGNING_IDENTITY_BYTES
+		|| value !== value.trim() || /\p{Cc}/u.test(value)) {
+		throw new TypeError('mac-arm64 requires - or one bounded Developer ID Application signing identity.');
+	}
+	return deepFreeze({
+		identity: { mode: 'developer-id', identitySha256: sha256(Buffer.from(value, 'utf8')) },
+		raw: value,
+	});
+}
+
+function signingResult(signing) {
+	return signing.mode === 'not-applicable'
+		? { ...signing, verificationStatus: 'not-applicable' }
+		: { ...signing, verificationStatus: 'passed' };
+}
+
+function materialize(arguments_, replacements) {
+	return arguments_.map((argument) => argument.replaceAll(/\$[A-Z_]+/gu, (placeholder) => {
+		assert(replacements.has(placeholder), `Unknown OS audio codec build placeholder ${placeholder}.`);
+		return replacements.get(placeholder);
+	}));
 }
 
 function sourceClosureIdentity(repositoryRoot) {

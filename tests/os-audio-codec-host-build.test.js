@@ -54,12 +54,29 @@ test('the codec-only CMake and Node-API surfaces have no device or plug-in autho
 	assert.match(bridge, /GetProcAddress/u,
 		'Windows resolves Electron Node-API exports without an unpinned node.lib.');
 	assert.match(buildScript, /'result'/u);
+	assert.match(buildScript, /'signing-identity'/u);
 	assert.match(buildScript, /O_EXCL/u);
 	assert.match(buildScript, /Build result output is not one new regular file/u);
 	assert.match(buildScript, /JSON\.stringify\(value, null, 2\)/u,
 		'the build CLI must emit the same canonical JSON grammar consumed by desktop staging');
 	assert.equal(JSON.parse(packageJson).scripts['build:os-audio-codec-host'],
 		'node scripts/build-os-audio-codec-host.mjs');
+	const cli = join(ROOT, 'scripts/build-os-audio-codec-host.mjs');
+	const common = [
+		'--headers-archive=/missing/electron-headers.tar.gz',
+		'--headers-root=/missing/electron-headers', '--output=/missing/output',
+		'--result=/missing/result.json',
+	];
+	const windowsSigning = spawnSync(process.execPath, [
+		cli, '--target=win-x64', '--signing-identity=-', ...common,
+	], { encoding: 'utf8' });
+	assert.notEqual(windowsSigning.status, 0);
+	assert.match(windowsSigning.stderr, /must not be used for Windows builds/iu);
+	const unsignedMac = spawnSync(process.execPath, [
+		cli, '--target=mac-arm64', '--macos-sdk=/missing/MacOSX.sdk', ...common,
+	], { encoding: 'utf8' });
+	assert.notEqual(unsignedMac.status, 0);
+	assert.match(unsignedMac.stderr, /signing-identity=.*required for mac-arm64/iu);
 });
 
 test('build plans authenticate exact Electron 43.1.1 headers and close the target matrix', async (context) => {
@@ -120,10 +137,49 @@ test('build plans authenticate exact Electron 43.1.1 headers and close the targe
 	assert.equal(arm.configure.argv.includes('ARM64'), true);
 	const macSdk = join(fixture.root, 'MacOSX.sdk');
 	await mkdir(macSdk);
-	const mac = plan(fixture, 'mac-arm64', 'mac', { macosSdkPath: macSdk });
+	assert.throws(() => plan(fixture, 'mac-arm64', 'mac-unsigned', {
+		macosSdkPath: macSdk,
+	}), /signing identity is required/iu);
+	assert.throws(() => plan(fixture, 'win-x64', 'windows-signed', {
+		signingIdentity: '-',
+	}), /must not accept a signing identity/iu);
+	const mac = plan(fixture, 'mac-arm64', 'mac', {
+		macosSdkPath: macSdk, signingIdentity: '-',
+	});
 	assert.deepEqual(mac.configure.argv.slice(4, 6), ['-G', 'Ninja']);
 	assert.match(mac.configure.argv.join('\n'), /CMAKE_OSX_ARCHITECTURES=arm64/u);
 	assert.match(mac.configure.argv.join('\n'), /CMAKE_OSX_SYSROOT=/u);
+	assert.deepEqual(mac.signing, {
+		mode: 'ad-hoc', identitySha256: sha256(Buffer.from('-')),
+	});
+	assert.deepEqual(mac.sign, {
+		command: 'codesign', argv: ['--force', '--sign', '-', mac.artifactPath],
+	});
+	assert.deepEqual(mac.signatureVerification, {
+		command: 'codesign', argv: ['--verify', '--strict', mac.artifactPath],
+	});
+	const developerIdentity =
+		'Developer ID Application: Soundscaper $MACOS_SDK Test (ABCDE12345)';
+	const production = plan(fixture, 'mac-arm64', 'mac-production', {
+		macosSdkPath: macSdk, signingIdentity: developerIdentity,
+	});
+	assert.deepEqual(production.signing, {
+		mode: 'developer-id', identitySha256: sha256(Buffer.from(developerIdentity)),
+	});
+	assert.equal(production.sign.argv[5], developerIdentity,
+		'signing identities must not be interpreted as build-plan placeholders.');
+	assert.deepEqual(production.sign.argv, [
+		'--force', '--timestamp', '--options', 'runtime', '--sign', developerIdentity,
+		production.artifactPath,
+	]);
+	assert.notEqual(production.buildPlan.sha256, mac.buildPlan.sha256);
+	for (const signingIdentity of [
+		'Apple Development: Soundscaper Test (ABCDE12345)',
+		'Developer ID Application: Soundscaper Test\n(ABCDE12345)',
+		`Developer ID Application: ${'x'.repeat(300)}`,
+	]) assert.throws(() => plan(fixture, 'mac-arm64', `invalid-${signingIdentity.length}`, {
+		macosSdkPath: macSdk, signingIdentity,
+	}), /Developer ID Application/iu);
 
 	const second = plan(fixture, 'win-x64', 'windows-two');
 	assert.deepEqual(osAudioCodecHostBuildPlanIdentity(windows),
@@ -177,12 +233,65 @@ test('execution emits a bounded immutable artifact, plan, source, toolchain and 
 			systemName: 'Windows', systemProcessor: 'ARM64',
 		},
 		nativeCanary: { status: 'passed', testCommand: 'ctest' },
+		signing: {
+			mode: 'not-applicable', identitySha256: null,
+			verificationStatus: 'not-applicable',
+		},
 	});
 	assert.equal(Object.isFrozen(result), true);
 	assert.equal(Object.isFrozen(result.artifact), true);
 	assert.throws(() => executeOsAudioCodecHostBuild({ ...buildPlan }, {
 		run: () => ({ status: 0, stdout: '', stderr: '' }),
 	}), /authenticated build plan/iu);
+});
+
+test('macOS signs and strictly verifies the installed addon before hashing it', async (context) => {
+	const fixture = await electronHeaderFixture(context);
+	const macSdk = join(fixture.root, 'MacOSX.sdk');
+	await mkdir(macSdk);
+	const buildPlan = plan(fixture, 'mac-arm64', 'signed-execution', {
+		macosSdkPath: macSdk, signingIdentity: '-',
+	});
+	const commands = [];
+	const unsigned = Buffer.from('unsigned-addon-fixture');
+	const signed = Buffer.from('signed-addon-fixture');
+	const result = executeOsAudioCodecHostBuild(buildPlan, {
+		run(command, argv, options) {
+			commands.push({ command, argv, shell: options.shell });
+			if (argv.includes('-S')) {
+				mkdirSync(buildPlan.buildRoot, { recursive: true });
+				writeFileSync(join(buildPlan.buildRoot, 'soundscaper-os-audio-codec-toolchain.json'),
+					JSON.stringify({
+						cmake: '3.31.6', generator: 'Ninja', cxxCompilerId: 'AppleClang',
+						cxxCompilerVersion: '17.0.0', systemName: 'Darwin',
+						systemProcessor: 'arm64',
+					}));
+			}
+			if (argv[0] === '--install') {
+				mkdirSync(buildPlan.installRoot, { recursive: true });
+				writeFileSync(buildPlan.artifactPath, unsigned);
+			}
+			if (command === 'codesign' && argv.includes('--sign')) {
+				assert.deepEqual(argv, ['--force', '--sign', '-', buildPlan.artifactPath]);
+				writeFileSync(buildPlan.artifactPath, signed);
+			}
+			return { status: 0, signal: null, error: undefined, stdout: '', stderr: '' };
+		},
+	});
+	assert.deepEqual(commands.map(({ command }) => command), [
+		'cmake', 'cmake', 'ctest', 'cmake', 'codesign', 'codesign',
+	]);
+	assert.equal(commands.every(({ shell }) => shell === false), true);
+	assert.deepEqual(commands.at(-1).argv,
+		['--verify', '--strict', buildPlan.artifactPath]);
+	assert.deepEqual(result.artifact, {
+		path: buildPlan.artifactPath, byteLength: signed.byteLength, sha256: sha256(signed),
+	});
+	assert.deepEqual(result.signing, {
+		mode: 'ad-hoc', identitySha256: sha256(Buffer.from('-')),
+		verificationStatus: 'passed',
+	});
+	assert.doesNotMatch(JSON.stringify(result), /Developer ID Application/u);
 });
 
 test('the portable exact MP3 profile canary remains buildable without a target OS SDK', (context) => {
