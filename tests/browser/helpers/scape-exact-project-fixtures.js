@@ -3,8 +3,10 @@ import { Buffer } from 'node:buffer';
 import { framescaperProjectV20FoundationV27 } from '../../../src/framescaper/editor-project-v27-runtime.ts';
 import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from '../../../src/framescaper/editor-project-runtime-profile-v27.ts';
 import { framescaperProjectV27FoundationShapeV28 } from '../../../src/framescaper/editor-project-v28-foundation.ts';
+import { framescaperProjectV28FoundationShapeV31 } from '../../../src/framescaper/editor-project-v31-foundation.ts';
 import { createSoundscaperProjectV23 } from '../../../src/soundscaper/editor-project-v23.ts';
 import { createSoundscaperProjectV29 } from '../../../src/soundscaper/editor-project-v29.ts';
+import { createSoundscaperProjectV30 } from '../../../src/soundscaper/editor-project-v30.ts';
 
 export async function promoteFramescaperArchiveToSoundscaperV23(
 	input,
@@ -23,6 +25,16 @@ export async function promoteFramescaperArchiveToSoundscaperV29(
 ) {
 	return promoteFramescaperArchive(
 		input, { id, title, mutate }, rewriteArchive, createSoundscaperProjectV29,
+	);
+}
+
+export async function promoteFramescaperArchiveToSoundscaperV30(
+	input,
+	{ id, title, mutate = () => {} },
+	rewriteArchive,
+) {
+	return promoteFramescaperArchive(
+		input, { id, title, mutate }, rewriteArchive, createSoundscaperProjectV30,
 	);
 }
 
@@ -95,6 +107,9 @@ function framescaperFoundationForSoundscaper(value) {
 }
 
 function framescaperSelectedFoundation(value) {
+	if (value.schemaVersion === 31) {
+		return framescaperSelectedFoundation(framescaperProjectV28FoundationShapeV31(value));
+	}
 	if (value.schemaVersion === 28) {
 		return framescaperProjectV20FoundationV27(
 			FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,
