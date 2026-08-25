@@ -16,26 +16,38 @@ import {
 	type AssistanceProposalPhase,
 	type AssistanceSelectionFence,
 } from '../assistance/proposal-session.ts';
+import { voiceActivitySilenceProposals } from '../assistance/vad-silence.ts';
 import {
 	createAssistanceTranscriptBodyPublicationV1,
 	type AssistanceSpeechRecognitionReviewV1,
 } from '../assistance/transcript-body-publication-v1.ts';
 import { prepareDisjointRangeDeleteCommand } from '../commands.js';
 import type { AudioEditorCommand } from '../commands/protocol.ts';
+import { scaleSampleFrame } from '../timeline-time.ts';
 
 const REVIEW_RECIPE_ID = 'transcript-cleanup-review';
 const REVIEW_RECIPE_VERSION = 1;
 const DECISION_COMMAND_TYPE = 'assistance-cleanup/proposal';
 const MAXIMUM_FILLER_LEXICON_WORDS = 4_096;
 const MAXIMUM_FILLER_WORD_LENGTH = 128;
-const REQUEST_FIELDS = Object.freeze(['selectionFence', 'review', 'models', 'options'] as const);
+const REQUEST_FIELDS = Object.freeze([
+	'selectionFence', 'review', 'models', 'options', 'voiceActivity',
+] as const);
 const MODEL_FIELDS = Object.freeze(['modelId', 'version', 'task', 'artifactSha256s'] as const);
 const OPTION_FIELDS = Object.freeze([
 	'fillerLexicon', 'minSilenceFrames', 'silencePaddingFrames', 'minConfidence', 'detectRepetitions',
 ] as const);
 const DECISION_FIELDS = Object.freeze(['type', 'proposalId'] as const);
+const VOICE_ACTIVITY_FIELDS = Object.freeze(['selectionFence', 'models', 'review'] as const);
+const VOICE_ACTIVITY_REVIEW_FIELDS = Object.freeze(['kind', 'sampleRate', 'segments'] as const);
+const VOICE_ACTIVITY_SEGMENT_FIELDS = Object.freeze(['startSample', 'sampleCount'] as const);
 const SHA256 = /^[a-f\d]{64}$/u;
 const MODEL_ID = /^[a-z\d](?:[a-z\d.-]{0,62}[a-z\d])?$/u;
+const PARAKEET_MODEL_IDS = new Set(['parakeet-tdt-0.6b-v2', 'parakeet-tdt-0.6b-v3']);
+const VAD_MODEL_ID = 'silero-vad-v6';
+const VAD_SAMPLE_RATE = 16_000;
+const MINIMUM_VAD_SILENCE_SAMPLES = 8_000;
+const VAD_SPEECH_PADDING_SAMPLES = 800;
 
 type DataRecord = Readonly<Record<string, unknown>>;
 
@@ -72,6 +84,25 @@ export interface LocalAssistanceTranscriptCleanupRequest {
 		readonly artifactSha256s: readonly string[];
 	}>[];
 	readonly options: DisfluencyOptions;
+	readonly voiceActivity: LocalAssistanceTranscriptCleanupVoiceActivity | null;
+}
+
+export interface LocalAssistanceTranscriptCleanupVoiceActivity {
+	readonly selectionFence: AssistanceSelectionFence;
+	readonly models: readonly Readonly<{
+		readonly modelId: string;
+		readonly version: string;
+		readonly task: string;
+		readonly artifactSha256s: readonly string[];
+	}>[];
+	readonly review: Readonly<{
+		readonly kind: 'voice-activity';
+		readonly sampleRate: 16_000;
+		readonly segments: readonly Readonly<{
+			readonly startSample: number;
+			readonly sampleCount: number;
+		}>[];
+	}>;
 }
 
 export interface LocalAssistanceTranscriptCleanupSnapshot {
@@ -125,7 +156,16 @@ export function createLocalAssistanceTranscriptCleanupSession(
 		model: request.model,
 		recipe: { id: REVIEW_RECIPE_ID, version: REVIEW_RECIPE_VERSION },
 	});
-	const sourceProposals = findDisfluencyProposals(publication.body, request.options);
+	if (publication.body.language !== 'en') {
+		throw new RangeError('Transcript cleanup requires an English Parakeet review.');
+	}
+	const sourceProposals = [
+		...findDisfluencyProposals(publication.body, {
+			...request.options, minSilenceFrames: 0, silencePaddingFrames: 0,
+		}),
+		...voiceActivityProposals(request.voiceActivity, initial),
+	].sort((left, right) => left.startFrame - right.startFrame
+		|| left.endFrame - right.endFrame || left.kind.localeCompare(right.kind));
 	if (sourceProposals.length < 1) {
 		throw new RangeError('The reviewed transcript produced no cleanup proposals.');
 	}
@@ -271,39 +311,77 @@ function normalizeAuthority(value: LocalAssistanceTranscriptCleanupAuthority): N
 function normalizeRequest(value: LocalAssistanceTranscriptCleanupRequest) {
 	const request = exactRecord(value, REQUEST_FIELDS, 'transcript cleanup request');
 	const fence = validateAssistanceSelectionFence(request.selectionFence);
-	if (!Array.isArray(request.models) || request.models.length !== 1) {
-		throw new RangeError('Transcript cleanup requires exactly one authenticated model.');
-	}
-	const model = exactRecord(request.models[0], MODEL_FIELDS, 'transcript cleanup model');
-	if (typeof model.modelId !== 'string' || !MODEL_ID.test(model.modelId)) {
-		throw new TypeError('Transcript cleanup requires a bounded model ID.');
-	}
-	if (typeof model.version !== 'string' || model.version.length < 1 || model.version.length > 160
-		|| model.version.trim() !== model.version) {
-		throw new TypeError('Transcript cleanup requires a bounded model version.');
-	}
-	if (model.task !== 'speech-recognition') {
-		throw new RangeError('Transcript cleanup requires a speech-recognition model.');
-	}
-	if (!Array.isArray(model.artifactSha256s) || model.artifactSha256s.length < 1
-		|| model.artifactSha256s.length > 64) {
-		throw new RangeError('Transcript cleanup requires authenticated model artifacts.');
-	}
-	const artifactSha256s = model.artifactSha256s.map((value) => {
-		if (typeof value !== 'string' || !SHA256.test(value)) {
-			throw new TypeError('Transcript cleanup model artifacts require SHA-256 digests.');
-		}
-		return value;
-	});
-	if (artifactSha256s.some((digest, index) => index > 0 && digest <= artifactSha256s[index - 1]!)) {
-		throw new Error('Transcript cleanup model artifact digests must be sorted and unique.');
-	}
+	const model = authenticatedModel(
+		request.models, 'speech-recognition', PARAKEET_MODEL_IDS, 'transcript cleanup',
+	);
 	return Object.freeze({
 		selectionFence: fence,
 		review: request.review as AssistanceSpeechRecognitionReviewV1,
-		model: Object.freeze({ modelId: model.modelId, artifactSha256s: Object.freeze(artifactSha256s) }),
+		model,
 		options: normalizeOptions(request.options),
+		voiceActivity: normalizeVoiceActivity(request.voiceActivity, fence),
 	});
+}
+
+function authenticatedModel(
+	value: unknown,
+	task: string,
+	modelIds: ReadonlySet<string>,
+	label: string,
+) {
+	if (!Array.isArray(value) || value.length !== 1) {
+		throw new RangeError(`${label} requires exactly one authenticated model.`);
+	}
+	const model = exactRecord(value[0], MODEL_FIELDS, `${label} model`);
+	if (typeof model.modelId !== 'string' || !MODEL_ID.test(model.modelId)) {
+		throw new TypeError(`${label} requires a bounded model ID.`);
+	}
+	if (typeof model.version !== 'string' || model.version.length < 1 || model.version.length > 160
+		|| model.version.trim() !== model.version) {
+		throw new TypeError(`${label} requires a bounded model version.`);
+	}
+	if (model.task !== task || !modelIds.has(model.modelId)) {
+		throw new RangeError(`${label} requires authenticated ${task === 'speech-recognition'
+			? 'Parakeet speech' : 'Silero VAD'} model authority.`);
+	}
+	if (!Array.isArray(model.artifactSha256s) || model.artifactSha256s.length < 1
+		|| model.artifactSha256s.length > 64) {
+		throw new RangeError(`${label} requires authenticated model artifacts.`);
+	}
+	const artifactSha256s = model.artifactSha256s.map((value) => {
+		if (typeof value !== 'string' || !SHA256.test(value)) {
+			throw new TypeError(`${label} model artifacts require SHA-256 digests.`);
+		}
+		return value;
+	}).sort();
+	if (artifactSha256s.some((digest, index) => index > 0 && digest === artifactSha256s[index - 1]!)) {
+		throw new Error(`${label} model artifact digests must be unique.`);
+	}
+	return Object.freeze({ modelId: model.modelId, artifactSha256s: Object.freeze(artifactSha256s) });
+}
+
+function normalizeVoiceActivity(value: unknown, fence: AssistanceSelectionFence) {
+	if (value === null) return null;
+	const authority = exactRecord(value, VOICE_ACTIVITY_FIELDS, 'cleanup voice-activity authority');
+	assertSameFence(fence, validateAssistanceSelectionFence(authority.selectionFence));
+	authenticatedModel(
+		authority.models, 'voice-activity-detection', new Set([VAD_MODEL_ID]), 'cleanup voice activity',
+	);
+	const review = exactRecord(
+		authority.review, VOICE_ACTIVITY_REVIEW_FIELDS, 'cleanup voice-activity review',
+	);
+	if (review.kind !== 'voice-activity' || review.sampleRate !== VAD_SAMPLE_RATE
+		|| !Array.isArray(review.segments)) {
+		throw new TypeError('Cleanup voice activity requires an exact reviewed 16 kHz result.');
+	}
+	const segments = review.segments.map((candidate, index) => {
+		const segment = exactRecord(candidate, VOICE_ACTIVITY_SEGMENT_FIELDS,
+			`cleanup voice-activity segment ${String(index)}`);
+		const startFrame = frame(segment.startSample, 'voice-activity segment start');
+		const sampleCount = positiveInteger(segment.sampleCount, 'voice-activity segment count');
+		return Object.freeze({ startFrame, endFrame: safeAdd(startFrame, sampleCount) });
+	});
+	return Object.freeze({ segments: Object.freeze(segments) });
 }
 
 function normalizeOptions(value: unknown): DisfluencyOptions {
@@ -321,6 +399,9 @@ function normalizeOptions(value: unknown): DisfluencyOptions {
 	});
 	const minSilenceFrames = optionalFrame(options.minSilenceFrames, 'minimum silence frames');
 	const silencePaddingFrames = optionalFrame(options.silencePaddingFrames, 'silence padding frames');
+	if ((minSilenceFrames ?? 0) > 0 || (silencePaddingFrames ?? 0) > 0) {
+		throw new RangeError('Transcript word gaps cannot authorize silence cleanup; reviewed VAD is required.');
+	}
 	const minConfidence = options.minConfidence;
 	if (minConfidence !== undefined && (typeof minConfidence !== 'number'
 		|| !Number.isFinite(minConfidence) || minConfidence < 0 || minConfidence > 1)) {
@@ -338,6 +419,49 @@ function normalizeOptions(value: unknown): DisfluencyOptions {
 			detectRepetitions: options.detectRepetitions,
 		}),
 	});
+}
+
+function voiceActivityProposals(
+	voiceActivity: Readonly<{ readonly segments: readonly Readonly<{
+		readonly startFrame: number; readonly endFrame: number;
+	}>[] }> | null,
+	authority: NormalizedAuthority,
+): readonly DisfluencyProposal[] {
+	if (!voiceActivity) return Object.freeze([]);
+	const outputFrames = Number(scaleSampleFrame(
+		authority.sourceEndFrame - authority.sourceStartFrame,
+		authority.sampleRate,
+		VAD_SAMPLE_RATE,
+		'point',
+	));
+	return Object.freeze(voiceActivitySilenceProposals({
+		sampleRate: VAD_SAMPLE_RATE,
+		selectionStartFrame: 0,
+		selectionEndFrame: outputFrames,
+		segments: voiceActivity.segments,
+	}, {
+		minimumFrames: MINIMUM_VAD_SILENCE_SAMPLES,
+		paddingFrames: VAD_SPEECH_PADDING_SAMPLES,
+	}).flatMap((proposal) => {
+		const startFrame = safeAdd(authority.sourceStartFrame, Number(scaleSampleFrame(
+			proposal.startFrame, VAD_SAMPLE_RATE, authority.sampleRate, 'enclosingEnd',
+		)));
+		const endFrame = safeAdd(authority.sourceStartFrame, Number(scaleSampleFrame(
+			proposal.endFrame, VAD_SAMPLE_RATE, authority.sampleRate, 'enclosingStart',
+		)));
+		return endFrame > startFrame ? [Object.freeze({
+			...proposal,
+			id: `vad-silence-${String(startFrame)}-${String(endFrame)}`,
+			startFrame,
+			endFrame,
+		})] : [];
+	}));
+}
+
+function safeAdd(left: number, right: number): number {
+	const result = left + right;
+	if (!Number.isSafeInteger(result)) throw new RangeError('Transcript cleanup frame geometry overflowed.');
+	return result;
 }
 
 function assertSameFence(left: AssistanceSelectionFence, right: AssistanceSelectionFence): void {

@@ -6,6 +6,7 @@ import test from 'node:test';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import {
 	createLocalAssistanceTranscriptCleanupSession,
+	type LocalAssistanceTranscriptCleanupRequest,
 } from '../src/common/editor/controller/local-assistance-cleanup-acceptance.ts';
 import {
 	resolveLocalAssistanceSelectedMediaAuthority,
@@ -37,6 +38,7 @@ const SAMPLE_RATE = 48_000;
 const DURATION_FRAMES = 2 * SAMPLE_RATE;
 const SOURCE_SHA256 = 'ab'.repeat(32);
 const MODEL_SHA256 = '12'.repeat(32);
+const VAD_MODEL_SHA256 = '34'.repeat(32);
 const RATE = Object.freeze({ num: 30, den: 1 });
 
 const REVIEW = Object.freeze({
@@ -137,7 +139,8 @@ class CleanupFixture {
 			: authority;
 	}
 
-	createSession() {
+	createSession(overrides: Partial<Pick<LocalAssistanceTranscriptCleanupRequest,
+		'models' | 'options' | 'voiceActivity'>> = {}) {
 		const authority = this.currentAuthority();
 		return createLocalAssistanceTranscriptCleanupSession({
 			currentAuthority: () => this.currentAuthority(),
@@ -151,15 +154,34 @@ class CleanupFixture {
 		}, {
 			selectionFence: authority.fence,
 			review: REVIEW,
-			models: Object.freeze([Object.freeze({
+			models: overrides.models ?? Object.freeze([Object.freeze({
 				modelId: 'parakeet-tdt-0.6b-v2',
 				version: '1',
 				task: 'speech-recognition',
 				artifactSha256s: Object.freeze([MODEL_SHA256]),
 			})]),
-			options: { fillerLexicon: ['um', 'uh'] },
+			options: overrides.options ?? { fillerLexicon: ['um', 'uh'] },
+			voiceActivity: overrides.voiceActivity ?? null,
 		});
 	}
+}
+
+function reviewedVad(fence: AssistanceSelectionFence) {
+	return Object.freeze({
+		selectionFence: fence,
+		models: Object.freeze([Object.freeze({
+			modelId: 'silero-vad-v6', version: '6.2.1', task: 'voice-activity-detection',
+			artifactSha256s: Object.freeze([VAD_MODEL_SHA256]),
+		})]),
+		review: Object.freeze({
+			kind: 'voice-activity' as const,
+			sampleRate: 16_000,
+			segments: Object.freeze([
+				Object.freeze({ startSample: 0, sampleCount: 8_000 }),
+				Object.freeze({ startSample: 24_000, sampleCount: 8_000 }),
+			]),
+		}),
+	});
 }
 
 function runtimeClips(project: AudioEditorProjectCurrent) {
@@ -197,6 +219,33 @@ test('reviewed transcript timing becomes deterministic subset-selectable cleanup
 	assert.equal(command.startFrame, 57_600);
 	assert.equal(command.endFrame, 67_200);
 	assert.match(command.splitClipIds?.['audio-clip'] ?? '', /^clip-/u);
+});
+
+test('only same-fence reviewed VAD can add silence cleanup proposals', () => {
+	const fixture = new CleanupFixture();
+	const authority = fixture.currentAuthority();
+	const session = fixture.createSession({ voiceActivity: reviewedVad(authority.fence) });
+	assert.deepEqual(session.snapshot().proposals.filter(({ kind }) => kind === 'silence'), [{
+		id: 'vad-silence-26400-69600', kind: 'silence',
+		startFrame: 26_400, endFrame: 69_600, text: '',
+	}]);
+
+	assert.throws(() => fixture.createSession({
+		options: { fillerLexicon: ['um'], minSilenceFrames: 8_000 },
+	}), /word gaps cannot authorize silence/iu);
+	assert.throws(() => fixture.createSession({
+		voiceActivity: reviewedVad(Object.freeze({
+			...authority.fence, timingAuthoritySha256: '56'.repeat(32),
+		})),
+	}), /no longer matches/iu);
+});
+
+test('cleanup refuses non-Parakeet speech model authority', () => {
+	const fixture = new CleanupFixture();
+	assert.throws(() => fixture.createSession({ models: Object.freeze([Object.freeze({
+		modelId: 'generic-speech-model', version: '1', task: 'speech-recognition',
+		artifactSha256s: Object.freeze([MODEL_SHA256]),
+	})]) }), /Parakeet/iu);
 });
 
 test('all accepted disjoint edits commit as one history revision and undo and redo together', async () => {
