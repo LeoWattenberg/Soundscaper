@@ -154,6 +154,8 @@
 		"desktop/external-ffmpeg-probe.ts",
 		"desktop/external-ffmpeg-video-operation-service.ts",
 		"desktop/external-ffmpeg-video-process.ts",
+		"desktop/external-ffmpeg-video-qualification.ts",
+		"desktop/external-ffmpeg-video-qualified-capabilities.ts",
 		"desktop/linked-original-locator-validation.ts",
 		"desktop/linked-video-locator-registry.ts",
 		"desktop/linked-video-locator-store.ts",

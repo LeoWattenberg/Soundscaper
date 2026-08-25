@@ -7,6 +7,11 @@ import type { Writable } from 'node:stream';
 
 import { shouldDetachProcessTree, terminateProcessTree } from './process-tree-termination.js';
 
+const GUARDED_ARGUMENT_PREFIX = Object.freeze([
+	'-nostdin', '-hide_banner', '-nostats', '-loglevel', 'error', '-xerror', '-y',
+	'-protocol_whitelist', 'file,pipe,crypto,data',
+]);
+
 export interface ExternalFfmpegVideoChildProcess {
 	readonly pid?: number;
 	readonly stdout: Readonly<{ on(event: 'data', listener: (chunk: unknown) => void): unknown }>;
@@ -47,6 +52,23 @@ export interface ExternalFfmpegVideoProcess {
 	readonly videoInput: Writable;
 	readonly audioInput: Writable | null;
 	readonly completion: Promise<void>;
+}
+
+/** Add the invariant process guard without accepting executable or endpoint authority. */
+export function guardExternalFfmpegVideoArguments(
+	arguments_: readonly string[],
+	maximumOutputBytes: number,
+): readonly string[] {
+	if (!Array.isArray(arguments_) || arguments_.length < 3
+		|| arguments_[0] !== '-nostdin' || arguments_[1] !== '-y'
+		|| arguments_.some((argument) => typeof argument !== 'string' || argument.includes('\0'))
+		|| !Number.isSafeInteger(maximumOutputBytes) || maximumOutputBytes < 1) {
+		throw new TypeError('The admitted external FFmpeg video command is invalid.');
+	}
+	return Object.freeze([
+		...GUARDED_ARGUMENT_PREFIX, ...arguments_.slice(2, -1),
+		'-fs', String(maximumOutputBytes), arguments_.at(-1)!,
+	]);
 }
 
 export function launchExternalFfmpegVideoProcess(options: Readonly<{

@@ -8,12 +8,14 @@ import { join } from 'node:path';
 import { PassThrough, Writable } from 'node:stream';
 import test from 'node:test';
 
+import { createDesktopExternalFfmpegVideoCapabilities } from '../desktop/desktop-video-codec-operation-contract.ts';
 import { externalFfmpegExecutablePairClosureSha256 } from '../desktop/external-ffmpeg-node-runtime.ts';
 import {
 	createExternalFfmpegVideoOperationService,
 	type ExternalFfmpegVideoChildProcess,
 	type ExternalFfmpegVideoSpawn,
 } from '../desktop/external-ffmpeg-video-operation-service.ts';
+import type { ExternalFfmpegVideoQualifier } from '../desktop/external-ffmpeg-video-qualified-capabilities.ts';
 
 const HASH_A = 'a'.repeat(64);
 const HASH_B = 'b'.repeat(64);
@@ -258,12 +260,73 @@ test('post-spawn private-pipe setup failure terminates the admitted child tree',
 	}
 });
 
+test('video service coalesces qualification, reruns it for a new admission, and gates begin', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-qualification-'));
+	let qualificationCalls = 0;
+	let qualified = true;
+	const fixture = serviceFixture(root, () => fakeChild(new PassThrough(), null), {
+		qualify: async (value) => {
+			qualificationCalls += 1;
+			const capabilities = createDesktopExternalFfmpegVideoCapabilities(value);
+			return qualified ? capabilities : Object.freeze({
+				schemaVersion: 1 as const,
+				formats: Object.freeze({
+					...capabilities.formats,
+					mp4: Object.freeze({
+						available: false, provider: null,
+						reason: 'The configured FFmpeg failed exact H264/AAC MP4 execution qualification.',
+					}),
+				}),
+			});
+		},
+	});
+	try {
+		const [first, second] = await Promise.all([
+			fixture.service.capabilities(), fixture.service.capabilities(),
+		]);
+		assert.equal(first.formats.mp4.available, true);
+		assert.equal(second.formats.mp4.available, true);
+		assert.equal(qualificationCalls, 1);
+		fixture.setAdmission(Object.freeze({ ...fixture.admission }));
+		qualified = false;
+		assert.equal((await fixture.service.capabilities()).formats.mp4.available, false);
+		assert.equal(qualificationCalls, 2);
+		await assert.rejects(() => fixture.service.begin(fixture.owner, PLAN), /execution qualification/iu);
+	} finally {
+		fixture.service.dispose();
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
+test('video service reserves owner capacity while asynchronous qualification is pending', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-concurrent-begin-'));
+	let release!: () => void;
+	const qualificationReady = new Promise<void>((resolve) => { release = resolve; });
+	const fixture = serviceFixture(root, () => fakeChild(new PassThrough(), null), {
+		qualify: async (value) => {
+			await qualificationReady;
+			return createDesktopExternalFfmpegVideoCapabilities(value);
+		},
+	});
+	try {
+		const first = fixture.service.begin(fixture.owner, PLAN);
+		await assert.rejects(() => fixture.service.begin(fixture.owner, PLAN), /already active|busy/iu);
+		release();
+		const session = await first;
+		assert.equal(await fixture.service.cancel(fixture.owner, session.operationId), true);
+	} finally {
+		fixture.service.dispose();
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
 function serviceFixture(
 	root: string,
 	spawn: ExternalFfmpegVideoSpawn,
 	overrides: Readonly<{
 		digest?: (path: string) => Promise<string>;
 		maximumIdleMs?: number;
+		qualify?: ExternalFfmpegVideoQualifier;
 	}> = {},
 ) {
 	const owner = {};
@@ -285,21 +348,28 @@ function serviceFixture(
 			demuxers: ['rawvideo', 'wav'], filters: ['apad'],
 		}),
 	});
+	let currentAdmission = admission;
 	const service = createExternalFfmpegVideoOperationService({
+		productId: 'soundscaper',
 		scratchRoot: root,
 		preferences: {
-			admission: () => admission,
+			admission: () => currentAdmission,
 			invalidateAdmission: async (_expected, reason) => { invalidations.push(reason); return {}; },
 		},
 		spawn,
 		digestExecutable: overrides.digest ?? (async (path) => path.endsWith('ffmpeg') ? HASH_A : HASH_B),
 		mintOperationId: () => `desktop-video-${'1'.repeat(32)}`,
+		qualifyAdmission: overrides.qualify
+			?? (async (value) => createDesktopExternalFfmpegVideoCapabilities(value)),
 		maximumDurationMs: 5_000,
 		terminationGraceMs: 10,
 		killWaitMs: 10,
 		...(overrides.maximumIdleMs === undefined ? {} : { maximumIdleMs: overrides.maximumIdleMs }),
 	});
-	return { service, owner, invalidations };
+	return {
+		service, owner, invalidations, admission,
+		setAdmission(value: typeof admission) { currentAdmission = value; },
+	};
 }
 
 interface FakeChild extends ExternalFfmpegVideoChildProcess, EventEmitter {

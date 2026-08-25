@@ -77,12 +77,15 @@ const DESKTOP_EXTERNAL_FFMPEG_CONTROL_RUNTIME_FILES = Object.freeze([
 	'desktop/external-ffmpeg-probe.js',
 	'desktop/external-ffmpeg-video-operation-service.js',
 	'desktop/external-ffmpeg-video-process.js',
+	'desktop/external-ffmpeg-video-qualification.js',
+	'desktop/external-ffmpeg-video-qualified-capabilities.js',
 	'src/common/editor/video-elementary-stream.js',
 	'src/common/editor/video-keyframe-audio-input.js',
 	'src/common/editor/video-keyframe-encoder-execution.js',
 	'src/common/editor/video-keyframe-encoder-stream.js',
 	'src/common/editor/video-keyframe-execution-engine.js',
 	'src/common/editor/video-keyframe-webcodecs-execution.js',
+	'src/common/editor/video-keyframe-video-container.js',
 	'src/common/editor/video-webcodecs-producer.js',
 ]);
 
