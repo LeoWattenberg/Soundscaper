@@ -35,7 +35,7 @@ import { videoExportPlanFormat } from '../video-export-request-format.ts';
 import { loadVideoBurnInFonts } from '../video-burn-in-font.ts';
 import { videoBurnInFontSubsetIds } from '../video-caption-burn-in.ts';
 import { DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT } from '../video-delivery-audio-layout.ts';
-import { resolveVideoDeliveryEncoderTier } from '../video-delivery-encoder-tier.ts';
+import { resolveVideoDeliveryEncoderTier, VIDEO_DELIVERY_FFMPEG_ENCODER } from '../video-delivery-encoder-tier.ts';
 import { loadVideoExportOriginal } from './video-export-original-loader.ts';
 import { assertDesktopVideoExportAvailable } from '../desktop-video-export-capability.ts';
 
@@ -259,7 +259,8 @@ export function createEditorVideoExportAction(
 			// written from the plan and a decision taken later could not appear
 			// in it. Only the keyed path can be handed encoded chunks: the
 			// composed graph asks FFmpeg to build the picture itself.
-			const encoderDecision = await resolveVideoDeliveryEncoderTier({
+			const encoderDecision = fileService.isDesktop === true ? VIDEO_DELIVERY_FFMPEG_ENCODER
+				: await resolveVideoDeliveryEncoderTier({
 				format,
 				canvas: plan.canvas,
 				quality: plan.quality,
