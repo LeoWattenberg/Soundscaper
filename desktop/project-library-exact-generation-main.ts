@@ -214,7 +214,7 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 			projectId: text(row.project_id, 'project id'),
 			projectRevision: nonNegative(row.project_revision, 'project revision'),
 			projectSha256: digestValue(row.sha256),
-			bodies: parseBodies(row.bodies_json, this.#configuration.label, this.#configuration.validateBodyDescriptor ?? validateBody),
+			bodies: parseBodies(row.bodies_json, this.#configuration.label, this.#configuration.validateBodyDescriptor ?? validateBody, this.#configuration.maximumBodies),
 		});
 	}
 

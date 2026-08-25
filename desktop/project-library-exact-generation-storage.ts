@@ -50,7 +50,8 @@ export interface FramescaperDesktopExactBodyDescriptor {
 		| 'video-original' | 'video-proxy' | 'video-timing'
 		| 'framescaper-still' | 'framescaper-freeze-render'
 		| 'framescaper-cube-lut' | 'framescaper-motion-analysis'
-		| 'image-sequence-inventory' | 'image-sequence-source-pack';
+		| 'image-sequence-inventory' | 'image-sequence-source-pack'
+		| 'assistance-transcript';
 	readonly encoding: string;
 	readonly bindingId?: string;
 	readonly sourceId: string;
@@ -206,9 +207,10 @@ export function parseFramescaperDesktopExactBodies(
 		value: unknown,
 		label: string,
 	) => Readonly<FramescaperDesktopExactBodyDescriptor> = validateFramescaperDesktopExactBody,
+	maximumBodies = MAXIMUM_BODIES,
 ): readonly Readonly<FramescaperDesktopExactBodyDescriptor>[] {
 	if (typeof value !== 'string') throw new TypeError(`${label} body inventory is invalid`);
-	return Object.freeze(denseArray(JSON.parse(value) as unknown, MAXIMUM_BODIES, `${label} bodies`)
+	return Object.freeze(denseArray(JSON.parse(value) as unknown, maximumBodies, `${label} bodies`)
 		.map((body) => validate(body, label)));
 }
 
@@ -246,6 +248,7 @@ export function framescaperDesktopExactMediaPath(
 	const extension = body.kind === 'video-original' ? '.media'
 		: body.kind === 'video-proxy' ? '.proxy'
 			: body.kind === 'video-timing' ? '.scti'
+				: body.kind === 'assistance-transcript' ? '.transcript.json'
 				: body.kind === 'framescaper-cube-lut' ? '.cube'
 					: body.kind === 'framescaper-motion-analysis' ? '.json'
 						: body.kind === 'image-sequence-inventory' ? '.inventory.json'
