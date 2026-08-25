@@ -102,6 +102,11 @@ export type LocalAssistanceRunOutcome = Readonly<{
 	operation: AssistanceOperation;
 	outcome: 'unavailable';
 	reason: LocalAssistanceUnavailableReason;
+}> | Readonly<{
+	contractVersion: 1;
+	jobId: string;
+	operation: AssistanceOperation;
+	outcome: 'consent-declined';
 }>;
 
 export interface LocalAssistanceBridge {
@@ -330,6 +335,12 @@ function normalizeRunRequest(value: unknown): LocalAssistanceRunRequest {
 
 function normalizeRunOutcome(value: unknown, request: LocalAssistanceRunRequest): LocalAssistanceRunOutcome {
 	const record = isRecord(value) ? value : {};
+	if (record.outcome === 'consent-declined') {
+		const exact = exactRecord(value, ['contractVersion', 'jobId', 'operation', 'outcome'], 'outcome');
+		correlate(exact, request);
+		return Object.freeze({ contractVersion: 1, jobId: request.jobId,
+			operation: request.operation, outcome: 'consent-declined' });
+	}
 	if (record.outcome === 'unavailable') {
 		const exact = exactRecord(value, ['contractVersion', 'jobId', 'operation', 'outcome', 'reason'], 'outcome');
 		correlate(exact, request);

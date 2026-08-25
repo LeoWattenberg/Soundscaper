@@ -123,6 +123,18 @@ test('operation progress and unavailable outcomes are strict, correlated, and pa
 		sequence: 0, phase: 'queued', completed: null, total: null }]);
 });
 
+test('main-owned consent decline remains a closed correlated outcome', async () => {
+	const fixture = await loadPreload({ responses: [{ contractVersion: 1, jobId: JOB_ID,
+		operation: 'speech-recognition', outcome: 'consent-declined' }] });
+	assert.deepEqual(plain(await fixture.bridge.localAssistance.run(REQUEST)), {
+		contractVersion: 1, jobId: JOB_ID, operation: 'speech-recognition', outcome: 'consent-declined',
+	});
+
+	const malformed = await loadPreload({ responses: [{ contractVersion: 1, jobId: JOB_ID,
+		operation: 'speech-recognition', outcome: 'consent-declined', path: '/private' }] });
+	await assert.rejects(malformed.bridge.localAssistance.run(REQUEST), /Malformed unavailable assistance operation/u);
+});
+
 async function loadPreload({ responses, onPostMessage = () => {} }) {
 	let bridge;
 	const invocations = [];
