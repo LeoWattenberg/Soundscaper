@@ -152,11 +152,13 @@ test('voice activity executes the authenticated Silero model through the native 
 	const requests: Array<Parameters<VoiceActivityRuntimeAdapter['detect']>[0]> = [];
 	const voiceActivityRuntime: VoiceActivityRuntimeAdapter = Object.freeze({
 		status: async () => ({ available: true, reason: null, moduleId: 'test-runtime' }),
-		detect: async (request) => { requests.push(request); return detected; },
+		detect: async (request: Parameters<VoiceActivityRuntimeAdapter['detect']>[0]) => {
+			requests.push(request); return detected;
+		},
 	});
 	const models: AssistanceOperationServiceOptions['models'] = Object.freeze({
 		status: async () => ({ runtimeAvailable: true, runtimeReason: null, models: [{
-			modelId, version, task: 'voice-activity-detection', availability: 'installed',
+			modelId, version, task: 'voice-activity-detection', availability: 'installed' as const,
 			downloadBytes: 1, installedBytes: 1, attributionRequired: false,
 		}] }),
 		listInstalled: async () => [{ modelId, version, totalBytes: 1,
