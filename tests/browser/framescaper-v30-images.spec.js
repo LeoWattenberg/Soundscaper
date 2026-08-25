@@ -16,7 +16,7 @@ import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 const PNG = Buffer.from(
-	'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+	'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACAQMAAABIeJ9nAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAGUExURf8gAP///4DcGxUAAAABYktHRAH/Ai3eAAAAB3RJTUUH6ggZEjoj/gYZhQAAAAxJREFUCNdjYGBgAAAABAABJzQnCgAAAABJRU5ErkJggg==',
 	'base64',
 );
 
@@ -53,8 +53,8 @@ test.describe('Framescaper V30 timeline images', () => {
 			sourceCount: 1,
 			clipCount: 1,
 			fileName: 'poster.png',
-			width: 1,
-			height: 1,
+			width: 2,
+			height: 2,
 			timelineOwned: true,
 			requiresTimelineImages: true,
 		});
@@ -88,15 +88,47 @@ test.describe('Framescaper V30 timeline images', () => {
 		const witness = await download.evaluate(async (link) => {
 			const response = await fetch(link.href);
 			const bytes = new Uint8Array(await response.arrayBuffer());
+			const media = new Blob([bytes], { type: response.headers.get('content-type') || 'video/mp4' });
+			const mediaUrl = URL.createObjectURL(media);
+			let centerPixel;
+			try {
+				const video = document.createElement('video');
+				video.muted = true;
+				video.preload = 'auto';
+				await new Promise((resolve, reject) => {
+					const timer = setTimeout(() => reject(new Error('Encoded image video did not decode.')), 15_000);
+					video.addEventListener('loadeddata', () => { clearTimeout(timer); resolve(); }, { once: true });
+					video.addEventListener('error', () => {
+						clearTimeout(timer);
+						reject(video.error || new Error('Encoded image video failed to decode.'));
+					}, { once: true });
+					video.src = mediaUrl;
+					video.load();
+				});
+				const canvas = document.createElement('canvas');
+				canvas.width = 64;
+				canvas.height = 64;
+				const context = canvas.getContext('2d', { willReadFrequently: true });
+				if (!context) throw new Error('Encoded image witness canvas is unavailable.');
+				context.drawImage(video, 0, 0, canvas.width, canvas.height);
+				centerPixel = [...context.getImageData(32, 32, 1, 1).data];
+			} finally {
+				URL.revokeObjectURL(mediaUrl);
+			}
 			return {
 				byteLength: bytes.byteLength,
 				mimeType: response.headers.get('content-type'),
 				box: String.fromCharCode(...bytes.subarray(4, 8)),
+				centerPixel,
 			};
 		});
 		expect(witness.byteLength).toBeGreaterThan(32);
 		expect(witness.mimeType).toContain('video/mp4');
 		expect(witness.box).toBe('ftyp');
+		expect(witness.centerPixel[0]).toBeGreaterThan(160);
+		expect(witness.centerPixel[1]).toBeLessThan(96);
+		expect(witness.centerPixel[2]).toBeLessThan(96);
+		expect(witness.centerPixel[3]).toBe(255);
 		expect(clientErrors).toEqual([]);
 	});
 });
