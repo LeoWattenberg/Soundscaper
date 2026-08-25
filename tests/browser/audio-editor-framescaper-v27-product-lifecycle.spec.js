@@ -13,7 +13,7 @@ import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
-test.describe('selected Framescaper V28 product lifecycle', () => {
+test.describe('selected Framescaper F31 product lifecycle', () => {
 	test.beforeEach(async ({ page }) => {
 		await installPinnedFfmpegRuntimeRoutes(page);
 	});
@@ -49,7 +49,7 @@ test.describe('selected Framescaper V28 product lifecycle', () => {
 		await dialog.getByRole('button', { name: 'Add curve', exact: true }).click();
 		await expect(dialog.getByRole('status')).toContainText('Video keyframes applied.');
 		await expect.poll(() => storedKeyframeState(page, projectId)).toMatchObject({
-			schemaVersion: 28,
+			schemaVersion: 31,
 			curveCount: 1,
 			startValue: 1,
 			endValue: 0.5,
@@ -67,7 +67,7 @@ test.describe('selected Framescaper V28 product lifecycle', () => {
 		await expect(editor).toHaveAttribute('data-product', 'framescaper');
 		await expect(editor).toHaveAttribute('data-project-id', projectId);
 		await expect.poll(() => storedKeyframeState(page, projectId)).toMatchObject({
-			schemaVersion: 28,
+			schemaVersion: 31,
 			curveCount: 1,
 			startValue: 1,
 			endValue: 0.5,
@@ -118,7 +118,7 @@ test.describe('selected Framescaper V28 product lifecycle', () => {
 		await dialog.getByRole('button', { name: 'Reverse', exact: true }).click();
 		await expect(dialog.getByRole('status')).toContainText('Video retime updated.');
 		await expect.poll(() => storedRetimeState(page, projectId)).toMatchObject({
-			schemaVersion: 28, mode: 'constant-reverse', audioWarp: null, audioReversed: false,
+			schemaVersion: 31, mode: 'constant-reverse', audioWarp: null, audioReversed: false,
 		});
 
 		await dialog.getByRole('button', { name: 'Close', exact: true }).click();
