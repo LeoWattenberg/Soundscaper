@@ -32,6 +32,11 @@ interface Aup4FeatureDecision {
 }
 
 export const AUP4_OWNED_FEATURE_CARRIAGE: Readonly<Record<OwnedFeatureKey, Aup4FeatureDecision>> = Object.freeze({
+	assistanceAssets: Object.freeze({
+		carriage: 'omitted',
+		code: 'ASSISTANCE_TRANSCRIPTS_OMITTED',
+		message: 'Audacity has no authenticated assistance transcript assets. Transcript bodies and their source bindings were omitted.',
+	}),
 	audioEffects: Object.freeze({ carriage: 'carried', code: 'MISSING_REALTIME_EFFECT' }),
 	videoEffects: Object.freeze({
 		carriage: 'reported',
