@@ -8,9 +8,10 @@ import { createContext, runInContext } from 'node:vm';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const PUBLICATION_ID = 'ab'.repeat(24);
-const HANDSHAKE_CHANNEL = 'framescaper:v19:projects:handshake';
-const BEGIN_CHANNEL = 'framescaper:v19:projects:publication:begin';
+const HANDSHAKE_CHANNEL = 'framescaper:v20:projects:handshake';
+const BEGIN_CHANNEL = 'framescaper:v20:projects:publication:begin';
 const MAXIMUM_CHUNK_BYTES = 4 * 1024 * 1024;
+const MAXIMUM_BODIES = 5_118;
 
 /**
  * The sandbox preload is a CommonJS Electron entry point, so it is evaluated here with a
@@ -92,4 +93,19 @@ test('a Framescaper publication with no bodies is still admitted', async () => {
 	});
 	assert.equal(admitted.bodyCount, 0);
 	assert.deepEqual(structuredClone(invocations.at(-1).value.bodies), []);
+});
+
+test('the F31 preload admits its full transcript-extended body inventory and refuses one more', async () => {
+	const admittedFixture = await exposedBridges();
+	const bodies = Array.from({ length: MAXIMUM_BODIES }, (_, bodyIndex) => ({ bodyIndex }));
+	assert.equal((await admittedFixture.library.beginPublication({
+		publicationId: PUBLICATION_ID, expectedMetadataRevision: 0,
+		expectedProject: null, project: {}, bodies,
+	})).bodyCount, MAXIMUM_BODIES);
+	const refusedFixture = await exposedBridges();
+	assert.throws(() => refusedFixture.library.beginPublication({
+		publicationId: PUBLICATION_ID, expectedMetadataRevision: 0,
+		expectedProject: null, project: {}, bodies: [...bodies, {}],
+	}), /bounded.*array/iu);
+	assert.equal(refusedFixture.invocations.length, 1, 'only the handshake crossed IPC');
 });

@@ -120,8 +120,6 @@ export const DESKTOP_5B_TRANSITIVE_RUNTIME_FILES = Object.freeze([
 	'desktop/project-library-v19-current-project.js',
 	'desktop/project-library-v19-database.js',
 	'desktop/project-library-v19-import.js',
-	'desktop/project-library-v19-main-channels.js',
-	'desktop/project-library-v19-main-ipc.js',
 	'desktop/project-library-v19-main.js',
 	'desktop/project-library-v19-writer.js',
 	'src/common/editor/native-media-evaluated-carrier-v1.js',

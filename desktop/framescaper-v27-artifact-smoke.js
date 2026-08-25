@@ -38,11 +38,11 @@ const DIGEST = /^[a-f0-9]{64}$/u;
  * instead of every packaged Framescaper smoke in the nightly.
  */
 export const FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY = Object.freeze({
-	projectSchemaVersion: 28,
-	storageDatabaseName: 'kw-media-framescaper-editor-v28',
-	desktopLibrarySchemaVersion: 19,
-	desktopDatabaseUserVersion: 21,
-	desktopLibraryScope: Object.freeze(['kw.media', 'scape-project-library', 'v19']),
+	projectSchemaVersion: 31,
+	storageDatabaseName: 'kw-media-framescaper-editor-v31',
+	desktopLibrarySchemaVersion: 20,
+	desktopDatabaseUserVersion: 22,
+	desktopLibraryScope: Object.freeze(['kw.media', 'scape-project-library', 'v20']),
 });
 
 

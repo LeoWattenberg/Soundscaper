@@ -9,6 +9,7 @@ import { DESKTOP_ASSISTANCE_RUNTIME_FILES } from './desktop-assistance-runtime-f
 import { stageDesktopBundledAudioRuntime } from './desktop-bundled-audio-runtime.mjs';
 import { DESKTOP_EXTERNAL_FFMPEG_RUNTIME_FILES } from './desktop-external-ffmpeg-runtime-files.mjs';
 import { DESKTOP_PROJECT_LIBRARY_EXACT_RUNTIME_FILES } from './desktop-project-library-exact-runtime-files.mjs';
+import { DESKTOP_PROJECT_LIBRARY_V20_RUNTIME_FILES } from './desktop-project-library-v20-runtime-files.mjs';
 import { DESKTOP_PROJECT_LIBRARY_V27_RUNTIME_FILES } from './desktop-project-library-v27-runtime-files.mjs';
 import { DESKTOP_SOUNDSCAPER_V10_RUNTIME_FILES } from './desktop-soundscaper-v10-runtime-files.mjs';
 import { DESKTOP_SOUNDSCAPER_V11_RUNTIME_FILES } from './desktop-soundscaper-v11-runtime-files.mjs';
@@ -338,6 +339,7 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/soundscaper/editor-project-production-validation.js',
 	'src/soundscaper/editor-project-v23-validation.js',
 	...DESKTOP_PROJECT_LIBRARY_EXACT_RUNTIME_FILES,
+	...DESKTOP_PROJECT_LIBRARY_V20_RUNTIME_FILES,
 	'src/common/editor/native-durable-root-grant.js',
 	'src/common/editor/native-external-display.js',
 	'src/common/editor/native-media-atomic-publication.js',

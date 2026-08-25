@@ -26,30 +26,30 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 		throw new TypeError('Desktop project-library startup seams are invalid');
 	}
 	if (productId === 'framescaper') {
-		const [{ createFramescaperDesktopProjectLibraryV19Handshake },
-			{ FramescaperDesktopProjectLibraryV19Main },
-			{ registerFramescaperDesktopProjectLibraryV19MainIpc }] = await Promise.all([
-			import('./project-library-runtime/desktop/project-library-v19-contract.js'),
-			import('./project-library-runtime/desktop/project-library-v19-main.js'),
-			import('./project-library-runtime/desktop/project-library-v19-main-ipc.js'),
+		const [{ createFramescaperDesktopProjectLibraryV20Handshake },
+			{ FramescaperDesktopProjectLibraryV20Main },
+			{ registerFramescaperDesktopProjectLibraryV20MainIpc }] = await Promise.all([
+			import('./project-library-runtime/desktop/project-library-v20-contract.js'),
+			import('./project-library-runtime/desktop/project-library-v20-main.js'),
+			import('./project-library-runtime/desktop/project-library-v20-main-ipc.js'),
 		]);
-		const host = await FramescaperDesktopProjectLibraryV19Main.start({
+		const host = await FramescaperDesktopProjectLibraryV20Main.start({
 			appDataPath,
 			owner,
-			handshake: createFramescaperDesktopProjectLibraryV19Handshake(),
+			handshake: createFramescaperDesktopProjectLibraryV20Handshake(),
 			onLeaseLost: options.onLeaseLost,
 			qualification: framescaperQualification(options.leaseQualification),
 		});
 		return new DesktopProjectLibraryProductRuntime({
 			productId,
 			host,
-			register: (bridge) => registerFramescaperDesktopProjectLibraryV19MainIpc({
+			register: (bridge) => registerFramescaperDesktopProjectLibraryV20MainIpc({
 				handle: bridge.handle,
 				removeHandler: bridge.removeHandler,
 				ownerFor: bridge.ownerFor,
 				main: host,
 			}),
-			smokeEvidence: (projectId) => createExactSmokeEvidence(host, projectId, 'Framescaper', 'V19'),
+			smokeEvidence: (projectId) => createExactSmokeEvidence(host, projectId, 'Framescaper', 'V20'),
 		});
 	}
 	if (productId === 'soundscaper') {
@@ -200,6 +200,7 @@ class DesktopProjectLibraryProductRuntime {
 			|| typeof this.#host.readNativeBody !== 'function'
 			|| typeof this.#host.materializeNativeBody !== 'function') return null;
 		return Object.freeze({
+			projectSchemaVersion: this.#host.localHandshake.projectSchemaVersion,
 			projectState: (projectId) => this.#host.nativeProjectState(projectId),
 			projectRecord: (projectId) => this.#host.nativeProjectRecord(projectId),
 			readProjectBundle: (projectId) => this.#host.readNativeProjectBundle(projectId),
