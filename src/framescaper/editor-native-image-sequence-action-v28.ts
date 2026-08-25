@@ -21,6 +21,7 @@ import {
 	snapshotFramescaperNativeImageSequenceImportRequestV28,
 	type FramescaperNativeImageSequenceImportRequestV28,
 } from './editor-native-project-action-requests-v28.ts';
+import { assertFramescaperProjectV28Profile } from './editor-project-runtime-profile-v28.ts';
 import { createFramescaperImageSequenceSourceAdmissionCommandV25 } from './editor-project-v25-source-command.ts';
 import { cloneFramescaperProjectV28, type FramescaperProjectV28 } from './editor-project-v28.ts';
 
@@ -300,7 +301,9 @@ function assertCurrentProject(
 function assertOptions(options: BindFramescaperNativeImageSequenceActionV28Options): void {
 	// The controller binds its native surfaces while it is still being built, so
 	// it has no project yet. Every path that reads one clones and validates it
-	// then; demanding one here only refuses the binding that installs them.
+	// then; demanding one here only refuses the binding that installs them. The
+	// profile is still exact, because nothing later can recover from a wrong one.
+	assertFramescaperProjectV28Profile(options.profile);
 	if (!options.store || typeof options.store.getMediaAssetMetadata !== 'function'
 		|| typeof options.store.beginMediaAssetWrite !== 'function'
 		|| !options.owner?.actions || typeof options.owner.actions.edit?.commit !== 'function'
