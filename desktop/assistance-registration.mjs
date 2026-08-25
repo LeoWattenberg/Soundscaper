@@ -24,6 +24,9 @@ import {
 import { createAssistanceHelperRuntimeAdapter } from './project-library-runtime/desktop/assistance-helper-runtime.js';
 import { createAssistanceJobHost } from './project-library-runtime/desktop/assistance-job-host.js';
 import { assistanceServiceFrom, registerAssistanceIpc } from './project-library-runtime/desktop/assistance-main-ipc.js';
+import { ASSISTANCE_OPERATION_IPC_CHANNELS, registerAssistanceOperationIpc } from './project-library-runtime/desktop/assistance-operation-main-ipc.js';
+import { createAssistanceOperationService } from './project-library-runtime/desktop/assistance-operation-service.js';
+import { AssistanceStagingRegistry } from './project-library-runtime/desktop/assistance-staging-registry.js';
 
 /**
  * The service is built on first use, so a user who never opens assistance pays
@@ -50,7 +53,7 @@ async function chooseDirectory(dialog, window, title) {
 }
 
 export function registerAssistance({
-	channels, handle, sendToRenderer, app, settings, dialog, windowFor,
+	channels, handle, on, sendToRenderer, app, settings, dialog, windowFor,
 }) {
 	let child = null;
 	const runtimeRoot = join(process.resourcesPath, 'runtime');
@@ -95,6 +98,19 @@ export function registerAssistance({
 		},
 	});
 	const runtime = createAssistanceHelperRuntimeAdapter({ host });
+	let service = null;
+	const createService = () => {
+		service ??= assistanceServiceFrom({
+			userDataPath: app.getPath('userData'),
+			settingsDirectory: settings.snapshot().modelsDirectory,
+			catalog: assistanceCatalog,
+			licensingMatrix,
+			runtime,
+			totalMemoryBytes: totalmem(),
+			persistModelsDirectory: (directory) => settings.setModelsDirectory(directory),
+		});
+		return service;
+	};
 	registerAssistanceIpc({
 		channels,
 		handle,
@@ -108,15 +124,21 @@ export function registerAssistance({
 			);
 			return parent === null ? null : join(parent, 'Soundscaper Local Models');
 		},
-		createService: () => assistanceServiceFrom({
-			userDataPath: app.getPath('userData'),
-			settingsDirectory: settings.snapshot().modelsDirectory,
-			catalog: assistanceCatalog,
-			licensingMatrix,
+		createService,
+	});
+	const operationIpc = registerAssistanceOperationIpc({
+		channels: ASSISTANCE_OPERATION_IPC_CHANNELS,
+		handle,
+		on,
+		sendToRenderer,
+		createOperations: (onProgress) => createAssistanceOperationService({
+			registry: new AssistanceStagingRegistry({
+				root: resolve(join(app.getPath('userData'), 'assistance-staging-v1')),
+			}),
+			models: createService(),
 			runtime,
-			totalMemoryBytes: totalmem(),
-			persistModelsDirectory: (directory) => settings.setModelsDirectory(directory),
+			onProgress,
 		}),
 	});
-	return Object.freeze({ dispose: () => runtime.dispose() });
+	return Object.freeze({ dispose: async () => { await operationIpc.dispose(); runtime.dispose(); } });
 }
