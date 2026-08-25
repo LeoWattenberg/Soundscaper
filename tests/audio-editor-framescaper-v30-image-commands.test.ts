@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { createAddTrackCommand } from '../src/common/editor/commands/factories.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { FRAMESCAPER_IMAGE_ASSET_MIME_TYPE } from '../src/common/editor/timeline-image-model-v30.ts';
 import {
@@ -87,6 +88,33 @@ test('V30 project-bin image placement stays off timeline tracks and survives inh
 			.find(({ id }) => id === clip.id),
 		clip,
 	);
+});
+
+test('V30 applies an inherited audio/video lane pair atomically', () => {
+	const profile = FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE;
+	const project = createFramescaperProjectV30(profile, framescaperV20Options());
+	const updated = applyFramescaperProjectCommandV30(profile, project, {
+		type: 'batch',
+		commands: [{
+			...createAddTrackCommand({
+				type: 'video', id: 'browser-import-video-track', name: 'Imported video',
+				laneGroupId: 'browser-import-media-lane',
+			}),
+			index: 2,
+		}, {
+			...createAddTrackCommand({
+				type: 'audio', id: 'browser-import-audio-track', name: 'Imported audio',
+				laneGroupId: 'browser-import-media-lane', armed: false,
+			}),
+			index: 3,
+		}],
+	});
+	assert.deepEqual(updated.tracks.slice(2).map(({ id, laneGroupId }) => ({ id, laneGroupId })), [{
+		id: 'browser-import-video-track', laneGroupId: 'browser-import-media-lane',
+	}, {
+		id: 'browser-import-audio-track', laneGroupId: 'browser-import-media-lane',
+	}]);
+	assert.equal(Number(updated.revision), Number(project.revision) + 1);
 });
 
 test('V30 refuses mismatched image references and locked timeline placement', () => {

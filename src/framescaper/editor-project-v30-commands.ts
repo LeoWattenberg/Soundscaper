@@ -87,11 +87,7 @@ function applyBody(
 	options: FramescaperProjectCommandOptionsV30,
 ): Record<string, unknown> {
 	if (isBatch(command)) {
-		let current = structuredClone(project) as unknown as Record<string, unknown>;
-		for (const child of command.commands) {
-			current = applyBody(profile, current as unknown as FramescaperProjectV30, child, options);
-		}
-		return current;
+		return applyBatch(profile, project, command, options);
 	}
 	if (isImageCommand(command)) {
 		const draft = structuredClone(project) as unknown as Record<string, unknown>;
@@ -99,6 +95,41 @@ function applyBody(
 		return draft;
 	}
 	return applyInherited(project, command as FramescaperProjectCommandV28, options);
+}
+
+function applyBatch(
+	profile: unknown,
+	project: FramescaperProjectV30,
+	command: FramescaperProjectCommandBatchV30,
+	options: FramescaperProjectCommandOptionsV30,
+): Record<string, unknown> {
+	if (!containsImageCommand(command)) {
+		return applyInherited(project, command as unknown as FramescaperProjectCommandV28, options);
+	}
+	let current = structuredClone(project) as unknown as Record<string, unknown>;
+	let inherited: FramescaperProjectCommandV28[] = [];
+	const flushInherited = (): void => {
+		if (inherited.length === 0) return;
+		current = applyInherited(current as unknown as FramescaperProjectV30, {
+			type: 'batch', commands: inherited,
+		}, options);
+		inherited = [];
+	};
+	for (const child of command.commands) {
+		if (!containsImageCommand(child)) {
+			inherited.push(child as FramescaperProjectCommandV28);
+			continue;
+		}
+		flushInherited();
+		current = applyBody(profile, current as unknown as FramescaperProjectV30, child, options);
+	}
+	flushInherited();
+	return current;
+}
+
+function containsImageCommand(command: FramescaperProjectCommandV30): boolean {
+	if (isImageCommand(command)) return true;
+	return isBatch(command) && command.commands.some(containsImageCommand);
 }
 
 function applyInherited(
