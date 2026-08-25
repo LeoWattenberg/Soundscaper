@@ -13,7 +13,7 @@ import type {
 	FramescaperSelectedVisualAuthoringSurfaceV27,
 } from './editor-selected-v27-visual-authoring-model.ts';
 import { framescaperProjectV27FoundationShapeV28 } from './editor-project-v28-foundation.ts';
-import { framescaperProjectV28FoundationShapeV30 } from './editor-project-v30-foundation.ts';
+import { framescaperProjectV27FoundationShapeV30 } from './editor-project-v30-foundation.ts';
 
 type Awaitable<Value> = Value | PromiseLike<Value>;
 
@@ -89,9 +89,7 @@ export function bindFramescaperSelectedAuthoringControllerV30(options: Readonly<
 	readonly controller: FramescaperSelectedAuthoringControllerV30;
 	readonly store: AudioEditorProjectStore;
 }>): void {
-	bindSelectedAuthoringController(options, 30, (project) => framescaperProjectV27FoundationShapeV28(
-		framescaperProjectV28FoundationShapeV30(project),
-	));
+	bindSelectedAuthoringController(options, 30, framescaperProjectV27FoundationShapeV30);
 }
 
 function bindSelectedAuthoringController(

@@ -1,5 +1,6 @@
 import { otherProductId, productLocalePath } from '../../../products.js';
 import { documentationUrl } from '../../documentation-links.ts';
+import { isSelectedFramescaperProjectSchema } from '../../project-schema-version.ts';
 
 import { moveAudioEditorTrackBlock, trackSourceRate } from '../application-menu-model.js';
 import createApplicationMenus from '../application-menus.js';
@@ -111,8 +112,7 @@ export function createWorkspaceApplicationMenus({
 	const framescaperCandidateAuthoring = candidateAuthoringRuntime === null ? null : Object.freeze({
 		surfaces: candidateAuthoringRuntime.surfaces,
 		open: (surface) => {
-			const selectedV27Surface = (project?.schemaVersion === 27 || project?.schemaVersion === 28
-				|| project?.schemaVersion === 31)
+			const selectedV27Surface = isSelectedFramescaperProjectSchema(project?.schemaVersion)
 				? framescaperSelectedV27VisualAuthoringSurfaceId(surface) : null;
 			if (selectedV27Surface !== null) return openSurface(selectedV27Surface);
 			return run(() => candidateAuthoringRuntime.run(surface));

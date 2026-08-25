@@ -4,7 +4,14 @@ import { PROJECT_FEATURE_CAPABILITY_IDS } from '../common/editor/project-feature
 import { PROJECT_OWNED_FEATURE_REQUIREMENT_IDS } from '../common/editor/project-owned-feature-requirements.ts';
 import { reconcileFramescaperProjectFeatureRequirementsV28 } from './editor-project-feature-requirements-v28.ts';
 import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v28.ts';
+import { framescaperProjectV27FoundationShapeV28 } from './editor-project-v28-foundation.ts';
+import type { FramescaperProjectV27 } from './editor-project-v27.ts';
 import type { FramescaperProjectV28 } from './editor-project-v28.ts';
+
+/** Detach V30 and V28 authority before asking an immutable V27 consumer. */
+export function framescaperProjectV27FoundationShapeV30(project: unknown): FramescaperProjectV27 {
+	return framescaperProjectV27FoundationShapeV28(framescaperProjectV28FoundationShapeV30(project));
+}
 
 /** Detach V30 image authority before asking the immutable V28 validator. */
 export function framescaperProjectV28FoundationShapeV30(project: unknown): FramescaperProjectV28 {

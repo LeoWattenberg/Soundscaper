@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { isFramescaperVideoProxyProjectSchema } from '../project-schema-version.ts';
+
 export interface FramescaperVideoProxyDialogModelInput {
 	readonly project: unknown;
 	readonly selectedClipId: string | null;
@@ -30,8 +32,7 @@ export function createFramescaperVideoProxyDialogModel(
 	input: FramescaperVideoProxyDialogModelInput,
 ): Readonly<FramescaperVideoProxyDialogModel> {
 	const project = record(input.project);
-	if (!project || (project.schemaVersion !== 20 && project.schemaVersion !== 27
-		&& project.schemaVersion !== 28 && project.schemaVersion !== 31)) {
+	if (!project || !isFramescaperVideoProxyProjectSchema(project.schemaVersion)) {
 		return unsupported();
 	}
 	const sources = records(project.sources).filter((source) => (

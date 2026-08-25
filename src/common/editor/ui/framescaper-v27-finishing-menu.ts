@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { isSelectedFramescaperProjectSchema } from '../project-schema-version.ts';
+
 export const FRAMESCAPER_V27_FINISHING_SURFACES = Object.freeze([
 	'visual-inspector', 'color-management', 'grading-presets', 'motion-tracking', 'stabilization',
 	'denoise', 'captions', 'automation', 'mixer', 'dialogue-chain',
@@ -60,8 +62,7 @@ export function createFramescaperV27FinishingMenuItems(
 	actions: Readonly<{ open(surface: FramescaperV27FinishingSurface): unknown }>,
 ): FramescaperV27FinishingMenuItems {
 	const projectSchema = schema(input.project);
-	if (input.productId !== 'framescaper'
-		|| (projectSchema !== 27 && projectSchema !== 28 && projectSchema !== 31)) return EMPTY;
+	if (input.productId !== 'framescaper' || !isSelectedFramescaperProjectSchema(projectSchema)) return EMPTY;
 	const mutable = !input.editingBlocked && input.readOnly !== true;
 	const copy = input.copy ?? {};
 	const leaf = (

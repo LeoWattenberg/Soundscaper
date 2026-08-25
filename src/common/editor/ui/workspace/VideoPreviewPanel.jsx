@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { resolveVideoExportCanvas } from '../../video-export.js';
+import { isSelectedFramescaperProjectSchema } from '../../project-schema-version.ts';
 import { createVideoKeyframeRenderStateProvider } from '../../video-keyframe-render-state-provider.ts';
 import {
 	isVideoKeyframePreviewFailureCurrent,
@@ -278,8 +279,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 			updateOpenFxIssue(openFxDispositions, reportsOpenFxDegradation);
 			const freezeProject = freezeCaptureProjectRef.current;
 			if (report.status !== 'fallback'
-				&& (freezeProject?.schemaVersion === 27 || freezeProject?.schemaVersion === 28
-					|| freezeProject?.schemaVersion === 31)) {
+				&& isSelectedFramescaperProjectSchema(freezeProject?.schemaVersion)) {
 				freezeEvaluatedFrameRef.current = {
 					projectId: freezeProject.id,
 					projectRevision: freezeProject.revision,
@@ -409,8 +409,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 		};
 	}, [requestPreviewFrame, updateCompositorState, updateRenderIssue]);
 	useEffect(() => {
-		if (canonicalProject?.schemaVersion !== 27 && canonicalProject?.schemaVersion !== 28
-			&& canonicalProject?.schemaVersion !== 31) return undefined;
+		if (!isSelectedFramescaperProjectSchema(canonicalProject?.schemaVersion)) return undefined;
 		let disposed = false;
 		let release = () => {};
 		void bindFramescaperV27PreviewFreezeCapture({

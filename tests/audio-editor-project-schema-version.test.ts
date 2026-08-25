@@ -74,4 +74,14 @@ test('product-specific predicates retain their exact maintained schema sets', ()
 	assert.equal(schema.isFramescaperVideoCompositionProjectSchema(19), true);
 	assert.equal(schema.isFramescaperVideoCompositionProjectSchema(20), true);
 	assert.equal(schema.isFramescaperVideoCompositionProjectSchema(18), false);
+	for (const version of [27, 28, 30]) {
+		assert.equal(schema.isSelectedFramescaperProjectSchema(version), true);
+		assert.equal(schema.isFramescaperVideoProxyProjectSchema(version), true);
+	}
+	assert.equal(schema.isSelectedFramescaperProjectSchema(20), false);
+	assert.equal(schema.isFramescaperVideoProxyProjectSchema(20), true);
+	for (const dormant of [25, 26]) {
+		assert.equal(schema.isSelectedFramescaperProjectSchema(dormant), false);
+		assert.equal(schema.isFramescaperVideoProxyProjectSchema(dormant), false);
+	}
 });

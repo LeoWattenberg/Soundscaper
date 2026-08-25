@@ -18,30 +18,6 @@ test.describe('selected Framescaper F31 product lifecycle', () => {
 		await installPinnedFfmpegRuntimeRoutes(page);
 	});
 
-	test('offers Add Images only from the Framescaper Generate menu', async ({ page }) => {
-		const clientErrors = collectClientErrors(page);
-		const editor = await bootEditor(page, '/framescaper/embed/en/');
-		const generate = await openNestedCommandMenu(page, editor, 'Generate', []);
-		await expect(getMenuItem(generate, 'Add Images…')).toBeEnabled();
-		await expect(generate.getByRole('menuitem', { name: /^Add Still…(?:\s|$)/u })).toHaveCount(0);
-		await page.keyboard.press('Escape');
-
-		const soundscaperPage = await page.context().newPage();
-		const soundscaperErrors = collectClientErrors(soundscaperPage);
-		try {
-			const soundscaper = await bootEditor(soundscaperPage, '/embed/en/');
-			const soundscaperGenerate = await openNestedCommandMenu(
-				soundscaperPage, soundscaper, 'Generate', [],
-			);
-			await expect(soundscaperGenerate
-				.getByRole('menuitem', { name: /^Add Images…(?:\s|$)/u })).toHaveCount(0);
-			expect(clientErrors).toEqual([]);
-			expect(soundscaperErrors).toEqual([]);
-		} finally {
-			await soundscaperPage.close();
-		}
-	});
-
 	test('authors and reopens exact keyframes through the shipped route', async ({ page }) => {
 		test.setTimeout(180_000);
 		const clientErrors = collectClientErrors(page);

@@ -6,6 +6,7 @@ import {
 	normalizeVideoVisualPresentationV1,
 } from '../common/editor/video-visual-presentation-v27.ts';
 import { framescaperProjectV27FoundationShapeV28 } from './editor-project-v28-foundation.ts';
+import { framescaperProjectV27FoundationShapeV30 } from './editor-project-v30-foundation.ts';
 import { framescaperProjectV28FoundationShapeV31 } from './editor-project-v31-foundation.ts';
 
 type Data = Readonly<Record<string, unknown>>;
@@ -87,11 +88,14 @@ export function createFramescaperSelectedVisualAuthoringModelV27(input: Readonly
 			'selected F31 authoring foundation',
 		);
 	}
-	if (inputProject.schemaVersion !== 27 && inputProject.schemaVersion !== 28) {
-		throw new RangeError('Selected visual authoring requires Framescaper V27, V28, or F31.');
+	if (inputProject.schemaVersion !== 27 && inputProject.schemaVersion !== 28
+		&& inputProject.schemaVersion !== 30) {
+		throw new RangeError('Selected visual authoring requires Framescaper V27, V28, V30, or F31.');
 	}
-	const project = record(inputProject.schemaVersion === 28
-		? framescaperProjectV27FoundationShapeV28(inputProject) : inputProject,
+	const project = record(inputProject.schemaVersion === 30
+		? framescaperProjectV27FoundationShapeV30(inputProject)
+		: inputProject.schemaVersion === 28
+			? framescaperProjectV27FoundationShapeV28(inputProject) : inputProject,
 	'selected V27 authoring foundation');
 	const clips = records(project.clips, 'project clips');
 	const selectedClipId = selectedId(input.selectedClipId, project, clips);
