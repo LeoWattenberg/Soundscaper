@@ -34,6 +34,7 @@ export const DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS = Object.freeze(
 );
 
 const TTL_MS = 1_000;
+const LEASE_EXPIRY_MARGIN_MS = 250;
 const CHILD_TIMEOUT_MS = 90_000;
 const MAXIMUM_OUTPUT_BYTES = 1024 * 1024;
 const MAXIMUM_EVIDENCE_CHARACTERS = 2_000;
@@ -150,6 +151,7 @@ export async function runDesktopProjectLibraryLeaseMatrixCase({ driver, workflow
 		results = [holder.result, transferred];
 	} else if (workflowId === 'stale-lease-takeover') {
 		const crashed = await driver.crash(primary, 'crash-prepared', projectId, request(initial, null));
+		await awaitAbandonedLeaseExpiry();
 		const takeover = await driver.commit(secondary, 'commit', projectId, request(initial, null));
 		results = [crashed, takeover];
 		if (takeover.host?.writer?.tookOverStaleLease !== true) {
@@ -187,10 +189,9 @@ export async function runDesktopProjectLibraryLeaseMatrixCase({ driver, workflow
 			await driver.commit(primary, 'verify', projectId, null),
 		];
 	} else {
-		results = [
-			await driver.crash(primary, 'crash-committed', projectId, request(initial, null)),
-			await driver.commit(secondary, 'commit', projectId, request(initial, null)),
-		];
+		const crashed = await driver.crash(primary, 'crash-committed', projectId, request(initial, null));
+		await awaitAbandonedLeaseExpiry();
+		results = [crashed, await driver.commit(secondary, 'commit', projectId, request(initial, null))];
 		if (results[1].host?.writer?.recovery?.outcome !== 'committed') {
 			throw new Error(`Committed crash journal was not recovered: ${evidence(results[1])}`);
 		}
@@ -458,6 +459,18 @@ function childDiagnostics(process) {
 }
 
 function touch(path) { return writeFile(path, '', { flag: 'wx' }); }
+/**
+ * A lease a crashed instance left behind only becomes takeable once it expires,
+ * and its successor acquires during main-process startup. On a fast machine
+ * that startup can finish inside the one-second TTL, where the correct answer
+ * is the refusal these cases are not testing — so they would fail on how
+ * quickly Electron starts rather than on recovery. Waiting the lease out makes
+ * the case measure what it is named after on every machine.
+ */
+function awaitAbandonedLeaseExpiry() {
+	return delay(TTL_MS + LEASE_EXPIRY_MARGIN_MS);
+}
+
 function request(document, expectedRevision) { return { document, expectedRevision }; }
 /**
  * A refused workflow is only actionable if it says what it saw. These assertions run once a
