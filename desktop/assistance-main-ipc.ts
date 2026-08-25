@@ -96,6 +96,31 @@ function noticeView(notice: InstalledLocalModelNotice): AssistanceInstalledModel
 	});
 }
 
+function modelView(model: AssistanceModelView): AssistanceModelView {
+	return Object.freeze({
+		modelId: model.modelId,
+		version: model.version,
+		task: model.task,
+		availability: model.availability,
+		downloadBytes: model.downloadBytes,
+		installedBytes: model.installedBytes,
+		attributionRequired: model.attributionRequired,
+	});
+}
+
+function statusView(status: AssistanceStatusView): AssistanceStatusView {
+	const runtimeReason = status.runtimeAvailable || status.runtimeReason === null
+		? null
+		: status.runtimeReason === 'The optional speech runtime is not installed.'
+			? status.runtimeReason
+			: 'The optional speech runtime failed to load.';
+	return Object.freeze({
+		runtimeAvailable: status.runtimeAvailable,
+		runtimeReason,
+		models: Object.freeze(status.models.map(modelView)),
+	});
+}
+
 async function pathlessOperation<T>(operation: () => PromiseLike<T>, message: string): Promise<T> {
 	try {
 		return await operation();
@@ -122,7 +147,8 @@ export function registerAssistanceIpc(options: AssistanceIpcOptions): void {
 	};
 
 	handle(channels.listAssistanceModels, (): Promise<AssistanceStatusView> =>
-		pathlessOperation(() => resolve().status(), 'Local-model status could not be read.'));
+		pathlessOperation(async () => statusView(await resolve().status()),
+			'Local-model status could not be read.'));
 
 	handle(channels.installAssistanceModel, (_event, modelId): Promise<AssistanceModelView> => {
 		const id = assertModelId(modelId);

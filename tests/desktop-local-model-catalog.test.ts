@@ -168,7 +168,7 @@ test('a refused model cannot be cataloged even with an evidence record', () => {
 	);
 });
 
-test('availability reflects the machine, and installation outranks capability', () => {
+test('availability reflects the machine, including for an installed model', () => {
 	const [pinned] = validateLocalModelCatalog(catalogOf([entry({
 		platforms: ['linux-x64'],
 		minimumMemoryBytes: 8 * GIB,
@@ -196,8 +196,8 @@ test('availability reflects the machine, and installation outranks capability', 
 			totalMemoryBytes: 1 * GIB,
 			installedModelIds: ['silero-vad-v6'],
 		}),
-		'installed',
-		'a model already on disk stays usable on a machine that could no longer install it',
+		'unsupported-platform',
+		'bytes on disk do not make an incompatible model executable',
 	);
 });
 

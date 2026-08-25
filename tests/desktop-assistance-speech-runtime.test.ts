@@ -62,12 +62,14 @@ test('a missing runtime is reported as a capability, not a crash', { timeout: 10
 	await assert.rejects(adapter.recognize(REQUEST), /not installed/iu);
 });
 
-test('an unrelated load failure is reported with its own cause', { timeout: 10_000 }, async () => {
+test('an unrelated load failure is reported without loader or path details', { timeout: 10_000 }, async () => {
 	const adapter = createSpeechRuntimeAdapter({
-		load: () => Promise.reject(new Error('native binding is corrupt')),
+		load: () => Promise.reject(new Error("dlopen '/Users/alice/private/native.node' failed")),
 	});
 
-	assert.match((await adapter.status()).reason ?? '', /failed to load: native binding is corrupt/iu);
+	const reason = (await adapter.status()).reason;
+	assert.equal(reason, 'The optional speech runtime failed to load.');
+	assert.doesNotMatch(reason ?? '', /Users\/alice|private\/native/u);
 });
 
 test('the load outcome is resolved once and cached', { timeout: 10_000 }, async () => {

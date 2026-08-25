@@ -37,6 +37,10 @@ export interface PreseededLocalModelReconciliation {
 	readonly rejected: readonly RejectedPreseededLocalModel[];
 }
 
+export interface ReconcilePreseededLocalModelsOptions {
+	readonly admitEntry?: (entry: PreseededLocalModelEntry) => void;
+}
+
 interface AuthenticatedSeed {
 	readonly artifact: LocalModelArtifact;
 	readonly sourcePath: string;
@@ -179,6 +183,7 @@ export async function installPreseededLocalModel(
 export async function reconcilePreseededLocalModels(
 	store: FileLocalModelStore,
 	entries: readonly PreseededLocalModelEntry[],
+	options: ReconcilePreseededLocalModelsOptions = {},
 ): Promise<PreseededLocalModelReconciliation> {
 	await store.initialize();
 	const installedModelIds: string[] = [];
@@ -187,6 +192,7 @@ export async function reconcilePreseededLocalModels(
 	for (const entry of [...entries].sort((left, right) => left.modelId.localeCompare(right.modelId))) {
 		try {
 			validateEntry(store, entry);
+			options.admitEntry?.(entry);
 			let incomplete = false;
 			const seen = new Set<string>();
 			for (const artifact of entry.artifacts) {

@@ -6,7 +6,6 @@ import test from 'node:test';
 import vm from 'node:vm';
 
 const STATUS = Object.freeze({
-	modelsDirectory: '/home/user/.config/Soundscaper/models',
 	runtimeAvailable: true,
 	runtimeReason: null,
 	models: [{
@@ -21,12 +20,16 @@ const STATUS = Object.freeze({
 });
 
 test('the assistance bridge sanitizes status in both directions', async () => {
-	const fixture = await loadPreload([{ ...STATUS, secretPath: '/private/models' }]);
+	const fixture = await loadPreload([{
+		...STATUS, modelsDirectory: '/private/models', secretPath: '/private/secret',
+		models: [{ ...STATUS.models[0], artifactPath: '/private/models/model.onnx' }],
+	}]);
 
 	const status = await fixture.bridge.listAssistanceModels();
 
 	assert.deepEqual(fixture.invocations, [['soundscaper:v1:assistance:list', undefined]]);
 	assert.equal('secretPath' in status, false, 'unknown fields never reach the renderer');
+	assert.equal('modelsDirectory' in status, false, 'the configured store remains main-process-only');
 	assert.equal(Object.isFrozen(status), true);
 	assert.equal(Object.isFrozen(status.models[0]), true);
 	assert.deepEqual({ ...status.models[0] }, { ...STATUS.models[0] });
@@ -57,7 +60,7 @@ test('a model id the store could not place safely is refused before it is sent',
 });
 
 test('a malformed status from main is refused rather than passed through', async () => {
-	const missingModels = await loadPreload([{ modelsDirectory: '/models', runtimeAvailable: true }]);
+	const missingModels = await loadPreload([{ runtimeAvailable: true }]);
 	await assert.rejects(missingModels.bridge.listAssistanceModels(), /Malformed assistance status/u);
 
 	const badAvailability = await loadPreload([{ ...STATUS, models: [{ ...STATUS.models[0], availability: 'ready' }] }]);

@@ -114,11 +114,12 @@ function deferred<Value>() {
 	return { promise, resolve };
 }
 
-test('status reports the models directory and every offered model', { timeout: 20_000 }, async (t) => {
+test('status is pathless while the service keeps its models directory internally', { timeout: 20_000 }, async (t) => {
 	const service = await serviceIn(t);
 	const status = await service.status();
 
-	assert.ok(status.modelsDirectory.endsWith(join('models')), 'the default lives under userData');
+	assert.ok(service.modelsDirectory.endsWith(join('models')), 'the default lives under userData');
+	assert.equal('modelsDirectory' in status, false);
 	assert.equal(status.runtimeAvailable, true);
 	assert.deepEqual(status.models.map(({ modelId, availability }) => [modelId, availability]), [
 		['silero-vad-v6', 'installable'],
@@ -134,7 +135,7 @@ test('a chosen models directory overrides the default', { timeout: 20_000 }, asy
 	const service = await serviceIn(t, { settingsDirectory: chosen });
 
 	assert.equal(service.modelsDirectory, chosen);
-	assert.equal((await service.status()).modelsDirectory, chosen);
+	assert.equal('modelsDirectory' in await service.status(), false);
 });
 
 test('installing fetches, verifies, and reports the model as installed', { timeout: 20_000 }, async (t) => {
@@ -382,6 +383,16 @@ test('an unavailable runtime is reported rather than hidden', { timeout: 20_000 
 	assert.equal(status.models[0]?.availability, 'installable', 'models install without the runtime');
 });
 
+test('runtime loader details cannot carry a private path into renderer status', { timeout: 20_000 }, async (t) => {
+	const service = await serviceIn(t, {
+		runtime: runtimeStub(false, "dlopen failed at '/Users/alice/private/native.node'"),
+	});
+
+	const status = await service.status();
+	assert.equal(status.runtimeReason, 'The optional speech runtime failed to load.');
+	assert.doesNotMatch(JSON.stringify(status), /Users\/alice|private\/native/u);
+});
+
 test('a catalog that disagrees with the licensing register fails at construction', { timeout: 20_000 }, async (t) => {
 	const userDataPath = await mkdtemp(join(tmpdir(), 'scape-assistance-service-'));
 	t.after(() => rm(userDataPath, { recursive: true, force: true }));
@@ -399,8 +410,50 @@ test('a catalog that disagrees with the licensing register fails at construction
 	);
 });
 
-test('a machine that cannot run a model still reports it honestly', { timeout: 20_000 }, async (t) => {
-	const service = await serviceIn(t, { platform: 'win32-arm64', totalMemoryBytes: 1 * GIB });
+test('platform and memory constraints gate every installation ingress', { timeout: 20_000 }, async (t) => {
+	const source = await mkdtemp(join(tmpdir(), 'scape-assistance-incompatible-seed-'));
+	t.after(() => rm(source, { recursive: true, force: true }));
+	await writeFile(join(source, 'encoder.onnx'), ENCODER);
+	await writeFile(join(source, 'tokens.txt'), TOKENS);
+	let fetches = 0;
+	for (const [overrides, availability, reason] of [
+		[{ platform: 'win32-arm64', totalMemoryBytes: 16 * GIB }, 'unsupported-platform', /platform/iu],
+		[{ platform: 'linux-x64', totalMemoryBytes: 1 * GIB }, 'insufficient-memory', /memory/iu],
+	] as const) {
+		const service = await serviceIn(t, {
+			...overrides,
+			fetchImpl: (() => { fetches += 1; throw new Error('must not fetch'); }) as typeof fetch,
+		});
+		assert.equal((await service.status()).models[0]?.availability, availability);
+		await assert.rejects(service.install('silero-vad-v6'), reason);
+		await assert.rejects(service.installPreseeded('silero-vad-v6', source), reason);
+		await mkdir(join(service.modelsDirectory, 'blobs'), { recursive: true });
+		await writeFile(join(service.modelsDirectory, 'blobs', localModelBlobName(digest(ENCODER))), ENCODER);
+		await writeFile(join(service.modelsDirectory, 'blobs', localModelBlobName(digest(TOKENS))), TOKENS);
+		const report = await service.reconcilePreseeded();
+		assert.deepEqual(report.installedModelIds, []);
+		assert.equal(report.rejected[0]?.modelId, 'silero-vad-v6');
+		assert.match(report.rejected[0]?.reason ?? '', reason);
+		assert.deepEqual(await service.listInstalled(), []);
+	}
+	assert.equal(fetches, 0);
+});
 
-	assert.equal((await service.status()).models[0]?.availability, 'unsupported-platform');
+test('installed bytes do not advertise or resolve an incompatible model', { timeout: 20_000 }, async (t) => {
+	const compatible = await serviceIn(t);
+	await compatible.install('silero-vad-v6');
+
+	for (const [overrides, availability, reason] of [
+		[{ platform: 'win32-arm64', totalMemoryBytes: 16 * GIB }, 'unsupported-platform', /platform/iu],
+		[{ platform: 'linux-x64', totalMemoryBytes: 1 * GIB }, 'insufficient-memory', /memory/iu],
+	] as const) {
+		const incompatible = await serviceIn(t, {
+			settingsDirectory: compatible.modelsDirectory,
+			...overrides,
+		});
+		const model = (await incompatible.status()).models[0];
+		assert.equal(model?.availability, availability);
+		assert.equal(model?.installedBytes, ENCODER.length + TOKENS.length);
+		await assert.rejects(incompatible.resolveModelPaths('silero-vad-v6'), reason);
+	}
 });

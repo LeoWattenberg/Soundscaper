@@ -96,8 +96,7 @@ function describeLoadFailure(error: unknown): string {
 	if (code === 'ERR_MODULE_NOT_FOUND' || code === 'MODULE_NOT_FOUND') {
 		return 'The optional speech runtime is not installed.';
 	}
-	const message = error instanceof Error ? error.message : String(error);
-	return `The optional speech runtime failed to load: ${message}`;
+	return 'The optional speech runtime failed to load.';
 }
 
 /**

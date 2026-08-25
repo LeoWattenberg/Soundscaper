@@ -219,7 +219,7 @@ function assistanceModel(value) {
 }
 function assistanceStatus(value) {
 	if (!value || !Array.isArray(value.models)) throw new TypeError('Malformed assistance status');
-	return Object.freeze({ modelsDirectory: text(value.modelsDirectory, 4096), runtimeAvailable: value.runtimeAvailable === true,
+	return Object.freeze({ runtimeAvailable: value.runtimeAvailable === true,
 		runtimeReason: value.runtimeReason === null ? null : text(value.runtimeReason, 512),
 		models: Object.freeze(value.models.map(assistanceModel)) });
 }
