@@ -162,6 +162,23 @@ test('F31 retains historical, unowned, and future documents opaquely while other
 	), FramescaperProjectV31ReimportRequiredError);
 });
 
+test('F31 opens unowned custody through a read-only session without claiming native authority', () => {
+	const runtime = createEditorProjectRuntimeV31Selection(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE);
+	const held = { ...project(), schemaVersion: 30 };
+	const history = runtime.createHistory(held);
+	assert.equal(history.present.schemaVersion, 30);
+	assert.deepEqual(history.present.sources, []);
+	assert.deepEqual(history.present.clips, []);
+	assert.deepEqual(history.present.tracks, []);
+
+	const session = runtime.createSessionController();
+	session.openProject(history.present, { history, readOnly: true });
+	const [tab] = session.getSnapshot().tabs;
+	assert.equal(tab.readOnly, true);
+	assert.equal(tab.history.present.schemaVersion, 30);
+	assert.deepEqual(tab.history.present.sources, []);
+});
+
 test('F31 validation is closed and authenticates transcript source and timing bindings', () => {
 	assert.throws(() => project([{ ...transcript(), extra: true }]), /unsupported field/iu);
 	assert.throws(() => project([transcript({ sourceSha256: '34'.repeat(32) })]), /source digest/iu);
