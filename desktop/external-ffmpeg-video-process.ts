@@ -5,7 +5,7 @@
 import { spawn as nodeSpawn } from 'node:child_process';
 import type { Writable } from 'node:stream';
 
-import { shouldDetachProcessTree, terminateProcessTree } from './process-tree-termination.ts';
+import { shouldDetachProcessTree, terminateProcessTree } from './process-tree-termination.js';
 
 export interface ExternalFfmpegVideoChildProcess {
 	readonly pid?: number;

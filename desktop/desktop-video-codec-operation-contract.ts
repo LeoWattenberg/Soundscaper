@@ -5,13 +5,13 @@
 import {
 	admitVideoKeyframeEncoderWorkload,
 	type VideoKeyframeEncoderWorkload,
-} from '../src/common/editor/video-keyframe-encoder-admission.ts';
-import { VIDEO_KEYFRAME_AUDIO_MAXIMUM_BYTES } from '../src/common/editor/video-keyframe-audio-input.ts';
-import { createVideoExactPictureExportFrameSource } from '../src/common/editor/video-keyframe-export-frame-source.ts';
+} from '../src/common/editor/video-keyframe-encoder-admission.js';
+import { VIDEO_KEYFRAME_AUDIO_MAXIMUM_BYTES } from '../src/common/editor/video-keyframe-audio-input.js';
+import { createVideoExactPictureExportFrameSource } from '../src/common/editor/video-keyframe-export-frame-source.js';
 import {
 	VIDEO_DELIVERY_QUALITY_TIERS,
 	type VideoDeliveryQuality,
-} from '../src/common/editor/video-delivery-quality.ts';
+} from '../src/common/editor/video-delivery-quality.js';
 
 export type DesktopVideoCodecFormat = 'mp4' | 'webm';
 
@@ -62,6 +62,8 @@ const AUDIO_SENTINEL = '/desktop-audio-input.wav';
 const MP4_OUTPUT_SENTINEL = '/desktop-video-output.mp4';
 const WEBM_OUTPUT_SENTINEL = '/desktop-video-output.webm';
 export const DESKTOP_VIDEO_CODEC_MAXIMUM_OUTPUT_BYTES = 2 * 1024 * 1024 * 1024;
+export const DESKTOP_VIDEO_CODEC_MAXIMUM_INPUT_CHUNK_BYTES = 1024 * 1024;
+export const DESKTOP_VIDEO_CODEC_MAXIMUM_OUTPUT_CHUNK_BYTES = 1024 * 1024;
 
 /** Re-admit all scalar geometry through the keyframe grammar and fail closed on drift. */
 export function normalizeDesktopVideoCodecOperationPlan(

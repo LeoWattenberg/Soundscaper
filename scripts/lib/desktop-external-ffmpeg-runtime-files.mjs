@@ -60,6 +60,8 @@ export const DESKTOP_AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 ]);
 
 const DESKTOP_EXTERNAL_FFMPEG_CONTROL_RUNTIME_FILES = Object.freeze([
+	'desktop/desktop-video-codec-operation-contract.js',
+	'desktop/external-ffmpeg-executable-pair-admission.js',
 	'desktop/external-ffmpeg-installer-node-runtime.js',
 	'desktop/external-ffmpeg-installer.js',
 	'desktop/external-ffmpeg-node-runtime.js',
@@ -67,6 +69,15 @@ const DESKTOP_EXTERNAL_FFMPEG_CONTROL_RUNTIME_FILES = Object.freeze([
 	'desktop/external-ffmpeg-preference-node-probe.js',
 	'desktop/external-ffmpeg-preference-service.js',
 	'desktop/external-ffmpeg-probe.js',
+	'desktop/external-ffmpeg-video-operation-service.js',
+	'desktop/external-ffmpeg-video-process.js',
+	'src/common/editor/video-elementary-stream.js',
+	'src/common/editor/video-keyframe-audio-input.js',
+	'src/common/editor/video-keyframe-encoder-execution.js',
+	'src/common/editor/video-keyframe-encoder-stream.js',
+	'src/common/editor/video-keyframe-execution-engine.js',
+	'src/common/editor/video-keyframe-webcodecs-execution.js',
+	'src/common/editor/video-webcodecs-producer.js',
 ]);
 
 /** Exact desktop codec graph with reviewed FLAC, LAME, mpg123, Opus, TwoLAME, Vorbis, and WavPack payloads. */
