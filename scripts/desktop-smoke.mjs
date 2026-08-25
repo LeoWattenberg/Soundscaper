@@ -96,7 +96,10 @@ function run(binary, args) {
 		child.once('error', reject);
 		const timeout = setTimeout(() => {
 			child.kill();
-			reject(new Error('Packaged desktop smoke timed out.'));
+			// A packaged main that dies during module loading parks on its error
+			// dialog instead of exiting, so the captured output is the only place
+			// the real cause appears.
+			reject(new Error(`Packaged desktop smoke timed out.\n${output}`));
 		}, 30_000);
 		child.once('exit', (code) => {
 			clearTimeout(timeout);
