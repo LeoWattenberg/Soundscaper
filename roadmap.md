@@ -873,30 +873,22 @@ invent an interim Soundscaper-only design.
 
 ## 8+I. Post-milestone-8 Framescaper image extension
 
-**Status:** **Browser-native vertical slice implemented; converter and
-qualification work open.** The owning
-[image plan](docs/post-milestone-8-framescaper-image-plan.md) freezes the V30
-model, authenticated asset, decoder/color policy, import placement, runtime
-trust boundary, work packets, and activation gates.
+**Status:** **Browser-native vertical slice implemented; converter and qualification
+work open.** The owning [image plan](docs/post-milestone-8-framescaper-image-plan.md)
+freezes the V30 model, asset, decoder/color policy, placement, trust boundary,
+work packets, and activation gates.
 
-**Goal:** import static, animated, and multipage raster files into the normal
-Framescaper Project Bin, timeline, editing, archive, and delivery workflows
-without making browser decoder availability part of project reproducibility.
+**Goal:** add static, animated, and multipage raster media to the Project Bin,
+timeline, archive, and delivery workflows without making browser decoder
+availability part of project reproducibility. The menu workflow keeps each
+original with a deterministic sRGB frame pack; V28 stills remain distinct.
 
-The menu-reached Add Images workflow retains each original with a deterministic
-V30 sRGB frame pack. Reviewed browser and FFmpeg decoders precede a lazy pinned
-Q16-HDRI ImageMagick fallback; one reader serves preview, editing, renders,
-`.scape`, and handoff. V28 stills and image sequences remain distinct.
-
-The implemented browser tier admits JPEG, PNG, GIF, WebP, and BMP by signature
-and carries authenticated frames through authoring, preview, persistence,
-archive/clipboard retention, and browser video export. FFmpeg and ImageMagick
-fallbacks, remaining formats, multipage/high-precision conversion, packaged
-render parity, and release qualification are not yet implemented or accepted.
-
-**Exit gate:** every advertised route needs licensed deterministic fixtures,
-fail-closed resource/security tests, render/archive parity, atomic workflow
-coverage, and a reproducible digest-pinned runtime with notices and source.
+JPEG, PNG, GIF, WebP, and BMP now traverse authenticated authoring, preview,
+persistence, archive/clipboard, and browser video export. FFmpeg, pinned
+ImageMagick, remaining formats, multipage/high-precision conversion, packaged
+parity, and qualification remain open. Every advertised route must pass the
+licensed fixtures, fail-closed resource/security, parity, atomic-workflow,
+runtime-source, notice, and digest gates in the owning plan.
 
 ## 8+. Post-milestone-8 Framescaper Web VCR extension
 
