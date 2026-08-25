@@ -201,7 +201,18 @@ async function resolveMacosSdk() {
 	assertSuccessful(outcome, 'macOS SDK resolution');
 	const path = String(outcome.stdout).trim();
 	if (path.includes('\n') || path.includes('\r')) throw new Error('xcrun returned an invalid macOS SDK path.');
-	return canonicalDirectory(path, 'macOS SDK root');
+	return canonicalMacosSdkRoot(path);
+}
+
+/**
+ * Xcode ships MacOSX.sdk as a symbolic alias for the versioned SDK directory it
+ * currently carries, and xcrun reports that alias. Follow it to the directory it
+ * names, then hold the result to the same canonical rule as every other input,
+ * so the build plan records one exact SDK rather than a moving alias.
+ */
+export async function canonicalMacosSdkRoot(value) {
+	const alias = absoluteNormalizedPath(value, 'macOS SDK root');
+	return canonicalDirectory(await realpath(alias), 'macOS SDK root');
 }
 
 function executeBuildCommand({ command, arguments: arguments_, plan }) {

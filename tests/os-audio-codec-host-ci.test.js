@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+	mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
@@ -9,6 +11,7 @@ import test from 'node:test';
 import {
 	ELECTRON_HEADERS_CI_ADMISSION,
 	authenticateElectronHeadersTree,
+	canonicalMacosSdkRoot,
 	downloadPinnedElectronHeaders,
 	resolveOsAudioCodecHostCiTarget,
 	resolveOsAudioCodecHostSigningIdentity,
@@ -207,6 +210,26 @@ test('all OS-capable package paths build the codec host while Linux receives no 
 	assert.doesNotMatch(workflow, /mac-x64|SOUNDSCAPER_OS_AUDIO_CODEC_BUILD_RESULT:\s*[^$\n]/u);
 	assert.match(ciEntry, /process\.env\.SOUNDSCAPER_MAC_SIGNING_IDENTITY/u);
 	assert.doesNotMatch(ciEntry, /console[^\n]*SIGNING_IDENTITY|JSON\.stringify[^\n]*SIGNING_IDENTITY/u);
+});
+
+test('the macOS SDK alias resolves to the versioned directory it names', async (context) => {
+	// xcrun reports .../SDKs/MacOSX.sdk, which Xcode ships as a symbolic alias for
+	// the versioned SDK. Rejecting the alias outright failed the macOS codec build
+	// on every runner before it configured anything.
+	const temporary = await mkdtemp(join(tmpdir(), 'soundscaper-codec-ci-sdk-'));
+	context.after(() => rm(temporary, { recursive: true, force: true }));
+	const versioned = join(temporary, 'MacOSX15.5.sdk');
+	const alias = join(temporary, 'MacOSX.sdk');
+	await mkdir(versioned);
+	await symlink(versioned, alias);
+
+	assert.equal(await canonicalMacosSdkRoot(alias), await realpath(versioned));
+	assert.equal(await canonicalMacosSdkRoot(versioned), await realpath(versioned));
+
+	const file = join(temporary, 'MacOSX.txt');
+	await writeFile(file, 'not an SDK\n');
+	await assert.rejects(canonicalMacosSdkRoot(file), /canonical non-symbolic directory/iu);
+	await assert.rejects(canonicalMacosSdkRoot('SDKs/MacOSX.sdk'), /absolute normalized path/iu);
 });
 
 function response(bytes, options = {}) {
