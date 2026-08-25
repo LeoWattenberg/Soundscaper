@@ -14,6 +14,7 @@ import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/edit
 
 test('controller runtime keeps the current V17 owner as the exact default', () => {
 	const runtime = resolveControllerProjectRuntime();
+	assert.equal(runtime.assistanceAssetCommands, false);
 	const project = runtime.createProject({
 		id: 'default-runtime', title: 'Default runtime', now: '2026-08-13T12:00:00.000Z',
 	});
@@ -25,6 +26,7 @@ test('controller runtime keeps the current V17 owner as the exact default', () =
 test('controller runtime snapshots V18 authority with the planner-safe command projection', () => {
 	const selected = createEditorProjectRuntimeV18Selection(FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE);
 	const runtime = resolveControllerProjectRuntime(selected);
+	assert.equal(runtime.assistanceAssetCommands, false);
 	const project = runtime.createProject({
 		id: 'selected-runtime', title: 'Selected runtime', now: '2026-08-13T12:00:00.000Z',
 	});

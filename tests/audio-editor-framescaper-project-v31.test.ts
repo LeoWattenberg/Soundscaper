@@ -177,6 +177,7 @@ test('F31 retains historical, unowned, and future documents opaquely while other
 
 test('F31 opens an S30 document through inert read-only custody without claiming native authority', async () => {
 	const runtime = createEditorProjectRuntimeV31Selection(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE);
+	assert.equal(runtime.assistanceAssetCommands, true);
 	const held = createSoundscaperProjectV30({
 		id: 'soundscaper-v30', title: 'Foreign S30 custody', now: NOW,
 	});

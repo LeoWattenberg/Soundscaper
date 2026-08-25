@@ -69,6 +69,7 @@ const STORE_AUTHORITY_FIELDS = [
 ] as const;
 
 export interface EditorProjectRuntimeV31Selection {
+	readonly assistanceAssetCommands: true;
 	readonly profile: typeof FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE;
 	readonly storageProfile: typeof FRAMESCAPER_V31_PROJECT_STORAGE_PROFILE;
 	readonly compatibility: ReturnType<typeof createFramescaperProjectFeatureCompatibilityServiceV31>;
@@ -124,6 +125,7 @@ export function createEditorProjectRuntimeV31Selection(
 ): Readonly<EditorProjectRuntimeV31Selection> {
 	assertFramescaperProjectV31Profile(profile);
 	const selection: EditorProjectRuntimeV31Selection = {
+		assistanceAssetCommands: true,
 		profile,
 		storageProfile: FRAMESCAPER_V31_PROJECT_STORAGE_PROFILE,
 		compatibility: createFramescaperProjectFeatureCompatibilityServiceV31(profile),

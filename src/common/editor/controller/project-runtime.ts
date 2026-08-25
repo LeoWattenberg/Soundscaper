@@ -55,6 +55,8 @@ export interface ControllerEditSessionClipboardCarrier extends Readonly<Record<s
 }
 
 export interface ControllerProjectRuntime {
+	/** Whether this exact product command owner accepts assistance-asset compounds. */
+	readonly assistanceAssetCommands: boolean;
 	readonly createProject: (options?: Readonly<Record<string, unknown>>) => ControllerRuntimeProject;
 	readonly cloneProject: (project: unknown) => ControllerRuntimeProject;
 	readonly migrateProject: (project: unknown) => Readonly<{
@@ -113,6 +115,7 @@ export type ControllerEditClipboardRuntimeBindings = Readonly<Pick<
 >>;
 
 const DEFAULT_RUNTIME = Object.freeze({
+	assistanceAssetCommands: false,
 	createProject: createCurrentAudioEditorProject,
 	cloneProject,
 	migrateProject: migrateAudioEditorProject,
@@ -151,6 +154,12 @@ export function resolveControllerProjectRuntime(
 	}
 	const runtime = value as Record<string, unknown>;
 	const snapshot: Record<string, unknown> = {};
+	const assistanceAssetCommands = Object.getOwnPropertyDescriptor(runtime, 'assistanceAssetCommands');
+	if (assistanceAssetCommands === undefined) snapshot.assistanceAssetCommands = false;
+	else if (!Object.hasOwn(assistanceAssetCommands, 'value')
+		|| typeof assistanceAssetCommands.value !== 'boolean') {
+		throw new TypeError('Controller project runtime assistanceAssetCommands must be boolean.');
+	} else snapshot.assistanceAssetCommands = assistanceAssetCommands.value;
 	for (const name of METHOD_NAMES) {
 		const descriptor = Object.getOwnPropertyDescriptor(runtime, name);
 		if (!descriptor || !Object.hasOwn(descriptor, 'value') || typeof descriptor.value !== 'function') {
