@@ -50,10 +50,24 @@ const BUNDLED_CODEC_EVIDENCE = [
 	'tests/desktop-audio-codec-runtime-staging.test.js',
 ];
 const OS_CODEC_EVIDENCE = [
+	'native/os-audio-codec-host/CMakeLists.txt',
+	'native/os-audio-codec-host/src/node_api_bridge.cpp',
 	'desktop/os-audio-codec-runtime.ts',
 	'desktop/os-audio-codec-canary-adapter.ts',
-	'config/soundscaper-professional-native-payload-manifest.json',
+	'desktop/os-audio-codec-native-payload.mjs',
+	'scripts/build-os-audio-codec-host.mjs',
+	'scripts/ci-build-os-audio-codec-host.mjs',
+	'scripts/lib/os-audio-codec-host-build.mjs',
+	'scripts/lib/os-audio-codec-host-ci.mjs',
+	'scripts/lib/os-audio-codec-native-payload.mjs',
+	'scripts/lib/desktop-os-audio-codec-native-staging.mjs',
+	'scripts/lib/desktop-os-audio-codec-native-package-verification.mjs',
+	'scripts/lib/desktop-package-os-audio-codec-closure.mjs',
 	'tests/desktop-os-audio-codec-runtime.test.ts',
+	'tests/os-audio-codec-host-build.test.js',
+	'tests/os-audio-codec-host-ci.test.js',
+	'tests/os-audio-codec-native-payload.test.js',
+	'tests/desktop-packaged-os-audio-codec-native.test.js',
 ];
 const EXTERNAL_CODEC_EVIDENCE = [
 	'desktop/external-ffmpeg-audio-operation-runner.ts',
@@ -93,7 +107,7 @@ test('desktop codec security separates Electron framework, application, and exte
 	);
 	assert.match(
 		helperPayload.summary,
-		/32 MiB input.*128 MiB output.*whole buffers.*synchronous WASM.*cannot be interrupted.*aggregate copies.*RSS.*Media Foundation.*AudioToolbox.*every production native payload row is pending-external.*OS tier.*fails closed/iu,
+		/32 MiB input.*128 MiB output.*whole buffers.*synchronous WASM.*cannot be interrupted.*aggregate copies.*RSS.*Media Foundation.*AudioToolbox.*target-native.*mac-arm64.*win-x64.*win-arm64.*native canar.*signed.*exact.*manifest.*payload.*Linux.*no uniform OS tier/iu,
 	);
 	assert.match(
 		helperPayload.summary,
@@ -110,13 +124,16 @@ test('desktop codec security separates Electron framework, application, and exte
 		'scripts/desktop-before-pack.mjs',
 		'scripts/desktop-after-pack.mjs',
 		'scripts/desktop-release-assets.mjs',
+		'scripts/lib/desktop-os-audio-codec-native-package-verification.mjs',
+		'scripts/lib/desktop-package-os-audio-codec-closure.mjs',
 		'tests/desktop-packaged-ffmpeg-runtime.test.js',
+		'tests/desktop-packaged-os-audio-codec-native.test.js',
 		'tests/desktop-bundled-codec-notices.test.js',
 		'tests/desktop-release-package-inventory.test.js',
 	]);
 	assert.match(
 		packageIntegrity.summary,
-		/application-codec policy.*reject application-supplied FFmpeg.*libav.*FFmpeg WebAssembly.*static FFmpeg host.*WebM\/AV1 payloads.*exactly seven reviewed compressed-audio WASM files.*libFLAC.*libopus.*libvorbis.*WavPack.*mpg123.*LAME.*TwoLAME.*exact-length.*SHA-256.*undeclared codec WASM.*all five production payload rows are pending-external.*downloadAlternateFFmpeg.*linux-x64.*linux-arm64.*mac-arm64.*win-x64.*win-arm64.*no mac-x64 target.*neither patent clearance nor non-infringement.*user-installed external FFmpeg.*WinGet\/Homebrew.*never copied/iu,
+		/application-codec policy.*reject application-supplied FFmpeg.*libav.*FFmpeg WebAssembly.*static FFmpeg host.*WebM\/AV1 payloads.*exactly seven reviewed compressed-audio WASM files.*libFLAC.*libopus.*libvorbis.*WavPack.*mpg123.*LAME.*TwoLAME.*exact-length.*SHA-256.*undeclared codec WASM.*target-native.*OS codec.*mac-arm64.*win-x64.*win-arm64.*signed.*exact.*manifest.*payload.*no mac-x64.*downloadAlternateFFmpeg.*linux-x64.*linux-arm64.*mac-arm64.*win-x64.*win-arm64.*no mac-x64 target.*neither patent clearance nor non-infringement.*user-installed external FFmpeg.*WinGet\/Homebrew.*never copied/iu,
 	);
 	assert.match(
 		plan,
@@ -128,7 +145,7 @@ test('desktop codec security separates Electron framework, application, and exte
 	);
 	assert.match(
 		plan,
-		/Media Foundation.*AudioToolbox.*all five target rows.*pending-external.*OS tier fails\s+closed.*FFmpeg CLI.*4\.4 through 9\.x.*Edit > Preferences > General.*BtbN\.FFmpeg\.GPL\.8\.1.*brew install ffmpeg/isu,
+		/Media Foundation.*AudioToolbox.*target-native.*mac-arm64.*win-x64.*win-arm64.*native codec canar.*sign.*package.*Linux.*no uniform OS tier.*FFmpeg CLI.*4\.4 through 9\.x.*Edit > Preferences > General.*BtbN\.FFmpeg\.GPL\.8\.1.*brew install ffmpeg/isu,
 	);
 	assert.match(
 		plan,

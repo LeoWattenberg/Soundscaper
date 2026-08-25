@@ -188,7 +188,10 @@ test('runtime provenance entries and release gates fail closed without claiming 
 	}
 	assert.deepEqual(codecPolicy.firstPartyPcm.containers, ['wav', 'bwf', 'bw64', 'aiff']);
 	assert.match(codecPolicy.firstPartyPcm.libsndfile, /not-bundled-redundant/u);
-	assert.match(codecPolicy.operatingSystemProvider.payloadStatus, /all-five-targets-pending-external-fail-closed/u);
+	assert.equal(codecPolicy.operatingSystemProvider.payloadStatus,
+		'target-native-ci-build-required-mac-arm64-win-x64-win-arm64');
+	assert.equal(codecPolicy.operatingSystemProvider.payloadManifest,
+		'runtime/native/soundscaper-os-audio-codec/<target>/os-audio-codec-native-payload-manifest.json');
 	assert.deepEqual(codecPolicy.operatingSystemProvider.windows.targets, ['win-x64', 'win-arm64']);
 	assert.deepEqual(codecPolicy.operatingSystemProvider.macos.targets, ['mac-arm64']);
 	assert.match(codecPolicy.externalFfmpegProvider.versionRange, />=4\.4\.0 <10\.0\.0/u);
@@ -296,9 +299,9 @@ test('future third-party execution and model surfaces remain disabled behind exp
 	assert.equal(gates.get('web-effect-packages').scope, 'externally-authored-or-non-repository-owned-packages');
 	assert.match(gates.get('web-effect-packages').blocker, /Utility Gain.*repository-owned.*does not admit/iu);
 	assert.equal(gates.get('native-codecs').scope,
-		'additional-bundled-video-and-target-native-operating-system-codec-execution');
+		'additional-bundled-video-codec-execution');
 	assert.match(gates.get('native-codecs').blocker,
-		/Seven exact reviewed compressed-audio WebAssembly providers.*libsndfile is not bundled.*Media Foundation.*AudioToolbox.*all five production native-payload rows are pending-external.*OS tier fails closed.*audio-only.*no libwebm.*dav1d.*SVT-AV1.*libaom.*WebM\/AV1 execution fails closed.*Electron.*rather than a provider tier.*user-installed external FFmpeg.*outside/iu);
+		/Seven exact reviewed compressed-audio WebAssembly providers.*libsndfile is not bundled.*Media Foundation.*AudioToolbox.*target-native.*macOS ARM64.*Windows x64.*Windows ARM64.*sign.*manifest.*payload.*Linux.*no uniform OS tier.*audio-only.*no libwebm.*dav1d.*SVT-AV1.*libaom.*WebM\/AV1 execution fails closed.*Electron.*rather than a provider tier.*user-installed external FFmpeg.*outside/iu);
 	for (const path of [
 		'src/common/editor/reviewed-effects/catalog.ts',
 		'src/common/editor/reviewed-effects/utility-gain-package.ts',

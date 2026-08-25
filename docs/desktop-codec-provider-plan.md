@@ -79,10 +79,20 @@ Windows Media Foundation and macOS ARM64 AudioToolbox source adapters, exact
 source inspectors, output validators, and live startup canaries are implemented
 for 48 kHz stereo MP3 and AAC-LC/M4A decode, 48 kHz stereo 160 kbps AAC-LC/M4A
 encode, and—on Windows only—48 kHz stereo 192 kbps MP3 encode. The production
-native payload manifest nevertheless has all five target rows
-`pending-external`, with no authenticated, signed target payload. Consequently
-the production loader stages no OS codec helper and the entire OS tier fails
-closed on every current package. Linux intentionally has no uniform OS tier.
+workflow now builds the isolated Node-API codec addon target-native on mac-arm64,
+win-x64, and win-arm64; it does not link the professional JUCE/device/plug-in
+host. The build authenticates the exact Electron 43.1.1 headers and complete
+repository source/build-plan identity, runs the native codec canaries, and
+records the toolchain and payload digest. macOS signs and strictly verifies the
+addon before its digest is recorded; Windows records signing as not applicable.
+Preparation, beforePack, afterPack, the package-content manifest, and startup
+all bind the same exact manifest, payload, target, signing evidence, byte length,
+and SHA-256. A supported release build fails closed if that target-native result
+is absent or changes. Linux intentionally has no uniform OS tier and falls
+straight through to external FFmpeg. mac-x64 is rejected at target selection,
+build, staging, packaging, and runtime. This Linux development session cannot
+execute the Windows/macOS native canaries; the target-native workflow is the
+release acceptance authority and does not check native binaries into Git.
 
 External FFmpeg CLI support is implemented for matching `ffmpeg`/`ffprobe`
 released versions from 4.4 through 9.x (`>=4.4.0`, `<10.0.0`). Main fingerprints
@@ -183,10 +193,17 @@ Primary references: [dav1d project and release](https://images.videolan.org/proj
 - The macOS ARM64 sources use AudioToolbox/Extended Audio File Services for the
   exact MP3/AAC tuples above. macOS has no admitted MP3 encoder. AVFoundation
   and VideoToolbox video work remains outside the audio-only bridge.
-- All production payload rows are pending, so these sources currently prove
-  build intent and portable validation only, not executable package support.
-  Linux has no uniform OS provider and falls from bundled codecs directly to
-  external FFmpeg.
+- The target-native CI job builds only the codec addon on mac-arm64, win-x64,
+  and win-arm64, authenticates pinned Electron headers and the source closure,
+  runs `ctest`, and emits a canonical build result. macOS payload bytes are
+  ad-hoc or Developer ID signed and strictly verified before hashing. Release
+  preparation requires that result, stages exactly one manifest and one addon,
+  and beforePack/afterPack/content-manifest/startup verification reject missing,
+  changed, unsigned-on-macOS, wrong-target, duplicate, or foreign bytes.
+- Linux has no uniform OS provider and falls from bundled codecs directly to
+  external FFmpeg. macOS x64 is unsupported and has no build or compatibility
+  alias. The exact canaries qualify only their listed tuples and do not claim
+  general operating-system codec availability or patent clearance.
 
 ## External FFmpeg
 

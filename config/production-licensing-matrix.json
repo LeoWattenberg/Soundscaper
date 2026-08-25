@@ -45,7 +45,7 @@
 		},
 		{
 			"id": "desktop-release-assets",
-			"description": "Public desktop packages, notices, checksums, and source archives required for content actually redistributed. Each package contains the seven exact reviewed compressed-audio WebAssembly providers and the exact verified Electron alternate framework libffmpeg for its target; every target-native operating-system codec payload remains pending-external, and user-installed external FFmpeg remains outside this artifact closure and is not copied into the release set.",
+			"description": "Public desktop packages, notices, checksums, and source archives required for content actually redistributed. Each package contains the seven exact reviewed compressed-audio WebAssembly providers and the exact verified Electron alternate framework libffmpeg for its target. macOS ARM64 and Windows x64/ARM64 Soundscaper packages additionally require a target-native, canary-tested repository-owned operating-system codec addon whose exact manifest, payload, target, signing evidence, byte length, and SHA-256 are authenticated through staging and packaging; Linux has no OS codec payload and macOS x64 is unsupported. User-installed external FFmpeg remains outside this artifact closure and is not copied into the release set.",
 			"artifactStatus": "blocked",
 			"noticeDeliveryStatus": "implemented",
 			"evidence": ["config/electron-alternate-ffmpeg-manifest.json", "src/common/editor/flac/source-manifest.json", "src/common/editor/opus/source-manifest.json", "src/common/editor/vorbis/source-manifest.json", "src/common/editor/wavpack/source-manifest.json", "src/common/editor/mpg123/source-manifest.json", "src/common/editor/lame/source-manifest.json", "src/common/editor/twolame/source-manifest.json", "scripts/lib/desktop-codec-policy.mjs", "scripts/lib/desktop-bundled-audio-runtime.mjs", "scripts/lib/desktop-bundled-codec-notices.mjs", "scripts/lib/electron-alternate-ffmpeg.mjs", "scripts/desktop-release-assets.mjs", "tests/desktop-audio-codec-runtime-staging.test.js", "tests/desktop-bundled-codec-notices.test.js", "THIRD_PARTY_LICENSES.md"]
@@ -620,9 +620,13 @@
 			"libsndfile": "not-bundled-redundant-for-current-admitted-matrix"
 		},
 		"operatingSystemProvider": {
-			"sourceStatus": "implemented-exact-source-inspection-output-validation-and-live-canaries",
-			"payloadManifest": "config/soundscaper-professional-native-payload-manifest.json",
-			"payloadStatus": "all-five-targets-pending-external-fail-closed",
+			"sourceStatus": "implemented-isolated-target-native-build-exact-source-inspection-output-validation-and-live-canaries",
+			"payloadManifest": "runtime/native/soundscaper-os-audio-codec/<target>/os-audio-codec-native-payload-manifest.json",
+			"payloadStatus": "target-native-ci-build-required-mac-arm64-win-x64-win-arm64",
+			"buildTargets": ["mac-arm64", "win-x64", "win-arm64"],
+			"buildAdmission": ["pinned-electron-43.1.1-headers", "repository-source-closure", "build-plan", "target-toolchain", "native-ctest-canaries", "payload-byte-length-and-sha256"],
+			"packageAdmission": ["canonical-build-result", "exact-two-file-target-subtree", "manifest-payload-summary-equality", "before-pack-verification", "after-pack-verification", "content-manifest-closure", "startup-reauthentication"],
+			"signing": { "mac-arm64": "pre-hash-ad-hoc-or-developer-id-strictly-verified", "win-x64": "not-applicable", "win-arm64": "not-applicable" },
 			"windows": {
 				"implementation": "windows-media-foundation",
 				"targets": ["win-x64", "win-arm64"],
@@ -655,7 +659,7 @@
 		"executionStatus": {
 			"bundledCompressedCodecs": "seven-reviewed-audio-wasm-payloads-admitted",
 			"bundledExecutionModel": "whole-buffer-main-process-wasm-with-non-interruptible-active-call",
-			"operatingSystemCodecs": "sources-and-canaries-implemented-production-payloads-pending-external-fail-closed",
+			"operatingSystemCodecs": "target-native-ci-built-canary-tested-and-package-authenticated-on-mac-arm64-win-x64-win-arm64-linux-unavailable",
 			"externalFfmpeg": "user-installed-cli-4.4-through-9.x-no-redistribution",
 			"webmAv1": "audio-only-bridge-no-payload-no-complete-five-target-evidence-fail-closed",
 			"receiptTiming": "null-no-timing-claim"
@@ -668,6 +672,17 @@
 			"scripts/desktop-before-pack.mjs",
 			"scripts/desktop-after-pack.mjs",
 			"scripts/desktop-release-assets.mjs",
+			"native/os-audio-codec-host/CMakeLists.txt",
+			"native/os-audio-codec-host/src/node_api_bridge.cpp",
+			"desktop/os-audio-codec-native-payload.mjs",
+			"scripts/build-os-audio-codec-host.mjs",
+			"scripts/ci-build-os-audio-codec-host.mjs",
+			"scripts/lib/os-audio-codec-host-build.mjs",
+			"scripts/lib/os-audio-codec-host-ci.mjs",
+			"scripts/lib/os-audio-codec-native-payload.mjs",
+			"scripts/lib/desktop-os-audio-codec-native-staging.mjs",
+			"scripts/lib/desktop-os-audio-codec-native-package-verification.mjs",
+			"scripts/lib/desktop-package-os-audio-codec-closure.mjs",
 			"electron-builder.config.cjs",
 			"config/electron-alternate-ffmpeg-manifest.json",
 			"scripts/lib/electron-alternate-ffmpeg.mjs",
@@ -793,10 +808,10 @@
 		{
 			"id": "native-codecs",
 			"status": "disabled",
-			"scope": "additional-bundled-video-and-target-native-operating-system-codec-execution",
-			"blocker": "Seven exact reviewed compressed-audio WebAssembly providers are admitted outside this future gate: libFLAC, libopus/libogg, libvorbis/libogg, WavPack, mpg123, LAME, and TwoLAME. Specialized first-party PCM readers remain application code and libsndfile is not bundled. Windows Media Foundation and macOS ARM64 AudioToolbox source adapters and live canaries exist, but all five production native-payload rows are pending-external and therefore the OS tier fails closed. The desktop bridge is audio-only and has no libwebm, libvpx, dav1d, SVT-AV1, or libaom payload or complete five-target AV1 evidence, so WebM/AV1 execution fails closed. Electron's exact alternate framework libffmpeg is Chromium infrastructure rather than a provider tier, while user-installed external FFmpeg remains outside the production artifact closure.",
+			"scope": "additional-bundled-video-codec-execution",
+			"blocker": "Seven exact reviewed compressed-audio WebAssembly providers are admitted outside this future gate: libFLAC, libopus/libogg, libvorbis/libogg, WavPack, mpg123, LAME, and TwoLAME. Specialized first-party PCM readers remain application code and libsndfile is not bundled. Windows Media Foundation and macOS ARM64 AudioToolbox use a target-native codec-only build for macOS ARM64, Windows x64, and Windows ARM64; the build runs native canaries, macOS signs before hashing, and staging, package, content-manifest, and startup checks bind one exact manifest and payload. Linux has no uniform OS tier and macOS x64 is unsupported. The desktop bridge is audio-only and has no libwebm, libvpx, dav1d, SVT-AV1, or libaom payload or complete five-target AV1 evidence, so WebM/AV1 execution fails closed. Electron's exact alternate framework libffmpeg is Chromium infrastructure rather than a provider tier, while user-installed external FFmpeg remains outside the production artifact closure.",
 			"enableRequires": ["codec-license-inventory", "corresponding-source-where-required", "jurisdiction-specific-patent-review", "package-notice-delivery", "target-payload-and-five-target-qualification"],
-			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/production-licensing-policy.md", "docs/desktop-codec-provider-plan.md", "desktop/desktop-audio-codec-registration.mjs", "desktop/bundled-audio-codec-runtime.ts", "desktop/os-audio-codec-runtime.ts", "config/soundscaper-professional-native-payload-manifest.json", "src/common/editor/av1-codec-qualification.ts", "tests/desktop-audio-codec-runtime-staging.test.js", "tests/production-security-desktop-codec-policy.test.js"]
+			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/production-licensing-policy.md", "docs/desktop-codec-provider-plan.md", "desktop/desktop-audio-codec-registration.mjs", "desktop/bundled-audio-codec-runtime.ts", "desktop/os-audio-codec-runtime.ts", "desktop/os-audio-codec-native-payload.mjs", "native/os-audio-codec-host/CMakeLists.txt", "scripts/lib/os-audio-codec-host-ci.mjs", "scripts/lib/desktop-os-audio-codec-native-staging.mjs", "scripts/lib/desktop-os-audio-codec-native-package-verification.mjs", "src/common/editor/av1-codec-qualification.ts", "tests/desktop-audio-codec-runtime-staging.test.js", "tests/desktop-packaged-os-audio-codec-native.test.js", "tests/production-security-desktop-codec-policy.test.js"]
 		},
 		{
 			"id": "local-models",

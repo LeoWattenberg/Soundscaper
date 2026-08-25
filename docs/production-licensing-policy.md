@@ -203,10 +203,9 @@ requirements are implemented:
   license selection for each dual-licensed input, platform-API and ASIO
   trademark review, target notices, signed packages, and provisioned device-lab
   evidence;
-- additional bundled video and target-native operating-system codec execution
-  needs an exact codec/license inventory, corresponding source, package notices,
-  target payload and qualification evidence, and distribution-specific patent
-  review; and
+- additional bundled video codec execution needs an exact codec/license
+  inventory, corresponding source, package notices, target payload and
+  qualification evidence, and distribution-specific patent review; and
 - local models need licenses for code and weights, training-data provenance,
   model cards and use restrictions, exact hashes, and versioned offline notice
   delivery.
@@ -257,11 +256,19 @@ Windows Media Foundation and macOS ARM64 AudioToolbox source adapters, bounded
 source inspection, output validation, and live startup canaries exist for exact
 48 kHz stereo MP3/AAC decode and AAC-LC/M4A encode; the AAC encoder tuple is
 160 kbps and Windows additionally has a 192 kbps MP3 encoder tuple. macOS has
-no admitted MP3 encoder. All five rows in the production native payload
-manifest remain `pending-external`, so no authenticated, signed target helper
-is staged and every OS tuple currently fails closed. Linux has no uniform OS
-provider. Source and portable tests do not establish target execution,
-availability, signing, or package qualification.
+no admitted MP3 encoder. A repository-owned codec-only Node-API addon is built
+on target-native CI for macOS ARM64, Windows x64, and Windows ARM64. The build
+authenticates pinned Electron headers and the repository source/build plan,
+runs the exact native canaries, and records the toolchain and output digest.
+macOS signs and strictly verifies the addon before hashing; Windows records
+signing as not applicable. Release preparation and package/startup verification
+bind one exact per-target manifest and payload and reject missing, changed,
+wrong-target, duplicate, foreign, or unsigned-on-macOS bytes. No codec library
+is copied from the operating system into the package. Linux has no uniform OS
+provider, and macOS x64 has no supported build or compatibility alias. These
+controls qualify only the enumerated tuples on a package whose target-native
+build has passed; they do not establish general OS availability, patent
+clearance, or non-infringement.
 
 The desktop bridge is audio-only. It contains no libwebm, libvpx, dav1d,
 SVT-AV1, or libaom payload and no complete twelve-case benchmark decision on
