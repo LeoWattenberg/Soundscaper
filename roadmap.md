@@ -159,7 +159,7 @@ Known architectural constraints that drive later work:
 | 4. Production surfaces | **In progress — local implementation complete; qualification open** | Complete automation, routing, compositing, captions, and finishing. |
 | 5. Electron-native services | **In progress — software complete; qualification and activation open** | Add isolated native media, audio, render, and plug-in services. |
 | 6. Delivery/interchange | **Web tier implemented; native activation blocked; none qualified** | Add professional masters, queues, exchange, and archives. |
-| 7. Local assistance | **Optional** | Add removable on-device assistance without becoming a dependency. |
+| 7. Local assistance | **Active foundation; operation coverage partial; qualification open** | Add removable on-device assistance without becoming a dependency. |
 | 8. Capture and MIDI | **8A active — qualification open; 8B Blocked** | Selected Framescaper F31 activates recording on web and desktop while real-device and owner-lab qualification remains open; MIDI waits for upstream design review. |
 | 8+. Framescaper Web VCR | **Software substrate implemented — provisional, disabled** | Keep the dormant contracts, security seams, controller, crop pipeline, and UI behind `framescaperWebVcr: false` until post-milestone-8 runtime qualification. |
 | 9. Final qualification | **Planned** | Requalify the complete product, including the accepted post-milestone-8 extension, and release matrix. |
@@ -726,25 +726,41 @@ invariants, and the bounded work packets are owned by the
 ## 7. Optional local assistance
 
 **Depends on:** milestone 2. **Optional:** never blocks milestones 8 or 9.
-The optional milestone-7 helper must conform to the milestone-5 helper contract
-before packaged wiring; milestone 5 owns its architecture and qualification.
+The optional milestone-7 speech helper uses the milestone-5 supervision and pathless-data-plane foundation; manual helper and owner-lab qualification is documentary, nonblocking evidence.
 
-Sequencing, the runtime and model-catalog decisions, the assistance-lifecycle
-invariants, and the bounded work packets are owned by the
-[milestone-7 plan](docs/milestone-7-plan.md).
+**Status:** **Active on selected Soundscaper S30 and Framescaper F31 as an optional Electron
+foundation; operation coverage is partial and qualification remains open.** Both selected
+schemas preserve digest-bound transcript asset references,
+and the desktop products expose menu-reached local-model and local-assistance
+flows. The signed catalog, licensing pins, digest-authenticated install/store
+lifecycle, main-private pathless job custody, selection fences, validated-result
+review, progress, cancellation, and explicit-unavailability outcomes are active
+without owner-lab sign-off. Real inference is narrower than the closed operation
+vocabulary: only an installed, authenticated Parakeet transducer can use the
+verified Sherpa speech-recognition adapter. Every other operation, model/runtime
+mismatch, and unsupported target refuses with a typed adapter, model, or runtime
+unavailable result; no substitute inference or automatic install is permitted.
+The catalog records the intended EU R2 mirror, but this status does not assert
+that any remote object was uploaded or that external qualification evidence was
+accepted. Licensing, catalog signature, artifact digest, runtime compatibility, and selected-media
+authority remain fail-closed. The current review UI cannot create a proposal session, enable acceptance, or mutate canonical project state.
 
-- **Electron Only — Optional:** on-device transcription, diarization, source
-  separation, cleanup, semantic tags, shot/silence detection, beat
-  suggestions, and assistive search/edit proposals. Re-tiered from Web
-  Enhanced / Electron Enhanced by user decision on 2026-08-11: inference is
-  native-only, and the web products read accepted results as ordinary
-  project state.
+Sequencing, runtime and model-catalog decisions, lifecycle invariants, and bounded work packets
+are owned by the [milestone-7 plan](docs/milestone-7-plan.md).
+
+- **Electron Only — Optional:** the closed operation vocabulary covers transcription,
+  diarization, source separation, cleanup, semantic tags, shot/silence detection,
+  beat suggestions, and assistive search/edit proposals. Today only Parakeet speech
+  recognition has an execution adapter; the other operations remain visible as typed
+  unavailable outcomes rather than being simulated. Re-tiered from Web Enhanced /
+  Electron Enhanced by user decision on 2026-08-11: inference is native-only. The web
+  products run no inference, and the current desktop review does not publish labels or assets.
 - Models are opt-in, separately downloaded into a user-settable directory,
   digest-pinned, removable, licensed, and offline after installation.
 - Assistance may consume selected-F31 recordings only after they become
   ordinary persisted media; it cannot initiate, authorize, or own capture.
-- Selected media and results remain on-device. Accepted results become ordinary,
-  inspectable commands or derived assets.
+- Selected media and validated results remain on-device. The current UI cannot accept
+  or publish them; any future accepted result must become ordinary, inspectable state.
 - Deterministic non-AI editing and delivery remain complete without this
   milestone.
 

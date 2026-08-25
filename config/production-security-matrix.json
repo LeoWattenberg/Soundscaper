@@ -2060,7 +2060,7 @@
 			"impact": "critical",
 			"status": "enforced",
 			"releaseDisposition": "qualified-current-surface",
-			"ownerMilestone": "1",
+			"ownerMilestone": "1 and 7",
 			"currentControls": [
 				{
 					"id": "sandboxed-versioned-preload-bridge",
@@ -2080,6 +2080,26 @@
 						{ "kind": "implementation", "path": "desktop/desktop-video-codec-main-ipc.ts" },
 						{ "kind": "implementation", "path": "desktop/desktop-video-codec-registration.mjs" },
 						{ "kind": "test", "path": "tests/desktop-video-codec-main-ipc.test.ts" }
+					]
+				},
+				{
+					"id": "local-assistance-pathless-operation-bridge",
+					"summary": "The active desktop localAssistance v1 bridge is frozen and pathless. Preload and main independently admit only opaque 40-hex job, claim and stream identities; the closed fifteen-operation vocabulary; exact model versions and artifact digests; S30/F31 selection fences; bounded media-type-specific input claims and output reservations; correlated results, typed unavailable outcomes and monotonic progress. Input bytes cross through one exact MessagePort reservation bound to role, media type, byte length and SHA-256 and land in main-private per-job staging; output bytes return through a separately negotiated authenticated MessagePort without exposing a path. Main redacts filesystem and native error detail before rejection. Cancellation and release stop negotiated transfers, await active helper quiescence and only then remove private staging. The operation service executes only speech-recognition with an installed authenticated Parakeet transducer and the verified Sherpa runtime. Every other closed operation returns adapter-unavailable, and absent compatible model/runtime state returns its typed unavailable result without an implicit install, upstream fetch, alternate model or fabricated output. Model installation and operation launch remain explicit menu actions. The current UI validates authenticated output metadata and body for review but does not ingest it into an AssistanceProposalSession, expose acceptance, publish a label or asset, or mutate canonical project state; proposal acceptance remains unwired and fail closed. Manual and owner-lab qualification is documentary and does not disable this bounded bridge, but it grants no exception to catalog signature, licensing, artifact digest, runtime, selected-media or consent checks.",
+					"evidence": [
+						{ "kind": "implementation", "path": "desktop/preload.mjs" },
+						{ "kind": "implementation", "path": "desktop/assistance-operation-main-ipc.ts" },
+						{ "kind": "implementation", "path": "desktop/assistance-operation-service.ts" },
+						{ "kind": "implementation", "path": "desktop/assistance-operation-transfers.ts" },
+						{ "kind": "implementation", "path": "desktop/assistance-operation-contract.ts" },
+						{ "kind": "implementation", "path": "desktop/assistance-staging-registry.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/ui/local-assistance-menu.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/ui/local-assistance-session-store.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/ui/dialogs/LocalAssistanceDialog.tsx" },
+						{ "kind": "test", "path": "tests/desktop-preload-assistance-operation.test.js" },
+						{ "kind": "test", "path": "tests/desktop-assistance-operation-main-ipc.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-assistance-operation-service.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-assistance-operation-transfers.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-local-assistance.test.tsx" }
 					]
 				},
 				{
@@ -3561,7 +3581,7 @@
 			"impact": "critical",
 			"status": "partial",
 			"releaseDisposition": "conditional",
-			"ownerMilestone": "5",
+			"ownerMilestone": "5 and 7",
 			"currentControls": [
 				{
 					"id": "pathless-probe-helper-bridge",
@@ -3619,17 +3639,30 @@
 				},
 				{
 					"id": "supervised-helper-lifecycle",
-					"summary": "The supervisor spawns helpers only after payload verification and terminates them on heartbeat silence beyond the two-second crash-detection budget, on a missed one-second cancellation-acknowledgement budget, on contract violations, and on lower-only per-job input, duration, or peak-RSS policy overruns, quarantining repeated crashes until the user explicitly clears the surface. The media scheduler owns one through four supervisors, defaults to two, runs one job per helper, self-tests a worker before user work and quarantines a failed self-test; hardware failure may retry native CPU and then return an explicit Web Core fallback disposition without changing the canonical plan fingerprint. The selected production authority translates that disposition to `web-core-required`, directs the user to the existing renderer-owned export route, and publishes no native receipt.",
+					"summary": "The supervisor spawns helpers only after payload verification and terminates them on heartbeat silence beyond the two-second crash-detection budget, on a missed one-second cancellation-acknowledgement budget, on contract violations, and on lower-only per-job input, duration, or peak-RSS policy overruns, quarantining repeated crashes until the user explicitly clears the surface. The media scheduler owns one through four supervisors, defaults to two, runs one job per helper, self-tests a worker before user work and quarantines a failed self-test; hardware failure may retry native CPU and then return an explicit Web Core fallback disposition without changing the canonical plan fingerprint. The selected production authority translates that disposition to `web-core-required`, directs the user to the existing renderer-owned export route, and publishes no native receipt. The active Milestone 7 speech path separately lazily forks one main-owned Electron utility process only after checked-in Sherpa ONNX 1.13.5 payload verification. Main authenticates regular non-symbolic selected-audio and installed Parakeet artifact grants, the worker rechecks identity, size and SHA-256 before recognition, and one shared supervised job slot enforces the closed protocol, heartbeat, RSS, cancellation acknowledgement and quiescent staging cleanup. Only installed catalog-authenticated Parakeet bindings reach recognition; other operations, missing runtime, unsupported targets and incompatible models return typed unavailability. This bounded activation does not claim an operating-system sandbox, aggregate resource or performance bounds, broad packaged-platform behavior, or owner-lab qualification.",
 					"evidence": [
 						{ "kind": "implementation", "path": "desktop/helper-supervisor.ts" },
 						{ "kind": "implementation", "path": "desktop/helper-probe-process.js" },
 						{ "kind": "implementation", "path": "desktop/native-media-helper-pool.ts" },
 						{ "kind": "implementation", "path": "desktop/native-media-execution.ts" },
 						{ "kind": "implementation", "path": "desktop/native-services-selected-v28-project-authority.ts" },
+						{ "kind": "document", "path": "config/assistance-native-runtime-manifest.json" },
+						{ "kind": "implementation", "path": "desktop/assistance-registration.mjs" },
+						{ "kind": "implementation", "path": "desktop/assistance-native-runtime-payload.mjs" },
+						{ "kind": "implementation", "path": "desktop/assistance-job-host.ts" },
+						{ "kind": "implementation", "path": "desktop/assistance-helper-runtime.ts" },
+						{ "kind": "implementation", "path": "desktop/assistance-helper-process.js" },
+						{ "kind": "implementation", "path": "desktop/assistance-inference-worker.js" },
+						{ "kind": "implementation", "path": "desktop/assistance-sherpa-recognizer.ts" },
 						{ "kind": "test", "path": "tests/desktop-helper-supervisor.test.ts" },
 						{ "kind": "test", "path": "tests/desktop-helper-probe-process.test.js" },
 						{ "kind": "test", "path": "tests/desktop-native-media-helper-pool.test.ts" },
-						{ "kind": "test", "path": "tests/desktop-native-media-execution.test.ts" }
+						{ "kind": "test", "path": "tests/desktop-native-media-execution.test.ts" },
+						{ "kind": "test", "path": "tests/assistance-native-runtime-payload.test.js" },
+						{ "kind": "test", "path": "tests/desktop-assistance-job-host.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-assistance-helper-runtime.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-assistance-helper-process.test.js" },
+						{ "kind": "test", "path": "tests/desktop-assistance-speech-reference.test.ts" }
 					]
 				},
 				{
@@ -3767,6 +3800,13 @@
 					"requiredControl": "Authenticate every required external source acquisition; clear the exact licensing and redistribution rows; build, sign, and attest each permitted professional target payload and launcher; bind independently signed readiness to the exact package and executable digests; run every enabled helper/media operation's fault and cancellation suites; and qualify the registered no-retry cohorts and manual packages on the provisioned native OS lab.",
 					"ownerMilestone": "5",
 					"acceptanceCriteria": ["Crash, hang, malformed message, oversized payload, binary mismatch, and cancellation tests pass for every enacted helper surface without exposing raw spawn authority to the renderer, and m5-helper-fault-and-loopback-v1 qualifies on native-os-lab-matrix."]
+				},
+				{
+					"id": "local-assistance-runtime-qualification",
+					"exposure": "The active Sherpa speech helper is ordinary native code in an Electron utility process. Exact payload and file-grant authentication plus supervision contain accidental faults but do not remove the process's ambient user-account filesystem or network authority, establish aggregate CPU/RSS or long-session performance bounds, or qualify every packaged operating-system behavior. Windows ARM64 is unsupported. The registered M7 privacy workload has no provisioned owner-lab profile or accepted cohort, so network-after-install, unselected-media-read, cancellation-p95 and canonical-state-loss claims remain unqualified. That missing manual evidence is documentary and nonblocking for the bounded optional activation; it cannot relax licensing, catalog signature, artifact integrity, selected-media, runtime compatibility or consent checks, and cannot authorize the still-unwired proposal-acceptance and canonical-mutation path.",
+					"requiredControl": "For a qualification claim, provision the M7 owner-lab profile; run the no-retry privacy, malformed-message, crash, cancellation and reference-transcription workloads on each claimed packaged target; and add a qualified per-OS sandbox if the helper is to claim denial of ambient filesystem or network authority. Keep unqualified targets and operations typed unavailable without retracting the bounded optional foundation.",
+					"ownerMilestone": "7",
+					"acceptanceCriteria": ["Accepted M7 cohorts bind exact package, runtime, model and workload identities and prove the registered privacy and cancellation metrics on every claimed target; unsupported targets and operations still refuse without fallback or canonical mutation."]
 				},
 				{
 					"id": "external-ffmpeg-selected-executable-authority",
@@ -4535,7 +4575,7 @@
 			"impact": "critical",
 			"status": "partial",
 			"releaseDisposition": "conditional",
-			"ownerMilestone": "1 and 8A",
+			"ownerMilestone": "1, 7, and 8A",
 			"currentControls": [
 				{
 					"id": "pinned-in-tree-wasm-audits",
@@ -4582,6 +4622,27 @@
 						{ "kind": "test", "path": "tests/desktop-bundled-mpg123-audio-codec-runtime.test.ts" },
 						{ "kind": "test", "path": "tests/desktop-bundled-lame-audio-codec-runtime.test.ts" },
 						{ "kind": "test", "path": "tests/desktop-bundled-twolame-audio-codec-runtime.test.ts" }
+					]
+				},
+				{
+					"id": "signed-local-model-catalog-and-authenticated-store",
+					"summary": "The active local-model supply path authenticates a canonical Ed25519 catalog V2 before parsing it, trusts only the pinned current and successor public keys, and binds each of thirteen offered entries to one complete permitted licensing-evidence row plus exact immutable upstream provenance, distribution method, platform/memory policy, artifact byte length and SHA-256. Unknown keys, signature drift, incomplete or refused licensing, URL/publication mismatch, duplicate identities and malformed artifact inventories reject before any offer. Installs occur only after an explicit user action or explicit offline preseed, reserve point-in-time capacity, publish through resumable temporary files, hash every complete artifact, and place exact blobs into a content-addressed filesystem store without rewriting a trusted blob in place. Model manifests and every execution-time path resolution reauthenticate the catalog version and complete artifact inventory; corruption or external deletion makes the model unavailable instead of repairing or executing it implicitly. Relocation uses copy/verify/swap, removal and garbage collection preserve live attribution/notices, and cancellation waits for the active download to quiesce. The catalog records an EU R2 bucket and immutable mirror URLs, and a credential-scoped publisher validates those identities before upload, but this control records no real R2 write or remote read-back and makes no remote-availability claim.",
+					"evidence": [
+						{ "kind": "document", "path": "config/local-model-catalog.json" },
+						{ "kind": "document", "path": "config/production-licensing-matrix.json" },
+						{ "kind": "implementation", "path": "desktop/local-model-catalog-signature.ts" },
+						{ "kind": "implementation", "path": "desktop/local-model-catalog.ts" },
+						{ "kind": "implementation", "path": "desktop/local-model-download.ts" },
+						{ "kind": "implementation", "path": "desktop/local-model-store.ts" },
+						{ "kind": "implementation", "path": "desktop/local-model-preseed.ts" },
+						{ "kind": "implementation", "path": "desktop/local-model-relocation.ts" },
+						{ "kind": "implementation", "path": "scripts/lib/local-model-mirror.mjs" },
+						{ "kind": "test", "path": "tests/desktop-local-model-catalog-v2.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-local-model-download.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-local-model-store.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-local-model-preseed.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-local-model-relocation.test.ts" },
+						{ "kind": "test", "path": "tests/local-model-mirror.test.js" }
 					]
 				},
 				{
