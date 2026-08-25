@@ -2,7 +2,11 @@
 
 /** Trusted main IPC registration for the pathless local-assistance operation bridge. */
 
-import type { AssistanceOperationProgress } from './assistance-operation-contract.ts';
+import {
+	validateAssistanceOperationRequest,
+	type AssistanceOperationProgress,
+	type AssistanceOperationRequest,
+} from './assistance-operation-contract.ts';
 import type { createAssistanceOperationService } from './assistance-operation-service.ts';
 import { AssistanceOperationTransfers } from './assistance-operation-transfers.ts';
 import type { HelperDataPlaneIoPort } from './helper-data-plane-io.ts';
@@ -35,6 +39,8 @@ export interface AssistanceOperationIpcOptions {
 		onProgress: (progress: AssistanceOperationProgress) => void,
 	) => AssistanceOperations;
 	readonly createTransfers?: (operations: AssistanceOperations) => AssistanceOperationTransfers;
+	/** Trusted native confirmation for this exact validated selection and operation. */
+	readonly confirmOperation: (request: AssistanceOperationRequest) => PromiseLike<boolean>;
 }
 
 export function registerAssistanceOperationIpc(options: AssistanceOperationIpcOptions): Readonly<{
@@ -67,8 +73,18 @@ export function registerAssistanceOperationIpc(options: AssistanceOperationIpcOp
 	options.handle(options.channels.reserve, (_event, value) => pathless(
 		() => resolve().operations.reserveOutput(value as never),
 		'The assistance output could not be reserved.'));
-	options.handle(options.channels.run, (_event, value) => pathless(
-		() => resolve().operations.run(value), 'The assistance operation could not be completed.'));
+	options.handle(options.channels.run, (_event, value) => pathless(async () => {
+		const request = validateAssistanceOperationRequest(value);
+		if (!await options.confirmOperation(request)) {
+			return Object.freeze({
+				contractVersion: 1 as const,
+				jobId: request.jobId,
+				operation: request.operation,
+				outcome: 'consent-declined' as const,
+			});
+		}
+		return resolve().operations.run(request);
+	}, 'The assistance operation could not be completed.'));
 	options.handle(options.channels.cancel, (_event, value) => pathless(async () => {
 		const jobId = opaqueId(value);
 		await resolve().transfers.cancelJob(jobId);

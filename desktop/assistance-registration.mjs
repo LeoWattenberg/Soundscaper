@@ -52,6 +52,29 @@ async function chooseDirectory(dialog, window, title) {
 		: dialog.showOpenDialog(options)));
 }
 
+async function confirmOperation(dialog, window, request) {
+	const selection = request.selectionFence;
+	const options = {
+		type: 'question',
+		title: 'Local Assistance consent',
+		message: 'Process this exact media selection locally?',
+		detail: [
+			`Operation: ${request.operation}`,
+			`Selected range: ${selection.sourceStartFrame}–${selection.sourceEndFrame} frames`,
+			`Timeline items: ${selection.occurrenceIds.length}`,
+			`Model: ${request.models.map(({ modelId, version }) => `${modelId} ${version}`).join(', ') || 'none'}`,
+		].join('\n'),
+		buttons: ['Run locally', 'Cancel'],
+		defaultId: 1,
+		cancelId: 1,
+		noLink: true,
+	};
+	const result = await (window
+		? dialog.showMessageBox(window, options)
+		: dialog.showMessageBox(options));
+	return result?.response === 0;
+}
+
 export function registerAssistance({
 	channels, handle, on, sendToRenderer, app, settings, dialog, windowFor,
 }) {
@@ -139,6 +162,7 @@ export function registerAssistance({
 			runtime,
 			onProgress,
 		}),
+		confirmOperation: (request) => confirmOperation(dialog, windowFor(), request),
 	});
 	return Object.freeze({ dispose: async () => { await operationIpc.dispose(); runtime.dispose(); } });
 }

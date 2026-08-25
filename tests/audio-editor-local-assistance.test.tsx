@@ -213,6 +213,23 @@ test('unavailable operation outcomes remain typed and still release custody', as
 	assert.equal(store.getSnapshot().canReview, false);
 });
 
+test('declining main-owned consent cancels execution and still releases custody', async () => {
+	const fixture = rawBridgeFixture();
+	fixture.api.run = async () => {
+		fixture.calls.push('run');
+		return { contractVersion: 1, jobId: JOB_ID, operation: 'speech-recognition',
+			outcome: 'consent-declined' };
+	};
+	const bridge = resolveLocalAssistanceBridge({ localAssistance: fixture.api });
+	assert.ok(bridge);
+	const store = selectedStore(bridge, preparationFixture());
+	await store.run();
+
+	assert.deepEqual(fixture.calls, ['models', 'create', 'stage:audio', 'reserve:transcript', 'run', 'release']);
+	assert.equal(store.getSnapshot().phase, 'cancelled');
+	assert.equal(store.getSnapshot().canReview, false);
+});
+
 test('cancellation is explicit and release is attempted after the run quiesces', { timeout: 5_000 }, async () => {
 	const fixture = rawBridgeFixture();
 	let finish: ((value: unknown) => void) | null = null;

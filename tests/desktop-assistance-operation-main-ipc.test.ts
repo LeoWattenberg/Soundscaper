@@ -8,7 +8,10 @@ import {
 	registerAssistanceOperationIpc,
 } from '../desktop/assistance-operation-main-ipc.ts';
 
-function harness(overrides: Readonly<Record<string, unknown>> = {}) {
+function harness(
+	overrides: Readonly<Record<string, unknown>> = {},
+	confirmOperation: (request: unknown) => Promise<boolean> = async () => true,
+) {
 	const handlers = new Map<string, (event: unknown, value?: unknown) => unknown>();
 	const listeners = new Map<string, (event: unknown, value?: unknown) => void>();
 	const sent: unknown[] = [];
@@ -45,9 +48,41 @@ function harness(overrides: Readonly<Record<string, unknown>> = {}) {
 			return operations as never;
 		},
 		createTransfers: () => transfers as never,
+		confirmOperation,
 	});
 	return { handlers, listeners, sent, order, registration, built: () => built, operations, transfers };
 }
+
+test('run requires main-owned consent bound to the exact validated request', async () => {
+	const seen: unknown[] = [];
+	let runs = 0;
+	const request = operationRequest();
+	const declined = harness({ run: async () => { runs += 1; } }, async (value) => {
+		seen.push(value);
+		return false;
+	});
+
+	assert.deepEqual(await declined.handlers.get(ASSISTANCE_OPERATION_IPC_CHANNELS.run)?.(null, request), {
+		contractVersion: 1,
+		jobId: '1'.repeat(40),
+		operation: 'speech-recognition',
+		outcome: 'consent-declined',
+	});
+	assert.equal(runs, 0, 'declining the trusted prompt never enters operation execution');
+	assert.deepEqual(seen, [request]);
+
+	let confirmed: unknown = null;
+	let executed: unknown = null;
+	const accepted = harness({ run: async (value: unknown) => {
+		executed = value;
+		return { completed: true };
+	} }, async (value) => { confirmed = value; return true; });
+	assert.deepEqual(
+		await accepted.handlers.get(ASSISTANCE_OPERATION_IPC_CHANNELS.run)?.(null, request),
+		{ completed: true },
+	);
+	assert.equal(executed, confirmed, 'the exact frozen request confirmed in main is the one executed');
+});
 
 test('the operation service stays lazy and all pathless operations are registered', async () => {
 	const fixture = harness();
@@ -93,6 +128,28 @@ test('native failures are redacted before crossing the control bridge', async ()
 		return true;
 	});
 });
+
+function operationRequest() {
+	return Object.freeze({
+		contractVersion: 1,
+		jobId: '1'.repeat(40),
+		operation: 'speech-recognition',
+		selectionFence: Object.freeze({
+			projectId: 'project-1', schemaVersion: 30, revision: 1, sequenceId: 'sequence-1',
+			occurrenceIds: Object.freeze(['occurrence-1']), sourceId: 'source-1', sourceSha256: '2'.repeat(64),
+			sourceStartFrame: 0, sourceEndFrame: 48_000,
+			linkMembershipSha256: '3'.repeat(64), timingAuthoritySha256: '4'.repeat(64),
+		}),
+		models: Object.freeze([Object.freeze({ modelId: 'parakeet-tdt-0.6b-v2', version: '2.0.0',
+			artifactSha256s: Object.freeze(['5'.repeat(64)]) })]),
+		inputs: Object.freeze([Object.freeze({ claimVersion: 1, claimId: '6'.repeat(40),
+			jobId: '1'.repeat(40), role: 'audio', mediaType: 'audio/wav', byteLength: 4,
+			sha256: '7'.repeat(64) })]),
+		outputs: Object.freeze([Object.freeze({ claimVersion: 1, claimId: '8'.repeat(40),
+			jobId: '1'.repeat(40), role: 'transcript', mediaType: 'application/json',
+			maximumByteLength: 4_096 })]),
+	});
+}
 
 test('cancel and release quiesce transfers before operation staging is removed', async () => {
 	const fixture = harness();

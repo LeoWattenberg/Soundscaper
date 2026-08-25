@@ -197,6 +197,7 @@ export function createLocalAssistanceSessionStore(
 		update({ phase: 'preparing', progress: null, result: null, unavailableReason: null, error: null });
 		let completed: LocalAssistanceValidatedResult | null = null;
 		let unavailableReason: LocalAssistanceUnavailableReason | null = null;
+		let consentDeclined = false;
 		let failure: unknown = null;
 		let released = false;
 		try {
@@ -225,7 +226,8 @@ export function createLocalAssistanceSessionStore(
 				inputs: Object.freeze(inputs), outputs: Object.freeze(outputs),
 			}));
 			if (cancelRequested) throw new CancelledSession();
-			if (outcome.outcome === 'unavailable') unavailableReason = outcome.reason;
+			if (outcome.outcome === 'consent-declined') consentDeclined = true;
+			else if (outcome.outcome === 'unavailable') unavailableReason = outcome.reason;
 			else {
 				const bodies = await Promise.all(outcome.result.outputs.map(async (claim) => Object.freeze({
 					claim, bytes: await options.bridge!.readOutput({ jobId: job.jobId, claim }),
@@ -246,7 +248,7 @@ export function createLocalAssistanceSessionStore(
 		if (failure && !(failure instanceof CancelledSession)) {
 			update({ phase: 'error', result: null, progress: null,
 				error: 'The local-assistance operation failed.', unavailableReason: null });
-		} else if (cancelRequested || failure instanceof CancelledSession) {
+		} else if (cancelRequested || consentDeclined || failure instanceof CancelledSession) {
 			update({ phase: 'cancelled', result: null, progress: null, error: null, unavailableReason: null });
 		} else if (!released) {
 			update({ phase: 'error', result: null, progress: null,
