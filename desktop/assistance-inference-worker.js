@@ -9,6 +9,7 @@ import { parentPort, workerData } from 'node:worker_threads';
 
 import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
 import { verifyAssistanceNativeRuntimePayload } from './assistance-native-runtime-payload.mjs';
+import { createSherpaDiarizerFactory } from './project-library-runtime/desktop/assistance-sherpa-diarizer.js';
 import { createSherpaRecognizerFactory } from './project-library-runtime/desktop/assistance-sherpa-recognizer.js';
 import { createSherpaVadFactory } from './project-library-runtime/desktop/assistance-sherpa-vad.js';
 import { createSpeechRuntimeAdapter } from './project-library-runtime/desktop/assistance-speech-runtime.js';
@@ -33,7 +34,9 @@ void run().then(
 async function run() {
 	const grant = validateAssistanceSpeechJobGrant(workerData);
 	if (grant.operation === 'status') return runtime.status();
-	const modelFiles = grant.operation === 'recognize' ? Object.values(grant.model) : [grant.model];
+	const modelFiles = grant.operation === 'recognize'
+		? Object.values(grant.model)
+		: grant.operation === 'diarize-speakers' ? Object.values(grant.models) : [grant.model];
 	for (const file of [grant.audio, ...modelFiles]) await verifyGrantedFile(file);
 	parentPort?.postMessage({ type: 'progress', value: 0 });
 	if (grant.operation === 'detect-voice-activity') {
@@ -42,6 +45,20 @@ async function run() {
 			modelId: grant.modelId,
 			audioPath: grant.audio.path,
 			model: { model: grant.model.path },
+			onProgress: ({ completed, total }) => parentPort?.postMessage({
+				type: 'progress', value: total === 0 ? 1 : completed / total,
+			}),
+		});
+	}
+	if (grant.operation === 'diarize-speakers') {
+		const diarizer = createSherpaDiarizerFactory(await loadVerifiedRuntime());
+		return diarizer.diarize({
+			audioPath: grant.audio.path,
+			modelIds: grant.modelIds,
+			models: {
+				segmentation: grant.models.segmentation.path,
+				embedding: grant.models.embedding.path,
+			},
 			onProgress: ({ completed, total }) => parentPort?.postMessage({
 				type: 'progress', value: total === 0 ? 1 : completed / total,
 			}),

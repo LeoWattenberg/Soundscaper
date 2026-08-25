@@ -15,6 +15,11 @@ import type {
 	AssistanceJobStartOptions,
 } from './assistance-job-host.ts';
 import {
+	type SpeakerDiarizationRequest,
+	type SpeakerDiarizationResult,
+	type SpeakerDiarizationRuntimeAdapter,
+} from './assistance-diarization-runtime.ts';
+import {
 	SPEECH_RUNTIME_MODULE_ID,
 	normalizeRecognition,
 	type SpeechRecognitionRequest,
@@ -54,7 +59,8 @@ export interface AssistanceFileReadStream extends AsyncIterable<Uint8Array> {
 
 export function createAssistanceHelperRuntimeAdapter(
 	options: AssistanceHelperRuntimeOptions,
-): SpeechRuntimeAdapter & VoiceActivityRuntimeAdapter & Readonly<{ dispose(): void }> {
+): SpeechRuntimeAdapter & VoiceActivityRuntimeAdapter & SpeakerDiarizationRuntimeAdapter
+	& Readonly<{ dispose(): void }> {
 	const mintJobId = options.mintJobId ?? (() => randomBytes(20).toString('hex'));
 	const openFileReadStream = options.openFileReadStream
 		?? ((path: string): AssistanceFileReadStream => createReadStream(path));
@@ -93,7 +99,40 @@ export function createAssistanceHelperRuntimeAdapter(
 				onProgress: request.onProgress,
 			}), grant) as VoiceActivityResult;
 		},
+		async diarize(request: SpeakerDiarizationRequest): Promise<SpeakerDiarizationResult> {
+			const grant = await authorizeDiarization(request, openFileReadStream);
+			return validateAssistanceSpeechJobResult(await run(grant, {
+				signal: request.signal,
+				onProgress: request.onProgress,
+			}), grant) as SpeakerDiarizationResult;
+		},
 		dispose: () => options.host.dispose(),
+	});
+}
+
+async function authorizeDiarization(
+	request: SpeakerDiarizationRequest,
+	openFileReadStream: (path: string) => AssistanceFileReadStream,
+): Promise<AssistanceSpeechJobGrant> {
+	if (!request || typeof request.audioPath !== 'string' || !request.models) {
+		throw new TypeError('Speaker diarization needs audio, segmentation, and embedding files.');
+	}
+	request.signal?.throwIfAborted();
+	const [audio, segmentation, embedding] = await Promise.all([
+		fileGrant(request.audioPath, 'audio', request.signal, openFileReadStream),
+		fileGrant(request.models.segmentation, 'segmentation-model', request.signal, openFileReadStream),
+		fileGrant(request.models.embedding, 'embedding-model', request.signal, openFileReadStream),
+	]);
+	request.signal?.throwIfAborted();
+	return Object.freeze({
+		operation: 'diarize-speakers', moduleId: SPEECH_RUNTIME_MODULE_ID,
+		modelIds: Object.freeze({
+			segmentation: request.modelIds?.segmentation
+				?? `local.segmentation.${segmentation.sha256.slice(0, 16)}`,
+			embedding: request.modelIds?.embedding ?? `local.embedding.${embedding.sha256.slice(0, 16)}`,
+		}),
+		audio,
+		models: Object.freeze({ segmentation, embedding }),
 	});
 }
 

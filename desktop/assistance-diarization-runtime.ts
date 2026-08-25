@@ -19,6 +19,10 @@ export interface SpeakerDiarizationResult {
 
 export interface SpeakerDiarizationRequest {
 	readonly audioPath: string;
+	readonly modelIds?: Readonly<{
+		readonly segmentation: string;
+		readonly embedding: string;
+	}>;
 	readonly models: Readonly<{
 		readonly segmentation: string;
 		readonly embedding: string;
