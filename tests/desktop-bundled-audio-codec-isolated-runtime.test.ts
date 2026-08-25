@@ -13,6 +13,7 @@ import type {
 	BundledAudioCodecHelperConfiguration,
 	BundledAudioCodecId,
 } from '../desktop/bundled-audio-codec-helper-configuration.ts';
+import { bundledAudioCodecSpec } from '../desktop/bundled-audio-codec-helper-configuration.ts';
 import type { BundledAudioCodecOperationRunner } from '../desktop/bundled-audio-codec-operation-runner.ts';
 import type { DesktopAudioCodecProviderRuntime } from '../desktop/desktop-audio-codec-broker.ts';
 import type { DesktopAudioCodecRequest } from '../desktop/desktop-audio-codec-operation-contract.ts';
@@ -25,10 +26,9 @@ const configurations = Object.freeze(Object.fromEntries(IDS.map((codec) => [code
 	contractVersion: 1 as const, target: 'linux-x64' as const, codec,
 	runtimeRoot: '/app/desktop/project-library-runtime', moduleBytes: 1_000,
 	moduleSha256: codec.padEnd(64, 'a').slice(0, 64).replace(/[^a-f0-9]/gu, 'a'),
-	dependencies: Object.freeze([Object.freeze({
-		path: 'desktop/desktop-audio-codec-operation-contract.js',
-		byteLength: 500, sha256: 'c'.repeat(64),
-	})]),
+	dependencies: Object.freeze(bundledAudioCodecSpec(codec).dependencies.map((path) => Object.freeze({
+		path, byteLength: 500, sha256: 'c'.repeat(64),
+	}))),
 	wasmBytes: 10_000, wasmSha256: codec.padEnd(64, 'b').slice(0, 64).replace(/[^a-f0-9]/gu, 'b'),
 })])) as Record<BundledAudioCodecId, BundledAudioCodecHelperConfiguration>);
 
@@ -70,9 +70,15 @@ function operation(format: DesktopAudioCodecRequest['format'], direction: 'decod
 
 test('isolated runtime verifies all seven identities and routes every exact tuple to its proxy', async () => {
 	const verified: BundledAudioCodecId[] = [];
+	const canaries: BundledAudioCodecId[] = [];
 	const preflights: BundledAudioCodecId[] = [];
 	const executions: BundledAudioCodecId[] = [];
 	const runner: BundledAudioCodecOperationRunner = Object.freeze({
+		async canary(codec: BundledAudioCodecId) {
+			canaries.push(codec);
+			verified.push(codec);
+			return true;
+		},
 		async preflight(codec: BundledAudioCodecId) {
 			preflights.push(codec);
 			return Object.freeze({ disposition: 'supported', reason: null });
@@ -90,6 +96,7 @@ test('isolated runtime verifies all seven identities and routes every exact tupl
 	});
 	assert.ok(runtime);
 	assert.deepEqual(verified.sort(), [...IDS].sort());
+	assert.deepEqual(canaries, [...IDS]);
 	const cases = Object.freeze([
 		['flac', 'decode', 'flac'], ['flac', 'encode', 'flac'],
 		['mp3', 'decode', 'mpg123'], ['mp3', 'encode', 'lame'],
@@ -117,15 +124,53 @@ test('isolated runtime verifies all seven identities and routes every exact tupl
 	), null);
 });
 
+test('startup canaries use max-four batches without busy-dropping the second batch', async () => {
+	const started: BundledAudioCodecId[] = [];
+	const releases = new Map<BundledAudioCodecId, (available: boolean) => void>();
+	let active = 0;
+	let maximumActive = 0;
+	const runner: BundledAudioCodecOperationRunner = Object.freeze({
+		async canary(codec: BundledAudioCodecId) {
+			started.push(codec);
+			active += 1;
+			maximumActive = Math.max(maximumActive, active);
+			const available = await new Promise<boolean>((resolvePromise) => {
+				releases.set(codec, resolvePromise);
+			});
+			active -= 1;
+			return available;
+		},
+		async preflight() { return Object.freeze({ disposition: 'supported', reason: null }); },
+		async execute() { return Object.freeze({ status: 'failed', reason: 'unavailable', detail: 'unused' }); },
+	});
+	const loading = loadIsolatedBundledAudioCodecRuntime({
+		target: 'linux-x64', scratchRoot: '/scratch', verifyPayload: async (codec) => configuration(codec),
+		spawn: () => assert.fail('injected runner owns canaries'), createRunner: () => runner,
+	});
+	await new Promise((resolvePromise) => setImmediate(resolvePromise));
+	assert.deepEqual(started, ['flac', 'lame', 'mpg123', 'opus']);
+	for (const codec of started) releases.get(codec)?.(true);
+	await new Promise((resolvePromise) => setImmediate(resolvePromise));
+	assert.deepEqual(started, [...IDS]);
+	for (const codec of started.slice(4)) releases.get(codec)?.(true);
+	assert.ok(await loading);
+	assert.equal(maximumActive, 4);
+});
+
 test('identity failures omit only the affected codec and no loader module enters main', async () => {
+	const verifyPayload = async (codec: BundledAudioCodecId) => {
+		if (codec === 'vorbis') throw new Error('missing');
+		return configuration(codec);
+	};
 	const runtime = await loadIsolatedBundledAudioCodecRuntime({
 		target: 'linux-x64', scratchRoot: '/scratch',
-		verifyPayload: async (codec) => {
-			if (codec === 'vorbis') throw new Error('missing');
-			return configuration(codec);
-		},
+		verifyPayload,
 		spawn: () => assert.fail('unused'),
 		createRunner: () => Object.freeze({
+			async canary(codec: BundledAudioCodecId) {
+				try { await verifyPayload(codec); return true; }
+				catch { return false; }
+			},
 			async preflight() { return Object.freeze({ disposition: 'supported', reason: null }); },
 			async execute() { return Object.freeze({ status: 'failed', reason: 'unavailable', detail: 'unused' }); },
 		}),

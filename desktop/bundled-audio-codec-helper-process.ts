@@ -51,6 +51,11 @@ type HelperPreflightResult = Readonly<{
 	readonly reason: string | null;
 }>;
 
+type HelperCanaryResult = Readonly<{
+	readonly contractVersion: 1;
+	readonly status: 'canary';
+}>;
+
 type HelperExecutionResult = Readonly<{
 	readonly contractVersion: 1;
 	readonly status: 'executed';
@@ -70,7 +75,7 @@ type HelperExecutionResult = Readonly<{
 	readonly detail: string;
 }>;
 
-type HelperJobResult = HelperPreflightResult | HelperExecutionResult;
+type HelperJobResult = HelperCanaryResult | HelperPreflightResult | HelperExecutionResult;
 
 const SHA256 = /^[a-f0-9]{64}$/u;
 const MAXIMUM_INPUT_BYTES = 32 * 1024 * 1024;
@@ -141,6 +146,11 @@ export async function runBundledAudioCodecHelperJob(options: Readonly<{
 }>): Promise<HelperJobResult> {
 	const configuration = normalizeBundledAudioCodecHelperConfiguration(options.configuration);
 	const runtime = inspectedRuntime(options.runtime, configuration);
+	if (dataProperty(options.value, 'type', 'bundled audio codec helper job') === 'canary') {
+		const canary = exactRecord(options.value, ['contractVersion', 'type'], 'bundled audio codec canary');
+		if (canary.contractVersion !== 1) throw new TypeError('The bundled audio codec canary is invalid.');
+		return Object.freeze({ contractVersion: 1, status: 'canary' });
+	}
 	const job = exactRecord(options.value, JOB_FIELDS, 'bundled audio codec helper job');
 	if (job.contractVersion !== 1 || job.type !== 'job'
 		|| job.phase !== 'preflight' && job.phase !== 'execute') {

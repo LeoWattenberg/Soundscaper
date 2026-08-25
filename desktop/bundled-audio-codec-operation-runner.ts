@@ -8,6 +8,7 @@ import { isAbsolute, join } from 'node:path';
 
 import {
 	BUNDLED_AUDIO_CODEC_IDS,
+	normalizeBundledAudioCodecHelperConfiguration,
 	type BundledAudioCodecHelperConfiguration,
 	type BundledAudioCodecId,
 } from './bundled-audio-codec-helper-configuration.js';
@@ -33,6 +34,7 @@ export interface BundledAudioCodecChild {
 }
 
 export interface BundledAudioCodecOperationRunner {
+	canary(codec: BundledAudioCodecId): Promise<boolean>;
 	preflight(
 		codec: BundledAudioCodecId,
 		request: DesktopAudioCodecRequest,
@@ -53,7 +55,10 @@ interface StagedFiles {
 }
 
 type JobPhase = 'preflight' | 'execute';
+type HelperPhase = 'canary' | JobPhase;
 type HelperResult = Readonly<{
+	readonly status: 'canary';
+}> | Readonly<{
 	readonly status: 'preflight';
 	readonly disposition: DesktopCodecPreflightResult['disposition'];
 	readonly reason: string | null;
@@ -72,13 +77,13 @@ type SupervisionFailure =
 	| 'cancelled' | 'helper-crashed' | 'helper-failed' | 'helper-protocol' | 'helper-timeout';
 type SupervisionResult = Readonly<{ readonly status: 'complete'; readonly result: HelperResult }>
 	| Readonly<{ readonly status: 'failed'; readonly reason: SupervisionFailure }>;
-
 const TARGETS = new Set<string>([
 	'linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64',
 ]);
 const CODECS = new Set<string>(BUNDLED_AUDIO_CODEC_IDS);
 const SHA256 = /^[a-f0-9]{64}$/u;
 const DEFAULT_DURATION_MS = 30_000;
+const CANARY_DURATION_LIMIT_MS = 5_000;
 const MAXIMUM_DURATION_MS = 5 * 60_000;
 const DEFAULT_KILL_WAIT_MS = 1_000;
 const MAXIMUM_KILL_WAIT_MS = 5_000;
@@ -88,11 +93,6 @@ const DETAIL_BYTES = 2_048;
 const FAILURE_REASONS = new Set<string>([
 	'unavailable', 'cancelled', 'execution-failed', 'security-failed', 'process-failed', 'result-failed',
 ]);
-const CONFIGURATION_FIELDS = Object.freeze([
-	'contractVersion', 'target', 'codec', 'runtimeRoot', 'moduleBytes', 'moduleSha256',
-	'dependencies', 'wasmBytes', 'wasmSha256',
-]);
-
 const DETAILS = Object.freeze({
 	busy: 'The isolated bundled codec helper capacity is busy.',
 	cancelled: 'The isolated bundled codec job was cancelled.',
@@ -113,6 +113,7 @@ export function createBundledAudioCodecOperationRunner(options: Readonly<{
 	readonly verifyPayload: (codec: BundledAudioCodecId) => Promise<BundledAudioCodecHelperConfiguration>;
 	readonly spawn: (configuration: BundledAudioCodecHelperConfiguration) => BundledAudioCodecChild;
 	readonly maximumDurationMs?: number;
+	readonly canaryDurationMs?: number;
 	readonly killWaitMs?: number;
 	readonly maximumActiveJobs?: number;
 }>): BundledAudioCodecOperationRunner {
@@ -120,6 +121,7 @@ export function createBundledAudioCodecOperationRunner(options: Readonly<{
 	const maximumDurationMs = integer(
 		options.maximumDurationMs ?? DEFAULT_DURATION_MS, 1, MAXIMUM_DURATION_MS, 'maximum duration',
 	);
+	const canaryDurationMs = integer(options.canaryDurationMs ?? CANARY_DURATION_LIMIT_MS, 1, CANARY_DURATION_LIMIT_MS, 'canary duration');
 	const killWaitMs = integer(
 		options.killWaitMs ?? DEFAULT_KILL_WAIT_MS, 1, MAXIMUM_KILL_WAIT_MS, 'kill wait',
 	);
@@ -152,7 +154,20 @@ export function createBundledAudioCodecOperationRunner(options: Readonly<{
 		} finally { activeJobs -= 1; }
 	}
 
+	async function canary(codecValue: BundledAudioCodecId): Promise<boolean> {
+		const codec = codecId(codecValue);
+		if (activeJobs >= maximumActiveJobs) return false;
+		activeJobs += 1;
+		try {
+			return await runCanary({
+				codec, target: options.target, verifyPayload: options.verifyPayload, spawn: options.spawn,
+				maximumDurationMs: canaryDurationMs, killWaitMs,
+			});
+		} finally { activeJobs -= 1; }
+	}
+
 	return Object.freeze({
+		canary,
 		async preflight(
 			codec: BundledAudioCodecId,
 			request: DesktopAudioCodecRequest,
@@ -172,6 +187,29 @@ export function createBundledAudioCodecOperationRunner(options: Readonly<{
 			)) as DesktopAudioCodecProviderExecutionResult;
 		},
 	});
+}
+
+async function runCanary(options: Readonly<{
+	codec: BundledAudioCodecId;
+	target: DesktopCodecTarget;
+	verifyPayload: (codec: BundledAudioCodecId) => Promise<BundledAudioCodecHelperConfiguration>;
+	spawn: (configuration: BundledAudioCodecHelperConfiguration) => BundledAudioCodecChild;
+	maximumDurationMs: number;
+	killWaitMs: number;
+}>): Promise<boolean> {
+	let configuration: BundledAudioCodecHelperConfiguration;
+	try {
+		configuration = normalizeBundledAudioCodecHelperConfiguration(await options.verifyPayload(options.codec));
+		if (configuration.target !== options.target || configuration.codec !== options.codec) throw new Error();
+	} catch { return false; }
+	let child: BundledAudioCodecChild;
+	try { child = inspectedChild(options.spawn(configuration)); }
+	catch { return false; }
+	const supervised = await supervise({
+		child, configuration, phase: 'canary', signal: undefined,
+		maximumDurationMs: options.maximumDurationMs, killWaitMs: options.killWaitMs,
+	});
+	return supervised.status === 'complete' && supervised.result.status === 'canary';
 }
 
 async function runActive(options: Readonly<{
@@ -222,9 +260,8 @@ async function runStaged(options: Readonly<{
 	if (options.signal?.aborted) return failure(options.phase, 'cancelled', DETAILS.cancelled);
 	let configuration: BundledAudioCodecHelperConfiguration;
 	try {
-		configuration = helperConfiguration(
-			await options.verifyPayload(options.codec), options.target, options.codec,
-		);
+		configuration = normalizeBundledAudioCodecHelperConfiguration(await options.verifyPayload(options.codec));
+		if (configuration.target !== options.target || configuration.codec !== options.codec) throw new Error();
 	} catch { return failure(options.phase, 'security-failed', DETAILS.identity); }
 	if (options.signal?.aborted) return failure(options.phase, 'cancelled', DETAILS.cancelled);
 	let child: BundledAudioCodecChild;
@@ -260,17 +297,20 @@ async function runStaged(options: Readonly<{
 	});
 }
 
-function supervise(options: Readonly<{
+type SupervisionOptions = Readonly<{
 	child: BundledAudioCodecChild;
 	configuration: BundledAudioCodecHelperConfiguration;
+	signal: AbortSignal | undefined;
+	maximumDurationMs: number;
+	killWaitMs: number;
+}> & (Readonly<{ phase: 'canary' }> | Readonly<{
 	phase: JobPhase;
 	files: StagedFiles;
 	request: DesktopAudioCodecRequest;
 	operation: DesktopCodecOperation;
-	signal: AbortSignal | undefined;
-	maximumDurationMs: number;
-	killWaitMs: number;
-}>): Promise<SupervisionResult> {
+}>);
+
+function supervise(options: SupervisionOptions): Promise<SupervisionResult> {
 	return new Promise((resolve) => {
 		let phase: 'ready' | 'running' | 'terminal' = 'ready';
 		let terminal: HelperResult | null = null;
@@ -332,12 +372,8 @@ function supervise(options: Readonly<{
 	});
 }
 
-function helperJob(options: Readonly<{
-	phase: JobPhase;
-	files: StagedFiles;
-	request: DesktopAudioCodecRequest;
-	operation: DesktopCodecOperation;
-}>): unknown {
+function helperJob(options: SupervisionOptions): unknown {
+	if (options.phase === 'canary') return Object.freeze({ contractVersion: 1, type: 'canary' });
 	const request = options.request;
 	return Object.freeze({
 		contractVersion: 1, type: 'job', phase: options.phase,
@@ -367,7 +403,7 @@ function inspectReady(value: unknown, configuration: BundledAudioCodecHelperConf
 	}
 }
 
-function inspectTerminal(value: unknown, phase: JobPhase): HelperResult {
+function inspectTerminal(value: unknown, phase: HelperPhase): HelperResult {
 	const type = dataProperty(value, 'type', 'helper terminal message');
 	if (type === 'error') {
 		const error = exactRecord(value, ['contractVersion', 'type', 'code'], 'helper error');
@@ -380,8 +416,16 @@ function inspectTerminal(value: unknown, phase: JobPhase): HelperResult {
 	if (envelope.contractVersion !== 1 || envelope.type !== 'result') {
 		throw new TypeError('The bundled audio codec helper result is invalid.');
 	}
-	return phase === 'preflight'
-		? inspectPreflight(envelope.result) : inspectExecution(envelope.result);
+	if (phase === 'canary') return inspectCanary(envelope.result);
+	return phase === 'preflight' ? inspectPreflight(envelope.result) : inspectExecution(envelope.result);
+}
+
+function inspectCanary(value: unknown): HelperResult {
+	const record = exactRecord(value, ['contractVersion', 'status'], 'helper canary result');
+	if (record.contractVersion !== 1 || record.status !== 'canary') {
+		throw new TypeError('The bundled audio codec helper canary is invalid.');
+	}
+	return Object.freeze({ status: 'canary' });
 }
 
 function inspectPreflight(value: unknown): HelperResult {
@@ -477,54 +521,13 @@ async function prepareScratch(root: string): Promise<string> {
 	}
 }
 
-function helperConfiguration(
-	value: unknown,
-	target: DesktopCodecTarget,
-	codec: BundledAudioCodecId,
-): BundledAudioCodecHelperConfiguration {
-	const record = exactRecord(value, CONFIGURATION_FIELDS, 'helper configuration');
-	if (record.contractVersion !== 1 || record.target !== target || record.codec !== codec
-		|| typeof record.runtimeRoot !== 'string' || !isAbsolute(record.runtimeRoot)
-		|| record.runtimeRoot.includes('\0') || typeof record.moduleSha256 !== 'string'
-		|| !SHA256.test(record.moduleSha256) || typeof record.wasmSha256 !== 'string'
-		|| !SHA256.test(record.wasmSha256)) throw new TypeError('The helper configuration is invalid.');
-	return Object.freeze({
-		contractVersion: 1, target, codec, runtimeRoot: record.runtimeRoot,
-		moduleBytes: integer(record.moduleBytes, 1, 2 * 1024 * 1024, 'module byte length'),
-		moduleSha256: record.moduleSha256,
-		dependencies: dependencyDescriptors(record.dependencies),
-		wasmBytes: integer(record.wasmBytes, 8, 2 * 1024 * 1024, 'wasm byte length'),
-		wasmSha256: record.wasmSha256,
-	});
-}
-
-function dependencyDescriptors(value: unknown) {
-	if (!Array.isArray(value) || value.length < 1 || value.length > 8) {
-		throw new TypeError('The helper dependency inventory is invalid.');
-	}
-	const paths = new Set<string>();
-	return Object.freeze(value.map((candidate) => {
-		const record = exactRecord(candidate, ['path', 'byteLength', 'sha256'], 'helper dependency');
-		if (typeof record.path !== 'string' || record.path.startsWith('/') || record.path.includes('\\')
-			|| record.path.split('/').includes('..') || paths.has(record.path)
-			|| typeof record.sha256 !== 'string' || !SHA256.test(record.sha256)) {
-			throw new TypeError('The helper dependency inventory is invalid.');
-		}
-		paths.add(record.path);
-		return Object.freeze({
-			path: record.path,
-			byteLength: integer(record.byteLength, 1, 2 * 1024 * 1024, 'dependency byte length'),
-			sha256: record.sha256,
-		});
-	}));
-}
-
 function validateOptions(options: Readonly<{
 	target: DesktopCodecTarget;
 	scratchRoot: string;
 	verifyPayload: unknown;
 	spawn: unknown;
 	maximumDurationMs?: number;
+	canaryDurationMs?: number;
 	killWaitMs?: number;
 	maximumActiveJobs?: number;
 }>): void {

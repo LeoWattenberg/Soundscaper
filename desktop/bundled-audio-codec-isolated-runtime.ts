@@ -35,7 +35,7 @@ import {
 } from '../src/common/editor/desktop-codec-provider-catalog.js';
 
 const TARGETS = new Set<string>(DESKTOP_CODEC_TARGETS);
-const SHA256 = /^[a-f0-9]{64}$/u;
+const STARTUP_CANARY_BATCH_SIZE = 4;
 
 export async function loadIsolatedBundledAudioCodecRuntime(options: Readonly<{
 	readonly target: DesktopCodecTarget;
@@ -46,17 +46,22 @@ export async function loadIsolatedBundledAudioCodecRuntime(options: Readonly<{
 }>): Promise<DesktopAudioCodecProviderRuntime | null> {
 	validateOptions(options);
 	const target = options.target;
-	const admitted = (await Promise.all(BUNDLED_AUDIO_CODEC_IDS.map(async (codec) => {
-		try {
-			inspectConfiguration(await options.verifyPayload(codec), target, codec);
-			return codec;
-		} catch { return null; }
-	}))).filter((codec): codec is BundledAudioCodecId => codec !== null);
-	if (admitted.length === 0) return null;
 	const runner = (options.createRunner ?? createBundledAudioCodecOperationRunner)({
 		target, scratchRoot: options.scratchRoot,
 		verifyPayload: options.verifyPayload, spawn: options.spawn,
 	});
+	const admitted: BundledAudioCodecId[] = [];
+	for (let offset = 0; offset < BUNDLED_AUDIO_CODEC_IDS.length; offset += STARTUP_CANARY_BATCH_SIZE) {
+		const batch = BUNDLED_AUDIO_CODEC_IDS.slice(offset, offset + STARTUP_CANARY_BATCH_SIZE);
+		const results = await Promise.all(batch.map(async (codec) => {
+			try { return await runner.canary(codec); }
+			catch { return false; }
+		}));
+		for (const [index, available] of results.entries()) {
+			if (available) admitted.push(batch[index]!);
+		}
+	}
+	if (admitted.length === 0) return null;
 	const runtimes = new Map(admitted.map((codec) => [
 		codec, proxyRuntime(codec, target, runner),
 	] as const));
@@ -149,26 +154,6 @@ function compositeProvider(
 			});
 		},
 	});
-}
-
-function inspectConfiguration(
-	value: unknown,
-	target: DesktopCodecTarget,
-	codec: BundledAudioCodecId,
-): void {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Invalid identity.');
-	const configuration = value as BundledAudioCodecHelperConfiguration;
-	if (configuration.contractVersion !== 1 || configuration.target !== target
-		|| configuration.codec !== codec || typeof configuration.runtimeRoot !== 'string'
-		|| !isAbsolute(configuration.runtimeRoot) || !Number.isSafeInteger(configuration.moduleBytes)
-		|| configuration.moduleBytes < 1 || typeof configuration.moduleSha256 !== 'string'
-		|| !SHA256.test(configuration.moduleSha256) || !Array.isArray(configuration.dependencies)
-		|| configuration.dependencies.length < 1 || configuration.dependencies.some((dependency) => (
-			typeof dependency.path !== 'string' || !Number.isSafeInteger(dependency.byteLength)
-				|| dependency.byteLength < 1 || !SHA256.test(dependency.sha256)
-		)) || !Number.isSafeInteger(configuration.wasmBytes)
-		|| configuration.wasmBytes < 8 || typeof configuration.wasmSha256 !== 'string'
-		|| !SHA256.test(configuration.wasmSha256)) throw new TypeError('Invalid identity.');
 }
 
 function validateOptions(options: Readonly<{

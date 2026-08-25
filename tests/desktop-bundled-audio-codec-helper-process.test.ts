@@ -182,6 +182,26 @@ test('helper runs bounded preflight and execution jobs through private files', a
 	});
 });
 
+test('helper acknowledges one exact canary only after its authenticated runtime is ready', async (context) => {
+	const files = await fixture(context);
+	const posted: unknown[] = [];
+	const exits: number[] = [];
+	const worker = await createBundledAudioCodecHelperWorker({
+		configuration: files.configuration,
+		post: (message) => { posted.push(message); },
+		exit: (code) => { exits.push(code); },
+		schedule: (callback) => { callback(); },
+		ports: { importRuntime: async () => runtime() },
+	});
+	worker.handleMessage(Object.freeze({ contractVersion: 1, type: 'canary' }));
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.deepEqual(posted, [
+		{ contractVersion: 1, type: 'ready', target: 'linux-x64', codec: 'flac' },
+		{ contractVersion: 1, type: 'result', result: { contractVersion: 1, status: 'canary' } },
+	]);
+	assert.deepEqual(exits, [0]);
+});
+
 test('helper rejects path escapes, changed input, oversized output, and inexact messages', async (context) => {
 	const files = await fixture(context);
 	const staged = await jobFiles(files.scratchRoot);

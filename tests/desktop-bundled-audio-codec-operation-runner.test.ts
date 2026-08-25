@@ -11,8 +11,10 @@ import {
 	createBundledAudioCodecOperationRunner,
 	type BundledAudioCodecChild,
 } from '../desktop/bundled-audio-codec-operation-runner.ts';
-import type {
-	BundledAudioCodecHelperConfiguration,
+import {
+	bundledAudioCodecSpec,
+	type BundledAudioCodecId,
+	type BundledAudioCodecHelperConfiguration,
 } from '../desktop/bundled-audio-codec-helper-configuration.ts';
 
 const digest = (value: Uint8Array): string => createHash('sha256').update(value).digest('hex');
@@ -57,10 +59,9 @@ async function scratch(context: TestContext): Promise<string> {
 const configuration: BundledAudioCodecHelperConfiguration = Object.freeze({
 	contractVersion: 1, target: 'linux-x64', codec: 'flac', runtimeRoot: '/app/runtime',
 	moduleBytes: 10_000, moduleSha256: 'a'.repeat(64),
-	dependencies: Object.freeze([Object.freeze({
-		path: 'desktop/desktop-audio-codec-operation-contract.js',
-		byteLength: 1_000, sha256: 'c'.repeat(64),
-	})]),
+	dependencies: Object.freeze(bundledAudioCodecSpec('flac').dependencies.map((path) => Object.freeze({
+		path, byteLength: 1_000, sha256: 'c'.repeat(64),
+	}))),
 	wasmBytes: 153_044, wasmSha256: 'b'.repeat(64),
 });
 
@@ -76,6 +77,63 @@ const operation = Object.freeze({
 	container: 'flac', codec: 'flac', profile: null,
 	sampleFormat: 'f32', pixelFormat: null,
 	sampleRate: null, channelCount: null, width: null, height: null,
+});
+
+test('startup canary verifies, forks once, and drains the terminal helper', async (context) => {
+	const scratchRoot = await scratch(context);
+	let child: FakeChild;
+	let verifications = 0;
+	const runner = createBundledAudioCodecOperationRunner({
+		target: 'linux-x64', scratchRoot,
+		verifyPayload: async (codec: BundledAudioCodecId) => {
+			verifications += 1;
+			assert.equal(codec, 'flac');
+			return configuration;
+		},
+		spawn: () => {
+			child = new FakeChild((message) => {
+				assert.deepEqual(message, { contractVersion: 1, type: 'canary' });
+				child.emitMessage({
+					contractVersion: 1, type: 'result',
+					result: { contractVersion: 1, status: 'canary' },
+				});
+				child.emitExit(0);
+			});
+			queueMicrotask(() => child.emitMessage({
+				contractVersion: 1, type: 'ready', target: 'linux-x64', codec: 'flac',
+			}));
+			return child;
+		},
+	});
+	assert.equal(await runner.canary('flac'), true);
+	assert.equal(verifications, 1);
+	assert.equal(child!.killed, false);
+	assert.deepEqual(await readdir(scratchRoot), []);
+});
+
+test('startup canary uses its short deadline and drains a killed child', async (context) => {
+	const scratchRoot = await scratch(context);
+	assert.throws(() => createBundledAudioCodecOperationRunner({
+		target: 'linux-x64', scratchRoot, verifyPayload: async () => configuration,
+		spawn: () => new FakeChild(), canaryDurationMs: 5_001,
+	}), /canary duration/iu);
+	let child: FakeChild;
+	const runner = createBundledAudioCodecOperationRunner({
+		target: 'linux-x64', scratchRoot, verifyPayload: async () => configuration,
+		spawn: () => {
+			child = new FakeChild();
+			queueMicrotask(() => child.emitMessage({
+				contractVersion: 1, type: 'ready', target: 'linux-x64', codec: 'flac',
+			}));
+			return child;
+		},
+		maximumDurationMs: 1_000, canaryDurationMs: 5, killWaitMs: 50,
+	});
+	const canary = runner.canary('flac');
+	await new Promise((resolve) => setTimeout(resolve, 10));
+	assert.equal(child!.killed, true);
+	child!.emitExit(null);
+	assert.equal(await canary, false);
 });
 
 test('runner stages an exact preflight only after the authenticated helper is ready', async (context) => {
