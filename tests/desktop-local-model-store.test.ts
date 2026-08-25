@@ -187,6 +187,16 @@ test('externally truncated bytes are reported as uninstalled', { timeout: 20_000
 	assert.deepEqual(await store.listInstalled(), [], 'a manifest with truncated bytes is not an installation');
 });
 
+test('artifact verification detects same-length external tampering', { timeout: 20_000 }, async (t) => {
+	const { store, root } = await createStore();
+	t.after(() => rm(root, { recursive: true, force: true }));
+
+	const artifact = await publish(store, 'model.onnx', 'model-a');
+	await writeFile(store.blobPath(artifact.sha256), 'model-b');
+
+	assert.equal(await store.verifyArtifact(artifact), false);
+});
+
 test('the store refuses ids, versions, and digests it cannot place safely', { timeout: 20_000 }, async (t) => {
 	const { store, root } = await createStore();
 	t.after(() => rm(root, { recursive: true, force: true }));

@@ -171,6 +171,9 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 		if (!manifest) throw new Error(`${modelId} is not installed.`);
 		const paths: Record<string, string> = {};
 		for (const artifact of manifest.artifacts) {
+			if (!await store.verifyArtifact(artifact)) {
+				throw new Error(`${modelId} artifact ${artifact.fileName} failed its integrity check.`);
+			}
 			const role = artifact.fileName.split('.')[0] as string;
 			paths[role] = store.blobPath(artifact.sha256);
 		}

@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -152,6 +152,18 @@ test('installed artifacts resolve to store paths by role', { timeout: 20_000 }, 
 	assert.ok(paths.encoder?.includes(`sha256-${digest(ENCODER)}`), 'paths are content-addressed');
 
 	await assert.rejects(service.resolveModelPaths('spleeter'), /is not installed/iu);
+});
+
+test('runtime path resolution rehashes installed artifacts', { timeout: 20_000 }, async (t) => {
+	const service = await serviceIn(t);
+	await service.install('silero-vad-v6');
+	const paths = await service.resolveModelPaths('silero-vad-v6');
+	await writeFile(paths.encoder as string, 'tampered weights');
+
+	await assert.rejects(
+		service.resolveModelPaths('silero-vad-v6'),
+		/failed its integrity check/iu,
+	);
 });
 
 test('removing a model reclaims its bytes and returns it to installable', { timeout: 20_000 }, async (t) => {
