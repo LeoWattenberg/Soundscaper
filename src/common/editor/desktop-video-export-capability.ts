@@ -31,7 +31,7 @@ function unavailableCapability(format: DesktopVideoExportFormat): DesktopVideoEx
 	return Object.freeze({
 		available: false,
 		provider: null,
-		reason: `Desktop ${format === 'mp4' ? 'MP4' : 'WebM'} export is unavailable because this build has no qualified desktop video provider. Use Edit > Preferences > General to manage or check external FFmpeg; configuring it does not enable video export in this build.`,
+		reason: `Desktop ${format === 'mp4' ? 'MP4' : 'WebM'} export needs an execution-qualified external FFmpeg provider. Manage or rescan it in Edit > Preferences > General.`,
 	});
 }
 
@@ -43,6 +43,10 @@ function normalizeFormatCapability(
 	format: DesktopVideoExportFormat,
 	value: unknown,
 ): DesktopVideoExportFormatCapability {
+	if (isRecord(value) && value.available === false && value.provider === null
+		&& boundedReason(value.reason)) {
+		return Object.freeze({ available: false, provider: null, reason: value.reason });
+	}
 	if (!isRecord(value) || value.available !== true || !PROVIDERS.has(
 		value.provider as DesktopVideoExportProvider,
 	)) return unavailableCapability(format);
@@ -59,7 +63,12 @@ function capabilityNotice(
 	const unavailable = FORMATS.filter((format) => !formats[format].available)
 		.map((format) => format === 'mp4' ? 'MP4' : 'WebM');
 	if (unavailable.length === 0) return null;
-	return `Desktop ${unavailable.join(' and ')} export ${unavailable.length === 1 ? 'is' : 'are'} unavailable because this build has no qualified desktop video provider. Use Edit > Preferences > General to manage or check external FFmpeg; configuring it does not enable video export in this build.`;
+	return `Desktop ${unavailable.join(' and ')} export ${unavailable.length === 1 ? 'is' : 'are'} unavailable. Manage or rescan external FFmpeg in Edit > Preferences > General.`;
+}
+
+function boundedReason(value: unknown): value is string {
+	return typeof value === 'string' && value.length >= 1 && value.length <= 512
+		&& value.trim() === value && !/[\u0000-\u001f\u007f]/u.test(value);
 }
 
 /** Normalize an untrusted desktop bridge response, failing closed per format. */

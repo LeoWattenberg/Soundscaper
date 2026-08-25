@@ -40,9 +40,24 @@ test('desktop video export fails closed for absent, malformed, and generic FFmpe
 		assert.equal(desktopVideoExportFormatAvailable('webm', capabilities), false);
 		const reason = desktopVideoExportFormatReason('mp4', capabilities) ?? '';
 		assert.match(reason, /Edit > Preferences > General/u);
-		assert.match(reason, /configuring it does not enable video export in this build/iu);
+		assert.match(reason, /execution-qualified external FFmpeg/iu);
 		assert.doesNotMatch(reason, /then reopen Export/iu);
+		assert.doesNotMatch(reason, /does not enable video export/iu);
 	}
+});
+
+test('desktop video export preserves bounded execution-qualification failure reasons', () => {
+	const reason = 'The configured FFmpeg failed exact H264/AAC MP4 execution qualification. Manage or rescan it in Edit > Preferences > General.';
+	const capabilities = desktopVideoExportCapabilities({
+		schemaVersion: 1,
+		formats: {
+			mp4: { available: false, provider: null, reason },
+			webm: EXPLICIT_CAPABILITIES.formats.webm,
+		},
+	});
+	assert.equal(desktopVideoExportFormatReason('mp4', capabilities), reason);
+	assert.match(capabilities.notice ?? '', /MP4.*unavailable/iu);
+	assert.doesNotMatch(capabilities.notice ?? '', /does not enable video export/iu);
 });
 
 test('desktop video export guard bypasses browsers and refuses desktop work before execution', async () => {
