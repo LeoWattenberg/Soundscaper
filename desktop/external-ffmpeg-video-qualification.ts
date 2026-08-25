@@ -20,6 +20,10 @@ import {
 } from './external-ffmpeg-executable-pair-admission.js';
 import type { ExternalFfmpegRuntimeAdmission } from './external-ffmpeg-preference-service.js';
 import {
+	inspectExternalFfmpegVideoCanaryOutput,
+	type ExternalFfmpegVideoCanaryInspector,
+} from './external-ffmpeg-video-canary-inspection.js';
+import {
 	closeExternalFfmpegVideoInput,
 	curatedExternalFfmpegVideoEnvironment,
 	guardExternalFfmpegVideoArguments,
@@ -39,6 +43,7 @@ export interface ExternalFfmpegVideoQualificationOptions {
 	readonly terminationGraceMs?: number;
 	readonly killWaitMs?: number;
 	readonly signal?: AbortSignal;
+	readonly inspectOutput?: ExternalFfmpegVideoCanaryInspector;
 }
 
 const FORMATS = Object.freeze(['mp4', 'webm'] as const);
@@ -63,6 +68,7 @@ export async function qualifyExternalFfmpegVideoAdmission(
 	throwIfAborted(options.signal);
 	const tokenCapabilities = createDesktopExternalFfmpegVideoCapabilities(options.admission);
 	const pair = executablePair(options.admission);
+	const inspectOutput = options.inspectOutput ?? inspectExternalFfmpegVideoCanaryOutput;
 	await assertIdentity(pair, options.digestExecutable);
 	const formats: Record<DesktopVideoCodecFormat, DesktopExternalFfmpegVideoCapabilities['formats']['mp4']> = {
 		mp4: tokenCapabilities.formats.mp4,
@@ -71,7 +77,7 @@ export async function qualifyExternalFfmpegVideoAdmission(
 	for (const format of FORMATS) {
 		throwIfAborted(options.signal);
 		if (!formats[format].available) continue;
-		try { await qualifyFormat(format, pair, options); }
+		try { await qualifyFormat(format, pair, options, inspectOutput); }
 		catch (error) {
 			if (error instanceof ExternalFfmpegVideoQualificationIdentityError) throw error;
 			throwIfAborted(options.signal);
@@ -90,6 +96,7 @@ async function qualifyFormat(
 	format: DesktopVideoCodecFormat,
 	pair: ExternalFfmpegExecutablePairAdmission,
 	options: ExternalFfmpegVideoQualificationOptions,
+	inspectOutput: ExternalFfmpegVideoCanaryInspector,
 ): Promise<void> {
 	await mkdir(options.scratchRoot, { recursive: true, mode: 0o700 });
 	const scratchDirectory = await mkdtemp(join(options.scratchRoot, `video-${format}-qualification-`));
@@ -138,6 +145,19 @@ async function qualifyFormat(
 			throw qualificationError('output-drift', 'External FFmpeg canary output changed during validation.');
 		}
 		assertFiniteVideoKeyframeContainer(bytes, format);
+		throwIfAborted(options.signal);
+		await inspectOutput(Object.freeze({
+			format,
+			ffprobePath: pair.ffprobePath,
+			outputPath,
+			workingDirectory: scratchDirectory,
+			environment: options.environment ?? processEnvironment(),
+			signal: controller.signal,
+			...(options.terminationGraceMs === undefined
+				? {} : { terminationGraceMs: options.terminationGraceMs }),
+			...(options.killWaitMs === undefined ? {} : { killWaitMs: options.killWaitMs }),
+		}));
+		throwIfAborted(options.signal);
 	} finally {
 		options.signal?.removeEventListener('abort', onAbort);
 		await rm(scratchDirectory, { recursive: true, force: true, maxRetries: 2, retryDelay: 25 });
@@ -189,13 +209,14 @@ async function assertIdentity(
 }
 
 function float32SilenceWav(): Uint8Array {
-	const bytes = new Uint8Array(48);
+	const bytes = new Uint8Array(52);
 	const view = new DataView(bytes.buffer);
-	writeAscii(bytes, 0, 'RIFF'); view.setUint32(4, 40, true); writeAscii(bytes, 8, 'WAVE');
+	writeAscii(bytes, 0, 'RIFF'); view.setUint32(4, 44, true); writeAscii(bytes, 8, 'WAVE');
 	writeAscii(bytes, 12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 3, true);
-	view.setUint16(22, 1, true); view.setUint32(24, 48_000, true); view.setUint32(28, 192_000, true);
-	view.setUint16(32, 4, true); view.setUint16(34, 32, true);
-	writeAscii(bytes, 36, 'data'); view.setUint32(40, 4, true); view.setFloat32(44, 0, true);
+	view.setUint16(22, 2, true); view.setUint32(24, 48_000, true); view.setUint32(28, 384_000, true);
+	view.setUint16(32, 8, true); view.setUint16(34, 32, true);
+	writeAscii(bytes, 36, 'data'); view.setUint32(40, 8, true);
+	view.setFloat32(44, 0, true); view.setFloat32(48, 0, true);
 	return bytes;
 }
 
@@ -229,6 +250,7 @@ function validateOptions(options: ExternalFfmpegVideoQualificationOptions): void
 		|| options.scratchRoot.includes('\0') || !options.admission
 		|| typeof options.digestExecutable !== 'function'
 		|| options.spawn !== undefined && typeof options.spawn !== 'function'
+		|| options.inspectOutput !== undefined && typeof options.inspectOutput !== 'function'
 		|| options.signal !== undefined && !(options.signal instanceof AbortSignal)
 		|| options.environment !== undefined && (!options.environment
 			|| typeof options.environment !== 'object')) {

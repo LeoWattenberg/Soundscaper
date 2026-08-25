@@ -75,6 +75,7 @@ const DESKTOP_EXTERNAL_FFMPEG_CONTROL_RUNTIME_FILES = Object.freeze([
 	'desktop/external-ffmpeg-preference-node-probe.js',
 	'desktop/external-ffmpeg-preference-service.js',
 	'desktop/external-ffmpeg-probe.js',
+	'desktop/external-ffmpeg-video-canary-inspection.js',
 	'desktop/external-ffmpeg-video-operation-service.js',
 	'desktop/external-ffmpeg-video-process.js',
 	'desktop/external-ffmpeg-video-qualification.js',

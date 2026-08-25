@@ -9,6 +9,10 @@ import { PassThrough, Writable } from 'node:stream';
 import test from 'node:test';
 
 import { externalFfmpegExecutablePairClosureSha256 } from '../desktop/external-ffmpeg-node-runtime.ts';
+import type {
+	ExternalFfmpegVideoCanaryInspector,
+	ExternalFfmpegVideoCanaryInspectionRequest,
+} from '../desktop/external-ffmpeg-video-canary-inspection.ts';
 import {
 	ExternalFfmpegVideoQualificationIdentityError,
 	qualifyExternalFfmpegVideoAdmission,
@@ -29,6 +33,7 @@ test('qualification executes exact shell-free A/V plans and cleans private outpu
 		video: Buffer[];
 		audio: Buffer[];
 	}>> = [];
+	const inspections: ExternalFfmpegVideoCanaryInspectionRequest[] = [];
 	const spawn: ExternalFfmpegVideoSpawn = (_executable, arguments_, options) => {
 		const video: Buffer[] = [];
 		const audio: Buffer[] = [];
@@ -50,6 +55,7 @@ test('qualification executes exact shell-free A/V plans and cleans private outpu
 		const result = await qualifyExternalFfmpegVideoAdmission({
 			scratchRoot: root, admission: admission(), spawn, environment: {},
 			digestExecutable: exactDigest,
+			inspectOutput: async (request) => { inspections.push(request); },
 		});
 		assert.equal(result.formats.mp4.available, true);
 		assert.equal(result.formats.webm.available, true);
@@ -60,8 +66,17 @@ test('qualification executes exact shell-free A/V plans and cleans private outpu
 			assert.ok(launch.arguments_.includes('pipe:4'));
 			assert.ok(launch.arguments_.includes('-fs'));
 			assert.equal(Buffer.concat(launch.video).byteLength, 16 * 16 * 4);
-			assert.equal(Buffer.concat(launch.audio).byteLength, 48);
+			assert.equal(Buffer.concat(launch.audio).byteLength, 52);
 		}
+		assert.deepEqual(inspections.map((request) => Object.freeze({
+			format: request.format,
+			ffprobePath: request.ffprobePath,
+			outputName: request.outputPath.split('/').at(-1),
+			privateOutput: request.outputPath.startsWith(`${request.workingDirectory}/`),
+		})), [
+			{ format: 'mp4', ffprobePath: '/opt/ffprobe', outputName: 'canary.mp4', privateOutput: true },
+			{ format: 'webm', ffprobePath: '/opt/ffprobe', outputName: 'canary.webm', privateOutput: true },
+		]);
 		assert.deepEqual(await readdir(root), []);
 	} finally { await rm(root, { recursive: true, force: true }); }
 });
@@ -84,7 +99,7 @@ test('qualification fails only the exact format whose execution output is malfor
 	try {
 		const result = await qualifyExternalFfmpegVideoAdmission({
 			scratchRoot: root, admission: admission(), spawn, environment: {},
-			digestExecutable: exactDigest,
+			digestExecutable: exactDigest, inspectOutput: acceptInspection,
 		});
 		assert.equal(result.formats.mp4.available, true);
 		assert.equal(result.formats.webm.available, false);
@@ -99,6 +114,7 @@ test('qualification rejects executable identity drift instead of advertising sta
 	try {
 		await assert.rejects(() => qualifyExternalFfmpegVideoAdmission({
 			scratchRoot: root, admission: admission({ webm: false }), environment: {},
+			inspectOutput: acceptInspection,
 			spawn: (_executable, arguments_) => {
 				const child = fakeChild(new PassThrough(), new PassThrough());
 				let finished = 0;
@@ -125,7 +141,7 @@ test('qualification rejects an oversized canary output within its private bound'
 	try {
 		const result = await qualifyExternalFfmpegVideoAdmission({
 			scratchRoot: root, admission: admission({ webm: false }), environment: {},
-			digestExecutable: exactDigest,
+			digestExecutable: exactDigest, inspectOutput: acceptInspection,
 			spawn: (_executable, arguments_) => {
 				const child = fakeChild(new PassThrough(), new PassThrough());
 				let finished = 0;
@@ -139,6 +155,21 @@ test('qualification rejects an oversized canary output within its private bound'
 				(child.stdio[4] as Writable).once('finish', finish);
 				return child;
 			},
+		});
+		assert.equal(result.formats.mp4.available, false);
+		assert.match(result.formats.mp4.reason ?? '', /execution qualification/iu);
+		assert.deepEqual(await readdir(root), []);
+	} finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('qualification refuses a finite container when exact track inspection fails', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-qualification-tracks-'));
+	try {
+		const result = await qualifyExternalFfmpegVideoAdmission({
+			scratchRoot: root, admission: admission({ webm: false }), environment: {},
+			digestExecutable: exactDigest,
+			inspectOutput: async () => { throw new Error('wrong codec tuple'); },
+			spawn: finiteOutputSpawn(validMp4()),
 		});
 		assert.equal(result.formats.mp4.available, false);
 		assert.match(result.formats.mp4.reason ?? '', /execution qualification/iu);
@@ -173,6 +204,23 @@ async function exactDigest(path: string): Promise<string> {
 
 function capturingWritable(chunks: Buffer[]): Writable {
 	return new Writable({ write(chunk, _encoding, callback) { chunks.push(Buffer.from(chunk)); callback(); } });
+}
+
+const acceptInspection: ExternalFfmpegVideoCanaryInspector = async () => undefined;
+
+function finiteOutputSpawn(bytes: Uint8Array): ExternalFfmpegVideoSpawn {
+	return (_executable, arguments_) => {
+		const child = fakeChild(new PassThrough(), new PassThrough());
+		let finished = 0;
+		const finish = (): void => {
+			finished += 1;
+			if (finished !== 2) return;
+			void writeFile(String(arguments_.at(-1)), bytes).then(() => child.emit('close', 0, null));
+		};
+		(child.stdio[3] as Writable).once('finish', finish);
+		(child.stdio[4] as Writable).once('finish', finish);
+		return child;
+	};
 }
 
 type FakeChild = ExternalFfmpegVideoChildProcess & EventEmitter & Readonly<{
