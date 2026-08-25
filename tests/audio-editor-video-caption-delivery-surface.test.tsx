@@ -21,9 +21,10 @@ const RenderableVideoDeliveryFields = VideoDeliveryFields as React.ComponentType
 	captionDeliveryUnavailable?: boolean;
 }>>;
 
-test('caption delivery gate follows the selected Framescaper V27/V28 routes', () => {
+test('caption delivery gate follows the selected Framescaper V27/V28/F31 routes', () => {
 	assert.equal(framescaperV27CaptionDeliveryUnavailable('framescaper', { schemaVersion: 27 }), true);
 	assert.equal(framescaperV27CaptionDeliveryUnavailable('framescaper', { schemaVersion: 28 }), true);
+	assert.equal(framescaperV27CaptionDeliveryUnavailable('framescaper', { schemaVersion: 31 }), true);
 	assert.equal(framescaperV27CaptionDeliveryUnavailable('framescaper', { schemaVersion: 20 }), false);
 	assert.equal(framescaperV27CaptionDeliveryUnavailable('soundscaper', { schemaVersion: 27 }), false);
 	assert.equal(framescaperV27CaptionDeliveryUnavailable('framescaper', null), false);
