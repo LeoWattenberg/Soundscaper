@@ -74,6 +74,8 @@ export interface LocalAssistanceValidatedResultAcceptanceRequest {
 	}>[];
 }
 
+export type LocalAssistanceModelTaskSlot = readonly string[];
+
 interface OperationSpec {
 	readonly inputs: readonly LocalAssistanceInputRole[];
 	readonly required: readonly (readonly LocalAssistanceInputRole[])[];
@@ -97,6 +99,26 @@ const OPERATION_SPECS = Object.freeze({
 	'saliency-detection': spec(['frame-pack'], [['frame-pack']], ['saliency-map']),
 	'editorial-generation': spec(['editorial-context'], [['editorial-context']], ['editorial-proposal']),
 } satisfies Readonly<Record<AssistanceOperation, OperationSpec>>);
+
+const MODEL_TASK_SLOTS = Object.freeze({
+	'voice-activity-detection': modelTaskSlots(['voice-activity-detection']),
+	'speech-recognition': modelTaskSlots(['speech-recognition']),
+	'word-alignment': modelTaskSlots(['word-alignment']),
+	'speaker-diarization': modelTaskSlots(['speaker-segmentation'], ['speaker-embedding']),
+	'speech-enhancement': modelTaskSlots(['speech-enhancement']),
+	'source-separation': modelTaskSlots(['source-separation']),
+	'audio-tagging': modelTaskSlots(['audio-tagging']),
+	'beat-tracking': modelTaskSlots(['beat-tracking']),
+	'text-embedding': modelTaskSlots(['text-embedding']),
+	'image-text-embedding': modelTaskSlots(['image-text-embedding']),
+	'optical-character-recognition': modelTaskSlots(['optical-character-recognition']),
+	'shot-detection': modelTaskSlots(),
+	'subject-detection': modelTaskSlots([
+		'subject-detection', 'face-detection', 'object-detection',
+	]),
+	'saliency-detection': modelTaskSlots(['saliency-detection']),
+	'editorial-generation': modelTaskSlots(['editorial-generation']),
+} satisfies Readonly<Record<AssistanceOperation, readonly LocalAssistanceModelTaskSlot[]>>);
 
 const MEDIA_KINDS = Object.freeze([
 	'audio', 'video', 'frame-pack', 'transcript', 'text', 'editorial-context',
@@ -175,14 +197,44 @@ export function localAssistanceModelCompatible(
 	operation: AssistanceOperation,
 	model: LocalAssistanceModel,
 ): boolean {
-	if (model.task === operation) return true;
-	if (operation === 'speaker-diarization') {
-		return model.task === 'speaker-segmentation' || model.task === 'speaker-embedding';
+	return MODEL_TASK_SLOTS[operation].some((slot) => slot.includes(model.task));
+}
+
+export function localAssistanceModelTaskSlots(
+	operation: AssistanceOperation,
+): readonly LocalAssistanceModelTaskSlot[] {
+	return MODEL_TASK_SLOTS[operation];
+}
+
+export function localAssistanceOperationModelsAvailable(
+	operation: AssistanceOperation,
+	models: readonly LocalAssistanceModel[],
+): boolean {
+	return MODEL_TASK_SLOTS[operation].every(
+		(slot) => models.some((model) => slot.includes(model.task)),
+	);
+}
+
+export function localAssistanceSelectedModels(
+	operation: AssistanceOperation,
+	models: readonly LocalAssistanceModel[],
+	selectedModelIds: readonly string[],
+): readonly LocalAssistanceModel[] | null {
+	if (new Set(selectedModelIds).size !== selectedModelIds.length) return null;
+	const selected = selectedModelIds.map(
+		(modelId) => models.find((model) => model.modelId === modelId) ?? null,
+	);
+	if (selected.some((model) => model === null)) return null;
+	const resolved = selected as readonly LocalAssistanceModel[];
+	if (resolved.length !== MODEL_TASK_SLOTS[operation].length
+		|| resolved.some((model) => !localAssistanceModelCompatible(operation, model))) return null;
+	const ordered: LocalAssistanceModel[] = [];
+	for (const slot of MODEL_TASK_SLOTS[operation]) {
+		const matches = resolved.filter((model) => slot.includes(model.task));
+		if (matches.length !== 1) return null;
+		ordered.push(matches[0]!);
 	}
-	if (operation === 'subject-detection') {
-		return model.task === 'face-detection' || model.task === 'object-detection';
-	}
-	return false;
+	return Object.freeze(ordered);
 }
 
 function normalizeInputs(value: unknown, operation: OperationSpec): readonly LocalAssistancePreparedInput[] {
@@ -229,6 +281,12 @@ function spec(
 ): OperationSpec {
 	return Object.freeze({ inputs: Object.freeze(inputs),
 		required: Object.freeze(required.map((roles) => Object.freeze(roles))), outputs: Object.freeze(outputs) });
+}
+
+function modelTaskSlots(
+	...slots: readonly (readonly string[])[]
+): readonly LocalAssistanceModelTaskSlot[] {
+	return Object.freeze(slots.map((slot) => Object.freeze([...slot])));
 }
 
 function jsonTypes(role: LocalAssistanceOutputRole): readonly string[] {
