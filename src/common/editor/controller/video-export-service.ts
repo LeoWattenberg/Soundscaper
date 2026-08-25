@@ -37,6 +37,7 @@ import { videoBurnInFontSubsetIds } from '../video-caption-burn-in.ts';
 import { DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT } from '../video-delivery-audio-layout.ts';
 import { resolveVideoDeliveryEncoderTier } from '../video-delivery-encoder-tier.ts';
 import { loadVideoExportOriginal } from './video-export-original-loader.ts';
+import { assertDesktopVideoExportAvailable } from '../desktop-video-export-capability.ts';
 
 export interface VideoExportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -149,6 +150,8 @@ export function createEditorVideoExportAction(
 
 	return async function exportVideo(requestedSettings: RuntimeValue = {}) {
 		if (state.exportAbort) return null;
+		const formatValue = videoExportPlanFormat(requestedSettings.format || 'video-mp4');
+		await assertDesktopVideoExportAvailable(fileService, formatValue);
 		if (typeof runtime.prepareProjectForExport === 'function') await runtime.prepareProjectForExport('video-export');
 		const canonicalProject = getProject();
 		const delivery = projectForVideoRenderedFallbackExport(canonicalProject, playbackProjects);
@@ -197,7 +200,6 @@ export function createEditorVideoExportAction(
 			const admittedFallbacks = await admitVideoRenderedFallbackExport(canonicalProject, delivery, {
 				store, verifyProjectFallbackIntegrity,
 			}, { signal: abort.signal, assertCurrent: assertVideoExportCurrent });
-			const formatValue = videoExportPlanFormat(requestedSettings.format || 'video-mp4');
 			const descriptor = getVideoExportFormat(formatValue) as Readonly<{ id: 'mp4' | 'webm' }>;
 			const format = descriptor.id;
 			const includeAudio = exportProject.clips.some((clip: RuntimeValue) => clip.kind === 'audio');

@@ -15,9 +15,8 @@ import MetadataEditorTabs from '../MetadataEditorTabs.tsx';
 import VideoDeliveryFields from '../VideoDeliveryFields.jsx';
 import { createProjectAdmEditorValue } from '../adm-metadata-editor-model.ts';
 import {
-	dialogSettingsFromDeliveryTarget,
-	statedVideoCanvas,
-	statedVideoDeliveryTarget,
+	dialogSettingsFromDeliveryTarget, dialogSettingsFromPreset, presetFormatFromDialog,
+	presetSettingsFromDialog, statedVideoCanvas, statedVideoDeliveryTarget,
 } from '../export-preset-model.ts';
 import { createBextMetadataEditorValue } from '../bext-metadata-editor-model.ts';
 import {
@@ -30,14 +29,7 @@ import { framescaperV27CaptionDeliveryUnavailable } from '../video-caption-deliv
 import { DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
 import ExportPresetSection from './ExportPresetSection.jsx';
 import {
-	dialogSettingsFromPreset,
-	presetFormatFromDialog,
-	presetSettingsFromDialog,
-} from '../export-preset-model.ts';
-import {
-	compactFields,
-	parseJsonChannelMapping,
-	parseJsonObject,
+	compactFields, parseJsonChannelMapping, parseJsonObject,
 } from './inspector-helpers.ts';
 import {
 	createDesktopExportCodecQuery, desktopExportCodecCapabilities,
@@ -51,6 +43,7 @@ import {
 	exportDialogMaximumAudioSampleRate, exportDialogSampleRateSuggestions,
 	exportDialogVorbisQualityOptions,
 } from '../export-dialog-audio-codec-options.ts';
+import { useDesktopVideoExportCapabilities } from '../use-desktop-video-export-capabilities.ts';
 
 export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fileService, onClose }) {
 	const exportProgress = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.exportProgress);
@@ -103,6 +96,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	const [presetName, setPresetName] = useState('');
 	const [desktopCodecStatus, setDesktopCodecStatus] = useState(null);
 	const desktop = fileService?.isDesktop === true;
+	const desktopVideoCapabilities = useDesktopVideoExportCapabilities(fileService, isOpen);
 	const desktopCodecQuery = useMemo(() => {
 		if (!desktop) return null;
 		try { return createDesktopExportCodecQuery({
@@ -225,8 +219,11 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	}, [metadataTab, settings.format]);
 
 	useEffect(() => {
-		if (!hasTimelineVideo && isVideoExportDialogFormat(settings.format)) {
-			setSettings((current) => ({ ...current, format: 'wav' }));
+		if (isVideoExportDialogFormat(settings.format) && (!hasTimelineVideo || (
+			desktop && desktopVideoCapabilities.resolved && !desktopVideoCapabilities.available(settings.format)
+		))) {
+			setPresetId(''); setPresetName('');
+			setSettings((current) => ({ ...current, format: 'wav', deliveryTarget: '' }));
 			return;
 		}
 		const descriptor = MEDIA_EXPORT_FORMATS[settings.format];
@@ -238,8 +235,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 		} else if (settings.sampleFormat === 'float32' && settings.dither !== 'none') {
 			setSettings((current) => ({ ...current, dither: 'none' }));
 		}
-	}, [desktop, desktopCodecCapabilities, hasTimelineVideo, settings.dither, settings.format, settings.sampleFormat]);
-
+	}, [desktop, desktopCodecCapabilities, desktopVideoCapabilities, hasTimelineVideo, settings.dither, settings.format, settings.sampleFormat]);
 	const set = (name, value) => setSettings((current) => ({ ...current, [name]: value }));
 	// A delivery target states the container it delivers, so the format control
 	// has to follow it: the request already does, and a dropdown still reading
@@ -332,10 +328,12 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 		? desktopExportFlacSampleFormats()
 		: formatDescriptor?.sampleFormats || [];
 	const desktopFormatRefusal = desktop
-		? desktopExportSelectionReason(settings, desktopCodecCapabilities, desktopCodecQuery === false)
-			|| exportDialogBitRateSelectionReason(settings.format, settings.bitRate, formatQualityOptions, desktop)
+		? (videoFormat ? desktopVideoCapabilities.reason(settings.format)
+			: desktopExportSelectionReason(settings, desktopCodecCapabilities, desktopCodecQuery === false)
+				|| exportDialogBitRateSelectionReason(settings.format, settings.bitRate, formatQualityOptions, desktop))
 		: null;
-	const desktopCodecNotice = desktopFormatRefusal || (desktopCodecQuery === false
+	const desktopCodecNotice = desktopFormatRefusal || (desktop && hasTimelineVideo ? desktopVideoCapabilities.notice : null)
+		|| (desktopCodecQuery === false
 		? desktopExportFormatReason('opus', null, true)
 		: Object.values(desktopCodecCapabilities?.formats || {}).find((capability) => (
 			!capability.available && capability.reason?.includes('Preferences > General')
@@ -505,7 +503,9 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 								? copy.customFfmpeg
 								: descriptor.id === 'bwf' ? copy.broadcastWav : descriptor.label,
 						})),
-						...(hasTimelineVideo ? VIDEO_EXPORT_DIALOG_FORMATS.map((descriptor) => ({
+						...(hasTimelineVideo ? VIDEO_EXPORT_DIALOG_FORMATS.filter((descriptor) => (
+							!desktop || desktopVideoCapabilities.available(descriptor.id)
+						)).map((descriptor) => ({
 							value: descriptor.id,
 							label: copy[descriptor.labelKey],
 						})) : []),

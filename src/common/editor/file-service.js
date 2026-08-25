@@ -86,6 +86,7 @@ export function createAudioEditorFileService(options = {}) {
 		rescanExternalFfmpeg: () => bridge?.rescanExternalFfmpeg?.() ?? null,
 		installExternalFfmpeg: () => bridge?.installExternalFfmpeg?.() ?? null,
 		getDesktopAudioCodecCapabilities: (request) => bridge?.getDesktopAudioCodecCapabilities?.(request) ?? null,
+		getDesktopVideoExportCapabilities: () => bridge?.getDesktopVideoExportCapabilities?.() ?? null,
 		runDesktopAudioCodecOperation: (request) => bridge?.runDesktopAudioCodecOperation?.(request) ?? null,
 		cancelDesktopAudioCodecOperation: (requestId) => bridge?.cancelDesktopAudioCodecOperation?.(requestId) ?? null,
 		runWindowAction: (action) => bridge?.runWindowAction?.(action),
