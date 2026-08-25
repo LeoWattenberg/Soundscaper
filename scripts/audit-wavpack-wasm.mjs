@@ -6,6 +6,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { assertWavPackEmscriptenToolchainIdentity } from './lib/wavpack-wasm-toolchain.mjs';
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const wavpackDirectory = join(root, 'src/common/editor/wavpack');
 const nativeDirectory = join(wavpackDirectory, 'native');
@@ -29,8 +31,7 @@ const prohibitedCompiledSources = new Set([
 
 export async function auditWavPackWasm(options = {}) {
 	const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-	const findings = [];
-	validateManifest(manifest, findings);
+	const findings = [...auditWavPackSourceManifest(manifest)];
 
 	const expectedSources = new Set(manifest.sourceFiles.map((source) => source.path));
 	for (const path of listSourceFiles(nativeDirectory).map((value) => relative(nativeDirectory, value))) {
@@ -107,6 +108,13 @@ export async function auditWavPackWasm(options = {}) {
 	};
 }
 
+/** Audit the immutable source, toolchain, feature, and memory admission fields. */
+export function auditWavPackSourceManifest(manifest) {
+	const findings = [];
+	validateManifest(manifest, findings);
+	return Object.freeze(findings);
+}
+
 function validateManifest(manifest, findings) {
 	if (manifest.schemaVersion !== 1) findings.push(`Unsupported source-manifest schema: ${manifest.schemaVersion}`);
 	if (manifest.wavpack?.tag !== '5.9.0'
@@ -114,9 +122,8 @@ function validateManifest(manifest, findings) {
 		|| manifest.wavpack?.license !== 'BSD-3-Clause') {
 		findings.push('WavPack must remain pinned to BSD-3-Clause 5.9.0 commit 5803634a030e2a11dba602ba057b89cc34486c67.');
 	}
-	if (manifest.toolchain?.emscriptenVersion !== '3.1.64') {
-		findings.push('WavPack WASM must remain pinned to Emscripten 3.1.64.');
-	}
+	try { assertWavPackEmscriptenToolchainIdentity(manifest.toolchain); }
+	catch (error) { findings.push(error.message); }
 	for (const definition of ['NO_TAGS=1', 'NDEBUG=1', 'HAVE___BUILTIN_CLZ=1']) {
 		if (!manifest.buildDefinitions?.includes(definition)) {
 			findings.push(`WavPack build definition is missing: ${definition}`);

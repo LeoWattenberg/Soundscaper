@@ -2,7 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-import { auditWavPackWasm } from '../scripts/audit-wavpack-wasm.mjs';
+import {
+	auditWavPackSourceManifest,
+	auditWavPackWasm,
+} from '../scripts/audit-wavpack-wasm.mjs';
+import {
+	assertWavPackEmscriptenToolchainIdentity,
+	wavPackEmscriptenDockerReference,
+} from '../scripts/lib/wavpack-wasm-toolchain.mjs';
 import {
 	PCM_CONTAINER_FOOTER_BYTES,
 	PCM_CONTAINER_HEADER_BYTES,
@@ -19,6 +26,8 @@ import {
 } from '../src/common/editor/wavpack/index.js';
 
 const WASM_PATH = new URL('../src/common/editor/wavpack/wavpack.wasm', import.meta.url);
+const SOURCE_MANIFEST_PATH = new URL('../src/common/editor/wavpack/source-manifest.json', import.meta.url);
+const EMSCRIPTEN_IMAGE_DIGEST = 'sha256:8847dad4171ebc8a53d9ae5cda86a2546ef5b2e68834c14dc1ba2b2962e125cc';
 
 test('the pinned WavPack artifact has the audited narrow ABI and memory budget', async () => {
 	const audit = await auditWavPackWasm();
@@ -26,6 +35,40 @@ test('the pinned WavPack artifact has the audited narrow ABI and memory budget',
 	assert.equal(audit.ok, true);
 	assert.equal(audit.wasmSha256, 'c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908');
 	assert.ok(audit.wasmBytes > 0 && audit.wasmBytes < 1024 * 1024);
+});
+
+test('the WavPack build and audit require one digest-qualified Emscripten identity', async () => {
+	const manifest = JSON.parse(await readFile(SOURCE_MANIFEST_PATH, 'utf8'));
+	assert.deepEqual(manifest.toolchain, {
+		emscriptenVersion: '3.1.64',
+		dockerImage: 'emscripten/emsdk:3.1.64',
+		dockerImageDigest: EMSCRIPTEN_IMAGE_DIGEST,
+		sourceDateEpoch: '1768696955',
+	});
+	assert.doesNotThrow(() => assertWavPackEmscriptenToolchainIdentity(manifest.toolchain));
+	assert.equal(
+		wavPackEmscriptenDockerReference(manifest.toolchain),
+		`emscripten/emsdk:3.1.64@${EMSCRIPTEN_IMAGE_DIGEST}`,
+	);
+
+	for (const [label, mutate] of [
+		['tag-only identity', (toolchain) => { delete toolchain.dockerImageDigest; }],
+		['mismatched image digest', (toolchain) => { toolchain.dockerImageDigest = `sha256:${'0'.repeat(64)}`; }],
+		['mismatched image tag', (toolchain) => { toolchain.dockerImage = 'emscripten/emsdk:latest'; }],
+	]) {
+		const drifted = structuredClone(manifest);
+		mutate(drifted.toolchain);
+		assert.throws(
+			() => assertWavPackEmscriptenToolchainIdentity(drifted.toolchain),
+			/digest-qualified Emscripten 3\.1\.64 toolchain/u,
+			label,
+		);
+		assert.match(
+			auditWavPackSourceManifest(drifted).join('\n'),
+			/digest-qualified Emscripten 3\.1\.64 toolchain/u,
+			label,
+		);
+	}
 });
 
 test('WavPack preserves float32 sample bits for edge values and 1/2/8/64-channel chunks', async () => {
