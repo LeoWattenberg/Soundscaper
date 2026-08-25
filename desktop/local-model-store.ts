@@ -18,13 +18,13 @@ import { createHash, randomBytes as nodeRandomBytes } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import {
 	lstat,
+	link,
 	mkdir,
 	open,
 	readdir,
 	readFile,
 	rename,
 	rm,
-	stat,
 } from 'node:fs/promises';
 import { isAbsolute, join, resolve } from 'node:path';
 
@@ -265,7 +265,21 @@ export class FileLocalModelStore {
 		}
 		const target = this.blobPath(expected.sha256);
 		await mkdir(join(this.#root, BLOBS_DIRECTORY), { recursive: true, mode: 0o700 });
-		await rename(stagedPath, target);
+		try {
+			await link(stagedPath, target);
+		} catch (error) {
+			if (errorCode(error) === 'EEXIST') {
+				await rm(stagedPath, { force: true }).catch(() => undefined);
+				throw new Error('A published local model artifact entry already exists.', { cause: error });
+			}
+			throw error;
+		}
+		try {
+			await rm(stagedPath);
+		} catch (error) {
+			await rm(target, { force: true }).catch(() => undefined);
+			throw error;
+		}
 		await syncDirectory(join(this.#root, BLOBS_DIRECTORY));
 		return target;
 	}
@@ -318,7 +332,7 @@ export class FileLocalModelStore {
 			schemaVersion: LOCAL_MODEL_MANIFEST_SCHEMA_VERSION,
 		});
 		for (const artifact of normalized.artifacts) {
-			if (!await this.#hasArtifact(artifact)) {
+			if (!await this.verifyArtifact(artifact)) {
 				throw new Error(`Local model ${normalized.modelId} is missing a published artifact.`);
 			}
 		}
@@ -434,9 +448,9 @@ export class FileLocalModelStore {
 			if (!match || referenced.has(match[1] as string)) continue;
 			const path = join(this.#root, BLOBS_DIRECTORY, entry);
 			try {
-				const metadata = await stat(path);
-				await rm(path, { force: true });
-				reclaimed += metadata.size;
+				const metadata = await lstat(path);
+				await rm(path, { recursive: metadata.isDirectory(), force: true });
+				if (metadata.isFile() && !metadata.isSymbolicLink()) reclaimed += metadata.size;
 			} catch {
 				continue;
 			}
@@ -457,7 +471,8 @@ export class FileLocalModelStore {
 		for (const entry of entries) {
 			if (!BLOB_NAME_PATTERN.test(entry)) continue;
 			try {
-				total += (await stat(join(this.#root, BLOBS_DIRECTORY, entry))).size;
+				const metadata = await lstat(join(this.#root, BLOBS_DIRECTORY, entry));
+				if (metadata.isFile() && !metadata.isSymbolicLink()) total += metadata.size;
 			} catch {
 				continue;
 			}
