@@ -60,10 +60,14 @@ function prepared(inputBody = new Blob(['audio'], { type: 'audio/wav' })) {
 	});
 }
 
-function preparationFixture(body?: Blob): LocalAssistanceSelectedMediaPreparationPort {
+function preparationFixture(
+	body?: Blob,
+	accept?: (request: unknown) => Promise<void>,
+): LocalAssistanceSelectedMediaPreparationPort {
 	return Object.freeze({
 		listSelectedMedia: async () => INVENTORY,
 		prepareSelectedMedia: async () => prepared(body),
+		...(accept ? { acceptValidatedResult: accept } : {}),
 	});
 }
 
@@ -207,6 +211,48 @@ test('one explicit run stages Blob input, validates output, and releases custody
 		onReview={() => undefined} onAccept={() => undefined}
 	/>);
 	assert.match(markup, /Hello from the interview\./u);
+});
+
+test('reviewed speech output enables one explicit controller-owned acceptance', async () => {
+	const fixture = rawBridgeFixture();
+	const bridge = resolveLocalAssistanceBridge({ localAssistance: fixture.api });
+	assert.ok(bridge);
+	const accepted: unknown[] = [];
+	const store = selectedStore(bridge, preparationFixture(undefined, async (request) => {
+		accepted.push(request);
+	}));
+	await store.run();
+	const reviewable = store.getSnapshot();
+	assert.equal(reviewable.canAccept, true);
+	const view = (reviewOpen: boolean) => renderToStaticMarkup(<LocalAssistanceDialogView
+		copy={ENGLISH_COPY} snapshot={reviewable} reviewOpen={reviewOpen} onClose={() => undefined}
+		onSelectSource={() => undefined} onSelectOperation={() => undefined}
+		onSelectModel={() => undefined} onConsentChange={() => undefined}
+		onRun={() => undefined} onCancel={() => undefined}
+		onReview={() => undefined} onAccept={() => undefined}
+	/>);
+	assert.match(view(false), /<button type="button" disabled="">Accept proposal<\/button>/u);
+	assert.match(view(true), /<button type="button">Accept proposal<\/button>/u);
+	await store.accept();
+	assert.equal(store.getSnapshot().phase, 'accepted');
+	assert.equal(store.getSnapshot().canAccept, false);
+	assert.deepEqual(accepted, [{
+		sourceId: 'source-1', operation: 'speech-recognition', selectionFence: FENCE,
+		model: MODEL,
+		outputs: [{
+			claim: {
+				claimVersion: 1, claimId: OUTPUT_CLAIM_ID, jobId: JOB_ID, role: 'transcript',
+				mediaType: 'application/vnd.soundscaper.transcript+json',
+				byteLength: new Blob([TRANSCRIPT_BODY]).size, sha256: OUTPUT_SHA256,
+			},
+			review: {
+				kind: 'transcript', language: 'en', segments: [{
+					startSeconds: 0, endSeconds: 1.25, text: 'Hello from the interview.',
+					words: [], speaker: null,
+				}],
+			},
+		}],
+	}]);
 });
 
 test('invalid transcript JSON and schema are refused before review', async () => {

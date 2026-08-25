@@ -64,7 +64,7 @@ export default function LocalAssistanceDialog({
 		onRun={() => store.run()}
 		onCancel={() => store.cancel()}
 		onReview={() => setReviewOpen(true)}
-		onAccept={() => undefined}
+		onAccept={() => store.accept()}
 	/>;
 }
 
@@ -88,7 +88,8 @@ export function LocalAssistanceDialogView({
 			<button type="button" disabled={!snapshot.canReview} onClick={() => { void onReview(); }}>
 				{text(copy, 'localAssistanceReview', 'Review result')}
 			</button>
-			<button type="button" disabled={!snapshot.canAccept} onClick={() => { void onAccept(); }}>
+			<button type="button" disabled={!snapshot.canAccept || !reviewOpen}
+				onClick={() => { void onAccept(); }}>
 				{text(copy, 'localAssistanceAccept', 'Accept proposal')}
 			</button>
 			<button type="button" onClick={onClose}>{text(copy, 'close', 'Close')}</button>
@@ -190,6 +191,8 @@ function phaseMessage(copy: Copy, snapshot: LocalAssistanceSnapshot): string | n
 	if (snapshot.phase === 'running') return text(copy, 'localAssistanceRunning', 'Running the local model.');
 	if (snapshot.phase === 'cancelling') return text(copy, 'localAssistanceCancelling', 'Cancelling the local operation.');
 	if (snapshot.phase === 'completed') return text(copy, 'localAssistanceCompleted', 'A validated local result is available.');
+	if (snapshot.phase === 'accepting') return text(copy, 'localAssistanceAccepting', 'Accepting the reviewed proposal.');
+	if (snapshot.phase === 'accepted') return text(copy, 'localAssistanceAccepted', 'The proposal was accepted.');
 	if (snapshot.phase === 'cancelled') return text(copy, 'localAssistanceCancelled', 'The local operation was cancelled.');
 	if (snapshot.phase === 'error') return snapshot.error || text(copy, 'localAssistanceError', 'The local-assistance operation failed.');
 	if (snapshot.phase === 'unavailable') return unavailableMessage(copy, snapshot.unavailableReason);
@@ -216,7 +219,8 @@ function unavailableMessage(copy: Copy, reason: LocalAssistanceUiUnavailableReas
 }
 
 function busy(snapshot: LocalAssistanceSnapshot): boolean {
-	return snapshot.phase === 'preparing' || snapshot.phase === 'running' || snapshot.phase === 'cancelling';
+	return snapshot.phase === 'preparing' || snapshot.phase === 'running'
+		|| snapshot.phase === 'cancelling' || snapshot.phase === 'accepting';
 }
 
 function text(copy: Copy, key: string, fallback: string): string {
