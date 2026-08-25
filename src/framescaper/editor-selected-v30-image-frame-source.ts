@@ -3,9 +3,14 @@
 import { sequenceFrameAtSample } from '../common/editor/sequence-frame-navigation.ts';
 import type { BlobLike } from '../common/editor/storage/media-records.ts';
 import {
+	estimateFramescaperImageFramePackReaderMetadataBytesV1,
 	openFramescaperImageFramePackV1,
 	type FramescaperImageFramePackReaderV1,
 } from '../common/editor/timeline-image-frame-pack-v1.ts';
+import {
+	decodeFramescaperImageFramePackHeaderV1,
+	FRAMESCAPER_IMAGE_FRAME_PACK_HEADER_BYTES,
+} from '../common/editor/timeline-image-frame-pack-v1-layout.ts';
 import {
 	mapFramescaperImageTimelineFrameV1,
 	normalizeFramescaperImageClipV1,
@@ -33,6 +38,7 @@ export async function openFramescaperStoredImageFramePackV30(
 	store: FramescaperStoredImageAssetStoreV30,
 	sourceValue: unknown,
 	signal?: AbortSignal,
+	admitResidentMetadata?: (byteLength: number) => void,
 ): Promise<FramescaperImageFramePackReaderV1> {
 	if (!store || typeof store.loadMediaAsset !== 'function') {
 		throw new TypeError('V30 image preview requires an AudioEditorProjectStore.');
@@ -53,7 +59,14 @@ export async function openFramescaperStoredImageFramePackV30(
 	const snapshot = new Uint8Array(
 		structuredClone(loaded, { transfer: [loaded] }),
 	) as Uint8Array<ArrayBuffer>;
-	return openFramescaperImageFramePackV1({
+	const header = decodeFramescaperImageFramePackHeaderV1(
+		snapshot.subarray(0, FRAMESCAPER_IMAGE_FRAME_PACK_HEADER_BYTES), source,
+	);
+	const metadataByteEstimate = estimateFramescaperImageFramePackReaderMetadataBytesV1(
+		header.receiptByteLength, source.canonical.frameCount,
+	);
+	admitResidentMetadata?.(metadataByteEstimate);
+	const reader = await openFramescaperImageFramePackV1({
 		source,
 		signal,
 		read(offset, length) {
@@ -61,6 +74,10 @@ export async function openFramescaperStoredImageFramePackV30(
 			return Promise.resolve(snapshot.slice(offset, offset + length));
 		},
 	});
+	if (reader.residentMetadataByteEstimate !== metadataByteEstimate) {
+		throw new Error(`V30 image frame pack ${source.id} changed its reader metadata estimate.`);
+	}
+	return reader;
 }
 
 /** Resolve one runtime sample through the exact sequence grid and packed tick table. */

@@ -82,9 +82,29 @@ export interface FramescaperImageFramePackReaderV1 {
 	readonly source: FramescaperImageSourceV1;
 	readonly receipt: Readonly<Record<string, unknown>>;
 	readonly timings: readonly FramescaperImageFrameTimingV1[];
+	readonly residentMetadataByteEstimate: number;
 	readOriginal(signal?: AbortSignal): Promise<Uint8Array>;
 	readFrame(index: number, signal?: AbortSignal): Promise<Uint8Array>;
 	frameIndexAtTicks(sourceTicks: bigint): number;
+}
+
+const RECEIPT_RESIDENT_BYTE_MULTIPLIER = 32;
+const INDEXED_FRAME_RESIDENT_BYTE_ESTIMATE = 2_048;
+
+/** Conservative retained-object estimate used by bounded browser consumers. */
+export function estimateFramescaperImageFramePackReaderMetadataBytesV1(
+	receiptByteLength: number,
+	frameCount: number,
+): number {
+	return checkedFramescaperImageAssetAdd(
+		checkedFramescaperImageAssetMultiply(
+			receiptByteLength, RECEIPT_RESIDENT_BYTE_MULTIPLIER, 'receipt resident bytes',
+		),
+		checkedFramescaperImageAssetMultiply(
+			frameCount, INDEXED_FRAME_RESIDENT_BYTE_ESTIMATE, 'frame-index resident bytes',
+		),
+		'reader metadata resident bytes',
+	);
 }
 
 /** Encode one original plus independently compressed canonical RGBA8 frames. */
@@ -219,6 +239,9 @@ export async function openFramescaperImageFramePackV1(
 	const receipt = decodeFramescaperImageConversionReceiptV1(receiptBytes);
 	const indexBytes = await readSection(request.read, header.indexOffset, header.indexByteLength);
 	const indexedFrames = decodeFramescaperImageFramePackIndexesV1(indexBytes, source, header);
+	const residentMetadataByteEstimate = estimateFramescaperImageFramePackReaderMetadataBytesV1(
+		header.receiptByteLength, indexedFrames.length,
+	);
 	await current(request);
 	const timings = Object.freeze(indexedFrames.map(({ presentationTicks, durationTicks }) => (
 		Object.freeze({ presentationTicks, durationTicks })
@@ -228,6 +251,7 @@ export async function openFramescaperImageFramePackV1(
 		source,
 		receipt,
 		timings,
+		residentMetadataByteEstimate,
 		async readOriginal(signal?: AbortSignal): Promise<Uint8Array> {
 			cancelled(signal);
 			await current(request);

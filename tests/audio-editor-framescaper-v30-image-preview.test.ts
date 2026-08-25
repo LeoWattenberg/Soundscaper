@@ -174,12 +174,13 @@ test('V30 stored image readers snapshot structural bodies before authenticating 
 	const switched = imageProject('timeline', '0', [0, 0, 255, 255]);
 	assert.equal(switched.bytes.byteLength, authentic.bytes.byteLength);
 	let sliceReads = 0;
-	let transferred: ArrayBuffer | null = null;
+	const transferred: ArrayBuffer[] = [];
 	const body: BlobLike = {
 		size: authentic.bytes.byteLength,
 		arrayBuffer() {
-			transferred = ownedBuffer(authentic.bytes);
-			return Promise.resolve(transferred);
+			const buffer = ownedBuffer(authentic.bytes);
+			transferred.push(buffer);
+			return Promise.resolve(buffer);
 		},
 		slice(start = 0, end = authentic.bytes.byteLength): BlobLike {
 			const selected = sliceReads++ === 0 ? authentic.bytes : switched.bytes;
@@ -194,7 +195,8 @@ test('V30 stored image readers snapshot structural bodies before authenticating 
 	const reader = await openFramescaperStoredImageFramePackV30(store, source);
 	assert.deepEqual([...await reader.readFrame(0)].slice(0, 4), RED);
 	assert.equal(sliceReads, 0, 'authentication must use one owned body snapshot, not mutable range reads');
-	assert.equal(transferred?.byteLength, 0, 'the structural body cannot retain mutable snapshot authority');
+	assert.equal(transferred[0]?.byteLength, 0,
+		'the structural body cannot retain mutable snapshot authority');
 });
 
 function imageProject(

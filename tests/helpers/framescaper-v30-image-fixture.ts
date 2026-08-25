@@ -30,20 +30,23 @@ export function createFramescaperV30ImageFixture(
 		clipId?: string;
 		originalText?: string;
 		imageOnly?: boolean;
+		firstFrameRgba?: readonly [number, number, number, number, number, number, number, number];
+		receipt?: Readonly<Record<string, unknown>>;
 	}> = {},
 ): FramescaperV30ImageFixture {
 	const sourceId = options.sourceId ?? 'image-source-1';
 	const clipId = options.clipId ?? 'image-clip-1';
 	const publication = createFramescaperImageFramePackV1({
 		original: ENCODER.encode(options.originalText ?? 'exact animated PNG input'),
-		receipt: { decoder: { id: 'browser-native', version: '1' }, schemaVersion: 1 },
+		receipt: options.receipt
+			?? { decoder: { id: 'browser-native', version: '1' }, schemaVersion: 1 },
 		width: 2,
 		height: 1,
 		timingMode: 'embedded',
 		frames: [{
 			presentationTicks: 0n,
 			durationTicks: 1_000_000n,
-			rgba: Uint8Array.of(255, 0, 0, 255, 0, 0, 0, 0),
+			rgba: Uint8Array.from(options.firstFrameRgba ?? [255, 0, 0, 255, 0, 0, 0, 0]),
 		}, {
 			presentationTicks: 1_000_000n,
 			durationTicks: 4_000_000n,
