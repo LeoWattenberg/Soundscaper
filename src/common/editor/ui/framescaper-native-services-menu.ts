@@ -154,8 +154,8 @@ export function createFramescaperNativeServicesMenuItems(
 	);
 	const schemaVersion = projectSchemaVersion(input.project);
 	const professionalMediaProject = schemaVersion === 25 || schemaVersion === 26
-		|| schemaVersion === 28;
-	const openFxProject = schemaVersion === 26 || schemaVersion === 28;
+		|| schemaVersion === 28 || schemaVersion === 31;
+	const openFxProject = schemaVersion === 26 || schemaVersion === 28 || schemaVersion === 31;
 	const leaf = (
 		id: string,
 		label: string,

@@ -164,7 +164,8 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 			)}
 			{productId === 'framescaper' && (snapshot.project?.schemaVersion === 20
 				|| snapshot.project?.schemaVersion === 27
-				|| snapshot.project?.schemaVersion === 28) && activeSurface === 'video-proxy' && (
+				|| snapshot.project?.schemaVersion === 28
+				|| snapshot.project?.schemaVersion === 31) && activeSurface === 'video-proxy' && (
 				<div data-editor-surface="video-proxy">
 					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
 						<FramescaperVideoProxyDialog
@@ -180,7 +181,8 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 				</div>
 			)}
 			{productId === 'framescaper' && (snapshot.project?.schemaVersion === 27
-				|| snapshot.project?.schemaVersion === 28)
+				|| snapshot.project?.schemaVersion === 28
+				|| snapshot.project?.schemaVersion === 31)
 				&& framescaperFinishingSurface && framescaperFinishingSurface !== 'visual-inspector' && (
 				<div data-editor-surface="framescaper-v27-finishing">
 					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
@@ -200,7 +202,8 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 				</div>
 			)}
 			{productId === 'framescaper' && (snapshot.project?.schemaVersion === 27
-				|| snapshot.project?.schemaVersion === 28)
+				|| snapshot.project?.schemaVersion === 28
+				|| snapshot.project?.schemaVersion === 31)
 				&& framescaperFinishingSurface === 'visual-inspector' && (
 				<div data-editor-surface="framescaper-v27-visual-inspector">
 					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
@@ -218,7 +221,8 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 				</div>
 			)}
 			{productId === 'framescaper' && (snapshot.project?.schemaVersion === 27
-				|| snapshot.project?.schemaVersion === 28)
+				|| snapshot.project?.schemaVersion === 28
+				|| snapshot.project?.schemaVersion === 31)
 				&& selectedV27AuthoringSurface && (
 				<div data-editor-surface="framescaper-selected-v27-authoring">
 					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>

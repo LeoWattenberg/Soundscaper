@@ -107,8 +107,8 @@ test('V24 candidates expose visual authoring in existing menus', async () => {
 	}
 });
 
-test('selected V27 and V28 expose maintained visual workflows without the M5 external generator', () => {
-	for (const schemaVersion of [27, 28]) {
+test('selected V27, V28, and F31 expose maintained visual workflows without the M5 external generator', () => {
+	for (const schemaVersion of [27, 28, 31]) {
 		const items = createFramescaperCandidateAuthoringMenuItems({
 			productId: 'framescaper', project: { schemaVersion }, editingBlocked: false,
 			projectCapabilities: {
