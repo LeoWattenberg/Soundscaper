@@ -7,18 +7,19 @@
 
 ## Summary
 
-Framescaper camera, microphone, screen, and optional system-audio capture has an
-implementation-complete historical substrate. MIDI remains fenced and unchanged.
+Framescaper camera, microphone, screen, and optional system-audio capture is
+implemented and active on the selected F31 standalone web and desktop routes.
+MIDI remains fenced and unchanged.
 
-**Status:** **Implementation complete; dormant and not activated.** The selected
-V27 product sets `framescaperCapture: false`, passes no capture route authority
-to its controller, and exposes no Recording Setup menu, preference, panel, or
-ordinary toolbar action. The exact schema-19 web, schema-18 desktop, and
-schema-20 web/desktop implementations remain historical test surfaces only. An
-already-active or recovery-owned historical session retains only the narrow
-status, stop, release, and recovery controls needed to relinquish media safely.
-Activation and external qualification remain open until a later selected route
-passes the required real-device lab for all six source combinations.
+**Status:** **Implemented and active on selected F31 standalone web and desktop.**
+The product sets `framescaperCapture: true` and admits the exact capture route
+authority through its controller, app binding, and runtime probe.
+Recording Setup remains default-hidden and requires explicit opt-in through **View > Panels**.
+`framescaperWebVcr: false` keeps the post-milestone extension disabled.
+Schema-19 web, schema-18 desktop, and schema-20 web/desktop remain historical
+compatibility surfaces. Activation intentionally precedes qualification:
+manual qualification remains open until the provisional, unprovisioned real-device and
+owner-lab matrix passes all six source combinations.
 
 ## Work packets
 
@@ -27,9 +28,9 @@ passes the required real-device lab for all six source combinations.
 - Add the owning milestone-8A plan and divide delivery into atomic TDD packets.
 - Introduce a Framescaper-only `framescaperCapture` capability, separate from
   Soundscaper audio recording.
-- Implement the historical `framescaper-capture` platform contract while
-  preserving every MIDI block and inertness test. Selected-route activation is
-  a separate gated decision and is currently absent.
+- Implement the `framescaper-capture` platform contract while preserving every
+  MIDI block and inertness test. Selected-F31 web and desktop activation is
+  complete; real-device and owner-lab qualification remains a separate gate.
 
 ### 8A-1: Capture domain
 
@@ -146,7 +147,8 @@ The capture-only proxy route landed in commit `4f4d9d5a`. Canonical fire-and-for
 scheduling is owned by
 `src/common/editor/controller/framescaper-capture-canonical-publication.ts` and
 `src/common/editor/controller/framescaper-capture-derivative-scheduler.ts`.
-Product composition and exact V19-web/V18-desktop attachment are owned by
+Product composition and exact selected-F31 web/desktop attachment, with
+historical V19-web/V18-desktop compatibility, are owned by
 `src/common/editor/app.js`,
 `src/framescaper/editor-captured-video-proxy-scheduler-composition.ts`, and
 `src/framescaper/editor-captured-video-proxy-scheduler.ts`; the focused body,
@@ -159,13 +161,14 @@ The exact focused proofs are
 `tests/audio-editor-framescaper-captured-video-proxy-scheduler.test.ts`,
 `tests/audio-editor-framescaper-captured-video-proxy-reconciliation.test.ts`, and
 `tests/audio-editor-framescaper-captured-video-proxy-final-fence.test.ts`.
-They cover one proxy job per captured video and none for audio, V19 web and V18
-desktop inactive-origin publication, active-origin synchronization, source/CAS
-races, multiple captured videos, determinate cleanup, landed automatic
-reconciliation, save/history fencing, disposal, and capture-derived `.scape`
-round-trip/reopen through ordinary proxy selection. This does not add a
-user-invoked general editorial proxy command, adaptive selection, offline
-generation, or relink workflow.
+They cover one proxy job per captured video and none for audio, selected F31 and
+historical V19 web/V18 desktop inactive-origin publication, active-origin
+synchronization, source/CAS races, multiple captured videos, determinate
+cleanup, landed automatic reconciliation, save/history fencing, disposal, and
+capture-derived `.scape` round-trip/reopen through ordinary proxy selection.
+The capture-only post-commit scheduler remains separate from the selected F31
+general editorial proxy lifecycle, including menu-invoked generation, adaptive
+selection, offline editing, detach, relink, regeneration, and cancellation.
 
 ### 8A-5: UI and accessibility
 
@@ -309,13 +312,13 @@ camera, microphone, display, system-audio, operating-system, or browser matrix.
 - Browser and Electron media APIs are the initial encoder path. Add a native
   encoder behind the same port only if qualification proves it necessary.
 - Embedded Framescaper capture remains unsupported.
-- Historical runtime support requires the exact Framescaper route plus the complete source,
+- Selected-F31 runtime support requires the exact Framescaper route plus the complete source,
   supported video encoder, audio packet, cross-context Web Lock,
   encoded/raw/manifest repository, video-probe, and canonical-publication path;
   partial support does not enable Record.
-- Selected V27 rejects capture admission before app binding or runtime probing;
-  historical active/recovery ownership is the only exception and exists solely
-  to keep release and recovery reachable.
+- Selected F31 admits capture on standalone web and desktop only through its
+  exact controller, app binding, and runtime probe. Embedded Framescaper remains
+  denied; historical exact routes retain compatibility and recovery behavior.
 - The capture quality fixture and workload remain provisional. Do not claim
   qualification while `capture-os-browser-lab-matrix` is unprovisioned or
   ineligible. The packaged no-device control-plane smoke is not actual packaged
