@@ -1,0 +1,15 @@
+{
+	"all": true,
+	"include": [
+		"src/common/editor/**/*.js",
+		"src/common/editor/**/*.cjs",
+		"src/common/editor/**/*.mjs",
+		"src/common/editor/**/*.ts",
+		"src/common/editor/**/*.cts",
+		"src/common/editor/**/*.mts"
+	],
+	"exclude": ["src/common/editor/**/native/**"],
+	"lines": 80,
+	"branches": 70,
+	"functions": 80
+}

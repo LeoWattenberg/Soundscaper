@@ -40,6 +40,65 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run the canonical quality checks that are not the Node test suite
+        # The Node suite runs in the per-product `tests` shards below, and the
+        # thresholds it feeds are enforced once over their union in `coverage`.
+        run: npm run check:static
+        env:
+          # Type-aware linting of the whole tree exhausts the default old-space
+          # limit and dies with "Ineffective mark-compacts near heap limit"
+          # before it reports a single rule. The ubuntu-24.04 runner has 16 GiB.
+          NODE_OPTIONS: --max-old-space-size=8192
+
+      - name: Upload the verified website build
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: verified-site-build
+          path: dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  tests:
+    name: Tests / ${{ matrix.shard }}
+    needs: quality
+    strategy:
+      fail-fast: false
+      # Soundscaper and Framescaper own their own source trees and everything they
+      # share lives under src/common, so the suite splits three ways along a line
+      # that already exists. A runner has four cores and the suite no longer fits
+      # in them: measured per test file, the shared shard carries 56% of the work,
+      # Framescaper 37% (its native and OpenFX tests are slow out of proportion to
+      # their count) and Soundscaper 6%, so the longest job is roughly half the
+      # half-hour the one job took.
+      #
+      # These wait on `quality` on purpose. The browser jobs are the pipeline's
+      # long pole either way, so the shards lose nothing by starting after lint
+      # and typecheck, and a red lint no longer burns three runners.
+      matrix:
+        shard: [common, framescaper, soundscaper]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          # tests/milestone-5-handoff.test.js resolves HEAD^ against the real
+          # checkout, so a shard cannot run against a depth-1 clone.
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Pin npm
+        run: npm install --global npm@12.0.1
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Install virtual display for the native-helper Electron proof
         timeout-minutes: 10
         run: bash scripts/ci-apt-install.sh xvfb
@@ -54,22 +113,64 @@ jobs:
       - name: Provision interchange conformance reference tools
         run: npm run provision:interchange-conformance
 
-      - name: Run canonical quality checks
-        run: xvfb-run --auto-servernum npm run check
+      - name: Run the ${{ matrix.shard }} Node test shard
+        run: xvfb-run --auto-servernum npm run test:shard -- --shard=${{ matrix.shard }}
         env:
-          # The coverage run now instruments and holds results for 8,500+ tests in one
-          # process; the default old-space limit is no longer enough headroom for that
-          # and the run aborts with an OOM well before any test itself fails. The
-          # ubuntu-24.04 runner has 16 GiB, so this leaves plenty for Electron and xvfb.
+          # The headroom the suite has always run under. Nothing here merges
+          # coverage — the shard only records raw V8 profiles — but a few tests
+          # stage large buffers, and this keeps their limit what it was before the
+          # split. The ubuntu-24.04 runner has 16 GiB, so it leaves plenty for
+          # Electron and xvfb.
           NODE_OPTIONS: --max-old-space-size=8192
 
-      - name: Upload the verified website build
+      - name: Compact the shard's raw V8 coverage
+        # Every test file leaves its own profile behind, each carrying a full copy
+        # of the TypeScript source-map cache. Merging them and de-duplicating the
+        # maps turns gigabytes into a single file the coverage job can consume.
+        run: npm run coverage:compact -- coverage/shards/${{ matrix.shard }}.json
+
+      - name: Upload the shard's coverage
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: verified-site-build
-          path: dist/
+          name: coverage-shard-${{ matrix.shard }}
+          path: coverage/shards/${{ matrix.shard }}.json
           if-no-files-found: error
           retention-days: 1
+
+  coverage:
+    name: Coverage
+    needs: tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Pin npm
+        run: npm install --global npm@12.0.1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download every shard's coverage
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: coverage-shard-*
+          path: coverage/shards
+          merge-multiple: true
+
+      - name: Enforce the coverage thresholds over the union of the shards
+        # V8 records absolute file URLs, so this only merges because every job
+        # checks the repository out at the same path on the same runner image.
+        run: npm run coverage:check
 
   browser:
     name: Browser / ${{ matrix.project }}

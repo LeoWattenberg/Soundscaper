@@ -14,6 +14,12 @@ guardrails, reproducibility/notice audits, unit coverage, and the production
 build. The external EBU R128 conformance corpus is intentionally separate; run
 `npm run audit:ebu-r128 -- --test-set /path/to/test-set` when changing metering.
 
+CI runs the same work as several parallel jobs: `npm run check:static` covers
+everything except the Node suite, and the suite is split by product into a
+`common`, a `framescaper` and a `soundscaper` shard. To run just the shard your
+change touches, use `npm test -- --shard=framescaper`. The coverage thresholds
+are checked once over the union of all three shards, never per shard.
+
 Browser workflows are a separate gate because they install Chromium and bind a
 loopback preview server:
 

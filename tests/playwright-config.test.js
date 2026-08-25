@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { extractJob } from './helpers/workflow-jobs.js';
+
 test('Playwright allows CI to pass when a retry succeeds', async () => {
 	process.env.CI = 'true';
 	const { default: config } = await import('../playwright.config.mjs?ci-flaky-policy');
@@ -36,7 +38,9 @@ test('desktop verification isolates browser engines and qualifies packages with 
 	const workflow = await readFile(new URL('../.github/workflows/desktop-preview.yml', import.meta.url), 'utf8');
 	assertBrowserQualification(workflow, 'desktop');
 	for (const jobName of ['package', 'package-with-tests', 'soundscaper-project-library-lease-matrix']) {
-		assert.match(extractJob(workflow, jobName), /needs: \[quality, browser, firefox\]/u);
+		// Packaging waits on the sharded Node suite and the merged coverage gate too:
+		// a package built off unverified source is worse than no package.
+		assert.match(extractJob(workflow, jobName), /needs: \[quality, tests, coverage, browser, firefox\]/u);
 	}
 	assert.doesNotMatch(workflow, /^ {2}project-library-handoff:/mu);
 });
@@ -94,13 +98,4 @@ function assertBrowserQualification(workflow, label) {
 			< firefoxJob.indexOf('test:browser:built -- --project=firefox'),
 		`${label} must probe the real audio clock before Firefox qualification`,
 	);
-}
-
-function extractJob(workflow, jobName) {
-	const marker = `\n  ${jobName}:\n`;
-	const start = workflow.indexOf(marker);
-	assert.notEqual(start, -1, `missing ${jobName} workflow job`);
-	const remainder = workflow.slice(start + marker.length);
-	const nextJob = remainder.search(/^ {2}[a-z][a-z0-9-]*:\s*$/mu);
-	return nextJob === -1 ? remainder : remainder.slice(0, nextJob);
 }

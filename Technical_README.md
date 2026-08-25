@@ -93,6 +93,14 @@ architecture/size guardrails, reproducibility and notice audits, unit coverage,
 and a production build. `npm run audit:ebu-r128` remains separate because it
 requires the external conformance test set.
 
+CI splits that command across jobs so it is not confined to one runner's four
+cores. `npm run check:static` is everything except the Node suite; the suite runs
+as one job per product shard (`npm test -- --shard=common`, `--shard=framescaper`,
+`--shard=soundscaper`), each writing raw V8 coverage that
+`npm run coverage:compact` reduces to a single profile. The `coverage` job merges
+those profiles and applies the `.c8rc.json` thresholds to the union, so the gate
+still measures the whole suite.
+
 `npm run build` fails when any generated Pages asset exceeds Cloudflare's 25 MiB
 limit or any emitted JavaScript chunk exceeds 500,000 bytes. FFmpeg's larger
 WASM runtime is therefore published to R2 rather than included in `dist/`.
