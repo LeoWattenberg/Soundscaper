@@ -171,6 +171,7 @@ test('video service rejects pending input when a ready session is cancelled or e
 			if (!idle) assert.equal(await fixture.service.cancel(fixture.owner, session.operationId), true);
 			await rejected;
 			assert.equal(launches, 0);
+			if (idle) await waitFor(async () => (await readdir(root)).length === 0);
 			await fixture.service.begin(fixture.owner, PLAN);
 		} finally {
 			await fixture.service.dispose();
@@ -228,7 +229,9 @@ test('video service cancellation terminates the child and owner revocation drain
 		const session = await fixture.service.begin(fixture.owner, PLAN);
 		const executing = fixture.service.execute(fixture.owner, session.operationId);
 		await spawned;
-		assert.equal(await fixture.service.cancel(fixture.owner, session.operationId), true);
+		const cancelling = fixture.service.cancel(fixture.owner, session.operationId);
+		await assert.rejects(fixture.service.begin(fixture.owner, PLAN), /active|busy/iu);
+		assert.equal(await cancelling, true);
 		await assert.rejects(() => executing, /cancelled/u);
 		assert.ok(killed > 0);
 
@@ -237,6 +240,65 @@ test('video service cancellation terminates the child and owner revocation drain
 		assert.equal(await fixture.service.revokeOwner(fixture.owner), false);
 	} finally {
 		await fixture.service.dispose();
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
+test('cancelling executed output removes scratch and releases owner capacity', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-cancel-output-'));
+	const fixture = serviceFixture(root, (_executable, arguments_) => {
+		const child = fakeChild(new PassThrough(), null);
+		child.stdio[3]!.once('finish', () => {
+			void writeFile(String(arguments_.at(-1)), minimalMp4()).then(() => child.emit('close', 0, null));
+		});
+		return child;
+	});
+	try {
+		const session = await fixture.service.begin(fixture.owner, PLAN);
+		const executing = fixture.service.execute(fixture.owner, session.operationId);
+		await fixture.service.writeInput(fixture.owner, {
+			operationId: session.operationId, role: 'video', offset: 0, bytes: new Uint8Array(32),
+		});
+		await fixture.service.closeInput(fixture.owner, {
+			operationId: session.operationId, role: 'video', offset: 32,
+		});
+		await executing;
+		assert.equal(await fixture.service.cancel(fixture.owner, session.operationId), true);
+		assert.deepEqual(await readdir(root), []);
+		const replacement = await fixture.service.begin(fixture.owner, PLAN);
+		await fixture.service.cancel(fixture.owner, replacement.operationId);
+	} finally {
+		await fixture.service.dispose();
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
+test('service shutdown retries a previously failed session cleanup', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-retry-cleanup-'));
+	const fixture = serviceFixture(root, (_executable, arguments_) => {
+		const child = fakeChild(new PassThrough(), null);
+		child.stdio[3]!.once('finish', () => {
+			void writeFile(String(arguments_.at(-1)), minimalMp4()).then(() => child.emit('close', 0, null));
+		});
+		return child;
+	});
+	try {
+		const session = await fixture.service.begin(fixture.owner, PLAN);
+		const executing = fixture.service.execute(fixture.owner, session.operationId);
+		await fixture.service.writeInput(fixture.owner, {
+			operationId: session.operationId, role: 'video', offset: 0, bytes: new Uint8Array(32),
+		});
+		await fixture.service.closeInput(fixture.owner, {
+			operationId: session.operationId, role: 'video', offset: 32,
+		});
+		await executing; await chmod(root, 0o000);
+		await assert.rejects(fixture.service.cancel(fixture.owner, session.operationId), /cleanup/iu);
+		await chmod(root, 0o700); assert.equal(await fixture.service.revokeOwner(fixture.owner), true);
+		assert.deepEqual(await readdir(root), []);
+		await fixture.service.dispose();
+	} finally {
+		await chmod(root, 0o700).catch(() => undefined);
+		await fixture.service.dispose().catch(() => undefined);
 		await rm(root, { recursive: true, force: true });
 	}
 });
@@ -516,9 +578,9 @@ async function pending(promise: Promise<unknown>): Promise<boolean> {
 	return Promise.race([promise.then(() => false, () => false), Promise.resolve(true)]);
 }
 
-async function waitFor(predicate: () => boolean): Promise<void> {
+async function waitFor(predicate: () => boolean | Promise<boolean>): Promise<void> {
 	for (let attempt = 0; attempt < 100; attempt += 1) {
-		if (predicate()) return;
+		if (await predicate()) return;
 		await new Promise<void>((resolve) => setImmediate(resolve));
 	}
 	throw new Error('Timed out waiting for test process state.');

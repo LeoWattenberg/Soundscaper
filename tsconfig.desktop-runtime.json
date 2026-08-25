@@ -156,6 +156,7 @@
 		"desktop/external-ffmpeg-video-process.ts",
 		"desktop/external-ffmpeg-video-qualification.ts",
 		"desktop/external-ffmpeg-video-qualified-capabilities.ts",
+		"desktop/external-ffmpeg-video-session-cleanup.ts",
 		"desktop/linked-original-locator-validation.ts",
 		"desktop/linked-video-locator-registry.ts",
 		"desktop/linked-video-locator-store.ts",

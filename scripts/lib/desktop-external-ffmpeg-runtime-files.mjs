@@ -79,6 +79,7 @@ const DESKTOP_EXTERNAL_FFMPEG_CONTROL_RUNTIME_FILES = Object.freeze([
 	'desktop/external-ffmpeg-video-process.js',
 	'desktop/external-ffmpeg-video-qualification.js',
 	'desktop/external-ffmpeg-video-qualified-capabilities.js',
+	'desktop/external-ffmpeg-video-session-cleanup.js',
 	'src/common/editor/video-elementary-stream.js',
 	'src/common/editor/video-keyframe-audio-input.js',
 	'src/common/editor/video-keyframe-encoder-execution.js',

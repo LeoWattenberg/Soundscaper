@@ -40,6 +40,7 @@ import {
 	writeExternalFfmpegVideoInput,
 	type ExternalFfmpegVideoSpawn,
 } from './external-ffmpeg-video-process.js';
+import { cleanupExternalFfmpegVideoSessionFiles } from './external-ffmpeg-video-session-cleanup.js';
 
 export type {
 	ExternalFfmpegVideoChildProcess,
@@ -143,9 +144,12 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 ): ExternalFfmpegVideoOperationService<Owner> {
 	validateOptions(options);
 	const sessions = new Map<string, Session<Owner>>();
+	const pendingCleanups = new Set<Promise<void>>();
+	const cleanupSessions = new Set<Session<Owner>>();
 	const beginGate = createExternalFfmpegVideoBeginGate({
-		activeCount: () => sessions.size,
-		hasActiveOwner: (owner: Owner) => [...sessions.values()].some((session) => session.owner === owner),
+		activeCount: () => sessions.size + cleanupSessions.size,
+		hasActiveOwner: (owner: Owner) => [...sessions.values(), ...cleanupSessions]
+			.some((session) => session.owner === owner),
 		maximum: MAXIMUM_SESSIONS, error: operationError,
 	});
 	const digest = options.digestExecutable ?? sha256File;
@@ -172,11 +176,12 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 		sessions.delete(session.id);
 		if (session.idleTimer) clearTimeout(session.idleTimer);
 		for (const input of Object.values(session.inputs)) input?.stream?.destroy();
-		session.cleanup = Promise.resolve().then(async () => {
-			if (session.output) await session.output.close();
-			await rm(session.scratchDirectory, { recursive: true, force: true, maxRetries: 2, retryDelay: 25 });
-		});
-		return session.cleanup;
+		const task = Promise.resolve().then(() => cleanupExternalFfmpegVideoSessionFiles(session));
+		session.cleanup = task; pendingCleanups.add(task); cleanupSessions.add(session);
+		void task.then(() => { cleanupSessions.delete(session); }, () => {
+			session.cleanup = null;
+		}).finally(() => { pendingCleanups.delete(task); });
+		return task;
 	};
 
 	const service: ExternalFfmpegVideoOperationService<Owner> = Object.freeze({
@@ -323,16 +328,20 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 			const reason = abortError('The desktop video operation was cancelled.');
 			session.controller.abort(reason); session.started.reject(reason);
 			if (session.execution) await session.execution.catch(() => undefined);
-			else await cleanup(session);
+			await cleanup(session);
 			return true;
 		},
 		async revokeOwner(ownerValue: Owner) {
 			const owner = owned(ownerValue);
 			const revoked = [...sessions.values()].filter((session) => session.owner === owner);
-			const results = await Promise.all([
+			const cleaning = [...cleanupSessions].filter((session) => session.owner === owner);
+			const results = await Promise.allSettled([
 				beginGate.revoke(owner), ...revoked.map((session) => service.cancel(owner, session.id)),
+				...cleaning.map(cleanup),
 			]);
-			return results.some(Boolean);
+			const failures = results.flatMap((result) => result.status === 'rejected' ? [result.reason] : []);
+			if (failures.length > 0) throw new AggregateError(failures, 'Desktop video owner cleanup failed.');
+			return cleaning.length > 0 || results.some((result) => result.status === 'fulfilled' && result.value === true);
 		},
 		dispose() {
 			if (disposal) return disposal;
@@ -342,17 +351,20 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 				const reason = abortError('The desktop video service stopped.');
 				session.controller.abort(reason); session.started.reject(reason);
 			}
-			disposal = Promise.allSettled([
-				qualifiedCapabilities.dispose(), beginGate.dispose(),
-				...active.map(async (session) => {
+			disposal = (async () => {
+				const lifecycle = await Promise.allSettled([
+					qualifiedCapabilities.dispose(), beginGate.dispose(),
+				]);
+				await Promise.allSettled([...pendingCleanups, ...active.map(async (session) => {
 					await session.execution?.catch(() => undefined); await cleanup(session);
-				}),
-			]).then((results) => {
-				const failures = results.flatMap((result) => result.status === 'rejected' ? [result.reason] : []);
+				})]);
+				const retries = await Promise.allSettled([...cleanupSessions].map(cleanup));
+				const failures = [...lifecycle, ...retries]
+					.flatMap((result) => result.status === 'rejected' ? [result.reason] : []);
 				if (failures.length > 0) throw new AggregateError(
 					failures, 'Desktop external FFmpeg video cleanup failed.',
 				);
-			});
+			})();
 			return disposal;
 		},
 	});
