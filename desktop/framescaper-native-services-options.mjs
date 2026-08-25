@@ -72,6 +72,7 @@ export function imageSequenceImportAuthorityPort(value) {
 
 export function projectAuthorityPort(value) {
 	return value === null || (value && typeof value === 'object' && !Array.isArray(value)
+		&& (value.projectSchemaVersion === undefined || [28, 31].includes(value.projectSchemaVersion))
 		&& ['projectState', 'projectRecord', 'readProjectBundle', 'readBody', 'materializeBody']
 			.every((method) => typeof value[method] === 'function'));
 }

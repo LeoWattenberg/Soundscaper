@@ -20,7 +20,7 @@ export interface FramescaperNativeWatchProjectState {
 	readonly open: boolean;
 	readonly writable: boolean;
 	/** Absent retains the historical V20 null-bin/no-proxy contract. */
-	readonly schemaVersion?: 20 | 28;
+	readonly schemaVersion?: 20 | 28 | 31;
 	readonly binId?: string | null;
 }
 
@@ -39,7 +39,7 @@ export function assertFramescaperNativeWatchTarget(
 	state: FramescaperNativeWatchProjectState,
 	rule: Readonly<{ readonly binId: string | null; readonly generateProxies: boolean }>,
 ): void {
-	if (state.schemaVersion === 28) {
+	if (state.schemaVersion === 28 || state.schemaVersion === 31) {
 		if (state.binId !== FRAMESCAPER_SELECTED_V28_WATCH_BIN_ID
 			|| rule.binId !== FRAMESCAPER_SELECTED_V28_WATCH_BIN_ID) {
 			throw new Error('Selected V28 watch folders require the exact writable project bin.');

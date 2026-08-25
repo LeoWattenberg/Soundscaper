@@ -18,7 +18,7 @@ export interface FramescaperNativeWatchLinkedLocator {
 }
 
 export interface FramescaperNativeWatchProjectWitness {
-	readonly schemaVersion: 20 | 28;
+	readonly schemaVersion: 20 | 28 | 31;
 	readonly projectId: string;
 	readonly projectRevision: number;
 	readonly open: boolean;
@@ -52,7 +52,7 @@ export type FramescaperNativeWatchImportClaimV20 = FramescaperNativeWatchImportC
 
 export interface FramescaperNativeWatchImportClaimV28
 	extends FramescaperNativeWatchImportClaimBase {
-	readonly projectSchemaVersion: 28;
+	readonly projectSchemaVersion: 28 | 31;
 	readonly binId: string;
 	readonly generateProxies: boolean;
 	readonly existingSourceId: string | null;
@@ -75,7 +75,7 @@ export type FramescaperNativeWatchImportCompletionRequestV20 =
 
 export interface FramescaperNativeWatchImportCompletionRequestV28
 	extends FramescaperNativeWatchImportCompletionBase {
-	readonly projectSchemaVersion: 28;
+	readonly projectSchemaVersion: 28 | 31;
 	readonly binId: string;
 	readonly sourceId: string | null;
 	readonly contentSha256: string;
@@ -114,7 +114,7 @@ export function framescaperNativeWatchUsableProject(
 	value: FramescaperNativeWatchProjectWitness | null,
 	projectId: string,
 ): value is FramescaperNativeWatchProjectWitness {
-	return (value?.schemaVersion === 20 || value?.schemaVersion === 28)
+	return (value?.schemaVersion === 20 || value?.schemaVersion === 28 || value?.schemaVersion === 31)
 		&& value.projectId === projectId && value.open && value.writable
 		&& Number.isSafeInteger(value.projectRevision) && value.projectRevision >= 0
 		&& (value.schemaVersion === 20 || value.binId === SELECTED_V28_BIN_ID);
@@ -196,9 +196,9 @@ function claimV28(value: unknown): FramescaperNativeWatchImportClaimV28 {
 		'generateProxies', 'existingSourceId', 'importMode', 'locatorId', 'locatorRevision',
 		'name', 'size', 'mimeType', 'lastModified', 'contentSha256',
 	]);
-	if (record.projectSchemaVersion !== 28) throw new TypeError('Invalid watch-import project schema.');
+	const projectSchemaVersion = selectedProjectSchema(record.projectSchemaVersion);
 	return Object.freeze({
-		...claimBase(record), projectSchemaVersion: 28, binId: selectedBin(record.binId),
+		...claimBase(record), projectSchemaVersion, binId: selectedBin(record.binId),
 		generateProxies: boolean(record.generateProxies, 'watch-import proxy choice'),
 		existingSourceId: record.existingSourceId === null ? null
 			: identifier(record.existingSourceId, 'watch-import source id'),
@@ -210,14 +210,14 @@ function completionRequestV28(value: unknown): FramescaperNativeWatchImportCompl
 		'claimId', 'projectId', 'projectSchemaVersion', 'binId', 'sourceId', 'contentSha256',
 		'expectedProjectRevision', 'committedProjectRevision', 'success',
 	], 'watch-import completion request');
-	if (record.projectSchemaVersion !== 28) throw new TypeError('Invalid watch-import project schema.');
+	const projectSchemaVersion = selectedProjectSchema(record.projectSchemaVersion);
 	const success = boolean(record.success, 'watch-import success');
 	const sourceId = record.sourceId === null ? null : identifier(record.sourceId, 'watch-import source id');
 	if (success && sourceId === null) throw new TypeError('A completed watch import requires its source id.');
 	return Object.freeze({
 		claimId: opaqueId(record.claimId, 'watch-import claim id'),
 		projectId: identifier(record.projectId, 'watch-import project id'),
-		projectSchemaVersion: 28, binId: selectedBin(record.binId), sourceId,
+		projectSchemaVersion, binId: selectedBin(record.binId), sourceId,
 		contentSha256: digest(record.contentSha256),
 		expectedProjectRevision: nonNegativeInteger(record.expectedProjectRevision, 'expected project revision'),
 		committedProjectRevision: nonNegativeInteger(record.committedProjectRevision, 'committed project revision'),
@@ -279,6 +279,11 @@ function identifier(value: unknown, label: string): string {
 
 function selectedBin(value: unknown): string {
 	if (value !== SELECTED_V28_BIN_ID) throw new TypeError('Invalid selected watch-import bin.');
+	return value;
+}
+
+function selectedProjectSchema(value: unknown): 28 | 31 {
+	if (value !== 28 && value !== 31) throw new TypeError('Invalid watch-import project schema.');
 	return value;
 }
 
