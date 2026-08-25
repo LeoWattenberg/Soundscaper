@@ -95,6 +95,59 @@ test('main grants exact digest-bound selected audio and Silero model to the VAD 
 	}
 });
 
+test('main grants exact audio, segmentation, and embedding files to the diarization helper', async (t) => {
+	const root = await mkdtemp(join(tmpdir(), 'scape-diarization-grants-'));
+	t.after(() => rm(root, { recursive: true, force: true }));
+	const audioPath = join(root, 'selected.wav');
+	const segmentationPath = join(root, 'pyannote.onnx');
+	const embeddingPath = join(root, 'eres2net.onnx');
+	await Promise.all([
+		writeFile(audioPath, 'wave'),
+		writeFile(segmentationPath, 'segmentation'),
+		writeFile(embeddingPath, 'embedding'),
+	]);
+	let request: unknown = null;
+	const runtime = createAssistanceHelperRuntimeAdapter({
+		mintJobId: () => '12'.repeat(20),
+		host: {
+			start(value) {
+				request = value;
+				return { jobId: '12'.repeat(20), completed: Promise.resolve({
+					sampleRate: 16_000,
+					turns: [{ startSample: 1_600, sampleCount: 8_000, speakerId: 0 }],
+				}), cancel: () => Promise.resolve() };
+			},
+			dispose() {},
+		},
+	});
+
+	assert.deepEqual(await runtime.diarize({
+		audioPath,
+		modelIds: {
+			segmentation: 'pyannote-segmentation-3.0',
+			embedding: 'speech-3d-speaker-eres2net',
+		},
+		models: { segmentation: segmentationPath, embedding: embeddingPath },
+	}), {
+		sampleRate: 16_000,
+		turns: [{ startSample: 1_600, sampleCount: 8_000, speakerId: 0 }],
+	});
+	const admitted = validateAssistanceJobRequest(request);
+	assert.equal(admitted.grant.operation, 'diarize-speakers');
+	if (admitted.grant.operation !== 'diarize-speakers') return;
+	assert.deepEqual(admitted.grant.modelIds, {
+		segmentation: 'pyannote-segmentation-3.0',
+		embedding: 'speech-3d-speaker-eres2net',
+	});
+	assert.deepEqual([admitted.grant.audio.role, admitted.grant.models.segmentation.role,
+		admitted.grant.models.embedding.role], ['audio', 'segmentation-model', 'embedding-model']);
+	for (const file of [admitted.grant.audio, ...Object.values(admitted.grant.models)]) {
+		const contents = await readFile(file.path);
+		assert.equal(file.bytes, contents.byteLength);
+		assert.equal(file.sha256, createHash('sha256').update(contents).digest('hex'));
+	}
+});
+
 test('runtime status is answered by the helper rather than loading sherpa in main', async () => {
 	let request: unknown = null;
 	const runtime = createAssistanceHelperRuntimeAdapter({

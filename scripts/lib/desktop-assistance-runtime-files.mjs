@@ -3,6 +3,7 @@
 /** Exact compiled closure owned by desktop local assistance and its model store. */
 export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'desktop/assistance-data-claims.js',
+	'desktop/assistance-diarization-runtime.js',
 	'desktop/assistance-helper-runtime.js',
 	'desktop/assistance-job-host.js',
 	'desktop/assistance-job-protocol.js',
@@ -12,11 +13,14 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'desktop/assistance-operation-service.js',
 	'desktop/assistance-operation-transfers.js',
 	'desktop/assistance-service.js',
+	'desktop/assistance-sherpa-diarizer.js',
 	'desktop/assistance-sherpa-recognizer.js',
+	'desktop/assistance-sherpa-vad.js',
 	'desktop/assistance-speech-job-contract.js',
 	'desktop/assistance-speech-runtime.js',
 	'desktop/assistance-staging-private-files.js',
 	'desktop/assistance-staging-registry.js',
+	'desktop/assistance-vad-runtime.js',
 	'desktop/local-model-capacity.js',
 	'desktop/local-model-catalog.js',
 	'desktop/local-model-catalog-signature.js',
