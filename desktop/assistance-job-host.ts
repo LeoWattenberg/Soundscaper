@@ -20,6 +20,11 @@ export interface AssistanceJobProgress {
 	readonly total: number;
 }
 
+export interface AssistanceJobStartOptions {
+	readonly signal?: AbortSignal;
+	readonly onProgress?: (progress: AssistanceJobProgress) => void;
+}
+
 export interface AssistanceJobHostOptions {
 	readonly spawn: () => AssistanceHelperChannel | Promise<AssistanceHelperChannel>;
 	readonly verifyBinary?: () => Promise<void>;
@@ -69,20 +74,28 @@ export function createAssistanceJobHost(options: AssistanceJobHostOptions) {
 
 	function start(
 		request: unknown,
-		onProgress?: (progress: AssistanceJobProgress) => void,
+		optionsValue?: AssistanceJobStartOptions | ((progress: AssistanceJobProgress) => void),
 	): AssistanceJobRun {
 		if (active) throw new Error('An assistance job is already running.');
 		const validated: AssistanceJobRequest = validateAssistanceJobRequest(request);
+		const options: AssistanceJobStartOptions = typeof optionsValue === 'function'
+			? Object.freeze({ onProgress: optionsValue })
+			: optionsValue ?? Object.freeze({});
 		const controller = new AbortController();
+		const externalSignal = options.signal;
+		const forwardAbort = (): void => controller.abort(externalSignal?.reason);
+		if (externalSignal?.aborted) forwardAbort();
+		else externalSignal?.addEventListener('abort', forwardAbort, { once: true });
 		nextJobId = validated.jobId;
 		const completed = supervisor.runJob({
 			kind: 'assistance-speech',
 			grant: validated.grant,
 			signal: controller.signal,
-			onProgress: (value) => onProgress?.(Object.freeze({ completed: value ?? 0, total: 1 })),
+			onProgress: (value) => options.onProgress?.(Object.freeze({ completed: value ?? 0, total: 1 })),
 		}).catch((error: unknown) => {
-			throw translateError(validated.jobId, error);
+			throw translateError(validated.jobId, error, controller.signal.aborted);
 		}).finally(() => {
+			externalSignal?.removeEventListener('abort', forwardAbort);
 			if (active?.jobId === validated.jobId) active = null;
 		});
 		active = Object.freeze({ jobId: validated.jobId, controller, completed });
@@ -92,7 +105,12 @@ export function createAssistanceJobHost(options: AssistanceJobHostOptions) {
 			async cancel(): Promise<void> {
 				if (active?.jobId !== validated.jobId) return;
 				controller.abort();
-				await completed.catch(() => undefined);
+				try {
+					await completed;
+				} catch (error) {
+					if (error instanceof AssistanceJobError && error.cause === 'cancelled') return;
+					throw error;
+				}
 			},
 		});
 	}
@@ -107,12 +125,19 @@ export function createAssistanceJobHost(options: AssistanceJobHostOptions) {
 	});
 }
 
-function translateError(jobId: string, error: unknown): AssistanceJobError {
+function translateError(jobId: string, error: unknown, aborted = false): AssistanceJobError {
 	if (error instanceof AssistanceJobError) return error;
 	if (error instanceof HelperSupervisionError) {
 		return new AssistanceJobError(jobId, error.message, assistanceCause(error.cause_));
 	}
+	if (aborted || isAbortError(error)) {
+		return new AssistanceJobError(jobId, 'The assistance job was cancelled.', 'cancelled');
+	}
 	return new AssistanceJobError(jobId, error instanceof Error ? error.message : String(error), 'helper-error');
+}
+
+function isAbortError(error: unknown): boolean {
+	return error instanceof Error && error.name === 'AbortError';
 }
 
 function assistanceCause(cause: HelperSupervisionError['cause_']): string {
