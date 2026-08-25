@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Dedicated utility-process entry point for optional native speech inference. */
+/** Dedicated utility-process entry point for optional native speech analysis. */
 
 import { createAssistanceSpeechJobRunner } from './assistance-helper-job.js';
 import { createSingleKindHelperWorker } from './helper-single-kind-worker.js';

@@ -59,6 +59,42 @@ test('main grants exact digest-bound audio and model artifacts to the speech hel
 	}
 });
 
+test('main grants exact digest-bound selected audio and Silero model to the VAD helper', async (t) => {
+	const root = await mkdtemp(join(tmpdir(), 'scape-vad-grants-'));
+	t.after(() => rm(root, { recursive: true, force: true }));
+	const audioPath = join(root, 'selected.wav');
+	const modelPath = join(root, 'silero_vad.onnx');
+	await Promise.all([writeFile(audioPath, 'wave'), writeFile(modelPath, 'model')]);
+	let request: unknown = null;
+	const runtime = createAssistanceHelperRuntimeAdapter({
+		mintJobId: () => 'ef'.repeat(20),
+		host: {
+			start(value) {
+				request = value;
+				return { jobId: 'ef'.repeat(20), completed: Promise.resolve({
+					sampleRate: 16_000, segments: [{ startSample: 512, sampleCount: 1_024 }],
+				}), cancel: () => Promise.resolve() };
+			},
+			dispose() {},
+		},
+	});
+
+	assert.deepEqual(await runtime.detect({
+		modelId: 'silero-vad-v6', audioPath, model: { model: modelPath },
+	}), { sampleRate: 16_000, segments: [{ startSample: 512, sampleCount: 1_024 }] });
+	const admitted = validateAssistanceJobRequest(request);
+	assert.equal(admitted.grant.operation, 'detect-voice-activity');
+	if (admitted.grant.operation !== 'detect-voice-activity') return;
+	assert.equal(admitted.grant.modelId, 'silero-vad-v6');
+	assert.equal(admitted.grant.audio.role, 'audio');
+	assert.equal(admitted.grant.model.role, 'vad-model');
+	for (const file of [admitted.grant.audio, admitted.grant.model]) {
+		const contents = await readFile(file.path);
+		assert.equal(file.bytes, contents.byteLength);
+		assert.equal(file.sha256, createHash('sha256').update(contents).digest('hex'));
+	}
+});
+
 test('runtime status is answered by the helper rather than loading sherpa in main', async () => {
 	let request: unknown = null;
 	const runtime = createAssistanceHelperRuntimeAdapter({

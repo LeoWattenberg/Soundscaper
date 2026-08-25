@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Runs one native speech job in a terminateable thread inside its utility process. */
+/** Runs one native speech-analysis job in a terminateable utility-process thread. */
 
 import { Worker } from 'node:worker_threads';
 
@@ -29,7 +29,7 @@ export function createAssistanceSpeechJobRunner({ WorkerImpl = Worker } = {}) {
 			worker.once('exit', (code) => {
 				if (settled) return;
 				settled = true;
-				reject(new Error(`The speech inference worker exited before answering (code ${String(code)}).`));
+				reject(new Error(`The speech-analysis worker exited before answering (code ${String(code)}).`));
 			});
 		});
 		return Object.freeze({
@@ -43,7 +43,7 @@ export function createAssistanceSpeechJobRunner({ WorkerImpl = Worker } = {}) {
 }
 
 function reviveWorkerError(value) {
-	const error = new Error(typeof value?.message === 'string' ? value.message : 'The speech inference worker failed.');
+	const error = new Error(typeof value?.message === 'string' ? value.message : 'The speech-analysis worker failed.');
 	if (typeof value?.name === 'string') error.name = value.name;
 	return error;
 }
