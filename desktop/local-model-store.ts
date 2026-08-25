@@ -280,6 +280,18 @@ export class FileLocalModelStore {
 		}
 	}
 
+	async #hasArtifact(artifact: LocalModelArtifact): Promise<boolean> {
+		try {
+			const metadata = await lstat(this.blobPath(artifact.sha256));
+			return metadata.isFile()
+				&& !metadata.isSymbolicLink()
+				&& metadata.size === artifact.byteLength;
+		} catch (error) {
+			if (errorCode(error) === 'ENOENT') return false;
+			throw error;
+		}
+	}
+
 	/**
 	 * Records an installation. Every artifact must already be published, so a
 	 * manifest can never name bytes the store does not hold.
@@ -290,7 +302,7 @@ export class FileLocalModelStore {
 			schemaVersion: LOCAL_MODEL_MANIFEST_SCHEMA_VERSION,
 		});
 		for (const artifact of normalized.artifacts) {
-			if (!await this.hasBlob(artifact.sha256)) {
+			if (!await this.#hasArtifact(artifact)) {
 				throw new Error(`Local model ${normalized.modelId} is missing a published artifact.`);
 			}
 		}
@@ -360,7 +372,15 @@ export class FileLocalModelStore {
 			if (!MODEL_ID_PATTERN.test(modelId)) continue;
 			try {
 				const manifest = await this.readManifest(modelId);
-				if (manifest && manifest.modelId === modelId) installed.push(manifest);
+				if (!manifest || manifest.modelId !== modelId) continue;
+				let complete = true;
+				for (const artifact of manifest.artifacts) {
+					if (!await this.#hasArtifact(artifact)) {
+						complete = false;
+						break;
+					}
+				}
+				if (complete) installed.push(manifest);
 			} catch {
 				continue;
 			}
