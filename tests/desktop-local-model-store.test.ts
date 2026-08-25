@@ -169,10 +169,22 @@ test('externally deleted bytes are reported as uninstalled rather than trusted',
 	await rm(store.blobPath(artifact.sha256));
 
 	assert.equal(await store.hasBlob(artifact.sha256), false);
+	assert.deepEqual(await store.listInstalled(), [], 'a manifest with missing bytes is not an installation');
 	await assert.rejects(
 		store.commitInstall({ modelId: 'model-a', version: '2', artifacts: [artifact] }),
 		/missing a published artifact/iu,
 	);
+});
+
+test('externally truncated bytes are reported as uninstalled', { timeout: 20_000 }, async (t) => {
+	const { store, root } = await createStore();
+	t.after(() => rm(root, { recursive: true, force: true }));
+
+	const artifact = await publish(store, 'model.onnx', 'model weights');
+	await store.commitInstall({ modelId: 'model-a', version: '1', artifacts: [artifact] });
+	await writeFile(store.blobPath(artifact.sha256), 'short');
+
+	assert.deepEqual(await store.listInstalled(), [], 'a manifest with truncated bytes is not an installation');
 });
 
 test('the store refuses ids, versions, and digests it cannot place safely', { timeout: 20_000 }, async (t) => {
