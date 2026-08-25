@@ -11,6 +11,10 @@ const macSigned = macSigningIdentity !== '-';
 const macEntitlements = framescaper
 	? 'desktop/framescaper-entitlements.mac.plist'
 	: 'desktop/soundscaper-entitlements.mac.plist';
+// The codec-only addon is signed and verified before its digest enters the
+// stage manifest. Re-signing it here would change those authenticated bytes.
+const macPreSignedOsCodecAddon =
+	'/Contents/Resources/runtime/native/soundscaper-os-audio-codec/mac-arm64/soundscaper_os_audio_codec\\.node$';
 
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
@@ -81,6 +85,7 @@ module.exports = {
 		hardenedRuntime: macSigned,
 		entitlements: macEntitlements,
 		entitlementsInherit: macEntitlements,
+		signIgnore: macPreSignedOsCodecAddon,
 		notarize: macSigned && process.env.SOUNDSCAPER_MAC_NOTARIZE === 'true',
 		gatekeeperAssess: false,
 		category: framescaper ? 'public.app-category.video' : 'public.app-category.music',

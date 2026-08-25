@@ -21,6 +21,20 @@ test('desktop packaging replaces Electron proprietary codecs with its alternate 
 	assert.equal(configuration.downloadAlternateFFmpeg, true);
 });
 
+test('macOS packaging preserves the authenticated pre-signed OS codec addon bytes', () => {
+	const configuration = require('../electron-builder.config.cjs');
+	assert.equal(typeof configuration.mac.signIgnore, 'string');
+	const ignored = new RegExp(configuration.mac.signIgnore, 'u');
+	assert.equal(ignored.test(
+		'/tmp/Soundscaper.app/Contents/Resources/runtime/native/soundscaper-os-audio-codec/mac-arm64/soundscaper_os_audio_codec.node',
+	), true);
+	for (const path of [
+		'/tmp/Soundscaper.app/Contents/Resources/runtime/native/soundscaper-os-audio-codec/mac-arm64/other.node',
+		'/tmp/Soundscaper.app/Contents/Resources/runtime/native/mac-arm64/addon.node',
+		'/tmp/Soundscaper.app/Contents/Frameworks/Electron Framework.framework/Electron Framework',
+	]) assert.equal(ignored.test(path), false, path);
+});
+
 test('desktop codec policy is immutable and fixes provider priority without bundled FFmpeg', () => {
 	assert.deepEqual(DESKTOP_CODEC_POLICY, {
 		schemaVersion: 1,
