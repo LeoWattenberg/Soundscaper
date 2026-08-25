@@ -21,7 +21,7 @@ import {
 } from '../desktop/soundscaper-project-library-v11-contract.ts';
 import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
 import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
-import { createSoundscaperProjectV29 } from '../src/soundscaper/editor-project-v29.ts';
+import { createSoundscaperProjectV30 } from '../src/soundscaper/editor-project-v30.ts';
 import {
 	SOUNDSCAPER_DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
 } from '../desktop/soundscaper-project-library-v11-contract.ts';
@@ -218,9 +218,9 @@ test('staged product selector isolates exact-generation handlers, preload, sessi
 		await soundscaperHandlers.get(SOUNDSCAPER_CHANNELS[0])!({ owner: soundscaperOwner }, exactSoundscaperHandshake()),
 		exactSoundscaperHandshake(),
 	);
-	const soundscaperProject = createSoundscaperProjectV29({
-		id: 'soundscaper-v29-package-witness',
-		title: 'Soundscaper V29 package witness',
+	const soundscaperProject = createSoundscaperProjectV30({
+		id: 'soundscaper-v30-package-witness',
+		title: 'Soundscaper V30 package witness',
 		revision: 0,
 		now: '2026-08-14T12:00:00.000Z',
 	});

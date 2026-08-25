@@ -4,8 +4,13 @@ import type {
 	ProjectFeatureRequirementsManifest,
 } from '../common/editor/project-feature-requirements.ts';
 import {
-	rebindSoundscaperProjectFreezeSourceIdentitiesV29,
+	normalizeAssistanceAssetReferencesV1,
+} from '../common/editor/assistance/assistance-asset-reference-v1.ts';
+import {
 	reconcileSoundscaperProjectFeatureRequirementsV29,
+} from './editor-project-feature-requirements-v29.ts';
+import {
+	rebindSoundscaperProjectFreezeSourceIdentitiesV29,
 	soundscaperAudioTrackFreezeRequirementIdV29,
 } from './editor-project-feature-requirements-v29.ts';
 import {
@@ -39,5 +44,15 @@ export function validateSoundscaperProjectFeatureRequirementsV30(project: DataRe
 export const soundscaperAudioTrackFreezeRequirementIdV30 =
 	soundscaperAudioTrackFreezeRequirementIdV29;
 
-export const rebindSoundscaperProjectFreezeSourceIdentitiesV30 =
-	rebindSoundscaperProjectFreezeSourceIdentitiesV29;
+/** Rebind inherited freeze state and V30's source-bound assistance references together. */
+export function rebindSoundscaperProjectFreezeSourceIdentitiesV30(
+	project: Record<string, unknown>,
+	sourceIdMap: ReadonlyMap<string, string>,
+): void {
+	rebindSoundscaperProjectFreezeSourceIdentitiesV29(project, sourceIdMap);
+	const assets = normalizeAssistanceAssetReferencesV1(project.assistanceAssets);
+	project.assistanceAssets = normalizeAssistanceAssetReferencesV1(assets.map((asset) => ({
+		...asset,
+		sourceId: sourceIdMap.get(asset.sourceId) ?? asset.sourceId,
+	})));
+}

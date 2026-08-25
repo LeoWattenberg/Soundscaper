@@ -2,7 +2,7 @@
 
 import { expect, test } from '@playwright/test';
 
-import { SOUNDSCAPER_PROJECT_V29_SCHEMA_VERSION } from '../../src/common/editor/project-schema-version.ts';
+import { SOUNDSCAPER_PROJECT_V30_SCHEMA_VERSION } from '../../src/common/editor/project-schema-version.ts';
 import {
 	addRackEffect,
 	assertAccessibleBasics,
@@ -34,7 +34,7 @@ const FREEZE_DELAY_FRAMES = 48;
 const productionTone = createProductionTone();
 const freezeImpulse = createFreezeImpulse();
 
-test.describe('Soundscaper exact V29 production UI', () => {
+test.describe('Soundscaper exact V30 production UI', () => {
 	registerAudioEditorHooks();
 
 	test('keeps production surfaces lazy and reaches them through their owned menus', async ({ browserName, page }) => {
@@ -106,13 +106,13 @@ test.describe('Soundscaper exact V29 production UI', () => {
 		expect(clientErrors).toEqual([]);
 	});
 
-	test('imports exact-timing A/V with one aligned V29 media-lane duration', async ({ page }, testInfo) => {
+	test('imports exact-timing A/V with one aligned V30 media-lane duration', async ({ page }, testInfo) => {
 		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
 		test.setTimeout(90_000);
 		await installPinnedFfmpegRuntimeRoutes(page);
 		const clientErrors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
-		await importFiles(editor, [createDeterministicAvFixture('v29-exact-timing.webm')]);
+		await importFiles(editor, [createDeterministicAvFixture('v30-exact-timing.webm')]);
 		await expect(editor).toHaveAttribute('data-clip-count', '2');
 		const projectId = await editor.getAttribute('data-project-id');
 		expect(projectId).toBeTruthy();
@@ -124,7 +124,7 @@ test.describe('Soundscaper exact V29 production UI', () => {
 		const video = stored.clips.find(({ kind }) => kind === 'video');
 		const audio = stored.clips.find(({ kind }) => kind === 'audio');
 		const sequence = stored.sequences.find(({ id }) => id === video?.sequenceId);
-		expect(stored.schemaVersion).toBe(SOUNDSCAPER_PROJECT_V29_SCHEMA_VERSION);
+		expect(stored.schemaVersion).toBe(SOUNDSCAPER_PROJECT_V30_SCHEMA_VERSION);
 		expect(videoSource).toMatchObject({
 			sourceFrameCount: 32, sampleFrameCount: 103_296, timingDecision: { mode: 'exact' },
 		});
@@ -264,7 +264,7 @@ test.describe('Soundscaper exact V29 production UI', () => {
 		await chooseFileAction(page, editor, 'Save project');
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
 		const stored = await readStoredSoundscaperProject(page, projectId);
-		expect(stored.schemaVersion).toBe(SOUNDSCAPER_PROJECT_V29_SCHEMA_VERSION);
+		expect(stored.schemaVersion).toBe(SOUNDSCAPER_PROJECT_V30_SCHEMA_VERSION);
 		expect(stored.automationLanes).toHaveLength(1);
 		expect(stored.automationLanes[0].id).toBe(lane.id);
 		expect(stored.automationLanes[0]).not.toEqual(lane);

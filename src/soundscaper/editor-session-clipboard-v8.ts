@@ -6,6 +6,8 @@ import type {
 } from '../common/editor/controller/project-runtime.ts'
 import type { SoundscaperProjectV29 } from './editor-project-v29.ts'
 import { validateSoundscaperProjectV29 } from './editor-project-v29-validation.ts'
+import type { SoundscaperProjectV30 } from './editor-project-v30.ts'
+import { validateSoundscaperProjectV30 } from './editor-project-v30-validation.ts'
 
 export const SOUNDSCAPER_SESSION_CLIPBOARD_SCHEMA_VERSION_V8 = 8 as const
 
@@ -24,13 +26,15 @@ export interface SoundscaperTrackDuplicateClipboardV8 {
 	readonly effectIds: readonly string[];
 }
 
+type SoundscaperProductionClipboardProjectV8 = SoundscaperProjectV29 | SoundscaperProjectV30
+
 /** Capture only the identity authority needed to remap one exact track duplicate. */
 export function createSoundscaperTrackDuplicateClipboardV8(
-	projectValue: SoundscaperProjectV29 | unknown,
+	projectValue: SoundscaperProductionClipboardProjectV8 | unknown,
 	sourceTrackIdValue: unknown,
 ): Readonly<SoundscaperTrackDuplicateClipboardV8> {
 	validateSoundscaperProductionAuthorityV8(projectValue)
-	const project = projectValue as SoundscaperProjectV29
+	const project = projectValue as SoundscaperProductionClipboardProjectV8
 	const sourceTrackId = canonicalId(sourceTrackIdValue, 'clipboard source track ID')
 	const sourceTrack = project.tracks.find(({ id }) => id === sourceTrackId)
 	if (!sourceTrack) throw new ReferenceError(`Unknown clipboard source track: ${sourceTrackId}.`)
@@ -73,12 +77,12 @@ export function normalizeSoundscaperTrackDuplicateClipboardV8(
 
 /** Consume V8 only against its exact source revision and caller-allocated fresh identities. */
 export function prepareSoundscaperTrackDuplicateCarrierV8(
-	projectValue: SoundscaperProjectV29 | unknown,
+	projectValue: SoundscaperProductionClipboardProjectV8 | unknown,
 	clipboardValue: SoundscaperTrackDuplicateClipboardV8 | unknown,
 	requestValue: ControllerTrackDuplicateRequest | unknown,
 ): Readonly<ControllerTrackDuplicateCarrier> {
 	validateSoundscaperProductionAuthorityV8(projectValue)
-	const project = projectValue as SoundscaperProjectV29
+	const project = projectValue as SoundscaperProductionClipboardProjectV8
 	const clipboard = normalizeSoundscaperTrackDuplicateClipboardV8(clipboardValue)
 	if (clipboard.originProjectId !== project.id || clipboard.originRevision !== project.revision) {
 		throw new RangeError('Soundscaper clipboard V8 is stale for the current project revision.')
@@ -114,7 +118,7 @@ export function prepareSoundscaperTrackDuplicateCarrierV8(
 
 /** Create and consume one V8 carrier within the real controller duplicate preparation. */
 export function prepareCurrentSoundscaperTrackDuplicateCarrierV8(
-	project: SoundscaperProjectV29 | unknown,
+	project: SoundscaperProductionClipboardProjectV8 | unknown,
 	request: ControllerTrackDuplicateRequest | unknown,
 ): Readonly<ControllerTrackDuplicateCarrier> {
 	const normalizedRequest = normalizeRequest(request)
@@ -159,7 +163,18 @@ function normalizeRequest(value: unknown): Readonly<ControllerTrackDuplicateRequ
  * duplication once the app started booting the V23 selection by default.
  */
 function validateSoundscaperProductionAuthorityV8(project: unknown): void {
+	if (isExactSchema(project, 30)) {
+		validateSoundscaperProjectV30(project)
+		return
+	}
 	validateSoundscaperProjectV29(project)
+}
+
+function isExactSchema(value: unknown, schemaVersion: number): boolean {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+	const descriptor = Object.getOwnPropertyDescriptor(value, 'schemaVersion')
+	return Boolean(descriptor?.enumerable && Object.hasOwn(descriptor, 'value')
+		&& descriptor.value === schemaVersion)
 }
 
 function plainExactRecord<const Field extends string>(

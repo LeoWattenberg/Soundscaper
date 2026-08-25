@@ -7,13 +7,16 @@ import {
 import { cloneSoundscaperProjectV21 } from './editor-project-v21.ts';
 import { cloneSoundscaperProjectV23 } from './editor-project-v23.ts';
 import { cloneSoundscaperProjectV29 } from './editor-project-v29.ts';
+import { cloneSoundscaperProjectV30 } from './editor-project-v30.ts';
 import type { SoundscaperProductionProject } from './editor-project-production-validation.ts';
 import { SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v21.ts';
 import { SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v23.ts';
 import { SOUNDSCAPER_V29_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v29.ts';
+import { SOUNDSCAPER_V30_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v30.ts';
 import { soundscaperProjectStoreAuthorityV21 } from './editor-project-store-v21.ts';
 import { soundscaperProjectStoreAuthorityV23 } from './editor-project-store-v23.ts';
 import { soundscaperProjectStoreAuthorityV29 } from './editor-project-store-v29.ts';
+import { soundscaperProjectStoreAuthorityV30 } from './editor-project-store-v30.ts';
 
 /**
  * Authenticate a process-local Soundscaper production runtime authority.
@@ -29,7 +32,8 @@ export function assertSoundscaperProductionProfile(
 ): asserts profile is EditorProjectRuntimeProfile {
 	if (profile !== SOUNDSCAPER_V21_PROJECT_RUNTIME_PROFILE
 		&& profile !== SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE
-		&& profile !== SOUNDSCAPER_V29_PROJECT_RUNTIME_PROFILE) {
+		&& profile !== SOUNDSCAPER_V29_PROJECT_RUNTIME_PROFILE
+		&& profile !== SOUNDSCAPER_V30_PROJECT_RUNTIME_PROFILE) {
 		throw new TypeError('An exact Soundscaper production runtime profile is required.');
 	}
 	editorProjectRuntimeProfileDefinition(profile);
@@ -46,6 +50,9 @@ export function assertSoundscaperProductionProfile(
  */
 export function soundscaperProductionStoreAuthority(profile: unknown, store: unknown): unknown {
 	assertSoundscaperProductionProfile(profile);
+	if (profile === SOUNDSCAPER_V30_PROJECT_RUNTIME_PROFILE) {
+		return soundscaperProjectStoreAuthorityV30(profile, store);
+	}
 	if (profile === SOUNDSCAPER_V29_PROJECT_RUNTIME_PROFILE) {
 		return soundscaperProjectStoreAuthorityV29(profile, store);
 	}
@@ -69,10 +76,12 @@ export function soundscaperProductionProjectClone(
 	project: unknown,
 ): SoundscaperProductionProject {
 	assertSoundscaperProductionProfile(profile);
-	const clone = profile === SOUNDSCAPER_V29_PROJECT_RUNTIME_PROFILE
-		? cloneSoundscaperProjectV29(project)
-		: profile === SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE
-			? cloneSoundscaperProjectV23(project)
-			: cloneSoundscaperProjectV21(project);
+	const clone = profile === SOUNDSCAPER_V30_PROJECT_RUNTIME_PROFILE
+		? cloneSoundscaperProjectV30(project)
+		: profile === SOUNDSCAPER_V29_PROJECT_RUNTIME_PROFILE
+			? cloneSoundscaperProjectV29(project)
+			: profile === SOUNDSCAPER_V23_PROJECT_RUNTIME_PROFILE
+				? cloneSoundscaperProjectV23(project)
+				: cloneSoundscaperProjectV21(project);
 	return clone as unknown as SoundscaperProductionProject;
 }
