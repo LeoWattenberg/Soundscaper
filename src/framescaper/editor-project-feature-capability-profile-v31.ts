@@ -9,7 +9,7 @@ import {
 	FRAMESCAPER_V28_PROJECT_FEATURE_CAPABILITY_PROFILE,
 } from './editor-project-feature-capability-profile-v28.ts';
 
-/** F31 retains exact selected F28 authority and admits assistance-asset custody. */
+/** F31 retains exact selected F28 authority and admits assistance assets and annotations. */
 const inherited = editorProjectFeatureCapabilityProfileDefinition(
 	FRAMESCAPER_V28_PROJECT_FEATURE_CAPABILITY_PROFILE,
 ).registrations;
@@ -25,6 +25,8 @@ export const FRAMESCAPER_V31_PROJECT_FEATURE_CAPABILITY_PROFILE = createEditorPr
 		}],
 	].map((registration) => ({
 		...registration,
-		available: registration.key === 'assistanceAssets' ? true : registration.available,
+		available: registration.key === 'assistanceAssets' || registration.key === 'timelineAnnotations'
+			? true
+			: registration.available,
 	})).sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0),
 });

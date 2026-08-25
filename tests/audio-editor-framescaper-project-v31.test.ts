@@ -108,7 +108,7 @@ function project(assistanceAssets: readonly unknown[] = [transcript()]) {
 	} as never);
 }
 
-test('F31 inherits every selected F28 shared schema authority and activates capture', () => {
+test('F31 inherits selected F28 authority and activates capture, assistance assets, and annotations', () => {
 	assert.equal(FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION, 31);
 	for (const predicate of [
 		isProductionMixerProjectSchema, isFramescaperSequenceProjectSchema,
@@ -117,10 +117,19 @@ test('F31 inherits every selected F28 shared schema authority and activates capt
 		isMaintainedProjectFeatureSchema, isMaintainedRenderedFallbackProjectSchema,
 	]) assert.equal(predicate(31), true, predicate.name);
 	assert.equal(isFramescaperCaptureProjectSchema(31), true);
-	const registration = (profile: unknown) => editorProjectFeatureCapabilityProfileDefinition(profile)
-		.registrations.find(({ key }) => key === 'assistanceAssets');
-	assert.notEqual(registration(FRAMESCAPER_V28_PROJECT_FEATURE_CAPABILITY_PROFILE)?.available, true);
-	assert.equal(registration(FRAMESCAPER_V31_PROJECT_FEATURE_CAPABILITY_PROFILE)?.available, true);
+	const registrations = (profile: unknown) => editorProjectFeatureCapabilityProfileDefinition(profile)
+		.registrations;
+	const v28 = registrations(FRAMESCAPER_V28_PROJECT_FEATURE_CAPABILITY_PROFILE);
+	const v31 = registrations(FRAMESCAPER_V31_PROJECT_FEATURE_CAPABILITY_PROFILE);
+	const registration = (values: typeof v31, key: string) => values.find((candidate) => candidate.key === key);
+	assert.notEqual(registration(v28, 'assistanceAssets')?.available, true);
+	assert.equal(registration(v31, 'assistanceAssets')?.available, true);
+	assert.equal(registration(v28, 'timelineAnnotations')?.available, false);
+	assert.equal(registration(v31, 'timelineAnnotations')?.available, true);
+	assert.deepEqual(
+		v31.filter(({ key }) => key !== 'assistanceAssets' && key !== 'timelineAnnotations'),
+		v28.filter(({ key }) => key !== 'assistanceAssets' && key !== 'timelineAnnotations'),
+	);
 });
 
 test('F31 owns canonical source-bound transcript references and clones exact authority', () => {
