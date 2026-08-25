@@ -40,7 +40,7 @@ const HISTORICAL_WORKFLOWS = [
 	'crash-restart-recovery',
 ];
 
-test('current packaged lease qualification admits Soundscaper V11 and Framescaper V19', () => {
+test('current packaged lease qualification admits Soundscaper V11 and Framescaper V20', () => {
 	assert.deepEqual(DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS, EXPECTED_WORKFLOWS);
 	assert.deepEqual(DESKTOP_PROJECT_LIBRARY_HISTORICAL_LEASE_WORKFLOWS, HISTORICAL_WORKFLOWS);
 	const controlRoot = resolve('test-lease-control');
@@ -71,7 +71,7 @@ test('current packaged lease qualification admits Soundscaper V11 and Framescape
 	assert.deepEqual([
 		JSON.parse(createDesktopProjectLibraryLeaseMatrixDocument('sound', 7, 'Sound', 'soundscaper')).schemaVersion,
 		JSON.parse(createDesktopProjectLibraryLeaseMatrixDocument('frame', 8, 'Frame', 'framescaper')).schemaVersion,
-	], [30, 28]);
+	], [30, 31]);
 });
 
 test('desktop preview CI runs both selected products on qualified x64 targets', async () => {
@@ -92,7 +92,7 @@ test('desktop preview CI runs both selected products on qualified x64 targets', 
 	assert.match(leaseJob, /for product in soundscaper framescaper/u);
 	assert.match(leaseJob, /release\/desktop-lease-matrix\/\$product/u);
 	assert.match(leaseJob, /desktop:smoke:project-library-lease-matrix/u);
-	assert.match(leaseJob, /soundscaper-v11-framescaper-v19-lease-matrix-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}\.json/u);
+	assert.match(leaseJob, /soundscaper-v11-framescaper-v20-lease-matrix-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}\.json/u);
 	assert.match(runner, /\[\s*'soundscaper',\s*'framescaper'\s*\]/u);
 	assert.match(runner, /for \(const productId of \['soundscaper', 'framescaper'\]\)/u);
 	assert.match(runner, /runRendererLoss[\s\S]*awaitLeaseMatrixControlFile\(child\.control\.result, child\)/u);
@@ -255,7 +255,7 @@ function leaseInstances(faults = {}) {
 
 	const acquire = (productId) => {
 		if (lease && !faults.admitSecondInstance) {
-			throw new Error(`${productId === 'framescaper' ? 'Framescaper desktop V19' : 'Soundscaper desktop V11'} writer lease is busy`);
+			throw new Error(`${productId === 'framescaper' ? 'Framescaper desktop V20' : 'Soundscaper desktop V11'} writer lease is busy`);
 		}
 		issued += 1;
 		instances += 1;
