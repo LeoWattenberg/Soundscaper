@@ -94,7 +94,7 @@ function project(assistanceAssets: readonly unknown[] = [transcript()]) {
 	} as never);
 }
 
-test('F31 inherits every selected F28 shared schema authority without activating capture', () => {
+test('F31 inherits every selected F28 shared schema authority and activates capture', () => {
 	assert.equal(FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION, 31);
 	for (const predicate of [
 		isProductionMixerProjectSchema, isFramescaperSequenceProjectSchema,
@@ -102,7 +102,7 @@ test('F31 inherits every selected F28 shared schema authority without activating
 		isFramescaperVideoRetimeProjectSchema, isTimelineAnnotationProjectSchema,
 		isMaintainedProjectFeatureSchema, isMaintainedRenderedFallbackProjectSchema,
 	]) assert.equal(predicate(31), true, predicate.name);
-	assert.equal(isFramescaperCaptureProjectSchema(31), false);
+	assert.equal(isFramescaperCaptureProjectSchema(31), true);
 	const registration = (profile: unknown) => editorProjectFeatureCapabilityProfileDefinition(profile)
 		.registrations.find(({ key }) => key === 'assistanceAssets');
 	assert.notEqual(registration(FRAMESCAPER_V28_PROJECT_FEATURE_CAPABILITY_PROFILE)?.available, true);
@@ -193,14 +193,15 @@ test('F31 inherited edits, runtime projection and undo retain exact assistance c
 		.some(({ id }) => id === 'dialogue-track'), false);
 });
 
-test('F31 route ownership is prepared without selecting capture, assistance UI or the product route', () => {
+test('F31 route ownership selects capture, assistance UI and the product route', () => {
 	assert.equal(FRAMESCAPER_V31_PRODUCT_ROUTE.projectSchemaVersion, 31);
 	assert.equal(FRAMESCAPER_V31_PRODUCT_ROUTE.desktopTransport.projectSchemaVersion, 31);
 	assert.equal(FRAMESCAPER_V31_PRODUCT_ROUTE.desktopLibraryHandshake.projectSchemaVersion, 31);
 	assert.equal(FRAMESCAPER_V31_PRODUCT_ROUTE.desktopLibraryHandshake.desktopLibrarySchemaVersion, 20);
-	assert.equal(FRAMESCAPER_V31_PRODUCT_ROUTE.selected, false);
-	assert.equal(FRAMESCAPER_V31_PRODUCT_ROUTE.framescaperCapture, false);
-	assert.equal(FRAMESCAPER_V31_PRODUCT_ROUTE.assistanceUi, false);
-	assert.equal(FRAMESCAPER_PROFILE.applicationFeatures.framescaperCapture, false);
-	assert.equal(FRAMESCAPER_PROFILE.capabilities.assistanceAssets, false);
+	assert.equal(FRAMESCAPER_V31_PRODUCT_ROUTE.desktopTransport.activation, 'selected');
+	assert.equal(FRAMESCAPER_V31_PRODUCT_ROUTE.selected, true);
+	assert.equal(FRAMESCAPER_V31_PRODUCT_ROUTE.framescaperCapture, true);
+	assert.equal(FRAMESCAPER_V31_PRODUCT_ROUTE.assistanceUi, true);
+	assert.equal(FRAMESCAPER_PROFILE.applicationFeatures.framescaperCapture, true);
+	assert.equal(FRAMESCAPER_PROFILE.capabilities.assistanceAssets, true);
 });

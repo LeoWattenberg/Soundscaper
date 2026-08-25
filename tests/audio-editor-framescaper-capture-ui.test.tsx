@@ -25,18 +25,18 @@ import {
 } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
 import { DEFAULT_PANELS } from '../src/common/editor/workspace-layout-defaults.ts';
 
-test('recording setup stays retained but has no selected-product panel route', () => {
+test('recording setup is available only on the selected Framescaper route', () => {
 	assert.equal(FRAMESCAPER_CAPTURE_PANEL_ID, 'recording-setup');
 	assert.ok(WORKSPACE_PANEL_IDS.includes(FRAMESCAPER_CAPTURE_PANEL_ID));
 	assert.deepEqual(DEFAULT_PANELS[FRAMESCAPER_CAPTURE_PANEL_ID], {
 		visible: false, dock: 'bottom', order: 11, size: 420,
 	});
 	assert.equal(workspacePanelLabel(ENGLISH_COPY, FRAMESCAPER_CAPTURE_PANEL_ID), 'Recording setup');
-	assert.equal(workspacePanelAvailable('framescaper', FRAMESCAPER_CAPTURE_PANEL_ID), false);
+	assert.equal(workspacePanelAvailable('framescaper', FRAMESCAPER_CAPTURE_PANEL_ID), true);
 	assert.equal(workspacePanelAvailable('soundscaper', FRAMESCAPER_CAPTURE_PANEL_ID), false);
 });
 
-test('View > Panels exposes no recording setup entry on either selected product', () => {
+test('View > Panels exposes recording setup only in Framescaper', () => {
 	const menus = [{
 		id: 'view', items: [{
 			id: 'panels', items: [
@@ -49,12 +49,12 @@ test('View > Panels exposes no recording setup entry on either selected product'
 	const soundscaper = filterProductMenus(menus, capabilities, 'soundscaper');
 	const framescaper = filterProductMenus(menus, capabilities, 'framescaper');
 	assert.equal(findMenuItem(soundscaper, 'panel-recording-setup'), null);
-	assert.equal(findMenuItem(framescaper, 'panel-recording-setup'), null);
+	assert.equal(findMenuItem(framescaper, 'panel-recording-setup')?.label, 'Recording setup');
 });
 
-test('record control ignores stale opt-in and survives only historical active or recovery ownership', () => {
+test('record control remains default-hidden until opt-in, active capture or recovery ownership', () => {
 	assert.equal(framescaperCaptureRecordVisible('framescaper', capture('inactive'), false), false);
-	assert.equal(framescaperCaptureRecordVisible('framescaper', capture('inactive'), true), false);
+	assert.equal(framescaperCaptureRecordVisible('framescaper', capture('inactive'), true), true);
 	assert.equal(framescaperCaptureRecordVisible('framescaper', capture('recording'), false), true);
 	assert.equal(framescaperCaptureRecordVisible('framescaper', capture('recovery'), false), true);
 	assert.equal(framescaperCaptureRecordVisible('soundscaper', capture('recording'), true), false);
@@ -81,7 +81,7 @@ test('record primary action focuses setup until armed and never implicitly reque
 	assert.deepEqual(capturePrimaryAction(capture('inactive', 'unavailable')), { kind: 'open-setup', disabled: false });
 });
 
-test('selected route refuses an idle recording setup panel without opening any source', () => {
+test('selected route renders idle recording setup without opening any source', () => {
 	const calls: string[] = [];
 	const markup = render(<RecordingSetupPanel
 		controller={controller(calls)}
@@ -92,7 +92,8 @@ test('selected route refuses an idle recording setup panel without opening any s
 	/>);
 
 	assert.deepEqual(calls, []);
-	assert.doesNotMatch(markup, /data-framescaper-recording-setup/u);
+	assert.match(markup, /data-framescaper-recording-setup/u);
+	assert.match(markup, /Capture is unavailable/u);
 });
 
 test('recording setup presents explicit sources, destinations, capture controls and live status', () => {
@@ -406,6 +407,7 @@ function visitMenuElements(node: React.ReactNode, disabledByLabel: Map<string, b
 
 interface MenuItem {
 	readonly id?: string;
+	readonly label?: string;
 	readonly items?: readonly MenuItem[];
 }
 

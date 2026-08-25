@@ -74,8 +74,8 @@ test('foundation registry and both project-capability profiles stay equal', () =
 	const registry = Object.keys(PROJECT_FEATURE_CAPABILITY_IDS).sort();
 	assert.deepEqual(Object.keys(PRODUCT_PROFILES.soundscaper.capabilities).sort(), registry);
 	assert.deepEqual(Object.keys(PRODUCT_PROFILES.framescaper.capabilities).sort(), registry);
-	assert.equal(PRODUCT_PROFILES.framescaper.applicationFeatures.framescaperCapture, false,
-		'the selected project registry must not reactivate dormant application capture');
+	assert.equal(PRODUCT_PROFILES.framescaper.applicationFeatures.framescaperCapture, true,
+		'the selected F31 project registry activates the separate capture application route');
 	assert.equal(PRODUCT_PROFILES.framescaper.applicationFeatures.framescaperWebVcr, false);
 });
 

@@ -34,8 +34,8 @@ test('the project registry covers project capabilities without absorbing applica
 		const profile = PRODUCT_PROFILES[productId];
 		assert.deepEqual(registryKeys, Object.keys(profile.capabilities).sort(), profile.id);
 	}
-	assert.equal(PRODUCT_PROFILES.framescaper.applicationFeatures.framescaperCapture, false,
-		'project capability activation must not activate the separate capture application route');
+	assert.equal(PRODUCT_PROFILES.framescaper.applicationFeatures.framescaperCapture, true,
+		'the selected F31 route activates the separate capture application capability');
 	assert.equal(PRODUCT_PROFILES.framescaper.applicationFeatures.framescaperWebVcr, false);
 	assert.equal(Object.hasOwn(PRODUCT_PROFILES.soundscaper.applicationFeatures, 'framescaperCapture'), false);
 	const featureIds = Object.values(PROJECT_FEATURE_CAPABILITY_IDS);

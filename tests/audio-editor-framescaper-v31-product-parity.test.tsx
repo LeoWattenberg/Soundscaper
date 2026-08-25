@@ -40,7 +40,7 @@ const BODY_SHA256 = 'cd'.repeat(32);
 const MODEL_SHA256 = 'ef'.repeat(32);
 const ROOT = new URL('../', import.meta.url);
 
-test('prepared F31 controller retains every selected V28 product runtime', async (context) => {
+test('selected F31 controller retains every selected V28 product runtime and owns capture', async (context) => {
 	const environment = await createFramescaperEditorProjectEnvironmentV31({
 		storeOptions: {
 			indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory,
@@ -52,6 +52,12 @@ test('prepared F31 controller retains every selected V28 product runtime', async
 	const ready = await controller.ready;
 	assert.equal(ready.phase, 'ready', JSON.stringify(ready.status));
 	assert.equal(ready.project.schemaVersion, 31);
+	const capture = ready.capture as Readonly<{
+		readonly availability?: Readonly<{ readonly status?: string }>;
+	}>;
+	assert.ok(capture);
+	assert.equal(capture.availability?.status, 'unavailable');
+	assert.equal(typeof controller.actions.capture.requestPreview, 'function');
 	assert.deepEqual(framescaperNativeProjectActionRuntimeFor(controller)?.surfaces, [
 		'render-queue-enqueue',
 	]);
@@ -105,7 +111,7 @@ test('F31 adopts the optional selected-V28 native image-sequence and OpenFX runt
 	assert.ok(framescaperNativeOpenFxAuthoringRuntimeForV28(controller));
 });
 
-test('F31 bootstrap owns native watch imports without selecting the route', async () => {
+test('selected F31 bootstrap owns native watch imports', async () => {
 	const source = await readFile(new URL(
 		'src/framescaper/ui/FramescaperAudioEditorBootstrapV31.tsx', ROOT,
 	), 'utf8');

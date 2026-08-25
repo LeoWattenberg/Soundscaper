@@ -49,7 +49,7 @@ const { productVideoVisualPreviewRuntimeFor } = await import(
 	'../src/common/editor/ui/workspace/product-video-visual-preview-runtime.ts'
 );
 
-test('selected V27 controller creates, edits, saves, undoes, and redoes exact documents', async (context) => {
+test('historical V27 controller creates, edits, saves, undoes, and redoes exact documents', async (context) => {
 	const environment = await createFramescaperEditorProjectEnvironmentV27({
 		storeOptions: {
 			indexedDB: createInstrumentedIndexedDB() as unknown as IDBFactory,
@@ -65,7 +65,7 @@ test('selected V27 controller creates, edits, saves, undoes, and redoes exact do
 	assert.equal(ready.phase, 'ready', JSON.stringify(ready.status));
 	assert.equal(ready.project.schemaVersion, 27);
 	assert.equal(ready.readOnly, false);
-	assert.equal(FRAMESCAPER_PROFILE.applicationFeatures.framescaperCapture, false);
+	assert.equal(FRAMESCAPER_PROFILE.applicationFeatures.framescaperCapture, true);
 	assert.equal(ready.capture, null);
 	assert.deepEqual(Object.keys(controller.actions.capture), []);
 	controller.actions.project.rename('Framescaper V27');
