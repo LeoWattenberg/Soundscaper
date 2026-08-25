@@ -188,9 +188,11 @@ test.describe('selected Framescaper F31 recoverable capture', () => {
 		await panel.getByRole('button', { name: 'Start capture', exact: true }).press('Enter');
 		await expectCapturePhase(panel, 'recording');
 		await expect.poll(async () => (await captureHarnessState(page)).audioDataClosed).toBeGreaterThanOrEqual(3);
+		await expectCapturePhase(panel, 'recording');
 		await editor.getByRole('button', { name: 'Close: Recording setup', exact: true }).click();
 		await expect(editor.getByRole('button', { name: 'Stop and import', exact: true })).toBeVisible();
 		panel = await openRecordingSetup(page, editor);
+		await expectCapturePhase(panel, 'recording');
 
 		await panel.getByRole('button', { name: 'Pause capture', exact: true }).press('Enter');
 		await expectCapturePhase(panel, 'paused');
@@ -671,6 +673,8 @@ async function installCaptureHarness(page, options = {}) {
 				const settings = track.getSettings();
 				const sampleRate = settings.sampleRate || 48_000;
 				const channelCount = settings.channelCount || 2;
+				const frames = 4_096;
+				const frameIntervalMs = Math.ceil(frames * 1_000 / sampleRate);
 				let canceled = false;
 				let frameStart = 0;
 				let pending = null;
@@ -686,7 +690,6 @@ async function installCaptureHarness(page, options = {}) {
 										return;
 									}
 									const start = frameStart;
-									const frames = 512;
 									frameStart += frames;
 									resolve({
 										done: false,
@@ -705,7 +708,7 @@ async function installCaptureHarness(page, options = {}) {
 										},
 									});
 								};
-								const timer = setTimeout(finish, 8);
+								const timer = setTimeout(finish, frameIntervalMs);
 								pending = () => {
 									clearTimeout(timer);
 									finish();
