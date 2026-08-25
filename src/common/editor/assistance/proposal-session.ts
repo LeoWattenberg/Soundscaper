@@ -9,13 +9,12 @@
  * the product command owner to commit one atomic batch.
  */
 
-const OPERATIONS = new Set<AssistanceOperation>([
-	'voice-activity-detection', 'speech-recognition', 'word-alignment',
-	'speaker-diarization', 'speech-enhancement', 'source-separation',
-	'audio-tagging', 'beat-tracking', 'text-embedding', 'image-text-embedding',
-	'optical-character-recognition', 'shot-detection', 'subject-detection',
-	'saliency-detection', 'editorial-generation',
-]);
+import {
+	normalizeAssistanceOperation,
+	type AssistanceOperation,
+} from './operation.ts';
+
+export type { AssistanceOperation } from './operation.ts';
 const FENCE_FIELDS = Object.freeze([
 	'projectId', 'schemaVersion', 'revision', 'sequenceId', 'occurrenceIds',
 	'sourceId', 'sourceSha256', 'sourceStartFrame', 'sourceEndFrame',
@@ -27,23 +26,6 @@ const ID_PATTERN = /^[A-Za-z\d][A-Za-z\d._:-]{0,255}$/u;
 const MAX_PROPOSALS = 4096;
 const MAX_OCCURRENCES = 256;
 const MAX_ASSISTANCE_ASSETS = 1024;
-
-export type AssistanceOperation =
-	| 'voice-activity-detection'
-	| 'speech-recognition'
-	| 'word-alignment'
-	| 'speaker-diarization'
-	| 'speech-enhancement'
-	| 'source-separation'
-	| 'audio-tagging'
-	| 'beat-tracking'
-	| 'text-embedding'
-	| 'image-text-embedding'
-	| 'optical-character-recognition'
-	| 'shot-detection'
-	| 'subject-detection'
-	| 'saliency-detection'
-	| 'editorial-generation';
 
 export interface AssistanceSelectionFence {
 	readonly projectId: string;
@@ -115,9 +97,10 @@ export class AssistanceProposalStaleError extends Error {
 export function createAssistanceProposalSession(
 	options: AssistanceProposalSessionOptions,
 ): AssistanceProposalSession {
-	if (!options || typeof options !== 'object' || !OPERATIONS.has(options.operation)) {
+	if (!options || typeof options !== 'object') {
 		throw new TypeError('An assistance proposal session operation is unsupported.');
 	}
+	const operation = normalizeAssistanceOperation(options.operation);
 	if (typeof options.currentFence !== 'function' || typeof options.commit !== 'function'
 		|| typeof options.discardStaged !== 'function') {
 		throw new TypeError('An assistance proposal session requires its transaction ports.');
@@ -131,7 +114,7 @@ export function createAssistanceProposalSession(
 	let discarded = false;
 
 	const snapshot = (): AssistanceProposalSnapshot => Object.freeze({
-		operation: options.operation,
+		operation,
 		phase,
 		fence: expectedFence,
 		proposals,
