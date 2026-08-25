@@ -2,6 +2,7 @@
 
 export type EditorTaskProgressKind =
 	| 'analysis'
+	| 'assistance'
 	| 'effect'
 	| 'export'
 	| 'generate'

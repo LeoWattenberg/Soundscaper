@@ -5,6 +5,13 @@ import test from 'node:test';
 
 import { createEditorTaskProgressCoordinator } from '../src/common/editor/controller/task-progress.ts';
 
+test('local assistance owns a distinct foreground task kind', () => {
+	const coordinator = createEditorTaskProgressCoordinator();
+	const task = coordinator.begin('assistance', 'Transcribing locally');
+	assert.equal(coordinator.getSnapshot()?.kind, 'assistance');
+	task.finish();
+});
+
 test('task progress clamps values and stays monotonic within a phase', () => {
 	const coordinator = createEditorTaskProgressCoordinator();
 	const task = coordinator.begin('export', 'Rendering', 0);
