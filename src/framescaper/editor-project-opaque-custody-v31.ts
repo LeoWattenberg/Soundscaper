@@ -13,6 +13,7 @@ export interface FramescaperOpaqueCustodyConsumerProjectV31 extends Readonly<Rec
 	readonly sources: readonly never[];
 	readonly clips: readonly never[];
 	readonly tracks: readonly never[];
+	readonly automationLanes: readonly never[];
 }
 
 /** Expose an inert consumer shell while retaining canonical opaque custody separately. */
@@ -36,5 +37,8 @@ export function createFramescaperOpaqueCustodyConsumerProjectV31(
 		sources: Object.freeze([]),
 		clips: Object.freeze([]),
 		tracks: Object.freeze([]),
+		// Shared fallback-integrity admission recognizes S30 as a production
+		// schema and therefore requires this inert authority collection.
+		automationLanes: Object.freeze([]),
 	}) as FramescaperOpaqueCustodyConsumerProjectV31;
 }

@@ -12,6 +12,7 @@ import { createVideoSource } from '../src/common/editor/project-media-factory.ts
 import {
 	PROJECT_OWNED_FEATURE_REQUIREMENT_IDS,
 } from '../src/common/editor/project-owned-feature-requirements.ts';
+import { verifyProjectFallbackIntegrity } from '../src/common/editor/project-fallback-integrity.ts';
 import {
 	FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION,
 	isFramescaperCaptureProjectSchema,
@@ -41,6 +42,7 @@ import { FRAMESCAPER_PROFILE } from '../src/framescaper/product.js';
 import { FRAMESCAPER_V31_PRODUCT_ROUTE } from '../src/framescaper/product-route-v31.ts';
 import { createFramescaperScapeNativeRuntimeV31 } from '../src/framescaper/editor-scape-native-v31.ts';
 import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
+import { createSoundscaperProjectV30 } from '../src/soundscaper/editor-project-v30.ts';
 import {
 	FramescaperProjectV31ReimportRequiredError,
 	cloneFramescaperProjectV31,
@@ -162,14 +164,18 @@ test('F31 retains historical, unowned, and future documents opaquely while other
 	), FramescaperProjectV31ReimportRequiredError);
 });
 
-test('F31 opens unowned custody through a read-only session without claiming native authority', () => {
+test('F31 opens an S30 document through inert read-only custody without claiming native authority', async () => {
 	const runtime = createEditorProjectRuntimeV31Selection(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE);
-	const held = { ...project(), schemaVersion: 30 };
+	const held = createSoundscaperProjectV30({
+		id: 'soundscaper-v30', title: 'Foreign S30 custody', now: NOW,
+	});
 	const history = runtime.createHistory(held);
 	assert.equal(history.present.schemaVersion, 30);
 	assert.deepEqual(history.present.sources, []);
 	assert.deepEqual(history.present.clips, []);
 	assert.deepEqual(history.present.tracks, []);
+	const fallbackAdmission = await verifyProjectFallbackIntegrity(history.present, {});
+	assert.doesNotThrow(() => fallbackAdmission.assertCurrent(history.present));
 
 	const session = runtime.createSessionController();
 	session.openProject(history.present, { history, readOnly: true });
