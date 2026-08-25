@@ -14,6 +14,7 @@ import {
 } from '../desktop/assistance-operation-service.ts';
 import { AssistanceStagingRegistry } from '../desktop/assistance-staging-registry.ts';
 import type { SpeechRuntimeAdapter } from '../desktop/assistance-speech-runtime.ts';
+import type { VoiceActivityRuntimeAdapter } from '../desktop/assistance-vad-runtime.ts';
 
 const MODEL_ID = 'parakeet-tdt-0.6b-v3';
 const VERSION = '3.0.0';
@@ -27,6 +28,7 @@ const FENCE = Object.freeze({
 
 async function fixture(t: TestContext, overrides: Readonly<{
 	runtime?: SpeechRuntimeAdapter;
+	voiceActivityRuntime?: VoiceActivityRuntimeAdapter;
 	availability?: 'installed' | 'installable' | 'unsupported-platform' | 'insufficient-memory';
 	models?: AssistanceOperationServiceOptions['models'];
 }> = {}) {
@@ -57,8 +59,30 @@ async function fixture(t: TestContext, overrides: Readonly<{
 	});
 	const progress: unknown[] = [];
 	const service = createAssistanceOperationService({ registry, models, runtime,
+		...(overrides.voiceActivityRuntime ? { voiceActivityRuntime: overrides.voiceActivityRuntime } : {}),
 		onProgress: (value) => progress.push(value) });
 	return { service, registry, runtime, stagingRoot, modelPaths, progress };
+}
+
+async function voiceActivityRequest(
+	service: ReturnType<typeof createAssistanceOperationService>,
+	modelId: string,
+	version: string,
+	digests: readonly string[],
+) {
+	const { jobId } = await service.createJob();
+	const input = await service.stageInput({
+		jobId, role: 'audio', mediaType: 'audio/wav', byteLength: 8, bytes: bytes('RIFF-vad'),
+	});
+	const output = await service.reserveOutput({
+		jobId, role: 'voice-activity', mediaType: 'application/json', maximumByteLength: 8_192,
+	});
+	return Object.freeze({
+		contractVersion: 1 as const, jobId, operation: 'voice-activity-detection' as const,
+		selectionFence: FENCE,
+		models: Object.freeze([{ modelId, version, artifactSha256s: digests }]),
+		inputs: Object.freeze([input]), outputs: Object.freeze([output]),
+	});
 }
 
 function bytes(value: string): AsyncIterable<Uint8Array> {
@@ -116,6 +140,41 @@ test('speech recognition consumes only authenticated claims and returns a pathle
 	const opened = await service.openOutput({ jobId: request.jobId, claim: outcome.result.outputs[0] });
 	assert.equal(await readFile(opened.path, 'utf8'), JSON.stringify(recognized));
 	assert.equal(opened.binding.byteLength, outcome.result.outputs[0]!.byteLength);
+	assert.deepEqual((progress as Array<{ phase: string }>).map(({ phase }) => phase),
+		['queued', 'staging-input', 'loading-model', 'running', 'staging-output', 'finalizing']);
+});
+
+test('voice activity executes the authenticated Silero model through the native helper', async (t) => {
+	const modelId = 'silero-vad-v6';
+	const version = '6.2.1';
+	const digest = '9'.repeat(64);
+	const detected = { sampleRate: 16_000, segments: [{ startSample: 512, sampleCount: 1_024 }] };
+	const requests: Array<Parameters<VoiceActivityRuntimeAdapter['detect']>[0]> = [];
+	const voiceActivityRuntime: VoiceActivityRuntimeAdapter = Object.freeze({
+		status: async () => ({ available: true, reason: null, moduleId: 'test-runtime' }),
+		detect: async (request) => { requests.push(request); return detected; },
+	});
+	const models: AssistanceOperationServiceOptions['models'] = Object.freeze({
+		status: async () => ({ runtimeAvailable: true, runtimeReason: null, models: [{
+			modelId, version, task: 'voice-activity-detection', availability: 'installed',
+			downloadBytes: 1, installedBytes: 1, attributionRequired: false,
+		}] }),
+		listInstalled: async () => [{ modelId, version, totalBytes: 1,
+			artifacts: [{ fileName: 'silero_vad.onnx', byteLength: 1, sha256: digest }] }],
+		resolveModelPaths: async () => ({ silero_vad: '/models/silero_vad.onnx' }),
+	});
+	const { service, progress } = await fixture(t, { models, voiceActivityRuntime });
+	const request = await voiceActivityRequest(service, modelId, version, [digest]);
+
+	const outcome = await service.run(request);
+
+	assert.equal(outcome.outcome, 'completed');
+	if (outcome.outcome !== 'completed') return;
+	assert.equal(requests[0]?.modelId, modelId);
+	assert.deepEqual(requests[0]?.model, { model: '/models/silero_vad.onnx' });
+	assert.match(requests[0]?.audioPath ?? '', /private-staging/u);
+	const opened = await service.openOutput({ jobId: request.jobId, claim: outcome.result.outputs[0] });
+	assert.equal(await readFile(opened.path, 'utf8'), JSON.stringify(detected));
 	assert.deepEqual((progress as Array<{ phase: string }>).map(({ phase }) => phase),
 		['queued', 'staging-input', 'loading-model', 'running', 'staging-output', 'finalizing']);
 });
