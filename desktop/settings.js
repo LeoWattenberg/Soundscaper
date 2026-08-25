@@ -11,6 +11,7 @@ const DEFAULTS = Object.freeze({
 	updatesEnabled: true,
 	lastUpdateCheck: null,
 	modelsDirectory: null,
+	externalFfmpegSelection: null,
 	nativeProbeHelperEnabled: false,
 	nativeAudioHelperEnabled: false,
 	nativeAudioCalibrations: Object.freeze([]),
@@ -23,6 +24,9 @@ const DEFAULTS = Object.freeze({
 });
 
 const MAX_MODELS_DIRECTORY_LENGTH = 4096;
+const MAX_FFMPEG_EXECUTABLE_PATH_LENGTH = 4096;
+const MAX_FFMPEG_VERSION_LENGTH = 128;
+const SHA256_PATTERN = /^[0-9a-f]{64}$/u;
 
 /**
  * The optional assistance models directory. `null` means the product-owned
@@ -39,6 +43,17 @@ export function validateModelsDirectory(value) {
 	}
 	if (!isAbsolute(value)) {
 		throw new TypeError('The models directory must be an absolute path or null.');
+	}
+	return resolve(value);
+}
+
+/** Main-process executable selection; existence and trust are established by the probe service. */
+export function validateExternalFfmpegExecutable(value) {
+	if (typeof value !== 'string' || value.trim() === '' || !isAbsolute(value)) {
+		throw new TypeError('The FFmpeg executable must be an absolute path.');
+	}
+	if (value.length > MAX_FFMPEG_EXECUTABLE_PATH_LENGTH || value.includes('\0')) {
+		throw new RangeError('The FFmpeg executable path is out of range.');
 	}
 	return resolve(value);
 }
@@ -81,6 +96,46 @@ export class DesktopSettingsStore {
 		const validated = validateModelsDirectory(directory);
 		const settings = await this.#update((current) => ({ ...current, modelsDirectory: validated }));
 		return settings.modelsDirectory;
+	}
+
+	async setExternalFfmpegSelection(executablePath) {
+		const validated = validateExternalFfmpegExecutable(executablePath);
+		const settings = await this.#update((current) => ({
+			...current,
+			externalFfmpegSelection: current.externalFfmpegSelection?.executablePath === validated
+				? current.externalFfmpegSelection
+				: externalFfmpegSelection(validated),
+		}));
+		return settings.externalFfmpegSelection;
+	}
+
+	/** Probe evidence is committed only if it still describes the selected executable. */
+	async setExternalFfmpegProbeMetadata(value) {
+		const validated = externalFfmpegProbeMetadata(value);
+		const settings = await this.#update((current) => {
+			assertSelectedExternalFfmpeg(current.externalFfmpegSelection, validated.executablePath);
+			return {
+				...current,
+				externalFfmpegSelection: externalFfmpegSelection(
+					validated.executablePath, validated.identity, validated.capabilities,
+				),
+			};
+		});
+		return settings.externalFfmpegSelection;
+	}
+
+	async clearExternalFfmpegProbeMetadata(executablePath) {
+		const validated = validateExternalFfmpegExecutable(executablePath);
+		const settings = await this.#update((current) => {
+			assertSelectedExternalFfmpeg(current.externalFfmpegSelection, validated);
+			return { ...current, externalFfmpegSelection: externalFfmpegSelection(validated) };
+		});
+		return settings.externalFfmpegSelection;
+	}
+
+	async clearExternalFfmpegSelection() {
+		const settings = await this.#update((current) => ({ ...current, externalFfmpegSelection: null }));
+		return settings.externalFfmpegSelection;
 	}
 
 	/** The native probe helper stays off until the user turns it on. */
@@ -232,6 +287,7 @@ function validateSettings(value) {
 		updatesEnabled: value.updatesEnabled !== false,
 		lastUpdateCheck,
 		modelsDirectory,
+		externalFfmpegSelection: persistedExternalFfmpegSelection(value.externalFfmpegSelection),
 		nativeProbeHelperEnabled: value.nativeProbeHelperEnabled === true,
 		nativeAudioHelperEnabled: value.nativeAudioHelperEnabled === true,
 		nativeAudioCalibrations: nativeAudioCalibrations(value.nativeAudioCalibrations),
@@ -242,6 +298,84 @@ function validateSettings(value) {
 		nativeHardwareEncodeEnabled: value.nativeHardwareEncodeEnabled === true,
 		ofxConsentEnabled: value.ofxConsentEnabled === true,
 	};
+}
+
+function persistedExternalFfmpegSelection(value) {
+	if (value === null || value === undefined) return null;
+	let executablePath;
+	try { executablePath = validateExternalFfmpegExecutable(value?.executablePath); }
+	catch { return null; }
+	let identity = null;
+	try { identity = value.identity === null || value.identity === undefined ? null : externalFfmpegIdentity(value.identity); }
+	catch { /* preserve the selected path, but discard evidence that cannot be trusted */ }
+	let capabilities = null;
+	try {
+		capabilities = identity && value.capabilities !== null && value.capabilities !== undefined
+			? externalFfmpegCapabilities(value.capabilities)
+			: null;
+	} catch { /* capability evidence is independently fail-closed */ }
+	return externalFfmpegSelection(executablePath, identity, capabilities);
+}
+
+function externalFfmpegProbeMetadata(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('External FFmpeg probe metadata is required.');
+	}
+	const executablePath = validateExternalFfmpegExecutable(value.executablePath);
+	const identity = value.identity === null ? null : externalFfmpegIdentity(value.identity);
+	const capabilities = value.capabilities === null || value.capabilities === undefined
+		? null
+		: externalFfmpegCapabilities(value.capabilities);
+	if (!identity && capabilities) throw new TypeError('FFmpeg capabilities require a verified executable identity.');
+	return Object.freeze({ executablePath, identity, capabilities });
+}
+
+function externalFfmpegSelection(executablePath, identity = null, capabilities = null) {
+	return Object.freeze({ executablePath, identity, capabilities });
+}
+
+function externalFfmpegIdentity(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('An FFmpeg executable identity is required.');
+	}
+	return Object.freeze({
+		version: boundedString(value.version, MAX_FFMPEG_VERSION_LENGTH, 'FFmpeg version'),
+		ffmpegSha256: sha256(value.ffmpegSha256, 'FFmpeg executable digest'),
+		ffprobePath: validateExternalFfmpegExecutable(value.ffprobePath),
+		ffprobeSha256: sha256(value.ffprobeSha256, 'FFprobe executable digest'),
+		executablePairClosureSha256: sha256(
+			value.executablePairClosureSha256,
+			'FFmpeg executable-pair closure digest',
+		),
+	});
+}
+
+function externalFfmpegCapabilities(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('FFmpeg capability metadata is required.');
+	}
+	return Object.freeze({
+		digest: sha256(value.digest, 'FFmpeg capability digest'),
+		probedAtEpochMs: boundedInteger(value.probedAtEpochMs, 0, Number.MAX_SAFE_INTEGER, 'FFmpeg probe time'),
+	});
+}
+
+function assertSelectedExternalFfmpeg(selection, executablePath) {
+	if (!selection || selection.executablePath !== executablePath) {
+		throw new Error('FFmpeg probe evidence does not match the currently selected executable.');
+	}
+}
+
+function boundedString(value, maximumLength, label) {
+	if (typeof value !== 'string' || value.trim() === '' || value.length > maximumLength || value.includes('\0')) {
+		throw new TypeError(`Invalid ${label}.`);
+	}
+	return value;
+}
+
+function sha256(value, label) {
+	if (typeof value !== 'string' || !SHA256_PATTERN.test(value)) throw new TypeError(`Invalid ${label}.`);
+	return value;
 }
 
 const NATIVE_AUDIO_BACKENDS = Object.freeze(['coreaudio', 'wasapi', 'asio', 'pipewire', 'alsa', 'jack']);

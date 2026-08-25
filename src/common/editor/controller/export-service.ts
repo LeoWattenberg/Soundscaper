@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-
 import { admitBrowserExportBlob, prepareBrowserExportBlob } from '../browser-export-output.ts';
 import { isVideoExportRequestFormat } from '../video-export-request-format.ts';
 import {
@@ -25,6 +24,7 @@ import { commitPreparedDirectStemArchiveDestination, directStemArchiveTemporaryB
 import { createRealtimeExportPcmTransform, type RealtimeExportPcmTransform } from './realtime-export-pcm-transform.ts';
 import { createEditorVideoExportAction } from './video-export-service.ts';
 import { createExportSnapshotRenderer } from './export-snapshot-renderer.ts';
+import { assertDesktopAudioExportCapability } from './desktop-audio-export-capability.ts';
 import { createDeliveryReportForPlan } from '../delivery-conversion-inventory.ts';
 import {
 	assertDeliveryConformance,
@@ -141,6 +141,7 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				livePcmBytes: undefined,
 				productName,
 			});
+			await assertDesktopAudioExportCapability(ffmpeg, plan);
 			// Derived from the plan this delivery is about to execute, so the report
 			// describes the render that actually happens rather than the settings
 			// that were asked for. It is session state, never project state: a

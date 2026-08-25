@@ -9,11 +9,7 @@ import test from 'node:test';
 import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
 import { stageAssistanceNativeRuntimePayload } from '../desktop/assistance-native-runtime-payload.mjs';
 import hardenPackagedElectron, { verifyPackagedNativeAddonResources } from '../scripts/desktop-after-pack.mjs';
-import {
-	stageVerifiedFfmpegNotice,
-	stageVerifiedFfmpegRuntime,
-	verifyFfmpegRuntimeManifest,
-} from '../scripts/lib/ffmpeg-runtime-manifest.mjs';
+import { DESKTOP_CODEC_POLICY } from '../scripts/lib/desktop-codec-policy.mjs';
 import {
 	stageVerifiedNativeAddonPayload,
 	verifyNativeAddonPayloadManifest,
@@ -31,13 +27,8 @@ async function packagedResources(context, target = BUILT_TARGET) {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-packaged-native-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
 	const resources = join(root, 'resources');
-	const ffmpeg = await verifyFfmpegRuntimeManifest({ repositoryRoot: process.cwd(), purpose: 'desktop-assembly' });
-	await stageVerifiedFfmpegRuntime({
-		release: ffmpeg,
-		outputRoot: join(resources, `runtime/ffmpeg/${ffmpeg.manifest.package.version}`),
-	});
-	await mkdir(join(resources, 'licenses'), { recursive: true });
-	await stageVerifiedFfmpegNotice({ release: ffmpeg, outputPath: join(resources, 'licenses/THIRD_PARTY_LICENSES.md') });
+	const stageManifestPath = join(root, 'stage-manifest.json');
+	await writeFile(stageManifestPath, `${JSON.stringify({ desktopCodecPolicy: DESKTOP_CODEC_POLICY })}\n`);
 	const release = await verifyNativeAddonPayloadManifest({ repositoryRoot: process.cwd(), target });
 	const nativeRoot = join(resources, `runtime/native/${target}`);
 	await stageVerifiedNativeAddonPayload({ release, outputRoot: nativeRoot });
@@ -56,7 +47,7 @@ async function packagedResources(context, target = BUILT_TARGET) {
 			outputRoot: join(resources, 'runtime'),
 		});
 	}
-	return { root, resources, nativeRoot, release };
+	return { root, resources, nativeRoot, release, stageManifestPath };
 }
 
 // electron-builder names the packed platform with Node's vocabulary and the
@@ -82,10 +73,13 @@ function packagingContext(appOutDir, resourcesDir, target = BUILT_TARGET) {
 }
 
 test('afterPack verifies the packaged native addon payload before any fuse work', async (context) => {
-	const { root, resources, nativeRoot, release } = await packagedResources(context);
+	const { root, resources, nativeRoot, release, stageManifestPath } = await packagedResources(context);
 	const fuseCalls = [];
 	const invoke = () => hardenPackagedElectron(packagingContext(root, resources), {
 		repositoryRoot: process.cwd(),
+		stageManifestPath,
+		verifyPackagedElectronAlternateFfmpeg: async () => {},
+		verifyPackagedOsAudioCodecNativeResources: async () => {},
 		flipFuses: async (...args) => { fuseCalls.push(args); },
 		writeDesktopPackageContentManifest: async () => {},
 	});
@@ -139,6 +133,16 @@ test('the addon verifier leaves the closed Framescaper host subtrees to their ow
 		}),
 		/Soundscaper resources carry Framescaper native-host payloads/iu,
 	);
+});
+
+test('the addon verifier leaves the codec-only OS subtree to its owner', async (context) => {
+	const { root, resources } = await packagedResources(context);
+	await mkdir(join(
+		resources, 'runtime/native/soundscaper-os-audio-codec/win-x64',
+	), { recursive: true });
+	await assert.doesNotReject(() => verifyPackagedNativeAddonResources(
+		packagingContext(root, resources), { repositoryRoot: process.cwd() },
+	));
 });
 
 test('a target whose payload is pending-external packages its manifest and nothing else', async (context) => {

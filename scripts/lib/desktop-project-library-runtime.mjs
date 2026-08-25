@@ -5,6 +5,8 @@ import { cp, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
 import { build } from 'esbuild';
 import { DESKTOP_5B_TRANSITIVE_RUNTIME_FILES, DESKTOP_RUNTIME_BUNDLED_LEAF_FILES } from './desktop-5b-transitive-runtime-files.mjs';
+import { stageDesktopBundledAudioRuntime } from './desktop-bundled-audio-runtime.mjs';
+import { DESKTOP_EXTERNAL_FFMPEG_RUNTIME_FILES } from './desktop-external-ffmpeg-runtime-files.mjs';
 import { DESKTOP_PROJECT_LIBRARY_EXACT_RUNTIME_FILES } from './desktop-project-library-exact-runtime-files.mjs';
 import { DESKTOP_PROJECT_LIBRARY_V27_RUNTIME_FILES } from './desktop-project-library-v27-runtime-files.mjs';
 import { DESKTOP_SOUNDSCAPER_V10_RUNTIME_FILES } from './desktop-soundscaper-v10-runtime-files.mjs';
@@ -13,11 +15,13 @@ import {
 	assertNoTypeScriptImportSpecifiers,
 	assertStagedDesktopImportsResolve,
 } from './desktop-staged-import-hygiene.mjs';
+import { stageBundledAudioCodecRuntimeManifest } from './desktop-bundled-audio-codec-runtime-closure.mjs';
 
 const FRAMESCAPER_CAPTURE_PRELOAD_BUNDLE = 'framescaper-capture-sandbox-preload.cjs';
 const FRAMESCAPER_WEB_VCR_PRELOAD_BUNDLE = 'framescaper-web-vcr-sandbox-preload.cjs';
 const SOUNDSCAPER_V10_PRELOAD_BUNDLE = 'soundscaper-project-library-v10-sandbox-preload.cjs';
 const SOUNDSCAPER_V11_PRELOAD_BUNDLE = 'soundscaper-project-library-v11-sandbox-preload.cjs';
+const DESKTOP_ONLY_EXCLUDED_SOURCES = Object.freeze(new Set(['bundled-audio-codec-runtime-manifest.json', 'ffmpeg-corresponding-source.json']));
 // Staged sources ship no TypeScript loader. Package aliases resolve to source
 // TypeScript in the repository and compiled runtime members in the application.
 export const DESKTOP_RUNTIME_PACKAGE_IMPORTS = Object.freeze({
@@ -44,6 +48,7 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/assistance-sherpa-recognizer.js',
 	'desktop/assistance-speech-job-contract.js',
 	'desktop/assistance-speech-runtime.js',
+	...DESKTOP_EXTERNAL_FFMPEG_RUNTIME_FILES,
 	'desktop/framescaper-capture-desktop-port.js',
 	'desktop/framescaper-capture-main-channels.js',
 	'desktop/framescaper-capture-session-security.js',
@@ -445,11 +450,11 @@ export async function compileDesktopProjectLibraryRuntime({ repositoryRoot, outp
 		'--outDir', output,
 	], root);
 	await bundleRuntimeHashModules(root, output);
+	await stageDesktopBundledAudioRuntime({ repositoryRoot: root, outputRoot: output });
 	const files = await listRuntimeFiles(output);
 	assertExpectedRuntime(files);
-	for (const name of files) {
-		const source = await readFile(join(output, name), 'utf8');
-		assertNoTypeScriptImportSpecifiers(`Desktop runtime ${name}`, source);
+	for (const name of files.filter((file) => /\.[cm]?js$/u.test(file))) {
+		assertNoTypeScriptImportSpecifiers(`Desktop runtime ${name}`, await readFile(join(output, name), 'utf8'));
 	}
 	return Object.freeze({ files: Object.freeze(files) });
 }
@@ -486,9 +491,11 @@ export async function stageDesktopApplicationSources({
 	assertExpectedRuntime(runtimeFiles);
 	await cp(sourceRoot, applicationRoot, {
 		recursive: true,
-		filter: (source) => extname(source) !== '.ts',
+		filter: (source) => extname(source) !== '.ts'
+			&& !DESKTOP_ONLY_EXCLUDED_SOURCES.has(source.slice(sourceRoot.length + 1).replaceAll('\\', '/')),
 	});
 	await cp(compiledRoot, join(applicationRoot, 'project-library-runtime'), { recursive: true });
+	await stageBundledAudioCodecRuntimeManifest({ desktopRoot: applicationRoot });
 	await assertStagedDesktopImportsResolve(applicationRoot);
 	assertRuntimePackageImportTargets();
 	await bundleSandboxPreload({

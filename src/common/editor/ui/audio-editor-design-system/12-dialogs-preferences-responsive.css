@@ -139,7 +139,7 @@
 	min-width: 0;
 }
 
-#kw-audio-editor-design-system .kw-audio-editor-preferences__appearance {
+#kw-audio-editor-design-system :is(.kw-audio-editor-preferences__general, .kw-audio-editor-preferences__appearance) {
 	display: grid;
 	gap: 18px;
 }

@@ -5,7 +5,7 @@ import { access, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
 	compileDesktopProjectLibraryRuntime,
@@ -75,6 +75,10 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'external-display-sink.html'));
 	await access(join(applicationDesktopRoot, 'external-display-sink-preload.cjs'));
 	await access(join(applicationDesktopRoot, 'native-media-helper-process.js'));
+	await assert.rejects(
+		() => access(join(applicationDesktopRoot, 'ffmpeg-corresponding-source.json')),
+		/ENOENT/u,
+	);
 	await access(join(applicationDesktopRoot, 'framescaper-native-media-electron-runtime.mjs'));
 	await access(join(applicationDesktopRoot, 'openfx-helper-process.js'));
 	await access(join(applicationDesktopRoot, 'framescaper-openfx-electron-runtime.mjs'));
@@ -85,11 +89,60 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	await access(join(applicationDesktopRoot, 'framescaper-native-services-options.mjs'));
 	await access(join(applicationDesktopRoot, 'read-selection-service.js'));
 	await access(join(applicationDesktopRoot, 'renderer-save-owner.js'));
+	await access(join(applicationDesktopRoot, 'bundled-audio-codec-electron-spawn.mjs'));
+	await access(join(applicationDesktopRoot, 'bundled-audio-codec-runtime-payload.mjs'));
+	await access(join(applicationDesktopRoot, 'bundled-audio-codec-runtime-manifest.json'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/project-library-editor-service.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/framescaper-media-host-payload.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/framescaper-openfx-host-payload.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/framescaper-openfx-runtime.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/external-display-frame-port.js'));
+	for (const name of [
+		'bundled-audio-codec-helper-configuration.js',
+		'bundled-audio-codec-helper-process.js',
+		'bundled-audio-codec-isolated-runtime.js',
+		'bundled-audio-codec-operation-runner.js',
+		'bundled-audio-codec-provider-catalog.js',
+		'bundled-audio-codec-runtime.js',
+		'bundled-flac-audio-codec-runtime.js', 'bundled-flac-stream.js',
+		'bundled-lame-audio-codec-runtime.js',
+		'bundled-twolame-audio-codec-runtime.js',
+		'bundled-wavpack-audio-codec-runtime.js', 'bundled-wavpack-stream.js',
+		'desktop-audio-codec-broker.js', 'desktop-audio-codec-main-ipc.js',
+		'desktop-audio-codec-operation-contract.js', 'desktop-audio-codec-runtime-composition.js',
+		'desktop-audio-ffmpeg-plan.js', 'desktop-audio-ffmpeg-wave-output.js',
+		'external-ffmpeg-audio-operation-runner.js',
+		'external-ffmpeg-installer-node-runtime.js', 'external-ffmpeg-installer.js',
+		'external-ffmpeg-node-runtime.js', 'external-ffmpeg-preference-main-ipc.js',
+		'external-ffmpeg-preference-node-probe.js', 'external-ffmpeg-preference-service.js',
+		'external-ffmpeg-probe.js',
+	]) await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop', name));
+	const bundledPayload = await import(pathToFileURL(
+		join(applicationDesktopRoot, 'bundled-audio-codec-runtime-payload.mjs'),
+	).href);
+	const verifyBundledPayload = bundledPayload.createBundledAudioCodecRuntimeVerifier({
+		desktopRoot: applicationDesktopRoot, target: 'linux-x64',
+	});
+	for (const codec of ['flac', 'lame', 'mpg123', 'opus', 'twolame', 'vorbis', 'wavpack']) {
+		const configuration = await verifyBundledPayload(codec);
+		assert.equal(configuration.codec, codec);
+		assert.ok(configuration.dependencies.length >= 3, codec);
+	}
+	for (const name of [
+		'desktop-codec-coordinator.js', 'desktop-codec-provider-catalog.js',
+	]) await access(join(applicationDesktopRoot, 'project-library-runtime', 'src/common/editor', name));
+	await access(join(
+		applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/flac/flac.wasm',
+	));
+	await access(join(
+		applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/lame/lame.wasm',
+	));
+	await access(join(
+		applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/twolame/twolame.wasm',
+	));
+	await access(join(
+		applicationDesktopRoot, 'project-library-runtime', 'src/common/editor/wavpack/wavpack.wasm',
+	));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/native-media-helper-job.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/native-media-capability-report.js'));
 	await access(join(applicationDesktopRoot, 'project-library-runtime', 'desktop/native-media-host-self-test.js'));
@@ -149,8 +202,42 @@ test('desktop staging excludes raw TypeScript and includes the compiled runtime'
 	const locatorRuntime = await readFile(join(applicationDesktopRoot, 'linked-video-locator-runtime.js'), 'utf8');
 	assert.match(locatorRuntime, /project-library-runtime\/desktop\/linked-video-locator-registry\.js/u);
 	assert.match(locatorRuntime, /project-library-runtime\/desktop\/linked-video-locator-store\.js/u);
+	const registrationModule = await import(pathToFileURL(
+		join(applicationDesktopRoot, 'external-ffmpeg-registration.mjs'),
+	).href);
+	const handlers = new Map();
+	const registration = await registrationModule.registerExternalFfmpegPreferences({
+		channels: {
+			externalFfmpegStatus: 'status', externalFfmpegChoose: 'choose',
+			externalFfmpegClear: 'clear', externalFfmpegRescan: 'rescan',
+			externalFfmpegInstall: 'install',
+		},
+		handle: (channel, listener) => handlers.set(channel, listener),
+		removeHandler: (channel) => handlers.delete(channel),
+		settings: inertExternalFfmpegSettings(),
+		dialog: {
+			showOpenDialog: async () => ({ canceled: true, filePaths: [] }),
+			showMessageBox: async () => ({ response: 0 }),
+		},
+		windowFor: () => null,
+		platform: 'linux', architecture: 'x64',
+		userDataPath: temporaryRoot, environment: {},
+	});
+	assert.deepEqual([...handlers.keys()], ['status', 'choose', 'clear', 'rescan', 'install']);
+	registration.dispose();
+	assert.equal(handlers.size, 0);
 	await assert.rejects(() => access(join(applicationDesktopRoot, 'project-library-host.ts')), /ENOENT/u);
 });
+
+function inertExternalFfmpegSettings() {
+	return {
+		snapshot: () => ({ externalFfmpegSelection: null }),
+		setExternalFfmpegSelection: async () => { throw new Error('unexpected mutation'); },
+		setExternalFfmpegProbeMetadata: async () => { throw new Error('unexpected mutation'); },
+		clearExternalFfmpegProbeMetadata: async () => { throw new Error('unexpected mutation'); },
+		clearExternalFfmpegSelection: async () => { throw new Error('unexpected mutation'); },
+	};
+}
 
 test('desktop main initializes, exposes, and disposes the shared library through bounded IPC', async () => {
 	const [mainSource, preloadSource, desktopHostMenuSource, prepareSource, packageMetadata] = await Promise.all([

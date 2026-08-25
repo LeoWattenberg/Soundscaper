@@ -1,0 +1,88 @@
+{
+	"schemaVersion": 1,
+	"lame": {
+		"website": "https://lame.sourceforge.io/",
+		"release": "4.0",
+		"license": "LGPL-2.0-or-later",
+		"archiveUrl": "https://downloads.sourceforge.net/project/lame/lame/4.0/lame-4.0.tar.gz",
+		"archiveSha256": "3df5124d5ad3a98312ffd7ba6a9b36230e4f8a3e66d3ce0f425e336c32d216eb",
+		"archivePublishedUtc": "2026-07-11T07:49:57Z"
+	},
+	"toolchain": {
+		"emscriptenVersion": "3.1.64",
+		"dockerImage": "emscripten/emsdk:3.1.64",
+		"dockerImageDigest": "sha256:8847dad4171ebc8a53d9ae5cda86a2546ef5b2e68834c14dc1ba2b2962e125cc",
+		"sourceDateEpoch": "1783756197"
+	},
+	"configureArguments": [
+		"--disable-shared",
+		"--enable-static",
+		"--disable-dependency-tracking",
+		"--disable-frontend",
+		"--disable-decoder",
+		"--disable-gtktest",
+		"--disable-cpml",
+		"--disable-nasm"
+	],
+	"buildFeatures": {
+		"decoder": false,
+		"files": false,
+		"frontend": false,
+		"maximumChannels": 2,
+		"simd": false,
+		"threads": false,
+		"vbr": false,
+		"xingLameGaplessTag": true
+	},
+	"compiledArchiveEvidence": {
+		"memberCount": 20,
+		"membersSha256": "88941a5528ff5f3baeb2e60a85d671f95674236a9953a115f824ee786916a1df"
+	},
+	"localFiles": [
+		{
+			"path": "native/soundscaper_lame.c",
+			"sha256": "0377efd55d8439264f18e689f01ae07aae10c5301ef4374ce0a3e6c207f86a77"
+		},
+		{
+			"path": "NOTICE.md",
+			"sha256": "4c5aa0f920cd13893d0f595acd4dc3efffe02cfa66f7487f8643733d4e6de3b0"
+		},
+		{
+			"path": "licenses/LAME.txt",
+			"sha256": "d1210773dd3fb28ffcaba2acb6b6c255a7aa8401c27efff4f3a049029f19a201"
+		},
+		{
+			"path": "licenses/LGPL-2.0.txt",
+			"sha256": "8e37572d65d965c218080fe4333779bd8743e0a280a2d447bce16a850f82917e"
+		}
+	],
+	"wasm": {
+		"path": "lame.wasm",
+		"sha256": "654d08f946851134755513c8c0cd4486e8c9d2024df2318dc48b262e4ad7a502",
+		"maximumBytes": 1048576,
+		"initialMemoryBytes": 8388608,
+		"maximumMemoryBytes": 268435456,
+		"stackBytes": 262144,
+		"requiredExports": [
+			"memory",
+			"_initialize",
+			"sclm_abi_version",
+			"sclm_lame_major",
+			"sclm_lame_minor",
+			"sclm_maximum_channels",
+			"sclm_maximum_frames",
+			"sclm_initial_memory_bytes",
+			"sclm_maximum_memory_bytes",
+			"sclm_allocate",
+			"sclm_free",
+			"sclm_encode_float32"
+		],
+		"allowedFunctionImports": [
+			"env.emscripten_notify_memory_growth",
+			"wasi_snapshot_preview1.fd_close",
+			"wasi_snapshot_preview1.proc_exit",
+			"wasi_snapshot_preview1.fd_seek",
+			"wasi_snapshot_preview1.fd_write"
+		]
+	}
+}

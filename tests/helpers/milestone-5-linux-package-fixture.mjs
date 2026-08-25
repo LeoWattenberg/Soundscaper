@@ -11,11 +11,8 @@ import { promisify } from 'node:util';
 
 import assistanceNativeRuntimeManifest from '../../config/assistance-native-runtime-manifest.json' with { type: 'json' };
 import { assistanceNativeRuntimeStageSummary } from '../../desktop/assistance-native-runtime-payload.mjs';
+import { DESKTOP_CODEC_POLICY } from '../../scripts/lib/desktop-codec-policy.mjs';
 import { writeDesktopPackageContentManifest } from '../../scripts/lib/desktop-package-content-manifest.mjs';
-import {
-	ffmpegRuntimeStageSummary,
-	verifyFfmpegRuntimeManifest,
-} from '../../scripts/lib/ffmpeg-runtime-manifest.mjs';
 import {
 	nativeAddonPayloadStageSummary,
 	verifyNativeAddonPayloadManifest,
@@ -44,7 +41,6 @@ export async function createSoundscaperLinuxPackageFixture({
 	const workRoot = await mkdtemp(join(tmpdir(), 'soundscaper-m5-linux-package-'));
 	context.after(() => rm(workRoot, { recursive: true, force: true }));
 	await mkdir(packageRoot, { recursive: true });
-	const release = await verifyFfmpegRuntimeManifest({ repositoryRoot, purpose: 'audit' });
 	const nativeRelease = await verifyNativeAddonPayloadManifest({
 		repositoryRoot,
 		target: TARGET_ID,
@@ -72,8 +68,9 @@ export async function createSoundscaperLinuxPackageFixture({
 			assistanceNativeRuntimeManifest,
 			TARGET_ID,
 		),
-		ffmpeg: ffmpegRuntimeStageSummary(release),
+		desktopCodecPolicy: DESKTOP_CODEC_POLICY,
 		nativeAddons: nativeAddonPayloadStageSummary(nativeRelease),
+		osAudioCodecNative: null,
 		soundscaperProfessionalNative: professionalNativePayloadStageSummary(professionalRelease),
 		framescaperNativeHosts: null,
 		translations: {
@@ -84,20 +81,10 @@ export async function createSoundscaperLinuxPackageFixture({
 	const manifestName = 'runtime-manifest-soundscaper-linux-x64.json';
 	const runtimeManifestPath = join(packageRoot, manifestName);
 	await writeJson(runtimeManifestPath, runtimeManifest);
-	await writeFile(
-		join(packageRoot, 'ffmpeg-corresponding-source.json'),
-		release.evidence.correspondingSource.bytes,
-	);
 
 	const applicationRoot = join(workRoot, 'tree/usr/lib/soundscaper');
 	const resourcesRoot = join(applicationRoot, 'resources');
 	await writeBytes(join(resourcesRoot, 'app.asar'), Buffer.from('authenticated fixture application'));
-	const ffmpegRoot = join(resourcesRoot, `runtime/ffmpeg/${release.manifest.package.version}`);
-	for (const file of release.runtimeFiles) await writeBytes(join(ffmpegRoot, file.name), file.bytes);
-	await writeBytes(
-		join(ffmpegRoot, release.manifest.publication.manifestName),
-		release.manifestBytes,
-	);
 	const nativeRoot = join(resourcesRoot, `runtime/native/${TARGET_ID}`);
 	await writeBytes(
 		join(nativeRoot, releaseNativeManifestName(nativeRelease)),

@@ -215,9 +215,17 @@ test('repository assembly binds an exact package and rejects a drifted staged pa
 	assert.ok(!handoff.blockers.some(({ id }) => id === 'package-audit:missing'));
 	assert.ok(handoff.blockers.some(({ id }) => id === 'package-signature:pending'));
 	assert.equal(handoff.packageEvidence.releaseAuthentication.status, 'pending-external');
+	assert.deepEqual(handoff.packageEvidence.desktopCodecPolicy, {
+		schemaVersion: 1,
+		bundledFfmpeg: false,
+		providerOrder: ['bundled-reviewed-codecs', 'os', 'external-user-install'],
+	});
 	assert.ok(handoff.inputDigests[
 		`desktop-package:soundscaper:linux-x64:${manifestName}`
 	]);
+	assert.equal(Object.keys(handoff.inputDigests).some((name) => (
+		name.endsWith(':ffmpeg-corresponding-source.json')
+	)), false);
 
 	manifest.nativeAddons.payload.sha256 = '0'.repeat(64);
 	await writeJson(join(packageRoot, manifestName), manifest);

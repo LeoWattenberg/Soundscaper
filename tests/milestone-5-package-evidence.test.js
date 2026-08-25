@@ -25,7 +25,6 @@ const VERSION = '0.2.0-beta.1';
 const APPIMAGE = `Soundscaper-${VERSION}-linux-x64.AppImage`;
 const DEBIAN = `Soundscaper-${VERSION}-linux-amd64.deb`;
 const MANIFEST = 'runtime-manifest-soundscaper-linux-x64.json';
-const CORRESPONDING_SOURCE = 'ffmpeg-corresponding-source.json';
 const SOURCE_REVISION = 'a'.repeat(40);
 
 test('a genuine package audit binds one exact target manifest and every packaged byte', {
@@ -90,11 +89,10 @@ test('a genuine package audit binds one exact target manifest and every packaged
 		byteLength: manifestBytes.byteLength,
 		sha256: digest(manifestBytes),
 	});
-	const sourceBytes = await readFile(join(fixture.packageRoot, CORRESPONDING_SOURCE));
-	assert.deepEqual(audit.correspondingSource, {
-		name: CORRESPONDING_SOURCE,
-		byteLength: sourceBytes.byteLength,
-		sha256: digest(sourceBytes),
+	assert.deepEqual(audit.desktopCodecPolicy, {
+		schemaVersion: 1,
+		bundledFfmpeg: false,
+		providerOrder: ['bundled-reviewed-codecs', 'os', 'external-user-install'],
 	});
 	assert.equal(audit.totalPackageBytes, appImageBytes.byteLength + debianBytes.byteLength);
 
@@ -160,14 +158,13 @@ test('package admission rejects missing, unexpected, wrong-version, source-revis
 }, async (context) => {
 	const base = await createPackageFixture(context);
 	for (const failure of [
-		'missing', 'missing-source', 'tampered-source', 'unexpected',
+		'missing', 'ffmpeg-sidecar', 'unexpected',
 		'version', 'source-version', 'source-revision', 'target',
 	]) {
 		const fixture = await clonePackageFixture(base, `names-${failure}`);
 		if (failure === 'missing') await rm(join(fixture.packageRoot, DEBIAN));
-		if (failure === 'missing-source') await rm(join(fixture.packageRoot, CORRESPONDING_SOURCE));
-		if (failure === 'tampered-source') {
-			await writeFile(join(fixture.packageRoot, CORRESPONDING_SOURCE), 'tampered source evidence');
+		if (failure === 'ffmpeg-sidecar') {
+			await writeFile(join(fixture.packageRoot, 'ffmpeg-corresponding-source.json'), 'forbidden source evidence');
 		}
 		if (failure === 'unexpected') {
 			await writeFile(join(fixture.packageRoot, `Soundscaper-${VERSION}-win-x64.zip`), 'extra');
@@ -212,12 +209,13 @@ test('package admission delegates staged runtime identity and policy to the shar
 	skip: process.platform !== 'linux',
 }, async (context) => {
 	const base = await createPackageFixture(context);
-	for (const failure of ['product', 'ffmpeg', 'canonical']) {
+	for (const failure of ['product', 'codec-policy', 'legacy-ffmpeg', 'canonical']) {
 		const fixture = await clonePackageFixture(base, `policy-${failure}`);
 		const path = join(fixture.packageRoot, MANIFEST);
 		const manifest = JSON.parse(await readFile(path, 'utf8'));
 		if (failure === 'product') manifest.productId = 'framescaper';
-		if (failure === 'ffmpeg') manifest.ffmpeg.files['ffmpeg-core.wasm'].sha256 = '0'.repeat(64);
+		if (failure === 'codec-policy') manifest.desktopCodecPolicy.bundledFfmpeg = true;
+		if (failure === 'legacy-ffmpeg') manifest.ffmpeg = {};
 		if (failure === 'canonical') await writeFile(path, JSON.stringify(manifest));
 		else await writeJson(path, manifest);
 		try {
@@ -226,7 +224,7 @@ test('package admission delegates staged runtime identity and policy to the shar
 				packageRoot: fixture.packageRoot,
 				productId: 'soundscaper',
 				targetId: 'linux-x64',
-			}), /runtime manifest|canonical|product|target|FFmpeg runtime policy/iu, failure);
+			}), /runtime manifest|canonical|product|target|codec policy|legacy bundled FFmpeg/iu, failure);
 		} finally {
 			await rm(fixture.packageRoot, { recursive: true, force: true });
 		}

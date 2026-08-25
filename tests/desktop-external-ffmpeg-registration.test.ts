@@ -1,0 +1,286 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import { registerExternalFfmpegPreferences } from '../desktop/external-ffmpeg-registration.mjs';
+import { createExternalFfmpegInstallerBroker, planExternalFfmpegInstall } from '../desktop/external-ffmpeg-installer.ts';
+import { registerExternalFfmpegPreferenceMainIpc } from '../desktop/external-ffmpeg-preference-main-ipc.ts';
+import { createExternalFfmpegPreferenceService } from '../desktop/external-ffmpeg-preference-service.ts';
+
+const CHANNELS = Object.freeze({
+	externalFfmpegStatus: 'status', externalFfmpegChoose: 'choose', externalFfmpegClear: 'clear',
+	externalFfmpegRescan: 'rescan', externalFfmpegInstall: 'install',
+});
+const PATH = '/opt/homebrew/bin/ffmpeg';
+type Selection = Readonly<{
+	executablePath: string;
+	identity: Readonly<Record<string, unknown>> | null;
+	capabilities: Readonly<Record<string, unknown>> | null;
+}>;
+
+test('registration composes Browse, probe, confirmation, install, and exact IPC actions', async () => {
+	const handlers = new Map<string, (...arguments_: unknown[]) => unknown>();
+	const dialogs: unknown[] = [];
+	const installs: unknown[] = [];
+	const directories: unknown[] = [];
+	const probes: Array<string | null> = [];
+	const settings = settingsFixture();
+	const registration = await registerExternalFfmpegPreferences({
+		channels: CHANNELS,
+		handle: (channel: string, listener: (...arguments_: unknown[]) => unknown) => { handlers.set(channel, listener); },
+		removeHandler: (channel: string) => { handlers.delete(channel); },
+		settings,
+		dialog: {
+			showOpenDialog: async (_window: unknown, options: unknown) => {
+				dialogs.push(['open', options]); return { canceled: false, filePaths: [PATH] };
+			},
+			showMessageBox: async (_window: unknown, options: unknown) => {
+				dialogs.push(['confirm', options]); return { response: 1 };
+			},
+		},
+		windowFor: () => ({ id: 'main-window' }),
+		platform: 'darwin', architecture: 'arm64', userDataPath: '/user-data', environment: { PATH: '/bin' },
+		packageManagerExecutableAvailable: async (path: string) => path === '/opt/homebrew/bin/brew',
+		mkdir: async (...arguments_: unknown[]) => { directories.push(arguments_); },
+		loadModules: async () => ({
+			createExternalFfmpegInstallerBroker,
+			createExternalFfmpegInstallerNodeRunner: () => async (request: unknown) => {
+				installs.push(request);
+				return { status: 'exited', exitCode: 0, signal: null, stdout: '', stderr: '' };
+			},
+			createExternalFfmpegPreferenceNodeProbe: () => async (selectedPath: string | null) => {
+				probes.push(selectedPath);
+				return available();
+			},
+			createExternalFfmpegPreferenceService,
+			planExternalFfmpegInstall,
+			registerExternalFfmpegPreferenceMainIpc,
+		}),
+	});
+	assert.deepEqual(probes, [], 'an unconfigured startup must not discover or execute FFmpeg');
+	assert.deepEqual([...handlers.keys()], ['status', 'choose', 'clear', 'rescan', 'install']);
+	assert.deepEqual(directories, [['/user-data/external-ffmpeg', { recursive: true, mode: 0o700 }]]);
+	assert.equal((await handlers.get('status')?.({} as never) as { state: string }).state, 'unconfigured');
+	assert.equal((await handlers.get('choose')?.({} as never) as { state: string }).state, 'ready');
+	assert.equal(settings.snapshot().externalFfmpegSelection?.executablePath, PATH);
+	assert.equal((await handlers.get('install')?.({} as never) as { state: string }).state, 'ready');
+	assert.equal(installs.length, 1);
+	assert.match(JSON.stringify(dialogs), /brew install ffmpeg/u);
+	assert.equal(registration.service.admission()?.executablePath, PATH);
+	registration.dispose();
+	assert.equal(handlers.size, 0);
+});
+
+test('registration reprobes an explicitly persisted selection before exposing the service', async () => {
+	const probes: Array<string | null> = [];
+	let confirmations = 0;
+	const settings = settingsFixture({
+		executablePath: PATH,
+		identity: {
+			version: '8.1.2', ffmpegSha256: 'a'.repeat(64),
+			ffprobePath: '/opt/homebrew/bin/ffprobe', ffprobeSha256: 'b'.repeat(64),
+			executablePairClosureSha256: 'c'.repeat(64),
+		},
+		capabilities: { digest: 'd'.repeat(64), probedAtEpochMs: 1 },
+	});
+	const registration = await registerExternalFfmpegPreferences({
+		channels: CHANNELS, handle() {}, removeHandler() {}, settings,
+		dialog: {
+			showOpenDialog: () => Promise.reject(new Error('must not browse')),
+			showMessageBox: () => { confirmations += 1; return Promise.resolve({ response: 1 }); },
+		},
+		windowFor: () => null, platform: 'darwin', architecture: 'arm64',
+		userDataPath: '/data', environment: {}, mkdir: () => Promise.resolve(),
+		packageManagerExecutableAvailable: async () => true,
+		loadModules: async () => ({
+			createExternalFfmpegInstallerBroker,
+			createExternalFfmpegInstallerNodeRunner: () => async () => {
+				throw new Error('must not install');
+			},
+			createExternalFfmpegPreferenceNodeProbe: () => async (selectedPath: string | null) => {
+				probes.push(selectedPath);
+				return available();
+			},
+			createExternalFfmpegPreferenceService,
+			planExternalFfmpegInstall,
+			registerExternalFfmpegPreferenceMainIpc,
+		}),
+	});
+
+	assert.deepEqual(probes, [PATH]);
+	assert.equal((await registration.service.status()).state, 'ready');
+	assert.equal(registration.service.admission()?.executablePath, PATH);
+	assert.equal(confirmations, 0);
+	registration.dispose();
+});
+
+test('a persisted selection that fails startup reprobe remains unavailable and unadmitted', async () => {
+	const settings = settingsFixture({
+		executablePath: PATH,
+		identity: {
+			version: '8.1.2', ffmpegSha256: 'a'.repeat(64),
+			ffprobePath: '/opt/homebrew/bin/ffprobe', ffprobeSha256: 'b'.repeat(64),
+			executablePairClosureSha256: 'c'.repeat(64),
+		},
+		capabilities: { digest: 'd'.repeat(64), probedAtEpochMs: 1 },
+	});
+	const registration = await registerExternalFfmpegPreferences({
+		channels: CHANNELS, handle() {}, removeHandler() {}, settings,
+		dialog: {
+			showOpenDialog: () => Promise.reject(new Error('must not browse')),
+			showMessageBox: () => Promise.reject(new Error('must not confirm')),
+		},
+		windowFor: () => null, platform: 'darwin', architecture: 'arm64',
+		userDataPath: '/data', environment: {}, mkdir: () => Promise.resolve(),
+		packageManagerExecutableAvailable: async () => true,
+		loadModules: async () => ({
+			createExternalFfmpegInstallerBroker,
+			createExternalFfmpegInstallerNodeRunner: () => async () => {
+				throw new Error('must not install');
+			},
+			createExternalFfmpegPreferenceNodeProbe: () => async () => ({
+				status: 'unavailable', state: 'unsupported', location: PATH,
+				detail: 'The selected FFmpeg release is unsupported or incompatible.',
+			}),
+			createExternalFfmpegPreferenceService,
+			planExternalFfmpegInstall,
+			registerExternalFfmpegPreferenceMainIpc,
+		}),
+	});
+
+	assert.equal((await registration.service.status()).state, 'unsupported');
+	assert.equal(registration.service.admission(), null);
+	assert.deepEqual(settings.snapshot().externalFfmpegSelection, {
+		executablePath: PATH, identity: null, capabilities: null,
+	});
+	registration.dispose();
+});
+
+test('cancelled file and install dialogs cause no mutation or package-manager process', async () => {
+	const settings = settingsFixture();
+	let installCalls = 0;
+	const registration = await registerExternalFfmpegPreferences({
+		channels: CHANNELS, handle() {}, removeHandler() {}, settings,
+		dialog: {
+			showOpenDialog: () => Promise.resolve({ canceled: true, filePaths: [] }),
+			showMessageBox: () => Promise.resolve({ response: 0 }),
+		},
+		windowFor: () => null, platform: 'linux', architecture: 'x64',
+		userDataPath: '/data', environment: {}, mkdir: () => Promise.resolve(),
+		packageManagerExecutableAvailable: async () => true,
+		loadModules: async () => ({
+			createExternalFfmpegInstallerBroker,
+			createExternalFfmpegInstallerNodeRunner: () => async () => {
+				installCalls += 1;
+				return { status: 'exited', exitCode: 0, signal: null, stdout: '', stderr: '' };
+			},
+			createExternalFfmpegPreferenceNodeProbe: () => async () => available(),
+			createExternalFfmpegPreferenceService,
+			planExternalFfmpegInstall,
+			registerExternalFfmpegPreferenceMainIpc,
+		}),
+	});
+	assert.equal((await registration.service.choose()).state, 'unconfigured');
+	assert.equal((await registration.service.install()).state, 'unconfigured');
+	assert.equal(installCalls, 0);
+	assert.equal(settings.snapshot().externalFfmpegSelection, null);
+	registration.dispose();
+});
+
+test('Windows registration resolves WinGet from LOCALAPPDATA instead of inherited PATH', async () => {
+	let plannedRequest: unknown;
+	const registration = await registerExternalFfmpegPreferences({
+		channels: CHANNELS, handle() {}, removeHandler() {}, settings: settingsFixture(),
+		dialog: {
+			showOpenDialog: () => Promise.resolve({ canceled: true, filePaths: [] }),
+			showMessageBox: () => Promise.resolve({ response: 0 }),
+		},
+		windowFor: () => null, platform: 'win32', architecture: 'arm64',
+		userDataPath: '/user-data',
+		environment: {
+			LOCALAPPDATA: 'C:\\Users\\tester\\AppData\\Local',
+			PATH: 'C:\\attacker-controlled',
+		},
+		packageManagerExecutableAvailable: async (path: string) => (
+			path === 'C:\\Users\\tester\\AppData\\Local\\Microsoft\\WindowsApps\\winget.exe'
+		),
+		mkdir: () => Promise.resolve(),
+		loadModules: async () => ({
+			createExternalFfmpegInstallerBroker,
+			createExternalFfmpegInstallerNodeRunner: () => async () => ({
+				status: 'exited', exitCode: 0, signal: null, stdout: '', stderr: '',
+			}),
+			createExternalFfmpegPreferenceNodeProbe: () => async () => available(),
+			createExternalFfmpegPreferenceService,
+			planExternalFfmpegInstall: (request: unknown) => {
+				plannedRequest = request;
+				return planExternalFfmpegInstall(request as Parameters<typeof planExternalFfmpegInstall>[0]);
+			},
+			registerExternalFfmpegPreferenceMainIpc,
+		}),
+	});
+	await registration.service.status();
+	assert.deepEqual(plannedRequest, {
+		platform: 'win32', architecture: 'arm64',
+		packageManagerExecutable: 'C:\\Users\\tester\\AppData\\Local\\Microsoft\\WindowsApps\\winget.exe',
+	});
+	registration.dispose();
+});
+
+test('registration hides Install when the existing package manager is unavailable', async () => {
+	let confirmations = 0;
+	const checked: string[] = [];
+	const registration = await registerExternalFfmpegPreferences({
+		channels: CHANNELS, handle() {}, removeHandler() {}, settings: settingsFixture(),
+		dialog: {
+			showOpenDialog: () => Promise.resolve({ canceled: true, filePaths: [] }),
+			showMessageBox: () => { confirmations += 1; return Promise.resolve({ response: 1 }); },
+		},
+		windowFor: () => null, platform: 'darwin', architecture: 'arm64',
+		userDataPath: '/data', environment: {}, mkdir: () => Promise.resolve(),
+		packageManagerExecutableAvailable: async (path: string) => { checked.push(path); return false; },
+		loadModules: async () => ({
+			createExternalFfmpegInstallerBroker,
+			createExternalFfmpegInstallerNodeRunner: () => async () => {
+				throw new Error('must not install');
+			},
+			createExternalFfmpegPreferenceNodeProbe: () => async () => available(),
+			createExternalFfmpegPreferenceService,
+			planExternalFfmpegInstall,
+			registerExternalFfmpegPreferenceMainIpc,
+		}),
+	});
+	assert.deepEqual(checked, ['/opt/homebrew/bin/brew']);
+	assert.equal((await registration.service.status()).canInstall, false);
+	assert.equal((await registration.service.install()).state, 'unavailable');
+	assert.equal(confirmations, 0);
+	registration.dispose();
+});
+
+function settingsFixture(initial: Selection | null = null) {
+	let selection: Selection | null = initial;
+	return {
+		snapshot: () => ({ externalFfmpegSelection: selection }),
+		setExternalFfmpegSelection: async (path: string) => (selection = { executablePath: path, identity: null, capabilities: null }),
+		setExternalFfmpegProbeMetadata: async (value: Selection) => (selection = value),
+		clearExternalFfmpegProbeMetadata: async (path: string) => (selection = { executablePath: path, identity: null, capabilities: null }),
+		clearExternalFfmpegSelection: async () => (selection = null),
+	};
+}
+
+function available() {
+	return {
+		status: 'available' as const,
+		evidence: {
+			executablePath: PATH,
+			identity: {
+				version: '9.0.1', ffmpegSha256: '1'.repeat(64),
+				ffprobePath: '/opt/homebrew/bin/ffprobe', ffprobeSha256: '2'.repeat(64),
+				executablePairClosureSha256: '3'.repeat(64),
+			},
+			capabilities: { digest: '4'.repeat(64), probedAtEpochMs: 1 },
+		},
+		capabilities: { encoders: [], decoders: [], muxers: [], demuxers: [], filters: [] },
+	};
+}

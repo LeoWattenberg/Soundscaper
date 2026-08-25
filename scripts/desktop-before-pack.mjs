@@ -9,9 +9,10 @@ import {
 	verifyAssistanceNativeRuntimePayload,
 } from '../desktop/assistance-native-runtime-payload.mjs';
 import {
-	verifyFfmpegRuntimeManifest,
-	verifyStagedFfmpegRuntime,
-} from './lib/ffmpeg-runtime-manifest.mjs';
+	assertDesktopCodecPolicy,
+	auditDesktopFfmpegAbsence,
+} from './lib/desktop-codec-policy.mjs';
+import { verifyDesktopOsAudioCodecNativePackageTree } from './lib/desktop-os-audio-codec-native-package-verification.mjs';
 import {
 	nativeAddonPayloadOutputRoot,
 	nativeAddonPayloadTargetForPackagingContext,
@@ -31,30 +32,52 @@ import {
 /**
  * Electron Builder beforePack hook. Re-verify the policy-bound runtime after
  * preparation so a changed staging tree never reaches ASAR/resource assembly.
- * The two runtimes occupy disjoint subtrees of the build directory and each
- * verification is a full multi-file read-and-hash pass, so they run together.
+ * Payload verification and the authoritative no-FFmpeg audit cover disjoint
+ * policy concerns, so they run together.
  */
 export default async function verifyDesktopRuntimeBeforePack(context = {}, dependencies = {}) {
 	const repositoryRoot = resolve(context.packager?.projectDir ?? resolve(import.meta.dirname, '..'));
 	const stageManifestPath = resolve(repositoryRoot, '.desktop-build/stage-manifest.json');
 	const packagedTarget = nativeAddonPayloadTargetForPackagingContext(context);
-	const verifyFfmpeg = dependencies.verifyStagedFfmpegBeforePack ?? verifyStagedFfmpegBeforePack;
+	const auditCodecPolicy = dependencies.auditStagedDesktopCodecPolicy
+		?? auditStagedDesktopCodecPolicy;
 	const verifyAssistance = dependencies.verifyStagedAssistanceNativeRuntime
 		?? verifyStagedAssistanceNativeRuntime;
 	const verifyNativeAddon = dependencies.verifyStagedNativeAddonBeforePack ?? verifyStagedNativeAddonBeforePack;
 	const verifyNativeHosts = dependencies.verifyStagedFramescaperNativeHostsBeforePack
 		?? verifyStagedFramescaperNativeHostsBeforePack;
+	const verifyOsAudioCodec = dependencies.verifyStagedOsAudioCodecNativeBeforePack
+		?? verifyStagedOsAudioCodecNativeBeforePack;
 	const verifyProfessional = dependencies.verifyStagedSoundscaperProfessionalNativeBeforePack
 		?? verifyStagedSoundscaperProfessionalNativeBeforePack;
 	await Promise.all([
-		verifyFfmpeg({ repositoryRoot, stageManifestPath }),
+		auditCodecPolicy({ repositoryRoot, stageManifestPath }),
 		verifyAssistance({
 			repositoryRoot, stageManifestPath, packagedTarget,
 		}),
 		verifyNativeAddon({ repositoryRoot, stageManifestPath, packagedTarget }),
 		verifyProfessional({ repositoryRoot, stageManifestPath, packagedTarget }),
 		verifyNativeHosts({ repositoryRoot, stageManifestPath, packagedTarget }),
+		verifyOsAudioCodec({ repositoryRoot, stageManifestPath, packagedTarget }),
 	]);
+}
+
+export async function verifyStagedOsAudioCodecNativeBeforePack({
+	repositoryRoot, policyRepositoryRoot = repositoryRoot, stageManifestPath, packagedTarget,
+}) {
+	const stage = JSON.parse(await readFile(stageManifestPath, 'utf8'));
+	assertStagePackageIdentity(stage, packagedTarget);
+	return verifyDesktopOsAudioCodecNativePackageTree({
+		runtimeRoot: resolve(repositoryRoot, '.desktop-build/runtime'),
+		repositoryRoot: policyRepositoryRoot,
+		...(packagedTarget === 'mac-arm64' ? {
+			signingIdentity: process.env.SOUNDSCAPER_MAC_SIGNING_IDENTITY ?? '-',
+		} : {}),
+		productId: stage.productId,
+		target: packagedTarget,
+		summary: stage.osAudioCodecNative,
+		placement: 'Staged',
+	});
 }
 
 export async function verifyStagedSoundscaperProfessionalNativeBeforePack({
@@ -102,16 +125,12 @@ export async function verifyStagedAssistanceNativeRuntime({
 	});
 }
 
-export async function verifyStagedFfmpegBeforePack({ repositoryRoot, stageManifestPath }) {
-	const release = await verifyFfmpegRuntimeManifest({
-		repositoryRoot,
-		purpose: 'desktop-assembly',
-	});
-	return verifyStagedFfmpegRuntime({
-		release,
-		outputRoot: resolve(repositoryRoot, `.desktop-build/runtime/ffmpeg/${release.manifest.package.version}`),
-		stageManifestPath,
-		noticePath: resolve(repositoryRoot, '.desktop-build/licenses/THIRD_PARTY_LICENSES.md'),
+export async function auditStagedDesktopCodecPolicy({ repositoryRoot, stageManifestPath }) {
+	const stage = JSON.parse(await readFile(stageManifestPath, 'utf8'));
+	assertDesktopCodecPolicy(stage?.desktopCodecPolicy, 'The desktop stage codec policy');
+	return auditDesktopFfmpegAbsence({
+		root: resolve(repositoryRoot, '.desktop-build'),
+		label: 'Staged desktop resources',
 	});
 }
 
@@ -174,4 +193,12 @@ export async function verifyStagedFramescaperNativeHostsBeforePack({
 		stageManifestPath,
 		applicationRoot: resolve(repositoryRoot, '.desktop-build/app'),
 	});
+}
+
+function assertStagePackageIdentity(stage, packagedTarget) {
+	const stageTarget = `${stage?.target?.platform}-${stage?.target?.arch}`;
+	if (!['soundscaper', 'framescaper'].includes(stage?.productId)
+		|| stageTarget !== packagedTarget) {
+		throw new Error(`The desktop stage target ${stageTarget} does not match ${packagedTarget}.`);
+	}
 }

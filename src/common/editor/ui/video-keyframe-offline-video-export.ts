@@ -7,6 +7,7 @@ import {
 } from '../project-validation-budget.ts';
 import { MAXIMUM_PROJECT_PUBLICATION_DOCUMENT_BYTES } from '../project-publication-admission.ts';
 import { projectForRuntimeConsumers } from '../project-current-runtime.ts';
+import { inheritTrackFolderMediaStateProjectionV12 } from '../track-folder-media-runtime.ts';
 import {
 	createVideoKeyframeExportFrameSource,
 	type VideoKeyframeExportFrameRequest,
@@ -203,7 +204,10 @@ async function executeOfflineVideo<Output>(
 	const encode = createEncoder(dependencies, request);
 	assertReady(request);
 	const project = request.project;
-	const runtimeProject = projectForRuntimeConsumers(project);
+	const runtimeProject = inheritTrackFolderMediaStateProjectionV12(
+		project,
+		projectForRuntimeConsumers(project),
+	);
 	const sourcePlan = planVideoKeyframeOfflineVideoSources({
 		...request,
 		project: runtimeProject,
@@ -355,7 +359,10 @@ function snapshotProject(value: unknown): Readonly<Record<string, unknown>> {
 	try { snapshot = structuredClone(project); } catch (cause) {
 		throw new TypeError('Offline video export project must be structured-clone data.', { cause });
 	}
-	return deepFreeze(record(snapshot, 'offline video export project snapshot'));
+	return inheritTrackFolderMediaStateProjectionV12(
+		project,
+		deepFreeze(record(snapshot, 'offline video export project snapshot')),
+	);
 }
 
 function assertSnapshotPayloadBound(value: object): void {

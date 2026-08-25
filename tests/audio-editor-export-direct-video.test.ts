@@ -10,6 +10,14 @@ import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from '../src/common/editor/video-
 
 type Format = 'mp4' | 'webm';
 
+const DESKTOP_VIDEO_EXPORT_CAPABILITIES = Object.freeze({
+	schemaVersion: 1,
+	formats: Object.freeze({
+		mp4: Object.freeze({ available: true, provider: 'external-ffmpeg' }),
+		webm: Object.freeze({ available: true, provider: 'external-ffmpeg' }),
+	}),
+});
+
 test('browser video export prepares early and streams exact MP4 and WebM outputs directly', async () => {
 	for (const format of ['mp4', 'webm'] as const) {
 		const fixture = createFixture({ format });
@@ -48,6 +56,13 @@ test('desktop video export selects its target only from sink open after FFmpeg s
 	assertOrder(fixture.events, ['plan', 'preflight', 'load', 'render-audio', 'encode-sink', 'prepare', 'open:4:exact']);
 	assert.equal(fixture.events.filter((event) => event === 'prepare').length, 1);
 	assert.equal(fixture.events.includes('download'), false);
+});
+
+test('desktop video export refuses unavailable formats before project preparation or publication work', async () => {
+	const fixture = createFixture({ desktop: true, desktopVideoCapabilities: null });
+
+	await assert.rejects(fixture.exportVideo(), /Edit > Preferences > General/u);
+	assert.deepEqual(fixture.events, []);
 });
 
 test('desktop late chooser cancellation returns silently without publication', async () => {
@@ -213,6 +228,7 @@ interface FixtureOptions {
 	readonly closeFailure?: Error;
 	readonly commitFailure?: Error;
 	readonly desktop?: boolean;
+	readonly desktopVideoCapabilities?: unknown;
 	readonly emittedByteLength?: number;
 	readonly format?: Format;
 	readonly invalidPlan?: 'legacy' | 'alias' | 'underspecified';
@@ -302,6 +318,11 @@ function createFixture(options: FixtureOptions = {}) {
 		},
 		fileService: {
 			isDesktop: options.desktop === true,
+			getDesktopVideoExportCapabilities() {
+				return options.desktopVideoCapabilities === undefined
+					? DESKTOP_VIDEO_EXPORT_CAPABILITIES
+					: options.desktopVideoCapabilities;
+			},
 			async prepareSave(request: Record<string, unknown>) {
 				events.push('prepare');
 				const { signal: _signal, ...captured } = request;

@@ -6,8 +6,12 @@ import { createHash } from 'node:crypto';
 import { lstat, open, readFile, readdir, readlink, realpath, writeFile } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 
+import {
+	assertDesktopCodecPolicy,
+	isForbiddenDesktopFfmpegPath,
+} from './desktop-codec-policy.mjs';
+import { assertDesktopPackageOsAudioCodecClosure } from './desktop-package-os-audio-codec-closure.mjs';
 import { assertProfessionalNativeBuiltClosure } from './desktop-package-professional-closure.mjs';
-
 export const DESKTOP_PACKAGE_CONTENT_MANIFEST_NAME = 'milestone-5-package-content.json';
 
 const PRODUCTS = Object.freeze(['soundscaper', 'framescaper']);
@@ -184,23 +188,16 @@ function assertRuntimePayloadClosure(runtime, files) {
 		}
 	};
 
-	const ffmpeg = runtime.ffmpeg;
-	if (!plainRecord(ffmpeg) || typeof ffmpeg.version !== 'string' || !plainRecord(ffmpeg.files)
-		|| !plainRecord(ffmpeg.runtimeManifest) || typeof ffmpeg.runtimeManifest.name !== 'string') {
-		throw new Error('The desktop runtime manifest has no exact FFmpeg content authority.');
+	if (Object.hasOwn(runtime, 'ffmpeg')) {
+		throw new Error('The desktop runtime manifest retains a legacy bundled FFmpeg runtime summary.');
 	}
-	const ffmpegPrefix = `runtime/ffmpeg/${ffmpeg.version}/`;
-	for (const [name, descriptor] of Object.entries(ffmpeg.files)) {
-		requireFile(`${ffmpegPrefix}${name}`, descriptor, `FFmpeg file ${name}`, ffmpegPrefix);
+	assertDesktopCodecPolicy(runtime.desktopCodecPolicy, 'The desktop runtime manifest codec policy');
+	const forbiddenCodecPayloads = files
+		.map(({ path }) => path)
+		.filter(isForbiddenDesktopFfmpegPath);
+	if (forbiddenCodecPayloads.length > 0) {
+		throw new Error(`The installed desktop resource closure contains forbidden bundled FFmpeg/libav content: ${forbiddenCodecPayloads.join(', ')}.`);
 	}
-	const ffmpegManifest = inventory.get(`${ffmpegPrefix}${ffmpeg.runtimeManifest.name}`);
-	if (!ffmpegManifest || ffmpegManifest.sha256 !== ffmpeg.runtimeManifest.sha256) {
-		throw new Error('The installed desktop resource closure has the wrong FFmpeg runtime manifest.');
-	}
-	(expectedByPrefix.get(ffmpegPrefix) ?? new Set()).add(`${ffmpegPrefix}${ffmpeg.runtimeManifest.name}`);
-	expectedByPrefix.set(ffmpegPrefix, expectedByPrefix.get(ffmpegPrefix) ?? new Set([
-		`${ffmpegPrefix}${ffmpeg.runtimeManifest.name}`,
-	]));
 
 	const native = runtime.nativeAddons;
 	if (!plainRecord(native) || native.target !== `${runtime.target.platform}-${runtime.target.arch}`
@@ -220,6 +217,9 @@ function assertRuntimePayloadClosure(runtime, files) {
 	} else if (native.status !== 'pending-external' || native.payload !== null) {
 		throw new Error('The desktop runtime manifest has invalid native-addon target state.');
 	}
+	assertDesktopPackageOsAudioCodecClosure({
+		runtime, target: native.target, requireFile, expectedByPrefix,
+	});
 
 	const professional = runtime.soundscaperProfessionalNative;
 	if (runtime.productId === 'soundscaper') {

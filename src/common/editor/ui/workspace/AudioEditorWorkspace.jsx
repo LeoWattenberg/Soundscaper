@@ -13,6 +13,7 @@ import { loadPlaybackMeterSettings, loadRecordingMeterSettings } from '../meter-
 import EditorToolToolbar from '../toolbar/EditorToolToolbar.jsx';
 import AudioEditorWorkspaceView from './AudioEditorWorkspaceView.jsx';
 import { withDesktopProjectReadDescriptor } from './desktop-project-file-routing.ts';
+import { workspacePreferencesPage } from './workspace-preferences-routing.ts';
 import { useTimelineNavigation } from './useTimelineNavigation.js';
 import { useWorkspaceToolbarDocking } from './useWorkspaceToolbarDocking.js';
 import { useAudioEditorWorkspaceLifecycle } from './useAudioEditorWorkspaceLifecycle.js';
@@ -255,13 +256,10 @@ export default function AudioEditorWorkspace({
 
 	const openSurface = useCallback((surface, options = {}) => {
 		if (surface === 'preferences') {
-			const requestedSection = options?.section;
-			setPreferencesPage(['appearance', 'editing', 'workspace', 'panels', 'shortcuts', 'spectrogram', 'sound-activation'].includes(requestedSection)
-				? requestedSection
-				: requestedSection === 'snap' ? 'editing' : 'shortcuts');
+			setPreferencesPage(workspacePreferencesPage(options?.section, fileService.isDesktop));
 		}
 		setActiveSurface(surface);
-	}, [setActiveSurface]);
+	}, [fileService.isDesktop, setActiveSurface]);
 	const soundscaperProduction = useSoundscaperProductionWorkspace({ productId, controller, project, selectedTrackId: snapshot.selectedTrackId, openSurface });
 
 	const openEffects = useCallback((trackId, _anchorRect = null, scope = 'track') => {

@@ -1,0 +1,216 @@
+{
+	"schemaVersion": 1,
+	"id": "external-ffmpeg-cli-linux-x64-2026-08-24",
+	"observedAt": "2026-08-24",
+	"scope": {
+		"hostTarget": "linux-x64",
+		"containerPlatform": "linux/amd64",
+		"dockerServerVersion": "29.1.3",
+		"runtimeArgumentContract": "closed-plan-before-main-runner-guard-injection",
+		"decodedOutputContract": "strict-source-authoritative-float32-wave"
+	},
+	"implementation": {
+		"operationContractPath": "desktop/desktop-audio-codec-operation-contract.ts",
+		"operationContractSha256": "4296cd3cf74ade9d13edb4778feb8db6a9c1217586f0e3152b3c5f2811332ee7",
+		"planPath": "desktop/desktop-audio-ffmpeg-plan.ts",
+		"planSha256": "8c15d77a7407149bb2a1370a8d0e2b91e5c9b5d9dec76f1d4f27c0c3de8736b1",
+		"probePath": "desktop/external-ffmpeg-probe.ts",
+		"probeSha256": "7ab8966d62e94cf14f0bf337078f46000cd2f8f511ebcfc2a86bc9583892bf04",
+		"waveParserPath": "desktop/desktop-audio-ffmpeg-wave-output.ts",
+		"waveParserSha256": "03645a8e61e8c8e1c7813dec609b382c6bd8651c1580c02d6a7a832fa60770e0",
+		"runnerPath": "scripts/lib/external-ffmpeg-cli-compatibility-lab.mjs",
+		"runnerSha256": "e579eaa05fbfd62a3281cb63a9f5fa3d7eba117993541773d3ae07455e7c7a0c"
+	},
+	"architecture": {
+		"audacityCommit": "c016d6e1f8f018a39f7c5c1ee56a961fec4055c2",
+		"audacityReference": "https://github.com/audacity/audacity/commit/c016d6e1f8f018a39f7c5c1ee56a961fec4055c2",
+		"audacityApproach": "Audacity loads libav in-process, so FFmpeg 9 support adds ABI-major wrappers and resolves changed codec-capability APIs.",
+		"soundscaperApproach": "Soundscaper keeps FFmpeg out of process behind the released CLI, admits a matching executable build fingerprint, parses release-specific capability-list dialects, emits closed argv plans, and binds canonical input decoders before opening media."
+	},
+	"fixture": {
+		"sampleFormat": "f32le",
+		"sampleRate": 48000,
+		"channelCount": 2,
+		"frameCount": 4800,
+		"maximumOutputBytes": 1048576
+	},
+	"formats": [
+		{ "id": "flac", "encodeSettings": { "bitDepth": 24, "compressionLevel": 5 } },
+		{ "id": "mp3", "encodeSettings": { "bitrateKbps": 128 } },
+		{ "id": "ogg-vorbis", "encodeSettings": { "quality": 5 } },
+		{ "id": "opus", "encodeSettings": { "bitrateKbps": 128 } },
+		{ "id": "wavpack", "encodeSettings": { "compressionLevel": 2 } },
+		{ "id": "mp2", "encodeSettings": { "bitrateKbps": 256 } },
+		{ "id": "aac-m4a", "encodeSettings": { "bitrateKbps": 192 } }
+	],
+	"observationProfiles": [
+		{
+			"id": "pcm-positive-zero-4800",
+			"decodedByteLength": 38400,
+			"decodedSampleRate": 48000,
+			"decodedChannelCount": 2,
+			"decodedFrameCount": 4800,
+			"decodedSha256": "5c9b37300155c1f3338bc88f17d69c51fb248b0de0155630962ca6504d789bba",
+			"sampleCountPreserved": true
+		},
+		{
+			"id": "vorbis-ffmpeg-4",
+			"decodedByteLength": 45568,
+			"decodedSampleRate": 48000,
+			"decodedChannelCount": 2,
+			"decodedFrameCount": 5696,
+			"decodedSha256": "73facf62b8604ed68f6e20a6f3c19e93d70d9a0228a32b6e7b1269665eeb8cc6",
+			"sampleCountPreserved": false
+		},
+		{
+			"id": "vorbis-ffmpeg-5",
+			"decodedByteLength": 37376,
+			"decodedSampleRate": 48000,
+			"decodedChannelCount": 2,
+			"decodedFrameCount": 4672,
+			"decodedSha256": "a50978aee20a85c1e65d0e0632ef76ee671145e6111d78baf68619d2e5427846",
+			"sampleCountPreserved": false
+		},
+		{
+			"id": "vorbis-ffmpeg-6-9",
+			"decodedByteLength": 37376,
+			"decodedSampleRate": 48000,
+			"decodedChannelCount": 2,
+			"decodedFrameCount": 4672,
+			"decodedSha256": "002b96a429973ca839bdd098baa846a56e4ea6038272b7d85f5d3e5f6c3f2c48",
+			"sampleCountPreserved": false
+		},
+		{
+			"id": "mp2-ffmpeg-4-9",
+			"decodedByteLength": 46080,
+			"decodedSampleRate": 48000,
+			"decodedChannelCount": 2,
+			"decodedFrameCount": 5760,
+			"decodedSha256": "7e36bec0af80ff78cd2cba3643b862a6c0e3ec56e52acabe92b246dcd6ad4816",
+			"sampleCountPreserved": false
+		},
+		{
+			"id": "aac-ffmpeg-4-5",
+			"decodedByteLength": 40960,
+			"decodedSampleRate": 48000,
+			"decodedChannelCount": 2,
+			"decodedFrameCount": 5120,
+			"decodedSha256": "603028d7cd3dc27813cd43fb8d083cc3e2bba87b2e13fcde36b528a6de741b03",
+			"sampleCountPreserved": false
+		},
+		{
+			"id": "aac-ffmpeg-6-8",
+			"decodedByteLength": 40960,
+			"decodedSampleRate": 48000,
+			"decodedChannelCount": 2,
+			"decodedFrameCount": 5120,
+			"decodedSha256": "02b1c2234680617802901a77eae606ad02e4ddb4282ccbc60061eac5b2d90bba",
+			"sampleCountPreserved": false
+		}
+	],
+	"releases": [
+		{
+			"release": "4.4.0",
+			"sourceTag": "4.4",
+			"image": "docker.io/mwader/static-ffmpeg@sha256:9a41d9f3f0a6b74fc3b3d49c7b0fcc8197e85de3bdf4f61c96fe6843ef2635ec",
+			"probeResult": "passed",
+			"boundedExecutionResult": "passed",
+			"observations": [
+				{ "format": "flac", "profile": "pcm-positive-zero-4800" },
+				{ "format": "mp3", "profile": "pcm-positive-zero-4800" },
+				{ "format": "ogg-vorbis", "profile": "vorbis-ffmpeg-4" },
+				{ "format": "opus", "profile": "pcm-positive-zero-4800" },
+				{ "format": "wavpack", "profile": "pcm-positive-zero-4800" },
+				{ "format": "mp2", "profile": "mp2-ffmpeg-4-9" },
+				{ "format": "aac-m4a", "profile": "aac-ffmpeg-4-5" }
+			]
+		},
+		{
+			"release": "5.1.0",
+			"sourceTag": "5.1",
+			"image": "docker.io/mwader/static-ffmpeg@sha256:cf57f661e5300d87d3670865e7f6bf2948b695236191d9a0420b2fcae44fc78a",
+			"probeResult": "passed",
+			"boundedExecutionResult": "passed",
+			"observations": [
+				{ "format": "flac", "profile": "pcm-positive-zero-4800" },
+				{ "format": "mp3", "profile": "pcm-positive-zero-4800" },
+				{ "format": "ogg-vorbis", "profile": "vorbis-ffmpeg-5" },
+				{ "format": "opus", "profile": "pcm-positive-zero-4800" },
+				{ "format": "wavpack", "profile": "pcm-positive-zero-4800" },
+				{ "format": "mp2", "profile": "mp2-ffmpeg-4-9" },
+				{ "format": "aac-m4a", "profile": "aac-ffmpeg-4-5" }
+			]
+		},
+		{
+			"release": "6.1.0",
+			"sourceTag": "6.1",
+			"image": "docker.io/mwader/static-ffmpeg@sha256:3d1966c91f65f7e7a4ea09203852c8563ef9e48c3ca2cd5e79c8bc80bde02569",
+			"probeResult": "passed",
+			"boundedExecutionResult": "passed",
+			"observations": [
+				{ "format": "flac", "profile": "pcm-positive-zero-4800" },
+				{ "format": "mp3", "profile": "pcm-positive-zero-4800" },
+				{ "format": "ogg-vorbis", "profile": "vorbis-ffmpeg-6-9" },
+				{ "format": "opus", "profile": "pcm-positive-zero-4800" },
+				{ "format": "wavpack", "profile": "pcm-positive-zero-4800" },
+				{ "format": "mp2", "profile": "mp2-ffmpeg-4-9" },
+				{ "format": "aac-m4a", "profile": "aac-ffmpeg-6-8" }
+			]
+		},
+		{
+			"release": "7.1.0",
+			"sourceTag": "7.1",
+			"image": "docker.io/mwader/static-ffmpeg@sha256:a8090df5f5608daef387e1b2e93b98aaacb4d92153ad904e7d715c725724fca4",
+			"probeResult": "passed",
+			"boundedExecutionResult": "passed",
+			"observations": [
+				{ "format": "flac", "profile": "pcm-positive-zero-4800" },
+				{ "format": "mp3", "profile": "pcm-positive-zero-4800" },
+				{ "format": "ogg-vorbis", "profile": "vorbis-ffmpeg-6-9" },
+				{ "format": "opus", "profile": "pcm-positive-zero-4800" },
+				{ "format": "wavpack", "profile": "pcm-positive-zero-4800" },
+				{ "format": "mp2", "profile": "mp2-ffmpeg-4-9" },
+				{ "format": "aac-m4a", "profile": "aac-ffmpeg-6-8" }
+			]
+		},
+		{
+			"release": "8.0.0",
+			"sourceTag": "8.0",
+			"image": "docker.io/mwader/static-ffmpeg@sha256:415a41fa3167b890b9703d20bd0f00bf1e9dab8a4b6c27fef1445b2bf5f1ab4a",
+			"probeResult": "passed",
+			"boundedExecutionResult": "passed",
+			"observations": [
+				{ "format": "flac", "profile": "pcm-positive-zero-4800" },
+				{ "format": "mp3", "profile": "pcm-positive-zero-4800" },
+				{ "format": "ogg-vorbis", "profile": "vorbis-ffmpeg-6-9" },
+				{ "format": "opus", "profile": "pcm-positive-zero-4800" },
+				{ "format": "wavpack", "profile": "pcm-positive-zero-4800" },
+				{ "format": "mp2", "profile": "mp2-ffmpeg-4-9" },
+				{ "format": "aac-m4a", "profile": "aac-ffmpeg-6-8" }
+			]
+		},
+		{
+			"release": "9.0.0",
+			"sourceTag": "9.0",
+			"image": "docker.io/mwader/static-ffmpeg@sha256:b90574a4e2ae62b763c39c384526689e7eb435da6398f4fb3f6c3f1c6a14ce33",
+			"probeResult": "passed",
+			"boundedExecutionResult": "passed",
+			"observations": [
+				{ "format": "flac", "profile": "pcm-positive-zero-4800" },
+				{ "format": "mp3", "profile": "pcm-positive-zero-4800" },
+				{ "format": "ogg-vorbis", "profile": "vorbis-ffmpeg-6-9" },
+				{ "format": "opus", "profile": "pcm-positive-zero-4800" },
+				{ "format": "wavpack", "profile": "pcm-positive-zero-4800" },
+				{ "format": "mp2", "profile": "mp2-ffmpeg-4-9" },
+				{ "format": "aac-m4a", "profile": "pcm-positive-zero-4800" }
+			]
+		}
+	],
+	"claim": "For these six exact linux/amd64 third-party static images, the checked-in external-FFmpeg probe and closed audio plans admitted the matching ffmpeg/ffprobe pair, forced each admitted input through its canonical decoder, completed one bounded encode plus source-authoritative float-WAV decode for every listed format, and the strict WAV parser reproduced the pinned geometry and finite-silence PCM profile.",
+	"limitations": [
+		"This is Linux x64 CLI compatibility evidence only; it does not qualify Windows, macOS, ARM64, Homebrew, or winget packages.",
+		"The 4,800-frame fixture is not sample-count-preserving for Vorbis in any tested release, MP2 in any tested release, or AAC before FFmpeg 9; the pinned profiles record those codec-delay and granule outcomes rather than claiming an exact round-trip.",
+		"The images are third-party test witnesses, not application-distributed dependencies or a claim about their licensing, security, provenance, patent status, or production suitability.",
+		"The silent 48 kHz stereo fixture does not cover every admitted setting or media corpus, and the result does not qualify releases outside 4.4.0, 5.1.0, 6.1.0, 7.1.0, 8.0.0, and 9.0.0."
+	]
+}

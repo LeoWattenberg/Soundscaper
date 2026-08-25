@@ -37,7 +37,11 @@ test('staging keeps the release inputs and drops everything packaging left behin
 	for (const entry of staged) {
 		assert.equal(entry.isFile() && !entry.isSymbolicLink(), true, `${entry.name} must be a regular file`);
 	}
-	assert.equal(await readFile(join(outputRoot, 'ffmpeg-corresponding-source.json'), 'utf8'), 'source');
+	await assert.rejects(
+		readFile(join(outputRoot, 'ffmpeg-corresponding-source.json'), 'utf8'),
+		{ code: 'ENOENT' },
+		'the web-runtime FFmpeg source manifest must not enter desktop release inputs',
+	);
 });
 
 test('staging refuses a target whose packaging did not produce every release file', async (context) => {
@@ -87,11 +91,11 @@ async function packagingOutput(context) {
 		`Soundscaper-${version}-linux-x86_64.AppImage`,
 		`Soundscaper-${version}-linux-amd64.deb`,
 		'runtime-manifest-soundscaper-linux-x64.json',
-		'ffmpeg-corresponding-source.json',
 	];
 	await mkdir(packageRoot, { recursive: true });
 	for (const name of releaseNames) await writeFile(join(packageRoot, name), 'source');
 	// Everything packaging leaves beside the release files.
+	await writeFile(join(packageRoot, 'ffmpeg-corresponding-source.json'), 'legacy web-runtime source evidence');
 	await mkdir(join(packageRoot, 'linux-unpacked', 'resources'), { recursive: true });
 	await mkdir(join(packageRoot, '.icon-set'), { recursive: true });
 	await writeFile(join(packageRoot, 'builder-debug.yml'), 'debug');

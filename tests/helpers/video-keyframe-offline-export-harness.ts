@@ -9,6 +9,7 @@
  */
 
 import { digestMediaContent } from '../../src/common/editor/storage/media-content-digest.ts';
+import { projectTrackFolderMediaStateV12 } from '../../src/common/editor/track-folder-media-runtime.ts';
 import type {
 	VideoKeyframeOfflineVideoExportDependencies,
 } from '../../src/common/editor/ui/video-keyframe-offline-video-export.ts';
@@ -121,6 +122,7 @@ export function floatWav(frameCount: number, sampleRate = 48_000): Blob {
 export async function exportFixture(options_: Readonly<{
 	readonly inactiveSources?: boolean;
 	readonly rotationDegrees?: 0 | 90;
+	readonly trackFolders?: boolean;
 }> = {}) {
 	const blob = new Blob([Uint8Array.of(1, 2, 3, 4)], { type: 'video/mp4' });
 	const digest = await digestMediaContent(blob);
@@ -137,6 +139,7 @@ export async function exportFixture(options_: Readonly<{
 		pixelAspectRatio: { num: 5, den: 4 },
 	};
 	if (options_.inactiveSources) addInactiveSources(options);
+	if (options_.trackFolders) addHiddenFolder(options);
 	const project = createFramescaperProjectV20(
 		FRAMESCAPER_V20_PROJECT_MODEL_PROFILE,
 		options,
@@ -150,9 +153,27 @@ export async function exportFixture(options_: Readonly<{
 	return Object.freeze({
 		blob,
 		digest,
-		project: runtimeProject,
+		project: options_.trackFolders
+			? projectTrackFolderMediaStateV12(runtimeProject)
+			: runtimeProject,
 		timing: new Map([[SOURCE_ID, bindVideoSourceTimingView(new Map([[SOURCE_ID, view]]), source)]]),
 	});
+}
+
+function addHiddenFolder(options: Record<string, unknown>): void {
+	const tracks = options.tracks as Array<Record<string, unknown>>;
+	const hiddenTrack = tracks.find(({ id }) => id === 'hidden-track');
+	if (!hiddenTrack) throw new ReferenceError('The folder fixture requires its inactive hidden track.');
+	hiddenTrack.hidden = false;
+	options.trackFolders = [{ id: 'hidden-folder', name: 'Hidden', hidden: true }];
+	const sequence = (options.sequences as Array<Record<string, unknown>>)[0]!;
+	sequence.trackNodes = [
+		{ kind: 'track', id: 'video-track', parentFolderId: null },
+		{ kind: 'track', id: 'audio-track', parentFolderId: null },
+		{ kind: 'folder', id: 'hidden-folder', parentFolderId: null },
+		{ kind: 'track', id: 'hidden-track', parentFolderId: 'hidden-folder' },
+		{ kind: 'track', id: 'late-track', parentFolderId: null },
+	];
 }
 
 function addInactiveSources(options: Record<string, unknown>): void {

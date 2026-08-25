@@ -101,9 +101,236 @@ The exact allowlist, per-file hashes, imports, exports, toolchain image, modific
 
 Audacity is a registered trademark. This project is not affiliated with or endorsed by the Audacity project or Muse Group.
 
+## libFLAC 1.5.0 WebAssembly
+
+Soundscaper distributes one exact memory-only Emscripten build of libFLAC
+1.5.0 under the BSD-3-Clause license as a desktop bundled `.flac`
+encode/decode provider on Linux x64/ARM64, macOS ARM64, and Windows x64/ARM64.
+macOS x64 is unsupported.
+
+- upstream: <https://github.com/xiph/flac/tree/1.5.0>
+- pinned commit: `1507800de4b70e21be71f38caa0d9079d0bc6e45`
+- source archive SHA-256: `f2c1c76592a82ffff8413ba3c4a1299b6c7ab06c734dee03fd88630485c2b920`
+- retained license: [`licenses/FLAC.txt`](src/common/editor/flac/licenses/FLAC.txt)
+- detailed notice: [`NOTICE.md`](src/common/editor/flac/NOTICE.md)
+- source/build manifest: [`source-manifest.json`](src/common/editor/flac/source-manifest.json)
+- exact `flac.wasm`: 153,044 bytes; SHA-256 `34acff0d67e3ac7f34816217ed7f5f859bf9a1c70f33eb3c347049f5fdf0d443`
+
+The build contains the libFLAC stream encoder/decoder core and exposes only a
+bounded memory ABI. File access, Ogg framing, metadata mutation,
+architecture-specific SIMD, and threads are disabled. Desktop staging and
+startup recheck the artifact length and digest, and startup runs an
+encode/decode canary before registering the provider. The decoder validates
+bounded STREAMINFO geometry and relies on libFLAC's frame CRC and stream MD5
+checks. Encoding clamps float32 input to the unit PCM range and quantizes it to
+signed 24-bit PCM; the resulting FLAC is lossless over that explicit integer
+representation, not float-exact. The BSD-3-Clause license and technical review
+do not establish absence of patent exposure or patent clearance.
+
+## libopus 1.6.1 and libogg 1.3.6 WebAssembly
+
+Soundscaper distributes one exact memory-only Emscripten build of libopus
+1.6.1 and libogg 1.3.6 as a desktop bundled Ogg Opus encode/decode provider on
+Linux x64/ARM64, macOS ARM64, and Windows x64/ARM64. macOS x64 is unsupported.
+
+- libopus upstream: <https://github.com/xiph/opus/tree/v1.6.1>
+- pinned libopus commit: `22244de5a79bd1d6d623c32e72bf1954b56235be`
+- libopus source archive SHA-256: `6ffcb593207be92584df15b32466ed64bbec99109f007c82205f0194572411a1`
+- libogg upstream: <https://github.com/xiph/ogg/tree/v1.3.6>
+- pinned libogg commit: `be05b13e98b048f0b5a0f5fa8ce514d56db5f822`
+- libogg source archive SHA-256: `5c8253428e181840cd20d41f3ca16557a9cc04bad4a3d04cce84808677fa1061`
+- retained terms: [`OPUS.txt`](src/common/editor/opus/licenses/OPUS.txt) and
+  [`OGG.txt`](src/common/editor/opus/licenses/OGG.txt)
+- detailed notice: [`NOTICE.md`](src/common/editor/opus/NOTICE.md)
+- source/build manifest: [`source-manifest.json`](src/common/editor/opus/source-manifest.json)
+- exact `opus.wasm`: 385,789 bytes; SHA-256
+  `c4c9f7ac85071b24b2545f966943c4319fff023a65c899146cfcb016ae0a8853`
+
+The admitted public profile is Ogg Opus at the mandatory 48 kHz presentation
+rate, mapping family 0 mono or stereo, zero output gain, fixed 20 ms packets,
+and 16–256 kbit/s encoding. A strict bounded parser verifies Ogg CRC, serial,
+sequence, lacing, continuation, BOS/EOS, OpusHead/OpusTags, packet duration,
+pre-skip, and final granule trimming. Valid wider profiles fall through;
+malformed streams are terminal. Staging and startup independently recheck the
+artifact length and digest, and startup runs a lossy encode/parse/decode canary.
+Opus preserves the declared frame geometry through pre-skip and final-granule
+trimming but is not sample-exact.
+
+The libopus license notice records upstream royalty-free patent-license
+disclosures from Xiph.Org, Microsoft, and Broadcom. Those disclosures, the
+BSD-style copyright licenses, and this technical review do not establish patent
+clearance or non-infringement for any use or territory.
+
+## libvorbis 1.3.7 and libogg 1.3.6 WebAssembly
+
+Soundscaper distributes one exact memory-only Emscripten build of libvorbis
+1.3.7 and libogg 1.3.6 under their retained BSD-style terms as a desktop
+bundled Ogg Vorbis encode/decode provider on Linux x64/ARM64, macOS ARM64, and
+Windows x64/ARM64. macOS x64 is unsupported.
+
+- libvorbis upstream: <https://gitlab.xiph.org/xiph/vorbis/-/tree/v1.3.7>
+- pinned libvorbis commit: `0657aee69dec8508a0011f47f3b69d7538e9d262`
+- libvorbis source archive SHA-256: `b33cc4934322bcbf6efcbacf49e3ca01aadbea4114ec9589d1b1e9d20f72954b`
+- libogg upstream: <https://gitlab.xiph.org/xiph/ogg/-/tree/v1.3.6>
+- pinned libogg commit: `be05b13e98b048f0b5a0f5fa8ce514d56db5f822`
+- libogg source archive SHA-256: `5c8253428e181840cd20d41f3ca16557a9cc04bad4a3d04cce84808677fa1061`
+- retained terms: [`VORBIS.txt`](src/common/editor/vorbis/licenses/VORBIS.txt) and
+  [`OGG.txt`](src/common/editor/vorbis/licenses/OGG.txt)
+- detailed notice: [`NOTICE.md`](src/common/editor/vorbis/NOTICE.md)
+- source/build manifest: [`source-manifest.json`](src/common/editor/vorbis/source-manifest.json)
+- exact `vorbis.wasm`: 523,227 bytes; SHA-256
+  `c03037c33f35dbf85e1e963058156399b995b2dedb5479f6eb3f3b30148eeee5`
+
+The admitted public profile is a single Ogg Vorbis logical stream, mono or
+stereo, at the contract's 8–192 kHz sample rates with integer quality settings
+0–10. A strict bounded parser validates Ogg framing, CRC, continuity, headers,
+comments, granules, EOS, and source geometry before libvorbisfile independently
+probes and decodes the stream. Valid wider profiles fall through; malformed
+streams are terminal. Staging and startup independently recheck the artifact
+length and digest, and startup runs a lossy encode/parse/probe/decode canary.
+Vorbis preserves decoded frame geometry but is not sample-exact. The BSD-style
+copyright licenses and this technical review do not establish patent clearance
+or non-infringement for any use or territory.
+
+## LAME 4.0 WebAssembly
+
+Soundscaper distributes one exact Emscripten build of the LAME 4.0
+`libmp3lame` encoder under LGPL-2.0-or-later terms. It is a desktop bundled MP3
+encode provider on Linux x64/ARM64, macOS ARM64, and Windows x64/ARM64. macOS
+x64 is unsupported. No LAME decoder, command-line frontend, filesystem,
+network, thread, SIMD, or VBR support is included.
+
+- official upstream release: <https://lame.sourceforge.io/>
+- exact source archive: <https://downloads.sourceforge.net/project/lame/lame/4.0/lame-4.0.tar.gz>
+- source archive SHA-256:
+  `3df5124d5ad3a98312ffd7ba6a9b36230e4f8a3e66d3ce0f425e336c32d216eb`
+- retained terms: [`LAME.txt`](src/common/editor/lame/licenses/LAME.txt) and
+  [`LGPL-2.0.txt`](src/common/editor/lame/licenses/LGPL-2.0.txt)
+- detailed notice: [`NOTICE.md`](src/common/editor/lame/NOTICE.md)
+- source/build manifest: [`source-manifest.json`](src/common/editor/lame/source-manifest.json)
+- exact `lame.wasm`: 212,205 bytes; SHA-256
+  `654d08f946851134755513c8c0cd4486e8c9d2024df2318dc48b262e4ad7a502`
+
+The admitted profile is MPEG-1 Layer III CBR at 32, 44.1, or 48 kHz, mono or
+stereo, for the exact bitrate tuples accepted by the request preflight. A
+strict bounded MPEG inspector validates every output frame and requires the
+LAME gapless delay/padding tag. Run `npm run build:lame` to reproduce the
+artifact and `npm run audit:lame` to recheck source identity, retained terms,
+archive members, build constraints, WebAssembly authority, memory limits, and
+the encode/decode canary. LAME-to-mpg123 interoperability tests verify the
+decoded frame count and a bounded lossy signal-to-noise floor. These license,
+identity, and technical checks do not establish patent clearance or
+non-infringement for any use or territory.
+
+## mpg123 1.33.7 WebAssembly
+
+Soundscaper distributes one exact memory-fed Emscripten build of the reusable
+libmpg123 decoder from mpg123 1.33.7 under LGPL-2.1-only terms. It is a desktop
+bundled MPEG-1 Layer II (MP2) and Layer III (MP3) decode provider on Linux
+x64/ARM64, macOS ARM64, and Windows x64/ARM64. macOS x64 is unsupported. No
+mpg123 encoder is included.
+
+- official upstream release: <https://www.mpg123.de/download.shtml>
+- source archive SHA-256:
+  `31d0e35a4ca567ec9b5ebda6c3062bb4435d6d3eacd6ef0d95cadd7854dc03ee`
+- detached signature SHA-256:
+  `48037de26dd56d479b5a54d91ba301d9958476bd03c1b135ee183c3b23c2793c`
+- published signing-key fingerprint:
+  `D021 FF8E CF4B E097 19D6 1A27 231C 4CBC 60D5 CAFE`
+- retained terms: [`MPG123.txt`](src/common/editor/mpg123/licenses/MPG123.txt)
+- detailed notice: [`NOTICE.md`](src/common/editor/mpg123/NOTICE.md)
+- source/build manifest: [`source-manifest.json`](src/common/editor/mpg123/source-manifest.json)
+- exact `mpg123.wasm`: 172,329 bytes; SHA-256
+  `d2b5686a16141ec97dbeb4e4f2a1ce28b756dd3eaf6438b31379356c8dd958ae`
+
+The build contains only the reusable libmpg123 memory-feed path and finite
+interleaved float32 output. It contains no CLI, filesystem or network reader,
+audio output, encoder, thread support, or SIMD implementation. The exact
+Emscripten 3.1.64 build requires GnuPG to verify the official detached
+signature and signing-key fingerprint before compilation. Run
+`npm run build:mpg123` to reproduce it and `npm run audit:mpg123` to recheck
+source, local files, archive members, imports, exports, memory limits, digest,
+and the MP2/MP3 startup canaries.
+
+The admitted public profile is raw MPEG-1 Layer II or III audio at 32, 44.1, or
+48 kHz, mono or stereo. A strict bounded inspector checks every frame and exact
+sample geometry; LAME Xing/Info delay and padding are honored when present.
+Standards-valid lower MPEG versions, CRC-protected streams, tags, chained
+geometry, and other unreviewed metadata profiles fall through to the next
+provider. Malformed framing, bounds, or contradictory declared geometry fail
+terminally. Stock mpg123/LAME and TwoLAME interoperability fixtures verify
+exact decoded frame counts and PCM digests. Upstream's patent discussion is
+explicitly not legal advice; the LGPL terms, technical review, and
+interoperability results do not establish patent clearance or non-infringement
+for any use or territory.
+
+## TwoLAME 0.4.0 WebAssembly
+
+Soundscaper distributes one exact Emscripten build of the TwoLAME 0.4.0
+MPEG-1 Layer II encoder under LGPL-2.1-or-later terms. It is a desktop bundled
+MP2 encode provider on Linux x64/ARM64, macOS ARM64, and Windows x64/ARM64.
+macOS x64 is unsupported. No decoder, command-line frontend, filesystem,
+network, thread, SIMD, or VBR support is included.
+
+- official upstream release: <https://www.twolame.org/>
+- exact source archive: <https://downloads.sourceforge.net/project/twolame/twolame/0.4.0/twolame-0.4.0.tar.gz>
+- source archive SHA-256:
+  `cc35424f6019a88c6f52570b63e1baf50f62963a3eac52a03a800bb070d7c87d`
+- retained terms: [`TWOLAME.txt`](src/common/editor/twolame/licenses/TWOLAME.txt)
+- detailed notice: [`NOTICE.md`](src/common/editor/twolame/NOTICE.md)
+- source/build manifest: [`source-manifest.json`](src/common/editor/twolame/source-manifest.json)
+- exact `twolame.wasm`: 146,820 bytes; SHA-256
+  `b4b166bed688504b548adcee02cda391d4d8b25a44aec914c3fe1082f466ed1b`
+
+The admitted profile is MPEG-1 Layer II CBR at 32, 44.1, or 48 kHz, mono or
+stereo, for the exact bitrate tuples accepted by request preflight. TwoLAME
+quantizes finite float input to signed 16-bit PCM and pads a final partial
+1,152-sample frame; its output is therefore neither lossless nor gapless.
+Run `npm run build:twolame` to reproduce the artifact and
+`npm run audit:twolame` to recheck its closed authority and evidence. Stock
+TwoLAME-to-mpg123 tests verify structural framing and a bounded lossy
+signal-to-noise floor. These checks do not establish patent clearance or
+non-infringement for any use or territory.
+
+## WavPack 5.9.0 WebAssembly
+
+Soundscaper distributes one exact Emscripten build of WavPack 5.9.0 under the
+BSD-3-Clause license. It supports persisted float32 PCM chunks in the Web and
+Electron renderer and is also staged unchanged as the desktop bundled
+float32 `.wv` encode/decode provider on Linux x64/ARM64, macOS ARM64, and
+Windows x64/ARM64. macOS x64 is unsupported.
+
+- upstream: <https://github.com/dbry/WavPack/tree/5.9.0>
+- pinned commit: `5803634a030e2a11dba602ba057b89cc34486c67`
+- retained license: [`licenses/WAVPACK.txt`](src/common/editor/wavpack/licenses/WAVPACK.txt)
+- detailed notice: [`NOTICE.md`](src/common/editor/wavpack/NOTICE.md)
+- source/build manifest: [`source-manifest.json`](src/common/editor/wavpack/source-manifest.json)
+- exact `wavpack.wasm`: 145,537 bytes; SHA-256 `c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908`
+
+The source and binary audit pins every compiled upstream file, the local
+in-memory ABI bridge, the Emscripten 3.1.64 toolchain, imports, exports, memory
+limits, license files, and exact artifact hash. Desktop staging rechecks the
+regular file, byte length, and SHA-256; startup rechecks byte length and SHA-256
+and requires an encode/parse/decode canary before registering the provider. The
+desktop provider accepts only lossless float32 WavPack encode/decode, one to
+eight channels, 8–192 kHz, and compression level 2, which maps to the reviewed
+`CONFIG_FAST_FLAG` ABI. Its strict parser bounds blocks, frames, metadata,
+channels, and output and rejects unsupported profiles, correction streams,
+extensions, malformed geometry, truncation, and checksum faults.
+
+An independent implementation check built stock WavPack 5.9.0 `wvunpack` from
+the same pinned upstream commit and decoded a 1,240,560-byte, three-channel,
+48 kHz multi-block `.wv` emitted by this provider. The 2,362,380-byte decoded
+float32 result matched the expected raw PCM at SHA-256
+`b7f8cd1d8e1a00374f618587eb2c5872fcd250d8686c9cbda0b46e00003ea40f`.
+That is a narrow stock-decoder interoperability witness, not qualification of
+other WavPack versions, profiles, platforms, or producers. The BSD-3-Clause
+license, exact review, and interoperability result do not establish absence of
+patent exposure or patent clearance.
+
 ## FFmpeg WebAssembly export and import core
 
-The editor lazily loads the upstream single-thread `@ffmpeg/core` 0.12.10 package through the MIT-licensed `@ffmpeg/ffmpeg` 0.12.15 wrapper. The combined core is GPL-2.0-or-later and is used for media decode fallback and FLAC, MP3, Ogg Vorbis, Opus, WavPack, MP2, AAC/M4A, and explicitly bounded custom output.
+The Web editor lazily loads the upstream single-thread `@ffmpeg/core` 0.12.10 package through the MIT-licensed `@ffmpeg/ffmpeg` 0.12.15 wrapper. This Web-only runtime is not included in an Electron renderer, desktop runtime resource tree, or desktop release asset. The combined core is GPL-2.0-or-later and is used on the Web surface for media decode fallback and FLAC, MP3, Ogg Vorbis, Opus, WavPack, MP2, AAC/M4A, and explicitly bounded custom output.
 
 - package source and build scripts: <https://github.com/ffmpegwasm/ffmpeg.wasm/tree/v12.15>
 - npm source archive: <https://registry.npmjs.org/@ffmpeg/core/-/core-0.12.10.tgz>
@@ -118,17 +345,74 @@ The exact configuration string embedded in the shipped core is:
 --target-os=none --arch=x86_32 --enable-cross-compile --disable-asm --disable-stripping --disable-programs --disable-doc --disable-debug --disable-runtime-cpudetect --disable-autodetect --nm=emnm --ar=emar --ranlib=emranlib --cc=emcc --cxx=em++ --objcc=emcc --dep-cc=emcc --extra-cflags='-I/opt/include -O3 -msimd128' --extra-cxxflags='-I/opt/include -O3 -msimd128' --disable-pthreads --disable-w32threads --disable-os2threads --enable-gpl --enable-libx264 --enable-libx265 --enable-libvpx --enable-libmp3lame --enable-libtheora --enable-libvorbis --enable-libopus --enable-zlib --enable-libwebp --enable-libfreetype --enable-libfribidi --enable-libass --enable-libzimg
 ```
 
-That upstream build enables GPL components and the following separately licensed libraries: x264 and x265 (GPL-2.0-or-later), libvpx (BSD-3-Clause), LAME (LGPL-2.0-or-later), libtheora and libvorbis (BSD-3-Clause), libopus (BSD-3-Clause), zlib (Zlib), libwebp (BSD-3-Clause), FreeType (FTL or GPL-2.0-only), FriBidi (LGPL-2.1-or-later), libass (ISC), and zimg (WTFPL-2.0). The upstream build recipe identifies their licenses and preferred source locations, but fetches dependency sources during the build and does not vendor the exact complete source snapshot used for the npm core. This missing provenance is why desktop binary publication remains gated below. The combined core is offered under GPL-2.0-or-later; the repository's AGPL-3.0-only application is compatible with that selected GPL option.
+That upstream build enables GPL components and the following separately licensed libraries: x264 and x265 (GPL-2.0-or-later), libvpx (BSD-3-Clause), LAME (LGPL-2.0-or-later), libtheora and libvorbis (BSD-3-Clause), libopus (BSD-3-Clause), zlib (Zlib), libwebp (BSD-3-Clause), FreeType (FTL or GPL-2.0-only), FriBidi (LGPL-2.1-or-later), libass (ISC), and zimg (WTFPL-2.0). The upstream build recipe identifies their licenses and preferred source locations, but fetches dependency sources during the build and does not vendor the exact complete source snapshot used for the npm core. This missing provenance keeps qualified Web runtime publication gated. The combined core is offered under GPL-2.0-or-later; the repository's AGPL-3.0-only application is compatible with that selected GPL option.
 
 The npm core artifacts themselves are unpatched. Local integration is confined to `src/common/editor/ffmpeg.js`, `media-export.js`, and `video-ffmpeg.js`: same-origin lazy loading, a serialized single-worker queue, abort handling, WORKERFS staging, codec-capability/error reporting, metadata/channel-map arguments, deterministic timeline composition, and rejection of extra inputs, network/file protocols, reports, and unbounded custom arguments. Vite only fingerprints and copies the package artifacts. Video export invokes the enabled x264 encoder for MP4 or libvpx-vp9 for WebM, with AAC or libopus audio respectively; it does not invoke x265. The editor includes no SBSMS, SoundTouch, SoX, or other time-stretch library in this core.
 
 `desktop/ffmpeg-corresponding-source.json` currently pins an FFmpeg source
 archive and the `v12.15` ffmpeg.wasm build-source archive. It does not inventory
 or pin complete corresponding source for every enabled external library.
-Release tooling validates those descriptors, and the checked-in runtime policy
-manifest hashes them to reject provenance drift, but neither check establishes
-corresponding-source completeness. Public desktop release and qualified Web
-runtime distribution therefore remain blocked by the licensing matrix.
+Web runtime publication tooling validates those descriptors, and the checked-in
+runtime policy manifest hashes them to reject provenance drift, but neither
+check establishes corresponding-source completeness. Qualified Web runtime
+distribution therefore remains blocked by the licensing matrix. The descriptor
+name is historical; neither it nor its referenced archives are copied into a
+desktop package or desktop release set.
+
+## Desktop codec execution and external FFmpeg
+
+The desktop build has a separate application codec composition. Its renderer
+audit, staging gate, application-resource gate, and release-inventory gate
+reject application-supplied FFmpeg and libav executables or libraries, the
+`@ffmpeg/core` JavaScript and WebAssembly payload, and the historical static
+FFmpeg media host. The desktop application therefore does not redistribute an
+FFmpeg/libav application codec provider or FFmpeg WebAssembly runtime.
+
+Electron itself is a distinct framework dependency. Stock Electron 43.1.1
+includes a Chromium `libffmpeg` media library with proprietary codec support.
+Desktop packaging sets electron-builder's `downloadAlternateFFmpeg` option so
+the stock library is replaced with Electron's matching alternate release asset,
+which upstream intends to omit proprietary codec support. Every packaged
+library is then checked by
+[`scripts/lib/electron-alternate-ffmpeg.mjs`](scripts/lib/electron-alternate-ffmpeg.mjs)
+against
+[`config/electron-alternate-ffmpeg-manifest.json`](config/electron-alternate-ffmpeg-manifest.json):
+
+- Linux x64 and ARM64 use `libffmpeg.so`;
+- macOS ARM64 uses `libffmpeg.dylib`; macOS x64 is unsupported and has no row;
+- Windows x64 and ARM64 use `ffmpeg.dll`.
+
+That manifest binds Electron 43.1.1, the exact five release-archive names and
+archive SHA-256 values, and each unpacked library's byte length and SHA-256.
+The after-pack verifier re-hashes the exact framework location before fuse or
+signing work. The library remains part of Electron/Chromium and its notices; it
+is not a Soundscaper codec-provider tier, is not invoked through the desktop
+codec broker, and is not a separately distributed Soundscaper runtime. The
+alternate asset name, upstream intent, and digest verification do not prove a
+complete enabled-codec inventory, codec behavior, absence of patent exposure,
+or patent clearance.
+
+The maintained first-party PCM container readers remain application source.
+The exact libFLAC 1.5.0 signed-24, libopus 1.6.1 plus libogg 1.3.6 Ogg Opus,
+libvorbis 1.3.7 plus libogg 1.3.6 Ogg Vorbis, and WavPack 5.9.0 float32
+providers described above are the admitted bundled compressed-codec runtimes
+in the shipped desktop composition. Every other
+bundled compressed-codec candidate provides policy and tuple contracts only
+and fails closed as unavailable. Operating-system codecs remain limited to
+their separately qualified exact target profiles.
+
+As the final provider tier, the desktop application may execute an FFmpeg
+program already installed on the user's system after bounded discovery or an
+explicit file choice. With explicit confirmation it may ask Windows Package
+Manager or Homebrew to install FFmpeg into the user's system package-manager
+prefix. The confirmed package-manager process performs any network fetch and
+system installation; Soundscaper does not itself fetch or copy FFmpeg bytes,
+package them, sublicense them, or redistribute that external executable or its
+libraries; it is separate from Electron's packaged alternate framework
+library. The discovery, probe,
+version-admission, and bounded command contracts do not establish codec
+conformance for every accepted version, availability on any platform, or
+patent clearance for any codec, provider, use, or territory.
 
 ## Boost.Multiprecision exact-retime build headers
 

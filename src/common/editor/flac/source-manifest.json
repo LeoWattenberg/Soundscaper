@@ -1,0 +1,96 @@
+{
+	"schemaVersion": 1,
+	"flac": {
+		"repository": "https://github.com/xiph/flac.git",
+		"tag": "1.5.0",
+		"revision": "1507800de4b70e21be71f38caa0d9079d0bc6e45",
+		"license": "BSD-3-Clause",
+		"archiveUrl": "https://downloads.xiph.org/releases/flac/flac-1.5.0.tar.xz",
+		"archiveRedirectUrl": "https://ftp.osuosl.org/pub/xiph/releases/flac/flac-1.5.0.tar.xz",
+		"archiveSha256": "f2c1c76592a82ffff8413ba3c4a1299b6c7ab06c734dee03fd88630485c2b920"
+	},
+	"toolchain": {
+		"emscriptenVersion": "3.1.64",
+		"dockerImage": "emscripten/emsdk:3.1.64",
+		"dockerImageDigest": "sha256:8847dad4171ebc8a53d9ae5cda86a2546ef5b2e68834c14dc1ba2b2962e125cc",
+		"sourceDateEpoch": "1739277988"
+	},
+	"buildFeatures": {
+		"files": false,
+		"metadataMutation": false,
+		"ogg": false,
+		"simd": false,
+		"threads": false
+	},
+	"buildDefinitions": [
+		"_POSIX_C_SOURCE=200809L",
+		"FLAC__HAS_OGG=0",
+		"FLAC__NO_ASM=1",
+		"FLAC__NO_DLL=1",
+		"HAVE_FSEEKO=1",
+		"HAVE_LROUND=1",
+		"NDEBUG=1",
+		"PACKAGE_VERSION=1.5.0"
+	],
+	"compiledSources": [
+		"src/libFLAC/bitmath.c",
+		"src/libFLAC/bitreader.c",
+		"src/libFLAC/bitwriter.c",
+		"src/libFLAC/cpu.c",
+		"src/libFLAC/crc.c",
+		"src/libFLAC/fixed.c",
+		"src/libFLAC/float.c",
+		"src/libFLAC/format.c",
+		"src/libFLAC/lpc.c",
+		"src/libFLAC/md5.c",
+		"src/libFLAC/memory.c",
+		"src/libFLAC/stream_decoder.c",
+		"src/libFLAC/stream_encoder.c",
+		"src/libFLAC/stream_encoder_framing.c",
+		"src/libFLAC/window.c"
+	],
+	"localFiles": [
+		{
+			"path": "native/soundscaper_flac.c",
+			"sha256": "33f765e1babb8794b85aafebe94f9fbfa140452ebd6fdc232175303a2d271e84"
+		},
+		{
+			"path": "NOTICE.md",
+			"sha256": "7ce903d4511e2b277773303415ba44c98144b8429f3219d5d1ae632ad4aeeef4"
+		},
+		{
+			"path": "licenses/FLAC.txt",
+			"sha256": "7866ee98760fc1f0156b4fe6bf530257e02be487ab3fd94e2b63799dd32d6b2c"
+		}
+	],
+	"wasm": {
+		"path": "flac.wasm",
+		"sha256": "34acff0d67e3ac7f34816217ed7f5f859bf9a1c70f33eb3c347049f5fdf0d443",
+		"maximumBytes": 524288,
+		"initialMemoryBytes": 8388608,
+		"maximumMemoryBytes": 268435456,
+		"stackBytes": 262144,
+		"requiredExports": [
+			"memory",
+			"_initialize",
+			"scfl_abi_version",
+			"scfl_maximum_channels",
+			"scfl_maximum_frames",
+			"scfl_initial_memory_bytes",
+			"scfl_maximum_memory_bytes",
+			"scfl_allocate",
+			"scfl_free",
+			"scfl_encode_float32",
+			"scfl_decode_float32"
+		],
+		"allowedFunctionImports": [
+			"env.abort",
+			"env.emscripten_notify_memory_growth",
+			"wasi_snapshot_preview1.fd_close",
+			"wasi_snapshot_preview1.fd_read",
+			"wasi_snapshot_preview1.fd_seek",
+			"wasi_snapshot_preview1.fd_write",
+			"wasi_snapshot_preview1.proc_exit"
+		]
+	}
+}

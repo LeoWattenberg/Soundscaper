@@ -3,6 +3,7 @@
 /** Node-API 8 bridge loaded only inside a role-scoped Electron utility process. */
 
 #include "professional_host_api.h"
+#include "os_audio_codec.h"
 
 #include <node_api.h>
 
@@ -114,6 +115,23 @@ const char *statusName(soundscaper_pro_status status)
 	case SOUNDSCAPER_PRO_STATE_TOO_LARGE: return "state-too-large";
 	case SOUNDSCAPER_PRO_STATE_REJECTED: return "state-rejected";
 	default: return "unsupported";
+	}
+}
+
+const char *osCodecStatusName(
+	soundscaper_pro_os_codec_status status,
+	const char *success = "decoded",
+	const char *failure = "decode-failed")
+{
+	switch (status) {
+	case SOUNDSCAPER_PRO_OS_CODEC_OK: return success;
+	case SOUNDSCAPER_PRO_OS_CODEC_API_UNAVAILABLE: return "api-unavailable";
+	case SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED: return "tuple-unsupported";
+	case SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST: return "invalid-request";
+	case SOUNDSCAPER_PRO_OS_CODEC_INPUT_CHANGED: return "input-changed";
+	case SOUNDSCAPER_PRO_OS_CODEC_OUTPUT_LIMIT: return "output-limit";
+	case SOUNDSCAPER_PRO_OS_CODEC_IO_FAILED: return "io-failed";
+	default: return failure;
 	}
 }
 
@@ -306,6 +324,109 @@ napi_value closeAudioDevice(napi_env env, napi_callback_info info)
 	closeAudio(handle); napi_value result; CHECK(napi_get_boolean(env, true, &result)); return result;
 }
 
+napi_value decodeOperatingSystemAudio(napi_env env, napi_callback_info info,
+	soundscaper_pro_os_mp3_decode_result (*decode)(const soundscaper_pro_os_mp3_decode_request *))
+{
+	size_t argc = 1u;
+	napi_value argv[1];
+	CHECK(napi_get_cb_info(env, info, &argc, argv, nullptr, nullptr));
+	std::string inputPath;
+	std::string outputPath;
+	uint32_t inputBytes = 0u;
+	uint32_t maximumOutputBytes = 0u;
+	if (argc != 1u || !stringProperty(env, argv[0], "inputPath", inputPath, 4097u)
+		|| !stringProperty(env, argv[0], "outputPath", outputPath, 4097u)
+		|| !unsignedProperty(env, argv[0], "inputBytes", inputBytes) || inputBytes == 0u
+		|| !unsignedProperty(env, argv[0], "maximumOutputBytes", maximumOutputBytes)
+		|| maximumOutputBytes == 0u || inputPath == outputPath) {
+		return typeError(env, "An operating-system MP3 decode requires exact bounded scratch files.");
+	}
+	const soundscaper_pro_os_mp3_decode_request request{
+		inputPath.c_str(), outputPath.c_str(), inputBytes, maximumOutputBytes,
+	};
+	const auto outcome = decode(&request);
+	napi_value result;
+	CHECK(napi_create_object(env, &result));
+	if (!setText(env, result, "status", osCodecStatusName(outcome.status))
+		|| !setBoolean(env, result, "nativeApiReached", outcome.native_api_reached == 1u)
+		|| !setBoolean(env, result, "exactTuplePassed", outcome.exact_tuple_passed == 1u)
+		|| !setNumber(env, result, "outputBytes", static_cast<double>(outcome.output_bytes))
+		|| !setNumber(env, result, "frameCount", static_cast<double>(outcome.frame_count))
+		|| !setNumber(env, result, "sampleRate", outcome.sample_rate)
+		|| !setNumber(env, result, "channelCount", outcome.channel_count)) return nullptr;
+	return result;
+}
+
+napi_value decodeOperatingSystemMp3(napi_env env, napi_callback_info info)
+{
+	return decodeOperatingSystemAudio(env, info, soundscaper_pro_os_mp3_decode);
+}
+
+napi_value decodeOperatingSystemAacM4a(napi_env env, napi_callback_info info)
+{
+	return decodeOperatingSystemAudio(env, info, soundscaper_pro_os_aac_m4a_decode);
+}
+
+template<typename Request, typename Encode>
+napi_value encodeOperatingSystemAudio(
+	napi_env env,
+	napi_callback_info info,
+	Encode encode,
+	const char *requestError)
+{
+	size_t argc = 1u;
+	napi_value argv[1];
+	CHECK(napi_get_cb_info(env, info, &argc, argv, nullptr, nullptr));
+	std::string inputPath;
+	std::string outputPath;
+	uint32_t inputBytes = 0u;
+	uint32_t maximumOutputBytes = 0u;
+	uint32_t sampleRate = 0u;
+	uint32_t channelCount = 0u;
+	uint32_t bitrateKbps = 0u;
+	if (argc != 1u || !stringProperty(env, argv[0], "inputPath", inputPath, 4097u)
+		|| !stringProperty(env, argv[0], "outputPath", outputPath, 4097u)
+		|| !unsignedProperty(env, argv[0], "inputBytes", inputBytes) || inputBytes == 0u
+		|| !unsignedProperty(env, argv[0], "maximumOutputBytes", maximumOutputBytes)
+		|| maximumOutputBytes == 0u
+		|| !unsignedProperty(env, argv[0], "sampleRate", sampleRate)
+		|| !unsignedProperty(env, argv[0], "channelCount", channelCount)
+		|| !unsignedProperty(env, argv[0], "bitrateKbps", bitrateKbps)
+		|| inputPath == outputPath) {
+		return typeError(env, requestError);
+	}
+	const Request request{
+		inputPath.c_str(), outputPath.c_str(), inputBytes, maximumOutputBytes,
+		sampleRate, channelCount, bitrateKbps,
+	};
+	const auto outcome = encode(&request);
+	napi_value result;
+	CHECK(napi_create_object(env, &result));
+	if (!setText(env, result, "status", osCodecStatusName(outcome.status, "encoded", "encode-failed"))
+		|| !setBoolean(env, result, "nativeApiReached", outcome.native_api_reached == 1u)
+		|| !setBoolean(env, result, "exactTuplePassed", outcome.exact_tuple_passed == 1u)
+		|| !setNumber(env, result, "outputBytes", static_cast<double>(outcome.output_bytes))
+		|| !setNumber(env, result, "frameCount", static_cast<double>(outcome.frame_count))
+		|| !setNumber(env, result, "sampleRate", outcome.sample_rate)
+		|| !setNumber(env, result, "channelCount", outcome.channel_count)
+		|| !setNumber(env, result, "bitrateKbps", outcome.bitrate_kbps)) return nullptr;
+	return result;
+}
+
+napi_value encodeOperatingSystemAacM4a(napi_env env, napi_callback_info info)
+{
+	return encodeOperatingSystemAudio<soundscaper_pro_os_aac_m4a_encode_request>(env, info,
+		soundscaper_pro_os_aac_m4a_encode,
+		"An operating-system AAC encode requires exact bounded scratch files.");
+}
+
+napi_value encodeOperatingSystemMp3(napi_env env, napi_callback_info info)
+{
+	return encodeOperatingSystemAudio<soundscaper_pro_os_mp3_encode_request>(env, info,
+		soundscaper_pro_os_mp3_encode,
+		"An operating-system MP3 encode requires exact bounded scratch files.");
+}
+
 void collectCandidates(const std::filesystem::path &root, const std::string &suffix,
 	std::vector<std::filesystem::path> &output, uint32_t depth = 0u)
 {
@@ -357,6 +478,10 @@ NAPI_MODULE_INIT()
 		{ "writeAudioDevice", nullptr, writeAudioDevice, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "readAudioDevice", nullptr, readAudioDevice, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "closeAudioDevice", nullptr, closeAudioDevice, nullptr, nullptr, nullptr, napi_default, nullptr },
+		{ "decodeOperatingSystemMp3", nullptr, decodeOperatingSystemMp3, nullptr, nullptr, nullptr, napi_default, nullptr },
+		{ "decodeOperatingSystemAacM4a", nullptr, decodeOperatingSystemAacM4a, nullptr, nullptr, nullptr, napi_default, nullptr },
+		{ "encodeOperatingSystemAacM4a", nullptr, encodeOperatingSystemAacM4a, nullptr, nullptr, nullptr, napi_default, nullptr },
+		{ "encodeOperatingSystemMp3", nullptr, encodeOperatingSystemMp3, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "listPluginCandidates", nullptr, listPluginCandidates, nullptr, nullptr, nullptr, napi_default, nullptr },
 	};
 	if (napi_define_properties(env, exports, std::size(properties), properties) != napi_ok) {

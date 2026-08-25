@@ -278,6 +278,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build the authenticated target-native OS audio codec host
+        if: matrix.product == 'soundscaper' && matrix.target.platform != 'linux'
+        run: >-
+          node scripts/ci-build-os-audio-codec-host.mjs
+          --desktop-platform=${{ matrix.target.platform }}
+          --desktop-arch=${{ matrix.target.arch }}
+          --runner-os=${{ runner.os }}
+          --runner-arch=${{ runner.arch }}
+
       - name: Stage the offline renderer and runtimes
         run: node scripts/desktop-prepare.mjs
         env:
@@ -362,7 +371,6 @@ jobs:
         shell: bash
         run: |
           cp .desktop-build/stage-manifest.json "release/desktop/runtime-manifest-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json"
-          cp desktop/ffmpeg-corresponding-source.json release/desktop/ffmpeg-corresponding-source.json
 
       - name: Stage the audited package root
         run: >-
@@ -529,6 +537,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build the authenticated target-native OS audio codec host
+        if: matrix.target.platform != 'linux'
+        run: >-
+          node scripts/ci-build-os-audio-codec-host.mjs
+          --desktop-platform=${{ matrix.target.platform }}
+          --desktop-arch=${{ matrix.target.arch }}
+          --runner-os=${{ runner.os }}
+          --runner-arch=${{ runner.arch }}
+
       - name: Build the browser application
         run: npm run build
 
@@ -642,6 +659,15 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Build the authenticated target-native OS audio codec host
+        if: matrix.target.platform != 'linux'
+        run: >-
+          node scripts/ci-build-os-audio-codec-host.mjs
+          --desktop-platform=${{ matrix.target.platform }}
+          --desktop-arch=${{ matrix.target.arch }}
+          --runner-os=${{ runner.os }}
+          --runner-arch=${{ runner.arch }}
 
       - name: Build unpacked Soundscaper V11 and Framescaper V19 products
         shell: bash

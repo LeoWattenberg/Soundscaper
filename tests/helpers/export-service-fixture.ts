@@ -48,6 +48,9 @@ export interface TestPlan extends Record<string, unknown> {
 		bitDepth?: number;
 		floatingPoint?: boolean;
 		sampleFormat?: string;
+		compressionLevel?: number;
+		quality?: number;
+		bitRate?: number;
 	};
 	ditherMode: string;
 	render: { strategy: string };

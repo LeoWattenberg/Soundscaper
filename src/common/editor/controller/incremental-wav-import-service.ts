@@ -6,7 +6,7 @@ import { scaleSampleFrame } from '../timeline-time.ts';
 
 type LegacyPort = (...args: any[]) => any;
 
-export interface IncrementalWavImportRuntime {
+export interface IncrementalPcmImportRuntime {
 	readonly SOURCE_CHUNK_FRAMES: number;
 	readonly activateStoredSource: LegacyPort;
 	readonly commit: LegacyPort;
@@ -26,21 +26,25 @@ export interface IncrementalWavImportRuntime {
 		beginSourceWrite(sourceId: string, metadata: Record<string, unknown>): Promise<any>;
 		deleteSource(sourceId: string): Promise<unknown>;
 	}>;
+	readonly streamAiffBlobPcm?: LegacyPort;
 	readonly streamWavBlobPcm: LegacyPort;
 	readonly stripExtension: (name: string) => string;
 	readonly warnEnvelope: LegacyPort;
 }
 
-export function createIncrementalWavImporter(runtime: IncrementalWavImportRuntime) {
+export type IncrementalWavImportRuntime = IncrementalPcmImportRuntime;
+
+export function createIncrementalPcmImporter(runtime: IncrementalPcmImportRuntime) {
 	const {
 		SOURCE_CHUNK_FRAMES, activateStoredSource, commit, copy, createStableId,
 		getProject, importResultWithWarnings, preflightStorage,
 		prepareImportedMediaCommand, projectSampleRate, reportProgress, sourceBuffers,
-		retireSourceChunkProvider, sourcePcmBytes, sourcePeaks, store, streamWavBlobPcm,
+		retireSourceChunkProvider, sourcePcmBytes, sourcePeaks, store,
+		streamAiffBlobPcm, streamWavBlobPcm,
 		stripExtension, warnEnvelope,
 	} = runtime;
 
-	return async function importIncrementalWav(
+	return async function importIncrementalPcm(
 		file: any,
 		descriptor: any,
 		importOptions: any,
@@ -53,7 +57,9 @@ export function createIncrementalWavImporter(runtime: IncrementalWavImportRuntim
 		const clipId = createStableId('clip');
 		const trackName = stripExtension(file.name) || `${copy.track} ${getProject().tracks.length + 1}`;
 		const sourceName = file.name;
-		const mimeType = file.type || 'audio/wav';
+		const mimeType = file.type || (descriptor.container === 'aiff' || descriptor.container === 'aifc'
+			? 'audio/aiff'
+			: 'audio/wav');
 		const writer = await store.beginSourceWrite(sourceId, {
 			name: sourceName,
 			mimeType,
@@ -64,7 +70,11 @@ export function createIncrementalWavImporter(runtime: IncrementalWavImportRuntim
 		let metadata;
 		let streamedFrames = 0;
 		try {
-			await streamWavBlobPcm(file, {
+			const streamPcm = descriptor.container === 'aiff' || descriptor.container === 'aifc'
+				? streamAiffBlobPcm
+				: streamWavBlobPcm;
+			if (typeof streamPcm !== 'function') throw new Error('The maintained PCM stream reader is unavailable.');
+			await streamPcm(file, {
 				descriptor,
 				chunkFrames: SOURCE_CHUNK_FRAMES,
 				onChunk: (channels: Float32Array[]) => {
@@ -136,7 +146,7 @@ export function createIncrementalWavImporter(runtime: IncrementalWavImportRuntim
 			if (cleanupErrors.length) {
 				throw new AggregateError(
 					[error, ...cleanupErrors],
-					'Incremental WAV import and rollback both failed.',
+					'Incremental PCM import and rollback both failed.',
 					{ cause: error },
 				);
 			}
@@ -146,3 +156,6 @@ export function createIncrementalWavImporter(runtime: IncrementalWavImportRuntim
 		return importResultWithWarnings(prepared.result, wavMetadata.warnings);
 	};
 }
+
+/** Compatibility export retained for existing WAV-only call sites. */
+export const createIncrementalWavImporter = createIncrementalPcmImporter;

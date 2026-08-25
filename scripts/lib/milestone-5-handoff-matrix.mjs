@@ -6,6 +6,7 @@ import { basename, resolve } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 
 import { desktopReleaseTargetPackageInventory } from '../desktop-release-assets.mjs';
+import { assertDesktopCodecPolicy } from './desktop-codec-policy.mjs';
 import {
 	assembleMilestone5Handoff,
 	isAssembledMilestone5Handoff,
@@ -341,14 +342,14 @@ function validatePackageEvidence(cell, identity) {
 	}
 	const descriptors = [
 		evidence.runtimeManifest,
-		evidence.correspondingSource,
 		...evidence.packages,
 		...(releaseAuthentication.evidence === null ? [] : [releaseAuthentication.evidence]),
 	];
-	if (evidence.runtimeManifest?.name !== `runtime-manifest-${identity.productId}-${identity.targetId}.json`
-		|| evidence.correspondingSource?.name !== 'ffmpeg-corresponding-source.json') {
+	if (evidence.runtimeManifest?.name !== `runtime-manifest-${identity.productId}-${identity.targetId}.json`) {
 		throw new Error(`Milestone 5 handoff ${cellId(identity)} has an invalid package manifest identity.`);
 	}
+	assertDesktopCodecPolicy(evidence.desktopCodecPolicy,
+		`Milestone 5 handoff ${cellId(identity)} desktop codec policy`);
 	for (const descriptor of descriptors) {
 		if (typeof descriptor?.name !== 'string' || basename(descriptor.name) !== descriptor.name
 			|| !Number.isSafeInteger(descriptor.byteLength) || descriptor.byteLength < 1

@@ -14,6 +14,11 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
+import {
+	assertWavPackEmscriptenToolchainIdentity,
+	wavPackEmscriptenDockerReference,
+} from './lib/wavpack-wasm-toolchain.mjs';
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const wavpackDirectory = join(root, 'src/common/editor/wavpack');
 const nativeDirectory = join(wavpackDirectory, 'native');
@@ -30,8 +35,8 @@ const environment = {
 	LC_ALL: 'C',
 };
 
-verifyPinnedInputs();
 verifyManifest();
+verifyPinnedInputs();
 verifyCompiler();
 
 const temporaryDirectory = mkdtempSync(join(tmpdir(), 'soundscaper-wavpack-wasm-'));
@@ -140,6 +145,7 @@ function verifyManifest() {
 		|| manifest.wavpack.tag !== '5.9.0') {
 		throw new Error('WavPack must remain pinned to 5.9.0 commit 5803634a030e2a11dba602ba057b89cc34486c67.');
 	}
+	assertWavPackEmscriptenToolchainIdentity(manifest.toolchain);
 	for (const [name, value] of Object.entries({ initialMemoryBytes, maximumMemoryBytes })) {
 		if (!Number.isSafeInteger(value) || value <= 0 || value % 65_536 !== 0) {
 			throw new Error(`wasm.${name} must be a positive multiple of 65,536 bytes.`);
@@ -162,7 +168,7 @@ function verifyCompiler() {
 	});
 	if (result.error?.code === 'ENOENT') {
 		throw new Error(
-			`${emcc} was not found. Use ${manifest.toolchain.dockerImage} or install Emscripten ${manifest.toolchain.emscriptenVersion}.`,
+			`${emcc} was not found. Use ${wavPackEmscriptenDockerReference(manifest.toolchain)}.`,
 		);
 	}
 	if (result.status !== 0) {

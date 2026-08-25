@@ -251,7 +251,7 @@ async function encodeManaged<Output>(
 		const workloadRequest = encoderWorkloadRequest(request, paths);
 		// Admitted here as the tier it will actually run as, so a workload the
 		// lower encoder would refuse is refused before a lease is taken.
-		admitVideoKeyframeEncoderWorkload(request.webCodecs
+		const admittedWorkload = admitVideoKeyframeEncoderWorkload(request.webCodecs
 			? { ...workloadRequest, videoEncoder: 'webcodecs' }
 			: workloadRequest);
 		result = await editorFfmpeg.runVideoKeyframeEncoderOperation(
@@ -271,7 +271,7 @@ async function encodeManaged<Output>(
 					...(delivery.discard ? { discard: delivery.discard } : {}),
 				});
 			},
-			operationOptions(request),
+			operationOptions(request, admittedWorkload, audioSource?.byteLength ?? null),
 		);
 	} catch (error) {
 		primary = error;

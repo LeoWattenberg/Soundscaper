@@ -11,6 +11,7 @@
  */
 
 import type {
+	VideoKeyframeEncoderWorkload,
 	VideoKeyframeEncoderWorkloadRequest,
 	VideoKeyframeRgbaFrameProducer,
 } from './video-keyframe-encoder-stream.ts';
@@ -233,10 +234,38 @@ export function normalizeDependencies(
 	});
 }
 
-export function operationOptions(request: NormalizedRequest): VideoKeyframeEncoderOperationOptions {
+export function operationOptions(
+	request: NormalizedRequest,
+	workload: VideoKeyframeEncoderWorkload,
+	audioInputBytes: number | null,
+): VideoKeyframeEncoderOperationOptions {
 	return Object.freeze({
 		...(request.signal ? { signal: request.signal } : {}),
 		...(request.assertCurrent ? { assertCurrent: request.assertCurrent } : {}),
+		...(workload.videoEncoder !== 'ffmpeg' ? {} : {
+			desktopExternalFfmpeg: Object.freeze({
+				plan: Object.freeze({
+					schemaVersion: 1 as const,
+					format: workload.format,
+					quality: request.quality!,
+					width: workload.width,
+					height: workload.height,
+					frameRate: workload.frameRate,
+					frameCount: workload.frameCount,
+					sampleRate: request.frameSource.sampleRate,
+					durationFrames: request.frameSource.endFrame - request.frameSource.startFrame,
+					videoInputBytes: workload.totalRgbaBytes,
+					audioInputBytes,
+					ringCapacityBytes: workload.ringCapacityBytes,
+					audioRingCapacityBytes: workload.audioRingCapacityBytes ?? null,
+					maximumOutputBytes: request.maximumOutputBytes,
+				}),
+				videoInputPath: workload.inputPath,
+				...(workload.audioInputPath ? { audioInputPath: workload.audioInputPath } : {}),
+				outputPath: workload.outputPath,
+				ffmpegArguments: workload.ffmpegArguments,
+			}),
+		}),
 	});
 }
 

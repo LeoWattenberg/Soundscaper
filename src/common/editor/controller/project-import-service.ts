@@ -14,9 +14,12 @@ import {
 	normalizeProjectImportTimelineStartFrame,
 	type LinkedOriginalImportLocatorReference,
 } from './project-import-options.ts';
-import { createIncrementalWavImporter } from './incremental-wav-import-service.ts';
+import { streamAiffBlobPcm } from '../aiff-pcm-chunk-reader.ts';
+import { inspectDesktopStandalonePcm } from './desktop-standalone-pcm-import.ts';
+import { createIncrementalPcmImporter } from './incremental-wav-import-service.ts';
 import { createLinkedAudioImportAdmission } from './linked-audio-import-admission.ts';
 import { createLinkedPcmImporter } from './linked-wav-import-service.ts';
+import { decodeStandaloneAudioForImport } from './standalone-audio-import-decoder.ts';
 import { createAddTimelineAnnotationCommand } from '../commands/factories.ts';
 import {
 	createOmittedRiffAnnotationImportReport,
@@ -55,13 +58,13 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		writeBuffer, taskProgress,
 	} = runtime;
 	let activeImportProgress: RuntimeValue = null;
-	const importIncrementalWav = createIncrementalWavImporter({
+	const importIncrementalPcm = createIncrementalPcmImporter({
 		SOURCE_CHUNK_FRAMES, activateStoredSource, commit, copy, createStableId,
 		getProject, importResultWithWarnings, preflightStorage,
 		prepareImportedMediaCommand, projectSampleRate,
 		reportProgress: (value) => { activeImportProgress?.update?.(value); },
 		retireSourceChunkProvider, sourceBuffers, sourcePcmBytes, sourcePeaks, store,
-		streamWavBlobPcm, stripExtension, warnEnvelope,
+		streamAiffBlobPcm, streamWavBlobPcm, stripExtension, warnEnvelope,
 	});
 	const importLinkedPcm = createLinkedPcmImporter({
 		SOURCE_CHUNK_FRAMES, activateStoredSource, assertProject, captureProject,
@@ -349,24 +352,31 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			&& isAudioEditorEngineSupported?.() === false);
 		if (wavSignature === 'RF64' || wavSignature === 'BW64') {
 			if (!wavDescriptor) throw new Error(`The ${wavSignature} WAV file could not be inspected incrementally.`);
-			return importIncrementalWav(file, wavDescriptor, wavMetadata.importOptions, wavMetadata, { requireChunkStream });
+			return importIncrementalPcm(file, wavDescriptor, wavMetadata.importOptions, wavMetadata, { requireChunkStream });
+		}
+		const desktopPcmDescriptor = await inspectDesktopStandalonePcm(file, ffmpeg, wavDescriptor);
+		if (desktopPcmDescriptor) {
+			const pcmMetadata = desktopPcmDescriptor === wavDescriptor
+				? wavMetadata
+				: prepareWavImportMetadata(desktopPcmDescriptor, normalizedImportOptions);
+			return importIncrementalPcm(file, desktopPcmDescriptor, pcmMetadata.importOptions, pcmMetadata, {
+				requireChunkStream: true,
+			});
 		}
 		if (requireChunkStream || isIncrementalWav(wavDescriptor)) {
-			return importIncrementalWav(file, wavDescriptor, wavMetadata.importOptions, wavMetadata, { requireChunkStream });
+			return importIncrementalPcm(file, wavDescriptor, wavMetadata.importOptions, wavMetadata, { requireChunkStream });
 		}
 		await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');
-		const context = await engine.getAudioContext({ resume: false });
-		let decoded;
-		let originalSampleRate = null;
-		try {
-			const encoded = await file.arrayBuffer();
-			originalSampleRate = inspectEncodedAudioSampleRate(encoded);
-			decoded = await engine.decodeAudioData(encoded);
-		} catch {
-			const fallback = await ffmpeg.decode(file, { sampleRate: projectSampleRate() });
-			decoded = await bufferFromChannels(fallback.channels, fallback.sampleRate, context, copy);
-			originalSampleRate ??= fallback.sampleRate;
-		}
+		const { context, decoded, originalSampleRate } = await decodeStandaloneAudioForImport({
+			file, codecRuntime: ffmpeg, sampleRate: projectSampleRate(),
+			getAudioContext: () => engine.getAudioContext({ resume: false }),
+			decodeWithWebAudio: (encoded) => engine.decodeAudioData(encoded),
+			decodeWithCodec: (input, settings) => ffmpeg.decode(input, settings),
+			bufferFromChannels: (channels, sampleRate, audioContext) => (
+				bufferFromChannels(channels, sampleRate, audioContext, copy)
+			),
+			inspectEncodedSampleRate: inspectEncodedAudioSampleRate,
+		});
 		const canonical = await canonicalizeBuffer(decoded, context, null, copy);
 		await preflightStorage(canonical.length * canonical.numberOfChannels * Float32Array.BYTES_PER_ELEMENT, 'import');
 		const sourceId = createStableId('source');

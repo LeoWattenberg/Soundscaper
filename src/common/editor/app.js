@@ -134,7 +134,7 @@ import {
 	setRecordingSourceOffset,
 	setRecordingTrackRoute,
 } from './recording-routing.js';
-import { createEditorFfmpeg } from './ffmpeg.js'; import { inspectEncodedAudioSampleRate } from './audio-file-metadata.js';
+import { createEditorCodecRuntime } from './editor-codec-runtime.ts'; import { inspectEncodedAudioSampleRate } from './audio-file-metadata.js';
 import { createSourceBufferCache } from './source-buffer-cache.js'; import { createEbuR128MeterNode } from './ebu-r128-node.js';
 import { createEbuR128Meter } from './ebu-r128.js'; import { acquireProjectLock } from './project-lock.js';
 import { createProjectStore } from './storage.js'; import { createWavStreamEncoder, encodeWav } from './wav.js';
@@ -391,9 +391,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 	});
 	const clipTimePitchSourceResolver = clipTimePitchCache.createEngineSourceResolver();
 	engine.setSourceResolver?.(clipTimePitchSourceResolver);
-	const ffmpeg = options.ffmpeg || createEditorFfmpeg({
+	const ffmpeg = options.ffmpeg || createEditorCodecRuntime({
 		onLoading: () => setStatus(copy.ffmpegLoading),
-		onProgress: (progress) => updateExportProgress(progress),
+		onProgress: (progress) => updateExportProgress(progress), fileService,
 	});
 	const nyquistClient = options.nyquistEvaluator ? null : new NyquistEvaluationClient(options.nyquistClientOptions);
 	const nyquistEvaluator = options.nyquistEvaluator || ((request, evaluateOptions) => (

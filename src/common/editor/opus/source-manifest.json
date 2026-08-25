@@ -1,0 +1,118 @@
+{
+	"schemaVersion": 1,
+	"opus": {
+		"repository": "https://github.com/xiph/opus.git",
+		"tag": "v1.6.1",
+		"revision": "22244de5a79bd1d6d623c32e72bf1954b56235be",
+		"license": "BSD-3-Clause",
+		"archiveUrl": "https://downloads.xiph.org/releases/opus/opus-1.6.1.tar.gz",
+		"archiveRedirectUrl": "https://ftp.osuosl.org/pub/xiph/releases/opus/opus-1.6.1.tar.gz",
+		"archiveSha256": "6ffcb593207be92584df15b32466ed64bbec99109f007c82205f0194572411a1"
+	},
+	"ogg": {
+		"repository": "https://github.com/xiph/ogg.git",
+		"tag": "v1.3.6",
+		"revision": "be05b13e98b048f0b5a0f5fa8ce514d56db5f822",
+		"license": "BSD-3-Clause",
+		"archiveUrl": "https://downloads.xiph.org/releases/ogg/libogg-1.3.6.tar.xz",
+		"archiveRedirectUrl": "https://ftp.osuosl.org/pub/xiph/releases/ogg/libogg-1.3.6.tar.xz",
+		"archiveSha256": "5c8253428e181840cd20d41f3ca16557a9cc04bad4a3d04cce84808677fa1061"
+	},
+	"toolchain": {
+		"emscriptenVersion": "3.1.64",
+		"dockerImage": "emscripten/emsdk:3.1.64",
+		"dockerImageDigest": "sha256:8847dad4171ebc8a53d9ae5cda86a2546ef5b2e68834c14dc1ba2b2962e125cc",
+		"sourceDateEpoch": "1768440600"
+	},
+	"configureArguments": {
+		"opus": [
+			"--disable-shared",
+			"--enable-static",
+			"--disable-dependency-tracking",
+			"--disable-doc",
+			"--disable-extra-programs",
+			"--disable-asm",
+			"--disable-rtcd",
+			"--disable-intrinsics",
+			"--disable-custom-modes",
+			"--disable-opus-custom-api",
+			"--disable-qext",
+			"--disable-dred",
+			"--disable-deep-plc",
+			"--disable-lossgen",
+			"--disable-osce",
+			"--disable-osce-training-data"
+		],
+		"ogg": [
+			"--disable-shared",
+			"--enable-static",
+			"--disable-dependency-tracking"
+		]
+	},
+	"buildFeatures": {
+		"customModes": false,
+		"deepPlc": false,
+		"dred": false,
+		"files": false,
+		"mappingFamily": 0,
+		"maximumChannels": 2,
+		"osce": false,
+		"packetMilliseconds": 20,
+		"qext": false,
+		"sampleRate": 48000,
+		"simd": false,
+		"threads": false
+	},
+	"compiledArchiveEvidence": {
+		"opusMemberCount": 137,
+		"opusMembersSha256": "dd54f6b221cb3459dc935edc75f25918dc86d76ab956476bec2aa43251105270",
+		"oggMemberCount": 2,
+		"oggMembersSha256": "54ff59975ee6f8cf0011df44e673d566d34dfe917e948cb805a832d30d28710a"
+	},
+	"localFiles": [
+		{
+			"path": "native/soundscaper_opus.c",
+			"sha256": "c00f7b9c29dc6fc411310f4966d3c67b7ecd12be4f56994699561f16cbee8e99"
+		},
+		{
+			"path": "NOTICE.md",
+			"sha256": "ad89c0bbc9dc5b111382f396f43d4ef94724399715dcc83bec43c286d544012a"
+		},
+		{
+			"path": "licenses/OPUS.txt",
+			"sha256": "01e1167d54a096d123cf6dfbbeb19587278845c6481d2d66d545669846079551"
+		},
+		{
+			"path": "licenses/OGG.txt",
+			"sha256": "d2ab5758336489da61c12cc5bb757da5339c4ae9001f9bb0562b4370249af814"
+		}
+	],
+	"wasm": {
+		"path": "opus.wasm",
+		"sha256": "c4c9f7ac85071b24b2545f966943c4319fff023a65c899146cfcb016ae0a8853",
+		"maximumBytes": 524288,
+		"initialMemoryBytes": 8388608,
+		"maximumMemoryBytes": 268435456,
+		"stackBytes": 262144,
+		"requiredExports": [
+			"memory",
+			"_initialize",
+			"scop_abi_version",
+			"scop_sample_rate",
+			"scop_maximum_channels",
+			"scop_maximum_frames",
+			"scop_initial_memory_bytes",
+			"scop_maximum_memory_bytes",
+			"scop_allocate",
+			"scop_free",
+			"scop_encode_float32",
+			"scop_decode_float32"
+		],
+		"allowedFunctionImports": [
+			"env.emscripten_notify_memory_growth",
+			"wasi_snapshot_preview1.fd_close",
+			"wasi_snapshot_preview1.fd_seek",
+			"wasi_snapshot_preview1.fd_write"
+		]
+	}
+}

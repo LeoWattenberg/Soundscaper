@@ -6,9 +6,10 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
-	ffmpegRuntimeStageSummary,
-	verifyFfmpegRuntimeManifest,
-} from './lib/ffmpeg-runtime-manifest.mjs';
+	assertDesktopCodecPolicy,
+	isForbiddenDesktopFfmpegPath,
+} from './lib/desktop-codec-policy.mjs';
+import { stageDesktopBundledCodecCorrespondingSource } from './lib/desktop-bundled-codec-corresponding-source.mjs';
 import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
 import { assistanceNativeRuntimeStageSummary } from '../desktop/assistance-native-runtime-payload.mjs';
 
@@ -45,11 +46,6 @@ const EXPECTED_RUNTIME_MANIFESTS = Object.freeze(RELEASE_PRODUCTS.flatMap((produ
 )).sort());
 
 export async function main() {
-	const runtimeRelease = await verifyFfmpegRuntimeManifest({
-		repositoryRoot: ROOT,
-		purpose: 'desktop-release',
-	});
-	const ffmpegCorrespondingSource = loadFfmpegCorrespondingSource(runtimeRelease);
 	const entries = await readdir(ASSET_ROOT, { withFileTypes: true });
 	const packageFiles = regularDesktopReleaseFileNames(entries);
 	const manifestNames = packageFiles
@@ -61,7 +57,7 @@ export async function main() {
 		name,
 		value: parseJson(await readFile(resolve(ASSET_ROOT, name)), name),
 	})));
-	validateDesktopRuntimeManifests(manifests, runtimeRelease);
+	validateDesktopRuntimeManifests(manifests);
 	const canonical = manifests[0].value;
 	for (const manifest of manifests.slice(1)) {
 		assert(manifest.value.applicationVersion === canonical.applicationVersion,
@@ -73,10 +69,6 @@ export async function main() {
 		canonical.applicationVersion,
 		RELEASE_PRODUCTS,
 	);
-	const sourceSidecarPath = resolve(ASSET_ROOT, 'ffmpeg-corresponding-source.json');
-	assert((await readFile(sourceSidecarPath)).equals(runtimeRelease.evidence.correspondingSource.bytes),
-		'FFmpeg corresponding-source sidecar does not match the policy manifest.');
-
 	const translationSource = canonical.translations?.source?.archive;
 	const translationSourceName = desktopTranslationSourceName(canonical.translations?.releaseId, translationSource);
 	await fetchVerified(
@@ -85,21 +77,13 @@ export async function main() {
 		translationSource,
 		'translation source archive',
 	);
-	await fetchVerified(
-		new URL(ffmpegCorrespondingSource.buildSource.url),
-		resolve(ASSET_ROOT, ffmpegCorrespondingSource.buildSource.fileName),
-		ffmpegCorrespondingSource.buildSource,
-		'ffmpeg.wasm build-script source archive',
-	);
-	await fetchVerified(
-		new URL(ffmpegCorrespondingSource.source.url),
-		resolve(ASSET_ROOT, ffmpegCorrespondingSource.source.fileName),
-		ffmpegCorrespondingSource.source,
-		'FFmpeg corresponding-source archive',
-	);
 	await writeFile(resolve(ASSET_ROOT, 'Soundscaper-AGPL-3.0.txt'), await readFile(resolve(ROOT, 'LICENSE')), { flag: 'wx' });
-	await writeFile(resolve(ASSET_ROOT, 'THIRD_PARTY_LICENSES.md'), runtimeRelease.evidence.notices.bytes, { flag: 'wx' });
-	await writeFile(resolve(ASSET_ROOT, 'ffmpeg-runtime-manifest.json'), runtimeRelease.manifestBytes, { flag: 'wx' });
+	await writeFile(resolve(ASSET_ROOT, 'THIRD_PARTY_LICENSES.md'), await readFile(resolve(ROOT, 'THIRD_PARTY_LICENSES.md')), { flag: 'wx' });
+	await stageDesktopBundledCodecCorrespondingSource({
+		repositoryRoot: ROOT,
+		outputRoot: ASSET_ROOT,
+		applicationVersion: canonical.applicationVersion,
+	});
 
 	const releaseFiles = regularDesktopReleaseFileNames(await readdir(ASSET_ROOT, { withFileTypes: true }))
 		.filter((name) => name !== 'SHA256SUMS')
@@ -139,12 +123,13 @@ export function validateDesktopReleasePackageInventory(
 	}
 	assert(releasePackages.length === requiredPackages.length,
 		`Unexpected or duplicate desktop package: ${releasePackages.join(', ') || '<none>'}.`);
-	assert(packageFiles.includes('ffmpeg-corresponding-source.json'),
-		'Missing FFmpeg corresponding-source sidecar.');
 	const runtimeManifests = productIds.flatMap((productId) => RELEASE_TARGETS.map(
 		(target) => `runtime-manifest-${productId}-${target}.json`,
 	));
-	const allowedInputs = new Set([...releasePackages, ...runtimeManifests, 'ffmpeg-corresponding-source.json']);
+	const forbiddenInputs = packageFiles.filter(isForbiddenDesktopFfmpegPath);
+	assert(forbiddenInputs.length === 0,
+		`Desktop release input contains forbidden bundled FFmpeg/libav content: ${forbiddenInputs.join(', ')}.`);
+	const allowedInputs = new Set([...releasePackages, ...runtimeManifests]);
 	const unexpectedInputs = packageFiles.filter((name) => !allowedInputs.has(name));
 	assert(unexpectedInputs.length === 0,
 		`Unexpected desktop release input: ${unexpectedInputs.join(', ')}.`);
@@ -179,33 +164,14 @@ export function desktopTranslationSourceName(releaseId, descriptor) {
 	return `Audacity-translations-${normalizedId}-source.zip`;
 }
 
-function loadFfmpegCorrespondingSource(runtimeRelease) {
-	const manifest = parseJson(
-		runtimeRelease.evidence.correspondingSource.bytes,
-		'FFmpeg corresponding-source manifest',
-	);
-	assert(manifest.schemaVersion === 1, 'FFmpeg corresponding-source manifest has an unsupported schema.');
-	for (const [key, label] of [['source', 'FFmpeg corresponding-source archive'], ['buildSource', 'ffmpeg.wasm build-script source archive']]) {
-		const source = manifest[key];
-		assert(source && typeof source === 'object' && !Array.isArray(source),
-			`FFmpeg corresponding-source manifest has no ${key} descriptor.`);
-		const url = new URL(String(source.url || ''));
-		assert(url.protocol === 'https:' && !url.username && !url.password && !url.hash,
-			`${label} must use a clean HTTPS URL.`);
-		assert(typeof source.fileName === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,159}$/u.test(source.fileName),
-			`${label} filename is invalid.`);
-		assert(/^[a-f\d]{64}$/u.test(source.sha256), `${label} digest is invalid.`);
-		assert(Number.isSafeInteger(source.byteLength) && source.byteLength > 0 && source.byteLength <= 2 * 1024 * 1024 * 1024,
-			`${label} byte length is invalid.`);
-	}
-	return manifest;
-}
-
-export function validateDesktopRuntimeManifests(manifests, runtimeRelease) {
-	const expected = JSON.stringify(ffmpegRuntimeStageSummary(runtimeRelease));
+export function validateDesktopRuntimeManifests(manifests) {
 	for (const manifest of manifests) {
-		assert(JSON.stringify(manifest.value.ffmpeg) === expected,
-			`${manifest.name} does not match the verified FFmpeg runtime policy manifest.`);
+		assert(manifest.value && typeof manifest.value === 'object' && !Array.isArray(manifest.value),
+			`${manifest.name} is not a desktop runtime manifest.`);
+		assert(!Object.hasOwn(manifest.value, 'ffmpeg'),
+			`${manifest.name} retains a legacy bundled FFmpeg runtime summary.`);
+		assertDesktopCodecPolicy(manifest.value.desktopCodecPolicy,
+			`${manifest.name} desktop codec policy`);
 		const identity = /^runtime-manifest-(soundscaper|framescaper)-(linux|mac|win)-(arm64|x64)\.json$/u.exec(manifest.name);
 		assert(manifest.value.productId === identity?.[1] && manifest.value.target?.platform === identity?.[2]
 			&& manifest.value.target?.arch === identity?.[3], `${manifest.name} has invalid product or target identity.`);
@@ -243,11 +209,10 @@ export function validateFramescaperNativeHostSummary(manifest, targetId) {
 }
 
 /**
- * Unlike the FFmpeg runtime, the native payload summary is deliberately
- * different per target, so it is checked against the target the filename
- * declares rather than folded into the identical-across-targets comparison. A
- * release-shaped build must also have declared its target: a summary that fell
- * back to the build host is a local build and is never release evidence.
+ * Native payload summaries are deliberately different per target, so each is
+ * checked against the target its filename declares. A release-shaped build
+ * must also have declared its target: a summary that fell back to the build
+ * host is a local build and is never release evidence.
  */
 export function validateDesktopNativeAddonSummary(manifest, targetId) {
 	const summary = manifest.value.nativeAddons;

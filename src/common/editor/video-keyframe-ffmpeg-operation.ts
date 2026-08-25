@@ -5,6 +5,7 @@ import type {
 	VideoKeyframeEncoderFfmpegPort,
 	VideoKeyframeFfmpegInputStream,
 } from './video-keyframe-encoder-stream.ts';
+import type { DesktopVideoCodecOperationPlan } from '../../../desktop/desktop-video-codec-operation-contract.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
@@ -17,6 +18,14 @@ export interface VideoKeyframeEncoderOperationLease
 export interface VideoKeyframeEncoderOperationOptions {
 	readonly signal?: AbortSignal;
 	readonly assertCurrent?: () => void;
+	/** Renderer-local correlation only; its paths and argv never cross desktop IPC. */
+	readonly desktopExternalFfmpeg?: Readonly<{
+		readonly plan: DesktopVideoCodecOperationPlan;
+		readonly videoInputPath: string;
+		readonly audioInputPath?: string;
+		readonly outputPath: string;
+		readonly ffmpegArguments: readonly string[];
+	}>;
 }
 
 export interface VideoKeyframeVideoEditorFfmpeg {
@@ -172,9 +181,13 @@ function normalizeOptions(
 			&& Object.getPrototypeOf(value) !== null)) {
 		throw new TypeError('Video keyframe encoder operation options must be a plain object.');
 	}
-	const admitted: { signal?: AbortSignal; assertCurrent?: () => void } = {};
+	const admitted: {
+		signal?: AbortSignal;
+		assertCurrent?: () => void;
+		desktopExternalFfmpeg?: VideoKeyframeEncoderOperationOptions['desktopExternalFfmpeg'];
+	} = {};
 	for (const key of Reflect.ownKeys(value)) {
-		if (key !== 'signal' && key !== 'assertCurrent') {
+		if (key !== 'signal' && key !== 'assertCurrent' && key !== 'desktopExternalFfmpeg') {
 			throw new TypeError('Video keyframe encoder operation options have an unsupported field.');
 		}
 		const descriptor = Object.getOwnPropertyDescriptor(value, key);
@@ -182,7 +195,8 @@ function normalizeOptions(
 			throw new TypeError(`Video keyframe encoder operation options.${String(key)} must be an own data property.`);
 		}
 		if (key === 'signal') admitted.signal = descriptor.value as AbortSignal | undefined;
-		else admitted.assertCurrent = descriptor.value as (() => void) | undefined;
+		else if (key === 'assertCurrent') admitted.assertCurrent = descriptor.value as (() => void) | undefined;
+		else admitted.desktopExternalFfmpeg = normalizeDesktopContext(descriptor.value);
 	}
 	if (admitted.signal !== undefined
 		&& (typeof AbortSignal !== 'function' || !(admitted.signal instanceof AbortSignal))) {
@@ -192,6 +206,38 @@ function normalizeOptions(
 		throw new TypeError('Video keyframe encoder operation assertCurrent must be a function.');
 	}
 	return Object.freeze(admitted);
+}
+
+function normalizeDesktopContext(
+	value: unknown,
+): NonNullable<VideoKeyframeEncoderOperationOptions['desktopExternalFfmpeg']> {
+	if (!value || typeof value !== 'object' || Array.isArray(value)
+		|| Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null
+		|| Reflect.ownKeys(value).some((key) => typeof key !== 'string' || ![
+			'plan', 'videoInputPath', 'audioInputPath', 'outputPath', 'ffmpegArguments',
+		].includes(key))) {
+		throw new TypeError('Desktop external FFmpeg video operation context is invalid.');
+	}
+	const context = value as Record<string, unknown>;
+	for (const key of Reflect.ownKeys(context)) ownDataValue(context, String(key), 'Desktop external FFmpeg video context');
+	const videoInputPath = ownDataValue(context, 'videoInputPath', 'Desktop external FFmpeg video context');
+	const outputPath = ownDataValue(context, 'outputPath', 'Desktop external FFmpeg video context');
+	const audioInputPath = Object.hasOwn(context, 'audioInputPath')
+		? ownDataValue(context, 'audioInputPath', 'Desktop external FFmpeg video context') : undefined;
+	const ffmpegArguments = ownDataValue(context, 'ffmpegArguments', 'Desktop external FFmpeg video context');
+	if (typeof videoInputPath !== 'string' || typeof outputPath !== 'string'
+		|| audioInputPath !== undefined && typeof audioInputPath !== 'string'
+		|| !Array.isArray(ffmpegArguments)
+		|| ffmpegArguments.some((argument) => typeof argument !== 'string')) {
+		throw new TypeError('Desktop external FFmpeg video operation context is malformed.');
+	}
+	return Object.freeze({
+		plan: ownDataValue(context, 'plan', 'Desktop external FFmpeg video context') as DesktopVideoCodecOperationPlan,
+		videoInputPath,
+		...(audioInputPath === undefined ? {} : { audioInputPath }),
+		outputPath,
+		ffmpegArguments: Object.freeze([...ffmpegArguments] as string[]),
+	});
 }
 
 function normalizeHost(value: VideoKeyframeFfmpegOperationHost): VideoKeyframeFfmpegOperationHost {

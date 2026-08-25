@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readdir } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 
@@ -9,9 +9,12 @@ import { flipFuses as flipElectronFuses, FuseVersion, FuseV1Options } from '@ele
 import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
 import { verifyAssistanceNativeRuntimePayload } from '../desktop/assistance-native-runtime-payload.mjs';
 import {
-	verifyFfmpegRuntimeManifest,
-	verifyStagedFfmpegRuntime,
-} from './lib/ffmpeg-runtime-manifest.mjs';
+	assertDesktopCodecPolicy,
+	auditDesktopFfmpegAbsence,
+} from './lib/desktop-codec-policy.mjs';
+import { verifyDesktopOsAudioCodecNativePackageTree } from './lib/desktop-os-audio-codec-native-package-verification.mjs';
+import { verifyPackagedElectronAlternateFfmpeg } from './lib/electron-alternate-ffmpeg.mjs';
+import { OS_AUDIO_CODEC_NATIVE_RUNTIME_PREFIX } from '../desktop/os-audio-codec-native-payload.mjs';
 import {
 	NATIVE_ADDON_RUNTIME_PREFIX,
 	nativeAddonPayloadOutputRoot,
@@ -37,21 +40,37 @@ const FRAMESCAPER_NATIVE_HOST_PREFIXES = Object.freeze([
 	'framescaper-openfx-host',
 ]);
 const SOUNDSCAPER_PROFESSIONAL_PREFIX = PROFESSIONAL_NATIVE_RUNTIME_PREFIX.split('/').at(-1);
+const SOUNDSCAPER_OS_AUDIO_CODEC_PREFIX = OS_AUDIO_CODEC_NATIVE_RUNTIME_PREFIX.split('/').at(-1);
 
 /**
  * Electron Builder afterPack hook. Fuses are flipped before macOS ad-hoc or
  * production signing, so no signature reset is needed here.
  */
 export default async function hardenPackagedElectron(context, dependencies = {}) {
-	// The runtimes occupy disjoint resource subtrees, and each verification
-	// is a full multi-file read-and-hash pass, so they run together.
+	const auditCodecPolicy = dependencies.auditPackagedDesktopCodecPolicy
+		?? auditPackagedDesktopCodecPolicy;
+	const verifyAssistance = dependencies.verifyPackagedAssistanceNativeRuntime
+		?? verifyPackagedAssistanceNativeRuntime;
+	const verifyNativeAddon = dependencies.verifyPackagedNativeAddonResources
+		?? verifyPackagedNativeAddonResources;
+	const verifyProfessional = dependencies.verifyPackagedSoundscaperProfessionalNativeResources
+		?? verifyPackagedSoundscaperProfessionalNativeResources;
+	const verifyNativeHosts = dependencies.verifyPackagedFramescaperNativeHostResources
+		?? verifyPackagedFramescaperNativeHostResources;
+	const verifyElectronFfmpeg = dependencies.verifyPackagedElectronAlternateFfmpeg
+		?? verifyPackagedElectronAlternateFfmpeg;
+	const verifyOsAudioCodec = dependencies.verifyPackagedOsAudioCodecNativeResources
+		?? verifyPackagedOsAudioCodecNativeResources;
+	// The absence audit and native payload verifiers cover disjoint policy
+	// concerns, so they run together before fuse or signing work begins.
 	await Promise.all([
-		verifyPackagedFfmpegResources(context, dependencies),
-		verifyPackagedAssistanceNativeRuntime(context, dependencies),
-		verifyPackagedNativeAddonResources(context, dependencies),
-		(dependencies.verifyPackagedSoundscaperProfessionalNativeResources
-			?? verifyPackagedSoundscaperProfessionalNativeResources)(context, dependencies),
-		verifyPackagedFramescaperNativeHostResources(context, dependencies),
+		auditCodecPolicy(context, dependencies),
+		verifyElectronFfmpeg(context, dependencies),
+		verifyAssistance(context, dependencies),
+		verifyNativeAddon(context, dependencies),
+		verifyProfessional(context, dependencies),
+		verifyNativeHosts(context, dependencies),
+		verifyOsAudioCodec(context, dependencies),
 	]);
 	const extension = {
 		darwin: '.app',
@@ -111,18 +130,48 @@ export async function verifyPackagedAssistanceNativeRuntime(context, dependencie
 	}
 }
 
-export async function verifyPackagedFfmpegResources(context, dependencies = {}) {
+export async function auditPackagedDesktopCodecPolicy(context, dependencies = {}) {
 	const repositoryRoot = resolve(dependencies.repositoryRoot ?? REPOSITORY_ROOT);
-	const release = await verifyFfmpegRuntimeManifest({ repositoryRoot, purpose: 'desktop-assembly' });
+	const stageManifestPath = resolve(dependencies.stageManifestPath
+		?? resolve(repositoryRoot, '.desktop-build/stage-manifest.json'));
+	const stage = JSON.parse(await readFile(stageManifestPath, 'utf8'));
+	assertDesktopCodecPolicy(stage?.desktopCodecPolicy, 'The packaged desktop codec policy');
 	const resourcesRoot = context?.packager?.getResourcesDir?.(context.appOutDir);
 	if (typeof resourcesRoot !== 'string' || resourcesRoot.length === 0) {
 		throw new TypeError('Electron packaged resources directory is unavailable.');
 	}
+	return auditDesktopFfmpegAbsence({
+		root: resolve(resourcesRoot),
+		label: 'Packaged desktop resources',
+	});
+}
+
+export async function verifyPackagedOsAudioCodecNativeResources(context, dependencies = {}) {
+	const resourcesRoot = context?.packager?.getResourcesDir?.(context.appOutDir);
+	if (typeof resourcesRoot !== 'string' || resourcesRoot.length === 0) {
+		throw new TypeError('Electron packaged resources directory is unavailable.');
+	}
+	const repositoryRoot = resolve(dependencies.repositoryRoot ?? REPOSITORY_ROOT);
+	const stageManifestPath = resolve(dependencies.stageManifestPath
+		?? resolve(repositoryRoot, '.desktop-build/stage-manifest.json'));
+	const stage = JSON.parse(await readFile(stageManifestPath, 'utf8'));
+	const target = nativeAddonPayloadTargetForPackagingContext(context);
+	const productId = packagingProductId(context);
+	const stageTarget = `${stage?.target?.platform}-${stage?.target?.arch}`;
+	if (stage?.productId !== productId || stageTarget !== target) {
+		throw new Error(`The packaged desktop stage target ${stageTarget} does not match ${target}.`);
+	}
 	try {
-		return await verifyStagedFfmpegRuntime({
-			release,
-			outputRoot: resolve(resourcesRoot, `runtime/ffmpeg/${release.manifest.package.version}`),
-			noticePath: resolve(resourcesRoot, 'licenses/THIRD_PARTY_LICENSES.md'),
+		return await verifyDesktopOsAudioCodecNativePackageTree({
+			runtimeRoot: resolve(resourcesRoot, 'runtime'),
+			repositoryRoot,
+			...(target === 'mac-arm64' ? {
+				signingIdentity: process.env.SOUNDSCAPER_MAC_SIGNING_IDENTITY ?? '-',
+			} : {}),
+			productId,
+			target,
+			summary: stage.osAudioCodecNative,
+			placement: 'Packaged',
 		});
 	} catch (error) {
 		throw packagedResourceError(error);
@@ -156,7 +205,8 @@ export async function verifyPackagedNativeAddonResources(context, dependencies =
 	const targets = entries
 		.filter((entry) => entry.isDirectory()
 			&& !FRAMESCAPER_NATIVE_HOST_PREFIXES.includes(entry.name)
-			&& entry.name !== SOUNDSCAPER_PROFESSIONAL_PREFIX)
+			&& entry.name !== SOUNDSCAPER_PROFESSIONAL_PREFIX
+			&& entry.name !== SOUNDSCAPER_OS_AUDIO_CODEC_PREFIX)
 		.map(({ name }) => name);
 	if (targets.length !== 1) {
 		throw new Error(`Packaged native addon payload must carry exactly one target; found ${targets.join(', ') || '<none>'}.`);

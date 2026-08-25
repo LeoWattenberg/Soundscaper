@@ -19,6 +19,7 @@ import { registeredVideoTimingIndex } from '../src/common/editor/video-source-ti
 import { createVideoTimingAssetPublication } from '../src/common/editor/video-timing-asset.ts';
 import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from '../src/common/editor/video-export-plan-version.ts';
 import { createFixture as createExportServiceFixture } from './helpers/export-service-fixture.ts';
+import { withWebCodecsSupport } from './helpers/webcodecs-test-environment.ts';
 
 const SAMPLE_RATE = 48_000;
 const ACTIVE_SOURCE_ID = 'active-video';
@@ -139,6 +140,16 @@ test('common strategy preserves video format aliases and refuses unsupported for
 	assert.equal(invalid.events.includes('product-plan'), false);
 });
 
+test('desktop keyed delivery stays on external FFmpeg when WebCodecs is available', async () => {
+	await withWebCodecsSupport(async () => {
+		const browser = createFixture({ mode: 'blob' }); await browser.exportVideo({ format: 'video-mp4' });
+		assert.ok(browser.events.includes('product-encoder:webcodecs'));
+		const desktop = createFixture({ mode: 'direct', desktop: true });
+		await desktop.exportVideo({ format: 'video-mp4' });
+		assert.ok(desktop.events.includes('product-encoder:ffmpeg'));
+		assert.equal(desktop.events.includes('product-encoder:webcodecs'), false);
+	});
+});
 test('product picture authority exports stills and generators without fake video timing or audio', async () => {
 	for (const kind of ['still', 'generator'] as const) {
 		const fixture = createPictureOnlyFixture(kind, false);
@@ -158,6 +169,7 @@ test('product picture authority exports stills and generators without fake video
 
 interface FixtureOptions {
 	readonly mode: 'blob' | 'direct';
+	readonly desktop?: boolean;
 	readonly encodeFailure?: Error;
 	readonly cancelPreparation?: boolean;
 	readonly malformedPlan?: 'missing' | 'duplicate' | 'accessor' | 'entries' | 'prototype';
@@ -374,6 +386,7 @@ function createFixture(options: FixtureOptions) {
 		},
 		async encode(request: ProductVideoExportStrategyEncodeRequest) {
 			events.push('product-encode');
+			events.push(`product-encoder:${request.webCodecs ? 'webcodecs' : 'ffmpeg'}`);
 			assertKeyedEncodeRequest(request, keyedPlan, activeSource);
 			if (options.encodeFailure) throw options.encodeFailure;
 			return Object.freeze({
@@ -385,7 +398,7 @@ function createFixture(options: FixtureOptions) {
 			request: ProductVideoExportStrategyEncodeRequest,
 			sink: FfmpegOutputSink<Output>,
 		) {
-			events.push('product-encode-sink');
+			events.push('product-encode-sink'); events.push(`product-encoder:${request.webCodecs ? 'webcodecs' : 'ffmpeg'}`);
 			assertKeyedEncodeRequest(request, keyedPlan, activeSource);
 			await sink.open(4);
 			await sink.write(Uint8Array.of(1, 2, 3, 4));
@@ -428,7 +441,14 @@ function createFixture(options: FixtureOptions) {
 			},
 		},
 		fileService: {
-			isDesktop: false,
+			isDesktop: options.desktop === true,
+			getDesktopVideoExportCapabilities: () => Object.freeze({
+				schemaVersion: 1,
+				formats: Object.freeze({
+					mp4: Object.freeze({ available: true, provider: 'external-ffmpeg', reason: null }),
+					webm: Object.freeze({ available: true, provider: 'external-ffmpeg', reason: null }),
+				}),
+			}),
 			prepareSave() {
 				events.push('prepare');
 				if (options.cancelPreparation) return Object.freeze({ mode: 'cancelled', cancelled: true });

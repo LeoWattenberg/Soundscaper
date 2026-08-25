@@ -60,7 +60,6 @@ export async function stageMilestone5PackageRoot({
 	const staged = [
 		...packages,
 		`runtime-manifest-${productId}-${targetId}.json`,
-		'ffmpeg-corresponding-source.json',
 		...(files.includes(releaseAuthentication) ? [releaseAuthentication] : []),
 	];
 	await rm(output, { recursive: true, force: true });

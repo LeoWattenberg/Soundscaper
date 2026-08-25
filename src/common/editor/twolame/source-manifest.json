@@ -1,0 +1,87 @@
+{
+	"schemaVersion": 1,
+	"twolame": {
+		"repository": "https://github.com/njh/twolame.git",
+		"tag": "0.4.0",
+		"revision": "bec4069996479aa1aa9d9e7fa32c33135b3a2047",
+		"website": "https://www.twolame.org/",
+		"license": "LGPL-2.1-or-later",
+		"archiveUrl": "https://downloads.sourceforge.net/project/twolame/twolame/0.4.0/twolame-0.4.0.tar.gz",
+		"archiveSha256": "cc35424f6019a88c6f52570b63e1baf50f62963a3eac52a03a800bb070d7c87d"
+	},
+	"toolchain": {
+		"emscriptenVersion": "3.1.64",
+		"dockerImage": "emscripten/emsdk:3.1.64",
+		"dockerImageDigest": "sha256:8847dad4171ebc8a53d9ae5cda86a2546ef5b2e68834c14dc1ba2b2962e125cc",
+		"sourceDateEpoch": "1570818420"
+	},
+	"configureArguments": [
+		"--disable-shared",
+		"--enable-static",
+		"--disable-dependency-tracking",
+		"--disable-sndfile"
+	],
+	"buildFeatures": {
+		"cli": false,
+		"decoder": false,
+		"files": false,
+		"inputConversion": "clamp-unit-f32-to-signed-16",
+		"layers": [2],
+		"maximumChannels": 2,
+		"sampleRates": [32000, 44100, 48000],
+		"simd": false,
+		"threads": false,
+		"vbr": false
+	},
+	"compiledArchiveEvidence": {
+		"memberCount": 19,
+		"membersSha256": "ed772fa8f8ce35e285e4c4e284bdb69c0392b0558ba904cd2a457b5af0933b70"
+	},
+	"localFiles": [
+		{
+			"path": "native/soundscaper_twolame.c",
+			"sha256": "fad9c8d1a81fa37ccdb307183d03ce812d9cf470498ad0883843c1baef01dc75"
+		},
+		{
+			"path": "NOTICE.md",
+			"sha256": "75b8e9d4717fec80d9cceeced0400654915a1e307aa6099e5841eedbed1ae984"
+		},
+		{
+			"path": "SOURCE.md",
+			"sha256": "a653fb17b767a33c6140fd9088d992d9e380b1c785279fe27336204b3a813792"
+		},
+		{
+			"path": "licenses/TWOLAME.txt",
+			"sha256": "37f5f9a8837237583446fd2bf0a2896639db8a9ea527a6439e9b83e7a5492703"
+		}
+	],
+	"wasm": {
+		"path": "twolame.wasm",
+		"sha256": "b4b166bed688504b548adcee02cda391d4d8b25a44aec914c3fe1082f466ed1b",
+		"maximumBytes": 524288,
+		"initialMemoryBytes": 8388608,
+		"maximumMemoryBytes": 268435456,
+		"stackBytes": 262144,
+		"requiredExports": [
+			"memory",
+			"_initialize",
+			"sctl_abi_version",
+			"sctl_twolame_major",
+			"sctl_twolame_minor",
+			"sctl_twolame_patch",
+			"sctl_maximum_channels",
+			"sctl_maximum_frames",
+			"sctl_initial_memory_bytes",
+			"sctl_maximum_memory_bytes",
+			"sctl_allocate",
+			"sctl_free",
+			"sctl_encode_float32"
+		],
+		"allowedFunctionImports": [
+			"env.emscripten_notify_memory_growth",
+			"wasi_snapshot_preview1.fd_close",
+			"wasi_snapshot_preview1.fd_seek",
+			"wasi_snapshot_preview1.fd_write"
+		]
+	}
+}

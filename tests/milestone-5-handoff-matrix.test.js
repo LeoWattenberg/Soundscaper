@@ -102,6 +102,7 @@ test('caller-authored ready cells cannot omit any release prerequisite', () => {
 		(value) => { value.licensing.disabledGates = ['native-audio']; },
 		(value) => { value.licensing.blockedPolicyRows = ['native-audio-stack']; },
 		(value) => { value.packageEvidence.packages[0].name = 'invented.zip'; },
+		(value) => { value.packageEvidence.desktopCodecPolicy.bundledFfmpeg = true; },
 		(value) => { value.qualification.revisionBinding.kind = 'invented'; },
 		(value) => { delete value.packageEvidence.releaseAuthentication.policyEvidence; },
 		(value) => { delete value.inputDigests['config/production-licensing-matrix.json']; },
@@ -118,7 +119,7 @@ test('caller-authored ready cells cannot omit any release prerequisite', () => {
 		mutate(cells[0]);
 		assert.throws(
 			() => aggregateMilestone5HandoffMatrix(cells),
-			/readiness|ready|package|qualification|input|digest|matrix|cell/iu,
+			/readiness|ready|package|qualification|input|digest|matrix|cell|codec policy/iu,
 		);
 	}
 });
@@ -231,8 +232,10 @@ function cell({ productId, targetId }, ready = false) {
 			productId, targetId, applicationVersion: VERSION,
 			sourceRevision: REVISION,
 			runtimeManifest: { name: runtimeName, byteLength: 7, sha256: DIGEST },
-			correspondingSource: {
-				name: 'ffmpeg-corresponding-source.json', byteLength: 8, sha256: DIGEST,
+			desktopCodecPolicy: {
+				schemaVersion: 1,
+				bundledFfmpeg: false,
+				providerOrder: ['bundled-reviewed-codecs', 'os', 'external-user-install'],
 			},
 			packages,
 			packageCount: packages.length,
@@ -249,9 +252,6 @@ function cell({ productId, targetId }, ready = false) {
 			])),
 			[packageDigestKey({ assessmentScope: { productId, targetId } }, runtimeName)]: {
 				byteLength: 7, sha256: DIGEST,
-			},
-			[packageDigestKey({ assessmentScope: { productId, targetId } }, 'ffmpeg-corresponding-source.json')]: {
-				byteLength: 8, sha256: DIGEST,
 			},
 			...(ready ? {
 				[packageDigestKey({ assessmentScope: { productId, targetId } }, authenticationName)]: {

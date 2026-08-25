@@ -33,6 +33,11 @@ const PUBLICATION_EVIDENCE = Object.freeze([
 	'src/common/editor/file-save-stream.ts',
 	'src/common/editor/video-export.js',
 	'src/common/editor/video-ffmpeg.js',
+	'src/common/editor/desktop-video-codec-runtime.ts',
+	'src/soundscaper/video-export-strategy-v29.ts',
+	'desktop/external-ffmpeg-video-operation-service.ts',
+	'desktop/external-ffmpeg-video-qualification.ts',
+	'desktop/external-ffmpeg-video-canary-inspection.ts',
 	'desktop/save-targets.js',
 	'tests/audio-editor-ffmpeg-output-range-patch.test.js',
 	'tests/audio-editor-ffmpeg-output-stream.test.ts',
@@ -42,6 +47,10 @@ const PUBLICATION_EVIDENCE = Object.freeze([
 	'tests/audio-editor-direct-video-keyframe-plan-v7.test.ts',
 	'tests/audio-editor-video-ffmpeg.test.js',
 	'tests/audio-editor-video-rendered-fallback-export.test.ts',
+	'tests/audio-editor-soundscaper-video-export-strategy-v29.test.ts',
+	'tests/external-ffmpeg-video-operation-service.test.ts',
+	'tests/external-ffmpeg-video-qualification.test.ts',
+	'tests/external-ffmpeg-video-canary-inspection.test.ts',
 	'tests/audio-editor-file-service.test.js',
 	'tests/desktop-save-capacity.test.js',
 	'tests/desktop-save.test.js',
@@ -54,6 +63,9 @@ const ROLLBACK_EVIDENCE = Object.freeze([
 	'src/common/editor/controller/direct-video-export.ts',
 	'src/common/editor/controller/direct-video-plan-contract.ts',
 	'src/common/editor/controller/video-export-service.ts',
+	'src/common/editor/desktop-video-codec-runtime.ts',
+	'src/soundscaper/video-export-strategy-v29.ts',
+	'desktop/external-ffmpeg-video-session-cleanup.ts',
 	'src/common/editor/file-save-stream.ts',
 	'desktop/save-targets.js',
 	'tests/audio-editor-ffmpeg-output-stream.test.ts',
@@ -61,6 +73,9 @@ const ROLLBACK_EVIDENCE = Object.freeze([
 	'tests/audio-editor-ffmpeg-idle.test.js',
 	'tests/audio-editor-export-direct-video.test.ts',
 	'tests/audio-editor-direct-video-keyframe-plan-v7.test.ts',
+	'tests/audio-editor-soundscaper-video-export-strategy-v29.test.ts',
+	'tests/audio-editor-desktop-video-codec-runtime.test.ts',
+	'tests/external-ffmpeg-video-session-cleanup.test.ts',
 	'tests/desktop-save-capacity.test.js',
 	'tests/desktop-save.test.js',
 ]);
@@ -104,9 +119,14 @@ const KEYED_ENCODER_EVIDENCE = Object.freeze([
 	'src/common/editor/video-keyframe-video-operation.ts',
 	'src/common/editor/video-keyframe-video-output.ts',
 	'src/common/editor/video-keyframe-video-sink.ts',
+	'src/common/editor/desktop-video-codec-runtime.ts',
+	'desktop/external-ffmpeg-video-operation-service.ts',
+	'desktop/external-ffmpeg-video-session-cleanup.ts',
 	'tests/audio-editor-video-keyframe-av-encoder.test.ts',
 	'tests/audio-editor-video-keyframe-encoder-stream.test.ts',
 	'tests/audio-editor-video-keyframe-video-sink-encoder.test.ts',
+	'tests/audio-editor-desktop-video-codec-runtime.test.ts',
+	'tests/external-ffmpeg-video-session-cleanup.test.ts',
 	'tests/browser/audio-editor-video-keyframe-video-encoder.spec.js',
 ]);
 
@@ -143,39 +163,23 @@ test('exact direct MP4 and WebM publication has narrow capability and rollback c
 
 	assert.match(
 		publication.summary,
-		/exact direct.*MP4.*`mp4`.*`\.mp4`.*`video\/mp4`.*WebM.*`webm`.*`\.webm`.*`video\/webm`.*purpose `video`.*safe.*version-6.*descriptor.*fingerprint.*pre-commit admission/isu,
+		/exact direct.*MP4.*`mp4`.*`\.mp4`.*`video\/mp4`.*WebM.*`webm`.*`\.webm`.*`video\/webm`.*purpose `video`.*safe.*version-6.*descriptor.*version-7 keyed.*fingerprint.*structural.*SHA-256.*stat.*emitted.*written.*committed/isu,
 	);
 	assert.match(
 		publication.summary,
-		/MP4.*`libx264`.*`aac`.*`yuv420p`.*`\+faststart`.*WebM.*`libvpx-vp9`.*`libopus`.*`yuv420p`.*command facts.*not.*codec conformance/isu,
+		/browser V6.*WORKERFS\/MEMFS.*browser V7.*SharedArrayBuffer.*desktop Soundscaper V29.*exact V7 keyed-RGBA.*forces the desktop provider.*WebCodecs/isu,
 	);
 	assert.match(
 		publication.summary,
-		/rendered-fallback.*verification.*projection.*before.*plan.*target selection.*verified.*Blob.*separate.*control/isu,
+		/live canary.*current external ffmpeg\/ffprobe pair.*H\.264\/AAC MP4.*`libx264`.*`aac`.*WebM.*VP9\/Opus.*`libvpx-vp9`.*`libopus`.*exact ffprobe.*two streams.*16x16.*yuv420p.*48 kHz stereo/isu,
 	);
 	assert.match(
 		publication.summary,
-		/browser.*prepare.*before.*preflight.*source.*audio.*FFmpeg.*writer.*after.*stat/isu,
+		/pathless.*at-most-1-MiB chunks.*main-private pipes.*main-private scratch.*bounded reads.*container.*digest.*byte-count.*publication/isu,
 	);
 	assert.match(
 		publication.summary,
-		/desktop.*prepar.*inside.*sink.*open.*after.*stat.*900,000.*TTL.*design.*not.*platform qualification/isu,
-	);
-	assert.match(
-		publication.summary,
-		/source video `Blob`.*optional.*WAV `Blob`.*WORKERFS.*complete.*worker MEMFS.*one.*stat.*monotonic.*at most one MiB.*one.*awaited.*write/isu,
-	);
-	assert.match(
-		publication.summary,
-		/exact stat.*emitted.*destination-written.*committed-result.*sink close\/seal.*commit/isu,
-	);
-	assert.match(
-		publication.summary,
-		/no.*output `readFile`.*final.*`Blob`.*Object URL.*download.*direct.*Prepared Blob mode.*legacy/isu,
-	);
-	assert.match(
-		publication.summary,
-		/worker MEMFS.*source.*audio.*Blob residency.*codec execution.*conformance.*memory.*heap.*RSS.*CPU.*elapsed time.*browser.*operating-system.*picker.*packaged.*reference scale.*quota.*durability.*crash.*power loss.*unqualified/isu,
+		/bundled video.*operating-system video.*AV1 remain disabled.*external WebM is VP9.*not AV1.*codec conformance.*broad FFmpeg-version\/platform.*packaged UI.*reference-scale.*aggregate memory.*RSS.*CPU.*durability.*crash.*power loss.*unqualified/isu,
 	);
 
 	assert.match(
@@ -184,15 +188,15 @@ test('exact direct MP4 and WebM publication has narrow capability and rollback c
 	);
 	assert.match(
 		rollback.summary,
-		/cancellation during FFmpeg.*terminates.*runtime.*chooser cancellation.*silent.*before commit.*abort.*unpublished.*exactly once/isu,
+		/cancellation during FFmpeg.*terminates.*runtime or external process tree.*chooser cancellation.*silently.*without publishing.*abort.*unpublished destination exactly once/isu,
 	);
 	assert.match(
 		rollback.summary,
-		/output delete.*WORKERFS unmount.*mount-directory delete.*cleanup.*AggregateError.*terminates.*runtime/isu,
+		/browser branch.*MEMFS output.*WORKERFS.*mount directories.*desktop branch.*owner-scoped main session.*drains the process tree.*removes scratch.*failed cleanup retryable.*observable/isu,
 	);
 	assert.match(
 		rollback.summary,
-		/close.*exact.*counts.*non-cancellable commit.*late ownership.*committed result.*(?:no|without) stale success UI.*size drift.*post-publication.*not rollback/isu,
+		/close\/seal.*exact stat.*emitted.*destination-written.*structure.*digest.*non-cancellable commit.*late ownership.*committed result.*without stale success UI.*size drift.*post-publication.*not rollback/isu,
 	);
 	assert.match(
 		fallback.summary,
@@ -280,10 +284,14 @@ test('selected keyed V20 admission and encoding reuse the existing video publica
 		/1,280.*720.*1 through 30.*2,000,000.*1 TiB/isu,
 	);
 	assert.match(encoder.summary, /two SharedArrayBuffer.*rings.*16 MiB/isu);
+	assert.match(
+		encoder.summary,
+		/desktop Soundscaper V29.*same exact plan.*pathless.*at-most-1-MiB chunks.*owner-scoped main-private FFmpeg pipes.*main-private scratch.*deadline.*owner loss.*process tree/isu,
+	);
 	assert.match(encoder.summary, /float32 WAV.*2 GiB.*8,000 through 768,000/isu);
 	assert.match(
 		encoder.summary,
-		/MP4.*WebM.*SHA-256.*structurally.*second.*delivery pass.*TOCTOU/isu,
+		/MP4.*WebM.*SHA-256.*structurally.*exact size.*digest.*same-size replacement.*before close/isu,
 	);
 	assert.match(
 		encoder.summary,
@@ -291,7 +299,7 @@ test('selected keyed V20 admission and encoding reuse the existing video publica
 	);
 	assert.match(
 		encoder.summary,
-		/cleanup.*always attempted.*aborts.*disposes.*both.*rings.*destination.*exactly once.*terminate/isu,
+		/cleanup.*always attempted.*browser branch.*disposes both rings.*MEMFS.*desktop branch.*owner-scoped main session.*drains the child process.*removes scratch.*destination exactly once/isu,
 	);
 	assert.match(encoder.summary, /preserves cleanup failures/iu);
 	assert.doesNotMatch(encoder.summary, /checks.*cleanup await|fence every.*cleanup await/isu);
@@ -299,8 +307,8 @@ test('selected keyed V20 admission and encoding reuse the existing video publica
 		encoder.summary,
 		/selected V27.*maintained keyed V20 encoder.*existing video routes.*does not qualify.*heap.*RSS.*GC.*CPU.*elapsed.*codec conformance.*reference scale/isu,
 	);
-	assert.match(publication.summary, /version-6.*or.*version-7.*keyed.*same.*video.*route/isu);
-	assert.match(rollback.summary, /version-7.*keyed.*generation.*container.*digest.*exactly once/isu);
+	assert.match(publication.summary, /version-6.*version-7 keyed.*publication boundaries/isu);
+	assert.match(rollback.summary, /version-7 keyed.*generation-scoped.*structural-container.*digest.*exactly once/isu);
 
 	assert.deepEqual(
 		matrix.publicationRouteQualification.routes
@@ -404,11 +412,11 @@ test('the threat and quality documents limit direct video claims to the proved t
 
 	assert.match(
 		threatDocumentation,
-		/direct MP4.*WebM.*version[- ]6.*browser.*before.*preflight.*desktop.*after.*stat.*900,000.*WORKERFS.*worker MEMFS.*one.*stat.*one[- ]MiB.*close.*commit.*no.*final.*`Blob`.*legacy/isu,
+		/direct MP4.*WebM.*version[- ]6.*version[- ]7 keyed.*SHA-256.*stat.*committed.*at-most-1-MiB.*browser V6.*WORKERFS\/MEMFS.*browser V7.*SharedArrayBuffer.*desktop Soundscaper V29.*live canary.*H\.264\/AAC.*VP9\/Opus.*main-private pipes.*main-private scratch/isu,
 	);
 	assert.match(
 		threatDocumentation,
-		/worker MEMFS.*Blob.*residency.*codec.*conformance.*memory.*heap.*RSS.*CPU.*elapsed time.*browser.*operating[- ]system.*picker.*packaged.*reference[- ]scale.*quota.*durability.*crash.*power[- ]loss.*unqualified/isu,
+		/bundled video.*operating-system video.*AV1 remain disabled.*WebM is VP9.*not AV1.*codec conformance.*broad FFmpeg-version\/platform.*packaged UI.*reference-scale.*aggregate memory.*RSS.*CPU.*durability.*crash.*power loss.*unqualified/isu,
 	);
 	assert.match(
 		qualityDocumentation,

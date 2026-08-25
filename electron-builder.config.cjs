@@ -11,6 +11,10 @@ const macSigned = macSigningIdentity !== '-';
 const macEntitlements = framescaper
 	? 'desktop/framescaper-entitlements.mac.plist'
 	: 'desktop/soundscaper-entitlements.mac.plist';
+// The codec-only addon is signed and verified before its digest enters the
+// stage manifest. Re-signing it here would change those authenticated bytes.
+const macPreSignedOsCodecAddon =
+	'/Contents/Resources/runtime/native/soundscaper-os-audio-codec/mac-arm64/soundscaper_os_audio_codec\\.node$';
 
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
@@ -19,6 +23,10 @@ module.exports = {
 	artifactName: '${productName}-${version}-${os}-${arch}.${ext}',
 	compression: 'maximum',
 	asar: true,
+	// Stock Electron enables proprietary codecs in its Chromium FFmpeg library.
+	// Replace it with Electron's matching alternate release asset before signing;
+	// this framework library is not a Soundscaper codec-provider tier.
+	downloadAlternateFFmpeg: true,
 	npmRebuild: false,
 	beforePack: './scripts/desktop-before-pack.mjs',
 	afterPack: './scripts/desktop-after-pack.mjs',
@@ -39,6 +47,7 @@ module.exports = {
 		{ from: '.desktop-build/runtime', to: 'runtime' },
 		{ from: 'LICENSE', to: 'licenses/Soundscaper-AGPL-3.0.txt' },
 		{ from: '.desktop-build/licenses/THIRD_PARTY_LICENSES.md', to: 'licenses/THIRD_PARTY_LICENSES.md' },
+		{ from: '.desktop-build/licenses/codecs', to: 'licenses/codecs' },
 		{ from: 'LICENSES', to: 'licenses/LICENSES' },
 	],
 	fileAssociations: [
@@ -76,6 +85,7 @@ module.exports = {
 		hardenedRuntime: macSigned,
 		entitlements: macEntitlements,
 		entitlementsInherit: macEntitlements,
+		signIgnore: macPreSignedOsCodecAddon,
 		notarize: macSigned && process.env.SOUNDSCAPER_MAC_NOTARIZE === 'true',
 		gatekeeperAssess: false,
 		category: framescaper ? 'public.app-category.video' : 'public.app-category.music',
