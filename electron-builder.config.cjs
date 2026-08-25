@@ -43,6 +43,7 @@ module.exports = {
 		{ from: '.desktop-build/runtime', to: 'runtime' },
 		{ from: 'LICENSE', to: 'licenses/Soundscaper-AGPL-3.0.txt' },
 		{ from: '.desktop-build/licenses/THIRD_PARTY_LICENSES.md', to: 'licenses/THIRD_PARTY_LICENSES.md' },
+		{ from: '.desktop-build/licenses/codecs', to: 'licenses/codecs' },
 		{ from: 'LICENSES', to: 'licenses/LICENSES' },
 	],
 	fileAssociations: [

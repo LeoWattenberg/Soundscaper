@@ -17,6 +17,7 @@ import { COMMITTED_LOCALE_TAGS } from '../src/common/i18n/locales.js';
 import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
 import { stageAssistanceNativeRuntimePayload } from '../desktop/assistance-native-runtime-payload.mjs';
 import { generateDesktopIcon } from './desktop-icons.mjs';
+import { stageDesktopBundledCodecNotices } from './lib/desktop-bundled-codec-notices.mjs';
 import {
 	compileDesktopProjectLibraryRuntime,
 	DESKTOP_RUNTIME_PACKAGE_IMPORTS,
@@ -46,7 +47,8 @@ const APP_ROOT = resolve(BUILD_ROOT, 'app');
 const RENDERER_ROOT = resolve(BUILD_ROOT, 'renderer');
 const RUNTIME_ROOT = resolve(BUILD_ROOT, 'runtime');
 const DESKTOP_RUNTIME_ROOT = resolve(BUILD_ROOT, 'desktop-runtime');
-const DESKTOP_NOTICE_PATH = resolve(BUILD_ROOT, 'licenses/THIRD_PARTY_LICENSES.md');
+const DESKTOP_LICENSE_ROOT = resolve(BUILD_ROOT, 'licenses');
+const DESKTOP_NOTICE_PATH = resolve(DESKTOP_LICENSE_ROOT, 'THIRD_PARTY_LICENSES.md');
 const TRANSLATION_ROOT = resolve(RUNTIME_ROOT, 'translations/audacity/4');
 const DEFAULT_TRANSLATIONS_URL = 'https://translations.soundscaper.org/runtime/translations/audacity/4/';
 // The assistance and native services validate their catalogs and payloads
@@ -130,7 +132,7 @@ async function main() {
 			outputRoot: RUNTIME_ROOT,
 		});
 	const translations = await stageTranslations();
-	await stageDesktopNotices();
+	const desktopNotices = await stageDesktopNotices();
 	await generateDesktopIcon({
 		...(PRODUCT_ID === 'framescaper' ? { sourcePath: resolve(ROOT, 'public/logo/framescaper-icon.svg') } : {}),
 	});
@@ -146,6 +148,7 @@ async function main() {
 		desktopRuntime,
 		assistanceNativeRuntime,
 		desktopCodecPolicy: DESKTOP_CODEC_POLICY,
+		desktopNotices,
 		nativeAddons,
 		soundscaperProfessionalNative,
 		framescaperNativeHosts,
@@ -178,6 +181,15 @@ async function stageDesktopNotices() {
 	await cp(resolve(ROOT, 'THIRD_PARTY_LICENSES.md'), DESKTOP_NOTICE_PATH, {
 		errorOnExist: true,
 		force: false,
+	});
+	const aggregate = await readFile(DESKTOP_NOTICE_PATH);
+	const bundledCodecs = await stageDesktopBundledCodecNotices({
+		repositoryRoot: ROOT,
+		outputRoot: DESKTOP_LICENSE_ROOT,
+	});
+	return Object.freeze({
+		aggregate: descriptorForBytes('THIRD_PARTY_LICENSES.md', aggregate),
+		bundledCodecs,
 	});
 }
 
