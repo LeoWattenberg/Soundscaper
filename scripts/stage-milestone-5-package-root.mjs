@@ -1,0 +1,84 @@
+#!/usr/bin/env node
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+/**
+ * Assembles the exact package root the Milestone 5 audit reads.
+ *
+ * electron-builder's output directory is a work area, not a release: alongside
+ * the installers it leaves its unpacked application tree, an icon-set
+ * directory, `builder-debug.yml` and update metadata. The audit is fail-closed
+ * on anything it did not expect — that is the point of it — so it has to be
+ * handed the release inputs and nothing else.
+ *
+ * The package names come from the same inventory the audit checks against, so
+ * the two cannot describe different releases. Files are hard-linked where the
+ * filesystem allows it, because a desktop release is hundreds of megabytes.
+ */
+
+import { copyFile, link, mkdir, readdir, readFile, rm } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { desktopReleaseTargetPackageInventory } from './desktop-release-assets.mjs';
+import {
+	milestone5PackageReleaseAuthenticationEvidenceName,
+} from './lib/milestone-5-package-release-authentication.mjs';
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+export async function stageMilestone5PackageRoot({
+	repositoryRoot = ROOT, packageRoot, outputRoot, productId, targetId,
+}) {
+	const source = resolve(repositoryRoot, requiredValue(packageRoot, 'package root'));
+	const output = resolve(repositoryRoot, requiredValue(outputRoot, 'output root'));
+	if (output === source) throw new Error('The staged package root cannot be the packaging output.');
+	const projectPackage = JSON.parse(await readFile(resolve(repositoryRoot, 'package.json'), 'utf8'));
+	const inventory = desktopReleaseTargetPackageInventory(
+		requiredValue(productId, 'product'), requiredValue(targetId, 'target'), projectPackage.version,
+	);
+	const entries = await readdir(source, { withFileTypes: true });
+	const files = entries.filter((entry) => entry.isFile() && !entry.isSymbolicLink())
+		.map(({ name }) => name).sort();
+	const packages = inventory.map(({ label, pattern }) => {
+		const matches = files.filter((name) => pattern.test(name));
+		if (matches.length !== 1) throw new Error(`Packaging produced no single ${label}.`);
+		return matches[0];
+	});
+	const releaseAuthentication = milestone5PackageReleaseAuthenticationEvidenceName(productId, targetId);
+	const staged = [
+		...packages,
+		`runtime-manifest-${productId}-${targetId}.json`,
+		'ffmpeg-corresponding-source.json',
+		...(files.includes(releaseAuthentication) ? [releaseAuthentication] : []),
+	];
+	await rm(output, { recursive: true, force: true });
+	await mkdir(output, { recursive: true });
+	for (const name of staged) {
+		if (!files.includes(name)) throw new Error(`Packaging produced no ${name}.`);
+		await link(join(source, name), join(output, name))
+			.catch(() => copyFile(join(source, name), join(output, name)));
+	}
+	return Object.freeze({ output, staged: Object.freeze(staged) });
+}
+
+function requiredValue(value, label) {
+	const text = String(value ?? '').trim();
+	if (!text) throw new Error(`The Milestone 5 package ${label} is required.`);
+	return text;
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+	const options = {};
+	for (let index = 2; index < process.argv.length; index += 2) {
+		const field = {
+			'--package-root': 'packageRoot',
+			'--output': 'outputRoot',
+			'--product': 'productId',
+			'--target': 'targetId',
+		}[process.argv[index]];
+		if (!field) throw new Error(`Unexpected argument: ${process.argv[index]}`);
+		options[field] = process.argv[index + 1];
+	}
+	const result = await stageMilestone5PackageRoot(options);
+	process.stdout.write(`${result.staged.join('\n')}\n`);
+}

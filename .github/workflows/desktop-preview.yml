@@ -364,13 +364,21 @@ jobs:
           cp .desktop-build/stage-manifest.json "release/desktop/runtime-manifest-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json"
           cp desktop/ffmpeg-corresponding-source.json release/desktop/ffmpeg-corresponding-source.json
 
+      - name: Stage the audited package root
+        run: >-
+          node scripts/stage-milestone-5-package-root.mjs
+          --package-root "release/desktop"
+          --output "release/milestone-5-package"
+          --product "${{ matrix.product }}"
+          --target "${{ matrix.target.platform }}-${{ matrix.target.arch }}"
+
       - name: Assemble the fail-closed Milestone 5 handoff
         run: >-
           node scripts/assemble-milestone-5-handoff.mjs --output
           "${{ runner.temp }}/milestone-5-handoff-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json"
           --product "${{ matrix.product }}"
           --target "${{ matrix.target.platform }}-${{ matrix.target.arch }}"
-          --package-root "release/desktop"
+          --package-root "release/milestone-5-package"
         env:
           SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
 
