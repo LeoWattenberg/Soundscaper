@@ -79,6 +79,11 @@ const FOUNDATION_REQUIREMENTS = Object.freeze({
 	videoTimingAssets: requirement('videoTimingAssets', 'Exact video timing assets'),
 	sourceCharacteristics: requirement('sourceCharacteristics', 'Probed source characteristics'),
 });
+const OWNED_ASSISTANCE_FEATURE_REQUIREMENT = foundationOwned(
+	FOUNDATION_REQUIREMENTS.assistanceAssets,
+	(project) => dataArray(project, 'assistanceAssets').length > 0,
+	() => true,
+);
 const OWNED_FEATURE_REQUIREMENTS: readonly OwnedFeatureRequirement[] = Object.freeze([
 	Object.freeze({
 		requirement: OWNED_AUDIO_EFFECT_REQUIREMENT,
@@ -90,11 +95,7 @@ const OWNED_FEATURE_REQUIREMENTS: readonly OwnedFeatureRequirement[] = Object.fr
 		conflictMessage: 'The reserved owned video-effects requirement conflicts with publisher data.',
 		projectNeedsRequirement: projectHasMaintainedVideoEffects,
 	}),
-	foundationOwned(
-		FOUNDATION_REQUIREMENTS.assistanceAssets,
-		(project) => dataArray(project, 'assistanceAssets').length > 0,
-		() => true,
-	),
+	OWNED_ASSISTANCE_FEATURE_REQUIREMENT,
 	foundationOwned(FOUNDATION_REQUIREMENTS.musicalTimeline, projectHasMusicalTimeline),
 	foundationOwned(
 		FOUNDATION_REQUIREMENTS.timelineAnnotations,
@@ -181,6 +182,14 @@ export function reconcileProjectOwnedFeatureRequirements(
 		reconciled = reconcileOwnedFeatureRequirement(project, reconciled, owned);
 	}
 	return reconciled;
+}
+
+/** Reconcile only assistance custody when a product owns the remaining feature declarations. */
+export function reconcileProjectOwnedAssistanceRequirement(
+	project: Readonly<Record<string, unknown>>,
+	manifest: ProjectFeatureRequirementsManifest,
+): ProjectFeatureRequirementsManifest {
+	return reconcileOwnedFeatureRequirement(project, manifest, OWNED_ASSISTANCE_FEATURE_REQUIREMENT);
 }
 
 function reconcileOwnedFeatureRequirement(
