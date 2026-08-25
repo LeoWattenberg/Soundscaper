@@ -67,6 +67,7 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 	const bundledSpawnOptions = [];
 	const revoked = [];
 	let disposals = 0;
+	const ipcDisposal = deferred();
 	const service = Object.freeze({ execute: async () => ({}), capabilities: async () => ({}) });
 	const bundledRuntime = Object.freeze({ provider: Object.freeze({ kind: 'bundled' }), execute: async () => ({}) });
 	const operatingSystemRuntime = Object.freeze({
@@ -118,7 +119,7 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 				ipcOptions.push(options);
 				return {
 					revokeOwner: async (owner) => { revoked.push(owner); return true; },
-					dispose: () => { disposals += 1; },
+					dispose: () => { disposals += 1; return ipcDisposal.promise; },
 				};
 			},
 		}),
@@ -181,10 +182,18 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 	const owner = { id: 'owner' };
 	assert.equal(await registration.revokeOwner(owner), true);
 	assert.deepEqual(revoked, [owner]);
-	registration.dispose();
-	registration.dispose();
+	const firstDisposal = registration.dispose();
+	const secondDisposal = registration.dispose();
+	assert.equal(firstDisposal, secondDisposal);
 	assert.equal(disposals, 1);
 	assert.deepEqual(registration.receiptSnapshot(), []);
+	let disposed = false;
+	void firstDisposal.then(() => { disposed = true; });
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.equal(disposed, false);
+	ipcDisposal.resolve();
+	await firstDisposal;
+	assert.equal(disposed, true);
 });
 
 test('registration fails closed without any admitted bundled runtime', async () => {
@@ -214,7 +223,10 @@ test('registration fails closed without any admitted bundled runtime', async () 
 				compositionOptions.push(options);
 				return {};
 			},
-			registerDesktopAudioCodecMainIpc: () => ({ revokeOwner() {}, dispose() {} }),
+			registerDesktopAudioCodecMainIpc: () => ({
+				revokeOwner: async () => false,
+				dispose: async () => undefined,
+			}),
 		}),
 	});
 	assert.deepEqual(Reflect.ownKeys(compositionOptions[0]), [
@@ -259,4 +271,10 @@ function externalPreferences() {
 			canInstall: false, canBrowse: true, canClear: false,
 		}),
 	});
+}
+
+function deferred() {
+	let resolve;
+	const promise = new Promise((resolvePromise) => { resolve = resolvePromise; });
+	return { promise, resolve };
 }

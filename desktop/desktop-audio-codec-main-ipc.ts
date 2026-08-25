@@ -44,7 +44,7 @@ export interface DesktopAudioCodecMainIpcOptions<Owner extends object> {
 
 export interface DesktopAudioCodecMainIpcRegistration<Owner extends object> {
 	revokeOwner(owner: Owner): Promise<boolean>;
-	dispose(): void;
+	dispose(): Promise<void>;
 }
 
 interface ActiveOperation<Owner extends object> {
@@ -70,6 +70,7 @@ export function registerDesktopAudioCodecMainIpc<Owner extends object>(
 	const activeByOwner = new WeakMap<Owner, number>();
 	let activeInputBytes = 0;
 	let disposed = false;
+	let disposal: Promise<void> | null = null;
 	const registered: string[] = [];
 	const bind = (channel: string, listener: (event: unknown, ...arguments_: unknown[]) => unknown): void => {
 		options.handle(channel, listener);
@@ -146,13 +147,16 @@ export function registerDesktopAudioCodecMainIpc<Owner extends object>(
 			await Promise.allSettled(revoked.map(({ settled }) => settled));
 			return revoked.length > 0;
 		},
-		dispose(): void {
-			if (disposed) return;
+		dispose(): Promise<void> {
+			if (disposal !== null) return disposal;
 			disposed = true;
 			for (const channel of registered) options.removeHandler(channel);
-			for (const operation of active.values()) operation.controller.abort(abortReason(
+			const pending = [...active.values()];
+			for (const operation of pending) operation.controller.abort(abortReason(
 				'The desktop audio codec IPC service stopped.',
 			));
+			disposal = Promise.allSettled(pending.map(({ settled }) => settled)).then(() => undefined);
+			return disposal;
 		},
 	});
 }

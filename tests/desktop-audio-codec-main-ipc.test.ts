@@ -36,8 +36,7 @@ test('capability query is owned, closed, and result-sanitized', async () => {
 		malicious.invoke(CHANNELS.desktopAudioCodecCapabilities, malicious.event, query),
 		/inexact shape/u,
 	);
-	fixture.registration.dispose();
-	malicious.registration.dispose();
+	await Promise.all([fixture.registration.dispose(), malicious.registration.dispose()]);
 });
 
 test('execute requires a closed request ID and passes owned bytes to the main service', async () => {
@@ -61,7 +60,7 @@ test('execute requires a closed request ID and passes owned bytes to the main se
 			...encodeRequest(new Uint8Array(8)), requestId: undefined,
 		}), /request ID/u,
 	);
-	fixture.registration.dispose();
+	await fixture.registration.dispose();
 });
 
 test('only the owning renderer can cancel its active request', async () => {
@@ -79,7 +78,7 @@ test('only the owning renderer can cancel its active request', async () => {
 	assert.equal(await fixture.invoke(CHANNELS.desktopAudioCodecCancel, fixture.event, 'audio-request-1'), true);
 	assert.deepEqual(await running, { status: 'cancelled' });
 	assert.equal(await fixture.invoke(CHANNELS.desktopAudioCodecCancel, fixture.event, 'audio-request-1'), false);
-	fixture.registration.dispose();
+	await fixture.registration.dispose();
 });
 
 test('owner revocation aborts and drains every owned operation', async () => {
@@ -93,7 +92,7 @@ test('owner revocation aborts and drains every owned operation', async () => {
 	assert.equal(await fixture.registration.revokeOwner(fixture.owner), true);
 	assert.deepEqual(await running, { status: 'revoked' });
 	assert.equal(await fixture.registration.revokeOwner(fixture.owner), false);
-	fixture.registration.dispose();
+	await fixture.registration.dispose();
 });
 
 test('execute admits bounded per-owner and global operation counts before cloning', async () => {
@@ -127,7 +126,7 @@ test('execute admits bounded per-owner and global operation counts before clonin
 		encodeRequest(new Uint8Array(8), 'owner-three'),
 	), /global.*limit/iu);
 	assert.equal(fixture.executions.length, 2);
-	fixture.registration.dispose();
+	await fixture.registration.dispose();
 	await Promise.all([first, second]);
 });
 
@@ -151,22 +150,34 @@ test('execute admits aggregate active input bytes before cloning', async () => {
 		encodeRequest(new Uint8Array(8), 'aggregate-two'),
 	), /aggregate.*byte.*limit/iu);
 	assert.equal(fixture.executions.length, 1);
-	fixture.registration.dispose();
+	await fixture.registration.dispose();
 	await first;
 });
 
-test('dispose aborts jobs, removes both handlers, and is idempotent', async () => {
+test('dispose removes every handler, aborts jobs, and returns one drain barrier', async () => {
+	const release = deferred<unknown>();
 	const fixture = registrationFixture({
 		execute: (_request, { signal }) => new Promise((resolve) => {
-			signal.addEventListener('abort', () => resolve({ status: 'disposed' }), { once: true });
+			signal.addEventListener('abort', () => {
+				void release.promise.then(() => resolve({ status: 'disposed' }));
+			}, { once: true });
 		}),
 	});
 	const running = fixture.invoke(CHANNELS.desktopAudioCodecExecute, fixture.event, encodeRequest(new Uint8Array(8)));
 	await until(() => fixture.executions.length === 1);
-	fixture.registration.dispose();
-	fixture.registration.dispose();
-	assert.deepEqual(await running, { status: 'disposed' });
+	const first = fixture.registration.dispose();
+	const second = fixture.registration.dispose();
+	assert.equal(first, second);
+	assert.equal(first, fixture.registration.dispose());
 	assert.deepEqual(fixture.removed, Object.values(CHANNELS));
+	let disposed = false;
+	void first.then(() => { disposed = true; });
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.equal(disposed, false);
+	release.resolve(undefined);
+	await first;
+	assert.equal(disposed, true);
+	assert.deepEqual(await running, { status: 'disposed' });
 });
 
 test('registration validates unique channels and rolls back partial bindings', () => {

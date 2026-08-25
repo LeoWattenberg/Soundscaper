@@ -80,15 +80,15 @@ export async function registerDesktopAudioCodecs(options) {
 		ownerFor: options.ownerFor, service,
 	});
 	validateIpcRegistration(ipc);
-	let disposed = false;
+	let disposal = null;
 	return Object.freeze({
 		revokeOwner(owner) { return ipc.revokeOwner(owner); },
 		receiptSnapshot() { return receipts.snapshot(); },
 		dispose() {
-			if (disposed) return;
-			disposed = true;
-			ipc.dispose();
+			if (disposal !== null) return disposal;
 			receipts.clear();
+			disposal = ipc.dispose();
+			return disposal;
 		},
 	});
 }
