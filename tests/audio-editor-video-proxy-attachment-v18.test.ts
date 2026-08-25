@@ -231,7 +231,7 @@ test('remains a closed scalar owner with only the reviewed cumulative consumers'
 		'src/framescaper/editor-captured-video-proxy-bodies.ts',
 		'src/framescaper/editor-captured-video-proxy-preservation.ts',
 		'src/framescaper/editor-captured-video-proxy-request.ts',
-		'src/framescaper/editor-captured-video-proxy-scheduler.ts',
+		'src/framescaper/editor-captured-video-proxy-scheduler-guards.ts',
 		'src/framescaper/editor-captured-video-proxy-transition.ts',
 		// The common scheduler request carries an optional exact old-attachment
 		// fence for atomic selected-proxy replacement.
