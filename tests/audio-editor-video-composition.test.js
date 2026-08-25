@@ -99,12 +99,18 @@ test('active video layers are frozen, bottom-to-top, and expose complementary cr
 test('media composition delegates dissolve weights to the exact shared resolver and ignores visual clips', () => {
 	const project = layeredProject();
 	project.sources.push({ kind: 'generator', id: 'title-source' });
+	project.sources.push({ kind: 'image', id: 'image-source' });
 	project.clips.push({
 		kind: 'generator', id: 'title-clip', sourceId: 'title-source',
 		timelineStartFrame: 0, durationFrames: 100,
 		sourceStartFrame: 0, sourceDurationFrames: 100,
 	});
-	project.tracks.find(({ id }) => id === 'top-track').clipIds.push('title-clip');
+	project.clips.push({
+		kind: 'image', id: 'image-clip', sourceId: 'image-source',
+		timelineStartFrame: 0, durationFrames: 100,
+		sourceStartFrame: 0, sourceDurationFrames: 100, sourceStartTicks: '0',
+	});
+	project.tracks.find(({ id }) => id === 'top-track').clipIds.push('title-clip', 'image-clip');
 	const exact = (clipId) => clipId === 'outgoing' ? 0.8 : clipId === 'incoming' ? 0.2 : null;
 	const layers = resolveActiveVideoLayers(project, 80, { resolveTransitionWeight: exact });
 	assert.deepEqual(layers.at(-1).clips.map(({ clipId, opacity }) => ({ clipId, opacity })), [

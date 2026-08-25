@@ -52,7 +52,7 @@ export function validateVideoTrackComposition(track, clipById) {
 	const clips = track.clipIds.flatMap((clipId) => {
 		const clip = lookup.get(clipId);
 		if (!clip) throw new ReferenceError(`Video track ${track.id} references missing clip ${clipId}.`);
-		if (clip.kind === 'still' || clip.kind === 'generator') return [];
+		if (isProductVisualClip(clip)) return [];
 		if (clip.kind !== 'video') {
 			throw new TypeError(`Video track ${track.id} contains non-video clip ${clip.id}.`);
 		}
@@ -366,6 +366,7 @@ export function resolveVideoTimelineSegments(project, options = {}) {
 		for (const clipId of track.clipIds || []) {
 			const clip = clipById.get(clipId);
 			if (!clip) throw new ReferenceError(`Video track ${track.id} references missing clip ${clipId}.`);
+			if (isProductVisualClip(clip)) continue;
 			if (clip.kind !== 'video') {
 				throw new TypeError(`Video track ${track.id} contains non-video clip ${clip.id}.`);
 			}
@@ -486,8 +487,12 @@ function compareVideoClips(left, right) {
 
 function orderedVideoTrackClips(track, clipById) {
 	return track.clipIds.map((clipId) => clipById.get(clipId)).filter((clip) => (
-		clip?.kind !== 'still' && clip?.kind !== 'generator'
+		!isProductVisualClip(clip)
 	)).sort(compareVideoClips);
+}
+
+function isProductVisualClip(clip) {
+	return clip?.kind === 'still' || clip?.kind === 'generator' || clip?.kind === 'image';
 }
 
 function videoSourceForClip(sourceById, clip) {
