@@ -2,6 +2,7 @@
 
 /** Closed desktop codec inventory and exact, capability-first provider preflight. */
 
+import type { Av1TargetQualificationDecisionV1 } from './av1-codec-qualification.ts';
 import type {
 	DesktopCodecOperation,
 	DesktopCodecPreflightResult,
@@ -59,7 +60,8 @@ export interface BundledDesktopCodecProviderOptions {
 	readonly capabilityGeneration: string;
 	/** Presence means the reviewed payload for this target was admitted; the value is its release version. */
 	readonly inventory: Readonly<Partial<Record<BundledDesktopCodecComponent, string>>>;
-	readonly windowsArm64SvtAv1Qualified?: boolean;
+	/** Same-target benchmark decision; absence or incomplete evidence admits no bundled AV1 capability. */
+	readonly av1Qualification?: Av1TargetQualificationDecisionV1;
 }
 
 export interface DesktopCodecQualifiedCapability {
@@ -118,7 +120,8 @@ export function createBundledDesktopCodecProvider(
 	const target = desktopTarget(options?.target);
 	const generation = token(options?.capabilityGeneration, 'bundled capability generation');
 	const inventory = validateBundledInventory(options?.inventory);
-	const bindings = bundledBindings(target, inventory, options.windowsArm64SvtAv1Qualified === true);
+	const qualification = targetAv1Qualification(target, options?.av1Qualification);
+	const bindings = bundledBindings(target, inventory, qualification);
 	return provider({
 		kind: 'bundled', target, id: `bundled-codecs-${target}`,
 		implementation: 'soundscaper-reviewed-codecs', version: 'catalog-1',
@@ -215,7 +218,7 @@ function provider(options: Readonly<{
 function bundledBindings(
 	target: DesktopCodecTarget,
 	inventory: Readonly<Partial<Record<BundledDesktopCodecComponent, string>>>,
-	windowsArm64SvtAv1Qualified: boolean,
+	av1Qualification: Av1TargetQualificationDecisionV1 | null,
 ): readonly CapabilityBinding[] {
 	const definitions: Array<CapabilityBinding & { readonly components: readonly BundledDesktopCodecComponent[] }> = [];
 	const audio = (
@@ -270,19 +273,64 @@ function bundledBindings(
 	video('vp8', ['encode', 'decode'], [[null, 'yuv420p']], 'libvpx', ['libwebm', 'libvpx']);
 	video('vp9', ['encode', 'decode'], [['profile-0', 'yuv420p'], ['profile-2', 'yuv420p10le']],
 		'libvpx', ['libwebm', 'libvpx']);
-	video('av1', ['decode'], [['main', 'yuv420p'], ['main', 'yuv420p10le']],
-		'dav1d', ['libwebm', 'dav1d']);
-	const svtAdmitted = inventory['svt-av1'] !== undefined
-		&& (target !== 'win-arm64' || windowsArm64SvtAv1Qualified);
-	if (svtAdmitted) video('av1', ['encode'], [['main', 'yuv420p'], ['main', 'yuv420p10le']],
-		'svt-av1', ['libwebm', 'svt-av1']);
-	else if (target === 'win-arm64' && inventory.libaom !== undefined) {
+	if (qualifiedAv1Decoder(av1Qualification, inventory)) {
+		video('av1', ['decode'], [['main', 'yuv420p'], ['main', 'yuv420p10le']],
+			'dav1d', ['libwebm', 'dav1d']);
+	}
+	const encoder = qualifiedAv1Encoder(target, av1Qualification, inventory);
+	if (encoder === 'svt-av1') {
+		video('av1', ['encode'], [['main', 'yuv420p'], ['main', 'yuv420p10le']],
+			'svt-av1', ['libwebm', 'svt-av1']);
+	} else if (encoder === 'libaom') {
 		video('av1', ['encode'], [['main', 'yuv420p'], ['main', 'yuv420p10le']],
 			'libaom', ['libwebm', 'libaom']);
 	}
 	return Object.freeze(definitions
 		.filter(({ components }) => components.every((component) => inventory[component] !== undefined))
 		.map(({ capability: admitted, implementation }) => Object.freeze({ capability: admitted, implementation })));
+}
+
+function targetAv1Qualification(
+	target: DesktopCodecTarget, value: Av1TargetQualificationDecisionV1 | undefined,
+): Av1TargetQualificationDecisionV1 | null {
+	if (value === undefined) return null;
+	if (!value || typeof value !== 'object' || Array.isArray(value) || value.target !== target) {
+		throw new TypeError('Bundled AV1 qualification must name the same desktop target as its provider.');
+	}
+	return value;
+}
+
+function completeAv1Qualification(
+	value: Av1TargetQualificationDecisionV1 | null,
+): value is Av1TargetQualificationDecisionV1 & Readonly<{ benchmark: NonNullable<Av1TargetQualificationDecisionV1['benchmark']> }> {
+	return value !== null && value.evidenceComplete === true && value.evidenceCaseCount === 12
+		&& value.benchmark !== null;
+}
+
+function qualifiedAv1Decoder(
+	value: Av1TargetQualificationDecisionV1 | null,
+	inventory: Readonly<Partial<Record<BundledDesktopCodecComponent, string>>>,
+): boolean {
+	return completeAv1Qualification(value)
+		&& value.decode.defaultCandidate === 'dav1d' && value.decode.comparedAgainst === 'libaom'
+		&& value.decode.admitted === true && value.decode.selected === 'dav1d'
+		&& value.decode.failures.length === 0
+		&& value.benchmark.toolchain.dav1d.version === inventory.dav1d;
+}
+
+function qualifiedAv1Encoder(
+	target: DesktopCodecTarget, value: Av1TargetQualificationDecisionV1 | null,
+	inventory: Readonly<Partial<Record<BundledDesktopCodecComponent, string>>>,
+): 'svt-av1' | 'libaom' | null {
+	if (!completeAv1Qualification(value) || value.encode.admitted !== true) return null;
+	if (value.encode.selected === 'svt-av1' && value.encode.defaultCandidate === 'svt-av1'
+		&& value.encode.defaultFailures.length === 0
+		&& value.benchmark.toolchain['svt-av1'].version === inventory['svt-av1']) return 'svt-av1';
+	if (target === 'win-arm64' && value.encode.selected === 'libaom'
+		&& value.encode.defaultCandidate === 'svt-av1' && value.encode.defaultFailures.length > 0
+		&& value.encode.fallbackCandidate === 'libaom' && value.encode.fallbackFailures?.length === 0
+		&& value.benchmark.toolchain.libaom.version === inventory.libaom) return 'libaom';
+	return null;
 }
 
 function capability(value: DesktopCodecCapability): DesktopCodecCapability {

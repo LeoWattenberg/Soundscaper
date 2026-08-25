@@ -12,6 +12,9 @@ import {
 	type DesktopCodecCapability,
 } from '../src/common/editor/desktop-codec-provider-catalog.ts';
 import type { DesktopCodecOperation } from '../src/common/editor/desktop-codec-coordinator.ts';
+import type {
+	Av1TargetQualificationDecisionV1,
+} from '../src/common/editor/av1-codec-qualification.ts';
 
 const VIDEO_RANGE = Object.freeze({ minimum: 16, maximum: 8_192, multipleOf: 2 });
 const AV1_ENCODE = operation({
@@ -70,46 +73,58 @@ test('bundled capabilities are admitted only when every reviewed payload is pres
 	assert.equal(missingContainer.capabilities.length, 0);
 });
 
-test('dav1d owns AV1 decode on every target and libaom is never a decoder', async () => {
+test('bundled AV1 stays unavailable without complete same-target qualification', async () => {
 	for (const target of DESKTOP_CODEC_TARGETS) {
-		const provider = createBundledDesktopCodecProvider({
+		const unqualified = createBundledDesktopCodecProvider({
 			target, capabilityGeneration: `review-${target}`,
-			inventory: { libwebm: '1.0.0.32', dav1d: '1.5.4', libaom: '3.14.1' },
+			inventory: av1Inventory(),
 		});
+		assert.equal((await unqualified.preflight(AV1_DECODE, {})).disposition, 'unsupported');
+		assert.equal((await unqualified.preflight(AV1_ENCODE, {})).disposition, 'unsupported');
+
+		const incomplete = createBundledDesktopCodecProvider({
+			target, capabilityGeneration: `review-${target}-incomplete`, inventory: av1Inventory(),
+			av1Qualification: av1Qualification(target, { complete: false }),
+		});
+		assert.equal((await incomplete.preflight(AV1_DECODE, {})).disposition, 'unsupported');
+		assert.equal((await incomplete.preflight(AV1_ENCODE, {})).disposition, 'unsupported');
+	}
+	assert.throws(() => createBundledDesktopCodecProvider({
+		target: 'linux-x64', capabilityGeneration: 'review-cross-target', inventory: av1Inventory(),
+		av1Qualification: av1Qualification('win-x64'),
+	}), /same desktop target/iu);
+});
+
+test('complete target evidence admits dav1d decode and its exact qualified encoder', async () => {
+	for (const target of DESKTOP_CODEC_TARGETS) {
+		const provider = bundledAv1(target, 'svt-av1');
 		assert.equal((await provider.preflight(AV1_DECODE, {})).disposition, 'supported');
 		assert.equal(provider.resolve(AV1_DECODE)?.implementation, 'dav1d');
 		assert.notEqual(provider.resolve(AV1_DECODE)?.implementation, 'libaom');
-	}
-});
-
-test('SVT-AV1 is preferred, with libaom restricted to qualified Windows ARM64 fallback', async () => {
-	for (const target of ['linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64'] as const) {
-		const provider = bundledAv1(target, false);
 		assert.equal((await provider.preflight(AV1_ENCODE, {})).disposition, 'supported');
 		assert.equal(provider.resolve(AV1_ENCODE)?.implementation, 'svt-av1');
 	}
-	const qualifiedArm = bundledAv1('win-arm64', true);
-	assert.equal(qualifiedArm.resolve(AV1_ENCODE)?.implementation, 'svt-av1');
-	const fallbackArm = bundledAv1('win-arm64', false);
+	const fallbackArm = bundledAv1('win-arm64', 'libaom');
 	assert.equal(fallbackArm.resolve(AV1_ENCODE)?.implementation, 'libaom');
-	const qualifiedButMissingSvt = createBundledDesktopCodecProvider({
-		target: 'win-arm64', capabilityGeneration: 'review-win-arm64-missing-svt',
-		inventory: { libwebm: '1.0.0.32', libaom: '3.14.1' },
-		windowsArm64SvtAv1Qualified: true,
-	});
-	assert.equal(qualifiedButMissingSvt.resolve(AV1_ENCODE)?.implementation, 'libaom');
 
-	const x64WithoutSvt = createBundledDesktopCodecProvider({
-		target: 'win-x64', capabilityGeneration: 'review-win-x64',
-		inventory: { libwebm: '1.0.0.32', libaom: '3.14.1' },
+	const nonArmFallback = bundledAv1('win-x64', 'libaom');
+	assert.equal((await nonArmFallback.preflight(AV1_ENCODE, {})).disposition, 'unsupported');
+	const missingSelectedPayload = createBundledDesktopCodecProvider({
+		target: 'win-arm64', capabilityGeneration: 'review-win-arm64-missing-payload',
+		inventory: { libwebm: '1.0.0.32', dav1d: '1.5.4', 'svt-av1': '4.2.0' },
+		av1Qualification: av1Qualification('win-arm64', { encoder: 'libaom' }),
 	});
-	assert.equal((await x64WithoutSvt.preflight(AV1_ENCODE, {})).disposition, 'unsupported');
-	const armWithoutAdmittedFallback = createBundledDesktopCodecProvider({
-		target: 'win-arm64', capabilityGeneration: 'review-win-arm64',
-		inventory: { libwebm: '1.0.0.32', 'svt-av1': '4.2.0' },
-		windowsArm64SvtAv1Qualified: false,
+	assert.equal((await missingSelectedPayload.preflight(AV1_ENCODE, {})).disposition, 'unsupported');
+});
+
+test('AV1 decisions are bound to the exact codec versions measured by their benchmark', async () => {
+	const versionDrift = createBundledDesktopCodecProvider({
+		target: 'linux-x64', capabilityGeneration: 'review-version-drift',
+		inventory: { ...av1Inventory(), dav1d: '1.5.5', 'svt-av1': '4.3.0' },
+		av1Qualification: av1Qualification('linux-x64'),
 	});
-	assert.equal((await armWithoutAdmittedFallback.preflight(AV1_ENCODE, {})).disposition, 'unsupported');
+	assert.equal((await versionDrift.preflight(AV1_DECODE, {})).disposition, 'unsupported');
+	assert.equal((await versionDrift.preflight(AV1_ENCODE, {})).disposition, 'unsupported');
 });
 
 test('OS providers expose only exact canary-qualified tuples and Linux stays unavailable', async () => {
@@ -209,12 +224,64 @@ test('provider identities and admitted capabilities are immutable copies', () =>
 	}, TypeError);
 });
 
-function bundledAv1(target: typeof DESKTOP_CODEC_TARGETS[number], qualified: boolean) {
+function bundledAv1(
+	target: typeof DESKTOP_CODEC_TARGETS[number], encoder: 'svt-av1' | 'libaom',
+) {
 	return createBundledDesktopCodecProvider({
 		target, capabilityGeneration: `review-${target}`,
-		inventory: { libwebm: '1.0.0.32', 'svt-av1': '4.2.0', libaom: '3.14.1' },
-		windowsArm64SvtAv1Qualified: qualified,
+		inventory: av1Inventory(), av1Qualification: av1Qualification(target, { encoder }),
 	});
+}
+
+function av1Inventory(): Partial<Record<BundledDesktopCodecComponent, string>> {
+	return {
+		libwebm: '1.0.0.32', dav1d: '1.5.4', 'svt-av1': '4.2.0', libaom: '3.14.1',
+	};
+}
+
+function av1Qualification(
+	target: typeof DESKTOP_CODEC_TARGETS[number],
+	options: Readonly<{ complete?: boolean; encoder?: 'svt-av1' | 'libaom' }> = {},
+): Av1TargetQualificationDecisionV1 {
+	const complete = options.complete !== false;
+	const encoder = options.encoder ?? 'svt-av1';
+	const fallback = target === 'win-arm64';
+	const operatingSystem: 'linux' | 'macos' | 'windows' = target.startsWith('linux-')
+		? 'linux' : target.startsWith('win-') ? 'windows' : 'macos';
+	const cpuArchitecture: 'x64' | 'arm64' = target.endsWith('-x64') ? 'x64' : 'arm64';
+	const decision: Av1TargetQualificationDecisionV1 = {
+		target,
+		benchmark: {
+			environment: {
+				operatingSystem,
+				operatingSystemVersion: '1.0.0', cpuModel: 'Synthetic-CPU',
+				cpuArchitecture, logicalCoreCount: 8,
+			},
+			toolchain: {
+				dav1d: { version: '1.5.4', buildSha256: 'a'.repeat(64) },
+				libaom: { version: '3.14.1', buildSha256: 'b'.repeat(64) },
+				'svt-av1': { version: '4.2.0', buildSha256: 'c'.repeat(64) },
+				benchmarkHarnessSha256: 'd'.repeat(64),
+			},
+			encoderSettings: {
+				settingsSha256: 'e'.repeat(64), threadCount: 8,
+				svtAv1Preset: 'preset-8', libaomPreset: 'cpu-used-6',
+			},
+		},
+		evidenceComplete: complete, evidenceCaseCount: complete ? 12 : 11,
+		decode: {
+			defaultCandidate: 'dav1d', comparedAgainst: 'libaom', admitted: complete,
+			selected: complete ? 'dav1d' : null,
+			failures: complete ? [] : ['incomplete-corpus-evidence'],
+		},
+		encode: {
+			defaultCandidate: 'svt-av1', fallbackCandidate: fallback ? 'libaom' : null,
+			admitted: complete, selected: complete ? encoder : null,
+			defaultFailures: complete && encoder === 'svt-av1' ? [] : ['correctness-failed'],
+			fallbackFailures: fallback ? [] : null,
+		},
+	};
+	return Object.freeze(decision);
 }
 
 function videoCapability(
