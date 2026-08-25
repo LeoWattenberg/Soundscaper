@@ -1292,6 +1292,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	});
 	const effectAudioService = createEffectAudioService({
 		lifetime,
+		assistanceStore: store,
 		captureProject: () => projectGeneration.capture(project.id),
 		assertProject: (token) => projectGeneration.assertCurrent(token),
 		state,

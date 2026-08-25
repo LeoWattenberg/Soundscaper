@@ -204,3 +204,20 @@ test('ambiguous, transformed, unsupported, and oversized selections refuse befor
 	}), /selected audio input/iu);
 	assert.deepEqual(rendered, []);
 });
+
+test('selected-media preparation exposes only an explicitly supplied acceptance owner', async () => {
+	const accepted: unknown[] = [];
+	const preparation = createLocalAssistanceSelectedMediaPreparation({
+		getProject: () => project(), getSelectedClipId: () => 'voice-clip',
+		captureProject: () => ({ id: 'project-1', revision: 4 }), assertProject: () => undefined,
+		renderDryTrackRange: async () => [new Float32Array(48_000)],
+		acceptValidatedResult: (request) => { accepted.push(request); return Promise.resolve(); },
+	});
+	const request = Object.freeze({ reviewed: true });
+	assert.equal(typeof preparation.acceptValidatedResult, 'function');
+	await preparation.acceptValidatedResult?.(request);
+	assert.deepEqual(accepted, [request]);
+
+	const withoutOwner = fixture().preparation;
+	assert.equal(withoutOwner.acceptValidatedResult, undefined);
+});

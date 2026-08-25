@@ -63,6 +63,7 @@ export interface LocalAssistanceSelectedMediaPreparationDependencies {
 		requestedClipIds: readonly string[],
 		signal?: AbortSignal,
 	) => Promise<readonly Float32Array[]>;
+	readonly acceptValidatedResult?: (request: unknown) => Promise<void>;
 }
 
 export interface LocalAssistanceSelectedMediaInventory {
@@ -97,9 +98,10 @@ export interface LocalAssistanceSelectedMediaPreparation {
 		operation: AssistanceOperation;
 		signal?: AbortSignal;
 	}>): Promise<LocalAssistanceSelectedMediaPrepared>;
+	acceptValidatedResult?(request: unknown): Promise<void>;
 }
 
-interface SelectedAuthority {
+export interface LocalAssistanceSelectedMediaAuthority {
 	readonly project: SelectedMediaProject;
 	readonly source: DataRecord;
 	readonly clip: DataRecord;
@@ -119,13 +121,15 @@ export function createLocalAssistanceSelectedMediaPreparation(
 		|| typeof dependencies.getSelectedClipId !== 'function'
 		|| typeof dependencies.captureProject !== 'function'
 		|| typeof dependencies.assertProject !== 'function'
-		|| typeof dependencies.renderDryTrackRange !== 'function') {
+		|| typeof dependencies.renderDryTrackRange !== 'function'
+		|| (dependencies.acceptValidatedResult !== undefined
+			&& typeof dependencies.acceptValidatedResult !== 'function')) {
 		throw new TypeError('Selected-media preparation requires its exact controller ports.');
 	}
 
 	async function listSelectedMedia(): Promise<LocalAssistanceSelectedMediaInventory> {
-		let selected: SelectedAuthority;
-		try { selected = selectAuthority(dependencies); }
+		let selected: LocalAssistanceSelectedMediaAuthority;
+		try { selected = resolveLocalAssistanceSelectedMediaAuthority(dependencies); }
 		catch { return Object.freeze({ sources: Object.freeze([]) }); }
 		return Object.freeze({ sources: Object.freeze([Object.freeze({
 			sourceId: text(selected.source.id, 'source id'),
@@ -146,7 +150,7 @@ export function createLocalAssistanceSelectedMediaPreparation(
 			throw new RangeError('This operation has no exact selected audio input preparation.');
 		}
 		const token = dependencies.captureProject();
-		const selected = selectAuthority(dependencies);
+		const selected = resolveLocalAssistanceSelectedMediaAuthority(dependencies);
 		if (text(selected.source.id, 'source id') !== request.sourceId) {
 			throw new Error('The requested assistance source is no longer the selected occurrence.');
 		}
@@ -173,12 +177,18 @@ export function createLocalAssistanceSelectedMediaPreparation(
 		});
 	}
 
-	return Object.freeze({ listSelectedMedia, prepareSelectedMedia });
+	return Object.freeze({
+		listSelectedMedia,
+		prepareSelectedMedia,
+		...(dependencies.acceptValidatedResult === undefined ? {} : {
+			acceptValidatedResult: (request: unknown) => dependencies.acceptValidatedResult!(request),
+		}),
+	});
 }
 
-function selectAuthority(
+export function resolveLocalAssistanceSelectedMediaAuthority(
 	dependencies: LocalAssistanceSelectedMediaPreparationDependencies,
-): SelectedAuthority {
+): LocalAssistanceSelectedMediaAuthority {
 	const project = selectedProject(dependencies.getProject());
 	const clipId = dependencies.getSelectedClipId();
 	if (typeof clipId !== 'string' || clipId === '') {
