@@ -840,8 +840,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const projectBootstrapService = createProjectBootstrapService({
 		state, lifetimeSignal: lifetime.signal, store, engine, mediaDevices, productSettingKey,
 		automaticAudioDeviceEnumeration: capabilities.audioRecording === true,
-		audioDevicePreferencesSettingKey: AUDIO_DEVICE_PREFERENCES_SETTING_KEY,
-		recordingInputGainDefault: RECORDING_INPUT_GAIN_DEFAULT,
+		audioDevicePreferencesSettingKey: AUDIO_DEVICE_PREFERENCES_SETTING_KEY, recordingInputGainDefault: RECORDING_INPUT_GAIN_DEFAULT,
 		loadPreferences,
 		createEffectPresets: createAudioEditorEffectPresets,
 		normalizeRecordingInputGain,
@@ -1291,8 +1290,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		captureRackNoiseProfile: (...args) => effectAudioService.captureRackNoiseProfile(...args),
 	});
 	const effectAudioService = createEffectAudioService({
-		lifetime,
-		...(projectRuntime.assistanceAssetCommands ? { assistanceStore: store } : {}),
+		lifetime, ...(projectRuntime.assistanceAssetCommands ? { assistanceStore: store } : {}),
 		captureProject: () => projectGeneration.capture(project.id),
 		assertProject: (token) => projectGeneration.assertCurrent(token),
 		state,
