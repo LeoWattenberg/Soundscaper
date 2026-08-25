@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
 import { ASSISTANCE_OPERATIONS, type AssistanceOperation } from '../../assistance/operation.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import LocalAssistanceOutputReviewList from './LocalAssistanceOutputReview.tsx';
 import type { LocalAssistanceBridge } from '../local-assistance-bridge.ts';
 import { localAssistanceModelCompatible,
 	type LocalAssistanceSelectedMediaPreparationPort } from '../local-assistance-preparation.ts';
@@ -144,22 +145,8 @@ export function LocalAssistanceDialogView({
 		{snapshot.progress && <Progress copy={copy} progress={snapshot.progress} />}
 		{snapshot.result && <p role="status">{template(text(copy, 'localAssistanceOutputs',
 			'{count} validated outputs'), { count: String(snapshot.result.outputs.length) })}</p>}
-		{reviewOpen && snapshot.result && <ul className="kw-local-assistance__outputs">
-			{snapshot.result.outputs.map(({ claim, review }) => <li key={claim.claimId}>
-				{template(text(copy, 'localAssistanceOutputRow', '{role} · {mediaType} · {bytes} B'), {
-					role: claim.role, mediaType: claim.mediaType, bytes: String(claim.byteLength),
-				})}
-				{review.kind === 'transcript' && <ol className="kw-local-assistance__transcript">
-					{review.segments.map((segment, index) => <li
-						key={`${segment.startSeconds}:${segment.endSeconds}:${index}`}>
-						<span>{segment.speaker ? `${segment.speaker}: ${segment.text}` : segment.text}</span>
-						<small>{template(text(copy, 'localAssistanceTranscriptTime', '{start}–{end} s'), {
-							start: formatSeconds(segment.startSeconds), end: formatSeconds(segment.endSeconds),
-						})}</small>
-					</li>)}
-				</ol>}
-			</li>)}
-		</ul>}
+		{reviewOpen && snapshot.result && <LocalAssistanceOutputReviewList
+			copy={copy} outputs={snapshot.result.outputs} />}
 		<p className="kw-local-assistance__deferred">{text(copy, 'localAssistanceAcceptanceDeferred',
 			'Project acceptance is enabled in a separate review step.')}</p>
 	</AudioEditorDialogShell>;
@@ -230,8 +217,4 @@ function text(copy: Copy, key: string, fallback: string): string {
 function template(value: string, variables: Readonly<Record<string, string>>): string {
 	return Object.entries(variables).reduce((result, [key, replacement]) =>
 		result.replaceAll(`{${key}}`, replacement), value);
-}
-
-function formatSeconds(value: number): string {
-	return value.toFixed(3).replace(/(?:\.0+|(\.\d*?)0+)$/u, '$1');
 }

@@ -9,9 +9,19 @@ import {
 import type { LocalAssistanceOutputClaim } from './local-assistance-bridge.ts';
 
 const MAXIMUM_REVIEW_BYTES = 8 * 1024 * 1024;
+const MAXIMUM_SAMPLE_RANGES = 100_000;
+const REVIEW_SAMPLE_RATE = 16_000;
 const TRANSCRIPT_MEDIA_TYPES = new Set([
 	'application/json',
 	'application/vnd.soundscaper.transcript+json',
+]);
+const VOICE_ACTIVITY_MEDIA_TYPES = new Set([
+	'application/json',
+	'application/vnd.soundscaper.voice-activity+json',
+]);
+const SPEAKER_TURN_MEDIA_TYPES = new Set([
+	'application/json',
+	'application/vnd.soundscaper.speaker-turns+json',
 ]);
 const SEGMENT_KEYS = Object.freeze([
 	'startSeconds', 'endSeconds', 'text', 'words', 'speaker',
@@ -41,13 +51,37 @@ export interface LocalAssistanceTranscriptReview {
 	readonly segments: readonly LocalAssistanceTranscriptReviewSegment[];
 }
 
-export type LocalAssistanceOutputReview = LocalAssistanceTranscriptReview;
+export interface LocalAssistanceSampleRangeReview {
+	readonly startSample: number;
+	readonly sampleCount: number;
+}
+
+export interface LocalAssistanceVoiceActivityReview {
+	readonly kind: 'voice-activity';
+	readonly sampleRate: 16_000;
+	readonly segments: readonly LocalAssistanceSampleRangeReview[];
+}
+
+export interface LocalAssistanceSpeakerTurnReview extends LocalAssistanceSampleRangeReview {
+	readonly speakerId: number;
+}
+
+export interface LocalAssistanceSpeakerTurnsReview {
+	readonly kind: 'speaker-turns';
+	readonly sampleRate: 16_000;
+	readonly turns: readonly LocalAssistanceSpeakerTurnReview[];
+}
+
+export type LocalAssistanceOutputReview =
+	| LocalAssistanceTranscriptReview
+	| LocalAssistanceVoiceActivityReview
+	| LocalAssistanceSpeakerTurnsReview;
 
 export async function reviewLocalAssistanceOutput(
 	claim: LocalAssistanceOutputClaim,
 	body: Blob,
 ): Promise<LocalAssistanceOutputReview> {
-	if (claim.role !== 'transcript' || !TRANSCRIPT_MEDIA_TYPES.has(claim.mediaType)) {
+	if (!reviewMediaType(claim)) {
 		throw new TypeError('This local-assistance output has no semantic reviewer.');
 	}
 	if (!(body instanceof Blob) || body.size !== claim.byteLength
@@ -59,9 +93,105 @@ export async function reviewLocalAssistanceOutput(
 		const text = new TextDecoder('utf-8', { fatal: true }).decode(await body.arrayBuffer());
 		value = JSON.parse(text) as unknown;
 	} catch {
-		throw new TypeError('The local-assistance transcript is not valid UTF-8 JSON.');
+		throw new TypeError(claim.role === 'transcript'
+			? 'The local-assistance transcript is not valid UTF-8 JSON.'
+			: 'The local-assistance output is not valid UTF-8 JSON.');
 	}
+	if (claim.role === 'voice-activity') return voiceActivityReview(value);
+	if (claim.role === 'speaker-turns') return speakerTurnsReview(value);
 	return transcriptReview(value);
+}
+
+function reviewMediaType(claim: LocalAssistanceOutputClaim): boolean {
+	if (claim.role === 'transcript') return TRANSCRIPT_MEDIA_TYPES.has(claim.mediaType);
+	if (claim.role === 'voice-activity') return VOICE_ACTIVITY_MEDIA_TYPES.has(claim.mediaType);
+	if (claim.role === 'speaker-turns') return SPEAKER_TURN_MEDIA_TYPES.has(claim.mediaType);
+	return false;
+}
+
+function voiceActivityReview(value: unknown): LocalAssistanceVoiceActivityReview {
+	const record = exactRecord(value, ['sampleRate', 'segments'], 'voice-activity result');
+	exactReviewSampleRate(record.sampleRate, 'voice-activity result');
+	if (!Array.isArray(record.segments) || record.segments.length > MAXIMUM_SAMPLE_RANGES) {
+		throw new RangeError('The local-assistance voice-activity result exceeds its segment bound.');
+	}
+	let previousEnd = 0;
+	const segments = record.segments.map((candidate, index) => {
+		const segment = sampleRange(candidate, ['startSample', 'sampleCount'],
+			`voice-activity segment ${index}`);
+		if (segment.startSample < previousEnd) {
+			throw new RangeError('Local-assistance voice-activity segments must be ordered and disjoint.');
+		}
+		previousEnd = segment.startSample + segment.sampleCount;
+		return segment;
+	});
+	return Object.freeze({
+		kind: 'voice-activity', sampleRate: REVIEW_SAMPLE_RATE, segments: Object.freeze(segments),
+	});
+}
+
+function speakerTurnsReview(value: unknown): LocalAssistanceSpeakerTurnsReview {
+	const record = exactRecord(value, ['sampleRate', 'turns'], 'speaker-turns result');
+	exactReviewSampleRate(record.sampleRate, 'speaker-turns result');
+	if (!Array.isArray(record.turns) || record.turns.length > MAXIMUM_SAMPLE_RANGES) {
+		throw new RangeError('The local-assistance speaker-turns result exceeds its turn bound.');
+	}
+	let previous: LocalAssistanceSpeakerTurnReview | null = null;
+	const turns = record.turns.map((candidate, index): LocalAssistanceSpeakerTurnReview => {
+		const label = `speaker turn ${index}`;
+		const range = sampleRange(candidate, ['startSample', 'sampleCount', 'speakerId'], label);
+		const speakerId = exactSafeInteger((candidate as Record<string, unknown>).speakerId, 0,
+			`${label} speaker ID`);
+		const turn = Object.freeze({ ...range, speakerId });
+		if (previous && compareSpeakerTurns(previous, turn) > 0) {
+			throw new RangeError('Local-assistance speaker turns are not in stable order.');
+		}
+		previous = turn;
+		return turn;
+	});
+	return Object.freeze({
+		kind: 'speaker-turns', sampleRate: REVIEW_SAMPLE_RATE, turns: Object.freeze(turns),
+	});
+}
+
+function sampleRange(
+	value: unknown,
+	keys: readonly string[],
+	label: string,
+): LocalAssistanceSampleRangeReview {
+	const record = exactRecord(value, keys, label);
+	const startSample = exactSafeInteger(record.startSample, 0, `${label} start`);
+	const sampleCount = exactSafeInteger(record.sampleCount, 1, `${label} count`);
+	if (!Number.isSafeInteger(startSample + sampleCount)) {
+		throw new RangeError(`The local-assistance ${label} exceeds safe timing.`);
+	}
+	return Object.freeze({ startSample, sampleCount });
+}
+
+function exactReviewSampleRate(value: unknown, label: string): asserts value is 16_000 {
+	if (value !== REVIEW_SAMPLE_RATE) {
+		throw new RangeError(`The local-assistance ${label} must use the exact 16 kHz review rate.`);
+	}
+}
+
+function exactSafeInteger(value: unknown, minimum: number, label: string): number {
+	if (!Number.isSafeInteger(value) || (value as number) < minimum) {
+		throw new RangeError(`The local-assistance ${label} is invalid.`);
+	}
+	return value as number;
+}
+
+function compareSpeakerTurns(
+	left: LocalAssistanceSpeakerTurnReview,
+	right: LocalAssistanceSpeakerTurnReview,
+): number {
+	return compareInteger(left.startSample, right.startSample)
+		|| compareInteger(left.speakerId, right.speakerId)
+		|| compareInteger(left.sampleCount, right.sampleCount);
+}
+
+function compareInteger(left: number, right: number): number {
+	return left === right ? 0 : left < right ? -1 : 1;
 }
 
 function transcriptReview(value: unknown): LocalAssistanceTranscriptReview {
