@@ -2,13 +2,18 @@
 
 import { copyFutureScapeArchive } from '../common/editor/scape-archive-copy.ts';
 import type { ScapeProjectInput } from '../common/editor/scape-project-input.ts';
+import {
+	createAssistanceTranscriptScapeProjectAssetExtensionV1,
+} from '../common/editor/assistance/transcript-scape-asset-extension-v1.ts';
+import {
+	composeScapeProjectAssetExtensions,
+} from '../common/editor/scape-project-asset-extension-composition.ts';
 import type { ScapeProjectAssetExtension } from '../common/editor/scape-project-asset-extension.ts';
 import { exportScapeProject, importScapeProject, inspectScapeProject } from '../common/editor/scape-project.js';
 import {
 	createFramescaperProjectFeatureCompatibilityServiceV31,
 } from './editor-project-feature-requirements-v31.ts';
 import { readFramescaperProjectSchemaVersion } from './editor-project-v18.ts';
-import { rebindFramescaperSourceIdentitiesV27 } from './editor-project-v27-source-rebind.ts';
 import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v27.ts';
 import { assertFramescaperProjectV31Profile } from './editor-project-runtime-profile-v31.ts';
 import { framescaperProjectV27FoundationShapeV28 } from './editor-project-v28-foundation.ts';
@@ -21,6 +26,7 @@ import {
 	type FramescaperProjectV31,
 } from './editor-project-v31.ts';
 import { createFramescaperScapeProjectAssetExtensionV27 } from './editor-scape-assets-v27.ts';
+import { rebindFramescaperSourceIdentitiesV31 } from './editor-project-v31-source-rebind.ts';
 
 export interface FramescaperScapeNativeStoreV31 {
 	loadProject?(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): PromiseLike<unknown> | unknown;
@@ -69,7 +75,7 @@ export function createFramescaperScapeNativeRuntimeV31(profile: unknown) {
 				...options,
 				migrateProject,
 				currentProjectSchemaVersion: 31,
-				rebindProjectSourceIdentities: rebindFramescaperSourceIdentitiesV27,
+				rebindProjectSourceIdentities: rebindFramescaperSourceIdentitiesV31,
 				projectAssetExtension,
 			});
 			if (result.readOnly) return result;
@@ -93,7 +99,7 @@ export function createFramescaperScapeNativeRuntimeV31(profile: unknown) {
 
 function createAssetExtension(profile: unknown): Readonly<ScapeProjectAssetExtension> {
 	const v27 = createFramescaperScapeProjectAssetExtensionV27(FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE);
-	const extension: ScapeProjectAssetExtension = {
+	const inherited: ScapeProjectAssetExtension = {
 		...v27,
 		planExportAssets: (request) => v27.planExportAssets({
 			...request,
@@ -105,7 +111,10 @@ function createAssetExtension(profile: unknown): Readonly<ScapeProjectAssetExten
 		),
 		validateReboundProject: (project) => { validateFramescaperProjectV31(profile, project); },
 	};
-	return Object.freeze(extension);
+	return composeScapeProjectAssetExtensions([
+		Object.freeze(inherited),
+		createAssistanceTranscriptScapeProjectAssetExtensionV1(),
+	]);
 }
 
 function v27Foundation(project: unknown) {

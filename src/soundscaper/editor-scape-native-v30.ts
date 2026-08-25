@@ -21,9 +21,9 @@ import {
 } from './editor-project-v30.ts'
 import {
 	adaptSoundscaperScapeNativePluginStateStoreV30,
-	createSoundscaperNativePluginStateScapeExtensionV30,
 	type SoundscaperScapeNativePluginStateStoreV30,
 } from './editor-native-plugin-state-scape-v30.ts'
+import { createSoundscaperScapeProjectAssetExtensionV30 } from './editor-scape-assets-v30.ts'
 
 export interface SoundscaperScapeNativeStoreV30 extends SoundscaperScapeNativePluginStateStoreV30 {
 	loadProject?(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): PromiseLike<unknown> | unknown
@@ -32,7 +32,7 @@ export interface SoundscaperScapeNativeStoreV30 extends SoundscaperScapeNativePl
 /** Bind portable archive I/O to exact V30 validation, compatibility, and fallback integrity. */
 export function createSoundscaperScapeNativeRuntimeV30() {
 	const compatibility = createSoundscaperProjectFeatureCompatibilityServiceV30()
-	const projectAssetExtension = createSoundscaperNativePluginStateScapeExtensionV30()
+	const projectAssetExtension = createSoundscaperScapeProjectAssetExtensionV30()
 	const migrateProject = (value: unknown) => loadSoundscaperProjectV30(value)
 	const currentProjectSchemaVersion = SOUNDSCAPER_PROJECT_V30_SCHEMA_VERSION
 	return Object.freeze({
