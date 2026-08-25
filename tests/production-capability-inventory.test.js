@@ -75,11 +75,11 @@ test('MIDI stays absent while Framescaper capture is a separate application capa
 	assert.doesNotMatch(serializedProfiles, /midi/u);
 	assert.deepEqual(inventory.products.soundscaper.applicationFeatures, {});
 	assert.deepEqual(inventory.products.framescaper.applicationFeatures, {
-		framescaperCapture: false, framescaperWebVcr: false,
+		framescaperCapture: true, framescaperWebVcr: false,
 	});
 	assert.equal(inventory.products.framescaper.projectFeatures.audioRecording, false);
 	assert.equal(inventory.products.soundscaper.projectFeatures.timelineAnnotations, true);
-	assert.equal(inventory.products.framescaper.projectFeatures.timelineAnnotations, false);
+	assert.equal(inventory.products.framescaper.projectFeatures.timelineAnnotations, true);
 	assert.equal(inventory.products.soundscaper.projectFeatures.trackFolders, true);
 	assert.equal(inventory.products.framescaper.projectFeatures.trackFolders, false);
 	assert.equal(inventory.products.soundscaper.projectFeatures.audioWarp, true);

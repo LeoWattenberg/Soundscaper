@@ -11,7 +11,7 @@ export const FRAMESCAPER_PROJECT_V26_SCHEMA_VERSION = 26 as const;
 export const FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION = 27 as const;
 /** Selected Framescaper native-media/OpenFX generation; V25/V26 remain dormant custody. */
 export const FRAMESCAPER_PROJECT_V28_SCHEMA_VERSION = 28 as const;
-/** Prepared Framescaper assistance-asset custody generation; activation is a separate route change. */
+/** Selected Framescaper assistance and capture generation. */
 export const FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION = 31 as const;
 export const SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION = 21 as const;
 /** Reserved dormant Framescaper transitions candidate; never a selected shared authority. */
@@ -99,11 +99,12 @@ export function isFramescaperSequenceProjectSchema(value: unknown): value is 18 
 		|| value === FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION;
 }
 
-/** Historical Framescaper generations that own the dormant capture contract. */
-export function isFramescaperCaptureProjectSchema(value: unknown): value is 18 | 19 | 20 {
+/** Framescaper generations that own the capture contract. */
+export function isFramescaperCaptureProjectSchema(value: unknown): value is 18 | 19 | 20 | 31 {
 	return value === 18
 		|| value === FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION
-		|| value === FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION;
+		|| value === FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION
+		|| value === FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION;
 }
 
 /** Framescaper generations that own explicit clip composition state. */

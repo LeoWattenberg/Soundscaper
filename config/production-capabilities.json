@@ -204,7 +204,7 @@
 				"stems"
 			],
 			"projectFeatures": {
-				"assistanceAssets": false,
+				"assistanceAssets": true,
 				"project": true,
 				"projectBin": true,
 				"audioImport": true,
@@ -261,7 +261,7 @@
 		"framescaper": {
 			"profileEvidence": "src/framescaper/product.js",
 			"applicationFeatures": {
-				"framescaperCapture": false,
+				"framescaperCapture": true,
 				"framescaperWebVcr": false
 			},
 			"platforms": {
@@ -593,7 +593,7 @@
 				"labels"
 			],
 			"projectFeatures": {
-				"assistanceAssets": false,
+				"assistanceAssets": true,
 				"project": true,
 				"projectBin": true,
 				"audioImport": true,
@@ -626,7 +626,7 @@
 				"musicalTimeline": false,
 				"nestedSequences": true,
 				"ofxEffects": true,
-				"timelineAnnotations": false,
+				"timelineAnnotations": true,
 				"trackFolders": false,
 				"takeComp": false,
 				"audioWarp": false,

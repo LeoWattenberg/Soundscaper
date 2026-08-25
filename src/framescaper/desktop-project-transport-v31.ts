@@ -13,7 +13,7 @@ export const FRAMESCAPER_V31_COMPATIBILITY_CONTRACT = Object.freeze({
 	desktopLibraryScope: Object.freeze(['kw.media', 'scape-project-library', 'v20']),
 	clipboardSchemaVersion: 12,
 	renderPlanVersion: 14,
-	activation: 'prepared' as const,
+	activation: 'selected' as const,
 });
 
 export function framescaperDesktopProjectTransportV31(profile: unknown) {

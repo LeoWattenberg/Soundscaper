@@ -98,6 +98,7 @@ export function createFramescaperAudioEditorControllerV31(
 	controller = createAudioEditorController(null, {
 		headless: true,
 		productId: 'framescaper',
+		framescaperCaptureRouteSchemaVersion: 31,
 		store: environment.controllerStore,
 		sessionController,
 		acquireProjectLock: environment.runtime.acquireProjectLock,
