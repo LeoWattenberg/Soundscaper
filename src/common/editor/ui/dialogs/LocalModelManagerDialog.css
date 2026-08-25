@@ -1,0 +1,88 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__runtime,
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__message,
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__error {
+	padding: 10px;
+	margin-block: 0 12px;
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 6px;
+}
+
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__runtime p,
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__error p {
+	margin: 0;
+}
+
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__error {
+	display: grid;
+	justify-items: start;
+	gap: 8px;
+	border-color: var(--kw-editor-danger);
+}
+
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__list {
+	display: grid;
+	gap: 10px;
+	padding: 0;
+	margin: 0;
+	list-style: none;
+}
+
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__list > li {
+	display: grid;
+	grid-template-columns: minmax(160px, 1.4fr) minmax(190px, 1fr) auto;
+	align-items: center;
+	gap: 12px;
+	padding: 12px;
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 7px;
+}
+
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__identity {
+	display: grid;
+	min-width: 0;
+	gap: 3px;
+}
+
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__identity strong {
+	overflow-wrap: anywhere;
+}
+
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__identity span,
+#kw-audio-editor-design-system [data-local-model-manager] dt,
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__progress label {
+	color: var(--kw-editor-muted);
+	font-size: 10px;
+}
+
+#kw-audio-editor-design-system [data-local-model-manager] dl {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+	margin: 0;
+}
+
+#kw-audio-editor-design-system [data-local-model-manager] dd {
+	margin: 2px 0 0;
+}
+
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__progress {
+	grid-column: 1 / -1;
+	display: grid;
+	gap: 4px;
+}
+
+#kw-audio-editor-design-system [data-local-model-manager] progress {
+	width: 100%;
+}
+
+#kw-audio-editor-design-system [data-local-model-manager] .kw-audio-editor-dialog__actions {
+	padding: 12px 18px;
+}
+
+@media (max-width: 680px) {
+	#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__list > li {
+		grid-template-columns: 1fr;
+	}
+}

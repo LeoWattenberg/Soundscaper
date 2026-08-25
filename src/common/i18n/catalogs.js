@@ -8,7 +8,7 @@ import { MUSICAL_TIMELINE_COPY_BY_LOCALE } from './musical-timeline-copy.js';
 import { SEQUENCE_TIMING_COPY_BY_LOCALE } from './sequence-timing-copy.js';
 import { SITE_SIDEBAR_COPY_BY_LOCALE } from './site-sidebar-copy.js';
 import { TIMELINE_ANNOTATION_COPY_BY_LOCALE } from './timeline-annotation-copy.js';
-import { TRACK_FOLDER_COPY_BY_LOCALE } from './track-folder-copy.js'; import { FRAMESCAPER_CAPTURE_COPY_BY_LOCALE } from './framescaper-capture-copy.js';
+import { TRACK_FOLDER_COPY_BY_LOCALE } from './track-folder-copy.js'; import { FRAMESCAPER_CAPTURE_COPY_BY_LOCALE } from './framescaper-capture-copy.js'; import { LOCAL_MODEL_MANAGER_COPY_BY_LOCALE } from './local-model-manager-copy.js';
 import { VIDEO_EFFECT_COPY_BY_LOCALE } from './video-effect-copy.js'; import { VIDEO_COMPOSITION_COPY_BY_LOCALE } from './video-composition-copy.js'; import { VIDEO_CAPTION_COPY_BY_LOCALE } from './video-caption-copy.js';
 // Canonical bundled catalogs. Audacity-sourced overrides are merged at runtime.
 // User-visible copy intentionally omits ellipsis punctuation.
@@ -18,7 +18,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		...MUSICAL_TIMELINE_COPY_BY_LOCALE.de,
 		...SEQUENCE_TIMING_COPY_BY_LOCALE.de,
 		...TIMELINE_ANNOTATION_COPY_BY_LOCALE.de,
-		...TRACK_FOLDER_COPY_BY_LOCALE.de, ...FRAMESCAPER_CAPTURE_COPY_BY_LOCALE.de,
+		...TRACK_FOLDER_COPY_BY_LOCALE.de, ...FRAMESCAPER_CAPTURE_COPY_BY_LOCALE.de, ...LOCAL_MODEL_MANAGER_COPY_BY_LOCALE.de,
 		framescaperEyebrow: 'Video lokal bearbeiten',
 		framescaperTitle: 'Framescaper',
 		framescaperIntro: 'Schneide Video und Ton nondestruktiv, kombiniere Ebenen und Effekte und exportiere das fertige Video.',
@@ -1023,7 +1023,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		...MUSICAL_TIMELINE_COPY_BY_LOCALE.en,
 		...SEQUENCE_TIMING_COPY_BY_LOCALE.en,
 		...TIMELINE_ANNOTATION_COPY_BY_LOCALE.en,
-		...TRACK_FOLDER_COPY_BY_LOCALE.en, ...FRAMESCAPER_CAPTURE_COPY_BY_LOCALE.en,
+		...TRACK_FOLDER_COPY_BY_LOCALE.en, ...FRAMESCAPER_CAPTURE_COPY_BY_LOCALE.en, ...LOCAL_MODEL_MANAGER_COPY_BY_LOCALE.en,
 		framescaperEyebrow: 'Local video editing',
 		framescaperTitle: 'Framescaper',
 		framescaperIntro: 'Edit video and sound nondestructively, combine layers and effects, and export the finished video.',
