@@ -19,9 +19,9 @@ import {
 	registerFramescaperVideoProxyActionRuntime,
 } from '../src/framescaper/editor-video-proxy-action-runtime-v20.ts';
 
-test('selected V28 retains V20/V27 proxy projects in one existing menu with product isolation', () => {
+test('selected F31 retains V20/V27/V28 proxy projects in one existing menu with product isolation', () => {
 	let opens = 0;
-	for (const schemaVersion of [20, 27, 28]) {
+	for (const schemaVersion of [20, 27, 28, 31]) {
 		const items = createFramescaperVideoProxyApplicationMenuItems({
 			productId: 'framescaper', project: project(schemaVersion),
 			copy: {}, open: () => { opens += 1; },
@@ -31,14 +31,14 @@ test('selected V28 retains V20/V27 proxy projects in one existing menu with prod
 		assert.equal(items[0]?.disabled, false);
 		items[0]?.onClick();
 	}
-	assert.equal(opens, 3);
+	assert.equal(opens, 4);
 	assert.deepEqual(createFramescaperVideoProxyApplicationMenuItems({
 		productId: 'soundscaper', project: project(20), copy: {}, open: () => undefined,
 	}), []);
 });
 
 test('proxy dialog model targets the selected source and reports offline attached state', () => {
-	const value = project(27);
+	const value = project(31);
 	(value.sources[0] as Record<string, unknown>).proxyAttachment = { originalAuthorityKind: 'linked' };
 	const model = createFramescaperVideoProxyDialogModel({
 		project: value, selectedClipId: 'video-clip', missingSourceIds: ['video-source'],

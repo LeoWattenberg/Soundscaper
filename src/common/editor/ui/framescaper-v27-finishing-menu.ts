@@ -60,7 +60,8 @@ export function createFramescaperV27FinishingMenuItems(
 	actions: Readonly<{ open(surface: FramescaperV27FinishingSurface): unknown }>,
 ): FramescaperV27FinishingMenuItems {
 	const projectSchema = schema(input.project);
-	if (input.productId !== 'framescaper' || (projectSchema !== 27 && projectSchema !== 28)) return EMPTY;
+	if (input.productId !== 'framescaper'
+		|| (projectSchema !== 27 && projectSchema !== 28 && projectSchema !== 31)) return EMPTY;
 	const mutable = !input.editingBlocked && input.readOnly !== true;
 	const copy = input.copy ?? {};
 	const leaf = (
