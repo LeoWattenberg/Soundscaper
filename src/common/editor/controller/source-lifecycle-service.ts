@@ -130,7 +130,7 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 		const projectAtStart = getProject();
 		const clip = projectAtStart ? findClip(projectAtStart, clipId) : null;
 		const source = clip ? findSource(projectAtStart, clip.sourceId) : null;
-		if (!clip || !source || source.kind === 'video' || sourceBuffers.has(source.id)) return null;
+		if (!clip || !source || source.kind === 'video' || source.kind === 'image' || sourceBuffers.has(source.id)) return null;
 		const cacheKey = String(clip.id);
 		const startFrame = Math.max(0, Math.min(clip.durationFrames, Math.round(Number(options.startFrame) || 0)));
 		const endFrame = Math.max(startFrame, Math.min(
@@ -236,10 +236,10 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 					throwIfSourceLoadAborted(options.signal);
 					continue;
 				}
-				// Maintained still and generator bodies are resolved by the visual
+				// Maintained still, generator, and image bodies are resolved by the visual
 				// service. Treating them as PCM made a valid visual-only project look
 				// like it had missing local audio and incorrectly fenced video export.
-				if (source.kind === 'still' || source.kind === 'generator') continue;
+				if (source.kind === 'still' || source.kind === 'generator' || source.kind === 'image') continue;
 				const metadata = await awaitSourceLoadOperation(
 					() => store.getSourceMetadata(source.storageKey || source.id),
 					options.signal,

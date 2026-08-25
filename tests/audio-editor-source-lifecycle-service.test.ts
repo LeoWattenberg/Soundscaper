@@ -93,8 +93,8 @@ function createFixture(options: Readonly<{ videoFailure?: Error }> = {}) {
 	};
 }
 
-test('visual-only still and generator sources do not enter the PCM missing-source fence', async () => {
-	for (const kind of ['still', 'generator']) {
+test('visual-only still, generator, and timeline image sources do not enter the PCM missing-source fence', async () => {
+	for (const kind of ['still', 'generator', 'image']) {
 		const fixture = createFixture();
 		const source = { id: `${kind}-source`, kind };
 		await fixture.service.loadProjectSources({ id: `${kind}-project`, sources: [source],
