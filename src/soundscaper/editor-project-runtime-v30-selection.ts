@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { AudioEditorClipboard, AudioEditorCommand } from '../common/editor/commands/protocol.ts';
+import type { AudioEditorClipboard } from '../common/editor/commands/protocol.ts';
 import type {
 	ControllerProjectRuntime,
 	ControllerRuntimeHistory,
@@ -17,6 +17,7 @@ import type { AudioEditorProjectStore } from '../common/editor/storage.js';
 import {
 	applySoundscaperProjectCommandV30,
 	soundscaperProjectForCommandConsumersV30,
+	type SoundscaperProjectCommandV30,
 } from './editor-project-v30-commands.ts';
 import {
 	createSoundscaperOpaqueCustodyConsumerProjectV30,
@@ -81,8 +82,16 @@ export interface SoundscaperProjectRuntimeV30Selection {
 	readonly projectForRuntimeConsumers: ControllerProjectRuntime['projectForRuntimeConsumers'];
 	readonly prepareEditClipboardDescriptor: ControllerProjectRuntime['prepareEditClipboardDescriptor'];
 	readonly prepareTrackDuplicateCarrier: ControllerProjectRuntime['prepareTrackDuplicateCarrier'];
-	readonly applyCommand: ControllerProjectRuntime['applyCommand'];
-	readonly executeCommand: ControllerProjectRuntime['executeCommand'];
+	readonly applyCommand: (
+		project: unknown,
+		command: SoundscaperProjectCommandV30,
+		options?: Readonly<{ now?: Date | string }>,
+	) => SoundscaperProjectV30 & ControllerRuntimeProject;
+	readonly executeCommand: (
+		history: SoundscaperProjectHistorySelectionV30,
+		command: SoundscaperProjectCommandV30,
+		options?: Readonly<{ now?: Date | string }>,
+	) => SoundscaperProjectHistoryV30 & ControllerRuntimeHistory;
 	readonly undo: ControllerProjectRuntime['undo'];
 	readonly redo: ControllerProjectRuntime['redo'];
 	readonly canUndo: ControllerProjectRuntime['canUndo'];
@@ -123,12 +132,12 @@ export function createSoundscaperProjectRuntimeV30Selection(): Readonly<Soundsca
 			prepareCurrentSoundscaperTrackDuplicateCarrierV8(project, request)
 		),
 		createHistory: (project: unknown) => createHistory(project),
-		applyCommand: (project: unknown, command: AudioEditorCommand, options = {}) => (
+		applyCommand: (project: unknown, command: SoundscaperProjectCommandV30, options = {}) => (
 			applySoundscaperProjectCommandV30(project, command, options) as SoundscaperProjectV30 & ControllerRuntimeProject
 		),
 		executeCommand: (
 			history: SoundscaperProjectHistorySelectionV30,
-			command: AudioEditorCommand,
+			command: SoundscaperProjectCommandV30,
 			options = {},
 		) => executeSoundscaperProjectCommandV30(
 			writableHistory(history), command, options,
