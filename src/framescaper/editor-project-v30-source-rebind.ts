@@ -21,7 +21,7 @@ export function rebindFramescaperSourceIdentitiesV30(
 			...source,
 			id: after,
 			storageKey: after,
-		});
+		}) as unknown as Record<string, unknown>;
 	});
 	assertUniqueIds(sources, 'V30 rebound sources');
 	project.sources = sources;
