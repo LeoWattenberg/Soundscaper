@@ -144,7 +144,10 @@ export function createSingleKindHelperWorker({
 		try {
 			await job.handle?.cancel();
 		} catch {
-			// Cancellation is best effort; quiescence is what is acknowledged.
+			// A rejected runner cancellation leaves quiescence unknown. Terminate
+			// this containing process rather than acknowledge or admit overlap.
+			dispose(1);
+			return;
 		}
 		if (activeJob === job) {
 			job.settled = true;

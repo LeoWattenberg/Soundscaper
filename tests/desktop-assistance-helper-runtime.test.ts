@@ -102,3 +102,130 @@ test('a missing or non-file grant is refused before any helper job starts', asyn
 	}), /ENOENT|regular file/iu);
 	assert.equal(starts, 0);
 });
+
+test('recognition carries progress and AbortSignal to the supervised helper run', async (t) => {
+	const root = await mkdtemp(join(tmpdir(), 'scape-speech-grants-'));
+	t.after(() => rm(root, { recursive: true, force: true }));
+	const paths = Object.fromEntries(await Promise.all(
+		['audio', 'encoder', 'decoder', 'joiner', 'tokens'].map(async (role) => {
+			const path = join(root, `${role}.bin`);
+			await writeFile(path, role);
+			return [role, path];
+		}),
+	)) as Record<string, string>;
+	const controller = new AbortController();
+	const progress: unknown[] = [];
+	let receivedOptions: unknown = null;
+	const runtime = createAssistanceHelperRuntimeAdapter({
+		host: {
+			start(_request, options) {
+				receivedOptions = options;
+				return {
+					jobId: 'ab'.repeat(20), completed: Promise.resolve(RESULT),
+					cancel: () => Promise.resolve(),
+				};
+			},
+			dispose() {},
+		},
+	});
+	await runtime.recognize({
+		audioPath: paths.audio!,
+		model: {
+			encoder: paths.encoder!, decoder: paths.decoder!, joiner: paths.joiner!, tokens: paths.tokens!,
+		},
+		signal: controller.signal,
+		onProgress: (value) => progress.push(value),
+	});
+	assert.deepEqual(receivedOptions, {
+		signal: controller.signal,
+		onProgress: (receivedOptions as { onProgress: unknown }).onProgress,
+	});
+	(receivedOptions as { onProgress: (value: unknown) => void }).onProgress({ completed: 1, total: 2 });
+	assert.deepEqual(progress, [{ completed: 1, total: 2 }]);
+});
+
+test('a signal aborted before grant capture refuses without reading into helper admission', async (t) => {
+	const root = await mkdtemp(join(tmpdir(), 'scape-speech-grants-'));
+	t.after(() => rm(root, { recursive: true, force: true }));
+	const paths = Object.fromEntries(await Promise.all(
+		['audio', 'encoder', 'decoder', 'joiner', 'tokens'].map(async (role) => {
+			const path = join(root, `${role}.bin`);
+			await writeFile(path, role);
+			return [role, path];
+		}),
+	)) as Record<string, string>;
+	let starts = 0;
+	const runtime = createAssistanceHelperRuntimeAdapter({
+		host: {
+			start() {
+				starts += 1;
+				throw new Error('An aborted grant must not reach the helper.');
+			},
+			dispose() {},
+		},
+	});
+	const controller = new AbortController();
+	const reason = new DOMException('Grant capture was cancelled.', 'AbortError');
+	controller.abort(reason);
+	await assert.rejects(runtime.recognize({
+		audioPath: paths.audio!,
+		model: {
+			encoder: paths.encoder!, decoder: paths.decoder!, joiner: paths.joiner!, tokens: paths.tokens!,
+		},
+		signal: controller.signal,
+	}), (error: unknown) => error === reason);
+	assert.equal(starts, 0);
+});
+
+test('abort during grant hashing destroys every open stream before helper admission', async (t) => {
+	const root = await mkdtemp(join(tmpdir(), 'scape-speech-grants-'));
+	t.after(() => rm(root, { recursive: true, force: true }));
+	const paths = Object.fromEntries(await Promise.all(
+		['audio', 'encoder', 'decoder', 'joiner', 'tokens'].map(async (role) => {
+			const path = join(root, `${role}.bin`);
+			await writeFile(path, role);
+			return [role, path];
+		}),
+	)) as Record<string, string>;
+	const rejectedReads = new Map<string, (reason?: unknown) => void>();
+	const destroyed = new Map<string, Error | undefined>();
+	let captureCount = 0;
+	let captureStarted!: () => void;
+	const allCapturesStarted = new Promise<void>((resolve) => { captureStarted = resolve; });
+	let starts = 0;
+	const runtime = createAssistanceHelperRuntimeAdapter({
+		openFileReadStream: (path) => ({
+			async *[Symbol.asyncIterator]() {
+				captureCount += 1;
+				if (captureCount === 5) captureStarted();
+				await new Promise<never>((_resolve, reject) => { rejectedReads.set(path, reject); });
+			},
+			destroy(error?: Error) {
+				destroyed.set(path, error);
+				rejectedReads.get(path)?.(error);
+			},
+		}),
+		host: {
+			start() {
+				starts += 1;
+				throw new Error('A cancelled grant must not reach the helper.');
+			},
+			dispose() {},
+		},
+	});
+	const controller = new AbortController();
+	const reason = new DOMException('Stop capturing grants.', 'AbortError');
+	const recognition = runtime.recognize({
+		audioPath: paths.audio!,
+		model: {
+			encoder: paths.encoder!, decoder: paths.decoder!, joiner: paths.joiner!, tokens: paths.tokens!,
+		},
+		signal: controller.signal,
+	});
+	await allCapturesStarted;
+	controller.abort(reason);
+	await assert.rejects(recognition, (error: unknown) => error === reason);
+	assert.equal(starts, 0);
+	assert.equal(destroyed.size, 5);
+	for (const error of destroyed.values()) assert.equal(error, reason);
+});

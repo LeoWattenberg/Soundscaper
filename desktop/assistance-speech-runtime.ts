@@ -61,6 +61,9 @@ export interface SpeechRecognitionRequest {
 	readonly model: SpeechModelPaths;
 	readonly language?: string | null;
 	readonly threads?: number;
+	/** Caller-owned cancellation travels through main supervision to helper quiescence. */
+	readonly signal?: AbortSignal;
+	readonly onProgress?: (progress: Readonly<{ completed: number; total: number }>) => void;
 }
 
 export interface SpeechRuntimeAdapter {
