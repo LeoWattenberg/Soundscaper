@@ -32,6 +32,12 @@ import {
 import { framescaperProjectV27FoundationShapeV28 } from './editor-project-v28-foundation.ts';
 import { assertFramescaperProjectV28Profile } from './editor-project-runtime-profile-v28.ts';
 import type { FramescaperProjectV28 } from './editor-project-v28.ts';
+import {
+	type FramescaperProjectHistoryV31,
+	validateFramescaperProjectHistoryV31,
+} from './editor-project-v31-history.ts';
+import { framescaperProjectV28FoundationShapeV31 } from './editor-project-v31-foundation.ts';
+import { FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v31.ts';
 
 export interface FramescaperClaimCleanupProjectProfile {
 	project(value: unknown): FramescaperProjectV18;
@@ -42,6 +48,28 @@ export interface FramescaperClaimCleanupProjectProfile {
 export function framescaperClaimCleanupProjectProfile(
 	profile: EditorProjectRuntimeProfile | unknown,
 ): FramescaperClaimCleanupProjectProfile {
+	if (profile === FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE) {
+		const project = (value: unknown) => v20FoundationProject(
+			framescaperProjectV20FoundationV27(
+				FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,
+				framescaperProjectV27FoundationShapeV28(
+					framescaperProjectV28FoundationShapeV31(value),
+				),
+			),
+		);
+		return Object.freeze({
+			project,
+			historyProjects: (value: unknown) => {
+				validateFramescaperProjectHistoryV31(profile, value);
+				const history = value as FramescaperProjectHistoryV31;
+				return Object.freeze([
+					project(history.present),
+					...history.undoStack.map(({ project: snapshot }) => project(snapshot)),
+					...history.redoStack.map(({ project: snapshot }) => project(snapshot)),
+				]);
+			},
+		});
+	}
 	try {
 		assertFramescaperProjectV18Profile(profile);
 		return Object.freeze({

@@ -40,7 +40,7 @@ export interface FramescaperProjectV28 extends Omit<FramescaperProjectV27,
 	readonly mixer: FramescaperProjectV27['mixer'];
 }
 
-const PROJECT_FIELDS = Object.freeze([
+export const FRAMESCAPER_V28_PROJECT_FIELDS = Object.freeze([
 	'schemaVersion', 'id', 'title', 'revision', 'createdAt', 'updatedAt', 'sampleRate',
 	'masterChannels', 'tempo', 'snap', 'timeDisplay', 'metadata', 'selection', 'loop',
 	'view', 'sources', 'clips', 'tracks', 'master', 'mixer', 'opaqueExtensions',
@@ -103,13 +103,13 @@ function validateProfessionalSources(project: Record<string, unknown>): void {
 
 function exactProject(value: unknown): Record<string, unknown> {
 	const project = record(value, 'Framescaper V28 project');
-	const expected = new Set(PROJECT_FIELDS);
+	const expected = new Set(FRAMESCAPER_V28_PROJECT_FIELDS);
 	const keys = Reflect.ownKeys(project);
 	if (keys.length !== expected.size || keys.some((key) => typeof key !== 'string' || !expected.has(key))) {
 		const unexpected = keys.find((key) => typeof key !== 'string' || !expected.has(key));
 		throw new TypeError(`Framescaper V28 project contains unsupported field ${String(unexpected)}.`);
 	}
-	for (const field of PROJECT_FIELDS) {
+	for (const field of FRAMESCAPER_V28_PROJECT_FIELDS) {
 		const descriptor = Object.getOwnPropertyDescriptor(project, field);
 		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) throw new TypeError(`${field} must be data.`);
 	}
