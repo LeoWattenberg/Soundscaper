@@ -4,26 +4,25 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-test('desktop main registers codec IPC after preferences and joins owner and shutdown cleanup', async () => {
-	const [mainSource, registrationSource] = await Promise.all([
+test('desktop main registers both codec providers after preferences and joins lifecycle cleanup', async () => {
+	const [mainSource, integrationSource, registrationSource] = await Promise.all([
 		readFile(new URL('../desktop/main.mjs', import.meta.url), 'utf8'),
+		readFile(new URL('../desktop/desktop-codec-main-integration.mjs', import.meta.url), 'utf8'),
 		readFile(new URL('../desktop/desktop-audio-codec-registration.mjs', import.meta.url), 'utf8'),
 	]);
-	assert.match(mainSource, /import \{ registerDesktopAudioCodecs \} from '\.\/desktop-audio-codec-registration\.mjs'/u);
+	assert.match(mainSource, /import \{ registerDesktopCodecProviders \} from '\.\/desktop-codec-main-integration\.mjs'/u);
 	const preferenceIndex = mainSource.indexOf('externalFfmpegPreferences = await registerExternalFfmpegPreferences');
-	const codecIndex = mainSource.indexOf('desktopAudioCodecs = await registerDesktopAudioCodecs');
+	const codecIndex = mainSource.indexOf('desktopCodecs = await registerDesktopCodecProviders');
 	assert.ok(preferenceIndex >= 0 && codecIndex > preferenceIndex,
 		'the request-scoped runtime receives the initialized external preference service');
-	assert.match(mainSource, /registerDesktopAudioCodecs\(\{ channels: IPC, handle, removeHandler: \(channel\) => ipcMain\.removeHandler\(channel\), ownerFor: rendererSaveOwnerFor, externalFfmpegPreferences: externalFfmpegPreferences\.service, platform: process\.platform, architecture: process\.arch, operatingSystemVersion: process\.getSystemVersion\(\), userDataPath: app\.getPath\('userData'\), desktopRoot: __dirname, runtimeRoot: resourceRoots\(\)\.runtime, packaged: app\.isPackaged, resourcesPath: process\.resourcesPath, forkUtilityProcess: \(modulePath, arguments_, options\) => utilityProcess\.fork\(modulePath, arguments_, options\) \}\)/u);
-	assert.match(mainSource, /revokeDesktopAudioCodecs: \(owner\) => desktopAudioCodecs\?\.revokeOwner\(owner\)/u);
-	assert.match(mainSource, /name: 'desktop audio codecs', run: \(\) => desktopAudioCodecs\?\.dispose\(\)/u);
+	assert.match(mainSource, /registerDesktopCodecProviders\(\{[^\n]+productId: PRODUCT_ID,[^\n]+externalFfmpegPreferences: externalFfmpegPreferences\.service,[^\n]+environment: process\.env \}\)/u);
+	assert.match(mainSource, /revokeDesktopCodecs: \(owner\) => desktopCodecs\?\.revokeOwner\(owner\)/u);
+	assert.match(mainSource, /name: 'desktop codecs', run: \(\) => desktopCodecs\?\.dispose\(\)/u);
+	assert.match(integrationSource, /registerDesktopAudioCodecs/u);
+	assert.match(integrationSource, /registerDesktopVideoCodecs/u);
 	assert.match(registrationSource, /import\('\.\/project-library-runtime\/desktop\/desktop-audio-codec-runtime-composition\.js'\)/u);
 	assert.match(registrationSource, /import\('\.\/project-library-runtime\/desktop\/desktop-audio-codec-main-ipc\.js'\)/u);
-	assert.match(registrationSource, /import\('\.\/project-library-runtime\/desktop\/bundled-audio-codec-runtime\.js'\)/u);
-	assert.match(registrationSource, /import\('\.\/project-library-runtime\/desktop\/bundled-flac-audio-codec-runtime\.js'\)/u);
-	assert.match(registrationSource, /import\('\.\/project-library-runtime\/desktop\/bundled-lame-audio-codec-runtime\.js'\)/u);
-	assert.match(registrationSource, /import\('\.\/project-library-runtime\/desktop\/bundled-twolame-audio-codec-runtime\.js'\)/u);
-	assert.match(registrationSource, /import\('\.\/project-library-runtime\/desktop\/bundled-wavpack-audio-codec-runtime\.js'\)/u);
+	assert.match(registrationSource, /import\('\.\/project-library-runtime\/desktop\/bundled-audio-codec-isolated-runtime\.js'\)/u);
 	assert.match(registrationSource, /import\('\.\/project-library-runtime\/desktop\/os-audio-codec-runtime\.js'\)/u);
 	assert.match(registrationSource, /import\('\.\/os-audio-codec-electron-spawn\.mjs'\)/u);
 	assert.match(registrationSource, /import\('\.\/os-audio-codec-native-payload\.mjs'\)/u);

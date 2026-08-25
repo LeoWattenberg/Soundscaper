@@ -35,7 +35,7 @@ import { framescaperWebVcrSmokeQualification } from './framescaper-web-vcr-smoke
 import { disposeDesktopNativeTier, registerDesktopNativeTier, revokeDesktopNativeTierOwner } from './native-tier-registration.mjs';
 import { registerHostAffordances } from './host-affordances.mjs';
 import { registerExternalFfmpegPreferences } from './external-ffmpeg-registration.mjs';
-import { registerDesktopAudioCodecs } from './desktop-audio-codec-registration.mjs';
+import { registerDesktopCodecProviders } from './desktop-codec-main-integration.mjs';
 import { ReadCapabilityStore, throwAfterReadCapabilityRollback } from './file-capabilities.js';
 import {
 	createPendingProjectDelivery, PendingProjectQueue, extractProjectPaths,
@@ -87,12 +87,12 @@ let projectLibraryIpc = null;
 let linkedVideoLocators = null;
 let nativeTier = null;
 let nativeServices = null;
-let captureSecurity = null, assistance = null, externalFfmpegPreferences = null, desktopAudioCodecs = null;
+let captureSecurity = null, assistance = null, externalFfmpegPreferences = null, desktopCodecs = null;
 let allowNextClose = false;
 let applicationIsQuitting = false;
 const rendererOwnershipCleanup = new DesktopRendererOwnershipCleanup({
 	revokeCapture: (owner) => revokeDesktopCaptureOwner(captureSecurity, owner),
-	revokeDesktopAudioCodecs: (owner) => desktopAudioCodecs?.revokeOwner(owner),
+	revokeDesktopCodecs: (owner) => desktopCodecs?.revokeOwner(owner),
 	revokeNativeServices: (owner) => nativeServices?.revokeOwner(owner),
 	revokeNativeTier: (owner) => revokeDesktopNativeTierOwner(nativeTier, owner),
 	linkedVideoLocators: () => linkedVideoLocators,
@@ -116,7 +116,7 @@ const pendingOpenProjects = new PendingProjectQueue(createPendingProjectDelivery
 }));
 const applicationShutdown = new DesktopApplicationShutdown({
 	tasks: [
-		{ name: 'desktop audio codecs', run: () => desktopAudioCodecs?.dispose() },
+		{ name: 'desktop codecs', run: () => desktopCodecs?.dispose() },
 		{ name: 'external FFmpeg preferences', run: () => externalFfmpegPreferences?.dispose() },
 		{ name: 'capture security', run: () => disposeDesktopCaptureSecurity(captureSecurity) },
 		{ name: 'native services', run: () => nativeServices?.dispose() },
@@ -374,7 +374,7 @@ async function registerIpcHandlers(desktopSession) {
 	await nativeTier.ready();
 	registerDesktopNativeTierControls({ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, settings, tier: nativeTier });
 	externalFfmpegPreferences = await registerExternalFfmpegPreferences({ channels: IPC, handle, removeHandler: (channel) => ipcMain.removeHandler(channel), settings, dialog, windowFor: () => mainWindow, platform: process.platform, architecture: process.arch, userDataPath: app.getPath('userData'), environment: process.env });
-	desktopAudioCodecs = await registerDesktopAudioCodecs({ channels: IPC, handle, removeHandler: (channel) => ipcMain.removeHandler(channel), ownerFor: rendererSaveOwnerFor, externalFfmpegPreferences: externalFfmpegPreferences.service, platform: process.platform, architecture: process.arch, operatingSystemVersion: process.getSystemVersion(), userDataPath: app.getPath('userData'), desktopRoot: __dirname, runtimeRoot: resourceRoots().runtime, packaged: app.isPackaged, resourcesPath: process.resourcesPath, forkUtilityProcess: (modulePath, arguments_, options) => utilityProcess.fork(modulePath, arguments_, options) });
+	desktopCodecs = await registerDesktopCodecProviders({ channels: IPC, handle, removeHandler: (channel) => ipcMain.removeHandler(channel), ownerFor: rendererSaveOwnerFor, productId: PRODUCT_ID, externalFfmpegPreferences: externalFfmpegPreferences.service, platform: process.platform, architecture: process.arch, operatingSystemVersion: process.getSystemVersion(), userDataPath: app.getPath('userData'), desktopRoot: __dirname, runtimeRoot: resourceRoots().runtime, packaged: app.isPackaged, resourcesPath: process.resourcesPath, forkUtilityProcess: (modulePath, arguments_, options) => utilityProcess.fork(modulePath, arguments_, options), environment: process.env });
 	handle(IPC.environment, () => ({
 		platform: process.platform,
 		arch: process.arch,
