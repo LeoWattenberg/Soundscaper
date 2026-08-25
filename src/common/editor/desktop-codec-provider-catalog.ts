@@ -257,12 +257,14 @@ function bundledBindings(
 		{ minimum: 1, maximum: 8, multipleOf: 1 }, 'libvorbis', ['libsndfile', 'libogg', 'libvorbis']);
 	audio(['ogg'], 'opus', ['encode', 'decode'], ['f32p'], [8_000, 12_000, 16_000, 24_000, 48_000],
 		{ minimum: 1, maximum: 8, multipleOf: 1 }, 'libopus', ['libogg', 'libopus']);
-	audio(['mp3'], 'mp3', ['decode'], ['f32'], [8_000, 11_025, 12_000, 16_000, 22_050, 24_000, 32_000, 44_100, 48_000],
+	audio(['mp3'], 'mp3', ['decode'], ['f32'], [32_000, 44_100, 48_000],
 		{ minimum: 1, maximum: 2, multipleOf: 1 }, 'mpg123', ['mpg123']);
 	audio(['mp3'], 'mp3', ['encode'], ['f32p'], [8_000, 11_025, 12_000, 16_000, 22_050, 24_000, 32_000, 44_100, 48_000],
 		{ minimum: 1, maximum: 2, multipleOf: 1 }, 'lame', ['lame']);
 	audio(['mp2'], 'mp2', ['encode'], ['f32p'], [32_000, 44_100, 48_000],
 		{ minimum: 1, maximum: 2, multipleOf: 1 }, 'twolame', ['twolame']);
+	audio(['mp2'], 'mp2', ['decode'], ['f32'], [32_000, 44_100, 48_000],
+		{ minimum: 1, maximum: 2, multipleOf: 1 }, 'mpg123', ['mpg123']);
 	audio(['wavpack'], 'wavpack', ['encode', 'decode'], ['s16', 's24', 's32', 'f32'], [AUDIO_RATE],
 		{ minimum: 1, maximum: 8, multipleOf: 1 }, 'wavpack', ['wavpack']);
 	video('vp8', ['encode', 'decode'], [[null, 'yuv420p']], 'libvpx', ['libwebm', 'libvpx']);

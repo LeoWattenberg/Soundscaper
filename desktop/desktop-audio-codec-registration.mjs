@@ -16,7 +16,7 @@ const MODULE_METHODS = Object.freeze([
 	'createBundledDesktopAudioCodecRuntime', 'createDesktopAudioCodecRuntimeComposition',
 	'createOperatingSystemAudioCodecElectronSpawn', 'createSoundscaperProfessionalNativeVerifier',
 	'loadBundledFlacAudioCodecRuntime', 'loadBundledOpusAudioCodecRuntime',
-	'loadBundledVorbisAudioCodecRuntime',
+	'loadBundledMpg123AudioCodecRuntime', 'loadBundledVorbisAudioCodecRuntime',
 	'loadBundledWavPackAudioCodecRuntime',
 	'loadOperatingSystemAudioCodecRuntime',
 	'registerDesktopAudioCodecMainIpc',
@@ -44,6 +44,7 @@ export async function registerDesktopAudioCodecs(options) {
 		modules.loadBundledWavPackAudioCodecRuntime({ target }),
 		modules.loadBundledFlacAudioCodecRuntime({ target }),
 		modules.loadBundledOpusAudioCodecRuntime({ target }),
+		modules.loadBundledMpg123AudioCodecRuntime({ target }),
 		modules.loadBundledVorbisAudioCodecRuntime({ target }),
 	])).filter((runtime) => runtime !== null);
 	const bundledRuntime = reviewedRuntimes.length === 0
@@ -92,13 +93,14 @@ export async function registerDesktopAudioCodecs(options) {
 }
 
 async function loadRuntimeModules() {
-	const [bundled, composition, electronSpawn, flac, ipc, operatingSystem, opus, professional, vorbis, wavPack]
+	const [bundled, composition, electronSpawn, flac, ipc, mpg123, operatingSystem, opus, professional, vorbis, wavPack]
 		= await Promise.all([
 		import('./project-library-runtime/desktop/bundled-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/desktop-audio-codec-runtime-composition.js'),
 		import('./os-audio-codec-electron-spawn.mjs'),
 		import('./project-library-runtime/desktop/bundled-flac-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/desktop-audio-codec-main-ipc.js'),
+		import('./project-library-runtime/desktop/bundled-mpg123-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/os-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/bundled-opus-audio-codec-runtime.js'),
 		import('./soundscaper-professional-native-payload.mjs'),
@@ -111,6 +113,7 @@ async function loadRuntimeModules() {
 		createOperatingSystemAudioCodecElectronSpawn: electronSpawn.createOperatingSystemAudioCodecElectronSpawn,
 		createSoundscaperProfessionalNativeVerifier: professional.createSoundscaperProfessionalNativeVerifier,
 		loadBundledFlacAudioCodecRuntime: flac.loadBundledFlacAudioCodecRuntime,
+		loadBundledMpg123AudioCodecRuntime: mpg123.loadBundledMpg123AudioCodecRuntime,
 		loadBundledOpusAudioCodecRuntime: opus.loadBundledOpusAudioCodecRuntime,
 		loadBundledVorbisAudioCodecRuntime: vorbis.loadBundledVorbisAudioCodecRuntime,
 		loadBundledWavPackAudioCodecRuntime: wavPack.loadBundledWavPackAudioCodecRuntime,

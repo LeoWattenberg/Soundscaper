@@ -10,12 +10,14 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { compileDesktopProjectLibraryRuntime } from '../scripts/lib/desktop-project-library-runtime.mjs';
 import { stageDesktopBundledFlacRuntime } from '../scripts/lib/desktop-bundled-flac-runtime.mjs';
+import { stageDesktopBundledMpg123Runtime } from '../scripts/lib/desktop-bundled-mpg123-runtime.mjs';
 import { stageDesktopBundledOpusRuntime } from '../scripts/lib/desktop-bundled-opus-runtime.mjs';
 import { stageDesktopBundledVorbisRuntime } from '../scripts/lib/desktop-bundled-vorbis-runtime.mjs';
 import { stageDesktopBundledWavPackRuntime } from '../scripts/lib/desktop-bundled-wavpack-runtime.mjs';
 import {
 	DESKTOP_AUDIO_CODEC_RUNTIME_FILES,
 	DESKTOP_BUNDLED_FLAC_WASM,
+	DESKTOP_BUNDLED_MPG123_WASM,
 	DESKTOP_BUNDLED_OPUS_WASM,
 	DESKTOP_BUNDLED_VORBIS_WASM,
 	DESKTOP_BUNDLED_WAVPACK_WASM,
@@ -30,6 +32,8 @@ const AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'desktop/bundled-audio-codec-runtime.js',
 	'desktop/bundled-flac-audio-codec-runtime.js',
 	'desktop/bundled-flac-stream.js',
+	'desktop/bundled-mpeg-audio-stream.js',
+	'desktop/bundled-mpg123-audio-codec-runtime.js',
 	'desktop/bundled-opus-audio-codec-runtime.js',
 	'desktop/bundled-opus-stream.js',
 	'desktop/bundled-vorbis-audio-codec-runtime.js',
@@ -56,6 +60,7 @@ const AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/desktop-codec-provider-catalog.js',
 	'src/common/editor/desktop-wavpack-codec-profile.js',
 	'src/common/editor/flac/flac.wasm',
+	'src/common/editor/mpg123/mpg123.wasm',
 	'src/common/editor/opus/opus.wasm',
 	'src/common/editor/vorbis/vorbis.wasm',
 	'src/common/editor/wavpack/wavpack.wasm',
@@ -75,7 +80,7 @@ test('desktop codec runtime inventory closes over both main audio entry points',
 	}
 });
 
-test('desktop codec runtime inventory contains only exact reviewed FLAC, Opus, Vorbis, and WavPack payloads', async () => {
+test('desktop codec runtime inventory contains only exact reviewed audio payloads', async () => {
 	assert.deepEqual(DESKTOP_BUNDLED_FLAC_WASM, {
 		file: 'src/common/editor/flac/flac.wasm',
 		byteLength: 153_044,
@@ -91,6 +96,11 @@ test('desktop codec runtime inventory contains only exact reviewed FLAC, Opus, V
 		byteLength: 385_789,
 		sha256: 'c4c9f7ac85071b24b2545f966943c4319fff023a65c899146cfcb016ae0a8853',
 	});
+	assert.deepEqual(DESKTOP_BUNDLED_MPG123_WASM, {
+		file: 'src/common/editor/mpg123/mpg123.wasm',
+		byteLength: 172_327,
+		sha256: '2c5a60ce737adb0adb98df8301c76804bffeb59373fe7fbce2c8383e926dd7be',
+	});
 	assert.deepEqual(DESKTOP_BUNDLED_VORBIS_WASM, {
 		file: 'src/common/editor/vorbis/vorbis.wasm',
 		byteLength: 523_227,
@@ -99,7 +109,8 @@ test('desktop codec runtime inventory contains only exact reviewed FLAC, Opus, V
 	assert.deepEqual(
 		DESKTOP_CODEC_RUNTIME_FILES.filter((file) => file.endsWith('.wasm')),
 		[
-			DESKTOP_BUNDLED_FLAC_WASM.file, DESKTOP_BUNDLED_OPUS_WASM.file,
+			DESKTOP_BUNDLED_FLAC_WASM.file, DESKTOP_BUNDLED_MPG123_WASM.file,
+			DESKTOP_BUNDLED_OPUS_WASM.file,
 			DESKTOP_BUNDLED_VORBIS_WASM.file, DESKTOP_BUNDLED_WAVPACK_WASM.file,
 		],
 	);
@@ -109,6 +120,9 @@ test('desktop codec runtime inventory contains only exact reviewed FLAC, Opus, V
 	const opusProvider = await import('../desktop/bundled-opus-audio-codec-runtime.ts');
 	assert.equal(opusProvider.BUNDLED_OPUS_WASM_BYTE_LENGTH, DESKTOP_BUNDLED_OPUS_WASM.byteLength);
 	assert.equal(opusProvider.BUNDLED_OPUS_WASM_SHA256, DESKTOP_BUNDLED_OPUS_WASM.sha256);
+	const mpg123Provider = await import('../desktop/bundled-mpg123-audio-codec-runtime.ts');
+	assert.equal(mpg123Provider.BUNDLED_MPG123_WASM_BYTE_LENGTH, DESKTOP_BUNDLED_MPG123_WASM.byteLength);
+	assert.equal(mpg123Provider.BUNDLED_MPG123_WASM_SHA256, DESKTOP_BUNDLED_MPG123_WASM.sha256);
 	const vorbisProvider = await import('../desktop/bundled-vorbis-audio-codec-runtime.ts');
 	assert.equal(vorbisProvider.BUNDLED_VORBIS_WASM_BYTE_LENGTH, DESKTOP_BUNDLED_VORBIS_WASM.byteLength);
 	assert.equal(vorbisProvider.BUNDLED_VORBIS_WASM_SHA256, DESKTOP_BUNDLED_VORBIS_WASM.sha256);
@@ -131,7 +145,8 @@ test('compiled desktop audio main entry points are importable from the staged ru
 	assert.deepEqual(
 		result.files.filter((file) => file.endsWith('.wasm')),
 		[
-			DESKTOP_BUNDLED_FLAC_WASM.file, DESKTOP_BUNDLED_OPUS_WASM.file,
+			DESKTOP_BUNDLED_FLAC_WASM.file, DESKTOP_BUNDLED_MPG123_WASM.file,
+			DESKTOP_BUNDLED_OPUS_WASM.file,
 			DESKTOP_BUNDLED_VORBIS_WASM.file, DESKTOP_BUNDLED_WAVPACK_WASM.file,
 		],
 	);
@@ -141,6 +156,9 @@ test('compiled desktop audio main entry points are importable from the staged ru
 	const stagedOpus = await readFile(join(outputRoot, DESKTOP_BUNDLED_OPUS_WASM.file));
 	assert.equal(stagedOpus.byteLength, DESKTOP_BUNDLED_OPUS_WASM.byteLength);
 	assert.equal(createHash('sha256').update(stagedOpus).digest('hex'), DESKTOP_BUNDLED_OPUS_WASM.sha256);
+	const stagedMpg123 = await readFile(join(outputRoot, DESKTOP_BUNDLED_MPG123_WASM.file));
+	assert.equal(stagedMpg123.byteLength, DESKTOP_BUNDLED_MPG123_WASM.byteLength);
+	assert.equal(createHash('sha256').update(stagedMpg123).digest('hex'), DESKTOP_BUNDLED_MPG123_WASM.sha256);
 	const stagedVorbis = await readFile(join(outputRoot, DESKTOP_BUNDLED_VORBIS_WASM.file));
 	assert.equal(stagedVorbis.byteLength, DESKTOP_BUNDLED_VORBIS_WASM.byteLength);
 	assert.equal(createHash('sha256').update(stagedVorbis).digest('hex'), DESKTOP_BUNDLED_VORBIS_WASM.sha256);
@@ -216,6 +234,22 @@ test('Ogg Vorbis staging refuses a pre-existing destination symlink', async (con
 	await symlink(victim, destination);
 	await assert.rejects(
 		stageDesktopBundledVorbisRuntime({ repositoryRoot: ROOT, outputRoot }),
+		/(?:EEXIST|file already exists)/iu,
+	);
+	assert.equal(await readFile(victim, 'utf8'), 'preserve-me');
+});
+
+test('mpg123 staging refuses a pre-existing destination symlink', async (context) => {
+	const temporaryRoot = await mkdtemp(join(tmpdir(), 'soundscaper-mpg123-link-'));
+	context.after(() => rm(temporaryRoot, { recursive: true, force: true }));
+	const outputRoot = join(temporaryRoot, 'runtime');
+	const destination = join(outputRoot, DESKTOP_BUNDLED_MPG123_WASM.file);
+	const victim = join(temporaryRoot, 'victim.wasm');
+	await mkdir(dirname(destination), { recursive: true });
+	await writeFile(victim, 'preserve-me');
+	await symlink(victim, destination);
+	await assert.rejects(
+		stageDesktopBundledMpg123Runtime({ repositoryRoot: ROOT, outputRoot }),
 		/(?:EEXIST|file already exists)/iu,
 	);
 	assert.equal(await readFile(victim, 'utf8'), 'preserve-me');

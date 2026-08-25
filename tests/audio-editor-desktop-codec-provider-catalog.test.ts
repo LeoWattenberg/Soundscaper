@@ -32,7 +32,7 @@ test('the desktop target matrix is closed and macOS x64 is rejected', () => {
 test('bundled capabilities are admitted only when every reviewed payload is present', async () => {
 	const inventory: Partial<Record<BundledDesktopCodecComponent, string>> = {
 		'specialized-pcm': '1.0.0', libsndfile: '1.2.2', libflac: '1.5.0',
-		libogg: '1.3.6', libvorbis: '1.3.7', libopus: '1.5.2', mpg123: '1.33.3',
+		libogg: '1.3.6', libvorbis: '1.3.7', libopus: '1.5.2', mpg123: '1.33.7',
 		lame: '3.100', twolame: '0.4.0', wavpack: '5.8.1', libwebm: '1.0.0.32',
 		libvpx: '1.15.2', dav1d: '1.5.4', 'svt-av1': '4.2.0',
 	};
@@ -46,9 +46,18 @@ test('bundled capabilities are admitted only when every reviewed payload is pres
 		operation({ direction: 'decode', mediaKind: 'audio', container: 'mp3', codec: 'mp3', sampleFormat: 'f32', sampleRate: 44_100, channelCount: 2 }),
 		operation({ direction: 'encode', mediaKind: 'audio', container: 'mp3', codec: 'mp3', sampleFormat: 'f32p', sampleRate: 48_000, channelCount: 2 }),
 		operation({ direction: 'encode', mediaKind: 'audio', container: 'mp2', codec: 'mp2', sampleFormat: 'f32p', sampleRate: 48_000, channelCount: 2 }),
+		operation({ direction: 'decode', mediaKind: 'audio', container: 'mp2', codec: 'mp2', sampleFormat: 'f32', sampleRate: 48_000, channelCount: 2 }),
 		operation({ direction: 'decode', mediaKind: 'audio', container: 'wavpack', codec: 'wavpack', sampleFormat: 's32', sampleRate: 192_000, channelCount: 8 }),
 		operation({ direction: 'encode', mediaKind: 'video', container: 'webm', codec: 'vp9', profile: 'profile-0', pixelFormat: 'yuv420p', width: 1_920, height: 1_080 }),
 	]) assert.equal((await complete.preflight(candidate, {})).disposition, 'supported');
+	const bundledMp2Decode = operation({
+		direction: 'decode', mediaKind: 'audio', container: 'mp2', codec: 'mp2',
+		sampleFormat: 'f32', sampleRate: 44_100, channelCount: 1,
+	});
+	assert.equal(complete.resolve(bundledMp2Decode)?.implementation, 'mpg123');
+	assert.equal((await complete.preflight(operation({
+		...bundledMp2Decode, sampleRate: 24_000,
+	}), {})).disposition, 'unsupported');
 
 	const missingContainer = createBundledDesktopCodecProvider({
 		target: 'linux-x64', capabilityGeneration: 'review-43',

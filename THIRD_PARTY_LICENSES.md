@@ -192,6 +192,48 @@ Vorbis preserves decoded frame geometry but is not sample-exact. The BSD-style
 copyright licenses and this technical review do not establish patent clearance
 or non-infringement for any use or territory.
 
+## mpg123 1.33.7 WebAssembly
+
+Soundscaper distributes one exact memory-fed Emscripten build of the reusable
+libmpg123 decoder from mpg123 1.33.7 under LGPL-2.1-only terms. It is a desktop
+bundled MPEG-1 Layer II (MP2) and Layer III (MP3) decode provider on Linux
+x64/ARM64, macOS ARM64, and Windows x64/ARM64. macOS x64 is unsupported. No
+mpg123 encoder is included.
+
+- official upstream release: <https://www.mpg123.de/download.shtml>
+- source archive SHA-256:
+  `31d0e35a4ca567ec9b5ebda6c3062bb4435d6d3eacd6ef0d95cadd7854dc03ee`
+- detached signature SHA-256:
+  `48037de26dd56d479b5a54d91ba301d9958476bd03c1b135ee183c3b23c2793c`
+- published signing-key fingerprint:
+  `D021 FF8E CF4B E097 19D6 1A27 231C 4CBC 60D5 CAFE`
+- retained terms: [`MPG123.txt`](src/common/editor/mpg123/licenses/MPG123.txt)
+- detailed notice: [`NOTICE.md`](src/common/editor/mpg123/NOTICE.md)
+- source/build manifest: [`source-manifest.json`](src/common/editor/mpg123/source-manifest.json)
+- exact `mpg123.wasm`: 172,327 bytes; SHA-256
+  `2c5a60ce737adb0adb98df8301c76804bffeb59373fe7fbce2c8383e926dd7be`
+
+The build contains only the reusable libmpg123 memory-feed path and finite
+interleaved float32 output. It contains no CLI, filesystem or network reader,
+audio output, encoder, thread support, or SIMD implementation. The exact
+Emscripten 3.1.64 build requires GnuPG to verify the official detached
+signature and signing-key fingerprint before compilation. Run
+`npm run build:mpg123` to reproduce it and `npm run audit:mpg123` to recheck
+source, local files, archive members, imports, exports, memory limits, digest,
+and the MP2/MP3 startup canaries.
+
+The admitted public profile is raw MPEG-1 Layer II or III audio at 32, 44.1, or
+48 kHz, mono or stereo. A strict bounded inspector checks every frame and exact
+sample geometry; LAME Xing/Info delay and padding are honored when present.
+Standards-valid lower MPEG versions, CRC-protected streams, tags, chained
+geometry, and other unreviewed metadata profiles fall through to the next
+provider. Malformed framing, bounds, or contradictory declared geometry fail
+terminally. Stock mpg123/LAME and TwoLAME interoperability fixtures verify
+exact decoded frame counts and PCM digests. Upstream's patent discussion is
+explicitly not legal advice; the LGPL terms, technical review, and
+interoperability results do not establish patent clearance or non-infringement
+for any use or territory.
+
 ## WavPack 5.9.0 WebAssembly
 
 Soundscaper distributes one exact Emscripten build of WavPack 5.9.0 under the
