@@ -32,7 +32,7 @@ test('video export formats apply when a maintained visual clip is assigned to a 
 		},
 	};
 	assert.equal(projectHasTimelineVideo(project), true);
-	for (const kind of ['still', 'generator']) {
+	for (const kind of ['still', 'generator', 'image']) {
 		assert.equal(projectHasTimelineVideo({
 			clips: [{ id: `timeline-${kind}`, kind }],
 			tracks: [{ id: 'video-track', type: 'video', clipIds: [`timeline-${kind}`] }],

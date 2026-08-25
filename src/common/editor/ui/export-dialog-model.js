@@ -28,7 +28,7 @@ export function projectHasTimelineVideo(project) {
 	if (!project?.tracks?.length || !project?.clips?.length) return false;
 	const visualClipIds = new Set(
 		project.clips
-			.filter((clip) => ['video', 'still', 'generator'].includes(clip?.kind))
+			.filter((clip) => ['video', 'still', 'generator', 'image'].includes(clip?.kind))
 			.map((clip) => clip.id),
 	);
 	return project.tracks.some((track) => (
