@@ -84,4 +84,30 @@ test('claim ids, job ids, roles, and media types are admitted from closed vocabu
 		() => validateAssistanceOutputReservation({ ...RESERVATION, role: 'arbitrary-result' }),
 		/output role/iu,
 	);
+	assert.throws(
+		() => validateAssistanceStagedInputClaim({ ...INPUT, mediaType: 'application/json' }),
+		/audio.*media type/iu,
+	);
+	assert.throws(
+		() => validateAssistanceOutputReservation({ ...RESERVATION, mediaType: 'audio/wav' }),
+		/transcript.*media type/iu,
+	);
+	assert.deepEqual(validateAssistanceStagedInputClaim({
+		...INPUT,
+		role: 'frame-pack',
+		mediaType: 'application/vnd.soundscaper.frame-pack',
+	}), {
+		...INPUT,
+		role: 'frame-pack',
+		mediaType: 'application/vnd.soundscaper.frame-pack',
+	});
+	assert.deepEqual(validateAssistanceOutputReservation({
+		...RESERVATION,
+		role: 'enhanced-audio',
+		mediaType: 'audio/wav',
+	}), {
+		...RESERVATION,
+		role: 'enhanced-audio',
+		mediaType: 'audio/wav',
+	});
 });

@@ -83,15 +83,43 @@ const OUTPUT_KEYS = Object.freeze([
 const OPAQUE_ID = /^[a-f\d]{40}$/u;
 const SHA256 = /^[a-f\d]{64}$/u;
 const MEDIA_TYPE = /^[a-z\d][a-z\d!#$&^_.+-]{0,126}\/[a-z\d][a-z\d!#$&^_.+-]{0,126}$/u;
+const INPUT_MEDIA_TYPES = Object.freeze({
+	audio: Object.freeze(['audio/wav', 'audio/x-wav', 'audio/flac']),
+	video: Object.freeze(['video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska']),
+	'frame-pack': Object.freeze(['application/vnd.soundscaper.frame-pack']),
+	transcript: Object.freeze(['application/json', 'application/vnd.soundscaper.transcript+json']),
+	text: Object.freeze(['text/plain']),
+	'editorial-context': Object.freeze([
+		'application/json', 'application/vnd.soundscaper.editorial-context+json',
+	]),
+} satisfies Readonly<Record<AssistanceInputRole, readonly string[]>>);
+const OUTPUT_MEDIA_TYPES = Object.freeze({
+	'voice-activity': jsonTypes('voice-activity'),
+	transcript: jsonTypes('transcript'),
+	'word-alignment': jsonTypes('word-alignment'),
+	'speaker-turns': jsonTypes('speaker-turns'),
+	'enhanced-audio': Object.freeze(['audio/wav', 'audio/flac']),
+	'separated-audio': Object.freeze(['audio/wav', 'audio/flac']),
+	'audio-tags': jsonTypes('audio-tags'),
+	'beat-grid': jsonTypes('beat-grid'),
+	embeddings: jsonTypes('embeddings'),
+	'recognized-text': jsonTypes('recognized-text'),
+	'shot-boundaries': jsonTypes('shot-boundaries'),
+	'subject-tracks': jsonTypes('subject-tracks'),
+	'saliency-map': jsonTypes('saliency-map'),
+	'editorial-proposal': jsonTypes('editorial-proposal'),
+} satisfies Readonly<Record<AssistanceOutputRole, readonly string[]>>);
 
 export function validateAssistanceStagedInputClaim(value: unknown): AssistanceStagedInputClaim {
 	const record = claimRecord(value, INPUT_KEYS, 'An assistance staged-input claim');
+	const role = enumValue(record.role, ASSISTANCE_INPUT_ROLES, 'An assistance input role is unrecognised.');
+	const admittedMediaType = roleMediaType(record.mediaType, role, INPUT_MEDIA_TYPES);
 	return Object.freeze({
 		claimVersion: ASSISTANCE_DATA_CLAIM_VERSION,
 		claimId: opaqueId(record.claimId, 'claim'),
 		jobId: opaqueId(record.jobId, 'job'),
-		role: enumValue(record.role, ASSISTANCE_INPUT_ROLES, 'An assistance input role is unrecognised.'),
-		mediaType: mediaType(record.mediaType),
+		role,
+		mediaType: admittedMediaType,
 		byteLength: byteLength(record.byteLength, 'An assistance input byte length is outside its bound.'),
 		sha256: digest(record.sha256),
 	});
@@ -99,12 +127,14 @@ export function validateAssistanceStagedInputClaim(value: unknown): AssistanceSt
 
 export function validateAssistanceOutputReservation(value: unknown): AssistanceOutputReservation {
 	const record = claimRecord(value, RESERVATION_KEYS, 'An assistance output reservation');
+	const role = enumValue(record.role, ASSISTANCE_OUTPUT_ROLES, 'An assistance output role is unrecognised.');
+	const admittedMediaType = roleMediaType(record.mediaType, role, OUTPUT_MEDIA_TYPES);
 	return Object.freeze({
 		claimVersion: ASSISTANCE_DATA_CLAIM_VERSION,
 		claimId: opaqueId(record.claimId, 'claim'),
 		jobId: opaqueId(record.jobId, 'job'),
-		role: enumValue(record.role, ASSISTANCE_OUTPUT_ROLES, 'An assistance output role is unrecognised.'),
-		mediaType: mediaType(record.mediaType),
+		role,
+		mediaType: admittedMediaType,
 		maximumByteLength: byteLength(
 			record.maximumByteLength,
 			'An assistance output maximum byte length is outside its bound.',
@@ -117,12 +147,14 @@ export function validateAssistanceOutputClaim(
 	reservationValue?: unknown,
 ): AssistanceOutputClaim {
 	const record = claimRecord(value, OUTPUT_KEYS, 'An assistance output claim');
+	const role = enumValue(record.role, ASSISTANCE_OUTPUT_ROLES, 'An assistance output role is unrecognised.');
+	const admittedMediaType = roleMediaType(record.mediaType, role, OUTPUT_MEDIA_TYPES);
 	const claim = Object.freeze({
 		claimVersion: ASSISTANCE_DATA_CLAIM_VERSION,
 		claimId: opaqueId(record.claimId, 'claim'),
 		jobId: opaqueId(record.jobId, 'job'),
-		role: enumValue(record.role, ASSISTANCE_OUTPUT_ROLES, 'An assistance output role is unrecognised.'),
-		mediaType: mediaType(record.mediaType),
+		role,
+		mediaType: admittedMediaType,
 		byteLength: byteLength(record.byteLength, 'An assistance output byte length is outside its bound.'),
 		sha256: digest(record.sha256),
 	});
@@ -175,6 +207,22 @@ function mediaType(value: unknown): string {
 		throw new TypeError('An assistance data claim needs one bounded lower-case media type.');
 	}
 	return value;
+}
+
+function roleMediaType<Role extends string>(
+	value: unknown,
+	role: Role,
+	admitted: Readonly<Record<Role, readonly string[]>>,
+): string {
+	const candidate = mediaType(value);
+	if (!admitted[role].includes(candidate)) {
+		throw new TypeError(`The assistance ${role} role does not admit that media type.`);
+	}
+	return candidate;
+}
+
+function jsonTypes(role: AssistanceOutputRole): readonly string[] {
+	return Object.freeze(['application/json', `application/vnd.soundscaper.${role}+json`]);
 }
 
 function byteLength(value: unknown, message: string): number {
