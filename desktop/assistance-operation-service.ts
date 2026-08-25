@@ -21,6 +21,7 @@ import {
 import type { AssistanceService } from './assistance-service.ts';
 import type { AssistanceStagingRegistry } from './assistance-staging-registry.ts';
 import type { SpeechModelPaths, SpeechRuntimeAdapter } from './assistance-speech-runtime.ts';
+import type { VoiceActivityRuntimeAdapter } from './assistance-vad-runtime.ts';
 import {
 	HELPER_DATA_CHUNK_MAXIMUM_BYTES,
 	HELPER_DATA_PLANE_VERSION,
@@ -96,6 +97,7 @@ export interface AssistanceOperationServiceOptions {
 	readonly registry: AssistanceStagingRegistry;
 	readonly models: Pick<AssistanceService, 'status' | 'listInstalled' | 'resolveModelPaths'>;
 	readonly runtime: SpeechRuntimeAdapter;
+	readonly voiceActivityRuntime?: VoiceActivityRuntimeAdapter;
 	readonly onProgress?: (progress: AssistanceOperationProgress) => void;
 	readonly mintStreamId?: () => string;
 }
@@ -174,7 +176,7 @@ export function createAssistanceOperationService(options: AssistanceOperationSer
 		emit('staging-input');
 		const inputPaths = await Promise.all(request.inputs.map((claim) =>
 			options.registry.resolveInputPathForMain(request.jobId, claim, signal)));
-		if (request.operation !== 'speech-recognition') {
+		if (request.operation !== 'speech-recognition' && request.operation !== 'voice-activity-detection') {
 			emit('finalizing');
 			return unavailable(request, 'adapter-unavailable');
 		}
@@ -183,27 +185,22 @@ export function createAssistanceOperationService(options: AssistanceOperationSer
 			return unavailable(request, 'adapter-unavailable');
 		}
 		emit('loading-model');
-		const model = await resolveSpeechModel(request, options.models);
-		if (model === null) { emit('finalizing'); return unavailable(request, 'model-unavailable'); }
-		const runtimeStatus = await options.runtime.status();
-		if (!runtimeStatus.available) { emit('finalizing'); return unavailable(request, 'runtime-unavailable'); }
-		emit('running');
-		const recognized = await options.runtime.recognize({
-			modelId: request.models[0]!.modelId,
-			audioPath: inputPaths[0]!,
-			model,
-			signal,
-			onProgress: ({ completed, total }) => emit('running', completed, total),
-		});
+		const resultBody = request.operation === 'speech-recognition'
+			? await executeSpeech(request, inputPaths[0]!, signal, emit, options)
+			: await executeVoiceActivity(request, inputPaths[0]!, signal, emit, options);
+		if (typeof resultBody === 'string') {
+			emit('finalizing');
+			return unavailable(request, resultBody);
+		}
 		signal.throwIfAborted();
 		emit('staging-output');
 		const reservation = request.outputs[0]!;
 		const outputPath = await options.registry.resolveOutputReservationPathForMain(
 			request.jobId, reservation, signal,
 		);
-		const body = Buffer.from(JSON.stringify(recognized), 'utf8');
+		const body = Buffer.from(JSON.stringify(resultBody), 'utf8');
 		if (body.byteLength < 1 || body.byteLength > reservation.maximumByteLength) {
-			throw new RangeError('The assistance transcript exceeds its exact output reservation.');
+			throw new RangeError('The assistance result exceeds its exact output reservation.');
 		}
 		const handle = await open(outputPath, 'r+');
 		try { await handle.truncate(0); await handle.writeFile(body); await handle.sync(); }
@@ -265,15 +262,72 @@ export function createAssistanceOperationService(options: AssistanceOperationSer
 		stageInput, reserveOutput, run, cancel, release, openOutput, dispose });
 }
 
-async function resolveSpeechModel(
+type ProgressEmitter = (
+	phase: AssistanceOperationProgress['phase'], completed?: number, total?: number,
+) => void;
+
+async function executeSpeech(
+	request: AssistanceOperationRequest,
+	audioPath: string,
+	signal: AbortSignal,
+	emit: ProgressEmitter,
+	options: AssistanceOperationServiceOptions,
+): Promise<unknown | AssistanceOperationUnavailableReason> {
+	const resolved = await resolveInstalledModel(request, options.models, 'speech-recognition');
+	if (resolved === null) return 'model-unavailable';
+	const model = speechModelPaths(resolved);
+	if (model === null) return 'model-unavailable';
+	const runtimeStatus = await options.runtime.status();
+	if (!runtimeStatus.available) return 'runtime-unavailable';
+	emit('running');
+	return options.runtime.recognize({
+		modelId: request.models[0]!.modelId, audioPath, model, signal,
+		onProgress: ({ completed, total }) => emit('running', completed, total),
+	});
+}
+
+async function executeVoiceActivity(
+	request: AssistanceOperationRequest,
+	audioPath: string,
+	signal: AbortSignal,
+	emit: ProgressEmitter,
+	options: AssistanceOperationServiceOptions,
+): Promise<unknown | AssistanceOperationUnavailableReason> {
+	const runtime = options.voiceActivityRuntime;
+	if (!runtime) return 'adapter-unavailable';
+	const resolved = await resolveInstalledModel(request, options.models, 'voice-activity-detection');
+	if (resolved === null || typeof resolved.silero_vad !== 'string' || resolved.silero_vad === '') {
+		return 'model-unavailable';
+	}
+	const runtimeStatus = await runtime.status();
+	if (!runtimeStatus.available) return 'runtime-unavailable';
+	emit('running');
+	return runtime.detect({
+		modelId: request.models[0]!.modelId, audioPath,
+		model: { model: resolved.silero_vad }, signal,
+		onProgress: ({ completed, total }) => emit('running', completed, total),
+	});
+}
+
+function speechModelPaths(resolved: Readonly<Record<string, string>>): SpeechModelPaths | null {
+	for (const role of REQUIRED_SPEECH_MODEL_ROLES) {
+		if (typeof resolved[role] !== 'string' || resolved[role] === '') return null;
+	}
+	return Object.freeze({
+		encoder: resolved.encoder!, decoder: resolved.decoder!, joiner: resolved.joiner!, tokens: resolved.tokens!,
+	});
+}
+
+async function resolveInstalledModel(
 	request: AssistanceOperationRequest,
 	models: AssistanceOperationServiceOptions['models'],
-): Promise<SpeechModelPaths | null> {
-	if (request.models.length !== 1) throw new TypeError('Speech recognition requires one exact model binding.');
+	task: string,
+): Promise<Readonly<Record<string, string>> | null> {
+	if (request.models.length !== 1) throw new TypeError(`${request.operation} requires one exact model binding.`);
 	const binding = request.models[0]!;
 	const status = await models.status();
 	const view = status.models.find(({ modelId }) => modelId === binding.modelId);
-	if (!view || view.task !== 'speech-recognition' || view.version !== binding.version
+	if (!view || view.task !== task || view.version !== binding.version
 		|| view.availability !== 'installed') return null;
 	const installed = (await models.listInstalled()).find(({ modelId }) => modelId === binding.modelId);
 	if (!installed || installed.version !== binding.version) return null;
@@ -285,14 +339,7 @@ async function resolveSpeechModel(
 	let resolved: Record<string, string>;
 	try { resolved = await models.resolveModelPaths(binding.modelId); }
 	catch (error) { if (modelEvidenceUnavailable(error)) return null; throw error; }
-	for (const role of REQUIRED_SPEECH_MODEL_ROLES) {
-		if (typeof resolved[role] !== 'string' || resolved[role] === '') {
-			return null;
-		}
-	}
-	return Object.freeze({
-		encoder: resolved.encoder!, decoder: resolved.decoder!, joiner: resolved.joiner!, tokens: resolved.tokens!,
-	});
+	return Object.freeze({ ...resolved });
 }
 
 function unavailable(

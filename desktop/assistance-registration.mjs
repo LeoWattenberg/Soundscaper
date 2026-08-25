@@ -160,6 +160,7 @@ export function registerAssistance({
 			}),
 			models: createService(),
 			runtime,
+			voiceActivityRuntime: runtime,
 			onProgress,
 		}),
 		confirmOperation: (request) => confirmOperation(dialog, windowFor(), request),
