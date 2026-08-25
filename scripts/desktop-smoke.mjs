@@ -24,6 +24,15 @@ const SMOKE_EXPECTED_BRIDGE = PRODUCT_ID === 'framescaper'
 	: DESKTOP_SMOKE_EXPECTED_BRIDGE;
 const TARGET_ARCH = resolveSmokeArchitecture(process.env.SOUNDSCAPER_SMOKE_ARCH, process.arch);
 
+// How long the packaged application gets to report its artifact. This is a
+// deadlock guard, not a performance budget: an emulated Linux ARM64 runner
+// brings up a packaged Electron window without a GPU and can take well past
+// half a minute to reach a bound editor, which timed the smoke out on a build
+// that was working. The timing probe already allows two minutes for the same
+// application; this matches it rather than being the tightest deadline in the
+// suite by a factor of four.
+const SMOKE_TIMEOUT_MS = 120_000;
+
 const executable = await findPackagedExecutable();
 const useXvfb = process.platform === 'linux' && process.env.SOUNDSCAPER_SMOKE_XVFB === 'true';
 const command = useXvfb ? 'xvfb-run' : executable;
@@ -100,7 +109,7 @@ function run(binary, args) {
 			// dialog instead of exiting, so the captured output is the only place
 			// the real cause appears.
 			reject(new Error(`Packaged desktop smoke timed out.\n${output}`));
-		}, 30_000);
+		}, SMOKE_TIMEOUT_MS);
 		child.once('exit', (code) => {
 			clearTimeout(timeout);
 			resolvePromise({ code, output });
