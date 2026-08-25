@@ -222,9 +222,6 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 			const activeVisualIds = new Set(visual.layers.flatMap(({ entries }) => (
 				entries.map(({ modelId }) => modelId)
 			)));
-			for (const picture of request.supplementalPictures ?? []) renderSupplementalPicture(
-				picture, supplementalVisuals, activeVisualIds, trackFrames, width, height,
-			);
 			if (openFx) {
 				const transitionFrames = new Map<string, UnifiedExactLinearCompositionEntryV13[]>();
 				await openFx.applyTransitions(transitionFrames);
@@ -246,6 +243,11 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 				visual.layers,
 			)) await renderVisualLayer(
 				trackId, [entry], trackFrames, rawVisuals, openFx, width, height, signal,
+			);
+			// V30 preview coalesces inherited visual entries before its authenticated
+			// image entries on each track; export preserves that painter order.
+			for (const picture of request.supplementalPictures ?? []) renderSupplementalPicture(
+				picture, supplementalVisuals, activeVisualIds, trackFrames, width, height,
 			);
 			for (const adjustment of visual.activeAdjustmentLayers) await applyAdjustment(
 				adjustment, trackFrames, rawVisuals, openFx, width, height, signal,
