@@ -2,7 +2,6 @@
 
 /** Closed desktop codec inventory and exact, capability-first provider preflight. */
 
-import type { Av1TargetQualificationDecisionV1 } from './av1-codec-qualification.ts';
 import type {
 	DesktopCodecOperation,
 	DesktopCodecPreflightResult,
@@ -61,7 +60,36 @@ export interface BundledDesktopCodecProviderOptions {
 	/** Presence means the reviewed payload for this target was admitted; the value is its release version. */
 	readonly inventory: Readonly<Partial<Record<BundledDesktopCodecComponent, string>>>;
 	/** Same-target benchmark decision; absence or incomplete evidence admits no bundled AV1 capability. */
-	readonly av1Qualification?: Av1TargetQualificationDecisionV1;
+	readonly av1Qualification?: BundledDesktopAv1QualificationDecision;
+}
+
+/** Runtime view of the complete decision produced by decideAv1CodecQualification. */
+export interface BundledDesktopAv1QualificationDecision {
+	readonly target: DesktopCodecTarget;
+	readonly benchmark: Readonly<{
+		readonly toolchain: Readonly<{
+			readonly dav1d: Readonly<{ readonly version: string }>;
+			readonly libaom: Readonly<{ readonly version: string }>;
+			readonly 'svt-av1': Readonly<{ readonly version: string }>;
+		}>;
+	}> | null;
+	readonly evidenceComplete: boolean;
+	readonly evidenceCaseCount: number;
+	readonly decode: Readonly<{
+		readonly defaultCandidate: 'dav1d';
+		readonly comparedAgainst: 'libaom';
+		readonly admitted: boolean;
+		readonly selected: 'dav1d' | null;
+		readonly failures: readonly unknown[];
+	}>;
+	readonly encode: Readonly<{
+		readonly defaultCandidate: 'svt-av1';
+		readonly fallbackCandidate: 'libaom' | null;
+		readonly admitted: boolean;
+		readonly selected: 'svt-av1' | 'libaom' | null;
+		readonly defaultFailures: readonly unknown[];
+		readonly fallbackFailures: readonly unknown[] | null;
+	}>;
 }
 
 export interface DesktopCodecQualifiedCapability {
@@ -218,7 +246,7 @@ function provider(options: Readonly<{
 function bundledBindings(
 	target: DesktopCodecTarget,
 	inventory: Readonly<Partial<Record<BundledDesktopCodecComponent, string>>>,
-	av1Qualification: Av1TargetQualificationDecisionV1 | null,
+	av1Qualification: BundledDesktopAv1QualificationDecision | null,
 ): readonly CapabilityBinding[] {
 	const definitions: Array<CapabilityBinding & { readonly components: readonly BundledDesktopCodecComponent[] }> = [];
 	const audio = (
@@ -291,8 +319,8 @@ function bundledBindings(
 }
 
 function targetAv1Qualification(
-	target: DesktopCodecTarget, value: Av1TargetQualificationDecisionV1 | undefined,
-): Av1TargetQualificationDecisionV1 | null {
+	target: DesktopCodecTarget, value: BundledDesktopAv1QualificationDecision | undefined,
+): BundledDesktopAv1QualificationDecision | null {
 	if (value === undefined) return null;
 	if (!value || typeof value !== 'object' || Array.isArray(value) || value.target !== target) {
 		throw new TypeError('Bundled AV1 qualification must name the same desktop target as its provider.');
@@ -301,14 +329,16 @@ function targetAv1Qualification(
 }
 
 function completeAv1Qualification(
-	value: Av1TargetQualificationDecisionV1 | null,
-): value is Av1TargetQualificationDecisionV1 & Readonly<{ benchmark: NonNullable<Av1TargetQualificationDecisionV1['benchmark']> }> {
+	value: BundledDesktopAv1QualificationDecision | null,
+): value is BundledDesktopAv1QualificationDecision & Readonly<{
+	benchmark: NonNullable<BundledDesktopAv1QualificationDecision['benchmark']>;
+}> {
 	return value !== null && value.evidenceComplete === true && value.evidenceCaseCount === 12
 		&& value.benchmark !== null;
 }
 
 function qualifiedAv1Decoder(
-	value: Av1TargetQualificationDecisionV1 | null,
+	value: BundledDesktopAv1QualificationDecision | null,
 	inventory: Readonly<Partial<Record<BundledDesktopCodecComponent, string>>>,
 ): boolean {
 	return completeAv1Qualification(value)
@@ -319,7 +349,7 @@ function qualifiedAv1Decoder(
 }
 
 function qualifiedAv1Encoder(
-	target: DesktopCodecTarget, value: Av1TargetQualificationDecisionV1 | null,
+	target: DesktopCodecTarget, value: BundledDesktopAv1QualificationDecision | null,
 	inventory: Readonly<Partial<Record<BundledDesktopCodecComponent, string>>>,
 ): 'svt-av1' | 'libaom' | null {
 	if (!completeAv1Qualification(value) || value.encode.admitted !== true) return null;
