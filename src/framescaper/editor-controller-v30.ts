@@ -45,6 +45,7 @@ import type {
 import {
 	createFramescaperVideoProxyPreviewMediaResolverV30,
 } from './editor-video-proxy-preview-media-v20.ts';
+import { createFramescaperVideoExportStrategyV30 } from './video-export-strategy-v30.ts';
 
 const PRESENTATION_FIELDS = ['locale', 'copy', 'fileService'] as const;
 
@@ -107,6 +108,9 @@ export function createFramescaperAudioEditorControllerV30(
 		scapeProjectRuntime: createFramescaperScapeNativeRuntimeV30(environment.runtime.profile),
 		productSequenceActions,
 		createProductVideoRetimeProgramOrdinalBridge: createVideoRetimeProgramOrdinalBridge,
+		productVideoExportStrategy: createFramescaperVideoExportStrategyV30(
+			environment.runtime.profile, undefined, environment.controllerStore,
+		),
 		resolveProductVideoPreviewMedia,
 		reportProductVideoPreviewPressure: (
 			sourceId: string,
