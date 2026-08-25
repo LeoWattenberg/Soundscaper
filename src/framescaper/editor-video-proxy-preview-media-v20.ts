@@ -93,7 +93,7 @@ export function createFramescaperVideoProxyPreviewMediaResolverV20(
 	return async (request) => {
 		const sourceId = String(request?.source?.id ?? '');
 		if (!sourceId || request.source.kind !== 'video'
-			|| ![20, 27, 28].includes(Number(request.project.schemaVersion))) return null;
+			|| ![20, 27, 28, 31].includes(Number(request.project.schemaVersion))) return null;
 		const mode = options.getMode(sourceId);
 		const attachmentValue = request.source.proxyAttachment;
 		if (attachmentValue == null) {

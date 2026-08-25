@@ -4,8 +4,13 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { createAudioEditorFileService } from '../../common/editor/file-service.js';
 import { BoundAudioEditorApp } from '../../common/editor/ui/AudioEditorApp.jsx';
+import { resolveFramescaperNativeServicesBridge } from '../../common/editor/ui/framescaper-native-services-bridge.ts';
 import { resolveCatalog } from '../../common/i18n/runtime.js';
 import { createFramescaperAudioEditorControllerV31 } from '../editor-controller-v31.ts';
+import {
+	createFramescaperNativeWatchImportClientV31,
+	type FramescaperNativeWatchImportClientV31,
+} from '../editor-native-watch-import-client-v31.ts';
 import {
 	createFramescaperEditorProjectEnvironmentV31,
 	type FramescaperEditorProjectEnvironmentV31,
@@ -51,9 +56,14 @@ export async function createFramescaperWebEditorRuntimeV31(
 			copy: presentation.copy,
 			fileService,
 		});
+		const watchImports = createFramescaperNativeWatchImportClientV31({
+			controller,
+			linkedVideoOriginalPort: fileService.linkedVideoOriginalPort,
+			bridge: resolveFramescaperNativeServicesBridge(),
+		});
 		let disposal: Promise<void> | null = null;
 		const dispose = (): Promise<void> => {
-			disposal ??= disposeRuntime(controller, environment);
+			disposal ??= disposeRuntime(controller, environment, watchImports);
 			return disposal;
 		};
 		const runtime = Object.freeze({ controller, fileService, dispose });
@@ -156,9 +166,15 @@ function runtimeProjector(runtime: Readonly<FramescaperWebEditorRuntimeV31>): Ru
 async function disposeRuntime(
 	controller: WebController,
 	environment: Readonly<FramescaperEditorProjectEnvironmentV31>,
+	watchImports: Readonly<FramescaperNativeWatchImportClientV31>,
 ): Promise<void> {
 	let failure: unknown;
-	try { await controller.dispose(); } catch (error) { failure = error; }
+	try { await watchImports.dispose(); } catch (error) { failure = error; }
+	try { await controller.dispose(); } catch (error) {
+		failure = failure
+			? new AggregateError([failure, error], 'F31 watch and controller disposal failed.')
+			: error;
+	}
 	try { await environment.close(); } catch (error) {
 		if (failure) throw new AggregateError([failure, error], 'F31 controller and environment disposal failed.');
 		throw error;

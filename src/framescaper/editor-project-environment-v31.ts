@@ -4,9 +4,11 @@ import type { PlaybackProjectService } from '../common/editor/controller/playbac
 import type { AudioEditorProjectStoreOptions } from '../common/editor/storage/project-store-options.ts';
 import type { ProjectDocument } from '../common/editor/storage/project-repository.ts';
 import { AudioEditorProjectStore } from '../common/editor/storage.js';
-import type {
-	FramescaperDesktopProjectLibraryV20Renderer,
-} from './desktop-project-library-v20-renderer-contract.ts';
+import {
+	connectFramescaperDesktopProjectLibraryV20Renderer,
+	type FramescaperDesktopProjectLibraryV20Renderer,
+} from './desktop-project-library-v20-renderer.ts';
+import { createFramescaperDesktopProjectStoreV20Adapter } from './desktop-project-library-v20-store-adapter.ts';
 import { createFramescaperPlaybackProjectServiceV31 } from './editor-project-playback-v31.ts';
 import {
 	createEditorProjectRuntimeV31Selection,
@@ -71,7 +73,14 @@ export async function createFramescaperEditorProjectEnvironmentV31(
 		if (initialCleanup.status !== 'settled') {
 			throw new Error('Framescaper F31 startup proxy-claim cleanup is indeterminate.');
 		}
-		const controllerStore = store;
+		const desktopProjectLibrary = await connectFramescaperDesktopProjectLibraryV20Renderer(
+			FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE,
+			store,
+		);
+		const controllerStore = createFramescaperDesktopProjectStoreV20Adapter(
+			FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE,
+			{ localStore: store, desktopProjectLibrary },
+		) as AudioEditorProjectStore;
 		const videoProxyCleanup = createFramescaperVideoProxyCleanupCoordinatorV20(
 			store,
 			controllerStore,
@@ -81,7 +90,7 @@ export async function createFramescaperEditorProjectEnvironmentV31(
 			runtime,
 			store,
 			controllerStore,
-			desktopProjectLibrary: null,
+			desktopProjectLibrary,
 			claimCleanup,
 			videoProxyCleanup,
 			initialCleanup,
@@ -89,8 +98,13 @@ export async function createFramescaperEditorProjectEnvironmentV31(
 				FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE,
 				{ timingStore: store },
 			),
-			createProjectIfAbsent: (project: ProjectDocument) => exactProjectRepository(store)
-				.createIfAbsent(project),
+			createProjectIfAbsent: controllerStore === store
+				? (project: ProjectDocument) => exactProjectRepository(store).createIfAbsent(project)
+				: (project: ProjectDocument) => (
+					controllerStore as unknown as Readonly<{
+						createProjectIfAbsent(value: unknown): Promise<ProjectDocument | null>;
+					}>
+				).createProjectIfAbsent(project),
 			close: () => store.close(),
 		});
 		PRODUCT_ENVIRONMENTS.add(environment);

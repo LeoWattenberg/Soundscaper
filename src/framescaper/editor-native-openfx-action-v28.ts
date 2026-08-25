@@ -138,6 +138,18 @@ export function framescaperNativeOpenFxAuthoringRuntimeForV28(
 		? AUTHORING_RUNTIMES.get(owner as object) ?? null : null;
 }
 
+/** Rebind inherited authoring after a product-version controller projection. */
+export function adoptFramescaperNativeOpenFxAuthoringRuntimeV28(
+	from: object,
+	to: object,
+): void {
+	const runtime = AUTHORING_RUNTIMES.get(from);
+	if (!runtime || !to || typeof to !== 'object') {
+		throw new TypeError('Selected V28 OpenFX authoring adoption requires exact owners.');
+	}
+	AUTHORING_RUNTIMES.set(to, runtime);
+}
+
 async function loadAuthoringModel(
 	options: BindFramescaperNativeOpenFxActionV28Options,
 ): Promise<FramescaperOpenFxAuthoringModelV28> {

@@ -11,6 +11,7 @@ import { collectTakeGroupSourceIds } from './take-group-source-references.ts';
 const FRAMESCAPER_MULTICAMERA_SCHEMA_VERSION = 18;
 const FRAMESCAPER_VISUAL_SCHEMA_VERSION = 24;
 const FRAMESCAPER_FINISHING_SCHEMA_VERSION = 27;
+const ASSISTANCE_ASSET_SCHEMA_VERSION = 30;
 const SOUNDSCAPER_PRODUCTION_SCHEMA_VERSION = 21;
 const MAXIMUM_FRAMESCAPER_FINISHING_ASSET_ROOTS = 16_384;
 const SHA256 = /^[a-f0-9]{64}$/u;
@@ -26,6 +27,7 @@ const SOURCE_REFERENCE_WALKS = [
 	{ since: FRAMESCAPER_MULTICAMERA_SCHEMA_VERSION, collect: collectMulticameraMemberSourceIds },
 	{ since: SOUNDSCAPER_PRODUCTION_SCHEMA_VERSION, collect: collectAudioTrackFreezeSourceIds },
 	{ since: FRAMESCAPER_VISUAL_SCHEMA_VERSION, collect: collectVideoFreezeFallbackSourceIds },
+	{ since: ASSISTANCE_ASSET_SCHEMA_VERSION, collect: collectAssistanceAssetSourceIds },
 ];
 
 export function collectProjectSourceIds(project, target = new Set()) {
@@ -79,6 +81,14 @@ function collectVideoFreezeFallbackSourceIds(project, target) {
 	for (const freeze of freezes) {
 		const sourceId = freeze?.renderedSourceId;
 		if (typeof sourceId === 'string' && sourceId) target.add(sourceId);
+	}
+}
+
+/** Assistance references keep their exact source authority alive without creating a clip. */
+function collectAssistanceAssetSourceIds(project, target) {
+	const assets = Array.isArray(project?.assistanceAssets) ? project.assistanceAssets : [];
+	for (const asset of assets) {
+		if (typeof asset?.sourceId === 'string' && asset.sourceId) target.add(asset.sourceId);
 	}
 }
 
@@ -153,6 +163,10 @@ export function collectProjectStorageKeys(project, target = new Set()) {
 		if (typeof proxyTimingStorageKey === 'string' && proxyTimingStorageKey) target.add(proxyTimingStorageKey);
 	}
 	collectFramescaperProjectAssetStorageKeysV27(project, target);
+	for (const asset of Array.isArray(project?.assistanceAssets) ? project.assistanceAssets : []) {
+		const storageKey = asset?.body?.storageKey;
+		if (typeof storageKey === 'string' && storageKey) target.add(storageKey);
+	}
 	return target;
 }
 
