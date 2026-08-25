@@ -1,6 +1,6 @@
 # Soundscaper and Framescaper production roadmap
 
-> Grounded against the repository on 2026-08-24. Milestones are ordered by dependency and close only when their exit gates pass. They are not release-date promises.
+> Grounded against the repository on 2026-08-25. Milestones are ordered by dependency and close only when their exit gates pass. They are not release-date promises.
 
 Soundscaper and Framescaper are two focused products over one local-first, mixed-media editor and one canonical `.scape` project format. The destination is an end-to-end professional workflow for recording, editing, mixing, picture editorial, finishing, and delivery on the web and in Electron. It is not parity with every specialist creative suite.
 
@@ -132,7 +132,7 @@ must not become an earlier hidden recording path.
 | Shared project core | Mixed-media schema, revisioned commands/history, autosave, locks, Project Bin, `.scape`, and web product handoff. |
 | Storage | Chunked PCM, OPFS with IndexedDB fallback, retained originals, disposable derivatives, streaming media paths, and capacity preflight. |
 | Soundscaper | Multitrack recording/editing, spectral and sample editing, buses/sends, effects/macros, analysis, surround/ADM, broad export, and Audacity interchange. |
-| Framescaper | Linked A/V ingest, layered tracks, trim/split/stretch/ripple editing, crossfades, WebGL preview, video effects, and MP4/WebM render. |
+| Framescaper | Linked A/V ingest, layered tracks, trim/split/stretch/ripple editing, crossfades, WebGL preview, video effects, MP4/WebM render, and selected-F31 camera/microphone/display recording on web and desktop. Recording Setup is default-hidden and manual qualification remains open. |
 | Electron | Hardened wrapper, dialogs, bounded reads, atomic saves, lifecycle handling, associations, packaged runtimes, and a shared current-schema project library. |
 | Evidence | Node tests, cross-engine browser workflows, desktop smoke tests, architecture limits, output-size checks, and reproducibility audits. |
 
@@ -160,7 +160,7 @@ Known architectural constraints that drive later work:
 | 5. Electron-native services | **In progress — software complete; qualification and activation open** | Add isolated native media, audio, render, and plug-in services. |
 | 6. Delivery/interchange | **Web tier implemented; native activation blocked; none qualified** | Add professional masters, queues, exchange, and archives. |
 | 7. Local assistance | **Optional** | Add removable on-device assistance without becoming a dependency. |
-| 8. Capture and MIDI | **8A substrate implemented, dormant; 8B Blocked** | Framescaper recording code is retained as an unactivated historical substrate; selected-route activation and external qualification remain open, and MIDI waits for upstream design review. |
+| 8. Capture and MIDI | **8A active — qualification open; 8B Blocked** | Selected Framescaper F31 activates recording on web and desktop while real-device and owner-lab qualification remains open; MIDI waits for upstream design review. |
 | 8+. Framescaper Web VCR | **Software substrate implemented — provisional, disabled** | Keep the dormant contracts, security seams, controller, crop pipeline, and UI behind `framescaperWebVcr: false` until post-milestone-8 runtime qualification. |
 | 9. Final qualification | **Planned** | Requalify the complete product, including the accepted post-milestone-8 extension, and release matrix. |
 
@@ -596,8 +596,8 @@ clearance does not close either track or milestone exit gate.
   audio uses shared V21 automation, mixer routing, loudness targets, and render
   infrastructure. Its menu-reached dialogue chain is highpass → gate → EQ →
   compressor → limiter with optional profiled noise reduction after highpass.
-- **Blocked until milestone 8:** no Framescaper camera, microphone, display, or
-  voiceover recording surface.
+- **Delivered in milestone 8A:** selected Framescaper F31 activates the
+  default-hidden camera, microphone, display, and voiceover recording surface.
 
 ### Exit gate
 
@@ -609,7 +609,8 @@ clearance does not close either track or milestone exit gate.
   or silently omitting export work.
 - Framescaper can edit, mix, caption, grade, and export a complete imported-media
   programme without Soundscaper.
-- MIDI and Framescaper capture have not been introduced early.
+- MIDI remains fenced, and Framescaper capture was not introduced before its
+  milestone-8A activation.
 
 ## 5. Electron-native services and extensibility
 
@@ -642,7 +643,8 @@ The [milestone-5 plan](docs/milestone-5-plan.md) owns sequencing and the shared 
 - **Electron Enhanced — Professional media, not activated:** pathless sequence/proxy actions are menu-owned. Helper scratch seals an exact regular-file output tree and main revalidates it before no-clobber publication; PNG/TIFF/OpenEXR and codec evidence remain blocked.
 - **Electron Only — Persistent services V3, not activated:** V28 queue, capacity, scratch, checkpoints, watch/bin/proxy flow, lease-fenced publication, and external display are implemented; missing authority preserves project state and reports unavailable.
 - **Electron Only — OpenFX, production-closed:** menu-owned scan, enable, and Add OFX use a shared context-aware exact frame graph for all six contexts across preview/export/carrier. The bounded React route uses Interact Suite V1, custom parameters, DrawSuite V1, normalized events, and no native window; missing/crashed effects preserve state with bypass or verified frozen continuity. The empty payload manifest keeps third-party execution unavailable.
-- **Blocked until milestone 8:** no new Framescaper capture surface.
+- **Delivered in milestone 8A:** the selected F31 web and desktop capture route
+  reuses the pathless consent boundary without activating the native-media tier.
 
 ### Exit gate
 
@@ -739,8 +741,8 @@ invariants, and the bounded work packets are owned by the
   project state.
 - Models are opt-in, separately downloaded into a user-settable directory,
   digest-pinned, removable, licensed, and offline after installation.
-- Before milestone 8A, assistance consumes only imported or persisted media and
-  cannot create a hidden recording path.
+- Assistance may consume selected-F31 recordings only after they become
+  ordinary persisted media; it cannot initiate, authorize, or own capture.
 - Selected media and results remain on-device. Accepted results become ordinary,
   inspectable commands or derived assets.
 - Deterministic non-AI editing and delivery remain complete without this
@@ -753,51 +755,54 @@ product sub-phase 8B.
 
 ### 8A. Framescaper recording setup
 
-**Status:** **Implementation complete as dormant historical substrate; not activated.** Selected Framescaper V27 sets `framescaperCapture: false`, passes no capture route authority to its controller, and exposes no Recording Setup menu, preference, panel, or ordinary toolbar action. Only an already-active or recovery-owned historical session retains narrow stop, release, and recovery reachability. Selected-route activation and external qualification remain open. The owning [implementation plan](docs/milestone-8a-plan.md) and [capture privacy contract](docs/framescaper-capture-privacy.md) record this boundary and the still-unprovisioned real-device matrix.
+**Status:** **Implemented and active on selected Framescaper F31 web and desktop.** Selected F31 sets `framescaperCapture: true` and admits the exact capture route authority through its controller, app binding, and runtime probe. Recording Setup remains default-hidden and requires explicit opt-in through **View > Panels**; Record then appears only for a complete runtime stack or an owned recovery session. Manual qualification remains open: real-device and owner-lab evidence is still provisional and unprovisioned, and synthetic browser runs or packaged no-device smoke do not substitute for it. `framescaperWebVcr: false` keeps the post-milestone extension disabled. The owning [implementation plan](docs/milestone-8a-plan.md) and [capture privacy contract](docs/framescaper-capture-privacy.md) record the active boundary and the still-unprovisioned real-device matrix.
 
-The following bullets describe retained historical schema-18, schema-19, and
-schema-20 implementation, not a selected V27 product workflow.
+The following bullets describe the selected F31 web and desktop workflow.
+Schema-18 desktop, schema-19 web, and schema-20 web/desktop remain historical
+compatibility routes only.
 
 **Goal:** record cameras, microphones, and displays into the same recoverable
 media/project model used by imported sources.
 
 #### Recording surface
 
-- **Web Core — Implemented substrate (dormant):** a Recording Setup panel with explicit permission,
+- **Web Core — Implemented (active; qualification open):** a Recording Setup panel with explicit permission,
   preview, armed, recording, pause, finalization, recovery, and failure states.
-- **Web Core — Implemented substrate (dormant):** permission-aware camera/microphone enumeration,
+- **Web Core — Implemented (active; qualification open):** permission-aware camera/microphone enumeration,
   previews, formats, meters, monitoring, countdown, drop/drift status, and destinations.
-- **Web Enhanced — Implemented substrate (dormant):** fresh user-selected display/window/tab capture and
+- **Web Enhanced — Implemented (active; qualification open):** fresh user-selected display/window/tab capture and
   system/tab audio only when capabilities prove it.
-- **Shared — Implemented substrate (dormant):** camera, microphone, display, and system-audio
+- **Shared — Implemented (active; qualification open):** camera, microphone, display, and system-audio
   combinations as distinct streams under one monotonic-clock capture session.
-- **Shared — Implemented substrate (dormant):** per-packet timestamps and alignment/drift metadata
+- **Shared — Implemented (active; qualification open):** per-packet timestamps and alignment/drift metadata
   without destructively resampling originals during capture.
 
 #### Capture and persistence
 
-- **Web Core — Implemented substrate (dormant):** runtime-selected supported recording formats and
+- **Web Core — Implemented (active; qualification open):** runtime-selected supported recording formats and
   permission-gated `getUserMedia()`.
-- **Web Enhanced — Implemented substrate (dormant):** capability-detected `getDisplayMedia()` with an
+- **Web Enhanced — Implemented (active; qualification open):** capability-detected `getDisplayMedia()` with an
   honest camera/microphone fallback.
-- **Web Core — Implemented substrate (dormant):** bounded fragments, atomic publication, closed
+- **Web Core — Implemented (active; qualification open):** bounded fragments, atomic publication, closed
   creation inventory, durable append intents, ordered session-to-spool Web Locks,
   resumable tail/terminal cleanup, post-commit derivatives, and crash recovery.
   Each captured video schedules one proxy; audio schedules none; failures warn.
-- **Electron Enhanced — Implemented substrate (dormant):** a validated, pathless OS-picker consent
+- **Electron Enhanced — Implemented (active; qualification open):** a validated, pathless OS-picker consent
   control plane and renderer-local path with explicit qualification limits.
-- **Shared — Implemented substrate (dormant):** historically enable recording only on exact schema-19 web or
-  schema-18 desktop when source, encoder/audio, Web Locks, durable repositories,
+- **Shared — Implemented (active; qualification open):** selected F31 enables recording on web and
+  desktop only when source, encoder/audio, Web Locks, durable repositories,
   probe, and canonical publication are ready; no partial Record control exists.
-- **Web Core / Electron Enhanced — Implemented substrate (dormant):** change camera-denying policies and
+  Exact schema-19 web, schema-18 desktop, and schema-20 web/desktop routes remain
+  compatibility surfaces.
+- **Web Core / Electron Enhanced — Implemented (active; qualification open):** change camera-denying policies and
   packaging permissions only with consent, indicators, teardown, embedded-route
   policy, and privacy tests.
 
 #### Capture qualification exit gate (open)
 
-The historical substrate implementation exit is complete. Selected-route
-activation and real-device/external-runtime qualification remain open and
-cannot be inferred from synthetic browser tests or packaged no-device smoke:
+Selected-F31 activation is complete. Real-device and external-runtime
+qualification remains open and cannot be inferred from synthetic browser tests
+or packaged no-device smoke:
 
 - Every denial, revocation, device loss, source end, throttling, disk/encoder
   failure, reload, helper crash, and quit reaches a defined recoverable state and
