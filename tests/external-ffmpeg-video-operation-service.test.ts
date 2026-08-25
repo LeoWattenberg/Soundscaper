@@ -149,6 +149,25 @@ test('video service cancellation terminates the child and owner revocation drain
 	}
 });
 
+test('post-spawn private-pipe setup failure terminates the admitted child tree', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-pipe-'));
+	let killed = 0;
+	const fixture = serviceFixture(root, () => {
+		const child = fakeChild(new PassThrough(), null);
+		child.stdio = [null, child.stdout, child.stderr] as unknown as FakeChild['stdio'];
+		child.kill = () => { killed += 1; queueMicrotask(() => child.emit('close', null, 'SIGKILL')); return true; };
+		return child;
+	});
+	try {
+		const session = await fixture.service.begin(fixture.owner, PLAN);
+		await assert.rejects(() => fixture.service.execute(fixture.owner, session.operationId), /private input pipe/u);
+		await waitFor(() => killed > 0);
+	} finally {
+		fixture.service.dispose();
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
 function serviceFixture(
 	root: string,
 	spawn: ExternalFfmpegVideoSpawn,

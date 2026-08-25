@@ -74,12 +74,21 @@ export function launchExternalFfmpegVideoProcess(options: Readonly<{
 			detached: shouldDetachProcessTree(),
 		}));
 	} catch { throw options.error('spawn-failed', 'The external FFmpeg video process could not start.'); }
-	return Object.freeze({
-		child,
-		videoInput: writableAt(child, 3, options.error),
-		audioInput: options.hasAudio ? writableAt(child, 4, options.error) : null,
-		completion: superviseProcess(child, options.signal, options),
-	});
+	const completion = superviseProcess(child, options.signal, options);
+	try {
+		return Object.freeze({
+			child,
+			videoInput: writableAt(child, 3, options.error),
+			audioInput: options.hasAudio ? writableAt(child, 4, options.error) : null,
+			completion,
+		});
+	} catch (error) {
+		// A successfully launched process is always supervised and terminated,
+		// even when its expected private stdio shape is malformed.
+		void terminateProcessTree(child, 'SIGKILL', { environment: options.environment });
+		void completion.catch(() => undefined);
+		throw error;
+	}
 }
 
 export function writeExternalFfmpegVideoInput(
