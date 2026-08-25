@@ -267,7 +267,7 @@ test('valid unreviewed WavPack requests fall through while malformed input remai
 	await assert.rejects(() => broker.execute(decodeRequest(checksumFault)), (error: unknown) => {
 		assert.ok(error instanceof DesktopCodecOperationError);
 		assert.equal(error.code, 'DESKTOP_CODEC_PREFLIGHT_REJECTED');
-		assert.equal(error.providerId, bundled.provider.id);
+		assert.equal(error.providerId, wavpack.provider.id);
 		return true;
 	});
 	assert.equal(externalExecutions, 1, 'malformed input must not reach a lower-priority codec');
