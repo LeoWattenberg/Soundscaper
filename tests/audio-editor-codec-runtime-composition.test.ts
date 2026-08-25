@@ -78,6 +78,56 @@ test('desktop codec composition routes audio through file service while video st
 	runtime.dispose();
 });
 
+test('advertised desktop video capability reaches the owner-scoped keyframe runner', async () => {
+	const calls: string[] = [];
+	const operationId = `desktop-video-${'1'.repeat(32)}`;
+	const fileService = {
+		getDesktopAudioCodecCapabilities(query: DesktopAudioCodecCapabilityQuery) {
+			return { schemaVersion: 2, capabilities: query.operations.map((operation) => ({
+				...operation, available: true, provider: 'external-ffmpeg', reason: null,
+			})) };
+		},
+		runDesktopAudioCodecOperation() { throw new Error('audio was not requested'); },
+		cancelDesktopAudioCodecOperation() { return true; },
+		getDesktopVideoExportCapabilities() {
+			return { schemaVersion: 1, formats: {
+				mp4: { available: true, provider: 'external-ffmpeg', reason: null },
+				webm: { available: false, provider: null, reason: 'unsupported' },
+			} };
+		},
+		beginDesktopVideoCodecOperation() { calls.push('begin'); return { operationId }; },
+		writeDesktopVideoCodecInput() { throw new Error('input was not requested'); },
+		closeDesktopVideoCodecInput() { throw new Error('input was not requested'); },
+		executeDesktopVideoCodecOperation() { throw new Error('execution was not requested'); },
+		statDesktopVideoCodecOutput() { throw new Error('output was not requested'); },
+		readDesktopVideoCodecOutput() { throw new Error('output was not requested'); },
+		deleteDesktopVideoCodecOperation() { throw new Error('output was not requested'); },
+		cancelDesktopVideoCodecOperation(id: string) { calls.push(`cancel:${id}`); return true; },
+	};
+	assert.equal((await fileService.getDesktopVideoExportCapabilities()).formats.mp4.available, true);
+	const runtime = createDesktopRuntime({ fileService });
+	assert.equal(await runtime.load(), runtime);
+	const result = await runtime.runVideoKeyframeEncoderOperation(
+		(lease: unknown) => { assert.ok(lease); calls.push('lease'); return 'reached'; },
+		{
+			desktopExternalFfmpeg: {
+				plan: {
+					schemaVersion: 1, format: 'mp4', quality: 'balanced', width: 2, height: 2,
+					frameRate: { num: 1, den: 1 }, frameCount: 2, sampleRate: 48_000,
+					durationFrames: 96_000, videoInputBytes: 32, audioInputBytes: null,
+					ringCapacityBytes: 4_096, audioRingCapacityBytes: null,
+					maximumOutputBytes: 1024 * 1024,
+				},
+				videoInputPath: '/renderer-local-input.rgba', outputPath: '/renderer-local-output.mp4',
+				ffmpegArguments: ['fixed-renderer-local-argv'],
+			},
+		},
+	);
+	assert.equal(result, 'reached');
+	assert.deepEqual(calls, ['begin', 'lease', `cancel:${operationId}`]);
+	runtime.dispose();
+});
+
 function interleavedF32(samples: readonly number[]): Uint8Array {
 	const bytes = new Uint8Array(samples.length * Float32Array.BYTES_PER_ELEMENT);
 	const view = new DataView(bytes.buffer);

@@ -5,6 +5,10 @@ import {
 	createDesktopAudioCodecRuntime,
 	type DesktopAudioCodecRendererBridge,
 } from './desktop-audio-codec-runtime.ts';
+import {
+	createDesktopVideoCodecOperationRunner,
+	type DesktopVideoCodecRendererBridge,
+} from './desktop-video-codec-runtime.ts';
 
 export class DesktopCodecRuntimeUnavailableError extends Error {
 	readonly code = 'DESKTOP_CODEC_RUNTIME_UNAVAILABLE';
@@ -26,9 +30,20 @@ const CAPABILITIES = createMediaExportCapabilities({
  * or silently falls back to the browser FFmpeg runtime.
  */
 export function createEditorCodecRuntime(options: unknown = {}) {
-	const bridge = desktopAudioCodecBridge(options);
-	if (bridge !== null) return createDesktopAudioCodecRuntime(bridge);
+	const audioBridge = desktopAudioCodecBridge(options);
+	const base = audioBridge === null ? unavailableRuntime() : createDesktopAudioCodecRuntime(audioBridge);
+	const videoBridge = desktopVideoCodecBridge(options);
+	if (videoBridge === null) return base;
+	const runVideoKeyframeEncoderOperation = createDesktopVideoCodecOperationRunner(videoBridge);
+	const runtime = Object.freeze({
+		...base,
+		async load() { await base.load(); return runtime; },
+		runVideoKeyframeEncoderOperation,
+	});
+	return runtime;
+}
 
+function unavailableRuntime() {
 	const unavailable = (..._arguments: unknown[]): Promise<never> => (
 		Promise.reject(new DesktopCodecRuntimeUnavailableError())
 	);
@@ -67,6 +82,25 @@ function desktopAudioCodecBridge(options: unknown): DesktopAudioCodecRendererBri
 		},
 		cancel(requestId: string) { return Reflect.apply(cancel, fileService, [requestId]); },
 	});
+}
+
+function desktopVideoCodecBridge(options: unknown): DesktopVideoCodecRendererBridge | null {
+	if (!options || typeof options !== 'object' || Array.isArray(options)) return null;
+	const fileService = (options as { readonly fileService?: unknown }).fileService;
+	if (!fileService || typeof fileService !== 'object' || Array.isArray(fileService)) return null;
+	const names = Object.freeze({
+		begin: 'beginDesktopVideoCodecOperation', write: 'writeDesktopVideoCodecInput',
+		close: 'closeDesktopVideoCodecInput', execute: 'executeDesktopVideoCodecOperation',
+		stat: 'statDesktopVideoCodecOutput', read: 'readDesktopVideoCodecOutput',
+		delete: 'deleteDesktopVideoCodecOperation', cancel: 'cancelDesktopVideoCodecOperation',
+	} as const);
+	const result: Record<string, (...arguments_: unknown[]) => unknown> = {};
+	for (const [name, fileServiceName] of Object.entries(names)) {
+		const method = callable(fileService, fileServiceName);
+		if (method === null) return null;
+		result[name] = (...arguments_: unknown[]) => Reflect.apply(method, fileService, arguments_);
+	}
+	return Object.freeze(result) as unknown as DesktopVideoCodecRendererBridge;
 }
 
 function callable(value: object, key: string): ((...arguments_: never[]) => unknown) | null {
