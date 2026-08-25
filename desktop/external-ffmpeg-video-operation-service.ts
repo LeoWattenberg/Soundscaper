@@ -155,9 +155,9 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 
 	const cleanup = (session: Session<Owner>): Promise<void> => {
 		if (session.cleanup) return session.cleanup;
-			session.state = 'deleted';
-			sessions.delete(session.id);
-			if (session.idleTimer) clearTimeout(session.idleTimer);
+		session.state = 'deleted';
+		sessions.delete(session.id);
+		if (session.idleTimer) clearTimeout(session.idleTimer);
 		for (const input of Object.values(session.inputs)) input?.stream?.destroy();
 		session.cleanup = Promise.resolve().then(async () => {
 			if (session.output) await session.output.close();
@@ -207,14 +207,14 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 					audio: plan.audioInputBytes === null ? null : inputState(plan.audioInputBytes),
 				}),
 				controller: new AbortController(), started, state: 'ready', child: null,
-					execution: null, output: null, outputBytes: 0, cleanup: null, idleTimer: null,
-				};
-				sessions.set(operationId, session);
-				session.idleTimer = setTimeout(() => {
-					const reason = operationError('idle', 'The desktop video session expired while idle.');
-					session.controller.abort(reason); session.started.reject(reason);
-					void cleanup(session).catch(() => undefined);
-				}, idle); session.idleTimer.unref?.();
+				execution: null, output: null, outputBytes: 0, cleanup: null, idleTimer: null,
+			};
+			sessions.set(operationId, session);
+			session.idleTimer = setTimeout(() => {
+				const reason = operationError('idle', 'The desktop video session expired while idle.');
+				session.controller.abort(reason); session.started.reject(reason);
+				void cleanup(session).catch(() => undefined);
+			}, idle); session.idleTimer.unref?.();
 			return Object.freeze({ operationId });
 		},
 		async writeInput(
