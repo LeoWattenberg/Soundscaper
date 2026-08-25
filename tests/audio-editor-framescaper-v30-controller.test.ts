@@ -26,6 +26,15 @@ const { framescaperCandidateAuthoringActionRuntimeFor } = await import(
 const { productVideoVisualPreviewRuntimeFor } = await import(
 	'../src/common/editor/ui/workspace/product-video-visual-preview-runtime.ts'
 );
+const { framescaperVideoProxyActionRuntimeFor } = await import(
+	'../src/framescaper/editor-video-proxy-action-runtime-v20.ts'
+);
+const { framescaperMotionAnalysisActionsV27For } = await import(
+	'../src/framescaper/editor-motion-analysis-actions-v27.ts'
+);
+const { framescaperCubeLutActionsV27For } = await import(
+	'../src/framescaper/editor-cube-lut-actions-v27.ts'
+);
 const { createInstrumentedIndexedDB } = await import('./helpers/instrumented-indexeddb.js');
 
 test('selected V30 composes inherited menu authoring with image authoring and preview', async (context) => {
@@ -45,6 +54,9 @@ test('selected V30 composes inherited menu authoring with image authoring and pr
 	assert.ok(authoring?.surfaces.includes('video-still'));
 	assert.equal(authoring?.surfaces.filter((surface) => surface === 'video-still').length, 1);
 	assert.ok(productVideoVisualPreviewRuntimeFor(controller));
+	assert.ok(framescaperVideoProxyActionRuntimeFor(controller));
+	assert.ok(framescaperMotionAnalysisActionsV27For(controller));
+	assert.ok(framescaperCubeLutActionsV27For(controller));
 	controller.actions.project.rename('Framescaper V30');
 	assert.equal(controller.project.title, 'Framescaper V30');
 });
