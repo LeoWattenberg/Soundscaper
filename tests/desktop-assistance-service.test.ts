@@ -2,12 +2,14 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
 import { createAssistanceService } from '../desktop/assistance-service.ts';
+import { LocalModelCapacity } from '../desktop/local-model-capacity.ts';
+import { localModelBlobName } from '../desktop/local-model-store.ts';
 import {
 	signedTestLocalModelCatalog,
 	testLocalModelEvidence,
@@ -23,7 +25,13 @@ function digest(value: string): string {
 	return createHash('sha256').update(value).digest('hex');
 }
 
-const EVIDENCE = testLocalModelEvidence('silero-vad-v6', { attributionRequired: true });
+const EVIDENCE = testLocalModelEvidence('silero-vad-v6', {
+	attributionRequired: true,
+	purpose: 'Voice activity detection for the test assistance pipeline.',
+	codeLicense: 'MIT',
+	weightsLicense: 'MIT',
+	provenanceSources: Object.freeze(['https://upstream.invalid/repo']),
+});
 const CATALOG = signedTestLocalModelCatalog({
 	schemaVersion: 2,
 	publication: {
@@ -138,6 +146,51 @@ test('installing fetches, verifies, and reports the model as installed', { timeo
 	assert.equal(status.models[0]?.installedBytes, ENCODER.length + TOKENS.length);
 });
 
+test('capacity is admitted before the first model download request', { timeout: 20_000 }, async (t) => {
+	let fetches = 0;
+	const capacity = new LocalModelCapacity({
+		statfsImpl: async () => ({ bavail: 1n, bsize: 1n }),
+	});
+	const service = await serviceIn(t, {
+		capacity,
+		fetchImpl: (() => { fetches += 1; throw new Error('must not fetch'); }) as typeof fetch,
+	});
+
+	await assert.rejects(service.install('silero-vad-v6'), /available disk space/iu);
+	assert.equal(fetches, 0);
+});
+
+test('an explicit seed-directory install has no network fallback', { timeout: 20_000 }, async (t) => {
+	const source = await mkdtemp(join(tmpdir(), 'scape-assistance-seed-'));
+	t.after(() => rm(source, { recursive: true, force: true }));
+	await writeFile(join(source, 'encoder.onnx'), ENCODER);
+	await writeFile(join(source, 'tokens.txt'), TOKENS);
+	let fetches = 0;
+	const service = await serviceIn(t, {
+		fetchImpl: (() => { fetches += 1; throw new Error('must not fetch'); }) as typeof fetch,
+	});
+
+	const installed = await service.installPreseeded('silero-vad-v6', source);
+	assert.equal(installed.availability, 'installed');
+	assert.equal(fetches, 0);
+	assert.equal((await service.listInstalled())[0]?.modelId, 'silero-vad-v6');
+});
+
+test('direct content-addressed pre-seeds reconcile with zero network', { timeout: 20_000 }, async (t) => {
+	let fetches = 0;
+	const service = await serviceIn(t, {
+		fetchImpl: (() => { fetches += 1; throw new Error('must not fetch'); }) as typeof fetch,
+	});
+	await mkdir(join(service.modelsDirectory, 'blobs'), { recursive: true });
+	await writeFile(join(service.modelsDirectory, 'blobs', localModelBlobName(digest(ENCODER))), ENCODER);
+	await writeFile(join(service.modelsDirectory, 'blobs', localModelBlobName(digest(TOKENS))), TOKENS);
+
+	const report = await service.reconcilePreseeded();
+	assert.deepEqual(report.installedModelIds, ['silero-vad-v6']);
+	assert.equal(fetches, 0);
+	assert.equal((await service.status()).models[0]?.availability, 'installed');
+});
+
 test('a model outside the authenticated catalog cannot be installed', { timeout: 20_000 }, async (t) => {
 	const service = await serviceIn(t);
 
@@ -167,6 +220,22 @@ test('runtime path resolution rehashes installed artifacts', { timeout: 20_000 }
 	);
 });
 
+test('a stale installed manifest does not impersonate the current catalog entry', { timeout: 20_000 }, async (t) => {
+	const service = await serviceIn(t);
+	await service.install('silero-vad-v6');
+	const manifestPath = join(service.modelsDirectory, 'manifests', 'silero-vad-v6.json');
+	const manifest = JSON.parse(String(await readFile(manifestPath))) as Record<string, unknown>;
+	await writeFile(manifestPath, `${JSON.stringify({ ...manifest, version: 'older' })}\n`);
+
+	const model = (await service.status()).models[0];
+	assert.equal(model?.availability, 'installable');
+	assert.equal(model?.installedBytes, null);
+	await assert.rejects(
+		service.resolveModelPaths('silero-vad-v6'),
+		/does not match the current authenticated catalog/iu,
+	);
+});
+
 test('removing a model reclaims its bytes and returns it to installable', { timeout: 20_000 }, async (t) => {
 	const service = await serviceIn(t);
 	await service.install('silero-vad-v6');
@@ -174,6 +243,43 @@ test('removing a model reclaims its bytes and returns it to installable', { time
 	assert.equal(await service.remove('silero-vad-v6'), ENCODER.length + TOKENS.length);
 	assert.deepEqual(await service.listInstalled(), []);
 	assert.equal((await service.status()).models[0]?.availability, 'installable');
+});
+
+test('garbage collection and installed notices are explicit authenticated service operations', { timeout: 20_000 }, async (t) => {
+	const service = await serviceIn(t);
+	await service.install('silero-vad-v6');
+	const orphanContents = 'orphaned bytes';
+	const orphanDigest = digest(orphanContents);
+	await writeFile(
+		join(service.modelsDirectory, 'blobs', localModelBlobName(orphanDigest)),
+		orphanContents,
+	);
+
+	const notices = await service.installedNotices();
+	assert.equal(notices[0]?.modelId, 'silero-vad-v6');
+	assert.equal(notices[0]?.attributionRequired, true);
+	assert.equal(notices[0]?.weightsLicense, 'MIT');
+	const collection = await service.garbageCollect();
+	assert.equal(collection.reclaimedBlobBytes, orphanContents.length);
+});
+
+test('service relocation changes authority only after verified settings persistence', { timeout: 20_000 }, async (t) => {
+	const targetParent = await mkdtemp(join(tmpdir(), 'scape-assistance-relocate-'));
+	t.after(() => rm(targetParent, { recursive: true, force: true }));
+	const target = join(targetParent, 'models');
+	let persisted: string | null = null;
+	const service = await serviceIn(t, {
+		persistModelsDirectory: async (directory: string) => { persisted = directory; },
+	});
+	await service.install('silero-vad-v6');
+	const source = service.modelsDirectory;
+
+	const result = await service.relocate(target);
+	assert.equal(persisted, target);
+	assert.equal(result.sourceRemoved, true);
+	assert.equal(service.modelsDirectory, target);
+	assert.equal((await service.status()).models[0]?.availability, 'installed');
+	await assert.rejects(lstat(source), /ENOENT/iu);
 });
 
 test('an unavailable runtime is reported rather than hidden', { timeout: 20_000 }, async (t) => {
