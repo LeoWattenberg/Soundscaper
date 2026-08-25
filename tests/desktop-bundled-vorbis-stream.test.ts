@@ -51,6 +51,32 @@ test('strict parser treats a valid chained logical stream as unreviewed fallthro
 	assert.throws(() => parseBundledVorbisStream(chained), BundledVorbisStreamUnsupportedError);
 });
 
+test('maximum setup-packet lacing has linear packet-copy work', () => {
+	const setupBytes = 2 * 1024 * 1024;
+	const stream = maximallyLacedSetupStream(setupBytes);
+	const originalSet = Uint8Array.prototype.set;
+	let copiedBytes = 0;
+	Uint8Array.prototype.set = function countedSet(
+		this: Uint8Array,
+		source: ArrayLike<number>,
+		offset?: number,
+	): void {
+		copiedBytes += source.length;
+		if (copiedBytes > setupBytes + 1024) {
+			throw new Error('The bounded Vorbis parser recopied packet prefixes.');
+		}
+		originalSet.call(this, source, offset);
+	};
+	try {
+		assert.deepEqual(parseBundledVorbisStream(stream), {
+			sampleRate: 48_000, channelCount: 2, frameCount: 1, audioPacketCount: 1,
+		});
+	} finally {
+		Uint8Array.prototype.set = originalSet;
+	}
+	assert.equal(copiedBytes, setupBytes + 30 + 16 + 1);
+});
+
 async function realStream(): Promise<Uint8Array> {
 	const runtime = await loadBundledVorbisAudioCodecRuntime({ target: 'linux-x64' });
 	assert.ok(runtime);
@@ -68,6 +94,68 @@ async function realStream(): Promise<Uint8Array> {
 	assert.equal(result.status, 'executed');
 	if (result.status !== 'executed') throw new Error('Vorbis fixture encoding failed.');
 	return result.output;
+}
+
+function maximallyLacedSetupStream(setupBytes: number): Uint8Array {
+	const marker = new TextEncoder().encode('vorbis');
+	const identification = new Uint8Array(30);
+	identification[0] = 1;
+	identification.set(marker, 1);
+	identification[11] = 2;
+	new DataView(identification.buffer).setUint32(12, 48_000, true);
+	identification[28] = 0xb8;
+	identification[29] = 1;
+	const comments = new Uint8Array(16);
+	comments[0] = 3;
+	comments.set(marker, 1);
+	comments[15] = 1;
+	const setup = new Uint8Array(setupBytes);
+	setup[0] = 5;
+	setup.set(marker, 1);
+	const serial = 0x53435642;
+	let sequence = 0;
+	const pages = [
+		oggPage({ lacing: [identification.byteLength], body: identification, serial, sequence: sequence++, flags: 2, granule: 0n }),
+		oggPage({ lacing: [comments.byteLength], body: comments, serial, sequence: sequence++, flags: 0, granule: 0n }),
+	];
+	const setupLacing = Array.from({ length: Math.floor(setup.byteLength / 255) }, () => 255);
+	setupLacing.push(setup.byteLength % 255);
+	let setupOffset = 0;
+	for (let lacingOffset = 0; lacingOffset < setupLacing.length; lacingOffset += 255) {
+		const lacing = setupLacing.slice(lacingOffset, lacingOffset + 255);
+		const bodyBytes = lacing.reduce((total, value) => total + value, 0);
+		pages.push(oggPage({
+			lacing, body: setup.subarray(setupOffset, setupOffset + bodyBytes), serial,
+			sequence: sequence++, flags: lacingOffset === 0 ? 0 : 1, granule: 0n,
+		}));
+		setupOffset += bodyBytes;
+	}
+	pages.push(oggPage({
+		lacing: [1], body: Uint8Array.of(0), serial, sequence, flags: 4, granule: 1n,
+	}));
+	return concatBytes(...pages);
+}
+
+function oggPage(options: Readonly<{
+	readonly lacing: readonly number[];
+	readonly body: Uint8Array;
+	readonly serial: number;
+	readonly sequence: number;
+	readonly flags: number;
+	readonly granule: bigint;
+}>): Uint8Array {
+	const page = new Uint8Array(27 + options.lacing.length + options.body.byteLength);
+	page.set(new TextEncoder().encode('OggS'));
+	page[5] = options.flags;
+	const view = new DataView(page.buffer);
+	view.setBigUint64(6, options.granule, true);
+	view.setUint32(14, options.serial, true);
+	view.setUint32(18, options.sequence, true);
+	page[26] = options.lacing.length;
+	page.set(options.lacing, 27);
+	page.set(options.body, 27 + options.lacing.length);
+	view.setUint32(22, oggCrc(page), true);
+	return page;
 }
 
 function lastOggPageOffset(stream: Uint8Array): number {

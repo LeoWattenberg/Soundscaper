@@ -38,6 +38,11 @@ export class BundledVorbisStreamUnsupportedError extends Error {
 	}
 }
 
+interface PacketAccumulator {
+	readonly segments: Uint8Array[];
+	byteLength: number;
+}
+
 export function parseBundledVorbisStream(value: unknown): BundledVorbisStreamGeometry {
 	if (!(value instanceof Uint8Array) || value.byteLength < 96
 		|| value.byteLength > MAXIMUM_INPUT_BYTES) fail();
@@ -46,7 +51,7 @@ export function parseBundledVorbisStream(value: unknown): BundledVorbisStreamGeo
 	let pageCount = 0;
 	let serial: number | null = null;
 	let sequence = 0;
-	let partial: Uint8Array = new Uint8Array(0);
+	let partial = emptyPacket();
 	let packetIndex = 0;
 	let sampleRate = 0;
 	let channelCount = 0;
@@ -93,25 +98,26 @@ export function parseBundledVorbisStream(value: unknown): BundledVorbisStreamGeo
 		const audioPacketsBeforePage = audioPacketCount;
 		for (let segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++) {
 			const segmentBytes = bytes[offset + 27 + segmentIndex];
-			partial = appendBounded(
+			appendBounded(
 				partial, bytes.subarray(bodyOffset, bodyOffset + segmentBytes),
 				packetLimit(packetIndex), packetIndex,
 			);
 			bodyOffset += segmentBytes;
 			if (segmentBytes < 255) {
+				const packet = materializePacket(partial);
 				if (packetIndex === 0) {
-					const identification = parseIdentification(partial);
+					const identification = parseIdentification(packet);
 					sampleRate = identification.sampleRate;
 					channelCount = identification.channelCount;
 					unsupported ??= identification.unsupported;
-				} else if (packetIndex === 1) unsupported ??= parseComments(partial);
-				else if (packetIndex === 2) parseSetup(partial);
+				} else if (packetIndex === 1) unsupported ??= parseComments(packet);
+				else if (packetIndex === 2) parseSetup(packet);
 				else {
-					if (partial.byteLength === 0 || (partial[0] & 1) !== 0) fail();
+					if (packet.byteLength === 0 || (packet[0] & 1) !== 0) fail();
 					audioPacketCount++;
 				}
 				packetIndex++;
-				partial = new Uint8Array(0);
+				partial = emptyPacket();
 			}
 		}
 		if (pageCount === 1 && packetIndex !== 1) fail();
@@ -210,18 +216,32 @@ function packetLimit(packetIndex: number): number {
 }
 
 function appendBounded(
-	left: Uint8Array,
-	right: Uint8Array,
+	packet: PacketAccumulator,
+	segment: Uint8Array,
 	maximum: number,
 	packetIndex: number,
-): Uint8Array {
-	if (left.byteLength + right.byteLength > maximum) {
+): void {
+	const byteLength = packet.byteLength + segment.byteLength;
+	if (!Number.isSafeInteger(byteLength) || byteLength > maximum) {
 		if (packetIndex === 0) fail();
 		throw new BundledVorbisStreamUnsupportedError('An Ogg Vorbis packet exceeds the reviewed bound.');
 	}
-	const output = new Uint8Array(left.byteLength + right.byteLength);
-	output.set(left);
-	output.set(right, left.byteLength);
+	if (segment.byteLength > 0) packet.segments.push(segment);
+	packet.byteLength = byteLength;
+}
+
+function emptyPacket(): PacketAccumulator {
+	return { segments: [], byteLength: 0 };
+}
+
+function materializePacket(packet: PacketAccumulator): Uint8Array {
+	const output = new Uint8Array(packet.byteLength);
+	let offset = 0;
+	for (const segment of packet.segments) {
+		output.set(segment, offset);
+		offset += segment.byteLength;
+	}
+	if (offset !== packet.byteLength) fail();
 	return output;
 }
 
