@@ -214,13 +214,34 @@ test('a malformed native picker result is refused before service construction', 
 
 	await assert.rejects(
 		Promise.resolve(handlers.get(CHANNELS.installPreseededAssistanceModel)?.(null, 'silero-vad-v6')),
-		/native assistance directory selection is invalid/iu,
+		/selected offline model files could not be authenticated/iu,
 	);
 	await assert.rejects(
 		Promise.resolve(handlers.get(CHANNELS.relocateAssistanceModels)?.(null)),
-		/native assistance directory selection is invalid/iu,
+		/storage could not be relocated safely/iu,
 	);
 	assert.equal(builtCount(), 0);
+});
+
+test('native filesystem failures cross IPC without their paths', async () => {
+	const { handlers } = harness({
+		installPreseeded: async () => { throw new Error("ENOENT '/private/offline/model.onnx'"); },
+		relocate: async () => { throw new Error("collision at '/private/target'"); },
+	}, {
+		choosePreseedDirectory: async () => '/private/offline',
+		chooseRelocationDirectory: async () => '/private/target',
+	});
+
+	for (const operation of [
+		() => handlers.get(CHANNELS.installPreseededAssistanceModel)?.(null, 'silero-vad-v6'),
+		() => handlers.get(CHANNELS.relocateAssistanceModels)?.(null),
+	]) {
+		await assert.rejects(Promise.resolve().then(operation), (error: unknown) => {
+			assert.ok(error instanceof Error);
+			assert.equal(error.message.includes('/private/'), false);
+			return true;
+		});
+	}
 });
 
 test('main validates model ids even though the preload already did', async () => {
