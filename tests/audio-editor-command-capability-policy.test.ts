@@ -15,6 +15,7 @@ const enabled: EditorCommandCapabilities = {
 	audioRecording: true,
 	audioSpectralEditing: true,
 	audioWarp: true,
+	nestedSequences: true,
 	takeComp: true,
 	timelineAnnotations: true,
 	trackFolders: true,
@@ -227,6 +228,9 @@ test('command capability policy covers every product-sensitive payload path', ()
 		{ capability: 'audioRecording', command: { type: 'track/update', trackId: 'track', changes: { armed: true } } },
 		{ capability: 'timelineAnnotations', command: { type: 'timeline-annotation/remove-many', annotationIds: ['annotation'] } },
 		{ capability: 'timelineAnnotations', command: { type: 'selection/set', startFrame: 0, endFrame: 0, annotationIds: [] } },
+		{ capability: 'nestedSequences', command: {
+			type: 'track/add', track: { id: 'secondary' }, sequenceId: 'secondary-sequence',
+		} },
 		{ capability: 'trackFolders', command: { type: 'track-folder/add', folder: { id: 'folder', name: 'Folder' }, sequenceId: 'main' } },
 		{ capability: 'trackFolders', command: { type: 'track-folder/update', folderId: 'folder', changes: { name: 'Renamed' } } },
 		{ capability: 'trackFolders', command: { type: 'track-folder/remove', folderId: 'folder', disposition: 'promote' } },
@@ -250,6 +254,26 @@ test('command capability policy covers every product-sensitive payload path', ()
 			new RegExp(`Limited does not support ${capability}\\.`),
 			`${command.type} must require ${capability}`,
 		);
+	}
+});
+
+test('track placement gates sequence and folder authority independently', () => {
+	const track = { id: 'secondary', type: 'video', clipIds: [] };
+	assert.doesNotThrow(() => assertEditorCommandCapabilities({
+		type: 'track/add', track, sequenceId: 'secondary-sequence',
+	}, { ...enabled, trackFolders: false }, 'Framescaper'));
+	assert.throws(() => assertEditorCommandCapabilities({
+		type: 'track/add', track, sequenceId: 'secondary-sequence',
+	}, { ...enabled, nestedSequences: false }, 'Single sequence'),
+	/Single sequence does not support nestedSequences\./u);
+	for (const placement of [
+		{ parentFolderId: 'folder' },
+		{ parentIndex: 0 },
+	]) {
+		assert.throws(() => assertEditorCommandCapabilities({
+			type: 'track/add', track, sequenceId: 'secondary-sequence', ...placement,
+		}, { ...enabled, trackFolders: false }, 'Folderless'),
+		/Folderless does not support trackFolders\./u);
 	}
 });
 
