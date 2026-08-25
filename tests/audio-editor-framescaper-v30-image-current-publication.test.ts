@@ -25,7 +25,7 @@ test('published image CAS is installed as one saved undoable active history revi
 	const base = createFramescaperProjectV30(PROFILE, framescaperV20Options());
 	let active = base;
 	let history = createFramescaperProjectHistoryV30(PROFILE, base);
-	let token = Object.freeze({ generation: 1 });
+	let token: Readonly<{ generation: number }> = Object.freeze({ generation: 1 });
 	let publishedBytes: Uint8Array | null = null;
 	let opened = 0;
 	const signal = new AbortController().signal;
