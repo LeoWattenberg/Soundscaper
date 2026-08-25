@@ -332,6 +332,22 @@ test('the portable exact MP3 profile canary remains buildable without a target O
 	assert.equal(executed.status, 0, executed.stderr || executed.stdout);
 });
 
+test('every Windows translation unit in the codec build suppresses the min and max macros', async () => {
+	// <windows.h> defines min and max as function-like macros unless NOMINMAX is
+	// set first, which turns std::min, std::max and numeric_limits<T>::max() into
+	// syntax errors rather than calls. WIN32_LEAN_AND_MEAN does not suppress them,
+	// and the failure only appears on a Windows runner, so guard it from here.
+	const sources = await Promise.all(OS_AUDIO_CODEC_HOST_SOURCE_FILES
+		.filter((relativePath) => /\.(?:c|cpp|h|mm)$/u.test(relativePath))
+		.map(async (relativePath) => [relativePath, await readFile(join(ROOT, relativePath), 'utf8')]));
+	const windowsUnits = sources.filter(([, text]) => text.includes('#include <windows.h>'));
+	assert.ok(windowsUnits.length > 0, 'expected the codec build to compile Windows translation units');
+	for (const [relativePath, text] of windowsUnits) {
+		assert.match(text.slice(0, text.indexOf('#include <windows.h>')), /^#define NOMINMAX$/mu,
+			`${relativePath} must define NOMINMAX before it includes <windows.h>`);
+	}
+});
+
 async function electronHeaderFixture(context) {
 	const root = mkdtempSync(join(tmpdir(), 'soundscaper-codec-host-headers-'));
 	context.after(() => rmSync(root, { recursive: true, force: true }));

@@ -4,6 +4,7 @@
 #include "os_mp3_profile.h"
 
 #define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <windows.h>
 #include <mfapi.h>
 #include <mfidl.h>

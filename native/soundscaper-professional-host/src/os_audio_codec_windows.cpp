@@ -4,6 +4,7 @@
 #include "os_aac_m4a_profile.h"
 
 #define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <windows.h>
 #include <mfapi.h>
 #include <mfidl.h>
