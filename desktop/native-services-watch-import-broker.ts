@@ -68,7 +68,7 @@ interface BrokerEntry {
 	readonly offer: FramescaperNativeWatchImportOffer;
 	readonly owner: object;
 	readonly projectRevision: number;
-	readonly projectSchemaVersion: 20 | 28;
+	readonly projectSchemaVersion: 20 | 28 | 31;
 	readonly existingSourceId: string | null;
 	readonly locator: FramescaperNativeWatchLinkedLocator;
 	readonly promise: Promise<boolean>;
@@ -117,7 +117,7 @@ export class FramescaperNativeWatchImportBroker {
 		if (!framescaperNativeWatchUsableProject(project, offer.rule.projectId)
 			|| !framescaperNativeWatchRuleAdmitted(offer.rule, project)) return false;
 		let existingSourceId: string | null = null;
-		if (project.schemaVersion === 28) {
+		if (project.schemaVersion !== 20) {
 			if (!this.#options.inspectImported) return false;
 			const imported = framescaperNativeWatchImportedWitness(await this.#options.inspectImported(
 				offer.rule.projectId, offer.rule.binId, offer.contentSha256,
@@ -193,14 +193,14 @@ export class FramescaperNativeWatchImportBroker {
 			if (!framescaperNativeWatchUsableProject(project, request.projectId)
 				|| project.schemaVersion !== entry.projectSchemaVersion
 				|| project.projectRevision !== request.committedProjectRevision) return false;
-			if (entry.projectSchemaVersion === 28) {
+			if (entry.projectSchemaVersion !== 20) {
 				const imported = await this.#inspectImported(entry);
 				if (!imported || imported.sourceId !== requestSourceId(request)
 					|| imported.projectRevision !== request.committedProjectRevision
 					|| (entry.offer.rule.generateProxies && !imported.proxyAttached)) return false;
 				const verifiedProject = this.#options.inspectProject(request.projectId);
 				if (!framescaperNativeWatchUsableProject(verifiedProject, request.projectId)
-					|| verifiedProject.schemaVersion !== 28
+					|| verifiedProject.schemaVersion !== entry.projectSchemaVersion
 					|| verifiedProject.projectRevision !== request.committedProjectRevision) return false;
 			}
 		}
@@ -244,7 +244,7 @@ export class FramescaperNativeWatchImportBroker {
 	}
 
 	async #release(entry: BrokerEntry): Promise<void> {
-		if (entry.projectSchemaVersion === 28 && entry.offer.rule.importMode === 'link'
+		if (entry.projectSchemaVersion !== 20 && entry.offer.rule.importMode === 'link'
 			&& entry.existingSourceId === null) {
 			try {
 				if (await this.#inspectImported(entry) !== null) return;
@@ -293,7 +293,7 @@ function claimProjection(entry: BrokerEntry): FramescaperNativeWatchImportClaim 
 	} as const;
 	if (entry.projectSchemaVersion === 20) return Object.freeze(claim);
 	return Object.freeze({
-		...claim, projectSchemaVersion: 28 as const, binId: entry.offer.rule.binId!,
+		...claim, projectSchemaVersion: entry.projectSchemaVersion, binId: entry.offer.rule.binId!,
 		generateProxies: entry.offer.rule.generateProxies,
 		existingSourceId: entry.existingSourceId,
 	});
@@ -315,7 +315,7 @@ function validCompletionTarget(
 			&& request.committedProjectRevision === request.expectedProjectRevision + 1;
 	}
 	if (!('projectSchemaVersion' in request)
-		|| request.projectSchemaVersion !== 28
+		|| request.projectSchemaVersion !== entry.projectSchemaVersion
 		|| request.binId !== entry.offer.rule.binId
 		|| request.contentSha256 !== entry.offer.contentSha256) return false;
 	if (!request.success) {

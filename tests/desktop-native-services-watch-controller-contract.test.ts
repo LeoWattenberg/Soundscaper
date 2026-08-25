@@ -11,9 +11,11 @@ import {
 import { createWatchRuleV1 } from '../src/common/editor/native-watch-rule.ts';
 
 test('selected V28 controller contract admits only its exact target bin and optional proxy choice', () => {
-	assert.doesNotThrow(() => assertFramescaperNativeWatchTarget({
-		open: true, writable: true, schemaVersion: 28, binId: 'project-bin',
-	}, { binId: 'project-bin', generateProxies: true }));
+	for (const schemaVersion of [28, 31] as const) assert.doesNotThrow(() => (
+		assertFramescaperNativeWatchTarget({
+			open: true, writable: true, schemaVersion, binId: 'project-bin',
+		}, { binId: 'project-bin', generateProxies: true })
+	));
 	for (const target of [
 		{ binId: null, generateProxies: true },
 		{ binId: 'other-bin', generateProxies: false },

@@ -47,7 +47,7 @@ import type {
 } from './native-services-root-repository.ts';
 
 const SHA256 = /^[a-f0-9]{64}$/u;
-const MAXIMUM_SOURCE_BODIES = 4_096;
+const MAXIMUM_SOURCE_BODIES = 5_118;
 
 type ProjectBody = NativeProjectMediaBody;
 
@@ -411,7 +411,9 @@ function projectBundle(value: unknown): ProjectBundle {
 	return Object.freeze({
 		project: Object.freeze({ projectRevision: Number(project.projectRevision), sha256: project.sha256 }),
 		document: raw.document,
-		bodies: Object.freeze(raw.bodies.map(projectBody)),
+		bodies: Object.freeze(raw.bodies
+			.filter((body) => (body as Record<string, unknown> | null)?.kind !== 'assistance-transcript')
+			.map(projectBody)),
 	});
 }
 

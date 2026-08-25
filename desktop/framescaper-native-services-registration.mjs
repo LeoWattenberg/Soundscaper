@@ -129,8 +129,8 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 	});
 	const projectAuthority = projectBodyAuthority === null ? null
 			: modules.createSelectedV28ProjectAuthority({
-				project: options.projectAuthority, watch: projectBodyAuthority, runtime: mediaRuntime,
-				renderInputs: renderInputStaging,
+				project: options.projectAuthority, projectSchemaVersion: options.projectAuthority.projectSchemaVersion,
+				watch: projectBodyAuthority, runtime: mediaRuntime, renderInputs: renderInputStaging,
 			platform: options.externalDisplay.platform, probeRoot: nodePorts.probeRoot,
 			hardwareEncodeEnabled: () => options.settings.snapshot().nativeHardwareEncodeEnabled === true,
 			publicationPortFor: nodePorts.publicationPortFor,

@@ -15,7 +15,7 @@ interface SelectedV28WatchProjectPort {
 }
 
 export interface FramescaperSelectedV28WatchProjectWitness {
-	readonly schemaVersion: 28;
+	readonly schemaVersion: 28 | 31;
 	readonly projectId: string;
 	readonly projectRevision: number;
 	readonly open: boolean;
@@ -36,13 +36,14 @@ export function framescaperSelectedV28WatchProject(
 	project: SelectedV28WatchProjectPort,
 	state: Readonly<{ open: boolean; writable: boolean }>,
 	projectId: string,
+	schemaVersion: 28 | 31 = 28,
 ): FramescaperSelectedV28WatchProjectWitness | null {
 	const record = projectIdentity(project.projectRecord(projectId));
 	if (record === null || record.projectId !== projectId
 		|| !Number.isSafeInteger(record.projectRevision) || record.projectRevision < 0
 		|| !SHA256.test(record.projectSha256)) return null;
 	return Object.freeze({
-		schemaVersion: 28, projectId, projectRevision: record.projectRevision,
+		schemaVersion, projectId, projectRevision: record.projectRevision,
 		open: state.open === true, writable: state.writable === true,
 		binId: FRAMESCAPER_SELECTED_V28_WATCH_BIN_ID,
 	});
@@ -53,6 +54,7 @@ export async function inspectFramescaperSelectedV28WatchImport(
 	projectId: string,
 	binId: string | null,
 	contentSha256: string,
+	schemaVersion: 28 | 31 = 28,
 ): Promise<FramescaperSelectedV28WatchImportWitness | null> {
 	if (binId !== FRAMESCAPER_SELECTED_V28_WATCH_BIN_ID || !SHA256.test(contentSha256)) {
 		throw new TypeError('Selected V28 watch recovery requires its exact bin and content digest.');
@@ -68,7 +70,7 @@ export async function inspectFramescaperSelectedV28WatchImport(
 	try { parsed = JSON.parse(bundle.document) as unknown; }
 	catch { throw new Error('Selected V28 watch recovery project is not canonical JSON.'); }
 	const projectValue = domainRecord(parsed, 'project');
-	if (data(projectValue, 'schemaVersion') !== 28 || data(projectValue, 'id') !== projectId
+	if (data(projectValue, 'schemaVersion') !== schemaVersion || data(projectValue, 'id') !== projectId
 		|| data(projectValue, 'revision') !== record.projectRevision) {
 		throw new Error('Selected V28 watch recovery project has the wrong document identity.');
 	}
