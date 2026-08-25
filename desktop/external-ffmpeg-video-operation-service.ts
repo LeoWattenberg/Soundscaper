@@ -52,6 +52,7 @@ export interface ExternalFfmpegVideoOperationServiceOptions {
 	readonly mintOperationId?: () => string;
 	readonly environment?: Readonly<Record<string, string | undefined>>;
 	readonly maximumDurationMs?: number;
+	readonly maximumIdleMs?: number;
 	readonly maximumLogBytes?: number;
 	readonly terminationGraceMs?: number;
 	readonly killWaitMs?: number;
@@ -88,6 +89,7 @@ interface InputState {
 	readonly expectedBytes: number;
 	writtenBytes: number;
 	closed: boolean;
+	closing: boolean;
 	writing: boolean;
 	stream: Writable | null;
 }
@@ -110,6 +112,7 @@ interface Session<Owner extends object> {
 	output: FileHandle | null;
 	outputBytes: number;
 	cleanup: Promise<void> | null;
+	idleTimer: ReturnType<typeof setTimeout> | null;
 }
 
 interface Deferred<Value> {
@@ -144,6 +147,7 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 	const mint = options.mintOperationId ?? (() => `desktop-video-${randomBytes(16).toString('hex')}`);
 	const environment = curatedExternalFfmpegVideoEnvironment(options.environment ?? process.env);
 	const duration = lowerLimit(options.maximumDurationMs, 5 * 60 * 1000, HARD_DURATION_MS, 'duration');
+	const idle = lowerLimit(options.maximumIdleMs, 30_000, 60_000, 'idle duration');
 	const logLimit = lowerLimit(options.maximumLogBytes, 64 * 1024, HARD_LOG_BYTES, 'log');
 	const terminationGrace = lowerLimit(options.terminationGraceMs, 1000, 5000, 'termination grace');
 	const killWait = lowerLimit(options.killWaitMs, 1000, 5000, 'kill wait');
@@ -151,8 +155,9 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 
 	const cleanup = (session: Session<Owner>): Promise<void> => {
 		if (session.cleanup) return session.cleanup;
-		session.state = 'deleted';
-		sessions.delete(session.id);
+			session.state = 'deleted';
+			sessions.delete(session.id);
+			if (session.idleTimer) clearTimeout(session.idleTimer);
 		for (const input of Object.values(session.inputs)) input?.stream?.destroy();
 		session.cleanup = Promise.resolve().then(async () => {
 			if (session.output) await session.output.close();
@@ -202,9 +207,14 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 					audio: plan.audioInputBytes === null ? null : inputState(plan.audioInputBytes),
 				}),
 				controller: new AbortController(), started, state: 'ready', child: null,
-				execution: null, output: null, outputBytes: 0, cleanup: null,
-			};
-			sessions.set(operationId, session);
+					execution: null, output: null, outputBytes: 0, cleanup: null, idleTimer: null,
+				};
+				sessions.set(operationId, session);
+				session.idleTimer = setTimeout(() => {
+					const reason = operationError('idle', 'The desktop video session expired while idle.');
+					session.controller.abort(reason); session.started.reject(reason);
+					void cleanup(session).catch(() => undefined);
+				}, idle); session.idleTimer.unref?.();
 			return Object.freeze({ operationId });
 		},
 		async writeInput(
@@ -219,7 +229,7 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 				|| bytes.byteLength > DESKTOP_VIDEO_CODEC_MAXIMUM_INPUT_CHUNK_BYTES) {
 				throw operationError('input-limit', 'Desktop video input chunk is invalid.');
 			}
-			if (input.closed || input.writing || offset !== input.writtenBytes
+			if (input.closed || input.closing || input.writing || offset !== input.writtenBytes
 				|| bytes.byteLength > input.expectedBytes - input.writtenBytes) {
 				throw operationError('input-drift', 'Desktop video input offset or byte count drifted.');
 			}
@@ -241,19 +251,23 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 			const session = ownedSession(sessions, ownerValue, request?.operationId);
 			const input = sessionInput(session, request?.role);
 			const offset = nonNegativeInteger(request?.offset, 'input close offset');
-			if (input.closed || input.writing || offset !== input.writtenBytes
+			if (input.closed || input.closing || input.writing || offset !== input.writtenBytes
 				|| input.writtenBytes !== input.expectedBytes) {
 				throw operationError('input-drift', 'Desktop video input closed without its exact admitted bytes.');
 			}
-			await session.started.promise;
-			if (session.state !== 'running' || !input.stream) throw operationError('not-running', 'Desktop video process is not running.');
-			input.closed = true;
-			await closeExternalFfmpegVideoInput(input.stream, session.controller.signal);
-			return Object.freeze({ offset: input.writtenBytes });
+			input.closing = true;
+			try {
+				await session.started.promise;
+				if (session.state !== 'running' || !input.stream) throw operationError('not-running', 'Desktop video process is not running.');
+				await closeExternalFfmpegVideoInput(input.stream, session.controller.signal);
+				input.closed = true;
+				return Object.freeze({ offset: input.writtenBytes });
+			} finally { input.closing = false; }
 		},
 		async execute(ownerValue: Owner, idValue: string) {
 			const session = ownedSession(sessions, ownerValue, idValue);
 			if (session.state !== 'ready') throw operationError('state', 'Desktop video session cannot execute twice.');
+			if (session.idleTimer) clearTimeout(session.idleTimer); session.idleTimer = null;
 			session.state = 'starting';
 			const execution = runSession(session, {
 				preferences: options.preferences, digest, launch, environment,
@@ -298,7 +312,8 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 		async cancel(ownerValue: Owner, idValue: string) {
 			const session = optionalOwnedSession(sessions, ownerValue, idValue);
 			if (!session) return false;
-			session.controller.abort(abortError('The desktop video operation was cancelled.'));
+			const reason = abortError('The desktop video operation was cancelled.');
+			session.controller.abort(reason); session.started.reject(reason);
 			if (session.execution) await session.execution.catch(() => undefined);
 			else await cleanup(session);
 			return true;
@@ -313,7 +328,8 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 			if (disposed) return;
 			disposed = true;
 			for (const session of sessions.values()) {
-				session.controller.abort(abortError('The desktop video service stopped.'));
+				const reason = abortError('The desktop video service stopped.');
+				session.controller.abort(reason); session.started.reject(reason);
 				void (session.execution ?? Promise.resolve()).catch(() => undefined).then(() => cleanup(session));
 			}
 		},
@@ -437,7 +453,7 @@ function sameAdmission(left: ExternalFfmpegRuntimeAdmission | null, right: Exter
 }
 
 function inputState(expectedBytes: number): InputState {
-	return { expectedBytes, writtenBytes: 0, closed: false, writing: false, stream: null };
+	return { expectedBytes, writtenBytes: 0, closed: false, closing: false, writing: false, stream: null };
 }
 
 function ownedSession<Owner extends object>(

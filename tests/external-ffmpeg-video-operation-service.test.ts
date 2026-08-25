@@ -152,6 +152,64 @@ test('video service reserves an input offset while process startup is still pend
 	}
 });
 
+test('video service rejects pending input when a ready session is cancelled or expires idle', async () => {
+	for (const idle of [false, true]) {
+		const root = await mkdtemp(join(tmpdir(), `soundscaper-video-service-${idle ? 'idle' : 'ready-cancel'}-`));
+		let launches = 0;
+		const fixture = serviceFixture(root, () => { launches += 1; return fakeChild(new PassThrough(), null); }, {
+			...(idle ? { maximumIdleMs: 10 } : {}),
+		});
+		try {
+			const session = await fixture.service.begin(fixture.owner, PLAN);
+			const writing = fixture.service.writeInput(fixture.owner, {
+				operationId: session.operationId, role: 'video', offset: 0,
+				bytes: new Uint8Array(16),
+			});
+			const rejected = assert.rejects(writing, idle ? /idle|expired/u : /cancelled/u);
+			if (!idle) assert.equal(await fixture.service.cancel(fixture.owner, session.operationId), true);
+			await rejected;
+			assert.equal(launches, 0);
+			await fixture.service.begin(fixture.owner, PLAN);
+		} finally {
+			fixture.service.dispose();
+			await rm(root, { recursive: true, force: true });
+		}
+	}
+});
+
+test('video service reserves input close while its private stream is finishing', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-concurrent-close-'));
+	let finishInput: (() => void) | null = null;
+	const fixture = serviceFixture(root, () => {
+		const child = fakeChild(new Writable({
+			write(_chunk, _encoding, callback) { callback(); },
+			final(callback) { finishInput = callback; },
+		}), null);
+		child.stdio[3]!.once('finish', () => child.emit('close', 0, null));
+		return child;
+	});
+	try {
+		const session = await fixture.service.begin(fixture.owner, PLAN);
+		const executing = fixture.service.execute(fixture.owner, session.operationId);
+		await fixture.service.writeInput(fixture.owner, {
+			operationId: session.operationId, role: 'video', offset: 0, bytes: new Uint8Array(32),
+		});
+		const closing = fixture.service.closeInput(fixture.owner, {
+			operationId: session.operationId, role: 'video', offset: 32,
+		});
+		await waitFor(() => finishInput !== null);
+		await assert.rejects(() => fixture.service.closeInput(fixture.owner, {
+			operationId: session.operationId, role: 'video', offset: 32,
+		}), /drift|closed/u);
+		finishInput?.();
+		await closing;
+		await assert.rejects(executing, /output/u);
+	} finally {
+		fixture.service.dispose();
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
 test('video service cancellation terminates the child and owner revocation drains the session', async () => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-cancel-'));
 	let killed = 0;
@@ -203,7 +261,10 @@ test('post-spawn private-pipe setup failure terminates the admitted child tree',
 function serviceFixture(
 	root: string,
 	spawn: ExternalFfmpegVideoSpawn,
-	overrides: Readonly<{ digest?: (path: string) => Promise<string> }> = {},
+	overrides: Readonly<{
+		digest?: (path: string) => Promise<string>;
+		maximumIdleMs?: number;
+	}> = {},
 ) {
 	const owner = {};
 	const invalidations: string[] = [];
@@ -236,6 +297,7 @@ function serviceFixture(
 		maximumDurationMs: 5_000,
 		terminationGraceMs: 10,
 		killWaitMs: 10,
+		...(overrides.maximumIdleMs === undefined ? {} : { maximumIdleMs: overrides.maximumIdleMs }),
 	});
 	return { service, owner, invalidations };
 }
