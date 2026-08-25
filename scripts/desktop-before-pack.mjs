@@ -12,6 +12,7 @@ import {
 	assertDesktopCodecPolicy,
 	auditDesktopFfmpegAbsence,
 } from './lib/desktop-codec-policy.mjs';
+import { verifyDesktopOsAudioCodecNativePackageTree } from './lib/desktop-os-audio-codec-native-package-verification.mjs';
 import {
 	nativeAddonPayloadOutputRoot,
 	nativeAddonPayloadTargetForPackagingContext,
@@ -45,6 +46,8 @@ export default async function verifyDesktopRuntimeBeforePack(context = {}, depen
 	const verifyNativeAddon = dependencies.verifyStagedNativeAddonBeforePack ?? verifyStagedNativeAddonBeforePack;
 	const verifyNativeHosts = dependencies.verifyStagedFramescaperNativeHostsBeforePack
 		?? verifyStagedFramescaperNativeHostsBeforePack;
+	const verifyOsAudioCodec = dependencies.verifyStagedOsAudioCodecNativeBeforePack
+		?? verifyStagedOsAudioCodecNativeBeforePack;
 	const verifyProfessional = dependencies.verifyStagedSoundscaperProfessionalNativeBeforePack
 		?? verifyStagedSoundscaperProfessionalNativeBeforePack;
 	await Promise.all([
@@ -55,7 +58,22 @@ export default async function verifyDesktopRuntimeBeforePack(context = {}, depen
 		verifyNativeAddon({ repositoryRoot, stageManifestPath, packagedTarget }),
 		verifyProfessional({ repositoryRoot, stageManifestPath, packagedTarget }),
 		verifyNativeHosts({ repositoryRoot, stageManifestPath, packagedTarget }),
+		verifyOsAudioCodec({ repositoryRoot, stageManifestPath, packagedTarget }),
 	]);
+}
+
+export async function verifyStagedOsAudioCodecNativeBeforePack({
+	repositoryRoot, stageManifestPath, packagedTarget,
+}) {
+	const stage = JSON.parse(await readFile(stageManifestPath, 'utf8'));
+	assertStagePackageIdentity(stage, packagedTarget);
+	return verifyDesktopOsAudioCodecNativePackageTree({
+		runtimeRoot: resolve(repositoryRoot, '.desktop-build/runtime'),
+		productId: stage.productId,
+		target: packagedTarget,
+		summary: stage.osAudioCodecNative,
+		placement: 'Staged',
+	});
 }
 
 export async function verifyStagedSoundscaperProfessionalNativeBeforePack({
@@ -171,4 +189,12 @@ export async function verifyStagedFramescaperNativeHostsBeforePack({
 		stageManifestPath,
 		applicationRoot: resolve(repositoryRoot, '.desktop-build/app'),
 	});
+}
+
+function assertStagePackageIdentity(stage, packagedTarget) {
+	const stageTarget = `${stage?.target?.platform}-${stage?.target?.arch}`;
+	if (!['soundscaper', 'framescaper'].includes(stage?.productId)
+		|| stageTarget !== packagedTarget) {
+		throw new Error(`The desktop stage target ${stageTarget} does not match ${packagedTarget}.`);
+	}
 }

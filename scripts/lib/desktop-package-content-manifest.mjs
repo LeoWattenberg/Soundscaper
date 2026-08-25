@@ -10,8 +10,8 @@ import {
 	assertDesktopCodecPolicy,
 	isForbiddenDesktopFfmpegPath,
 } from './desktop-codec-policy.mjs';
+import { assertDesktopPackageOsAudioCodecClosure } from './desktop-package-os-audio-codec-closure.mjs';
 import { assertProfessionalNativeBuiltClosure } from './desktop-package-professional-closure.mjs';
-
 export const DESKTOP_PACKAGE_CONTENT_MANIFEST_NAME = 'milestone-5-package-content.json';
 
 const PRODUCTS = Object.freeze(['soundscaper', 'framescaper']);
@@ -217,6 +217,9 @@ function assertRuntimePayloadClosure(runtime, files) {
 	} else if (native.status !== 'pending-external' || native.payload !== null) {
 		throw new Error('The desktop runtime manifest has invalid native-addon target state.');
 	}
+	assertDesktopPackageOsAudioCodecClosure({
+		runtime, target: native.target, requireFile, expectedByPrefix,
+	});
 
 	const professional = runtime.soundscaperProfessionalNative;
 	if (runtime.productId === 'soundscaper') {

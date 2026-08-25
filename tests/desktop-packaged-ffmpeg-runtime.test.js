@@ -121,5 +121,6 @@ function nativeVerifierStubs() {
 		verifyPackagedNativeAddonResources: async () => {},
 		verifyPackagedSoundscaperProfessionalNativeResources: async () => {},
 		verifyPackagedFramescaperNativeHostResources: async () => {},
+		verifyPackagedOsAudioCodecNativeResources: async () => {},
 	};
 }

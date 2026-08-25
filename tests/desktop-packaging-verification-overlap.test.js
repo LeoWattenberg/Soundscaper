@@ -37,6 +37,7 @@ test('afterPack starts payload verification without waiting for the codec absenc
 		verifyPackagedElectronAlternateFfmpeg: async () => { started.push('electron-ffmpeg'); },
 		verifyPackagedAssistanceNativeRuntime: async () => { started.push('assistance-native'); },
 		verifyPackagedNativeAddonResources: async () => { started.push('native'); },
+		verifyPackagedOsAudioCodecNativeResources: async () => { started.push('os-audio-codec'); },
 		verifyPackagedSoundscaperProfessionalNativeResources: async () => {
 			started.push('soundscaper-professional');
 		},
@@ -49,7 +50,7 @@ test('afterPack starts payload verification without waiting for the codec absenc
 		.then(() => null, (error) => error);
 	assert.deepEqual(started, [
 		'codec-absence', 'electron-ffmpeg', 'assistance-native', 'native', 'soundscaper-professional',
-		'framescaper-native-hosts',
+		'framescaper-native-hosts', 'os-audio-codec',
 	]);
 	releaseAudit();
 	assert.equal(await settled, null);
@@ -68,6 +69,7 @@ test('beforePack runs the absence audit and native runtime verification at once'
 			},
 			verifyStagedAssistanceNativeRuntime: async () => { started.push('assistance-native'); },
 			verifyStagedNativeAddonBeforePack: async () => { started.push('native'); },
+			verifyStagedOsAudioCodecNativeBeforePack: async () => { started.push('os-audio-codec'); },
 			verifyStagedSoundscaperProfessionalNativeBeforePack: async () => {
 				started.push('soundscaper-professional');
 			},
@@ -77,7 +79,8 @@ test('beforePack runs the absence audit and native runtime verification at once'
 		},
 	).then(() => null, (error) => error);
 	assert.deepEqual(started, [
-		'codec-absence', 'assistance-native', 'native', 'soundscaper-professional', 'framescaper-native-hosts',
+		'codec-absence', 'assistance-native', 'native', 'soundscaper-professional',
+		'framescaper-native-hosts', 'os-audio-codec',
 	]);
 	releaseAudit();
 	assert.equal(await settled, null);

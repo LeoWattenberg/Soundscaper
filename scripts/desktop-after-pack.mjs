@@ -12,7 +12,9 @@ import {
 	assertDesktopCodecPolicy,
 	auditDesktopFfmpegAbsence,
 } from './lib/desktop-codec-policy.mjs';
+import { verifyDesktopOsAudioCodecNativePackageTree } from './lib/desktop-os-audio-codec-native-package-verification.mjs';
 import { verifyPackagedElectronAlternateFfmpeg } from './lib/electron-alternate-ffmpeg.mjs';
+import { OS_AUDIO_CODEC_NATIVE_RUNTIME_PREFIX } from '../desktop/os-audio-codec-native-payload.mjs';
 import {
 	NATIVE_ADDON_RUNTIME_PREFIX,
 	nativeAddonPayloadOutputRoot,
@@ -38,6 +40,7 @@ const FRAMESCAPER_NATIVE_HOST_PREFIXES = Object.freeze([
 	'framescaper-openfx-host',
 ]);
 const SOUNDSCAPER_PROFESSIONAL_PREFIX = PROFESSIONAL_NATIVE_RUNTIME_PREFIX.split('/').at(-1);
+const SOUNDSCAPER_OS_AUDIO_CODEC_PREFIX = OS_AUDIO_CODEC_NATIVE_RUNTIME_PREFIX.split('/').at(-1);
 
 /**
  * Electron Builder afterPack hook. Fuses are flipped before macOS ad-hoc or
@@ -56,6 +59,8 @@ export default async function hardenPackagedElectron(context, dependencies = {})
 		?? verifyPackagedFramescaperNativeHostResources;
 	const verifyElectronFfmpeg = dependencies.verifyPackagedElectronAlternateFfmpeg
 		?? verifyPackagedElectronAlternateFfmpeg;
+	const verifyOsAudioCodec = dependencies.verifyPackagedOsAudioCodecNativeResources
+		?? verifyPackagedOsAudioCodecNativeResources;
 	// The absence audit and native payload verifiers cover disjoint policy
 	// concerns, so they run together before fuse or signing work begins.
 	await Promise.all([
@@ -65,6 +70,7 @@ export default async function hardenPackagedElectron(context, dependencies = {})
 		verifyNativeAddon(context, dependencies),
 		verifyProfessional(context, dependencies),
 		verifyNativeHosts(context, dependencies),
+		verifyOsAudioCodec(context, dependencies),
 	]);
 	const extension = {
 		darwin: '.app',
@@ -140,6 +146,34 @@ export async function auditPackagedDesktopCodecPolicy(context, dependencies = {}
 	});
 }
 
+export async function verifyPackagedOsAudioCodecNativeResources(context, dependencies = {}) {
+	const resourcesRoot = context?.packager?.getResourcesDir?.(context.appOutDir);
+	if (typeof resourcesRoot !== 'string' || resourcesRoot.length === 0) {
+		throw new TypeError('Electron packaged resources directory is unavailable.');
+	}
+	const repositoryRoot = resolve(dependencies.repositoryRoot ?? REPOSITORY_ROOT);
+	const stageManifestPath = resolve(dependencies.stageManifestPath
+		?? resolve(repositoryRoot, '.desktop-build/stage-manifest.json'));
+	const stage = JSON.parse(await readFile(stageManifestPath, 'utf8'));
+	const target = nativeAddonPayloadTargetForPackagingContext(context);
+	const productId = packagingProductId(context);
+	const stageTarget = `${stage?.target?.platform}-${stage?.target?.arch}`;
+	if (stage?.productId !== productId || stageTarget !== target) {
+		throw new Error(`The packaged desktop stage target ${stageTarget} does not match ${target}.`);
+	}
+	try {
+		return await verifyDesktopOsAudioCodecNativePackageTree({
+			runtimeRoot: resolve(resourcesRoot, 'runtime'),
+			productId,
+			target,
+			summary: stage.osAudioCodecNative,
+			placement: 'Packaged',
+		});
+	} catch (error) {
+		throw packagedResourceError(error);
+	}
+}
+
 /**
  * The packed native payload is verified before any fuse is flipped, against the
  * target the packaged tree names and against the target electron-builder says
@@ -167,7 +201,8 @@ export async function verifyPackagedNativeAddonResources(context, dependencies =
 	const targets = entries
 		.filter((entry) => entry.isDirectory()
 			&& !FRAMESCAPER_NATIVE_HOST_PREFIXES.includes(entry.name)
-			&& entry.name !== SOUNDSCAPER_PROFESSIONAL_PREFIX)
+			&& entry.name !== SOUNDSCAPER_PROFESSIONAL_PREFIX
+			&& entry.name !== SOUNDSCAPER_OS_AUDIO_CODEC_PREFIX)
 		.map(({ name }) => name);
 	if (targets.length !== 1) {
 		throw new Error(`Packaged native addon payload must carry exactly one target; found ${targets.join(', ') || '<none>'}.`);

@@ -70,6 +70,7 @@ export async function createSoundscaperLinuxPackageFixture({
 		),
 		desktopCodecPolicy: DESKTOP_CODEC_POLICY,
 		nativeAddons: nativeAddonPayloadStageSummary(nativeRelease),
+		osAudioCodecNative: null,
 		soundscaperProfessionalNative: professionalNativePayloadStageSummary(professionalRelease),
 		framescaperNativeHosts: null,
 		translations: {

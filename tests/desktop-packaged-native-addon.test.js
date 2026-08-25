@@ -79,6 +79,7 @@ test('afterPack verifies the packaged native addon payload before any fuse work'
 		repositoryRoot: process.cwd(),
 		stageManifestPath,
 		verifyPackagedElectronAlternateFfmpeg: async () => {},
+		verifyPackagedOsAudioCodecNativeResources: async () => {},
 		flipFuses: async (...args) => { fuseCalls.push(args); },
 		writeDesktopPackageContentManifest: async () => {},
 	});
@@ -132,6 +133,16 @@ test('the addon verifier leaves the closed Framescaper host subtrees to their ow
 		}),
 		/Soundscaper resources carry Framescaper native-host payloads/iu,
 	);
+});
+
+test('the addon verifier leaves the codec-only OS subtree to its owner', async (context) => {
+	const { root, resources } = await packagedResources(context);
+	await mkdir(join(
+		resources, 'runtime/native/soundscaper-os-audio-codec/win-x64',
+	), { recursive: true });
+	await assert.doesNotReject(() => verifyPackagedNativeAddonResources(
+		packagingContext(root, resources), { repositoryRoot: process.cwd() },
+	));
 });
 
 test('a target whose payload is pending-external packages its manifest and nothing else', async (context) => {
