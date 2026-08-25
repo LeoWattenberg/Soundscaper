@@ -31,10 +31,10 @@
 		},
 		{
 			"id": "electron-runtime-assets",
-			"description": "Translation and separately admitted runtime assets staged beside the Electron renderer, including exact reviewed libFLAC, libopus/libogg, libvorbis/libogg, WavPack, mpg123, LAME, and TwoLAME WebAssembly audio providers; application-supplied FFmpeg/libav, FFmpeg WebAssembly, and unqualified WebM/AV1 payloads are excluded. Electron's separately inventoried alternate framework libffmpeg remains part of the Electron shell.",
+			"description": "Translation and separately admitted runtime assets staged beside the Electron renderer, including exact reviewed libFLAC, libopus/libogg, libvorbis/libogg, WavPack, mpg123, LAME, and TwoLAME WebAssembly audio providers. Their runtime manifest authenticates each WASM file and its complete transitive JavaScript module closure before fresh supervised utility-process execution; application-supplied FFmpeg/libav, FFmpeg WebAssembly, and unqualified bundled WebM/AV1 payloads are excluded. Electron's separately inventoried alternate framework libffmpeg remains part of the Electron shell.",
 			"artifactStatus": "distributed",
 			"noticeDeliveryStatus": "implemented",
-			"evidence": ["scripts/lib/desktop-codec-policy.mjs", "scripts/lib/desktop-bundled-audio-runtime.mjs", "scripts/lib/desktop-bundled-codec-notices.mjs", "scripts/desktop-prepare.mjs", "scripts/desktop-before-pack.mjs", "scripts/desktop-after-pack.mjs", "tests/desktop-audio-codec-runtime-staging.test.js", "tests/desktop-bundled-codec-notices.test.js", "electron-builder.config.cjs"]
+			"evidence": ["scripts/lib/desktop-codec-policy.mjs", "scripts/lib/desktop-bundled-audio-runtime.mjs", "scripts/lib/desktop-bundled-audio-codec-runtime-closure.mjs", "scripts/lib/desktop-bundled-codec-notices.mjs", "desktop/bundled-audio-codec-runtime-payload.mjs", "scripts/desktop-prepare.mjs", "scripts/desktop-before-pack.mjs", "scripts/desktop-after-pack.mjs", "tests/desktop-audio-codec-runtime-staging.test.js", "tests/desktop-bundled-audio-codec-runtime-payload.test.js", "tests/desktop-bundled-codec-notices.test.js", "electron-builder.config.cjs"]
 		},
 		{
 			"id": "electron-shell",
@@ -614,6 +614,18 @@
 				"qualification": "exact-reviewed-slice-no-patent-clearance"
 			}
 		},
+		"bundledExecution": {
+			"process": "fresh-one-shot-electron-utility-process-per-canary-preflight-and-execute",
+			"authenticatedClosure": "complete-transitive-javascript-module-closure-and-exact-wasm-bytes",
+			"maximumActiveJobs": 4,
+			"startupCanaryBatchSize": 4,
+			"requestScratch": "private-main-owned-sibling-input-output-files",
+			"defaultDurationMs": 30000,
+			"maximumDurationMs": 300000,
+			"canaryDurationMs": 5000,
+			"cancellation": "kill-utility-process-and-await-exit-or-kill-deadline",
+			"residualLimit": "whole-buffer-copies-wasm-memory-rss-and-cpu-are-not-one-aggregate-reservation"
+		},
 		"firstPartyPcm": {
 			"status": "existing-application-code",
 			"containers": ["wav", "bwf", "bw64", "aiff"],
@@ -647,21 +659,56 @@
 			"preferences": "edit-preferences-general-location-status-browse-clear-rescan-install",
 			"installers": ["winget-exact-BtbN.FFmpeg.GPL.8.1", "existing-homebrew-brew-install-ffmpeg"],
 			"redistributed": false,
-			"requestLimits": { "inputBytes": 33554432, "outputBytes": 134217728 },
+			"audioRequestLimits": { "inputBytes": 33554432, "outputBytes": 134217728 },
+			"video": {
+				"status": "implemented-exact-keyed-rgba-delivery-only",
+				"formats": {
+					"mp4": "keyed-rgba-h264-libx264-aac",
+					"webm": "keyed-rgba-vp9-libvpx-vp9-opus-libopus"
+				},
+				"qualification": "live-16x16-one-frame-audio-video-canary-per-exact-format-with-finite-container-validation",
+				"rendererAuthority": "owner-scoped-pathless-sessions-main-owned-fixed-arguments-private-pipes-and-scratch",
+				"privateInputs": ["fd3-rgba", "fd4-optional-float-wav"],
+				"maximumSessions": 2,
+				"maximumSessionsPerOwner": 1,
+				"maximumIpcChunkBytes": 1048576,
+				"maximumOutputBytes": 536870912,
+				"maximumContractOutputBytes": 2147483648,
+				"defaultDurationMs": 300000,
+				"maximumDurationMs": 1800000,
+				"defaultIdleMs": 30000,
+				"maximumIdleMs": 60000,
+				"defaultLogBytes": 65536,
+				"maximumLogBytes": 1048576,
+				"publicationValidation": "bounded-range-read-finite-container-and-sha256-evidence-before-publication",
+				"cleanup": "cancel-owner-revocation-and-shutdown-terminate-drain-and-remove-private-state"
+			},
 			"securityLimitations": ["hash-before-path-spawn-toctou", "no-os-rss-or-cpu-sandbox", "protocol-allowlist-does-not-constrain-malicious-selected-executable", "selected-executable-retains-user-account-network-authority"]
 		},
 		"videoProvider": {
-			"desktopBridge": "audio-only",
-			"webm": "no-libwebm-or-libvpx-payload-fail-closed",
+			"bundled": {
+				"status": "disabled",
+				"webm": "no-libwebm-or-libvpx-payload-fail-closed"
+			},
+			"operatingSystem": {
+				"status": "disabled",
+				"windows": "no-media-foundation-video-operation",
+				"macos": "no-videotoolbox-or-avfoundation-video-operation"
+			},
+			"external": {
+				"status": "implemented-exact-keyed-rgba-delivery-only",
+				"mp4": "H264/AAC-via-user-installed-FFmpeg",
+				"webm": "VP9/Opus-via-user-installed-FFmpeg-not-AV1"
+			},
 			"av1": "no-dav1d-svt-av1-libaom-payload-or-complete-five-target-benchmark-evidence-fail-closed",
 			"candidateOrder": { "decode": ["dav1d", "libaom-comparison-only"], "encode": ["svt-av1", "libaom-win-arm64-conditional-fallback"] }
 		},
 		"executionStatus": {
 			"bundledCompressedCodecs": "seven-reviewed-audio-wasm-payloads-admitted",
-			"bundledExecutionModel": "whole-buffer-main-process-wasm-with-non-interruptible-active-call",
+			"bundledExecutionModel": "authenticated-whole-buffer-one-shot-supervised-electron-utility-process-per-phase-max-four",
 			"operatingSystemCodecs": "target-native-ci-built-canary-tested-and-package-authenticated-on-mac-arm64-win-x64-win-arm64-linux-unavailable",
-			"externalFfmpeg": "user-installed-cli-4.4-through-9.x-no-redistribution",
-			"webmAv1": "audio-only-bridge-no-payload-no-complete-five-target-evidence-fail-closed",
+			"externalFfmpeg": "audio-and-keyed-RGBA-H264/AAC MP4-and-VP9/Opus WebM-user-installed-cli-4.4-through-9.x-no-redistribution",
+			"webmAv1": "external-vp9-opus-webm-qualified-bundled-and-os-video-and-all-av1-disabled",
 			"receiptTiming": "null-no-timing-claim"
 		},
 		"patentPosition": "No patent clearance or non-infringement representation is made for any codec, provider, use, or territory.",
@@ -705,7 +752,15 @@
 			"scripts/audit-lame-wasm.mjs",
 			"scripts/audit-twolame-wasm.mjs",
 			"scripts/lib/desktop-bundled-audio-runtime.mjs",
+			"scripts/lib/desktop-bundled-audio-codec-runtime-closure.mjs",
 			"scripts/lib/desktop-bundled-codec-notices.mjs",
+			"desktop/bundled-audio-codec-runtime-payload.mjs",
+			"desktop/bundled-audio-codec-electron-spawn.mjs",
+			"desktop/bundled-audio-codec-helper-configuration.ts",
+			"desktop/bundled-audio-codec-helper-process.ts",
+			"desktop/bundled-audio-codec-operation-runner.ts",
+			"desktop/bundled-audio-codec-isolated-runtime.ts",
+			"desktop/bundled-audio-codec-provider-catalog.ts",
 			"desktop/bundled-flac-audio-codec-runtime.ts",
 			"desktop/bundled-opus-audio-codec-runtime.ts",
 			"desktop/bundled-vorbis-audio-codec-runtime.ts",
@@ -719,6 +774,11 @@
 			"config/soundscaper-professional-native-payload-manifest.json",
 			"tests/desktop-bundled-wavpack-audio-codec-runtime.test.ts",
 			"tests/desktop-audio-codec-runtime-staging.test.js",
+			"tests/desktop-bundled-audio-codec-runtime-payload.test.js",
+			"tests/desktop-bundled-audio-codec-helper-process.test.ts",
+			"tests/desktop-bundled-audio-codec-operation-runner.test.ts",
+			"tests/desktop-bundled-audio-codec-isolated-runtime.test.ts",
+			"tests/desktop-bundled-audio-codec-electron-spawn.test.js",
 			"tests/desktop-bundled-codec-notices.test.js",
 			"tests/audio-editor-desktop-export-capability.test.ts",
 			"tests/audio-editor-desktop-export-codec-model.test.ts",
@@ -727,6 +787,22 @@
 			"desktop/external-ffmpeg-registration.mjs",
 			"desktop/external-ffmpeg-installer.ts",
 			"desktop/external-ffmpeg-audio-operation-runner.ts",
+			"desktop/desktop-video-codec-operation-contract.ts",
+			"desktop/external-ffmpeg-video-process.ts",
+			"desktop/external-ffmpeg-video-operation-service.ts",
+			"desktop/external-ffmpeg-video-qualification.ts",
+			"desktop/external-ffmpeg-video-qualified-capabilities.ts",
+			"desktop/desktop-video-codec-main-ipc.ts",
+			"desktop/desktop-video-codec-registration.mjs",
+			"desktop/desktop-codec-main-integration.mjs",
+			"src/common/editor/desktop-video-codec-runtime.ts",
+			"src/common/editor/editor-codec-runtime.desktop.ts",
+			"tests/external-ffmpeg-video-qualification.test.ts",
+			"tests/external-ffmpeg-video-operation-service.test.ts",
+			"tests/desktop-video-codec-main-ipc.test.ts",
+			"tests/desktop-video-codec-registration.test.js",
+			"tests/desktop-codec-main-integration.test.js",
+			"tests/audio-editor-desktop-video-codec-runtime.test.ts",
 			"THIRD_PARTY_LICENSES.md"
 		]
 	},
@@ -816,9 +892,9 @@
 			"id": "native-codecs",
 			"status": "disabled",
 			"scope": "additional-bundled-video-codec-execution",
-			"blocker": "Seven exact reviewed compressed-audio WebAssembly providers are admitted outside this future gate: libFLAC, libopus/libogg, libvorbis/libogg, WavPack, mpg123, LAME, and TwoLAME. Specialized first-party PCM readers remain application code and libsndfile is not bundled. Windows Media Foundation and macOS ARM64 AudioToolbox use a target-native codec-only build for macOS ARM64, Windows x64, and Windows ARM64; the build runs native canaries, macOS signs before hashing, and staging, package, content-manifest, and startup checks bind one exact manifest and payload. Linux has no uniform OS tier and macOS x64 is unsupported. The desktop bridge is audio-only and has no libwebm, libvpx, dav1d, SVT-AV1, or libaom payload or complete five-target AV1 evidence, so WebM/AV1 execution fails closed. Electron's exact alternate framework libffmpeg is Chromium infrastructure rather than a provider tier, while user-installed external FFmpeg remains outside the production artifact closure.",
+			"blocker": "Seven exact reviewed compressed-audio WebAssembly providers are admitted outside this future gate and execute in authenticated, isolated one-shot Electron utility processes: libFLAC, libopus/libogg, libvorbis/libogg, WavPack, mpg123, LAME, and TwoLAME. Specialized first-party PCM readers remain application code and libsndfile is not bundled. Windows Media Foundation and macOS ARM64 AudioToolbox use a target-native codec-only build for macOS ARM64, Windows x64, and Windows ARM64; the build runs native canaries, macOS signs before hashing, and staging, package, content-manifest, and startup checks bind one exact manifest and payload. Linux has no uniform OS tier and macOS x64 is unsupported. User-installed external FFmpeg has an exact live-qualified keyed-RGBA H.264/AAC MP4 and VP9/Opus WebM path, but those external bytes remain outside the production artifact closure. There is no admitted bundled or operating-system video provider and no libwebm, libvpx, dav1d, SVT-AV1, or libaom payload or complete five-target AV1 evidence, so bundled and operating-system WebM/AV1 execution fails closed. Electron's exact alternate framework libffmpeg is Chromium infrastructure rather than a provider tier, while user-installed external FFmpeg remains outside the production artifact closure.",
 			"enableRequires": ["codec-license-inventory", "corresponding-source-where-required", "jurisdiction-specific-patent-review", "package-notice-delivery", "target-payload-and-five-target-qualification"],
-			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/production-licensing-policy.md", "docs/desktop-codec-provider-plan.md", "desktop/desktop-audio-codec-registration.mjs", "desktop/bundled-audio-codec-runtime.ts", "desktop/os-audio-codec-runtime.ts", "desktop/os-audio-codec-native-payload.mjs", "native/os-audio-codec-host/CMakeLists.txt", "scripts/lib/os-audio-codec-host-ci.mjs", "scripts/lib/desktop-os-audio-codec-native-staging.mjs", "scripts/lib/desktop-os-audio-codec-native-package-verification.mjs", "src/common/editor/av1-codec-qualification.ts", "tests/desktop-audio-codec-runtime-staging.test.js", "tests/desktop-packaged-os-audio-codec-native.test.js", "tests/production-security-desktop-codec-policy.test.js"]
+			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/production-licensing-policy.md", "docs/desktop-codec-provider-plan.md", "desktop/desktop-audio-codec-registration.mjs", "desktop/bundled-audio-codec-runtime.ts", "desktop/bundled-audio-codec-helper-process.ts", "desktop/bundled-audio-codec-operation-runner.ts", "desktop/bundled-audio-codec-runtime-payload.mjs", "desktop/os-audio-codec-runtime.ts", "desktop/os-audio-codec-native-payload.mjs", "desktop/external-ffmpeg-video-operation-service.ts", "desktop/external-ffmpeg-video-qualification.ts", "desktop/desktop-video-codec-main-ipc.ts", "src/common/editor/desktop-video-codec-runtime.ts", "native/os-audio-codec-host/CMakeLists.txt", "scripts/lib/os-audio-codec-host-ci.mjs", "scripts/lib/desktop-os-audio-codec-native-staging.mjs", "scripts/lib/desktop-os-audio-codec-native-package-verification.mjs", "src/common/editor/av1-codec-qualification.ts", "tests/desktop-audio-codec-runtime-staging.test.js", "tests/desktop-bundled-audio-codec-operation-runner.test.ts", "tests/desktop-packaged-os-audio-codec-native.test.js", "tests/external-ffmpeg-video-qualification.test.ts", "tests/desktop-video-codec-main-ipc.test.ts", "tests/production-security-desktop-codec-policy.test.js"]
 		},
 		{
 			"id": "local-models",

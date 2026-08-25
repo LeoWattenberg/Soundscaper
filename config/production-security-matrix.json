@@ -670,12 +670,13 @@
 			"id": "renderer-to-electron-main",
 			"from": "Sandboxed Electron renderer",
 			"to": "Privileged Electron main process",
-			"data": "Versioned IPC requests, opaque file capabilities, bounded linked-video and maintained linked PCM container locators plus materialized and kind-specific linked-original ranged-read descriptors, closed bounded linked-video and maintained linked PCM container binding inventories for cooperative startup reconciliation, bounded shared-project documents and bundles, managed-source declarations, chunks, and digest descriptors, commands, and display-capture consent",
+			"data": "Versioned IPC requests, opaque file capabilities, bounded linked-video and maintained linked PCM container locators plus materialized and kind-specific linked-original ranged-read descriptors, closed bounded linked-video and maintained linked PCM container binding inventories for cooperative startup reconciliation, bounded shared-project documents and bundles, managed-source declarations, chunks, and digest descriptors, nine owner-scoped external-video capability/session methods with opaque operation ids, exact plans, at-most-1-MiB chunks and bounded range reads, commands, and display-capture consent; renderer requests carry no executable path, filesystem path, or argv authority",
 			"entryPoints": [
 				"desktop/preload.mjs",
 				"desktop/main.mjs",
 				"desktop/linked-video-locator-ipc.js",
-				"desktop/project-library-ipc.js"
+				"desktop/project-library-ipc.js",
+				"desktop/desktop-video-codec-main-ipc.ts"
 			],
 			"evidence": [
 				{ "kind": "implementation", "path": "desktop/preload.mjs" },
@@ -683,6 +684,8 @@
 				{ "kind": "implementation", "path": "desktop/linked-video-locator-ipc.js" },
 				{ "kind": "implementation", "path": "desktop/project-library-ipc.js" },
 				{ "kind": "implementation", "path": "desktop/project-library-editor-media-service.ts" },
+				{ "kind": "implementation", "path": "desktop/desktop-video-codec-main-ipc.ts" },
+				{ "kind": "implementation", "path": "desktop/desktop-video-codec-registration.mjs" },
 				{ "kind": "test", "path": "tests/desktop-protocol.test.js" },
 				{ "kind": "test", "path": "tests/desktop-linked-video-locator-ipc.test.js" },
 				{ "kind": "test", "path": "tests/desktop-preload-linked-video-original.test.js" },
@@ -692,6 +695,8 @@
 				{ "kind": "test", "path": "tests/desktop-project-library-ipc.test.js" },
 				{ "kind": "test", "path": "tests/desktop-project-library-editor-media-service.test.ts" },
 				{ "kind": "test", "path": "tests/desktop-project-library-editor-media-lifecycle.test.ts" },
+				{ "kind": "test", "path": "tests/desktop-video-codec-main-ipc.test.ts" },
+				{ "kind": "test", "path": "tests/desktop-video-codec-registration.test.js" },
 				{ "kind": "workflow", "path": ".github/workflows/desktop-preview.yml" }
 			]
 		},
@@ -699,12 +704,13 @@
 			"id": "electron-main-to-filesystem",
 			"from": "Electron protocol and IPC handlers",
 			"to": "Local files selected by the user and packaged static resources",
-			"data": "Open handles, opaque read tokens, atomic save sessions, byte ranges, main-private linked-video and maintained linked PCM container paths and point-in-time stat identities, startup locator-registry reconciliation writes, and static paths",
+			"data": "Open handles, opaque read tokens, atomic save sessions, byte ranges, 0700 bundled-codec scratch with 0600 files, main-private external-video input/output scratch with bounded range reads, main-private linked-video and maintained linked PCM container paths and point-in-time stat identities, startup locator-registry reconciliation writes, and static paths",
 			"entryPoints": [
 				"desktop/file-capabilities.js",
 				"desktop/linked-video-locator-registry.ts",
 				"desktop/linked-video-locator-store.ts",
 				"desktop/save-targets.js",
+				"desktop/external-ffmpeg-video-operation-service.ts",
 				"desktop/protocol.js"
 			],
 			"evidence": [
@@ -715,6 +721,8 @@
 				{ "kind": "implementation", "path": "desktop/read-capability-range-stream.js" },
 				{ "kind": "implementation", "path": "desktop/read-capability-support.js" },
 				{ "kind": "implementation", "path": "desktop/save-targets.js" },
+				{ "kind": "implementation", "path": "desktop/bundled-audio-codec-isolated-runtime.ts" },
+				{ "kind": "implementation", "path": "desktop/external-ffmpeg-video-operation-service.ts" },
 				{ "kind": "implementation", "path": "desktop/protocol.js" },
 				{ "kind": "test", "path": "tests/desktop-protocol.test.js" },
 				{ "kind": "test", "path": "tests/desktop-save.test.js" },
@@ -821,14 +829,18 @@
 			"id": "application-to-native-extension-surface",
 			"from": "Web or desktop application",
 			"to": "Supervised native helpers and future third-party native plug-in hosts",
-			"data": "Contract-v1 probe jobs addressed by opaque read-capability id; spawn, path, and binary authority stay in the main process",
+			"data": "Contract-v1 probe jobs, authenticated one-shot bundled-codec utility jobs, and user-selected external FFmpeg audio/video subprocesses; spawn, executable-path, filesystem-path, binary, and argv authority stay in the main process",
 			"entryPoints": [
 				"desktop/preload.mjs",
-				"desktop/helper-registration.mjs"
+				"desktop/helper-registration.mjs",
+				"desktop/bundled-audio-codec-electron-spawn.mjs",
+				"desktop/external-ffmpeg-video-process.ts"
 			],
 			"evidence": [
 				{ "kind": "implementation", "path": "desktop/preload.mjs" },
 				{ "kind": "implementation", "path": "desktop/helper-contract.ts" },
+				{ "kind": "implementation", "path": "desktop/bundled-audio-codec-electron-spawn.mjs" },
+				{ "kind": "implementation", "path": "desktop/external-ffmpeg-video-process.ts" },
 				{ "kind": "test", "path": "tests/desktop-protocol.test.js" },
 				{ "kind": "test", "path": "tests/desktop-helper-contract.test.ts" }
 			]
@@ -837,7 +849,7 @@
 			"id": "controller-task-to-io",
 			"from": "Controller task lifecycle",
 			"to": "Project import, export, storage, and desktop file services",
-			"data": "Task generations, AbortSignals, project bytes, storage writes, and late results",
+			"data": "Task generations, AbortSignals, project bytes, storage writes, owner-scoped keyed-video operation ids and chunks, cancellation, validated output publication, and late results",
 			"entryPoints": [
 				"src/common/editor/controller/lifecycle.ts",
 				"src/common/editor/controller/export-service.ts",
@@ -847,6 +859,8 @@
 				"src/common/editor/controller/direct-export-dispatch.ts",
 				"src/common/editor/controller/direct-pcm-export.ts",
 				"src/common/editor/controller/direct-wav-export.ts",
+				"src/common/editor/controller/video-export-service.ts",
+				"src/common/editor/desktop-video-codec-runtime.ts",
 				"src/common/editor/controller/native-project-service.ts",
 				"src/common/editor/controller/native-scape-save.ts",
 				"src/common/editor/scape-project.js",
@@ -863,6 +877,8 @@
 				{ "kind": "implementation", "path": "src/common/editor/controller/direct-export-dispatch.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/controller/direct-pcm-export.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/controller/direct-wav-export.ts" },
+				{ "kind": "implementation", "path": "src/common/editor/controller/video-export-service.ts" },
+				{ "kind": "implementation", "path": "src/common/editor/desktop-video-codec-runtime.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/controller/native-project-service.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/controller/native-scape-save.ts" },
 				{ "kind": "implementation", "path": "src/common/editor/scape-project.js" },
@@ -910,16 +926,20 @@
 			"id": "dependency-to-release-artifact",
 			"from": "Pinned npm, WebAssembly, codec, and Electron dependencies",
 			"to": "Web runtime assets and desktop packages",
-			"data": "Dependency archives, source manifests, executable binaries, license material, and update metadata",
+			"data": "Dependency archives, source manifests, the canonical bundled-codec control/transitive-JavaScript/WebAssembly execution-closure manifest, deterministic corresponding-source ZIP and checksum, executable binaries, license material, and update metadata",
 			"entryPoints": [
 				"package-lock.json",
 				"vite.config.mjs",
-				"scripts/desktop-prepare.mjs"
+				"scripts/desktop-prepare.mjs",
+				"scripts/lib/desktop-bundled-audio-codec-runtime-closure.mjs",
+				"scripts/lib/desktop-bundled-codec-corresponding-source.mjs"
 			],
 			"evidence": [
 				{ "kind": "document", "path": "package-lock.json" },
 				{ "kind": "implementation", "path": "vite.config.mjs" },
 				{ "kind": "implementation", "path": "scripts/desktop-prepare.mjs" },
+				{ "kind": "implementation", "path": "scripts/lib/desktop-bundled-audio-codec-runtime-closure.mjs" },
+				{ "kind": "implementation", "path": "scripts/lib/desktop-bundled-codec-corresponding-source.mjs" },
 				{ "kind": "audit", "path": "scripts/audit-staffpad-wasm.mjs" },
 				{ "kind": "audit", "path": "scripts/audit-nyquist-wasm.mjs" },
 				{ "kind": "test", "path": "tests/desktop-asar-integrity.test.js" }
@@ -1632,7 +1652,7 @@
 			"residualRisks": [
 				{
 					"id": "compressed-media-corpus",
-					"exposure": "Disposable imported-video capture now bounds metadata-derived nominal source-frame geometry, requested canvas geometry, and the completed encoded Blob, but object-URL creation and loadedmetadata precede that gate. Browser-native decode surfaces need not be RGBA, and decoder, codec, canvas, encoder, driver, browser heap, process RSS, and GC overhead remain unbounded. The full Blob exists before its size check, the toDataURL fallback first materializes base64 and decoded bytes, an active encoder is not force-cancelled, and separate extractors can overlap without a product-wide reservation. Compressed audio and video decoders still lack a broad maintained malformed-input corpus and decode or encode elapsed-time gate.",
+					"exposure": "Disposable imported-video capture now bounds metadata-derived nominal source-frame geometry, requested canvas geometry, and the completed encoded Blob, but object-URL creation and loadedmetadata precede that gate. Browser-native decode surfaces need not be RGBA, and decoder, codec, canvas, encoder, driver, browser heap, process RSS, and GC overhead remain unbounded. The full Blob exists before its size check, the toDataURL fallback first materializes base64 and decoded bytes, an active encoder is not force-cancelled, and separate extractors can overlap without a product-wide reservation. Broader compressed audio and video surfaces still lack a maintained malformed-input corpus and common decode or encode resource and elapsed-time qualification. The external-video job timeout is only a termination bound for its two exact encode plans.",
 					"requiredControl": "Add codec-family corpus tests and explicit aggregate decoder, encoder, browser-memory, output, concurrency, cancellation, and elapsed-time budgets.",
 					"ownerMilestone": "1 and 5",
 					"acceptanceCriteria": ["CI exercises truncated, oversized, recursive, and decompression-amplification fixtures without publishing partial output."]
@@ -2044,7 +2064,7 @@
 			"currentControls": [
 				{
 					"id": "sandboxed-versioned-preload-bridge",
-					"summary": "The renderer has context isolation, no Node integration, a sandbox, and a frozen input-validating v1 bridge. Its shared-project methods are bounded, pathless list, read, bundle, commit, delete, and managed-media transfer operations for the closed canonical-PCM and retained-original-video encodings whose arguments and return values are independently sanitized in main. Its linked-original lifecycle methods use closed kind-specific pathless DTOs. A release request is a closed exact kind, locator ID, and revision expressed as own enumerable data fields; missing, scalar, accessor-backed, or open requests fail before IPC. Audio and video load requests carry mandatory Boolean range and playback modes respectively: whole-Blob materialization requires false, while ranged access requires true and a non-null exact locator revision. Main and preload independently validate the mode, returned revision, profile-bound descriptor, safe size, canonical pathless URL, and kind-specific MIME/name contract and retire a descriptor that cannot cross the boundary. Cooperative startup reconciliation accepts at most 128 unique exact locator/revision pairs; main independently validates shape and known exact revisions but does not authenticate inventory completeness. Reconciliation can mutate only startup-loaded private locator metadata and never receives paths or deletes external files. Main admits at most four active managed-source uploads and four active reads across the shared-project bridge service, enforces 64 GiB source-body and 4 MiB chunk or read ceilings, and exposes descriptors rather than filesystem paths; upload sessions and linked-original reads remain owner-bound for authorization and revocation.",
+					"summary": "The renderer has context isolation, no Node integration, a sandbox, and a frozen input-validating v1 bridge. Its shared-project methods are bounded, pathless list, read, bundle, commit, delete, and managed-media transfer operations for the closed canonical-PCM and retained-original-video encodings whose arguments and return values are independently sanitized in main. Its linked-original lifecycle methods use closed kind-specific pathless DTOs. A release request is a closed exact kind, locator ID, and revision expressed as own enumerable data fields; missing, scalar, accessor-backed, or open requests fail before IPC. Audio and video load requests carry mandatory Boolean range and playback modes respectively: whole-Blob materialization requires false, while ranged access requires true and a non-null exact locator revision. Main and preload independently validate the mode, returned revision, profile-bound descriptor, safe size, canonical pathless URL, and kind-specific MIME/name contract and retire a descriptor that cannot cross the boundary. Cooperative startup reconciliation accepts at most 128 unique exact locator/revision pairs; main independently validates shape and known exact revisions but does not authenticate inventory completeness. Reconciliation can mutate only startup-loaded private locator metadata and never receives paths or deletes external files. Main admits at most four active managed-source uploads and four active reads across the shared-project bridge service, enforces 64 GiB source-body and 4 MiB chunk or read ceilings, and exposes descriptors rather than filesystem paths; upload sessions and linked-original reads remain owner-bound for authorization and revocation. The same bridge exposes nine independently validated, owner-scoped external-video methods for capabilities, begin, input write, input close, execute, stat, bounded range read, delete, and cancel. Those calls carry opaque operation ids, exact closed plans, and at-most-1-MiB chunks; executable paths, filesystem paths, and argv never cross into renderer authority.",
 					"evidence": [
 						{ "kind": "implementation", "path": "desktop/preload.mjs" },
 						{ "kind": "implementation", "path": "desktop/main.mjs" },
@@ -2056,7 +2076,10 @@
 						{ "kind": "test", "path": "tests/desktop-preload-linked-audio-original.test.js" },
 						{ "kind": "test", "path": "tests/desktop-linked-video-locator-ipc.test.js" },
 						{ "kind": "test", "path": "tests/desktop-preload-linked-video-original.test.js" },
-						{ "kind": "test", "path": "tests/desktop-project-library-ipc.test.js" }
+						{ "kind": "test", "path": "tests/desktop-project-library-ipc.test.js" },
+						{ "kind": "implementation", "path": "desktop/desktop-video-codec-main-ipc.ts" },
+						{ "kind": "implementation", "path": "desktop/desktop-video-codec-registration.mjs" },
+						{ "kind": "test", "path": "tests/desktop-video-codec-main-ipc.test.ts" }
 					]
 				},
 				{
@@ -2107,7 +2130,7 @@
 				},
 				{
 					"id": "authenticated-ipc-sender-and-navigation-fence",
-					"summary": "Main-process handlers require the expected webContents and root document URL while navigation, new windows, webviews, and unapproved permissions are denied. Shared-project owner revocation fences new operations, aborts that owner's managed-source uploads, and drains admitted uploads and reads before navigation, renderer loss, or window close completes. Linked-original handlers use the active document owner, and the same revocation drains its materialized and ranged audio/video read capabilities without deleting persistent locator metadata. Exact locator release is a serialized revision CAS: a missing, stale, or already-revoked pair returns false without a registry write. Failed persistence restores in-memory state but does not prove durable on-disk rollback. Owner revocation after a deletion write attempts a second persisted restore; a failed restore leaves an indeterminate on-disk outcome and is surfaced.",
+					"summary": "Main-process handlers require the expected webContents and root document URL while navigation, new windows, webviews, and unapproved permissions are denied. Shared-project owner revocation fences new operations, aborts that owner's managed-source uploads, and drains admitted uploads and reads before navigation, renderer loss, or window close completes. Linked-original handlers use the active document owner, and the same revocation drains its materialized and ranged audio/video read capabilities without deleting persistent locator metadata. External-video sessions bind the current webContents owner and product, admit at most two sessions globally and one per owner, and navigation, renderer destruction, or window close revokes new work, cancels and drains the child/session lifecycle, and removes main-private scratch. Exact locator release is a serialized revision CAS: a missing, stale, or already-revoked pair returns false without a registry write. Failed persistence restores in-memory state but does not prove durable on-disk rollback. Owner revocation after a deletion write attempts a second persisted restore; a failed restore leaves an indeterminate on-disk outcome and is surfaced.",
 					"evidence": [
 						{ "kind": "implementation", "path": "desktop/linked-video-locator-store.ts" },
 						{ "kind": "implementation", "path": "desktop/linked-video-locator-runtime.js" },
@@ -2121,7 +2144,10 @@
 						{ "kind": "test", "path": "tests/desktop-linked-video-locator-reconciliation.test.ts" },
 						{ "kind": "test", "path": "tests/desktop-linked-video-playback-capability.test.js" },
 						{ "kind": "test", "path": "tests/desktop-project-library-ipc.test.js" },
-						{ "kind": "test", "path": "tests/desktop-project-library-packaging.test.js" }
+						{ "kind": "test", "path": "tests/desktop-project-library-packaging.test.js" },
+						{ "kind": "implementation", "path": "desktop/renderer-ownership-cleanup.js" },
+						{ "kind": "implementation", "path": "desktop/desktop-video-codec-registration.mjs" },
+						{ "kind": "test", "path": "tests/desktop-video-codec-registration.test.js" }
 					]
 				},
 				{
@@ -2593,7 +2619,7 @@
 				},
 				{
 					"id": "exact-direct-mp4-webm-video-save",
-					"summary": "The maintained exact direct MP4 route binds canonical `mp4`, `.mp4`, and `video/mp4`, and the exact direct WebM route binds canonical `webm`, `.webm`, and `video/webm`. Both use target purpose `video`, require a safe matching output name, and admit either a canonical version-6 descriptor-bound video plan whose complete serialized fingerprint stays unchanged through pre-commit admission or an exact detached version-7 keyed plan under the same existing video route. V6 admission requires positive finite duration and frame rate, positive safe output frames and range, positive even canvas dimensions, `yuv420p`, at least one uniquely identified video source, at most one final staged-audio input, and exact descriptor agreement for format, container, extension, MIME, video encoder, optional audio encoder, and audio strategy. V7 independently binds exact range, rational duration and frame rate, active clips and sources, source storage/MIME/SHA-256 identities, canvas, output frames, codecs, and optional exact-range audio. MP4 `libx264`, optional `aac`, `yuv420p`, and `+faststart`, plus WebM `libvpx-vp9`, optional `libopus`, and `yuv420p`, are deterministic FFmpeg command facts, not codec execution or conformance claims. First-party rendered-fallback verification and its delivery projection complete before the V6 plan and target selection; the verified fallback `Blob` may feed that route, but source authentication and projection remain owned by the separate rendered-fallback control. Keyed V7 refuses rendered fallback and authenticates its native source bodies separately. In a browser, the prepared target is selected after planning but before storage preflight, ordinary source loading, optional audio rendering, or FFmpeg, while its exact writer stays unopened until after finalization and one safe nonnegative FFmpeg stat. On desktop, target preparation is deliberately deferred inside sink `open` after that stat because a selected main-owned save target has a 900,000-millisecond TTL; this is a design reason for late selection, not desktop or native-picker platform qualification. Legacy source video `Blob` inputs and an optional staged WAV `Blob` are mounted through WORKERFS; keyed video instead feeds bounded generated-RGBA and optional WAV SharedArrayBuffer rings. The complete finalized output remains in worker MEMFS. Legacy direct delivery performs one stat; keyed direct delivery first captures bounded structural and SHA-256 evidence and then binds its delivery pass to the same size and digest. Both read exact monotonic ranges of at most one MiB, permit at most one range read and one awaited destination write at a time under backpressure, and check currentness around external operations. Exact stat, emitted, destination-written, and committed-result counts agree around sink close/seal and one explicit commit. No output `readFile`, final renderer video `Blob`, Object URL, or download publication occurs on the direct path. Prepared Blob mode declines direct publication and preserves the legacy whole-read, final-Blob, Object-URL or download path. Focused Node evidence covers both canonical formats and strategies, early browser and late desktop preparation, rendered-fallback ordering, keyed digest/structure and same-size replacement refusal, a provider-injected four-byte output, the legacy Blob path, and bounded direct range transfer. The selected V27 browser export delegates its maintained keyed V20 foundation through these routes and does not add a publication route. Worker MEMFS, source-video and staged-audio Blob residency, codec execution, codec conformance, native or WASM codec memory, renderer or browser heap, GC, process RSS, CPU, elapsed time, actual browser or operating-system behavior, native picker, packaged application behavior, reference scale, quota, filesystem durability, crash, and power loss remain unqualified.",
+					"summary": "The maintained exact direct MP4 route binds canonical `mp4`, `.mp4`, and `video/mp4`, and the exact direct WebM route binds canonical `webm`, `.webm`, and `video/webm`. Both use target purpose `video`, require a safe matching output name, and retain their canonical version-6 descriptor-bound and exact detached version-7 keyed plans, complete fingerprints, structural validation, SHA-256 evidence, exact stat/emitted/written/committed byte agreement, at-most-1-MiB monotonic range reads, backpressure, currentness checks, one explicit commit, and Blob-versus-direct publication boundaries. Browser V6 keeps WORKERFS/MEMFS source, staged-audio, and output ownership; browser V7 keeps its bounded SharedArrayBuffer RGBA and optional WAV rings. Desktop Soundscaper V29 admits only the exact V7 keyed-RGBA subset and deliberately forces the desktop provider even when WebCodecs exists. Desktop availability requires exact capability tokens plus a successful live canary for the current external ffmpeg/ffprobe pair: H.264/AAC MP4 uses `libx264` and `aac`, while WebM uses VP9/Opus through `libvpx-vp9` and `libopus`. Renderer writes are pathless at-most-1-MiB chunks into main-private pipes; finalized output stays in main-private scratch for bounded reads and the same container, digest, byte-count, and publication checks. Bundled video, operating-system video, and AV1 remain disabled; external WebM is VP9, not AV1. Codec conformance, broad FFmpeg-version/platform behavior, packaged UI, reference-scale performance, aggregate memory, RSS, CPU, filesystem durability, crash, and power loss remain unqualified.",
 					"evidence": [
 						{ "kind": "implementation", "path": "patches/npm/@ffmpeg+ffmpeg+0.12.15.patch" },
 						{ "kind": "implementation", "path": "src/common/editor/ffmpeg-output-stream.ts" },
@@ -2610,6 +2636,10 @@
 						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-video-container-stream.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-video-output.ts" },
 						{ "kind": "implementation", "path": "src/framescaper/video-export-strategy-v20.ts" },
+						{ "kind": "implementation", "path": "src/soundscaper/video-export-strategy-v29.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/desktop-video-codec-runtime.ts" },
+						{ "kind": "implementation", "path": "desktop/external-ffmpeg-video-operation-service.ts" },
+						{ "kind": "implementation", "path": "desktop/external-ffmpeg-video-qualification.ts" },
 						{ "kind": "implementation", "path": "desktop/save-targets.js" },
 						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-output-range-patch.test.js" },
 						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-output-stream.test.ts" },
@@ -2621,6 +2651,9 @@
 						{ "kind": "test", "path": "tests/audio-editor-video-rendered-fallback-export.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-video-keyframe-video-sink-encoder.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-framescaper-video-export-strategy-v20.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-soundscaper-video-export-strategy-v29.test.ts" },
+						{ "kind": "test", "path": "tests/external-ffmpeg-video-operation-service.test.ts" },
+						{ "kind": "test", "path": "tests/external-ffmpeg-video-qualification.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" },
 						{ "kind": "test", "path": "tests/desktop-save-capacity.test.js" },
 						{ "kind": "test", "path": "tests/desktop-save.test.js" }
@@ -3599,11 +3632,21 @@
 				},
 				{
 					"id": "verified-helper-engine-payload",
-					"summary": "The Soundscaper application supplies no FFmpeg helper engine: renderer, runtime-resource, package, and release audits reject application-supplied FFmpeg, libav, FFmpeg WebAssembly, and the historical static FFmpeg host. Electron's separately verified alternate Chromium libffmpeg is a framework exception and never a Soundscaper provider tier. The main-owned audio broker registers seven exact reviewed compressed-audio WebAssembly payloads on linux-x64, linux-arm64, mac-arm64, win-x64, and win-arm64, never mac-x64: 153,044-byte libFLAC 1.5.0 (34acff0d67e3ac7f34816217ed7f5f859bf9a1c70f33eb3c347049f5fdf0d443), 385,789-byte libopus 1.6.1/libogg 1.3.6 (c4c9f7ac85071b24b2545f966943c4319fff023a65c899146cfcb016ae0a8853), 523,227-byte libvorbis 1.3.7/libogg 1.3.6 (c03037c33f35dbf85e1e963058156399b995b2dedb5479f6eb3f3b30148eeee5), 145,537-byte WavPack 5.9.0 (c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908), 172,329-byte mpg123 1.33.7 (d2b5686a16141ec97dbeb4e4f2a1ce28b756dd3eaf6438b31379356c8dd958ae), 212,205-byte LAME 4.0 (654d08f946851134755513c8c0cd4486e8c9d2024df2318dc48b262e4ad7a502), and 146,820-byte TwoLAME 0.4.0 (b4b166bed688504b548adcee02cda391d4d8b25a44aec914c3fe1082f466ed1b). Exact-byte staging, startup identity and canaries, strict source/output parsers, and exact settings admit only their reviewed FLAC, Ogg Opus/Vorbis, WavPack, MPEG-1 Layer II, and MPEG-1 Layer III slices. Existing first-party PCM containers remain application code and libsndfile is not bundled. The wire admits at most 32 MiB input and 128 MiB output, but retains whole buffers; except for the WavPack block loop, one synchronous WASM call after a yield cannot be interrupted by cancellation, and the limits do not bound aggregate copies, WASM memory, CPU, elapsed time, or RSS. Windows Media Foundation and macOS ARM64 AudioToolbox source adapters, inspectors, validators, and live MP3/AAC canaries exist, including AAC encode and Windows-only MP3 encode. An isolated target-native CI build produces the codec addon only for mac-arm64, win-x64, and win-arm64, authenticates the Electron headers and repository source/build plan, runs the native canaries, records the target toolchain and payload identity, and requires the macOS addon to be signed and strictly verified before hashing. Staging, package, content-manifest, and runtime checks bind the exact manifest and payload and reject missing, changed, wrong-target, duplicate, or foreign bytes. Linux has no uniform OS tier, and mac-x64 is rejected everywhere. The last tier supports a matching user-installed FFmpeg/ffprobe 4.4 through 9.x pair, configured in Edit > Preferences > General or explicitly installed through exact WinGet/Homebrew commands, without copying it into a package. Its fixed no-shell audio runner, private scratch, local protocol allowlist, bounded duration/log/output, cancellation, and identity recheck do not close hash-before-path-spawn TOCTOU, impose an OS RSS/CPU sandbox, or constrain a malicious selected executable's user-account network authority. Receipts record null timing. The desktop bridge is audio-only and contains no WebM/AV1 payload or complete five-target AV1 evidence, so those paths fail closed. Exact copyright-license and technical evidence establishes neither patent clearance nor non-infringement for any provider, codec, use, or territory.",
+					"summary": "The Soundscaper application supplies no FFmpeg helper engine: renderer, runtime-resource, package, and release audits reject application-supplied FFmpeg, libav, FFmpeg WebAssembly, and the historical static FFmpeg host. Electron's separately verified alternate Chromium libffmpeg is a framework exception and never a Soundscaper provider tier. The audio broker registers seven exact reviewed compressed-audio WebAssembly payloads on linux-x64, linux-arm64, mac-arm64, win-x64, and win-arm64, never mac-x64: 153,044-byte libFLAC 1.5.0, 385,789-byte libopus 1.6.1/libogg 1.3.6, 523,227-byte libvorbis 1.3.7/libogg 1.3.6, 145,537-byte WavPack 5.9.0, 172,329-byte mpg123 1.33.7, 212,205-byte LAME 4.0, and 146,820-byte TwoLAME 0.4.0. A canonical manifest authenticates each control module, transitive JavaScript dependency, and WASM payload. Before every canary, preflight, and execution fork, main reauthenticates that complete closure; the helper reauthenticates it before import. Each job receives a fresh one-shot Electron utility process, private 0700 scratch and 0600 files, exact input/output digest and geometry checks, bounded deadline, kill-on-cancel/failure behavior, and a four-job global admission ceiling. Exact settings admit only the reviewed slices; existing first-party PCM containers remain application code and libsndfile is not bundled. The wire admits at most 32 MiB input and 128 MiB output and retains whole buffers; a codec call is synchronous inside its disposable helper, and the limits do not establish aggregate JavaScript-copy, WASM-memory, CPU, elapsed-time, or RSS bounds or a hostile-code sandbox. Windows Media Foundation and macOS ARM64 AudioToolbox adapters, validators, and live MP3/AAC canaries remain target-native, signed where required, exact-manifest/payload authenticated, unavailable on Linux, and never built for mac-x64. The last tier supports a matching user-installed FFmpeg/ffprobe 4.4 through 9.x pair configured in Edit > Preferences > General or explicitly installed through exact WinGet/Homebrew commands, without copying it into a package. Its fixed no-shell audio commands and live-qualified H.264/AAC MP4 and VP9/Opus WebM plans use private scratch/pipes, bounded duration/log/output, process-tree cancellation, identity rechecks, and validated publication. They do not close hash-before-path-spawn TOCTOU, authenticate dynamic-library closure, impose an OS filesystem/network/RSS/CPU sandbox, or constrain a malicious selected executable's user-account authority. Bundled video, operating-system video, and AV1 remain disabled; external WebM is VP9, not AV1. Receipts record null timing. Exact copyright-license and technical evidence establishes neither patent clearance nor non-infringement for any provider, codec, use, or territory.",
 					"evidence": [
 						{ "kind": "implementation", "path": "desktop/helper-registration.mjs" },
 						{ "kind": "implementation", "path": "desktop/desktop-audio-codec-registration.mjs" },
+						{ "kind": "implementation", "path": "desktop/bundled-audio-codec-runtime-payload.mjs" },
+						{ "kind": "implementation", "path": "desktop/bundled-audio-codec-electron-spawn.mjs" },
+						{ "kind": "implementation", "path": "desktop/bundled-audio-codec-helper-process.ts" },
+						{ "kind": "implementation", "path": "desktop/bundled-audio-codec-operation-runner.ts" },
+						{ "kind": "implementation", "path": "desktop/bundled-audio-codec-isolated-runtime.ts" },
 						{ "kind": "implementation", "path": "desktop/external-ffmpeg-registration.mjs" },
+						{ "kind": "implementation", "path": "desktop/external-ffmpeg-video-qualification.ts" },
+						{ "kind": "implementation", "path": "desktop/external-ffmpeg-video-qualified-capabilities.ts" },
+						{ "kind": "implementation", "path": "desktop/external-ffmpeg-video-process.ts" },
+						{ "kind": "implementation", "path": "desktop/external-ffmpeg-video-operation-service.ts" },
+						{ "kind": "implementation", "path": "desktop/desktop-video-codec-registration.mjs" },
 						{ "kind": "implementation", "path": "scripts/lib/desktop-codec-policy.mjs" },
 						{ "kind": "implementation", "path": "electron-builder.config.cjs" },
 						{ "kind": "implementation", "path": "config/electron-alternate-ffmpeg-manifest.json" },
@@ -3627,6 +3670,7 @@
 						{ "kind": "audit", "path": "scripts/audit-lame-wasm.mjs" },
 						{ "kind": "audit", "path": "scripts/audit-twolame-wasm.mjs" },
 						{ "kind": "implementation", "path": "scripts/lib/desktop-bundled-audio-runtime.mjs" },
+						{ "kind": "implementation", "path": "scripts/lib/desktop-bundled-audio-codec-runtime-closure.mjs" },
 						{ "kind": "implementation", "path": "desktop/bundled-flac-audio-codec-runtime.ts" },
 						{ "kind": "implementation", "path": "desktop/bundled-opus-audio-codec-runtime.ts" },
 						{ "kind": "implementation", "path": "desktop/bundled-vorbis-audio-codec-runtime.ts" },
@@ -3652,6 +3696,11 @@
 						{ "kind": "implementation", "path": "desktop/external-ffmpeg-installer.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/ui/dialogs/DesktopFfmpegPreferencePanel.tsx" },
 						{ "kind": "test", "path": "tests/desktop-audio-codec-main-wiring.test.js" },
+						{ "kind": "test", "path": "tests/desktop-bundled-audio-codec-runtime-payload.test.js" },
+						{ "kind": "test", "path": "tests/desktop-bundled-audio-codec-electron-spawn.test.js" },
+						{ "kind": "test", "path": "tests/desktop-bundled-audio-codec-helper-process.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-bundled-audio-codec-operation-runner.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-bundled-audio-codec-isolated-runtime.test.ts" },
 						{ "kind": "test", "path": "tests/desktop-bundled-flac-audio-codec-runtime.test.ts" },
 						{ "kind": "test", "path": "tests/desktop-bundled-opus-audio-codec-runtime.test.ts" },
 						{ "kind": "test", "path": "tests/desktop-bundled-vorbis-audio-codec-runtime.test.ts" },
@@ -3667,6 +3716,9 @@
 						{ "kind": "test", "path": "tests/desktop-packaged-os-audio-codec-native.test.js" },
 						{ "kind": "test", "path": "tests/desktop-external-ffmpeg-audio-operation-runner.test.ts" },
 						{ "kind": "test", "path": "tests/desktop-external-ffmpeg-installer.test.ts" },
+						{ "kind": "test", "path": "tests/external-ffmpeg-video-qualification.test.ts" },
+						{ "kind": "test", "path": "tests/external-ffmpeg-video-operation-service.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-video-codec-registration.test.js" },
 						{ "kind": "test", "path": "tests/audio-editor-desktop-export-capability.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-desktop-export-codec-model.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-desktop-export-dialog-capability.test.js" },
@@ -3714,7 +3766,7 @@
 				},
 				{
 					"id": "external-ffmpeg-selected-executable-authority",
-					"exposure": "A user-selected or package-manager-installed FFmpeg is an external executable with ordinary user-account authority. Main re-hashes the admitted ffmpeg/ffprobe executable pair immediately before and after path-based spawn, uses shell:false, fixed audio arguments, private scratch, a local protocol allowlist, a curated environment, bounded duration/log/output and cancellation, then validates the output. It does not retain executable descriptors across spawn, so replacement between hash and execution remains possible. The identity covers only those two executable files, not dynamically loaded libraries. No OS RSS/CPU sandbox or network namespace is applied. The protocol allowlist constrains a cooperative FFmpeg build but cannot stop a malicious replacement executable from using the account's files or network. The 32 MiB input and 128 MiB returned-output wire limits do not bound process RSS, CPU, filesystem side effects outside cooperative command behavior, or elapsed termination work.",
+					"exposure": "A user-selected or package-manager-installed FFmpeg is an external executable with ordinary user-account authority. Main re-hashes the admitted ffmpeg/ffprobe pair immediately before and after path-based spawn, uses shell:false, fixed audio commands and two closed video plans, a local protocol allowlist, curated environment, private audio scratch and external-video pipes/main scratch, bounded logs, outputs, durations, cancellation, and output validation. Video availability additionally requires live qualification of the current pair for H.264/AAC MP4 or VP9/Opus WebM. Video admits at most two sessions total and one per owner, uses a 30-second ready-idle default with a 60-second hard ceiling, a five-minute runtime default with a 30-minute hard ceiling, a 64-KiB log default with a one-MiB hard ceiling, process-tree termination, at-most-one-MiB range reads, and a maintained 512-MiB output cap under a two-GiB IPC-contract hard ceiling. It does not retain executable descriptors across spawn, so replacement between hash and execution remains possible. The identity covers only those two executable files, not dynamically loaded libraries. No OS filesystem, network, RSS, or CPU sandbox is applied. The protocol allowlist constrains a cooperative FFmpeg build but cannot stop a malicious replacement executable from using the account's files or network. The audio 32-MiB input and 128-MiB returned-output limits and video bounds do not establish an aggregate process resource or elapsed termination bound.",
 					"requiredControl": "Use a platform-authenticated execution identity without a hash-to-path TOCTOU gap and run external codec processes in a qualified per-OS sandbox with explicit filesystem, network, RSS, CPU, process-tree, and termination controls, while preserving exact version/capability admission.",
 					"ownerMilestone": "5",
 					"acceptanceCriteria": ["Native Windows and macOS fault labs replace an admitted executable at every pre-spawn boundary and exercise malicious file, network, child-process, CPU, RSS, timeout, and cancellation behavior; every unauthorized action is denied and the exact admitted executable identity is the one that runs."]
@@ -3854,7 +3906,7 @@
 				},
 				{
 					"id": "bounded-keyed-rgba-av-encoding",
-					"summary": "The selected V27 browser export's maintained keyed V20 encoder admits an exact generated-RGBA frame source at no more than 1,280 by 720, 1 through 30 frames per second for A/V, 2,000,000 frames, 8 MiB per reusable frame allocation, and 1 TiB of logical RGBA work. The patched FFmpeg boundary owns at most two SharedArrayBuffer input rings, one video and one optional audio, under a 16 MiB aggregate capacity with serial awaited writes and producer-consumer backpressure. Optional audio must be one canonical 1 through 32 channel float32 WAV of at most 2 GiB, 8,000 through 768,000 samples per second, and the exact export-range frame count; bounded slices feed the second ring without another file-sized copy. MP4 and WebM command grammar fixes raw RGBA, format, pixel format, codecs, metadata removal, exact rational rate, bounded audio padding, and duration. Final output is capped at 512 MiB. Blob delivery owns one exact allocation and finite container validation. Direct delivery makes a bounded first pass that captures per-block and whole-file SHA-256 evidence, structurally validates finite MP4 or WebM with bounded elements, then binds a second delivery pass to exact size and digest; same-size TOCTOU replacement refuses before publishing close. A generation-scoped FFmpeg lease plus task currentness and AbortSignal checks fence acquisition, producer rendering, input writes, encoder execution, and output external operations. Cleanup is always attempted. Failure aborts and disposes both input rings, aborts an acquired destination exactly once, terminates incomplete execution, deletes MEMFS output or terminates after delete failure, disposes producers and streams, and preserves cleanup failures. This selected control reuses the existing video routes and does not qualify source and staged-audio Blob residency, browser or worker heap, native or WASM codec memory, RSS, GC, CPU, elapsed time, codec conformance, reference scale, platform behavior, quota, durability, crash, or power loss.",
+					"summary": "The selected V27 browser export's maintained keyed V20 encoder admits an exact generated-RGBA frame source at no more than 1,280 by 720, 1 through 30 frames per second for A/V, 2,000,000 frames, 8 MiB per reusable frame allocation, and 1 TiB of logical RGBA work. Its browser branch owns at most two SharedArrayBuffer input rings, one video and one optional audio, under a 16 MiB aggregate capacity with serial awaited writes and producer-consumer backpressure. The desktop Soundscaper V29 branch uses the same exact plan but writes pathless at-most-1-MiB chunks to owner-scoped main-private FFmpeg pipes and keeps finalized output in main-private scratch; ready-idle and runtime deadlines, owner loss, cancellation, and shutdown terminate the process tree and clean the session. Optional audio must be one canonical 1 through 32 channel float32 WAV of at most 2 GiB, 8,000 through 768,000 samples per second, and the exact export-range frame count. MP4 and WebM command grammar fixes raw RGBA, format, pixel format, codecs, metadata removal, exact rational rate, bounded audio padding, and duration. Final output is capped at 512 MiB. Blob delivery owns one exact allocation and finite container validation. Direct delivery captures per-block and whole-file SHA-256 evidence, structurally validates finite MP4 or WebM, and binds publication to exact size and digest so same-size replacement refuses before close. A generation-scoped provider lease plus task currentness and AbortSignal checks fence acquisition, producer rendering, input writes, encoder execution, and output external operations. Cleanup is always attempted. The browser branch aborts and disposes both rings, deletes MEMFS output, and terminates its runtime when required; the desktop branch cancels or deletes its owner-scoped main session, drains the child process, removes scratch, aborts an acquired destination exactly once, and preserves cleanup failures. This selected control reuses the existing video routes and does not qualify source and staged-audio Blob residency, browser or worker heap, native or WASM codec memory, RSS, GC, CPU, elapsed time, codec conformance, reference scale, broad platform behavior, quota, durability, crash, or power loss.",
 					"evidence": [
 						{ "kind": "implementation", "path": "patches/npm/@ffmpeg+ffmpeg+0.12.15.patch" },
 						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-encoder-admission.ts" },
@@ -3865,9 +3917,14 @@
 						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-video-operation.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-video-output.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-video-sink.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/desktop-video-codec-runtime.ts" },
+						{ "kind": "implementation", "path": "desktop/external-ffmpeg-video-operation-service.ts" },
+						{ "kind": "implementation", "path": "desktop/external-ffmpeg-video-session-cleanup.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-video-keyframe-av-encoder.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-video-keyframe-encoder-stream.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-video-keyframe-video-sink-encoder.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-desktop-video-codec-runtime.test.ts" },
+						{ "kind": "test", "path": "tests/external-ffmpeg-video-session-cleanup.test.ts" },
 						{ "kind": "test", "path": "tests/browser/audio-editor-video-keyframe-video-encoder.spec.js" }
 					]
 				},
@@ -4113,7 +4170,7 @@
 				},
 				{
 					"id": "direct-mp4-webm-video-save-rollback",
-					"summary": "The direct MP4 and WebM route carries its owned export signal and currentness checks through rendered-fallback verification when applicable, V6 or version-7 keyed planning, target preparation, storage preflight, source loading and keyed SHA-256 authentication, optional audio rendering and float32-WAV admission, FFmpeg execution, stat, container validation, every exact range read and awaited destination write, close, and pre-commit admission. The keyed path keeps one generation-scoped runtime and exact timing lease through encoder and publication cleanup, binds the detached V7 plan to its canonical V20 project, and rejects project, projection, plan, source, timing, output-size, structural-container, per-block digest, or whole-file digest drift. Cancellation during FFmpeg execution terminates the runtime. Browser chooser cancellation returns before preflight, and late desktop chooser cancellation raised from sink open returns silently after encoding without opening a writer or publishing. Cancellation, currentness loss, plan or descriptor drift, stat or range refusal, FFmpeg failure, target open/write/close failure, short or oversized output, cleanup failure, or byte-count disagreement before commit aborts the unpublished destination exactly once and performs no download publication. Cleanup is always attempted. Legacy output delete, WORKERFS unmount, and mount-directory delete are attempted after the job; a cleanup failure stays visible in an `AggregateError` and terminates the runtime. Keyed cleanup aborts and disposes both input rings, deletes its MEMFS output, terminates on incomplete scope or failed deletion, disposes its producer, and aborts an acquired destination exactly once. Cleanup failures remain observable with the primary failure in an `AggregateError`. Sink close/seal plus exact stat, emitted, destination-written, structure and digest counts and evidence, and an unchanged full-plan fingerprint precede one explicit non-cancellable commit. Late ownership loss during commit returns the committed result without stale success UI, Object URL, or output-link mutation. Committed-result size drift is a post-publication integrity failure, not rollback. Prepared Blob mode retains its legacy lifecycle. Focused Node tests cover MP4 and WebM success, early browser and late desktop ordering, late chooser cancellation, V6 and V7 keyed plan and count drift, exact-once rollback, write and close failure, same-size TOCTOU replacement, destination-cleanup aggregation, runtime termination, rendered-fallback ordering, prior-output cleanup, and the commit ownership race. Selected V27 delegates its maintained keyed V20 path through the existing routes. This does not qualify crash or power-loss rollback, filesystem durability, actual browser or operating-system lifecycle, native-picker or packaged behavior, reference scale, worker MEMFS or codec memory, source-video or staged-audio Blob residency, heap, RSS, CPU, or elapsed time.",
+					"summary": "The direct MP4 and WebM route carries its owned export signal and currentness checks through rendered-fallback verification when applicable, V6 or version-7 keyed planning, target preparation, storage preflight, source loading and keyed SHA-256 authentication, optional audio rendering and float32-WAV admission, FFmpeg execution, stat, container validation, every exact range read and awaited destination write, close, and pre-commit admission. The keyed path keeps one generation-scoped provider and exact timing lease through encoder and publication cleanup and rejects project, projection, plan, source, timing, output-size, structural-container, per-block digest, or whole-file digest drift. Cancellation during FFmpeg execution terminates the active runtime or external process tree. Browser chooser cancellation returns before preflight, and late desktop chooser cancellation returns silently without publishing. Cancellation, ownership or currentness loss, plan drift, stat or range refusal, FFmpeg failure, target failure, cleanup failure, or byte disagreement aborts an acquired unpublished destination exactly once. Cleanup is always attempted. The browser branch deletes MEMFS output, unmounts WORKERFS, removes mount directories, disposes its rings and producer, and terminates its runtime on incomplete or failed cleanup. The desktop branch cancels or deletes its owner-scoped main session, drains the process tree, closes descriptors, removes scratch, and leaves a failed cleanup retryable and observable with any primary failure. Sink close/seal plus exact stat, emitted, destination-written, structure and digest evidence, and an unchanged full-plan fingerprint precede one explicit non-cancellable commit. Late ownership loss during commit returns the committed result without stale success UI; committed-result size drift is a post-publication integrity failure, not rollback. Focused Node tests cover MP4 and WebM, V6 and V7, browser and desktop lifecycle branches, exact-once rollback, same-size replacement, cleanup aggregation, and the commit race. This does not qualify crash or power-loss rollback, filesystem durability, broad operating-system lifecycle, packaged UI, reference scale, aggregate memory, RSS, CPU, or elapsed time.",
 					"evidence": [
 						{ "kind": "implementation", "path": "src/common/editor/ffmpeg-output-stream.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/ffmpeg-video-output.ts" },
@@ -4124,6 +4181,9 @@
 						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-video-container-stream.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-video-output.ts" },
 						{ "kind": "implementation", "path": "src/framescaper/video-export-strategy-v20.ts" },
+						{ "kind": "implementation", "path": "src/soundscaper/video-export-strategy-v29.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/desktop-video-codec-runtime.ts" },
+						{ "kind": "implementation", "path": "desktop/external-ffmpeg-video-session-cleanup.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/file-save-stream.ts" },
 						{ "kind": "implementation", "path": "desktop/save-targets.js" },
 						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-output-stream.test.ts" },
@@ -4133,6 +4193,9 @@
 						{ "kind": "test", "path": "tests/audio-editor-direct-video-keyframe-plan-v7.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-video-keyframe-video-sink-encoder.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-framescaper-video-export-strategy-v20.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-soundscaper-video-export-strategy-v29.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-desktop-video-codec-runtime.test.ts" },
+						{ "kind": "test", "path": "tests/external-ffmpeg-video-session-cleanup.test.ts" },
 						{ "kind": "test", "path": "tests/desktop-save-capacity.test.js" },
 						{ "kind": "test", "path": "tests/desktop-save.test.js" }
 					]
@@ -4472,7 +4535,7 @@
 			"currentControls": [
 				{
 					"id": "pinned-in-tree-wasm-audits",
-					"summary": "StaffPad, Nyquist, Parametric EQ, and all seven desktop compressed-audio WebAssembly providers record source and binary hashes and have fail-fast audit scripts. Desktop staging admits only exact regular files for libFLAC 1.5.0, libopus 1.6.1/libogg 1.3.6, libvorbis 1.3.7/libogg 1.3.6, WavPack 5.9.0, mpg123 1.33.7, LAME 4.0, and TwoLAME 0.4.0 after byte-length and SHA-256 checks; the main-owned provider repeats exact identity and startup canary checks before registration on the five supported targets and rejects mac-x64.",
+					"summary": "StaffPad, Nyquist, Parametric EQ, and all seven desktop compressed-audio WebAssembly providers record source and binary hashes and have fail-fast audit scripts. Desktop staging admits only exact regular files for libFLAC 1.5.0, libopus 1.6.1/libogg 1.3.6, libvorbis 1.3.7/libogg 1.3.6, WavPack 5.9.0, mpg123 1.33.7, LAME 4.0, and TwoLAME 0.4.0 after byte-length and SHA-256 checks and rejects mac-x64. One canonical execution-closure manifest covers the control module, every transitive JavaScript import, and every WASM payload. Main reauthenticates the closure before each fresh utility-process fork, the helper reauthenticates before import, and startup qualification uses one-shot utility canaries rather than importing codec code in main.",
 					"evidence": [
 						{ "kind": "document", "path": "src/common/editor/staffpad/source-manifest.json" },
 						{ "kind": "document", "path": "src/common/editor/nyquist/source-manifest.json" },
@@ -4495,6 +4558,9 @@
 						{ "kind": "audit", "path": "scripts/audit-lame-wasm.mjs" },
 						{ "kind": "audit", "path": "scripts/audit-twolame-wasm.mjs" },
 						{ "kind": "implementation", "path": "scripts/lib/desktop-bundled-audio-runtime.mjs" },
+						{ "kind": "implementation", "path": "scripts/lib/desktop-bundled-audio-codec-runtime-closure.mjs" },
+						{ "kind": "implementation", "path": "desktop/bundled-audio-codec-runtime-payload.mjs" },
+						{ "kind": "implementation", "path": "desktop/bundled-audio-codec-electron-spawn.mjs" },
 						{ "kind": "implementation", "path": "desktop/bundled-flac-audio-codec-runtime.ts" },
 						{ "kind": "implementation", "path": "desktop/bundled-opus-audio-codec-runtime.ts" },
 						{ "kind": "implementation", "path": "desktop/bundled-vorbis-audio-codec-runtime.ts" },
@@ -4506,6 +4572,8 @@
 						{ "kind": "test", "path": "tests/desktop-bundled-opus-audio-codec-runtime.test.ts" },
 						{ "kind": "test", "path": "tests/desktop-bundled-vorbis-audio-codec-runtime.test.ts" },
 						{ "kind": "test", "path": "tests/desktop-audio-codec-runtime-staging.test.js" },
+						{ "kind": "test", "path": "tests/desktop-bundled-audio-codec-runtime-payload.test.js" },
+						{ "kind": "test", "path": "tests/desktop-bundled-audio-codec-electron-spawn.test.js" },
 						{ "kind": "test", "path": "tests/desktop-bundled-wavpack-audio-codec-runtime.test.ts" },
 						{ "kind": "test", "path": "tests/desktop-bundled-mpg123-audio-codec-runtime.test.ts" },
 						{ "kind": "test", "path": "tests/desktop-bundled-lame-audio-codec-runtime.test.ts" },
@@ -4514,7 +4582,7 @@
 				},
 				{
 					"id": "desktop-fuse-and-package-integrity",
-					"summary": "Desktop preparation records the application-codec policy and audits the renderer composition; beforePack and afterPack recheck that policy and recursively reject application-supplied FFmpeg, libav, FFmpeg WebAssembly, the historical static FFmpeg host, and unqualified WebM/AV1 payloads from renderer and application resource trees. Preparation stages exactly seven reviewed compressed-audio WASM files—libFLAC, libopus/libogg, libvorbis/libogg, WavPack, mpg123, LAME, and TwoLAME—after regular-file, exact-length, and SHA-256 verification; the compiled graph and package inventory reject every undeclared codec WASM. The package also stages and audits the 28 exact component NOTICE, license, source-manifest, and toolchain-license files in addition to the aggregate notice. A target-native OS codec build is required for mac-arm64, win-x64, and win-arm64 Soundscaper packages. The codec-only addon runs native canaries; macOS is signed and strictly verified before hashing; preparation, beforePack, afterPack, and the content manifest bind the exact build result, manifest, payload, target, signing evidence, byte length, and SHA-256. Linux packages require no OS codec subtree, and no mac-x64 target exists. Separately, Electron Builder's downloadAlternateFFmpeg setting selects Electron's matching alternate Chromium framework library, intended upstream to omit proprietary codec support. Before fuses or signing, afterPack verifies its exact path, type, byte length, and SHA-256 for linux-x64, linux-arm64, mac-arm64, win-x64, and win-arm64 against config/electron-alternate-ffmpeg-manifest.json; there is no mac-x64 target. Packaging checks the copied notices and ASAR integrity. Exact provider and framework identity establishes neither patent clearance nor non-infringement. User-installed external FFmpeg is distinct, is executed in place only after user selection or explicit WinGet/Homebrew installation, and is never copied into these trees.",
+					"summary": "Desktop preparation records the application-codec policy and audits the renderer composition; beforePack and afterPack reject application-supplied FFmpeg, libav, FFmpeg WebAssembly, the historical static FFmpeg host, and unqualified WebM/AV1 payloads. Preparation stages exactly seven reviewed compressed-audio WASM files—libFLAC, libopus/libogg, libvorbis/libogg, WavPack, mpg123, LAME, and TwoLAME—plus their complete authenticated isolation runtime closure after regular-file, exact-length, and SHA-256 verification; the compiled graph and package inventory reject undeclared codec WASM or runtime code. Release assets include a deterministic seven-codec corresponding-source ZIP and checksum and the exact component notice/source-manifest/toolchain-license set. A target-native OS audio codec build is required only for mac-arm64, win-x64, and win-arm64; its canaries, signing, build result, target, manifest, payload, length, and SHA-256 are bound through package and startup checks. Linux has no OS codec subtree and no mac-x64 target exists. Electron's separately verified alternate Chromium libffmpeg remains a framework exception on the five supported targets. The external-video runner code ships, but the selected user-installed ffmpeg/ffprobe bytes stay outside the renderer, runtime, package, release, and source-archive closure and execute in place only after user selection or explicit WinGet/Homebrew installation. Exact provider and framework identity establishes neither patent clearance nor non-infringement.",
 					"evidence": [
 						{ "kind": "implementation", "path": "electron-builder.config.cjs" },
 						{ "kind": "implementation", "path": "config/electron-alternate-ffmpeg-manifest.json" },
@@ -4537,6 +4605,15 @@
 						{ "kind": "audit", "path": "scripts/audit-lame-wasm.mjs" },
 						{ "kind": "audit", "path": "scripts/audit-twolame-wasm.mjs" },
 						{ "kind": "implementation", "path": "scripts/lib/desktop-bundled-audio-runtime.mjs" },
+						{ "kind": "implementation", "path": "scripts/lib/desktop-bundled-audio-codec-runtime-closure.mjs" },
+						{ "kind": "implementation", "path": "scripts/lib/desktop-bundled-codec-corresponding-source.mjs" },
+						{ "kind": "document", "path": "config/desktop-bundled-codec-corresponding-source.json" },
+						{ "kind": "implementation", "path": "desktop/external-ffmpeg-video-operation-service.ts" },
+						{ "kind": "implementation", "path": "desktop/bundled-audio-codec-runtime-payload.mjs" },
+						{ "kind": "implementation", "path": "desktop/bundled-audio-codec-electron-spawn.mjs" },
+						{ "kind": "implementation", "path": "desktop/bundled-audio-codec-helper-process.ts" },
+						{ "kind": "implementation", "path": "desktop/bundled-audio-codec-operation-runner.ts" },
+						{ "kind": "implementation", "path": "desktop/bundled-audio-codec-isolated-runtime.ts" },
 						{ "kind": "implementation", "path": "scripts/lib/desktop-bundled-codec-notices.mjs" },
 						{ "kind": "implementation", "path": "desktop/bundled-flac-audio-codec-runtime.ts" },
 						{ "kind": "implementation", "path": "desktop/bundled-opus-audio-codec-runtime.ts" },
@@ -4560,6 +4637,12 @@
 						{ "kind": "test", "path": "tests/desktop-electron-alternate-ffmpeg.test.js" },
 						{ "kind": "test", "path": "tests/desktop-audio-codec-runtime-staging.test.js" },
 						{ "kind": "test", "path": "tests/desktop-bundled-codec-notices.test.js" },
+						{ "kind": "test", "path": "tests/desktop-bundled-codec-corresponding-source.test.js" },
+						{ "kind": "test", "path": "tests/desktop-bundled-audio-codec-runtime-payload.test.js" },
+						{ "kind": "test", "path": "tests/desktop-bundled-audio-codec-electron-spawn.test.js" },
+						{ "kind": "test", "path": "tests/desktop-bundled-audio-codec-helper-process.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-bundled-audio-codec-operation-runner.test.ts" },
+						{ "kind": "test", "path": "tests/desktop-bundled-audio-codec-isolated-runtime.test.ts" },
 						{ "kind": "test", "path": "tests/desktop-bundled-flac-audio-codec-runtime.test.ts" },
 						{ "kind": "test", "path": "tests/desktop-bundled-opus-audio-codec-runtime.test.ts" },
 						{ "kind": "test", "path": "tests/desktop-bundled-vorbis-audio-codec-runtime.test.ts" },

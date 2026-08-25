@@ -261,14 +261,22 @@ terminal. WavPack retains its independent stock `wvunpack` 5.9.0 witness; that
 witness does not qualify other WavPack profiles, versions, or producers.
 
 The desktop audio wire caps each input at 32 MiB and each returned output at
-128 MiB. The compressed providers retain whole input and output buffers. Other
-than WavPack's block loop, each codec performs one synchronous WASM invocation
-after yielding to the main loop; cancellation checks before and after the call
-cannot interrupt an active invocation. The contract is not an aggregate bound
-on JavaScript copies, WASM linear memory, codec working state, process RSS,
-CPU time, or elapsed time. Operation receipts retain bounded provider identity,
-settings, capability generation, and input/output digests, but their timing is
-`null` and makes no timing or padding measurement claim.
+128 MiB. The compressed providers retain whole input and output buffers. Their
+WASM and complete transitive JavaScript module closures are exact-byte and
+SHA-256 authenticated from the packaged runtime manifest. Main does not import
+those codec modules: every canary, preflight, and execute starts a fresh,
+supervised Electron utility process. Startup canaries use batches of four and
+the runner admits at most four concurrent helper jobs. Preflight and execute use
+private sibling scratch files, a 30-second default and five-minute hard execution
+ceiling, cancellation by helper termination, bounded kill completion, and exact
+helper-protocol and output-digest checks; canaries have a five-second ceiling.
+Other than WavPack's block loop, a helper still performs one synchronous WASM
+invocation internally. Terminating the utility can stop that work, but the
+contract is not an aggregate bound on JavaScript copies, WASM linear memory,
+codec working state, helper-process RSS, CPU time, or elapsed time. Operation
+receipts retain bounded provider identity, settings, capability generation, and
+input/output digests, but their timing is `null` and makes no timing or padding
+measurement claim.
 
 Windows Media Foundation and macOS ARM64 AudioToolbox source adapters, bounded
 source inspection, output validation, and live startup canaries exist for exact
@@ -288,12 +296,15 @@ controls qualify only the enumerated tuples on a package whose target-native
 build has passed; they do not establish general OS availability, patent
 clearance, or non-infringement.
 
-The desktop bridge is audio-only. It contains no libwebm, libvpx, dav1d,
-SVT-AV1, or libaom payload and no complete twelve-case benchmark decision on
-each of the five targets. WebM and AV1 execution therefore remain disabled.
-The qualification model names dav1d as the decoder candidate, SVT-AV1 as the
-primary encoder candidate, and libaom only as a conditional Windows ARM64
-encoder fallback; those candidate names do not admit execution.
+Bundled and operating-system video remain disabled. The application contains
+no libwebm, libvpx, dav1d, SVT-AV1, or libaom payload and has no complete
+twelve-case benchmark decision on each of the five targets. It also has no
+admitted Media Foundation or VideoToolbox video operation. The qualification
+model names dav1d as the decoder candidate, SVT-AV1 as the primary encoder
+candidate, and libaom only as a conditional Windows ARM64 encoder fallback;
+those candidate names do not admit execution. The external WebM path described
+below uses VP9, not AV1. AV1 plus bundled and operating-system WebM execution
+therefore remain disabled.
 
 The final tier executes an FFmpeg program already installed on the user's
 machine, whether found by bounded discovery, chosen explicitly, or installed
@@ -328,6 +339,22 @@ cooperative FFmpeg behavior, not a malicious user-selected executable, which
 keeps its ordinary user-account and network authority. These limits are
 security boundaries and residual risks, not evidence about the external
 program's license or patent posture.
+
+The external tier also has a closed, owner-scoped video-session contract for
+exact keyed-RGBA H.264/AAC MP4 through `libx264`/`aac` and VP9/Opus WebM through
+`libvpx-vp9`/`libopus`. Encoder/muxer tokens alone do not enable either tuple:
+the current executable pair must complete a live one-frame 16x16 RGBA plus
+48 kHz audio canary and produce a structurally valid finite container. Renderer
+requests carry no filesystem paths. Main owns fixed command construction,
+private descriptor 3 for video, optional descriptor 4 for audio, private scratch
+and output files, exact sequential input lengths, and output range reads. IPC
+chunks are at most 1 MiB; no more than two sessions may exist globally and one
+per renderer owner. Idle, duration, log, and output bounds, executable-identity
+checks, cancellation, renderer revocation, shutdown draining, cleanup, container
+validation, and digest evidence guard output publication. These controls do not
+put FFmpeg or its dynamically loaded dependencies inside the Soundscaper
+artifact closure and do not establish a copyright, patent, availability, or
+performance conclusion for a user's installation.
 
 The matrix's `nativeFormatPolicies` register carries one fail-closed row for
 the JUCE native-audio stack, one per operating-system backend (CoreAudio,

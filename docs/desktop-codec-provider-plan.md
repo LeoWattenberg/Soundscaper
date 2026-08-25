@@ -57,15 +57,25 @@ additional format surface.
 
 Every bundled payload has a pinned upstream archive or revision, license and
 notice closure, Emscripten 3.1.64 recipe, exact-byte staging audit, startup
-identity check, bounded parser/output validation, and a codec canary. WavPack
-also retains the strict block/checksum authority and independent stock decoder
-witness described below. These codecs currently take and return whole buffers
-through a 32 MiB request-input and 128 MiB response-output contract. Except for
-the WavPack block loop, each codec invocation is one synchronous WASM call after
-yielding to the main loop. Cancellation is checked before and after that call;
-it cannot interrupt an active WASM invocation. The buffers, WASM linear memory,
-codec working state, JavaScript copies, elapsed time, and process RSS do not
-form one aggregate memory or CPU reservation.
+identity check, bounded parser/output validation, and a codec canary. The
+packaged runtime manifest authenticates each WASM file and the complete
+transitive JavaScript module closure that can load it. Canary, preflight, and
+execute each use a fresh, supervised Electron utility process; the main process
+never imports or executes the codec modules. Startup canaries run in batches of
+four, and at most four helper jobs may be active. Preflight and execute use
+private sibling input/output scratch files, a 30-second default deadline with a
+five-minute hard ceiling, cancellation that kills the helper, and a bounded
+kill-completion deadline. Canary execution has a five-second ceiling. Helper
+protocol, exit, output length, and output SHA-256 are checked before admission
+or return. WavPack also retains the strict block/checksum authority and
+independent stock decoder witness described below.
+
+These codecs still take and return whole buffers through a 32 MiB request-input
+and 128 MiB response-output contract. Except for the WavPack block loop, each
+helper performs one synchronous WASM invocation internally. Process termination
+can stop that invocation, but the buffers, WASM linear memory, codec working
+state, JavaScript copies, elapsed time, and aggregate helper-process RSS and CPU
+do not form one shared reservation.
 
 A separate Linux x64 interoperability check built stock WavPack 5.9.0
 `wvunpack` from the same pinned commit. It decoded a 1,240,560-byte,
@@ -106,14 +116,28 @@ exact WinGet package id `BtbN.FFmpeg.GPL.8.1` or an already installed Homebrew
 binary with `brew install ffmpeg`; Soundscaper never bootstraps a package
 manager, invokes `sudo`, or fetches/copies FFmpeg into its packages.
 
-The bundled WebM/AV1 execution tier is not implemented. The repository has a
-fail-closed AV1 qualification decision and correctly treats dav1d as the decode
-candidate, SVT-AV1 as the primary encode candidate, and libaom as a conditional
-Windows ARM64 encoder fallback. It has no libwebm/libvpx/dav1d/SVT-AV1/libaom
-payload, no complete 12-case result on every supported target, and the desktop
-bridge accepts audio operations only. WebM and AV1 therefore advertise no
-bundled execution capability and fall closed rather than silently using the
-browser FFmpeg runtime.
+The external tier also implements the closed desktop keyed-RGBA delivery path:
+H.264/AAC in MP4 through `libx264`/`aac`, and VP9/Opus in WebM through
+`libvpx-vp9`/`libopus`. Capability tokens are only a prerequisite. Each exact
+format must also pass a live, one-frame 16x16 RGBA plus 48 kHz audio canary, and
+the resulting finite MP4 or WebM structure must validate, before it is exposed.
+Renderer requests remain pathless and owner-scoped. Main binds video to private
+descriptor 3 and optional audio to descriptor 4, creates private scratch and
+the output path, and accepts or returns IPC ranges of at most 1 MiB. Admission
+allows no more than two sessions globally and one per renderer owner. Fixed
+arguments, exact input byte counts, duration/log/output ceilings, executable
+identity checks, cancellation, cleanup, bounded output reads, container
+validation, and digest-bound output evidence guard publication.
+
+Bundled and operating-system video execution are not implemented. The
+repository has a fail-closed AV1 qualification decision and correctly treats
+dav1d as the decode candidate, SVT-AV1 as the primary encode candidate, and
+libaom as a conditional Windows ARM64 encoder fallback. It has no
+libwebm/libvpx/dav1d/SVT-AV1/libaom payload and no complete 12-case result on
+every supported target. The external WebM delivery above is VP9, not AV1. AV1,
+bundled WebM, Media Foundation video, and VideoToolbox video therefore advertise
+no execution capability and fall closed rather than silently using the browser
+FFmpeg runtime.
 
 Copyright-license and technical evidence for these components is not patent
 clearance or a non-infringement representation for any codec, use, provider,
@@ -121,10 +145,11 @@ territory, or distribution method.
 
 ## Provider boundary
 
-- The strict-TypeScript coordinator and main broker currently own audio decode
-  and encode. Probe, trim, conform, remux, timing, proxy, and video delivery have
-  not been migrated to this bridge and must not be represented as bundled
-  WebM/AV1 support.
+- The strict-TypeScript coordinator and main broker own audio decode and encode.
+  A separate closed session bridge owns exact keyed-RGBA H.264/AAC MP4 and
+  VP9/Opus WebM delivery through external FFmpeg. Probe, trim, conform, remux,
+  timing, proxy, general composed-video operations, bundled video, and
+  operating-system video have not been migrated to that bridge.
 - Select a provider for the exact codec/container/direction/profile/sample or
   pixel-format tuple. Only `unavailable` and `unsupported` preflight results may
   fall through. Cancellation, invalid input, security failure, execution
@@ -149,7 +174,7 @@ territory, or distribution method.
   lower-priority provider; malformed input is terminal.
 - Keep libwebm/libvpx WebM execution disabled until exact payloads, bounded
   bridge operations, conformance tests, notices, and five-target evidence are
-  present.
+  present. External VP9/Opus WebM availability does not clear this bundled gate.
 - Keep dav1d 1.5.4, SVT-AV1 4.2.0, and libaom 3.14.1 as qualification
   candidates, not shipped providers. dav1d is the decoder candidate. SVT-AV1
   is the primary encoder candidate; encoder-only libaom may be selected only on
@@ -193,8 +218,9 @@ Primary references: [dav1d project and release](https://images.videolan.org/proj
   N components and optional codec packs degrade without affecting bundled
   codecs.
 - The macOS ARM64 sources use AudioToolbox/Extended Audio File Services for the
-  exact MP3/AAC tuples above. macOS has no admitted MP3 encoder. AVFoundation
-  and VideoToolbox video work remains outside the audio-only bridge.
+  exact MP3/AAC tuples above. macOS has no admitted MP3 encoder. Media
+  Foundation video and AVFoundation/VideoToolbox video remain disabled; the
+  closed video bridge currently admits only external FFmpeg.
 - The target-native CI job builds only the codec addon on mac-arm64, win-x64,
   and win-arm64, authenticates pinned Electron headers and the source closure,
   runs `ctest`, and emits a canonical build result. macOS payload bytes are
@@ -242,13 +268,25 @@ Primary references: [dav1d project and release](https://images.videolan.org/proj
   retains its ordinary account and network authority. Publication beyond the
   in-memory audio response remains owned by the caller. Custom FFmpeg export
   remains explicit, external-only, and path/protocol constrained.
+- Invoke exact keyed-RGBA video jobs through owner-scoped, pathless sessions.
+  Main binds fixed arguments to private descriptor 3 for RGBA and descriptor 4
+  for optional float WAV audio, owns private scratch/output files, and limits
+  renderer input and output ranges to 1 MiB. Admit at most two sessions globally
+  and one per renderer owner; expire idle sessions, enforce exact input offsets
+  and lengths, supervise time/log/output bounds, and terminate and drain work on
+  cancel, renderer revocation, or shutdown. An exact H.264/AAC MP4 or VP9/Opus
+  WebM tuple is available only after its live 16x16 one-frame A/V canary and
+  finite-container validation pass against the current executable-pair identity.
+  The downstream keyframe output reader revalidates structure and SHA-256
+  evidence before publication. This WebM path uses VP9, not AV1.
 
 ## Migration and acceptance
 
 - Desktop and browser media composition is split at build time, and desktop
-  FFmpeg WASM staging is absent. Audio import/export reaches the coordinator;
-  migration of probes, conform/trim/proxy work, and video delivery remains a
-  separate prerequisite for desktop WebM/AV1 execution.
+  FFmpeg WASM staging is absent. Audio import/export reaches the coordinator and
+  exact keyed-RGBA desktop delivery reaches the external FFmpeg session bridge.
+  Migration of probes, conform/trim/proxy work, general composed-video paths,
+  bundled or operating-system video, and AV1 remains separate work.
 - Replace the Framescaper FFmpeg-linked host with the product-neutral codec
   host so both desktop products share the same policy and payloads.
 - Add resolver, codec round-trip, OS conformance, CLI-version, installer-broker,

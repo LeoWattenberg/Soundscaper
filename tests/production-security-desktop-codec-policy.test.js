@@ -32,6 +32,12 @@ const BUNDLED_CODEC_EVIDENCE = [
 	'scripts/audit-lame-wasm.mjs',
 	'scripts/audit-twolame-wasm.mjs',
 	'scripts/lib/desktop-bundled-audio-runtime.mjs',
+	'scripts/lib/desktop-bundled-audio-codec-runtime-closure.mjs',
+	'desktop/bundled-audio-codec-runtime-payload.mjs',
+	'desktop/bundled-audio-codec-electron-spawn.mjs',
+	'desktop/bundled-audio-codec-helper-process.ts',
+	'desktop/bundled-audio-codec-operation-runner.ts',
+	'desktop/bundled-audio-codec-isolated-runtime.ts',
 	'desktop/bundled-flac-audio-codec-runtime.ts',
 	'desktop/bundled-opus-audio-codec-runtime.ts',
 	'desktop/bundled-vorbis-audio-codec-runtime.ts',
@@ -48,6 +54,11 @@ const BUNDLED_CODEC_EVIDENCE = [
 	'tests/desktop-bundled-lame-audio-codec-runtime.test.ts',
 	'tests/desktop-bundled-twolame-audio-codec-runtime.test.ts',
 	'tests/desktop-audio-codec-runtime-staging.test.js',
+	'tests/desktop-bundled-audio-codec-runtime-payload.test.js',
+	'tests/desktop-bundled-audio-codec-electron-spawn.test.js',
+	'tests/desktop-bundled-audio-codec-helper-process.test.ts',
+	'tests/desktop-bundled-audio-codec-operation-runner.test.ts',
+	'tests/desktop-bundled-audio-codec-isolated-runtime.test.ts',
 ];
 const OS_CODEC_EVIDENCE = [
 	'native/os-audio-codec-host/CMakeLists.txt',
@@ -72,9 +83,17 @@ const OS_CODEC_EVIDENCE = [
 const EXTERNAL_CODEC_EVIDENCE = [
 	'desktop/external-ffmpeg-audio-operation-runner.ts',
 	'desktop/external-ffmpeg-installer.ts',
+	'desktop/external-ffmpeg-video-qualification.ts',
+	'desktop/external-ffmpeg-video-qualified-capabilities.ts',
+	'desktop/external-ffmpeg-video-process.ts',
+	'desktop/external-ffmpeg-video-operation-service.ts',
+	'desktop/desktop-video-codec-registration.mjs',
 	'src/common/editor/ui/dialogs/DesktopFfmpegPreferencePanel.tsx',
 	'tests/desktop-external-ffmpeg-audio-operation-runner.test.ts',
 	'tests/desktop-external-ffmpeg-installer.test.ts',
+	'tests/external-ffmpeg-video-qualification.test.ts',
+	'tests/external-ffmpeg-video-operation-service.test.ts',
+	'tests/desktop-video-codec-registration.test.js',
 ];
 
 test('desktop codec security separates Electron framework, application, and external FFmpeg', async () => {
@@ -107,11 +126,11 @@ test('desktop codec security separates Electron framework, application, and exte
 	);
 	assert.match(
 		helperPayload.summary,
-		/32 MiB input.*128 MiB output.*whole buffers.*synchronous WASM.*cannot be interrupted.*aggregate copies.*RSS.*Media Foundation.*AudioToolbox.*target-native.*mac-arm64.*win-x64.*win-arm64.*native canar.*signed.*exact.*manifest.*payload.*Linux.*no uniform OS tier/iu,
+		/canonical manifest.*control module.*transitive JavaScript.*WASM payload.*main reauthenticates.*helper reauthenticates.*fresh one-shot Electron utility process.*0700.*0600.*digest.*geometry.*deadline.*kill.*four-job.*32 MiB input.*128 MiB output.*whole buffers.*synchronous.*aggregate.*RSS.*hostile-code sandbox/iu,
 	);
 	assert.match(
 		helperPayload.summary,
-		/user-installed FFmpeg\/ffprobe 4\.4 through 9\.x.*Edit > Preferences > General.*WinGet\/Homebrew.*do not close hash-before-path-spawn TOCTOU.*impose an OS RSS\/CPU sandbox.*malicious selected executable.*network authority.*null timing.*audio-only.*no WebM\/AV1 payload.*five-target AV1 evidence.*fail closed.*neither patent clearance nor non-infringement/iu,
+		/Media Foundation.*AudioToolbox.*target-native.*signed.*manifest\/payload.*Linux.*never built for mac-x64.*user-installed FFmpeg\/ffprobe 4\.4 through 9\.x.*Edit > Preferences > General.*WinGet\/Homebrew.*H\.264\/AAC MP4.*VP9\/Opus WebM.*hash-before-path-spawn TOCTOU.*dynamic-library closure.*filesystem\/network\/RSS\/CPU sandbox.*malicious selected executable.*Bundled video.*operating-system video.*AV1 remain disabled.*WebM is VP9.*null timing.*neither patent clearance nor non-infringement/iu,
 	);
 	assertEvidence(packageIntegrity, [
 		'.github/workflows/desktop-preview.yml',
@@ -120,6 +139,10 @@ test('desktop codec security separates Electron framework, application, and exte
 		'scripts/lib/desktop-codec-policy.mjs',
 		'scripts/lib/desktop-renderer-codec-audit.mjs',
 		'scripts/lib/desktop-bundled-codec-notices.mjs',
+		'scripts/lib/desktop-bundled-audio-codec-runtime-closure.mjs',
+		'scripts/lib/desktop-bundled-codec-corresponding-source.mjs',
+		'config/desktop-bundled-codec-corresponding-source.json',
+		'desktop/external-ffmpeg-video-operation-service.ts',
 		'scripts/desktop-prepare.mjs',
 		'scripts/desktop-before-pack.mjs',
 		'scripts/desktop-after-pack.mjs',
@@ -129,11 +152,12 @@ test('desktop codec security separates Electron framework, application, and exte
 		'tests/desktop-packaged-ffmpeg-runtime.test.js',
 		'tests/desktop-packaged-os-audio-codec-native.test.js',
 		'tests/desktop-bundled-codec-notices.test.js',
+		'tests/desktop-bundled-codec-corresponding-source.test.js',
 		'tests/desktop-release-package-inventory.test.js',
 	]);
 	assert.match(
 		packageIntegrity.summary,
-		/application-codec policy.*reject application-supplied FFmpeg.*libav.*FFmpeg WebAssembly.*static FFmpeg host.*WebM\/AV1 payloads.*exactly seven reviewed compressed-audio WASM files.*libFLAC.*libopus.*libvorbis.*WavPack.*mpg123.*LAME.*TwoLAME.*exact-length.*SHA-256.*undeclared codec WASM.*target-native.*OS codec.*mac-arm64.*win-x64.*win-arm64.*signed.*exact.*manifest.*payload.*no mac-x64.*downloadAlternateFFmpeg.*linux-x64.*linux-arm64.*mac-arm64.*win-x64.*win-arm64.*no mac-x64 target.*neither patent clearance nor non-infringement.*user-installed external FFmpeg.*WinGet\/Homebrew.*never copied/iu,
+		/application-codec policy.*reject application-supplied FFmpeg.*libav.*FFmpeg WebAssembly.*static FFmpeg host.*WebM\/AV1 payloads.*exactly seven reviewed compressed-audio WASM files.*libFLAC.*libopus.*libvorbis.*WavPack.*mpg123.*LAME.*TwoLAME.*complete authenticated isolation runtime closure.*exact-length.*SHA-256.*undeclared codec WASM.*deterministic seven-codec corresponding-source ZIP.*target-native OS audio codec.*mac-arm64.*win-x64.*win-arm64.*no mac-x64.*alternate Chromium libffmpeg.*five supported targets.*external-video runner.*ffmpeg\/ffprobe bytes stay outside.*WinGet\/Homebrew.*neither patent clearance nor non-infringement/iu,
 	);
 	assert.match(
 		plan,
@@ -141,7 +165,7 @@ test('desktop codec security separates Electron framework, application, and exte
 	);
 	assert.match(
 		plan,
-		/libsndfile is intentionally not added.*32 MiB.*128 MiB.*synchronous WASM.*Cancellation.*cannot interrupt.*WASM invocation/isu,
+		/libsndfile is intentionally not added.*runtime manifest.*WASM.*transitive JavaScript.*fresh.*supervised Electron utility process.*32 MiB.*128 MiB.*synchronous WASM.*aggregate.*RSS/isu,
 	);
 	assert.match(
 		plan,
@@ -149,7 +173,7 @@ test('desktop codec security separates Electron framework, application, and exte
 	);
 	assert.match(
 		plan,
-		/WebM\/AV1 execution tier is not implemented.*dav1d.*SVT-AV1.*libaom.*no libwebm\/libvpx\/dav1d\/SVT-AV1\/libaom\s+payload.*audio operations only.*fail.*closed/isu,
+		/Bundled and operating-system video execution are not implemented.*dav1d.*SVT-AV1.*libaom.*no\s+libwebm\/libvpx\/dav1d\/SVT-AV1\/libaom payload.*external WebM.*VP9.*not AV1.*Media Foundation video.*VideoToolbox video.*no execution capability.*fail.*closed/isu,
 	);
 	assert.match(
 		plan,

@@ -207,15 +207,53 @@ test('runtime provenance entries and release gates fail closed without claiming 
 	assert.deepEqual(codecPolicy.operatingSystemProvider.macos.targets, ['mac-arm64']);
 	assert.match(codecPolicy.externalFfmpegProvider.versionRange, />=4\.4\.0 <10\.0\.0/u);
 	assert.equal(codecPolicy.externalFfmpegProvider.redistributed, false);
-	assert.deepEqual(codecPolicy.externalFfmpegProvider.requestLimits,
+	assert.deepEqual(codecPolicy.externalFfmpegProvider.audioRequestLimits,
 		{ inputBytes: 32 * 1024 * 1024, outputBytes: 128 * 1024 * 1024 });
-	assert.match(codecPolicy.videoProvider.desktopBridge, /audio-only/u);
+	assert.deepEqual(codecPolicy.bundledExecution, {
+		process: 'fresh-one-shot-electron-utility-process-per-canary-preflight-and-execute',
+		authenticatedClosure: 'complete-transitive-javascript-module-closure-and-exact-wasm-bytes',
+		maximumActiveJobs: 4,
+		startupCanaryBatchSize: 4,
+		requestScratch: 'private-main-owned-sibling-input-output-files',
+		defaultDurationMs: 30_000,
+		maximumDurationMs: 5 * 60_000,
+		canaryDurationMs: 5_000,
+		cancellation: 'kill-utility-process-and-await-exit-or-kill-deadline',
+		residualLimit: 'whole-buffer-copies-wasm-memory-rss-and-cpu-are-not-one-aggregate-reservation',
+	});
+	assert.deepEqual(codecPolicy.externalFfmpegProvider.video.formats, {
+		mp4: 'keyed-rgba-h264-libx264-aac',
+		webm: 'keyed-rgba-vp9-libvpx-vp9-opus-libopus',
+	});
+	assert.equal(codecPolicy.externalFfmpegProvider.video.maximumSessions, 2);
+	assert.equal(codecPolicy.externalFfmpegProvider.video.maximumSessionsPerOwner, 1);
+	assert.equal(codecPolicy.externalFfmpegProvider.video.maximumIpcChunkBytes, 1024 * 1024);
+	assert.equal(codecPolicy.externalFfmpegProvider.video.maximumOutputBytes, 512 * 1024 * 1024);
+	assert.equal(codecPolicy.externalFfmpegProvider.video.maximumContractOutputBytes, 2 * 1024 ** 3);
+	assert.match(codecPolicy.externalFfmpegProvider.video.qualification,
+		/live-16x16-one-frame-audio-video-canary-per-exact-format/u);
+	assert.equal(codecPolicy.videoProvider.bundled.status, 'disabled');
+	assert.equal(codecPolicy.videoProvider.operatingSystem.status, 'disabled');
+	assert.match(codecPolicy.videoProvider.external.webm, /VP9\/Opus.*not-AV1/iu);
 	assert.match(codecPolicy.videoProvider.av1, /no-dav1d.*five-target.*fail-closed/iu);
 	assert.match(codecPolicy.executionStatus.bundledExecutionModel,
-		/whole-buffer.*non-interruptible/iu);
+		/authenticated.*one-shot.*utility.*max-four/iu);
+	assert.match(codecPolicy.executionStatus.externalFfmpeg,
+		/audio.*keyed-RGBA.*H264\/AAC MP4.*VP9\/Opus WebM/iu);
 	assert.equal(codecPolicy.executionStatus.receiptTiming, 'null-no-timing-claim');
 	assert.equal(codecPolicy.patentPosition,
 		'No patent clearance or non-infringement representation is made for any codec, provider, use, or territory.');
+	for (const path of [
+		'desktop/bundled-audio-codec-helper-process.ts',
+		'desktop/bundled-audio-codec-operation-runner.ts',
+		'desktop/bundled-audio-codec-runtime-payload.mjs',
+		'desktop/external-ffmpeg-video-operation-service.ts',
+		'desktop/external-ffmpeg-video-qualification.ts',
+		'desktop/desktop-video-codec-main-ipc.ts',
+		'src/common/editor/desktop-video-codec-runtime.ts',
+		'tests/desktop-bundled-audio-codec-operation-runner.test.ts',
+		'tests/external-ffmpeg-video-qualification.test.ts',
+	]) assert.ok(codecPolicy.evidence.includes(path), `desktop codec evidence needs ${path}`);
 	await assertEvidence(codecPolicy.evidence);
 	for (const id of [
 		'flac-1-5-0-desktop-wasm', 'opus-1-6-1-ogg-1-3-6-desktop-wasm',
@@ -312,7 +350,7 @@ test('future third-party execution and model surfaces remain disabled behind exp
 	assert.equal(gates.get('native-codecs').scope,
 		'additional-bundled-video-codec-execution');
 	assert.match(gates.get('native-codecs').blocker,
-		/Seven exact reviewed compressed-audio WebAssembly providers.*libsndfile is not bundled.*Media Foundation.*AudioToolbox.*target-native.*macOS ARM64.*Windows x64.*Windows ARM64.*sign.*manifest.*payload.*Linux.*no uniform OS tier.*audio-only.*no libwebm.*dav1d.*SVT-AV1.*libaom.*WebM\/AV1 execution fails closed.*Electron.*rather than a provider tier.*user-installed external FFmpeg.*outside/iu);
+		/Seven exact reviewed compressed-audio WebAssembly providers.*isolated.*utility process.*libsndfile is not bundled.*Media Foundation.*AudioToolbox.*target-native.*macOS ARM64.*Windows x64.*Windows ARM64.*sign.*manifest.*payload.*Linux.*no uniform OS tier.*external.*keyed-RGBA.*H\.264\/AAC MP4.*VP9\/Opus WebM.*no libwebm.*dav1d.*SVT-AV1.*libaom.*bundled and operating-system WebM\/AV1 execution fails closed.*Electron.*rather than a provider tier.*user-installed external FFmpeg.*outside/iu);
 	for (const path of [
 		'src/common/editor/reviewed-effects/catalog.ts',
 		'src/common/editor/reviewed-effects/utility-gain-package.ts',
