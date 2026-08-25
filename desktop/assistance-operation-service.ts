@@ -188,7 +188,7 @@ export function createAssistanceOperationService(options: AssistanceOperationSer
 		const resultBody = request.operation === 'speech-recognition'
 			? await executeSpeech(request, inputPaths[0]!, signal, emit, options)
 			: await executeVoiceActivity(request, inputPaths[0]!, signal, emit, options);
-		if (typeof resultBody === 'string') {
+		if (isUnavailableReason(resultBody)) {
 			emit('finalizing');
 			return unavailable(request, resultBody);
 		}
@@ -348,6 +348,11 @@ function unavailable(
 ): AssistanceOperationOutcome {
 	return Object.freeze({ contractVersion: ASSISTANCE_OPERATION_BRIDGE_VERSION,
 		jobId: request.jobId, operation: request.operation, outcome: 'unavailable', reason });
+}
+
+function isUnavailableReason(value: unknown): value is AssistanceOperationUnavailableReason {
+	return value === 'adapter-unavailable' || value === 'runtime-unavailable'
+		|| value === 'model-unavailable';
 }
 
 function cancellation(jobId: string, outcome: AssistanceOperationCancellation['outcome']): AssistanceOperationCancellation {
