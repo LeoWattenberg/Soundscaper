@@ -12,12 +12,12 @@ import {
 import { createUnreportedVideoSourceCharacteristics } from '../../src/common/editor/video-source-characteristics.ts';
 import { resolveRuntimeClipProjection } from '../../src/common/editor/runtime-clip-projection.ts';
 import { reconcileFramescaperAudioFinishingV27 } from '../../src/framescaper/editor-audio-finishing-reconciliation-v27.ts';
-import { reconcileFramescaperProjectFeatureRequirementsV28 } from '../../src/framescaper/editor-project-feature-requirements-v28.ts';
+import { reconcileFramescaperProjectFeatureRequirementsV31 } from '../../src/framescaper/editor-project-feature-requirements-v31.ts';
 import {
-	FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE,
-} from '../../src/framescaper/editor-project-runtime-profile-v28.ts';
-import { validateFramescaperProjectV28 } from '../../src/framescaper/editor-project-v28-validation.ts';
-import { validateSoundscaperProjectV29 } from '../../src/soundscaper/editor-project-v29-validation.ts';
+	FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE,
+} from '../../src/framescaper/editor-project-runtime-profile-v31.ts';
+import { validateFramescaperProjectV31 } from '../../src/framescaper/editor-project-v31.ts';
+import { validateSoundscaperProjectV30 } from '../../src/soundscaper/editor-project-v30-validation.ts';
 
 import {
 	asymmetricStereoTone,
@@ -36,7 +36,7 @@ import {
 } from './audio-editor-test-helpers.js';
 import { createDeterministicSilentVideoFixture } from './fixtures/deterministic-av-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
-import { promoteFramescaperArchiveToSoundscaperV29 } from './helpers/scape-exact-project-fixtures.js';
+import { promoteFramescaperArchiveToSoundscaperV30 } from './helpers/scape-exact-project-fixtures.js';
 
 const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
 const PRODUCT_PATHS = {
@@ -66,28 +66,28 @@ const WORKFLOWS = [{
 	recipient: 'framescaper',
 	kind: 'audio',
 	role: 'project-audio-mix-v1',
-	schemaVersion: 28,
+	schemaVersion: 31,
 }, {
 	id: 'audio-track-render-web-roundtrip',
 	origin: 'framescaper',
 	recipient: 'framescaper',
 	kind: 'audio',
 	role: 'audio-track-render-v1',
-	schemaVersion: 28,
+	schemaVersion: 31,
 }, {
 	id: 'video-full-project-web-roundtrip',
 	origin: 'soundscaper',
 	recipient: 'soundscaper',
 	kind: 'video',
 	role: 'project-video-render-v1',
-	schemaVersion: 29,
+	schemaVersion: 30,
 }, {
 	id: 'video-clip-render-web-roundtrip',
 	origin: 'soundscaper',
 	recipient: 'soundscaper',
 	kind: 'video',
 	role: 'video-clip-render-v1',
-	schemaVersion: 29,
+	schemaVersion: 30,
 }];
 
 test.describe('exact-product rendered-fallback Scape return roundtrips', () => {
@@ -170,8 +170,8 @@ async function createVideoBaseArchive(page, editor, id) {
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', {
 		timeout: 10_000,
 	});
-	const v28Archive = await exportScapeArchive(page, editor);
-	const archive = await promoteFramescaperArchiveToSoundscaperV29(v28Archive, {
+	const f31Archive = await exportScapeArchive(page, editor);
+	const archive = await promoteFramescaperArchiveToSoundscaperV30(f31Archive, {
 		id: `${id}-base`,
 		title: `${id} base`,
 	}, rewriteArchive);
@@ -316,21 +316,21 @@ async function renderedFallbackArchive(input, workflow, fallbackFixture) {
 				},
 			}],
 		};
-		if (project.schemaVersion === 28) {
+		if (project.schemaVersion === 31) {
 			const finishing = reconcileFramescaperAudioFinishingV27(project, project);
 			project.automationLanes = structuredClone(finishing.automationLanes);
 			project.mixer = structuredClone(finishing.mixer);
-			project.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV28(
-				FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, project,
+			project.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV31(
+				FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, project,
 			);
 		}
 		if (project.schemaVersion !== workflow.schemaVersion) {
 			throw new Error(`${workflow.id} requires exact schema ${String(workflow.schemaVersion)}.`);
 		}
-		if (workflow.schemaVersion === 28) {
-			validateFramescaperProjectV28(FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, project);
+		if (workflow.schemaVersion === 31) {
+			validateFramescaperProjectV31(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, project);
 		} else {
-			validateSoundscaperProjectV29(project);
+			validateSoundscaperProjectV30(project);
 		}
 	});
 }
