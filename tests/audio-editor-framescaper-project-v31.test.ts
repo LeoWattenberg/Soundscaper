@@ -141,9 +141,9 @@ test('F28 enters F31 only through explicit reimport and no assistance result is 
 	), FramescaperProjectV31ReimportRequiredError);
 });
 
-test('F31 retains dormant and future documents opaquely while other old versions require reimport', () => {
+test('F31 retains historical, unowned, and future documents opaquely while other old versions require reimport', () => {
 	const held = project();
-	for (const schemaVersion of [25, 26]) {
+	for (const schemaVersion of [22, 23, 24, 25, 26, 29, 30]) {
 		const loaded = loadFramescaperProjectV31(
 			FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, { ...held, schemaVersion },
 		);
