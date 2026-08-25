@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { mkdir as nodeMkdir } from 'node:fs/promises';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 
 import { createDesktopAudioCodecReceiptJournal } from './desktop-audio-codec-receipt-journal.mjs';
 
@@ -14,7 +14,7 @@ const TARGETS = Object.freeze(new Map([
 ]));
 const MODULE_METHODS = Object.freeze([
 	'createBundledDesktopAudioCodecRuntime', 'createDesktopAudioCodecRuntimeComposition',
-	'createOperatingSystemAudioCodecElectronSpawn', 'createSoundscaperProfessionalNativeVerifier',
+	'createOperatingSystemAudioCodecElectronSpawn', 'createOsAudioCodecNativeVerifier',
 	'loadBundledFlacAudioCodecRuntime', 'loadBundledLameAudioCodecRuntime',
 	'loadBundledOpusAudioCodecRuntime',
 	'loadBundledMpg123AudioCodecRuntime', 'loadBundledVorbisAudioCodecRuntime',
@@ -53,9 +53,8 @@ export async function registerDesktopAudioCodecs(options) {
 	const bundledRuntime = reviewedRuntimes.length === 0
 		? null
 		: modules.createBundledDesktopAudioCodecRuntime({ target, runtimes: reviewedRuntimes });
-	const verifyAddon = modules.createSoundscaperProfessionalNativeVerifier(Object.freeze({
-		applicationRoot: dirname(options.desktopRoot), packaged: options.packaged,
-		resourcesPath: options.resourcesPath, platform: options.platform, arch: options.architecture,
+	const verifyAddon = modules.createOsAudioCodecNativeVerifier(Object.freeze({
+		runtimeRoot: options.runtimeRoot, platform: options.platform, arch: options.architecture,
 	}));
 	const spawn = modules.createOperatingSystemAudioCodecElectronSpawn({
 		fork: options.forkUtilityProcess,
@@ -96,7 +95,7 @@ export async function registerDesktopAudioCodecs(options) {
 }
 
 async function loadRuntimeModules() {
-	const [bundled, composition, electronSpawn, flac, ipc, lame, mpg123, operatingSystem, opus, professional, twolame, vorbis, wavPack]
+	const [bundled, composition, electronSpawn, flac, ipc, lame, mpg123, operatingSystem, opus, nativePayload, twolame, vorbis, wavPack]
 		= await Promise.all([
 		import('./project-library-runtime/desktop/bundled-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/desktop-audio-codec-runtime-composition.js'),
@@ -107,7 +106,7 @@ async function loadRuntimeModules() {
 		import('./project-library-runtime/desktop/bundled-mpg123-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/os-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/bundled-opus-audio-codec-runtime.js'),
-		import('./soundscaper-professional-native-payload.mjs'),
+		import('./os-audio-codec-native-payload.mjs'),
 		import('./project-library-runtime/desktop/bundled-twolame-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/bundled-vorbis-audio-codec-runtime.js'),
 		import('./project-library-runtime/desktop/bundled-wavpack-audio-codec-runtime.js'),
@@ -116,7 +115,7 @@ async function loadRuntimeModules() {
 		createBundledDesktopAudioCodecRuntime: bundled.createBundledDesktopAudioCodecRuntime,
 		createDesktopAudioCodecRuntimeComposition: composition.createDesktopAudioCodecRuntimeComposition,
 		createOperatingSystemAudioCodecElectronSpawn: electronSpawn.createOperatingSystemAudioCodecElectronSpawn,
-		createSoundscaperProfessionalNativeVerifier: professional.createSoundscaperProfessionalNativeVerifier,
+		createOsAudioCodecNativeVerifier: nativePayload.createOsAudioCodecNativeVerifier,
 		loadBundledFlacAudioCodecRuntime: flac.loadBundledFlacAudioCodecRuntime,
 		loadBundledLameAudioCodecRuntime: lame.loadBundledLameAudioCodecRuntime,
 		loadBundledMpg123AudioCodecRuntime: mpg123.loadBundledMpg123AudioCodecRuntime,
@@ -146,6 +145,8 @@ function validateOptions(options) {
 		|| options.userDataPath.includes('\0') || !isAbsolute(options.userDataPath)
 		|| typeof options.desktopRoot !== 'string' || options.desktopRoot.length > 4_096
 		|| options.desktopRoot.includes('\0') || !isAbsolute(options.desktopRoot)
+		|| typeof options.runtimeRoot !== 'string' || options.runtimeRoot.length > 4_096
+		|| options.runtimeRoot.includes('\0') || !isAbsolute(options.runtimeRoot)
 		|| typeof options.resourcesPath !== 'string' || options.resourcesPath.length > 4_096
 		|| options.resourcesPath.includes('\0') || !isAbsolute(options.resourcesPath)
 		|| typeof options.packaged !== 'boolean' || typeof options.forkUtilityProcess !== 'function'

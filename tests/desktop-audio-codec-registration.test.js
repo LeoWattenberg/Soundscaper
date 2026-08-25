@@ -73,7 +73,8 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 		channels: CHANNELS, handle, removeHandler, ownerFor,
 		externalFfmpegPreferences,
 		platform: 'darwin', architecture: 'arm64', userDataPath: '/user-data',
-		desktopRoot: '/app/desktop', packaged: false, resourcesPath: '/resources',
+		desktopRoot: '/app/desktop', runtimeRoot: '/runtime', packaged: false,
+		resourcesPath: '/resources',
 		operatingSystemVersion: '15.6.1', forkUtilityProcess() {},
 		mkdir: async (...arguments_) => { directories.push(arguments_); },
 		loadModules: async () => ({
@@ -120,7 +121,7 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 				spawnOptions.push(options);
 				return () => ({});
 			},
-			createSoundscaperProfessionalNativeVerifier(location) {
+			createOsAudioCodecNativeVerifier(location) {
 				payloadLocations.push(location);
 				return async () => ({});
 			},
@@ -164,8 +165,7 @@ test('registration composes main-owned runtime and bounded IPC from one private 
 		],
 	}]);
 	assert.deepEqual(payloadLocations, [{
-		applicationRoot: '/app', packaged: false, resourcesPath: '/resources',
-		platform: 'darwin', arch: 'arm64',
+		runtimeRoot: '/runtime', platform: 'darwin', arch: 'arm64',
 	}]);
 	assert.equal(spawnOptions.length, 1);
 	assert.equal(spawnOptions[0].helperPath, '/app/desktop/os-audio-codec-helper-process.js');
@@ -211,7 +211,8 @@ test('registration fails closed without any admitted bundled runtime', async () 
 		channels: CHANNELS, handle() {}, removeHandler() {}, ownerFor: () => ({}),
 		externalFfmpegPreferences: externalPreferences(),
 		platform: 'win32', architecture: 'arm64', userDataPath: '/user-data',
-		desktopRoot: '/app/desktop', packaged: true, resourcesPath: '/resources',
+		desktopRoot: '/app/desktop', runtimeRoot: '/runtime', packaged: true,
+		resourcesPath: '/resources',
 		operatingSystemVersion: '10.0.26100', forkUtilityProcess() {},
 		mkdir: async () => undefined,
 		loadModules: async () => ({
@@ -245,7 +246,7 @@ test('registration fails closed without any admitted bundled runtime', async () 
 				return null;
 			},
 			createOperatingSystemAudioCodecElectronSpawn: () => () => ({}),
-			createSoundscaperProfessionalNativeVerifier: () => async () => ({}),
+			createOsAudioCodecNativeVerifier: () => async () => ({}),
 			loadOperatingSystemAudioCodecRuntime: async ({ target }) => {
 				assert.equal(target, 'win-arm64');
 				return null;
@@ -269,7 +270,8 @@ test('unsupported targets and invalid runtime modules fail before IPC registrati
 		channels: CHANNELS, handle() {}, removeHandler() {}, ownerFor: () => ({}),
 		externalFfmpegPreferences: externalPreferences(),
 		platform: 'darwin', architecture: 'x64', userDataPath: '/user-data',
-		desktopRoot: '/app/desktop', packaged: false, resourcesPath: '/resources',
+		desktopRoot: '/app/desktop', runtimeRoot: '/runtime', packaged: false,
+		resourcesPath: '/resources',
 		operatingSystemVersion: '15.6.1', forkUtilityProcess() {},
 		mkdir: async () => { directories += 1; },
 		loadModules: async () => { loads += 1; return {}; },
@@ -281,7 +283,8 @@ test('unsupported targets and invalid runtime modules fail before IPC registrati
 		channels: CHANNELS, handle() {}, removeHandler() {}, ownerFor: () => ({}),
 		externalFfmpegPreferences: externalPreferences(),
 		platform: 'linux', architecture: 'x64', userDataPath: '/user-data',
-		desktopRoot: '/app/desktop', packaged: false, resourcesPath: '/resources',
+		desktopRoot: '/app/desktop', runtimeRoot: '/runtime', packaged: false,
+		resourcesPath: '/resources',
 		operatingSystemVersion: '6.16.0', forkUtilityProcess() {},
 		mkdir: async () => { directories += 1; },
 		loadModules: async () => ({ createDesktopAudioCodecRuntimeComposition() {} }),
