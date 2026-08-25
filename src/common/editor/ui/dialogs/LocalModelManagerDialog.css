@@ -2,7 +2,10 @@
 
 #kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__runtime,
 #kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__message,
-#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__error {
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__error,
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__maintenance,
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__result,
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__notices {
 	padding: 10px;
 	margin-block: 0 12px;
 	border: 1px solid var(--kw-editor-line);
@@ -10,8 +13,41 @@
 }
 
 #kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__runtime p,
-#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__error p {
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__error p,
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__maintenance > p,
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__result {
 	margin: 0;
+}
+
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__maintenance,
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__notices {
+	display: grid;
+	gap: 8px;
+}
+
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__maintenance h3,
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__notices h3 {
+	margin: 0;
+	font-size: 13px;
+}
+
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__maintenance-actions,
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__notices > ul,
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__notices li > ul {
+	display: grid;
+	gap: 6px;
+	padding-inline-start: 18px;
+	margin: 0;
+}
+
+#kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__notices a {
+	overflow-wrap: anywhere;
 }
 
 #kw-audio-editor-design-system [data-local-model-manager] .kw-local-model-manager__error {

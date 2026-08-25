@@ -31,9 +31,55 @@ export interface LocalModelInstallProgress {
 	readonly totalBytes: number;
 }
 
+export interface LocalModelInstallCancellation {
+	readonly contractVersion: 1;
+	readonly modelId: string;
+	readonly outcome: 'cancelled' | 'not-active';
+}
+
+export interface LocalModelReconciliation {
+	readonly installedModelIds: readonly string[];
+	readonly incompleteModelIds: readonly string[];
+	readonly rejected: readonly Readonly<{ modelId: string; reason: string }>[];
+}
+
+export interface LocalModelGarbageCollection {
+	readonly reclaimedBlobBytes: number;
+	readonly discardedManifestCount: number;
+	readonly discardedPartialCount: number;
+	readonly discardedPartialBytes: number;
+	readonly reclaimedBytes: number;
+}
+
+export interface LocalModelInstalledNotice {
+	readonly schemaVersion: 1;
+	readonly modelId: string;
+	readonly version: string;
+	readonly purpose: string;
+	readonly codeLicense: string;
+	readonly weightsLicense: string;
+	readonly attributionRequired: boolean;
+	readonly provenanceSources: readonly string[];
+	readonly upstreamRevision: string;
+	readonly distributionKind: 'identity-mirrored';
+}
+
+export interface LocalModelRelocation {
+	readonly contractVersion: 1;
+	readonly totalBytes: number;
+	readonly fileCount: number;
+	readonly sourceRemoved: boolean;
+}
+
 export interface LocalModelManagerBridge {
 	readonly listAssistanceModels: () => Promise<unknown>;
 	readonly installAssistanceModel: (modelId: string) => Promise<unknown>;
+	readonly cancelAssistanceModelInstall: (modelId: string) => Promise<unknown>;
+	readonly installPreseededAssistanceModel: (modelId: string) => Promise<unknown>;
+	readonly reconcileAssistanceModels: () => Promise<unknown>;
+	readonly collectAssistanceModelGarbage: () => Promise<unknown>;
+	readonly listAssistanceModelNotices: () => Promise<unknown>;
+	readonly relocateAssistanceModels: () => Promise<unknown>;
 	readonly removeAssistanceModel: (modelId: string) => Promise<unknown>;
 	readonly onAssistanceInstallProgress:
 		(listener: (progress: unknown) => void) => () => void;
@@ -42,7 +88,10 @@ export interface LocalModelManagerBridge {
 const MODEL_ID_PATTERN = /^[a-z\d][a-z\d.-]{0,62}[a-z\d]$/u;
 const AVAILABILITIES = new Set<string>(LOCAL_MODEL_AVAILABILITIES);
 const REQUIRED_METHODS = Object.freeze([
-	'listAssistanceModels', 'installAssistanceModel', 'removeAssistanceModel',
+	'listAssistanceModels', 'installAssistanceModel', 'cancelAssistanceModelInstall',
+	'installPreseededAssistanceModel', 'reconcileAssistanceModels',
+	'collectAssistanceModelGarbage', 'listAssistanceModelNotices',
+	'relocateAssistanceModels', 'removeAssistanceModel',
 	'onAssistanceInstallProgress',
 ] as const);
 
@@ -102,6 +151,100 @@ export function normalizeLocalModelInstallProgress(value: unknown): LocalModelIn
 	}
 	return Object.freeze({
 		modelId: localModelId(value.modelId), fileName, completedBytes, totalBytes,
+	});
+}
+
+export function normalizeLocalModelInstallCancellation(value: unknown): LocalModelInstallCancellation {
+	if (!isRecord(value) || value.contractVersion !== 1
+		|| (value.outcome !== 'cancelled' && value.outcome !== 'not-active')) {
+		throw new TypeError('The desktop returned malformed model cancellation state.');
+	}
+	return Object.freeze({
+		contractVersion: 1, modelId: localModelId(value.modelId), outcome: value.outcome,
+	});
+}
+
+function modelIds(value: unknown, label: string): readonly string[] {
+	if (!Array.isArray(value) || value.length > 256) {
+		throw new TypeError(`The local-model ${label} are invalid.`);
+	}
+	return Object.freeze(value.map(localModelId));
+}
+
+export function normalizeLocalModelReconciliation(value: unknown): LocalModelReconciliation {
+	if (!isRecord(value) || !Array.isArray(value.rejected) || value.rejected.length > 256) {
+		throw new TypeError('The desktop returned a malformed model reconciliation.');
+	}
+	return Object.freeze({
+		installedModelIds: modelIds(value.installedModelIds, 'installed ids'),
+		incompleteModelIds: modelIds(value.incompleteModelIds, 'incomplete ids'),
+		rejected: Object.freeze(value.rejected.map((candidate) => {
+			if (!isRecord(candidate)) throw new TypeError('A model reconciliation rejection is invalid.');
+			return Object.freeze({
+				modelId: localModelId(candidate.modelId),
+				reason: boundedText(candidate.reason, 512, 'reconciliation reason'),
+			});
+		})),
+	});
+}
+
+export function normalizeLocalModelGarbageCollection(value: unknown): LocalModelGarbageCollection {
+	if (!isRecord(value)) throw new TypeError('The desktop returned malformed model cleanup state.');
+	return Object.freeze({
+		reclaimedBlobBytes: bytes(value.reclaimedBlobBytes, 'reclaimed blob bytes'),
+		discardedManifestCount: bytes(value.discardedManifestCount, 'discarded manifest count'),
+		discardedPartialCount: bytes(value.discardedPartialCount, 'discarded partial count'),
+		discardedPartialBytes: bytes(value.discardedPartialBytes, 'discarded partial bytes'),
+		reclaimedBytes: bytes(value.reclaimedBytes, 'reclaimed bytes'),
+	});
+}
+
+function provenanceSource(value: unknown): string {
+	const source = boundedText(value, 2_048, 'notice source');
+	let parsed: URL;
+	try { parsed = new URL(source); }
+	catch (error) { throw new TypeError('A local-model notice source is invalid.', { cause: error }); }
+	if (parsed.protocol !== 'https:' || parsed.username !== '' || parsed.password !== '') {
+		throw new TypeError('A local-model notice source must be a clean HTTPS URL.');
+	}
+	return parsed.href;
+}
+
+export function normalizeLocalModelInstalledNotices(value: unknown): readonly LocalModelInstalledNotice[] {
+	if (!Array.isArray(value) || value.length > 256) {
+		throw new TypeError('The desktop returned malformed installed-model notices.');
+	}
+	return Object.freeze(value.map((notice) => {
+		if (!isRecord(notice) || notice.schemaVersion !== 1
+			|| notice.distributionKind !== 'identity-mirrored'
+			|| !Array.isArray(notice.provenanceSources)
+			|| notice.provenanceSources.length === 0 || notice.provenanceSources.length > 32) {
+			throw new TypeError('The desktop returned a malformed installed-model notice.');
+		}
+		return Object.freeze({
+			schemaVersion: 1,
+			modelId: localModelId(notice.modelId),
+			version: boundedText(notice.version, 64, 'notice version'),
+			purpose: boundedText(notice.purpose, 1_024, 'notice purpose'),
+			codeLicense: boundedText(notice.codeLicense, 128, 'code license'),
+			weightsLicense: boundedText(notice.weightsLicense, 128, 'weights license'),
+			attributionRequired: boolean(notice.attributionRequired, 'notice attribution requirement'),
+			provenanceSources: Object.freeze(notice.provenanceSources.map(provenanceSource)),
+			upstreamRevision: boundedText(notice.upstreamRevision, 256, 'upstream revision'),
+			distributionKind: 'identity-mirrored',
+		});
+	}));
+}
+
+export function normalizeLocalModelRelocation(value: unknown): LocalModelRelocation {
+	if (!isRecord(value) || value.contractVersion !== 1 || typeof value.sourceRemoved !== 'boolean') {
+		throw new TypeError('The desktop returned malformed model relocation state.');
+	}
+	return Object.freeze({
+		contractVersion: 1,
+		totalBytes: bytes(value.totalBytes, 'relocation bytes'),
+		fileCount: bytes(value.fileCount, 'relocation file count'),
+		sourceRemoved: value.sourceRemoved,
 	});
 }
 
