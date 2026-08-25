@@ -217,6 +217,31 @@ test('F31 inherited edits, runtime projection and undo retain exact assistance c
 		.some(({ id }) => id === 'dialogue-track'), false);
 });
 
+test('F31 inherited automation survives undo and redo without losing assistance custody', () => {
+	const runtime = createEditorProjectRuntimeV31Selection(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE);
+	const held = runtime.applyCommand(project(), createAddTrackCommand({
+		type: 'audio', id: 'dialogue-track', name: 'Dialogue', armed: false,
+	}), { now: NOW });
+	const lane = {
+		id: 'dialogue-gain',
+		address: {
+			kind: 'strip', strip: { kind: 'track', id: 'dialogue-track' }, parameterId: 'gain',
+		},
+		timebase: 'absolute-samples',
+		points: [{ id: 'start', position: 0, value: 0.5 }],
+		segments: [],
+	} as const;
+	const executed = runtime.executeCommand(runtime.createHistory(held), {
+		type: 'automation-lane/set', laneId: lane.id, expected: null, lane,
+	}, { now: NOW });
+	assert.deepEqual(executed.present.automationLanes, [lane]);
+	const undone = runtime.undo(executed, { now: NOW });
+	assert.deepEqual(undone.present.automationLanes, []);
+	const redone = runtime.redo(undone, { now: NOW });
+	assert.deepEqual(redone.present.automationLanes, [lane]);
+	assert.deepEqual(redone.present.assistanceAssets, held.assistanceAssets);
+});
+
 test('F31 route ownership selects capture, assistance UI and the product route', () => {
 	assert.equal(FRAMESCAPER_V31_PRODUCT_ROUTE.projectSchemaVersion, 31);
 	assert.equal(FRAMESCAPER_V31_PRODUCT_ROUTE.desktopTransport.projectSchemaVersion, 31);

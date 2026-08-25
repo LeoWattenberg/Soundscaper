@@ -3,7 +3,7 @@
 import { editorProjectFeatureCapabilityProfileDefinition } from '../common/editor/project-feature-capability-profile.ts';
 import {
 	PROJECT_OWNED_FEATURE_REQUIREMENT_IDS,
-	reconcileProjectOwnedFeatureRequirements,
+	reconcileProjectOwnedAssistanceRequirement,
 } from '../common/editor/project-owned-feature-requirements.ts';
 import {
 	evaluateProjectFeatureRequirements,
@@ -28,7 +28,7 @@ export function reconcileFramescaperProjectFeatureRequirementsV31(
 	assertFramescaperProjectV31Profile(profile);
 	const candidate = record(project, LABEL);
 	const actual = normalizeManifest(candidate);
-	const common = reconcileProjectOwnedFeatureRequirements(candidate, actual);
+	const common = reconcileProjectOwnedAssistanceRequirement(candidate, actual);
 	const foundation = framescaperProjectV28FoundationShapeV31({
 		...candidate,
 		featureRequirements: common,
