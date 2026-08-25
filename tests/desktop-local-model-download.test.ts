@@ -96,6 +96,26 @@ test('an already-installed artifact is not fetched again', { timeout: 20_000 }, 
 	assert.equal(result.transferredBytes, 0);
 });
 
+test('a corrupted published artifact is refused rather than trusted or repaired', { timeout: 20_000 }, async (t) => {
+	const store = await createStore(t);
+	await downloadLocalModelArtifact({
+		store, artifact: ARTIFACT, url: URL_UNDER_TEST, fetchImpl: stubFetch({ body: PAYLOAD }),
+	});
+	await writeFile(store.blobPath(ARTIFACT.sha256), PAYLOAD.replace('dog', 'cat'));
+	let fetches = 0;
+
+	await assert.rejects(
+		downloadLocalModelArtifact({
+			store,
+			artifact: ARTIFACT,
+			url: URL_UNDER_TEST,
+			fetchImpl: (() => { fetches += 1; return stubFetch({ body: PAYLOAD })('', {}); }) as typeof fetch,
+		}),
+		/published artifact failed its integrity check/iu,
+	);
+	assert.equal(fetches, 0, 'an explicit removal is required before replacement');
+});
+
 test('an interrupted download resumes from the bytes already on disk', { timeout: 20_000 }, async (t) => {
 	const store = await createStore(t);
 	const partialPath = await store.partialPath(ARTIFACT.sha256);

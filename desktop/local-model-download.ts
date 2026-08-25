@@ -76,6 +76,9 @@ export async function downloadLocalModelArtifact(
 	const target = assertDownloadUrl(url);
 
 	if (await store.hasBlob(artifact.sha256)) {
+		if (!await store.verifyArtifact(artifact)) {
+			throw new Error('A published artifact failed its integrity check for this local model.');
+		}
 		return Object.freeze({
 			blobPath: store.blobPath(artifact.sha256),
 			resumedFromBytes: artifact.byteLength,
