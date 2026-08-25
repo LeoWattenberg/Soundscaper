@@ -329,7 +329,7 @@ test('direct-WAV lifecycle resolves only smoke targets and emits bounded rendere
 	});
 
 	fixture.probe.attach(fixture.window);
-	assert.equal(DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS, 1_200_000);
+	assert.equal(DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS, 1_800_000);
 	assert.deepEqual(fixture.scheduledDelays, [DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS]);
 	assert.equal(await fixture.probe.resolveSavePath({ purpose: 'audio-pcm-mix' }), targetPaths[0]);
 	assert.equal(await fixture.probe.resolveSavePath({ purpose: 'audio-pcm-mix' }), targetPaths[1]);
