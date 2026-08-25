@@ -11,6 +11,22 @@
 > source-verified on 2026-08-11 and must be re-verified against the pinned
 > artifact when each model is actually cataloged.
 
+**Activation status (2026-08-25):** the optional foundation is active on the
+selected Soundscaper S30 and Framescaper F31 routes even though manual and
+owner-lab qualification remains open. This activates the signed catalog and
+model lifecycle, menu-reached model and assistance surfaces, pathless fenced
+jobs, S30/F31 transcript-asset references, and validated-result review. It
+does not turn planned adapters into implementations: only an installed,
+authenticated Parakeet model has a real Sherpa speech-recognition path. Every
+other closed operation, incompatible model, missing runtime, and unsupported
+target must return typed unavailable state. Manual evidence is documentary and
+nonblocking; licensing permission, catalog signatures, artifact digests,
+runtime compatibility, selected-media authority, and explicit consent remain
+hard fail-closed gates. The review UI does not ingest output into an
+`AssistanceProposalSession`; proposal acceptance and canonical mutation remain
+unwired and fail closed. No remote model upload or accepted external
+qualification result is asserted by this activation.
+
 ## Goals and ordering principle
 
 1. **Primary: users must not hit trouble.** No network request after a
@@ -79,13 +95,12 @@ plan ships no web inference at all:
   ships in the web tier in milestone 7. The Web Enhanced obligation of a
   documented Web Core fallback (roadmap.md:148) is deliberately dropped;
   the Electron Only contract — "projects still open safely on web"
-  (roadmap.md:150) — is satisfied structurally, because accepted results
-  are ordinary commands and derived assets (roadmap.md:764-765) that the
-  web products read like any other project state. A web user sees the
-  captions, labels, and cuts; they simply cannot run new analysis. (This
-  leans on the availability rule in the assistance results model:
-  persisted assistance document types are readable and editable wherever
-  their document-type workflow passes, independent of inference.)
+  (roadmap.md:150) — is supported structurally by the S30/F31 reference
+  schemas and disconnected result-domain primitives. The current desktop UI
+  stops at validated-result review and creates no accepted project state. A
+  future acceptance workflow must publish only ordinary commands or derived
+  assets that the web products can read like other project state; the web
+  products cannot run new analysis.
 - The user-settable model directory requires arbitrary filesystem access
   no web origin has, and the model tiers worth shipping (0.5–2.5 GB) are
   outside sane browser-storage budgets. The kw.media post-mortem shows the
@@ -122,8 +137,10 @@ plan ships no web inference at all:
 
 ## Runtime decision
 
-Four inference runtimes are adopted, staged so no packet integrates more
-than one new runtime at a time:
+The plan evaluated four inference runtimes, staged so no packet integrates more
+than one new runtime at a time. The active implementation currently adopts only
+the first runtime and only its Parakeet speech-recognition adapter; the other
+three remain future adapter choices, not active capabilities:
 
 1. **sherpa-onnx-node (Apache-2.0)** — the speech pipeline: Silero VAD,
    Parakeet ASR with per-token timestamps, speaker diarization
@@ -164,29 +181,23 @@ than one new runtime at a time:
 - All inference runs in an **assistance helper** started as an Electron
   `utilityProcess` — full Node with native addons, crash containment (an
   `exit` event, not a dead editor), and `MessagePortMain` wiring for
-  progress streams. Today nothing in the application (`src/`, `desktop/`)
-  uses utilityProcess or child processes — only build and test scripts
-  spawn them. Since the milestone-5 foundation landed, the threat model
-  holds `native-helper-processes` as partial for the enacted probe
-  helper surface (docs/production-threat-model.md:998), and contract v1
-  exists in `desktop/helper-contract.ts`.
-  The helper is therefore **milestone-7-owned scope**, legitimate under
-  §7's own "Depends on: milestone 2" (roadmap.md:744), whose protocol is
-  designed to converge with the future milestone-5 helper contract rather
-  than fork from it: versioned bounded IPC, explicit capabilities,
-  cancellation acknowledgement, heartbeats, structured progress and
-  errors, per-job resource policy (roadmap.md:644-649), and crash
-  quarantine (docs/production-threat-model.md:998). Milestone 5 owns the
-  now-enacted contract for the general helper architecture; the
-  assistance helper conforms to it or the contract is revised
-  deliberately, and the milestone-5 exit gate owns full qualification. WP-7.0.0's roadmap edit records this
-  stance on the §7 dependency line; WP-7.0.2 revises the threat model and
-  security matrix in the same change that enables the surface.
-- **IPC data discipline:** audio crosses the boundary as 16 kHz mono
-  Float32 copies (ten minutes ≈ 38 MB — an acceptable one-time copy) or as
-  temp-file paths for long sessions; results return as JSON (timestamps,
-  labels, scores), never as bulk media. ArrayBuffers are structured-clone
-  copied by `utilityProcess.postMessage`; only `MessagePortMain` transfers.
+  progress streams. The current Electron composition lazily spawns the
+  assistance utility process only after authenticating the exact packaged
+  Sherpa runtime. A dedicated inference worker inside that process is the only
+  context that imports the native module. Main owns the helper lifecycle,
+  heartbeats, cancellation deadline, RSS sampling, and exact file grants; no
+  renderer receives spawn, binary, or filesystem-path authority. The threat
+  model retains `native-helper-processes` as partial because process separation
+  is crash containment rather than an operating-system sandbox and external
+  qualification remains open.
+- **IPC data discipline:** selected input bytes cross the renderer boundary
+  through a digest- and byte-length-bound MessagePort reservation into a
+  main-private staging file. The renderer sees only opaque job/claim/stream
+  identities. Main captures and hashes exact regular-file grants for the
+  staged audio and authenticated model artifacts; the inference worker checks
+  device/inode identity, size, and SHA-256 again before use. Results return as
+  authenticated JSON claims over the reverse pathless data plane. Filesystem
+  paths remain private to main and the helper.
 - **Consent boundary:** the helper receives read access only to the
   specific persisted media the user selected for a job — mirroring the
   read-capability discipline the desktop protocol already enforces
@@ -201,11 +212,9 @@ than one new runtime at a time:
   `assistance.cancellationP95Ms lte 2000`. The existing conventions carry
   over: AbortSignal end-to-end and progress-reset deadlines via the worker
   request broker pattern (`src/common/editor/worker-request-broker.ts`).
-- **Etiquette:** background analysis runs at low priority (EcoQoS on
-  Windows, background QoS on macOS), pauses on battery and thermal events
-  via `powerMonitor`, throttles thread count while the user is scrubbing,
-  and surfaces a pause control. One helper per active model family,
-  spawned on demand, unloaded after idle.
+- **Etiquette target:** background priority, battery/thermal pauses, scrub-time
+  throttling, pause controls, and multi-family idle unloading remain future
+  adapter work. They are not claimed by the active single-family speech path.
 
 ## Model catalog decision
 
@@ -219,6 +228,17 @@ digest-pinnable source. Permissive weights are still *preferred* so the
 model packs stay portable outside the AGPL boundary, and every entry
 below is permissive or CC-BY. Each is a separately downloadable,
 individually removable pack. Sizes are the shipped (quantized) artifacts.
+
+The signed catalog is the authority for what the current product may offer. It
+currently contains thirteen permitted entries: Silero VAD; Parakeet v2 and v3;
+Whisper large-v3-turbo; pyannote segmentation; ERes2Net; DeepFilterNet3;
+YuNet; D-FINE; U²-Net-P; PP-OCRv4 mobile; nomic-embed-text; and SigLIP 2.
+Catalog presence permits authenticated install and custody, not execution.
+Only the two Parakeet entries match the active Sherpa recognition adapter; the
+remaining entries require adapters that are not active and therefore refuse
+with typed unavailable state. The catalog's mirror URLs and publisher describe
+the authorized distribution path, but this plan does not claim the remote R2
+objects have been uploaded.
 
 ### Speech (7A primary)
 
@@ -519,44 +539,45 @@ Long VOD in, ranked short-clip proposals out, TikTok-shaped export.
 
 ## Delivered so far
 
-Implementation began 2026-08-13 on the audio track, in the worktree branch
-`worktree-m7-local-assistance-audio` off `334cea20`. Thirteen commits,
-eighty-seven focused tests, all green:
+The current branch activates the bounded foundation rather than treating
+manual sign-off as an execution switch:
 
-| Area | Landed |
+| Area | Current implementation |
 | --- | --- |
-| WP-7.0.0 | The licensing enactment — [7.0.0a](milestone-7-local-model-evidence.md), commit `556fb258` |
-| WP-7.0.1 | Content-addressed model store and the user-settable directory setting (`c955b6b9`); resumable digest-verified downloads (`3783436b`); the catalog bound to the licensing register (`eeea6c4f`) |
-| WP-7.0.2 | The bounded job contract and its crash-contained supervisor (`861b1ba5`) |
-| 7A-1 | Transcript domain in canonical sample frames, the ingest boundary that conforms recognition seconds, and the label commit path (`6f2a412d`, `b93b3cb8`, `d6080a7f`) |
-| 7A-2 | Filler, repetition, and silence proposals, proved end to end into one ripple-delete batch (`6f2a412d`, `d6080a7f`) |
+| Catalog and licensing | A locally authenticated Ed25519 catalog V2 has current and pre-pinned successor verification keys. Its thirteen entries bind complete permitted licensing rows, immutable upstream provenance, exact artifact sizes and SHA-256 digests, and the intended EU mirror identity. Unknown keys, invalid signatures, incomplete licensing, refused weights, and artifact drift fail closed. |
+| Model lifecycle | A user-settable, content-addressed filesystem store supports capacity preflight, explicit resumable install, cancellation after quiescence, preseed, relocation by copy/verify/swap, removal, garbage collection, notices, and reconciliation after external deletion. **Tools > Local Models > Manage Models…** is lazy and desktop-only. No model is installed or repaired implicitly. |
+| Native runtime | Sherpa ONNX 1.13.5 has an exact packaged runtime manifest for linux-x64, linux-arm64, mac-arm64, and win-x64; win-arm64 is explicitly unsupported. Main authenticates the payload before spawning the utility process and the inference worker authenticates it again before native import. |
+| Job and data boundary | Fifteen operations share one closed request/result/progress vocabulary, digest-bound model identities, exact selected-media fences, authenticated input/output claims, bounded main-private staging, pathless MessagePort transfer, cancellation that waits for helper and transfer quiescence, and release cleanup. The current activation branch projects those controls through a frozen preload bridge; unsupported execution returns typed unavailable state. |
+| Product state | Selected Soundscaper S30 and Framescaper F31 preserve digest-bound transcript asset references and their owned body-custody contracts. The current operation UI validates output metadata and body for review but does not create an `AssistanceProposalSession`, expose acceptance, or mutate canonical project state. |
+| Implemented feature domains | Canonical transcript ingest and label, disfluency/silence proposal, deterministic scene-score shot-derivation, and proposal-session primitives exist as disconnected domain foundations. No current operation workflow connects reviewed output to those primitives or publishes a label or asset. |
 
-Three external gates bound what can close here, and none is an
-implementation gap:
+Activation has four explicit boundaries:
 
-1. **No artifact is mirrored.** Every evidence record is blocked on
-   `versioned-download-notices-and-hashes`, which needs the real files
-   fetched, hosted, and hashed. Until then the catalog reports every
-   model `pending-artifacts` and the gate stays shut.
-2. **The native runtimes are not adopted.** Adding them changes the
-   derived npm closure in the licensing matrix and ships per-platform
-   binaries, and inference cannot be proved without the artifacts from
-   (1). The job protocol and supervisor are written against an injected
-   channel so the adapter drops in without redesign.
-3. **The owner-qualified fixed-GPU host does not admit the M7 workload.**
-   The descriptor retains historical earlier-milestone diagnostics but is
-   currently unprovisioned, and M7 has no qualification profile or accepted
-   result, so the privacy workload can be run for
-   development evidence but not qualified.
-
-The base commit is also red for reasons outside this milestone: commit
-`768627f1` added two files to `tsconfig.desktop-runtime.json` without
-adding them to `EXPECTED_RUNTIME_FILES` in
-`scripts/lib/desktop-project-library-runtime.mjs`, so the compiled
-runtime emits 125 files against an expected 123 and desktop packaging
-fails. Several Framescaper V18 suites fail alongside it. Neither is
-caused by this work, verified by removing every file this milestone adds
-and re-running.
+1. **Only authenticated Parakeet speech recognition executes.** The verified
+   Sherpa adapter accepts the Parakeet encoder, decoder, joiner, and token
+   artifacts. Whisper and every non-speech catalog entry lack an active adapter.
+   The remaining closed operations return `adapter-unavailable`, while a missing
+   compatible model, runtime, or target returns the corresponding typed
+   unavailable result. The product must never substitute another model or
+   pretend an unavailable operation completed.
+2. **Catalog publication metadata is not upload evidence.** The mirror
+   publisher, immutable object policy, URLs, and digests exist, but this branch
+   records no real R2 write or remote read-back. Explicit preseed remains a
+   supported zero-network installation route. A missing remote object is an
+   availability failure, not permission to fetch an unpinned upstream object.
+3. **Qualification is open but nonblocking.** The owner-qualified fixed-GPU
+   environment remains unprovisioned for the M7 workload and there is no
+   accepted external result. That state is disclosed as documentary evidence;
+   it does not disable the bounded optional foundation or weaken any hard
+   admission check.
+4. **No result applies itself.** Assistance can read only the explicitly
+   selected persisted media staged for its job. The current UI keeps validated
+   output in private job/review state and exposes no acceptance action; it does
+   not create an `AssistanceProposalSession` or mutate canonical state. Wiring
+   proposal acceptance remains future work and must revalidate every proposal
+   and selection claim before any explicit user acceptance. Deterministic
+   editing remains complete when the runtime, models, or assistance state is
+   absent.
 
 ## Phase structure
 
@@ -566,10 +587,13 @@ and re-running.
 | 7A | Parallel track | Soundscaper-surface assistance: transcription, cleanup proposals, diarization, enhancement/stems, semantic search, beats |
 | 7B | Parallel track | Framescaper-surface assistance: shots, frame semantics, reframe, clip maker, vertical-delivery lookahead |
 
-7A and 7B must not begin until every 7.0 acceptance check passes. The
-speech stack is shared: 7A owns the speech services and 7B consumes them
-read-only through their published service interfaces; ownership stays
-file-disjoint per the coordination rules below.
+The activation decision admits implemented 7A/7B slices once their hard
+licensing, authenticity, selected-media, compatibility, and consent checks
+pass; it does not wait for manual or owner-lab evidence. An incomplete adapter
+still refuses rather than bypassing those checks. The speech stack is shared:
+7A owns the speech services and 7B consumes them read-only through their
+published service interfaces; ownership stays file-disjoint per the
+coordination rules below.
 
 ## Work packets
 
@@ -587,12 +611,12 @@ implemented in commit `556fb258` on 2026-08-13: the gate's four
 `enableRequires` slugs became the mandatory key set of a per-model
 record, `blockedBy` and `distributionStatus` are derived from the
 recorded statuses, the audio launch set and two upstream-ambiguous
-models are recorded, and eleven refused weights are named with reasons.
-Every record is blocked on `versioned-download-notices-and-hashes`
-because no artifact is mirrored yet, so the gate ships closed by
-arithmetic. Notice text and the About surface moved to the slice that
-first mirrors an artifact — a notice is an obligation attached to bytes
-actually distributed, and this slice distributes none.
+models are recorded, and eleven refused weights are named with reasons. Later
+evidence work completed every mandatory row for the thirteen models now in the
+signed catalog; those rows derive `distributionStatus: permitted`, while
+refused and incomplete candidates remain uncataloged. Versioned notice and hash
+evidence authorizes distribution but is not proof that the catalog's R2 objects
+were uploaded.
 
 - **Outcome:** The roadmap re-tiering, dependency-note revision, and
   plan-delegation lines landed with this plan on 2026-08-11
@@ -620,6 +644,11 @@ actually distributed, and this slice distributes none.
   the catalog shrinks; the schedule does not stretch to rescue a weight.
 
 ### WP-7.0.1 — Model manager and storage
+
+**Current status:** active. The outcome below is implemented, including the
+signed-catalog rotation successor, complete lifecycle controls, and the lazy
+desktop menu dialog. Remote mirror availability remains external to this
+activation; explicit preseed is the authenticated offline path.
 
 - **Outcome:** The user-settable models directory (default
   `<userData>/models`, settings-exposed, relocatable via
@@ -650,6 +679,13 @@ actually distributed, and this slice distributes none.
   action, or needs the store to rewrite a blob in place.
 
 ### WP-7.0.2 — Assistance helper substrate
+
+**Current status:** active for the verified Sherpa/Parakeet speech slice only.
+The utility-process supervision, packaged runtime authentication, exact file
+grants, progress, cancellation, and real reference transcription exist. The
+Silero, Whisper, ONNX vision/semantic, llama.cpp, battery/thermal, and broader
+adapter outcomes in the original packet below are not active and must return
+typed unavailable state rather than being inferred from the shared protocol.
 
 - **Outcome:** The assistance `utilityProcess` helper implementing the
   milestone-5 helper contract's first slice: versioned bounded IPC,
@@ -691,6 +727,13 @@ actually distributed, and this slice distributes none.
   renderer-side native code.
 
 ### WP-7.0.3 — Job, consent, and evidence integration
+
+**Current status:** the task kind, closed operation/data contracts, selected
+media fence, main-private custody, and menu-reached consent and validated-result
+review are active on S30/F31. Result-to-proposal ingestion, acceptance, and
+canonical mutation remain unwired and fail closed. The registered external
+privacy workload has no accepted owner-lab result and remains documentary;
+collectors not present in the repository are still planned work.
 
 - **Outcome:** The `assistance` task kind in the progress coordinator;
   the consent surface (per-job media selection, explicit model choice);
@@ -858,9 +901,10 @@ actually distributed, and this slice distributes none.
 - The named environment `owner-qualified-windows-x64-rtx3090-01` retains
   historical earlier-workload diagnostics but is currently unprovisioned and
   does not admit `m7-local-assistance-privacy`.
-  Local runs produce development evidence; qualification waits for a formal
-  M7 profile and accepted run and is never simulated with a software renderer.
-  No benchmark retry converts a failure into a pass
+  Local runs produce development evidence; a formal M7 profile and accepted
+  run may later qualify the surface but do not control activation. Missing
+  evidence is recorded as unqualified and is never simulated with a software
+  renderer. No benchmark retry converts a failure into a pass
   (docs/quality-budgets.md:102-104).
 - Bundle gates are untouched by design: no model or runtime byte enters
   the Pages bundle or any JS chunk (roadmap.md:101-103;
@@ -893,29 +937,23 @@ actually distributed, and this slice distributes none.
 
 ## Known constraints this plan absorbs
 
-- **Desktop packaging is broken at tip:** two staged `.js` witnesses
-  import `../src/common/editor/video-source-characteristics.ts` with a
-  `.ts` extension and crash packaged main
-  (`desktop/project-library-fallback-role-witnesses.js:5`,
-  `desktop/project-library-source-bearing-smoke.js:12`); the fix belongs
-  in the desktop staging pipeline and is the first task of WP-7.0.2,
-  before any packaged evidence is recorded.
 - **No restartable job queue exists** (milestone 5/6 scope); milestone-7
   jobs are in-memory, die with the app, and must be cheap to re-run.
   Long-VOD analysis therefore checkpoints per stage into disposable
   derivatives so a re-run resumes coarse-grained.
-- **Selected V27 locally implements caption tracks, keyframes, and visual
-  transforms as an M1–M4 activation candidate.** Guided-local and external
-  qualification remain open. Vertical delivery presets and caption burn-in are
-  milestone-6 work; the milestone-7 packets above landed against the older
-  label/crop/canvas primitives and retain explicit upgrade targets rather than
-  silently claiming the V27 consumers.
-- **Milestone 2 is the formal prerequisite** (roadmap.md:744) with one
-  open closure item; 7.0 starts after it closes unless the user
-  explicitly reprioritizes (roadmap.md:61-63).
-- **ffmpeg.wasm decode speed** bounds long-VOD ingest until the
-  milestone-5 native media helper exists; the clip maker's first fixture
-  budgets honestly against wasm-speed extraction.
+- **Selected S30 and F31 own the assistance reference schema, not every
+  workflow.** Their transcript references and body custody do not imply that
+  diarization, enhancement, search, reframe, clip-maker, caption styling, or
+  vertical-delivery adapters exist. Each remains unavailable until its own
+  bounded feature slice lands.
+- **The browser has custody but no inference.** Web Soundscaper and
+  Framescaper preserve the schema-defined ordinary project state, while new
+  model execution and the filesystem model manager remain Electron-only. The
+  current desktop review UI does not produce accepted project state.
+- **Remote model availability is not established here.** A real R2 upload and
+  read-back require the separately scoped publisher credentials and evidence;
+  the product continues to fail closed or use explicit authenticated preseed
+  when mirror objects are absent.
 
 ## Watch items (not gates yet)
 
@@ -925,24 +963,26 @@ actually distributed, and this slice distributes none.
 - Qwen3.5 small series and Gemma 4 E4B as LLM-pack upgrades; re-verify
   GGUF/llama.cpp support at 7B-4 pickup.
 - Voxtral-Mini-4B-Realtime for a future live-caption feature (GPU-class
-  sizing keeps it out of scope now; capture fence keeps live input out
-  until 8A regardless).
+  sizing keeps it out of scope now; active 8A capture grants no live-input
+  authority to assistance, so a separate consent and custody design is still
+  required).
 - A small fine-tuned highlight classifier (the Rhapsody recipe) as the
   ranking upgrade that would leapfrog zero-shot LLM quality.
 - pyannote `community-1` (CC-BY-4.0) as the segmentation upgrade.
-- Adding a formal M7 profile and owner-host workload admission after the model
-  artifacts and runtimes are adopted.
+- Adding a formal M7 profile and owner-host workload admission as documentary
+  qualification evidence without turning it into an activation switch.
 - whisper.cpp's Parakeet support consolidating the ASR stack to fewer
   runtimes.
 
 ## Non-goals and fences
 
-- The deferred-capability fences hold through milestone 7 in full
-  (roadmap.md:117-130): no MIDI schema, ports, flags, dependencies, or
-  UI — beat suggestions emit labels, nothing else; no Framescaper
-  recording capability, command, schema, adapter, IPC, permission
-  expansion, or UI — assistance consumes only imported or persisted
-  media, and no helper gains capture authority of any kind.
+- The remaining deferred-capability fences hold through milestone 7: no MIDI
+  schema, ports, flags, dependencies, or UI — beat suggestions emit labels,
+  nothing else. Milestone 8A capture is separately active, but assistance may
+  consume a selected recording only after canonical publication makes it
+  ordinary persisted media. No assistance helper may initiate capture, reuse a
+  capture grant, receive live device input, or gain camera, microphone, display,
+  picker, or permission authority.
 - No cloud or hosted AI, no accounts, no telemetry of media, transcripts,
   embeddings, or usage. Selected media and results remain on-device
   (roadmap.md:764).
