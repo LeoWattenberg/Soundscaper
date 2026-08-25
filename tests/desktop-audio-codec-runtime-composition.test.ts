@@ -475,7 +475,10 @@ function opusAdmission(
 		executablePath, version, capabilityGeneration: generationCharacter.repeat(64),
 		identity: {
 			version, ffmpegSha256: '1'.repeat(64), ffprobeSha256: '2'.repeat(64),
-			declaredFileClosureSha256: '3'.repeat(64),
+			ffprobePath: executablePath.endsWith('.exe')
+				? executablePath.replace(/ffmpeg\.exe$/iu, 'ffprobe.exe')
+				: executablePath.replace(/ffmpeg$/u, 'ffprobe'),
+			executablePairClosureSha256: '3'.repeat(64),
 		},
 		capabilities: {
 			encoders: ['libopus', 'pcm_f32le'], decoders: ['pcm_f32le', 'opus'],

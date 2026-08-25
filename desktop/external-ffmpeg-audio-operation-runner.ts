@@ -9,6 +9,11 @@ import { chmod, mkdir, mkdtemp, open, rm, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
 import { readBoundedRegularFile } from './bounded-regular-file.ts';
+import {
+	externalFfmpegExecutablePairMatches,
+	isExternalFfmpegExecutablePairAdmission,
+	type ExternalFfmpegExecutablePairAdmission,
+} from './external-ffmpeg-executable-pair-admission.ts';
 import { shouldDetachProcessTree, terminateProcessTree } from './process-tree-termination.ts';
 
 export interface ExternalFfmpegAudioOperationFiles {
@@ -36,10 +41,7 @@ export interface ExternalFfmpegAudioOperationContract<Operation> {
 	): boolean;
 }
 
-export interface AdmittedExternalFfmpegExecutable {
-	readonly executablePath: string;
-	readonly ffmpegSha256: string;
-}
+export type AdmittedExternalFfmpegExecutable = ExternalFfmpegExecutablePairAdmission;
 
 export interface ExternalFfmpegAudioOperationRequest {
 	readonly operation: unknown;
@@ -144,7 +146,6 @@ type ProcessResult =
 	| Readonly<{ readonly status: 'succeeded'; readonly log: string }>
 	| Extract<ExternalFfmpegAudioOperationResult, { status: 'unavailable' }>;
 
-const SHA256 = /^[0-9a-f]{64}$/u;
 const ARGUMENT_LIMIT = 128;
 const ARGUMENT_BYTE_LIMIT = 4_096;
 const HARD_BYTE_LIMIT = 2 * 1_024 * 1_024 * 1_024;
@@ -160,7 +161,7 @@ const DETAILS: Readonly<Record<ExternalFfmpegAudioUnavailableReason, string>> = 
 	'cleanup-failed': 'The external FFmpeg scratch directory could not be removed.',
 	'contract-rejected': 'The external FFmpeg operation contract rejected its generated arguments.',
 	'executable-unavailable': 'No admitted external FFmpeg executable is available.',
-	'identity-changed': 'The selected FFmpeg executable changed after it was admitted.',
+	'identity-changed': 'The selected FFmpeg/FFprobe executable pair changed after it was admitted.',
 	'input-limit': 'The external FFmpeg audio input exceeds its byte limit.',
 	'log-limit': 'The external FFmpeg process exceeded its log limit.',
 	'output-invalid': 'The external FFmpeg process produced an invalid output file.',
@@ -273,16 +274,15 @@ async function executeStaged<Operation>(options: Readonly<{
 	let executable: AdmittedExternalFfmpegExecutable | null;
 	try { executable = await options.getExecutable(); }
 	catch { return unavailable('executable-unavailable'); }
-	if (!validExecutable(executable)) return unavailable('executable-unavailable');
+	if (!isExternalFfmpegExecutablePairAdmission(executable)) return unavailable('executable-unavailable');
 	const executablePath = executable.executablePath;
-	const admittedDigest = executable.ffmpegSha256;
 	const arguments_ = guardedArguments(operationArguments, options.files);
 	const environment = childEnvironment(options.environment, options.scratchDirectory);
 	if (options.request.signal?.aborted) return unavailable('cancelled');
-	let currentDigest: string;
-	try { currentDigest = await options.digestExecutable(executablePath); }
+	let currentIdentityMatches: boolean;
+	try { currentIdentityMatches = await externalFfmpegExecutablePairMatches(executable, options.digestExecutable); }
 	catch { return unavailable('executable-unavailable'); }
-	if (!SHA256.test(currentDigest) || currentDigest !== admittedDigest) {
+	if (!currentIdentityMatches) {
 		return unavailable('identity-changed');
 	}
 	if (options.request.signal?.aborted) return unavailable('cancelled');
@@ -294,10 +294,10 @@ async function executeStaged<Operation>(options: Readonly<{
 		limits: options.limits, signal: options.request.signal, launch: options.launch,
 	});
 	if (processResult.status === 'unavailable') return processResult;
-	let finalDigest: string;
-	try { finalDigest = await options.digestExecutable(executablePath); }
+	let finalIdentityMatches: boolean;
+	try { finalIdentityMatches = await externalFfmpegExecutablePairMatches(executable, options.digestExecutable); }
 	catch { return unavailable('identity-changed', processResult.log); }
-	if (!SHA256.test(finalDigest) || finalDigest !== admittedDigest) {
+	if (!finalIdentityMatches) {
 		return unavailable('identity-changed', processResult.log);
 	}
 	const output = await readBoundedRegularFile(options.files.outputPath, options.files.maximumOutputBytes);
@@ -463,13 +463,6 @@ function validAdmission<Operation>(
 ): value is Extract<ExternalFfmpegAudioOperationAdmission<Operation>, { status: 'admitted' }> {
 	return Boolean(value && typeof value === 'object' && value.status === 'admitted'
 		&& Object.prototype.hasOwnProperty.call(value, 'operation'));
-}
-
-function validExecutable(value: AdmittedExternalFfmpegExecutable | null): value is AdmittedExternalFfmpegExecutable {
-	return Boolean(value && typeof value === 'object'
-		&& typeof value.executablePath === 'string' && isAbsolute(value.executablePath)
-		&& value.executablePath.length <= ARGUMENT_BYTE_LIMIT && !value.executablePath.includes('\0')
-		&& typeof value.ffmpegSha256 === 'string' && SHA256.test(value.ffmpegSha256));
 }
 
 function validateOptions<Operation>(options: ExternalFfmpegAudioOperationRunnerOptions<Operation>): void {

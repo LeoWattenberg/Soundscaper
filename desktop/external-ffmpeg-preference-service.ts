@@ -2,6 +2,8 @@
 
 /** Main-owned preference state for optional, externally installed FFmpeg. */
 
+import { isAbsolute } from 'node:path';
+
 import type {
 	ExternalFfmpegInstallOutcome,
 	ExternalFfmpegInstallPlan,
@@ -240,8 +242,8 @@ export function createExternalFfmpegPreferenceService(
 			current = baseStatus(
 				unavailable ? 'unavailable' : 'quarantined', expected.executablePath, null,
 				unavailable
-					? 'The admitted FFmpeg executable is no longer available and must be rescanned.'
-					: 'The admitted FFmpeg executable changed and must be rescanned.',
+					? 'The admitted FFmpeg/FFprobe executable pair is no longer available and must be rescanned.'
+					: 'The admitted FFmpeg/FFprobe executable pair changed and must be rescanned.',
 			);
 			const selected = options.settings.snapshot().externalFfmpegSelection;
 			if (selected?.executablePath === expected.executablePath) {
@@ -267,8 +269,9 @@ function sameAdmission(
 		&& left.version === right.version
 		&& left.capabilityGeneration === right.capabilityGeneration
 		&& left.identity.ffmpegSha256 === right.identity?.ffmpegSha256
+		&& left.identity.ffprobePath === right.identity?.ffprobePath
 		&& left.identity.ffprobeSha256 === right.identity?.ffprobeSha256
-		&& left.identity.declaredFileClosureSha256 === right.identity?.declaredFileClosureSha256;
+		&& left.identity.executablePairClosureSha256 === right.identity?.executablePairClosureSha256;
 }
 
 function runtimeAdmission(
@@ -297,13 +300,16 @@ function runtimeIdentity(
 	if (!value || typeof value !== 'object' || typeof value.version !== 'string'
 		|| value.version.length < 1 || value.version.length > 256
 		|| !SHA256.test(value.ffmpegSha256) || !SHA256.test(value.ffprobeSha256)
-		|| !SHA256.test(value.declaredFileClosureSha256)) {
+		|| typeof value.ffprobePath !== 'string' || value.ffprobePath.length < 1
+		|| value.ffprobePath.length > 4_096 || value.ffprobePath.includes('\0')
+		|| !isAbsolute(value.ffprobePath)
+		|| !SHA256.test(value.executablePairClosureSha256)) {
 		throw new TypeError('External FFmpeg identity is invalid.');
 	}
 	return Object.freeze({
 		version: value.version, ffmpegSha256: value.ffmpegSha256,
-		ffprobeSha256: value.ffprobeSha256,
-		declaredFileClosureSha256: value.declaredFileClosureSha256,
+		ffprobePath: value.ffprobePath, ffprobeSha256: value.ffprobeSha256,
+		executablePairClosureSha256: value.executablePairClosureSha256,
 	});
 }
 

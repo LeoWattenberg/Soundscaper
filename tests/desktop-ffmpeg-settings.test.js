@@ -37,8 +37,9 @@ test('external FFmpeg selection and exact probe evidence persist atomically', as
 		identity: {
 			version: '9.0.1',
 			ffmpegSha256: SHA_A,
+			ffprobePath: resolve(join(fixture.root, 'bin', 'ffprobe')),
 			ffprobeSha256: SHA_B,
-			declaredFileClosureSha256: SHA_C,
+			executablePairClosureSha256: SHA_C,
 		},
 		capabilities: {
 			digest: SHA_D,
@@ -99,8 +100,9 @@ test('external FFmpeg settings reject malformed paths, identities, and capabilit
 		probeMetadata(executablePath, { version: 9 }),
 		probeMetadata(executablePath, { version: `9.0\0snapshot` }),
 		probeMetadata(executablePath, { ffmpegSha256: 'not-a-digest' }),
+		probeMetadata(executablePath, { ffprobePath: 'relative/ffprobe' }),
 		probeMetadata(executablePath, { ffprobeSha256: 'AB'.repeat(32) }),
-		probeMetadata(executablePath, { declaredFileClosureSha256: null }),
+		probeMetadata(executablePath, { executablePairClosureSha256: null }),
 		{ ...probeMetadata(executablePath), capabilities: { digest: 'bad', probedAtEpochMs: 1 } },
 		{ ...probeMetadata(executablePath), capabilities: { digest: SHA_D, probedAtEpochMs: 1.5 } },
 		{ ...probeMetadata(executablePath), identity: null },
@@ -132,8 +134,9 @@ function probeMetadata(executablePath, identityOverride = {}) {
 		identity: {
 			version: '9.0.1',
 			ffmpegSha256: SHA_A,
+			ffprobePath: resolve(join(executablePath, '..', 'ffprobe')),
 			ffprobeSha256: SHA_B,
-			declaredFileClosureSha256: SHA_C,
+			executablePairClosureSha256: SHA_C,
 			...identityOverride,
 		},
 		capabilities: { digest: SHA_D, probedAtEpochMs: 1_787_605_200_000 },

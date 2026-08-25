@@ -14,6 +14,7 @@ import {
 	type ExternalFfmpegAudioOperationFiles,
 	type ExternalFfmpegAudioOperationContract,
 } from '../desktop/external-ffmpeg-audio-operation-runner.ts';
+import { externalFfmpegExecutablePairClosureSha256 } from '../desktop/external-ffmpeg-node-runtime.ts';
 
 interface Operation {
 	readonly codec: 'opus';
@@ -42,10 +43,11 @@ test('an admitted operation launches only main-built argv in a private scratch d
 			onBuild(next) { events.push('build'); files = next; },
 			onValidate() { events.push('validate'); return true; },
 		}),
-		getAdmittedExecutable: () => Promise.resolve({
-			executablePath: '/opt/ffmpeg/bin/ffmpeg', ffmpegSha256: 'a'.repeat(64),
-		}),
-		digestExecutable: () => { events.push('hash'); return Promise.resolve('a'.repeat(64)); },
+		getAdmittedExecutable: () => Promise.resolve(admittedExecutableIdentity('/opt/ffmpeg/bin/ffmpeg')),
+		digestExecutable: (path) => {
+			events.push(`hash:${path.endsWith('ffprobe') ? 'ffprobe' : 'ffmpeg'}`);
+			return Promise.resolve(path.endsWith('ffprobe') ? 'b'.repeat(64) : 'a'.repeat(64));
+		},
 		environment: {
 			PATH: '/untrusted/bin', SystemRoot: 'C:\\Windows', WINDIR: 'C:\\Windows',
 			HOME: '/leak', FFREPORT: 'file=/leak/report', LD_PRELOAD: '/leak/inject.so',
@@ -65,7 +67,10 @@ test('an admitted operation launches only main-built argv in a private scratch d
 	const result = await runner.execute({ operation: { codec: 'opus' }, input: Uint8Array.of(1, 2, 3) });
 	assert.deepEqual(result, { status: 'executed', output: Uint8Array.of(4, 5, 6), log: 'encoded' });
 	assert.ok(files);
-	assert.deepEqual(events, ['build', 'validate', 'hash', 'spawn', 'hash']);
+	assert.deepEqual(events, [
+		'build', 'validate', 'hash:ffmpeg', 'hash:ffprobe', 'spawn',
+		'hash:ffmpeg', 'hash:ffprobe',
+	]);
 	assert.equal(launch?.executable, '/opt/ffmpeg/bin/ffmpeg');
 	assert.deepEqual(launch?.argv, [
 		'-nostdin', '-hide_banner', '-nostats', '-loglevel', 'error', '-y',
@@ -144,7 +149,7 @@ test('the operation contract must admit the request and validate its own exact a
 	}), unavailable('request-rejected'));
 });
 
-test('the executable is re-hashed immediately before spawn and identity drift is terminal', async (context) => {
+test('the executable pair is re-hashed immediately before spawn and identity drift is terminal', async (context) => {
 	const root = await temporaryRoot(context);
 	let scratchDirectory = '';
 	let spawned = 0;
@@ -162,20 +167,58 @@ test('the executable is re-hashed immediately before spawn and identity drift is
 	await assertRemoved(scratchDirectory);
 });
 
+test('an inconsistent executable-pair closure is never hashed or spawned', async (context) => {
+	const root = await temporaryRoot(context);
+	let hashed = 0;
+	let spawned = 0;
+	const runner = createExternalFfmpegAudioOperationRunner({
+		scratchRoot: root,
+		contract: contract(),
+		getAdmittedExecutable: () => Promise.resolve({
+			...admittedExecutableIdentity('/tools/ffmpeg'),
+			executablePairClosureSha256: 'c'.repeat(64),
+		}),
+		digestExecutable: () => { hashed += 1; return Promise.resolve('a'.repeat(64)); },
+		spawn() { spawned += 1; return fakeChild(); },
+	});
+
+	assert.deepEqual(await runner.execute(operationRequest()), unavailable('executable-unavailable'));
+	assert.equal(hashed, 0);
+	assert.equal(spawned, 0);
+});
+
+test('ffprobe identity drift rejects the executable pair before FFmpeg can spawn', async (context) => {
+	const root = await temporaryRoot(context);
+	let spawned = 0;
+	const runner = createExternalFfmpegAudioOperationRunner({
+		scratchRoot: root,
+		contract: contract(),
+		getAdmittedExecutable: admittedExecutable,
+		digestExecutable: (path) => Promise.resolve(
+			path.endsWith('ffprobe') ? 'c'.repeat(64) : 'a'.repeat(64),
+		),
+		spawn() { spawned += 1; return fakeChild(); },
+	});
+	assert.deepEqual(await runner.execute(operationRequest()), unavailable('identity-changed'));
+	assert.equal(spawned, 0);
+});
+
 test('a successful process is rejected when its executable identity drifts during execution', async (context) => {
 	const root = await temporaryRoot(context);
 	const child = fakeChild();
 	let outputPath = '';
-	let digests = 0;
+	let ffmpegDigests = 0;
 	const runner = createExternalFfmpegAudioOperationRunner({
 		scratchRoot: root,
 		contract: contract({ onBuild(files) { outputPath = files.outputPath; } }),
 		getAdmittedExecutable: admittedExecutable,
-		digestExecutable: () => Promise.resolve((digests += 1) === 1 ? 'a'.repeat(64) : 'b'.repeat(64)),
+		digestExecutable: (path) => Promise.resolve(path.endsWith('ffprobe')
+			? 'b'.repeat(64)
+			: (ffmpegDigests += 1) === 1 ? 'a'.repeat(64) : 'c'.repeat(64)),
 		spawn() { void complete(child, outputPath, Uint8Array.of(9)); return child; },
 	});
 	assert.deepEqual(await runner.execute(operationRequest()), unavailable('identity-changed', 'encoded'));
-	assert.equal(digests, 2);
+	assert.equal(ffmpegDigests, 2);
 });
 
 test('the runner is single-flight until the active process has exited and cleanup completes', async (context) => {
@@ -319,12 +362,27 @@ function contract(options: Readonly<{
 function admittedExecutable(): Promise<Readonly<{
 	readonly executablePath: string;
 	readonly ffmpegSha256: string;
+	readonly ffprobePath: string;
+	readonly ffprobeSha256: string;
+	readonly executablePairClosureSha256: string;
 }>> {
-	return Promise.resolve({ executablePath: '/tools/ffmpeg', ffmpegSha256: 'a'.repeat(64) });
+	return Promise.resolve(admittedExecutableIdentity('/tools/ffmpeg'));
 }
 
-function admittedDigest(): Promise<string> {
-	return Promise.resolve('a'.repeat(64));
+function admittedDigest(path: string): Promise<string> {
+	return Promise.resolve(path.endsWith('ffprobe') ? 'b'.repeat(64) : 'a'.repeat(64));
+}
+
+function admittedExecutableIdentity(executablePath: string) {
+	const ffprobePath = executablePath.replace(/ffmpeg$/u, 'ffprobe');
+	const ffmpegSha256 = 'a'.repeat(64);
+	const ffprobeSha256 = 'b'.repeat(64);
+	return Object.freeze({
+		executablePath, ffmpegSha256, ffprobePath, ffprobeSha256,
+		executablePairClosureSha256: externalFfmpegExecutablePairClosureSha256({
+			ffmpegPath: executablePath, ffmpegSha256, ffprobePath, ffprobeSha256,
+		}),
+	});
 }
 
 function operationRequest(): Readonly<{ readonly operation: Operation; readonly input: Uint8Array }> {
@@ -338,7 +396,8 @@ function unavailable(reason: string, log = ''): Readonly<{
 		busy: 'Another external FFmpeg audio operation is already active.',
 		cancelled: 'The external FFmpeg audio operation was cancelled.',
 		'contract-rejected': 'The external FFmpeg operation contract rejected its generated arguments.',
-		'identity-changed': 'The selected FFmpeg executable changed after it was admitted.',
+		'executable-unavailable': 'No admitted external FFmpeg executable is available.',
+		'identity-changed': 'The selected FFmpeg/FFprobe executable pair changed after it was admitted.',
 		'input-limit': 'The external FFmpeg audio input exceeds its byte limit.',
 		'log-limit': 'The external FFmpeg process exceeded its log limit.',
 		'output-limit': 'The external FFmpeg audio output exceeds its byte limit.',

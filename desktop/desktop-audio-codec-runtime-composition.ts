@@ -294,6 +294,9 @@ function externalRuntime(options: Readonly<{
 					getAdmittedExecutable: () => Promise.resolve(Object.freeze({
 						executablePath: snapshot.executablePath,
 						ffmpegSha256: snapshot.identity.ffmpegSha256,
+						ffprobePath: snapshot.identity.ffprobePath,
+						ffprobeSha256: snapshot.identity.ffprobeSha256,
+						executablePairClosureSha256: snapshot.identity.executablePairClosureSha256,
 					})),
 					maximumInputBytes: DESKTOP_AUDIO_CODEC_INPUT_LIMIT_BYTES,
 					maximumOutputBytes: DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES
@@ -493,8 +496,9 @@ function snapshotAdmission(
 	if (!value || typeof value !== 'object' || typeof value.executablePath !== 'string'
 		|| typeof value.version !== 'string' || typeof value.capabilityGeneration !== 'string'
 		|| !value.identity || !SHA256.test(value.identity.ffmpegSha256)
+		|| typeof value.identity.ffprobePath !== 'string'
 		|| !SHA256.test(value.identity.ffprobeSha256)
-		|| !SHA256.test(value.identity.declaredFileClosureSha256)) return null;
+		|| !SHA256.test(value.identity.executablePairClosureSha256)) return null;
 	const capabilities = cloneCapabilities(value.capabilities);
 	if (capabilities === null) return null;
 	return Object.freeze({

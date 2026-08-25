@@ -13,7 +13,8 @@ import { planExternalFfmpegInstall } from '../desktop/external-ffmpeg-installer.
 const PATH = '/opt/homebrew/bin/ffmpeg';
 const IDENTITY = Object.freeze({
 	version: '9.0.1', ffmpegSha256: '1'.repeat(64), ffprobeSha256: '2'.repeat(64),
-	declaredFileClosureSha256: '3'.repeat(64),
+	ffprobePath: '/opt/homebrew/bin/ffprobe',
+	executablePairClosureSha256: '3'.repeat(64),
 });
 const CAPABILITIES = Object.freeze({ digest: '4'.repeat(64), probedAtEpochMs: 1_787_605_200_000 });
 
@@ -161,7 +162,7 @@ test('runtime identity failures quarantine only the admission that actually fail
 		await service.invalidateAdmission(failedAdmission, 'identity-changed'),
 		status('quarantined', {
 			location: PATH, canClear: true,
-			detail: 'The admitted FFmpeg executable changed and must be rescanned.',
+			detail: 'The admitted FFmpeg/FFprobe executable pair changed and must be rescanned.',
 		}),
 	);
 	assert.equal(service.admission(), null);
@@ -198,7 +199,7 @@ test('runtime invalidation wins over an in-flight rescan of the same admission',
 	assert.equal(service.admission(), null);
 	assert.deepEqual(await service.status(), status('unavailable', {
 		location: PATH, canClear: true,
-		detail: 'The admitted FFmpeg executable is no longer available and must be rescanned.',
+		detail: 'The admitted FFmpeg/FFprobe executable pair is no longer available and must be rescanned.',
 	}));
 });
 

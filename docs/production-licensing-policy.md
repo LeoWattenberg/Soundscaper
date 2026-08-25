@@ -294,18 +294,22 @@ runs at startup, or silently accepts changed package agreements.
 
 The CLI adapter admits a matching `ffmpeg`/`ffprobe` pair with a normalized
 released version `>=4.4.0` and `<10.0.0`, fingerprints both programs and their
-declared file closure, probes capability sets, and binds exact codec settings.
-This command-contract support is not release qualification of every version or
-codec tuple in that range. The audio runner uses fixed argument templates,
+exact executable-pair identity, probes capability sets, and binds exact codec
+settings. That identity covers only the two paths and executable-file SHA-256
+digests; it does not authenticate dynamically loaded libraries or another
+dependency closure. This command-contract support is not release qualification
+of every version or codec tuple in that range. The audio runner uses fixed
+argument templates,
 `shell: false`, `-nostdin`, a local protocol allowlist, a curated environment,
 private scratch files, duration/log/output limits, cancellation, and strict
-output validation. It hashes the admitted executable again before path-based
-spawn but does not retain an executable file descriptor across spawn, leaving
-a time-of-check/time-of-use replacement window. It has no operating-system RSS
-or CPU sandbox. Its protocol allowlist constrains cooperative FFmpeg behavior,
-not a malicious user-selected executable, which keeps its ordinary user-account
-and network authority. These limits are security boundaries and residual risks,
-not evidence about the external program's license or patent posture.
+output validation. It hashes both admitted executable files immediately before
+and after path-based spawn but does not retain executable file descriptors
+across spawn, leaving a time-of-check/time-of-use replacement window. It has no
+operating-system RSS or CPU sandbox. Its protocol allowlist constrains
+cooperative FFmpeg behavior, not a malicious user-selected executable, which
+keeps its ordinary user-account and network authority. These limits are
+security boundaries and residual risks, not evidence about the external
+program's license or patent posture.
 
 The matrix's `nativeFormatPolicies` register carries one fail-closed row for
 the JUCE native-audio stack, one per operating-system backend (CoreAudio,

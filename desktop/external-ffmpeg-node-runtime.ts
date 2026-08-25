@@ -44,8 +44,9 @@ export interface ExternalFfmpegProbeEvidence {
 	readonly identity: Readonly<{
 		readonly version: string;
 		readonly ffmpegSha256: string;
+		readonly ffprobePath: string;
 		readonly ffprobeSha256: string;
-		readonly declaredFileClosureSha256: string;
+		readonly executablePairClosureSha256: string;
 	}>;
 	readonly capabilities: Readonly<{
 		readonly digest: string;
@@ -75,7 +76,6 @@ interface LocatorOptions {
 }
 
 const SHA256 = /^[0-9a-f]{64}$/u;
-const MAXIMUM_EVIDENCE_DEPENDENCIES = 512;
 
 export function resolveExternalFfmpegTarget(
 	platform: NodeJS.Platform,
@@ -216,22 +216,18 @@ export function createExternalFfmpegNodeRunner(options: NodeRunnerOptions): Exte
 
 export async function createExternalFfmpegProbeEvidence(options: Readonly<{
 	readonly probe: Extract<ExternalFfmpegProbeResult, { status: 'available' }>;
-	readonly identityPaths: readonly string[];
 	readonly digestFile?: (path: string) => Promise<string>;
 	readonly now?: () => number;
 }>): Promise<ExternalFfmpegProbeEvidence> {
 	if (options.probe?.status !== 'available') throw new TypeError('Available FFmpeg probe evidence is required.');
-	if (!Array.isArray(options.identityPaths) || options.identityPaths.length > MAXIMUM_EVIDENCE_DEPENDENCIES) {
-		throw new RangeError('The FFmpeg declared-file identity closure is invalid.');
-	}
 	const digestFile = options.digestFile ?? sha256File;
-	const ffmpegSha256 = validateDigest(await digestFile(options.probe.candidate.ffmpegPath));
-	const ffprobeSha256 = validateDigest(await digestFile(options.probe.candidate.ffprobePath));
-	const identityPaths = [...new Set(options.identityPaths)].sort(asciiOrder);
-	const identityFiles = await Promise.all(identityPaths.map(async (path) => Object.freeze({
-		path, sha256: validateDigest(await digestFile(path)),
-	})));
-	const declaredFileClosureSha256 = sha256(canonicalJson(identityFiles));
+	const ffmpegPath = options.probe.candidate.ffmpegPath;
+	const ffprobePath = options.probe.candidate.ffprobePath;
+	const ffmpegSha256 = validateDigest(await digestFile(ffmpegPath));
+	const ffprobeSha256 = validateDigest(await digestFile(ffprobePath));
+	const executablePairClosureSha256 = externalFfmpegExecutablePairClosureSha256({
+		ffmpegPath, ffmpegSha256, ffprobePath, ffprobeSha256,
+	});
 	const capabilitiesDigest = sha256(canonicalJson(options.probe.capabilities));
 	const probedAtEpochMs = (options.now ?? Date.now)();
 	if (!Number.isSafeInteger(probedAtEpochMs) || probedAtEpochMs < 0) {
@@ -241,10 +237,33 @@ export async function createExternalFfmpegProbeEvidence(options: Readonly<{
 		executablePath: options.probe.candidate.ffmpegPath,
 		identity: Object.freeze({
 			version: options.probe.version.normalized,
-			ffmpegSha256, ffprobeSha256, declaredFileClosureSha256,
+			ffmpegSha256, ffprobePath, ffprobeSha256, executablePairClosureSha256,
 		}),
 		capabilities: Object.freeze({ digest: capabilitiesDigest, probedAtEpochMs }),
 	});
+}
+
+/** Canonical identity of exactly the two released CLI executables; dynamic libraries are outside this scope. */
+export function externalFfmpegExecutablePairClosureSha256(value: Readonly<{
+	readonly ffmpegPath: string;
+	readonly ffmpegSha256: string;
+	readonly ffprobePath: string;
+	readonly ffprobeSha256: string;
+}>): string {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('The external FFmpeg executable-pair identity is invalid.');
+	}
+	assertExecutablePath(value.ffmpegPath, 'FFmpeg');
+	assertExecutablePath(value.ffprobePath, 'FFprobe');
+	if (value.ffmpegPath === value.ffprobePath) {
+		throw new TypeError('FFmpeg and FFprobe executable-pair paths must differ.');
+	}
+	const ffmpegSha256 = validateDigest(value.ffmpegSha256);
+	const ffprobeSha256 = validateDigest(value.ffprobeSha256);
+	return sha256(canonicalJson([
+		Object.freeze({ program: 'ffmpeg', path: value.ffmpegPath, sha256: ffmpegSha256 }),
+		Object.freeze({ program: 'ffprobe', path: value.ffprobePath, sha256: ffprobeSha256 }),
+	]));
 }
 
 function packageManagerDirectories(
@@ -319,6 +338,13 @@ async function sha256File(path: string): Promise<string> {
 function validateDigest(value: unknown): string {
 	if (typeof value !== 'string' || !SHA256.test(value)) throw new TypeError('The external FFmpeg digest is invalid.');
 	return value;
+}
+
+function assertExecutablePath(value: unknown, label: string): asserts value is string {
+	if (typeof value !== 'string' || value.length < 1 || value.length > 4_096
+		|| value.includes('\0') || !posix.isAbsolute(value) && !win32.isAbsolute(value)) {
+		throw new TypeError(`The external ${label} executable path is invalid.`);
+	}
 }
 
 function canonicalJson(value: unknown): string {

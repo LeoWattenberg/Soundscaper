@@ -41,6 +41,9 @@ export async function registerExternalFfmpegPreferences(options) {
 			plan: candidate, confirmed: true, signal: abort.signal,
 		}),
 	});
+	if (options.settings.snapshot().externalFfmpegSelection !== null) {
+		await service.rescan();
+	}
 	const ipc = modules.registerExternalFfmpegPreferenceMainIpc({
 		channels: options.channels, handle: options.handle,
 		removeHandler: options.removeHandler, service,

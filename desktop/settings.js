@@ -341,10 +341,11 @@ function externalFfmpegIdentity(value) {
 	return Object.freeze({
 		version: boundedString(value.version, MAX_FFMPEG_VERSION_LENGTH, 'FFmpeg version'),
 		ffmpegSha256: sha256(value.ffmpegSha256, 'FFmpeg executable digest'),
+		ffprobePath: validateExternalFfmpegExecutable(value.ffprobePath),
 		ffprobeSha256: sha256(value.ffprobeSha256, 'FFprobe executable digest'),
-		declaredFileClosureSha256: sha256(
-			value.declaredFileClosureSha256,
-			'FFmpeg declared-file closure digest',
+		executablePairClosureSha256: sha256(
+			value.executablePairClosureSha256,
+			'FFmpeg executable-pair closure digest',
 		),
 	});
 }

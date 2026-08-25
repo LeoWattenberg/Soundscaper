@@ -96,8 +96,10 @@ release acceptance authority and does not check native binaries into Git.
 
 External FFmpeg CLI support is implemented for matching `ffmpeg`/`ffprobe`
 released versions from 4.4 through 9.x (`>=4.4.0`, `<10.0.0`). Main fingerprints
-both programs and their declared file closure, probes exact capability sets,
-quarantines identity changes, and admits only exact settings-correlated tuples.
+the exact two executable files, probes exact capability sets, quarantines
+identity changes, and admits only exact settings-correlated tuples. This
+executable-pair identity does not claim to authenticate dynamically loaded
+libraries or any other dependency closure.
 Edit > Preferences > General shows the canonical location and status and owns
 Browse, Clear, Rescan, and explicit Install actions. Installation uses the
 exact WinGet package id `BtbN.FFmpeg.GPL.8.1` or an already installed Homebrew
@@ -209,11 +211,14 @@ Primary references: [dav1d project and release](https://images.videolan.org/proj
 
 - Use isolated CLI subprocesses rather than loading libav. Admit released
   versions `>=4.4.0` and `<10.0.0`, require a matching `ffmpeg`/`ffprobe` pair,
-  enumerate capabilities, and cache deterministic canaries by executable and
-  dependency-closure digest.
+  enumerate capabilities, and bind deterministic canaries to the exact paths
+  and SHA-256 digests of those two executable files. Dynamically loaded
+  libraries remain outside that identity and may change independently.
 - Discover a user-selected executable first, then a prior managed installation,
   package-manager prefixes/aliases, and system `PATH`. Identity changes return
-  the candidate to quarantine until it is reprobed and reconfirmed.
+  the candidate to quarantine until it is reprobed. A saved selection starts
+  quarantined and is automatically reprobed before the desktop service is
+  exposed; an unsuccessful probe creates no runtime admission.
 - Put the displayed canonical location, version/status, Browse, Clear, Rescan,
   and Install actions in a new desktop-only General page under Edit >
   Preferences. Move the existing desktop language setting to that page. Do not
@@ -228,10 +233,11 @@ Primary references: [dav1d project and release](https://images.videolan.org/proj
 - Invoke audio runtime jobs without a shell, with fixed argument templates,
   `-nostdin`, a local protocol allowlist, a curated environment, private
   scratch files, bounded duration/log/output, cancellation, and output
-  validation. The runner hashes the admitted executable again before path-based
-  spawn, but does not hold an executable file descriptor across spawn; a
-  time-of-check/time-of-use replacement remains possible. It has no operating-
-  system RSS or CPU sandbox. The argument protocol allowlist constrains
+  validation. The runner hashes both admitted executable files immediately
+  before and after path-based spawn, but does not hold executable file
+  descriptors across spawn; a time-of-check/time-of-use replacement remains
+  possible. It has no operating-system RSS or CPU sandbox. The argument
+  protocol allowlist constrains
   cooperative FFmpeg behavior, not a malicious user-selected executable, which
   retains its ordinary account and network authority. Publication beyond the
   in-memory audio response remains owned by the caller. Custom FFmpeg export

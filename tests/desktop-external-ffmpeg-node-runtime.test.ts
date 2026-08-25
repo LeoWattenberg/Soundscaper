@@ -116,26 +116,30 @@ test('the Node runner terminates an output flood and returns a typed reason', as
 	assert.deepEqual(child.kills, ['SIGKILL']);
 });
 
-test('probe evidence binds executable, declared identity files, and capabilities', async () => {
+test('probe evidence binds the exact executable pair and capabilities', async () => {
 	const probe = availableProbe();
 	const digests = new Map([
 		['/tools/ffmpeg', '1'.repeat(64)],
 		['/tools/ffprobe', '2'.repeat(64)],
-		['/tools/lib/libcodec.so', '3'.repeat(64)],
 	]);
+	const digestCalls: string[] = [];
 	const evidence = await createExternalFfmpegProbeEvidence({
 		probe,
-		identityPaths: ['/tools/lib/libcodec.so', '/tools/ffmpeg', '/tools/lib/libcodec.so'],
-		digestFile: (path) => Promise.resolve(digests.get(path) ?? Promise.reject(new Error('missing'))),
+		digestFile: (path) => {
+			digestCalls.push(path);
+			return Promise.resolve(digests.get(path) ?? Promise.reject(new Error('missing')));
+		},
 		now: () => 1_787_605_200_000,
 	});
 	assert.equal(evidence.executablePath, '/tools/ffmpeg');
 	assert.deepEqual(evidence.identity, {
 		version: '9.0.1',
 		ffmpegSha256: '1'.repeat(64),
+		ffprobePath: '/tools/ffprobe',
 		ffprobeSha256: '2'.repeat(64),
-		declaredFileClosureSha256: 'b5faba895bc651eb19f41f5330f895c50e22d421ced5ee63c7d175931fa7fd1e',
+		executablePairClosureSha256: '810594fedcdf67cf8e386da7f22501884828fac6c73d0acc85f4496687ffa516',
 	});
+	assert.deepEqual(digestCalls, ['/tools/ffmpeg', '/tools/ffprobe']);
 	assert.deepEqual(evidence.capabilities, {
 		digest: '266381af0961177e20922326f8f009b99661dccb62c1b44152564a646f816632',
 		probedAtEpochMs: 1_787_605_200_000,

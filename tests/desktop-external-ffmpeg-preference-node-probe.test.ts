@@ -25,7 +25,6 @@ test('the preference probe admits a matching released pair and binds its evidenc
 		platform: 'linux', architecture: 'x64', workingDirectory: '/scratch', environment: {},
 		isExecutable: (path) => Promise.resolve(path === FFMPEG || path === FFPROBE),
 		runner: runner(calls),
-		identityPaths: ({ ffmpegPath, ffprobePath }) => Promise.resolve([ffprobePath, ffmpegPath]),
 		digestFile: (path) => Promise.resolve(path === FFMPEG ? '1'.repeat(64) : '2'.repeat(64)),
 		now: () => 1_787_605_200_000,
 	});
@@ -35,7 +34,9 @@ test('the preference probe admits a matching released pair and binds its evidenc
 	assert.equal(result.evidence.executablePath, FFMPEG);
 	assert.equal(result.evidence.identity.version, '8.1.2');
 	assert.equal(result.evidence.identity.ffmpegSha256, '1'.repeat(64));
+	assert.equal(result.evidence.identity.ffprobePath, FFPROBE);
 	assert.equal(result.evidence.identity.ffprobeSha256, '2'.repeat(64));
+	assert.match(result.evidence.identity.executablePairClosureSha256, /^[0-9a-f]{64}$/u);
 	assert.deepEqual(result.capabilities, {
 		encoders: ['libopus', 'libsvtav1'], decoders: ['libdav1d', 'mp3float'],
 		muxers: ['opus', 'webm'], demuxers: ['ogg', 'webm'], filters: ['aresample'],
