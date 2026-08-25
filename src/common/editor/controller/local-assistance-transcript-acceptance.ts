@@ -190,7 +190,7 @@ export function createLocalAssistanceTranscriptAcceptance(
 
 function normalizeRequest(value: unknown): NormalizedAcceptanceRequest {
 	const request = exactRecord(value, [
-		'sourceId', 'operation', 'selectionFence', 'model', 'outputs',
+		'sourceId', 'operation', 'selectionFence', 'models', 'outputs',
 	], 'local-assistance acceptance request');
 	if (request.operation !== 'speech-recognition') {
 		throw new RangeError('Only reviewed speech recognition can be accepted as a transcript.');
@@ -200,7 +200,8 @@ function normalizeRequest(value: unknown): NormalizedAcceptanceRequest {
 	if (sourceId !== fence.sourceId) {
 		throw new Error('The reviewed transcript source disagrees with its selection fence.');
 	}
-	const model = normalizeModel(request.model);
+	const models = array(request.models, 1, 1, 'local-assistance accepted models');
+	const model = normalizeModel(models[0]);
 	const outputs = array(request.outputs, 1, 1, 'local-assistance accepted outputs');
 	const output = exactRecord(outputs[0], ['claim', 'review'], 'local-assistance accepted output');
 	normalizeTranscriptClaim(output.claim);

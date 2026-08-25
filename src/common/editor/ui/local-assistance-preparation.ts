@@ -67,7 +67,7 @@ export interface LocalAssistanceValidatedResultAcceptanceRequest {
 	readonly sourceId: string;
 	readonly operation: AssistanceOperation;
 	readonly selectionFence: AssistanceSelectionFence;
-	readonly model: LocalAssistanceModel;
+	readonly models: readonly LocalAssistanceModel[];
 	readonly outputs: readonly Readonly<{
 		readonly claim: LocalAssistanceOutputClaim;
 		readonly review: LocalAssistanceOutputReview;

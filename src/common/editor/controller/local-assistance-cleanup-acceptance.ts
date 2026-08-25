@@ -28,8 +28,8 @@ const REVIEW_RECIPE_VERSION = 1;
 const DECISION_COMMAND_TYPE = 'assistance-cleanup/proposal';
 const MAXIMUM_FILLER_LEXICON_WORDS = 4_096;
 const MAXIMUM_FILLER_WORD_LENGTH = 128;
-const REQUEST_FIELDS = Object.freeze(['selectionFence', 'review', 'model', 'options'] as const);
-const MODEL_FIELDS = Object.freeze(['modelId', 'artifactSha256s'] as const);
+const REQUEST_FIELDS = Object.freeze(['selectionFence', 'review', 'models', 'options'] as const);
+const MODEL_FIELDS = Object.freeze(['modelId', 'version', 'task', 'artifactSha256s'] as const);
 const OPTION_FIELDS = Object.freeze([
 	'fillerLexicon', 'minSilenceFrames', 'silencePaddingFrames', 'minConfidence', 'detectRepetitions',
 ] as const);
@@ -65,10 +65,12 @@ export interface LocalAssistanceTranscriptCleanupDependencies {
 export interface LocalAssistanceTranscriptCleanupRequest {
 	readonly selectionFence: AssistanceSelectionFence;
 	readonly review: AssistanceSpeechRecognitionReviewV1;
-	readonly model: Readonly<{
+	readonly models: readonly Readonly<{
 		readonly modelId: string;
+		readonly version: string;
+		readonly task: string;
 		readonly artifactSha256s: readonly string[];
-	}>;
+	}>[];
 	readonly options: DisfluencyOptions;
 }
 
@@ -269,9 +271,19 @@ function normalizeAuthority(value: LocalAssistanceTranscriptCleanupAuthority): N
 function normalizeRequest(value: LocalAssistanceTranscriptCleanupRequest) {
 	const request = exactRecord(value, REQUEST_FIELDS, 'transcript cleanup request');
 	const fence = validateAssistanceSelectionFence(request.selectionFence);
-	const model = exactRecord(request.model, MODEL_FIELDS, 'transcript cleanup model');
+	if (!Array.isArray(request.models) || request.models.length !== 1) {
+		throw new RangeError('Transcript cleanup requires exactly one authenticated model.');
+	}
+	const model = exactRecord(request.models[0], MODEL_FIELDS, 'transcript cleanup model');
 	if (typeof model.modelId !== 'string' || !MODEL_ID.test(model.modelId)) {
 		throw new TypeError('Transcript cleanup requires a bounded model ID.');
+	}
+	if (typeof model.version !== 'string' || model.version.length < 1 || model.version.length > 160
+		|| model.version.trim() !== model.version) {
+		throw new TypeError('Transcript cleanup requires a bounded model version.');
+	}
+	if (model.task !== 'speech-recognition') {
+		throw new RangeError('Transcript cleanup requires a speech-recognition model.');
 	}
 	if (!Array.isArray(model.artifactSha256s) || model.artifactSha256s.length < 1
 		|| model.artifactSha256s.length > 64) {

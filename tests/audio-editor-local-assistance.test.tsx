@@ -238,7 +238,7 @@ test('reviewed speech output enables one explicit controller-owned acceptance', 
 	assert.equal(store.getSnapshot().canAccept, false);
 	assert.deepEqual(accepted, [{
 		sourceId: 'source-1', operation: 'speech-recognition', selectionFence: FENCE,
-		model: MODEL,
+		models: [MODEL],
 		outputs: [{
 			claim: {
 				claimVersion: 1, claimId: OUTPUT_CLAIM_ID, jobId: JOB_ID, role: 'transcript',

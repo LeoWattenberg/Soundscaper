@@ -259,7 +259,7 @@ export function createLocalAssistanceSessionStore(
 					sourceId,
 					operation,
 					selectionFence: prepared.selectionFence,
-					model,
+					models: Object.freeze([model]),
 					outputs: Object.freeze(bodies.map(({ claim, review }) => Object.freeze({ claim, review }))),
 				});
 			}

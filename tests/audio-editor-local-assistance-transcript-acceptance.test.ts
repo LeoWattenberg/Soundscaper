@@ -73,10 +73,10 @@ function authority(
 function request(selectionFence = fence(), text = 'Hello there') {
 	return Object.freeze({
 		sourceId: 'voice-source', operation: 'speech-recognition', selectionFence,
-		model: Object.freeze({
+		models: Object.freeze([Object.freeze({
 			modelId: 'parakeet-tdt-0.6b-v3', version: '1', task: 'speech-recognition',
 			artifactSha256s: Object.freeze([MODEL_SHA256]),
-		}),
+		})]),
 		outputs: Object.freeze([Object.freeze({
 			claim: Object.freeze({
 				claimVersion: 1, claimId: 'a'.repeat(40), jobId: 'b'.repeat(40),
