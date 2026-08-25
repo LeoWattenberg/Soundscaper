@@ -333,6 +333,24 @@ test('the portable exact MP3 profile canary remains buildable without a target O
 	assert.equal(executed.status, 0, executed.stderr || executed.stdout);
 });
 
+test('the authenticated source closure is checked out identically on every runner', () => {
+	// The closure digest is the build's provenance: it binds the artifact to the
+	// exact bytes of these files. A Windows runner checks text out as CRLF unless
+	// .gitattributes says otherwise, so the same commit would hash to a revision
+	// no other checkout can reproduce. The sibling native hosts are already
+	// pinned; ask git what it would do with each file of this one.
+	const outcome = spawnSync('git', ['check-attr', 'eol', '--', ...OS_AUDIO_CODEC_HOST_SOURCE_FILES],
+		{ cwd: ROOT, encoding: 'utf8' });
+	assert.equal(outcome.status, 0, outcome.stderr);
+	const declared = new Map(outcome.stdout.split('\n').filter(Boolean).map((line) => {
+		const separator = line.lastIndexOf(': eol: ');
+		return [line.slice(0, separator), line.slice(separator + ': eol: '.length)];
+	}));
+	assert.deepEqual(
+		OS_AUDIO_CODEC_HOST_SOURCE_FILES.filter((file) => declared.get(file) !== 'lf'), [],
+		'add the path to .gitattributes with "text eol=lf" before its bytes carry provenance');
+});
+
 test('the codec toolchain admits every Visual Studio release the runner images ship', async (context) => {
 	// windows-2025 now ships only Visual Studio 2026 while windows-11-arm still
 	// ships 2022, and GitHub rolls the two images independently. The build plan
