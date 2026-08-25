@@ -32,18 +32,21 @@ import { cloneFramescaperProjectV20, type FramescaperProjectV20 } from './editor
 import { cloneFramescaperProjectV27, type FramescaperProjectV27 } from './editor-project-v27.ts';
 import { assertFramescaperProjectV27Profile } from './editor-project-runtime-profile-v27.ts';
 import { reconcileFramescaperProjectFeatureRequirementsV28 } from './editor-project-feature-requirements-v28.ts';
+import { reconcileFramescaperProjectFeatureRequirementsV30 } from './editor-project-feature-requirements-v30.ts';
 import { reconcileFramescaperProjectFeatureRequirementsV31 } from './editor-project-feature-requirements-v31.ts';
 import { assertFramescaperProjectV28Profile } from './editor-project-runtime-profile-v28.ts';
 import { cloneFramescaperProjectV28, type FramescaperProjectV28 } from './editor-project-v28.ts';
+import { assertFramescaperProjectV30Profile } from './editor-project-runtime-profile-v30.ts';
+import { cloneFramescaperProjectV30, type FramescaperProjectV30 } from './editor-project-v30.ts';
 import { assertFramescaperProjectV31Profile } from './editor-project-runtime-profile-v31.ts';
 import { cloneFramescaperProjectV31, type FramescaperProjectV31 } from './editor-project-v31.ts';
 
 const TEXT_ENCODER = new TextEncoder();
 
-export type FramescaperCapturedVideoProxySchemaVersion = 18 | 19 | 20 | 27 | 28 | 31;
+export type FramescaperCapturedVideoProxySchemaVersion = 18 | 19 | 20 | 27 | 28 | 30 | 31;
 export type FramescaperCapturedVideoProxyProject =
 	FramescaperProjectV18 | FramescaperProjectV19 | FramescaperProjectV20
-	| FramescaperProjectV27 | FramescaperProjectV28 | FramescaperProjectV31;
+	| FramescaperProjectV27 | FramescaperProjectV28 | FramescaperProjectV30 | FramescaperProjectV31;
 
 export interface FramescaperCapturedVideoProxyPreservationPublication {
 	readonly expected: unknown;
@@ -393,6 +396,7 @@ function cloneProject(
 	if (schemaVersion === 20) return cloneFramescaperProjectV20(profile, project);
 	if (schemaVersion === 27) return cloneFramescaperProjectV27(profile, project);
 	if (schemaVersion === 28) return cloneFramescaperProjectV28(profile, project);
+	if (schemaVersion === 30) return cloneFramescaperProjectV30(profile, project);
 	return cloneFramescaperProjectV31(profile, project);
 }
 
@@ -405,6 +409,7 @@ function assertProfile(
 	else if (schemaVersion === 20) assertFramescaperProjectV20Profile(profile);
 	else if (schemaVersion === 27) assertFramescaperProjectV27Profile(profile);
 	else if (schemaVersion === 28) assertFramescaperProjectV28Profile(profile);
+	else if (schemaVersion === 30) assertFramescaperProjectV30Profile(profile);
 	else assertFramescaperProjectV31Profile(profile);
 }
 
@@ -418,6 +423,7 @@ function reconcileRequirements(
 	if (schemaVersion === 20) return reconcileFramescaperProjectFeatureRequirementsV20(profile, project);
 	if (schemaVersion === 27) return reconcileFramescaperProjectFeatureRequirementsV27(profile, project);
 	if (schemaVersion === 28) return reconcileFramescaperProjectFeatureRequirementsV28(profile, project);
+	if (schemaVersion === 30) return reconcileFramescaperProjectFeatureRequirementsV30(profile, project);
 	return reconcileFramescaperProjectFeatureRequirementsV31(profile, project);
 }
 

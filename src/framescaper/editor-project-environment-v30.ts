@@ -9,11 +9,19 @@ import {
 	createEditorProjectRuntimeV30Selection,
 	type EditorProjectRuntimeV30Selection,
 } from './editor-project-runtime-v30-selection.ts';
+import {
+	FramescaperProjectV18ClaimCleanupRepository,
+	type FramescaperProjectV18ClaimCleanupResult,
+} from './editor-project-v18-claim-cleanup-repository.ts';
 import { FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v30.ts';
 import {
 	framescaperProjectStoreAuthorityV30,
 	type FramescaperProjectStoreAuthorityV30,
 } from './editor-project-store-v30.ts';
+import {
+	createFramescaperVideoProxyCleanupCoordinatorV20,
+	type FramescaperVideoProxyCleanupCoordinatorV20,
+} from './editor-video-proxy-cleanup-v20.ts';
 
 const OPTION_FIELDS = ['storeOptions'] as const;
 const PRODUCT_ENVIRONMENTS = new WeakSet<object>();
@@ -28,6 +36,9 @@ export interface FramescaperEditorProjectEnvironmentV30 {
 	readonly controllerStore: AudioEditorProjectStore;
 	readonly playback: PlaybackProjectService;
 	readonly timelineImages: FramescaperProjectStoreAuthorityV30['timelineImages'];
+	readonly claimCleanup: FramescaperProjectV18ClaimCleanupRepository;
+	readonly videoProxyCleanup: FramescaperVideoProxyCleanupCoordinatorV20;
+	readonly initialCleanup: Readonly<FramescaperProjectV18ClaimCleanupResult>;
 	readonly createProjectIfAbsent: (project: ProjectDocument) => Promise<ProjectDocument | null>;
 	readonly close: () => Promise<void>;
 }
@@ -49,6 +60,19 @@ export async function createFramescaperEditorProjectEnvironmentV30(
 			FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE,
 			store,
 		);
+		if (!authority.opfs) throw new TypeError('The exact V30 OPFS repository is required.');
+		const claimCleanup = new FramescaperProjectV18ClaimCleanupRepository(
+			FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE,
+			{ port: authority.port, opfs: authority.opfs },
+		);
+		const initialCleanup = await claimCleanup.reconcile({
+			sessionProjects: [], histories: [], pendingSaveSnapshots: [],
+		});
+		if (initialCleanup.status !== 'settled') {
+			throw new Error('Framescaper V30 startup proxy-claim cleanup is indeterminate.');
+		}
+		const videoProxyCleanup = createFramescaperVideoProxyCleanupCoordinatorV20(store, store);
+		await videoProxyCleanup.recover();
 		const environment = Object.freeze({
 			runtime,
 			store,
@@ -58,6 +82,9 @@ export async function createFramescaperEditorProjectEnvironmentV30(
 				{ timingStore: store },
 			),
 			timelineImages: authority.timelineImages,
+			claimCleanup,
+			videoProxyCleanup,
+			initialCleanup,
 			createProjectIfAbsent: (project: ProjectDocument) => exactProjectRepository(store)
 				.createIfAbsent(project),
 			close: () => store.close(),

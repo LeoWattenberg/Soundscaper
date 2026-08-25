@@ -24,6 +24,9 @@ test('selected environment composes one exact writable V30 browser and image aut
 	assert.equal(environment.runtime.profile, FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE);
 	assert.equal(environment.controllerStore, environment.store);
 	assert.equal(typeof environment.timelineImages.publishIfCurrent, 'function');
+	assert.equal(environment.initialCleanup.status, 'settled');
+	assert.equal(typeof environment.claimCleanup.reconcile, 'function');
+	assert.equal(typeof environment.videoProxyCleanup.recover, 'function');
 	assert.equal(assertFramescaperEditorProjectEnvironmentV30(environment), environment);
 	assert.throws(
 		() => assertFramescaperEditorProjectEnvironmentV30({ ...environment }),
