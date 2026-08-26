@@ -46,6 +46,7 @@ test('project-bin operations preserve grouped moves and prepare atomic A/V place
 		binItemId: 'media',
 		videoEffects: [{ id: 'effect' }],
 	});
+	let positionFrames = 17;
 	const placement = createHarness(projectFixture({
 		clips: [],
 		projectBinClips: [video, audio],
@@ -53,8 +54,9 @@ test('project-bin operations preserve grouped moves and prepare atomic A/V place
 			{ id: 'audio', kind: 'audio', sampleRate: 48_000, frameCount: 8_000, channelCount: 2 },
 			{ id: 'video', kind: 'video', sampleRate: 48_000, frameCount: 8_000 },
 		],
-	}));
-	const placedId = placement.service.placeProjectBinClip('bin-video', { timelineStartFrame: 42 });
+	}), { getPositionFrames: () => positionFrames });
+	positionFrames = 42;
+	const placedId = placement.service.placeProjectBinClip('bin-video');
 	assert.match(placedId ?? '', /^clip-/);
 	const placementCommit = placement.commits[0];
 	assert.equal(placementCommit?.command.type, 'batch');
@@ -386,6 +388,7 @@ interface HarnessOptions {
 	readonly retireSourceChunkProvider?: ProjectBinServiceDependencies['retireSourceChunkProvider'];
 	readonly previewEngine?: ReturnType<typeof createPreviewEngine>;
 	readonly editingBlocked?: () => boolean;
+	readonly getPositionFrames?: ProjectBinServiceDependencies['getPositionFrames'];
 	readonly playbackState?: string;
 	readonly visualMediaUrl?: string | null;
 }
@@ -458,7 +461,7 @@ function createHarness(initialProject: ProjectBinProject, options: HarnessOption
 		editingBlocked: options.editingBlocked ?? (() => false),
 		commit: (command, selection) => { commits.push({ command, selection }); },
 		updateSelection: (command) => { selectionCommands.push(command); },
-		getPositionFrames: () => 128,
+		getPositionFrames: options.getPositionFrames ?? (() => 128),
 		normalizeTimelineStartFrame: (value) => Math.max(0, Math.round(Number(value))),
 		getVisualData: () => options.visualMediaUrl == null ? null : { mediaUrl: options.visualMediaUrl },
 		activateStoredSource: async () => null, invalidateSourceRuntime: async () => undefined, activateVideoSource: async () => null,
