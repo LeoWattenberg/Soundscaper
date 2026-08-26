@@ -1,8 +1,5 @@
 import { findNearestAudioZeroCrossing } from './analysis.js';
 import { createAiffStreamEncoder, encodeAiff } from './aiff.js';
-import { decodeLegacyAupProject } from './aup-legacy.js';
-import { convertLegacyAupToProject } from './aup-legacy-conversion.js';
-import { createAup4Client, requestAup4FileHandle, saveAup4Result } from './aup4-client.js';
 import {
 	collectRelatedClipIds,
 	createAddClipCommand,
@@ -76,8 +73,7 @@ import {
 	createSmoothSampleRange,
 	persistImmutableSampleEdit,
 } from './sample-edit.js';
-import { copyFutureScapeArchive } from './scape-archive-copy.ts';
-import { SCAPE_MIME_TYPE, exportScapeProject, importScapeProject } from './scape-project.js';
+import { SCAPE_MIME_TYPE } from './scape-project-format.ts';
 import {
 	applyAudioSelectionEffectAsync,
 	estimateAudioSelectionEffectOutputFrames,
@@ -142,6 +138,7 @@ import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js'; import { 
 import { ENGLISH_COPY } from '../i18n/catalogs.js';
 import { normalizeBcp47Locale } from '../i18n/locale.js';
 import { EditorControllerLifetime, EditorProjectGeneration, isEditorDisposedError } from './controller/lifecycle.ts';
+import { deferredArchiveRuntime } from './controller/deferred-archive-runtime.ts';
 import { connectProductNativeRenderInputAuthority } from './controller/product-native-render-input-authority.ts'; import { renderProductNativeAudioToSink } from './controller/product-native-render-audio-stream.ts';
 import { createAudioAnalysisService } from './controller/analysis-service.ts';
 import { createEditorAnalysisVisuals } from './controller/analysis-visuals.ts';
@@ -875,15 +872,15 @@ export function createAudioEditorController(_root = null, options = {}) {
 		ensureScapeFileName,
 		sourcePcmBytes,
 		loadStoredSourceChannels,
-		requestAup4FileHandle,
-		saveAup4Result,
-		createAup4Client,
+		requestAup4FileHandle: deferredArchiveRuntime.requestAup4FileHandle,
+		saveAup4Result: deferredArchiveRuntime.saveAup4Result,
+		createAup4Client: deferredArchiveRuntime.createAup4Client,
 		initialAup4Client: options.aup4Client || null,
 		aup4Options: options.aup4 || {}, adaptAudacityProject: options.adaptAudacityProject,
 		prepareAudacityProjectExport: options.prepareAudacityProjectExport, migrateProject: projectRuntime.migrateProject,
-		importScapeProject: options.scapeProjectRuntime?.importScapeProject || importScapeProject,
-		exportScapeProject: options.scapeProjectRuntime?.exportScapeProject || exportScapeProject,
-		copyFutureScapeArchive: options.scapeProjectRuntime?.copyScapeArchive || copyFutureScapeArchive,
+		importScapeProject: options.scapeProjectRuntime?.importScapeProject || deferredArchiveRuntime.importScapeProject,
+		exportScapeProject: options.scapeProjectRuntime?.exportScapeProject || deferredArchiveRuntime.exportScapeProject,
+		copyFutureScapeArchive: options.scapeProjectRuntime?.copyScapeArchive || deferredArchiveRuntime.copyFutureScapeArchive,
 		normalizeCompatibilityReport: normalizeAup4CompatibilityReport,
 		reportHasMissingPcm: aup4ReportHasMissingPcm,
 		sessionTab,
@@ -1504,8 +1501,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 	} = createProjectImportService({
 		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES, SOURCE_CHUNK_FRAMES, activateStoredSource, audioBufferChannels,
 		bufferFromChannels, cacheSourceBuffer, canonicalizeBuffer, commit,
-		convertLegacyAupToProject, copy, createAddClipCommand, createAddSourceCommand,
-		createAddTrackCommand, createStableId, decodeLegacyAupProject,
+		convertLegacyAupToProject: deferredArchiveRuntime.convertLegacyAupToProject, copy, createAddClipCommand, createAddSourceCommand,
+		createAddTrackCommand, createStableId, decodeLegacyAupProject: deferredArchiveRuntime.decodeLegacyAupProject,
 		editingBlocked, engine, ffmpeg, findTrack,
 		formatLegacyAupWarning, generateWaveformPeaks, handleError, importVideoFile: (...args) => importVideoFile(...args),
 		inspectEncodedAudioSampleRate, inspectWavBlobPcm, isAudioEditorVideoFile, isAudioEditorEngineSupported,

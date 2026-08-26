@@ -13,16 +13,24 @@
  * editor fails to mount with a bare "y is not a function", far from the module
  * that actually moved.
  *
- * So every flat editor domain module and every shared assistance-domain module
- * has an owner here, and
+ * So every shared flat editor domain module and every shared assistance-domain
+ * module has an owner here. Single-owner optional feature modules are the
+ * deliberate exception: reachability keeps them behind their dynamic entry.
+ *
  * `tests/audio-editor-build-chunk-ownership.test.ts` keeps it that way.
  */
 
 const editorPath = String.raw`src[\\/]common[\\/]editor[\\/]`;
+const editorOptionalArchiveModule = String.raw`(?:aup-legacy(?:-block-budget|-conversion|-xml)?|aup4-(?:client|opaque-persistence|profile|sanitization)|audacity-(?:annotation-interchange|tempo-import)|scape-(?:archive-copy|archive-manifest|archive-reader|export-destination|import-transaction|project-source-remap)|scape-project)`;
+
+/** Archive/interchange implementation modules owned only by lazy file-menu actions. */
+export const EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST = new RegExp(
+	`${editorPath}${editorOptionalArchiveModule}\\.(?:[cm]?[jt]s)$`,
+);
 
 /** Flat editor modules and `assistance/` domain modules shared by the shell and dialogs. */
 export const EDITOR_DOMAIN_CHUNK_TEST = new RegExp(
-	`${editorPath}(?:[^\\\\/]+|assistance[\\\\/][^\\\\/]+)\\.(?:[cm]?[jt]s)$`,
+	`${editorPath}(?!${editorOptionalArchiveModule}\\.(?:[cm]?[jt]s)$)(?:[^\\\\/]+|assistance[\\\\/][^\\\\/]+)\\.(?:[cm]?[jt]s)$`,
 );
 
 /** @type {import('rolldown').CodeSplittingGroup[]} */
@@ -107,7 +115,7 @@ export const chunkGroups = [
 	},
 	{
 		name: 'vendor',
-		test: /node_modules[\\/]/,
+		test: /node_modules[\\/](?!@zip\.js[\\/]zip\.js[\\/])/,
 		priority: 60,
 		maxSize: 400_000,
 	},

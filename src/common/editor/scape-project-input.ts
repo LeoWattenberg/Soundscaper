@@ -4,11 +4,9 @@ import {
 	assertScapeArchiveByteSource,
 	type ScapeArchiveByteSource,
 } from './scape-archive-byte-source.ts';
-import {
-	type ScapeArchiveByteSourceReaderFactory,
-	type ScapeArchiveReaderFactory,
-	withScapeArchiveByteSource,
-	withScapeArchiveReader,
+import type {
+	ScapeArchiveByteSourceReaderFactory,
+	ScapeArchiveReaderFactory,
 } from './scape-archive-reader.ts';
 import type { ScapeArchiveEntry } from './scape-archive-envelope.ts';
 
@@ -25,6 +23,10 @@ export async function withScapeProjectInput<Value>(
 	action: (entries: readonly ScapeArchiveEntry[]) => Promise<Value>,
 	factories: ScapeProjectInputReaderFactories = {},
 ): Promise<Value> {
+	const {
+		withScapeArchiveByteSource,
+		withScapeArchiveReader,
+	} = await import('./scape-archive-reader.ts');
 	if (input instanceof Blob) {
 		return withScapeArchiveReader(input, signal, action, factories.blob);
 	}

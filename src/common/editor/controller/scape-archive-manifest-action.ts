@@ -16,10 +16,6 @@
  */
 
 import {
-	createScapeArchiveManifest,
-	verifyScapeArchiveManifest,
-} from '../scape-archive-manifest.ts';
-import {
 	parseArchiveManifest,
 	saveArchiveManifest,
 	type ArchiveManifest,
@@ -74,6 +70,7 @@ async function manifestRecord(
 		});
 	}
 	try {
+		const { createScapeArchiveManifest } = await import('../scape-archive-manifest.ts');
 		return Object.freeze({
 			manifest: await createScapeArchiveManifest(request.archive, {
 				...(request.projectTitle ? { projectTitle: request.projectTitle } : {}),
@@ -127,5 +124,6 @@ export async function verifyScapeArchiveAgainstManifest(
 	manifestText: string,
 	options: Readonly<{ signal?: AbortSignal }> = {},
 ): Promise<ArchiveVerification> {
+	const { verifyScapeArchiveManifest } = await import('../scape-archive-manifest.ts');
 	return verifyScapeArchiveManifest(archive, parseArchiveManifest(manifestText), options);
 }

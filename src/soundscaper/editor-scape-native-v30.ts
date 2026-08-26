@@ -1,12 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { copyFutureScapeArchive } from '../common/editor/scape-archive-copy.ts'
+import { deferredArchiveRuntime } from '../common/editor/controller/deferred-archive-runtime.ts'
 import type { ScapeProjectInput } from '../common/editor/scape-project-input.ts'
-import {
-	exportScapeProject,
-	importScapeProject,
-	inspectScapeProject,
-} from '../common/editor/scape-project.js'
 import {
 	createSoundscaperProjectFeatureCompatibilityServiceV30,
 } from './editor-project-feature-compatibility-v30.ts'
@@ -31,6 +26,7 @@ export interface SoundscaperScapeNativeStoreV30 extends SoundscaperScapeNativePl
 
 /** Bind portable archive I/O to exact V30 validation, compatibility, and fallback integrity. */
 export function createSoundscaperScapeNativeRuntimeV30() {
+	const { copyFutureScapeArchive, exportScapeProject, importScapeProject, inspectScapeProject } = deferredArchiveRuntime
 	const compatibility = createSoundscaperProjectFeatureCompatibilityServiceV30()
 	const projectAssetExtension = createSoundscaperScapeProjectAssetExtensionV30()
 	const migrateProject = (value: unknown) => loadSoundscaperProjectV30(value)

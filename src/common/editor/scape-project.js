@@ -44,6 +44,7 @@ import { preflightScapeImportCapacity } from './scape-import-capacity.ts';
 import { indexScapeProjectAssets, indexScapeProjectTimingAssets } from './scape-project-assets.ts';
 import { parseScapeProjectDocument } from './scape-project-document.ts';
 import { withScapeProjectInput } from './scape-project-input.ts';
+import { SCAPE_MIME_TYPE } from './scape-project-format.ts';
 import { remapScapeProjectSourceReferences } from './scape-project-source-remap.ts';
 import { prepareScapeImportSourceIdentities, resolveScapeProjectAssetExtension } from './scape-project-asset-extension.ts';
 import { canonicalMediaContentBlob } from './storage/media-content-digest.ts';
@@ -52,8 +53,7 @@ import {
 	validateVideoTimingAssetBytes,
 } from './video-timing-asset.ts';
 
-export { SCAPE_FORMAT, SCAPE_FORMAT_VERSION };
-export const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
+export { SCAPE_FORMAT, SCAPE_FORMAT_VERSION, SCAPE_MIME_TYPE };
 export const SCAPE_FILE_EXTENSION = '.scape';
 
 const PROJECT_ENTRY = SCAPE_PROJECT_ENTRY;

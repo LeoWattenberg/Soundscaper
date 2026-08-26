@@ -8,6 +8,7 @@ import test from 'node:test';
 import {
 	chunkGroupForModulePath,
 	chunkGroups,
+	EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST,
 } from '../scripts/lib/build-chunk-groups.mjs';
 
 /**
@@ -32,8 +33,9 @@ const ASSISTANCE_DIRECTORY = fileURLToPath(new URL('../src/common/editor/assista
 const EDITOR_UI_DIRECTORY = fileURLToPath(new URL('../src/common/editor/ui/', import.meta.url));
 const MODULE_PATTERN = /\.(?:[cm]?[jt]s)$/u;
 
-test('every flat editor domain module has an owning chunk group', () => {
+test('every shared flat editor domain module has an owning chunk group', () => {
 	const unowned = flatEditorModules()
+		.filter((path) => !EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST.test(path))
 		.filter((path) => chunkGroupForModulePath(path) === null);
 	assert.deepEqual(unowned, [], 'these modules would be placed by reachability alone');
 });
@@ -90,6 +92,23 @@ test('editor groups never absorb shared application dependencies recursively', (
 		assert.ok(group, `${name} must exist`);
 		assert.equal(group.includeDependenciesRecursively, false, `${name} captured a shared site dependency`);
 	}
+});
+
+test('optional archive code and its ZIP vendor are placed by dynamic reachability', () => {
+	for (const path of [
+		'src/common/editor/scape-project.js',
+		'src/common/editor/scape-import-transaction.ts',
+		'src/common/editor/aup-legacy.js',
+		'src/common/editor/aup4-client.js',
+	]) {
+		assert.ok(EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST.test(path), `${path} must be an archive implementation`);
+		assert.equal(chunkGroupForModulePath(path), null, `${path} must stay behind its lazy action`);
+	}
+	assert.equal(
+		chunkGroupForModulePath('node_modules/@zip.js/zip.js/index.js'),
+		null,
+		'ZIP must stay behind lazy archive import/export actions',
+	);
 });
 
 test('editor UI imports exact internal design-system modules', () => {

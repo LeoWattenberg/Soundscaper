@@ -481,7 +481,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 	async function importLegacyAudacityProject(file: RuntimeValue, legacyDataFiles: RuntimeValue = []) {
 		setStatus(copy.aupImporting);
 		const structure = await decodeLegacyAupProject(file, legacyDataFiles, { onProgress: updateLegacyAupImportProgress });
-		const decoded = convertLegacyAupToProject(structure, {
+		const decoded = await convertLegacyAupToProject(structure, {
 			title: stripExtension(file.name),
 			projectId: createStableId('project'),
 		});

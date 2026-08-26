@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { TextReader, ZipWriter } from '@zip.js/zip.js';
+import type { ZipWriter as ZipWriterType } from '@zip.js/zip.js';
 
 import { awaitScapeOperation, throwIfScapeAborted } from '../common/editor/scape-abort.ts';
 import {
@@ -16,7 +16,6 @@ import {
 	scapeHex,
 } from '../common/editor/scape-archive-media.ts';
 import { validateVideoTimingAssetBytes } from '../common/editor/video-timing-asset.ts';
-import { createScapeExportDestination } from '../common/editor/scape-export-destination.ts';
 import {
 	maximumScapeStoreArchiveBytes,
 	resolveScapeBlobMaximumBytes,
@@ -119,6 +118,13 @@ export async function exportFramescaperScapeProjectFileV18(
 	if (writable && typeof writable.getWriter !== 'function') {
 		throw new TypeError('The Framescaper Scape destination is not writable.');
 	}
+	const [
+		{ TextReader, ZipWriter },
+		{ createScapeExportDestination },
+	] = await Promise.all([
+		import('@zip.js/zip.js'),
+		import('../common/editor/scape-export-destination.ts'),
+	]);
 	const destination = createScapeExportDestination(
 		writable,
 		FRAMESCAPER_SCAPE_MIME_TYPE_V18,
@@ -197,7 +203,7 @@ async function loadCanonicalMedia(
 }
 
 async function writeCanonical(
-	writer: ZipWriter<unknown>,
+	writer: ZipWriterType<unknown>,
 	asset: PlannedScapeExportAsset,
 	store: FramescaperScapeFileExportStoreV18,
 	media: ReadonlyMap<string, Blob>,
@@ -237,7 +243,7 @@ async function writeCanonical(
 }
 
 async function writeExtension(
-	writer: ZipWriter<unknown>,
+	writer: ZipWriterType<unknown>,
 	asset: Readonly<FramescaperScapeArchiveExportAssetV18>,
 	signal?: AbortSignal,
 ): Promise<FramescaperScapeAssetDescriptorV18> {

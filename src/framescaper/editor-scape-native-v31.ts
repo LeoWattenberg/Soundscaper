@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { copyFutureScapeArchive } from '../common/editor/scape-archive-copy.ts';
+import { deferredArchiveRuntime } from '../common/editor/controller/deferred-archive-runtime.ts';
 import type { ScapeProjectInput } from '../common/editor/scape-project-input.ts';
 import {
 	createAssistanceTranscriptScapeProjectAssetExtensionV1,
@@ -9,7 +9,6 @@ import {
 	composeScapeProjectAssetExtensions,
 } from '../common/editor/scape-project-asset-extension-composition.ts';
 import type { ScapeProjectAssetExtension } from '../common/editor/scape-project-asset-extension.ts';
-import { exportScapeProject, importScapeProject, inspectScapeProject } from '../common/editor/scape-project.js';
 import {
 	createFramescaperProjectFeatureCompatibilityServiceV31,
 } from './editor-project-feature-requirements-v31.ts';
@@ -32,6 +31,7 @@ export interface FramescaperScapeNativeStoreV31 {
 
 /** Prepared F31 portable document boundary; route activation remains separate. */
 export function createFramescaperScapeNativeRuntimeV31(profile: unknown) {
+	const { copyFutureScapeArchive, exportScapeProject, importScapeProject, inspectScapeProject } = deferredArchiveRuntime;
 	assertFramescaperProjectV31Profile(profile);
 	const compatibility = createFramescaperProjectFeatureCompatibilityServiceV31(profile);
 	const projectAssetExtension = createAssetExtension(profile);

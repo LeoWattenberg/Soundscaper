@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { inspectScapeProject as inspectScapeArchive } from '../scape-project.js';
 import { restoreNormalizedScapeAbortReason } from '../scape-abort.ts';
 import type { ScapeProjectInput } from '../scape-project-input.ts';
+import { deferredArchiveRuntime } from './deferred-archive-runtime.ts';
 import type { EditorControllerLifetime, EditorTaskScope } from './lifecycle.ts';
 import {
 	createScapeInspectionQuiescence,
@@ -50,7 +50,7 @@ export function createScapeInspectionService<Result = unknown>(
 	runtime: ScapeInspectionServiceRuntime<Result>,
 ): ScapeInspectionService<Result> {
 	const inspectProject = runtime.inspectScapeProject
-		?? (inspectScapeArchive as ScapeProjectInspector<Result>);
+		?? (deferredArchiveRuntime.inspectScapeProject as ScapeProjectInspector<Result>);
 	const quiescence = runtime.scapeInspectionQuiescence ?? createScapeInspectionQuiescence();
 	const providerOptions = Object.freeze({ ...runtime.providerOptions });
 	return Object.freeze({ inspect });
