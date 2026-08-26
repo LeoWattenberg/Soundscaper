@@ -7,7 +7,9 @@ import {
 } from '../assistance/owned-audio-cut-transform-results-v1.ts';
 import type {
 	AssistanceBeatLabelsV1,
+	AssistanceCleanupProposalsV1,
 	AssistanceCutProposalsV1,
+	AssistanceReactionRangesV1,
 	AssistanceTempoMapDiffV1,
 } from '../assistance/owned-audio-cut-transform-types-v1.ts';
 import {
@@ -24,16 +26,19 @@ import {
 import type { LocalAssistanceAudioPublicationChoice } from
 	'./local-assistance-audio-publication.ts';
 import {
+	createGuidedAttributedTranscriptAcceptanceRequest,
 	createGuidedAudioAcceptanceRequest,
 	createGuidedBeatAcceptanceRequest,
 	createGuidedCutAcceptanceRequest,
+	createGuidedReactionAcceptanceRequest,
 	createGuidedTranscriptAcceptanceRequest,
 	type LocalAssistanceGuidedAdaptedOutput,
 } from './local-assistance-guided-result-requests.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
-type SupportedWorkflowId = 'transcribe-captions' | 'enhance-dialogue'
-	| 'separate-dialogue-music-effects' | 'detect-beats-tempo' | 'mark-cuts';
+type SupportedWorkflowId = 'transcribe-captions' | 'clean-filler-silence' | 'identify-speakers'
+	| 'enhance-dialogue' | 'separate-dialogue-music-effects' | 'mark-reactions'
+	| 'detect-beats-tempo' | 'mark-cuts';
 type AcceptancePhase = 'review' | 'accepting' | 'accepted' | 'rejected' | 'cancelled' | 'failed';
 
 export type LocalAssistanceGuidedAcceptanceUnsupportedReason =
@@ -97,8 +102,16 @@ export interface LocalAssistanceGuidedResultAcceptanceDependencies {
 		request: unknown,
 		choice: LocalAssistanceAudioPublicationChoice,
 	) => Awaitable<void>;
+	/** Existing disjoint ripple-delete publisher over reviewed cleanup proposals. */
+	readonly acceptCleanupResult?: (request: Readonly<{
+		readonly selectionFence: AssistanceSelectionFence;
+		readonly result: AssistanceCleanupProposalsV1;
+		readonly selectedProposalIds: readonly string[];
+	}>) => Awaitable<void>;
 	/** Existing Beat This proposal-session factory. */
 	readonly createBeatReviewSession?: (request: unknown) => BeatReviewSessionPort;
+	/** Existing owned Reactions label-track proposal-session factory. */
+	readonly createReactionReviewSession?: (request: unknown) => BeatReviewSessionPort;
 }
 
 export interface LocalAssistanceGuidedResultAcceptance {
@@ -116,14 +129,24 @@ interface NormalizedReview {
 }
 
 const SUPPORTED = new Set<AssistanceWorkflowId>([
-	'transcribe-captions', 'enhance-dialogue', 'separate-dialogue-music-effects',
-	'detect-beats-tempo', 'mark-cuts',
+	'transcribe-captions', 'clean-filler-silence', 'identify-speakers', 'enhance-dialogue',
+	'separate-dialogue-music-effects',
+	'mark-reactions', 'detect-beats-tempo', 'mark-cuts',
 ]);
 const TERMINALS = Object.freeze({
 	'transcribe-captions': Object.freeze({ stageId: 'assemble-captions', slots: ['captions'] }),
+	'clean-filler-silence': Object.freeze({
+		stageId: 'propose-cleanup', slots: ['cleanup-proposals'],
+	}),
+	'identify-speakers': Object.freeze({
+		stageId: 'attribute-speakers', slots: ['attributed-transcript'],
+	}),
 	'enhance-dialogue': Object.freeze({ stageId: 'enhance-dialogue', slots: ['enhanced-audio'] }),
 	'separate-dialogue-music-effects': Object.freeze({
 		stageId: 'separate-sources', slots: ['dialogue', 'music', 'effects'],
+	}),
+	'mark-reactions': Object.freeze({
+		stageId: 'merge-reaction-ranges', slots: ['reaction-ranges'],
 	}),
 	'detect-beats-tempo': Object.freeze({
 		stageId: 'propose-tempo-map', slots: ['beat-labels', 'tempo-map-diff'],
@@ -144,8 +167,12 @@ export function createLocalAssistanceGuidedResultAcceptance(
 			&& typeof dependencies.acceptValidatedResult !== 'function')
 		|| (dependencies.acceptAudioResult !== undefined
 			&& typeof dependencies.acceptAudioResult !== 'function')
+		|| (dependencies.acceptCleanupResult !== undefined
+			&& typeof dependencies.acceptCleanupResult !== 'function')
 		|| (dependencies.createBeatReviewSession !== undefined
-			&& typeof dependencies.createBeatReviewSession !== 'function')) {
+			&& typeof dependencies.createBeatReviewSession !== 'function')
+		|| (dependencies.createReactionReviewSession !== undefined
+			&& typeof dependencies.createReactionReviewSession !== 'function')) {
 		throw new TypeError('Guided acceptance requires exact primitive publication ports.');
 	}
 
@@ -181,10 +208,13 @@ function createSession(
 	review: NormalizedReview,
 ): LocalAssistanceGuidedAcceptanceSession {
 	const controller = new AbortController();
-	const beatSession = workflowId === 'detect-beats-tempo'
+	const proposalSession = workflowId === 'detect-beats-tempo'
 		? dependencies.createBeatReviewSession!(createGuidedBeatAcceptanceRequest(
 			workflow, fence, review.outputs,
-		)) : null;
+		)) : workflowId === 'mark-reactions'
+			? dependencies.createReactionReviewSession!(createGuidedReactionAcceptanceRequest(
+				workflow, fence, review.outputs,
+			)) : null;
 	let phase: AcceptancePhase = 'review';
 	let selectedIds: readonly string[] = Object.freeze([]);
 	const snapshot = (): LocalAssistanceGuidedAcceptanceSnapshot => Object.freeze({
@@ -206,8 +236,9 @@ function createSession(
 		phase = 'accepting';
 		try {
 			assertCurrentFence(dependencies, fence);
-			if (workflowId === 'detect-beats-tempo') await beatSession!.accept(ids);
-			else if (ids.length > 0) await publishSelection(
+			if (proposalSession) await proposalSession.accept(ids);
+			else if (workflowId !== 'detect-beats-tempo' && workflowId !== 'mark-reactions'
+				&& ids.length > 0) await publishSelection(
 				dependencies, workflow, workflowId, fence, review, ids,
 			);
 			selectedIds = Object.freeze([...ids]);
@@ -220,13 +251,13 @@ function createSession(
 	};
 	const reject = async (): Promise<void> => {
 		assertReview();
-		if (beatSession) await beatSession.reject();
+		if (proposalSession) await proposalSession.reject();
 		phase = 'rejected';
 	};
 	const cancel = async (): Promise<void> => {
 		assertReview();
 		controller.abort(new DOMException('Guided result acceptance was cancelled.', 'AbortError'));
-		if (beatSession) await beatSession.cancel();
+		if (proposalSession) await proposalSession.cancel();
 		phase = 'cancelled';
 	};
 	return Object.freeze({ signal: controller.signal, snapshot, accept, reject, cancel });
@@ -235,13 +266,25 @@ function createSession(
 async function publishSelection(
 	dependencies: LocalAssistanceGuidedResultAcceptanceDependencies,
 	workflow: AssistanceWorkflowV1,
-	workflowId: Exclude<SupportedWorkflowId, 'detect-beats-tempo'>,
+	workflowId: Exclude<SupportedWorkflowId, 'detect-beats-tempo' | 'mark-reactions'>,
 	fence: AssistanceSelectionFence,
 	review: NormalizedReview,
 	selectedIds: readonly string[],
 ): Promise<void> {
 	if (workflowId === 'transcribe-captions') {
 		await dependencies.acceptValidatedResult!(createGuidedTranscriptAcceptanceRequest(
+			workflow, fence, review.outputs,
+		));
+		return;
+	}
+	if (workflowId === 'clean-filler-silence') {
+		await dependencies.acceptCleanupResult!({ selectionFence: fence,
+			result: review.outputs.get('cleanup-proposals')!.semantic as AssistanceCleanupProposalsV1,
+			selectedProposalIds: selectedIds });
+		return;
+	}
+	if (workflowId === 'identify-speakers') {
+		await dependencies.acceptValidatedResult!(createGuidedAttributedTranscriptAcceptanceRequest(
 			workflow, fence, review.outputs,
 		));
 		return;
@@ -335,6 +378,9 @@ function reviewSemantics(
 		}));
 	}
 	const transformId = workflowId === 'transcribe-captions' ? 'assemble-captions'
+		: workflowId === 'clean-filler-silence' ? 'propose-cleanup'
+		: workflowId === 'identify-speakers' ? 'attribute-speakers'
+		: workflowId === 'mark-reactions' ? 'merge-reaction-ranges'
 		: workflowId === 'detect-beats-tempo' ? 'propose-tempo-map' : 'normalize-cuts';
 	const values = Object.fromEntries([...outputs].map(([slotId, output]) => [slotId, output.semantic]));
 	const reviewed = reviewAssistanceOwnedAudioCutTransformResultV1({
@@ -348,11 +394,22 @@ function expectedChoices(
 	outputs: ReadonlyMap<string, ReviewedOutput>,
 ): readonly Readonly<{ id: string; kind: string }>[] {
 	if (workflowId === 'transcribe-captions') return [{ id: 'captions', kind: 'captions' }];
+	if (workflowId === 'clean-filler-silence') {
+		const cleanup = outputs.get('cleanup-proposals')!.semantic as AssistanceCleanupProposalsV1;
+		return cleanup.proposals.map(({ id }) => ({ id, kind: 'cleanup' }));
+	}
+	if (workflowId === 'identify-speakers') {
+		return [{ id: 'attributed-transcript', kind: 'transcript' }];
+	}
 	if (workflowId === 'enhance-dialogue') return [{ id: 'enhanced-audio', kind: 'audio' }];
 	if (workflowId === 'separate-dialogue-music-effects') return [
 		{ id: 'dialogue', kind: 'audio' }, { id: 'music', kind: 'audio' },
 		{ id: 'effects', kind: 'audio' },
 	];
+	if (workflowId === 'mark-reactions') {
+		const reactions = outputs.get('reaction-ranges')!.semantic as AssistanceReactionRangesV1;
+		return reactions.ranges.map(({ id }) => ({ id, kind: 'reaction' }));
+	}
 	if (workflowId === 'mark-cuts') {
 		const cuts = outputs.get('cut-proposals')!.semantic as AssistanceCutProposalsV1;
 		return cuts.proposals.map(({ id }) => ({ id, kind: 'cut' }));
@@ -444,6 +501,8 @@ function hasPort(
 		return Boolean(dependencies.acceptAudioResult);
 	}
 	if (workflowId === 'detect-beats-tempo') return Boolean(dependencies.createBeatReviewSession);
+	if (workflowId === 'mark-reactions') return Boolean(dependencies.createReactionReviewSession);
+	if (workflowId === 'clean-filler-silence') return Boolean(dependencies.acceptCleanupResult);
 	return Boolean(dependencies.acceptValidatedResult);
 }
 

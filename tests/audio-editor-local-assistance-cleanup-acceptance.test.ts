@@ -8,6 +8,9 @@ import {
 	createLocalAssistanceTranscriptCleanupSession,
 	type LocalAssistanceTranscriptCleanupRequest,
 } from '../src/common/editor/controller/local-assistance-cleanup-acceptance.ts';
+import {
+	createLocalAssistanceGuidedCleanupAcceptance,
+} from '../src/common/editor/controller/local-assistance-guided-cleanup-acceptance.ts';
 import type { LocalAssistanceTranscriptCleanupPreset } from
 	'../src/common/editor/ui/local-assistance-cleanup.ts';
 import {
@@ -186,6 +189,72 @@ function reviewedVad(fence: AssistanceSelectionFence) {
 		}),
 	});
 }
+
+test('Guided cleanup accepts only the reviewed subset as one ordinary undoable delete', async () => {
+	const fixture = new CleanupFixture(true);
+	const before = projectForCommand(fixture.history.present);
+	const authority = fixture.currentAuthority();
+	const acceptance = createLocalAssistanceGuidedCleanupAcceptance({
+		currentAuthority: () => fixture.currentAuthority(),
+		captureProject: () => fixture.history.present,
+		assertProject: (token) => { assert.equal(token, fixture.history.present); },
+		commit: (command) => {
+			fixture.commitCount += 1;
+			fixture.committed.push(command);
+			fixture.history = executeEditorCommand(fixture.history, command, { now: NOW }) as
+				typeof fixture.history;
+		},
+	});
+	const result = Object.freeze({
+		schemaVersion: 1 as const,
+		kind: 'cleanup-proposals' as const,
+		preset: 'balanced' as const,
+		proposals: Object.freeze([
+			Object.freeze({ id: 'filler-19200-28800', kind: 'filler' as const,
+				startFrame: 19_200, endFrame: 28_800, text: 'um', selected: false as const }),
+			Object.freeze({ id: 'filler-57600-67200', kind: 'filler' as const,
+				startFrame: 57_600, endFrame: 67_200, text: 'uh', selected: false as const }),
+		]),
+	});
+
+	await acceptance.accept({ selectionFence: authority.fence, result,
+		selectedProposalIds: [] });
+	assert.equal(fixture.commitCount, 0, 'an empty explicit selection is mutation-free');
+	await acceptance.accept({ selectionFence: authority.fence, result,
+		selectedProposalIds: ['filler-57600-67200'] });
+	assert.equal(fixture.commitCount, 1);
+	const command = fixture.committed[0];
+	assert.equal(command?.type, 'range/ripple-delete');
+	if (command?.type !== 'range/ripple-delete') throw new TypeError('Expected one ripple command.');
+	assert.deepEqual(command.trackIds, ['video-track', 'audio-track']);
+	assert.deepEqual(command.clipIds, ['video-clip', 'audio-clip'],
+		'link-aware deletion also binds the authenticated linked occurrence');
+	const restored = undoEditorCommand(fixture.history, { now: NOW });
+	const restoredProject = projectForCommand(restored.present);
+	assert.deepEqual({ ...restoredProject, revision: before.revision }, before);
+});
+
+test('Guided cleanup refuses unknown choices and stale aggregate authority', async () => {
+	const fixture = new CleanupFixture();
+	const authority = fixture.currentAuthority();
+	const acceptance = createLocalAssistanceGuidedCleanupAcceptance({
+		currentAuthority: () => fixture.currentAuthority(),
+		captureProject: () => fixture.history.present,
+		assertProject: () => undefined,
+		commit: () => { fixture.commitCount += 1; },
+	});
+	const result = {
+		schemaVersion: 1, kind: 'cleanup-proposals', preset: 'balanced',
+		proposals: [{ id: 'filler-19200-28800', kind: 'filler', startFrame: 19_200,
+			endFrame: 28_800, text: 'um', selected: false }],
+	};
+	await assert.rejects(acceptance.accept({ selectionFence: authority.fence, result,
+		selectedProposalIds: ['unknown'] }), /unknown/iu);
+	fixture.fenceOverride = (fence) => Object.freeze({ ...fence, revision: fence.revision + 1 });
+	await assert.rejects(acceptance.accept({ selectionFence: authority.fence, result,
+		selectedProposalIds: ['filler-19200-28800'] }), /stale|no longer matches/iu);
+	assert.equal(fixture.commitCount, 0);
+});
 
 function runtimeClips(project: AudioEditorProjectCurrent) {
 	return resolveRuntimeProjectProjection(project as never).clips;

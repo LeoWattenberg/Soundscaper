@@ -39,6 +39,10 @@ import {
 	type LocalAssistanceAudioPublicationAuthority,
 	type LocalAssistanceAudioPublicationStore,
 } from './local-assistance-audio-publication.ts';
+import {
+	createLocalAssistanceGuidedCleanupAcceptance,
+	type LocalAssistanceGuidedCleanupAcceptanceRequest,
+} from './local-assistance-guided-cleanup-acceptance.ts';
 
 export type LocalAssistanceResultAcceptanceStore = LocalAssistanceTranscriptAcceptanceStore
 	& LocalAssistanceAudioPublicationStore;
@@ -60,6 +64,7 @@ export function createLocalAssistanceResultAcceptance(
 ): Readonly<LocalAssistanceTranscriptCleanupWorkflow & {
 	acceptValidatedResult(request: unknown): Promise<void>;
 	acceptAudioResult(request: unknown, choice: LocalAssistanceAudioPublicationChoice): Promise<void>;
+	acceptCleanupResult(request: LocalAssistanceGuidedCleanupAcceptanceRequest): Promise<void>;
 	createReactionReviewSession(
 		request: unknown,
 		options?: AssistanceReactionProposalOptions,
@@ -77,6 +82,15 @@ export function createLocalAssistanceResultAcceptance(
 		: null;
 	const cleanup = createLocalAssistanceTranscriptCleanupWorkflow({
 		currentAuthority: dependencies.currentAuthority as () => LocalAssistanceTranscriptCleanupAuthority,
+		captureProject: dependencies.captureProject,
+		assertProject: dependencies.assertProject,
+		commit: (command) => dependencies.commit(
+			command as unknown as Readonly<Record<string, unknown>>,
+		),
+	});
+	const guidedCleanup = createLocalAssistanceGuidedCleanupAcceptance({
+		currentAuthority: dependencies.currentAuthority as () =>
+			LocalAssistanceTranscriptCleanupAuthority,
 		captureProject: dependencies.captureProject,
 		assertProject: dependencies.assertProject,
 		commit: (command) => dependencies.commit(
@@ -106,6 +120,8 @@ export function createLocalAssistanceResultAcceptance(
 		: null;
 	return Object.freeze({
 		...cleanup,
+		acceptCleanupResult: (request: LocalAssistanceGuidedCleanupAcceptanceRequest) =>
+			guidedCleanup.accept(request),
 		createReactionReviewSession(
 			request: unknown,
 			options: AssistanceReactionProposalOptions = {},
@@ -135,6 +151,12 @@ export function createLocalAssistanceResultAcceptance(
 				}
 				return transcript.acceptValidatedResult(request);
 			}
+			if (operation === 'speaker-diarization' && resultOutputRole(request) === 'transcript') {
+				if (!transcript) {
+					throw new Error('Transcript acceptance requires assistance-asset storage.');
+				}
+				return transcript.acceptValidatedResult(request);
+			}
 			if (operation === 'voice-activity-detection' || operation === 'speaker-diarization') {
 				return rangeLabels.acceptValidatedResult(request);
 			}
@@ -156,4 +178,14 @@ function resultOperation(value: unknown): unknown {
 		throw new TypeError('Assistance result acceptance requires a request record.');
 	}
 	return (value as Readonly<Record<string, unknown>>).operation;
+}
+
+function resultOutputRole(value: unknown): unknown {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+	const outputs = (value as Readonly<Record<string, unknown>>).outputs;
+	if (!Array.isArray(outputs) || outputs.length !== 1 || !outputs[0]
+		|| typeof outputs[0] !== 'object' || Array.isArray(outputs[0])) return undefined;
+	const claim = (outputs[0] as Readonly<Record<string, unknown>>).claim;
+	return claim && typeof claim === 'object' && !Array.isArray(claim)
+		? (claim as Readonly<Record<string, unknown>>).role : undefined;
 }

@@ -9,6 +9,8 @@ import {
 
 const SOURCE_SHA256 = 'ab'.repeat(32);
 const MODEL_SHA256 = '12'.repeat(32);
+const DIARIZER_SHA256 = '56'.repeat(32);
+const EMBEDDING_SHA256 = '78'.repeat(32);
 const CLAIM_SHA256 = '34'.repeat(32);
 
 interface TestTranscriptReference {
@@ -93,6 +95,29 @@ function request(selectionFence = fence(), text = 'Hello there') {
 					})]),
 					speaker: 'Speaker 1',
 				})]),
+			}),
+		})]),
+	});
+}
+
+function attributedRequest(selectionFence = fence(), text = 'Hello there') {
+	const speech = request(selectionFence, text);
+	const output = speech.outputs[0]!;
+	return Object.freeze({
+		...speech,
+		operation: 'speaker-diarization',
+		models: Object.freeze([
+			Object.freeze({ modelId: 'sherpa-pyannote-segmentation-3.0', version: '1',
+				task: 'speaker-segmentation', artifactSha256s: Object.freeze([DIARIZER_SHA256]) }),
+			Object.freeze({ modelId: 'sherpa-eres2net-base', version: '1',
+				task: 'speaker-embedding', artifactSha256s: Object.freeze([EMBEDDING_SHA256]) }),
+		]),
+		outputs: Object.freeze([Object.freeze({
+			...output,
+			review: Object.freeze({ ...output.review,
+				segments: Object.freeze(output.review.segments.map((segment) => Object.freeze({
+					...segment, speaker: 'Speaker 2',
+				}))),
 			}),
 		})]),
 	});
@@ -286,4 +311,37 @@ test('a rerun replaces its stable reference and owned label track through one co
 	assert.ok(secondAdd?.type === 'track/add');
 	assert.equal(secondAdd.track.id, firstAdd.track.id);
 	assert.equal(secondAdd.track.labels[0]?.title, 'Speaker 1: Changed words');
+});
+
+test('speaker attribution replaces the same transcript body and owned caption track atomically', async () => {
+	const store = new TranscriptStore();
+	let current = authority();
+	const committed: TestAcceptanceCommand[] = [];
+	const acceptance = createLocalAssistanceTranscriptAcceptance({
+		currentAuthority: () => current,
+		captureProject: () => current.fence,
+		assertProject: () => undefined,
+		store,
+		commit: (value) => {
+			const command = value as unknown as TestAcceptanceCommand;
+			committed.push(command);
+			const added = command.commands.find(({ type }) => type === 'track/add');
+			assert.ok(added?.type === 'track/add');
+			current = authority(current.project.revision + 1, [command.reference], [added.track]);
+		},
+	});
+	await acceptance.acceptValidatedResult(request());
+	await acceptance.acceptValidatedResult(attributedRequest(current.fence));
+
+	const [speech, attributed] = committed;
+	assert.ok(speech && attributed);
+	assert.equal(attributed.reference.id, speech.reference.id,
+		'speaker attribution replaces the same digest-bound transcript identity');
+	assert.deepEqual(attributed.commands.map(({ type }) => type), ['track/remove', 'track/add']);
+	const add = attributed.commands[1];
+	assert.ok(add?.type === 'track/add');
+	assert.equal(add.track.labels[0]?.title, 'Speaker 2: Hello there');
+	assert.deepEqual((attributed.reference as unknown as Readonly<{
+		modelArtifactSha256s: readonly string[];
+	}>).modelArtifactSha256s, [DIARIZER_SHA256, EMBEDDING_SHA256].sort());
 });

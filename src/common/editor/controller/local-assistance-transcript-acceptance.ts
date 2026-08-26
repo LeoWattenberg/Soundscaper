@@ -192,16 +192,15 @@ function normalizeRequest(value: unknown): NormalizedAcceptanceRequest {
 	const request = exactRecord(value, [
 		'sourceId', 'operation', 'selectionFence', 'models', 'outputs',
 	], 'local-assistance acceptance request');
-	if (request.operation !== 'speech-recognition') {
-		throw new RangeError('Only reviewed speech recognition can be accepted as a transcript.');
+	if (request.operation !== 'speech-recognition' && request.operation !== 'speaker-diarization') {
+		throw new RangeError('Only reviewed speech or speaker attribution can be accepted as a transcript.');
 	}
 	const fence = validateAssistanceSelectionFence(request.selectionFence);
 	const sourceId = stableId(request.sourceId, 'local-assistance source ID');
 	if (sourceId !== fence.sourceId) {
 		throw new Error('The reviewed transcript source disagrees with its selection fence.');
 	}
-	const models = array(request.models, 1, 1, 'local-assistance accepted models');
-	const model = normalizeModel(models[0]);
+	const model = normalizeModels(request.models, request.operation);
 	const outputs = array(request.outputs, 1, 1, 'local-assistance accepted outputs');
 	const output = exactRecord(outputs[0], ['claim', 'review'], 'local-assistance accepted output');
 	normalizeTranscriptClaim(output.claim);
@@ -213,12 +212,45 @@ function normalizeRequest(value: unknown): NormalizedAcceptanceRequest {
 	});
 }
 
-function normalizeModel(value: unknown): NormalizedAcceptanceRequest['model'] {
+function normalizeModels(
+	value: unknown,
+	operation: 'speech-recognition' | 'speaker-diarization',
+): NormalizedAcceptanceRequest['model'] {
+	const models = array(value, operation === 'speech-recognition' ? 1 : 2,
+		operation === 'speech-recognition' ? 1 : 2, 'local-assistance accepted models')
+		.map(normalizeModel);
+	if (operation === 'speech-recognition') {
+		if (models[0]!.task !== 'speech-recognition') {
+			throw new RangeError('Transcript acceptance requires a speech-recognition model.');
+		}
+		return Object.freeze({ modelId: models[0]!.modelId,
+			artifactSha256s: models[0]!.artifactSha256s });
+	}
+	const byTask = new Map(models.map((model) => [model.task, model]));
+	if (byTask.size !== 2 || !byTask.has('speaker-segmentation')
+		|| !byTask.has('speaker-embedding')) {
+		throw new RangeError('Speaker attribution requires exact segmentation and embedding models.');
+	}
+	const artifacts = models.flatMap(({ artifactSha256s }) => artifactSha256s).sort();
+	if (new Set(artifacts).size !== artifacts.length) {
+		throw new RangeError('Speaker attribution model artifact digests must be unique.');
+	}
+	return Object.freeze({ modelId: byTask.get('speaker-segmentation')!.modelId,
+		artifactSha256s: Object.freeze(artifacts) });
+}
+
+function normalizeModel(value: unknown): Readonly<{
+	modelId: string;
+	task: string;
+	artifactSha256s: readonly string[];
+}> {
 	const model = exactRecord(value, [
 		'modelId', 'version', 'task', 'artifactSha256s',
 	], 'local-assistance accepted model');
-	if (model.task !== 'speech-recognition') {
-		throw new RangeError('Transcript acceptance requires a speech-recognition model.');
+	if (typeof model.task !== 'string' || ![
+		'speech-recognition', 'speaker-segmentation', 'speaker-embedding',
+	].includes(model.task)) {
+		throw new RangeError('Transcript acceptance received an unsupported model task.');
 	}
 	const modelId = String(model.modelId);
 	if (!MODEL_ID.test(modelId)) throw new TypeError('The accepted transcript model ID is invalid.');
@@ -232,7 +264,8 @@ function normalizeModel(value: unknown): NormalizedAcceptanceRequest['model'] {
 	if (artifacts.some((candidate, index) => index > 0 && candidate === artifacts[index - 1])) {
 		throw new RangeError('Accepted transcript model artifact digests must be unique.');
 	}
-	return Object.freeze({ modelId, artifactSha256s: Object.freeze(artifacts) });
+	return Object.freeze({ modelId, task: model.task,
+		artifactSha256s: Object.freeze(artifacts) });
 }
 
 function normalizeTranscriptClaim(value: unknown): void {

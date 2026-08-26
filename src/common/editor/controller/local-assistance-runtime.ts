@@ -69,7 +69,10 @@ export function createLocalAssistancePreparationRuntime(
 		currentSelectionFence,
 		acceptValidatedResult: (request) => resultAcceptance.acceptValidatedResult(request),
 		acceptAudioResult: (request, choice) => resultAcceptance.acceptAudioResult(request, choice),
+		acceptCleanupResult: (request) => resultAcceptance.acceptCleanupResult(request),
 		createBeatReviewSession: (request) => resultAcceptance.createBeatReviewSession(request),
+		createReactionReviewSession: (request) =>
+			resultAcceptance.createReactionReviewSession(request),
 	}) : null;
 	const selectedPreparation = createLocalAssistanceSelectedPreparation({
 		...selectedMediaDependencies,

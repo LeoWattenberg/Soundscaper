@@ -204,9 +204,126 @@ test('Guided beats and cuts pass only explicitly selected proposal identities', 
 	]);
 });
 
+test('Guided cleanup passes only explicitly selected reviewed proposals to atomic publication', async () => {
+	const workflow = workflowFixture('clean-filler-silence', {
+		stageIds: ['detect-speech', 'propose-cleanup'],
+		models: [model('detect-speech', 'vad', 'silero-vad-v6', '6.2.1')],
+		inputs: [claim('input', 'detect-speech', 'audio', 1),
+			claim('input', 'propose-cleanup', 'voice-activity', 2)],
+		outputs: [claim('output', 'detect-speech', 'voice-activity', 3),
+			claim('output', 'propose-cleanup', 'cleanup-proposals', 4)],
+	});
+	const cleanup = { schemaVersion: 1, kind: 'cleanup-proposals', preset: 'balanced',
+		proposals: [
+			{ id: 'filler-100-200', kind: 'filler', startFrame: 100, endFrame: 200,
+				text: 'um', selected: false },
+			{ id: 'silence-400-800', kind: 'silence', startFrame: 400, endFrame: 800,
+				text: '', selected: false },
+		] };
+	const requests: unknown[] = [];
+	const adapter = createLocalAssistanceGuidedResultAcceptance({
+		currentSelectionFence: () => primitiveFence(workflow),
+		acceptCleanupResult: async (request) => { requests.push(request); },
+	});
+	const ready = adapter.createAcceptanceSession({ workflow, reviewedResult: reviewed(workflow,
+		[terminalOutput(workflow, 'propose-cleanup', 'cleanup-proposals', cleanup)],
+		cleanup.proposals.map(({ id }) => ({ id, kind: 'cleanup', label: id }))) });
+	assert.equal(ready.outcome, 'ready');
+	if (ready.outcome !== 'ready') return;
+	await ready.session.accept(['silence-400-800']);
+	assert.deepEqual(requests, [{ selectionFence: primitiveFence(workflow), result: cleanup,
+		selectedProposalIds: ['silence-400-800'] }]);
+});
+
+test('Guided speaker attribution replaces the transcript through exact diarization bindings', async () => {
+	const workflow = workflowFixture('identify-speakers', {
+		stageIds: ['diarize-speakers', 'attribute-speakers'],
+		models: [
+			model('diarize-speakers', 'diarizer', 'sherpa-pyannote-segmentation-3.0', '1'),
+			model('diarize-speakers', 'speaker-embedding', 'sherpa-eres2net-base', '1'),
+		],
+		inputs: [claim('input', 'diarize-speakers', 'audio', 1),
+			claim('input', 'attribute-speakers', 'transcript', 2),
+			claim('input', 'attribute-speakers', 'speaker-turns', 3)],
+		outputs: [claim('output', 'diarize-speakers', 'speaker-turns', 4),
+			claim('output', 'attribute-speakers', 'attributed-transcript', 5)],
+		sourceStartFrame: 48_000, sourceEndFrame: 144_000,
+	});
+	const transcript = { schemaVersion: 1, sourceId: 'source-a', sampleRate: 48_000,
+		language: 'en', modelId: 'parakeet-tdt-0.6b-v3', segments: [{
+			startFrame: 48_000, endFrame: 72_000, text: 'Hello', speaker: 'Speaker 1',
+			words: [{ text: 'Hello', startFrame: 48_000, endFrame: 72_000, confidence: 0.9 }],
+		}] };
+	const requests: unknown[] = [];
+	const adapter = createLocalAssistanceGuidedResultAcceptance({
+		currentSelectionFence: () => primitiveFence(workflow),
+		acceptValidatedResult: async (request) => { requests.push(request); },
+	});
+	const ready = adapter.createAcceptanceSession({ workflow, reviewedResult: reviewed(workflow,
+		[terminalOutput(workflow, 'attribute-speakers', 'attributed-transcript', transcript)],
+		[{ id: 'attributed-transcript', kind: 'transcript', label: 'Attributed transcript' }]) });
+	assert.equal(ready.outcome, 'ready');
+	if (ready.outcome !== 'ready') return;
+	await ready.session.accept(['attributed-transcript']);
+	const request = requests[0] as Record<string, unknown>;
+	assert.equal(request.operation, 'speaker-diarization');
+	assert.deepEqual(request.models, [
+		{ modelId: 'sherpa-pyannote-segmentation-3.0', version: '1',
+			task: 'speaker-segmentation', artifactSha256s: [MODEL_SHA256] },
+		{ modelId: 'sherpa-eres2net-base', version: '1', task: 'speaker-embedding',
+			artifactSha256s: [MODEL_SHA256] },
+	]);
+	const output = (request.outputs as readonly Record<string, unknown>[])[0]!;
+	assert.deepEqual((output.review as Record<string, unknown>).segments, [{
+		startSeconds: 0, endSeconds: 0.5, text: 'Hello', speaker: 'Speaker 1',
+		words: [{ text: 'Hello', startSeconds: 0, endSeconds: 0.5, confidence: 0.9 }],
+	}]);
+});
+
+test('Guided reactions reproduce reviewed merged ranges through the owned reaction publisher', async () => {
+	const workflow = workflowFixture('mark-reactions', {
+		stageIds: ['tag-reactions', 'merge-reaction-ranges'],
+		models: [model('tag-reactions', 'audio-tagger', 'panns-cnn10', '1.0.0')],
+		inputs: [claim('input', 'tag-reactions', 'audio', 1),
+			claim('input', 'merge-reaction-ranges', 'audio-tags', 2)],
+		outputs: [claim('output', 'tag-reactions', 'audio-tags', 3),
+			claim('output', 'merge-reaction-ranges', 'reaction-ranges', 4)],
+	});
+	const reactions = { schemaVersion: 1, kind: 'reaction-ranges', sampleRate: 32_000,
+		threshold: 0.5, ranges: [{ id: 'reaction:laughter:0:96000', kind: 'reaction',
+			label: 'Laughter', startSample: 0, endSample: 96_000, score: 0.75,
+			selected: false }] };
+	const accepted: string[][] = [];
+	let reactionRequest: unknown;
+	const adapter = createLocalAssistanceGuidedResultAcceptance({
+		currentSelectionFence: () => primitiveFence(workflow),
+		createReactionReviewSession: (request) => {
+			reactionRequest = request;
+			return fakeBeatSession(accepted);
+		},
+	});
+	const ready = adapter.createAcceptanceSession({ workflow, reviewedResult: reviewed(workflow,
+		[terminalOutput(workflow, 'merge-reaction-ranges', 'reaction-ranges', reactions)],
+		[{ id: reactions.ranges[0]!.id, kind: 'reaction', label: 'Reaction range 1' }]) });
+	assert.equal(ready.outcome, 'ready');
+	if (ready.outcome !== 'ready') return;
+	await ready.session.accept([reactions.ranges[0]!.id]);
+	assert.deepEqual(accepted, [[reactions.ranges[0]!.id]]);
+	const request = reactionRequest as Record<string, unknown>;
+	assert.equal(request.operation, 'audio-tagging');
+	assert.deepEqual(request.models, [{ modelId: 'panns-cnn10', version: '1.0.0',
+		task: 'audio-tagging', artifactSha256s: [MODEL_SHA256] }]);
+	const output = (request.outputs as readonly Record<string, unknown>[])[0]!;
+	assert.deepEqual((output.review as Record<string, unknown>).windows, [
+		{ startSample: 0, scores: { laughter: 0.75, applause: 0, cheering: 0 } },
+		{ startSample: 32_000, scores: { laughter: 0.75, applause: 0, cheering: 0 } },
+		{ startSample: 64_000, scores: { laughter: 0.75, applause: 0, cheering: 0 } },
+	]);
+});
+
 test('Guided acceptance reports unsupported workflow and missing-port states without inventing edits', () => {
 	const unsupportedIds: AssistanceGuidedWorkflowId[] = [
-		'clean-filler-silence', 'identify-speakers', 'mark-reactions', 'index-transcript',
+		'index-transcript',
 		'index-video', 'reframe', 'make-highlights', 'generate-editorial-text',
 	];
 	for (const workflowId of unsupportedIds) {

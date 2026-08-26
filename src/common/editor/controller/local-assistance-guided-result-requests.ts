@@ -9,8 +9,10 @@ import type {
 	AssistanceBeatLabelsV1,
 	AssistanceCaptionsV1,
 	AssistanceCutProposalsV1,
+	AssistanceReactionRangesV1,
 	AssistanceTempoMapDiffV1,
 } from '../assistance/owned-audio-cut-transform-types-v1.ts';
+import type { AssistanceTranscript } from '../assistance/transcript.ts';
 import {
 	AssistanceProposalStaleError,
 	type AssistanceSelectionFence,
@@ -75,6 +77,80 @@ export function createGuidedTranscriptAcceptanceRequest(
 			claim: adaptedClaim(workflow, semantic, 'transcript',
 				'application/vnd.soundscaper.transcript+json'), review: semantic,
 		})]),
+	});
+}
+
+export function createGuidedAttributedTranscriptAcceptanceRequest(
+	workflow: AssistanceWorkflowV1,
+	fence: AssistanceSelectionFence,
+	outputs: ReadonlyMap<string, LocalAssistanceGuidedAdaptedOutput>,
+): DataRecord {
+	const transcript = outputs.get('attributed-transcript')!.semantic as AssistanceTranscript;
+	const audioRanges = workflow.fence.sourceRanges.filter(({ mediaKind }) => mediaKind === 'audio');
+	if (audioRanges.length !== 1 || transcript.sourceId !== fence.sourceId
+		|| transcript.sampleRate !== audioRanges[0]!.sourceSampleRate) {
+		throw new AssistanceProposalStaleError();
+	}
+	const seconds = (frame: number): number => {
+		if (frame < fence.sourceStartFrame || frame > fence.sourceEndFrame) {
+			throw new RangeError('An attributed transcript segment exceeds its aggregate source range.');
+		}
+		const result = (frame - fence.sourceStartFrame) / transcript.sampleRate;
+		return Object.is(result, -0) ? 0 : result;
+	};
+	const semantic = Object.freeze({ kind: 'transcript' as const, language: transcript.language,
+		segments: Object.freeze(transcript.segments.map((segment) => Object.freeze({
+			startSeconds: seconds(segment.startFrame), endSeconds: seconds(segment.endFrame),
+			text: segment.text, speaker: segment.speaker,
+			words: Object.freeze(segment.words.map((word) => Object.freeze({
+				text: word.text, startSeconds: seconds(word.startFrame),
+				endSeconds: seconds(word.endFrame), confidence: word.confidence,
+			}))),
+		}))),
+	});
+	return Object.freeze({ sourceId: fence.sourceId, operation: 'speaker-diarization',
+		selectionFence: fence,
+		models: Object.freeze([
+			primitiveModel(modelBinding(workflow, 'diarize-speakers', 'diarizer'),
+				'speaker-segmentation'),
+			primitiveModel(modelBinding(workflow, 'diarize-speakers', 'speaker-embedding'),
+				'speaker-embedding'),
+		]),
+		outputs: Object.freeze([Object.freeze({ claim: adaptedClaim(
+			workflow, semantic, 'transcript', 'application/vnd.soundscaper.transcript+json',
+		), review: semantic })]),
+	});
+}
+
+export function createGuidedReactionAcceptanceRequest(
+	workflow: AssistanceWorkflowV1,
+	fence: AssistanceSelectionFence,
+	outputs: ReadonlyMap<string, LocalAssistanceGuidedAdaptedOutput>,
+): DataRecord {
+	const reactions = outputs.get('reaction-ranges')!.semantic as AssistanceReactionRangesV1;
+	const windows = new Map<number, { laughter: number; applause: number; cheering: number }>();
+	const scoreKey = { Laughter: 'laughter', Applause: 'applause', Cheering: 'cheering' } as const;
+	for (const range of reactions.ranges) {
+		for (let startSample = range.startSample; startSample < range.endSample; startSample += 32_000) {
+			const scores = windows.get(startSample) ?? { laughter: 0, applause: 0, cheering: 0 };
+			const key = scoreKey[range.label];
+			scores[key] = Math.max(scores[key], range.score);
+			windows.set(startSample, scores);
+		}
+	}
+	const semantic = Object.freeze({ schemaVersion: 1, sampleRate: 32_000,
+		windowSamples: 32_000,
+		windows: Object.freeze([...windows].sort(([left], [right]) => left - right)
+			.map(([startSample, scores]) => Object.freeze({ startSample, scores: Object.freeze(scores) }))),
+	});
+	return Object.freeze({ sourceId: fence.sourceId, operation: 'audio-tagging',
+		selectionFence: fence,
+		models: Object.freeze([primitiveModel(modelBinding(
+			workflow, 'tag-reactions', 'audio-tagger'), 'audio-tagging',
+		)]),
+		outputs: Object.freeze([Object.freeze({ claim: adaptedClaim(
+			workflow, semantic, 'audio-tags', 'application/vnd.soundscaper.audio-tags+json',
+		), review: semantic })]),
 	});
 }
 
