@@ -14,12 +14,13 @@ test.describe('shared audio editor dialog behavior', () => {
 
 	test('traps modal focus and supports Escape and outside dismissal', async ({ page }) => {
 		const editor = await bootEditor(page);
-		const restoreTarget = await chooseCommandWithRestoreTarget(page, editor, 'Edit', 'Preferences');
+		const { restoreTarget, queuedFrames } = await chooseCommandWithHeldInitialFocus(page, editor, 'Edit', 'Preferences');
 		let dialog = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
 		await expect(dialog).toBeVisible();
+		expect(queuedFrames).toBeGreaterThan(0);
 
 		const resize = dialog.getByRole('button', { name: 'Resize: Editor preferences', exact: true });
-		await resize.focus();
+		await expect(resize).toBeFocused();
 		await page.keyboard.press('Tab');
 		await expect(dialog.getByRole('button', { name: 'Close', exact: true }).first()).toBeFocused();
 
@@ -116,7 +117,7 @@ async function chooseCommand(page, editor, menuName, commandName) {
 	await page.keyboard.press('Enter');
 }
 
-async function chooseCommandWithRestoreTarget(page, editor, menuName, commandName) {
+async function chooseCommandWithHeldInitialFocus(page, editor, menuName, commandName) {
 	const menubar = editor.getByRole('menubar', { name: 'Application menu', exact: true });
 	const restoreTarget = menubar.getByRole('menuitem', { name: menuName, exact: true });
 	await restoreTarget.click();
@@ -124,7 +125,41 @@ async function chooseCommandWithRestoreTarget(page, editor, menuName, commandNam
 	await expect(menu).toBeVisible();
 	const command = menu.getByRole('menuitem', { name: new RegExp(`^${commandName}(?:\\s|$)`) }).first();
 	await restoreTarget.focus();
-	// A native click preserves a connected focus target for the restoration assertion.
-	await command.evaluate((element) => element.click());
-	return restoreTarget;
+	await page.evaluate(() => {
+		const nativeRequestAnimationFrame = window.requestAnimationFrame;
+		const nativeCancelAnimationFrame = window.cancelAnimationFrame;
+		const heldFrames = new Map();
+		let heldFrameId = -1;
+		window.requestAnimationFrame = (callback) => {
+			const frameId = heldFrameId;
+			heldFrameId -= 1;
+			heldFrames.set(frameId, callback);
+			return frameId;
+		};
+		window.cancelAnimationFrame = (frameId) => {
+			if (frameId < 0) heldFrames.delete(frameId);
+			else nativeCancelAnimationFrame(frameId);
+		};
+		window.__releaseHeldDialogFrames = () => {
+			window.requestAnimationFrame = nativeRequestAnimationFrame;
+			window.cancelAnimationFrame = nativeCancelAnimationFrame;
+			const frames = [...heldFrames.values()];
+			for (const callback of frames) callback(performance.now());
+			delete window.__releaseHeldDialogFrames;
+			return frames.length;
+		};
+	});
+	try {
+		// A native click preserves a connected focus target for the restoration assertion.
+		await command.evaluate((element) => element.click());
+		const resize = page.locator('[role="dialog"] [data-resize-handle]').last();
+		await expect(resize).toBeVisible();
+		await resize.focus();
+		const queuedFrames = await page.evaluate(() => window.__releaseHeldDialogFrames());
+		await expect(resize).toBeFocused();
+		return { restoreTarget, queuedFrames };
+	} catch (error) {
+		await page.evaluate(() => window.__releaseHeldDialogFrames?.());
+		throw error;
+	}
 }
