@@ -40,3 +40,21 @@ test('track and output control panels delegate meters to telemetry leaves', asyn
 	assert.match(meters, /useAudioEditorTelemetrySelector/u);
 	assert.match(meters, /<TrackMeter/u);
 });
+
+test('mixer channel shells delegate high-frequency meters to focused leaves', async () => {
+	const [panel, meters, mixerChannel] = await Promise.all([
+		readFile(new URL('workspace/AudioEditorMixerPanel.jsx', UI), 'utf8'),
+		readFile(new URL('workspace/MixerTelemetryMeters.tsx', UI), 'utf8'),
+		readFile(new URL('../../../../vendor/audacity-design-system/components/src/MixerChannel/MixerChannel.tsx', UI), 'utf8'),
+	]);
+
+	assert.doesNotMatch(panel, /useAudioEditorTelemetrySelector/u);
+	assert.doesNotMatch(panel, /telemetry\.meters/u);
+	assert.match(panel, /meterContent: <MixerTelemetryMeters/u);
+	assert.match(meters, /useAudioEditorTelemetrySelector/u);
+	assert.match(meters, /telemetry\.meters\?\.tracks\?\.\[targetId\]/u);
+	assert.match(meters, /telemetry\.meters\?\.master/u);
+	assert.match(meters, /telemetry\.meters\?\.\[`\$\{scope\}s`\]\?\.\[targetId\]/u);
+	assert.match(mixerChannel, /meterContent\?: React\.ReactNode;/u);
+	assert.match(mixerChannel, /meterContent !== undefined \? meterContent/u);
+});

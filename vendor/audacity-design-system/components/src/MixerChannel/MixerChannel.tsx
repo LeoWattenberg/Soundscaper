@@ -68,6 +68,8 @@ export interface MixerChannelProps {
    * @default 0
    */
   meterRight?: number;
+  /** Optional live meter content rendered in place of the built-in meter bars. */
+  meterContent?: React.ReactNode;
   /**
    * Callbacks
    */
@@ -129,6 +131,7 @@ export const MixerChannel: React.FC<MixerChannelProps> = ({
   soloed = false,
   meterLeft = 0,
   meterRight = 0,
+  meterContent,
   onVolumeChange,
   onVolumeChangeEnd,
   onPanChange,
@@ -258,7 +261,7 @@ export const MixerChannel: React.FC<MixerChannelProps> = ({
           {/* Meters + right ruler */}
           <div className="mixer-channel__meter-section">
             <div className="mixer-channel__meters">
-              {variant === 'stereo' ? (
+              {meterContent !== undefined ? meterContent : variant === 'stereo' ? (
                 <>
                   <MeterBar level={meterLeft} theme={theme} />
                   <MeterBar level={meterRight} theme={theme} />

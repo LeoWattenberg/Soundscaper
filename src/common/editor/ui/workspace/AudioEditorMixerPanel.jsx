@@ -3,7 +3,6 @@ import { Button } from '@soundscaper/design-system/Button';
 import { Knob } from '@soundscaper/design-system/Knob';
 import { MixerPanel } from '@soundscaper/design-system/MixerPanel';
 
-import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import RecordingInputSelectors from '../RecordingInputSelectors.jsx';
 import { rackEffectLabel } from '../dialogs/editor-dialog-model.js';
 import {
@@ -15,9 +14,9 @@ import {
 	mixerAudibilityAuthority,
 	removableMixerBuses,
 } from './mixer-panel-model.ts';
+import { MixerTelemetryMeters } from './MixerTelemetryMeters.tsx';
 
 export default function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControls, displayAudioSupported, onOpenEffects }) {
-	const meters = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.meters);
 	const project = snapshot.project;
 	const tracks = (project?.tracks || []).filter((track) => track.type === 'audio');
 	const groups = project?.mixer?.groups || [];
@@ -51,7 +50,6 @@ export default function AudioEditorMixerPanel({ controller, snapshot, copy, run,
 		const isMaster = type === 'master';
 		const targetId = channel.id || 'master';
 		const scope = isTrack ? 'track' : type;
-		const meter = isMaster ? meters?.master : meters?.[`${type}s`]?.[targetId];
 		const folderOwned = mixerAudibilityAuthority(type, targetId, folderBusIds) === 'folder';
 		const update = (changes) => {
 			if (isTrack) return controller.actions.track.update(targetId, changes);
@@ -75,8 +73,7 @@ export default function AudioEditorMixerPanel({ controller, snapshot, copy, run,
 			pan: Math.round((channel.pan || 0) * 100),
 			muted: Boolean(channel.mute),
 			soloed: Boolean(channel.solo),
-			meterLeft: mixerMeterPercent(meter),
-			meterRight: mixerMeterPercent(meter),
+			meterContent: <MixerTelemetryMeters controller={controller} scope={type} targetId={targetId} />,
 			effects: effectProps(channel.effects, scope, targetId),
 			onVolumeChange: (value) => run(() => busUpdate({ gain: mixerDbToLinearGain(value) })),
 			onPanChange: (value) => run(() => busUpdate({ pan: Math.max(-1, Math.min(1, Number(value) / 100)) })),
@@ -210,11 +207,6 @@ function linearMixerGainToDb(gain, floor = -60) {
 function mixerDbToLinearGain(db, offValue = Number.NEGATIVE_INFINITY) {
 	const value = Number(db);
 	return value <= offValue ? 0 : Math.min(4, 10 ** (value / 20));
-}
-
-function mixerMeterPercent(meter) {
-	const db = Number(meter?.dbfs);
-	return Number.isFinite(db) ? Math.max(0, Math.min(100, (db + 60) / 60 * 100)) : 0;
 }
 
 function mixerChannelColor(color, type) {
