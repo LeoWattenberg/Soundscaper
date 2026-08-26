@@ -71,10 +71,10 @@ function waitForDocumentLoad(): Promise<void> {
 
 function waitForEditorReadiness(): Promise<void> {
 	const root = globalThis.document?.getElementById('app');
-	if (!root || root.querySelector('[data-audio-editor-bound], [role="alert"]')) return Promise.resolve();
+	if (!root || root.querySelector('[data-audio-editor-bound="true"], [role="alert"]')) return Promise.resolve();
 	return new Promise((resolve) => {
 		const observer = new MutationObserver(() => {
-			if (!root.querySelector('[data-audio-editor-bound], [role="alert"]')) return;
+			if (!root.querySelector('[data-audio-editor-bound="true"], [role="alert"]')) return;
 			observer.disconnect();
 			resolve();
 		});

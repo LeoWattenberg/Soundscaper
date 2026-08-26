@@ -97,7 +97,6 @@ function productInstallUrls({ assets, buildManifest, productId, worker }) {
 	const entryKey = Object.keys(buildManifest).find((key) => buildManifest[key]?.isEntry === true);
 	if (!entryKey) throw new Error('Offline build manifest has no application entry.');
 	const urls = new Set([
-		'/',
 		worker.fallbacks.standard,
 		worker.fallbacks.embedded,
 		`/manifest-${productId}.webmanifest`,
@@ -105,6 +104,7 @@ function productInstallUrls({ assets, buildManifest, productId, worker }) {
 		`/offline-icons/${productId}-192.png`,
 		`/offline-icons/${productId}-512.png`,
 	]);
+	if (productId === 'soundscaper') urls.add('/');
 	for (const logo of productId === 'framescaper'
 		? ['/logo/framescaper-icon.svg']
 		: ['/logo/logo-klein-schwarz.svg', '/logo/logo-klein-weiß.svg']) urls.add(logo);

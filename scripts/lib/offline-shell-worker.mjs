@@ -343,7 +343,8 @@ export async function handleApplicationShellFetch({
 }) {
 	if (request.method !== 'GET') return null;
 	const requestUrl = new URL(request.url);
-	if (requestUrl.origin !== origin || !pathBelongsToProduct(requestUrl.pathname, configuration.productId)) return null;
+	if (requestUrl.origin !== origin) return null;
+	if (request.mode === 'navigate' && !pathBelongsToProduct(requestUrl.pathname, configuration.productId)) return null;
 	const descriptors = new Map(configuration.assets.map((asset) => [asset.url, asset]));
 	const descriptor = descriptors.get(requestUrl.pathname);
 	const cache = await cacheStorage.open(shellCacheName(configuration.productId, configuration.releaseId));

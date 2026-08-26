@@ -232,6 +232,55 @@ test('an allowlisted optional asset is verified once, cached on use, and never r
 	);
 });
 
+test('the scoped Framescaper worker verifies shared allowlisted assets outside its navigation scope', async () => {
+	const optional = asset('/assets/framescaper-optional.js', 'framescaper optional');
+	const routes = [
+		asset('/framescaper/embed/en/', 'framescaper embedded shell'),
+		asset('/framescaper/en/', 'framescaper shell'),
+	];
+	const configuration = shellConfiguration('c', [optional, ...routes], {
+		productId: 'framescaper',
+		scope: '/framescaper/',
+		fallbacks: {
+			standard: '/framescaper/en/',
+			embedded: '/framescaper/embed/en/',
+		},
+		installUrls: [
+			'/assets/application.js',
+			'/framescaper/embed/en/',
+			'/framescaper/en/',
+		],
+	});
+	const contents = new Map([
+		['/assets/application.js', 'application code'],
+		['/assets/framescaper-optional.js', 'framescaper optional'],
+		['/framescaper/embed/en/', 'framescaper embedded shell'],
+		['/framescaper/en/', 'framescaper shell'],
+	]);
+	const cacheStorage = new MemoryCacheStorage();
+	await installOfflineShell({
+		configuration,
+		cacheStorage,
+		fetchImpl: async (url) => response(contents.get(url)),
+	});
+	const first = await handleOfflineShellFetch({
+		configuration,
+		cacheStorage,
+		fetchImpl: async () => response('framescaper optional'),
+		request: new Request('https://soundscaper.org/assets/framescaper-optional.js'),
+		origin: 'https://soundscaper.org',
+	});
+	assert.equal(await first.text(), 'framescaper optional');
+	const cached = await handleOfflineShellFetch({
+		configuration,
+		cacheStorage,
+		fetchImpl: async () => { throw new TypeError('offline'); },
+		request: new Request('https://soundscaper.org/assets/framescaper-optional.js'),
+		origin: 'https://soundscaper.org',
+	});
+	assert.equal(await cached.text(), 'framescaper optional');
+});
+
 test('fetches use only the verified shell allowlist and state-committed runtime caches', async () => {
 	const cacheStorage = new MemoryCacheStorage();
 	const configuration = shellConfiguration('9');
