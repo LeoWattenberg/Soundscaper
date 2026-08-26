@@ -17,7 +17,10 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, open, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
+import { verifyMirroredArtifact } from './local-model-mirror-publication.mjs';
 import { R2Client } from './r2-client.mjs';
+
+export { verifyMirroredArtifact } from './local-model-mirror-publication.mjs';
 
 const SHA256_PATTERN = /^[a-f\d]{64}$/u;
 const MAX_ARTIFACT_BYTES = 8 * 1024 ** 3;
@@ -462,7 +465,7 @@ export async function mirrorLocalModel({
 	modelId,
 	stagingRoot,
 	fetchImpl = fetch,
-	publicFetchImpl,
+	publicFetchImpl = fetch,
 	publish = false,
 	execute,
 	onProgress,
@@ -506,47 +509,11 @@ export async function mirrorLocalModel({
 		await verifyMirroredArtifact({
 			url,
 			artifact,
-			fetchImpl: publicFetchImpl ?? fetchImpl,
+			fetchImpl: publicFetchImpl,
 			signal,
 		});
 	}
 	return Object.freeze({ modelId, published: true, artifacts: Object.freeze(artifacts), staged });
-}
-
-/**
- * Streams a mirrored artifact back from the public URL and hashes it.
- *
- * A successful upload is not proof that the object serves correctly: the CDN
- * in front of it could transform, truncate, or serve a stale body. Reading the
- * bytes a user would actually receive is the only check that covers that, and
- * it streams rather than buffers so a multi-hundred-megabyte model does not
- * have to fit in memory to be verified.
- */
-export async function verifyMirroredArtifact({ url, artifact, fetchImpl = fetch, signal }) {
-	throwIfAborted(signal);
-	const response = await fetchImpl(url, {
-		cache: 'no-store',
-		credentials: 'omit',
-		headers: { 'Cache-Control': 'no-cache' },
-		redirect: 'error',
-		signal,
-	});
-	assert(response.status === 200, `${url} returned HTTP ${response.status}`);
-	assert(response.body, `${url} returned no body`);
-	const hash = createHash('sha256');
-	let bytes = 0;
-	for await (const chunk of response.body) {
-		throwIfAborted(signal);
-		bytes += chunk.byteLength;
-		assert(bytes <= artifact.byteLength,
-			`${url} served more than the recorded ${artifact.byteLength} bytes`);
-		hash.update(chunk);
-	}
-	assert(bytes === artifact.byteLength,
-		`${url} served ${bytes} bytes, not the recorded ${artifact.byteLength}`);
-	const digest = hash.digest('hex');
-	assert(digest === artifact.sha256, `${url} served ${digest}, not the recorded ${artifact.sha256}`);
-	return Object.freeze({ url, byteLength: bytes, sha256: digest });
 }
 
 /** Writes proved artifacts back into the catalog without touching anything else. */

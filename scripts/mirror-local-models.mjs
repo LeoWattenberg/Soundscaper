@@ -12,8 +12,12 @@
  * users, so it happens only with an explicit --publish, and --write-catalog
  * records the artifacts the run actually proved.
  *
- * Publishing needs wrangler authenticated against the Cloudflare account that
- * owns the bucket named in config/local-model-catalog.json.
+ * Publishing reads R2_MODELS_* S3 credentials from the process environment.
+ * The token is provisioned outside this repository with Object Read & Write
+ * access scoped only to the cataloged bucket, and its endpoint must name that
+ * bucket's EU jurisdiction. This command never reads a catalog signing key:
+ * after its public HEAD, Range, CORS, and full-digest checks pass, the changed
+ * catalog is handed to the repository-external signer.
  */
 
 import { readFile, writeFile } from 'node:fs/promises';
@@ -150,7 +154,7 @@ async function main() {
 	if (options.writeCatalog) {
 		await writeFile(catalogPath, serializeCatalog(catalog), 'utf8');
 		process.stdout.write(`\nRecorded mirrored artifacts in ${catalogPath}\n`);
-		process.stdout.write('Review the diff, then run the licensing and catalog tests.\n');
+		process.stdout.write('Externally re-sign the catalog, review the diff, then run its gates.\n');
 	}
 }
 

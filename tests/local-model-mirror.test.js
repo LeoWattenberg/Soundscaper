@@ -15,6 +15,7 @@ import {
 	mirrorLocalModel,
 	mirrorLocation,
 	uploadImmutableR2File,
+	verifyMirroredArtifact,
 } from '../scripts/lib/local-model-mirror.mjs';
 
 const EVIDENCE = Object.freeze([
@@ -60,6 +61,30 @@ function stubFetch(body, status = 200) {
 			if (body !== null) yield new Uint8Array(Buffer.from(body));
 		})(),
 	});
+}
+
+function publicArtifactFetch(body = PAYLOAD, observe = () => undefined) {
+	const bytes = Buffer.from(body);
+	return async (url, init = {}) => {
+		const requestHeaders = new Headers(init.headers);
+		const method = init.method ?? 'GET';
+		const range = requestHeaders.get('Range');
+		observe({ url: String(url), method, range });
+		const headers = {
+			'Accept-Ranges': 'bytes',
+			'Access-Control-Allow-Origin': requestHeaders.get('Origin') ?? '*',
+			'Access-Control-Expose-Headers': 'Content-Length, Content-Range, ETag',
+			'Content-Length': String(range ? 1 : bytes.byteLength),
+		};
+		if (method === 'HEAD') return new Response(null, { status: 200, headers });
+		if (range === 'bytes=0-0') {
+			return new Response(bytes.subarray(0, 1), {
+				status: 206,
+				headers: { ...headers, 'Content-Range': `bytes 0-0/${String(bytes.byteLength)}` },
+			});
+		}
+		return new Response(bytes, { status: 200, headers });
+	};
 }
 
 async function staging(t) {
@@ -219,6 +244,7 @@ test('publishing uploads every verified artifact to its versioned key', { timeou
 		modelId: 'silero-vad-v6',
 		stagingRoot,
 		fetchImpl: stubFetch(PAYLOAD),
+		publicFetchImpl: publicArtifactFetch(),
 		publish: true,
 		execute: (command) => {
 			uploads.push({
@@ -243,16 +269,16 @@ test('publishing uploads every verified artifact to its versioned key', { timeou
 test('publishing performs a full public digest readback before reporting success', { timeout: 20_000 }, async (t) => {
 	const stagingRoot = await staging(t);
 	const events = [];
+	const publicFetchImpl = publicArtifactFetch(PAYLOAD, ({ url, method, range }) => {
+		events.push(`readback:${method}:${range ?? 'full'}:${url}`);
+	});
 	const result = await mirrorLocalModel({
 		catalog: CATALOG,
 		evidence: EVIDENCE,
 		modelId: 'silero-vad-v6',
 		stagingRoot,
 		fetchImpl: stubFetch(PAYLOAD),
-		publicFetchImpl: async (url) => {
-			events.push(`readback:${url}`);
-			return stubFetch(PAYLOAD)();
-		},
+		publicFetchImpl,
 		publish: true,
 		execute: async ({ key }) => {
 			events.push(`upload:${key}`);
@@ -263,7 +289,9 @@ test('publishing performs a full public digest readback before reporting success
 	assert.equal(result.published, true);
 	assert.deepEqual(events, [
 		'upload:models/silero-vad-v6/6.2.1/silero_vad.onnx',
-		'readback:https://assets.soundscaper.org/models/silero-vad-v6/6.2.1/silero_vad.onnx',
+		'readback:HEAD:full:https://assets.soundscaper.org/models/silero-vad-v6/6.2.1/silero_vad.onnx',
+		'readback:GET:bytes=0-0:https://assets.soundscaper.org/models/silero-vad-v6/6.2.1/silero_vad.onnx',
+		'readback:GET:full:https://assets.soundscaper.org/models/silero-vad-v6/6.2.1/silero_vad.onnx',
 	]);
 
 	await assert.rejects(
@@ -273,11 +301,41 @@ test('publishing performs a full public digest readback before reporting success
 			modelId: 'silero-vad-v6',
 			stagingRoot,
 			fetchImpl: stubFetch(PAYLOAD),
-			publicFetchImpl: stubFetch('silero weightz'),
+			publicFetchImpl: publicArtifactFetch('silero weightz'),
 			publish: true,
 			execute: async () => ({ status: 0 }),
 		}),
 		/served .*, not the recorded/iu,
+	);
+});
+
+test('public mirror verification proves HEAD, Range and browser CORS before success', async () => {
+	const requests = [];
+	const artifact = { byteLength: Buffer.byteLength(PAYLOAD), sha256: DIGEST };
+	const url = 'https://assets.soundscaper.org/models/example/1.0.0/model.onnx';
+
+	assert.deepEqual(await verifyMirroredArtifact({
+		url,
+		artifact,
+		fetchImpl: publicArtifactFetch(PAYLOAD, (request) => requests.push(request)),
+	}), { url, byteLength: artifact.byteLength, sha256: artifact.sha256 });
+	assert.deepEqual(requests.map(({ method, range }) => [method, range]), [
+		['HEAD', null],
+		['GET', 'bytes=0-0'],
+		['GET', null],
+	]);
+
+	await assert.rejects(
+		verifyMirroredArtifact({
+			url,
+			artifact,
+			fetchImpl: async (requestUrl, init) => {
+				const response = await publicArtifactFetch()(requestUrl, init);
+				response.headers.delete('Access-Control-Allow-Origin');
+				return response;
+			},
+		}),
+		/CORS.*does not allow/iu,
 	);
 });
 
