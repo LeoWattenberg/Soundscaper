@@ -36,6 +36,38 @@
 	padding-top: 0.5rem;
 }
 
+.kw-local-assistance__guided-settings-controls {
+	display: grid;
+	gap: 0.75rem;
+}
+
+.kw-local-assistance__guided-settings-controls > label {
+	display: grid;
+	gap: 0.25rem;
+}
+
+.kw-local-assistance__guided-settings-controls input[type='number'],
+.kw-local-assistance__guided-settings-controls select {
+	width: 100%;
+}
+
+.kw-local-assistance__guided-settings-controls p {
+	margin: 0;
+}
+
+.kw-local-assistance__guided-checkbox,
+.kw-local-assistance__guided-mode label {
+	align-items: center;
+	display: flex !important;
+	gap: 0.4rem !important;
+}
+
+.kw-local-assistance__guided-mode,
+.kw-local-assistance__guided-fields {
+	display: grid;
+	gap: 0.5rem;
+}
+
 .kw-local-assistance__selections {
 	display: grid;
 	gap: 0.75rem;

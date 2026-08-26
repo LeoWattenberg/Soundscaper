@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { ASSISTANCE_OPERATIONS, type AssistanceOperation } from '../../assistance/operation.ts';
 import type { LocalAssistanceShotDetectionMode } from '../../assistance/shot-detection-mode.ts';
 import type { AssistanceGuidedWorkflowId } from '../../assistance/workflow-recipes.ts';
+import type { AssistanceWorkflowSettingsV1 } from '../../assistance/workflow-settings-v1.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import LocalAssistanceCleanupReview from './LocalAssistanceCleanupReview.tsx';
 import LocalAssistanceGuidedPanel from './LocalAssistanceGuidedPanel.tsx';
@@ -44,6 +45,7 @@ export interface LocalAssistanceDialogViewProps {
 	readonly onClose: () => void;
 	readonly onSurfaceChange?: (surface: LocalAssistanceDialogSurface) => unknown;
 	readonly onSelectWorkflow?: (workflowId: AssistanceGuidedWorkflowId) => unknown;
+	readonly onGuidedSettingsChange?: (settings: AssistanceWorkflowSettingsV1) => unknown;
 	readonly onRunGuided?: () => unknown;
 	readonly onCancelGuided?: () => unknown;
 	readonly onSelectSource: (sourceId: string) => unknown;
@@ -89,6 +91,7 @@ export default function LocalAssistanceDialog({
 		onClose={onClose}
 		onSurfaceChange={guidedStore.selectSurface}
 		onSelectWorkflow={guidedStore.selectWorkflow}
+		onGuidedSettingsChange={guidedStore.setSettings}
 		onRunGuided={() => guidedStore.run()}
 		onCancelGuided={() => guidedStore.cancel()}
 		onSelectSource={store.selectSource}
@@ -116,6 +119,7 @@ export function LocalAssistanceDialogView({
 	copy, snapshot, guided = INITIAL_LOCAL_ASSISTANCE_GUIDED_SNAPSHOT,
 	surface, reviewOpen = false, onClose,
 	onSurfaceChange = () => undefined, onSelectWorkflow = () => undefined,
+	onGuidedSettingsChange = () => undefined,
 	onRunGuided = () => undefined, onCancelGuided = () => undefined,
 	onSelectSource, onSelectOperation,
 	onShotDetectionModeChange = () => undefined, onSelectModel,
@@ -168,7 +172,8 @@ export function LocalAssistanceDialogView({
 				}}>{text(copy, 'localAssistanceAdvanced', 'Advanced')}</button>
 		</div>
 		{activeSurface === 'guided' && <LocalAssistanceGuidedPanel copy={copy} snapshot={guided}
-			onSelectWorkflow={onSelectWorkflow} onRun={onRunGuided} onCancel={onCancelGuided} />}
+			onSelectWorkflow={onSelectWorkflow} onSettingsChange={onGuidedSettingsChange}
+			onRun={onRunGuided} onCancel={onCancelGuided} />}
 		{activeSurface === 'advanced' && <section id="local-assistance-advanced-panel"
 			className="kw-local-assistance__advanced" role="tabpanel"
 			aria-label={text(copy, 'localAssistanceAdvanced', 'Advanced')}>

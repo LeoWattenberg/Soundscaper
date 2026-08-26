@@ -7,9 +7,11 @@ import {
 	type AssistanceGuidedWorkflowId,
 } from '../../assistance/workflow-recipes.ts';
 import { serializeAssistanceWorkflowSettingsV1 } from '../../assistance/workflow-settings-v1.ts';
+import type { AssistanceWorkflowSettingsV1 } from '../../assistance/workflow-settings-v1.ts';
 import type {
 	LocalAssistanceGuidedSnapshot,
 } from '../local-assistance-guided-session-store.ts';
+import LocalAssistanceGuidedSettings from './LocalAssistanceGuidedSettings.tsx';
 
 type Copy = Readonly<Record<string, string | undefined>>;
 
@@ -17,6 +19,7 @@ export interface LocalAssistanceGuidedPanelProps {
 	readonly copy: Copy;
 	readonly snapshot: LocalAssistanceGuidedSnapshot;
 	readonly onSelectWorkflow: (workflowId: AssistanceGuidedWorkflowId) => unknown;
+	readonly onSettingsChange: (settings: AssistanceWorkflowSettingsV1) => unknown;
 	readonly onRun: () => unknown;
 	readonly onCancel: () => unknown;
 }
@@ -38,7 +41,7 @@ const LABELS: Readonly<Record<AssistanceGuidedWorkflowId, string>> = Object.free
 });
 
 export default function LocalAssistanceGuidedPanel({
-	copy, snapshot, onSelectWorkflow, onRun, onCancel,
+	copy, snapshot, onSelectWorkflow, onSettingsChange, onRun, onCancel,
 }: LocalAssistanceGuidedPanelProps) {
 	const graph = snapshot.selectedWorkflowId
 		? assistanceWorkflowStageGraph(snapshot.selectedWorkflowId) : null;
@@ -65,10 +68,14 @@ export default function LocalAssistanceGuidedPanel({
 					'localAssistanceOptional', 'optional')}`}
 			</li>)}</ol>
 		</div>}
-		{snapshot.settings && <details className="kw-local-assistance__guided-settings">
-			<summary>{text(copy, 'localAssistanceDefaultSettings', 'Default settings')}</summary>
-			<code>{serializeAssistanceWorkflowSettingsV1(snapshot.settings)}</code>
-		</details>}
+		{snapshot.settings && <>
+			<LocalAssistanceGuidedSettings copy={copy} settings={snapshot.settings}
+				disabled={snapshot.canCancel} onChange={onSettingsChange} />
+			<details className="kw-local-assistance__guided-settings">
+				<summary>{text(copy, 'localAssistanceExactSettings', 'Exact settings')}</summary>
+				<code>{serializeAssistanceWorkflowSettingsV1(snapshot.settings)}</code>
+			</details>
+		</>}
 		<div className="kw-local-assistance__run-actions">
 			<button type="button" disabled={!snapshot.canRun} onClick={() => { void onRun(); }}>
 				{text(copy, 'localAssistanceRunGuided', 'Run Guided workflow')}

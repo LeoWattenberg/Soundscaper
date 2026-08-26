@@ -59,6 +59,7 @@ export interface LocalAssistanceGuidedSessionStore {
 	subscribe(listener: () => void): () => void;
 	selectSurface(surface: LocalAssistanceDialogSurface): void;
 	selectWorkflow(workflowId: AssistanceGuidedWorkflowId): void;
+	setSettings(settings: AssistanceWorkflowSettingsV1): void;
 	run(): Promise<void>;
 	cancel(): Promise<void>;
 	dispose(): Promise<void>;
@@ -112,6 +113,18 @@ export function createLocalAssistanceGuidedSessionStore(
 		const unavailableReason = availability(options);
 		update({ selectedWorkflowId: selected, settings,
 			phase: unavailableReason ? 'unavailable' : 'ready', unavailableReason,
+			progress: null, result: null, error: null });
+	};
+	const setSettings = (settingsValue: AssistanceWorkflowSettingsV1): void => {
+		if (snapshot.canCancel) throw new Error('The active Guided workflow settings are immutable.');
+		if (snapshot.selectedWorkflowId === null) {
+			throw new Error('Choose a Guided workflow before changing its settings.');
+		}
+		const settings = validateAssistanceWorkflowSettingsV1(
+			settingsValue, snapshot.selectedWorkflowId,
+		);
+		const unavailableReason = availability(options);
+		update({ settings, phase: unavailableReason ? 'unavailable' : 'ready', unavailableReason,
 			progress: null, result: null, error: null });
 	};
 
@@ -226,7 +239,7 @@ export function createLocalAssistanceGuidedSessionStore(
 	return Object.freeze({
 		getSnapshot: () => snapshot,
 		subscribe(listener: () => void) { listeners.add(listener); return () => listeners.delete(listener); },
-		selectSurface, selectWorkflow, run, cancel, dispose,
+		selectSurface, selectWorkflow, setSettings, run, cancel, dispose,
 	});
 }
 

@@ -71,8 +71,36 @@ test('each Guided recipe selects one frozen, strictly validated default settings
 		targetAspectWidth: 9, targetAspectHeight: 16,
 	});
 	const markup = renderDialog(guided.getSnapshot());
-	assert.match(markup, /Default settings/u);
+	assert.match(markup, /Exact settings/u);
 	assert.match(markup, /&quot;resultCount&quot;:5/u);
+});
+
+test('Guided workflow settings are editable only through their exact validated body', () => {
+	const guided = createLocalAssistanceGuidedSessionStore({ bridge: null, preparation: null });
+	guided.selectWorkflow('mark-cuts');
+	guided.setSettings({ settingsVersion: 1, workflowId: 'mark-cuts', mode: 'accurate' });
+	assert.deepEqual(guided.getSnapshot().settings,
+		{ settingsVersion: 1, workflowId: 'mark-cuts', mode: 'accurate' });
+	assert.equal(Object.isFrozen(guided.getSnapshot().settings), true);
+	assert.throws(() => guided.setSettings({
+		settingsVersion: 1, workflowId: 'mark-reactions', threshold: 0.5,
+	}), /another workflow/iu);
+	assert.throws(() => guided.setSettings({
+		settingsVersion: 1, workflowId: 'mark-cuts', mode: 'accurate', surprise: true,
+	} as never), /schema fields/iu);
+	const cutsMarkup = renderDialog(guided.getSnapshot());
+	assert.match(cutsMarkup, /Mark Cuts mode/u);
+	assert.match(cutsMarkup, /value="fast"/u);
+	assert.match(cutsMarkup, /checked="" value="accurate"/u);
+
+	guided.selectWorkflow('make-highlights');
+	guided.setSettings({ settingsVersion: 1, workflowId: 'make-highlights',
+		resultCount: 20, minimumDurationSeconds: 15, maximumDurationSeconds: 180,
+		targetAspectWidth: 9, targetAspectHeight: 16 });
+	const highlightsMarkup = renderDialog(guided.getSnapshot());
+	assert.match(highlightsMarkup, /Highlight proposals/u);
+	assert.match(highlightsMarkup, /min="1" max="20" step="1" value="20"/u);
+	assert.match(highlightsMarkup, /min="15" max="180" step="1" value="180"/u);
 });
 
 test('Guided never calls the workflow bridge without an aggregate preparation seam', async () => {
@@ -102,6 +130,8 @@ test('Guided uses the optional bridge only after preparation returns one exact a
 	});
 	const guided = createLocalAssistanceGuidedSessionStore({ bridge: fixture.localBridge, preparation });
 	guided.selectWorkflow('transcribe-captions');
+	guided.setSettings({ settingsVersion: 1, workflowId: 'transcribe-captions',
+		recognizer: 'whisper', language: 'en', englishWhisperAlignment: 'when-installed' });
 	assert.equal(guided.getSnapshot().phase, 'ready');
 	assert.equal(guided.getSnapshot().canRun, true);
 	await guided.run();
@@ -109,8 +139,10 @@ test('Guided uses the optional bridge only after preparation returns one exact a
 	assert.equal(fixture.requests.length, 1);
 	assert.equal(fixture.requests[0]?.workflowId, 'transcribe-captions');
 	assert.equal(preparationRequests.length, 1);
-	assert.deepEqual((preparationRequests[0] as Readonly<Record<string, unknown>>).settings,
-		defaultAssistanceWorkflowSettingsV1('transcribe-captions'));
+	assert.deepEqual((preparationRequests[0] as Readonly<Record<string, unknown>>).settings, {
+		settingsVersion: 1, workflowId: 'transcribe-captions', recognizer: 'whisper', language: 'en',
+		englishWhisperAlignment: 'when-installed',
+	});
 	assert.equal(guided.getSnapshot().phase, 'unavailable');
 	assert.equal(guided.getSnapshot().unavailableReason, 'workflow-runner-unavailable');
 });
@@ -160,7 +192,8 @@ function renderDialog(guided: LocalAssistanceGuidedSnapshot): string {
 	return renderToStaticMarkup(<LocalAssistanceDialogView
 		copy={ENGLISH_COPY} snapshot={primitiveSnapshot()} guided={guided}
 		onClose={() => undefined} onSurfaceChange={() => undefined}
-		onSelectWorkflow={() => undefined} onRunGuided={() => undefined}
+		onSelectWorkflow={() => undefined} onGuidedSettingsChange={() => undefined}
+		onRunGuided={() => undefined}
 		onCancelGuided={() => undefined} onSelectSource={() => undefined}
 		onSelectOperation={() => undefined} onSelectModel={() => undefined}
 		onConsentChange={() => undefined} onRun={() => undefined} onCancel={() => undefined}
