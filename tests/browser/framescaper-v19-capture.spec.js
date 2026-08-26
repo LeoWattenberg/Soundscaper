@@ -4,6 +4,7 @@ import {
 	expect,
 	test,
 } from './audio-editor-test-fixtures.js';
+import { framescaperCaptureManifestProjectPrefix } from '../../src/common/editor/storage/framescaper-capture-session-creation-repository.ts';
 import {
 	assertAccessibleBasics,
 	assertNoSeriousAxeViolations,
@@ -347,9 +348,13 @@ test.describe('selected Framescaper F31 recoverable capture', () => {
 		await expectCapturePhase(panel, 'recovery');
 		await expect(panel.getByRole('status')).toContainText('A required capture source ended.');
 		await expect.poll(async () => (await captureHarnessState(page)).stopCalls).toBe(3);
+		await expect.poll(() => storedCaptureRecoveryState(page, projectId), { timeout: 30_000 }).toEqual({
+			state: 'sealed', retainedPresentationRangeCount: 1,
+		});
 
 		await page.goto(`/framescaper/en/?project=${encodeURIComponent(projectId)}`);
 		editor = await waitForEditor(page);
+		await expect(editor).toHaveAttribute('data-project-id', projectId, { timeout: 30_000 });
 		panel = await openRecordingSetup(page, editor);
 		await expectCapturePhase(panel, 'recovery');
 		await expect(panel.getByRole('button', { name: 'Recover capture', exact: true })).toBeVisible();
@@ -459,6 +464,28 @@ async function storedCaptureState(page, projectId) {
 			database.close();
 		}
 	}, { databaseName: FRAMESCAPER_DATABASE_NAME, id: projectId });
+}
+
+async function storedCaptureRecoveryState(page, projectId) {
+	const prefix = framescaperCaptureManifestProjectPrefix(projectId);
+	return page.evaluate(async ({ databaseName, keyPrefix }) => {
+		const result = (request) => new Promise((resolve, reject) => {
+			request.onsuccess = () => resolve(request.result);
+			request.onerror = () => reject(request.error);
+		});
+		const database = await result(indexedDB.open(databaseName));
+		try {
+			const range = IDBKeyRange.bound(keyPrefix, `${keyPrefix}\uffff`);
+			const rows = await result(database.transaction(['analysis'], 'readonly').objectStore('analysis').getAll(range));
+			const manifest = rows.map(({ value }) => value).find(({ state }) => state === 'sealed');
+			const retainedPresentationRangeCount = manifest?.streams?.filter(({ role, storage, timing }) => (
+				role === 'microphone' && storage.chunkCount > 0 && storage.frameCount > 0
+				&& timing.firstPresentationMicroseconds !== null
+				&& timing.lastPresentationEndMicroseconds > timing.firstPresentationMicroseconds
+			)).length ?? 0;
+			return { state: manifest?.state ?? null, retainedPresentationRangeCount };
+		} finally { database.close(); }
+	}, { databaseName: FRAMESCAPER_DATABASE_NAME, keyPrefix: prefix });
 }
 
 async function expectCaptureCalls(page, expected) {
