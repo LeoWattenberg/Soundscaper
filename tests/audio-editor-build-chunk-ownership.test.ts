@@ -50,6 +50,25 @@ test('every shared flat editor domain module has an owning chunk group', () => {
 	assert.deepEqual(unowned, [], 'these modules would be placed by reachability alone');
 });
 
+test('assistance domain modules default to the lazy owner, with a named eager exception set', () => {
+	// The eager side is the exception, not the default. A new assistance module that
+	// silently landed in editor-domain and imported one lazy sibling pulled the whole
+	// optional assistance chunk into the product-ready startup graph and broke its byte
+	// budget three times over. Growing this list is a deliberate claim that eagerly
+	// loaded shell or controller code reads the module.
+	const eager = assistanceDomainModules()
+		.filter((path) => chunkGroupForModulePath(path) !== 'editor-optional-assistance');
+	assert.deepEqual(eager, [
+		'src/common/editor/assistance/assistance-asset-command-v1.ts',
+		'src/common/editor/assistance/assistance-asset-reference-v1.ts',
+		'src/common/editor/assistance/operation.ts',
+		'src/common/editor/assistance/shots.ts',
+		'src/common/editor/assistance/transcript-scape-asset-extension-v1.ts',
+		'src/common/editor/assistance/transcript.ts',
+	]);
+	for (const path of eager) assert.equal(chunkGroupForModulePath(path), 'editor-domain');
+});
+
 test('every local assistance controller module keeps the lazy assistance owner', () => {
 	// A controller/local-assistance-*.ts module with any other owner lands in an eagerly
 	// loaded chunk, and its static imports then drag the whole optional assistance chunk
