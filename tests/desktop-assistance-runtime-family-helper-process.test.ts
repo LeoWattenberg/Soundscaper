@@ -41,6 +41,35 @@ function request() {
 	};
 }
 
+function whisperDescriptor() {
+	return {
+		familyId: 'whisper-cpp', runtimeVersion: 'v1.9.3', target: 'linux-x64',
+		executionProvider: 'cpu', entrypoint: '/runtime/whisper-cli',
+		files: [{ path: '/runtime/whisper-cli', relativePath: 'whisper-cli',
+			byteLength: 1, sha256: SHA, executable: true }],
+	};
+}
+
+function whisperRequest() {
+	return {
+		protocolVersion: 1, jobId: JOB_ID, familyId: 'whisper-cpp', task: 'speech-recognition',
+		maximumRssBytes: 8 * 1024 ** 3, maximumDurationMs: 60_000,
+		grant: {
+			grantVersion: 1, jobId: JOB_ID, familyId: 'whisper-cpp', task: 'speech-recognition',
+			settingsJson: '{}',
+			inputs: [{ claimId: '3'.repeat(40), role: 'audio', mediaType: 'audio/wav',
+				path: '/private/input.wav', byteLength: 1, sha256: SHA, identity: { dev: 1, ino: 1 } }],
+			models: [{ modelId: 'whisper-test', version: '1.0.0', artifactRole: 'ggml',
+				path: '/private/model.bin', byteLength: 1, sha256: SHA, identity: { dev: 1, ino: 2 } }],
+			outputs: [{ claimId: '4'.repeat(40), role: 'transcript',
+				mediaType: 'application/vnd.soundscaper.transcript+json', path: '/private/output.json',
+				maximumByteLength: 1_024, initialByteLength: 0,
+				initialSha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+				identity: { dev: 1, ino: 3 } }],
+		},
+	};
+}
+
 class FakeThread implements AssistanceRuntimeFamilyThreadPort {
 	readonly #listeners = new Map<string, Set<(...values: unknown[]) => void>>();
 	on(event: string, listener: (...values: unknown[]) => void): this {
@@ -96,6 +125,34 @@ test('the helper entry validates its private process seams', () => {
 		post: () => undefined, exit: () => undefined,
 		workerEntry: new URL('https://example.invalid/worker.js'),
 	}), /entry|file|local/iu);
+});
+
+test('whisper.cpp jobs use the utility-owned terminateable CLI worker instead of a thread', async () => {
+	const messages: unknown[] = [];
+	let threads = 0;
+	let whisperWorkers = 0;
+	const helper = createAssistanceRuntimeFamilyHelperProcessV1({
+		post: (message) => messages.push(message), exit: () => undefined,
+		verifyDescriptor: async (value) => validateAssistanceRuntimeFamilyDescriptorV1(value),
+		createWorker: () => { threads += 1; return new FakeThread(); },
+		spawnWhisperWorker: () => {
+			whisperWorkers += 1;
+			const error = new Error('reviewed adapter stopped');
+			(error as Error & { code?: string }).code = 'ADAPTER_UNAVAILABLE';
+			return Object.freeze({ completion: Promise.reject(error), terminate: async () => undefined });
+		},
+	});
+	helper.handleMessage({ protocolVersion: 1, type: 'initialize', descriptor: whisperDescriptor() });
+	await until(() => messages.length === 1);
+	helper.handleMessage({ protocolVersion: 1, type: 'job', request: whisperRequest() });
+	await until(() => messages.length === 2);
+	assert.equal(whisperWorkers, 1);
+	assert.equal(threads, 0);
+	assert.deepEqual(messages[1], {
+		protocolVersion: 1, type: 'error', jobId: JOB_ID,
+		familyId: 'whisper-cpp', task: 'speech-recognition',
+		error: { name: 'Error', message: 'reviewed adapter stopped', code: 'ADAPTER_UNAVAILABLE' },
+	});
 });
 
 async function until(predicate: () => boolean): Promise<void> {

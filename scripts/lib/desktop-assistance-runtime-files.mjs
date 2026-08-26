@@ -38,6 +38,7 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'desktop/assistance-staging-registry-comparisons.js',
 	'desktop/assistance-staging-registry.js',
 	'desktop/assistance-vad-runtime.js',
+	'desktop/assistance-whisper-cpp-worker.js',
 	'desktop/assistance-workflow-consent.js',
 	'desktop/assistance-workflow-main-ipc.js',
 	'desktop/assistance-workflow-service.js',

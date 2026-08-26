@@ -9,8 +9,12 @@ import {
 } from './assistance-runtime-family-thread-worker.ts';
 import {
 	createAssistanceRuntimeFamilyUtilityWorker,
+	type AssistanceRuntimeFamilyInnerWorker,
 	type AssistanceRuntimeFamilyUtilityWorker,
 } from './assistance-runtime-family-utility-worker.ts';
+import {
+	createAssistanceWhisperCppWorkerSpawnerV1,
+} from './assistance-whisper-cpp-worker.ts';
 
 export interface AssistanceRuntimeFamilyHelperProcessOptions {
 	readonly post: (message: unknown) => void;
@@ -23,6 +27,10 @@ export interface AssistanceRuntimeFamilyHelperProcessOptions {
 	readonly verifyDescriptor?: (
 		descriptor: AssistanceRuntimeFamilyDescriptor,
 	) => Promise<AssistanceRuntimeFamilyDescriptor>;
+	readonly spawnWhisperWorker?: (
+		job: Parameters<ReturnType<typeof createAssistanceRuntimeFamilyThreadWorkerSpawner>>[0],
+		options: Readonly<{ readonly onProgress: (value: number) => void }>,
+	) => AssistanceRuntimeFamilyInnerWorker;
 }
 
 export function createAssistanceRuntimeFamilyHelperProcessV1(
@@ -31,16 +39,24 @@ export function createAssistanceRuntimeFamilyHelperProcessV1(
 	if (!options || typeof options.post !== 'function' || typeof options.exit !== 'function') {
 		throw new TypeError('The runtime-family helper-process ports are invalid.');
 	}
-	const spawnWorker = createAssistanceRuntimeFamilyThreadWorkerSpawner({
+	if (options.spawnWhisperWorker !== undefined
+		&& typeof options.spawnWhisperWorker !== 'function') {
+		throw new TypeError('The whisper.cpp worker-process port is invalid.');
+	}
+	const spawnThreadWorker = createAssistanceRuntimeFamilyThreadWorkerSpawner({
 		workerEntry: options.workerEntry
 			?? new URL('./assistance-runtime-family-inference-worker.js', import.meta.url),
 		createWorker: options.createWorker,
 	});
+	const spawnWhisperWorker = options.spawnWhisperWorker
+		?? createAssistanceWhisperCppWorkerSpawnerV1();
 	return createAssistanceRuntimeFamilyUtilityWorker({
 		post: options.post,
 		exit: options.exit,
 		verifyDescriptor: options.verifyDescriptor,
-		spawnWorker,
+		spawnWorker: (job, runOptions) => job.familyId === 'whisper-cpp'
+			? spawnWhisperWorker(job, runOptions)
+			: spawnThreadWorker(job, runOptions),
 	});
 }
 
