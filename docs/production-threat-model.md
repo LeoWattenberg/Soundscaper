@@ -1474,7 +1474,7 @@ unqualified.
 
 ### Dependency and release integrity
 
-`runtime-supply-chain` remains **partial**. In-tree StaffPad, Nyquist, Parametric EQ, and the seven desktop compressed-audio modules retain pinned source/binary audits. Controlled Web FFmpeg publication validates one checked-in policy manifest that ties exact runtime bytes and base publication metadata to the current source descriptor, aggregate notice, licensing and security matrices, policies, threat model, and LF checkout rules. The Web publisher separately derives a full-manifest-SHA release prefix and no-store final pointer under fixed tested code. Invalid preflight never invokes Wrangler, publication consumes a private verified byte snapshot, and the checked-in authorization currently blocks public Web runtime upload. Desktop application assembly uses a separate FFmpeg absence policy: its renderer composition, stage tree, copied application resources, and release inputs reject application-supplied FFmpeg, libav, FFmpeg WebAssembly, the historical static FFmpeg host, and unqualified WebM/AV1 payloads. Preparation stages exactly the reviewed libFLAC 1.5.0, libopus 1.6.1/libogg 1.3.6, libvorbis 1.3.7/libogg 1.3.6, WavPack 5.9.0, mpg123 1.33.7, LAME 4.0, and TwoLAME 0.4.0 WASM files after regular-file, exact-length, and SHA-256 verification. A canonical manifest binds the complete isolation control/transitive-JavaScript/WASM closure; main reauthenticates it before each fresh utility-process fork, and the helper reauthenticates it before import. Package assembly also stages and audits the exact component notice/source-manifest/toolchain-license set and ships a deterministic seven-codec corresponding-source ZIP plus checksum. Target-native CI builds the isolated operating-system codec addon for mac-arm64, win-x64, and win-arm64, runs native canaries, signs and strictly verifies macOS bytes before hashing, and exports an authenticated canonical build result. Preparation, beforePack, afterPack, the content manifest, and startup bind the exact target, manifest, payload, signing evidence, byte length, and SHA-256; Linux requires no OS codec subtree and mac-x64 is rejected. The Electron framework is a second explicit exception to the application-resource boundary: `downloadAlternateFFmpeg` selects Electron's matching alternate Chromium library, intended upstream to omit proprietary codec support, and afterPack verifies its exact target, path, type, length, and SHA-256 for linux-x64, linux-arm64, mac-arm64, win-x64, and win-arm64, with no mac-x64 target. The release assembler accepts no application FFmpeg sidecar or archive. The verified framework library is Chromium infrastructure, not a Soundscaper provider tier. User-installed FFmpeg is distinct, executes in place only after exact-pair probing and user selection or explicit WinGet/Homebrew confirmation, and remains outside the artifact closure. These gates qualify the seven exact reviewed audio slices and, for a passing target-native package build, the enumerated Media Foundation or AudioToolbox audio tuples. The shipped external-video runner can use only a live-qualified current pair for H.264/AAC MP4 and VP9/Opus WebM keyed-RGBA export, while the FFmpeg/ffprobe bytes remain outside the artifact and source closure. Bundled and operating-system video and AV1 remain disabled, and external WebM is VP9 rather than AV1. The audio-only Linux x64 multi-version lab does not qualify video compatibility. These controls do not qualify every external FFmpeg version/codec/platform combination, a malicious selected executable or dynamic-library closure, broad interoperability or performance, or patent clearance and non-infringement.
+`runtime-supply-chain` remains **partial**. In-tree StaffPad, Nyquist, Parametric EQ, and the seven desktop compressed-audio modules retain pinned source/binary audits. Controlled Web FFmpeg publication validates one checked-in policy manifest that ties exact runtime bytes and publication metadata to the current source descriptor, aggregate notice, licensing and security matrices, policies, threat model, LF checkout rules, and a central public-origin, release-path, pointer, cache, and stable Cache Rules-ref policy. The Web publisher derives its full-manifest-SHA release prefix and no-store final pointer from that policy. Invalid or blocked preflight invokes no Wrangler, R2, Cloudflare Cache Rules, purge, or public-smoke operation. After approval, immutable uploads are conditional and exactly read back, public release objects are purged and smoke-tested, pointer promotion uses strong-ETag CAS with read-back and guarded rollback, and Pages deployment first requires the exact live pointer and release inventory with eligible immutable cache statuses. Publication consumes a private verified byte snapshot, and the checked-in authorization currently blocks public Web runtime upload. Desktop application assembly uses a separate FFmpeg absence policy: its renderer composition, stage tree, copied application resources, and release inputs reject application-supplied FFmpeg, libav, FFmpeg WebAssembly, the historical static FFmpeg host, and unqualified WebM/AV1 payloads. Preparation stages exactly the reviewed libFLAC 1.5.0, libopus 1.6.1/libogg 1.3.6, libvorbis 1.3.7/libogg 1.3.6, WavPack 5.9.0, mpg123 1.33.7, LAME 4.0, and TwoLAME 0.4.0 WASM files after regular-file, exact-length, and SHA-256 verification. A canonical manifest binds the complete isolation control/transitive-JavaScript/WASM closure; main reauthenticates it before each fresh utility-process fork, and the helper reauthenticates before import. Package assembly also stages and audits the exact component notice/source-manifest/toolchain-license set and ships a deterministic seven-codec corresponding-source ZIP plus checksum. Target-native CI builds the isolated operating-system codec addon for mac-arm64, win-x64, and win-arm64, runs native canaries, signs and strictly verifies macOS bytes before hashing, and exports an authenticated canonical build result. Preparation, beforePack, afterPack, the content manifest, and startup bind the exact target, manifest, payload, signing evidence, byte length, and SHA-256; Linux requires no OS codec subtree and mac-x64 is rejected. The Electron framework is a second explicit exception to the application-resource boundary: `downloadAlternateFFmpeg` selects Electron's matching alternate Chromium library, intended upstream to omit proprietary codec support, and afterPack verifies its exact target, path, type, length, and SHA-256 for linux-x64, linux-arm64, mac-arm64, win-x64, and win-arm64, with no mac-x64 target. The release assembler accepts no application FFmpeg sidecar or archive. The verified framework library is Chromium infrastructure, not a Soundscaper provider tier. User-installed FFmpeg is distinct, executes in place only after exact-pair probing and user selection or explicit WinGet/Homebrew confirmation, and remains outside the artifact closure. These gates qualify the seven exact reviewed audio slices and, for a passing target-native package build, the enumerated Media Foundation or AudioToolbox audio tuples. The shipped external-video runner can use only a live-qualified current pair for H.264/AAC MP4 and VP9/Opus WebM keyed-RGBA export, while the FFmpeg/ffprobe bytes remain outside the artifact and source closure. Bundled and operating-system video and AV1 remain disabled, and external WebM is VP9 rather than AV1. The audio-only Linux x64 multi-version lab does not qualify video compatibility. These controls do not qualify every external FFmpeg version/codec/platform combination, a malicious selected executable or dynamic-library closure, broad interoperability or performance, or patent clearance and non-infringement.
 
 The active local-model path adds a distinct authenticated supply boundary. A
 canonical Ed25519 catalog is verified against pinned current and successor
@@ -1530,25 +1530,32 @@ These controls qualify repository-owned admission and consumer-side detection
 of incomplete or pointer-inconsistent releases, not an independent authenticity
 root. The checked-in manifest's review marker and payload digest are
 self-declared, and a compromised asset host can replace the final pointer with
-a new internally self-consistent release. The publisher layout and pointer
-contract are not manifest fields, content-addressed writes are neither
-conditional nor read back, and browser and release configuration still
-hard-code the runtime version instead of proving agreement with reviewed
-policy. Web Locks provide cooperative serialization only: browsers without them
-report runtime storage unsupported, and older or noncooperating application
-code remains outside the commit protocol. A killed client can leave an
-unserved candidate or pre-commit final cache until later cleanup. The streamed
-cache verifier prevents a module or WASM load from completing after a terminal
-digest mismatch, but an arbitrary streaming consumer can observe prefix chunks
-before that error. CacheStorage quota and eviction can remove availability, and
-there is no product-wide cache reservation. Shell installation materializes one
-admitted asset body before caching it. WebKit and Safari service-worker
-workflows, actual storage-pressure retention, runtime-cache multi-tab updates,
-downgrade drills, and actual-device offline behavior remain unqualified. Web
-notice delivery, complete corresponding source for every enabled FFmpeg
-library, and distribution-specific codec patent review remain blocked in the
-licensing matrix. Desktop previews remain unsigned and do not qualify signing,
-notarization, rollback, or key rotation.
+a new internally self-consistent release. A digest-pinned central policy now
+binds the public origin, release and pointer layout, cache metadata, and stable
+Cache Rules refs. The browser's production fallback derives its exact release
+path from the full-manifest SHA-256. Immutable R2 writes are conditional and
+exactly read back; pointer promotion uses strong-ETag CAS, read-back, exact
+purge, public smoke, and guarded rollback. The tested Cache Rules reconcile by
+stable ref while preserving unrelated rules, and Pages preflight rejects an
+absent or altered pointer or release as well as immutable responses whose
+Cloudflare cache status is missing or ineligible. These controls have no
+recorded production application while publication remains blocked, and neither
+the checked-in policy nor a self-consistent asset-host release is independently
+authenticated. Web Locks provide cooperative serialization only: browsers
+without them report runtime storage unsupported, and older or noncooperating
+application code remains outside the commit protocol. A killed client can
+leave an unserved candidate or pre-commit final cache until later cleanup. The
+streamed cache verifier prevents a module or WASM load from completing after a
+terminal digest mismatch, but an arbitrary streaming consumer can observe
+prefix chunks before that error. CacheStorage quota and eviction can remove
+availability, and there is no product-wide cache reservation. Shell
+installation materializes one admitted asset body before caching it. WebKit and
+Safari service-worker workflows, actual storage-pressure retention,
+runtime-cache multi-tab updates, downgrade drills, and actual-device offline
+behavior remain unqualified. Web notice delivery, complete corresponding source
+for every enabled FFmpeg library, and distribution-specific codec patent review
+remain blocked in the licensing matrix. Desktop previews remain unsigned and
+do not qualify signing, notarization, rollback, or key rotation.
 
 The licensing/provenance matrix is a separate release control. Passing a security audit does not establish license or patent clearance, and provenance documentation alone does not establish runtime isolation.
 

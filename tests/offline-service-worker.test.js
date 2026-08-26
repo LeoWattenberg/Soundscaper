@@ -3,10 +3,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import runtimePublicPolicy from '../config/ffmpeg-runtime-publication-policy.json' with { type: 'json' };
+
 import {
 	activateOfflineShell,
 	handleOfflineShellFetch,
 	installOfflineShell,
+	renderOfflineServiceWorker,
 } from '../scripts/lib/offline-service-worker.mjs';
 import {
 	asset,
@@ -16,6 +19,14 @@ import {
 	shellConfiguration,
 	shellResponse,
 } from './helpers/offline-shell-fixtures.js';
+
+test('generated workers interpolate the exact central runtime path and MIME policy', () => {
+	const source = renderOfflineServiceWorker(shellConfiguration('0'));
+	assert.ok(source.includes(`const RUNTIME_ORIGIN = ${JSON.stringify(runtimePublicPolicy.publicOrigin)};`));
+	assert.ok(source.includes(`/${runtimePublicPolicy.publicPrefix}/${runtimePublicPolicy.releaseSegment}/`));
+	assert.ok(source.includes(JSON.stringify(runtimePublicPolicy.runtimeFiles)));
+	assert.doesNotMatch(source, /const names = \['ffmpeg-core\.js'/u);
+});
 
 test('a partial shell install deletes only its candidate and leaves the prior release intact', async () => {
 	const cacheStorage = new MemoryCacheStorage();

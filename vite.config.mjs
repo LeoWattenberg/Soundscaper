@@ -1,4 +1,6 @@
 // @ts-check
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import react from '@vitejs/plugin-react';
@@ -16,6 +18,8 @@ import { createPffftNodeModuleBrowserShim } from './scripts/vite-pffft-browser-s
 const productId = process.env.SCAPE_PRODUCT === 'framescaper' ? 'framescaper' : 'soundscaper';
 const vendoredDesignSystem = resolve(import.meta.dirname, 'vendor/audacity-design-system');
 const desktopCodecComposition = process.env.SCAPE_DESKTOP_CODEC_RUNTIME === 'main-process';
+const ffmpegRuntimeManifestBytes = readFileSync(resolve(import.meta.dirname, 'config/ffmpeg-runtime-manifest.json'));
+const ffmpegRuntimeManifestSha256 = createHash('sha256').update(ffmpegRuntimeManifestBytes).digest('hex');
 
 /** @returns {import('vite').Plugin} */
 function assertDesignSystemCssScoped() {
@@ -79,6 +83,7 @@ export default defineConfig({
 	envPrefix: ['VITE_', 'PUBLIC_'],
 	define: {
 		__SCAPE_PRODUCT__: JSON.stringify(productId),
+		__FFMPEG_RUNTIME_MANIFEST_SHA256__: JSON.stringify(ffmpegRuntimeManifestSha256),
 	},
 	worker: {
 		format: 'es',

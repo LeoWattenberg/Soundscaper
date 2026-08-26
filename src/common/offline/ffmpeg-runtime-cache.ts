@@ -3,9 +3,18 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 
+import {
+	FFMPEG_RUNTIME_POINTER_URL,
+	FFMPEG_RUNTIME_FILES,
+	FFMPEG_RUNTIME_PUBLIC_ORIGIN,
+	FFMPEG_RUNTIME_PUBLIC_PREFIX,
+	FFMPEG_RUNTIME_RELEASE_SEGMENT,
+} from './ffmpeg-runtime-public-policy.ts';
+
 const SHA256_PATTERN = /^[a-f\d]{64}$/u;
-const PRODUCTION_RUNTIME_ORIGIN = 'https://assets.soundscaper.org';
-const RUNTIME_FILE_NAMES = Object.freeze(['ffmpeg-core.js', 'ffmpeg-core.wasm'] as const);
+const RUNTIME_FILE_NAMES = Object.freeze(FFMPEG_RUNTIME_FILES.map(({ name }) => name));
+const JAVASCRIPT_RUNTIME_CONTENT_TYPE = FFMPEG_RUNTIME_FILES[0]!.contentType;
+const JAVASCRIPT_RUNTIME_MEDIA_TYPE = JAVASCRIPT_RUNTIME_CONTENT_TYPE.split(';', 1)[0]!;
 const MAXIMUM_POINTER_BYTES = 64 * 1024;
 const MAXIMUM_MANIFEST_BYTES = 512 * 1024;
 const MAXIMUM_RUNTIME_FILE_BYTES = 64 * 1024 * 1024;
@@ -278,11 +287,13 @@ function validateRuntimeResponseHeaders(response: Response, file: VerifiedRuntim
 }
 
 function runtimeContentTypeMatches(contentType: string, expectedContentType: string): boolean {
-	if (expectedContentType !== 'text/javascript; charset=utf-8') {
+	if (expectedContentType !== JAVASCRIPT_RUNTIME_CONTENT_TYPE) {
 		return contentType === expectedContentType.toLowerCase();
 	}
-	return contentType === 'text/javascript'
-		|| /^text\/javascript\s*;\s*charset\s*=\s*(?:utf-8|"utf-8")$/u.test(contentType);
+	if (contentType === JAVASCRIPT_RUNTIME_MEDIA_TYPE) return true;
+	const [mediaType, ...parameters] = contentType.split(';').map((part) => part.trim());
+	return mediaType === JAVASCRIPT_RUNTIME_MEDIA_TYPE && parameters.length === 1
+		&& /^charset\s*=\s*(?:utf-8|"utf-8")$/u.test(parameters[0]!);
 }
 
 async function readBoundedResponse(response: Response, options: Readonly<{
@@ -369,7 +380,7 @@ function validatePointer(value: unknown, pointerUrl: URL): RuntimePointer {
 		descriptor(filesValue[name], `${name} pointer descriptor`),
 	]));
 	const publicPrefix = publicPrefixFor(pointerUrl);
-	const releasePrefix = `${publicPrefix}/releases/${releaseId}`;
+	const releasePrefix = `${publicPrefix}/${FFMPEG_RUNTIME_RELEASE_SEGMENT}/${releaseId}`;
 	if (manifest.path !== `${releasePrefix}/manifest.json`) {
 		throw new Error('Runtime release manifest path leaves its exact release directory.');
 	}
@@ -415,19 +426,16 @@ function validateManifest(value: unknown, pointer: RuntimePointer, pointerUrl: U
 	}
 	let totalBytes = 0;
 	const baseUrl = descriptorUrl(
-		`${publicPrefix}/releases/${pointer.releaseId}/`,
+		`${publicPrefix}/${FFMPEG_RUNTIME_RELEASE_SEGMENT}/${pointer.releaseId}/`,
 		pointerUrl,
 	).href;
-	const files = RUNTIME_FILE_NAMES.map((expectedName, index): VerifiedRuntimeFile => {
+	const files = FFMPEG_RUNTIME_FILES.map(({ name: expectedName, contentType: expectedContentType }, index): VerifiedRuntimeFile => {
 		const value = plainObject(runtimeFiles[index], `${expectedName} manifest descriptor`);
 		exactKeys(value, ['byteLength', 'contentType', 'name', 'sha256'], `${expectedName} manifest descriptor`);
 		if (value.name !== expectedName) throw new Error(`Runtime file ${index} must be ${expectedName}.`);
 		const byteLength = positiveSafeInteger(value.byteLength, `${expectedName} byteLength`);
 		if (byteLength > MAXIMUM_RUNTIME_FILE_BYTES) throw new Error(`${expectedName} exceeds its byte limit.`);
 		const fileSha256 = sha256Text(value.sha256, `${expectedName} sha256`);
-		const expectedContentType = expectedName.endsWith('.wasm')
-			? 'application/wasm'
-			: 'text/javascript; charset=utf-8';
 		if (value.contentType !== expectedContentType) throw new Error(`${expectedName} contentType is invalid.`);
 		const pointerDescriptor = pointer.files[expectedName]!;
 		if (pointerDescriptor.byteLength !== byteLength || pointerDescriptor.sha256 !== fileSha256) {
@@ -469,18 +477,19 @@ function descriptor(value: unknown, label: string): RuntimeDescriptor {
 
 function normalizePointerUrl(value: string | URL): URL {
 	const url = new URL(String(value));
-	if (url.origin !== PRODUCTION_RUNTIME_ORIGIN) {
+	if (url.origin !== FFMPEG_RUNTIME_PUBLIC_ORIGIN) {
 		throw new Error('Runtime release pointer must use the production asset origin.');
 	}
 	if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash
-		|| !url.pathname.endsWith('/latest.json')) {
+		|| url.href !== FFMPEG_RUNTIME_POINTER_URL) {
 		throw new Error('Runtime release pointer must be a clean HTTPS latest.json URL.');
 	}
 	return url;
 }
 
 function publicPrefixFor(pointerUrl: URL): string {
-	return pointerUrl.pathname.slice(1, -'/latest.json'.length).replace(/\/+$/u, '');
+	if (pointerUrl.href !== FFMPEG_RUNTIME_POINTER_URL) throw new Error('Runtime pointer policy is inconsistent.');
+	return FFMPEG_RUNTIME_PUBLIC_PREFIX;
 }
 
 function descriptorUrl(path: string, pointerUrl: URL): URL {

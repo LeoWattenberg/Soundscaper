@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
 import { readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { registerHooks } from 'node:module';
 import { join, resolve } from 'node:path';
@@ -55,49 +54,65 @@ test('a policy manifest stages and publishes only its verified buffered bytes', 
 	release.runtimeFiles[0].bytes.set(fixture.javascript);
 
 	await writeFile(fixture.javascriptPath, 'changed after validation');
-	const calls = [];
+	const transport = runtimePublicationTransport();
+	let corsBytes = null;
 	await publishFfmpegRuntime({
 		repositoryRoot: fixture.root,
-		executeWrangler(command) {
-			calls.push(command);
-			if (command.kind === 'put') {
-				assert.ok(Buffer.isBuffer(command.bytes));
-				return { status: 0 };
-			}
-			assert.deepEqual(
-				readFileSync(command.file),
-				fixture.cors,
-				'CORS uses a verified temporary snapshot',
-			);
+		client: transport.client,
+		applyCors: async ({ bytes }) => {
+			corsBytes = Buffer.from(bytes);
 			release.runtimeFiles[1].bytes[0] ^= 0xff;
-			return { status: 0 };
 		},
+		purgeUrls: async (urls) => { transport.purges.push(urls); },
+		publicFetch: transport.publicFetch,
 		loadRelease: async () => release,
 	});
 	const releasePrefix = `runtime/ffmpeg/0.12.10/releases/${release.manifestSha256}`;
-	assert.deepEqual(calls.map(({ kind, key }) => [kind, key]), [
-		['cors', undefined],
-		['put', `${releasePrefix}/ffmpeg-core.js`],
-		['put', `${releasePrefix}/ffmpeg-core.wasm`],
-		['put', `${releasePrefix}/THIRD_PARTY_LICENSES.md`],
-		['put', `${releasePrefix}/ffmpeg-corresponding-source.json`],
-		['put', `${releasePrefix}/manifest.json`],
-		['put', 'runtime/ffmpeg/0.12.10/latest.json'],
+	assert.deepEqual(transport.puts.map(({ key }) => key), [
+		`${releasePrefix}/ffmpeg-core.js`,
+		`${releasePrefix}/ffmpeg-core.wasm`,
+		`${releasePrefix}/THIRD_PARTY_LICENSES.md`,
+		`${releasePrefix}/ffmpeg-corresponding-source.json`,
+		`${releasePrefix}/manifest.json`,
+		'runtime/ffmpeg/0.12.10/latest.json',
 	]);
-	assert.deepEqual(calls[1].bytes, fixture.javascript, 'publisher retains the validated JavaScript snapshot');
-	assert.deepEqual(calls[2].bytes, fixture.wasm, 'publisher retains the validated WebAssembly snapshot');
-	assert.equal(calls.at(-1).cacheControl, 'no-store');
-	const pointer = JSON.parse(calls.at(-1).bytes);
+	assert.deepEqual(transport.puts[0].bytes, fixture.javascript, 'publisher retains the validated JavaScript snapshot');
+	assert.deepEqual(transport.puts[1].bytes, fixture.wasm, 'publisher retains the validated WebAssembly snapshot');
+	assert.equal(transport.puts.at(-1).options.cacheControl, 'no-store');
+	assert.ok(transport.puts.slice(0, -1).every(({ options }) => options.ifNoneMatch === '*'));
+	const pointer = JSON.parse(transport.puts.at(-1).bytes);
 	assert.equal(pointer.releaseId, release.manifestSha256);
 	assert.equal(pointer.manifest.path, `${releasePrefix}/manifest.json`);
 	assert.equal(pointer.manifest.sha256, release.manifestSha256);
-	assert.equal(existsSync(calls[0].file), false, 'temporary CORS snapshot is removed');
+	assert.deepEqual(corsBytes, fixture.cors, 'CORS uses a verified snapshot');
+	assert.equal(transport.purges.length, 2, 'cached 404s and the promoted pointer are purged exactly');
+	release.runtimeFiles[1].bytes.set(fixture.wasm);
+	transport.objects.get(`${releasePrefix}/ffmpeg-core.js`).bytes = Buffer.from('different immutable object');
+	await assert.rejects(
+		() => publishFfmpegRuntime({
+			repositoryRoot: fixture.root,
+			client: transport.client,
+			applyCors: async () => undefined,
+			purgeUrls: async () => undefined,
+			publicFetch: transport.publicFetch,
+			loadRelease: async () => release,
+		}),
+		/Immutable R2 object.*readback does not match/iu,
+		'a 412 response is reusable only after exact byte and metadata readback',
+	);
 });
 
 test('tampered runtime bytes fail both gates before upload or desktop output mutation', async (context) => {
 	const fixture = await createFixture(context);
 	await writeFile(fixture.wasmPath, Buffer.from('tampered second artifact'));
 	await assertNoSideEffects(fixture, /ffmpeg-core\.wasm.*(?:byte length|digest)/iu);
+});
+
+test('the central runtime file MIME policy cannot drift from the release manifest', async (context) => {
+	const fixture = await createFixture(context);
+	fixture.manifest.runtime.files[0].contentType = 'application/javascript';
+	await writeManifest(fixture);
+	await assertNoSideEffects(fixture, /publication policy ffmpeg-core\.js contentType disagrees/iu);
 });
 
 test('desktop staging refuses pre-existing output without mutation', async (context) => {
@@ -415,4 +430,62 @@ async function assertNoSideEffects(fixture, expectedError) {
 
 async function readdirNames(path) {
 	return (await readdir(path)).sort();
+}
+
+function runtimePublicationTransport() {
+	const objects = new Map();
+	const puts = [];
+	const purges = [];
+	let revision = 0;
+	const client = {
+		async put(key, bytes, options) {
+			puts.push({ key, bytes: Buffer.from(bytes), options });
+			const current = objects.get(key);
+			if (options.ifNoneMatch === '*' && current) return objectResponse(412);
+			if (options.ifMatch && current?.etag !== options.ifMatch) return objectResponse(412);
+			const etag = `"runtime-${String(++revision)}"`;
+			objects.set(key, {
+				bytes: Buffer.from(bytes),
+				contentType: options.contentType,
+				cacheControl: options.cacheControl,
+				etag,
+			});
+			return objectResponse(200, { etag });
+		},
+		async get(key) {
+			const object = objects.get(key);
+			if (!object) return { response: objectResponse(404), bytes: Buffer.alloc(0) };
+			return {
+				response: objectResponse(200, {
+					etag: object.etag,
+					'content-type': object.contentType,
+					'cache-control': object.cacheControl,
+				}),
+				bytes: Buffer.from(object.bytes),
+			};
+		},
+		async delete(key) {
+			objects.delete(key);
+			return objectResponse(204);
+		},
+	};
+	const publicFetch = async (url) => {
+		const key = new URL(url).pathname.slice(1);
+		const object = objects.get(key);
+		return object
+			? new Response(object.bytes, {
+				status: 200,
+				headers: {
+					'content-type': object.contentType,
+					'cache-control': object.cacheControl,
+					'access-control-allow-origin': 'https://soundscaper.org',
+				},
+			})
+			: new Response(null, { status: 404 });
+	};
+	return { client, objects, publicFetch, purges, puts };
+}
+
+function objectResponse(status, headers = {}) {
+	return new Response(null, { status, headers });
 }

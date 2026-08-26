@@ -25,6 +25,11 @@ import { conformFfmpegVideoToCfr } from './ffmpeg-cfr-ingest.ts';
 import { createVideoKeyframeEncoderOperationRunner } from './video-keyframe-ffmpeg-operation.ts';
 import { probeFfmpegVideoTiming } from './ffmpeg-video-timing-operation.ts';
 import { runFfmpegMediaFileOperation } from './ffmpeg-media-file-operation.ts';
+import {
+	FFMPEG_RUNTIME_PUBLIC_ORIGIN,
+	FFMPEG_RUNTIME_PUBLIC_PREFIX,
+	preferredFfmpegRuntimeFallbackBaseUrl,
+} from '../offline/ffmpeg-runtime-public-policy.ts';
 
 const DEFAULT_IDLE_TIMEOUT_MS = 30_000;
 
@@ -94,7 +99,9 @@ export function createEditorFfmpeg(options = {}) {
 		? options.capabilities
 		: createMediaExportCapabilities(options.capabilities || {});
 	const configuredCoreBaseURL = options.coreBaseURL || import.meta.env?.PUBLIC_FFMPEG_CORE_BASE_URL || null;
-	const fallbackCoreBaseURL = 'https://assets.soundscaper.org/runtime/ffmpeg/0.12.10';
+	const fallbackCoreBaseURL = preferredFfmpegRuntimeFallbackBaseUrl(
+		`${FFMPEG_RUNTIME_PUBLIC_ORIGIN}/${FFMPEG_RUNTIME_PUBLIC_PREFIX}`,
+	);
 
 	const handleProgress = ({ progress = 0, time = 0 }) => {
 		options.onProgress?.(Math.max(0, Math.min(1, progress)), time);

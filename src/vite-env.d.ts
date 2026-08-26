@@ -10,3 +10,4 @@ interface ImportMeta {
 }
 
 declare const __SCAPE_PRODUCT__: 'soundscaper' | 'framescaper';
+declare const __FFMPEG_RUNTIME_MANIFEST_SHA256__: string;

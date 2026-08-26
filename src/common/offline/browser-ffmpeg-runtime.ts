@@ -8,9 +8,12 @@ import {
 	type VerifiedRuntimeRelease,
 	type VerifiedRuntimeStore,
 } from './ffmpeg-runtime-cache.ts';
+import {
+	FFMPEG_RUNTIME_POINTER_URL,
+	preferredFfmpegRuntimeFallbackBaseUrl,
+} from './ffmpeg-runtime-public-policy.ts';
 
-export const DEFAULT_FFMPEG_RUNTIME_POINTER_URL =
-	'https://assets.soundscaper.org/runtime/ffmpeg/0.12.10/latest.json';
+export const DEFAULT_FFMPEG_RUNTIME_POINTER_URL = FFMPEG_RUNTIME_POINTER_URL;
 
 export type BrowserFfmpegRuntimeStatus =
 	| Readonly<{ status: 'unsupported' }>
@@ -83,10 +86,12 @@ export function createBrowserFfmpegRuntimeManager(
 	}
 
 	async function resolveCoreBaseUrl(fallbackBaseUrl: string): Promise<string> {
-		const fallback = normalizeBaseUrl(fallbackBaseUrl);
+		const fallback = preferredFfmpegRuntimeFallbackBaseUrl(fallbackBaseUrl);
 		try {
 			const status = await read();
-			return status.status === 'ready' ? normalizeBaseUrl(status.release.baseUrl) : fallback;
+			return status.status === 'ready'
+				? normalizeBaseUrl(status.release.baseUrl)
+				: fallback;
 		} catch {
 			return fallback;
 		}

@@ -555,6 +555,7 @@ test('planned native plug-in surfaces stay disabled and portable archive control
 		'.gitattributes',
 		'THIRD_PARTY_LICENSES.md',
 		'config/ffmpeg-runtime-manifest.json',
+		'config/ffmpeg-runtime-publication-policy.json',
 		'config/production-licensing-matrix.json',
 		'config/release-severity-policy.json',
 		'desktop/ffmpeg-corresponding-source.json',
@@ -562,13 +563,20 @@ test('planned native plug-in surfaces stay disabled and portable archive control
 		'r2-cors.json',
 		'scripts/lib/ffmpeg-runtime-manifest.mjs',
 		'scripts/lib/ffmpeg-runtime-publisher.mjs',
+		'scripts/lib/cloudflare-runtime-cache.mjs',
+		'scripts/lib/pages-deploy-preflight.mjs',
+		'scripts/configure-ffmpeg-runtime-cache.mjs',
+		'scripts/preflight-pages-deploy.mjs',
 		'scripts/publish-runtime-assets.mjs',
 		'scripts/audit-ffmpeg-runtime.mjs',
 		'tests/ffmpeg-runtime-manifest.test.js',
+		'tests/ffmpeg-runtime-publisher.test.js',
+		'tests/cloudflare-runtime-cache.test.js',
+		'tests/pages-deploy-preflight.test.js',
 	]) assert.ok(validatedRuntime.evidence.some((item) => item.path === path));
 	assert.match(
 		validatedRuntime.summary,
-		/self-consistent Web FFmpeg runtime policy manifest.*package and lock identity.*JavaScript and WebAssembly byte lengths.*SHA-256.*R2 bucket and base prefix.*content types.*immutable cache metadata.*CORS policy.*corresponding-source descriptor.*aggregate notice.*licensing and security matrices.*threat model.*LF checkout rules.*Web publisher.*full-manifest-SHA release prefix and no-store final pointer.*before the publisher invokes Wrangler.*private snapshot.*desktop build and release assemblers do not consume this runtime.*separate desktop package-integrity control proves their absence.*do not authenticate independent human approval/iu,
+		/self-consistent Web FFmpeg runtime policy manifest.*package and lock identity.*JavaScript and WebAssembly byte lengths.*SHA-256.*R2 bucket and base prefix.*content types.*immutable cache metadata.*CORS policy.*corresponding-source descriptor.*aggregate notice.*licensing and security matrices.*threat model.*LF checkout rules.*central.*public-origin.*cache.*rule-ref policy.*Web publisher.*full-manifest-SHA release prefix and no-store final pointer.*before the publisher invokes Wrangler.*private snapshot.*conditional.*read-back.*strong-ETag.*CAS.*rollback.*stable-ref.*Cache Rules.*Pages.*preflight.*desktop build and release assemblers do not consume this runtime.*separate desktop package-integrity control proves their absence.*do not authenticate independent human approval/isu,
 	);
 	assert.equal(runtimeSupplyChain.residualRisks.some(
 		({ id }) => id === 'external-runtime-publication',

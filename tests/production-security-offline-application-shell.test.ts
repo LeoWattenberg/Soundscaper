@@ -94,11 +94,12 @@ test('the offline application shell and explicit runtime cache remain narrowly e
 	assert.equal(residual.ownerMilestone, '2');
 	assert.match(residual.exposure, /consumer-side consistency.*not.*authenticity root/isu);
 	assert.match(residual.exposure, /compromised asset host.*self-consistent release/isu);
-	assert.match(residual.exposure, /conditional-create.*read-back/isu);
-	assert.match(residual.exposure, /0\.12\.10.*without proving agreement/isu);
+	assert.match(residual.exposure, /conditional.*immutable.*read-back.*strong-ETag.*CAS.*rollback/isu);
+	assert.match(residual.exposure, /publication policy.*browser.*full-manifest SHA-256/isu);
+	assert.match(residual.exposure, /production application.*not recorded/isu);
 	assert.doesNotMatch(residual.exposure, /separate tabs.*not globally serialized/isu);
 	assert.match(residual.exposure, /Web Locks.*cooperat.*(?:older|noncooperating).*CacheStorage.*quota/isu);
-	assert.match(residual.requiredControl, /reviewed policy.*authenticate.*conditional.*remote reads/isu);
+	assert.match(residual.requiredControl, /independent.*authenticate.*pointer.*attestation/isu);
 	assert.ok(residual.acceptanceCriteria.length > 0);
 
 	const threatModel = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');

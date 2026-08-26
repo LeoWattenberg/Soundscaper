@@ -69,6 +69,30 @@ export async function createFixture(context) {
 			maxAgeSeconds: 86_400,
 		}],
 	}));
+	const publicPolicy = Buffer.from(JSON.stringify({
+		schemaVersion: 1,
+		publicOrigin: 'https://assets.soundscaper.org',
+		publicPrefix: 'runtime/ffmpeg/0.12.10',
+		releaseSegment: 'releases',
+		immutableCacheControl: 'public, max-age=31536000, immutable',
+		runtimeFiles: [
+			{ name: 'ffmpeg-core.js', contentType: 'text/javascript; charset=utf-8' },
+			{ name: 'ffmpeg-core.wasm', contentType: 'application/wasm' },
+		],
+		pointer: {
+			name: 'latest.json',
+			contentType: 'application/json; charset=utf-8',
+			cacheControl: 'no-store',
+		},
+		pages: {
+			origin: 'https://soundscaper.org',
+		},
+		cloudflare: {
+			pointerRuleRef: 'soundscaper-ffmpeg-runtime-pointer-v1',
+			releaseRuleRef: 'soundscaper-ffmpeg-runtime-releases-v1',
+			pagesRuleRef: 'soundscaper-pages-browser-origin-v1',
+		},
+	}));
 	const packageEntry = {
 		version: '0.12.10',
 		resolved: 'https://registry.npmjs.org/@ffmpeg/core/-/core-0.12.10.tgz',
@@ -108,6 +132,7 @@ export async function createFixture(context) {
 		'/.gitattributes text eol=lf',
 		'/THIRD_PARTY_LICENSES.md text eol=lf',
 		'/config/ffmpeg-runtime-manifest.json text eol=lf',
+		'/config/ffmpeg-runtime-publication-policy.json text eol=lf',
 		'/config/production-licensing-matrix.json text eol=lf',
 		'/config/production-security-matrix.json text eol=lf',
 		'/config/release-severity-policy.json text eol=lf',
@@ -161,6 +186,7 @@ export async function createFixture(context) {
 		writeBytes(join(root, 'node_modules/@ffmpeg/core/dist/esm/ffmpeg-core.wasm'), wasm),
 		...Object.entries(evidenceBytes).map(([id, bytes]) => writeBytes(join(root, paths[id]), bytes)),
 		writeBytes(join(root, 'r2-cors.json'), cors),
+		writeBytes(join(root, 'config/ffmpeg-runtime-publication-policy.json'), publicPolicy),
 	]);
 	const manifestPath = join(root, 'config/ffmpeg-runtime-manifest.json');
 	const manifest = {
@@ -190,6 +216,7 @@ export async function createFixture(context) {
 			correspondingSourceName: 'ffmpeg-corresponding-source.json',
 			corsOrigins: ['https://soundscaper.org'],
 			cors: descriptor('r2-cors.json', cors),
+			policy: descriptor('config/ffmpeg-runtime-publication-policy.json', publicPolicy),
 		},
 		evidence: Object.fromEntries(Object.entries(paths).map(([id, path]) => [
 			id,

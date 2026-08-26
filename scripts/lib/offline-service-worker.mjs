@@ -2,6 +2,8 @@
 
 import { createHash } from 'node:crypto';
 
+import runtimePublicPolicy from '../../config/ffmpeg-runtime-publication-policy.json' with { type: 'json' };
+
 import {
 	activateOfflineShell,
 	handleApplicationShellFetch,
@@ -16,8 +18,10 @@ const CONFIGURATION_TOKEN = '__SOUNDSCAPER_OFFLINE_SHELL_CONFIGURATION__';
 const RUNTIME_CACHE_PREFIX = 'soundscaper-ffmpeg-runtime-v1-';
 const RUNTIME_STATE_CACHE_NAME = `${RUNTIME_CACHE_PREFIX}state`;
 const RUNTIME_STATE_PATH = '/.soundscaper/offline/ffmpeg-runtime-state-v1.json';
-const RUNTIME_ORIGIN = 'https://assets.soundscaper.org';
-const RUNTIME_VERSION = '0.12.10';
+const RUNTIME_ORIGIN = runtimePublicPolicy.publicOrigin;
+const RUNTIME_RELEASE_PATH_PREFIX =
+	`/${runtimePublicPolicy.publicPrefix}/${runtimePublicPolicy.releaseSegment}/`;
+const RUNTIME_FILE_POLICIES = Object.freeze(runtimePublicPolicy.runtimeFiles.map((file) => Object.freeze({ ...file })));
 const MAXIMUM_RUNTIME_STATE_BYTES = 64 * 1024;
 const MAXIMUM_RUNTIME_FILE_BYTES = 64 * 1024 * 1024;
 const MAXIMUM_RUNTIME_RELEASE_BYTES = 65 * 1024 * 1024;
@@ -51,12 +55,20 @@ export async function handleOfflineShellFetch({
 	});
 	if (shellResponse) return shellResponse;
 	const requestUrl = new URL(request.url);
-	if (requestUrl.origin === 'https://assets.soundscaper.org'
-		&& /^\/runtime\/ffmpeg\/\d+\.\d+\.\d+\/releases\/[a-f\d]{64}\/ffmpeg-core\.(?:js|wasm)$/u.test(requestUrl.pathname)) {
+	if (requestUrl.origin === RUNTIME_ORIGIN && runtimeRequestPathIsAllowed(requestUrl.pathname)) {
 		const cached = await matchCommittedRuntimeResponse({ cacheStorage, request, origin });
 		if (cached) return cached;
 	}
 	return fetchImpl(request);
+}
+
+function runtimeRequestPathIsAllowed(pathname) {
+	if (!pathname.startsWith(RUNTIME_RELEASE_PATH_PREFIX)) return false;
+	const relative = pathname.slice(RUNTIME_RELEASE_PATH_PREFIX.length);
+	const separator = relative.indexOf('/');
+	if (separator !== 64 || !/^[a-f\d]{64}$/u.test(relative.slice(0, separator))) return false;
+	const name = relative.slice(separator + 1);
+	return RUNTIME_FILE_POLICIES.some((file) => file.name === name);
 }
 
 async function matchCommittedRuntimeResponse({ cacheStorage, request, origin }) {
@@ -138,15 +150,14 @@ function validateRuntimeRelease(value) {
 		|| !/^[a-f\d]{64}$/u.test(value.releaseId) || value.manifestSha256 !== value.releaseId) {
 		throw new Error('Runtime release is invalid.');
 	}
-	const baseUrl = `${RUNTIME_ORIGIN}/runtime/ffmpeg/${RUNTIME_VERSION}/releases/${value.releaseId}/`;
-	if (value.baseUrl !== baseUrl || !Array.isArray(value.files) || value.files.length !== 2) {
+	const baseUrl = `${RUNTIME_ORIGIN}${RUNTIME_RELEASE_PATH_PREFIX}${value.releaseId}/`;
+	if (value.baseUrl !== baseUrl || !Array.isArray(value.files)
+		|| value.files.length !== RUNTIME_FILE_POLICIES.length) {
 		throw new Error('Runtime release inventory is invalid.');
 	}
-	const names = ['ffmpeg-core.js', 'ffmpeg-core.wasm'];
 	let totalBytes = 0;
-	const files = names.map((name, index) => {
+	const files = RUNTIME_FILE_POLICIES.map(({ name, contentType }, index) => {
 		const file = value.files[index];
-		const contentType = name.endsWith('.wasm') ? 'application/wasm' : 'text/javascript; charset=utf-8';
 		if (!runtimePlainObject(file)
 			|| !runtimeExactKeys(file, ['byteLength', 'contentType', 'name', 'sha256', 'url'])
 			|| file.name !== name || file.url !== `${baseUrl}${name}` || file.contentType !== contentType
@@ -370,7 +381,8 @@ const RUNTIME_CACHE_PREFIX = ${JSON.stringify(RUNTIME_CACHE_PREFIX)};
 const RUNTIME_STATE_CACHE_NAME = ${JSON.stringify(RUNTIME_STATE_CACHE_NAME)};
 const RUNTIME_STATE_PATH = ${JSON.stringify(RUNTIME_STATE_PATH)};
 const RUNTIME_ORIGIN = ${JSON.stringify(RUNTIME_ORIGIN)};
-const RUNTIME_VERSION = ${JSON.stringify(RUNTIME_VERSION)};
+const RUNTIME_RELEASE_PATH_PREFIX = ${JSON.stringify(RUNTIME_RELEASE_PATH_PREFIX)};
+const RUNTIME_FILE_POLICIES = Object.freeze(${JSON.stringify(RUNTIME_FILE_POLICIES)}.map((file) => Object.freeze(file)));
 const MAXIMUM_RUNTIME_STATE_BYTES = ${String(MAXIMUM_RUNTIME_STATE_BYTES)};
 const MAXIMUM_RUNTIME_FILE_BYTES = ${String(MAXIMUM_RUNTIME_FILE_BYTES)};
 const MAXIMUM_RUNTIME_RELEASE_BYTES = ${String(MAXIMUM_RUNTIME_RELEASE_BYTES)};
@@ -384,6 +396,7 @@ ${readCommittedRuntimeState.toString()}
 ${createRuntimeSha256.toString()}
 ${verifiedRuntimeResponse.toString()}
 ${matchCommittedRuntimeResponse.toString()}
+${runtimeRequestPathIsAllowed.toString()}
 ${handleOfflineShellFetch.toString()}
 ${attachOfflineServiceWorker.toString()}
 attachOfflineServiceWorker(globalThis, OFFLINE_SHELL);

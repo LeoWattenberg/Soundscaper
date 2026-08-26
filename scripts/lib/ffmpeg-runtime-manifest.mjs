@@ -11,10 +11,6 @@ export const FFMPEG_RUNTIME_MANIFEST_PATH = 'config/ffmpeg-runtime-manifest.json
 
 const VERIFIED_RELEASES = new WeakSet();
 const SHA256_PATTERN = /^[a-f\d]{64}$/u;
-const EXPECTED_RUNTIME_FILES = Object.freeze({
-	'ffmpeg-core.js': 'text/javascript; charset=utf-8',
-	'ffmpeg-core.wasm': 'application/wasm',
-});
 const EVIDENCE_PATHS = Object.freeze({
 	lineEndings: '.gitattributes',
 	correspondingSource: 'desktop/ffmpeg-corresponding-source.json',
@@ -68,6 +64,11 @@ export async function verifyFfmpegRuntimeManifest({
 	const manifest = parseJson(manifestBytes, 'FFmpeg runtime manifest');
 	validateManifestShape(manifest);
 	validateReview(manifest);
+	const publicPolicyBytes = await readRegularFile(root, manifest.publication.policy.path, 'runtime publication policy');
+	verifyDescriptorBytes(publicPolicyBytes, manifest.publication.policy, 'runtime publication policy');
+	const publicPolicy = validatePublicPolicy(
+		parseJson(publicPolicyBytes, 'runtime publication policy'), manifest,
+	);
 
 	const [projectPackageBytes, lockBytes, installedPackageBytes] = await Promise.all([
 		readRegularFile(root, 'package.json', 'project package metadata'),
@@ -96,7 +97,6 @@ export async function verifyFfmpegRuntimeManifest({
 	const corsBytes = await readRegularFile(root, manifest.publication.cors.path, 'runtime CORS policy');
 	verifyDescriptorBytes(corsBytes, manifest.publication.cors, 'runtime CORS policy');
 	validateCorsPolicy(parseJson(corsBytes, 'runtime CORS policy'), manifest.publication.corsOrigins);
-
 	const licensingMatrix = parseJson(evidence.licensingMatrix.bytes, 'production licensing matrix');
 	validateLinkedEvidence(
 		manifest,
@@ -117,6 +117,8 @@ export async function verifyFfmpegRuntimeManifest({
 		runtimeFiles: Object.freeze(runtimeFiles),
 		evidence: Object.freeze(evidence),
 		corsBytes,
+		publicPolicy,
+		publicPolicyBytes,
 	});
 	VERIFIED_RELEASES.add(release);
 	return release;
@@ -202,6 +204,10 @@ export function verifyBufferedFfmpegRuntime(release) {
 		verifyDescriptorBytes(descriptor.bytes, descriptor, `buffered runtime evidence ${id}`);
 	}
 	verifyDescriptorBytes(release.corsBytes, release.manifest.publication.cors, 'buffered runtime CORS policy');
+	verifyDescriptorBytes(
+		release.publicPolicyBytes, release.manifest.publication.policy, 'buffered runtime publication policy',
+	);
+	validatePublicPolicy(parseJson(release.publicPolicyBytes, 'buffered runtime publication policy'), release.manifest);
 	return release;
 }
 
@@ -214,6 +220,8 @@ export function snapshotVerifiedFfmpegRuntime(release) {
 			id, { ...file, bytes: Buffer.from(file.bytes) },
 		])),
 		corsBytes: Buffer.from(release.corsBytes),
+		publicPolicy: release.publicPolicy,
+		publicPolicyBytes: Buffer.from(release.publicPolicyBytes),
 	};
 }
 
@@ -240,14 +248,12 @@ function validateManifestShape(manifest) {
 	assert(manifest.runtime.publicPrefix === `runtime/ffmpeg/${manifest.package.version}`, 'runtime.publicPrefix is invalid');
 	assert(manifest.runtime.cacheControl === 'public, max-age=31536000, immutable', 'runtime.cacheControl is invalid');
 	assert(Array.isArray(manifest.runtime.files), 'runtime.files must be an array');
-	const expectedNames = Object.keys(EXPECTED_RUNTIME_FILES);
-	assert(canonicalJson(manifest.runtime.files.map(({ name }) => name)) === canonicalJson(expectedNames),
-		`runtime.files must contain exactly ${expectedNames.join(', ')}`);
+	assert(manifest.runtime.files.length === 2, 'runtime.files must contain exactly two descriptors');
 	for (const descriptor of manifest.runtime.files) validateRuntimeDescriptor(descriptor);
 
 	assertPlainObject(manifest.publication, 'publication');
 	assertExactKeys(manifest.publication, [
-		'bucket', 'jurisdiction', 'manifestName', 'noticeName', 'correspondingSourceName', 'corsOrigins', 'cors',
+		'bucket', 'jurisdiction', 'manifestName', 'noticeName', 'correspondingSourceName', 'corsOrigins', 'cors', 'policy',
 	], 'publication');
 	assert(manifest.publication.bucket === 'soundscaper-assets', 'publication.bucket is invalid');
 	assert([null, 'eu', 'fedramp'].includes(manifest.publication.jurisdiction), 'publication.jurisdiction is invalid');
@@ -260,6 +266,9 @@ function validateManifestShape(manifest) {
 	for (const origin of manifest.publication.corsOrigins) validateCorsOrigin(origin);
 	validateFileDescriptor(manifest.publication.cors, 'publication.cors');
 	assert(manifest.publication.cors.path === 'r2-cors.json', 'publication.cors.path must be r2-cors.json');
+	validateFileDescriptor(manifest.publication.policy, 'publication.policy');
+	assert(manifest.publication.policy.path === 'config/ffmpeg-runtime-publication-policy.json',
+		'publication.policy.path must be config/ffmpeg-runtime-publication-policy.json');
 
 	assertPlainObject(manifest.evidence, 'evidence');
 	assertExactKeys(manifest.evidence, Object.keys(EVIDENCE_PATHS), 'evidence');
@@ -361,12 +370,62 @@ function validateLineEndingPolicy(attributes, manifest) {
 		'.gitattributes',
 		FFMPEG_RUNTIME_MANIFEST_PATH,
 		manifest.publication.cors.path,
+		manifest.publication.policy.path,
 		...Object.values(EVIDENCE_PATHS).filter((path) => path !== '.gitattributes'),
 	];
 	const lines = new Set(attributes.split(/\r?\n/u).map((line) => line.trim()));
 	for (const path of requiredPaths) {
 		assert(lines.has(`/${path} text eol=lf`), `.gitattributes must pin LF for ${path}`);
 	}
+}
+
+function validatePublicPolicy(policy, manifest) {
+	assertPlainObject(policy, 'runtime publication policy');
+	assertExactKeys(policy, [
+		'cloudflare', 'immutableCacheControl', 'pages', 'pointer', 'publicOrigin', 'publicPrefix', 'releaseSegment',
+		'runtimeFiles', 'schemaVersion',
+	], 'runtime publication policy');
+	assert(policy.schemaVersion === 1, 'runtime publication policy schemaVersion must be 1');
+	assert(policy.publicOrigin === 'https://assets.soundscaper.org', 'runtime publication publicOrigin is invalid');
+	assert(policy.publicPrefix === manifest.runtime.publicPrefix, 'runtime publication publicPrefix disagrees with the manifest');
+	assert(policy.releaseSegment === 'releases', 'runtime publication releaseSegment is invalid');
+	assert(policy.immutableCacheControl === manifest.runtime.cacheControl,
+		'runtime publication immutable cache policy disagrees with the manifest');
+	assert(Array.isArray(policy.runtimeFiles) && policy.runtimeFiles.length === 2,
+		'runtime publication policy must define exactly two runtime files');
+	const expectedRuntimeFiles = [
+		{ name: 'ffmpeg-core.js', contentType: 'text/javascript; charset=utf-8' },
+		{ name: 'ffmpeg-core.wasm', contentType: 'application/wasm' },
+	];
+	for (const [index, expected] of expectedRuntimeFiles.entries()) {
+		const file = policy.runtimeFiles[index];
+		assertPlainObject(file, `runtime publication file ${String(index)}`);
+		assertExactKeys(file, ['contentType', 'name'], `runtime publication file ${String(index)}`);
+		assert(file.name === expected.name && file.contentType === expected.contentType,
+			`runtime publication file ${String(index)} is invalid`);
+		const manifestFile = manifest.runtime.files[index];
+		assert(manifestFile.name === file.name && manifestFile.contentType === file.contentType,
+			`runtime publication policy ${file.name} contentType disagrees with the manifest`);
+	}
+	assertPlainObject(policy.pointer, 'runtime publication pointer');
+	assertExactKeys(policy.pointer, ['cacheControl', 'contentType', 'name'], 'runtime publication pointer');
+	assert(policy.pointer.name === 'latest.json', 'runtime publication pointer name is invalid');
+	assert(policy.pointer.contentType === 'application/json; charset=utf-8',
+		'runtime publication pointer contentType is invalid');
+	assert(policy.pointer.cacheControl === 'no-store', 'runtime publication pointer cacheControl is invalid');
+	assertPlainObject(policy.pages, 'runtime publication Pages policy');
+	assertExactKeys(policy.pages, ['origin'], 'runtime publication Pages policy');
+	assert(policy.pages.origin === 'https://soundscaper.org', 'runtime publication Pages origin is invalid');
+	assertPlainObject(policy.cloudflare, 'runtime publication Cloudflare policy');
+	assertExactKeys(policy.cloudflare, ['pagesRuleRef', 'pointerRuleRef', 'releaseRuleRef'],
+		'runtime publication Cloudflare policy');
+	assert(/^soundscaper-ffmpeg-runtime-[a-z-]+-v1$/u.test(policy.cloudflare.pointerRuleRef),
+		'runtime publication Cloudflare pointerRuleRef is invalid');
+	assert(/^soundscaper-ffmpeg-runtime-[a-z-]+-v1$/u.test(policy.cloudflare.releaseRuleRef),
+		'runtime publication Cloudflare releaseRuleRef is invalid');
+	assert(/^soundscaper-pages-[a-z-]+-v1$/u.test(policy.cloudflare.pagesRuleRef),
+		'runtime publication Cloudflare pagesRuleRef is invalid');
+	return deepFreeze(policy);
 }
 
 function validateAuthorizations(authorizations, licensingMatrix) {
@@ -441,8 +500,10 @@ function validateCorsOrigin(value) {
 function validateRuntimeDescriptor(descriptor) {
 	assertPlainObject(descriptor, 'runtime file descriptor');
 	assertExactKeys(descriptor, ['name', 'byteLength', 'sha256', 'contentType'], `runtime file ${descriptor.name || '<unknown>'}`);
-	assert(Object.hasOwn(EXPECTED_RUNTIME_FILES, descriptor.name), `Unexpected runtime file: ${descriptor.name}`);
-	assert(descriptor.contentType === EXPECTED_RUNTIME_FILES[descriptor.name], `Invalid content type for ${descriptor.name}`);
+	assert(typeof descriptor.name === 'string' && /^[A-Za-z\d][A-Za-z\d._-]{0,127}$/u.test(descriptor.name),
+		`Unsafe runtime file name: ${descriptor.name}`);
+	assert(typeof descriptor.contentType === 'string' && /^[a-z\d.+-]+\/[a-z\d.+-]+(?:; charset=utf-8)?$/u.test(descriptor.contentType),
+		`Invalid content type for ${descriptor.name}`);
 	assertDescriptorSizeAndDigest(descriptor, `runtime file ${descriptor.name}`, 64 * 1024 * 1024);
 }
 

@@ -44,13 +44,18 @@
 			"path": "r2-cors.json",
 			"byteLength": 369,
 			"sha256": "c7dfdd99e932d2e0ab20da63fad6ad253d7ae38e93e1133b5ac18bb675925b6c"
+		},
+		"policy": {
+			"path": "config/ffmpeg-runtime-publication-policy.json",
+			"byteLength": 780,
+			"sha256": "f0d7400de5bbbc1f8a01bf101f793863f4a716451b600ba309ca7421bb3a1428"
 		}
 	},
 	"evidence": {
 		"lineEndings": {
 			"path": ".gitattributes",
-			"byteLength": 2247,
-			"sha256": "7599d7698118e7747e4af8303a69ef7b9e0562f4843e8eba7d4bb9241d92098e"
+			"byteLength": 2306,
+			"sha256": "2eddb0bc61407f41cda8034c4a6184380ba7fb0d78a9f21778d67c67c0c0e5df"
 		},
 		"correspondingSource": {
 			"path": "desktop/ffmpeg-corresponding-source.json",
@@ -79,13 +84,13 @@
 		},
 		"securityMatrix": {
 			"path": "config/production-security-matrix.json",
-			"byteLength": 666374,
-			"sha256": "101bb87f5d7890028bd0ca8775f5a75aa0b65cb2c2ca21df07032b263e022a5d"
+			"byteLength": 668394,
+			"sha256": "1c8e9db46be9c9414a5c0f424d2605f7a50acd85cec0d464978cf5d484867c8e"
 		},
 		"threatModel": {
 			"path": "docs/production-threat-model.md",
-			"byteLength": 322684,
-			"sha256": "6de50272d709ca74bac9bf143cf8dd119263c0c2a9d733ec90ca84933f243990"
+			"byteLength": 323708,
+			"sha256": "99c6be6b4c55d5682244b485ddaf05d0467d66332825e0fb7417baf54e7adc08"
 		}
 	},
 	"security": {
@@ -123,6 +128,6 @@
 			"desktop-release-policy",
 			"runtime-publication-policy"
 		],
-		"payloadSha256": "d4627a3936f2272a560e8a4571d22431d5585ebad49f666ef046907f9f499be5"
+		"payloadSha256": "c7fee1ab9afe692f85afefc178479e5a0db09404fa7e87ccabed79251f3f4189"
 	}
 }

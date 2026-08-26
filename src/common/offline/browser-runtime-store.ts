@@ -9,6 +9,12 @@ import type {
 	VerifiedRuntimeStore,
 	VerifiedRuntimeTransaction,
 } from './ffmpeg-runtime-cache.ts';
+import {
+	ffmpegRuntimeReleaseBaseUrl,
+	FFMPEG_RUNTIME_FILES,
+	FFMPEG_RUNTIME_PUBLIC_ORIGIN,
+	FFMPEG_RUNTIME_PUBLIC_PREFIX,
+} from './ffmpeg-runtime-public-policy.ts';
 
 export const BROWSER_FFMPEG_RUNTIME_CACHE_PREFIX = 'soundscaper-ffmpeg-runtime-v1-';
 
@@ -17,10 +23,9 @@ const CANDIDATE_CACHE_PREFIX = `${BROWSER_FFMPEG_RUNTIME_CACHE_PREFIX}candidate-
 const COMMIT_LOCK_NAME = `${BROWSER_FFMPEG_RUNTIME_CACHE_PREFIX}commit`;
 const STATE_PATH = '/.soundscaper/offline/ffmpeg-runtime-state-v1.json';
 const STREAM_CACHE_PROBE_URL =
-	'https://assets.soundscaper.org/runtime/ffmpeg/0.12.10/.soundscaper-stream-probe-v1';
+	`${FFMPEG_RUNTIME_PUBLIC_ORIGIN}/${FFMPEG_RUNTIME_PUBLIC_PREFIX}/.soundscaper-stream-probe-v1`;
 const SHA256_PATTERN = /^[a-f\d]{64}$/u;
 const CANDIDATE_ID_PATTERN = /^[A-Za-z\d-]{1,128}$/u;
-const RUNTIME_FILE_NAMES = Object.freeze(['ffmpeg-core.js', 'ffmpeg-core.wasm']);
 const MAXIMUM_STATE_BYTES = 64 * 1024;
 const MAXIMUM_RUNTIME_FILE_BYTES = 64 * 1024 * 1024;
 
@@ -426,13 +431,13 @@ function validateRelease(value: unknown, label: string): VerifiedRuntimeRelease 
 		throw new Error(`${label} manifest digest disagrees with its release ID.`);
 	}
 	const baseUrl = new URL(String(release.baseUrl));
-	const expectedBase = `https://assets.soundscaper.org/runtime/ffmpeg/0.12.10/releases/${releaseId}/`;
+	const expectedBase = `${ffmpegRuntimeReleaseBaseUrl(releaseId)}/`;
 	if (baseUrl.href !== expectedBase) throw new Error(`${label} base URL is invalid.`);
 	const runtimeFiles = release.files;
-	if (!Array.isArray(runtimeFiles) || runtimeFiles.length !== RUNTIME_FILE_NAMES.length) {
+	if (!Array.isArray(runtimeFiles) || runtimeFiles.length !== FFMPEG_RUNTIME_FILES.length) {
 		throw new Error(`${label} file inventory is invalid.`);
 	}
-	const files = RUNTIME_FILE_NAMES.map((name, index) => validateFile(runtimeFiles[index], name, baseUrl, label));
+	const files = FFMPEG_RUNTIME_FILES.map((policy, index) => validateFile(runtimeFiles[index], policy, baseUrl, label));
 	return Object.freeze({
 		schemaVersion: 1,
 		releaseId,
@@ -444,10 +449,11 @@ function validateRelease(value: unknown, label: string): VerifiedRuntimeRelease 
 
 function validateFile(
 	value: unknown,
-	expectedName: string,
+	policy: Readonly<{ name: string; contentType: string }>,
 	baseUrl: URL,
 	label: string,
 ): VerifiedRuntimeFile {
+	const { name: expectedName, contentType } = policy;
 	const file = plainObject(value, `${label} ${expectedName}`);
 	exactKeys(file, ['byteLength', 'contentType', 'name', 'sha256', 'url'], `${label} ${expectedName}`);
 	if (file.name !== expectedName || file.url !== new URL(expectedName, baseUrl).href) {
@@ -457,9 +463,6 @@ function validateFile(
 		|| Number(file.byteLength) > MAXIMUM_RUNTIME_FILE_BYTES) {
 		throw new Error(`${label} ${expectedName} byte length is invalid.`);
 	}
-	const contentType = expectedName.endsWith('.wasm')
-		? 'application/wasm'
-		: 'text/javascript; charset=utf-8';
 	if (file.contentType !== contentType) throw new Error(`${label} ${expectedName} content type is invalid.`);
 	return Object.freeze({
 		name: expectedName,
