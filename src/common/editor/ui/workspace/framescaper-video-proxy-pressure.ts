@@ -7,6 +7,12 @@ export interface FramescaperVideoProxyPressureEntry {
 	readonly sourceId: string;
 }
 
+/** Per-element decode counters carried between reports, so deltas can be taken. */
+export type FramescaperVideoProxyPressureCounters = Map<string, {
+	total: number;
+	dropped: number;
+}>;
+
 export function reportFramescaperVideoProxyPreviewPressure(
 	reporter: ((sourceId: string, pressure: Readonly<{
 		readonly droppedFrameRatio: number;
@@ -21,6 +27,7 @@ export function reportFramescaperVideoProxyPreviewPressure(
 		readonly referenceWidth: number;
 		readonly referenceHeight: number;
 	}>,
+	counters?: FramescaperVideoProxyPressureCounters,
 ): Promise<void> {
 	if (!reporter || viewport.width <= 0 || viewport.height <= 0
 		|| viewport.referenceWidth <= 0 || viewport.referenceHeight <= 0) return Promise.resolve();
@@ -28,14 +35,31 @@ export function reportFramescaperVideoProxyPreviewPressure(
 		viewport.width / viewport.referenceWidth,
 		viewport.height / viewport.referenceHeight,
 	);
+	// `getVideoPlaybackQuality` counts for the whole media resource, and the video
+	// elements are cached per clip for the life of the preview, so the raw totals
+	// are lifetime figures. Pressure is a statement about now: a long clean stretch
+	// would otherwise mask a stall, and one bad stretch would keep proxies engaged
+	// long after playback recovered. Report the change since the previous look.
 	const bySource = new Map<string, { total: number; dropped: number }>();
+	const seen = new Set<string>();
 	for (const entry of entries) {
 		const current = bySource.get(entry.sourceId) ?? { total: 0, dropped: 0 };
 		const quality = elements.get(entry.clipId)?.getVideoPlaybackQuality?.();
-		current.total += Math.max(0, Number(quality?.totalVideoFrames) || 0);
-		current.dropped += Math.max(0, Number(quality?.droppedVideoFrames) || 0);
+		const total = Math.max(0, Number(quality?.totalVideoFrames) || 0);
+		const dropped = Math.max(0, Number(quality?.droppedVideoFrames) || 0);
+		const previous = counters?.get(entry.clipId);
+		// A counter that moved backwards means the element took a new resource, so
+		// the reading starts again rather than going negative.
+		const totalDelta = previous && total >= previous.total ? total - previous.total : total;
+		const droppedDelta = previous && dropped >= previous.dropped
+			? dropped - previous.dropped : dropped;
+		counters?.set(entry.clipId, { total, dropped });
+		seen.add(entry.clipId);
+		current.total += totalDelta;
+		current.dropped += droppedDelta;
 		bySource.set(entry.sourceId, current);
 	}
+	if (counters) for (const clipId of [...counters.keys()]) if (!seen.has(clipId)) counters.delete(clipId);
 	return Promise.all([...bySource].map(([sourceId, quality]) => (
 		Promise.resolve(reporter(sourceId, {
 			droppedFrameRatio: quality.total > 0
@@ -63,6 +87,7 @@ export function useFramescaperVideoProxyPreviewPressure(options: Readonly<{
 }>): void {
 	const entriesRef = useRef(options.entries);
 	entriesRef.current = options.entries;
+	const countersRef = useRef<FramescaperVideoProxyPressureCounters>(new Map());
 	const signature = options.entries.map(({ clipId, sourceId }) => `${clipId}:${sourceId}`).join('|');
 	useEffect(() => {
 		const report = (): void => {
@@ -77,6 +102,7 @@ export function useFramescaperVideoProxyPreviewPressure(options: Readonly<{
 					referenceWidth: options.referenceWidth,
 					referenceHeight: options.referenceHeight,
 				},
+				countersRef.current,
 			))).catch(() => undefined);
 		};
 		report();
