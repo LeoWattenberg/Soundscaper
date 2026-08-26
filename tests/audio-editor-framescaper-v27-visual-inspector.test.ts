@@ -62,6 +62,30 @@ test('selected visual inspector materializes generator, presentation, and linked
 	assert.equal(updatedFoundation.revision, number(record(projectFoundation).revision) + 1);
 });
 
+/**
+ * The commit spreads whichever presentation the clip owns, enabled or not. The
+ * inspector therefore has to read the same record: showing defaults for a
+ * disabled one and then committing over it destroyed authored state the
+ * operator was never shown.
+ */
+test('the inspector reads the same presentation record its commit will replace', () => {
+	let project = reimportFramescaperProjectV27(PROFILE, visualProject()) as unknown as Record<string, unknown>;
+	const presentations = project.videoVisualPresentations as Record<string, unknown>[];
+	presentations.push({
+		schemaVersion: 1, id: 'disabled-presentation',
+		owner: { kind: 'clip', id: 'generator-clip' }, enabled: false,
+		opacity: 0.3, blendMode: 'multiply', maskMatteIds: [],
+		grade: null, processorStackId: null,
+	});
+
+	const model = createFramescaperV27VisualInspectorModel({
+		project, selectedClipId: 'generator-clip',
+	});
+
+	assert.equal(model.opacity, 0.3, 'the authored opacity is shown, not the default');
+	assert.equal(model.blendMode, 'multiply', 'the authored blend mode is shown, not the default');
+});
+
 test('selected V28 retains the inherited visual inspector through its exact V27 foundation', () => {
 	const project = reimportFramescaperProjectV28(
 		FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE,

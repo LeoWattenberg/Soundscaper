@@ -65,9 +65,12 @@ export function createFramescaperV27VisualInspectorModel(input: Readonly<{
 		? normalizeVideoStillClipV1(clipValue) : normalizeVideoGeneratorClipV1(clipValue);
 	const source = sourceValue.kind === 'still'
 		? normalizeVideoStillSourceV1(sourceValue) : normalizeVideoGeneratorSourceV1(sourceValue);
+	// Selected exactly as the commit selects it, disabled records included: the
+	// commit spreads whichever presentation the clip owns, so reading a narrower
+	// set would show defaults for a record it then overwrites.
 	const presentations = records(project.videoVisualPresentations, 'visual presentations').filter((value) => {
 		const owner = data(value.owner, 'visual presentation owner');
-		return value.enabled === true && owner.kind === 'clip' && owner.id === clip.id;
+		return owner.kind === 'clip' && owner.id === clip.id;
 	}).map(normalizeVideoVisualPresentationV1);
 	if (presentations.length > 1) throw new RangeError('The selected visual has ambiguous clip presentations.');
 	const presentation = presentations[0] ?? null;
