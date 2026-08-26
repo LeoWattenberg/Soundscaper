@@ -247,9 +247,9 @@ async function runShotProcess(options: Readonly<{
 		let graceTimer: ReturnType<typeof setTimeout> | null = null;
 		let killTimer: ReturnType<typeof setTimeout> | null = null;
 		const clear = (): void => {
-			if (runtimeTimer !== null) clearTimeout(runtimeTimer);
-			if (graceTimer !== null) clearTimeout(graceTimer);
-			if (killTimer !== null) clearTimeout(killTimer);
+			if (runtimeTimer !== null) { clearTimeout(runtimeTimer); runtimeTimer = null; }
+			if (graceTimer !== null) { clearTimeout(graceTimer); graceTimer = null; }
+			if (killTimer !== null) { clearTimeout(killTimer); killTimer = null; }
 			options.signal?.removeEventListener('abort', onAbort);
 		};
 		const finish = (error?: unknown): void => {
@@ -264,7 +264,7 @@ async function runShotProcess(options: Readonly<{
 		const terminate = (error: ExternalFfmpegShotDetectorError): void => {
 			if (settled || terminating !== null) return;
 			terminating = error;
-			if (runtimeTimer !== null) clearTimeout(runtimeTimer);
+			if (runtimeTimer !== null) { clearTimeout(runtimeTimer); runtimeTimer = null; }
 			void terminateProcessTree(child, 'SIGTERM', { environment: options.environment });
 			graceTimer = setTimeout(() => {
 				void terminateProcessTree(child, 'SIGKILL', { environment: options.environment });
