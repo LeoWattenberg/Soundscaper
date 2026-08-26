@@ -123,6 +123,47 @@ test('transcript indexing refuses external deletion and corruption before stagin
 	assert.equal(corrupt.releases, 1);
 });
 
+test('standalone editorial generation derives one bounded selection context from authenticated transcript custody', async () => {
+	const { transcriptBytes, storageKey, transcriptProject } = transcriptAssetFixture();
+	const fixture = preparationFixture(transcriptProject, false, { storageKey, bytes: transcriptBytes });
+	const settings = { ...defaultAssistanceWorkflowSettingsV1('generate-editorial-text'),
+		enabled: true } as const;
+	const result = await fixture.preparation.prepareGuidedWorkflow({
+		jobId: JOB_ID, workflowId: 'generate-editorial-text', settings,
+		models: [model('qwen3-4b-q4-k-m', '1.0.0', 'editorial-generation', 8)],
+		custody: fixture.custody, signal: new AbortController().signal,
+	});
+	assert.equal(result.outcome, 'prepared');
+	if (result.outcome !== 'prepared') return;
+	assert.deepEqual(result.workflow.stageIds, ['generate-editorial-text']);
+	assert.deepEqual(result.workflow.inputs.map(({ stageId, slotId }) => `${stageId}:${slotId}`), [
+		'generate-editorial-text:editorial-context',
+	]);
+	assert.deepEqual(result.reviewAuthority, {
+		reviewAuthorityVersion: 1, audioWave: null,
+		editorialCandidateIds: [`selection:${SOURCE_SHA256.slice(0, 24)}`],
+	});
+	const context = JSON.parse(new TextDecoder().decode(
+		fixture.stagedBodies.get('editorial-context'),
+	)) as Readonly<Record<string, unknown>>;
+	assert.equal(context.operation, 'editorial-generation');
+	assert.deepEqual(context.authorizedCandidateIds,
+		[`selection:${SOURCE_SHA256.slice(0, 24)}`]);
+	assert.match(String(context.prompt), /Selected words for editorial generation/u);
+	assert.deepEqual(fixture.operations, [], 'editorial context never renders or uploads media');
+});
+
+test('standalone editorial generation remains unavailable without selected transcript evidence', async () => {
+	const fixture = preparationFixture();
+	assert.deepEqual(await fixture.preparation.prepareGuidedWorkflow({
+		jobId: JOB_ID, workflowId: 'generate-editorial-text',
+		settings: { ...defaultAssistanceWorkflowSettingsV1('generate-editorial-text'), enabled: true },
+		models: [model('qwen3-4b-q4-k-m', '1.0.0', 'editorial-generation', 8)],
+		custody: fixture.custody, signal: new AbortController().signal,
+	}), { outcome: 'unavailable', reason: 'editorial-context-custody-unavailable' });
+	assert.deepEqual(fixture.custodyEvents, []);
+});
+
 test('missing or ambiguous exact models and unavailable aggregate custody are typed refusals', async () => {
 	const fixture = preparationFixture();
 	for (const models of [[], [
@@ -297,6 +338,7 @@ function preparationFixture(
 ) {
 	const operations: string[] = [];
 	const preflights: number[] = [];
+	const stagedBodies = new Map<string, Uint8Array>();
 	const custodyEvents: Array<{ kind: 'input' | 'output' | 'producer'; slotId: string }> = [];
 	let releases = 0;
 	let claimOrdinal = 10;
@@ -306,6 +348,7 @@ function preparationFixture(
 		) => {
 			custodyEvents.push({ kind: 'input', slotId: request.slotId });
 			const bytes = new Uint8Array(await request.bytes.arrayBuffer());
+			stagedBodies.set(request.slotId, bytes);
 			const custody = createAssistanceWorkflowCustodyClaimV1({
 				custodyVersion: 1, workflowId: request.workflowId, direction: 'input',
 				jobId: request.jobId, stageId: request.stageId, slotId: request.slotId,
@@ -385,7 +428,7 @@ function preparationFixture(
 			},
 		},
 	});
-	return { preparation, custody, custodyEvents, operations, preflights,
+	return { preparation, custody, custodyEvents, operations, preflights, stagedBodies,
 		get releases() { return releases; } };
 }
 
@@ -404,7 +447,11 @@ function project(): FixtureProject {
 
 function transcriptAssetFixture() {
 	const transcriptBytes = new TextEncoder().encode(JSON.stringify({
-		sourceId: 'voice-source', sampleRate: 48_000, language: 'en', segments: [],
+		schemaVersion: 1, sourceId: 'voice-source', sampleRate: 48_000, language: 'en',
+		modelId: 'parakeet-tdt-0.6b-v2', segments: [{
+			startFrame: 24_000, endFrame: 48_000,
+			text: 'Selected words for editorial generation', words: [], speaker: null,
+		}],
 	}));
 	const transcriptSha256 = bytesToHex(sha256(transcriptBytes));
 	const storageKey = `assistance-transcript-sha256:${transcriptSha256}`;

@@ -7,6 +7,10 @@ import {
 	validateAssistanceWorkflowReviewAuthorityV1,
 	type AssistanceWorkflowReviewAuthorityV1,
 } from '../assistance/workflow-review-authority-v1.ts';
+import {
+	ASSISTANCE_EDITORIAL_GENERATION_MAXIMUM_PROMPT_BYTES,
+	reviewAssistanceEditorialGenerationPlanV1,
+} from '../assistance/editorial-generation-v1.ts';
 import type { AssistanceGuidedWorkflowId } from '../assistance/workflow.ts';
 import { inspectWavBlobPcm } from '../wav-import.js';
 
@@ -24,6 +28,25 @@ export async function deriveLocalAssistanceGuidedReviewAuthority(
 	workflowId: AssistanceGuidedWorkflowId,
 	inputs: readonly PreparedExternalInput[],
 ): Promise<AssistanceWorkflowReviewAuthorityV1> {
+	if (workflowId === 'generate-editorial-text') {
+		const contexts = inputs.filter(({ mediaType }) =>
+			mediaType === 'application/vnd.soundscaper.editorial-context+json');
+		if (contexts.length !== 1
+			|| contexts[0]!.bytes.size > ASSISTANCE_EDITORIAL_GENERATION_MAXIMUM_PROMPT_BYTES * 2) {
+			throw new TypeError('Guided editorial review requires one bounded exact context input.');
+		}
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(
+				await contexts[0]!.bytes.arrayBuffer(),
+			)) as unknown;
+		} catch (error) {
+			throw new TypeError('Guided editorial context is not valid UTF-8 JSON.', { cause: error });
+		}
+		const plan = reviewAssistanceEditorialGenerationPlanV1(parsed);
+		return validateAssistanceWorkflowReviewAuthorityV1({ reviewAuthorityVersion: 1,
+			audioWave: null, editorialCandidateIds: plan.authorizedCandidateIds });
+	}
 	if (workflowId !== 'enhance-dialogue' && workflowId !== 'separate-dialogue-music-effects') {
 		return createEmptyAssistanceWorkflowReviewAuthorityV1();
 	}

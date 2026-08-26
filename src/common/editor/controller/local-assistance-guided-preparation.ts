@@ -5,10 +5,6 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 
 import type { AssistanceOperation } from '../assistance/operation.ts';
 import {
-	createAssistanceAssetReferenceV1,
-	type AssistanceTranscriptAssetReferenceV1,
-} from '../assistance/assistance-asset-reference-v1.ts';
-import {
 	assistanceWorkflowStageGraph,
 	validateAssistanceWorkflow,
 	type AssistanceGuidedWorkflowId,
@@ -31,6 +27,11 @@ import type { LocalAssistanceWorkflowCustodyBridge } from '../ui/local-assistanc
 import type { LocalAssistanceGuidedPreparationUnavailableReason } from
 	'../ui/local-assistance-preparation.ts';
 import { deriveLocalAssistanceGuidedReviewAuthority } from './local-assistance-guided-review-authority.ts';
+import {
+	prepareLocalAssistanceGuidedEditorialContext,
+	prepareLocalAssistanceGuidedTranscriptInput,
+	type LocalAssistanceGuidedPrimitiveFence,
+} from './local-assistance-guided-transcript-context.ts';
 
 const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
 const SHA256 = /^[a-f\d]{64}$/u;
@@ -203,12 +204,7 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 	return Object.freeze({ prepareGuidedWorkflow });
 }
 
-interface PrimitiveFence {
-	readonly projectId: string; readonly schemaVersion: number; readonly revision: number;
-	readonly sequenceId: string; readonly occurrenceIds: readonly string[]; readonly sourceId: string;
-	readonly sourceSha256: string; readonly sourceStartFrame: number; readonly sourceEndFrame: number;
-	readonly linkMembershipSha256: string; readonly timingAuthoritySha256: string;
-}
+type PrimitiveFence = LocalAssistanceGuidedPrimitiveFence;
 
 async function prepareExternalInput(
 	dependencies: LocalAssistanceGuidedPreparationDependencies,
@@ -219,8 +215,13 @@ async function prepareExternalInput(
 	settings: AssistanceWorkflowSettingsV1,
 	signal: AbortSignal,
 ): Promise<Readonly<{ mediaType: string; bytes: Blob; fence: PrimitiveFence }> | null> {
-	if (slotId === 'transcript') {
-		return prepareTranscriptInput(dependencies, project, inventory, signal);
+	if (slotId === 'transcript' || slotId === 'editorial-context') {
+		const options = Object.freeze({ project, inventory,
+			fence: primitiveFence(dependencies.currentSelectionFence()),
+			loadTranscriptBody: dependencies.loadTranscriptBody, signal });
+		return slotId === 'transcript'
+			? prepareLocalAssistanceGuidedTranscriptInput(options)
+			: prepareLocalAssistanceGuidedEditorialContext(options);
 	}
 	if (slotId !== 'audio' && slotId !== 'video' && slotId !== 'frame-pack') return null;
 	const source = inventory.filter(({ mediaKind }) => mediaKind === (slotId === 'frame-pack' ? 'video' : slotId));
@@ -238,54 +239,6 @@ async function prepareExternalInput(
 	}
 	const input = matches[0]!;
 	return Object.freeze({ mediaType: input.mediaType, bytes: input.bytes, fence: prepared.fence });
-}
-
-async function prepareTranscriptInput(
-	dependencies: LocalAssistanceGuidedPreparationDependencies,
-	project: Record<string, unknown>,
-	inventory: readonly InventorySource[],
-	signal: AbortSignal,
-): Promise<Readonly<{ mediaType: string; bytes: Blob; fence: PrimitiveFence }> | null> {
-	if (!dependencies.loadTranscriptBody) return null;
-	signal.throwIfAborted();
-	const fence = primitiveFence(dependencies.currentSelectionFence());
-	const selectedSources = inventory.filter(({ sourceId }) => sourceId === fence.sourceId);
-	if (selectedSources.length !== 1) return null;
-	const mediaKind = selectedSources[0]!.mediaKind;
-	const references = recordArray(project.assistanceAssets)
-		.map(createAssistanceAssetReferenceV1)
-		.filter((reference): reference is AssistanceTranscriptAssetReferenceV1 => (
-			reference.kind === 'transcript-v1' && reference.sourceId === fence.sourceId
-			&& reference.sourceSha256 === fence.sourceSha256
-			&& reference.sourceStartFrame <= fence.sourceStartFrame
-			&& reference.sourceEndFrame >= fence.sourceEndFrame
-			&& (mediaKind === 'video'
-				? reference.sourceVideoTimingSha256 === fence.timingAuthoritySha256
-				: reference.sourceVideoTimingSha256 === null)
-		));
-	if (references.length !== 1) return null;
-	const reference = references[0]!;
-	const loaded = await dependencies.loadTranscriptBody(reference.body.storageKey, signal);
-	signal.throwIfAborted();
-	if (loaded === null || loaded === undefined) return null;
-	const bytes = await immutableBytes(loaded);
-	if (bytes.byteLength !== reference.body.byteLength
-		|| bytesToHex(sha256(bytes)) !== reference.body.sha256) {
-		throw new Error('The selected transcript body changed after project admission.');
-	}
-	return Object.freeze({
-		mediaType: 'application/vnd.soundscaper.transcript+json',
-		bytes: new Blob([bytes], { type: 'application/vnd.soundscaper.transcript+json' }),
-		fence,
-	});
-}
-
-async function immutableBytes(value: unknown): Promise<Uint8Array<ArrayBuffer>> {
-	if (value instanceof Blob) return new Uint8Array(await value.arrayBuffer());
-	if (value instanceof Uint8Array && !(value.buffer instanceof SharedArrayBuffer)) {
-		return Uint8Array.from(value);
-	}
-	throw new TypeError('Assistance transcript storage returned no immutable body.');
 }
 
 function selectStages(
