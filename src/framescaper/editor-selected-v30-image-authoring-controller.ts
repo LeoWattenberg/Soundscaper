@@ -54,6 +54,7 @@ export interface BindFramescaperSelectedImageAuthoringControllerV30Options
 	readonly selectFiles?: () => Promise<readonly FramescaperImageImportFileV30[]>;
 	readonly createId?: (prefix: string) => string;
 	readonly importImages?: ImportImages;
+	readonly schemaVersion?: 30 | 31;
 }
 
 const RESULTS = new WeakMap<object, FramescaperTimelineImageImportResultV30>();
@@ -99,7 +100,7 @@ export function bindFramescaperSelectedImageAuthoringControllerV30(
 	async function importSelected(): Promise<void> {
 		const files = await selectFiles();
 		if (files.length === 0) return;
-		const project = exactProject(controller.project);
+		const project = exactProject(controller.project, options.schemaVersion ?? 30);
 		const playhead = playheadSample(controller.getTelemetrySnapshot().positionFrame);
 		const sequence = project.sequences.find(({ id }) => id === project.primarySequenceId);
 		if (!sequence) throw new ReferenceError('Add Images requires the primary Framescaper sequence.');
@@ -158,9 +159,9 @@ function snapshotFiles(value: readonly FramescaperImageImportFileV30[]): readonl
 	return Object.freeze([...value]);
 }
 
-function exactProject(value: FramescaperProjectV30 | null): FramescaperProjectV30 {
-	if (!value || value.schemaVersion !== 30) {
-		throw new Error('Add Images requires a writable Framescaper V30 project.');
+function exactProject(value: FramescaperProjectV30 | null, schemaVersion: 30 | 31): FramescaperProjectV30 {
+	if (!value || Number(value.schemaVersion) !== schemaVersion) {
+		throw new Error(`Add Images requires a writable Framescaper V${String(schemaVersion)} project.`);
 	}
 	return value;
 }

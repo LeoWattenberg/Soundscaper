@@ -27,7 +27,9 @@ export function createFramescaperImageBatchPlacementV30(
 	request: FramescaperImageBatchPlacementRequestV30,
 ): FramescaperImageBatchPlacementV30 {
 	const project = record(projectValue, 'Framescaper V30 image placement project');
-	if (project.schemaVersion !== 30) throw new TypeError('Image placement requires a V30 project.');
+	if (project.schemaVersion !== 30 && (project as Readonly<{ schemaVersion: number }>).schemaVersion !== 31) {
+		throw new TypeError('Image placement requires a V30-compatible selected project.');
+	}
 	const start = nonNegative(request?.sequenceStartFrame, 'image placement start');
 	if (!Array.isArray(request?.sequenceFrameCounts) || request.sequenceFrameCounts.length < 1
 		|| request.sequenceFrameCounts.length > 64) {

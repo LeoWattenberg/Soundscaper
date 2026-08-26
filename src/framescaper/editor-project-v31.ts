@@ -8,14 +8,15 @@ import {
 	reconcileFramescaperProjectFeatureRequirementsV31,
 } from './editor-project-feature-requirements-v31.ts';
 import { readFramescaperProjectSchemaVersion, snapshotFramescaperOpaqueProject } from './editor-project-v18.ts';
-import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v28.ts';
 import { assertFramescaperProjectV31Profile } from './editor-project-runtime-profile-v31.ts';
 import {
-	cloneFramescaperProjectV28,
-	createFramescaperProjectV28,
-	type FramescaperProjectV28,
-	type FramescaperProjectV28Options,
-} from './editor-project-v28.ts';
+	cloneFramescaperProjectV30,
+	createFramescaperProjectV30,
+	reimportFramescaperProjectV30,
+	type FramescaperProjectV30,
+	type FramescaperProjectV30Options,
+} from './editor-project-v30.ts';
+import { FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v30.ts';
 import {
 	validateFramescaperProjectV31,
 	type FramescaperProjectV31,
@@ -27,7 +28,7 @@ export {
 	type FramescaperProjectV31,
 } from './editor-project-v31-validation.ts';
 
-export type FramescaperProjectV31Options = FramescaperProjectV28Options & Readonly<{
+export type FramescaperProjectV31Options = FramescaperProjectV30Options & Readonly<{
 	readonly assistanceAssets?: readonly unknown[];
 }>;
 
@@ -42,8 +43,8 @@ export class FramescaperProjectV31ReimportRequiredError extends RangeError {
 	readonly code = 'REIMPORT_REQUIRED' as const;
 
 	constructor(readonly schemaVersion: number) {
-		super(schemaVersion === 28
-			? 'Framescaper V28 requires explicit reimport into F31.'
+		super(schemaVersion === 28 || schemaVersion === 30
+			? `Framescaper V${String(schemaVersion)} requires explicit reimport into F31.`
 			: `Framescaper schema ${String(schemaVersion)} is not an admitted F31 reimport source.`);
 		this.name = 'FramescaperProjectV31ReimportRequiredError';
 	}
@@ -58,10 +59,10 @@ export function createFramescaperProjectV31(
 	options: FramescaperProjectV31Options = {},
 ): FramescaperProjectV31 {
 	assertFramescaperProjectV31Profile(profile);
-	const { assistanceAssets: assetValues = [], ...v28Options } = options;
-	const foundation = createFramescaperProjectV28(
-		FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE,
-		v28Options,
+	const { assistanceAssets: assetValues = [], ...v30Options } = options;
+	const foundation = createFramescaperProjectV30(
+		FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE,
+		v30Options,
 	) as unknown as Record<string, unknown>;
 	foundation.schemaVersion = FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION;
 	foundation.assistanceAssets = normalizeAssistanceAssetReferencesV1(assetValues);
@@ -78,7 +79,7 @@ export function cloneFramescaperProjectV31(
 	return reconcile(profile, draft);
 }
 
-/** Load exact F31, retain historical/unowned/future custody, and require explicit V28 reimport. */
+/** Load exact F31, retain historical/unowned/future custody, and require explicit reimport. */
 export function loadFramescaperProjectV31(
 	profile: unknown,
 	value: unknown,
@@ -108,22 +109,23 @@ export function loadFramescaperProjectV31(
 	});
 }
 
-/** The sole route from exact selected V28 authority into writable F31. */
+/** Admit exact V28 or V30 authority into writable F31 without dropping timeline images. */
 export function reimportFramescaperProjectV31(
 	profile: unknown,
 	value: unknown,
 ): FramescaperProjectV31 {
 	assertFramescaperProjectV31Profile(profile);
 	const schemaVersion = readFramescaperProjectSchemaVersion(value);
-	if (schemaVersion !== 28) throw new FramescaperProjectV31ReimportRequiredError(schemaVersion);
-	const foundation = cloneFramescaperProjectV28(
-		FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE,
-		value,
-	);
-	return upgradeV28(profile, foundation);
+	if (schemaVersion !== 28 && schemaVersion !== 30) {
+		throw new FramescaperProjectV31ReimportRequiredError(schemaVersion);
+	}
+	const foundation = schemaVersion === 30
+		? cloneFramescaperProjectV30(FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE, value)
+		: reimportFramescaperProjectV30(FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE, value);
+	return upgradeV30(profile, foundation);
 }
 
-function upgradeV28(profile: unknown, foundation: FramescaperProjectV28): FramescaperProjectV31 {
+function upgradeV30(profile: unknown, foundation: FramescaperProjectV30): FramescaperProjectV31 {
 	const project = structuredClone(foundation) as unknown as Record<string, unknown>;
 	project.schemaVersion = FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION;
 	project.assistanceAssets = normalizeAssistanceAssetReferencesV1([]);

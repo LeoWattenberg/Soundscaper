@@ -14,10 +14,7 @@ import {
 	createFramescaperProjectFeatureCompatibilityServiceV31,
 } from './editor-project-feature-requirements-v31.ts';
 import { readFramescaperProjectSchemaVersion } from './editor-project-v18.ts';
-import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v27.ts';
 import { assertFramescaperProjectV31Profile } from './editor-project-runtime-profile-v31.ts';
-import { framescaperProjectV27FoundationShapeV28 } from './editor-project-v28-foundation.ts';
-import { framescaperProjectV28FoundationShapeV31 } from './editor-project-v31-foundation.ts';
 import {
 	cloneFramescaperProjectV31,
 	loadFramescaperProjectV31,
@@ -25,7 +22,8 @@ import {
 	validateFramescaperProjectV31,
 	type FramescaperProjectV31,
 } from './editor-project-v31.ts';
-import { createFramescaperScapeProjectAssetExtensionV27 } from './editor-scape-assets-v27.ts';
+import { createFramescaperScapeProjectAssetExtensionV30 } from './editor-scape-assets-v30.ts';
+import { framescaperProjectV30FoundationShapeV31 } from './editor-project-v31-foundation.ts';
 import { rebindFramescaperSourceIdentitiesV31 } from './editor-project-v31-source-rebind.ts';
 
 export interface FramescaperScapeNativeStoreV31 {
@@ -39,13 +37,13 @@ export function createFramescaperScapeNativeRuntimeV31(profile: unknown) {
 	const projectAssetExtension = createAssetExtension(profile);
 	const migrateProject = (value: unknown) => {
 		const version = readFramescaperProjectSchemaVersion(value);
-		if (version === 28) return Object.freeze({
+		if (version === 28 || version === 30) return Object.freeze({
 			project: reimportFramescaperProjectV31(profile, value),
 			readOnly: false,
 			intrinsicReadOnly: false,
 			reason: null,
 			migrated: true,
-			fromVersion: 28,
+			fromVersion: version,
 		});
 		return Object.freeze({
 			...loadFramescaperProjectV31(profile, value),
@@ -98,27 +96,15 @@ export function createFramescaperScapeNativeRuntimeV31(profile: unknown) {
 }
 
 function createAssetExtension(profile: unknown): Readonly<ScapeProjectAssetExtension> {
-	const v27 = createFramescaperScapeProjectAssetExtensionV27(FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE);
-	const inherited: ScapeProjectAssetExtension = {
-		...v27,
-		planExportAssets: (request) => v27.planExportAssets({
-			...request,
-			project: v27Foundation(request.project),
-		}),
-		validateImportAssets: (project, manifest) => v27.validateImportAssets(
-			v27Foundation(project),
-			manifest,
+	const inherited = createFramescaperScapeProjectAssetExtensionV30(profile, {
+		authenticate: assertFramescaperProjectV31Profile,
+		clone: (codecProfile, project) => framescaperProjectV30FoundationShapeV31(
+			cloneFramescaperProjectV31(codecProfile, project),
 		),
-		validateReboundProject: (project) => { validateFramescaperProjectV31(profile, project); },
-	};
+		validate: validateFramescaperProjectV31,
+	});
 	return composeScapeProjectAssetExtensions([
-		Object.freeze(inherited),
+		inherited,
 		createAssistanceTranscriptScapeProjectAssetExtensionV1(),
 	]);
-}
-
-function v27Foundation(project: unknown) {
-	return framescaperProjectV27FoundationShapeV28(
-		framescaperProjectV28FoundationShapeV31(project),
-	);
 }

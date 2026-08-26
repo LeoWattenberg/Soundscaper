@@ -22,7 +22,7 @@ const PNG = Buffer.from(
 
 registerAudioEditorHooks();
 
-test.describe('Framescaper V30 timeline images', () => {
+test.describe('Framescaper selected timeline images', () => {
 	test('adds, undoes, redoes, reopens, and exports an image from Generate', async ({ browserName, page }) => {
 		test.skip(
 			browserName !== 'chromium',
@@ -49,7 +49,7 @@ test.describe('Framescaper V30 timeline images', () => {
 		await expect(imageClip).toHaveAttribute('aria-label', 'Image clip: poster');
 		await expect(imageClip.locator('[data-product-visual-thumbnail]')).toHaveCount(1);
 		await expect.poll(() => storedImageState(page, projectId)).toMatchObject({
-			schemaVersion: 30,
+			schemaVersion: 31,
 			sourceCount: 1,
 			clipCount: 1,
 			fileName: 'poster.png',
@@ -71,7 +71,7 @@ test.describe('Framescaper V30 timeline images', () => {
 		await expect(editor).toHaveAttribute('data-project-id', projectId);
 		await expect(editor.locator('[data-clip-kind="image"]')).toHaveCount(1);
 		await expect.poll(() => storedImageState(page, projectId)).toMatchObject({
-			schemaVersion: 30, sourceCount: 1, clipCount: 1, timelineOwned: true,
+			schemaVersion: 31, sourceCount: 1, clipCount: 1, timelineOwned: true,
 		});
 
 		await chooseFileAction(page, editor, 'Export audio', { timeout: 120_000 });

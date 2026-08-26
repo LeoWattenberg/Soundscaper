@@ -41,6 +41,9 @@ import {
 	FRAMESCAPER_V28_PROJECT_FEATURE_CAPABILITY_PROFILE,
 } from '../src/framescaper/editor-project-feature-capability-profile-v28.ts';
 import {
+	FRAMESCAPER_V30_PROJECT_FEATURE_CAPABILITY_PROFILE,
+} from '../src/framescaper/editor-project-feature-capability-profile-v30.ts';
+import {
 	FRAMESCAPER_V31_PROJECT_FEATURE_CAPABILITY_PROFILE,
 } from '../src/framescaper/editor-project-feature-capability-profile-v31.ts';
 import {
@@ -120,6 +123,7 @@ test('F31 inherits selected F28 authority and activates capture, assistance asse
 	const registrations = (profile: unknown) => editorProjectFeatureCapabilityProfileDefinition(profile)
 		.registrations;
 	const v28 = registrations(FRAMESCAPER_V28_PROJECT_FEATURE_CAPABILITY_PROFILE);
+	const v30 = registrations(FRAMESCAPER_V30_PROJECT_FEATURE_CAPABILITY_PROFILE);
 	const v31 = registrations(FRAMESCAPER_V31_PROJECT_FEATURE_CAPABILITY_PROFILE);
 	const registration = (values: typeof v31, key: string) => values.find((candidate) => candidate.key === key);
 	assert.notEqual(registration(v28, 'assistanceAssets')?.available, true);
@@ -128,7 +132,7 @@ test('F31 inherits selected F28 authority and activates capture, assistance asse
 	assert.equal(registration(v31, 'timelineAnnotations')?.available, true);
 	assert.deepEqual(
 		v31.filter(({ key }) => key !== 'assistanceAssets' && key !== 'timelineAnnotations'),
-		v28.filter(({ key }) => key !== 'assistanceAssets' && key !== 'timelineAnnotations'),
+		v30.filter(({ key }) => key !== 'assistanceAssets' && key !== 'timelineAnnotations'),
 	);
 });
 

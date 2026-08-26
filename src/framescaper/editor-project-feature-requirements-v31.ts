@@ -13,7 +13,7 @@ import {
 import {
 	FRAMESCAPER_V31_PROJECT_FEATURE_CAPABILITY_PROFILE,
 } from './editor-project-feature-capability-profile-v31.ts';
-import { framescaperProjectV28FoundationShapeV31 } from './editor-project-v31-foundation.ts';
+import { framescaperProjectV30FoundationShapeV31 } from './editor-project-v31-foundation.ts';
 import {
 	assertFramescaperProjectV31Profile,
 } from './editor-project-runtime-profile-v31.ts';
@@ -21,7 +21,7 @@ import {
 const LABEL = 'Framescaper F31 project';
 const MAXIMUM_INHERITED_CANONICALIZATION_PASSES = 8;
 
-/** Reconcile inherited F28 state first, then append F31's owned assistance requirement. */
+/** Reconcile inherited V30 image state first, then append F31's assistance requirement. */
 export function reconcileFramescaperProjectFeatureRequirementsV31(
 	profile: unknown,
 	project: unknown,
@@ -44,11 +44,11 @@ function canonicalInheritedRequirements(
 	project: Record<string, unknown>,
 	manifest: ProjectFeatureRequirementsManifest,
 ): ProjectFeatureRequirementsManifest {
-	let inherited = framescaperProjectV28FoundationShapeV31({
+	let inherited = framescaperProjectV30FoundationShapeV31({
 		...project, featureRequirements: manifest,
 	}).featureRequirements;
 	for (let pass = 0; pass < MAXIMUM_INHERITED_CANONICALIZATION_PASSES; pass += 1) {
-		const next = framescaperProjectV28FoundationShapeV31({
+		const next = framescaperProjectV30FoundationShapeV31({
 			...project, featureRequirements: inherited,
 		}).featureRequirements;
 		if (JSON.stringify(next) === JSON.stringify(inherited)) return inherited;

@@ -166,6 +166,9 @@ function assertNoAttachments(project: FramescaperProjectV31, operation: string):
 	if (attachmentAuthority(project).size !== 0) {
 		throw new Error(`A proxy-attached F31 ${operation} requires atomic preservation publication.`);
 	}
+	if (imageAuthority(project).size !== 0) {
+		throw new Error(`A timeline-image F31 ${operation} requires atomic timeline-image publication.`);
+	}
 }
 
 function assertSameAttachments(expected: FramescaperProjectV31, project: FramescaperProjectV31): void {
@@ -173,6 +176,15 @@ function assertSameAttachments(expected: FramescaperProjectV31, project: Framesc
 	const after = attachmentAuthority(project);
 	if (before.size !== after.size || [...before].some(([id, value]) => after.get(id) !== value)) {
 		throw new Error('Ordinary F31 save cannot introduce or change a proxy attachment.');
+	}
+	const beforeImages = imageAuthority(expected);
+	for (const [id, value] of imageAuthority(project)) {
+		if (!beforeImages.has(id)) {
+			throw new Error('A new F31 image body requires atomic timeline-image publication.');
+		}
+		if (beforeImages.get(id) !== value) {
+			throw new Error('Ordinary F31 save cannot change immutable image-body authority.');
+		}
 	}
 }
 
@@ -182,6 +194,16 @@ function attachmentAuthority(project: FramescaperProjectV31): ReadonlyMap<string
 		if (source.kind === 'video' && source.proxyAttachment !== null) {
 			result.set(String(source.id), JSON.stringify(source.proxyAttachment));
 		}
+	}
+	return result;
+}
+
+function imageAuthority(project: FramescaperProjectV31): ReadonlyMap<string, string> {
+	const result = new Map<string, string>();
+	for (const source of project.sources as readonly Readonly<Record<string, unknown>>[]) {
+		if (source.kind !== 'image') continue;
+		const { name: _name, ...authority } = source;
+		result.set(String(source.id), JSON.stringify(authority));
 	}
 	return result;
 }

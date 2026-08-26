@@ -37,6 +37,7 @@ import {
 } from './video-export-strategy-v28.ts';
 import type { FramescaperVideoExportStrategyV27Dependencies } from './video-export-strategy-v27.ts';
 import type { FramescaperVideoExportVisualAssetStoreV27 } from './video-export-visual-execution-v27.ts';
+import type { FramescaperSelectedOpenFxExecutionV28 } from './selected-v28-openfx-exact-planes.ts';
 
 interface ExportAuthorityV30 {
 	readonly canonicalProject: Readonly<Record<string, unknown>>;
@@ -53,6 +54,7 @@ export function createFramescaperVideoExportStrategyV30(
 	profile: unknown,
 	dependencies?: FramescaperVideoExportStrategyV27Dependencies,
 	assetStore?: FramescaperVideoExportAssetStoreV30,
+	openFxExecute?: FramescaperSelectedOpenFxExecutionV28['execute'],
 ): ProductVideoExportStrategy {
 	const foundationAuthorities = new WeakMap<object, ExportAuthorityV30>();
 	const createSupplementalPictureExecution = async ({
@@ -77,7 +79,7 @@ export function createFramescaperVideoExportStrategyV30(
 	};
 	const delegate = createFramescaperVideoExportStrategyV28(
 		FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, dependencies, assetStore,
-		undefined, createSupplementalPictureExecution,
+		openFxExecute, createSupplementalPictureExecution,
 	);
 	const exports = new WeakMap<object, ExportAuthorityV30>();
 	const plans = new WeakMap<object, ExportAuthorityV30>();

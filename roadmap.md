@@ -166,8 +166,8 @@ Known architectural constraints that drive later work:
 | 9. Final qualification | **Planned** | Requalify the complete product, including the accepted post-milestone-8 extension, and release matrix. |
 
 Earlier milestones may ship independently. The complete roadmap does not close
-until milestone 8, every accepted post-milestone-8 extension, and milestone 9
-close. Milestone 7 may be skipped.
+until milestone 8, the Web VCR extension, and milestone 9 close. Milestone 7
+may be skipped.
 
 ## 1. Baseline contracts and quality budgets
 
@@ -871,25 +871,6 @@ If the upstream design remains unavailable, milestone 8B remains **Blocked**.
 Earlier milestones may ship, but the roadmap may not claim the full DAW goal or
 invent an interim Soundscaper-only design.
 
-## 8+I. Post-milestone-8 Framescaper image extension
-
-**Status:** **Browser-native vertical slice implemented; converter and qualification
-work open.** The owning [image plan](docs/post-milestone-8-framescaper-image-plan.md)
-freezes the V30 model, asset, decoder/color policy, placement, trust boundary,
-work packets, and activation gates.
-
-**Goal:** add static, animated, and multipage raster media to the Project Bin,
-timeline, archive, and delivery workflows without making browser decoder
-availability part of project reproducibility. The menu workflow keeps each
-original with a deterministic sRGB frame pack; V28 stills remain distinct.
-
-JPEG, PNG, GIF, WebP, and BMP now traverse authenticated authoring, preview,
-persistence, archive/clipboard, and browser video export. FFmpeg, pinned
-ImageMagick, remaining formats, multipage/high-precision conversion, packaged
-parity, and qualification remain open. Every advertised route must pass the
-licensed fixtures, fail-closed resource/security, parity, atomic-workflow,
-runtime-source, notice, and digest gates in the owning plan.
-
 ## 8+. Post-milestone-8 Framescaper Web VCR extension
 
 **Status:** **Software substrate Implemented (provisional; disabled).** `framescaperWebVcr` remains `false`, so the normal production product exposes no Web VCR entry and creates no remote guest or capture grant. Milestone 8 and the applicable milestone-5B gates must close before activation; activation is also blocked on packaged and real-runtime capture, audio, encoder, security, lifecycle, and long-session qualification. Sequencing, decisions, and work packets are owned by the [Web VCR plan](docs/post-milestone-8-web-vcr-plan.md).
@@ -912,7 +893,7 @@ runtime-source, notice, and digest gates in the owning plan.
 
 ## 9. Final convergence and qualification
 
-**Depends on:** milestones 1–6, both milestone-8 sub-phases, and every accepted post-milestone-8 extension and platform tier above.
+**Depends on:** milestones 1–6, both milestone-8 sub-phases, and every accepted Web VCR platform tier above.
 
 **Goal:** qualify the complete products as coherent systems.
 

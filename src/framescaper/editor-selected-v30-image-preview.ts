@@ -71,6 +71,7 @@ export interface FramescaperSelectedVisualPreviewOptionsV30
 	readonly signal?: AbortSignal;
 	readonly createImageDrawable?: CreateFramescaperImagePreviewDrawableV30;
 	readonly createInheritedSession?: CreateFramescaperInheritedVisualPreviewSessionV30;
+	readonly cloneProject?: (profile: unknown, project: unknown) => FramescaperProjectV30;
 }
 
 export interface FramescaperSelectedProjectBinThumbnailOptionsV30
@@ -80,6 +81,7 @@ export interface FramescaperSelectedProjectBinThumbnailOptionsV30
 	readonly createInheritedThumbnail?: (
 		request: ProductVideoVisualProjectBinThumbnailRequest,
 	) => Promise<ProductVideoVisualProjectBinThumbnail | null>;
+	readonly cloneProject?: (profile: unknown, project: unknown) => FramescaperProjectV30;
 }
 
 interface LoadedImageSourceV30 {
@@ -110,7 +112,7 @@ interface ImageClipPreviewV30 {
 export async function createFramescaperSelectedVisualPreviewSessionV30(
 	options: FramescaperSelectedVisualPreviewOptionsV30,
 ): Promise<ProductVideoVisualPreviewSession | null> {
-	const project = admittedProject(options?.profile, options?.project);
+	const project = admittedProject(options?.profile, options?.project, options?.cloneProject);
 	const canvas = previewCanvas(options?.width, options?.height);
 	throwIfFramescaperImagePreviewAbortedV30(options.signal);
 	const contexts = imageClipContexts(project);
@@ -216,7 +218,7 @@ export async function createFramescaperSelectedVisualPreviewSessionV30(
 export async function createFramescaperSelectedProjectBinThumbnailV30(
 	options: FramescaperSelectedProjectBinThumbnailOptionsV30,
 ): Promise<ProductVideoVisualProjectBinThumbnail | null> {
-	const project = admittedProject(options?.profile, options?.project);
+	const project = admittedProject(options?.profile, options?.project, options?.cloneProject);
 	const clipId = stableId(options?.clipId, 'V30 Project Bin image clip ID');
 	const clipValue = project.projectBin.clips.find(({ id }) => String(id) === clipId);
 	if (!clipValue || clipValue.kind !== 'image') {
@@ -534,8 +536,12 @@ function disposeInheritedSession(session: ProductVideoVisualPreviewSession | nul
 	try { session?.dispose(); } catch { /* Continue releasing V30 image resources. */ }
 }
 
-function admittedProject(profile: unknown, value: unknown): FramescaperProjectV30 {
-	return cloneFramescaperProjectV30(profile, value);
+function admittedProject(
+	profile: unknown,
+	value: unknown,
+	cloneProject: ((profile: unknown, project: unknown) => FramescaperProjectV30) | undefined,
+): FramescaperProjectV30 {
+	return (cloneProject ?? cloneFramescaperProjectV30)(profile, value);
 }
 
 function previewCanvas(width: unknown, height: unknown): Readonly<{ width: number; height: number }> {

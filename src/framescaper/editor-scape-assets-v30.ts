@@ -21,11 +21,25 @@ import { createFramescaperScapeProjectAssetExtensionV27 } from './editor-scape-a
 
 const SOURCE_KINDS = Object.freeze(['still', 'generator', 'image']);
 
+export interface FramescaperScapeImageProjectCodecV30 {
+	readonly authenticate: (profile: unknown) => void;
+	readonly clone: (profile: unknown, project: unknown) => ReturnType<typeof cloneFramescaperProjectV30>;
+	readonly validate: (profile: unknown, project: unknown) => boolean;
+}
+
+const V30_PROJECT_CODEC: FramescaperScapeImageProjectCodecV30 = Object.freeze({
+	authenticate: assertFramescaperProjectV30Profile,
+	clone: cloneFramescaperProjectV30,
+	validate: validateFramescaperProjectV30,
+});
+
 /** V30 `.scape` ownership: immutable V27 assets plus one semantic body per image source. */
 export function createFramescaperScapeProjectAssetExtensionV30(
 	profile: unknown,
+	codec: FramescaperScapeImageProjectCodecV30 = V30_PROJECT_CODEC,
 ): Readonly<ScapeProjectAssetExtension> {
-	assertFramescaperProjectV30Profile(profile);
+	assertCodec(codec);
+	codec.authenticate(profile);
 	const foundation = createFramescaperScapeProjectAssetExtensionV27(
 		FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,
 	);
@@ -33,7 +47,7 @@ export function createFramescaperScapeProjectAssetExtensionV30(
 		assetKinds: Object.freeze([...foundation.assetKinds, FRAMESCAPER_SCAPE_IMAGE_ASSET_KIND_V30]),
 		sourceKinds: SOURCE_KINDS,
 		async planExportAssets({ project, store, signal }) {
-			const selected = cloneFramescaperProjectV30(profile, project);
+			const selected = codec.clone(profile, project);
 			const v27Project = framescaperProjectV27FoundationShapeV28(
 				framescaperProjectV28FoundationShapeV30(selected),
 			);
@@ -49,7 +63,7 @@ export function createFramescaperScapeProjectAssetExtensionV30(
 				: foundation.validateExportAssetBody(asset, body, signal)
 		),
 		validateImportAssets(projectValue, manifest) {
-			const project = cloneFramescaperProjectV30(profile, projectValue);
+			const project = codec.clone(profile, projectValue);
 			const v27Project = framescaperProjectV27FoundationShapeV28(
 				framescaperProjectV28FoundationShapeV30(project),
 			);
@@ -61,11 +75,20 @@ export function createFramescaperScapeProjectAssetExtensionV30(
 			} satisfies FramescaperScapeImportValidationV30);
 		},
 		stageImportAssets: stageFramescaperScapeImportAssetsV30,
-		validateReboundProject: (project) => { validateFramescaperProjectV30(profile, project); },
+		validateReboundProject: (project) => { codec.validate(profile, project); },
 		sourceStorageRole(source) {
 			if (source.kind === 'image') return 'media';
 			return foundation.sourceStorageRole(source);
 		},
 	};
 	return Object.freeze(extension);
+}
+
+function assertCodec(value: unknown): asserts value is FramescaperScapeImageProjectCodecV30 {
+	if (!value || typeof value !== 'object') throw new TypeError('A Scape image project codec is required.');
+	for (const method of ['authenticate', 'clone', 'validate'] as const) {
+		if (typeof (value as Readonly<Record<string, unknown>>)[method] !== 'function') {
+			throw new TypeError(`The Scape image project codec requires ${method}.`);
+		}
+	}
 }

@@ -25,12 +25,11 @@ export function framescaperProjectV28FoundationShapeV30(project: unknown): Frame
 	foundation.clips = records(foundation.clips, 'clips').filter(({ kind }) => kind !== 'image');
 	const bin = record(foundation.projectBin, 'projectBin');
 	bin.clips = records(bin.clips, 'projectBin.clips').filter(({ kind }) => kind !== 'image');
-	foundation.tracks = records(foundation.tracks, 'tracks').map((track) => ({
-		...track,
-		clipIds: Array.isArray(track.clipIds)
-			? track.clipIds.filter((id) => !imageClipIds.has(String(id)))
-			: track.clipIds,
-	}));
+	foundation.tracks = records(foundation.tracks, 'tracks').map((track) => (
+		Array.isArray(track.clipIds)
+			? { ...track, clipIds: track.clipIds.filter((id) => !imageClipIds.has(String(id))) }
+			: track
+	));
 	const selection = record(foundation.selection, 'selection');
 	if (Array.isArray(selection.clipIds)) {
 		selection.clipIds = selection.clipIds.filter((id) => !imageClipIds.has(String(id)));

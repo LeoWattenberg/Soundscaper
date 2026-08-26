@@ -183,7 +183,9 @@ function restoreImages(project: Record<string, unknown>, images: ImageState): Re
 	project.tracks = records(project.tracks, 'tracks').map((track) => {
 		const owned = [...images.trackByClip].filter(([, trackId]) => trackId === String(track.id))
 			.map(([clipId]) => clipId);
-		return { ...track, clipIds: Array.isArray(track.clipIds) ? [...track.clipIds, ...owned] : track.clipIds };
+		return Array.isArray(track.clipIds)
+			? { ...track, clipIds: [...track.clipIds, ...owned] }
+			: track;
 	});
 	const selection = record(project.selection, 'selection');
 	if (Array.isArray(selection.clipIds)) selection.clipIds = [

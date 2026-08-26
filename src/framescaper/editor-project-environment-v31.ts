@@ -20,6 +20,7 @@ import {
 } from './editor-project-v18-claim-cleanup-repository.ts';
 import { FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v31.ts';
 import { framescaperProjectStoreAuthorityV31 } from './editor-project-store-v31.ts';
+import type { FramescaperProjectStoreAuthorityV31 } from './editor-project-store-v31.ts';
 import {
 	createFramescaperVideoProxyCleanupCoordinatorV20,
 	type FramescaperVideoProxyCleanupCoordinatorV20,
@@ -38,6 +39,7 @@ export interface FramescaperEditorProjectEnvironmentV31 {
 	readonly controllerStore: AudioEditorProjectStore;
 	readonly desktopProjectLibrary: FramescaperDesktopProjectLibraryV20Renderer | null;
 	readonly playback: PlaybackProjectService;
+	readonly timelineImages: FramescaperProjectStoreAuthorityV31['timelineImages'];
 	readonly claimCleanup: FramescaperProjectV18ClaimCleanupRepository;
 	readonly videoProxyCleanup: FramescaperVideoProxyCleanupCoordinatorV20;
 	readonly initialCleanup: Readonly<FramescaperProjectV18ClaimCleanupResult>;
@@ -98,6 +100,7 @@ export async function createFramescaperEditorProjectEnvironmentV31(
 				FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE,
 				{ timingStore: store },
 			),
+			timelineImages: authority.timelineImages,
 			createProjectIfAbsent: controllerStore === store
 				? (project: ProjectDocument) => exactProjectRepository(store).createIfAbsent(project)
 				: (project: ProjectDocument) => (

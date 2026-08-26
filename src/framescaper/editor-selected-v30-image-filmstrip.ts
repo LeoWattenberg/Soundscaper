@@ -33,6 +33,7 @@ export interface FramescaperSelectedTimelineFilmstripOptionsV30
 	readonly createInheritedFilmstrip?: (
 		request: ProductVideoTimelineFilmstripRequest,
 	) => Promise<readonly ProductVideoTimelineFilmstripFrame[] | null>;
+	readonly cloneProject?: (profile: unknown, project: unknown) => ReturnType<typeof cloneFramescaperProjectV30>;
 }
 
 interface ImageFilmstripContextV30 {
@@ -47,7 +48,7 @@ interface ImageFilmstripContextV30 {
 export async function createFramescaperSelectedTimelineFilmstripV30(
 	options: FramescaperSelectedTimelineFilmstripOptionsV30,
 ): Promise<readonly ProductVideoTimelineFilmstripFrame[] | null> {
-	const project = cloneFramescaperProjectV30(options?.profile, options?.project);
+	const project = (options?.cloneProject ?? cloneFramescaperProjectV30)(options?.profile, options?.project);
 	const frames = frameRequests(options?.frames);
 	throwIfFramescaperImagePreviewAbortedV30(options.signal);
 	if (frames.length === 0) return Object.freeze([]);

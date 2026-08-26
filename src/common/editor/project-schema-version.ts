@@ -11,7 +11,7 @@ export const FRAMESCAPER_PROJECT_V26_SCHEMA_VERSION = 26 as const;
 export const FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION = 27 as const;
 /** Selected Framescaper native-media/OpenFX generation; V25/V26 remain dormant custody. */
 export const FRAMESCAPER_PROJECT_V28_SCHEMA_VERSION = 28 as const;
-/** Selected Framescaper timeline-image generation; V28 is its sole reimport source. */
+/** Historical Framescaper timeline-image generation; V28 is its sole reimport source. */
 export const FRAMESCAPER_PROJECT_V30_SCHEMA_VERSION = 30 as const;
 /** Selected Framescaper assistance and capture generation. */
 export const FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION = 31 as const;
@@ -79,15 +79,16 @@ export function isProductionMixerProjectSchema(value: unknown): value is 21 | 23
 		|| value === FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION;
 }
 
-/** Selected Framescaper generations that retain the shared V27 visual and finishing surfaces. */
-export function isSelectedFramescaperProjectSchema(value: unknown): value is 27 | 28 | 30 {
+/** Selected Framescaper generations that retain shared visual and finishing surfaces. */
+export function isSelectedFramescaperProjectSchema(value: unknown): value is 27 | 28 | 30 | 31 {
 	return value === FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION
 		|| value === FRAMESCAPER_PROJECT_V28_SCHEMA_VERSION
-		|| value === FRAMESCAPER_PROJECT_V30_SCHEMA_VERSION;
+		|| value === FRAMESCAPER_PROJECT_V30_SCHEMA_VERSION
+		|| value === FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION;
 }
 
 /** Framescaper generations that own the maintained video-proxy lifecycle. */
-export function isFramescaperVideoProxyProjectSchema(value: unknown): value is 20 | 27 | 28 | 30 {
+export function isFramescaperVideoProxyProjectSchema(value: unknown): value is 20 | 27 | 28 | 30 | 31 {
 	return value === FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION
 		|| isSelectedFramescaperProjectSchema(value);
 }

@@ -81,7 +81,9 @@ interface PreparedImage {
 export async function importFramescaperTimelineImagesV30(
 	request: FramescaperTimelineImageImportRequestV30,
 ): Promise<FramescaperTimelineImageImportResultV30> {
-	if (request?.project?.schemaVersion !== 30) throw new TypeError('Timeline image import requires a V30 project.');
+	if (request?.project?.schemaVersion !== 30 && request?.project?.schemaVersion !== 31) {
+		throw new TypeError('Timeline image import requires a V30-compatible selected project.');
+	}
 	if (!Array.isArray(request.files)) throw new TypeError('Timeline image import files must be an array.');
 	if (typeof request.createId !== 'function' || typeof request.publisher?.publish !== 'function') {
 		throw new TypeError('Timeline image import requires ID and publication ports.');

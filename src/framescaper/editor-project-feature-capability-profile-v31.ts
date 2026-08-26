@@ -6,12 +6,12 @@ import {
 } from '../common/editor/project-feature-capability-profile.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../common/editor/project-feature-capabilities.ts';
 import {
-	FRAMESCAPER_V28_PROJECT_FEATURE_CAPABILITY_PROFILE,
-} from './editor-project-feature-capability-profile-v28.ts';
+	FRAMESCAPER_V30_PROJECT_FEATURE_CAPABILITY_PROFILE,
+} from './editor-project-feature-capability-profile-v30.ts';
 
-/** F31 retains exact selected F28 authority and admits assistance assets and annotations. */
+/** F31 retains V30 timeline images and admits assistance assets and annotations. */
 const inherited = editorProjectFeatureCapabilityProfileDefinition(
-	FRAMESCAPER_V28_PROJECT_FEATURE_CAPABILITY_PROFILE,
+	FRAMESCAPER_V30_PROJECT_FEATURE_CAPABILITY_PROFILE,
 ).registrations;
 
 export const FRAMESCAPER_V31_PROJECT_FEATURE_CAPABILITY_PROFILE = createEditorProjectFeatureCapabilityProfile({

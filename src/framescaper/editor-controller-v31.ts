@@ -33,6 +33,12 @@ import type {
 	FramescaperVideoProxyPreviewTrustV20,
 } from './editor-video-proxy-action-runtime-v20.ts';
 import { createFramescaperVideoProxyPreviewMediaResolverV28 } from './editor-video-proxy-preview-media-v20.ts';
+import {
+	bindFramescaperSelectedImageAuthoringControllerV30,
+	type FramescaperSelectedImageFileServiceV30,
+} from './editor-selected-v30-image-authoring-controller.ts';
+import { bindFramescaperSelectedImagePreviewControllerV30 } from './editor-selected-v30-image-preview-controller.ts';
+import { cloneFramescaperProjectV31 } from './editor-project-v31.ts';
 
 const PRESENTATION_FIELDS = ['locale', 'copy', 'fileService'] as const;
 
@@ -163,6 +169,24 @@ export function createFramescaperAudioEditorControllerV31(
 		bridge: nativeBridge,
 		prepareNativeRenderInputStreamV31,
 		...(openFxExecute ? { openFxExecute } : {}),
+	});
+	bindFramescaperSelectedImageAuthoringControllerV30({
+		controller: controller as never,
+		session: sessionController as never,
+		executeCommand: (history, command, options) => environment.runtime.executeCommand(
+			history as never, command as never, options,
+		) as never,
+		publishIfCurrent: (request) => environment.timelineImages.publishIfCurrent(request),
+		schemaVersion: 31,
+		...(presentation.fileService === undefined ? {} : {
+			fileService: presentation.fileService as FramescaperSelectedImageFileServiceV30,
+		}),
+	});
+	bindFramescaperSelectedImagePreviewControllerV30({
+		controller,
+		profile: environment.runtime.profile,
+		store: environment.controllerStore,
+		cloneProject: (profile, project) => cloneFramescaperProjectV31(profile, project) as never,
 	});
 	return controller;
 }

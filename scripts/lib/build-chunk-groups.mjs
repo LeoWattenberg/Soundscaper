@@ -80,6 +80,16 @@ export const chunkGroups = [
 		maxSize: 400_000,
 	},
 	{
+		// Image import, body custody, clipboard, preview, and export form one optional
+		// Framescaper feature slice. Keep it out of the selected bootstrap chunk while
+		// preserving one semantic owner for modules shared by its menu-opened surfaces.
+		name: 'framescaper-timeline-images',
+		test: /src[\\/]framescaper[\\/](?:editor-(?:image-(?:import-coordinator|placement)-v30|project-v30-image-command|selected-v30-image|session-clipboard-v13|timeline-image)|video-export-image-)/,
+		priority: 64,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
 		name: 'vendor',
 		test: /node_modules[\\/]/,
 		priority: 60,

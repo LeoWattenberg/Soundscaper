@@ -25,22 +25,7 @@ const {
 	createFramescaperWebEditorRuntimeV30,
 	default: FramescaperAudioEditorBootstrapV30,
 } = await import('../src/framescaper/ui/FramescaperAudioEditorBootstrapV30.tsx');
-const { selectFramescaperBootstrapGeneration } = await import(
-	'../src/common/site/framescaper-bootstrap-selection.ts'
-);
-
-test('Framescaper selects V30 for web and retains V28 for desktop-native authority', () => {
-	assert.equal(selectFramescaperBootstrapGeneration({ desktop: false }, {}), 30);
-	assert.equal(selectFramescaperBootstrapGeneration({ desktop: true }, {}), 28);
-	assert.equal(selectFramescaperBootstrapGeneration({ desktop: false }, {
-		framescaperDesktop: { v1: { nativeServices: {} } },
-	}), 28);
-	assert.equal(selectFramescaperBootstrapGeneration({ desktop: false }, {
-		window: { framescaperDesktop: { v1: { nativeServices: {} } } },
-	}), 28);
-});
-
-test('Framescaper web bootstrap selects V30 without exposing authority or a visible control', async (context) => {
+test('reserved Framescaper V30 bootstrap retains image authority without a visible control', async (context) => {
 	installIndexedDB(context);
 	const runtime = await createFramescaperWebEditorRuntimeV30({ locale: 'en', copy: {} });
 	const ready = await runtime.controller.ready;

@@ -30,7 +30,7 @@ export const FRAMESCAPER_TIMELINE_IMAGE_BODY_KIND_V30 = 'timeline-image-asset' a
 export const FRAMESCAPER_TIMELINE_IMAGE_BODY_ENCODING_V30 = 'framescaper-image-asset-v1' as const;
 
 const TRANSITION_FIELDS = ['expected', 'project'] as const;
-const PUBLISHER_DEPENDENCY_FIELDS = ['port', 'store'] as const;
+const PUBLISHER_DEPENDENCY_FIELDS = ['port', 'store', 'projectCodec'] as const;
 const PUBLISHER_REQUEST_FIELDS = ['expected', 'project', 'bytes', 'signal'] as const;
 
 export interface FramescaperTimelineImagePublicationTransitionV30 {
@@ -61,7 +61,25 @@ export interface FramescaperTimelineImagePublicationStoreV30 {
 export interface FramescaperTimelineImagePublisherV30Dependencies {
 	readonly port: StorageRepositoryPort;
 	readonly store: FramescaperTimelineImagePublicationStoreV30;
+	readonly projectCodec?: FramescaperTimelineImageProjectCodecV30;
 }
+
+export interface FramescaperTimelineImageProjectCodecV30 {
+	readonly authenticate: (profile: unknown) => void;
+	readonly clone: (profile: unknown, project: unknown) => FramescaperProjectV30;
+	readonly apply: (
+		profile: unknown,
+		project: unknown,
+		command: unknown,
+		options: Readonly<{ readonly now?: Date | string }>,
+	) => FramescaperProjectV30;
+}
+
+const V30_PROJECT_CODEC: FramescaperTimelineImageProjectCodecV30 = Object.freeze({
+	authenticate: assertFramescaperProjectV30Profile,
+	clone: cloneFramescaperProjectV30,
+	apply: applyFramescaperProjectCommandV30,
+});
 
 interface PreparedPublication {
 	readonly expected: FramescaperProjectV30;
@@ -77,23 +95,30 @@ interface PreparedPublication {
 export class FramescaperTimelineImagePublicationRepositoryV30 {
 	readonly #profile: unknown;
 	readonly #port: StorageRepositoryPort;
+	readonly #codec: FramescaperTimelineImageProjectCodecV30;
 
-	constructor(profile: unknown, port: StorageRepositoryPort | unknown) {
-		assertFramescaperProjectV30Profile(profile);
+	constructor(
+		profile: unknown,
+		port: StorageRepositoryPort | unknown,
+		codec: FramescaperTimelineImageProjectCodecV30 = V30_PROJECT_CODEC,
+	) {
+		assertProjectCodec(codec);
+		codec.authenticate(profile);
 		assertPort(port);
 		this.#profile = profile;
 		this.#port = port;
+		this.#codec = codec;
 	}
 
 	async publishIfCurrent(
 		value: FramescaperTimelineImagePublicationTransitionV30 | unknown,
 	): Promise<FramescaperProjectV30 | null> {
-		const publication = preparePublication(this.#profile, value);
+		const publication = preparePublication(this.#profile, value, this.#codec);
 		const database = await this.#port.database();
 		const published = database
 			? await publishIndexedDb(database, publication)
 			: publishMemory(this.#port, publication);
-		return published ? cloneFramescaperProjectV30(this.#profile, publication.project) : null;
+		return published ? this.#codec.clone(this.#profile, publication.project) : null;
 	}
 }
 
@@ -102,31 +127,38 @@ export class FramescaperTimelineImagePublisherV30 {
 	readonly #profile: unknown;
 	readonly #repository: FramescaperTimelineImagePublicationRepositoryV30;
 	readonly #store: FramescaperTimelineImagePublicationStoreV30;
+	readonly #codec: FramescaperTimelineImageProjectCodecV30;
 
 	constructor(
 		profile: unknown,
 		dependenciesValue: FramescaperTimelineImagePublisherV30Dependencies | unknown,
 	) {
-		assertFramescaperProjectV30Profile(profile);
 		const dependencies = closedRecord(
 			dependenciesValue,
 			PUBLISHER_DEPENDENCY_FIELDS,
 			'V30 timeline-image publisher dependencies',
+			['projectCodec'],
 		);
 		assertPort(dependencies.port);
 		assertStore(dependencies.store);
+		const codec = dependencies.projectCodec === undefined
+			? V30_PROJECT_CODEC : dependencies.projectCodec as FramescaperTimelineImageProjectCodecV30;
+		assertProjectCodec(codec);
+		codec.authenticate(profile);
 		this.#profile = profile;
 		this.#store = dependencies.store;
+		this.#codec = codec;
 		this.#repository = new FramescaperTimelineImagePublicationRepositoryV30(
 			profile,
 			dependencies.port,
+			codec,
 		);
 	}
 
 	async publishIfCurrent(
 		value: FramescaperTimelineImagePublicationV30 | unknown,
 	): Promise<FramescaperProjectV30 | null> {
-		assertFramescaperProjectV30Profile(this.#profile);
+		this.#codec.authenticate(this.#profile);
 		const requestValue = closedRecord(
 			value,
 			PUBLISHER_REQUEST_FIELDS,
@@ -136,7 +168,7 @@ export class FramescaperTimelineImagePublisherV30 {
 		const publication = preparePublication(this.#profile, {
 			expected: requestValue.expected,
 			project: requestValue.project,
-		});
+		}, this.#codec);
 		const signal = optionalSignal(requestValue.signal);
 		const bytes = snapshotBytes(requestValue.bytes, publication.source.assetByteLength);
 		throwIfAborted(signal);
@@ -207,10 +239,14 @@ export class FramescaperTimelineImagePublisherV30 {
 	}
 }
 
-function preparePublication(profile: unknown, value: unknown): PreparedPublication {
+function preparePublication(
+	profile: unknown,
+	value: unknown,
+	codec: FramescaperTimelineImageProjectCodecV30,
+): PreparedPublication {
 	const raw = closedRecord(value, TRANSITION_FIELDS, 'V30 timeline-image publication');
-	const expected = cloneFramescaperProjectV30(profile, raw.expected);
-	const project = cloneFramescaperProjectV30(profile, raw.project);
+	const expected = codec.clone(profile, raw.expected);
+	const project = codec.clone(profile, raw.project);
 	if (project.id !== expected.id) throw new Error('V30 image publication cannot change project identity.');
 	const baseRevision = revision(expected.revision, 'base');
 	const nextRevision = safeNextRevision(baseRevision);
@@ -231,7 +267,7 @@ function preparePublication(profile: unknown, value: unknown): PreparedPublicati
 	if (clip.sourceId !== source.id) throw new Error('The fresh V30 image clip must own its fresh source.');
 	const placement = imagePlacement(project, clip.id);
 	const trackCommand = freshTrackCommand(expected, project, clip, placement);
-	const reconstructed = applyFramescaperProjectCommandV30(profile, expected, {
+	const reconstructed = codec.apply(profile, expected, {
 		type: 'batch',
 		commands: [...(trackCommand ? [trackCommand] : []), {
 			type: 'image-source/set', sourceId: source.id, expectedSource: null, source,
@@ -252,6 +288,15 @@ function preparePublication(profile: unknown, value: unknown): PreparedPublicati
 		baseRevision,
 		nextRevision,
 	});
+}
+
+function assertProjectCodec(value: unknown): asserts value is FramescaperTimelineImageProjectCodecV30 {
+	if (!value || typeof value !== 'object') throw new TypeError('A timeline-image project codec is required.');
+	for (const method of ['authenticate', 'clone', 'apply'] as const) {
+		if (typeof (value as Readonly<Record<string, unknown>>)[method] !== 'function') {
+			throw new TypeError(`The timeline-image project codec requires ${method}.`);
+		}
+	}
 }
 
 function freshTrackCommand(
