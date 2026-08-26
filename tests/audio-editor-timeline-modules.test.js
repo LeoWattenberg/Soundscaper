@@ -2,12 +2,14 @@ import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { sourceLineCount } from '../scripts/lib/source-line-count.mjs';
+
 const UI_ROOT = new URL('../src/common/editor/ui/', import.meta.url);
 const TIMELINE_ROOT = new URL('timeline/', UI_ROOT);
 
 test('the legacy Timeline path is only a bounded compatibility facade', async () => {
 	const facade = await readFile(new URL('AudioEditorTimeline.jsx', UI_ROOT), 'utf8');
-	assert.ok(facade.split(/\r?\n/).length <= 30);
+	assert.ok(sourceLineCount(facade) <= 30);
 	assert.match(facade, /timeline\/AudioEditorTimeline\.tsx/);
 });
 
@@ -18,7 +20,7 @@ test('Timeline production modules stay within the local maintenance budget', asy
 	for (const moduleName of moduleNames) {
 		const source = await readFile(new URL(moduleName, TIMELINE_ROOT), 'utf8');
 		assert.ok(
-			source.split(/\r?\n/).length <= 600,
+			sourceLineCount(source) <= 600,
 			`${moduleName} must stay at or below 600 lines`,
 		);
 	}

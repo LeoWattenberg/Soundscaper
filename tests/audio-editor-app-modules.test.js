@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { sourceLineCount } from '../scripts/lib/source-line-count.mjs';
+
 const UI_ROOT = new URL('../src/common/editor/ui/', import.meta.url);
 const FEATURE_DIRECTORIES = Object.freeze([
 	'dialogs',
@@ -18,7 +20,7 @@ const LAZY_DIALOGS = Object.freeze([
 
 test('the editor app is a bounded shell with focused feature modules', async () => {
 	const app = await readFile(new URL('AudioEditorApp.jsx', UI_ROOT), 'utf8');
-	assert.ok(app.split(/\r?\n/).length <= 600, 'AudioEditorApp.jsx must stay at or below 600 lines');
+	assert.ok(sourceLineCount(app) <= 600, 'AudioEditorApp.jsx must stay at or below 600 lines');
 
 	for (const directoryName of FEATURE_DIRECTORIES) {
 		const directory = new URL(`${directoryName}/`, UI_ROOT);
@@ -27,7 +29,7 @@ test('the editor app is a bounded shell with focused feature modules', async () 
 		for (const moduleName of modules) {
 			const source = await readFile(new URL(moduleName, directory), 'utf8');
 			assert.ok(
-				source.split(/\r?\n/).length <= 600,
+				sourceLineCount(source) <= 600,
 				`${directoryName}/${moduleName} must stay at or below 600 lines`,
 			);
 		}

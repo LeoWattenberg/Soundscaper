@@ -3,6 +3,8 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { extname, join, relative, resolve, sep } from 'node:path';
 
+import { sourceLineCount } from './lib/source-line-count.mjs';
+
 const root = resolve(import.meta.dirname, '..');
 const configPath = join(root, 'config', 'maintainability-allowlist.json');
 const config = JSON.parse(readFileSync(configPath, 'utf8'));
@@ -28,7 +30,7 @@ const findings = [];
 
 for (const path of files) {
 	const repositoryPath = relative(root, path).split(sep).join('/');
-	const lines = lineCount(readFileSync(path, 'utf8'));
+	const lines = sourceLineCount(readFileSync(path, 'utf8'));
 	const lineLimit = browserSpecPattern.test(repositoryPath)
 		? config.browserSpecMaxLines
 		: config.defaultMaxLines;
@@ -63,9 +65,4 @@ function walk(directory) {
 		if (entry.isDirectory()) return walk(path);
 		return entry.isFile() && checkedExtensions.has(extname(entry.name)) ? [path] : [];
 	});
-}
-
-function lineCount(text) {
-	if (!text) return 0;
-	return text.split(/\r\n|\n|\r/u).length - (/\r\n$|[\n\r]$/u.test(text) ? 1 : 0);
 }

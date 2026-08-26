@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { sourceLineCount } from '../scripts/lib/source-line-count.mjs';
+
 const FEATURE_MODULES = Object.freeze([
 	'AnalysisPanel.jsx',
 	'AudioEditorEffectsOverlay.jsx',
@@ -31,13 +33,13 @@ test('every maintained Inspector production module stays below the local size bu
 	const moduleNames = (await readdir(directory)).filter((name) => /\.(?:jsx|ts|tsx)$/.test(name));
 	for (const moduleName of moduleNames) {
 		const source = await readFile(new URL(moduleName, directory), 'utf8');
-		assert.ok(source.split(/\r?\n/).length <= 600, `${moduleName} must remain at or below 600 lines`);
+		assert.ok(sourceLineCount(source) <= 600, `${moduleName} must remain at or below 600 lines`);
 	}
 });
 
 test('the legacy Inspector path is only a bounded compatibility facade', async () => {
 	const facade = await readFile(new URL('../src/common/editor/ui/AudioEditorInspector.jsx', import.meta.url), 'utf8');
-	assert.ok(facade.split(/\r?\n/).length <= 30);
+	assert.ok(sourceLineCount(facade) <= 30);
 	for (const moduleName of FEATURE_MODULES) {
 		assert.match(facade, new RegExp(`inspector/${moduleName.replace('.', '\\.')}`));
 	}

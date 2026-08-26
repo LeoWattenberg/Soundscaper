@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { sourceLineCount } from '../scripts/lib/source-line-count.mjs';
+
 const EDITOR_ROOT = new URL('../src/common/editor/', import.meta.url);
 const ADAPTER_ROOT = new URL('design-system-adapters/', EDITOR_ROOT);
 const EXPECTED_EXPORTS = Object.freeze([
@@ -39,7 +41,7 @@ test('the public design-system adapter surface remains stable', async () => {
 
 test('the legacy adapter path is a bounded compatibility facade', async () => {
 	const facade = await readFile(new URL('design-system-adapters.js', EDITOR_ROOT), 'utf8');
-	assert.ok(facade.split(/\r?\n/).length <= 30);
+	assert.ok(sourceLineCount(facade) <= 30);
 	assert.doesNotMatch(facade, /function prepareBoundedWaveformWindow/);
 	assert.match(facade, /design-system-adapters\//);
 });
@@ -50,7 +52,7 @@ test('typed adapter modules have focused owners within the maintenance budget', 
 	for (const moduleName of moduleNames) {
 		const source = await readFile(new URL(moduleName, ADAPTER_ROOT), 'utf8');
 		assert.ok(
-			source.split(/\r?\n/).length <= 600,
+			sourceLineCount(source) <= 600,
 			`${moduleName} must stay at or below 600 lines`,
 		);
 	}
