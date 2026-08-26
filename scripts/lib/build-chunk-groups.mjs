@@ -48,6 +48,7 @@ export const EDITOR_OPTIONAL_SURFACE_CHUNK_TEST = new RegExp(
 );
 
 const DESIGN_SYSTEM_OPTIONAL_EFFECTS_CHUNK_TEST = /(?:^|[\\/])vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?:EffectsPanel[\\/].*|EffectDialog[\\/]EffectHeader\.tsx)$/;
+const DESIGN_SYSTEM_EDITOR_SHELL_COMPONENT_CHUNK_TEST = /(?:^|[\\/])vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?:AddTrackFlyout|ApplicationHeader|Button|Checkbox|Clip|ClipBody|ClipHeader|CloudProjectIndicator|ContextMenu|ContextMenuItem|DialogHeader|Dropdown|EnvelopeCurve|EnvelopeInteractionLayer|EnvelopeOverlay|EnvelopePoint|Flyout|GhostButton|Icon|Knob|LabelMarker|LabeledCheckbox|LabeledRadio|MidiClipBody|MixerChannel|MixerEffect|MixerFader|MixerFaderHandle|MixerPanel|NumberStepper|PanKnob|PanelHeader|PlayheadCursor|Radio|RulerFlyout|SelectionToolbar|Separator|Slider|TextInput|TimeCode|TimelineRuler|TimelineRulerContextMenu|ToggleButton|ToggleToolButton|ToolButton|Toolbar|Tooltip|Track|TrackControlPanel|TrackMeter|TransportButton|VerticalRuler)[\\/]/;
 const EDITOR_CODEC_FOUNDATION_CHUNK_TEST = /src[\\/]common[\\/]editor[\\/](?:wavpack[\\/]|staffpad[\\/]|parametric-eq[\\/](?:parameters|design|wasm-runtime|wasm-loader)\.js$)/;
 const EDITOR_EFFECT_CONTRACT_CHUNK_TEST = /(?:src[\\/]common[\\/](?:i18n[\\/]action-parity\.js|editor[\\/](?:audacity-effects[\\/](?:contracts|live-capabilities)\.js|nyquist[\\/]plugin-registry\.js|reviewed-effects[\\/](?:errors|manifest|selection-effect-contract|utility-gain-package)\.ts)))$/;
 const framescaperProjectFoundationModule = String.raw`(?:editor-video-proxy-action-runtime-v20|editor-native-openfx-authoring-model-v28|editor-selected-v27-authoring-controller|editor-project-(?:v(?:28|32)|v(?:25|28|31|32)-foundation|feature-requirements-v(?:25|26|28|32)|feature-capability-profile-v(?:25|26|28|32)|storage-profile-v(?:25|26|28|32)|runtime-profile-v(?:25|26|28|32)(?:-prerequisite)?|v(?:25|28|32)-validation|v28-openfx-validation))`;
@@ -77,11 +78,11 @@ export const chunkGroups = [
 		includeDependenciesRecursively: false,
 	},
 	{
-		// Exact app imports decide which components enter the graph. Once selected,
-		// keep their implementation and CSS together instead of emitting one request
-		// per shared component reached by both the shell and lazy dialogs.
-		name: 'vendor-design-system-components',
-		test: /(?:^|[\\/])vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?!(?:ThemeProvider|contexts|hooks|utils|constants\.ts|assets[\\/]fonts)(?:[\\/]|$))(?!(?:EffectsPanel[\\/]|EffectDialog[\\/]EffectHeader\.tsx$))/,
+		// Components used by the ready editor shell belong to that consumer. Components
+		// reached only by a lazy dialog remain unowned and follow the dialog instead of
+		// being hoisted into a broad shared vendor chunk.
+		name: 'editor-shell-design-components',
+		test: DESIGN_SYSTEM_EDITOR_SHELL_COMPONENT_CHUNK_TEST,
 		priority: 94,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,

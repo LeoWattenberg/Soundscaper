@@ -271,7 +271,7 @@ test('editor UI imports exact internal design-system modules', () => {
 	assert.match(tsconfig, /"@soundscaper\/design-system\/\*"/u);
 });
 
-test('design-system foundation and loaded component modules have separate owners', () => {
+test('design-system foundations stay vendor-owned while components follow eager or lazy consumers', () => {
 	assert.equal(
 		chunkGroupForModulePath('vendor/audacity-design-system/components/src/ThemeProvider/ThemeProvider.tsx'),
 		'vendor-design-system',
@@ -282,9 +282,25 @@ test('design-system foundation and loaded component modules have separate owners
 	);
 	assert.equal(
 		chunkGroupForModulePath('vendor/audacity-design-system/components/src/Button/Button.tsx'),
-		'vendor-design-system-components',
+		'editor-shell-design-components',
 	);
-	const components = chunkGroups.find((candidate) => candidate.name === 'vendor-design-system-components');
+	assert.equal(
+		chunkGroupForModulePath('vendor/audacity-design-system/components/src/TrackMeter/TrackMeter.tsx'),
+		'editor-shell-design-components',
+	);
+	assert.equal(
+		chunkGroupForModulePath('vendor/audacity-design-system/components/src/Footer/Footer.tsx'),
+		null,
+	);
+	assert.equal(
+		chunkGroupForModulePath('vendor/audacity-design-system/components/src/PreferencePanel/PreferencePanel.tsx'),
+		null,
+	);
+	assert.equal(
+		chunkGroups.some((candidate) => candidate.name === 'vendor-design-system-components'),
+		false,
+	);
+	const components = chunkGroups.find((candidate) => candidate.name === 'editor-shell-design-components');
 	assert.ok(components);
 	assert.equal(components.includeDependenciesRecursively, false);
 });
