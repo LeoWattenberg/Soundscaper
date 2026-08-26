@@ -61,6 +61,7 @@
 		"quality:collect:m2-direct-video": "node scripts/collect-m2-direct-structural-quality.mjs m2-direct-mp4-webm-video-output-v1",
 		"quality:collect:m3-longform": "node scripts/collect-m3-longform-editorial-quality.mjs",
 		"quality:collect:m4-production-parity": "node scripts/collect-m4-production-parity-quality.mjs",
+		"quality:collect:m4b2-keyframe-parity": "node scripts/collect-m4b2-keyframe-parity-quality.mjs",
 		"quality:collect:m5-native-helper": "node scripts/collect-m5-native-helper-quality.mjs",
 		"quality:cohort:m5-native-helper": "node scripts/collect-m5-native-helper-cohort.mjs",
 		"quality:collect:m5b-native-media": "node scripts/collect-m5b-native-media-quality.mjs",
