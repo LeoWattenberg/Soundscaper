@@ -3,6 +3,7 @@
 	"groundedAt": "2026-08-24",
 	"qualification": {
 		"status": "in-progress",
+		"offlineCacheQualificationNarrative": "Shell upgrade begins with a prior complete cache, activates one complete current active-product cache, and retires only safely obsolete caches. The current product's verified core is guaranteed offline after installation; optional assets and the other product become available offline only after their exact allowlisted bytes have been fetched, verified, and cached on use. A partial FFmpeg runtime update retains the previous complete verified release.",
 		"qualifiedWorkloadIds": [
 			"m2-streaming-project-8gib-v1",
 			"m2-direct-wav-385mib-v1",

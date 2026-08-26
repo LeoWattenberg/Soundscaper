@@ -48,6 +48,14 @@ const QUALIFICATION_ID_TOKENS = Object.freeze([
 
 export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 	Object.freeze({
+		marker: 'milestone-2-offline-cache-qualification',
+		register: 'config/quality-budgets.json',
+		jsonPath: ['qualification', 'offlineCacheQualificationNarrative'],
+		document: 'docs/quality-budgets.md',
+		intro: null,
+		wrap: 80,
+	}),
+	Object.freeze({
 		marker: 'framescaper-v18-product-isolation',
 		register: 'config/project-compatibility.json',
 		ruleId: 'framescaper-v18-product-isolation',
@@ -389,7 +397,10 @@ export async function loadPolicyNarratives(repositoryRoot) {
 	for (const binding of POLICY_NARRATIVE_BINDINGS) {
 		const register = JSON.parse(await readFile(resolve(repositoryRoot, binding.register), 'utf8'));
 		let carrier;
-		if (binding.ruleId) {
+		if (binding.jsonPath) {
+			carrier = binding.jsonPath.slice(0, -1).reduce((value, segment) => value?.[segment], register);
+			assert(carrier, `${binding.marker}: path ${binding.jsonPath.join('.')} is missing from ${binding.register}`);
+		} else if (binding.ruleId) {
 			carrier = register.rules.find(({ id }) => id === binding.ruleId);
 			assert(carrier, `${binding.marker}: rule ${binding.ruleId} is missing from ${binding.register}`);
 		} else {
@@ -398,8 +409,9 @@ export async function loadPolicyNarratives(repositoryRoot) {
 			carrier = risk.currentControls.find(({ id }) => id === binding.controlId);
 			assert(carrier, `${binding.marker}: control ${binding.controlId} is missing from ${binding.register}`);
 		}
-		const source = carrier[binding.field];
-		assert(typeof source === 'string' && source, `${binding.marker}: ${binding.field} is empty`);
+		const field = binding.jsonPath?.at(-1) ?? binding.field;
+		const source = carrier[field];
+		assert(typeof source === 'string' && source, `${binding.marker}: ${field} is empty`);
 		narratives.push({ binding, rendered: renderPolicyNarrative(source, binding) });
 	}
 	return narratives;

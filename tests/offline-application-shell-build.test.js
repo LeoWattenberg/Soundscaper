@@ -114,6 +114,15 @@ test('one changed shell byte produces a different release without considering co
 	assert.notDeepEqual(changed.releaseIds, first.releaseIds);
 });
 
+test('generation rejects an install-core descriptor above the in-flight byte ceiling', async (context) => {
+	const outputRoot = await shellFixture(context);
+	await writeFile(join(outputRoot, 'assets/application-abc.js'), Buffer.alloc(4 * 1024 * 1024 + 1, 1));
+	await assert.rejects(
+		generateOfflineApplicationShell({ outputRoot, repositoryRoot: resolve('.') }),
+		/install asset exceeds its in-flight byte limit/iu,
+	);
+});
+
 async function shellFixture(context) {
 	const outputRoot = await mkdtemp(join(tmpdir(), 'soundscaper-offline-shell-test-'));
 	context.after(() => rm(outputRoot, { recursive: true, force: true }));

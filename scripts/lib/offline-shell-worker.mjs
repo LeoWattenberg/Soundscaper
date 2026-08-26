@@ -82,6 +82,9 @@ export function validateOfflineShellConfiguration(value) {
 			throw new Error('Offline shell install inventory is invalid.');
 		}
 		previousUrl = url;
+		if (descriptor.byteLength > 4 * 1024 * 1024) {
+			throw new Error('Offline shell install descriptor exceeds its in-flight byte limit.');
+		}
 		installBytes += descriptor.byteLength;
 		if (!Number.isSafeInteger(installBytes) || installBytes > 8 * 1024 * 1024) {
 			throw new Error('Offline shell install byte limit is exceeded.');
@@ -127,7 +130,7 @@ async function readinessRecord(cache, cacheName, productId) {
 		expected = { schemaVersion: 2, productId: match[1], releaseId: match[2] };
 	} else {
 		match = cacheName.match(/^soundscaper-application-shell-v1-([a-f\d]{64})$/u);
-		if (!match || productId !== 'soundscaper') return null;
+		if (!match) return null;
 		marker = legacyShellReadinessUrl(match[1]);
 		expected = { schemaVersion: 1, releaseId: match[1] };
 	}
@@ -152,7 +155,7 @@ async function completeReuseCacheNames(cacheStorage, productId, candidateName) {
 	for (const cacheName of await cacheStorage.keys()) {
 		if (cacheName === candidateName) continue;
 		if (!cacheName.startsWith(`soundscaper-application-shell-v2-${productId}-`)
-			&& !(productId === 'soundscaper' && cacheName.startsWith('soundscaper-application-shell-v1-'))) continue;
+			&& !cacheName.startsWith('soundscaper-application-shell-v1-')) continue;
 		if (await cacheIsComplete(cacheStorage, cacheName, productId)) reusable.push(cacheName);
 	}
 	return reusable;
@@ -212,7 +215,6 @@ async function installAssetBatches(options, descriptors) {
 			batch.push(descriptor);
 			bytes += descriptor.byteLength;
 			offset += 1;
-			if (descriptor.byteLength > 4 * 1024 * 1024) break;
 		}
 		await Promise.all(batch.map((descriptor) => installVerifiedAsset({ ...options, descriptor })));
 	}
@@ -352,11 +354,12 @@ export async function handleApplicationShellFetch({
 		try {
 			return await cacheVerifiedAssetOnUse({ cache, descriptor, fetchImpl, cryptoImpl });
 		} catch (error) {
-			if (request.mode !== 'navigate' || !(error instanceof TypeError)) throw error;
-			const fallback = await matchOfflineNavigationFallback(
-				cache, requestUrl.pathname, configuration, new Set(descriptors.keys()),
-			);
-			if (fallback) return fallback;
+			if (request.mode === 'navigate') {
+				const fallback = await matchOfflineNavigationFallback(
+					cache, requestUrl.pathname, configuration, new Set(descriptors.keys()),
+				);
+				if (fallback) return fallback;
+			}
 			throw error;
 		}
 	}

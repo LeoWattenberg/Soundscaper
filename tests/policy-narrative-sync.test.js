@@ -73,6 +73,12 @@ async function createFixture(context, { summary, block }) {
 	for (const binding of POLICY_NARRATIVE_BINDINGS) {
 		if (!registers.has(binding.register)) registers.set(binding.register, { risks: [], rules: [] });
 		const register = registers.get(binding.register);
+		if (binding.jsonPath) {
+			let carrier = register;
+			for (const segment of binding.jsonPath.slice(0, -1)) carrier = carrier[segment] ??= {};
+			carrier[binding.jsonPath.at(-1)] = summary;
+			continue;
+		}
 		if (binding.ruleId) {
 			register.rules.push({ id: binding.ruleId, [binding.field]: summary });
 			continue;

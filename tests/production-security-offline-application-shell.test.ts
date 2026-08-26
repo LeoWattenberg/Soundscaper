@@ -39,7 +39,9 @@ const matrixUrl = new URL('../config/production-security-matrix.json', import.me
 const roadmapUrl = new URL('../roadmap.md', import.meta.url);
 
 const EXPECTED_EVIDENCE = [
+	{ kind: 'document', path: 'public/_headers' },
 	{ kind: 'implementation', path: 'scripts/lib/offline-application-shell.mjs' },
+	{ kind: 'implementation', path: 'scripts/lib/offline-shell-worker.mjs' },
 	{ kind: 'implementation', path: 'scripts/lib/offline-service-worker.mjs' },
 	{ kind: 'implementation', path: 'src/common/offline/application-shell.ts' },
 	{ kind: 'implementation', path: 'src/common/offline/ffmpeg-runtime-cache.ts' },
@@ -49,6 +51,7 @@ const EXPECTED_EVIDENCE = [
 	{ kind: 'implementation', path: 'src/common/editor/ui/dialogs/OfflineRuntimePreferencePanel.tsx' },
 	{ kind: 'test', path: 'tests/offline-application-shell-build.test.js' },
 	{ kind: 'test', path: 'tests/offline-service-worker.test.js' },
+	{ kind: 'test', path: 'tests/offline-service-worker-runtime-fetch.test.js' },
 	{ kind: 'test', path: 'tests/offline-ffmpeg-runtime-cache.test.ts' },
 	{ kind: 'test', path: 'tests/offline-browser-runtime-store.test.ts' },
 	{ kind: 'test', path: 'tests/browser/offline-application-shell.spec.js' },
@@ -75,6 +78,13 @@ test('the offline application shell and explicit runtime cache remain narrowly e
 		);
 	}
 	assert.match(control.summary, /4,?096 assets.*25 MiB.*256 MiB.*SHA-256/isu);
+	assert.match(control.summary, /schema v2.*complete verified allowlist.*active-product install core/isu);
+	assert.match(control.summary, /four.*concurrent.*4 MiB.*in-flight/isu);
+	assert.match(control.summary, /scoped.*classic workers.*Soundscaper.*Framescaper/isu);
+	assert.match(control.summary, /editor readiness.*idle.*registration/isu);
+	assert.match(control.summary, /optional.*other product.*cache on use/isu);
+	assert.match(control.summary, /legacy v1.*read-only.*Framescaper.*does not delete/isu);
+	assert.match(control.summary, /navigation.*fetch or verification failure.*English.*fallback.*mismatched bytes/isu);
 	assert.match(control.summary, /readiness last.*failed installation.*candidate/isu);
 	assert.match(control.summary, /claims clients before retiring.*older.*shell/isu);
 	assert.match(control.summary, /explicit FFmpeg runtime download.*no runtime download.*implicitly/isu);

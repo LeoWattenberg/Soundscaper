@@ -1494,17 +1494,29 @@ separately packaged Sherpa runtime has its own exact target manifest and double
 verification described under native helpers.
 
 The Web application shell now has a separate verified availability boundary.
-The build inventories at most 4,096 regular assets, 25 MiB each and 256 MiB in
-aggregate, and binds exact lengths and SHA-256 digests into one release identity
-covering the service-worker template. Installation verifies that identity and
-each complete allowlisted response before CacheStorage publication, writes a
-release readiness marker last, and removes only the failed candidate.
-Activation refuses an incomplete cache, claims clients before retiring prior
-complete shell caches, and a failed takeover leaves the previous release
-available. Registration is production-web-only and cannot reject application
-startup. Generated product manifests and stable revalidated icons make both
-Soundscaper and Framescaper installable; the tested Chromium workflow reloads
-both editors offline.
+Schema v2 inventories one complete allowlist of at most 4,096 regular assets,
+25 MiB each and 256 MiB in aggregate, but gives each product its own bounded
+install core. Each install descriptor is at most 4 MiB, and batches admit at
+most four requests and 4 MiB of declared body bytes at once. Exact lengths and
+SHA-256 digests, the product scope, fallbacks, and service-worker template are
+bound into the release identity. Two stable no-store classic workers control
+Soundscaper at `/` and Framescaper at `/framescaper/`; registration waits for
+editor readiness and an idle opportunity and cannot reject application
+startup. The current product's core is guaranteed after installation. Optional
+features and the other product become available offline only after exact
+allowlisted bytes are fetched, verified, and cached on use.
+
+Installation re-verifies reusable entries from complete current-product v2 and
+legacy v1 caches, writes readiness last, and removes only the failed candidate.
+Both products treat legacy v1 as read-only reuse input; Framescaper leaves that
+shared cache in place for an older root worker. Activation refuses an
+incomplete cache, claims clients before retiring only the current product's
+safe obsolete caches, and a failed takeover leaves the previous release
+available. Product-path isolation applies to navigations, while scoped workers
+may verify shared allowlisted subresources. A failed allowlisted navigation
+fetch, HTTP status, length, or digest uses only the matching verified English
+product and embed-mode fallback and never serves mismatched bytes. Generated
+product manifests and stable revalidated icons make both editors installable.
 
 The explicit Web FFmpeg download follows the no-store production pointer only
 after a user action. It bounds the pointer to 64 KiB, manifest to 512 KiB, each

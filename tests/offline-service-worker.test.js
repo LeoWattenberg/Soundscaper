@@ -10,6 +10,7 @@ import {
 	handleOfflineShellFetch,
 	installOfflineShell,
 	renderOfflineServiceWorker,
+	validateOfflineShellConfiguration,
 } from '../scripts/lib/offline-service-worker.mjs';
 import {
 	asset,
@@ -162,6 +163,86 @@ test('an update re-verifies and reuses unchanged entries from the prior complete
 	]);
 });
 
+test('both product v2 installs reuse a complete legacy v1 cache without Framescaper deleting it', async () => {
+	const cacheStorage = new MemoryCacheStorage();
+	const legacyId = '1'.repeat(64);
+	const legacyName = `soundscaper-application-shell-v1-${legacyId}`;
+	const legacy = await cacheStorage.open(legacyName);
+	const framesRoutes = [
+		asset('/framescaper/embed/en/', 'framescaper embedded shell'),
+		asset('/framescaper/en/', 'framescaper shell'),
+	];
+	const soundscaper = shellConfiguration('2');
+	const framescaper = shellConfiguration('3', framesRoutes, {
+		productId: 'framescaper',
+		scope: '/framescaper/',
+		fallbacks: {
+			standard: '/framescaper/en/',
+			embedded: '/framescaper/embed/en/',
+		},
+		installUrls: [
+			'/assets/application.js',
+			'/framescaper/embed/en/',
+			'/framescaper/en/',
+		],
+	});
+	const contents = new Map([
+		['/assets/application.js', 'application code'],
+		['/embed/en/', 'embedded shell'],
+		['/en/', 'root shell'],
+		['/framescaper/embed/en/', 'framescaper embedded shell'],
+		['/framescaper/en/', 'framescaper shell'],
+	]);
+	for (const url of new Set([...soundscaper.installUrls, ...framescaper.installUrls])) {
+		await legacy.put(url, response(contents.get(url)));
+	}
+	await legacy.put(
+		`/.soundscaper/offline/application-shell-${legacyId}.json`,
+		response(JSON.stringify({ schemaVersion: 1, releaseId: legacyId })),
+	);
+	const legacyEntryCount = legacy.entries.size;
+	let networkRequests = 0;
+	for (const configuration of [soundscaper, framescaper]) {
+		await installOfflineShell({
+			configuration,
+			cacheStorage,
+			fetchImpl: async () => {
+				networkRequests += 1;
+				throw new TypeError('legacy reuse should avoid the network');
+			},
+		});
+	}
+
+	assert.equal(networkRequests, 0);
+	assert.equal(legacy.entries.size, legacyEntryCount, 'legacy reuse is read-only');
+	await activateOfflineShell({
+		configuration: framescaper,
+		cacheStorage,
+		clients: { claim: async () => undefined },
+	});
+	assert.ok((await cacheStorage.keys()).includes(legacyName), 'Framescaper leaves shared v1 for an old root worker');
+});
+
+test('install descriptors cannot exceed the four MiB in-flight ceiling', () => {
+	const oversized = Object.freeze({
+		url: '/assets/oversized-core.js',
+		byteLength: 4 * 1024 * 1024 + 1,
+		sha256: 'a'.repeat(64),
+	});
+	const configuration = shellConfiguration('4', [oversized], {
+		installUrls: [
+			'/assets/application.js',
+			'/assets/oversized-core.js',
+			'/embed/en/',
+			'/en/',
+		].sort(),
+	});
+	assert.throws(
+		() => validateOfflineShellConfiguration(configuration),
+		/install descriptor exceeds its in-flight byte limit/iu,
+	);
+});
+
 test('install downloads are bounded to four verified responses at a time', async () => {
 	const extras = Array.from({ length: 6 }, (_, index) => asset(`/assets/core-${String(index)}.js`, `core ${String(index)}`));
 	const installUrls = [
@@ -289,4 +370,33 @@ test('the scoped Framescaper worker verifies shared allowlisted assets outside i
 		origin: 'https://soundscaper.org',
 	});
 	assert.equal(await cached.text(), 'framescaper optional');
+});
+
+test('allowlisted navigation failures use only the matching verified English fallback', async () => {
+	const localized = asset('/fr/', 'french shell');
+	const configuration = shellConfiguration('5', [localized]);
+	const cacheStorage = new MemoryCacheStorage();
+	await installOfflineShell({
+		configuration,
+		cacheStorage,
+		fetchImpl: async (url) => shellResponse(url),
+	});
+	const failures = [
+		async () => new Response(null, { status: 404 }),
+		async () => new Response(null, { status: 500 }),
+		async () => response('short'),
+		async () => response('frenxh shell'),
+	];
+	for (const fetchImpl of failures) {
+		const result = await handleOfflineShellFetch({
+			configuration,
+			cacheStorage,
+			fetchImpl,
+			request: { method: 'GET', mode: 'navigate', url: 'https://soundscaper.org/fr/' },
+			origin: 'https://soundscaper.org',
+		});
+		assert.equal(await result.text(), 'root shell');
+	}
+	const cache = await cacheStorage.open(shellCacheName(configuration.releaseId));
+	assert.equal(await cache.match('/fr/'), undefined, 'failed exact documents are never cached or served');
 });

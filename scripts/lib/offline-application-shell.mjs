@@ -156,6 +156,9 @@ function validateInstallAssets(assets, productId) {
 	if (assets.length < 1 || assets.length > MAXIMUM_INSTALL_ASSET_COUNT || assets.some((asset) => !asset)) {
 		throw new Error(`Offline ${productId} install inventory exceeds its asset-count limit.`);
 	}
+	if (assets.some((asset) => asset.byteLength > 4 * 1024 * 1024)) {
+		throw new Error(`Offline ${productId} install asset exceeds its in-flight byte limit.`);
+	}
 	const totalBytes = assets.reduce((total, asset) => total + asset.byteLength, 0);
 	if (!Number.isSafeInteger(totalBytes) || totalBytes > MAXIMUM_INSTALL_ASSET_BYTES) {
 		throw new Error(`Offline ${productId} install inventory exceeds its byte limit.`);

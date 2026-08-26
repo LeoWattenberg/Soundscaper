@@ -513,9 +513,15 @@ injects `QuotaExceededError` at its synchronous write boundary and either
 refuses without changing the current project or exercises the repository's
 IndexedDB fallback. The two tab workflows prove only one writer can mutate the
 same project and that ownership transfers back after the newer tab closes.
-Shell upgrade begins with a prior cache, activates one complete current cache,
-retires the prior cache, and reloads both products offline. A partial FFmpeg
-runtime update retains the previous complete verified release. The eviction
+<!-- policy-narrative:milestone-2-offline-cache-qualification -->
+Shell upgrade begins with a prior complete cache, activates one complete current
+active-product cache, and retires only safely obsolete caches. The current
+product's verified core is guaranteed offline after installation; optional
+assets and the other product become available offline only after their exact
+allowlisted bytes have been fetched, verified, and cached on use. A partial
+FFmpeg runtime update retains the previous complete verified release.
+<!-- /policy-narrative:milestone-2-offline-cache-qualification -->
+The eviction
 workflow exports a current `.scape`, removes the origin's IndexedDB database,
 reopens the usable empty editor, and restores the same project identity from
 the archive. WebKit qualification is deferred by milestone-2 closure scope
