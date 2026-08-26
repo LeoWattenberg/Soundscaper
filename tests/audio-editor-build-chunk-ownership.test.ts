@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { dirname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
@@ -36,6 +37,7 @@ import {
  * absorbed into a dialog chunk, whichever importer happens to reach it first.
  */
 
+const REPOSITORY_ROOT = fileURLToPath(new URL('../', import.meta.url));
 const EDITOR_DIRECTORY = fileURLToPath(new URL('../src/common/editor/', import.meta.url));
 const ASSISTANCE_DIRECTORY = fileURLToPath(new URL('../src/common/editor/assistance/', import.meta.url));
 const EDITOR_UI_DIRECTORY = fileURLToPath(new URL('../src/common/editor/ui/', import.meta.url));
@@ -48,6 +50,15 @@ test('every shared flat editor domain module has an owning chunk group', () => {
 		.filter((path) => !EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST.test(path))
 		.filter((path) => chunkGroupForModulePath(path) === null);
 	assert.deepEqual(unowned, [], 'these modules would be placed by reachability alone');
+});
+
+test('no eagerly owned editor module statically imports a lazily owned one', () => {
+	// This is the invariant every per-directory ownership rule exists to serve. A static
+	// import across the boundary makes the importer's chunk depend on the lazy chunk, so the
+	// whole lazy feature is downloaded during startup and the product-ready graph blows its
+	// byte budget - for code the user never opened. Reach lazy code through a dynamic import
+	// or a facade instead, or move the importer to the lazy side.
+	assert.deepEqual(eagerImportsOfLazyOwners(), []);
 });
 
 test('assistance domain modules default to the lazy owner, with a named eager exception set', () => {
@@ -106,6 +117,18 @@ test('the shell, controller, and storage groups keep the flat modules they name'
 	// loaded when it is opened rather than when the editor boots.
 	assert.equal(chunkGroupForModulePath('src/common/editor/ui/inspector/ExportDialog.jsx'), null);
 	assert.equal(chunkGroupForModulePath('src/common/editor/ui/AudioEditorMenuBar.jsx'), 'editor-shell');
+	assert.equal(
+		chunkGroupForModulePath('src/common/editor/ui/local-assistance-semantic-search-source.ts'),
+		'editor-assistance-semantic-search-runtime',
+	);
+	assert.equal(
+		chunkGroupForModulePath('src/common/editor/ui/local-assistance-semantic-search-bridge.ts'),
+		'editor-assistance-semantic-search-runtime',
+	);
+	assert.equal(
+		chunkGroupForModulePath('src/common/editor/ui/local-assistance-lazy-semantic-search-source.ts'),
+		'editor-shell',
+	);
 });
 
 test('the domain group sits below the groups whose modules it would otherwise claim', () => {
@@ -485,6 +508,85 @@ function assistanceDomainModules(): readonly string[] {
 		.filter((entry) => entry.isFile() && MODULE_PATTERN.test(entry.name))
 		.map((entry) => `src/common/editor/assistance/${entry.name}`)
 		.sort();
+}
+
+/**
+ * The chunk groups that are downloaded before the editor can mount. Naming the eager side
+ * rather than the lazy side keeps this honest as groups are added: a new feature group is
+ * lazy by default, so forgetting to list it costs a missed crossing, never a false alarm.
+ */
+const EAGER_CHUNK_GROUPS = new Set([
+	'editor-codec-foundations',
+	'editor-controller-core',
+	'editor-cube-lut-actions-v27',
+	'editor-domain',
+	'editor-effect-contracts',
+	'editor-engine',
+	'editor-shell',
+	'editor-shell-design-components',
+	'editor-storage-model',
+	'editor-timeline',
+	'framescaper-project-foundations',
+	'vendor-design-system',
+	'vendor-react',
+]);
+const WORKER_ENTRY_PATTERN = /new Worker\(\s*new URL\(\s*'(\.[^']+)'/gu;
+const STATIC_IMPORT_PATTERN = /^import\s+(?!type\b)([\s\S]*?)from\s+'(\.[^']+)'/gmu;
+
+function resolveRelativeModule(fromPath: string, specifier: string): string | null {
+	const base = resolve(dirname(fromPath), specifier);
+	for (const candidate of [base, `${base}.ts`, `${base}.tsx`, `${base}.js`, `${base}.jsx`]) {
+		if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;
+	}
+	return null;
+}
+
+function importsOnlyTypes(clause: string): boolean {
+	const braces = /\{([\s\S]*)\}/u.exec(clause);
+	if (!braces) return false;
+	const names = braces[1].split(',').map((name) => name.trim()).filter(Boolean);
+	return names.length > 0 && names.every((name) => name.startsWith('type '));
+}
+
+function workerEntryModules(modules: readonly string[]): ReadonlySet<string> {
+	const entries = new Set<string>();
+	for (const absolute of modules) {
+		for (const match of readFileSync(absolute, 'utf8').matchAll(WORKER_ENTRY_PATTERN)) {
+			const target = resolveRelativeModule(absolute, match[1]!);
+			if (target) entries.add(target);
+		}
+	}
+	return entries;
+}
+
+function ownerName(path: string): string | null {
+	const owner = chunkGroupForModulePath(path);
+	return typeof owner === 'string' ? owner : null;
+}
+
+function eagerImportsOfLazyOwners(): readonly string[] {
+	const roots = [EDITOR_DIRECTORY, ASSISTANCE_DIRECTORY, EDITOR_CONTROLLER_DIRECTORY, EDITOR_UI_DIRECTORY];
+	const modules = [...new Set(roots.flatMap((root) => sourceModules(root).map((path) => resolve(path))))];
+	// A module the runtime hands to `new Worker(new URL(...))` is its own bundle root, so it
+	// never joins the page's startup graph and may reach lazily owned code directly.
+	const workerEntries = workerEntryModules(modules);
+	const crossings: string[] = [];
+	for (const absolute of modules) {
+		if (workerEntries.has(absolute)) continue;
+		const path = relative(REPOSITORY_ROOT, absolute).split(sep).join('/');
+		const owner = ownerName(path);
+		if (owner === null || !EAGER_CHUNK_GROUPS.has(owner)) continue;
+		for (const match of readFileSync(absolute, 'utf8').matchAll(STATIC_IMPORT_PATTERN)) {
+			if (importsOnlyTypes(match[1]!)) continue;
+			const target = resolveRelativeModule(absolute, match[2]!);
+			if (!target) continue;
+			const targetPath = relative(REPOSITORY_ROOT, target).split(sep).join('/');
+			const targetOwner = ownerName(targetPath);
+			if (targetOwner === null || EAGER_CHUNK_GROUPS.has(targetOwner)) continue;
+			crossings.push(`${path} [${owner}] -> ${targetPath} [${targetOwner}]`);
+		}
+	}
+	return [...new Set(crossings)].sort();
 }
 
 function localAssistanceControllerModules(): readonly string[] {

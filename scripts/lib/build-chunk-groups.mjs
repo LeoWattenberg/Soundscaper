@@ -25,7 +25,7 @@ const editorOptionalArchiveModule = String.raw`(?:aup-legacy(?:-block-budget|-co
 const editorOptionalExecutionModule = String.raw`(?:analysis|pffft|selection-effects-runtime|spectral-edit(?:-admission)?)`;
 const editorOptionalExportControllerModule = String.raw`(?:audio-export-render-orchestration|audio-realtime-encoded-export|audio-rendered-fallback-export|delivery-conformance-action|desktop-audio-export-capability|direct-(?:aiff-export|audio-render-plan|broadcast-wave-export|bw64-export|bwf-export|compressed-export|compressed-plan|compressed-stem-archive-plan|export-dispatch|mp3-export|native-stem-archive-plan|offline-compressed-export|offline-pcm-export|pcm-export|stem-archive-export|video-export|video-plan-contract|wav-export)|export-render-project|export-service|realtime-export-pcm-transform|rendered-audio-encoding|video-export-service|video-rendered-fallback-export)`;
 const editorOptionalControllerModule = String.raw`(?:analysis-service|${editorOptionalExportControllerModule})`;
-const editorOptionalAssistanceModule = String.raw`(?:local-assistance-runtime|local-assistance-(?:audio-preparation|guided-preparation|audio-publication|audio-result-custody|beat-acceptance|selected-media|selected-video(?:-frame-pack|-timing)?|selected-preparation|selected-media-router|result-acceptance|reaction-acceptance|cleanup-workflow|cleanup-acceptance|range-label-acceptance|shot-acceptance|transcript-acceptance))`;
+const editorOptionalAssistanceModule = String.raw`local-assistance-[^\\/]+`;
 /**
  * Assistance domain modules the eagerly loaded shell and controller genuinely share.
  *
@@ -36,7 +36,9 @@ const editorOptionalAssistanceModule = String.raw`(?:local-assistance-runtime|lo
  * has not opened. Adding a name here is a deliberate claim that eager code reads it.
  */
 const editorEagerAssistanceModule = String.raw`(?:assistance-asset-command-v1|assistance-asset-reference-v1|operation|shots|transcript|transcript-scape-asset-extension-v1)`;
-const editorOptionalSurfaceModule = String.raw`ui[\\/](?:AudacityEffectLayout\.jsx|ParametricEqEditor\.jsx|SoundActivationPreferences\.tsx|VideoDeliveryFields\.jsx|desktop-export-codec-model\.ts|export-(?:dialog-audio-codec-options\.ts|dialog-model\.js|preset-model\.ts)|framescaper-native-services-dialog-model\.ts|framescaper-v27-(?:caption-file-interchange|finishing-dialog-model|visual-inspector-model)\.ts|local-assistance-(?:bridge|cleanup|guided-session-store|preparation|result-review|session-store|shot-review|workflow-bridge)\.ts|local-model-manager-store\.ts|soundscaper-(?:production-dialog-model|routing-editor-model)\.ts|video-keyframe-(?:curve-transfer|dialog-model)\.ts|workspace[\\/](?:FramescaperCaptureSources|RecordingSetupPanel|WebVcrPanel|WebVcrPreview)\.tsx)`;
+const editorOptionalSurfaceModule = String.raw`ui[\\/](?:AudacityEffectLayout\.jsx|ParametricEqEditor\.jsx|SoundActivationPreferences\.tsx|VideoDeliveryFields\.jsx|desktop-export-codec-model\.ts|export-(?:dialog-audio-codec-options\.ts|dialog-model\.js|preset-model\.ts)|framescaper-native-services-dialog-model\.ts|framescaper-v27-(?:caption-file-interchange|finishing-dialog-model|visual-inspector-model)\.ts|local-assistance-(?!lazy-)(?!menu\.ts$)(?!review-authority\.ts$)[a-z\d-]+\.ts|local-model-manager-store\.ts|soundscaper-(?:production-dialog-model|routing-editor-model)\.ts|video-keyframe-(?:curve-transfer|dialog-model)\.ts|workspace[\\/](?:FramescaperCaptureSources|RecordingSetupPanel|WebVcrPanel|WebVcrPreview)\.tsx)`;
+const EDITOR_ASSISTANCE_SEMANTIC_SEARCH_RUNTIME_CHUNK_TEST =
+	/src[\\/]common[\\/]editor[\\/]ui[\\/]local-assistance-semantic-search-(?:bridge|source)\.ts$/;
 
 /** Archive/interchange implementation modules owned only by lazy file-menu actions. */
 export const EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST = new RegExp(
@@ -136,6 +138,16 @@ export const chunkGroups = [
 		name: 'editor-selection-effects-runtime',
 		test: EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST,
 		priority: 98,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		// Indexed search opens from a tiny shell facade. Its custody and strict bridge
+		// remain a distinct dynamic owner even while other assistance surfaces are shared.
+		name: 'editor-assistance-semantic-search-runtime',
+		test: EDITOR_ASSISTANCE_SEMANTIC_SEARCH_RUNTIME_CHUNK_TEST,
+		priority: 99,
 		minSize: 0,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
