@@ -193,7 +193,7 @@ export class AssistanceDerivativeRepository {
 				throw new RangeError('The assistance derivative cannot fit within its configured limits.');
 			}
 		} catch (error) {
-			await this.#values.deleteIfCurrent(identity.key, record).catch(() => false);
+			await Promise.resolve(this.#values.deleteIfCurrent(identity.key, record)).catch(() => false);
 			throw error;
 		}
 		return recordView(record);
@@ -211,7 +211,7 @@ export class AssistanceDerivativeRepository {
 			await this.#values.deleteIfCurrent(identity.key, value);
 			return null;
 		}
-		const plan = planDerivativeCacheEviction([record], {
+		const plan = planDerivativeCacheEviction([evictionRecord(record)], {
 			...this.#limits,
 			now: this.#timestamp(),
 		});
@@ -233,7 +233,7 @@ export class AssistanceDerivativeRepository {
 			else valid.push(Object.freeze({ row, record }));
 		}
 		const plan = planDerivativeCacheEviction(
-			valid.map(({ record }) => record),
+			valid.map(({ record }) => evictionRecord(record)),
 			{ ...this.#limits, now: this.#timestamp() },
 		);
 		const removalKeys = new Set(plan.removals.map(({ key }) => String(key)));
@@ -266,6 +266,12 @@ export class AssistanceDerivativeRepository {
 		this.#operations = result.catch(() => undefined);
 		return result;
 	}
+}
+
+function evictionRecord(record: AssistanceDerivativeRecordV1): Readonly<{
+	key: string; size: number; committedAt: string;
+}> {
+	return Object.freeze({ key: record.key, size: record.size, committedAt: record.committedAt });
 }
 
 function identityDescriptor(workflow: AssistanceWorkflowV1, kind: AssistanceDerivativeKind): unknown {
