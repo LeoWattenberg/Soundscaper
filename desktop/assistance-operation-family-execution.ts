@@ -3,6 +3,7 @@
 /** Additional-model resolution and private staging for runtime-family operations. */
 
 import type {
+	AssistanceOperationModelBinding,
 	AssistanceOperationRequest,
 } from './assistance-operation-contract.ts';
 import type {
@@ -44,6 +45,12 @@ const DIRECT_ADDITIONAL_OPERATIONS = new Set<AssistanceOperationRequest['operati
 	'editorial-generation',
 ]);
 const GIB = 1024 ** 3;
+const SUBJECT_MODEL_REQUIREMENTS = Object.freeze([
+	Object.freeze({ modelId: 'yunet-face-detection-2026may', task: 'face-detection' }),
+	Object.freeze({ modelId: 'dfine-nano-coco', task: 'object-detection' }),
+] as const);
+type ModelStatus = Awaited<ReturnType<ModelService['status']>>;
+type InstalledModels = Awaited<ReturnType<ModelService['listInstalled']>>;
 
 export function isAssistanceRuntimeFamilyOperationRequest(
 	request: AssistanceOperationRequest,
@@ -102,18 +109,75 @@ async function resolveExactModel(
 	models: ModelService,
 	signal: AbortSignal,
 ): Promise<ResolvedModel | null> {
-	if (request.models.length !== 1) {
+	const subjectBindings = request.operation === 'subject-detection'
+		? exactSubjectBindings(request.models) : null;
+	if (subjectBindings === null && request.models.length !== 1) {
 		throw new TypeError(`${request.operation} requires one exact additional-runtime model binding.`);
 	}
-	const binding = request.models[0]!;
 	const [status, installed] = await Promise.all([models.status(), models.listInstalled()]);
 	signal.throwIfAborted();
-	const view = status.models.find((candidate) => candidate.modelId === binding.modelId
+	if (subjectBindings !== null) {
+		const captures: AssistanceRuntimeFamilyModelCapture[] = [];
+		for (let index = 0; index < SUBJECT_MODEL_REQUIREMENTS.length; index += 1) {
+			const requirement = SUBJECT_MODEL_REQUIREMENTS[index]!;
+			const binding = subjectBindings[index]!;
+			const view = exactInstalledView(binding, status);
+			if (view === null) return null;
+			if (view.task !== requirement.task) {
+				throw new TypeError(`Subject detection requires ${requirement.modelId} to carry the exact ${requirement.task} model task role.`);
+			}
+			const modelCaptures = await resolveModelCaptures(binding, installed, models, signal);
+			if (modelCaptures === null) return null;
+			captures.push(...modelCaptures);
+		}
+		return Object.freeze({ task: 'subject-detection', captures: Object.freeze(captures) });
+	}
+	const binding = request.models[0]!;
+	const view = exactInstalledView(binding, status);
+	if (view === null) return null;
+	const task = taskForSingleModel(request, view.task, binding.modelId);
+	const captures = await resolveModelCaptures(binding, installed, models, signal);
+	if (captures === null) return null;
+	return Object.freeze({ task, captures });
+}
+
+function exactSubjectBindings(
+	bindings: readonly AssistanceOperationModelBinding[],
+): readonly AssistanceOperationModelBinding[] {
+	if (bindings.length !== SUBJECT_MODEL_REQUIREMENTS.length
+		|| SUBJECT_MODEL_REQUIREMENTS.some((requirement) =>
+			bindings.filter(({ modelId }) => modelId === requirement.modelId).length !== 1)) {
+		throw new TypeError('Subject detection requires the exact YuNet face-detection and D-FINE object-detection bindings.');
+	}
+	return Object.freeze(SUBJECT_MODEL_REQUIREMENTS.map((requirement) =>
+		bindings.find(({ modelId }) => modelId === requirement.modelId)!));
+}
+
+function exactInstalledView(
+	binding: AssistanceOperationModelBinding,
+	status: ModelStatus,
+): ModelStatus['models'][number] | null {
+	const matches = status.models.filter((candidate) => candidate.modelId === binding.modelId
 		&& candidate.version === binding.version);
-	if (!view || view.availability !== 'installed') return null;
-	const task = taskFor(request, view.task, binding.modelId);
-	const installation = installed.find((candidate) => candidate.modelId === binding.modelId
+	if (matches.length > 1) {
+		throw new TypeError('The runtime-family model status has an ambiguous exact catalog binding.');
+	}
+	const view = matches[0];
+	return view?.availability === 'installed' ? view : null;
+}
+
+async function resolveModelCaptures(
+	binding: AssistanceOperationModelBinding,
+	installed: InstalledModels,
+	models: ModelService,
+	signal: AbortSignal,
+): Promise<readonly AssistanceRuntimeFamilyModelCapture[] | null> {
+	const installations = installed.filter((candidate) => candidate.modelId === binding.modelId
 		&& candidate.version === binding.version);
+	if (installations.length > 1) {
+		throw new TypeError('The runtime-family model installation inventory is ambiguous.');
+	}
+	const installation = installations[0];
 	if (!installation) return null;
 	const expectedDigests = installation.artifacts.map(({ sha256 }) => sha256).sort();
 	if (expectedDigests.length !== binding.artifactSha256s.length
@@ -142,18 +206,14 @@ async function resolveExactModel(
 	if (new Set(captures.map(({ artifactRole }) => artifactRole)).size !== captures.length) {
 		throw new TypeError('The runtime-family model artifact roles are ambiguous.');
 	}
-	return Object.freeze({ task, captures: Object.freeze(captures) });
+	return Object.freeze(captures);
 }
 
-function taskFor(
+function taskForSingleModel(
 	request: AssistanceOperationRequest,
 	modelTask: string,
 	modelId: string,
 ): AssistanceRuntimeFamilyTask {
-	if (request.operation === 'subject-detection') {
-		if (modelTask === 'face-detection' || modelTask === 'object-detection') return modelTask;
-		throw new TypeError('Subject detection requires an exact face- or object-detection model role.');
-	}
 	if (request.operation === 'speech-recognition') {
 		if (modelTask === 'speech-recognition' && modelId.startsWith('whisper-')) return modelTask;
 		throw new TypeError('The whisper.cpp route requires an exact Whisper speech model role.');

@@ -23,7 +23,7 @@ import type { AssistanceRuntimeFamilyId } from './assistance-runtime-family-mani
 const ONNX_TASKS = new Set<AssistanceRuntimeFamilyTask>([
 	'word-alignment', 'speech-enhancement', 'source-separation', 'audio-tagging',
 	'beat-tracking', 'text-embedding', 'image-text-embedding', 'optical-character-recognition',
-	'shot-detection', 'face-detection', 'object-detection', 'saliency-detection',
+	'shot-detection', 'subject-detection', 'saliency-detection',
 ]);
 const MAXIMUM_SETTINGS_DEPTH = 16;
 const MAXIMUM_SETTINGS_NODES = 1_024;

@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test, { type TestContext } from 'node:test';
@@ -68,6 +68,93 @@ async function fixture(t: TestContext, value: Readonly<{
 		onProgress: (entry) => progress.push(entry),
 	});
 	return { service, digest, progress };
+}
+
+async function subjectFixture(
+	t: TestContext,
+	additionalRuntime: AssistanceRuntimeFamilyOperationAdapter,
+	objectTask = 'object-detection',
+) {
+	const root = await mkdtemp(join(tmpdir(), 'assistance-subject-family-service-'));
+	t.after(() => rm(root, { recursive: true, force: true }));
+	const artifacts = Object.freeze([
+		Object.freeze({ modelId: 'yunet-face-detection-2026may', version: '2026.5.0',
+			task: 'face-detection', fileName: 'face_detection_yunet_2026may.onnx', body: 'yunet' }),
+		Object.freeze({ modelId: 'dfine-nano-coco', version: '1.0.0',
+			task: objectTask, fileName: 'model.onnx', body: 'dfine-network' }),
+		Object.freeze({ modelId: 'dfine-nano-coco', version: '1.0.0',
+			task: objectTask, fileName: 'config.json', body: 'dfine-config' }),
+		Object.freeze({ modelId: 'dfine-nano-coco', version: '1.0.0',
+			task: objectTask, fileName: 'preprocessor_config.json', body: 'dfine-preprocessor' }),
+	]);
+	await Promise.all(artifacts.map(async ({ modelId, fileName, body }) => {
+		const directory = join(root, modelId);
+		await mkdir(directory, { recursive: true });
+		await writeFile(join(directory, fileName), body);
+	}));
+	const byModel = new Map(['yunet-face-detection-2026may', 'dfine-nano-coco'].map((modelId) => [
+		modelId,
+		artifacts.filter((artifact) => artifact.modelId === modelId),
+	] as const));
+	const registry = new AssistanceStagingRegistry({ root: join(root, 'staging') });
+	const models: AssistanceOperationServiceOptions['models'] = Object.freeze({
+		status: async () => ({ runtimeAvailable: true, runtimeReason: null, models: [
+			{ modelId: 'yunet-face-detection-2026may', version: '2026.5.0',
+				task: 'face-detection', availability: 'installed' as const,
+				downloadBytes: 5, installedBytes: 5, attributionRequired: false },
+			{ modelId: 'dfine-nano-coco', version: '1.0.0', task: objectTask,
+				availability: 'installed' as const, downloadBytes: 40, installedBytes: 40,
+				attributionRequired: false },
+		] }),
+		listInstalled: async () => [...byModel].map(([modelId, entries]) => ({
+			modelId, version: entries[0]!.version,
+			totalBytes: entries.reduce((total, { body }) => total + Buffer.byteLength(body), 0),
+			artifacts: entries.map(({ fileName, body }) => ({ fileName,
+				byteLength: Buffer.byteLength(body), sha256: sha256(body) })),
+		})),
+		resolveModelPaths: async (modelId) => Object.fromEntries(
+			(byModel.get(modelId) ?? []).map(({ fileName }) => [
+				fileName.split('.')[0]!, join(root, modelId, fileName),
+			]),
+		),
+	});
+	const speechRuntime: SpeechRuntimeAdapter = Object.freeze({
+		status: async () => ({ available: false, reason: 'not used', moduleId: 'unused' }),
+		recognize: async () => { throw new Error('Sherpa must not receive subject detection.'); },
+	});
+	const service = createAssistanceOperationService({
+		registry, models, runtime: speechRuntime, additionalRuntime,
+		onProgress: () => undefined,
+	});
+	return {
+		service,
+		bindings: Object.freeze([...byModel].map(([modelId, entries]) => Object.freeze({
+			modelId, version: entries[0]!.version,
+			artifactSha256s: Object.freeze(entries.map(({ body }) => sha256(body)).sort()),
+		}))),
+	};
+}
+
+async function subjectRequest(
+	service: ReturnType<typeof createAssistanceOperationService>,
+	models: readonly Readonly<{ modelId: string; version: string;
+		artifactSha256s: readonly string[] }>[],
+) {
+	const { jobId } = await service.createJob();
+	const input = await service.stageInput({
+		jobId, role: 'frame-pack', mediaType: 'application/vnd.soundscaper.frame-pack',
+		byteLength: 6, bytes: bytes('frames'),
+	});
+	const output = await service.reserveOutput({
+		jobId, role: 'subject-tracks',
+		mediaType: 'application/vnd.soundscaper.subject-tracks+json',
+		maximumByteLength: 8_192,
+	});
+	return Object.freeze({
+		contractVersion: 1 as const, jobId, operation: 'subject-detection' as const,
+		selectionFence: FENCE, models: Object.freeze(models),
+		inputs: Object.freeze([input]), outputs: Object.freeze([output]),
+	});
 }
 
 async function request(
@@ -194,4 +281,53 @@ test('wrong additional model task roles fail before a worker receives file grant
 	});
 	await assert.rejects(service.run(operation), /wrong model task role/iu);
 	assert.equal(seen.length, 0);
+});
+
+test('subject detection resolves exact YuNet and D-FINE bindings into one canonical ONNX job', async (t) => {
+	const seen: AssistanceRuntimeFamilyOperationRequest[] = [];
+	const { service, bindings } = await subjectFixture(t, writingRuntime(seen, ['{"frames":[]}']));
+	const operation = await subjectRequest(service, [...bindings].reverse());
+	assert.equal((await service.run(operation)).outcome, 'completed');
+	assert.equal(seen.length, 1);
+	assert.equal(seen[0]?.task, 'subject-detection');
+	assert.deepEqual(seen[0]?.models.map(({ modelId }) => modelId), [
+		'yunet-face-detection-2026may', 'dfine-nano-coco', 'dfine-nano-coco', 'dfine-nano-coco',
+	]);
+	assert.deepEqual(seen[0]?.models.map(({ artifactRole }) => artifactRole), [
+		'face_detection_yunet_2026may', 'model', 'config', 'preprocessor_config',
+	]);
+});
+
+test('subject detection refuses an incomplete, substituted, or wrong-role pair before runtime', async (t) => {
+	const seen: AssistanceRuntimeFamilyOperationRequest[] = [];
+	const valid = await subjectFixture(t, writingRuntime(seen, ['{"frames":[]}']));
+	await assert.rejects(valid.service.run(await subjectRequest(valid.service, [valid.bindings[0]!])),
+		/exact YuNet|D-FINE|two/iu);
+	await assert.rejects(valid.service.run(await subjectRequest(valid.service, [
+		valid.bindings[0]!, { ...valid.bindings[1]!, modelId: 'substitute-object-detector' },
+	])), /exact YuNet|D-FINE|binding/iu);
+
+	const wrongRole = await subjectFixture(t, writingRuntime(seen, ['{"frames":[]}']),
+		'face-detection');
+	await assert.rejects(wrongRole.service.run(await subjectRequest(
+		wrongRole.service, wrongRole.bindings,
+	)), /wrong model task role|object-detection/iu);
+	assert.equal(seen.length, 0);
+});
+
+test('subject detection exposes typed adapter unavailability without substituting another route', async (t) => {
+	let calls = 0;
+	const { service, bindings } = await subjectFixture(t, Object.freeze({
+		run: (request: AssistanceRuntimeFamilyOperationRequest) => {
+			calls += 1;
+			assert.equal(request.task, 'subject-detection');
+			return Promise.resolve(Object.freeze({ outcome: 'unavailable' as const,
+				reason: 'adapter-unavailable' as const }));
+		},
+	}));
+	const operation = await subjectRequest(service, bindings);
+	const outcome = await service.run(operation);
+	assert.equal(calls, 1);
+	assert.equal(outcome.outcome, 'unavailable');
+	if (outcome.outcome === 'unavailable') assert.equal(outcome.reason, 'adapter-unavailable');
 });

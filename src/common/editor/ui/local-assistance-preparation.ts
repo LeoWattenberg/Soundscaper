@@ -143,13 +143,13 @@ const MODEL_TASK_SLOTS = Object.freeze({
 	'image-text-embedding': modelTaskSlots(['image-text-embedding']),
 	'optical-character-recognition': modelTaskSlots(['optical-character-recognition']),
 	'shot-detection': modelTaskSlots(),
-	'subject-detection': modelTaskSlots([
-		'subject-detection', 'face-detection', 'object-detection',
-	]),
+	'subject-detection': modelTaskSlots(['face-detection'], ['object-detection']),
 	'saliency-detection': modelTaskSlots(['saliency-detection']),
 	'editorial-generation': modelTaskSlots(['editorial-generation']),
 } satisfies Readonly<Record<AssistanceOperation, readonly LocalAssistanceModelTaskSlot[]>>);
 const ACCURATE_SHOT_MODEL_TASK_SLOTS = modelTaskSlots([LOCAL_ASSISTANCE_TRANSNET_V2_MODEL_TASK]);
+const YUNET_FACE_DETECTION_MODEL_ID = 'yunet-face-detection-2026may';
+const DFINE_OBJECT_DETECTION_MODEL_ID = 'dfine-nano-coco';
 
 const MEDIA_KINDS = Object.freeze([
 	'audio', 'video', 'frame-pack', 'transcript', 'text', 'editorial-context',
@@ -263,7 +263,10 @@ export function localAssistanceModelCompatible(
 ): boolean {
 	const slots = operationModelTaskSlots(operation, shotDetectionMode);
 	return slots.some((slot) => slot.includes(model.task))
-		&& (operation !== 'shot-detection' || model.modelId === LOCAL_ASSISTANCE_TRANSNET_V2_MODEL_ID);
+		&& (operation !== 'shot-detection' || model.modelId === LOCAL_ASSISTANCE_TRANSNET_V2_MODEL_ID)
+		&& (operation !== 'subject-detection'
+			|| model.task === 'face-detection' && model.modelId === YUNET_FACE_DETECTION_MODEL_ID
+			|| model.task === 'object-detection' && model.modelId === DFINE_OBJECT_DETECTION_MODEL_ID);
 }
 
 export function localAssistanceModelTaskSlots(

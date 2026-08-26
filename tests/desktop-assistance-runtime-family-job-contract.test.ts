@@ -55,6 +55,33 @@ function request() {
 	};
 }
 
+function subjectGrant() {
+	return {
+		...grant(),
+		task: 'subject-detection',
+		inputs: [{
+			...grant().inputs[0], role: 'frame-pack',
+			mediaType: 'application/vnd.soundscaper.frame-pack', path: '/private/frames.pack',
+		}],
+		models: [
+			{
+				...grant().models[0], modelId: 'yunet-face-detection-2026may',
+				version: '2026.5.0', artifactRole: 'face_detection_yunet_2026may',
+				path: '/models/yunet.onnx', identity: { dev: 1, ino: 3 },
+			},
+			{
+				...grant().models[0], modelId: 'dfine-nano-coco', artifactRole: 'model',
+				path: '/models/dfine.onnx', identity: { dev: 1, ino: 4 },
+			},
+		],
+		outputs: [{
+			...grant().outputs[0], role: 'subject-tracks',
+			mediaType: 'application/vnd.soundscaper.subject-tracks+json',
+			path: '/private/subjects.json', identity: { dev: 1, ino: 5 },
+		}],
+	};
+}
+
 test('one generic grant binds exact staged inputs, models, outputs, settings, family, and task', () => {
 	const admitted = validateAssistanceRuntimeFamilyJobGrantV1(grant());
 	assert.equal(admitted.familyId, 'onnxruntime-node');
@@ -92,6 +119,19 @@ test('job requests correlate their generic grant and preserve closed family task
 	assert.throws(() => validateAssistanceRuntimeFamilyJobRequestV1({
 		...request(), maximumRssBytes: Number.NaN,
 	}), /resource|finite|wire/iu);
+});
+
+test('ONNX admission exposes one composite subject-detection task and no ambiguous model-role tasks', () => {
+	const admitted = validateAssistanceRuntimeFamilyJobGrantV1(subjectGrant());
+	assert.equal(admitted.task, 'subject-detection');
+	assert.deepEqual(admitted.models.map(({ modelId }) => modelId), [
+		'yunet-face-detection-2026may', 'dfine-nano-coco',
+	]);
+	for (const task of ['face-detection', 'object-detection']) {
+		assert.throws(() => validateAssistanceRuntimeFamilyJobGrantV1({
+			...subjectGrant(), task,
+		}), /not an admitted|task/iu);
+	}
 });
 
 test('results satisfy each reserved output once without returning filesystem paths', () => {
