@@ -9,6 +9,7 @@ import {
 	importFiles,
 	openClipProperties,
 	registerAudioEditorHooks,
+	setDocumentTheme,
 	trackNameText,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
@@ -29,6 +30,19 @@ test.describe('audio editor React/design-system workflows', () => {
 		await flyout.getByRole('menuitem', { name: 'Audio track', exact: true }).click();
 		await expect(flyout).toHaveCount(0);
 		await expect(editor.locator('[data-track-row]')).toHaveCount(2);
+	});
+
+	test('themes and spaces the add-track flyout in dark mode', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await setDocumentTheme(page, 'dark');
+		await editor.getByRole('button', { name: 'Add track', exact: true }).click();
+
+		const flyout = page.locator('.add-track-flyout');
+		await expect(flyout).toHaveCSS('background-color', 'rgb(44, 46, 51)');
+		await expect(flyout).toHaveCSS('color', 'rgb(228, 229, 231)');
+		await expect(flyout.locator('.add-track-flyout__options')).toHaveCSS('gap', '8px');
+		await expect(flyout.getByRole('menuitem', { name: 'Audio track', exact: true }))
+			.toHaveCSS('background-color', 'rgb(81, 90, 99)');
 	});
 
 	test('pins V21 send and master strips below media tracks without legacy strip envelopes', async ({ page }) => {
