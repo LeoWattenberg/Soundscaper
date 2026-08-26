@@ -67,6 +67,9 @@ export function createSoundscaperPlaybackProjectServiceV29(): PlaybackProjectSer
 		}) as PlaybackProjectProjection<Project>
 	}
 
+	// Playback and export are the same render: delivery reapplies the exact
+	// native-plug-in and effect bypasses playback applied, so a bypassed effect
+	// never reappears in the delivered file.
 	function projectForAudioRenderedFallbackDelivery<Project extends object>(project: Project) {
 		validateSoundscaperProjectV29(project)
 		const featureRequirementsReport = compatibility.evaluate(project)
@@ -75,8 +78,19 @@ export function createSoundscaperPlaybackProjectServiceV29(): PlaybackProjectSer
 			mediaProject,
 			featureRequirementsReport,
 		)
+		const nativePlugins = projectNativePluginPlaybackV29(
+			renderedAudio.project,
+			featureRequirementsReport,
+			renderedAudio.metadata?.role === 'audio-track-render-v1'
+				? renderedAudio.metadata.targetTrackId : null,
+			mediaProject,
+		)
+		const bypassedAudio = projectFeatureAudioEffectPlaybackBypass(
+			nativePlugins,
+			featureRequirementsReport,
+		)
 		return Object.freeze({
-			project: inheritTrackFolderMediaStateProjectionV12(mediaProject, renderedAudio.project),
+			project: inheritTrackFolderMediaStateProjectionV12(mediaProject, bypassedAudio.project),
 			featureRequirementsReport,
 			audioRenderedFallback: renderedAudio.metadata,
 			requiredAudioSourceIds: Object.freeze(
@@ -97,8 +111,23 @@ export function createSoundscaperPlaybackProjectServiceV29(): PlaybackProjectSer
 			renderedAudio.project,
 			featureRequirementsReport,
 		)
+		const nativePlugins = projectNativePluginPlaybackV29(
+			renderedVideo.project,
+			featureRequirementsReport,
+			renderedAudio.metadata?.role === 'audio-track-render-v1'
+				? renderedAudio.metadata.targetTrackId : null,
+			mediaProject,
+		)
+		const bypassedAudio = projectFeatureAudioEffectPlaybackBypass(
+			nativePlugins,
+			featureRequirementsReport,
+		)
+		const bypassedVideo = projectFeatureVideoEffectPlaybackBypass(
+			bypassedAudio.project,
+			featureRequirementsReport,
+		)
 		return Object.freeze({
-			project: inheritTrackFolderMediaStateProjectionV12(mediaProject, renderedVideo.project),
+			project: inheritTrackFolderMediaStateProjectionV12(mediaProject, bypassedVideo.project),
 			featureRequirementsReport,
 			audioRenderedFallback: renderedAudio.metadata,
 			videoRenderedFallback: renderedVideo.metadata,

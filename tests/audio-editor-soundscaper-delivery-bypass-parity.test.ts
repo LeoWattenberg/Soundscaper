@@ -19,6 +19,10 @@ import { createSoundscaperPlaybackProjectServiceV21 } from '../src/soundscaper/e
 import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
 import { createSoundscaperPlaybackProjectServiceV23 } from '../src/soundscaper/editor-project-playback-v23.ts';
 import { createSoundscaperProjectV23 } from '../src/soundscaper/editor-project-v23.ts';
+import { createSoundscaperPlaybackProjectServiceV29 } from '../src/soundscaper/editor-project-playback-v29.ts';
+import { createSoundscaperProjectV29 } from '../src/soundscaper/editor-project-v29.ts';
+import { createSoundscaperPlaybackProjectServiceV30 } from '../src/soundscaper/editor-project-playback-v30.ts';
+import { createSoundscaperProjectV30 } from '../src/soundscaper/editor-project-v30.ts';
 
 const SAMPLE_RATE = 48_000;
 const PAL = Object.freeze({ num: 25, den: 1 });
@@ -55,6 +59,41 @@ test('V21 video delivery carries the same video-effect bypass as playback', () =
 	assert.deepEqual(clipVideoEffects(playback.project), clipVideoEffects(delivery.project));
 	assert.equal(clipVideoEffects(delivery.project)?.[0]?.enabled, false);
 });
+
+for (const { version, createService, createProject } of [
+	{
+		version: 'V29',
+		createService: createSoundscaperPlaybackProjectServiceV29,
+		createProject: createSoundscaperProjectV29,
+	},
+	{
+		version: 'V30',
+		createService: createSoundscaperPlaybackProjectServiceV30,
+		createProject: createSoundscaperProjectV30,
+	},
+]) {
+	test(`${version} delivery carries the same effect bypasses as playback`, () => {
+		const service = createService();
+		const project = bypassProject(createProject as (options: Record<string, unknown>) => object);
+		const playback = service.projectForPlayback(project);
+
+		assert.ok(playback.videoEffectPlaybackBypass, 'playback bypasses the maintained video effect');
+		const videoDelivery = service.projectForVideoRenderedFallbackDelivery(project);
+		assert.deepEqual(
+			clipVideoEffects(playback.project),
+			clipVideoEffects(videoDelivery.project),
+			'the delivered clip effects match what playback rendered',
+		);
+		assert.equal(clipVideoEffects(videoDelivery.project)?.[0]?.enabled, false);
+
+		const audioDelivery = service.projectForAudioRenderedFallbackDelivery(project);
+		assert.deepEqual(
+			trackEffects(playback.project),
+			trackEffects(audioDelivery.project),
+			'audio delivery honors the audio-effect bypass playback applied',
+		);
+	});
+}
 
 test('the shared default delivery projections carry the same effect bypasses as playback', () => {
 	// Playback and export are the same render: an effect bypassed for
@@ -101,6 +140,11 @@ test('the shared default delivery projections carry the same effect bypasses as 
 	);
 });
 
+function trackEffects(project: object) {
+	const tracks = (project as { tracks: readonly ControllerTrack[] }).tracks;
+	return tracks.find((track) => track.id === 'voice')?.effects;
+}
+
 function clipVideoEffects(project: object) {
 	const clips = (project as { clips: readonly Record<string, unknown>[] }).clips;
 	return clips.find((clip) => clip.id === 'v-clip')?.videoEffects as
@@ -134,7 +178,10 @@ function bypassProject(create: (options: Record<string, unknown>) => object) {
 			},
 		],
 		tracks: [
-			createAudioTrack({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'] }),
+			createAudioTrack({
+				id: 'voice', name: 'Voice', clipIds: ['voice-clip'],
+				effects: [createEffect('limiter', { id: 'limiter-a' })],
+			}),
 			createVideoTrack({ id: 'picture', name: 'Picture', clipIds: ['v-clip'] }),
 		],
 		sequences: [{
