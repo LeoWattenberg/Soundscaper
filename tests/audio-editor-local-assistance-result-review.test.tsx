@@ -128,7 +128,7 @@ test('enhancement and separation WAVs require exact authenticated Float32 geomet
 		Float32Array.of(0.25, -0.25, 0.5),
 		Float32Array.of(-0.5, 0.75, 0),
 	], { sampleRate: 48_000, bitDepth: 32, float: true, dither: false });
-	const body = new Blob([bytes], { type: 'audio/wav' });
+	const body = new Blob([bytes.slice().buffer], { type: 'audio/wav' });
 	const authority = { audioWave: { sampleRate: 48_000, channelCount: 2, frameCount: 3 } };
 	for (const role of ['enhanced-audio', 'separated-audio'] as const) {
 		const reviewed = await reviewLocalAssistanceOutput(
@@ -152,7 +152,7 @@ test('audio WAV review is header-bounded and does not inherit the JSON body limi
 		sampleRate: 48_000, bitDepth: 32, float: true, dither: false,
 	});
 	assert.ok(bytes.byteLength > 8 * 1024 * 1024);
-	const body = new Blob([bytes], { type: 'audio/wav' });
+	const body = new Blob([bytes.slice().buffer], { type: 'audio/wav' });
 	const reviewed = await reviewLocalAssistanceOutput(
 		claim('enhanced-audio', body.type, body), body,
 		{ audioWave: { sampleRate: 48_000, channelCount: 1, frameCount: frames } },
@@ -164,7 +164,7 @@ test('audio WAV review rejects missing authority, inexact geometry, integer PCM,
 	const floatBytes = encodeWav([Float32Array.of(0, 0)], {
 		sampleRate: 48_000, bitDepth: 32, float: true, dither: false,
 	});
-	const floatBody = new Blob([floatBytes], { type: 'audio/wav' });
+	const floatBody = new Blob([floatBytes.slice().buffer], { type: 'audio/wav' });
 	const outputClaim = claim('enhanced-audio', floatBody.type, floatBody);
 	await assert.rejects(
 		reviewLocalAssistanceOutput(outputClaim, floatBody),
@@ -184,13 +184,15 @@ test('audio WAV review rejects missing authority, inexact geometry, integer PCM,
 	const integerBytes = encodeWav([Float32Array.of(0, 0)], {
 		sampleRate: 48_000, bitDepth: 32, dither: false,
 	});
-	const integerBody = new Blob([integerBytes], { type: 'audio/wav' });
+	const integerBody = new Blob([integerBytes.slice().buffer], { type: 'audio/wav' });
 	await assert.rejects(reviewLocalAssistanceOutput(
 		claim('enhanced-audio', integerBody.type, integerBody), integerBody,
 		{ audioWave: { sampleRate: 48_000, channelCount: 1, frameCount: 2 } },
 	), /Float32/iu);
 
-	const paddedBody = new Blob([floatBytes, Uint8Array.of(0)], { type: 'audio/wav' });
+	const paddedBody = new Blob([
+		floatBytes.slice().buffer, Uint8Array.of(0).buffer,
+	], { type: 'audio/wav' });
 	await assert.rejects(reviewLocalAssistanceOutput(
 		claim('enhanced-audio', paddedBody.type, paddedBody), paddedBody,
 		{ audioWave: { sampleRate: 48_000, channelCount: 1, frameCount: 2 } },

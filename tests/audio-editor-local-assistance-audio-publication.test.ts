@@ -9,6 +9,7 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 import {
 	createLocalAssistanceAudioPublicationAcceptance,
 } from '../src/common/editor/controller/local-assistance-audio-publication.ts';
+import type { AssistanceSelectionFence } from '../src/common/editor/assistance/proposal-session.ts';
 import {
 	resolveLocalAssistanceSelectedMediaAuthority,
 } from '../src/common/editor/controller/local-assistance-selected-media.ts';
@@ -22,7 +23,10 @@ import {
 	createAudioSource,
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
-import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
+import {
+	createCurrentAudioEditorProject,
+	type AudioEditorProjectCurrent,
+} from '../src/common/editor/project-current.ts';
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
 
@@ -128,7 +132,7 @@ async function output(
 
 async function request(
 	operation: 'speech-enhancement' | 'source-separation',
-	selectionFence = fence(),
+	selectionFence: AssistanceSelectionFence = fence(),
 ) {
 	const outputs = operation === 'speech-enhancement'
 		? [await output(operation, 'enhanced-audio', '1'.repeat(40), [[0.1, 0.2, 0.3, 0.4], [0, 0, 0, 0]])]
@@ -276,7 +280,10 @@ test('the single acceptance command applies and undoes without losing the origin
 		selection: { startFrame: 24_000, endFrame: 24_004,
 			trackIds: [originalTrack.id], clipIds: [originalClip.id] },
 	});
-	let history = createEditorHistory(original);
+	type CurrentHistory = ReturnType<typeof createEditorHistory> & {
+		present: AudioEditorProjectCurrent;
+	};
+	let history = createEditorHistory(original) as CurrentHistory;
 	const selectedDependencies = {
 		getProject: () => history.present,
 		getSelectedClipId: () => originalClip.id,
@@ -295,7 +302,7 @@ test('the single acceptance command applies and undoes without losing the origin
 		commit: (command) => {
 			history = executeEditorCommand(history, command as AudioEditorCommand, {
 				now: '2026-08-26T12:01:00.000Z',
-			});
+			}) as CurrentHistory;
 		},
 	});
 	const selected = resolveLocalAssistanceSelectedMediaAuthority(selectedDependencies);
@@ -304,7 +311,7 @@ test('the single acceptance command applies and undoes without losing the origin
 	assert.equal(history.present.projectBin.clips.length, 1);
 	assert.ok(history.present.sources.some(({ id }) => id === originalSource.id));
 
-	history = undoEditorCommand(history, { now: '2026-08-26T12:02:00.000Z' });
+	history = undoEditorCommand(history, { now: '2026-08-26T12:02:00.000Z' }) as CurrentHistory;
 	assert.deepEqual(history.present.sources, original.sources);
 	assert.deepEqual(history.present.clips, original.clips);
 	assert.deepEqual(history.present.tracks, original.tracks);
@@ -318,7 +325,7 @@ test('the single acceptance command applies and undoes without losing the origin
 	assert.equal(history.present.sources.length, 2);
 	assert.equal(history.present.clips.length, 3);
 	assert.ok(history.present.sources.some(({ id }) => id === originalSource.id));
-	history = undoEditorCommand(history, { now: '2026-08-26T12:02:30.000Z' });
+	history = undoEditorCommand(history, { now: '2026-08-26T12:02:30.000Z' }) as CurrentHistory;
 	assert.deepEqual(history.present.sources, original.sources);
 	assert.deepEqual(history.present.clips, original.clips);
 	assert.deepEqual(history.present.tracks, original.tracks);
@@ -333,7 +340,7 @@ test('the single acceptance command applies and undoes without losing the origin
 	assert.deepEqual(history.present.tracks.slice(-3).map(({ name, mute }) => ({ name, mute })), [
 		{ name: 'Dialogue', mute: true }, { name: 'Music', mute: true }, { name: 'Effects', mute: true },
 	]);
-	history = undoEditorCommand(history, { now: '2026-08-26T12:03:00.000Z' });
+	history = undoEditorCommand(history, { now: '2026-08-26T12:03:00.000Z' }) as CurrentHistory;
 	assert.deepEqual(history.present.sources, original.sources);
 	assert.deepEqual(history.present.clips, original.clips);
 	assert.deepEqual(history.present.tracks, original.tracks);
