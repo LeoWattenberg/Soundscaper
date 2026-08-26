@@ -59,15 +59,22 @@ function input(role: string) {
 	};
 }
 
+const OUTPUT_MEDIA_TYPES: Readonly<Record<string, string>> = Object.freeze({
+	'enhanced-audio': 'audio/wav',
+	'separated-audio': 'audio/wav',
+	embeddings: 'application/vnd.soundscaper.embedding-matrix-v1',
+});
+
 function output(role: string) {
 	return {
 		claimVersion: ASSISTANCE_DATA_CLAIM_VERSION,
 		claimId: OUTPUT_ID,
 		jobId: JOB_ID,
 		role,
-		mediaType: ['enhanced-audio', 'separated-audio'].includes(role)
-			? 'audio/wav'
-			: 'application/json',
+		// Roles whose admitted output media types are not JSON. Embeddings became
+		// the binary matrix format when milestone 7 result validation landed, and
+		// this helper still offered every non-audio role `application/json`.
+		mediaType: OUTPUT_MEDIA_TYPES[role] ?? 'application/json',
 		maximumByteLength: 16 * 1024 * 1024,
 	};
 }
