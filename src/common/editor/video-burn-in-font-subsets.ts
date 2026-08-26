@@ -5,13 +5,13 @@
  *
  * Kept apart from the font files themselves because this is data and a rule,
  * while the files are bundled assets: the plan builder, the native admission and
- * the delivery report all need the rule, and none of them should pull a WOFF
+ * the delivery report all need the rule, and none of them should pull a WOFF2
  * into their module graph to get it.
  *
  * Inter ships as unicode subsets, and only one file can be handed to `drawtext`
  * at a time: this build has no fontconfig, so there is no font fallback to lean
  * on — measured, `drawtext=font=Inter` fails to initialize at all. Staging the
- * Latin subset alone therefore drew every Cyrillic and Greek caption as blanks.
+ * Latin subset alone therefore drew every Cyrillic caption as blanks.
  *
  * What choosing per cue cannot fix, and what the delivery report therefore says
  * out loud: a script whose letters live in one subset and whose accents live in
@@ -68,25 +68,6 @@ export const VIDEO_BURN_IN_FONT_SUBSETS: readonly VideoBurnInFontSubset[] = Obje
 		ranges: Object.freeze([
 			range(0x0460, 0x052f), range(0x1c80, 0x1c8a), range(0x20b4), range(0x2de0, 0x2dff),
 			range(0xa640, 0xa69f), range(0xfe2e, 0xfe2f),
-		]),
-	}),
-	Object.freeze({
-		id: 'greek',
-		ranges: Object.freeze([
-			range(0x0370, 0x0377), range(0x037a, 0x037f), range(0x0384, 0x038a), range(0x038c),
-			range(0x038e, 0x03a1), range(0x03a3, 0x03ff),
-		]),
-	}),
-	Object.freeze({
-		id: 'greek-ext',
-		ranges: Object.freeze([range(0x1f00, 0x1fff)]),
-	}),
-	Object.freeze({
-		id: 'vietnamese',
-		ranges: Object.freeze([
-			range(0x0102, 0x0103), range(0x0110, 0x0111), range(0x0128, 0x0129), range(0x0168, 0x0169),
-			range(0x01a0, 0x01a1), range(0x01af, 0x01b0), range(0x0300, 0x0301), range(0x0303, 0x0304),
-			range(0x0308, 0x0309), range(0x0323), range(0x0329), range(0x1ea0, 0x1ef9), range(0x20ab),
 		]),
 	}),
 ]);

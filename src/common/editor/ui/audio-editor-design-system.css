@@ -1,3 +1,4 @@
+@import './editor-fonts.css';
 @import './audio-editor-design-system/01-tokens-base.css';
 @import './audio-editor-design-system/02-overlays-search.css';
 @import './audio-editor-design-system/03-shell-toolbars-meters.css';

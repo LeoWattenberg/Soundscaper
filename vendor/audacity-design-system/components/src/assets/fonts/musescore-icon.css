@@ -1,7 +1,7 @@
 /* MusescoreIcon Font */
 @font-face {
   font-family: 'MusescoreIcon';
-  src: url('./MusescoreIcon.ttf') format('truetype');
+  src: url('./MusescoreIcon.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: block;

@@ -33,6 +33,7 @@ const trackedVersions = [
 	'saxes',
 	'scheduler',
 	'sql.js',
+	'wawoff2',
 	'xmlchars',
 ];
 

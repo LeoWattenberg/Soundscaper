@@ -105,7 +105,7 @@
 			"role": "font-runtime",
 			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
 			"noticeMarker": "`@fontsource/inter` 5.3.0",
-			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "src/common/site/fonts.css"]
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "src/common/editor/ui/editor-fonts.css"]
 		},
 		{
 			"lockPath": "node_modules/@fontsource/ubuntu",

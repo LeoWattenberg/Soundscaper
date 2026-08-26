@@ -8,36 +8,29 @@
  * rather than a dependency: no new licensing row, and the face on screen in the
  * editor is the face in the delivered picture.
  *
- * WOFF rather than WOFF2 because the shipped FFmpeg's FreeType reads the first
- * and refuses the second — measured, not assumed. The semibold weight is the
- * one that stays legible over arbitrary picture at small sizes.
+ * The browser bundle retains only WOFF2. The semibold weight is the one that
+ * stays legible over arbitrary picture at small sizes.
  *
  * Which subset a cue needs is decided in `video-burn-in-font-subsets.ts`; this
  * module only knows where each one lives, so the modules that reason about
- * coverage never pull a WOFF into their graph.
+ * coverage never pull a WOFF2 into their graph.
  */
 
-import cyrillicExtUrl from '@fontsource/inter/files/inter-cyrillic-ext-600-normal.woff';
-import cyrillicUrl from '@fontsource/inter/files/inter-cyrillic-600-normal.woff';
-import greekExtUrl from '@fontsource/inter/files/inter-greek-ext-600-normal.woff';
-import greekUrl from '@fontsource/inter/files/inter-greek-600-normal.woff';
-import latinExtUrl from '@fontsource/inter/files/inter-latin-ext-600-normal.woff';
-import latinUrl from '@fontsource/inter/files/inter-latin-600-normal.woff';
-import vietnameseUrl from '@fontsource/inter/files/inter-vietnamese-600-normal.woff';
+import cyrillicExtUrl from '@fontsource/inter/files/inter-cyrillic-ext-600-normal.woff2';
+import cyrillicUrl from '@fontsource/inter/files/inter-cyrillic-600-normal.woff2';
+import latinExtUrl from '@fontsource/inter/files/inter-latin-ext-600-normal.woff2';
+import latinUrl from '@fontsource/inter/files/inter-latin-600-normal.woff2';
 import {
 	VIDEO_BURN_IN_DEFAULT_FONT_SUBSET,
 	videoBurnInFontSubset,
 } from './video-burn-in-font-subsets.ts';
 
-/** Where each subset's WOFF lives, by the id the plan states. */
+/** Where each retained subset's WOFF2 lives, by the id the plan states. */
 export const VIDEO_BURN_IN_FONT_URLS: Readonly<Record<string, string>> = Object.freeze({
 	'latin': latinUrl,
 	'latin-ext': latinExtUrl,
 	'cyrillic': cyrillicUrl,
 	'cyrillic-ext': cyrillicExtUrl,
-	'greek': greekUrl,
-	'greek-ext': greekExtUrl,
-	'vietnamese': vietnameseUrl,
 });
 
 type FetchLike = (input: string) => Promise<{ ok: boolean; status: number; blob(): Promise<Blob> }>;

@@ -29,7 +29,9 @@ test('a caption is drawn with a subset that covers the script it is written in',
 	// there is no fallback to lean on and the subset has to be chosen here.
 	assert.equal(resolveVideoBurnInFontChoice('Hello world').subsetId, 'latin');
 	assert.equal(resolveVideoBurnInFontChoice('Привет мир').subsetId, 'cyrillic');
-	assert.equal(resolveVideoBurnInFontChoice('Γεια σου κόσμε').subsetId, 'greek');
+	const greek = resolveVideoBurnInFontChoice('Γεια σου κόσμε');
+	assert.equal(greek.subsetId, 'latin');
+	assert.deepEqual([...greek.undrawable], ['Γ', 'ε', 'ι', 'α', 'σ', 'ο', 'υ', 'κ', 'ό', 'μ']);
 	// Punctuation and spacing are Latin whatever the script, so a mostly-ASCII
 	// line stays on the file that draws ASCII.
 	assert.equal(resolveVideoBurnInFontChoice('"Yes," she said.').subsetId, 'latin');
@@ -112,7 +114,11 @@ test('the staged subsets are the ranges the font itself declares', async () => {
 		declared.set(match.groups!.subset!, match.groups!.ranges!.trim());
 	}
 
-	assert.equal(declared.size, VIDEO_BURN_IN_FONT_SUBSETS.length, 'every shipped subset is staged');
+	assert.deepEqual(
+		VIDEO_BURN_IN_FONT_SUBSETS.map(({ id }) => id),
+		['latin', 'latin-ext', 'cyrillic', 'cyrillic-ext'],
+		'only the retained browser font subsets are staged',
+	);
 	assert.deepEqual(
 		Object.keys(VIDEO_BURN_IN_FONT_URLS).sort(),
 		VIDEO_BURN_IN_FONT_SUBSETS.map(({ id }) => id).sort(),
