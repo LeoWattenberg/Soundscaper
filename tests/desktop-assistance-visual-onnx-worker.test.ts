@@ -133,8 +133,10 @@ test('U2-Net-P retains sampled source/tick authority and emits bounded saliency'
 	);
 	assert.deepEqual(result.frames[0].sourceFrame, 7);
 	assert.deepEqual(result.frames[0].presentationTick, '100');
-	assert.ok(result.frames[0].saliency.x > 0.7 && result.frames[0].saliency.x < 0.8);
-	assert.ok(result.frames[0].saliency.y > 0.45 && result.frames[0].saliency.y < 0.55);
+	const saliency = result.frames[0].saliency;
+	assert.ok(saliency);
+	assert.ok(saliency.x > 0.7 && saliency.x < 0.8);
+	assert.ok(saliency.y > 0.45 && saliency.y < 0.55);
 });
 
 test('visual workers reject graph substitution before publishing reserved output', async (context) => {
