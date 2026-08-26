@@ -1,9 +1,4 @@
 {
-  "desktop/preload.mjs": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
   "desktop/validation.js": {
     "no-control-regex": {
       "count": 1
