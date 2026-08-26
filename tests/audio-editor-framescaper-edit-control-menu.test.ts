@@ -11,6 +11,7 @@ import {
 	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
 	FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION,
 	FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION,
+	FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION,
 } from '../src/common/editor/project-schema-version.ts';
 import { createPersistedVideoProject } from './helpers/persisted-video-project-fixture.ts';
 
@@ -256,4 +257,24 @@ test('exact Framescaper V19, V20, and V27 project their required empty annotatio
 		assert.equal(blocked.link?.label, 'Link audio');
 		assert.equal(blocked.link?.disabled, true);
 	}
+});
+
+test('selected F31 keeps linked controls active after reviewed shot markers are accepted', () => {
+	const persisted = structuredClone(createPersistedVideoProject({ timeline: true }).project) as unknown as {
+		schemaVersion: number;
+		primarySequenceId: string;
+		timelineAnnotations: unknown[];
+	};
+	persisted.schemaVersion = FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION;
+	persisted.timelineAnnotations = [{
+		id: 'assistance-shot:accepted', sequenceId: persisted.primarySequenceId,
+		name: 'Shot 1', color: 'orange', batchId: 'assistance-shot-batch:accepted',
+		opaqueExtensions: {}, kind: 'marker', anchor: 'sample', positionFrame: 24_000,
+	}];
+	const model = createFramescaperEditControlMenuModel({
+		productId: 'framescaper', project: persisted, selectedClipId: 'persisted-timeline-video',
+		selectedTrackId: 'persisted-video-track', editBlocked: false, copy: COPY,
+	});
+	assert.deepEqual(model.link?.operation, { kind: 'unlink', clipId: 'persisted-timeline-video' });
+	assert.deepEqual(model.visibility?.operation, { trackId: 'persisted-video-track', hidden: true });
 });
