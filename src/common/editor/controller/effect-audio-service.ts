@@ -522,10 +522,19 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 		captureProject: runtime.captureProject, store: runtime.assistanceStore,
 		assertProject: (token) => runtime.assertProject(token as EditorProjectToken), commit: runtime.commit,
 	}) : null;
-	const selectedMediaPreparation = createLocalAssistanceSelectedPreparation({
+	const selectedPreparation = createLocalAssistanceSelectedPreparation({
 		...selectedMediaDependencies,
 		...(runtime.assistanceVideoStore ? { videoStore: runtime.assistanceVideoStore } : {}),
 		...(resultAcceptance ? { acceptValidatedResult: resultAcceptance.acceptValidatedResult } : {}),
+	});
+	const selectedMediaPreparation = Object.freeze({
+		...selectedPreparation,
+		...(resultAcceptance ? {
+			prepareTranscriptCleanup: resultAcceptance.prepareTranscriptCleanup,
+			acceptTranscriptCleanup: resultAcceptance.acceptTranscriptCleanup,
+			rejectTranscriptCleanup: resultAcceptance.rejectTranscriptCleanup,
+			cancelTranscriptCleanup: resultAcceptance.cancelTranscriptCleanup,
+		} : {}),
 	});
 
 	return Object.freeze({
