@@ -23,5 +23,9 @@ test('timeline clip rename paths require a selected focused clip and preserve in
 	assert.match(audioRow, /controller\.actions\.clip\.update\(String\(clipId\), \{ title: nextTitle \}\)/u);
 	assert.match(videoRow, /controller\.actions\.clip\.update\(clip\.id, \{ title: nextTitle \}\)/u);
 	assert.match(properties, /if \(name === 'name'\)[\s\S]*?controller\.actions\.clip\.update\(clip\.id, \{ title \}\)/u);
-	assert.match(properties, /value=\{clip\?\.title \|\| copy\.clip\}/u);
+	// The dialog commits on blur, so an untouched placeholder must not be adopted
+	// as a real title; the displayed name falls back to the source's own name.
+	assert.match(properties, /const displayedName = clip\?\.title \|\| source\?\.name \|\| copy\.clip;/u);
+	assert.match(properties, /value=\{displayedName\}/u);
+	assert.match(properties, /clipRenameTitle\(rawValue, displayedName\)/u);
 });

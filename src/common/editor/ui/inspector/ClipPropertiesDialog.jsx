@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button, DialogFooter } from '@dilsonspickles/components';
-import { AUDIO_EDITOR_SAMPLE_RATE, findClip, findClipTrack } from '../../project.js';
+import { AUDIO_EDITOR_SAMPLE_RATE, findClip, findClipTrack, findSource } from '../../project.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { ActionHook, CommitField, DesignCheckbox } from './inspector-controls.jsx';
@@ -12,6 +12,20 @@ import {
 	nonNegativeFrame,
 	secondsInputToFrames,
 } from './inspector-helpers.ts';
+
+/**
+ * The title a rename should commit, or null when the field was left alone.
+ *
+ * A clip with no title of its own displays its source name, and failing that a
+ * generic label. The field commits on blur, so without this comparison merely
+ * tabbing through an untitled clip's name would adopt whichever placeholder was
+ * on screen as a real title.
+ */
+export function clipRenameTitle(rawValue, displayedName) {
+	const title = String(rawValue).trim();
+	if (!title) throw new TypeError('A clip name is required.');
+	return title === displayedName ? null : title;
+}
 
 export function ClipPropertiesDialog({ isOpen, controller, snapshot, copy, onClose }) {
 	return (
@@ -32,6 +46,8 @@ export function ClipPropertiesDialog({ isOpen, controller, snapshot, copy, onClo
 function ClipProperties({ controller, snapshot, copy }) {
 	const project = snapshot.project;
 	const clip = project && snapshot.selectedClipId ? findClip(project, snapshot.selectedClipId) : null;
+	const source = clip ? findSource(project, clip.sourceId) : null;
+	const displayedName = clip?.title || source?.name || copy.clip;
 	const track = clip ? findClipTrack(project, clip.id) : null;
 	const sampleRate = project?.sampleRate || AUDIO_EDITOR_SAMPLE_RATE;
 	const blocked = selectAudioEditorEditBlock(snapshot).blocked;
@@ -45,9 +61,8 @@ function ClipProperties({ controller, snapshot, copy }) {
 		if (!clip || !track || disabled) return;
 		try {
 			if (name === 'name') {
-				const title = String(rawValue).trim();
-				if (!title) throw new TypeError('A clip name is required.');
-				controller.actions.clip.update(clip.id, { title });
+				const title = clipRenameTitle(rawValue, displayedName);
+				if (title !== null) controller.actions.clip.update(clip.id, { title });
 			} else if (name === 'start' || name === 'startFrame') {
 				const timelineStartFrame = name === 'start'
 					? secondsInputToFrames(rawValue, copy, sampleRate)
@@ -94,7 +109,7 @@ function ClipProperties({ controller, snapshot, copy }) {
 			<div className="audio-editor-clip-properties" data-clip-fields aria-disabled={disabled}>
 				<section className="audio-editor-clip-properties__card audio-editor-clip-properties__card--wide">
 					<h3>{copy.clip}</h3>
-					<CommitField label={copy.clipName} name="name" value={clip?.title || copy.clip} disabled={disabled} onCommit={commitField} />
+					<CommitField label={copy.clipName} name="name" value={displayedName} disabled={disabled} onCommit={commitField} />
 				</section>
 				<section className="audio-editor-clip-properties__card audio-editor-clip-properties__card--wide">
 					<h3>{copy.clipStart} / {copy.clipDuration}</h3>
