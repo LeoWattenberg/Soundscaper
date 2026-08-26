@@ -166,6 +166,7 @@
 		"desktop/assistance-workflow-transfers.ts",
 		"desktop/assistance-data-claims.ts",
 		"desktop/assistance-external-ffmpeg-shot-runtime.ts",
+		"desktop/assistance-external-ffmpeg-video-materializer.ts",
 		"desktop/assistance-operation-contract.ts",
 		"desktop/assistance-staging-private-files.ts",
 		"desktop/assistance-staging-registry.ts",
