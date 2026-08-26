@@ -8,6 +8,8 @@ import {
 	createLocalAssistanceTranscriptCleanupSession,
 	type LocalAssistanceTranscriptCleanupRequest,
 } from '../src/common/editor/controller/local-assistance-cleanup-acceptance.ts';
+import type { LocalAssistanceTranscriptCleanupPreset } from
+	'../src/common/editor/ui/local-assistance-cleanup.ts';
 import {
 	resolveLocalAssistanceSelectedMediaAuthority,
 } from '../src/common/editor/controller/local-assistance-selected-media.ts';
@@ -140,7 +142,7 @@ class CleanupFixture {
 	}
 
 	createSession(overrides: Partial<Pick<LocalAssistanceTranscriptCleanupRequest,
-		'models' | 'options' | 'voiceActivity' | 'review'>> = {}) {
+		'models' | 'options' | 'voiceActivity' | 'review' | 'preset'>> = {}) {
 		const authority = this.currentAuthority();
 		return createLocalAssistanceTranscriptCleanupSession({
 			currentAuthority: () => this.currentAuthority(),
@@ -161,6 +163,7 @@ class CleanupFixture {
 				artifactSha256s: Object.freeze([MODEL_SHA256]),
 			})]),
 			options: overrides.options ?? { fillerLexicon: ['um', 'uh'] },
+			preset: overrides.preset ?? 'balanced',
 			voiceActivity: overrides.voiceActivity ?? null,
 		});
 	}
@@ -268,6 +271,24 @@ test('only same-fence reviewed VAD can add silence cleanup proposals', () => {
 			...authority.fence, timingAuthoritySha256: '56'.repeat(32),
 		})),
 	}), /no longer matches/iu);
+});
+
+test('cleanup presets use exact reviewed-VAD thresholds and padding', () => {
+	const fixture = new CleanupFixture();
+	const voiceActivity = reviewedVad(fixture.currentAuthority().fence);
+	const silences = (preset: LocalAssistanceTranscriptCleanupPreset) => fixture.createSession({
+		preset, voiceActivity,
+	}).snapshot().proposals.filter(({ kind }) => kind === 'silence');
+
+	assert.deepEqual(silences('conservative'), []);
+	assert.deepEqual(silences('balanced'), [{
+		id: 'vad-silence-26400-69600', kind: 'silence',
+		startFrame: 26_400, endFrame: 69_600, text: '',
+	}]);
+	assert.deepEqual(silences('aggressive'), [{
+		id: 'vad-silence-25440-70560', kind: 'silence',
+		startFrame: 25_440, endFrame: 70_560, text: '',
+	}]);
 });
 
 test('cleanup refuses non-Parakeet speech model authority', () => {

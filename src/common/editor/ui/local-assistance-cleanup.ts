@@ -6,6 +6,11 @@ import {
 	validateAssistanceSelectionFence,
 	type AssistanceSelectionFence,
 } from '../assistance/proposal-session.ts';
+import {
+	ASSISTANCE_TRANSCRIPT_CLEANUP_PRESETS,
+	normalizeAssistanceTranscriptCleanupPreset,
+	type AssistanceTranscriptCleanupPreset,
+} from '../assistance/transcript-cleanup-presets.ts';
 import type { LocalAssistanceModel } from './local-assistance-bridge.ts';
 import type {
 	LocalAssistanceOutputReview,
@@ -20,6 +25,8 @@ const MAXIMUM_PROPOSALS = 10_000;
 const PARAKEET_MODEL_IDS = new Set(['parakeet-tdt-0.6b-v2', 'parakeet-tdt-0.6b-v3']);
 
 export type LocalAssistanceTranscriptCleanupKind = typeof KINDS[number];
+export type LocalAssistanceTranscriptCleanupPreset = AssistanceTranscriptCleanupPreset;
+export { ASSISTANCE_TRANSCRIPT_CLEANUP_PRESETS };
 export type LocalAssistanceTranscriptCleanupPhase =
 	| 'loading' | 'review' | 'accepting' | 'accepted' | 'rejected' | 'unavailable' | 'error';
 
@@ -35,6 +42,7 @@ export interface LocalAssistanceTranscriptCleanupState {
 	readonly phase: LocalAssistanceTranscriptCleanupPhase;
 	readonly proposals: readonly LocalAssistanceTranscriptCleanupProposal[];
 	readonly selectedProposalIds: readonly string[];
+	readonly preset: LocalAssistanceTranscriptCleanupPreset;
 	readonly usesVoiceActivity: boolean;
 	readonly error: string | null;
 }
@@ -49,6 +57,7 @@ export interface LocalAssistanceTranscriptCleanupPreparationRequest {
 	readonly selectionFence: AssistanceSelectionFence;
 	readonly models: readonly LocalAssistanceModel[];
 	readonly review: LocalAssistanceTranscriptReview;
+	readonly preset: LocalAssistanceTranscriptCleanupPreset;
 	readonly voiceActivity: LocalAssistanceTranscriptCleanupVoiceActivity | null;
 }
 
@@ -96,12 +105,14 @@ export function localAssistanceTranscriptCleanupEligible(
 export function createLocalAssistanceTranscriptCleanupPreparation(
 	value: LocalAssistanceReviewedResultAuthority,
 	voiceActivity: LocalAssistanceTranscriptCleanupVoiceActivity | null,
+	preset: LocalAssistanceTranscriptCleanupPreset = 'balanced',
 ): LocalAssistanceTranscriptCleanupPreparationRequest {
 	const output = value.outputs[0]!;
 	return Object.freeze({
 		selectionFence: value.selectionFence,
 		models: value.models,
 		review: output.review as LocalAssistanceTranscriptReview,
+		preset: normalizeAssistanceTranscriptCleanupPreset(preset),
 		voiceActivity: voiceActivity && sameFence(
 			voiceActivity.selectionFence, value.selectionFence,
 		) ? voiceActivity : null,
@@ -130,8 +141,10 @@ export function createLocalAssistanceTranscriptCleanupState(
 	selectedProposalIds: readonly string[],
 	usesVoiceActivity: boolean,
 	error: string | null,
+	preset: LocalAssistanceTranscriptCleanupPreset = 'balanced',
 ): LocalAssistanceTranscriptCleanupState {
-	return Object.freeze({ phase, proposals, selectedProposalIds, usesVoiceActivity, error });
+	return Object.freeze({ phase, proposals, selectedProposalIds,
+		preset: normalizeAssistanceTranscriptCleanupPreset(preset), usesVoiceActivity, error });
 }
 
 export function normalizeLocalAssistanceTranscriptCleanupProposals(

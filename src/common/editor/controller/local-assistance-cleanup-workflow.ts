@@ -4,6 +4,10 @@
 
 import type { DisfluencyOptions } from '../assistance/disfluency.ts';
 import {
+	assistanceTranscriptCleanupPresetProfile,
+	normalizeAssistanceTranscriptCleanupPreset,
+} from '../assistance/transcript-cleanup-presets.ts';
+import {
 	createLocalAssistanceTranscriptCleanupSession,
 	type LocalAssistanceTranscriptCleanupDependencies,
 	type LocalAssistanceTranscriptCleanupRequest,
@@ -12,13 +16,8 @@ import {
 } from './local-assistance-cleanup-acceptance.ts';
 
 const PREPARATION_FIELDS = Object.freeze([
-	'selectionFence', 'review', 'models', 'voiceActivity',
+	'selectionFence', 'review', 'models', 'preset', 'voiceActivity',
 ] as const);
-const OPTIONS: DisfluencyOptions = Object.freeze({
-	fillerLexicon: Object.freeze(['um', 'uh', 'erm']),
-	detectRepetitions: true,
-	minConfidence: 0,
-});
 
 export interface LocalAssistanceTranscriptCleanupWorkflow {
 	prepareTranscriptCleanup(request: unknown): Promise<LocalAssistanceTranscriptCleanupSnapshot>;
@@ -64,13 +63,26 @@ export function createLocalAssistanceTranscriptCleanupWorkflow(
 }
 
 function preparationRequest(value: unknown): LocalAssistanceTranscriptCleanupRequest {
-	const record = exactRecord(value, PREPARATION_FIELDS, 'transcript cleanup preparation');
+	const record = exactRecord(value, PREPARATION_FIELDS, 'transcript cleanup preparation', true);
+	for (const field of PREPARATION_FIELDS) {
+		if (field !== 'preset' && !Object.hasOwn(record, field)) {
+			throw new TypeError('The transcript cleanup preparation fields are invalid.');
+		}
+	}
+	const preset = normalizeAssistanceTranscriptCleanupPreset(record.preset ?? 'balanced');
+	const profile = assistanceTranscriptCleanupPresetProfile(preset);
+	const options: DisfluencyOptions = Object.freeze({
+		fillerLexicon: Object.freeze(['um', 'uh', 'erm']),
+		detectRepetitions: true,
+		minConfidence: profile.minimumWordConfidence,
+	});
 	return Object.freeze({
 		selectionFence: record.selectionFence,
 		review: record.review,
 		models: record.models,
 		voiceActivity: record.voiceActivity,
-		options: OPTIONS,
+		preset,
+		options,
 	}) as LocalAssistanceTranscriptCleanupRequest;
 }
 
@@ -87,13 +99,15 @@ function exactRecord<const Field extends string>(
 	value: unknown,
 	fields: readonly Field[],
 	label: string,
+	allowMissing = false,
 ): Record<Field, unknown> {
 	if (!value || typeof value !== 'object' || Array.isArray(value) || ArrayBuffer.isView(value)) {
 		throw new TypeError(`The ${label} must be a plain record.`);
 	}
 	const record = value as Record<string, unknown>;
 	const keys = Object.keys(record);
-	if (keys.length !== fields.length || keys.some((key) => !fields.includes(key as Field))) {
+	if (keys.some((key) => !fields.includes(key as Field))
+		|| (!allowMissing && keys.length !== fields.length)) {
 		throw new TypeError(`The ${label} fields are invalid.`);
 	}
 	return record as Record<Field, unknown>;

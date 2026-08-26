@@ -34,6 +34,7 @@ import {
 	localAssistanceTranscriptCleanupPortAvailable,
 	normalizeLocalAssistanceTranscriptCleanupProposals,
 	type LocalAssistanceTranscriptCleanupState,
+	type LocalAssistanceTranscriptCleanupPreset,
 	type LocalAssistanceTranscriptCleanupVoiceActivity,
 } from './local-assistance-cleanup.ts';
 
@@ -91,7 +92,7 @@ export interface LocalAssistanceSessionStore {
 	run(): Promise<void>;
 	cancel(): Promise<void>;
 	accept(): Promise<void>;
-	prepareTranscriptCleanup(): Promise<void>;
+	prepareTranscriptCleanup(preset?: LocalAssistanceTranscriptCleanupPreset): Promise<void>;
 	setTranscriptCleanupProposalSelected(proposalId: string, selected: boolean): void;
 	acceptTranscriptCleanup(): Promise<void>;
 	rejectTranscriptCleanup(): Promise<void>;
@@ -385,20 +386,23 @@ export function createLocalAssistanceSessionStore(
 			});
 		}
 	};
-	const prepareTranscriptCleanup = async (): Promise<void> => {
+	const prepareTranscriptCleanup = async (
+		preset: LocalAssistanceTranscriptCleanupPreset = 'balanced',
+	): Promise<void> => {
 		const port = options.preparation?.prepareTranscriptCleanup;
 		const acceptance = pendingAcceptance;
-		if (!snapshot.canPrepareTranscriptCleanup || !port || !acceptance) {
+		const canReprepare = snapshot.phase === 'completed' && snapshot.cleanup?.phase === 'review';
+		if ((!snapshot.canPrepareTranscriptCleanup && !canReprepare) || !port || !acceptance) {
 			throw new Error('No authenticated Parakeet transcript is ready for cleanup review.');
 		}
 		discardCleanupSession();
 		const epoch = cleanupEpoch;
 		const request = createLocalAssistanceTranscriptCleanupPreparation(
-			acceptance, reviewedVoiceActivity,
+			acceptance, reviewedVoiceActivity, preset,
 		);
 		update({ cleanup: createLocalAssistanceTranscriptCleanupState(
 			'loading', EMPTY_PROPOSALS, EMPTY_MODEL_IDS,
-			request.voiceActivity !== null, null) });
+			request.voiceActivity !== null, null, request.preset) });
 		try {
 			const value = await port.call(options.preparation, request);
 			if (disposed || epoch !== cleanupEpoch) return;
@@ -407,7 +411,7 @@ export function createLocalAssistanceSessionStore(
 			);
 			update({ cleanup: createLocalAssistanceTranscriptCleanupState(
 				'review', proposals, EMPTY_MODEL_IDS,
-				request.voiceActivity !== null, null) });
+				request.voiceActivity !== null, null, request.preset) });
 		} catch (error) {
 			if (disposed || epoch !== cleanupEpoch) return;
 			const unavailable = error instanceof RangeError
@@ -415,7 +419,8 @@ export function createLocalAssistanceSessionStore(
 			update({ cleanup: createLocalAssistanceTranscriptCleanupState(
 				unavailable ? 'unavailable' : 'error',
 				EMPTY_PROPOSALS, EMPTY_MODEL_IDS, request.voiceActivity !== null,
-				error instanceof Error ? error.message : 'Transcript cleanup preparation failed.') });
+				error instanceof Error ? error.message : 'Transcript cleanup preparation failed.',
+				request.preset) });
 		}
 	};
 	const setTranscriptCleanupProposalSelected = (proposalId: string, selected: boolean): void => {
@@ -428,7 +433,7 @@ export function createLocalAssistanceSessionStore(
 		if (selected) proposalIds.add(proposalId);
 		else proposalIds.delete(proposalId);
 		update({ cleanup: createLocalAssistanceTranscriptCleanupState('review', cleanup.proposals,
-			Object.freeze([...proposalIds]), cleanup.usesVoiceActivity, null) });
+			Object.freeze([...proposalIds]), cleanup.usesVoiceActivity, null, cleanup.preset) });
 	};
 	const acceptTranscriptCleanup = async (): Promise<void> => {
 		const port = options.preparation?.acceptTranscriptCleanup;
@@ -438,20 +443,21 @@ export function createLocalAssistanceSessionStore(
 		}
 		const epoch = cleanupEpoch;
 		update({ cleanup: createLocalAssistanceTranscriptCleanupState('accepting', cleanup.proposals,
-			cleanup.selectedProposalIds, cleanup.usesVoiceActivity, null) });
+			cleanup.selectedProposalIds, cleanup.usesVoiceActivity, null, cleanup.preset) });
 		try {
 			await port.call(options.preparation, cleanup.selectedProposalIds);
 			if (disposed || epoch !== cleanupEpoch) return;
 			pendingAcceptance = null;
 			update({ phase: 'accepted', cleanup: createLocalAssistanceTranscriptCleanupState(
 				'accepted', cleanup.proposals,
-				cleanup.selectedProposalIds, cleanup.usesVoiceActivity, null) });
+				cleanup.selectedProposalIds, cleanup.usesVoiceActivity, null, cleanup.preset) });
 		} catch (error) {
 			if (disposed || epoch !== cleanupEpoch) return;
 			pendingAcceptance = null;
 			update({ cleanup: createLocalAssistanceTranscriptCleanupState('error', cleanup.proposals,
 				cleanup.selectedProposalIds, cleanup.usesVoiceActivity,
-				error instanceof Error ? error.message : 'Transcript cleanup could not be applied.') });
+				error instanceof Error ? error.message : 'Transcript cleanup could not be applied.',
+				cleanup.preset) });
 		}
 	};
 	const rejectTranscriptCleanup = async (): Promise<void> => {
@@ -462,17 +468,18 @@ export function createLocalAssistanceSessionStore(
 		}
 		const epoch = cleanupEpoch;
 		update({ cleanup: createLocalAssistanceTranscriptCleanupState('accepting', cleanup.proposals,
-			cleanup.selectedProposalIds, cleanup.usesVoiceActivity, null) });
+			cleanup.selectedProposalIds, cleanup.usesVoiceActivity, null, cleanup.preset) });
 		try {
 			await port.call(options.preparation);
 			if (disposed || epoch !== cleanupEpoch) return;
 			update({ cleanup: createLocalAssistanceTranscriptCleanupState('rejected', cleanup.proposals,
-				cleanup.selectedProposalIds, cleanup.usesVoiceActivity, null) });
+				cleanup.selectedProposalIds, cleanup.usesVoiceActivity, null, cleanup.preset) });
 		} catch (error) {
 			if (disposed || epoch !== cleanupEpoch) return;
 			update({ cleanup: createLocalAssistanceTranscriptCleanupState('error', cleanup.proposals,
 				cleanup.selectedProposalIds, cleanup.usesVoiceActivity,
-				error instanceof Error ? error.message : 'Transcript cleanup could not be rejected.') });
+				error instanceof Error ? error.message : 'Transcript cleanup could not be rejected.',
+				cleanup.preset) });
 		}
 	};
 	const dispose = async (): Promise<void> => {

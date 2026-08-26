@@ -1,19 +1,24 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { LocalAssistanceTranscriptCleanupState } from '../local-assistance-cleanup.ts';
+import {
+	ASSISTANCE_TRANSCRIPT_CLEANUP_PRESETS,
+	type LocalAssistanceTranscriptCleanupPreset,
+	type LocalAssistanceTranscriptCleanupState,
+} from '../local-assistance-cleanup.ts';
 
 type Copy = Readonly<Record<string, string | undefined>>;
 
 export interface LocalAssistanceCleanupReviewProps {
 	readonly copy: Copy;
 	readonly cleanup: LocalAssistanceTranscriptCleanupState;
+	readonly onPresetChange: (preset: LocalAssistanceTranscriptCleanupPreset) => unknown;
 	readonly onSelectionChange: (proposalId: string, selected: boolean) => unknown;
 	readonly onAccept: () => unknown;
 	readonly onReject: () => unknown;
 }
 
 export default function LocalAssistanceCleanupReview({
-	copy, cleanup, onSelectionChange, onAccept, onReject,
+	copy, cleanup, onPresetChange, onSelectionChange, onAccept, onReject,
 }: LocalAssistanceCleanupReviewProps) {
 	if (cleanup.phase === 'loading') {
 		return <section className="kw-local-assistance__cleanup" aria-labelledby="local-cleanup-heading">
@@ -52,6 +57,15 @@ export default function LocalAssistanceCleanupReview({
 		cleanup.usesVoiceActivity
 			? 'Nothing is applied until you select proposals and explicitly apply them. Silence choices use the reviewed VAD result from this selection.'
 			: 'Nothing is applied until you select proposals and explicitly apply them.')}</p>
+		<label>{text(copy, 'localAssistanceCleanupPreset', 'Cleanup preset')}
+			<select value={cleanup.preset} disabled={accepting}
+				onChange={(event) => { void onPresetChange(
+					event.currentTarget.value as LocalAssistanceTranscriptCleanupPreset,
+				); }}>
+				{ASSISTANCE_TRANSCRIPT_CLEANUP_PRESETS.map((preset) => <option
+					key={preset} value={preset}>{presetLabel(copy, preset)}</option>)}
+			</select>
+		</label>
 		<ul className="kw-local-assistance__cleanup-list">
 			{cleanup.proposals.map((proposal) => <li key={proposal.id}>
 				<label>
@@ -75,6 +89,16 @@ export default function LocalAssistanceCleanupReview({
 					'Reject cleanup')}</button>
 		</div>
 	</section>;
+}
+
+function presetLabel(copy: Copy, preset: LocalAssistanceTranscriptCleanupPreset): string {
+	if (preset === 'conservative') {
+		return text(copy, 'localAssistanceCleanupPresetConservative', 'Conservative');
+	}
+	if (preset === 'aggressive') {
+		return text(copy, 'localAssistanceCleanupPresetAggressive', 'Aggressive');
+	}
+	return text(copy, 'localAssistanceCleanupPresetBalanced', 'Balanced');
 }
 
 function proposalLabel(

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { ASSISTANCE_OPERATIONS, type AssistanceOperation } from '../../assistance/operation.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import LocalAssistanceCleanupReview from './LocalAssistanceCleanupReview.tsx';
+import type { LocalAssistanceTranscriptCleanupPreset } from '../local-assistance-cleanup.ts';
 import LocalAssistanceOutputReviewList from './LocalAssistanceOutputReview.tsx';
 import type { LocalAssistanceBridge } from '../local-assistance-bridge.ts';
 import { localAssistanceModelTaskSlots,
@@ -39,6 +40,7 @@ export interface LocalAssistanceDialogViewProps {
 	readonly onReview: () => unknown;
 	readonly onAccept: () => unknown;
 	readonly onCleanupSelectionChange?: (proposalId: string, selected: boolean) => unknown;
+	readonly onCleanupPresetChange?: (preset: LocalAssistanceTranscriptCleanupPreset) => unknown;
 	readonly onCleanupAccept?: () => unknown;
 	readonly onCleanupReject?: () => unknown;
 }
@@ -76,6 +78,7 @@ export default function LocalAssistanceDialog({
 		}}
 		onAccept={() => store.accept()}
 		onCleanupSelectionChange={store.setTranscriptCleanupProposalSelected}
+		onCleanupPresetChange={(preset) => store.prepareTranscriptCleanup(preset)}
 		onCleanupAccept={() => store.acceptTranscriptCleanup()}
 		onCleanupReject={() => store.rejectTranscriptCleanup()}
 	/>;
@@ -85,6 +88,7 @@ export function LocalAssistanceDialogView({
 	copy, snapshot, reviewOpen = false, onClose, onSelectSource, onSelectOperation,
 	onSelectModel, onConsentChange, onRun, onCancel, onReview, onAccept,
 	onCleanupSelectionChange = () => undefined,
+	onCleanupPresetChange = () => undefined,
 	onCleanupAccept = () => undefined, onCleanupReject = () => undefined,
 }: LocalAssistanceDialogViewProps) {
 	const source = snapshot.sources.find(({ sourceId }) => sourceId === snapshot.selectedSourceId) ?? null;
@@ -175,6 +179,7 @@ export function LocalAssistanceDialogView({
 		{reviewOpen && snapshot.cleanup && <LocalAssistanceCleanupReview
 			copy={copy}
 			cleanup={snapshot.cleanup}
+			onPresetChange={onCleanupPresetChange}
 			onSelectionChange={onCleanupSelectionChange}
 			onAccept={onCleanupAccept}
 			onReject={onCleanupReject}

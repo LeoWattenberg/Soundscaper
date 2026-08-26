@@ -9,6 +9,11 @@ import {
 	type DisfluencyProposal,
 } from '../assistance/disfluency.ts';
 import {
+	assistanceTranscriptCleanupPresetProfile,
+	normalizeAssistanceTranscriptCleanupPreset,
+	type AssistanceTranscriptCleanupPreset,
+} from '../assistance/transcript-cleanup-presets.ts';
+import {
 	createAssistanceProposalSession,
 	AssistanceProposalStaleError,
 	validateAssistanceSelectionFence,
@@ -31,7 +36,7 @@ const DECISION_COMMAND_TYPE = 'assistance-cleanup/proposal';
 const MAXIMUM_FILLER_LEXICON_WORDS = 4_096;
 const MAXIMUM_FILLER_WORD_LENGTH = 128;
 const REQUEST_FIELDS = Object.freeze([
-	'selectionFence', 'review', 'models', 'options', 'voiceActivity',
+	'selectionFence', 'review', 'models', 'options', 'preset', 'voiceActivity',
 ] as const);
 const MODEL_FIELDS = Object.freeze(['modelId', 'version', 'task', 'artifactSha256s'] as const);
 const OPTION_FIELDS = Object.freeze([
@@ -46,8 +51,6 @@ const MODEL_ID = /^[a-z\d](?:[a-z\d.-]{0,62}[a-z\d])?$/u;
 const PARAKEET_MODEL_IDS = new Set(['parakeet-tdt-0.6b-v2', 'parakeet-tdt-0.6b-v3']);
 const VAD_MODEL_ID = 'silero-vad-v6';
 const VAD_SAMPLE_RATE = 16_000;
-const MINIMUM_VAD_SILENCE_SAMPLES = 8_000;
-const VAD_SPEECH_PADDING_SAMPLES = 800;
 
 type DataRecord = Readonly<Record<string, unknown>>;
 
@@ -84,6 +87,7 @@ export interface LocalAssistanceTranscriptCleanupRequest {
 		readonly artifactSha256s: readonly string[];
 	}>[];
 	readonly options: DisfluencyOptions;
+	readonly preset: AssistanceTranscriptCleanupPreset;
 	readonly voiceActivity: LocalAssistanceTranscriptCleanupVoiceActivity | null;
 }
 
@@ -163,7 +167,7 @@ export function createLocalAssistanceTranscriptCleanupSession(
 		...findDisfluencyProposals(publication.body, {
 			...request.options, minSilenceFrames: 0, silencePaddingFrames: 0,
 		}),
-		...voiceActivityProposals(request.voiceActivity, initial),
+		...voiceActivityProposals(request.voiceActivity, initial, request.preset),
 	].sort((left, right) => left.startFrame - right.startFrame
 		|| left.endFrame - right.endFrame || left.kind.localeCompare(right.kind));
 	if (sourceProposals.length < 1) {
@@ -325,6 +329,7 @@ function normalizeRequest(value: LocalAssistanceTranscriptCleanupRequest) {
 		review: request.review as AssistanceSpeechRecognitionReviewV1,
 		model,
 		options: normalizeOptions(request.options),
+		preset: normalizeAssistanceTranscriptCleanupPreset(request.preset),
 		voiceActivity: normalizeVoiceActivity(request.voiceActivity, fence),
 	});
 }
@@ -432,8 +437,10 @@ function voiceActivityProposals(
 		readonly startFrame: number; readonly endFrame: number;
 	}>[] }> | null,
 	authority: NormalizedAuthority,
+	preset: AssistanceTranscriptCleanupPreset,
 ): readonly DisfluencyProposal[] {
 	if (!voiceActivity) return Object.freeze([]);
+	const selected = assistanceTranscriptCleanupPresetProfile(preset);
 	const outputFrames = Number(scaleSampleFrame(
 		authority.sourceEndFrame - authority.sourceStartFrame,
 		authority.sampleRate,
@@ -446,8 +453,8 @@ function voiceActivityProposals(
 		selectionEndFrame: outputFrames,
 		segments: voiceActivity.segments,
 	}, {
-		minimumFrames: MINIMUM_VAD_SILENCE_SAMPLES,
-		paddingFrames: VAD_SPEECH_PADDING_SAMPLES,
+		minimumFrames: selected.minimumSilenceSamples,
+		paddingFrames: selected.speechPaddingSamples,
 	}).flatMap((proposal) => {
 		const startFrame = safeAdd(authority.sourceStartFrame, Number(scaleSampleFrame(
 			proposal.startFrame, VAD_SAMPLE_RATE, authority.sampleRate, 'enclosingEnd',

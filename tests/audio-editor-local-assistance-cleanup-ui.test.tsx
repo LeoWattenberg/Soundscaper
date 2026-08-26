@@ -232,8 +232,13 @@ test('reviewing authenticated Parakeet output only prepares cleanup until an exp
 	await store.prepareTranscriptCleanup();
 	assert.equal(value.preparedRequests.length, 1);
 	assert.equal((value.preparedRequests[0] as { voiceActivity: unknown }).voiceActivity, null);
+	assert.equal((value.preparedRequests[0] as { preset: unknown }).preset, 'balanced');
 	assert.deepEqual(store.getSnapshot().cleanup?.selectedProposalIds, []);
 	assert.deepEqual(value.accepted, []);
+
+	await store.prepareTranscriptCleanup('conservative');
+	assert.equal((value.preparedRequests[1] as { preset: unknown }).preset, 'conservative');
+	assert.deepEqual(store.getSnapshot().cleanup?.selectedProposalIds, []);
 
 	store.setTranscriptCleanupProposalSelected('repetition-48000-72000', true);
 	await store.acceptTranscriptCleanup();
@@ -273,16 +278,20 @@ test('cleanup review renders unchecked per-item choices and explicit decisions',
 	const markup = renderToStaticMarkup(<LocalAssistanceCleanupReview
 		copy={{}}
 		cleanup={Object.freeze({
-			phase: 'review', proposals: Object.freeze([
+			phase: 'review', preset: 'balanced', proposals: Object.freeze([
 				Object.freeze({ id: 'filler', kind: 'filler', startFrame: 0, endFrame: 12_000, text: 'um' }),
 				Object.freeze({ id: 'silence', kind: 'silence', startFrame: 24_000, endFrame: 48_000, text: '' }),
 			]), selectedProposalIds: Object.freeze([]), usesVoiceActivity: true, error: null,
 		})}
+		onPresetChange={() => undefined}
 		onSelectionChange={() => undefined}
 		onAccept={() => undefined}
 		onReject={() => undefined}
 	/>);
 	assert.equal(markup.match(/type="checkbox"/gu)?.length, 2);
+	assert.match(markup, /Conservative/u);
+	assert.match(markup, /Balanced/u);
+	assert.match(markup, /Aggressive/u);
 	assert.doesNotMatch(markup, /checked=""/u);
 	assert.match(markup, /Measured silence/u);
 	assert.match(markup, /disabled="">Apply selected cleanup/u);
