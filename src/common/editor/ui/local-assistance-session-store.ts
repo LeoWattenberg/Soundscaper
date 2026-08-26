@@ -314,18 +314,23 @@ export function createLocalAssistanceSessionStore(
 		} finally {
 			preparationController = null;
 			if (activeJobId !== null) {
+				// A release error must not displace the failure that caused the run
+				// to end, which is what the caller is told about.
 				try { released = await options.bridge.release(activeJobId); }
-				catch (error) { failure = error; }
+				catch (error) { failure ??= error; }
 			}
 			activeJobId = null;
 			activeOperation = null;
 		}
 		if (disposed) return;
-		if (failure && !(failure instanceof CancelledSession)) {
+		// Cancellation is decided before failure: an aborted desktop run rejects
+		// with a plain error the renderer cannot recognise by type, so testing
+		// the failure first would report a deliberate cancel as a failed run.
+		if (cancelRequested || consentDeclined || failure instanceof CancelledSession) {
+			update({ phase: 'cancelled', result: null, progress: null, error: null, unavailableReason: null });
+		} else if (failure) {
 			update({ phase: 'error', result: null, progress: null,
 				error: 'The local-assistance operation failed.', unavailableReason: null });
-		} else if (cancelRequested || consentDeclined || failure instanceof CancelledSession) {
-			update({ phase: 'cancelled', result: null, progress: null, error: null, unavailableReason: null });
 		} else if (!released) {
 			update({ phase: 'error', result: null, progress: null,
 				error: 'The local-assistance staging custody could not be released.', unavailableReason: null });

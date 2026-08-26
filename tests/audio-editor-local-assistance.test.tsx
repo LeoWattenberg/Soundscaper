@@ -490,6 +490,38 @@ test('cancellation is explicit and release is attempted after the run quiesces',
 	assert.deepEqual(fixture.calls.slice(-2), ['cancel', 'release']);
 });
 
+/**
+ * On desktop an aborted run rejects rather than resolving, and the IPC layer
+ * replaces the cancellation error with a plain one, so the store cannot
+ * recognise it by type. A deliberate cancel must still read as cancelled.
+ */
+test('a cancelled run that rejects is reported as cancelled, not failed', { timeout: 5_000 }, async () => {
+	const fixture = rawBridgeFixture();
+	let reject: ((reason: unknown) => void) | null = null;
+	let markStarted: (() => void) | null = null;
+	const started = new Promise<void>((resolve) => { markStarted = resolve; });
+	fixture.api.run = () => {
+		fixture.calls.push('run');
+		markStarted?.();
+		return new Promise((_resolve, fail) => { reject = fail; });
+	};
+	fixture.api.cancel = async () => {
+		fixture.calls.push('cancel');
+		reject?.(new Error('The local-assistance operation was cancelled.'));
+		return { contractVersion: 1, jobId: JOB_ID, outcome: 'cancelled' };
+	};
+	const bridge = resolveLocalAssistanceBridge({ localAssistance: fixture.api });
+	assert.ok(bridge);
+	const store = selectedStore(bridge, preparationFixture());
+	const running = store.run();
+	await started;
+	await store.cancel();
+	await running;
+
+	assert.equal(store.getSnapshot().phase, 'cancelled');
+	assert.equal(store.getSnapshot().error, null, 'a cancellation reports no failure text');
+});
+
 test('cancellation aborts selected-media preparation before a job is created', { timeout: 5_000 }, async () => {
 	const fixture = rawBridgeFixture();
 	let started: (() => void) | null = null;
