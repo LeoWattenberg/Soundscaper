@@ -375,6 +375,7 @@ test('Make Highlights adds Qwen only after explicit editorial rerank opt-in', as
 	};
 	const audioSamples = new Float32Array(160_000);
 	audioSamples.fill(0.25);
+	let fastVideoPreparations = 0;
 	const highlightWav = encodeWav([audioSamples], {
 		sampleRate: 32_000, bitDepth: 32, float: true, dither: false,
 	});
@@ -390,15 +391,18 @@ test('Make Highlights adds Qwen only after explicit editorial rerank opt-in', as
 				{ sourceId: 'video-source', label: 'Video', mediaKind: 'video',
 					operations: ['shot-detection'] },
 			] }),
-			prepareSelectedMedia: async ({ operation }) => operation === 'audio-tagging'
-				? { sourceId: 'audio-source', operation, selectionFence: audioFence,
+			prepareSelectedMedia: async ({ operation }) => {
+				if (operation === 'audio-tagging') return {
+					sourceId: 'audio-source', operation, selectionFence: audioFence,
 					inputs: [{ role: 'audio', mediaType: 'audio/wav',
 						bytes: new Blob([highlightWav.slice().buffer], {
 							type: 'audio/wav',
-						}) }], outputs: [] }
-				: { sourceId: 'video-source', operation: 'shot-detection', shotDetectionMode: 'fast',
+						}) }], outputs: [] };
+				fastVideoPreparations += 1;
+				return { sourceId: 'video-source', operation: 'shot-detection', shotDetectionMode: 'fast',
 					selectionFence: videoFence, inputs: [{ role: 'video', mediaType: 'video/mp4',
-						bytes: new Blob([new Uint8Array([1, 2, 3])]) }], outputs: [] },
+						bytes: new Blob([new Uint8Array([1, 2, 3])], { type: 'video/mp4' }) }], outputs: [] };
+			},
 			describeSelectedVideoSourceTime: async () => ({ selectionFence: videoFence, descriptor }),
 		},
 	});
@@ -411,6 +415,7 @@ test('Make Highlights adds Qwen only after explicit editorial rerank opt-in', as
 		custody: fixture.custody, signal: new AbortController().signal });
 	assert.equal(result.outcome, 'prepared');
 	if (result.outcome !== 'prepared') return;
+	assert.equal(fastVideoPreparations, 1);
 	assert.deepEqual(result.workflow.stageIds, [
 		'detect-highlight-shots', 'tag-highlight-reactions', 'gather-signals', 'rank-highlights',
 		'rerank-editorial', 'assemble-highlights',

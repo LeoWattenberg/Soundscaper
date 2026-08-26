@@ -10,6 +10,14 @@ import {
 } from '../src/common/editor/controller/local-assistance-guided-highlight-preparation.ts';
 import { defaultAssistanceWorkflowSettingsV1 } from
 	'../src/common/editor/assistance/workflow-settings-v1.ts';
+import { createAssistanceEmbeddingMatrixV1 } from
+	'../src/common/editor/assistance/binary-formats-v1.ts';
+import { createAssistanceOwnedVideoHighlightTransformRegistryV1 } from
+	'../src/common/editor/assistance/owned-video-highlight-transform-registry-v1.ts';
+import {
+	ASSISTANCE_SEMANTIC_DERIVATIVE_MEDIA_TYPE,
+	createAssistanceSemanticDerivativeBundleV1,
+} from '../src/common/editor/assistance/semantic-derivative-bundle-v1.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
 
 const VIDEO_SHA256 = '12'.repeat(32);
@@ -28,11 +36,18 @@ test('guided highlight preparation authenticates linked A/V and emits bounded JS
 		describeSelectedVideoSourceTime: async () => ({
 			selectionFence: fixture.videoFence, descriptor: fixture.descriptor,
 		}),
-		prepareSelectedMedia: async () => fixture.preparedAudio,
+		prepareSelectedMedia: async ({ operation }) => operation === 'shot-detection'
+			? fixture.preparedVideo : fixture.preparedAudio,
 		loadTranscriptBody: async (key) => key === storageKey
 			? Uint8Array.from(transcriptBytes) : null,
 	});
 	assert.ok(result);
+	assert.ok(result.audio);
+	assert.ok(result.audioWave);
+	assert.equal(result.embeddings, null);
+	assert.equal(result.reviewVideo.mediaType, 'video/mp4');
+	assert.equal(result.reviewVideo.bytes, fixture.preparedVideo.inputs[0]!.bytes);
+	assert.deepEqual(result.reviewVideo.fence, fixture.videoFence);
 	assert.equal(result.video.mediaType,
 		'application/vnd.soundscaper.highlight-video-signals+json');
 	assert.equal(result.audio.mediaType,
@@ -74,7 +89,8 @@ test('guided highlight preparation keeps transcript optional and rejects unlinke
 		describeSelectedVideoSourceTime: async () => ({
 			selectionFence: fixture.videoFence, descriptor: fixture.descriptor,
 		}),
-		prepareSelectedMedia: async () => fixture.preparedAudio,
+		prepareSelectedMedia: async ({ operation }) => operation === 'shot-detection'
+			? fixture.preparedVideo : fixture.preparedAudio,
 	});
 	assert.ok(withoutTranscript);
 	assert.equal(withoutTranscript.transcript, null);
@@ -89,8 +105,115 @@ test('guided highlight preparation keeps transcript optional and rejects unlinke
 		describeSelectedVideoSourceTime: async () => ({
 			selectionFence: fixture.videoFence, descriptor: fixture.descriptor,
 		}),
-		prepareSelectedMedia: async () => fixture.preparedAudio,
+		prepareSelectedMedia: async ({ operation }) => operation === 'shot-detection'
+			? fixture.preparedVideo : fixture.preparedAudio,
 	}), null);
+});
+
+test('guided highlight preparation admits video-only speechless source authority', async () => {
+	const fixture = highlightFixture();
+	const videoOnlyProject = { ...fixture.project,
+		sources: fixture.project.sources.filter(({ kind }) => kind === 'video'),
+		clips: fixture.project.clips.filter(({ kind }) => kind === 'video').map((clip) => ({
+			...clip, avLinkId: null,
+		})),
+	};
+	const videoOnlyFence = { ...fixture.videoFence, occurrenceIds: ['video-clip'] };
+	const result = await prepareLocalAssistanceGuidedHighlightInputsV1({
+		project: videoOnlyProject,
+		inventory: [{ sourceId: 'video-source', mediaKind: 'video' }],
+		settings: defaultAssistanceWorkflowSettingsV1('make-highlights'),
+		signal: new AbortController().signal,
+		describeSelectedVideoSourceTime: async () => ({
+			selectionFence: videoOnlyFence, descriptor: fixture.descriptor,
+		}),
+		prepareSelectedMedia: async ({ operation, shotDetectionMode }) => {
+			assert.equal(operation, 'shot-detection');
+			assert.equal(shotDetectionMode, 'fast');
+			return { ...fixture.preparedVideo, selectionFence: videoOnlyFence };
+		},
+	});
+	assert.ok(result);
+	assert.equal(result.audio, null);
+	assert.equal(result.audioWave, null);
+	assert.equal(result.transcript, null);
+	assert.equal(result.embeddings, null);
+	assert.equal(result.reviewVideo.mediaType, 'video/mp4');
+	assert.deepEqual(result.reviewVideo.fence, videoOnlyFence);
+	assert.deepEqual(result.video.fence, videoOnlyFence);
+	const video = await jsonBody(result.video.bytes);
+	assert.equal(video.audioOccurrenceId, null);
+	assert.equal((video.windows as readonly unknown[]).length, 1);
+});
+
+test('guided highlight visual evidence derives semantic interest and duplication from its index', async () => {
+	const root = Math.fround(Math.SQRT1_2);
+	const matrix = createAssistanceEmbeddingMatrixV1({ dimensions: 2, vectors: [
+		[1, 0], [1, 0], [root, root], [root, root], [1, 0], [1, 0],
+	] });
+	const bytes = createAssistanceSemanticDerivativeBundleV1({
+		provider: 'visual', projectId: 'project-a', projectRevision: 7,
+		sequenceId: 'sequence-a', sourceId: 'video-source', matrix,
+		rows: [5_000, 10_000, 20_000, 25_000, 35_000, 40_000].map((timelineFrame, index) => ({
+			resultId: `visual-${String(index)}`, timelineFrame, label: 'Authenticated visual sample',
+		})), ocr: [],
+	});
+	const videoFence = { ...fence('video-source', VIDEO_SHA256, 0, 45, '78'.repeat(32)),
+		occurrenceIds: ['video-clip'] };
+	const descriptor = {
+		schemaVersion: 1 as const, kind: 'selected-video-source-time-authority' as const,
+		projectId: 'project-a', projectRevision: 7, sequenceId: 'sequence-a',
+		videoOccurrenceId: 'video-clip', sourceId: 'video-source', sourceSha256: VIDEO_SHA256,
+		timingAuthoritySha256: videoFence.timingAuthoritySha256,
+		sourceWidth: 1_920, sourceHeight: 1_080, sourceStartFrame: 0, sourceEndFrame: 45,
+		sampleRate: 1_000, timescale: 1_000, selectionStartFrame: 0, selectionEndFrame: 45_000,
+		frames: [0, 15, 30, 45].map((sourceFrame) => ({ sourceFrame,
+			presentationTick: String(sourceFrame * 1_000), timelineFrame: sourceFrame * 1_000 })),
+	};
+	const records = [{ kind: 'visual-index', projectId: 'project-a',
+			mediaType: ASSISTANCE_SEMANTIC_DERIVATIVE_MEDIA_TYPE,
+			payloadByteLength: bytes.byteLength, payloadSha256: bytesToHex(sha256(bytes)), bytes }];
+	const prepared = await prepareLocalAssistanceGuidedHighlightInputsV1({
+		project: { id: 'project-a', schemaVersion: 30, revision: 7, sampleRate: 1_000,
+			sources: [{ id: 'video-source', kind: 'video', contentSha256: VIDEO_SHA256 }],
+			clips: [{ id: 'video-clip', kind: 'video', sourceId: 'video-source',
+				sequenceId: 'sequence-a', avLinkId: null, reversed: false, speedRatio: 1 }] },
+		inventory: [{ sourceId: 'video-source', mediaKind: 'video' }],
+		settings: defaultAssistanceWorkflowSettingsV1('make-highlights'),
+		signal: new AbortController().signal,
+		describeSelectedVideoSourceTime: async () => ({ selectionFence: videoFence, descriptor }),
+		prepareSelectedMedia: async () => ({ sourceId: 'video-source',
+			operation: 'shot-detection', shotDetectionMode: 'fast', selectionFence: videoFence,
+			inputs: [{ role: 'video', mediaType: 'video/mp4',
+				bytes: new Blob([new Uint8Array([1])], { type: 'video/mp4' }) }], outputs: [] }),
+		loadVisualIndexDerivatives: async (projectId) => {
+			assert.equal(projectId, 'project-a');
+			return records;
+		},
+	});
+	assert.ok(prepared?.embeddings);
+	const video = await jsonBody(prepared.video.bytes);
+	const windows = video.windows as readonly Readonly<{ visualInterest: number }>[];
+	assert.deepEqual(windows.map(({ visualInterest }) => visualInterest), [
+		0, 0.292893230915, 0,
+	]);
+	const gathered = createAssistanceOwnedVideoHighlightTransformRegistryV1().run({
+		schemaVersion: 1, transformId: 'gather-signals',
+		settings: defaultAssistanceWorkflowSettingsV1('make-highlights'),
+		inputs: { video, audio: null, transcript: null,
+			'shot-boundaries': null, 'audio-tags': null, 'reaction-ranges': null,
+			embeddings: new Uint8Array(await prepared.embeddings.bytes.arrayBuffer()) },
+	}).outputs['highlight-signals'];
+	assert.deepEqual(gathered.candidates.map(({ visualInterest, duplication,
+		speechlessAvailableWeight, audioOccurrenceId }) => ({ visualInterest, duplication,
+		speechlessAvailableWeight, audioOccurrenceId })), [
+		{ visualInterest: 0, duplication: 1, speechlessAvailableWeight: 0.4,
+			audioOccurrenceId: null },
+		{ visualInterest: 0.292893230915, duplication: root,
+			speechlessAvailableWeight: 0.4, audioOccurrenceId: null },
+		{ visualInterest: 0, duplication: 1, speechlessAvailableWeight: 0.4,
+			audioOccurrenceId: null },
+	]);
 });
 
 test('guided highlight preparation refuses stale audio geometry and cancellation', async () => {
@@ -102,8 +225,9 @@ test('guided highlight preparation refuses stale audio geometry and cancellation
 		describeSelectedVideoSourceTime: async () => ({
 			selectionFence: fixture.videoFence, descriptor: fixture.descriptor,
 		}),
-		prepareSelectedMedia: async () => ({ ...fixture.preparedAudio,
-			selectionFence: { ...fixture.audioFence, occurrenceIds: ['video-clip'] } }),
+		prepareSelectedMedia: async ({ operation }) => operation === 'shot-detection'
+			? fixture.preparedVideo : { ...fixture.preparedAudio,
+				selectionFence: { ...fixture.audioFence, occurrenceIds: ['video-clip'] } },
 	}), /occurrence|authority|linked/iu);
 
 	const controller = new AbortController();
@@ -114,7 +238,8 @@ test('guided highlight preparation refuses stale audio geometry and cancellation
 		describeSelectedVideoSourceTime: async () => ({
 			selectionFence: fixture.videoFence, descriptor: fixture.descriptor,
 		}),
-		prepareSelectedMedia: async () => fixture.preparedAudio,
+		prepareSelectedMedia: async ({ operation }) => operation === 'shot-detection'
+			? fixture.preparedVideo : fixture.preparedAudio,
 	}), { name: 'AbortError' });
 });
 
@@ -166,6 +291,10 @@ function highlightFixture(transcript?: Readonly<{
 	return { project, descriptor, videoFence, audioFence,
 		inventory: [{ sourceId: 'video-source', mediaKind: 'video' },
 			{ sourceId: 'audio-source', mediaKind: 'audio' }],
+		preparedVideo: { sourceId: 'video-source', operation: 'shot-detection',
+			shotDetectionMode: 'fast', selectionFence: videoFence,
+			inputs: [{ role: 'video', mediaType: 'video/mp4',
+				bytes: new Blob([new Uint8Array([1, 2, 3])], { type: 'video/mp4' }) }], outputs: [] },
 		preparedAudio: { sourceId: 'audio-source', operation: 'audio-tagging',
 			selectionFence: audioFence, inputs: [{ role: 'audio', mediaType: 'audio/wav',
 				bytes: new Blob([wav.slice().buffer], { type: 'audio/wav' }) }], outputs: [] },

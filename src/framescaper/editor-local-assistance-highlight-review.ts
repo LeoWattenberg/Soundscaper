@@ -27,7 +27,7 @@ export interface FramescaperAssistanceHighlightProposalV1 {
 	readonly visualSummary: string;
 	readonly selected: false;
 	readonly videoOccurrenceId: string;
-	readonly audioOccurrenceId: string;
+	readonly audioOccurrenceId: string | null;
 	readonly title: string;
 	readonly cropKeyframes: readonly FramescaperAssistanceHighlightCropKeyframeV1[];
 }
@@ -120,7 +120,8 @@ function reviewProposal(
 		evidenceMode: record.evidenceMode, transcriptExcerpt, visualSummary,
 		selected: false,
 		videoOccurrenceId: stableId(record.videoOccurrenceId, `${label} video occurrence`),
-		audioOccurrenceId: stableId(record.audioOccurrenceId, `${label} audio occurrence`),
+		audioOccurrenceId: record.audioOccurrenceId === null ? null
+			: stableId(record.audioOccurrenceId, `${label} audio occurrence`),
 		title: title(record.title, label),
 		cropKeyframes: Object.freeze(cropKeyframes),
 	});

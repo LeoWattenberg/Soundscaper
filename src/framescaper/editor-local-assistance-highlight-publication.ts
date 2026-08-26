@@ -88,16 +88,17 @@ interface BoundOccurrence {
 interface BoundHighlight {
 	readonly proposal: FramescaperAssistanceHighlightProposalV1;
 	readonly sequenceFrameCount: number;
+	readonly timelineDurationFrames: number;
 	readonly videoSourceStartFrame: number;
 	readonly videoSourceEndFrame: number;
-	readonly audioSourceStartFrame: number;
-	readonly audioSourceEndFrame: number;
+	readonly audioSourceStartFrame: number | null;
+	readonly audioSourceEndFrame: number | null;
 	readonly videoRetimeMap: ReturnType<
 		typeof bindFramescaperAssistanceHighlightVideoTiming
 	>['retimeMap'];
 	readonly cropLocalFrames: readonly number[];
 	readonly video: BoundOccurrence;
-	readonly audio: BoundOccurrence;
+	readonly audio: BoundOccurrence | null;
 }
 
 interface NormalizedAuthority {
@@ -227,9 +228,11 @@ function bindHighlight(
 	selection: LocalAssistanceSelectedVideoAuthority,
 ): BoundHighlight {
 	const video = occurrence(project, fence, sequence, proposal.videoOccurrenceId, 'video');
-	const audio = occurrence(project, fence, sequence, proposal.audioOccurrenceId, 'audio');
-	if (video.clip.avLinkId === null || typeof video.clip.avLinkId !== 'string'
-		|| video.clip.avLinkId !== audio.clip.avLinkId) {
+	const audio = proposal.audioOccurrenceId === null ? null
+		: occurrence(project, fence, sequence, proposal.audioOccurrenceId, 'audio');
+	if (audio === null ? video.clip.avLinkId !== null
+		: video.clip.avLinkId === null || typeof video.clip.avLinkId !== 'string'
+			|| video.clip.avLinkId !== audio.clip.avLinkId) {
 		throw new RangeError('A highlight proposal must bind one exact linked A/V occurrence pair.');
 	}
 	const sampleRate = integer(project.sampleRate, 1, 'project sample rate');
@@ -254,21 +257,25 @@ function bindHighlight(
 	const videoSourceStartFrame = videoTiming.sourceStartFrame;
 	const videoSourceEndFrame = videoTiming.sourceEndFrame;
 	assertWithinRange(video.range, videoSourceStartFrame, videoSourceEndFrame, 'video');
-	const audioClipStart = integer(audio.clip.timelineStartFrame, 0, 'audio timeline start');
-	const audioDuration = integer(audio.clip.durationFrames, 1, 'audio duration');
-	const audioSourceBase = integer(audio.clip.sourceStartFrame, 0, 'audio source start');
-	if (proposal.startFrame < audioClipStart || proposal.endFrame > audioClipStart + audioDuration
-		|| audio.clip.sourceDurationFrames !== audioDuration || audio.clip.speedRatio !== 1
-		|| audio.clip.reversed === true || audio.clip.warpMap !== null) {
-		throw new RangeError('Highlight timing must remain inside one identity-retimed audio occurrence.');
+	let audioSourceStartFrame: number | null = null;
+	let audioSourceEndFrame: number | null = null;
+	if (audio !== null) {
+		const audioClipStart = integer(audio.clip.timelineStartFrame, 0, 'audio timeline start');
+		const audioDuration = integer(audio.clip.durationFrames, 1, 'audio duration');
+		const audioSourceBase = integer(audio.clip.sourceStartFrame, 0, 'audio source start');
+		if (proposal.startFrame < audioClipStart || proposal.endFrame > audioClipStart + audioDuration
+			|| audio.clip.sourceDurationFrames !== audioDuration || audio.clip.speedRatio !== 1
+			|| audio.clip.reversed === true || audio.clip.warpMap !== null) {
+			throw new RangeError('Highlight timing must remain inside one identity-retimed audio occurrence.');
+		}
+		audioSourceStartFrame = safeAdd(
+			audioSourceBase, proposal.startFrame - audioClipStart, 'highlight audio source start',
+		);
+		audioSourceEndFrame = safeAdd(
+			audioSourceBase, proposal.endFrame - audioClipStart, 'highlight audio source end',
+		);
+		assertWithinRange(audio.range, audioSourceStartFrame, audioSourceEndFrame, 'audio');
 	}
-	const audioSourceStartFrame = safeAdd(
-		audioSourceBase, proposal.startFrame - audioClipStart, 'highlight audio source start',
-	);
-	const audioSourceEndFrame = safeAdd(
-		audioSourceBase, proposal.endFrame - audioClipStart, 'highlight audio source end',
-	);
-	assertWithinRange(audio.range, audioSourceStartFrame, audioSourceEndFrame, 'audio');
 	if (proposal.cropKeyframes[0]!.sourceFrame !== videoSourceStartFrame
 		|| proposal.cropKeyframes.at(-1)!.sourceFrame !== videoSourceEndFrame - 1
 		|| proposal.cropKeyframes.some(({ sourceFrame }) => (
@@ -276,6 +283,7 @@ function bindHighlight(
 		))) throw new RangeError('Highlight crop keyframes must bind the complete selected video source range.');
 	return Object.freeze({
 		proposal, sequenceFrameCount: videoTiming.sequenceFrameCount,
+		timelineDurationFrames: proposal.endFrame - proposal.startFrame,
 		videoSourceStartFrame, videoSourceEndFrame, audioSourceStartFrame, audioSourceEndFrame,
 		videoRetimeMap: videoTiming.retimeMap, cropLocalFrames: videoTiming.cropLocalFrames,
 		video, audio,
@@ -331,12 +339,12 @@ function highlightCommands(
 	const next = (prefix: string): string => uniqueId(createId(prefix), occupied);
 	const sequenceId = next('assistance-highlight-sequence');
 	const videoTrackId = next('assistance-highlight-video-track');
-	const audioTrackId = next('assistance-highlight-audio-track');
+	const audioTrackId = highlight.audio === null ? null : next('assistance-highlight-audio-track');
 	const labelTrackId = next('assistance-highlight-label-track');
 	const videoClipId = next('assistance-highlight-video-clip');
-	const audioClipId = next('assistance-highlight-audio-clip');
-	const laneGroupId = next('assistance-highlight-lane-group');
-	const avLinkId = next('assistance-highlight-av-link');
+	const audioClipId = highlight.audio === null ? null : next('assistance-highlight-audio-clip');
+	const laneGroupId = highlight.audio === null ? null : next('assistance-highlight-lane-group');
+	const avLinkId = highlight.audio === null ? null : next('assistance-highlight-av-link');
 	const labelId = next('assistance-highlight-label');
 	const extension = Object.freeze({
 		version: 1, workflowId: 'make-highlights', proposalId: highlight.proposal.id,
@@ -361,11 +369,12 @@ function highlightCommands(
 		videoComposition: DEFAULT_VIDEO_CLIP_COMPOSITION,
 		opaqueExtensions: { [EXTENSION_KEY]: extension },
 	});
-	const audioDuration = highlight.audioSourceEndFrame - highlight.audioSourceStartFrame;
-	const audioClip = createAudioClip({
-		id: audioClipId, sourceId: String(highlight.audio.source.id), title: highlight.proposal.title,
-		timelineStartFrame: 0, sourceStartFrame: highlight.audioSourceStartFrame,
-		sourceDurationFrames: audioDuration, durationFrames: audioDuration, avLinkId,
+	const audioDuration = highlight.audio === null ? null
+		: highlight.audioSourceEndFrame! - highlight.audioSourceStartFrame!;
+	const audioClip = highlight.audio === null ? null : createAudioClip({
+		id: audioClipId!, sourceId: String(highlight.audio.source.id), title: highlight.proposal.title,
+		timelineStartFrame: 0, sourceStartFrame: highlight.audioSourceStartFrame!,
+		sourceDurationFrames: audioDuration!, durationFrames: audioDuration!, avLinkId,
 		opaqueExtensions: { [EXTENSION_KEY]: extension },
 	});
 	const expectedKeyframes = createDefaultVideoKeyframeCurves(highlight.sequenceFrameCount);
@@ -374,23 +383,29 @@ function highlightCommands(
 		createFramescaperVideoRetimeSetCommandV20({ clipId: videoClipId,
 			expectedRetimeMap: null, retimeMap: highlight.videoRetimeMap }),
 	];
+	const audioTrackCommands = highlight.audio === null ? [] : [
+		Object.freeze({ ...createAddTrackCommand(createAudioTrack({
+			id: audioTrackId!, name: 'Audio', laneGroupId,
+			opaqueExtensions: { [EXTENSION_KEY]: extension },
+		}, Number(authority.project.sampleRate))), sequenceId }),
+	];
+	const audioClipCommands = highlight.audio === null ? []
+		: [createAddClipCommand(audioTrackId!, audioClip!)];
 	return Object.freeze([
 		Object.freeze({ type: 'sequence/create', sequence }),
 		Object.freeze({ ...createAddTrackCommand(createVideoTrack({
 			id: videoTrackId, name: 'Video', laneGroupId,
 			opaqueExtensions: { [EXTENSION_KEY]: extension },
 		})), sequenceId }),
-		Object.freeze({ ...createAddTrackCommand(createAudioTrack({
-			id: audioTrackId, name: 'Audio', laneGroupId,
-			opaqueExtensions: { [EXTENSION_KEY]: extension },
-		}, Number(authority.project.sampleRate))), sequenceId }),
+		...audioTrackCommands,
 		createAddClipCommand(videoTrackId, videoClip),
-		createAddClipCommand(audioTrackId, audioClip),
+		...audioClipCommands,
 		...retimeCommand,
 		createSetVideoKeyframesCommand(videoClipId, expectedKeyframes, keyframes),
 		Object.freeze({ ...createAddTrackCommand(createLabelTrack({
 			id: labelTrackId, name: 'Highlights', labels: [createLabel({
-				id: labelId, title: highlight.proposal.title, startFrame: 0, endFrame: audioDuration,
+				id: labelId, title: highlight.proposal.title, startFrame: 0,
+				endFrame: highlight.timelineDurationFrames,
 				opaqueExtensions: { [EXTENSION_KEY]: extension },
 			})], opaqueExtensions: { [EXTENSION_KEY]: extension },
 		})), sequenceId }),

@@ -104,6 +104,16 @@ export function createLocalAssistancePreparationRuntime(
 		...(assistanceStore ? {
 			loadTranscriptBody: (storageKey: string) => assistanceStore.loadMediaAsset(storageKey),
 		} : {}),
+		...(dependencies.assistanceDerivativeRepository ? {
+			loadVisualIndexDerivatives: async (projectId: string, signal: AbortSignal) => {
+				signal.throwIfAborted();
+				const records = await dependencies.assistanceDerivativeRepository!.listProject(
+					projectId, ['visual-index'],
+				);
+				signal.throwIfAborted();
+				return records;
+			},
+		} : {}),
 		selected: selectedPreparation,
 	});
 

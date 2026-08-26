@@ -233,7 +233,8 @@ export function reviewOwnedHighlightSignalsV1(value: unknown): AssistanceOwnedHi
 				`${label} speechless available weight`),
 			duplication: ownedUnit(item.duplication, `${label} duplication`),
 			videoOccurrenceId: stableId(item.videoOccurrenceId, `${label} video occurrence`),
-			audioOccurrenceId: stableId(item.audioOccurrenceId, `${label} audio occurrence`) });
+			audioOccurrenceId: nullableStableId(item.audioOccurrenceId,
+				`${label} audio occurrence`) });
 	});
 	return Object.freeze({ schemaVersion: 1, kind: 'highlight-signals',
 		sourceId: stableId(row.sourceId, 'highlight source ID'),
@@ -351,7 +352,11 @@ function rankedCandidate(
 		evidenceMode: item.evidenceMode, transcriptExcerpt,
 		visualSummary: ownedText(item.visualSummary, 2_048, `${label} visual summary`), selected: false,
 		videoOccurrenceId: stableId(item.videoOccurrenceId, `${label} video occurrence`),
-		audioOccurrenceId: stableId(item.audioOccurrenceId, `${label} audio occurrence`) });
+		audioOccurrenceId: nullableStableId(item.audioOccurrenceId, `${label} audio occurrence`) });
+}
+
+function nullableStableId(value: unknown, label: string): string | null {
+	return value === null ? null : stableId(value, label);
 }
 
 function timingRange(row: Record<string, unknown>, label: string): Readonly<{

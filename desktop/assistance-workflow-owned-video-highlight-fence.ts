@@ -54,7 +54,7 @@ function assertHighlightCandidates(
 		readonly sourceStartFrame: number;
 		readonly sourceEndFrame: number;
 		readonly videoOccurrenceId: string;
-		readonly audioOccurrenceId: string;
+		readonly audioOccurrenceId: string | null;
 	}>[],
 ): void {
 	const source = videoSource(request, sourceId);
@@ -72,15 +72,16 @@ function assertHighlightRange(
 		readonly sourceStartFrame: number;
 		readonly sourceEndFrame: number;
 		readonly videoOccurrenceId: string;
-		readonly audioOccurrenceId: string;
+		readonly audioOccurrenceId: string | null;
 	}>,
 ): void {
 	const video = occurrenceSource(request, 'video', candidate.videoOccurrenceId);
-	const audio = occurrenceSource(request, 'audio', candidate.audioOccurrenceId);
+	const audio = candidate.audioOccurrenceId === null ? null
+		: occurrenceSource(request, 'audio', candidate.audioOccurrenceId);
 	if (candidate.sourceStartFrame < video.sourceStartFrame
 		|| candidate.sourceEndFrame > video.sourceEndFrame
 		|| candidate.sourceEndFrame <= candidate.sourceStartFrame
-		|| audio.sourceEndFrame <= audio.sourceStartFrame) {
+		|| audio !== null && audio.sourceEndFrame <= audio.sourceStartFrame) {
 		throw new RangeError('A highlight candidate exceeds its exact aggregate source fence.');
 	}
 }

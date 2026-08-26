@@ -123,7 +123,7 @@ export interface AssistanceOwnedHighlightSignalCandidateV1 {
 	readonly speechlessAvailableWeight: number;
 	readonly duplication: number;
 	readonly videoOccurrenceId: string;
-	readonly audioOccurrenceId: string;
+	readonly audioOccurrenceId: string | null;
 }
 
 export interface AssistanceOwnedHighlightSignalsV1 {
@@ -147,7 +147,7 @@ export interface AssistanceOwnedRankedHighlightCandidateV1 {
 	readonly visualSummary: string;
 	readonly selected: false;
 	readonly videoOccurrenceId: string;
-	readonly audioOccurrenceId: string;
+	readonly audioOccurrenceId: string | null;
 }
 
 export interface AssistanceOwnedHighlightCandidatesV1 {

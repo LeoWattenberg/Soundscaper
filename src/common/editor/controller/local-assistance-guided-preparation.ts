@@ -96,6 +96,10 @@ export interface LocalAssistanceGuidedPreparationDependencies {
 		storageKey: string,
 		signal: AbortSignal,
 	) => PromiseLike<unknown> | unknown;
+	readonly loadVisualIndexDerivatives?: (
+		projectId: string,
+		signal: AbortSignal,
+	) => PromiseLike<readonly unknown[]> | readonly unknown[];
 	readonly selected: SelectedPreparationPort;
 }
 
@@ -131,19 +135,20 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 			);
 			assertSafeProjectTopology(project);
 			const graph = assistanceWorkflowStageGraph(request.workflowId);
-			const stages = selectStages(graph, settings, request.models);
+			const inventory = normalizeInventory(await dependencies.selected.listSelectedMedia());
+			dependencies.assertProject(token);
+			const stages = selectStages(graph, settings, request.models, inventory);
 			if (stages === null) throw new UnavailableError('workflow-disabled');
 			const models = resolveModelBindings(stages, request.models, settings);
 			if (models === null) throw new UnavailableError('model-binding-unavailable');
-			const inventory = normalizeInventory(await dependencies.selected.listSelectedMedia());
-			dependencies.assertProject(token);
 			const highlightInputs = request.workflowId === 'make-highlights'
 				&& dependencies.selected.describeSelectedVideoSourceTime
 				? await prepareLocalAssistanceGuidedHighlightInputsV1({ project, inventory, settings,
 					signal: request.signal,
 					describeSelectedVideoSourceTime: dependencies.selected.describeSelectedVideoSourceTime,
 					prepareSelectedMedia: dependencies.selected.prepareSelectedMedia,
-					loadTranscriptBody: dependencies.loadTranscriptBody }) : null;
+					loadTranscriptBody: dependencies.loadTranscriptBody,
+					loadVisualIndexDerivatives: dependencies.loadVisualIndexDerivatives }) : null;
 			if (request.workflowId === 'make-highlights' && highlightInputs === null) {
 				throw new UnavailableError('source-custody-unavailable');
 			}
@@ -300,11 +305,13 @@ function highlightExternalInput(
 	slotId: string,
 ): Readonly<{ mediaType: string; bytes: Blob; fence: PrimitiveFence }> | null {
 	if (inputs === null) return null;
+	if (stageId === 'detect-highlight-shots' && slotId === 'video') return inputs.reviewVideo;
 	if (stageId === 'tag-highlight-reactions' && slotId === 'audio') return inputs.audioWave;
 	if (stageId !== 'gather-signals') return null;
 	if (slotId === 'video') return inputs.video;
 	if (slotId === 'audio') return inputs.audio;
 	if (slotId === 'transcript') return inputs.transcript;
+	if (slotId === 'embeddings') return inputs.embeddings;
 	return null;
 }
 
@@ -312,6 +319,7 @@ function selectStages(
 	graph: readonly AssistanceWorkflowStageSpec[],
 	settings: AssistanceWorkflowSettingsV1,
 	models: readonly LocalAssistanceModel[],
+	inventory: readonly InventorySource[],
 ): readonly AssistanceWorkflowStageSpec[] | null {
 	if (settings.workflowId === 'generate-editorial-text' && !settings.enabled) return null;
 	return Object.freeze(graph.filter((stage) => {
@@ -328,6 +336,7 @@ function selectStages(
 		}
 		if (stage.stageId === 'tag-highlight-reactions') {
 			return settings.workflowId === 'make-highlights'
+				&& inventory.some(({ mediaKind }) => mediaKind === 'audio')
 				&& models.filter(({ task }) => task === 'audio-tagging').length === 1;
 		}
 		if (stage.stageId === 'rerank-editorial') return settings.workflowId === 'make-highlights'
@@ -555,6 +564,8 @@ function assertDependencies(value: LocalAssistanceGuidedPreparationDependencies)
 		|| typeof value.assertProject !== 'function' || typeof value.preflightStorage !== 'function'
 		|| typeof value.currentSelectionFence !== 'function'
 		|| (value.loadTranscriptBody !== undefined && typeof value.loadTranscriptBody !== 'function')
+		|| (value.loadVisualIndexDerivatives !== undefined
+			&& typeof value.loadVisualIndexDerivatives !== 'function')
 		|| !value.selected || typeof value.selected.listSelectedMedia !== 'function'
 		|| typeof value.selected.prepareSelectedMedia !== 'function') {
 		throw new TypeError('Guided preparation requires exact project, storage, and media custody ports.');

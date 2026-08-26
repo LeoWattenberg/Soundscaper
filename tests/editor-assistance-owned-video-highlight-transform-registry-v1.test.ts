@@ -232,16 +232,16 @@ test('highlight stages snap evidence, rank deterministically, and assemble safe 
 		speechlessAvailableWeight, duplication })), [
 		{ id: 'a', startFrame: 15_000, endFrame: 60_000, sourceStartFrame: 15,
 			sourceEndFrame: 60, transcriptEvidence: true,
-			speechlessAvailableWeight: 0.6, duplication: 1 },
+			speechlessAvailableWeight: 1, duplication: 1 },
 		{ id: 'b', startFrame: 60_000, endFrame: 90_000, sourceStartFrame: 60,
 			sourceEndFrame: 90, transcriptEvidence: true,
-			speechlessAvailableWeight: 0.6, duplication: Math.fround(Math.SQRT1_2) },
+			speechlessAvailableWeight: 1, duplication: Math.fround(Math.SQRT1_2) },
 		{ id: 'c', startFrame: 90_000, endFrame: 120_000, sourceStartFrame: 90,
 			sourceEndFrame: 120, transcriptEvidence: false,
-			speechlessAvailableWeight: 0.6, duplication: Math.fround(Math.SQRT1_2) },
+			speechlessAvailableWeight: 1, duplication: Math.fround(Math.SQRT1_2) },
 		{ id: 'd', startFrame: 15_000, endFrame: 60_000, sourceStartFrame: 15,
 			sourceEndFrame: 60, transcriptEvidence: true,
-			speechlessAvailableWeight: 0.6, duplication: 1 },
+			speechlessAvailableWeight: 1, duplication: 1 },
 	]);
 
 	const ranked = registry.run({

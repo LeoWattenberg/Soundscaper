@@ -19,7 +19,7 @@ export interface LocalAssistanceGuidedHighlightWindowV1 {
 	readonly startFrame: number;
 	readonly endFrame: number;
 	readonly shotStructure: 0;
-	readonly visualInterest: 0;
+	readonly visualInterest: number;
 }
 
 export interface LocalAssistanceGuidedHighlightVideoSignalsV1 {
@@ -30,7 +30,7 @@ export interface LocalAssistanceGuidedHighlightVideoSignalsV1 {
 	readonly timescale: number;
 	readonly sourceSize: Readonly<{ readonly width: number; readonly height: number }>;
 	readonly videoOccurrenceId: string;
-	readonly audioOccurrenceId: string;
+	readonly audioOccurrenceId: string | null;
 	readonly selectionStartFrame: number;
 	readonly selectionEndFrame: number;
 	readonly sourceTimeAuthority: readonly Readonly<{
@@ -76,14 +76,15 @@ const SHA256 = /^[a-f\d]{64}$/u;
 
 export function createLocalAssistanceGuidedHighlightVideoSignalsV1(request: Readonly<{
 	readonly authority: LocalAssistanceSelectedVideoSourceTimeDescriptorV1;
-	readonly audioOccurrenceId: string;
+	readonly audioOccurrenceId: string | null;
 	readonly settings: AssistanceWorkflowSettingsV1;
 }>): LocalAssistanceGuidedHighlightVideoSignalsV1 {
 	const authority = reviewSourceTimeAuthority(request?.authority);
 	const settings = validateAssistanceWorkflowSettingsV1(
 		request?.settings, 'make-highlights',
 	) as HighlightSettings;
-	const audioOccurrenceId = stableId(request?.audioOccurrenceId, 'audio occurrence');
+	const audioOccurrenceId = request?.audioOccurrenceId === null ? null
+		: stableId(request?.audioOccurrenceId, 'audio occurrence');
 	const windows = createWindows(authority, settings);
 	return Object.freeze({ schemaVersion: 1, kind: 'highlight-video-signals',
 		sourceId: authority.sourceId, sampleRate: authority.sampleRate,
@@ -348,7 +349,8 @@ function reviewVideoSignals(value: unknown): LocalAssistanceGuidedHighlightVideo
 		sourceSize: Object.freeze({ width: integer(size.width, 1, 'highlight source width'),
 			height: integer(size.height, 1, 'highlight source height') }),
 		videoOccurrenceId: stableId(row.videoOccurrenceId, 'highlight video occurrence'),
-		audioOccurrenceId: stableId(row.audioOccurrenceId, 'highlight audio occurrence'),
+		audioOccurrenceId: row.audioOccurrenceId === null ? null
+			: stableId(row.audioOccurrenceId, 'highlight audio occurrence'),
 		selectionStartFrame, selectionEndFrame,
 		sourceTimeAuthority: Object.freeze(sourceTimeAuthority), windows: Object.freeze(windows) });
 }

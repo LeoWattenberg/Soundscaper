@@ -272,6 +272,35 @@ test('one atomic F31 batch creates an editable linked A/V secondary sequence and
 	assert.deepEqual(session.history.present.sources, initial.sources);
 });
 
+test('video-only speechless acceptance creates an editable secondary sequence without audio', async () => {
+	const initial = project(false);
+	const videoFence = { ...fence(initial),
+		sourceRanges: fence(initial).sourceRanges.filter(({ mediaKind }) => mediaKind === 'video') };
+	const held = reviewFramescaperAssistanceHighlightsV1({
+		kind: 'highlight-proposals', schemaVersion: 1, workflowId: 'make-highlights',
+		fence: videoFence,
+		proposals: [{ ...proposal({ id: 'speechless-video', title: 'Visual highlight',
+			startFrame: 0, endFrame: 19_200, firstSourceFrame: 0, lastSourceFrame: 3 }),
+			evidenceMode: 'speechless', transcriptExcerpt: null, audioOccurrenceId: null }],
+	});
+	const session = harness(initial);
+	session.currentFence = videoFence;
+	await session.publication.acceptReviewed(held, ['speechless-video']);
+
+	assert.equal(session.commits, 1);
+	const secondary = records(session.history.present.sequences)
+		.find(({ id }) => id !== 'main-sequence');
+	assert.ok(secondary);
+	const tracks = strings(secondary.trackIds).map((trackId) =>
+		records(session.history.present.tracks).find(({ id }) => id === trackId));
+	assert.deepEqual(tracks.map((track) => track?.type), ['video', 'label']);
+	const video = records(session.history.present.clips)
+		.find(({ id }) => strings(tracks[0]?.clipIds).includes(String(id)));
+	assert.ok(video);
+	assert.equal(video.avLinkId, null);
+	assert.equal(tracks[0]?.laneGroupId, null);
+});
+
 test('planning every selected proposal is all-or-nothing before commit', async () => {
 	const initial = project();
 	const session = harness(initial, (prefix) => prefix);

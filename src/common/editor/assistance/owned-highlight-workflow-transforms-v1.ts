@@ -92,7 +92,7 @@ interface ReviewedVideo {
 	readonly timescale: number;
 	readonly sourceSize: Readonly<{ width: number; height: number }>;
 	readonly videoOccurrenceId: string;
-	readonly audioOccurrenceId: string;
+	readonly audioOccurrenceId: string | null;
 	readonly selectionStartFrame: number;
 	readonly selectionEndFrame: number;
 	readonly authority: readonly TimeAuthority[];
@@ -117,10 +117,12 @@ export function gatherOwnedHighlightSignalsV1(
 	const shotAvailable = inputs['shot-boundaries'] !== null;
 	const reactionAvailable = inputs['audio-tags'] !== null || inputs['reaction-ranges'] !== null;
 	const energyAvailable = inputs.audio !== null;
+	const visualAvailable = inputs.embeddings !== null;
 	const speechlessAvailableWeight = quantize(
 		(shotAvailable ? HIGHLIGHT_RANKING_V1_SPEECHLESS_WEIGHTS.shotStructure : 0)
 		+ (reactionAvailable ? HIGHLIGHT_RANKING_V1_SPEECHLESS_WEIGHTS.excitement : 0)
-		+ (energyAvailable ? HIGHLIGHT_RANKING_V1_SPEECHLESS_WEIGHTS.energyDynamics : 0),
+		+ (energyAvailable ? HIGHLIGHT_RANKING_V1_SPEECHLESS_WEIGHTS.energyDynamics : 0)
+		+ (visualAvailable ? HIGHLIGHT_RANKING_V1_SPEECHLESS_WEIGHTS.visualInterest : 0),
 	);
 	const edges = canonicalEdges(video, shotEdges, transcript.timelineEdges);
 	const candidates = video.windows.map((window, index) => {
@@ -141,10 +143,10 @@ export function gatherOwnedHighlightSignalsV1(
 			? boundedTranscriptExcerpt(transcript.ranges, startFrame, endFrame) : null;
 		const shotStructure = shotAvailable
 			? shotStructureScore(shotEdges, startFrame, endFrame, video.sampleRate) : 0;
-		const visualInterest = 0;
+		const visualInterest = visualAvailable ? window.visualInterest : 0;
 		return Object.freeze({ id: window.id, startFrame, endFrame,
 			sourceStartFrame, sourceEndFrame, transcriptEvidence, transcriptExcerpt,
-			visualSummary: `Admitted shot-structure score ${shotStructure.toFixed(6)}; visual-interest score ${visualInterest.toFixed(6)}.`,
+			visualSummary: `Admitted shot-structure score ${shotStructure.toFixed(6)}; authenticated semantic visual-interest score ${visualInterest.toFixed(6)}.`,
 			hook: transcriptEvidence ? language.hook : 0,
 			conversationalStructure: transcriptEvidence ? language.conversationalStructure : 0,
 			excitement: maximumOverlapScore(reactionRanges, startFrame, endFrame),
@@ -284,7 +286,8 @@ function reviewVideo(value: unknown): ReviewedVideo {
 	return Object.freeze({ sourceId: stableId(row.sourceId, 'highlight source ID'), sampleRate,
 		timescale, sourceSize: dimensions(row.sourceSize, 'highlight source size'),
 		videoOccurrenceId: stableId(row.videoOccurrenceId, 'highlight video occurrence'),
-		audioOccurrenceId: stableId(row.audioOccurrenceId, 'highlight audio occurrence'),
+		audioOccurrenceId: row.audioOccurrenceId === null ? null
+			: stableId(row.audioOccurrenceId, 'highlight audio occurrence'),
 		selectionStartFrame, selectionEndFrame, authority: Object.freeze(authority),
 		windows: Object.freeze(windows) });
 }
