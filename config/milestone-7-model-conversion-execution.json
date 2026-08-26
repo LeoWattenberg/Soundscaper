@@ -1,0 +1,260 @@
+{
+	"schemaVersion": 1,
+	"registerId": "milestone-7-model-conversion-execution-v1",
+	"executionPolicy": {
+		"protocol": "soundscaper-model-conversion-v1",
+		"program": "python3",
+		"module": "soundscaper_m7_conversion",
+		"workingDirectory": "workspace",
+		"shell": false,
+		"network": "forbidden",
+		"gpu": "forbidden",
+		"environment": [
+			{ "name": "CUBLAS_WORKSPACE_CONFIG", "value": ":4096:8" },
+			{ "name": "CUDA_VISIBLE_DEVICES", "value": "" },
+			{ "name": "MKL_NUM_THREADS", "value": "1" },
+			{ "name": "OMP_NUM_THREADS", "value": "1" },
+			{ "name": "OPENBLAS_NUM_THREADS", "value": "1" },
+			{ "name": "PYTHONHASHSEED", "value": "0" },
+			{ "name": "TF_DETERMINISTIC_OPS", "value": "1" }
+		]
+	},
+	"recipes": [
+		{
+			"candidateId": "tiger-dnr-neural-core",
+			"conversionPlanSha256": "f8e22860e579bdf7ee23d9d72f41740e1e97d6d1a849c4cf4170ef508c631c13",
+			"sourceCode": {
+				"url": "https://github.com/JusperLee/TIGER",
+				"revision": "9f18d4a10a7137e1ce8052cfb62215179f1287b6",
+				"archive": {
+					"fileName": "tiger-9f18d4a10a7137e1ce8052cfb62215179f1287b6.tar.gz",
+					"byteLength": null,
+					"sha256": null
+				}
+			},
+			"sourceArtifacts": [
+				{
+					"role": "dnr-weights",
+					"fileName": "model.safetensors",
+					"byteLength": 17130568,
+					"upstreamIntegrity": {
+						"algorithm": "sha256",
+						"value": "dd1c696e72f6adea0085ef1af640882a8260519ad666422835e387a5b4abdd2a"
+					},
+					"sha256Readback": "dd1c696e72f6adea0085ef1af640882a8260519ad666422835e387a5b4abdd2a"
+				}
+			],
+			"commands": [
+				{
+					"id": "convert",
+					"argv": ["-I", "-B", "-m", "soundscaper_m7_conversion", "convert", "--protocol", "soundscaper-model-conversion-v1", "--candidate", "tiger-dnr-neural-core", "--plan-sha256", "f8e22860e579bdf7ee23d9d72f41740e1e97d6d1a849c4cf4170ef508c631c13", "--source-manifest", "source-input-manifest.json", "--output-manifest", "converted-artifacts.json"]
+				},
+				{
+					"id": "parity",
+					"argv": ["-I", "-B", "-m", "soundscaper_m7_conversion", "parity", "--protocol", "soundscaper-model-conversion-v1", "--candidate", "tiger-dnr-neural-core", "--plan-sha256", "f8e22860e579bdf7ee23d9d72f41740e1e97d6d1a849c4cf4170ef508c631c13", "--fixture", "parity-fixture.bin", "--source-runs", "source-framework-runs", "--converted-manifest", "converted-artifacts.json", "--evidence", "parity-evidence.json"]
+				}
+			],
+			"outputManifest": {
+				"schemaVersion": 1,
+				"path": "evidence/milestone-7-model-conversion/tiger-dnr-neural-core/converted-artifacts.json",
+				"status": "pending-external",
+				"artifacts": [
+					{ "role": "network", "required": true, "fileName": "tiger-dnr.onnx", "byteLength": null, "sha256": null }
+				]
+			},
+			"parity": {
+				"fixtureId": "tiger-dnr-parity-v1",
+				"inputFileName": "tiger-dnr-parity-v1.wav",
+				"inputByteLength": 705644,
+				"inputSha256": "aa4a0d814269fb6024f7985c1466f204ec915242b5340a7c99fdca8b866c92ad",
+				"evidencePath": "evidence/milestone-7-model-conversion/tiger-dnr-neural-core/parity-evidence.json",
+				"status": "pending-external",
+				"evidenceSha256": null
+			},
+			"evidenceStatus": "pending-external",
+			"blockedBy": ["converted-output-identity", "source-code-archive-identity", "source-framework-parity", "toolchain-lock"]
+		},
+		{
+			"candidateId": "panns-cnn10",
+			"conversionPlanSha256": "33da2c9f07f86a51b119466c38cca28368c7a58fe5e975cd5eda9c68dd99f2a2",
+			"sourceCode": {
+				"url": "https://github.com/qiuqiangkong/audioset_tagging_cnn",
+				"revision": "d2f4b8c18eab44737fcc0de1248ae21eb43f6aa4",
+				"archive": {
+					"fileName": "audioset-tagging-cnn-d2f4b8c18eab44737fcc0de1248ae21eb43f6aa4.tar.gz",
+					"byteLength": null,
+					"sha256": null
+				}
+			},
+			"sourceArtifacts": [
+				{
+					"role": "cnn10-checkpoint",
+					"fileName": "Cnn10_mAP=0.380.pth",
+					"byteLength": 25237595,
+					"upstreamIntegrity": { "algorithm": "md5", "value": "bfb1f1f9968938fa8ef4012b8471f5f6" },
+					"sha256Readback": null
+				},
+				{
+					"role": "audioset-class-map",
+					"fileName": "class_labels_indices.csv",
+					"byteLength": 14675,
+					"upstreamIntegrity": { "algorithm": "sha256", "value": "cdd1049833c4b86127c2773ac0d14a2754b6a6d0d1798002ed5c66e699708429" },
+					"sha256Readback": "cdd1049833c4b86127c2773ac0d14a2754b6a6d0d1798002ed5c66e699708429"
+				}
+			],
+			"commands": [
+				{
+					"id": "convert",
+					"argv": ["-I", "-B", "-m", "soundscaper_m7_conversion", "convert", "--protocol", "soundscaper-model-conversion-v1", "--candidate", "panns-cnn10", "--plan-sha256", "33da2c9f07f86a51b119466c38cca28368c7a58fe5e975cd5eda9c68dd99f2a2", "--source-manifest", "source-input-manifest.json", "--output-manifest", "converted-artifacts.json"]
+				},
+				{
+					"id": "parity",
+					"argv": ["-I", "-B", "-m", "soundscaper_m7_conversion", "parity", "--protocol", "soundscaper-model-conversion-v1", "--candidate", "panns-cnn10", "--plan-sha256", "33da2c9f07f86a51b119466c38cca28368c7a58fe5e975cd5eda9c68dd99f2a2", "--fixture", "parity-fixture.bin", "--source-runs", "source-framework-runs", "--converted-manifest", "converted-artifacts.json", "--evidence", "parity-evidence.json"]
+				}
+			],
+			"outputManifest": {
+				"schemaVersion": 1,
+				"path": "evidence/milestone-7-model-conversion/panns-cnn10/converted-artifacts.json",
+				"status": "pending-external",
+				"artifacts": [
+					{ "role": "network", "required": true, "fileName": "panns-cnn10.onnx", "byteLength": null, "sha256": null }
+				]
+			},
+			"parity": {
+				"fixtureId": "panns-cnn10-parity-v1",
+				"inputFileName": "panns-cnn10-parity-v1.wav",
+				"inputByteLength": 256044,
+				"inputSha256": "1cb40bf7dd77139b6d40733794f6005d0f3fcb6c69d1e0d8e257c0ba86440d48",
+				"evidencePath": "evidence/milestone-7-model-conversion/panns-cnn10/parity-evidence.json",
+				"status": "pending-external",
+				"evidenceSha256": null
+			},
+			"evidenceStatus": "pending-external",
+			"blockedBy": ["converted-output-identity", "source-artifact-sha256-readback", "source-code-archive-identity", "source-framework-parity", "toolchain-lock"]
+		},
+		{
+			"candidateId": "beat-this",
+			"conversionPlanSha256": "bf5cd009d7c20d8cd384ee143eb9e0d3eb1970723748d9f09c86122f3a46eaf0",
+			"sourceCode": {
+				"url": "https://github.com/CPJKU/beat_this",
+				"revision": "ad7974846029835307ba19a3d5cefbf40b243041",
+				"archive": {
+					"fileName": "beat-this-ad7974846029835307ba19a3d5cefbf40b243041.tar.gz",
+					"byteLength": null,
+					"sha256": null
+				}
+			},
+			"sourceArtifacts": [
+				{
+					"role": "small0-checkpoint",
+					"fileName": "small0.ckpt",
+					"byteLength": 8451101,
+					"upstreamIntegrity": { "algorithm": "sha1", "value": "77a7ef5c21f628578f2b259ac29d2d680412efcc" },
+					"sha256Readback": null
+				},
+				{
+					"role": "final0-checkpoint",
+					"fileName": "final0.ckpt",
+					"byteLength": 81058141,
+					"upstreamIntegrity": { "algorithm": "sha1", "value": "e1506282faf66ca10e8ab50ee26bd542b7b9ff0a" },
+					"sha256Readback": null
+				}
+			],
+			"commands": [
+				{
+					"id": "convert",
+					"argv": ["-I", "-B", "-m", "soundscaper_m7_conversion", "convert", "--protocol", "soundscaper-model-conversion-v1", "--candidate", "beat-this", "--plan-sha256", "bf5cd009d7c20d8cd384ee143eb9e0d3eb1970723748d9f09c86122f3a46eaf0", "--source-manifest", "source-input-manifest.json", "--output-manifest", "converted-artifacts.json"]
+				},
+				{
+					"id": "parity",
+					"argv": ["-I", "-B", "-m", "soundscaper_m7_conversion", "parity", "--protocol", "soundscaper-model-conversion-v1", "--candidate", "beat-this", "--plan-sha256", "bf5cd009d7c20d8cd384ee143eb9e0d3eb1970723748d9f09c86122f3a46eaf0", "--fixture", "parity-fixture.bin", "--source-runs", "source-framework-runs", "--converted-manifest", "converted-artifacts.json", "--evidence", "parity-evidence.json"]
+				}
+			],
+			"outputManifest": {
+				"schemaVersion": 1,
+				"path": "evidence/milestone-7-model-conversion/beat-this/converted-artifacts.json",
+				"status": "pending-external",
+				"artifacts": [
+					{ "role": "small0-network", "required": true, "fileName": "beat-this-small0.onnx", "byteLength": null, "sha256": null },
+					{ "role": "final0-network", "required": false, "fileName": "beat-this-final0.onnx", "byteLength": null, "sha256": null }
+				]
+			},
+			"parity": {
+				"fixtureId": "beat-this-parity-v1",
+				"inputFileName": "beat-this-parity-v1.wav",
+				"inputByteLength": 705644,
+				"inputSha256": "dac09d315142aab6d80d5ec653519a480414e06feff4412e6006252883dc567a",
+				"evidencePath": "evidence/milestone-7-model-conversion/beat-this/parity-evidence.json",
+				"status": "pending-external",
+				"evidenceSha256": null
+			},
+			"evidenceStatus": "pending-external",
+			"blockedBy": ["converted-output-identity", "source-artifact-sha256-readback", "source-code-archive-identity", "source-framework-parity", "toolchain-lock"]
+		},
+		{
+			"candidateId": "transnetv2",
+			"conversionPlanSha256": "90bf631430e3aac1df64a329532fa1a0273451c6c0b2da73bad02d11eb707ec7",
+			"sourceCode": {
+				"url": "https://github.com/soCzech/TransNetV2",
+				"revision": "85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed",
+				"archive": {
+					"fileName": "transnetv2-85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed.tar.gz",
+					"byteLength": null,
+					"sha256": null
+				}
+			},
+			"sourceArtifacts": [
+				{
+					"role": "tensorflow-saved-model",
+					"fileName": "saved_model.pb",
+					"byteLength": 5933260,
+					"upstreamIntegrity": { "algorithm": "sha256", "value": "8ac2a52c5719690d512805b6eaf5ce12097c1d8860b3d9de245dcbbc3100f554" },
+					"sha256Readback": "8ac2a52c5719690d512805b6eaf5ce12097c1d8860b3d9de245dcbbc3100f554"
+				},
+				{
+					"role": "tensorflow-variables-data",
+					"fileName": "variables.data-00000-of-00001",
+					"byteLength": 30516656,
+					"upstreamIntegrity": { "algorithm": "sha256", "value": "b8c9dc3eb807583e6215cabee9ca61737b3eb1bceff68418b43bf71459669367" },
+					"sha256Readback": "b8c9dc3eb807583e6215cabee9ca61737b3eb1bceff68418b43bf71459669367"
+				},
+				{
+					"role": "tensorflow-variables-index",
+					"fileName": "variables.index",
+					"byteLength": 5526,
+					"upstreamIntegrity": { "algorithm": "sha256", "value": "8b99e28b4ad11372d9a1ad9703298c2e370df14859da4245fdbe818e92dd403f" },
+					"sha256Readback": "8b99e28b4ad11372d9a1ad9703298c2e370df14859da4245fdbe818e92dd403f"
+				}
+			],
+			"commands": [
+				{
+					"id": "convert",
+					"argv": ["-I", "-B", "-m", "soundscaper_m7_conversion", "convert", "--protocol", "soundscaper-model-conversion-v1", "--candidate", "transnetv2", "--plan-sha256", "90bf631430e3aac1df64a329532fa1a0273451c6c0b2da73bad02d11eb707ec7", "--source-manifest", "source-input-manifest.json", "--output-manifest", "converted-artifacts.json"]
+				},
+				{
+					"id": "parity",
+					"argv": ["-I", "-B", "-m", "soundscaper_m7_conversion", "parity", "--protocol", "soundscaper-model-conversion-v1", "--candidate", "transnetv2", "--plan-sha256", "90bf631430e3aac1df64a329532fa1a0273451c6c0b2da73bad02d11eb707ec7", "--fixture", "parity-fixture.bin", "--source-runs", "source-framework-runs", "--converted-manifest", "converted-artifacts.json", "--evidence", "parity-evidence.json"]
+				}
+			],
+			"outputManifest": {
+				"schemaVersion": 1,
+				"path": "evidence/milestone-7-model-conversion/transnetv2/converted-artifacts.json",
+				"status": "pending-external",
+				"artifacts": [
+					{ "role": "network", "required": true, "fileName": "transnetv2.onnx", "byteLength": null, "sha256": null }
+				]
+			},
+			"parity": {
+				"fixtureId": "transnetv2-parity-v1",
+				"inputFileName": "transnetv2-parity-v1.rgb24",
+				"inputByteLength": 467712,
+				"inputSha256": "22695a91ca7749fc034f0a043746dc869a1403ffddd4f0e60f407ee0b61d82d8",
+				"evidencePath": "evidence/milestone-7-model-conversion/transnetv2/parity-evidence.json",
+				"status": "pending-external",
+				"evidenceSha256": null
+			},
+			"evidenceStatus": "pending-external",
+			"blockedBy": ["converted-output-identity", "source-code-archive-identity", "source-framework-parity", "toolchain-lock"]
+		}
+	]
+}
