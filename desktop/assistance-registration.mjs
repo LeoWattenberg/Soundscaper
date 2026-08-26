@@ -9,7 +9,7 @@
  * runtime adapter — is assembled here and main names the subsystem once.
  */
 
-import { totalmem } from 'node:os';
+import { freemem, totalmem } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
 
 import { utilityProcess } from 'electron/main';
@@ -27,6 +27,7 @@ import { assistanceServiceFrom, registerAssistanceIpc } from './project-library-
 import { createExternalFfmpegAssistanceShotRuntimeAdapter } from './project-library-runtime/desktop/assistance-external-ffmpeg-shot-runtime.js';
 import { ASSISTANCE_OPERATION_IPC_CHANNELS, registerAssistanceOperationIpc } from './project-library-runtime/desktop/assistance-operation-main-ipc.js';
 import { createAssistanceOperationService } from './project-library-runtime/desktop/assistance-operation-service.js';
+import { createAssistanceRuntimeFamilyDesktopStartup } from './project-library-runtime/desktop/assistance-runtime-family-startup.js';
 import { ASSISTANCE_WORKFLOW_IPC_CHANNELS, registerAssistanceWorkflowIpc } from './project-library-runtime/desktop/assistance-workflow-main-ipc.js';
 import { createAssistanceWorkflowService } from './project-library-runtime/desktop/assistance-workflow-service.js';
 import { AssistanceStagingRegistry } from './project-library-runtime/desktop/assistance-staging-registry.js';
@@ -155,6 +156,22 @@ export function registerAssistance({
 	const shotDetectionRuntime = createExternalFfmpegAssistanceShotRuntimeAdapter({
 		preferences: externalFfmpegPreferences,
 	});
+	const runtimeFamilies = createAssistanceRuntimeFamilyDesktopStartup({
+		runtimeRoot,
+		helperPath: join(
+			import.meta.dirname,
+			'project-library-runtime',
+			'desktop',
+			'assistance-runtime-family-helper-process.js',
+		),
+		fork: (modulePath, args, options) => utilityProcess.fork(modulePath, [...args], options),
+		sampleRss: (pid) => {
+			const metric = app.getAppMetrics().find((entry) => entry.pid === pid);
+			return metric ? metric.memory.workingSetSize * 1024 : null;
+		},
+		totalMemoryBytes: totalmem,
+		availableMemoryBytes: freemem,
+	});
 	let service = null;
 	const createService = () => {
 		service ??= assistanceServiceFrom({
@@ -197,6 +214,7 @@ export function registerAssistance({
 			voiceActivityRuntime: runtime,
 			diarizationRuntime: runtime,
 			shotDetectionRuntime,
+			additionalRuntime: runtimeFamilies.operations,
 			onProgress,
 		}),
 		confirmOperation: (request) => confirmOperation(dialog, windowFor(), request),
@@ -211,6 +229,7 @@ export function registerAssistance({
 	return Object.freeze({ dispose: async () => {
 		await workflowIpc.dispose();
 		await operationIpc.dispose();
+		runtimeFamilies.dispose();
 		runtime.dispose();
 	} });
 }
