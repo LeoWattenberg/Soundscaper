@@ -1,5 +1,20 @@
 # Milestone 7B: video model licence review and upstream pins
 
+> **Activation status (2026-08-26):** this remains the provenance record for
+> the six permitted video/semantic catalog entries, not evidence that their
+> operation adapters or remote objects are available. The bounded active 7B
+> slice is model-free fast shot detection: selected Framescaper F31 video is
+> staged under an exact selection fence, an admitted user-configured external
+> FFmpeg emits deterministic scene scores, the renderer reviews authenticated
+> boundaries, and explicit acceptance commits ordinary timeline annotations.
+> Accurate TransNetV2 remains blocked. SigLIP/OCR, subject/saliency/reframe,
+> semantic search, and editorial workflows remain typed unavailable. The
+> catalog's intended EU R2 URLs and digests are publication metadata; this
+> activation asserts no durable R2 upload or public read-back evidence. Manual
+> and owner-lab qualification remains open and nonblocking, while licensing,
+> signatures, digests, selection authority, consent, external-runtime
+> admission, and result authentication remain fail closed.
+
 This is the licence and provenance review for the models the Framescaper
 assistance track (7B) needs, and the record of how each pinned artifact was
 verified. It is the video-side counterpart to
@@ -9,11 +24,12 @@ format, and it is cited as evidence by the video records in
 
 ## What "verified" means here
 
-The audio track shipped a model whose bytes matched their pin exactly and
-which the runtime still could not load: the Parakeet export fused the decoder
-and joiner into one graph where the runtime wants three. The digest was right
-and the model was wrong. That cost roughly 1.3 GB of upload before anything
-caught it, and it is why nothing below is pinned on a size and a filename.
+The audio track staged a model whose bytes matched their pin exactly and which
+the runtime still could not load: the Parakeet export fused the decoder and
+joiner into one graph where the runtime wants three. The digest was right and
+the model was wrong. That cost roughly 1.3 GB of local mirror transfer before
+anything caught it, and it is why nothing below is pinned on a size and a
+filename.
 
 Every artifact in this review was fetched in full, hashed locally, and — for
 every ONNX file — parsed to read its graph inputs, outputs, opsets and
@@ -128,24 +144,28 @@ made TransNetV2's only available conversion unusable.
 
 ## Upload
 
-All six models were published on 2026-08-13 and every record is `permitted`.
-`node scripts/mirror-local-models.mjs --verify` reads all 35 mirrored artifacts
-across both tracks back from their public URLs and confirms each against its
-pinned digest; `THIRD_PARTY_LICENSES.md` cites the bytes that shipped.
+All six records are `permitted`, which authorizes an exact future publication;
+it does not prove one occurred. The catalog carries intended immutable EU R2
+URLs, sizes, and digests, and the mirror tooling can verify a credentialed
+publication, but this activation contains no accepted durable upload/read-back
+record. `THIRD_PARTY_LICENSES.md` and the pinned evidence continue to govern any
+bytes offered through authenticated preseed or a later verified mirror.
 
 ## Branch hygiene: this branch must be squash-merged
 
 The mirror stages downloads into `.model-mirror/`, which was not ignored until
 this slice added it. Six commits on this branch therefore carry roughly 3.7 GB
-of model weights that are already digest-pinned in the catalog and served from
-the object store, so nothing is recoverable from having them in the history.
+of model weights that are already digest-pinned in the catalog and assigned
+intended mirror identities, so nothing is recoverable from having them in the
+history. This statement does not claim that the mirror objects were published.
 
 The tree is fixed and nothing further accumulates, and by decision on
 2026-08-13 the history is deliberately **not** being rewritten. That decision
 depends on how this branch lands: it must be **squash-merged** into `main`, not
 merged with its history. The final tree contains no `.model-mirror`, so a
 squash carries no weights onto `main`; a normal merge would carry all 3.7 GB
-onto `main` permanently. Deleting the branch after the squash and running
+onto `main` permanently. This historical local staging does not establish a
+remote publication. Deleting the branch after the squash and running
 `git gc --prune` reclaims the space locally.
 
 ## Non-goals

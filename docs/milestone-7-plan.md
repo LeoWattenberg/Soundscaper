@@ -11,24 +11,33 @@
 > source-verified on 2026-08-11 and must be re-verified against the pinned
 > artifact when each model is actually cataloged.
 
-**Activation status (2026-08-26):** the optional foundation and its bounded
-first workflow are active on selected Soundscaper S30 and Framescaper F31 even
-though manual and owner-lab qualification remains open. The signed catalog and
-model lifecycle, menu-reached model and assistance surfaces, pathless fenced
-jobs, S30/F31 transcript-asset references, validated-result review, and
-explicit reviewed transcript acceptance are active. Acceptance revalidates the
-current selection through an `AssistanceProposalSession`, publishes one
-canonical content-addressed external body, and commits its strict reference
-with a deterministic ordinary label track as one undoable edit; stale or
-failed publication rolls back. Operation coverage remains partial: only an
-installed authenticated Parakeet model has a real Sherpa speech-recognition
-path. Every other closed operation, incompatible model, missing runtime, and
-unsupported target returns typed unavailable state. Manual evidence is
-documentary and nonblocking; licensing permission, catalog signatures,
+**Activation status (2026-08-26):** the optional foundation and bounded 7A/7B
+slices are active on selected Soundscaper S30 and Framescaper F31 even though
+manual and owner-lab qualification remains open. The signed catalog and model
+lifecycle, menu-reached model and assistance surfaces, pathless fenced jobs,
+S30/F31 transcript-asset references, validated-result review, and explicit
+acceptance are active. Exact installed bindings now execute Parakeet speech
+recognition, Silero voice activity, and pyannote-segmentation plus ERes2Net
+speaker diarization through the verified Sherpa runtime. Speech acceptance
+publishes one canonical content-addressed body and ordinary label track; VAD
+and diarization acceptance publish ordinary silence and anonymous-speaker label
+tracks. Authenticated English Parakeet reviews additionally offer initially
+unselected filler, repetition, and same-fence VAD-measured silence cleanup
+choices; accepting an explicit subset is one link-aware disjoint ripple edit
+and undo step. Selected F31 video also admits model-free fast scene-score shot
+detection through an admitted compatible user-configured external FFmpeg, with
+reviewed boundaries accepted as ordinary timeline annotations.
+
+Operation coverage remains partial. Whisper/alignment, enhancement,
+separation, tagging, beats, semantic and visual embeddings, OCR,
+subject/saliency/reframe, editorial generation, and accurate TransNetV2 shots
+remain typed unavailable; no substitute result is fabricated. Manual evidence
+is documentary and nonblocking. Licensing permission, catalog signatures,
 artifact digests, runtime/platform compatibility, selected-media authority,
-storage integrity, and explicit consent remain hard fail-closed gates. No
-durable remote upload/readback evidence or accepted external qualification
-result is asserted by this activation.
+storage integrity, explicit consent, and external-FFmpeg admission remain hard
+fail-closed gates. Catalog mirror metadata is not durable R2 upload/read-back
+evidence, and this activation asserts no accepted external qualification
+result.
 
 ## Goals and ordering principle
 
@@ -140,9 +149,13 @@ plan ships no web inference at all:
 ## Runtime decision
 
 The plan evaluated four inference runtimes, staged so no packet integrates more
-than one new runtime at a time. The active implementation currently adopts only
-the first runtime and only its Parakeet speech-recognition adapter; the other
-three remain future adapter choices, not active capabilities:
+than one new runtime at a time. The active implementation adopts the first
+runtime for exact Parakeet speech recognition, Silero VAD, and paired
+pyannote/ERes2Net diarization. GTCRN/enhancement and separation support in that
+runtime are not active. The other three inference runtimes remain future
+adapter choices, not active capabilities; admitted external FFmpeg fast-shot
+execution is a separate model-free editor runtime, not a fourth inference
+family:
 
 1. **sherpa-onnx-node (Apache-2.0)** — the speech pipeline: Silero VAD,
    Parakeet ASR with per-token timestamps, speaker diarization
@@ -185,8 +198,12 @@ three remain future adapter choices, not active capabilities:
   `exit` event, not a dead editor), and `MessagePortMain` wiring for
   progress streams. The current Electron composition lazily spawns the
   assistance utility process only after authenticating the exact packaged
-  Sherpa runtime. A dedicated inference worker inside that process is the only
-  context that imports the native module. Main owns the helper lifecycle,
+  Sherpa runtime for Parakeet recognition, Silero VAD, or the exact
+  pyannote/ERes2Net diarization pair. Model-free fast shots instead use the
+  separately admitted fixed-command external-FFmpeg runtime; that route does
+  not grant the helper generic subprocess authority. A dedicated inference
+  worker inside the utility process is the only context that imports the native
+  Sherpa module. Main owns the helper lifecycle,
   heartbeats, cancellation deadline, RSS sampling, and exact file grants; no
   renderer receives spawn, binary, or filesystem-path authority. The threat
   model retains `native-helper-processes` as partial because process separation
@@ -216,7 +233,7 @@ three remain future adapter choices, not active capabilities:
   request broker pattern (`src/common/editor/worker-request-broker.ts`).
 - **Etiquette target:** background priority, battery/thermal pauses, scrub-time
   throttling, pause controls, and multi-family idle unloading remain future
-  adapter work. They are not claimed by the active single-family speech path.
+  adapter work. They are not claimed by the active bounded Sherpa paths.
 
 ## Model catalog decision
 
@@ -236,11 +253,14 @@ currently contains thirteen permitted entries: Silero VAD; Parakeet v2 and v3;
 Whisper large-v3-turbo; pyannote segmentation; ERes2Net; DeepFilterNet3;
 YuNet; D-FINE; U²-Net-P; PP-OCRv4 mobile; nomic-embed-text; and SigLIP 2.
 Catalog presence permits authenticated install and custody, not execution.
-Only the two Parakeet entries match the active Sherpa recognition adapter; the
-remaining entries require adapters that are not active and therefore refuse
-with typed unavailable state. The catalog's mirror URLs and publisher describe
-the authorized distribution path, but this plan does not claim the remote R2
-objects have been uploaded.
+The two Parakeet entries match the active Sherpa recognition adapter, Silero
+matches the active VAD adapter, and pyannote segmentation plus ERes2Net form the
+only admitted diarization pair. Whisper, DeepFilterNet3, and every current
+vision/semantic catalog task still lack active adapters and therefore refuse
+with typed unavailable state. Fast shot detection is model-free and relies on
+separately admitted external FFmpeg authority. The catalog's mirror URLs and
+publisher describe the authorized distribution path, but this plan does not
+claim the remote R2 objects have been uploaded or read back durably.
 
 ### Speech (7A primary)
 
@@ -380,8 +400,11 @@ This answers "how are we shipping them."
   signing scheme (authority, pinned verification key, rotation) is a
   named WP-7.0.1 design item — at minimum it inherits the application's
   signing chain.
-- **Hosting:** every artifact is mirrored to a first-party bucket behind
-  our domain (Cloudflare R2: zero egress, Range support). Upstream
+- **Hosting target:** an artifact may be published to a first-party bucket
+  behind our domain (Cloudflare R2: zero egress, Range support) only through
+  the separately credentialed, digest/read-back-verified publisher. The current
+  activation records intended object identities but no accepted durable R2
+  upload/read-back evidence. Upstream
   Hugging Face `resolve/{commit}` and GitHub release URLs are provenance
   sources recorded in the catalog, never the shipped download path —
   HF gates, renames, and CDN-host changes make it a source, not a
@@ -548,20 +571,22 @@ manual sign-off as an execution switch:
 | --- | --- |
 | Catalog and licensing | A locally authenticated Ed25519 catalog V2 has current and pre-pinned successor verification keys. Its thirteen entries bind complete permitted licensing rows, immutable upstream provenance, exact artifact sizes and SHA-256 digests, and the intended EU mirror identity. Unknown keys, invalid signatures, incomplete licensing, refused weights, and artifact drift fail closed. |
 | Model lifecycle | A user-settable, content-addressed filesystem store supports capacity preflight, explicit resumable install, cancellation after quiescence, preseed, relocation by copy/verify/swap, removal, garbage collection, notices, and reconciliation after external deletion. **Tools > Local Models > Manage Models…** is lazy and desktop-only. No model is installed or repaired implicitly. |
-| Native runtime | Sherpa ONNX 1.13.5 has an exact packaged runtime manifest for linux-x64, linux-arm64, mac-arm64, and win-x64; win-arm64 is explicitly unsupported. Main authenticates the payload before spawning the utility process and the inference worker authenticates it again before native import. |
+| Native runtime | Sherpa ONNX 1.13.5 has an exact packaged runtime manifest for linux-x64, linux-arm64, mac-arm64, and win-x64; win-arm64 is explicitly unsupported. Main authenticates the payload before spawning the utility process and the inference worker authenticates it again before native import. The same supervised worker now has closed Parakeet recognition, Silero VAD, and two-model diarization request shapes. Fast shots use the separately admitted fixed-command external-FFmpeg runtime rather than a model or generic helper subprocess. |
 | Job and data boundary | Fifteen operations share one closed request/result/progress vocabulary, digest-bound model identities, exact selected-media fences, authenticated input/output claims, bounded main-private staging, pathless MessagePort transfer, cancellation that waits for helper and transfer quiescence, and release cleanup. The current activation branch projects those controls through a frozen preload bridge; unsupported execution returns typed unavailable state. |
-| Product state | Selected Soundscaper S30 and Framescaper F31 preserve digest-bound transcript asset references and their owned body-custody contracts. The speech-recognition review path exposes explicit acceptance, revalidates an `AssistanceProposalSession`, publishes the canonical transcript body, and commits its reference plus deterministic ordinary label track as one undoable project edit. History, reopen, retention, and current-format `.scape` custody retain the body; AUP4 reports its omission. |
-| Implemented feature domains | Authenticated Parakeet speech recognition is connected end to end through review and transcript acceptance. Canonical transcript, disfluency/silence proposal, deterministic scene-score shot-derivation, and broader proposal primitives exist, but no other operation adapter currently connects them to inference or canonical acceptance. |
+| Product state | Selected Soundscaper S30 and Framescaper F31 preserve digest-bound transcript asset references and their owned body-custody contracts. Speech review exposes explicit transcript acceptance; VAD and diarization reviews expose explicit range-label acceptance; cleanup exposes initially unselected deterministic choices; F31 shot review exposes explicit timeline-annotation acceptance. Each route revalidates its complete current fence and uses ordinary one-step project history. History, reopen, retention, and current-format `.scape` custody retain transcript bodies; AUP4 reports their omission. |
+| Implemented feature domains | Authenticated Parakeet recognition, Silero VAD, and exact pyannote/ERes2Net diarization execute end to end through semantic review and explicit acceptance. English Parakeet filler/repetition cleanup and exact same-session, same-fence VAD-measured silence cleanup are user-reachable without auto-apply. Selected F31 video can run model-free fast FFmpeg scene detection, review authenticated boundaries, and explicitly accept ordinary shot annotations. All other operation adapters remain unavailable. |
 
 Activation has four explicit boundaries:
 
-1. **Only authenticated Parakeet speech recognition executes.** The verified
-   Sherpa adapter accepts the Parakeet encoder, decoder, joiner, and token
-   artifacts. Whisper and every non-speech catalog entry lack an active adapter.
-   The remaining closed operations return `adapter-unavailable`, while a missing
-   compatible model, runtime, or target returns the corresponding typed
-   unavailable result. The product must never substitute another model or
-   pretend an unavailable operation completed.
+1. **Only four bounded operation routes execute.** The verified Sherpa adapter
+   accepts exact Parakeet recognition, Silero VAD, and paired
+   pyannote-segmentation/ERes2Net diarization bindings. Model-free fast shot
+   detection accepts no model binding and runs only through admitted external
+   FFmpeg authority. Whisper and the remaining catalog tasks lack active
+   adapters; accurate TransNetV2 remains blocked. The other closed operations
+   return `adapter-unavailable`, while a missing compatible model, runtime, or
+   target returns the corresponding typed unavailable result. The product must
+   never substitute another model or pretend an unavailable operation completed.
 2. **Catalog publication metadata is not upload evidence.** The mirror
    publisher, immutable object policy, URLs, and digests exist, but this branch
    records no real R2 write or remote read-back. Explicit preseed remains a
@@ -573,12 +598,14 @@ Activation has four explicit boundaries:
    it does not disable the bounded optional foundation or weaken any hard
    admission check.
 4. **No result applies itself.** Assistance can read only the explicitly
-   selected persisted media staged for its job. A reviewed Parakeet transcript
-   remains private session state until the user chooses Accept. That action
-   revalidates every selection claim, stages the authenticated body, and
-   commits one ordinary atomic project edit; Reject, stale authority, or a
-   failure produces no canonical mutation. Deterministic editing remains
-   complete when the runtime, models, or assistance state is absent.
+   selected persisted media staged for its job. Reviewed transcripts, VAD
+   ranges, speaker turns, shot boundaries, and cleanup choices remain review
+   state until the user explicitly accepts them. Acceptance revalidates every
+   selection claim and commits one ordinary atomic project edit; cleanup starts
+   with no selected choice and one accepted subset becomes one link-aware
+   disjoint ripple batch. Reject, cancel, stale authority, or a failure produces
+   no canonical mutation. Deterministic editing remains complete when the
+   runtime, models, or assistance state is absent.
 
 ## Phase structure
 
@@ -681,12 +708,16 @@ activation; explicit preseed is the authenticated offline path.
 
 ### WP-7.0.2 — Assistance helper substrate
 
-**Current status:** active for the verified Sherpa/Parakeet speech slice only.
+**Current status:** active for the verified Sherpa speech, VAD, and diarization
+slices, plus a separately admitted model-free external-FFmpeg fast-shot route.
 The utility-process supervision, packaged runtime authentication, exact file
-grants, progress, cancellation, and real reference transcription exist. The
-Silero, Whisper, ONNX vision/semantic, llama.cpp, battery/thermal, and broader
-adapter outcomes in the original packet below are not active and must return
-typed unavailable state rather than being inferred from the shared protocol.
+grants, progress, cancellation, Parakeet transcription, Silero speech ranges,
+and pyannote/ERes2Net speaker turns exist. Whisper, alignment, enhancement,
+separation, ONNX vision/semantic tasks, llama.cpp, battery/thermal behavior, and
+the broader adapter outcomes in the original packet below are not active and
+must return typed unavailable state rather than being inferred from the shared
+protocol. External FFmpeg is user-configured and hard-admitted; it is not a
+bundled assistance runtime or authority for other operations.
 
 - **Outcome:** The assistance `utilityProcess` helper implementing the
   milestone-5 helper contract's first slice: versioned bounded IPC,
@@ -731,12 +762,16 @@ typed unavailable state rather than being inferred from the shared protocol.
 
 **Current status:** the task kind, closed operation/data contracts, selected
 media fence, main-private custody, and menu-reached consent and validated-result
-review are active on S30/F31. Reviewed Parakeet transcript output now enters a
-bounded proposal session and can be accepted explicitly into one authenticated
-external body, assistance reference, and ordinary label track. All other
-result-to-proposal operation paths remain unavailable. The registered external
-privacy workload has no accepted owner-lab result and remains documentary;
-collectors not present in the repository are still planned work.
+review are active on S30/F31. Reviewed Parakeet transcript output enters a
+bounded proposal session and can be accepted into one authenticated external
+body, assistance reference, and ordinary label track. Reviewed Silero ranges,
+two-model speaker turns, and F31 fast-shot boundaries can be explicitly
+accepted as ordinary label tracks or timeline annotations. English Parakeet
+reviews expose per-item filler/repetition cleanup and same-fence reviewed-VAD
+silence choices without auto-apply. The remaining result-to-proposal operation
+paths stay unavailable. The registered external privacy workload has no
+accepted owner-lab result and remains documentary; collectors not present in
+the repository are still planned work.
 
 - **Outcome:** The `assistance` task kind in the progress coordinator;
   the consent surface (per-job media selection, explicit model choice);
@@ -782,9 +817,11 @@ collectors not present in the repository are still planned work.
   Stop: stop if word timing would need a non-commercial aligner.
   **Current bounded slice:** authenticated Parakeet speech recognition,
   review, canonical transcript-body publication, and explicit labels-as-track
-  acceptance are active. VAD orchestration, Whisper, WER/owner-lab evidence,
-  SRT/VTT workflow integration, and the remaining acceptance conditions are
-  still open; this is not the complete 7A-1 packet.
+  acceptance are active. Standalone authenticated Silero VAD also executes,
+  reviews exact 16 kHz speech ranges, and can accept derived silence labels.
+  Automatic VAD-to-ASR orchestration, Whisper, WER/owner-lab evidence, SRT/VTT
+  workflow integration, and the remaining acceptance conditions are still
+  open; this is not the complete 7A-1 packet.
 - **7A-2 — Filler and silence cleanup proposals.** Outcome: disfluency +
   silence proposal list with audition; accept commits one disjoint-range
   ripple batch. Invariants: proposals are session state; only accepted
@@ -795,6 +832,14 @@ collectors not present in the repository are still planned work.
   model passes the planted-filler fixture for the target language — the
   feature scopes to passing models (English Parakeet v2 initially)
   rather than degrading silently.
+  **Current bounded slice:** after explicit review of an authenticated English
+  Parakeet result, the Local Assistance dialog presents deterministic filler
+  and repetition proposals, initially unselected. Silence is proposed only
+  from exact reviewed Silero VAD data retained for the same full selection
+  fence in that dialog session; transcript word gaps are not relabeled as VAD.
+  Explicit subset acceptance commits one link-aware disjoint ripple batch and
+  undo step. Reject, cancel, stale authority, and an empty subset make no
+  mutation. Audition and planted-fixture/manual qualification remain open.
 - **7A-3 — Diarization and speaker labels.** Outcome: speaker turns as
   labeled regions; transcript segments gain speakers. Invariants: local
   clustering only; speaker names are user-editable labels, never claimed
@@ -802,6 +847,13 @@ collectors not present in the repository are still planned work.
   (DER) bound; stable labels across re-runs on unchanged media.
   Non-goals: no voice ID across projects. Stop: stop if quality demands
   a gated or non-commercial model.
+  **Current bounded slice:** exact installed pyannote segmentation and ERes2Net
+  embedding bindings execute together independent of UI selection order.
+  Authenticated turns are semantically reviewed and explicit acceptance creates
+  anonymous speaker label regions in one ordinary batch. Cross-project voice
+  identity is absent. Transcript speaker-attribution helpers exist, but this
+  activation does not claim a complete attributed-transcript workflow or the
+  open DER/owner-lab qualification criteria.
 - **7A-4 — Enhancement and stems as derived sources.** Outcome: denoise
   (DeepFilterNet3/GTCRN) and separation (Spleeter; htdemucs behind its
   legal gate) render derived sources the user swaps in; original media
@@ -812,22 +864,33 @@ collectors not present in the repository are still planned work.
   effects (that is milestone-4/5 effect-host territory). Stop: stop if a
   stem model's weights cannot clear the licensing gate — the feature
   ships with fewer models, not with a trapped one.
+  **Current status:** unavailable. No enhancement or separation adapter,
+  derived-source publication workflow, or acceptance route is activated.
 - **7A-5 — Semantic transcript search.** Outcome: transcript embeddings
   (nomic-embed) in a local disposable index; palette-integrated "find
   where I said…" jumping to timestamps. Invariants: index is rebuildable,
   evictable, and never required. Acceptance: recall on a seeded phrase
   set; index rebuild determinism. Non-goals: no cross-project search.
   Stop: stop if the index would need to persist inside the document.
+  **Current status:** unavailable. Catalog custody for nomic embeddings does
+  not activate an embedding adapter, disposable index, or search UI.
 - **7A-6 — Beat and tempo suggestions.** Outcome: Beat This! beats and
   downbeats as a label track; optional reviewed tempo-map suggestion
   command. Invariants: the MIDI fence is untouched; no automatic
   tempo-map rewrite. Acceptance: beat-grid fixture tolerance; label
   round-trip. Non-goals: no MIDI anything (roadmap.md:117-124). Stop:
   stop if any madmom-derived weight would enter the tree.
+  **Current status:** unavailable. No beat adapter, beat-label acceptance, or
+  tempo-map proposal route is activated; the MIDI fence remains unchanged.
 - **7A-7 — Exit evidence.** The privacy workload run end-to-end on the
   full 7A surface, results recorded without relabeling pending rows.
 
 ### 7B packets (Framescaper track; slice docs at pickup)
+
+Only the bounded fast-shot portion of 7B-1 is active. The accurate shot tier
+and packets 7B-2 through 7B-5 remain unavailable; cataloged model custody and
+existing deterministic editor primitives do not imply assistance adapters,
+indexes, proposal sessions, or acceptance authority for those packets.
 
 - **7B-1 — Shot detection and markers.** Outcome: ffmpeg scene scores
   (fast) and TransNetV2 (accurate) produce shot boundaries as timeline
@@ -840,6 +903,12 @@ collectors not present in the repository are still planned work.
   dissolves (documenting the fast mode's known miss class). Non-goals: no
   auto-cutting. Stop: stop if annotation activation would demand a schema
   revision beyond the capability flip.
+  **Current bounded slice:** selected F31 video can run the fast scene-score
+  path without a model through an admitted user-configured external FFmpeg.
+  Exact authenticated boundaries receive semantic review; explicit acceptance
+  commits ordinary timeline annotations, and reject, stale authority, or an
+  empty result does not fabricate cuts. TransNetV2 accurate mode remains
+  blocked, and cut-detection fixture/manual qualification remains open.
 - **7B-2 — Frame semantics: tagging and search.** Outcome: shot-aware
   sampled SigLIP 2 embeddings and tags; OCR of overlays on shot keyframes
   as searchable text; palette-integrated visual search fused with 7A-5's
@@ -951,14 +1020,17 @@ collectors not present in the repository are still planned work.
   derivatives so a re-run resumes coarse-grained.
 - **Selected S30 and F31 own the assistance reference schema, not every
   workflow.** Their transcript references and body custody do not imply that
-  diarization, enhancement, search, reframe, clip-maker, caption styling, or
-  vertical-delivery adapters exist. Each remains unavailable until its own
-  bounded feature slice lands.
+  enhancement, separation, search, reframe, clip-maker, caption styling, or
+  vertical-delivery adapters exist. Diarization and fast shots are active only
+  through the exact bounded review-and-label/annotation routes described
+  above. Each remaining workflow stays unavailable until its own bounded
+  feature slice lands.
 - **The browser has custody but no inference.** Web Soundscaper and
   Framescaper preserve the schema-defined ordinary project state, while new
   model execution and the filesystem model manager remain Electron-only. The
-  current desktop UI can accept a reviewed Parakeet transcript into ordinary
-  label/project state; web routes retain and edit that state but cannot run new
+  current desktop UI can accept reviewed Parakeet transcripts, VAD silences,
+  anonymous speaker turns, cleanup edits, and F31 shot markers into ordinary
+  project state; web routes retain and edit that state but cannot run new
   inference.
 - **Remote model availability is not established here.** A real R2 upload and
   read-back require the separately scoped publisher credentials and evidence;
