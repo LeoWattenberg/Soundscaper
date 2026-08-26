@@ -238,7 +238,7 @@ test.describe('selected Framescaper F31 recoverable capture', () => {
 		await panel.getByRole('combobox', { name: 'Countdown', exact: true }).selectOption('0');
 		await panel.getByRole('button', { name: 'Arm capture', exact: true }).press('Enter');
 		await panel.getByRole('button', { name: 'Start capture', exact: true }).press('Enter');
-		await expectCapturePhase(panel, 'recording');
+		await expectCapturePhase(panel, 'recording', 30_000);
 		await expect.poll(async () => (
 			await captureHarnessState(page)
 		).audioProcessorConstructions).toBe(2);

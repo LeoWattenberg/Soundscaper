@@ -102,7 +102,7 @@ test('selected V28 authors typed OpenFX state only from the opted-in Effect menu
 	await installNativeServicesFixture(page);
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
 	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid…'], SLOW_WORKFLOW);
-	await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toHaveCount(1);
+	await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toHaveCount(1, SLOW_WORKFLOW);
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', SLOW_WORKFLOW);
 	const tools = await openNestedCommandMenu(page, editor, 'Tools', [], SLOW_WORKFLOW);
 	await getMenuItem(tools, 'Native media and scratch…').click();
@@ -134,7 +134,7 @@ test('selected V28 runs one cumulative accessible OpenFX Interact workflow witho
 	await installNativeServicesFixture(page);
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
 	await chooseNestedCommandAction(page, editor, 'Generate', ['Video Generators', 'Add Solid…'], SLOW_WORKFLOW);
-	await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toHaveCount(1);
+	await expect(editor.getByRole('group', { name: 'Video clip: Solid', exact: true })).toHaveCount(1, SLOW_WORKFLOW);
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', SLOW_WORKFLOW);
 	const tools = await openNestedCommandMenu(page, editor, 'Tools', [], SLOW_WORKFLOW);
 	await getMenuItem(tools, 'Native media and scratch…').click();

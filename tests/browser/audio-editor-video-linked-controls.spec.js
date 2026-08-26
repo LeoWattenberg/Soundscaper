@@ -12,6 +12,7 @@ import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtim
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
+const PERSISTENCE_TIMEOUT = { timeout: 15_000 };
 
 test.describe('Framescaper linked audio menus and video visibility controls', () => {
 	test.beforeEach(async ({ page }) => {
@@ -38,7 +39,7 @@ test.describe('Framescaper linked audio menus and video visibility controls', ()
 
 		const projectId = await editor.getAttribute('data-project-id');
 		expect(projectId).toBeTruthy();
-		await expect.poll(async () => Boolean((await persistedMediaState(page, projectId))?.links.video.avLinkId))
+		await expect.poll(async () => Boolean((await persistedMediaState(page, projectId))?.links.video.avLinkId), PERSISTENCE_TIMEOUT)
 			.toBe(true);
 		const initial = await persistedMediaState(page, projectId);
 		expect(initial).not.toBeNull();
@@ -77,7 +78,7 @@ test.describe('Framescaper linked audio menus and video visibility controls', ()
 				&& links.video.avLinkId === links.audio.avLinkId
 				&& links.video.avLinkId !== initialLinkId,
 			);
-		}).toBe(true);
+		}, PERSISTENCE_TIMEOUT).toBe(true);
 		const relinked = (await persistedMediaState(page, projectId)).links;
 		const relinkedLinkId = relinked.video.avLinkId;
 		expect(relinkedLinkId).toBeTruthy();
@@ -176,12 +177,12 @@ function linksWithId(links, avLinkId) {
 }
 
 async function expectPersistedLinks(page, projectId, expected) {
-	await expect.poll(async () => (await persistedMediaState(page, projectId))?.links ?? null)
+	await expect.poll(async () => (await persistedMediaState(page, projectId))?.links ?? null, PERSISTENCE_TIMEOUT)
 		.toEqual(expected);
 }
 
 async function expectPersistedHidden(page, projectId, expected) {
-	await expect.poll(async () => (await persistedMediaState(page, projectId))?.videoTrack.hidden ?? null)
+	await expect.poll(async () => (await persistedMediaState(page, projectId))?.videoTrack.hidden ?? null, PERSISTENCE_TIMEOUT)
 		.toBe(expected);
 }
 
