@@ -117,9 +117,20 @@ async function openStaticBitmap(
 	const bitmap = await globalThis.createImageBitmap(new Blob([bytes.slice()], { type: mimeType }), {
 		imageOrientation: 'from-image', premultiplyAlpha: 'none', colorSpaceConversion: 'default',
 	});
-	cancelled(signal);
-	const width = positiveInteger(bitmap.width, 'ImageBitmap width');
-	const height = positiveInteger(bitmap.height, 'ImageBitmap height');
+	// The bitmap exists before anything can reject, and only the returned session
+	// can close it, so a cancellation landing in this window would orphan a raster
+	// of up to the admitted maximum with no deterministic release. The decoder
+	// branch above guards the same way.
+	let width: number;
+	let height: number;
+	try {
+		cancelled(signal);
+		width = positiveInteger(bitmap.width, 'ImageBitmap width');
+		height = positiveInteger(bitmap.height, 'ImageBitmap height');
+	} catch (error) {
+		bitmap.close();
+		throw error;
+	}
 	let closed = false;
 	return Object.freeze({
 		metadata: Object.freeze({

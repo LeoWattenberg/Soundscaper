@@ -69,3 +69,39 @@ test('ImageDecoder dimensions come from a decoded frame rather than the track in
 	assert.equal(closedFrames, 2);
 	session.close();
 });
+
+/**
+ * The bitmap exists before the abort can be observed, and only the session that
+ * is never returned can close it. A cancelled import — the per-file decode
+ * deadline, or the operator stopping a batch — would otherwise orphan a raster
+ * of up to the admitted maximum per file.
+ */
+test('a decode cancelled after the bitmap resolves still closes it', async (context) => {
+	const decoderDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'ImageDecoder');
+	const bitmapDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'createImageBitmap');
+	let closedBitmaps = 0;
+	const controller = new AbortController();
+	Reflect.deleteProperty(globalThis, 'ImageDecoder');
+	Object.defineProperty(globalThis, 'createImageBitmap', {
+		configurable: true,
+		value: async () => {
+			// Aborted while the decode was in flight, which is the window the guard
+			// has to cover.
+			controller.abort();
+			return {
+				width: 2, height: 1,
+				close(): void { closedBitmaps += 1; },
+			};
+		},
+	});
+	context.after(() => {
+		if (decoderDescriptor) Object.defineProperty(globalThis, 'ImageDecoder', decoderDescriptor);
+		if (bitmapDescriptor) Object.defineProperty(globalThis, 'createImageBitmap', bitmapDescriptor);
+		else Reflect.deleteProperty(globalThis, 'createImageBitmap');
+	});
+
+	await assert.rejects(openFramescaperBrowserNativeImageV1({
+		bytes: Uint8Array.of(1), format: 'png', mimeType: 'image/png', signal: controller.signal,
+	}));
+	assert.equal(closedBitmaps, 1, 'the orphaned bitmap is released');
+});
