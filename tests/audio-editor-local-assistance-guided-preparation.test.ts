@@ -71,6 +71,52 @@ test('TIGER preparation reserves dialogue, music, and effects once in canonical 
 	assert.equal(fixture.custodyEvents.filter(({ kind }) => kind === 'output').length, 3);
 });
 
+test('transcript indexing stages one authenticated stored transcript without rendering media', async () => {
+	const { transcriptBytes, transcriptSha256, storageKey, transcriptProject } = transcriptAssetFixture();
+	const fixture = preparationFixture(transcriptProject, false, { storageKey, bytes: transcriptBytes });
+	const result = await fixture.preparation.prepareGuidedWorkflow({
+		jobId: JOB_ID, workflowId: 'index-transcript',
+		settings: defaultAssistanceWorkflowSettingsV1('index-transcript'),
+		models: [model('nomic-embed-text-v1.5', '1.5.0', 'text-embedding', 7)],
+		custody: fixture.custody, signal: new AbortController().signal,
+	});
+	assert.equal(result.outcome, 'prepared');
+	if (result.outcome !== 'prepared') return;
+	assert.deepEqual(result.workflow.stageIds,
+		['chunk-transcript', 'embed-transcript', 'publish-transcript-index']);
+	assert.equal(result.workflow.fence.transcriptBodySha256, transcriptSha256);
+	assert.deepEqual(fixture.operations, [], 'stored transcript indexing does not render selected audio');
+	assert.deepEqual(fixture.custodyEvents.map(({ kind, slotId }) => `${kind}:${slotId}`), [
+		'input:transcript', 'output:text-chunks', 'producer:text-chunks', 'output:embeddings',
+		'producer:text-chunks', 'producer:embeddings', 'output:transcript-index',
+	]);
+});
+
+test('transcript indexing refuses external deletion and corruption before staging', async () => {
+	const { transcriptBytes, storageKey, transcriptProject } = transcriptAssetFixture();
+	const missing = preparationFixture(transcriptProject, false, {
+		storageKey: 'assistance-transcript-sha256:missing', bytes: transcriptBytes,
+	});
+	assert.deepEqual(await missing.preparation.prepareGuidedWorkflow({
+		jobId: JOB_ID, workflowId: 'index-transcript',
+		settings: defaultAssistanceWorkflowSettingsV1('index-transcript'),
+		models: [model('nomic-embed-text-v1.5', '1.5.0', 'text-embedding', 7)],
+		custody: missing.custody, signal: new AbortController().signal,
+	}), { outcome: 'unavailable', reason: 'transcript-custody-unavailable' });
+	assert.deepEqual(missing.custodyEvents, []);
+	const corrupt = preparationFixture(transcriptProject, false, {
+		storageKey, bytes: Uint8Array.from([...transcriptBytes, 0]),
+	});
+	await assert.rejects(corrupt.preparation.prepareGuidedWorkflow({
+		jobId: JOB_ID, workflowId: 'index-transcript',
+		settings: defaultAssistanceWorkflowSettingsV1('index-transcript'),
+		models: [model('nomic-embed-text-v1.5', '1.5.0', 'text-embedding', 7)],
+		custody: corrupt.custody, signal: new AbortController().signal,
+	}), /transcript body changed/iu);
+	assert.deepEqual(corrupt.custodyEvents, []);
+	assert.equal(corrupt.releases, 1);
+});
+
 test('missing or ambiguous exact models and unavailable aggregate custody are typed refusals', async () => {
 	const fixture = preparationFixture();
 	for (const models of [[], [
@@ -131,6 +177,13 @@ test('Accurate Mark Cuts never substitutes Fast or drops independently framed pa
 		getProject: () => videoProject, getSelectedClipId: () => 'video-clip',
 		captureProject: () => ({ revision: 4 }), assertProject: () => undefined,
 		preflightStorage: async () => undefined,
+		currentSelectionFence: () => ({
+			projectId: 'project-1', schemaVersion: 30, revision: 4,
+			sequenceId: 'main-sequence', occurrenceIds: ['video-clip'],
+			sourceId: 'video-source', sourceSha256: SOURCE_SHA256,
+			sourceStartFrame: 0, sourceEndFrame: 120,
+			linkMembershipSha256: '12'.repeat(32), timingAuthoritySha256: '34'.repeat(32),
+		}),
 		selected: {
 			listSelectedMedia: async () => ({ sources: [{ sourceId: 'video-source',
 				label: 'Video', mediaKind: 'video', operations: ['shot-detection'] }] }),
@@ -170,7 +223,11 @@ interface FixtureProject {
 	readonly [key: string]: unknown;
 }
 
-function preparationFixture(projectValue: FixtureProject = project(), stale = false) {
+function preparationFixture(
+	projectValue: FixtureProject = project(),
+	stale = false,
+	transcript?: Readonly<{ storageKey: string; bytes: Uint8Array }>,
+) {
 	const operations: string[] = [];
 	const preflights: number[] = [];
 	const custodyEvents: Array<{ kind: 'input' | 'output' | 'producer'; slotId: string }> = [];
@@ -234,6 +291,11 @@ function preparationFixture(projectValue: FixtureProject = project(), stale = fa
 			if (stale) throw new DOMException('stale', 'AbortError');
 		},
 		preflightStorage: async (bytes) => { preflights.push(bytes); },
+		currentSelectionFence: () => preparedFence,
+		...(transcript ? { loadTranscriptBody: async (storageKey: string) => {
+			if (storageKey !== transcript.storageKey) return null;
+			return Uint8Array.from(transcript.bytes);
+		} } : {}),
 		selected: {
 			listSelectedMedia: async () => ({ sources: [{ sourceId: 'voice-source',
 				label: 'Voice', mediaKind: 'audio', operations: [] }] }),
@@ -267,6 +329,24 @@ function project(): FixtureProject {
 			stretchToTempo: false, warpMap: null }],
 		tracks: [{ id: 'voice-track', type: 'audio', clipIds: ['voice-clip'] }],
 	};
+}
+
+function transcriptAssetFixture() {
+	const transcriptBytes = new TextEncoder().encode(JSON.stringify({
+		sourceId: 'voice-source', sampleRate: 48_000, language: 'en', segments: [],
+	}));
+	const transcriptSha256 = bytesToHex(sha256(transcriptBytes));
+	const storageKey = `assistance-transcript-sha256:${transcriptSha256}`;
+	const transcriptProject: FixtureProject = { ...project(), assistanceAssets: [{
+		id: 'transcript-1', kind: 'transcript-v1', sourceId: 'voice-source',
+		sourceSha256: SOURCE_SHA256, sourceStartFrame: 0, sourceEndFrame: 96_000,
+		sourceVideoTimingSha256: null, recipeId: 'speech-transcript', recipeVersion: 1,
+		modelArtifactSha256s: ['90'.repeat(32)], body: {
+			storageKey, mimeType: 'application/vnd.soundscaper.assistance-transcript+json',
+			byteLength: transcriptBytes.byteLength, sha256: transcriptSha256,
+		},
+	}] };
+	return { transcriptBytes, transcriptSha256, storageKey, transcriptProject };
 }
 
 function model(modelId: string, version: string, task: string, ordinal: number) {

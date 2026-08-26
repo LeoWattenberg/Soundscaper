@@ -60,6 +60,16 @@ export function createLocalAssistancePreparationRuntime(
 		captureProject: dependencies.captureProject,
 		assertProject: dependencies.assertProject,
 		preflightStorage: (bytes) => dependencies.preflightStorage(bytes, 'effect'),
+		currentSelectionFence: () => {
+			try { return resolveLocalAssistanceSelectedMediaAuthority(selectedMediaDependencies).fence; }
+			catch (audioError) {
+				if (!assistanceVideoStore) throw audioError;
+				return resolveLocalAssistanceSelectedVideoAuthority(selectedMediaDependencies).fence;
+			}
+		},
+		...(assistanceStore ? {
+			loadTranscriptBody: (storageKey: string) => assistanceStore.loadMediaAsset(storageKey),
+		} : {}),
 		selected: selectedPreparation,
 	});
 	return Object.freeze({

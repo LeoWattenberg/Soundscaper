@@ -224,12 +224,13 @@ function assertProducer(
 	const graph = assistanceWorkflowStageGraph(workflowId);
 	const consumerIndex = graph.findIndex(({ stageId }) => stageId === consumerStageId);
 	const producerIndex = graph.findIndex(({ stageId }) => stageId === producer.stageId);
+	const consumer = graph[consumerIndex];
 	if (consumerIndex < 0 || producerIndex < 0 || producerIndex >= consumerIndex
-		|| producer.slotId !== consumerSlotId || producer.claimId !== claimId) {
+		|| producer.slotId !== consumerSlotId || producer.claimId !== claimId
+		|| !consumer?.inputSlots.some(({ slotId }) => slotId === consumerSlotId)) {
 		throw new TypeError('Intermediate custody must name one exact earlier producer claim for the same slot.');
 	}
 	assistanceWorkflowCustodySlotSpec(workflowId, producer.stageId, 'output', producer.slotId);
-	assistanceWorkflowCustodySlotSpec(workflowId, consumerStageId, 'input', consumerSlotId);
 }
 
 function validateProducer(value: unknown): AssistanceWorkflowCustodyProducerV1 {

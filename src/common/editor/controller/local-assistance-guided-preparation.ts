@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Exact selected-media assembly for one aggregate, pathless Guided workflow request. */
-
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 
 import type { AssistanceOperation } from '../assistance/operation.ts';
+import {
+	createAssistanceAssetReferenceV1,
+	type AssistanceTranscriptAssetReferenceV1,
+} from '../assistance/assistance-asset-reference-v1.ts';
 import {
 	assistanceWorkflowStageGraph,
 	validateAssistanceWorkflow,
@@ -40,11 +42,9 @@ const AUDIO_OPERATIONS = new Set<AssistanceOperation>([
 	'voice-activity-detection', 'speech-recognition', 'speaker-diarization',
 	'speech-enhancement', 'source-separation', 'audio-tagging', 'beat-tracking',
 ]);
-
 export type {
 	LocalAssistanceGuidedPreparationUnavailableReason,
 } from '../ui/local-assistance-preparation.ts';
-
 export interface LocalAssistanceAggregateCustodyHandle {
 	readonly custody: AssistanceWorkflowCustodyClaimV1;
 	readonly workflowClaim: AssistanceWorkflowClaimV1;
@@ -85,6 +85,11 @@ export interface LocalAssistanceGuidedPreparationDependencies {
 	readonly captureProject: () => unknown;
 	readonly assertProject: (token: unknown) => void;
 	readonly preflightStorage: (bytes: number) => Promise<unknown>;
+	readonly currentSelectionFence: () => unknown;
+	readonly loadTranscriptBody?: (
+		storageKey: string,
+		signal: AbortSignal,
+	) => PromiseLike<unknown> | unknown;
 	readonly selected: SelectedPreparationPort;
 }
 
@@ -135,7 +140,7 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 				for (const slot of stage.inputSlots) {
 					if (!slot.required || producedSlots.has(slot.slotId)) continue;
 					const external = await prepareExternalInput(
-						dependencies, inventory, stage, slot.slotId, settings, request.signal,
+						dependencies, project, inventory, stage, slot.slotId, settings, request.signal,
 					);
 					if (external === null) throw new UnavailableError(externalReason(slot.slotId));
 					externalByBinding.set(bindingKey(stage.stageId, slot.slotId), external);
@@ -184,7 +189,7 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 			const stageIds = Object.freeze(stages.map(({ stageId }) => stageId));
 			const workflow = validateAssistanceWorkflow({ contractVersion: 1, jobId: request.jobId,
 				workflowId: request.workflowId, recipeVersion: 1,
-				settingsVersion: settings.settingsVersion, fence, stageIds,
+				settingsVersion: settings.settingsVersion, settings, fence, stageIds,
 				models, inputs: Object.freeze(inputs), outputs: Object.freeze(outputs) });
 			return Object.freeze({ outcome: 'prepared', workflow });
 		} catch (error) {
@@ -206,12 +211,16 @@ interface PrimitiveFence {
 
 async function prepareExternalInput(
 	dependencies: LocalAssistanceGuidedPreparationDependencies,
+	project: Record<string, unknown>,
 	inventory: readonly InventorySource[],
 	stage: AssistanceWorkflowStageSpec,
 	slotId: string,
 	settings: AssistanceWorkflowSettingsV1,
 	signal: AbortSignal,
 ): Promise<Readonly<{ mediaType: string; bytes: Blob; fence: PrimitiveFence }> | null> {
+	if (slotId === 'transcript') {
+		return prepareTranscriptInput(dependencies, project, inventory, signal);
+	}
 	if (slotId !== 'audio' && slotId !== 'video') return null;
 	const source = inventory.filter(({ mediaKind }) => mediaKind === slotId);
 	if (source.length !== 1) return null;
@@ -225,12 +234,58 @@ async function prepareExternalInput(
 	const input = prepared.inputs.find((candidate) => candidate.role === slotId);
 	if (!input && slotId === 'video' && mode === 'accurate'
 		&& prepared.inputs.some(({ role }) => role === 'frame-pack')) {
-		// Accurate preparation may emit several independently framed packs. Workflow-v1
-		// admits one claim per slot, so never stage one pack and silently drop the rest.
 		throw new UnavailableError('aggregate-custody-unavailable');
 	}
 	if (!input) throw new TypeError('Selected-media preparation omitted its exact aggregate source input.');
 	return Object.freeze({ mediaType: input.mediaType, bytes: input.bytes, fence: prepared.fence });
+}
+
+async function prepareTranscriptInput(
+	dependencies: LocalAssistanceGuidedPreparationDependencies,
+	project: Record<string, unknown>,
+	inventory: readonly InventorySource[],
+	signal: AbortSignal,
+): Promise<Readonly<{ mediaType: string; bytes: Blob; fence: PrimitiveFence }> | null> {
+	if (!dependencies.loadTranscriptBody) return null;
+	signal.throwIfAborted();
+	const fence = primitiveFence(dependencies.currentSelectionFence());
+	const selectedSources = inventory.filter(({ sourceId }) => sourceId === fence.sourceId);
+	if (selectedSources.length !== 1) return null;
+	const mediaKind = selectedSources[0]!.mediaKind;
+	const references = recordArray(project.assistanceAssets)
+		.map(createAssistanceAssetReferenceV1)
+		.filter((reference): reference is AssistanceTranscriptAssetReferenceV1 => (
+			reference.kind === 'transcript-v1' && reference.sourceId === fence.sourceId
+			&& reference.sourceSha256 === fence.sourceSha256
+			&& reference.sourceStartFrame <= fence.sourceStartFrame
+			&& reference.sourceEndFrame >= fence.sourceEndFrame
+			&& (mediaKind === 'video'
+				? reference.sourceVideoTimingSha256 === fence.timingAuthoritySha256
+				: reference.sourceVideoTimingSha256 === null)
+		));
+	if (references.length !== 1) return null;
+	const reference = references[0]!;
+	const loaded = await dependencies.loadTranscriptBody(reference.body.storageKey, signal);
+	signal.throwIfAborted();
+	if (loaded === null || loaded === undefined) return null;
+	const bytes = await immutableBytes(loaded);
+	if (bytes.byteLength !== reference.body.byteLength
+		|| bytesToHex(sha256(bytes)) !== reference.body.sha256) {
+		throw new Error('The selected transcript body changed after project admission.');
+	}
+	return Object.freeze({
+		mediaType: 'application/vnd.soundscaper.transcript+json',
+		bytes: new Blob([bytes], { type: 'application/vnd.soundscaper.transcript+json' }),
+		fence,
+	});
+}
+
+async function immutableBytes(value: unknown): Promise<Uint8Array<ArrayBuffer>> {
+	if (value instanceof Blob) return new Uint8Array(await value.arrayBuffer());
+	if (value instanceof Uint8Array && !(value.buffer instanceof SharedArrayBuffer)) {
+		return Uint8Array.from(value);
+	}
+	throw new TypeError('Assistance transcript storage returned no immutable body.');
 }
 
 function selectStages(
@@ -523,6 +578,8 @@ function assertDependencies(value: LocalAssistanceGuidedPreparationDependencies)
 	if (!value || typeof value !== 'object' || typeof value.getProject !== 'function'
 		|| typeof value.getSelectedClipId !== 'function' || typeof value.captureProject !== 'function'
 		|| typeof value.assertProject !== 'function' || typeof value.preflightStorage !== 'function'
+		|| typeof value.currentSelectionFence !== 'function'
+		|| (value.loadTranscriptBody !== undefined && typeof value.loadTranscriptBody !== 'function')
 		|| !value.selected || typeof value.selected.listSelectedMedia !== 'function'
 		|| typeof value.selected.prepareSelectedMedia !== 'function') {
 		throw new TypeError('Guided preparation requires exact project, storage, and media custody ports.');
