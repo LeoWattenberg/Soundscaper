@@ -34,11 +34,23 @@ import {
 	createGuidedTranscriptAcceptanceRequest,
 	type LocalAssistanceGuidedAdaptedOutput,
 } from './local-assistance-guided-result-requests.ts';
+import {
+	hasLocalAssistanceGuidedFramescaperPort,
+	localAssistanceGuidedFramescaperChoices,
+	publishLocalAssistanceGuidedFramescaperSelection,
+	reviewLocalAssistanceGuidedFramescaperSemantics,
+	type LocalAssistanceGuidedFramescaperAcceptancePorts,
+} from './local-assistance-guided-framescaper-acceptance.ts';
+
+export type {
+	LocalAssistanceGuidedHighlightAcceptanceRequest,
+	LocalAssistanceGuidedReframeAcceptanceRequest,
+} from './local-assistance-guided-framescaper-acceptance.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 type SupportedWorkflowId = 'transcribe-captions' | 'clean-filler-silence' | 'identify-speakers'
 	| 'enhance-dialogue' | 'separate-dialogue-music-effects' | 'mark-reactions'
-	| 'detect-beats-tempo' | 'mark-cuts';
+	| 'detect-beats-tempo' | 'mark-cuts' | 'reframe' | 'make-highlights';
 type AcceptancePhase = 'review' | 'accepting' | 'accepted' | 'rejected' | 'cancelled' | 'failed';
 
 export type LocalAssistanceGuidedAcceptanceUnsupportedReason =
@@ -92,7 +104,8 @@ interface BeatReviewSessionPort {
 	cancel(): Promise<void>;
 }
 
-export interface LocalAssistanceGuidedResultAcceptanceDependencies {
+export interface LocalAssistanceGuidedResultAcceptanceDependencies
+	extends LocalAssistanceGuidedFramescaperAcceptancePorts {
 	/** Same selected-media projection used by primitive preparation and acceptance. */
 	readonly currentSelectionFence: () => unknown;
 	/** Existing transcript/shot result facade. */
@@ -131,7 +144,7 @@ interface NormalizedReview {
 const SUPPORTED = new Set<AssistanceWorkflowId>([
 	'transcribe-captions', 'clean-filler-silence', 'identify-speakers', 'enhance-dialogue',
 	'separate-dialogue-music-effects',
-	'mark-reactions', 'detect-beats-tempo', 'mark-cuts',
+	'mark-reactions', 'detect-beats-tempo', 'mark-cuts', 'reframe', 'make-highlights',
 ]);
 const TERMINALS = Object.freeze({
 	'transcribe-captions': Object.freeze({ stageId: 'assemble-captions', slots: ['captions'] }),
@@ -152,6 +165,10 @@ const TERMINALS = Object.freeze({
 		stageId: 'propose-tempo-map', slots: ['beat-labels', 'tempo-map-diff'],
 	}),
 	'mark-cuts': Object.freeze({ stageId: 'normalize-cuts', slots: ['cut-proposals'] }),
+	reframe: Object.freeze({ stageId: 'plan-crops', slots: ['reframe-path'] }),
+	'make-highlights': Object.freeze({
+		stageId: 'assemble-highlights', slots: ['highlight-proposals'],
+	}),
 } satisfies Readonly<Record<SupportedWorkflowId, Readonly<{
 	stageId: string; slots: readonly string[];
 }>>>);
@@ -172,7 +189,11 @@ export function createLocalAssistanceGuidedResultAcceptance(
 		|| (dependencies.createBeatReviewSession !== undefined
 			&& typeof dependencies.createBeatReviewSession !== 'function')
 		|| (dependencies.createReactionReviewSession !== undefined
-			&& typeof dependencies.createReactionReviewSession !== 'function')) {
+			&& typeof dependencies.createReactionReviewSession !== 'function')
+		|| (dependencies.acceptReframeResult !== undefined
+			&& typeof dependencies.acceptReframeResult !== 'function')
+		|| (dependencies.acceptHighlightResult !== undefined
+			&& typeof dependencies.acceptHighlightResult !== 'function')) {
 		throw new TypeError('Guided acceptance requires exact primitive publication ports.');
 	}
 
@@ -189,10 +210,13 @@ export function createLocalAssistanceGuidedResultAcceptance(
 		if (!hasPort(workflowIdValue, dependencies)) return unsupported(workflowIdValue,
 			'primitive-acceptance-unavailable');
 		const range = soleSourceRange(workflow, workflowIdValue);
-		if (workflowIdValue !== 'mark-cuts' && range.retimeKind !== 'identity') {
+		if (workflowIdValue !== 'mark-cuts' && workflowIdValue !== 'reframe'
+			&& workflow.fence.sourceRanges.some(({ retimeKind }) => retimeKind !== 'identity')) {
 			return unsupported(workflowIdValue, 'retime-publication-unavailable');
 		}
-		const fence = primitiveFence(workflow, range);
+		const fence = primitiveFence(workflow, range, workflowIdValue === 'make-highlights'
+			? workflow.fence.sourceRanges.flatMap(({ occurrenceIds }) => occurrenceIds).sort()
+			: range.occurrenceIds);
 		assertCurrentFence(dependencies, fence);
 		const review = normalizeReview(workflow, workflowIdValue, value.reviewedResult);
 		return Object.freeze({ outcome: 'ready' as const,
@@ -295,6 +319,12 @@ async function publishSelection(
 		));
 		return;
 	}
+	if (workflowId === 'reframe' || workflowId === 'make-highlights') {
+		await publishLocalAssistanceGuidedFramescaperSelection(
+			dependencies, workflow, workflowId, review.outputs, selectedIds,
+		);
+		return;
+	}
 	const placement = workflowId === 'enhance-dialogue'
 		? workflow.settings.workflowId === workflowId ? workflow.settings.placement : 'project-bin'
 		: workflow.settings.workflowId === workflowId && workflow.settings.placement === 'muted-aligned-tracks'
@@ -377,6 +407,9 @@ function reviewSemantics(
 			return [slotId, Object.freeze({ ...row })] as const;
 		}));
 	}
+	if (workflowId === 'reframe' || workflowId === 'make-highlights') {
+		return reviewLocalAssistanceGuidedFramescaperSemantics(workflowId, outputs);
+	}
 	const transformId = workflowId === 'transcribe-captions' ? 'assemble-captions'
 		: workflowId === 'clean-filler-silence' ? 'propose-cleanup'
 		: workflowId === 'identify-speakers' ? 'attribute-speakers'
@@ -413,6 +446,9 @@ function expectedChoices(
 	if (workflowId === 'mark-cuts') {
 		const cuts = outputs.get('cut-proposals')!.semantic as AssistanceCutProposalsV1;
 		return cuts.proposals.map(({ id }) => ({ id, kind: 'cut' }));
+	}
+	if (workflowId === 'reframe' || workflowId === 'make-highlights') {
+		return localAssistanceGuidedFramescaperChoices(workflowId, outputs);
 	}
 	const labels = outputs.get('beat-labels')!.semantic as AssistanceBeatLabelsV1;
 	const diff = outputs.get('tempo-map-diff')!.semantic as AssistanceTempoMapDiffV1;
@@ -465,7 +501,8 @@ function soleSourceRange(
 	workflow: AssistanceWorkflowV1,
 	workflowId: SupportedWorkflowId,
 ): AssistanceWorkflowV1['fence']['sourceRanges'][number] {
-	const mediaKind = workflowId === 'mark-cuts' ? 'video' : 'audio';
+	const mediaKind = workflowId === 'mark-cuts' || workflowId === 'reframe'
+		|| workflowId === 'make-highlights' ? 'video' : 'audio';
 	const ranges = workflow.fence.sourceRanges.filter((range) => range.mediaKind === mediaKind);
 	if (ranges.length !== 1) throw new TypeError('Guided acceptance source authority is ambiguous.');
 	return ranges[0]!;
@@ -474,11 +511,12 @@ function soleSourceRange(
 function primitiveFence(
 	workflow: AssistanceWorkflowV1,
 	range: AssistanceWorkflowV1['fence']['sourceRanges'][number],
+	occurrenceIds: readonly string[] = range.occurrenceIds,
 ): AssistanceSelectionFence {
 	return validateAssistanceSelectionFence({
 		projectId: workflow.fence.projectId, schemaVersion: workflow.fence.schemaVersion,
 		revision: workflow.fence.revision, sequenceId: workflow.fence.sequenceId,
-		occurrenceIds: range.occurrenceIds, sourceId: range.sourceId,
+		occurrenceIds, sourceId: range.sourceId,
 		sourceSha256: range.sourceSha256, sourceStartFrame: range.sourceStartFrame,
 		sourceEndFrame: range.sourceEndFrame, linkMembershipSha256: range.linkMembershipSha256,
 		timingAuthoritySha256: range.timingAuthoritySha256,
@@ -503,6 +541,9 @@ function hasPort(
 	if (workflowId === 'detect-beats-tempo') return Boolean(dependencies.createBeatReviewSession);
 	if (workflowId === 'mark-reactions') return Boolean(dependencies.createReactionReviewSession);
 	if (workflowId === 'clean-filler-silence') return Boolean(dependencies.acceptCleanupResult);
+	if (workflowId === 'reframe' || workflowId === 'make-highlights') {
+		return hasLocalAssistanceGuidedFramescaperPort(workflowId, dependencies);
+	}
 	return Boolean(dependencies.acceptValidatedResult);
 }
 

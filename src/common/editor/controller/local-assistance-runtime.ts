@@ -19,6 +19,8 @@ import {
 } from './local-assistance-result-acceptance.ts';
 import {
 	createLocalAssistanceGuidedResultAcceptance,
+	type LocalAssistanceGuidedHighlightAcceptanceRequest,
+	type LocalAssistanceGuidedReframeAcceptanceRequest,
 } from './local-assistance-guided-result-acceptance.ts';
 import {
 	publishLocalAssistanceGuidedIndex,
@@ -43,19 +45,20 @@ export function createLocalAssistancePreparationRuntime(
 		LocalAssistanceResultAcceptanceStore | undefined;
 	const assistanceVideoStore = dependencies.assistanceVideoStore as
 		LocalAssistanceSelectedVideoStore | undefined;
+	const currentVideoAuthority = () => resolveLocalAssistanceSelectedVideoAuthority(
+		selectedMediaDependencies,
+	);
 	const currentSelectionFence = () => {
 		try { return resolveLocalAssistanceSelectedMediaAuthority(selectedMediaDependencies).fence; }
 		catch (audioError) {
 			if (!assistanceVideoStore) throw audioError;
-			return resolveLocalAssistanceSelectedVideoAuthority(selectedMediaDependencies).fence;
+			return currentVideoAuthority().fence;
 		}
 	};
 	const resultAcceptance = assistanceStore ? createLocalAssistanceResultAcceptance({
 		currentAuthority: () => resolveLocalAssistanceSelectedMediaAuthority(selectedMediaDependencies),
 		...(assistanceVideoStore ? {
-			currentVideoAuthority: () => resolveLocalAssistanceSelectedVideoAuthority(
-				selectedMediaDependencies,
-			),
+			currentVideoAuthority,
 		} : {}),
 		captureProject: dependencies.captureProject,
 		store: assistanceStore,
@@ -73,6 +76,12 @@ export function createLocalAssistancePreparationRuntime(
 		createBeatReviewSession: (request) => resultAcceptance.createBeatReviewSession(request),
 		createReactionReviewSession: (request) =>
 			resultAcceptance.createReactionReviewSession(request),
+		...(assistanceVideoStore ? {
+			acceptReframeResult: (request: LocalAssistanceGuidedReframeAcceptanceRequest) =>
+				acceptFramescaperReframe(request),
+			acceptHighlightResult: (request: LocalAssistanceGuidedHighlightAcceptanceRequest) =>
+				acceptFramescaperHighlights(request),
+		} : {}),
 	}) : null;
 	const selectedPreparation = createLocalAssistanceSelectedPreparation({
 		...selectedMediaDependencies,
@@ -91,6 +100,43 @@ export function createLocalAssistancePreparationRuntime(
 		} : {}),
 		selected: selectedPreparation,
 	});
+
+	async function acceptFramescaperReframe(
+		request: LocalAssistanceGuidedReframeAcceptanceRequest,
+	): Promise<void> {
+		const { createFramescaperAssistanceReframePublication } = await import(
+			'../../../framescaper/editor-local-assistance-reframe-publication.ts'
+		);
+		const publication = createFramescaperAssistanceReframePublication({
+			currentAuthority: () => ({ selection: currentVideoAuthority(), fence: request.fence }),
+			captureProject: dependencies.captureProject,
+			assertProject: dependencies.assertProject,
+			commit: (command) => dependencies.commit(command as Readonly<Record<string, unknown>>),
+		});
+		await publication.acceptReviewed(request);
+	}
+
+	async function acceptFramescaperHighlights(
+		request: LocalAssistanceGuidedHighlightAcceptanceRequest,
+	): Promise<void> {
+		const { createFramescaperAssistanceHighlightPublication } = await import(
+			'../../../framescaper/editor-local-assistance-highlight-publication.ts'
+		);
+		const publication = createFramescaperAssistanceHighlightPublication({
+			currentAuthority: () => ({
+				project: currentVideoAuthority().project as never,
+				fence: request.fence,
+			}),
+			captureProject: dependencies.captureProject,
+			assertProject: dependencies.assertProject,
+			createId: dependencies.createId,
+			commit: (command) => dependencies.commit(command as Readonly<Record<string, unknown>>),
+		});
+		await publication.acceptReviewed({
+			kind: 'highlight-proposals', schemaVersion: 1, workflowId: 'make-highlights',
+			fence: request.fence, proposals: request.result.proposals,
+		}, request.selectedProposalIds);
+	}
 	return Object.freeze({
 		...selectedPreparation,
 		prepareGuidedWorkflow: guidedPreparation.prepareGuidedWorkflow,

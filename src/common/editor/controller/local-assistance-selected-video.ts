@@ -29,7 +29,9 @@ import {
 	createLocalAssistanceSelectedVideoTimingBinding,
 	createLocalAssistanceSelectedVideoFramePackTiming,
 	mapLocalAssistanceSelectedVideoTimingBoundary,
+	readLocalAssistanceSelectedVideoSourceFrameTick as readTimingSourceFrameTick,
 	type LocalAssistanceSelectedVideoTimingBinding,
+	type LocalAssistanceSelectedVideoSourceFrameTick,
 } from './local-assistance-selected-video-timing.ts';
 import {
 	createLocalAssistanceSelectedVideoFramePacksV1,
@@ -359,6 +361,22 @@ export function mapLocalAssistanceSelectedVideoSourceBoundary(
 		throw new TypeError('Selected-video boundary mapping requires current authenticated timing authority.');
 	}
 	return mapLocalAssistanceSelectedVideoTimingBoundary(state.binding, sourceFrameValue);
+}
+
+/** Revalidate one reviewed model sample against the selected source's exact CFR/VFR tick. */
+export function readLocalAssistanceSelectedVideoSourceFrameTick(
+	authority: LocalAssistanceSelectedVideoAuthority,
+	sourceFrameValue: number,
+): LocalAssistanceSelectedVideoSourceFrameTick | null {
+	if (!authority || typeof authority !== 'object') {
+		throw new TypeError('Selected-video frame timing requires exact video authority.');
+	}
+	const state = SELECTED_VIDEO_AUTHORITY_STATES.get(authority);
+	if (!state || authority.source !== state.source || authority.clip !== state.clip
+		|| authority.fence.timingAuthoritySha256 !== state.timingAuthoritySha256) {
+		throw new TypeError('Selected-video frame timing requires current authenticated timing authority.');
+	}
+	return readTimingSourceFrameTick(state.binding, sourceFrameValue);
 }
 
 function assertDependencies(value: unknown): asserts value is LocalAssistanceSelectedVideoPreparationDependencies {

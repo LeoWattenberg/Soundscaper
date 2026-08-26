@@ -47,6 +47,12 @@ export interface LocalAssistanceSelectedVideoFramePackTiming {
 	readonly frames: readonly LocalAssistanceSelectedVideoFrameTiming[];
 }
 
+export interface LocalAssistanceSelectedVideoSourceFrameTick {
+	readonly timescale: number;
+	readonly sourceFrame: number;
+	readonly presentationTick: string;
+}
+
 interface TimingState {
 	readonly timing: BoundVideoSourceTimingView;
 	readonly sourceStartFrame: number;
@@ -184,6 +190,27 @@ export function createLocalAssistanceSelectedVideoFramePackTiming(
 	}
 	if (frames.length < 1) throw new RangeError('Selected-video frame packing requires a non-empty range.');
 	return Object.freeze({ timescale, frames: Object.freeze(frames) });
+}
+
+/** Read one exact source-frame tick without materializing the complete selected range. */
+export function readLocalAssistanceSelectedVideoSourceFrameTick(
+	binding: LocalAssistanceSelectedVideoTimingBinding,
+	sourceFrameValue: number,
+): LocalAssistanceSelectedVideoSourceFrameTick | null {
+	const state = BINDING_STATES.get(binding);
+	if (!state) {
+		throw new TypeError('Selected-video frame timing requires authenticated timing authority.');
+	}
+	const sourceFrame = integer(sourceFrameValue, 0, 'source frame');
+	if (sourceFrame < state.sourceStartFrame || sourceFrame >= state.sourceEndFrame) return null;
+	const authority = boundVideoSourceTimingAuthority(state.timing);
+	const timescale = authority.kind === 'cfr'
+		? authority.rate.num : authority.reference.timescale;
+	if (!Number.isSafeInteger(timescale) || timescale < 1 || timescale > 0x7fff_ffff) {
+		throw new RangeError('Selected-video presentation timescale exceeds its exact binary domain.');
+	}
+	const tick = exactTick(videoSourceFrameTime(state.timing, position(sourceFrame)), timescale);
+	return Object.freeze({ timescale, sourceFrame, presentationTick: tick.toString() });
 }
 
 function forwardMapper(

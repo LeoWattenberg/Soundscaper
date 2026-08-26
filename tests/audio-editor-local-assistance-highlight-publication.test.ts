@@ -31,7 +31,7 @@ const NOW = '2026-08-26T13:00:00.000Z';
 const VIDEO_SHA256 = '12'.repeat(32);
 const AUDIO_SHA256 = '34'.repeat(32);
 
-function project(): FramescaperProjectV31 {
+function project(linked = true): FramescaperProjectV31 {
 	const options = structuredClone(framescaperV20Options());
 	options.id = 'highlight-project';
 	options.title = 'Highlight project';
@@ -41,7 +41,7 @@ function project(): FramescaperProjectV31 {
 		contentSha256: source.id === 'video-source' ? VIDEO_SHA256 : AUDIO_SHA256,
 	}));
 	options.clips = records(options.clips).map((clip) => ({
-		...clip, avLinkId: 'original-av-link',
+		...clip, avLinkId: linked ? 'original-av-link' : null,
 	}));
 	options.tracks = records(options.tracks).map((track) => ({
 		...track, laneGroupId: 'original-lane-group',
@@ -275,6 +275,30 @@ test('planning every selected proposal is all-or-nothing before commit', async (
 	assert.equal(session.history.undoStack.length, 0);
 	assert.deepEqual(session.history.present.sequences, initial.sequences);
 	assert.deepEqual(session.history.present.clips, initial.clips);
+});
+
+test('an explicit highlight subset creates only its selected secondary sequence', async () => {
+	const initial = project();
+	const session = harness(initial);
+	const held = review(initial, true);
+	assert.deepEqual(held.proposals.map(({ selected }) => selected), [false, false]);
+
+	await session.publication.acceptReviewed(held, ['highlight-b']);
+	assert.equal(session.commits, 1);
+	const secondary = records(session.history.present.sequences)
+		.filter(({ id }) => id !== 'main-sequence');
+	assert.deepEqual(secondary.map(({ name }) => name), ['Second highlight']);
+});
+
+test('highlight publication refuses current F31 occurrences without exact linked A/V', async () => {
+	const initial = project(false);
+	const session = harness(initial);
+	await assert.rejects(
+		session.publication.acceptReviewed(review(initial), ['highlight-a']),
+		/linked A\/V|link/iu,
+	);
+	assert.equal(session.commits, 0);
+	assert.equal(session.history.undoStack.length, 0);
 });
 
 function incrementalIds(): (prefix: string) => string {

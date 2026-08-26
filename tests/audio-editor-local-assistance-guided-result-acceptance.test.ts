@@ -324,7 +324,7 @@ test('Guided reactions reproduce reviewed merged ranges through the owned reacti
 test('Guided acceptance reports unsupported workflow and missing-port states without inventing edits', () => {
 	const unsupportedIds: AssistanceGuidedWorkflowId[] = [
 		'index-transcript',
-		'index-video', 'reframe', 'make-highlights', 'generate-editorial-text',
+		'index-video', 'generate-editorial-text',
 	];
 	for (const workflowId of unsupportedIds) {
 		const workflow = unsupportedWorkflow(workflowId);
