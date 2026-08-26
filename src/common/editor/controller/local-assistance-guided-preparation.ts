@@ -31,6 +31,10 @@ import {
 	createLocalAssistanceGuidedAggregateFenceV1,
 	LocalAssistanceGuidedFenceUnavailableError,
 } from './local-assistance-guided-fence.ts';
+import {
+	prepareLocalAssistanceGuidedHighlightInputsV1,
+	type LocalAssistanceGuidedHighlightPreparedInputsV1,
+} from './local-assistance-guided-highlight-preparation.ts';
 
 const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
 const SHA256 = /^[a-f\d]{64}$/u;
@@ -132,17 +136,30 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 			dependencies.assertProject(token);
 			const inventory = normalizeInventory(await dependencies.selected.listSelectedMedia());
 			dependencies.assertProject(token);
+			const highlightInputs = request.workflowId === 'make-highlights'
+				&& dependencies.selected.describeSelectedVideoSourceTime
+				? await prepareLocalAssistanceGuidedHighlightInputsV1({ project, inventory, settings,
+					signal: request.signal,
+					describeSelectedVideoSourceTime: dependencies.selected.describeSelectedVideoSourceTime,
+					prepareSelectedMedia: dependencies.selected.prepareSelectedMedia,
+					loadTranscriptBody: dependencies.loadTranscriptBody }) : null;
+			if (request.workflowId === 'make-highlights' && highlightInputs === null) {
+				throw new UnavailableError('source-custody-unavailable');
+			}
+			dependencies.assertProject(token);
 			const externalByBinding = new Map<string, Awaited<ReturnType<typeof prepareExternalInput>>>();
 			const producedSlots = new Set<string>();
 			for (const stage of stages) {
 				for (const slot of stage.inputSlots) {
 					const selectedShotInput = stage.operation === 'shot-detection' && slot.slotId === (shotMode(settings) === 'accurate' ? 'frame-pack' : 'video');
-					const selectedHighlightAudio = request.workflowId === 'make-highlights'
-						&& stage.stageId === 'gather-signals' && slot.slotId === 'audio';
-					if ((!slot.required && !selectedShotInput && !selectedHighlightAudio)
+					const selectedHighlightInput = highlightExternalInput(
+						highlightInputs, stage.stageId, slot.slotId,
+					) !== null;
+					if ((!slot.required && !selectedShotInput && !selectedHighlightInput)
 						|| producedSlots.has(slot.slotId)) continue;
 					const external = await prepareExternalInput(
 						dependencies, project, inventory, stage, slot.slotId, settings, request.signal,
+						highlightInputs,
 					);
 					if (external === null) throw new UnavailableError(externalReason(slot.slotId));
 					externalByBinding.set(bindingKey(stage.stageId, slot.slotId), external);
@@ -220,7 +237,10 @@ async function prepareExternalInput(
 	slotId: string,
 	settings: AssistanceWorkflowSettingsV1,
 	signal: AbortSignal,
+	highlightInputs: LocalAssistanceGuidedHighlightPreparedInputsV1 | null,
 ): Promise<Readonly<{ mediaType: string; bytes: Blob; fence: PrimitiveFence }> | null> {
+	const highlight = highlightExternalInput(highlightInputs, stage.stageId, slotId);
+	if (highlight !== null) return highlight;
 	if (slotId === 'transcript' || slotId === 'editorial-context') {
 		const options = Object.freeze({ project, inventory,
 			fence: primitiveFence(dependencies.currentSelectionFence()),
@@ -248,9 +268,7 @@ async function prepareExternalInput(
 	if (slotId !== 'audio' && slotId !== 'video' && slotId !== 'frame-pack') return null;
 	const source = inventory.filter(({ mediaKind }) => mediaKind === (slotId === 'frame-pack' ? 'video' : slotId));
 	if (source.length !== 1) return null;
-	const operation = slotId === 'video' ? 'shot-detection'
-		: slotId === 'audio' && stage.stageId === 'gather-signals' ? 'audio-tagging'
-			: stage.operation;
+	const operation = slotId === 'video' ? 'shot-detection' : stage.operation;
 	if (!operation || (slotId === 'audio' && !AUDIO_OPERATIONS.has(operation))) return null;
 	const mode = operation === 'shot-detection' ? shotMode(settings) : undefined;
 	const value = await dependencies.selected.prepareSelectedMedia({
@@ -263,6 +281,20 @@ async function prepareExternalInput(
 	}
 	const input = matches[0]!;
 	return Object.freeze({ mediaType: input.mediaType, bytes: input.bytes, fence: prepared.fence });
+}
+
+function highlightExternalInput(
+	inputs: LocalAssistanceGuidedHighlightPreparedInputsV1 | null,
+	stageId: string,
+	slotId: string,
+): Readonly<{ mediaType: string; bytes: Blob; fence: PrimitiveFence }> | null {
+	if (inputs === null) return null;
+	if (stageId === 'tag-highlight-reactions' && slotId === 'audio') return inputs.audioWave;
+	if (stageId !== 'gather-signals') return null;
+	if (slotId === 'video') return inputs.video;
+	if (slotId === 'audio') return inputs.audio;
+	if (slotId === 'transcript') return inputs.transcript;
+	return null;
 }
 
 function selectStages(
@@ -279,6 +311,10 @@ function selectStages(
 			&& models.some(({ task }) => task === 'word-alignment');
 		if (stage.stageId === 'recognize-speech') {
 			return models.filter(({ task }) => task === 'speech-recognition').length === 1;
+		}
+		if (stage.stageId === 'tag-highlight-reactions') {
+			return settings.workflowId === 'make-highlights'
+				&& models.filter(({ task }) => task === 'audio-tagging').length === 1;
 		}
 		if (stage.stageId === 'rerank-editorial') return settings.workflowId === 'make-highlights'
 			&& settings.editorialRerank;

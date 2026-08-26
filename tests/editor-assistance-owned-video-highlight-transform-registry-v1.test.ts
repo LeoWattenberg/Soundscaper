@@ -309,6 +309,34 @@ test('highlight transforms reject malformed scores and preserve empty no-event r
 	assert.deepEqual(assembled.proposals, []);
 });
 
+test('highlight gathering derives continuous excitement and structure from reviewed evidence', () => {
+	const registry = createAssistanceOwnedVideoHighlightTransformRegistryV1();
+	const inputs = highlightInputs();
+	const gathered = registry.run({ schemaVersion: 1, transformId: 'gather-signals',
+		settings: HIGHLIGHT_SETTINGS, inputs: { ...inputs, audio: null, transcript: null,
+		'reaction-ranges': null, embeddings: null, 'audio-tags': {
+			schemaVersion: 1, sampleRate: 32_000, windowSamples: 32_000,
+			windows: [
+				{ startSample: 15 * 32_000,
+					scores: { laughter: 0.8, applause: 0.1, cheering: 0.2 } },
+				{ startSample: 90 * 32_000,
+					scores: { laughter: 0.1, applause: 0.7, cheering: 0.9 } },
+			],
+		} } }).outputs['highlight-signals'];
+	assert.deepEqual(gathered.candidates.map(({ id, excitement, shotStructure,
+		speechlessAvailableWeight }) => ({ id, excitement, shotStructure,
+		speechlessAvailableWeight })), [
+		{ id: 'a', excitement: 0.8, shotStructure: 0.111111111111,
+			speechlessAvailableWeight: 0.45 },
+		{ id: 'b', excitement: 0, shotStructure: 0.166666666667,
+			speechlessAvailableWeight: 0.45 },
+		{ id: 'c', excitement: 0.9, shotStructure: 0.166666666667,
+			speechlessAvailableWeight: 0.45 },
+		{ id: 'd', excitement: 0.8, shotStructure: 0.111111111111,
+			speechlessAvailableWeight: 0.45 },
+	]);
+});
+
 test('speechless highlight windows retain their admitted boundaries without shot or transcript edges', () => {
 	const registry = createAssistanceOwnedVideoHighlightTransformRegistryV1();
 	const inputs = highlightInputs();
@@ -427,8 +455,9 @@ function highlightInputs() {
 			sourceFrameCount: 181,
 			boundaries: [15, 60, 90, 120].map((sourceFrame) => ({ sourceFrame,
 				presentationTick: String(sourceFrame), score: 1 })),
-		},
-		'reaction-ranges': { schemaVersion: 1 as const, kind: 'highlight-reaction-signals' as const,
+			},
+			'audio-tags': null,
+			'reaction-ranges': { schemaVersion: 1 as const, kind: 'highlight-reaction-signals' as const,
 			sourceTimelineStartFrame: 0,
 			result: { schemaVersion: 1 as const, kind: 'reaction-ranges' as const,
 				sampleRate: 32_000 as const, threshold: 0.5, ranges: [

@@ -8,7 +8,10 @@ import {
 	HIGHLIGHT_RANKING_V1_SPEECHLESS_WEIGHTS,
 	rankAssistanceHighlightsV1,
 } from './highlight-ranking-v1.ts';
-import { reviewAssistanceEditorialProposalV1 } from './m7-semantic-results.ts';
+import {
+	reviewAssistanceAudioTagsV1,
+	reviewAssistanceEditorialProposalV1,
+} from './m7-semantic-results.ts';
 import type {
 	AssistanceOwnedHighlightCandidatesV1,
 	AssistanceOwnedHighlightProposalsV1,
@@ -37,7 +40,7 @@ import type { AssistanceWorkflowSettingsV1 } from './workflow-settings-v1.ts';
 type Settings = Extract<AssistanceWorkflowSettingsV1, { readonly workflowId: 'make-highlights' }>;
 
 const GATHER_FIELDS = Object.freeze([
-	'video', 'audio', 'transcript', 'shot-boundaries', 'reaction-ranges', 'embeddings',
+	'video', 'audio', 'transcript', 'shot-boundaries', 'audio-tags', 'reaction-ranges', 'embeddings',
 ] as const);
 const VIDEO_FIELDS = Object.freeze([
 	'schemaVersion', 'kind', 'sourceId', 'sampleRate', 'timescale', 'sourceSize',
@@ -106,10 +109,13 @@ export function gatherOwnedHighlightSignalsV1(
 	const audio = reviewAudioSignals(inputs.audio, known);
 	const transcript = reviewTranscriptSignals(inputs.transcript, known, video);
 	const shotEdges = reviewShotEdges(inputs['shot-boundaries'], video);
-	const reactionRanges = reviewReactionRanges(inputs['reaction-ranges'], video.sampleRate);
+	const reactionRanges = Object.freeze([
+		...reviewAudioTagRanges(inputs['audio-tags'], video),
+		...reviewReactionRanges(inputs['reaction-ranges'], video.sampleRate),
+	]);
 	const duplication = reviewDuplication(inputs.embeddings, video.windows.length);
 	const shotAvailable = inputs['shot-boundaries'] !== null;
-	const reactionAvailable = inputs['reaction-ranges'] !== null;
+	const reactionAvailable = inputs['audio-tags'] !== null || inputs['reaction-ranges'] !== null;
 	const energyAvailable = inputs.audio !== null;
 	const speechlessAvailableWeight = quantize(
 		(shotAvailable ? HIGHLIGHT_RANKING_V1_SPEECHLESS_WEIGHTS.shotStructure : 0)
@@ -133,7 +139,8 @@ export function gatherOwnedHighlightSignalsV1(
 			&& transcript.ranges.some((range) => overlaps(startFrame, endFrame, range.start, range.end));
 		const transcriptExcerpt = transcriptEvidence
 			? boundedTranscriptExcerpt(transcript.ranges, startFrame, endFrame) : null;
-		const shotStructure = shotAvailable ? window.shotStructure : 0;
+		const shotStructure = shotAvailable
+			? shotStructureScore(shotEdges, startFrame, endFrame, video.sampleRate) : 0;
 		const visualInterest = 0;
 		return Object.freeze({ id: window.id, startFrame, endFrame,
 			sourceStartFrame, sourceEndFrame, transcriptEvidence, transcriptExcerpt,
@@ -391,6 +398,33 @@ function reviewReactionRanges(value: unknown, sampleRate: number): readonly Read
 			sampleRate, 'enclosingEnd')), 'reaction timeline end'),
 		score: ownedUnit(item.score, 'highlight reaction score') });
 	}));
+}
+
+function reviewAudioTagRanges(value: unknown, video: ReviewedVideo): readonly Readonly<{
+	start: number; end: number; score: number;
+}>[] {
+	if (value === null) return Object.freeze([]);
+	const tags = reviewAssistanceAudioTagsV1(value);
+	return Object.freeze(tags.windows.flatMap(({ startSample, scores }) => {
+		const start = ownedSafeAdd(video.selectionStartFrame, Number(scaleSampleFrame(
+			startSample, tags.sampleRate, video.sampleRate, 'enclosingStart',
+		)), 'audio-tag timeline start');
+		const end = Math.min(video.selectionEndFrame, ownedSafeAdd(
+			video.selectionStartFrame, Number(scaleSampleFrame(
+				startSample + tags.windowSamples, tags.sampleRate, video.sampleRate, 'enclosingEnd',
+			)), 'audio-tag timeline end'));
+		if (start >= end) return [];
+		return [Object.freeze({ start, end,
+			score: Math.max(scores.laughter, scores.applause, scores.cheering) })];
+	}));
+}
+
+/** Normalize shot-segment density to one at an average shot length of five seconds. */
+function shotStructureScore(
+	edges: readonly number[], start: number, end: number, sampleRate: number,
+): number {
+	const segments = 1 + edges.filter((edge) => edge > start && edge < end).length;
+	return quantize(Math.min(1, segments * 5 * sampleRate / (end - start)));
 }
 
 function reviewDuplication(value: unknown, count: number): readonly number[] {

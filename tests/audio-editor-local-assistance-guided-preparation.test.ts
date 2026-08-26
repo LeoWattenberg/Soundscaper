@@ -11,6 +11,7 @@ import {
 } from '../src/common/editor/controller/local-assistance-guided-preparation.ts';
 import { defaultAssistanceWorkflowSettingsV1 } from '../src/common/editor/assistance/workflow-settings-v1.ts';
 import {
+	assistanceWorkflowCustodySlotSpec,
 	createAssistanceWorkflowCustodyClaimV1,
 	workflowClaimFromCustodyV1,
 } from '../src/common/editor/assistance/workflow-custody-v1.ts';
@@ -346,6 +347,21 @@ test('Make Highlights adds Qwen only after explicit editorial rerank opt-in', as
 	const audioFence = { ...videoFence, sourceId: 'audio-source', sourceSha256: 'cd'.repeat(32),
 		sourceStartFrame: 0, sourceEndFrame: 240_000,
 		timingAuthoritySha256: '56'.repeat(32) };
+	const descriptor = {
+		schemaVersion: 1 as const, kind: 'selected-video-source-time-authority' as const,
+		projectId: 'project-1', projectRevision: 4, sequenceId: 'main-sequence',
+		videoOccurrenceId: 'video-clip', sourceId: 'video-source', sourceSha256: SOURCE_SHA256,
+		timingAuthoritySha256: videoFence.timingAuthoritySha256,
+		sourceWidth: 1_920, sourceHeight: 1_080, sourceStartFrame: 0, sourceEndFrame: 120,
+		sampleRate: 48_000, timescale: 24, selectionStartFrame: 0, selectionEndFrame: 240_000,
+		frames: [{ sourceFrame: 0, presentationTick: '0', timelineFrame: 0 },
+			{ sourceFrame: 120, presentationTick: '120', timelineFrame: 240_000 }],
+	};
+	const audioSamples = new Float32Array(160_000);
+	audioSamples.fill(0.25);
+	const highlightWav = encodeWav([audioSamples], {
+		sampleRate: 32_000, bitDepth: 32, float: true, dither: false,
+	});
 	const preparation = createLocalAssistanceGuidedWorkflowPreparation({
 		getProject: () => videoProject, getSelectedClipId: () => 'video-clip',
 		captureProject: () => ({ revision: 4 }), assertProject: () => undefined,
@@ -361,26 +377,33 @@ test('Make Highlights adds Qwen only after explicit editorial rerank opt-in', as
 			prepareSelectedMedia: async ({ operation }) => operation === 'audio-tagging'
 				? { sourceId: 'audio-source', operation, selectionFence: audioFence,
 					inputs: [{ role: 'audio', mediaType: 'audio/wav',
-						bytes: new Blob([new Uint8Array([4, 5, 6])]) }], outputs: [] }
+						bytes: new Blob([highlightWav.slice().buffer], {
+							type: 'audio/wav',
+						}) }], outputs: [] }
 				: { sourceId: 'video-source', operation: 'shot-detection', shotDetectionMode: 'fast',
 					selectionFence: videoFence, inputs: [{ role: 'video', mediaType: 'video/mp4',
 						bytes: new Blob([new Uint8Array([1, 2, 3])]) }], outputs: [] },
+			describeSelectedVideoSourceTime: async () => ({ selectionFence: videoFence, descriptor }),
 		},
 	});
 	const settings = { ...defaultAssistanceWorkflowSettingsV1('make-highlights'),
 		editorialRerank: true } as const;
 	const result = await preparation.prepareGuidedWorkflow({ jobId: JOB_ID,
 		workflowId: 'make-highlights', settings,
-		models: [model('qwen3-4b-q4-k-m', '1.0.0', 'editorial-generation', 10)],
+		models: [model('panns-cnn10', '1.0.0', 'audio-tagging', 9),
+			model('qwen3-4b-q4-k-m', '1.0.0', 'editorial-generation', 10)],
 		custody: fixture.custody, signal: new AbortController().signal });
 	assert.equal(result.outcome, 'prepared');
 	if (result.outcome !== 'prepared') return;
 	assert.deepEqual(result.workflow.stageIds, [
-		'gather-signals', 'rank-highlights', 'rerank-editorial', 'assemble-highlights',
+		'detect-highlight-shots', 'tag-highlight-reactions', 'gather-signals', 'rank-highlights',
+		'rerank-editorial', 'assemble-highlights',
 	]);
 	assert.deepEqual(result.workflow.models.map(({ stageId, slotId, modelId }) => ({
 		stageId, slotId, modelId,
-	})), [{ stageId: 'rerank-editorial', slotId: 'editorial-generator',
+	})), [{ stageId: 'tag-highlight-reactions', slotId: 'audio-tagger',
+		modelId: 'panns-cnn10' },
+	{ stageId: 'rerank-editorial', slotId: 'editorial-generator',
 		modelId: 'qwen3-4b-q4-k-m' }]);
 	assert.ok(result.workflow.inputs.some(({ stageId, slotId }) => (
 		stageId === 'rerank-editorial' && slotId === 'highlight-candidates'
@@ -389,7 +412,7 @@ test('Make Highlights adds Qwen only after explicit editorial rerank opt-in', as
 		stageId === 'assemble-highlights' && slotId === 'editorial-proposal'
 	)));
 	assert.deepEqual(result.workflow.inputs.filter(({ stageId }) => stageId === 'gather-signals')
-		.map(({ slotId }) => slotId), ['video', 'audio']);
+		.map(({ slotId }) => slotId), ['video', 'audio', 'shot-boundaries', 'audio-tags']);
 	assert.deepEqual(result.workflow.fence.sourceRanges.map(({ mediaKind, sourceId }) => ({
 		mediaKind, sourceId,
 	})), [{ mediaKind: 'audio', sourceId: 'audio-source' },
@@ -423,11 +446,14 @@ function preparationFixture(
 			custodyEvents.push({ kind: 'input', slotId: request.slotId });
 			const bytes = new Uint8Array(await request.bytes.arrayBuffer());
 			stagedBodies.set(request.slotId, bytes);
+			const spec = assistanceWorkflowCustodySlotSpec(
+				request.workflowId, request.stageId, 'input', request.slotId,
+			);
 			const custody = createAssistanceWorkflowCustodyClaimV1({
 				custodyVersion: 1, workflowId: request.workflowId, direction: 'input',
 				jobId: request.jobId, stageId: request.stageId, slotId: request.slotId,
 				claimId: (++claimOrdinal).toString(16).padStart(40, '0'),
-				role: request.slotId as 'audio', mediaType: request.mediaType,
+				role: spec.role, mediaType: request.mediaType,
 				byteLength: bytes.byteLength, sha256: bytesToHex(sha256(bytes)),
 				maximumByteLength: null,
 			});

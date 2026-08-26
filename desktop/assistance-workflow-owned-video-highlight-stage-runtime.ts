@@ -54,7 +54,7 @@ export const ASSISTANCE_WORKFLOW_OWNED_VIDEO_HIGHLIGHT_STAGE_IDS = Object.freeze
 	'assemble-highlights',
 ] as const);
 type StageId = typeof ASSISTANCE_WORKFLOW_OWNED_VIDEO_HIGHLIGHT_STAGE_IDS[number];
-type InputKind = 'json' | 'matrix' | 'video' | 'audio';
+type InputKind = 'json' | 'matrix' | 'video';
 
 interface InputSpec {
 	readonly slotId: string;
@@ -70,13 +70,6 @@ interface StageSpec {
 export interface AssistanceWorkflowOwnedVideoHighlightInputCaptureV1 {
 	readonly claim: AssistanceStagedInputClaim | AssistanceOutputClaim;
 	readonly path: string;
-}
-
-export interface AssistanceWorkflowOwnedVideoSourceMaterializationRequestV1 {
-	readonly purpose: 'shot-sampling' | 'highlight-signals';
-	readonly request: AssistanceWorkflowV1;
-	readonly source: AssistanceWorkflowOwnedVideoHighlightInputCaptureV1;
-	readonly signal: AbortSignal;
 }
 
 export interface AssistanceWorkflowOwnedFramePackMaterializationRequestV1 {
@@ -95,8 +88,6 @@ export interface AssistanceWorkflowOwnedVisualTagsMaterializationRequestV1 {
 
 /** Closed main-only seam for data that cannot truthfully be represented by current slotted bodies. */
 export interface AssistanceWorkflowOwnedVideoHighlightMaterializerV1 {
-	resolveVideoSource?(request: AssistanceWorkflowOwnedVideoSourceMaterializationRequestV1):
-		PromiseLike<unknown | null> | unknown | null;
 	materializeFramePack?(request: AssistanceWorkflowOwnedFramePackMaterializationRequestV1):
 		PromiseLike<readonly Uint8Array[] | null> | readonly Uint8Array[] | null;
 	resolveVisualTags?(request: AssistanceWorkflowOwnedVisualTagsMaterializationRequestV1):
@@ -142,9 +133,10 @@ const STAGE_SPECS: Readonly<Record<StageId, StageSpec>> = Object.freeze({
 	'track-subjects': stage('reframe', [input('subject-tracks', 'json')], 'tracked-subjects'),
 	'plan-crops': stage('reframe', [input('tracked-subjects', 'json'),
 		input('saliency-map', 'json')], 'reframe-path'),
-	'gather-signals': stage('make-highlights', [input('video', 'video'), input('audio', 'audio', true),
+	'gather-signals': stage('make-highlights', [input('video', 'json'), input('audio', 'json', true),
 		input('transcript', 'json', true), input('shot-boundaries', 'json', true),
-		input('reaction-ranges', 'json', true), input('embeddings', 'matrix', true)],
+		input('audio-tags', 'json', true), input('reaction-ranges', 'json', true),
+		input('embeddings', 'matrix', true)],
 	'highlight-signals'),
 	'rank-highlights': stage('make-highlights', [input('highlight-signals', 'json')],
 		'highlight-candidates'),
@@ -231,17 +223,6 @@ async function transformInputs(
 			request, videoClaim: source.capture.claim,
 		});
 		delete values['video-authority'];
-	}
-	if (stageId === 'gather-signals') {
-		const source = requiredResolved(resolved.video, 'video');
-		const value = await options.materializer?.resolveVideoSource?.({ purpose: 'highlight-signals', request,
-			source: source.capture, signal });
-		signal.throwIfAborted();
-		if (value === null || value === undefined) unavailable('Video semantic materialization is unavailable.');
-		values.video = value;
-	}
-	if (stageId === 'gather-signals' && resolved.audio !== null) {
-		unavailable('Raw highlight audio needs an admitted deterministic signal materializer.');
 	}
 	if (stageId === 'publish-video-index') {
 		const stored = framePlans.get(request.jobId);
@@ -349,7 +330,7 @@ async function resolveInput(
 		throw new RangeError(`The ${spec.slotId} input exceeds or disagrees with its byte bound.`);
 	}
 	const bytes = await readExactBytes(resolved.path, resolvedClaim.byteLength, execution.signal,
-		spec.kind === 'video' || spec.kind === 'audio' ? false : true);
+		spec.kind !== 'video');
 	if (bytes.sha256 !== resolvedClaim.sha256) {
 		throw new Error(`The ${spec.slotId} input changed after authentication; its digest is stale.`);
 	}
@@ -471,8 +452,7 @@ function assertCustodyCorrelation(
 function assertInputMedia(token: AssistanceWorkflowCustodyClaimV1, spec: InputSpec): void {
 	const admitted = spec.kind === 'json' ? [JSON_MEDIA, `application/vnd.soundscaper.${token.role}+json`]
 		: spec.kind === 'matrix' ? [MATRIX_MEDIA]
-			: spec.kind === 'video' ? ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska']
-				: ['audio/wav', 'audio/x-wav', 'audio/flac'];
+			: ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska'];
 	if (!admitted.includes(token.mediaType)) {
 		throw new TypeError(`The ${spec.slotId} input media type is incompatible with its body.`);
 	}
@@ -488,8 +468,6 @@ function validateOptions(
 	}
 	const materializer = value.materializer;
 	if (materializer !== undefined && (!materializer || typeof materializer !== 'object'
-		|| materializer.resolveVideoSource !== undefined
-			&& typeof materializer.resolveVideoSource !== 'function'
 		|| materializer.materializeFramePack !== undefined
 			&& typeof materializer.materializeFramePack !== 'function'
 		|| materializer.resolveVisualTags !== undefined

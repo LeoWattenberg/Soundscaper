@@ -35,6 +35,8 @@ import {
 	type AssistanceWorkflowId,
 	type AssistanceWorkflowV1,
 } from '../src/common/editor/assistance/workflow.ts';
+import { assistanceWorkflowCustodySlotSpec } from
+	'../src/common/editor/assistance/workflow-custody-v1.ts';
 import {
 	assistanceWorkflowSettingsSha256V1,
 	defaultAssistanceWorkflowSettingsV1,
@@ -44,7 +46,6 @@ import {
 	reviewFramescaperAssistanceHighlightsV1,
 } from '../src/framescaper/editor-local-assistance-highlight-review.ts';
 
-const JSON_MEDIA = 'application/json';
 const MATRIX_MEDIA = 'application/vnd.soundscaper.embedding-matrix-v1';
 const FRAME_MEDIA = 'application/vnd.soundscaper.frame-pack';
 
@@ -68,10 +69,9 @@ test('the main bridge executes all seven closed transforms through authenticated
 				}),
 				'publish-video-index:recognized-text': null,
 			},
-		});
-		const materializer = {
-			resolveVideoSource: () => assert.fail('Index Video must use authenticated sidecar authority.'),
-			materializeFramePack: ({ plan }: Readonly<{ plan: AssistanceOwnedFramePackPlanV1 }>) =>
+			});
+			const materializer = {
+				materializeFramePack: ({ plan }: Readonly<{ plan: AssistanceOwnedFramePackPlanV1 }>) =>
 				createAssistanceFramePackV1({ width: plan.width, height: plan.height,
 					timescale: plan.timescale, frames: plan.frames.map((frame) => ({
 						sourceFrame: frame.sourceFrame, presentationTick: frame.presentationTick,
@@ -116,16 +116,12 @@ test('the main bridge executes all seven closed transforms through authenticated
 			'reframe-path');
 
 		const highlights = await workflowHarness(directory, 'make-highlights', { bodies: {
-			'gather-signals:video': Uint8Array.of(0, 0, 0, 20, 102, 116, 121, 112),
+			'gather-signals:video': highlightVideoSignals(),
+			'gather-signals:audio': highlightAudioSignals(),
+			'gather-signals:shot-boundaries': { ...shotBoundaries(), timescale: 1 },
 		} });
 		const highlightHandlers = createAssistanceWorkflowOwnedVideoHighlightStageRuntime({
 			custody: highlights.custody,
-			materializer: {
-				resolveVideoSource: ({ purpose }) => {
-					assert.equal(purpose, 'highlight-signals');
-					return highlightVideoSignals();
-				},
-			},
 		});
 		for (const stageId of ['gather-signals', 'rank-highlights', 'assemble-highlights'] as const) {
 			assert.deepEqual(await highlightHandlers[stageId](highlights.execution(stageId)),
@@ -274,8 +270,12 @@ async function workflowHarness(
 	let claimIndex = 1;
 	const outputs = selected.flatMap((stage) => stage.outputSlots.filter(({ required }) => required)
 		.map(({ slotId }) => claim('output', stage.stageId, slotId, claimIndex++)));
-	const inputs = selected.flatMap((stage) => stage.inputSlots.filter(({ required }) => required)
-		.map(({ slotId }) => {
+	const inputs = selected.flatMap((stage) => stage.inputSlots.filter(({ slotId, required }) => {
+		const producer = [...outputs].reverse().find((candidate) => candidate.slotId === slotId
+			&& stageIds.indexOf(candidate.stageId) < stageIds.indexOf(stage.stageId));
+		return required || producer !== undefined || Object.hasOwn(options.bodies,
+			`${stage.stageId}:${slotId}`);
+	}).map(({ slotId }) => {
 			const producer = [...outputs].reverse().find((candidate) => candidate.slotId === slotId
 				&& stageIds.indexOf(candidate.stageId) < stageIds.indexOf(stage.stageId));
 			return claim('input', stage.stageId, slotId, producer
@@ -291,8 +291,7 @@ async function workflowHarness(
 	const jobId = createHash('sha1').update(`${directory}:${workflowId}`).digest('hex');
 	const canonicalInputs = inputs.map((candidate) => ({ ...candidate, jobId }));
 	const canonicalOutputs = outputs.map((candidate) => ({ ...candidate, jobId }));
-	const externalVideo = options.bodies['sample-shot-frames:video']
-		?? options.bodies['gather-signals:video'];
+	const externalVideo = options.bodies['sample-shot-frames:video'];
 	const fence = workflowFence(workflowId, settings, stageIds, models,
 		externalVideo === undefined ? undefined : digest(binaryBody(externalVideo, 'video')));
 	const request = {
@@ -305,7 +304,12 @@ async function workflowHarness(
 		const body = binaryBody(value, slotId);
 		const path = join(directory, `${workflowId}-${stageId}-${slotId}.input`);
 		await writeFile(path, body);
-		inputRecords.set(`${stageId}:${slotId}`, { path, body, media: inputMedia(slotId) });
+		const producer = [...outputs].reverse().find((candidate) => candidate.slotId === slotId
+			&& stageIds.indexOf(candidate.stageId) < stageIds.indexOf(stageId));
+		const media = (producer ? assistanceWorkflowCustodySlotSpec(
+			workflowId, producer.stageId, 'output', producer.slotId,
+		) : assistanceWorkflowCustodySlotSpec(workflowId, stageId, 'input', slotId)).mediaTypes[0]!;
+		inputRecords.set(`${stageId}:${slotId}`, { path, body, media });
 	}
 	const outputPaths = new Map(canonicalOutputs.map((candidate) => [
 		`${candidate.stageId}:${candidate.slotId}`,
@@ -323,15 +327,19 @@ async function workflowHarness(
 			const producer = workflowClaim.direction === 'input'
 				? [...canonicalOutputs].reverse().find((candidate) => candidate.slotId === workflowClaim.slotId
 					&& stageIds.indexOf(candidate.stageId) < stageIds.indexOf(stage.stageId)) : undefined;
-			const mediaType = mediaOverride ?? (producer
-				? outputMedia(producer.slotId) : workflowClaim.direction === 'output'
-					? outputMedia(workflowClaim.slotId) : inputMedia(workflowClaim.slotId));
+			const custodySpec = producer
+				? assistanceWorkflowCustodySlotSpec(
+					workflowId, producer.stageId, 'output', producer.slotId,
+				) : assistanceWorkflowCustodySlotSpec(
+					workflowId, workflowClaim.stageId, workflowClaim.direction, workflowClaim.slotId,
+				);
+			const mediaType = mediaOverride ?? custodySpec.mediaTypes[0]!;
 			const record = inputRecords.get(`${workflowClaim.stageId}:${workflowClaim.slotId}`);
 			return {
 				custodyVersion: 1 as const, workflowId, direction: workflowClaim.direction,
 				jobId, stageId: workflowClaim.stageId, slotId: workflowClaim.slotId,
 				claimId: workflowClaim.claimId,
-				role: roleFor(workflowClaim.slotId, workflowClaim.direction, producer?.slotId), mediaType,
+				role: custodySpec.role, mediaType,
 				byteLength: workflowClaim.direction === 'input' && !producer ? record?.body.byteLength ?? 1 : null,
 				sha256: workflowClaim.direction === 'input' && !producer && record
 					? digest(record.body) : workflowClaim.direction === 'input' && !producer ? '00'.repeat(32) : null,
@@ -342,10 +350,11 @@ async function workflowHarness(
 			};
 		},
 		async resolveInput(value: unknown) {
-			const token = value as { stageId: string; slotId: string; claimId: string; producer: unknown };
+			const token = value as { stageId: string; slotId: string; claimId: string;
+				producer: unknown; role: string; mediaType: string };
 			const seeded = inputRecords.get(`${token.stageId}:${token.slotId}`);
-			if (seeded) return { claim: dataClaim(token.claimId, jobId, roleFor(token.slotId, 'input',
-				token.producer ? token.slotId : undefined), seeded.media, seeded.body), path: seeded.path };
+			if (seeded) return { claim: dataClaim(token.claimId, jobId, token.role,
+				token.mediaType, seeded.body), path: seeded.path };
 			const produced = authenticatedClaims.get(token.claimId);
 			if (!produced) throw new Error('The producer fixture is not authenticated.');
 			const producerOutput = canonicalOutputs.find(({ claimId }) => claimId === token.claimId)!;
@@ -440,26 +449,6 @@ function dataClaim(
 		AssistanceStagedInputClaim | AssistanceOutputClaim;
 }
 
-function roleFor(slotId: string, direction: 'input' | 'output', producer?: string): string {
-	const slot = producer ?? slotId;
-	if (slot === 'visual-embeddings') return 'embeddings';
-	return direction === 'input' && producer === undefined ? slotId : slot;
-}
-
-function inputMedia(slotId: string): string {
-	if (slotId === 'video') return 'video/mp4';
-	if (slotId === 'audio') return 'audio/wav';
-	if (slotId === 'frame-pack') return FRAME_MEDIA;
-	if (slotId === 'embeddings' || slotId === 'visual-embeddings') return MATRIX_MEDIA;
-	return JSON_MEDIA;
-}
-
-function outputMedia(slotId: string): string {
-	if (slotId === 'frame-pack') return FRAME_MEDIA;
-	if (slotId === 'embeddings' || slotId === 'visual-embeddings') return MATRIX_MEDIA;
-	return JSON_MEDIA;
-}
-
 function binaryBody(value: unknown, slotId: string): Uint8Array {
 	if (value instanceof Uint8Array) return value;
 	if (slotId === 'embeddings' || slotId === 'visual-embeddings') {
@@ -517,7 +506,12 @@ function highlightVideoSignals() {
 		sourceTimeAuthority: [0, 20, 40].map((sourceFrame) => ({ sourceFrame,
 			presentationTick: String(sourceFrame), timelineFrame: sourceFrame * 1_000 })),
 		windows: [{ id: 'highlight-a', startFrame: 0, endFrame: 40_000,
-			shotStructure: 1, visualInterest: 1 }] };
+			shotStructure: 0, visualInterest: 0 }] };
+}
+
+function highlightAudioSignals() {
+	return { schemaVersion: 1, kind: 'highlight-audio-signals',
+		signals: [{ candidateId: 'highlight-a', energyDynamics: 0.75 }] };
 }
 
 async function withDirectory(run: (directory: string) => Promise<void>): Promise<void> {
