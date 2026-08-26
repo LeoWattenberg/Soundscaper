@@ -21,9 +21,6 @@ concurrency:
   group: qualification-metrics-${{ github.ref }}
   cancel-in-progress: false
 
-env:
-  PUBLIC_FFMPEG_CORE_BASE_URL: https://assets.soundscaper.org/runtime/ffmpeg/0.12.10
-
 jobs:
   hosted-metrics:
     name: Hosted CI qualification metrics
