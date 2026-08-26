@@ -19,9 +19,12 @@ import {
 	planSpectralEditWorkflowAdmission,
 } from '../spectral-edit-admission.ts';
 import {
-	createLocalAssistanceSelectedMediaPreparation,
 	resolveLocalAssistanceSelectedMediaAuthority,
 } from './local-assistance-selected-media.ts';
+import {
+	createLocalAssistanceSelectedPreparation,
+	type LocalAssistanceSelectedVideoStore,
+} from './local-assistance-selected-preparation.ts';
 import {
 	createLocalAssistanceResultAcceptance,
 	type LocalAssistanceResultAcceptanceStore,
@@ -211,6 +214,7 @@ export interface EffectAudioServiceRuntime {
 	) => Promise<Float32Array[]>;
 	readonly serializeNoiseProfile: (profile: unknown) => unknown;
 	readonly assistanceStore?: LocalAssistanceResultAcceptanceStore;
+	readonly assistanceVideoStore?: LocalAssistanceSelectedVideoStore;
 	readonly commit: (command: Readonly<Record<string, unknown>>) => void;
 	readonly persistAudacityEffectResults: (
 		results: readonly SelectionEffectResult[],
@@ -510,8 +514,9 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 		captureProject: runtime.captureProject, store: runtime.assistanceStore,
 		assertProject: (token) => runtime.assertProject(token as EditorProjectToken), commit: runtime.commit,
 	}) : null;
-	const selectedMediaPreparation = createLocalAssistanceSelectedMediaPreparation({
+	const selectedMediaPreparation = createLocalAssistanceSelectedPreparation({
 		...selectedMediaDependencies,
+		...(runtime.assistanceVideoStore ? { videoStore: runtime.assistanceVideoStore } : {}),
 		...(resultAcceptance ? { acceptValidatedResult: resultAcceptance.acceptValidatedResult } : {}),
 	});
 

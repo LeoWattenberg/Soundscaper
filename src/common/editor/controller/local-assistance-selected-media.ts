@@ -227,13 +227,13 @@ export function resolveLocalAssistanceSelectedMediaAuthority(
 	if (sourceEnd > integer(source.frameCount, 1, 'source frame count')) {
 		throw new RangeError('The assistance selection exceeds its authenticated source.');
 	}
-	const fence = createFence(project, clip, source, track,
+	const fence = createLocalAssistanceSelectionFence(project, clip, source, track,
 		selectionStart, selectionEnd, sourceStart, sourceEnd);
 	return Object.freeze({ project, source, clip, track, startFrame: selectionStart,
 		endFrame: selectionEnd, sourceStartFrame: sourceStart, sourceEndFrame: sourceEnd, fence });
 }
 
-function createFence(
+export function createLocalAssistanceSelectionFence(
 	project: SelectedMediaProject,
 	clip: DataRecord,
 	source: DataRecord,
