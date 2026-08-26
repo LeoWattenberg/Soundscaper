@@ -479,6 +479,12 @@ inline void validate_picture_keyframes(
 		for (std::size_t index = 0; index < segments.size(); ++index) {
 			const auto& segment = segments[index];
 			const auto segment_kind = text(json::member(segment, "kind"), "picture keyframe segment kind");
+			// Checked before the kind dispatch: a Bezier between two integral
+			// anchors still evaluates to fractional values across the span, which
+			// is exactly what this rule keeps away from an integer-only parameter.
+			if (parameter.integer && segment_kind != "hold") {
+				throw json::parse_error("An integer picture keyframe target requires hold segments.");
+			}
 			if (segment_kind == "bezier") {
 				exact(segment, {"kind", "control1", "control2"});
 				const auto control1 = validate_curve_anchor(json::member(segment, "control1"), parameter, authored);
@@ -492,9 +498,6 @@ inline void validate_picture_keyframes(
 				exact(segment, {"kind"});
 				if (segment_kind != "hold" && segment_kind != "linear" && segment_kind != "eased") {
 					throw json::parse_error("Picture keyframe segment kind is unsupported.");
-				}
-				if (parameter.integer && segment_kind != "hold") {
-					throw json::parse_error("An integer picture keyframe target requires hold segments.");
 				}
 			}
 		}
