@@ -22,6 +22,21 @@ const OUTPUT = Object.freeze({ claimVersion: 1, claimId: '4'.repeat(40), jobId: 
 const REQUEST = Object.freeze({ contractVersion: 1, jobId: JOB_ID, operation: 'speech-recognition',
 	selectionFence: FENCE, models: [{ modelId: 'parakeet-tdt-0.6b-v3', version: '3.0.0',
 		artifactSha256s: [DIGEST] }], inputs: [INPUT], outputs: [OUTPUT] });
+const WORKFLOW_REQUEST = Object.freeze({ contractVersion: 1, jobId: JOB_ID,
+	workflowId: 'enhance-dialogue', recipeVersion: 1, settingsVersion: 1,
+	fence: { fenceVersion: 1, projectId: 'project-1', schemaVersion: 31, revision: 1,
+		sequenceId: 'sequence-1', sourceRanges: [{ slotId: 'primary-audio', mediaKind: 'audio',
+			sourceId: 'source-1', sourceSha256: 'b'.repeat(64), occurrenceIds: ['occurrence-1'],
+			sourceStartFrame: 0, sourceEndFrame: 48_000, linkMembershipSha256: 'c'.repeat(64),
+			timingAuthoritySha256: 'd'.repeat(64), retimeKind: 'identity' }],
+		transcriptBodySha256: null, recipeSha256: '1'.repeat(64), settingsSha256: '2'.repeat(64),
+		modelBindingsSha256: '3'.repeat(64) },
+	stageIds: ['enhance-dialogue'], models: [{ bindingVersion: 1, stageId: 'enhance-dialogue',
+		slotId: 'enhancer', modelId: 'deepfilternet3', version: '3.0.0', artifactSha256s: [DIGEST] }],
+	inputs: [{ claimVersion: 1, direction: 'input', claimId: CLAIM_ID, jobId: JOB_ID,
+		stageId: 'enhance-dialogue', slotId: 'audio' }],
+	outputs: [{ claimVersion: 1, direction: 'output', claimId: '4'.repeat(40), jobId: JOB_ID,
+		stageId: 'enhance-dialogue', slotId: 'enhanced-audio' }] });
 
 test('localAssistance exposes authenticated model choices and pathless control outcomes', async () => {
 	const resultClaim = { ...OUTPUT, maximumByteLength: undefined, byteLength: 2, sha256: DIGEST };
@@ -133,6 +148,52 @@ test('main-owned consent decline remains a closed correlated outcome', async () 
 	const malformed = await loadPreload({ responses: [{ contractVersion: 1, jobId: JOB_ID,
 		operation: 'speech-recognition', outcome: 'consent-declined', path: '/private' }] });
 	await assert.rejects(malformed.bridge.localAssistance.run(REQUEST), /Malformed unavailable assistance operation/u);
+});
+
+test('the shared preload exposes strict workflow create, run, cancel, and progress methods', async () => {
+	const result = { contractVersion: 1, jobId: JOB_ID, workflowId: 'enhance-dialogue',
+		stageIds: ['enhance-dialogue'], outputs: WORKFLOW_REQUEST.outputs };
+	const fixture = await loadPreload({ responses: [
+		{ contractVersion: 1, jobId: JOB_ID },
+		{ contractVersion: 1, jobId: JOB_ID, workflowId: 'enhance-dialogue', outcome: 'completed', result },
+		{ contractVersion: 1, jobId: JOB_ID, outcome: 'cancelled' },
+	] });
+	assert.equal(typeof fixture.bridge.localAssistance.run, 'function', 'operation-v1 remains unchanged');
+	assert.deepEqual(plain(await fixture.bridge.localAssistance.workflow.createJob()), {
+		contractVersion: 1, jobId: JOB_ID,
+	});
+	assert.deepEqual(plain(await fixture.bridge.localAssistance.workflow.run(WORKFLOW_REQUEST)), {
+		contractVersion: 1, jobId: JOB_ID, workflowId: 'enhance-dialogue', outcome: 'completed', result,
+	});
+	assert.deepEqual(plain(await fixture.bridge.localAssistance.workflow.cancel(JOB_ID)), {
+		contractVersion: 1, jobId: JOB_ID, outcome: 'cancelled',
+	});
+	assert.deepEqual(fixture.invocations.map(([channel]) => channel), [
+		'soundscaper:v1:assistance:workflow:create',
+		'soundscaper:v1:assistance:workflow:run',
+		'soundscaper:v1:assistance:workflow:cancel',
+	]);
+	const seen = [];
+	fixture.bridge.localAssistance.workflow.onProgress((value) => seen.push(value));
+	fixture.emit('soundscaper:v1:event:assistance-workflow-progress', { contractVersion: 1,
+		jobId: JOB_ID, workflowId: 'enhance-dialogue', sequence: 0, stageId: 'enhance-dialogue',
+		stageIndex: 0, stageCount: 1, phase: 'running', completed: 1, total: 2 });
+	assert.deepEqual(plain(seen), [{ contractVersion: 1, jobId: JOB_ID,
+		workflowId: 'enhance-dialogue', sequence: 0, stageId: 'enhance-dialogue', stageIndex: 0,
+		stageCount: 1, phase: 'running', completed: 1, total: 2 }]);
+});
+
+test('workflow preload validation rejects renderer stage injection and path-bearing main answers', async () => {
+	const injected = await loadPreload({ responses: [] });
+	await assert.rejects(injected.bridge.localAssistance.workflow.run({
+		...WORKFLOW_REQUEST, operations: ['execute-shell'],
+	}), /workflow|schema|fields/iu);
+	assert.equal(injected.invocations.length, 0);
+
+	const malformed = await loadPreload({ responses: [{ contractVersion: 1, jobId: JOB_ID,
+		workflowId: 'enhance-dialogue', outcome: 'consent-declined', path: '/private/source.wav' }] });
+	await assert.rejects(malformed.bridge.localAssistance.workflow.run(WORKFLOW_REQUEST),
+		/workflow|schema|fields|outcome/iu);
 });
 
 async function loadPreload({ responses, onPostMessage = () => {} }) {

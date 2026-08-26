@@ -27,6 +27,8 @@ import { assistanceServiceFrom, registerAssistanceIpc } from './project-library-
 import { createExternalFfmpegAssistanceShotRuntimeAdapter } from './project-library-runtime/desktop/assistance-external-ffmpeg-shot-runtime.js';
 import { ASSISTANCE_OPERATION_IPC_CHANNELS, registerAssistanceOperationIpc } from './project-library-runtime/desktop/assistance-operation-main-ipc.js';
 import { createAssistanceOperationService } from './project-library-runtime/desktop/assistance-operation-service.js';
+import { ASSISTANCE_WORKFLOW_IPC_CHANNELS, registerAssistanceWorkflowIpc } from './project-library-runtime/desktop/assistance-workflow-main-ipc.js';
+import { createAssistanceWorkflowService } from './project-library-runtime/desktop/assistance-workflow-service.js';
 import { AssistanceStagingRegistry } from './project-library-runtime/desktop/assistance-staging-registry.js';
 
 /**
@@ -66,6 +68,33 @@ async function confirmOperation(dialog, window, request) {
 			`Model: ${request.models.map(({ modelId, version }) => `${modelId} ${version}`).join(', ') || 'none'}`,
 		].join('\n'),
 		buttons: ['Run locally', 'Cancel'],
+		defaultId: 1,
+		cancelId: 1,
+		noLink: true,
+	};
+	const result = await (window
+		? dialog.showMessageBox(window, options)
+		: dialog.showMessageBox(options));
+	return result?.response === 0;
+}
+
+async function confirmWorkflow(dialog, window, request, stages) {
+	const options = {
+		type: 'question',
+		title: 'Local Assistance consent',
+		message: 'Run this exact Local Assistance workflow?',
+		detail: [
+			`Workflow: ${request.workflowId}`,
+			`Stages: ${stages.map(({ stageId }) => stageId).join(', ')}`,
+			`Selected ranges: ${request.fence.sourceRanges.map((range) =>
+				`${range.mediaKind} ${range.sourceStartFrame}–${range.sourceEndFrame}`).join(', ')}`,
+			`Timeline items: ${request.fence.sourceRanges.reduce((count, range) =>
+				count + range.occurrenceIds.length, 0)}`,
+			`Models: ${request.models.map(({ stageId, modelId, version }) =>
+				`${stageId}: ${modelId} ${version}`).join(', ') || 'none'}`,
+			`Outputs: ${request.outputs.map(({ stageId, slotId }) => `${stageId}: ${slotId}`).join(', ')}`,
+		].join('\n'),
+		buttons: ['Run workflow locally', 'Cancel'],
 		defaultId: 1,
 		cancelId: 1,
 		noLink: true,
@@ -172,5 +201,16 @@ export function registerAssistance({
 		}),
 		confirmOperation: (request) => confirmOperation(dialog, windowFor(), request),
 	});
-	return Object.freeze({ dispose: async () => { await operationIpc.dispose(); runtime.dispose(); } });
+	const workflowIpc = registerAssistanceWorkflowIpc({
+		channels: ASSISTANCE_WORKFLOW_IPC_CHANNELS,
+		handle,
+		sendToRenderer,
+		createWorkflows: (onProgress) => createAssistanceWorkflowService({ onProgress }),
+		confirmWorkflow: (request, stages) => confirmWorkflow(dialog, windowFor(), request, stages),
+	});
+	return Object.freeze({ dispose: async () => {
+		await workflowIpc.dispose();
+		await operationIpc.dispose();
+		runtime.dispose();
+	} });
 }

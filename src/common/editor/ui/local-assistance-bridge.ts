@@ -10,6 +10,9 @@ import {
 	validateAssistanceSelectionFence,
 	type AssistanceSelectionFence,
 } from '../assistance/proposal-session.ts';
+import type { LocalAssistanceWorkflowBridge } from './local-assistance-workflow-bridge.ts';
+
+export type { LocalAssistanceWorkflowBridge } from './local-assistance-workflow-bridge.ts';
 
 export const LOCAL_ASSISTANCE_PROGRESS_PHASES = Object.freeze([
 	'queued', 'staging-input', 'loading-model', 'running', 'staging-output', 'finalizing',
@@ -110,6 +113,7 @@ export type LocalAssistanceRunOutcome = Readonly<{
 }>;
 
 export interface LocalAssistanceBridge {
+	readonly workflow?: LocalAssistanceWorkflowBridge;
 	models(): Promise<readonly LocalAssistanceModel[]>;
 	createJob(): Promise<Readonly<{ contractVersion: 1; jobId: string }>>;
 	stageInput(value: Readonly<{ jobId: string; role: LocalAssistanceInputRole;
@@ -186,13 +190,19 @@ export function resolveLocalAssistanceBridge(value: unknown): LocalAssistanceBri
 	if (!isRecord(value) || !isRecord(value.localAssistance)) return null;
 	const candidate = value.localAssistance;
 	const keys = Object.keys(candidate);
-	if (keys.length !== API_METHODS.length || keys.some((key) => !API_METHODS.includes(
-		key as typeof API_METHODS[number],
+	if ((keys.length !== API_METHODS.length && keys.length !== API_METHODS.length + 1)
+		|| keys.some((key) => key !== 'workflow' && !API_METHODS.includes(
+			key as typeof API_METHODS[number],
 	)) || API_METHODS.some((method) => typeof candidate[method] !== 'function')) return null;
+	const workflow = candidate.workflow === undefined
+		? undefined
+		: lazyAssistanceWorkflowBridge(candidate.workflow);
+	if (candidate.workflow !== undefined && workflow === null) return null;
 
 	const invoke = (method: typeof API_METHODS[number], ...args: readonly unknown[]) =>
 		(candidate[method] as (...values: readonly unknown[]) => unknown).apply(candidate, [...args]);
 	const bridge: LocalAssistanceBridge = Object.freeze({
+		...(workflow ? { workflow } : {}),
 		async models() {
 			return normalizeModels(await invoke('models'));
 		},
@@ -271,6 +281,37 @@ export function resolveLocalAssistanceBridge(value: unknown): LocalAssistanceBri
 		},
 	});
 	return bridge;
+}
+
+function lazyAssistanceWorkflowBridge(value: unknown): LocalAssistanceWorkflowBridge | null {
+	if (!isRecord(value)) return null;
+	const methods = ['createJob', 'run', 'cancel', 'onProgress'] as const;
+	const keys = Object.keys(value);
+	if (keys.length !== methods.length || keys.some((key) => !methods.includes(
+		key as typeof methods[number],
+	)) || methods.some((method) => typeof value[method] !== 'function')) return null;
+	let loaded: Promise<LocalAssistanceWorkflowBridge> | null = null;
+	const resolve = (): Promise<LocalAssistanceWorkflowBridge> => {
+		loaded ??= import('./local-assistance-workflow-bridge.ts').then((module) => {
+			const bridge = module.resolveLocalAssistanceWorkflowBridge(value);
+			if (!bridge) throw new TypeError('The assistance workflow bridge is invalid.');
+			return bridge;
+		});
+		return loaded;
+	};
+	return Object.freeze({
+		createJob: async () => (await resolve()).createJob(),
+		run: async (request: Parameters<LocalAssistanceWorkflowBridge['run']>[0]) => (await resolve()).run(request),
+		cancel: async (jobIdValue: string) => (await resolve()).cancel(jobIdValue),
+		onProgress(listener: Parameters<LocalAssistanceWorkflowBridge['onProgress']>[0]) {
+			let disposed = false;
+			let unsubscribe: (() => void) | null = null;
+			void resolve().then((bridge) => {
+				if (!disposed) unsubscribe = bridge.onProgress(listener);
+			}).catch(() => undefined);
+			return () => { disposed = true; unsubscribe?.(); };
+		},
+	});
 }
 
 export function normalizeModels(value: unknown): readonly LocalAssistanceModel[] {

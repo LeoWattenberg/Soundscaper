@@ -24,6 +24,9 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'desktop/assistance-staging-registry-comparisons.js',
 	'desktop/assistance-staging-registry.js',
 	'desktop/assistance-vad-runtime.js',
+	'desktop/assistance-workflow-consent.js',
+	'desktop/assistance-workflow-main-ipc.js',
+	'desktop/assistance-workflow-service.js',
 	'desktop/external-ffmpeg-shot-detection-output.js',
 	'desktop/external-ffmpeg-shot-detector.js',
 	'desktop/local-model-capacity.js',
@@ -38,4 +41,6 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'desktop/local-model-store.js',
 	'src/common/editor/assistance/operation.js',
 	'src/common/editor/assistance/proposal-session.js',
+	'src/common/editor/assistance/workflow-recipes.js',
+	'src/common/editor/assistance/workflow.js',
 ]);

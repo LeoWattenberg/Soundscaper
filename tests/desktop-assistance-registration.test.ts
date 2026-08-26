@@ -16,6 +16,10 @@ test('desktop composition gives local assistance the authenticated external FFmp
 		/createExternalFfmpegAssistanceShotRuntimeAdapter\(\{\s*preferences: externalFfmpegPreferences,?\s*\}\)/u);
 	assert.match(registration,
 		/createAssistanceOperationService\(\{[\s\S]*?shotDetectionRuntime,[\s\S]*?onProgress,/u);
+	assert.match(registration,
+		/import \{ ASSISTANCE_WORKFLOW_IPC_CHANNELS, registerAssistanceWorkflowIpc \} from '\.\/project-library-runtime\/desktop\/assistance-workflow-main-ipc\.js';/u);
+	assert.match(registration,
+		/registerAssistanceWorkflowIpc\(\{[\s\S]*?createAssistanceWorkflowService\(\{ onProgress \}\)[\s\S]*?confirmWorkflow:/u);
 	assert.match(main,
 		/registerAssistance\(\{[\s\S]*?externalFfmpegPreferences: externalFfmpegPreferences\.service[\s\S]*?\}\)/u);
 });
