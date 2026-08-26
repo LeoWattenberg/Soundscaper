@@ -244,7 +244,7 @@ function applyBatch(
 	const commands = flattenFramescaperProjectBatchCommandsV20(command);
 	const needsOrderedSegmentation = commands.some((child) => (
 		isFramescaperVideoKeyframesCommandV20(child) || isFramescaperVideoRetimeCommandV20(child)
-		|| isFramescaperVideoProxyDetachCommandV20(child)
+		|| isFramescaperVideoProxyDetachCommandV20(child) || child.type === 'sequence/create' || child.type === 'sequence/delete'
 	))
 		|| (commands.length > 1
 			&& commands.some((child) => framescaperV20ExplicitFreshVideoIds(child).size > 0));
@@ -273,7 +273,7 @@ function applyBatch(
 	for (const child of commands) {
 		if (!isFramescaperVideoKeyframesCommandV20(child)
 			&& !isFramescaperVideoRetimeCommandV20(child)
-			&& !isFramescaperVideoProxyDetachCommandV20(child)) {
+			&& !isFramescaperVideoProxyDetachCommandV20(child) && child.type !== 'sequence/create' && child.type !== 'sequence/delete') {
 			const createsFreshVideo = framescaperV20ExplicitFreshVideoIds(child).size > 0;
 			const freshAvLinks = framescaperV20FreshVideoAddAvLinkIds(child);
 			const joinsPriorPeer = freshAvLinks.some((avLinkId) => (
@@ -296,9 +296,9 @@ function applyBatch(
 		flushInherited();
 		current = isFramescaperVideoKeyframesCommandV20(child)
 			? applyVideoKeyframes(profile, current, child, intermediateOptions)
-			: isFramescaperVideoRetimeCommandV20(child)
-				? applyVideoRetime(profile, current, child, intermediateOptions)
-				: applyVideoProxyDetach(profile, current, child, intermediateOptions);
+				: isFramescaperVideoRetimeCommandV20(child)
+					? applyVideoRetime(profile, current, child, intermediateOptions)
+					: isFramescaperVideoProxyDetachCommandV20(child) ? applyVideoProxyDetach(profile, current, child, intermediateOptions) : applyInherited(profile, current, child, intermediateOptions);
 		restoreOuterBookkeeping(current, project);
 	}
 	flushInherited();
