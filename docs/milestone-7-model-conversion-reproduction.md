@@ -2,8 +2,9 @@
 
 ## Current boundary
 
-The checked-in conversion execution register is a reproducibility and release
-evidence contract. It is not evidence that a conversion ran. TIGER-DnR, PANNs
+The checked-in conversion execution register and Python conversion module are
+a reproducibility and release-evidence contract. They are not evidence that a
+conversion ran. TIGER-DnR, PANNs
 Cnn10, Beat This `small0`/`final0`, and TransNetV2 all remain
 `pending-external`: no locked exporter environment, retained source-tree
 archive, converted ONNX identity, or source-framework parity result is present.
@@ -55,14 +56,51 @@ and fixed environment values select deterministic CPU behavior and single
 threaded math libraries. The command record itself receives a canonical
 SHA-256 that retained execution evidence must repeat.
 
-The `soundscaper_m7_conversion` Python module belongs in the future reviewed,
-digest-locked conversion environment. It is deliberately not downloaded or
-executed by the repository checker. Until that environment is retained and its
-lock is recorded in the supply recipe, `toolchain-lock` remains a derived
-blocker and fabricated command output cannot be admitted.
+The repository-owned installable module is under
+`scripts/models/milestone-7-conversion-tool/`. Install that local package with
+`--no-deps` inside the separately reviewed conversion environment; dependency
+resolution belongs to the future digest-locked toolchain, not this repository
+or the conversion command. The registered isolated `python3 -I -B -m
+soundscaper_m7_conversion` invocation then resolves only that installed copy.
+Until the complete environment is retained and its lock is recorded in the
+supply recipe, `toolchain-lock` remains a derived blocker and fabricated
+command output cannot be admitted.
+
+The module authenticates all source files before importing PyTorch,
+TensorFlow, ONNX, or exporter packages. It accepts no URL or command fragment,
+sets the framework offline switches, refuses a visible CUDA provider, safely
+extracts only regular files and directories from the authenticated source
+archive, exports opset-17 graphs without external tensor data or custom
+domains, loads each result in CPU ONNX Runtime, and publishes artifacts and
+canonical JSON with no-clobber semantics. The TIGER exporter retains only its
+three neural mask cores in D/M/E order; owned application STFT, complex mask
+application, ISTFT, and overlap-add remain outside the graph. TransNetV2 is
+bridged TensorFlow → ONNX → PyTorch → final ONNX so all three retained runtime
+runs remain independently comparable. These executions still create no
+release authority until their exact artifacts and evidence are registered.
 
 The converter protocol receives only manifest names, never arbitrary command
-fragments:
+fragments. `source-input-manifest.json` is one exact object binding the
+protocol, candidate and plan digest, an authenticated source archive, and the
+ordered source-artifact roles with full SHA-256 readbacks. Every path is
+normalized relative to the workspace; symlinks, traversal, changed lengths,
+weak-checksum mismatch, and unexpected fields are refused.
+
+The retained run layout is closed as well:
+
+```text
+source-framework-runs/<framework>/<output-role>.f32le
+source-framework-runs/<framework>/<point-role>.i64le
+```
+
+Float matrices must be finite and geometry-exact. Beat/downbeat points and
+shot boundaries are strictly increasing signed 64-bit little-endian indexes.
+The parity command verifies the pinned fixture and converted artifacts, checks
+every required framework/role exactly, computes the registered maximum-error
+or symmetric-index-difference metric, refuses a failed threshold, and writes
+the canonical evidence file once.
+
+The registered files are:
 
 - `source-input-manifest.json` binds the source archive and artifact files;
 - `converted-artifacts.json` must contain the exact registered output roles;

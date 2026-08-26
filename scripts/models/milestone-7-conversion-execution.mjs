@@ -316,6 +316,7 @@ export function validateMilestone7ConversionEvidence(value, options) {
 	const parityEvidence = validateMilestone7ParityEvidence(
 		row.parityEvidence, fixture, candidate,
 	);
+	const parityOutputFiles = retainedParityOutputFiles(parityEvidence);
 	if (sha256(canonicalJson(row.parityEvidence)) !== recipe.parity.evidenceSha256) {
 		throw new Error('The retained parity evidence digest does not match its fixture binding.');
 	}
@@ -327,13 +328,27 @@ export function validateMilestone7ConversionEvidence(value, options) {
 		commandRuns,
 		convertedArtifacts,
 		parityEvidence,
+		parityOutputFiles,
 		files: [
 			sourceCodeArchive,
 			...sourceArtifacts,
 			...commandRuns.flatMap(({ stdout, stderr }) => [stdout, stderr]),
 			...convertedArtifacts,
+			...parityOutputFiles,
 		],
 	});
+}
+
+function retainedParityOutputFiles(parityEvidence) {
+	return parityEvidence.runs.flatMap(({ framework, outputs }) => outputs.map((output) => {
+		const extension = ['beat-points', 'downbeat-points', 'boundaries'].includes(output.role)
+			? 'i64le' : 'f32le';
+		return evidenceFile({
+			path: `source-framework-runs/${framework}/${output.role}.${extension}`,
+			byteLength: output.byteLength,
+			sha256: output.sha256,
+		}, 'parity framework output');
+	}));
 }
 
 function admitRegister(options) {

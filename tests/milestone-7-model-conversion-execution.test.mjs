@@ -194,7 +194,7 @@ test('complete exact identities admit one bounded retained evidence record', () 
 		runs: fixture.frameworks.map((framework) => ({
 			framework,
 			outputs: fixture.outputRoles.map((role) => ({
-				role, byteLength: 1, sha256: OTHER_SHA256,
+				role, byteLength: 4, sha256: OTHER_SHA256,
 			})),
 		})),
 		comparisons: fixture.comparisons.map((comparison) => ({
@@ -255,7 +255,13 @@ test('complete exact identities admit one bounded retained evidence record', () 
 	});
 	assert.equal(admitted.candidateId, 'panns-cnn10');
 	assert.equal(admitted.parityEvidence.comparisons.every(({ observed }) => observed === 0), true);
-	assert.equal(admitted.files.length, 1 + 2 + 4 + 1);
+	assert.equal(admitted.files.length, 1 + 2 + 4 + 1 + 4);
+	assert.deepEqual(admitted.parityOutputFiles.map(({ path }) => path), [
+		'source-framework-runs/source-pytorch/clipwise-probabilities.f32le',
+		'source-framework-runs/source-pytorch/embedding.f32le',
+		'source-framework-runs/onnxruntime-cpu/clipwise-probabilities.f32le',
+		'source-framework-runs/onnxruntime-cpu/embedding.f32le',
+	]);
 
 	const nonzero = clone(evidence);
 	nonzero.commandRuns[0].exitCode = 1;

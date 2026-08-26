@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "soundscaper-m7-conversion"
+version = "1.0.0"
+description = "Offline deterministic model conversion and parity evidence tool for Soundscaper Milestone 7"
+requires-python = ">=3.12,<3.13"
+license = { text = "AGPL-3.0-only" }
+
+[tool.setuptools]
+packages = ["soundscaper_m7_conversion"]
