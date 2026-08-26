@@ -148,6 +148,33 @@ function SemanticReview({ copy, review }: Readonly<{
 			sampleRate: String(review.sampleRate),
 		})}</p>;
 	}
+	if (review.kind === 'recognized-text') {
+		return <ol className="kw-local-assistance__recognized-text">
+			{review.frames.flatMap((frame) => frame.regions.map((region, index) => <li
+				key={`${frame.sourceFrame}:${index}`}>
+				<span>{region.text}</span>
+				<small>{template(text(copy, 'localAssistanceVisualFrameEvidence',
+					'Source frame {frame} · tick {tick} · {confidence}%'), {
+					frame: String(frame.sourceFrame), tick: frame.presentationTick,
+					confidence: formatPercent(region.confidence),
+				})}</small>
+			</li>))}
+		</ol>;
+	}
+	if (review.kind === 'subject-tracks') {
+		const count = review.frames.reduce((total, frame) => total + frame.subjects.length, 0);
+		return <p className="kw-local-assistance__subjects">{template(text(copy,
+			'localAssistanceSubjectSummary', '{count} non-biometric subject detections · {frames} frames'), {
+			count: String(count), frames: String(review.frames.length),
+		})}</p>;
+	}
+	if (review.kind === 'saliency-map') {
+		const count = review.frames.filter(({ saliency }) => saliency !== null).length;
+		return <p className="kw-local-assistance__saliency">{template(text(copy,
+			'localAssistanceSaliencySummary', '{count} saliency observations · {frames} frames'), {
+			count: String(count), frames: String(review.frames.length),
+		})}</p>;
+	}
 	return <ol className="kw-local-assistance__speaker-turns"
 		aria-label={text(copy, 'localAssistanceSpeakerTurns', 'Speaker turns')}>
 		{review.turns.map((turn, index) => <li

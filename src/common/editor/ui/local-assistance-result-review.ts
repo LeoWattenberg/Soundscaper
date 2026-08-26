@@ -26,6 +26,15 @@ import {
 	type LocalAssistanceShotBoundariesReview,
 } from './local-assistance-shot-review.ts';
 import { inspectWavBlobPcm } from '../wav-import.js';
+import {
+	reviewAssistanceOcrResultV1,
+	reviewAssistanceSaliencyResultV1,
+	reviewAssistanceSubjectResultV1,
+	type AssistanceOcrResultV1,
+	type AssistanceSaliencyResultV1,
+	type AssistanceSubjectResultV1,
+	type AssistanceVisualFrameAuthorityV1,
+} from '../assistance/visual-semantic-results-v1.ts';
 
 const MAXIMUM_REVIEW_BYTES = 8 * 1024 * 1024;
 const MAXIMUM_SAMPLE_RANGES = 100_000;
@@ -66,6 +75,15 @@ const EMBEDDING_MATRIX_MEDIA_TYPES = new Set([
 	'application/vnd.soundscaper.embedding-matrix-v1',
 ]);
 const AUDIO_WAVE_MEDIA_TYPES = new Set(['audio/wav']);
+const RECOGNIZED_TEXT_MEDIA_TYPES = new Set([
+	'application/json', 'application/vnd.soundscaper.recognized-text+json',
+]);
+const SUBJECT_TRACK_MEDIA_TYPES = new Set([
+	'application/json', 'application/vnd.soundscaper.subject-tracks+json',
+]);
+const SALIENCY_MAP_MEDIA_TYPES = new Set([
+	'application/json', 'application/vnd.soundscaper.saliency-map+json',
+]);
 const SEGMENT_KEYS = Object.freeze([
 	'startSeconds', 'endSeconds', 'text', 'words', 'speaker',
 ]);
@@ -147,9 +165,17 @@ export interface LocalAssistanceAudioWaveReview extends LocalAssistanceAudioWave
 	readonly sampleFormat: 'float32';
 }
 
+export type LocalAssistanceOcrReview = Readonly<{ readonly kind: 'recognized-text' }>
+	& AssistanceOcrResultV1;
+export type LocalAssistanceSubjectReview = Readonly<{ readonly kind: 'subject-tracks' }>
+	& AssistanceSubjectResultV1;
+export type LocalAssistanceSaliencyReview = Readonly<{ readonly kind: 'saliency-map' }>
+	& AssistanceSaliencyResultV1;
+
 export interface LocalAssistanceReviewAuthority {
 	readonly editorialCandidateIds?: readonly string[];
 	readonly audioWave?: LocalAssistanceAudioWaveGeometry;
+	readonly visualFrames?: AssistanceVisualFrameAuthorityV1;
 }
 
 export type LocalAssistanceOutputReview =
@@ -162,7 +188,10 @@ export type LocalAssistanceOutputReview =
 	| LocalAssistanceBeatGridReview
 	| LocalAssistanceEmbeddingsReview
 	| LocalAssistanceEditorialProposalReview
-	| LocalAssistanceAudioWaveReview;
+	| LocalAssistanceAudioWaveReview
+	| LocalAssistanceOcrReview
+	| LocalAssistanceSubjectReview
+	| LocalAssistanceSaliencyReview;
 
 export async function reviewLocalAssistanceOutput(
 	claim: LocalAssistanceOutputClaim,
@@ -210,6 +239,21 @@ export async function reviewLocalAssistanceOutput(
 			value, authority.editorialCandidateIds,
 		));
 	}
+	if (claim.role === 'recognized-text') {
+		return withReviewKind('recognized-text', reviewAssistanceOcrResultV1(
+			value, authority.visualFrames,
+		));
+	}
+	if (claim.role === 'subject-tracks') {
+		return withReviewKind('subject-tracks', reviewAssistanceSubjectResultV1(
+			value, authority.visualFrames,
+		));
+	}
+	if (claim.role === 'saliency-map') {
+		return withReviewKind('saliency-map', reviewAssistanceSaliencyResultV1(
+			value, authority.visualFrames,
+		));
+	}
 	return transcriptReview(value);
 }
 
@@ -223,6 +267,9 @@ function reviewMediaType(claim: LocalAssistanceOutputClaim): boolean {
 	if (claim.role === 'audio-tags') return AUDIO_TAG_MEDIA_TYPES.has(claim.mediaType);
 	if (claim.role === 'beat-grid') return BEAT_GRID_MEDIA_TYPES.has(claim.mediaType);
 	if (claim.role === 'embeddings') return EMBEDDING_MATRIX_MEDIA_TYPES.has(claim.mediaType);
+	if (claim.role === 'recognized-text') return RECOGNIZED_TEXT_MEDIA_TYPES.has(claim.mediaType);
+	if (claim.role === 'subject-tracks') return SUBJECT_TRACK_MEDIA_TYPES.has(claim.mediaType);
+	if (claim.role === 'saliency-map') return SALIENCY_MAP_MEDIA_TYPES.has(claim.mediaType);
 	if (claim.role === 'editorial-proposal') {
 		return EDITORIAL_PROPOSAL_MEDIA_TYPES.has(claim.mediaType);
 	}

@@ -197,6 +197,50 @@ test('audio WAV review rejects missing authority, inexact geometry, integer PCM,
 	), /canonical|extra/iu);
 });
 
+test('OCR, subject, and saliency outputs require exact sampled-frame authority', async () => {
+	const visualFrames = {
+		width: 640, height: 360, timescale: 90_000,
+		frames: [{ sourceFrame: 12, presentationTick: '3003' }],
+	};
+	const cases = [{
+		role: 'recognized-text' as const,
+		value: { schemaVersion: 1, width: 640, height: 360, timescale: 90_000,
+			frames: [{ sourceFrame: 12, presentationTick: '3003', regions: [{
+				text: 'Lower third', confidence: 0.9,
+				box: { x: 0.1, y: 0.8, width: 0.4, height: 0.1 },
+			}] }] },
+		match: /Lower third.*Source frame 12.*tick 3003.*90%/su,
+	}, {
+		role: 'subject-tracks' as const,
+		value: { schemaVersion: 1, width: 640, height: 360, timescale: 90_000,
+			frames: [{ sourceFrame: 12, presentationTick: '3003', subjects: [{
+				kind: 'face', classId: null, label: 'face', confidence: 0.8,
+				box: { x: 0.2, y: 0.1, width: 0.2, height: 0.4 },
+			}] }] },
+		match: /1 non-biometric subject detection.*1 frames/su,
+	}, {
+		role: 'saliency-map' as const,
+		value: { schemaVersion: 1, width: 640, height: 360, timescale: 90_000,
+			frames: [{ sourceFrame: 12, presentationTick: '3003', saliency: {
+				x: 0.5, y: 0.5, score: 0.7,
+			} }] },
+		match: /1 saliency observation.*1 frames/su,
+	}] as const;
+	for (const { role, value, match } of cases) {
+		const body = new Blob([JSON.stringify(value)], {
+			type: `application/vnd.soundscaper.${role}+json`,
+		});
+		const reviewed = await reviewLocalAssistanceOutput(
+			claim(role, body.type, body), body, { visualFrames },
+		);
+		assert.equal(reviewed.kind, role);
+		assert.match(render(reviewed, role), match);
+		await assert.rejects(reviewLocalAssistanceOutput(
+			claim(role, body.type, body), body,
+		), /visual frame authority|plain record/iu);
+	}
+});
+
 test('editorial review admits known identities only and renders generated fields as text', async () => {
 	const value = {
 		schemaVersion: 1,
