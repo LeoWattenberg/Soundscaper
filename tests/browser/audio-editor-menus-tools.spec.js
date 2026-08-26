@@ -266,7 +266,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await regularDialog.getByRole('button', { name: 'Create annotations', exact: true }).click();
 		await expect(regularDialog).toBeHidden();
 		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Markers']);
-		await expect(editor.getByRole('listbox', { name: 'Markers and named regions', exact: true }).getByRole('option')).toHaveCount(5);
+		const markerList = editor.getByRole('list', { name: 'Marker and region list', exact: true });
+		await expect(markerList.getByRole('listitem')).toHaveCount(5);
 		expect(errors).toEqual([]);
 	});
 
