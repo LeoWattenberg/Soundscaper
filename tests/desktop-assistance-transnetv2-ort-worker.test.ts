@@ -99,7 +99,7 @@ test('the authenticated TransNetV2 worker runs exact CPU tensors and publishes c
 	const runtime = fakeRuntime(async (feeds) => {
 		const tensor = feeds.frames!;
 		seen.push({ type: tensor.type, dims: tensor.dims,
-			firstPixel: Array.from(tensor.data.subarray(0, 3)) });
+			firstPixel: Array.from((tensor.data as Uint8Array).subarray(0, 3)) });
 		const single = new Float32Array(100).fill(-20);
 		const all = new Float32Array(100).fill(-20);
 		if (seen.length === 1) single[35] = 4;
@@ -256,8 +256,8 @@ function fakeRuntime(
 ): AssistanceOnnxRuntimeModuleV1 {
 	class Tensor implements TensorValue {
 		constructor(
-			readonly type: 'uint8' | 'float32',
-			readonly data: Uint8Array | Float32Array,
+			readonly type: 'uint8' | 'float32' | 'int64',
+			readonly data: Uint8Array | Float32Array | BigInt64Array,
 			readonly dims: readonly number[],
 		) {}
 	}
@@ -274,8 +274,8 @@ function fakeRuntime(
 }
 
 interface TensorValue {
-	readonly type: 'uint8' | 'float32';
-	readonly data: Uint8Array | Float32Array;
+	readonly type: 'uint8' | 'float32' | 'int64';
+	readonly data: Uint8Array | Float32Array | BigInt64Array;
 	readonly dims: readonly number[];
 }
 

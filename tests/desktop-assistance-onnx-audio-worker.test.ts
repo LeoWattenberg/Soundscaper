@@ -99,8 +99,8 @@ test('PANNs Cnn10 runs exact one-second CPU windows and publishes excitement tag
 	const seen: Array<Readonly<{ dims: readonly number[]; first: number; last: number }>> = [];
 	const runtime = fakeRuntime(['waveform'], ['clipwise_probabilities', 'embedding'], async (feeds) => {
 		const waveform = feeds.waveform!;
-		seen.push({ dims: waveform.dims, first: waveform.data[0]!,
-			last: waveform.data[waveform.data.length - 1]! });
+		const data = waveform.data as Float32Array;
+		seen.push({ dims: waveform.dims, first: data[0]!, last: data[data.length - 1]! });
 		const probabilities = new Float32Array(527);
 		probabilities[16] = seen.length === 1 ? 0.25 : 0.5;
 		probabilities[18] = seen.length === 1 ? 0.75 : 0.125;
@@ -243,8 +243,8 @@ function fakeRuntime(
 ): AssistanceOnnxRuntimeModuleV1 {
 	class Tensor implements TensorValue {
 		constructor(
-			readonly type: 'uint8' | 'float32',
-			readonly data: Uint8Array | Float32Array,
+			readonly type: 'uint8' | 'float32' | 'int64',
+			readonly data: Uint8Array | Float32Array | BigInt64Array,
 			readonly dims: readonly number[],
 		) {}
 	}
@@ -261,6 +261,6 @@ function fakeRuntime(
 
 interface TensorValue {
 	readonly type: string;
-	readonly data: Uint8Array | Float32Array;
+	readonly data: Uint8Array | Float32Array | BigInt64Array;
 	readonly dims: readonly number[];
 }

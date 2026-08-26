@@ -39,6 +39,7 @@ import {
 const EDITOR_DIRECTORY = fileURLToPath(new URL('../src/common/editor/', import.meta.url));
 const ASSISTANCE_DIRECTORY = fileURLToPath(new URL('../src/common/editor/assistance/', import.meta.url));
 const EDITOR_UI_DIRECTORY = fileURLToPath(new URL('../src/common/editor/ui/', import.meta.url));
+const EDITOR_CONTROLLER_DIRECTORY = fileURLToPath(new URL('../src/common/editor/controller/', import.meta.url));
 const MODULE_PATTERN = /\.(?:[cm]?[jt]s)$/u;
 
 test('every shared flat editor domain module has an owning chunk group', () => {
@@ -47,6 +48,20 @@ test('every shared flat editor domain module has an owning chunk group', () => {
 		.filter((path) => !EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST.test(path))
 		.filter((path) => chunkGroupForModulePath(path) === null);
 	assert.deepEqual(unowned, [], 'these modules would be placed by reachability alone');
+});
+
+test('every local assistance controller module keeps the lazy assistance owner', () => {
+	// A controller/local-assistance-*.ts module with any other owner lands in an eagerly
+	// loaded chunk, and its static imports then drag the whole optional assistance chunk
+	// into the product-ready startup graph, past its byte budget. Only the deferred facade
+	// that the composition root imports directly belongs on the eager side.
+	const misowned = localAssistanceControllerModules()
+		.filter((path) => chunkGroupForModulePath(path) !== 'editor-optional-assistance');
+	assert.deepEqual(misowned, [], 'these modules would join the eager startup graph');
+	assert.equal(
+		chunkGroupForModulePath('src/common/editor/controller/deferred-local-assistance-runtime.ts'),
+		'editor-controller-core',
+	);
 });
 
 test('every assistance domain module has an owning chunk group', () => {
@@ -241,6 +256,7 @@ test('stateful local assistance implementations share one dedicated lazy owner',
 		'src/common/editor/assistance/vad-silence.ts',
 		'src/common/editor/assistance/visual-indexing-v1.ts',
 		'src/common/editor/assistance/visual-semantic-results-v1.ts',
+		'src/common/editor/assistance/workflow-custody-v1.ts',
 		'src/common/editor/assistance/workflow-recipes.ts',
 		'src/common/editor/assistance/workflow-settings-v1.ts',
 		'src/common/editor/assistance/workflow.ts',
@@ -447,6 +463,14 @@ function assistanceDomainModules(): readonly string[] {
 	return readdirSync(ASSISTANCE_DIRECTORY, { withFileTypes: true })
 		.filter((entry) => entry.isFile() && MODULE_PATTERN.test(entry.name))
 		.map((entry) => `src/common/editor/assistance/${entry.name}`)
+		.sort();
+}
+
+function localAssistanceControllerModules(): readonly string[] {
+	return readdirSync(EDITOR_CONTROLLER_DIRECTORY, { withFileTypes: true })
+		.filter((entry) => entry.isFile() && MODULE_PATTERN.test(entry.name))
+		.filter((entry) => entry.name.startsWith('local-assistance-'))
+		.map((entry) => `src/common/editor/controller/${entry.name}`)
 		.sort();
 }
 

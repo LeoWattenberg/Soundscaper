@@ -118,6 +118,9 @@ async function resolveExactModel(
 		|| request.operation === 'beat-tracking')) {
 		assertAssistanceOnnxAudioModelBindingV1(request.operation, request.models[0]!);
 	}
+	if (subjectBindings === null && request.operation === 'text-embedding') {
+		assertAssistanceOnnxTextEmbeddingModelBindingV1(request.models[0]!);
+	}
 	const [status, installed] = await Promise.all([models.status(), models.listInstalled()]);
 	signal.throwIfAborted();
 	if (subjectBindings !== null) {
@@ -159,6 +162,15 @@ export function assertAssistanceOnnxAudioModelBindingV1(
 	if ((binding.modelId !== 'beat-this-small0' && binding.modelId !== 'beat-this-final0')
 		|| binding.version !== '1.1.0') {
 		throw new TypeError('Beat tracking requires an exact Beat This v1.1.0 model identity.');
+	}
+}
+
+/** Close transcript semantic-search substitution before catalog/status lookup. */
+export function assertAssistanceOnnxTextEmbeddingModelBindingV1(
+	binding: AssistanceOperationModelBinding,
+): void {
+	if (binding.modelId !== 'nomic-embed-text-v1.5' || binding.version !== '1.5.0') {
+		throw new TypeError('Text embedding requires the exact nomic-embed-text-v1.5 identity.');
 	}
 }
 

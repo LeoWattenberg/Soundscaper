@@ -24,10 +24,13 @@ import {
 import {
 	createAssistanceOnnxAudioRuntimeWorkerAdapterV1,
 } from './assistance-onnx-audio-runtime-worker.ts';
+import {
+	createAssistanceOnnxTextEmbeddingWorkerAdapterV1,
+} from './assistance-onnx-text-embedding-worker.ts';
 
 export interface AssistanceOnnxTensorV1 {
 	readonly type: string;
-	readonly data: Uint8Array | Float32Array;
+	readonly data: Uint8Array | Float32Array | BigInt64Array;
 	readonly dims: readonly number[];
 }
 
@@ -42,8 +45,8 @@ export interface AssistanceOnnxInferenceSessionV1 {
 
 export interface AssistanceOnnxRuntimeModuleV1 {
 	readonly Tensor: new (
-		type: 'uint8' | 'float32',
-		data: Uint8Array | Float32Array,
+		type: 'uint8' | 'float32' | 'int64',
+		data: Uint8Array | Float32Array | BigInt64Array,
 		dims: readonly number[],
 	) => AssistanceOnnxTensorV1;
 	readonly InferenceSession: Readonly<{
@@ -76,11 +79,13 @@ export function createAssistanceOnnxRuntimeWorkerAdapterV1(
 	}
 	const loadRuntime = options.loadRuntime ?? loadOnnxRuntime;
 	const executeAudio = createAssistanceOnnxAudioRuntimeWorkerAdapterV1(loadRuntime);
+	const executeTextEmbedding = createAssistanceOnnxTextEmbeddingWorkerAdapterV1(loadRuntime);
 	return async (context) => {
 		if (context.grant.task === 'shot-detection') return executeTransNetV2(context, loadRuntime);
 		if (context.grant.task === 'audio-tagging' || context.grant.task === 'beat-tracking') {
 			return executeAudio(context);
 		}
+		if (context.grant.task === 'text-embedding') return executeTextEmbedding(context);
 		throw new AssistanceRuntimeFamilyAdapterUnavailableError();
 	};
 }
