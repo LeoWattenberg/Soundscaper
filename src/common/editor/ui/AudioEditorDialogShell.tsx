@@ -156,6 +156,7 @@ export default function AudioEditorDialogShell({
 		const focusableElements = () => [...(panel?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR) || [])]
 			.filter((element) => !element.closest('[hidden], [aria-hidden="true"], [inert]'));
 		const frame = requestAnimationFrame(() => {
+			if (panel?.contains(document.activeElement)) return;
 			(resolveInitialFocus(panel, initialFocus, focusableElements) || panel)?.focus({ preventScroll: true });
 		});
 		const handleKeyDown = (event: KeyboardEvent) => {
