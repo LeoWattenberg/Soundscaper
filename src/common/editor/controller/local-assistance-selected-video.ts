@@ -28,7 +28,9 @@ import {
 import {
 	createLocalAssistanceSelectedVideoTimingBinding,
 	createLocalAssistanceSelectedVideoFramePackTiming,
+	createLocalAssistanceSelectedVideoReframeFramePackTiming,
 	mapLocalAssistanceSelectedVideoTimingBoundary,
+	readLocalAssistanceSelectedVideoSourceBoundaryTick as readTimingSourceBoundaryTick,
 	readLocalAssistanceSelectedVideoSourceFrameTick as readTimingSourceFrameTick,
 	type LocalAssistanceSelectedVideoTimingBinding,
 	type LocalAssistanceSelectedVideoSourceFrameTick,
@@ -39,6 +41,15 @@ import {
 	LOCAL_ASSISTANCE_VIDEO_MAXIMUM_FRAME_PACKS,
 	type LocalAssistanceSelectedVideoFramePackRequest,
 } from './local-assistance-selected-video-frame-pack.ts';
+import {
+	createLocalAssistanceSelectedVideoModelFramePack,
+	type LocalAssistanceSelectedVideoModelFramePackDependencies,
+	type LocalAssistanceSelectedVideoModelFramePackPrepared,
+	type LocalAssistanceSelectedVideoModelOperation,
+} from './local-assistance-selected-video-model-preparation.ts';
+import {
+	readLocalAssistanceSelectedVideoShotAnchorFrames,
+} from './local-assistance-selected-video-shot-anchors.ts';
 import {
 	loadVideoExportOriginal,
 	type VideoExportOriginalStore,
@@ -71,6 +82,7 @@ interface SelectedVideoProject extends DataRecord {
 	readonly sequences: readonly DataRecord[];
 	readonly subsequences: readonly DataRecord[];
 	readonly multicameraGroups: readonly DataRecord[];
+	readonly timelineAnnotations?: readonly unknown[];
 }
 
 export interface LocalAssistanceSelectedVideoPreparationDependencies {
@@ -83,6 +95,10 @@ export interface LocalAssistanceSelectedVideoPreparationDependencies {
 	readonly createAccurateFramePacks?: (
 		request: LocalAssistanceSelectedVideoFramePackRequest,
 	) => PromiseLike<readonly Blob[]> | readonly Blob[];
+	/** Test seam; production emits the strict source-authority visual frame-pack format. */
+	readonly createVisualFramePack?: LocalAssistanceSelectedVideoModelFramePackDependencies[
+		'createFramePack'
+	];
 	/** Test/constrained-environment seam; production cannot raise the 8 GiB hard bound. */
 	readonly maximumInputBytes?: number;
 }
@@ -112,7 +128,7 @@ interface SelectedVideoAuthorityState {
 
 const SELECTED_VIDEO_AUTHORITY_STATES = new WeakMap<object, SelectedVideoAuthorityState>();
 
-export interface LocalAssistanceSelectedVideoPrepared {
+interface LocalAssistanceSelectedVideoShotPrepared {
 	readonly sourceId: string;
 	readonly operation: 'shot-detection';
 	readonly shotDetectionMode: LocalAssistanceShotDetectionMode;
@@ -129,12 +145,22 @@ export interface LocalAssistanceSelectedVideoPrepared {
 	}>[];
 }
 
+export type LocalAssistanceSelectedVideoPrepared = LocalAssistanceSelectedVideoShotPrepared
+	| (Readonly<{
+		readonly sourceId: string;
+		readonly operation: LocalAssistanceSelectedVideoModelOperation;
+		readonly shotDetectionMode?: never;
+		readonly selectionFence: AssistanceSelectionFence;
+	}> & LocalAssistanceSelectedVideoModelFramePackPrepared);
+
 export interface LocalAssistanceSelectedVideoPreparation {
 	listSelectedMedia(): Promise<Readonly<{ readonly sources: readonly Readonly<{
 		readonly sourceId: string;
 		readonly label: string;
 		readonly mediaKind: 'video';
-		readonly operations: readonly ['shot-detection'];
+		readonly operations: readonly [
+			'shot-detection', 'subject-detection', 'saliency-detection',
+		];
 	}>[] }>>;
 	prepareSelectedMedia(request: Readonly<{
 		readonly sourceId: string;
@@ -158,7 +184,9 @@ export function createLocalAssistanceSelectedVideoPreparation(
 			sourceId: identifier(selected.source.id, 'source ID'),
 			label: identifier(selected.clip.title ?? selected.source.name, 'selected-video label'),
 			mediaKind: 'video' as const,
-			operations: Object.freeze(['shot-detection'] as const),
+			operations: Object.freeze([
+				'shot-detection', 'subject-detection', 'saliency-detection',
+			] as const),
 		})]) });
 	}
 
@@ -170,7 +198,8 @@ export function createLocalAssistanceSelectedVideoPreparation(
 	}>): Promise<LocalAssistanceSelectedVideoPrepared> {
 		const request = preparationRequest(value);
 		request.signal?.throwIfAborted();
-		if (request.operation !== 'shot-detection') {
+		if (request.operation !== 'shot-detection' && request.operation !== 'subject-detection'
+			&& request.operation !== 'saliency-detection') {
 			throw new RangeError('This operation has no exact selected video input preparation.');
 		}
 		const token = dependencies.captureProject();
@@ -206,6 +235,32 @@ export function createLocalAssistanceSelectedVideoPreparation(
 		}
 		const bytes = canonical.type === sourceMediaType
 			? canonical : canonical.slice(0, canonical.size, sourceMediaType);
+		if (request.operation !== 'shot-detection') {
+			const state = SELECTED_VIDEO_AUTHORITY_STATES.get(selected);
+			if (!state) throw new TypeError('Reframe preparation lost authenticated timing authority.');
+			const shotAnchors = readLocalAssistanceSelectedVideoShotAnchorFrames({
+				project: selected.project, source: selected.source, sequence: selected.sequence,
+				fence: selected.fence, sourceStartFrame: selected.sourceStartFrame,
+				sourceEndFrame: selected.sourceEndFrame,
+				mapSourceBoundary: (sourceFrame) =>
+					mapLocalAssistanceSelectedVideoSourceBoundary(selected, sourceFrame),
+				readSourceFrameTick: (sourceFrame) =>
+					readLocalAssistanceSelectedVideoSourceFrameTick(selected, sourceFrame),
+			});
+			const prepared = await createLocalAssistanceSelectedVideoModelFramePack({
+				...(dependencies.createVisualFramePack
+					? { createFramePack: dependencies.createVisualFramePack } : {}),
+			}, { operation: request.operation, body: bytes,
+				timing: createLocalAssistanceSelectedVideoReframeFramePackTiming(
+					state.binding, shotAnchors,
+				),
+				sourceWidth: integer(selected.source.width, 1, 'source width'),
+				sourceHeight: integer(selected.source.height, 1, 'source height'),
+				signal, assertCurrent: () => dependencies.assertProject(token), maximumInputBytes,
+			});
+			return Object.freeze({ sourceId: request.sourceId, operation: request.operation,
+				selectionFence: selected.fence, ...prepared });
+		}
 		const inputs = request.shotDetectionMode === 'accurate'
 			? await accurateFramePackInputs(dependencies, selected, bytes, signal, maximumInputBytes,
 				() => dependencies.assertProject(token))
@@ -379,6 +434,22 @@ export function readLocalAssistanceSelectedVideoSourceFrameTick(
 	return readTimingSourceFrameTick(state.binding, sourceFrameValue);
 }
 
+/** Revalidate one selected source boundary, including its exclusive end. */
+export function readLocalAssistanceSelectedVideoSourceBoundaryTick(
+	authority: LocalAssistanceSelectedVideoAuthority,
+	sourceFrameValue: number,
+): LocalAssistanceSelectedVideoSourceFrameTick | null {
+	if (!authority || typeof authority !== 'object') {
+		throw new TypeError('Selected-video boundary timing requires exact video authority.');
+	}
+	const state = SELECTED_VIDEO_AUTHORITY_STATES.get(authority);
+	if (!state || authority.source !== state.source || authority.clip !== state.clip
+		|| authority.fence.timingAuthoritySha256 !== state.timingAuthoritySha256) {
+		throw new TypeError('Selected-video boundary timing requires current authenticated authority.');
+	}
+	return readTimingSourceBoundaryTick(state.binding, sourceFrameValue);
+}
+
 function assertDependencies(value: unknown): asserts value is LocalAssistanceSelectedVideoPreparationDependencies {
 	if (!value || typeof value !== 'object'
 		|| typeof (value as LocalAssistanceSelectedVideoPreparationDependencies).getProject !== 'function'
@@ -388,6 +459,9 @@ function assertDependencies(value: unknown): asserts value is LocalAssistanceSel
 		|| ((value as LocalAssistanceSelectedVideoPreparationDependencies).createAccurateFramePacks
 			!== undefined && typeof (value as LocalAssistanceSelectedVideoPreparationDependencies)
 				.createAccurateFramePacks !== 'function')
+		|| ((value as LocalAssistanceSelectedVideoPreparationDependencies).createVisualFramePack
+			!== undefined && typeof (value as LocalAssistanceSelectedVideoPreparationDependencies)
+				.createVisualFramePack !== 'function')
 		|| !(value as LocalAssistanceSelectedVideoPreparationDependencies).store
 		|| typeof (value as LocalAssistanceSelectedVideoPreparationDependencies).store.loadMediaAsset !== 'function') {
 		throw new TypeError('Selected-video preparation requires its exact controller and custody ports.');
@@ -452,9 +526,13 @@ function preparationRequest(value: unknown): Readonly<{
 	if (record.signal !== undefined && !(record.signal instanceof AbortSignal)) {
 		throw new TypeError('Selected-video preparation requires a valid cancellation signal.');
 	}
+	const operation = normalizeAssistanceOperation(record.operation);
+	if (operation !== 'shot-detection' && Object.hasOwn(record, 'shotDetectionMode')) {
+		throw new TypeError('Visual model preparation cannot carry a shot-detection mode.');
+	}
 	return Object.freeze({
 		sourceId: identifier(record.sourceId, 'requested source ID'),
-		operation: normalizeAssistanceOperation(record.operation),
+		operation,
 		shotDetectionMode: Object.hasOwn(record, 'shotDetectionMode')
 			? normalizeLocalAssistanceShotDetectionMode(record.shotDetectionMode)
 			: 'fast',

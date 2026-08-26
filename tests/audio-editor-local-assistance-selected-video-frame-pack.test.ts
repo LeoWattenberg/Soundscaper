@@ -5,10 +5,14 @@ import test from 'node:test';
 
 import {
 	createLocalAssistanceSelectedVideoFramePacksV1,
+	createLocalAssistanceSelectedVideoVisualFramePackV2,
 } from '../src/common/editor/controller/local-assistance-selected-video-frame-pack.ts';
 import {
 	reviewAssistanceFramePackV1,
 } from '../src/common/editor/assistance/binary-formats-v1.ts';
+import {
+	reviewAssistanceVisualFramePackV2,
+} from '../src/common/editor/assistance/visual-frame-pack-v2.ts';
 
 const BODY = new Blob(['video'], { type: 'video/mp4' });
 
@@ -97,4 +101,32 @@ test('frame packing rejects stale, unordered, and excessive custody and always d
 		}),
 	}), /project changed/iu);
 	assert.equal(disposed, 1);
+});
+
+test('visual packing authenticates exact source geometry separately from its bounded raster', async () => {
+	const captures: number[] = [];
+	const body = await createLocalAssistanceSelectedVideoVisualFramePackV2({
+		body: BODY, sourceWidth: 1_920, sourceHeight: 1_080, rasterWidth: 2, rasterHeight: 1,
+		timing: { timescale: 1_000, frames: [
+			{ sourceFrame: 7, presentationTick: '400', timestampSeconds: 0.42 },
+		] }, signal: new AbortController().signal, assertCurrent() {},
+	}, { createDecoder: async (_body, options) => {
+		assert.deepEqual({ width: options.width, height: options.height }, { width: 2, height: 1 });
+		return { capture({ timestampSeconds }) {
+			captures.push(timestampSeconds);
+			return { width: 2, height: 1, rgba: Uint8Array.of(
+				1, 2, 3, 255, 5, 6, 7, 255,
+			) };
+		}, dispose() {} };
+	} });
+	assert.equal(body.type, 'application/vnd.soundscaper.frame-pack');
+	assert.deepEqual(captures, [0.42]);
+	const reviewed = reviewAssistanceVisualFramePackV2(new Uint8Array(await body.arrayBuffer()));
+	assert.deepEqual({ sourceWidth: reviewed.sourceWidth, sourceHeight: reviewed.sourceHeight,
+		rasterWidth: reviewed.rasterWidth, rasterHeight: reviewed.rasterHeight,
+		timescale: reviewed.timescale, frameCount: reviewed.frameCount }, {
+		sourceWidth: 1_920, sourceHeight: 1_080, rasterWidth: 2, rasterHeight: 1,
+		timescale: 1_000, frameCount: 1,
+	});
+	assert.deepEqual(Array.from(reviewed.frame(0).rgba), [1, 2, 3, 255, 5, 6, 7, 255]);
 });

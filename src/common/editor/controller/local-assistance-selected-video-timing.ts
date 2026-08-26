@@ -53,6 +53,8 @@ export interface LocalAssistanceSelectedVideoSourceFrameTick {
 	readonly presentationTick: string;
 }
 
+export const LOCAL_ASSISTANCE_REFRAME_MAXIMUM_SAMPLED_FRAMES = 100_000;
+
 interface TimingState {
 	readonly timing: BoundVideoSourceTimingView;
 	readonly sourceStartFrame: number;
@@ -192,17 +194,82 @@ export function createLocalAssistanceSelectedVideoFramePackTiming(
 	return Object.freeze({ timescale, frames: Object.freeze(frames) });
 }
 
+/** Deterministic source-time samples at 2 fps, unioned with authenticated shot anchors. */
+export function createLocalAssistanceSelectedVideoReframeFramePackTiming(
+	binding: LocalAssistanceSelectedVideoTimingBinding,
+	shotAnchorFramesValue: readonly number[],
+): LocalAssistanceSelectedVideoFramePackTiming {
+	const state = BINDING_STATES.get(binding);
+	if (!state) {
+		throw new TypeError('Reframe frame sampling requires authenticated timing authority.');
+	}
+	if (!Array.isArray(shotAnchorFramesValue)
+		|| shotAnchorFramesValue.length > LOCAL_ASSISTANCE_REFRAME_MAXIMUM_SAMPLED_FRAMES) {
+		throw new RangeError('Reframe shot anchors exceed their exact frame bound.');
+	}
+	const selected = new Set<number>();
+	const rangeStart = videoSourceFrameTime(state.timing, position(state.sourceStartFrame));
+	const rangeEnd = videoSourceFrameTime(state.timing, position(state.sourceEndFrame));
+	for (let ordinal = 0; ; ordinal += 1) {
+		const target = halfSecondOffset(rangeStart, ordinal);
+		if (compareSourceTimes(target, rangeEnd) >= 0) break;
+		if (ordinal >= LOCAL_ASSISTANCE_REFRAME_MAXIMUM_SAMPLED_FRAMES) {
+			throw new RangeError('Reframe 2 fps sampling exceeds its exact frame bound.');
+		}
+		selected.add(sourceFrameContaining(state, target));
+	}
+	let priorAnchor = -1;
+	for (const anchorValue of shotAnchorFramesValue) {
+		const anchor = integer(anchorValue, 0, 'Reframe shot-anchor frame');
+		if (anchor <= priorAnchor || anchor < state.sourceStartFrame || anchor >= state.sourceEndFrame) {
+			throw new RangeError('Reframe shot anchors must be ordered inside selected source authority.');
+		}
+		selected.add(anchor);
+		priorAnchor = anchor;
+	}
+	if (selected.size < 1 || selected.size > LOCAL_ASSISTANCE_REFRAME_MAXIMUM_SAMPLED_FRAMES) {
+		throw new RangeError('Reframe sampled frames exceed their exact inventory bound.');
+	}
+	const authority = boundVideoSourceTimingAuthority(state.timing);
+	const timescale = authority.kind === 'cfr' ? authority.rate.num : authority.reference.timescale;
+	const frames = [...selected].sort((left, right) => left - right).map((sourceFrame) => {
+		const start = videoSourceFrameTime(state.timing, position(sourceFrame));
+		const end = videoSourceFrameTime(state.timing, position(sourceFrame + 1));
+		return Object.freeze({ sourceFrame, presentationTick: exactTick(start, timescale).toString(),
+			timestampSeconds: midpointSeconds(start, end) });
+	});
+	return Object.freeze({ timescale, frames: Object.freeze(frames) });
+}
+
 /** Read one exact source-frame tick without materializing the complete selected range. */
 export function readLocalAssistanceSelectedVideoSourceFrameTick(
 	binding: LocalAssistanceSelectedVideoTimingBinding,
 	sourceFrameValue: number,
+): LocalAssistanceSelectedVideoSourceFrameTick | null {
+	return readSourceTick(binding, sourceFrameValue, false);
+}
+
+/** Read one exact source-boundary tick, including the selected exclusive end. */
+export function readLocalAssistanceSelectedVideoSourceBoundaryTick(
+	binding: LocalAssistanceSelectedVideoTimingBinding,
+	sourceFrameValue: number,
+): LocalAssistanceSelectedVideoSourceFrameTick | null {
+	return readSourceTick(binding, sourceFrameValue, true);
+}
+
+function readSourceTick(
+	binding: LocalAssistanceSelectedVideoTimingBinding,
+	sourceFrameValue: number,
+	includeEnd: boolean,
 ): LocalAssistanceSelectedVideoSourceFrameTick | null {
 	const state = BINDING_STATES.get(binding);
 	if (!state) {
 		throw new TypeError('Selected-video frame timing requires authenticated timing authority.');
 	}
 	const sourceFrame = integer(sourceFrameValue, 0, 'source frame');
-	if (sourceFrame < state.sourceStartFrame || sourceFrame >= state.sourceEndFrame) return null;
+	if (sourceFrame < state.sourceStartFrame
+		|| sourceFrame > state.sourceEndFrame
+		|| !includeEnd && sourceFrame === state.sourceEndFrame) return null;
 	const authority = boundVideoSourceTimingAuthority(state.timing);
 	const timescale = authority.kind === 'cfr'
 		? authority.rate.num : authority.reference.timescale;
@@ -301,6 +368,29 @@ function compareDistance(
 	);
 	const difference = leftDistance * right.denominator - rightDistance * left.denominator;
 	return difference < 0n ? -1 : difference > 0n ? 1 : 0;
+}
+
+function sourceFrameContaining(state: TimingState, target: ExactSourceTime): number {
+	let low = state.sourceStartFrame;
+	let high = state.sourceEndFrame - 1;
+	while (low < high) {
+		const middle = low + Math.ceil((high - low) / 2);
+		const start = videoSourceFrameTime(state.timing, position(middle));
+		if (compareSourceTimes(start, target) <= 0) low = middle;
+		else high = middle - 1;
+	}
+	const end = videoSourceFrameTime(state.timing, position(low + 1));
+	if (compareSourceTimes(target, end) >= 0) {
+		throw new RangeError('Reframe sample escaped exact source-frame timing.');
+	}
+	return low;
+}
+
+function halfSecondOffset(start: ExactSourceTime, ordinal: number): ExactSourceTime {
+	return Object.freeze({
+		numerator: start.numerator * 2n + BigInt(ordinal) * start.denominator,
+		denominator: start.denominator * 2n,
+	});
 }
 
 function comparePosition(left: ExactSourcePosition, right: ExactSourcePosition): -1 | 0 | 1 {

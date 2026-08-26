@@ -3,8 +3,12 @@
 /** Browser-owned exact frame preparation for model-based selected-video analysis. */
 
 import {
+	ASSISTANCE_BINARY_MAXIMUM_BYTES,
 	createAssistanceFramePackV1,
 } from '../assistance/binary-formats-v1.ts';
+import {
+	createAssistanceVisualFramePackV2,
+} from '../assistance/visual-frame-pack-v2.ts';
 import {
 	ASSISTANCE_TRANSNET_V2_HEIGHT,
 	ASSISTANCE_TRANSNET_V2_WIDTH,
@@ -17,6 +21,7 @@ export const LOCAL_ASSISTANCE_FRAME_PACK_MEDIA_TYPE =
 	'application/vnd.soundscaper.frame-pack';
 export const LOCAL_ASSISTANCE_VIDEO_FRAMES_PER_PACK = 8_192;
 export const LOCAL_ASSISTANCE_VIDEO_MAXIMUM_FRAME_PACKS = 64;
+export const LOCAL_ASSISTANCE_REFRAME_MAXIMUM_RASTER_DIMENSION = 320;
 
 export interface LocalAssistanceDecodedVideoFrame {
 	readonly width: number;
@@ -39,10 +44,22 @@ export interface LocalAssistanceSelectedVideoFramePackRequest {
 	readonly assertCurrent: () => void;
 }
 
+export interface LocalAssistanceSelectedVideoVisualFramePackRequest
+	extends LocalAssistanceSelectedVideoFramePackRequest {
+	readonly sourceWidth: number;
+	readonly sourceHeight: number;
+	readonly rasterWidth: number;
+	readonly rasterHeight: number;
+}
+
 export interface LocalAssistanceSelectedVideoFramePackOptions {
 	readonly createDecoder?: (
 		body: Blob,
-		options: Readonly<{ readonly signal: AbortSignal }>,
+		options: Readonly<{
+			readonly signal: AbortSignal;
+			readonly width: number;
+			readonly height: number;
+		}>,
 	) => PromiseLike<LocalAssistanceSelectedVideoFrameDecoder>
 		| LocalAssistanceSelectedVideoFrameDecoder;
 	readonly framesPerPack?: number;
@@ -63,7 +80,8 @@ export async function createLocalAssistanceSelectedVideoFramePacksV1(
 		throw new RangeError('Selected-video frame packing exceeds its bounded pack inventory.');
 	}
 	const createDecoder = options.createDecoder ?? defaultDecoder;
-	const decoder = await createDecoder(normalized.body, { signal: normalized.signal });
+	const decoder = await createDecoder(normalized.body, { signal: normalized.signal,
+		width: ASSISTANCE_TRANSNET_V2_WIDTH, height: ASSISTANCE_TRANSNET_V2_HEIGHT });
 	if (!decoder || typeof decoder.capture !== 'function' || typeof decoder.dispose !== 'function') {
 		throw new TypeError('Selected-video frame packing received an invalid decoder.');
 	}
@@ -83,7 +101,8 @@ export async function createLocalAssistanceSelectedVideoFramePacksV1(
 				frames.push(Object.freeze({
 					sourceFrame: timing.sourceFrame,
 					presentationTick: timing.presentationTick,
-					rgba: exactGeometry(decoded),
+					rgba: exactGeometry(decoded,
+						ASSISTANCE_TRANSNET_V2_WIDTH, ASSISTANCE_TRANSNET_V2_HEIGHT),
 				}));
 			}
 			const chunks = createAssistanceFramePackV1({
@@ -98,6 +117,56 @@ export async function createLocalAssistanceSelectedVideoFramePacksV1(
 		}
 		assertReady(normalized);
 		return Object.freeze(packs);
+	} finally {
+		await decoder.dispose();
+	}
+}
+
+/** Emit one bounded visual pack with exact source geometry and a separate model raster. */
+export async function createLocalAssistanceSelectedVideoVisualFramePackV2(
+	request: LocalAssistanceSelectedVideoVisualFramePackRequest,
+	options: Pick<LocalAssistanceSelectedVideoFramePackOptions, 'createDecoder'> = {},
+): Promise<Blob> {
+	const normalized = normalizeRequest(request);
+	const sourceWidth = integer(request.sourceWidth, 1, 4_096, 'visual source width');
+	const sourceHeight = integer(request.sourceHeight, 1, 4_096, 'visual source height');
+	const rasterWidth = integer(request.rasterWidth, 1,
+		LOCAL_ASSISTANCE_REFRAME_MAXIMUM_RASTER_DIMENSION, 'visual raster width');
+	const rasterHeight = integer(request.rasterHeight, 1,
+		LOCAL_ASSISTANCE_REFRAME_MAXIMUM_RASTER_DIMENSION, 'visual raster height');
+	const estimatedBytes = BigInt(normalized.timing.frames.length)
+		* (BigInt(rasterWidth) * BigInt(rasterHeight) * 4n + 16n) + 128n;
+	if (estimatedBytes > BigInt(ASSISTANCE_BINARY_MAXIMUM_BYTES)) {
+		throw new RangeError('Selected-video visual packing exceeds its exact binary byte bound.');
+	}
+	if (options.createDecoder !== undefined && typeof options.createDecoder !== 'function') {
+		throw new TypeError('Selected-video visual packing needs a decoder factory.');
+	}
+	assertReady(normalized);
+	const decoder = await (options.createDecoder ?? defaultDecoder)(normalized.body, {
+		signal: normalized.signal, width: rasterWidth, height: rasterHeight,
+	});
+	if (!decoder || typeof decoder.capture !== 'function' || typeof decoder.dispose !== 'function') {
+		throw new TypeError('Selected-video visual packing received an invalid decoder.');
+	}
+	const frames = [];
+	try {
+		for (const timing of normalized.timing.frames) {
+			assertReady(normalized);
+			const decoded = reviewedFrame(await decoder.capture(Object.freeze({
+				timestampSeconds: timing.timestampSeconds, signal: normalized.signal,
+			})));
+			assertReady(normalized);
+			frames.push(Object.freeze({ sourceFrame: timing.sourceFrame,
+				presentationTick: timing.presentationTick,
+				rgba: exactGeometry(decoded, rasterWidth, rasterHeight) }));
+		}
+		const chunks = createAssistanceVisualFramePackV2({ sourceWidth, sourceHeight,
+			rasterWidth, rasterHeight, timescale: normalized.timing.timescale, frames });
+		assertReady(normalized);
+		return new Blob(chunks.map((chunk) => Uint8Array.from(chunk).buffer), {
+			type: LOCAL_ASSISTANCE_FRAME_PACK_MEDIA_TYPE,
+		});
 	} finally {
 		await decoder.dispose();
 	}
@@ -138,7 +207,11 @@ function normalizeRequest(
 
 async function defaultDecoder(
 	body: Blob,
-	options: Readonly<{ readonly signal: AbortSignal }>,
+	options: Readonly<{
+		readonly signal: AbortSignal;
+		readonly width: number;
+		readonly height: number;
+	}>,
 ): Promise<LocalAssistanceSelectedVideoFrameDecoder> {
 	const media = await import('../video-media.js');
 	const extractor = await media.createAudioEditorVideoFrameExtractor(body, options) as Readonly<{
@@ -150,8 +223,8 @@ async function defaultDecoder(
 	return Object.freeze({
 		async capture(request: Readonly<{ timestampSeconds: number; signal: AbortSignal }>) {
 			const captured = await extractor.capture(request.timestampSeconds, {
-				maximumWidth: ASSISTANCE_TRANSNET_V2_WIDTH,
-				maximumHeight: ASSISTANCE_TRANSNET_V2_HEIGHT,
+				maximumWidth: options.width,
+				maximumHeight: options.height,
 				mimeType: 'image/png', quality: 1, alpha: false, signal: request.signal,
 			});
 			return decodeImage(captured.blob, request.signal);
@@ -194,21 +267,22 @@ function reviewedFrame(value: unknown): LocalAssistanceDecodedVideoFrame {
 	return Object.freeze({ width, height, rgba: frame.rgba });
 }
 
-function exactGeometry(frame: LocalAssistanceDecodedVideoFrame): Uint8Array {
-	if (frame.width === ASSISTANCE_TRANSNET_V2_WIDTH
-		&& frame.height === ASSISTANCE_TRANSNET_V2_HEIGHT) return frame.rgba.slice();
-	const result = new Uint8Array(
-		ASSISTANCE_TRANSNET_V2_WIDTH * ASSISTANCE_TRANSNET_V2_HEIGHT * 4,
-	);
-	for (let y = 0; y < ASSISTANCE_TRANSNET_V2_HEIGHT; y += 1) {
-		for (let x = 0; x < ASSISTANCE_TRANSNET_V2_WIDTH; x += 1) {
+function exactGeometry(
+	frame: LocalAssistanceDecodedVideoFrame,
+	width: number,
+	height: number,
+): Uint8Array {
+	if (frame.width === width && frame.height === height) return frame.rgba.slice();
+	const result = new Uint8Array(width * height * 4);
+	for (let y = 0; y < height; y += 1) {
+		for (let x = 0; x < width; x += 1) {
 			const sourceX = Math.min(frame.width - 1,
-				Math.floor((x + 0.5) * frame.width / ASSISTANCE_TRANSNET_V2_WIDTH));
+				Math.floor((x + 0.5) * frame.width / width));
 			const sourceY = Math.min(frame.height - 1,
-				Math.floor((y + 0.5) * frame.height / ASSISTANCE_TRANSNET_V2_HEIGHT));
+				Math.floor((y + 0.5) * frame.height / height));
 			const sourceOffset = (sourceY * frame.width + sourceX) * 4;
 			result.set(frame.rgba.subarray(sourceOffset, sourceOffset + 4),
-				(y * ASSISTANCE_TRANSNET_V2_WIDTH + x) * 4);
+				(y * width + x) * 4);
 		}
 	}
 	return result;

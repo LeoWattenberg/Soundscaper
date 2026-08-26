@@ -51,7 +51,8 @@ interface VideoOriginalStoreFixture {
 test('selected CFR video inventory and preparation retain exact occurrence and original authority', async () => {
 	const fixture = videoFixture();
 	assert.deepEqual(await fixture.preparation.listSelectedMedia(), { sources: [{
-		sourceId: 'video-source', label: 'Camera A', mediaKind: 'video', operations: ['shot-detection'],
+		sourceId: 'video-source', label: 'Camera A', mediaKind: 'video',
+		operations: ['shot-detection', 'subject-detection', 'saliency-detection'],
 	}] });
 	assert.deepEqual(fixture.events, []);
 
