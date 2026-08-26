@@ -148,6 +148,7 @@ function videoWorkflow(): AssistanceWorkflowV1 {
 		inputs: [
 			claim('input', 'detect-shots', 'video', 9),
 			claim('input', 'sample-shot-frames', 'video', 10),
+			claim('input', 'sample-shot-frames', 'video-authority', 20),
 			claim('input', 'sample-shot-frames', 'shot-boundaries', 11),
 			claim('input', 'embed-visuals', 'frame-pack', 12),
 			claim('input', 'recognize-text', 'frame-pack', 13),
