@@ -96,7 +96,7 @@ export function createFramescaperCapturedVideoProxySchedulerV18(
 	sessionValue: unknown,
 	composition: FramescaperCapturedVideoProxyRuntimeComposition,
 ): FramescaperCapturedVideoProxyScheduler {
-	return createScheduler(capturedVideoProxySchedulerDependenciesV18(
+	return createFramescaperCapturedVideoProxyScheduler(capturedVideoProxySchedulerDependenciesV18(
 		environmentValue, sessionValue, composition,
 	));
 }
@@ -106,7 +106,7 @@ export function createFramescaperCapturedVideoProxySchedulerV19(
 	sessionValue: unknown,
 	composition: FramescaperCapturedVideoProxyRuntimeComposition,
 ): FramescaperCapturedVideoProxyScheduler {
-	return createScheduler(capturedVideoProxySchedulerDependenciesV19(
+	return createFramescaperCapturedVideoProxyScheduler(capturedVideoProxySchedulerDependenciesV19(
 		environmentValue, sessionValue, composition,
 	));
 }
@@ -116,7 +116,7 @@ export function createFramescaperCapturedVideoProxySchedulerV20(
 	sessionValue: unknown,
 	composition: FramescaperCapturedVideoProxyRuntimeComposition,
 ): FramescaperCapturedVideoProxyScheduler {
-	return createScheduler(capturedVideoProxySchedulerDependenciesV20(
+	return createFramescaperCapturedVideoProxyScheduler(capturedVideoProxySchedulerDependenciesV20(
 		environmentValue, sessionValue, composition,
 	));
 }
@@ -126,7 +126,7 @@ export function createFramescaperCapturedVideoProxySchedulerV27(
 	sessionValue: unknown,
 	composition: FramescaperCapturedVideoProxyRuntimeComposition,
 ): FramescaperCapturedVideoProxyScheduler {
-	return createScheduler(capturedVideoProxySchedulerDependenciesV27(
+	return createFramescaperCapturedVideoProxyScheduler(capturedVideoProxySchedulerDependenciesV27(
 		environmentValue, sessionValue, composition,
 	));
 }
@@ -136,12 +136,12 @@ export function createFramescaperCapturedVideoProxySchedulerV28(
 	sessionValue: unknown,
 	composition: FramescaperCapturedVideoProxyRuntimeComposition,
 ): FramescaperCapturedVideoProxyScheduler {
-	return createScheduler(capturedVideoProxySchedulerDependenciesV28(
+	return createFramescaperCapturedVideoProxyScheduler(capturedVideoProxySchedulerDependenciesV28(
 		environmentValue, sessionValue, composition,
 	));
 }
 
-function createScheduler(dependencies: CapturedVideoProxySchedulerDependencies): FramescaperCapturedVideoProxyScheduler {
+export function createFramescaperCapturedVideoProxyScheduler(dependencies: CapturedVideoProxySchedulerDependencies): FramescaperCapturedVideoProxyScheduler {
 	const claims = new VideoProxyClaimRepository(dependencies.port);
 	const staging = new VideoProxyClaimStagingRepository(dependencies.port, dependencies.opfs);
 	const preservation = new FramescaperCapturedVideoProxyPreservationRepository(

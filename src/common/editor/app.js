@@ -839,8 +839,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 	});
 	const projectBootstrapService = createProjectBootstrapService({
 		state, lifetimeSignal: lifetime.signal, store, engine, mediaDevices, productSettingKey,
-		audioDevicePreferencesSettingKey: AUDIO_DEVICE_PREFERENCES_SETTING_KEY,
-		recordingInputGainDefault: RECORDING_INPUT_GAIN_DEFAULT,
+		automaticAudioDeviceEnumeration: capabilities.audioRecording === true,
+		audioDevicePreferencesSettingKey: AUDIO_DEVICE_PREFERENCES_SETTING_KEY, recordingInputGainDefault: RECORDING_INPUT_GAIN_DEFAULT,
 		loadPreferences,
 		createEffectPresets: createAudioEditorEffectPresets,
 		normalizeRecordingInputGain,
@@ -1290,7 +1290,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		captureRackNoiseProfile: (...args) => effectAudioService.captureRackNoiseProfile(...args),
 	});
 	const effectAudioService = createEffectAudioService({
-		lifetime,
+		lifetime, ...(projectRuntime.assistanceAssetCommands ? { assistanceStore: store, assistanceVideoStore: store } : {}),
 		captureProject: () => projectGeneration.capture(project.id),
 		assertProject: (token) => projectGeneration.assertCurrent(token),
 		state,
@@ -1897,7 +1897,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getTelemetrySnapshot,
 		subscribeTelemetry: (listener) => telemetryChannel.subscribe(listener),
 		getClipVisualData,
-		getProjectBinClipVisualData,
+		getProjectBinClipVisualData, selectedMediaPreparation: effectAudioService.selectedMediaPreparation,
 		actions,
 		dispose() {
 			if (disposePromise) return disposePromise;

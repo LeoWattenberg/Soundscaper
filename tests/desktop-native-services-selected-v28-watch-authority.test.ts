@@ -43,9 +43,22 @@ test('selected V28 watch authority rejects wrong bins and generation drift befor
 	), /identity changed/iu);
 });
 
-function projectFixture(proxied: boolean) {
+test('selected watch authority admits an exact F31 project without normalizing its claim', async () => {
+	const fixture = projectFixture(false, 31);
+	assert.equal(framescaperSelectedV28WatchProject(fixture.port, {
+		open: true, writable: true,
+	}, 'project-28', 31)?.schemaVersion, 31);
+	assert.equal((await inspectFramescaperSelectedV28WatchImport(
+		fixture.port, 'project-28', 'project-bin', CONTENT_DIGEST, 31,
+	))?.sourceId, 'video-source-1');
+	await assert.rejects(() => inspectFramescaperSelectedV28WatchImport(
+		fixture.port, 'project-28', 'project-bin', CONTENT_DIGEST, 28,
+	), /wrong document identity/iu);
+});
+
+function projectFixture(proxied: boolean, schemaVersion: 28 | 31 = 28) {
 	const document = JSON.stringify({
-		schemaVersion: 28, id: 'project-28', revision: 7,
+		schemaVersion, id: 'project-28', revision: 7,
 		sources: [{
 			kind: 'video', id: 'video-source-1', contentSha256: CONTENT_DIGEST,
 			proxyAttachment: proxied ? {

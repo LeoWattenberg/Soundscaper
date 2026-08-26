@@ -38,6 +38,7 @@ Families describe product entry points, not every file extension a decoder might
 | Audio warping | Enabled | Not enabled |
 | Dissolve video transitions | Not enabled | Enabled |
 | Immersive ADM audio | Enabled | Not enabled |
+| Local assistance assets | Enabled | Enabled |
 | Mastering sequences | Enabled | Not enabled |
 | Multicamera editing | Not enabled | Enabled |
 | Musical timeline | Enabled | Not enabled |
@@ -50,7 +51,7 @@ Families describe product entry points, not every file extension a decoder might
 | Source characteristics | Enabled | Enabled |
 | Spectral audio editing | Enabled | Not enabled |
 | Take comping | Enabled | Not enabled |
-| Timeline annotations | Enabled | Not enabled |
+| Timeline annotations | Enabled | Enabled |
 | Track folders | Enabled | Not enabled |
 | Video adjustment layers | Not enabled | Enabled |
 | Video captions | Not enabled | Enabled |
@@ -79,5 +80,5 @@ Families describe product entry points, not every file extension a decoder might
 
 | Capability | Soundscaper | Framescaper |
 | --- | --- | --- |
-| Screen and camera capture | Not enabled | Not enabled |
+| Screen and camera capture | Not enabled | Enabled |
 | Web VCR capture | Not enabled | Not enabled |

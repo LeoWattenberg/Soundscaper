@@ -18,6 +18,18 @@ import {
 	MAXIMUM_SPECTRAL_EDIT_USEFUL_BINARY_BYTES,
 	planSpectralEditWorkflowAdmission,
 } from '../spectral-edit-admission.ts';
+import {
+	resolveLocalAssistanceSelectedMediaAuthority,
+} from './local-assistance-selected-media.ts';
+import { resolveLocalAssistanceSelectedVideoAuthority } from './local-assistance-selected-video.ts';
+import {
+	createLocalAssistanceSelectedPreparation,
+	type LocalAssistanceSelectedVideoStore,
+} from './local-assistance-selected-preparation.ts';
+import {
+	createLocalAssistanceResultAcceptance,
+	type LocalAssistanceResultAcceptanceStore,
+} from './local-assistance-result-acceptance.ts';
 
 const NOISE_PROFILE_TASK = 'selection-effect-noise-profile';
 const SPECTRAL_EFFECT_TASK = 'selection-effect-spectral';
@@ -172,6 +184,8 @@ export interface EffectAudioServiceRuntime {
 	readonly renderSnapshot: (
 		project: EffectAudioProject,
 		options: Readonly<Record<string, unknown>>,
+		sourceMap?: unknown,
+		signal?: AbortSignal | null,
 	) => Promise<EffectAudioBuffer>;
 	readonly prepareCommittedTimePitchCaches: (project: EffectAudioProject) => Promise<unknown>;
 	readonly createRenderEngine: () => EffectAudioRenderEngine;
@@ -200,6 +214,8 @@ export interface EffectAudioServiceRuntime {
 		}>,
 	) => Promise<Float32Array[]>;
 	readonly serializeNoiseProfile: (profile: unknown) => unknown;
+	readonly assistanceStore?: LocalAssistanceResultAcceptanceStore;
+	readonly assistanceVideoStore?: LocalAssistanceSelectedVideoStore;
 	readonly commit: (command: Readonly<Record<string, unknown>>) => void;
 	readonly persistAudacityEffectResults: (
 		results: readonly SelectionEffectResult[],
@@ -217,7 +233,9 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 		endFrame: number,
 		requestedChannelCount: number | null = null,
 		requestedClipIds: readonly string[] | null = null,
+		signal: AbortSignal | null = null,
 	): Promise<Float32Array[]> {
+		signal?.throwIfAborted();
 		const project = runtime.getProject();
 		const token = runtime.captureProject();
 		const track = findTrack(project, trackId);
@@ -261,7 +279,8 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 			includeTrackPan: false,
 			respectMuteSolo: false,
 			outputFrames: endFrame - startFrame,
-		});
+		}, runtime.sourceBuffers, signal);
+		signal?.throwIfAborted();
 		runtime.assertProject(token);
 		return runtime.matchAudacitySelectionChannels(runtime.audioBufferChannels(rendered), channelCount);
 	}
@@ -484,10 +503,42 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 		}
 	}
 
+	const selectedMediaDependencies = {
+		getProject: runtime.getProject,
+		getSelectedClipId: () => runtime.state.selectedClipId,
+		captureProject: runtime.captureProject,
+		assertProject: (token: unknown) => runtime.assertProject(token as EditorProjectToken),
+		renderDryTrackRange,
+	};
+	const resultAcceptance = runtime.assistanceStore ? createLocalAssistanceResultAcceptance({
+		currentAuthority: () => resolveLocalAssistanceSelectedMediaAuthority(selectedMediaDependencies),
+		...(runtime.assistanceVideoStore ? {
+			currentVideoAuthority: () => resolveLocalAssistanceSelectedVideoAuthority(
+				selectedMediaDependencies,
+			),
+		} : {}),
+		captureProject: runtime.captureProject, store: runtime.assistanceStore,
+		assertProject: (token) => runtime.assertProject(token as EditorProjectToken), commit: runtime.commit,
+	}) : null;
+	const selectedPreparation = createLocalAssistanceSelectedPreparation({
+		...selectedMediaDependencies,
+		...(runtime.assistanceVideoStore ? { videoStore: runtime.assistanceVideoStore } : {}),
+		...(resultAcceptance ? { acceptValidatedResult: resultAcceptance.acceptValidatedResult } : {}),
+	});
+	const selectedMediaPreparation = Object.freeze({ ...selectedPreparation,
+		...(resultAcceptance ? {
+			prepareTranscriptCleanup: resultAcceptance.prepareTranscriptCleanup,
+			acceptTranscriptCleanup: resultAcceptance.acceptTranscriptCleanup,
+			rejectTranscriptCleanup: resultAcceptance.rejectTranscriptCleanup,
+			cancelTranscriptCleanup: resultAcceptance.cancelTranscriptCleanup,
+		} : {}),
+	});
+
 	return Object.freeze({
 		applySpectralSelection,
 		captureRackNoiseProfile,
 		captureSelectedNoiseProfile,
+		selectedMediaPreparation,
 		renderDryTrackRange,
 		renderRackPrefixRange,
 	});

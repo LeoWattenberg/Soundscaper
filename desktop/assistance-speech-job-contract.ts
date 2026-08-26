@@ -3,11 +3,19 @@
 /** Exact authority and result contract for speech work in the M5 helper. */
 
 import {
+	normalizeSpeakerDiarizationResult,
+	type SpeakerDiarizationResult,
+} from './assistance-diarization-runtime.ts';
+import {
 	SPEECH_RUNTIME_MODULE_ID,
 	normalizeRecognition,
 	type SpeechRecognitionResult,
 	type SpeechRuntimeStatus,
 } from './assistance-speech-runtime.ts';
+import {
+	normalizeVoiceActivityResult,
+	type VoiceActivityResult,
+} from './assistance-vad-runtime.ts';
 import {
 	HelperContractViolationError,
 	assertHelperWireEnvelope,
@@ -15,7 +23,8 @@ import {
 
 export const ASSISTANCE_SPEECH_JOB_SUBCONTRACT_VERSION = 1;
 export const ASSISTANCE_SPEECH_FILE_ROLES = Object.freeze([
-	'audio', 'encoder', 'decoder', 'joiner', 'tokens',
+	'audio', 'encoder', 'decoder', 'joiner', 'tokens', 'vad-model',
+	'segmentation-model', 'embedding-model',
 ] as const);
 
 export type AssistanceSpeechFileRole = (typeof ASSISTANCE_SPEECH_FILE_ROLES)[number];
@@ -48,8 +57,35 @@ export interface AssistanceSpeechRecognitionGrant {
 	readonly threads: number;
 }
 
-export type AssistanceSpeechJobGrant = AssistanceSpeechStatusGrant | AssistanceSpeechRecognitionGrant;
-export type AssistanceSpeechJobResult = SpeechRuntimeStatus | SpeechRecognitionResult;
+export interface AssistanceSpeechVoiceActivityGrant {
+	readonly operation: 'detect-voice-activity';
+	readonly moduleId: typeof SPEECH_RUNTIME_MODULE_ID;
+	readonly modelId: string;
+	readonly audio: AssistanceSpeechFileGrant;
+	readonly model: AssistanceSpeechFileGrant;
+}
+
+export interface AssistanceSpeechDiarizationGrant {
+	readonly operation: 'diarize-speakers';
+	readonly moduleId: typeof SPEECH_RUNTIME_MODULE_ID;
+	readonly modelIds: Readonly<{
+		readonly segmentation: string;
+		readonly embedding: string;
+	}>;
+	readonly audio: AssistanceSpeechFileGrant;
+	readonly models: Readonly<{
+		readonly segmentation: AssistanceSpeechFileGrant;
+		readonly embedding: AssistanceSpeechFileGrant;
+	}>;
+}
+
+export type AssistanceSpeechJobGrant =
+	| AssistanceSpeechStatusGrant
+	| AssistanceSpeechRecognitionGrant
+	| AssistanceSpeechVoiceActivityGrant
+	| AssistanceSpeechDiarizationGrant;
+export type AssistanceSpeechJobResult = SpeechRuntimeStatus | SpeechRecognitionResult
+	| VoiceActivityResult | SpeakerDiarizationResult;
 
 const SHA256 = /^[a-f0-9]{64}$/u;
 const MODEL_ID = /^[a-z\d][a-z\d.-]{0,62}[a-z\d]$/u;
@@ -57,9 +93,12 @@ const STATUS_KEYS = Object.freeze(['operation', 'moduleId']);
 const RECOGNITION_KEYS = Object.freeze([
 	'operation', 'moduleId', 'modelId', 'audio', 'model', 'language', 'threads',
 ]);
+const VOICE_ACTIVITY_KEYS = Object.freeze(['operation', 'moduleId', 'modelId', 'audio', 'model']);
+const DIARIZATION_KEYS = Object.freeze(['operation', 'moduleId', 'modelIds', 'audio', 'models']);
 const FILE_KEYS = Object.freeze(['role', 'path', 'bytes', 'sha256', 'identity']);
 const IDENTITY_KEYS = Object.freeze(['dev', 'ino']);
 const MODEL_KEYS = Object.freeze(['encoder', 'decoder', 'joiner', 'tokens']);
+const DIARIZATION_MODEL_KEYS = Object.freeze(['segmentation', 'embedding']);
 const STATUS_RESULT_KEYS = Object.freeze(['available', 'reason', 'moduleId']);
 
 export function validateAssistanceSpeechJobGrant(value: unknown): AssistanceSpeechJobGrant {
@@ -70,14 +109,47 @@ export function validateAssistanceSpeechJobGrant(value: unknown): AssistanceSpee
 		assertRuntimeModule(record.moduleId);
 		return Object.freeze({ operation: 'status', moduleId: SPEECH_RUNTIME_MODULE_ID });
 	}
+	if (record.operation === 'detect-voice-activity') {
+		exactKeys(record, VOICE_ACTIVITY_KEYS, 'A voice-activity grant');
+		assertRuntimeModule(record.moduleId);
+		assertModelId(record.modelId, 'A voice-activity grant');
+		return Object.freeze({
+			operation: 'detect-voice-activity', moduleId: SPEECH_RUNTIME_MODULE_ID,
+			modelId: record.modelId as string,
+			audio: validateFileGrant(record.audio, 'audio'),
+			model: validateFileGrant(record.model, 'vad-model'),
+		});
+	}
+	if (record.operation === 'diarize-speakers') {
+		exactKeys(record, DIARIZATION_KEYS, 'A speaker-diarization grant');
+		assertRuntimeModule(record.moduleId);
+		const modelIds = plainRecord(record.modelIds,
+			'A speaker-diarization model identity must be a plain record.');
+		exactKeys(modelIds, DIARIZATION_MODEL_KEYS, 'A speaker-diarization model identity');
+		assertModelId(modelIds.segmentation, 'A speaker-diarization segmentation binding');
+		assertModelId(modelIds.embedding, 'A speaker-diarization embedding binding');
+		const models = plainRecord(record.models,
+			'A speaker-diarization model grant must be a plain record.');
+		exactKeys(models, DIARIZATION_MODEL_KEYS, 'A speaker-diarization model grant');
+		return Object.freeze({
+			operation: 'diarize-speakers', moduleId: SPEECH_RUNTIME_MODULE_ID,
+			modelIds: Object.freeze({
+				segmentation: modelIds.segmentation as string,
+				embedding: modelIds.embedding as string,
+			}),
+			audio: validateFileGrant(record.audio, 'audio'),
+			models: Object.freeze({
+				segmentation: validateFileGrant(models.segmentation, 'segmentation-model'),
+				embedding: validateFileGrant(models.embedding, 'embedding-model'),
+			}),
+		});
+	}
 	if (record.operation !== 'recognize') {
-		throw unsafe('An assistance speech grant must name status or recognize.');
+		throw unsafe('An assistance speech grant names an unsupported operation.');
 	}
 	exactKeys(record, RECOGNITION_KEYS, 'An assistance recognition grant');
 	assertRuntimeModule(record.moduleId);
-	if (typeof record.modelId !== 'string' || !MODEL_ID.test(record.modelId)) {
-		throw unsafe('An assistance recognition grant needs a bounded model id.');
-	}
+	assertModelId(record.modelId, 'An assistance recognition grant');
 	const model = plainRecord(record.model, 'An assistance model grant must be a plain record.');
 	exactKeys(model, MODEL_KEYS, 'An assistance model grant');
 	const language = record.language;
@@ -90,7 +162,7 @@ export function validateAssistanceSpeechJobGrant(value: unknown): AssistanceSpee
 	return Object.freeze({
 		operation: 'recognize',
 		moduleId: SPEECH_RUNTIME_MODULE_ID,
-		modelId: record.modelId,
+		modelId: record.modelId as string,
 		audio: validateFileGrant(record.audio, 'audio'),
 		model: Object.freeze({
 			encoder: validateFileGrant(model.encoder, 'encoder'),
@@ -106,6 +178,10 @@ export function validateAssistanceSpeechJobGrant(value: unknown): AssistanceSpee
 export function assistanceSpeechGrantInputBytes(value: unknown): number {
 	const grant = validateAssistanceSpeechJobGrant(value);
 	if (grant.operation === 'status') return 0;
+	if (grant.operation === 'detect-voice-activity') return grant.audio.bytes + grant.model.bytes;
+	if (grant.operation === 'diarize-speakers') {
+		return grant.audio.bytes + grant.models.segmentation.bytes + grant.models.embedding.bytes;
+	}
 	return grant.audio.bytes + Object.values(grant.model).reduce((total, file) => total + file.bytes, 0);
 }
 
@@ -115,6 +191,8 @@ export function validateAssistanceSpeechJobResult(
 ): AssistanceSpeechJobResult {
 	const grant = validateAssistanceSpeechJobGrant(grantValue);
 	if (grant.operation === 'recognize') return normalizeRecognition(value);
+	if (grant.operation === 'detect-voice-activity') return normalizeVoiceActivityResult(value);
+	if (grant.operation === 'diarize-speakers') return normalizeSpeakerDiarizationResult(value);
 	assertHelperWireEnvelope(value);
 	const record = plainRecord(value, 'An assistance runtime status must be a plain record.');
 	exactKeys(record, STATUS_RESULT_KEYS, 'An assistance runtime status');
@@ -128,6 +206,12 @@ export function validateAssistanceSpeechJobResult(
 		reason: record.reason as string | null,
 		moduleId: SPEECH_RUNTIME_MODULE_ID,
 	});
+}
+
+function assertModelId(value: unknown, label: string): void {
+	if (typeof value !== 'string' || !MODEL_ID.test(value)) {
+		throw unsafe(`${label} needs a bounded model id.`);
+	}
 }
 
 function validateFileGrant(value: unknown, role: AssistanceSpeechFileRole): AssistanceSpeechFileGrant {

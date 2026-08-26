@@ -63,6 +63,7 @@ export interface ProjectBootstrapServiceRuntime<
 		setOutputDevice?: (deviceId: string) => PromiseLike<unknown> | unknown;
 	}> | null;
 	readonly mediaDevices?: ProjectBootstrapMediaDevices | null;
+	readonly automaticAudioDeviceEnumeration?: boolean;
 	readonly productSettingKey: (key: string) => string;
 	readonly audioDevicePreferencesSettingKey: string;
 	readonly recordingInputGainDefault: number;
@@ -210,8 +211,10 @@ export function createProjectBootstrapService<
 		runtime.state.preferredInputChannelCount = savedAudioDevices.inputChannelCount;
 		runtime.state.preferredOutputDeviceId = savedAudioDevices.outputDeviceId;
 		await guard(Promise.resolve(runtime.engine.setOutputDevice?.(savedAudioDevices.outputDeviceId)).catch(() => undefined));
-		await guard(runtime.refreshAudioDevices({ probe: false, publish: false }));
-		registerDeviceChangeListener();
+		if (runtime.automaticAudioDeviceEnumeration !== false) {
+			await guard(runtime.refreshAudioDevices({ probe: false, publish: false }));
+			registerDeviceChangeListener();
+		}
 		const lastProjectId = await runtime.loadRecentProjectState(guard);
 		const saved = lastProjectId
 			? await guard(runtime.store.loadProject(lastProjectId, { signal: runtime.lifetimeSignal }))

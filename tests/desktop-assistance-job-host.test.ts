@@ -120,6 +120,47 @@ test('cancellation is supervised by the shared one-second budget', async () => {
 	});
 });
 
+test('an external AbortSignal reaches the helper and settles only after cancellation acknowledgement', async () => {
+	const { channel, host } = harness({ cancellationBudgetMs: 50 });
+	const controller = new AbortController();
+	const run = host.start(REQUEST, { signal: controller.signal });
+	await ready(channel);
+	controller.abort(new DOMException('user cancelled', 'AbortError'));
+	assert.deepEqual(channel.sent[1], { contractVersion: 1, type: 'cancel', jobId: JOB_ID });
+	let settled = false;
+	void run.completed.catch(() => { settled = true; });
+	await Promise.resolve();
+	assert.equal(settled, false, 'the run cannot report cancellation before helper quiescence is acknowledged');
+	channel.emit({ contractVersion: 1, type: 'cancelled', jobId: JOB_ID });
+	await assert.rejects(run.completed, (error: Error & { cause?: string }) => {
+		assert.equal(error.cause, 'cancelled');
+		return true;
+	});
+});
+
+test('a signal aborted before admission refuses without spawning or misclassifying its reason', async () => {
+	const { channel, host } = harness();
+	const controller = new AbortController();
+	controller.abort(new Error('replacement task owns the slot'));
+	const run = host.start(REQUEST, { signal: controller.signal });
+	await assert.rejects(run.completed, (error: Error & { cause?: string }) => {
+		assert.equal(error.cause, 'cancelled');
+		return true;
+	});
+	assert.deepEqual(channel.sent, []);
+});
+
+test('cancel rejects when the helper misses its acknowledgement budget', async () => {
+	const { channel, host } = harness({ cancellationBudgetMs: 5 });
+	const run = host.start(REQUEST);
+	await ready(channel);
+	await assert.rejects(run.cancel(), (error: Error & { cause?: string }) => {
+		assert.equal(error.cause, 'cancellation-timeout');
+		return true;
+	});
+	assert.equal(channel.killed, true);
+});
+
 test('a silent helper is killed and another job may be admitted', async () => {
 	const { channel, host } = harness({ crashDetectionMs: 10 });
 	const run = host.start(REQUEST);

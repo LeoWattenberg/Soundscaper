@@ -6,7 +6,6 @@ import test from 'node:test';
 import vm from 'node:vm';
 
 const STATUS = Object.freeze({
-	modelsDirectory: '/home/user/.config/Soundscaper/models',
 	runtimeAvailable: true,
 	runtimeReason: null,
 	models: [{
@@ -21,12 +20,16 @@ const STATUS = Object.freeze({
 });
 
 test('the assistance bridge sanitizes status in both directions', async () => {
-	const fixture = await loadPreload([{ ...STATUS, secretPath: '/private/models' }]);
+	const fixture = await loadPreload([{
+		...STATUS, modelsDirectory: '/private/models', secretPath: '/private/secret',
+		models: [{ ...STATUS.models[0], artifactPath: '/private/models/model.onnx' }],
+	}]);
 
 	const status = await fixture.bridge.listAssistanceModels();
 
 	assert.deepEqual(fixture.invocations, [['soundscaper:v1:assistance:list', undefined]]);
 	assert.equal('secretPath' in status, false, 'unknown fields never reach the renderer');
+	assert.equal('modelsDirectory' in status, false, 'the configured store remains main-process-only');
 	assert.equal(Object.isFrozen(status), true);
 	assert.equal(Object.isFrozen(status.models[0]), true);
 	assert.deepEqual({ ...status.models[0] }, { ...STATUS.models[0] });
@@ -57,7 +60,7 @@ test('a model id the store could not place safely is refused before it is sent',
 });
 
 test('a malformed status from main is refused rather than passed through', async () => {
-	const missingModels = await loadPreload([{ modelsDirectory: '/models', runtimeAvailable: true }]);
+	const missingModels = await loadPreload([{ runtimeAvailable: true }]);
 	await assert.rejects(missingModels.bridge.listAssistanceModels(), /Malformed assistance status/u);
 
 	const badAvailability = await loadPreload([{ ...STATUS, models: [{ ...STATUS.models[0], availability: 'ready' }] }]);
@@ -98,6 +101,52 @@ test('install progress is sanitized before it reaches a listener', async () => {
 		totalBytes: 652_184_296,
 	});
 	assert.equal(typeof unsubscribe, 'function');
+});
+
+test('model lifecycle operations are pathless and sanitize every result', async () => {
+	const fixture = await loadPreload([
+		{ contractVersion: 1, modelId: 'parakeet-tdt-0.6b-v2', outcome: 'cancelled', path: '/private' },
+		STATUS.models[0],
+		{ installedModelIds: ['parakeet-tdt-0.6b-v2'], incompleteModelIds: [], rejected: [] },
+		{ reclaimedBlobBytes: 1, discardedManifestCount: 2, discardedPartialCount: 3,
+			discardedPartialBytes: 4, reclaimedBytes: 5, deletedPath: '/private' },
+		[{ schemaVersion: 1, modelId: 'parakeet-tdt-0.6b-v2', version: '2.0.0',
+			purpose: 'Speech recognition', codeLicense: 'MIT', weightsLicense: 'CC-BY-4.0',
+			attributionRequired: true, provenanceSources: ['https://upstream.invalid/repo'],
+			upstreamRevision: 'abc123', distributionKind: 'identity-mirrored',
+			noticeDocument: '/private/THIRD_PARTY_LICENSES.md' }],
+		{ contractVersion: 1, totalBytes: 6, fileCount: 7, sourceRemoved: false,
+			modelsDirectory: '/private/new-models' },
+	]);
+
+	const cancellation = await fixture.bridge.cancelAssistanceModelInstall('parakeet-tdt-0.6b-v2');
+	const seeded = await fixture.bridge.installPreseededAssistanceModel('parakeet-tdt-0.6b-v2');
+	const reconciliation = await fixture.bridge.reconcileAssistanceModels();
+	const garbage = await fixture.bridge.collectAssistanceModelGarbage();
+	const notices = await fixture.bridge.listAssistanceModelNotices();
+	const relocation = await fixture.bridge.relocateAssistanceModels();
+
+	assert.equal('path' in cancellation, false);
+	assert.equal(seeded.modelId, 'parakeet-tdt-0.6b-v2');
+	assert.deepEqual(reconciliation.installedModelIds, ['parakeet-tdt-0.6b-v2']);
+	assert.equal('deletedPath' in garbage, false);
+	assert.equal('noticeDocument' in notices[0], false);
+	assert.equal('modelsDirectory' in relocation, false);
+	assert.deepEqual(fixture.invocations, [
+		['soundscaper:v1:assistance:install:cancel', 'parakeet-tdt-0.6b-v2'],
+		['soundscaper:v1:assistance:install-preseeded', 'parakeet-tdt-0.6b-v2'],
+		['soundscaper:v1:assistance:reconcile', undefined],
+		['soundscaper:v1:assistance:garbage-collect', undefined],
+		['soundscaper:v1:assistance:notices', undefined],
+		['soundscaper:v1:assistance:relocate', undefined],
+	]);
+});
+
+test('native picker cancellation is a typed null and never exposes a selected path', async () => {
+	const fixture = await loadPreload([null, null]);
+
+	assert.equal(await fixture.bridge.installPreseededAssistanceModel('parakeet-tdt-0.6b-v2'), null);
+	assert.equal(await fixture.bridge.relocateAssistanceModels(), null);
 });
 
 async function loadPreload(invocationResults) {

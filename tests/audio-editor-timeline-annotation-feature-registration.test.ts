@@ -19,13 +19,13 @@ import { PRODUCT_PROFILES } from '../src/common/products.js';
 
 const EMPTY_MANIFEST = Object.freeze({ schemaVersion: 2 as const, requirements: Object.freeze([]) });
 
-test('timeline annotations are native only in Soundscaper and never qualify for rendered fallback', () => {
+test('timeline annotations are native in both selected products and never qualify for rendered fallback', () => {
 	assert.equal(
 		PROJECT_FEATURE_CAPABILITY_IDS.timelineAnnotations,
 		'org.soundscaper.capability.timeline-annotations',
 	);
 	assert.equal(PRODUCT_PROFILES.soundscaper.capabilities.timelineAnnotations, true);
-	assert.equal(PRODUCT_PROFILES.framescaper.capabilities.timelineAnnotations, false);
+	assert.equal(PRODUCT_PROFILES.framescaper.capabilities.timelineAnnotations, true);
 	assert.equal(
 		PROJECT_FEATURE_AUDIO_CAPABILITY_IDS.includes(PROJECT_FEATURE_CAPABILITY_IDS.timelineAnnotations as never),
 		false,
@@ -88,7 +88,7 @@ test('non-empty timeline annotation state reconciles one bypass-only owned requi
 	assert.strictEqual(reconcileProjectOwnedFeatureRequirements({}, EMPTY_MANIFEST), EMPTY_MANIFEST);
 });
 
-test('same-schema timeline annotation state is native in Soundscaper and bypass-preserved in Framescaper', () => {
+test('same-schema timeline annotation state is native in both selected products', () => {
 	const featureRequirements = reconcileProjectOwnedFeatureRequirements({
 		timelineAnnotations: [{ id: 'annotation-a' }],
 	}, EMPTY_MANIFEST);
@@ -112,13 +112,13 @@ test('same-schema timeline annotation state is native in Soundscaper and bypass-
 	const framescaper = createProjectFeatureCompatibilityService(
 		PRODUCT_PROFILES.framescaper.capabilities,
 	).evaluate(project);
-	assert.equal(framescaper?.compatible, false);
+	assert.equal(framescaper?.compatible, true);
 	assert.deepEqual(framescaper?.items.map(({ requirementId, featureId, availability, disposition }) => ({
 		requirementId, featureId, availability, disposition,
 	})), [{
 		requirementId: PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.timelineAnnotations,
 		featureId: PROJECT_FEATURE_CAPABILITY_IDS.timelineAnnotations,
-		availability: 'unavailable',
-		disposition: 'bypassed',
+		availability: 'available',
+		disposition: 'native',
 	}]);
 });

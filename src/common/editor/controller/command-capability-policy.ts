@@ -16,6 +16,7 @@ export interface EditorCommandCapabilities {
 	readonly audioRecording: boolean;
 	readonly audioSpectralEditing: boolean;
 	readonly audioWarp: boolean;
+	readonly nestedSequences?: boolean;
 	readonly takeComp: boolean;
 	readonly timelineAnnotations: boolean;
 	readonly trackFolders: boolean;
@@ -78,9 +79,12 @@ function assertCommandCapabilities(
 		&& (command.type.startsWith('track-folder/') || command.type.startsWith('track-node/'))) {
 		unsupported(productName, 'trackFolders');
 	}
+	if (!capabilities.nestedSequences && command.type === 'track/add'
+		&& Object.hasOwn(command, 'sequenceId')) {
+		unsupported(productName, 'nestedSequences');
+	}
 	if (!capabilities.trackFolders && command.type === 'track/add'
-		&& (Object.hasOwn(command, 'sequenceId') || Object.hasOwn(command, 'parentFolderId')
-			|| Object.hasOwn(command, 'parentIndex'))) {
+		&& (Object.hasOwn(command, 'parentFolderId') || Object.hasOwn(command, 'parentIndex'))) {
 		unsupported(productName, 'trackFolders');
 	}
 	if (!capabilities.timelineAnnotations && command.type === 'selection/set'

@@ -11,9 +11,10 @@ export const FRAMESCAPER_PROFILE = {
 	importChoices: ['scape', 'audacity-project', 'audio', 'video', 'labels'],
 	exportChoices: ['scape', 'audio', 'video', 'labels'],
 	shortcuts: { disabledCommandIds: ['record', 'generate', 'selection-effect', 'spectral-edit', 'analyze', 'manage-macros', 'nyquist-prompt'] },
-	applicationFeatures: { framescaperCapture: false, framescaperWebVcr: false },
+	applicationFeatures: { framescaperCapture: true, framescaperWebVcr: false },
 	capabilities: {
 		...SHARED_CAPABILITIES,
+		assistanceAssets: true,
 		audioRecording: false,
 		audioGenerators: false,
 		audioEffects: false,
@@ -37,7 +38,7 @@ export const FRAMESCAPER_PROFILE = {
 		nestedSequences: true,
 		// V28 owns OFX authoring/state; execution remains a default-off desktop service gate.
 		ofxEffects: true,
-		timelineAnnotations: false,
+		timelineAnnotations: true,
 		trackFolders: false,
 		takeComp: false,
 		audioWarp: false,

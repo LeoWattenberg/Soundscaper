@@ -111,7 +111,8 @@ export function createWorkspaceApplicationMenus({
 	const framescaperCandidateAuthoring = candidateAuthoringRuntime === null ? null : Object.freeze({
 		surfaces: candidateAuthoringRuntime.surfaces,
 		open: (surface) => {
-			const selectedV27Surface = (project?.schemaVersion === 27 || project?.schemaVersion === 28)
+			const selectedV27Surface = (project?.schemaVersion === 27 || project?.schemaVersion === 28
+				|| project?.schemaVersion === 31)
 				? framescaperSelectedV27VisualAuthoringSurfaceId(surface) : null;
 			if (selectedV27Surface !== null) return openSurface(selectedV27Surface);
 			return run(() => candidateAuthoringRuntime.run(surface));
@@ -146,6 +147,8 @@ export function createWorkspaceApplicationMenus({
 			uiFlags,
 			actionRuntime: parityRuntime.actions,
 			actions: {
+				openLocalModels: fileService.isDesktop ? () => openSurface('local-models') : undefined,
+				openLocalAssistance: fileService.isDesktop ? () => openSurface('local-assistance') : undefined,
 				framescaperCandidateAuthoring,
 				openFramescaperV27Finishing: (surface) => openSurface(
 					framescaperV27FinishingSurfaceId(surface),

@@ -5,9 +5,11 @@ import { cp, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
 import { build } from 'esbuild';
 import { DESKTOP_5B_TRANSITIVE_RUNTIME_FILES, DESKTOP_RUNTIME_BUNDLED_LEAF_FILES } from './desktop-5b-transitive-runtime-files.mjs';
+import { DESKTOP_ASSISTANCE_RUNTIME_FILES } from './desktop-assistance-runtime-files.mjs';
 import { stageDesktopBundledAudioRuntime } from './desktop-bundled-audio-runtime.mjs';
 import { DESKTOP_EXTERNAL_FFMPEG_RUNTIME_FILES } from './desktop-external-ffmpeg-runtime-files.mjs';
 import { DESKTOP_PROJECT_LIBRARY_EXACT_RUNTIME_FILES } from './desktop-project-library-exact-runtime-files.mjs';
+import { DESKTOP_PROJECT_LIBRARY_V20_RUNTIME_FILES } from './desktop-project-library-v20-runtime-files.mjs';
 import { DESKTOP_PROJECT_LIBRARY_V27_RUNTIME_FILES } from './desktop-project-library-v27-runtime-files.mjs';
 import { DESKTOP_SOUNDSCAPER_V10_RUNTIME_FILES } from './desktop-soundscaper-v10-runtime-files.mjs';
 import { DESKTOP_SOUNDSCAPER_V11_RUNTIME_FILES } from './desktop-soundscaper-v11-runtime-files.mjs';
@@ -40,14 +42,7 @@ export const DESKTOP_RUNTIME_PACKAGE_IMPORTS = Object.freeze({
 export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	...DESKTOP_5B_TRANSITIVE_RUNTIME_FILES,
 	'desktop/application-lifecycle.js',
-	'desktop/assistance-helper-runtime.js',
-	'desktop/assistance-job-host.js',
-	'desktop/assistance-job-protocol.js',
-	'desktop/assistance-main-ipc.js',
-	'desktop/assistance-service.js',
-	'desktop/assistance-sherpa-recognizer.js',
-	'desktop/assistance-speech-job-contract.js',
-	'desktop/assistance-speech-runtime.js',
+	...DESKTOP_ASSISTANCE_RUNTIME_FILES,
 	...DESKTOP_EXTERNAL_FFMPEG_RUNTIME_FILES,
 	'desktop/framescaper-capture-desktop-port.js',
 	'desktop/framescaper-capture-main-channels.js',
@@ -102,9 +97,6 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/linked-original-locator-validation.js',
 	'desktop/linked-video-locator-registry.js',
 	'desktop/linked-video-locator-store.js',
-	'desktop/local-model-catalog.js',
-	'desktop/local-model-download.js',
-	'desktop/local-model-store.js',
 	'desktop/main-window-recovery.js',
 	'desktop/external-display-controller.js',
 	'desktop/external-display-frame-port.js',
@@ -347,6 +339,7 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/soundscaper/editor-project-production-validation.js',
 	'src/soundscaper/editor-project-v23-validation.js',
 	...DESKTOP_PROJECT_LIBRARY_EXACT_RUNTIME_FILES,
+	...DESKTOP_PROJECT_LIBRARY_V20_RUNTIME_FILES,
 	'src/common/editor/native-durable-root-grant.js',
 	'src/common/editor/native-external-display.js',
 	'src/common/editor/native-media-atomic-publication.js',

@@ -54,6 +54,21 @@ test('a published artifact is stored once under its digest', { timeout: 20_000 }
 	assert.equal(String(await readFile(store.blobPath(artifact.sha256))), 'weights');
 });
 
+test('publishing never overwrites an existing content-addressed entry', { timeout: 20_000 }, async (t) => {
+	const { store, root } = await createStore();
+	t.after(() => rm(root, { recursive: true, force: true }));
+	const artifact = {
+		fileName: 'model.onnx', byteLength: 7, sha256: digestOf('weights'),
+	};
+	await writeFile(store.blobPath(artifact.sha256), 'corrupt');
+	const staged = await store.stagingPath();
+	await writeFile(staged, 'weights');
+
+	await assert.rejects(store.publishBlob(staged, artifact), /entry already exists/iu);
+	assert.equal(String(await readFile(store.blobPath(artifact.sha256))), 'corrupt');
+	await assert.rejects(stat(staged), /ENOENT/u);
+});
+
 test('a staged artifact that does not match its digest is refused and discarded', { timeout: 20_000 }, async (t) => {
 	const { store, root } = await createStore();
 	t.after(() => rm(root, { recursive: true, force: true }));
@@ -96,6 +111,19 @@ test('a manifest cannot name bytes the store does not hold', { timeout: 20_000 }
 		/missing a published artifact/iu,
 	);
 	assert.equal(await store.readManifest('silero-vad-v6'), null);
+});
+
+test('a manifest cannot commit same-length bytes that fail their digest', { timeout: 20_000 }, async (t) => {
+	const { store, root } = await createStore();
+	t.after(() => rm(root, { recursive: true, force: true }));
+	const artifact = await publish(store, 'model.onnx', 'model-a');
+	await writeFile(store.blobPath(artifact.sha256), 'model-b');
+
+	await assert.rejects(
+		store.commitInstall({ modelId: 'model-a', version: '1', artifacts: [artifact] }),
+		/missing a published artifact/iu,
+	);
+	assert.equal(await store.readManifest('model-a'), null);
 });
 
 test('an installation round-trips through the manifest', { timeout: 20_000 }, async (t) => {
@@ -169,10 +197,32 @@ test('externally deleted bytes are reported as uninstalled rather than trusted',
 	await rm(store.blobPath(artifact.sha256));
 
 	assert.equal(await store.hasBlob(artifact.sha256), false);
+	assert.deepEqual(await store.listInstalled(), [], 'a manifest with missing bytes is not an installation');
 	await assert.rejects(
 		store.commitInstall({ modelId: 'model-a', version: '2', artifacts: [artifact] }),
 		/missing a published artifact/iu,
 	);
+});
+
+test('externally truncated bytes are reported as uninstalled', { timeout: 20_000 }, async (t) => {
+	const { store, root } = await createStore();
+	t.after(() => rm(root, { recursive: true, force: true }));
+
+	const artifact = await publish(store, 'model.onnx', 'model weights');
+	await store.commitInstall({ modelId: 'model-a', version: '1', artifacts: [artifact] });
+	await writeFile(store.blobPath(artifact.sha256), 'short');
+
+	assert.deepEqual(await store.listInstalled(), [], 'a manifest with truncated bytes is not an installation');
+});
+
+test('artifact verification detects same-length external tampering', { timeout: 20_000 }, async (t) => {
+	const { store, root } = await createStore();
+	t.after(() => rm(root, { recursive: true, force: true }));
+
+	const artifact = await publish(store, 'model.onnx', 'model-a');
+	await writeFile(store.blobPath(artifact.sha256), 'model-b');
+
+	assert.equal(await store.verifyArtifact(artifact), false);
 });
 
 test('the store refuses ids, versions, and digests it cannot place safely', { timeout: 20_000 }, async (t) => {

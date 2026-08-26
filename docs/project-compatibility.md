@@ -89,49 +89,106 @@ post-bind Electron linked-PCM source reads.
 Canonical PCM portability is the contract; the selected external container is
 neither transferred nor reconstructed.
 
-## Framescaper V28 product isolation
+## Framescaper F31 product isolation
 
 <!-- policy-narrative:framescaper-v18-product-isolation -->
-The maintained Framescaper bootstrap authenticates the selected exact V28
-runtime profile before constructing its project environment on browser and
-packaged desktop routes. V28 owns create, clone, validation, commands, one-step
-history, session, Clipboard V12, repository, playback, compatibility, Scape
-custody, product-isolated storage, maintained V20 retime/proxy, V22 dissolve,
-V24 visual state, inherited V27 editorial and finishing behavior, professional
-source state, OpenFX state, unified exact render plan V14, managed finishing,
-captions, and shared V21 audio finishing. Packaged desktop authenticates library
-V19, SQLite user_version 21, scope v19, and the schema-28 renderer behind the
-unchanged public framescaperDesktop.v1 bridge. When V19 is absent, first open
-safely settles the immutable V18 lineage when necessary, opens exact V18
-read-only, and performs an immutable crash-resumable V18-to-V19 import. It
-explicitly reimports exact V27 documents into V28, copies every referenced
+The maintained Framescaper bootstrap authenticates selected exact F31 before
+constructing its project environment on browser and packaged desktop routes. F31
+owns create, clone, validation, commands, one-step history, session, Clipboard
+V12, repository, playback, compatibility, Scape custody, product-isolated
+storage and assistance-asset custody while delegating its inherited
+retime/proxy, dissolve, visual, editorial, finishing, professional-source,
+OpenFX and unified exact V14 render behavior through an immutable exact V28
+foundation. Packaged desktop authenticates library V20, SQLite user_version 22,
+scope v20, and the schema-31 renderer behind the unchanged public
+framescaperDesktop.v1 bridge. When V20 is absent, first open treats a settled
+V19 store as its immutable direct source, opens it read-only, authenticates
+exact V28 documents, explicitly reimports them into F31, copies every referenced
 managed body byte-for-byte through durable cursor checkpoints, resumes
-idempotently after interruption, and never reopens, rewrites, or deletes V18 or
-its inherited V17 and V12 lineages, leases, or journals. V20 through V24 require
-their historical reimport route before V27-to-V28 reimport; V25 and V26 remain
-descriptor-snapshotted opaque read-only custody with no candidate validation
-dispatch. Soundscaper separately authenticates exact project V29 and desktop
-library V11 and treats Framescaper schemas as read-only. Cross-product
-preservation never grants edit, activation, migration, native feature authority,
-shared catalog authority, or release qualification.
+idempotently after interruption, and never rewrites or deletes V19 or its
+inherited V18, V17 and V12 lineages, leases, or journals. V20 through V24
+require their historical reimport route before V27-to-V28 and V28-to-F31
+reimport; V25 and V26 remain descriptor-snapshotted opaque read-only custody
+with no candidate validation dispatch, and unowned V29/V30 remain opaque
+read-only. Soundscaper separately authenticates exact project S30 and desktop
+library V11, inherits its established project behavior through exact S29, and
+treats Framescaper schemas as read-only. Cross-product preservation never grants
+edit, activation, migration, native feature authority, shared catalog authority,
+or release qualification.
 <!-- /policy-narrative:framescaper-v18-product-isolation -->
 
-## Framescaper V22–V26 compatibility and custody
+## Current local-assistance transcript custody
+
+<!-- policy-narrative:current-local-assistance-transcript-custody -->
+Selected Soundscaper S30 and Framescaper F31 own the closed assistanceAssets
+collection and org.soundscaper.capability.assistance-assets. The active
+menu-reached desktop path has four executable closed operations: installed
+catalog-authenticated Parakeet speech recognition, Silero voice-activity
+detection, paired Pyannote segmentation plus ERes2Net speaker diarization
+through the authenticated Sherpa helper, and model-free shot detection only
+while main owns a current compatible external FFmpeg/FFprobe admission and the
+fixed scdet canary passes. The remaining eleven closed operations return typed
+unavailable outcomes without substitute models, fabricated output, implicit
+installation, or canonical mutation. Every completed result is semantically
+reviewed before an explicit acceptance can reach ordinary project state.
+Transcript acceptance revalidates the exact project revision, sequence, selected
+occurrence, source digest and range, link membership, and timing authority
+through an AssistanceProposalSession; stages one canonical content-addressed
+transcript-v1 JSON body; and commits its digest-bound reference with a
+deterministic ordinary label track as one undoable project command. A whole
+rerun replaces that owned transcript track and reference instead of merging
+inferred text. Voice-activity and diarization acceptance revalidate exact 16 kHz
+reviewed ranges and the same selection fence, then deterministically replace
+only their owned ordinary Silences or anonymous Speakers label track in one
+stale-safe command. Shot acceptance admits one model-free reviewed, ordered
+source-frame/presentation-tick result, rechecks exact source-frame authority,
+and deterministically replaces only its owned in-selection timeline annotations
+as one command. Reviewed English Parakeet transcript cleanup derives bounded
+filler and repetition proposals plus silence proposals only from an optional
+same-fence Silero review; only explicitly selected proposals become one disjoint
+link-aware track-ripple-delete command that expands across authenticated A/V
+link membership, and cleanup publishes no assistance asset. A stale fence,
+owned-state collision, reference race, body-publication fault, or project-commit
+failure refuses the edit; newly owned transcript body publication rolls back on
+failure. History, reopen, clone, selected-product storage retention, and
+current-format .scape export/import preserve the strict transcript reference and
+body; .scape authenticates descriptor, size, SHA-256, source binding, sample
+rate, model artifacts, and canonical transcript semantics, and collision import
+rebinds the source, body, and immutable reference together. AUP4 reports
+transcript and source-binding omission explicitly. Web routes retain and edit
+the resulting ordinary label, annotation, cleanup, and project state but run no
+model or external-executable inference. A missing or corrupt transcript body
+cannot become a valid assistance result or archive export and grants no
+inference authority. Only the selected S30 and F31 runtime profiles advertise
+the assistance-asset and maintained acceptance commands; generic V17/V18 and
+historical product profiles do not acquire them. Licensing, catalog-signature,
+artifact-integrity, runtime/platform, selected-media, storage-integrity,
+explicit-consent, and external-executable admission gates remain fail closed.
+The catalog's declared EU R2 mirrors still have no recorded real write or remote
+read-back, and missing mirror availability grants no unpinned upstream fallback.
+Pending manual or owner-lab qualification remains documentary, nonblocking,
+unprovisioned, and open; it neither disables these bounded implemented paths nor
+relaxes any hard gate.
+<!-- /policy-narrative:current-local-assistance-transcript-custody -->
+
+## Framescaper V22–V30 compatibility and custody
 
 <!-- policy-narrative:framescaper-v22-v26-compatibility-custody -->
-Selected V28 explicitly reimports exact V27 documents through the
-generation-owned validator and constructs new V28 authority; it never edits or
-silently upgrades the source document. V22, V23 and V24 remain opaque custody at
-this boundary. V25 and V26 are recognized descriptor-snapshotted opaque
-read-only custody: selected V28 does not dispatch their candidate validators,
-migrate, author, save, overwrite, activate, or infer native-media or OpenFX
-authority from them. Their dormant candidate repositories remain exact-write
-only under authenticated historical profiles. V28 owns its own native-source and
-OpenFX fields, but unavailable runtime requirements remain visible, preserved
-and default-off; custody grants no payload, third-party code, native execution,
-qualification, release, or activation claim. Soundscaper and cross-product
-handoff may retain state read-only but never acquire edit or migration
-authority.
+Selected F31 explicitly reimports exact V28 documents through the
+generation-owned validator and constructs new F31 authority; it never edits or
+silently upgrades the source document. Historical V28 in turn owns the explicit
+V27 reimport foundation. V22, V23 and V24 remain opaque custody at the direct
+F31 boundary. V25 and V26 are recognized descriptor-snapshotted opaque read-only
+custody: selected F31 does not dispatch their candidate validators, migrate,
+author, save, overwrite, activate, or infer native-media or OpenFX authority
+from them. V29 and V30 are unowned opaque read-only versions with no migration
+or authoring route. Dormant candidate repositories remain exact-write only under
+authenticated historical profiles. F31 delegates native-source and OpenFX
+behavior through its immutable exact V28 foundation, but unavailable runtime
+requirements remain visible, preserved and default-off; custody grants no
+payload, third-party code, native execution, qualification, release, or
+activation claim. Soundscaper and cross-product handoff may retain state
+read-only but never acquire edit or migration authority.
 <!-- /policy-narrative:framescaper-v22-v26-compatibility-custody -->
 
 ## Framescaper V18 nested-sequence compatibility
@@ -188,43 +245,45 @@ reconciles nonnull state to the owned framescaper.video-proxy requirement, which
 Framescaper provides, so an attached document opens writable and its edits carry
 or drop the attachment only while its source claim remains true. Claim-bound
 repository publication, retention, startup maintenance, cleanup tombstones,
-archive format 2, and the selected V28 body graph preserve each exact
+archive format 2, and the selected F31 body graph preserve each exact
 proxy/timing pair while ordinary save cannot introduce or change a pointer. New
 body publication writes the media row, durable unverified claim root, and
 completed write lease in one transaction before bounded verification, preventing
 an unrooted-body gap. Scape format 2 validates and stages canonical originals
 plus proxy and timing bodies, while format 1 remains available only for
-attachment-free V18. Desktop library V19 transfers exact bounded chunks through
-its Framescaper/schema-28 handshake and reconciles the exact V28 shadow.
-Re-attestation rehashes the bounded proxy and timing bodies, validates the
-timing reference and summary, binds an ephemeral timing view, reruns exact
-conformance against the current original, and mints process-local preview-only
-trust. Selected V28 reaches generation, attach, detach, relink, regenerate, and
-Original, Proxy, or Auto selection through a lazy menu dialog. Its scheduler
-reports bounded progress and cancellation; publication proves candidates before
-stale-safe atomic history swaps. Before replacement or a changed-original relink
-invalidates an attachment, it durably journals the exact content-addressed proxy
-and timing body cleanup. Recovery resumes idempotently after interruption,
-preserves a body still rooted by the current project, and removes obsolete
-claims and bodies after successful regeneration or relink; a failed regeneration
-cancels cleanup after history rollback, while manual detach deliberately retains
-the body for one-step history. The maintained preview resolver reattests each
-session, adapts under pressure, and can keep editing and preview available from
-a valid proxy while the original is offline. Proxy selection occurs in the
-source domain before occurrence retime. Browser export, the V14 evaluated-RGBA
-carrier producer, and final delivery never select proxy pictures and visibly
-refuse without an authenticated original. Desktop library V19 delete and
-duplicate are implemented as main-first exact catalog compare-and-swap
-operations with alias-aware local-shadow reconciliation. Duplicate retains the
-exact proxy and timing bodies through the V28 shadow. Delete tombstones only
-catalog ownership and retains immutable revisions and bodies; there is no
-physical reclamation, and it never reuses a project ID. Durable delete intents
-resume exact local shadow and binding-row reconciliation after restart. They do
-not durably capture pre-delete locator references: abrupt process death before
-the outer linked-original drain can leave main-private locator metadata for
-later cleanup, external files are never deleted, and crash- or power-loss
-locator release remains unqualified. The maintained package artifact smoke
-remains source-free and does not qualify packaged delete or duplicate.
+attachment-free V18. Desktop library V20 transfers exact bounded chunks through
+its Framescaper/schema-31 handshake and reconciles the exact F31 shadow;
+immutable V19/schema-28 remains its direct import source. Re-attestation
+rehashes the bounded proxy and timing bodies, validates the timing reference and
+summary, binds an ephemeral timing view, reruns exact conformance against the
+current original, and mints process-local preview-only trust. Selected F31
+delegates generation, attach, detach, relink, regenerate, and Original, Proxy,
+or Auto selection through its exact V28 foundation to the lazy menu dialog. Its
+scheduler reports bounded progress and cancellation; publication proves
+candidates before stale-safe atomic history swaps. Before replacement or a
+changed-original relink invalidates an attachment, it durably journals the exact
+content-addressed proxy and timing body cleanup. Recovery resumes idempotently
+after interruption, preserves a body still rooted by the current project, and
+removes obsolete claims and bodies after successful regeneration or relink; a
+failed regeneration cancels cleanup after history rollback, while manual detach
+deliberately retains the body for one-step history. The maintained preview
+resolver reattests each session, adapts under pressure, and can keep editing and
+preview available from a valid proxy while the original is offline. Proxy
+selection occurs in the source domain before occurrence retime. Browser export,
+the V14 evaluated-RGBA carrier producer, and final delivery never select proxy
+pictures and visibly refuse without an authenticated original. Desktop library
+V20 delete and duplicate use the inherited main-first exact catalog
+compare-and-swap core with alias-aware local-shadow reconciliation. Duplicate
+retains the exact proxy and timing bodies through the F31 shadow. Delete
+tombstones only catalog ownership and retains immutable revisions and bodies;
+there is no physical reclamation, and it never reuses a project ID. Durable
+delete intents resume exact local shadow and binding-row reconciliation after
+restart. They do not durably capture pre-delete locator references: abrupt
+process death before the outer linked-original drain can leave main-private
+locator metadata for later cleanup, external files are never deleted, and crash-
+or power-loss locator release remains unqualified. The maintained package
+artifact smoke remains source-free and does not qualify packaged delete or
+duplicate.
 <!-- /policy-narrative:framescaper-v18-video-proxy-preservation -->
 
 ## Timeline annotation compatibility
@@ -233,24 +292,28 @@ remains source-free and does not qualify packaged delete or duplicate.
 Non-empty schema 17 timelineAnnotations state reconciles one reserved
 soundscaper.timeline-annotations requirement for
 org.soundscaper.capability.timeline-annotations with disposition bypass and no
-fallback. Soundscaper registers the capability available, so compatibility
-evaluation reports available/native and its capability-gated command,
-controller, pointer and keyboard UI, ripple-edit, clipboard, AUP/AUP4 label, and
-RIFF cue paths author and preserve canonical markers and positive regions.
-Framescaper registers the capability known but unavailable, so the same state
-reports unavailable/bypassed rather than unknown and opens only through the
-existing read-only preservation decision. The capability remains excluded from
-both audio and video rendered-fallback sets, and publisher-authored audio or
-video rendered fallback for it rejects. Exact-V17 clone, validation, runtime
-projection, atomic command reconciliation, current-format `.scape` persistence,
-and maintained desktop handoff preserve authoritative annotation coordinates,
-order, selection, stable IDs, batch identity, and opaque extensions within their
-tested interchange limits. Audacity export reports losses that its label model
-cannot represent; RIFF export clips or omits annotations at the selected media
-range and reports stable-ID, batch, anchor, color, and opaque-extension loss.
-This rule claims no Framescaper-native annotation editing, playback rendering,
-audio or video fallback, or semantic preservation beyond the tested
-current-schema and interchange paths.
+fallback. Soundscaper and the selected Framescaper F31 profile register the
+capability available, so current compatibility evaluation reports
+available/native and the shared capability-gated command, controller, pointer
+and keyboard UI, ripple-edit, clipboard, AUP/AUP4 label, and RIFF cue paths
+author and preserve canonical markers and positive regions. F31 reviewed shot
+acceptance also revalidates exact source and selection authority before
+replacing only its owned in-selection markers through the ordinary annotation
+command path. Historical Framescaper F18 through F28 profiles keep the
+capability known but unavailable, so their owned documents retain
+unavailable/bypassed preservation rather than acquiring native authority. The
+capability remains excluded from both audio and video rendered-fallback sets,
+and publisher-authored audio or video rendered fallback for it rejects.
+Exact-V17 clone, validation, runtime projection, atomic command reconciliation,
+current-format `.scape` persistence, and maintained desktop handoff preserve
+authoritative annotation coordinates, order, selection, stable IDs, batch
+identity, and opaque extensions within their tested interchange limits. Audacity
+export reports losses that its label model cannot represent; RIFF export clips
+or omits annotations at the selected media range and reports stable-ID, batch,
+anchor, color, and opaque-extension loss. This rule claims no annotation
+contribution to playback rendering, audio or video fallback, or semantic
+preservation beyond the tested current-schema and interchange paths, and pending
+manual qualification does not disable this bounded native path.
 <!-- /policy-narrative:timeline-annotation-capability -->
 
 ## Nested track folder compatibility
@@ -328,7 +391,7 @@ AUP, and AUP4 import are separate interchange boundaries and create current
 documents directly. Retained raw-schema migrations begin with the first shipped
 release and are governed by a separate versioned policy change.
 
-## V16 wire preservation and selected V28 web-core retime
+## V16 wire preservation and selected F31 web-core retime
 
 V17 preserves the closed JSON-safe V2 curve wire introduced by V16 on timeline
 and Project Bin video clips; historical raw V16 documents themselves require
@@ -346,10 +409,10 @@ disposition `bypass`, and `fallback: null`. A publisher declaration cannot
 suppress or replace it, and any reserved-ID conflict or rendered fallback
 rejects. Historical Soundscaper V17 custody keeps `videoRetime` unavailable and
 therefore retains the explicit read-only-or-cancel decision. Selected
-Framescaper V28 explicitly reimports V27 and inherits the maintained V20
-authority for its embedded web-core consumer.
+Framescaper F31 explicitly reimports exact V28 and delegates to the maintained
+V20 consumer through its immutable V28 foundation.
 
-V28 exposes stale-safe set, reset, constant, ramp, reverse, and freeze commands,
+F31 exposes stale-safe set, reset, constant, ramp, reverse, and freeze commands,
 each published as one history step through a menu-only lazy dialog. Inherited
 editorial moves retain the occurrence curve, while linked audio follows ordinary
 A/V-link placement without source warping (`warpMap` remains null and
@@ -368,9 +431,10 @@ authoritative. Delivery still authenticates the original and visibly refuses
 when it is unavailable. The V14 carrier likewise authenticates the original and
 never promotes proxy pictures to delivery authority.
 
-V28 clone/history, Clipboard V12, Scape custody, desktop library V19, and
-copy-only cross-product routes preserve the unchanged wire. V20 through V24
-follow their historical reimport route before V27-to-V28 reimport; V25/V26 stay
+F31 clone/history, Clipboard V12, Scape custody, desktop library V20, and
+copy-only cross-product routes preserve the unchanged wire through the immutable
+V28/V14 foundation. V20 through V24 follow their historical reimport route
+before V27-to-V28 and V28-to-F31 reimport; V25/V26 and unowned V29/V30 stay
 opaque read-only custody. The native-media/OpenFX source route is complete, but
 authenticated payloads, readiness, reference-renderer, packaged-manual, codec,
 hardware, signing, lab, and release qualification remain open.
@@ -1455,35 +1519,35 @@ activation gating and legacy Soundscaper library migration remain deliberately
 separate from this slice.
 
 <!-- policy-narrative:desktop-electron-lease-protections -->
-Soundscaper V11 and Framescaper V19 each start one process-lifetime main-owned
-lease in a separate product scope and database, carrying a persistently
-monotonic fencing token. Startup waits out an unexpired lease left by a crashed
-owner, recovers pending prepared, materialized, or committed journals before
-authenticated renderer admission, renews the exact lease while the process is
-live, fences new admission and publication on renewal loss, drains admitted
-work, and releases only the exact lease before closing the database. Soundscaper
-V11 authenticates library generation 11, project generation 29, SQLite
-user_version 13 and scope v11. Framescaper V19 authenticates library generation
-19, project generation 28, SQLite user_version 21 and scope v19. When no V19
-store exists, its idempotent first-open importer safely settles the immutable
-V18 lineage when necessary, opens V18 read-only, authenticates exact V27
-documents, explicitly reimports them through the selected V27-to-V28 authority,
-copy-forwards managed bodies byte-for-byte through durable cursor checkpoints,
-resumes without duplication after interruption, and never reopens, rewrites, or
-deletes V18 or its inherited V17 and V12 lease, lineage, or journal state.
-Publication compares expected metadata and project revisions and SHA-256, admits
-only a strictly higher revision, and passes prepared, materialized, committed,
-and complete journal checkpoints. The closed runner executes
-`same-project-simultaneous-open`, `writer-lease-transfer`,
-`stale-lease-takeover`, `conflicting-canonical-commit`,
+Soundscaper V11 and selected Framescaper V20 each start one process-lifetime
+main-owned lease in a separate product scope and database, carrying a
+persistently monotonic fencing token. Startup waits out an unexpired lease left
+by a crashed owner, recovers pending prepared, materialized, or committed
+journals before authenticated renderer admission, renews the exact lease while
+the process is live, fences new admission and publication on renewal loss,
+drains admitted work, and releases only the exact lease before closing the
+database. Soundscaper V11 authenticates library generation 11, project
+generation 30, SQLite user_version 13 and scope v11; selected S30 inherits
+established project behavior through exact S29. Framescaper V20 authenticates
+library generation 20, project generation 31, SQLite user_version 22 and scope
+v20. When no V20 store exists, its idempotent first-open importer opens a
+settled V19 source read-only, authenticates exact V28 documents, explicitly
+reimports them into F31, copy-forwards managed bodies byte-for-byte through
+durable cursor checkpoints, resumes without duplication after interruption, and
+never reopens for writing, rewrites, or deletes V19 or its inherited V18, V17
+and V12 lease, lineage, or journal state. Publication compares expected metadata
+and project revisions and SHA-256, admits only a strictly higher revision, and
+passes prepared, materialized, committed, and complete journal checkpoints. The
+closed runner executes `same-project-simultaneous-open`,
+`writer-lease-transfer`, `stale-lease-takeover`, `conflicting-canonical-commit`,
 `renderer-loss-during-operation`, `orderly-process-restart`, and
-`crash-restart-recovery` for each product, then executes
-`cross-product-simultaneous-open` once to prove the V11 and V19 storage roots
+`crash-restart-recovery` for each selected product, then executes
+`cross-product-simultaneous-open` once to prove the V11 and V20 storage roots
 and fencing domains remain physically isolated. Qualification may only lower the
 shipped lease TTL and renewal interval. CI is configured to build both unpacked
 products and emit one bounded no-retry aggregate on Windows x64 and Linux x64.
-Soundscaper V11 Windows x64, Soundscaper V11 Linux x64, Framescaper V19 Windows
-x64, and Framescaper V19 Linux x64 remain pending-external; no accepted packaged
+Soundscaper V11 Windows x64, Soundscaper V11 Linux x64, Framescaper V20 Windows
+x64, and Framescaper V20 Linux x64 remain pending-external; no accepted packaged
 result is checked in, so this rule and m2-electron-lease-matrix remain Partial.
 <!-- /policy-narrative:desktop-electron-lease-protections -->
 
@@ -2437,18 +2501,19 @@ videoEffects-only clip-target render relationship are separately qualified for
 controller activation and bounded video delivery after their independent
 route-specific relationship, source, and digest admissions. Framescaper V18
 proxy attachment preservation and its isolated re-attestation primitive remain
-qualified under the product-specific rules above. Selected Framescaper V28
-retains the menu-reached proxy lifecycle after retime: generation,
+qualified under the product-specific rules above. Selected Framescaper F31
+retains the menu-reached proxy lifecycle after retime through its immutable V28
+foundation: generation,
 attach/detach, Original/Proxy/Auto preview selection,
 adaptive preview, offline editing, cancellation, relink/regenerate, atomic
-cleanup, and original relink. Those V28 consumer relationships remain resource-
+cleanup, and original relink. Those F31 consumer relationships remain resource-
 and externally unqualified and grant no delivery or native-runtime authority;
 browser export, the V14 carrier producer, and delivery stay
 original-authoritative and refuse when the original is unavailable.
 
 Posters and thumbnails are not editorial proxies. They provide no relink,
 watch, freeze, export, decoder-isolation, browser-heap, or process-RSS guarantee;
-they are unrelated to the preserved V18 proxy attachment or the selected V28
+they are unrelated to the preserved V18 proxy attachment or the selected F31
 editorial-proxy lifecycle and do not satisfy that lifecycle's still-open
 resource, decoder-memory, or external qualification.
 
@@ -2474,14 +2539,15 @@ unfreeze, relink, watch, or refresh a fallback, and the bypass slices do not
 generalize to unknown or third-party effects. Fallback authoring and selection
 beyond the closed audio and maintained video roles and simultaneous fallback
 delivery beyond the exact one-audio/one-video final-video composition remain
-planned. The selected V28 authored proxy lifecycle is a separate source-complete
+planned. The selected F31 authored proxy lifecycle delegates through its
+immutable V28 foundation and is a separate source-complete
 route whose resource, decoder-memory, and external qualification remain open.
 Browser export and the V14 carrier remain original-authoritative; broad
 rendered-fallback offline-render parity remains outside the bounded
 video-delivery projection.
 
 Video proxy attachment preservation was implemented in milestone 3. Selected
-V28 retains generation, maintained Original/Proxy/Auto preview,
+F31 retains generation, maintained Original/Proxy/Auto preview through its V28 foundation,
 adaptive and offline editing, attach/detach, cancellation, relink/regenerate,
 cleanup, and original relink after retime. The source route is complete while
 resource and external qualification remain open; browser export, the V14

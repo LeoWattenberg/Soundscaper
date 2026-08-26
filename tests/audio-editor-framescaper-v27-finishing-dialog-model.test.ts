@@ -13,8 +13,10 @@ import {
 	FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,
 } from '../src/framescaper/editor-project-runtime-profile-v27.ts';
 import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
+import { FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v31.ts';
 import { createFramescaperProjectV27 } from '../src/framescaper/editor-project-v27.ts';
 import { reimportFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
+import { reimportFramescaperProjectV31 } from '../src/framescaper/editor-project-v31.ts';
 import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
 
 const PROJECT = createFramescaperProjectV27(
@@ -22,6 +24,7 @@ const PROJECT = createFramescaperProjectV27(
 	framescaperV20Options(),
 );
 const PROJECT_V28 = reimportFramescaperProjectV28(FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, PROJECT);
+const PROJECT_V31 = reimportFramescaperProjectV31(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, PROJECT_V28);
 
 test('V27 finishing dialog documents compile to owned atomic commands', () => {
 	const color = createFramescaperV27FinishingDialogModel({
@@ -65,6 +68,20 @@ test('selected V28 projects retain inherited finishing models and commands', () 
 	assert.equal(commandTypes(createFramescaperV27FinishingCommand(
 		'color-management', PROJECT_V28, JSON.stringify(draft),
 	))[0], 'video-color-context/set');
+});
+
+test('selected F31 projects retain inherited finishing models and commands', () => {
+	const model = createFramescaperV27FinishingDialogModel({
+		surface: 'automation', project: PROJECT_V31,
+	});
+	assert.deepEqual(JSON.parse(model.documentText), []);
+	const draft = [{
+		id: 'master-gain', address: { kind: 'strip', strip: { kind: 'master' }, parameterId: 'gain' },
+		timebase: 'absolute-samples', points: [{ id: 'p1', position: 0, value: 1 }], segments: [],
+	}];
+	assert.deepEqual(commandTypes(createFramescaperV27FinishingCommand(
+		'automation', PROJECT_V31, JSON.stringify(draft),
+	)), ['automation-lane/set']);
 });
 
 test('caption workflow imports and exports only strict sidecars with sequence binding supplied by V27', () => {

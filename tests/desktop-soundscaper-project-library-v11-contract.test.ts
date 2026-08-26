@@ -19,18 +19,20 @@ import {
 import {
 	SoundscaperNativePluginStateStore,
 } from '../desktop/soundscaper-native-plugin-state-store.ts'
+import { validateSoundscaperDesktopCurrentProject } from '../desktop/soundscaper-project-library-v11-current-project.ts'
+import { createSoundscaperProjectV30 } from '../src/soundscaper/editor-project-v30.ts'
 
-test('desktop library V11 pins project V29, SQLite user_version 13 and isolated scope v11', () => {
+test('desktop library V11 pins project V30, SQLite user_version 13 and isolated scope v11', () => {
 	assert.equal(SOUNDSCAPER_DESKTOP_LIBRARY_SCHEMA_VERSION, 11)
 	assert.equal(DESKTOP_PROJECT_LIBRARY_V11_DATABASE_VERSION, 13)
 	assert.deepEqual(createSoundscaperDesktopProjectLibraryV11Handshake(), {
 		kind: 'soundscaper-project-library-handshake',
 		version: 1,
 		owner: 'soundscaper',
-		projectSchemaVersion: 29,
+		projectSchemaVersion: 30,
 		scapeFormatVersions: [1, 2],
 		attachedScapeFormatVersion: 2,
-		storageDatabaseName: 'kw-media-soundscaper-editor-v29',
+		storageDatabaseName: 'kw-media-soundscaper-editor-v30',
 		desktopLibrarySchemaVersion: 11,
 		desktopDatabaseUserVersion: 13,
 		desktopLibraryScope: ['kw.media', 'soundscaper-project-library', 'v11'],
@@ -38,6 +40,17 @@ test('desktop library V11 pins project V29, SQLite user_version 13 and isolated 
 	assert.match(createSoundscaperDesktopProjectLibraryV11Paths(
 		join(tmpdir(), 'soundscaper-v11-test'),
 	).libraryRoot, /soundscaper-project-library[/\\]v11$/u)
+})
+
+test('desktop library V11 admits only exact V30 current documents', () => {
+	const current = createSoundscaperProjectV30({ id: 'desktop-v30', title: 'Desktop V30' })
+	assert.equal(validateSoundscaperDesktopCurrentProject(current), current)
+	const stale = structuredClone(current) as Record<string, unknown>
+	stale.schemaVersion = 29
+	assert.throws(
+		() => validateSoundscaperDesktopCurrentProject(stale),
+		/Unsupported audio editor schema version: 29/iu,
+	)
 })
 
 test('desktop V11 initializes exact database identity and strict content-addressed state custody', () => {

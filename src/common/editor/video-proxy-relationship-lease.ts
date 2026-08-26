@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { VideoProxyCandidateOriginalIdentity } from './video-proxy-candidate-observation.ts';
+import { validateVideoProxyOriginalMimeType } from './video-proxy-original-mime-type.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
@@ -102,7 +103,7 @@ function captureIdentity(value: unknown): VideoProxyCandidateOriginalIdentity {
 		projectId: string(raw.projectId, 'original projectId'),
 		sourceId: string(raw.sourceId, 'original sourceId'),
 		storageKey: string(raw.storageKey, 'original storageKey'),
-		mimeType: videoMimeType(raw.mimeType),
+		mimeType: validateVideoProxyOriginalMimeType(raw.mimeType, 'original MIME type'),
 		byteLength: positiveInteger(raw.byteLength, 'original byteLength'),
 		sha256,
 		generationToken: string(raw.generationToken, 'original generationToken'),
@@ -136,10 +137,4 @@ function string(value: unknown, name: string): string {
 function positiveInteger(value: unknown, name: string): number {
 	if (!Number.isSafeInteger(value) || Number(value) < 1) throw new RangeError(`${name} must be positive.`);
 	return Number(value);
-}
-
-function videoMimeType(value: unknown): string {
-	const result = string(value, 'original MIME type');
-	if (!/^video\/[a-z0-9!#$&^_.+\-]+$/u.test(result)) throw new TypeError('The original MIME type is invalid.');
-	return result;
 }

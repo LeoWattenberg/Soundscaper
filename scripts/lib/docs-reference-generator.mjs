@@ -29,6 +29,7 @@ const CAPABILITY_LABELS = Object.freeze({
 	audioAutomation: 'Audio automation',
 	audioMixerGraph: 'Audio routing and mixer graph',
 	audioTrackFreeze: 'Audio track freeze',
+	assistanceAssets: 'Local assistance assets',
 	videoEffects: 'Video effects',
 	videoAdjustmentLayers: 'Video adjustment layers',
 	videoCompositing: 'Video compositing',

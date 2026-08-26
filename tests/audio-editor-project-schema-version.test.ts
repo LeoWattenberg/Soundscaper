@@ -63,7 +63,7 @@ test('product-specific predicates retain their exact maintained schema sets', ()
 	assert.equal(schema.isSoundscaperProductionProjectSchema(17), false);
 	assert.equal(schema.isMasteringSequenceProjectSchema(23), true);
 	assert.equal(schema.isMasteringSequenceProjectSchema(21), false);
-	for (const version of [18, 19, 20]) {
+	for (const version of [18, 19, 20, 31]) {
 		assert.equal(schema.isFramescaperSequenceProjectSchema(version), true);
 		assert.equal(schema.isFramescaperCaptureProjectSchema(version), true);
 	}

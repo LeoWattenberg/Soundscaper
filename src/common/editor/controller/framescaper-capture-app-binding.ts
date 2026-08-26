@@ -45,7 +45,7 @@ type PassThroughOptions = Pick<FramescaperCaptureAppCompositionOptions,
 
 export interface FramescaperCaptureAppProject extends Record<string, unknown> {
 	readonly id: string;
-	readonly schemaVersion: 18 | 19 | 20;
+	readonly schemaVersion: 18 | 19 | 20 | 31;
 	readonly revision: number;
 	readonly updatedAt?: unknown;
 	readonly sampleRate: number;
@@ -311,9 +311,9 @@ function routeProject(value: unknown, routeSchemaVersion: number): FramescaperCa
 	return project as FramescaperCaptureAppProject;
 }
 
-function isCaptureRouteForPlatform(value: unknown, desktop: boolean): value is 18 | 19 | 20 {
+function isCaptureRouteForPlatform(value: unknown, desktop: boolean): value is 18 | 19 | 20 | 31 {
 	return isFramescaperCaptureProjectSchema(value)
-		&& (value === 20 || value === (desktop ? 18 : 19));
+		&& (value === 20 || value === 31 || value === (desktop ? 18 : 19));
 }
 
 function projectSequence(project: FramescaperCaptureAppProject, sequenceId: string) {

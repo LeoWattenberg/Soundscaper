@@ -12,14 +12,30 @@
  * directly, so the main process treats every argument as untrusted.
  */
 
+import { isAbsolute, resolve as resolvePath } from 'node:path';
+
 import { createAssistanceService } from './assistance-service.ts';
-import type { AssistanceModelView, AssistanceService, AssistanceStatusView } from './assistance-service.ts';
+import type {
+	AssistanceInstallCancellation,
+	AssistanceModelView,
+	AssistanceService,
+	AssistanceStatusView,
+} from './assistance-service.ts';
+import type { LocalModelGarbageCollectionReport } from './local-model-garbage-collection.ts';
+import type { InstalledLocalModelNotice } from './local-model-notices.ts';
+import type { PreseededLocalModelReconciliation } from './local-model-preseed.ts';
 
 const MODEL_ID_PATTERN = /^[a-z\d][a-z\d.-]{0,62}[a-z\d]$/u;
 
 export interface AssistanceIpcChannels {
 	readonly listAssistanceModels: string;
 	readonly installAssistanceModel: string;
+	readonly cancelAssistanceModelInstall: string;
+	readonly installPreseededAssistanceModel: string;
+	readonly reconcileAssistanceModels: string;
+	readonly collectAssistanceModelGarbage: string;
+	readonly listAssistanceModelNotices: string;
+	readonly relocateAssistanceModels: string;
 	readonly removeAssistanceModel: string;
 	readonly assistanceInstallProgress: string;
 }
@@ -32,7 +48,22 @@ export interface AssistanceIpcOptions {
 	readonly sendToRenderer: (channel: string, payload: unknown) => void;
 	/** Builds the service on first use. */
 	readonly createService: () => AssistanceService;
+	/** Native main-process selection; a renderer-supplied path is never accepted. */
+	readonly choosePreseedDirectory: (modelId: string) => PromiseLike<string | null>;
+	/** Native main-process selection of a not-yet-existing relocation target. */
+	readonly chooseRelocationDirectory: () => PromiseLike<string | null>;
 }
+
+export const ASSISTANCE_RELOCATION_CONTRACT_VERSION = 1;
+
+export interface AssistanceRelocationView {
+	readonly contractVersion: typeof ASSISTANCE_RELOCATION_CONTRACT_VERSION;
+	readonly totalBytes: number;
+	readonly fileCount: number;
+	readonly sourceRemoved: boolean;
+}
+
+export type AssistanceInstalledModelNoticeView = Omit<InstalledLocalModelNotice, 'noticeDocument'>;
 
 function assertModelId(value: unknown): string {
 	if (typeof value !== 'string' || !MODEL_ID_PATTERN.test(value)) {
@@ -41,8 +72,73 @@ function assertModelId(value: unknown): string {
 	return value;
 }
 
+function selectedDirectory(value: unknown): string | null {
+	if (value === null) return null;
+	if (typeof value !== 'string' || value.length === 0 || value.length > 4_096
+		|| value.includes('\0') || !isAbsolute(value)) {
+		throw new TypeError('The native assistance directory selection is invalid.');
+	}
+	return resolvePath(value);
+}
+
+function noticeView(notice: InstalledLocalModelNotice): AssistanceInstalledModelNoticeView {
+	return Object.freeze({
+		schemaVersion: notice.schemaVersion,
+		modelId: notice.modelId,
+		version: notice.version,
+		purpose: notice.purpose,
+		codeLicense: notice.codeLicense,
+		weightsLicense: notice.weightsLicense,
+		attributionRequired: notice.attributionRequired,
+		provenanceSources: Object.freeze([...notice.provenanceSources]),
+		upstreamRevision: notice.upstreamRevision,
+		distributionKind: notice.distributionKind,
+	});
+}
+
+function modelView(model: AssistanceModelView): AssistanceModelView {
+	return Object.freeze({
+		modelId: model.modelId,
+		version: model.version,
+		task: model.task,
+		availability: model.availability,
+		downloadBytes: model.downloadBytes,
+		installedBytes: model.installedBytes,
+		attributionRequired: model.attributionRequired,
+	});
+}
+
+function statusView(status: AssistanceStatusView): AssistanceStatusView {
+	const runtimeReason = status.runtimeAvailable || status.runtimeReason === null
+		? null
+		: status.runtimeReason === 'The optional speech runtime is not installed.'
+			? status.runtimeReason
+			: 'The optional speech runtime failed to load.';
+	return Object.freeze({
+		runtimeAvailable: status.runtimeAvailable,
+		runtimeReason,
+		models: Object.freeze(status.models.map(modelView)),
+	});
+}
+
+async function pathlessOperation<T>(operation: () => PromiseLike<T>, message: string): Promise<T> {
+	try {
+		return await operation();
+	} catch {
+		// Native selections and store paths remain main-process-only, including in errors.
+		throw new Error(message);
+	}
+}
+
 export function registerAssistanceIpc(options: AssistanceIpcOptions): void {
-	const { channels, handle, sendToRenderer, createService } = options;
+	const {
+		channels,
+		handle,
+		sendToRenderer,
+		createService,
+		choosePreseedDirectory,
+		chooseRelocationDirectory,
+	} = options;
 	let service: AssistanceService | null = null;
 
 	const resolve = (): AssistanceService => {
@@ -50,20 +146,63 @@ export function registerAssistanceIpc(options: AssistanceIpcOptions): void {
 		return service;
 	};
 
-	handle(channels.listAssistanceModels, (): Promise<AssistanceStatusView> => resolve().status());
+	handle(channels.listAssistanceModels, (): Promise<AssistanceStatusView> =>
+		pathlessOperation(async () => statusView(await resolve().status()),
+			'Local-model status could not be read.'));
 
 	handle(channels.installAssistanceModel, (_event, modelId): Promise<AssistanceModelView> => {
 		const id = assertModelId(modelId);
-		return resolve().install(id, (progress) => {
+		return pathlessOperation(() => resolve().install(id, (progress) => {
 			sendToRenderer(channels.assistanceInstallProgress, progress);
-		});
+		}), 'The local model could not be installed.');
+	});
+
+	handle(channels.cancelAssistanceModelInstall, (_event, modelId): Promise<AssistanceInstallCancellation> => {
+		const id = assertModelId(modelId);
+		return pathlessOperation(() => resolve().cancelInstall(id),
+			'The local-model installation could not be cancelled.');
+	});
+
+	handle(channels.installPreseededAssistanceModel, async (_event, modelId): Promise<AssistanceModelView | null> => {
+		const id = assertModelId(modelId);
+		return pathlessOperation(async () => {
+			const sourceDirectory = selectedDirectory(await choosePreseedDirectory(id));
+			return sourceDirectory === null ? null : resolve().installPreseeded(id, sourceDirectory);
+		}, 'The selected offline model files could not be authenticated or installed.');
+	});
+
+	handle(channels.reconcileAssistanceModels, (): Promise<PreseededLocalModelReconciliation> =>
+		pathlessOperation(() => resolve().reconcilePreseeded(),
+			'Pre-seeded local-model files could not be reconciled.'));
+
+	handle(channels.collectAssistanceModelGarbage, (): Promise<LocalModelGarbageCollectionReport> =>
+		pathlessOperation(() => resolve().garbageCollect(),
+			'Unused local-model files could not be collected.'));
+
+	handle(channels.listAssistanceModelNotices, async (): Promise<readonly AssistanceInstalledModelNoticeView[]> =>
+		pathlessOperation(async () =>
+			Object.freeze((await resolve().installedNotices()).map(noticeView)),
+		'Installed local-model notices could not be read.'));
+
+	handle(channels.relocateAssistanceModels, async (): Promise<AssistanceRelocationView | null> => {
+		return pathlessOperation(async () => {
+			const targetDirectory = selectedDirectory(await chooseRelocationDirectory());
+			if (targetDirectory === null) return null;
+			const result = await resolve().relocate(targetDirectory);
+			return Object.freeze({
+				contractVersion: ASSISTANCE_RELOCATION_CONTRACT_VERSION,
+				totalBytes: result.totalBytes,
+				fileCount: result.fileCount,
+				sourceRemoved: result.sourceRemoved,
+			});
+		}, 'Local-model storage could not be relocated safely.');
 	});
 
 	handle(channels.removeAssistanceModel, (_event, modelId): Promise<number> => {
 		// Validate before resolving: argument evaluation would otherwise build the
 		// service, and its filesystem access, for an id that is about to be refused.
 		const id = assertModelId(modelId);
-		return resolve().remove(id);
+		return pathlessOperation(() => resolve().remove(id), 'The local model could not be removed.');
 	});
 }
 
@@ -74,6 +213,8 @@ export interface AssistanceServiceFactoryOptions {
 	readonly licensingMatrix: unknown;
 	readonly runtime: Parameters<typeof createAssistanceService>[0]['runtime'];
 	readonly totalMemoryBytes: number;
+	readonly catalogSignatureOptions?: Parameters<typeof createAssistanceService>[0]['catalogSignatureOptions'];
+	readonly persistModelsDirectory?: (directory: string) => PromiseLike<void> | void;
 }
 
 /**
@@ -83,7 +224,7 @@ export interface AssistanceServiceFactoryOptions {
  */
 export function assistanceServiceFrom(options: AssistanceServiceFactoryOptions): AssistanceService {
 	const register = options.licensingMatrix as {
-		localModelEvidence?: { id: string }[];
+		localModelEvidence?: unknown[];
 		refusedLocalModels?: { id: string }[];
 	};
 	if (!Array.isArray(register?.localModelEvidence)) {
@@ -93,9 +234,15 @@ export function assistanceServiceFrom(options: AssistanceServiceFactoryOptions):
 		userDataPath: options.userDataPath,
 		settingsDirectory: options.settingsDirectory,
 		catalog: options.catalog,
-		evidenceIds: register.localModelEvidence.map(({ id }) => id),
+		licensingEvidence: register.localModelEvidence,
 		refusedIds: (register.refusedLocalModels ?? []).map(({ id }) => id),
+		...(options.catalogSignatureOptions
+			? { catalogSignatureOptions: options.catalogSignatureOptions }
+			: {}),
 		runtime: options.runtime,
 		totalMemoryBytes: options.totalMemoryBytes,
+		...(options.persistModelsDirectory
+			? { persistModelsDirectory: options.persistModelsDirectory }
+			: {}),
 	});
 }

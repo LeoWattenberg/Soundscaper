@@ -278,7 +278,8 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 			updateOpenFxIssue(openFxDispositions, reportsOpenFxDegradation);
 			const freezeProject = freezeCaptureProjectRef.current;
 			if (report.status !== 'fallback'
-				&& (freezeProject?.schemaVersion === 27 || freezeProject?.schemaVersion === 28)) {
+				&& (freezeProject?.schemaVersion === 27 || freezeProject?.schemaVersion === 28
+					|| freezeProject?.schemaVersion === 31)) {
 				freezeEvaluatedFrameRef.current = {
 					projectId: freezeProject.id,
 					projectRevision: freezeProject.revision,
@@ -408,7 +409,8 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 		};
 	}, [requestPreviewFrame, updateCompositorState, updateRenderIssue]);
 	useEffect(() => {
-		if (canonicalProject?.schemaVersion !== 27 && canonicalProject?.schemaVersion !== 28) return undefined;
+		if (canonicalProject?.schemaVersion !== 27 && canonicalProject?.schemaVersion !== 28
+			&& canonicalProject?.schemaVersion !== 31) return undefined;
 		let disposed = false;
 		let release = () => {};
 		void bindFramescaperV27PreviewFreezeCapture({

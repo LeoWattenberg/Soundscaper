@@ -134,7 +134,7 @@ test('the compatibility register binds exact V17 editing to current implementati
 	]);
 	assert.match(
 		timelineAnnotations.currentBehavior,
-		/non-empty schema 17 timelineAnnotations.*reserved soundscaper\.timeline-annotations.*org\.soundscaper\.capability\.timeline-annotations.*bypass.*no fallback.*Soundscaper.*available\/native.*command.*controller.*pointer and keyboard UI.*ripple-edit.*clipboard.*AUP\/AUP4.*RIFF.*Framescaper.*known but unavailable.*unavailable\/bypassed.*read-only preservation.*excluded from both audio and video rendered-fallback.*exact-V17.*runtime projection.*atomic command reconciliation.*`?\.scape`? persistence.*desktop handoff.*authoritative annotation coordinates.*stable IDs.*batch identity.*opaque extensions.*Audacity export reports losses.*RIFF export.*stable-ID.*no Framescaper-native annotation editing.*playback rendering.*audio or video fallback/iu,
+		/non-empty schema 17 timelineAnnotations.*reserved soundscaper\.timeline-annotations.*org\.soundscaper\.capability\.timeline-annotations.*bypass.*no fallback.*Soundscaper.*Framescaper F31.*available\/native.*command.*controller.*pointer and keyboard UI.*ripple-edit.*clipboard.*AUP\/AUP4.*RIFF.*reviewed shot acceptance.*source and selection authority.*owned in-selection markers.*historical Framescaper F18 through F28.*known but unavailable.*unavailable\/bypassed.*excluded from both audio and video rendered-fallback.*exact-V17.*runtime projection.*atomic command reconciliation.*`?\.scape`? persistence.*desktop handoff.*authoritative annotation coordinates.*stable IDs.*batch identity.*opaque extensions.*Audacity export reports losses.*RIFF export.*stable-ID.*no annotation contribution to playback rendering.*audio or video fallback.*manual qualification.*does not disable/iu,
 	);
 	assert.deepEqual(timelineAnnotations.evidence, [
 		'src/common/editor/project-feature-capabilities.ts',
@@ -154,8 +154,11 @@ test('the compatibility register binds exact V17 editing to current implementati
 		'src/common/editor/timeline-annotation-riff-interchange.ts',
 		'src/soundscaper/product.js',
 		'src/framescaper/product.js',
+		'src/framescaper/editor-project-feature-capability-profile-v31.ts',
 		'tests/audio-editor-timeline-annotation-command-integration.test.ts',
 		'tests/audio-editor-timeline-annotation-feature-registration.test.ts',
+		'tests/audio-editor-framescaper-project-v31.test.ts',
+		'tests/audio-editor-local-assistance-shot-acceptance.test.ts',
 		'tests/audio-editor-timeline-annotation-ripple.test.ts',
 		'tests/audio-editor-timeline-annotation-clipboard.test.ts',
 		'tests/audio-editor-timeline-annotation-service.test.ts',

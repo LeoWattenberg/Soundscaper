@@ -244,6 +244,24 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 		],
 	},
 	{
+		id: 'local-assistance-cleanup-range-conversion',
+		file: 'src/common/editor/controller/local-assistance-cleanup-acceptance.ts',
+		behavior: 'Reviewed voice activity point-resolves the selected source extent at the model rate, then encloses accepted silence strictly inside the speech-free source range before authoring one ripple edit.',
+		conversions: [{ helper: 'scaleSampleFrame', policies: ['point', 'enclosingStart', 'enclosingEnd'] }],
+	},
+	{
+		id: 'local-assistance-range-label-conversion',
+		file: 'src/common/editor/controller/local-assistance-range-label-acceptance.ts',
+		behavior: 'Reviewed voice and speaker ranges point-resolve the selected source extent at the model rate, then outward-enclose each accepted label on the project timeline.',
+		conversions: [{ helper: 'scaleSampleFrame', policies: ['point', 'enclosingStart', 'enclosingEnd'] }],
+	},
+	{
+		id: 'local-assistance-selected-media-conversion',
+		file: 'src/common/editor/controller/local-assistance-selected-media.ts',
+		behavior: 'Selected dry audio resolves its complete project-rate frame count once to the nearest model-rate output length before bounded streaming resampling.',
+		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'legacy-recording-count-in',
 		file: 'src/common/editor/controller/legacy-recording-capture-service.ts',
 		behavior: 'Legacy capture delegates count-in to the authoritative map, encloses the recorder start after its context-time projection, and encloses any finite selected stop after changing sample-rate basis.',

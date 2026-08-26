@@ -414,11 +414,17 @@ missing, conflicting, or unanswered and may never resolve. A model's
 and verified against the authored values, so an incomplete record cannot be
 converted into a distributable one.
 
-Recording a model does not enable the gate. Weights whose terms forbid
-redistribution or commercial use are refused by pattern, and models this
-product has already excluded are listed in `refusedLocalModels` with their
-reason so they are not reintroduced later. Upstream locations belong in
-`provenanceSources`; `evidence` holds repository paths only.
+The `local-models` gate is enabled for the individually admitted records in the
+authenticated model catalog. Gate enablement is not blanket approval: only a
+record whose four requirements are all `recorded`, whose derived distribution
+status is `permitted`, and whose exact notices, byte lengths, and digests match
+the signed catalog may be installed or executed. Missing manual runtime
+qualification is non-blocking for those admitted records; artifact
+authentication remains mandatory immediately before execution. Weights whose
+terms forbid redistribution or commercial use are refused by pattern, and
+models this product has already excluded are listed in `refusedLocalModels`
+with their reason so they are not reintroduced later. Upstream locations
+belong in `provenanceSources`; `evidence` holds repository paths only.
 
 Opaque placeholders for unavailable native features do not authorize shipping
 their implementation. Enabling a capability flag, adding a loader, or accepting

@@ -28,6 +28,7 @@ import {
 	sameVideoProxyOriginalIdentity,
 	type CapturedVideoProxyOriginalLease,
 } from './video-proxy-relationship-lease.ts';
+import { validateVideoProxyOriginalMimeType } from './video-proxy-original-mime-type.ts';
 import {
 	closedDataRecord,
 	dataArrayProperty,
@@ -441,7 +442,7 @@ function captureTargetStructure(authority: AuthorityState, sourceId: string): Ta
 	const source = dataRecord(dataProperty(decoded, 'source', 'captured video proxy target'), 'captured source');
 	const capturedSourceId = nonEmptyString(dataProperty(source, 'id', 'captured source'), 'captured source.id');
 	const storageKey = nonEmptyString(dataProperty(source, 'storageKey', 'captured source'), 'captured source.storageKey');
-	const mimeType = videoMimeType(dataProperty(source, 'mimeType', 'captured source'));
+	const mimeType = validateVideoProxyOriginalMimeType(dataProperty(source, 'mimeType', 'captured source'));
 	const contentSha256 = sha256Digest(dataProperty(source, 'contentSha256', 'captured source'));
 	return Object.freeze({
 		projectId, source: deepFreeze(source),
@@ -573,11 +574,6 @@ function adoptionState(value: unknown): AdoptionState {
 function sha256Digest(value: unknown): string {
 	const result = nonEmptyString(value, 'video proxy SHA-256');
 	if (!SHA256.test(result)) throw new TypeError('The video proxy SHA-256 is invalid.');
-	return result;
-}
-function videoMimeType(value: unknown): string {
-	const result = nonEmptyString(value, 'video proxy MIME type');
-	if (!/^video\/[a-z0-9!#$&^_.+\-]+$/u.test(result)) throw new TypeError('The video proxy MIME type is invalid.');
 	return result;
 }
 function throwIfAborted(signal?: AbortSignal): void {

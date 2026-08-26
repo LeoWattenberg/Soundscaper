@@ -1,0 +1,74 @@
+.kw-local-assistance__selections {
+	display: grid;
+	gap: 0.75rem;
+	grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+}
+
+.kw-local-assistance__selections label,
+.kw-local-assistance__progress {
+	display: grid;
+	gap: 0.25rem;
+}
+
+.kw-local-assistance__selections select,
+.kw-local-assistance__progress progress {
+	width: 100%;
+}
+
+.kw-local-assistance__consent {
+	display: flex;
+	gap: 0.5rem;
+	margin-top: 1rem;
+}
+
+.kw-local-assistance__run-actions {
+	display: flex;
+	gap: 0.5rem;
+	margin-top: 1rem;
+}
+
+.kw-local-assistance__error {
+	color: var(--kw-color-danger, #b42318);
+}
+
+.kw-local-assistance__outputs {
+	max-height: 10rem;
+	overflow: auto;
+}
+
+.kw-local-assistance__cleanup {
+	border-top: 1px solid var(--kw-color-border, #d0d5dd);
+	margin-top: 1rem;
+	padding-top: 0.75rem;
+}
+
+.kw-local-assistance__cleanup-list {
+	display: grid;
+	gap: 0.5rem;
+	list-style: none;
+	margin: 0.75rem 0;
+	max-height: 12rem;
+	overflow: auto;
+	padding: 0;
+}
+
+.kw-local-assistance__cleanup-list label {
+	display: grid;
+	gap: 0.25rem 0.5rem;
+	grid-template-columns: auto 1fr;
+}
+
+.kw-local-assistance__cleanup-list small {
+	color: var(--kw-color-text-muted, #667085);
+	grid-column: 2;
+}
+
+.kw-local-assistance__cleanup-actions {
+	display: flex;
+	gap: 0.5rem;
+}
+
+.kw-local-assistance__deferred {
+	color: var(--kw-color-text-muted, #667085);
+	font-size: 0.875rem;
+}

@@ -1,0 +1,600 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+
+import { ASSISTANCE_OPERATIONS } from '../src/common/editor/assistance/operation.ts';
+import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
+import {
+	resolveLocalAssistanceBridge,
+	type LocalAssistanceBridge,
+} from '../src/common/editor/ui/local-assistance-bridge.ts';
+import { createLocalAssistanceMenuItems } from '../src/common/editor/ui/local-assistance-menu.ts';
+import {
+	localAssistanceModelTaskSlots,
+	type LocalAssistanceSelectedMediaPreparationPort,
+} from '../src/common/editor/ui/local-assistance-preparation.ts';
+import {
+	createLocalAssistanceSessionStore,
+	type LocalAssistanceSnapshot,
+} from '../src/common/editor/ui/local-assistance-session-store.ts';
+import { filterProductMenus } from '../src/common/editor/ui/application-menu-product-filter.js';
+import {
+	LocalAssistanceDialogView,
+} from '../src/common/editor/ui/dialogs/LocalAssistanceDialog.tsx';
+
+const JOB_ID = 'a'.repeat(40);
+const INPUT_CLAIM_ID = 'b'.repeat(40);
+const OUTPUT_CLAIM_ID = 'c'.repeat(40);
+const INPUT_SHA256 = '6ed8919ce20490a5e3ad8630a4fab69475297abd07db73918dd5f36fcfaeb11b';
+const OUTPUT_SHA256 = '44463f127fa35586d028e070ac4d510ba7d7d2e7411f0f3491b4bcedf240c404';
+const MODEL_SHA256 = 'f'.repeat(64);
+
+const FENCE = Object.freeze({
+	projectId: 'project-1', schemaVersion: 30, revision: 2, sequenceId: 'sequence-1',
+	occurrenceIds: Object.freeze(['occurrence-1']), sourceId: 'source-1',
+	sourceSha256: '1'.repeat(64), sourceStartFrame: 10, sourceEndFrame: 20,
+	linkMembershipSha256: '2'.repeat(64), timingAuthoritySha256: '3'.repeat(64),
+});
+
+const MODEL = Object.freeze({
+	modelId: 'speech-model', version: '1.2.3', task: 'speech-recognition',
+	artifactSha256s: Object.freeze([MODEL_SHA256]),
+});
+const SEGMENTATION_MODEL = Object.freeze({
+	modelId: 'segmentation-model', version: '2.0.0', task: 'speaker-segmentation',
+	artifactSha256s: Object.freeze(['d'.repeat(64)]),
+});
+const SECOND_SEGMENTATION_MODEL = Object.freeze({
+	modelId: 'segmentation-model-alternate', version: '2.1.0', task: 'speaker-segmentation',
+	artifactSha256s: Object.freeze(['e'.repeat(64)]),
+});
+const EMBEDDING_MODEL = Object.freeze({
+	modelId: 'embedding-model', version: '3.0.0', task: 'speaker-embedding',
+	artifactSha256s: Object.freeze(['c'.repeat(64)]),
+});
+
+const INVENTORY = Object.freeze({
+	sources: Object.freeze([Object.freeze({
+		sourceId: 'source-1', label: 'Interview selection', mediaKind: 'audio' as const,
+		operations: Object.freeze(['speech-recognition' as const]),
+	})]),
+});
+
+function prepared(inputBody = new Blob(['audio'], { type: 'audio/wav' })) {
+	return Object.freeze({
+		sourceId: 'source-1', operation: 'speech-recognition' as const, selectionFence: FENCE,
+		inputs: Object.freeze([Object.freeze({ role: 'audio' as const,
+			mediaType: 'audio/wav', bytes: inputBody })]),
+		outputs: Object.freeze([Object.freeze({ role: 'transcript' as const,
+			mediaType: 'application/vnd.soundscaper.transcript+json', maximumByteLength: 4096 })]),
+	});
+}
+
+function preparationFixture(
+	body?: Blob,
+	accept?: (request: unknown) => Promise<void>,
+): LocalAssistanceSelectedMediaPreparationPort {
+	return Object.freeze({
+		listSelectedMedia: async () => INVENTORY,
+		prepareSelectedMedia: async () => prepared(body),
+		...(accept ? { acceptValidatedResult: accept } : {}),
+	});
+}
+
+interface RawLocalAssistanceApi {
+	models(): Promise<unknown>;
+	createJob(): Promise<unknown>;
+	stageInput(request: Readonly<Record<string, unknown>>): Promise<unknown>;
+	reserveOutput(request: Readonly<Record<string, unknown>>): Promise<unknown>;
+	run(request?: unknown): Promise<unknown>;
+	cancel(jobId?: unknown): Promise<unknown>;
+	readOutput(request?: unknown): Promise<unknown>;
+	release(jobId?: unknown): Promise<unknown>;
+	onProgress(listener: (value: unknown) => void): () => void;
+}
+
+const TRANSCRIPT_BODY = JSON.stringify({ language: 'en', segments: [{
+	startSeconds: 0, endSeconds: 1.25, text: 'Hello from the interview.', words: [], speaker: null,
+}] });
+
+function rawBridgeFixture(outputBody = new Blob([TRANSCRIPT_BODY], {
+	type: 'application/vnd.soundscaper.transcript+json',
+}), outputSha256 = OUTPUT_SHA256) {
+	const calls: string[] = [];
+	let progress: ((value: unknown) => void) | null = null;
+	const api: RawLocalAssistanceApi = {
+		models: async () => {
+			calls.push('models');
+			return [MODEL];
+		},
+		createJob: async () => {
+			calls.push('create');
+			return { contractVersion: 1, jobId: JOB_ID };
+		},
+		stageInput: async (request: Readonly<Record<string, unknown>>) => {
+			calls.push(`stage:${request.role}`);
+			assert.ok(request.bytes instanceof Blob);
+			assert.equal(request.sha256, INPUT_SHA256);
+			assert.equal('byteLength' in request, false);
+			return { claimVersion: 1, claimId: INPUT_CLAIM_ID, jobId: JOB_ID,
+				role: 'audio', mediaType: 'audio/wav', byteLength: 5, sha256: INPUT_SHA256 };
+		},
+		reserveOutput: async (request: Readonly<Record<string, unknown>>) => {
+			calls.push(`reserve:${request.role}`);
+			return { claimVersion: 1, claimId: OUTPUT_CLAIM_ID, jobId: JOB_ID,
+				role: 'transcript', mediaType: 'application/vnd.soundscaper.transcript+json',
+				maximumByteLength: 4096 };
+		},
+		run: async () => {
+			calls.push('run');
+			return { contractVersion: 1, jobId: JOB_ID, operation: 'speech-recognition',
+				outcome: 'completed', result: { contractVersion: 1, jobId: JOB_ID,
+					operation: 'speech-recognition', outputs: [{ claimVersion: 1,
+						claimId: OUTPUT_CLAIM_ID, jobId: JOB_ID, role: 'transcript',
+						mediaType: 'application/vnd.soundscaper.transcript+json',
+						byteLength: outputBody.size, sha256: outputSha256 }] } };
+		},
+		cancel: async () => {
+			calls.push('cancel');
+			return { contractVersion: 1, jobId: JOB_ID, outcome: 'cancelled' };
+		},
+		readOutput: async () => {
+			calls.push('read');
+			return outputBody;
+		},
+		release: async () => {
+			calls.push('release');
+			return true;
+		},
+		onProgress: (listener: (value: unknown) => void) => {
+			progress = listener;
+			return () => { progress = null; };
+		},
+	};
+	return { api, calls, emit(value: unknown) { progress?.(value); } };
+}
+
+function diarizationFixture(models = Object.freeze([
+	EMBEDDING_MODEL, SECOND_SEGMENTATION_MODEL, SEGMENTATION_MODEL,
+])) {
+	const requests: Parameters<LocalAssistanceBridge['run']>[0][] = [];
+	const bridge: LocalAssistanceBridge = Object.freeze({
+		models: async () => models,
+		createJob: async () => Object.freeze({ contractVersion: 1 as const, jobId: JOB_ID }),
+		stageInput: async (request: Parameters<LocalAssistanceBridge['stageInput']>[0]) => Object.freeze({
+			claimVersion: 1 as const, claimId: INPUT_CLAIM_ID, jobId: request.jobId,
+			role: request.role, mediaType: request.mediaType, byteLength: request.byteLength,
+			sha256: INPUT_SHA256,
+		}),
+		reserveOutput: async (request: Parameters<LocalAssistanceBridge['reserveOutput']>[0]) => Object.freeze({
+			claimVersion: 1 as const, claimId: OUTPUT_CLAIM_ID, jobId: request.jobId,
+			role: request.role, mediaType: request.mediaType,
+			maximumByteLength: request.maximumByteLength,
+		}),
+		run: async (request: Parameters<LocalAssistanceBridge['run']>[0]) => {
+			requests.push(request);
+			return Object.freeze({
+				contractVersion: 1 as const, jobId: request.jobId, operation: request.operation,
+				outcome: 'unavailable' as const, reason: 'adapter-unavailable' as const,
+			});
+		},
+		cancel: async (jobId: string) => Object.freeze({
+			contractVersion: 1 as const, jobId, outcome: 'not-active' as const,
+		}),
+		readOutput: async () => { throw new Error('An unavailable adapter has no output.'); },
+		release: async () => true,
+		onProgress: () => () => undefined,
+	});
+	const preparation: LocalAssistanceSelectedMediaPreparationPort = Object.freeze({
+		listSelectedMedia: async () => Object.freeze({ sources: Object.freeze([Object.freeze({
+			sourceId: 'source-1', label: 'Interview selection', mediaKind: 'audio' as const,
+			operations: Object.freeze(['speaker-diarization' as const]),
+		})]) }),
+		prepareSelectedMedia: async () => Object.freeze({
+			sourceId: 'source-1', operation: 'speaker-diarization' as const,
+			selectionFence: FENCE,
+			inputs: Object.freeze([Object.freeze({
+				role: 'audio' as const, mediaType: 'audio/wav',
+				bytes: new Blob(['audio'], { type: 'audio/wav' }),
+			})]),
+			outputs: Object.freeze([Object.freeze({
+				role: 'speaker-turns' as const,
+				mediaType: 'application/vnd.soundscaper.speaker-turns+json',
+				maximumByteLength: 4096,
+			})]),
+		}),
+	});
+	return { bridge, preparation, requests };
+}
+
+test('the renderer admits only the exact nested pathless local-assistance bridge', () => {
+	const fixture = rawBridgeFixture();
+	const bridge = resolveLocalAssistanceBridge({ localAssistance: fixture.api });
+	assert.ok(bridge);
+	assert.notEqual(bridge, fixture.api);
+	assert.equal(resolveLocalAssistanceBridge(fixture.api), null);
+	assert.equal(resolveLocalAssistanceBridge({ localAssistance: {
+		...fixture.api, readOutput: undefined,
+	} }), null);
+	assert.equal(resolveLocalAssistanceBridge({ localAssistance: {
+		...fixture.api, filesystemPath: () => '/tmp/output',
+	} }), null);
+});
+
+test('the session never runs implicitly and requires explicit source, operation, model, and consent', async () => {
+	const fixture = rawBridgeFixture();
+	const bridge = resolveLocalAssistanceBridge({ localAssistance: fixture.api });
+	assert.ok(bridge);
+	const store = createLocalAssistanceSessionStore({ bridge, preparation: preparationFixture() });
+	const disconnect = store.connect();
+	await store.load();
+
+	assert.deepEqual(fixture.calls, ['models']);
+	assert.equal(store.getSnapshot().canRun, false);
+	store.selectSource('source-1');
+	store.selectOperation('speech-recognition');
+	store.selectModel('speech-model');
+	assert.equal(store.getSnapshot().canRun, false);
+	store.setConsent(true);
+	assert.equal(store.getSnapshot().canRun, true);
+	store.selectModel('speech-model');
+	assert.equal(store.getSnapshot().consent, false);
+	assert.equal(store.getSnapshot().canRun, false);
+	disconnect();
+});
+
+test('speaker diarization is unavailable without both installed model tasks', async () => {
+	for (const models of [
+		Object.freeze([SEGMENTATION_MODEL]), Object.freeze([EMBEDDING_MODEL]),
+	]) {
+		const fixture = diarizationFixture(models);
+		const store = createLocalAssistanceSessionStore(fixture);
+		await store.load();
+		store.selectSource('source-1');
+		store.selectOperation('speaker-diarization');
+		assert.equal(store.getSnapshot().phase, 'unavailable');
+		assert.equal(store.getSnapshot().unavailableReason, 'no-compatible-model');
+		assert.deepEqual(store.getSnapshot().selectedModelIds, []);
+	}
+});
+
+test('speaker diarization submits one exact binding per task independent of selection order', async () => {
+	const cases = Object.freeze([
+		Object.freeze({
+			selection: Object.freeze([EMBEDDING_MODEL.modelId, SEGMENTATION_MODEL.modelId]),
+			expectedSegmentation: SEGMENTATION_MODEL,
+		}),
+		Object.freeze({
+			selection: Object.freeze([
+				SEGMENTATION_MODEL.modelId, EMBEDDING_MODEL.modelId,
+				SECOND_SEGMENTATION_MODEL.modelId,
+			]),
+			expectedSegmentation: SECOND_SEGMENTATION_MODEL,
+		}),
+	]);
+	for (const { selection, expectedSegmentation } of cases) {
+		const fixture = diarizationFixture();
+		const store = createLocalAssistanceSessionStore(fixture);
+		await store.load();
+		store.selectSource('source-1');
+		store.selectOperation('speaker-diarization');
+		for (const modelId of selection) store.selectModel(modelId);
+		assert.deepEqual(store.getSnapshot().selectedModelIds, [
+			expectedSegmentation.modelId, EMBEDDING_MODEL.modelId,
+		]);
+		assert.equal(store.getSnapshot().canRun, false);
+		store.setConsent(true);
+		assert.equal(store.getSnapshot().canRun, true);
+		await store.run();
+		assert.deepEqual(fixture.requests[0]?.models, [
+			{
+				modelId: expectedSegmentation.modelId, version: expectedSegmentation.version,
+				artifactSha256s: expectedSegmentation.artifactSha256s,
+			},
+			{
+				modelId: EMBEDDING_MODEL.modelId, version: EMBEDDING_MODEL.version,
+				artifactSha256s: EMBEDDING_MODEL.artifactSha256s,
+			},
+		]);
+	}
+});
+
+test('speaker diarization renders one installed-model selector per required task', () => {
+	const snapshot: LocalAssistanceSnapshot = Object.freeze({
+		phase: 'ready',
+		sources: Object.freeze([Object.freeze({
+			sourceId: 'source-1', label: 'Interview selection', mediaKind: 'audio' as const,
+			operations: Object.freeze(['speaker-diarization' as const]),
+		})]),
+		models: Object.freeze([EMBEDDING_MODEL, SECOND_SEGMENTATION_MODEL, SEGMENTATION_MODEL]),
+		selectedSourceId: 'source-1', selectedOperation: 'speaker-diarization',
+		selectedModelIds: Object.freeze([SEGMENTATION_MODEL.modelId, EMBEDDING_MODEL.modelId]),
+		consent: false, progress: null, result: null, unavailableReason: null, error: null,
+		canRun: false, canCancel: false, canReview: false, canAccept: false,
+	});
+	const markup = renderToStaticMarkup(<LocalAssistanceDialogView
+		copy={ENGLISH_COPY} snapshot={snapshot} onClose={() => undefined}
+		onSelectSource={() => undefined} onSelectOperation={() => undefined}
+		onSelectModel={() => undefined} onConsentChange={() => undefined}
+		onRun={() => undefined} onCancel={() => undefined}
+		onReview={() => undefined} onAccept={() => undefined}
+	/>);
+	assert.match(markup, /Installed compatible model · speaker-segmentation/u);
+	assert.match(markup, /Installed compatible model · speaker-embedding/u);
+	assert.match(markup, /<option value="segmentation-model" selected="">/u);
+	assert.match(markup, /<option value="embedding-model" selected="">/u);
+	assert.equal(markup.match(/<select/gu)?.length, 4);
+});
+
+test('preparation represents shot detection as a zero-model operation contract', () =>
+	assert.deepEqual(localAssistanceModelTaskSlots('shot-detection'), []));
+
+test('one explicit run stages Blob input, validates output, and releases custody', async () => {
+	const fixture = rawBridgeFixture();
+	const bridge = resolveLocalAssistanceBridge({ localAssistance: fixture.api });
+	assert.ok(bridge);
+	const store = createLocalAssistanceSessionStore({ bridge, preparation: preparationFixture() });
+	store.connect();
+	await store.load();
+	store.selectSource('source-1');
+	store.selectOperation('speech-recognition');
+	store.selectModel('speech-model');
+	store.setConsent(true);
+	await store.run();
+
+	assert.deepEqual(fixture.calls, [
+		'models', 'create', 'stage:audio', 'reserve:transcript', 'run', 'read', 'release',
+	]);
+	const snapshot = store.getSnapshot();
+	assert.equal(snapshot.phase, 'completed');
+	assert.equal(snapshot.result?.outputs[0]?.bytes instanceof Blob, true);
+	assert.equal(snapshot.result?.outputs[0]?.review.kind, 'transcript');
+	assert.equal(snapshot.result?.outputs[0]?.review.segments[0]?.text, 'Hello from the interview.');
+	assert.equal(snapshot.canReview, true);
+	assert.equal(snapshot.canAccept, false);
+	const markup = renderToStaticMarkup(<LocalAssistanceDialogView
+		copy={ENGLISH_COPY} snapshot={snapshot} reviewOpen onClose={() => undefined}
+		onSelectSource={() => undefined} onSelectOperation={() => undefined}
+		onSelectModel={() => undefined} onConsentChange={() => undefined}
+		onRun={() => undefined} onCancel={() => undefined}
+		onReview={() => undefined} onAccept={() => undefined}
+	/>);
+	assert.match(markup, /Hello from the interview\./u);
+});
+
+test('reviewed speech output enables one explicit controller-owned acceptance', async () => {
+	const fixture = rawBridgeFixture();
+	const bridge = resolveLocalAssistanceBridge({ localAssistance: fixture.api });
+	assert.ok(bridge);
+	const accepted: unknown[] = [];
+	const store = selectedStore(bridge, preparationFixture(undefined, async (request) => {
+		accepted.push(request);
+	}));
+	await store.run();
+	const reviewable = store.getSnapshot();
+	assert.equal(reviewable.canAccept, true);
+	const view = (reviewOpen: boolean) => renderToStaticMarkup(<LocalAssistanceDialogView
+		copy={ENGLISH_COPY} snapshot={reviewable} reviewOpen={reviewOpen} onClose={() => undefined}
+		onSelectSource={() => undefined} onSelectOperation={() => undefined}
+		onSelectModel={() => undefined} onConsentChange={() => undefined}
+		onRun={() => undefined} onCancel={() => undefined}
+		onReview={() => undefined} onAccept={() => undefined}
+	/>);
+	assert.match(view(false), /<button type="button" disabled="">Accept proposal<\/button>/u);
+	assert.match(view(true), /<button type="button">Accept proposal<\/button>/u);
+	await store.accept();
+	assert.equal(store.getSnapshot().phase, 'accepted');
+	assert.equal(store.getSnapshot().canAccept, false);
+	assert.deepEqual(accepted, [{
+		sourceId: 'source-1', operation: 'speech-recognition', selectionFence: FENCE,
+		models: [MODEL],
+		outputs: [{
+			claim: {
+				claimVersion: 1, claimId: OUTPUT_CLAIM_ID, jobId: JOB_ID, role: 'transcript',
+				mediaType: 'application/vnd.soundscaper.transcript+json',
+				byteLength: new Blob([TRANSCRIPT_BODY]).size, sha256: OUTPUT_SHA256,
+			},
+			review: {
+				kind: 'transcript', language: 'en', segments: [{
+					startSeconds: 0, endSeconds: 1.25, text: 'Hello from the interview.',
+					words: [], speaker: null,
+				}],
+			},
+		}],
+	}]);
+});
+
+test('invalid transcript JSON and schema are refused before review', async () => {
+	for (const [body, sha256] of [
+		['not json', '7ccfa1fbf3940e6f0c0375d87c0f9235a50514e14cb427bdfaf5077987b26ccf'],
+		[JSON.stringify({ language: 'en', segments: [{ startSeconds: 0, endSeconds: 1 }] }),
+			'95d33cf2f510efffc877bf3b3f56534d51fd3563216db6626594229ffadd35cc'],
+	] as const) {
+		const fixture = rawBridgeFixture(new Blob([body], {
+			type: 'application/vnd.soundscaper.transcript+json',
+		}), sha256);
+		const bridge = resolveLocalAssistanceBridge({ localAssistance: fixture.api });
+		assert.ok(bridge);
+		const store = selectedStore(bridge, preparationFixture());
+		await store.run();
+		assert.equal(store.getSnapshot().phase, 'error');
+		assert.equal(store.getSnapshot().result, null);
+		assert.equal(store.getSnapshot().canReview, false);
+	}
+});
+
+test('unavailable operation outcomes remain typed and still release custody', async () => {
+	const fixture = rawBridgeFixture();
+	fixture.api.run = async () => {
+		fixture.calls.push('run');
+		return { contractVersion: 1, jobId: JOB_ID, operation: 'speech-recognition',
+			outcome: 'unavailable', reason: 'adapter-unavailable' };
+	};
+	const bridge = resolveLocalAssistanceBridge({ localAssistance: fixture.api });
+	assert.ok(bridge);
+	const store = selectedStore(bridge, preparationFixture());
+	await store.run();
+
+	assert.deepEqual(fixture.calls, ['models', 'create', 'stage:audio', 'reserve:transcript', 'run', 'release']);
+	assert.equal(store.getSnapshot().phase, 'unavailable');
+	assert.equal(store.getSnapshot().unavailableReason, 'adapter-unavailable');
+	assert.equal(store.getSnapshot().canReview, false);
+});
+
+test('declining main-owned consent cancels execution and still releases custody', async () => {
+	const fixture = rawBridgeFixture();
+	fixture.api.run = async () => {
+		fixture.calls.push('run');
+		return { contractVersion: 1, jobId: JOB_ID, operation: 'speech-recognition',
+			outcome: 'consent-declined' };
+	};
+	const bridge = resolveLocalAssistanceBridge({ localAssistance: fixture.api });
+	assert.ok(bridge);
+	const store = selectedStore(bridge, preparationFixture());
+	await store.run();
+
+	assert.deepEqual(fixture.calls, ['models', 'create', 'stage:audio', 'reserve:transcript', 'run', 'release']);
+	assert.equal(store.getSnapshot().phase, 'cancelled');
+	assert.equal(store.getSnapshot().canReview, false);
+});
+
+test('cancellation is explicit and release is attempted after the run quiesces', { timeout: 5_000 }, async () => {
+	const fixture = rawBridgeFixture();
+	let finish: ((value: unknown) => void) | null = null;
+	let markStarted: (() => void) | null = null;
+	const started = new Promise<void>((resolve) => { markStarted = resolve; });
+	fixture.api.run = () => {
+		fixture.calls.push('run');
+		markStarted?.();
+		return new Promise((resolve) => { finish = resolve; });
+	};
+	fixture.api.cancel = async () => {
+		fixture.calls.push('cancel');
+		finish?.({ contractVersion: 1, jobId: JOB_ID, operation: 'speech-recognition',
+			outcome: 'unavailable', reason: 'adapter-unavailable' });
+		return { contractVersion: 1, jobId: JOB_ID, outcome: 'cancelled' };
+	};
+	const bridge = resolveLocalAssistanceBridge({ localAssistance: fixture.api });
+	assert.ok(bridge);
+	const store = selectedStore(bridge, preparationFixture());
+	const running = store.run();
+	await started;
+	assert.equal(fixture.calls.includes('run'), true);
+	await store.cancel();
+	await running;
+
+	assert.equal(store.getSnapshot().phase, 'cancelled');
+	assert.deepEqual(fixture.calls.slice(-2), ['cancel', 'release']);
+});
+
+test('cancellation aborts selected-media preparation before a job is created', { timeout: 5_000 }, async () => {
+	const fixture = rawBridgeFixture();
+	let started: (() => void) | null = null;
+	const preparing = new Promise<void>((resolve) => { started = resolve; });
+	const preparation: LocalAssistanceSelectedMediaPreparationPort = Object.freeze({
+		listSelectedMedia: async () => INVENTORY,
+		prepareSelectedMedia: (request: Parameters<
+			LocalAssistanceSelectedMediaPreparationPort['prepareSelectedMedia']
+		>[0]) => new Promise((_resolve, reject) => {
+			const { signal } = request;
+			assert.ok(signal instanceof AbortSignal);
+			started?.();
+			signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+		}),
+	});
+	const bridge = resolveLocalAssistanceBridge({ localAssistance: fixture.api });
+	assert.ok(bridge);
+	const store = createLocalAssistanceSessionStore({ bridge, preparation });
+	store.connect();
+	await store.load();
+	store.selectSource('source-1');
+	store.selectOperation('speech-recognition');
+	store.selectModel('speech-model');
+	store.setConsent(true);
+	const running = store.run();
+	await preparing;
+	await store.cancel();
+	await running;
+
+	assert.equal(store.getSnapshot().phase, 'cancelled');
+	assert.deepEqual(fixture.calls, ['models'], 'cancelled preparation never creates privileged custody');
+});
+
+test('missing selected-media preparation is truthful and never invents bytes', async () => {
+	const fixture = rawBridgeFixture();
+	const bridge = resolveLocalAssistanceBridge({ localAssistance: fixture.api });
+	assert.ok(bridge);
+	const store = createLocalAssistanceSessionStore({ bridge, preparation: null });
+	await store.load();
+	assert.equal(store.getSnapshot().phase, 'selection-required');
+	assert.equal(store.getSnapshot().unavailableReason, 'selection-required');
+	assert.deepEqual(fixture.calls, []);
+});
+
+test('Local Assistance menu is desktop- and capability-gated and survives the Framescaper filter', () => {
+	const opened: string[] = [];
+	const desktop = createLocalAssistanceMenuItems({ desktopAvailable: true,
+		capabilityActive: true, copy: ENGLISH_COPY }, { open: () => opened.push('opened') });
+	assert.equal(desktop[0]?.id, 'local-assistance');
+	assert.equal(desktop[0]?.label, 'Local Assistance…');
+	desktop[0]?.onClick();
+	assert.deepEqual(opened, ['opened']);
+	assert.deepEqual(createLocalAssistanceMenuItems({ desktopAvailable: false,
+		capabilityActive: true, copy: ENGLISH_COPY }, { open: () => undefined }), []);
+	assert.deepEqual(createLocalAssistanceMenuItems({ desktopAvailable: true,
+		capabilityActive: false, copy: ENGLISH_COPY }, { open: () => undefined }), []);
+
+	const filtered = filterProductMenus([{ id: 'analyze', items: desktop }], {
+		audioAnalysis: false, audioGenerators: true, audioEffects: true,
+		audioMacros: true, audioRecording: true, videoMotionTracking: false,
+		assistanceAssets: true,
+	}, 'framescaper');
+	assert.equal(filtered[0]?.items[0]?.id, 'local-assistance');
+});
+
+test('the focused EN/DE catalog and dialog expose all operations without an implicit accept path', () => {
+	assert.equal(ENGLISH_COPY.localAssistance, 'Local Assistance');
+	assert.equal(GERMAN_COPY.localAssistance, 'Lokale Assistenz');
+	const snapshot: LocalAssistanceSnapshot = Object.freeze({
+		phase: 'ready', sources: INVENTORY.sources, models: Object.freeze([MODEL]),
+		selectedSourceId: 'source-1', selectedOperation: null, selectedModelIds: Object.freeze([]), consent: false,
+		progress: null, result: null, unavailableReason: null, error: null,
+		canRun: false, canCancel: false, canReview: false, canAccept: false,
+	});
+	const markup = renderToStaticMarkup(<LocalAssistanceDialogView
+		copy={ENGLISH_COPY} snapshot={snapshot} onClose={() => undefined}
+		onSelectSource={() => undefined} onSelectOperation={() => undefined}
+		onSelectModel={() => undefined} onConsentChange={() => undefined}
+		onRun={() => undefined} onCancel={() => undefined}
+		onReview={() => undefined} onAccept={() => undefined}
+	/>);
+	assert.equal(ASSISTANCE_OPERATIONS.length, 15);
+	for (const operation of ASSISTANCE_OPERATIONS) assert.match(markup, new RegExp(operation, 'u'));
+	assert.equal(markup.match(/<option value="" disabled=""[^>]*>Choose<\/option>/gu)?.length, 3);
+	assert.match(markup, /I consent to local processing/u);
+	assert.match(markup, /Review result[^<]*<\/button>/u);
+	assert.match(markup, /Accept proposal[^<]*<\/button>/u);
+	assert.match(markup, /disabled=""[^>]*>Review result|>Review result<\/button>/u);
+});
+
+function selectedStore(
+	bridge: LocalAssistanceBridge,
+	preparation: LocalAssistanceSelectedMediaPreparationPort,
+) {
+	const store = createLocalAssistanceSessionStore({ bridge, preparation });
+	store.connect();
+	return {
+		...store,
+		async run() {
+			await store.load();
+			store.selectSource('source-1');
+			store.selectOperation('speech-recognition');
+			store.selectModel('speech-model');
+			store.setConsent(true);
+			await store.run();
+		},
+	};
+}

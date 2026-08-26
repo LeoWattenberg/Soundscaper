@@ -101,7 +101,7 @@ export function workspacePanelAvailable(
 	capture?: Pick<FramescaperCaptureUiSnapshot, 'phase'> | null,
 ): boolean {
 	if (panelId === WEB_VCR_PANEL_ID) {
-		return productProfile(productId).applicationFeatures.framescaperCapture === true
+		return productProfile(productId).applicationFeatures.framescaperWebVcr === true
 			&& webVcrCapabilityAvailable(webVcr);
 	}
 	if (panelId === FRAMESCAPER_CAPTURE_PANEL_ID && webVcr?.modeActive === true) return false;

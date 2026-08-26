@@ -151,6 +151,19 @@ test('an exact candidate action port enables only its declared project mutations
 	assert.deepEqual(opened, FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES);
 });
 
+test('selected F31 retains V28 native project actions only when the runtime gates admit them', () => {
+	const items = menu({
+		project: { schemaVersion: 31 },
+		projectCapabilities: { ...selectedCapabilities(), ofxEffects: true },
+		projectActionSurfaces: FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES,
+	});
+	for (const id of [
+		'framescaper-import-image-sequence', 'framescaper-add-to-render-queue',
+		'framescaper-proxy-generate', 'framescaper-proxy-attach',
+		'framescaper-proxy-detach', 'framescaper-proxy-relink', 'framescaper-ofx-add',
+	]) assert.equal(item(items, id)?.disabled, false, id);
+});
+
 test('a candidate action declaration cannot bypass the owning schema and capability gates', () => {
 	const items = menu({
 		projectActionSurfaces: FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES,

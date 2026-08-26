@@ -11,16 +11,12 @@ import {
 	createFramescaperNativeServicesStore,
 	DEFAULT_FRAMESCAPER_NATIVE_SERVICE_PREFERENCES,
 	resolveFramescaperNativeServicesBridge,
-	type FramescaperNativeQueueProjection,
-	type FramescaperNativeServicesBridge,
-	type FramescaperNativeServicesProjection,
 	type FramescaperNativeServicesRendererSnapshot,
 } from '../src/common/editor/ui/framescaper-native-services-bridge.ts';
 import FramescaperNativeServicesDialog from '../src/common/editor/ui/dialogs/FramescaperNativeServicesDialog.tsx';
 import {
 	bindFramescaperNativeCarrierRegeneration,
 	composeFramescaperNativeProjectActionRuntimes,
-	createFramescaperNativeProjectActionRuntime,
 	createFramescaperNativeProjectActionSubsetRuntime,
 	FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES,
 } from '../src/common/editor/ui/framescaper-native-project-actions.ts';
@@ -30,8 +26,14 @@ import {
 	resolveFramescaperNativeServicesWorkspaceRuntime,
 	wrapFramescaperNativeServicesMenuRuntime,
 } from '../src/common/editor/ui/workspace/FramescaperNativeServicesSurface.tsx';
-
-const JOB_ID = '12'.repeat(20);
+import {
+	FRAMESCAPER_NATIVE_JOB_ID as JOB_ID,
+	createFramescaperNativeCandidateActions as candidateActions,
+	createFramescaperNativeServicesBridgeFixture as fakeBridge,
+	framescaperNativeQueueRow as queueRow,
+	framescaperNativeRendererSnapshot as rendererSnapshot,
+	framescaperNativeServiceSnapshot as serviceSnapshot,
+} from './helpers/framescaper-native-services-surface-fixture.ts';
 
 test('only an exact nested framescaperDesktop.v1.nativeServices bridge is admitted', () => {
 	const nativeServices = fakeBridge().bridge;
@@ -455,6 +457,18 @@ test('selected V28 watch context derives only its exact writable project bin', (
 	});
 });
 
+test('selected F31 watch context retains the inherited writable project bin', () => {
+	const project = Object.freeze({
+		id: 'project-31', schemaVersion: 31,
+		projectBin: Object.freeze({ clips: Object.freeze([]) }),
+	});
+	assert.deepEqual(framescaperNativeServicesDialogContextForProject(project, {
+		writable: true, videoImportAvailable: true, proxyGenerationAvailable: true,
+	}), {
+		projectId: 'project-31', binId: 'project-bin', allowProxyGeneration: true,
+	});
+});
+
 test('workspace resolution admits only a branded candidate project-action runtime', () => {
 	const actions = candidateActions();
 	const runtime = resolveFramescaperNativeServicesWorkspaceRuntime({
@@ -513,84 +527,3 @@ test('external-display menu selection runs through the workspace error boundary'
 	wrapped?.openExternalDisplay('display-2');
 	assert.deepEqual(events.slice(0, 2), [['run'], ['open', 'display-2']]);
 });
-
-function fakeBridge(overrides: Partial<FramescaperNativeServicesBridge> = {}) {
-	const calls: unknown[][] = [];
-	let state: FramescaperNativeQueueProjection['state'] = 'queued';
-	const bridge: FramescaperNativeServicesBridge = {
-		snapshot: () => {
-			calls.push(['snapshot']);
-			return Promise.resolve(serviceSnapshot(state));
-		},
-		control: (request) => {
-			calls.push(['control', request.jobId, request.action]);
-			state = request.action === 'pause' ? 'paused' : state;
-			return Promise.resolve(queueRow(state));
-		},
-		reorder: (request) => {
-			calls.push(['reorder', request.jobId, request.index]);
-			return Promise.resolve([queueRow(state)]);
-		},
-		remove: (request) => {
-			calls.push(['remove', request.jobId]);
-			return Promise.resolve(true);
-		},
-		...overrides,
-	};
-	return { bridge, calls };
-}
-
-function serviceSnapshot(
-	state: FramescaperNativeQueueProjection['state'] = 'queued',
-): FramescaperNativeServicesProjection {
-	return {
-		snapshotVersion: 1 as const,
-		runtimeAvailable: true,
-		nativeMediaEnabled: true,
-		queue: [queueRow(state)],
-		roots: [{ grantId: 'ab'.repeat(16), displayName: 'Exports', revoked: false }],
-		watchRules: [],
-	};
-}
-
-function queueRow(
-	state: FramescaperNativeQueueProjection['state'] = 'queued',
-): FramescaperNativeQueueProjection {
-	return {
-		jobId: JOB_ID,
-		taskKind: 'encoded-export',
-		projectId: 'project-1',
-		relativeDestination: 'exports/reel.mp4',
-		state,
-		position: 0,
-		progress: null,
-		attempt: 0,
-		lastFailureCode: null,
-	};
-}
-
-function rendererSnapshot(overrides: Readonly<{
-	runtimeAvailable: boolean;
-	nativeMediaEnabled: boolean;
-}>): FramescaperNativeServicesRendererSnapshot {
-	return {
-		services: { ...serviceSnapshot(), ...overrides },
-		capabilitySnapshot: null,
-		preferences: DEFAULT_FRAMESCAPER_NATIVE_SERVICE_PREFERENCES,
-		controllablePreferences: [],
-		externalDisplays: [],
-		activeExternalDisplayId: null,
-	};
-}
-
-function candidateActions() {
-	return createFramescaperNativeProjectActionRuntime({
-		'image-sequence-import': async () => undefined,
-		'render-queue-enqueue': async () => undefined,
-		'proxy-generate': async () => undefined,
-		'proxy-attach': async () => undefined,
-		'proxy-detach': async () => undefined,
-		'proxy-relink': async () => undefined,
-		'ofx-add': async () => undefined,
-	});
-}

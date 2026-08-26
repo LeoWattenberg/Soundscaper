@@ -13,14 +13,17 @@
  * editor fails to mount with a bare "y is not a function", far from the module
  * that actually moved.
  *
- * So every flat editor domain module has an owner here, and
+ * So every flat editor domain module and every shared assistance-domain module
+ * has an owner here, and
  * `tests/audio-editor-build-chunk-ownership.test.ts` keeps it that way.
  */
 
 const editorPath = String.raw`src[\\/]common[\\/]editor[\\/]`;
 
-/** Flat `src/common/editor/*.ts|js` modules, which both the shell and dialogs read. */
-export const EDITOR_DOMAIN_CHUNK_TEST = new RegExp(`${editorPath}[^\\\\/]+\\.(?:[cm]?[jt]s)$`);
+/** Flat editor modules and `assistance/` domain modules shared by the shell and dialogs. */
+export const EDITOR_DOMAIN_CHUNK_TEST = new RegExp(
+	`${editorPath}(?:[^\\\\/]+|assistance[\\\\/][^\\\\/]+)\\.(?:[cm]?[jt]s)$`,
+);
 
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const chunkGroups = [
@@ -68,7 +71,7 @@ export const chunkGroups = [
 		includeDependenciesRecursively: false,
 	},
 	{
-		// The schema, planners, and value tables the shell and the dialogs share.
+		// The schema, planners, assistance domain, and value tables the shell and dialogs share.
 		// They are owned here rather than placed by reachability; see the module
 		// comment for what an unowned shared leaf does to the boot path.
 		name: 'editor-domain',

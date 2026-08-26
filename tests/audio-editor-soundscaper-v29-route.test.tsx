@@ -65,24 +65,24 @@ test('Soundscaper V29 bootstrap accepts presentation only and stays surface-free
 	assert.doesNotMatch(markup, /<(?:button|input|select|textarea)\b/iu);
 });
 
-test('the shared Soundscaper site route selects only the product-owned V29 bootstrap', async () => {
+test('the shared Soundscaper site route advances to the product-owned V30 bootstrap', async () => {
 	const [main, bootstrap, controller, environment] = await Promise.all([
 		readSource('src/common/site/App.jsx'),
-		readSource('src/soundscaper/ui/SoundscaperAudioEditorBootstrapV29.tsx'),
-		readSource('src/soundscaper/editor-controller-v29.ts'),
-		readSource('src/soundscaper/editor-project-environment-v29.ts'),
+		readSource('src/soundscaper/ui/SoundscaperAudioEditorBootstrapV30.tsx'),
+		readSource('src/soundscaper/editor-controller-v30.ts'),
+		readSource('src/soundscaper/editor-project-environment-v30.ts'),
 	]);
-	assert.match(main, /lazy\(\(\)\s*=>\s*import\('\.\.\/\.\.\/soundscaper\/ui\/SoundscaperAudioEditorBootstrapV29\.tsx'\)\)/u);
-	assert.match(main, /productId\s*!==\s*'framescaper'\s*\?\s*SoundscaperAudioEditorBootstrapV29/su);
-	assert.match(bootstrap, /createSoundscaperEditorProjectEnvironmentV29/u);
-	assert.match(bootstrap, /createSoundscaperAudioEditorControllerV29/u);
+	assert.match(main, /lazy\(\(\)\s*=>\s*import\('\.\.\/\.\.\/soundscaper\/ui\/SoundscaperAudioEditorBootstrapV30\.tsx'\)\)/u);
+	assert.match(main, /productId\s*!==\s*'framescaper'\s*\?\s*SoundscaperAudioEditorBootstrapV30/su);
+	assert.match(bootstrap, /createSoundscaperEditorProjectEnvironmentV30/u);
+	assert.match(bootstrap, /createSoundscaperAudioEditorControllerV30/u);
 	assert.ok(
 		bootstrap.indexOf('const fileService = createAudioEditorFileService()')
-			< bootstrap.indexOf('const environment = await createSoundscaperEditorProjectEnvironmentV29'),
+			< bootstrap.indexOf('const environment = await createSoundscaperEditorProjectEnvironmentV30'),
 		'the desktop file ports must exist before the exact store is constructed',
 	);
-	assert.match(bootstrap, /createSoundscaperEditorProjectEnvironmentV29\(\{\s*storeOptions:\s*\{\s*linkedOriginalPort:\s*fileService\.linkedOriginalPort,\s*linkedVideoOriginalPort:\s*fileService\.linkedVideoOriginalPort,?\s*\},?\s*\}\)/su);
-	assert.match(environment, /createSoundscaperProjectRuntimeV29Selection/u);
+	assert.match(bootstrap, /createSoundscaperEditorProjectEnvironmentV30\(\{\s*storeOptions:\s*\{\s*linkedOriginalPort:\s*fileService\.linkedOriginalPort,\s*linkedVideoOriginalPort:\s*fileService\.linkedVideoOriginalPort,?\s*\},?\s*\}\)/su);
+	assert.match(environment, /createSoundscaperProjectRuntimeV30Selection/u);
 	assert.match(controller, /projectRuntime:\s*environment\.runtime/u);
 	assert.doesNotMatch(bootstrap, /createAudioEditorController|AudioEditorBootstrap\.jsx/u);
 });

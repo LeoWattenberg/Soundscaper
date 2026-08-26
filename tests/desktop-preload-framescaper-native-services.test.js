@@ -253,22 +253,22 @@ test('watch mutation crosses preload only as an exact pathless claim and complet
 	}), /fields/iu);
 });
 
-test('selected V28 watch mutation carries only target-bin, proxy, source, and digest authority', async () => {
+for (const projectSchemaVersion of [28, 31]) test(`selected F${String(projectSchemaVersion)} watch mutation preserves exact target, source, and digest authority`, async () => {
 	const claim = {
-		claimId: '12'.repeat(16), projectId: 'project-28', projectRevision: 3,
-		projectSchemaVersion: 28, binId: 'project-bin', generateProxies: true,
+		claimId: '12'.repeat(16), projectId: `project-${String(projectSchemaVersion)}`, projectRevision: 3,
+		projectSchemaVersion, binId: 'project-bin', generateProxies: true,
 		existingSourceId: null, importMode: 'link', locatorId: '34'.repeat(16),
 		locatorRevision: '56'.repeat(16), name: 'clip.mp4', size: 4,
 		mimeType: 'video/mp4', lastModified: 8, contentSha256: '78'.repeat(32),
 	};
 	const completion = {
-		claimId: claim.claimId, projectId: claim.projectId, projectSchemaVersion: 28,
-		binId: 'project-bin', sourceId: 'source-28', contentSha256: claim.contentSha256,
+		claimId: claim.claimId, projectId: claim.projectId, projectSchemaVersion,
+		binId: 'project-bin', sourceId: `source-${String(projectSchemaVersion)}`, contentSha256: claim.contentSha256,
 		expectedProjectRevision: 3, committedProjectRevision: 5, success: true,
 	};
 	const fixture = await loadPreload([claim, true]);
 	assert.deepEqual({ ...await fixture.bridge.nativeServices.claimWatchImport({
-		projectId: 'project-28', projectRevision: 3,
+		projectId: claim.projectId, projectRevision: 3,
 	}) }, claim);
 	assert.equal(await fixture.bridge.nativeServices.completeWatchImport(completion), true);
 	assert.equal(JSON.stringify(fixture.invocations).includes('/private'), false);

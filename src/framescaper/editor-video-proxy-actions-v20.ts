@@ -77,7 +77,7 @@ export interface FramescaperVideoProxyActionsV20Options {
 }
 
 export interface FramescaperVideoProxyActionsOptions extends FramescaperVideoProxyActionsV20Options {
-	readonly schemaVersion: 20 | 27 | 28;
+	readonly schemaVersion: 20 | 27 | 28 | 31;
 	readonly createDetachCommand?: (
 		sourceId: string,
 		expectedAttachment: unknown,
@@ -514,7 +514,7 @@ function proxyRequest(
 
 function exactProject(
 	value: unknown,
-	schemaVersion: 20 | 27 | 28,
+	schemaVersion: 20 | 27 | 28 | 31,
 ): Readonly<Record<string, unknown>> {
 	if (!value || typeof value !== 'object' || Array.isArray(value)
 		|| (value as Readonly<Record<string, unknown>>).schemaVersion !== schemaVersion) {
@@ -588,7 +588,7 @@ function secureSessionId(): string {
 function assertOptions(options: FramescaperVideoProxyActionsOptions): void {
 	if (!options?.owner || typeof options.owner !== 'object'
 		|| typeof options.createScheduler !== 'function'
-		|| ![20, 27, 28].includes(options.schemaVersion)
+		|| ![20, 27, 28, 31].includes(options.schemaVersion)
 		|| (options.schemaVersion !== 20 && typeof options.createAttachExistingScheduler !== 'function')
 		|| (options.previewTrust !== undefined && typeof options.previewTrust !== 'function')
 		|| !options.cleanup || typeof options.cleanup.prepareReplacement !== 'function'

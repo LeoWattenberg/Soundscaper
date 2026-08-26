@@ -11,7 +11,7 @@
  * transfer is discarded rather than installed.
  */
 
-import { open, rm, stat } from 'node:fs/promises';
+import { lstat, open, rm } from 'node:fs/promises';
 
 import type { FileLocalModelStore, LocalModelArtifact } from './local-model-store.ts';
 
@@ -56,12 +56,27 @@ function assertDownloadUrl(value: string): URL {
 
 async function existingPartialBytes(path: string, limit: number): Promise<number> {
 	try {
-		const metadata = await stat(path);
-		if (!metadata.isFile()) return 0;
+		const metadata = await lstat(path);
+		if (!metadata.isFile() || metadata.isSymbolicLink()) {
+			throw new Error('A local model partial must be a regular non-symbolic file.');
+		}
 		// A partial longer than the artifact cannot be a prefix of it.
 		return metadata.size >= limit ? 0 : metadata.size;
-	} catch {
-		return 0;
+	} catch (error) {
+		if (typeof error === 'object' && error !== null && 'code' in error
+			&& String((error as { code?: unknown }).code) === 'ENOENT') return 0;
+		throw error;
+	}
+}
+
+async function publishedPathExists(store: FileLocalModelStore, sha256: string): Promise<boolean> {
+	try {
+		await lstat(store.blobPath(sha256));
+		return true;
+	} catch (error) {
+		if (typeof error === 'object' && error !== null && 'code' in error
+			&& String((error as { code?: unknown }).code) === 'ENOENT') return false;
+		throw error;
 	}
 }
 
@@ -75,7 +90,10 @@ export async function downloadLocalModelArtifact(
 	const { store, artifact, url, fetchImpl = fetch, signal, onProgress } = request;
 	const target = assertDownloadUrl(url);
 
-	if (await store.hasBlob(artifact.sha256)) {
+	if (await publishedPathExists(store, artifact.sha256)) {
+		if (!await store.verifyArtifact(artifact)) {
+			throw new Error('A published artifact failed its integrity check for this local model.');
+		}
 		return Object.freeze({
 			blobPath: store.blobPath(artifact.sha256),
 			resumedFromBytes: artifact.byteLength,

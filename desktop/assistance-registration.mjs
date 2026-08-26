@@ -10,7 +10,7 @@
  */
 
 import { totalmem } from 'node:os';
-import { join } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 
 import { utilityProcess } from 'electron/main';
 
@@ -24,12 +24,62 @@ import {
 import { createAssistanceHelperRuntimeAdapter } from './project-library-runtime/desktop/assistance-helper-runtime.js';
 import { createAssistanceJobHost } from './project-library-runtime/desktop/assistance-job-host.js';
 import { assistanceServiceFrom, registerAssistanceIpc } from './project-library-runtime/desktop/assistance-main-ipc.js';
+import { createExternalFfmpegAssistanceShotRuntimeAdapter } from './project-library-runtime/desktop/assistance-external-ffmpeg-shot-runtime.js';
+import { ASSISTANCE_OPERATION_IPC_CHANNELS, registerAssistanceOperationIpc } from './project-library-runtime/desktop/assistance-operation-main-ipc.js';
+import { createAssistanceOperationService } from './project-library-runtime/desktop/assistance-operation-service.js';
+import { AssistanceStagingRegistry } from './project-library-runtime/desktop/assistance-staging-registry.js';
 
 /**
  * The service is built on first use, so a user who never opens assistance pays
  * no filesystem access, catalog validation, or runtime probe for it.
  */
-export function registerAssistance({ channels, handle, sendToRenderer, app, settings }) {
+function nativeDirectory(result) {
+	if (!result || result.canceled === true) return null;
+	if (!Array.isArray(result.filePaths) || result.filePaths.length !== 1
+		|| typeof result.filePaths[0] !== 'string' || !isAbsolute(result.filePaths[0])
+		|| result.filePaths[0].length > 4_096 || result.filePaths[0].includes('\0')) {
+		throw new TypeError('The assistance directory selection result is invalid.');
+	}
+	return resolve(result.filePaths[0]);
+}
+
+async function chooseDirectory(dialog, window, title) {
+	const options = {
+		title,
+		properties: ['openDirectory', 'createDirectory'],
+	};
+	return nativeDirectory(await (window
+		? dialog.showOpenDialog(window, options)
+		: dialog.showOpenDialog(options)));
+}
+
+async function confirmOperation(dialog, window, request) {
+	const selection = request.selectionFence;
+	const options = {
+		type: 'question',
+		title: 'Local Assistance consent',
+		message: 'Process this exact media selection locally?',
+		detail: [
+			`Operation: ${request.operation}`,
+			`Selected range: ${selection.sourceStartFrame}–${selection.sourceEndFrame} frames`,
+			`Timeline items: ${selection.occurrenceIds.length}`,
+			`Model: ${request.models.map(({ modelId, version }) => `${modelId} ${version}`).join(', ') || 'none'}`,
+		].join('\n'),
+		buttons: ['Run locally', 'Cancel'],
+		defaultId: 1,
+		cancelId: 1,
+		noLink: true,
+	};
+	const result = await (window
+		? dialog.showMessageBox(window, options)
+		: dialog.showMessageBox(options));
+	return result?.response === 0;
+}
+
+export function registerAssistance({
+	channels, handle, on, sendToRenderer, app, settings, dialog, windowFor,
+	externalFfmpegPreferences,
+}) {
 	let child = null;
 	const runtimeRoot = join(process.resourcesPath, 'runtime');
 	const targetId = assistanceNativeRuntimeTargetId({ platform: process.platform, arch: process.arch });
@@ -73,18 +123,54 @@ export function registerAssistance({ channels, handle, sendToRenderer, app, sett
 		},
 	});
 	const runtime = createAssistanceHelperRuntimeAdapter({ host });
-	registerAssistanceIpc({
-		channels,
-		handle,
-		sendToRenderer,
-		createService: () => assistanceServiceFrom({
+	const shotDetectionRuntime = createExternalFfmpegAssistanceShotRuntimeAdapter({
+		preferences: externalFfmpegPreferences,
+	});
+	let service = null;
+	const createService = () => {
+		service ??= assistanceServiceFrom({
 			userDataPath: app.getPath('userData'),
 			settingsDirectory: settings.snapshot().modelsDirectory,
 			catalog: assistanceCatalog,
 			licensingMatrix,
 			runtime,
 			totalMemoryBytes: totalmem(),
-		}),
+			persistModelsDirectory: (directory) => settings.setModelsDirectory(directory),
+		});
+		return service;
+	};
+	registerAssistanceIpc({
+		channels,
+		handle,
+		sendToRenderer,
+		choosePreseedDirectory: () => chooseDirectory(
+			dialog, windowFor(), 'Choose offline local-model files',
+		),
+		chooseRelocationDirectory: async () => {
+			const parent = await chooseDirectory(
+				dialog, windowFor(), 'Choose parent folder for local-model storage',
+			);
+			return parent === null ? null : join(parent, 'Soundscaper Local Models');
+		},
+		createService,
 	});
-	return Object.freeze({ dispose: () => runtime.dispose() });
+	const operationIpc = registerAssistanceOperationIpc({
+		channels: ASSISTANCE_OPERATION_IPC_CHANNELS,
+		handle,
+		on,
+		sendToRenderer,
+		createOperations: (onProgress) => createAssistanceOperationService({
+			registry: new AssistanceStagingRegistry({
+				root: resolve(join(app.getPath('userData'), 'assistance-staging-v1')),
+			}),
+			models: createService(),
+			runtime,
+			voiceActivityRuntime: runtime,
+			diarizationRuntime: runtime,
+			shotDetectionRuntime,
+			onProgress,
+		}),
+		confirmOperation: (request) => confirmOperation(dialog, windowFor(), request),
+	});
+	return Object.freeze({ dispose: async () => { await operationIpc.dispose(); runtime.dispose(); } });
 }

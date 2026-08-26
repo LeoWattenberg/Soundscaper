@@ -3,6 +3,8 @@ import ScapeOpenDecisionDialog from './ScapeOpenDecisionDialog.jsx';
 import SoundscaperProductionWorkspaceOverlay from './SoundscaperProductionWorkspaceOverlay.tsx';
 import { framescaperV27FinishingSurface } from '../framescaper-v27-finishing-menu.ts';
 import { framescaperSelectedV27VisualAuthoringSurface } from '../framescaper-selected-v27-visual-authoring-menu.ts';
+import { resolveLocalModelManagerBridge } from '../local-model-manager-bridge.ts';
+import { resolveLocalAssistanceBridge } from '../local-assistance-bridge.ts';
 
 const AudioEditorEffectsOverlay = React.lazy(() => import('../inspector/AudioEditorEffectsOverlay.jsx'));
 const AudioEditorMacroManagerDialog = React.lazy(() => import('../inspector/AudioEditorMacroManagerDialog.jsx'));
@@ -28,6 +30,8 @@ const TakeCycleRecoveryDialog = React.lazy(() => import('../dialogs/TakeCycleRec
 const WorkspacePreferencesDialog = React.lazy(() => import('../dialogs/WorkspacePreferencesDialog.jsx'));
 const RawPcmImportDialog = React.lazy(() => import('../dialogs/ImportAnalysisDialogs.tsx').then((module) => ({ default: module.RawPcmImportDialog })));
 const RegularIntervalAnnotationDialog = React.lazy(() => import('../dialogs/ImportAnalysisDialogs.tsx').then((module) => ({ default: module.RegularIntervalAnnotationDialog })));
+const LocalModelManagerDialog = React.lazy(() => import('../dialogs/LocalModelManagerDialog.tsx'));
+const LocalAssistanceDialog = React.lazy(() => import('../dialogs/LocalAssistanceDialog.tsx'));
 
 function LazyInspectorFallback({ copy }) {
 	return <div className="audio-editor-timeline-loading" role="status" aria-live="polite">{copy.loading}</div>;
@@ -65,6 +69,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 		setDialogValue,
 		setEffectWindow,
 		setMacroDraft,
+		selectedMediaPreparation,
 		settleScapeOpenDecision,
 		showArmControls,
 		snapshot,
@@ -72,6 +77,8 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 	} = model;
 	const framescaperFinishingSurface = framescaperV27FinishingSurface(activeSurface);
 	const selectedV27AuthoringSurface = framescaperSelectedV27VisualAuthoringSurface(activeSurface);
+	const localModelManagerBridge = resolveLocalModelManagerBridge(fileService.bridge);
+	const localAssistanceBridge = resolveLocalAssistanceBridge(fileService.bridge);
 	return <>
 			<SoundscaperProductionWorkspaceOverlay model={model} />
 
@@ -157,7 +164,8 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 			)}
 			{productId === 'framescaper' && (snapshot.project?.schemaVersion === 20
 				|| snapshot.project?.schemaVersion === 27
-				|| snapshot.project?.schemaVersion === 28) && activeSurface === 'video-proxy' && (
+				|| snapshot.project?.schemaVersion === 28
+				|| snapshot.project?.schemaVersion === 31) && activeSurface === 'video-proxy' && (
 				<div data-editor-surface="video-proxy">
 					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
 						<FramescaperVideoProxyDialog
@@ -173,7 +181,8 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 				</div>
 			)}
 			{productId === 'framescaper' && (snapshot.project?.schemaVersion === 27
-				|| snapshot.project?.schemaVersion === 28)
+				|| snapshot.project?.schemaVersion === 28
+				|| snapshot.project?.schemaVersion === 31)
 				&& framescaperFinishingSurface && framescaperFinishingSurface !== 'visual-inspector' && (
 				<div data-editor-surface="framescaper-v27-finishing">
 					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
@@ -193,7 +202,8 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 				</div>
 			)}
 			{productId === 'framescaper' && (snapshot.project?.schemaVersion === 27
-				|| snapshot.project?.schemaVersion === 28)
+				|| snapshot.project?.schemaVersion === 28
+				|| snapshot.project?.schemaVersion === 31)
 				&& framescaperFinishingSurface === 'visual-inspector' && (
 				<div data-editor-surface="framescaper-v27-visual-inspector">
 					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
@@ -211,7 +221,8 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 				</div>
 			)}
 			{productId === 'framescaper' && (snapshot.project?.schemaVersion === 27
-				|| snapshot.project?.schemaVersion === 28)
+				|| snapshot.project?.schemaVersion === 28
+				|| snapshot.project?.schemaVersion === 31)
 				&& selectedV27AuthoringSurface && (
 				<div data-editor-surface="framescaper-selected-v27-authoring">
 					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
@@ -405,6 +416,30 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 						onTogglePanel={toggleWorkspacePanel}
 						onClose={() => setActiveSurface(null)}
 					/>
+				</div>
+			)}
+			{fileService.isDesktop && activeSurface === 'local-models' && (
+				<div data-editor-surface="local-models">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<LocalModelManagerDialog
+							bridge={localModelManagerBridge}
+							copy={copy}
+							locale={locale}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
+				</div>
+			)}
+			{fileService.isDesktop && capabilities.assistanceAssets && activeSurface === 'local-assistance' && (
+				<div data-editor-surface="local-assistance">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<LocalAssistanceDialog
+							bridge={localAssistanceBridge}
+							preparation={selectedMediaPreparation}
+							copy={copy}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
 				</div>
 			)}
 

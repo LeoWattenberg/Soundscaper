@@ -12,10 +12,10 @@ import {
 	ZipWriter,
 } from '@zip.js/zip.js';
 
-import { FRAMESCAPER_PROJECT_V28_SCHEMA_VERSION } from '../../src/common/editor/project-schema-version.ts';
+import { FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION } from '../../src/common/editor/project-schema-version.ts';
 import { reconcileFramescaperAudioFinishingV27 } from '../../src/framescaper/editor-audio-finishing-reconciliation-v27.ts';
-import { reconcileFramescaperProjectFeatureRequirementsV28 } from '../../src/framescaper/editor-project-feature-requirements-v28.ts';
-import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v28.ts';
+import { reconcileFramescaperProjectFeatureRequirementsV31 } from '../../src/framescaper/editor-project-feature-requirements-v31.ts';
+import { FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v31.ts';
 import { asymmetricStereoTone, expect, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	assertAccessibleBasics,
@@ -33,7 +33,7 @@ import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import {
 	createScapePcmPayload,
-	promoteFramescaperArchiveToSoundscaperV23,
+	promoteFramescaperArchiveToSoundscaperV30,
 	publisherRequirementManifest,
 } from './helpers/scape-exact-project-fixtures.js';
 
@@ -164,7 +164,7 @@ test.describe('Scape open feature decisions', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('opens exact V28 audio rack effects as persistent control-free bypass placeholders', async ({ page }) => {
+	test('opens exact F31 audio rack effects as persistent control-free bypass placeholders', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const publisher = await bootEditor(page, '/framescaper/embed/en/');
 		await expect(publisher).toHaveAttribute('data-product', 'framescaper');
@@ -176,9 +176,9 @@ test.describe('Scape open feature decisions', () => {
 		const incomingId = `${originalId}-audio-effect`;
 		const archive = await rewriteArchive(exported, ({ project }) => {
 			project.id = incomingId;
-			project.title = 'Exact V28 audio effect';
+			project.title = 'Exact F31 audio effect';
 			const track = project.tracks.find((candidate) => candidate.type === 'audio');
-			if (!track) throw new Error('V28 audio-effect fixture requires an audio track.');
+			if (!track) throw new Error('F31 audio-effect fixture requires an audio track.');
 			track.effectsActive = true;
 			track.effects = [{ id: 'fixture-invert', type: 'audacity-invert', enabled: true, params: {} }];
 			project.featureRequirements = publisherRequirementManifest(project, {
@@ -188,8 +188,8 @@ test.describe('Scape open feature decisions', () => {
 				disposition: 'bypass',
 				fallback: null,
 			});
-			project.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV28(
-				FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, project,
+			project.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV31(
+				FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, project,
 			);
 		});
 		const recipient = await bootEditor(page, '/framescaper/embed/en/');
@@ -206,7 +206,7 @@ test.describe('Scape open feature decisions', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('plays an admitted exact V28 audio-effects render in Framescaper', async ({ page }) => {
+	test('plays an admitted exact F31 audio-effects render in Framescaper', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const publisher = await bootEditor(page, '/framescaper/embed/en/');
 		const originalId = await publisher.getAttribute('data-project-id');
@@ -217,7 +217,7 @@ test.describe('Scape open feature decisions', () => {
 		const incomingId = `${originalId}-audio-render`;
 		const archive = await audioEffectsRenderedFallbackArchive(exported, {
 			id: incomingId,
-			title: 'Exact V28 rendered fallback',
+			title: 'Exact F31 rendered fallback',
 			fallbackSourceName: asymmetricStereoTone.name,
 		});
 		const framescaper = await bootEditor(page, '/framescaper/embed/en/');
@@ -259,7 +259,7 @@ test.describe('Scape open feature decisions', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('streams an oversized admitted exact V28 audio-effects render in Framescaper', async ({ page }) => {
+	test('streams an oversized admitted exact F31 audio-effects render in Framescaper', async ({ page }) => {
 		test.setTimeout(120_000);
 		await stubStorageEstimate(page, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
 		const errors = collectClientErrors(page);
@@ -272,7 +272,7 @@ test.describe('Scape open feature decisions', () => {
 		const incomingId = `${originalId}-streamed-audio-render`;
 		const archive = await audioEffectsRenderedFallbackArchive(exported, {
 			id: incomingId,
-			title: 'Exact V28 streamed fallback',
+			title: 'Exact F31 streamed fallback',
 			fallbackSourceName: asymmetricStereoTone.name,
 			fallbackFrameCount: OVERSIZED_FALLBACK_FRAME_COUNT,
 		});
@@ -352,7 +352,7 @@ test.describe('Scape open feature decisions', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('opens exact V23 video effects in Soundscaper as persistent control-free bypass placeholders', async ({ page }, testInfo) => {
+	test('opens exact S30 video effects in Soundscaper as persistent control-free bypass placeholders', async ({ page }, testInfo) => {
 		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
 		test.setTimeout(90_000);
 		await installPinnedFfmpegRuntimeRoutes(page);
@@ -384,9 +384,9 @@ test.describe('Scape open feature decisions', () => {
 		const exported = await captureScapeArchive(page, framescaper);
 		const originalFramescaperId = await framescaper.getAttribute('data-project-id');
 		const incomingId = `${originalFramescaperId}-soundscaper-video-effect`;
-		const archive = await promoteFramescaperArchiveToSoundscaperV23(exported, {
+		const archive = await promoteFramescaperArchiveToSoundscaperV30(exported, {
 			id: incomingId,
-			title: 'Exact V23 video effect',
+			title: 'Exact S30 video effect',
 		}, rewriteArchive);
 		const soundscaper = await bootEditor(page, '/embed/en/');
 		await expect(soundscaper).toHaveAttribute('data-product', 'soundscaper');
@@ -410,7 +410,7 @@ test.describe('Scape open feature decisions', () => {
 		await page.keyboard.press('Enter');
 		await expect(soundscaper).toHaveAttribute('data-project-id', originalSoundscaperId);
 		await expect(soundscaper.locator('[data-project-feature-video-effect-placeholders]')).toHaveCount(0);
-		const incomingTab = soundscaper.getByRole('tab', { name: 'Exact V23 video effect', exact: true });
+		const incomingTab = soundscaper.getByRole('tab', { name: 'Exact S30 video effect', exact: true });
 		await expect(incomingTab).toBeEnabled();
 		await incomingTab.focus();
 		await page.keyboard.press('Enter');
@@ -419,7 +419,7 @@ test.describe('Scape open feature decisions', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('preserves exact V23 retime curves only after explicit read-only consent', async ({ page }, testInfo) => {
+	test('preserves exact S30 retime curves only after explicit read-only consent', async ({ page }, testInfo) => {
 		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
 		test.setTimeout(120_000);
 		await installPinnedFfmpegRuntimeRoutes(page);
@@ -428,12 +428,12 @@ test.describe('Scape open feature decisions', () => {
 		await importFiles(framescaper, [createDeterministicAvFixture('retime-preservation.webm')]);
 		const exported = await captureScapeArchive(page, framescaper);
 		let expectedCurve;
-		const archive = await promoteFramescaperArchiveToSoundscaperV23(exported, {
+		const archive = await promoteFramescaperArchiveToSoundscaperV30(exported, {
 			id: `${await framescaper.getAttribute('data-project-id')}-retime`,
-			title: 'Exact V23 retime preservation',
+			title: 'Exact S30 retime preservation',
 			mutate(foundation) {
 				const clip = foundation.clips.find((candidate) => candidate.kind === 'video');
-				if (!clip) throw new Error('V23 retime fixture requires a video clip.');
+				if (!clip) throw new Error('S30 retime fixture requires a video clip.');
 				expectedCurve = {
 					feature: 'video-retime', version: 2,
 					points: [
@@ -538,9 +538,9 @@ async function audioEffectsRenderedFallbackArchive(input, {
 	fallbackFrameCount = null,
 }) {
 	return rewriteArchive(input, ({ project, manifest, payloads }) => {
-		if (project.schemaVersion !== FRAMESCAPER_PROJECT_V28_SCHEMA_VERSION) {
+		if (project.schemaVersion !== FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION) {
 			throw new Error(
-				`Rendered fallback fixture requires schema ${FRAMESCAPER_PROJECT_V28_SCHEMA_VERSION}.`,
+				`Rendered fallback fixture requires schema ${FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION}.`,
 			);
 		}
 		project.id = id;
@@ -594,8 +594,8 @@ async function audioEffectsRenderedFallbackArchive(input, {
 		const finishing = reconcileFramescaperAudioFinishingV27(project, project);
 		project.automationLanes = structuredClone(finishing.automationLanes);
 		project.mixer = structuredClone(finishing.mixer);
-		project.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV28(
-			FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, project,
+		project.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV31(
+			FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, project,
 		);
 	});
 }

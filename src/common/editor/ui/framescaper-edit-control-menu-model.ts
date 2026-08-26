@@ -2,6 +2,7 @@
 
 import { projectForRuntimeConsumers } from '../project-current-runtime.ts';
 import {
+	FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION,
 	isFramescaperVideoCompositionProjectSchema,
 	isTimelineAnnotationProjectSchema,
 } from '../project-schema-version.ts';
@@ -101,8 +102,10 @@ function projectForLinkedControls(project: DataRecord): DataRecord {
 	if (!isFramescaperVideoCompositionProjectSchema(project.schemaVersion)) {
 		return projectForRuntimeConsumers(project as RuntimeClipProject) as unknown as DataRecord;
 	}
-	if (!Array.isArray(project.timelineAnnotations) || project.timelineAnnotations.length !== 0) {
-		throw new TypeError('Framescaper composition projects require an empty timeline annotation carrier.');
+	if (!Array.isArray(project.timelineAnnotations)
+		|| (project.schemaVersion !== FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION
+			&& project.timelineAnnotations.length !== 0)) {
+		throw new TypeError('Framescaper composition project has an unsupported timeline annotation carrier.');
 	}
 	const projectionInput = { ...project };
 	if (!isTimelineAnnotationProjectSchema(project.schemaVersion)) {

@@ -8,9 +8,12 @@ export function filterProductMenus(menus, capabilities, productId) {
 		&& (capabilities.videoGenerators || capabilities.videoStills);
 	const candidateVideoAnalysis = productId === 'framescaper'
 		&& capabilities.videoMotionTracking;
+	const candidateLocalAssistance = capabilities.assistanceAssets === true
+		&& menus.some((menu) => menu.id === 'analyze'
+			&& menu.items.some((item) => item.id === 'local-assistance'));
 	if (!capabilities.audioGenerators && !candidateVideoGeneration) hiddenTopLevel.add('generate');
 	if (!capabilities.audioEffects && productId !== 'framescaper') hiddenTopLevel.add('effect');
-	if (!capabilities.audioAnalysis && !candidateVideoAnalysis) hiddenTopLevel.add('analyze');
+	if (!capabilities.audioAnalysis && !candidateVideoAnalysis && !candidateLocalAssistance) hiddenTopLevel.add('analyze');
 	return menus
 		.filter((menu) => !hiddenTopLevel.has(menu.id))
 		.map((menu) => {
@@ -39,9 +42,12 @@ export function filterProductMenus(menus, capabilities, productId) {
 				return { ...menu, items: menu.items.filter((item) => !hiddenTrackItems.has(item.id)) };
 			}
 			if (menu.id === 'analyze' && !capabilities.audioAnalysis) {
+				const retainedAnalyzeItems = new Set([
+					'framescaper-v27-motion-tracking', 'local-assistance',
+				]);
 				return {
 					...menu,
-					items: menu.items.filter((item) => item.id === 'framescaper-v27-motion-tracking'),
+					items: menu.items.filter((item) => retainedAnalyzeItems.has(item.id)),
 				};
 			}
 			if (menu.id === 'tools' && !capabilities.audioMacros) {

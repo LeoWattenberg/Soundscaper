@@ -1,12 +1,12 @@
 # Milestone 5 plan: Electron-native services and extensibility
 
-> **Current-route note (2026-08-24):** selected Soundscaper V29/V11 and
-> Framescaper V28/V14/V19 software routes are complete. Selected V28 owns exact
-> V14 render authority, the main render queue, persistent services V3, the exact watch/bin/proxy flow, native
+> **Current-route note (2026-08-25):** selected Soundscaper S30/V11 and
+> Framescaper F31/V14/V20 source routes are complete. Selected F31 delegates
+> through its immutable V28 foundation to exact V14 render authority, the main render queue, persistent services V3, the exact watch/bin/proxy flow, native
 > media and OpenFX routes; historical V20 through V27 machinery remains an
 > implementation source or explicit re-import boundary, and V25/V26 retain
-> opaque, read-only custody. No Milestone 5 qualification or release activation
-> is claimed.
+> opaque, read-only custody. F31 product activation does not activate those
+> native routes; no Milestone 5 qualification or release activation is claimed.
 
 > The source audit authenticates 0/10 required exact archive/extracted-tree
 > inputs. All five Soundscaper professional payload rows are `pending-external`;
@@ -109,14 +109,16 @@ integration waits for the owning shared contract (roadmap.md:565-566).
   (`src/common/editor/platform-capabilities.ts:153-158`). Milestone 7
   names this dependency explicitly
   (docs/milestone-7-plan.md:847-849).
-- **Selected Soundscaper audio/effects software exists.** V29/V11 owns native
+- **Selected Soundscaper audio/effects software exists.** S30/V11 delegates
+  through its exact S29 foundation and owns native
   device inventory/open/close, direct helper-to-`AudioWorklet` packet transport,
   input recording publication, output/monitoring, reviewed effect insertion,
   real-time/offline RPC, exact V21 PDC, bounded opaque state, continuity, and
   helper-owned vendor windows. The five professional payload rows and all
   physical qualification remain pending-external.
 - **Selected Framescaper queue and render software exists.** Persistent services
-  V3 own V28/V14/V19 queue, capacity, scratch, recovery, watch/bin/proxy,
+  V3 reach the selected F31/V14/V20 queue through its immutable V28 foundation,
+  including capacity, scratch, recovery, watch/bin/proxy,
   image-sequence tree publication, and lease-fenced output. Native hardware
   encode permits one exact CPU retry; one context-aware OpenFX graph serves
   preview, browser export, and native carrier execution. Empty payload manifests
@@ -421,7 +423,8 @@ only its status and ordering boundary. 5B is decomposed at pickup.
 
 ### 5A plan (Soundscaper native tier)
 
-The selected Soundscaper V29/V11 software packets 5A-0 through 5A-4 are
+The selected Soundscaper S30/V11 software packets 5A-0 through 5A-4 inherit
+their established native implementation through exact S29 and are
 implemented. The
 [Milestone 5A Soundscaper plan](milestone-5a-soundscaper-native.md) owns their
 invariants and the still-open external source, five-target payload, licensing,
@@ -433,9 +436,10 @@ surface activates before those exact gates close.
 The owning pickup contract is
 [`milestone-5b-framescaper-native-tier.md`](milestone-5b-framescaper-native-tier.md).
 Its implementation record is authoritative for what has landed: selected
-V28/V14/V19 binds the complete media, professional sequence/proxy, persistent
-services V3, and context-aware OpenFX routes. V20 through V27 remain historical
-or re-import sources and V25/V26 retain opaque read-only custody. No 5B payload
+F31/V14/V20 binds the complete media, professional sequence/proxy, persistent
+services V3, and context-aware OpenFX routes through F31's immutable V28
+foundation. V20 through V27 remain historical or re-import sources and V25/V26
+retain opaque read-only custody. No 5B payload
 is built or staged; source authentication, licensing, reviewed target isolation,
 signing, five-target hardware, package/manual, and native-lab qualification
 remain open. Empty payload manifests prevent any shipped 5B helper spawn.

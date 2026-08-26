@@ -18,6 +18,7 @@ import {
 	probeVideoTiming,
 	type VideoTimingProbePort,
 } from './video-timing-probe.ts';
+import { validateVideoProxyOriginalMimeType } from './video-proxy-original-mime-type.ts';
 
 export const VIDEO_PROXY_CANDIDATE_MAXIMUM_BYTES = 512 * 1024 * 1024;
 export const VIDEO_PROXY_CANDIDATE_MAXIMUM_TIMING_PROBES = 8;
@@ -329,7 +330,7 @@ function captureOriginalIdentity(value: unknown): VideoProxyCandidateOriginalIde
 		projectId: nonEmptyString(raw.projectId, 'video proxy original projectId'),
 		sourceId: nonEmptyString(raw.sourceId, 'video proxy original sourceId'),
 		storageKey: nonEmptyString(raw.storageKey, 'video proxy original storageKey'),
-		mimeType: videoMimeType(raw.mimeType, 'video proxy original mimeType'),
+		mimeType: validateVideoProxyOriginalMimeType(raw.mimeType, 'video proxy original mimeType'),
 		byteLength: positiveSafeInteger(raw.byteLength, 'video proxy original byteLength'),
 		sha256,
 		generationToken: nonEmptyString(raw.generationToken, 'video proxy original generationToken'),
@@ -400,14 +401,6 @@ function boundedIdentifier(value: unknown, name: string): string {
 	const result = nonEmptyString(value, name);
 	if (!IDENTIFIER.test(result) || result.includes('/') || result.includes('\\')) {
 		throw new TypeError(`${name} must be a printable pathless identifier of at most 128 characters.`);
-	}
-	return result;
-}
-
-function videoMimeType(value: unknown, name: string): string {
-	const result = nonEmptyString(value, name);
-	if (result.length > 128 || !/^video\/[a-z0-9][a-z0-9!#$&^_.+\-]*$/u.test(result)) {
-		throw new TypeError(`${name} is invalid.`);
 	}
 	return result;
 }

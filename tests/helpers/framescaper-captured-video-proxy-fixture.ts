@@ -11,6 +11,8 @@ import { MediaPublicationReconciliationError } from '../../src/common/editor/sto
 import { VIDEO_PROXY_CLAIM_KIND } from '../../src/common/editor/storage/video-proxy-claim-repository.ts';
 import { VIDEO_PROXY_CLEANUP_TOMBSTONE_KIND } from '../../src/common/editor/storage/video-proxy-cleanup-tombstone.ts';
 import type { AudioEditorProjectStore } from '../../src/common/editor/storage.js';
+import { bindVideoSourceTimingView } from '../../src/common/editor/video-source-timing-view.ts';
+import { resolveVideoSourceTimingViews } from '../../src/common/editor/video-source-timing-views.ts';
 import {
 	createFramescaperCapturedVideoProxySchedulerV18,
 	createFramescaperCapturedVideoProxySchedulerV19,
@@ -19,9 +21,19 @@ import {
 	type FramescaperCapturedVideoProxyScheduler,
 } from '../../src/framescaper/editor-captured-video-proxy-scheduler.ts';
 import {
+	createFramescaperCapturedVideoProxySchedulerV31,
+} from '../../src/framescaper/editor-captured-video-proxy-scheduler-v31.ts';
+import {
 	createFramescaperEditorProjectEnvironmentV18,
 	type FramescaperEditorProjectEnvironmentV18,
 } from '../../src/framescaper/editor-project-environment-v18.ts';
+import type {
+	FramescaperVideoProxyPreviewPortsV18,
+} from '../../src/framescaper/editor-video-proxy-preview-v18.ts';
+import type {
+	FramescaperVideoProxyBodyRequestV18,
+	FramescaperVideoProxyOriginalRequestV18,
+} from '../../src/framescaper/editor-video-proxy-reattestation-contract-v18.ts';
 import {
 	createFramescaperEditorProjectEnvironmentV19,
 	type FramescaperEditorProjectEnvironmentV19,
@@ -34,10 +46,15 @@ import {
 	createFramescaperEditorProjectEnvironmentV27,
 	type FramescaperEditorProjectEnvironmentV27,
 } from '../../src/framescaper/editor-project-environment-v27.ts';
+import {
+	createFramescaperEditorProjectEnvironmentV31,
+	type FramescaperEditorProjectEnvironmentV31,
+} from '../../src/framescaper/editor-project-environment-v31.ts';
 import { framescaperProjectStoreAuthorityV18 } from '../../src/framescaper/editor-project-store-v18.ts';
 import { framescaperProjectStoreAuthorityV19 } from '../../src/framescaper/editor-project-store-v19.ts';
 import { framescaperProjectStoreAuthorityV20 } from '../../src/framescaper/editor-project-store-v20.ts';
 import { framescaperProjectStoreAuthorityV27 } from '../../src/framescaper/editor-project-store-v27.ts';
+import { framescaperProjectStoreAuthorityV31 } from '../../src/framescaper/editor-project-store-v31.ts';
 import {
 	FramescaperDesktopV10MainFixture,
 	installFramescaperDesktopV10Bridge,
@@ -52,7 +69,8 @@ import {
 export type CapturedProxyEnvironment = Readonly<FramescaperEditorProjectEnvironmentV18>
 	| Readonly<FramescaperEditorProjectEnvironmentV19>
 	| Readonly<FramescaperEditorProjectEnvironmentV20>
-	| Readonly<FramescaperEditorProjectEnvironmentV27>;
+	| Readonly<FramescaperEditorProjectEnvironmentV27>
+	| Readonly<FramescaperEditorProjectEnvironmentV31>;
 
 export interface CapturedProxyFixture {
 	readonly environment: CapturedProxyEnvironment;
@@ -67,7 +85,7 @@ export interface CapturedProxyFixture {
 
 export async function createCapturedProxyFixture(
 	context: TestContext,
-	schemaVersion: 18 | 19 | 20 | 27,
+	schemaVersion: 18 | 19 | 20 | 27 | 31,
 	secondVideo = false,
 	generatorGate?: ReturnType<typeof deferred<void>>,
 	desktopMain?: FramescaperDesktopV10MainFixture,
@@ -87,7 +105,9 @@ export async function createCapturedProxyFixture(
 			? await createFramescaperEditorProjectEnvironmentV19(options)
 			: schemaVersion === 20
 				? await createFramescaperEditorProjectEnvironmentV20(options)
-				: await createFramescaperEditorProjectEnvironmentV27(options);
+				: schemaVersion === 27
+					? await createFramescaperEditorProjectEnvironmentV27(options)
+					: await createFramescaperEditorProjectEnvironmentV31(options);
 	context.after(() => environment.close());
 	const relationship = createVideoProxyFixture({ ...(generatorGate ? { generatorGate } : {}) });
 	const originalSha256 = await digestMediaContent(relationship.original);
@@ -142,8 +162,10 @@ export async function createCapturedProxyFixture(
 		);
 	}
 	const session = environment.runtime.createSessionController();
-	const controllerStore = schemaVersion === 18
-		? (environment as Readonly<FramescaperEditorProjectEnvironmentV18>).controllerStore
+	const controllerStore = schemaVersion === 18 || schemaVersion === 31
+		? (environment as Readonly<
+			FramescaperEditorProjectEnvironmentV18 | FramescaperEditorProjectEnvironmentV31
+		>).controllerStore
 		: environment.store;
 	session.openProject(origin as never);
 	session.openProject(active as never);
@@ -168,10 +190,17 @@ export async function createCapturedProxyFixture(
 					runtime: null,
 					candidateObserver: relationship.candidateObserver,
 				})
-				: createFramescaperCapturedVideoProxySchedulerV27(environment, session, {
-					runtime: null,
-					candidateObserver: relationship.candidateObserver,
-				});
+				: schemaVersion === 27
+					? createFramescaperCapturedVideoProxySchedulerV27(environment, session, {
+						runtime: null,
+						candidateObserver: relationship.candidateObserver,
+					})
+					: createFramescaperCapturedVideoProxySchedulerV31(
+						environment as Readonly<FramescaperEditorProjectEnvironmentV31>, session, {
+						runtime: null,
+						candidateObserver: relationship.candidateObserver,
+						},
+					);
 	return {
 		environment,
 		controllerStore,
@@ -236,7 +265,9 @@ export function nextCapturedProxyOrdinaryRevision(
 			? (environment as FramescaperEditorProjectEnvironmentV19).runtime.cloneProject(draft)
 			: Number(draft.schemaVersion) === 20
 				? (environment as FramescaperEditorProjectEnvironmentV20).runtime.cloneProject(draft)
-				: (environment as FramescaperEditorProjectEnvironmentV27).runtime.cloneProject(draft)) as unknown as Record<string, unknown>;
+				: Number(draft.schemaVersion) === 27
+					? (environment as FramescaperEditorProjectEnvironmentV27).runtime.cloneProject(draft)
+					: (environment as FramescaperEditorProjectEnvironmentV31).runtime.cloneProject(draft)) as unknown as Record<string, unknown>;
 }
 
 export async function capturedProxyStorageInventory(environment: CapturedProxyEnvironment): Promise<Readonly<{
@@ -276,7 +307,10 @@ function framescaperCaptureStoreAuthority(environment: CapturedProxyEnvironment)
 		try { return framescaperProjectStoreAuthorityV19(environment.runtime.profile, environment.store); }
 		catch {
 			try { return framescaperProjectStoreAuthorityV20(environment.runtime.profile, environment.store); }
-			catch { return framescaperProjectStoreAuthorityV27(environment.runtime.profile, environment.store); }
+			catch {
+				try { return framescaperProjectStoreAuthorityV27(environment.runtime.profile, environment.store); }
+				catch { return framescaperProjectStoreAuthorityV31(environment.runtime.profile, environment.store); }
+			}
 		}
 	}
 }
@@ -323,4 +357,52 @@ export function failCapturedProxyFirstBodyPublicationReread(
 		},
 	});
 	context.after(() => { delete (store as unknown as Record<string, unknown>).beginMediaAssetWrite; });
+}
+
+export function capturedProxyPreviewPorts(
+	environment: Readonly<FramescaperEditorProjectEnvironmentV18>,
+	project: unknown,
+): FramescaperVideoProxyPreviewPortsV18 {
+	const task = Object.freeze({ project });
+	return Object.freeze({
+		profile: environment.runtime.profile,
+		getProject: () => project,
+		captureTask: () => task,
+		assertTaskCurrent: (value: unknown) => {
+			if (value !== task) throw new DOMException('Preview task changed.', 'AbortError');
+		},
+		acquireBody: async (bodyRequest: Readonly<FramescaperVideoProxyBodyRequestV18>) => {
+			const body = await environment.store.loadMediaAsset(bodyRequest.expected.storageKey);
+			if (!(body instanceof Blob)) throw new Error('The reopened proxy body is unavailable.');
+			return Object.freeze({
+				identity: Object.freeze({
+					...bodyRequest.expected,
+					generationToken: `${bodyRequest.expected.kind}:${bodyRequest.expected.sha256}`,
+				}),
+				body,
+				assertCurrent() {},
+				release() {},
+			});
+		},
+		observeOriginal: async (originalRequest: Readonly<FramescaperVideoProxyOriginalRequestV18>) => {
+			const body = await environment.store.loadMediaAsset(originalRequest.storageKey);
+			if (!(body instanceof Blob)) throw new Error('The reopened original body is unavailable.');
+			const source = capturedVideoSource(project, originalRequest.sourceId);
+			return Object.freeze({
+				identity: Object.freeze({
+					authority: 'owned' as const,
+					projectId: originalRequest.projectId,
+					sourceId: originalRequest.sourceId,
+					storageKey: originalRequest.storageKey,
+					mimeType: originalRequest.mimeType,
+					byteLength: body.size,
+					sha256: originalRequest.contentSha256,
+					generationToken: `owned:${originalRequest.storageKey}:${originalRequest.contentSha256}`,
+				}),
+				timing: bindVideoSourceTimingView(resolveVideoSourceTimingViews(project), source),
+				assertCurrent() {},
+				release() {},
+			});
+		},
+	});
 }

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { access, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -13,31 +14,35 @@ import {
 	stageDesktopApplicationSources,
 } from '../scripts/lib/desktop-project-library-runtime.mjs';
 import {
-	createFramescaperDesktopProjectLibraryV19Handshake,
-} from '../desktop/project-library-v19-contract.ts';
-import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
-import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
+	createFramescaperDesktopProjectLibraryV20Handshake,
+} from '../desktop/project-library-v20-contract.ts';
+import { createAudioSource } from '../src/common/editor/project-media-factory.ts';
+import {
+	collectFramescaperDesktopV31AssistanceBodyReferences,
+} from '../src/framescaper/desktop-project-library-v31-body-contract.ts';
+import { FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v31.ts';
+import { createFramescaperProjectV31 } from '../src/framescaper/editor-project-v31.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CHANNELS = Object.freeze([
-	'framescaper:v19:projects:handshake',
-	'framescaper:v19:projects:bundle',
-	'framescaper:v19:projects:bodies:read',
-	'framescaper:v19:projects:list',
-	'framescaper:v19:projects:delete',
-	'framescaper:v19:projects:duplicate',
-	'framescaper:v19:projects:publication:begin',
-	'framescaper:v19:projects:publication:chunk',
-	'framescaper:v19:projects:publication:finish',
-	'framescaper:v19:projects:publication:abort',
+	'framescaper:v20:projects:handshake',
+	'framescaper:v20:projects:bundle',
+	'framescaper:v20:projects:bodies:read',
+	'framescaper:v20:projects:list',
+	'framescaper:v20:projects:delete',
+	'framescaper:v20:projects:duplicate',
+	'framescaper:v20:projects:publication:begin',
+	'framescaper:v20:projects:publication:chunk',
+	'framescaper:v20:projects:publication:finish',
+	'framescaper:v20:projects:publication:abort',
 ]);
 
-test('packaged Framescaper selects V19 while preserving the public framescaperDesktop.v1 bridge', async (context) => {
+test('packaged Framescaper selects V20/F31 while preserving the public framescaperDesktop.v1 bridge', async (context) => {
 	const fixture = await stagedFixture(context);
 	await assert.rejects(
 		() => access(join(fixture.applicationDesktopRoot, 'project-library-v10-sandbox-preload.cjs')),
 		/ENOENT/u,
-		'the selected V19 application must not stage the historical Framescaper V10 preload',
+		'the selected V20 application must not stage the historical Framescaper V10 preload',
 	);
 	const basePreload = await readFile(join(fixture.applicationDesktopRoot, 'preload.mjs'), 'utf8');
 	assert.match(basePreload, /projectLibrary/u);
@@ -58,7 +63,7 @@ test('packaged Framescaper selects V19 while preserving the public framescaperDe
 		productId: 'framescaper',
 		appDataPath: fixture.appDataPath,
 		processId: 8120,
-		instanceId: 'framescaper-v19-packaged',
+		instanceId: 'framescaper-v20-packaged',
 		onLeaseLost: () => {},
 		leaseQualification: null,
 	});
@@ -71,29 +76,32 @@ test('packaged Framescaper selects V19 while preserving the public framescaperDe
 		ownerFor: (event: unknown) => (event as { owner: object }).owner,
 		removeHandler: (channel: string) => { removed.push(channel); handlers.delete(channel); },
 		session: {
-			registerPreloadScript(value: unknown) { preloads.push(value); return 'framescaper-v19-preload'; },
+			registerPreloadScript(value: unknown) { preloads.push(value); return 'framescaper-v20-preload'; },
 			unregisterPreloadScript(id: string) { preloadRemovals.push(id); },
 		},
 	});
 	assert.deepEqual([...handlers.keys()], CHANNELS);
 	assert.deepEqual(preloads, [], 'the selected base preload owns the public Framescaper bridge');
 	const owner = {};
-	const handshake = createFramescaperDesktopProjectLibraryV19Handshake();
+	const handshake = createFramescaperDesktopProjectLibraryV20Handshake();
 	assert.deepEqual(await handlers.get(CHANNELS[0])!({ owner }, handshake), handshake);
-	const project = createFramescaperProjectV28(FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, {
-		id: 'framescaper-v19-packaged-project',
-		title: 'Framescaper V19 packaged project',
-		revision: 0,
-		now: '2026-08-22T12:00:00.000Z',
-	});
+	const body = new TextEncoder().encode('{"segments":[]}');
+	const project = projectWithTranscript(body);
+	const descriptor = collectFramescaperDesktopV31AssistanceBodyReferences(project)[0]!.descriptor;
 	const admission = await handlers.get(CHANNELS[6])!({ owner }, {
 		publicationId: 'ab'.repeat(24),
 		expectedMetadataRevision: 0,
 		expectedProject: null,
 		project,
-		bodies: [],
+		bodies: [descriptor],
 	}) as { publicationId: string };
+	await handlers.get(CHANNELS[7])!({ owner }, {
+		publicationId: admission.publicationId, bodyIndex: 0, offset: 0, bytes: body,
+	});
 	await handlers.get(CHANNELS[8])!({ owner }, { publicationId: admission.publicationId });
+	assert.deepEqual(await handlers.get(CHANNELS[2])!({ owner }, {
+		body: descriptor, offset: 0, length: body.byteLength,
+	}), body, 'packaged V20 retains transcript bytes in main-owned custody');
 	const evidence = await runtime.smokeEvidence(String(project.id)) as {
 		project: { sha256: string };
 	};
@@ -102,12 +110,12 @@ test('packaged Framescaper selects V19 while preserving the public framescaperDe
 		project: {
 			projectId: project.id,
 			title: project.title,
-			projectSchemaVersion: 28,
+			projectSchemaVersion: 31,
 			projectRevision: 0,
 			metadataRevision: 1,
 			byteLength: new TextEncoder().encode(JSON.stringify(project)).byteLength,
 			sha256: evidence.project.sha256,
-			bodyCount: 0,
+			bodyCount: 1,
 		},
 	}, 'packaged smoke evidence is pathless');
 	assert.match(evidence.project.sha256, /^[a-f0-9]{64}$/u);
@@ -149,7 +157,7 @@ test('packaged base preload exposes one unversioned pathless handshake-first Fra
 				ipcRenderer: { invoke: (channel: string, value: unknown) => {
 					calls.push({ channel, value });
 					if (channel === CHANNELS[0]) return Promise.resolve(value);
-					throw new Error(`Unexpected V19 invocation: ${channel}`);
+					throw new Error(`Unexpected V20 invocation: ${channel}`);
 				}, send() {}, on() {}, removeListener() {} },
 			};
 		},
@@ -163,9 +171,9 @@ test('packaged base preload exposes one unversioned pathless handshake-first Fra
 		connect(): Promise<unknown>; handshakeState(): string; listProjects(): Promise<unknown>;
 	};
 	await assert.rejects(() => bridge.listProjects(), /handshake.*required/iu);
-	assert.deepEqual(JSON.parse(JSON.stringify(await bridge.connect())), createFramescaperDesktopProjectLibraryV19Handshake());
+	assert.deepEqual(JSON.parse(JSON.stringify(await bridge.connect())), createFramescaperDesktopProjectLibraryV20Handshake());
 	assert.equal(bridge.handshakeState(), 'admitted');
-	assert.deepEqual(JSON.parse(JSON.stringify(calls)), [{ channel: CHANNELS[0], value: createFramescaperDesktopProjectLibraryV19Handshake() }]);
+	assert.deepEqual(JSON.parse(JSON.stringify(calls)), [{ channel: CHANNELS[0], value: createFramescaperDesktopProjectLibraryV20Handshake() }]);
 	assert.doesNotMatch(JSON.stringify({ calls, keys: Object.keys(bridge) }), /libraryRoot|databasePath|managedMediaRoot|projectsRoot|filePath/iu);
 });
 
@@ -184,6 +192,30 @@ async function stagedFixture(context: TestContext): Promise<Readonly<{
 		runtimeRoot,
 	});
 	return Object.freeze({ applicationDesktopRoot, appDataPath: join(root, 'app-data') });
+}
+
+function projectWithTranscript(body: Uint8Array) {
+	const sourceSha256 = 'ab'.repeat(32);
+	const sha256 = createHash('sha256').update(body).digest('hex');
+	const source = createAudioSource({
+		id: 'dialogue-audio', name: 'Dialogue', mimeType: 'audio/wav',
+		storageKey: 'owned:dialogue-audio', contentSha256: sourceSha256,
+		frameCount: 96_000, sampleRate: 48_000, channelCount: 2,
+	});
+	return createFramescaperProjectV31(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, {
+		id: 'framescaper-v20-packaged-project', title: 'Framescaper V20 packaged project',
+		revision: 0, now: '2026-08-22T12:00:00.000Z', sources: [source],
+		assistanceAssets: [{
+			id: 'transcript-01', kind: 'transcript-v1', sourceId: source.id,
+			sourceSha256, sourceStartFrame: 0, sourceEndFrame: 96_000,
+			sourceVideoTimingSha256: null, recipeId: 'speech-transcript', recipeVersion: 1,
+			modelArtifactSha256s: ['ef'.repeat(32)], body: {
+				storageKey: `assistance-transcript-sha256:${sha256}`,
+				mimeType: 'application/vnd.soundscaper.assistance-transcript+json',
+				byteLength: body.byteLength, sha256,
+			},
+		}],
+	} as never);
 }
 
 interface ProductRuntime {

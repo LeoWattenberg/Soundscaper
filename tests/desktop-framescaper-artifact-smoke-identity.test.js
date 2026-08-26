@@ -19,24 +19,24 @@ import {
 	FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY,
 } from '../desktop/framescaper-v27-artifact-smoke.js';
 import {
-	DESKTOP_PROJECT_LIBRARY_V19_DATABASE_VERSION,
-	FRAMESCAPER_DESKTOP_LIBRARY_V19_PROJECT_SCHEMA_VERSION,
-	FRAMESCAPER_DESKTOP_LIBRARY_V19_SCHEMA_VERSION,
-	createFramescaperDesktopProjectLibraryV19Handshake,
-} from '../desktop/project-library-v19-contract.ts';
+	DESKTOP_PROJECT_LIBRARY_V20_DATABASE_VERSION,
+	FRAMESCAPER_DESKTOP_LIBRARY_V20_PROJECT_SCHEMA_VERSION,
+	FRAMESCAPER_DESKTOP_LIBRARY_V20_SCHEMA_VERSION,
+	createFramescaperDesktopProjectLibraryV20Handshake,
+} from '../desktop/project-library-v20-contract.ts';
 
 test('the packaged artifact smoke expects the shipped desktop library generation', () => {
 	assert.deepEqual({ ...FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY }, {
-		projectSchemaVersion: FRAMESCAPER_DESKTOP_LIBRARY_V19_PROJECT_SCHEMA_VERSION,
-		storageDatabaseName: 'kw-media-framescaper-editor-v28',
-		desktopLibrarySchemaVersion: FRAMESCAPER_DESKTOP_LIBRARY_V19_SCHEMA_VERSION,
-		desktopDatabaseUserVersion: DESKTOP_PROJECT_LIBRARY_V19_DATABASE_VERSION,
-		desktopLibraryScope: ['kw.media', 'scape-project-library', 'v19'],
+		projectSchemaVersion: FRAMESCAPER_DESKTOP_LIBRARY_V20_PROJECT_SCHEMA_VERSION,
+		storageDatabaseName: 'kw-media-framescaper-editor-v31',
+		desktopLibrarySchemaVersion: FRAMESCAPER_DESKTOP_LIBRARY_V20_SCHEMA_VERSION,
+		desktopDatabaseUserVersion: DESKTOP_PROJECT_LIBRARY_V20_DATABASE_VERSION,
+		desktopLibraryScope: ['kw.media', 'scape-project-library', 'v20'],
 	});
 });
 
 test('the packaged artifact smoke expects the handshake the desktop contract mints', () => {
-	const handshake = createFramescaperDesktopProjectLibraryV19Handshake();
+	const handshake = createFramescaperDesktopProjectLibraryV20Handshake();
 	const identity = FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY;
 	assert.equal(handshake.projectSchemaVersion, identity.projectSchemaVersion);
 	assert.equal(handshake.storageDatabaseName, identity.storageDatabaseName);

@@ -256,6 +256,7 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 		licensingCleared: false, helperBuildMatches: false, scratchIdentityMatches: true,
 	});
 	assert.equal(authorityOptions.project, registrationInput.projectAuthority);
+	assert.equal(selectedV28AuthorityOptions.projectSchemaVersion, 31);
 	assert.equal(await openFxServiceOptions.currentProject({ id: 'project-1', revision: 7 }), true);
 	assert.equal(await openFxServiceOptions.currentProject(
 		{ id: 'project-1', revision: 7 }, structuredClone(authoredEffect),
@@ -491,6 +492,7 @@ function options(productId) {
 		}) : null,
 		createMessageChannel: () => ({ hostPort: {}, helperPort: {} }),
 		projectAuthority: {
+			projectSchemaVersion: 31,
 			projectState: () => ({ open: true, writable: true }),
 			projectRecord: () => null,
 			readProjectBundle: async () => null,

@@ -1,0 +1,22 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+/** Selected F31/V20 main runtime members not shared with historical generations. */
+export const DESKTOP_PROJECT_LIBRARY_V20_RUNTIME_FILES = Object.freeze([
+	'desktop/project-library-v20-contract.js',
+	'desktop/project-library-v20-current-project.js',
+	'desktop/project-library-v20-database.js',
+	'desktop/project-library-v20-import.js',
+	'desktop/project-library-v20-main-channels.js',
+	'desktop/project-library-v20-main-ipc.js',
+	'desktop/project-library-v20-main.js',
+	'desktop/project-library-v20-writer.js',
+	'src/framescaper/desktop-project-library-v31-body-contract.js',
+	'src/framescaper/editor-project-feature-capability-profile-v31.js',
+	'src/framescaper/editor-project-feature-requirements-v31.js',
+	'src/framescaper/editor-project-runtime-profile-v31-prerequisite.js',
+	'src/framescaper/editor-project-runtime-profile-v31.js',
+	'src/framescaper/editor-project-storage-profile-v31.js',
+	'src/framescaper/editor-project-v31-foundation.js',
+	'src/framescaper/editor-project-v31-validation.js',
+	'src/framescaper/editor-project-v31.js',
+]);

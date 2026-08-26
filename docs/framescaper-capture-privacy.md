@@ -1,34 +1,33 @@
 # Framescaper capture privacy
 
-> **Dormant historical boundary (2026-08-23):** selected Framescaper V27 sets
-> `framescaperCapture:false`, passes no capture route to its controller, and has
-> no Recording Setup menu, preference, panel, or ordinary toolbar entry. The
-> contracts below describe retained schema-18/19/20 implementation and recovery
-> safety, not an available M1–M4 product feature. Only an already-active or
-> recovery-owned historical session may retain the narrow control needed to
-> stop, release, recover, or discard its media. Activation belongs to milestone
-> 8.
+> **Active selected boundary (2026-08-25):** selected Framescaper F31 sets
+> `framescaperCapture:true` and activates capture on standalone web and desktop
+> through its exact controller, app binding, and runtime probe. Recording Setup
+> remains default-hidden and requires explicit opt-in through **View > Panels**.
+> Manual real-device and owner-lab qualification remains open and provisional;
+> `framescaperWebVcr:false` keeps the post-milestone extension disabled.
 
-The retained capture implementation is local-first. It can capture a camera,
-microphone, display, or a supported combination of those sources when composed
-by one of its historical routes.
+The selected F31 capture implementation is local-first. It can capture a
+camera, microphone, display, or a supported combination of those sources.
+Schema-18 desktop, schema-19 web, and schema-20 web/desktop are retained as
+historical compatibility routes.
 Display capture may also return system or tab audio when the browser and
 operating system offer it. Framescaper treats that audio as a separate stream;
 it does not imply that system audio is available.
 
 ## Consent and visible state
 
-- On a historical capture route, opening a project, opening a menu, showing
-  Recording setup, or pressing an inactive Record control does not open a
-  device. Selected V27 exposes none of those capture entry points.
+- On selected F31, opening a project or menu, opting into and showing the
+  default-hidden Recording Setup panel, or pressing an inactive Record control
+  does not open a device.
 - A preview request consumes one fresh, direct user-action generation. Display
   selection is requested anew for each preview session.
 - A desktop source list contains only bounded, pathless, short-lived tokens,
   display names, and source kinds. Framescaper never silently chooses its first
   entry. macOS uses the system picker when the qualified runtime supports it.
-- A retained historical active or recovery-owned session keeps a visible status
-  and the exact Stop, release, recovery, or discard action needed to relinquish
-  media, even though ordinary capture discovery remains unavailable.
+- An active or recovery-owned session keeps visible status and the exact Stop,
+  release, recovery, or discard action needed to relinquish media, even if the
+  Recording Setup panel closes.
 - Embedded Framescaper routes deny camera, microphone, and display capture.
   Standalone Framescaper routes receive their own non-overlapping document
   policy. Framescaper recording is unavailable in Soundscaper; Soundscaper
@@ -80,11 +79,12 @@ disposable derivatives without awaiting them. Audio receives ordinary waveform
 activation and never a proxy job. Every valid owned captured video receives one
 proxy job after its poster and filmstrip attempt. The proxy request binds the
 capture session, origin project, source, committed revision, and source digest;
-historical exact V19 web, V18 desktop, and V20 web/desktop routes may attach it
-while the origin is inactive without switching the user's active project. A proxy or reconciliation failure
+selected F31 and historical exact V19 web, V18 desktop, and V20 web/desktop
+compatibility routes may attach it while the origin is inactive without
+switching the user's active project. A proxy or reconciliation failure
 is reported as a warning and does not roll back canonical recorded media. This
-capture-derived route is not selected V27's separately implemented general
-editorial proxy lifecycle and grants V27 no capture authority.
+capture-derived post-commit route remains separate from selected F31's general
+editorial proxy lifecycle.
 
 Incomplete acknowledged data remains local as an explicit recovery session.
 Startup scans stored project IDs current-first, admits at most one global
@@ -113,13 +113,13 @@ Renderer revocation, controller disposal, application shutdown, and explicit
 desktop teardown invalidate the current generation and join resource cleanup.
 Short-lived desktop grants are single-use and expire if they are not consumed.
 
-Record was available only on the historical exact schema-19 web, schema-18
-desktop, or schema-20 web/desktop route when the source, supported video
-encoder, audio packet path, cross-context Web Locks, complete
+Record is available on selected F31 standalone web and desktop only when the
+source, supported video encoder, audio packet path, cross-context Web Locks, complete
 encoded/raw/manifest repository set, video probe, and canonical publication
-store were all present. A partial stack remained unavailable; the presence of
-Web Locks alone was not a durability or device qualification claim. Selected
-V27 is rejected before capture binding or runtime probing.
+store are all present. A partial stack remains unavailable; the presence of Web
+Locks alone is not a durability or device qualification claim.
+Historical exact schema-19 web, schema-18 desktop, and schema-20 web/desktop
+remain compatibility routes, and embedded Framescaper remains denied.
 
 ## Dormant Web VCR privacy boundary
 
@@ -165,16 +165,24 @@ session-to-spool ordering, durable tail repair and terminal retirement, atomic
 publication, inactive and closed origin handling, ordinary asset exits,
 post-commit one-per-video/zero-audio proxy scheduling, V19/V18 inactive-origin
 attachment, active reconciliation and proxy cleanup/fencing, route policies,
-and desktop grant isolation.
-Configured Chromium exercises the browser workflow with synthetic media. A
-packaged, no-device desktop smoke exercises only the
+and desktop grant isolation. The selected F31 route, schema, storage profile,
+and controller-owned capture binding are covered without replacing the
+historical V19/V18 evidence.
+Configured Chromium, Firefox, and WebKit exercise the eight-case browser
+workflow with synthetic media: no implicit device enumeration, embedded and
+incomplete-runtime denial, all six source combinations, pause/resume and reopen,
+mixed four-stream proxy completion, inactive-origin publication, later-denial
+cleanup, and source-ended recovery. This comprises 24 configured-engine cases.
+A packaged, no-device desktop smoke exercises only the
 pathless control-plane authority, status, grant, and teardown boundary; it does
 not exercise an actual camera, microphone, operating-system picker, loopback
 device, encoder, or long capture.
 
-The implementation is complete and its qualification remains provisional. The
-registered 30-minute, six-combination fixture and workload remain provisional
-because `capture-os-browser-lab-matrix` is unprovisioned and is not
-qualification eligible. No browser, operating-system, or packaged-device
-performance qualification is claimed until that controlled matrix is
-provisioned and passes its registered budgets.
+The selected F31 implementation is active on standalone web and desktop, while
+its manual qualification remains provisional. The registered 30-minute,
+six-combination fixture and workload remain provisional because
+`capture-os-browser-lab-matrix` is unprovisioned and is not qualification
+eligible. Synthetic configured-engine evidence and packaged no-device smoke
+do not close this gate. No browser, operating-system, owner-lab, or
+packaged-device performance qualification is claimed until that controlled
+matrix is provisioned and passes its registered budgets.

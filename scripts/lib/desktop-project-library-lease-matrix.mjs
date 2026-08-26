@@ -10,9 +10,9 @@ import {
 	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
 	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_PREFIX,
 } from '../../desktop/project-library-lease-smoke.js';
-import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v28.ts';
-import { createFramescaperProjectV28 } from '../../src/framescaper/editor-project-v28.ts';
-import { createSoundscaperProjectV29 } from '../../src/soundscaper/editor-project-v29.ts';
+import { FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v31.ts';
+import { createFramescaperProjectV31 } from '../../src/framescaper/editor-project-v31.ts';
+import { createSoundscaperProjectV30 } from '../../src/soundscaper/editor-project-v30.ts';
 import { packagedExecutableCandidates, resolveSmokeArchitecture } from './desktop-smoke.mjs';
 
 export const DESKTOP_PROJECT_LIBRARY_LEASE_MATRIX_PREFIX = 'SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_LEASE_MATRIX ';
@@ -46,7 +46,7 @@ const CHILD_TIMEOUT_MS = 90_000;
 const MAXIMUM_OUTPUT_BYTES = 1024 * 1024;
 const MAXIMUM_EVIDENCE_CHARACTERS = 2_000;
 /** Both catalogs raise a lease another live instance holds under this exact wording. */
-const WRITER_LEASE_BUSY = /desktop (?:V11|V19) writer lease is busy/u;
+const WRITER_LEASE_BUSY = /desktop (?:V11|V20) writer lease is busy/u;
 
 export function createDesktopProjectLibraryLeaseMatrixPlan({ action, control, productId, projectId, request }) {
 	return deepFreeze({
@@ -507,12 +507,12 @@ export function createDesktopProjectLibraryLeaseMatrixDocument(
 	productId = 'soundscaper',
 ) {
 	if (productId === 'framescaper') {
-		return JSON.stringify(createFramescaperProjectV28(FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, {
+		return JSON.stringify(createFramescaperProjectV31(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, {
 			id, title, revision, now: '2026-08-24T12:00:00.000Z',
 		}));
 	}
 	if (productId !== 'soundscaper') throw new TypeError('Lease matrix document product is unsupported');
-	const base = createSoundscaperProjectV29({ id, title });
+	const base = createSoundscaperProjectV30({ id, title });
 	return JSON.stringify({ ...base, revision, metadata: { ...base.metadata, title } });
 }
 function deepFreeze(value) {

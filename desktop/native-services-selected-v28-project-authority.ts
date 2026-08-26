@@ -57,7 +57,7 @@ import { FRAMESCAPER_SELECTED_V28_WATCH_BIN_ID } from '../src/common/editor/nati
 import { framescaperNativeV14BackendPlanForRecord } from './native-services-v14-backend-authority.ts';
 
 const SHA256 = /^[a-f0-9]{64}$/u;
-const MAXIMUM_BODIES = 4_096;
+const MAXIMUM_BODIES = 5_118;
 const V14_QUEUE_CPU_CORES = 2;
 const V14_QUEUE_RSS_BYTES = 4 * 1_024 ** 3;
 const V14_QUEUE_MINIMUM_FREE_BYTES = 10 * 1_024 ** 3;
@@ -91,6 +91,7 @@ interface LoadedBodies {
 }
 
 export interface FramescaperNativeSelectedV28ProjectAuthorityOptions {
+	readonly projectSchemaVersion?: 28 | 31;
 	readonly project: Omit<FramescaperNativeProjectAuthorityPort, 'projectRecord'> & Readonly<{
 		projectRecord(projectId: string): unknown;
 		materializeBody(body: unknown, destination: string, signal?: AbortSignal): Promise<unknown>;
@@ -128,6 +129,8 @@ export class FramescaperNativeSelectedV28ProjectAuthority {
 
 	constructor(options: FramescaperNativeSelectedV28ProjectAuthorityOptions) {
 		if (!options || typeof options !== 'object' || Array.isArray(options)
+			|| (options.projectSchemaVersion !== undefined
+				&& options.projectSchemaVersion !== 28 && options.projectSchemaVersion !== 31)
 			|| !['win32', 'darwin', 'linux'].includes(options.platform)
 			|| typeof options.project?.materializeBody !== 'function'
 			|| typeof options.runtime?.available !== 'function'
@@ -146,13 +149,14 @@ export class FramescaperNativeSelectedV28ProjectAuthority {
 
 	projectState(projectId: string) {
 		return Object.freeze({
-			...this.#options.watch.projectState(projectId), schemaVersion: 28 as const,
+			...this.#options.watch.projectState(projectId), schemaVersion: this.#options.projectSchemaVersion ?? 28,
 			binId: FRAMESCAPER_SELECTED_V28_WATCH_BIN_ID,
 		});
 	}
 	watchProject(projectId: string) {
 		return framescaperSelectedV28WatchProject(
 			this.#options.project, this.#options.watch.projectState(projectId), projectId,
+			this.#options.projectSchemaVersion ?? 28,
 		);
 	}
 	watchImportAlreadyPresent(projectId: string, digest: string): Promise<boolean> {
@@ -162,7 +166,7 @@ export class FramescaperNativeSelectedV28ProjectAuthority {
 	}
 	watchImportState(projectId: string, binId: string | null, digest: string) {
 		return inspectFramescaperSelectedV28WatchImport(
-			this.#options.project, projectId, binId, digest,
+			this.#options.project, projectId, binId, digest, this.#options.projectSchemaVersion ?? 28,
 		);
 	}
 
@@ -472,7 +476,9 @@ function projectRecord(value: unknown): ProjectRecord | null {
 	}
 	return Object.freeze({
 		projectId: row.projectId, projectRevision: Number(row.projectRevision),
-		projectSha256: row.projectSha256, bodies: Object.freeze(row.bodies.map(selectedV28ProjectBody)),
+		projectSha256: row.projectSha256, bodies: Object.freeze(row.bodies
+			.filter((body) => (body as Record<string, unknown> | null)?.kind !== 'assistance-transcript')
+			.map(selectedV28ProjectBody)),
 	});
 }
 
@@ -487,7 +493,9 @@ function projectBundle(value: unknown): ProjectBundle {
 	}
 	return Object.freeze({
 		project: Object.freeze({ projectRevision: Number(project.projectRevision), sha256: project.sha256 }),
-		bodies: Object.freeze(row.bodies.map(selectedV28ProjectBody)),
+		bodies: Object.freeze(row.bodies
+			.filter((body) => (body as Record<string, unknown> | null)?.kind !== 'assistance-transcript')
+			.map(selectedV28ProjectBody)),
 	});
 }
 

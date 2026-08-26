@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -96,6 +96,43 @@ test('an already-installed artifact is not fetched again', { timeout: 20_000 }, 
 	assert.equal(result.transferredBytes, 0);
 });
 
+test('a corrupted published artifact is refused rather than trusted or repaired', { timeout: 20_000 }, async (t) => {
+	const store = await createStore(t);
+	await downloadLocalModelArtifact({
+		store, artifact: ARTIFACT, url: URL_UNDER_TEST, fetchImpl: stubFetch({ body: PAYLOAD }),
+	});
+	await writeFile(store.blobPath(ARTIFACT.sha256), PAYLOAD.replace('dog', 'cat'));
+	let fetches = 0;
+
+	await assert.rejects(
+		downloadLocalModelArtifact({
+			store,
+			artifact: ARTIFACT,
+			url: URL_UNDER_TEST,
+			fetchImpl: (() => { fetches += 1; return stubFetch({ body: PAYLOAD })('', {}); }) as typeof fetch,
+		}),
+		/published artifact failed its integrity check/iu,
+	);
+	assert.equal(fetches, 0, 'an explicit removal is required before replacement');
+});
+
+test('a non-file published entry is refused without fetching or replacement', { timeout: 20_000 }, async (t) => {
+	const store = await createStore(t);
+	await mkdir(store.blobPath(ARTIFACT.sha256));
+	let fetches = 0;
+
+	await assert.rejects(
+		downloadLocalModelArtifact({
+			store,
+			artifact: ARTIFACT,
+			url: URL_UNDER_TEST,
+			fetchImpl: (() => { fetches += 1; return stubFetch({ body: PAYLOAD })('', {}); }) as typeof fetch,
+		}),
+		/published artifact failed its integrity check/iu,
+	);
+	assert.equal(fetches, 0);
+});
+
 test('an interrupted download resumes from the bytes already on disk', { timeout: 20_000 }, async (t) => {
 	const store = await createStore(t);
 	const partialPath = await store.partialPath(ARTIFACT.sha256);
@@ -114,6 +151,23 @@ test('an interrupted download resumes from the bytes already on disk', { timeout
 	assert.equal(result.resumedFromBytes, 10);
 	assert.equal(result.transferredBytes, ARTIFACT.byteLength - 10);
 	assert.equal(String(await readFile(store.blobPath(ARTIFACT.sha256))), PAYLOAD);
+});
+
+test('a non-file partial is refused before fetching or writing', { timeout: 20_000 }, async (t) => {
+	const store = await createStore(t);
+	await mkdir(await store.partialPath(ARTIFACT.sha256));
+	let fetches = 0;
+
+	await assert.rejects(
+		downloadLocalModelArtifact({
+			store,
+			artifact: ARTIFACT,
+			url: URL_UNDER_TEST,
+			fetchImpl: (() => { fetches += 1; return stubFetch({ body: PAYLOAD })('', {}); }) as typeof fetch,
+		}),
+		/partial must be a regular non-symbolic file/iu,
+	);
+	assert.equal(fetches, 0);
 });
 
 test('a server that ignores the range restarts cleanly rather than splicing', { timeout: 20_000 }, async (t) => {

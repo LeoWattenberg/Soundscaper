@@ -1,0 +1,21 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import test from 'node:test';
+
+test('desktop composition gives local assistance the authenticated external FFmpeg preference service', async () => {
+	const [registration, main] = await Promise.all([
+		readFile(new URL('../desktop/assistance-registration.mjs', import.meta.url), 'utf8'),
+		readFile(new URL('../desktop/main.mjs', import.meta.url), 'utf8'),
+	]);
+
+	assert.match(registration,
+		/import \{ createExternalFfmpegAssistanceShotRuntimeAdapter \} from '\.\/project-library-runtime\/desktop\/assistance-external-ffmpeg-shot-runtime\.js';/u);
+	assert.match(registration,
+		/createExternalFfmpegAssistanceShotRuntimeAdapter\(\{\s*preferences: externalFfmpegPreferences,?\s*\}\)/u);
+	assert.match(registration,
+		/createAssistanceOperationService\(\{[\s\S]*?shotDetectionRuntime,[\s\S]*?onProgress,/u);
+	assert.match(main,
+		/registerAssistance\(\{[\s\S]*?externalFfmpegPreferences: externalFfmpegPreferences\.service[\s\S]*?\}\)/u);
+});

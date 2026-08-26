@@ -28,6 +28,7 @@ import {
  */
 
 const EDITOR_DIRECTORY = fileURLToPath(new URL('../src/common/editor/', import.meta.url));
+const ASSISTANCE_DIRECTORY = fileURLToPath(new URL('../src/common/editor/assistance/', import.meta.url));
 const MODULE_PATTERN = /\.(?:[cm]?[jt]s)$/u;
 
 test('every flat editor domain module has an owning chunk group', () => {
@@ -36,9 +37,19 @@ test('every flat editor domain module has an owning chunk group', () => {
 	assert.deepEqual(unowned, [], 'these modules would be placed by reachability alone');
 });
 
+test('every assistance domain module has an owning chunk group', () => {
+	const unowned = assistanceDomainModules()
+		.filter((path) => chunkGroupForModulePath(path) === null);
+	assert.deepEqual(unowned, [], 'these modules would be placed in a lazy assistance dialog');
+});
+
 test('the shell, controller, and storage groups keep the flat modules they name', () => {
 	assert.equal(
 		chunkGroupForModulePath('src/common/editor/video-delivery-frame-rate.ts'),
+		'editor-domain',
+	);
+	assert.equal(
+		chunkGroupForModulePath('src/common/editor/assistance/transcript.ts'),
 		'editor-domain',
 	);
 	assert.equal(chunkGroupForModulePath('src/common/editor/index.js'), 'editor-controller-core');
@@ -69,5 +80,12 @@ function flatEditorModules(): readonly string[] {
 	return readdirSync(EDITOR_DIRECTORY, { withFileTypes: true })
 		.filter((entry) => entry.isFile() && MODULE_PATTERN.test(entry.name))
 		.map((entry) => `src/common/editor/${entry.name}`)
+		.sort();
+}
+
+function assistanceDomainModules(): readonly string[] {
+	return readdirSync(ASSISTANCE_DIRECTORY, { withFileTypes: true })
+		.filter((entry) => entry.isFile() && MODULE_PATTERN.test(entry.name))
+		.map((entry) => `src/common/editor/assistance/${entry.name}`)
 		.sort();
 }

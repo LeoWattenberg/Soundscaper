@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { deriveFolderBusOwnershipV13 } from '../folder-bus-v13.ts';
+import { insertTrackNodeV12 } from '../track-hierarchy-mutation-v12.ts';
 import {
 	folderAwareInsertTrackNode,
 	folderAwareRemoveTrackNodes,
@@ -35,9 +36,7 @@ function addTrack(project, value, requestedIndex, placement = {}) {
 		const labelTrack = normalizeTrackForProject(project, value);
 		assertUnusedId(project.tracks, labelTrack.id, 'track');
 		const labelIndex = requestedIndex == null ? project.tracks.length : insertionIndex(requestedIndex, project.tracks.length);
-		if (hasNonemptyFolderHierarchy(project)) {
-			folderAwareInsertTrackNode(project, labelTrack.id, requestedIndex, placement);
-		}
+		insertTrackStructure(project, labelTrack.id, requestedIndex, placement);
 		project.tracks.splice(labelIndex, 0, labelTrack);
 		return;
 	}
@@ -46,9 +45,7 @@ function addTrack(project, value, requestedIndex, placement = {}) {
 		assertUnusedId(project.tracks, track.id, 'track');
 		if (track.clipIds.length) throw new RangeError('Add clips after adding a track.');
 		const index = requestedIndex == null ? project.tracks.length : insertionIndex(requestedIndex, project.tracks.length);
-		if (hasNonemptyFolderHierarchy(project)) {
-			folderAwareInsertTrackNode(project, track.id, requestedIndex, placement);
-		}
+		insertTrackStructure(project, track.id, requestedIndex, placement);
 		project.tracks.splice(index, 0, track);
 		return;
 	}
@@ -62,10 +59,22 @@ function addTrack(project, value, requestedIndex, placement = {}) {
 		effectIds.add(effect.id);
 	}
 	const index = requestedIndex == null ? project.tracks.length : insertionIndex(requestedIndex, project.tracks.length);
-	if (hasNonemptyFolderHierarchy(project)) {
-		folderAwareInsertTrackNode(project, track.id, requestedIndex, placement);
-	}
+	insertTrackStructure(project, track.id, requestedIndex, placement);
 	project.tracks.splice(index, 0, track);
+}
+
+function insertTrackStructure(project, trackId, requestedIndex, placement) {
+	if (hasNonemptyFolderHierarchy(project)) {
+		folderAwareInsertTrackNode(project, trackId, requestedIndex, placement);
+		return;
+	}
+	if (placement.sequenceId === undefined) return;
+	insertTrackNodeV12(project.sequences, {
+		sequenceId: placement.sequenceId,
+		node: { kind: 'track', id: trackId, parentFolderId: null },
+		parentFolderId: placement.parentFolderId ?? null,
+		index: placement.parentIndex ?? Number.MAX_SAFE_INTEGER,
+	});
 }
 
 function removeTrack(project, trackId) {

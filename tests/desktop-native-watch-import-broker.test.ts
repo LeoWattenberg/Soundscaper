@@ -112,6 +112,23 @@ test('selected V28 claims bind target bin and proxy choice through digest-bound 
 	assert.deepEqual(fixture.releases, [], 'the linked locator is retained by the exact imported source');
 });
 
+test('selected F31 claims preserve their exact schema through digest-bound completion', async () => {
+	const fixture = createFixtureV28(31);
+	const pending = fixture.broker.offer(offerV28());
+	await fixture.locatorCreated();
+	const claim = fixture.broker.claim(OWNER, { projectId: 'project-28', projectRevision: 4 });
+	assert.ok(claim && 'projectSchemaVersion' in claim);
+	assert.equal(claim.projectSchemaVersion, 31);
+	fixture.projectRevision = 6;
+	fixture.imported = { sourceId: 'source-31', projectRevision: 6, proxyAttached: true };
+	assert.equal(await fixture.broker.complete(OWNER, {
+		claimId: CLAIM_ID, projectId: 'project-28', projectSchemaVersion: 31,
+		binId: 'project-bin', sourceId: 'source-31', contentSha256: DIGEST,
+		expectedProjectRevision: 4, committedProjectRevision: 6, success: true,
+	}), true);
+	assert.equal(await pending, true);
+});
+
 test('selected V28 restart resumes a missing proxy without duplicating the imported digest', async () => {
 	const fixture = createFixtureV28();
 	fixture.imported = { sourceId: 'source-28', projectRevision: 4, proxyAttached: false };
@@ -229,7 +246,7 @@ function offer(importMode: 'link' | 'copy' = 'link') {
 	});
 }
 
-function createFixtureV28() {
+function createFixtureV28(schemaVersion: 28 | 31 = 28) {
 	let projectRevision = 4;
 	let created = 0;
 	let imported: { sourceId: string; projectRevision: number; proxyAttached: boolean } | null = null;
@@ -239,7 +256,7 @@ function createFixtureV28() {
 		currentOwner: () => OWNER,
 		isOwnerCurrent: (owner) => owner === OWNER,
 		inspectProject: (projectId) => projectId === 'project-28' ? Object.freeze({
-			schemaVersion: 28 as const, projectId, projectRevision, open: true, writable: true,
+			schemaVersion, projectId, projectRevision, open: true, writable: true,
 			binId: 'project-bin',
 		}) : null,
 		alreadyImported: async () => false,

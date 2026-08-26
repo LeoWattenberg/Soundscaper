@@ -11,8 +11,10 @@ import { fingerprintNativeMediaPlan } from '../src/common/editor/native-media-pl
 import { applyFramescaperProjectCommandV27 } from '../src/framescaper/editor-project-v27-commands.ts';
 import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v27.ts';
 import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
+import { FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v31.ts';
 import { reimportFramescaperProjectV27 } from '../src/framescaper/editor-project-v27.ts';
 import { reimportFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
+import { reimportFramescaperProjectV31 } from '../src/framescaper/editor-project-v31.ts';
 import { framescaperProjectV24FoundationV27 } from '../src/framescaper/editor-project-v27-validation.ts';
 import { prepareFramescaperSelectedAuthoringV27 } from '../src/framescaper/editor-selected-v27-authoring-workflows.ts';
 import { createFramescaperSelectedProjectBinThumbnailV27 } from '../src/framescaper/editor-selected-v27-visual-preview.ts';
@@ -74,6 +76,20 @@ test('selected V28 retains the inherited visual inspector through its exact V27 
 		maskId: null, maskWidth: 1, presetId: null,
 	});
 	assert.equal((command as Readonly<{ type?: unknown }>).type, 'video-visual-presentation/set');
+});
+
+test('selected F31 retains the inherited visual inspector through its exact V28 foundation', () => {
+	const project = reimportFramescaperProjectV31(
+		FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE,
+		reimportFramescaperProjectV28(
+			FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE,
+			reimportFramescaperProjectV27(PROFILE, visualProject()),
+		),
+	);
+	const model = createFramescaperV27VisualInspectorModel({
+		project, selectedClipId: 'generator-clip',
+	});
+	assert.equal(model.kind, 'title');
 });
 
 test('generator presets are executable only while a retained owning source binds their digest', () => {

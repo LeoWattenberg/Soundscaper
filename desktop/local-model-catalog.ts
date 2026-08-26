@@ -4,19 +4,23 @@
  * The catalog of models the product offers, and what state each one is in.
  *
  * The catalog is data rather than code, so offering a model is a reviewed data
- * change. It is bound to the licensing register: a catalog entry must name a
- * model that already carries an evidence record and must not name one the
- * product refused, which makes it impossible to offer a download for weights
- * that never passed licence review.
+ * change. V2 is authenticated before parsing and binds each offered entry to
+ * the canonical digest of one complete, permitted licensing-evidence row.
+ * Refused, unresolved, unsigned, and unmirrored models never enter the runtime
+ * catalog.
  *
- * An entry whose artifacts are not yet pinned is legal and is reported as
- * pending rather than hidden. That is the honest state today: the licensing
- * gate blocks every model on `versioned-download-notices-and-hashes` until an
- * artifact is mirrored, so the catalog says so instead of pretending the
- * download exists.
+ * Distribution provenance also distinguishes an identity mirror from a
+ * reproducible conversion. Identity mirrors must match every upstream byte;
+ * conversions instead pin their reviewed recipe, revision, and environment.
  */
 
-export const LOCAL_MODEL_CATALOG_SCHEMA_VERSION = 1;
+import {
+	localModelEvidenceSha256,
+	verifyLocalModelCatalogSignature,
+} from './local-model-catalog-signature.ts';
+import type { LocalModelCatalogSignatureOptions } from './local-model-catalog-signature.ts';
+
+export const LOCAL_MODEL_CATALOG_SCHEMA_VERSION = 2;
 
 export const LOCAL_MODEL_TASKS = Object.freeze([
 	'voice-activity-detection',
@@ -44,7 +48,6 @@ export type LocalModelPlatform = (typeof LOCAL_MODEL_PLATFORMS)[number];
 export type LocalModelAvailability =
 	| 'installed'
 	| 'installable'
-	| 'pending-artifacts'
 	| 'unsupported-platform'
 	| 'insufficient-memory';
 
@@ -66,16 +69,37 @@ export interface LocalModelUpstream {
 	readonly artifacts: readonly LocalModelCatalogArtifact[];
 }
 
+export interface LocalModelLicensingEvidencePin {
+	readonly id: string;
+	readonly sha256: string;
+}
+
+export interface LocalModelIdentityDistribution {
+	readonly kind: 'identity-mirrored';
+}
+
+export interface LocalModelDerivedDistribution {
+	readonly kind: 'reproducibly-derived';
+	/** Repository-relative, reviewed conversion recipe. */
+	readonly recipe: string;
+	/** Immutable recipe or conversion-toolchain revision. */
+	readonly revision: string;
+	/** Digest of the locked conversion environment or container. */
+	readonly environmentSha256: string;
+}
+
+export type LocalModelDistribution = LocalModelIdentityDistribution | LocalModelDerivedDistribution;
+
 export interface LocalModelCatalogEntry {
 	readonly modelId: string;
 	readonly version: string;
 	readonly task: LocalModelTask;
 	readonly platforms: readonly LocalModelPlatform[];
 	readonly minimumMemoryBytes: number;
-	/** Null until the upstream artifacts have been pinned and verified. */
-	readonly upstream: LocalModelUpstream | null;
-	/** Null until those artifacts are mirrored to the product's own host. */
-	readonly artifacts: readonly LocalModelCatalogArtifact[] | null;
+	readonly licensingEvidence: LocalModelLicensingEvidencePin;
+	readonly upstream: LocalModelUpstream;
+	readonly distribution: LocalModelDistribution;
+	readonly artifacts: readonly LocalModelCatalogArtifact[];
 }
 
 export const LOCAL_MODEL_JURISDICTIONS = Object.freeze(['eu', 'fedramp'] as const);
@@ -102,8 +126,8 @@ export interface LocalModelCatalog {
 }
 
 export interface LocalModelCatalogBinding {
-	/** Model ids carrying a licensing evidence record. */
-	readonly evidenceIds: readonly string[];
+	/** Complete register rows; catalog entries pin their canonical digest. */
+	readonly licensingEvidence: readonly unknown[];
 	/** Model ids the product refused to distribute. */
 	readonly refusedIds?: readonly string[];
 }
@@ -111,9 +135,14 @@ export interface LocalModelCatalogBinding {
 const IDENTIFIER_PATTERN = /^[a-z\d][a-z\d.-]*[a-z\d]$/u;
 const SHA256_PATTERN = /^[a-f\d]{64}$/u;
 const FILE_NAME_PATTERN = /^[A-Za-z\d](?:[A-Za-z\d._-]{0,158}[A-Za-z\d])?$/u;
+const RECIPE_PATH_PATTERN = /^[A-Za-z\d](?:[A-Za-z\d._/-]*[A-Za-z\d])?$/u;
 
 function fail(message: string): never {
 	throw new Error(message);
+}
+
+function plainRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function assertArtifact(value: unknown, modelId: string, index: number): LocalModelCatalogArtifact {
@@ -139,6 +168,73 @@ function assertArtifact(value: unknown, modelId: string, index: number): LocalMo
 	});
 }
 
+function assertLicensingEvidence(
+	value: unknown,
+	modelId: string,
+	binding: LocalModelCatalogBinding,
+): LocalModelLicensingEvidencePin {
+	if (!plainRecord(value)
+		|| value.id !== modelId
+		|| typeof value.sha256 !== 'string'
+		|| !SHA256_PATTERN.test(value.sha256)) {
+		fail(`${modelId}: licensingEvidence must pin its exact evidence row`);
+	}
+	const matching = binding.licensingEvidence.filter((record) => plainRecord(record) && record.id === modelId);
+	if (matching.length !== 1) {
+		fail(`${modelId}: needs exactly one licensing evidence record`);
+	}
+	if ((binding.refusedIds ?? []).includes(modelId)) {
+		fail(`${modelId}: refused models cannot be cataloged`);
+	}
+	const record = matching[0] as Record<string, unknown>;
+	if (record.distributionStatus !== 'permitted') {
+		fail(`${modelId}: licensing evidence distribution status must be permitted`);
+	}
+	if (!Array.isArray(record.blockedBy) || record.blockedBy.length !== 0) {
+		fail(`${modelId}: permitted licensing evidence cannot retain blockers`);
+	}
+	if (!plainRecord(record.requirements) || Object.keys(record.requirements).length === 0) {
+		fail(`${modelId}: licensing evidence needs recorded requirements`);
+	}
+	for (const [requirementId, requirement] of Object.entries(record.requirements)) {
+		if (!plainRecord(requirement) || requirement.status !== 'recorded') {
+			fail(`${modelId}: licensing requirement ${requirementId} must be recorded`);
+		}
+	}
+	if (localModelEvidenceSha256(record) !== value.sha256) {
+		fail(`${modelId}: licensing evidence digest does not match the reviewed row`);
+	}
+	return Object.freeze({ id: modelId, sha256: value.sha256 });
+}
+
+function assertDistribution(value: unknown, modelId: string): LocalModelDistribution {
+	if (!plainRecord(value)) fail(`${modelId}: distribution must describe the shipped artifacts`);
+	if (value.kind === 'identity-mirrored') {
+		if (Object.keys(value).length !== 1) {
+			fail(`${modelId}: identity-mirrored distribution cannot carry a derivation recipe`);
+		}
+		return Object.freeze({ kind: 'identity-mirrored' });
+	}
+	if (value.kind !== 'reproducibly-derived') {
+		fail(`${modelId}: distribution kind is unrecognised`);
+	}
+	if (typeof value.recipe !== 'string'
+		|| !RECIPE_PATH_PATTERN.test(value.recipe)
+		|| value.recipe.split('/').includes('..')
+		|| typeof value.revision !== 'string'
+		|| value.revision.trim() === ''
+		|| typeof value.environmentSha256 !== 'string'
+		|| !SHA256_PATTERN.test(value.environmentSha256)) {
+		fail(`${modelId}: reproducibly-derived distribution needs a pinned recipe, revision, and environment`);
+	}
+	return Object.freeze({
+		kind: 'reproducibly-derived',
+		recipe: value.recipe,
+		revision: value.revision,
+		environmentSha256: value.environmentSha256,
+	});
+}
+
 function assertEntry(
 	value: unknown,
 	binding: LocalModelCatalogBinding,
@@ -153,12 +249,7 @@ function assertEntry(
 	if (seen.has(modelId)) fail(`${modelId}: duplicate catalog entry`);
 	seen.add(modelId);
 
-	if (!binding.evidenceIds.includes(modelId)) {
-		fail(`${modelId}: catalog entries need a licensing evidence record`);
-	}
-	if ((binding.refusedIds ?? []).includes(modelId)) {
-		fail(`${modelId}: refused models cannot be cataloged`);
-	}
+	const licensingEvidence = assertLicensingEvidence(candidate.licensingEvidence, modelId, binding);
 	if (typeof candidate.version !== 'string' || candidate.version.trim() === '') {
 		fail(`${modelId}: version must be a non-empty string`);
 	}
@@ -174,28 +265,33 @@ function assertEntry(
 		fail(`${modelId}: minimumMemoryBytes must be a positive integer`);
 	}
 	const upstream = assertUpstream(candidate.upstream ?? null, modelId);
+	if (upstream === null) fail(`${modelId}: offered models need pinned upstream provenance`);
+	const distribution = assertDistribution(candidate.distribution, modelId);
 
 	const artifacts = candidate.artifacts ?? null;
-	if (artifacts !== null && (!Array.isArray(artifacts) || artifacts.length === 0)) {
-		fail(`${modelId}: artifacts must be null or a non-empty array`);
+	if (!Array.isArray(artifacts) || artifacts.length === 0) {
+		fail(`${modelId}: distribution artifacts must be a non-empty array`);
 	}
-	const mirrored = artifacts === null
-		? null
-		: Object.freeze(artifacts.map((artifact, index) => assertArtifact(artifact, modelId, index)));
+	const mirrored = Object.freeze(artifacts.map((artifact, index) => assertArtifact(artifact, modelId, index)));
+	const mirroredNames = new Set<string>();
+	for (const artifact of mirrored) {
+		if (mirroredNames.has(artifact.fileName)) fail(`${modelId}: distribution repeats ${artifact.fileName}`);
+		mirroredNames.add(artifact.fileName);
+	}
 
-	if (mirrored !== null) {
-		if (upstream === null) {
-			fail(`${modelId}: mirrored artifacts need the upstream they were taken from`);
-		}
+	if (distribution.kind === 'identity-mirrored') {
 		// A mirror copies bytes; it never re-encodes them, so the digests must
 		// agree file for file. A divergence means the mirror is not the artifact
 		// that passed review.
 		for (const artifact of mirrored) {
 			const origin = upstream.artifacts.find(({ fileName }) => fileName === artifact.fileName);
-			if (!origin) fail(`${modelId}: mirrored ${artifact.fileName} has no upstream artifact`);
+			if (!origin) fail(`${modelId}: identity-mirrored ${artifact.fileName} has no upstream artifact`);
 			if (origin.sha256 !== artifact.sha256 || origin.byteLength !== artifact.byteLength) {
-				fail(`${modelId}: mirrored ${artifact.fileName} does not match its upstream bytes`);
+				fail(`${modelId}: identity-mirrored ${artifact.fileName} does not match its upstream bytes`);
 			}
+		}
+		if (mirrored.length !== upstream.artifacts.length) {
+			fail(`${modelId}: identity-mirrored distribution must include every upstream artifact`);
 		}
 	}
 
@@ -205,7 +301,9 @@ function assertEntry(
 		task: candidate.task as LocalModelTask,
 		platforms: Object.freeze([...platforms] as LocalModelPlatform[]),
 		minimumMemoryBytes: candidate.minimumMemoryBytes as number,
+		licensingEvidence,
 		upstream,
+		distribution,
 		artifacts: mirrored,
 	});
 }
@@ -281,18 +379,21 @@ export function plannedMirrorLocation(
 export function validateLocalModelCatalog(
 	value: unknown,
 	binding: LocalModelCatalogBinding,
+	signatureOptions: LocalModelCatalogSignatureOptions = {},
 ): LocalModelCatalog {
-	if (typeof value !== 'object' || value === null) fail('A local model catalog must be an object');
-	const candidate = value as Partial<LocalModelCatalog>;
+	const candidate = verifyLocalModelCatalogSignature(value, signatureOptions) as Partial<LocalModelCatalog>;
 	if (candidate.schemaVersion !== LOCAL_MODEL_CATALOG_SCHEMA_VERSION) {
 		fail('The local model catalog schema version is unsupported');
 	}
 	if (!Array.isArray(candidate.entries)) fail('A local model catalog needs an array of entries');
-	if (!Array.isArray(binding?.evidenceIds)) fail('A local model catalog needs its licensing evidence ids');
+	if (!Array.isArray(binding?.licensingEvidence)) {
+		fail('A local model catalog needs its complete licensing evidence rows');
+	}
+	const publication = assertPublication(candidate.publication);
 	const seen = new Set<string>();
 	return Object.freeze({
 		schemaVersion: LOCAL_MODEL_CATALOG_SCHEMA_VERSION,
-		publication: assertPublication(candidate.publication),
+		publication,
 		entries: Object.freeze(candidate.entries.map((entry) => assertEntry(entry, binding, seen))),
 	});
 }
@@ -303,24 +404,18 @@ export interface LocalModelAvailabilityContext {
 	readonly installedModelIds: readonly string[];
 }
 
-/**
- * What the model manager should show for an entry. Installation is reported
- * before capability, because a model already on disk stays usable and
- * removable on a machine that could no longer install it.
- */
+/** What the model manager should show for an entry on this machine. */
 export function describeModelAvailability(
 	entry: LocalModelCatalogEntry,
 	context: LocalModelAvailabilityContext,
 ): LocalModelAvailability {
-	if (context.installedModelIds.includes(entry.modelId)) return 'installed';
 	if (!entry.platforms.includes(context.platform as LocalModelPlatform)) return 'unsupported-platform';
 	if (context.totalMemoryBytes < entry.minimumMemoryBytes) return 'insufficient-memory';
-	if (entry.artifacts === null) return 'pending-artifacts';
+	if (context.installedModelIds.includes(entry.modelId)) return 'installed';
 	return 'installable';
 }
 
-/** Total download size, or null when the artifacts are not yet pinned. */
-export function catalogEntryDownloadBytes(entry: LocalModelCatalogEntry): number | null {
-	if (entry.artifacts === null) return null;
+/** Total digest-pinned download size. */
+export function catalogEntryDownloadBytes(entry: LocalModelCatalogEntry): number {
 	return entry.artifacts.reduce((total, artifact) => total + artifact.byteLength, 0);
 }

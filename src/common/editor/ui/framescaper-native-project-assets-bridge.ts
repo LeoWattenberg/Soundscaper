@@ -31,9 +31,15 @@ export interface FramescaperNativeWatchImportClaimV28
 	readonly existingSourceId: string | null;
 }
 
+export interface FramescaperNativeWatchImportClaimV31
+	extends Omit<FramescaperNativeWatchImportClaimV28, 'projectSchemaVersion'> {
+	readonly projectSchemaVersion: 31;
+}
+
 export type FramescaperNativeWatchImportClaim =
 	| FramescaperNativeWatchImportClaimV20
-	| FramescaperNativeWatchImportClaimV28;
+	| FramescaperNativeWatchImportClaimV28
+	| FramescaperNativeWatchImportClaimV31;
 
 export interface FramescaperNativeWatchImportCompletionV20 {
 	readonly claimId: string;
@@ -51,9 +57,15 @@ export interface FramescaperNativeWatchImportCompletionV28
 	readonly contentSha256: string;
 }
 
+export interface FramescaperNativeWatchImportCompletionV31
+	extends Omit<FramescaperNativeWatchImportCompletionV28, 'projectSchemaVersion'> {
+	readonly projectSchemaVersion: 31;
+}
+
 export type FramescaperNativeWatchImportCompletion =
 	| FramescaperNativeWatchImportCompletionV20
-	| FramescaperNativeWatchImportCompletionV28;
+	| FramescaperNativeWatchImportCompletionV28
+	| FramescaperNativeWatchImportCompletionV31;
 
 export interface FramescaperNativeProjectAssetsBridge {
 	claimWatchImport?(request: Readonly<{

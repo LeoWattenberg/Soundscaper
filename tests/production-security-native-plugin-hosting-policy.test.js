@@ -22,11 +22,11 @@ test('the native plug-in hosting row describes the out-of-process host that ship
 	assert.ok(fence, 'the surface fence must say what is and is not reachable');
 	assert.match(
 		fence.summary,
-		/Soundscaper V29.*insert.*native-plugin.*persistent supervised host.*real-time and offline.*V21 PDC.*vendor window/iu,
+		/Soundscaper S30.*exact S29 foundation.*insert.*native-plugin.*persistent supervised host.*real-time and offline.*V21 PDC.*vendor window/iu,
 	);
 	assert.match(
 		fence.summary,
-		/Framescaper V28.*scan, enable and Add OFX.*context-aware V14 frame graph.*all six contexts.*Interact Suite V1.*DrawSuite V1/iu,
+		/Framescaper F31.*immutable V28 foundation.*scan, enable and Add OFX.*context-aware V14 frame graph.*all six contexts.*Interact Suite V1.*DrawSuite V1/iu,
 	);
 	assert.match(fence.summary, /VST3, CLAP, Audio Units, LV2 and OpenFX remain fail-closed.*fixture/iu);
 	assert.match(fence.summary, /launcher source.*no authenticated built target payload\/launcher.*signed readiness/iu);
@@ -139,7 +139,7 @@ test('the native plug-in hosting row keeps its gaps unsoftened', async () => {
 	assert.ok(unexercised, 'the unexercised hosting gates must remain a named residual risk');
 	assert.match(
 		unexercised.exposure,
-		/product callers.*Soundscaper V29.*real-time and offline hosting.*V21 PDC.*vendor-window lifecycle.*Framescaper V28.*all six contexts/iu,
+		/product callers.*Soundscaper S30.*exact S29 foundation.*real-time and offline hosting.*V21 PDC.*vendor-window lifecycle.*Framescaper F31.*immutable V28 foundation.*all six contexts/iu,
 	);
 	assert.match(unexercised.exposure, /external source audit is 0\/10.*OpenFX payload manifest is empty.*no authenticated built per-OS launcher.*no shipped process/iu);
 	for (const residual of risk.residualRisks) {
@@ -157,7 +157,7 @@ test('the native helper row stops describing hosting and device opening as absen
 	assert.doesNotMatch(residual.exposure, /opens no operating-system device/iu);
 	assert.match(
 		residual.exposure,
-		/Soundscaper V29\/V11.*native audio.*native-effect hosting.*Framescaper V28\/V14\/V19.*persistent services V3.*native media.*OpenFX frame graph/iu,
+		/Soundscaper S30\/V11.*native audio.*native-effect hosting.*exact S29 foundation.*Framescaper F31\/V14\/V20.*persistent services V3.*immutable V28 native foundation.*native media.*OpenFX frame graph/iu,
 	);
 	assert.match(residual.exposure, /0\/10.*all five Soundscaper professional rows.*both Framescaper payload manifests are empty.*zero accepted cohorts/iu);
 	assert.match(residual.acceptanceCriteria.join(' '), /m5-helper-fault-and-loopback-v1/u);
@@ -173,7 +173,7 @@ test('the threat-model narrative separates implemented hosting from external act
 	);
 	assert.match(
 		threatModel,
-		/Soundscaper V29.*real-time and offline.*V21 PDC.*vendor.*Framescaper V28.*all six contexts.*Interact Suite V1.*DrawSuite V1/iu,
+		/Soundscaper S30\/V11.*exact S29-founded.*real-time and offline.*V21 PDC.*vendor.*Framescaper F31\/V14\/V20.*immutable V28 foundation.*all six contexts.*Interact Suite V1.*DrawSuite V1/iu,
 	);
 	assert.match(threatModel, /0\/10.*payload.*pending-external.*zero accepted cohorts/iu);
 	assert.match(threatModel, /launcher source.*Landlock.*Seatbelt.*AppContainer.*no authenticated built/iu);
