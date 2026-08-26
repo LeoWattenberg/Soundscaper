@@ -25,6 +25,7 @@ It is not an implementation log or an evidence register. Do not append exact fix
 - milestone-7 sequencing, runtime and model-catalog decisions, and work packets: [milestone-7 plan](docs/milestone-7-plan.md);
 - milestone-9 sequencing, qualification-campaign decisions, and work packets: [milestone-9 plan](docs/milestone-9-plan.md);
 - performance fixtures and numeric qualification: [quality budgets](docs/quality-budgets.md) and [machine-readable budgets](config/quality-budgets.json);
+- what a person must still run, watch, listen to, or decide: the guided verification records for [milestones 1–4](docs/milestones-1-to-4-guided-verification.md) and [milestones 5–9](docs/milestones-5-to-9-guided-verification.md);
 - release severity and waiver rules: [release policy](docs/release-policy.md);
 - licensing and provenance: [production licensing policy](docs/production-licensing-policy.md) and its machine-readable matrix;
 - platform and product claims: [capability inventory](config/production-capabilities.json); and

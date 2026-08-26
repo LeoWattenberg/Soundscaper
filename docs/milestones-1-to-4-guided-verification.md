@@ -2,7 +2,9 @@
 
 This is the checked-in local sign-off record for the Milestones 1–4 activation.
 It verifies product workflows after the automated gates pass; it is not evidence
-for Windows, Safari, fixed-GPU, signing, or owner-host qualification.
+for Windows, Safari, fixed-GPU, signing, or owner-host qualification. Later
+milestones have their own record in
+[milestones 5–9 guided local verification](milestones-5-to-9-guided-verification.md).
 
 Do not replace an observed failure with `not-applicable`. Fix the defect, link
 the issue, rebuild, and repeat the affected check. A local sign-off is complete
