@@ -165,9 +165,15 @@ session-to-spool ordering, durable tail repair and terminal retirement, atomic
 publication, inactive and closed origin handling, ordinary asset exits,
 post-commit one-per-video/zero-audio proxy scheduling, V19/V18 inactive-origin
 attachment, active reconciliation and proxy cleanup/fencing, route policies,
-and desktop grant isolation.
-Configured Chromium exercises the browser workflow with synthetic media. A
-packaged, no-device desktop smoke exercises only the
+and desktop grant isolation. The selected F31 route, schema, storage profile,
+and controller-owned capture binding are covered without replacing the
+historical V19/V18 evidence.
+Configured Chromium, Firefox, and WebKit exercise the eight-case browser
+workflow with synthetic media: no implicit device enumeration, embedded and
+incomplete-runtime denial, all six source combinations, pause/resume and reopen,
+mixed four-stream proxy completion, inactive-origin publication, later-denial
+cleanup, and source-ended recovery. This comprises 24 configured-engine cases.
+A packaged, no-device desktop smoke exercises only the
 pathless control-plane authority, status, grant, and teardown boundary; it does
 not exercise an actual camera, microphone, operating-system picker, loopback
 device, encoder, or long capture.
@@ -176,7 +182,7 @@ The selected F31 implementation is active on standalone web and desktop, while
 its manual qualification remains provisional. The registered 30-minute,
 six-combination fixture and workload remain provisional because
 `capture-os-browser-lab-matrix` is unprovisioned and is not qualification
-eligible. Synthetic configured-Chromium evidence and packaged no-device smoke
+eligible. Synthetic configured-engine evidence and packaged no-device smoke
 do not close this gate. No browser, operating-system, owner-lab, or
 packaged-device performance qualification is claimed until that controlled
 matrix is provisioned and passes its registered budgets.
