@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
 import { ASSISTANCE_OPERATIONS, type AssistanceOperation } from '../../assistance/operation.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import LocalAssistanceCleanupReview from './LocalAssistanceCleanupReview.tsx';
 import LocalAssistanceOutputReviewList from './LocalAssistanceOutputReview.tsx';
 import type { LocalAssistanceBridge } from '../local-assistance-bridge.ts';
 import { localAssistanceModelTaskSlots,
@@ -37,6 +38,9 @@ export interface LocalAssistanceDialogViewProps {
 	readonly onCancel: () => unknown;
 	readonly onReview: () => unknown;
 	readonly onAccept: () => unknown;
+	readonly onCleanupSelectionChange?: (proposalId: string, selected: boolean) => unknown;
+	readonly onCleanupAccept?: () => unknown;
+	readonly onCleanupReject?: () => unknown;
 }
 
 export default function LocalAssistanceDialog({
@@ -64,14 +68,24 @@ export default function LocalAssistanceDialog({
 		onConsentChange={store.setConsent}
 		onRun={() => store.run()}
 		onCancel={() => store.cancel()}
-		onReview={() => setReviewOpen(true)}
+		onReview={() => {
+			setReviewOpen(true);
+			if (store.getSnapshot().canPrepareTranscriptCleanup) {
+				return store.prepareTranscriptCleanup();
+			}
+		}}
 		onAccept={() => store.accept()}
+		onCleanupSelectionChange={store.setTranscriptCleanupProposalSelected}
+		onCleanupAccept={() => store.acceptTranscriptCleanup()}
+		onCleanupReject={() => store.rejectTranscriptCleanup()}
 	/>;
 }
 
 export function LocalAssistanceDialogView({
 	copy, snapshot, reviewOpen = false, onClose, onSelectSource, onSelectOperation,
 	onSelectModel, onConsentChange, onRun, onCancel, onReview, onAccept,
+	onCleanupSelectionChange = () => undefined,
+	onCleanupAccept = () => undefined, onCleanupReject = () => undefined,
 }: LocalAssistanceDialogViewProps) {
 	const source = snapshot.sources.find(({ sourceId }) => sourceId === snapshot.selectedSourceId) ?? null;
 	const operationSet = new Set(source?.operations ?? []);
@@ -158,6 +172,13 @@ export function LocalAssistanceDialogView({
 			'{count} validated outputs'), { count: String(snapshot.result.outputs.length) })}</p>}
 		{reviewOpen && snapshot.result && <LocalAssistanceOutputReviewList
 			copy={copy} outputs={snapshot.result.outputs} />}
+		{reviewOpen && snapshot.cleanup && <LocalAssistanceCleanupReview
+			copy={copy}
+			cleanup={snapshot.cleanup}
+			onSelectionChange={onCleanupSelectionChange}
+			onAccept={onCleanupAccept}
+			onReject={onCleanupReject}
+		/>}
 		<p className="kw-local-assistance__deferred">{text(copy, 'localAssistanceAcceptanceDeferred',
 			'Project acceptance is enabled in a separate review step.')}</p>
 	</AudioEditorDialogShell>;

@@ -18,6 +18,9 @@ import type {
 	LocalAssistanceOutputRole,
 } from './local-assistance-bridge.ts';
 import type { LocalAssistanceOutputReview } from './local-assistance-result-review.ts';
+import type {
+	LocalAssistanceTranscriptCleanupPreparationRequest,
+} from './local-assistance-cleanup.ts';
 
 export type LocalAssistanceMediaKind =
 	| 'audio' | 'video' | 'frame-pack' | 'transcript' | 'text' | 'editorial-context';
@@ -61,6 +64,12 @@ export interface LocalAssistanceSelectedMediaPreparationPort {
 		signal?: AbortSignal;
 	}>): Promise<unknown>;
 	acceptValidatedResult?(request: LocalAssistanceValidatedResultAcceptanceRequest): Promise<void>;
+	prepareTranscriptCleanup?(
+		request: LocalAssistanceTranscriptCleanupPreparationRequest,
+	): Promise<unknown>;
+	acceptTranscriptCleanup?(proposalIds: readonly string[]): Promise<void>;
+	rejectTranscriptCleanup?(): Promise<void>;
+	cancelTranscriptCleanup?(): Promise<void>;
 }
 
 export interface LocalAssistanceValidatedResultAcceptanceRequest {
