@@ -29,7 +29,7 @@ export const ASSISTANCE_RUNTIME_FAMILY_TASKS = Object.freeze({
 		'object-detection', 'saliency-detection',
 	] as const),
 	'whisper-cpp': Object.freeze(['speech-recognition'] as const),
-	'llama-cpp': Object.freeze(['editorial-generation'] as const),
+	'llama-cpp': Object.freeze(['text-embedding', 'editorial-generation'] as const),
 });
 
 type OnnxTask = (typeof ASSISTANCE_RUNTIME_FAMILY_TASKS)['onnxruntime-node'][number];
