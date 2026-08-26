@@ -31,7 +31,7 @@ test('desktop composition gives local assistance the authenticated external FFmp
 	assert.match(registration,
 		/createAssistanceWorkflowOwnedAudioCutStageRuntime\(\{[\s\S]*?custody: workflowCustody,[\s\S]*?resolveTokenizer: resolveNomicTokenizer,[\s\S]*?\}\)/u);
 	assert.match(registration,
-		/createAssistanceWorkflowOwnedVideoHighlightStageRuntime\(\{\s*custody: workflowCustody,?\s*\}\)/u);
+		/createAssistanceWorkflowOwnedVideoHighlightStageRuntime\(\{[\s\S]*?custody: workflowCustody,[\s\S]*?\}\)/u);
 	assert.match(registration,
 		/deterministicHandlers = Object\.freeze\(\{[\s\S]*?\.\.\.audioCutHandlers,[\s\S]*?\.\.\.videoHighlightHandlers,[\s\S]*?\}\)/u);
 	assert.match(registration,
