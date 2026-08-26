@@ -78,6 +78,28 @@ test('Qwen editorial plans close generation over known candidates and inert JSON
 	assert.deepEqual(reviewAssistanceEditorialGenerationPlanV1(plan), plan);
 });
 
+test('Qwen editorial plans generate only the explicitly requested inert fields', () => {
+	const plan = createAssistanceEditorialGenerationPlanV1(EVIDENCE, ['title', 'chapters']);
+
+	assert.deepEqual(plan.fields, ['title', 'chapters']);
+	assert.match(plan.prompt, /Generate only the requested inert fields: title, chapters\./u);
+	assert.match(plan.runtime.grammar, /hook[^\n]*null/u);
+	assert.match(plan.runtime.grammar, /explanation[^\n]*null/u);
+	assert.deepEqual(reviewAssistanceEditorialGenerationPlanV1(plan), plan);
+	const output = JSON.stringify({ schemaVersion: 1, candidates: EVIDENCE.map(({ candidateId }) => ({
+		candidateId, title: 'A title', hook: null, chapters: ['Opening'], explanation: null,
+	})) });
+	assert.equal(reviewAssistanceEditorialGenerationOutputV1(plan, output).candidates.length, 2);
+	assert.throws(() => reviewAssistanceEditorialGenerationOutputV1(plan, JSON.stringify({
+		schemaVersion: 1, candidates: EVIDENCE.map(({ candidateId }) => ({
+			candidateId, title: 'A title', hook: 'Not requested', chapters: [], explanation: null,
+		})),
+	})), /requested|hook|field/iu);
+	assert.throws(() => reviewAssistanceEditorialGenerationPlanV1({
+		...plan, fields: ['hook'],
+	}), /prompt|grammar|field/iu);
+});
+
 test('ranked highlight candidates become a closed editorial plan without granting timing authority', () => {
 	const plan = createAssistanceEditorialGenerationPlanFromHighlightCandidatesV1(
 		HIGHLIGHT_CANDIDATES,

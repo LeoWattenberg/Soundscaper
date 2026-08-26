@@ -244,7 +244,11 @@ async function prepareExternalInput(
 	if (slotId === 'transcript' || slotId === 'editorial-context') {
 		const options = Object.freeze({ project, inventory,
 			fence: primitiveFence(dependencies.currentSelectionFence()),
-			loadTranscriptBody: dependencies.loadTranscriptBody, signal });
+			loadTranscriptBody: dependencies.loadTranscriptBody,
+			...(slotId === 'editorial-context' && settings.workflowId === 'generate-editorial-text'
+				? { editorialFields: settings.fields }
+				: {}),
+			signal });
 		return slotId === 'transcript'
 			? prepareLocalAssistanceGuidedTranscriptInput(options)
 			: prepareLocalAssistanceGuidedEditorialContext(options);

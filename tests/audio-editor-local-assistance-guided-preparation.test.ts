@@ -128,7 +128,7 @@ test('standalone editorial generation derives one bounded selection context from
 	const { transcriptBytes, storageKey, transcriptProject } = transcriptAssetFixture();
 	const fixture = preparationFixture(transcriptProject, false, { storageKey, bytes: transcriptBytes });
 	const settings = { ...defaultAssistanceWorkflowSettingsV1('generate-editorial-text'),
-		enabled: true } as const;
+		enabled: true, fields: ['title', 'explanation'] } as const;
 	const result = await fixture.preparation.prepareGuidedWorkflow({
 		jobId: JOB_ID, workflowId: 'generate-editorial-text', settings,
 		models: [model('qwen3-4b-q4-k-m', '1.0.0', 'editorial-generation', 8)],
@@ -150,6 +150,8 @@ test('standalone editorial generation derives one bounded selection context from
 	assert.equal(context.operation, 'editorial-generation');
 	assert.deepEqual(context.authorizedCandidateIds,
 		[`selection:${SOURCE_SHA256.slice(0, 24)}`]);
+	assert.deepEqual(context.fields, ['title', 'explanation']);
+	assert.match(String(context.prompt), /requested inert fields: title, explanation/u);
 	assert.match(String(context.prompt), /Selected words for editorial generation/u);
 	assert.deepEqual(fixture.operations, [], 'editorial context never renders or uploads media');
 });

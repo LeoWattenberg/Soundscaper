@@ -11,6 +11,7 @@ import {
 } from '../assistance/assistance-asset-reference-v1.ts';
 import {
 	createAssistanceEditorialGenerationPlanV1,
+	type AssistanceEditorialFieldV1,
 } from '../assistance/editorial-generation-v1.ts';
 import { reviewOwnedAssistanceTranscriptV1 } from
 	'../assistance/owned-transform-validation-v1.ts';
@@ -53,6 +54,7 @@ export interface LocalAssistanceGuidedTranscriptContextOptions {
 		storageKey: string,
 		signal: AbortSignal,
 	) => PromiseLike<unknown> | unknown;
+	readonly editorialFields?: readonly AssistanceEditorialFieldV1[];
 	readonly signal: AbortSignal;
 }
 
@@ -87,7 +89,7 @@ export async function prepareLocalAssistanceGuidedEditorialContext(
 	const candidateId = `selection:${options.fence.sourceSha256.slice(0, 24)}`;
 	const plan = createAssistanceEditorialGenerationPlanV1([Object.freeze({
 		candidateId, evidenceMode: 'transcript', transcriptExcerpt: excerpt, visualSummary: null,
-	})]);
+	})], options.editorialFields);
 	const bytes = new TextEncoder().encode(JSON.stringify(plan));
 	return Object.freeze({ mediaType: EDITORIAL_CONTEXT_MEDIA_TYPE,
 		bytes: new Blob([bytes], { type: EDITORIAL_CONTEXT_MEDIA_TYPE }), fence: options.fence });
