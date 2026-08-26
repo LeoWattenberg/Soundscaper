@@ -409,7 +409,7 @@ async function registerIpcHandlers(desktopSession) {
 		return locale;
 	});
 	handle(IPC.checkForUpdates, () => checkForUpdates(true));
-	assistance = registerAssistance({ channels: IPC, handle, on, sendToRenderer, app, settings, dialog, windowFor: () => mainWindow });
+	assistance = registerAssistance({ channels: IPC, handle, on, sendToRenderer, app, settings, dialog, windowFor: () => mainWindow, externalFfmpegPreferences: externalFfmpegPreferences.service });
 	registerHostAffordances({ channels: IPC, handle, windowFor: () => mainWindow });
 	handle(IPC.windowAction, (_event, action) => runCurrentWindowAction(action));
 	on(IPC.rendererReady, () => {
