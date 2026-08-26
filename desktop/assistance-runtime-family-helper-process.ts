@@ -15,6 +15,9 @@ import {
 import {
 	createAssistanceWhisperCppWorkerSpawnerV1,
 } from './assistance-whisper-cpp-worker.ts';
+import {
+	createAssistanceLlamaCppWorkerSpawnerV1,
+} from './assistance-llama-cpp-worker.ts';
 
 export interface AssistanceRuntimeFamilyHelperProcessOptions {
 	readonly post: (message: unknown) => void;
@@ -31,6 +34,10 @@ export interface AssistanceRuntimeFamilyHelperProcessOptions {
 		job: Parameters<ReturnType<typeof createAssistanceRuntimeFamilyThreadWorkerSpawner>>[0],
 		options: Readonly<{ readonly onProgress: (value: number) => void }>,
 	) => AssistanceRuntimeFamilyInnerWorker;
+	readonly spawnLlamaWorker?: (
+		job: Parameters<ReturnType<typeof createAssistanceRuntimeFamilyThreadWorkerSpawner>>[0],
+		options: Readonly<{ readonly onProgress: (value: number) => void }>,
+	) => AssistanceRuntimeFamilyInnerWorker;
 }
 
 export function createAssistanceRuntimeFamilyHelperProcessV1(
@@ -43,6 +50,10 @@ export function createAssistanceRuntimeFamilyHelperProcessV1(
 		&& typeof options.spawnWhisperWorker !== 'function') {
 		throw new TypeError('The whisper.cpp worker-process port is invalid.');
 	}
+	if (options.spawnLlamaWorker !== undefined
+		&& typeof options.spawnLlamaWorker !== 'function') {
+		throw new TypeError('The llama.cpp worker-process port is invalid.');
+	}
 	const spawnThreadWorker = createAssistanceRuntimeFamilyThreadWorkerSpawner({
 		workerEntry: options.workerEntry
 			?? new URL('./assistance-runtime-family-inference-worker.js', import.meta.url),
@@ -50,13 +61,19 @@ export function createAssistanceRuntimeFamilyHelperProcessV1(
 	});
 	const spawnWhisperWorker = options.spawnWhisperWorker
 		?? createAssistanceWhisperCppWorkerSpawnerV1();
+	const spawnLlamaWorker = options.spawnLlamaWorker
+		?? createAssistanceLlamaCppWorkerSpawnerV1();
 	return createAssistanceRuntimeFamilyUtilityWorker({
 		post: options.post,
 		exit: options.exit,
 		verifyDescriptor: options.verifyDescriptor,
-		spawnWorker: (job, runOptions) => job.familyId === 'whisper-cpp'
-			? spawnWhisperWorker(job, runOptions)
-			: spawnThreadWorker(job, runOptions),
+		spawnWorker: (job, runOptions) => {
+			if (job.familyId === 'whisper-cpp') return spawnWhisperWorker(job, runOptions);
+			if (job.familyId === 'llama-cpp' && job.task === 'editorial-generation') {
+				return spawnLlamaWorker(job, runOptions);
+			}
+			return spawnThreadWorker(job, runOptions);
+		},
 	});
 }
 

@@ -70,6 +70,38 @@ function whisperRequest() {
 	};
 }
 
+function llamaDescriptor() {
+	return {
+		familyId: 'llama-cpp', runtimeVersion: 'b10509', target: 'linux-x64',
+		executionProvider: 'cpu', entrypoint: '/runtime/llama-cli',
+		files: [{ path: '/runtime/llama-cli', relativePath: 'llama-cli',
+			byteLength: 1, sha256: SHA, executable: true }],
+	};
+}
+
+function llamaRequest() {
+	return {
+		protocolVersion: 1, jobId: JOB_ID, familyId: 'llama-cpp', task: 'editorial-generation',
+		maximumRssBytes: 12 * 1024 ** 3, maximumDurationMs: 60_000,
+		grant: {
+			grantVersion: 1, jobId: JOB_ID, familyId: 'llama-cpp', task: 'editorial-generation',
+			settingsJson: '{}',
+			inputs: [{ claimId: '3'.repeat(40), role: 'editorial-context',
+				mediaType: 'application/vnd.soundscaper.editorial-context+json',
+				path: '/private/context.json', byteLength: 1, sha256: SHA,
+				identity: { dev: 1, ino: 1 } }],
+			models: [{ modelId: 'qwen3-4b-q4-k-m', version: '1.0.0', artifactRole: 'gguf',
+				path: '/private/model.gguf', byteLength: 1, sha256: SHA,
+				identity: { dev: 1, ino: 2 } }],
+			outputs: [{ claimId: '4'.repeat(40), role: 'editorial-proposal',
+				mediaType: 'application/vnd.soundscaper.editorial-proposal+json',
+				path: '/private/output.json', maximumByteLength: 1_024, initialByteLength: 0,
+				initialSha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+				identity: { dev: 1, ino: 3 } }],
+		},
+	};
+}
+
 class FakeThread implements AssistanceRuntimeFamilyThreadPort {
 	readonly #listeners = new Map<string, Set<(...values: unknown[]) => void>>();
 	on(event: string, listener: (...values: unknown[]) => void): this {
@@ -152,6 +184,35 @@ test('whisper.cpp jobs use the utility-owned terminateable CLI worker instead of
 		protocolVersion: 1, type: 'error', jobId: JOB_ID,
 		familyId: 'whisper-cpp', task: 'speech-recognition',
 		error: { name: 'Error', message: 'reviewed adapter stopped', code: 'ADAPTER_UNAVAILABLE' },
+	});
+});
+
+test('llama.cpp editorial jobs use the utility-owned terminateable CLI worker instead of a thread', async () => {
+	const messages: unknown[] = [];
+	let threads = 0;
+	let llamaWorkers = 0;
+	const helper = createAssistanceRuntimeFamilyHelperProcessV1({
+		post: (message) => messages.push(message), exit: () => undefined,
+		verifyDescriptor: async (value) => validateAssistanceRuntimeFamilyDescriptorV1(value),
+		createWorker: () => { threads += 1; return new FakeThread(); },
+		spawnLlamaWorker: () => {
+			llamaWorkers += 1;
+			const error = new Error('reviewed editorial adapter stopped');
+			(error as Error & { code?: string }).code = 'ADAPTER_UNAVAILABLE';
+			return Object.freeze({ completion: Promise.reject(error), terminate: async () => undefined });
+		},
+	});
+	helper.handleMessage({ protocolVersion: 1, type: 'initialize', descriptor: llamaDescriptor() });
+	await until(() => messages.length === 1);
+	helper.handleMessage({ protocolVersion: 1, type: 'job', request: llamaRequest() });
+	await until(() => messages.length === 2);
+	assert.equal(llamaWorkers, 1);
+	assert.equal(threads, 0);
+	assert.deepEqual(messages[1], {
+		protocolVersion: 1, type: 'error', jobId: JOB_ID,
+		familyId: 'llama-cpp', task: 'editorial-generation',
+		error: { name: 'Error', message: 'reviewed editorial adapter stopped',
+			code: 'ADAPTER_UNAVAILABLE' },
 	});
 });
 
