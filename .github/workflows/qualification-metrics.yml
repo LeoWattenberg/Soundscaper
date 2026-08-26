@@ -1,0 +1,70 @@
+name: Qualification metrics
+
+# The four opt-in metric specs self-skip unless their environment flag is set,
+# so nothing in the ordinary Quality run produces an M1, M3, M4 or M4B-2 number.
+# This job runs them once a night on a hosted runner and keeps the evidence.
+# `docs/quality-budgets.md` admits correctness counters and exact media
+# comparisons in ordinary CI and holds timing and heap budgets to a fixed
+# environment, so the collector fails the run on a parity regression and records
+# the preview-cadence and long-form timings as observations.
+on:
+  schedule:
+    # Offset from the 02:17 desktop nightly so the two do not contend for runners.
+    - cron: '41 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: qualification-metrics-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PUBLIC_FFMPEG_CORE_BASE_URL: https://assets.soundscaper.org/runtime/ffmpeg/0.12.10
+
+jobs:
+  hosted-metrics:
+    name: Hosted CI qualification metrics
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+      options: --user 1001
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Pin npm
+        run: |
+          npm install --global --prefix "$HOME/.local" npm@12.0.1
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the application the collector measures
+        run: npm run build
+
+      - name: Collect the hosted qualification metrics
+        run: npm run quality:collect:ci-metrics
+
+      - name: Upload the hosted qualification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hosted-ci-qualification-metrics
+          path: |
+            test-results/ci-qualification-metrics/
+            playwright-report/
+          if-no-files-found: warn
+          retention-days: 30

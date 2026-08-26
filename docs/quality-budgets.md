@@ -674,13 +674,50 @@ The safe progression is:
 2. Run the deterministic M4 PCM/RGBA parity collector in a one-worker,
    no-retry browser job and retain its complete raw evidence. The collector
    recomputes exactly the five registered metrics and refuses ambiguous,
-   truncated, non-finite, retried, or overwrite-prone evidence.
+   truncated, non-finite, retried, or overwrite-prone evidence. **Done**, by
+   the `Qualification metrics` workflow described below.
 3. Keep Chromium, Firefox, and WebKit functional/fallback jobs green without
    treating their hosted timing as performance qualification.
 4. Provision the fixed GPU host, add an exact environment check, replace the
    runtime-generated preview media with a digest-pinned fixture, and emit one
    consolidated result artifact.
 5. Add device/native labs only when the corresponding milestone contracts land.
+
+### Hosted CI qualification metrics
+
+`.github/workflows/qualification-metrics.yml` runs
+`npm run quality:collect:ci-metrics` every night and keeps its evidence for
+thirty days. Before it existed, the four opt-in metric specs self-skipped
+unless their environment flag was set and no workflow set one, so the M1, M3,
+M4 and M4B-2 numbers were produced only when somebody ran a collector by hand —
+which is why an unopenable M3 fixture and a broken preview interaction both sat
+undetected.
+
+The collector runs one Playwright invocation per spec, single worker and no
+retries, and writes `console.log`, `raw.json` and `summary.json` under
+`test-results/ci-qualification-metrics/`. Each workload carries the same
+`pending-external` status and ineligibility note the downloadable nightly host
+publishes, because `github-ubuntu-playwright-1.62.1` is
+`qualificationEligible: false` and no hosted number can promote a formal row.
+
+What the run does with each number follows the measurement procedure above:
+
+- `m4-production-render-parity` and `m4b2-keyframe-render-parity` are
+  **blocking**. They are exact media comparisons whose SSIM, MAE and
+  omitted-operation counters are deterministic, so a regression fails the job.
+- `m3-longform-editorial` is **observational**. Its position counters are exact,
+  but its seek, scroll and retained-heap budgets belong to a fixed environment;
+  a shared runner misses them under load without anything being wrong.
+- `m1-video-preview-12fx-720p` is **not attempted**. It measures presented
+  frames through a twelve-effect 1280x720 WebGL stack, and llvmpipe delivers
+  roughly one frame every eleven seconds, so the spec times out short of its
+  121 frames after eight minutes without producing a number worth reading. The
+  summary records the skip and its reason rather than a failure.
+
+Generated results belong under ignored `test-results/` and should be uploaded as
+CI artifacts. An accepted summary can be reviewed and versioned separately, but
+raw generated `test-results`, `playwright-report`, or coverage content must not
+be committed.
 
 ### Milestone 6 reference master, and its vertical companion
 
@@ -734,7 +771,8 @@ No threshold moved, and the workload stays `provisional`; the fixed-GPU profile
 that admits it remains `pending-external`.
 
 The revision was found by running the opt-in metric specs on a hosted runner
-for the first time. `tests/audio-editor-m3-longform-editorial-workload.test.ts`
+for the first time, which is what `npm run quality:collect:ci-metrics` now does
+nightly. `tests/audio-editor-m3-longform-editorial-workload.test.ts`
 pins the fixture to the newest declared Soundscaper schema so the next schema
 bump fails there rather than silently rotting the fixture again.
 
