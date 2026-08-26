@@ -232,6 +232,17 @@ another project is edited, later-request cleanup, and source-ended recovery.
 This synthetic-media evidence does not provision or qualify the external
 camera, microphone, display, system-audio, operating-system, or browser matrix.
 
+Commits `5ccf6447`, `2c6e2a94`, and `16029166` preserve that historical
+coverage while restoring it against the selected F31 route, schema, and storage
+profile, pacing the synthetic audio source at a realistic cadence, and making
+the fixture portable across the configured Chromium, Firefox, and WebKit
+projects. The eight cases now define 24 configured-engine cases and additionally
+assert that opening capture does not implicitly enumerate devices, that closing
+and reopening the panel preserves an active recording, and that mixed video
+publication completes its camera and display proxies. These remain synthetic
+automation results: actual devices, operating-system pickers, encoders,
+long-session performance, and manual privacy behavior are still unqualified.
+
 ## Public interfaces
 
 - `CaptureSourceRole`: `camera | microphone | display | system-audio`.
