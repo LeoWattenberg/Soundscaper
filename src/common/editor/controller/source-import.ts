@@ -19,6 +19,8 @@ import {
 } from '../video-source-characteristics.ts';
 import { publishVideoTimingAsset } from '../video-timing-storage.ts';
 import { planVideoImportTiming } from './video-import-timing.ts';
+import { createImportedAudioContentIdentityWriter, rollbackImportedAudioContentIdentityWriter,
+	type ImportedAudioContentIdentity } from './imported-audio-content-identity.ts';
 export interface ImportVideoRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -141,9 +143,10 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				throw new Error('The project changed during video import.');
 			}
 		};
-		let audioSourceId = null;
+		let audioSourceId: string | null = null;
 		let audioClipId = null;
 		let canonicalAudio = null;
+		let audioContentIdentity: ImportedAudioContentIdentity | null = null;
 		let originalAudioSampleRate = sampleRate;
 		let mediaPublication: OwnedMediaAssetPublication | null = null;
 		let timingAssetPublication: OwnedMediaAssetPublication | null = null;
@@ -279,23 +282,25 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				);
 				audioSourceId = createStableId('source');
 				audioClipId = createStableId('clip');
-				const writer = await store.beginSourceWrite(audioSourceId, {
+				const writer = createImportedAudioContentIdentityWriter(await store.beginSourceWrite(audioSourceId, {
 					name: `${trackName} Audio`,
 					mimeType: 'audio/x-soundscaper-extracted',
 					sampleRate: canonicalAudio.sampleRate,
 					channelCount: canonicalAudio.numberOfChannels,
 					chunkFrames: SOURCE_CHUNK_FRAMES,
-				});
+				}), SOURCE_CHUNK_FRAMES);
 				try {
 					await writeBuffer(writer, canonicalAudio);
 					await writer.commit({
 						sampleRate: canonicalAudio.sampleRate,
 						channelCount: canonicalAudio.numberOfChannels,
 					});
+					audioContentIdentity = writer.contentIdentity(canonicalAudio.length);
 					audioPersisted = true;
 				} catch (error) {
-					await writer.abort().catch(() => undefined);
-					throw error;
+					await rollbackImportedAudioContentIdentityWriter(
+						writer, () => store.deleteSource(String(audioSourceId)), error,
+					);
 				}
 				cacheSourceBuffer(audioSourceId, canonicalAudio);
 				const peaks = await generateWaveformPeaks(audioBufferChannels(canonicalAudio), copy);
@@ -347,7 +352,9 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				thumbnailStorageKey: null,
 				opaqueExtensions: {},
 			};
-			const audioSource = canonicalAudio ? {
+			if (canonicalAudio && !audioContentIdentity) throw new Error(
+				'Extracted audio content identity is unavailable after persistence.');
+			const audioSource = canonicalAudio && audioContentIdentity ? {
 				kind: 'audio',
 				sampleFormat: 'float32',
 				chunkFrames: SOURCE_CHUNK_FRAMES,
@@ -359,6 +366,8 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				channelCount: canonicalAudio.numberOfChannels,
 				sampleRate: canonicalAudio.sampleRate,
 				originalSampleRate: originalAudioSampleRate,
+				contentSha256: audioContentIdentity.contentSha256,
+				byteLength: audioContentIdentity.byteLength,
 				opaqueExtensions: { originVideoSourceId: videoSourceId },
 			} : null;
 			const videoClip = {
@@ -380,7 +389,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				binItemId: importOptions.destination === 'project-bin' ? binItemId : null,
 				opaqueExtensions: {},
 			};
-			const audioClip = canonicalAudio ? {
+			const audioClip = audioSource ? {
 				kind: 'audio',
 				id: audioClipId,
 				sourceId: audioSourceId,

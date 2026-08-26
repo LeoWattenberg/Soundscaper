@@ -3,6 +3,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- This focused seam narrows legacy project-import ports without changing their public JavaScript contract. */
 
 import { scaleSampleFrame } from '../timeline-time.ts';
+import {
+	createImportedAudioContentIdentityWriter,
+	rollbackImportedAudioContentIdentityWriter,
+	type ImportedAudioContentIdentity,
+} from './imported-audio-content-identity.ts';
 
 type LegacyPort = (...args: any[]) => any;
 
@@ -60,14 +65,15 @@ export function createIncrementalPcmImporter(runtime: IncrementalPcmImportRuntim
 		const mimeType = file.type || (descriptor.container === 'aiff' || descriptor.container === 'aifc'
 			? 'audio/aiff'
 			: 'audio/wav');
-		const writer = await store.beginSourceWrite(sourceId, {
+		const writer = createImportedAudioContentIdentityWriter(await store.beginSourceWrite(sourceId, {
 			name: sourceName,
 			mimeType,
 			sampleRate: descriptor.sampleRate,
 			channelCount: descriptor.channelCount,
 			chunkFrames: SOURCE_CHUNK_FRAMES,
-		});
+		}), SOURCE_CHUNK_FRAMES);
 		let metadata;
+		let contentIdentity: ImportedAudioContentIdentity;
 		let streamedFrames = 0;
 		try {
 			const streamPcm = descriptor.container === 'aiff' || descriptor.container === 'aifc'
@@ -88,9 +94,11 @@ export function createIncrementalPcmImporter(runtime: IncrementalPcmImportRuntim
 				channelCount: descriptor.channelCount,
 				chunkFrames: SOURCE_CHUNK_FRAMES,
 			});
+			contentIdentity = writer.contentIdentity(descriptor.frameCount);
 		} catch (error) {
-			await writer.abort().catch(() => undefined);
-			throw error;
+			return rollbackImportedAudioContentIdentityWriter(
+				writer, () => store.deleteSource(sourceId), error,
+			);
 		}
 
 		const source = {
@@ -104,6 +112,8 @@ export function createIncrementalPcmImporter(runtime: IncrementalPcmImportRuntim
 			channelCount: descriptor.channelCount,
 			sampleRate: descriptor.sampleRate,
 			originalSampleRate: descriptor.sampleRate,
+			contentSha256: contentIdentity.contentSha256,
+			byteLength: contentIdentity.byteLength,
 			...((wavMetadata.sourceBext || wavMetadata.sourceIxml || wavMetadata.sourceCart || wavMetadata.sourceAdm) ? { opaqueExtensions: {
 				...(wavMetadata.sourceBext ? { bext: wavMetadata.sourceBext } : {}),
 				...(wavMetadata.sourceIxml ? { ixml: wavMetadata.sourceIxml } : {}),

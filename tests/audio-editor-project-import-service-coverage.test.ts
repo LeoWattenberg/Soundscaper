@@ -132,7 +132,7 @@ function createFixture() {
 	};
 	const runtime: ProjectImportRuntime = {
 		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES: 32,
-		SOURCE_CHUNK_FRAMES: 2,
+		SOURCE_CHUNK_FRAMES: 65_536,
 		activateStoredSource: async (source: { id: string }) => {
 			calls.push(`activate:${source.id}`);
 			if (options.activateFails) throw new Error('activate failed');
@@ -243,8 +243,9 @@ function createFixture() {
 		},
 		streamWavBlobPcm: async (
 			_input: unknown,
-			streamOptions: { onChunk: (channels: Float32Array[]) => Promise<void> },
-		) => { await streamOptions.onChunk(audio.channels); },
+			{ descriptor, onChunk }: { descriptor: { channelCount: number; frameCount: number };
+				onChunk: (channels: Float32Array[]) => Promise<void> },
+		) => onChunk(Array.from({ length: descriptor.channelCount }, () => new Float32Array(descriptor.frameCount))),
 		stripExtension: (name: string) => name.replace(/\.[^.]+$/u, ''),
 		switchProject: async (project: Record<string, unknown>) => {
 			calls.push(`switch:${String(project.id)}`);
@@ -506,7 +507,7 @@ test('structured legacy AUP imports persist PCM chunks, progress, and warnings',
 	const legacy = createFixture();
 	const legacyResult = await createProjectImportService(legacy.runtime).importFile(file('session.aup'));
 	assert.equal(legacyResult.notice, 'AUP imported. Warning: converted.');
-	assert.equal(legacy.calls.filter((entry) => entry.startsWith('write:')).length, 3);
+	assert.equal(legacy.calls.filter((entry) => entry.startsWith('write:')).length, 1);
 	assert.equal(legacy.calls.includes('save-project'), true);
 	assert.equal(legacy.statuses.some(([message]) => message === 'Importing AUP 0%'), true);
 });

@@ -107,7 +107,7 @@ export function createFixture() {
 		dispose() { calls.push('dispose'); },
 	};
 	const writer = {
-		async write() {
+		async write(_channels?: readonly Float32Array[]) {
 			calls.push('writer-write');
 			if (options.writerFails) throw new Error('writer failed');
 		},
@@ -262,7 +262,7 @@ export function createFixture() {
 		},
 		stripExtension: (name: string) => name.replace(/\.[^.]+$/u, ''),
 		warnEnvelope: () => { calls.push('warn-envelope'); },
-		writeBuffer: async (target: typeof writer) => { await target.write(); },
+		writeBuffer: async (target: typeof writer) => { await target.write(canonicalAudio.channels); },
 	};
 	return {
 		addedSources,
@@ -304,6 +304,9 @@ test('video import extracts linked audio and creates a new timeline lane pair', 
 	assert.ok(videoSource);
 	assert.equal(videoSource.posterStorageKey, null);
 	assert.equal(videoSource.thumbnailStorageKey, null);
+	const audioSource = fixture.addedSources.find(({ kind }) => kind === 'audio');
+	assert.match(String(audioSource?.contentSha256), /^[a-f0-9]{64}$/u);
+	assert.equal(audioSource?.byteLength, 36);
 	assert.equal(fixture.commits.length, 1);
 	assert.equal(fixture.commits[0]?.command.commands.length, 6);
 	const committedVideoSource = fixture.commits[0]?.command.commands

@@ -17,6 +17,11 @@ import {
 import { streamAiffBlobPcm } from '../aiff-pcm-chunk-reader.ts';
 import { inspectDesktopStandalonePcm } from './desktop-standalone-pcm-import.ts';
 import { createIncrementalPcmImporter } from './incremental-wav-import-service.ts';
+import {
+	createImportedAudioContentIdentityWriter,
+	rollbackImportedAudioContentIdentityWriter,
+	type ImportedAudioContentIdentity,
+} from './imported-audio-content-identity.ts';
 import { createLinkedAudioImportAdmission } from './linked-audio-import-admission.ts';
 import { createLinkedPcmImporter } from './linked-wav-import-service.ts';
 import { decodeStandaloneAudioForImport } from './standalone-audio-import-decoder.ts';
@@ -384,19 +389,22 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		const trackName = stripExtension(file.name) || `${copy.track} ${getProject().tracks.length + 1}`;
 		const sourceName = file.name;
 		const mimeType = file.type || 'audio/wav';
-		const writer = await store.beginSourceWrite(sourceId, {
+		const writer = createImportedAudioContentIdentityWriter(await store.beginSourceWrite(sourceId, {
 			name: sourceName,
 			mimeType,
 			sampleRate: canonical.sampleRate,
 			channelCount: canonical.numberOfChannels,
 			chunkFrames: SOURCE_CHUNK_FRAMES,
-		});
+		}), SOURCE_CHUNK_FRAMES);
+		let contentIdentity: ImportedAudioContentIdentity;
 		try {
 			await writeBuffer(writer, canonical);
 			await writer.commit({ sampleRate: canonical.sampleRate, channelCount: canonical.numberOfChannels });
+			contentIdentity = writer.contentIdentity(canonical.length);
 		} catch (error) {
-			await writer.abort();
-			throw error;
+			return rollbackImportedAudioContentIdentityWriter(
+				writer, () => store.deleteSource(sourceId), error,
+			);
 		}
 
 		const prepared = prepareImportedMediaCommand({
@@ -410,6 +418,8 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			channelCount: canonical.numberOfChannels,
 			sampleRate: canonical.sampleRate,
 			originalSampleRate: originalSampleRate || decoded.sampleRate,
+			contentSha256: contentIdentity.contentSha256,
+			byteLength: contentIdentity.byteLength,
 			...((wavMetadata.sourceBext || wavMetadata.sourceIxml || wavMetadata.sourceCart || wavMetadata.sourceAdm) ? { opaqueExtensions: {
 				...(wavMetadata.sourceBext ? { bext: wavMetadata.sourceBext } : {}),
 				...(wavMetadata.sourceIxml ? { ixml: wavMetadata.sourceIxml } : {}),
