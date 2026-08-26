@@ -1,0 +1,66 @@
+{
+	"schemaVersion": 1,
+	"tags": [
+		"wcag2a",
+		"wcag2aa",
+		"wcag21a",
+		"wcag21aa",
+		"wcag22aa"
+	],
+	"impacts": [
+		"critical",
+		"serious"
+	],
+	"reviewedAt": "2026-08-26",
+	"known": [
+		{
+			"routeId": "soundscaper",
+			"conditionId": "default",
+			"ruleId": "target-size",
+			"nodes": 1,
+			"reason": "The workspace panel close button is 25x25 CSS pixels, but a neighbouring control leaves only 15px of unobscured width, so 2.5.8 fails on spacing rather than on size. Clearing it is a panel-header layout change, not a size bump."
+		},
+		{
+			"routeId": "soundscaper",
+			"conditionId": "forced-colors",
+			"ruleId": "target-size",
+			"nodes": 1,
+			"reason": "The same panel-header spacing defect; forced colors is emulated at the media-query level and leaves the geometry unchanged."
+		},
+		{
+			"routeId": "soundscaper",
+			"conditionId": "reduced-motion",
+			"ruleId": "target-size",
+			"nodes": 1,
+			"reason": "The same panel-header spacing defect; reduced motion changes only animation and leaves the geometry unchanged."
+		},
+		{
+			"routeId": "framescaper",
+			"conditionId": "default",
+			"ruleId": "color-contrast",
+			"nodes": 2,
+			"reason": "The empty source-monitor text renders --kw-editor-muted at 11px, measured 3.45:1 against the 4.5:1 minimum. That token carries muted text throughout the editor, so darkening it is a design decision rather than a local override."
+		},
+		{
+			"routeId": "framescaper",
+			"conditionId": "forced-colors",
+			"ruleId": "color-contrast",
+			"nodes": 2,
+			"reason": "The same muted-token contrast defect: forced colors is emulated at the media-query level here and does not substitute the operating system's own palette, so the measured ratio is unchanged."
+		},
+		{
+			"routeId": "framescaper",
+			"conditionId": "reduced-motion",
+			"ruleId": "color-contrast",
+			"nodes": 2,
+			"reason": "The same muted-token contrast defect; reduced motion changes only animation, so the measured ratio is unchanged."
+		},
+		{
+			"routeId": "framescaper",
+			"conditionId": "zoom-200",
+			"ruleId": "scrollable-region-focusable",
+			"nodes": 1,
+			"reason": "At 200% zoom the empty source-monitor panel body becomes scrollable while holding no focusable content, so a keyboard user cannot scroll it."
+		}
+	]
+}
