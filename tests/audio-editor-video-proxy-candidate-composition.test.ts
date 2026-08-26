@@ -54,20 +54,18 @@ test('the shipped runtime composes into a candidate observer', () => {
 	assert.doesNotThrow(() => assertVideoProxyCandidateObserver(observer));
 });
 
-test('a build that cannot encode or cannot read timing generates nothing', () => {
+test('a build that cannot encode generates nothing, and one that can always composes', () => {
 	// No FFmpeg operation runner: there is no way to encode a proxy at all.
 	assert.equal(
 		createVideoProxyCandidateObserverForRuntime({ probeVideoTiming: () => Promise.resolve(PROBE_RESULT) }),
 		null,
 	);
-	// A runner but no probe: a body could be written and never proven to conform,
-	// which is the one thing a proxy may not be attached without.
-	assert.equal(
-		createVideoProxyCandidateObserverForRuntime({
-			runProxyMediaOperation: (operation) => operation({} as FfmpegMediaFileLease),
-		}),
-		null,
-	);
+	// A runner and no decoder still composes. Proving a proxy conforms no longer
+	// needs one: the container demuxer reads the timing of the body the generator
+	// just wrote, so the only thing a build can be missing here is the encoder.
+	assert.ok(createVideoProxyCandidateObserverForRuntime({
+		runProxyMediaOperation: (operation) => operation({} as FfmpegMediaFileLease),
+	}));
 	assert.equal(createVideoProxyCandidateObserverForRuntime(null), null);
 });
 
@@ -148,9 +146,12 @@ test('a pathless existing proxy composes without an encoder and retains no file 
 	assert.equal(material.recipeId, 'framescaper-existing-video-proxy-v1');
 });
 
-test('an existing proxy still requires an exact timing probe', () => {
+test('an existing proxy is observed without a decoder but stays bounded', () => {
 	const candidate = new Blob(['proxy'], { type: 'video/webm' });
-	assert.equal(createVideoProxyExistingCandidateObserverForRuntime(candidate, null), null);
+	// Reading an operator-selected proxy's timing is a container read, so a build
+	// with no runtime at all still observes one. Its exactness is proven when the
+	// body is read, not withheld at composition.
+	assert.ok(createVideoProxyExistingCandidateObserverForRuntime(candidate, null));
 	assert.throws(
 		() => createVideoProxyExistingCandidateObserverForRuntime(
 			new Blob([], { type: 'video/webm' }),

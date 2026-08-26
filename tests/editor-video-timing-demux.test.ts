@@ -10,9 +10,11 @@ import {
 	decodeVideoTimingAsset,
 } from '../src/common/editor/video-timing-asset.ts';
 import {
+	createContainerVideoTimingProbe,
 	demuxVideoTiming,
 	VideoTimingDemuxError,
 } from '../src/common/editor/video-timing-demux.ts';
+import { probeVideoTiming } from '../src/common/editor/video-timing-probe.ts';
 
 const CFR = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1')!;
 const VFR = videoTimingProbeMedia.find(({ id }) => id === 'vfr-irregular-webm-v1')!;
@@ -67,4 +69,42 @@ test('the container demuxer refuses what it cannot read exactly', async () => {
 		demuxVideoTiming(blobFor(CFR), { signal: AbortSignal.abort() }),
 		(error: unknown) => (error as Error).name === 'AbortError',
 	);
+});
+
+test('the container port alone resolves exact timing instead of conforming', async () => {
+	// This is the state a desktop build is in: no decoder, so every codec-backed
+	// probe refuses. Before the demuxer that left ingest with nothing to do but
+	// conform the source to a constant rate — through an encoder it also lacks.
+	const refusing = Object.freeze({
+		id: 'ffmpeg',
+		probe: () => Promise.reject(new Error('Desktop video operations are not admitted.')),
+	});
+	for (const fixture of [CFR, VFR]) {
+		const decision = await probeVideoTiming(blobFor(fixture), {
+			probes: [refusing, createContainerVideoTimingProbe()],
+		});
+		assert.equal(decision.decision, 'timing-asset');
+		assert.equal(decision.backend, 'container');
+		assert.deepEqual(
+			[...decision.timing.presentationTicks], [...fixture.presentationTicks],
+		);
+		assert.equal(decision.timing.finalFrameDurationTicks, fixture.finalFrameDurationTicks);
+	}
+});
+
+test('the container port stays behind any codec-backed probe', async () => {
+	// A build that has a decoder keeps answering with it: reading an original with
+	// one backend and its proxy with another is how a pair that agrees in fact
+	// comes to disagree on paper.
+	const decided = Object.freeze({
+		id: 'ffmpeg',
+		probe: () => Promise.resolve({
+			timescale: 24, presentationTicks: Object.freeze([0n, 1n]),
+			finalFrameDurationTicks: 1n, nominalRate: Object.freeze({ num: 24, den: 1 }),
+		}),
+	});
+	const decision = await probeVideoTiming(blobFor(CFR), {
+		probes: [decided, createContainerVideoTimingProbe()],
+	});
+	assert.equal(decision.backend, 'ffmpeg');
 });

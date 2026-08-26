@@ -12,6 +12,7 @@ import type {
 	OwnedMediaAssetWriter,
 } from '../storage/media-asset-write-contract.ts';
 import { createFfmpegVideoTimingProbe, probeVideoTiming } from '../video-timing-probe.ts';
+import { createContainerVideoTimingProbe } from '../video-timing-demux.ts';
 import {
 	createUnreportedVideoSourceCharacteristics,
 	normalizeVideoSourceCharacteristics,
@@ -62,8 +63,10 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 			const sampleRate = projectSampleRate();
 			const ffmpegTimingProbe = createFfmpegVideoTimingProbe(ffmpeg);
 			// The native helper probes by opaque capability id and its failure
-			// is recorded before the wasm probe takes over.
-			const preferredProbes = [helperTimingProbe, ffmpegTimingProbe]
+			// is recorded before the wasm probe takes over. The container demuxer
+			// answers last, from the file's own integers, so a build that carries no
+			// decoder at all still reaches exact timing instead of conforming.
+			const preferredProbes = [helperTimingProbe, ffmpegTimingProbe, createContainerVideoTimingProbe()]
 				.filter((probe: RuntimeValue) => Boolean(probe));
 			let timingProbe = canonicalVideoFile instanceof Blob
 				? await probeVideoTiming(canonicalVideoFile, {
@@ -94,7 +97,8 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				extractor = await createAudioEditorVideoFrameExtractor(canonicalVideoFile);
 				const conformedProbe = createFfmpegVideoTimingProbe(ffmpeg);
 				timingProbe = await probeVideoTiming(canonicalVideoFile, {
-					probes: conformedProbe ? [conformedProbe] : [],
+					probes: [conformedProbe, createContainerVideoTimingProbe()]
+						.filter((probe): probe is NonNullable<typeof probe> => Boolean(probe)),
 					fallbackRate: timingProbe.rate,
 					signal: importOptions.signal,
 				});

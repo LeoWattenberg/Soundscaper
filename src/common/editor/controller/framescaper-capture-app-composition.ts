@@ -77,6 +77,7 @@ import {
 	probeVideoTiming,
 	type VideoTimingProbePort,
 } from '../video-timing-probe.ts';
+import { createContainerVideoTimingProbe } from '../video-timing-demux.ts';
 
 type EncodedCaptureRepositories = Pick<EncodedCaptureSpoolRepository,
 	'create' | 'load' | 'append' | 'reconcileAppend' | 'seal' | 'delete' | 'read'
@@ -341,8 +342,11 @@ export function createFramescaperCaptureVideoProbe(options: Readonly<{
 	readonly helperTimingProbe?: VideoTimingProbePort | null;
 	readonly ffmpeg?: Readonly<{ probeVideoTiming?: VideoTimingProbePort['probe'] }> | null;
 }>): CaptureVideoProbe | null {
-	const probes = [options.helperTimingProbe ?? null, createFfmpegVideoTimingProbe(options.ffmpeg ?? {})]
-		.filter((probe): probe is VideoTimingProbePort => Boolean(probe));
+	const probes = [
+		options.helperTimingProbe ?? null,
+		createFfmpegVideoTimingProbe(options.ffmpeg ?? {}),
+		createContainerVideoTimingProbe(),
+	].filter((probe): probe is VideoTimingProbePort => Boolean(probe));
 	if (!probes.length) return null;
 	return async (body, context) => {
 		const result = await probeVideoTiming(body, {

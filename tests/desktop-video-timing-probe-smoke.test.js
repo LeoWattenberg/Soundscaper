@@ -129,6 +129,29 @@ test('packaged timing-probe result validates exact source and timing body SHA, t
 	);
 });
 
+test('packaged timing probe admits each backend against the rate that backend reports', () => {
+	// A desktop build carries no FFmpeg, so it reads timing out of the container
+	// instead. The persisted body is identical either way — both read the same
+	// integers from the same file — and only the nominal rate of variable-rate
+	// media differs, because there is no coded rate there to recover.
+	const plan = timingPlan();
+	const container = timingResult(plan, 'container', {
+		'cfr-25fps-mp4-v1': { num: 25, den: 1 },
+		'vfr-irregular-webm-v1': { num: 250, den: 29 },
+	});
+	assert.deepEqual(validateDesktopVideoTimingProbeResult(container, plan), container);
+	const ffmpeg = timingResult(plan);
+	for (const [index, fixture] of container.fixtures.entries()) {
+		assert.deepEqual(fixture.timingBytes, ffmpeg.fixtures[index].timingBytes,
+			'the evidence that matters must not move when the backend does');
+	}
+
+	assert.throws(() => validateDesktopVideoTimingProbeResult(timingResult(plan, 'guessed'), plan),
+		/decision does not match/iu);
+	assert.throws(() => validateDesktopVideoTimingProbeResult(timingResult(plan, 'container'), plan),
+		/decision does not match/iu);
+});
+
 test('packaged timing-probe emits bounded path-free evidence after exact validation', () => {
 	const plan = timingPlan('framescaper');
 	const result = timingResult(plan);
@@ -460,7 +483,7 @@ function smokeArgv(plan) {
 	];
 }
 
-function timingResult(plan) {
+function timingResult(plan, backend = 'ffmpeg', rates = null) {
 	return Object.freeze({
 		schemaVersion: 1,
 		mode: DESKTOP_VIDEO_TIMING_PROBE_MODE,
@@ -468,13 +491,14 @@ function timingResult(plan) {
 		token: plan.token,
 		fixtures: plan.fixtures.map((fixture) => {
 			const bytes = timingBytes(fixture);
+			const rate = rates?.[fixture.id] ?? fixture.nominalRate;
 			return {
 				id: fixture.id,
 				name: fixture.name,
 				sourceSha256: fixture.sourceSha256,
-				frameRate: fixture.nominalRate,
+				frameRate: rate,
 				sourceFrameCount: fixture.presentationTicks.length,
-				timingDecision: { mode: 'exact', backend: 'ffmpeg', rate: fixture.nominalRate },
+				timingDecision: { mode: 'exact', backend, rate },
 				timingAsset: {
 					sha256: fixture.timingSha256,
 					sourceSha256: fixture.sourceSha256,

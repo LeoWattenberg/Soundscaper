@@ -8,7 +8,7 @@
  * supplied only by a test fixture. This binds all three to what the editor
  * actually ships: the FFmpeg proxy generator, the single maintained recipe, and
  * the same timing probes ingest uses — the desktop helper first where a build
- * has one, then the WebAssembly probe.
+ * has one, then the WebAssembly probe, then the container demuxer.
  *
  * Probe order matters and is deliberately the ingest order. A proxy's boundaries
  * are compared against an original whose own timing was probed at import, so
@@ -23,6 +23,7 @@ import type {
 import { canonicalMediaContentBlob } from '../storage/media-content-digest.ts';
 import { createVideoProxyCandidateObserver } from '../video-proxy-candidate-observation.ts';
 import { createFfmpegVideoProxyGenerator } from '../video-proxy-ffmpeg-generator.ts';
+import { createContainerVideoTimingProbe } from '../video-timing-demux.ts';
 import { VIDEO_PROXY_GENERATION_RECIPE } from '../video-proxy-generation.ts';
 import { createFfmpegVideoTimingProbe } from '../video-timing-probe.ts';
 import type { VideoTimingProbePort } from '../video-timing-probe.ts';
@@ -55,10 +56,11 @@ const EXISTING_PROXY_RECIPE = Object.freeze({
 /**
  * Build the candidate observer, or answer null when this build cannot generate.
  *
- * A runtime without the FFmpeg operation runner cannot encode a proxy and a
- * runtime without any timing probe cannot prove one conforms; either way the
- * honest answer is that generation is unavailable here, rather than an observer
- * that fails at the moment a user asks for a proxy.
+ * A runtime without the FFmpeg operation runner cannot encode a proxy at all, so
+ * the honest answer is that generation is unavailable here rather than an
+ * observer that fails at the moment a user asks for a proxy. Proving that a
+ * proxy conforms is never the missing half: the container demuxer reads the
+ * timing of the body the generator just wrote without any decoder.
  */
 export function createVideoProxyCandidateObserverForRuntime(
 	runtime: VideoProxyCandidateRuntime | null | undefined,
@@ -67,7 +69,6 @@ export function createVideoProxyCandidateObserverForRuntime(
 	if (typeof runtime?.runProxyMediaOperation !== 'function') return null;
 	const runProxyMediaOperation = runtime.runProxyMediaOperation.bind(runtime);
 	const probes = timingProbes(runtime, options);
-	if (!probes.length) return null;
 	return createVideoProxyCandidateObserver({
 		generator: createFfmpegVideoProxyGenerator({ runOperation: runProxyMediaOperation }),
 		recipe: VIDEO_PROXY_GENERATION_RECIPE,
@@ -92,7 +93,6 @@ export function createVideoProxyExistingCandidateObserverForRuntime(
 		throw new TypeError('An existing video proxy requires a canonical video MIME type.');
 	}
 	const probes = timingProbes(runtime ?? {}, options);
-	if (!probes.length) return null;
 	const generator: VideoProxyCandidateGeneratorPort = Object.freeze({
 		...EXISTING_PROXY_GENERATOR,
 		generate(
@@ -118,8 +118,11 @@ function timingProbes(
 	runtime: VideoProxyCandidateRuntime,
 	options: VideoProxyCandidateCompositionOptions,
 ): readonly VideoTimingProbePort[] {
-	return [options.helperTimingProbe ?? null, createFfmpegVideoTimingProbe(runtime)]
-		.filter((probe): probe is VideoTimingProbePort => Boolean(probe));
+	return [
+		options.helperTimingProbe ?? null,
+		createFfmpegVideoTimingProbe(runtime),
+		createContainerVideoTimingProbe(),
+	].filter((probe): probe is VideoTimingProbePort => Boolean(probe));
 }
 
 function throwIfAborted(signal?: AbortSignal): void {

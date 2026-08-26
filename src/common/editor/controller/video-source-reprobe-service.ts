@@ -6,6 +6,7 @@ import {
 	type VideoSourceUpgradePlan,
 } from '../video-source-upgrade.ts';
 import { createFfmpegVideoTimingProbe, probeVideoTiming, type VideoTimingProbePort } from '../video-timing-probe.ts';
+import { createContainerVideoTimingProbe } from '../video-timing-demux.ts';
 import { digestMediaContent } from '../storage/media-content-digest.ts';
 import { publishVideoTimingAsset, type VideoTimingMediaStore } from '../video-timing-storage.ts';
 import type { AudioEditorCommand } from '../commands/protocol.ts';
@@ -99,7 +100,7 @@ export function createVideoSourceReprobeService(
 		// failure, matching import, proxy, and capture; re-probe was the one
 		// surface that never attempted the helper it is documented to drive.
 		const probe = await probeVideoTiming(media, {
-			probes: [dependencies.helperTimingProbe ?? null, ffmpegProbe]
+			probes: [dependencies.helperTimingProbe ?? null, ffmpegProbe, createContainerVideoTimingProbe()]
 				.filter((candidate): candidate is VideoTimingProbePort => Boolean(candidate)),
 			signal: options.signal,
 		});

@@ -22,7 +22,7 @@ import {
 	VIDEO_TIMING_ASSET_MAXIMUM_FRAMES,
 	VIDEO_TIMING_ASSET_MAXIMUM_TIMESCALE,
 } from './video-timing-asset-reference.ts';
-import type { VideoTimingProbeResult } from './video-timing-probe.ts';
+import type { VideoTimingProbePort, VideoTimingProbeResult } from './video-timing-probe.ts';
 
 const ISOBMFF_BRANDS = new Set(['ftyp', 'styp', 'moov', 'mdat', 'free', 'skip', 'wide']);
 const MATROSKA_MAGIC = Object.freeze([0x1a, 0x45, 0xdf, 0xa3]);
@@ -54,6 +54,21 @@ export async function demuxVideoTiming(
 		throw new VideoTimingDemuxError('The container does not state exact video frame timing.');
 	}
 	return timingResult(track);
+}
+
+/**
+ * The demuxing probe as a port, for the preference-ordered probe lists.
+ *
+ * It is ordered behind any codec-backed probe: where a decoder is present its
+ * answer stays authoritative, and this is what answers where none is.
+ */
+export function createContainerVideoTimingProbe(): VideoTimingProbePort {
+	return Object.freeze({
+		id: 'container',
+		probe: (input: Blob, options?: Readonly<{ signal?: AbortSignal }>) => (
+			demuxVideoTiming(input, options ?? {})
+		),
+	});
 }
 
 async function demuxContainer(

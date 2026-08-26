@@ -34,6 +34,27 @@ const EXPECTED_FIXTURES = Object.freeze([
 		timingSha256: '40e6ddca512c4fba6fa08944709cf3852de3dd49416dfc817304eec8a352ecf7',
 	}),
 ]);
+/**
+ * The nominal rate each admitted backend reports for the pinned fixtures.
+ *
+ * The persisted timing body — timescale, presentation ticks and final frame
+ * duration — is identical whichever backend read the file, because both read the
+ * same integers out of the same container, and its digest is pinned above. A
+ * nominal rate is not one of those integers for variable-rate media: FFmpeg
+ * estimates one from its own timestamp histogram, while the container demuxer
+ * reports the track average. Admit each backend against the rate it reports
+ * rather than loosening the check to whatever arrives.
+ */
+const BACKEND_NOMINAL_RATES = Object.freeze({
+	'cfr-25fps-mp4-v1': Object.freeze({
+		ffmpeg: Object.freeze({ num: 25, den: 1 }),
+		container: Object.freeze({ num: 25, den: 1 }),
+	}),
+	'vfr-irregular-webm-v1': Object.freeze({
+		ffmpeg: Object.freeze({ num: 35, den: 2 }),
+		container: Object.freeze({ num: 250, den: 29 }),
+	}),
+});
 const STORAGE_PROFILES = Object.freeze({
 	soundscaper: Object.freeze({
 		productId: 'soundscaper',
@@ -467,14 +488,17 @@ function validateResultFixture(value, expected) {
 	], 'result fixture');
 	if (fixture.id !== expected.id || fixture.name !== expected.name
 		|| fixture.sourceSha256 !== expected.sourceSha256
-		|| canonicalJson(fixture.frameRate) !== canonicalJson(expected.nominalRate)
 		|| fixture.sourceFrameCount !== expected.presentationTicks.length) {
 		throw new Error(`Desktop video timing-probe source metadata does not match ${expected.id}`);
 	}
 	const decision = strictRecord(fixture.timingDecision, ['backend', 'mode', 'rate'], 'timing decision');
-	if (decision.mode !== 'exact' || decision.backend !== 'ffmpeg'
-		|| canonicalJson(decision.rate) !== canonicalJson(expected.nominalRate)) {
+	const nominalRate = BACKEND_NOMINAL_RATES[expected.id]?.[decision.backend];
+	if (decision.mode !== 'exact' || nominalRate === undefined
+		|| canonicalJson(decision.rate) !== canonicalJson(nominalRate)) {
 		throw new Error(`Desktop video timing-probe decision does not match ${expected.id}`);
+	}
+	if (canonicalJson(fixture.frameRate) !== canonicalJson(nominalRate)) {
+		throw new Error(`Desktop video timing-probe source metadata does not match ${expected.id}`);
 	}
 	const asset = strictRecord(fixture.timingAsset, [
 		'byteLength', 'finalFrameDurationTicks', 'frameCount', 'sha256', 'sourceSha256', 'timescale',
@@ -504,9 +528,9 @@ function validateResultFixture(value, expected) {
 		id: expected.id,
 		name: expected.name,
 		sourceSha256: expected.sourceSha256,
-		frameRate: expected.nominalRate,
+		frameRate: nominalRate,
 		sourceFrameCount: expected.presentationTicks.length,
-		timingDecision: { mode: 'exact', backend: 'ffmpeg', rate: expected.nominalRate },
+		timingDecision: { mode: 'exact', backend: decision.backend, rate: nominalRate },
 		timingAsset: { ...asset },
 		timingBytes: [...bytes],
 	});
