@@ -36,7 +36,6 @@ import {
 } from './local-assistance-result-review.ts';
 
 const MAXIMUM_JSON_BYTES = 8 * 1024 * 1024;
-const MAXIMUM_AUDIO_BYTES = 64 * 1024 * 1024;
 
 type CompletedWorkflowResult = Readonly<{
 	contractVersion: 1;
@@ -137,7 +136,7 @@ export async function reviewLocalAssistanceGuidedResult(
 		const body = await request.readOutput({
 			jobId: workflow.jobId, workflowId, claim,
 		});
-		loaded.push(await loadOutput(workflowId, claim, body));
+		loaded.push(await loadOutput(workflowId, claim, body, request.signal));
 	}
 	request.signal?.throwIfAborted();
 	const authority = validateAssistanceWorkflowReviewAuthorityV1(request.authority ?? {
@@ -165,6 +164,7 @@ async function loadOutput(
 	workflowId: AssistanceGuidedWorkflowId,
 	claim: AssistanceWorkflowOutputClaimV1,
 	bodyValue: unknown,
+	signal?: AbortSignal,
 ): Promise<LoadedOutput> {
 	const slot = assistanceWorkflowCustodySlotSpec(workflowId, claim.stageId, 'output', claim.slotId);
 	if (!(bodyValue instanceof Blob) || bodyValue.size < 1
@@ -173,21 +173,40 @@ async function loadOutput(
 	}
 	const audio = claim.slotId === 'enhanced-audio'
 		|| claim.slotId === 'dialogue' || claim.slotId === 'music' || claim.slotId === 'effects';
-	if (bodyValue.size > (audio ? MAXIMUM_AUDIO_BYTES : MAXIMUM_JSON_BYTES)) {
+	if (!audio && bodyValue.size > MAXIMUM_JSON_BYTES) {
 		throw new RangeError('A Guided terminal body exceeds its semantic review bound.');
 	}
-	const bytes = new Uint8Array(await bodyValue.arrayBuffer());
-	const digest = bytesToHex(sha256(bytes));
+	signal?.throwIfAborted();
+	const bytes = audio ? null : new Uint8Array(await bodyValue.arrayBuffer());
+	const digest = audio ? await digestBlob(bodyValue, signal) : bytesToHex(sha256(bytes!));
 	let json: unknown = null;
 	if (!audio) {
 		try {
-			json = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) as unknown;
+			json = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes!)) as unknown;
 		} catch {
 			throw new TypeError('A Guided terminal result is not valid UTF-8 JSON.');
 		}
 	}
 	return Object.freeze({ claim, body: bodyValue.slice(0, bodyValue.size, bodyValue.type),
 		sha256: digest, json });
+}
+
+async function digestBlob(body: Blob, signal?: AbortSignal): Promise<string> {
+	const digest = sha256.create();
+	const reader = body.stream().getReader();
+	try {
+		while (true) {
+			signal?.throwIfAborted();
+			const chunk = await reader.read();
+			if (chunk.done) break;
+			digest.update(chunk.value);
+		}
+		signal?.throwIfAborted();
+		return bytesToHex(digest.digest());
+	} finally {
+		await reader.cancel().catch(() => undefined);
+		reader.releaseLock();
+	}
 }
 
 async function reviewSemantics(

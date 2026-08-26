@@ -20,6 +20,7 @@ import { encodeWav } from '../src/common/editor/wav.js';
 const JOB_ID = '01'.repeat(20);
 const SOURCE_SHA256 = 'ab'.repeat(32);
 const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
+const FIXTURE_AUDIO_BYTES = 44 + 3 * 2 * Float32Array.BYTES_PER_ELEMENT;
 
 test('enhancement preparation binds exact media, model, settings, recipe, and capacity authority', async () => {
 	const fixture = preparationFixture();
@@ -52,7 +53,7 @@ test('enhancement preparation binds exact media, model, settings, recipe, and ca
 	for (const field of ['recipeSha256', 'settingsSha256', 'modelBindingsSha256'] as const) {
 		assert.match(result.workflow.fence[field], /^[a-f\d]{64}$/u);
 	}
-	assert.deepEqual(fixture.preflights, [MAXIMUM_OUTPUT_BYTES]);
+	assert.deepEqual(fixture.preflights, [FIXTURE_AUDIO_BYTES]);
 	assert.deepEqual(fixture.operations, ['speech-enhancement']);
 	assert.equal(fixture.custodyEvents[0]?.kind, 'input');
 	assert.equal(fixture.custodyEvents[1]?.kind, 'output');
@@ -73,7 +74,7 @@ test('TIGER preparation reserves dialogue, music, and effects once in canonical 
 		['dialogue', 'music', 'effects']);
 	assert.deepEqual(result.reviewAuthority.audioWave,
 		{ sampleRate: 44_100, channelCount: 2, frameCount: 3 });
-	assert.deepEqual(fixture.preflights, [3 * MAXIMUM_OUTPUT_BYTES]);
+	assert.deepEqual(fixture.preflights, [3 * FIXTURE_AUDIO_BYTES]);
 	assert.deepEqual(fixture.operations, ['source-separation']);
 	assert.equal(fixture.custodyEvents.filter(({ kind }) => kind === 'output').length, 3);
 });

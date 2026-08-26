@@ -1,41 +1,21 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Operation-owned PCM conformance for local inference adapters. */
+/** Operation-owned, bounded-chunk PCM conformance for local inference adapters. */
 
-import type { AssistanceOperation } from '../assistance/operation.ts';
 import { createStreamingWindowedSincResampler } from '../resample.js';
-import { scaleSampleFrame } from '../timeline-time.ts';
-import { encodeWav } from '../wav.js';
+import { createWavStreamEncoder } from '../wav.js';
+import {
+	localAssistanceAudioWaveGeometry,
+	localAssistanceAudioInputProfile,
+	type ProfiledAudioOperation,
+} from './local-assistance-audio-geometry.ts';
 
-const PREPARATION_CHUNK_FRAMES = 65_536;
-const MAXIMUM_PREPARED_AUDIO_BYTES = 512 * 1024 * 1024;
+export {
+	localAssistanceAudioInputProfile,
+	type LocalAssistanceAudioInputProfile,
+} from './local-assistance-audio-geometry.ts';
 
-export interface LocalAssistanceAudioInputProfile {
-	readonly sampleRate: number;
-	readonly channels: 'mono' | 'preserve';
-}
-
-const PROFILES = Object.freeze({
-	'voice-activity-detection': profile(16_000, 'mono'),
-	'speech-recognition': profile(16_000, 'mono'),
-	'word-alignment': profile(16_000, 'mono'),
-	'speaker-diarization': profile(16_000, 'mono'),
-	'speech-enhancement': profile(48_000, 'preserve'),
-	'source-separation': profile(44_100, 'preserve'),
-	'audio-tagging': profile(32_000, 'mono'),
-	'beat-tracking': profile(22_050, 'mono'),
-} satisfies Partial<Record<AssistanceOperation, LocalAssistanceAudioInputProfile>>);
-
-type ProfiledAudioOperation = keyof typeof PROFILES;
-
-export function localAssistanceAudioInputProfile(
-	operation: AssistanceOperation,
-): LocalAssistanceAudioInputProfile {
-	const selected = (PROFILES as Partial<Record<AssistanceOperation,
-		LocalAssistanceAudioInputProfile>>)[operation];
-	if (!selected) throw new RangeError('This assistance operation has no audio input profile.');
-	return selected;
-}
+export const LOCAL_ASSISTANCE_PREPARATION_CHUNK_FRAMES = 65_536;
 
 export async function createLocalAssistanceAudioWave(
 	operation: ProfiledAudioOperation,
@@ -44,121 +24,111 @@ export async function createLocalAssistanceAudioWave(
 	inputSampleRate: number,
 	signal?: AbortSignal,
 ): Promise<Blob> {
-	assertInputGeometry(channelsValue, expectedFrames, inputSampleRate);
-	const selected = localAssistanceAudioInputProfile(operation);
-	const prepared = selected.channels === 'mono'
-		? [await downmix(channelsValue, expectedFrames, signal)]
-		: [...channelsValue];
-	const outputFrames = Number(scaleSampleFrame(
-		expectedFrames, inputSampleRate, selected.sampleRate, 'point',
-	));
-	preflight(outputFrames, prepared.length);
-	const conformed = inputSampleRate === selected.sampleRate
-		? prepared
-		: await resample(prepared, inputSampleRate, selected.sampleRate, outputFrames, signal);
-	signal?.throwIfAborted();
-	const bytes = encodeWav(conformed, {
-		sampleRate: selected.sampleRate, bitDepth: 32, float: true, dither: false,
-	});
-	signal?.throwIfAborted();
-	return new Blob([bytes.slice().buffer], { type: 'audio/wav' });
+	assertChunkGeometry(channelsValue, expectedFrames, channelsValue.length);
+	async function* chunks(): AsyncGenerator<readonly Float32Array[]> {
+		yield channelsValue;
+	}
+	return createLocalAssistanceAudioWaveFromChunks(
+		operation, chunks(), expectedFrames, inputSampleRate, channelsValue.length, signal,
+	);
 }
 
-async function downmix(
-	channels: readonly Float32Array[],
-	frameCount: number,
+/**
+ * Conform a whole fenced selection while retaining only one rendered and one encoded chunk.
+ * The resulting Blob remains streamable to desktop custody without another whole-body copy.
+ */
+export async function createLocalAssistanceAudioWaveFromChunks(
+	operation: ProfiledAudioOperation,
+	inputChunks: AsyncIterable<readonly Float32Array[]>,
+	expectedFrames: number,
+	inputSampleRate: number,
+	inputChannelCount: number,
 	signal?: AbortSignal,
-): Promise<Float32Array> {
+): Promise<Blob> {
+	if (!inputChunks || typeof inputChunks[Symbol.asyncIterator] !== 'function') {
+		throw new TypeError('Assistance audio preparation requires a bounded chunk stream.');
+	}
+	const geometry = localAssistanceAudioWaveGeometry(
+		operation, expectedFrames, inputSampleRate, inputChannelCount,
+	);
+	const selected = localAssistanceAudioInputProfile(operation);
+	const parts: ArrayBuffer[] = [];
+	const encoder = createWavStreamEncoder({
+		sampleRate: geometry.sampleRate,
+		channelCount: geometry.channelCount,
+		totalFrames: geometry.frameCount,
+		bitDepth: 32,
+		float: true,
+		dither: false,
+		collect: false,
+		onChunk: (chunk: Uint8Array) => { parts.push(chunk.slice().buffer as ArrayBuffer); },
+	});
+	const resampler = inputSampleRate === geometry.sampleRate ? null
+		: createStreamingWindowedSincResampler(
+			inputSampleRate, geometry.sampleRate, geometry.channelCount,
+		) as unknown as Readonly<{
+			push(channels: Float32Array[]): Float32Array[];
+			finish(outputFrames: number): Float32Array[];
+		}>;
+	let receivedFrames = 0;
+	for await (const chunk of inputChunks) {
+		signal?.throwIfAborted();
+		const frameCount = chunk[0]?.length ?? 0;
+		assertChunkGeometry(chunk, frameCount, inputChannelCount);
+		if (frameCount < 1 || receivedFrames + frameCount > expectedFrames) {
+			throw new Error('The selected audio chunk stream exceeded its exact geometry.');
+		}
+		receivedFrames += frameCount;
+		const conformed = selected.channels === 'mono' ? [downmixChunk(chunk)] : [...chunk];
+		const output = resampler ? resampler.push(conformed) : conformed;
+		if ((output[0]?.length ?? 0) > 0) encoder.write(output);
+		await yieldForCancellation(signal);
+	}
+	if (receivedFrames !== expectedFrames) {
+		throw new Error('The selected audio chunk stream returned inexact geometry.');
+	}
+	if (resampler) {
+		const tail = resampler.finish(geometry.frameCount);
+		if ((tail[0]?.length ?? 0) > 0) encoder.write(tail);
+	}
+	signal?.throwIfAborted();
+	const finalized = encoder.finalize() as Readonly<{ byteLength: number; frames: number }>;
+	await encoder.settled();
+	signal?.throwIfAborted();
+	if (finalized.byteLength !== geometry.byteLength || finalized.frames !== geometry.frameCount) {
+		throw new Error('The selected audio encoder returned inexact geometry.');
+	}
+	const body = new Blob(parts, { type: 'audio/wav' });
+	if (body.size !== geometry.byteLength) {
+		throw new Error('The selected audio Blob returned inexact geometry.');
+	}
+	return body;
+}
+
+function downmixChunk(channels: readonly Float32Array[]): Float32Array {
+	const frameCount = channels[0]!.length;
 	const mono = new Float32Array(frameCount);
 	const scale = 1 / channels.length;
-	for (let start = 0; start < frameCount; start += PREPARATION_CHUNK_FRAMES) {
-		signal?.throwIfAborted();
-		const end = Math.min(frameCount, start + PREPARATION_CHUNK_FRAMES);
-		for (let frame = start; frame < end; frame += 1) {
-			let sample = 0;
-			for (const channel of channels) sample += channel[frame]!;
-			mono[frame] = sample * scale;
-		}
-		if (end < frameCount) await yieldForCancellation(signal);
+	for (let frame = 0; frame < frameCount; frame += 1) {
+		let sample = 0;
+		for (const channel of channels) sample += channel[frame]!;
+		mono[frame] = sample * scale;
 	}
 	return mono;
 }
 
-async function resample(
-	channels: readonly Float32Array[],
-	inputSampleRate: number,
-	outputSampleRate: number,
-	outputFrames: number,
-	signal?: AbortSignal,
-): Promise<Float32Array[]> {
-	const resampler = createStreamingWindowedSincResampler(
-		inputSampleRate, outputSampleRate, channels.length,
-	) as unknown as Readonly<{
-		push(channels: Float32Array[]): Float32Array[];
-		finish(outputFrames: number): Float32Array[];
-	}>;
-	const output = Array.from({ length: channels.length }, () => new Float32Array(outputFrames));
-	let written = 0;
-	for (let start = 0; start < channels[0]!.length; start += PREPARATION_CHUNK_FRAMES) {
-		signal?.throwIfAborted();
-		const end = Math.min(channels[0]!.length, start + PREPARATION_CHUNK_FRAMES);
-		written = appendResampled(output, written,
-			resampler.push(channels.map((channel) => channel.subarray(start, end))));
-		if (end < channels[0]!.length) await yieldForCancellation(signal);
-	}
-	written = appendResampled(output, written, resampler.finish(outputFrames));
-	if (written !== outputFrames) {
-		throw new Error('The selected audio resampler returned inexact geometry.');
-	}
-	return output;
-}
-
-function appendResampled(
-	target: readonly Float32Array[],
-	offset: number,
-	parts: readonly Float32Array[],
-): number {
-	if (parts.length !== target.length || parts.some((part) => !(part instanceof Float32Array))
-		|| new Set(parts.map((part) => part.length)).size !== 1) {
-		throw new Error('The selected audio resampler returned inexact channel geometry.');
-	}
-	const length = parts[0]?.length ?? 0;
-	if (offset + length > target[0]!.length) {
-		throw new Error('The selected audio resampler exceeded its exact geometry.');
-	}
-	for (let channel = 0; channel < target.length; channel += 1) {
-		target[channel]!.set(parts[channel]!, offset);
-	}
-	return offset + length;
-}
-
-function assertInputGeometry(
+function assertChunkGeometry(
 	channels: readonly Float32Array[],
 	expectedFrames: number,
-	inputSampleRate: number,
+	expectedChannels: number,
 ): void {
-	if (!Array.isArray(channels) || channels.length < 1 || channels.length > 64
-		|| !Number.isSafeInteger(expectedFrames) || expectedFrames < 1
-		|| !Number.isSafeInteger(inputSampleRate) || inputSampleRate < 1
+	if (!Array.isArray(channels) || channels.length !== expectedChannels
+		|| expectedChannels < 1 || expectedChannels > 64
+		|| !Number.isSafeInteger(expectedFrames) || expectedFrames < 0
 		|| channels.some((channel) => !(channel instanceof Float32Array)
 			|| channel.length !== expectedFrames)) {
 		throw new Error('The selected audio render returned inexact channel geometry.');
 	}
-}
-
-function preflight(frameCount: number, channelCount: number): void {
-	const byteLength = 44 + frameCount * channelCount * Float32Array.BYTES_PER_ELEMENT;
-	if (!Number.isSafeInteger(frameCount) || frameCount < 1
-		|| !Number.isSafeInteger(byteLength) || byteLength > MAXIMUM_PREPARED_AUDIO_BYTES) {
-		throw new RangeError('The conformed assistance audio exceeds its bounded capacity.');
-	}
-}
-
-function profile(
-	sampleRate: number,
-	channels: LocalAssistanceAudioInputProfile['channels'],
-): LocalAssistanceAudioInputProfile {
-	return Object.freeze({ sampleRate, channels });
 }
 
 async function yieldForCancellation(signal?: AbortSignal): Promise<void> {

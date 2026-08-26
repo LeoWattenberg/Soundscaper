@@ -13,9 +13,12 @@ import {
 	validateAssistanceSelectionFence,
 	type AssistanceSelectionFence,
 } from '../assistance/proposal-session.ts';
-import { createLocalAssistanceAudioWave } from './local-assistance-audio-preparation.ts';
+import {
+	createLocalAssistanceAudioWaveFromChunks,
+	LOCAL_ASSISTANCE_PREPARATION_CHUNK_FRAMES,
+} from './local-assistance-audio-preparation.ts';
+import { localAssistanceAudioWaveGeometry } from './local-assistance-audio-geometry.ts';
 
-const MAXIMUM_SELECTION_SECONDS = 10 * 60;
 const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
 const TEXT_ENCODER = new TextEncoder();
 const SHA256 = /^[a-f\d]{64}$/u;
@@ -151,26 +154,49 @@ export function createLocalAssistanceSelectedMediaPreparation(
 		if (text(selected.source.id, 'source id') !== request.sourceId) {
 			throw new Error('The requested assistance source is no longer the selected occurrence.');
 		}
-		const renderArgs = [
-			text(selected.track.id, 'track id'), selected.startFrame, selected.endFrame,
-			null, Object.freeze([text(selected.clip.id, 'clip id')]),
-		] as const;
-		const channels = request.signal
-			? await dependencies.renderDryTrackRange(...renderArgs, request.signal)
-			: await dependencies.renderDryTrackRange(...renderArgs);
+		const trackId = text(selected.track.id, 'track id');
+		const clipIds = Object.freeze([text(selected.clip.id, 'clip id')]);
+		const expectedFrames = selected.endFrame - selected.startFrame;
+		const firstEnd = Math.min(selected.endFrame,
+			selected.startFrame + LOCAL_ASSISTANCE_PREPARATION_CHUNK_FRAMES);
+		const first = await renderRange(selected.startFrame, firstEnd);
 		request.signal?.throwIfAborted();
 		dependencies.assertProject(token);
-		const input = await createLocalAssistanceAudioWave(request.operation as AudioOperation,
-			channels, selected.endFrame - selected.startFrame, selected.project.sampleRate, request.signal);
+		async function renderRange(startFrame: number, endFrame: number) {
+			const args = [trackId, startFrame, endFrame, null, clipIds] as const;
+			const rendered = request.signal
+				? await dependencies.renderDryTrackRange(...args, request.signal)
+				: await dependencies.renderDryTrackRange(...args);
+			request.signal?.throwIfAborted();
+			dependencies.assertProject(token);
+			return rendered;
+		}
+		async function* chunks(): AsyncGenerator<readonly Float32Array[]> {
+			yield first;
+			for (let start = firstEnd; start < selected.endFrame;
+				start += LOCAL_ASSISTANCE_PREPARATION_CHUNK_FRAMES) {
+				const end = Math.min(selected.endFrame,
+					start + LOCAL_ASSISTANCE_PREPARATION_CHUNK_FRAMES);
+				yield await renderRange(start, end);
+			}
+		}
+		const input = await createLocalAssistanceAudioWaveFromChunks(
+			request.operation as AudioOperation, chunks(), expectedFrames,
+			selected.project.sampleRate, first.length, request.signal,
+		);
 		request.signal?.throwIfAborted();
 		dependencies.assertProject(token);
+		const geometry = localAssistanceAudioWaveGeometry(
+			request.operation as AudioOperation, expectedFrames,
+			selected.project.sampleRate, first.length,
+		);
 		return Object.freeze({
 			sourceId: request.sourceId,
 			operation: request.operation as AudioOperation,
 			selectionFence: selected.fence,
 			inputs: Object.freeze([Object.freeze({ role: 'audio' as const,
 				mediaType: 'audio/wav' as const, bytes: input })]),
-			outputs: outputsFor(request.operation as AudioOperation),
+			outputs: outputsFor(request.operation as AudioOperation, geometry.byteLength),
 		});
 	}
 
@@ -215,9 +241,6 @@ export function resolveLocalAssistanceSelectedMediaAuthority(
 		throw new RangeError('The assistance selection must remain inside the selected occurrence.');
 	}
 	const selectionFrames = selectionEnd - selectionStart;
-	if (selectionFrames > project.sampleRate * MAXIMUM_SELECTION_SECONDS) {
-		throw new RangeError('One local-assistance audio selection cannot exceed ten minutes.');
-	}
 	const sourceStart = safeAdd(integer(clip.sourceStartFrame, 0, 'clip source start'),
 		selectionStart - clipStart, 'selected source start');
 	const sourceEnd = safeAdd(sourceStart, selectionFrames, 'selected source end');
@@ -270,7 +293,7 @@ export function createLocalAssistanceSelectionFence(
 	});
 }
 
-function outputsFor(operation: AudioOperation): readonly Readonly<{
+function outputsFor(operation: AudioOperation, audioWaveByteLength: number): readonly Readonly<{
 	slotId?: 'enhanced-audio' | 'dialogue' | 'music' | 'effects';
 	role: string; mediaType: string; maximumByteLength: number;
 }>[] {
@@ -289,7 +312,7 @@ function outputsFor(operation: AudioOperation): readonly Readonly<{
 		: operation === 'source-separation' ? ['dialogue', 'music', 'effects'] as const : null;
 	return Object.freeze((slots ?? [null]).map((slotId) => Object.freeze({
 		...(slotId === null ? {} : { slotId }), role, mediaType,
-		maximumByteLength: MAXIMUM_OUTPUT_BYTES,
+		maximumByteLength: mediaType === 'audio/wav' ? audioWaveByteLength : MAXIMUM_OUTPUT_BYTES,
 	})));
 }
 

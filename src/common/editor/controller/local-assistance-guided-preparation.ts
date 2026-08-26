@@ -35,6 +35,10 @@ import {
 	prepareLocalAssistanceGuidedHighlightInputsV1,
 	type LocalAssistanceGuidedHighlightPreparedInputsV1,
 } from './local-assistance-guided-highlight-preparation.ts';
+import {
+	localAssistanceGuidedOutputMaximumByteLength,
+	localAssistanceGuidedStorageReservation,
+} from './local-assistance-guided-output-capacity.ts';
 
 const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
 const SHA256 = /^[a-f\d]{64}$/u;
@@ -131,9 +135,6 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 			if (stages === null) throw new UnavailableError('workflow-disabled');
 			const models = resolveModelBindings(stages, request.models, settings);
 			if (models === null) throw new UnavailableError('model-binding-unavailable');
-			const outputCount = stages.reduce((count, stage) => count + stage.outputSlots.length, 0);
-			await dependencies.preflightStorage(outputCount * MAXIMUM_OUTPUT_BYTES);
-			dependencies.assertProject(token);
 			const inventory = normalizeInventory(await dependencies.selected.listSelectedMedia());
 			dependencies.assertProject(token);
 			const highlightInputs = request.workflowId === 'make-highlights'
@@ -172,6 +173,10 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 			const reviewAuthority = await deriveLocalAssistanceGuidedReviewAuthority(
 				request.workflowId, [...externalByBinding.values()].filter((value) => value !== null),
 			);
+			await dependencies.preflightStorage(localAssistanceGuidedStorageReservation(
+				request.workflowId, stages, reviewAuthority,
+			));
+			dependencies.assertProject(token);
 			const settingsBody = serializeAssistanceWorkflowSettingsV1(settings);
 			const fence = createLocalAssistanceGuidedAggregateFenceV1({ project,
 				primitiveFences: preparedFences, stages, settingsBody, models });
@@ -202,7 +207,9 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 					if (!slot.required) continue;
 					const reserved = await request.custody.reserveOutput({ jobId: request.jobId,
 						workflowId: request.workflowId, stageId: stage.stageId, slotId: slot.slotId,
-						maximumByteLength: MAXIMUM_OUTPUT_BYTES });
+						maximumByteLength: localAssistanceGuidedOutputMaximumByteLength(
+							request.workflowId, stage.stageId, slot.slotId, reviewAuthority,
+						) });
 					outputs.push(assertHandle(reserved, 'output', request.jobId, stage.stageId, slot.slotId));
 					outputBySlot.set(slot.slotId, reserved);
 				}

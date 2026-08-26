@@ -2,6 +2,9 @@
 
 /** Strict renderer-owned projection of the pathless desktop inference bridge. */
 
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
+
 import {
 	normalizeAssistanceOperation,
 	type AssistanceOperation,
@@ -489,8 +492,19 @@ function normalizeRunModels(value: unknown, operation: AssistanceOperation) {
 }
 
 async function blobSha256(value: Blob): Promise<string> {
-	const digestBytes = await crypto.subtle.digest('SHA-256', await value.arrayBuffer());
-	return [...new Uint8Array(digestBytes)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+	const digest = sha256.create();
+	const reader = value.stream().getReader();
+	try {
+		while (true) {
+			const chunk = await reader.read();
+			if (chunk.done) break;
+			digest.update(chunk.value);
+		}
+		return bytesToHex(digest.digest());
+	} finally {
+		await reader.cancel().catch(() => undefined);
+		reader.releaseLock();
+	}
 }
 
 function claimRecord(value: unknown, fields: readonly string[]) {

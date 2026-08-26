@@ -205,16 +205,15 @@ function resolveCustody(value: unknown): LocalAssistanceWorkflowCustodyBridge | 
 		async stageInput(requestValue: Parameters<LocalAssistanceWorkflowCustodyBridge['stageInput']>[0]) {
 			const request = custodyInputRequest(requestValue);
 			request.signal.throwIfAborted();
-			const bytes = new Uint8Array(await request.bytes.arrayBuffer());
-			request.signal.throwIfAborted();
-			const digest = bytesToHex(sha256(bytes));
+			const byteLength = request.bytes.size;
+			const digest = await digestBlob(request.bytes, request.signal);
 			const result = custodyHandle(await invoke('stageInput', Object.freeze({
 				jobId: request.jobId, workflowId: request.workflowId,
 				stageId: request.stageId, slotId: request.slotId,
-				mediaType: request.mediaType, byteLength: bytes.byteLength,
+				mediaType: request.mediaType, byteLength,
 				sha256: digest, bytes: request.bytes,
 			})), request, 'input');
-			if (result.custody.byteLength !== bytes.byteLength || result.custody.sha256 !== digest
+			if (result.custody.byteLength !== byteLength || result.custody.sha256 !== digest
 				|| result.custody.mediaType !== request.mediaType || result.custody.producer !== null) {
 				throw new TypeError('Staged workflow custody disagrees with its exact Blob.');
 			}
@@ -248,6 +247,24 @@ function resolveCustody(value: unknown): LocalAssistanceWorkflowCustodyBridge | 
 			return released;
 		},
 	});
+}
+
+async function digestBlob(body: Blob, signal: AbortSignal): Promise<string> {
+	const digest = sha256.create();
+	const reader = body.stream().getReader();
+	try {
+		while (true) {
+			signal.throwIfAborted();
+			const chunk = await reader.read();
+			if (chunk.done) break;
+			digest.update(chunk.value);
+		}
+		signal.throwIfAborted();
+		return bytesToHex(digest.digest());
+	} finally {
+		await reader.cancel().catch(() => undefined);
+		reader.releaseLock();
+	}
 }
 
 interface CustodyIdentity {

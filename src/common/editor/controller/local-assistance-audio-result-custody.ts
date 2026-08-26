@@ -8,6 +8,8 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 import type { AssistanceSelectionFence } from '../assistance/proposal-session.ts';
 import { validateAssistanceSelectionFence } from '../assistance/proposal-session.ts';
 import { inspectWavBlobPcm } from '../wav-import.js';
+import { localAssistanceCanonicalWaveByteLength } from
+	'./local-assistance-audio-geometry.ts';
 
 export type LocalAssistanceAudioOperation = 'speech-enhancement' | 'source-separation';
 export type LocalAssistanceAudioOutputSlot = 'enhanced-audio' | 'dialogue' | 'music' | 'effects';
@@ -87,7 +89,6 @@ const SLOT_ORDER = new Map<LocalAssistanceAudioOutputSlot, number>([
 ]);
 const OPAQUE_ID = /^[a-f\d]{40}$/u;
 const SHA256 = /^[a-f\d]{64}$/u;
-const MAXIMUM_BODY_BYTES = 512 * 1024 * 1024;
 
 /** Re-review immutable Blobs and bind each one to its exact claim, geometry, model, and stem slot. */
 export async function normalizeLocalAssistanceAudioResult(
@@ -234,7 +235,6 @@ function normalizeOutput(
 		|| !OPAQUE_ID.test(String(claimRecord.jobId)) || claimRecord.role !== profile.role
 		|| claimRecord.mediaType !== 'audio/wav'
 		|| !Number.isSafeInteger(claimRecord.byteLength) || Number(claimRecord.byteLength) < 45
-		|| Number(claimRecord.byteLength) > MAXIMUM_BODY_BYTES
 		|| !SHA256.test(String(claimRecord.sha256))) {
 		throw new TypeError(`${label} has an invalid authenticated WAV claim.`);
 	}
@@ -259,6 +259,11 @@ function normalizeOutput(
 		sampleRate: profile.sampleRate, channelCount: Number(reviewRecord.channelCount),
 		frameCount: Number(reviewRecord.frameCount), sampleFormat: 'float32' as const,
 	});
+	if (claim.byteLength !== localAssistanceCanonicalWaveByteLength(
+		review.sampleRate, review.channelCount, review.frameCount,
+	)) {
+		throw new RangeError(`${label} claim disagrees with its exact WAV geometry.`);
+	}
 	return Object.freeze({ slotId, claim, review, bytes: record.bytes });
 }
 

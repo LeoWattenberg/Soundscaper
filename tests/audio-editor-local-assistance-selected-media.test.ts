@@ -5,7 +5,11 @@ import test from 'node:test';
 
 import {
 	createLocalAssistanceSelectedMediaPreparation,
+	resolveLocalAssistanceSelectedMediaAuthority,
 } from '../src/common/editor/controller/local-assistance-selected-media.ts';
+import {
+	localAssistanceAudioWaveGeometry,
+} from '../src/common/editor/controller/local-assistance-audio-geometry.ts';
 
 const SOURCE_SHA256 = 'ab'.repeat(32);
 
@@ -119,15 +123,77 @@ test('enhancement and TIGER preparation reserve their closed publication slots',
 	});
 	assert.deepEqual(enhancement.outputs, [{
 		slotId: 'enhanced-audio', role: 'enhanced-audio', mediaType: 'audio/wav',
-		maximumByteLength: 64 * 1024 * 1024,
+		maximumByteLength: 44 + 48_000 * 2 * 4,
 	}]);
 	const separation = await fixture().preparation.prepareSelectedMedia({
 		sourceId: 'voice-source', operation: 'source-separation',
 	});
 	assert.deepEqual(separation.outputs, ['dialogue', 'music', 'effects'].map((slotId) => ({
 		slotId, role: 'separated-audio', mediaType: 'audio/wav',
-		maximumByteLength: 64 * 1024 * 1024,
+		maximumByteLength: 44 + 44_100 * 2 * 4,
 	})));
+});
+
+test('long stereo enhancement and separation geometry exceeds the old cap without weakening authority', () => {
+	const frames = 48_000 * 601;
+	const longProject = project({
+		selection: { startFrame: 24_000, endFrame: 24_000 + frames,
+			clipIds: ['voice-clip'], trackIds: ['voice-track'] },
+		sources: project().sources.map((source) => ({ ...source, frameCount: 24_000 + frames })),
+		clips: project().clips.map((clip) => clip.id === 'voice-clip'
+			? { ...clip, durationFrames: frames, sourceDurationFrames: frames }
+			: clip),
+	});
+	const dependencies = {
+		getProject: () => longProject, getSelectedClipId: () => 'voice-clip',
+		captureProject: () => null, assertProject: () => undefined,
+		renderDryTrackRange: async () => [new Float32Array(1), new Float32Array(1)],
+	};
+	const authority = resolveLocalAssistanceSelectedMediaAuthority(dependencies);
+	assert.equal(authority.endFrame - authority.startFrame, frames);
+	assert.equal(authority.fence.sourceEndFrame - authority.fence.sourceStartFrame, frames);
+	for (const operation of ['speech-enhancement', 'source-separation'] as const) {
+		const geometry = localAssistanceAudioWaveGeometry(operation, frames, 48_000, 2);
+		assert.ok(geometry.byteLength > 64 * 1024 * 1024, operation);
+		assert.equal(geometry.channelCount, 2, operation);
+		assert.equal(geometry.frameCount,
+			operation === 'speech-enhancement' ? frames : 44_100 * 601, operation);
+	}
+});
+
+test('long preparation renders bounded ranges and remains promptly cancellable', async () => {
+	const frames = 48_000 * 601;
+	const longProject = project({
+		selection: { startFrame: 24_000, endFrame: 24_000 + frames,
+			clipIds: ['voice-clip'], trackIds: ['voice-track'] },
+		sources: project().sources.map((source) => ({ ...source, frameCount: 24_000 + frames })),
+		clips: project().clips.map((clip) => clip.id === 'voice-clip'
+			? { ...clip, durationFrames: frames, sourceDurationFrames: frames }
+			: clip),
+	});
+	const controller = new AbortController();
+	const ranges: Array<readonly [number, number]> = [];
+	const preparation = createLocalAssistanceSelectedMediaPreparation({
+		getProject: () => longProject, getSelectedClipId: () => 'voice-clip',
+		captureProject: () => null, assertProject: () => undefined,
+		renderDryTrackRange: async (_trackId, start, end) => {
+			ranges.push([start, end]);
+			if (ranges.length === 2) controller.abort(new DOMException('cancelled', 'AbortError'));
+			const length = end - start;
+			return [new Float32Array(length), new Float32Array(length)];
+		},
+	});
+	await assert.rejects(preparation.prepareSelectedMedia({
+		sourceId: 'voice-source', operation: 'source-separation', signal: controller.signal,
+	}), { name: 'AbortError' });
+	assert.equal(ranges.length, 2);
+	assert.ok(ranges.every(([start, end]) => end - start <= 65_536));
+});
+
+test('canonical WAV geometry refuses an unrepresentable oversized selection before rendering', () => {
+	assert.throws(() => localAssistanceAudioWaveGeometry(
+		'speech-enhancement', Number.MAX_SAFE_INTEGER, 48_000, 64,
+	), /geometry|RIFF|capacity/iu);
 });
 
 test('selection fences change with link and timing authority and preparation rechecks currentness', async () => {
@@ -212,7 +278,7 @@ test('selected-media preparation yields to cancellation while conforming rendere
 	await assert.rejects(pending, { name: 'AbortError' });
 });
 
-test('ambiguous, transformed, unsupported, and oversized selections refuse before rendering', async () => {
+test('ambiguous and transformed selections refuse before rendering', async () => {
 	for (const [name, changed, pattern] of [
 		['no selected clip', project(), /selected audio occurrence/iu],
 		['reverse', project({ clips: project().clips.map((clip) => clip.id === 'voice-clip'
@@ -221,10 +287,6 @@ test('ambiguous, transformed, unsupported, and oversized selections refuse befor
 			? { ...clip, warpMap: { feature: 'audio-warp', points: [] } } : clip) }), /forward identity timing/iu],
 		['outside', project({ selection: { startFrame: 0, endFrame: 12_000,
 			clipIds: ['voice-clip'], trackIds: ['voice-track'] } }), /inside the selected occurrence/iu],
-		['large', project({ selection: { startFrame: 24_000, endFrame: 24_000 + 48_000 * 601,
-			clipIds: ['voice-clip'], trackIds: ['voice-track'] }, clips: project().clips.map((clip) => (
-				clip.id === 'voice-clip' ? { ...clip, durationFrames: 48_000 * 700,
-					sourceDurationFrames: 48_000 * 700 } : clip)) }), /ten minutes/iu],
 	] as const) {
 		const selectedClipId = name === 'no selected clip' ? null : 'voice-clip';
 		let renderCount = 0;
