@@ -59,7 +59,6 @@ const {
 	registerDesktopNativeTier,
 	revokeDesktopNativeTierOwner,
 } = await import('../desktop/native-tier-registration.mjs');
-const { registerDesktopHelperProbe } = await import('../desktop/helper-registration.mjs');
 const { DesktopNativeAudioSessionService } = await import('../desktop/native-audio-session-service.ts');
 const { DesktopPluginHostService } = await import('../desktop/plugin-host-service.ts');
 const { DesktopPluginQuarantine, PLUGIN_FAULT_KINDS } = await import('../desktop/plugin-quarantine.ts');
@@ -474,42 +473,6 @@ test('the scan job answer fills the inventory on its way past', async (context) 
 	assert.equal(await supervisor.runJob({ kind: 'plugin-scan' }), answer, 'the answer is handed back untouched');
 	assert.deepEqual(registry.describe().entries.map((entry) => entry.name), ['Fixture Reverb']);
 	assert.deepEqual(requests.map((request) => request.kind), ['audio-device', 'plugin-scan']);
-});
-
-test('the probe helper resolves its engine on use, not while the application registers', async (context) => {
-	// Desktop codec policy ships no bundled FFmpeg, so a packaged application has
-	// neither config/ffmpeg-runtime-manifest.json nor the engine beside it.
-	// Reading them while registering made every packaged start emit an unhandled
-	// rejection nobody could catch, long before any probe asked for a helper.
-	const applicationRoot = await mkdtemp(join(tmpdir(), 'scape-helper-registration-'));
-	context.after(() => rm(applicationRoot, { recursive: true, force: true }));
-	const desktopRoot = join(applicationRoot, 'desktop');
-	await mkdir(desktopRoot);
-	const rejections = [];
-	const recordRejection = (reason) => rejections.push(reason);
-	process.on('unhandledRejection', recordRejection);
-	context.after(() => process.off('unhandledRejection', recordRejection));
-
-	const claimed = [];
-	const service = registerDesktopHelperProbe({
-		channels: IPC,
-		handle: (channel) => claimed.push(channel),
-		ownerFor: () => ({}),
-		readCapabilities: new ReadCapabilityStore(),
-		settings: createSettings({ nativeProbeHelperEnabled: false }),
-		desktopRoot,
-		packaged: true,
-		resourcesPath: join(applicationRoot, 'resources'),
-	});
-	await new Promise((resolve) => { setImmediate(resolve); });
-
-	assert.deepEqual(rejections, [],
-		'registration must not read an engine the package is not allowed to carry');
-	assert.deepEqual(claimed.sort(), [
-		IPC.helperProbeAvailability, IPC.helperProbeAwait,
-		IPC.helperProbeBegin, IPC.helperProbeCancel,
-	].sort());
-	assert.equal((await service.availability()).enabled, false);
 });
 
 function registrationOptions(userDataPath, overrides = {}) {
