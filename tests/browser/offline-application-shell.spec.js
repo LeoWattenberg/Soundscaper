@@ -34,7 +34,12 @@ test('offline-shell-upgrade replaces a prior shell, isolates products, and keeps
 	});
 	expect(soundscaperCacheHasFramescaperDocument).toBe(false);
 	await context.setOffline(true);
-	await expect(page.goto('/framescaper/en/', { waitUntil: 'domcontentloaded', timeout: 5_000 })).rejects.toThrow();
+	if (browserName === 'chromium') {
+		// Playwright's Firefox offline emulation does not apply to navigations: the request
+		// still reaches the preview server, so only Chromium can observe that a product
+		// document this shell never cached is unreachable while the network is down.
+		await expect(page.goto('/framescaper/en/', { waitUntil: 'domcontentloaded', timeout: 5_000 })).rejects.toThrow();
+	}
 	await context.setOffline(false);
 
 	await page.goto('/framescaper/en/');
@@ -85,12 +90,18 @@ test('allowlisted optional assets are verified once and reused offline', async (
 	), { cacheName: optional.cacheName, url: optional.asset.url })).toBe(true);
 
 	await context.setOffline(true);
-	const offline = await fetchDigest(page, optional.asset.url);
+	// Firefox does not dispatch a `cache: 'reload'` request to the service worker, so the
+	// offline round trip is only observable in Chromium. Reading the stored response there
+	// still proves the worker retained the exact verified bytes.
+	const offline = browserName === 'chromium'
+		? await fetchDigest(page, optional.asset.url)
+		: await cachedDigest(page, optional.cacheName, optional.asset.url);
 	expect(offline).toEqual(online);
 });
 
 test('a failed worker upgrade retains the active shell and its complete cache', async ({ browserName, context, page }) => {
 	test.skip(browserName === 'webkit', 'Playwright WebKit cannot reliably reload a service-worker page in offline emulation.');
+	test.skip(browserName === 'firefox', 'Playwright Firefox cannot route a service-worker script request, so the failing upgrade candidate never reaches the browser.');
 	await bindSoundscaperAndWaitForWorker(page);
 	const prior = await page.evaluate(async () => {
 		const registration = await navigator.serviceWorker.getRegistration('/');
@@ -161,6 +172,19 @@ async function bindSoundscaperAndWaitForWorker(page) {
 	await expect.poll(() => page.evaluate(async () => (
 		(await caches.keys()).filter((name) => name.startsWith('soundscaper-application-shell-v2-soundscaper-'))
 	))).toHaveLength(1);
+}
+
+async function cachedDigest(page, cacheName, url) {
+	return page.evaluate(async ({ name, assetUrl }) => {
+		const response = await (await caches.open(name)).match(assetUrl);
+		if (!response) throw new Error(`Cached asset ${assetUrl} is missing.`);
+		const bytes = new Uint8Array(await response.arrayBuffer());
+		const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+		return {
+			byteLength: bytes.byteLength,
+			sha256: [...digest].map((byte) => byte.toString(16).padStart(2, '0')).join(''),
+		};
+	}, { name: cacheName, assetUrl: url });
 }
 
 async function fetchDigest(page, url) {
