@@ -19,6 +19,11 @@ import {
 } from './local-assistance-reaction-acceptance.ts';
 import type { AssistanceReactionProposalOptions } from '../assistance/reaction-proposals.ts';
 import {
+	createLocalAssistanceBeatReviewSession,
+	type LocalAssistanceBeatAuthority,
+	type LocalAssistanceBeatReviewSession,
+} from './local-assistance-beat-acceptance.ts';
+import {
 	createLocalAssistanceShotAcceptance,
 } from './local-assistance-shot-acceptance.ts';
 import type {
@@ -48,6 +53,7 @@ export function createLocalAssistanceResultAcceptance(
 		request: unknown,
 		options?: AssistanceReactionProposalOptions,
 	): LocalAssistanceReactionReviewSession;
+	createBeatReviewSession(request: unknown): LocalAssistanceBeatReviewSession;
 }> {
 	const rangeLabels = createLocalAssistanceRangeLabelAcceptance(dependencies);
 	const shots = dependencies.currentVideoAuthority
@@ -82,6 +88,14 @@ export function createLocalAssistanceResultAcceptance(
 			options: AssistanceReactionProposalOptions = {},
 		): LocalAssistanceReactionReviewSession {
 			return createLocalAssistanceReactionReviewSession(dependencies, request, options);
+		},
+		createBeatReviewSession(request: unknown): LocalAssistanceBeatReviewSession {
+			return createLocalAssistanceBeatReviewSession({
+				currentAuthority: dependencies.currentAuthority as () => LocalAssistanceBeatAuthority,
+				captureProject: dependencies.captureProject,
+				assertProject: dependencies.assertProject,
+				commit: dependencies.commit,
+			}, request);
 		},
 		acceptValidatedResult(request: unknown): Promise<void> {
 			const operation = resultOperation(request);
