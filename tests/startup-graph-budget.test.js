@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import {
 	STARTUP_GRAPH_BUDGETS,
+	assertProductGraphOwnership,
 	assertProductionStartupGraphs,
 	collectStartupGraph,
 } from '../scripts/lib/startup-graph-budget.mjs';
@@ -44,6 +45,24 @@ test('production startup budgets reject either product tree in the static entry 
 			new RegExp(`static entry.*src/${product}/`, 'iu'),
 		);
 	}
+});
+
+test('each product-ready graph excludes the other product tree', () => {
+	assert.doesNotThrow(() => assertProductGraphOwnership('soundscaper', {
+		moduleIds: new Set(['/workspace/src/soundscaper/bootstrap.ts', '/workspace/src/common/editor/app.js']),
+	}));
+	assert.throws(
+		() => assertProductGraphOwnership('soundscaper', {
+			moduleIds: new Set(['/workspace/src/framescaper/editor-project-v31.ts']),
+		}),
+		/soundscaper.*forbidden framescaper product module/iu,
+	);
+	assert.throws(
+		() => assertProductGraphOwnership('framescaper', {
+			moduleIds: new Set(['/workspace/src/soundscaper/product.js']),
+		}),
+		/framescaper.*forbidden soundscaper product module/iu,
+	);
 });
 
 test('approved graph ceilings remain hard limits', () => {

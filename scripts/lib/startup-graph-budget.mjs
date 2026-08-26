@@ -57,9 +57,20 @@ export function assertProductionStartupGraphs(bundle) {
 		if (!bootstrap) throw new Error(`Startup graph budget could not find ${product} bootstrap ${bootstrapPath}.`);
 		const graph = collectStartupGraph(bundle, [entry.fileName, bootstrap.fileName]);
 		assertBudget(`${product} product-ready`, graph, STARTUP_GRAPH_BUDGETS[product]);
+		assertProductGraphOwnership(product, graph);
 		graphs[product] = graph;
 	}
 	return Object.freeze(graphs);
+}
+
+export function assertProductGraphOwnership(product, graph) {
+	const otherProduct = product === 'framescaper' ? 'soundscaper' : 'framescaper';
+	const forbiddenModule = [...graph.moduleIds].find((moduleId) => (
+		moduleId.includes(`/src/${otherProduct}/`)
+	));
+	if (forbiddenModule) {
+		throw new Error(`${product} product-ready graph owns forbidden ${otherProduct} product module ${forbiddenModule}.`);
+	}
 }
 
 /**

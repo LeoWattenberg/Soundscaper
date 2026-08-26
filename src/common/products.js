@@ -1,6 +1,5 @@
-import { FRAMESCAPER_PROFILE } from '../framescaper/product.js';
-import { SOUNDSCAPER_PROFILE } from '../soundscaper/product.js';
 import { normalizeProductId } from './product-identities.js';
+import { FRAMESCAPER_PROFILE, SOUNDSCAPER_PROFILE } from './product-profiles.js';
 
 export {
 	PRODUCT_IDS,

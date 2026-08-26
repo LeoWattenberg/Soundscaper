@@ -22,6 +22,11 @@ import {
 } from '../common/editor/native-ofx-interact-contract.ts';
 import type { OfxEffectStateV26 } from '../common/editor/native-ofx-state-v26.ts';
 import {
+	adoptFramescaperNativeOpenFxAuthoringRuntimeV28 as adoptRegisteredOpenFxRuntime,
+	bindFramescaperNativeOpenFxAuthoringRuntimeV28 as bindRegisteredOpenFxRuntime,
+	framescaperNativeOpenFxAuthoringRuntimeForV28 as registeredOpenFxRuntimeFor,
+} from '../common/editor/framescaper-native-openfx-authoring-runtime-registry.ts';
+import {
 	bindFramescaperNativeProjectActionRuntime,
 	composeFramescaperNativeProjectActionRuntimes,
 	createFramescaperNativeProjectActionSubsetRuntime,
@@ -87,8 +92,6 @@ export interface FramescaperOpenFxInteractAuthoringModelV28 {
 	readonly instances: readonly FramescaperOpenFxInteractInstanceV28[];
 }
 
-const AUTHORING_RUNTIMES = new WeakMap<object, FramescaperNativeOpenFxAuthoringRuntimeV28>();
-
 export function framescaperNativeOpenFxActionBridgeAvailableV28(
 	value: unknown,
 ): value is FramescaperNativeOpenFxActionBridgeV28 {
@@ -127,15 +130,14 @@ export function bindFramescaperNativeOpenFxActionV28(
 		}),
 	]);
 	bindFramescaperNativeProjectActionRuntime(options.owner, runtime);
-	AUTHORING_RUNTIMES.set(options.owner, authoring);
+	bindRegisteredOpenFxRuntime(options.owner, authoring);
 	return runtime;
 }
 
 export function framescaperNativeOpenFxAuthoringRuntimeForV28(
 	owner: unknown,
 ): FramescaperNativeOpenFxAuthoringRuntimeV28 | null {
-	return owner && (typeof owner === 'object' || typeof owner === 'function')
-		? AUTHORING_RUNTIMES.get(owner as object) ?? null : null;
+	return registeredOpenFxRuntimeFor(owner) as FramescaperNativeOpenFxAuthoringRuntimeV28 | null;
 }
 
 /** Rebind inherited authoring after a product-version controller projection. */
@@ -143,11 +145,7 @@ export function adoptFramescaperNativeOpenFxAuthoringRuntimeV28(
 	from: object,
 	to: object,
 ): void {
-	const runtime = AUTHORING_RUNTIMES.get(from);
-	if (!runtime || !to || typeof to !== 'object') {
-		throw new TypeError('Selected V28 OpenFX authoring adoption requires exact owners.');
-	}
-	AUTHORING_RUNTIMES.set(to, runtime);
+	adoptRegisteredOpenFxRuntime(from, to);
 }
 
 async function loadAuthoringModel(

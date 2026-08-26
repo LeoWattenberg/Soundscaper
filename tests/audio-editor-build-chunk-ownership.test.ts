@@ -261,6 +261,20 @@ test('small product-ready foundations have non-recursive semantic owners', () =>
 	}
 });
 
+test('Framescaper session clipboard modules stay in one product-owned ready chunk', () => {
+	for (const path of [
+		'src/framescaper/editor-session-clipboard-v8.ts',
+		'src/framescaper/editor-session-clipboard-v11.ts',
+		'src/framescaper/editor-session-clipboard-v11-controller.ts',
+		'src/framescaper/editor-session-clipboard-v11-selection.ts',
+	]) {
+		assert.equal(chunkGroupForModulePath(path), 'framescaper-session-clipboard');
+	}
+	const group = chunkGroups.find((candidate) => candidate.name === 'framescaper-session-clipboard');
+	assert.ok(group);
+	assert.equal(group.includeDependenciesRecursively, false);
+});
+
 test('editor UI imports exact internal design-system modules', () => {
 	const broadImporters = sourceModules(EDITOR_UI_DIRECTORY)
 		.filter((path) => readFileSync(path, 'utf8').includes("from '@dilsonspickles/components'"));

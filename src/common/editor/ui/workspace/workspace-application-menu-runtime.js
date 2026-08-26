@@ -1,5 +1,6 @@
 import { otherProductId, productLocalePath } from '../../../products.js';
 import { documentationUrl } from '../../documentation-links.ts';
+import { framescaperVideoProxyActionRuntimeFor } from '../../framescaper-video-proxy-action-runtime-registry.ts';
 import { isSelectedFramescaperProjectSchema } from '../../project-schema-version.ts';
 
 import { moveAudioEditorTrackBlock, trackSourceRate } from '../application-menu-model.js';
@@ -13,8 +14,7 @@ import {
 import { framescaperCandidateAuthoringActionRuntimeFor } from '../framescaper-candidate-authoring-actions.ts';
 import { framescaperSelectedV27VisualAuthoringSurfaceId } from '../framescaper-selected-v27-visual-authoring-menu.ts';
 import { framescaperV27FinishingSurfaceId } from '../framescaper-v27-finishing-menu.ts';
-import { framescaperVideoProxyActionRuntimeFor } from '../../../../framescaper/editor-video-proxy-action-runtime-v20.ts';
-import { framescaperNativeOpenFxAuthoringRuntimeForV28 } from '../../../../framescaper/editor-native-openfx-action-v28.ts';
+import { framescaperNativeOpenFxAuthoringRuntimeForV28 } from '../../framescaper-native-openfx-authoring-runtime-registry.ts';
 import { createVideoTrimApplicationMenuActions } from './video-trim-application-menu-actions.ts';
 import {
 	resolveFramescaperNativeServicesWorkspaceRuntime,

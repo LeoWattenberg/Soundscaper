@@ -55,6 +55,7 @@ const framescaperProjectFoundationModule = String.raw`(?:editor-video-proxy-acti
 const FRAMESCAPER_PROJECT_FOUNDATION_CHUNK_TEST = new RegExp(
 	`src[\\\\/]framescaper[\\\\/]${framescaperProjectFoundationModule}\\.ts$`,
 );
+const FRAMESCAPER_SESSION_CLIPBOARD_CHUNK_TEST = /src[\\/]framescaper[\\/]editor-session-clipboard-v(?:8|11(?:-(?:controller|selection))?)\.ts$/;
 
 
 /** Flat editor modules and `assistance/` domain modules shared by the shell and dialogs. */
@@ -132,6 +133,13 @@ export const chunkGroups = [
 	{
 		name: 'framescaper-project-foundations',
 		test: FRAMESCAPER_PROJECT_FOUNDATION_CHUNK_TEST,
+		priority: 98,
+		maxSize: 490_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		name: 'framescaper-session-clipboard',
+		test: FRAMESCAPER_SESSION_CLIPBOARD_CHUNK_TEST,
 		priority: 98,
 		maxSize: 490_000,
 		includeDependenciesRecursively: false,
