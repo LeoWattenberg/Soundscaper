@@ -52,6 +52,19 @@ export interface AssistanceTransNetV2DecodedFramesV1 {
 	readonly data: Uint8Array;
 }
 
+export interface AssistanceTransNetV2DecodedFrameSourceV1 {
+	readonly schemaVersion: 1;
+	readonly pixelFormat: 'rgb24';
+	readonly width: typeof ASSISTANCE_TRANSNET_V2_WIDTH;
+	readonly height: typeof ASSISTANCE_TRANSNET_V2_HEIGHT;
+	readonly rowStrideBytes: typeof ASSISTANCE_TRANSNET_V2_ROW_STRIDE_BYTES;
+	readonly timescale: number;
+	readonly frameCount: number;
+	readonly sourceFrames: readonly number[];
+	readonly presentationTicks: readonly string[];
+	readonly readFrame: (index: number) => PromiseLike<Uint8Array> | Uint8Array;
+}
+
 export interface AssistanceTransNetV2CpuInputBatchV1 {
 	readonly schemaVersion: 1;
 	readonly batchIndex: number;
@@ -87,6 +100,11 @@ interface AssistanceTransNetV2OnnxAdapterRequestV1 {
 	readonly minimumBoundaryDistanceFrames: number;
 }
 
+interface AssistanceTransNetV2OnnxFrameSourceRequestV1
+	extends Omit<AssistanceTransNetV2OnnxAdapterRequestV1, 'frames'> {
+	readonly frames: AssistanceTransNetV2DecodedFrameSourceV1;
+}
+
 const MAXIMUM_SOURCE_FRAMES = 10_000_000;
 const MAXIMUM_TIMESCALE = 0x7fff_ffff;
 const MAXIMUM_TICK = 0x7fff_ffff_ffff_ffffn;
@@ -94,6 +112,11 @@ const TICK = /^(?:0|[1-9]\d*)$/u;
 const DECODED_FIELDS = Object.freeze([
 	'schemaVersion', 'pixelFormat', 'width', 'height', 'rowStrideBytes',
 	'timescale', 'presentationTicks', 'data',
+] as const);
+const FRAME_SOURCE_FIELDS = Object.freeze([
+	'schemaVersion', 'pixelFormat', 'width', 'height', 'rowStrideBytes',
+	'timescale', 'frameCount', 'presentationTicks', 'readFrame',
+	'sourceFrames',
 ] as const);
 const REQUEST_FIELDS = Object.freeze([
 	'schemaVersion', 'frames', 'inputElementType', 'outputValueKind', 'threshold',
@@ -143,8 +166,26 @@ export async function runAssistanceTransNetV2OnnxAdapterV1(
 	if (!options || typeof options.runBatch !== 'function') {
 		throw new TypeError('The TransNetV2 ONNX batch runner is invalid.');
 	}
-	options.signal?.throwIfAborted();
 	const request = validateRequest(value);
+	return runFrameSource({ ...request, frames: sourceFromDecoded(request.frames) }, options);
+}
+
+/** Run the same reviewed window authority over bounded, lazily supplied RGB frames. */
+export async function runAssistanceTransNetV2FrameSourceOnnxAdapterV1(
+	value: unknown,
+	options: AssistanceTransNetV2OnnxAdapterOptionsV1,
+): Promise<AssistanceTransNetV2BoundariesV1> {
+	if (!options || typeof options.runBatch !== 'function') {
+		throw new TypeError('The TransNetV2 ONNX batch runner is invalid.');
+	}
+	return runFrameSource(validateFrameSourceRequest(value), options);
+}
+
+async function runFrameSource(
+	request: AssistanceTransNetV2OnnxFrameSourceRequestV1,
+	options: AssistanceTransNetV2OnnxAdapterOptionsV1,
+): Promise<AssistanceTransNetV2BoundariesV1> {
+	options.signal?.throwIfAborted();
 	const frameCount = request.frames.presentationTicks.length;
 	const batchCount = assistanceTransNetV2BatchCount(frameCount);
 	const single = new Float32Array(frameCount);
@@ -152,7 +193,9 @@ export async function runAssistanceTransNetV2OnnxAdapterV1(
 	const authority = new Uint8Array(frameCount);
 	for (let batchIndex = 0; batchIndex < batchCount; batchIndex += 1) {
 		options.signal?.throwIfAborted();
-		const batch = createBatch(request.frames, batchIndex, request.inputElementType);
+		const batch = await createFrameSourceBatch(
+			request.frames, batchIndex, request.inputElementType, options.signal,
+		);
 		const candidate = await options.runBatch(batch);
 		options.signal?.throwIfAborted();
 		const output = validateOutput(candidate, request.outputValueKind);
@@ -177,6 +220,7 @@ export async function runAssistanceTransNetV2OnnxAdapterV1(
 	}
 	return createAssistanceTransNetV2BoundariesV1({
 		timescale: request.frames.timescale,
+		sourceFrames: request.frames.sourceFrames,
 		presentationTicks: request.frames.presentationTicks,
 		singleFrameProbabilities: single,
 		allFrameProbabilities: all,
@@ -197,6 +241,64 @@ function validateRequest(value: unknown): AssistanceTransNetV2OnnxAdapterRequest
 		threshold: unit(row.threshold, 'TransNetV2 threshold'),
 		minimumBoundaryDistanceFrames: integer(row.minimumBoundaryDistanceFrames, 1,
 			frames.presentationTicks.length, 'TransNetV2 minimum boundary distance'),
+	});
+}
+
+function validateFrameSourceRequest(value: unknown): AssistanceTransNetV2OnnxFrameSourceRequestV1 {
+	const row = exactRecord(value, REQUEST_FIELDS, 'TransNetV2 ONNX frame-source request');
+	if (row.schemaVersion !== 1) throw new TypeError('The TransNetV2 adapter version is unsupported.');
+	const frames = validateFrameSource(row.frames);
+	return Object.freeze({
+		schemaVersion: 1,
+		frames,
+		inputElementType: inputElementType(row.inputElementType),
+		outputValueKind: outputValueKind(row.outputValueKind),
+		threshold: unit(row.threshold, 'TransNetV2 threshold'),
+		minimumBoundaryDistanceFrames: integer(row.minimumBoundaryDistanceFrames, 1,
+			frames.frameCount, 'TransNetV2 minimum boundary distance'),
+	});
+}
+
+function validateFrameSource(value: unknown): AssistanceTransNetV2DecodedFrameSourceV1 {
+	const row = exactRecord(value, FRAME_SOURCE_FIELDS, 'TransNetV2 decoded RGB frame source');
+	if (row.schemaVersion !== 1 || row.pixelFormat !== 'rgb24'
+		|| row.width !== ASSISTANCE_TRANSNET_V2_WIDTH
+		|| row.height !== ASSISTANCE_TRANSNET_V2_HEIGHT
+		|| row.rowStrideBytes !== ASSISTANCE_TRANSNET_V2_ROW_STRIDE_BYTES
+		|| typeof row.readFrame !== 'function') {
+		throw new TypeError('TransNetV2 decoded RGB frame-source geometry or reader is invalid.');
+	}
+	const timescale = integer(row.timescale, 1, MAXIMUM_TIMESCALE, 'TransNetV2 timescale');
+	const presentationTicks = timing(row.presentationTicks);
+	const frameCount = integer(row.frameCount, 1, MAXIMUM_SOURCE_FRAMES,
+		'TransNetV2 source frame count');
+	if (presentationTicks.length !== frameCount) {
+		throw new RangeError('TransNetV2 frame-source timing disagrees with its frame count.');
+	}
+	const sourceFrames = sourceOrdinals(row.sourceFrames, frameCount);
+	return Object.freeze({
+		schemaVersion: 1, pixelFormat: 'rgb24',
+		width: ASSISTANCE_TRANSNET_V2_WIDTH, height: ASSISTANCE_TRANSNET_V2_HEIGHT,
+		rowStrideBytes: ASSISTANCE_TRANSNET_V2_ROW_STRIDE_BYTES,
+		timescale, frameCount, sourceFrames, presentationTicks,
+		readFrame: row.readFrame as AssistanceTransNetV2DecodedFrameSourceV1['readFrame'],
+	});
+}
+
+function sourceFromDecoded(
+	frames: AssistanceTransNetV2DecodedFramesV1,
+): AssistanceTransNetV2DecodedFrameSourceV1 {
+	return Object.freeze({
+		schemaVersion: 1, pixelFormat: 'rgb24', width: ASSISTANCE_TRANSNET_V2_WIDTH,
+		height: ASSISTANCE_TRANSNET_V2_HEIGHT,
+		rowStrideBytes: ASSISTANCE_TRANSNET_V2_ROW_STRIDE_BYTES,
+		timescale: frames.timescale, frameCount: frames.presentationTicks.length,
+		sourceFrames: Object.freeze(frames.presentationTicks.map((_, index) => index)),
+		presentationTicks: frames.presentationTicks,
+		readFrame(index: number) {
+			const offset = index * ASSISTANCE_TRANSNET_V2_FRAME_BYTES;
+			return frames.data.subarray(offset, offset + ASSISTANCE_TRANSNET_V2_FRAME_BYTES);
+		},
 	});
 }
 
@@ -221,6 +323,37 @@ function createBatch(
 		authoritativeFrameCount: Math.min(
 			ASSISTANCE_TRANSNET_V2_WINDOW_STEP_FRAMES,
 			frames.presentationTicks.length - sourceFrameStart,
+		),
+		elementType, dims: ASSISTANCE_TRANSNET_V2_CPU_INPUT_SHAPE, data,
+	});
+}
+
+async function createFrameSourceBatch(
+	frames: AssistanceTransNetV2DecodedFrameSourceV1,
+	batchIndex: number,
+	elementType: AssistanceTransNetV2InputElementType,
+	signal?: AbortSignal,
+): Promise<AssistanceTransNetV2CpuInputBatchV1> {
+	const tensorElements = ASSISTANCE_TRANSNET_V2_WINDOW_FRAMES * ASSISTANCE_TRANSNET_V2_FRAME_BYTES;
+	const data = elementType === 'uint8'
+		? new Uint8Array(tensorElements) : new Float32Array(tensorElements);
+	const sourceFrameStart = batchIndex * ASSISTANCE_TRANSNET_V2_WINDOW_STEP_FRAMES;
+	for (let tensorFrame = 0; tensorFrame < ASSISTANCE_TRANSNET_V2_WINDOW_FRAMES; tensorFrame += 1) {
+		signal?.throwIfAborted();
+		const unclamped = sourceFrameStart + tensorFrame - ASSISTANCE_TRANSNET_V2_CONTEXT_FRAMES;
+		const sourceFrame = Math.max(0, Math.min(frames.frameCount - 1, unclamped));
+		const value = await frames.readFrame(sourceFrame);
+		if (!(value instanceof Uint8Array) || !(value.buffer instanceof ArrayBuffer)
+			|| value.byteLength !== ASSISTANCE_TRANSNET_V2_FRAME_BYTES) {
+			throw new RangeError('TransNetV2 frame-source RGB data has invalid exact geometry.');
+		}
+		data.set(value, tensorFrame * ASSISTANCE_TRANSNET_V2_FRAME_BYTES);
+	}
+	return Object.freeze({
+		schemaVersion: 1, batchIndex, sourceFrameStart,
+		authoritativeFrameCount: Math.min(
+			ASSISTANCE_TRANSNET_V2_WINDOW_STEP_FRAMES,
+			frames.frameCount - sourceFrameStart,
 		),
 		elementType, dims: ASSISTANCE_TRANSNET_V2_CPU_INPUT_SHAPE, data,
 	});
@@ -296,6 +429,22 @@ function timing(value: unknown): readonly string[] {
 		}
 		prior = tick;
 		return candidate;
+	}));
+}
+
+function sourceOrdinals(value: unknown, frameCount: number): readonly number[] {
+	if (!Array.isArray(value) || value.length !== frameCount) {
+		throw new RangeError('The TransNetV2 source-frame authority disagrees with its frame count.');
+	}
+	let prior = -1;
+	return Object.freeze(value.map((candidate, index) => {
+		const sourceFrame = integer(candidate, 0, MAXIMUM_SOURCE_FRAMES - 1,
+			`TransNetV2 source frame ${String(index)}`);
+		if (index > 0 && sourceFrame !== prior + 1) {
+			throw new RangeError('TransNetV2 source frames must be consecutive and strictly increasing.');
+		}
+		prior = sourceFrame;
+		return sourceFrame;
 	}));
 }
 

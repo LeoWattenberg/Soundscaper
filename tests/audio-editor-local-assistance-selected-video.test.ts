@@ -91,6 +91,15 @@ test('selected video preparation carries an explicit accurate mode without subst
 		sourceId: 'video-source', operation: 'shot-detection', shotDetectionMode: 'accurate',
 	});
 	assert.equal(prepared.shotDetectionMode, 'accurate');
+	assert.equal(prepared.inputs[0]?.role, 'frame-pack');
+	assert.equal(prepared.inputs[0]?.mediaType, 'application/vnd.soundscaper.frame-pack');
+	assert.equal(fixture.accurateRequests.length, 1);
+	assert.equal(fixture.accurateRequests[0]?.timing.timescale, 24);
+	assert.deepEqual(fixture.accurateRequests[0]?.timing.frames.slice(0, 2), [
+		{ sourceFrame: 20, presentationTick: '20', timestampSeconds: 20.5 / 24 },
+		{ sourceFrame: 21, presentationTick: '21', timestampSeconds: 21.5 / 24 },
+	]);
+	assert.equal(fixture.accurateRequests[0]?.timing.frames.length, 100);
 	assert.equal(normalizeLocalAssistancePreparedMedia(prepared, {
 		sourceId: 'video-source', operation: 'shot-detection', shotDetectionMode: 'accurate',
 	}).shotDetectionMode, 'accurate');
@@ -365,6 +374,14 @@ function videoFixture(
 	getCurrent: () => ReturnType<typeof videoProject> = () => projectValue,
 ) {
 	const events: string[] = [];
+	const accurateRequests: Array<Readonly<{
+		body: Blob;
+		timing: Readonly<{ timescale: number; frames: readonly Readonly<{
+			sourceFrame: number; presentationTick: string; timestampSeconds: number;
+		}>[] }>;
+		signal: AbortSignal;
+		assertCurrent: () => void;
+	}>> = [];
 	const resolvedStore: VideoOriginalStoreFixture = store ?? {
 		async loadMediaAsset(storageKey) {
 			events.push(`owned:${storageKey}`);
@@ -380,9 +397,17 @@ function videoFixture(
 				'project changed');
 		},
 		store: resolvedStore,
+		createAccurateFramePacks: async (request) => {
+			accurateRequests.push(request);
+			request.signal.throwIfAborted();
+			request.assertCurrent();
+			return Object.freeze([new Blob(['reviewed-frame-pack'], {
+				type: 'application/vnd.soundscaper.frame-pack',
+			})]);
+		},
 		...(maximumInputBytes === undefined ? {} : { maximumInputBytes }),
 	});
-	return { events, preparation };
+	return { accurateRequests, events, preparation };
 }
 
 function videoProject() {

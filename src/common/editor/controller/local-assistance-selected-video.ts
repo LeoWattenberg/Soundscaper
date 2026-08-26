@@ -27,9 +27,16 @@ import {
 } from './local-assistance-selected-media.ts';
 import {
 	createLocalAssistanceSelectedVideoTimingBinding,
+	createLocalAssistanceSelectedVideoFramePackTiming,
 	mapLocalAssistanceSelectedVideoTimingBoundary,
 	type LocalAssistanceSelectedVideoTimingBinding,
 } from './local-assistance-selected-video-timing.ts';
+import {
+	createLocalAssistanceSelectedVideoFramePacksV1,
+	LOCAL_ASSISTANCE_FRAME_PACK_MEDIA_TYPE,
+	LOCAL_ASSISTANCE_VIDEO_MAXIMUM_FRAME_PACKS,
+	type LocalAssistanceSelectedVideoFramePackRequest,
+} from './local-assistance-selected-video-frame-pack.ts';
 import {
 	loadVideoExportOriginal,
 	type VideoExportOriginalStore,
@@ -70,6 +77,10 @@ export interface LocalAssistanceSelectedVideoPreparationDependencies {
 	readonly captureProject: () => unknown;
 	readonly assertProject: (token: unknown) => void;
 	readonly store: VideoExportOriginalStore;
+	/** Test seam; production uses exact browser decode into the assistance frame-pack format. */
+	readonly createAccurateFramePacks?: (
+		request: LocalAssistanceSelectedVideoFramePackRequest,
+	) => PromiseLike<readonly Blob[]> | readonly Blob[];
 	/** Test/constrained-environment seam; production cannot raise the 8 GiB hard bound. */
 	readonly maximumInputBytes?: number;
 }
@@ -105,7 +116,7 @@ export interface LocalAssistanceSelectedVideoPrepared {
 	readonly shotDetectionMode: LocalAssistanceShotDetectionMode;
 	readonly selectionFence: AssistanceSelectionFence;
 	readonly inputs: readonly Readonly<{
-		readonly role: 'video';
+		readonly role: 'video' | 'frame-pack';
 		readonly mediaType: string;
 		readonly bytes: Blob;
 	}>[];
@@ -193,14 +204,20 @@ export function createLocalAssistanceSelectedVideoPreparation(
 		}
 		const bytes = canonical.type === sourceMediaType
 			? canonical : canonical.slice(0, canonical.size, sourceMediaType);
+		const inputs = request.shotDetectionMode === 'accurate'
+			? await accurateFramePackInputs(dependencies, selected, bytes, signal, maximumInputBytes,
+				() => dependencies.assertProject(token))
+			: Object.freeze([Object.freeze({
+				role: 'video' as const, mediaType: sourceMediaType, bytes,
+			})]);
+		signal.throwIfAborted();
+		dependencies.assertProject(token);
 		return Object.freeze({
 			sourceId: request.sourceId,
 			operation: 'shot-detection' as const,
 			shotDetectionMode: request.shotDetectionMode,
 			selectionFence: selected.fence,
-			inputs: Object.freeze([Object.freeze({
-				role: 'video' as const, mediaType: sourceMediaType, bytes,
-			})]),
+			inputs,
 			outputs: Object.freeze([Object.freeze({
 				role: 'shot-boundaries' as const,
 				mediaType: SHOT_BOUNDARIES_MEDIA_TYPE,
@@ -210,6 +227,49 @@ export function createLocalAssistanceSelectedVideoPreparation(
 	}
 
 	return Object.freeze({ listSelectedMedia, prepareSelectedMedia });
+}
+
+async function accurateFramePackInputs(
+	dependencies: LocalAssistanceSelectedVideoPreparationDependencies,
+	selected: LocalAssistanceSelectedVideoAuthority,
+	body: Blob,
+	signal: AbortSignal,
+	maximumInputBytes: number,
+	assertCurrent: () => void,
+): Promise<readonly Readonly<{
+	readonly role: 'frame-pack';
+	readonly mediaType: typeof LOCAL_ASSISTANCE_FRAME_PACK_MEDIA_TYPE;
+	readonly bytes: Blob;
+}>[]> {
+	const state = SELECTED_VIDEO_AUTHORITY_STATES.get(selected);
+	if (!state) throw new TypeError('Accurate Mark Cuts lost its authenticated timing binding.');
+	const create = dependencies.createAccurateFramePacks
+		?? ((request: LocalAssistanceSelectedVideoFramePackRequest) => (
+			createLocalAssistanceSelectedVideoFramePacksV1(request)
+		));
+	const packs = await create(Object.freeze({
+		body,
+		timing: createLocalAssistanceSelectedVideoFramePackTiming(state.binding),
+		signal,
+		assertCurrent,
+	}));
+	if (!Array.isArray(packs) || packs.length < 1
+		|| packs.length > LOCAL_ASSISTANCE_VIDEO_MAXIMUM_FRAME_PACKS) {
+		throw new RangeError('Accurate Mark Cuts returned an invalid frame-pack inventory.');
+	}
+	let aggregateBytes = 0;
+	return Object.freeze(packs.map((bytes) => {
+		if (!(bytes instanceof Blob) || bytes.size < 1
+			|| bytes.type !== LOCAL_ASSISTANCE_FRAME_PACK_MEDIA_TYPE) {
+			throw new TypeError('Accurate Mark Cuts requires exact assistance frame-pack Blobs.');
+		}
+		aggregateBytes += bytes.size;
+		if (!Number.isSafeInteger(aggregateBytes) || aggregateBytes > maximumInputBytes) {
+			throw new RangeError('Accurate Mark Cuts frame packs exceed their authenticated input bound.');
+		}
+		return Object.freeze({ role: 'frame-pack' as const,
+			mediaType: LOCAL_ASSISTANCE_FRAME_PACK_MEDIA_TYPE, bytes });
+	}));
 }
 
 export function resolveLocalAssistanceSelectedVideoAuthority(
@@ -307,6 +367,9 @@ function assertDependencies(value: unknown): asserts value is LocalAssistanceSel
 		|| typeof (value as LocalAssistanceSelectedVideoPreparationDependencies).getSelectedClipId !== 'function'
 		|| typeof (value as LocalAssistanceSelectedVideoPreparationDependencies).captureProject !== 'function'
 		|| typeof (value as LocalAssistanceSelectedVideoPreparationDependencies).assertProject !== 'function'
+		|| ((value as LocalAssistanceSelectedVideoPreparationDependencies).createAccurateFramePacks
+			!== undefined && typeof (value as LocalAssistanceSelectedVideoPreparationDependencies)
+				.createAccurateFramePacks !== 'function')
 		|| !(value as LocalAssistanceSelectedVideoPreparationDependencies).store
 		|| typeof (value as LocalAssistanceSelectedVideoPreparationDependencies).store.loadMediaAsset !== 'function') {
 		throw new TypeError('Selected-video preparation requires its exact controller and custody ports.');

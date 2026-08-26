@@ -98,7 +98,9 @@ export function createLocalAssistanceShotAcceptance(
 			const request = normalizeRequest(value);
 			const initial = normalizeAuthority(dependencies.currentAuthority());
 			assertSameFence(request.fence, initial.fence);
-			if (request.review.sourceFrameCount !== initial.sourceFrameCount) {
+			const selectedRangeCount = request.review.detector === 'transnetv2'
+				&& request.review.sourceFrameCount === initial.sourceEndFrame;
+			if (request.review.sourceFrameCount !== initial.sourceFrameCount && !selectedRangeCount) {
 				throw new RangeError('The reviewed shot source-frame count disagrees with its source authority.');
 			}
 			const ownership = ownershipExtension(request, initial);

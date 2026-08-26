@@ -36,6 +36,17 @@ export interface LocalAssistanceSelectedVideoTimingGeometry {
 	readonly sourceEnd: number;
 }
 
+export interface LocalAssistanceSelectedVideoFrameTiming {
+	readonly sourceFrame: number;
+	readonly presentationTick: string;
+	readonly timestampSeconds: number;
+}
+
+export interface LocalAssistanceSelectedVideoFramePackTiming {
+	readonly timescale: number;
+	readonly frames: readonly LocalAssistanceSelectedVideoFrameTiming[];
+}
+
 interface TimingState {
 	readonly timing: BoundVideoSourceTimingView;
 	readonly sourceStartFrame: number;
@@ -146,6 +157,35 @@ export function mapLocalAssistanceSelectedVideoTimingBoundary(
 	return safeAdd(state.sequenceStartFrame, outerFrame, 'mapped sequence boundary');
 }
 
+/** Exact source-domain decode points for model frame packs; retimes never rewrite source timing. */
+export function createLocalAssistanceSelectedVideoFramePackTiming(
+	binding: LocalAssistanceSelectedVideoTimingBinding,
+): LocalAssistanceSelectedVideoFramePackTiming {
+	const state = BINDING_STATES.get(binding);
+	if (!state) {
+		throw new TypeError('Selected-video frame packing requires authenticated timing authority.');
+	}
+	const authority = boundVideoSourceTimingAuthority(state.timing);
+	const timescale = authority.kind === 'cfr'
+		? authority.rate.num : authority.reference.timescale;
+	if (!Number.isSafeInteger(timescale) || timescale < 1 || timescale > 0x7fff_ffff) {
+		throw new RangeError('Selected-video frame-pack timescale exceeds its exact binary domain.');
+	}
+	const frames: LocalAssistanceSelectedVideoFrameTiming[] = [];
+	for (let sourceFrame = state.sourceStartFrame;
+		sourceFrame < state.sourceEndFrame; sourceFrame += 1) {
+		const start = videoSourceFrameTime(state.timing, position(sourceFrame));
+		const end = videoSourceFrameTime(state.timing, position(sourceFrame + 1));
+		frames.push(Object.freeze({
+			sourceFrame,
+			presentationTick: exactTick(start, timescale).toString(),
+			timestampSeconds: midpointSeconds(start, end),
+		}));
+	}
+	if (frames.length < 1) throw new RangeError('Selected-video frame packing requires a non-empty range.');
+	return Object.freeze({ timescale, frames: Object.freeze(frames) });
+}
+
 function forwardMapper(
 	clip: DataRecord,
 	geometry: LocalAssistanceSelectedVideoTimingGeometry,
@@ -243,6 +283,24 @@ function comparePosition(left: ExactSourcePosition, right: ExactSourcePosition):
 
 function position(frame: number): ExactSourcePosition {
 	return Object.freeze({ numerator: BigInt(frame), denominator: 1n });
+}
+
+function exactTick(value: ExactSourceTime, timescale: number): bigint {
+	const numerator = value.numerator * BigInt(timescale);
+	if (numerator < 0n || numerator % value.denominator !== 0n) {
+		throw new RangeError('Selected-video presentation time is not exactly representable in its timescale.');
+	}
+	return numerator / value.denominator;
+}
+
+function midpointSeconds(start: ExactSourceTime, end: ExactSourceTime): number {
+	const numerator = start.numerator * end.denominator + end.numerator * start.denominator;
+	const denominator = 2n * start.denominator * end.denominator;
+	const result = Number(numerator) / Number(denominator);
+	if (!Number.isFinite(result) || result < 0) {
+		throw new RangeError('Selected-video frame midpoint exceeds browser decode timing.');
+	}
+	return result;
 }
 
 function decimal(value: ExactSourcePosition | ExactSourceTime): DataRecord {

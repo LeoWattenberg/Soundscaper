@@ -26,6 +26,7 @@ function reviewed(boundaries = [
 ], options: Readonly<{
 	detector?: 'ffmpeg-scdet' | 'transnetv2';
 	models?: readonly Readonly<Record<string, unknown>>[];
+	sourceFrameCount?: number;
 }> = {}) {
 	const detector = options.detector ?? 'ffmpeg-scdet';
 	return Object.freeze({
@@ -39,8 +40,9 @@ function reviewed(boundaries = [
 				byteLength: 512, sha256: '34'.repeat(32),
 			}),
 			review: Object.freeze({
-				kind: 'shot-boundaries', schemaVersion: 1, detector,
-				timescale: 90_000, sourceFrameCount: 240, boundaries: Object.freeze(boundaries),
+			kind: 'shot-boundaries', schemaVersion: 1, detector,
+				timescale: 90_000, sourceFrameCount: options.sourceFrameCount ?? 240,
+				boundaries: Object.freeze(boundaries),
 			}),
 		})]),
 	});
@@ -51,6 +53,7 @@ function accurateReviewed(boundaries = [
 	{ sourceFrame: 120, presentationTick: '450450', score: 0.9 },
 ], options: Readonly<{
 	models?: readonly Readonly<Record<string, unknown>>[];
+	sourceFrameCount?: number;
 }> = {}) {
 	return reviewed(boundaries, { detector: 'transnetv2', ...options });
 }
@@ -165,6 +168,13 @@ test('reviewed TransNetV2 cuts emit the same canonical markers and never timelin
 	assert.equal(annotation.positionFrame, 28_000);
 	const extensions = annotation.opaqueExtensions as Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 	assert.equal(extensions['org.soundscaper.assistance-shot-boundaries-v1']?.detector, 'transnetv2');
+
+	commits.length = 0;
+	await acceptance.acceptValidatedResult(accurateReviewed([
+		{ sourceFrame: 48, presentationTick: '180180', score: 0.75 },
+	], { sourceFrameCount: 120 }));
+	assert.equal(commits.length, 1,
+		'a selected-range frame pack may report its authenticated exclusive source end');
 });
 
 test('shot acceptance maps source boundaries through authenticated forward-retime authority', async () => {

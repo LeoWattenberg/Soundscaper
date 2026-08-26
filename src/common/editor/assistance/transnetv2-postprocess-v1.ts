@@ -5,7 +5,7 @@
 export const ASSISTANCE_TRANSNET_V2_THRESHOLD = 0.5;
 
 const REQUEST_FIELDS = Object.freeze([
-	'timescale', 'presentationTicks', 'singleFrameProbabilities', 'allFrameProbabilities',
+	'timescale', 'sourceFrames', 'presentationTicks', 'singleFrameProbabilities', 'allFrameProbabilities',
 	'threshold', 'minimumBoundaryDistanceFrames',
 ] as const);
 const MAXIMUM_SOURCE_FRAMES = 10_000_000;
@@ -15,6 +15,7 @@ const TICK = /^(?:0|[1-9]\d*)$/u;
 
 export interface AssistanceTransNetV2PostprocessRequestV1 {
 	readonly timescale: number;
+	readonly sourceFrames: readonly number[];
 	readonly presentationTicks: readonly string[];
 	readonly singleFrameProbabilities: Float32Array;
 	readonly allFrameProbabilities: Float32Array;
@@ -53,6 +54,7 @@ export function createAssistanceTransNetV2BoundariesV1(
 	const row = exactRecord(value, REQUEST_FIELDS, 'TransNetV2 postprocess request');
 	const timescale = integer(row.timescale, 1, MAXIMUM_TIMESCALE, 'TransNetV2 timescale');
 	const presentationTicks = timing(row.presentationTicks);
+	const sourceFrames = sourceOrdinals(row.sourceFrames, presentationTicks.length);
 	const single = probabilities(row.singleFrameProbabilities, presentationTicks.length,
 		'TransNetV2 single-frame');
 	const all = probabilities(row.allFrameProbabilities, presentationTicks.length,
@@ -62,11 +64,11 @@ export function createAssistanceTransNetV2BoundariesV1(
 		presentationTicks.length, 'TransNetV2 minimum boundary distance');
 	const runs: Peak[] = [];
 	let active: Peak | null = null;
-	for (let sourceFrame = 0; sourceFrame < presentationTicks.length; sourceFrame += 1) {
-		const score = Math.fround(Math.max(single[sourceFrame]!, all[sourceFrame]!));
+	for (let ordinal = 0; ordinal < presentationTicks.length; ordinal += 1) {
+		const score = Math.fround(Math.max(single[ordinal]!, all[ordinal]!));
 		if (score >= threshold) {
 			if (active === null || score > active.score) {
-				active = Object.freeze({ sourceFrame, score });
+				active = Object.freeze({ sourceFrame: ordinal, score });
 			}
 			continue;
 		}
@@ -88,13 +90,29 @@ export function createAssistanceTransNetV2BoundariesV1(
 		schemaVersion: 1,
 		detector: 'transnetv2',
 		timescale,
-		sourceFrameCount: presentationTicks.length,
-		boundaries: Object.freeze(selected.map(({ sourceFrame, score }) => Object.freeze({
-			sourceFrame,
-			presentationTick: presentationTicks[sourceFrame]!,
+		sourceFrameCount: sourceFrames.at(-1)! + 1,
+		boundaries: Object.freeze(selected.map(({ sourceFrame: ordinal, score }) => Object.freeze({
+			sourceFrame: sourceFrames[ordinal]!,
+			presentationTick: presentationTicks[ordinal]!,
 			score,
 		}))),
 	});
+}
+
+function sourceOrdinals(value: unknown, frameCount: number): readonly number[] {
+	if (!Array.isArray(value) || value.length !== frameCount) {
+		throw new RangeError('The TransNetV2 source-frame authority disagrees with its timing.');
+	}
+	let prior = -1;
+	return Object.freeze(value.map((candidate, index) => {
+		const sourceFrame = integer(candidate, 0, MAXIMUM_SOURCE_FRAMES - 1,
+			`TransNetV2 source frame ${String(index)}`);
+		if (sourceFrame !== prior + 1 && index > 0) {
+			throw new RangeError('TransNetV2 source frames must be consecutive and strictly increasing.');
+		}
+		prior = sourceFrame;
+		return sourceFrame;
+	}));
 }
 
 function timing(value: unknown): readonly string[] {

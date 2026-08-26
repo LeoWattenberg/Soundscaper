@@ -8,16 +8,18 @@ import { pathToFileURL } from 'node:url';
 
 import {
 	reviewAssistanceFramePackV1,
+	type ReviewedAssistanceFramePackV1,
 } from '../src/common/editor/assistance/binary-formats-v1.ts';
 import {
 	ASSISTANCE_TRANSNET_V2_FRAME_BYTES,
 	ASSISTANCE_TRANSNET_V2_HEIGHT,
 	ASSISTANCE_TRANSNET_V2_WIDTH,
-	runAssistanceTransNetV2OnnxAdapterV1,
+	runAssistanceTransNetV2FrameSourceOnnxAdapterV1,
 	type AssistanceTransNetV2CpuInputBatchV1,
 } from '../src/common/editor/assistance/transnetv2-onnx-adapter-v1.ts';
-import type {
-	AssistanceRuntimeFamilyWorkerExecutionContext,
+import {
+	AssistanceRuntimeFamilyAdapterUnavailableError,
+	type AssistanceRuntimeFamilyWorkerExecutionContext,
 } from './assistance-runtime-family-worker-entry.ts';
 
 export interface AssistanceOnnxTensorV1 {
@@ -72,7 +74,7 @@ export function createAssistanceOnnxRuntimeWorkerAdapterV1(
 	const loadRuntime = options.loadRuntime ?? loadOnnxRuntime;
 	return async (context) => {
 		if (context.grant.task !== 'shot-detection') {
-			throw new Error('No reviewed model adapter is mounted for this ONNX Runtime task.');
+			throw new AssistanceRuntimeFamilyAdapterUnavailableError();
 		}
 		return executeTransNetV2(context, loadRuntime);
 	};
@@ -91,12 +93,13 @@ async function executeTransNetV2(
 		throw new TypeError('The TransNetV2 adapter received a foreign authenticated job.');
 	}
 	if (settings.schemaVersion !== 1 || settings.operation !== 'shot-detection'
-		|| JSON.stringify(settings.inputRoles) !== '["frame-pack"]'
+		|| !Array.isArray(settings.inputRoles) || settings.inputRoles.length < 1
+		|| settings.inputRoles.some((role) => role !== 'frame-pack')
 		|| JSON.stringify(settings.outputRoles) !== '["shot-boundaries"]') {
 		throw new TypeError('The TransNetV2 adapter settings do not bind accurate shot detection.');
 	}
-	if (grant.inputs.length !== 1 || grant.inputs[0]!.role !== 'frame-pack'
-		|| grant.inputs[0]!.mediaType !== TRANSNET_FRAME_PACK_MEDIA_TYPE
+	if (grant.inputs.length < 1 || grant.inputs.some((input) => input.role !== 'frame-pack'
+		|| input.mediaType !== TRANSNET_FRAME_PACK_MEDIA_TYPE)
 		|| grant.models.length !== 1 || grant.models[0]!.modelId !== 'transnetv2'
 		|| grant.models[0]!.artifactRole !== 'network'
 		|| grant.outputs.length !== 1 || grant.outputs[0]!.role !== 'shot-boundaries'
@@ -104,26 +107,7 @@ async function executeTransNetV2(
 		throw new TypeError('The TransNetV2 adapter requires one exact frame pack, network, and shot output.');
 	}
 	context.onProgress(0);
-	const inputBytes = await readFile(grant.inputs[0]!.path);
-	context.signal?.throwIfAborted();
-	const reviewed = reviewAssistanceFramePackV1(inputBytes);
-	if (reviewed.width !== ASSISTANCE_TRANSNET_V2_WIDTH
-		|| reviewed.height !== ASSISTANCE_TRANSNET_V2_HEIGHT || reviewed.frameCount < 1) {
-		throw new RangeError('The TransNetV2 frame-pack geometry must be predecoded to exact 48x27 RGBA.');
-	}
-	const presentationTicks: string[] = [];
-	const rgb = new Uint8Array(reviewed.frameCount * ASSISTANCE_TRANSNET_V2_FRAME_BYTES);
-	for (let index = 0; index < reviewed.frameCount; index += 1) {
-		const frame = reviewed.frame(index);
-		presentationTicks.push(frame.presentationTick);
-		const rgbOffset = index * ASSISTANCE_TRANSNET_V2_FRAME_BYTES;
-		for (let rgbaOffset = 0, offset = rgbOffset; rgbaOffset < frame.rgba.byteLength;
-			rgbaOffset += 4, offset += 3) {
-			rgb[offset] = frame.rgba[rgbaOffset]!;
-			rgb[offset + 1] = frame.rgba[rgbaOffset + 1]!;
-			rgb[offset + 2] = frame.rgba[rgbaOffset + 2]!;
-		}
-	}
+	const frames = await inspectFramePacks(grant.inputs, context.signal);
 	context.signal?.throwIfAborted();
 	const runtime = runtimeModule(await loadRuntime(job.descriptor.entrypoint));
 	const session = sessionValue(await runtime.InferenceSession.create(grant.models[0]!.path, {
@@ -131,16 +115,19 @@ async function executeTransNetV2(
 		interOpNumThreads: 1, intraOpNumThreads: 4,
 	}));
 	let completedBatches = 0;
-	const batchCount = Math.ceil(reviewed.frameCount / 50);
+	const batchCount = Math.ceil(frames.sourceFrames.length / 50);
 	try {
 		assertExactNames(session.inputNames, TRANSNET_INPUT_NAMES, 'input');
 		assertExactNames(session.outputNames, TRANSNET_OUTPUT_NAMES, 'output');
-		const result = await runAssistanceTransNetV2OnnxAdapterV1({
+		const result = await runAssistanceTransNetV2FrameSourceOnnxAdapterV1({
 			schemaVersion: 1,
 			frames: {
 				schemaVersion: 1, pixelFormat: 'rgb24', width: 48, height: 27,
-				rowStrideBytes: 144, timescale: reviewed.timescale,
-				presentationTicks, data: rgb,
+				rowStrideBytes: 144, timescale: frames.timescale,
+				frameCount: frames.sourceFrames.length,
+				sourceFrames: frames.sourceFrames,
+				presentationTicks: frames.presentationTicks,
+				readFrame: frames.readFrame,
 			},
 			inputElementType: 'uint8', outputValueKind: 'logits',
 			threshold: 0.5, minimumBoundaryDistanceFrames: 1,
@@ -174,8 +161,127 @@ async function executeTransNetV2(
 			})]),
 		});
 	} finally {
+		frames.release();
 		await session.release?.();
 	}
+}
+
+interface TransNetFramePackIndex {
+	readonly inputIndex: number;
+	readonly ordinalStart: number;
+	readonly frameCount: number;
+	readonly sourceFrames: readonly number[];
+	readonly presentationTicks: readonly string[];
+}
+
+interface TransNetFramePackSource {
+	readonly timescale: number;
+	readonly sourceFrames: readonly number[];
+	readonly presentationTicks: readonly string[];
+	readFrame(index: number): Promise<Uint8Array>;
+	release(): void;
+}
+
+async function inspectFramePacks(
+	inputs: AssistanceRuntimeFamilyWorkerExecutionContext['grant']['inputs'],
+	signal?: AbortSignal,
+): Promise<TransNetFramePackSource> {
+	const indexes: TransNetFramePackIndex[] = [];
+	const sourceFrames: number[] = [];
+	const presentationTicks: string[] = [];
+	let timescale: number | null = null;
+	for (const [inputIndex, input] of inputs.entries()) {
+		signal?.throwIfAborted();
+		const reviewed = reviewAssistanceFramePackV1(await readFile(input.path));
+		assertTransNetFramePackGeometry(reviewed);
+		if (timescale !== null && reviewed.timescale !== timescale) {
+			throw new RangeError('TransNetV2 frame-pack chunks disagree about their exact timescale.');
+		}
+		timescale ??= reviewed.timescale;
+		const packSources: number[] = [];
+		const packTicks: string[] = [];
+		for (let index = 0; index < reviewed.frameCount; index += 1) {
+			const frame = reviewed.frame(index);
+			const priorSource = sourceFrames.at(-1);
+			const priorTick = presentationTicks.at(-1);
+			if (priorSource !== undefined && frame.sourceFrame !== priorSource + 1) {
+				throw new RangeError('TransNetV2 frame-pack chunks must cover consecutive source frames.');
+			}
+			if (priorTick !== undefined && BigInt(frame.presentationTick) <= BigInt(priorTick)) {
+				throw new RangeError('TransNetV2 frame-pack chunks must retain increasing presentation timing.');
+			}
+			packSources.push(frame.sourceFrame);
+			packTicks.push(frame.presentationTick);
+			sourceFrames.push(frame.sourceFrame);
+			presentationTicks.push(frame.presentationTick);
+		}
+		indexes.push(Object.freeze({ inputIndex,
+			ordinalStart: sourceFrames.length - reviewed.frameCount,
+			frameCount: reviewed.frameCount,
+			sourceFrames: Object.freeze(packSources),
+			presentationTicks: Object.freeze(packTicks),
+		}));
+	}
+	if (timescale === null || sourceFrames.length < 1) {
+		throw new RangeError('TransNetV2 requires at least one reviewed source frame.');
+	}
+	const cache = new Map<number, ReviewedAssistanceFramePackV1>();
+	const load = async (pack: TransNetFramePackIndex): Promise<ReviewedAssistanceFramePackV1> => {
+		const cached = cache.get(pack.inputIndex);
+		if (cached) {
+			cache.delete(pack.inputIndex);
+			cache.set(pack.inputIndex, cached);
+			return cached;
+		}
+		signal?.throwIfAborted();
+		const reviewed = reviewAssistanceFramePackV1(await readFile(inputs[pack.inputIndex]!.path));
+		assertTransNetFramePackGeometry(reviewed);
+		if (reviewed.timescale !== timescale || reviewed.frameCount !== pack.frameCount) {
+			throw new Error('A TransNetV2 frame-pack changed after its reviewed metadata pass.');
+		}
+		while (cache.size >= 2) cache.delete(cache.keys().next().value!);
+		cache.set(pack.inputIndex, reviewed);
+		return reviewed;
+	};
+	return Object.freeze({
+		timescale,
+		sourceFrames: Object.freeze(sourceFrames),
+		presentationTicks: Object.freeze(presentationTicks),
+		async readFrame(indexValue: number) {
+			if (!Number.isSafeInteger(indexValue) || indexValue < 0 || indexValue >= sourceFrames.length) {
+				throw new RangeError('TransNetV2 requested a frame outside reviewed pack custody.');
+			}
+			const pack = indexes.find((candidate) => indexValue >= candidate.ordinalStart
+				&& indexValue < candidate.ordinalStart + candidate.frameCount)!;
+			const reviewed = await load(pack);
+			const localIndex = indexValue - pack.ordinalStart;
+			const frame = reviewed.frame(localIndex);
+			if (frame.sourceFrame !== pack.sourceFrames[localIndex]
+				|| frame.presentationTick !== pack.presentationTicks[localIndex]) {
+				throw new Error('A TransNetV2 frame-pack changed after its reviewed timing pass.');
+			}
+			return rgbaToRgb(frame.rgba);
+		},
+		release() { cache.clear(); },
+	});
+}
+
+function assertTransNetFramePackGeometry(reviewed: ReviewedAssistanceFramePackV1): void {
+	if (reviewed.width !== ASSISTANCE_TRANSNET_V2_WIDTH
+		|| reviewed.height !== ASSISTANCE_TRANSNET_V2_HEIGHT || reviewed.frameCount < 1) {
+		throw new RangeError('The TransNetV2 frame-pack geometry must be predecoded to exact 48x27 RGBA.');
+	}
+}
+
+function rgbaToRgb(rgba: Uint8Array): Uint8Array {
+	const rgb = new Uint8Array(ASSISTANCE_TRANSNET_V2_FRAME_BYTES);
+	for (let rgbaOffset = 0, offset = 0; rgbaOffset < rgba.byteLength;
+		rgbaOffset += 4, offset += 3) {
+		rgb[offset] = rgba[rgbaOffset]!;
+		rgb[offset + 1] = rgba[rgbaOffset + 1]!;
+		rgb[offset + 2] = rgba[rgbaOffset + 2]!;
+	}
+	return rgb;
 }
 
 function tensor(

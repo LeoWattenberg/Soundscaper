@@ -10,6 +10,7 @@ import {
 function request(overrides: Readonly<Record<string, unknown>> = {}) {
 	return {
 		timescale: 1_000,
+		sourceFrames: [0, 1, 2, 3, 4, 5, 6, 7, 8],
 		presentationTicks: ['0', '40', '80', '120', '160', '200', '240', '280', '320'],
 		singleFrameProbabilities: Float32Array.from([0, 0.1, 0.9, 0.1, 0, 0.6, 0.8, 0.7, 0]),
 		allFrameProbabilities: Float32Array.from([0, 0, 0.1, 0, 0, 0.7, 0.75, 0.9, 0]),
@@ -56,6 +57,14 @@ test('TransNetV2 postprocessing reports no-cut footage as an authenticated empty
 	assert.equal(result.sourceFrameCount, 9);
 });
 
+test('TransNetV2 postprocessing retains absolute selected-range source ordinals', () => {
+	const result = createAssistanceTransNetV2BoundariesV1(request({
+		sourceFrames: [20, 21, 22, 23, 24, 25, 26, 27, 28],
+	}));
+	assert.equal(result.sourceFrameCount, 29);
+	assert.deepEqual(result.boundaries.map(({ sourceFrame }) => sourceFrame), [22, 27]);
+});
+
 test('TransNetV2 postprocessing refuses malformed probabilities and timing authority', () => {
 	assert.throws(() => createAssistanceTransNetV2BoundariesV1(request({
 		singleFrameProbabilities: Float32Array.of(Number.NaN, 0, 0, 0, 0, 0, 0, 0, 0),
@@ -66,6 +75,9 @@ test('TransNetV2 postprocessing refuses malformed probabilities and timing autho
 	assert.throws(() => createAssistanceTransNetV2BoundariesV1(request({
 		presentationTicks: ['0', '40', '80', '80', '160', '200', '240', '280', '320'],
 	})), /tick.*increasing|timing/iu);
+	assert.throws(() => createAssistanceTransNetV2BoundariesV1(request({
+		sourceFrames: [0, 1, 2, 4, 5, 6, 7, 8, 9],
+	})), /source frame|consecutive/iu);
 	assert.throws(() => createAssistanceTransNetV2BoundariesV1(request({ threshold: 1.1 })),
 		/threshold/iu);
 	assert.throws(() => createAssistanceTransNetV2BoundariesV1({ ...request(), invented: true }),

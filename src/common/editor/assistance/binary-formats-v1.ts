@@ -368,7 +368,15 @@ class ChunkCursor {
 }
 
 function framePackChunks(value: Uint8Array | readonly Uint8Array[]): readonly Uint8Array[] {
-	const chunks = value instanceof Uint8Array ? [value] : value;
+	if (value instanceof Uint8Array) {
+		if (value.byteLength < 1 || value.byteLength > ASSISTANCE_BINARY_MAXIMUM_BYTES) {
+			throw new RangeError('The assistance frame-pack exceeds its exact byte bound.');
+		}
+		// A staged file has already flattened the producer's bounded transport
+		// chunks. Its complete authenticated body is still one valid frame pack.
+		return Object.freeze([value]);
+	}
+	const chunks = value;
 	if (!Array.isArray(chunks) || chunks.length < 1) {
 		throw new TypeError('An assistance frame-pack needs bounded binary chunks.');
 	}
