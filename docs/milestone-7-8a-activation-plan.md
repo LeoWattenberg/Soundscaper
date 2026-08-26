@@ -2,36 +2,32 @@
 
 ## Delivered boundary (2026-08-26)
 
-This branch activates the implemented Milestone 7 substrate without using
-manual or owner-lab qualification as an execution switch, but it does not
-complete every 7A and 7B workflow described by this plan. The verified Sherpa
-runtime now executes exact installed bindings for Parakeet speech recognition,
-Silero voice activity, and pyannote-segmentation plus ERes2Net speaker
-diarization. Reviewed speech can publish a canonical content-addressed
-transcript body and ordinary label track; reviewed VAD and diarization can
-publish ordinary silence and anonymous-speaker label tracks. An authenticated
-English Parakeet review can also produce deterministic filler, repetition, and,
-only when the same session holds exact same-fence reviewed Silero output,
-measured-silence cleanup choices. They start unselected and only an explicit
-subset acceptance commits one link-aware disjoint ripple batch and undo step.
-Framescaper F31 additionally exposes model-free fast shot detection through an
-admitted user-configured external FFmpeg, with reviewed boundaries accepted as
-ordinary timeline annotations. TransNetV2 accurate shots remain blocked.
+This branch conditionally activates the complete Milestone 7 workflow layer
+without using manual or owner-lab qualification as an execution switch. It adds
+the versioned `AssistanceWorkflow` contract, aggregate selection fence, guided
+recipes and Advanced primitive recipes, stage-aware consent/progress, strict
+result review, project-isolated disposable custody, adapter-owned audio
+preparation, and reviewed publishers for transcript, cleanup, attribution,
+derived audio, reactions, beats/tempo, shots, semantic indexes, reframe paths,
+and highlight sequences. Runtime-family workers and deterministic owned stages
+cover Whisper/wav2vec2 alignment, DeepFilterNet3, TIGER-DnR, PANNs Cnn10, Beat
+This, TransNetV2, nomic/SigLIP, OCR, subject/saliency/reframe, deterministic
+highlight ranking, and bounded optional Qwen editorial JSON. Existing
+Parakeet, VAD, diarization, cleanup, and model-free fast shots remain active.
 
-Word alignment, enhancement, separation, audio tagging, beat tracking,
-semantic and visual embeddings, OCR, subject and saliency analysis, and
-editorial generation still return their typed `adapter-unavailable`,
-`model-unavailable`, or `runtime-unavailable` state; no
-missing adapter is simulated. The catalog records intended EU R2 object
-identities, but this activation asserts no durable R2 upload or public
-read-back evidence; authenticated preseed remains the established offline
-ingress. The selected F31 standalone capture route is active on web and
-desktop, while its real-device and owner-lab qualification remains pending and
-unprovisioned. Licensing, catalog signatures, artifact digests,
-runtime/platform compatibility, selected-media authority, storage integrity,
-explicit consent, external-FFmpeg admission, and capture permission/grant
-checks remain hard fail-closed gates. The objectives below remain the full
-target, not a claim that absent operation adapters were delivered.
+Production activation remains blocked for every new model-backed route whose
+release evidence is incomplete. TIGER, PANNs, Beat This, and TransNetV2 still
+need converted artifacts and source-framework parity; their signed catalog
+entries do not exist. All five target payload closures for `onnxruntime-node`
+1.29.0, whisper.cpp v1.9.3, and llama.cpp b10509 remain
+`pending-external`, as does the Windows-arm64 Sherpa Node addon. No live EU R2
+publication and public full-SHA-256 read-back has been recorded, and the five
+packaged target canaries and owner-lab workload have not run. Those states
+produce typed unavailability rather than substitute inference or an implicit
+download. The selected F31 capture route remains active, with its separate
+real-device qualification pending. Licensing, external catalog signature,
+artifact digest, runtime/platform compatibility, selected-media authority,
+storage integrity, consent, and external-FFmpeg admission remain fail closed.
 
 ## Outcome
 
@@ -65,10 +61,6 @@ target, not a claim that absent operation adapters were delivered.
     and official model revision `b7a59560bbca10febbcd46fb01600f868e587f57`,
     labeled Dialogue / Music / Effects. Export the neural core reproducibly to
     ONNX and keep STFT, ISTFT, and overlap-add in owned DSP.
-  - HQ music stems: MERL Embracing Cacophony at
-    `767e9a5b97a57b94d6ef752a757a561e8bdcf2cc`, converted reproducibly to
-    ONNX and offered only on Linux x64 with CUDA 12 after runtime warm-up and
-    memory admission. Outputs are vocals, bass, drums, and other.
   - Accurate shot cuts: TransNetV2 at
     `85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed`, using its official
     TensorFlow-to-PyTorch conversion followed by a project-owned ONNX export.
@@ -81,13 +73,13 @@ target, not a claim that absent operation adapters were delivered.
   - Editorial generation: the first-party Qwen3-4B Q4_K_M GGUF through pinned
     llama.cpp in non-thinking, schema-grammar mode with a 16 GiB RAM floor.
 - Complete the baseline catalog with the official wav2vec2 English aligner
-  needed for Whisper timing. Extra low-disk Whisper, GTCRN, and RNNoise tiers
-  are catalog variants, not activation gates.
+  needed for Whisper timing. Low-disk Whisper, GTCRN, RNNoise, CUDA Cacophony,
+  GPU execution providers, and a fine-tuned highlight classifier are excluded
+  from this delivery rather than treated as activation gates.
 - Package authenticated, isolated runtime families: Sherpa, CPU ONNX Runtime
   for all five release targets, a fixed-argument/no-shell Whisper CLI, and a
-  separately bounded llama.cpp helper. Optional DirectML, CoreML, and CUDA
-  providers require their own manifest and runtime canary; WebGPU is not
-  admitted.
+  separately bounded llama.cpp helper. DirectML, CoreML, CUDA, and WebGPU
+  providers are not admitted in this delivery.
 - Finish capacity preflight, resumable and cancellable downloads,
   external-deletion reconciliation, copy-verify-swap model-directory
   relocation, offline pre-seeded installs, garbage collection, and installed
@@ -136,18 +128,16 @@ target, not a claim that absent operation adapters were delivered.
 
 ## Product workflows and rollout
 
-The bounded activation delivered on this branch is narrower than the complete
-rollout sequence below:
+The complete rollout layer is implemented, with release admission evaluated per
+workflow rather than asserted for the whole milestone:
 
-- 7A currently activates Parakeet transcription and transcript acceptance,
-  standalone Silero VAD review/label acceptance, exact two-model Sherpa
-  diarization review/anonymous-speaker labels, and explicit deterministic
-  transcript cleanup. Whisper/alignment, enhancement/separation, semantic
-  transcript search, and beat/tempo workflows remain unavailable.
-- 7B currently activates only the fast FFmpeg scene-score shot workflow on
-  selected F31 video, including review and explicit marker acceptance. Accurate
-  TransNetV2, frame semantics/OCR, subject/reframe, highlight assembly, and
-  assistance-driven vertical delivery remain unavailable.
+- 7A retains active Parakeet/Silero/Sherpa execution and adds conditional
+  Whisper/alignment, enhancement/separation, reactions, indexed transcript
+  search, and beat/tempo routes with bounded review and ordinary acceptance.
+- 7B retains active fast FFmpeg shots and adds conditional accurate shots,
+  visual/OCR indexing, reframe, deterministic highlights, and optional Qwen
+  editorial augmentation. Missing signed model or runtime evidence makes only
+  the affected route unavailable.
 - 8A is active on selected F31 web and desktop, default-hidden and menu-opt-in;
   its real-device and owner-lab qualification remains open.
 
@@ -188,7 +178,7 @@ rollout sequence below:
   crash/restart/quarantine, output claims, and cancellation p95 at or below two
   seconds.
 - Compare source-framework and ONNX outputs. Run packaged real-model smokes for
-  Sherpa, ORT, Whisper, llama.cpp, and the Linux/CUDA HQ path; unsupported
+  Sherpa, ORT, Whisper, and llama.cpp on all five CPU targets; unsupported
   combinations must return typed unavailable states.
 - Cover S29-to-S30 and F28-to-F31 reimport, strict validation, transcript body
   authentication and retention, history and `.scape` round trips, web read/edit
@@ -217,8 +207,10 @@ rollout sequence below:
 
 - Full Milestone 7 means every 7A and 7B workflow is active with its selected
   baseline model. Optional size or acceleration tiers remain conditional on
-  installation and hard hardware/runtime admission. The delivered boundary
-  above explicitly does not claim that full definition yet.
+  installation and hard hardware/runtime admission. The workflow code is
+  complete, but the delivered boundary above explicitly does not claim
+  packaged production activation until the named artifact, catalog,
+  publication, payload, and canary evidence exists.
 - Manual qualification remains visible only in documentation and diagnostics;
   users see ordinary availability, consent, integrity, and hardware errors.
 - Existing user-owned work is preserved and reconciled rather than reset.

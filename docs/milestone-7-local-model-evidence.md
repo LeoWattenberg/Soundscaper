@@ -5,16 +5,16 @@
 > describe that exact historical checkpoint, not current admission. As of
 > 2026-08-26, `local-models` is enabled, thirteen complete permitted evidence
 > records supply the signed catalog, and Spleeter, Demucs, and TransNetV2 remain
-> blocked and absent from the offered set. Current model-backed execution is
-> still narrower than that catalog: authenticated Parakeet speech recognition,
-> Silero voice activity, and exact pyannote-segmentation plus ERes2Net speaker
-> diarization are active; the remaining catalog tasks stay typed unavailable.
-> Fast F31 shot detection is separately active without a model through an
-> admitted user-configured external FFmpeg. Catalog mirror metadata is not
-> durable R2 upload/read-back evidence. Manual and owner-lab qualification
-> remains pending and nonblocking, while licensing, signature, digest,
-> runtime/platform, selected-media, storage, consent, and external-runtime
-> admission gates stay fail closed.
+> blocked and absent from the offered set. The later workflow implementation
+> adds conditional workers, reviewers, and publishers across all 7A/7B recipes;
+> it does not turn this historical evidence set into catalog authority for
+> TIGER, PANNs, Beat This, TransNetV2, wav2vec2, or Qwen. Those candidates still
+> need the applicable converted-artifact/parity evidence and externally signed
+> catalog entries, and the new runtime families have no authenticated target
+> payload closure. Existing Parakeet/Silero/diarization and model-free fast-shot
+> execution remains admitted. Catalog metadata is not durable R2 publication or
+> public read-back evidence. Five-target canaries and owner-lab qualification
+> remain pending; all hard admission gates stay fail closed.
 >
 > **Implemented:** delivered on 2026-08-13, the first milestone-7 slice.
 > Decomposes the licensing half of WP-7.0.0 in

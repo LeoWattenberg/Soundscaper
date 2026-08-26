@@ -566,9 +566,12 @@ symbol resolution alone cannot reach them.
 
 The optional on-device assistance features load their speech runtime from
 `sherpa-onnx-node`, declared as an optional dependency so the editor installs,
-builds, and runs without it. It is not staged into any distributed package
-today; when a milestone-7 slice stages its platform binaries, the matrix rows
-gain their artifact surfaces and this notice gains the shipped file inventory.
+builds, and runs without it. The authenticated 1.13.5 closure is admitted for
+macOS arm64, Linux x64/arm64, and Windows x64. Windows arm64 remains excluded
+until an authenticated Node-API addon and complete package closure exists.
+The upstream optional-dependency closure also contains macOS x64 and Windows
+ia32 packages; they are listed for notice completeness, not as Milestone 7
+release targets.
 
 - `sherpa-onnx-node` 1.13.5 — Apache-2.0; Next-gen Kaldi speech runtime;
   source and license: <https://github.com/k2-fsa/sherpa-onnx>
@@ -585,17 +588,43 @@ gain their artifact surfaces and this notice gains the shipped file inventory.
 - `sherpa-onnx-win-x64` 1.13.5 — Apache-2.0; prebuilt platform binary;
   source and license: <https://github.com/k2-fsa/sherpa-onnx>
 
-Upstream publishes no `win32-arm64` prebuild, so Windows on ARM reports the
-assistance models as unsupported rather than installing a binary that cannot
-load.
+Upstream publishes no `win32-arm64` Node prebuild, so Windows on ARM reports
+the Sherpa-backed models as unavailable rather than installing a binary that
+cannot load.
+
+Three additional CPU runtime families have reviewed source/version identities
+and isolated host code, but every target payload row remains
+`pending-external`; these candidates are not yet redistributed:
+
+- `onnxruntime-node` 1.29.0 — MIT; source and license:
+  <https://github.com/microsoft/onnxruntime/tree/v1.29.0>
+- whisper.cpp v1.9.3 — MIT; source and license:
+  <https://github.com/ggml-org/whisper.cpp/tree/v1.9.3>
+- llama.cpp revision `b10509` — MIT; source and license:
+  <https://github.com/ggml-org/llama.cpp/tree/b10509>
+
+The Milestone 7 supply-candidate register pins upstream identities for
+wav2vec2-base-960h, TIGER-DnR, PANNs Cnn10 and its AudioSet map, Beat This
+small0/final0, TransNetV2, and Qwen3-4B Q4_K_M. Those pins are conversion and
+review inputs, not a redistribution notice. TIGER, PANNs, Beat This, and
+TransNetV2 still lack converted-artifact/parity closure, and none of these six
+tasks has the required new externally signed production catalog entry. They
+are deliberately absent from the cataloged inventory below.
 
 Model weights are separately downloaded, never bundled, and each is recorded in
 `config/production-licensing-matrix.json`. A model is listed below only once its
-artifacts are mirrored and pinned; the rest remain undistributable and unlisted.
+artifacts, notices, and signed-catalog identity are pinned. The checked-in
+digests authenticate install and preseed bytes; they are not evidence that an
+EU R2 object was uploaded or read back from its public URL.
 
 ### Mirrored assistance models
 
-Each model below is served from the product store at a versioned key and was verified byte for byte against these digests after publication.
+Each model below has an immutable catalog key and exact artifact digests. No
+accepted live R2 publication/full-SHA-256 public read-back record is checked in;
+remote availability must not be inferred from this notice.
+The heading is retained as the signed catalog's stable notice anchor; "mirrored"
+here names that catalog distribution identity, not evidence of a completed live
+bucket publication.
 
 - Silero VAD 6.2.1 — MIT; Copyright © Silero Team; voice activity detection;
   source and license: <https://github.com/snakers4/silero-vad/tree/7e30209a3e901f9842f81b225f3e93d8199902b1>.

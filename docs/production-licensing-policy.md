@@ -426,6 +426,16 @@ models this product has already excluded are listed in `refusedLocalModels`
 with their reason so they are not reintroduced later. Upstream locations
 belong in `provenanceSources`; `evidence` holds repository paths only.
 
+A source pin, direct artifact digest, conversion recipe, parity-fixture shape,
+or locally generated catalog candidate is not a production catalog entry.
+TIGER-DnR, PANNs Cnn10, Beat This, and TransNetV2 remain blocked until their
+converted artifact digests and source-framework parity evidence are recorded;
+wav2vec2 and Qwen remain candidates until their complete evidence records and
+externally signed entries land. Cataloged byte lengths and hashes authenticate
+downloads and offline preseed, but do not assert that an EU R2 write or public
+read-back occurred. The release publisher must complete public HEAD, Range, and
+full SHA-256 read-back before a catalog is handed to the external signer.
+
 Opaque placeholders for unavailable native features do not authorize shipping
 their implementation. Enabling a capability flag, adding a loader, or accepting
 user-provided binaries must not bypass the relevant distribution gate.

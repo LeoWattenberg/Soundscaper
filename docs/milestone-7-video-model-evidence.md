@@ -2,18 +2,17 @@
 
 > **Activation status (2026-08-26):** this remains the provenance record for
 > the six permitted video/semantic catalog entries, not evidence that their
-> operation adapters or remote objects are available. The bounded active 7B
-> slice is model-free fast shot detection: selected Framescaper F31 video is
-> staged under an exact selection fence, an admitted user-configured external
-> FFmpeg emits deterministic scene scores, the renderer reviews authenticated
-> boundaries, and explicit acceptance commits ordinary timeline annotations.
-> Accurate TransNetV2 remains blocked. SigLIP/OCR, subject/saliency/reframe,
-> semantic search, and editorial workflows remain typed unavailable. The
-> catalog's intended EU R2 URLs and digests are publication metadata; this
-> activation asserts no durable R2 upload or public read-back evidence. Manual
-> and owner-lab qualification remains open and nonblocking, while licensing,
-> signatures, digests, selection authority, consent, external-runtime
-> admission, and result authentication remain fail closed.
+> operation adapters or remote objects are production-admitted. Later work now
+> implements the conditional TransNetV2, SigLIP/OCR, subject/saliency/reframe,
+> semantic-search, highlight, and editorial workflow code and reviewed project
+> publishers. Fast FFmpeg shots remain the admitted model-free baseline.
+> TransNetV2 still lacks its converted graph, three-runtime parity, signed
+> catalog entry, and authenticated ONNX Runtime target payloads; the same
+> payload closure blocks the other visual models in packages. Intended EU R2
+> URLs and digests remain metadata, not durable publication/read-back evidence.
+> Five-target canaries and owner-lab qualification remain open and nonblocking;
+> licensing, signatures, digests, selection, consent, runtime, and result
+> authentication stay fail closed.
 
 This is the licence and provenance review for the models the Framescaper
 assistance track (7B) needs, and the record of how each pinned artifact was

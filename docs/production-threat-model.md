@@ -3,7 +3,7 @@
 This document records the production security baseline for Soundscaper's local-first Web and Electron editor. The machine-readable control register is
 [`config/production-security-matrix.json`](../config/production-security-matrix.json). Its checked-in implementation and test references are the evidence for each current claim.
 
-The model is grounded on 2026-08-25. It must be updated when a trust boundary, supported input, renderer bridge, worker ABI, native executable, plug-in surface, release channel, or long-job lifecycle changes.
+The model is grounded on 2026-08-26. It must be updated when a trust boundary, supported input, renderer bridge, worker ABI, native executable, plug-in surface, release channel, or long-job lifecycle changes.
 
 ## Meaning of the statuses
 
@@ -606,14 +606,21 @@ and platform qualification items.
 
 ### Electron renderer, IPC, and filesystem capabilities
 
-`electron-renderer-ipc-boundary` is **enforced for the current v1 bridge only**. The window uses sandboxing, context isolation, no Node integration, sender/root-document checks, denied navigation and new-window paths, and a frozen input-validating preload API. Shared-project methods are bounded pathless list, read, bundle, commit, delete, and managed-media transfer operations for the closed canonical-PCM and retained-original-video encodings; main independently sanitizes their values, caps transfer bodies at 64 GiB and chunks at 4 MiB, and permits at most four active uploads and four active reads across the bridge service. Linked-original load requests are closed pathless DTOs with mandatory kind-specific Boolean modes: whole-Blob materialization requires `range: false` for audio or `playback: false` for video, while ranged access requires the corresponding true mode and a non-null exact locator revision. Main and preload independently validate the mode, returned revision, profile-bound descriptor, safe size, canonical URL, and kind-specific MIME/name contract, and they retire a descriptor that cannot be returned safely. Upload capacity remains charged through publication or abort settlement, and service disposal waits for finishing publications. Upload sessions and linked-original reads remain bound to their renderer owner for authorization and revocation. Navigation, renderer loss, and window close revoke the owner, fence new work, abort its uploads, and drain admitted operations and range reads. The external-video addition exposes nine separately validated owner-scoped methods for capabilities, begin, input write, input close, execute, stat, bounded range read, delete, and cancel. It admits opaque operation ids, exact closed plans, and at-most-1-MiB chunks, never renderer-selected paths, executables, or argv; at most two sessions exist globally and one per owner. Navigation, renderer loss, window close, disposal, and shutdown fence new work, cancel and drain the child/session lifecycle, and remove main-private scratch. The active desktop local-assistance addition likewise exposes only opaque jobs, selected-media fences, authenticated claims/reservations, closed operations, progress, typed unavailable outcomes, and MessagePort byte transfers. Main-private staging and all model, runtime, selected-video, and external-executable filesystem paths stay outside renderer authority; cancellation and release drain transfers and helper or external-process work before cleanup. The bridge routes only authenticated Parakeet speech recognition, Silero voice-activity detection, paired Pyannote/ERes2Net speaker diarization, and conditional model-free external-FFmpeg shot detection; it cannot turn any of the remaining eleven operations into inference or fabricate their output. No renderer receives a filesystem path. This does not qualify an unregistered future helper or plug-in channel.
+`electron-renderer-ipc-boundary` is **enforced for the current v1 bridges only**. The window uses sandboxing, context isolation, no Node integration, sender/root-document checks, denied navigation and new-window paths, and a frozen input-validating preload API. Shared-project methods are bounded pathless list, read, bundle, commit, delete, and managed-media transfer operations for the closed canonical-PCM and retained-original-video encodings; main independently sanitizes their values, caps transfer bodies at 64 GiB and chunks at 4 MiB, and permits at most four active uploads and four active reads across the bridge service. Linked-original load requests are closed pathless DTOs with mandatory kind-specific Boolean modes: whole-Blob materialization requires `range: false` for audio or `playback: false` for video, while ranged access requires the corresponding true mode and a non-null exact locator revision. Main and preload independently validate the mode, returned revision, profile-bound descriptor, safe size, canonical URL, and kind-specific MIME/name contract, and they retire a descriptor that cannot be returned safely. Upload capacity remains charged through publication or abort settlement, and service disposal waits for finishing publications. Upload sessions and linked-original reads remain bound to their renderer owner for authorization and revocation. Navigation, renderer loss, and window close revoke the owner, fence new work, abort its uploads, and drain admitted operations and range reads. The external-video addition exposes nine separately validated owner-scoped methods for capabilities, begin, input write, input close, execute, stat, bounded range read, delete, and cancel. It admits opaque operation ids, exact closed plans, and at-most-1-MiB chunks, never renderer-selected paths, executables, or argv; at most two sessions exist globally and one per owner. Navigation, renderer loss, window close, disposal, and shutdown fence new work, cancel and drain the child/session lifecycle, and remove main-private scratch. The desktop local-assistance and additive workflow bridges likewise expose only opaque jobs, aggregate selected-media fences, authenticated slotted claims/reservations, closed operations and workflow graphs, progress, typed unavailable outcomes, and MessagePort byte transfers. Main-private staging, model/runtime/video/executable paths, and project-isolated derivative storage stay outside renderer authority; cancellation and release drain transfers and helper or external-process work before cleanup. No renderer receives a filesystem path. Implemented workflow code creates no authority for a runtime payload or signed model that has not passed admission.
 
-The authenticated Sherpa helper has three active catalog-bound adapters:
-Parakeet speech recognition, Silero voice activity, and speaker diarization
-only with one exact Pyannote segmentation plus ERes2Net embedding pair. Main
-and the worker authenticate the selected audio and every installed model file;
-missing, mismatched, corrupt, unsupported, or unavailable runtime authority
-returns a typed unavailable result without implicit installation or an
+`AssistanceWorkflow` v1 binds each guided run to one closed workflow graph,
+aggregate source/range/timing/transcript/settings/model fence, slotted claims,
+one exact consent authority, and stage progress. Guided recipes are the default;
+Advanced exposes the fifteen primitive operations as validated one-stage
+recipes. Strict frame-pack, embedding, WAV, alignment, tag, beat, OCR, track,
+crop, and editorial reviewers bound output before proposal state; disposable
+indexes and intermediates remain outside `.scape`.
+
+The authenticated Sherpa helper retains three active catalog-bound adapters:
+Parakeet speech recognition, Silero voice activity, and diarization with one
+exact Pyannote plus ERes2Net pair. Main and the worker authenticate selected
+audio and every installed model file; missing, corrupt, unsupported, or
+unavailable authority returns typed unavailability without installation or an
 alternate model.
 
 Conditional external FFmpeg shot detection is model-free and does not enter
@@ -624,33 +631,33 @@ executables, derives private working storage from the staged selected-video
 path, passes a four-frame black-to-white `scdet` canary, and then uses one
 fixed shell-free, bounded, process-tree-supervised grammar. Qualification or
 executable-authority loss returns typed unavailable; malformed actual metadata
-or process failure stays hard, and no shot boundary is fabricated. The
-remaining eleven closed operations return typed unavailable with no substitute
-adapter or fabricated output.
+or process failure stays hard, and no shot boundary is fabricated.
 
-Every completed result remains a proposal until semantic review and explicit
-acceptance revalidate the complete current S30/F31 selection fence through an
-`AssistanceProposalSession`. Parakeet transcript acceptance stages one
-canonical content-addressed transcript body and commits its strict reference
-with a deterministic ordinary label track as one undoable command. Reviewed
-Silero silence ranges and anonymous Pyannote/ERes2Net speaker regions replace
-only their owned ordinary `Silences` or `Speakers` label track. Reviewed ordered shot
-boundaries replace only their owned in-selection timeline-annotation markers.
-Reviewed English Parakeet transcript cleanup proposes bounded fillers and
-repetitions plus silence only from an optional same-fence Silero result; only
-explicitly selected proposals become one disjoint link-aware track-ripple-delete
-command that expands across authenticated A/V link membership, and cleanup
-publishes no assistance asset. Stale authority, semantic
-failure, an owned-state collision, or a body or command failure refuses the
-edit; newly owned transcript publication rolls back. Current-format `.scape`
-custody authenticates the transcript body and source binding; AUP4 reports
-omission.
+Conditional CPU runtime families and owned deterministic stages implement
+Whisper/wav2vec2 alignment, DeepFilterNet enhancement, TIGER separation, PANNs
+reactions, Beat This, TransNetV2 accurate shots, nomic/SigLIP embeddings, OCR,
+subject/saliency reframe, deterministic highlights, and bounded Qwen editorial
+JSON. Their isolated process/thread protocols enforce exact file grants, memory
+admission, supervision, crash quarantine, and termination cancellation. Every
+target payload remains `pending-external`; TIGER, PANNs, Beat This, and
+TransNetV2 also lack conversion/parity closure and new externally signed catalog
+entries, while Sherpa lacks its Windows-arm64 Node addon. Unmet combinations
+return typed unavailability without substitution or fabricated output.
 
-Manual and owner-lab qualification remains documentary, nonblocking, pending,
-and unprovisioned, with no accepted cohort. The local-model catalog's declared
-EU R2 mirrors still have no recorded real write or remote read-back. Neither
-gap relaxes licensing, catalog-signature, artifact-integrity, runtime/platform,
-selected-media, storage, external-executable-admission, or consent gates.
+Every reviewed choice starts unselected. Explicit acceptance revalidates the
+aggregate fence and uses ordinary atomic commands for transcript/captions,
+link-aware cleanup, anonymous speaker attribution, derived audio or D/M/E
+stems, reactions, beats/tempo, shots, reframe crop/keyframes, and highlight
+secondary sequences. Semantic indexes remain disposable and raw Qwen output
+never enters `.scape`. Stale authority, semantic failure, ownership collision,
+or publication failure refuses the edit and rolls back newly owned output.
+Existing transcript custody and AUP4 omission reporting remain unchanged.
+
+Live EU R2 publication/full-digest public read-back, five packaged target
+canaries, and the owner-lab workload remain absent. Manual qualification is
+documentary and nonblocking, but missing conversion/parity, external catalog
+signature, artifact, runtime/platform, selected-media, storage, executable, or
+consent authority remains a hard refusal.
 
 <!-- policy-narrative:framescaper-capture-desktop-consent-authority -->
 The selected F31 packaged Framescaper capture route uses a separate frozen v1 control plane whose status, source-list, grant, and teardown methods accept or return no media bytes, native source IDs, filesystem paths, or Electron objects. Main and the sandbox preload independently validate every closed request and response. IPC and Chromium permission handlers require the exact Framescaper product, current owner, focused trusted main document and origin; display delivery additionally requires the main frame, a direct user gesture, requested video, and an unconsumed role grant. The fallback chooser admits at most 64 sanitized screen/window descriptors, exposes only pathless 32-hex tokens, retains its inventory for at most five minutes, never chooses the first source implicitly, and consumes it into an owner- and generation-bound 15-second single-use grant. Replayed, stale, expired, wrong-owner, wrong-role, unfocused, non-gesture, and malformed requests fail closed. macOS 15 or newer delegates display choice to the system picker; other supported desktop platforms use the explicit bounded list. Only Windows advertises and may return loopback system audio, and other platforms report it unavailable. Owner revocation, explicit generation teardown, renderer navigation or loss, window close, registration disposal, and application shutdown retire grants, permission handlers, the capture preload, and IPC handlers; capture-session downloads remain denied. The packaged protocol gives a standalone Framescaper editor document self camera, microphone, and display-capture policy, retains Soundscaper's self microphone/display policy with camera denied, and makes embedded, non-editor, capability, error, and remote responses deny all capture features. Mutually exclusive Pages rules mirror the standalone Framescaper and embedded denial split without overlapping Permissions-Policy values. Signed Framescaper macOS configuration declares camera, microphone, and audio-capture usage text plus camera and audio-input entitlements, while Soundscaper retains its microphone-only entitlement. Selected F31 sets the Framescaper product capability framescaperCapture true and is active on standalone web and desktop through its controller, app binding, and runtime probe. Recording Setup remains default-hidden and is reached only by opting in through View > Panels. The selected capture route authority uses this desktop control plane, but only that menu opt-in exposes the capture surface. framescaperWebVcr remains false. A real packaged, no-device smoke loads the standalone Framescaper artifact and exercises pathless control-plane availability, status, grant, and teardown as active-boundary defense-in-depth evidence. Activation is not qualification, and that smoke is not manual qualification: actual packaged cameras, microphones, operating-system picker and loopback behavior, encoder and timing behavior, teardown performance, signing, and long-session performance remain unqualified while the real-device and owner-lab evidence stays provisional and unprovisioned.
@@ -1089,17 +1096,17 @@ Windows AppContainer, but no authenticated built target launcher/payload or
 independently signed readiness exists. The historical absent-caller and
 absent-launcher statements below are audit history, not current behavior.
 
-Milestone 7 adds one separately bounded active local-model surface to that
-partial risk. Main authenticates the exact Sherpa ONNX 1.13.5 package closure
-before it lazily forks the assistance utility process, and the inference worker
-verifies the same closure before the only native import. Main hashes stable
-regular-file grants for one explicitly staged audio body and every installed
-model artifact; the worker checks identity, size, and digest again. Supervision
-admits one job, requires heartbeats, samples RSS, terminates a fault or late
-cancellation, and waits for quiescence before private staging is removed. The
-real helper adapters are limited to installed catalog-authenticated Parakeet
-transducers, Silero VAD, and one exact Pyannote-segmentation plus
-ERes2Net-embedding diarization pair. Windows ARM64 is explicitly unsupported.
+Milestone 7 adds separately bounded active and conditional local-model surfaces
+to that partial risk. Main authenticates the Sherpa ONNX 1.13.5 closure before
+its lazy utility process and the worker verifies it again before native import.
+Stable regular-file grants bind selected media and every installed model;
+supervision enforces one job, heartbeat/RSS checks, termination cancellation,
+and quiescent staging cleanup. Catalog-authenticated Parakeet, Silero, and exact
+Pyannote/ERes2Net remain the active Sherpa routes. The additional ONNX Runtime,
+whisper.cpp, and llama.cpp families implement equivalent isolated grants,
+process/thread protocols, memory admission, quarantine, and termination, but
+all five target payload closures remain `pending-external`. Sherpa Windows ARM64
+also lacks its authenticated Node addon.
 
 The conditional external-FFmpeg shot adapter is a separate ordinary child
 process, not a Sherpa job. A current main-only executable-pair admission,
@@ -1110,23 +1117,23 @@ TOCTOU window, authenticate dynamically loaded libraries, or sandbox the
 selected executable's ambient account authority. Qualification or executable
 loss returns typed unavailable; malformed actual detection remains hard.
 
-The remaining eleven closed operations and incompatible
-model/runtime/admission/target states return typed unavailable without spawning
-a substitute adapter, installing a model, or publishing canonical state. This
-activation is not a claim that either ordinary process has an operating-system
-filesystem or network sandbox, that aggregate CPU/RSS or long-session
-performance is bounded, or that an owner-lab cohort passed. The M7 privacy and
-manual evidence remains unprovisioned, pending, and documentary rather than an
-activation switch; the declared model R2 mirrors still have no recorded real
-write or read-back. Licensing, catalog signature, artifact integrity,
-runtime/platform compatibility, selected-media authority, storage integrity,
-external-executable admission, and consent still fail closed.
+The conditional operation layer covers Whisper/alignment, enhancement/TIGER,
+PANNs reactions, Beat This, TransNetV2, embeddings/OCR, reframe, highlights, and
+Qwen. TIGER, PANNs, Beat This, and TransNetV2 lack converted artifacts/parity
+and new externally signed catalog entries, so the code cannot turn into package
+authority. Incompatible model/runtime/admission/target states return typed
+unavailability without spawning a substitute, installing a model, or publishing
+canonical state. Neither ordinary processes nor the new families claim an OS
+filesystem/network sandbox, aggregate resource bounds, or long-session quality.
+The privacy workload, five-target packaged canaries, live EU R2 publication and
+public read-back, and owner-lab cohort remain absent. Manual evidence is
+documentary rather than an activation switch; every hard admission gate remains.
 
-Reviewed Parakeet transcripts, selected link-aware transcript-cleanup proposals,
-Silero silences, anonymous Pyannote/ERes2Net speaker regions, and conditionally detected shot
-boundaries now have their separately normalized stale-safe canonical acceptance
-paths. That explicit review and project mutation does not qualify the helper,
-models, external executable, privacy, performance, or any remaining operation.
+Semantic review and explicit acceptance now cover transcript, link-aware
+cleanup, speaker attribution, derived audio/stems, reactions, beats/tempo,
+shots, disposable indexes, reframe, and highlight sequences. That wider
+stale-safe project mutation surface does not qualify any helper, model,
+publication, privacy metric, performance bound, or target.
 
 `native-helper-processes` is **partial across the supervised helper and codec-process surfaces**. The milestone-5 helper contract v1 is enacted with one read-only surface: a video probe helper running as an Electron utility process that main alone spawns and owns. The renderer addresses media only by its opaque read-capability id over four validated bridge channels; no spawn, filesystem-path, or binary authority ever crosses the renderer boundary, and the surface ships disabled until the user turns it on from the application menu. Both wire directions are validated against the versioned contract with typed rejections — a deterministic 10,000-case malformed-message suite runs as ordinary CI evidence — and a helper that violates the contract, misses the one-second heartbeat beyond the two-second crash-detection budget, overruns the one-second cancellation-acknowledgement budget, or exceeds its lower-only per-job input, duration, or peak-RSS policy is terminated, with repeated crashes quarantining the surface until the user explicitly clears it. Each job carries a grant naming one absolute main-verified media path whose captured device/inode identity the helper re-verifies after reopening; grants carry no output paths and no network authority. The Soundscaper application supplies no FFmpeg probe-helper engine: its renderer, runtime-resource, package, and release audits reject application-supplied FFmpeg, libav, the FFmpeg WebAssembly runtime, and the historical static FFmpeg host, so that application codec path cannot execute in a shipped desktop artifact. The Electron shell is a separately scoped framework exception. Instead of stock Electron 43.1.1's Chromium libffmpeg with proprietary codec support, Electron Builder selects the matching alternate framework library that Electron intends to omit proprietary codec support, and afterPack verifies its exact target, regular-file type, byte length, and SHA-256 against `config/electron-alternate-ffmpeg-manifest.json`. The five admitted targets are linux-x64, linux-arm64, mac-arm64, win-x64, and win-arm64; no mac-x64 package is admitted. This Chromium framework library is not passed to the helper or audio broker and is not a Soundscaper codec-provider tier. The separate desktop audio broker registers seven exact reviewed compressed-audio WASM payloads on linux-x64, linux-arm64, mac-arm64, win-x64, and win-arm64 and never mac-x64: libFLAC 1.5.0, libopus 1.6.1 with libogg 1.3.6, libvorbis 1.3.7 with libogg 1.3.6, WavPack 5.9.0, mpg123 1.33.7, LAME 4.0, and TwoLAME 0.4.0. One canonical manifest authenticates each control module, its complete transitive JavaScript import closure, and every WASM payload. Main reauthenticates that closure before every canary, preflight, or execution fork, and the helper reauthenticates it before import. Each job runs in a fresh one-shot Electron utility process with private 0700 scratch and 0600 files, exact input/output digest and geometry checks, a bounded deadline, kill-on-cancel/failure behavior, and a global four-job ceiling. The package also audits the exact notice/source closure and deterministic corresponding-source ZIP. The specialized first-party WAV/BWF/BW64 and AIFF paths remain application code and libsndfile is not bundled. WavPack retains its narrow stock 5.9.0 `wvunpack` multi-block witness. Each audio request is capped at 32 MiB input and 128 MiB returned output and retains whole buffers; a codec call remains synchronous inside its disposable helper, so these limits establish no aggregate JavaScript-copy, WASM-memory, CPU, elapsed-time, or RSS bound and the ordinary utility process is not a hostile-code sandbox. Windows Media Foundation and macOS ARM64 AudioToolbox source adapters, bounded inspectors, output validators, and exact live MP3/AAC canaries exist, including AAC encode and Windows-only MP3 encode. An isolated target-native CI build produces a codec-only Node-API addon for mac-arm64, win-x64, and win-arm64, authenticates the Electron headers and repository source/build plan, runs the native canaries, records the target toolchain and payload digest, and signs and strictly verifies macOS bytes before hashing. Preparation, beforePack, afterPack, the package-content manifest, and startup bind the same exact target, manifest, payload, signing evidence, byte length, and SHA-256. Linux has no uniform OS tier and mac-x64 is rejected. The final tier admits only a matching user-installed FFmpeg/ffprobe released from 4.4 through 9.x, configured in Edit > Preferences > General or installed after explicit confirmation through the exact WinGet/Homebrew plans, and never copies those bytes into an artifact. Audio uses fixed no-shell commands and bounded private scratch. Desktop keyed-RGBA video uses nine owner-scoped, pathless IPC methods, fixed H.264/AAC MP4 or VP9/Opus WebM plans, main-private pipes and scratch, at-most-1-MiB chunks and range reads, a 512 MiB maintained output cap, live per-pair qualification, deadlines, process-tree cancellation, structural/digest publication checks, and at most two sessions globally and one per owner. These controls do not close the hash-before-path-spawn TOCTOU window, authenticate dynamically loaded libraries, provide an operating-system filesystem/network/RSS/CPU sandbox, or constrain a malicious selected executable's ordinary account authority. Bundled and operating-system video remain disabled; there is no libwebm, libvpx, dav1d, SVT-AV1, or libaom payload or complete five-target AV1 evidence. External WebM is VP9, not AV1. The exact external video plans are qualified only against a current executable pair; other probe, trim, conform, remux, timing, proxy, and general video operations remain outside this bridge. Exact copyright licenses, artifacts, canaries, and interoperability witnesses do not establish patent clearance, non-infringement, broad producer/platform interoperability, or performance for any provider, codec, use, or territory. A second supervised surface is now enacted alongside it: a native audio helper that loads one Node-API addon inside its own utility process. That addon is the only native code the product loads, and it loads nowhere else — not in main, not in the preload, not in the renderer, not in an AudioWorklet. Its bytes are pinned per target in a manifest that ships inside the fuse-protected archive while the payload itself ships outside it as a verified resource, so the archive integrity fuse protects the pins and a re-hash protects the payload; main re-hashes before every spawn and the helper re-hashes again before its module loader sees the file. Of the five claimed targets only linux-x64 has a built payload today; the other four are pending-external with named blockers, stage no payload at all, and report a typed unavailability rather than a capability. The helper is exercised across Electron's real utility-process boundary rather than through an injected channel, and its audio is compared against the same pinned addon loaded independently. Today it discovers operating-system audio backends, and the addon behind it opens PipeWire and ALSA streams through an ordered candidate chain: each backend reports an explicit status and the exact platform diagnostic, discovery never starts a sound server the user did not ask for, each attempt in the chain is reported with the refusal that ended it, and the synthetic loopback backend used for the transport proof is refused however it is requested so it can never be offered as a device. No helper job kind reaches that open path yet — the `audio-device` job answers backend inventory or runs the synthetic loopback and nothing else — so device opening is exercised by addon tests rather than by any product surface, and JACK remains discovery-only. Plug-in discovery is now enacted as a third surface, and it is deliberately built so that it cannot host: the scan service does not import the hosting surface at all, so "scanning cannot execute a plug-in" is a property of the module graph rather than a rule someone has to remember. Nothing scans at startup or without per-format consent; custom roots come only from a main-owned picker; no absolute path reaches renderer-facing state, and the preload strips path-bearing fields from every reply as a second line. Discovery is incremental because inspecting a candidate must call into it: the helper names the candidate in flight before touching it, so a process that dies leaves main holding exactly the digest to quarantine. Quarantine is digest-keyed, written atomically, survives restart, and is cleared only by an explicit rescan or re-enable; user cancellation, device loss and editor shutdown are not faults. Registry identity is format plus format-native stable id, a stable-id collision is ineligible until the user chooses, a changed digest is a new unreviewed installation, and instruments are recorded but never materializable. **Every third-party plug-in format remains fail-closed.** VST3, CLAP, Audio Units and LV2 keep their blocked licensing rows, and the scanner reports candidates it finds in those formats as seen-and-not-enabled rather than silently skipping them; the machinery is proven instead against a benign fixture format that is this project's own code. This enacts payloads for those three surfaces only: the media decode/encode/render source candidates, bounded data plane, pool, and enlarged contract exist but remain outside the enacted payload surface because all five 5B rows are pending-external; plug-in hosting is a fourth implemented helper job kind and is described in its own row below rather than treated as absent; device opening and the real-time data plane are implemented but unqualified; the fault-and-loopback fixture is unqualified until the native OS lab matrix is provisioned; and process separation alone is not a hostile-code sandbox.
 
