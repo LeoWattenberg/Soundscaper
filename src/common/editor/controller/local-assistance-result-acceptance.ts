@@ -35,6 +35,7 @@ import {
 } from './local-assistance-transcript-acceptance.ts';
 import {
 	createLocalAssistanceAudioPublicationAcceptance,
+	type LocalAssistanceAudioPublicationChoice,
 	type LocalAssistanceAudioPublicationAuthority,
 	type LocalAssistanceAudioPublicationStore,
 } from './local-assistance-audio-publication.ts';
@@ -58,6 +59,7 @@ export function createLocalAssistanceResultAcceptance(
 	dependencies: LocalAssistanceResultAcceptanceDependencies,
 ): Readonly<LocalAssistanceTranscriptCleanupWorkflow & {
 	acceptValidatedResult(request: unknown): Promise<void>;
+	acceptAudioResult(request: unknown, choice: LocalAssistanceAudioPublicationChoice): Promise<void>;
 	createReactionReviewSession(
 		request: unknown,
 		options?: AssistanceReactionProposalOptions,
@@ -117,6 +119,13 @@ export function createLocalAssistanceResultAcceptance(
 				assertProject: dependencies.assertProject,
 				commit: dependencies.commit,
 			}, request);
+		},
+		acceptAudioResult(
+			request: unknown,
+			choice: LocalAssistanceAudioPublicationChoice,
+		): Promise<void> {
+			if (!audio) throw new Error('Audio assistance acceptance requires derived-source storage.');
+			return audio.acceptValidatedResult(request, choice);
 		},
 		acceptValidatedResult(request: unknown): Promise<void> {
 			const operation = resultOperation(request);

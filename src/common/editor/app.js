@@ -1289,7 +1289,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		captureRackNoiseProfile: (...args) => effectAudioService.captureRackNoiseProfile(...args),
 	});
 	const effectAudioService = createEffectAudioService({
-		lifetime, ...(projectRuntime.assistanceAssetCommands ? { assistanceStore: store, assistanceVideoStore: store } : {}),
+		lifetime, ...(projectRuntime.assistanceAssetCommands ? { assistanceStore: store, assistanceVideoStore: store, assistanceDerivativeRepository: store.assistanceDerivativeRepository } : {}),
 		captureProject: () => projectGeneration.capture(project.id),
 		assertProject: (token) => projectGeneration.assertCurrent(token),
 		state,

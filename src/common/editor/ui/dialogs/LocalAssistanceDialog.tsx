@@ -49,6 +49,7 @@ export interface LocalAssistanceDialogViewProps {
 	readonly onRunGuided?: () => unknown;
 	readonly onCancelGuided?: () => unknown;
 	readonly onReviewGuided?: () => unknown;
+	readonly onAcceptGuided?: () => unknown;
 	readonly onGuidedChoiceChange?: (choiceId: string, selected: boolean) => unknown;
 	readonly onSelectSource: (sourceId: string) => unknown;
 	readonly onSelectOperation: (operation: AssistanceOperation) => unknown;
@@ -97,6 +98,7 @@ export default function LocalAssistanceDialog({
 		onRunGuided={() => guidedStore.run()}
 		onCancelGuided={() => guidedStore.cancel()}
 		onReviewGuided={() => guidedStore.review()}
+		onAcceptGuided={() => guidedStore.accept()}
 		onGuidedChoiceChange={guidedStore.setReviewChoiceSelected}
 		onSelectSource={store.selectSource}
 		onSelectOperation={store.selectOperation}
@@ -125,7 +127,8 @@ export function LocalAssistanceDialogView({
 	onSurfaceChange = () => undefined, onSelectWorkflow = () => undefined,
 	onGuidedSettingsChange = () => undefined,
 	onRunGuided = () => undefined, onCancelGuided = () => undefined,
-	onReviewGuided = () => undefined, onGuidedChoiceChange = () => undefined,
+	onReviewGuided = () => undefined, onAcceptGuided = () => undefined,
+	onGuidedChoiceChange = () => undefined,
 	onSelectSource, onSelectOperation,
 	onShotDetectionModeChange = () => undefined, onSelectModel,
 	onConsentChange, onRun, onCancel, onReview, onAccept,
@@ -179,6 +182,7 @@ export function LocalAssistanceDialogView({
 		{activeSurface === 'guided' && <LocalAssistanceGuidedPanel copy={copy} snapshot={guided}
 			onSelectWorkflow={onSelectWorkflow} onSettingsChange={onGuidedSettingsChange}
 			onRun={onRunGuided} onCancel={onCancelGuided} onReview={onReviewGuided}
+			onAccept={onAcceptGuided}
 			onChoiceChange={onGuidedChoiceChange} />}
 		{activeSurface === 'advanced' && <section id="local-assistance-advanced-panel"
 			className="kw-local-assistance__advanced" role="tabpanel"

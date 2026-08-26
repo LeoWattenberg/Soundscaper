@@ -204,6 +204,9 @@ export interface EffectAudioServiceRuntime {
 	readonly serializeNoiseProfile: (profile: unknown) => unknown;
 	readonly assistanceStore?: unknown;
 	readonly assistanceVideoStore?: unknown;
+	readonly assistanceDerivativeRepository?: import(
+		'../storage/deferred-assistance-derivative-repository.ts'
+	).AssistanceDerivativeRepositoryPort;
 	readonly commit: (command: Readonly<Record<string, unknown>>) => void;
 	readonly persistAudacityEffectResults: (
 		results: readonly SelectionEffectResult[],
@@ -506,6 +509,8 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 		preflightStorage: runtime.preflightStorage,
 		...(runtime.assistanceStore ? { assistanceStore: runtime.assistanceStore } : {}),
 		...(runtime.assistanceVideoStore ? { assistanceVideoStore: runtime.assistanceVideoStore } : {}),
+		...(runtime.assistanceDerivativeRepository
+			? { assistanceDerivativeRepository: runtime.assistanceDerivativeRepository } : {}),
 		commit: runtime.commit,
 	});
 

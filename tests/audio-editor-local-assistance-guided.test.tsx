@@ -41,6 +41,7 @@ test('the menu dialog opens Guided and exposes all 13 recipes before explicit Ad
 	for (const workflowId of ASSISTANCE_GUIDED_WORKFLOW_IDS) {
 		assert.match(initial, new RegExp(`value="${workflowId}"`, 'u'));
 	}
+	assert.match(initial, /<button type="button" disabled="">Accept selected<\/button>/u);
 	assert.doesNotMatch(initial, />Operation<\/label>/u);
 
 	guided.selectSurface('advanced');
@@ -187,6 +188,44 @@ test('completed Guided output remains unchecked until its terminal claim passes 
 	await guided.dispose();
 });
 
+test('Guided acceptance publishes only checked choices and releases completed native custody', async () => {
+	const captions = new Blob([JSON.stringify({
+		schemaVersion: 1, kind: 'captions', sourceId: 'source-a', sampleRate: 48_000,
+		alignmentApplied: false,
+		cues: [{ cueId: 'caption:0', startFrame: 0, endFrame: 24_000,
+			text: 'Hello', words: [] }],
+	})], { type: 'application/vnd.soundscaper.captions+json' });
+	const fixture = workflowBridge({ completedBody: captions });
+	const accepted: unknown[] = [];
+	const preparation = primitivePreparation({
+		prepareGuidedWorkflow: async (request) => ({ outcome: 'prepared',
+			workflow: assistanceWorkflowFixture({ jobId: request.jobId,
+				workflowId: request.workflowId, settingsVersion: request.settings.settingsVersion }),
+			reviewAuthority: { reviewAuthorityVersion: 1, audioWave: null,
+				editorialCandidateIds: null } }),
+		acceptGuidedWorkflowResult: async (request) => {
+			accepted.push(request);
+			return { outcome: 'accepted', selectedIds: request.selectedChoiceIds };
+		},
+	});
+	const guided = createLocalAssistanceGuidedSessionStore({ bridge: fixture.localBridge, preparation });
+	guided.selectWorkflow('transcribe-captions');
+	await guided.run();
+	await guided.review();
+	assert.equal(guided.getSnapshot().canAccept, false);
+	guided.setReviewChoiceSelected('captions', true);
+	assert.equal(guided.getSnapshot().canAccept, true);
+	await guided.accept();
+	assert.equal(guided.getSnapshot().phase, 'accepted');
+	assert.equal(guided.getSnapshot().canAccept, false);
+	assert.equal(accepted.length, 1);
+	assert.deepEqual((accepted[0] as Readonly<Record<string, unknown>>).selectedChoiceIds, ['captions']);
+	assert.equal(typeof (accepted[0] as Readonly<Record<string, unknown>>).readOutput, 'function');
+	assert.equal(fixture.releases, 1);
+	await guided.dispose();
+	assert.equal(fixture.releases, 1, 'accepted output custody is not released twice');
+});
+
 function primitivePreparation(
 	extra: Partial<LocalAssistanceSelectedMediaPreparationPort> = {},
 ): LocalAssistanceSelectedMediaPreparationPort {
@@ -199,13 +238,14 @@ function primitivePreparation(
 
 function workflowBridge(options: Readonly<{ completedBody?: Blob }> = {}) {
 	let createCalls = 0;
+	let releases = 0;
 	const requests: Parameters<LocalAssistanceWorkflowBridge['run']>[0][] = [];
 	const bridge: LocalAssistanceWorkflowBridge = Object.freeze({
 		custody: Object.freeze({
 			stageInput: async () => { throw new Error('Preparation fixture owns staging.'); },
 			reserveOutput: async () => { throw new Error('Preparation fixture owns reservations.'); },
 			bindProducer: async () => { throw new Error('Preparation fixture owns producer binding.'); },
-			release: async () => true,
+			release: async () => { releases += 1; return true; },
 		}),
 		createJob: async () => {
 			createCalls += 1;
@@ -233,7 +273,8 @@ function workflowBridge(options: Readonly<{ completedBody?: Blob }> = {}) {
 	const localBridge = Object.freeze({ workflow: bridge,
 		models: async () => Object.freeze([]) }) satisfies Pick<LocalAssistanceBridge, 'models' | 'workflow'>;
 	return { bridge, localBridge, requests,
-		get createCalls() { return createCalls; } };
+		get createCalls() { return createCalls; },
+		get releases() { return releases; } };
 }
 
 function renderDialog(guided: LocalAssistanceGuidedSnapshot): string {

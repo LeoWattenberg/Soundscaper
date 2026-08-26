@@ -10,6 +10,9 @@ type MethodResult<Value> = Value extends (...args: infer _Args) => infer Result 
 export interface DeferredLocalAssistanceRuntimeDependencies {
 	readonly assistanceStore?: unknown;
 	readonly assistanceVideoStore?: unknown;
+	readonly assistanceDerivativeRepository?: import(
+		'../storage/deferred-assistance-derivative-repository.ts'
+	).AssistanceDerivativeRepositoryPort;
 	readonly createId: (prefix: string) => string;
 	readonly preflightStorage: (bytes: number, category: 'effect') => Promise<unknown>;
 	readonly getProject: () => unknown;
@@ -69,6 +72,9 @@ export function createDeferredLocalAssistancePreparation(
 		prepareGuidedWorkflow: (
 			...args: MethodParameters<LocalAssistancePreparation['prepareGuidedWorkflow']>
 		) => invoke('prepareGuidedWorkflow', args),
+		acceptGuidedWorkflowResult: (
+			...args: MethodParameters<LocalAssistancePreparation['acceptGuidedWorkflowResult']>
+		) => invoke('acceptGuidedWorkflowResult', args),
 		...(dependencies.assistanceStore ? {
 			acceptValidatedResult: (
 				...args: MethodParameters<LocalAssistancePreparation['acceptValidatedResult']>

@@ -27,6 +27,7 @@ export interface LocalAssistanceGuidedPanelProps {
 	readonly onRun: () => unknown;
 	readonly onCancel: () => unknown;
 	readonly onReview: () => unknown;
+	readonly onAccept: () => unknown;
 	readonly onChoiceChange: (choiceId: string, selected: boolean) => unknown;
 }
 
@@ -47,7 +48,8 @@ const LABELS: Readonly<Record<AssistanceGuidedWorkflowId, string>> = Object.free
 });
 
 export default function LocalAssistanceGuidedPanel({
-	copy, snapshot, onSelectWorkflow, onSettingsChange, onRun, onCancel, onReview, onChoiceChange,
+	copy, snapshot, onSelectWorkflow, onSettingsChange, onRun, onCancel, onReview, onAccept,
+	onChoiceChange,
 }: LocalAssistanceGuidedPanelProps) {
 	const graph = snapshot.selectedWorkflowId
 		? assistanceWorkflowStageGraph(snapshot.selectedWorkflowId) : null;
@@ -92,6 +94,9 @@ export default function LocalAssistanceGuidedPanel({
 			<button type="button" disabled={!snapshot.canReview} onClick={() => { void onReview(); }}>
 				{text(copy, 'localAssistanceReview', 'Review result')}
 			</button>
+			<button type="button" disabled={!snapshot.canAccept} onClick={() => { void onAccept(); }}>
+				{text(copy, 'localAssistanceAcceptSelected', 'Accept selected')}
+			</button>
 		</div>
 		{snapshot.review && <Suspense fallback={<p role="status">
 			{text(copy, 'localAssistanceReviewLoading', 'Opening review…')}
@@ -116,8 +121,12 @@ function statusMessage(copy: Copy, snapshot: LocalAssistanceGuidedSnapshot): str
 		'The Guided workflow completed. Review its authenticated result before accepting anything.');
 	if (snapshot.phase === 'reviewing') return text(copy, 'localAssistanceGuidedReviewing',
 		'Reviewing the authenticated Guided result.');
-	if (snapshot.phase === 'review-ready') return text(copy, 'localAssistanceGuidedReviewReady',
-		'The Guided result is ready for an explicit selection.');
+	if (snapshot.phase === 'review-ready') return snapshot.error ?? text(copy,
+		'localAssistanceGuidedReviewReady', 'The Guided result is ready for an explicit selection.');
+	if (snapshot.phase === 'accepting') return text(copy, 'localAssistanceAccepting',
+		'Accepting the reviewed selection.');
+	if (snapshot.phase === 'accepted') return text(copy, 'localAssistanceAccepted',
+		'The reviewed selection was accepted as one undoable edit.');
 	if (snapshot.phase === 'cancelled') return text(copy, 'localAssistanceCancelled',
 		'The Guided workflow was cancelled.');
 	if (snapshot.phase === 'error') return snapshot.error

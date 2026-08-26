@@ -2,6 +2,8 @@
 
 /** Lazy Guided review surface; every admitted choice begins unchecked. */
 
+import { useEffect, useState } from 'react';
+
 import type {
 	LocalAssistanceGuidedReviewedResult,
 } from '../local-assistance-guided-result-review.ts';
@@ -25,6 +27,8 @@ export default function LocalAssistanceGuidedReview({
 		<p>{review.outputs.map(({ slotId, byteLength }) => (
 			`${slotId} · ${String(byteLength)} bytes`
 		)).join(' · ')}</p>
+		{review.outputs.filter(({ mediaType }) => mediaType === 'audio/wav').map((output) =>
+			<AudioAudition key={output.claim.claimId} body={output.body} label={output.slotId} />)}
 		{review.choices.length === 0
 			? <p>{text(copy, 'localAssistanceNoProposals', 'No proposals were found.')}</p>
 			: <fieldset>
@@ -36,6 +40,16 @@ export default function LocalAssistanceGuidedReview({
 				</label>)}
 			</fieldset>}
 	</section>;
+}
+
+function AudioAudition({ body, label }: Readonly<{ body: Blob; label: string }>) {
+	const [source, setSource] = useState<string>();
+	useEffect(() => {
+		const url = URL.createObjectURL(body);
+		setSource(url);
+		return () => URL.revokeObjectURL(url);
+	}, [body]);
+	return <label>{label}<audio controls preload="metadata" src={source} /></label>;
 }
 
 function text(copy: Copy, key: string, fallback: string): string { return copy[key] || fallback; }

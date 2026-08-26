@@ -8,6 +8,7 @@ import {
 	type AssistanceOperation,
 } from '../assistance/operation.ts';
 import type { AssistanceGuidedWorkflowId } from '../assistance/workflow-recipes.ts';
+import type { AssistanceWorkflowOutputClaimV1 } from '../assistance/workflow.ts';
 import type { AssistanceWorkflowSettingsV1 } from '../assistance/workflow-settings-v1.ts';
 import {
 	validateAssistanceSelectionFence,
@@ -32,6 +33,7 @@ import type { LocalAssistanceOutputReview } from './local-assistance-result-revi
 import type {
 	LocalAssistanceTranscriptCleanupPreparationRequest,
 } from './local-assistance-cleanup.ts';
+import type { LocalAssistanceGuidedReviewedResult } from './local-assistance-guided-result-review.ts';
 
 export type LocalAssistanceMediaKind =
 	| 'audio' | 'video' | 'frame-pack' | 'transcript' | 'text' | 'editorial-context';
@@ -88,6 +90,7 @@ export interface LocalAssistanceSelectedMediaPreparationPort {
 		signal?: AbortSignal;
 	}>): Promise<unknown>;
 	prepareGuidedWorkflow?(request: LocalAssistanceGuidedWorkflowPreparationRequest): Promise<unknown>;
+	acceptGuidedWorkflowResult?(request: LocalAssistanceGuidedWorkflowAcceptanceRequest): Promise<unknown>;
 	acceptValidatedResult?(request: LocalAssistanceValidatedResultAcceptanceRequest): Promise<void>;
 	prepareTranscriptCleanup?(
 		request: LocalAssistanceTranscriptCleanupPreparationRequest,
@@ -95,6 +98,17 @@ export interface LocalAssistanceSelectedMediaPreparationPort {
 	acceptTranscriptCleanup?(proposalIds: readonly string[]): Promise<void>;
 	rejectTranscriptCleanup?(): Promise<void>;
 	cancelTranscriptCleanup?(): Promise<void>;
+}
+
+export interface LocalAssistanceGuidedWorkflowAcceptanceRequest {
+	readonly workflow: unknown;
+	readonly reviewedResult: LocalAssistanceGuidedReviewedResult;
+	readonly selectedChoiceIds: readonly string[];
+	readonly readOutput: (request: Readonly<{
+		readonly jobId: string;
+		readonly workflowId: AssistanceGuidedWorkflowId;
+		readonly claim: AssistanceWorkflowOutputClaimV1;
+	}>) => Promise<Blob>;
 }
 
 export interface LocalAssistanceGuidedWorkflowPreparationRequest {
