@@ -25,9 +25,15 @@ test('desktop composition gives local assistance the authenticated external FFmp
 	assert.match(registration,
 		/import \{ createAssistanceWorkflowOwnedAudioCutStageRuntime \} from '\.\/project-library-runtime\/desktop\/assistance-workflow-owned-audio-cut-stage-runtime\.js';/u);
 	assert.match(registration,
+		/import \{ createAssistanceWorkflowOwnedVideoHighlightStageRuntime \} from '\.\/project-library-runtime\/desktop\/assistance-workflow-owned-video-highlight-stage-runtime\.js';/u);
+	assert.match(registration,
 		/import \{ createAssistanceWorkflowNomicTokenizerResolverV1 \} from '\.\/project-library-runtime\/desktop\/assistance-workflow-nomic-tokenizer-resolver\.js';/u);
 	assert.match(registration,
 		/createAssistanceWorkflowOwnedAudioCutStageRuntime\(\{[\s\S]*?custody: workflowCustody,[\s\S]*?resolveTokenizer: resolveNomicTokenizer,[\s\S]*?\}\)/u);
+	assert.match(registration,
+		/createAssistanceWorkflowOwnedVideoHighlightStageRuntime\(\{\s*custody: workflowCustody,?\s*\}\)/u);
+	assert.match(registration,
+		/deterministicHandlers = Object\.freeze\(\{[\s\S]*?\.\.\.audioCutHandlers,[\s\S]*?\.\.\.videoHighlightHandlers,[\s\S]*?\}\)/u);
 	assert.match(registration,
 		/const resolveNomicTokenizer = \(request\) => createAssistanceWorkflowNomicTokenizerResolverV1\(\{[\s\S]*?models: createService\(\),[\s\S]*?\}\)\(request\);/u);
 	assert.match(registration,

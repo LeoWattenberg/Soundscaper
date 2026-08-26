@@ -35,6 +35,7 @@ import { ASSISTANCE_WORKFLOW_IPC_CHANNELS, registerAssistanceWorkflowIpc } from 
 import { createAssistanceWorkflowNomicTokenizerResolverV1 } from './project-library-runtime/desktop/assistance-workflow-nomic-tokenizer-resolver.js';
 import { createAssistanceWorkflowOperationStageRuntime } from './project-library-runtime/desktop/assistance-workflow-operation-stage-runtime.js';
 import { createAssistanceWorkflowOwnedAudioCutStageRuntime } from './project-library-runtime/desktop/assistance-workflow-owned-audio-cut-stage-runtime.js';
+import { createAssistanceWorkflowOwnedVideoHighlightStageRuntime } from './project-library-runtime/desktop/assistance-workflow-owned-video-highlight-stage-runtime.js';
 import { createAssistanceWorkflowService } from './project-library-runtime/desktop/assistance-workflow-service.js';
 import { AssistanceWorkflowTransfers } from './project-library-runtime/desktop/assistance-workflow-transfers.js';
 import { AssistanceStagingRegistry } from './project-library-runtime/desktop/assistance-staging-registry.js';
@@ -246,9 +247,16 @@ export function registerAssistance({
 	const resolveNomicTokenizer = (request) => createAssistanceWorkflowNomicTokenizerResolverV1({
 		models: createService(),
 	})(request);
-	const deterministicHandlers = createAssistanceWorkflowOwnedAudioCutStageRuntime({
+	const audioCutHandlers = createAssistanceWorkflowOwnedAudioCutStageRuntime({
 		custody: workflowCustody,
 		resolveTokenizer: resolveNomicTokenizer,
+	});
+	const videoHighlightHandlers = createAssistanceWorkflowOwnedVideoHighlightStageRuntime({
+		custody: workflowCustody,
+	});
+	const deterministicHandlers = Object.freeze({
+		...audioCutHandlers,
+		...videoHighlightHandlers,
 	});
 	const workflowExecute = createAssistanceWorkflowExecutor({
 		resolveCustody: (stage) => workflowCustody.resolveStage(stage),
