@@ -10,6 +10,7 @@ import {
 	validateAssistanceSelectionFence,
 	type AssistanceSelectionFence,
 } from '../assistance/proposal-session.ts';
+import { lazyAssistanceWorkflowBridge } from './local-assistance-lazy-workflow-bridge.ts';
 import type { LocalAssistanceWorkflowBridge } from './local-assistance-workflow-bridge.ts';
 
 export type { LocalAssistanceWorkflowBridge } from './local-assistance-workflow-bridge.ts';
@@ -281,37 +282,6 @@ export function resolveLocalAssistanceBridge(value: unknown): LocalAssistanceBri
 		},
 	});
 	return bridge;
-}
-
-function lazyAssistanceWorkflowBridge(value: unknown): LocalAssistanceWorkflowBridge | null {
-	if (!isRecord(value)) return null;
-	const methods = ['createJob', 'run', 'cancel', 'onProgress'] as const;
-	const keys = Object.keys(value);
-	if (keys.length !== methods.length || keys.some((key) => !methods.includes(
-		key as typeof methods[number],
-	)) || methods.some((method) => typeof value[method] !== 'function')) return null;
-	let loaded: Promise<LocalAssistanceWorkflowBridge> | null = null;
-	const resolve = (): Promise<LocalAssistanceWorkflowBridge> => {
-		loaded ??= import('./local-assistance-workflow-bridge.ts').then((module) => {
-			const bridge = module.resolveLocalAssistanceWorkflowBridge(value);
-			if (!bridge) throw new TypeError('The assistance workflow bridge is invalid.');
-			return bridge;
-		});
-		return loaded;
-	};
-	return Object.freeze({
-		createJob: async () => (await resolve()).createJob(),
-		run: async (request: Parameters<LocalAssistanceWorkflowBridge['run']>[0]) => (await resolve()).run(request),
-		cancel: async (jobIdValue: string) => (await resolve()).cancel(jobIdValue),
-		onProgress(listener: Parameters<LocalAssistanceWorkflowBridge['onProgress']>[0]) {
-			let disposed = false;
-			let unsubscribe: (() => void) | null = null;
-			void resolve().then((bridge) => {
-				if (!disposed) unsubscribe = bridge.onProgress(listener);
-			}).catch(() => undefined);
-			return () => { disposed = true; unsubscribe?.(); };
-		},
-	});
 }
 
 export function normalizeModels(value: unknown): readonly LocalAssistanceModel[] {

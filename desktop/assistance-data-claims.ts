@@ -20,6 +20,9 @@ export const ASSISTANCE_INPUT_ROLES = Object.freeze([
 	'transcript',
 	'text',
 	'editorial-context',
+	'shot-boundaries',
+	'reaction-ranges',
+	'embeddings',
 ] as const);
 
 export const ASSISTANCE_OUTPUT_ROLES = Object.freeze([
@@ -37,6 +40,22 @@ export const ASSISTANCE_OUTPUT_ROLES = Object.freeze([
 	'subject-tracks',
 	'saliency-map',
 	'editorial-proposal',
+	'captions',
+	'cleanup-proposals',
+	'attributed-transcript',
+	'reaction-ranges',
+	'text-chunks',
+	'transcript-index',
+	'beat-labels',
+	'tempo-map-diff',
+	'cut-proposals',
+	'frame-pack',
+	'video-index',
+	'tracked-subjects',
+	'reframe-path',
+	'highlight-signals',
+	'highlight-candidates',
+	'highlight-proposals',
 ] as const);
 
 export type AssistanceInputRole = (typeof ASSISTANCE_INPUT_ROLES)[number];
@@ -92,6 +111,9 @@ const INPUT_MEDIA_TYPES = Object.freeze({
 	'editorial-context': Object.freeze([
 		'application/json', 'application/vnd.soundscaper.editorial-context+json',
 	]),
+	'shot-boundaries': jsonTypes('shot-boundaries'),
+	'reaction-ranges': jsonTypes('reaction-ranges'),
+	embeddings: Object.freeze(['application/vnd.soundscaper.embedding-matrix-v1']),
 } satisfies Readonly<Record<AssistanceInputRole, readonly string[]>>);
 const OUTPUT_MEDIA_TYPES = Object.freeze({
 	'voice-activity': jsonTypes('voice-activity'),
@@ -110,6 +132,22 @@ const OUTPUT_MEDIA_TYPES = Object.freeze({
 	'subject-tracks': jsonTypes('subject-tracks'),
 	'saliency-map': jsonTypes('saliency-map'),
 	'editorial-proposal': jsonTypes('editorial-proposal'),
+	captions: jsonTypes('captions'),
+	'cleanup-proposals': jsonTypes('cleanup-proposals'),
+	'attributed-transcript': jsonTypes('attributed-transcript'),
+	'reaction-ranges': jsonTypes('reaction-ranges'),
+	'text-chunks': jsonTypes('text-chunks'),
+	'transcript-index': jsonTypes('transcript-index'),
+	'beat-labels': jsonTypes('beat-labels'),
+	'tempo-map-diff': jsonTypes('tempo-map-diff'),
+	'cut-proposals': jsonTypes('cut-proposals'),
+	'frame-pack': Object.freeze(['application/vnd.soundscaper.frame-pack']),
+	'video-index': jsonTypes('video-index'),
+	'tracked-subjects': jsonTypes('tracked-subjects'),
+	'reframe-path': jsonTypes('reframe-path'),
+	'highlight-signals': jsonTypes('highlight-signals'),
+	'highlight-candidates': jsonTypes('highlight-candidates'),
+	'highlight-proposals': jsonTypes('highlight-proposals'),
 } satisfies Readonly<Record<AssistanceOutputRole, readonly string[]>>);
 
 export function validateAssistanceStagedInputClaim(value: unknown): AssistanceStagedInputClaim {

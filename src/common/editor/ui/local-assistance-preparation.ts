@@ -25,6 +25,9 @@ import type {
 	LocalAssistanceOutputClaim,
 	LocalAssistanceOutputRole,
 } from './local-assistance-bridge.ts';
+import type {
+	LocalAssistanceWorkflowCustodyBridge,
+} from './local-assistance-workflow-bridge.ts';
 import type { LocalAssistanceOutputReview } from './local-assistance-result-review.ts';
 import type {
 	LocalAssistanceTranscriptCleanupPreparationRequest,
@@ -32,6 +35,16 @@ import type {
 
 export type LocalAssistanceMediaKind =
 	| 'audio' | 'video' | 'frame-pack' | 'transcript' | 'text' | 'editorial-context';
+
+export const LOCAL_ASSISTANCE_GUIDED_PREPARATION_UNAVAILABLE_REASONS = Object.freeze([
+	'selected-media-unavailable', 'aggregate-custody-unavailable', 'model-binding-unavailable',
+	'source-custody-unavailable', 'transcript-custody-unavailable',
+	'derived-custody-unavailable', 'editorial-context-custody-unavailable',
+	'timing-authority-unavailable', 'workflow-disabled',
+] as const);
+
+export type LocalAssistanceGuidedPreparationUnavailableReason =
+	(typeof LOCAL_ASSISTANCE_GUIDED_PREPARATION_UNAVAILABLE_REASONS)[number];
 
 export interface LocalAssistanceSelectedMediaSource {
 	readonly sourceId: string;
@@ -88,6 +101,8 @@ export interface LocalAssistanceGuidedWorkflowPreparationRequest {
 	readonly jobId: string;
 	readonly workflowId: AssistanceGuidedWorkflowId;
 	readonly settings: AssistanceWorkflowSettingsV1;
+	readonly models: readonly LocalAssistanceModel[];
+	readonly custody: LocalAssistanceWorkflowCustodyBridge;
 	readonly signal: AbortSignal;
 }
 

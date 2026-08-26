@@ -17,10 +17,14 @@ import {
 	type AssistanceWorkflowProgressV1,
 } from '../assistance/workflow.ts';
 import type {
-	LocalAssistanceSelectedMediaPreparationPort,
+	LocalAssistanceBridge,
+} from './local-assistance-bridge.ts';
+import {
+	LOCAL_ASSISTANCE_GUIDED_PREPARATION_UNAVAILABLE_REASONS,
+	type LocalAssistanceGuidedPreparationUnavailableReason,
+	type LocalAssistanceSelectedMediaPreparationPort,
 } from './local-assistance-preparation.ts';
 import type {
-	LocalAssistanceWorkflowBridge,
 	LocalAssistanceWorkflowOutcome,
 	LocalAssistanceWorkflowUnavailableReason,
 } from './local-assistance-workflow-bridge.ts';
@@ -31,8 +35,10 @@ export type LocalAssistanceGuidedPhase =
 	| 'cancelled' | 'unavailable' | 'error';
 export type LocalAssistanceGuidedUnavailableReason =
 	| LocalAssistanceWorkflowUnavailableReason
+	| LocalAssistanceGuidedPreparationUnavailableReason
 	| 'workflow-bridge-unavailable'
-	| 'aggregate-preparation-unavailable';
+	| 'aggregate-preparation-unavailable'
+	| 'aggregate-custody-unavailable';
 
 export interface LocalAssistanceGuidedSnapshot {
 	readonly surface: LocalAssistanceDialogSurface;
@@ -59,7 +65,7 @@ export interface LocalAssistanceGuidedSessionStore {
 }
 
 interface Options {
-	readonly workflow: LocalAssistanceWorkflowBridge | null;
+	readonly bridge: Pick<LocalAssistanceBridge, 'models' | 'workflow'> | null;
 	readonly preparation: LocalAssistanceSelectedMediaPreparationPort | null;
 }
 
@@ -80,6 +86,8 @@ export function createLocalAssistanceGuidedSessionStore(
 	let running: Promise<void> | null = null;
 	let cancelRequested = false;
 	let disposed = false;
+	const retainedJobs = new Set<string>();
+	const workflow = options.bridge?.workflow ?? null;
 
 	const emit = (): void => listeners.forEach((listener) => listener());
 	const update = (change: Partial<LocalAssistanceGuidedSnapshot>): void => {
@@ -108,7 +116,8 @@ export function createLocalAssistanceGuidedSessionStore(
 	};
 
 	const execute = async (): Promise<void> => {
-		if (!snapshot.canRun || !options.workflow || !options.preparation?.prepareGuidedWorkflow) {
+		if (!snapshot.canRun || !workflow?.custody || !options.bridge
+			|| !options.preparation?.prepareGuidedWorkflow) {
 			throw new Error('The Guided assistance workflow is not ready or is unavailable.');
 		}
 		const workflowId = snapshot.selectedWorkflowId!;
@@ -121,32 +130,42 @@ export function createLocalAssistanceGuidedSessionStore(
 		let progressDisconnect: (() => void) | null = null;
 		try {
 			controller = new AbortController();
-			const job = await options.workflow.createJob();
+			const job = await workflow.createJob();
 			activeJobId = job.jobId;
+			const models = await options.bridge.models();
 			const preparedValue = await options.preparation.prepareGuidedWorkflow({
-				jobId: job.jobId, workflowId, settings, signal: controller.signal,
+				jobId: job.jobId, workflowId, settings, models,
+				custody: workflow.custody, signal: controller.signal,
 			});
-			const request = validateAssistanceWorkflow(preparedValue);
+			const prepared = normalizePreparationOutcome(preparedValue);
+			if (prepared.outcome === 'unavailable') {
+				await workflow.custody.release(job.jobId);
+				activeJobId = null;
+				throw new GuidedPreparationUnavailableError(prepared.reason);
+			}
+			const request = validateAssistanceWorkflow(prepared.workflow);
 			if (request.jobId !== job.jobId || request.workflowId !== workflowId
 				|| request.recipeVersion !== 1 || request.settingsVersion !== settings.settingsVersion) {
 				throw new TypeError('Prepared Guided assistance lost its exact recipe or settings authority.');
 			}
 			if (cancelRequested) throw new GuidedCancelledError();
-			progressDisconnect = options.workflow.onProgress((progress) => {
+			progressDisconnect = workflow.onProgress((progress) => {
 				if (progress.jobId === activeJobId && progress.workflowId === workflowId) {
 					update({ phase: 'running', progress });
 				}
 			});
 			update({ phase: 'running' });
-			outcome = await options.workflow.run(request);
+			outcome = await workflow.run(request);
+			if (outcome.outcome === 'completed') retainedJobs.add(job.jobId);
+			else await workflow.custody.release(job.jobId);
 			activeJobId = null;
 		} catch (error) {
 			failure = error;
 		} finally {
 			controller = null;
 			progressDisconnect?.();
-			if (activeJobId && options.workflow) {
-				try { await options.workflow.cancel(activeJobId); } catch { /* Original failure remains authoritative. */ }
+			if (activeJobId) {
+				try { await workflow.cancel(activeJobId); } catch { /* Original failure remains authoritative. */ }
 				activeJobId = null;
 			}
 		}
@@ -154,6 +173,9 @@ export function createLocalAssistanceGuidedSessionStore(
 		if (cancelRequested || failure instanceof GuidedCancelledError) {
 			update({ phase: 'cancelled', progress: null, result: null,
 				unavailableReason: null, error: null });
+		} else if (failure instanceof GuidedPreparationUnavailableError) {
+			update({ phase: 'unavailable', progress: null, result: null,
+				unavailableReason: failure.reason, error: null });
 		} else if (failure) {
 			update({ phase: 'error', progress: null, result: null, unavailableReason: null,
 				error: failure instanceof Error ? failure.message : 'The Guided workflow failed.' });
@@ -177,11 +199,11 @@ export function createLocalAssistanceGuidedSessionStore(
 		return running;
 	};
 	const cancel = async (): Promise<void> => {
-		if (!running || !snapshot.canCancel || !options.workflow) return;
+		if (!running || !snapshot.canCancel || !workflow) return;
 		cancelRequested = true;
 		controller?.abort(new GuidedCancelledError());
 		if (activeJobId) {
-			try { await options.workflow.cancel(activeJobId); } catch { /* Execute owns the final state. */ }
+			try { await workflow.cancel(activeJobId); } catch { /* Execute owns the final state. */ }
 		}
 		await running;
 	};
@@ -189,10 +211,15 @@ export function createLocalAssistanceGuidedSessionStore(
 		disposed = true;
 		cancelRequested = true;
 		controller?.abort(new GuidedCancelledError());
-		if (activeJobId && options.workflow) {
-			try { await options.workflow.cancel(activeJobId); } catch { /* Best-effort disposal. */ }
+		if (activeJobId && workflow) {
+			try { await workflow.cancel(activeJobId); } catch { /* Best-effort disposal. */ }
 		}
 		await running;
+		if (workflow?.custody) {
+			const custody = workflow.custody;
+			await Promise.allSettled([...retainedJobs].map((jobId) => custody.release(jobId)));
+			retainedJobs.clear();
+		}
 		listeners.clear();
 	};
 
@@ -204,7 +231,8 @@ export function createLocalAssistanceGuidedSessionStore(
 }
 
 function availability(options: Options): LocalAssistanceGuidedUnavailableReason | null {
-	if (!options.workflow) return 'workflow-bridge-unavailable';
+	if (!options.bridge?.workflow) return 'workflow-bridge-unavailable';
+	if (!options.bridge.workflow.custody) return 'aggregate-custody-unavailable';
 	if (typeof options.preparation?.prepareGuidedWorkflow !== 'function') {
 		return 'aggregate-preparation-unavailable';
 	}
@@ -223,3 +251,32 @@ function freezeSnapshot(
 }
 
 class GuidedCancelledError extends Error {}
+
+class GuidedPreparationUnavailableError extends Error {
+	readonly reason: LocalAssistanceGuidedPreparationUnavailableReason;
+	constructor(reason: LocalAssistanceGuidedPreparationUnavailableReason) {
+		super(`Guided preparation is unavailable: ${reason}`); this.reason = reason;
+	}
+}
+
+function normalizePreparationOutcome(value: unknown): Readonly<{
+	outcome: 'prepared'; workflow: unknown;
+}> | Readonly<{
+	outcome: 'unavailable'; reason: LocalAssistanceGuidedPreparationUnavailableReason;
+}> {
+	if (!value || typeof value !== 'object' || Array.isArray(value) || ArrayBuffer.isView(value)) {
+		throw new TypeError('Guided preparation returned an invalid outcome.');
+	}
+	const row = value as Record<string, unknown>;
+	if (row.outcome === 'prepared' && Object.keys(row).length === 2 && Object.hasOwn(row, 'workflow')) {
+		return Object.freeze({ outcome: 'prepared', workflow: row.workflow });
+	}
+	if (row.outcome === 'unavailable' && Object.keys(row).length === 2
+		&& LOCAL_ASSISTANCE_GUIDED_PREPARATION_UNAVAILABLE_REASONS.includes(
+			row.reason as LocalAssistanceGuidedPreparationUnavailableReason,
+		)) {
+		return Object.freeze({ outcome: 'unavailable',
+			reason: row.reason as LocalAssistanceGuidedPreparationUnavailableReason });
+	}
+	throw new TypeError('Guided preparation returned an invalid outcome.');
+}

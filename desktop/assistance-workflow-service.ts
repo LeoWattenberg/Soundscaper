@@ -15,6 +15,12 @@ import {
 	type AssistanceWorkflowStageSpec,
 	type AssistanceWorkflowV1,
 } from '../src/common/editor/assistance/workflow.ts';
+import type {
+	AssistanceWorkflowCustody,
+	AssistanceWorkflowCustodyHandleV1,
+	AssistanceWorkflowOutputReservationRequest,
+	AssistanceWorkflowProducerBindingRequest,
+} from './assistance-workflow-custody.ts';
 
 export const ASSISTANCE_WORKFLOW_BRIDGE_VERSION = 1;
 export const ASSISTANCE_WORKFLOW_UNAVAILABLE_REASONS = Object.freeze([
@@ -77,6 +83,9 @@ export interface AssistanceWorkflowExecutionContext {
 
 export interface AssistanceWorkflowServiceOptions {
 	readonly mintJobId?: () => string;
+	readonly custody?: Pick<AssistanceWorkflowCustody,
+		'createJob' | 'assertJob' | 'reserveOutput' | 'bindProducer'
+		| 'validateWorkflow' | 'releaseJob'>;
 	readonly onProgress?: (progress: AssistanceWorkflowProgressV1) => void;
 	readonly execute?: (
 		request: AssistanceWorkflowV1,
@@ -100,27 +109,62 @@ export class AssistanceWorkflowCancelledError extends Error {
 }
 
 export function createAssistanceWorkflowService(options: AssistanceWorkflowServiceOptions = {}) {
+	if (options.custody && options.mintJobId) {
+		throw new TypeError('Workflow job identities must be minted by exactly one custody authority.');
+	}
 	const mintJobId = options.mintJobId ?? (() => randomBytes(20).toString('hex'));
 	const jobs = new Set<string>();
+	const completedJobs = new Set<string>();
 	const activeRuns = new Map<string, ActiveRun>();
 
 	async function createJob(): Promise<AssistanceWorkflowJobV1> {
 		if (jobs.size >= 64) throw new Error('The assistance workflow job bound is exhausted.');
-		const jobId = opaqueId(mintJobId());
+		const custodyJob = options.custody ? await options.custody.createJob() : null;
+		const jobId = opaqueId(custodyJob?.jobId ?? mintJobId());
+		if (custodyJob && custodyJob.contractVersion !== ASSISTANCE_WORKFLOW_BRIDGE_VERSION) {
+			await options.custody?.releaseJob(jobId).catch(() => false);
+			throw new TypeError('Workflow custody returned an unsupported job contract.');
+		}
 		if (jobs.has(jobId)) throw new Error('The assistance workflow job identity was reused.');
 		jobs.add(jobId);
 		return Object.freeze({ contractVersion: ASSISTANCE_WORKFLOW_BRIDGE_VERSION, jobId });
 	}
 
 	function assertJob(jobIdValue: unknown): void {
-		if (!jobs.has(opaqueId(jobIdValue))) {
+		const jobId = opaqueId(jobIdValue);
+		if (!jobs.has(jobId)) {
 			throw new Error('The assistance workflow job is unknown or completed.');
 		}
+		options.custody?.assertJob(jobId);
+	}
+
+	function admitWorkflow(value: unknown): AssistanceWorkflowV1 {
+		const request = validateAssistanceWorkflow(value);
+		assertJob(request.jobId);
+		if (completedJobs.has(request.jobId)) {
+			throw new Error('The assistance workflow job already completed execution.');
+		}
+		return options.custody?.validateWorkflow(request) ?? request;
+	}
+
+	async function reserveOutput(
+		request: AssistanceWorkflowOutputReservationRequest,
+	): Promise<AssistanceWorkflowCustodyHandleV1> {
+		assertMutableJob(request?.jobId);
+		if (!options.custody) throw new Error('Aggregate workflow custody is unavailable.');
+		return options.custody.reserveOutput(request);
+	}
+
+	function bindProducer(
+		request: AssistanceWorkflowProducerBindingRequest,
+	): AssistanceWorkflowCustodyHandleV1 {
+		assertMutableJob(request?.jobId);
+		if (!options.custody) throw new Error('Aggregate workflow custody is unavailable.');
+		return options.custody.bindProducer(request);
 	}
 
 	async function run(value: unknown): Promise<AssistanceWorkflowOutcomeV1> {
-		const request = validateAssistanceWorkflow(value);
-		assertJob(request.jobId);
+		const request = admitWorkflow(value);
 		if (activeRuns.has(request.jobId)) throw new Error('The assistance workflow job is already running.');
 		const controller = new AbortController();
 		const execution = executeWorkflow(request, controller.signal);
@@ -137,7 +181,8 @@ export function createAssistanceWorkflowService(options: AssistanceWorkflowServi
 			throw error;
 		} finally {
 			if (activeRuns.get(request.jobId) === active) activeRuns.delete(request.jobId);
-			jobs.delete(request.jobId);
+			if (options.custody && jobs.has(request.jobId)) completedJobs.add(request.jobId);
+			else jobs.delete(request.jobId);
 		}
 	}
 
@@ -216,14 +261,34 @@ export function createAssistanceWorkflowService(options: AssistanceWorkflowServi
 		if (active) await active.quiesced;
 		activeRuns.delete(jobId);
 		jobs.delete(jobId);
+		completedJobs.delete(jobId);
+		await options.custody?.releaseJob(jobId);
 		return cancellation(jobId, 'cancelled');
+	}
+
+	async function release(jobIdValue: string): Promise<boolean> {
+		const jobId = opaqueId(jobIdValue);
+		if (!jobs.has(jobId)) return false;
+		if (activeRuns.has(jobId)) throw new Error('An active assistance workflow must be cancelled first.');
+		jobs.delete(jobId);
+		completedJobs.delete(jobId);
+		return options.custody ? options.custody.releaseJob(jobId) : true;
+	}
+
+	function assertMutableJob(jobIdValue: unknown): void {
+		const jobId = opaqueId(jobIdValue);
+		assertJob(jobId);
+		if (activeRuns.has(jobId) || completedJobs.has(jobId)) {
+			throw new Error('The assistance workflow custody is immutable after execution starts.');
+		}
 	}
 
 	async function dispose(): Promise<void> {
 		await Promise.all([...jobs].map((jobId) => cancel(jobId)));
 	}
 
-	return Object.freeze({ createJob, assertJob, run, cancel, dispose });
+	return Object.freeze({ createJob, assertJob, admitWorkflow, reserveOutput,
+		bindProducer, run, cancel, release, dispose });
 }
 
 function unavailableExecution(

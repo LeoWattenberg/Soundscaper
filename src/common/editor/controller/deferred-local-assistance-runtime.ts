@@ -66,6 +66,9 @@ export function createDeferredLocalAssistancePreparation(
 		prepareSelectedMedia: (
 			...args: MethodParameters<LocalAssistancePreparation['prepareSelectedMedia']>
 		) => invoke('prepareSelectedMedia', args),
+		prepareGuidedWorkflow: (
+			...args: MethodParameters<LocalAssistancePreparation['prepareGuidedWorkflow']>
+		) => invoke('prepareGuidedWorkflow', args),
 		...(dependencies.assistanceStore ? {
 			acceptValidatedResult: (
 				...args: MethodParameters<LocalAssistancePreparation['acceptValidatedResult']>

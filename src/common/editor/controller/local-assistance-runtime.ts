@@ -11,6 +11,9 @@ import {
 	type LocalAssistanceSelectedVideoStore,
 } from './local-assistance-selected-preparation.ts';
 import {
+	createLocalAssistanceGuidedWorkflowPreparation,
+} from './local-assistance-guided-preparation.ts';
+import {
 	createLocalAssistanceResultAcceptance,
 	type LocalAssistanceResultAcceptanceStore,
 } from './local-assistance-result-acceptance.ts';
@@ -51,8 +54,17 @@ export function createLocalAssistancePreparationRuntime(
 		...(assistanceVideoStore ? { videoStore: assistanceVideoStore } : {}),
 		...(resultAcceptance ? { acceptValidatedResult: resultAcceptance.acceptValidatedResult } : {}),
 	});
+	const guidedPreparation = createLocalAssistanceGuidedWorkflowPreparation({
+		getProject: dependencies.getProject,
+		getSelectedClipId: dependencies.getSelectedClipId,
+		captureProject: dependencies.captureProject,
+		assertProject: dependencies.assertProject,
+		preflightStorage: (bytes) => dependencies.preflightStorage(bytes, 'effect'),
+		selected: selectedPreparation,
+	});
 	return Object.freeze({
 		...selectedPreparation,
+		prepareGuidedWorkflow: guidedPreparation.prepareGuidedWorkflow,
 		...(resultAcceptance ? {
 			prepareTranscriptCleanup: resultAcceptance.prepareTranscriptCleanup,
 			acceptTranscriptCleanup: resultAcceptance.acceptTranscriptCleanup,

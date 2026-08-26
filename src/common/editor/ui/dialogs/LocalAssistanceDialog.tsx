@@ -66,7 +66,7 @@ export default function LocalAssistanceDialog({
 }: LocalAssistanceDialogProps) {
 	const store = useMemo(() => createLocalAssistanceSessionStore({ bridge, preparation }), [bridge, preparation]);
 	const guidedStore = useMemo(() => createLocalAssistanceGuidedSessionStore({
-		workflow: bridge?.workflow ?? null, preparation,
+		bridge, preparation,
 	}), [bridge, preparation]);
 	const [reviewOpen, setReviewOpen] = useState(false);
 	const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);

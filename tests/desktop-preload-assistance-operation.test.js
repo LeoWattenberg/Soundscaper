@@ -196,6 +196,78 @@ test('workflow preload validation rejects renderer stage injection and path-bear
 		/workflow|schema|fields|outcome/iu);
 });
 
+test('workflow custody stages exact Blobs and reserves pathless slotted outputs', async () => {
+	const body = new Blob(['RIFF'], { type: 'audio/wav' });
+	const sha256 = createHash('sha256').update('RIFF').digest('hex');
+	const reservation = { dataPlaneVersion: 1, transport: 'message-port', streamId: STREAM_ID,
+		direction: 'host-to-helper', authentication: 'trailer-sha256-v1', byteLength: 4,
+		maximumChunkBytes: 2, maximumInFlightChunks: 1 };
+	const inputCustody = workflowCustody({ direction: 'input', claimId: CLAIM_ID,
+		stageId: 'enhance-dialogue', slotId: 'audio', role: 'audio', mediaType: 'audio/wav',
+		byteLength: 4, sha256, maximumByteLength: null });
+	const outputCustody = workflowCustody({ direction: 'output', claimId: '4'.repeat(40),
+		stageId: 'enhance-dialogue', slotId: 'enhanced-audio', role: 'enhanced-audio',
+		mediaType: 'audio/wav', byteLength: null, sha256: null, maximumByteLength: 4096 });
+	const transferred = [];
+	const fixture = await loadPreload({ responses: [
+		{ contractVersion: 1, jobId: JOB_ID, streamId: STREAM_ID, reservation },
+		workflowCustodyHandle(inputCustody), workflowCustodyHandle(outputCustody), true,
+	], onPostMessage(channel, control, ports) {
+		assert.equal(channel, 'soundscaper:v1:assistance:workflow:input-port');
+		assert.deepEqual(plain(control), { jobId: JOB_ID, streamId: STREAM_ID, reservation });
+		const port = ports[0];
+		port.on('message', (message) => {
+			if (message.type === 'chunk') {
+				transferred.push(message.bytes);
+				port.postMessage({ dataPlaneVersion: 1, type: 'ack', streamId: STREAM_ID,
+					sequence: message.sequence, receivedBytes: message.offset + message.bytes.byteLength });
+			}
+		});
+	} });
+
+	assert.deepEqual(plain(await fixture.bridge.localAssistance.workflow.custody.stageInput({
+		jobId: JOB_ID, workflowId: 'enhance-dialogue', stageId: 'enhance-dialogue', slotId: 'audio',
+		mediaType: 'audio/wav', byteLength: 4, sha256, bytes: body,
+	})), plain(workflowCustodyHandle(inputCustody)));
+	assert.equal(Buffer.concat(transferred).toString(), 'RIFF');
+	assert.equal(fixture.invocations[0][1].bytes, undefined);
+	assert.deepEqual(plain(await fixture.bridge.localAssistance.workflow.custody.reserveOutput({
+		jobId: JOB_ID, workflowId: 'enhance-dialogue', stageId: 'enhance-dialogue',
+		slotId: 'enhanced-audio', maximumByteLength: 4096,
+	})), plain(workflowCustodyHandle(outputCustody)));
+	assert.equal(await fixture.bridge.localAssistance.workflow.custody.release(JOB_ID), true);
+});
+
+test('workflow custody binds only one exact earlier producer and strips no hidden path', async () => {
+	const producer = workflowCustody({ workflowId: 'transcribe-captions', direction: 'output',
+		claimId: '5'.repeat(40), stageId: 'recognize-speech', slotId: 'transcript', role: 'transcript',
+		mediaType: 'application/json', byteLength: null, sha256: null, maximumByteLength: 4096 });
+	const input = workflowCustody({ workflowId: 'transcribe-captions', direction: 'input',
+		claimId: producer.claimId, stageId: 'assemble-captions', slotId: 'transcript',
+		role: 'transcript', mediaType: 'application/json', byteLength: null, sha256: null,
+		maximumByteLength: 4096, producer: { stageId: producer.stageId, slotId: producer.slotId,
+			claimId: producer.claimId } });
+	const fixture = await loadPreload({ responses: [workflowCustodyHandle(input)] });
+	assert.deepEqual(plain(await fixture.bridge.localAssistance.workflow.custody.bindProducer({
+		jobId: JOB_ID, workflowId: 'transcribe-captions', stageId: 'assemble-captions',
+		slotId: 'transcript', producer,
+	})), plain(workflowCustodyHandle(input)));
+	assert.deepEqual(plain(fixture.invocations[0]), [
+		'soundscaper:v1:assistance:workflow:bind-producer', {
+			jobId: JOB_ID, workflowId: 'transcribe-captions', stageId: 'assemble-captions',
+			slotId: 'transcript', producerStageId: 'recognize-speech', producerSlotId: 'transcript',
+			producerClaimId: producer.claimId,
+		},
+	]);
+
+	const injected = await loadPreload({ responses: [] });
+	await assert.rejects(injected.bridge.localAssistance.workflow.custody.bindProducer({
+		jobId: JOB_ID, workflowId: 'transcribe-captions', stageId: 'assemble-captions',
+		slotId: 'transcript', producer: { ...producer, path: '/private/result.json' },
+	}), /custody|fields|invalid/iu);
+	assert.equal(injected.invocations.length, 0);
+});
+
 async function loadPreload({ responses, onPostMessage = () => {} }) {
 	let bridge;
 	const invocations = [];
@@ -217,3 +289,14 @@ async function loadPreload({ responses, onPostMessage = () => {} }) {
 }
 
 function plain(value) { return JSON.parse(JSON.stringify(value)); }
+
+function workflowCustody(value) {
+	return Object.freeze({ custodyVersion: 1, workflowId: 'enhance-dialogue', jobId: JOB_ID,
+		producer: null, ...value });
+}
+
+function workflowCustodyHandle(custody) {
+	return Object.freeze({ custody, workflowClaim: Object.freeze({ claimVersion: 1,
+		direction: custody.direction, claimId: custody.claimId, jobId: custody.jobId,
+		stageId: custody.stageId, slotId: custody.slotId }) });
+}

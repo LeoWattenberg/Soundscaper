@@ -21,6 +21,7 @@ import {
 	type LocalAssistanceGuidedSnapshot,
 } from '../src/common/editor/ui/local-assistance-guided-session-store.ts';
 import type { LocalAssistanceWorkflowBridge } from '../src/common/editor/ui/local-assistance-workflow-bridge.ts';
+import type { LocalAssistanceBridge } from '../src/common/editor/ui/local-assistance-bridge.ts';
 import type {
 	LocalAssistanceSelectedMediaPreparationPort,
 } from '../src/common/editor/ui/local-assistance-preparation.ts';
@@ -28,7 +29,7 @@ import type { LocalAssistanceSnapshot } from '../src/common/editor/ui/local-assi
 import { assistanceWorkflowFixture, WORKFLOW_JOB_ID } from './helpers/assistance-workflow-fixture.ts';
 
 test('the menu dialog opens Guided and exposes all 13 recipes before explicit Advanced opt-in', () => {
-	const guided = createLocalAssistanceGuidedSessionStore({ workflow: null, preparation: null });
+	const guided = createLocalAssistanceGuidedSessionStore({ bridge: null, preparation: null });
 	assert.equal(guided.getSnapshot().surface, 'guided');
 	assert.deepEqual(guided.getSnapshot().workflowIds, ASSISTANCE_GUIDED_WORKFLOW_IDS);
 	const initial = renderDialog(guided.getSnapshot());
@@ -51,7 +52,7 @@ test('the menu dialog opens Guided and exposes all 13 recipes before explicit Ad
 });
 
 test('each Guided recipe selects one frozen, strictly validated default settings body', () => {
-	const guided = createLocalAssistanceGuidedSessionStore({ workflow: null, preparation: null });
+	const guided = createLocalAssistanceGuidedSessionStore({ bridge: null, preparation: null });
 	for (const workflowId of ASSISTANCE_GUIDED_WORKFLOW_IDS) {
 		guided.selectWorkflow(workflowId);
 		const settings = guided.getSnapshot().settings;
@@ -77,7 +78,7 @@ test('each Guided recipe selects one frozen, strictly validated default settings
 test('Guided never calls the workflow bridge without an aggregate preparation seam', async () => {
 	const fixture = workflowBridge();
 	const guided = createLocalAssistanceGuidedSessionStore({
-		workflow: fixture.bridge,
+		bridge: fixture.localBridge,
 		preparation: primitivePreparation(),
 	});
 	guided.selectWorkflow('transcribe-captions');
@@ -95,11 +96,11 @@ test('Guided uses the optional bridge only after preparation returns one exact a
 	const preparation = primitivePreparation({
 		prepareGuidedWorkflow: async (request) => {
 			preparationRequests.push(request);
-			return assistanceWorkflowFixture({ jobId: request.jobId,
-				workflowId: request.workflowId, settingsVersion: request.settings.settingsVersion });
+			return { outcome: 'prepared', workflow: assistanceWorkflowFixture({ jobId: request.jobId,
+				workflowId: request.workflowId, settingsVersion: request.settings.settingsVersion }) };
 		},
 	});
-	const guided = createLocalAssistanceGuidedSessionStore({ workflow: fixture.bridge, preparation });
+	const guided = createLocalAssistanceGuidedSessionStore({ bridge: fixture.localBridge, preparation });
 	guided.selectWorkflow('transcribe-captions');
 	assert.equal(guided.getSnapshot().phase, 'ready');
 	assert.equal(guided.getSnapshot().canRun, true);
@@ -128,6 +129,12 @@ function workflowBridge() {
 	let createCalls = 0;
 	const requests: Parameters<LocalAssistanceWorkflowBridge['run']>[0][] = [];
 	const bridge: LocalAssistanceWorkflowBridge = Object.freeze({
+		custody: Object.freeze({
+			stageInput: async () => { throw new Error('Preparation fixture owns staging.'); },
+			reserveOutput: async () => { throw new Error('Preparation fixture owns reservations.'); },
+			bindProducer: async () => { throw new Error('Preparation fixture owns producer binding.'); },
+			release: async () => true,
+		}),
 		createJob: async () => {
 			createCalls += 1;
 			return Object.freeze({ contractVersion: 1 as const, jobId: WORKFLOW_JOB_ID });
@@ -143,7 +150,9 @@ function workflowBridge() {
 		}),
 		onProgress: () => () => undefined,
 	});
-	return { bridge, requests,
+	const localBridge = Object.freeze({ workflow: bridge,
+		models: async () => Object.freeze([]) }) satisfies Pick<LocalAssistanceBridge, 'models' | 'workflow'>;
+	return { bridge, localBridge, requests,
 		get createCalls() { return createCalls; } };
 }
 
