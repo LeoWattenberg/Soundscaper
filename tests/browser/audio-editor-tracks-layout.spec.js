@@ -164,6 +164,51 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('keeps a focused track control stable while playback telemetry advances', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [longTone]);
+		const trackRow = clipByName(editor, longTone.name).locator('xpath=ancestor::*[@data-track-row][1]');
+		const stableControl = trackRow.getByRole('button', { name: 'Track menu', exact: true });
+		const meter = trackRow.locator('.track-meter').first();
+		const stoppedMeterPosition = await meter.evaluate((element) => (
+			element.style.getPropertyValue('--tm-volume-position')
+		));
+		await stableControl.evaluate((element) => { globalThis.__stableTelemetryControl = element; });
+
+		await editor.getByRole('button', { name: 'Play', exact: true }).click();
+		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+		await stableControl.focus();
+		const samples = await stableControl.evaluate(async (control) => {
+			const row = control.closest('[data-track-row]');
+			const liveMeter = row?.querySelector('.track-meter');
+			const playhead = document.querySelector('[data-playhead] .playhead-cursor__line');
+			const values = [];
+			const startedAt = performance.now();
+			await new Promise((resolve) => {
+				const sample = () => {
+					values.push({
+						focused: document.activeElement === control,
+						meterPosition: liveMeter?.style.getPropertyValue('--tm-volume-position') || '',
+						playheadX: playhead?.getBoundingClientRect().x || 0,
+						stable: control === globalThis.__stableTelemetryControl,
+					});
+					if (performance.now() - startedAt >= 400) resolve();
+					else requestAnimationFrame(sample);
+				};
+				requestAnimationFrame(sample);
+			});
+			return values;
+		});
+
+		expect(samples.every((sample) => sample.focused && sample.stable)).toBe(true);
+		expect(new Set(samples.map((sample) => sample.playheadX.toFixed(1))).size).toBeGreaterThan(5);
+		expect(samples.some((sample) => sample.meterPosition !== stoppedMeterPosition)).toBe(true);
+		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
+		await page.evaluate(() => { delete globalThis.__stableTelemetryControl; });
+		expect(errors).toEqual([]);
+	});
+
 	test('rejects pointer clip moves onto output tracks', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
