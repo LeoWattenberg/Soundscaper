@@ -60,6 +60,7 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/assistance/m7-semantic-results.js',
 	'src/common/editor/assistance/operation.js',
 	'src/common/editor/assistance/proposal-session.js',
+	'src/common/editor/assistance/workflow-fence-v1.js',
 	'src/common/editor/assistance/workflow-recipes.js',
 	'src/common/editor/assistance/workflow.js',
 ]);

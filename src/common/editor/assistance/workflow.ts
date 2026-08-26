@@ -5,6 +5,9 @@
  * Primitive operation-v1 requests remain separate stage execution messages.
  */
 
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
+
 import {
 	ADVANCED_ASSISTANCE_WORKFLOW_IDS,
 	ASSISTANCE_GUIDED_WORKFLOW_IDS,
@@ -14,6 +17,16 @@ import {
 	type AssistanceWorkflowId,
 	type AssistanceWorkflowStageSpec,
 } from './workflow-recipes.ts';
+import {
+	assistanceWorkflowSettingsSha256V1,
+	validateAssistanceWorkflowSettingsV1,
+	type AssistanceWorkflowSettingsV1,
+} from './workflow-settings-v1.ts';
+import {
+	ASSISTANCE_WORKFLOW_FENCE_VERSION,
+	validateAssistanceWorkflowFenceV1,
+	type AssistanceWorkflowFenceV1,
+} from './workflow-fence-v1.ts';
 
 export {
 	ADVANCED_ASSISTANCE_WORKFLOW_IDS,
@@ -22,6 +35,10 @@ export {
 	assistanceWorkflowStageGraph,
 	normalizeAssistanceWorkflowId,
 };
+export {
+	ASSISTANCE_WORKFLOW_FENCE_VERSION,
+	validateAssistanceWorkflowFenceV1,
+} from './workflow-fence-v1.ts';
 export type {
 	AssistanceAdvancedWorkflowId,
 	AssistanceGuidedWorkflowId,
@@ -29,9 +46,12 @@ export type {
 	AssistanceWorkflowSlotSpec,
 	AssistanceWorkflowStageSpec,
 } from './workflow-recipes.ts';
+export type {
+	AssistanceWorkflowFenceV1,
+	AssistanceWorkflowSourceRangeV1,
+} from './workflow-fence-v1.ts';
 
 export const ASSISTANCE_WORKFLOW_CONTRACT_VERSION = 1;
-export const ASSISTANCE_WORKFLOW_FENCE_VERSION = 1;
 export const ASSISTANCE_WORKFLOW_CLAIM_VERSION = 1;
 export const ASSISTANCE_WORKFLOW_MODEL_BINDING_VERSION = 1;
 
@@ -40,32 +60,6 @@ export const ASSISTANCE_WORKFLOW_PROGRESS_PHASES = Object.freeze([
 ] as const);
 
 export type AssistanceWorkflowProgressPhase = (typeof ASSISTANCE_WORKFLOW_PROGRESS_PHASES)[number];
-
-export interface AssistanceWorkflowSourceRangeV1 {
-	readonly slotId: string;
-	readonly mediaKind: 'audio' | 'video';
-	readonly sourceId: string;
-	readonly sourceSha256: string;
-	readonly occurrenceIds: readonly string[];
-	readonly sourceStartFrame: number;
-	readonly sourceEndFrame: number;
-	readonly linkMembershipSha256: string;
-	readonly timingAuthoritySha256: string;
-	readonly retimeKind: 'identity' | 'monotonic-forward';
-}
-
-export interface AssistanceWorkflowFenceV1 {
-	readonly fenceVersion: typeof ASSISTANCE_WORKFLOW_FENCE_VERSION;
-	readonly projectId: string;
-	readonly schemaVersion: number;
-	readonly revision: number;
-	readonly sequenceId: string;
-	readonly sourceRanges: readonly AssistanceWorkflowSourceRangeV1[];
-	readonly transcriptBodySha256: string | null;
-	readonly recipeSha256: string;
-	readonly settingsSha256: string;
-	readonly modelBindingsSha256: string;
-}
 
 export interface AssistanceWorkflowClaimV1 {
 	readonly claimVersion: typeof ASSISTANCE_WORKFLOW_CLAIM_VERSION;
@@ -94,6 +88,7 @@ export interface AssistanceWorkflowV1 {
 	readonly workflowId: AssistanceWorkflowId;
 	readonly recipeVersion: number;
 	readonly settingsVersion: number;
+	readonly settings: AssistanceWorkflowSettingsV1;
 	readonly fence: AssistanceWorkflowFenceV1;
 	readonly stageIds: readonly string[];
 	readonly models: readonly AssistanceWorkflowModelBindingV1[];
@@ -115,16 +110,8 @@ export interface AssistanceWorkflowProgressV1 {
 }
 
 const WORKFLOW_KEYS = Object.freeze([
-	'contractVersion', 'jobId', 'workflowId', 'recipeVersion', 'settingsVersion', 'fence',
+	'contractVersion', 'jobId', 'workflowId', 'recipeVersion', 'settingsVersion', 'settings', 'fence',
 	'stageIds', 'models', 'inputs', 'outputs',
-]);
-const FENCE_KEYS = Object.freeze([
-	'fenceVersion', 'projectId', 'schemaVersion', 'revision', 'sequenceId', 'sourceRanges',
-	'transcriptBodySha256', 'recipeSha256', 'settingsSha256', 'modelBindingsSha256',
-]);
-const RANGE_KEYS = Object.freeze([
-	'slotId', 'mediaKind', 'sourceId', 'sourceSha256', 'occurrenceIds', 'sourceStartFrame',
-	'sourceEndFrame', 'linkMembershipSha256', 'timingAuthoritySha256', 'retimeKind',
 ]);
 const CLAIM_KEYS = Object.freeze(['claimVersion', 'direction', 'claimId', 'jobId', 'stageId', 'slotId']);
 const MODEL_KEYS = Object.freeze([
@@ -139,8 +126,6 @@ const OPAQUE_JOB_ID = /^[a-f\d]{40}$/u;
 const DOMAIN_ID = /^[A-Za-z\d][A-Za-z\d._:-]{0,255}$/u;
 const SLOT_ID = /^[a-z\d](?:[a-z\d.-]{0,62}[a-z\d])?$/u;
 const MODEL_ID = /^[a-z\d](?:[a-z\d.-]{0,126}[a-z\d])?$/u;
-const MAXIMUM_SOURCE_RANGES = 64;
-const MAXIMUM_OCCURRENCES = 1024;
 const MAXIMUM_CLAIMS = 256;
 const MAXIMUM_MODELS = 64;
 const MAXIMUM_MODEL_ARTIFACTS = 64;
@@ -153,6 +138,19 @@ export function validateAssistanceWorkflow(value: unknown): AssistanceWorkflowV1
 	}
 	const jobId = jobIdValue(record.jobId);
 	const workflowId = normalizeAssistanceWorkflowId(record.workflowId);
+	const settingsVersion = positiveInteger(record.settingsVersion, 'workflow settings version');
+	const settings = validateAssistanceWorkflowSettingsV1(record.settings, workflowId);
+	if (settings.settingsVersion !== settingsVersion) {
+		throw new TypeError('The assistance workflow settings version disagrees with its body.');
+	}
+	const fence = validateAssistanceWorkflowFenceV1(record.fence);
+	if (fence.settingsSha256 !== assistanceWorkflowSettingsSha256V1(settings)) {
+		throw new TypeError('The assistance workflow settings digest disagrees with its body.');
+	}
+	const recipeVersion = positiveInteger(record.recipeVersion, 'workflow recipe version');
+	if (recipeVersion !== 1) {
+		throw new TypeError('The assistance workflow recipe version is unsupported.');
+	}
 	const graph = assistanceWorkflowStageGraph(workflowId);
 	const stageIds = validateSelectedStages(record.stageIds, graph);
 	const selected = new Map(graph
@@ -164,13 +162,22 @@ export function validateAssistanceWorkflow(value: unknown): AssistanceWorkflowV1
 	assertRequiredClaims(outputs, 'output', selected);
 	const models = validateModels(record.models, selected);
 	assertRequiredModels(models, selected);
+	if (fence.recipeSha256 !== assistanceWorkflowRecipeSha256V1(
+		workflowId, recipeVersion, stageIds,
+	)) {
+		throw new TypeError('The assistance workflow recipe digest disagrees with its selected graph.');
+	}
+	if (fence.modelBindingsSha256 !== assistanceWorkflowModelBindingsSha256V1(models)) {
+		throw new TypeError('The assistance workflow model-bindings digest disagrees with its bindings.');
+	}
 	return Object.freeze({
 		contractVersion: ASSISTANCE_WORKFLOW_CONTRACT_VERSION,
 		jobId,
 		workflowId,
-		recipeVersion: positiveInteger(record.recipeVersion, 'workflow recipe version'),
-		settingsVersion: positiveInteger(record.settingsVersion, 'workflow settings version'),
-		fence: validateAssistanceWorkflowFenceV1(record.fence),
+		recipeVersion,
+		settingsVersion,
+		settings,
+		fence,
 		stageIds,
 		models,
 		inputs,
@@ -178,37 +185,29 @@ export function validateAssistanceWorkflow(value: unknown): AssistanceWorkflowV1
 	});
 }
 
-/** Normalize the exact aggregate authority revalidated before publication. */
-export function validateAssistanceWorkflowFenceV1(value: unknown): AssistanceWorkflowFenceV1 {
-	const record = exactRecord(value, FENCE_KEYS, 'assistance workflow fence');
-	if (record.fenceVersion !== ASSISTANCE_WORKFLOW_FENCE_VERSION) {
-		throw new TypeError('The assistance workflow fence uses an unsupported version.');
+/** Hash the trusted declarations for exactly the selected closed recipe stages. */
+export function assistanceWorkflowRecipeSha256V1(
+	workflowIdValue: AssistanceWorkflowId,
+	recipeVersionValue: number,
+	stageIdsValue: readonly string[],
+): string {
+	const workflowId = normalizeAssistanceWorkflowId(workflowIdValue);
+	const recipeVersion = positiveInteger(recipeVersionValue, 'workflow recipe version');
+	if (recipeVersion !== 1) throw new TypeError('The assistance workflow recipe version is unsupported.');
+	const graph = assistanceWorkflowStageGraph(workflowId);
+	const stageIds = validateSelectedStages(stageIdsValue, graph);
+	return canonicalSha256({ recipeVersion,
+		stages: graph.filter(({ stageId }) => stageIds.includes(stageId)) });
+}
+
+/** Hash exact, canonically slotted model bindings. */
+export function assistanceWorkflowModelBindingsSha256V1(
+	models: readonly AssistanceWorkflowModelBindingV1[],
+): string {
+	if (!Array.isArray(models) || models.length > MAXIMUM_MODELS) {
+		throw new RangeError('The assistance workflow model bindings exceed their bound.');
 	}
-	const candidates = boundedArray(record.sourceRanges, 1, MAXIMUM_SOURCE_RANGES, 'source ranges');
-	const occurrenceIds = new Set<string>();
-	const sourceRanges = candidates.map((candidate) => validateSourceRange(candidate, occurrenceIds));
-	for (let index = 1; index < sourceRanges.length; index += 1) {
-		if (compareSourceRanges(sourceRanges[index - 1]!, sourceRanges[index]!) >= 0) {
-			throw new TypeError('Assistance workflow source ranges must use unique canonical order.');
-		}
-	}
-	if (occurrenceIds.size > MAXIMUM_OCCURRENCES) {
-		throw new RangeError('The assistance workflow fence carries too many occurrences.');
-	}
-	return Object.freeze({
-		fenceVersion: ASSISTANCE_WORKFLOW_FENCE_VERSION,
-		projectId: domainId(record.projectId, 'project ID'),
-		schemaVersion: positiveInteger(record.schemaVersion, 'project schema version'),
-		revision: nonNegativeInteger(record.revision, 'project revision'),
-		sequenceId: domainId(record.sequenceId, 'sequence ID'),
-		sourceRanges: Object.freeze(sourceRanges),
-		transcriptBodySha256: record.transcriptBodySha256 === null
-			? null
-			: digest(record.transcriptBodySha256, 'transcript body'),
-		recipeSha256: digest(record.recipeSha256, 'recipe'),
-		settingsSha256: digest(record.settingsSha256, 'settings'),
-		modelBindingsSha256: digest(record.modelBindingsSha256, 'model bindings'),
-	});
+	return canonicalSha256(models);
 }
 
 export function validateAssistanceWorkflowProgress(
@@ -417,50 +416,6 @@ function assertRequiredModels(
 	}
 }
 
-function validateSourceRange(
-	value: unknown,
-	allOccurrences: Set<string>,
-): AssistanceWorkflowSourceRangeV1 {
-	const record = exactRecord(value, RANGE_KEYS, 'assistance workflow source range');
-	const sourceStartFrame = nonNegativeInteger(record.sourceStartFrame, 'source start frame');
-	const sourceEndFrame = nonNegativeInteger(record.sourceEndFrame, 'source end frame');
-	if (sourceEndFrame <= sourceStartFrame) {
-		throw new RangeError('The assistance workflow source range must have a positive exclusive extent.');
-	}
-	const occurrences = boundedArray(record.occurrenceIds, 1, 256, 'source occurrence IDs')
-		.map((candidate) => domainId(candidate, 'occurrence ID'));
-	for (const occurrenceId of occurrences) {
-		if (allOccurrences.has(occurrenceId)) {
-			throw new TypeError('Assistance workflow occurrence IDs must be globally unique.');
-		}
-		allOccurrences.add(occurrenceId);
-	}
-	return Object.freeze({
-		slotId: slotId(record.slotId, 'source-range slot ID'),
-		mediaKind: enumValue(record.mediaKind, ['audio', 'video'] as const, 'source media kind'),
-		sourceId: domainId(record.sourceId, 'source ID'),
-		sourceSha256: digest(record.sourceSha256, 'source'),
-		occurrenceIds: Object.freeze(occurrences),
-		sourceStartFrame,
-		sourceEndFrame,
-		linkMembershipSha256: digest(record.linkMembershipSha256, 'link membership'),
-		timingAuthoritySha256: digest(record.timingAuthoritySha256, 'timing authority'),
-		retimeKind: enumValue(
-			record.retimeKind,
-			['identity', 'monotonic-forward'] as const,
-			'source retime kind',
-		),
-	});
-}
-
-function compareSourceRanges(left: AssistanceWorkflowSourceRangeV1, right: AssistanceWorkflowSourceRangeV1): number {
-	const leftKey = `${left.slotId}\0${left.sourceId}\0${String(left.sourceStartFrame).padStart(16, '0')}\0${
-		String(left.sourceEndFrame).padStart(16, '0')}`;
-	const rightKey = `${right.slotId}\0${right.sourceId}\0${String(right.sourceStartFrame).padStart(16, '0')}\0${
-		String(right.sourceEndFrame).padStart(16, '0')}`;
-	return leftKey.localeCompare(rightKey);
-}
-
 function assertWorkflowProgressAdvances(
 	previous: AssistanceWorkflowProgressV1,
 	next: AssistanceWorkflowProgressV1,
@@ -597,4 +552,22 @@ function nonNegativeInteger(value: unknown, label: string): number {
 		throw new RangeError(`The assistance ${label} is out of range.`);
 	}
 	return Number(value);
+}
+
+function canonicalSha256(value: unknown): string {
+	return bytesToHex(sha256(new TextEncoder().encode(canonicalJson(value))));
+}
+
+function canonicalJson(value: unknown): string {
+	if (value === null || typeof value === 'boolean' || typeof value === 'string') {
+		return JSON.stringify(value);
+	}
+	if (typeof value === 'number' && Number.isFinite(value)) return JSON.stringify(value);
+	if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+	if (!value || typeof value !== 'object' || ArrayBuffer.isView(value)) {
+		throw new TypeError('The assistance workflow digest body is not canonical JSON.');
+	}
+	const record = value as Readonly<Record<string, unknown>>;
+	return `{${Object.keys(record).sort().map((key) =>
+		`${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(',')}}`;
 }

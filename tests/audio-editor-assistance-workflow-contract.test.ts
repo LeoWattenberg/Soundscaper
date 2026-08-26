@@ -11,14 +11,21 @@ import {
 	ASSISTANCE_WORKFLOW_FENCE_VERSION,
 	ASSISTANCE_WORKFLOW_IDS,
 	AssistanceWorkflowProgressTracker,
+	assistanceWorkflowModelBindingsSha256V1,
+	assistanceWorkflowRecipeSha256V1,
 	assistanceWorkflowStageGraph,
 	normalizeAssistanceWorkflowId,
 	validateAssistanceWorkflow,
 	validateAssistanceWorkflowFenceV1,
 	validateAssistanceWorkflowProgress,
+	type AssistanceWorkflowModelBindingV1,
 	type AssistanceWorkflowV1,
 } from '../src/common/editor/assistance/workflow.ts';
 import { ASSISTANCE_OPERATIONS } from '../src/common/editor/assistance/operation.ts';
+import {
+	assistanceWorkflowSettingsSha256V1,
+	defaultAssistanceWorkflowSettingsV1,
+} from '../src/common/editor/assistance/workflow-settings-v1.ts';
 
 const JOB_ID = '01'.repeat(20);
 const SHA_A = '12'.repeat(32);
@@ -69,7 +76,7 @@ function claim(
 	};
 }
 
-function model(stageId: string, slotId: string, index: number) {
+function model(stageId: string, slotId: string, index: number): AssistanceWorkflowModelBindingV1 {
 	return {
 		bindingVersion: 1,
 		stageId,
@@ -81,18 +88,28 @@ function model(stageId: string, slotId: string, index: number) {
 }
 
 function workflow(overrides: Record<string, unknown> = {}): AssistanceWorkflowV1 {
+	const settings = defaultAssistanceWorkflowSettingsV1('transcribe-captions');
+	const stageIds = ['detect-speech', 'recognize-speech', 'assemble-captions'] as const;
+	const models = [
+		model('detect-speech', 'vad', 1),
+		model('recognize-speech', 'speech-recognizer', 2),
+	];
 	return {
 		contractVersion: ASSISTANCE_WORKFLOW_CONTRACT_VERSION,
 		jobId: JOB_ID,
 		workflowId: 'transcribe-captions',
 		recipeVersion: 1,
 		settingsVersion: 1,
-		fence: fence(),
-		stageIds: ['detect-speech', 'recognize-speech', 'assemble-captions'],
-		models: [
-			model('detect-speech', 'vad', 1),
-			model('recognize-speech', 'speech-recognizer', 2),
-		],
+		settings,
+		fence: fence({
+			recipeSha256: assistanceWorkflowRecipeSha256V1(
+				'transcribe-captions', 1, stageIds,
+			),
+			settingsSha256: assistanceWorkflowSettingsSha256V1(settings),
+			modelBindingsSha256: assistanceWorkflowModelBindingsSha256V1(models),
+		}),
+		stageIds,
+		models,
 		inputs: [
 			claim('input', 'detect-speech', 'audio', 1),
 			claim('input', 'recognize-speech', 'audio', 2),
@@ -106,6 +123,38 @@ function workflow(overrides: Record<string, unknown> = {}): AssistanceWorkflowV1
 		...overrides,
 	} as AssistanceWorkflowV1;
 }
+
+test('the aggregate request carries and authenticates one exact per-workflow settings body', () => {
+	const request = workflow();
+	assert.deepEqual(validateAssistanceWorkflow(request).settings,
+		defaultAssistanceWorkflowSettingsV1('transcribe-captions'));
+	assert.throws(() => validateAssistanceWorkflow({
+		...request,
+		settings: { ...request.settings, recognizer: 'whisper' },
+	}), /settings.*digest|digest.*settings/iu);
+	assert.throws(() => validateAssistanceWorkflow({
+		...request,
+		settingsVersion: 2,
+	}), /settings version/iu);
+	assert.throws(() => validateAssistanceWorkflow({
+		...request,
+		settings: { ...request.settings, invented: true },
+	}), /settings/iu);
+});
+
+test('recipe and model digests are derived from the selected closed graph and exact bindings', () => {
+	const request = workflow();
+	assert.throws(() => validateAssistanceWorkflow({
+		...request,
+		fence: { ...request.fence, recipeSha256: SHA_A },
+	}), /recipe.*digest|digest.*recipe/iu);
+	assert.throws(() => validateAssistanceWorkflow({
+		...request,
+		fence: { ...request.fence, modelBindingsSha256: SHA_A },
+	}), /model.*digest|digest.*model/iu);
+	assert.throws(() => validateAssistanceWorkflow({ ...request, recipeVersion: 2 }),
+		/recipe version/iu);
+});
 
 test('workflow IDs close every guided recipe and one advanced recipe per primitive operation', () => {
 	assert.deepEqual(ASSISTANCE_GUIDED_WORKFLOW_IDS, [
@@ -149,6 +198,12 @@ test('main can derive an immutable permitted graph without trusting renderer-sup
 	assert.deepEqual(assistanceWorkflowStageGraph('advanced:audio-tagging').map(({ operation }) => operation), [
 		'audio-tagging',
 	]);
+	assert.deepEqual(
+		assistanceWorkflowStageGraph('index-transcript')
+			.find(({ stageId }) => stageId === 'publish-transcript-index')?.inputSlots
+			.map(({ slotId }) => slotId),
+		['text-chunks', 'embeddings'],
+	);
 });
 
 test('a workflow admits exact stages, slotted claims, model bindings, and aggregate fence', () => {
@@ -189,15 +244,20 @@ test('a workflow admits exact stages, slotted claims, model bindings, and aggreg
 });
 
 test('optional graph stages become exact only when selected', () => {
+	const stageIds = ['detect-speech', 'recognize-speech', 'align-words', 'assemble-captions'] as const;
+	const models = [
+		...workflow().models,
+		{
+			...model('align-words', 'alignment', 3),
+			modelId: 'wav2vec2-base-960h',
+		},
+	];
 	const withAlignment = workflow({
-		stageIds: ['detect-speech', 'recognize-speech', 'align-words', 'assemble-captions'],
-		models: [
-			...workflow().models,
-			{
-				...model('align-words', 'alignment', 3),
-				modelId: 'wav2vec2-base-960h',
-			},
-		],
+		stageIds,
+		models,
+		fence: { ...workflow().fence,
+			recipeSha256: assistanceWorkflowRecipeSha256V1('transcribe-captions', 1, stageIds),
+			modelBindingsSha256: assistanceWorkflowModelBindingsSha256V1(models) },
 		inputs: [
 			...workflow().inputs,
 			claim('input', 'align-words', 'audio', 21),

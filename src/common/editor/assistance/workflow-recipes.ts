@@ -117,7 +117,7 @@ const GUIDED_GRAPHS = Object.freeze({
 		stage({ stageId: 'embed-transcript', operation: 'text-embedding', after: ['chunk-transcript'],
 			inputs: ['text-chunks'], outputs: ['embeddings'], models: ['text-embedder'] }),
 		stage({ stageId: 'publish-transcript-index', operation: null, after: ['embed-transcript'],
-			inputs: ['embeddings'], outputs: ['transcript-index'] }),
+			inputs: ['text-chunks', 'embeddings'], outputs: ['transcript-index'] }),
 	]),
 	'detect-beats-tempo': graph([
 		stage({ stageId: 'track-beats', operation: 'beat-tracking',

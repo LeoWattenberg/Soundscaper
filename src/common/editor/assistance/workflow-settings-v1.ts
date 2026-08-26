@@ -2,6 +2,9 @@
 
 /** Closed, hashable settings bodies for every AssistanceWorkflow recipe. */
 
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
+
 import {
 	normalizeAssistanceWorkflowId,
 	type AssistanceAdvancedWorkflowId,
@@ -172,6 +175,13 @@ export function validateAssistanceWorkflowSettingsV1(
 
 export function serializeAssistanceWorkflowSettingsV1(value: unknown): string {
 	return canonicalJson(validateAssistanceWorkflowSettingsV1(value));
+}
+
+/** Digest the exact canonical settings body carried by an aggregate workflow. */
+export function assistanceWorkflowSettingsSha256V1(value: unknown): string {
+	return bytesToHex(sha256(new TextEncoder().encode(
+		serializeAssistanceWorkflowSettingsV1(value),
+	)));
 }
 
 function reframe(row: JsonRecord, workflowId: 'reframe'): AssistanceWorkflowSettingsV1 {

@@ -26,6 +26,16 @@ const editorOptionalExecutionModule = String.raw`(?:analysis|pffft|selection-eff
 const editorOptionalExportControllerModule = String.raw`(?:audio-export-render-orchestration|audio-realtime-encoded-export|audio-rendered-fallback-export|delivery-conformance-action|desktop-audio-export-capability|direct-(?:aiff-export|audio-render-plan|broadcast-wave-export|bw64-export|bwf-export|compressed-export|compressed-plan|compressed-stem-archive-plan|export-dispatch|mp3-export|native-stem-archive-plan|offline-compressed-export|offline-pcm-export|pcm-export|stem-archive-export|video-export|video-plan-contract|wav-export)|export-render-project|export-service|realtime-export-pcm-transform|rendered-audio-encoding|video-export-service|video-rendered-fallback-export)`;
 const editorOptionalControllerModule = String.raw`(?:analysis-service|${editorOptionalExportControllerModule})`;
 const editorOptionalAssistanceModule = String.raw`(?:local-assistance-runtime|local-assistance-(?:audio-preparation|guided-preparation|audio-publication|audio-result-custody|beat-acceptance|selected-media|selected-video(?:-frame-pack|-timing)?|selected-preparation|selected-media-router|result-acceptance|reaction-acceptance|cleanup-workflow|cleanup-acceptance|range-label-acceptance|shot-acceptance|transcript-acceptance))`;
+/**
+ * Assistance domain modules the eagerly loaded shell and controller genuinely share.
+ *
+ * Everything else under `assistance/` belongs to the lazy assistance owner. The
+ * default has to be lazy: an eagerly owned module that imports one lazy sibling
+ * makes the whole optional assistance chunk a static dependency of the shell, and
+ * the product-ready startup graph blows its byte budget for a feature the user
+ * has not opened. Adding a name here is a deliberate claim that eager code reads it.
+ */
+const editorEagerAssistanceModule = String.raw`(?:assistance-asset-command-v1|assistance-asset-reference-v1|operation|shots|transcript|transcript-scape-asset-extension-v1)`;
 const editorOptionalSurfaceModule = String.raw`ui[\\/](?:AudacityEffectLayout\.jsx|ParametricEqEditor\.jsx|SoundActivationPreferences\.tsx|VideoDeliveryFields\.jsx|desktop-export-codec-model\.ts|export-(?:dialog-audio-codec-options\.ts|dialog-model\.js|preset-model\.ts)|framescaper-native-services-dialog-model\.ts|framescaper-v27-(?:caption-file-interchange|finishing-dialog-model|visual-inspector-model)\.ts|local-assistance-(?:bridge|cleanup|guided-session-store|preparation|result-review|session-store|shot-review|workflow-bridge)\.ts|local-model-manager-store\.ts|soundscaper-(?:production-dialog-model|routing-editor-model)\.ts|video-keyframe-(?:curve-transfer|dialog-model)\.ts|workspace[\\/](?:FramescaperCaptureSources|RecordingSetupPanel|WebVcrPanel|WebVcrPreview)\.tsx)`;
 
 /** Archive/interchange implementation modules owned only by lazy file-menu actions. */
@@ -55,7 +65,7 @@ export const EDITOR_OPTIONAL_EXPORT_CHUNK_TEST = new RegExp(
 
 /** Stateful assistance workflows loaded only after their menu-owned dialog is invoked. */
 export const EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST = new RegExp(
-	`${editorPath}(?:controller[\\/]${editorOptionalAssistanceModule}|assistance[\\/](?:async-search-provider|beat-proposals|beat-tempo-map|beat-this-postprocess-v1|binary-formats-v1|ctc-forced-alignment-v1|disfluency|editorial-generation-v1|highlight-ranking-v1|m7-semantic-results|proposal-session|reaction-proposals|reframe-planner-v1|scene-scores|semantic-search-index-v1|shot-detection(?:-mode)?|speaker-attribution|subject-tracker-v1|transcript-body-publication-v1|transcript-cleanup-presets|transcript-indexing-v1|transcript-ingest|transcript-labels|transnetv2-(?:onnx-adapter|postprocess)-v1|vad-silence|visual-indexing-v1|visual-semantic-results-v1|workflow(?:-custody-v1|-recipes|-settings-v1)?)|storage[\\/]assistance-derivative-repository)\\.ts$`,
+	`${editorPath}(?:controller[\\/]${editorOptionalAssistanceModule}|assistance[\\/](?!${editorEagerAssistanceModule}\\.ts$)[^\\\\/]+|storage[\\/]assistance-derivative-repository)\\.ts$`,
 );
 
 /** Menu-opened UI implementations that remain behind existing React.lazy surfaces. */
