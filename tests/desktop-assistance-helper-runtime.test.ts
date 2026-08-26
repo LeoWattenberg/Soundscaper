@@ -17,7 +17,7 @@ test('main grants exact digest-bound audio and model artifacts to the speech hel
 	const root = await mkdtemp(join(tmpdir(), 'scape-speech-grants-'));
 	t.after(() => rm(root, { recursive: true, force: true }));
 	const paths = Object.fromEntries(await Promise.all(
-		['audio', 'encoder', 'decoder', 'joiner', 'tokens'].map(async (role) => {
+		['audio', 'voice-activity', 'encoder', 'decoder', 'joiner', 'tokens'].map(async (role) => {
 			const path = join(root, `${role}.bin`);
 			await writeFile(path, `${role}-bytes`);
 			return [role, path];
@@ -38,6 +38,7 @@ test('main grants exact digest-bound audio and model artifacts to the speech hel
 	assert.deepEqual(await runtime.recognize({
 		modelId: 'parakeet-tdt-0.6b-v2',
 		audioPath: paths.audio!,
+		voiceActivityPath: paths['voice-activity']!,
 		model: {
 			encoder: paths.encoder!, decoder: paths.decoder!, joiner: paths.joiner!, tokens: paths.tokens!,
 		},
@@ -47,11 +48,14 @@ test('main grants exact digest-bound audio and model artifacts to the speech hel
 	assert.equal(admitted.grant.operation, 'recognize');
 	if (admitted.grant.operation !== 'recognize') return;
 	assert.equal(admitted.grant.modelId, 'parakeet-tdt-0.6b-v2');
+	assert.equal(admitted.grant.voiceActivity?.role, 'voice-activity');
 	assert.deepEqual(
-		[admitted.grant.audio, ...Object.values(admitted.grant.model)].map(({ role }) => role),
-		['audio', 'encoder', 'decoder', 'joiner', 'tokens'],
+		[admitted.grant.audio, admitted.grant.voiceActivity!, ...Object.values(admitted.grant.model)]
+			.map(({ role }) => role),
+		['audio', 'voice-activity', 'encoder', 'decoder', 'joiner', 'tokens'],
 	);
-	for (const file of [admitted.grant.audio, ...Object.values(admitted.grant.model)]) {
+	for (const file of [admitted.grant.audio, admitted.grant.voiceActivity!,
+		...Object.values(admitted.grant.model)]) {
 		const bytes = await readFile(file.path);
 		assert.equal(file.bytes, bytes.byteLength);
 		assert.equal(file.sha256, createHash('sha256').update(bytes).digest('hex'));

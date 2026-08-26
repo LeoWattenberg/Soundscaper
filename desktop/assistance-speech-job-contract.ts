@@ -23,7 +23,7 @@ import {
 
 export const ASSISTANCE_SPEECH_JOB_SUBCONTRACT_VERSION = 1;
 export const ASSISTANCE_SPEECH_FILE_ROLES = Object.freeze([
-	'audio', 'encoder', 'decoder', 'joiner', 'tokens', 'vad-model',
+	'audio', 'voice-activity', 'encoder', 'decoder', 'joiner', 'tokens', 'vad-model',
 	'segmentation-model', 'embedding-model',
 ] as const);
 
@@ -47,6 +47,7 @@ export interface AssistanceSpeechRecognitionGrant {
 	readonly moduleId: typeof SPEECH_RUNTIME_MODULE_ID;
 	readonly modelId: string;
 	readonly audio: AssistanceSpeechFileGrant;
+	readonly voiceActivity: AssistanceSpeechFileGrant | null;
 	readonly model: Readonly<{
 		encoder: AssistanceSpeechFileGrant;
 		decoder: AssistanceSpeechFileGrant;
@@ -91,7 +92,7 @@ const SHA256 = /^[a-f0-9]{64}$/u;
 const MODEL_ID = /^[a-z\d][a-z\d.-]{0,62}[a-z\d]$/u;
 const STATUS_KEYS = Object.freeze(['operation', 'moduleId']);
 const RECOGNITION_KEYS = Object.freeze([
-	'operation', 'moduleId', 'modelId', 'audio', 'model', 'language', 'threads',
+	'operation', 'moduleId', 'modelId', 'audio', 'voiceActivity', 'model', 'language', 'threads',
 ]);
 const VOICE_ACTIVITY_KEYS = Object.freeze(['operation', 'moduleId', 'modelId', 'audio', 'model']);
 const DIARIZATION_KEYS = Object.freeze(['operation', 'moduleId', 'modelIds', 'audio', 'models']);
@@ -164,6 +165,8 @@ export function validateAssistanceSpeechJobGrant(value: unknown): AssistanceSpee
 		moduleId: SPEECH_RUNTIME_MODULE_ID,
 		modelId: record.modelId as string,
 		audio: validateFileGrant(record.audio, 'audio'),
+		voiceActivity: record.voiceActivity === null
+			? null : validateFileGrant(record.voiceActivity, 'voice-activity'),
 		model: Object.freeze({
 			encoder: validateFileGrant(model.encoder, 'encoder'),
 			decoder: validateFileGrant(model.decoder, 'decoder'),
@@ -182,7 +185,8 @@ export function assistanceSpeechGrantInputBytes(value: unknown): number {
 	if (grant.operation === 'diarize-speakers') {
 		return grant.audio.bytes + grant.models.segmentation.bytes + grant.models.embedding.bytes;
 	}
-	return grant.audio.bytes + Object.values(grant.model).reduce((total, file) => total + file.bytes, 0);
+	return grant.audio.bytes + (grant.voiceActivity?.bytes ?? 0)
+		+ Object.values(grant.model).reduce((total, file) => total + file.bytes, 0);
 }
 
 export function validateAssistanceSpeechJobResult(

@@ -66,7 +66,7 @@ test('executor derives stages, correlates slots canonically, and dispatches prim
 		[inputs, outputs, models]
 	)), [
 		[['audio'], ['voice-activity'], ['vad']],
-		[['audio'], ['transcript'], ['speech-recognizer']],
+		[['audio', 'voice-activity'], ['transcript'], ['speech-recognizer']],
 		[['transcript'], ['captions'], []],
 	]);
 	assert.deepEqual(progress.filter(({ phase }) => phase !== 'running').map(({ stageId, phase }) => (

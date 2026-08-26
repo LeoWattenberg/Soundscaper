@@ -253,14 +253,21 @@ export function createAssistanceOperationService(options: AssistanceOperationSer
 			emit('finalizing');
 			return unavailable(request, 'adapter-unavailable');
 		}
-		if (request.inputs.length !== 1 || request.outputs.length !== 1) {
+		const directInputCountValid = request.operation === 'speech-recognition'
+			? request.inputs.filter(({ role }) => role === 'audio').length === 1
+				&& request.inputs.filter(({ role }) => role === 'voice-activity').length <= 1
+				&& (request.inputs.length === 1 || request.inputs.length === 2)
+			: request.inputs.length === 1;
+		if (!directInputCountValid || request.outputs.length !== 1) {
 			emit('finalizing');
 			return unavailable(request, 'adapter-unavailable');
 		}
 		emit('loading-model');
 		let resultBody: unknown | AssistanceOperationUnavailableReason;
 		if (request.operation === 'speech-recognition') {
-			resultBody = await executeSpeech(request, inputPaths[0]!, signal, emit, options);
+			resultBody = await executeSpeech(request,
+				inputPathForRole(request, inputPaths, 'audio'),
+				inputPathForRole(request, inputPaths, 'voice-activity', false), signal, emit, options);
 		} else if (request.operation === 'voice-activity-detection') {
 			resultBody = await executeVoiceActivity(request, inputPaths[0]!, signal, emit, options);
 		} else if (request.operation === 'speaker-diarization') {
@@ -352,6 +359,7 @@ type ProgressEmitter = (
 async function executeSpeech(
 	request: AssistanceOperationRequest,
 	audioPath: string,
+	voiceActivityPath: string | undefined,
 	signal: AbortSignal,
 	emit: ProgressEmitter,
 	options: AssistanceOperationServiceOptions,
@@ -364,9 +372,38 @@ async function executeSpeech(
 	if (!runtimeStatus.available) return 'runtime-unavailable';
 	emit('running');
 	return options.runtime.recognize({
-		modelId: request.models[0]!.modelId, audioPath, model, signal,
+		modelId: request.models[0]!.modelId, audioPath, voiceActivityPath, model, signal,
 		onProgress: ({ completed, total }) => emit('running', completed, total),
 	});
+}
+
+function inputPathForRole(
+	request: AssistanceOperationRequest,
+	inputPaths: readonly string[],
+	role: 'audio',
+): string;
+function inputPathForRole(
+	request: AssistanceOperationRequest,
+	inputPaths: readonly string[],
+	role: 'voice-activity',
+	required: false,
+): string | undefined;
+function inputPathForRole(
+	request: AssistanceOperationRequest,
+	inputPaths: readonly string[],
+	role: 'audio' | 'voice-activity',
+	required = true,
+): string | undefined {
+	const index = request.inputs.findIndex((claim) => claim.role === role);
+	if (index < 0) {
+		if (!required) return undefined;
+		throw new TypeError(`The assistance operation omitted its ${role} input path.`);
+	}
+	const path = inputPaths[index];
+	if (typeof path !== 'string' || path === '') {
+		throw new TypeError(`The assistance operation has an invalid ${role} input path.`);
+	}
+	return path;
 }
 
 async function executeVoiceActivity(

@@ -164,8 +164,10 @@ async function authorizeRecognition(
 		throw new TypeError('Recognition needs one audio file and one speech model.');
 	}
 	request.signal?.throwIfAborted();
-	const [audio, encoder, decoder, joiner, tokens] = await Promise.all([
+	const [audio, voiceActivity, encoder, decoder, joiner, tokens] = await Promise.all([
 		fileGrant(request.audioPath, 'audio', request.signal, openFileReadStream),
+		request.voiceActivityPath === undefined ? Promise.resolve(null)
+			: fileGrant(request.voiceActivityPath, 'voice-activity', request.signal, openFileReadStream),
 		fileGrant(request.model.encoder, 'encoder', request.signal, openFileReadStream),
 		fileGrant(request.model.decoder, 'decoder', request.signal, openFileReadStream),
 		fileGrant(request.model.joiner, 'joiner', request.signal, openFileReadStream),
@@ -178,6 +180,7 @@ async function authorizeRecognition(
 		moduleId: SPEECH_RUNTIME_MODULE_ID,
 		modelId,
 		audio,
+		voiceActivity,
 		model: Object.freeze({ encoder, decoder, joiner, tokens }),
 		language: request.language ?? null,
 		threads: request.threads ?? 2,

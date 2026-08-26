@@ -15,6 +15,7 @@ export const ASSISTANCE_DATA_CLAIM_VERSION = 1;
 
 export const ASSISTANCE_INPUT_ROLES = Object.freeze([
 	'audio',
+	'voice-activity',
 	'video',
 	'video-authority',
 	'frame-pack',
@@ -108,6 +109,7 @@ const SHA256 = /^[a-f\d]{64}$/u;
 const MEDIA_TYPE = /^[a-z\d][a-z\d!#$&^_.+-]{0,126}\/[a-z\d][a-z\d!#$&^_.+-]{0,126}$/u;
 const INPUT_MEDIA_TYPES = Object.freeze({
 	audio: Object.freeze(['audio/wav', 'audio/x-wav', 'audio/flac']),
+	'voice-activity': jsonTypes('voice-activity'),
 	video: Object.freeze(['video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska']),
 	'video-authority': jsonTypes('video-authority'),
 	'frame-pack': Object.freeze(['application/vnd.soundscaper.frame-pack']),

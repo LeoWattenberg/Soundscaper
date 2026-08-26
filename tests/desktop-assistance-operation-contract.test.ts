@@ -113,6 +113,19 @@ test('the operation contract closes the complete planned local-assistance vocabu
 	assert.deepEqual(validateAssistanceOperationRequest(request()), request());
 });
 
+test('speech recognition optionally admits one authenticated voice-activity claim', () => {
+	const vad = { ...input('voice-activity'), claimId: '13'.repeat(20) };
+	assert.deepEqual(validateAssistanceOperationRequest(request({
+		inputs: [input('audio'), vad],
+	})).inputs.map(({ role }) => role), ['audio', 'voice-activity']);
+	assert.throws(() => validateAssistanceOperationRequest(request({
+		inputs: [input('audio'), { ...input('audio'), claimId: '14'.repeat(20) }],
+	})), /exactly one audio|voice-activity/iu);
+	assert.throws(() => validateAssistanceOperationRequest(request({
+		inputs: [input('audio'), vad, { ...vad, claimId: '15'.repeat(20) }],
+	})), /at most one voice-activity/iu);
+});
+
 test('operation requests admit only pathless claims and operation-owned roles', () => {
 	assert.throws(
 		() => validateAssistanceOperationRequest(request({ mediaPaths: ['/private/source.wav'] })),

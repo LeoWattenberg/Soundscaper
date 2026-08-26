@@ -134,6 +134,7 @@ function bytes(value: string): AsyncIterable<Uint8Array> {
 async function speechRequest(
 	service: ReturnType<typeof createAssistanceOperationService>,
 	inputText = 'RIFF-test-audio',
+	withVoiceActivity = false,
 ) {
 	const { jobId } = await service.createJob();
 	const input = await service.stageInput({
@@ -143,11 +144,16 @@ async function speechRequest(
 	const output = await service.reserveOutput({
 		jobId, role: 'transcript', mediaType: 'application/json', maximumByteLength: 8_192,
 	});
+	const voiceActivity = withVoiceActivity ? await service.stageInput({
+		jobId, role: 'voice-activity', mediaType: 'application/json',
+		byteLength: 34, bytes: bytes('{"sampleRate":16000,"segments":[]}'),
+	}) : null;
 	return Object.freeze({
 		contractVersion: 1 as const, jobId, operation: 'speech-recognition' as const,
 		selectionFence: FENCE,
 		models: Object.freeze([{ modelId: MODEL_ID, version: VERSION, artifactSha256s: DIGESTS }]),
-		inputs: Object.freeze([input]), outputs: Object.freeze([output]),
+		inputs: Object.freeze(voiceActivity ? [input, voiceActivity] : [input]),
+		outputs: Object.freeze([output]),
 	});
 }
 
@@ -161,7 +167,7 @@ test('speech recognition consumes only authenticated claims and returns a pathle
 		},
 	});
 	const { service, modelPaths, progress } = await fixture(t, { runtime });
-	const request = await speechRequest(service);
+	const request = await speechRequest(service, 'RIFF-test-audio', true);
 
 	const outcome = await service.run(request);
 
@@ -171,6 +177,8 @@ test('speech recognition consumes only authenticated claims and returns a pathle
 	assert.equal(recognitionRequest?.modelId, MODEL_ID);
 	assert.deepEqual(recognitionRequest?.model, modelPaths);
 	assert.match(recognitionRequest?.audioPath ?? '', /private-staging/u);
+	assert.match(recognitionRequest?.voiceActivityPath ?? '', /private-staging/u);
+	assert.notEqual(recognitionRequest?.voiceActivityPath, recognitionRequest?.audioPath);
 	assert.deepEqual(outcome.result, {
 		contractVersion: 1, jobId: request.jobId, operation: 'speech-recognition',
 		outputs: [{ claimVersion: 1, claimId: request.outputs[0]!.claimId, jobId: request.jobId,

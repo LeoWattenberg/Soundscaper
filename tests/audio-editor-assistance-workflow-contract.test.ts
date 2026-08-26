@@ -114,6 +114,7 @@ function workflow(overrides: Record<string, unknown> = {}): AssistanceWorkflowV1
 		inputs: [
 			claim('input', 'detect-speech', 'audio', 1),
 			claim('input', 'recognize-speech', 'audio', 2),
+			claim('input', 'recognize-speech', 'voice-activity', 4),
 			claim('input', 'assemble-captions', 'transcript', 3),
 		],
 		outputs: [

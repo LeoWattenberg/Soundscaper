@@ -31,6 +31,11 @@ test('workflow jobs own one pathless namespace with authenticated external and p
 			jobId, workflowId: 'transcribe-captions', stageId: 'detect-speech',
 			slotId: 'voice-activity', maximumByteLength: 65_536,
 		});
+		const recognizeVoiceActivity = custody.bindProducer({
+			jobId, workflowId: 'transcribe-captions', stageId: 'recognize-speech',
+			slotId: 'voice-activity', producerStageId: 'detect-speech',
+			producerSlotId: 'voice-activity', producerClaimId: voiceActivity.custody.claimId,
+		});
 		const transcript = await custody.reserveOutput({
 			jobId, workflowId: 'transcribe-captions', stageId: 'recognize-speech',
 			slotId: 'transcript', maximumByteLength: 65_536,
@@ -48,7 +53,8 @@ test('workflow jobs own one pathless namespace with authenticated external and p
 		assert.equal(assembledTranscript.custody.producer?.claimId, transcript.custody.claimId);
 
 		const request = assistanceWorkflowFixture({ jobId,
-			inputs: [detectAudio, recognizeAudio, assembledTranscript].map(({ workflowClaim }) => workflowClaim),
+			inputs: [detectAudio, recognizeAudio, recognizeVoiceActivity, assembledTranscript]
+				.map(({ workflowClaim }) => workflowClaim),
 			outputs: [voiceActivity, transcript, captions].map(({ workflowClaim }) => workflowClaim),
 		});
 		assert.deepEqual(custody.validateWorkflow(request), request);
@@ -73,6 +79,15 @@ test('workflow jobs own one pathless namespace with authenticated external and p
 		const produced = await custody.resolveInput(assembledTranscript.custody, new AbortController().signal);
 		assert.equal(produced.claim.sha256, authenticated.sha256);
 		assert.equal(produced.path, outputPath);
+		const vadBody = new TextEncoder().encode('{"sampleRate":16000,"segments":[]}');
+		const vadPath = await custody.openOutput(voiceActivity.custody);
+		await writeFile(vadPath, vadBody, { flag: 'r+' });
+		await custody.authenticateOutput(voiceActivity.custody);
+		const projectedVad = await custody.operationInputClaim(
+			recognizeVoiceActivity.workflowClaim, 'speech-recognition',
+		);
+		assert.equal(projectedVad.role, 'voice-activity');
+		assert.equal(projectedVad.mediaType, 'application/json');
 		const captionsReservation = custody.outputReservationForClaim(captions.workflowClaim);
 		assert.equal(captionsReservation.claimId, captions.custody.claimId);
 		const captionsPath = await staging.resolveOutputReservationPathForMain(

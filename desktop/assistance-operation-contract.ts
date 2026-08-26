@@ -111,7 +111,7 @@ interface AssistanceOperationSpec {
 
 const OPERATION_SPECS = Object.freeze({
 	'voice-activity-detection': spec(['audio'], [['audio']], ['voice-activity']),
-	'speech-recognition': spec(['audio'], [['audio']], ['transcript']),
+	'speech-recognition': spec(['audio', 'voice-activity'], [['audio']], ['transcript']),
 	'word-alignment': spec(['audio', 'transcript'], [['audio'], ['transcript']], ['word-alignment']),
 	'speaker-diarization': spec(['audio'], [['audio']], ['speaker-turns']),
 	'speech-enhancement': spec(['audio'], [['audio']], ['enhanced-audio']),
@@ -243,6 +243,11 @@ function assertOperationRoles(
 		if (!operationSpec.admittedInputRoles.includes(input.role)) {
 			throw new TypeError(`The ${operation} operation does not admit the ${input.role} input role.`);
 		}
+	}
+	if (operation === 'speech-recognition'
+		&& (inputs.filter(({ role }) => role === 'audio').length !== 1
+			|| inputs.filter(({ role }) => role === 'voice-activity').length > 1)) {
+		throw new TypeError('Speech recognition admits exactly one audio and at most one voice-activity input.');
 	}
 	for (const required of operationSpec.requiredInputRoleGroups) {
 		if (!inputs.some(({ role }) => required.includes(role))) {

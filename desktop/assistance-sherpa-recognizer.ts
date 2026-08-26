@@ -14,11 +14,13 @@
  */
 
 import type {
+	RecognizedSegmentResult,
 	RecognizedWordResult,
 	SpeechModelPaths,
 	SpeechRecognitionResult,
 	SpeechRecognizerFactory,
 } from './assistance-speech-runtime.ts';
+import { readAssistanceVoiceActivityInputV1 } from './assistance-voice-activity-input.ts';
 
 /** The raw shape the runtime returns for one decoded stream. */
 export interface SherpaTransducerResult {
@@ -191,17 +193,94 @@ export function createSherpaRecognizerFactory(
 		async create(request) {
 			const recognizer = new module.OfflineRecognizer(transducerConfig(request.model, options));
 			return {
-				async recognize(audioPath: string): Promise<SpeechRecognitionResult> {
+				async recognize(
+					audioPath: string,
+					voiceActivityPath?: string,
+				): Promise<SpeechRecognitionResult> {
+					request.signal?.throwIfAborted();
 					const wave = module.readWave(audioPath);
-					const stream = recognizer.createStream();
-					stream.acceptWaveform({ sampleRate: wave.sampleRate, samples: wave.samples });
-					recognizer.decode(stream);
-					return sherpaResultToRecognition(
-						recognizer.getResult(stream),
-						wave.samples.length / wave.sampleRate,
+					if (wave.sampleRate !== 16_000 || !(wave.samples instanceof Float32Array)
+						|| wave.samples.length < 1) {
+						throw new RangeError('Speech recognition requires exact 16 kHz mono selected audio.');
+					}
+					if (voiceActivityPath === undefined) {
+						const result = decodeRange(recognizer, wave.samples, wave.sampleRate);
+						request.signal?.throwIfAborted();
+						request.onProgress?.(Object.freeze({ completed: 1, total: 1 }));
+						return result;
+					}
+					const activity = await readAssistanceVoiceActivityInputV1(
+						voiceActivityPath, wave.samples.length, request.signal,
 					);
+					if (activity.segments.length === 0) {
+						request.onProgress?.(Object.freeze({ completed: 1, total: 1 }));
+						return Object.freeze({ language: null, segments: Object.freeze([]) });
+					}
+					const segments: RecognizedSegmentResult[] = [];
+					const languages = new Set<string>();
+					for (const [index, range] of activity.segments.entries()) {
+						request.signal?.throwIfAborted();
+						const endSample = range.startSample + range.sampleCount;
+						const local = decodeRange(recognizer,
+							wave.samples.subarray(range.startSample, endSample), wave.sampleRate);
+						if (local.language !== null) languages.add(local.language);
+						segments.push(...remapRecognitionRange(
+							local, range.startSample / wave.sampleRate, range.sampleCount / wave.sampleRate,
+						));
+						request.signal?.throwIfAborted();
+						request.onProgress?.(Object.freeze({ completed: index + 1,
+							total: activity.segments.length }));
+					}
+					if (languages.size > 1) {
+						throw new Error('Speech-recognition VAD ranges returned conflicting languages.');
+					}
+					return Object.freeze({
+						language: languages.size === 1 ? [...languages][0]! : null,
+						segments: Object.freeze(segments),
+					});
 				},
 			};
 		},
 	};
+}
+
+function decodeRange(
+	recognizer: InstanceType<SherpaRuntimeModule['OfflineRecognizer']>,
+	samples: Float32Array,
+	sampleRate: number,
+): SpeechRecognitionResult {
+	const stream = recognizer.createStream();
+	stream.acceptWaveform({ sampleRate, samples });
+	recognizer.decode(stream);
+	return sherpaResultToRecognition(recognizer.getResult(stream), samples.length / sampleRate);
+}
+
+function remapRecognitionRange(
+	result: SpeechRecognitionResult,
+	offsetSeconds: number,
+	durationSeconds: number,
+): readonly RecognizedSegmentResult[] {
+	return Object.freeze(result.segments.map((segment, index) => {
+		if (!Number.isFinite(segment.startSeconds) || !Number.isFinite(segment.endSeconds)
+			|| segment.startSeconds < 0 || segment.endSeconds <= segment.startSeconds
+			|| segment.endSeconds > durationSeconds) {
+			throw new RangeError(`Recognized VAD segment ${String(index)} exceeds its reviewed range.`);
+		}
+		const words = segment.words?.map((word, wordIndex) => {
+			if (!Number.isFinite(word.startSeconds) || !Number.isFinite(word.endSeconds)
+				|| word.startSeconds < segment.startSeconds || word.endSeconds < word.startSeconds
+				|| word.endSeconds > segment.endSeconds || word.endSeconds > durationSeconds) {
+				throw new RangeError(
+					`Recognized VAD word ${String(wordIndex)} exceeds its reviewed range.`,
+				);
+			}
+			return Object.freeze({ ...word, startSeconds: word.startSeconds + offsetSeconds,
+				endSeconds: word.endSeconds + offsetSeconds });
+		});
+		return Object.freeze({ ...segment,
+			startSeconds: segment.startSeconds + offsetSeconds,
+			endSeconds: segment.endSeconds + offsetSeconds,
+			...(words === undefined ? {} : { words: Object.freeze(words) }),
+		});
+	}));
 }

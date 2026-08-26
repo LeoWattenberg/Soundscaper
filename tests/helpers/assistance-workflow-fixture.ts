@@ -67,6 +67,7 @@ export function assistanceWorkflowFixture(
 		inputs: [
 			claim('input', jobId, 'detect-speech', 'audio', 1),
 			claim('input', jobId, 'recognize-speech', 'audio', 2),
+			claim('input', jobId, 'recognize-speech', 'voice-activity', 4),
 			claim('input', jobId, 'assemble-captions', 'transcript', 3),
 		],
 		outputs: [

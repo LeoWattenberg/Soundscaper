@@ -37,7 +37,9 @@ async function run() {
 	const modelFiles = grant.operation === 'recognize'
 		? Object.values(grant.model)
 		: grant.operation === 'diarize-speakers' ? Object.values(grant.models) : [grant.model];
-	for (const file of [grant.audio, ...modelFiles]) await verifyGrantedFile(file);
+	const inputFiles = grant.operation === 'recognize' && grant.voiceActivity
+		? [grant.audio, grant.voiceActivity] : [grant.audio];
+	for (const file of [...inputFiles, ...modelFiles]) await verifyGrantedFile(file);
 	parentPort?.postMessage({ type: 'progress', value: 0 });
 	if (grant.operation === 'detect-voice-activity') {
 		const detector = createSherpaVadFactory(await loadVerifiedRuntime());
@@ -67,6 +69,7 @@ async function run() {
 	return runtime.recognize({
 		modelId: grant.modelId,
 		audioPath: grant.audio.path,
+		voiceActivityPath: grant.voiceActivity?.path,
 		model: {
 			encoder: grant.model.encoder.path,
 			decoder: grant.model.decoder.path,

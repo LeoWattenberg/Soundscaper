@@ -442,6 +442,8 @@ export class AssistanceWorkflowCustody {
 }
 
 const INTERMEDIATE_INPUT_PROJECTIONS = Object.freeze([
+	Object.freeze({ sourceRole: 'voice-activity', slotId: 'voice-activity',
+		operation: 'speech-recognition', inputRole: 'voice-activity' }),
 	Object.freeze({ sourceRole: 'transcript', slotId: 'transcript', operation: 'word-alignment',
 		inputRole: 'transcript' }),
 	Object.freeze({ sourceRole: 'transcript', slotId: 'transcript', operation: 'text-embedding',

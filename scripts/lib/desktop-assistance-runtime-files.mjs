@@ -56,6 +56,7 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'desktop/assistance-staging-private-files.js',
 	'desktop/assistance-staging-registry-comparisons.js',
 	'desktop/assistance-staging-registry.js',
+	'desktop/assistance-voice-activity-input.js',
 	'desktop/assistance-vad-runtime.js',
 	'desktop/assistance-whisper-cpp-worker.js',
 	'desktop/assistance-workflow-consent.js',

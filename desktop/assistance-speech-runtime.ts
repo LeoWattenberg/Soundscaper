@@ -58,6 +58,8 @@ export interface SpeechRecognitionRequest {
 	/** Stable catalog identity when available; exact artifact digests remain authority. */
 	readonly modelId?: string;
 	readonly audioPath: string;
+	/** Reviewed detect-speech output. Omitted only by compatible primitive-v1 callers. */
+	readonly voiceActivityPath?: string;
 	readonly model: SpeechModelPaths;
 	readonly language?: string | null;
 	readonly threads?: number;
@@ -76,7 +78,7 @@ export const SPEECH_RUNTIME_MODULE_ID = 'sherpa-onnx-node';
 /** A recognizer the adapter can drive. Kept minimal so tests can supply one. */
 export interface SpeechRecognizerFactory {
 	create(request: SpeechRecognitionRequest): Promise<{
-		recognize(audioPath: string): Promise<SpeechRecognitionResult>;
+		recognize(audioPath: string, voiceActivityPath?: string): Promise<SpeechRecognitionResult>;
 		dispose?(): void;
 	}>;
 }
@@ -129,6 +131,10 @@ export function createSpeechRuntimeAdapter(
 			if (typeof request?.audioPath !== 'string' || request.audioPath === '') {
 				throw new TypeError('Recognition needs an audio path.');
 			}
+			if (request.voiceActivityPath !== undefined
+				&& (typeof request.voiceActivityPath !== 'string' || request.voiceActivityPath === '')) {
+				throw new TypeError('Recognition received an invalid voice-activity path.');
+			}
 			for (const key of ['encoder', 'decoder', 'joiner', 'tokens'] as const) {
 				if (typeof request.model?.[key] !== 'string' || request.model[key] === '') {
 					throw new TypeError(`Recognition needs the model ${key} path.`);
@@ -144,7 +150,9 @@ export function createSpeechRuntimeAdapter(
 			}
 			const recognizer = await createFactory(runtime).create(request);
 			try {
-				return normalizeRecognition(await recognizer.recognize(request.audioPath));
+				return normalizeRecognition(await recognizer.recognize(
+					request.audioPath, request.voiceActivityPath,
+				));
 			} finally {
 				recognizer.dispose?.();
 			}

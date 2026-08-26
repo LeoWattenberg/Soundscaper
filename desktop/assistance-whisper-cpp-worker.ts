@@ -3,8 +3,9 @@
 /** Terminateable whisper.cpp v1.9.3 CLI worker owned by its utility process. */
 
 import { createHash } from 'node:crypto';
-import { writeFile } from 'node:fs/promises';
+import { mkdtemp, open, rmdir, unlink, writeFile } from 'node:fs/promises';
 import { spawn as nodeSpawn } from 'node:child_process';
+import { dirname, join } from 'node:path';
 
 import type { AssistanceRuntimeFamilyAdmittedJob } from './assistance-runtime-family-job-contract.ts';
 import type { AssistanceRuntimeFamilyInnerWorker } from './assistance-runtime-family-utility-worker.ts';
@@ -12,6 +13,11 @@ import {
 	runAssistanceRuntimeFamilyWorkerJobV1,
 	type AssistanceRuntimeFamilyWorkerExecutionContext,
 } from './assistance-runtime-family-worker-entry.ts';
+import {
+	inspectAssistanceSpeechWaveV1,
+	readAssistanceVoiceActivityInputV1,
+} from './assistance-voice-activity-input.ts';
+import type { VoiceActivitySegment } from './assistance-vad-runtime.ts';
 
 interface AssistanceWhisperCppReadable {
 	on(event: 'data', listener: (chunk: unknown) => void): this;
@@ -43,6 +49,16 @@ const MAXIMUM_STDERR_BYTES = 64 * 1024;
 const MAXIMUM_TRANSCRIPT_SEGMENTS = 100_000;
 const MAXIMUM_SEGMENT_TEXT_BYTES = 16_384;
 const MAXIMUM_OFFSET_MS = 7 * 24 * 60 * 60 * 1_000;
+const SEGMENT_COPY_BYTES = 1024 * 1024;
+
+interface NormalizedWhisperResult {
+	readonly language: string;
+	readonly segments: readonly Readonly<{
+		readonly startSeconds: number;
+		readonly endSeconds: number;
+		readonly text: string;
+	}>[];
+}
 
 export function createAssistanceWhisperCppWorkerSpawnerV1(
 	options: AssistanceWhisperCppWorkerSpawnerOptions = {},
@@ -91,36 +107,41 @@ async function executeWhisperCpp(
 		throw new TypeError('The whisper.cpp adapter received a foreign authenticated job.');
 	}
 	const settings = context.settings;
+	const inputRoles = JSON.stringify(settings.inputRoles);
 	if (settings.operation !== 'speech-recognition'
-		|| JSON.stringify(settings.inputRoles) !== '["audio"]'
+		|| (inputRoles !== '["audio"]' && inputRoles !== '["audio","voice-activity"]')
 		|| JSON.stringify(settings.outputRoles) !== '["transcript"]') {
 		throw new TypeError('The whisper.cpp adapter settings do not bind speech recognition.');
 	}
-	if (grant.inputs.length !== 1 || grant.inputs[0]!.role !== 'audio'
-		|| grant.inputs[0]!.mediaType !== 'audio/wav'
+	const input = grant.inputs.find(({ role }) => role === 'audio');
+	const voiceActivity = grant.inputs.find(({ role }) => role === 'voice-activity');
+	if (!input || input.mediaType !== 'audio/wav'
+		|| grant.inputs.filter(({ role }) => role === 'audio').length !== 1
+		|| grant.inputs.filter(({ role }) => role === 'voice-activity').length > 1
+		|| grant.inputs.length !== (voiceActivity ? 2 : 1)
+		|| (voiceActivity !== undefined && voiceActivity.mediaType !== 'application/json'
+			&& voiceActivity.mediaType !== 'application/vnd.soundscaper.voice-activity+json')
+		|| (voiceActivity !== undefined) !== (inputRoles === '["audio","voice-activity"]')
 		|| grant.models.length !== 1
 		|| !grant.models[0]!.modelId.startsWith('whisper-')
 		|| grant.outputs.length !== 1 || grant.outputs[0]!.role !== 'transcript') {
-		throw new TypeError('The whisper.cpp adapter requires one exact WAV, GGML model, and transcript output.');
+		throw new TypeError('The whisper.cpp adapter requires exact audio, VAD, model, and transcript grants.');
 	}
-	const input = grant.inputs[0]!;
 	const model = grant.models[0]!;
 	const output = grant.outputs[0]!;
 	context.onProgress(0);
-	const stdout = await runCli({
-		spawn,
-		executable: context.job.descriptor.entrypoint,
-		args: Object.freeze([
-			'--model', model.path, '--file', input.path,
-			'--output-json', '--output-file', '-', '--no-prints', '--no-gpu',
-			'--temperature', '0', '--temperature-inc', '0', '--no-fallback',
-			'--language', 'auto', '--threads', '4',
-		]),
-		maximumStdoutBytes: output.maximumByteLength,
-		signal: context.signal,
-	});
+	let normalized: Readonly<{ language: string | null; segments: readonly unknown[] }>;
+	if (voiceActivity === undefined) {
+		const stdout = await runWhisperCli(context, spawn, model.path, input.path,
+			output.maximumByteLength);
+		normalized = normalizeWhisperJson(stdout, 0);
+	} else {
+		normalized = await recognizeVoiceActivityRanges(
+			context, spawn, input.path, voiceActivity.path, model.path, output.maximumByteLength,
+		);
+	}
 	context.signal?.throwIfAborted();
-	const body = normalizeWhisperJson(stdout);
+	const body = Buffer.from(JSON.stringify(normalized), 'utf8');
 	if (body.byteLength < 1 || body.byteLength > output.maximumByteLength) {
 		throw new RangeError('The normalized whisper.cpp output exceeds its authenticated bound.');
 	}
@@ -140,6 +161,140 @@ async function executeWhisperCpp(
 			sha256: createHash('sha256').update(body).digest('hex'),
 		})]),
 	});
+}
+
+async function recognizeVoiceActivityRanges(
+	context: AssistanceRuntimeFamilyWorkerExecutionContext,
+	spawn: AssistanceWhisperCppSpawn,
+	audioPath: string,
+	voiceActivityPath: string,
+	modelPath: string,
+	maximumOutputBytes: number,
+): Promise<Readonly<{ language: string | null; segments: readonly unknown[] }>> {
+	const geometry = await inspectAssistanceSpeechWaveV1(audioPath, context.signal);
+	const activity = await readAssistanceVoiceActivityInputV1(
+		voiceActivityPath, geometry.sampleCount, context.signal,
+	);
+	if (activity.segments.length === 0) {
+		return Object.freeze({ language: null, segments: Object.freeze([]) });
+	}
+	const directory = await mkdtemp(join(dirname(context.grant.outputs[0]!.path), '.whisper-vad-'));
+	const segmentPath = join(directory, 'segment.wav');
+	const languages = new Set<string>();
+	const segments: unknown[] = [];
+	try {
+		await writeFile(segmentPath, new Uint8Array());
+		for (const [index, range] of activity.segments.entries()) {
+			context.signal?.throwIfAborted();
+			await writeSpeechSegmentWave(audioPath, segmentPath, range, context.signal);
+			const stdout = await runWhisperCli(
+				context, spawn, modelPath, segmentPath, maximumOutputBytes,
+			);
+			const normalized = normalizeWhisperJson(
+				stdout, range.startSample / geometry.sampleRate,
+				range.sampleCount / geometry.sampleRate,
+			);
+			languages.add(normalized.language);
+			segments.push(...normalized.segments);
+			context.signal?.throwIfAborted();
+			context.onProgress((index + 1) / (activity.segments.length + 1));
+		}
+		if (languages.size !== 1) {
+			throw new Error('whisper.cpp VAD ranges returned conflicting languages.');
+		}
+		return Object.freeze({ language: [...languages][0]!, segments: Object.freeze(segments) });
+	} finally {
+		await unlink(segmentPath).catch(() => undefined);
+		await rmdir(directory).catch(() => undefined);
+	}
+}
+
+async function runWhisperCli(
+	context: AssistanceRuntimeFamilyWorkerExecutionContext,
+	spawn: AssistanceWhisperCppSpawn,
+	modelPath: string,
+	audioPath: string,
+	maximumOutputBytes: number,
+): Promise<Uint8Array> {
+	return runCli({
+		spawn,
+		executable: context.job.descriptor.entrypoint,
+		args: Object.freeze([
+			'--model', modelPath, '--file', audioPath,
+			'--output-json', '--output-file', '-', '--no-prints', '--no-gpu',
+			'--temperature', '0', '--temperature-inc', '0', '--no-fallback',
+			'--language', 'auto', '--threads', '4',
+		]),
+		maximumStdoutBytes: maximumOutputBytes,
+		signal: context.signal,
+	});
+}
+
+async function writeSpeechSegmentWave(
+	sourcePath: string,
+	destinationPath: string,
+	range: VoiceActivitySegment,
+	signal?: AbortSignal,
+): Promise<void> {
+	const source = await open(sourcePath, 'r');
+	const destination = await open(destinationPath, 'r+');
+	try {
+		signal?.throwIfAborted();
+		const dataByteLength = range.sampleCount * Float32Array.BYTES_PER_ELEMENT;
+		const header = canonicalFloatWaveHeader(range.sampleCount);
+		await destination.truncate(0);
+		await destination.write(header, 0, header.byteLength, 0);
+		const buffer = new Uint8Array(Math.min(SEGMENT_COPY_BYTES, dataByteLength));
+		let copied = 0;
+		while (copied < dataByteLength) {
+			signal?.throwIfAborted();
+			const length = Math.min(buffer.byteLength, dataByteLength - copied);
+			const sourceOffset = 44 + range.startSample * 4 + copied;
+			const { bytesRead } = await source.read(buffer, 0, length, sourceOffset);
+			if (bytesRead !== length) throw new Error('The authenticated speech WAV ended during VAD slicing.');
+			assertFiniteFloatSamples(buffer.subarray(0, bytesRead));
+			await destination.write(buffer, 0, bytesRead, header.byteLength + copied);
+			copied += bytesRead;
+		}
+		await destination.sync();
+		signal?.throwIfAborted();
+	} finally {
+		await Promise.all([source.close(), destination.close()]);
+	}
+}
+
+function canonicalFloatWaveHeader(sampleCount: number): Uint8Array {
+	const header = new Uint8Array(44);
+	const view = new DataView(header.buffer);
+	writeAscii(header, 0, 'RIFF');
+	view.setUint32(4, 36 + sampleCount * 4, true);
+	writeAscii(header, 8, 'WAVE');
+	writeAscii(header, 12, 'fmt ');
+	view.setUint32(16, 16, true);
+	view.setUint16(20, 3, true);
+	view.setUint16(22, 1, true);
+	view.setUint32(24, 16_000, true);
+	view.setUint32(28, 64_000, true);
+	view.setUint16(32, 4, true);
+	view.setUint16(34, 32, true);
+	writeAscii(header, 36, 'data');
+	view.setUint32(40, sampleCount * 4, true);
+	return header;
+}
+
+function assertFiniteFloatSamples(bytes: Uint8Array): void {
+	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+	for (let offset = 0; offset < bytes.byteLength; offset += 4) {
+		if (!Number.isFinite(view.getFloat32(offset, true))) {
+			throw new RangeError('The authenticated speech WAV contains a non-finite sample.');
+		}
+	}
+}
+
+function writeAscii(target: Uint8Array, offset: number, value: string): void {
+	for (let index = 0; index < value.length; index += 1) {
+		target[offset + index] = value.charCodeAt(index);
+	}
 }
 
 async function runCli(options: Readonly<{
@@ -240,7 +395,11 @@ function inspectChild(value: AssistanceWhisperCppChild): AssistanceWhisperCppChi
 	return value;
 }
 
-function normalizeWhisperJson(bytes: Uint8Array): Uint8Array {
+function normalizeWhisperJson(
+	bytes: Uint8Array,
+	offsetSeconds: number,
+	maximumDurationSeconds?: number,
+): NormalizedWhisperResult {
 	let value: unknown;
 	try {
 		value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) as unknown;
@@ -263,7 +422,8 @@ function normalizeWhisperJson(bytes: Uint8Array): Uint8Array {
 		const offsets = record(segment.offsets, `whisper.cpp segment ${String(index)} offsets`);
 		const start = milliseconds(offsets.from, `segment ${String(index)} start`);
 		const end = milliseconds(offsets.to, `segment ${String(index)} end`);
-		if (end <= start || start < previousEnd) {
+		if (end <= start || start < previousEnd
+			|| (maximumDurationSeconds !== undefined && end / 1_000 > maximumDurationSeconds)) {
 			throw new RangeError('The whisper.cpp transcript timing is empty, overlapping, or out of order.');
 		}
 		previousEnd = end;
@@ -271,10 +431,10 @@ function normalizeWhisperJson(bytes: Uint8Array): Uint8Array {
 			|| Buffer.byteLength(segment.text, 'utf8') > MAXIMUM_SEGMENT_TEXT_BYTES) {
 			throw new RangeError('The whisper.cpp transcript segment text is invalid.');
 		}
-		return Object.freeze({ startSeconds: start / 1_000, endSeconds: end / 1_000,
-			text: segment.text });
+		return Object.freeze({ startSeconds: start / 1_000 + offsetSeconds,
+			endSeconds: end / 1_000 + offsetSeconds, text: segment.text });
 	});
-	return Buffer.from(JSON.stringify({ language: result.language, segments }), 'utf8');
+	return Object.freeze({ language: result.language, segments: Object.freeze(segments) });
 }
 
 function record(value: unknown, label: string): Record<string, unknown> {
