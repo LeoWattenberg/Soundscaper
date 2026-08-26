@@ -310,17 +310,30 @@ function offlineNavigationFallbackPaths(pathname, configuration, shellPaths) {
 	return shellPaths.has(localized) && localized !== defaultPath ? [localized, defaultPath] : [defaultPath];
 }
 
-async function matchOfflineNavigationFallback(cache, pathname, configuration, shellPaths) {
-	for (const path of offlineNavigationFallbackPaths(pathname, configuration, shellPaths)) {
+async function matchOfflineNavigationFallback(cache, pathname, configuration, descriptors, cryptoImpl) {
+	for (const path of offlineNavigationFallbackPaths(pathname, configuration, descriptors)) {
+		const descriptor = descriptors.get(path);
+		if (!descriptor) continue;
 		const response = await cache.match(path, { ignoreSearch: true });
-		if (response) return response;
+		if (!response) continue;
+		try {
+			return await verifiedShellResponse(response, descriptor, cryptoImpl);
+		} catch {
+			await cache.delete(path, { ignoreSearch: true }).catch(() => false);
+		}
 	}
 	return null;
 }
 
 async function cacheVerifiedAssetOnUse({ cache, descriptor, fetchImpl, cryptoImpl }) {
 	const cached = await cache.match(descriptor.url, { ignoreSearch: true });
-	if (cached) return cached;
+	if (cached) {
+		try {
+			return await verifiedShellResponse(cached, descriptor, cryptoImpl);
+		} catch {
+			await cache.delete(descriptor.url, { ignoreSearch: true }).catch(() => false);
+		}
+	}
 	const response = await fetchImpl(descriptor.url, {
 		cache: 'default',
 		credentials: 'same-origin',
@@ -356,7 +369,7 @@ export async function handleApplicationShellFetch({
 		} catch (error) {
 			if (request.mode === 'navigate') {
 				const fallback = await matchOfflineNavigationFallback(
-					cache, requestUrl.pathname, configuration, new Set(descriptors.keys()),
+					cache, requestUrl.pathname, configuration, descriptors, cryptoImpl,
 				);
 				if (fallback) return fallback;
 			}
@@ -368,7 +381,7 @@ export async function handleApplicationShellFetch({
 		return await fetchImpl(request);
 	} catch (error) {
 		const fallback = await matchOfflineNavigationFallback(
-			cache, requestUrl.pathname, configuration, new Set(descriptors.keys()),
+			cache, requestUrl.pathname, configuration, descriptors, cryptoImpl,
 		);
 		if (fallback) return fallback;
 		throw error;

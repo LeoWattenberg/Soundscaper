@@ -105,6 +105,10 @@ export class MemoryCache {
 		return this.entries.get(cacheKey(input))?.clone();
 	}
 
+	async delete(input) {
+		return this.entries.delete(cacheKey(input));
+	}
+
 	async put(input, value) {
 		const failure = this.#storage?.takePutFailure(this.#name);
 		if (failure) throw failure;

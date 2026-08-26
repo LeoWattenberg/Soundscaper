@@ -53,6 +53,10 @@ test('offline shell generation inventories exact route URLs and emits installabl
 
 	const soundWorker = audit.workers.soundscaper;
 	const frameWorker = audit.workers.framescaper;
+	assert.deepEqual(soundWorker.fallbacks, { standard: '/en/', embedded: '/embed/en/' });
+	assert.deepEqual(frameWorker.fallbacks, {
+		standard: '/framescaper/en/', embedded: '/framescaper/embed/en/',
+	});
 	assert.deepEqual(
 		soundWorker.installUrls.filter((url) => url.endsWith('.js')),
 		['/assets/application-abc.js', '/assets/shared.js', '/assets/soundscaper-core.js'],

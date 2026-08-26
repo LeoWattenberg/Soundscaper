@@ -305,6 +305,35 @@ test('an allowlisted optional asset is verified once, cached on use, and never r
 	assert.equal(await second.text(), 'optional code');
 	assert.equal(networkRequests, 1);
 
+	const cache = await cacheStorage.open(shellCacheName(configuration.releaseId));
+	await cache.put(optional.url, response('optional CODE'));
+	const repaired = await handleOfflineShellFetch({
+		configuration,
+		cacheStorage,
+		fetchImpl: async () => {
+			networkRequests += 1;
+			return response('optional code');
+		},
+		request: new Request('https://soundscaper.org/assets/optional.js'),
+		origin: 'https://soundscaper.org',
+	});
+	assert.equal(await repaired.text(), 'optional code', 'an online request replaces a tampered cached entry');
+	assert.equal(networkRequests, 2);
+	assert.equal(await cache.match(optional.url).then((value) => value?.text()), 'optional code');
+
+	await cache.put(optional.url, response('optional CODE'));
+	await assert.rejects(
+		() => handleOfflineShellFetch({
+			configuration,
+			cacheStorage,
+			fetchImpl: async () => { throw new TypeError('offline'); },
+			request: new Request('https://soundscaper.org/assets/optional.js'),
+			origin: 'https://soundscaper.org',
+		}),
+		/offline/u,
+	);
+	assert.equal(await cache.match(optional.url), undefined, 'a tampered cached entry is deleted before offline failure');
+
 	const uncachedConfiguration = shellConfiguration('b', [optional]);
 	await installOfflineShell({
 		configuration: uncachedConfiguration,
@@ -399,4 +428,72 @@ test('allowlisted navigation failures use only the matching verified English fal
 	}
 	const cache = await cacheStorage.open(shellCacheName(configuration.releaseId));
 	assert.equal(await cache.match('/fr/'), undefined, 'failed exact documents are never cached or served');
+});
+
+test('cached exact navigation documents are verified before serving and repaired only from verified network bytes', async () => {
+	const localized = asset('/fr/', 'french shell');
+	const configuration = shellConfiguration('6', [localized]);
+	const cacheStorage = new MemoryCacheStorage();
+	await installOfflineShell({
+		configuration,
+		cacheStorage,
+		fetchImpl: async (url) => shellResponse(url),
+	});
+	const cache = await cacheStorage.open(shellCacheName(configuration.releaseId));
+	await cache.put(localized.url, response('frenxh shell'));
+	let networkRequests = 0;
+	const repaired = await handleOfflineShellFetch({
+		configuration,
+		cacheStorage,
+		fetchImpl: async () => {
+			networkRequests += 1;
+			return response('french shell');
+		},
+		request: { method: 'GET', mode: 'navigate', url: 'https://soundscaper.org/fr/' },
+		origin: 'https://soundscaper.org',
+	});
+	assert.equal(await repaired.text(), 'french shell');
+	assert.equal(networkRequests, 1);
+	assert.equal(await cache.match(localized.url).then((value) => value?.text()), 'french shell');
+
+	await cache.put(localized.url, response('frenxh shell'));
+	const fallback = await handleOfflineShellFetch({
+		configuration,
+		cacheStorage,
+		fetchImpl: async () => { throw new TypeError('offline'); },
+		request: { method: 'GET', mode: 'navigate', url: 'https://soundscaper.org/fr/' },
+		origin: 'https://soundscaper.org',
+	});
+	assert.equal(await fallback.text(), 'root shell');
+	assert.equal(await cache.match(localized.url), undefined, 'the corrupt exact document is never retained');
+});
+
+test('tampered standard and embedded navigation fallbacks fail closed while offline', async () => {
+	const configuration = shellConfiguration('7');
+	const cacheStorage = new MemoryCacheStorage();
+	await installOfflineShell({
+		configuration,
+		cacheStorage,
+		fetchImpl: async (url) => shellResponse(url),
+	});
+	const cache = await cacheStorage.open(shellCacheName(configuration.releaseId));
+	await cache.put(configuration.fallbacks.standard, response('root'));
+	await cache.put(configuration.fallbacks.embedded, response('EMBEDDED SHELL'));
+
+	for (const [url, fallbackPath] of [
+		['https://soundscaper.org/de/project', configuration.fallbacks.standard],
+		['https://soundscaper.org/embed/de/project', configuration.fallbacks.embedded],
+	]) {
+		await assert.rejects(
+			() => handleOfflineShellFetch({
+				configuration,
+				cacheStorage,
+				fetchImpl: async () => { throw new TypeError('offline'); },
+				request: { method: 'GET', mode: 'navigate', url },
+				origin: 'https://soundscaper.org',
+			}),
+			/offline/u,
+		);
+		assert.equal(await cache.match(fallbackPath), undefined, `${fallbackPath} is deleted after verification fails`);
+	}
 });

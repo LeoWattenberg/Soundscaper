@@ -78,6 +78,7 @@ export async function generateOfflineApplicationShell({ outputRoot, repositoryRo
 		workers[productId] = Object.freeze({
 			scriptUrl: worker.scriptUrl,
 			scope: worker.scope,
+			fallbacks: worker.fallbacks,
 			releaseId,
 			workerSha256,
 			installUrls,
