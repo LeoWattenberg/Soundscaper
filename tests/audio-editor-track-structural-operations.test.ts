@@ -19,6 +19,10 @@ import type {
 	ControllerTrack,
 } from '../src/common/editor/controller/track-domain-types.ts';
 import { createTrackStructuralOperationMenuModel } from '../src/common/editor/ui/track-structural-operation-menu-model.ts';
+import {
+	moveTrackNodeV12,
+	trackNodeLaneGroupsV12,
+} from '../src/common/editor/track-hierarchy-mutation-v12.ts';
 
 test('the complete structural slice is reachable through opt-in track menus', () => {
 	const model = createTrackStructuralOperationMenuModel({
@@ -91,16 +95,51 @@ test('all target alignment modes use one exact block delta and reject impossible
 
 test('sorting moves root structural blocks atomically without splitting a folder or lane pair', () => {
 	const project = structuralProject();
+	// A move index counts direct root children, so the block after the A/V lane
+	// pair sits at 2, not at its own block ordinal of 1.
 	assert.deepEqual(planTrackSort(project, 'name'), [
 		{ type: 'track-node/move', sequenceId: 'main', nodeId: 'video', parentFolderId: null, index: 0 },
-		{ type: 'track-node/move', sequenceId: 'main', nodeId: 'music', parentFolderId: null, index: 1 },
-		{ type: 'track-node/move', sequenceId: 'main', nodeId: 'folder', parentFolderId: null, index: 2 },
+		{ type: 'track-node/move', sequenceId: 'main', nodeId: 'music', parentFolderId: null, index: 2 },
+		{ type: 'track-node/move', sequenceId: 'main', nodeId: 'folder', parentFolderId: null, index: 3 },
 	]);
 	assert.deepEqual(planTrackSort(project, 'time'), [
 		{ type: 'track-node/move', sequenceId: 'main', nodeId: 'video', parentFolderId: null, index: 0 },
-		{ type: 'track-node/move', sequenceId: 'main', nodeId: 'folder', parentFolderId: null, index: 1 },
-		{ type: 'track-node/move', sequenceId: 'main', nodeId: 'music', parentFolderId: null, index: 2 },
+		{ type: 'track-node/move', sequenceId: 'main', nodeId: 'folder', parentFolderId: null, index: 2 },
+		{ type: 'track-node/move', sequenceId: 'main', nodeId: 'music', parentFolderId: null, index: 3 },
 	]);
+});
+
+/**
+ * Planning the right command shape is not enough — the indices are resolved by
+ * the hierarchy mutation, so the plan has to be applied to prove the lane pair
+ * survives it. A split pair is refused outright by project validation, which
+ * made Sort by Time and Sort by Name a hard failure rather than a wrong order.
+ */
+test('an applied sort keeps a linked A/V lane pair adjacent', () => {
+	const project = structuralProject();
+	const laneGroups = trackNodeLaneGroupsV12(project.tracks as never);
+
+	for (const criterion of ['name', 'time'] as const) {
+		const sequences = structuredClone(project.sequences) as never;
+		for (const command of planTrackSort(project, criterion)) {
+			moveTrackNodeV12(sequences, command as never, laneGroups);
+		}
+		const nodes = (sequences as readonly {
+			readonly trackNodes: readonly { readonly id: string; readonly parentFolderId: string | null }[];
+		}[])[0]!.trackNodes;
+		const roots = nodes.filter(({ parentFolderId }) => parentFolderId === null).map(({ id }) => id);
+		assert.equal(
+			roots.indexOf('audio') - roots.indexOf('video'),
+			1,
+			`sorting by ${criterion} keeps the lane pair adjacent`,
+		);
+		assert.deepEqual(
+			roots,
+			criterion === 'name'
+				? ['video', 'audio', 'music', 'folder']
+				: ['video', 'audio', 'folder', 'music'],
+		);
+	}
 });
 
 test('structural operations refuse locked blocks and blocked writes before committing', () => {

@@ -63,6 +63,12 @@ interface StructuralBlock {
 	readonly trackIds: readonly string[];
 	readonly name: string;
 	readonly ordinal: number;
+	/**
+	 * How many direct root children the block occupies, which is what a
+	 * `track-node/move` index counts. A folder is one however many tracks it
+	 * holds, while a linked A/V lane pair is two.
+	 */
+	readonly rootWidth: number;
 }
 
 interface TimedStructuralBlock extends StructuralBlock {
@@ -120,11 +126,19 @@ export function planTrackSort(
 		});
 		if (sorted.every((block, index) => block.nodeId === timed[index]?.nodeId)) continue;
 		for (const block of timed) assertBlockUnlocked(project, block);
-		commands.push(...sorted.map((block, index): StructuralCommand => block.sequenceId === null
-			? { type: 'track/reorder', trackId: block.nodeId, index: sorted
-				.slice(0, index).reduce((total, preceding) => total + preceding.trackIds.length, 0) }
-			: { type: 'track-node/move', sequenceId: block.sequenceId, nodeId: block.nodeId,
-				parentFolderId: null, index }));
+		// Both index domains count individual entries, not blocks: a track index
+		// for the legacy reorder, a direct root child for a node move. Summing the
+		// widths of the preceding blocks keeps a lane pair or folder intact.
+		commands.push(...sorted.map((block, index): StructuralCommand => {
+			const precedingTracks = sorted.slice(0, index)
+				.reduce((total, preceding) => total + preceding.trackIds.length, 0);
+			const precedingRootChildren = sorted.slice(0, index)
+				.reduce((total, preceding) => total + preceding.rootWidth, 0);
+			return block.sequenceId === null
+				? { type: 'track/reorder', trackId: block.nodeId, index: precedingTracks }
+				: { type: 'track-node/move', sequenceId: block.sequenceId, nodeId: block.nodeId,
+					parentFolderId: null, index: precedingRootChildren };
+		}));
 	}
 	return Object.freeze(commands);
 }
@@ -204,6 +218,8 @@ function structuralBlocks(project: ControllerProject): readonly StructuralBlock[
 			blocks.push(Object.freeze({
 				sequenceId: sequence.id, nodeId: node.id, trackIds: Object.freeze(trackIds),
 				name, ordinal,
+				rootWidth: sequence.trackNodes.slice(span.start, span.end)
+					.filter((entry) => entry.parentFolderId === null).length,
 			}));
 			ordinal += 1;
 			index = span.end;
@@ -226,7 +242,7 @@ function legacyStructuralBlocks(tracks: readonly ControllerTrack[]): readonly St
 		for (const member of members) consumed.add(member.id);
 		blocks.push(Object.freeze({
 			sequenceId: null, nodeId: track.id, trackIds: Object.freeze(members.map(({ id }) => id)),
-			name: track.name, ordinal: blocks.length,
+			name: track.name, ordinal: blocks.length, rootWidth: members.length,
 		}));
 	}
 	return Object.freeze(blocks);
