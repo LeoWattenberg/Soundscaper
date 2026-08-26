@@ -30,7 +30,7 @@ const visualMatrix = () => createAssistanceEmbeddingMatrixV1({
 
 function index() {
 	return {
-		indexVersion: 1,
+		indexVersion: 1 as const,
 		projectId: 'project-1',
 		projectRevision: 7,
 		transcript: {

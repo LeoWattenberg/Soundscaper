@@ -66,6 +66,12 @@ export interface AssistanceSemanticIndexResultV1 {
 	readonly providers: readonly AssistanceSearchProviderV1[];
 }
 
+export interface AssistanceSemanticIndexSearchProviderV1 extends AssistanceAsyncSearchProvider {
+	search(
+		request: AssistanceAsyncSearchRequest,
+	): Promise<readonly AssistanceSemanticIndexResultV1[]>;
+}
+
 export interface AssistanceSemanticIndexSearchProviderOptionsV1 {
 	readonly index: AssistanceSemanticIndexV1;
 	readonly embedQuery: (
@@ -94,9 +100,7 @@ interface ReviewedIndex {
  */
 export function createAssistanceSemanticIndexSearchProviderV1(
 	options: AssistanceSemanticIndexSearchProviderOptionsV1,
-): AssistanceAsyncSearchProvider & Readonly<{
-	search(request: AssistanceAsyncSearchRequest): Promise<readonly AssistanceSemanticIndexResultV1[]>;
-}> {
+): AssistanceSemanticIndexSearchProviderV1 {
 	if (!options || typeof options !== 'object' || typeof options.embedQuery !== 'function'
 		|| (options.now !== undefined && typeof options.now !== 'function')) {
 		throw new TypeError('Semantic index search requires exact index and embedding ports.');
