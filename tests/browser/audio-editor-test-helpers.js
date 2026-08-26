@@ -177,7 +177,7 @@ export async function openEffectsForTrack(editor, trackIndex) {
 }
 
 export async function openSelectionEffectDialog(page, editor) {
-	await chooseNestedCommandAction(page, editor, 'Effect', ['Special', 'Invert']);
+	await chooseNestedCommandAction(page, editor, 'Effect', ['EQ and filters', 'Bass and Treble']);
 	const dialog = page.getByRole('dialog', { name: 'Apply effect', exact: true });
 	await expect(dialog).toBeVisible();
 	await expect(page.locator('[data-editor-surface="selection-effect"]')).toBeVisible();

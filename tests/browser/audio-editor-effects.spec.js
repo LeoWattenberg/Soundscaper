@@ -11,6 +11,7 @@ import {
 	bootEditor,
 	chooseCommandAction,
 	chooseDropdown,
+	chooseNestedCommandAction,
 	clipByName,
 	closeDialog,
 	closeEffectsPanel,
@@ -24,7 +25,6 @@ import {
 	openExportDialog,
 	openParametricEqSelectionEffect,
 	openRackPicker,
-	openSelectionEffectDialog,
 	registerAudioEditorHooks,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
@@ -527,22 +527,15 @@ import {
 		expect(errors).toEqual([]);
 	});
 
-	test('applies an Audacity selection effect with undo and redo', async ({ page }) => {
+	test('directly applies a setting-free Audacity selection effect with undo and redo', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
-		const effectDialog = await openSelectionEffectDialog(page, editor);
-		await expect(effectDialog.getByRole('heading', { name: 'Invert', exact: true })).toBeVisible();
-		await effectDialog.getByRole('button', { name: 'Preview', exact: true }).click();
-		await expect(editor.locator('[data-status]')).toHaveText('Playing effect preview.', { timeout: 20_000 });
-		const stopPreview = effectDialog.getByRole('button', { name: 'Stop preview' });
-		if (await stopPreview.isVisible()) await stopPreview.click();
-		await expect(editor.locator('[data-status]')).toHaveText(/Effect preview (?:cancelled|finished)\./u);
-		await expect(clipByName(editor, toneA.name)).toHaveCount(1);
-		await effectDialog.getByRole('button', { name: 'Apply to selection' }).click();
+		await chooseNestedCommandAction(page, editor, 'Effect', ['Special', 'Invert']);
 
 		await expect(editor.locator('[data-status]')).toHaveText('Applied the Audacity effect.', { timeout: 20_000 });
-		await expect(effectDialog).toBeHidden();
+		await expect(page.getByRole('dialog', { name: 'Apply effect', exact: true })).toHaveCount(0);
+		await expect(page.locator('[data-editor-surface="selection-effect"]')).toHaveCount(0);
 		await expect(clipByName(editor, 'browser-tone-a')).toBeVisible();
 		await expect.poll(async () => (await effectSourceMetadata(page)).find((source) => source.name.includes('Invert'))?.channelCount).toBe(2);
 		await editor.getByRole('button', { name: 'Undo' }).click();

@@ -89,7 +89,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.keyboard.press('Escape');
 	});
 
-	test('opens project properties from search and maps a louder request to Amplify without editing', async ({ page }) => {
+	test('opens configurable search effects and directly applies setting-free effects', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const search = editor.locator('[data-editor-search-input]');
 		const popup = editor.locator('[data-editor-search-popup]');
@@ -126,6 +126,15 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor).toHaveAttribute('data-track-count', countsBefore.tracks);
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
 		await closeDialog(effectDialog);
+
+		await page.keyboard.press('Control+f');
+		await search.fill('Invert');
+		const invert = popup.locator('[data-editor-search-key="command:audacity-invert"]');
+		await expect(invert).toBeVisible();
+		await invert.click();
+		await expect(editor.locator('[data-status]')).toHaveText('Applied the Audacity effect.', { timeout: 20_000 });
+		await expect(effectDialog).toHaveCount(0);
+		await expect(page.locator('[data-editor-surface="selection-effect"]')).toHaveCount(0);
 	});
 
 	test('reveals a compact Project Bin search result without previewing or inserting it', async ({ page }) => {

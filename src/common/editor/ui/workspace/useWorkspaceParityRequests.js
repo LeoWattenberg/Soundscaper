@@ -31,6 +31,12 @@ export function useWorkspaceParityRequests({
 		handledRequestRef.current = request;
 		const payload = request.payload || {};
 		if (request.type === 'open-surface') {
+			if (payload.surface === 'selection-effect' && payload.type
+				&& snapshot.effects?.selectionTypes
+					.find((candidate) => candidate.type === payload.type)?.hasSettings === false) {
+				run(() => controller.actions.effects.applySelection({ type: payload.type }));
+				return;
+			}
 			if (payload.surface === 'generator') setGeneratorType(payload.type || 'tone');
 			if (payload.surface === 'nyquist') setNyquistTarget({
 				prompt: !payload.pluginId,

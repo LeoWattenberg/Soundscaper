@@ -34,6 +34,27 @@ interface SnapshotHistory {
 	readonly redoStack: readonly unknown[];
 }
 
+interface SelectionEffectTypeDefinition {
+	readonly defaults?: Readonly<Record<string, unknown>>;
+	readonly params?: Readonly<Record<string, unknown>>;
+	readonly requiresControlTrack?: boolean;
+	readonly requiresNoiseProfile?: boolean;
+}
+
+export function createSelectionEffectTypeSnapshot(
+	type: string,
+	label: string,
+	definition: SelectionEffectTypeDefinition,
+): Readonly<{ type: string; label: string; hasSettings: boolean }> {
+	const hasSettings = Boolean(
+		Object.keys(definition.params ?? {}).length
+		|| Object.keys(definition.defaults ?? {}).length
+		|| definition.requiresControlTrack
+		|| definition.requiresNoiseProfile,
+	);
+	return Object.freeze({ type, label, hasSettings });
+}
+
 interface SnapshotPreferences extends Readonly<Record<string, unknown>> {
 	readonly playback?: Readonly<{ playAtSpeedMode?: string }>;
 	readonly recording: Readonly<{ retainInputs: boolean }>;

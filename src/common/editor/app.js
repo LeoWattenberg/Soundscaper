@@ -266,7 +266,7 @@ import {
 } from './controller/recording-model.ts';
 import { createSettingPersistence } from './controller/setting-persistence.ts';
 import { createControllerStorageCapacityService } from './controller/storage-capacity-runtime.ts';
-import { createEditorDocumentSnapshot } from './controller/document-snapshot.ts';
+import { createEditorDocumentSnapshot, createSelectionEffectTypeSnapshot } from './controller/document-snapshot.ts';
 import {
 	applyVideoEffectGesturePreviews,
 	createAudioDeviceSnapshot,
@@ -464,10 +464,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getVideoEffectTypes: () => VIDEO_EFFECT_TYPES.map((type) => VIDEO_EFFECT_DEFINITIONS[type]),
 		getVideoNavigationSnapshot: () => !state.disposed && project && capabilities.videoCompositing && videoNavigationService ? videoNavigationService.view() : null,
 		getFramescaperCaptureSnapshot: () => framescaperCapture?.snapshot ?? null, getFramescaperWebVcrSnapshot: () => framescaperCapture?.webVcrSnapshot ?? null,
-		getSelectionEffectTypes: () => audioSelectionEffectTypes().map((type) => Object.freeze({
-			type,
-			label: audioSelectionEffectLabel(type, copy),
-		})),
+		getSelectionEffectTypes: () => audioSelectionEffectTypes().map((type) => createSelectionEffectTypeSnapshot(
+			type, audioSelectionEffectLabel(type, copy), AUDIO_SELECTION_EFFECT_DEFINITIONS[type],
+		)),
 		getSelectionEffectParams: currentAudacityEffectParams,
 		getSelectionEffectDefinition: () => AUDIO_SELECTION_EFFECT_DEFINITIONS[state.audacityEffectType] || null,
 		getEffectPresets: () => listAudioEditorEffectPresets(state.effectPresets, state.audacityEffectType),

@@ -364,7 +364,10 @@ export function createWorkspaceApplicationMenus({
 				},
 				openEffects: () => openEffects(snapshot.selectedTrackId),
 				openMacroManager: () => openSurface('macro-manager'),
-				openSelectionEffect,
+				openSelectionEffect: (type) => snapshot.effects?.selectionTypes
+					.find((candidate) => candidate.type === type)?.hasSettings === false
+					? run(() => controller.actions.effects.applySelection({ type }))
+					: openSelectionEffect(type),
 				repeatLastEffect: () => run(() => controller.actions.effects.repeatLast()),
 				openSpectralSelection,
 				deleteSpectralSelection: () => run(() => controller.actions.spectral.delete()),

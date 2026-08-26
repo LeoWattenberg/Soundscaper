@@ -69,8 +69,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await importFiles(editor, [monoTone]);
 		await chooseNestedCommandAction(page, editor, 'Effekt', ['Spezial', 'Invertieren']);
 		const effectDialog = page.getByRole('dialog', { name: 'Effekt anwenden', exact: true });
-		await expect(effectDialog).toBeVisible();
-		await effectDialog.getByRole('button', { name: 'Auf Auswahl anwenden', exact: true }).click();
+		await expect(effectDialog).toHaveCount(0);
 		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 20_000 });
 		await expect(clipByName(editor, 'browser-mono-tone')).toBeVisible();
 		await expect.poll(async () => (
@@ -159,12 +158,12 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [monoTone]);
 		const effectDialog = await openSelectionEffectDialog(page, editor);
-		await expect(effectDialog.getByRole('heading', { name: 'Invert', exact: true })).toBeVisible();
+		await expect(effectDialog.getByRole('heading', { name: 'Bass and Treble', exact: true })).toBeVisible();
 		await effectDialog.getByRole('button', { name: 'Apply to selection' }).click();
 		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 20_000 });
 		await expect(effectDialog).toBeHidden();
-		await expect.poll(async () => (await effectSourceMetadata(page)).find((source) => source.name.includes('Invert'))?.channelCount).toBe(1);
-		await expect.poll(async () => effectSourcePeak(page, 'Invert')).toBeGreaterThan(0.33);
+		await expect.poll(async () => (await effectSourceMetadata(page)).find((source) => source.name.includes('Bass and Treble'))?.channelCount).toBe(1);
+		await expect.poll(async () => effectSourcePeak(page, 'Bass and Treble')).toBeGreaterThan(0.33);
 		expect(errors).toEqual([]);
 	});
 
