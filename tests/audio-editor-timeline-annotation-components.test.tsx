@@ -199,7 +199,7 @@ test('short annotation regions retain two non-overlapping edge hit targets', () 
 	assert.equal(markup.match(/data-annotation-edge="(?:start|end)"/gu)?.length, 2);
 });
 
-test('annotation visuals occupy a dedicated lane below the unblocked ruler surface', () => {
+test('shown annotation visuals occupy a dedicated lane below the unblocked ruler surface', () => {
 	const css = readFileSync(new URL(
 		'../src/common/editor/ui/audio-editor-design-system/19-timeline-annotations.css', import.meta.url,
 	), 'utf8');
@@ -209,15 +209,16 @@ test('annotation visuals occupy a dedicated lane below the unblocked ruler surfa
 	const cornerIndex = workspace.indexOf('className="audio-editor-ruler-corner"');
 	const actionsIndex = workspace.indexOf('<TimelineAnnotationLaneActions', cornerIndex);
 	const viewportIndex = workspace.indexOf('className="audio-editor-ruler-viewport"', actionsIndex);
-	assert.match(css, /data-has-annotations='true'[^}]*audio-editor-ruler-viewport[^}]*\{\s*height: 66px;/u);
+	assert.match(css, /data-show-markers='true'[^}]*audio-editor-ruler-viewport[^}]*\{\s*height: 66px;/u);
 	assert.match(css, /audio-editor-timeline-annotations\s*\{[^}]*top: 33px;/u);
 	assert.match(css, /audio-editor-timeline-annotation\s*\{[^}]*min-width: 16px;/u);
 	assert.ok(cornerIndex >= 0 && cornerIndex < actionsIndex && actionsIndex < viewportIndex);
 	assert.equal(
-		workspace.match(/height=\{showTimelineAnnotations \? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined\}/gu)?.length,
+		workspace.match(/height=\{markerLaneVisible \? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined\}/gu)?.length,
 		3,
 		'every ruler variant reserves the annotation lane',
 	);
+	assert.match(workspace, /\{markerLaneVisible && <TimelineAnnotationLayer/u);
 });
 
 test('annotation list exposes equivalent named editing fields and native workflow actions', () => {
@@ -440,7 +441,7 @@ test('the ruler-corner marker actions stay hidden until Show markers is enabled'
 		'../src/common/editor/ui/timeline/TimelineWorkspaceView.jsx', import.meta.url,
 	), 'utf8');
 
-	assert.match(workspace, /\{showTimelineAnnotations && showMarkers && <TimelineAnnotationLaneActions/u);
+	assert.match(workspace, /\{markerLaneVisible && <TimelineAnnotationLaneActions/u);
 	assert.equal(workspace.match(/<TimelineAnnotationLaneActions/gu)?.length, 1);
 });
 

@@ -72,7 +72,7 @@ test('the timeline renders the transient guide only from a roll/ripple preview',
 	assert.match(overlays, /if \(!Number\.isSafeInteger\(sample\)\) return null;/u);
 	assert.match(overlays, /data-roll-ripple-trim-guide="true"[\s\S]*?aria-hidden="true"/u);
 	assert.match(css, /audio-editor-trim-preview-guide\s*\{[^}]*position: absolute;[^}]*pointer-events: none;/u);
-	assert.match(annotationsCss, /data-has-annotations='true'[^}]*audio-editor-trim-preview-guide[^}]*\{\s*top: 67px;/u);
+	assert.match(annotationsCss, /data-show-markers='true'[^}]*audio-editor-trim-preview-guide[^}]*\{\s*top: 67px;/u);
 });
 
 function renderGuide(sample: number | null): string {

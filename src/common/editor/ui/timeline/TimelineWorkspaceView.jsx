@@ -76,6 +76,7 @@ export function TimelineWorkspaceView({
 		totalTrackHeight,
 		showTimelineAnnotations,
 		showMarkers,
+		markerLaneVisible,
 	} = geometry;
 	const { documentSelection, timeSelection, selectedClipIdSet } = selection;
 	const {
@@ -163,6 +164,7 @@ export function TimelineWorkspaceView({
 			data-split-tool={splitToolActive ? 'true' : 'false'}
 			data-automation-tool={automationToolEnabled ? 'true' : 'false'}
 			data-has-annotations={showTimelineAnnotations ? 'true' : 'false'}
+			data-show-markers={markerLaneVisible ? 'true' : 'false'}
 			data-edit-block-reason={editBlock.reason || undefined}
 			style={{
 				'--track-panel-width': `${panelWidth}px`,
@@ -209,7 +211,7 @@ export function TimelineWorkspaceView({
 							>
 								{copy.addTrack}
 							</Button>
-							{showTimelineAnnotations && showMarkers && <TimelineAnnotationLaneActions
+							{markerLaneVisible && <TimelineAnnotationLaneActions
 								controller={controller}
 								project={project}
 								annotations={snapshot.timelineAnnotations || []}
@@ -235,7 +237,7 @@ export function TimelineWorkspaceView({
 							style={{ left: panelWidth, width: viewportWidth }}
 							onContextMenu={openTimelineRulerMenu}
 							onKeyDown={(event) => {
-								const createKind = showTimelineAnnotations && event.target === event.currentTarget
+								const createKind = markerLaneVisible && event.target === event.currentTarget
 									? timelineAnnotationCreateKind(event, project.selection)
 									: null;
 								if (createKind) {
@@ -252,7 +254,7 @@ export function TimelineWorkspaceView({
 							}}
 						>
 							{sequenceTimecodeView ? <SequenceTimecodeRuler
-								height={showTimelineAnnotations ? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined}
+								height={markerLaneVisible ? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined}
 								pixelsPerSecond={pixelsPerSecond}
 								scrollX={scrollX}
 								width={timelineWidth}
@@ -265,7 +267,7 @@ export function TimelineWorkspaceView({
 								loopRegionEnd={framesToSeconds(displayedLoop.endFrame || 0, { sampleRate })}
 								onLoopRegionEnabledToggle={() => run(() => controller.actions.transport.toggleLoop())}
 							/> : useMusicalMapRuler ? <MusicalTimelineRuler
-								height={showTimelineAnnotations ? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined}
+								height={markerLaneVisible ? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined}
 								pixelsPerSecond={pixelsPerSecond}
 								scrollX={scrollX}
 								width={timelineWidth}
@@ -279,7 +281,7 @@ export function TimelineWorkspaceView({
 								loopRegionEnd={framesToSeconds(displayedLoop.endFrame || 0, { sampleRate })}
 								onLoopRegionEnabledToggle={() => run(() => controller.actions.transport.toggleLoop())}
 							/> : <TimelineRuler
-								height={showTimelineAnnotations ? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined}
+								height={markerLaneVisible ? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined}
 								pixelsPerSecond={pixelsPerSecond}
 								scrollX={scrollX}
 								totalDuration={durationSeconds}
@@ -295,7 +297,7 @@ export function TimelineWorkspaceView({
 								loopRegionEnd={framesToSeconds(displayedLoop.endFrame || 0, { sampleRate })}
 								onLoopRegionEnabledToggle={() => run(() => controller.actions.transport.toggleLoop())}
 							/>}
-							{showTimelineAnnotations && <TimelineAnnotationLayer
+							{markerLaneVisible && <TimelineAnnotationLayer
 								controller={controller}
 								project={project}
 								annotations={snapshot.timelineAnnotations || []}

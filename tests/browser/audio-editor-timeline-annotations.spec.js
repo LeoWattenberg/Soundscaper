@@ -25,6 +25,27 @@ const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
 test.describe('native timeline annotations', () => {
 	registerAudioEditorHooks(test);
 
+	test('removes the marker lane and its layout offset when markers are hidden', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const timeline = editor.locator('.audio-editor-timeline-panel');
+		const rulerRow = timeline.locator('.audio-editor-ruler-row');
+
+		await expect(timeline).toHaveAttribute('data-has-annotations', 'true');
+		await expect(timeline).toHaveAttribute('data-show-markers', 'false');
+		await expect(timeline.locator('[data-timeline-annotation-layer]')).toHaveCount(0);
+		await expect(rulerRow).toHaveCSS('height', '34px');
+
+		await chooseCommandAction(page, editor, 'View', 'Show markers');
+		await expect(timeline).toHaveAttribute('data-show-markers', 'true');
+		await expect(timeline.locator('[data-timeline-annotation-layer]')).toBeVisible();
+		await expect(rulerRow).toHaveCSS('height', '67px');
+
+		await chooseCommandAction(page, editor, 'View', 'Show markers');
+		await expect(timeline).toHaveAttribute('data-show-markers', 'false');
+		await expect(timeline.locator('[data-timeline-annotation-layer]')).toHaveCount(0);
+		await expect(rulerRow).toHaveCSS('height', '34px');
+	});
+
 	test('authors with pointer and keyboard, announces state, survives forced colors, and reopens', async ({ page, browserName }) => {
 		test.skip(browserName === 'webkit', 'Milestone 3 qualifies this surface in Chromium and Firefox.');
 		test.setTimeout(60_000);
@@ -40,6 +61,15 @@ test.describe('native timeline annotations', () => {
 		await expect(panel).toBeVisible();
 		await expect(panel).toContainText('Shift+M: marker, or region when time is selected');
 		await expect(panel.getByText('The primary sequence has no markers or regions yet.', { exact: true })).toBeVisible();
+		// The ruler lane stays absent until Show markers is enabled, from either
+		// the Add Track flyout or the View menu.
+		const laneActions = editor.locator('[data-timeline-annotation-create-actions]');
+		await expect(laneActions).toHaveCount(0);
+		await editor.getByRole('button', { name: 'Add track', exact: true }).click();
+		const markerToggle = editor.locator('[data-show-markers-toggle]');
+		await expect(markerToggle).not.toBeChecked();
+		await markerToggle.check();
+		await expect(laneActions).toBeVisible();
 
 		await importFiles(editor, [toneA]);
 		await panel.getByRole('button', { name: 'Add marker at playhead', exact: true }).click();
@@ -122,17 +152,10 @@ test.describe('native timeline annotations', () => {
 		await marker.click({ modifiers: ['Shift'] });
 		await expect(marker).toHaveAttribute('aria-selected', 'true');
 		await expect(region).toHaveAttribute('aria-selected', 'true');
-		// The ruler-corner actions stay hidden until Show markers is enabled, from
-		// either the Add Track flyout or the View menu.
-		const laneActions = editor.locator('[data-timeline-annotation-create-actions]');
-		await expect(laneActions).toHaveCount(0);
-		await editor.getByRole('button', { name: 'Add track', exact: true }).click();
-		const markerToggle = editor.locator('[data-show-markers-toggle]');
-		await expect(markerToggle).not.toBeChecked();
-		await markerToggle.check();
-		await expect(laneActions).toBeVisible();
+		// The View command removes and restores both the controls and their lane.
 		await chooseCommandAction(page, editor, 'View', 'Show markers');
 		await expect(laneActions).toHaveCount(0);
+		await expect(editor.locator('[data-timeline-annotation-layer]')).toHaveCount(0);
 		await chooseCommandAction(page, editor, 'View', 'Show markers');
 		await expect(laneActions).toBeVisible();
 
@@ -175,12 +198,12 @@ test.describe('native timeline annotations', () => {
 		await chooseNestedCommandAction(page, origin, 'View', ['Panels', 'Markers']);
 		const originPanel = origin.getByRole('region', { name: 'Markers and named regions', exact: true });
 		await originPanel.getByRole('button', { name: 'Add marker at playhead', exact: true }).click();
-		const originMarker = origin.getByRole('listbox', { name: 'Markers and named regions', exact: true })
-			.getByRole('option');
+		const originMarker = originPanel.locator('[data-timeline-annotation]');
 		await expect(originMarker).toHaveCount(1);
 		await originMarker.focus();
 		await originMarker.press('Enter');
-		const rename = origin.locator('.audio-editor-timeline-annotation__rename--overlay');
+		const rename = originPanel.getByRole('group', { name: 'Edit annotation', exact: true })
+			.getByRole('textbox', { name: 'Name', exact: true });
 		await rename.fill('Cross-product cue');
 		await rename.press('Enter');
 		await expect(origin.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 15_000 });
@@ -215,9 +238,10 @@ test.describe('native timeline annotations', () => {
 			await expect(home).toHaveAttribute('data-project-id', projectId, { timeout: 20_000 });
 			await expect(home).not.toHaveAttribute('data-edit-block-reason', /.+/u);
 			await expect(home.locator('[data-project-feature-compatibility]')).toHaveCount(0);
-			const returnedLayer = home.getByRole('listbox', { name: 'Markers and named regions', exact: true });
-			await expect(returnedLayer.getByRole('option')).toHaveCount(1);
-			await expect(returnedLayer.getByRole('option', { name: /Cross-product cue, Marker/u })).toBeVisible();
+			await chooseNestedCommandAction(homePage, home, 'View', ['Panels', 'Markers']);
+			const returnedPanel = home.getByRole('region', { name: 'Markers and named regions', exact: true });
+			await expect(returnedPanel.locator('[data-timeline-annotation]')).toHaveCount(1);
+			await expect(returnedPanel.getByRole('button', { name: /Cross-product cue, Marker/u })).toBeVisible();
 			expect(frameErrors).toEqual([]);
 			expect(homeErrors).toEqual([]);
 		} finally {
@@ -237,7 +261,7 @@ test.describe('native timeline annotations', () => {
 		await page.setContent(`
 			<style>${timelineCss}\n${annotationCss}</style>
 			<div id="kw-audio-editor-design-system">
-				<section class="audio-editor-timeline-panel" data-has-annotations="true" style="width:660px">
+				<section class="audio-editor-timeline-panel" data-has-annotations="true" data-show-markers="true" style="width:660px">
 					<div class="audio-editor-ruler-row" style="width:660px">
 						<div class="audio-editor-ruler-corner" style="width:160px">
 							<span>Tracks</span><button class="button">Add track</button>

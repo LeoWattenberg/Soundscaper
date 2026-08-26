@@ -54,7 +54,7 @@ test('timeline renders one conformed rate-stretch guide with the shared transien
 	assert.match(workspace, /<TimelineRateStretchPreviewGuide[\s\S]*?sample=\{clipDragPreview\?\.rateStretchGuideSample\}/u);
 	assert.match(workspace, /edge=\{clipDragPreview\?\.rateStretchGuideEdge\}/u);
 	assert.match(css, /audio-editor-trim-preview-guide\s*\{[^}]*position: absolute;[^}]*pointer-events: none;/u);
-	assert.match(annotationsCss, /data-has-annotations='true'[^}]*audio-editor-trim-preview-guide[^}]*\{\s*top: 67px;/u);
+	assert.match(annotationsCss, /data-show-markers='true'[^}]*audio-editor-trim-preview-guide[^}]*\{\s*top: 67px;/u);
 });
 
 test('participant rows expose rate-stretch state and audio renders its changed geometry', async () => {

@@ -1,49 +1,49 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-#kw-audio-editor-design-system .audio-editor-timeline-panel[data-has-annotations='true'] {
+#kw-audio-editor-design-system .audio-editor-timeline-panel[data-show-markers='true'] {
 	flex-direction: column;
 }
 
-#kw-audio-editor-design-system .audio-editor-timeline-panel[data-has-annotations='true'] .audio-editor-timeline-scroll {
+#kw-audio-editor-design-system .audio-editor-timeline-panel[data-show-markers='true'] .audio-editor-timeline-scroll {
 	height: auto;
 	min-height: 0;
 	flex: 1 1 0;
 }
 
-#kw-audio-editor-design-system .audio-editor-timeline-panel[data-has-annotations='true'] .audio-editor-ruler-row,
-#kw-audio-editor-design-system .audio-editor-timeline-panel[data-has-annotations='true'] .audio-editor-ruler-corner,
-#kw-audio-editor-design-system .audio-editor-timeline-panel[data-has-annotations='true'] .audio-editor-ruler-scale-corner {
+#kw-audio-editor-design-system .audio-editor-timeline-panel[data-show-markers='true'] .audio-editor-ruler-row,
+#kw-audio-editor-design-system .audio-editor-timeline-panel[data-show-markers='true'] .audio-editor-ruler-corner,
+#kw-audio-editor-design-system .audio-editor-timeline-panel[data-show-markers='true'] .audio-editor-ruler-scale-corner {
 	height: 67px;
 }
 
-#kw-audio-editor-design-system .audio-editor-timeline-panel[data-has-annotations='true'] .audio-editor-ruler-corner {
+#kw-audio-editor-design-system .audio-editor-timeline-panel[data-show-markers='true'] .audio-editor-ruler-corner {
 	box-sizing: border-box;
 	align-items: flex-start;
 	padding-top: 3px;
 }
 
-#kw-audio-editor-design-system .audio-editor-timeline-panel[data-has-annotations='true'] .audio-editor-ruler-viewport {
+#kw-audio-editor-design-system .audio-editor-timeline-panel[data-show-markers='true'] .audio-editor-ruler-viewport {
 	height: 66px;
 }
 
-#kw-audio-editor-design-system .audio-editor-timeline-panel[data-has-annotations='true'] .audio-editor-track-list {
+#kw-audio-editor-design-system .audio-editor-timeline-panel[data-show-markers='true'] .audio-editor-track-list {
 	min-height: calc(100% - 67px);
 }
 
-#kw-audio-editor-design-system .audio-editor-timeline-panel[data-has-annotations='true'] .audio-editor-sample-tools {
+#kw-audio-editor-design-system .audio-editor-timeline-panel[data-show-markers='true'] .audio-editor-sample-tools {
 	top: 72px;
 }
 
 /* Overlays anchored below the ruler row follow the taller annotation ruler. */
-#kw-audio-editor-design-system .audio-editor-timeline-panel[data-has-annotations='true'] .audio-editor-time-selection-overlay {
+#kw-audio-editor-design-system .audio-editor-timeline-panel[data-show-markers='true'] .audio-editor-time-selection-overlay {
 	top: 67px;
 }
 
-#kw-audio-editor-design-system .audio-editor-timeline-panel[data-has-annotations='true'] .audio-editor-trim-preview-guide {
+#kw-audio-editor-design-system .audio-editor-timeline-panel[data-show-markers='true'] .audio-editor-trim-preview-guide {
 	top: 67px;
 }
 
-#kw-audio-editor-design-system .audio-editor-timeline-panel[data-has-annotations='true'] .audio-editor-playhead-boundary {
+#kw-audio-editor-design-system .audio-editor-timeline-panel[data-show-markers='true'] .audio-editor-playhead-boundary {
 	top: 67px;
 	height: calc(100% - 67px);
 }

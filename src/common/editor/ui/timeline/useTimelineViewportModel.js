@@ -78,7 +78,8 @@ export function useTimelineViewportModel({
 		project,
 	});
 	const showMarkers = Boolean(snapshot.preferences?.view?.showMarkers);
-	const rulerRowHeight = showTimelineAnnotations
+	const markerLaneVisible = showTimelineAnnotations && showMarkers;
+	const rulerRowHeight = markerLaneVisible
 		? TIMELINE_RULER_ROW_HEIGHT_WITH_ANNOTATIONS
 		: TIMELINE_RULER_ROW_HEIGHT;
 	const autoFitTrackHeightEnabled = snapshot.timeline?.autoFitTrackHeight !== false;
@@ -202,5 +203,6 @@ export function useTimelineViewportModel({
 		totalTrackHeight,
 		showTimelineAnnotations,
 		showMarkers,
+		markerLaneVisible,
 	};
 }
