@@ -5,6 +5,7 @@
 
 const listeners = new Set();
 const hammingWindows = new Map();
+const fftScratchBuffers = new Map();
 const rowSpanCache = new Map();
 const colorCache = new Map();
 const MAXIMUM_ROW_SPAN_CACHE_ENTRIES = 32;
@@ -12,6 +13,7 @@ const MAXIMUM_COLOR_CACHE_ENTRIES = 512;
 let revision = 0;
 let preparation = null;
 let runtime = null;
+let scratchAllocations = 0;
 
 export function subscribePffftSpectrogram(listener) {
 	listeners.add(listener);
@@ -20,6 +22,10 @@ export function subscribePffftSpectrogram(listener) {
 
 export function pffftSpectrogramRevision() {
 	return revision;
+}
+
+export function pffftSpectrogramCacheSnapshot() {
+	return Object.freeze({ scratchAllocations, scratchBufferSets: fftScratchBuffers.size });
 }
 
 export function preparePffftSpectrogram(fftWindowSize) {
@@ -45,8 +51,7 @@ export function pffftSpectrogramBandEnergies(waveformData, width, options = {}) 
 	const pixelSkip = Math.max(1, Math.floor(Number(options.pixelSkip) || 1));
 	const samplesPerPixel = waveformData.length / Math.max(1, width);
 	const window = hammingWindow(fftWindowSize);
-	const real = new Float32Array(fftWindowSize);
-	const imaginary = new Float32Array(fftWindowSize);
+	const { real, imaginary } = fftScratch(fftWindowSize);
 	const columns = [];
 	for (let pixel = 0; pixel < width; pixel += pixelSkip) {
 		const sampleIndex = Math.floor(pixel * samplesPerPixel);
@@ -96,6 +101,18 @@ export function paintSpectrogram(context, columns, x, y, width, height, options 
 			context.fillRect(x + columnX, y + span.start, columnWidth, span.height);
 		}
 	}
+}
+
+function fftScratch(size) {
+	const cached = fftScratchBuffers.get(size);
+	if (cached) return cached;
+	const buffers = Object.freeze({
+		real: new Float32Array(size),
+		imaginary: new Float32Array(size),
+	});
+	fftScratchBuffers.set(size, buffers);
+	scratchAllocations += 1;
+	return buffers;
 }
 
 function hammingWindow(size) {

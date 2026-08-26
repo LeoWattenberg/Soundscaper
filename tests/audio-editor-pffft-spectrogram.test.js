@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import {
 	paintSpectrogram,
 	pffftSpectrogramBandEnergies,
+	pffftSpectrogramCacheSnapshot,
 	pffftSpectrogramRevision,
 	preparePffftSpectrogram,
 } from '../src/common/editor/pffft-spectrogram.js';
@@ -38,6 +39,20 @@ test('PFFFT spectrogram scratch buffers do not leak energy between edge columns 
 
 	assert.deepEqual(second, first);
 	assert.ok(first.at(-1).every((energy) => Number.isFinite(energy)));
+});
+
+test('PFFFT spectrogram reuses one FFT scratch-buffer pair per window size', async () => {
+	await preparePffftSpectrogram(128);
+	const samples = Float32Array.from({ length: 256 }, (_, index) => Math.sin(2 * Math.PI * index / 16));
+	const options = { fftWindowSize: 128, frequencyBands: 16, pixelSkip: 2 };
+	const before = pffftSpectrogramCacheSnapshot();
+	pffftSpectrogramBandEnergies(samples, 32, options);
+	const afterFirst = pffftSpectrogramCacheSnapshot();
+	pffftSpectrogramBandEnergies(samples, 32, options);
+	const afterSecond = pffftSpectrogramCacheSnapshot();
+
+	assert.equal(afterFirst.scratchAllocations, before.scratchAllocations + 1);
+	assert.equal(afterSecond.scratchAllocations, afterFirst.scratchAllocations);
 });
 
 test('spectrogram painting groups contiguous rows by band without changing their colors', () => {
