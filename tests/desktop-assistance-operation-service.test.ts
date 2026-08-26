@@ -13,6 +13,7 @@ import {
 	type AssistanceOperationServiceOptions,
 } from '../desktop/assistance-operation-service.ts';
 import type { SpeakerDiarizationRuntimeAdapter } from '../desktop/assistance-diarization-runtime.ts';
+import type { AssistanceShotRuntimeAdapter } from '../desktop/assistance-shot-runtime.ts';
 import { AssistanceStagingRegistry } from '../desktop/assistance-staging-registry.ts';
 import type { SpeechRuntimeAdapter } from '../desktop/assistance-speech-runtime.ts';
 import type { VoiceActivityRuntimeAdapter } from '../desktop/assistance-vad-runtime.ts';
@@ -31,6 +32,7 @@ async function fixture(t: TestContext, overrides: Readonly<{
 	runtime?: SpeechRuntimeAdapter;
 	voiceActivityRuntime?: VoiceActivityRuntimeAdapter;
 	diarizationRuntime?: SpeakerDiarizationRuntimeAdapter;
+	shotDetectionRuntime?: AssistanceShotRuntimeAdapter;
 	availability?: 'installed' | 'installable' | 'unsupported-platform' | 'insufficient-memory';
 	models?: AssistanceOperationServiceOptions['models'];
 }> = {}) {
@@ -63,6 +65,7 @@ async function fixture(t: TestContext, overrides: Readonly<{
 	const service = createAssistanceOperationService({ registry, models, runtime,
 		...(overrides.voiceActivityRuntime ? { voiceActivityRuntime: overrides.voiceActivityRuntime } : {}),
 		...(overrides.diarizationRuntime ? { diarizationRuntime: overrides.diarizationRuntime } : {}),
+		...(overrides.shotDetectionRuntime ? { shotDetectionRuntime: overrides.shotDetectionRuntime } : {}),
 		onProgress: (value) => progress.push(value) });
 	return { service, registry, runtime, stagingRoot, modelPaths, progress };
 }
@@ -102,6 +105,24 @@ async function speakerDiarizationRequest(
 	return Object.freeze({
 		contractVersion: 1 as const, jobId, operation: 'speaker-diarization' as const,
 		selectionFence: FENCE, models: Object.freeze(bindings),
+		inputs: Object.freeze([input]), outputs: Object.freeze([output]),
+	});
+}
+
+async function shotDetectionRequest(
+	service: ReturnType<typeof createAssistanceOperationService>,
+) {
+	const { jobId } = await service.createJob();
+	const input = await service.stageInput({
+		jobId, role: 'video', mediaType: 'video/mp4', byteLength: 16, bytes: bytes('exact-video-body'),
+	});
+	const output = await service.reserveOutput({
+		jobId, role: 'shot-boundaries',
+		mediaType: 'application/vnd.soundscaper.shot-boundaries+json', maximumByteLength: 8_192,
+	});
+	return Object.freeze({
+		contractVersion: 1 as const, jobId, operation: 'shot-detection' as const,
+		selectionFence: FENCE, models: Object.freeze([]),
 		inputs: Object.freeze([input]), outputs: Object.freeze([output]),
 	});
 }
@@ -262,6 +283,52 @@ test('speaker diarization executes exact Pyannote and ERes2Net bindings through 
 		['queued', 'staging-input', 'loading-model', 'running', 'staging-output', 'finalizing']);
 	const opened = await service.openOutput({ jobId: request.jobId, claim: outcome.result.outputs[0] });
 	assert.equal(await readFile(opened.path, 'utf8'), JSON.stringify(diarized));
+});
+
+test('model-free shot detection executes one authenticated staged video through its runtime', async (t) => {
+	const detected = Object.freeze({
+		schemaVersion: 1 as const, detector: 'ffmpeg-scdet' as const, timescale: 90_000,
+		sourceFrameCount: 240,
+		boundaries: Object.freeze([Object.freeze({
+			sourceFrame: 24, presentationTick: '90090', score: 0.425,
+		})]),
+	});
+	const requests: Array<Parameters<AssistanceShotRuntimeAdapter['detect']>[0]> = [];
+	const shotDetectionRuntime: AssistanceShotRuntimeAdapter = Object.freeze({
+		status: async () => ({ available: true, reason: null, moduleId: 'external-ffmpeg-scdet' }),
+		detect: async (request) => { requests.push(request); return detected; },
+	});
+	const { service, progress } = await fixture(t, { shotDetectionRuntime });
+	const request = await shotDetectionRequest(service);
+
+	const outcome = await service.run(request);
+
+	assert.equal(outcome.outcome, 'completed');
+	if (outcome.outcome !== 'completed') return;
+	assert.equal(requests.length, 1);
+	assert.match(requests[0]?.videoPath ?? '', /private-staging/u);
+	assert.deepEqual((progress as Array<{ phase: string }>).map(({ phase }) => phase),
+		['queued', 'staging-input', 'loading-model', 'running', 'staging-output', 'finalizing']);
+	const opened = await service.openOutput({ jobId: request.jobId, claim: outcome.result.outputs[0] });
+	assert.equal(await readFile(opened.path, 'utf8'), JSON.stringify(detected));
+});
+
+test('shot detection distinguishes a missing adapter from an unavailable runtime', async (t) => {
+	const missing = await fixture(t);
+	const missingRequest = await shotDetectionRequest(missing.service);
+	assert.deepEqual(await missing.service.run(missingRequest), {
+		contractVersion: 1, jobId: missingRequest.jobId, operation: 'shot-detection',
+		outcome: 'unavailable', reason: 'adapter-unavailable',
+	});
+	const unavailable = await fixture(t, { shotDetectionRuntime: Object.freeze({
+		status: async () => ({ available: false, reason: 'not configured', moduleId: 'external-ffmpeg-scdet' }),
+		detect: async () => { throw new Error('must not run'); },
+	}) });
+	const unavailableRequest = await shotDetectionRequest(unavailable.service);
+	assert.deepEqual(await unavailable.service.run(unavailableRequest), {
+		contractVersion: 1, jobId: unavailableRequest.jobId, operation: 'shot-detection',
+		outcome: 'unavailable', reason: 'runtime-unavailable',
+	});
 });
 
 test('model choices expose exact authenticated bindings without filesystem paths', async (t) => {
