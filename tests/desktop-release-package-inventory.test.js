@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import test from 'node:test';
 
+import { extractJob, npmScriptsRunBy } from './helpers/workflow-jobs.js';
 import {
 	desktopReleaseTargetPackageInventory,
 	desktopTranslationSourceName,
@@ -128,4 +129,16 @@ test('desktop preview workflow retains only the no-FFmpeg stage manifest', async
 		'linux-arm64', 'linux-x64', 'mac-arm64', 'win-arm64', 'win-x64',
 	]);
 	assert.doesNotMatch(workflow, /platform:\s*mac,\s*arch:\s*x64/u);
+});
+
+// The assembler validates the whole five-target, two-product release matrix and
+// fetches the corresponding sources the AGPL obligation depends on. No workflow
+// invoked it, so the first run would have been a release.
+test('the desktop nightly assembles the release inventory rather than leaving it to a tag', async () => {
+	const workflow = await readFile(resolve(import.meta.dirname, '../.github/workflows/desktop-preview.yml'), 'utf8');
+	const job = extractJob(workflow, 'release-inventory');
+	assert.ok(npmScriptsRunBy(job).has('desktop:release-assets'));
+	assert.match(job, /pattern: nightly-\*/u, 'the job must collect every packaged target');
+	assert.match(job, /merge-multiple: true/u, 'the targets must land in one release directory');
+	assert.match(job, /needs: package/u, 'the assembler needs the packages');
 });
