@@ -1,0 +1,239 @@
+{
+	"schemaVersion": 1,
+	"registerId": "assistance-runtime-family-supply-candidates-v1",
+	"productionPayloadsChanged": false,
+	"manifests": {
+		"onnxruntime-node": {
+			"schemaVersion": 1,
+			"familyId": "onnxruntime-node",
+			"runtimeVersion": "1.29.0",
+			"source": {
+				"url": "https://registry.npmjs.org/onnxruntime-node/-/onnxruntime-node-1.29.0.tgz",
+				"revision": "1.29.0"
+			},
+			"executionProvider": "cpu",
+			"runtimePrefix": "assistance/onnxruntime-node/1.29.0",
+			"targets": [
+				{
+					"id": "mac-arm64",
+					"status": "pending-external",
+					"blockedBy": "No exact onnxruntime-node 1.29.0 macOS ARM64 CPU file inventory and SHA-256 closure has been independently read back and admitted."
+				},
+				{
+					"id": "linux-x64",
+					"status": "pending-external",
+					"blockedBy": "No exact onnxruntime-node 1.29.0 Linux x64 CPU file inventory and SHA-256 closure has been independently read back and admitted."
+				},
+				{
+					"id": "linux-arm64",
+					"status": "pending-external",
+					"blockedBy": "No exact onnxruntime-node 1.29.0 Linux ARM64 CPU file inventory and SHA-256 closure has been independently read back and admitted."
+				},
+				{
+					"id": "win-x64",
+					"status": "pending-external",
+					"blockedBy": "No exact onnxruntime-node 1.29.0 Windows x64 CPU file inventory and SHA-256 closure has been independently read back and admitted."
+				},
+				{
+					"id": "win-arm64",
+					"status": "pending-external",
+					"blockedBy": "No exact onnxruntime-node 1.29.0 Windows ARM64 CPU file inventory and SHA-256 closure has been independently read back and admitted."
+				}
+			]
+		},
+		"whisper-cpp": {
+			"schemaVersion": 1,
+			"familyId": "whisper-cpp",
+			"runtimeVersion": "v1.9.3",
+			"source": {
+				"url": "https://github.com/ggml-org/whisper.cpp/releases/tag/v1.9.3",
+				"revision": "v1.9.3"
+			},
+			"executionProvider": "cpu",
+			"runtimePrefix": "assistance/whisper-cpp/v1.9.3",
+			"targets": [
+				{
+					"id": "mac-arm64",
+					"status": "pending-external",
+					"blockedBy": "No locked CPU toolchain and exact whisper.cpp v1.9.3 macOS ARM64 executable closure has been independently produced and admitted."
+				},
+				{
+					"id": "linux-x64",
+					"status": "pending-external",
+					"blockedBy": "No locked CPU toolchain and exact whisper.cpp v1.9.3 Linux x64 executable closure has been independently produced and admitted."
+				},
+				{
+					"id": "linux-arm64",
+					"status": "pending-external",
+					"blockedBy": "No locked CPU toolchain and exact whisper.cpp v1.9.3 Linux ARM64 executable closure has been independently produced and admitted."
+				},
+				{
+					"id": "win-x64",
+					"status": "pending-external",
+					"blockedBy": "No locked CPU toolchain and exact whisper.cpp v1.9.3 Windows x64 executable closure has been independently produced and admitted."
+				},
+				{
+					"id": "win-arm64",
+					"status": "pending-external",
+					"blockedBy": "No locked CPU toolchain and exact whisper.cpp v1.9.3 Windows ARM64 executable closure has been independently produced and admitted."
+				}
+			]
+		},
+		"llama-cpp": {
+			"schemaVersion": 1,
+			"familyId": "llama-cpp",
+			"runtimeVersion": "b10509",
+			"source": {
+				"url": "https://github.com/ggml-org/llama.cpp",
+				"revision": "b10509"
+			},
+			"executionProvider": "cpu",
+			"runtimePrefix": "assistance/llama-cpp/b10509",
+			"targets": [
+				{
+					"id": "mac-arm64",
+					"status": "pending-external",
+					"blockedBy": "No locked CPU toolchain and exact llama.cpp b10509 macOS ARM64 executable closure has been independently produced and admitted."
+				},
+				{
+					"id": "linux-x64",
+					"status": "pending-external",
+					"blockedBy": "No locked CPU toolchain and exact llama.cpp b10509 Linux x64 executable closure has been independently produced and admitted."
+				},
+				{
+					"id": "linux-arm64",
+					"status": "pending-external",
+					"blockedBy": "No locked CPU toolchain and exact llama.cpp b10509 Linux ARM64 executable closure has been independently produced and admitted."
+				},
+				{
+					"id": "win-x64",
+					"status": "pending-external",
+					"blockedBy": "No locked CPU toolchain and exact llama.cpp b10509 Windows x64 executable closure has been independently produced and admitted."
+				},
+				{
+					"id": "win-arm64",
+					"status": "pending-external",
+					"blockedBy": "No locked CPU toolchain and exact llama.cpp b10509 Windows ARM64 executable closure has been independently produced and admitted."
+				}
+			]
+		}
+	},
+	"provisionTasks": [
+		{
+			"schemaVersion": 1,
+			"id": "provision-onnxruntime-node-1-29-0-cpu-v1",
+			"familyId": "onnxruntime-node",
+			"source": {
+				"kind": "npm-tarball",
+				"url": "https://registry.npmjs.org/onnxruntime-node/-/onnxruntime-node-1.29.0.tgz",
+				"revision": "1.29.0",
+				"commit": "2e2543fbe9fae542f921d47a72d21d5a4ef0b710",
+				"integrity": "sha512-WjiVVB72riILz8HbYvxvmjKyE/WmkYoSfKY++axo5jAR609HQg8MwiG/HhShpTcJfmmAdzxxmB+MMST3A+SiPA=="
+			},
+			"targetIds": ["mac-arm64", "linux-x64", "linux-arm64", "win-x64", "win-arm64"],
+			"executionProvider": "cpu",
+			"recipeId": "onnxruntime-node-upstream-closure-v1",
+			"steps": [
+				"fetch-pinned-source",
+				"build-or-extract-cpu-target",
+				"inventory-regular-files",
+				"sha256-every-file",
+				"pack-immutable-runtime-prefix",
+				"public-readback",
+				"externally-sign-manifest"
+			],
+			"toolchain": {
+				"status": "lock-pending-external",
+				"lockFile": null,
+				"sha256": null
+			},
+			"payloadStatus": "pending-external",
+			"payloadManifestSha256": null,
+			"blockedBy": "The platform package closure, locked extraction or build toolchain, public readback, and externally signed runtime manifest are not recorded."
+		},
+		{
+			"schemaVersion": 1,
+			"id": "provision-whisper-cpp-v1-9-3-cpu-v1",
+			"familyId": "whisper-cpp",
+			"source": {
+				"kind": "git-revision",
+				"url": "https://github.com/ggml-org/whisper.cpp",
+				"revision": "v1.9.3",
+				"commit": "371b5a7561823ab2bb32142d2751e35e7534727b",
+				"integrity": null
+			},
+			"targetIds": ["mac-arm64", "linux-x64", "linux-arm64", "win-x64", "win-arm64"],
+			"executionProvider": "cpu",
+			"recipeId": "whisper-cpp-locked-cpu-build-v1",
+			"steps": [
+				"fetch-pinned-source",
+				"build-or-extract-cpu-target",
+				"inventory-regular-files",
+				"sha256-every-file",
+				"pack-immutable-runtime-prefix",
+				"public-readback",
+				"externally-sign-manifest"
+			],
+			"toolchain": {
+				"status": "lock-pending-external",
+				"lockFile": null,
+				"sha256": null
+			},
+			"payloadStatus": "pending-external",
+			"payloadManifestSha256": null,
+			"blockedBy": "The per-target CPU toolchain lock, executable closure, public readback, and externally signed runtime manifest are not recorded."
+		},
+		{
+			"schemaVersion": 1,
+			"id": "provision-llama-cpp-b10509-cpu-v1",
+			"familyId": "llama-cpp",
+			"source": {
+				"kind": "git-revision",
+				"url": "https://github.com/ggml-org/llama.cpp",
+				"revision": "b10509",
+				"commit": "fe8156f789011f6ea0baf6917ea09f88b89d9554",
+				"integrity": null
+			},
+			"targetIds": ["mac-arm64", "linux-x64", "linux-arm64", "win-x64", "win-arm64"],
+			"executionProvider": "cpu",
+			"recipeId": "llama-cpp-locked-cpu-build-v1",
+			"steps": [
+				"fetch-pinned-source",
+				"build-or-extract-cpu-target",
+				"inventory-regular-files",
+				"sha256-every-file",
+				"pack-immutable-runtime-prefix",
+				"public-readback",
+				"externally-sign-manifest"
+			],
+			"toolchain": {
+				"status": "lock-pending-external",
+				"lockFile": null,
+				"sha256": null
+			},
+			"payloadStatus": "pending-external",
+			"payloadManifestSha256": null,
+			"blockedBy": "The per-target CPU toolchain lock, executable closure, public readback, and externally signed runtime manifest are not recorded."
+		}
+	],
+	"sherpaWindowsArm64": {
+		"schemaVersion": 1,
+		"runtimeId": "sherpa-onnx-node",
+		"version": "1.13.5",
+		"targetId": "win-arm64",
+		"source": {
+			"url": "https://github.com/k2-fsa/sherpa-onnx",
+			"revision": "v1.13.5",
+			"commit": "3dc7c569f31ca2cd4a20ed6f7db780327e6714c5"
+		},
+		"upstreamNativeAsset": {
+			"url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.5/sherpa-onnx-v1.13.5-win-arm64-shared-MD-Release-no-tts-lib.tar.bz2",
+			"fileName": "sherpa-onnx-v1.13.5-win-arm64-shared-MD-Release-no-tts-lib.tar.bz2",
+			"byteLength": 6419409,
+			"sha256": "42112e75ca3baf647047929f704960587cf6ed22fbd046643d66d33d7c74c123"
+		},
+		"payloadStatus": "pending-external",
+		"payloadManifestSha256": null,
+		"blockedBy": "The official native Windows ARM64 libraries do not contain the sherpa-onnx-node Node-API addon or a complete authenticated Node package closure."
+	}
+}

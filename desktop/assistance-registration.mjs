@@ -5,8 +5,8 @@
  *
  * The composition root stays a list of registrations rather than the place
  * each subsystem's dependencies are gathered, so everything assistance needs —
- * its catalog, the licensing register it is validated against, and the speech
- * runtime adapter — is assembled here and main names the subsystem once.
+ * its catalog, runtime supply, licensing register, and speech adapter — is
+ * assembled here and main names the subsystem once.
  */
 
 import { freemem, totalmem } from 'node:os';
@@ -16,6 +16,7 @@ import { utilityProcess } from 'electron/main';
 
 import assistanceCatalog from '../config/local-model-catalog.json' with { type: 'json' };
 import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
+import assistanceRuntimeFamilySupply from '../config/assistance-runtime-family-supply-candidates.json' with { type: 'json' };
 import licensingMatrix from '../config/production-licensing-matrix.json' with { type: 'json' };
 import {
 	assistanceNativeRuntimeTargetId,
@@ -158,6 +159,7 @@ export function registerAssistance({
 	});
 	const runtimeFamilies = createAssistanceRuntimeFamilyDesktopStartup({
 		runtimeRoot,
+		manifests: assistanceRuntimeFamilySupply.manifests,
 		helperPath: join(
 			import.meta.dirname,
 			'project-library-runtime',

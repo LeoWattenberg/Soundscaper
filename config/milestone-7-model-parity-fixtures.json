@@ -1,0 +1,220 @@
+{
+	"schemaVersion": 1,
+	"registerId": "milestone-7-model-parity-fixtures-v1",
+	"fixtures": [
+		{
+			"id": "tiger-dnr-parity-v1",
+			"candidateId": "tiger-dnr-neural-core",
+			"generator": {
+				"id": "tiger-dnr-audio-v1",
+				"version": 1,
+				"parameters": {
+					"sampleRateHz": 44100,
+					"channels": 2,
+					"frameCount": 88200,
+					"pattern": "stereo-dialogue-effects-music-integer-v1"
+				}
+			},
+			"input": {
+				"fileName": "tiger-dnr-parity-v1.wav",
+				"mediaType": "audio/wav",
+				"byteLength": 705644,
+				"sha256": "aa4a0d814269fb6024f7985c1466f204ec915242b5340a7c99fdca8b866c92ad"
+			},
+			"frameworks": ["source-pytorch", "onnxruntime-cpu"],
+			"outputRoles": ["dialogue-waveform", "effects-waveform", "music-waveform"],
+			"comparisons": [
+				{
+					"baseline": "source-pytorch",
+					"candidate": "onnxruntime-cpu",
+					"outputRole": "dialogue-waveform",
+					"metric": "maximum-absolute-error",
+					"maximum": 0.0001
+				},
+				{
+					"baseline": "source-pytorch",
+					"candidate": "onnxruntime-cpu",
+					"outputRole": "effects-waveform",
+					"metric": "maximum-absolute-error",
+					"maximum": 0.0001
+				},
+				{
+					"baseline": "source-pytorch",
+					"candidate": "onnxruntime-cpu",
+					"outputRole": "music-waveform",
+					"metric": "maximum-absolute-error",
+					"maximum": 0.0001
+				}
+			],
+			"evidenceStatus": "pending-external",
+			"evidenceSha256": null,
+			"blockedBy": "No PyTorch-to-ONNX waveform parity run is retained for the converted graphs."
+		},
+		{
+			"id": "panns-cnn10-parity-v1",
+			"candidateId": "panns-cnn10",
+			"generator": {
+				"id": "panns-cnn10-audio-v1",
+				"version": 1,
+				"parameters": {
+					"sampleRateHz": 32000,
+					"channels": 1,
+					"frameCount": 64000,
+					"pattern": "speech-applause-cheering-integer-v1"
+				}
+			},
+			"input": {
+				"fileName": "panns-cnn10-parity-v1.wav",
+				"mediaType": "audio/wav",
+				"byteLength": 256044,
+				"sha256": "1cb40bf7dd77139b6d40733794f6005d0f3fcb6c69d1e0d8e257c0ba86440d48"
+			},
+			"frameworks": ["source-pytorch", "onnxruntime-cpu"],
+			"outputRoles": ["clipwise-probabilities", "embedding"],
+			"comparisons": [
+				{
+					"baseline": "source-pytorch",
+					"candidate": "onnxruntime-cpu",
+					"outputRole": "clipwise-probabilities",
+					"metric": "maximum-absolute-error",
+					"maximum": 0.00001
+				},
+				{
+					"baseline": "source-pytorch",
+					"candidate": "onnxruntime-cpu",
+					"outputRole": "embedding",
+					"metric": "maximum-absolute-error",
+					"maximum": 0.0001
+				}
+			],
+			"evidenceStatus": "pending-external",
+			"evidenceSha256": null,
+			"blockedBy": "No PyTorch-to-ONNX probability and embedding parity run is retained."
+		},
+		{
+			"id": "beat-this-parity-v1",
+			"candidateId": "beat-this",
+			"generator": {
+				"id": "beat-this-audio-v1",
+				"version": 1,
+				"parameters": {
+					"sampleRateHz": 22050,
+					"channels": 1,
+					"frameCount": 176400,
+					"pattern": "120bpm-downbeat-integer-v1"
+				}
+			},
+			"input": {
+				"fileName": "beat-this-parity-v1.wav",
+				"mediaType": "audio/wav",
+				"byteLength": 705644,
+				"sha256": "dac09d315142aab6d80d5ec653519a480414e06feff4412e6006252883dc567a"
+			},
+			"frameworks": ["source-pytorch", "onnxruntime-cpu"],
+			"outputRoles": ["beat-logits", "downbeat-logits", "beat-points", "downbeat-points"],
+			"comparisons": [
+				{
+					"baseline": "source-pytorch",
+					"candidate": "onnxruntime-cpu",
+					"outputRole": "beat-logits",
+					"metric": "maximum-absolute-error",
+					"maximum": 0.0001
+				},
+				{
+					"baseline": "source-pytorch",
+					"candidate": "onnxruntime-cpu",
+					"outputRole": "downbeat-logits",
+					"metric": "maximum-absolute-error",
+					"maximum": 0.0001
+				},
+				{
+					"baseline": "source-pytorch",
+					"candidate": "onnxruntime-cpu",
+					"outputRole": "beat-points",
+					"metric": "symmetric-index-difference",
+					"maximum": 0
+				},
+				{
+					"baseline": "source-pytorch",
+					"candidate": "onnxruntime-cpu",
+					"outputRole": "downbeat-points",
+					"metric": "symmetric-index-difference",
+					"maximum": 0
+				}
+			],
+			"evidenceStatus": "pending-external",
+			"evidenceSha256": null,
+			"blockedBy": "No PyTorch-to-ONNX logits and postprocessed point parity run is retained for small0 or final0."
+		},
+		{
+			"id": "transnetv2-parity-v1",
+			"candidateId": "transnetv2",
+			"generator": {
+				"id": "transnetv2-rgb-v1",
+				"version": 1,
+				"parameters": {
+					"width": 48,
+					"height": 27,
+					"frameCount": 120,
+					"timescale": 90000,
+					"pattern": "two-cuts-one-dissolve-vfr-integer-v1"
+				}
+			},
+			"input": {
+				"fileName": "transnetv2-parity-v1.rgb24",
+				"mediaType": "application/vnd.soundscaper.m7-parity-rgb24",
+				"byteLength": 467712,
+				"sha256": "22695a91ca7749fc034f0a043746dc869a1403ffddd4f0e60f407ee0b61d82d8"
+			},
+			"frameworks": ["source-tensorflow", "source-pytorch", "onnxruntime-cpu"],
+			"outputRoles": ["single-frame-logits", "all-frame-logits", "boundaries"],
+			"comparisons": [
+				{
+					"baseline": "source-tensorflow",
+					"candidate": "source-pytorch",
+					"outputRole": "single-frame-logits",
+					"metric": "maximum-absolute-error",
+					"maximum": 0.0001
+				},
+				{
+					"baseline": "source-tensorflow",
+					"candidate": "source-pytorch",
+					"outputRole": "all-frame-logits",
+					"metric": "maximum-absolute-error",
+					"maximum": 0.0001
+				},
+				{
+					"baseline": "source-tensorflow",
+					"candidate": "source-pytorch",
+					"outputRole": "boundaries",
+					"metric": "symmetric-index-difference",
+					"maximum": 0
+				},
+				{
+					"baseline": "source-pytorch",
+					"candidate": "onnxruntime-cpu",
+					"outputRole": "single-frame-logits",
+					"metric": "maximum-absolute-error",
+					"maximum": 0.0001
+				},
+				{
+					"baseline": "source-pytorch",
+					"candidate": "onnxruntime-cpu",
+					"outputRole": "all-frame-logits",
+					"metric": "maximum-absolute-error",
+					"maximum": 0.0001
+				},
+				{
+					"baseline": "source-pytorch",
+					"candidate": "onnxruntime-cpu",
+					"outputRole": "boundaries",
+					"metric": "symmetric-index-difference",
+					"maximum": 0
+				}
+			],
+			"evidenceStatus": "pending-external",
+			"evidenceSha256": null,
+			"blockedBy": "No retained TensorFlow-to-PyTorch-to-ONNX logits and boundary parity run exists."
+		}
+	]
+}

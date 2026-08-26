@@ -14,7 +14,7 @@ const TARGET_IDS = Object.freeze([
 	'linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64',
 ]);
 const SHA256 = /^[a-f\d]{64}$/u;
-const PACKAGE_NAME = /^sherpa-onnx-(?:node|linux-(?:x64|arm64)|darwin-arm64|win-x64)$/u;
+const PACKAGE_NAME = /^sherpa-onnx-(?:node|linux-(?:x64|arm64)|darwin-arm64|win-(?:x64|arm64))$/u;
 const SAFE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,159}$/u;
 const MAXIMUM_FILE_BYTES = 512 * 1024 * 1024;
 
@@ -30,11 +30,11 @@ export function assistanceNativeRuntimeTargetId({ platform, arch }) {
 export function assistanceNativeRuntimeStageSummary(manifestValue, targetId) {
 	const { manifest, target } = validateManifestAndTarget(manifestValue, targetId);
 	const manifestSha256 = digest(Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, 'utf8'));
-	if (target.status === 'unsupported') {
+	if (target.status !== 'built') {
 		return deepFreeze({
 			schemaVersion: 1,
 			target: targetId,
-			status: 'unsupported',
+			status: target.status,
 			runtimeId: manifest.runtimeId,
 			version: manifest.version,
 			manifestSha256,
@@ -84,7 +84,7 @@ export async function stageAssistanceNativeRuntimePayload({
 	const destinationRoot = absoluteRoot(outputRoot, 'output root');
 	const payloadRoot = containedPath(destinationRoot, manifest.runtimePrefix, 'runtime prefix');
 	await rm(payloadRoot, { recursive: true, force: true });
-	if (target.status === 'unsupported') return assistanceNativeRuntimeStageSummary(manifest, targetId);
+	if (target.status !== 'built') return assistanceNativeRuntimeStageSummary(manifest, targetId);
 	const packages = [manifest.commonPackage, target.package];
 	for (const descriptor of packages) {
 		await verifyPackageDirectory(containedPath(sourceRoot, descriptor.name, 'source package'), descriptor);
@@ -109,13 +109,13 @@ export async function verifyAssistanceNativeRuntimePayload({
 	const { manifest, target } = validateManifestAndTarget(manifestValue, targetId);
 	const root = absoluteRoot(outputRoot, 'output root');
 	const payloadRoot = containedPath(root, manifest.runtimePrefix, 'runtime prefix');
-	if (target.status === 'unsupported') {
+	if (target.status !== 'built') {
 		const existing = await lstat(payloadRoot).catch((error) => {
 			if (error.code === 'ENOENT') return null;
 			throw error;
 		});
 		if (existing !== null) {
-			throw new Error(`The unsupported assistance target ${targetId} must not carry a native payload.`);
+			throw new Error(`The ${target.status} assistance target ${targetId} must not carry a native payload.`);
 		}
 		return deepFreeze({
 			...assistanceNativeRuntimeStageSummary(manifest, targetId),
@@ -162,13 +162,13 @@ function validateManifestAndTarget(value, targetId) {
 	validatePackage(value.commonPackage, value.version, true);
 	if (!TARGET_IDS.includes(targetId)) throw new TypeError('The assistance native runtime target is invalid.');
 	for (const [id, candidate] of Object.entries(value.targets)) {
-		if (!plainRecord(candidate) || (candidate.status !== 'built' && candidate.status !== 'unsupported')) {
+		if (!plainRecord(candidate) || !['built', 'unsupported', 'pending-external'].includes(candidate.status)) {
 			throw new TypeError(`The assistance native runtime target ${id} is invalid.`);
 		}
 		if (candidate.status === 'built') validatePackage(candidate.package, value.version, false);
 		else if (typeof candidate.blockedBy !== 'string' || candidate.blockedBy.trim().length < 16
 			|| Object.hasOwn(candidate, 'package')) {
-			throw new TypeError(`The unsupported assistance target ${id} is invalid.`);
+			throw new TypeError(`The unavailable assistance target ${id} is invalid.`);
 		}
 	}
 	return { manifest: value, target: value.targets[targetId] };

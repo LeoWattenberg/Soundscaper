@@ -24,14 +24,17 @@ test('desktop composition gives local assistance the authenticated external FFmp
 		/registerAssistance\(\{[\s\S]*?externalFfmpegPreferences: externalFfmpegPreferences\.service[\s\S]*?\}\)/u);
 });
 
-test('desktop assistance composes lazy authenticated runtime families without inventing payload manifests', async () => {
+test('desktop assistance composes lazy runtime families from the truthful shipped supply register', async () => {
 	const registration = await readFile(
 		new URL('../desktop/assistance-registration.mjs', import.meta.url), 'utf8');
 	assert.match(registration,
 		/import \{ createAssistanceRuntimeFamilyDesktopStartup \} from '\.\/project-library-runtime\/desktop\/assistance-runtime-family-startup\.js';/u);
 	assert.match(registration,
 		/createAssistanceRuntimeFamilyDesktopStartup\(\{[\s\S]*?helperPath:[\s\S]*?assistance-runtime-family-helper-process\.js[\s\S]*?fork:[\s\S]*?totalMemoryBytes:[\s\S]*?availableMemoryBytes:/u);
-	assert.doesNotMatch(registration, /runtimeFamilyManifests|runtime-family-manifest\.json/iu);
+	assert.match(registration,
+		/import assistanceRuntimeFamilySupply from '\.\.\/config\/assistance-runtime-family-supply-candidates\.json' with \{ type: 'json' \};/u);
+	assert.match(registration,
+		/createAssistanceRuntimeFamilyDesktopStartup\(\{[\s\S]*?manifests: assistanceRuntimeFamilySupply\.manifests,/u);
 	assert.match(registration,
 		/createAssistanceOperationService\(\{[\s\S]*?additionalRuntime: runtimeFamilies\.operations,[\s\S]*?onProgress,/u);
 	assert.match(registration, /runtimeFamilies\.dispose\(\)/u);

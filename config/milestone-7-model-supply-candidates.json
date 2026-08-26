@@ -1,0 +1,464 @@
+{
+	"schemaVersion": 1,
+	"registerId": "milestone-7-model-supply-candidates-v1",
+	"productionCatalogChanged": false,
+	"candidates": [
+		{
+			"id": "tiger-dnr-neural-core",
+			"sourceStatus": "source-pinned",
+			"source": {
+				"framework": "pytorch",
+				"code": {
+					"url": "https://github.com/JusperLee/TIGER",
+					"revision": "9f18d4a10a7137e1ce8052cfb62215179f1287b6"
+				},
+				"artifacts": [
+					{
+						"role": "dnr-weights",
+						"required": true,
+						"fileName": "model.safetensors",
+						"url": "https://huggingface.co/JusperLee/TIGER-DnR/resolve/b7a59560bbca10febbcd46fb01600f868e587f57/model.safetensors",
+						"revision": "b7a59560bbca10febbcd46fb01600f868e587f57",
+						"byteLength": 17130568,
+						"integrity": {
+							"algorithm": "sha256",
+							"value": "dd1c696e72f6adea0085ef1af640882a8260519ad666422835e387a5b4abdd2a"
+						}
+					}
+				]
+			},
+			"conversion": {
+				"status": "converted-artifact-pending",
+				"blockedBy": "No locked conversion environment, converted ONNX digests, or source-framework parity evidence has been recorded.",
+				"recipe": {
+					"id": "tiger-dnr-neural-core-onnx-v1",
+					"version": 1,
+					"sourceFrameworks": ["pytorch"],
+					"toolchain": {
+						"status": "lock-pending-external",
+						"lockFile": null,
+						"sha256": null,
+						"blockedBy": "The reviewed Python and exporter environment has not been locked and hashed."
+					},
+					"input": {
+						"sampleRateHz": 44100,
+						"channels": "preserve",
+						"sampleEncoding": "float32"
+					},
+					"graph": {
+						"inputs": [
+							{
+								"name": "spectrum_ri",
+								"dataType": "float32",
+								"dimensions": ["batch-channel", 2, 1025, "frames"]
+							}
+						],
+						"outputs": [
+							{
+								"name": "complex_masks",
+								"dataType": "float32",
+								"dimensions": ["batch-channel", 3, 2, 1025, "frames"]
+							}
+						]
+					},
+					"onnx": {
+						"opset": 17,
+						"executionProvider": "cpu",
+						"externalData": false,
+						"customOperators": false,
+						"deterministicAlgorithms": true
+					},
+					"conversionStages": [
+						"verify-source-closure",
+						"load-source-checkpoint",
+						"extract-neural-core",
+						"export-onnx",
+						"validate-cpu-graph",
+						"run-source-parity"
+					],
+					"ownedRuntimeStages": ["stft", "istft", "overlap-add"],
+					"parityFixtureId": "tiger-dnr-parity-v1"
+				},
+				"outputs": [
+					{
+						"role": "network",
+						"required": true,
+						"fileName": "tiger-dnr.onnx",
+						"byteLength": null,
+						"sha256": null
+					}
+				]
+			}
+		},
+		{
+			"id": "panns-cnn10",
+			"sourceStatus": "source-pinned",
+			"source": {
+				"framework": "pytorch",
+				"code": {
+					"url": "https://github.com/qiuqiangkong/audioset_tagging_cnn",
+					"revision": "d2f4b8c18eab44737fcc0de1248ae21eb43f6aa4"
+				},
+				"artifacts": [
+					{
+						"role": "cnn10-checkpoint",
+						"required": true,
+						"fileName": "Cnn10_mAP=0.380.pth",
+						"url": "https://zenodo.org/api/records/3987831/files/Cnn10_mAP=0.380.pth/content",
+						"revision": "10.5281/zenodo.3987831",
+						"byteLength": 25237595,
+						"integrity": {
+							"algorithm": "md5",
+							"value": "bfb1f1f9968938fa8ef4012b8471f5f6"
+						}
+					},
+					{
+						"role": "audioset-class-map",
+						"required": true,
+						"fileName": "class_labels_indices.csv",
+						"url": "https://raw.githubusercontent.com/qiuqiangkong/audioset_tagging_cnn/d2f4b8c18eab44737fcc0de1248ae21eb43f6aa4/metadata/class_labels_indices.csv",
+						"revision": "d2f4b8c18eab44737fcc0de1248ae21eb43f6aa4",
+						"byteLength": 14675,
+						"integrity": {
+							"algorithm": "sha256",
+							"value": "cdd1049833c4b86127c2773ac0d14a2754b6a6d0d1798002ed5c66e699708429"
+						}
+					}
+				]
+			},
+			"conversion": {
+				"status": "converted-artifact-pending",
+				"blockedBy": "No locked conversion environment, converted ONNX digest, or source-framework parity evidence has been recorded.",
+				"recipe": {
+					"id": "panns-cnn10-onnx-v1",
+					"version": 1,
+					"sourceFrameworks": ["pytorch"],
+					"toolchain": {
+						"status": "lock-pending-external",
+						"lockFile": null,
+						"sha256": null,
+						"blockedBy": "The reviewed Python and exporter environment has not been locked and hashed."
+					},
+					"input": {
+						"sampleRateHz": 32000,
+						"channels": "mono",
+						"sampleEncoding": "float32"
+					},
+					"graph": {
+						"inputs": [
+							{
+								"name": "waveform",
+								"dataType": "float32",
+								"dimensions": ["batch", "samples"]
+							}
+						],
+						"outputs": [
+							{
+								"name": "clipwise_probabilities",
+								"dataType": "float32",
+								"dimensions": ["batch", 527]
+							},
+							{
+								"name": "embedding",
+								"dataType": "float32",
+								"dimensions": ["batch", 512]
+							}
+						]
+					},
+					"onnx": {
+						"opset": 17,
+						"executionProvider": "cpu",
+						"externalData": false,
+						"customOperators": false,
+						"deterministicAlgorithms": true
+					},
+					"conversionStages": [
+						"verify-source-closure",
+						"load-source-checkpoint",
+						"freeze-eval-mode",
+						"export-onnx",
+						"validate-cpu-graph",
+						"run-source-parity"
+					],
+					"ownedRuntimeStages": ["one-second-windowing", "audioset-class-map-decode"],
+					"parityFixtureId": "panns-cnn10-parity-v1"
+				},
+				"outputs": [
+					{
+						"role": "network",
+						"required": true,
+						"fileName": "panns-cnn10.onnx",
+						"byteLength": null,
+						"sha256": null
+					}
+				]
+			}
+		},
+		{
+			"id": "beat-this",
+			"sourceStatus": "source-pinned",
+			"source": {
+				"framework": "pytorch",
+				"code": {
+					"url": "https://github.com/CPJKU/beat_this",
+					"revision": "ad7974846029835307ba19a3d5cefbf40b243041"
+				},
+				"artifacts": [
+					{
+						"role": "small0-checkpoint",
+						"required": true,
+						"fileName": "small0.ckpt",
+						"url": "https://cloud.cp.jku.at/public.php/dav/files/7ik4RrBKTS273gp/small0.ckpt",
+						"revision": "v1.1.0",
+						"byteLength": 8451101,
+						"integrity": {
+							"algorithm": "sha1",
+							"value": "77a7ef5c21f628578f2b259ac29d2d680412efcc"
+						}
+					},
+					{
+						"role": "final0-checkpoint",
+						"required": false,
+						"fileName": "final0.ckpt",
+						"url": "https://cloud.cp.jku.at/public.php/dav/files/7ik4RrBKTS273gp/final0.ckpt",
+						"revision": "v1.1.0",
+						"byteLength": 81058141,
+						"integrity": {
+							"algorithm": "sha1",
+							"value": "e1506282faf66ca10e8ab50ee26bd542b7b9ff0a"
+						}
+					}
+				]
+			},
+			"conversion": {
+				"status": "converted-artifact-pending",
+				"blockedBy": "No locked conversion environment, converted ONNX digests, or source-framework parity evidence has been recorded.",
+				"recipe": {
+					"id": "beat-this-onnx-v1",
+					"version": 1,
+					"sourceFrameworks": ["pytorch"],
+					"toolchain": {
+						"status": "lock-pending-external",
+						"lockFile": null,
+						"sha256": null,
+						"blockedBy": "The reviewed Python and exporter environment has not been locked and hashed."
+					},
+					"input": {
+						"sampleRateHz": 22050,
+						"channels": "mono",
+						"sampleEncoding": "float32"
+					},
+					"graph": {
+						"inputs": [
+							{
+								"name": "log_mel_spectrogram",
+								"dataType": "float32",
+								"dimensions": ["batch", "frames", 128]
+							}
+						],
+						"outputs": [
+							{
+								"name": "beat_logits",
+								"dataType": "float32",
+								"dimensions": ["batch", "frames"]
+							},
+							{
+								"name": "downbeat_logits",
+								"dataType": "float32",
+								"dimensions": ["batch", "frames"]
+							}
+						]
+					},
+					"onnx": {
+						"opset": 17,
+						"executionProvider": "cpu",
+						"externalData": false,
+						"customOperators": false,
+						"deterministicAlgorithms": true
+					},
+					"conversionStages": [
+						"verify-source-closure",
+						"load-small0-and-optional-final0",
+						"freeze-eval-mode",
+						"export-onnx",
+						"validate-cpu-graph",
+						"run-source-parity"
+					],
+					"ownedRuntimeStages": [
+						"log-mel-22050hz-1024fft-441hop-128bins",
+						"chunk-1500-border-6-keep-first",
+						"sigmoid-peak-picking"
+					],
+					"parityFixtureId": "beat-this-parity-v1"
+				},
+				"outputs": [
+					{
+						"role": "small0-network",
+						"required": true,
+						"fileName": "beat-this-small0.onnx",
+						"byteLength": null,
+						"sha256": null
+					},
+					{
+						"role": "final0-network",
+						"required": false,
+						"fileName": "beat-this-final0.onnx",
+						"byteLength": null,
+						"sha256": null
+					}
+				]
+			}
+		},
+		{
+			"id": "transnetv2",
+			"sourceStatus": "source-pinned",
+			"source": {
+				"framework": "tensorflow",
+				"code": {
+					"url": "https://github.com/soCzech/TransNetV2",
+					"revision": "85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed"
+				},
+				"artifacts": [
+					{
+						"role": "tensorflow-saved-model",
+						"required": true,
+						"fileName": "saved_model.pb",
+						"url": "https://github.com/soCzech/TransNetV2/raw/85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed/inference/transnetv2-weights/saved_model.pb",
+						"revision": "85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed",
+						"byteLength": 5933260,
+						"integrity": {
+							"algorithm": "sha256",
+							"value": "8ac2a52c5719690d512805b6eaf5ce12097c1d8860b3d9de245dcbbc3100f554"
+						}
+					},
+					{
+						"role": "tensorflow-variables-data",
+						"required": true,
+						"fileName": "variables.data-00000-of-00001",
+						"url": "https://github.com/soCzech/TransNetV2/raw/85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed/inference/transnetv2-weights/variables/variables.data-00000-of-00001",
+						"revision": "85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed",
+						"byteLength": 30516656,
+						"integrity": {
+							"algorithm": "sha256",
+							"value": "b8c9dc3eb807583e6215cabee9ca61737b3eb1bceff68418b43bf71459669367"
+						}
+					},
+					{
+						"role": "tensorflow-variables-index",
+						"required": true,
+						"fileName": "variables.index",
+						"url": "https://github.com/soCzech/TransNetV2/raw/85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed/inference/transnetv2-weights/variables/variables.index",
+						"revision": "85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed",
+						"byteLength": 5526,
+						"integrity": {
+							"algorithm": "sha256",
+							"value": "8b99e28b4ad11372d9a1ad9703298c2e370df14859da4245fdbe818e92dd403f"
+						}
+					}
+				]
+			},
+			"conversion": {
+				"status": "converted-artifact-pending",
+				"blockedBy": "No locked TensorFlow/PyTorch exporter environment, converted ONNX digest, or three-runtime parity evidence has been recorded.",
+				"recipe": {
+					"id": "transnetv2-onnx-v1",
+					"version": 1,
+					"sourceFrameworks": ["tensorflow", "pytorch"],
+					"toolchain": {
+						"status": "lock-pending-external",
+						"lockFile": null,
+						"sha256": null,
+						"blockedBy": "The reviewed TensorFlow, PyTorch, and exporter environment has not been locked and hashed."
+					},
+					"input": {
+						"sampleRateHz": 0,
+						"channels": "rgb",
+						"sampleEncoding": "uint8"
+					},
+					"graph": {
+						"inputs": [
+							{
+								"name": "frames",
+								"dataType": "uint8",
+								"dimensions": ["batch", 100, 27, 48, 3]
+							}
+						],
+						"outputs": [
+							{
+								"name": "single_frame_logits",
+								"dataType": "float32",
+								"dimensions": ["batch", 100, 1]
+							},
+							{
+								"name": "all_frame_logits",
+								"dataType": "float32",
+								"dimensions": ["batch", 100, 1]
+							}
+						]
+					},
+					"onnx": {
+						"opset": 17,
+						"executionProvider": "cpu",
+						"externalData": false,
+						"customOperators": false,
+						"deterministicAlgorithms": true
+					},
+					"conversionStages": [
+						"verify-source-closure",
+						"tensorflow-to-pytorch",
+						"verify-tensorflow-pytorch-parity",
+						"export-onnx",
+						"validate-cpu-graph",
+						"run-three-runtime-parity"
+					],
+					"ownedRuntimeStages": [
+						"rgb-resize-48x27",
+						"window-100-edge-replication",
+						"overlap-stitch",
+						"sigmoid-boundary-normalization"
+					],
+					"parityFixtureId": "transnetv2-parity-v1"
+				},
+				"outputs": [
+					{
+						"role": "network",
+						"required": true,
+						"fileName": "transnetv2.onnx",
+						"byteLength": null,
+						"sha256": null
+					}
+				]
+			}
+		}
+	],
+	"directPins": [
+		{
+			"id": "wav2vec2-base-960h-english-alignment",
+			"repository": "https://huggingface.co/facebook/wav2vec2-base-960h",
+			"revision": "6d2b9ffaac8aabc45934584ee608c5fb5ee34a4e",
+			"runtimeFamily": "onnxruntime-node",
+			"artifact": {
+				"fileName": "onnx/model.onnx",
+				"byteLength": 377887594,
+				"sha256": "b73fe60ddcd3fd07f91d65d50b4f10ba99039104c4fb5db5bdafbb27610bb6eb"
+			},
+			"minimumSystemMemoryBytes": 0,
+			"activationStatus": "catalog-publication-pending",
+			"blockedBy": "No externally signed production-catalog entry or immutable mirror readback is recorded."
+		},
+		{
+			"id": "qwen3-4b-q4-k-m",
+			"repository": "https://huggingface.co/Qwen/Qwen3-4B-GGUF",
+			"revision": "bc640142c66e1fdd12af0bd68f40445458f3869b",
+			"runtimeFamily": "llama-cpp",
+			"artifact": {
+				"fileName": "Qwen3-4B-Q4_K_M.gguf",
+				"byteLength": 2497280256,
+				"sha256": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5"
+			},
+			"minimumSystemMemoryBytes": 17179869184,
+			"activationStatus": "catalog-publication-pending",
+			"blockedBy": "No externally signed production-catalog entry, immutable mirror readback, or packaged llama.cpp canary is recorded."
+		}
+	]
+}

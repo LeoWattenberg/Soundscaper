@@ -54,20 +54,20 @@ test('the assistance runtime refuses changed, extra, and symbolic staged bytes',
 	}
 });
 
-test('unsupported targets are explicit and may not carry staged executable bytes', async (context) => {
+test('pending targets are explicit and may not carry staged executable bytes', async (context) => {
 	const outputRoot = await temporaryRoot(context);
 	const summary = await stageAssistanceNativeRuntimePayload({
 		manifest, targetId: 'win-arm64', nodeModulesRoot: resolve('node_modules'), outputRoot,
 	});
-	assert.equal(summary.status, 'unsupported');
+	assert.equal(summary.status, 'pending-external');
 	const verified = await verifyAssistanceNativeRuntimePayload({ manifest, targetId: 'win-arm64', outputRoot });
-	assert.equal(verified.status, 'unsupported');
+	assert.equal(verified.status, 'pending-external');
 	assert.equal(verified.moduleSpecifier, null);
 	await cp(resolve('node_modules/sherpa-onnx-node'),
 		join(outputRoot, manifest.runtimePrefix, 'node_modules/sherpa-onnx-node'), { recursive: true });
 	await assert.rejects(
 		verifyAssistanceNativeRuntimePayload({ manifest, targetId: 'win-arm64', outputRoot }),
-		/unsupported.*payload|must not carry/iu,
+		/pending-external.*payload|must not carry/iu,
 	);
 });
 

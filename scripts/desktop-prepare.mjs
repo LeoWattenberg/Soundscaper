@@ -61,6 +61,7 @@ const DEFAULT_TRANSLATIONS_URL = 'https://translations.soundscaper.org/runtime/t
 // only their authenticated pins live inside it.
 const ASSISTANCE_REGISTERS = Object.freeze([
 	'config/assistance-native-runtime-manifest.json',
+	'config/assistance-runtime-family-supply-candidates.json',
 	'config/framescaper-media-host-payload-manifest.json',
 	'config/framescaper-openfx-host-payload-manifest.json',
 	'config/local-model-catalog.json',

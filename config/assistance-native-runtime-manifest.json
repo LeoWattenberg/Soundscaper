@@ -106,8 +106,8 @@
 			}
 		},
 		"win-arm64": {
-			"status": "unsupported",
-			"blockedBy": "sherpa-onnx-node 1.13.5 publishes no Windows ARM64 native payload. Assistance remains unavailable on this target; editing remains complete."
+			"status": "pending-external",
+			"blockedBy": "The official sherpa-onnx 1.13.5 Windows ARM64 native asset is pinned, but no authenticated sherpa-onnx-node Node-API addon and package closure is available."
 		}
 	}
 }
