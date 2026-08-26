@@ -65,6 +65,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'scripts/lib/m4-production-parity-video-fixture.mjs', destination: 'scripts/lib/m4-production-parity-video-fixture.mjs', kind: 'file', label: 'M4 production parity video fixture' },
 	{ source: 'scripts/lib/m4b2-keyframe-parity-metrics.mjs', destination: 'scripts/lib/m4b2-keyframe-parity-metrics.mjs', kind: 'file', label: 'M4B2 keyframe parity metrics' },
 	{ source: 'scripts/lib/strict-json-snapshot.mjs', destination: 'scripts/lib/strict-json-snapshot.mjs', kind: 'file', label: 'strict JSON snapshot helper' },
+	{ source: 'config/accessibility-wcag-baseline.json', destination: 'config/accessibility-wcag-baseline.json', kind: 'file', label: 'WCAG 2.2 AA baseline' },
 	{ source: 'config/quality-budgets.json', destination: 'config/quality-budgets.json', kind: 'file', label: 'quality budget register' },
 	{ source: 'playwright.nightly-metrics.config.mjs', destination: 'playwright.nightly-metrics.config.mjs', kind: 'file', label: 'nightly metrics Playwright config' },
 	{ source: 'playwright.nightly-packaged-metrics.config.mjs', destination: 'playwright.nightly-packaged-metrics.config.mjs', kind: 'file', label: 'nightly packaged-runtime Playwright config' },

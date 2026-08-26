@@ -21,6 +21,7 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'desktop/assistance-speech-job-contract.js',
 	'desktop/assistance-speech-runtime.js',
 	'desktop/assistance-staging-private-files.js',
+	'desktop/assistance-staging-registry-comparisons.js',
 	'desktop/assistance-staging-registry.js',
 	'desktop/assistance-vad-runtime.js',
 	'desktop/external-ffmpeg-shot-detection-output.js',
