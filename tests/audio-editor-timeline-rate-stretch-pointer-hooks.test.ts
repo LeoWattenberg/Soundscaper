@@ -58,14 +58,14 @@ test('timeline renders one conformed rate-stretch guide with the shared transien
 });
 
 test('participant rows expose rate-stretch state and audio renders its changed geometry', async () => {
-	const [audioRow, audioViewModel, filmstrip] = await Promise.all([
-		readFile(new URL('AudioTrackRow.jsx', TIMELINE_ROOT), 'utf8'),
+	const [audioProjection, audioViewModel, filmstrip] = await Promise.all([
+		readFile(new URL('useAudioTrackRowViewModel.js', TIMELINE_ROOT), 'utf8'),
 		readFile(new URL('audio-track-row-view-model.js', TIMELINE_ROOT), 'utf8'),
 		readFile(new URL('VideoFilmstrip.jsx', TIMELINE_ROOT), 'utf8'),
 	]);
-	assert.match(audioRow, /filter\(\(clip\) => clip\.rateStretchPreview\)/u);
-	assert.match(audioRow, /data-rate-stretch-preview/u);
-	assert.match(audioRow, /data-rate-stretch-waveform-preview/u);
+	assert.match(audioProjection, /filter\(\(clip\) => clip\.rateStretchPreview\)/u);
+	assert.match(audioProjection, /data-rate-stretch-preview/u);
+	assert.match(audioProjection, /data-rate-stretch-waveform-preview/u);
 	assert.match(audioViewModel, /reuseCachedWaveform:\s*Boolean\([\s\S]*?clip\.waveformPreviewKind !== 'trim'[\s\S]*?clip\.waveformPreviewKind !== 'rate-stretch'/u);
 	assert.match(filmstrip, /data-rate-stretch-preview/u);
 	assert.match(filmstrip, /createVideoRateBadgeModel\(\{[\s\S]*?clip,[\s\S]*?source,[\s\S]*?projectSampleRate:\s*sampleRate/u);

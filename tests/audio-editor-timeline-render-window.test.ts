@@ -43,16 +43,20 @@ test('timeline render window rejects invalid geometry', () => {
 });
 
 test('only expensive clip projections consume the anchored viewport', async () => {
-	const [workspace, trackList, audioRow] = await Promise.all([
+	const [workspace, trackList, audioRow, audioRowViewModel] = await Promise.all([
 		readFile(new URL('../src/common/editor/ui/timeline/TimelineWorkspaceView.jsx', import.meta.url), 'utf8'),
 		readFile(new URL('../src/common/editor/ui/timeline/TrackListView.jsx', import.meta.url), 'utf8'),
 		readFile(new URL('../src/common/editor/ui/timeline/AudioTrackRow.jsx', import.meta.url), 'utf8'),
+		readFile(new URL('../src/common/editor/ui/timeline/useAudioTrackRowViewModel.js', import.meta.url), 'utf8'),
 	]);
 
 	assert.match(workspace, /renderViewportStartFrame=\{renderViewportStartFrame\}/u);
 	assert.match(workspace, /scrollX=\{scrollX\}/u, 'rulers and overlays retain exact scroll');
 	assert.match(trackList, /<AudioTrackRow[\s\S]*renderViewportStartFrame=\{renderViewportStartFrame\}/u);
 	assert.match(trackList, /<VideoTrackRow[\s\S]*renderViewportStartFrame=\{renderViewportStartFrame\}/u);
-	assert.match(audioRow, /useMemo\(\(\) => \{[\s\S]*createAudioTrackRowClipViewModels/u);
-	assert.match(audioRow, /viewModelRevision/u, 'document and visual updates still invalidate the stable model');
+	assert.match(audioRow, /useAudioTrackRowViewModel\(\{/u);
+	assert.doesNotMatch(audioRow, /projectClipsToViewport|createAudioTrackRowClipViewModels/u);
+	assert.match(audioRowViewModel, /useMemo\(\(\) => projectClipsToViewport/u);
+	assert.match(audioRowViewModel, /const projectedSelection = useMemo/u);
+	assert.match(audioRowViewModel, /viewModelRevision/u, 'document and visual updates still invalidate the stable model');
 });

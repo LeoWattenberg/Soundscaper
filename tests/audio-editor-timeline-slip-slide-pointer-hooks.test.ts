@@ -82,21 +82,21 @@ test('slide renders two transient conformed guides without changing the roll/rip
 });
 
 test('workspace and clip rows expose stable transient slip source evidence', async () => {
-	const [workspace, overlays, audioRow, videoFilmstrip] = await Promise.all([
+	const [workspace, overlays, audioProjection, videoFilmstrip] = await Promise.all([
 		readFile(new URL('TimelineWorkspaceView.jsx', TIMELINE_ROOT), 'utf8'),
 		readFile(new URL('TimelineOverlayComponents.jsx', TIMELINE_ROOT), 'utf8'),
-		readFile(new URL('AudioTrackRow.jsx', TIMELINE_ROOT), 'utf8'),
+		readFile(new URL('useAudioTrackRowViewModel.js', TIMELINE_ROOT), 'utf8'),
 		readFile(new URL('VideoFilmstrip.jsx', TIMELINE_ROOT), 'utf8'),
 	]);
 
 	assert.match(workspace, /<TimelineSlipSlidePreviewGuides[\s\S]*?samples=\{clipDragPreview\?\.guideSamples\}/u);
 	assert.match(overlays, /data-slip-slide-trim-guide="true"[\s\S]*?data-slip-slide-guide-role=\{role\}/u);
-	for (const source of [audioRow, videoFilmstrip]) {
+	for (const source of [audioProjection, videoFilmstrip]) {
 		assert.match(source, /data-slip-slide-source-preview/u);
 		assert.match(source, /data-slip-slide-preview-source-start/u);
 		assert.match(source, /data-slip-slide-preview-source-end/u);
 	}
-	assert.match(audioRow, /new Map\(projection\.clips[\s\S]*?filter\(\(clip\) => clip\.sourceSlipPreview\)/u);
+	assert.match(audioProjection, /new Map\(projection\.clips[\s\S]*?filter\(\(clip\) => clip\.sourceSlipPreview\)/u);
 });
 
 function renderGuides(samples: Readonly<{ readonly start: number; readonly end: number }> | null): string {
