@@ -302,6 +302,65 @@ test('workflow preload admits selected-video authority only through its closed I
 	})), plain(workflowCustodyHandle(custody)));
 });
 
+test('workflow preload closes Highlight raw stages and normalized gather signal custody', async () => {
+	const cases = [
+		{ stageId: 'detect-highlight-shots', slotId: 'video', role: 'video',
+			mediaType: 'video/mp4', text: 'ftyp' },
+		{ stageId: 'tag-highlight-reactions', slotId: 'audio', role: 'audio',
+			mediaType: 'audio/wav', text: 'RIFF' },
+		{ stageId: 'gather-signals', slotId: 'video', role: 'highlight-video-signals',
+			mediaType: 'application/vnd.soundscaper.highlight-video-signals+json', text: '{}' },
+		{ stageId: 'gather-signals', slotId: 'audio', role: 'highlight-audio-signals',
+			mediaType: 'application/vnd.soundscaper.highlight-audio-signals+json', text: '{}' },
+		{ stageId: 'gather-signals', slotId: 'transcript', role: 'highlight-transcript-signals',
+			mediaType: 'application/vnd.soundscaper.highlight-transcript-signals+json', text: '{}' },
+	];
+	const prepared = cases.map((item, index) => {
+		const bytes = Buffer.from(item.text);
+		const sha256 = createHash('sha256').update(bytes).digest('hex');
+		const custody = workflowCustody({ workflowId: 'make-highlights', direction: 'input',
+			claimId: (index + 5).toString(16).repeat(40), stageId: item.stageId, slotId: item.slotId,
+			role: item.role, mediaType: item.mediaType, byteLength: bytes.byteLength,
+			sha256, maximumByteLength: null });
+		const reservation = { dataPlaneVersion: 1, transport: 'message-port', streamId: STREAM_ID,
+			direction: 'host-to-helper', authentication: 'trailer-sha256-v1',
+			byteLength: bytes.byteLength, maximumChunkBytes: bytes.byteLength,
+			maximumInFlightChunks: 1 };
+		return { ...item, bytes, sha256, custody, reservation };
+	});
+	const fixture = await loadPreload({
+		responses: prepared.flatMap(({ reservation, custody }) => [
+			{ contractVersion: 1, jobId: JOB_ID, streamId: STREAM_ID, reservation },
+			workflowCustodyHandle(custody),
+		]),
+		onPostMessage(_channel, _control, ports) {
+			ports[0].on('message', (message) => {
+				if (message.type === 'chunk') ports[0].postMessage({ dataPlaneVersion: 1, type: 'ack',
+					streamId: STREAM_ID, sequence: message.sequence,
+					receivedBytes: message.offset + message.bytes.byteLength });
+			});
+		},
+	});
+	for (const item of prepared) {
+		const result = await fixture.bridge.localAssistance.workflow.custody.stageInput({
+			jobId: JOB_ID, workflowId: 'make-highlights', stageId: item.stageId,
+			slotId: item.slotId, mediaType: item.mediaType, byteLength: item.bytes.byteLength,
+			sha256: item.sha256, bytes: new Blob([item.bytes], { type: item.mediaType }),
+		});
+		assert.equal(result.custody.role, item.role);
+	}
+
+	const generic = await loadPreload({ responses: [] });
+	const bytes = Buffer.from('{}');
+	await assert.rejects(generic.bridge.localAssistance.workflow.custody.stageInput({
+		jobId: JOB_ID, workflowId: 'make-highlights', stageId: 'gather-signals', slotId: 'video',
+		mediaType: 'application/json', byteLength: bytes.byteLength,
+		sha256: createHash('sha256').update(bytes).digest('hex'),
+		bytes: new Blob([bytes], { type: 'application/json' }),
+	}), /Blob|slot|media/iu);
+	assert.equal(generic.invocations.length, 0);
+});
+
 test('workflow custody binds only one exact earlier producer and strips no hidden path', async () => {
 	const producer = workflowCustody({ workflowId: 'transcribe-captions', direction: 'output',
 		claimId: '5'.repeat(40), stageId: 'recognize-speech', slotId: 'transcript', role: 'transcript',

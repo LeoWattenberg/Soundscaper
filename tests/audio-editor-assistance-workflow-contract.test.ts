@@ -231,6 +231,34 @@ test('main can derive an immutable permitted graph without trusting renderer-sup
 	assert.deepEqual(assistanceWorkflowStageGraph('mark-cuts')[0]?.inputSlots, [
 		{ slotId: 'video', required: false }, { slotId: 'frame-pack', required: false },
 	]);
+	const highlights = assistanceWorkflowStageGraph('make-highlights');
+	assert.deepEqual(highlights.map(({ stageId, operation, required, after }) => ({
+		stageId, operation, required, after,
+	})), [
+		{ stageId: 'detect-highlight-shots', operation: 'shot-detection', required: true, after: [] },
+		{ stageId: 'tag-highlight-reactions', operation: 'audio-tagging', required: false, after: [] },
+		{ stageId: 'gather-signals', operation: null, required: true,
+			after: ['detect-highlight-shots'] },
+		{ stageId: 'rank-highlights', operation: null, required: true, after: ['gather-signals'] },
+		{ stageId: 'rerank-editorial', operation: 'editorial-generation', required: false,
+			after: ['rank-highlights'] },
+		{ stageId: 'assemble-highlights', operation: null, required: true,
+			after: ['rank-highlights'] },
+	]);
+	assert.deepEqual(highlights[0]?.inputSlots, [{ slotId: 'video', required: true }]);
+	assert.deepEqual(highlights[0]?.modelSlots, []);
+	assert.deepEqual(highlights[1]?.inputSlots, [{ slotId: 'audio', required: true }]);
+	assert.deepEqual(highlights[1]?.outputSlots, [{ slotId: 'audio-tags', required: true }]);
+	assert.deepEqual(highlights[1]?.modelSlots, [{ slotId: 'audio-tagger', required: true }]);
+	assert.deepEqual(highlights[2]?.inputSlots, [
+		{ slotId: 'video', required: true },
+		{ slotId: 'audio', required: false },
+		{ slotId: 'transcript', required: false },
+		{ slotId: 'shot-boundaries', required: false },
+		{ slotId: 'audio-tags', required: false },
+		{ slotId: 'reaction-ranges', required: false },
+		{ slotId: 'embeddings', required: false },
+	]);
 });
 
 test('shot workflows admit exactly the input and model selected by their explicit mode', () => {

@@ -24,6 +24,9 @@ export const ASSISTANCE_INPUT_ROLES = Object.freeze([
 	'shot-boundaries',
 	'reaction-ranges',
 	'embeddings',
+	'highlight-video-signals',
+	'highlight-audio-signals',
+	'highlight-transcript-signals',
 ] as const);
 
 export const ASSISTANCE_OUTPUT_ROLES = Object.freeze([
@@ -116,6 +119,15 @@ const INPUT_MEDIA_TYPES = Object.freeze({
 	'shot-boundaries': jsonTypes('shot-boundaries'),
 	'reaction-ranges': jsonTypes('reaction-ranges'),
 	embeddings: Object.freeze(['application/vnd.soundscaper.embedding-matrix-v1']),
+	'highlight-video-signals': Object.freeze([
+		'application/vnd.soundscaper.highlight-video-signals+json',
+	]),
+	'highlight-audio-signals': Object.freeze([
+		'application/vnd.soundscaper.highlight-audio-signals+json',
+	]),
+	'highlight-transcript-signals': Object.freeze([
+		'application/vnd.soundscaper.highlight-transcript-signals+json',
+	]),
 } satisfies Readonly<Record<AssistanceInputRole, readonly string[]>>);
 const OUTPUT_MEDIA_TYPES = Object.freeze({
 	'voice-activity': jsonTypes('voice-activity'),

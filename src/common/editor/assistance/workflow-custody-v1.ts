@@ -35,7 +35,8 @@ export interface AssistanceWorkflowCustodyClaimV1 {
 }
 
 export type AssistanceWorkflowCustodyRole = typeof OUTPUT_SPECS[keyof typeof OUTPUT_SPECS]['role']
-	| keyof typeof EXTERNAL_INPUT_SPECS;
+	| keyof typeof EXTERNAL_INPUT_SPECS
+	| typeof HIGHLIGHT_GATHER_INPUT_SPECS[keyof typeof HIGHLIGHT_GATHER_INPUT_SPECS]['role'];
 
 interface SlotMediaSpec {
 	readonly role: string;
@@ -60,6 +61,18 @@ const EXTERNAL_INPUT_SPECS = Object.freeze({
 	'shot-boundaries': spec('shot-boundaries', JSON('shot-boundaries')),
 	'reaction-ranges': spec('reaction-ranges', JSON('reaction-ranges')),
 	embeddings: spec('embeddings', MATRIX),
+});
+
+const HIGHLIGHT_GATHER_INPUT_SPECS = Object.freeze({
+	video: spec('highlight-video-signals', [
+		'application/vnd.soundscaper.highlight-video-signals+json',
+	]),
+	audio: spec('highlight-audio-signals', [
+		'application/vnd.soundscaper.highlight-audio-signals+json',
+	]),
+	transcript: spec('highlight-transcript-signals', [
+		'application/vnd.soundscaper.highlight-transcript-signals+json',
+	]),
 });
 
 const OUTPUT_SPECS = Object.freeze({
@@ -202,9 +215,13 @@ export function assistanceWorkflowCustodySlotSpec(
 	if (!stage || !admitted?.some(({ slotId: candidate }) => candidate === requestedSlot)) {
 		throw new TypeError(`The workflow stage does not admit that ${direction} custody slot.`);
 	}
-	const candidate = direction === 'output'
+	const highlightGatherInput = direction === 'input' && workflowId === 'make-highlights'
+		&& stageId === 'gather-signals'
+		? HIGHLIGHT_GATHER_INPUT_SPECS[requestedSlot as keyof typeof HIGHLIGHT_GATHER_INPUT_SPECS]
+		: undefined;
+	const candidate = highlightGatherInput ?? (direction === 'output'
 		? OUTPUT_SPECS[requestedSlot as keyof typeof OUTPUT_SPECS]
-		: EXTERNAL_INPUT_SPECS[requestedSlot as keyof typeof EXTERNAL_INPUT_SPECS];
+		: EXTERNAL_INPUT_SPECS[requestedSlot as keyof typeof EXTERNAL_INPUT_SPECS]);
 	if (!candidate) throw new TypeError('That workflow slot has no direct external custody format.');
 	return candidate;
 }

@@ -125,3 +125,19 @@ test('claim ids, job ids, roles, and media types are admitted from closed vocabu
 		mediaType: 'application/vnd.soundscaper.embeddings+json',
 	}), /embeddings.*media type/iu);
 });
+
+test('highlight signal claims admit only their strict normalized JSON formats', () => {
+	for (const role of [
+		'highlight-video-signals',
+		'highlight-audio-signals',
+		'highlight-transcript-signals',
+	] as const) {
+		const mediaType = `application/vnd.soundscaper.${role}+json`;
+		assert.equal(validateAssistanceStagedInputClaim({
+			...INPUT, role, mediaType,
+		}).mediaType, mediaType);
+		assert.throws(() => validateAssistanceStagedInputClaim({
+			...INPUT, role, mediaType: 'application/json',
+		}), new RegExp(`${role}.*media type`, 'iu'));
+	}
+});

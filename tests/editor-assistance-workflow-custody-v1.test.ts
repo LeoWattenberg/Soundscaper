@@ -75,6 +75,35 @@ test('custody refuses invented identities, paths, incompatible media, and unsafe
 	}), /claim/iu);
 });
 
+test('Highlight gather inputs use signal-specific authenticated JSON custody', () => {
+	const cases = [
+		['video', 'highlight-video-signals'],
+		['audio', 'highlight-audio-signals'],
+		['transcript', 'highlight-transcript-signals'],
+	] as const;
+	for (const [slotId, role] of cases) {
+		const mediaType = `application/vnd.soundscaper.${role}+json`;
+		const claim = createAssistanceWorkflowCustodyClaimV1({
+			custodyVersion: 1, workflowId: 'make-highlights', direction: 'input',
+			jobId: JOB_ID, stageId: 'gather-signals', slotId, claimId: CLAIM_ID,
+			byteLength: 4_096, sha256: SHA256, maximumByteLength: null,
+		});
+		assert.equal(claim.role, role);
+		assert.equal(claim.mediaType, mediaType);
+		assert.throws(() => validateAssistanceWorkflowCustodyClaimV1({
+			...claim, role: slotId, mediaType: slotId === 'audio' ? 'audio/wav' : 'application/json',
+		}), /role|media|slot/iu);
+	}
+
+	const fastShotVideo = createAssistanceWorkflowCustodyClaimV1({
+		custodyVersion: 1, workflowId: 'make-highlights', direction: 'input',
+		jobId: JOB_ID, stageId: 'detect-highlight-shots', slotId: 'video', claimId: CLAIM_ID,
+		byteLength: 4_096, sha256: SHA256, maximumByteLength: null,
+	});
+	assert.equal(fastShotVideo.role, 'video');
+	assert.equal(fastShotVideo.mediaType, 'video/mp4');
+});
+
 test('every deterministic workflow output has one closed custody media contract', async () => {
 	const { assistanceWorkflowStageGraph, ASSISTANCE_GUIDED_WORKFLOW_IDS } = await import(
 		'../src/common/editor/assistance/workflow.ts'
