@@ -43,3 +43,11 @@ test('drag-to-reorder only listens on the document while a drag is armed', async
 	assert.match(gesture, /document\.addEventListener\('mousemove', onMove\);/u);
 	assert.match(gesture, /document\.removeEventListener\('mouseup', onUp\);/u);
 });
+
+test('a consumer can isolate live meter rendering without replacing the track panel', async () => {
+	const source = await readFile(PANEL_URL, 'utf8');
+
+	assert.match(source, /meterContent\?: React\.ReactNode;/u);
+	assert.match(source, /meterContent !== undefined \? meterContent :/u);
+	assert.match(source, /<div className="track-control-panel__meter">/u);
+});

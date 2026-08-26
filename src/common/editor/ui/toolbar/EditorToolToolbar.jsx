@@ -14,22 +14,18 @@ import {
 } from '@dilsonspickles/components';
 
 import { iconNameToChar } from '../../audacity-iconcodes.js';
-import { framesToSeconds, secondsToFrames } from '../../design-system-adapters.js';
 import AudioEditorSplitButton from '../AudioEditorSplitButton.tsx';
-import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
 import { formatOptionsLabel } from '../localization-template.ts';
 import {
-	AudacityToolbarFlyoutButton,
+	PlaybackMeterToolbarGroup,
 	RecordingMeterToolbarGroup,
-	playbackMeterSlider,
 } from './AudioEditorMeterControls.jsx';
-import { AudacityAudioMeter, MeterSettingsFlyout } from './AudioEditorMeters.jsx';
 import {
-	AccessibleTimeCode,
 	AccessibleTransportButton,
-	PlaySpeedFlyout,
 	RecordFlyout,
+	TelemetryPlayTransportControl,
+	TelemetryTimeCode,
 } from './AudioEditorTransportControls.jsx';
 import { MusicalTimelineControls } from './MusicalTimelineControls.jsx';
 import { SequenceTimingControls } from './SequenceTimingControls.jsx';
@@ -76,11 +72,6 @@ export default function EditorToolToolbar({
 	onJumpToEnd,
 	onGripperMouseDown,
 }) {
-	const positionFrame = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.positionFrame || 0);
-	const transportState = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.transportState);
-	const playbackMode = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.playbackMode);
-	const masterMeter = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.meters?.master);
-	const telemetry = { playbackMode, positionFrame, transportState };
 	const project = snapshot.project;
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId && track.type === 'audio');
 	const outputAutomationAvailable = !isSoundscaperProductionProjectSchema(project?.schemaVersion) && Boolean(
@@ -172,18 +163,13 @@ export default function EditorToolToolbar({
 				{[
 				transportButtonsVisible && <WorkspaceToolbarSection key="transport" {...toolbarSectionProps('transport')}>
 				<ToolbarButtonGroup className="kw-audio-editor__transport" gap={2}>
-					{isToolbarButtonVisible('play') && <span data-transport="play"><AudioEditorSplitButton
-						icon={telemetry.transportState === 'playing' ? 'pause' : 'play'}
-						className="kw-audio-editor__transport-play kw-audio-editor__transport-play-split"
-						ariaLabel={telemetry.transportState === 'playing' ? copy.pause : copy.play}
-						optionsAriaLabel={formatOptionsLabel(copy, telemetry.transportState === 'playing' ? copy.pause : copy.play)}
-						disabled={blocked && !snapshot.recording}
-						active={telemetry.transportState === 'playing'}
-						pressed={telemetry.transportState === 'playing'}
-						onClick={() => run(() => controller.actions.transport.playPause())}
-					>
-						{({ close }) => <PlaySpeedFlyout copy={copy} snapshot={snapshot} telemetry={telemetry} blocked={blocked} controller={controller} run={run} close={close} />}
-					</AudioEditorSplitButton></span>}
+					{isToolbarButtonVisible('play') && <TelemetryPlayTransportControl
+						copy={copy}
+						snapshot={snapshot}
+						blocked={blocked}
+						controller={controller}
+						run={run}
+					/>}
 					{isToolbarButtonVisible('stop') && <span data-transport="stop"><TransportButton icon="stop" ariaLabel={copy.stop} onClick={() => run(() => controller.actions.transport.stop())} /></span>}
 					{capabilities.audioRecording && isToolbarButtonVisible('record') && <span data-transport="record">
 						<AudioEditorSplitButton
@@ -318,16 +304,15 @@ export default function EditorToolToolbar({
 				</WorkspaceToolbarSection>,
 
 				<WorkspaceToolbarSection key="meter" {...toolbarSectionProps('meter')}>
-				{isToolbarButtonVisible('time-display') && <div className="kw-audio-editor__timecode" data-time-display>
-					<AccessibleTimeCode
-						ariaLabel={`${copy.playhead}: ${copy.format}`}
-						value={framesToSeconds(telemetry.positionFrame || 0, { sampleRate: project?.sampleRate })}
-						sampleRate={project?.sampleRate || 48_000}
-						showFormatSelector={!isCompact}
-						disabled={snapshot.recording}
-						onChange={(seconds) => run(() => controller.actions.transport.seek(secondsToFrames(seconds, { maximumFrame: durationFrames, sampleRate: project?.sampleRate })))}
-					/>
-				</div>}
+				{isToolbarButtonVisible('time-display') && <TelemetryTimeCode
+					controller={controller}
+					copy={copy}
+					project={project}
+					durationFrames={durationFrames}
+					isCompact={isCompact}
+					recording={snapshot.recording}
+					run={run}
+				/>}
 				{showMusicalTiming && <MusicalTimelineControls
 					project={project}
 					snapshot={snapshot}
@@ -338,7 +323,6 @@ export default function EditorToolToolbar({
 				{showSequenceTiming && <SequenceTimingControls
 					project={project}
 					snapshot={snapshot}
-					telemetry={telemetry}
 					controller={controller}
 					copy={copy}
 					run={run}
@@ -355,33 +339,16 @@ export default function EditorToolToolbar({
 
 				{isToolbarButtonVisible('playback-volume')
 					&& playbackMeterSettings.position !== 'side'
-					&& <ToolbarButtonGroup className="kw-audio-editor__playback-meter" gap={6}>
-					<AudacityToolbarFlyoutButton
-						icon={iconNameToChar('AUDIO')}
-						ariaLabel={copy.playbackMeterSettings}
-						flyoutClassName="kw-audio-editor__playback-meter-flyout"
-					>
-						<MeterSettingsFlyout
-							copy={copy}
-							settings={playbackMeterSettings}
-							onChange={onPlaybackMeterSettingsChange}
-						/>
-					</AudacityToolbarFlyoutButton>
-					{playbackMeterSettings.position === 'top' && <AudacityAudioMeter
+					&& <PlaybackMeterToolbarGroup
+						controller={controller}
 						copy={copy}
-						meter={masterMeter}
+						project={project}
 						settings={playbackMeterSettings}
-						orientation="horizontal"
-						clipped={uiFlags.clipping && (masterMeter?.peak || 0) >= 1}
-						slider={playbackMeterSlider(
-							copy,
-							Math.min(1, project?.master?.gain ?? 1),
-							playbackMeterSettings,
-							(gain) => run(() => controller.actions.effects.setMasterGain(gain)),
-						)}
-						compact={isCompact}
+						onSettingsChange={onPlaybackMeterSettingsChange}
+						clippingEnabled={uiFlags.clipping}
+						isCompact={isCompact}
+						run={run}
 					/>}
-				</ToolbarButtonGroup>}
 				</WorkspaceToolbarSection>,
 				].filter(Boolean).sort((left, right) => left.props.order - right.props.order)}
 			</Toolbar>

@@ -372,6 +372,46 @@ export function AudioDevicesFlyout({
 	);
 }
 
+export function PlaybackMeterToolbarGroup({
+	controller,
+	copy,
+	project,
+	settings,
+	onSettingsChange,
+	clippingEnabled,
+	isCompact,
+	run,
+}) {
+	const masterMeter = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.meters?.master);
+	return <ToolbarButtonGroup className="kw-audio-editor__playback-meter" gap={6}>
+		<AudacityToolbarFlyoutButton
+			icon={iconNameToChar('AUDIO')}
+			ariaLabel={copy.playbackMeterSettings}
+			flyoutClassName="kw-audio-editor__playback-meter-flyout"
+		>
+			<MeterSettingsFlyout
+				copy={copy}
+				settings={settings}
+				onChange={onSettingsChange}
+			/>
+		</AudacityToolbarFlyoutButton>
+		{settings.position === 'top' && <AudacityAudioMeter
+			copy={copy}
+			meter={masterMeter}
+			settings={settings}
+			orientation="horizontal"
+			clipped={clippingEnabled && (masterMeter?.peak || 0) >= 1}
+			slider={playbackMeterSlider(
+				copy,
+				Math.min(1, project?.master?.gain ?? 1),
+				settings,
+				(gain) => run(() => controller.actions.effects.setMasterGain(gain)),
+			)}
+			compact={isCompact}
+		/>}
+	</ToolbarButtonGroup>;
+}
+
 export function SidePlaybackMeter({
 	controller,
 	copy,

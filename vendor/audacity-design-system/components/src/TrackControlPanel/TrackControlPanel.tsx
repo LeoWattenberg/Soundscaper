@@ -90,6 +90,9 @@ export interface TrackControlPanelProps {
   meterMaxPeak?: number; // 0-100 - max peak level (mono)
   meterMaxPeakLeft?: number; // 0-100 - left channel max peak (stereo)
   meterMaxPeakRight?: number; // 0-100 - right channel max peak (stereo)
+  /** Optional live meter slot. Consumers can isolate high-frequency meter
+   *  updates without rerendering the rest of the control panel. */
+  meterContent?: React.ReactNode;
 }
 
 export const TrackControlPanel: React.FC<TrackControlPanelProps> = ({
@@ -142,6 +145,7 @@ export const TrackControlPanel: React.FC<TrackControlPanelProps> = ({
   meterMaxPeak,
   meterMaxPeakLeft,
   meterMaxPeakRight,
+  meterContent,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const focusFromMouseRef = React.useRef(false);
@@ -1007,7 +1011,7 @@ export const TrackControlPanel: React.FC<TrackControlPanelProps> = ({
 
       {/* Volume Meter - Always visible (empty for label tracks to maintain alignment) */}
       <div className="track-control-panel__meter">
-        {!isLabelTrack && (
+        {meterContent !== undefined ? meterContent : !isLabelTrack && (
           trackType === 'stereo' ? (
             <>
               {/* Left channel meter */}

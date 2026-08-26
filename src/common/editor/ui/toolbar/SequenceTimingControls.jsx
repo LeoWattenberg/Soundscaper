@@ -15,6 +15,7 @@ import {
 import {
 	resolveInspectedVideoSource,
 } from '../../source-properties-model.ts';
+import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import { AudacityToolbarFlyoutButton } from './AudioEditorMeterControls.jsx';
 import { SourcePropertiesPanel } from './SourcePropertiesPanel.jsx';
 
@@ -31,10 +32,13 @@ const RATE_PRESETS = Object.freeze([
 ]);
 
 /** Sequence timing: the playhead timecode, frame stepping, and the rate that defines both. */
-export function SequenceTimingControls({ project, snapshot, telemetry, controller, copy, run }) {
+export function SequenceTimingControls({ project, snapshot, controller, copy, run }) {
 	const view = useMemo(() => resolveSequenceTimingView(project), [project]);
 	const sampleRate = project.sampleRate;
-	const positionFrame = Math.max(0, telemetry.positionFrame || 0);
+	const positionFrame = useAudioEditorTelemetrySelector(
+		controller,
+		(telemetry) => Math.max(0, telemetry.positionFrame || 0),
+	);
 	const disabled = snapshot.readOnly || snapshot.recording;
 	const label = sequenceTimecodeLabelAtSample(view, positionFrame, sampleRate);
 	const sourceReading = controller.actions.video.sourceTimecodeAtSample(positionFrame, view.id);

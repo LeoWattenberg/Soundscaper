@@ -13,16 +13,54 @@ import {
 
 import { iconNameToChar } from '../../audacity-iconcodes.js';
 import { framesToSeconds, secondsToFrames } from '../../design-system-adapters.js';
+import AudioEditorSplitButton from '../AudioEditorSplitButton.tsx';
+import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import { AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS } from '../application-menu-registry.ts';
+import { formatOptionsLabel } from '../localization-template.ts';
 import { formatPlaybackSpeed } from '../meter-settings.ts';
 import { createTakeCycleRecordingMenuItems } from '../take-cycle-recording-menu.ts';
 import { AudioDevicesFlyout } from './AudioEditorMeterControls.jsx';
 import EditorTaskProgressBar from './EditorTaskProgressBar.tsx';
 
-export function PlaySpeedFlyout({ copy, snapshot, telemetry, blocked, controller, run, close }) {
+export function TelemetryPlayTransportControl({ copy, snapshot, blocked, controller, run }) {
+	const transportState = useAudioEditorTelemetrySelector(
+		controller,
+		(telemetry) => telemetry.transportState,
+	);
+	const playing = transportState === 'playing';
+	return <span data-transport="play"><AudioEditorSplitButton
+		icon={playing ? 'pause' : 'play'}
+		className="kw-audio-editor__transport-play kw-audio-editor__transport-play-split"
+		ariaLabel={playing ? copy.pause : copy.play}
+		optionsAriaLabel={formatOptionsLabel(copy, playing ? copy.pause : copy.play)}
+		disabled={blocked && !snapshot.recording}
+		active={playing}
+		pressed={playing}
+		onClick={() => run(() => controller.actions.transport.playPause())}
+	>
+		{({ close }) => <PlaySpeedFlyout
+			copy={copy}
+			snapshot={snapshot}
+			blocked={blocked}
+			controller={controller}
+			run={run}
+			close={close}
+		/>}
+	</AudioEditorSplitButton></span>;
+}
+
+export function PlaySpeedFlyout({ copy, snapshot, blocked, controller, run, close }) {
+	const transportState = useAudioEditorTelemetrySelector(
+		controller,
+		(telemetry) => telemetry.transportState,
+	);
+	const playbackMode = useAudioEditorTelemetrySelector(
+		controller,
+		(telemetry) => telemetry.playbackMode,
+	);
 	const playAtSpeedPreparing = Boolean(snapshot.playbackOptions?.preparing);
-	const playAtSpeedActive = telemetry.transportState === 'playing'
-		&& ['naive', 'staffpad'].includes(telemetry.playbackMode);
+	const playAtSpeedActive = transportState === 'playing'
+		&& ['naive', 'staffpad'].includes(playbackMode);
 	const playAtSpeedLabel = playAtSpeedPreparing
 		? copy.cancelPlayAtSpeed
 		: playAtSpeedActive ? copy.pausePlayAtSpeed : copy.playAtSpeed;
@@ -45,7 +83,7 @@ export function PlaySpeedFlyout({ copy, snapshot, telemetry, blocked, controller
 					step="0.05"
 					value={snapshot.playbackOptions?.rate || 1}
 					aria-label={copy.playbackSpeed}
-					disabled={blocked || telemetry.transportState === 'playing'}
+					disabled={blocked || transportState === 'playing'}
 					onChange={(event) => run(() => controller.actions.transport.setPlayAtSpeedRate(Number(event.currentTarget.value)))}
 				/>
 				<output aria-hidden="true">{formatPlaybackSpeed(snapshot.playbackOptions?.rate || 1)}×</output>
@@ -307,6 +345,34 @@ export function AccessibleTimeCode({ ariaLabel, ...props }) {
 		wrapperRef.current?.querySelector('.timecode__format-button')?.setAttribute('aria-label', ariaLabel);
 	}, [ariaLabel]);
 	return <span ref={wrapperRef}><TimeCode {...props} /></span>;
+}
+
+export function TelemetryTimeCode({
+	controller,
+	copy,
+	project,
+	durationFrames,
+	isCompact,
+	recording,
+	run,
+}) {
+	const positionFrame = useAudioEditorTelemetrySelector(
+		controller,
+		(telemetry) => telemetry.positionFrame || 0,
+	);
+	return <div className="kw-audio-editor__timecode" data-time-display>
+		<AccessibleTimeCode
+			ariaLabel={`${copy.playhead}: ${copy.format}`}
+			value={framesToSeconds(positionFrame, { sampleRate: project?.sampleRate })}
+			sampleRate={project?.sampleRate || 48_000}
+			showFormatSelector={!isCompact}
+			disabled={recording}
+			onChange={(seconds) => run(() => controller.actions.transport.seek(secondsToFrames(seconds, {
+				maximumFrame: durationFrames,
+				sampleRate: project?.sampleRate,
+			})))}
+		/>
+	</div>;
 }
 
 export function AccessibleTransportButton({ pressed, ...props }) {

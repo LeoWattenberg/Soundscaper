@@ -25,10 +25,10 @@ import {
 	DEFAULT_TRACK_HEIGHT as TRACK_HEIGHT,
 	dbToLinear,
 	linearToDb,
-	meterPercent,
 } from './geometry.ts';
 import { COLLAPSED_TRACK_HEIGHT } from './constants.ts';
 import { focusFirst, focusPanelControl } from './timeline-navigation.js';
+import { OutputTelemetryMeters } from './TrackTelemetryMeters.tsx';
 
 export function OutputTrackDock({
 	controller,
@@ -426,10 +426,6 @@ export function OutputTrackControls({
 }) {
 	const controlsRef = useRef(null);
 	const [editingName, setEditingName] = useState(false);
-	const meter = useAudioEditorTelemetrySelector(controller, (telemetry) => scope === 'master'
-		? telemetry.meters?.master
-		: telemetry.meters?.[`${scope}s`]?.[bus.id]);
-	const meterVolume = meterPercent(meter?.dbfs);
 	const label = scope === 'master' ? copy.master : bus.name;
 	return (
 		<div
@@ -459,10 +455,11 @@ export function OutputTrackControls({
 				isFocused={focused}
 				height={bus.collapsed === false ? (mobile ? 'truncated' : 'default') : 'collapsed'}
 				trackHeight={trackHeight}
-				meterLevelLeft={meterVolume}
-				meterLevelRight={meterVolume}
-				meterClippedLeft={(meter?.peak || 0) >= 1}
-				meterClippedRight={(meter?.peak || 0) >= 1}
+				meterContent={<OutputTelemetryMeters
+					controller={controller}
+					scope={scope}
+					busId={scope === 'master' ? undefined : bus.id}
+				/>}
 				tabIndex={0}
 				onVolumeChange={(volume) => !blocked && run(() => update({
 					gain: dbToLinear(designVolumeToGainDb(volume)),

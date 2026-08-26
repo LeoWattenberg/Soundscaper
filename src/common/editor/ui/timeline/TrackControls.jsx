@@ -8,12 +8,11 @@ import {
 	panToDesignValue,
 } from '../../design-system-adapters.js';
 import RecordingInputSelectors from '../RecordingInputSelectors.jsx';
-import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import {
 	dbToLinear,
 	linearToDb,
-	meterPercent,
 } from './geometry.ts';
+import { TrackTelemetryMeters } from './TrackTelemetryMeters.tsx';
 import { focusCandidate, focusFirst, focusPanelControl } from './timeline-navigation.js';
 
 const COMPACT_TRACK_PANEL_WIDTH = 164;
@@ -39,8 +38,6 @@ export function TrackControls({
 }) {
 	const controlsRef = useRef(null);
 	const [editingName, setEditingName] = useState(false);
-	const meter = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.meters?.tracks?.[track.id]);
-	const meterVolume = meterPercent(meter?.dbfs);
 	const adapterSelector = '.audio-editor-track-adapters input:not([disabled]), .audio-editor-track-adapters button:not([disabled]), .audio-editor-track-input select:not([disabled])';
 	const focusAdapterControl = (last = false) => focusCandidate(
 		controlsRef.current,
@@ -86,10 +83,7 @@ export function TrackControls({
 				isFocused={selected}
 				height={panelWidth <= COMPACT_TRACK_PANEL_WIDTH ? 'truncated' : 'default'}
 				trackHeight={trackHeight}
-				meterLevelLeft={meterVolume}
-				meterLevelRight={meterVolume}
-				meterClippedLeft={(meter?.peak || 0) >= 1}
-				meterClippedRight={(meter?.peak || 0) >= 1}
+				meterContent={<TrackTelemetryMeters controller={controller} trackId={track.id} />}
 				tabIndex={-1}
 				onTabOut={() => {
 					if (!focusAdapterControl()) onTabOut?.();
