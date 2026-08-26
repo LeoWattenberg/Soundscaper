@@ -14,6 +14,7 @@ import {
 } from '../desktop/local-model-catalog-signature.ts';
 import {
 	LOCAL_MODEL_CATALOG_SCHEMA_VERSION,
+	LOCAL_MODEL_TASKS,
 	validateLocalModelCatalog,
 } from '../desktop/local-model-catalog.ts';
 
@@ -119,6 +120,13 @@ test('V2 admits a signed identity mirror bound to its exact permitted evidence',
 		localModelEvidenceSha256(record),
 		'object insertion order cannot change an evidence pin',
 	);
+});
+
+test('the catalog task vocabulary covers every activated Milestone 7 model family', () => {
+	for (const task of [
+		'word-alignment', 'source-separation', 'audio-tagging', 'beat-tracking',
+		'shot-detection', 'editorial-generation',
+	] as const) assert.ok(LOCAL_MODEL_TASKS.includes(task));
 });
 
 test('V2 distinguishes a reproducibly derived artifact from an identity mirror', () => {

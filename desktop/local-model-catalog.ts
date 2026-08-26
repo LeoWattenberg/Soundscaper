@@ -25,16 +25,21 @@ export const LOCAL_MODEL_CATALOG_SCHEMA_VERSION = 2;
 export const LOCAL_MODEL_TASKS = Object.freeze([
 	'voice-activity-detection',
 	'speech-recognition',
+	'word-alignment',
 	'speaker-segmentation',
 	'speaker-embedding',
 	'speech-enhancement',
 	'source-separation',
+	'audio-tagging',
+	'beat-tracking',
 	'face-detection',
 	'object-detection',
 	'saliency-detection',
 	'optical-character-recognition',
 	'image-text-embedding',
 	'text-embedding',
+	'shot-detection',
+	'editorial-generation',
 ] as const);
 
 export type LocalModelTask = (typeof LOCAL_MODEL_TASKS)[number];
