@@ -52,6 +52,7 @@
 		"coverage:compact": "node scripts/compact-v8-coverage.mjs coverage/v8-shard",
 		"coverage:check": "node scripts/check-shard-coverage.mjs",
 		"provision:interchange-conformance": "node scripts/provision-interchange-conformance.mjs",
+		"provision:milestone-5-native-sources": "node scripts/provision-milestone-5-native-sources.mjs",
 		"test:reference:interchange": "node --import tsx --import ./scripts/node-style-asset-loader.mjs --test tests/audio-editor-*-reference-conformance.test.ts",
 		"test:reference:wav-385mib": "node --import tsx --import ./scripts/node-style-asset-loader.mjs --test tests/audio-editor-export-direct-wav-reference.test.ts",
 		"quality:collect:ci-metrics": "node scripts/collect-ci-qualification-metrics.mjs",

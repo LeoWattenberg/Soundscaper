@@ -30,3 +30,10 @@ private/
 
 # Provisioned by scripts/provision-interchange-conformance.mjs; reference readers, never shipped.
 /vendor/interchange-conformance/
+
+# Provisioned by scripts/provision-milestone-5-native-sources.mjs; ~80 MiB of pinned
+# upstream archives plus their extracted trees. Digest-pinned in
+# config/milestone-5-native-source-acquisitions.json and re-fetchable from there,
+# so committing them would bloat the history for nothing and would redistribute
+# third-party source the licensing gates have not cleared.
+/vendor/milestone-5-native-sources/

@@ -5,8 +5,8 @@
 import { createHash } from 'node:crypto';
 import { inflateRawSync } from 'node:zlib';
 import {
-	lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpathSync,
-	rmSync, unlinkSync, writeFileSync,
+	existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync,
+	realpathSync, renameSync, rmSync, unlinkSync, writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, extname, isAbsolute, posix, relative, resolve, sep } from 'node:path';
@@ -20,11 +20,68 @@ const MAXIMUM_FILE_BYTES = 512 * 1024 * 1024;
 const MAXIMUM_EXPANDED_BYTES = 4 * 1024 * 1024 * 1024;
 const MAXIMUM_ZIP_BYTES = 512 * 1024 * 1024;
 
-export function authenticateMilestone5SourceArchiveExtraction({
+export function authenticateMilestone5SourceArchiveExtraction(request) {
+	// Resolved once: macOS reports a temporary directory under /var, which is a
+	// symbolic link to /private/var, and every path derived from it would then
+	// fail the canonical-directory rule the extracted tree is authenticated by.
+	const staging = realpathSync(mkdtempSync(resolve(tmpdir(), 'm5-source-archive-')));
+	try {
+		return extractAuthenticatedSourceArchive(request, staging).evidence;
+	} finally {
+		rmSync(staging, { recursive: true, force: true });
+	}
+}
+
+/**
+ * Authenticate one archive and leave its verified tree at `destinationRoot`.
+ *
+ * Provisioning a source cache needs the extracted bytes the auditor later
+ * re-reads, and the auditor accepts nothing it did not verify itself, so the
+ * tree is built in a staging directory beside its destination and renamed into
+ * place only after it matches its pin. The rename is therefore one atomic
+ * same-filesystem move: a cache never holds a half-written tree, and an
+ * existing destination is never overwritten.
+ */
+export function materializeMilestone5SourceArchive({ destinationRoot: destinationValue, ...request }) {
+	if (typeof destinationValue !== 'string' || !isAbsolute(destinationValue)) {
+		throw new TypeError('Milestone 5 source materialization requires one absolute destination root.');
+	}
+	const destinationRoot = resolve(destinationValue);
+	const parent = dirname(destinationRoot);
+	const parentMetadata = lstatSync(parent);
+	if (!parentMetadata.isDirectory() || parentMetadata.isSymbolicLink() || realpathSync(parent) !== parent) {
+		throw new Error(`The Milestone 5 source destination parent ${parent} must be one canonical directory.`);
+	}
+	if (existsSync(destinationRoot)) {
+		throw new Error(`The Milestone 5 source destination ${destinationRoot} already exists.`);
+	}
+	const staging = mkdtempSync(`${destinationRoot}.staging-`);
+	try {
+		const { evidence, extractionRoot } = extractAuthenticatedSourceArchive(request, staging);
+		renameSync(extractionRoot, destinationRoot);
+		const tree = collectExtractedSourceTree(destinationRoot);
+		if (tree.algorithm !== evidence.algorithm || tree.fileCount !== evidence.fileCount
+			|| tree.sha256 !== evidence.sha256) {
+			rmSync(destinationRoot, { recursive: true, force: true });
+			throw new Error('The materialized Milestone 5 source tree drifted from its authenticated identity.');
+		}
+		return evidence;
+	} finally {
+		rmSync(staging, { recursive: true, force: true });
+	}
+}
+
+/**
+ * Extract one archive inside a caller-owned staging directory and authenticate
+ * the result against its pinned portable tree identity. The single extraction
+ * implementation both callers above share, so a materialized cache carries the
+ * exact bytes the audit path verified.
+ */
+function extractAuthenticatedSourceArchive({
 	archiveBytes: archiveBytesValue,
 	archiveName,
 	expectedTree,
-}) {
+}, staging) {
 	validateExpectedTree(expectedTree);
 	if (!Buffer.isBuffer(archiveBytesValue) || archiveBytesValue.byteLength < 1
 		|| archiveBytesValue.byteLength > MAXIMUM_ZIP_BYTES) {
@@ -39,37 +96,34 @@ export function authenticateMilestone5SourceArchiveExtraction({
 	// between archive hashing, inventory, and extraction.
 	const archiveBytes = Buffer.from(archiveBytesValue);
 	const archiveSha256 = createHash('sha256').update(archiveBytes).digest('hex');
-	// Resolved once: macOS reports a temporary directory under /var, which is a
-	// symbolic link to /private/var, and every path derived from it would then
-	// fail the canonical-directory rule the extracted tree is authenticated by.
-	const temporary = realpathSync(mkdtempSync(resolve(tmpdir(), 'm5-source-archive-')));
-	try {
-		const archivePath = resolve(temporary, archiveName);
-		writeFileSync(archivePath, archiveBytes, { flag: 'wx', mode: 0o400 });
-		const extractionRoot = resolve(temporary, 'source');
-		mkdirSync(extractionRoot);
-		const inventory = archivePath.endsWith('.tar.gz')
-			? extractTarGzip(archivePath, extractionRoot)
-			: extname(archivePath).toLowerCase() === '.zip'
-				? extractZip(archivePath, extractionRoot)
-				: (() => { throw new Error('Milestone 5 source archives must be .tar.gz or .zip.'); })();
-		const tree = collectExtractedSourceTree(extractionRoot);
-		const actualPaths = tree.files.map(({ path }) => path);
-		if (JSON.stringify(actualPaths) !== JSON.stringify(inventory.filePaths)
-			|| tree.algorithm !== expectedTree.algorithm
-			|| tree.fileCount !== expectedTree.fileCount
-			|| tree.sha256 !== expectedTree.sha256) {
-			throw new Error('The source archive extraction drifted from its pinned portable tree identity.');
-		}
-		const snapshotMetadata = lstatSync(archivePath);
-		const snapshotBytes = readFileSync(archivePath);
-		if (!snapshotMetadata.isFile() || snapshotMetadata.isSymbolicLink()
-			|| realpathSync(archivePath) !== archivePath
-			|| snapshotBytes.byteLength !== archiveBytes.byteLength
-			|| createHash('sha256').update(snapshotBytes).digest('hex') !== archiveSha256) {
-			throw new Error('The authenticated source archive snapshot changed during extraction.');
-		}
-		return Object.freeze({
+	const archivePath = resolve(staging, archiveName);
+	writeFileSync(archivePath, archiveBytes, { flag: 'wx', mode: 0o400 });
+	const extractionRoot = resolve(staging, 'source');
+	mkdirSync(extractionRoot);
+	const inventory = archivePath.endsWith('.tar.gz')
+		? extractTarGzip(archivePath, extractionRoot)
+		: extname(archivePath).toLowerCase() === '.zip'
+			? extractZip(archivePath, extractionRoot)
+			: (() => { throw new Error('Milestone 5 source archives must be .tar.gz or .zip.'); })();
+	const tree = collectExtractedSourceTree(extractionRoot);
+	const actualPaths = tree.files.map(({ path }) => path);
+	if (JSON.stringify(actualPaths) !== JSON.stringify(inventory.filePaths)
+		|| tree.algorithm !== expectedTree.algorithm
+		|| tree.fileCount !== expectedTree.fileCount
+		|| tree.sha256 !== expectedTree.sha256) {
+		throw new Error('The source archive extraction drifted from its pinned portable tree identity.');
+	}
+	const snapshotMetadata = lstatSync(archivePath);
+	const snapshotBytes = readFileSync(archivePath);
+	if (!snapshotMetadata.isFile() || snapshotMetadata.isSymbolicLink()
+		|| realpathSync(archivePath) !== archivePath
+		|| snapshotBytes.byteLength !== archiveBytes.byteLength
+		|| createHash('sha256').update(snapshotBytes).digest('hex') !== archiveSha256) {
+		throw new Error('The authenticated source archive snapshot changed during extraction.');
+	}
+	return {
+		extractionRoot,
+		evidence: Object.freeze({
 			archiveByteLength: archiveBytes.byteLength,
 			archiveSha256,
 			algorithm: tree.algorithm,
@@ -77,10 +131,8 @@ export function authenticateMilestone5SourceArchiveExtraction({
 			sha256: tree.sha256,
 			archiveEntryCount: inventory.entryCount,
 			expandedByteLength: inventory.expandedByteLength,
-		});
-	} finally {
-		rmSync(temporary, { recursive: true, force: true });
-	}
+		}),
+	};
 }
 
 function extractTarGzip(archivePath, extractionRoot) {

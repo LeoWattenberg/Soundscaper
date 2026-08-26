@@ -1,13 +1,17 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 
 import { collectExtractedSourceTree } from '../native/framescaper-media-host/build/source-authentication.mjs';
-import { authenticateMilestone5SourceArchiveExtraction } from '../scripts/lib/milestone-5-source-archive-extraction.mjs';
+import {
+	authenticateMilestone5SourceArchiveExtraction,
+	materializeMilestone5SourceArchive,
+} from '../scripts/lib/milestone-5-source-archive-extraction.mjs';
 
 test('ZIP source authentication safely extracts UTF-8 vendor paths into the pinned tree', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'm5-source-zip-'));
@@ -46,6 +50,49 @@ test('ZIP source authentication safely extracts UTF-8 vendor paths into the pinn
 			expectedTree,
 		}),
 		/content is invalid/iu,
+	);
+});
+
+test('materialization leaves an authenticated tree and never a partial destination', async (context) => {
+	// Provisioning a source cache needs the extracted bytes the auditor later
+	// re-reads, and the auditor accepts nothing it did not verify itself, so the
+	// tree must arrive whole and pinned or not at all.
+	const root = await mkdtemp(join(tmpdir(), 'm5-source-materialize-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const files = { 'include/api.h': Buffer.from('authenticated api\n') };
+	const staged = join(root, 'staged');
+	for (const [path, bytes] of Object.entries(files)) {
+		await mkdir(dirname(join(staged, path)), { recursive: true });
+		await writeFile(join(staged, path), bytes);
+	}
+	const expectedTree = collectExtractedSourceTree(staged);
+	const archive = zipStore(Object.fromEntries(Object.entries(files).map(([path, bytes]) => (
+		[`fixture/${path}`, bytes]
+	))));
+
+	const destination = join(root, 'source');
+	const evidence = materializeMilestone5SourceArchive({
+		archiveBytes: archive, archiveName: 'fixture.zip', expectedTree, destinationRoot: destination,
+	});
+	assert.equal(evidence.sha256, expectedTree.sha256);
+	assert.equal(collectExtractedSourceTree(destination).sha256, expectedTree.sha256);
+	assert.equal(await readFile(join(destination, 'include/api.h'), 'utf8'), 'authenticated api\n');
+
+	assert.throws(() => materializeMilestone5SourceArchive({
+		archiveBytes: archive, archiveName: 'fixture.zip', expectedTree, destinationRoot: destination,
+	}), /already exists/iu, 'an existing destination is never overwritten');
+
+	const drifted = join(root, 'drifted');
+	assert.throws(() => materializeMilestone5SourceArchive({
+		archiveBytes: archive,
+		archiveName: 'fixture.zip',
+		expectedTree: { ...expectedTree, sha256: '0'.repeat(64) },
+		destinationRoot: drifted,
+	}), /drifted from its pinned portable tree identity/iu);
+	assert.equal(existsSync(drifted), false, 'a refused archive leaves no destination behind');
+	assert.deepEqual(
+		(await readdir(root)).sort(), ['source', 'staged'],
+		'no staging directory survives a refused or an accepted materialization',
 	);
 });
 

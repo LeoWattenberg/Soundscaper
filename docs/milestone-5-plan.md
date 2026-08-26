@@ -9,7 +9,10 @@
 > native routes; no Milestone 5 qualification or release activation is claimed.
 
 > The source audit authenticates 0/10 required exact archive/extracted-tree
-> inputs. All five Soundscaper professional payload rows are `pending-external`;
+> inputs until a cache is provisioned — see
+> [Provisioning the native source cache](#provisioning-the-native-source-cache),
+> which reaches 10/10 and grants nothing further.
+> All five Soundscaper professional payload rows are `pending-external`;
 > both five-target Framescaper payload manifests are empty and every row is
 > `pending-external`. Per-OS launcher source/contracts/tests exist, but
 > authenticated target payloads, independently signed readiness, licensing and
@@ -205,10 +208,10 @@ native FFmpeg set, hardware acceleration, and advanced codec families, in
 addition to the coarse `native-plugins` and `native-codecs` gates. Every row is
 still blocked pending its named platform/source/notices/security work; a row's
 presence is not enablement. JUCE 9 plus the direct CLAP ABI are the 5A
-integration decision and their source acquisition rows are pinned, but the
-shared external audit currently authenticates none of the required exact
-archive/extracted-tree inputs. Licensing, corresponding-source, patent,
-notices, and trademark review remain open. Milestone 5 also respects the two
+integration decision and their source acquisition rows are pinned and
+provisionable, but authenticating a source is provenance and nothing else.
+Licensing, corresponding-source, patent, notices, and trademark review remain
+open. Milestone 5 also respects the two
 already-blocked FFmpeg release gates
 (`ffmpeg-enabled-library-corresponding-source`,
 `ffmpeg-enabled-codec-patent-review`): a native FFmpeg
@@ -223,6 +226,36 @@ current previews remain unsigned/ad-hoc and CI deliberately disables automatic
 identity discovery. No signing identity, signed execution result, notarization
 result, or workflow secret mapping is present. This blocks qualification, not
 local 5A-0 implementation; milestone 9 requalifies the release-shaped chain.
+
+### Provisioning the native source cache
+
+`config/milestone-5-native-source-acquisitions.json` pins ten upstream inputs by
+archive digest and by the portable identity of the tree each archive extracts
+to. `auditMilestone5NativeSourceAcquisitions` authenticates a cache of those
+inputs, reading its root from `SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT`, and an absent
+cache is a truthful `pending-external` result rather than an error — which is
+why the audit reports 0/10 on a machine that has never provisioned one.
+
+`npm run provision:milestone-5-native-sources` assembles that cache into the
+uncommitted `vendor/milestone-5-native-sources/`, one directory per source
+holding exactly the pinned archive and its extracted `source/` tree. Each
+archive is refused unless its bytes match the pinned length and SHA-256, each
+tree is built by the same non-executing extractor the audit path uses and
+refused unless it matches the pinned portable identity, and an entry is renamed
+into the cache only once it is whole. Useful flags: `--check` reports status
+and provisions nothing, `--source <id>` narrows the run, `--force` replaces a
+drifted entry, and `--archive-directory <dir>` reads the archives from local
+storage instead of fetching them, which is the path to use for upstreams behind
+terms a person must accept — the Steinberg ASIO SDK above all.
+
+The cache is deliberately outside the repository and outside the product's
+dependency graph. Nothing provisioned is committed, bundled, linked, or
+redistributed, and authenticating a source grants no redistribution, trademark,
+patent, signing, activation, or qualification approval: the licensing gates, the
+per-target payload rows, the signed readiness evidence, and the native-lab
+cohorts stay exactly as blocked as they were. What it changes is that the source
+gate the activation policy checks can now be satisfied by evidence rather than
+being unreachable on every machine.
 
 ### Rejected alternatives (recorded to prevent re-litigation)
 
