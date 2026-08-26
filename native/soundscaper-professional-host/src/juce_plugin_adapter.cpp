@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstring>
+#include <memory>
 #include <set>
 
 namespace soundscaper {
@@ -27,6 +28,28 @@ bool formatMatches(const juce::AudioPluginFormat &candidate, const std::string &
 	if (format == "au") return name.find("audio unit") != std::string::npos;
 	if (format == "lv2") return name.find("lv2") != std::string::npos;
 	return false;
+}
+
+/**
+ * JUCE 9 deleted `addDefaultFormats()`, and its replacements register every
+ * format the framework can build. This host registers only the formats its own
+ * target compiled in, so a build that was not configured for a format cannot
+ * acquire the ability to load it: the set here and the JUCE_PLUGINHOST_* set in
+ * CMakeLists are deliberately the same decision, expressed once per language.
+ * CLAP is absent by design — it is hosted through the direct ABI adapter, never
+ * through JUCE.
+ */
+void registerCompiledFormats(juce::AudioPluginFormatManager &manager)
+{
+#if JUCE_PLUGINHOST_VST3
+	manager.addFormat(std::make_unique<juce::VST3PluginFormat>());
+#endif
+#if JUCE_PLUGINHOST_AU
+	manager.addFormat(std::make_unique<juce::AudioUnitPluginFormat>());
+#endif
+#if JUCE_PLUGINHOST_LV2
+	manager.addFormat(std::make_unique<juce::LV2PluginFormat>());
+#endif
 }
 
 juce::AudioPluginFormat *selectedFormat(juce::AudioPluginFormatManager &manager, const std::string &format)
@@ -212,7 +235,7 @@ soundscaper_pro_status scanJucePlugin(
 	std::vector<soundscaper_pro_plugin_description> &output)
 {
 	juce::AudioPluginFormatManager manager;
-	manager.addDefaultFormats();
+	registerCompiledFormats(manager);
 	auto *adapter = selectedFormat(manager, format);
 	if (adapter == nullptr) return SOUNDSCAPER_PRO_UNSUPPORTED;
 	juce::OwnedArray<juce::PluginDescription> descriptions;
@@ -241,7 +264,7 @@ soundscaper_pro_status openJucePlugin(
 	std::unique_ptr<JucePluginInstance> &instance)
 {
 	juce::AudioPluginFormatManager manager;
-	manager.addDefaultFormats();
+	registerCompiledFormats(manager);
 	juce::String error;
 	auto plugin = instantiate(manager, format, path, stableId, sampleRate, maximumFrames, error);
 	if (plugin == nullptr) return error.containsIgnoreCase("format")

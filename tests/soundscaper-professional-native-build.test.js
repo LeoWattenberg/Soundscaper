@@ -16,6 +16,14 @@ import { collectExtractedSourceTree } from '../native/framescaper-media-host/bui
 
 const ROOT = resolve(import.meta.dirname, '..');
 
+/**
+ * The exact directory JUCE 9.0.1 vendors the VST3 SDK into. JUCE 9 moved every
+ * hosted format's SDK under the headless audio-processors module, so a fixture
+ * built in the pre-9 shape agrees with a recipe that can never configure — which
+ * is how the wrong path survived here unnoticed.
+ */
+const JUCE_VST3_SDK_CLOSURE = 'modules/juce_audio_processors_headless/format_types/VST3_SDK';
+
 async function sourceRoots(context) {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-pro-sources-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
@@ -29,11 +37,11 @@ async function sourceRoots(context) {
 		join(roots['electron-node-api-headers'], 'include/node/node_api.h'),
 		join(roots.juce, 'CMakeLists.txt'),
 		join(roots.juce, 'modules/juce_audio_processors/format_types/juce_VST3PluginFormat.cpp'),
-		join(roots.juce, 'modules/juce_audio_processors/format_types/VST3_SDK/.closure'),
+		join(roots.juce, JUCE_VST3_SDK_CLOSURE, '.closure'),
 		join(roots.clap, 'include/clap/clap.h'),
 		join(roots['vst3-sdk'], 'README.md'),
 		join(roots['asio-sdk'], 'common/asio.h'),
-		join(roots.lv2, 'lv2/core/lv2.h'),
+		join(roots.lv2, 'include/lv2/core/lv2.h'),
 	]) {
 		await mkdir(dirname(path), { recursive: true });
 		await writeFile(path, 'authenticated fixture\n');
@@ -84,7 +92,7 @@ test('professional build plans bind exact SDK pins and never treat the VST3 meta
 	assert.deepEqual(linux.features.plugins, ['vst3', 'clap', 'lv2']);
 	assert.deepEqual(linux.vst3Closure, {
 		kind: 'juce-embedded-sdk',
-		root: join(linux.sourceSnapshotRoot, 'juce/modules/juce_audio_processors/format_types/VST3_SDK'),
+		root: join(linux.sourceSnapshotRoot, 'juce', JUCE_VST3_SDK_CLOSURE),
 		provenanceOnlySourceId: 'vst3-sdk',
 		commit: '9fad9770f2ae8542ab1a548a68c1ad1ac690abe0',
 	});
@@ -270,4 +278,66 @@ test('target builds select concrete Linux, macOS Seatbelt and Windows AppContain
 		/brand: input\.brand[\s\S]*reviewedPayload: artifactBinding[\s\S]*runtimeClosure: sortedBindings[\s\S]*value\.sha256/u);
 	assert.match(windowsProfile, /brand-and-reviewed-payload-bound-appcontainer-low-integrity/u);
 	assert.doesNotMatch(runtime, /if \(!target\.startsWith\('linux-'\)/u);
+});
+
+/**
+ * Every assertion here failed before the JUCE 9 port: the recipe named SDK
+ * directories the pinned JUCE revision does not contain, and the host called
+ * three APIs JUCE 9 removed or never exposed. Nothing caught it because the
+ * plan's own fixture was built in the shape the recipe expected, so the two
+ * agreed with each other and disagreed only with JUCE.
+ */
+test('the professional host builds against the JUCE revision it actually pins', async () => {
+	const [cmake, buildRecipe, pluginAdapter, audioAdapter] = await Promise.all([
+		readFile(join(ROOT, 'native/soundscaper-professional-host/CMakeLists.txt'), 'utf8'),
+		readFile(join(ROOT, 'scripts/lib/soundscaper-professional-native-build.mjs'), 'utf8'),
+		readFile(join(ROOT, 'native/soundscaper-professional-host/src/juce_plugin_adapter.cpp'), 'utf8'),
+		readFile(join(ROOT, 'native/soundscaper-professional-host/src/juce_audio_adapter.cpp'), 'utf8'),
+	]);
+
+	// JUCE 9 vendors every hosted format's SDK under the headless module. The
+	// pre-9 directory is absent from JUCE 9.0.1, so naming it was a configure
+	// failure on the first line CMake reached, for all five targets.
+	for (const source of [cmake, buildRecipe]) {
+		assert.match(source, /juce_audio_processors_headless\/format_types\/VST3_SDK/u);
+		assert.doesNotMatch(source, /juce_audio_processors\/format_types\/VST3_SDK/u,
+			'the pre-JUCE-9 VST3 SDK directory does not exist in the pinned revision');
+	}
+
+	// LV2 1.18.10 keeps its headers under `include/`, so `<lv2/core/lv2.h>`
+	// resolves from there and from nowhere else in the authenticated tree.
+	assert.match(buildRecipe, /const LV2_INCLUDE_ROOT = 'include';/u);
+	assert.match(cmake, /SOUNDSCAPER_LV2_ROOT\}\/lv2\/core\/lv2\.h/u);
+
+	// `addDefaultFormats` is `= delete` in JUCE 9, and its replacements register
+	// every format JUCE can build rather than the ones this target compiled in.
+	assert.doesNotMatch(pluginAdapter, /manager\.addDefaultFormats\s*\(/u);
+	assert.match(pluginAdapter, /registerCompiledFormats/u);
+	for (const [guard, format] of [
+		['JUCE_PLUGINHOST_VST3', 'VST3PluginFormat'],
+		['JUCE_PLUGINHOST_AU', 'AudioUnitPluginFormat'],
+		['JUCE_PLUGINHOST_LV2', 'LV2PluginFormat'],
+	]) {
+		assert.match(pluginAdapter, new RegExp(`#if ${guard}\\s*\\n\\s*manager\\.addFormat\\(std::make_unique<juce::${format}>\\(\\)\\);`, 'u'),
+			`${format} must be registered only when ${guard} compiled it in`);
+	}
+	// CLAP is hosted through the direct ABI adapter and must never be reachable
+	// as a JUCE format, or the isolation story would have two different doors.
+	assert.doesNotMatch(pluginAdapter, /CLAPPluginFormat/u);
+
+	// `createAudioDeviceTypes` is a protected virtual; calling it as a static
+	// never compiled, and building one requested type is also the narrower act.
+	assert.doesNotMatch(audioAdapter, /juce::AudioDeviceManager::createAudioDeviceTypes\s*\(/u);
+	assert.match(audioAdapter, /createAudioIODeviceType_ALSA/u);
+	assert.match(audioAdapter, /createAudioIODeviceType_WASAPI/u);
+	assert.match(audioAdapter, /createAudioIODeviceType_CoreAudio/u);
+
+	// `createDevice` returns an owning raw pointer and every refusal below it
+	// returns early, so adopting it at the call is what stops those leaks.
+	assert.match(audioAdapter,
+		/std::unique_ptr<juce::AudioIODevice> device\(type->createDevice\(outputName, inputName\)\);/u);
+
+	// juce_gui_extra pulls in GTK and WebKit for a browser this host never shows.
+	assert.match(cmake, /JUCE_WEB_BROWSER=0/u);
+	assert.match(cmake, /JUCE_USE_CURL=0/u);
 });

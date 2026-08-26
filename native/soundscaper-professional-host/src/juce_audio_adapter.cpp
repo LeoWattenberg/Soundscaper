@@ -224,16 +224,33 @@ private:
 	bool started = false;
 };
 
+/**
+ * `AudioDeviceManager::createAudioDeviceTypes` is a protected virtual, so it was
+ * never callable the way this host called it, and JUCE 9 made that a hard error
+ * rather than a warning. Building the one requested type from the static factory
+ * is also the narrower thing to do: enumerating a backend no longer constructs
+ * every other backend's device type as a side effect, which on Linux meant an
+ * ALSA query could not be answered without JACK being brought up first.
+ */
 std::unique_ptr<juce::AudioIODeviceType> selectedType(const std::string &backend, bool exclusive)
 {
-	juce::OwnedArray<juce::AudioIODeviceType> types;
-	juce::AudioDeviceManager::createAudioDeviceTypes(types);
-	for (auto *candidate : types) {
-		if (!typeMatches(candidate->getTypeName(), backend, exclusive)) continue;
-		types.removeObject(candidate, false);
-		return std::unique_ptr<juce::AudioIODeviceType>(candidate);
+	std::unique_ptr<juce::AudioIODeviceType> candidate;
+#if JUCE_MAC
+	if (backend == "coreaudio") candidate.reset(juce::AudioIODeviceType::createAudioIODeviceType_CoreAudio());
+#elif JUCE_WINDOWS
+	if (backend == "wasapi") {
+		candidate.reset(juce::AudioIODeviceType::createAudioIODeviceType_WASAPI(exclusive
+			? juce::WASAPIDeviceMode::exclusive
+			: juce::WASAPIDeviceMode::shared));
 	}
-	return nullptr;
+ #if JUCE_ASIO
+	if (backend == "asio") candidate.reset(juce::AudioIODeviceType::createAudioIODeviceType_ASIO());
+ #endif
+#elif JUCE_LINUX
+	if (backend == "alsa") candidate.reset(juce::AudioIODeviceType::createAudioIODeviceType_ALSA());
+#endif
+	if (candidate == nullptr || !typeMatches(candidate->getTypeName(), backend, exclusive)) return nullptr;
+	return candidate;
 }
 
 } // namespace
@@ -288,7 +305,10 @@ soundscaper_pro_audio_result openJuceAudio(
 	const juce::String handle(request.device_handle == nullptr ? "" : request.device_handle);
 	const juce::String inputName = request.direction == 0u || request.direction == 2u ? handle : juce::String();
 	const juce::String outputName = request.direction == 1u || request.direction == 2u ? handle : juce::String();
-	auto device = type->createDevice(outputName, inputName);
+	// `createDevice` hands back an owning raw pointer, so it is adopted here
+	// rather than at the `Session` that eventually takes it: every refusal below
+	// this line returns early, and each one used to drop the device on the floor.
+	std::unique_ptr<juce::AudioIODevice> device(type->createDevice(outputName, inputName));
 	if (device == nullptr) {
 		result.status = SOUNDSCAPER_PRO_DEVICE_UNAVAILABLE;
 		text(result.detail, "The requested opaque device handle is unavailable.");

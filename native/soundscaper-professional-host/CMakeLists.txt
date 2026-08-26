@@ -21,7 +21,7 @@ endif()
 if(NOT EXISTS "${SOUNDSCAPER_JUCE_ROOT}/CMakeLists.txt")
 	message(FATAL_ERROR "SOUNDSCAPER_JUCE_ROOT is not an extracted JUCE source tree")
 endif()
-if(NOT EXISTS "${SOUNDSCAPER_JUCE_ROOT}/modules/juce_audio_processors/format_types/VST3_SDK")
+if(NOT EXISTS "${SOUNDSCAPER_JUCE_ROOT}/modules/juce_audio_processors_headless/format_types/VST3_SDK")
 	message(FATAL_ERROR "JUCE's embedded VST3 SDK closure is absent")
 endif()
 if(NOT EXISTS "${SOUNDSCAPER_CLAP_ROOT}/include/clap/clap.h")
@@ -46,6 +46,11 @@ foreach(core soundscaper_professional_audio soundscaper_professional_plugin)
 		JUCE_DISPLAY_SPLASH_SCREEN=0
 		JUCE_REPORT_APP_USAGE=0
 		JUCE_MODAL_LOOPS_PERMITTED=0
+		# A plug-in host has no business embedding a browser or an HTTP client,
+		# and leaving them on made juce_gui_extra a hard build dependency on
+		# GTK and WebKit that no target here has any use for.
+		JUCE_WEB_BROWSER=0
+		JUCE_USE_CURL=0
 	)
 	target_link_libraries(${core} PRIVATE
 		juce::juce_recommended_config_flags
@@ -97,7 +102,7 @@ elseif(WIN32)
 		JUCE_PLUGINHOST_AU=0 JUCE_PLUGINHOST_LV2=0 JUCE_ASIO=0)
 else()
 	target_sources(soundscaper_professional_audio PRIVATE src/os_audio_codec_unavailable.cpp)
-	if(NOT DEFINED SOUNDSCAPER_LV2_ROOT OR NOT EXISTS "${SOUNDSCAPER_LV2_ROOT}/lv2")
+	if(NOT DEFINED SOUNDSCAPER_LV2_ROOT OR NOT EXISTS "${SOUNDSCAPER_LV2_ROOT}/lv2/core/lv2.h")
 		message(FATAL_ERROR "Linux builds require the authenticated LV2 1.18.10 headers")
 	endif()
 	target_include_directories(soundscaper_professional_plugin PRIVATE "${SOUNDSCAPER_LV2_ROOT}")

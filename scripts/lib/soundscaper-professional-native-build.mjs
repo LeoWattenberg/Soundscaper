@@ -19,6 +19,17 @@ export const SOUNDSCAPER_PROFESSIONAL_NATIVE_TARGETS = Object.freeze([
 ]);
 const AUTHENTICATED_BUILD_PLANS = new WeakSet();
 
+/**
+ * JUCE 9 moved every hosted plug-in format's vendored SDK into the headless
+ * audio-processors module; `juce_audio_processors` now re-exports it. The pin
+ * names that module directly because the pre-9 path it used to live under does
+ * not exist in JUCE 9.0.1, and a recipe that looked for it there could never
+ * configure.
+ */
+const JUCE_VST3_SDK_CLOSURE = 'modules/juce_audio_processors_headless/format_types/VST3_SDK';
+/** LV2 1.18.10 ships its headers under `include/`, so `<lv2/core/lv2.h>` resolves only from there. */
+const LV2_INCLUDE_ROOT = 'include';
+
 const EXPECTED = Object.freeze({
 	'electron-node-api-headers': Object.freeze({ version: '43.1.1', commit: null, license: 'MIT' }),
 	juce: Object.freeze({ version: '9.0.1', commit: 'e18f7f506c0b96f2c738a0bcd7fe6467a5005ad8', license: 'AGPL-3.0-only' }),
@@ -92,7 +103,7 @@ function authenticatedBuildPlan({
 	assertFile(snapshotRoots.clap, 'include/clap/clap.h', 'direct CLAP 1.2.4 ABI');
 	assertFile(snapshotRoots['electron-node-api-headers'], 'include/node/node_api.h', 'Electron 43.1.1 Node-API headers');
 	if (target.startsWith('win-')) assertFile(snapshotRoots['asio-sdk'], 'common/asio.h', 'ASIO SDK 2.3.4');
-	if (target.startsWith('linux-')) assertFile(snapshotRoots.lv2, 'lv2/core/lv2.h', 'LV2 1.18.10 headers');
+	if (target.startsWith('linux-')) assertFile(snapshotRoots.lv2, `${LV2_INCLUDE_ROOT}/lv2/core/lv2.h`, 'LV2 1.18.10 headers');
 	const buildRoot = resolve(options.buildRoot);
 	const sourceRoot = resolve(repositoryRoot, SOUNDSCAPER_PROFESSIONAL_NATIVE_ROOT);
 	const definitions = [
@@ -106,7 +117,9 @@ function authenticatedBuildPlan({
 		definitions.push(`-DSOUNDSCAPER_ASIO_ROOT=${snapshotRoots['asio-sdk']}`);
 		definitions.push('-DCMAKE_SYSTEM_VERSION=10.0.26100');
 	}
-	if (target.startsWith('linux-')) definitions.push(`-DSOUNDSCAPER_LV2_ROOT=${snapshotRoots.lv2}`);
+	if (target.startsWith('linux-')) {
+		definitions.push(`-DSOUNDSCAPER_LV2_ROOT=${resolve(snapshotRoots.lv2, LV2_INCLUDE_ROOT)}`);
+	}
 	if (target === 'mac-arm64') {
 		assert(typeof options.macosSdkPath === 'string' && options.macosSdkPath.length > 0,
 			'mac-arm64 requires the selected macOS SDK path.');
@@ -128,7 +141,7 @@ function authenticatedBuildPlan({
 		}),
 		vst3Closure: Object.freeze({
 			kind: 'juce-embedded-sdk',
-			root: resolve(snapshotRoots.juce, 'modules/juce_audio_processors/format_types/VST3_SDK'),
+			root: resolve(snapshotRoots.juce, JUCE_VST3_SDK_CLOSURE),
 			provenanceOnlySourceId: 'vst3-sdk',
 			commit: EXPECTED['vst3-sdk'].commit,
 		}),
@@ -217,7 +230,7 @@ function assertSource(register, id, expected) {
 function assertExtractedJuceVst3Closure(juceRoot) {
 	assertFile(juceRoot, 'CMakeLists.txt', 'JUCE 9.0.1 source tree');
 	assertFile(juceRoot, 'modules/juce_audio_processors/format_types/juce_VST3PluginFormat.cpp', 'JUCE VST3 adapter');
-	const closure = resolve(juceRoot, 'modules/juce_audio_processors/format_types/VST3_SDK');
+	const closure = resolve(juceRoot, JUCE_VST3_SDK_CLOSURE);
 	assert(existsSync(closure), 'JUCE 9.0.1 embedded VST3 SDK closure is missing.');
 }
 
