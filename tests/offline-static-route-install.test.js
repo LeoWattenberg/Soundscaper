@@ -26,16 +26,20 @@ test('static web routes receive product-specific install manifests and Apple tou
 	const root = await readFile(join(outputRoot, 'index.html'), 'utf8');
 	const soundscaper = await readFile(join(outputRoot, 'en/index.html'), 'utf8');
 	const framescaper = await readFile(join(outputRoot, 'framescaper/en/index.html'), 'utf8');
+	const framescaperEmbed = await readFile(join(outputRoot, 'framescaper/embed/en/index.html'), 'utf8');
 	assertInstallLinks(root, 'soundscaper');
 	assertInstallLinks(soundscaper, 'soundscaper');
 	assertInstallLinks(framescaper, 'framescaper');
+	assertInstallLinks(framescaperEmbed, 'framescaper');
 	assert.doesNotMatch(framescaper, /manifest-soundscaper|soundscaper-180/u);
 });
 
 test('stable install metadata and icon URLs require revalidation', async () => {
 	const headers = await readFile('public/_headers', 'utf8');
 	assert.match(headers, /\/offline-icons\/\*\n\tCache-Control: no-cache/u);
+	assert.match(headers, /\/logo\/\*\n\tCache-Control: no-cache/u);
 	assert.match(headers, /\/manifest-\*\.webmanifest\n\tCache-Control: no-cache/u);
+	assert.match(headers, /\/framescaper\/service-worker\.js\n\tCache-Control: no-store\n\tService-Worker-Allowed: \/framescaper\//u);
 });
 
 function assertInstallLinks(html, productId) {

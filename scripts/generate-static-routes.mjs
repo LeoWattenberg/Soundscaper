@@ -14,11 +14,13 @@ let routeCount = 0;
 
 for (const productId of PRODUCT_IDS) {
 	for (const descriptor of ROUTE_LOCALES) {
-		const route = productLocalePath(productId, descriptor.locale);
-		const output = resolve(outputRoot, `.${route}index.html`);
-		await mkdir(dirname(output), { recursive: true });
-		await writeFile(output, routeDocument(template, { descriptor, productId, route }), 'utf8');
-		routeCount += 1;
+		for (const embedded of [false, true]) {
+			const route = productRoute(productId, descriptor.locale, embedded);
+			const output = resolve(outputRoot, `.${route}index.html`);
+			await mkdir(dirname(output), { recursive: true });
+			await writeFile(output, routeDocument(template, { descriptor, productId, route, embedded }), 'utf8');
+			routeCount += 1;
+		}
 	}
 }
 await writeFile(resolve(outputRoot, 'index.html'), template.replace(
@@ -28,15 +30,15 @@ await writeFile(resolve(outputRoot, 'index.html'), template.replace(
 
 console.log(`Generated ${routeCount} localized product routes.`);
 
-function routeDocument(html, { descriptor, productId, route }) {
+function routeDocument(html, { descriptor, productId, route, embedded }) {
 	const profile = productProfile(productId);
 	const copy = bundledCopyForLocale(descriptor.locale);
 	const description = productId === 'framescaper' ? copy.framescaperMetaDescription : copy.metaDescription;
 	const alternates = ROUTE_LOCALES.map(({ locale }) => {
-		const href = new URL(productLocalePath(productId, locale), site).href;
+		const href = new URL(productRoute(productId, locale, embedded), site).href;
 		return `<link rel="alternate" hreflang="${escapeHtml(locale)}" href="${escapeHtml(href)}" />`;
 	});
-	alternates.push(`<link rel="alternate" hreflang="x-default" href="${escapeHtml(new URL(productLocalePath(productId, 'en'), site).href)}" />`);
+	alternates.push(`<link rel="alternate" hreflang="x-default" href="${escapeHtml(new URL(productRoute(productId, 'en', embedded), site).href)}" />`);
 	const icons = productId === 'framescaper'
 		? '<link rel="icon" type="image/svg+xml" href="/logo/framescaper-icon.svg" data-product-icon />'
 		: [
@@ -54,6 +56,14 @@ function routeDocument(html, { descriptor, productId, route }) {
 		.replace(/<html\b[^>]*>/iu, `<html lang="${escapeHtml(descriptor.locale)}" dir="${descriptor.direction}" data-product="${productId}">`)
 		.replace('<!-- route-head -->', head)
 		.replace(/<title>[^<]*<\/title>/iu, `<title>${escapeHtml(profile.name)}</title>`);
+}
+
+function productRoute(productId, locale, embedded) {
+	const route = productLocalePath(productId, locale);
+	if (!embedded) return route;
+	return productId === 'framescaper'
+		? `/framescaper/embed/${locale}/`
+		: `/embed/${locale}/`;
 }
 
 function productInstallHead(productId) {

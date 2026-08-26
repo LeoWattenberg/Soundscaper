@@ -9,21 +9,29 @@
 # path shapes are deliberately disjoint so each response receives one policy.
 /
 	Permissions-Policy: microphone=(self), speaker-selection=(self), display-capture=(self), camera=(), geolocation=()
+	Cache-Control: no-cache
 
 /:locale/
 	Permissions-Policy: microphone=(self), speaker-selection=(self), display-capture=(self), camera=(), geolocation=()
+	Cache-Control: no-cache
 
 /embed/:locale/
 	Permissions-Policy: microphone=(self), speaker-selection=(self), display-capture=(self), camera=(), geolocation=()
+	Cache-Control: no-cache
 
 /framescaper/:locale/
 	Permissions-Policy: microphone=(self), speaker-selection=(self), display-capture=(self), camera=(self), geolocation=()
+	Cache-Control: no-cache
 
 /framescaper/embed/:locale/
 	Permissions-Policy: microphone=(), speaker-selection=(), display-capture=(), camera=(), geolocation=()
+	Cache-Control: no-cache
 
 /assets/*
 	Cache-Control: public, max-age=31536000, immutable
+
+/logo/*
+	Cache-Control: no-cache
 
 /offline-icons/*
 	Cache-Control: no-cache
@@ -37,3 +45,7 @@
 /service-worker.js
 	Cache-Control: no-store
 	Service-Worker-Allowed: /
+
+/framescaper/service-worker.js
+	Cache-Control: no-store
+	Service-Worker-Allowed: /framescaper/

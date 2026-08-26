@@ -20,12 +20,24 @@ test('offline-shell-upgrade replaces a prior shell and keeps both products usabl
 		await new Promise((resolve) => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true }));
 	});
 	await expect.poll(() => page.evaluate(async () => (
-		(await caches.keys()).filter((name) => name.startsWith('soundscaper-application-shell-v1-'))
+		(await caches.keys()).filter((name) => name.startsWith('soundscaper-application-shell-v2-soundscaper-'))
 	))).toHaveLength(1);
 	expect(await page.evaluate(async (cacheName) => (await caches.keys()).includes(cacheName), staleCacheName)).toBe(false);
 
+	await page.goto('/framescaper/en/');
+	await expect(page.locator('[data-audio-editor]')).toHaveAttribute('data-audio-editor-bound', 'true', { timeout: 20_000 });
+	await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest-framescaper.webmanifest');
+	await page.evaluate(async () => {
+		await navigator.serviceWorker.ready;
+		if (navigator.serviceWorker.controller?.scriptURL.endsWith('/framescaper/service-worker.js')) return;
+		await new Promise((resolve) => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true }));
+	});
+	await expect.poll(() => page.evaluate(async () => (
+		(await caches.keys()).filter((name) => name.startsWith('soundscaper-application-shell-v2-framescaper-'))
+	))).toHaveLength(1);
+
 	await context.setOffline(true);
-	await page.reload({ waitUntil: 'domcontentloaded' });
+	await page.goto('/en/', { waitUntil: 'domcontentloaded' });
 	await expect(page.locator('[data-audio-editor]')).toHaveAttribute('data-audio-editor-bound', 'true', { timeout: 20_000 });
 	await expect(page.locator('html')).toHaveAttribute('data-product', 'soundscaper');
 

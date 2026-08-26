@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import App, { applyDocumentRoute } from './common/site/App.jsx';
 import { APPLICATION_READY_EVENT } from './common/site/application-ready-scheduler.js';
 import { resolveApplicationRoute } from './common/site/route.js';
-import { registerOfflineApplicationShell } from './common/offline/application-shell.ts';
+import { scheduleOfflineApplicationShellRegistration } from './common/offline/application-shell.ts';
 
 const applicationRoot = document.getElementById('app');
 const initialLoadProgress = document.querySelector('[data-initial-load-progress]');
@@ -23,5 +23,8 @@ const route = await resolveApplicationRoute(window);
 applyDocumentRoute(route);
 createRoot(applicationRoot).render(<App route={route} />);
 if (import.meta.env.PROD) {
-	void registerOfflineApplicationShell({ desktop: route.desktop });
+	void scheduleOfflineApplicationShellRegistration({
+		desktop: route.desktop,
+		productId: route.productId,
+	});
 }

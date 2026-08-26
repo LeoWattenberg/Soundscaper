@@ -18,19 +18,43 @@ test('offline shell generation inventories exact route URLs and emits installabl
 	const audit = JSON.parse(await readFile(join(outputRoot, 'offline-shell.json'), 'utf8'));
 	const urls = audit.assets.map(({ url }) => url);
 
-	assert.equal(first.releaseId, audit.releaseId);
-	assert.match(audit.releaseId, /^[a-f\d]{64}$/u);
+	assert.equal(audit.schemaVersion, 2);
+	assert.deepEqual(Object.keys(audit.workers), ['framescaper', 'soundscaper']);
 	assert.deepEqual(urls, [...urls].sort());
 	assert.deepEqual(urls.filter((url) => url.endsWith('/') || url.endsWith('.js')), [
 		'/',
 		'/assets/application-abc.js',
+		'/assets/framescaper-core.js',
+		'/assets/optional-dialog.js',
+		'/assets/shared.js',
+		'/assets/soundscaper-core.js',
+		'/embed/en/',
 		'/en/',
+		'/framescaper/embed/en/',
 		'/framescaper/en/',
 	]);
 	assert.equal(urls.includes('/_headers'), false);
 	assert.equal(urls.includes('/assets/application-abc.js.map'), false);
 	assert.equal(urls.includes('/offline-shell.json'), false);
 	assert.equal(urls.includes('/service-worker.js'), false);
+	assert.equal(urls.includes('/framescaper/service-worker.js'), false);
+	assert.equal(urls.includes('/.offline-build-manifest.json'), false);
+	assert.equal(await readFile(join(outputRoot, '.offline-build-manifest.json'), 'utf8').catch(() => null), null);
+
+	const soundWorker = audit.workers.soundscaper;
+	const frameWorker = audit.workers.framescaper;
+	assert.deepEqual(
+		soundWorker.installUrls.filter((url) => url.endsWith('.js')),
+		['/assets/application-abc.js', '/assets/shared.js', '/assets/soundscaper-core.js'],
+	);
+	assert.deepEqual(
+		frameWorker.installUrls.filter((url) => url.endsWith('.js')),
+		['/assets/application-abc.js', '/assets/framescaper-core.js', '/assets/shared.js'],
+	);
+	assert.equal(soundWorker.installUrls.includes('/assets/optional-dialog.js'), false);
+	assert.equal(frameWorker.installUrls.includes('/assets/soundscaper-core.js'), false);
+	assert.ok(soundWorker.installAssetCount < audit.assets.length);
+	assert.ok(frameWorker.installAssetCount < audit.assets.length);
 
 	for (const descriptor of audit.assets) {
 		const path = descriptor.url.endsWith('/')
@@ -60,10 +84,11 @@ test('offline shell generation inventories exact route URLs and emits installabl
 		const appleIcon = await readFile(join(outputRoot, 'offline-icons', `${productId}-180.png`));
 		assert.equal(appleIcon.subarray(1, 4).toString(), 'PNG');
 	}
-	assert.match(await readFile(join(outputRoot, 'service-worker.js'), 'utf8'), new RegExp(audit.releaseId, 'u'));
+	assert.match(await readFile(join(outputRoot, 'service-worker.js'), 'utf8'), new RegExp(soundWorker.releaseId, 'u'));
+	assert.match(await readFile(join(outputRoot, 'framescaper/service-worker.js'), 'utf8'), new RegExp(frameWorker.releaseId, 'u'));
 
 	const second = await generateOfflineApplicationShell({ outputRoot, repositoryRoot: resolve('.') });
-	assert.equal(second.releaseId, first.releaseId, 'identical output produces an identical release ID');
+	assert.deepEqual(second.releaseIds, first.releaseIds, 'identical output produces identical release IDs');
 });
 
 test('one changed shell byte produces a different release without considering control or source-map files', async (context) => {
@@ -73,11 +98,11 @@ test('one changed shell byte produces a different release without considering co
 	await writeFile(join(outputRoot, '_headers'), 'changed control metadata');
 	await writeFile(join(outputRoot, 'assets/application-abc.js.map'), 'changed source map');
 	const ignored = await generateOfflineApplicationShell({ outputRoot, repositoryRoot: resolve('.') });
-	assert.equal(ignored.releaseId, first.releaseId);
+	assert.deepEqual(ignored.releaseIds, first.releaseIds);
 
 	await writeFile(join(outputRoot, 'assets/application-abc.js'), 'export const application = 2;');
 	const changed = await generateOfflineApplicationShell({ outputRoot, repositoryRoot: resolve('.') });
-	assert.notEqual(changed.releaseId, first.releaseId);
+	assert.notDeepEqual(changed.releaseIds, first.releaseIds);
 });
 
 async function shellFixture(context) {
@@ -86,10 +111,39 @@ async function shellFixture(context) {
 	await Promise.all([
 		fixtureFile(outputRoot, 'index.html', '<!doctype html><title>Root</title>'),
 		fixtureFile(outputRoot, 'en/index.html', '<!doctype html><title>Soundscaper</title>'),
+		fixtureFile(outputRoot, 'embed/en/index.html', '<!doctype html><title>Soundscaper embed</title>'),
 		fixtureFile(outputRoot, 'framescaper/en/index.html', '<!doctype html><title>Framescaper</title>'),
+		fixtureFile(outputRoot, 'framescaper/embed/en/index.html', '<!doctype html><title>Framescaper embed</title>'),
 		fixtureFile(outputRoot, 'assets/application-abc.js', 'export const application = 1;'),
+		fixtureFile(outputRoot, 'assets/shared.js', 'export const shared = 1;'),
+		fixtureFile(outputRoot, 'assets/soundscaper-core.js', 'export const soundscaper = 1;'),
+		fixtureFile(outputRoot, 'assets/framescaper-core.js', 'export const framescaper = 1;'),
+		fixtureFile(outputRoot, 'assets/optional-dialog.js', 'export const optional = 1;'),
 		fixtureFile(outputRoot, 'assets/application-abc.js.map', '{}'),
+		fixtureFile(outputRoot, 'logo/framescaper-icon.svg', '<svg viewBox="0 0 1 1" />'),
+		fixtureFile(outputRoot, 'logo/logo-klein-schwarz.svg', '<svg viewBox="0 0 1 1" />'),
+		fixtureFile(outputRoot, 'logo/logo-klein-weiß.svg', '<svg viewBox="0 0 1 1" />'),
 		fixtureFile(outputRoot, '_headers', 'test headers'),
+		fixtureFile(outputRoot, '.offline-build-manifest.json', JSON.stringify({
+			'index.html': {
+				file: 'assets/application-abc.js',
+				isEntry: true,
+				imports: ['_shared.js'],
+				dynamicImports: [
+					'src/soundscaper/ui/SoundscaperAudioEditorBootstrapV30.tsx',
+					'src/framescaper/ui/FramescaperAudioEditorBootstrapV31.tsx',
+				],
+			},
+			'_shared.js': { file: 'assets/shared.js' },
+			'src/soundscaper/ui/SoundscaperAudioEditorBootstrapV30.tsx': {
+				file: 'assets/soundscaper-core.js', imports: ['_shared.js'], isDynamicEntry: true,
+				dynamicImports: ['_optional.js'],
+			},
+			'src/framescaper/ui/FramescaperAudioEditorBootstrapV31.tsx': {
+				file: 'assets/framescaper-core.js', imports: ['_shared.js'], isDynamicEntry: true,
+			},
+			'_optional.js': { file: 'assets/optional-dialog.js', isDynamicEntry: true },
+		})),
 	]);
 	return outputRoot;
 }

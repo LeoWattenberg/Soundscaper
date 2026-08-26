@@ -13,8 +13,15 @@ interface OfflineServiceWorkerContainer {
 
 export interface RegisterOfflineApplicationShellOptions {
 	readonly desktop: boolean;
+	readonly productId: 'framescaper' | 'soundscaper';
 	readonly location?: Pick<URL, 'protocol'>;
 	readonly serviceWorker?: OfflineServiceWorkerContainer;
+}
+
+export interface ScheduleOfflineApplicationShellOptions extends RegisterOfflineApplicationShellOptions {
+	readonly waitForLoad?: () => Promise<void>;
+	readonly waitForEditor?: () => Promise<void>;
+	readonly waitForIdle?: () => Promise<void>;
 }
 
 export type OfflineApplicationShellRegistrationResult =
@@ -34,8 +41,10 @@ export async function registerOfflineApplicationShell(
 		return Object.freeze({ status: 'unsupported' });
 	}
 	try {
-		const registration = await serviceWorker.register('/service-worker.js', {
-			scope: '/',
+		const framescaper = options.productId === 'framescaper';
+		const registration = await serviceWorker.register(
+			framescaper ? '/framescaper/service-worker.js' : '/service-worker.js', {
+			scope: framescaper ? '/framescaper/' : '/',
 			type: 'classic',
 			updateViaCache: 'none',
 		});
@@ -43,4 +52,42 @@ export async function registerOfflineApplicationShell(
 	} catch (error) {
 		return Object.freeze({ status: 'failed', error });
 	}
+}
+
+/** Defers the non-critical shell download until the initial editor is usable and the browser is idle. */
+export async function scheduleOfflineApplicationShellRegistration(
+	options: ScheduleOfflineApplicationShellOptions,
+): Promise<OfflineApplicationShellRegistrationResult> {
+	await (options.waitForLoad ?? waitForDocumentLoad)();
+	await (options.waitForEditor ?? waitForEditorReadiness)();
+	await (options.waitForIdle ?? waitForBrowserIdle)();
+	return registerOfflineApplicationShell(options);
+}
+
+function waitForDocumentLoad(): Promise<void> {
+	if (globalThis.document?.readyState === 'complete') return Promise.resolve();
+	return new Promise((resolve) => globalThis.addEventListener('load', () => resolve(), { once: true }));
+}
+
+function waitForEditorReadiness(): Promise<void> {
+	const root = globalThis.document?.getElementById('app');
+	if (!root || root.querySelector('[data-audio-editor-bound], [role="alert"]')) return Promise.resolve();
+	return new Promise((resolve) => {
+		const observer = new MutationObserver(() => {
+			if (!root.querySelector('[data-audio-editor-bound], [role="alert"]')) return;
+			observer.disconnect();
+			resolve();
+		});
+		observer.observe(root, { childList: true, subtree: true });
+	});
+}
+
+function waitForBrowserIdle(): Promise<void> {
+	const requestIdleCallback = (globalThis as typeof globalThis & {
+		requestIdleCallback?: (callback: () => void, options: { timeout: number }) => number;
+	}).requestIdleCallback;
+	return new Promise((resolve) => {
+		if (requestIdleCallback) requestIdleCallback(() => resolve(), { timeout: 5_000 });
+		else globalThis.setTimeout(resolve, 1_000);
+	});
 }

@@ -66,6 +66,17 @@ export function applyDocumentRoute(route) {
 
 function updateProductHead(productId) {
 	document.title = productId === 'framescaper' ? 'Framescaper' : 'Soundscaper';
+	updateSingleProductLink('link[data-product-manifest]', {
+		rel: 'manifest',
+		href: `/manifest-${productId}.webmanifest`,
+		'data-product-manifest': '',
+	});
+	updateSingleProductLink('link[data-product-install-icon]', {
+		rel: 'apple-touch-icon',
+		sizes: '180x180',
+		href: `/offline-icons/${productId}-180.png`,
+		'data-product-install-icon': '',
+	});
 	const icons = productId === 'framescaper'
 		? [{ href: '/logo/framescaper-icon.svg' }]
 		: [
@@ -77,15 +88,24 @@ function updateProductHead(productId) {
 		existing[index].getAttribute('href') === icon.href
 			&& (existing[index].getAttribute('media') || '') === (icon.media || '')
 	));
-	if (matches) return;
-	for (const link of existing) link.remove();
-	for (const icon of icons) {
-		const link = document.createElement('link');
-		link.rel = 'icon';
-		link.type = 'image/svg+xml';
-		link.href = icon.href;
-		link.dataset.productIcon = '';
-		if (icon.media) link.media = icon.media;
-		document.head.append(link);
+	if (!matches) {
+		for (const link of existing) link.remove();
+		for (const icon of icons) {
+			const link = document.createElement('link');
+			link.rel = 'icon';
+			link.type = 'image/svg+xml';
+			link.href = icon.href;
+			link.dataset.productIcon = '';
+			if (icon.media) link.media = icon.media;
+			document.head.append(link);
+		}
 	}
+}
+
+function updateSingleProductLink(selector, attributes) {
+	const existing = [...document.querySelectorAll(selector)];
+	const link = existing.shift() || document.createElement('link');
+	for (const duplicate of existing) duplicate.remove();
+	for (const [name, value] of Object.entries(attributes)) link.setAttribute(name, value);
+	if (!link.isConnected) document.head.append(link);
 }

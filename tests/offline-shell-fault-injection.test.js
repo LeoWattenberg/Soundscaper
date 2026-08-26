@@ -13,6 +13,7 @@ import {
 	response,
 	shellCacheName,
 	shellConfiguration,
+	shellResponse,
 } from './helpers/offline-shell-fixtures.js';
 
 test('an invalid release identity refuses before any cache is opened or deleted', async () => {
@@ -32,7 +33,7 @@ test('an invalid release identity refuses before any cache is opened or deleted'
 	);
 	await assert.rejects(
 		() => installOfflineShell({
-			configuration: { ...shellConfiguration('b'), schemaVersion: 2 },
+			configuration: { ...shellConfiguration('b'), schemaVersion: 3 },
 			cacheStorage,
 			fetchImpl: async () => { throw new Error('the network must not be consulted'); },
 		}),
@@ -55,7 +56,7 @@ test('a quota-exhausted cache put discards the candidate and keeps the prior rel
 		() => installOfflineShell({
 			configuration,
 			cacheStorage,
-			fetchImpl: async (url) => response(url === '/' ? 'root shell' : 'application code'),
+			fetchImpl: async (url) => shellResponse(url),
 		}),
 		(error) => error === exhaustion,
 	);
@@ -90,11 +91,11 @@ test('activation refuses a partially populated cache and preserves the prior she
 	const missing = await handleOfflineShellFetch({
 		configuration,
 		cacheStorage,
-		fetchImpl: async () => response('network body'),
+		fetchImpl: async (url) => shellResponse(url),
 		request: new Request('https://soundscaper.org/assets/application.js'),
 		origin: 'https://soundscaper.org',
 	});
-	assert.equal(await missing.text(), 'network body', 'a missing entry degrades to the network');
+	assert.equal(await missing.text(), 'application code', 'a missing entry is verified and served from the network');
 });
 
 test('a fresh worker instance over a partial cache reinstalls completely and then activates', async () => {
@@ -108,11 +109,11 @@ test('a fresh worker instance over a partial cache reinstalls completely and the
 	await installOfflineShell({
 		configuration,
 		cacheStorage,
-		fetchImpl: async (url) => response(url === '/' ? 'root shell' : 'application code'),
+		fetchImpl: async (url) => shellResponse(url),
 	});
 	assert.ok(cacheStorage.events.includes(`delete:${stagedName}`), 'the abandoned candidate is discarded first');
 	assert.equal(
-		await (await cacheStorage.open(stagedName)).match('/').then((value) => value?.text()),
+		await (await cacheStorage.open(stagedName)).match('/en/').then((value) => value?.text()),
 		'root shell',
 		'the reinstalled release replaces the abandoned staged bytes',
 	);

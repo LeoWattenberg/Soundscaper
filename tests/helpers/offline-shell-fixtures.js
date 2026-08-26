@@ -2,16 +2,25 @@
 
 import { createHash } from 'node:crypto';
 
-export function shellConfiguration(seed, extraAssets = []) {
+export function shellConfiguration(seed, extraAssets = [], overrides = {}) {
 	const assets = [
-		asset('/', 'root shell'),
+		asset('/en/', 'root shell'),
+		asset('/embed/en/', 'embedded shell'),
 		asset('/assets/application.js', 'application code'),
 		...extraAssets,
 	].sort(({ url: left }, { url: right }) => left < right ? -1 : left > right ? 1 : 0);
 	const identity = {
-		schemaVersion: 1,
+		schemaVersion: 2,
+		productId: 'soundscaper',
+		scope: '/',
 		workerSha256: seed.repeat(64),
+		fallbacks: {
+			standard: '/en/',
+			embedded: '/embed/en/',
+		},
 		assets,
+		installUrls: ['/assets/application.js', '/embed/en/', '/en/'].sort(),
+		...overrides,
 	};
 	return Object.freeze({
 		...identity,
@@ -37,8 +46,14 @@ export function response(contents) {
 	});
 }
 
-export function shellCacheName(releaseId) {
-	return `soundscaper-application-shell-v1-${releaseId}`;
+export function shellResponse(url) {
+	return response(url === '/en/' ? 'root shell'
+		: url === '/embed/en/' ? 'embedded shell'
+			: 'application code');
+}
+
+export function shellCacheName(releaseId, productId = 'soundscaper') {
+	return `soundscaper-application-shell-v2-${productId}-${releaseId}`;
 }
 
 export class MemoryCacheStorage {

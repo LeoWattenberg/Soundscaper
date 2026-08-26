@@ -15,6 +15,7 @@ import {
 	response,
 	shellCacheName,
 	shellConfiguration,
+	shellResponse,
 } from './helpers/offline-shell-fixtures.js';
 
 test('a partial shell install deletes only its candidate and leaves the prior release intact', async () => {
@@ -50,7 +51,9 @@ test('a digest mismatch cannot write readiness or retire the active shell', asyn
 		() => installOfflineShell({
 			configuration,
 			cacheStorage,
-			fetchImpl: async (url) => response(url === '/' ? 'root shell' : 'Application code'),
+			fetchImpl: async (url) => url === '/assets/application.js'
+				? response('Application code')
+				: shellResponse(url),
 		}),
 		/SHA-256 mismatch/u,
 	);
@@ -65,7 +68,7 @@ test('activation retires old shell caches only after the complete release readin
 	await installOfflineShell({
 		configuration,
 		cacheStorage,
-		fetchImpl: async (url) => response(url === '/' ? 'root shell' : 'application code'),
+		fetchImpl: async (url) => shellResponse(url),
 	});
 	let claims = 0;
 
@@ -88,7 +91,7 @@ test('a failed client takeover preserves the prior complete shell', async () => 
 	await installOfflineShell({
 		configuration,
 		cacheStorage,
-		fetchImpl: async (url) => response(url === '/' ? 'root shell' : 'application code'),
+		fetchImpl: async (url) => shellResponse(url),
 	});
 
 	await assert.rejects(
@@ -110,7 +113,7 @@ test('encoded network metadata is normalized around the verified decoded shell b
 		configuration,
 		cacheStorage,
 		fetchImpl: async (url) => {
-			const value = response(url === '/' ? 'root shell' : 'application code');
+			const value = shellResponse(url);
 			value.headers.set('content-encoding', 'gzip');
 			value.headers.set('content-length', '3');
 			return value;
@@ -123,13 +126,119 @@ test('encoded network metadata is normalized around the verified decoded shell b
 	assert.equal(await cached.text(), 'application code');
 });
 
+test('an update re-verifies and reuses unchanged entries from the prior complete product cache', async () => {
+	const cacheStorage = new MemoryCacheStorage();
+	const prior = shellConfiguration('6');
+	await installOfflineShell({
+		configuration: prior,
+		cacheStorage,
+		fetchImpl: async (url) => shellResponse(url),
+	});
+	const next = shellConfiguration('7');
+	let networkRequests = 0;
+	await installOfflineShell({
+		configuration: next,
+		cacheStorage,
+		fetchImpl: async () => {
+			networkRequests += 1;
+			throw new TypeError('network should not be needed');
+		},
+	});
+
+	assert.equal(networkRequests, 0);
+	assert.deepEqual(await cacheStorage.keys(), [
+		shellCacheName(prior.releaseId),
+		shellCacheName(next.releaseId),
+	]);
+});
+
+test('install downloads are bounded to four verified responses at a time', async () => {
+	const extras = Array.from({ length: 6 }, (_, index) => asset(`/assets/core-${String(index)}.js`, `core ${String(index)}`));
+	const installUrls = [
+		'/assets/application.js',
+		...extras.map(({ url }) => url),
+		'/embed/en/',
+		'/en/',
+	].sort();
+	const configuration = shellConfiguration('8', extras, { installUrls });
+	const contents = new Map([
+		['/assets/application.js', 'application code'],
+		['/embed/en/', 'embedded shell'],
+		['/en/', 'root shell'],
+		...extras.map(({ url }, index) => [url, `core ${String(index)}`]),
+	]);
+	let active = 0;
+	let maximumActive = 0;
+	await installOfflineShell({
+		configuration,
+		cacheStorage: new MemoryCacheStorage(),
+		fetchImpl: async (url) => {
+			active += 1;
+			maximumActive = Math.max(maximumActive, active);
+			await new Promise((resolve) => setTimeout(resolve, 2));
+			active -= 1;
+			return response(contents.get(url));
+		},
+	});
+	assert.equal(maximumActive, 4);
+});
+
+test('an allowlisted optional asset is verified once, cached on use, and never replaced by tampered bytes', async () => {
+	const optional = asset('/assets/optional.js', 'optional code');
+	const configuration = shellConfiguration('a', [optional]);
+	const cacheStorage = new MemoryCacheStorage();
+	await installOfflineShell({
+		configuration,
+		cacheStorage,
+		fetchImpl: async (url) => shellResponse(url),
+	});
+	let networkRequests = 0;
+	const first = await handleOfflineShellFetch({
+		configuration,
+		cacheStorage,
+		fetchImpl: async () => {
+			networkRequests += 1;
+			return response('optional code');
+		},
+		request: new Request('https://soundscaper.org/assets/optional.js'),
+		origin: 'https://soundscaper.org',
+	});
+	assert.equal(await first.text(), 'optional code');
+	const second = await handleOfflineShellFetch({
+		configuration,
+		cacheStorage,
+		fetchImpl: async () => { throw new TypeError('offline'); },
+		request: new Request('https://soundscaper.org/assets/optional.js'),
+		origin: 'https://soundscaper.org',
+	});
+	assert.equal(await second.text(), 'optional code');
+	assert.equal(networkRequests, 1);
+
+	const uncachedConfiguration = shellConfiguration('b', [optional]);
+	await installOfflineShell({
+		configuration: uncachedConfiguration,
+		cacheStorage,
+		fetchImpl: async (url) => shellResponse(url),
+	});
+	await assert.rejects(
+		() => handleOfflineShellFetch({
+			configuration: uncachedConfiguration,
+			cacheStorage,
+			fetchImpl: async () => response('tampered code'),
+			request: new Request('https://soundscaper.org/assets/optional.js'),
+			origin: 'https://soundscaper.org',
+		}),
+		/(?:Content-Length|SHA-256) mismatch/u,
+	);
+});
+
 test('fetches use only the verified shell allowlist and state-committed runtime caches', async () => {
 	const cacheStorage = new MemoryCacheStorage();
 	const configuration = shellConfiguration('9');
 	await installOfflineShell({
 		configuration,
 		cacheStorage,
-		fetchImpl: async (url) => response(url === '/' ? 'root shell' : 'application code'),
+		fetchImpl: async (url) => shellResponse(url),
 	});
 	const runtime = runtimeRelease('8', 'verified runtime');
 	await cacheRuntimeRelease(cacheStorage, runtime);
@@ -164,7 +273,7 @@ test('fetches use only the verified shell allowlist and state-committed runtime 
 		origin: 'https://soundscaper.org',
 	});
 	assert.equal(await runtimeResponse.text(), 'verified runtime');
-	assert.equal(networkRequests, 1, 'only the unknown navigation attempts the network before root fallback');
+	assert.equal(networkRequests, 0, 'the exact verified route is served without a redundant network request');
 });
 
 test('runtime fetches serve exact active and previous descriptors but never orphan final caches', async () => {
@@ -329,17 +438,18 @@ test('malformed and oversized runtime state fails closed before opening a releas
 	}
 });
 
-test('unknown offline navigations fall back to the matching product shell', async () => {
+test('unknown offline navigations preserve embed mode and never cross product boundaries', async () => {
 	const cacheStorage = new MemoryCacheStorage();
 	const configuration = shellConfiguration('7', [
-		asset('/en/', 'soundscaper shell'),
 		asset('/framescaper/en/', 'framescaper shell'),
+		asset('/framescaper/embed/en/', 'framescaper embedded shell'),
 	]);
 	const contents = new Map(configuration.assets.map(({ url }) => [
 		url,
 		url === '/framescaper/en/' ? 'framescaper shell'
-			: url === '/en/' ? 'soundscaper shell'
-				: url === '/' ? 'root shell' : 'application code',
+			: url === '/framescaper/embed/en/' ? 'framescaper embedded shell'
+				: url === '/en/' ? 'root shell'
+					: url === '/embed/en/' ? 'embedded shell' : 'application code',
 	]));
 	await installOfflineShell({
 		configuration,
@@ -348,13 +458,6 @@ test('unknown offline navigations fall back to the matching product shell', asyn
 	});
 	const fetchImpl = async () => { throw new TypeError('offline'); };
 
-	const framescaper = await handleOfflineShellFetch({
-		configuration,
-		cacheStorage,
-		fetchImpl,
-		request: { method: 'GET', mode: 'navigate', url: 'https://soundscaper.org/framescaper/embed/en/project' },
-		origin: 'https://soundscaper.org',
-	});
 	const soundscaper = await handleOfflineShellFetch({
 		configuration,
 		cacheStorage,
@@ -363,8 +466,17 @@ test('unknown offline navigations fall back to the matching product shell', asyn
 		origin: 'https://soundscaper.org',
 	});
 
-	assert.equal(await framescaper.text(), 'framescaper shell');
-	assert.equal(await soundscaper.text(), 'soundscaper shell');
+	assert.equal(await soundscaper.text(), 'embedded shell');
+	await assert.rejects(
+		() => handleOfflineShellFetch({
+			configuration,
+			cacheStorage,
+			fetchImpl,
+			request: { method: 'GET', mode: 'navigate', url: 'https://soundscaper.org/framescaper/embed/en/project' },
+			origin: 'https://soundscaper.org',
+		}),
+		/offline/u,
+	);
 });
 
 function runtimeRelease(seed, javascriptContents) {
@@ -442,4 +554,3 @@ async function writeRuntimeStateBytes(cacheStorage, bytes) {
 function runtimeCacheName(releaseId) {
 	return `soundscaper-ffmpeg-runtime-v1-${releaseId}`;
 }
-

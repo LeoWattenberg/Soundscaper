@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createHash } from 'node:crypto';
-import { readdir, readFile, stat, writeFile, mkdir } from 'node:fs/promises';
+import { mkdir, readdir, readFile, stat, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 
 import { Resvg } from '@resvg/resvg-js';
@@ -14,20 +14,173 @@ import {
 const MAXIMUM_ASSET_BYTES = 25 * 1024 * 1024;
 const MAXIMUM_AGGREGATE_BYTES = 256 * 1024 * 1024;
 const MAXIMUM_ASSET_COUNT = 4_096;
-const CONTROL_FILES = new Set(['_headers', '_redirects', 'offline-shell.json', 'service-worker.js']);
+const MAXIMUM_INSTALL_ASSET_BYTES = 8 * 1024 * 1024;
+const MAXIMUM_INSTALL_ASSET_COUNT = 128;
+const BUILD_MANIFEST = '.offline-build-manifest.json';
+const CONTROL_FILES = new Set([
+	BUILD_MANIFEST,
+	'_headers',
+	'_redirects',
+	'framescaper/service-worker.js',
+	'offline-shell.json',
+	'service-worker.js',
+]);
+const PRODUCT_ENTRIES = Object.freeze({
+	framescaper: 'src/framescaper/ui/FramescaperAudioEditorBootstrapV31.tsx',
+	soundscaper: 'src/soundscaper/ui/SoundscaperAudioEditorBootstrapV30.tsx',
+});
+const PRODUCT_WORKERS = Object.freeze({
+	framescaper: Object.freeze({
+		fallbacks: Object.freeze({ standard: '/framescaper/en/', embedded: '/framescaper/embed/en/' }),
+		scope: '/framescaper/',
+		scriptUrl: '/framescaper/service-worker.js',
+	}),
+	soundscaper: Object.freeze({
+		fallbacks: Object.freeze({ standard: '/en/', embedded: '/embed/en/' }),
+		scope: '/',
+		scriptUrl: '/service-worker.js',
+	}),
+});
 
 export async function generateOfflineApplicationShell({ outputRoot, repositoryRoot }) {
 	const root = resolve(outputRoot);
 	const repository = resolve(repositoryRoot);
+	const previousAudit = await readJsonIfPresent(resolve(root, 'offline-shell.json'));
+	const buildManifestPath = resolve(root, BUILD_MANIFEST);
+	const buildManifest = await readJsonIfPresent(buildManifestPath);
 	await generateProductArtifacts({ outputRoot: root, repositoryRoot: repository });
 	const assets = await collectShellAssets(root);
 	const workerSha256 = offlineServiceWorkerTemplateSha256();
-	const identity = { schemaVersion: 1, workerSha256, assets };
-	const releaseId = sha256(Buffer.from(JSON.stringify(identity)));
-	const configuration = Object.freeze({ schemaVersion: 1, releaseId, workerSha256, assets });
-	await writeFile(resolve(root, 'offline-shell.json'), `${JSON.stringify(configuration, null, 2)}\n`, 'utf8');
-	await writeFile(resolve(root, 'service-worker.js'), renderOfflineServiceWorker(configuration), 'utf8');
-	return Object.freeze({ releaseId, assetCount: assets.length });
+	const workers = {};
+	const releaseIds = {};
+	for (const productId of ['framescaper', 'soundscaper']) {
+		const worker = PRODUCT_WORKERS[productId];
+		const installUrls = buildManifest
+			? productInstallUrls({ assets, buildManifest, productId, worker })
+			: previousInstallUrls({ assets, previousAudit, productId });
+		const installAssets = installUrls.map((url) => assets.find((asset) => asset.url === url));
+		validateInstallAssets(installAssets, productId);
+		const identity = Object.freeze({
+			schemaVersion: 2,
+			productId,
+			scope: worker.scope,
+			workerSha256,
+			fallbacks: worker.fallbacks,
+			assets,
+			installUrls,
+		});
+		const releaseId = sha256(Buffer.from(JSON.stringify(identity)));
+		const configuration = Object.freeze({ ...identity, releaseId });
+		const output = resolve(root, `.${worker.scriptUrl}`);
+		await mkdir(dirname(output), { recursive: true });
+		await writeFile(output, renderOfflineServiceWorker(configuration), 'utf8');
+		const installByteLength = installAssets.reduce((total, asset) => total + asset.byteLength, 0);
+		workers[productId] = Object.freeze({
+			scriptUrl: worker.scriptUrl,
+			scope: worker.scope,
+			releaseId,
+			workerSha256,
+			installUrls,
+			installAssetCount: installAssets.length,
+			installByteLength,
+		});
+		releaseIds[productId] = releaseId;
+	}
+	const audit = Object.freeze({ schemaVersion: 2, assets, workers });
+	await writeFile(resolve(root, 'offline-shell.json'), `${JSON.stringify(audit, null, 2)}\n`, 'utf8');
+	if (buildManifest) await unlink(buildManifestPath);
+	return Object.freeze({ releaseIds: Object.freeze(releaseIds), assetCount: assets.length });
+}
+
+function productInstallUrls({ assets, buildManifest, productId, worker }) {
+	if (!plainObject(buildManifest)) throw new Error('Offline build manifest is invalid.');
+	const entryKey = Object.keys(buildManifest).find((key) => buildManifest[key]?.isEntry === true);
+	if (!entryKey) throw new Error('Offline build manifest has no application entry.');
+	const urls = new Set([
+		'/',
+		worker.fallbacks.standard,
+		worker.fallbacks.embedded,
+		`/manifest-${productId}.webmanifest`,
+		`/offline-icons/${productId}-180.png`,
+		`/offline-icons/${productId}-192.png`,
+		`/offline-icons/${productId}-512.png`,
+	]);
+	for (const logo of productId === 'framescaper'
+		? ['/logo/framescaper-icon.svg']
+		: ['/logo/logo-klein-schwarz.svg', '/logo/logo-klein-weiß.svg']) urls.add(logo);
+	for (const key of [entryKey, PRODUCT_ENTRIES[productId]]) {
+		for (const url of staticManifestClosure(buildManifest, key)) urls.add(url);
+	}
+	const assetUrls = new Set(assets.map(({ url }) => url));
+	for (const url of urls) {
+		if (!assetUrls.has(url)) throw new Error(`Offline ${productId} install asset is missing: ${url}`);
+	}
+	return Object.freeze([...urls].sort());
+}
+
+function staticManifestClosure(manifest, rootKey) {
+	const pending = [rootKey];
+	const visited = new Set();
+	const urls = new Set();
+	while (pending.length > 0) {
+		const key = pending.pop();
+		if (visited.has(key)) continue;
+		visited.add(key);
+		const entry = manifest[key];
+		if (!plainObject(entry) || typeof entry.file !== 'string') {
+			throw new Error(`Offline build manifest entry is missing: ${key}`);
+		}
+		for (const path of [entry.file, ...stringArray(entry.css), ...stringArray(entry.assets)]) {
+			if (!/\.(?:woff2?|[ot]tf)$/iu.test(path)) urls.add(`/${path.replace(/^\/+/, '')}`);
+		}
+		for (const imported of stringArray(entry.imports)) pending.push(imported);
+	}
+	return urls;
+}
+
+function previousInstallUrls({ assets, previousAudit, productId }) {
+	const urls = previousAudit?.schemaVersion === 2
+		? previousAudit.workers?.[productId]?.installUrls
+		: null;
+	if (!Array.isArray(urls)) {
+		throw new Error(`Offline build manifest is missing and no prior ${productId} install inventory is available.`);
+	}
+	const assetUrls = new Set(assets.map(({ url }) => url));
+	if (urls.some((url) => typeof url !== 'string' || !assetUrls.has(url))) {
+		throw new Error(`Prior ${productId} install inventory no longer matches the build output.`);
+	}
+	return Object.freeze([...urls]);
+}
+
+function validateInstallAssets(assets, productId) {
+	if (assets.length < 1 || assets.length > MAXIMUM_INSTALL_ASSET_COUNT || assets.some((asset) => !asset)) {
+		throw new Error(`Offline ${productId} install inventory exceeds its asset-count limit.`);
+	}
+	const totalBytes = assets.reduce((total, asset) => total + asset.byteLength, 0);
+	if (!Number.isSafeInteger(totalBytes) || totalBytes > MAXIMUM_INSTALL_ASSET_BYTES) {
+		throw new Error(`Offline ${productId} install inventory exceeds its byte limit.`);
+	}
+}
+
+async function readJsonIfPresent(path) {
+	try {
+		return JSON.parse(await readFile(path, 'utf8'));
+	} catch (error) {
+		if (error?.code === 'ENOENT') return null;
+		throw error;
+	}
+}
+
+function plainObject(value) {
+	return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function stringArray(value) {
+	if (value === undefined) return [];
+	if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string')) {
+		throw new Error('Offline build manifest contains a malformed path list.');
+	}
+	return value;
 }
 
 async function collectShellAssets(root) {

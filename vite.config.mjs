@@ -82,6 +82,7 @@ export default defineConfig({
 		},
 	},
 	build: {
+		manifest: '.offline-build-manifest.json',
 		assetsInlineLimit: 0,
 		rolldownOptions: {
 			output: {
