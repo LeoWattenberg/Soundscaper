@@ -20,7 +20,7 @@ import { useAudioEditorWorkspaceLifecycle } from './useAudioEditorWorkspaceLifec
 import { useDesktopEditorBridge } from './useDesktopEditorBridge.js';
 import { useScapeOpenDecisionContinuation } from './useScapeOpenDecisionContinuation.ts';
 import { useWorkspaceParityRequests } from './useWorkspaceParityRequests.js';
-import { useWorkspaceSearchRuntime } from './useWorkspaceSearchRuntime.js';
+import { useWorkspaceSearchRuntime } from './useWorkspaceSearchRuntime.js'; import { useWorkspaceAssistanceSearchRuntime } from './useWorkspaceAssistanceSearchRuntime.js';
 import { useSoundscaperProductionWorkspace } from './useSoundscaperProductionWorkspace.ts';
 import { useTrackRateDialog } from './useTrackRateDialog.js';
 import { useWorkspaceThemePreference } from './useWorkspaceThemePreference.js';
@@ -39,7 +39,7 @@ export default function AudioEditorWorkspace({
 	productId = 'soundscaper',
 	controller,
 	fileService,
-	selectedMediaPreparation = controller?.selectedMediaPreparation ?? null,
+	selectedMediaPreparation = controller?.selectedMediaPreparation ?? null, assistanceSearchSource = null,
 	projectForRuntimeConsumers,
 	crossProductHandoffAvailable = false,
 }) {
@@ -368,6 +368,7 @@ export default function AudioEditorWorkspace({
 		if (opened) opened.opener = null;
 		return undefined;
 	}, [fileService]);
+	const assistanceSearchRuntime = useWorkspaceAssistanceSearchRuntime({ project, source: assistanceSearchSource });
 	useWorkspaceParityRequests({
 		controller,
 		importInputRef,
@@ -407,7 +408,7 @@ export default function AudioEditorWorkspace({
 		legacyAupInputRef,
 		locale,
 		openDesktopFiles,
-		openEffects,
+		openEffects, openAssistanceSearch: assistanceSearchRuntime.openAssistanceSearch,
 		openExternal,
 		openGenerator,
 		openProjects,
@@ -505,7 +506,7 @@ export default function AudioEditorWorkspace({
 
 	return <AudioEditorWorkspaceView model={{
 		aboutLabel,
-		activateSearchEntry,
+		activateSearchEntry, assistanceSearchRuntime,
 		activeSurface,
 		applicationMenus,
 		aup4Compatibility,

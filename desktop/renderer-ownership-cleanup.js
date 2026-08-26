@@ -4,6 +4,7 @@
 export class DesktopRendererOwnershipCleanup {
 	#drains = new WeakMap();
 	#revokeCapture;
+	#revokeAssistanceSemanticSearch;
 	#revokeDesktopCodecs;
 	#revokeNativeServices;
 	#revokeNativeTier;
@@ -14,8 +15,9 @@ export class DesktopRendererOwnershipCleanup {
 	#reportError;
 	#saves;
 
-	constructor({ linkedVideoLocators, ownership, projectLibraryIpc, readCapabilities, reportError, revokeCapture, revokeDesktopCodecs, revokeNativeServices, revokeNativeTier, saves }) {
+	constructor({ linkedVideoLocators, ownership, projectLibraryIpc, readCapabilities, reportError, revokeAssistanceSemanticSearch, revokeCapture, revokeDesktopCodecs, revokeNativeServices, revokeNativeTier, saves }) {
 		this.#revokeCapture = revokeCapture;
+		this.#revokeAssistanceSemanticSearch = revokeAssistanceSemanticSearch;
 		this.#revokeDesktopCodecs = revokeDesktopCodecs;
 		this.#revokeNativeServices = revokeNativeServices;
 		this.#revokeNativeTier = revokeNativeTier;
@@ -52,6 +54,7 @@ export class DesktopRendererOwnershipCleanup {
 	async #drainOwner(owner) {
 		const results = await Promise.allSettled([
 			this.#revokeCapture?.(owner),
+			this.#revokeAssistanceSemanticSearch?.(owner),
 			this.#revokeDesktopCodecs?.(owner),
 			this.#revokeNativeServices?.(owner),
 			this.#revokeNativeTier?.(owner),

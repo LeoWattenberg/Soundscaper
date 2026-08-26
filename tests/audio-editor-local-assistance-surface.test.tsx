@@ -11,6 +11,7 @@ import { ASSISTANCE_OPERATIONS } from '../src/common/editor/assistance/operation
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
 import { resolveLocalAssistanceBridge } from '../src/common/editor/ui/local-assistance-bridge.ts';
 import { createLocalAssistanceMenuItems } from '../src/common/editor/ui/local-assistance-menu.ts';
+import AudioEditorSearch from '../src/common/editor/ui/AudioEditorSearch.jsx';
 import {
 	type LocalAssistanceSelectedMediaPreparationPort,
 } from '../src/common/editor/ui/local-assistance-preparation.ts';
@@ -148,6 +149,14 @@ test('Local Assistance menu is desktop- and capability-gated and survives the Fr
 		capabilityActive: true, copy: ENGLISH_COPY }, { open: () => undefined }), []);
 	assert.deepEqual(createLocalAssistanceMenuItems({ desktopAvailable: true,
 		capabilityActive: false, copy: ENGLISH_COPY }, { open: () => undefined }), []);
+	const indexed = createLocalAssistanceMenuItems({ desktopAvailable: true,
+		capabilityActive: true, copy: ENGLISH_COPY }, {
+		open: () => undefined, openIndexedSearch: () => opened.push('indexed-search'),
+	});
+	assert.equal(indexed[1]?.id, 'local-assistance-indexed-search');
+	assert.equal(indexed[1]?.label, 'Indexed Search…');
+	indexed[1]?.onClick();
+	assert.deepEqual(opened, ['opened', 'indexed-search']);
 
 	const filtered = filterProductMenus([{ id: 'analyze', items: desktop }], {
 		audioAnalysis: false, audioGenerators: true, audioEffects: true,
@@ -155,6 +164,33 @@ test('Local Assistance menu is desktop- and capability-gated and survives the Fr
 		assistanceAssets: true,
 	}, 'framescaper');
 	assert.equal(filtered[0]?.items[0]?.id, 'local-assistance');
+});
+
+test('menu-opened indexed search reports missing disposable custody inside the existing palette', () => {
+	const target = globalThis as typeof globalThis & { React?: typeof React };
+	const prior = target.React;
+	target.React = React;
+	let markup: string;
+	try {
+		markup = renderToStaticMarkup(<AudioEditorSearch
+			assistanceSearch={{
+				status: 'unavailable', revision: 1, coordinator: null,
+				message: 'Indexed search is unavailable until a reviewed disposable index is created.',
+			}}
+			copy={ENGLISH_COPY}
+			entries={[]}
+			locale="en"
+			onActivate={() => undefined}
+			onOpenChange={() => undefined}
+			open
+		/>);
+	} finally {
+		if (prior === undefined) delete target.React;
+		else target.React = prior;
+	}
+	assert.match(markup, /data-editor-search-group="assistance"/u);
+	assert.match(markup, /reviewed disposable index is created/u);
+	assert.doesNotMatch(markup, /data-editor-search-group="command"/u);
 });
 
 test('the focused EN/DE catalog and dialog expose all operations without an implicit accept path', () => {

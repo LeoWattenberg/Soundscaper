@@ -10,7 +10,11 @@ import {
 	validateAssistanceSelectionFence,
 	type AssistanceSelectionFence,
 } from '../assistance/proposal-session.ts';
+import type { AssistanceSemanticSearchSessionPortV1 } from
+	'../assistance/semantic-search-runtime-v1.ts';
 import { lazyAssistanceWorkflowBridge } from './local-assistance-lazy-workflow-bridge.ts';
+import { lazyLocalAssistanceSemanticSearchBridge } from
+	'./local-assistance-lazy-semantic-search-bridge.ts';
 import type { LocalAssistanceWorkflowBridge } from './local-assistance-workflow-bridge.ts';
 
 export type { LocalAssistanceWorkflowBridge } from './local-assistance-workflow-bridge.ts';
@@ -115,6 +119,7 @@ export type LocalAssistanceRunOutcome = Readonly<{
 
 export interface LocalAssistanceBridge {
 	readonly workflow?: LocalAssistanceWorkflowBridge;
+	readonly semanticSearch?: AssistanceSemanticSearchSessionPortV1;
 	models(): Promise<readonly LocalAssistanceModel[]>;
 	createJob(): Promise<Readonly<{ contractVersion: 1; jobId: string }>>;
 	stageInput(value: Readonly<{ jobId: string; role: LocalAssistanceInputRole;
@@ -191,19 +196,24 @@ export function resolveLocalAssistanceBridge(value: unknown): LocalAssistanceBri
 	if (!isRecord(value) || !isRecord(value.localAssistance)) return null;
 	const candidate = value.localAssistance;
 	const keys = Object.keys(candidate);
-	if ((keys.length !== API_METHODS.length && keys.length !== API_METHODS.length + 1)
-		|| keys.some((key) => key !== 'workflow' && !API_METHODS.includes(
+	if (keys.length < API_METHODS.length || keys.length > API_METHODS.length + 2
+		|| keys.some((key) => !['workflow', 'semanticSearch'].includes(key) && !API_METHODS.includes(
 			key as typeof API_METHODS[number],
-	)) || API_METHODS.some((method) => typeof candidate[method] !== 'function')) return null;
+		)) || API_METHODS.some((method) => typeof candidate[method] !== 'function')) return null;
 	const workflow = candidate.workflow === undefined
 		? undefined
 		: lazyAssistanceWorkflowBridge(candidate.workflow);
 	if (candidate.workflow !== undefined && workflow === null) return null;
+	const semanticSearch = candidate.semanticSearch === undefined
+		? undefined
+		: lazyLocalAssistanceSemanticSearchBridge(candidate.semanticSearch);
+	if (candidate.semanticSearch !== undefined && semanticSearch === null) return null;
 
 	const invoke = (method: typeof API_METHODS[number], ...args: readonly unknown[]) =>
 		(candidate[method] as (...values: readonly unknown[]) => unknown).apply(candidate, [...args]);
 	const bridge: LocalAssistanceBridge = Object.freeze({
 		...(workflow ? { workflow } : {}),
+		...(semanticSearch ? { semanticSearch } : {}),
 		async models() {
 			return normalizeModels(await invoke('models'));
 		},

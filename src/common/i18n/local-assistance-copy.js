@@ -3,6 +3,7 @@
 export const LOCAL_ASSISTANCE_COPY_BY_LOCALE = Object.freeze({
 	de: Object.freeze({
 		localAssistance: 'Lokale Assistenz',
+		localAssistanceIndexedSearch: 'Indexierte Suche',
 		localAssistanceDescription: 'Verarbeite die ausdrücklich ausgewählten Medien lokal mit einem installierten, kompatiblen Modell.',
 		localAssistanceSource: 'Ausgewählte Medien',
 		localAssistanceSourceRequired: 'Wähle zuerst Medien in der Zeitleiste aus.',
@@ -49,6 +50,7 @@ export const LOCAL_ASSISTANCE_COPY_BY_LOCALE = Object.freeze({
 	}),
 	en: Object.freeze({
 		localAssistance: 'Local Assistance',
+		localAssistanceIndexedSearch: 'Indexed Search',
 		localAssistanceDescription: 'Process explicitly selected media locally with an installed, compatible model.',
 		localAssistanceSource: 'Selected media',
 		localAssistanceSourceRequired: 'Select media in the timeline first.',

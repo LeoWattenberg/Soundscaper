@@ -48,6 +48,7 @@ export function createWorkspaceApplicationMenus({
 		locale,
 		openDesktopFiles,
 		openEffects,
+		openAssistanceSearch,
 		openExternal,
 		openGenerator,
 		openProjects,
@@ -149,6 +150,8 @@ export function createWorkspaceApplicationMenus({
 			actions: {
 				openLocalModels: fileService.isDesktop ? () => openSurface('local-models') : undefined,
 				openLocalAssistance: fileService.isDesktop ? () => openSurface('local-assistance') : undefined,
+				openLocalAssistanceIndexedSearch: fileService.isDesktop && project
+					? openAssistanceSearch : undefined,
 				framescaperCandidateAuthoring,
 				openFramescaperV27Finishing: (surface) => openSurface(
 					framescaperV27FinishingSurfaceId(surface),

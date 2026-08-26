@@ -26,7 +26,7 @@ import {
 	UPDATE_TAG_PREFIX,
 } from './constants.js';
 import { DesktopApplicationShutdown, resolveDesktopProjectLibraryAppData } from './project-library-runtime/desktop/application-lifecycle.js';
-import { registerAssistance } from './assistance-registration.mjs';
+import { registerAssistanceSemanticSearchMainIpc } from './project-library-runtime/desktop/assistance-semantic-search-main-ipc.js'; import { registerAssistance } from './assistance-registration.mjs';
 import { disposeDesktopCaptureSecurity, registerDesktopCaptureSecurity, revokeDesktopCaptureOwner } from './framescaper-capture-registration.mjs';
 import { createFramescaperNativeServicesElectronPorts } from './framescaper-native-services-electron-ports.mjs';
 import { startFramescaperNativeServicesRegistration } from './framescaper-native-services-registration.mjs';
@@ -87,11 +87,11 @@ let projectLibraryIpc = null;
 let linkedVideoLocators = null;
 let nativeTier = null;
 let nativeServices = null;
-let captureSecurity = null, assistance = null, externalFfmpegPreferences = null, desktopCodecs = null;
+let captureSecurity = null, assistance = null, assistanceSemanticSearch = null, externalFfmpegPreferences = null, desktopCodecs = null;
 let allowNextClose = false;
 let applicationIsQuitting = false;
 const rendererOwnershipCleanup = new DesktopRendererOwnershipCleanup({
-	revokeCapture: (owner) => revokeDesktopCaptureOwner(captureSecurity, owner),
+	revokeCapture: (owner) => revokeDesktopCaptureOwner(captureSecurity, owner), revokeAssistanceSemanticSearch: (owner) => assistanceSemanticSearch?.revokeOwner(owner),
 	revokeDesktopCodecs: (owner) => desktopCodecs?.revokeOwner(owner),
 	revokeNativeServices: (owner) => nativeServices?.revokeOwner(owner),
 	revokeNativeTier: (owner) => revokeDesktopNativeTierOwner(nativeTier, owner),
@@ -123,7 +123,7 @@ const applicationShutdown = new DesktopApplicationShutdown({
 		{ name: 'project library', run: closeProjectLibraryHost },
 		{ name: 'linked-video locators', run: () => linkedVideoLocators?.dispose() },
 		{ name: 'native tier', run: () => disposeDesktopNativeTier(nativeTier) },
-		{ name: 'assistance', run: () => assistance?.dispose() },
+		{ name: 'assistance', run: () => assistance?.dispose() }, { name: 'assistance semantic search', run: () => assistanceSemanticSearch?.dispose() },
 		{ name: 'read capabilities', run: () => readCapabilities.dispose() },
 		{ name: 'save sessions', run: () => saves.dispose() },
 	],
@@ -409,7 +409,7 @@ async function registerIpcHandlers(desktopSession) {
 		return locale;
 	});
 	handle(IPC.checkForUpdates, () => checkForUpdates(true));
-	assistance = registerAssistance({ channels: IPC, handle, on, sendToRenderer, app, settings, dialog, windowFor: () => mainWindow, externalFfmpegPreferences: externalFfmpegPreferences.service });
+	assistance = registerAssistance({ channels: IPC, handle, on, sendToRenderer, app, settings, dialog, windowFor: () => mainWindow, externalFfmpegPreferences: externalFfmpegPreferences.service }); assistanceSemanticSearch = registerAssistanceSemanticSearchMainIpc({ handle, removeHandler: (channel) => ipcMain.removeHandler(channel), ownerFor: rendererSaveOwnerFor });
 	registerHostAffordances({ channels: IPC, handle, windowFor: () => mainWindow });
 	handle(IPC.windowAction, (_event, action) => runCurrentWindowAction(action));
 	on(IPC.rendererReady, () => {

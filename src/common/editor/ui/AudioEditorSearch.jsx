@@ -5,6 +5,7 @@ import { searchAudioEditorEntries } from '../search.js';
 const SEARCH_LIMIT = 50;
 const EMPTY_GROUP_LIMIT = 4;
 const SEARCH_GROUPS = Object.freeze([
+	{ kind: 'assistance', copyKey: 'editorSearchAssistance', fallback: 'Assistance' },
 	{ kind: 'command', copyKey: 'editorSearchCommands', fallback: 'Commands' },
 	{ kind: 'timeline', copyKey: 'editorSearchTimelineClips', fallback: 'Timeline clips' },
 	{ kind: 'project-bin', copyKey: 'editorSearchProjectBin', fallback: 'Project Bin' },
@@ -21,6 +22,7 @@ function searchEntryKey(entry, index) {
 }
 
 export default function AudioEditorSearch({
+	assistanceSearch = null,
 	copy,
 	entries = [],
 	locale,
@@ -37,12 +39,20 @@ export default function AudioEditorSearch({
 	const listboxId = useId();
 	const [query, setQuery] = useState('');
 	const [activeKey, setActiveKey] = useState(null);
+	const [assistanceEntries, setAssistanceEntries] = useState([]);
 	const direction = getLocaleDescriptor(locale)?.direction || 'ltr';
 	const hasQuery = Boolean(query.trim());
 
-	const rankedEntries = useMemo(() => (
-		hasQuery ? searchAudioEditorEntries(entries, query, { limit: SEARCH_LIMIT }) : entries
-	), [entries, hasQuery, query]);
+	const rankedEntries = useMemo(() => {
+		const assistance = [
+			...assistanceStatusEntries(assistanceSearch), ...assistanceEntries,
+		].slice(0, SEARCH_LIMIT);
+		const remaining = Math.max(0, SEARCH_LIMIT - assistance.length);
+		const local = hasQuery
+			? remaining === 0 ? [] : searchAudioEditorEntries(entries, query, { limit: remaining })
+			: entries;
+		return [...assistance, ...local];
+	}, [assistanceEntries, assistanceSearch, entries, hasQuery, query]);
 
 	const { groups, orderedEntries } = useMemo(() => {
 		let resultIndex = 0;
@@ -103,12 +113,40 @@ export default function AudioEditorSearch({
 	}, [onActivate, onOpenChange]);
 
 	useEffect(() => {
+		if (!wasOpenRef.current && open) focusInput();
 		if (wasOpenRef.current && !open) {
 			setQuery('');
 			setActiveKey(null);
 		}
 		wasOpenRef.current = open;
-	}, [open]);
+	}, [focusInput, open]);
+
+	useEffect(() => {
+		const coordinator = assistanceSearch?.coordinator;
+		if (!open || !hasQuery || assistanceSearch?.status !== 'ready' || !coordinator) {
+			coordinator?.cancel();
+			setAssistanceEntries([]);
+			return undefined;
+		}
+		let active = true;
+		setAssistanceEntries([assistanceStatusEntry(
+			'assistance-searching', 'Searching the authenticated local index…',
+		)]);
+		void coordinator.search(query.trim()).then((snapshot) => {
+			if (!active || snapshot.disposition !== 'accepted') return;
+			setAssistanceEntries(snapshot.entries);
+		}, (error) => {
+			if (!active) return;
+			setAssistanceEntries([assistanceStatusEntry(
+				'assistance-search-error',
+				typeof error?.message === 'string' ? error.message : 'Indexed search failed.',
+			)]);
+		});
+		return () => {
+			active = false;
+			coordinator.cancel();
+		};
+	}, [assistanceSearch?.coordinator, assistanceSearch?.status, hasQuery, open, query]);
 
 	useEffect(() => {
 		const openFromShortcut = (event) => {
@@ -325,4 +363,18 @@ export default function AudioEditorSearch({
 			</span>
 		</div>
 	);
+}
+
+function assistanceStatusEntries(search) {
+	if (!search || search.status === 'idle' || search.status === 'ready') return [];
+	return [assistanceStatusEntry(`assistance-${search.status}`,
+		search.message || 'Indexed search is unavailable.')];
+}
+
+function assistanceStatusEntry(key, label) {
+	return Object.freeze({
+		kind: 'assistance', key, label: String(label).slice(0, 4096), detail: null,
+		disabled: true, disabledReason: null, state: 'disabled', reason: null,
+		handler: null, sourceOrder: -1, target: null, providers: [],
+	});
 }

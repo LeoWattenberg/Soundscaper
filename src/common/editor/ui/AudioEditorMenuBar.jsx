@@ -25,11 +25,13 @@ const DIRECT_MENU_ITEM_SELECTOR = ':scope > [role="menuitem"], :scope > [role="m
 const DIRECT_ENABLED_MENU_ITEM_SELECTOR = ':scope > [role="menuitem"]:not([aria-disabled="true"]), :scope > [role="menuitemcheckbox"]:not([aria-disabled="true"])';
 
 export default function AudioEditorMenuBar({
+	assistanceSearch = null,
 	appName,
 	copy,
 	desktopChrome = null,
 	locale,
 	menus,
+	onAssistanceSearchClose,
 	onFullscreen,
 	onSearchActivate,
 	projectTabs,
@@ -46,6 +48,7 @@ export default function AudioEditorMenuBar({
 	const [openMenu, setOpenMenu] = useState(null);
 	openMenuRef.current = openMenu;
 	const [searchOpen, setSearchOpen] = useState(false);
+	const assistanceSearchRevisionRef = useRef(0);
 	const orderedMenus = useMemo(() => AUDACITY_MENU_ORDER
 		.map((id) => menus.find((menu) => menu.id === id))
 		.filter(Boolean), [menus]);
@@ -83,6 +86,7 @@ export default function AudioEditorMenuBar({
 		if (!trigger) return;
 		const rect = trigger.getBoundingClientRect();
 		setSearchOpen(false);
+		onAssistanceSearchClose?.();
 		setActiveIndex(index);
 		const menu = materializeApplicationMenu(orderedMenus[index]);
 		setOpenMenu({
@@ -93,12 +97,21 @@ export default function AudioEditorMenuBar({
 			y: rect.bottom,
 			autoFocus: keyboard,
 		});
-	}, [orderedMenus]);
+	}, [onAssistanceSearchClose, orderedMenus]);
 
 	const onSearchOpenChange = useCallback((nextOpen) => {
 		if (nextOpen) closeMenu(false);
+		else onAssistanceSearchClose?.();
 		setSearchOpen(nextOpen);
-	}, [closeMenu]);
+	}, [closeMenu, onAssistanceSearchClose]);
+
+	useEffect(() => {
+		const revision = assistanceSearch?.revision || 0;
+		if (!revision || revision === assistanceSearchRevisionRef.current) return;
+		assistanceSearchRevisionRef.current = revision;
+		closeMenu(false);
+		setSearchOpen(true);
+	}, [assistanceSearch?.revision, closeMenu]);
 
 	const focusMenuButton = useCallback((index, { open = Boolean(openMenu) } = {}) => {
 		const count = orderedMenus.length;
@@ -353,6 +366,7 @@ export default function AudioEditorMenuBar({
 					))}
 				</div>
 				<AudioEditorSearch
+					assistanceSearch={assistanceSearch}
 					copy={copy}
 					entries={searchEntries}
 					locale={locale}

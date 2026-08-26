@@ -34,6 +34,12 @@ export function useWorkspaceSearchRuntime({
 			if (typeof entry.handler === 'function') run(entry.handler);
 			return;
 		}
+		if (entry.kind === 'assistance') {
+			const timelineFrame = entry.target?.timelineFrame;
+			if (!Number.isSafeInteger(timelineFrame) || timelineFrame < 0) return;
+			run(() => controller.actions.transport.seek(timelineFrame));
+			return;
+		}
 		const revision = searchRevealRevisionRef.current + 1;
 		searchRevealRevisionRef.current = revision;
 		if (entry.kind === 'timeline') {

@@ -24,6 +24,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 	const {
 		aboutLabel,
 		activateSearchEntry,
+		assistanceSearchRuntime,
 		applicationMenus,
 		aup4Compatibility,
 		aup4InputRef,
@@ -121,6 +122,8 @@ export default function AudioEditorWorkspaceView({ model }) {
 			onContextMenu={(event) => event.preventDefault()}
 		>
 			<AudioEditorMenuBar
+				assistanceSearch={assistanceSearchRuntime.assistanceSearch}
+				onAssistanceSearchClose={assistanceSearchRuntime.closeAssistanceSearch}
 				appName={copy.title}
 				copy={copy}
 				desktopChrome={desktopChrome}
