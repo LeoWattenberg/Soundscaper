@@ -10,6 +10,8 @@ import {
 import {
 	createAssistanceSiglip2TokenizerV1,
 } from '../src/common/editor/assistance/siglip2-tokenizer-v1.ts';
+import { ASSISTANCE_VISUAL_TAG_PROMPTS_V1 } from
+	'../src/common/editor/assistance/visual-tag-classification-v1.ts';
 import type {
 	AssistanceRuntimeFamilyWorkerExecutionContext,
 } from './assistance-runtime-family-worker-entry.ts';
@@ -75,11 +77,26 @@ async function executeSiglip2(
 		await loadRuntime(context.job.descriptor.entrypoint),
 	);
 	const vectors = inputRole === 'frame-pack'
-		? await embedFrames(context, runtime, models.vision_model_int8.path)
+		? await embedFramesAndTagPrototypes(context, runtime, models.vision_model_int8.path,
+			models.text_model_int8.path, models.tokenizer.path)
 		: await embedText(context, runtime, models.text_model_int8.path, models.tokenizer.path);
 	return publishAssistanceOnnxVisualOutputV1(context, createAssistanceEmbeddingMatrixV1({
 		dimensions: EMBEDDING_DIMENSIONS, vectors,
 	}));
+}
+
+async function embedFramesAndTagPrototypes(
+	context: AssistanceRuntimeFamilyWorkerExecutionContext,
+	runtime: ReturnType<typeof assistanceOnnxRuntimeValueV1>,
+	visionModelPath: string,
+	textModelPath: string,
+	tokenizerPath: string,
+): Promise<readonly Float32Array[]> {
+	const frames = await embedFrames(context, runtime, visionModelPath);
+	context.signal?.throwIfAborted();
+	const prototypes = await embedTexts(context, runtime, textModelPath, tokenizerPath,
+		ASSISTANCE_VISUAL_TAG_PROMPTS_V1.map(({ text }) => text), 0.95);
+	return Object.freeze([...frames, ...prototypes]);
 }
 
 function assertSettingsAndGrants(
@@ -151,25 +168,39 @@ async function embedText(
 	modelPath: string,
 	tokenizerPath: string,
 ): Promise<readonly Float32Array[]> {
-	const [textBytes, tokenizerBytes] = await Promise.all([
-		readFile(context.grant.inputs[0]!.path), readFile(tokenizerPath),
-	]);
+	const textBytes = await readFile(context.grant.inputs[0]!.path);
 	context.signal?.throwIfAborted();
 	let text: string;
 	try { text = new TextDecoder('utf-8', { fatal: true }).decode(textBytes); }
 	catch { throw new TypeError('SigLIP2 text input is not canonical UTF-8.'); }
-	const encoded = createAssistanceSiglip2TokenizerV1(tokenizerBytes).encode(text);
+	return embedTexts(context, runtime, modelPath, tokenizerPath, [text], 0.5);
+}
+
+async function embedTexts(
+	context: AssistanceRuntimeFamilyWorkerExecutionContext,
+	runtime: ReturnType<typeof assistanceOnnxRuntimeValueV1>,
+	modelPath: string,
+	tokenizerPath: string,
+	texts: readonly string[],
+	progress: number,
+): Promise<readonly Float32Array[]> {
+	const tokenizer = createAssistanceSiglip2TokenizerV1(await readFile(tokenizerPath));
+	context.signal?.throwIfAborted();
+	const inputIds = new BigInt64Array(texts.length * TEXT_SEQUENCE);
+	for (const [index, text] of texts.entries()) {
+		inputIds.set(tokenizer.encode(text).inputIds, index * TEXT_SEQUENCE);
+	}
 	const session = await createAssistanceOnnxVisualCpuSessionV1(
 		runtime, modelPath, TEXT_INPUTS, TEXT_OUTPUTS,
 	);
 	try {
 		const outputs = exactAssistanceOnnxOutputsV1(await session.run({
-			input_ids: new runtime.Tensor('int64', encoded.inputIds, [1, TEXT_SEQUENCE]),
+			input_ids: new runtime.Tensor('int64', inputIds, [texts.length, TEXT_SEQUENCE]),
 		}), TEXT_OUTPUTS);
 		exactAssistanceFloatTensorV1(outputs.last_hidden_state,
-			[1, TEXT_SEQUENCE, EMBEDDING_DIMENSIONS], 'SigLIP2 text hidden state');
-		context.onProgress(0.5);
-		return embeddingRows(outputs.pooler_output, 1, 'SigLIP2 text');
+			[texts.length, TEXT_SEQUENCE, EMBEDDING_DIMENSIONS], 'SigLIP2 text hidden state');
+		context.onProgress(progress);
+		return embeddingRows(outputs.pooler_output, texts.length, 'SigLIP2 text');
 	} finally {
 		await session.release?.();
 	}

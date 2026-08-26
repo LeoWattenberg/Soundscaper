@@ -9,6 +9,8 @@ import { dirname, isAbsolute, normalize } from 'node:path';
 
 import { reviewOwnedFramePackPlanV1 } from
 	'../src/common/editor/assistance/owned-video-highlight-validation-v1.ts';
+import { classifyAssistanceVisualTagEmbeddingsV1 } from
+	'../src/common/editor/assistance/visual-tag-classification-v1.ts';
 import { createAssistanceVisualFramePackV2 } from
 	'../src/common/editor/assistance/visual-frame-pack-v2.ts';
 import type {
@@ -128,8 +130,12 @@ export function createExternalFfmpegAssistanceVideoMaterializer(
 		resolveVisualTags(request: AssistanceWorkflowOwnedVisualTagsMaterializationRequestV1) {
 			request.signal.throwIfAborted();
 			const plan = reviewOwnedFramePackPlanV1(request.plan);
-			return Object.freeze(plan.frames.map(({ resultId }) => Object.freeze({ resultId,
-				tags: Object.freeze([]) })));
+			const classified = classifyAssistanceVisualTagEmbeddingsV1(
+				request.matrix, plan.frames.length,
+			);
+			return Object.freeze({ matrix: classified.matrix,
+				tags: Object.freeze(plan.frames.map(({ resultId }, index) => Object.freeze({ resultId,
+					tags: classified.tags[index]! }))) });
 		},
 	});
 }

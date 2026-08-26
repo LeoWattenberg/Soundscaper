@@ -47,7 +47,6 @@ import {
 } from '../src/framescaper/editor-local-assistance-highlight-review.ts';
 
 const MATRIX_MEDIA = 'application/vnd.soundscaper.embedding-matrix-v1';
-const FRAME_MEDIA = 'application/vnd.soundscaper.frame-pack';
 
 test('the main bridge executes all seven closed transforms through authenticated custody', async () => {
 	assert.deepEqual(ASSISTANCE_WORKFLOW_OWNED_VIDEO_HIGHLIGHT_STAGE_IDS, [
@@ -78,7 +77,8 @@ test('the main bridge executes all seven closed transforms through authenticated
 						rgba: Uint8Array.of(1, 2, 3, 255),
 					})) }),
 			resolveVisualTags: ({ plan }: Readonly<{ plan: AssistanceOwnedFramePackPlanV1 }>) =>
-				plan.frames.map(({ resultId }) => ({ resultId, tags: [] })),
+				({ matrix: createAssistanceEmbeddingMatrixV1({ dimensions: 2, vectors: [[1, 0]] }),
+					tags: plan.frames.map(({ resultId }) => ({ resultId, tags: [] })) }),
 		};
 		const indexHandlers = createAssistanceWorkflowOwnedVideoHighlightStageRuntime({
 			custody: index.custody, materializer,

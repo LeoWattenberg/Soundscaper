@@ -30,6 +30,8 @@ import {
 	reviewAssistanceSaliencyResultV1,
 	reviewAssistanceSubjectResultV1,
 } from '../src/common/editor/assistance/visual-semantic-results-v1.ts';
+import { ASSISTANCE_VISUAL_TAG_PROMPTS_V1 } from
+	'../src/common/editor/assistance/visual-tag-classification-v1.ts';
 
 const JOB_ID = '1'.repeat(40);
 const INPUT_ID = '2'.repeat(40);
@@ -63,26 +65,40 @@ test('SigLIP2 embeds VFR-ordered frame packs with exact CPU graph tensors', asyn
 		artifacts: siglipArtifacts(),
 	});
 	let seenInput: AssistanceOnnxTensorV1 | undefined;
+	let seenTagInput: AssistanceOnnxTensorV1 | undefined;
 	const runtime = fakeRuntime((path) => {
-		assert.equal(basename(path), 'vision_model_int8.onnx');
-		return session(['pixel_values'], ['last_hidden_state', 'pooler_output'], async (feeds) => {
-			seenInput = feeds.pixel_values;
-			const hidden = new Float32Array(2 * 196 * 768);
-			const pooled = new Float32Array(2 * 768);
-			pooled[0] = 1;
-			pooled[769] = 1;
-			return { last_hidden_state: tensor('float32', hidden, [2, 196, 768]),
-				pooler_output: tensor('float32', pooled, [2, 768]) };
+		if (basename(path) === 'vision_model_int8.onnx') {
+			return session(['pixel_values'], ['last_hidden_state', 'pooler_output'], async (feeds) => {
+				seenInput = feeds.pixel_values;
+				const hidden = new Float32Array(2 * 196 * 768);
+				const pooled = new Float32Array(2 * 768);
+				pooled[0] = 1;
+				pooled[769] = 1;
+				return { last_hidden_state: tensor('float32', hidden, [2, 196, 768]),
+					pooler_output: tensor('float32', pooled, [2, 768]) };
+			});
+		}
+		assert.equal(basename(path), 'text_model_int8.onnx');
+		return session(['input_ids'], ['last_hidden_state', 'pooler_output'], async (feeds) => {
+			seenTagInput = feeds.input_ids;
+			const count = ASSISTANCE_VISUAL_TAG_PROMPTS_V1.length;
+			const pooled = new Float32Array(count * 768);
+			for (let row = 0; row < count; row += 1) pooled[row * 768 + row + 10] = 1;
+			return { last_hidden_state: tensor('float32',
+				new Float32Array(count * 64 * 768), [count, 64, 768]),
+				pooler_output: tensor('float32', pooled, [count, 768]) };
 		});
 	});
 	await run(value, runtime);
 	assert.deepEqual(seenInput?.dims, [2, 3, 224, 224]);
+	assert.deepEqual(seenTagInput?.dims, [ASSISTANCE_VISUAL_TAG_PROMPTS_V1.length, 64]);
 	assert.deepEqual(Array.from((seenInput?.data as Float32Array).subarray(0, 3)), [1, 1, 1]);
 	const matrix = reviewAssistanceEmbeddingMatrixV1(await readFile(value.output));
-	assert.equal(matrix.rowCount, 2);
+	assert.equal(matrix.rowCount, 2 + ASSISTANCE_VISUAL_TAG_PROMPTS_V1.length);
 	assert.equal(matrix.dimensions, 768);
 	assert.equal(matrix.vector(0)[0], 1);
 	assert.equal(matrix.vector(1)[1], 1);
+	assert.equal(matrix.vector(2)[10], 1);
 });
 
 test('SigLIP2 executes its pinned byte-fallback BPE and text-only graph signature', async (context) => {

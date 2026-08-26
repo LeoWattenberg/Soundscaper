@@ -9,8 +9,14 @@ import {
 } from '../desktop/assistance-external-ffmpeg-video-materializer.ts';
 import { externalFfmpegExecutablePairClosureSha256 } from
 	'../desktop/external-ffmpeg-node-runtime.ts';
+import {
+	createAssistanceEmbeddingMatrixV1,
+	reviewAssistanceEmbeddingMatrixV1,
+} from '../src/common/editor/assistance/binary-formats-v1.ts';
 import { reviewAssistanceVisualFramePackV2 } from
 	'../src/common/editor/assistance/visual-frame-pack-v2.ts';
+import { ASSISTANCE_NON_BIOMETRIC_VISUAL_TAGS_V1 } from
+	'../src/common/editor/assistance/visual-search-records-v1.ts';
 import type { AssistanceWorkflowV1 } from '../src/common/editor/assistance/workflow.ts';
 
 const FFMPEG_SHA = '12'.repeat(32);
@@ -55,12 +61,32 @@ test('the admitted FFmpeg materializer decodes exact ordinals into bounded visua
 	assert.deepEqual(reviewed.frame(1), { sourceFrame: 40, presentationTick: '200',
 		rgba: new Uint8Array(512 * 256 * 4).fill(7) });
 	assert.deepEqual(invalidations, []);
-	assert.deepEqual(await materializer.resolveVisualTags!({ request: {} as AssistanceWorkflowV1,
-		plan: PLAN, matrix: Uint8Array.of(1), signal: new AbortController().signal }), [
-		{ resultId: 'visual-sample:0', tags: [] },
-		{ resultId: 'visual-sample:1', tags: [] },
+	const tagged = await materializer.resolveVisualTags!({ request: {} as AssistanceWorkflowV1,
+		plan: PLAN, matrix: visualTagMatrix(), signal: new AbortController().signal });
+	assert.ok(tagged);
+	assert.equal(reviewAssistanceEmbeddingMatrixV1(tagged!.matrix).rowCount, 2);
+	assert.deepEqual(tagged!.tags.map(({ resultId, tags }) => ({ resultId,
+		tags: tags.map(({ tag }) => tag) })), [
+		{ resultId: 'visual-sample:0', tags: ['person'] },
+		{ resultId: 'visual-sample:1', tags: ['outdoor'] },
 	]);
 });
+
+function visualTagMatrix(): Uint8Array {
+	const dimensions = ASSISTANCE_NON_BIOMETRIC_VISUAL_TAGS_V1.length;
+	const person = ASSISTANCE_NON_BIOMETRIC_VISUAL_TAGS_V1.indexOf('person');
+	const outdoor = ASSISTANCE_NON_BIOMETRIC_VISUAL_TAGS_V1.indexOf('outdoor');
+	return createAssistanceEmbeddingMatrixV1({ dimensions, vectors: [
+		basis(dimensions, person), basis(dimensions, outdoor),
+		...Array.from({ length: dimensions }, (_, index) => basis(dimensions, index)),
+	] });
+}
+
+function basis(dimensions: number, index: number): Float32Array {
+	const result = new Float32Array(dimensions);
+	result[index] = 1;
+	return result;
+}
 
 test('the frame materializer typed-refuses absent, underqualified, changed, and oversized authority', async () => {
 	const absent = createExternalFfmpegAssistanceVideoMaterializer({ preferences: {

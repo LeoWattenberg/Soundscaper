@@ -86,12 +86,18 @@ export interface AssistanceWorkflowOwnedVisualTagsMaterializationRequestV1 {
 	readonly signal: AbortSignal;
 }
 
+export interface AssistanceWorkflowOwnedVisualTagsMaterializationV1 {
+	readonly matrix: Uint8Array;
+	readonly tags: unknown;
+}
+
 /** Closed main-only seam for data that cannot truthfully be represented by current slotted bodies. */
 export interface AssistanceWorkflowOwnedVideoHighlightMaterializerV1 {
 	materializeFramePack?(request: AssistanceWorkflowOwnedFramePackMaterializationRequestV1):
 		PromiseLike<readonly Uint8Array[] | null> | readonly Uint8Array[] | null;
 	resolveVisualTags?(request: AssistanceWorkflowOwnedVisualTagsMaterializationRequestV1):
-		PromiseLike<unknown | null> | unknown | null;
+		PromiseLike<AssistanceWorkflowOwnedVisualTagsMaterializationV1 | null>
+		| AssistanceWorkflowOwnedVisualTagsMaterializationV1 | null;
 }
 
 export interface AssistanceWorkflowOwnedVideoHighlightStageCustodyV1 {
@@ -231,12 +237,15 @@ async function transformInputs(
 		}
 		const matrix = requiredResolved(resolved['visual-embeddings'], 'visual-embeddings').value;
 		if (!(matrix instanceof Uint8Array)) throw new TypeError('Visual embeddings lost binary custody.');
-		const tags = await options.materializer?.resolveVisualTags?.({ request, plan: stored.plan,
+		const tagged = await options.materializer?.resolveVisualTags?.({ request, plan: stored.plan,
 			matrix: matrix.slice(), signal });
 		signal.throwIfAborted();
-		if (tags === null || tags === undefined) unavailable('Visual tag materialization is unavailable.');
+		if (!tagged || !(tagged.matrix instanceof Uint8Array)) {
+			unavailable('Visual tag materialization is unavailable.');
+		}
 		values['visual-embeddings'] = Object.freeze({ schemaVersion: 1,
-			kind: 'visual-embeddings', framePack: stored.plan, matrix, tags });
+			kind: 'visual-embeddings', framePack: stored.plan, matrix: tagged.matrix.slice(),
+			tags: tagged.tags });
 	}
 	if (stageId === 'assemble-highlights') {
 		values.editorial = values['editorial-proposal'];
