@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
+
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
 const packageUrl = new URL('../package.json', import.meta.url);
 const referenceScaleTestUrl = new URL('./desktop-scape-sparse-full-import-integration.test.ts', import.meta.url);
@@ -25,7 +27,7 @@ test('production evidence pins bounded random-access .scape admission', async ()
 		/real read-capability store.*protocol shim.*renderer adapter.*file service.*project service.*full import.*independent counting-SHA-256.*zero payload retention.*no Blob.*point-in-time import-capacity estimate.*precedes the media writer.*9,448,923,946-byte.*capability release.*exactly once.*pinned handle close.*exactly once/iu,
 		/verified reference evidence.*opt-in.*`npm run test:reference:scape-8gib`.*routine Node.*coverage.*fast-skip.*measured all-files coverage.*passed.*525 seconds.*does not demote.*refusal inspection.*corrupted-CRC negative rollback.*routine coverage.*sparse-file.*Node protocol shim.*not packaged UI/iu,
 		/OPFS.*IndexedDB.*durable.*real browser or filesystem quota accuracy.*reservation.*write-time success.*concurrent writers.*browser heap.*RSS.*whole-storage atomicity.*publisher authentication/iu,
-	]) assert.match(control.summary, claim);
+	]) assertOrderedClaim(control.summary, claim);
 	const packagedOpenControl = matrix.risks.find(({ id }) => id === 'scape-archive-expansion')?.currentControls
 		.find(({ id }) => id === 'packaged-linux-x64-current-schema-scape-open');
 	assert.ok(packagedOpenControl);
@@ -35,7 +37,7 @@ test('production evidence pins bounded random-access .scape admission', async ()
 		/capability.*live before delivery.*retired after open.*closed sanitized result.*no capability ID, URL, or filesystem path/iu,
 		/only that small current-schema packaged application path.*does not qualify installer file-association registration.*shell-generated launch.*packaged 8 GiB.*reference-scale.*payload laziness.*whole materialization beyond.*known range route.*playback.*persistent reopen.*durability.*crash.*power loss.*memory.*heap.*RSS.*quota accuracy.*reservation.*concurrency.*Windows.*macOS.*ARM.*Framescaper.*arbitrary third-party ZIP or effect semantics.*legacy Soundscaper schemas or libraries/iu,
 		/Third-party activation gating.*legacy Soundscaper compatibility.*not current priorities.*Audacity project interchange.*separate/iu,
-	]) assert.match(packagedOpenControl.summary, claim);
+	]) assertOrderedClaim(packagedOpenControl.summary, claim);
 	for (const path of [
 		'desktop/scape-open-smoke.js',
 		'desktop/desktop-smoke.js',
@@ -65,7 +67,7 @@ test('production evidence pins bounded random-access .scape admission', async ()
 		/qualifies only orderly process-restart automatic source-bearing persistence and reopen plus transport entry, playback-clock advancement, master-meter activity, and explicit stop and reset.*known current-schema fixture/iu,
 		/does not qualify audible or device output.*`--mute-audio`.*playback fidelity.*dropout.*glitch.*full-duration.*mixer.*routing.*effect correctness.*storage durability.*crash.*power[- ]loss.*fsync.*eviction.*quota.*reservation.*concurrency.*Windows.*macOS.*ARM.*Framescaper.*cross-product transfer.*third-party ZIP or effect.*legacy Soundscaper/iu,
 		/Third-party activation gating.*legacy Soundscaper compatibility.*not current priorities.*Audacity project interchange.*separate/iu,
-	]) assert.match(packagedReopenControl.summary, claim);
+	]) assertOrderedClaim(packagedReopenControl.summary, claim);
 	assert.doesNotMatch(packagedReopenControl.summary, /sample-level|summary peaks|peaks.{0,32}PCM|non-summary/iu);
 	for (const path of [
 		'desktop/scape-reopen-smoke.js',
@@ -98,7 +100,7 @@ test('production evidence pins bounded random-access .scape admission', async ()
 		/standalone undecorated imports.*optional direct store estimator.*do not update controller state/iu,
 		/8,589,930,860.*9,448,923,946.*before its media writer/iu,
 		/does not reserve capacity.*real browser or filesystem quota accuracy.*durable OPFS or IndexedDB 8 GiB.*overhead.*policy headroom.*write-time success.*concurrent writers/iu,
-	]) assert.match(capacityControl.summary, claim);
+	]) assertOrderedClaim(capacityControl.summary, claim);
 	for (const path of [
 		'desktop/constants.js',
 		'desktop/protocol.js',
@@ -174,7 +176,7 @@ test('production evidence pins bounded random-access .scape admission', async ()
 		/standalone undecorated imports.*optional direct store estimator.*do not update controller state/isu,
 		/8,589,930,860.*9,448,923,946-byte.*before its media writer/isu,
 		/does not reserve capacity.*real browser or filesystem quota accuracy.*durable 8 GiB.*overhead.*policy headroom.*write-time success.*concurrent writers/isu,
-	]) assert.match(threatModel, claim);
+	]) assertOrderedClaim(threatModel, claim);
 	for (const claim of [
 		/branded random-access byte-source.*lower.*33 MiB.*native typed-array.*69,271,649-byte.*central comments.*conflicting overlaps.*payload gaps.*zero-high-water-mark.*overlap-only.*lazily/isu,
 		/strict renderer adapter.*descriptor URL\/declared size.*fetch implementation.*16 MiB.*`206`.*`Content-Range`.*`Content-Length`.*stream `done`.*project-dialog.*OS-association.*terminal.*\.scape.*exact canonical Scape MIME.*awaited capability scope.*inspection.*collision decision.*import.*exactly once.*main-process release.*authoritative/isu,
@@ -182,13 +184,13 @@ test('production evidence pins bounded random-access .scape admission', async ()
 		/real read-capability store.*protocol handler.*renderer adapter.*file service.*project service.*full import.*independent counting-SHA-256.*zero payload retention.*point-in-time capacity estimate.*precedes the media writer.*9,448,923,946.*no Blob.*capability release.*exactly once.*pinned handle close.*exactly once/isu,
 		/verified reference evidence.*opt-in.*`npm run test:reference:scape-8gib`.*routine Node.*coverage.*fast-skip.*measured all-files coverage.*passed.*525 seconds.*does not demote.*refusal inspection.*corrupted-CRC negative rollback.*routine coverage.*sparse-file.*Node protocol shim.*(?:not|rather than) packaged UI/isu,
 		/OPFS.*IndexedDB.*durable.*real production browser or filesystem quota accuracy.*reservation.*write-time success.*concurrent writers.*browser heap.*RSS.*whole-storage atomicity.*publisher authentication/isu,
-	]) assert.match(threatModel, claim);
+	]) assertOrderedClaim(threatModel, claim);
 	for (const claim of [
 		/maintained Soundscaper-only Linux x64 packaged smoke.*production-exports.*exact-schema-17.*one mono source.*one track.*one clip.*16,384 Float32 frames.*48 kHz.*65,540-byte.*asset.*65,557-byte.*96 KiB/isu,
 		/packaged executable.*\.scape.*positional.*isolated user and application-data roots.*native OS-open argument extraction.*pending queue.*main-owned `scape-range-v1`.*preload.*renderer router.*range adapter and protocol.*inspection.*real packaged application storage.*activation.*exact project, track, and clip identities.*visible success/isu,
 		/capability.*live before delivery.*retired after open.*sanitized result.*no capability ID, URL, or filesystem path/isu,
 		/does not qualify.*installer.*file-association registration.*shell launch.*8 GiB.*reference scale.*payload laziness.*whole materialization.*known range route.*playback.*persistent reopen.*durability.*crash.*power loss.*memory.*RSS.*quota.*concurrency.*Windows.*macOS.*ARM.*Framescaper.*third-party ZIP or effect.*legacy Soundscaper.*Audacity.*separate/isu,
-	]) assert.match(threatModel, claim);
+	]) assertOrderedClaim(threatModel, claim);
 	for (const claim of [
 		/second maintained Soundscaper-only Linux x64 packaged process.*orderly process-restart persistence witness.*70,082-byte.*schema 17.*revision 7.*source-bearing/isu,
 		/first process.*isolated user and application-data roots.*archive unchanged.*clean exit.*removes.*archive.*ENOENT.*second process.*same roots.*no positional `.scape`.*no read descriptor or capability.*bootstrap.*automatically reopens/isu,
@@ -196,7 +198,7 @@ test('production evidence pins bounded random-access .scape admission', async ()
 		/known reopened fixture's stored PCM enters the editor playback graph.*enabled `Play` and `Stop`.*active, pressed `Pause`.*same active interval.*playhead advances.*master playback meter.*above its declared floor.*explicit `Stop`.*restores.*unpressed `Play`.*playhead.*zero/isu,
 		/qualifies only orderly process-restart automatic source-bearing persistence and reopen plus transport entry, playback-clock advancement, master-meter activity, and explicit stop and reset.*known current-schema fixture/isu,
 		/does not establish audible or device output.*`--mute-audio`.*playback fidelity.*dropout.*glitch.*full-duration.*mixer.*routing.*effect correctness.*storage durability.*crash.*power[- ]loss.*fsync.*eviction.*quota.*reservation.*concurrency.*Windows.*macOS.*ARM.*Framescaper.*cross-product transfer.*third-party.*legacy Soundscaper.*Audacity.*separate/isu,
-	]) assert.match(threatModel, claim);
+	]) assertOrderedClaim(threatModel, claim);
 	assert.doesNotMatch(threatModel, /sample-level|summary peaks|peaks.{0,32}PCM|non-summary/iu);
 	assert.doesNotMatch(control.summary, /placeholder huge[- ]asset/iu);
 	assert.doesNotMatch(threatModel, /huge asset(?:'s)? manifest digest and ZIP CRC are placeholders/iu);
