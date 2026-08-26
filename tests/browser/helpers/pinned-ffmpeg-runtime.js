@@ -31,9 +31,17 @@ export async function installPinnedFfmpegRuntimeRoutes(page, options = {}) {
 	});
 	await page.addInitScript(({ runtimeRoot, sameOriginRoot }) => {
 		const nativePostMessage = Worker.prototype.postMessage;
-		let localRuntimeURLs;
+		const localRuntimeURLs = new Map();
+		const CORE_SUFFIX = '/ffmpeg-core.js';
 		Worker.prototype.postMessage = function postPinnedFfmpegMessage(message, ...rest) {
-			if (message?.type !== 'LOAD' || message?.data?.coreURL !== `${runtimeRoot}/ffmpeg-core.js`) {
+			// A production build addresses the runtime by manifest digest, so the core lives at
+			// `<runtimeRoot>/releases/<digest>/ffmpeg-core.js` rather than directly under the root.
+			// Match the whole subtree: a worker fetch that escapes to the network is not routable
+			// in every browser, and the real host only serves digests that have been published.
+			const requestedCore = message?.type === 'LOAD' ? message?.data?.coreURL : null;
+			if (typeof requestedCore !== 'string'
+				|| !requestedCore.startsWith(`${runtimeRoot}/`)
+				|| !requestedCore.endsWith(CORE_SUFFIX)) {
 				return nativePostMessage.call(this, message, ...rest);
 			}
 			if (sameOriginRoot) {
@@ -47,17 +55,22 @@ export async function installPinnedFfmpegRuntimeRoutes(page, options = {}) {
 					},
 				}, ...rest);
 			}
-			localRuntimeURLs ||= Promise.all([
-				fetch(`${runtimeRoot}/ffmpeg-core.js`).then(async (response) => {
-					if (!response.ok) throw new Error(`Pinned FFmpeg JavaScript returned HTTP ${String(response.status)}.`);
-					return URL.createObjectURL(await response.blob());
-				}),
-				fetch(`${runtimeRoot}/ffmpeg-core.wasm`).then(async (response) => {
-					if (!response.ok) throw new Error(`Pinned FFmpeg WASM returned HTTP ${String(response.status)}.`);
-					return URL.createObjectURL(await response.blob());
-				}),
-			]);
-			void localRuntimeURLs.then(([coreURL, wasmURL]) => nativePostMessage.call(this, {
+			const releaseRoot = requestedCore.slice(0, -CORE_SUFFIX.length);
+			let pending = localRuntimeURLs.get(releaseRoot);
+			if (!pending) {
+				pending = Promise.all([
+					fetch(`${releaseRoot}/ffmpeg-core.js`).then(async (response) => {
+						if (!response.ok) throw new Error(`Pinned FFmpeg JavaScript returned HTTP ${String(response.status)}.`);
+						return URL.createObjectURL(await response.blob());
+					}),
+					fetch(`${releaseRoot}/ffmpeg-core.wasm`).then(async (response) => {
+						if (!response.ok) throw new Error(`Pinned FFmpeg WASM returned HTTP ${String(response.status)}.`);
+						return URL.createObjectURL(await response.blob());
+					}),
+				]);
+				localRuntimeURLs.set(releaseRoot, pending);
+			}
+			void pending.then(([coreURL, wasmURL]) => nativePostMessage.call(this, {
 				...message,
 				data: { ...message.data, coreURL, wasmURL },
 			}, ...rest));
