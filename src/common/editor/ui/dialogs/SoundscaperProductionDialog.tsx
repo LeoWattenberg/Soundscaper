@@ -248,10 +248,13 @@ export default function SoundscaperProductionDialog({
 					onLaneDraft={setLaneDraft}
 					onAutomationValue={setAutomationValue}
 					onMode={(next) => {
+						// Applied only once the controller accepted it, as every other
+						// gesture here does: the dialog rebuilds its model from this mode,
+						// so adopting a refused one would drive the gesture controls
+						// against a controller still in the previous mode.
 						perform('automation-mode', () => ({
 							type: 'automation-mode/set', mode: next, laneId: model.selectedLaneId,
-						}));
-						setMode(next);
+						}), () => { setMode(next); });
 					}}
 					onApply={() => perform('automation-apply', () => laneSetOperation(model.selectedLaneText, laneDraft))}
 					onReset={() => perform('automation-reset', () => laneResetOperation(model.selectedLaneText))}
