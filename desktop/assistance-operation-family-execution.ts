@@ -45,6 +45,8 @@ const DIRECT_ADDITIONAL_OPERATIONS = new Set<AssistanceOperationRequest['operati
 	'editorial-generation',
 ]);
 const GIB = 1024 ** 3;
+const WAV2VEC2_BASE_960H_SHA256 =
+	'b73fe60ddcd3fd07f91d65d50b4f10ba99039104c4fb5db5bdafbb27610bb6eb';
 const SUBJECT_MODEL_REQUIREMENTS = Object.freeze([
 	Object.freeze({ modelId: 'yunet-face-detection-2026may', task: 'face-detection' }),
 	Object.freeze({ modelId: 'dfine-nano-coco', task: 'object-detection' }),
@@ -118,6 +120,9 @@ async function resolveExactModel(
 		|| request.operation === 'beat-tracking')) {
 		assertAssistanceOnnxAudioModelBindingV1(request.operation, request.models[0]!);
 	}
+	if (subjectBindings === null && request.operation === 'word-alignment') {
+		assertAssistanceWav2Vec2EnglishAlignmentModelBindingV1(request.models[0]!);
+	}
 	if (subjectBindings === null && request.operation === 'text-embedding') {
 		assertAssistanceOnnxTextEmbeddingModelBindingV1(request.models[0]!);
 	}
@@ -171,6 +176,17 @@ export function assertAssistanceOnnxTextEmbeddingModelBindingV1(
 ): void {
 	if (binding.modelId !== 'nomic-embed-text-v1.5' || binding.version !== '1.5.0') {
 		throw new TypeError('Text embedding requires the exact nomic-embed-text-v1.5 identity.');
+	}
+}
+
+/** Close English forced-alignment substitution against the existing direct artifact pin. */
+export function assertAssistanceWav2Vec2EnglishAlignmentModelBindingV1(
+	binding: AssistanceOperationModelBinding,
+): void {
+	if (binding.modelId !== 'wav2vec2-base-960h'
+		|| binding.artifactSha256s.length !== 1
+		|| binding.artifactSha256s[0] !== WAV2VEC2_BASE_960H_SHA256) {
+		throw new TypeError('Word alignment requires the exact pinned wav2vec2-base-960h revision identity and digest.');
 	}
 }
 

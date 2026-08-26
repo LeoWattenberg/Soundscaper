@@ -27,6 +27,9 @@ import {
 import {
 	createAssistanceOnnxTextEmbeddingWorkerAdapterV1,
 } from './assistance-onnx-text-embedding-worker.ts';
+import {
+	createAssistanceOnnxWordAlignmentWorkerAdapterV1,
+} from './assistance-onnx-word-alignment-worker.ts';
 
 export interface AssistanceOnnxTensorV1 {
 	readonly type: string;
@@ -80,7 +83,9 @@ export function createAssistanceOnnxRuntimeWorkerAdapterV1(
 	const loadRuntime = options.loadRuntime ?? loadOnnxRuntime;
 	const executeAudio = createAssistanceOnnxAudioRuntimeWorkerAdapterV1(loadRuntime);
 	const executeTextEmbedding = createAssistanceOnnxTextEmbeddingWorkerAdapterV1(loadRuntime);
+	const executeWordAlignment = createAssistanceOnnxWordAlignmentWorkerAdapterV1(loadRuntime);
 	return async (context) => {
+		if (context.grant.task === 'word-alignment') return executeWordAlignment(context);
 		if (context.grant.task === 'shot-detection') return executeTransNetV2(context, loadRuntime);
 		if (context.grant.task === 'audio-tagging' || context.grant.task === 'beat-tracking') {
 			return executeAudio(context);
