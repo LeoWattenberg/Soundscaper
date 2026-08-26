@@ -29,8 +29,8 @@ import {
 } from '../src/common/editor/desktop-codec-provider-catalog.ts';
 
 export const BUNDLED_FLAC_VERSION = '1.5.0';
-export const BUNDLED_FLAC_WASM_BYTE_LENGTH = 153_044;
-export const BUNDLED_FLAC_WASM_SHA256 = '34acff0d67e3ac7f34816217ed7f5f859bf9a1c70f33eb3c347049f5fdf0d443';
+export const BUNDLED_FLAC_WASM_BYTE_LENGTH = 153_076;
+export const BUNDLED_FLAC_WASM_SHA256 = '0f703571f95e37c24ad68577163ea56b4a9dd7d5576760700b482369e924f986';
 export const BUNDLED_FLAC_PCM_BIT_DEPTH = 24;
 export const BUNDLED_FLAC_WASM_URL = new URL(
 	'../src/common/editor/flac/flac.wasm', import.meta.url,

@@ -29,7 +29,7 @@ export const DESKTOP_BUNDLED_CODEC_NOTICE_FILES = Object.freeze([
 	codecFile('flac', 'licenses/FLAC.txt', 1_509,
 		'7866ee98760fc1f0156b4fe6bf530257e02be487ab3fd94e2b63799dd32d6b2c'),
 	codecFile('flac', 'source-manifest.json', 2_624,
-		'159f77a3449cca02f5e7b937fbb84a6ca910570675d8016e145121bc4c214205'),
+		'567233afa113fdf4be713bc45291ec65e4d82413213ca5378fb107f161ff2dea'),
 	codecFile('lame', 'NOTICE.md', 1_155,
 		'4c5aa0f920cd13893d0f595acd4dc3efffe02cfa66f7487f8643733d4e6de3b0'),
 	codecFile('lame', 'licenses/LAME.txt', 667,

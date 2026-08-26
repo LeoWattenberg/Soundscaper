@@ -96,8 +96,8 @@ test('desktop codec runtime inventory closes over both main audio entry points',
 test('desktop codec runtime inventory contains only exact reviewed audio payloads', async () => {
 	assert.deepEqual(DESKTOP_BUNDLED_FLAC_WASM, {
 		file: 'src/common/editor/flac/flac.wasm',
-		byteLength: 153_044,
-		sha256: '34acff0d67e3ac7f34816217ed7f5f859bf9a1c70f33eb3c347049f5fdf0d443',
+		byteLength: 153_076,
+		sha256: '0f703571f95e37c24ad68577163ea56b4a9dd7d5576760700b482369e924f986',
 	});
 	assert.deepEqual(DESKTOP_BUNDLED_LAME_WASM, {
 		file: 'src/common/editor/lame/lame.wasm',

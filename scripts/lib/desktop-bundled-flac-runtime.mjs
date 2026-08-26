@@ -6,8 +6,8 @@ import { dirname, join } from 'node:path';
 
 export const DESKTOP_BUNDLED_FLAC_WASM = Object.freeze({
 	file: 'src/common/editor/flac/flac.wasm',
-	byteLength: 153_044,
-	sha256: '34acff0d67e3ac7f34816217ed7f5f859bf9a1c70f33eb3c347049f5fdf0d443',
+	byteLength: 153_076,
+	sha256: '0f703571f95e37c24ad68577163ea56b4a9dd7d5576760700b482369e924f986',
 });
 
 /** Copy only the exact reviewed libFLAC payload into the compiled desktop graph. */

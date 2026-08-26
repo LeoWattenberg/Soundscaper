@@ -83,8 +83,8 @@ test('staged manifest closes over control, helper, runner, seven modules, and se
 			));
 			return { path, byteLength: staged.byteLength, sha256: staged.sha256 };
 		}),
-		wasmBytes: 153_044,
-		wasmSha256: '34acff0d67e3ac7f34816217ed7f5f859bf9a1c70f33eb3c347049f5fdf0d443',
+		wasmBytes: 153_076,
+		wasmSha256: '0f703571f95e37c24ad68577163ea56b4a9dd7d5576760700b482369e924f986',
 	});
 });
 

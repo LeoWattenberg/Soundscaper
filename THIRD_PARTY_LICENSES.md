@@ -114,7 +114,7 @@ macOS x64 is unsupported.
 - retained license: [`licenses/FLAC.txt`](src/common/editor/flac/licenses/FLAC.txt)
 - detailed notice: [`NOTICE.md`](src/common/editor/flac/NOTICE.md)
 - source/build manifest: [`source-manifest.json`](src/common/editor/flac/source-manifest.json)
-- exact `flac.wasm`: 153,044 bytes; SHA-256 `34acff0d67e3ac7f34816217ed7f5f859bf9a1c70f33eb3c347049f5fdf0d443`
+- exact `flac.wasm`: 153,076 bytes; SHA-256 `0f703571f95e37c24ad68577163ea56b4a9dd7d5576760700b482369e924f986`
 
 The build contains the libFLAC stream encoder/decoder core and exposes only a
 bounded memory ABI. File access, Ogg framing, metadata mutation,

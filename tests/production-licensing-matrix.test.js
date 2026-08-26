@@ -180,7 +180,7 @@ test('runtime provenance entries and release gates fail closed without claiming 
 		'flac', 'opus', 'vorbis', 'wavpack', 'mpg123', 'lame', 'twolame',
 	]);
 	const expectedAudioPayloads = {
-		flac: ['1.5.0', 'BSD-3-Clause', 153044, '34acff0d67e3ac7f34816217ed7f5f859bf9a1c70f33eb3c347049f5fdf0d443'],
+		flac: ['1.5.0', 'BSD-3-Clause', 153076, '0f703571f95e37c24ad68577163ea56b4a9dd7d5576760700b482369e924f986'],
 		opus: ['libopus-1.6.1+libogg-1.3.6', 'BSD-3-Clause', 385789, 'c4c9f7ac85071b24b2545f966943c4319fff023a65c899146cfcb016ae0a8853'],
 		vorbis: ['libvorbis-1.3.7+libogg-1.3.6', 'BSD-3-Clause', 523227, 'c03037c33f35dbf85e1e963058156399b995b2dedb5479f6eb3f3b30148eeee5'],
 		wavpack: ['5.9.0', 'BSD-3-Clause', 145537, 'c547aca2d5584d643cea4a9d856f9672b9f621fae518ef99444d94500c31f908'],

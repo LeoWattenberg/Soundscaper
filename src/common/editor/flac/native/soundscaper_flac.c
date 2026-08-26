@@ -265,8 +265,17 @@ int scfl_encode_float32(
 			if (sample <= -1.0f) converted[index] = -8388608;
 			else if (sample >= 1.0f) converted[index] = 8388607;
 			else {
+				/*
+				 * Rounding half away from zero can carry past the signed-24 maximum:
+				 * the largest float below 1.0 scales to exactly 8388607.5, which
+				 * rounds to 8388608. The encoder is configured for 24 bits and
+				 * rejects that, failing the whole buffer, so the rounded value is
+				 * clamped rather than the input. The negative side already lands on
+				 * -8388608 at worst.
+				 */
 				double scaled = (double)sample * 8388608.0;
-				converted[index] = (FLAC__int32)(scaled < 0.0 ? scaled - 0.5 : scaled + 0.5);
+				FLAC__int32 rounded = (FLAC__int32)(scaled < 0.0 ? scaled - 0.5 : scaled + 0.5);
+				converted[index] = rounded > 8388607 ? 8388607 : rounded;
 			}
 		}
 		if (!FLAC__stream_encoder_process_interleaved(encoder, converted, chunk_frames)) goto cleanup;

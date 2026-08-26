@@ -25,8 +25,8 @@ const CODEC_FILES = Object.freeze({
 	flac: Object.freeze({
 		module: 'project-library-runtime/desktop/bundled-flac-audio-codec-runtime.js',
 		wasm: 'project-library-runtime/src/common/editor/flac/flac.wasm',
-		wasmBytes: 153_044,
-		wasmSha256: '34acff0d67e3ac7f34816217ed7f5f859bf9a1c70f33eb3c347049f5fdf0d443',
+		wasmBytes: 153_076,
+		wasmSha256: '0f703571f95e37c24ad68577163ea56b4a9dd7d5576760700b482369e924f986',
 	}),
 	lame: Object.freeze({
 		module: 'project-library-runtime/desktop/bundled-lame-audio-codec-runtime.js',

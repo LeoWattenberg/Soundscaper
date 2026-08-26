@@ -23,8 +23,8 @@ reviewed compressed-audio WebAssembly payloads are implemented. All seven are
 registered for linux-x64, linux-arm64, mac-arm64, win-x64, and win-arm64;
 mac-x64 is rejected rather than treated as a compatibility alias:
 
-- libFLAC 1.5.0, 153,044 bytes, SHA-256
-  `34acff0d67e3ac7f34816217ed7f5f859bf9a1c70f33eb3c347049f5fdf0d443`,
+- libFLAC 1.5.0, 153,076 bytes, SHA-256
+  `0f703571f95e37c24ad68577163ea56b4a9dd7d5576760700b482369e924f986`,
   for bounded FLAC encode/decode through the reviewed signed-24-bit profile;
 - libopus 1.6.1 with libogg 1.3.6, 385,789 bytes, SHA-256
   `c4c9f7ac85071b24b2545f966943c4319fff023a65c899146cfcb016ae0a8853`,

@@ -26,7 +26,7 @@ test('the exact artifact gates a five-target signed-24 FLAC provider', async () 
 	assert.equal(runtime.provider.kind, 'bundled');
 	assert.equal(runtime.provider.implementation, 'libflac-wasm-f32-to-s24');
 	assert.match(runtime.provider.capabilityGeneration, new RegExp(BUNDLED_FLAC_WASM_SHA256, 'u'));
-	assert.equal(BUNDLED_FLAC_WASM_BYTE_LENGTH, 153_044);
+	assert.equal(BUNDLED_FLAC_WASM_BYTE_LENGTH, 153_076);
 	assert.equal(BUNDLED_FLAC_PCM_BIT_DEPTH, 24);
 	assert.equal((await runtime.provider.preflight(operation('encode'), {})).disposition, 'supported');
 	assert.equal((await runtime.provider.preflight(operation('decode'), {})).disposition, 'supported');
@@ -64,6 +64,34 @@ test('encode reports and preserves a lossless FLAC stream over explicit signed-2
 		-8_388_608, -8_388_608, -6_291_456, -1_048_576, 0,
 		1_048_576, 6_291_456, 8_388_607, 8_388_607,
 	]);
+});
+
+/**
+ * Rounding half away from zero carries past the signed-24 maximum for the
+ * largest float below 1.0, which scales to exactly 8388607.5. The encoder is
+ * configured for 24 bits and refuses an out-of-range sample, so one such value
+ * used to fail the whole buffer rather than a single sample. Peak
+ * normalization lands on it routinely.
+ */
+test('a peak just below full scale encodes instead of failing the whole buffer', async () => {
+	const runtime = await requiredRuntime('linux-x64');
+	const edge = Math.fround(1 - 2 ** -24);
+	assert.ok(edge < 1, 'the fixture value is strictly below full scale');
+	const source = floatBytes([0, edge, -edge, 0]);
+
+	const encoded = await execute(runtime, encodeRequest(source, 4, 1, 5));
+	assert.equal(encoded.status, 'executed');
+	if (encoded.status !== 'executed') return;
+	assert.equal(Buffer.from(encoded.output.subarray(0, 4)).toString('ascii'), 'fLaC');
+
+	const decoded = await execute(runtime, decodeRequest(encoded.output, 1));
+	assert.equal(decoded.status, 'executed');
+	if (decoded.status !== 'executed') return;
+	assert.deepEqual(
+		floats(decoded.output).map((value) => Math.round(value * 8_388_608)),
+		[0, 8_388_607, -8_388_608, 0],
+		'the peak saturates to the signed-24 maximum rather than overflowing it',
+	);
 });
 
 test('all reviewed compression levels round trip and other FLAC settings fail closed', async () => {

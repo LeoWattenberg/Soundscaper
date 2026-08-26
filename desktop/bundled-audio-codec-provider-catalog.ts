@@ -22,7 +22,7 @@ const DESCRIPTORS: Readonly<Record<BundledAudioCodecId, Readonly<ProviderDescrip
 	flac: Object.freeze({
 		id: (target: DesktopCodecTarget) => `bundled-libflac-wasm-${target}`,
 		implementation: 'libflac-wasm-f32-to-s24', version: '1.5.0',
-		capabilityGeneration: 'libflac-34acff0d67e3ac7f34816217ed7f5f859bf9a1c70f33eb3c347049f5fdf0d443',
+		capabilityGeneration: 'libflac-0f703571f95e37c24ad68577163ea56b4a9dd7d5576760700b482369e924f986',
 		unsupportedReason: 'The bundled libFLAC payload supports bounded f32 decode and signed-24 encode only.',
 	}),
 	lame: Object.freeze({

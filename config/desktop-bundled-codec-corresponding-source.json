@@ -25,7 +25,7 @@
 			"id": "flac",
 			"sourceManifest": {
 				"path": "src/common/editor/flac/source-manifest.json",
-				"sha256": "159f77a3449cca02f5e7b937fbb84a6ca910570675d8016e145121bc4c214205"
+				"sha256": "567233afa113fdf4be713bc45291ec65e4d82413213ca5378fb107f161ff2dea"
 			},
 			"buildScript": {
 				"path": "scripts/build-flac-wasm.mjs",
