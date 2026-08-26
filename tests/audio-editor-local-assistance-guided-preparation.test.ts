@@ -322,6 +322,19 @@ test('Index Video stages exact selected-video timing authority beside raw decode
 	assert.ok(staged);
 	assert.deepEqual(JSON.parse(new TextDecoder().decode(staged)) as Readonly<Record<string, unknown>>,
 		descriptor);
+
+	const noOcrFixture = preparationFixture();
+	const noOcr = await preparation.prepareGuidedWorkflow({ jobId: 'ab'.repeat(20),
+		workflowId: 'index-video', settings: { ...indexSettings, includeOcr: false }, models: [
+			model('siglip2-base-patch16-224', '1.0.0', 'image-text-embedding', 11),
+		], custody: noOcrFixture.custody, signal: new AbortController().signal });
+	assert.equal(noOcr.outcome, 'prepared');
+	if (noOcr.outcome !== 'prepared') return;
+	assert.equal(noOcr.workflow.stageIds.includes('recognize-text'), false);
+	assert.equal(noOcr.workflow.models.some(({ stageId }) => stageId === 'recognize-text'), false);
+	assert.deepEqual(noOcr.workflow.inputs
+		.filter(({ stageId }) => stageId === 'publish-video-index')
+		.map(({ slotId }) => slotId), ['visual-embeddings']);
 });
 
 test('Make Highlights adds Qwen only after explicit editorial rerank opt-in', async () => {

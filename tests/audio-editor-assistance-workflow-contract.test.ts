@@ -231,6 +231,19 @@ test('main can derive an immutable permitted graph without trusting renderer-sup
 	assert.deepEqual(assistanceWorkflowStageGraph('mark-cuts')[0]?.inputSlots, [
 		{ slotId: 'video', required: false }, { slotId: 'frame-pack', required: false },
 	]);
+	const videoIndex = assistanceWorkflowStageGraph('index-video');
+	assert.deepEqual(videoIndex.find(({ stageId }) => stageId === 'recognize-text'), {
+		stageId: 'recognize-text', operation: 'optical-character-recognition', required: false,
+		after: ['sample-shot-frames'],
+		inputSlots: [{ slotId: 'frame-pack', required: true }],
+		outputSlots: [{ slotId: 'recognized-text', required: true }],
+		modelSlots: [{ slotId: 'text-detector', required: true },
+			{ slotId: 'text-recognizer', required: true }],
+	});
+	assert.deepEqual(videoIndex.find(({ stageId }) => stageId === 'publish-video-index')?.inputSlots, [
+		{ slotId: 'visual-embeddings', required: true },
+		{ slotId: 'recognized-text', required: false },
+	]);
 	const highlights = assistanceWorkflowStageGraph('make-highlights');
 	assert.deepEqual(highlights.map(({ stageId, operation, required, after }) => ({
 		stageId, operation, required, after,

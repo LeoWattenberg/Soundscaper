@@ -312,6 +312,9 @@ function selectStages(
 		if (stage.stageId === 'recognize-speech') {
 			return models.filter(({ task }) => task === 'speech-recognition').length === 1;
 		}
+		if (stage.stageId === 'recognize-text') {
+			return settings.workflowId === 'index-video' && settings.includeOcr;
+		}
 		if (stage.stageId === 'tag-highlight-reactions') {
 			return settings.workflowId === 'make-highlights'
 				&& models.filter(({ task }) => task === 'audio-tagging').length === 1;
