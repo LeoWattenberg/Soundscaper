@@ -28,6 +28,9 @@ import {
 import {
 	retainLocalAssistanceGuidedReactionScores,
 } from './local-assistance-guided-reaction-derivative.ts';
+import {
+	acknowledgeLocalAssistanceGuidedEditorialSelection,
+} from './local-assistance-guided-editorial-acceptance.ts';
 import { validateAssistanceWorkflow } from '../assistance/workflow.ts';
 import type { LocalAssistanceGuidedWorkflowAcceptanceRequest } from
 	'../ui/local-assistance-preparation.ts';
@@ -145,6 +148,12 @@ export function createLocalAssistancePreparationRuntime(
 		prepareGuidedWorkflow: guidedPreparation.prepareGuidedWorkflow,
 		async acceptGuidedWorkflowResult(request: LocalAssistanceGuidedWorkflowAcceptanceRequest) {
 			const workflow = validateAssistanceWorkflow(request.workflow);
+			if (workflow.workflowId === 'generate-editorial-text') {
+				return acknowledgeLocalAssistanceGuidedEditorialSelection({ workflow,
+					reviewedResult: request.reviewedResult,
+					selectedChoiceIds: request.selectedChoiceIds,
+				});
+			}
 			const currentProject = () => {
 				const project = dependencies.getProject() as Readonly<Record<string, unknown>>;
 				return { projectId: project.id, projectRevision: project.revision };

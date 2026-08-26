@@ -6,6 +6,8 @@ import test from 'node:test';
 import {
 	acknowledgeLocalAssistanceGuidedEditorialSelection,
 } from '../src/common/editor/controller/local-assistance-guided-editorial-acceptance.ts';
+import { createLocalAssistancePreparationRuntime } from
+	'../src/common/editor/controller/local-assistance-runtime.ts';
 import type { AssistanceWorkflowV1 } from
 	'../src/common/editor/assistance/workflow.ts';
 import type { LocalAssistanceGuidedReviewedResult } from
@@ -28,6 +30,26 @@ test('editorial acceptance acknowledges an authorized reviewed subset without a 
 	assert.equal(Object.isFrozen(outcome.selectedIds), true);
 	assert.notEqual(outcome.selectedIds, review.choices);
 	assert.deepEqual(Object.keys(outcome).sort(), ['outcome', 'selectedIds']);
+});
+
+test('the composed runtime acknowledges editorial text without storage, output reads, or commands', async () => {
+	const workflow = editorialWorkflow();
+	const runtime = createLocalAssistancePreparationRuntime({
+		createId: () => { throw new Error('must remain transient'); },
+		preflightStorage: async () => { throw new Error('must remain transient'); },
+		getProject: () => ({}),
+		getSelectedClipId: () => null,
+		captureProject: () => { throw new Error('must remain transient'); },
+		assertProject: () => { throw new Error('must remain transient'); },
+		renderDryTrackRange: async () => { throw new Error('must remain transient'); },
+		commit: () => { throw new Error('must remain transient'); },
+	});
+	assert.deepEqual(await runtime.acceptGuidedWorkflowResult({
+		workflow,
+		reviewedResult: editorialReview(workflow),
+		selectedChoiceIds: [FIRST_ID],
+		readOutput: async () => { throw new Error('must remain transient'); },
+	}), { outcome: 'accepted', selectedIds: [FIRST_ID] });
 });
 
 test('editorial acceptance rejects absent, repeated, disabled, or foreign selections', () => {
