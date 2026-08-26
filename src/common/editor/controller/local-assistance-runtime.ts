@@ -25,6 +25,9 @@ import {
 import {
 	publishLocalAssistanceGuidedIndex,
 } from './local-assistance-guided-index-publication.ts';
+import {
+	retainLocalAssistanceGuidedReactionScores,
+} from './local-assistance-guided-reaction-derivative.ts';
 import { validateAssistanceWorkflow } from '../assistance/workflow.ts';
 import type { LocalAssistanceGuidedWorkflowAcceptanceRequest } from
 	'../ui/local-assistance-preparation.ts';
@@ -142,6 +145,10 @@ export function createLocalAssistancePreparationRuntime(
 		prepareGuidedWorkflow: guidedPreparation.prepareGuidedWorkflow,
 		async acceptGuidedWorkflowResult(request: LocalAssistanceGuidedWorkflowAcceptanceRequest) {
 			const workflow = validateAssistanceWorkflow(request.workflow);
+			const currentProject = () => {
+				const project = dependencies.getProject() as Readonly<Record<string, unknown>>;
+				return { projectId: project.id, projectRevision: project.revision };
+			};
 			if (workflow.workflowId === 'index-transcript' || workflow.workflowId === 'index-video') {
 				if (!dependencies.assistanceDerivativeRepository) return Object.freeze({
 					outcome: 'unsupported' as const, workflowId: workflow.workflowId,
@@ -150,10 +157,7 @@ export function createLocalAssistancePreparationRuntime(
 				const outcome = await publishLocalAssistanceGuidedIndex({ workflow,
 					review: request.reviewedResult, selectedChoiceIds: request.selectedChoiceIds,
 					readOutput: request.readOutput, repository: dependencies.assistanceDerivativeRepository,
-					currentProject: () => {
-						const project = dependencies.getProject() as Readonly<Record<string, unknown>>;
-						return { projectId: project.id, projectRevision: project.revision };
-					},
+					currentProject,
 				});
 				return outcome.outcome === 'published'
 					? Object.freeze({ outcome: 'accepted' as const,
@@ -162,10 +166,21 @@ export function createLocalAssistancePreparationRuntime(
 			}
 			if (!guidedAcceptance) return Object.freeze({ outcome: 'unsupported' as const,
 				workflowId: workflow.workflowId, reason: 'workflow-publication-unavailable' as const });
+			if (workflow.workflowId === 'mark-reactions'
+				&& !dependencies.assistanceDerivativeRepository) return Object.freeze({
+				outcome: 'unsupported' as const, workflowId: workflow.workflowId,
+				reason: 'workflow-publication-unavailable' as const,
+			});
 			const availability = guidedAcceptance.createAcceptanceSession({ workflow,
 				reviewedResult: request.reviewedResult });
-			return availability.outcome === 'ready'
-				? await availability.session.accept(request.selectedChoiceIds) : availability;
+			if (availability.outcome !== 'ready') return availability;
+			if (workflow.workflowId === 'mark-reactions' && request.selectedChoiceIds.length > 0) {
+				await retainLocalAssistanceGuidedReactionScores({ workflow,
+					readOutput: request.readOutput,
+					repository: dependencies.assistanceDerivativeRepository!, currentProject,
+				});
+			}
+			return await availability.session.accept(request.selectedChoiceIds);
 		},
 		...(resultAcceptance ? {
 			prepareTranscriptCleanup: resultAcceptance.prepareTranscriptCleanup,

@@ -138,7 +138,8 @@ export function createGuidedReactionAcceptanceRequest(
 			windows.set(startSample, scores);
 		}
 	}
-	const semantic = Object.freeze({ schemaVersion: 1, sampleRate: 32_000,
+	const semantic = Object.freeze({ kind: 'audio-tags' as const,
+		schemaVersion: 1, sampleRate: 32_000,
 		windowSamples: 32_000,
 		windows: Object.freeze([...windows].sort(([left], [right]) => left - right)
 			.map(([startSample, scores]) => Object.freeze({ startSample, scores: Object.freeze(scores) }))),
