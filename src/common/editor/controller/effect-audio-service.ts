@@ -21,9 +21,7 @@ import {
 import {
 	resolveLocalAssistanceSelectedMediaAuthority,
 } from './local-assistance-selected-media.ts';
-import {
-	resolveLocalAssistanceSelectedVideoAuthority,
-} from './local-assistance-selected-video.ts';
+import { resolveLocalAssistanceSelectedVideoAuthority } from './local-assistance-selected-video.ts';
 import {
 	createLocalAssistanceSelectedPreparation,
 	type LocalAssistanceSelectedVideoStore,
@@ -527,8 +525,7 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 		...(runtime.assistanceVideoStore ? { videoStore: runtime.assistanceVideoStore } : {}),
 		...(resultAcceptance ? { acceptValidatedResult: resultAcceptance.acceptValidatedResult } : {}),
 	});
-	const selectedMediaPreparation = Object.freeze({
-		...selectedPreparation,
+	const selectedMediaPreparation = Object.freeze({ ...selectedPreparation,
 		...(resultAcceptance ? {
 			prepareTranscriptCleanup: resultAcceptance.prepareTranscriptCleanup,
 			acceptTranscriptCleanup: resultAcceptance.acceptTranscriptCleanup,
