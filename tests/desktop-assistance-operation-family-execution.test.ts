@@ -59,7 +59,7 @@ async function fixture(t: TestContext, value: Readonly<{
 		resolveModelPaths: async () => ({ [value.fileName.split('.')[0]!]: modelPath }),
 	});
 	const speechRuntime: SpeechRuntimeAdapter = Object.freeze({
-		status: async () => ({ available: false, reason: 'not used', moduleId: null }),
+		status: async () => ({ available: false, reason: 'not used', moduleId: 'unused' }),
 		recognize: async () => { throw new Error('Sherpa must not receive an additional-family job.'); },
 	});
 	const progress: Array<{ phase: string }> = [];
