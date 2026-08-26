@@ -41,6 +41,7 @@ export interface FramescaperSelectedVisualAuthoringRuntimeV27 {
 }
 
 const VISUAL_RUNTIMES = new WeakMap<object, FramescaperSelectedVisualAuthoringRuntimeV27>();
+const VISUAL_CAPTURE_OWNERS = new WeakMap<object, object>();
 const DIALOG_SURFACES = new Set<string>([
 	'video-transition', 'video-transition-dissolve', 'video-adjustment-layer',
 	'video-visual-preset', 'video-mask-matte', 'video-freeze',
@@ -61,6 +62,7 @@ export function adoptFramescaperSelectedVisualAuthoringRuntimeV27(
 	if (!runtime || !to || typeof to !== 'object') {
 		throw new TypeError('Selected visual authoring adoption requires exact owners.');
 	}
+	VISUAL_CAPTURE_OWNERS.set(from, to);
 	VISUAL_RUNTIMES.set(to, runtime);
 }
 
@@ -139,7 +141,9 @@ function bindSelectedAuthoringController(
 				const captureRuntime = await import('./editor-selected-v27-freeze-capture.ts');
 				const prepared = await commands.prepareFramescaperSelectedVisualAuthoringV27({
 					surface, project: state.project, store, request,
-					capture: captureRuntime.framescaperSelectedFreezeCaptureV27For(controller),
+					capture: captureRuntime.framescaperSelectedFreezeCaptureV27For(
+						VISUAL_CAPTURE_OWNERS.get(controller as object) ?? controller,
+					),
 				});
 				try {
 					const current = runtimeState(controller, schema, projectForAuthoring);
