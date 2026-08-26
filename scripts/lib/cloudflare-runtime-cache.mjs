@@ -80,8 +80,10 @@ export async function configureRuntimeCacheRules({
 		refs.add(rule.ref);
 	}
 	const desiredByRef = new Map(desired.map((rule) => [rule.ref, rule]));
-	const merged = ruleset.rules.map((rule) => desiredByRef.get(rule.ref) ?? writableRule(rule));
-	for (const rule of desired) if (!refs.has(rule.ref)) merged.push(rule);
+	const merged = [
+		...ruleset.rules.filter((rule) => !desiredByRef.has(rule.ref)).map(writableRule),
+		...desired,
+	];
 	const updated = await fetchImpl(`${API_ROOT}/zones/${zoneId}/rulesets/${ruleset.id}`, {
 		method: 'PUT',
 		headers,

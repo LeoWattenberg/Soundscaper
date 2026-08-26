@@ -31,17 +31,17 @@ export async function preflightPagesDeployment({ release, fetchImpl = fetch }) {
 		{
 			url: `${policy.publicOrigin}/${releasePrefix}/${release.manifest.publication.noticeName}`,
 			bytes: snapshot.evidence.notices.bytes,
-			contentType: 'text/markdown; charset=utf-8',
+			contentType: policy.releaseMetadata.notice.contentType,
 		},
 		{
 			url: `${policy.publicOrigin}/${releasePrefix}/${release.manifest.publication.correspondingSourceName}`,
 			bytes: snapshot.evidence.correspondingSource.bytes,
-			contentType: 'application/json; charset=utf-8',
+			contentType: policy.releaseMetadata.correspondingSource.contentType,
 		},
 		{
 			url: `${policy.publicOrigin}/${releasePrefix}/${release.manifest.publication.manifestName}`,
 			bytes: snapshot.manifestBytes,
-			contentType: 'application/json; charset=utf-8',
+			contentType: policy.releaseMetadata.manifest.contentType,
 		},
 	].map((object) => ({
 		...object,
@@ -74,7 +74,10 @@ async function fetchExact(fetchImpl, descriptor) {
 	assert(allowedOrigin === PUBLIC_SMOKE_ORIGIN || allowedOrigin === '*',
 		`Pages deploy preflight CORS does not allow ${PUBLIC_SMOKE_ORIGIN} for ${descriptor.url}`);
 	const cacheStatus = response.headers.get('cf-cache-status')?.toUpperCase() ?? '';
-	if (!descriptor.mutable) {
+	if (descriptor.mutable) {
+		assert(['DYNAMIC', 'BYPASS'].includes(cacheStatus) && response.headers.get('age') === null,
+			`Pages deploy preflight requires pointer cache bypass without Age for ${descriptor.url}; received ${cacheStatus || '<missing>'}`);
+	} else {
 		assert(['HIT', 'MISS', 'EXPIRED', 'REVALIDATED', 'UPDATING'].includes(cacheStatus),
 			`Pages deploy preflight requires an eligible Cloudflare cache status for ${descriptor.url}; received ${cacheStatus || '<missing>'}`);
 	}

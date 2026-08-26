@@ -15,6 +15,12 @@ import scopeAudacityDesignSystemCss, {
 } from './scripts/postcss-audacity-design-system.mjs';
 import { createPffftNodeModuleBrowserShim } from './scripts/vite-pffft-browser-shim.mjs';
 
+if (Object.hasOwn(process.env, 'PUBLIC_FFMPEG_CORE_BASE_URL')) {
+	throw new Error(
+		'PUBLIC_FFMPEG_CORE_BASE_URL is unsupported; production FFmpeg must use the full-manifest-digest release.',
+	);
+}
+
 const productId = process.env.SCAPE_PRODUCT === 'framescaper' ? 'framescaper' : 'soundscaper';
 const vendoredDesignSystem = resolve(import.meta.dirname, 'vendor/audacity-design-system');
 const desktopCodecComposition = process.env.SCAPE_DESKTOP_CODEC_RUNTIME === 'main-process';

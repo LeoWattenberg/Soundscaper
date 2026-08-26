@@ -383,7 +383,7 @@ function validatePublicPolicy(policy, manifest) {
 	assertPlainObject(policy, 'runtime publication policy');
 	assertExactKeys(policy, [
 		'cloudflare', 'immutableCacheControl', 'pages', 'pointer', 'publicOrigin', 'publicPrefix', 'releaseSegment',
-		'runtimeFiles', 'schemaVersion',
+		'releaseMetadata', 'runtimeFiles', 'schemaVersion',
 	], 'runtime publication policy');
 	assert(policy.schemaVersion === 1, 'runtime publication policy schemaVersion must be 1');
 	assert(policy.publicOrigin === 'https://assets.soundscaper.org', 'runtime publication publicOrigin is invalid');
@@ -406,6 +406,21 @@ function validatePublicPolicy(policy, manifest) {
 		const manifestFile = manifest.runtime.files[index];
 		assert(manifestFile.name === file.name && manifestFile.contentType === file.contentType,
 			`runtime publication policy ${file.name} contentType disagrees with the manifest`);
+	}
+	assertPlainObject(policy.releaseMetadata, 'runtime publication releaseMetadata');
+	assertExactKeys(policy.releaseMetadata, ['correspondingSource', 'manifest', 'notice'],
+		'runtime publication releaseMetadata');
+	const expectedMetadataTypes = {
+		manifest: 'application/json; charset=utf-8',
+		notice: 'text/markdown; charset=utf-8',
+		correspondingSource: 'application/json; charset=utf-8',
+	};
+	for (const [name, contentType] of Object.entries(expectedMetadataTypes)) {
+		const metadata = policy.releaseMetadata[name];
+		assertPlainObject(metadata, `runtime publication ${name} metadata`);
+		assertExactKeys(metadata, ['contentType'], `runtime publication ${name} metadata`);
+		assert(metadata.contentType === contentType,
+			`runtime publication ${name} metadata contentType is invalid`);
 	}
 	assertPlainObject(policy.pointer, 'runtime publication pointer');
 	assertExactKeys(policy.pointer, ['cacheControl', 'contentType', 'name'], 'runtime publication pointer');

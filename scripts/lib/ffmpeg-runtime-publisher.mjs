@@ -14,6 +14,7 @@ import { R2Client, strongEntityTag } from './r2-client.mjs';
 
 const MAXIMUM_POINTER_BYTES = 64 * 1024;
 const PUBLIC_SMOKE_ORIGIN = 'https://soundscaper.org';
+const UNAVAILABLE_POINTER_BYTES = Buffer.from('{"schemaVersion":1,"status":"unavailable"}\n');
 
 export async function publishFfmpegRuntime({
 	repositoryRoot,
@@ -85,19 +86,19 @@ function publicationObjects(release, snapshot, releasePrefix, policy) {
 		{
 			key: `${releasePrefix}/${release.manifest.publication.noticeName}`,
 			bytes: snapshot.evidence.notices.bytes,
-			contentType: 'text/markdown; charset=utf-8',
+			contentType: policy.releaseMetadata.notice.contentType,
 			cacheControl,
 		},
 		{
 			key: `${releasePrefix}/${release.manifest.publication.correspondingSourceName}`,
 			bytes: snapshot.evidence.correspondingSource.bytes,
-			contentType: 'application/json; charset=utf-8',
+			contentType: policy.releaseMetadata.correspondingSource.contentType,
 			cacheControl,
 		},
 		{
 			key: `${releasePrefix}/${release.manifest.publication.manifestName}`,
 			bytes: snapshot.manifestBytes,
-			contentType: 'application/json; charset=utf-8',
+			contentType: policy.releaseMetadata.manifest.contentType,
 			cacheControl,
 		},
 	].map((object) => Object.freeze({
@@ -192,17 +193,34 @@ async function rollbackPointer({
 		await purgeUrls([pointerUrl]);
 		throw new Error(`Public FFmpeg pointer smoke failed; restored the prior release: ${error.message}`);
 	}
-	const candidate = await client.get(pointerKey, descriptor.byteLength, [200, 404]);
-	assert(candidate.response.status === 200
-		&& candidate.response.headers.get('etag') === promotedEtag
-		&& sha256(candidate.bytes) === descriptor.sha256,
-		`First FFmpeg pointer changed before guarded cleanup: ${error.message}`);
-	await client.delete(pointerKey);
-	const missing = await client.get(pointerKey, MAXIMUM_POINTER_BYTES, [200, 404]);
-	assert(missing.response.status === 404,
-		`First FFmpeg pointer cleanup could not be verified: ${error.message}`);
+	const unavailable = await client.put(pointerKey, UNAVAILABLE_POINTER_BYTES, {
+		contentType: pointerPolicy.contentType,
+		cacheControl: pointerPolicy.cacheControl,
+		ifMatch: promotedEtag,
+	});
+	if (unavailable.status === 200) {
+		const unavailableDescriptor = {
+			...descriptor,
+			bytes: UNAVAILABLE_POINTER_BYTES,
+			byteLength: UNAVAILABLE_POINTER_BYTES.byteLength,
+			sha256: sha256(UNAVAILABLE_POINTER_BYTES),
+		};
+		verifyStoredObject(
+			await client.get(pointerKey, UNAVAILABLE_POINTER_BYTES.byteLength),
+			unavailableDescriptor,
+			'Unavailable FFmpeg latest.json',
+		);
+		await purgeUrls([pointerUrl]);
+		throw new Error(
+			`Public FFmpeg pointer smoke failed; replaced the first pointer with an unavailable marker: ${error.message}`,
+		);
+	}
+	assert(unavailable.status === 412,
+		`First FFmpeg pointer rollback returned HTTP ${String(unavailable.status)}: ${error.message}`);
 	await purgeUrls([pointerUrl]);
-	throw new Error(`Public FFmpeg pointer smoke failed; removed the guarded first pointer: ${error.message}`);
+	throw new Error(
+		`Public FFmpeg pointer smoke failed; a concurrent pointer was left in place: ${error.message}`,
+	);
 }
 
 function verifyStoredObject(stored, descriptor, label) {
@@ -271,8 +289,8 @@ function createRuntimeR2Client({ bucket, jurisdiction }) {
 }
 
 function validateRuntimeClient(client, { bucket, jurisdiction }) {
-	assert(client && typeof client.get === 'function' && typeof client.put === 'function'
-		&& typeof client.delete === 'function', 'FFmpeg runtime R2 client is invalid');
+	assert(client && typeof client.get === 'function' && typeof client.put === 'function',
+		'FFmpeg runtime R2 client is invalid');
 	if (client.bucket !== undefined) assert(client.bucket === bucket,
 		`R2_FFMPEG_BUCKET is ${client.bucket}, but the runtime manifest publishes to ${bucket}`);
 	if (jurisdiction && client.endpoint?.hostname) {

@@ -37,7 +37,6 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'workflow_run' }}
 
 env:
-  PUBLIC_FFMPEG_CORE_BASE_URL: https://assets.soundscaper.org/runtime/ffmpeg/0.12.10
   PUBLIC_TRANSLATIONS_BASE_URL: https://translations.soundscaper.org/runtime/translations/audacity/4
 
 jobs:

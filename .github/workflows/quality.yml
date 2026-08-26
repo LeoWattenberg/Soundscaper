@@ -14,9 +14,6 @@ concurrency:
   group: quality-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  PUBLIC_FFMPEG_CORE_BASE_URL: https://assets.soundscaper.org/runtime/ffmpeg/0.12.10
-
 jobs:
   quality:
     runs-on: ubuntu-24.04

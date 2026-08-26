@@ -52,26 +52,49 @@ test('Pages preflight accepts only the exact live content-addressed release and 
 		() => preflightPagesDeployment({ release, fetchImpl }),
 		/requires an eligible Cloudflare cache status.*DYNAMIC/iu,
 	);
+	objects.get(`${policy.publicOrigin}/${prefix}/ffmpeg-core.wasm`).cacheStatus = 'HIT';
+	objects.get(`${policy.publicOrigin}/${policy.publicPrefix}/${policy.pointer.name}`).cacheStatus = 'HIT';
+	await assert.rejects(
+		() => preflightPagesDeployment({ release, fetchImpl }),
+		/requires pointer cache bypass.*HIT/iu,
+	);
+	const pointer = objects.get(`${policy.publicOrigin}/${policy.publicPrefix}/${policy.pointer.name}`);
+	pointer.cacheStatus = 'DYNAMIC';
+	pointer.age = '4';
+	await assert.rejects(
+		() => preflightPagesDeployment({ release, fetchImpl }),
+		/requires pointer cache bypass without Age.*DYNAMIC/iu,
+	);
 });
 
 test('Pages CLI authenticates policy before any live runtime request', async () => {
-	const source = await readFile('scripts/preflight-pages-deploy.mjs', 'utf8');
+	const [source, packageMetadata, documentation] = await Promise.all([
+		readFile('scripts/preflight-pages-deploy.mjs', 'utf8'),
+		readFile('package.json', 'utf8').then(JSON.parse),
+		readFile('Technical_README.md', 'utf8'),
+	]);
 	assert.ok(
 		source.indexOf("purpose: 'runtime-publication'") < source.indexOf('const result = await preflightPagesDeployment'),
 		'checked-in publication authorization must precede live preflight requests',
 	);
+	assert.match(packageMetadata.scripts['build:pages'], /npm run build.*preflight-pages-deploy\.mjs/u);
+	assert.match(packageMetadata.scripts.deploy, /^npm run build:pages && wrangler pages deploy/u);
+	assert.match(documentation, /gated build command\s+`npm run build:pages`/u);
+	assert.match(documentation, /do not replace it with the ungated `npm run build`/u);
 });
 
 function objectResponse(object) {
 	if (!object) return new Response(null, { status: 404 });
+	const headers = {
+		'content-length': String(object.bytes.byteLength),
+		'content-type': object.contentType,
+		'cache-control': object.cacheControl,
+		'access-control-allow-origin': 'https://soundscaper.org',
+		'cf-cache-status': object.cacheStatus,
+	};
+	if (object.age !== undefined) headers.age = object.age;
 	return new Response(object.bytes, {
 		status: 200,
-		headers: {
-			'content-length': String(object.bytes.byteLength),
-			'content-type': object.contentType,
-			'cache-control': object.cacheControl,
-			'access-control-allow-origin': 'https://soundscaper.org',
-			'cf-cache-status': object.cacheStatus,
-		},
+		headers,
 	});
 }

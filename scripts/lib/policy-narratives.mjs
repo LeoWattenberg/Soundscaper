@@ -56,6 +56,14 @@ export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 		wrap: 80,
 	}),
 	Object.freeze({
+		marker: 'milestone-2-offline-cache-qualification-threat-model',
+		register: 'config/quality-budgets.json',
+		jsonPath: ['qualification', 'offlineCacheQualificationNarrative'],
+		document: 'docs/production-threat-model.md',
+		intro: null,
+		wrap: 80,
+	}),
+	Object.freeze({
 		marker: 'framescaper-v18-product-isolation',
 		register: 'config/project-compatibility.json',
 		ruleId: 'framescaper-v18-product-isolation',

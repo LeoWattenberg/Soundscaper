@@ -115,6 +115,20 @@ test('the central runtime file MIME policy cannot drift from the release manifes
 	await assertNoSideEffects(fixture, /publication policy ffmpeg-core\.js contentType disagrees/iu);
 });
 
+test('the central release-metadata MIME policy rejects drift before publication', async (context) => {
+	const fixture = await createFixture(context);
+	const policyPath = join(fixture.root, 'config/ffmpeg-runtime-publication-policy.json');
+	const policy = JSON.parse(await readFile(policyPath, 'utf8'));
+	policy.releaseMetadata.notice.contentType = 'text/plain; charset=utf-8';
+	const policyBytes = Buffer.from(`${JSON.stringify(policy, null, 2)}\n`);
+	await writeFile(policyPath, policyBytes);
+	fixture.manifest.publication.policy = descriptor(
+		'config/ffmpeg-runtime-publication-policy.json', policyBytes,
+	);
+	await writeManifest(fixture);
+	await assertNoSideEffects(fixture, /notice metadata contentType is invalid/iu);
+});
+
 test('desktop staging refuses pre-existing output without mutation', async (context) => {
 	const fixture = await createFixture(context);
 	const release = await verifyFfmpegRuntimeManifest({

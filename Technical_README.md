@@ -76,10 +76,12 @@ Audacity-backed static locale routes are generated from the reviewed allowlist
 in `src/common/i18n/locales.js`. Embedding views without the Soundscaper sidebar use
 the same tags under `/embed/<locale>/`.
 
-The production FFmpeg runtime is loaded lazily from the versioned URL configured
-by `PUBLIC_FFMPEG_CORE_BASE_URL`. Audacity-derived locale packs are resolved from
-the versioned root configured by `PUBLIC_TRANSLATIONS_BASE_URL`. Copy
-`.env.example` to `.env` to override either URL locally.
+The production FFmpeg runtime is loaded lazily from the content-addressed release
+pinned by the complete reviewed runtime-manifest digest at build time. Tests and
+desktop integrations may still pass an explicit `coreBaseURL` to the editor.
+Audacity-derived locale packs are resolved from the versioned root configured by
+`PUBLIC_TRANSLATIONS_BASE_URL`. Copy `.env.example` to `.env` to override that
+locale-pack URL locally.
 
 ## Checks
 
@@ -268,49 +270,55 @@ Pages deployment therefore does not need a GitHub Actions deployment workflow,
 `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, or an R2 bucket variable. The
 independent translation publisher described below has narrowly scoped S3
 credentials for its dedicated bucket; those credentials are never available to
-the Pages build or the FFmpeg asset publisher.
+the Pages build or the separately authorized FFmpeg asset publisher.
 
 ### 1. Publish the FFmpeg runtime to R2
 
 Create an R2 Standard bucket named `soundscaper-assets`. Give it the custom
 domain `assets.soundscaper.org` and public read access.
 
-FFmpeg 0.12.10 is versioned and only needs to be uploaded once. The simplest
-option is to upload these two files in the R2 dashboard:
+Do not upload the runtime files to the mutable
+`runtime/ffmpeg/0.12.10/` prefix. The reviewed publisher creates an immutable
+`releases/<full-manifest-sha256>/` directory containing the exact JavaScript,
+WebAssembly, manifest, notice, and corresponding-source metadata, reads every
+object back, purges predictable cached misses, smoke-tests the public domain,
+and then conditionally promotes `latest.json`.
 
-- `node_modules/@ffmpeg/core/dist/esm/ffmpeg-core.js`
-- `node_modules/@ffmpeg/core/dist/esm/ffmpeg-core.wasm`
-
-Store both objects under `runtime/ffmpeg/0.12.10/`, preserving their filenames,
-then add the CORS policy in R2 → `soundscaper-assets` → Settings. The policy in
-`r2-cors.json` uses Wrangler's configuration shape; the R2 dashboard can also
-accept the equivalent JSON:
-
-```json
-[
-  {
-    "AllowedOrigins": ["https://soundscaper.org", "https://kw.media"],
-    "AllowedMethods": ["GET", "HEAD"],
-    "AllowedHeaders": ["Range"],
-    "ExposeHeaders": ["Content-Length", "Content-Range", "ETag"],
-    "MaxAgeSeconds": 86400
-  }
-]
-```
-
-To use the included upload script instead, create a Cloudflare API token with
-**Workers R2 Storage: Edit** for the account containing the bucket. Put the
-credentials in a temporary, gitignored `.env` file:
+Create a bucket-scoped R2 API token with **Object Read & Write** for
+`soundscaper-assets`; its S3 access-key pair is distinct from a Cloudflare API
+token. Create a second Cloudflare API token limited to the owning account and
+zone with **Workers R2 Storage: Edit**, **Cache Rules: Edit**, and
+**Cache Purge: Purge**. Record the account ID and the 32-character zone ID. Put
+the credentials in a temporary, gitignored `.env` file:
 
 ```dotenv
+R2_FFMPEG_ENDPOINT=https://<account-id>.eu.r2.cloudflarestorage.com
+R2_FFMPEG_ACCESS_KEY_ID=<r2-s3-access-key-id>
+R2_FFMPEG_SECRET_ACCESS_KEY=<r2-s3-secret-access-key>
+R2_FFMPEG_BUCKET=soundscaper-assets
 CLOUDFLARE_ACCOUNT_ID=<account-id>
-CLOUDFLARE_API_TOKEN=<api-token>
+CLOUDFLARE_ZONE_ID=<zone-id>
+CLOUDFLARE_API_TOKEN=<r2-cors-cache-rules-and-purge-token>
 ```
 
-Run `npm run deploy:runtime`, then delete `.env`. These credentials are only
-needed for that local command and do not need to be stored in GitHub or in the
-Pages project. A normal `wrangler login` OAuth token may not include R2 access;
-in that case Wrangler can misleadingly report an existing bucket as nonexistent.
+Use the jurisdiction-specific endpoint required by the manifest (`eu` here).
+Node and npm do not load `.env` automatically. After the three checked-in
+publication blockers have received their existing approvals, run the two gated
+steps explicitly:
+
+```sh
+node --env-file=.env scripts/configure-ffmpeg-runtime-cache.mjs
+node --env-file=.env scripts/publish-runtime-assets.mjs
+```
+
+The first command reconciles the three stable-ref Cache Rules while retaining
+unrelated rules. The second applies the checked-in `r2-cors.json`, conditionally
+publishes and reads back immutable objects with the S3 credentials, and uses the
+zone token for exact purges. Both commands currently refuse before any remote
+operation because runtime publication remains policy-blocked. After a successful
+authorized run, delete `.env`; none of these credentials belongs in GitHub or
+the Pages project. `npm run deploy:runtime` is equivalent only when these
+variables have already been exported into its process environment.
 
 ### 2. Connect Cloudflare Pages to GitHub
 
@@ -320,8 +328,12 @@ in that case Wrangler can misleadingly report an existing bucket as nonexistent.
 2. In Workers & Pages, choose **Create application → Pages → Connect to Git**.
 3. Authorize the Cloudflare GitHub app for `LeoWattenberg/Soundscaper` and select
    that repository.
-4. Use production branch `main`, the Vite framework preset, build command
-   `npm run build`, and output directory `dist`. Leave the root directory empty.
+4. Use production branch `main`, the Vite framework preset, gated build command
+   `npm run build:pages`, and output directory `dist`. Leave the root directory
+   empty. This command authenticates the checked-in runtime-publication approval
+   and preflights the exact live pointer, release objects, CORS, metadata, and
+   Cloudflare cache status before Pages can publish either a production or
+   preview deployment; do not replace it with the ungated `npm run build`.
 5. Attach `soundscaper.org` under the Pages project's custom domains.
 
 Cloudflare will build and deploy every push to `main` and create preview
@@ -333,8 +345,6 @@ In the Pages project, open **Settings → Variables and Secrets**. Add these to
 both Production and Preview unless noted otherwise:
 
 - `SOUNDSCAPER_SITE` = `https://soundscaper.org`
-- `PUBLIC_FFMPEG_CORE_BASE_URL` =
-  `https://assets.soundscaper.org/runtime/ffmpeg/0.12.10`
 - `PUBLIC_TRANSLATIONS_BASE_URL` =
   `https://translations.soundscaper.org/runtime/translations/audacity/4`
 - `NODE_VERSION` = `26.5.0`

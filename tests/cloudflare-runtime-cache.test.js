@@ -47,30 +47,48 @@ test('configuration replaces owned refs while preserving unrelated cache rules',
 		version: '7',
 		last_updated: '2026-01-01T00:00:00Z',
 	};
+	const broadUnrelated = {
+		ref: 'unrelated-broad-rule-v1',
+		description: 'broad rule must stay before the owned safety rules',
+		expression: '(http.host contains "soundscaper.org")',
+		action: 'set_cache_settings',
+		action_parameters: { cache: true },
+	};
 	const fetchImpl = async (url, options) => {
 		requests.push({ url, options });
 		if (options.method === 'GET') return apiResponse(200, {
 			id: 'ruleset-id', name: 'Existing', description: 'Existing rules', kind: 'zone',
-			rules: [unrelated, { ...runtimeCacheRules(policy)[0], action_parameters: { cache: true } }],
+			rules: [
+				unrelated,
+				{ ...runtimeCacheRules(policy)[0], action_parameters: { cache: true } },
+				broadUnrelated,
+			],
 		});
 		return apiResponse(200, { id: 'ruleset-id' });
 	};
 	const result = await configureRuntimeCacheRules({
 		policy, zoneId: ZONE, apiToken: TOKEN, fetchImpl,
 	});
-	assert.deepEqual(result, { action: 'updated', ruleCount: 4 });
+	assert.deepEqual(result, { action: 'updated', ruleCount: 5 });
 	const body = JSON.parse(requests[1].options.body);
 	assert.deepEqual(Object.keys(body).sort(), ['description', 'rules'],
 		'Cloudflare ruleset updates may include only writable properties');
 	assert.equal(body.rules[0].ref, unrelated.ref);
 	assert.equal(body.rules[0].id, undefined);
 	assert.equal(body.rules[0].description, 'keep me');
-	assert.deepEqual(body.rules[1].action_parameters, {
+	assert.equal(body.rules[1].ref, broadUnrelated.ref,
+		'unrelated rules retain their relative order ahead of owned terminal rules');
+	assert.deepEqual(body.rules[2].action_parameters, {
 		cache: false,
 		browser_ttl: { mode: 'respect_origin' },
 	});
-	assert.equal(body.rules[2].ref, policy.cloudflare.releaseRuleRef);
-	assert.equal(body.rules[3].ref, policy.cloudflare.pagesRuleRef);
+	assert.equal(body.rules[3].ref, policy.cloudflare.releaseRuleRef);
+	assert.equal(body.rules[4].ref, policy.cloudflare.pagesRuleRef);
+	assert.deepEqual(
+		body.rules.slice(-3).map(({ ref }) => ref),
+		runtimeCacheRules(policy).map(({ ref }) => ref),
+		'owned cache rules must run last so a broad pre-existing rule cannot override them',
+	);
 });
 
 test('the CLI checks publication authorization before constructing a Cloudflare request', async () => {

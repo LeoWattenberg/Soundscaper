@@ -98,7 +98,7 @@ export function createEditorFfmpeg(options = {}) {
 	const capabilities = options.capabilities?.formats
 		? options.capabilities
 		: createMediaExportCapabilities(options.capabilities || {});
-	const configuredCoreBaseURL = options.coreBaseURL || import.meta.env?.PUBLIC_FFMPEG_CORE_BASE_URL || null;
+	const configuredCoreBaseURL = options.coreBaseURL || null;
 	const fallbackCoreBaseURL = preferredFfmpegRuntimeFallbackBaseUrl(
 		`${FFMPEG_RUNTIME_PUBLIC_ORIGIN}/${FFMPEG_RUNTIME_PUBLIC_PREFIX}`,
 	);

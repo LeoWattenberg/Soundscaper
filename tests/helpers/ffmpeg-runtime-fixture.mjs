@@ -79,6 +79,11 @@ export async function createFixture(context) {
 			{ name: 'ffmpeg-core.js', contentType: 'text/javascript; charset=utf-8' },
 			{ name: 'ffmpeg-core.wasm', contentType: 'application/wasm' },
 		],
+		releaseMetadata: {
+			manifest: { contentType: 'application/json; charset=utf-8' },
+			notice: { contentType: 'text/markdown; charset=utf-8' },
+			correspondingSource: { contentType: 'application/json; charset=utf-8' },
+		},
 		pointer: {
 			name: 'latest.json',
 			contentType: 'application/json; charset=utf-8',
