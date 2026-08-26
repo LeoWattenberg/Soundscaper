@@ -8,7 +8,7 @@ import React, {
 	useRef,
 	useState,
 } from 'react';
-import { DialogHeader } from '@dilsonspickles/components';
+import { DialogHeader } from '@soundscaper/design-system/DialogHeader';
 
 import AudioEditorResizableSurface from './AudioEditorResizableSurface.jsx';
 import { resolveEditorReturnFocus } from './focus-restoration.ts';

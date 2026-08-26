@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-	Button,
-	DialogFooter,
-	ProgressBar,
-	Separator,
-	TextInput,
-} from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
+import { ProgressBar } from '@soundscaper/design-system/ProgressBar';
+import { Separator } from '@soundscaper/design-system/Separator';
+import { TextInput } from '@soundscaper/design-system/TextInput';
 import { MEDIA_EXPORT_FORMATS } from '../../media-export.js';
 import AdmMetadataFields from '../AdmMetadataFields.tsx';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';

@@ -1,4 +1,6 @@
-import { Button, Icon, TimelineRuler } from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
+import { Icon } from '@soundscaper/design-system/Icon';
+import { TimelineRuler } from '@soundscaper/design-system/TimelineRuler';
 import { useCallback, useRef } from 'react';
 
 import { framesToSeconds } from '../../design-system-adapters.js';

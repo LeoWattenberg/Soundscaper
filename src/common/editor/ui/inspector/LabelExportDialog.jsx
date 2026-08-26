@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Button, DialogFooter } from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import {

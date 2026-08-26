@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useEffect, useRef } from 'react';
-import { CLIP_CONTENT_OFFSET } from '@dilsonspickles/components';
+import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { createMusicalRulerTicks } from './musical-ruler-model.ts';
 

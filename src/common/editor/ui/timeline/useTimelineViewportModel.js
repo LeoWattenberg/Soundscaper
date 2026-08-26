@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
-import { useAccessibilityProfile, useTabOrder } from '@dilsonspickles/components';
+import { useAccessibilityProfile } from '@soundscaper/design-system/contexts/AccessibilityProfileContext';
+import { useTabOrder } from '@soundscaper/design-system/hooks/useTabOrder';
 
 import {
 	createTimelineProjectIndex,

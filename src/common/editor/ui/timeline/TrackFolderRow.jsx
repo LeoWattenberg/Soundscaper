@@ -1,4 +1,4 @@
-import { Icon } from '@dilsonspickles/components';
+import { Icon } from '@soundscaper/design-system/Icon';
 import React from 'react';
 
 import { trackFolderRowTabIndex } from './track-folder-ui-model.ts';

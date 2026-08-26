@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { CLIP_CONTENT_OFFSET } from '@dilsonspickles/components';
+import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { clearActiveProjectBinDragPayload } from '../../project-bin-dnd.js';
 import { secondsToFrames } from '../../design-system-adapters.js';

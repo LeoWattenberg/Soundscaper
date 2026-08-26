@@ -1,5 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Button, ContextMenu, ContextMenuItem, DialogHeader } from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
+import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
+import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
+import { DialogHeader } from '@soundscaper/design-system/DialogHeader';
 
 import { AUDIO_EDITOR_TRACK_COLORS } from '../../project-audio-factory.js';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';

@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import {
-	AccessibilityProfileProvider,
-	darkTheme,
-	lightTheme,
-	ThemeProvider,
-	useTheme,
-} from '@dilsonspickles/components';
+import { AccessibilityProfileProvider } from '@soundscaper/design-system/contexts/AccessibilityProfileContext';
+import { darkTheme, lightTheme } from '@audacity-ui/tokens';
+import { ThemeProvider, useTheme } from '@soundscaper/design-system/ThemeProvider';
 
 const PORTAL_BODY_CLASS = 'kw-audio-editor-design-system-mounted';
 const ACCESSIBILITY_STORAGE_KEY = 'audacity-accessibility-profile';

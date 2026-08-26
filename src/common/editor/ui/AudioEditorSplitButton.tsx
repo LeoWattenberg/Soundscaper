@@ -9,12 +9,9 @@ import {
 	type ReactNode,
 	type RefObject,
 } from 'react';
-import {
-	Flyout,
-	ToggleToolButton,
-	TransportButton,
-	type TransportButtonProps,
-} from '@dilsonspickles/components';
+import { Flyout } from '@soundscaper/design-system/Flyout';
+import { ToggleToolButton } from '@soundscaper/design-system/ToggleToolButton';
+import { TransportButton, type TransportButtonProps } from '@soundscaper/design-system/TransportButton';
 
 import { iconNameToChar } from '../audacity-iconcodes.js';
 

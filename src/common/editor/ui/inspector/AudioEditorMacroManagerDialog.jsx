@@ -1,12 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import {
-	Button,
-	DialogFooter,
-	EffectSlot,
-	Icon,
-	TextInput,
-	useContainerTabGroup,
-} from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
+import { EffectSlot } from '@soundscaper/design-system/EffectsPanel/EffectSlot';
+import { Icon } from '@soundscaper/design-system/Icon';
+import { TextInput } from '@soundscaper/design-system/TextInput';
+import { useContainerTabGroup } from '@soundscaper/design-system/hooks/useContainerTabGroup';
 import { createEffect } from '../../effects.js';
 import { parseAudacityEffectMacro, serializeAudacityEffectMacro } from '../../effect-macros.js';
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../../project.js';

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { Button, PreferencePanel } from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
+import { PreferencePanel } from '@soundscaper/design-system/PreferencePanel';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import {

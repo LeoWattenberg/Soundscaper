@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Button, NumberStepper } from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
+import { NumberStepper } from '@soundscaper/design-system/NumberStepper';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { DbRuler, VerticalRuler } from '@dilsonspickles/components';
+import { DbRuler, VerticalRuler } from '@soundscaper/design-system/VerticalRuler';
 
 import {
 	DEFAULT_WAVEFORM_RULER_STATE,

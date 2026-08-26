@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Button, DialogFooter } from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { AUDIO_EDITOR_SAMPLE_RATE, findClip, findClipTrack, findSource } from '../../project.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';

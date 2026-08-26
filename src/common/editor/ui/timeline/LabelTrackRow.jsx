@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, GhostButton, Icon, LabelMarker } from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
+import { GhostButton } from '@soundscaper/design-system/GhostButton';
+import { Icon } from '@soundscaper/design-system/Icon';
+import { LabelMarker } from '@soundscaper/design-system/LabelMarker';
 
 import { framesToSeconds } from '../../design-system-adapters.js';
 import { TrackNameEditor } from './TrackControls.jsx';

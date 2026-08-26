@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button } from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
 import { VIDEO_EFFECT_TYPES, videoEffectDefinition } from '../../video-effects.js';
 import { DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
 

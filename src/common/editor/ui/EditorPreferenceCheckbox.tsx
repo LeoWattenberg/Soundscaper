@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useRef } from 'react';
-import { LabeledCheckbox } from '@dilsonspickles/components';
+import { LabeledCheckbox } from '@soundscaper/design-system/LabeledCheckbox';
 
 interface PreferenceCheckboxProps {
 	readonly label: string;

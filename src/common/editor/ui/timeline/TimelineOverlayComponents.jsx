@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { CLIP_CONTENT_OFFSET, ContextMenuItem, PlayheadCursor } from '@dilsonspickles/components';
+import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
+import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
+import { PlayheadCursor } from '@soundscaper/design-system/PlayheadCursor';
 
 import { audacityContextMenuAction } from '../../audacity-context-menu.js';
 import { framesToSeconds, secondsToFrames } from '../../design-system-adapters.js';

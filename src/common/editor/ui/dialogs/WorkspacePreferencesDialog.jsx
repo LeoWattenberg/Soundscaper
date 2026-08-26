@@ -1,12 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import {
-	Button,
-	DialogSideNav,
-	Dropdown,
-	PreferencePanel,
-	PreferenceThumbnail,
-	Separator,
-} from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
+import { DialogSideNav } from '@soundscaper/design-system/DialogSideNav/DialogSideNav';
+import { Dropdown } from '@soundscaper/design-system/Dropdown';
+import { PreferencePanel } from '@soundscaper/design-system/PreferencePanel';
+import { PreferenceThumbnail } from '@soundscaper/design-system/PreferenceThumbnail';
+import { Separator } from '@soundscaper/design-system/Separator';
 
 import { ROUTE_LOCALES } from '../../../i18n/locales.js';
 import { productProfile } from '../../../products.js';

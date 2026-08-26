@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useEffect, useRef } from 'react';
-import { Button } from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
 
 import type { CaptureSourceRole } from '../../framescaper-capture-domain.ts';
 import type {

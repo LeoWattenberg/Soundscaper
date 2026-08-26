@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button } from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
 import { boundedCanvasDimensions } from '../../design-system-adapters.js';
 import {
 	createFallbackFileService,

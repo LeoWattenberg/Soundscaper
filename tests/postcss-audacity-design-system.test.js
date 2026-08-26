@@ -5,6 +5,8 @@ import postcss from 'postcss';
 
 import scopeAudacityDesignSystemCss, {
 	getScopedDesignSystemFileCount,
+	getScopedDesignSystemFiles,
+	isDesignSystemCssFile,
 	resetScopedDesignSystemFileCount,
 } from '../scripts/postcss-audacity-design-system.mjs';
 
@@ -58,6 +60,14 @@ test('the scoped-file counter tracks only design-system stylesheets', async () =
 	});
 
 	assert.equal(getScopedDesignSystemFileCount(), 2);
+	assert.deepEqual(getScopedDesignSystemFiles(), [
+		'/workspace/vendor/audacity-design-system/components/src/Dropdown/Dropdown.css',
+		'/workspace/vendor/audacity-design-system/tokens/src/anything.css',
+	]);
+	assert.equal(isDesignSystemCssFile(`${PACKAGE_CSS}?used`), true);
+	assert.equal(isDesignSystemCssFile(PACKAGE_CSS.replace(/\.css$/u, '.tsx')), false);
+	assert.equal(isDesignSystemCssFile('/workspace/src/styles/global.css'), false);
 	resetScopedDesignSystemFileCount();
 	assert.equal(getScopedDesignSystemFileCount(), 0);
+	assert.deepEqual(getScopedDesignSystemFiles(), []);
 });

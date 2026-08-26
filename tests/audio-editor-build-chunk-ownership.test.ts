@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { readdirSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
@@ -29,6 +29,7 @@ import {
 
 const EDITOR_DIRECTORY = fileURLToPath(new URL('../src/common/editor/', import.meta.url));
 const ASSISTANCE_DIRECTORY = fileURLToPath(new URL('../src/common/editor/assistance/', import.meta.url));
+const EDITOR_UI_DIRECTORY = fileURLToPath(new URL('../src/common/editor/ui/', import.meta.url));
 const MODULE_PATTERN = /\.(?:[cm]?[jt]s)$/u;
 
 test('every flat editor domain module has an owning chunk group', () => {
@@ -76,6 +77,49 @@ test('the domain group sits below the groups whose modules it would otherwise cl
 	}
 });
 
+test('editor groups never absorb shared application dependencies recursively', () => {
+	for (const name of [
+		'editor-engine',
+		'editor-storage-model',
+		'editor-timeline',
+		'editor-controller-core',
+		'editor-shell',
+		'editor-domain',
+	]) {
+		const group = chunkGroups.find((candidate) => candidate.name === name);
+		assert.ok(group, `${name} must exist`);
+		assert.equal(group.includeDependenciesRecursively, false, `${name} captured a shared site dependency`);
+	}
+});
+
+test('editor UI imports exact internal design-system modules', () => {
+	const broadImporters = sourceModules(EDITOR_UI_DIRECTORY)
+		.filter((path) => readFileSync(path, 'utf8').includes("from '@dilsonspickles/components'"));
+	assert.deepEqual(broadImporters, [], 'broad design-system imports retain every component stylesheet');
+	const viteConfig = readFileSync(fileURLToPath(new URL('../vite.config.mjs', import.meta.url)), 'utf8');
+	const tsconfig = readFileSync(fileURLToPath(new URL('../tsconfig.base.json', import.meta.url)), 'utf8');
+	assert.match(viteConfig, /@soundscaper\\\/design-system/u);
+	assert.match(tsconfig, /"@soundscaper\/design-system\/\*"/u);
+});
+
+test('design-system foundation and loaded component modules have separate owners', () => {
+	assert.equal(
+		chunkGroupForModulePath('vendor/audacity-design-system/components/src/ThemeProvider/ThemeProvider.tsx'),
+		'vendor-design-system',
+	);
+	assert.equal(
+		chunkGroupForModulePath('vendor/audacity-design-system/components/src/hooks/useTabOrder.ts'),
+		'vendor-design-system',
+	);
+	assert.equal(
+		chunkGroupForModulePath('vendor/audacity-design-system/components/src/Button/Button.tsx'),
+		'vendor-design-system-components',
+	);
+	const components = chunkGroups.find((candidate) => candidate.name === 'vendor-design-system-components');
+	assert.ok(components);
+	assert.equal(components.includeDependenciesRecursively, false);
+});
+
 function flatEditorModules(): readonly string[] {
 	return readdirSync(EDITOR_DIRECTORY, { withFileTypes: true })
 		.filter((entry) => entry.isFile() && MODULE_PATTERN.test(entry.name))
@@ -87,5 +131,12 @@ function assistanceDomainModules(): readonly string[] {
 	return readdirSync(ASSISTANCE_DIRECTORY, { withFileTypes: true })
 		.filter((entry) => entry.isFile() && MODULE_PATTERN.test(entry.name))
 		.map((entry) => `src/common/editor/assistance/${entry.name}`)
+		.sort();
+}
+
+function sourceModules(directory: string): readonly string[] {
+	return readdirSync(directory, { recursive: true, withFileTypes: true })
+		.filter((entry) => entry.isFile() && /\.(?:[jt]sx?)$/u.test(entry.name))
+		.map((entry) => `${entry.parentPath}/${entry.name}`)
 		.sort();
 }

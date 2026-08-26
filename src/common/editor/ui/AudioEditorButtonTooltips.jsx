@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Flyout } from '@dilsonspickles/components';
+import { Flyout } from '@soundscaper/design-system/Flyout';
 
 const BUTTON_SELECTOR = 'button';
 

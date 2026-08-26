@@ -1,7 +1,7 @@
 
 
 import { useEffect, useState } from 'react';
-import { Button } from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
 
 import { framesToSeconds, secondsToFrames } from '../../design-system-adapters.js';
 

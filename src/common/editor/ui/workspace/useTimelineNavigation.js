@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
-import { CLIP_CONTENT_OFFSET } from '@dilsonspickles/components';
+import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 export function useTimelineNavigation({ controller, editorRef, project, run, snapshot, workspaceRef }) {
 	const pendingZoomAnchorRef = useRef(null);

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useEffect, useState } from 'react';
-import { ContextMenuItem } from '@dilsonspickles/components';
+import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
 
 import AudioEditorSplitButton from '../AudioEditorSplitButton.tsx';
 import {

@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-	CLIP_CONTENT_OFFSET,
-	EnvelopeCurve,
-	EnvelopeInteractionLayer,
-	TextInput,
-	TrackControlPanel,
-} from '@dilsonspickles/components';
+import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
+import { EnvelopeCurve } from '@soundscaper/design-system/EnvelopeCurve';
+import { EnvelopeInteractionLayer } from '@soundscaper/design-system/EnvelopeInteractionLayer';
+import { TextInput } from '@soundscaper/design-system/TextInput';
+import { TrackControlPanel } from '@soundscaper/design-system/TrackControlPanel';
 
 import {
 	designValueToPan,

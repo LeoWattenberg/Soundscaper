@@ -1,6 +1,8 @@
 import { useRef } from 'react';
 import readmeMarkdown from '../../../../../README.md?raw';
-import { Button, NumberStepper, TextInput } from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
+import { NumberStepper } from '@soundscaper/design-system/NumberStepper';
+import { TextInput } from '@soundscaper/design-system/TextInput';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { formatDate } from '../workspace-runtime.js';

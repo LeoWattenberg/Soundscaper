@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CLIP_CONTENT_OFFSET } from '@dilsonspickles/components';
+import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { framesToSeconds } from '../../design-system-adapters.js';
 import { selectVideoThumbnailTimestamps } from '../../video-timeline.js';

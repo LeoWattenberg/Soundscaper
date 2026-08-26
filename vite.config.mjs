@@ -6,7 +6,9 @@ import { defineConfig } from 'vite';
 
 import { chunkGroups, workerChunkGroups } from './scripts/lib/build-chunk-groups.mjs';
 import scopeAudacityDesignSystemCss, {
-	getScopedDesignSystemFileCount,
+	getScopedDesignSystemFiles,
+	isDesignSystemCssFile,
+	normalizeDesignSystemCssFile,
 	resetScopedDesignSystemFileCount,
 } from './scripts/postcss-audacity-design-system.mjs';
 import { createPffftNodeModuleBrowserShim } from './scripts/vite-pffft-browser-shim.mjs';
@@ -15,27 +17,29 @@ const productId = process.env.SCAPE_PRODUCT === 'framescaper' ? 'framescaper' : 
 const vendoredDesignSystem = resolve(import.meta.dirname, 'vendor/audacity-design-system');
 const desktopCodecComposition = process.env.SCAPE_DESKTOP_CODEC_RUNTIME === 'main-process';
 
-// The vendored design system ships ~100 component stylesheets through the
-// scoping plugin on every build. A build that scopes far fewer has silently
-// stopped matching the vendored path (the plugin fails open), which would
-// leak unscoped design-system CSS into the whole site.
-const MIN_SCOPED_DESIGN_SYSTEM_FILES = 50;
-
 /** @returns {import('vite').Plugin} */
 function assertDesignSystemCssScoped() {
+	const transformed = new Set();
 	return {
 		name: 'kw-assert-design-system-css-scoped',
 		apply: 'build',
 		buildStart() {
+			transformed.clear();
 			resetScopedDesignSystemFileCount();
 		},
+		transform(_code, id) {
+			if (isDesignSystemCssFile(id)) transformed.add(normalizeDesignSystemCssFile(id));
+			return null;
+		},
 		closeBundle() {
-			const scoped = getScopedDesignSystemFileCount();
-			if (scoped < MIN_SCOPED_DESIGN_SYSTEM_FILES) {
+			const expected = [...transformed].sort();
+			const scoped = getScopedDesignSystemFiles();
+			if (!expected.length || JSON.stringify(scoped) !== JSON.stringify(expected)) {
+				const missing = expected.filter((file) => !scoped.includes(file));
+				const unexpected = scoped.filter((file) => !transformed.has(file));
 				throw new Error(
-					`Design-system CSS scoping matched only ${scoped} stylesheets `
-					+ `(expected >= ${MIN_SCOPED_DESIGN_SYSTEM_FILES}). The path key in `
-					+ 'scripts/postcss-audacity-design-system.mjs no longer matches the vendored tree.',
+					'Design-system CSS scoping did not match Vite\'s exact transformed inventory. '
+					+ `Missing: ${missing.join(', ') || 'none'}. Unexpected: ${unexpected.join(', ') || 'none'}.`,
 				);
 			}
 		},
@@ -43,10 +47,14 @@ function assertDesignSystemCssScoped() {
 }
 export default defineConfig({
 	appType: 'spa',
-	plugins: [createPffftNodeModuleBrowserShim(), react(), assertDesignSystemCssScoped()],
+	plugins: [
+		createPffftNodeModuleBrowserShim(),
+		react(),
+		assertDesignSystemCssScoped(),
+	],
 	resolve: {
-		// File-targeted aliases into the vendored design system; deep subpath
-		// imports of these specifiers are unsupported. Mirrored in
+		// File-targeted public aliases plus an app-internal deep component alias.
+		// Public deep subpath imports remain unsupported. Mirrored in
 		// tsconfig.base.json "paths" for tsc, editors, and tsx-run node tests.
 		alias: [
 			...(desktopCodecComposition ? [
@@ -59,6 +67,10 @@ export default defineConfig({
 					replacement: resolve(import.meta.dirname, 'src/common/editor/ui/dialogs/OfflineRuntimePreferencePanel.desktop.tsx'),
 				},
 			] : []),
+			{
+				find: /^@soundscaper\/design-system\/(.+)$/u,
+				replacement: resolve(vendoredDesignSystem, 'components/src/$1'),
+			},
 			{ find: '@dilsonspickles/components', replacement: resolve(vendoredDesignSystem, 'components/src/index.ts') },
 			{ find: '@audacity-ui/core', replacement: resolve(vendoredDesignSystem, 'core/src/index.ts') },
 			{ find: '@audacity-ui/tokens', replacement: resolve(vendoredDesignSystem, 'tokens/src/index.ts') },

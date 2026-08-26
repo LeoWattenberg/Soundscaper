@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Button } from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
 import { LabeledDropdown } from './inspector-controls.jsx';
 import { runDeliveryPresetAction } from '../export-preset-model.ts';
 

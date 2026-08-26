@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Button, Flyout, Separator, ToolbarButtonGroup } from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
+import { Flyout } from '@soundscaper/design-system/Flyout';
+import { Separator } from '@soundscaper/design-system/Separator';
+import { ToolbarButtonGroup } from '@soundscaper/design-system/Toolbar';
 
 import { iconNameToChar } from '../../audacity-iconcodes.js';
 import {

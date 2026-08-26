@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Flyout } from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
+import { Flyout } from '@soundscaper/design-system/Flyout';
 import { audioEffectTypes } from '../../effects.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { useAudioEditorThemeVariables } from '../DesignSystemRuntime.jsx';

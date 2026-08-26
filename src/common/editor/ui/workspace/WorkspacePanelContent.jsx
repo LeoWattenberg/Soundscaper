@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button } from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
 
 import { EbuR128WorkspacePanel } from '../toolbar/AudioEditorMeters.jsx';
 import AudioEditorMixerPanel from './AudioEditorMixerPanel.jsx';

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { GhostButton, Icon } from '@dilsonspickles/components';
+import { GhostButton } from '@soundscaper/design-system/GhostButton';
+import { Icon } from '@soundscaper/design-system/Icon';
 
 import { framesToSeconds, projectClipsToViewport } from '../../design-system-adapters.js';
 import { AutomaticCrossfadeOverlays, createVideoOverlapPresentation } from './TrackOverlapOverlays.jsx';

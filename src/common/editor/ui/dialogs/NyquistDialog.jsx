@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button } from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
 
 import { getNyquistPlugin, loadNyquistPluginSource } from '../../nyquist/plugin-registry.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';

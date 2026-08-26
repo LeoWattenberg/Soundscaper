@@ -1,15 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import {
-	Button,
-	ContextMenuItem,
-	Flyout,
-	Icon,
-	SelectionToolbar,
-	TimeCode,
-	ToolButton,
-	TransportButton,
-} from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
+import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
+import { Flyout } from '@soundscaper/design-system/Flyout';
+import { Icon } from '@soundscaper/design-system/Icon';
+import { SelectionToolbar } from '@soundscaper/design-system/SelectionToolbar';
+import { TimeCode } from '@soundscaper/design-system/TimeCode';
+import { ToolButton } from '@soundscaper/design-system/ToolButton';
+import { TransportButton } from '@soundscaper/design-system/TransportButton';
 
 import { iconNameToChar } from '../../audacity-iconcodes.js';
 import { framesToSeconds, secondsToFrames } from '../../design-system-adapters.js';

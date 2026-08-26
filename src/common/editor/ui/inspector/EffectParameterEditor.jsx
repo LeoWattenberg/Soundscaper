@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, Knob } from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
+import { Knob } from '@soundscaper/design-system/Knob';
 import { audioEffectParamRange } from '../../effects.js';
 import {
 	AUDACITY_EFFECT_DEFINITIONS,

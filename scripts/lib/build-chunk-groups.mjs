@@ -35,33 +35,48 @@ export const chunkGroups = [
 	},
 	{
 		name: 'vendor-design-system',
-		test: /[\\/]vendor[\\/]audacity-design-system[\\/]/,
+		test: /(?:^|[\\/])vendor[\\/]audacity-design-system[\\/](?:core[\\/]src|tokens[\\/]src|components[\\/]src[\\/](?:ThemeProvider|contexts|hooks|utils|constants\.ts|assets[\\/]fonts))/,
 		priority: 95,
 		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		// Exact app imports decide which components enter the graph. Once selected,
+		// keep their implementation and CSS together instead of emitting one request
+		// per shared component reached by both the shell and lazy dialogs.
+		name: 'vendor-design-system-components',
+		test: /(?:^|[\\/])vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?!(?:ThemeProvider|contexts|hooks|utils|constants\.ts|assets[\\/]fonts)(?:[\\/]|$))/,
+		priority: 94,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
 	},
 	{
 		name: 'editor-engine',
 		test: new RegExp(`${editorPath}(?:engine(?:\\.js|[\\\\/])|recording(?:\\.js|[\\\\/])|playback-meter\\.js)`),
 		priority: 90,
 		maxSize: 400_000,
+		includeDependenciesRecursively: false,
 	},
 	{
 		name: 'editor-storage-model',
 		test: new RegExp(`${editorPath}(?:storage(?:\\.js|[\\\\/])|project(?:-[^\\\\/]+)?\\.js|migration\\.js|retention\\.js|history\\.js|session\\.js|stable-id\\.js|preferences\\.js)`),
 		priority: 85,
 		maxSize: 400_000,
+		includeDependenciesRecursively: false,
 	},
 	{
 		name: 'editor-timeline',
 		test: new RegExp(`${editorPath}(?:ui[\\\\/](?:AudioEditorTimeline|AudioEditorSampleTools)|video-timeline\\.js|audacity-waveform-renderer\\.js)`),
 		priority: 80,
 		maxSize: 400_000,
+		includeDependenciesRecursively: false,
 	},
 	{
 		name: 'editor-controller-core',
 		test: new RegExp(`${editorPath}(?:app\\.js|controller[\\\\/]|commands(?:\\.js|[\\\\/])|facade\\.ts|index\\.js)`),
 		priority: 75,
 		maxSize: 400_000,
+		includeDependenciesRecursively: false,
 	},
 	{
 		name: 'editor-shell',
@@ -78,6 +93,7 @@ export const chunkGroups = [
 		test: EDITOR_DOMAIN_CHUNK_TEST,
 		priority: 65,
 		maxSize: 400_000,
+		includeDependenciesRecursively: false,
 	},
 	{
 		// Image import, body custody, clipboard, preview, and export form one optional

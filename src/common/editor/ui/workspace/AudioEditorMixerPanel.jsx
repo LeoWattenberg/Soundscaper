@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, Knob, MixerPanel } from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
+import { Knob } from '@soundscaper/design-system/Knob';
+import { MixerPanel } from '@soundscaper/design-system/MixerPanel';
 
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import RecordingInputSelectors from '../RecordingInputSelectors.jsx';

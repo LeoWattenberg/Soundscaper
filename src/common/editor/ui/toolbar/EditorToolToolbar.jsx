@@ -1,17 +1,13 @@
 import { useCallback, useRef, useState } from 'react';
 
 import { isSoundscaperProductionProjectSchema } from '../../project-schema-version.ts';
-import {
-	Flyout,
-	Icon,
-	ContextMenuItem,
-	ToggleToolButton,
-	Toolbar,
-	ToolbarButtonGroup,
-	ToolbarDivider,
-	TransportButton,
-	ToolButton,
-} from '@dilsonspickles/components';
+import { Flyout } from '@soundscaper/design-system/Flyout';
+import { Icon } from '@soundscaper/design-system/Icon';
+import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
+import { ToggleToolButton } from '@soundscaper/design-system/ToggleToolButton';
+import { Toolbar, ToolbarButtonGroup, ToolbarDivider } from '@soundscaper/design-system/Toolbar';
+import { TransportButton } from '@soundscaper/design-system/TransportButton';
+import { ToolButton } from '@soundscaper/design-system/ToolButton';
 
 import { iconNameToChar } from '../../audacity-iconcodes.js';
 import AudioEditorSplitButton from '../AudioEditorSplitButton.tsx';

@@ -1,4 +1,4 @@
-import { Button } from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
 
 import { productProfile } from '../../../products.js';
 import AudioEditorButtonTooltips from '../AudioEditorButtonTooltips.jsx';

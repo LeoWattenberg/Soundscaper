@@ -1,8 +1,6 @@
-import {
-	Button,
-	Icon,
-	ToggleToolButton,
-} from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
+import { Icon } from '@soundscaper/design-system/Icon';
+import { ToggleToolButton } from '@soundscaper/design-system/ToggleToolButton';
 import { selectAudioEditorEditBlock } from './edit-blocking.ts';
 
 export default function AudioEditorSampleTools({ controller, snapshot, copy, run }) {

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { EffectHeader } from '@dilsonspickles/components';
+import { EffectHeader } from '@soundscaper/design-system/EffectDialog/EffectHeader';
 
 export default function AudacityEffectHeader({ copy, automationEnabled, ...props }) {
 	const wrapperRef = useRef(null);

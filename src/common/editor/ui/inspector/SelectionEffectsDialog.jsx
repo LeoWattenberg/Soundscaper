@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, DialogFooter, Separator, TextInput } from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
+import { DialogFooter } from '@soundscaper/design-system/Footer';
+import { Separator } from '@soundscaper/design-system/Separator';
+import { TextInput } from '@soundscaper/design-system/TextInput';
 import {
 	AUDACITY_EFFECT_DEFINITIONS,
 	audacityEffectDefaults,

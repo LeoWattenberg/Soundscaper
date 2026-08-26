@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Icon } from '@dilsonspickles/components';
+import { Icon } from '@soundscaper/design-system/Icon';
 
 import {
 	AUDIO_EDITOR_PROJECT_BIN_DRAG_TYPE,

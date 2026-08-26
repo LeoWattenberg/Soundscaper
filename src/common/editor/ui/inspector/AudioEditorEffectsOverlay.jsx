@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ContextMenu, ContextMenuItem, EffectsPanel } from '@dilsonspickles/components';
+import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
+import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
+import { EffectsPanel } from '@soundscaper/design-system/EffectsPanel';
 import { createEffect } from '../../effects.js';
 import { serializeAudacityEffectMacro } from '../../effect-macros.js';
 import { AUDIO_EDITOR_SAMPLE_RATE, findTrack } from '../../project.js';

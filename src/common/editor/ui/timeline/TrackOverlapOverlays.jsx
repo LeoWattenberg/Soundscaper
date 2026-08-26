@@ -1,4 +1,4 @@
-import { CLIP_CONTENT_OFFSET } from '@dilsonspickles/components';
+import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { validateVideoTrackComposition } from '../../video-timeline.js';
 

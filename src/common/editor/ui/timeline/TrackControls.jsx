@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { TextInput, ToggleToolButton, TrackControlPanel } from '@dilsonspickles/components';
+import { TextInput } from '@soundscaper/design-system/TextInput';
+import { ToggleToolButton } from '@soundscaper/design-system/ToggleToolButton';
+import { TrackControlPanel } from '@soundscaper/design-system/TrackControlPanel';
 
 import {
 	designValueToPan,

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Dropdown, TextInput } from '@dilsonspickles/components';
+import { Dropdown } from '@soundscaper/design-system/Dropdown';
+import { TextInput } from '@soundscaper/design-system/TextInput';
 
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
 

@@ -1,9 +1,7 @@
-import {
-	ContextMenu,
-	ContextMenuItem,
-	RulerFlyout,
-	TimelineRulerContextMenu,
-} from '@dilsonspickles/components';
+import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
+import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
+import { RulerFlyout } from '@soundscaper/design-system/RulerFlyout';
+import { TimelineRulerContextMenu } from '@soundscaper/design-system/TimelineRulerContextMenu';
 
 import { AUDACITY_CLIP_CONTEXT_ACTION_IDS } from '../../audacity-context-menu.js';
 import { AUDIO_EDITOR_TRACK_COLORS } from '../../project-audio-factory.js';

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { ContextMenu, Icon } from '@dilsonspickles/components';
+import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
+import { Icon } from '@soundscaper/design-system/Icon';
 // This file renders .add-track-flyout* markup by class name without mounting
 // the AddTrackFlyout component, so its stylesheet must be imported explicitly
 // or tree-shaking drops it with the unused component module.

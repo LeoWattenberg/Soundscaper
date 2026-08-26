@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import React from 'react';
-import { Button } from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { formatLocalizedTemplate, formatResizeLabel } from '../localization-template.ts';

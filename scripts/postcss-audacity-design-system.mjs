@@ -4,17 +4,29 @@ const PORTAL_ROOT = 'body.kw-audio-editor-design-system-mounted';
 const PORTAL_SELECTOR = /\.(?:dropdown__(?:menu|option|separator)|tooltip(?:__content|__arrow)?)(?:--[\w-]+)?(?![\w-])/;
 const KEYFRAMES = /^(?:-\w+-)?keyframes$/i;
 
-// Build-time tripwire state: vite.config.mjs asserts a minimum matched-file
-// count after each build so a path-key mismatch (this plugin fails open)
-// cannot silently ship unscoped design-system CSS.
-let scopedDesignSystemFileCount = 0;
+// Build-time tripwire state: vite.config.mjs compares this exact inventory with
+// every vendored stylesheet Vite transformed for the graph.
+const scopedDesignSystemFiles = new Set();
 
 export function getScopedDesignSystemFileCount() {
-	return scopedDesignSystemFileCount;
+	return scopedDesignSystemFiles.size;
+}
+
+export function getScopedDesignSystemFiles() {
+	return [...scopedDesignSystemFiles].sort();
 }
 
 export function resetScopedDesignSystemFileCount() {
-	scopedDesignSystemFileCount = 0;
+	scopedDesignSystemFiles.clear();
+}
+
+export function normalizeDesignSystemCssFile(file) {
+	return typeof file === 'string' ? file.split(/[?#]/u, 1)[0].replaceAll('\\', '/') : '';
+}
+
+export function isDesignSystemCssFile(file) {
+	const normalizedFile = normalizeDesignSystemCssFile(file);
+	return normalizedFile.includes(DESIGN_SYSTEM_PATH) && normalizedFile.endsWith('.css');
 }
 
 /**
@@ -28,11 +40,12 @@ export default function scopeAudacityDesignSystemCss() {
 	return {
 		postcssPlugin: 'kw-scope-audacity-design-system',
 		Once(root) {
-			if (!isDesignSystemCss(root.source?.input?.file)) {
+			const file = normalizeDesignSystemCssFile(root.source?.input?.file);
+			if (!isDesignSystemCssFile(file)) {
 				return;
 			}
 
-			scopedDesignSystemFileCount += 1;
+			scopedDesignSystemFiles.add(file);
 
 			root.walkRules((rule) => {
 				if (isInsideKeyframes(rule)) {
@@ -57,11 +70,6 @@ export default function scopeAudacityDesignSystemCss() {
 }
 
 scopeAudacityDesignSystemCss.postcss = true;
-
-function isDesignSystemCss(file) {
-	return typeof file === 'string'
-		&& file.replaceAll('\\', '/').includes(DESIGN_SYSTEM_PATH);
-}
 
 function isInsideKeyframes(rule) {
 	for (let parent = rule.parent; parent; parent = parent.parent) {

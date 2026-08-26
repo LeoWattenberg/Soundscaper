@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import {
-	ContextMenu,
-	ContextMenuItem,
-	useAccessibilityProfile,
-	useTheme,
-} from '@dilsonspickles/components';
+import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
+import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
+import { useAccessibilityProfile } from '@soundscaper/design-system/contexts/AccessibilityProfileContext';
+import { useTheme } from '@soundscaper/design-system/ThemeProvider';
 // This file renders .application-header* markup by class name without
 // mounting the ApplicationHeader component, so its stylesheet must be
 // imported explicitly or tree-shaking drops it with the unused module.

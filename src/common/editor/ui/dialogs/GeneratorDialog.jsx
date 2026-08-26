@@ -1,14 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-	Button,
-	Dropdown,
-	Knob,
-	LabeledRadio,
-	NumberStepper,
-	PreferencePanel,
-	Separator,
-	TextInput,
-} from '@dilsonspickles/components';
+import { Button } from '@soundscaper/design-system/Button';
+import { Dropdown } from '@soundscaper/design-system/Dropdown';
+import { Knob } from '@soundscaper/design-system/Knob';
+import { LabeledRadio } from '@soundscaper/design-system/LabeledRadio';
+import { NumberStepper } from '@soundscaper/design-system/NumberStepper';
+import { PreferencePanel } from '@soundscaper/design-system/PreferencePanel';
+import { Separator } from '@soundscaper/design-system/Separator';
+import { TextInput } from '@soundscaper/design-system/TextInput';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 

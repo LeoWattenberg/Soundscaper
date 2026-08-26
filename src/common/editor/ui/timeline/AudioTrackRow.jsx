@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { FrequencyRuler, TrackNew } from '@dilsonspickles/components';
+import { FrequencyRuler } from '@soundscaper/design-system/VerticalRuler';
+import { TrackNew } from '@soundscaper/design-system/Track/TrackNew';
 
 import {
 	framesToSeconds,
