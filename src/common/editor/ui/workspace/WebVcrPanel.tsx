@@ -53,6 +53,11 @@ export default function WebVcrPanel({ controller, snapshot, copy, blocked, run }
 	const [address, setAddress] = useState(() => navigationUrl);
 	const [confirmClear, setConfirmClear] = useState(false);
 	useEffect(() => {
+		// The embedded page reports every URL it resolves, redirects and in-page
+		// pushes included, and the field stays editable while a page is loading.
+		// Adopting one of those while the operator is typing the next destination
+		// would replace what they had entered.
+		if (addressRef.current !== null && addressRef.current === globalThis.document?.activeElement) return;
 		setAddress(navigationUrl);
 	}, [navigationGeneration, navigationUrl]);
 	if (!webVcr || !webVcrCapabilityAvailable(webVcr)) return null;
