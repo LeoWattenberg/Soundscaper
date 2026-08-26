@@ -144,10 +144,10 @@ export default function VideoKeyframeCurveEditor({
 						</select>
 					</label>
 					<label className="audio-editor-field"><span>{label(copy, 'videoKeyframesPosition', 'Position (frames or num/den)')}</span>
-						<input type="text" data-video-keyframe-field="anchor-position" value={positionText || (visibleAnchor ? rationalText(visibleAnchor) : '')} disabled={!visibleAnchor} onChange={(event) => setPositionText(event.currentTarget.value)} />
+						<input type="text" data-video-keyframe-field="anchor-position" value={positionText} disabled={!visibleAnchor} onChange={(event) => setPositionText(event.currentTarget.value)} />
 					</label>
 					<label className="audio-editor-field"><span>{label(copy, 'videoKeyframesValue', 'Value')}</span>
-						<input type="number" data-video-keyframe-field="anchor-value" min={choice?.minimum} max={choice?.maximum} step={choice?.step ?? 'any'} value={valueText || String(anchor?.value ?? '')} onChange={(event) => setValueText(event.currentTarget.value)} />
+						<input type="number" data-video-keyframe-field="anchor-value" min={choice?.minimum} max={choice?.maximum} step={choice?.step ?? 'any'} value={valueText} onChange={(event) => setValueText(event.currentTarget.value)} />
 					</label>
 					<button type="submit" disabled={!visibleAnchor}>{label(copy, 'videoKeyframesUpdateAnchor', 'Update anchor')}</button>
 					<button type="button" onClick={() => {
