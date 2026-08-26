@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { AssistanceWorkflowFenceV1 } from '../src/common/editor/assistance/workflow.ts';
+import { resolveLocalAssistanceSelectedVideoAuthority } from
+	'../src/common/editor/controller/local-assistance-selected-video.ts';
 import {
 	createFramescaperAssistanceHighlightPublication,
 } from '../src/framescaper/editor-local-assistance-highlight-publication.ts';
@@ -36,6 +38,9 @@ function project(linked = true): FramescaperProjectV31 {
 	options.id = 'highlight-project';
 	options.title = 'Highlight project';
 	options.now = NOW;
+	options.selection = { startFrame: 0, endFrame: 48_000,
+		trackIds: ['video-track'], clipIds: ['video-clip'],
+		frequencyRange: null, annotationIds: [] };
 	options.sources = records(options.sources).map((source) => ({
 		...source,
 		contentSha256: source.id === 'video-source' ? VIDEO_SHA256 : AUDIO_SHA256,
@@ -50,6 +55,7 @@ function project(linked = true): FramescaperProjectV31 {
 }
 
 function fence(value: FramescaperProjectV31): AssistanceWorkflowFenceV1 {
+	const selected = selection(value).fence;
 	return {
 		fenceVersion: 1,
 		projectId: String(value.id),
@@ -60,13 +66,15 @@ function fence(value: FramescaperProjectV31): AssistanceWorkflowFenceV1 {
 			slotId: 'audio-main', mediaKind: 'audio', sourceId: 'audio-source',
 			sourceSha256: AUDIO_SHA256, sourceSampleRate: 48_000, occurrenceIds: ['audio-clip'],
 			sourceStartFrame: 0, sourceEndFrame: 48_000,
-			linkMembershipSha256: '56'.repeat(32), timingAuthoritySha256: '78'.repeat(32),
+			linkMembershipSha256: selected.linkMembershipSha256,
+			timingAuthoritySha256: '78'.repeat(32),
 			retimeKind: 'identity',
 		}, {
 			slotId: 'video-main', mediaKind: 'video', sourceId: 'video-source',
 			sourceSha256: VIDEO_SHA256, sourceSampleRate: null, occurrenceIds: ['video-clip'],
 			sourceStartFrame: 0, sourceEndFrame: 10,
-			linkMembershipSha256: '56'.repeat(32), timingAuthoritySha256: '9a'.repeat(32),
+			linkMembershipSha256: selected.linkMembershipSha256,
+			timingAuthoritySha256: selected.timingAuthoritySha256,
 			retimeKind: 'identity',
 		}],
 		transcriptBodySha256: null,
@@ -135,7 +143,7 @@ function harness(initial = project(), createId: (prefix: string) => string = inc
 	const publication = createFramescaperAssistanceHighlightPublication({
 		currentAuthority: () => {
 			authorityReads += 1;
-			return { project: history.present, fence: currentFence };
+			return { selection: selection(history.present), fence: currentFence };
 		},
 		captureProject: () => history.present,
 		assertProject: (token) => assert.strictEqual(token, history.present),
@@ -295,7 +303,7 @@ test('highlight publication refuses current F31 occurrences without exact linked
 	const session = harness(initial);
 	await assert.rejects(
 		session.publication.acceptReviewed(review(initial), ['highlight-a']),
-		/linked A\/V|link/iu,
+		/linked A\/V|link|stale|authority/iu,
 	);
 	assert.equal(session.commits, 0);
 	assert.equal(session.history.undoStack.length, 0);
@@ -304,6 +312,12 @@ test('highlight publication refuses current F31 occurrences without exact linked
 function incrementalIds(): (prefix: string) => string {
 	let next = 0;
 	return (prefix) => `${prefix}-${String(next += 1)}`;
+}
+
+function selection(value: FramescaperProjectV31) {
+	return resolveLocalAssistanceSelectedVideoAuthority({
+		getProject: () => value, getSelectedClipId: () => 'video-clip',
+	});
 }
 
 function records(value: unknown): Record<string, unknown>[];

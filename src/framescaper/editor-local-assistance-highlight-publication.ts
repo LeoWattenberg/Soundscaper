@@ -7,7 +7,12 @@ import {
 	type AssistanceWorkflowFenceV1,
 	type AssistanceWorkflowSourceRangeV1,
 } from '../common/editor/assistance/workflow.ts';
-import { AssistanceProposalStaleError } from '../common/editor/assistance/proposal-session.ts';
+import {
+	AssistanceProposalStaleError,
+	validateAssistanceSelectionFence,
+} from '../common/editor/assistance/proposal-session.ts';
+import type { LocalAssistanceSelectedVideoAuthority } from
+	'../common/editor/controller/local-assistance-selected-video.ts';
 import {
 	createAddClipCommand,
 	createAddTrackCommand,
@@ -36,6 +41,8 @@ import {
 	applyFramescaperProjectCommandV31,
 	type FramescaperProjectCommandV31,
 } from './editor-project-v31-commands.ts';
+import { createFramescaperVideoRetimeSetCommandV20 } from
+	'./editor-project-v20-retime-command.ts';
 import {
 	FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE,
 } from './editor-project-runtime-profile-v31.ts';
@@ -47,12 +54,15 @@ import {
 	reviewFramescaperAssistanceHighlightsV1,
 	type FramescaperAssistanceHighlightProposalV1,
 } from './editor-local-assistance-highlight-review.ts';
+import {
+	bindFramescaperAssistanceHighlightVideoTiming,
+} from './editor-local-assistance-highlight-timing.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 type DataRecord = Readonly<Record<string, unknown>>;
 
 export interface FramescaperAssistanceHighlightAuthority {
-	readonly project: FramescaperProjectV31;
+	readonly selection: LocalAssistanceSelectedVideoAuthority;
 	readonly fence: AssistanceWorkflowFenceV1;
 }
 
@@ -82,6 +92,10 @@ interface BoundHighlight {
 	readonly videoSourceEndFrame: number;
 	readonly audioSourceStartFrame: number;
 	readonly audioSourceEndFrame: number;
+	readonly videoRetimeMap: ReturnType<
+		typeof bindFramescaperAssistanceHighlightVideoTiming
+	>['retimeMap'];
+	readonly cropLocalFrames: readonly number[];
 	readonly video: BoundOccurrence;
 	readonly audio: BoundOccurrence;
 }
@@ -149,13 +163,16 @@ function normalizeAuthority(
 	expectedFence: AssistanceWorkflowFenceV1,
 	proposals: readonly FramescaperAssistanceHighlightProposalV1[],
 ): NormalizedAuthority {
-	if (!value || typeof value !== 'object') throw new TypeError('Highlight publication requires project authority.');
+	if (!value || typeof value !== 'object' || !value.selection) {
+		throw new TypeError('Highlight publication requires selected-video authority.');
+	}
 	const fence = validateAssistanceWorkflowFenceV1(value.fence);
 	if (!same(expectedFence, fence)) throw new AssistanceProposalStaleError();
-	validateFramescaperProjectV31(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, value.project);
-	const project = value.project;
+	validateFramescaperProjectV31(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, value.selection.project);
+	const project = value.selection.project as unknown as FramescaperProjectV31;
 	if (project.id !== fence.projectId || project.schemaVersion !== fence.schemaVersion
 		|| project.revision !== fence.revision) throw new AssistanceProposalStaleError();
+	assertSelectionAuthority(value.selection, fence);
 	const sequence = recordArray(project.sequences, 'project sequences')
 		.find(({ id }) => id === fence.sequenceId);
 	if (!sequence) throw new AssistanceProposalStaleError();
@@ -163,11 +180,43 @@ function normalizeAuthority(
 		.some(({ sequenceId }) => sequenceId === fence.sequenceId)) {
 		throw new RangeError('Highlight publication does not accept multicamera source authority.');
 	}
-	const highlights = proposals.map((proposal) => bindHighlight(project, fence, sequence, proposal));
+	const highlights = proposals.map((proposal) => bindHighlight(
+		project, fence, sequence, proposal, value.selection,
+	));
 	return Object.freeze({
 		project, fence, sequence, highlights: Object.freeze(highlights),
 		fingerprint: JSON.stringify({ fence, project }),
 	});
+}
+
+function assertSelectionAuthority(
+	selection: LocalAssistanceSelectedVideoAuthority,
+	fence: AssistanceWorkflowFenceV1,
+): void {
+	const selected = validateAssistanceSelectionFence(selection.fence);
+	const ranges = fence.sourceRanges.filter(({ mediaKind }) => mediaKind === 'video');
+	if (ranges.length !== 1) throw new TypeError('Highlight publication requires one video authority.');
+	const range = ranges[0]!;
+	const expectedRetime = selection.timingAuthority.mapping === 'forward-retime-v2'
+		? 'monotonic-forward' : 'identity';
+	const aggregateOccurrences = fence.sourceRanges.flatMap(({ occurrenceIds }) => occurrenceIds).sort();
+	if (selected.projectId !== fence.projectId || selected.schemaVersion !== fence.schemaVersion
+		|| selected.revision !== fence.revision || selected.sequenceId !== fence.sequenceId
+		|| range.sourceId !== selected.sourceId || range.sourceSha256 !== selected.sourceSha256
+		|| range.sourceStartFrame !== selected.sourceStartFrame
+		|| range.sourceEndFrame !== selected.sourceEndFrame
+		|| range.linkMembershipSha256 !== selected.linkMembershipSha256
+		|| range.timingAuthoritySha256 !== selected.timingAuthoritySha256
+		|| range.retimeKind !== expectedRetime
+		|| selection.source.id !== range.sourceId
+		|| selection.source.contentSha256 !== range.sourceSha256
+		|| !range.occurrenceIds.includes(String(selection.clip.id))
+		|| fence.sourceRanges.some(({ linkMembershipSha256 }) => (
+			linkMembershipSha256 !== selected.linkMembershipSha256
+		))
+		|| !same(aggregateOccurrences, [...selected.occurrenceIds].sort())) {
+		throw new AssistanceProposalStaleError();
+	}
 }
 
 function bindHighlight(
@@ -175,6 +224,7 @@ function bindHighlight(
 	fence: AssistanceWorkflowFenceV1,
 	sequence: DataRecord,
 	proposal: FramescaperAssistanceHighlightProposalV1,
+	selection: LocalAssistanceSelectedVideoAuthority,
 ): BoundHighlight {
 	const video = occurrence(project, fence, sequence, proposal.videoOccurrenceId, 'video');
 	const audio = occurrence(project, fence, sequence, proposal.audioOccurrenceId, 'audio');
@@ -189,21 +239,20 @@ function bindHighlight(
 	const clipSequenceStart = integer(video.clip.sequenceStartFrame, 0, 'video sequence start');
 	const clipSequenceCount = integer(video.clip.sequenceFrameCount, 1, 'video sequence count');
 	if (sequenceStart < clipSequenceStart || sequenceEnd > clipSequenceStart + clipSequenceCount
-		|| sequenceEnd <= sequenceStart || video.clip.retimeMap !== null) {
-		throw new RangeError('Highlight timing must remain inside one identity-retimed video occurrence.');
+		|| sequenceEnd <= sequenceStart) {
+		throw new RangeError('Highlight timing must remain inside one selected video occurrence.');
 	}
-	const clipSourceStart = integer(video.clip.sourceInFrame, 0, 'video source start');
-	const clipSourceCount = integer(video.clip.sourceFrameCount, 1, 'video source count');
-	const videoSourceStartFrame = safeAdd(clipSourceStart, mapBoundary(
-		sequenceStart - clipSequenceStart, clipSourceCount, clipSequenceCount,
-	), 'highlight video source start');
-	const videoSourceEndFrame = safeAdd(clipSourceStart, mapBoundary(
-		sequenceEnd - clipSequenceStart, clipSourceCount, clipSequenceCount,
-	), 'highlight video source end');
-	if (proposal.sourceStartFrame !== videoSourceStartFrame
-		|| proposal.sourceEndFrame !== videoSourceEndFrame) {
-		throw new RangeError('Highlight proposal source timing disagrees with current source authority.');
+	if (selection.clip.id !== proposal.videoOccurrenceId) {
+		throw new AssistanceProposalStaleError();
 	}
+	const videoTiming = bindFramescaperAssistanceHighlightVideoTiming({
+		selection, sequenceStartFrame: sequenceStart,
+		sequenceEndFrame: sequenceEnd, sourceStartFrame: proposal.sourceStartFrame,
+		sourceEndFrame: proposal.sourceEndFrame,
+		cropSourceFrames: proposal.cropKeyframes.map(({ sourceFrame }) => sourceFrame),
+	});
+	const videoSourceStartFrame = videoTiming.sourceStartFrame;
+	const videoSourceEndFrame = videoTiming.sourceEndFrame;
 	assertWithinRange(video.range, videoSourceStartFrame, videoSourceEndFrame, 'video');
 	const audioClipStart = integer(audio.clip.timelineStartFrame, 0, 'audio timeline start');
 	const audioDuration = integer(audio.clip.durationFrames, 1, 'audio duration');
@@ -226,8 +275,9 @@ function bindHighlight(
 			sourceFrame < videoSourceStartFrame || sourceFrame >= videoSourceEndFrame
 		))) throw new RangeError('Highlight crop keyframes must bind the complete selected video source range.');
 	return Object.freeze({
-		proposal, sequenceFrameCount: sequenceEnd - sequenceStart,
+		proposal, sequenceFrameCount: videoTiming.sequenceFrameCount,
 		videoSourceStartFrame, videoSourceEndFrame, audioSourceStartFrame, audioSourceEndFrame,
+		videoRetimeMap: videoTiming.retimeMap, cropLocalFrames: videoTiming.cropLocalFrames,
 		video, audio,
 	});
 }
@@ -242,9 +292,7 @@ function occurrence(
 	const ranges = fence.sourceRanges.filter((range) => (
 		range.mediaKind === mediaKind && range.occurrenceIds.includes(occurrenceId)
 	));
-	if (ranges.length !== 1 || ranges[0]!.retimeKind !== 'identity') {
-		throw new RangeError(`Highlight ${mediaKind} occurrence authority must be unique and identity-retimed.`);
-	}
+	if (ranges.length !== 1) throw new RangeError(`Highlight ${mediaKind} occurrence authority must be unique.`);
 	const range = ranges[0]!;
 	const source = recordArray(project.sources, 'project sources').find(({ id }) => id === range.sourceId);
 	const clip = recordArray(project.clips, 'project clips').find(({ id }) => id === occurrenceId);
@@ -256,6 +304,9 @@ function occurrence(
 		|| track.type !== mediaKind || !array(sequence.trackIds, 'sequence track IDs').includes(track.id)) {
 		throw new AssistanceProposalStaleError();
 	}
+	const expectedRetime = mediaKind === 'video' && clip.retimeMap !== null
+		? 'monotonic-forward' : 'identity';
+	if (range.retimeKind !== expectedRetime) throw new AssistanceProposalStaleError();
 	return Object.freeze({ range, source, clip, track });
 }
 
@@ -319,6 +370,10 @@ function highlightCommands(
 	});
 	const expectedKeyframes = createDefaultVideoKeyframeCurves(highlight.sequenceFrameCount);
 	const keyframes = cropKeyframes(highlight);
+	const retimeCommand = highlight.videoRetimeMap === null ? [] : [
+		createFramescaperVideoRetimeSetCommandV20({ clipId: videoClipId,
+			expectedRetimeMap: null, retimeMap: highlight.videoRetimeMap }),
+	];
 	return Object.freeze([
 		Object.freeze({ type: 'sequence/create', sequence }),
 		Object.freeze({ ...createAddTrackCommand(createVideoTrack({
@@ -331,6 +386,7 @@ function highlightCommands(
 		}, Number(authority.project.sampleRate))), sequenceId }),
 		createAddClipCommand(videoTrackId, videoClip),
 		createAddClipCommand(audioTrackId, audioClip),
+		...retimeCommand,
 		createSetVideoKeyframesCommand(videoClipId, expectedKeyframes, keyframes),
 		Object.freeze({ ...createAddTrackCommand(createLabelTrack({
 			id: labelTrackId, name: 'Highlights', labels: [createLabel({
@@ -342,12 +398,8 @@ function highlightCommands(
 }
 
 function cropKeyframes(highlight: BoundHighlight): DataRecord {
-	const videoFrames = highlight.videoSourceEndFrame - highlight.videoSourceStartFrame;
-	const anchors = highlight.proposal.cropKeyframes.map(({ sourceFrame, crop }) => Object.freeze({
-		position: fraction(
-			BigInt(sourceFrame - highlight.videoSourceStartFrame) * BigInt(highlight.sequenceFrameCount),
-			BigInt(videoFrames),
-		),
+	const anchors = highlight.proposal.cropKeyframes.map(({ crop }, index) => Object.freeze({
+		position: fraction(BigInt(highlight.cropLocalFrames[index]!), 1n),
 		crop,
 	}));
 	const parameterIds = ['bottom', 'left', 'right', 'top'] as const;
@@ -403,17 +455,6 @@ function exactSequenceFrame(
 	if (videoFrameToSampleFrame(result, rate, sampleRate, 'point') !== sampleFrame) {
 		throw new RangeError(`${name} must lie on an exact sequence-frame boundary.`);
 	}
-	return result;
-}
-
-function mapBoundary(offset: number, sourceCount: number, sequenceCount: number): number {
-	const numerator = BigInt(offset) * BigInt(sourceCount);
-	const denominator = BigInt(sequenceCount);
-	if (numerator % denominator !== 0n) {
-		throw new RangeError('Highlight timing cannot preserve an exact source boundary.');
-	}
-	const result = Number(numerator / denominator);
-	if (!Number.isSafeInteger(result)) throw new RangeError('Highlight source timing overflowed.');
 	return result;
 }
 

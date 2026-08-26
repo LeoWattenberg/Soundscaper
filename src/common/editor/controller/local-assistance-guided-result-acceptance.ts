@@ -212,6 +212,7 @@ export function createLocalAssistanceGuidedResultAcceptance(
 			'primitive-acceptance-unavailable');
 		const range = soleSourceRange(workflow, workflowIdValue);
 		if (workflowIdValue !== 'mark-cuts' && workflowIdValue !== 'reframe'
+			&& workflowIdValue !== 'make-highlights'
 			&& workflow.fence.sourceRanges.some(({ retimeKind }) => retimeKind !== 'identity')) {
 			return unsupported(workflowIdValue, 'retime-publication-unavailable');
 		}

@@ -79,6 +79,23 @@ test('Guided Highlights forwards only the explicit initially-unselected proposal
 		selectedProposalIds: ['highlight-b'] }]);
 });
 
+test('Guided Highlights admits authenticated monotonic-forward timing for exact publication', async () => {
+	const workflow = highlightWorkflow('monotonic-forward');
+	const result = highlightResult();
+	const held = reviewed(workflow, 'assemble-highlights', 'highlight-proposals', result,
+		result.proposals.map(({ id }) => ({ id, kind: 'highlight', label: id })));
+	const calls: unknown[] = [];
+	const availability = createLocalAssistanceGuidedResultAcceptance({
+		currentSelectionFence: () => primitiveFence(workflow, true),
+		acceptHighlightResult: async (request) => { calls.push(request); },
+	}).createAcceptanceSession({ workflow, reviewedResult: held });
+	assert.equal(availability.outcome, 'ready');
+	if (availability.outcome !== 'ready') return;
+	await availability.session.accept(['highlight-a']);
+	assert.deepEqual(calls, [{ fence: workflow.fence, result,
+		selectedProposalIds: ['highlight-a'] }]);
+});
+
 test('Guided Highlights revalidates bounded review edits separately from authenticated evidence', async () => {
 	const workflow = highlightWorkflow();
 	const result = highlightResult();
@@ -137,18 +154,24 @@ function reframeWorkflow(): AssistanceWorkflowV1 {
 	], [videoRange()]);
 }
 
-function highlightWorkflow(): AssistanceWorkflowV1 {
-	const stages = ['gather-signals', 'rank-highlights', 'assemble-highlights'];
+function highlightWorkflow(
+	retimeKind: AssistanceWorkflowSourceRangeV1['retimeKind'] = 'identity',
+): AssistanceWorkflowV1 {
+	const stages = ['detect-highlight-shots', 'gather-signals',
+		'rank-highlights', 'assemble-highlights'];
 	return workflow('make-highlights', stages, [], [
-		claim('input', 'gather-signals', 'video', 1),
-		claim('input', 'gather-signals', 'audio', 2),
-		claim('input', 'rank-highlights', 'highlight-signals', 3),
-		claim('input', 'assemble-highlights', 'highlight-candidates', 4),
+		claim('input', 'detect-highlight-shots', 'video', 1),
+		claim('input', 'gather-signals', 'video', 2),
+		claim('input', 'gather-signals', 'audio', 3),
+		claim('input', 'gather-signals', 'shot-boundaries', 4),
+		claim('input', 'rank-highlights', 'highlight-signals', 5),
+		claim('input', 'assemble-highlights', 'highlight-candidates', 6),
 	], [
-		claim('output', 'gather-signals', 'highlight-signals', 5),
-		claim('output', 'rank-highlights', 'highlight-candidates', 6),
-		claim('output', 'assemble-highlights', 'highlight-proposals', 7),
-	], [audioRange(), videoRange()]);
+		claim('output', 'detect-highlight-shots', 'shot-boundaries', 7),
+		claim('output', 'gather-signals', 'highlight-signals', 8),
+		claim('output', 'rank-highlights', 'highlight-candidates', 9),
+		claim('output', 'assemble-highlights', 'highlight-proposals', 10),
+	], [audioRange(), videoRange(retimeKind)]);
 }
 
 function workflow(
@@ -173,12 +196,14 @@ function workflow(
 	};
 }
 
-function videoRange(): AssistanceWorkflowSourceRangeV1 {
+function videoRange(
+	retimeKind: AssistanceWorkflowSourceRangeV1['retimeKind'] = 'identity',
+): AssistanceWorkflowSourceRangeV1 {
 	return { slotId: 'primary-video', mediaKind: 'video', sourceId: 'video-source',
 		sourceSha256: '12'.repeat(32), sourceSampleRate: null,
 		occurrenceIds: ['video-occurrence'], sourceStartFrame: 0, sourceEndFrame: 240,
 		linkMembershipSha256: '56'.repeat(32), timingAuthoritySha256: '78'.repeat(32),
-		retimeKind: 'identity' };
+		retimeKind };
 }
 
 function audioRange(): AssistanceWorkflowSourceRangeV1 {

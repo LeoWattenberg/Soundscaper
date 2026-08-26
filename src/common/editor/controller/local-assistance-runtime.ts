@@ -130,7 +130,7 @@ export function createLocalAssistancePreparationRuntime(
 		);
 		const publication = createFramescaperAssistanceHighlightPublication({
 			currentAuthority: () => ({
-				project: currentVideoAuthority().project as never,
+				selection: currentVideoAuthority(),
 				fence: request.fence,
 			}),
 			captureProject: dependencies.captureProject,
