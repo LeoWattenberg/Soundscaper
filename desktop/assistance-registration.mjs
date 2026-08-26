@@ -24,6 +24,7 @@ import {
 import { createAssistanceHelperRuntimeAdapter } from './project-library-runtime/desktop/assistance-helper-runtime.js';
 import { createAssistanceJobHost } from './project-library-runtime/desktop/assistance-job-host.js';
 import { assistanceServiceFrom, registerAssistanceIpc } from './project-library-runtime/desktop/assistance-main-ipc.js';
+import { createExternalFfmpegAssistanceShotRuntimeAdapter } from './project-library-runtime/desktop/assistance-external-ffmpeg-shot-runtime.js';
 import { ASSISTANCE_OPERATION_IPC_CHANNELS, registerAssistanceOperationIpc } from './project-library-runtime/desktop/assistance-operation-main-ipc.js';
 import { createAssistanceOperationService } from './project-library-runtime/desktop/assistance-operation-service.js';
 import { AssistanceStagingRegistry } from './project-library-runtime/desktop/assistance-staging-registry.js';
@@ -77,6 +78,7 @@ async function confirmOperation(dialog, window, request) {
 
 export function registerAssistance({
 	channels, handle, on, sendToRenderer, app, settings, dialog, windowFor,
+	externalFfmpegPreferences,
 }) {
 	let child = null;
 	const runtimeRoot = join(process.resourcesPath, 'runtime');
@@ -121,6 +123,9 @@ export function registerAssistance({
 		},
 	});
 	const runtime = createAssistanceHelperRuntimeAdapter({ host });
+	const shotDetectionRuntime = createExternalFfmpegAssistanceShotRuntimeAdapter({
+		preferences: externalFfmpegPreferences,
+	});
 	let service = null;
 	const createService = () => {
 		service ??= assistanceServiceFrom({
@@ -162,6 +167,7 @@ export function registerAssistance({
 			runtime,
 			voiceActivityRuntime: runtime,
 			diarizationRuntime: runtime,
+			shotDetectionRuntime,
 			onProgress,
 		}),
 		confirmOperation: (request) => confirmOperation(dialog, windowFor(), request),
