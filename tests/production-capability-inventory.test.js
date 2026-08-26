@@ -20,7 +20,7 @@ test('production capability inventory covers every product profile and platform 
 	const inventory = JSON.parse(await readFile(inventoryUrl, 'utf8'));
 
 	assert.equal(inventory.schemaVersion, 1);
-	assert.equal(inventory.groundedAt, '2026-08-25');
+	assert.equal(inventory.groundedAt, '2026-08-26');
 	assert.deepEqual(inventory.platformTiers, PLATFORM_TIERS);
 	assert.deepEqual(Object.keys(inventory.products).sort(), [...PRODUCT_IDS].sort());
 
