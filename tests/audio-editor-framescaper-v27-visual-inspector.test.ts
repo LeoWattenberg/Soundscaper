@@ -69,7 +69,7 @@ test('selected visual inspector materializes generator, presentation, and linked
  * operator was never shown.
  */
 test('the inspector reads the same presentation record its commit will replace', () => {
-	let project = reimportFramescaperProjectV27(PROFILE, visualProject()) as unknown as Record<string, unknown>;
+	const project = reimportFramescaperProjectV27(PROFILE, visualProject()) as unknown as Record<string, unknown>;
 	const presentations = project.videoVisualPresentations as Record<string, unknown>[];
 	presentations.push({
 		schemaVersion: 1, id: 'disabled-presentation',
