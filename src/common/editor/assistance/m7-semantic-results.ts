@@ -17,6 +17,7 @@ export const MAXIMUM_ASSISTANCE_AUDIO_TAG_WINDOWS = 100_000;
 export const MAXIMUM_ASSISTANCE_BEAT_POINTS = 100_000;
 export const MAXIMUM_ASSISTANCE_TEMPO_CHANGES = 10_000;
 export const MAXIMUM_ASSISTANCE_EDITORIAL_CANDIDATES = 20;
+export const MAXIMUM_ASSISTANCE_EDITORIAL_CHAPTERS = 12;
 
 export interface AssistanceAlignedWordV1 {
 	readonly segmentIndex: number;
@@ -114,6 +115,8 @@ const CANDIDATE_ID = /^[\p{L}\p{N}][\p{L}\p{N}._:-]{0,127}$/u;
 const URI_OR_PATH = /(?:\b(?:data|file|https?|javascript):|(?:^|\s)(?:\/|\.\.\/|[a-z]:[\\/]))/iu;
 const MARKUP = /(?:<[^>]*>|```|\[[^\]]*\]\([^)]*\))/u;
 const CONTROL_OR_CODE = /[\u0000-\u001f\u007f`{}\\]/u;
+const AUTHORED_TIMING = /(?:^|\s)(?:(?:\d{1,2}:)?\d{1,2}:\d{2}(?:[.,]\d{1,3})?|frame\s+\d+|\d+(?:\.\d+)?\s*(?:frames?|hours?|milliseconds?|minutes?|ms|seconds?))(?=$|[\s,.;)])/iu;
+const EXECUTABLE_TEXT = /(?:#!|\$\(|<\?(?:php|xml)|\b(?:bash|cmd(?:\.exe)?|powershell|sh)\s+-c\b)/iu;
 
 export function reviewAssistanceWordAlignmentV1(value: unknown): AssistanceWordAlignmentV1 {
 	const record = exactRecord(value, ALIGNMENT_FIELDS, 'word-alignment result');
@@ -240,16 +243,8 @@ export function reviewAssistanceEditorialProposalV1(
 	const record = exactRecord(value, EDITORIAL_FIELDS, 'editorial proposal');
 	exactVersion(record.schemaVersion, ASSISTANCE_EDITORIAL_PROPOSAL_SCHEMA_VERSION,
 		'editorial proposal');
-	if (!Array.isArray(allowedCandidateIdsValue)
-		|| allowedCandidateIdsValue.length < 1
-		|| allowedCandidateIdsValue.length > MAXIMUM_ASSISTANCE_EDITORIAL_CANDIDATES) {
-		throw new RangeError('Editorial candidate authority exceeds its exact bound.');
-	}
-	const allowed = new Set(allowedCandidateIdsValue.map((id, index) =>
-		candidateId(id, `editorial candidate authority ${String(index)}`)));
-	if (allowed.size !== allowedCandidateIdsValue.length) {
-		throw new TypeError('Editorial candidate authority repeats an identity.');
-	}
+	const authority = reviewAssistanceEditorialCandidateAuthorityV1(allowedCandidateIdsValue);
+	const allowed = new Set(authority);
 	const candidatesValue = boundedArray(record.candidates,
 		MAXIMUM_ASSISTANCE_EDITORIAL_CANDIDATES, 'editorial candidate inventory');
 	if (candidatesValue.length !== allowed.size) {
@@ -263,7 +258,8 @@ export function reviewAssistanceEditorialProposalV1(
 		if (!allowed.has(id)) throw new RangeError('Editorial output names an unknown candidate id.');
 		if (seen.has(id)) throw new TypeError('Editorial output repeats a candidate id.');
 		seen.add(id);
-		const chaptersValue = boundedArray(row.chapters, 100, `${label} chapter inventory`);
+		const chaptersValue = boundedArray(row.chapters, MAXIMUM_ASSISTANCE_EDITORIAL_CHAPTERS,
+			`${label} chapter inventory`);
 		const chapters = chaptersValue.map((chapter, chapterIndex) => inertText(
 			chapter, 160, `${label} chapter ${String(chapterIndex)}`,
 		));
@@ -274,7 +270,7 @@ export function reviewAssistanceEditorialProposalV1(
 			chapters: Object.freeze(chapters),
 			explanation: nullableInertText(row.explanation, 2_048, `${label} explanation`),
 		});
-		});
+	});
 	if (seen.size !== allowed.size) {
 		throw new RangeError('Editorial output omitted an authorized candidate id.');
 	}
@@ -282,6 +278,20 @@ export function reviewAssistanceEditorialProposalV1(
 		schemaVersion: ASSISTANCE_EDITORIAL_PROPOSAL_SCHEMA_VERSION,
 		candidates: Object.freeze(candidates),
 	});
+}
+
+/** Re-admit the exact top-candidate authority before any optional model invocation. */
+export function reviewAssistanceEditorialCandidateAuthorityV1(value: unknown): readonly string[] {
+	if (!Array.isArray(value) || value.length < 1
+		|| value.length > MAXIMUM_ASSISTANCE_EDITORIAL_CANDIDATES) {
+		throw new RangeError('Editorial candidate authority exceeds its exact bound.');
+	}
+	const reviewed = value.map((id, index) =>
+		candidateId(id, `editorial candidate authority ${String(index)}`));
+	if (new Set(reviewed).size !== reviewed.length) {
+		throw new TypeError('Editorial candidate authority repeats an identity.');
+	}
+	return Object.freeze(reviewed);
 }
 
 function reviewTempoProposal(value: unknown): AssistanceTempoProposalV1 | null {
@@ -344,8 +354,9 @@ function nullableInertText(value: unknown, maximum: number, label: string): stri
 
 function inertText(value: unknown, maximum: number, label: string): string {
 	const result = boundedText(value, maximum, label);
-	if (CONTROL_OR_CODE.test(result) || MARKUP.test(result) || URI_OR_PATH.test(result)) {
-		throw new TypeError(`The ${label} must be inert plain text without markup, code, URI, or path content.`);
+	if (CONTROL_OR_CODE.test(result) || MARKUP.test(result) || URI_OR_PATH.test(result)
+		|| AUTHORED_TIMING.test(result) || EXECUTABLE_TEXT.test(result)) {
+		throw new TypeError(`The ${label} must be inert plain text without timing, markup, executable, URI, or path content.`);
 	}
 	return result;
 }

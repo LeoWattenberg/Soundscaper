@@ -55,7 +55,7 @@ export const EDITOR_OPTIONAL_EXPORT_CHUNK_TEST = new RegExp(
 
 /** Stateful assistance workflows loaded only after their menu-owned dialog is invoked. */
 export const EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST = new RegExp(
-	`${editorPath}(?:controller[\\/]${editorOptionalAssistanceModule}|assistance[\\/](?:binary-formats-v1|disfluency|highlight-ranking-v1|m7-semantic-results|proposal-session|reaction-proposals|reframe-planner-v1|scene-scores|shot-detection|speaker-attribution|transcript-body-publication-v1|transcript-cleanup-presets|transcript-indexing-v1|transcript-ingest|transcript-labels|vad-silence|visual-indexing-v1|workflow(?:-recipes)?))\\.ts$`,
+	`${editorPath}(?:controller[\\/]${editorOptionalAssistanceModule}|assistance[\\/](?:binary-formats-v1|disfluency|editorial-generation-v1|highlight-ranking-v1|m7-semantic-results|proposal-session|reaction-proposals|reframe-planner-v1|scene-scores|shot-detection|speaker-attribution|transcript-body-publication-v1|transcript-cleanup-presets|transcript-indexing-v1|transcript-ingest|transcript-labels|vad-silence|visual-indexing-v1|workflow(?:-recipes)?))\\.ts$`,
 );
 
 /** Menu-opened UI implementations that remain behind existing React.lazy surfaces. */
