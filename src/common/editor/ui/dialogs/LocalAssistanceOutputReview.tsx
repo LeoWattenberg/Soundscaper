@@ -59,6 +59,20 @@ function SemanticReview({ copy, review }: Readonly<{
 			</li>)}
 		</ol>;
 	}
+	if (review.kind === 'shot-boundaries') {
+		return <ol className="kw-local-assistance__shot-boundaries"
+			aria-label={text(copy, 'localAssistanceShotBoundaries', 'Shot boundaries')}>
+			{review.boundaries.map((boundary, index) => <li
+				key={`${boundary.sourceFrame}:${boundary.presentationTick}:${index}`}>
+				<span>{template(text(copy, 'localAssistanceShotBoundaryFrame',
+					'Source frame {sourceFrame} · {confidence}%'), {
+					sourceFrame: String(boundary.sourceFrame),
+					confidence: formatPercent(boundary.score),
+				})}</span>
+				<small>{boundary.presentationTick}/{String(review.timescale)}</small>
+			</li>)}
+		</ol>;
+	}
 	return <ol className="kw-local-assistance__speaker-turns"
 		aria-label={text(copy, 'localAssistanceSpeakerTurns', 'Speaker turns')}>
 		{review.turns.map((turn, index) => <li
@@ -97,4 +111,8 @@ function template(value: string, variables: Readonly<Record<string, string>>): s
 
 function formatSeconds(value: number): string {
 	return value.toFixed(3).replace(/(?:\.0+|(\.\d*?)0+)$/u, '$1');
+}
+
+function formatPercent(value: number): string {
+	return (value * 100).toFixed(1).replace(/\.0$/u, '');
 }

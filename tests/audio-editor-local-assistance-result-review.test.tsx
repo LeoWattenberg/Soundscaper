@@ -65,6 +65,23 @@ test('speaker-turn review admits overlap in stable order and renders only exact 
 	assert.doesNotMatch(markup, /confidence|Speaker A/iu);
 });
 
+test('shot-boundary review admits exact source ordinals and renders detector evidence', async () => {
+	const reviewed = await review('shot-boundaries', {
+		schemaVersion: 1, detector: 'ffmpeg-scdet', timescale: 90_000,
+		sourceFrameCount: 240,
+		boundaries: [{ sourceFrame: 24, presentationTick: '90090', score: 0.425 }],
+	});
+	assert.deepEqual(reviewed, {
+		kind: 'shot-boundaries', schemaVersion: 1, detector: 'ffmpeg-scdet', timescale: 90_000,
+		sourceFrameCount: 240,
+		boundaries: [{ sourceFrame: 24, presentationTick: '90090', score: 0.425 }],
+	});
+	const markup = render(reviewed, 'shot-boundaries');
+	assert.match(markup, /Source frame 24/u);
+	assert.match(markup, /42\.5%/u);
+	assert.match(markup, /90090\/90000/u);
+});
+
 test('voice-activity review rejects inexact JSON, rates, and unsafe or overlapping geometry', async () => {
 	await assert.rejects(reviewBytes('voice-activity', new Uint8Array([0xc3, 0x28])),
 		/valid UTF-8 JSON/u);
@@ -116,14 +133,14 @@ test('semantic review requires the output role-specific JSON media type', async 
 });
 
 async function review(
-	role: 'voice-activity' | 'speaker-turns',
+	role: 'voice-activity' | 'speaker-turns' | 'shot-boundaries',
 	value: unknown,
 ): Promise<LocalAssistanceOutputReview> {
 	return reviewBytes(role, new TextEncoder().encode(JSON.stringify(value)));
 }
 
 async function reviewBytes(
-	role: 'voice-activity' | 'speaker-turns',
+	role: 'voice-activity' | 'speaker-turns' | 'shot-boundaries',
 	bytes: Uint8Array,
 ): Promise<LocalAssistanceOutputReview> {
 	const buffer = new ArrayBuffer(bytes.byteLength);
