@@ -421,10 +421,8 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 	assert.deepEqual(genericPathReferences, [
 		'desktop/project-library-v10-current-project.ts',
 		'desktop/project-library-v12-current-project.ts',
-		'desktop/project-library-v17-current-project.ts',
-		'desktop/project-library-v18-current-project.ts',
-		'desktop/project-library-v19-current-project.ts',
-		'desktop/project-library-v20-current-project.ts',
+		'desktop/project-library-v17-current-project.ts', 'desktop/project-library-v18-current-project.ts',
+		'desktop/project-library-v19-current-project.ts', 'desktop/project-library-v20-current-project.ts',
 		'src/framescaper/desktop-project-library-v10-delete-intents.ts',
 		'src/framescaper/desktop-project-library-v10-renderer-catalog.ts',
 		'src/framescaper/desktop-project-library-v10-renderer-contract.ts',
