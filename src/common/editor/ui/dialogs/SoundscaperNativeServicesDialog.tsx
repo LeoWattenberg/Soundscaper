@@ -76,6 +76,9 @@ export default function SoundscaperNativeServicesDialog({
 		if (next === null) return;
 		event.preventDefault();
 		setSurface(next);
+		requestAnimationFrame(() => {
+			document.getElementById(tabId(next))?.focus({ preventScroll: true });
+		});
 	};
 
 	return <AudioEditorDialogShell
