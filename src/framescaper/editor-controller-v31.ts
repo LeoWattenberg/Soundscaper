@@ -39,6 +39,7 @@ import {
 } from './editor-selected-v32-image-authoring-controller.ts';
 import { bindFramescaperSelectedImagePreviewControllerV32 } from './editor-selected-v32-image-preview-controller.ts';
 import { cloneFramescaperProjectV31 } from './editor-project-v31.ts';
+import { framescaperProjectV32FoundationShapeV31 } from './editor-project-v31-foundation.ts';
 
 const PRESENTATION_FIELDS = ['locale', 'copy', 'fileService'] as const;
 
@@ -186,7 +187,13 @@ export function createFramescaperAudioEditorControllerV31(
 		controller,
 		profile: environment.runtime.profile,
 		store: environment.controllerStore,
-		cloneProject: (profile, project) => cloneFramescaperProjectV31(profile, project) as never,
+		// The V32 image preview and its inherited V28/V27 routes admit an exact V32
+		// document. Handing them the F31 project directly leaves assistance custody
+		// attached, which the immutable V27 validator rejects, so detach it here the
+		// same way the F31 runtime selection does for every other reused V32 route.
+		cloneProject: (profile, project) => framescaperProjectV32FoundationShapeV31(
+			cloneFramescaperProjectV31(profile, project),
+		) as never,
 	});
 	return controller;
 }
