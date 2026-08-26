@@ -125,3 +125,59 @@ test('a fresh worker instance over a partial cache reinstalls completely and the
 	});
 	assert.deepEqual(await cacheStorage.keys(), [stagedName], 'activation retires only after completeness');
 });
+
+test('a readiness marker cannot hide a missing same-release install entry', async () => {
+	const cacheStorage = new MemoryCacheStorage();
+	const configuration = shellConfiguration('5');
+	await installOfflineShell({
+		configuration,
+		cacheStorage,
+		fetchImpl: async (url) => shellResponse(url),
+	});
+	const cacheName = shellCacheName(configuration.releaseId);
+	const cache = await cacheStorage.open(cacheName);
+	await cache.delete('/assets/application.js');
+	let requests = 0;
+
+	await installOfflineShell({
+		configuration,
+		cacheStorage,
+		fetchImpl: async (url) => {
+			requests += 1;
+			return shellResponse(url);
+		},
+	});
+
+	assert.equal(requests, configuration.installUrls.length, 'the invalid candidate is rebuilt, not trusted');
+	assert.equal(
+		await (await cacheStorage.open(cacheName)).match('/assets/application.js').then((value) => value?.text()),
+		'application code',
+	);
+});
+
+test('activation verifies every install entry behind the readiness marker before retiring a prior release', async () => {
+	const cacheStorage = new MemoryCacheStorage();
+	const priorName = shellCacheName('6'.repeat(64));
+	await (await cacheStorage.open(priorName)).put('/', response('prior shell'));
+	const configuration = shellConfiguration('7');
+	await installOfflineShell({
+		configuration,
+		cacheStorage,
+		fetchImpl: async (url) => shellResponse(url),
+	});
+	const candidateName = shellCacheName(configuration.releaseId);
+	await (await cacheStorage.open(candidateName)).put('/embed/en/', response('tampered shell'));
+	let claims = 0;
+
+	await assert.rejects(
+		() => activateOfflineShell({
+			configuration,
+			cacheStorage,
+			clients: { claim: async () => { claims += 1; } },
+		}),
+		/cache is not complete/u,
+	);
+
+	assert.equal(claims, 0);
+	assert.deepEqual(await cacheStorage.keys(), [priorName, candidateName], 'the prior release remains available');
+});

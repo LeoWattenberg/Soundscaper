@@ -11,6 +11,7 @@ export function offlineShellFunctionSources() {
 		shellReadinessUrl,
 		legacyShellReadinessUrl,
 		readinessRecord,
+		cacheHasReadinessMarker,
 		cacheIsComplete,
 		completeReuseCacheNames,
 		verifiedShellResponse,
@@ -145,9 +146,25 @@ async function readinessRecord(cache, cacheName, productId) {
 	}
 }
 
-async function cacheIsComplete(cacheStorage, cacheName, productId) {
+async function cacheHasReadinessMarker(cacheStorage, cacheName, productId) {
 	const cache = await cacheStorage.open(cacheName);
 	return await readinessRecord(cache, cacheName, productId) !== null;
+}
+
+async function cacheIsComplete(cacheStorage, cacheName, configuration, cryptoImpl) {
+	const cache = await cacheStorage.open(cacheName);
+	if (await readinessRecord(cache, cacheName, configuration.productId) === null) return false;
+	const descriptors = new Map(configuration.assets.map((asset) => [asset.url, asset]));
+	for (const url of configuration.installUrls) {
+		const response = await cache.match(url);
+		if (!response) return false;
+		try {
+			await verifiedShellResponse(response, descriptors.get(url), cryptoImpl);
+		} catch {
+			return false;
+		}
+	}
+	return true;
 }
 
 async function completeReuseCacheNames(cacheStorage, productId, candidateName) {
@@ -156,7 +173,7 @@ async function completeReuseCacheNames(cacheStorage, productId, candidateName) {
 		if (cacheName === candidateName) continue;
 		if (!cacheName.startsWith(`soundscaper-application-shell-v2-${productId}-`)
 			&& !cacheName.startsWith('soundscaper-application-shell-v1-')) continue;
-		if (await cacheIsComplete(cacheStorage, cacheName, productId)) reusable.push(cacheName);
+		if (await cacheHasReadinessMarker(cacheStorage, cacheName, productId)) reusable.push(cacheName);
 	}
 	return reusable;
 }
@@ -240,7 +257,7 @@ export async function installOfflineShell({
 		throw new Error('Offline shell release identity is invalid.');
 	}
 	const cacheName = shellCacheName(configuration.productId, configuration.releaseId);
-	if (await cacheIsComplete(cacheStorage, cacheName, configuration.productId)) return cacheName;
+	if (await cacheIsComplete(cacheStorage, cacheName, configuration, cryptoImpl)) return cacheName;
 	const reuseNames = await completeReuseCacheNames(cacheStorage, configuration.productId, cacheName);
 	await cacheStorage.delete(cacheName);
 	const candidate = await cacheStorage.open(cacheName);
@@ -275,10 +292,10 @@ export async function installOfflineShell({
 	return cacheName;
 }
 
-export async function activateOfflineShell({ configuration, cacheStorage, clients }) {
+export async function activateOfflineShell({ configuration, cacheStorage, clients, cryptoImpl = globalThis.crypto }) {
 	validateOfflineShellConfiguration(configuration);
 	const activeName = shellCacheName(configuration.productId, configuration.releaseId);
-	if (!await cacheIsComplete(cacheStorage, activeName, configuration.productId)) {
+	if (!await cacheIsComplete(cacheStorage, activeName, configuration, cryptoImpl)) {
 		throw new Error('Offline shell cache is not complete.');
 	}
 	await clients.claim();
