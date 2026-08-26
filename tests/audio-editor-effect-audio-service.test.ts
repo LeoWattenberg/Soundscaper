@@ -3,23 +3,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {
-	createEffectAudioService,
-	type EffectAudioProject,
-	type EffectAudioState,
-} from '../src/common/editor/controller/effect-audio-service.ts';
+import type { EffectAudioProject } from '../src/common/editor/controller/effect-audio-service.ts';
 import { createEffectControlsService } from '../src/common/editor/controller/effect-controls-service.ts';
 import { createSelectionEffectExecutionService } from '../src/common/editor/controller/effect-execution-service.ts';
-import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
-import type { EffectTarget } from '../src/common/editor/controller/effect-selection-service.ts';
 import { projectGraphLatencyFramesV21 } from '../src/common/editor/engine/project-graph-v21.ts';
 import {
 	AUDIO_SELECTION_EFFECT_DEFINITIONS,
 	createEffect,
 	normalizeAudioSelectionEffectParams,
 } from '../src/common/editor/effects.js';
-import { createAudioClip, createAudioSource, createAudioTrack } from '../src/common/editor/project-media-factory.ts';
-import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
 import { projectTrackFolderMediaStateV12 } from '../src/common/editor/track-folder-media-runtime.ts';
 import {
 	estimateAudioSelectionEffectOutputFrames,
@@ -30,184 +22,11 @@ import {
 	executeSoundscaperProductionOperation,
 	type SoundscaperProductionControllerPort,
 } from '../src/common/editor/ui/workspace/useSoundscaperProductionWorkspace.ts';
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
-
-function deferred<Value>() {
-	let resolve: (value: Value) => void = () => undefined;
-	const promise = new Promise<Value>((accept) => { resolve = accept; });
-	return { promise, resolve };
-}
-
-function createHarness(options: Readonly<{
-	deferRender?: boolean;
-	deferPersistence?: boolean;
-	deferWorker?: boolean;
-	loadFailure?: boolean;
-	memoryLimitBytes?: number;
-	project?: EffectAudioProject;
-	spectralRenderFrameDelta?: number;
-	spectralTargetCount?: 1 | 2;
-	spectralWorkerFrameDelta?: number;
-	validateRenderSnapshot?: (project: EffectAudioProject) => void;
-}> = {}) {
-	let project: EffectAudioProject = options.project ?? {
-		id: 'project-a', schemaVersion: 5, sampleRate: 48_000,
-		tracks: [
-			{
-				id: 'track-a', name: 'A', type: 'audio', clipIds: ['clip-a'], gain: 0.5, pan: 0.2,
-				mute: true, solo: true, envelope: [{ frame: 0 }], spectrogram: { windowSize: 2_048 },
-				effects: [
-					{ id: 'before', type: 'delay', params: {}, enabled: true },
-					{ id: 'noise', type: 'audacity-noise-reduction', params: {}, enabled: false },
-				],
-			},
-			{ id: 'track-b', name: 'B', type: 'audio', clipIds: [], effects: [] },
-		],
-		clips: [{
-			id: 'clip-a', kind: 'audio', sourceId: 'source-a', title: 'Clip',
-			timelineStartFrame: 100, sourceStartFrame: 0, sourceDurationFrames: 4_000, durationFrames: 4_000,
-		}],
-		selection: {
-			startFrame: 100, endFrame: 4_100, trackIds: ['track-a'], clipIds: ['clip-a'],
-			frequencyRange: { minimumFrequency: 80, maximumFrequency: 4_000 },
-		},
-		master: { gain: 0.8, effects: [{ id: 'master', type: 'delay', params: {} }] },
-		mixer: { groups: [{ id: 'group' }], sends: [{ id: 'send' }], routes: { 'track-a': {} } },
-	};
-	const state: EffectAudioState = {
-		selectedTrackId: 'track-a',
-		selectedClipId: 'clip-a',
-		audacityEffectProcessing: false,
-		audacityNoiseProfile: null,
-	};
-	const target: EffectTarget = {
-		track: project.tracks[0]!, clipId: 'clip-a', clipIds: ['clip-a'],
-		startFrame: 100, endFrame: 4_100, durationFrames: 4_000, channelCount: 1, hasAudio: true,
-	};
-	const spectralTargets: EffectTarget[] = [target];
-	if (options.spectralTargetCount === 2) {
-		spectralTargets.push({
-			track: project.tracks[1]!, startFrame: 100, endFrame: 4_100,
-			durationFrames: 4_000, channelCount: 1, hasAudio: true,
-		});
-	}
-	const lifetime = new EditorControllerLifetime();
-	lifetime.markReady();
-	const projectGeneration = new EditorProjectGeneration();
-	projectGeneration.activate(project.id);
-	const render = deferred<Readonly<{ channels: readonly Float32Array[] }>>();
-	const persistence = deferred<void>();
-	const persistenceStarted = deferred<void>();
-	const worker = deferred<Readonly<{ profile: unknown }>>();
-	const snapshots: EffectAudioProject[] = [];
-	const commands: unknown[] = [];
-	const persisted: unknown[] = [];
-	const preflightBytes: number[] = [];
-	const statuses: string[] = [];
-	let publications = 0;
-	let persistenceCommits = 0;
-	let prefixDisposals = 0;
-	let spectralWorkerCalls = 0;
-	const service = createEffectAudioService({
-		lifetime,
-		captureProject: () => projectGeneration.capture(project.id),
-		assertProject: (token) => projectGeneration.assertCurrent(token),
-		state,
-		copy: {
-			audacityApplied: 'Applied', audacityProcessing: 'Processing', audacityProfileProcessing: 'Profiling',
-			audacitySelectionHint: 'Select audio', audioTrackNotFound: 'Track missing', effectProcessingFailed: 'Failed',
-			noiseProfileMinimumSamples: 'Too short', noiseProfileReady: 'Profile ready', rackEffectNotFound: 'Effect missing',
-			spectralAmplify: 'Spectral amplify', spectralApplied: 'Spectral applied', spectralDelete: 'Spectral delete',
-			spectralGainInvalid: 'Bad spectral gain', spectralProcessing: 'Spectral processing',
-			spectralSelectionRequired: 'Select spectrum', v2Required: 'Version 2 required',
-		},
-		memoryLimitBytes: options.memoryLimitBytes ?? 1_000_000_000,
-		getProject: () => project as never,
-		activeSelection: () => project.selection ?? null,
-		audacityEffectTarget: () => target,
-		audacityEffectTargets: () => spectralTargets,
-		audacityEffectSelectionDetails: (selection, targets) => ({
-			trackIds: selection?.trackIds ?? targets.map((entry) => entry.track.id),
-			clipIds: targets.flatMap((entry) => entry.clipId ? [entry.clipId] : []),
-			frequencyRange: selection?.frequencyRange ?? null,
-		}),
-		editingBlocked: () => state.audacityEffectProcessing,
-		projectSampleRate: () => project.sampleRate,
-		currentAudacityEffectParams: () => ({}),
-		estimateAudacityEffectPeakBytes: () => 1,
-		audacityEffectMemoryError: () => new Error('Too large'),
-		preflightStorage: async (bytes) => { preflightBytes.push(bytes); },
-		createId: (prefix) => `${prefix}-id`,
-		cloneProject: (value) => structuredClone(value),
-		audacitySelectionChannelCount: () => 1,
-		renderSnapshot: async (snapshot, renderOptions) => {
-			snapshots.push(structuredClone(snapshot));
-			options.validateRenderSnapshot?.(snapshot);
-			const outputFrames = Number(renderOptions.outputFrames) + (options.spectralRenderFrameDelta ?? 0);
-			return options.deferRender ? render.promise : { channels: [new Float32Array(outputFrames)] };
-		},
-		prepareCommittedTimePitchCaches: async () => undefined,
-		createRenderEngine: () => ({
-			loadProject: (snapshot) => {
-				snapshots.push(structuredClone(snapshot));
-				if (options.loadFailure) throw new Error('load failed');
-			},
-			renderTrack: async () => ({ channels: [new Float32Array([0.3])] }),
-			renderMix: async () => ({ channels: [new Float32Array([0.3]), new Float32Array([0.3])] }),
-			dispose: async () => { prefixDisposals += 1; },
-		}),
-		sourceBuffers: new Map(),
-		audioBufferChannels: (buffer) => [...buffer.channels ?? []],
-		matchAudacitySelectionChannels: (channels, channelCount) => channels.slice(0, channelCount),
-		runSelectionEffectWorker: async () => options.deferWorker
-			? worker.promise
-			: { profile: { bins: [1, 2] } },
-		runSpectralEditWorker: async (channels) => {
-			spectralWorkerCalls += 1;
-			return channels.map((channel) => new Float32Array(
-				channel.length + (options.spectralWorkerFrameDelta ?? 0),
-			));
-		},
-		serializeNoiseProfile: (profile) => ({ serialized: profile }),
-		commit: (command) => { commands.push(command); },
-		persistAudacityEffectResults: async (...args) => {
-			persisted.push(args);
-			if (options.deferPersistence) {
-				persistenceStarted.resolve(undefined);
-				await persistence.promise;
-			}
-			const persistenceOptions = args[2] as Readonly<{ assertCurrent?: () => void }>;
-			persistenceOptions.assertCurrent?.();
-			persistenceCommits += 1;
-		},
-		setStatus: (message) => { statuses.push(message); },
-		publishDocumentSnapshot: () => { publications += 1; },
-	});
-	return {
-		commands,
-		get prefixDisposals() { return prefixDisposals; },
-		get publications() { return publications; },
-		persistence,
-		get persistenceCommits() { return persistenceCommits; },
-		persistenceStarted,
-		persisted,
-		preflightBytes,
-		render,
-		service,
-		setSelection(selection: EffectAudioProject['selection']) { project = { ...project, selection }; },
-		snapshots,
-		state,
-		statuses,
-		target,
-		get spectralWorkerCalls() { return spectralWorkerCalls; },
-		switchProject() {
-			project = { ...project, id: 'project-b' };
-			projectGeneration.invalidate();
-			projectGeneration.activate(project.id);
-		},
-		worker,
-	};
-}
+import {
+	createHarness,
+	folderedLegacyProject,
+	v21RenderProject,
+} from './audio-editor-effect-audio-service-fixture.ts';
 
 test('dry rendering removes unrelated tracks, racks, mixer state, and unselected clips', async () => {
 	const harness = createHarness();
@@ -537,59 +356,6 @@ test('dry rendering a foldered legacy project keeps a hierarchy the engine will 
 	const snapshot = harness.snapshots[0]!;
 	assert.deepEqual(snapshot.tracks.map((track) => track.id), ['voice']);
 });
-
-function folderedLegacyProject() {
-	return createAudioEditorProjectV17({
-		id: 'project-folders', title: 'Foldered legacy', now: '2026-08-19T12:00:00.000Z',
-		sources: [createAudioSource({
-			id: 'source-a', storageKey: 'pcm:a', frameCount: 8, channelCount: 1,
-			sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
-		})],
-		clips: [createAudioClip({
-			id: 'voice-clip', sourceId: 'source-a', title: 'Voice', timelineStartFrame: 0,
-			durationFrames: 8, sourceStartFrame: 0, sourceDurationFrames: 8,
-		})],
-		tracks: [
-			createAudioTrack({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'], effects: [] }),
-			createAudioTrack({ id: 'music', name: 'Music', clipIds: [], effects: [] }),
-		],
-		trackFolders: [{ id: 'stems', name: 'Stems', mute: true }],
-		sequences: [{
-			id: 'main',
-			trackNodes: [
-				{ kind: 'folder', id: 'stems', parentFolderId: null },
-				{ kind: 'track', id: 'voice', parentFolderId: 'stems' },
-				{ kind: 'track', id: 'music', parentFolderId: null },
-			],
-		}],
-		primarySequenceId: 'main',
-	});
-}
-
-function v21RenderProject() {
-	return createSoundscaperProjectV21({
-		id: 'project-a', title: 'Selection render', now: '2026-08-14T12:00:00.000Z',
-		tracks: [
-			createAudioTrack({
-				id: 'track-a', name: 'A', clipIds: [],
-				effects: [
-					createEffect('delay', { id: 'before' }),
-					createEffect('audacity-noise-reduction', { id: 'noise', enabled: false }),
-				],
-			}),
-			createAudioTrack({ id: 'track-b', name: 'B', clipIds: [] }),
-		],
-		sequences: [{ id: 'main', trackIds: ['track-a', 'track-b'] }],
-		primarySequenceId: 'main',
-		automationLanes: [{
-			id: 'track-a-gain',
-			address: { kind: 'strip', strip: { kind: 'track', id: 'track-a' }, parameterId: 'gain' },
-			timebase: 'absolute-samples',
-			points: [{ id: 'start', position: 0, value: 0.25 }],
-			segments: [],
-		}],
-	});
-}
 
 test('master noise profiling commits a master-scoped effect update', async () => {
 	const harness = createHarness();
