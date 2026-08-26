@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -14,6 +14,7 @@ import {
 	findCatalogEntry,
 	mirrorLocalModel,
 	mirrorLocation,
+	uploadImmutableR2File,
 } from '../scripts/lib/local-model-mirror.mjs';
 
 const EVIDENCE = Object.freeze([
@@ -92,9 +93,33 @@ test('a fetched artifact is verified against its pin', { timeout: 20_000 }, asyn
 	assert.equal(String(await readFile(result.path)), PAYLOAD);
 });
 
+test('a fetched artifact reaches its partial file as the response streams', { timeout: 20_000 }, async (t) => {
+	const stagingRoot = await staging(t);
+	const [artifact] = CATALOG.entries[0].upstream.artifacts;
+	const partial = join(stagingRoot, 'silero-vad-v6', `${artifact.fileName}.part`);
+	let firstChunkBytes = null;
+	const first = Buffer.from('silero ');
+	const second = Buffer.from('weights');
+	const fetchImpl = async () => ({
+		status: 200,
+		body: (async function* stream() {
+			yield first;
+			firstChunkBytes = (await stat(partial)).size;
+			yield second;
+		})(),
+	});
+
+	await fetchPinnedArtifact({ artifact, modelId: 'silero-vad-v6', stagingRoot, fetchImpl });
+
+	assert.equal(firstChunkBytes, first.byteLength,
+		'the first chunk is persisted before the response produces the second');
+	await assert.rejects(stat(partial), /ENOENT/u, 'the partial is renamed after verification');
+});
+
 test('bytes that disagree with the pin stop the run', { timeout: 20_000 }, async (t) => {
 	const stagingRoot = await staging(t);
 	const [artifact] = CATALOG.entries[0].upstream.artifacts;
+	const partial = join(stagingRoot, 'silero-vad-v6', `${artifact.fileName}.part`);
 
 	// Same length as the pin, so this reaches the digest check rather than the
 	// cheaper length check in front of it.
@@ -117,11 +142,17 @@ test('bytes that disagree with the pin stop the run', { timeout: 20_000 }, async
 		}),
 		/exceeded its pinned byte length/iu,
 	);
+	await writeFile(partial, 'stale bytes from an interrupted process');
 	await assert.rejects(
 		fetchPinnedArtifact({
 			artifact, modelId: 'silero-vad-v6', stagingRoot, fetchImpl: stubFetch(null, 404),
 		}),
 		/returned HTTP 404/iu,
+	);
+	await assert.rejects(
+		stat(partial),
+		/ENOENT/u,
+		'a rejected stream leaves no unverified partial behind',
 	);
 });
 
@@ -208,6 +239,163 @@ test('publishing uploads every verified artifact to its versioned key', { timeou
 		jurisdiction: 'eu',
 	}]);
 });
+
+test('publishing performs a full public digest readback before reporting success', { timeout: 20_000 }, async (t) => {
+	const stagingRoot = await staging(t);
+	const events = [];
+	const result = await mirrorLocalModel({
+		catalog: CATALOG,
+		evidence: EVIDENCE,
+		modelId: 'silero-vad-v6',
+		stagingRoot,
+		fetchImpl: stubFetch(PAYLOAD),
+		publicFetchImpl: async (url) => {
+			events.push(`readback:${url}`);
+			return stubFetch(PAYLOAD)();
+		},
+		publish: true,
+		execute: async ({ key }) => {
+			events.push(`upload:${key}`);
+			return { status: 0 };
+		},
+	});
+
+	assert.equal(result.published, true);
+	assert.deepEqual(events, [
+		'upload:models/silero-vad-v6/6.2.1/silero_vad.onnx',
+		'readback:https://assets.soundscaper.org/models/silero-vad-v6/6.2.1/silero_vad.onnx',
+	]);
+
+	await assert.rejects(
+		mirrorLocalModel({
+			catalog: CATALOG,
+			evidence: EVIDENCE,
+			modelId: 'silero-vad-v6',
+			stagingRoot,
+			fetchImpl: stubFetch(PAYLOAD),
+			publicFetchImpl: stubFetch('silero weightz'),
+			publish: true,
+			execute: async () => ({ status: 0 }),
+		}),
+		/served .*, not the recorded/iu,
+	);
+});
+
+test('small R2 uploads conditionally create their immutable key', { timeout: 20_000 }, async (t) => {
+	const stagingRoot = await staging(t);
+	const file = join(stagingRoot, 'small.onnx');
+	await writeFile(file, PAYLOAD);
+	const puts = [];
+	const client = {
+		async head() {
+			return new Response(null, { status: 404 });
+		},
+		async put(key, bytes, options) {
+			puts.push({ key, bytes: String(bytes), options });
+			return new Response(null, { status: 412 });
+		},
+	};
+
+	const result = await uploadImmutableR2File({
+		client,
+		key: 'models/example/1.0.0/small.onnx',
+		file,
+		artifact: { byteLength: Buffer.byteLength(PAYLOAD), sha256: DIGEST },
+		contentType: 'application/octet-stream',
+	});
+
+	assert.deepEqual(puts, [{
+		key: 'models/example/1.0.0/small.onnx',
+		bytes: PAYLOAD,
+		options: {
+			contentType: 'application/octet-stream',
+			cacheControl: 'public, max-age=31536000, immutable',
+			ifNoneMatch: '*',
+		},
+	}]);
+	assert.deepEqual(result, { status: 0, multipart: false, reused: true });
+});
+
+test('large immutable uploads resume missing S3 parts and conditionally copy into place',
+	{ timeout: 20_000 }, async (t) => {
+		const stagingRoot = await staging(t);
+		const partSize = 5 * 1024 ** 2;
+		const bytes = Buffer.alloc(partSize + 19, 0x5a);
+		const file = join(stagingRoot, 'large.onnx');
+		await writeFile(file, bytes);
+		const artifact = {
+			byteLength: bytes.byteLength,
+			sha256: createHash('sha256').update(bytes).digest('hex'),
+		};
+		const remoteParts = new Map();
+		const uploads = [];
+		const copies = [];
+		let failSecondPart = true;
+		let stagingKey = null;
+		const client = {
+			bucket: 'soundscaper-assets',
+			async put() {
+				throw new Error('large artifacts must not use PutObject');
+			},
+			async head(key) {
+				return new Response(null, { status: key === stagingKey && copies.length > 0 ? 200 : 404 });
+			},
+			async createMultipartUpload(key) {
+				stagingKey = key;
+				return { uploadId: 'upload-1' };
+			},
+			async listParts() {
+				return [...remoteParts.entries()].map(([partNumber, part]) => ({ partNumber, ...part }));
+			},
+			async uploadPart(_key, _uploadId, partNumber, part) {
+				uploads.push(partNumber);
+				if (partNumber === 2 && failSecondPart) {
+					failSecondPart = false;
+					throw new Error('temporary part failure');
+				}
+				const etag = `"part-${String(partNumber)}"`;
+				remoteParts.set(partNumber, { etag, size: part.byteLength });
+				return { etag };
+			},
+			async completeMultipartUpload(_key, _uploadId, parts) {
+				assert.deepEqual(parts.map(({ partNumber }) => partNumber), [1, 2]);
+				return new Response(null, { status: 200 });
+			},
+			async abortMultipartUpload() {
+				return new Response(null, { status: 204 });
+			},
+			async copy(sourceKey, destinationKey, options) {
+				copies.push({ sourceKey, destinationKey, options });
+				return new Response(null, { status: 200 });
+			},
+			async delete() {
+				return new Response(null, { status: 204 });
+			},
+		};
+		const request = {
+			client,
+			key: 'models/example/1.0.0/large.onnx',
+			file,
+			artifact,
+			contentType: 'application/octet-stream',
+			multipartThreshold: 1,
+			partSize,
+		};
+
+		await assert.rejects(uploadImmutableR2File(request), /temporary part failure/u);
+		const result = await uploadImmutableR2File(request);
+
+		assert.equal(result.status, 0);
+		assert.equal(result.multipart, true);
+		assert.deepEqual(uploads, [1, 2, 2], 'the completed first part is not uploaded again');
+		assert.deepEqual(copies, [{
+			sourceKey: stagingKey,
+			destinationKey: request.key,
+			options: { ifNoneMatch: '*' },
+		}]);
+		await assert.rejects(stat(`${file}.r2-upload.json`), /ENOENT/u,
+			'the durable checkpoint is removed only after the conditional copy');
+	});
 
 test('a failed upload stops the run rather than reporting success', { timeout: 20_000 }, async (t) => {
 	const stagingRoot = await staging(t);
