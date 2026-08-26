@@ -14,6 +14,12 @@ import {
 	type LocalAssistanceRangeLabelAuthority,
 } from './local-assistance-range-label-acceptance.ts';
 import {
+	createLocalAssistanceShotAcceptance,
+} from './local-assistance-shot-acceptance.ts';
+import type {
+	LocalAssistanceSelectedVideoAuthority,
+} from './local-assistance-selected-video.ts';
+import {
 	createLocalAssistanceTranscriptAcceptance,
 	type LocalAssistanceTranscriptAcceptanceStore,
 } from './local-assistance-transcript-acceptance.ts';
@@ -22,6 +28,7 @@ export type LocalAssistanceResultAcceptanceStore = LocalAssistanceTranscriptAcce
 
 export interface LocalAssistanceResultAcceptanceDependencies {
 	readonly currentAuthority: () => LocalAssistanceRangeLabelAuthority;
+	readonly currentVideoAuthority?: () => LocalAssistanceSelectedVideoAuthority;
 	readonly captureProject: () => unknown;
 	readonly assertProject: (token: unknown) => void;
 	readonly store?: LocalAssistanceTranscriptAcceptanceStore;
@@ -34,6 +41,14 @@ export function createLocalAssistanceResultAcceptance(
 	acceptValidatedResult(request: unknown): Promise<void>;
 }> {
 	const rangeLabels = createLocalAssistanceRangeLabelAcceptance(dependencies);
+	const shots = dependencies.currentVideoAuthority
+		? createLocalAssistanceShotAcceptance({
+			currentAuthority: dependencies.currentVideoAuthority,
+			captureProject: dependencies.captureProject,
+			assertProject: dependencies.assertProject,
+			commit: dependencies.commit,
+		})
+		: null;
 	const cleanup = createLocalAssistanceTranscriptCleanupWorkflow({
 		currentAuthority: dependencies.currentAuthority as () => LocalAssistanceTranscriptCleanupAuthority,
 		captureProject: dependencies.captureProject,
@@ -63,6 +78,10 @@ export function createLocalAssistanceResultAcceptance(
 			}
 			if (operation === 'voice-activity-detection' || operation === 'speaker-diarization') {
 				return rangeLabels.acceptValidatedResult(request);
+			}
+			if (operation === 'shot-detection') {
+				if (!shots) throw new Error('Shot acceptance requires selected-video authority.');
+				return shots.acceptValidatedResult(request);
 			}
 			throw new RangeError('This reviewed assistance result has no project acceptance adapter.');
 		},
