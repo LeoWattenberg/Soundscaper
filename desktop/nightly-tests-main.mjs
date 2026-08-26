@@ -5,11 +5,19 @@ import { resolve } from 'node:path';
 import { app, dialog } from 'electron/main';
 
 import { readDesktopNightlyTestsSourceRevision } from './nightly-tests-manifest.mjs';
+import {
+	formatDesktopNightlyTestsSummary,
+	resolveDesktopNightlyTestsPresentation,
+} from '../scripts/lib/desktop-nightly-tests-presentation.mjs';
 import { runDesktopNightlyTests } from '../scripts/lib/desktop-nightly-tests-runtime.mjs';
 
 void startNightlyTests();
 
 async function startNightlyTests() {
+	const { unattended } = resolveDesktopNightlyTestsPresentation({
+		argv: process.argv,
+		environment: process.env,
+	});
 	await app.whenReady();
 	try {
 		const applicationVersion = app.getVersion();
@@ -31,24 +39,41 @@ async function startNightlyTests() {
 			arch: process.arch,
 			sourceRevision,
 		});
-		await dialog.showMessageBox({
-			type: run.exitCode === 0 ? 'info' : 'error',
-			title: 'Soundscaper Nightly Tests',
-			message: run.exitCode === 0
-				? 'Playwright tests and diagnostic metric gates passed.'
-				: 'Playwright tests or diagnostic metric gates did not pass.',
-			detail: `Browser and packaged-runtime results were written to:\n${run.runRoot}`,
-		});
+		if (unattended) {
+			console.log(formatDesktopNightlyTestsSummary({
+				status: run.result?.status ?? (run.exitCode === 0 ? 'passed' : 'failed'),
+				exitCode: run.exitCode,
+				runRoot: run.runRoot,
+			}));
+		} else {
+			await dialog.showMessageBox({
+				type: run.exitCode === 0 ? 'info' : 'error',
+				title: 'Soundscaper Nightly Tests',
+				message: run.exitCode === 0
+					? 'Playwright tests and diagnostic metric gates passed.'
+					: 'Playwright tests or diagnostic metric gates did not pass.',
+				detail: `Browser and packaged-runtime results were written to:\n${run.runRoot}`,
+			});
+		}
 		app.exit(run.exitCode);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		console.error('Soundscaper nightly tests failed to start:', message);
-		await dialog.showMessageBox({
-			type: 'error',
-			title: 'Soundscaper Nightly Tests',
-			message: 'Playwright tests could not start.',
-			detail: message,
-		});
+		if (unattended) {
+			console.log(formatDesktopNightlyTestsSummary({
+				status: 'error',
+				exitCode: 2,
+				runRoot: null,
+				failure: message,
+			}));
+		} else {
+			await dialog.showMessageBox({
+				type: 'error',
+				title: 'Soundscaper Nightly Tests',
+				message: 'Playwright tests could not start.',
+				detail: message,
+			});
+		}
 		app.exit(2);
 	}
 }
