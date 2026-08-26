@@ -10,6 +10,7 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 		admLayout: 'stereo',
 		admRouteLabels: [],
 		admRouteQueries: 0,
+		admRouteWaitsAfterCommit: 0,
 		admRoutes: [],
 		admRoutesAtStart: [],
 		bext: {},
@@ -67,7 +68,14 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 			}
 			if (failOnAdmRouteWait && fixture.admLayout === '5.1' && fixture.admRouteQueries > 0
 				&& JSON.stringify(fixture.admRoutes.slice(2)) !== JSON.stringify(['L', 'R', 'C', 'LFE', 'Ls', 'Rs'])) {
-				throw new Error('The smoke waited on the wrong authored ADM route controls.');
+				// The smoke reads the route controls and only then sleeps, so a delayed layout
+				// commit can land between those two steps. That first sleep was decided against
+				// the controls as they were before the commit and is not a wait on the wrong
+				// ones; every later sleep is, because by then the smoke has seen the 5.1 set.
+				fixture.admRouteWaitsAfterCommit += 1;
+				if (fixture.admRouteWaitsAfterCommit > 1) {
+					throw new Error('The smoke waited on the wrong authored ADM route controls.');
+				}
 			}
 			return setTimeout(callback, Math.min(milliseconds, 5));
 		},
