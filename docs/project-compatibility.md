@@ -292,24 +292,28 @@ duplicate.
 Non-empty schema 17 timelineAnnotations state reconciles one reserved
 soundscaper.timeline-annotations requirement for
 org.soundscaper.capability.timeline-annotations with disposition bypass and no
-fallback. Soundscaper registers the capability available, so compatibility
-evaluation reports available/native and its capability-gated command,
-controller, pointer and keyboard UI, ripple-edit, clipboard, AUP/AUP4 label, and
-RIFF cue paths author and preserve canonical markers and positive regions.
-Framescaper registers the capability known but unavailable, so the same state
-reports unavailable/bypassed rather than unknown and opens only through the
-existing read-only preservation decision. The capability remains excluded from
-both audio and video rendered-fallback sets, and publisher-authored audio or
-video rendered fallback for it rejects. Exact-V17 clone, validation, runtime
-projection, atomic command reconciliation, current-format `.scape` persistence,
-and maintained desktop handoff preserve authoritative annotation coordinates,
-order, selection, stable IDs, batch identity, and opaque extensions within their
-tested interchange limits. Audacity export reports losses that its label model
-cannot represent; RIFF export clips or omits annotations at the selected media
-range and reports stable-ID, batch, anchor, color, and opaque-extension loss.
-This rule claims no Framescaper-native annotation editing, playback rendering,
-audio or video fallback, or semantic preservation beyond the tested
-current-schema and interchange paths.
+fallback. Soundscaper and the selected Framescaper F31 profile register the
+capability available, so current compatibility evaluation reports
+available/native and the shared capability-gated command, controller, pointer
+and keyboard UI, ripple-edit, clipboard, AUP/AUP4 label, and RIFF cue paths
+author and preserve canonical markers and positive regions. F31 reviewed shot
+acceptance also revalidates exact source and selection authority before
+replacing only its owned in-selection markers through the ordinary annotation
+command path. Historical Framescaper F18 through F28 profiles keep the
+capability known but unavailable, so their owned documents retain
+unavailable/bypassed preservation rather than acquiring native authority. The
+capability remains excluded from both audio and video rendered-fallback sets,
+and publisher-authored audio or video rendered fallback for it rejects.
+Exact-V17 clone, validation, runtime projection, atomic command reconciliation,
+current-format `.scape` persistence, and maintained desktop handoff preserve
+authoritative annotation coordinates, order, selection, stable IDs, batch
+identity, and opaque extensions within their tested interchange limits. Audacity
+export reports losses that its label model cannot represent; RIFF export clips
+or omits annotations at the selected media range and reports stable-ID, batch,
+anchor, color, and opaque-extension loss. This rule claims no annotation
+contribution to playback rendering, audio or video fallback, or semantic
+preservation beyond the tested current-schema and interchange paths, and pending
+manual qualification does not disable this bounded native path.
 <!-- /policy-narrative:timeline-annotation-capability -->
 
 ## Nested track folder compatibility
