@@ -290,3 +290,33 @@ test('proposals are ordered and identified stably', () => {
 	);
 	assert.equal(new Set(first.map(({ id }) => id)).size, first.length, 'ids are unique');
 });
+
+/**
+ * A segment can carry text with no word timing — ingest keeps one whose words
+ * were all dropped as blank. Silence is derived from the gaps between words, so
+ * such a segment leaves a gap that spans its speech; proposing to delete it
+ * would ripple away audible dialogue under the label "silence".
+ */
+test('a segment without word timing is never proposed as silence', () => {
+	const transcript = createAssistanceTranscript(draft({
+		segments: [
+			{
+				startFrame: 0,
+				endFrame: 48_000,
+				words: [{ text: 'hello', startFrame: 0, endFrame: 48_000, confidence: 0.9 }],
+			},
+			{ startFrame: 48_000, endFrame: 480_000, text: 'a long stretch of real speech', words: [] },
+			{
+				startFrame: 480_000,
+				endFrame: 528_000,
+				words: [{ text: 'bye', startFrame: 480_000, endFrame: 528_000, confidence: 0.9 }],
+			},
+		],
+	}));
+
+	assert.deepEqual(
+		findDisfluencyProposals(transcript, { minSilenceFrames: 96_000 }),
+		[],
+		'the untimed segment carries speech, so the gap around it is not silence',
+	);
+});

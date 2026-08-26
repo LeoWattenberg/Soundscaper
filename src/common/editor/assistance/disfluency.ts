@@ -105,11 +105,22 @@ export function findDisfluencyProposals(
 	}
 
 	if (minSilenceFrames > 0) {
+		// Silence is read from the gaps between words, so a segment that carries
+		// text but no word timing — ingest keeps one whose words were all dropped
+		// as blank — leaves a gap spanning its speech. Deleting that as silence
+		// would ripple away audible dialogue, so those gaps are left alone.
+		const untimed = transcript.segments.filter(
+			(segment) => segment.words.length === 0 && segment.text !== '',
+		);
 		for (const [index, word] of words.entries()) {
 			if (index === 0) continue;
 			const previous = words[index - 1] as TranscriptWord;
 			const gap = word.startFrame - previous.endFrame;
 			if (gap < minSilenceFrames) continue;
+			if (untimed.some(
+				(segment) => segment.startFrame < word.startFrame
+					&& segment.endFrame > previous.endFrame,
+			)) continue;
 			const startFrame = previous.endFrame + padding;
 			const endFrame = word.startFrame - padding;
 			if (endFrame <= startFrame) continue;
