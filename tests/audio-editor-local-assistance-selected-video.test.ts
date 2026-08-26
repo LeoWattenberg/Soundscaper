@@ -47,6 +47,7 @@ test('selected CFR video inventory and preparation retain exact occurrence and o
 	assert.deepEqual(fixture.events, ['owned:video-original']);
 	assert.equal(prepared.sourceId, 'video-source');
 	assert.equal(prepared.operation, 'shot-detection');
+	assert.equal(prepared.shotDetectionMode, 'fast');
 	assert.equal(prepared.inputs.length, 1);
 	assert.equal(prepared.inputs[0]?.role, 'video');
 	assert.equal(prepared.inputs[0]?.mediaType, 'video/mp4');
@@ -63,9 +64,33 @@ test('selected CFR video inventory and preparation retain exact occurrence and o
 	assert.equal(prepared.selectionFence.sourceEndFrame, 120);
 	assert.match(prepared.selectionFence.linkMembershipSha256, /^[a-f\d]{64}$/u);
 	assert.match(prepared.selectionFence.timingAuthoritySha256, /^[a-f\d]{64}$/u);
-	assert.strictEqual(normalizeLocalAssistancePreparedMedia(prepared, {
+	const normalized = normalizeLocalAssistancePreparedMedia(prepared, {
 		sourceId: 'video-source', operation: 'shot-detection',
-	}).inputs[0]?.bytes, prepared.inputs[0]?.bytes);
+	});
+	assert.strictEqual(normalized.inputs[0]?.bytes, prepared.inputs[0]?.bytes);
+	assert.equal(normalized.shotDetectionMode, 'fast');
+});
+
+test('selected video preparation carries an explicit accurate mode without substituting Fast', async () => {
+	const fixture = videoFixture();
+	const prepared = await fixture.preparation.prepareSelectedMedia({
+		sourceId: 'video-source', operation: 'shot-detection', shotDetectionMode: 'accurate',
+	});
+	assert.equal(prepared.shotDetectionMode, 'accurate');
+	assert.equal(normalizeLocalAssistancePreparedMedia(prepared, {
+		sourceId: 'video-source', operation: 'shot-detection', shotDetectionMode: 'accurate',
+	}).shotDetectionMode, 'accurate');
+	assert.throws(() => normalizeLocalAssistancePreparedMedia(prepared, {
+		sourceId: 'video-source', operation: 'shot-detection',
+	}), /mode|selection/iu, 'the legacy Fast route must not silently consume Accurate preparation');
+	assert.deepEqual(fixture.events, ['owned:video-original']);
+
+	const refused = videoFixture();
+	await assert.rejects(refused.preparation.prepareSelectedMedia({
+		sourceId: 'video-source', operation: 'shot-detection',
+		shotDetectionMode: 'quality' as never,
+	}), /mode|request/iu);
+	assert.deepEqual(refused.events, [], 'an unsupported mode must not fall back to Fast custody');
 });
 
 test('selected preparation composition routes F31 video without entering the audio renderer', async () => {

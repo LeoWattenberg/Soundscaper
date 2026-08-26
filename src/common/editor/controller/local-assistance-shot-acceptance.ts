@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Transactional F31 marker acceptance for reviewed fast-FFmpeg shot cuts. */
+/** Transactional F31 marker acceptance for reviewed Fast and Accurate shot cuts. */
 
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
@@ -11,6 +11,13 @@ import {
 	validateAssistanceSelectionFence,
 	type AssistanceSelectionFence,
 } from '../assistance/proposal-session.ts';
+import { MAX_SHOTS } from '../assistance/shots.ts';
+import {
+	LOCAL_ASSISTANCE_TRANSNET_V2_MODEL_ID,
+	LOCAL_ASSISTANCE_TRANSNET_V2_MODEL_TASK,
+	normalizeLocalAssistanceShotDetector,
+	type LocalAssistanceShotDetector,
+} from '../assistance/shot-detection-mode.ts';
 import {
 	createAddTimelineAnnotationCommand,
 	createRemoveTimelineAnnotationsCommand,
@@ -22,6 +29,10 @@ import {
 	type TimelineAnnotationV11,
 } from '../timeline-annotation.ts';
 import type { RationalRate } from '../timeline-time.ts';
+import {
+	VIDEO_TIMING_ASSET_MAXIMUM_FRAMES,
+	VIDEO_TIMING_ASSET_MAXIMUM_TIMESCALE,
+} from '../video-timing-asset-reference.ts';
 import type {
 	LocalAssistanceSelectedVideoAuthority,
 } from './local-assistance-selected-video.ts';
@@ -52,7 +63,7 @@ interface ShotBoundary {
 }
 
 interface ShotReview {
-	readonly detector: 'ffmpeg-scdet';
+	readonly detector: LocalAssistanceShotDetector;
 	readonly timescale: number;
 	readonly sourceFrameCount: number;
 	readonly boundaries: readonly ShotBoundary[];
@@ -189,28 +200,30 @@ function normalizeRequest(value: unknown): NormalizedRequest {
 	if (request.operation !== 'shot-detection' || request.sourceId !== fence.sourceId) {
 		throw new TypeError('Shot acceptance requires the exact selected source and operation.');
 	}
-	if (!Array.isArray(request.models) || request.models.length !== 0) {
-		throw new RangeError('Fast shot detection acceptance must remain model-free.');
-	}
 	if (!Array.isArray(request.outputs) || request.outputs.length !== 1) {
 		throw new RangeError('Shot acceptance requires one reviewed output.');
 	}
 	const output = exactRecord(request.outputs[0], ['claim', 'review'], 'reviewed shot output');
 	validateClaim(output.claim);
-	return Object.freeze({ fence, review: normalizeReview(output.review) });
+	const review = normalizeReview(output.review);
+	normalizeModels(request.models, review.detector);
+	return Object.freeze({ fence, review });
 }
 
 function normalizeReview(value: unknown): ShotReview {
 	const review = exactRecord(value,
 		['kind', 'schemaVersion', 'detector', 'timescale', 'sourceFrameCount', 'boundaries'],
 		'shot review');
-	if (review.kind !== 'shot-boundaries' || review.schemaVersion !== 1
-		|| review.detector !== 'ffmpeg-scdet') {
+	if (review.kind !== 'shot-boundaries' || review.schemaVersion !== 1) {
 		throw new TypeError('The reviewed shot result has an unsupported schema.');
 	}
-	const timescale = integer(review.timescale, 1, 'shot timescale');
-	const sourceFrameCount = integer(review.sourceFrameCount, 1, 'shot source-frame count');
-	if (!Array.isArray(review.boundaries) || review.boundaries.length > 100_000) {
+	const detector = normalizeLocalAssistanceShotDetector(review.detector);
+	const timescale = boundedInteger(review.timescale, 1,
+		VIDEO_TIMING_ASSET_MAXIMUM_TIMESCALE, 'shot timescale');
+	const sourceFrameCount = boundedInteger(review.sourceFrameCount, 1,
+		VIDEO_TIMING_ASSET_MAXIMUM_FRAMES, 'shot source-frame count');
+	if (!Array.isArray(review.boundaries)
+		|| review.boundaries.length > Math.min(MAX_SHOTS, sourceFrameCount)) {
 		throw new RangeError('The reviewed shot result exceeds its boundary bound.');
 	}
 	let priorFrame = -1;
@@ -239,8 +252,38 @@ function normalizeReview(value: unknown): ShotReview {
 		return Object.freeze({ sourceFrame,
 			presentationTick: boundary.presentationTick, score: boundary.score });
 	});
-	return Object.freeze({ detector: 'ffmpeg-scdet', timescale, sourceFrameCount,
+	return Object.freeze({ detector, timescale, sourceFrameCount,
 		boundaries: Object.freeze(boundaries) });
+}
+
+function normalizeModels(value: unknown, detector: LocalAssistanceShotDetector): void {
+	if (!Array.isArray(value)) {
+		throw new TypeError('Shot acceptance requires an exact model set.');
+	}
+	if (detector === 'ffmpeg-scdet') {
+		if (value.length !== 0) {
+			throw new RangeError('Fast shot detection acceptance must remain model-free.');
+		}
+		return;
+	}
+	if (value.length !== 1) {
+		throw new RangeError('Accurate shot detection requires one exact TransNetV2 model binding.');
+	}
+	const model = exactRecord(value[0],
+		['modelId', 'version', 'task', 'artifactSha256s'], 'TransNetV2 model binding');
+	if (model.modelId !== LOCAL_ASSISTANCE_TRANSNET_V2_MODEL_ID
+		|| model.task !== LOCAL_ASSISTANCE_TRANSNET_V2_MODEL_TASK
+		|| typeof model.version !== 'string' || model.version.length < 1
+		|| model.version.length > 160 || model.version.trim() !== model.version) {
+		throw new TypeError('Accurate shot detection has an invalid TransNetV2 model identity or role.');
+	}
+	if (!Array.isArray(model.artifactSha256s) || model.artifactSha256s.length < 1
+		|| model.artifactSha256s.length > 64
+		|| model.artifactSha256s.some((candidate) => typeof candidate !== 'string'
+			|| !SHA256.test(candidate))
+		|| new Set(model.artifactSha256s).size !== model.artifactSha256s.length) {
+		throw new TypeError('Accurate shot detection has invalid model artifact authority.');
+	}
 }
 
 function validateClaim(value: unknown): void {
@@ -357,6 +400,12 @@ function integer(value: unknown, minimum: number, label: string): number {
 		throw new RangeError(`The ${label} is invalid.`);
 	}
 	return Number(value);
+}
+
+function boundedInteger(value: unknown, minimum: number, maximum: number, label: string): number {
+	const result = integer(value, minimum, label);
+	if (result > maximum) throw new RangeError(`The ${label} is invalid.`);
+	return result;
 }
 
 function safeAdd(left: number, right: number, label: string): number {

@@ -1,12 +1,16 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Authenticated, frame-exact selected-video custody for model-free assistance. */
+/** Authenticated, frame-exact selected-video custody for explicit shot modes. */
 
 import {
 	normalizeAssistanceOperation,
 	type AssistanceOperation,
 } from '../assistance/operation.ts';
 import type { AssistanceSelectionFence } from '../assistance/proposal-session.ts';
+import {
+	normalizeLocalAssistanceShotDetectionMode,
+	type LocalAssistanceShotDetectionMode,
+} from '../assistance/shot-detection-mode.ts';
 import { FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION } from '../project-schema-version.ts';
 import {
 	canonicalMediaContentBlob,
@@ -72,6 +76,7 @@ export interface LocalAssistanceSelectedVideoAuthority {
 export interface LocalAssistanceSelectedVideoPrepared {
 	readonly sourceId: string;
 	readonly operation: 'shot-detection';
+	readonly shotDetectionMode: LocalAssistanceShotDetectionMode;
 	readonly selectionFence: AssistanceSelectionFence;
 	readonly inputs: readonly Readonly<{
 		readonly role: 'video';
@@ -95,6 +100,7 @@ export interface LocalAssistanceSelectedVideoPreparation {
 	prepareSelectedMedia(request: Readonly<{
 		readonly sourceId: string;
 		readonly operation: AssistanceOperation;
+		readonly shotDetectionMode?: LocalAssistanceShotDetectionMode;
 		readonly signal?: AbortSignal;
 	}>): Promise<LocalAssistanceSelectedVideoPrepared>;
 }
@@ -120,6 +126,7 @@ export function createLocalAssistanceSelectedVideoPreparation(
 	async function prepareSelectedMedia(value: Readonly<{
 		readonly sourceId: string;
 		readonly operation: AssistanceOperation;
+		readonly shotDetectionMode?: LocalAssistanceShotDetectionMode;
 		readonly signal?: AbortSignal;
 	}>): Promise<LocalAssistanceSelectedVideoPrepared> {
 		const request = preparationRequest(value);
@@ -163,6 +170,7 @@ export function createLocalAssistanceSelectedVideoPreparation(
 		return Object.freeze({
 			sourceId: request.sourceId,
 			operation: 'shot-detection' as const,
+			shotDetectionMode: request.shotDetectionMode,
 			selectionFence: selected.fence,
 			inputs: Object.freeze([Object.freeze({
 				role: 'video' as const, mediaType: sourceMediaType, bytes,
@@ -301,12 +309,15 @@ function assertIdentityTiming(clip: DataRecord, source: DataRecord, sequence: Da
 }
 
 function preparationRequest(value: unknown): Readonly<{
-	sourceId: string; operation: AssistanceOperation; signal?: AbortSignal;
+	sourceId: string;
+	operation: AssistanceOperation;
+	shotDetectionMode: LocalAssistanceShotDetectionMode;
+	signal?: AbortSignal;
 }> {
+	const fields = ['sourceId', 'operation', 'shotDetectionMode', 'signal'];
 	if (!value || typeof value !== 'object' || Array.isArray(value)
-		|| Reflect.ownKeys(value).length < 2 || Reflect.ownKeys(value).length > 3
 		|| !Object.hasOwn(value, 'sourceId') || !Object.hasOwn(value, 'operation')
-		|| (Reflect.ownKeys(value).length === 3 && !Object.hasOwn(value, 'signal'))) {
+		|| Reflect.ownKeys(value).some((key) => typeof key !== 'string' || !fields.includes(key))) {
 		throw new TypeError('Selected-video preparation requires its exact request.');
 	}
 	const record = value as DataRecord;
@@ -316,6 +327,9 @@ function preparationRequest(value: unknown): Readonly<{
 	return Object.freeze({
 		sourceId: identifier(record.sourceId, 'requested source ID'),
 		operation: normalizeAssistanceOperation(record.operation),
+		shotDetectionMode: Object.hasOwn(record, 'shotDetectionMode')
+			? normalizeLocalAssistanceShotDetectionMode(record.shotDetectionMode)
+			: 'fast',
 		...(record.signal ? { signal: record.signal } : {}),
 	});
 }

@@ -3,6 +3,7 @@
 /** Operation-owned routing across exact selected audio and selected video custody. */
 
 import type { AssistanceOperation } from '../assistance/operation.ts';
+import type { LocalAssistanceShotDetectionMode } from '../assistance/shot-detection-mode.ts';
 
 export interface LocalAssistancePreparationInventorySource {
 	readonly sourceId: string;
@@ -18,6 +19,7 @@ export interface LocalAssistancePreparationInventory {
 export interface LocalAssistancePreparationRequest {
 	readonly sourceId: string;
 	readonly operation: AssistanceOperation;
+	readonly shotDetectionMode?: LocalAssistanceShotDetectionMode;
 	readonly signal?: AbortSignal;
 }
 
@@ -42,7 +44,7 @@ export interface LocalAssistanceSelectedMediaPreparationRouterDependencies<
 	readonly video: LocalAssistanceSelectedMediaPreparationPort<VideoPrepared> | null;
 }
 
-/** Keep the model-free video operation separate from the audio render pipeline. */
+/** Keep mode-explicit video shot detection separate from the audio render pipeline. */
 export function createLocalAssistanceSelectedMediaPreparationRouter<AudioPrepared, VideoPrepared>(
 	dependencies: LocalAssistanceSelectedMediaPreparationRouterDependencies<AudioPrepared, VideoPrepared>,
 ): Readonly<LocalAssistanceSelectedMediaPreparationRouter<AudioPrepared, VideoPrepared>> {

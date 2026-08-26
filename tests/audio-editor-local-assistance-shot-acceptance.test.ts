@@ -17,13 +17,22 @@ const FENCE = Object.freeze({
 	linkMembershipSha256: 'cd'.repeat(32), timingAuthoritySha256: 'ef'.repeat(32),
 });
 
+const TRANSNET_MODEL = Object.freeze({
+	modelId: 'transnetv2', version: '1.0.0', task: 'shot-detection',
+	artifactSha256s: Object.freeze(['12'.repeat(32)]),
+});
+
 function reviewed(boundaries = [
 	{ sourceFrame: 24, presentationTick: '90090', score: 0.425 },
 	{ sourceFrame: 120, presentationTick: '450450', score: 0.9 },
-]) {
+], options: Readonly<{
+	detector?: 'ffmpeg-scdet' | 'transnetv2';
+	models?: readonly Readonly<Record<string, unknown>>[];
+}> = {}) {
+	const detector = options.detector ?? 'ffmpeg-scdet';
 	return Object.freeze({
 		sourceId: 'video-source', operation: 'shot-detection', selectionFence: FENCE,
-		models: Object.freeze([]),
+		models: Object.freeze(options.models ?? (detector === 'transnetv2' ? [TRANSNET_MODEL] : [])),
 		outputs: Object.freeze([Object.freeze({
 			claim: Object.freeze({
 				claimVersion: 1, claimId: '1'.repeat(40), jobId: '2'.repeat(40),
@@ -32,11 +41,20 @@ function reviewed(boundaries = [
 				byteLength: 512, sha256: '34'.repeat(32),
 			}),
 			review: Object.freeze({
-				kind: 'shot-boundaries', schemaVersion: 1, detector: 'ffmpeg-scdet',
+				kind: 'shot-boundaries', schemaVersion: 1, detector,
 				timescale: 90_000, sourceFrameCount: 240, boundaries: Object.freeze(boundaries),
 			}),
 		})]),
 	});
+}
+
+function accurateReviewed(boundaries = [
+	{ sourceFrame: 24, presentationTick: '90090', score: 0.425 },
+	{ sourceFrame: 120, presentationTick: '450450', score: 0.9 },
+], options: Readonly<{
+	models?: readonly Readonly<Record<string, unknown>>[];
+}> = {}) {
+	return reviewed(boundaries, { detector: 'transnetv2', ...options });
 }
 
 function authority(timelineAnnotations: readonly Readonly<Record<string, unknown>>[] = []) {
@@ -102,6 +120,79 @@ test('reviewed cuts inside the exact occurrence become one stable F31 marker bat
 	assert.equal(replacement.commands[0]?.type, 'timeline-annotation/remove-many');
 	assert.deepEqual(replacement.commands[0]?.annotationIds, [add.annotation.id]);
 	assert.equal(replacement.commands[1]?.type, 'timeline-annotation/add');
+});
+
+test('reviewed TransNetV2 cuts emit the same canonical markers and never timeline cuts', async () => {
+	const current = authority();
+	const commits: Readonly<Record<string, unknown>>[] = [];
+	const acceptance = createLocalAssistanceShotAcceptance({
+		currentAuthority: () => current as never,
+		captureProject: () => current.project,
+		assertProject: (token) => assert.strictEqual(token, current.project),
+		commit: (command) => commits.push(command),
+	});
+	await acceptance.acceptValidatedResult(accurateReviewed());
+	assert.equal(commits.length, 1);
+	const batch = commits[0] as Readonly<{
+		type: string; commands: readonly Readonly<Record<string, unknown>>[];
+	}>;
+	assert.equal(batch.type, 'batch');
+	assert.deepEqual(batch.commands.map(({ type }) => type), ['timeline-annotation/add']);
+	const annotation = batch.commands[0]?.annotation as Readonly<Record<string, unknown>>;
+	assert.equal(annotation.kind, 'marker');
+	assert.equal(annotation.positionFrame, 28_000);
+	const extensions = annotation.opaqueExtensions as Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+	assert.equal(extensions['org.soundscaper.assistance-shot-boundaries-v1']?.detector, 'transnetv2');
+});
+
+test('shot acceptance binds each detector to its exact model identity and role', async () => {
+	const current = authority();
+	const acceptance = createLocalAssistanceShotAcceptance({
+		currentAuthority: () => current as never,
+		captureProject: () => current.project,
+		assertProject: () => undefined,
+		commit: () => undefined,
+	});
+	for (const [name, candidate] of [
+		['missing accurate model', accurateReviewed([], { models: [] })],
+		['wrong model identity', accurateReviewed([], { models: [{
+			...TRANSNET_MODEL, modelId: 'another-shot-detector',
+		}] })],
+		['wrong model role', accurateReviewed([], { models: [{
+			...TRANSNET_MODEL, task: 'image-text-embedding',
+		}] })],
+		['wrong model version', accurateReviewed([], { models: [{
+			...TRANSNET_MODEL, version: '',
+		}] })],
+		['wrong model artifact authority', accurateReviewed([], { models: [{
+			...TRANSNET_MODEL, artifactSha256s: ['not-a-digest'],
+		}] })],
+		['model supplied to Fast', reviewed([], { models: [TRANSNET_MODEL] })],
+	] as const) await assert.rejects(acceptance.acceptValidatedResult(candidate),
+		/model|TransNet|Fast|detector/iu, name);
+});
+
+test('accurate shot acceptance rechecks finite ordering and the exact fence before mutation', async () => {
+	const current = authority();
+	let commits = 0;
+	const acceptance = createLocalAssistanceShotAcceptance({
+		currentAuthority: () => current as never,
+		captureProject: () => current.project,
+		assertProject: () => undefined,
+		commit: () => { commits += 1; },
+	});
+	for (const boundaries of [
+		[{ sourceFrame: 24, presentationTick: '90090', score: Number.NaN }],
+		[
+			{ sourceFrame: 25, presentationTick: '90090', score: 0.8 },
+			{ sourceFrame: 24, presentationTick: '90091', score: 0.7 },
+		],
+	]) await assert.rejects(acceptance.acceptValidatedResult(accurateReviewed(boundaries)),
+		/score|ordered/iu);
+	await assert.rejects(acceptance.acceptValidatedResult({
+		...accurateReviewed(), selectionFence: { ...FENCE, revision: 8 },
+	}), /stale|selection/iu);
+	assert.equal(commits, 0);
 });
 
 test('shot acceptance refuses source mismatch, model authority, stale selection, and annotation overflow', async () => {

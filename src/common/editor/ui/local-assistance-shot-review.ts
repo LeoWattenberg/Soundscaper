@@ -1,8 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Strict semantic review for authenticated fast-FFmpeg shot results. */
+/** Strict semantic review for authenticated Fast and Accurate shot results. */
 
 import { MAX_SHOTS } from '../assistance/shots.ts';
+import {
+	normalizeLocalAssistanceShotDetector,
+	type LocalAssistanceShotDetector,
+} from '../assistance/shot-detection-mode.ts';
 import {
 	VIDEO_TIMING_ASSET_MAXIMUM_FRAMES,
 	VIDEO_TIMING_ASSET_MAXIMUM_TIMESCALE,
@@ -17,7 +21,7 @@ export interface LocalAssistanceShotBoundaryReview {
 export interface LocalAssistanceShotBoundariesReview {
 	readonly kind: 'shot-boundaries';
 	readonly schemaVersion: 1;
-	readonly detector: 'ffmpeg-scdet';
+	readonly detector: LocalAssistanceShotDetector;
 	readonly timescale: number;
 	readonly sourceFrameCount: number;
 	readonly boundaries: readonly LocalAssistanceShotBoundaryReview[];
@@ -36,9 +40,10 @@ export function reviewLocalAssistanceShotBoundaries(
 	value: unknown,
 ): LocalAssistanceShotBoundariesReview {
 	const record = exactRecord(value, RESULT_FIELDS, 'shot-boundaries result');
-	if (record.schemaVersion !== 1 || record.detector !== 'ffmpeg-scdet') {
-		throw new RangeError('The shot-boundaries result has an unsupported schema or detector.');
+	if (record.schemaVersion !== 1) {
+		throw new RangeError('The shot-boundaries result has an unsupported schema.');
 	}
+	const detector = normalizeLocalAssistanceShotDetector(record.detector);
 	const timescale = positiveInteger(record.timescale,
 		VIDEO_TIMING_ASSET_MAXIMUM_TIMESCALE, 'shot timescale');
 	const sourceFrameCount = positiveInteger(record.sourceFrameCount,
@@ -72,7 +77,7 @@ export function reviewLocalAssistanceShotBoundaries(
 		return Object.freeze({ sourceFrame, presentationTick, score: boundary.score });
 	});
 	return Object.freeze({
-		kind: 'shot-boundaries', schemaVersion: 1, detector: 'ffmpeg-scdet',
+		kind: 'shot-boundaries', schemaVersion: 1, detector,
 		timescale, sourceFrameCount, boundaries: Object.freeze(boundaries),
 	});
 }

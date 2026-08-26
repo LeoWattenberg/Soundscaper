@@ -11,6 +11,10 @@ import {
 	validateAssistanceSelectionFence,
 	type AssistanceSelectionFence,
 } from '../assistance/proposal-session.ts';
+import {
+	normalizeLocalAssistanceShotDetectionMode,
+	type LocalAssistanceShotDetectionMode,
+} from '../assistance/shot-detection-mode.ts';
 import type {
 	LocalAssistanceInputRole,
 	LocalAssistanceModel,
@@ -51,6 +55,7 @@ export interface LocalAssistancePreparedOutput {
 export interface LocalAssistancePreparedMedia {
 	readonly sourceId: string;
 	readonly operation: AssistanceOperation;
+	readonly shotDetectionMode?: LocalAssistanceShotDetectionMode;
 	readonly selectionFence: AssistanceSelectionFence;
 	readonly inputs: readonly LocalAssistancePreparedInput[];
 	readonly outputs: readonly LocalAssistancePreparedOutput[];
@@ -61,6 +66,7 @@ export interface LocalAssistanceSelectedMediaPreparationPort {
 	prepareSelectedMedia(request: Readonly<{
 		sourceId: string;
 		operation: AssistanceOperation;
+		shotDetectionMode?: LocalAssistanceShotDetectionMode;
 		signal?: AbortSignal;
 	}>): Promise<unknown>;
 	acceptValidatedResult?(request: LocalAssistanceValidatedResultAcceptanceRequest): Promise<void>;
@@ -186,10 +192,17 @@ export function normalizeLocalAssistanceSelectedMediaInventory(
 
 export function normalizeLocalAssistancePreparedMedia(
 	value: unknown,
-	expected: Readonly<{ sourceId: string; operation: AssistanceOperation }>,
+	expected: Readonly<{
+		sourceId: string;
+		operation: AssistanceOperation;
+		shotDetectionMode?: LocalAssistanceShotDetectionMode;
+	}>,
 ): LocalAssistancePreparedMedia {
+	const hasShotDetectionMode = Boolean(value && typeof value === 'object'
+		&& Object.hasOwn(value, 'shotDetectionMode'));
 	const record = exactRecord(value, [
 		'sourceId', 'operation', 'selectionFence', 'inputs', 'outputs',
+		...(hasShotDetectionMode ? ['shotDetectionMode'] : []),
 	], 'prepared selected media');
 	const sourceId = id(record.sourceId);
 	const operation = normalizeAssistanceOperation(record.operation);
@@ -199,7 +212,27 @@ export function normalizeLocalAssistancePreparedMedia(
 	const operationSpec = OPERATION_SPECS[operation];
 	const inputs = normalizeInputs(record.inputs, operationSpec);
 	const outputs = normalizeOutputs(record.outputs, operationSpec);
+	if (hasShotDetectionMode && operation !== 'shot-detection') {
+		throw new TypeError('Only shot detection may carry a Mark Cuts mode.');
+	}
+	if (Object.hasOwn(expected, 'shotDetectionMode') && expected.operation !== 'shot-detection') {
+		throw new TypeError('Only shot detection may expect a Mark Cuts mode.');
+	}
+	const shotDetectionMode = operation === 'shot-detection'
+		? (hasShotDetectionMode
+			? normalizeLocalAssistanceShotDetectionMode(record.shotDetectionMode)
+			: 'fast')
+		: undefined;
+	const expectedShotDetectionMode = expected.operation === 'shot-detection'
+		? (Object.hasOwn(expected, 'shotDetectionMode')
+			? normalizeLocalAssistanceShotDetectionMode(expected.shotDetectionMode)
+			: 'fast')
+		: undefined;
+	if (shotDetectionMode !== expectedShotDetectionMode) {
+		throw new TypeError('Prepared selected media does not echo its exact Mark Cuts mode.');
+	}
 	return Object.freeze({ sourceId, operation,
+		...(shotDetectionMode === undefined ? {} : { shotDetectionMode }),
 		selectionFence: validateAssistanceSelectionFence(record.selectionFence), inputs, outputs });
 }
 
