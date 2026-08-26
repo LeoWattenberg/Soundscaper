@@ -80,10 +80,9 @@ test('the container port alone resolves exact timing instead of conforming', asy
 		probe: () => Promise.reject(new Error('Desktop video operations are not admitted.')),
 	});
 	for (const fixture of [CFR, VFR]) {
-		const decision = await probeVideoTiming(blobFor(fixture), {
+		const decision = exactTiming(await probeVideoTiming(blobFor(fixture), {
 			probes: [refusing, createContainerVideoTimingProbe()],
-		});
-		assert.equal(decision.decision, 'timing-asset');
+		}));
 		assert.equal(decision.backend, 'container');
 		assert.deepEqual(
 			[...decision.timing.presentationTicks], [...fixture.presentationTicks],
@@ -103,8 +102,17 @@ test('the container port stays behind any codec-backed probe', async () => {
 			finalFrameDurationTicks: 1n, nominalRate: Object.freeze({ num: 24, den: 1 }),
 		}),
 	});
-	const decision = await probeVideoTiming(blobFor(CFR), {
+	const decision = exactTiming(await probeVideoTiming(blobFor(CFR), {
 		probes: [decided, createContainerVideoTimingProbe()],
-	});
+	}));
 	assert.equal(decision.backend, 'ffmpeg');
 });
+
+/** Assert an exact timing decision, and give the caller the narrowed one. */
+function exactTiming(
+	decision: Awaited<ReturnType<typeof probeVideoTiming>>,
+): Extract<Awaited<ReturnType<typeof probeVideoTiming>>, { decision: 'timing-asset' }> {
+	assert.equal(decision.decision, 'timing-asset');
+	if (decision.decision !== 'timing-asset') throw new Error('unreachable');
+	return decision;
+}
