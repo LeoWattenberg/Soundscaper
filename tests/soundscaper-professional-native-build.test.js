@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
@@ -121,6 +121,22 @@ test('professional build plans bind exact SDK pins and never treat the VST3 meta
 	}, {
 		run: () => ({ status: 0, stderr: '', stdout: '' }),
 	}), /authenticated build plan/u);
+});
+
+test('a plan that fails after snapshotting removes the snapshots it took', async (context) => {
+	const { archives, manifestPath, roots } = await sourceRoots(context);
+	const sourceSnapshotRoot = await createSnapshotParent(roots.juce, 'snapshots-recovered');
+	const request = {
+		repositoryRoot: ROOT, target: 'linux-x64', sourceRoots: roots, sourceArchives: archives,
+		sourceManifestPath: manifestPath, sourceSnapshotRoot,
+	};
+	// `buildRoot` is resolved after every source has been snapshotted, so omitting
+	// it fails the plan at a point where the extracted trees are already on disk.
+	assert.throws(() => createSoundscaperProfessionalNativeBuildPlan(request));
+	// An empty parent is exactly what the next plan demands of it, so removing the
+	// snapshots is what keeps the snapshot root usable after a failed attempt.
+	assert.deepEqual(await readdir(sourceSnapshotRoot), [],
+		'a failed plan must not leave its extracted sources behind');
 });
 
 async function createSnapshotParent(sourceRoot, name) {

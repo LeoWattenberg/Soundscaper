@@ -65,10 +65,28 @@ export function createSoundscaperProfessionalNativeBuildPlan(options) {
 				snapshotRoot: join(snapshotParent, witness.id),
 			}));
 		}
+		return authenticatedBuildPlan({
+			blockedSources, options, repositoryRoot, requiredSourceIds,
+			sourceAuthentication, snapshotParent, target,
+		});
 	} catch (error) {
 		for (const snapshot of sourceAuthentication) removeMilestone5NativeSourceSnapshot(snapshot);
 		throw error;
 	}
+}
+
+/**
+ * Builds the plan from sources already snapshotted onto disk.
+ *
+ * Kept separate so every step after the snapshots are taken runs inside the
+ * caller's cleanup: a failure here — an unusable SDK layout, a missing build
+ * root — would otherwise strand the extracted trees, and the snapshot parent
+ * must be empty for the next plan to claim it.
+ */
+function authenticatedBuildPlan({
+	blockedSources, options, repositoryRoot, requiredSourceIds,
+	sourceAuthentication, snapshotParent, target,
+}) {
 	const snapshotRoots = Object.fromEntries(sourceAuthentication.map((witness) => [witness.id, witness.extractedTree.root]));
 	assertExtractedJuceVst3Closure(snapshotRoots.juce);
 	assertFile(snapshotRoots.clap, 'include/clap/clap.h', 'direct CLAP 1.2.4 ABI');
