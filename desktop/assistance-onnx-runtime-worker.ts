@@ -33,6 +33,18 @@ import {
 import {
 	createAssistanceOnnxWordAlignmentWorkerAdapterV1,
 } from './assistance-onnx-word-alignment-worker.ts';
+import {
+	createAssistanceOnnxOcrWorkerAdapterV1,
+} from './assistance-onnx-ocr-worker.ts';
+import {
+	createAssistanceOnnxSaliencyWorkerAdapterV1,
+} from './assistance-onnx-saliency-worker.ts';
+import {
+	createAssistanceOnnxSiglip2WorkerAdapterV1,
+} from './assistance-onnx-siglip2-worker.ts';
+import {
+	createAssistanceOnnxSubjectWorkerAdapterV1,
+} from './assistance-onnx-subject-worker.ts';
 
 export interface AssistanceOnnxTensorV1 {
 	readonly type: string;
@@ -89,6 +101,10 @@ export function createAssistanceOnnxRuntimeWorkerAdapterV1(
 		createAssistanceOnnxEnhancementSeparationWorkerAdapterV1(loadRuntime);
 	const executeTextEmbedding = createAssistanceOnnxTextEmbeddingWorkerAdapterV1(loadRuntime);
 	const executeWordAlignment = createAssistanceOnnxWordAlignmentWorkerAdapterV1(loadRuntime);
+	const executeSiglip2 = createAssistanceOnnxSiglip2WorkerAdapterV1(loadRuntime);
+	const executeOcr = createAssistanceOnnxOcrWorkerAdapterV1(loadRuntime);
+	const executeSubjects = createAssistanceOnnxSubjectWorkerAdapterV1(loadRuntime);
+	const executeSaliency = createAssistanceOnnxSaliencyWorkerAdapterV1(loadRuntime);
 	return async (context) => {
 		if (context.grant.task === 'word-alignment') return executeWordAlignment(context);
 		if (context.grant.task === 'speech-enhancement'
@@ -100,6 +116,10 @@ export function createAssistanceOnnxRuntimeWorkerAdapterV1(
 			return executeAudio(context);
 		}
 		if (context.grant.task === 'text-embedding') return executeTextEmbedding(context);
+		if (context.grant.task === 'image-text-embedding') return executeSiglip2(context);
+		if (context.grant.task === 'optical-character-recognition') return executeOcr(context);
+		if (context.grant.task === 'subject-detection') return executeSubjects(context);
+		if (context.grant.task === 'saliency-detection') return executeSaliency(context);
 		throw new AssistanceRuntimeFamilyAdapterUnavailableError();
 	};
 }

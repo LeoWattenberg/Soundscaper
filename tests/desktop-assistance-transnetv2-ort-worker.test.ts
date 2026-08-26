@@ -13,7 +13,6 @@ import {
 	type AssistanceOnnxRuntimeModuleV1,
 } from '../desktop/assistance-onnx-runtime-worker.ts';
 import {
-	AssistanceRuntimeFamilyAdapterUnavailableError,
 	runAssistanceRuntimeFamilyWorkerJobV1,
 } from '../desktop/assistance-runtime-family-worker-entry.ts';
 import {
@@ -186,7 +185,7 @@ test('the TransNetV2 worker rejects unscaled frames and foreign graph signatures
 	}), /graph|input|output/iu);
 });
 
-test('subject detection is admitted but fails closed at the reviewed ONNX adapter seam', async (context) => {
+test('subject detection fails closed when its composite authenticated artifact set is incomplete', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-subject-ort-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
 	const input = join(root, 'frames.pack');
@@ -239,12 +238,7 @@ test('subject detection is admitted but fails closed at the reviewed ONNX adapte
 				return fakeRuntime(async () => ({}));
 			},
 		}),
-	}), (error: unknown) => {
-		assert.ok(error instanceof AssistanceRuntimeFamilyAdapterUnavailableError);
-		assert.equal(error.code, 'ADAPTER_UNAVAILABLE');
-		assert.match(error.message, /No reviewed model adapter/iu);
-		return true;
-	});
+	}), /D-FINE|artifact|missing|exact/iu);
 	assert.equal(runtimeLoaded, false);
 });
 
