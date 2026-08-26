@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
+import { useTheme } from '@dilsonspickles/components';
 
 import { boundedCanvasDimensions } from '../../design-system-adapters.js';
 import { createEnvelopeValueEvaluator } from '../../automation.js';
@@ -13,6 +14,7 @@ import {
 	subscribePffftSpectrogram,
 } from '../../pffft-spectrogram.js';
 import { MAXIMUM_WAVEFORM_VERTICAL_ZOOM } from './geometry.ts';
+import { createAnimationFrameCoalescer } from './animation-frame-coalescer.ts';
 
 export function AudacityWaveformCanvases({
 	rootRef,
@@ -25,6 +27,8 @@ export function AudacityWaveformCanvases({
 	verticalZoom,
 	spectrogramScale,
 }) {
+	const { theme } = useTheme();
+	const themeDrawKey = `${theme.background.canvas.default}|${theme.foreground.text.primary}`;
 	const [spectrogramRevision, setSpectrogramRevision] = useState(pffftSpectrogramRevision);
 	useEffect(() => subscribePffftSpectrogram(setSpectrogramRevision), []);
 	useEffect(() => {
@@ -34,9 +38,7 @@ export function AudacityWaveformCanvases({
 	useLayoutEffect(() => {
 		const root = rootRef.current;
 		if (!root) return undefined;
-		let animationFrame = 0;
 		const draw = () => {
-			animationFrame = 0;
 			const clipById = new Map(clips.map((clip) => [String(clip.id), clip]));
 			const editorRoot = root.closest('#kw-audio-editor-design-system');
 			const drawKey = [
@@ -47,7 +49,7 @@ export function AudacityWaveformCanvases({
 				verticalZoom,
 				spectrogramScale,
 				spectrogramRevision,
-				document.documentElement.dataset.theme || '',
+				themeDrawKey,
 				editorRoot?.dataset.editorTheme || '',
 				timeSelection?.startTime ?? '',
 				timeSelection?.endTime ?? '',
@@ -62,7 +64,8 @@ export function AudacityWaveformCanvases({
 					if (clip?.waveformError) canvas.dataset.waveformError = clip.waveformError;
 					continue;
 				}
-				const canvasDrawKey = audacityCanvasDrawKey(canvas, clip, drawKey);
+				const bounds = canvas.getBoundingClientRect();
+				const canvasDrawKey = audacityCanvasDrawKey(canvas, clip, drawKey, bounds);
 				if (canvas.__kwWaveformPlan === clip.audacityWaveform && canvas.__kwWaveformDrawKey === canvasDrawKey) continue;
 				try {
 					const drawn = drawAudacityClipCanvas(canvas, clip, {
@@ -73,10 +76,11 @@ export function AudacityWaveformCanvases({
 						halfWave,
 						verticalZoom,
 						spectrogramScale,
+						bounds,
 					});
 					if (drawn) {
 						canvas.__kwWaveformPlan = clip.audacityWaveform;
-						canvas.__kwWaveformDrawKey = audacityCanvasDrawKey(canvas, clip, drawKey);
+						canvas.__kwWaveformDrawKey = audacityCanvasDrawKey(canvas, clip, drawKey, bounds);
 						canvas.__kwWaveformState = 'audacity';
 						delete canvas.dataset.waveformError;
 					}
@@ -86,43 +90,22 @@ export function AudacityWaveformCanvases({
 				}
 			}
 		};
-		const scheduleDraw = () => {
-			if (animationFrame) window.cancelAnimationFrame(animationFrame);
-			animationFrame = window.requestAnimationFrame(draw);
-		};
+		const scheduler = createAnimationFrameCoalescer(
+			(callback) => window.requestAnimationFrame(callback),
+			(frame) => window.cancelAnimationFrame(frame),
+			draw,
+		);
 		const resizeObserver = typeof ResizeObserver === 'function'
-			? new ResizeObserver(scheduleDraw)
+			? new ResizeObserver(scheduler.schedule)
 			: null;
-		const observeWaveformCanvases = () => {
-			resizeObserver?.observe(root);
-			for (const canvas of root.querySelectorAll('canvas.clip-body__waveform')) {
-				resizeObserver?.observe(canvas);
-			}
-		};
 
 		draw();
-		observeWaveformCanvases();
-		scheduleDraw();
-		const observer = new MutationObserver(() => {
-			observeWaveformCanvases();
-			scheduleDraw();
-		});
-		observer.observe(root, {
-			attributes: true,
-			attributeFilter: ['width', 'height', 'style', 'class', 'data-color', 'data-editor-theme'],
-			childList: true,
-			subtree: true,
-		});
-		observer.observe(document.documentElement, {
-			attributes: true,
-			attributeFilter: ['data-theme'],
-		});
+		resizeObserver?.observe(root);
 		return () => {
-			observer.disconnect();
 			resizeObserver?.disconnect();
-			if (animationFrame) window.cancelAnimationFrame(animationFrame);
+			scheduler.dispose();
 		};
-	}, [clips, displayMode, halfWave, pixelsPerSecond, rootRef, showRms, spectrogramRevision, spectrogramScale, timeSelection, verticalZoom]);
+	}, [clips, displayMode, halfWave, pixelsPerSecond, rootRef, showRms, spectrogramRevision, spectrogramScale, themeDrawKey, timeSelection, verticalZoom]);
 	return null;
 }
 
@@ -150,8 +133,7 @@ export function resetAudacityClipCanvas(canvas) {
 	delete canvas.dataset.spectrogramRenderer;
 }
 
-export function audacityCanvasDrawKey(canvas, clip, drawKey) {
-	const bounds = canvas.getBoundingClientRect();
+export function audacityCanvasDrawKey(canvas, clip, drawKey, bounds = canvas.getBoundingClientRect()) {
 	return [
 		drawKey,
 		clip.color || '',
@@ -169,7 +151,7 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 	const rendering = clip.audacityWaveform;
 	const context = canvas.getContext('2d', { alpha: true });
 	if (!context || !rendering.channels.length) return false;
-	const bounds = canvas.getBoundingClientRect();
+	const bounds = options.bounds || canvas.getBoundingClientRect();
 	const width = bounds.width || canvas.clientWidth || rendering.pixelWidth;
 	const height = bounds.height || canvas.clientHeight;
 	if (!(width > 0) || !(height > 0)) return false;

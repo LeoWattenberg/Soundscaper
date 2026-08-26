@@ -25,6 +25,7 @@ import {
 	projectBinWaveformPath,
 } from '../src/common/editor/ui/workspace/project-bin-model.ts';
 import { clampFloatingPanelGeometry } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
+import { retainElementSize } from '../src/common/editor/ui/DesignSystemRuntime.jsx';
 
 test('meter settings normalize persisted values at the module boundary', () => {
 	assert.deepEqual(normalizeMeterSettings({
@@ -63,6 +64,13 @@ test('floating panels are clamped to the visible workspace', () => {
 		width: 500,
 		height: 360,
 	});
+});
+
+test('element size snapshots retain identity when observer measurements are unchanged', () => {
+	const current = { width: 640, height: 360 };
+	assert.equal(retainElementSize(current, 640.2, 359.8), current);
+	assert.deepEqual(retainElementSize(current, 800.4, 450.4), { width: 800, height: 450 });
+	assert.deepEqual(retainElementSize(current, 0, 0), { width: 1, height: 1 });
 });
 
 test('workspace shortcut helpers preserve canonical keyboard behavior', () => {

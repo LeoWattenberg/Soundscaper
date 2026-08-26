@@ -128,10 +128,7 @@ export function useElementSize() {
 		if (!element) return undefined;
 		const update = () => {
 			const rect = element.getBoundingClientRect();
-			setSize({
-				width: Math.max(1, Math.round(rect.width)),
-				height: Math.max(1, Math.round(rect.height)),
-			});
+			setSize((current) => retainElementSize(current, rect.width, rect.height));
 		};
 		update();
 		if (typeof ResizeObserver !== 'function') {
@@ -144,6 +141,14 @@ export function useElementSize() {
 	}, [element]);
 
 	return [ref, size];
+}
+
+export function retainElementSize(current, width, height) {
+	const nextWidth = Math.max(1, Math.round(width));
+	const nextHeight = Math.max(1, Math.round(height));
+	return current.width === nextWidth && current.height === nextHeight
+		? current
+		: { width: nextWidth, height: nextHeight };
 }
 
 export function ActionBoundary({ name, children, className = '' }) {
