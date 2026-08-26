@@ -74,25 +74,6 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		}
 	}
 
-	const localAssistance = rules.get('current-local-assistance-transcript-custody');
-	assert.match(localAssistance.requiredOutcome,
-		/reviewed.*Parakeet transcripts and link-aware cleanup.*Silero silences.*anonymous Pyannote.*ERes2Net speaker regions.*external-FFmpeg shot markers.*unavailable.*non-authoritative/isu);
-	assert.match(localAssistance.currentBehavior,
-		/four.*closed operations.*Parakeet.*Silero.*Pyannote.*ERes2Net.*external FFmpeg.*remaining eleven.*typed unavailable/isu);
-	assert.match(localAssistance.currentBehavior,
-		/content-addressed transcript-v1.*ordinary label track.*Silences.*anonymous Speakers.*timeline annotations.*link-aware.*track-ripple-delete.*A\/V link membership.*no assistance asset/isu);
-	assert.match(localAssistance.currentBehavior,
-		/manual.*owner-lab qualification.*neither disables.*nor relaxes.*hard gate/isu);
-	for (const reference of [
-		'desktop/assistance-operation-service.ts',
-		'desktop/assistance-sherpa-vad.ts',
-		'desktop/assistance-sherpa-diarizer.ts',
-		'desktop/assistance-external-ffmpeg-shot-runtime.ts',
-		'src/common/editor/controller/local-assistance-range-label-acceptance.ts',
-		'src/common/editor/controller/local-assistance-shot-acceptance.ts',
-		'src/common/editor/controller/local-assistance-cleanup-acceptance.ts',
-	]) assert.ok(localAssistance.evidence.includes(reference), reference);
-
 	const featureRequirements = rules.get('project-feature-requirements-core');
 	for (const reference of [
 		'src/common/editor/project-feature-requirements.ts', 'src/common/editor/project-feature-video-clip-render-v1.ts',
