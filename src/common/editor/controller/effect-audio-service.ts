@@ -22,6 +22,9 @@ import {
 	resolveLocalAssistanceSelectedMediaAuthority,
 } from './local-assistance-selected-media.ts';
 import {
+	resolveLocalAssistanceSelectedVideoAuthority,
+} from './local-assistance-selected-video.ts';
+import {
 	createLocalAssistanceSelectedPreparation,
 	type LocalAssistanceSelectedVideoStore,
 } from './local-assistance-selected-preparation.ts';
@@ -511,6 +514,11 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 	};
 	const resultAcceptance = runtime.assistanceStore ? createLocalAssistanceResultAcceptance({
 		currentAuthority: () => resolveLocalAssistanceSelectedMediaAuthority(selectedMediaDependencies),
+		...(runtime.assistanceVideoStore ? {
+			currentVideoAuthority: () => resolveLocalAssistanceSelectedVideoAuthority(
+				selectedMediaDependencies,
+			),
+		} : {}),
 		captureProject: runtime.captureProject, store: runtime.assistanceStore,
 		assertProject: (token) => runtime.assertProject(token as EditorProjectToken), commit: runtime.commit,
 	}) : null;
