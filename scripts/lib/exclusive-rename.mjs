@@ -11,7 +11,7 @@
  * reachable by accident.
  */
 
-import { lstat, mkdir, mkdtemp, rename, rm } from 'node:fs/promises';
+import { link, lstat, mkdir, mkdtemp, rename, rm } from 'node:fs/promises';
 import { basename, dirname, resolve } from 'node:path';
 
 /**
@@ -32,9 +32,36 @@ export async function renameIntoPlaceExclusively(destination, label, fill) {
 	try {
 		const staged = await fill(temporary);
 		await assertPathMissing(destination, label);
-		await rename(staged, destination);
+		await claimPathExclusively(staged, destination, label);
 	} finally {
 		await rm(temporary, { recursive: true, force: true });
+	}
+}
+
+/**
+ * Moves the staged path onto the destination, refusing an entry already there.
+ *
+ * The absence check before this call cannot make the claim safe on its own:
+ * `rename` replaces a destination file atomically, so an entry that appears in
+ * the window between the check and the move is silently overwritten — the one
+ * outcome this module exists to prevent. A regular file is therefore claimed
+ * with `link`, which fails with EEXIST instead of replacing. A directory has no
+ * portable no-replace rename, but `rename` already refuses a directory holding
+ * anything, so the only entry it can still replace is an empty one, which no
+ * completed publication ever leaves behind.
+ */
+export async function claimPathExclusively(staged, destination, label) {
+	if ((await lstat(staged)).isDirectory()) {
+		await rename(staged, destination);
+		return;
+	}
+	try {
+		await link(staged, destination);
+	} catch (error) {
+		if (error?.code === 'EEXIST') {
+			throw new Error(`${label} already exists: ${destination}`, { cause: error });
+		}
+		throw error;
 	}
 }
 
