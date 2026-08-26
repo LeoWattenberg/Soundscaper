@@ -13,14 +13,10 @@ import {
 	validateAssistanceSelectionFence,
 	type AssistanceSelectionFence,
 } from '../assistance/proposal-session.ts';
-import { createStreamingWindowedSincResampler } from '../resample.js';
-import { scaleSampleFrame } from '../timeline-time.ts';
-import { encodeWav } from '../wav.js';
+import { createLocalAssistanceAudioWave } from './local-assistance-audio-preparation.ts';
 
-const TARGET_SAMPLE_RATE = 16_000;
 const MAXIMUM_SELECTION_SECONDS = 10 * 60;
 const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
-const PREPARATION_CHUNK_FRAMES = 65_536;
 const TEXT_ENCODER = new TextEncoder();
 const SHA256 = /^[a-f\d]{64}$/u;
 
@@ -163,8 +159,8 @@ export function createLocalAssistanceSelectedMediaPreparation(
 			: await dependencies.renderDryTrackRange(...renderArgs);
 		request.signal?.throwIfAborted();
 		dependencies.assertProject(token);
-		const input = await createSpeechWave(channels, selected.endFrame - selected.startFrame,
-			selected.project.sampleRate, request.signal);
+		const input = await createLocalAssistanceAudioWave(request.operation as AudioOperation,
+			channels, selected.endFrame - selected.startFrame, selected.project.sampleRate, request.signal);
 		request.signal?.throwIfAborted();
 		dependencies.assertProject(token);
 		return Object.freeze({
@@ -271,73 +267,6 @@ export function createLocalAssistanceSelectionFence(
 			sourceRange: { startFrame: sourceStartFrame, endFrame: sourceEndFrame },
 		}),
 	});
-}
-
-async function createSpeechWave(
-	channelsValue: readonly Float32Array[],
-	expectedFrames: number,
-	inputSampleRate: number,
-	signal?: AbortSignal,
-): Promise<Blob> {
-	if (!Array.isArray(channelsValue) || channelsValue.length < 1 || channelsValue.length > 64
-		|| channelsValue.some((channel) => !(channel instanceof Float32Array)
-			|| channel.length !== expectedFrames)) {
-		throw new Error('The selected audio render returned inexact channel geometry.');
-	}
-	const mono = new Float32Array(expectedFrames);
-	const scale = 1 / channelsValue.length;
-	for (let start = 0; start < expectedFrames; start += PREPARATION_CHUNK_FRAMES) {
-		signal?.throwIfAborted();
-		const end = Math.min(expectedFrames, start + PREPARATION_CHUNK_FRAMES);
-		for (let frame = start; frame < end; frame += 1) {
-			let sample = 0;
-			for (const channel of channelsValue) sample += channel[frame]!;
-			mono[frame] = sample * scale;
-		}
-		if (end < expectedFrames) await yieldForCancellation(signal);
-	}
-	const outputFrames = Number(scaleSampleFrame(expectedFrames, inputSampleRate,
-		TARGET_SAMPLE_RATE, 'point'));
-	const resampler = createStreamingWindowedSincResampler(
-		inputSampleRate, TARGET_SAMPLE_RATE, 1,
-	) as unknown as Readonly<{
-		push(channels: Float32Array[]): Float32Array[];
-		finish(outputFrames: number): Float32Array[];
-	}>;
-	const parts: Float32Array[] = [];
-	for (let start = 0; start < mono.length; start += PREPARATION_CHUNK_FRAMES) {
-		signal?.throwIfAborted();
-		const end = Math.min(mono.length, start + PREPARATION_CHUNK_FRAMES);
-		const output = resampler.push([mono.subarray(start, end)])[0];
-		if (output?.length) parts.push(output);
-		if (end < mono.length) await yieldForCancellation(signal);
-	}
-	const tail = resampler.finish(outputFrames)[0];
-	if (tail?.length) parts.push(tail);
-	const resampled = new Float32Array(outputFrames);
-	let written = 0;
-	for (const part of parts) {
-		if (written + part.length > resampled.length) {
-			throw new Error('The selected audio resampler exceeded its exact geometry.');
-		}
-		resampled.set(part, written);
-		written += part.length;
-	}
-	if (written !== outputFrames) {
-		throw new Error('The selected audio resampler returned inexact geometry.');
-	}
-	signal?.throwIfAborted();
-	const bytes = encodeWav([resampled], {
-		sampleRate: TARGET_SAMPLE_RATE, bitDepth: 32, float: true, dither: false,
-	});
-	signal?.throwIfAborted();
-	return new Blob([bytes.slice().buffer], { type: 'audio/wav' });
-}
-
-async function yieldForCancellation(signal?: AbortSignal): Promise<void> {
-	signal?.throwIfAborted();
-	await new Promise<void>((resolve) => setTimeout(resolve, 0));
-	signal?.throwIfAborted();
 }
 
 function outputFor(operation: AudioOperation): Readonly<{

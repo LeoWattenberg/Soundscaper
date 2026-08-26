@@ -90,6 +90,29 @@ test('speech preparation reads only the selected occurrence and emits bounded 16
 	assert.match(result.selectionFence.timingAuthoritySha256, /^[a-f\d]{64}$/u);
 });
 
+test('audio preparation conforms each inference family without discarding required channels', async () => {
+	const expected = [
+		['voice-activity-detection', 16_000, 1],
+		['speech-recognition', 16_000, 1],
+		['speaker-diarization', 16_000, 1],
+		['speech-enhancement', 48_000, 2],
+		['source-separation', 44_100, 2],
+		['audio-tagging', 32_000, 1],
+		['beat-tracking', 22_050, 1],
+	] as const;
+	for (const [operation, sampleRate, channelCount] of expected) {
+		const { preparation } = fixture();
+		const result = await preparation.prepareSelectedMedia({
+			sourceId: 'voice-source', operation,
+		});
+		const bytes = new Uint8Array(await result.inputs[0]!.bytes.arrayBuffer());
+		const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+		assert.equal(view.getUint16(22, true), channelCount, operation);
+		assert.equal(view.getUint32(24, true), sampleRate, operation);
+		assert.equal(view.getUint32(40, true), sampleRate * channelCount * 4, operation);
+	}
+});
+
 test('selection fences change with link and timing authority and preparation rechecks currentness', async () => {
 	const base = fixture();
 	const first = await base.preparation.prepareSelectedMedia({
