@@ -43,16 +43,17 @@ const SPECIAL_IDS = Object.freeze({
 	pad: 0 as const, unknown: 100 as const, classification: 101 as const,
 	separator: 102 as const, mask: 103 as const,
 });
-const WHITESPACE = /\s/u;
-const CONTROL = /[\p{Cc}\p{Cf}]/u;
+const WHITESPACE = /\p{White_Space}/u;
+const OTHER = /\p{C}/u;
 const PUNCTUATION = /\p{P}/u;
-const MARK = /\p{M}/u;
+const NONSPACING_MARK = /\p{Mn}/u;
 
 /**
  * Executes only the local artifacts pinned at nomic-ai/nomic-embed-text-v1.5
  * revision e9b6763023c676ca8431644204f50c2b100d9aab. Artifact authentication
  * remains owned by the signed catalog and the worker's exact file grant.
  * https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/tree/e9b6763023c676ca8431644204f50c2b100d9aab
+ * BERT semantics: https://github.com/huggingface/tokenizers/blob/v0.15.0/tokenizers/src/normalizers/bert.rs
  */
 export function createAssistanceNomicTokenizerV1(
 	artifacts: AssistanceNomicTokenizerArtifactsV1,
@@ -257,16 +258,17 @@ function basicTokens(value: string): readonly string[] {
 	let normalized = '';
 	for (const character of value) {
 		const codePoint = character.codePointAt(0)!;
-		if (codePoint === 0 || codePoint === 0xfffd || CONTROL.test(character) && !WHITESPACE.test(character)) {
+		if (codePoint === 0 || codePoint === 0xfffd || isControl(character)) {
 			continue;
 		}
 		if (WHITESPACE.test(character)) { normalized += ' '; continue; }
 		if (isChinese(codePoint)) normalized += ` ${character} `;
 		else normalized += character;
 	}
-	normalized = normalized.toLowerCase().normalize('NFD');
+	normalized = normalized.normalize('NFD');
 	let stripped = '';
-	for (const character of normalized) if (!MARK.test(character)) stripped += character;
+	for (const character of normalized) if (!NONSPACING_MARK.test(character)) stripped += character;
+	stripped = stripped.toLowerCase();
 	const tokens: string[] = [];
 	let current = '';
 	for (const character of stripped) {
@@ -310,10 +312,14 @@ function isPunctuation(value: string): boolean {
 		|| code >= 91 && code <= 96 || code >= 123 && code <= 126 || PUNCTUATION.test(value);
 }
 
+function isControl(value: string): boolean {
+	return value !== '\t' && value !== '\n' && value !== '\r' && OTHER.test(value);
+}
+
 function isChinese(code: number): boolean {
 	return code >= 0x4e00 && code <= 0x9fff || code >= 0x3400 && code <= 0x4dbf
 		|| code >= 0x20000 && code <= 0x2a6df || code >= 0x2a700 && code <= 0x2b73f
-		|| code >= 0x2b740 && code <= 0x2b81f || code >= 0x2b820 && code <= 0x2ceaf
+		|| code >= 0x2b740 && code <= 0x2b81f || code >= 0x2b920 && code <= 0x2ceaf
 		|| code >= 0xf900 && code <= 0xfaff || code >= 0x2f800 && code <= 0x2fa1f;
 }
 

@@ -40,9 +40,11 @@ export function nomicTokenizerArtifactFixture() {
 				max_input_chars_per_word: 100,
 				vocab: {
 					'[PAD]': 0, '[UNK]': 100, '[CLS]': 101, '[SEP]': 102, '[MASK]': 103,
-					'!': 999, ',': 1010, ':': 1024, _: 1035, the: 1996, '##s': 2015,
+					'!': 999, ',': 1010, ':': 1024, _: 1035, a: 1037, b: 1038, e: 1041,
+					i: 1045, 'क': 1315, the: 1996, '##s': 2015, '##i': 2072,
 					world: 2088, red: 2417, find: 2424, search: 3945, document: 6254,
-					cafe: 7668, hello: 7592, bicycle: 10165, query: 23032,
+					cafe: 7668, hello: 7592, bicycle: 10165, ab: 11113, query: 23032,
+					'##ा': 29876,
 				},
 			},
 		}),
