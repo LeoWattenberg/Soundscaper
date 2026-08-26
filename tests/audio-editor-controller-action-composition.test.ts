@@ -149,6 +149,77 @@ test('real controller accepts one reviewed transcript into storage and one undo 
 	}
 });
 
+test('real controller exposes reviewed Parakeet cleanup as one explicit undoable edit', async () => {
+	const projectRuntime = createSoundscaperProjectRuntimeV30Selection();
+	const store = projectRuntime.createProjectStore({ indexedDB: null, preferOpfs: false });
+	const controller = createController([], store, projectRuntime);
+	try {
+		await controller.ready;
+		const trackId = controller.project.tracks[0].id as string;
+		controller.actions.edit.commit({
+			type: 'batch',
+			commands: [{
+				type: 'source/add',
+				source: {
+					id: 'cleanup-source', name: 'Interview.wav', kind: 'audio',
+					storageKey: 'owned:cleanup-source', mimeType: 'audio/wav',
+					contentSha256: 'ab'.repeat(32), frameCount: 48_000, channelCount: 1,
+					sampleRate: 48_000, originalSampleRate: 48_000,
+					sampleFormat: 'float32', chunkFrames: 65_536,
+				},
+			}, {
+				type: 'clip/add', trackId,
+				clip: {
+					id: 'cleanup-clip', title: 'Interview', kind: 'audio',
+					sourceId: 'cleanup-source', timelineStartFrame: 0,
+					sourceStartFrame: 0, sourceDurationFrames: 48_000,
+					durationFrames: 48_000,
+				},
+			}],
+		});
+		controller.actions.timeline.selectClip('cleanup-clip');
+		const prepared = await controller.selectedMediaPreparation.prepareSelectedMedia({
+			sourceId: 'cleanup-source', operation: 'speech-recognition',
+		});
+		const cleanup = await controller.selectedMediaPreparation.prepareTranscriptCleanup?.({
+			selectionFence: prepared.selectionFence,
+			models: [{
+				modelId: 'parakeet-tdt-0.6b-v3', version: '3.0.0', task: 'speech-recognition',
+				artifactSha256s: ['12'.repeat(32)],
+			}],
+			review: {
+				kind: 'transcript', language: 'en', segments: [{
+					startSeconds: 0, endSeconds: 0.5, text: 'um hello', speaker: null,
+					words: [
+						{ text: 'um', startSeconds: 0, endSeconds: 0.1, confidence: 0.9 },
+						{ text: 'hello', startSeconds: 0.1, endSeconds: 0.5, confidence: 0.9 },
+					],
+				}],
+			},
+			voiceActivity: null,
+		});
+		assert.deepEqual(cleanup?.proposals.map(({ kind, text }: { kind: string; text: string }) => (
+			{ kind, text }
+		)), [{ kind: 'filler', text: 'um' }]);
+		const revisionBeforeCleanup = controller.project.revision as number;
+		await controller.selectedMediaPreparation.acceptTranscriptCleanup?.([
+			cleanup!.proposals[0]!.id,
+		]);
+
+		assert.equal(controller.project.revision, revisionBeforeCleanup + 1);
+		assert.equal(controller.project.clips.find(({ id }: { id: string }) => id === 'cleanup-clip')
+			?.durationFrames, 43_200);
+		controller.actions.edit.undo();
+		assert.equal(controller.project.clips.find(({ id }: { id: string }) => id === 'cleanup-clip')
+			?.durationFrames, 48_000);
+		controller.actions.edit.redo();
+		assert.equal(controller.project.clips.find(({ id }: { id: string }) => id === 'cleanup-clip')
+			?.durationFrames, 43_200);
+	} finally {
+		await controller.dispose();
+	}
+});
+
 test('real Framescaper capture open action reveals Recording Setup without opening media', async () => {
 	const controller = createAudioEditorController(null, {
 		headless: true,
