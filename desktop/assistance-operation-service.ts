@@ -20,6 +20,7 @@ import {
 	type AssistanceOperationResult,
 } from './assistance-operation-contract.ts';
 import type { AssistanceService } from './assistance-service.ts';
+import type { AssistanceShotRuntimeAdapter } from './assistance-shot-runtime.ts';
 import type { AssistanceStagingRegistry } from './assistance-staging-registry.ts';
 import type { SpeechModelPaths, SpeechRuntimeAdapter } from './assistance-speech-runtime.ts';
 import type { VoiceActivityRuntimeAdapter } from './assistance-vad-runtime.ts';
@@ -101,6 +102,7 @@ export interface AssistanceOperationServiceOptions {
 	readonly runtime: SpeechRuntimeAdapter;
 	readonly voiceActivityRuntime?: VoiceActivityRuntimeAdapter;
 	readonly diarizationRuntime?: SpeakerDiarizationRuntimeAdapter;
+	readonly shotDetectionRuntime?: AssistanceShotRuntimeAdapter;
 	readonly onProgress?: (progress: AssistanceOperationProgress) => void;
 	readonly mintStreamId?: () => string;
 }
@@ -180,7 +182,7 @@ export function createAssistanceOperationService(options: AssistanceOperationSer
 		const inputPaths = await Promise.all(request.inputs.map((claim) =>
 			options.registry.resolveInputPathForMain(request.jobId, claim, signal)));
 		if (request.operation !== 'speech-recognition' && request.operation !== 'voice-activity-detection'
-			&& request.operation !== 'speaker-diarization') {
+			&& request.operation !== 'speaker-diarization' && request.operation !== 'shot-detection') {
 			emit('finalizing');
 			return unavailable(request, 'adapter-unavailable');
 		}
@@ -194,8 +196,10 @@ export function createAssistanceOperationService(options: AssistanceOperationSer
 			resultBody = await executeSpeech(request, inputPaths[0]!, signal, emit, options);
 		} else if (request.operation === 'voice-activity-detection') {
 			resultBody = await executeVoiceActivity(request, inputPaths[0]!, signal, emit, options);
-		} else {
+		} else if (request.operation === 'speaker-diarization') {
 			resultBody = await executeSpeakerDiarization(request, inputPaths[0]!, signal, emit, options);
+		} else {
+			resultBody = await executeShotDetection(request, inputPaths[0]!, signal, emit, options);
 		}
 		if (isUnavailableReason(resultBody)) {
 			emit('finalizing');
@@ -349,6 +353,24 @@ async function executeSpeakerDiarization(
 		signal,
 		onProgress: ({ completed, total }) => emit('running', completed, total),
 	});
+}
+
+async function executeShotDetection(
+	request: AssistanceOperationRequest,
+	videoPath: string,
+	signal: AbortSignal,
+	emit: ProgressEmitter,
+	options: AssistanceOperationServiceOptions,
+): Promise<unknown | AssistanceOperationUnavailableReason> {
+	if (request.models.length !== 0) {
+		throw new TypeError('shot-detection does not accept model bindings.');
+	}
+	const runtime = options.shotDetectionRuntime;
+	if (!runtime) return 'adapter-unavailable';
+	const runtimeStatus = await runtime.status();
+	if (!runtimeStatus.available) return 'runtime-unavailable';
+	emit('running');
+	return (await runtime.detect({ videoPath, signal })) ?? 'runtime-unavailable';
 }
 
 function speechModelPaths(resolved: Readonly<Record<string, string>>): SpeechModelPaths | null {
