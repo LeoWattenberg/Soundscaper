@@ -278,6 +278,30 @@ test('highlight transforms reject malformed scores and preserve empty no-event r
 	assert.deepEqual(assembled.proposals, []);
 });
 
+test('speechless highlight windows retain their admitted boundaries without shot or transcript edges', () => {
+	const registry = createAssistanceOwnedVideoHighlightTransformRegistryV1();
+	const inputs = highlightInputs();
+	const gathered = registry.run({ schemaVersion: 1, transformId: 'gather-signals',
+		settings: HIGHLIGHT_SETTINGS, inputs: { ...inputs,
+			video: { ...inputs.video, windows: [
+				{ id: 'speechless-a', startFrame: 15_000, endFrame: 60_000,
+					shotStructure: 0, visualInterest: 0 },
+				{ id: 'speechless-b', startFrame: 90_000, endFrame: 120_000,
+					shotStructure: 0, visualInterest: 0 },
+			] },
+			audio: null, transcript: null, 'shot-boundaries': null,
+			'reaction-ranges': null, embeddings: null,
+		} }).outputs['highlight-signals'];
+	assert.deepEqual(gathered.candidates.map(({ id, startFrame, endFrame,
+		sourceStartFrame, sourceEndFrame }) => ({ id, startFrame, endFrame,
+		sourceStartFrame, sourceEndFrame })), [
+		{ id: 'speechless-a', startFrame: 15_000, endFrame: 60_000,
+			sourceStartFrame: 15, sourceEndFrame: 60 },
+		{ id: 'speechless-b', startFrame: 90_000, endFrame: 120_000,
+			sourceStartFrame: 90, sourceEndFrame: 120 },
+	]);
+});
+
 function videoAuthority() {
 	return {
 		schemaVersion: 1 as const, kind: 'video-source-time-authority' as const,

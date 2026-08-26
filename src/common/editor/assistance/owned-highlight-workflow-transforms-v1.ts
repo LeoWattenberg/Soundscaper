@@ -408,8 +408,12 @@ function canonicalEdges(
 	shots: readonly number[],
 	transcript: readonly number[],
 ): readonly number[] {
+	const evidence = [...shots, ...transcript];
+	const fallback = evidence.length === 0
+		? video.windows.flatMap(({ startFrame, endFrame }) => [startFrame, endFrame])
+		: evidence;
 	return Object.freeze([...new Set([
-		video.selectionStartFrame, video.selectionEndFrame, ...shots, ...transcript,
+		video.selectionStartFrame, video.selectionEndFrame, ...fallback,
 	])].sort((left, right) => left - right));
 }
 
