@@ -35,7 +35,7 @@ import type { StorageRepositoryPort } from './repository-port.ts';
 import type { SourceRecordRepository } from './source-record-repository.ts';
 import type { SourceRepository } from './source-repository.ts';
 import type { TransientAnalysisCacheRepository } from './transient-analysis-cache-repository.ts';
-import type { AssistanceDerivativeRepository } from './assistance-derivative-repository.ts';
+import type { AssistanceDerivativeRepositoryPort } from './deferred-assistance-derivative-repository.ts';
 
 const WAVEFORM_PEAK_CACHE_PREFIXES = Object.freeze(['audio-editor-peaks-v1:', 'audio-editor-peaks-v2:']);
 
@@ -63,7 +63,7 @@ export interface RetentionRepositoryOptions {
 	readonly encodedCaptureSpools: Pick<EncodedCaptureSpoolRepository, 'retainedMediaChunkTokens'>;
 	readonly encodedCaptureChunks: Pick<OpfsPreferredEncodedCaptureChunkPort, 'retainedPaths'>;
 	readonly transientAnalysisCache: Pick<TransientAnalysisCacheRepository, 'purge'>;
-	readonly assistanceDerivatives?: Pick<AssistanceDerivativeRepository, 'purge'>;
+	readonly assistanceDerivatives?: Pick<AssistanceDerivativeRepositoryPort, 'purge'>;
 }
 
 /** Cross-domain reachability, temporary cleanup, and whole-store clearing. */
