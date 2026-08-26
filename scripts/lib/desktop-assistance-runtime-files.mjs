@@ -130,6 +130,7 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/assistance/visual-frame-pack-v2.js',
 	'src/common/editor/assistance/visual-indexing-v1.js',
 	'src/common/editor/assistance/visual-search-records-v1.js',
+	'src/common/editor/assistance/visual-tag-classification-v1.js',
 	'src/common/editor/assistance/wav2vec2-english-tokenizer-v1.js',
 	'src/common/editor/assistance/workflow-fence-v1.js',
 	'src/common/editor/assistance/workflow-recipes.js',
