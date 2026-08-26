@@ -154,22 +154,24 @@ function enhancementWorkflow() {
 }
 
 function highlightsWorkflow(): AssistanceWorkflowV1 {
-	const stageIds = ['gather-signals', 'rank-highlights', 'rerank-editorial',
+	const stageIds = ['detect-highlight-shots', 'gather-signals', 'rank-highlights', 'rerank-editorial',
 		'assemble-highlights'] as const;
 	const models = [{ bindingVersion: 1 as const, stageId: 'rerank-editorial',
 		slotId: 'editorial-generator', modelId: 'qwen3-4b-q4-k-m', version: 'bc640142',
 		artifactSha256s: ['01'.repeat(32)] }];
 	const inputs = [
-		workflowClaim('input', 'gather-signals', 'video', 1),
-		workflowClaim('input', 'rank-highlights', 'highlight-signals', 2),
-		workflowClaim('input', 'rerank-editorial', 'highlight-candidates', 3),
-		workflowClaim('input', 'assemble-highlights', 'highlight-candidates', 4),
+		workflowClaim('input', 'detect-highlight-shots', 'video', 1),
+		workflowClaim('input', 'gather-signals', 'video', 2),
+		workflowClaim('input', 'rank-highlights', 'highlight-signals', 3),
+		workflowClaim('input', 'rerank-editorial', 'highlight-candidates', 4),
+		workflowClaim('input', 'assemble-highlights', 'highlight-candidates', 5),
 	];
 	const outputs = [
-		workflowClaim('output', 'gather-signals', 'highlight-signals', 5),
-		workflowClaim('output', 'rank-highlights', 'highlight-candidates', 6),
-		workflowClaim('output', 'rerank-editorial', 'editorial-proposal', 7),
-		workflowClaim('output', 'assemble-highlights', 'highlight-proposals', 8),
+		workflowClaim('output', 'detect-highlight-shots', 'shot-boundaries', 6),
+		workflowClaim('output', 'gather-signals', 'highlight-signals', 7),
+		workflowClaim('output', 'rank-highlights', 'highlight-candidates', 8),
+		workflowClaim('output', 'rerank-editorial', 'editorial-proposal', 9),
+		workflowClaim('output', 'assemble-highlights', 'highlight-proposals', 10),
 	];
 	const single = assistanceWorkflowFixture({ workflowId: 'make-highlights', stageIds,
 		models, inputs, outputs });
