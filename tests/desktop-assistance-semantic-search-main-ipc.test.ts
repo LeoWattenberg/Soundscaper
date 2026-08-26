@@ -9,6 +9,7 @@ import {
 } from '../desktop/assistance-semantic-search-main-ipc.ts';
 import { AssistanceSemanticSearchSessionAuthority } from
 	'../desktop/assistance-semantic-search-session-authority.ts';
+import { IPC } from '../desktop/constants.js';
 import type { AssistanceSemanticQueryExecutorV1 } from
 	'../desktop/assistance-semantic-query-executor.ts';
 
@@ -150,4 +151,18 @@ test('query cancellation aborts installed inference and waits for its completion
 		{ owner }, QUERY_ID,
 	), false);
 	await registration.dispose();
+});
+
+test('the main channel table restates the shared IPC map exactly', () => {
+	// This module is staged into the project-library runtime, whose expected file set does
+	// not include constants.js, so it names the channels itself rather than importing them -
+	// exactly as the sandboxed preload does. Three copies of a string drift silently, and a
+	// channel main registers under a name the bridge never invokes is unreachable.
+	assert.deepEqual({ ...ASSISTANCE_SEMANTIC_SEARCH_IPC_CHANNELS }, {
+		open: IPC.assistanceSemanticSearchOpen,
+		authorize: IPC.assistanceSemanticSearchAuthorize,
+		revoke: IPC.assistanceSemanticSearchRevoke,
+		query: IPC.assistanceSemanticSearchQuery,
+		cancelQuery: IPC.assistanceSemanticSearchCancelQuery,
+	});
 });
