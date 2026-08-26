@@ -8,6 +8,7 @@ import {
 	assertProductGraphOwnership,
 	assertProductionStartupGraphs,
 	collectStartupGraph,
+	enforceStartupGraphBudgets,
 } from '../scripts/lib/startup-graph-budget.mjs';
 
 test('startup graph collection follows static imports and deduplicates CSS', () => {
@@ -83,6 +84,12 @@ test('approved graph ceilings remain hard limits', () => {
 		rawBytes: 6_700_000,
 		brotliBytes: 1_600_000,
 	});
+});
+
+test('production startup budgets inspect Vite final import-analysis output', () => {
+	const plugin = enforceStartupGraphBudgets();
+	assert.equal(plugin.generateBundle.order, 'post');
+	assert.equal(typeof plugin.generateBundle.handler, 'function');
 });
 
 function fixtureBundle() {

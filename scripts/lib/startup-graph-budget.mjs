@@ -155,8 +155,11 @@ export function enforceStartupGraphBudgets() {
 	return {
 		name: 'kw-enforce-startup-graph-budgets',
 		apply: 'build',
-		generateBundle(_options, bundle) {
-			assertProductionStartupGraphs(bundle);
+		generateBundle: {
+			order: 'post',
+			handler(_options, bundle) {
+				assertProductionStartupGraphs(bundle);
+			},
 		},
 	};
 }
