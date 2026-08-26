@@ -16,6 +16,16 @@ const STEPS = Object.freeze([
 	'public-readback',
 	'externally-sign-manifest',
 ]);
+const SHERPA_ARM64_STEPS = Object.freeze([
+	'verify-pinned-native-asset',
+	'fetch-pinned-source',
+	'build-node-api-addon',
+	'inventory-regular-files',
+	'sha256-every-file',
+	'assemble-node-package-closure',
+	'public-readback',
+	'externally-sign-manifest',
+]);
 
 const FAMILIES = Object.freeze({
 	'onnxruntime-node': Object.freeze({
@@ -150,11 +160,13 @@ function validateProvisionTask(value, familyId) {
 function validateSherpaArm64(value) {
 	const row = exactRecord(value, [
 		'schemaVersion', 'runtimeId', 'version', 'targetId', 'source',
-		'upstreamNativeAsset', 'payloadStatus', 'payloadManifestSha256', 'blockedBy',
+		'upstreamNativeAsset', 'nodeAddonProvision', 'payloadStatus',
+		'payloadManifestSha256', 'blockedBy',
 	], 'Sherpa Windows ARM64 candidate');
 	const source = exactRecord(row.source, ['url', 'revision', 'commit'], 'Sherpa source');
 	const asset = exactRecord(row.upstreamNativeAsset,
 		['url', 'fileName', 'byteLength', 'sha256'], 'Sherpa native asset');
+	validateSherpaNodeAddonProvision(row.nodeAddonProvision);
 	if (row.schemaVersion !== 1
 		|| row.runtimeId !== SHERPA_ARM64.runtimeId || row.version !== SHERPA_ARM64.version
 		|| row.targetId !== SHERPA_ARM64.targetId
@@ -165,6 +177,29 @@ function validateSherpaArm64(value) {
 		throw new TypeError('The Sherpa Windows ARM64 candidate falsely claims Node payload authority.');
 	}
 	blocker(row.blockedBy, 'Sherpa Windows ARM64 blocker');
+}
+
+function validateSherpaNodeAddonProvision(value) {
+	const row = exactRecord(value, [
+		'schemaVersion', 'recipeId', 'steps', 'toolchain', 'nodeAddon',
+		'packageClosureManifestSha256', 'status', 'blockedBy',
+	], 'Sherpa Windows ARM64 Node-addon provision');
+	const toolchain = exactRecord(row.toolchain,
+		['status', 'lockFile', 'sha256'], 'Sherpa Windows ARM64 toolchain');
+	const addon = exactRecord(row.nodeAddon,
+		['fileName', 'byteLength', 'sha256'], 'Sherpa Windows ARM64 Node addon');
+	if (row.schemaVersion !== 1
+		|| row.recipeId !== 'sherpa-onnx-node-win-arm64-locked-build-v1'
+		|| JSON.stringify(row.steps) !== JSON.stringify(SHERPA_ARM64_STEPS)
+		|| toolchain.status !== 'lock-pending-external'
+		|| toolchain.lockFile !== null || toolchain.sha256 !== null
+		|| addon.fileName !== 'sherpa-onnx.node'
+		|| addon.byteLength !== null || addon.sha256 !== null
+		|| row.packageClosureManifestSha256 !== null
+		|| row.status !== 'pending-external') {
+		throw new TypeError('The Sherpa Windows ARM64 Node-addon provision falsely claims payload identity.');
+	}
+	blocker(row.blockedBy, 'Sherpa Windows ARM64 Node-addon provision blocker');
 }
 
 function exactRecord(value, keys, label) {

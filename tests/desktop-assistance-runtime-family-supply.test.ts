@@ -134,7 +134,40 @@ test('Sherpa Windows ARM64 records the official native input but not a Node payl
 		byteLength: 6_419_409,
 		sha256: '42112e75ca3baf647047929f704960587cf6ed22fbd046643d66d33d7c74c123',
 	});
+	assert.deepEqual(candidate.nodeAddonProvision, {
+		schemaVersion: 1,
+		recipeId: 'sherpa-onnx-node-win-arm64-locked-build-v1',
+		steps: [
+			'verify-pinned-native-asset',
+			'fetch-pinned-source',
+			'build-node-api-addon',
+			'inventory-regular-files',
+			'sha256-every-file',
+			'assemble-node-package-closure',
+			'public-readback',
+			'externally-sign-manifest',
+		],
+		toolchain: { status: 'lock-pending-external', lockFile: null, sha256: null },
+		nodeAddon: { fileName: 'sherpa-onnx.node', byteLength: null, sha256: null },
+		packageClosureManifestSha256: null,
+		status: 'pending-external',
+		blockedBy: 'No locked Windows ARM64 Node-API toolchain, addon identity, complete package inventory, public readback, or external signature has been recorded.',
+	});
 	assert.match(candidate.blockedBy, /Node.*addon.*closure/iu);
+});
+
+test('Sherpa Windows ARM64 rejects an invented addon or incomplete provision recipe', () => {
+	const fabricated = structuredClone(runtimeSupply);
+	Object.assign(fabricated.sherpaWindowsArm64.nodeAddonProvision.nodeAddon, {
+		sha256: 'ab'.repeat(32),
+	});
+	assert.throws(() => validateMilestone7RuntimeSupplyRegister(fabricated),
+		/addon|pending|payload|identity/iu);
+
+	const shortened = structuredClone(runtimeSupply);
+	shortened.sherpaWindowsArm64.nodeAddonProvision.steps.splice(2, 1);
+	assert.throws(() => validateMilestone7RuntimeSupplyRegister(shortened),
+		/recipe|provision|payload|identity/iu);
 });
 
 test('desktop packaging carries the same register that production startup imports', async () => {
