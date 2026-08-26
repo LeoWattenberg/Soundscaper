@@ -5,7 +5,7 @@
 export const ASSISTANCE_SEMANTIC_SEARCH_SESSION_VERSION = 1 as const;
 export const ASSISTANCE_ASYNC_SEARCH_RESULT_LIMIT = 50;
 
-const MAXIMUM_SESSION_LIFETIME_MS = 60 * 60 * 1_000;
+export const ASSISTANCE_SEMANTIC_SEARCH_MAXIMUM_SESSION_LIFETIME_MS = 60 * 60 * 1_000;
 const SESSION_ID = /^[a-f\d]{40}$/u;
 const STABLE_ID = /^[A-Za-z\d][A-Za-z\d._:-]{0,255}$/u;
 const CONTROL = /[\u0000-\u001f\u007f]/u;
@@ -80,7 +80,7 @@ export function validateAssistanceSemanticSearchSession(
 		'semantic-search project revision');
 	const expiresAtEpochMs = epoch(row.expiresAtEpochMs, 'semantic-search expiry');
 	if (expiresAtEpochMs <= now) throw new RangeError('The semantic-search session has expired.');
-	if (expiresAtEpochMs - now > MAXIMUM_SESSION_LIFETIME_MS) {
+	if (expiresAtEpochMs - now > ASSISTANCE_SEMANTIC_SEARCH_MAXIMUM_SESSION_LIFETIME_MS) {
 		throw new RangeError('The semantic-search session exceeds its short-lived bound.');
 	}
 	return Object.freeze({ sessionVersion: ASSISTANCE_SEMANTIC_SEARCH_SESSION_VERSION,

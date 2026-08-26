@@ -27,6 +27,7 @@ export const ASSISTANCE_DERIVATIVE_MAXIMUM_ENTRIES = 4_095;
 export const ASSISTANCE_DERIVATIVE_KINDS = Object.freeze([
 	'embeddings',
 	'recognized-text',
+	'visual-index',
 	'audio-tags',
 	'shot-table',
 	'saliency-map',

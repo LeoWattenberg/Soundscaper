@@ -39,6 +39,7 @@ test('assistance derivative identities bind project, sources, timing, recipe, se
 		assert.notEqual(createAssistanceDerivativeIdentityV1(changed(), 'embeddings').key, identity.key);
 	}
 	assert.notEqual(createAssistanceDerivativeIdentityV1(base, 'recognized-text').key, identity.key);
+	assert.notEqual(createAssistanceDerivativeIdentityV1(base, 'visual-index').key, identity.key);
 	assert.match(identity.key, /^assistance-derivative-v1:[a-f0-9]{64}:[a-f0-9]{64}$/u);
 });
 
