@@ -15,7 +15,12 @@ import {
 import {
 	validateAssistanceWorkflow,
 	type AssistanceWorkflowProgressV1,
+	type AssistanceWorkflowV1,
 } from '../assistance/workflow.ts';
+import {
+	validateAssistanceWorkflowReviewAuthorityV1,
+	type AssistanceWorkflowReviewAuthorityV1,
+} from '../assistance/workflow-review-authority-v1.ts';
 import type {
 	LocalAssistanceBridge,
 } from './local-assistance-bridge.ts';
@@ -28,11 +33,15 @@ import type {
 	LocalAssistanceWorkflowOutcome,
 	LocalAssistanceWorkflowUnavailableReason,
 } from './local-assistance-workflow-bridge.ts';
+import {
+	reviewLocalAssistanceGuidedResult,
+	type LocalAssistanceGuidedReviewedResult,
+} from './local-assistance-guided-result-review.ts';
 
 export type LocalAssistanceDialogSurface = 'guided' | 'advanced';
 export type LocalAssistanceGuidedPhase =
 	| 'selection-required' | 'ready' | 'preparing' | 'running' | 'completed'
-	| 'cancelled' | 'unavailable' | 'error';
+	| 'reviewing' | 'review-ready' | 'cancelled' | 'unavailable' | 'error';
 export type LocalAssistanceGuidedUnavailableReason =
 	| LocalAssistanceWorkflowUnavailableReason
 	| LocalAssistanceGuidedPreparationUnavailableReason
@@ -48,10 +57,13 @@ export interface LocalAssistanceGuidedSnapshot {
 	readonly settings: AssistanceWorkflowSettingsV1 | null;
 	readonly progress: AssistanceWorkflowProgressV1 | null;
 	readonly result: LocalAssistanceWorkflowOutcome | null;
+	readonly review: LocalAssistanceGuidedReviewedResult | null;
+	readonly selectedChoiceIds: readonly string[];
 	readonly unavailableReason: LocalAssistanceGuidedUnavailableReason | null;
 	readonly error: string | null;
 	readonly canRun: boolean;
 	readonly canCancel: boolean;
+	readonly canReview: boolean;
 }
 
 export interface LocalAssistanceGuidedSessionStore {
@@ -60,7 +72,9 @@ export interface LocalAssistanceGuidedSessionStore {
 	selectSurface(surface: LocalAssistanceDialogSurface): void;
 	selectWorkflow(workflowId: AssistanceGuidedWorkflowId): void;
 	setSettings(settings: AssistanceWorkflowSettingsV1): void;
+	setReviewChoiceSelected(choiceId: string, selected: boolean): void;
 	run(): Promise<void>;
+	review(): Promise<void>;
 	cancel(): Promise<void>;
 	dispose(): Promise<void>;
 }
@@ -74,7 +88,7 @@ const GUIDED_IDS = new Set<unknown>(ASSISTANCE_GUIDED_WORKFLOW_IDS);
 export const INITIAL_LOCAL_ASSISTANCE_GUIDED_SNAPSHOT: LocalAssistanceGuidedSnapshot = freezeSnapshot({
 	surface: 'guided', phase: 'selection-required', workflowIds: ASSISTANCE_GUIDED_WORKFLOW_IDS,
 	selectedWorkflowId: null, settings: null, progress: null, result: null,
-	unavailableReason: null, error: null,
+	review: null, selectedChoiceIds: Object.freeze([]), unavailableReason: null, error: null,
 });
 
 export function createLocalAssistanceGuidedSessionStore(
@@ -87,7 +101,10 @@ export function createLocalAssistanceGuidedSessionStore(
 	let running: Promise<void> | null = null;
 	let cancelRequested = false;
 	let disposed = false;
-	const retainedJobs = new Set<string>();
+	const retainedJobs = new Map<string, Readonly<{
+		workflow: AssistanceWorkflowV1;
+		reviewAuthority: AssistanceWorkflowReviewAuthorityV1;
+	}>>();
 	const workflow = options.bridge?.workflow ?? null;
 
 	const emit = (): void => listeners.forEach((listener) => listener());
@@ -113,7 +130,7 @@ export function createLocalAssistanceGuidedSessionStore(
 		const unavailableReason = availability(options);
 		update({ selectedWorkflowId: selected, settings,
 			phase: unavailableReason ? 'unavailable' : 'ready', unavailableReason,
-			progress: null, result: null, error: null });
+			progress: null, result: null, review: null, selectedChoiceIds: Object.freeze([]), error: null });
 	};
 	const setSettings = (settingsValue: AssistanceWorkflowSettingsV1): void => {
 		if (snapshot.canCancel) throw new Error('The active Guided workflow settings are immutable.');
@@ -125,7 +142,7 @@ export function createLocalAssistanceGuidedSessionStore(
 		);
 		const unavailableReason = availability(options);
 		update({ settings, phase: unavailableReason ? 'unavailable' : 'ready', unavailableReason,
-			progress: null, result: null, error: null });
+			progress: null, result: null, review: null, selectedChoiceIds: Object.freeze([]), error: null });
 	};
 
 	const execute = async (): Promise<void> => {
@@ -136,7 +153,8 @@ export function createLocalAssistanceGuidedSessionStore(
 		const workflowId = snapshot.selectedWorkflowId!;
 		const settings = validateAssistanceWorkflowSettingsV1(snapshot.settings, workflowId);
 		cancelRequested = false;
-		update({ phase: 'preparing', progress: null, result: null,
+		update({ phase: 'preparing', progress: null, result: null, review: null,
+			selectedChoiceIds: Object.freeze([]),
 			unavailableReason: null, error: null });
 		let outcome: LocalAssistanceWorkflowOutcome | null = null;
 		let failure: unknown = null;
@@ -169,7 +187,9 @@ export function createLocalAssistanceGuidedSessionStore(
 			});
 			update({ phase: 'running' });
 			outcome = await workflow.run(request);
-			if (outcome.outcome === 'completed') retainedJobs.add(job.jobId);
+			if (outcome.outcome === 'completed') retainedJobs.set(job.jobId, Object.freeze({
+				workflow: request, reviewAuthority: prepared.reviewAuthority,
+			}));
 			else await workflow.custody.release(job.jobId);
 			activeJobId = null;
 		} catch (error) {
@@ -211,6 +231,34 @@ export function createLocalAssistanceGuidedSessionStore(
 		running = execute().finally(() => { running = null; });
 		return running;
 	};
+	const review = async (): Promise<void> => {
+		if (!snapshot.canReview || snapshot.result?.outcome !== 'completed'
+			|| !workflow?.readOutput) throw new Error('The Guided result is not ready for review.');
+		const retained = retainedJobs.get(snapshot.result.jobId);
+		if (!retained) throw new Error('The Guided result custody has expired.');
+		update({ phase: 'reviewing', review: null, error: null });
+		try {
+			const reviewed = await reviewLocalAssistanceGuidedResult({ workflow: retained.workflow,
+				result: snapshot.result.result, authority: retained.reviewAuthority,
+				readOutput: (request) => workflow.readOutput!(request) });
+			if (!disposed) update({ phase: 'review-ready', review: reviewed,
+				selectedChoiceIds: Object.freeze([]), error: null });
+		} catch (error) {
+			if (!disposed) update({ phase: 'error', review: null,
+				error: error instanceof Error ? error.message : 'The Guided result review failed.' });
+		}
+	};
+	const setReviewChoiceSelected = (choiceId: string, selected: boolean): void => {
+		if (snapshot.phase !== 'review-ready' || !snapshot.review) {
+			throw new Error('The Guided review is not open.');
+		}
+		const choice = snapshot.review.choices.find(({ id }) => id === choiceId);
+		if (!choice || !choice.enabled) throw new RangeError('The Guided review choice is unavailable.');
+		const ids = new Set(snapshot.selectedChoiceIds);
+		if (selected) ids.add(choiceId); else ids.delete(choiceId);
+		update({ selectedChoiceIds: Object.freeze(snapshot.review.choices
+			.filter(({ id }) => ids.has(id)).map(({ id }) => id)) });
+	};
 	const cancel = async (): Promise<void> => {
 		if (!running || !snapshot.canCancel || !workflow) return;
 		cancelRequested = true;
@@ -230,7 +278,7 @@ export function createLocalAssistanceGuidedSessionStore(
 		await running;
 		if (workflow?.custody) {
 			const custody = workflow.custody;
-			await Promise.allSettled([...retainedJobs].map((jobId) => custody.release(jobId)));
+			await Promise.allSettled([...retainedJobs.keys()].map((jobId) => custody.release(jobId)));
 			retainedJobs.clear();
 		}
 		listeners.clear();
@@ -239,7 +287,8 @@ export function createLocalAssistanceGuidedSessionStore(
 	return Object.freeze({
 		getSnapshot: () => snapshot,
 		subscribe(listener: () => void) { listeners.add(listener); return () => listeners.delete(listener); },
-		selectSurface, selectWorkflow, setSettings, run, cancel, dispose,
+		selectSurface, selectWorkflow, setSettings, setReviewChoiceSelected,
+		run, review, cancel, dispose,
 	});
 }
 
@@ -253,13 +302,14 @@ function availability(options: Options): LocalAssistanceGuidedUnavailableReason 
 }
 
 function freezeSnapshot(
-	value: Omit<LocalAssistanceGuidedSnapshot, 'canRun' | 'canCancel'>,
+	value: Omit<LocalAssistanceGuidedSnapshot, 'canRun' | 'canCancel' | 'canReview'>,
 ): LocalAssistanceGuidedSnapshot {
 	const unavailableReason = value.selectedWorkflowId ? value.unavailableReason : null;
 	return Object.freeze({ ...value, unavailableReason,
 		canRun: value.phase === 'ready' && value.selectedWorkflowId !== null
 			&& value.settings !== null && unavailableReason === null,
 		canCancel: value.phase === 'preparing' || value.phase === 'running',
+		canReview: value.phase === 'completed' && value.result?.outcome === 'completed',
 	});
 }
 
@@ -273,7 +323,7 @@ class GuidedPreparationUnavailableError extends Error {
 }
 
 function normalizePreparationOutcome(value: unknown): Readonly<{
-	outcome: 'prepared'; workflow: unknown;
+	outcome: 'prepared'; workflow: unknown; reviewAuthority: AssistanceWorkflowReviewAuthorityV1;
 }> | Readonly<{
 	outcome: 'unavailable'; reason: LocalAssistanceGuidedPreparationUnavailableReason;
 }> {
@@ -281,8 +331,10 @@ function normalizePreparationOutcome(value: unknown): Readonly<{
 		throw new TypeError('Guided preparation returned an invalid outcome.');
 	}
 	const row = value as Record<string, unknown>;
-	if (row.outcome === 'prepared' && Object.keys(row).length === 2 && Object.hasOwn(row, 'workflow')) {
-		return Object.freeze({ outcome: 'prepared', workflow: row.workflow });
+	if (row.outcome === 'prepared' && Object.keys(row).length === 3 && Object.hasOwn(row, 'workflow')
+		&& Object.hasOwn(row, 'reviewAuthority')) {
+		return Object.freeze({ outcome: 'prepared', workflow: row.workflow,
+			reviewAuthority: validateAssistanceWorkflowReviewAuthorityV1(row.reviewAuthority) });
 	}
 	if (row.outcome === 'unavailable' && Object.keys(row).length === 2
 		&& LOCAL_ASSISTANCE_GUIDED_PREPARATION_UNAVAILABLE_REASONS.includes(

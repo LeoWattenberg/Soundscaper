@@ -16,6 +16,8 @@ import {
 } from '../src/common/editor/assistance/workflow-settings-v1.ts';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import { LocalAssistanceDialogView } from '../src/common/editor/ui/dialogs/LocalAssistanceDialog.tsx';
+import LocalAssistanceGuidedReview from
+	'../src/common/editor/ui/dialogs/LocalAssistanceGuidedReview.tsx';
 import {
 	createLocalAssistanceGuidedSessionStore,
 	type LocalAssistanceGuidedSnapshot,
@@ -127,7 +129,9 @@ test('Guided uses the optional bridge only after preparation returns one exact a
 		prepareGuidedWorkflow: async (request) => {
 			preparationRequests.push(request);
 			return { outcome: 'prepared', workflow: assistanceWorkflowFixture({ jobId: request.jobId,
-				workflowId: request.workflowId, settingsVersion: request.settings.settingsVersion }) };
+				workflowId: request.workflowId, settingsVersion: request.settings.settingsVersion }),
+				reviewAuthority: { reviewAuthorityVersion: 1, audioWave: null,
+					editorialCandidateIds: null } };
 		},
 	});
 	const guided = createLocalAssistanceGuidedSessionStore({ bridge: fixture.localBridge, preparation });
@@ -149,6 +153,40 @@ test('Guided uses the optional bridge only after preparation returns one exact a
 	assert.equal(guided.getSnapshot().unavailableReason, 'workflow-runner-unavailable');
 });
 
+test('completed Guided output remains unchecked until its terminal claim passes semantic review', async () => {
+	const captions = new Blob([JSON.stringify({
+		schemaVersion: 1, kind: 'captions', sourceId: 'source-a', sampleRate: 48_000,
+		alignmentApplied: false,
+		cues: [{ cueId: 'caption:0', startFrame: 0, endFrame: 24_000,
+			text: 'Hello', words: [] }],
+	})], { type: 'application/vnd.soundscaper.captions+json' });
+	const fixture = workflowBridge({ completedBody: captions });
+	const preparation = primitivePreparation({
+		prepareGuidedWorkflow: async (request) => ({ outcome: 'prepared',
+			workflow: assistanceWorkflowFixture({ jobId: request.jobId,
+				workflowId: request.workflowId, settingsVersion: request.settings.settingsVersion }),
+			reviewAuthority: { reviewAuthorityVersion: 1, audioWave: null,
+				editorialCandidateIds: null } }),
+	});
+	const guided = createLocalAssistanceGuidedSessionStore({ bridge: fixture.localBridge, preparation });
+	guided.selectWorkflow('transcribe-captions');
+	await guided.run();
+	assert.equal(guided.getSnapshot().phase, 'completed');
+	assert.equal(guided.getSnapshot().canReview, true);
+	await guided.review();
+	assert.equal(guided.getSnapshot().phase, 'review-ready');
+	assert.deepEqual(guided.getSnapshot().selectedChoiceIds, []);
+	assert.deepEqual(guided.getSnapshot().review?.choices.map(({ id, selected }) => ({ id, selected })), [
+		{ id: 'captions', selected: false },
+	]);
+	guided.setReviewChoiceSelected('captions', true);
+	assert.deepEqual(guided.getSnapshot().selectedChoiceIds, ['captions']);
+	assert.match(renderToStaticMarkup(<LocalAssistanceGuidedReview copy={ENGLISH_COPY}
+		review={guided.getSnapshot().review!} selectedChoiceIds={guided.getSnapshot().selectedChoiceIds}
+		onChoiceChange={() => undefined} />), /type="checkbox" checked=""/u);
+	await guided.dispose();
+});
+
 function primitivePreparation(
 	extra: Partial<LocalAssistanceSelectedMediaPreparationPort> = {},
 ): LocalAssistanceSelectedMediaPreparationPort {
@@ -159,7 +197,7 @@ function primitivePreparation(
 	});
 }
 
-function workflowBridge() {
+function workflowBridge(options: Readonly<{ completedBody?: Blob }> = {}) {
 	let createCalls = 0;
 	const requests: Parameters<LocalAssistanceWorkflowBridge['run']>[0][] = [];
 	const bridge: LocalAssistanceWorkflowBridge = Object.freeze({
@@ -175,6 +213,10 @@ function workflowBridge() {
 		},
 		run: async (request: Parameters<LocalAssistanceWorkflowBridge['run']>[0]) => {
 			requests.push(request);
+			if (options.completedBody) return Object.freeze({ contractVersion: 1 as const,
+				jobId: request.jobId, workflowId: request.workflowId, outcome: 'completed' as const,
+				result: Object.freeze({ contractVersion: 1 as const, jobId: request.jobId,
+					workflowId: request.workflowId, stageIds: request.stageIds, outputs: request.outputs }) });
 			return Object.freeze({ contractVersion: 1 as const, jobId: request.jobId,
 				workflowId: request.workflowId, outcome: 'unavailable' as const,
 				reason: 'workflow-runner-unavailable' as const });
@@ -182,6 +224,10 @@ function workflowBridge() {
 		cancel: async (jobId: string) => Object.freeze({
 			contractVersion: 1 as const, jobId, outcome: 'cancelled' as const,
 		}),
+		readOutput: async () => {
+			if (!options.completedBody) throw new Error('No completed output fixture.');
+			return options.completedBody;
+		},
 		onProgress: () => () => undefined,
 	});
 	const localBridge = Object.freeze({ workflow: bridge,

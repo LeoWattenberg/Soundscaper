@@ -19,21 +19,18 @@ import {
 	type AssistanceWorkflowStageSpec,
 	type AssistanceWorkflowV1,
 } from '../assistance/workflow.ts';
-import type {
-	AssistanceWorkflowCustodyClaimV1,
-} from '../assistance/workflow-custody-v1.ts';
+import type { AssistanceWorkflowCustodyClaimV1 } from '../assistance/workflow-custody-v1.ts';
+import type { AssistanceWorkflowReviewAuthorityV1 } from '../assistance/workflow-review-authority-v1.ts';
 import {
 	serializeAssistanceWorkflowSettingsV1,
 	validateAssistanceWorkflowSettingsV1,
 	type AssistanceWorkflowSettingsV1,
 } from '../assistance/workflow-settings-v1.ts';
 import type { LocalAssistanceModel } from '../ui/local-assistance-bridge.ts';
-import type {
-	LocalAssistanceWorkflowCustodyBridge,
-} from '../ui/local-assistance-workflow-bridge.ts';
-import type {
-	LocalAssistanceGuidedPreparationUnavailableReason,
-} from '../ui/local-assistance-preparation.ts';
+import type { LocalAssistanceWorkflowCustodyBridge } from '../ui/local-assistance-workflow-bridge.ts';
+import type { LocalAssistanceGuidedPreparationUnavailableReason } from
+	'../ui/local-assistance-preparation.ts';
+import { deriveLocalAssistanceGuidedReviewAuthority } from './local-assistance-guided-review-authority.ts';
 
 const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
 const SHA256 = /^[a-f\d]{64}$/u;
@@ -62,8 +59,8 @@ export interface LocalAssistanceGuidedWorkflowPreparationRequest {
 }
 
 export type LocalAssistanceGuidedWorkflowPreparationOutcome = Readonly<{
-	outcome: 'prepared';
-	workflow: AssistanceWorkflowV1;
+	outcome: 'prepared'; workflow: AssistanceWorkflowV1;
+	reviewAuthority: AssistanceWorkflowReviewAuthorityV1;
 }> | Readonly<{
 	outcome: 'unavailable';
 	reason: LocalAssistanceGuidedPreparationUnavailableReason;
@@ -152,6 +149,9 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 			const preparedFences = [...externalByBinding.values()].map((external) => external!.fence);
 			if (preparedFences.length < 1) throw new UnavailableError('source-custody-unavailable');
 			assertSamePrimitiveFences(preparedFences);
+			const reviewAuthority = await deriveLocalAssistanceGuidedReviewAuthority(
+				request.workflowId, [...externalByBinding.values()].filter((value) => value !== null),
+			);
 			const settingsBody = serializeAssistanceWorkflowSettingsV1(settings);
 			const fence = aggregateFence(project, preparedFences[0]!, stages, settingsBody, models);
 			const outputBySlot = new Map<string, LocalAssistanceAggregateCustodyHandle>();
@@ -192,7 +192,7 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 				workflowId: request.workflowId, recipeVersion: 1,
 				settingsVersion: settings.settingsVersion, settings, fence, stageIds,
 				models, inputs: Object.freeze(inputs), outputs: Object.freeze(outputs) });
-			return Object.freeze({ outcome: 'prepared', workflow });
+			return Object.freeze({ outcome: 'prepared', workflow, reviewAuthority });
 		} catch (error) {
 			await request.custody.release(request.jobId).catch(() => false);
 			if (error instanceof UnavailableError) return unavailable(error.reason);

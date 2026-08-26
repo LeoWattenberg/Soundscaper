@@ -48,6 +48,8 @@ export interface LocalAssistanceDialogViewProps {
 	readonly onGuidedSettingsChange?: (settings: AssistanceWorkflowSettingsV1) => unknown;
 	readonly onRunGuided?: () => unknown;
 	readonly onCancelGuided?: () => unknown;
+	readonly onReviewGuided?: () => unknown;
+	readonly onGuidedChoiceChange?: (choiceId: string, selected: boolean) => unknown;
 	readonly onSelectSource: (sourceId: string) => unknown;
 	readonly onSelectOperation: (operation: AssistanceOperation) => unknown;
 	readonly onShotDetectionModeChange?: (mode: LocalAssistanceShotDetectionMode) => unknown;
@@ -94,6 +96,8 @@ export default function LocalAssistanceDialog({
 		onGuidedSettingsChange={guidedStore.setSettings}
 		onRunGuided={() => guidedStore.run()}
 		onCancelGuided={() => guidedStore.cancel()}
+		onReviewGuided={() => guidedStore.review()}
+		onGuidedChoiceChange={guidedStore.setReviewChoiceSelected}
 		onSelectSource={store.selectSource}
 		onSelectOperation={store.selectOperation}
 		onShotDetectionModeChange={store.selectShotDetectionMode}
@@ -121,6 +125,7 @@ export function LocalAssistanceDialogView({
 	onSurfaceChange = () => undefined, onSelectWorkflow = () => undefined,
 	onGuidedSettingsChange = () => undefined,
 	onRunGuided = () => undefined, onCancelGuided = () => undefined,
+	onReviewGuided = () => undefined, onGuidedChoiceChange = () => undefined,
 	onSelectSource, onSelectOperation,
 	onShotDetectionModeChange = () => undefined, onSelectModel,
 	onConsentChange, onRun, onCancel, onReview, onAccept,
@@ -173,7 +178,8 @@ export function LocalAssistanceDialogView({
 		</div>
 		{activeSurface === 'guided' && <LocalAssistanceGuidedPanel copy={copy} snapshot={guided}
 			onSelectWorkflow={onSelectWorkflow} onSettingsChange={onGuidedSettingsChange}
-			onRun={onRunGuided} onCancel={onCancelGuided} />}
+			onRun={onRunGuided} onCancel={onCancelGuided} onReview={onReviewGuided}
+			onChoiceChange={onGuidedChoiceChange} />}
 		{activeSurface === 'advanced' && <section id="local-assistance-advanced-panel"
 			className="kw-local-assistance__advanced" role="tabpanel"
 			aria-label={text(copy, 'localAssistanceAdvanced', 'Advanced')}>

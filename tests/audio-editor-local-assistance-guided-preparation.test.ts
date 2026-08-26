@@ -14,6 +14,7 @@ import {
 	createAssistanceWorkflowCustodyClaimV1,
 	workflowClaimFromCustodyV1,
 } from '../src/common/editor/assistance/workflow-custody-v1.ts';
+import { encodeWav } from '../src/common/editor/wav.js';
 
 const JOB_ID = '01'.repeat(20);
 const SOURCE_SHA256 = 'ab'.repeat(32);
@@ -37,6 +38,9 @@ test('enhancement preparation binds exact media, model, settings, recipe, and ca
 	}]);
 	assert.equal(result.workflow.inputs.length, 1);
 	assert.equal(result.workflow.outputs.length, 1);
+	assert.deepEqual(result.reviewAuthority, { reviewAuthorityVersion: 1,
+		audioWave: { sampleRate: 48_000, channelCount: 2, frameCount: 3 },
+		editorialCandidateIds: null });
 	assert.deepEqual(result.workflow.fence.sourceRanges, [{
 		slotId: 'primary-audio', mediaKind: 'audio', sourceId: 'voice-source',
 		sourceSha256: SOURCE_SHA256, sourceSampleRate: 48_000, occurrenceIds: ['voice-clip'],
@@ -66,6 +70,8 @@ test('TIGER preparation reserves dialogue, music, and effects once in canonical 
 	if (result.outcome !== 'prepared') return;
 	assert.deepEqual(result.workflow.outputs.map(({ slotId }) => slotId),
 		['dialogue', 'music', 'effects']);
+	assert.deepEqual(result.reviewAuthority.audioWave,
+		{ sampleRate: 44_100, channelCount: 2, frameCount: 3 });
 	assert.deepEqual(fixture.preflights, [3 * MAXIMUM_OUTPUT_BYTES]);
 	assert.deepEqual(fixture.operations, ['source-separation']);
 	assert.equal(fixture.custodyEvents.filter(({ kind }) => kind === 'output').length, 3);
@@ -362,9 +368,13 @@ function preparationFixture(
 				label: 'Voice', mediaKind: 'audio', operations: [] }] }),
 			prepareSelectedMedia: async ({ operation }) => {
 				operations.push(operation);
+				const sampleRate = operation === 'source-separation' ? 44_100 : 48_000;
+				const wav = encodeWav([
+					Float32Array.of(0.25, 0, -0.25), Float32Array.of(-0.25, 0, 0.25),
+				], { sampleRate, bitDepth: 32, float: true, dither: false });
 				return { sourceId: 'voice-source', operation, selectionFence: preparedFence,
 					inputs: [{ role: 'audio', mediaType: 'audio/wav',
-						bytes: new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'audio/wav' }) }],
+						bytes: new Blob([wav.slice().buffer], { type: 'audio/wav' }) }],
 					outputs: operation === 'source-separation'
 						? ['dialogue', 'music', 'effects'].map((slotId) => ({ slotId,
 							role: 'separated-audio', mediaType: 'audio/wav',

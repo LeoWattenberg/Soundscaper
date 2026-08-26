@@ -2,6 +2,8 @@
 
 /** Accessible Guided workflow reachability; aggregate execution stays behind its explicit seam. */
 
+import { lazy, Suspense } from 'react';
+
 import {
 	assistanceWorkflowStageGraph,
 	type AssistanceGuidedWorkflowId,
@@ -13,6 +15,8 @@ import type {
 } from '../local-assistance-guided-session-store.ts';
 import LocalAssistanceGuidedSettings from './LocalAssistanceGuidedSettings.tsx';
 
+const LocalAssistanceGuidedReview = lazy(() => import('./LocalAssistanceGuidedReview.tsx'));
+
 type Copy = Readonly<Record<string, string | undefined>>;
 
 export interface LocalAssistanceGuidedPanelProps {
@@ -22,6 +26,8 @@ export interface LocalAssistanceGuidedPanelProps {
 	readonly onSettingsChange: (settings: AssistanceWorkflowSettingsV1) => unknown;
 	readonly onRun: () => unknown;
 	readonly onCancel: () => unknown;
+	readonly onReview: () => unknown;
+	readonly onChoiceChange: (choiceId: string, selected: boolean) => unknown;
 }
 
 const LABELS: Readonly<Record<AssistanceGuidedWorkflowId, string>> = Object.freeze({
@@ -41,7 +47,7 @@ const LABELS: Readonly<Record<AssistanceGuidedWorkflowId, string>> = Object.free
 });
 
 export default function LocalAssistanceGuidedPanel({
-	copy, snapshot, onSelectWorkflow, onSettingsChange, onRun, onCancel,
+	copy, snapshot, onSelectWorkflow, onSettingsChange, onRun, onCancel, onReview, onChoiceChange,
 }: LocalAssistanceGuidedPanelProps) {
 	const graph = snapshot.selectedWorkflowId
 		? assistanceWorkflowStageGraph(snapshot.selectedWorkflowId) : null;
@@ -83,7 +89,14 @@ export default function LocalAssistanceGuidedPanel({
 			<button type="button" disabled={!snapshot.canCancel} onClick={() => { void onCancel(); }}>
 				{text(copy, 'localAssistanceCancel', 'Cancel')}
 			</button>
+			<button type="button" disabled={!snapshot.canReview} onClick={() => { void onReview(); }}>
+				{text(copy, 'localAssistanceReview', 'Review result')}
+			</button>
 		</div>
+		{snapshot.review && <Suspense fallback={<p role="status">
+			{text(copy, 'localAssistanceReviewLoading', 'Opening review…')}
+		</p>}><LocalAssistanceGuidedReview copy={copy} review={snapshot.review}
+			selectedChoiceIds={snapshot.selectedChoiceIds} onChoiceChange={onChoiceChange} /></Suspense>}
 		{message && <p role={snapshot.phase === 'error' ? 'alert' : 'status'} aria-live="polite">
 			{message}
 		</p>}
@@ -100,7 +113,11 @@ function statusMessage(copy: Copy, snapshot: LocalAssistanceGuidedSnapshot): str
 		? `${snapshot.progress.stageId} · ${snapshot.progress.phase}`
 		: text(copy, 'localAssistanceGuidedRunning', 'Running the Guided workflow.');
 	if (snapshot.phase === 'completed') return text(copy, 'localAssistanceGuidedCompleted',
-		'The Guided workflow completed.');
+		'The Guided workflow completed. Review its authenticated result before accepting anything.');
+	if (snapshot.phase === 'reviewing') return text(copy, 'localAssistanceGuidedReviewing',
+		'Reviewing the authenticated Guided result.');
+	if (snapshot.phase === 'review-ready') return text(copy, 'localAssistanceGuidedReviewReady',
+		'The Guided result is ready for an explicit selection.');
 	if (snapshot.phase === 'cancelled') return text(copy, 'localAssistanceCancelled',
 		'The Guided workflow was cancelled.');
 	if (snapshot.phase === 'error') return snapshot.error
