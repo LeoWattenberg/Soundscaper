@@ -8,6 +8,7 @@ import test from 'node:test';
 import {
 	chunkGroupForModulePath,
 	chunkGroups,
+	EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST,
 	EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST,
 	EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST,
 	EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST,
@@ -160,10 +161,14 @@ test('PFFFT has an isolated lazy runtime owner', () => {
 });
 
 test('selection effects have an isolated lazy runtime owner', () => {
-	const path = 'src/common/editor/selection-effects-runtime.js';
-	assert.ok(EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST.test(path));
-	assert.ok(EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST.test(path));
-	assert.equal(chunkGroupForModulePath(path), 'editor-selection-effects-runtime');
+	for (const path of [
+		'src/common/editor/selection-effects-runtime.js',
+		'src/common/editor/parametric-eq/destructive.js',
+	]) {
+		assert.ok(EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST.test(path));
+		assert.equal(chunkGroupForModulePath(path), 'editor-selection-effects-runtime');
+	}
+	assert.ok(EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST.test('src/common/editor/selection-effects-runtime.js'));
 	const group = chunkGroups.find((candidate) => candidate.name === 'editor-selection-effects-runtime');
 	assert.ok(group);
 	assert.equal(group.includeDependenciesRecursively, false);
@@ -220,7 +225,6 @@ test('stateful local assistance implementations share one dedicated lazy owner',
 
 test('menu-opened execution and UI surfaces use dedicated lazy owners', () => {
 	for (const path of [
-		'src/common/editor/ui/ParametricEqEditor.jsx',
 		'src/common/editor/ui/local-assistance-session-store.ts',
 		'src/common/editor/ui/workspace/RecordingSetupPanel.tsx',
 	]) {
@@ -240,6 +244,21 @@ test('menu-opened execution and UI surfaces use dedicated lazy owners', () => {
 		assert.ok(group);
 		assert.equal(group.includeDependenciesRecursively, false);
 	}
+});
+
+test('effect parameter surfaces share one cycle-free lazy owner', () => {
+	for (const path of [
+		'src/common/editor/ui/AudacityEffectLayout.jsx',
+		'src/common/editor/ui/ParametricEqEditor.jsx',
+		'src/common/editor/ui/inspector/EffectParameterEditor.jsx',
+	]) {
+		assert.ok(EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST.test(path));
+		assert.equal(chunkGroupForModulePath(path), 'editor-effect-parameter-surfaces');
+	}
+	const group = chunkGroups.find((candidate) => candidate.name === 'editor-effect-parameter-surfaces');
+	assert.ok(group);
+	assert.equal(group.includeDependenciesRecursively, false);
+	assert.equal(group.minSize, 0);
 });
 
 test('small product-ready foundations have non-recursive semantic owners', () => {

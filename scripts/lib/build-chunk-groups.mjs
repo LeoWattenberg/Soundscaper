@@ -38,9 +38,9 @@ export const EDITOR_PFFFT_RUNTIME_CHUNK_TEST = new RegExp(
 	`${editorPath}pffft\\.js$`,
 );
 
-/** Selection dispatcher shared by the main-thread and worker fallbacks. */
+/** Selection dispatcher and its destructive parametric-EQ implementation. */
 export const EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST = new RegExp(
-	`${editorPath}selection-effects-runtime\\.js$`,
+	`${editorPath}(?:selection-effects-runtime|parametric-eq[\\/]destructive)\\.js$`,
 );
 
 /** Effect and Analyze implementations reached only after their eager action facade runs. */
@@ -61,6 +61,11 @@ export const EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST = new RegExp(
 /** Menu-opened UI implementations that remain behind existing React.lazy surfaces. */
 export const EDITOR_OPTIONAL_SURFACE_CHUNK_TEST = new RegExp(
 	`${editorPath}${editorOptionalSurfaceModule}$`,
+);
+
+/** Shared parameter editor plus its Audacity and parametric-EQ surface implementations. */
+export const EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST = new RegExp(
+	`${editorPath}ui[\\/](?:AudacityEffectLayout|ParametricEqEditor|inspector[\\/]EffectParameterEditor)\\.jsx$`,
 );
 
 const DESIGN_SYSTEM_OPTIONAL_EFFECTS_CHUNK_TEST = /(?:^|[\\/])vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?:EffectsPanel[\\/].*|EffectDialog[\\/]EffectHeader\.tsx)$/;
@@ -149,6 +154,16 @@ export const chunkGroups = [
 		name: 'vendor-optional-effects',
 		test: DESIGN_SYSTEM_OPTIONAL_EFFECTS_CHUNK_TEST,
 		priority: 93,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		// These three modules form one shared leaf for the rack, macro, and
+		// selection dialogs. Splitting the leaf creates a generated self-import.
+		name: 'editor-effect-parameter-surfaces',
+		test: EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST,
+		priority: 98,
+		minSize: 0,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
 	},
