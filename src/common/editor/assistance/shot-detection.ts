@@ -102,7 +102,10 @@ export async function detectShots(
 			throwIfAborted(options.signal);
 			const boundaries = sceneScoresToBoundaries(result.scores, options.sceneScores);
 			const shots = shotsFromBoundaries(
-				boundaries.map(({ frame, score }) => ({ frame, score })),
+				// The scene-score pass admits a boundary at frame 0, but the source
+				// start is not a cut and the shot builder refuses one, so a video
+				// opening on a hard cut would otherwise fail the whole detector.
+				boundaries.filter(({ frame }) => frame > 0).map(({ frame, score }) => ({ frame, score })),
 				{ durationFrames: result.durationFrames, minimumShotFrames: options.minimumShotFrames },
 			);
 			return Object.freeze({

@@ -47,6 +47,28 @@ test('the first detector that succeeds produces the index', async () => {
 	assert.equal(resolved.decision === 'shot-index' && resolved.index.detector, 'webcodecs');
 });
 
+/**
+ * The scene-score pass admits a boundary at frame 0, but the source start is
+ * not a cut, so the shot builder refuses one. A video that opens on a hard cut
+ * must still produce an index rather than being reported as undetectable.
+ */
+test('a scene score at the source start does not fail the whole detection', async () => {
+	const scores = scoresWithCutAt(20_000);
+	scores[0] = { frame: 0, score: 0.9 };
+	const resolved = await detectShots(new Blob(['x']), {
+		...SOURCE,
+		detectors: [detector('webcodecs', {
+			scores, durationFrames: 60_000, sampleRate: RATE,
+		})],
+	});
+
+	assert.equal(resolved.decision, 'shot-index');
+	assert.deepEqual(
+		resolved.decision === 'shot-index' ? resolved.index.shots.map(({ startFrame }) => startFrame) : null,
+		[0, 20_000],
+	);
+});
+
 test('an earlier failure is recorded and the next detector is tried', async () => {
 	const resolved = await detectShots(new Blob(['x']), {
 		...SOURCE,

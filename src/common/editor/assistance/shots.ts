@@ -112,7 +112,14 @@ export function shotsFromBoundaries(
 		// same transition. Keep whichever the detector was surer of, which for
 		// a dissolve is its midpoint rather than either edge.
 		if (previous && boundary.frame - previous.frame < minimumShotFrames) {
-			if (boundary.score > previous.score) kept[kept.length - 1] = boundary;
+			// Replacing moves the kept boundary forward, so the replacement has to
+			// clear the same head and tail guards the push below applies; otherwise
+			// the collapse can leave a final shot shorter than the minimum.
+			if (boundary.score > previous.score
+				&& boundary.frame >= minimumShotFrames
+				&& durationFrames - boundary.frame >= minimumShotFrames) {
+				kept[kept.length - 1] = boundary;
+			}
 			continue;
 		}
 		if (boundary.frame < minimumShotFrames) continue;

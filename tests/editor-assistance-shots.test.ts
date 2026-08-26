@@ -172,3 +172,22 @@ test('shots built from boundaries validate as an index', () => {
 	assert.equal(built.shots.length, 2);
 	assert.equal(built.detector, 'ffmpeg-scene-score');
 });
+
+/**
+ * Collapsing a run of boundaries moves the kept one forward, so the survivor
+ * has to clear the same head and tail guards a directly kept boundary does —
+ * otherwise the collapse can produce a final shot below the requested minimum.
+ */
+test('a collapsed boundary run still respects the minimum shot length', () => {
+	const shots = shotsFromBoundaries(
+		[{ frame: 8 * RATE, score: 0.4 }, { frame: 8.5 * RATE, score: 0.9 }],
+		{ durationFrames: 9 * RATE, minimumShotFrames: RATE },
+	);
+
+	for (const shot of shots) {
+		assert.ok(
+			shot.endFrame - shot.startFrame >= RATE,
+			`shot ${shot.startFrame}-${shot.endFrame} is shorter than the requested minimum`,
+		);
+	}
+});
