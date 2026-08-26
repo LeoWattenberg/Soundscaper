@@ -75,7 +75,15 @@ export default function FramescaperSelectedV27VisualAuthoringDialog(props: Props
 			? current : model.visualPresets[0]?.id ?? '');
 		setFinishingPresetId((current) => model.finishingPresets.some(({ id }) => id === current)
 			? current : model.finishingPresets[0]?.id ?? '');
-	}, [model]);
+		// Keyed on what is actually reseeded, not on the model object: the model is
+		// rebuilt whenever the playhead moves, and only the freeze surface reads the
+		// playhead, so keying on the object discarded whatever the operator had
+		// typed on the dissolve, adjustment and mask surfaces.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [
+		model.surface, model.selectedClipId, model.selectedPairId,
+		model.adjustmentBrightness, model.adjustmentLayerId, model.selectedMaskId,
+	]);
 	const runtime = framescaperSelectedVisualAuthoringRuntimeV27For(props.controller as object);
 	const blocked = pending || props.editingBlocked || props.readOnly || runtime === null;
 	const perform = (operation: string): void => {
