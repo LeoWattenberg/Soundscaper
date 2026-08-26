@@ -241,6 +241,7 @@ test('stateful local assistance implementations share one dedicated lazy owner',
 		'src/common/editor/assistance/visual-indexing-v1.ts',
 		'src/common/editor/assistance/visual-semantic-results-v1.ts',
 		'src/common/editor/assistance/workflow-recipes.ts',
+		'src/common/editor/assistance/workflow-settings-v1.ts',
 		'src/common/editor/assistance/workflow.ts',
 		'src/common/editor/storage/assistance-derivative-repository.ts',
 	]) {
@@ -263,6 +264,7 @@ test('stateful local assistance implementations share one dedicated lazy owner',
 test('menu-opened execution and UI surfaces use dedicated lazy owners', () => {
 	for (const path of [
 		'src/common/editor/ui/local-assistance-bridge.ts',
+		'src/common/editor/ui/local-assistance-guided-session-store.ts',
 		'src/common/editor/ui/local-assistance-result-review.ts',
 		'src/common/editor/ui/local-assistance-session-store.ts',
 		'src/common/editor/ui/local-assistance-shot-review.ts',

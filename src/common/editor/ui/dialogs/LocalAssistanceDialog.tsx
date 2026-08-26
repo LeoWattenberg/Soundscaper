@@ -4,11 +4,19 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
 import { ASSISTANCE_OPERATIONS, type AssistanceOperation } from '../../assistance/operation.ts';
 import type { LocalAssistanceShotDetectionMode } from '../../assistance/shot-detection-mode.ts';
+import type { AssistanceGuidedWorkflowId } from '../../assistance/workflow-recipes.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import LocalAssistanceCleanupReview from './LocalAssistanceCleanupReview.tsx';
+import LocalAssistanceGuidedPanel from './LocalAssistanceGuidedPanel.tsx';
 import type { LocalAssistanceTranscriptCleanupPreset } from '../local-assistance-cleanup.ts';
 import LocalAssistanceOutputReviewList from './LocalAssistanceOutputReview.tsx';
 import type { LocalAssistanceBridge } from '../local-assistance-bridge.ts';
+import {
+	createLocalAssistanceGuidedSessionStore,
+	INITIAL_LOCAL_ASSISTANCE_GUIDED_SNAPSHOT,
+	type LocalAssistanceDialogSurface,
+	type LocalAssistanceGuidedSnapshot,
+} from '../local-assistance-guided-session-store.ts';
 import { localAssistanceModelCompatible, localAssistanceModelTaskSlots,
 	type LocalAssistanceSelectedMediaPreparationPort } from '../local-assistance-preparation.ts';
 import {
@@ -30,8 +38,14 @@ export interface LocalAssistanceDialogProps {
 export interface LocalAssistanceDialogViewProps {
 	readonly copy: Copy;
 	readonly snapshot: LocalAssistanceSnapshot;
+	readonly guided?: LocalAssistanceGuidedSnapshot;
+	readonly surface?: LocalAssistanceDialogSurface;
 	readonly reviewOpen?: boolean;
 	readonly onClose: () => void;
+	readonly onSurfaceChange?: (surface: LocalAssistanceDialogSurface) => unknown;
+	readonly onSelectWorkflow?: (workflowId: AssistanceGuidedWorkflowId) => unknown;
+	readonly onRunGuided?: () => unknown;
+	readonly onCancelGuided?: () => unknown;
 	readonly onSelectSource: (sourceId: string) => unknown;
 	readonly onSelectOperation: (operation: AssistanceOperation) => unknown;
 	readonly onShotDetectionModeChange?: (mode: LocalAssistanceShotDetectionMode) => unknown;
@@ -51,21 +65,32 @@ export default function LocalAssistanceDialog({
 	bridge, preparation, copy, onClose,
 }: LocalAssistanceDialogProps) {
 	const store = useMemo(() => createLocalAssistanceSessionStore({ bridge, preparation }), [bridge, preparation]);
+	const guidedStore = useMemo(() => createLocalAssistanceGuidedSessionStore({
+		workflow: bridge?.workflow ?? null, preparation,
+	}), [bridge, preparation]);
 	const [reviewOpen, setReviewOpen] = useState(false);
 	const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+	const guided = useSyncExternalStore(
+		guidedStore.subscribe, guidedStore.getSnapshot, guidedStore.getSnapshot,
+	);
 	useEffect(() => {
 		const disconnect = store.connect();
 		void store.load();
 		return () => {
 			disconnect();
-			void store.dispose();
+			void Promise.all([store.dispose(), guidedStore.dispose()]);
 		};
-	}, [store]);
+	}, [guidedStore, store]);
 	return <LocalAssistanceDialogView
 		copy={copy}
 		snapshot={snapshot}
+		guided={guided}
 		reviewOpen={reviewOpen}
 		onClose={onClose}
+		onSurfaceChange={guidedStore.selectSurface}
+		onSelectWorkflow={guidedStore.selectWorkflow}
+		onRunGuided={() => guidedStore.run()}
+		onCancelGuided={() => guidedStore.cancel()}
 		onSelectSource={store.selectSource}
 		onSelectOperation={store.selectOperation}
 		onShotDetectionModeChange={store.selectShotDetectionMode}
@@ -88,13 +113,18 @@ export default function LocalAssistanceDialog({
 }
 
 export function LocalAssistanceDialogView({
-	copy, snapshot, reviewOpen = false, onClose, onSelectSource, onSelectOperation,
+	copy, snapshot, guided = INITIAL_LOCAL_ASSISTANCE_GUIDED_SNAPSHOT,
+	surface, reviewOpen = false, onClose,
+	onSurfaceChange = () => undefined, onSelectWorkflow = () => undefined,
+	onRunGuided = () => undefined, onCancelGuided = () => undefined,
+	onSelectSource, onSelectOperation,
 	onShotDetectionModeChange = () => undefined, onSelectModel,
 	onConsentChange, onRun, onCancel, onReview, onAccept,
 	onCleanupSelectionChange = () => undefined,
 	onCleanupPresetChange = () => undefined,
 	onCleanupAccept = () => undefined, onCleanupReject = () => undefined,
 }: LocalAssistanceDialogViewProps) {
+	const activeSurface = surface ?? guided.surface;
 	const source = snapshot.sources.find(({ sourceId }) => sourceId === snapshot.selectedSourceId) ?? null;
 	const operationSet = new Set(source?.operations ?? []);
 	const shotDetectionMode = snapshot.selectedOperation === 'shot-detection'
@@ -109,7 +139,7 @@ export function LocalAssistanceDialogView({
 		width={760}
 		initialFocus="dialog"
 		dataAttributes={{ 'data-local-assistance': 'true' }}
-		footer={<div className="kw-audio-editor-dialog__actions">
+		footer={activeSurface === 'advanced' ? <div className="kw-audio-editor-dialog__actions">
 			<button type="button" disabled={!snapshot.canReview} onClick={() => { void onReview(); }}>
 				{text(copy, 'localAssistanceReview', 'Review result')}
 			</button>
@@ -118,10 +148,30 @@ export function LocalAssistanceDialogView({
 				{text(copy, 'localAssistanceAccept', 'Accept proposal')}
 			</button>
 			<button type="button" onClick={onClose}>{text(copy, 'close', 'Close')}</button>
+		</div> : <div className="kw-audio-editor-dialog__actions">
+			<button type="button" onClick={onClose}>{text(copy, 'close', 'Close')}</button>
 		</div>}
 	>
 		<p>{text(copy, 'localAssistanceDescription',
 			'Process explicitly selected media locally with an installed, compatible model.')}</p>
+		<div className="kw-local-assistance__tabs" role="tablist"
+			aria-label={text(copy, 'localAssistanceMode', 'Local Assistance mode')}>
+			<button type="button" role="tab" aria-selected={activeSurface === 'guided'}
+				aria-controls="local-assistance-guided-panel"
+				disabled={guided.canCancel || busy(snapshot)} onClick={() => {
+					void onSurfaceChange('guided');
+				}}>{text(copy, 'localAssistanceGuided', 'Guided')}</button>
+			<button type="button" role="tab" aria-selected={activeSurface === 'advanced'}
+				aria-controls="local-assistance-advanced-panel"
+				disabled={guided.canCancel || busy(snapshot)} onClick={() => {
+					void onSurfaceChange('advanced');
+				}}>{text(copy, 'localAssistanceAdvanced', 'Advanced')}</button>
+		</div>
+		{activeSurface === 'guided' && <LocalAssistanceGuidedPanel copy={copy} snapshot={guided}
+			onSelectWorkflow={onSelectWorkflow} onRun={onRunGuided} onCancel={onCancelGuided} />}
+		{activeSurface === 'advanced' && <section id="local-assistance-advanced-panel"
+			className="kw-local-assistance__advanced" role="tabpanel"
+			aria-label={text(copy, 'localAssistanceAdvanced', 'Advanced')}>
 		<div className="kw-local-assistance__selections">
 			<label>{text(copy, 'localAssistanceSource', 'Selected media')}
 				<select value={snapshot.selectedSourceId ?? ''} disabled={busy(snapshot)}
@@ -205,6 +255,7 @@ export function LocalAssistanceDialogView({
 		/>}
 		<p className="kw-local-assistance__deferred">{text(copy, 'localAssistanceAcceptanceDeferred',
 			'Project acceptance is enabled in a separate review step.')}</p>
+		</section>}
 	</AudioEditorDialogShell>;
 }
 

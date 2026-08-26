@@ -168,7 +168,7 @@ test('the focused EN/DE catalog and dialog expose all operations without an impl
 		canRun: false, canCancel: false, canReview: false, canAccept: false,
 	});
 	const markup = renderToStaticMarkup(<LocalAssistanceDialogView
-		copy={ENGLISH_COPY} snapshot={snapshot} onClose={() => undefined}
+		copy={ENGLISH_COPY} snapshot={snapshot} surface="advanced" onClose={() => undefined}
 		onSelectSource={() => undefined} onSelectOperation={() => undefined}
 		onSelectModel={() => undefined} onConsentChange={() => undefined}
 		onRun={() => undefined} onCancel={() => undefined}

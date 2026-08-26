@@ -7,6 +7,8 @@ import {
 	normalizeAssistanceOperation,
 	type AssistanceOperation,
 } from '../assistance/operation.ts';
+import type { AssistanceGuidedWorkflowId } from '../assistance/workflow-recipes.ts';
+import type { AssistanceWorkflowSettingsV1 } from '../assistance/workflow-settings-v1.ts';
 import {
 	validateAssistanceSelectionFence,
 	type AssistanceSelectionFence,
@@ -72,6 +74,7 @@ export interface LocalAssistanceSelectedMediaPreparationPort {
 		shotDetectionMode?: LocalAssistanceShotDetectionMode;
 		signal?: AbortSignal;
 	}>): Promise<unknown>;
+	prepareGuidedWorkflow?(request: LocalAssistanceGuidedWorkflowPreparationRequest): Promise<unknown>;
 	acceptValidatedResult?(request: LocalAssistanceValidatedResultAcceptanceRequest): Promise<void>;
 	prepareTranscriptCleanup?(
 		request: LocalAssistanceTranscriptCleanupPreparationRequest,
@@ -79,6 +82,13 @@ export interface LocalAssistanceSelectedMediaPreparationPort {
 	acceptTranscriptCleanup?(proposalIds: readonly string[]): Promise<void>;
 	rejectTranscriptCleanup?(): Promise<void>;
 	cancelTranscriptCleanup?(): Promise<void>;
+}
+
+export interface LocalAssistanceGuidedWorkflowPreparationRequest {
+	readonly jobId: string;
+	readonly workflowId: AssistanceGuidedWorkflowId;
+	readonly settings: AssistanceWorkflowSettingsV1;
+	readonly signal: AbortSignal;
 }
 
 export interface LocalAssistanceValidatedResultAcceptanceRequest {

@@ -146,7 +146,7 @@ test('speaker diarization renders one installed-model selector per required task
 		canRun: false, canCancel: false, canReview: false, canAccept: false,
 	});
 	const markup = renderToStaticMarkup(<LocalAssistanceDialogView
-		copy={ENGLISH_COPY} snapshot={snapshot} onClose={() => undefined}
+		copy={ENGLISH_COPY} snapshot={snapshot} surface="advanced" onClose={() => undefined}
 		onSelectSource={() => undefined} onSelectOperation={() => undefined}
 		onSelectModel={() => undefined} onConsentChange={() => undefined}
 		onRun={() => undefined} onCancel={() => undefined}
@@ -187,7 +187,7 @@ test('one explicit run stages Blob input, validates output, and releases custody
 	assert.equal(snapshot.canReview, true);
 	assert.equal(snapshot.canAccept, false);
 	const markup = renderToStaticMarkup(<LocalAssistanceDialogView
-		copy={ENGLISH_COPY} snapshot={snapshot} reviewOpen onClose={() => undefined}
+		copy={ENGLISH_COPY} snapshot={snapshot} surface="advanced" reviewOpen onClose={() => undefined}
 		onSelectSource={() => undefined} onSelectOperation={() => undefined}
 		onSelectModel={() => undefined} onConsentChange={() => undefined}
 		onRun={() => undefined} onCancel={() => undefined}
@@ -284,7 +284,8 @@ test('reviewed speech output enables one explicit controller-owned acceptance', 
 	const reviewable = store.getSnapshot();
 	assert.equal(reviewable.canAccept, true);
 	const view = (reviewOpen: boolean) => renderToStaticMarkup(<LocalAssistanceDialogView
-		copy={ENGLISH_COPY} snapshot={reviewable} reviewOpen={reviewOpen} onClose={() => undefined}
+		copy={ENGLISH_COPY} snapshot={reviewable} surface="advanced"
+		reviewOpen={reviewOpen} onClose={() => undefined}
 		onSelectSource={() => undefined} onSelectOperation={() => undefined}
 		onSelectModel={() => undefined} onConsentChange={() => undefined}
 		onRun={() => undefined} onCancel={() => undefined}

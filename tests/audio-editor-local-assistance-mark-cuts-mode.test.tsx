@@ -159,7 +159,7 @@ async function selectedShotStore(
 
 function renderLocalAssistance(snapshot: LocalAssistanceSnapshot): string {
 	return renderToStaticMarkup(<LocalAssistanceDialogView
-		copy={ENGLISH_COPY} snapshot={snapshot} onClose={() => undefined}
+		copy={ENGLISH_COPY} snapshot={snapshot} surface="advanced" onClose={() => undefined}
 		onSelectSource={() => undefined} onSelectOperation={() => undefined}
 		onSelectModel={() => undefined} onShotDetectionModeChange={() => undefined}
 		onConsentChange={() => undefined} onRun={() => undefined} onCancel={() => undefined}
