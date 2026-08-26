@@ -4,20 +4,34 @@
 
 This branch activates the implemented Milestone 7 substrate without using
 manual or owner-lab qualification as an execution switch, but it does not
-complete every 7A and 7B workflow described by this plan. The executable model
-path is the authenticated Parakeet speech-recognition adapter through the
-verified Sherpa runtime. Its reviewed acceptance publishes a canonical
-content-addressed transcript body and an ordinary label track as one undoable
-S30/F31 edit with current-selection and rollback fences. Every other operation
-still returns its typed `adapter-unavailable`, `model-unavailable`,
-`runtime-unavailable`, or `target-unavailable` state; no missing adapter is
-simulated. The selected F31 standalone capture route is
-active on web and desktop, while its real-device and owner-lab qualification
-remains pending and unprovisioned. Licensing, catalog signatures, artifact
-digests, runtime/platform compatibility, selected-media authority, storage
-integrity, explicit consent, and capture permission/grant checks remain hard
-fail-closed gates. The objectives below remain the full target, not a claim
-that absent operation adapters were delivered.
+complete every 7A and 7B workflow described by this plan. The verified Sherpa
+runtime now executes exact installed bindings for Parakeet speech recognition,
+Silero voice activity, and pyannote-segmentation plus ERes2Net speaker
+diarization. Reviewed speech can publish a canonical content-addressed
+transcript body and ordinary label track; reviewed VAD and diarization can
+publish ordinary silence and anonymous-speaker label tracks. An authenticated
+English Parakeet review can also produce deterministic filler, repetition, and,
+only when the same session holds exact same-fence reviewed Silero output,
+measured-silence cleanup choices. They start unselected and only an explicit
+subset acceptance commits one link-aware disjoint ripple batch and undo step.
+Framescaper F31 additionally exposes model-free fast shot detection through an
+admitted user-configured external FFmpeg, with reviewed boundaries accepted as
+ordinary timeline annotations. TransNetV2 accurate shots remain blocked.
+
+Word alignment, enhancement, separation, audio tagging, beat tracking,
+semantic and visual embeddings, OCR, subject and saliency analysis, and
+editorial generation still return their typed `adapter-unavailable`,
+`model-unavailable`, or `runtime-unavailable` state; no
+missing adapter is simulated. The catalog records intended EU R2 object
+identities, but this activation asserts no durable R2 upload or public
+read-back evidence; authenticated preseed remains the established offline
+ingress. The selected F31 standalone capture route is active on web and
+desktop, while its real-device and owner-lab qualification remains pending and
+unprovisioned. Licensing, catalog signatures, artifact digests,
+runtime/platform compatibility, selected-media authority, storage integrity,
+explicit consent, external-FFmpeg admission, and capture permission/grant
+checks remain hard fail-closed gates. The objectives below remain the full
+target, not a claim that absent operation adapters were delivered.
 
 ## Outcome
 
@@ -121,6 +135,21 @@ that absent operation adapters were delivered.
   one undoable batch, rolling back staged bodies on failure.
 
 ## Product workflows and rollout
+
+The bounded activation delivered on this branch is narrower than the complete
+rollout sequence below:
+
+- 7A currently activates Parakeet transcription and transcript acceptance,
+  standalone Silero VAD review/label acceptance, exact two-model Sherpa
+  diarization review/anonymous-speaker labels, and explicit deterministic
+  transcript cleanup. Whisper/alignment, enhancement/separation, semantic
+  transcript search, and beat/tempo workflows remain unavailable.
+- 7B currently activates only the fast FFmpeg scene-score shot workflow on
+  selected F31 video, including review and explicit marker acceptance. Accurate
+  TransNetV2, frame semantics/OCR, subject/reframe, highlight assembly, and
+  assistance-driven vertical delivery remain unavailable.
+- 8A is active on selected F31 web and desktop, default-hidden and menu-opt-in;
+  its real-device and owner-lab qualification remains open.
 
 - Add only menu-reached UI. `Tools -> Local Models -> Manage Models...` is
   always discoverable in desktop builds. `Analyze -> Local Assistance` opens
