@@ -27,12 +27,16 @@ because they are the ones most easily read as better than they are:
    `pending-external` with named blockers, stage no payload, and report a typed
    unavailability. Five-target packaged and physical results remain
    pending-external as well.
-3. **Every third-party plug-in format remains fail-closed.** VST3, CLAP, Audio
-   Units and LV2 keep their blocked licensing rows. The scanner, registry,
-   quarantine and host machinery is proven against a benign fixture format that
-   is this project's own code, exactly as 5A-3 asks; the scanner reports real
-   formats it finds as seen-and-not-enabled rather than skipping them. The
-   format waits; the gate does not bend.
+3. **Every third-party plug-in format remains fail-closed.** The owner's
+   2026-08-26 review moved the VST3, CLAP, Audio Units and LV2 licensing rows to
+   `implemented` under the enabled `native-plugins` gate, but no format
+   activates: `pluginFormat` additionally requires an enforced OS launcher and a
+   production-readiness statement signed by a key in
+   `config/milestone-5-native-isolation-review-policy.json`, whose `trustedKeys`
+   list is empty. The scanner, registry, quarantine and host machinery is proven
+   against a benign fixture format that is this project's own code, exactly as
+   5A-3 asks; the scanner reports real formats it finds as seen-and-not-enabled
+   rather than skipping them. The format waits; the gate does not bend.
 4. **No latency, underrun, recovery or RSS number is qualified.**
    `native-os-lab-matrix` is unprovisioned with five null fingerprints, so the
    M5 collector emits `pending-external` and refuses to run on a hosted runner

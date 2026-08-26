@@ -202,16 +202,30 @@ decision, never an incidental build change.
 
 ## Licensing decisions
 
-The application is AGPL-3.0-only. The licensing register has fail-closed
+The application is AGPL-3.0-only. The licensing register has
 `nativeFormatPolicies` rows for VST3, CLAP, Audio Units, LV2, OFX, the current
 native FFmpeg set, hardware acceleration, and advanced codec families, in
-addition to the coarse `native-plugins` and `native-codecs` gates. Every row is
-still blocked pending its named platform/source/notices/security work; a row's
-presence is not enablement. JUCE 9 plus the direct CLAP ABI are the 5A
-integration decision and their source acquisition rows are pinned and
-provisionable, but authenticating a source is provenance and nothing else.
-Licensing, corresponding-source, patent, notices, and trademark review remain
-open. Milestone 5 also respects the two
+addition to the coarse `native-plugins`, `native-audio` and `native-codecs`
+gates. A row's presence is not enablement, and an enabled row is still not a
+shipping capability.
+
+On 2026-08-26 the owner reviewed and recorded the `native-audio` and
+`native-plugins` gates as enabled, the audio-stack, five OS audio-backend and
+five plug-in-format rows as implemented, and the six professional source rows
+(Electron Node-API headers, JUCE, CLAP, VST3 SDK, ASIO SDK, LV2) as accepted.
+`native-codecs` and `codec-native-ffmpeg-current-set` were deliberately held
+back pending closer review, so the four FFmpeg external libraries — x264, x265,
+libvpx and libopus — stay activation-blocked with them. Nothing ships as a
+result: activation additionally requires an authenticated source audit at
+runtime, and plug-in formats require an enforced OS launcher plus a
+production-readiness statement signed by a key in
+`config/milestone-5-native-isolation-review-policy.json`, whose `trustedKeys`
+list is still empty. Every per-target payload row remains `pending-external`.
+
+JUCE 9 plus the direct CLAP ABI are the 5A integration decision and their
+source acquisition rows are pinned and provisionable, but authenticating a
+source is provenance and nothing else. Corresponding-source, patent and notice
+review for the codec set remains open. Milestone 5 also respects the two
 already-blocked FFmpeg release gates
 (`ffmpeg-enabled-library-corresponding-source`,
 `ffmpeg-enabled-codec-patent-review`): a native FFmpeg

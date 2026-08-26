@@ -44,6 +44,12 @@ const EXPECTED_PINS = {
 	libopus: ['1.6', 'a8b13e40d751c7b40833b94fc9437c5c3439da89', 36317446,
 		'b7637334527201fdfd6dd6a02e67aceffb0e5e60155bbd89175647a80301c92c'],
 };
+// The owner's recorded native-audio and native-plugins review. The four FFmpeg
+// external libraries are absent because the native-codecs review is still open.
+const ACTIVATION_ACCEPTED = [
+	'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'asio-sdk', 'lv2',
+];
+
 const EXPECTED_LICENSE_SELECTIONS = {
 	'electron-node-api-headers': 'MIT',
 	juce: 'AGPL-3.0-only',
@@ -80,8 +86,15 @@ test('milestone-5 source packet pins every new native dependency and stays fail-
 		assert.equal(source.extractedTree.algorithm, 'framescaper-portable-source-tree-sha256-v1');
 		assert.ok(source.extractedTree.fileCount > 0, source.id);
 		assert.match(source.extractedTree.sha256, /^[a-f\d]{64}$/u, source.id);
-		assert.equal(source.activationStatus, 'blocked');
-		assert.ok(source.blockedBy.length > 0, source.id);
+		// Named individually, never matched by a pattern, so a source cannot
+		// become accepted by resembling one whose review was actually done.
+		if (ACTIVATION_ACCEPTED.includes(source.id)) {
+			assert.equal(source.activationStatus, 'accepted', source.id);
+			assert.equal(source.blockedBy, null, `${source.id} is accepted and cannot still name a blocker`);
+		} else {
+			assert.equal(source.activationStatus, 'blocked', source.id);
+			assert.ok(source.blockedBy.length > 0, source.id);
+		}
 		assert.ok(source.license.length > 0, source.id);
 		assert.ok(source.licenseSelection.length > 0, source.id);
 		assert.ok(source.uses.length > 0, source.id);

@@ -28,6 +28,10 @@ test('activation requires the exact gate, policy stack, platform and every sourc
 	activate(mutableLicensing.nativeFormatPolicies, 'audio-backend-asio', 'implemented');
 	activate(mutableSources.sources, 'juce', 'accepted', 'activationStatus');
 	activate(mutableSources.sources, 'electron-node-api-headers', 'accepted', 'activationStatus');
+	// Withdrawn from the checked-in acceptance so the assertion below still
+	// proves each source is required on its own rather than riding on the two
+	// accepted above.
+	activate(mutableSources.sources, 'asio-sdk', 'blocked', 'activationStatus');
 	const sourceAudit = authenticatedSourceAudit(mutableSources);
 	const policy = createSoundscaperNativeActivationPolicy({
 		licensing: mutableLicensing, sources: mutableSources, sourceAudit, platform: 'win32',

@@ -55,18 +55,20 @@ test('milestone-5 handoff reports unauthenticated engineering inputs without cla
 		'nativeIsolationSecurityReview',
 		'productionSigningAndNotarization',
 	]);
+	// Four: the FFmpeg external libraries, whose native-codecs review is open.
 	assert.deepEqual(handoff.sources, {
-		authenticated: 0, pendingExternal: 10, activationBlocked: 10, total: 10,
+		authenticated: 0, pendingExternal: 10, activationBlocked: 4, total: 10,
 	});
 	assert.deepEqual(handoff.payloads, {
 		built: 1,
 		pendingExternal: 19,
 		total: 20,
 	});
-	assert.deepEqual(handoff.licensing.disabledGates, ['native-audio', 'native-codecs', 'native-plugins']);
+	assert.deepEqual(handoff.licensing.disabledGates, ['native-codecs']);
 	assert.equal(handoff.packageEvidence, null);
-	assert.ok(handoff.licensing.blockedPolicyRows.includes('native-audio-stack'));
-	assert.ok(handoff.licensing.blockedPolicyRows.includes('plugin-format-ofx'));
+	assert.equal(handoff.licensing.blockedPolicyRows.includes('native-audio-stack'), false);
+	assert.equal(handoff.licensing.blockedPolicyRows.includes('plugin-format-ofx'), false);
+	assert.ok(handoff.licensing.blockedPolicyRows.includes('codec-native-ffmpeg-current-set'));
 	assert.ok(handoff.licensing.blockedPolicyRows.includes('codec-encode-prores-mov-422-hq'));
 	assert.ok(handoff.blockers.some(({ id }) => id === 'lab:unprovisioned'));
 	assert.ok(handoff.blockers.some(({ id }) => id === 'package-audit:missing'));

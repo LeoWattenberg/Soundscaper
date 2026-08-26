@@ -13,6 +13,7 @@ import {
 	executeSoundscaperProfessionalNativeBuild,
 } from '../scripts/lib/soundscaper-professional-native-build.mjs';
 import { collectExtractedSourceTree } from '../native/framescaper-media-host/build/source-authentication.mjs';
+import { removeMilestone5NativeSourceSnapshot } from '../scripts/lib/milestone-5-native-source-acquisitions.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 
@@ -24,7 +25,12 @@ const ROOT = resolve(import.meta.dirname, '..');
  */
 const JUCE_VST3_SDK_CLOSURE = 'modules/juce_audio_processors_headless/format_types/VST3_SDK';
 
-async function sourceRoots(context) {
+/**
+ * Build a fixture register. `withdrawn` names a source whose checked-in
+ * acceptance is taken back, so the refusal assertions below still have a
+ * blocked row to refuse; pass null to exercise the fully reviewed register.
+ */
+async function sourceRoots(context, withdrawn = 'juce') {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-pro-sources-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
 	const roots = {
@@ -67,6 +73,11 @@ async function sourceRoots(context) {
 			algorithm: tree.algorithm, fileCount: tree.fileCount, sha256: tree.sha256,
 		};
 		archives[id] = archivePath;
+	}
+	if (withdrawn !== null) {
+		const row = register.sources.find((source) => source.id === withdrawn);
+		row.activationStatus = 'blocked';
+		row.blockedBy = `The ${withdrawn} activation is withdrawn for this fixture.`;
 	}
 	const manifestPath = join(root, 'source-register.json');
 	await writeFile(manifestPath, `${JSON.stringify(register, null, 2)}\n`);
@@ -129,6 +140,29 @@ test('professional build plans bind exact SDK pins and never treat the VST3 meta
 	}, {
 		run: () => ({ status: 0, stderr: '', stdout: '' }),
 	}), /authenticated build plan/u);
+});
+
+test('the reviewed register reaches accepted activation for every professional source', async (context) => {
+	// The owner's recorded native-audio and native-plugins review accepted all
+	// six professional sources, so the plan must no longer report any blocked
+	// row. Execution is still gated elsewhere; only activation is asserted here.
+	const { archives, manifestPath, roots } = await sourceRoots(context, null);
+	const plan = createSoundscaperProfessionalNativeBuildPlan({
+		repositoryRoot: ROOT, target: 'linux-x64', sourceRoots: roots, sourceArchives: archives,
+		sourceManifestPath: manifestPath,
+		sourceSnapshotRoot: await createSnapshotParent(roots.juce, 'snapshots-reviewed'),
+		buildRoot: join(roots.juce, '..', 'build-reviewed'),
+	});
+	const activation = structuredClone(plan.sourceActivation);
+	// Snapshots are taken read-only, so they are released the way the build
+	// itself releases them; the fixture's own cleanup cannot remove them.
+	for (const snapshot of plan.sourceAuthentication) removeMilestone5NativeSourceSnapshot(snapshot);
+	assert.equal(activation.status, 'accepted');
+	assert.deepEqual(activation.blockedSources, []);
+	// ASIO is absent because it is Windows-only, not because it is unreviewed.
+	assert.deepEqual([...activation.sourceIds].sort(), [
+		'clap', 'electron-node-api-headers', 'juce', 'lv2', 'vst3-sdk',
+	]);
 });
 
 test('a plan that fails after snapshotting removes the snapshots it took', async (context) => {

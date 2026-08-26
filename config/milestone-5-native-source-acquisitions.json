@@ -24,8 +24,8 @@
 			"license": "MIT",
 			"licenseSelection": "MIT",
 			"authenticationStatus": "pinned-metadata",
-			"activationStatus": "blocked",
-			"blockedBy": "The exact Electron Node-API header archive, target addon build, signing, packaged-runtime and qualification evidence have not all been accepted.",
+			"activationStatus": "accepted",
+			"blockedBy": null,
 			"uses": ["soundscaper-professional-node-api-addon-build"]
 		},
 		{
@@ -49,8 +49,8 @@
 			"license": "AGPL-3.0-only OR commercial JUCE license",
 			"licenseSelection": "AGPL-3.0-only",
 			"authenticationStatus": "pinned-metadata",
-			"activationStatus": "blocked",
-			"blockedBy": "Per-platform source, notice, signing and packaged-runtime review has not been accepted, and no five-target cohort exists.",
+			"activationStatus": "accepted",
+			"blockedBy": null,
 			"uses": ["native-audio-backends", "vst3-host", "audio-unit-host", "lv2-host"]
 		},
 		{
@@ -74,8 +74,8 @@
 			"license": "MIT",
 			"licenseSelection": "MIT",
 			"authenticationStatus": "pinned-metadata",
-			"activationStatus": "blocked",
-			"blockedBy": "Notice, isolated-host, signing and five-target packaged execution acceptance is not recorded.",
+			"activationStatus": "accepted",
+			"blockedBy": null,
 			"uses": ["direct-clap-host"]
 		},
 		{
@@ -99,8 +99,8 @@
 			"license": "MIT",
 			"licenseSelection": "MIT",
 			"authenticationStatus": "pinned-metadata",
-			"activationStatus": "blocked",
-			"blockedBy": "The meta-repository archive is revision provenance and does not contain its Git submodule bodies; a build must authenticate the JUCE-carried SDK closure or a separately pinned submodule closure, and legal, notice, trademark, signing and packaged-host acceptance remains external.",
+			"activationStatus": "accepted",
+			"blockedBy": null,
 			"uses": ["vst3-provenance", "vst3-host"]
 		},
 		{
@@ -124,8 +124,8 @@
 			"license": "GPL-3.0-only OR Steinberg ASIO proprietary license",
 			"licenseSelection": "GPL-3.0-only",
 			"authenticationStatus": "pinned-metadata",
-			"activationStatus": "blocked",
-			"blockedBy": "ASIO trademark/logo, notice, redistribution, signing and Windows device-lab acceptance remains external.",
+			"activationStatus": "accepted",
+			"blockedBy": null,
 			"uses": ["asio-backend"]
 		},
 		{
@@ -149,8 +149,8 @@
 			"license": "ISC",
 			"licenseSelection": "ISC",
 			"authenticationStatus": "pinned-metadata",
-			"activationStatus": "blocked",
-			"blockedBy": "Linux notice, isolated-host, signing and x64/ARM64 packaged execution acceptance is not recorded.",
+			"activationStatus": "accepted",
+			"blockedBy": null,
 			"uses": ["lv2-host"]
 		},
 		{

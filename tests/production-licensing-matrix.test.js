@@ -342,9 +342,15 @@ test('only the evidenced local-model surface is enabled among future distributio
 	const gates = new Map(matrix.futureDistributionGates.map((gate) => [gate.id, gate]));
 
 	assert.deepEqual(matrix.futureDistributionGates.map(({ id }) => id).sort(), FUTURE_GATE_IDS);
+	// Each enabled gate is named here, never matched by a pattern, so a gate
+	// cannot become enabled by resembling one whose review was actually done.
+	const REVIEWED_GATES = ['local-models', 'native-audio', 'native-plugins'];
 	for (const gate of matrix.futureDistributionGates) {
-		assert.equal(gate.status, gate.id === 'local-models' ? 'enabled' : 'disabled');
+		assert.equal(gate.status, REVIEWED_GATES.includes(gate.id) ? 'enabled' : 'disabled', gate.id);
 		assert.ok(gate.enableRequires.length >= 3, `${gate.id} needs concrete enablement requirements`);
+		if (gate.status === 'enabled') {
+			assert.equal(gate.blocker, undefined, `${gate.id} is enabled and cannot still name a blocker`);
+		}
 		await assertEvidence(gate.evidence);
 	}
 	assert.equal(gates.get('web-effect-packages').scope, 'externally-authored-or-non-repository-owned-packages');
@@ -403,15 +409,29 @@ test('native plug-in format and codec policy rows stay fail-closed with named bl
 		'codec-encode-tiff-image-sequence',
 		'codec-encode-openexr-image-sequence',
 	]);
+	// Every implemented row is named here rather than exempted by a pattern, so
+	// a future row cannot become implemented by resembling one of these. The
+	// fixture format is this project's own work with no third-party code and so
+	// no gate to wait on; the rest carry the owner's recorded native-audio and
+	// native-plugins review. The codec rows are deliberately absent: that review
+	// is still open, which is why native-codecs stays disabled.
+	const REVIEWED_ROWS = [
+		'plugin-format-soundscaper-fixture',
+		'native-audio-stack',
+		'audio-backend-coreaudio', 'audio-backend-wasapi', 'audio-backend-asio',
+		'audio-backend-pipewire', 'audio-backend-alsa',
+		'plugin-format-vst3', 'plugin-format-clap', 'plugin-format-audio-units',
+		'plugin-format-lv2', 'plugin-format-ofx',
+	];
+	assert.equal(
+		REVIEWED_ROWS.some((id) => id.startsWith('codec-')), false,
+		'no codec row is reviewed while the native-codecs gate is disabled',
+	);
 	for (const row of matrix.nativeFormatPolicies) {
 		assert.match(row.kind, /^(?:plugin-format|native-audio-stack|audio-backend|codec-capability)$/u, row.id);
-		if (row.id === 'plugin-format-soundscaper-fixture') {
-			// The one implemented row is this project's own fixture format: no
-			// third-party code, so no gate to wait on. It is named explicitly
-			// rather than exempted by a pattern, so a future row cannot become
-			// implemented by resembling it.
-			assert.equal(row.status, 'implemented');
-			assert.equal(row.blocker, null);
+		if (REVIEWED_ROWS.includes(row.id)) {
+			assert.equal(row.status, 'implemented', row.id);
+			assert.equal(row.blocker, null, `${row.id} is implemented and cannot still name a blocker`);
 			await assertEvidence(row.evidence);
 			continue;
 		}
@@ -426,7 +446,9 @@ test('native plug-in format and codec policy rows stay fail-closed with named bl
 		kind === 'native-audio-stack' || kind === 'audio-backend')) {
 		assert.ok(row.evidence.includes('config/milestone-5-native-source-acquisitions.json'),
 			`${row.id} must bind the authenticated Milestone 5 source register`);
-		assert.match(row.blocker, /native-audio/u, row.id);
+		// A row still awaiting review has to say which gate it waits on; a
+		// reviewed row carries no blocker at all.
+		if (row.status === 'blocked') assert.match(row.blocker, /native-audio/u, row.id);
 	}
 	const ffmpegRow = matrix.nativeFormatPolicies.find(({ id }) => id === 'codec-native-ffmpeg-current-set');
 	assert.match(ffmpegRow.blocker, /ffmpeg-enabled-library-corresponding-source/u);
