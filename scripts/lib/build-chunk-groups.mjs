@@ -68,7 +68,8 @@ export const EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST = new RegExp(
 	`${editorPath}ui[\\/](?:AudacityEffectLayout|ParametricEqEditor|inspector[\\/]EffectParameterEditor)\\.jsx$`,
 );
 
-const DESIGN_SYSTEM_OPTIONAL_EFFECTS_CHUNK_TEST = /(?:^|[\\/])vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?:EffectsPanel[\\/].*|EffectDialog[\\/]EffectHeader\.tsx)$/;
+/** Effect rack consumer and the design-system components it alone loads. */
+export const EDITOR_EFFECT_DIALOG_SHELL_CHUNK_TEST = /(?:^|[\\/])(?:vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?:EffectsPanel[\\/].*|EffectDialog[\\/]EffectHeader\.tsx|SidePanel[\\/].*)|src[\\/]common[\\/]editor[\\/]ui[\\/]inspector[\\/](?:AudioEditorEffectsOverlay|AudacityEffectHeader)\.jsx)$/;
 const DESIGN_SYSTEM_EDITOR_SHELL_COMPONENT_CHUNK_TEST = /(?:^|[\\/])vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?:AddTrackFlyout|ApplicationHeader|Button|Checkbox|Clip|ClipBody|ClipHeader|CloudProjectIndicator|ContextMenu|ContextMenuItem|DialogHeader|Dropdown|EnvelopeCurve|EnvelopeInteractionLayer|EnvelopeOverlay|EnvelopePoint|Flyout|GhostButton|Icon|Knob|LabelMarker|LabeledCheckbox|LabeledRadio|MidiClipBody|MixerChannel|MixerEffect|MixerFader|MixerFaderHandle|MixerPanel|NumberStepper|PanKnob|PanelHeader|PlayheadCursor|Radio|RulerFlyout|SelectionToolbar|Separator|Slider|TextInput|TimeCode|TimelineRuler|TimelineRulerContextMenu|ToggleButton|ToggleToolButton|ToolButton|Toolbar|Tooltip|Track|TrackControlPanel|TrackMeter|TransportButton|VerticalRuler)[\\/]/;
 const EDITOR_CODEC_FOUNDATION_CHUNK_TEST = /src[\\/]common[\\/]editor[\\/](?:wavpack[\\/]|staffpad[\\/]|parametric-eq[\\/](?:parameters|design|wasm-runtime|wasm-loader)\.js$)/;
 const EDITOR_EFFECT_CONTRACT_CHUNK_TEST = /(?:src[\\/]common[\\/](?:i18n[\\/]action-parity\.js|editor[\\/](?:audacity-effects[\\/](?:contracts|live-capabilities)\.js|nyquist[\\/]plugin-registry\.js|reviewed-effects[\\/](?:errors|manifest|selection-effect-contract|utility-gain-package)\.ts)))$/;
@@ -151,9 +152,12 @@ export const chunkGroups = [
 		includeDependenciesRecursively: false,
 	},
 	{
-		name: 'vendor-optional-effects',
-		test: DESIGN_SYSTEM_OPTIONAL_EFFECTS_CHUNK_TEST,
-		priority: 93,
+		// Co-locate the rack consumer and its optional design-system shell. Splitting
+		// these source-acyclic modules makes Rolldown emit a three-chunk init cycle.
+		name: 'editor-effect-dialog-shell',
+		test: EDITOR_EFFECT_DIALOG_SHELL_CHUNK_TEST,
+		priority: 98,
+		minSize: 0,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
 	},

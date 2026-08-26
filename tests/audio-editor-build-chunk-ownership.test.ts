@@ -8,6 +8,7 @@ import test from 'node:test';
 import {
 	chunkGroupForModulePath,
 	chunkGroups,
+	EDITOR_EFFECT_DIALOG_SHELL_CHUNK_TEST,
 	EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST,
 	EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST,
 	EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST,
@@ -233,17 +234,34 @@ test('menu-opened execution and UI surfaces use dedicated lazy owners', () => {
 	}
 	assert.equal(
 		chunkGroupForModulePath('vendor/audacity-design-system/components/src/EffectsPanel/EffectsPanel.tsx'),
-		'vendor-optional-effects',
+		'editor-effect-dialog-shell',
 	);
 	assert.equal(
 		chunkGroupForModulePath('vendor/audacity-design-system/components/src/EffectsPanel/index.ts'),
-		'vendor-optional-effects',
+		'editor-effect-dialog-shell',
 	);
-	for (const name of ['editor-optional-execution', 'editor-optional-export', 'editor-optional-surfaces', 'vendor-optional-effects']) {
+	for (const name of ['editor-optional-execution', 'editor-optional-export', 'editor-optional-surfaces', 'editor-effect-dialog-shell']) {
 		const group = chunkGroups.find((candidate) => candidate.name === name);
 		assert.ok(group);
 		assert.equal(group.includeDependenciesRecursively, false);
 	}
+});
+
+test('effect dialogs and their design-system shell share one cycle-free lazy owner', () => {
+	for (const path of [
+		'src/common/editor/ui/inspector/AudioEditorEffectsOverlay.jsx',
+		'src/common/editor/ui/inspector/AudacityEffectHeader.jsx',
+		'vendor/audacity-design-system/components/src/EffectsPanel/EffectsPanel.tsx',
+		'vendor/audacity-design-system/components/src/EffectDialog/EffectHeader.tsx',
+		'vendor/audacity-design-system/components/src/SidePanel/SidePanel.tsx',
+	]) {
+		assert.ok(EDITOR_EFFECT_DIALOG_SHELL_CHUNK_TEST.test(path));
+		assert.equal(chunkGroupForModulePath(path), 'editor-effect-dialog-shell');
+	}
+	const group = chunkGroups.find((candidate) => candidate.name === 'editor-effect-dialog-shell');
+	assert.ok(group);
+	assert.equal(group.includeDependenciesRecursively, false);
+	assert.equal(group.minSize, 0);
 });
 
 test('effect parameter surfaces share one cycle-free lazy owner', () => {
