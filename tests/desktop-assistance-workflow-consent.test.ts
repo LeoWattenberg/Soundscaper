@@ -48,7 +48,9 @@ test('changed fences, stages, models, settings, or expiry invalidate consent bef
 	const original = assistanceWorkflowFixture();
 	const changes = [
 		assistanceWorkflowFixture({ fence: { ...original.fence, revision: original.fence.revision + 1 } }),
-		assistanceWorkflowFixture({ stageIds: [...original.stageIds, 'align-words'] }),
+		// `align-words` belongs before caption assembly: the workflow contract requires the
+		// selected stages to follow their recipe's canonical graph order.
+		assistanceWorkflowFixture({ stageIds: [...original.stageIds.slice(0, -1), 'align-words', ...original.stageIds.slice(-1)] }),
 		assistanceWorkflowFixture({ models: original.models.map((model, index) => index === 0
 			? { ...model, version: '6.2.1' }
 			: model) }),

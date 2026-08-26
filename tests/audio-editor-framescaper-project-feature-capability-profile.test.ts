@@ -408,6 +408,9 @@ test('keeps private capability ownership within the closed cumulative domain set
 		'src/soundscaper/editor-project-feature-compatibility-v30.ts',
 		'src/soundscaper/editor-project-runtime-profile-v21.ts', 'src/soundscaper/editor-project-runtime-profile-v23.ts', 'src/soundscaper/editor-project-runtime-profile-v29.ts',
 		'src/soundscaper/editor-project-runtime-profile-v30.ts',
+		// The chunk-ownership test names capability-profile modules only to pin which built
+		// chunk owns them; it neither reads nor asserts capability authority.
+		'tests/audio-editor-build-chunk-ownership.test.ts',
 		TEST_MODULE,
 		FINAL_TEST_MODULE,
 		'tests/audio-editor-framescaper-project-v20-profile.test.ts',
