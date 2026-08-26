@@ -84,7 +84,11 @@ export function createFramescaperCapturePcmPacketizer(
 				'Capture PCM excluded pause frames',
 			);
 		}
-		acceptsPauseGap = false;
+		// Pause arms the latch synchronously while chunks arrive through a
+		// serialized queue, so a contiguous pre-pause chunk can still land first.
+		// Only a packet that actually carries a gap consumes the latch; otherwise
+		// the real pause would later be classified as dropped frames.
+		if (inputGapFrames > 0) acceptsPauseGap = false;
 		expectedInputFrame = exactSum(frameStart, frames, 'Capture PCM input frame end');
 		const presentationTimeUs = frameTimeMicroseconds(
 			frameStart - excludedPauseFrames,

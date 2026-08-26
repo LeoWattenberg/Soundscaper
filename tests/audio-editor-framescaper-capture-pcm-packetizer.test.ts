@@ -54,6 +54,39 @@ test('PCM packetizer reports unannounced source gaps and excludes declared pause
 	assert.equal(resumed.presentationTimeUs, 107_000, 'declared pause input is removed from active time');
 });
 
+/**
+ * Pause arms the latch synchronously, but chunks reach the packetizer through a
+ * serialized sink queue, so a contiguous pre-pause chunk can still arrive after
+ * the arming. It carries no gap, and consuming the latch on it would leave the
+ * real pause to be classified as dropped frames and padded with silence.
+ */
+test('PCM packetizer keeps the pause latch armed across a contiguous in-flight chunk', () => {
+	const packetizer = createFramescaperCapturePcmPacketizer({
+		sessionId: 'session-1', streamId: 'system-1', role: 'system-audio',
+		sampleRate: 1_000, channelCount: 1,
+	});
+	packetizer.packet({ frameStart: 0, frames: 2, channels: [new Float32Array(2)] });
+	packetizer.expectPauseGap();
+	const inFlight = packetizer.packet({
+		frameStart: 2, frames: 2, channels: [new Float32Array(2)],
+	});
+	assert.deepEqual(inFlight.droppedBefore, { value: 0, confidence: 'exact' });
+
+	const resumed = packetizer.packet({
+		frameStart: 5_000, frames: 2, channels: [new Float32Array(2)],
+	});
+	assert.deepEqual(
+		resumed.droppedBefore,
+		{ value: 0, confidence: 'exact' },
+		'the announced pause is excluded, not reported as dropped frames',
+	);
+	assert.equal(
+		resumed.presentationTimeUs,
+		4_000,
+		'active time continues straight after the pre-pause chunk',
+	);
+});
+
 test('PCM packetizer rejects malformed, overlapping, and wrong-format chunks', () => {
 	const packetizer = createFramescaperCapturePcmPacketizer({
 		sessionId: 'session-1', streamId: 'microphone-1', role: 'microphone',
