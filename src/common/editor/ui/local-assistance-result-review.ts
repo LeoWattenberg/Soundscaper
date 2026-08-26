@@ -7,6 +7,10 @@ import {
 	MAX_TRANSCRIPT_WORDS_PER_SEGMENT,
 } from '../assistance/transcript.ts';
 import type { LocalAssistanceOutputClaim } from './local-assistance-bridge.ts';
+import {
+	reviewLocalAssistanceShotBoundaries,
+	type LocalAssistanceShotBoundariesReview,
+} from './local-assistance-shot-review.ts';
 
 const MAXIMUM_REVIEW_BYTES = 8 * 1024 * 1024;
 const MAXIMUM_SAMPLE_RANGES = 100_000;
@@ -22,6 +26,10 @@ const VOICE_ACTIVITY_MEDIA_TYPES = new Set([
 const SPEAKER_TURN_MEDIA_TYPES = new Set([
 	'application/json',
 	'application/vnd.soundscaper.speaker-turns+json',
+]);
+const SHOT_BOUNDARY_MEDIA_TYPES = new Set([
+	'application/json',
+	'application/vnd.soundscaper.shot-boundaries+json',
 ]);
 const SEGMENT_KEYS = Object.freeze([
 	'startSeconds', 'endSeconds', 'text', 'words', 'speaker',
@@ -75,7 +83,8 @@ export interface LocalAssistanceSpeakerTurnsReview {
 export type LocalAssistanceOutputReview =
 	| LocalAssistanceTranscriptReview
 	| LocalAssistanceVoiceActivityReview
-	| LocalAssistanceSpeakerTurnsReview;
+	| LocalAssistanceSpeakerTurnsReview
+	| LocalAssistanceShotBoundariesReview;
 
 export async function reviewLocalAssistanceOutput(
 	claim: LocalAssistanceOutputClaim,
@@ -99,6 +108,7 @@ export async function reviewLocalAssistanceOutput(
 	}
 	if (claim.role === 'voice-activity') return voiceActivityReview(value);
 	if (claim.role === 'speaker-turns') return speakerTurnsReview(value);
+	if (claim.role === 'shot-boundaries') return reviewLocalAssistanceShotBoundaries(value);
 	return transcriptReview(value);
 }
 
@@ -106,6 +116,7 @@ function reviewMediaType(claim: LocalAssistanceOutputClaim): boolean {
 	if (claim.role === 'transcript') return TRANSCRIPT_MEDIA_TYPES.has(claim.mediaType);
 	if (claim.role === 'voice-activity') return VOICE_ACTIVITY_MEDIA_TYPES.has(claim.mediaType);
 	if (claim.role === 'speaker-turns') return SPEAKER_TURN_MEDIA_TYPES.has(claim.mediaType);
+	if (claim.role === 'shot-boundaries') return SHOT_BOUNDARY_MEDIA_TYPES.has(claim.mediaType);
 	return false;
 }
 
