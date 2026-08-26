@@ -8,6 +8,7 @@ import { audacityContextMenuAction } from '../../audacity-context-menu.js';
 import { framesToSeconds, secondsToFrames } from '../../design-system-adapters.js';
 import { AUDIO_EDITOR_TRACK_COLORS } from '../../project-audio-factory.js';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
+import { lowRateTimelinePositionFrame } from './timeline-playback-frame-loop.ts';
 
 export function TimelineOverlayPortal({ target, children }) {
 	return target ? createPortal(children, target) : children;
@@ -90,7 +91,10 @@ export function TelemetryPlayhead({
 	height,
 	run,
 }) {
-	const positionFrame = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.positionFrame || 0);
+	const positionFrame = useAudioEditorTelemetrySelector(
+		controller,
+		(telemetry) => lowRateTimelinePositionFrame(telemetry, sampleRate),
+	);
 	const scrubbingRef = useRef(false);
 	const scrubDragRef = useRef(null);
 	const finishScrub = useCallback(() => {
@@ -134,7 +138,9 @@ export function TelemetryPlayhead({
 				event.preventDefault();
 				event.stopPropagation();
 				const liveFrame = Math.max(0, Math.round(
-					controller.engine?.getPositionFrames?.() ?? positionFrame,
+					controller.engine?.getPositionFrames?.()
+						?? controller.getTelemetrySnapshot?.().positionFrame
+						?? positionFrame,
 				));
 				scrubDragRef.current = {
 					pointerId: event.pointerId,
@@ -171,7 +177,10 @@ export function TelemetryPlayhead({
 				const amount = event.shiftKey ? Math.round(sampleRate / 10) : 1;
 				if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
 					event.preventDefault();
-					run(() => controller.actions.transport.seek(positionFrame + (event.key === 'ArrowLeft' ? -amount : amount)));
+					const liveFrame = Math.max(0, Math.round(
+						controller.getTelemetrySnapshot?.().positionFrame ?? positionFrame,
+					));
+					run(() => controller.actions.transport.seek(liveFrame + (event.key === 'ArrowLeft' ? -amount : amount)));
 				} else if (event.key === 'Home' || event.key === 'End') {
 					event.preventDefault();
 					run(() => controller.actions.transport.seek(event.key === 'Home' ? 0 : durationFrames));

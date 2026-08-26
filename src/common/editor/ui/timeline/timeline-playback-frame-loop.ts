@@ -7,6 +7,27 @@ interface TimelinePlaybackFrameLoopOptions {
 	readonly renderPosition: (positionFrame: number) => void;
 }
 
+interface TimelinePositionTelemetry {
+	readonly positionFrame?: unknown;
+	readonly transportState?: unknown;
+}
+
+const ACCESSIBLE_POSITION_UPDATES_PER_SECOND = 4;
+
+export function lowRateTimelinePositionFrame(
+	telemetry: TimelinePositionTelemetry,
+	sampleRate: number,
+): number {
+	const positionFrame = Math.max(0, Math.round(Number(telemetry.positionFrame) || 0));
+	if (telemetry.transportState !== 'playing' && telemetry.transportState !== 'recording') {
+		return positionFrame;
+	}
+	const intervalFrames = Math.max(1, Math.round(
+		(Number(sampleRate) || 48_000) / ACCESSIBLE_POSITION_UPDATES_PER_SECOND,
+	));
+	return Math.floor(positionFrame / intervalFrames) * intervalFrames;
+}
+
 export interface TimelinePlaybackFrameLoop {
 	dispose(): void;
 	start(): void;

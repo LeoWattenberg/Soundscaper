@@ -4,7 +4,10 @@ import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from 
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
-import { createTimelinePlaybackFrameLoop } from './timeline-playback-frame-loop.ts';
+import {
+	createTimelinePlaybackFrameLoop,
+	lowRateTimelinePositionFrame,
+} from './timeline-playback-frame-loop.ts';
 
 interface PlaybackTelemetrySnapshot {
 	readonly positionFrame?: number;
@@ -38,7 +41,7 @@ export function TimelinePlaybackProjection({
 }>) {
 	const positionFrame = useAudioEditorTelemetrySelector(
 		controller,
-		(telemetry: PlaybackTelemetrySnapshot) => Math.max(0, Number(telemetry.positionFrame) || 0),
+		(telemetry: PlaybackTelemetrySnapshot) => lowRateTimelinePositionFrame(telemetry, sampleRate),
 	);
 	const transportState = useAudioEditorTelemetrySelector(
 		controller,
@@ -61,11 +64,12 @@ export function TimelinePlaybackProjection({
 	}, [pinned, pixelsPerSecond, rootRef, sampleRate, scrollRef, timelineWidth, viewportWidth]);
 
 	useLayoutEffect(() => {
+		if (transportState === 'playing' || transportState === 'recording') return;
 		projectPosition(positionFrame, false);
-	}, [positionFrame, projectPosition]);
+	}, [positionFrame, projectPosition, transportState]);
 
 	useEffect(() => {
-		if (transportState !== 'playing') return undefined;
+		if (transportState !== 'playing' && transportState !== 'recording') return undefined;
 		const loop = createTimelinePlaybackFrameLoop({
 			requestFrame: (callback) => globalThis.requestAnimationFrame(callback),
 			cancelFrame: (frame) => globalThis.cancelAnimationFrame(frame),

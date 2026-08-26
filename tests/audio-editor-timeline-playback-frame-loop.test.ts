@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-import { createTimelinePlaybackFrameLoop } from '../src/common/editor/ui/timeline/timeline-playback-frame-loop.ts';
+import {
+	createTimelinePlaybackFrameLoop,
+	lowRateTimelinePositionFrame,
+} from '../src/common/editor/ui/timeline/timeline-playback-frame-loop.ts';
 
 test('timeline playback frame loop owns one cancellable request chain', () => {
 	let nextId = 1;
@@ -50,9 +53,19 @@ test('timeline playback frame loop owns one cancellable request chain', () => {
 	assert.equal(nextId, 5, 'disposed loops cannot restart');
 });
 
+test('interactive playhead position is exact when settled and bounded to four updates per second in motion', () => {
+	const sampleRate = 48_000;
+	assert.equal(lowRateTimelinePositionFrame({ positionFrame: 12_345, transportState: 'stopped' }, sampleRate), 12_345);
+	assert.equal(lowRateTimelinePositionFrame({ positionFrame: 12_345, transportState: 'paused' }, sampleRate), 12_345);
+	assert.equal(lowRateTimelinePositionFrame({ positionFrame: 12_345, transportState: 'playing' }, sampleRate), 12_000);
+	assert.equal(lowRateTimelinePositionFrame({ positionFrame: 23_999, transportState: 'playing' }, sampleRate), 12_000);
+	assert.equal(lowRateTimelinePositionFrame({ positionFrame: 24_000, transportState: 'recording' }, sampleRate), 24_000);
+});
+
 test('timeline visual playheads share the root projection variable and no leaf owns a RAF', async () => {
-	const [workspace, overlays, outputs, tracksCss, outputCss] = await Promise.all([
+	const [workspace, projection, overlays, outputs, tracksCss, outputCss] = await Promise.all([
 		readFile(new URL('../src/common/editor/ui/timeline/TimelineWorkspaceView.jsx', import.meta.url), 'utf8'),
+		readFile(new URL('../src/common/editor/ui/timeline/TimelinePlaybackProjection.tsx', import.meta.url), 'utf8'),
 		readFile(new URL('../src/common/editor/ui/timeline/TimelineOverlayComponents.jsx', import.meta.url), 'utf8'),
 		readFile(new URL('../src/common/editor/ui/timeline/OutputTrackRows.jsx', import.meta.url), 'utf8'),
 		readFile(new URL('../src/common/editor/ui/audio-editor-design-system/08-timeline-clips-effects.css', import.meta.url), 'utf8'),
@@ -63,6 +76,8 @@ test('timeline visual playheads share the root projection variable and no leaf o
 	assert.doesNotMatch(workspace, /PinnedPlayheadScroller/u);
 	assert.doesNotMatch(overlays, /requestAnimationFrame/u);
 	assert.doesNotMatch(outputs, /requestAnimationFrame/u);
+	assert.match(projection, /lowRateTimelinePositionFrame/u);
+	assert.match(overlays, /lowRateTimelinePositionFrame/u);
 	assert.match(tracksCss, /var\(--timeline-playhead-x/u);
 	assert.match(outputCss, /var\(--timeline-playhead-x/u);
 });
