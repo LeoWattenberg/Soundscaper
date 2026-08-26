@@ -11,6 +11,7 @@ import {
 	EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST,
 	EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST,
 	EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST,
+	EDITOR_OPTIONAL_EXPORT_CHUNK_TEST,
 	EDITOR_OPTIONAL_SURFACE_CHUNK_TEST,
 } from '../scripts/lib/build-chunk-groups.mjs';
 
@@ -139,14 +140,30 @@ test('optional effect and analysis implementations have a dedicated lazy owner',
 		'src/common/editor/selection-effects-runtime.js',
 		'src/common/editor/spectral-edit.js',
 		'src/common/editor/spectral-edit-admission.ts',
-		'src/common/editor/spectral-edit-admission.ts',
 		'src/common/editor/controller/analysis-service.ts',
-		'src/common/editor/controller/export-service.ts',
 	]) {
 		assert.ok(EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST.test(path), `${path} must be an optional execution module`);
 		assert.equal(chunkGroupForModulePath(path), 'editor-optional-execution', `${path} must stay behind its lazy action`);
 	}
 	assert.equal(chunkGroupForModulePath('node_modules/@echogarden/pffft-wasm/simd.js'), null);
+});
+
+test('optional export execution has an isolated lazy owner', () => {
+	for (const path of [
+		'src/common/editor/controller/export-service.ts',
+		'src/common/editor/controller/audio-export-render-orchestration.ts',
+		'src/common/editor/controller/audio-realtime-encoded-export.ts',
+		'src/common/editor/controller/direct-compressed-export.ts',
+		'src/common/editor/controller/video-export-service.ts',
+		'src/common/editor/controller/delivery-conformance-action.ts',
+	]) {
+		assert.ok(EDITOR_OPTIONAL_EXPORT_CHUNK_TEST.test(path), `${path} must be optional export execution`);
+		assert.equal(chunkGroupForModulePath(path), 'editor-optional-export');
+		assert.equal(EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST.test(path), false);
+	}
+	const group = chunkGroups.find((candidate) => candidate.name === 'editor-optional-export');
+	assert.ok(group);
+	assert.equal(group.includeDependenciesRecursively, false);
 });
 
 test('stateful local assistance implementations share one dedicated lazy owner', () => {
@@ -181,15 +198,6 @@ test('stateful local assistance implementations share one dedicated lazy owner',
 
 test('menu-opened execution and UI surfaces use dedicated lazy owners', () => {
 	for (const path of [
-		'src/common/editor/controller/audio-realtime-encoded-export.ts',
-		'src/common/editor/controller/direct-compressed-export.ts',
-		'src/common/editor/controller/video-export-service.ts',
-		'src/common/editor/controller/delivery-conformance-action.ts',
-	]) {
-		assert.ok(EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST.test(path), `${path} must be optional execution`);
-		assert.equal(chunkGroupForModulePath(path), 'editor-optional-execution');
-	}
-	for (const path of [
 		'src/common/editor/ui/ParametricEqEditor.jsx',
 		'src/common/editor/ui/local-assistance-session-store.ts',
 		'src/common/editor/ui/workspace/RecordingSetupPanel.tsx',
@@ -205,7 +213,7 @@ test('menu-opened execution and UI surfaces use dedicated lazy owners', () => {
 		chunkGroupForModulePath('vendor/audacity-design-system/components/src/EffectsPanel/index.ts'),
 		'vendor-optional-effects',
 	);
-	for (const name of ['editor-optional-execution', 'editor-optional-surfaces', 'vendor-optional-effects']) {
+	for (const name of ['editor-optional-execution', 'editor-optional-export', 'editor-optional-surfaces', 'vendor-optional-effects']) {
 		const group = chunkGroups.find((candidate) => candidate.name === name);
 		assert.ok(group);
 		assert.equal(group.includeDependenciesRecursively, false);

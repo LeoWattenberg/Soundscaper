@@ -23,7 +23,8 @@
 const editorPath = String.raw`src[\\/]common[\\/]editor[\\/]`;
 const editorOptionalArchiveModule = String.raw`(?:aup-legacy(?:-block-budget|-conversion|-xml)?|aup4-(?:client|opaque-persistence|profile|sanitization)|audacity-(?:annotation-interchange|tempo-import)|scape-(?:archive-(?:copy|layout(?:-witness)?|manifest|reader)|export-destination|import-transaction|project-source-remap)|scape-project)`;
 const editorOptionalExecutionModule = String.raw`(?:analysis|pffft|selection-effects-runtime|spectral-edit(?:-admission)?)`;
-const editorOptionalControllerModule = String.raw`(?:analysis-service|audio-export-render-orchestration|audio-realtime-encoded-export|audio-rendered-fallback-export|delivery-conformance-action|desktop-audio-export-capability|direct-(?:aiff-export|audio-render-plan|broadcast-wave-export|bw64-export|bwf-export|compressed-export|compressed-plan|compressed-stem-archive-plan|export-dispatch|mp3-export|native-stem-archive-plan|offline-compressed-export|offline-pcm-export|pcm-export|stem-archive-export|video-export|video-plan-contract|wav-export)|export-render-project|export-service|realtime-export-pcm-transform|rendered-audio-encoding|video-export-service|video-rendered-fallback-export)`;
+const editorOptionalExportControllerModule = String.raw`(?:audio-export-render-orchestration|audio-realtime-encoded-export|audio-rendered-fallback-export|delivery-conformance-action|desktop-audio-export-capability|direct-(?:aiff-export|audio-render-plan|broadcast-wave-export|bw64-export|bwf-export|compressed-export|compressed-plan|compressed-stem-archive-plan|export-dispatch|mp3-export|native-stem-archive-plan|offline-compressed-export|offline-pcm-export|pcm-export|stem-archive-export|video-export|video-plan-contract|wav-export)|export-render-project|export-service|realtime-export-pcm-transform|rendered-audio-encoding|video-export-service|video-rendered-fallback-export)`;
+const editorOptionalControllerModule = String.raw`(?:analysis-service|${editorOptionalExportControllerModule})`;
 const editorOptionalAssistanceModule = String.raw`(?:local-assistance-runtime|local-assistance-(?:selected-media|selected-video|selected-preparation|selected-media-router|result-acceptance|cleanup-workflow|cleanup-acceptance|range-label-acceptance|shot-acceptance|transcript-acceptance))`;
 const editorOptionalSurfaceModule = String.raw`ui[\\/](?:AudacityEffectLayout\.jsx|ParametricEqEditor\.jsx|SoundActivationPreferences\.tsx|VideoDeliveryFields\.jsx|desktop-export-codec-model\.ts|export-(?:dialog-audio-codec-options\.ts|dialog-model\.js|preset-model\.ts)|framescaper-native-services-dialog-model\.ts|framescaper-v27-(?:caption-file-interchange|finishing-dialog-model|visual-inspector-model)\.ts|local-assistance-(?:cleanup|preparation|session-store)\.ts|local-model-manager-store\.ts|soundscaper-(?:production-dialog-model|routing-editor-model)\.ts|video-keyframe-(?:curve-transfer|dialog-model)\.ts|workspace[\\/](?:FramescaperCaptureSources|RecordingSetupPanel|WebVcrPanel|WebVcrPreview)\.tsx)`;
 
@@ -34,7 +35,12 @@ export const EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST = new RegExp(
 
 /** Effect and Analyze implementations reached only after their eager action facade runs. */
 export const EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST = new RegExp(
-	`${editorPath}(?:${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)|controller[\\\\/]${editorOptionalControllerModule}\\.ts)$`,
+	`${editorPath}(?:${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)|controller[\\\\/]analysis-service\\.ts)$`,
+);
+
+/** Audio and video delivery execution isolated from the effect-runtime graph. */
+export const EDITOR_OPTIONAL_EXPORT_CHUNK_TEST = new RegExp(
+	`${editorPath}controller[\\\\/]${editorOptionalExportControllerModule}\\.ts$`,
 );
 
 /** Stateful assistance workflows loaded only after their menu-owned dialog is invoked. */
@@ -91,6 +97,13 @@ export const chunkGroups = [
 	{
 		name: 'editor-optional-execution',
 		test: EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST,
+		priority: 93,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		name: 'editor-optional-export',
+		test: EDITOR_OPTIONAL_EXPORT_CHUNK_TEST,
 		priority: 93,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
