@@ -9,6 +9,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -154,6 +155,64 @@ bool writeFloatFixture(const std::filesystem::path &path, const std::vector<floa
 	return static_cast<bool>(file);
 }
 
+/* The canary runs unattended on hosted Windows and macOS runners, and ctest can
+ * only observe its exit code. A bare non-zero status therefore says a check
+ * failed and nothing about which one or why, so every refusal below names
+ * itself on the standard error stream that --output-on-failure surfaces. */
+int fail(int code, const char *check)
+{
+	std::fprintf(stderr, "os-audio-codec canary check %d failed: %s\n", code, check);
+	return code;
+}
+
+unsigned long long fileBytes(const std::filesystem::path &path)
+{
+	std::error_code error;
+	const auto size = std::filesystem::file_size(path, error);
+	return error ? 0ull : static_cast<unsigned long long>(size);
+}
+
+void reportDecode(
+	const soundscaper_pro_os_mp3_decode_result &result,
+	const std::filesystem::path &outputPath)
+{
+	std::fprintf(stderr,
+		"  decode: status=%d native_api_reached=%u exact_tuple_passed=%u sample_rate=%u"
+		" channel_count=%u frame_count=%llu output_bytes=%llu file_bytes=%llu\n",
+		static_cast<int>(result.status), result.native_api_reached, result.exact_tuple_passed,
+		result.sample_rate, result.channel_count,
+		static_cast<unsigned long long>(result.frame_count),
+		static_cast<unsigned long long>(result.output_bytes), fileBytes(outputPath));
+}
+
+void reportAacEncode(
+	const soundscaper_pro_os_aac_m4a_encode_result &result,
+	const std::filesystem::path &outputPath)
+{
+	std::fprintf(stderr,
+		"  aac encode: status=%d native_api_reached=%u exact_tuple_passed=%u sample_rate=%u"
+		" channel_count=%u bitrate_kbps=%u frame_count=%llu output_bytes=%llu file_bytes=%llu\n",
+		static_cast<int>(result.status), result.native_api_reached, result.exact_tuple_passed,
+		result.sample_rate, result.channel_count, result.bitrate_kbps,
+		static_cast<unsigned long long>(result.frame_count),
+		static_cast<unsigned long long>(result.output_bytes), fileBytes(outputPath));
+}
+
+#if defined(_WIN32) || defined(__APPLE__)
+void reportMp3Encode(
+	const soundscaper_pro_os_mp3_encode_result &result,
+	const std::filesystem::path &outputPath)
+{
+	std::fprintf(stderr,
+		"  mp3 encode: status=%d native_api_reached=%u exact_tuple_passed=%u sample_rate=%u"
+		" channel_count=%u bitrate_kbps=%u frame_count=%llu output_bytes=%llu file_bytes=%llu\n",
+		static_cast<int>(result.status), result.native_api_reached, result.exact_tuple_passed,
+		result.sample_rate, result.channel_count, result.bitrate_kbps,
+		static_cast<unsigned long long>(result.frame_count),
+		static_cast<unsigned long long>(result.output_bytes), fileBytes(outputPath));
+}
+#endif
+
 bool validDecode(
 	const soundscaper_pro_os_mp3_decode_result &result,
 	const std::filesystem::path &outputPath)
@@ -163,13 +222,21 @@ bool validDecode(
 		|| result.exact_tuple_passed != 1u || result.sample_rate != 48000u
 		|| result.channel_count != 2u || result.frame_count == 0u
 		|| result.output_bytes != result.frame_count * 2u * sizeof(float)
-		|| std::filesystem::file_size(outputPath, error) != result.output_bytes || error) return false;
+		|| std::filesystem::file_size(outputPath, error) != result.output_bytes || error) {
+		reportDecode(result, outputPath);
+		return false;
+	}
 	std::ifstream decoded(outputPath, std::ios::binary);
 	std::vector<float> samples(result.output_bytes / sizeof(float));
 	decoded.read(reinterpret_cast<char *>(samples.data()), static_cast<std::streamsize>(result.output_bytes));
-	return decoded && std::all_of(samples.begin(), samples.end(), [](float value) {
+	const bool exact = decoded && std::all_of(samples.begin(), samples.end(), [](float value) {
 		return std::isfinite(value);
 	}) && !std::all_of(samples.begin(), samples.end(), [](float value) { return value == 0.0f; });
+	if (!exact) {
+		reportDecode(result, outputPath);
+		std::fprintf(stderr, "  the decoded samples are unreadable, non-finite, or entirely silent\n");
+	}
+	return exact;
 }
 
 bool validEncode(
@@ -181,11 +248,19 @@ bool validEncode(
 		|| result.exact_tuple_passed != 1u || result.sample_rate != 48000u
 		|| result.channel_count != 2u || result.bitrate_kbps != 160u
 		|| result.frame_count != encodeCanaryFrameCount || result.output_bytes == 0u
-		|| std::filesystem::file_size(outputPath, error) != result.output_bytes || error) return false;
+		|| std::filesystem::file_size(outputPath, error) != result.output_bytes || error) {
+		reportAacEncode(result, outputPath);
+		return false;
+	}
 	std::ifstream encoded(outputPath, std::ios::binary);
 	const std::vector<uint8_t> bytes(std::istreambuf_iterator<char>(encoded), {});
-	return !encoded.bad() && bytes.size() == result.output_bytes
+	const bool exact = !encoded.bad() && bytes.size() == result.output_bytes
 		&& soundscaper::os_audio::exactAacLcM4a(bytes, 48000u, 2u);
+	if (!exact) {
+		reportAacEncode(result, outputPath);
+		std::fprintf(stderr, "  the encoded container is not exact 48 kHz stereo AAC-LC in M4A\n");
+	}
+	return exact;
 }
 
 #if defined(_WIN32)
@@ -198,11 +273,19 @@ bool validMp3Encode(
 		|| result.exact_tuple_passed != 1u || result.sample_rate != 48000u
 		|| result.channel_count != 2u || result.bitrate_kbps != 192u
 		|| result.frame_count != encodeCanaryFrameCount || result.output_bytes == 0u
-		|| std::filesystem::file_size(outputPath, error) != result.output_bytes || error) return false;
+		|| std::filesystem::file_size(outputPath, error) != result.output_bytes || error) {
+		reportMp3Encode(result, outputPath);
+		return false;
+	}
 	std::ifstream encoded(outputPath, std::ios::binary);
 	const std::vector<uint8_t> bytes(std::istreambuf_iterator<char>(encoded), {});
-	return !encoded.bad() && bytes.size() == result.output_bytes
+	const bool exact = !encoded.bad() && bytes.size() == result.output_bytes
 		&& soundscaper::os_audio::exactMp3(bytes, 48000u, 2u, 192u);
+	if (!exact) {
+		reportMp3Encode(result, outputPath);
+		std::fprintf(stderr, "  the encoded frame chain is not an exact 192 kbps 48 kHz stereo MP3\n");
+	}
+	return exact;
 }
 #endif
 
@@ -228,12 +311,14 @@ int main()
 	const auto mp3EncodeDecodePath = root / "encode-mp3-decoded.f32le";
 	const auto unsupportedMp3EncodePath = root / "unsupported-encode.mp3";
 	std::error_code error;
-	if (!std::filesystem::create_directory(root, error) || error) return 1;
+	if (!std::filesystem::create_directory(root, error) || error)
+		return fail(1, "the private scratch directory could not be created");
 	const auto mp3Input = base64Bytes(canaryBase64);
 	const auto m4aInput = base64Bytes(aacM4aCanaryBase64);
 	const auto adtsInput = base64Bytes(aacAdtsCanaryBase64);
 	const auto encodeInput = encodeCanarySamples();
-	if (mp3Input.size() != 1536u || m4aInput.size() != 1909u || adtsInput.size() != 1115u) return 2;
+	if (mp3Input.size() != 1536u || m4aInput.size() != 1909u || adtsInput.size() != 1115u)
+		return fail(2, "a decoded base64 canary does not have its pinned length");
 	/* Same M4A with the AudioSpecificConfig sync-extension SBR-present bit set.
 	 * This declares implicit HE-AAC and must not inherit the AAC-LC admission.
 	 * sha256: 067e521e3f33e667840e5de1ca8b472d647e11aacce4ed052ef03137cb82a1d0 */
@@ -241,25 +326,33 @@ int main()
 	constexpr std::array<uint8_t, 5u> lcConfig{ 0x11u, 0x90u, 0x56u, 0xe5u, 0x00u };
 	const auto config = std::search(heInput.begin(), heInput.end(), lcConfig.begin(), lcConfig.end());
 	if (config == heInput.end()
-		|| std::search(config + 1, heInput.end(), lcConfig.begin(), lcConfig.end()) != heInput.end()) return 3;
+		|| std::search(config + 1, heInput.end(), lcConfig.begin(), lcConfig.end()) != heInput.end()) {
+		return fail(3, "the AudioSpecificConfig does not appear exactly once in the M4A canary");
+	}
 	*(config + 4) = 0x80u;
 	if (!soundscaper::os_audio::exactAacLcM4a(m4aInput, 48000u, 2u)
-		|| soundscaper::os_audio::exactAacLcM4a(heInput, 48000u, 2u)) return 4;
+		|| soundscaper::os_audio::exactAacLcM4a(heInput, 48000u, 2u)) {
+		return fail(4, "the profile parser did not admit AAC-LC and refuse implicit HE-AAC");
+	}
 	if (!writeFixture(mp3InputPath, mp3Input) || !writeFixture(m4aInputPath, m4aInput)
 		|| !writeFixture(adtsInputPath, adtsInput) || !writeFixture(heInputPath, heInput)
-		|| !writeFloatFixture(encodeInputPath, encodeInput)) return 5;
+		|| !writeFloatFixture(encodeInputPath, encodeInput)) {
+		return fail(5, "a canary fixture could not be written to the scratch directory");
+	}
 	const std::string mp3InputText = mp3InputPath.string();
 	const std::string mp3OutputText = mp3OutputPath.string();
 	const soundscaper_pro_os_mp3_decode_request mp3Request{
 		mp3InputText.c_str(), mp3OutputText.c_str(), mp3Input.size(), 1024u * 1024u,
 	};
-	if (!validDecode(soundscaper_pro_os_mp3_decode(&mp3Request), mp3OutputPath)) return 6;
+	if (!validDecode(soundscaper_pro_os_mp3_decode(&mp3Request), mp3OutputPath))
+		return fail(6, "MP3 decode did not yield exact 48 kHz stereo float32");
 	const std::string m4aInputText = m4aInputPath.string();
 	const std::string m4aOutputText = m4aOutputPath.string();
 	const soundscaper_pro_os_mp3_decode_request m4aRequest{
 		m4aInputText.c_str(), m4aOutputText.c_str(), m4aInput.size(), 1024u * 1024u,
 	};
-	if (!validDecode(soundscaper_pro_os_aac_m4a_decode(&m4aRequest), m4aOutputPath)) return 7;
+	if (!validDecode(soundscaper_pro_os_aac_m4a_decode(&m4aRequest), m4aOutputPath))
+		return fail(7, "AAC-LC M4A decode did not yield exact 48 kHz stereo float32");
 	const std::string adtsInputText = adtsInputPath.string();
 	const std::string adtsOutputText = adtsOutputPath.string();
 	const soundscaper_pro_os_mp3_decode_request adtsRequest{
@@ -269,7 +362,10 @@ int main()
 	if (adtsResult.status != SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED
 		|| adtsResult.native_api_reached != 1u || adtsResult.exact_tuple_passed != 0u
 		|| adtsResult.output_bytes != 0u || adtsResult.frame_count != 0u
-		|| std::filesystem::exists(adtsOutputPath)) return 8;
+		|| std::filesystem::exists(adtsOutputPath)) {
+		reportDecode(adtsResult, adtsOutputPath);
+		return fail(8, "raw ADTS AAC was not refused as an unsupported tuple");
+	}
 #if defined(__APPLE__)
 	const std::string heInputText = heInputPath.string();
 	const std::string heOutputText = heOutputPath.string();
@@ -280,7 +376,10 @@ int main()
 	if (heResult.status != SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED
 		|| heResult.native_api_reached != 1u || heResult.exact_tuple_passed != 0u
 		|| heResult.output_bytes != 0u || heResult.frame_count != 0u
-		|| std::filesystem::exists(heOutputPath)) return 9;
+		|| std::filesystem::exists(heOutputPath)) {
+		reportDecode(heResult, heOutputPath);
+		return fail(9, "implicit HE-AAC was not refused as an unsupported tuple");
+	}
 #endif
 	const std::string encodeInputText = encodeInputPath.string();
 	const std::string encodeOutputText = encodeOutputPath.string();
@@ -288,13 +387,15 @@ int main()
 		encodeInputText.c_str(), encodeOutputText.c_str(), encodeInput.size() * sizeof(float),
 		1024u * 1024u, 48000u, 2u, 160u,
 	};
-	if (!validEncode(soundscaper_pro_os_aac_m4a_encode(&encodeRequest), encodeOutputPath)) return 10;
+	if (!validEncode(soundscaper_pro_os_aac_m4a_encode(&encodeRequest), encodeOutputPath))
+		return fail(10, "AAC-LC M4A encode did not yield an exact 160 kbps container");
 	const std::string encodeDecodeText = encodeDecodePath.string();
 	const soundscaper_pro_os_mp3_decode_request encodedDecodeRequest{
 		encodeOutputText.c_str(), encodeDecodeText.c_str(),
 		std::filesystem::file_size(encodeOutputPath), 1024u * 1024u,
 	};
-	if (!validDecode(soundscaper_pro_os_aac_m4a_decode(&encodedDecodeRequest), encodeDecodePath)) return 11;
+	if (!validDecode(soundscaper_pro_os_aac_m4a_decode(&encodedDecodeRequest), encodeDecodePath))
+		return fail(11, "the encoder's own M4A did not decode back exactly");
 	const std::string unsupportedEncodeText = unsupportedEncodePath.string();
 	auto unsupportedEncodeRequest = encodeRequest;
 	unsupportedEncodeRequest.output_path_utf8 = unsupportedEncodeText.c_str();
@@ -302,7 +403,10 @@ int main()
 	const auto unsupportedEncode = soundscaper_pro_os_aac_m4a_encode(&unsupportedEncodeRequest);
 	if (unsupportedEncode.status != SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST
 		|| unsupportedEncode.native_api_reached != 0u || unsupportedEncode.exact_tuple_passed != 0u
-		|| unsupportedEncode.output_bytes != 0u || std::filesystem::exists(unsupportedEncodePath)) return 12;
+		|| unsupportedEncode.output_bytes != 0u || std::filesystem::exists(unsupportedEncodePath)) {
+		reportAacEncode(unsupportedEncode, unsupportedEncodePath);
+		return fail(12, "a 192 kbps AAC request was not refused before the native API");
+	}
 #if defined(_WIN32) || defined(__APPLE__)
 	const std::string mp3EncodeOutputText = mp3EncodeOutputPath.string();
 	const soundscaper_pro_os_mp3_encode_request mp3EncodeRequest{
@@ -310,13 +414,15 @@ int main()
 		1024u * 1024u, 48000u, 2u, 192u,
 	};
 #if defined(_WIN32)
-	if (!validMp3Encode(soundscaper_pro_os_mp3_encode(&mp3EncodeRequest), mp3EncodeOutputPath)) return 13;
+	if (!validMp3Encode(soundscaper_pro_os_mp3_encode(&mp3EncodeRequest), mp3EncodeOutputPath))
+		return fail(13, "MP3 encode did not yield an exact 192 kbps frame chain");
 	const std::string mp3EncodeDecodeText = mp3EncodeDecodePath.string();
 	const soundscaper_pro_os_mp3_decode_request encodedMp3DecodeRequest{
 		mp3EncodeOutputText.c_str(), mp3EncodeDecodeText.c_str(),
 		std::filesystem::file_size(mp3EncodeOutputPath), 1024u * 1024u,
 	};
-	if (!validDecode(soundscaper_pro_os_mp3_decode(&encodedMp3DecodeRequest), mp3EncodeDecodePath)) return 14;
+	if (!validDecode(soundscaper_pro_os_mp3_decode(&encodedMp3DecodeRequest), mp3EncodeDecodePath))
+		return fail(14, "the encoder's own MP3 did not decode back exactly");
 	const std::string unsupportedMp3EncodeText = unsupportedMp3EncodePath.string();
 	auto unsupportedMp3EncodeRequest = mp3EncodeRequest;
 	unsupportedMp3EncodeRequest.output_path_utf8 = unsupportedMp3EncodeText.c_str();
@@ -325,14 +431,20 @@ int main()
 	if (unsupportedMp3Encode.status != SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST
 		|| unsupportedMp3Encode.native_api_reached != 0u || unsupportedMp3Encode.exact_tuple_passed != 0u
 		|| unsupportedMp3Encode.output_bytes != 0u
-		|| std::filesystem::exists(unsupportedMp3EncodePath)) return 15;
+		|| std::filesystem::exists(unsupportedMp3EncodePath)) {
+		reportMp3Encode(unsupportedMp3Encode, unsupportedMp3EncodePath);
+		return fail(15, "a 160 kbps MP3 request was not refused before the native API");
+	}
 #elif defined(__APPLE__)
 	const auto unavailableMp3Encode = soundscaper_pro_os_mp3_encode(&mp3EncodeRequest);
 	if (unavailableMp3Encode.status != SOUNDSCAPER_PRO_OS_CODEC_API_UNAVAILABLE
 		|| unavailableMp3Encode.native_api_reached != 0u || unavailableMp3Encode.exact_tuple_passed != 0u
-		|| unavailableMp3Encode.output_bytes != 0u || std::filesystem::exists(mp3EncodeOutputPath)) return 13;
+		|| unavailableMp3Encode.output_bytes != 0u || std::filesystem::exists(mp3EncodeOutputPath)) {
+		reportMp3Encode(unavailableMp3Encode, mp3EncodeOutputPath);
+		return fail(13, "MP3 encode was not reported unavailable on macOS");
+	}
 #endif
 #endif
 	std::filesystem::remove_all(root, error);
-	return error ? 16 : 0;
+	return error ? fail(16, "the private scratch directory could not be removed") : 0;
 }
