@@ -114,6 +114,10 @@ async function resolveExactModel(
 	if (subjectBindings === null && request.models.length !== 1) {
 		throw new TypeError(`${request.operation} requires one exact additional-runtime model binding.`);
 	}
+	if (subjectBindings === null && (request.operation === 'audio-tagging'
+		|| request.operation === 'beat-tracking')) {
+		assertAssistanceOnnxAudioModelBindingV1(request.operation, request.models[0]!);
+	}
 	const [status, installed] = await Promise.all([models.status(), models.listInstalled()]);
 	signal.throwIfAborted();
 	if (subjectBindings !== null) {
@@ -139,6 +143,23 @@ async function resolveExactModel(
 	const captures = await resolveModelCaptures(binding, installed, models, signal);
 	if (captures === null) return null;
 	return Object.freeze({ task, captures });
+}
+
+/** Close model substitution before status lookup can collapse it into ordinary unavailability. */
+export function assertAssistanceOnnxAudioModelBindingV1(
+	operation: 'audio-tagging' | 'beat-tracking',
+	binding: AssistanceOperationModelBinding,
+): void {
+	if (operation === 'audio-tagging') {
+		if (binding.modelId !== 'panns-cnn10') {
+			throw new TypeError('Audio tagging requires the exact PANNs Cnn10 model identity.');
+		}
+		return;
+	}
+	if ((binding.modelId !== 'beat-this-small0' && binding.modelId !== 'beat-this-final0')
+		|| binding.version !== '1.1.0') {
+		throw new TypeError('Beat tracking requires an exact Beat This v1.1.0 model identity.');
+	}
 }
 
 function exactSubjectBindings(

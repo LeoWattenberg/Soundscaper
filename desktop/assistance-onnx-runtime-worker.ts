@@ -21,6 +21,9 @@ import {
 	AssistanceRuntimeFamilyAdapterUnavailableError,
 	type AssistanceRuntimeFamilyWorkerExecutionContext,
 } from './assistance-runtime-family-worker-entry.ts';
+import {
+	createAssistanceOnnxAudioRuntimeWorkerAdapterV1,
+} from './assistance-onnx-audio-runtime-worker.ts';
 
 export interface AssistanceOnnxTensorV1 {
 	readonly type: string;
@@ -72,11 +75,13 @@ export function createAssistanceOnnxRuntimeWorkerAdapterV1(
 		throw new TypeError('The ONNX Runtime module loader is invalid.');
 	}
 	const loadRuntime = options.loadRuntime ?? loadOnnxRuntime;
+	const executeAudio = createAssistanceOnnxAudioRuntimeWorkerAdapterV1(loadRuntime);
 	return async (context) => {
-		if (context.grant.task !== 'shot-detection') {
-			throw new AssistanceRuntimeFamilyAdapterUnavailableError();
+		if (context.grant.task === 'shot-detection') return executeTransNetV2(context, loadRuntime);
+		if (context.grant.task === 'audio-tagging' || context.grant.task === 'beat-tracking') {
+			return executeAudio(context);
 		}
-		return executeTransNetV2(context, loadRuntime);
+		throw new AssistanceRuntimeFamilyAdapterUnavailableError();
 	};
 }
 

@@ -5,7 +5,7 @@ import {
 	reviewAssistanceBeatGridV1,
 	type AssistanceBeatGridV1,
 	type AssistanceBeatPointV1,
-} from './m7-semantic-results';
+} from './m7-semantic-results.ts';
 
 /** Geometry used by the pinned Beat This v1.1.0 checkpoints. */
 export const ASSISTANCE_BEAT_THIS_FRAMES_PER_SECOND = 50;
