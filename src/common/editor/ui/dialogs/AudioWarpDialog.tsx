@@ -2,6 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 
+import '../audio-editor-design-system/27-audio-warp.css';
+
 import type { RationalInput } from '../../timeline-time.ts';
 import type { AudioEditorEditBlockingSnapshot } from '../../edit-blocking.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';

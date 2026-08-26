@@ -2,6 +2,8 @@
 
 import { useLayoutEffect, useRef } from 'react';
 
+import '../audio-editor-design-system/18-musical-timeline.css';
+
 import { iconNameToChar } from '../../audacity-iconcodes.js';
 import { approximatePositiveRational } from '../../rational-approximation.ts';
 import { addRationals } from '../../timeline-time.ts';

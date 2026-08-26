@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@dilsonspickles/components';
 
+import '../audio-editor-design-system/29-framescaper-capture.css';
+
 import type {
 	CaptureDestination,
 	CapturePhase,

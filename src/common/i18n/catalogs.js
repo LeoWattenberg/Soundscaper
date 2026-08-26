@@ -6,7 +6,7 @@ import { LABEL_EXPORT_COPY_BY_LOCALE } from './label-export-copy.js';
 import { DELIVERY_QUEUE_COPY_BY_LOCALE } from './delivery-queue-copy.js';
 import { MUSICAL_TIMELINE_COPY_BY_LOCALE } from './musical-timeline-copy.js';
 import { SEQUENCE_TIMING_COPY_BY_LOCALE } from './sequence-timing-copy.js';
-import { SITE_SIDEBAR_COPY_BY_LOCALE } from './site-sidebar-copy.js';
+import { SITE_COPY_BY_LOCALE } from './site-copy.js';
 import { TIMELINE_ANNOTATION_COPY_BY_LOCALE } from './timeline-annotation-copy.js'; import { LOCAL_ASSISTANCE_COPY_BY_LOCALE } from './local-assistance-copy.js';
 import { TRACK_FOLDER_COPY_BY_LOCALE } from './track-folder-copy.js'; import { FRAMESCAPER_CAPTURE_COPY_BY_LOCALE } from './framescaper-capture-copy.js'; import { LOCAL_MODEL_MANAGER_COPY_BY_LOCALE } from './local-model-manager-copy.js';
 import { VIDEO_EFFECT_COPY_BY_LOCALE } from './video-effect-copy.js'; import { VIDEO_COMPOSITION_COPY_BY_LOCALE } from './video-composition-copy.js'; import { VIDEO_CAPTION_COPY_BY_LOCALE } from './video-caption-copy.js';
@@ -14,6 +14,7 @@ import { VIDEO_EFFECT_COPY_BY_LOCALE } from './video-effect-copy.js'; import { V
 // User-visible copy intentionally omits ellipsis punctuation.
 export const COPY_BY_LOCALE = deepFreeze({
 	de: {
+		...SITE_COPY_BY_LOCALE.de,
 		...CANONICAL_EXTRA_COPY_BY_LOCALE.de,
 		...MUSICAL_TIMELINE_COPY_BY_LOCALE.de,
 		...SEQUENCE_TIMING_COPY_BY_LOCALE.de,
@@ -35,7 +36,6 @@ export const COPY_BY_LOCALE = deepFreeze({
 		intro: 'Nimm Audio auf, schneide mehrere Spuren nondestruktiv, mische Effekte und prüfe Lautheit und Spektrum.',
 		privacy: 'Deine Aufnahmen, Projekte und Audiodateien bleiben auf diesem Gerät und werden ausschließlich in deinem Browser verarbeitet.',
 		metaDescription: 'Lokaler Mehrspur-Audio-Editor im Browser.',
-		...SITE_SIDEBAR_COPY_BY_LOCALE.de,
 		project: 'Projekt',
 		audacityProjects: 'Audacity-Projekte',
 		projectTabs: 'Projekt-Tabs',
@@ -1019,6 +1019,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		keyboardHelp: 'Leertaste: Wiedergabe · R: Aufnahme · S: Teilen · Entf: Löschen · Strg/Cmd + Z: Rückgängig',
 	},
 	en: {
+		...SITE_COPY_BY_LOCALE.en,
 		...CANONICAL_EXTRA_COPY_BY_LOCALE.en,
 		...MUSICAL_TIMELINE_COPY_BY_LOCALE.en,
 		...SEQUENCE_TIMING_COPY_BY_LOCALE.en,
@@ -1040,7 +1041,6 @@ export const COPY_BY_LOCALE = deepFreeze({
 		intro: 'Record audio, edit multiple tracks nondestructively, mix effects, and inspect loudness and frequency content.',
 		privacy: 'Your recordings, projects, and audio files stay on this device and are processed entirely in your browser.',
 		metaDescription: 'Local-first multitrack audio editor in your browser.',
-		...SITE_SIDEBAR_COPY_BY_LOCALE.en,
 		project: 'Project',
 		audacityProjects: 'Audacity projects',
 		projectTabs: 'Project tabs',

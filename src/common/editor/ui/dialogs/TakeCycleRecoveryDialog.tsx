@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 
+import '../audio-editor-design-system/28-take-cycle-recovery.css';
+
 import type { TakeCyclePendingOpenRecovery } from '../../controller/take-cycle-capture-orchestrator.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 

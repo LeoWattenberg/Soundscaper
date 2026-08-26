@@ -2,6 +2,8 @@
 
 import { useRef, useState } from 'react';
 
+import '../audio-editor-design-system/25-spectral-brush.css';
+
 import { planSpectralBrushGesture } from './spectral-brush-model.ts';
 
 export function SpectralBrushOverlay({

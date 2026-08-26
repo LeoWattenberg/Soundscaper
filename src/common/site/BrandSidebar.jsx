@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { bundledCopyForLocale } from '../i18n/catalogs.js';
+import { bundledSiteCopyForLocale } from '../i18n/site-copy.js';
 import { localeLanguage } from '../i18n/locale.js';
 import { DEFAULT_LOCALE_TAGS, getLocaleDescriptor, ROUTE_LOCALES } from '../i18n/locales.js';
 import { productLocalePath, otherProductId, productProfile } from '../products.js';
+import { createApplicationReadyScheduler } from './application-ready-scheduler.js';
 
 const TRANSLATIONS_BASE_URL = import.meta.env.PUBLIC_TRANSLATIONS_BASE_URL
 	|| 'https://translations.soundscaper.org/runtime/translations/audacity/4/';
@@ -14,12 +15,13 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 	const localeDescriptor = getLocaleDescriptor(locale);
 	if (!localeDescriptor) throw new Error(`Unknown editor locale: ${locale}`);
 	const chromeLocale = localeLanguage(localeDescriptor.locale) === 'de' ? 'de' : 'en';
-	const catalog = bundledCopyForLocale(localeDescriptor.locale);
+	const catalog = bundledSiteCopyForLocale(localeDescriptor.locale);
 	const copy = sidebarCopy(catalog);
 	const [collapsed, setCollapsed] = useState(() => storedCollapsed(productId));
 	const [theme, setTheme] = useState(() => document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
 	const [workspace, setWorkspace] = useState({ activeId: profile.defaultWorkspace, workspaces: [] });
 	const [eligibleNames, setEligibleNames] = useState(new Map());
+	const requestTranslationManifestRef = useRef(() => {});
 	const localeOptions = useMemo(() => {
 		const localeTags = new Set([...DEFAULT_LOCALE_TAGS, localeDescriptor.locale, ...eligibleNames.keys()]);
 		return ROUTE_LOCALES
@@ -47,26 +49,36 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 
 	useEffect(() => {
 		const controller = new AbortController();
-		const timeout = window.setTimeout(() => controller.abort(), 5_000);
-		fetch(`${TRANSLATIONS_BASE_URL.replace(/\/+$/u, '')}/latest.json`, { cache: 'default', signal: controller.signal })
-			.then((response) => {
-				if (!response.ok) throw new Error(`Translation manifest request failed (${response.status})`);
-				return response.json();
-			})
-			.then((manifest) => {
-				const routeLocaleTags = new Set(ROUTE_LOCALES.map(({ locale: routeLocale }) => routeLocale));
-				const locales = manifest && typeof manifest.locales === 'object' && !Array.isArray(manifest.locales) ? manifest.locales : {};
-				const names = new Map();
-				for (const [tag, descriptor] of Object.entries(locales)) {
-					if (!routeLocaleTags.has(tag) || !descriptor || typeof descriptor !== 'object' || descriptor.eligible !== true) continue;
-					if (typeof descriptor.name === 'string' && descriptor.name.trim()) names.set(tag, descriptor.name.trim());
-				}
-				setEligibleNames(names);
-			})
-			.catch(() => {})
-			.finally(() => window.clearTimeout(timeout));
+		let timeout = null;
+		const scheduler = createApplicationReadyScheduler({
+			task: () => {
+				timeout = window.setTimeout(() => controller.abort(), 5_000);
+				fetch(`${TRANSLATIONS_BASE_URL.replace(/\/+$/u, '')}/latest.json`, { cache: 'default', signal: controller.signal })
+					.then((response) => {
+						if (!response.ok) throw new Error(`Translation manifest request failed (${response.status})`);
+						return response.json();
+					})
+					.then((manifest) => {
+						const routeLocaleTags = new Set(ROUTE_LOCALES.map(({ locale: routeLocale }) => routeLocale));
+						const locales = manifest && typeof manifest.locales === 'object' && !Array.isArray(manifest.locales) ? manifest.locales : {};
+						const names = new Map();
+						for (const [tag, descriptor] of Object.entries(locales)) {
+							if (!routeLocaleTags.has(tag) || !descriptor || typeof descriptor !== 'object' || descriptor.eligible !== true) continue;
+							if (typeof descriptor.name === 'string' && descriptor.name.trim()) names.set(tag, descriptor.name.trim());
+						}
+						setEligibleNames(names);
+					})
+					.catch(() => {})
+					.finally(() => {
+						if (timeout !== null) window.clearTimeout(timeout);
+					});
+			},
+		});
+		requestTranslationManifestRef.current = scheduler.request;
 		return () => {
-			window.clearTimeout(timeout);
+			requestTranslationManifestRef.current = () => {};
+			scheduler.dispose();
+			if (timeout !== null) window.clearTimeout(timeout);
 			controller.abort();
 		};
 	}, []);
@@ -93,6 +105,7 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 			window.location.assign(productLocalePath(productId, event.target.value));
 		}
 	};
+	const requestTranslationManifest = () => { requestTranslationManifestRef.current(); };
 	const workspaces = workspace.workspaces.length ? workspace.workspaces : defaultWorkspaces(productId, copy);
 	const darkTheme = theme === 'dark';
 
@@ -131,7 +144,7 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 						</button>
 						<label className="language-picker">
 							<span>{copy.language}</span>
-							<select data-locale-select aria-label={copy.language} value={localeDescriptor.locale} onChange={selectLocale}>
+							<select data-locale-select aria-label={copy.language} value={localeDescriptor.locale} onFocus={requestTranslationManifest} onPointerDown={requestTranslationManifest} onChange={selectLocale}>
 								{localeOptions.map(({ locale: optionLocale, name }) => <option key={optionLocale} value={optionLocale}>{name}</option>)}
 							</select>
 						</label>

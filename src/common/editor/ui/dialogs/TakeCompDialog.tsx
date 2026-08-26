@@ -2,6 +2,8 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
+import '../audio-editor-design-system/26-take-comp.css';
+
 import type { AudioEditorEditBlockingSnapshot } from '../../edit-blocking.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { formatLocalizedTemplate } from '../localization-template.ts';

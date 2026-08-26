@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@dilsonspickles/components';
 
+import './audio-editor-design-system/15-adm.css';
+
 import {
 	ADM_BED_CHANNEL_ORDER,
 	ADM_BED_LAYOUTS,

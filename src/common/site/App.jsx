@@ -1,7 +1,6 @@
 import { lazy, Suspense } from 'react';
 
-import { bundledCopyForLocale } from '../i18n/catalogs.js';
-import '../editor/ui/audio-editor-design-system.css';
+import { bundledSiteCopyForLocale } from '../i18n/site-copy.js';
 import BrandSidebar from './BrandSidebar.jsx';
 import './site.css';
 
@@ -10,7 +9,7 @@ const FramescaperAudioEditorBootstrapV31 = lazy(() => import('../../framescaper/
 
 export default function App({ route }) {
 	const { desktop, direction, embedded, locale, productId } = route;
-	const copy = bundledCopyForLocale(locale);
+	const copy = bundledSiteCopyForLocale(locale);
 	const EditorBootstrap = productId !== 'framescaper'
 		? SoundscaperAudioEditorBootstrapV30
 		: FramescaperAudioEditorBootstrapV31;

@@ -1,5 +1,6 @@
 import React from 'react';
 
+import './audio-editor-design-system.css';
 import { DesignSystemProviders } from './DesignSystemRuntime.jsx';
 import AudioEditorWorkspace from './workspace/AudioEditorWorkspace.jsx';
 import DefaultAudioEditorWorkspace from './workspace/DefaultAudioEditorWorkspace.jsx';

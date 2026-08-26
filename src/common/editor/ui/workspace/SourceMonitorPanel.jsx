@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import '../audio-editor-design-system/23-source-monitor.css';
+
 import { mediaSecondsToSourceFrame } from '../../source-monitor-model.ts';
 
 /**

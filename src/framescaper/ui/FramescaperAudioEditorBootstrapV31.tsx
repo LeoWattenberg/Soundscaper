@@ -5,7 +5,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import { createAudioEditorFileService } from '../../common/editor/file-service.js';
 import { BoundAudioEditorApp } from '../../common/editor/ui/AudioEditorApp.jsx';
 import { resolveFramescaperNativeServicesBridge } from '../../common/editor/ui/framescaper-native-services-bridge.ts';
-import { resolveCatalog } from '../../common/i18n/runtime.js';
+import { bundledCatalogForLocale, resolveCatalog } from '../../common/i18n/runtime.js';
 import { createFramescaperAudioEditorControllerV31 } from '../editor-controller-v31.ts';
 import {
 	createFramescaperNativeWatchImportClientV31,
@@ -92,7 +92,9 @@ export default function FramescaperAudioEditorBootstrapV31({
 		'Framescaper fallback copy',
 	)), [fallbackCopyValue]);
 	const [copy, setCopy] = useState<Readonly<Record<string, unknown>> | null>(
-		() => locale === 'en' ? fallbackCopy : null,
+		() => locale === 'en'
+			? framescaperCopy(snapshotCopy(bundledCatalogForLocale('en'), 'Framescaper bundled copy'))
+			: null,
 	);
 	const [runtime, setRuntime] = useState<Readonly<FramescaperWebEditorRuntimeV31> | null>(null);
 	const [failure, setFailure] = useState<unknown>(null);
@@ -139,7 +141,7 @@ export default function FramescaperAudioEditorBootstrapV31({
 	}
 	if (!copy || !runtime) {
 		return <div role="status" aria-live="polite">{
-			copyText(copy ?? fallbackCopy, 'loading', 'Loading project')
+			copyText(fallbackCopy, 'loading', 'Loading project')
 		}</div>;
 	}
 	return <Suspense fallback={<div role="status" aria-live="polite">{

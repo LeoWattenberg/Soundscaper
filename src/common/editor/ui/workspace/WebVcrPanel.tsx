@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
+import '../audio-editor-design-system/30-framescaper-web-vcr.css';
+
 import {
 	type WebVcrAspect,
 	type WebVcrResolution,
