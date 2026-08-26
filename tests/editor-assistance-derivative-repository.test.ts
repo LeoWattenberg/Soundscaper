@@ -82,6 +82,27 @@ test('assistance derivatives round-trip authenticated bytes without entering pro
 	}), /deterministic|disagree|collision/iu);
 });
 
+test('project-scoped derivative listing reopens authenticated records without crossing projects', async () => {
+	const fixture = repositoryFixture();
+	const first = workflow();
+	const second = workflow();
+	second.fence.sourceRanges[0].sourceStartFrame = 10;
+	second.fence.sourceRanges[0].sourceEndFrame = 110;
+	const otherProject = workflow();
+	otherProject.fence.projectId = 'project-b';
+	await fixture.repository.save(first, 'embeddings', payload([1]));
+	await fixture.repository.save(second, 'visual-index', payload([2]));
+	await fixture.repository.save(otherProject, 'embeddings', payload([3]));
+
+	const listed = await fixture.repository.listProject('project-a');
+	assert.deepEqual(listed.map(({ kind, bytes }) => [kind, [...bytes]]), [
+		['embeddings', [1]], ['visual-index', [2]],
+	]);
+	assert.deepEqual(await fixture.repository.listProject('project-a', ['visual-index']), [listed[1]]);
+	listed[0]!.bytes[0] = 99;
+	assert.deepEqual((await fixture.repository.listProject('project-a'))[0]?.bytes, Uint8Array.of(1));
+});
+
 test('assistance derivative eviction is bounded and project purge cannot cross isolation scopes', async () => {
 	let now = 1_000;
 	const fixture = repositoryFixture({ maximumBytes: 8, maximumEntries: 2, maximumAgeMs: 1_000 }, () => now);

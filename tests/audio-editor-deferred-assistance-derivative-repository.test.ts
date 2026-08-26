@@ -37,6 +37,11 @@ test('assistance derivative storage loads only on first use and reuses one repos
 			return null;
 		}
 
+		async listProject(projectId: string): Promise<readonly never[]> {
+			calls.push(`listProject:${projectId}`);
+			return [];
+		}
+
 		async purgeProject(projectId: string): Promise<number> {
 			calls.push(`purgeProject:${projectId}`);
 			return 2;
@@ -59,11 +64,12 @@ test('assistance derivative storage loads only on first use and reuses one repos
 	assert.equal(constructions, 0);
 	await assert.rejects(repository.save({}, 'embeddings', PAYLOAD), /save witness/u);
 	assert.equal(await repository.load({}, 'embeddings'), null);
+	assert.deepEqual(await repository.listProject('project-1'), []);
 	assert.equal(await repository.purgeProject('project-1'), 2);
 	assert.equal(await repository.purge(), 3);
 	assert.equal(loads, 1);
 	assert.equal(constructions, 1);
-	assert.deepEqual(calls, ['save', 'load', 'purgeProject:project-1', 'purge']);
+	assert.deepEqual(calls, ['save', 'load', 'listProject:project-1', 'purgeProject:project-1', 'purge']);
 });
 
 test('assistance derivative storage retries a failed implementation load', async () => {
@@ -71,6 +77,7 @@ test('assistance derivative storage retries a failed implementation load', async
 	class Repository {
 		async save(): Promise<never> { throw new Error('unused'); }
 		async load(): Promise<null> { return null; }
+		async listProject(): Promise<readonly never[]> { return []; }
 		async purgeProject(): Promise<number> { return 0; }
 		async purge(): Promise<number> { return 1; }
 	}

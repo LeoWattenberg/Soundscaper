@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type {
+	AssistanceDerivativeKind,
 	AssistanceDerivativeKeyValuePort,
 	AssistanceDerivativePayloadV1,
 	AssistanceDerivativeRecordV1,
@@ -15,6 +16,10 @@ export interface AssistanceDerivativeRepositoryPort {
 		payloadValue: AssistanceDerivativePayloadV1,
 	): Promise<AssistanceDerivativeRecordV1>;
 	load(workflowValue: unknown, kindValue: unknown): Promise<AssistanceDerivativeRecordV1 | null>;
+	listProject(
+		projectIdValue: string,
+		kindsValue?: readonly AssistanceDerivativeKind[],
+	): Promise<readonly AssistanceDerivativeRecordV1[]>;
 	purgeProject(projectIdValue: string): Promise<number>;
 	purge(): Promise<number>;
 }
@@ -72,6 +77,13 @@ export function createDeferredAssistanceDerivativeRepository(
 		): Promise<AssistanceDerivativeRecordV1 | null> => {
 			const repository = await loadRepository();
 			return await repository.load(workflowValue, kindValue);
+		},
+		listProject: async (
+			projectIdValue: string,
+			kindsValue?: readonly AssistanceDerivativeKind[],
+		): Promise<readonly AssistanceDerivativeRecordV1[]> => {
+			const repository = await loadRepository();
+			return await repository.listProject(projectIdValue, kindsValue);
 		},
 		purgeProject: async (projectIdValue: string): Promise<number> => {
 			const repository = await loadRepository();

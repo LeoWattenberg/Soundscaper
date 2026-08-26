@@ -156,6 +156,13 @@ export class AssistanceDerivativeRepository {
 		return this.#serialize(() => this.#load(workflowValue, kindValue));
 	}
 
+	listProject(
+		projectIdValue: string,
+		kindsValue: readonly AssistanceDerivativeKind[] = ASSISTANCE_DERIVATIVE_KINDS,
+	): Promise<readonly AssistanceDerivativeRecordV1[]> {
+		return this.#serialize(() => this.#listProject(projectIdValue, kindsValue));
+	}
+
 	purgeProject(projectIdValue: string): Promise<number> {
 		const prefix = projectKeyPrefix(projectIdValue);
 		return this.#serialize(() => this.#deleteRows(prefix));
@@ -222,6 +229,30 @@ export class AssistanceDerivativeRepository {
 		}
 		await this.#maintain();
 		return recordView(record);
+	}
+
+	async #listProject(
+		projectIdValue: string,
+		kindsValue: readonly AssistanceDerivativeKind[],
+	): Promise<readonly AssistanceDerivativeRecordV1[]> {
+		const prefix = projectKeyPrefix(projectIdValue);
+		const kinds = derivativeKinds(kindsValue);
+		const rows = await this.#values.listByPrefix(prefix);
+		const records: AssistanceDerivativeRecordV1[] = [];
+		for (const row of rows) {
+			const record = normalizeRecordOrNull(row.value);
+			if (!record || record.key !== row.key) {
+				await this.#values.deleteIfCurrent(row.key, row.value);
+			} else if (kinds.has(record.kind)) {
+				records.push(record);
+			}
+		}
+		await this.#maintain();
+		const current = new Set((await this.#values.listByPrefix(prefix)).map(({ key }) => key));
+		records.sort((left, right) => ASSISTANCE_DERIVATIVE_KINDS.indexOf(left.kind)
+			- ASSISTANCE_DERIVATIVE_KINDS.indexOf(right.kind)
+			|| left.identitySha256.localeCompare(right.identitySha256));
+		return Object.freeze(records.filter(({ key }) => current.has(key)).map(recordView));
 	}
 
 	async #maintain(incomingKey?: string): Promise<boolean> {
@@ -389,6 +420,19 @@ function derivativeKind(value: unknown): AssistanceDerivativeKind {
 		throw new TypeError('The assistance derivative kind is unsupported.');
 	}
 	return value as AssistanceDerivativeKind;
+}
+
+function derivativeKinds(value: unknown): ReadonlySet<AssistanceDerivativeKind> {
+	if (!Array.isArray(value) || value.length > ASSISTANCE_DERIVATIVE_KINDS.length) {
+		throw new RangeError('The assistance derivative kind filter is invalid.');
+	}
+	const result = new Set<AssistanceDerivativeKind>();
+	for (const candidate of value) {
+		const kind = derivativeKind(candidate);
+		if (result.has(kind)) throw new TypeError('The assistance derivative kind filter repeats a kind.');
+		result.add(kind);
+	}
+	return result;
 }
 
 function normalizedMediaType(value: unknown): string {
