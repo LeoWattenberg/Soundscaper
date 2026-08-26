@@ -48,7 +48,7 @@ export function createWorkspaceApplicationMenus({
 		locale,
 		openDesktopFiles,
 		openEffects,
-		openAssistanceSearch,
+		openAssistanceSearch = undefined,
 		openExternal,
 		openGenerator,
 		openProjects,

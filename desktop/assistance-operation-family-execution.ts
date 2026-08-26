@@ -17,12 +17,15 @@ import type { AssistanceRuntimeFamilyTask } from './assistance-runtime-family-jo
 import type { AssistanceStagingRegistry } from './assistance-staging-registry.ts';
 import type { AssistanceService } from './assistance-service.ts';
 
-type ModelService = Pick<AssistanceService, 'status' | 'listInstalled' | 'resolveModelPaths'>;
+export type AssistanceRuntimeFamilyModelService = Pick<
+	AssistanceService,
+	'status' | 'listInstalled' | 'resolveModelPaths'
+>;
 
 export interface AssistanceOperationFamilyExecutionOptions {
 	readonly request: AssistanceOperationRequest;
 	readonly inputPaths: readonly string[];
-	readonly models: ModelService;
+	readonly models: AssistanceRuntimeFamilyModelService;
 	readonly registry: AssistanceStagingRegistry;
 	readonly runtime: AssistanceRuntimeFamilyOperationAdapter;
 	readonly signal: AbortSignal;
@@ -33,9 +36,14 @@ export type AssistanceOperationFamilyExecutionOutcome =
 	| AssistanceRuntimeFamilyOperationOutcome
 	| Readonly<{ readonly outcome: 'unavailable'; readonly reason: 'model-unavailable' }>;
 
-interface ResolvedModel {
+export interface AssistanceResolvedRuntimeFamilyModel {
 	readonly task: AssistanceRuntimeFamilyTask;
 	readonly captures: readonly AssistanceRuntimeFamilyModelCapture[];
+}
+
+interface AssistanceOperationModelSelection {
+	readonly operation: AssistanceOperationRequest['operation'];
+	readonly models: readonly AssistanceOperationModelBinding[];
 }
 
 const DIRECT_ADDITIONAL_OPERATIONS = new Set<AssistanceOperationRequest['operation']>([
@@ -80,8 +88,8 @@ const VISUAL_SINGLE_MODEL_REQUIREMENTS = Object.freeze({
 			'309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8',
 		]) }),
 } as const);
-type ModelStatus = Awaited<ReturnType<ModelService['status']>>;
-type InstalledModels = Awaited<ReturnType<ModelService['listInstalled']>>;
+type ModelStatus = Awaited<ReturnType<AssistanceRuntimeFamilyModelService['status']>>;
+type InstalledModels = Awaited<ReturnType<AssistanceRuntimeFamilyModelService['listInstalled']>>;
 
 export function isAssistanceRuntimeFamilyOperationRequest(
 	request: AssistanceOperationRequest,
@@ -136,10 +144,10 @@ export async function executeAssistanceOperationWithRuntimeFamily(
 }
 
 async function resolveExactModel(
-	request: AssistanceOperationRequest,
-	models: ModelService,
+	request: AssistanceOperationModelSelection,
+	models: AssistanceRuntimeFamilyModelService,
 	signal: AbortSignal,
-): Promise<ResolvedModel | null> {
+): Promise<AssistanceResolvedRuntimeFamilyModel | null> {
 	const subjectBindings = request.operation === 'subject-detection'
 		? exactSubjectBindings(request.models) : null;
 	if (subjectBindings === null && request.models.length !== 1) {
@@ -192,6 +200,39 @@ async function resolveExactModel(
 	const captures = await resolveModelCaptures(binding, installed, models, signal);
 	if (captures === null) return null;
 	return Object.freeze({ task, captures });
+}
+
+/** Resolve only the pinned, already-installed text tower used by indexed search. */
+export async function resolveAssistanceSemanticQueryRuntimeModelV1(
+	provider: 'transcript' | 'visual',
+	models: AssistanceRuntimeFamilyModelService,
+	signal: AbortSignal,
+): Promise<AssistanceResolvedRuntimeFamilyModel | null> {
+	if (provider !== 'transcript' && provider !== 'visual') {
+		throw new TypeError('The semantic-query provider is unsupported.');
+	}
+	signal.throwIfAborted();
+	const requirement = provider === 'transcript'
+		? { operation: 'text-embedding' as const, modelId: 'nomic-embed-text-v1.5', version: '1.5.0' }
+		: { operation: 'image-text-embedding' as const,
+			modelId: 'siglip2-base-patch16-224', version: '2.0.0' };
+	const installed = await models.listInstalled();
+	signal.throwIfAborted();
+	const matches = installed.filter(({ modelId, version }) => modelId === requirement.modelId
+		&& version === requirement.version);
+	if (matches.length > 1) {
+		throw new TypeError('The semantic-query installed model identity is ambiguous.');
+	}
+	const installation = matches[0];
+	if (!installation) return null;
+	const binding: AssistanceOperationModelBinding = Object.freeze({
+		modelId: requirement.modelId,
+		version: requirement.version,
+		artifactSha256s: Object.freeze(installation.artifacts.map(({ sha256 }) => sha256).sort()),
+	});
+	return resolveExactModel(Object.freeze({
+		operation: requirement.operation, models: Object.freeze([binding]),
+	}), models, signal);
 }
 
 /** Close model substitution before status lookup can collapse it into ordinary unavailability. */
@@ -309,7 +350,7 @@ function exactInstalledView(
 async function resolveModelCaptures(
 	binding: AssistanceOperationModelBinding,
 	installed: InstalledModels,
-	models: ModelService,
+	models: AssistanceRuntimeFamilyModelService,
 	signal: AbortSignal,
 ): Promise<readonly AssistanceRuntimeFamilyModelCapture[] | null> {
 	const installations = installed.filter((candidate) => candidate.modelId === binding.modelId
@@ -350,7 +391,7 @@ async function resolveModelCaptures(
 }
 
 function taskForSingleModel(
-	request: AssistanceOperationRequest,
+	request: AssistanceOperationModelSelection,
 	modelTask: string,
 	modelId: string,
 ): AssistanceRuntimeFamilyTask {

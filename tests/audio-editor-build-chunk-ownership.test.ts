@@ -510,11 +510,6 @@ function assistanceDomainModules(): readonly string[] {
 		.sort();
 }
 
-/**
- * The chunk groups that are downloaded before the editor can mount. Naming the eager side
- * rather than the lazy side keeps this honest as groups are added: a new feature group is
- * lazy by default, so forgetting to list it costs a missed crossing, never a false alarm.
- */
 const EAGER_CHUNK_GROUPS = new Set([
 	'editor-codec-foundations',
 	'editor-controller-core',

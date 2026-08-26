@@ -64,3 +64,20 @@ test('desktop assistance composes lazy runtime families from the truthful shippe
 		/createAssistanceOperationService\(\{[\s\S]*?additionalRuntime: runtimeFamilies\.operations,[\s\S]*?onProgress,/u);
 	assert.match(registration, /runtimeFamilies\.dispose\(\)/u);
 });
+
+test('indexed search receives one lazy installed-only runtime query executor', async () => {
+	const [registration, main] = await Promise.all([
+		readFile(new URL('../desktop/assistance-registration.mjs', import.meta.url), 'utf8'),
+		readFile(new URL('../desktop/main.mjs', import.meta.url), 'utf8'),
+	]);
+	assert.match(registration,
+		/import \{ createAssistanceSemanticQueryExecutorV1 \} from '\.\/project-library-runtime\/desktop\/assistance-semantic-query-executor\.js';/u);
+	assert.match(registration,
+		/semanticQueryExecutor \?\?= createAssistanceSemanticQueryExecutorV1\(\{\s*registry: staging, models: createService\(\), runtime: runtimeFamilies\.operations,/u);
+	assert.match(registration, /return Object\.freeze\(\{ semanticQuery, dispose:/u);
+	assert.match(main,
+		/registerAssistanceSemanticSearchMainIpc\(\{[^}]*query: assistance\.semanticQuery/u);
+	assert.ok(main.indexOf("name: 'assistance semantic search'")
+		< main.indexOf("name: 'assistance'"),
+		'assistance query cancellation must drain before its shared runtime families');
+});

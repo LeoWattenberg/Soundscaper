@@ -29,6 +29,7 @@ import { createExternalFfmpegAssistanceShotRuntimeAdapter } from './project-libr
 import { ASSISTANCE_OPERATION_IPC_CHANNELS, registerAssistanceOperationIpc } from './project-library-runtime/desktop/assistance-operation-main-ipc.js';
 import { createAssistanceOperationService } from './project-library-runtime/desktop/assistance-operation-service.js';
 import { createAssistanceRuntimeFamilyDesktopStartup } from './project-library-runtime/desktop/assistance-runtime-family-startup.js';
+import { createAssistanceSemanticQueryExecutorV1 } from './project-library-runtime/desktop/assistance-semantic-query-executor.js';
 import { AssistanceWorkflowCustody } from './project-library-runtime/desktop/assistance-workflow-custody.js';
 import { createAssistanceWorkflowExecutor } from './project-library-runtime/desktop/assistance-workflow-executor.js';
 import { ASSISTANCE_WORKFLOW_IPC_CHANNELS, registerAssistanceWorkflowIpc } from './project-library-runtime/desktop/assistance-workflow-main-ipc.js';
@@ -213,6 +214,13 @@ export function registerAssistance({
 	const staging = new AssistanceStagingRegistry({
 		root: resolve(join(app.getPath('userData'), 'assistance-staging-v1')),
 	});
+	let semanticQueryExecutor = null;
+	const semanticQuery = Object.freeze({ embed: (request) => {
+		semanticQueryExecutor ??= createAssistanceSemanticQueryExecutorV1({
+			registry: staging, models: createService(), runtime: runtimeFamilies.operations,
+		});
+		return semanticQueryExecutor.embed(request);
+	} });
 	let operations = null;
 	let publishOperationProgress = null;
 	const resolveOperations = (onProgress = null) => {
@@ -279,7 +287,7 @@ export function registerAssistance({
 		}),
 		confirmWorkflow: (request, stages) => confirmWorkflow(dialog, windowFor(), request, stages),
 	});
-	return Object.freeze({ dispose: async () => {
+	return Object.freeze({ semanticQuery, dispose: async () => {
 		await workflowIpc.dispose();
 		await operationIpc.dispose();
 		await operations?.dispose();

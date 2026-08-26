@@ -5,7 +5,7 @@
 import type { AssistanceSemanticSearchSessionPortV1 } from
 	'../assistance/semantic-search-runtime-v1.ts';
 
-const METHODS = Object.freeze(['open', 'authorize', 'revoke'] as const);
+const METHODS = Object.freeze(['open', 'authorize', 'revoke', 'query', 'cancelQuery'] as const);
 
 export function lazyLocalAssistanceSemanticSearchBridge(
 	value: unknown,
@@ -31,6 +31,9 @@ export function lazyLocalAssistanceSemanticSearchBridge(
 		revoke: async (...args: Parameters<AssistanceSemanticSearchSessionPortV1['revoke']>) => (
 			(await resolve()).revoke(...args)
 		),
+		embedInstalledQuery: async (...args: Parameters<
+			AssistanceSemanticSearchSessionPortV1['embedInstalledQuery']
+		>) => (await resolve()).embedInstalledQuery(...args),
 	});
 }
 

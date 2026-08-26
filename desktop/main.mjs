@@ -123,7 +123,7 @@ const applicationShutdown = new DesktopApplicationShutdown({
 		{ name: 'project library', run: closeProjectLibraryHost },
 		{ name: 'linked-video locators', run: () => linkedVideoLocators?.dispose() },
 		{ name: 'native tier', run: () => disposeDesktopNativeTier(nativeTier) },
-		{ name: 'assistance', run: () => assistance?.dispose() }, { name: 'assistance semantic search', run: () => assistanceSemanticSearch?.dispose() },
+		{ name: 'assistance semantic search', run: () => assistanceSemanticSearch?.dispose() }, { name: 'assistance', run: () => assistance?.dispose() },
 		{ name: 'read capabilities', run: () => readCapabilities.dispose() },
 		{ name: 'save sessions', run: () => saves.dispose() },
 	],
@@ -409,7 +409,7 @@ async function registerIpcHandlers(desktopSession) {
 		return locale;
 	});
 	handle(IPC.checkForUpdates, () => checkForUpdates(true));
-	assistance = registerAssistance({ channels: IPC, handle, on, sendToRenderer, app, settings, dialog, windowFor: () => mainWindow, externalFfmpegPreferences: externalFfmpegPreferences.service }); assistanceSemanticSearch = registerAssistanceSemanticSearchMainIpc({ handle, removeHandler: (channel) => ipcMain.removeHandler(channel), ownerFor: rendererSaveOwnerFor });
+	assistance = registerAssistance({ channels: IPC, handle, on, sendToRenderer, app, settings, dialog, windowFor: () => mainWindow, externalFfmpegPreferences: externalFfmpegPreferences.service }); assistanceSemanticSearch = registerAssistanceSemanticSearchMainIpc({ handle, removeHandler: (channel) => ipcMain.removeHandler(channel), ownerFor: rendererSaveOwnerFor, query: assistance.semanticQuery });
 	registerHostAffordances({ channels: IPC, handle, windowFor: () => mainWindow });
 	handle(IPC.windowAction, (_event, action) => runCurrentWindowAction(action));
 	on(IPC.rendererReady, () => {

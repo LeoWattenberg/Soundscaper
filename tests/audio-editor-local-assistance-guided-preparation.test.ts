@@ -157,7 +157,8 @@ test('standalone editorial generation remains unavailable without selected trans
 	const fixture = preparationFixture();
 	assert.deepEqual(await fixture.preparation.prepareGuidedWorkflow({
 		jobId: JOB_ID, workflowId: 'generate-editorial-text',
-		settings: { ...defaultAssistanceWorkflowSettingsV1('generate-editorial-text'), enabled: true },
+		settings: { settingsVersion: 1, workflowId: 'generate-editorial-text', enabled: true,
+			fields: ['title', 'hook', 'chapters', 'explanation'] },
 		models: [model('qwen3-4b-q4-k-m', '1.0.0', 'editorial-generation', 8)],
 		custody: fixture.custody, signal: new AbortController().signal,
 	}), { outcome: 'unavailable', reason: 'editorial-context-custody-unavailable' });

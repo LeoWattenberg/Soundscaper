@@ -4,6 +4,8 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { createAudioEditorFileService } from '../../common/editor/file-service.js';
 import { BoundAudioEditorApp } from '../../common/editor/ui/AudioEditorApp.jsx';
+import { createLocalAssistanceLazySemanticSearchSourceV1 } from
+	'../../common/editor/ui/local-assistance-lazy-semantic-search-source.ts';
 import { bundledCatalogForLocale, resolveCatalog } from '../../common/i18n/runtime.js';
 import { createSoundscaperAudioEditorControllerV30 } from '../editor-controller-v30.ts';
 import {
@@ -17,6 +19,9 @@ type SoundscaperProjectRuntimeProjectionV30 =
 	SoundscaperEditorProjectEnvironmentV30['runtime']['projectForRuntimeConsumers'];
 
 const RUNTIME_PROJECTORS = new WeakMap<object, SoundscaperProjectRuntimeProjectionV30>();
+const RUNTIME_ASSISTANCE_SEARCH = new WeakMap<object, ReturnType<
+	typeof createLocalAssistanceLazySemanticSearchSourceV1
+>>();
 const PRESENTATION_FIELDS = ['locale', 'copy'] as const;
 
 export interface SoundscaperWebEditorRuntimePresentationV30 {
@@ -60,6 +65,11 @@ export async function createSoundscaperWebEditorRuntimeV30(
 		};
 		const runtime = Object.freeze({ controller, fileService, dispose });
 		RUNTIME_PROJECTORS.set(runtime, environment.runtime.projectForRuntimeConsumers);
+		if (fileService.isDesktop) RUNTIME_ASSISTANCE_SEARCH.set(runtime,
+			createLocalAssistanceLazySemanticSearchSourceV1({
+				bridgeScope: fileService.bridge,
+				repository: environment.store.assistanceDerivativeRepository,
+			}));
 		return runtime;
 	} catch (error) {
 		try {
@@ -149,6 +159,7 @@ export default function SoundscaperAudioEditorBootstrapV30({
 			controller={runtime.controller}
 			fileService={runtime.fileService}
 			projectForRuntimeConsumers={runtimeProjector(runtime)}
+			assistanceSearchSource={RUNTIME_ASSISTANCE_SEARCH.get(runtime) ?? null}
 			crossProductHandoffAvailable={false}
 		/>
 	</Suspense>;

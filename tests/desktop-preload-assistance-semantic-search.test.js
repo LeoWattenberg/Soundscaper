@@ -11,7 +11,10 @@ const SESSION = Object.freeze({
 });
 
 test('preload exposes a closed pathless semantic-search session bridge', async () => {
-	const fixture = await loadPreload([SESSION, SESSION, true]);
+	const fixture = await loadPreload([SESSION, SESSION, (_channel, request) => ({
+		queryVersion: 1, queryId: request.queryId, outcome: 'completed', provider: 'transcript',
+		embedding: Array.from({ length: 768 }, (_entry, index) => index === 0 ? 1 : 0),
+	}), true, true]);
 	const search = fixture.bridge.localAssistance.semanticSearch;
 	const opened = await search.open({ projectId: 'project-1', projectRevision: 7 });
 	const authorized = await search.authorize({
@@ -21,6 +24,14 @@ test('preload exposes a closed pathless semantic-search session bridge', async (
 		'sessionVersion', 'sessionId', 'projectId', 'projectRevision', 'expiresAtEpochMs',
 	]);
 	assert.deepEqual(authorized, opened);
+	const queryId = 'b'.repeat(40);
+	const result = await search.query({
+		queryVersion: 1, queryId, session: opened, projectId: 'project-1', projectRevision: 7,
+		provider: 'transcript', query: 'red bicycle',
+	});
+	assert.equal(result.embedding.length, 768);
+	assert.equal(result.embedding[0], 1);
+	assert.equal(await search.cancelQuery(queryId), true);
 	assert.equal(await search.revoke(opened.sessionId), true);
 	assert.deepEqual(JSON.parse(JSON.stringify(fixture.invocations)), [
 		['soundscaper:v1:assistance:semantic-search:open', {
@@ -29,6 +40,11 @@ test('preload exposes a closed pathless semantic-search session bridge', async (
 		['soundscaper:v1:assistance:semantic-search:authorize', {
 			session: SESSION, projectId: 'project-1', projectRevision: 7,
 		}],
+		['soundscaper:v1:assistance:semantic-search:query', {
+			queryVersion: 1, queryId, session: SESSION, projectId: 'project-1',
+			projectRevision: 7, provider: 'transcript', query: 'red bicycle',
+		}],
+		['soundscaper:v1:assistance:semantic-search:cancel-query', queryId],
 		['soundscaper:v1:assistance:semantic-search:revoke', SESSION.sessionId],
 	]);
 });
@@ -67,6 +83,7 @@ async function loadPreload(invocationResults) {
 				invoke(channel, value) {
 					invocations.push([channel, value]);
 					const result = invocationResults.shift();
+					if (typeof result === 'function') return Promise.resolve(result(channel, value));
 					return result instanceof Error ? Promise.reject(result) : Promise.resolve(result);
 				},
 				send: () => {}, on: () => {}, removeListener: () => {},

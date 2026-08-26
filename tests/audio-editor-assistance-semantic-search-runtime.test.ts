@@ -55,19 +55,20 @@ test('menu opening binds authenticated disposable custody to one main-authorized
 			open: async (authority) => { calls.push(`open:${authority.projectRevision}`); return SESSION; },
 			authorize: async ({ session }) => { calls.push(`authorize:${session.sessionId}`); return SESSION; },
 			revoke: async (sessionId) => { calls.push(`revoke:${sessionId}`); return true; },
+			embedInstalledQuery: async ({ provider, query, signal, session }) => {
+				calls.push(`embed:${provider}:${query}`);
+				assert.equal(signal.aborted, false);
+				assert.deepEqual(session, SESSION);
+				return new Float32Array([1, 0]);
+			},
 		},
 		custody: { loadAuthenticated: async (authority, signal) => {
 			calls.push(`custody:${authority.projectId}`);
 			assert.equal(signal.aborted, false);
 			return custody();
 		} },
-		embedInstalledQuery: async ({ provider, query, signal }) => {
-			calls.push(`embed:${provider}:${query}`);
-			assert.equal(signal.aborted, false);
-			return new Float32Array([1, 0]);
-		},
 	});
-	assert.deepEqual(calls, [], 'construction cannot touch custody, models, or native prompts');
+	assert.equal(calls.length, 0, 'construction cannot touch custody, models, or native prompts');
 	const opened = await source.open(AUTHORITY);
 	assert.deepEqual(calls, ['custody:project-1', 'open:7']);
 	const result = await opened.coordinator.search('launch plan');
@@ -98,9 +99,9 @@ test('missing or forged disposable custody is typed unavailable before sessions 
 			open: async () => { sessions += 1; return SESSION; },
 			authorize: async () => SESSION,
 			revoke: async () => true,
+			embedInstalledQuery: async () => { embeddings += 1; return [1, 0]; },
 		},
 		custody: { loadAuthenticated: async () => value },
-		embedInstalledQuery: async () => { embeddings += 1; return [1, 0]; },
 	});
 	await assert.rejects(create(null).open(AUTHORITY), (error) => (
 		error instanceof AssistanceSemanticSearchUnavailableError
@@ -122,9 +123,11 @@ test('a superseded query aborts installed embedding work and cannot publish stal
 	const source = createAssistanceSemanticSearchMenuSourceV1({
 		now: () => NOW,
 		sessions: { open: async () => SESSION, authorize: async () => SESSION,
-			revoke: async () => true },
+			revoke: async () => true,
+			embedInstalledQuery: ({ signal }) => new Promise((resolve) =>
+				pending.push({ signal, resolve })),
+		},
 		custody: { loadAuthenticated: async () => custody() },
-		embedInstalledQuery: ({ signal }) => new Promise((resolve) => pending.push({ signal, resolve })),
 	});
 	const opened = await source.open(AUTHORITY);
 	const first = opened.coordinator.search('first');

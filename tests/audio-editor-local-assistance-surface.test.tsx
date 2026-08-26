@@ -185,7 +185,7 @@ test('menu-opened indexed search reports missing disposable custody inside the e
 			open
 		/>);
 	} finally {
-		if (prior === undefined) delete target.React;
+		if (prior === undefined) Reflect.deleteProperty(target, 'React');
 		else target.React = prior;
 	}
 	assert.match(markup, /data-editor-search-group="assistance"/u);

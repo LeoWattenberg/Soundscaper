@@ -37,6 +37,14 @@ export interface AssistanceSemanticSearchSessionPortV1 {
 		readonly projectRevision: number;
 	}>): Promise<unknown>;
 	revoke(sessionId: string): Promise<boolean>;
+	embedInstalledQuery(request: Readonly<{
+		readonly session: AssistanceSemanticSearchSession;
+		readonly projectId: string;
+		readonly projectRevision: number;
+		readonly provider: AssistanceSemanticQueryEmbeddingRequestV1['provider'];
+		readonly query: string;
+		readonly signal: AbortSignal;
+	}>): Promise<ArrayLike<number>>;
 }
 
 export interface AssistanceAuthenticatedSemanticIndexCustodyPortV1 {
@@ -73,17 +81,14 @@ export class AssistanceSemanticSearchUnavailableError extends Error {
 export function createAssistanceSemanticSearchMenuSourceV1(options: Readonly<{
 	readonly sessions: AssistanceSemanticSearchSessionPortV1;
 	readonly custody: AssistanceAuthenticatedSemanticIndexCustodyPortV1;
-	readonly embedInstalledQuery: (
-		request: AssistanceSemanticQueryEmbeddingRequestV1,
-	) => Promise<ArrayLike<number>>;
 	readonly now?: () => number;
 }>): AssistanceSemanticSearchMenuSourceV1 {
 	if (!options || typeof options !== 'object' || !options.sessions
 		|| typeof options.sessions.open !== 'function'
 		|| typeof options.sessions.authorize !== 'function'
-		|| typeof options.sessions.revoke !== 'function' || !options.custody
+		|| typeof options.sessions.revoke !== 'function'
+		|| typeof options.sessions.embedInstalledQuery !== 'function' || !options.custody
 		|| typeof options.custody.loadAuthenticated !== 'function'
-		|| typeof options.embedInstalledQuery !== 'function'
 		|| options.now !== undefined && typeof options.now !== 'function') {
 		throw new TypeError('Semantic-search menu activation requires exact session, custody, and model ports.');
 	}
@@ -99,17 +104,21 @@ export function createAssistanceSemanticSearchMenuSourceV1(options: Readonly<{
 			);
 		}
 		const custody = reviewCustody(custodyValue, authority);
-		const provider = createAssistanceSemanticIndexSearchProviderV1({
-			index: custody.index,
-			embedQuery: options.embedInstalledQuery,
-			now,
-		});
 		let session: AssistanceSemanticSearchSession | null = null;
 		try {
 			session = validateAssistanceSemanticSearchSession(
 				await options.sessions.open(authority), now(),
 			);
 			assertSessionAuthority(session, authority);
+			const provider = createAssistanceSemanticIndexSearchProviderV1({
+				index: custody.index,
+				embedQuery: (request: AssistanceSemanticQueryEmbeddingRequestV1) => (
+					options.sessions.embedInstalledQuery(Object.freeze({
+						session: session!, ...authority, ...request,
+					}))
+				),
+				now,
+			});
 			const authorizedProvider: AssistanceAsyncSearchProvider = Object.freeze({
 				search: async (request: AssistanceAsyncSearchRequest) => {
 					const authorized = validateAssistanceSemanticSearchSession(

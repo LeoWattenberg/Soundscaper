@@ -10,10 +10,14 @@ import type {
 	AssistanceSemanticSearchProjectAuthorityV1,
 	AssistanceSemanticSearchSessionPortV1,
 } from '../assistance/semantic-search-runtime-v1.ts';
+import { AssistanceSemanticSearchUnavailableError } from
+	'../assistance/semantic-search-runtime-v1.ts';
 
-const METHODS = Object.freeze(['open', 'authorize', 'revoke'] as const);
+const METHODS = Object.freeze(['open', 'authorize', 'revoke', 'query', 'cancelQuery'] as const);
 const ID = /^[A-Za-z\d][A-Za-z\d._:-]{0,255}$/u;
 const SESSION_ID = /^[a-f\d]{40}$/u;
+const CONTROL = /[\u0000-\u001f\u007f]/u;
+const EMBEDDING_DIMENSIONS = 768;
 
 export function resolveLocalAssistanceSemanticSearchBridge(
 	value: unknown,
@@ -52,7 +56,100 @@ export function resolveLocalAssistanceSemanticSearchBridge(
 			}
 			return result;
 		},
+		async embedInstalledQuery(requestValue: Parameters<
+			AssistanceSemanticSearchSessionPortV1['embedInstalledQuery']
+		>[0]) {
+			const request = embeddingRequest(requestValue);
+			request.signal.throwIfAborted();
+			const queryId = randomQueryId();
+			const raw = Object.freeze({
+				queryVersion: 1, queryId, session: request.session,
+				projectId: request.projectId, projectRevision: request.projectRevision,
+				provider: request.provider, query: request.query,
+			});
+			let rejectCancellation!: (reason: unknown) => void;
+			const cancellation = new Promise<never>((_resolve, reject) => {
+				rejectCancellation = reject;
+			});
+			const cancel = (): void => {
+				void invoke('cancelQuery', queryId).catch(() => false);
+				rejectCancellation(request.signal.reason ?? new DOMException(
+					'Semantic-search query cancelled.', 'AbortError',
+				));
+			};
+			request.signal.addEventListener('abort', cancel, { once: true });
+			try {
+				const result = await Promise.race([invoke('query', raw), cancellation]);
+				request.signal.throwIfAborted();
+				return embeddingResult(result, queryId, request.provider);
+			} finally {
+				request.signal.removeEventListener('abort', cancel);
+			}
+		},
 	});
+}
+
+function embeddingRequest(value: unknown): Readonly<{
+	readonly session: AssistanceSemanticSearchSession;
+	readonly projectId: string;
+	readonly projectRevision: number;
+	readonly provider: 'transcript' | 'visual';
+	readonly query: string;
+	readonly signal: AbortSignal;
+}> {
+	const row = exactRecord(value, [
+		'session', 'projectId', 'projectRevision', 'provider', 'query', 'signal',
+	], 'semantic-search query embedding');
+	const authorization = authorizationRequest({
+		session: row.session, projectId: row.projectId, projectRevision: row.projectRevision,
+	});
+	if (row.provider !== 'transcript' && row.provider !== 'visual'
+		|| typeof row.query !== 'string' || row.query.trim() === '' || row.query.length > 512
+		|| CONTROL.test(row.query) || !(row.signal instanceof AbortSignal)) {
+		throw new TypeError('The semantic-search query embedding request is invalid.');
+	}
+	return Object.freeze({
+		...authorization, provider: row.provider, query: row.query, signal: row.signal,
+	});
+}
+
+function embeddingResult(
+	value: unknown,
+	queryId: string,
+	provider: 'transcript' | 'visual',
+): readonly number[] {
+	if (!isRecord(value) || value.queryVersion !== 1 || value.queryId !== queryId) {
+		throw new TypeError('The semantic-search query result is foreign or uncorrelated.');
+	}
+	if (value.outcome === 'unavailable') {
+		const row = exactRecord(value, ['queryVersion', 'queryId', 'outcome', 'reason'],
+			'semantic-search unavailable query result');
+		if (row.reason !== 'model-unavailable' && row.reason !== 'runtime-unavailable') {
+			throw new TypeError('The semantic-search query unavailable reason is invalid.');
+		}
+		throw new AssistanceSemanticSearchUnavailableError(
+			'query-models-unavailable',
+			'Indexed search needs its explicitly installed query model and authenticated runtime.',
+		);
+	}
+	const row = exactRecord(value,
+		['queryVersion', 'queryId', 'outcome', 'provider', 'embedding'],
+		'semantic-search completed query result');
+	if (row.outcome !== 'completed' || row.provider !== provider
+		|| !Array.isArray(row.embedding) || row.embedding.length !== EMBEDDING_DIMENSIONS
+		|| row.embedding.some((entry) => typeof entry !== 'number' || !Number.isFinite(entry))) {
+		throw new TypeError('The semantic-search query result vector is invalid.');
+	}
+	return Object.freeze([...row.embedding]);
+}
+
+function randomQueryId(): string {
+	const crypto = globalThis.crypto;
+	if (!crypto || typeof crypto.getRandomValues !== 'function') {
+		throw new Error('Cryptographic semantic-search query identities are unavailable.');
+	}
+	const bytes = crypto.getRandomValues(new Uint8Array(20));
+	return Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('');
 }
 
 function authorizationRequest(value: unknown): Readonly<{

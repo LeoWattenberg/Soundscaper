@@ -22,7 +22,7 @@ function searchEntryKey(entry, index) {
 }
 
 export default function AudioEditorSearch({
-	assistanceSearch = null,
+	assistanceSearch = /** @type {null | Readonly<{status: string, revision: number, coordinator: import('../assistance/async-search-provider.ts').AssistanceAsyncSearchCoordinator | null, message: string | null}>} */ (null),
 	copy,
 	entries = [],
 	locale,

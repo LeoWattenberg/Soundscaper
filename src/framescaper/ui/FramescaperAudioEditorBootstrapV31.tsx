@@ -4,6 +4,8 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { createAudioEditorFileService } from '../../common/editor/file-service.js';
 import { BoundAudioEditorApp } from '../../common/editor/ui/AudioEditorApp.jsx';
+import { createLocalAssistanceLazySemanticSearchSourceV1 } from
+	'../../common/editor/ui/local-assistance-lazy-semantic-search-source.ts';
 import { resolveFramescaperNativeServicesBridge } from '../../common/editor/ui/framescaper-native-services-bridge.ts';
 import { bundledCatalogForLocale, resolveCatalog } from '../../common/i18n/runtime.js';
 import { createFramescaperAudioEditorControllerV31 } from '../editor-controller-v31.ts';
@@ -20,6 +22,9 @@ type WebController = ReturnType<typeof createFramescaperAudioEditorControllerV31
 type WebFileService = ReturnType<typeof createAudioEditorFileService>;
 type RuntimeProjection = FramescaperEditorProjectEnvironmentV31['runtime']['projectForRuntimeConsumers'];
 const PROJECTORS = new WeakMap<object, RuntimeProjection>();
+const ASSISTANCE_SEARCH_SOURCES = new WeakMap<object, ReturnType<
+	typeof createLocalAssistanceLazySemanticSearchSourceV1
+>>();
 const PRESENTATION_FIELDS = ['locale', 'copy'] as const;
 
 export interface FramescaperWebEditorRuntimePresentationV31 {
@@ -68,6 +73,11 @@ export async function createFramescaperWebEditorRuntimeV31(
 		};
 		const runtime = Object.freeze({ controller, fileService, dispose });
 		PROJECTORS.set(runtime, environment.runtime.projectForRuntimeConsumers);
+		if (fileService.isDesktop) ASSISTANCE_SEARCH_SOURCES.set(runtime,
+			createLocalAssistanceLazySemanticSearchSourceV1({
+				bridgeScope: fileService.bridge,
+				repository: environment.store.assistanceDerivativeRepository,
+			}));
 		return runtime;
 	} catch (error) {
 		try {
@@ -154,6 +164,7 @@ export default function FramescaperAudioEditorBootstrapV31({
 			controller={runtime.controller}
 			fileService={runtime.fileService}
 			projectForRuntimeConsumers={runtimeProjector(runtime)}
+			assistanceSearchSource={ASSISTANCE_SEARCH_SOURCES.get(runtime) ?? null}
 			crossProductHandoffAvailable={runtime.fileService.isDesktop}
 		/>
 	</Suspense>;
