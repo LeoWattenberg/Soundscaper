@@ -289,7 +289,7 @@ async scrub(frame, { durationMs = DEFAULT_SCRUB_FRAME_MS } = {}) {
 		this[ENGINE_SET_STATE]('paused');
 		this[ENGINE_EMIT_POSITION]();
 
-		const now = monotonicMilliseconds();
+		const now = this.monotonicNow ? this.monotonicNow() : monotonicMilliseconds();
 		if (now < this.scrubNextAt || nextFrame >= this.playbackDurationFrames) return this.positionFrame;
 		this.scrubNextAt = now + frameMs;
 		const generation = ++this.scrubGeneration;

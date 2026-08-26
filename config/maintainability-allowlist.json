@@ -32,7 +32,7 @@
 		"tests/audio-editor-multitrack-selection-effects.test.js": { "maxLines": 602, "reason": "Legacy multitrack selection/effect integration scenarios." },
 		"tests/audio-editor-nyquist-controller.test.js": { "maxLines": 625, "reason": "Legacy Nyquist controller integration scenarios." },
 		"tests/audio-editor-recording-controller.test.js": { "maxLines": 1284, "reason": "Legacy recording-controller regression suite." },
-		"tests/audio-editor-runtime.test.js": { "maxLines": 2745, "reason": "Legacy runtime integration suite." },
+		"tests/audio-editor-runtime.test.js": { "maxLines": 2628, "reason": "Legacy runtime integration suite; its shared Web Audio doubles now live in tests/helpers/mock-audio-context.js." },
 		"tests/audio-editor-video-ffmpeg.test.js": { "maxLines": 825, "reason": "Legacy FFmpeg video argument and composition matrix." },
 		"tests/aup4-conversion.test.js": { "maxLines": 1021, "reason": "AUP4 conversion compatibility matrix." },
 		"tests/aup4-database.test.js": { "maxLines": 830, "reason": "Legacy AUP4 database codec and corruption matrix." },

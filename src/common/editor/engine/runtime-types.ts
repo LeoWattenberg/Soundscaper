@@ -120,6 +120,7 @@ export interface EngineRuntimeHost extends EnginePublicApi {
 	scrubGeneration: number;
 	scrubbing: boolean;
 	meterInterval: number;
+	monotonicNow: (() => number) | null;
 	reversedBuffers: WeakMap<AudioBuffer, AudioBuffer>;
 	positionListeners: Set<(frame: number, durationFrames: number) => void>;
 	meterListeners: Set<(meter: EngineMeterSnapshot) => void>;

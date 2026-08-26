@@ -63,6 +63,7 @@ export interface EngineRuntimeOptions {
 	readonly onState?: ((state: string) => void) | null;
 	readonly onParametricEqError?: ((error: unknown) => void) | null;
 	readonly meterInterval?: unknown;
+	readonly monotonicNow?: (() => number) | null;
 }
 
 const DEFAULT_METER_INTERVAL = 50;
@@ -83,6 +84,7 @@ export function initializeEngineRuntime(
 		onState,
 		onParametricEqError,
 		meterInterval = DEFAULT_METER_INTERVAL,
+		monotonicNow = null,
 	}: EngineRuntimeOptions = {},
 ): void {
 	engine.audioContextFactory = audioContextFactory === undefined
@@ -126,6 +128,9 @@ export function initializeEngineRuntime(
 	engine.scrubGeneration = 0;
 	engine.scrubbing = false;
 	engine.meterInterval = Math.max(16, Number(meterInterval) || DEFAULT_METER_INTERVAL);
+	// The scrub audition frame is a wall-clock throttle, so a caller that needs to observe it
+	// deterministically supplies its own monotonic clock instead of racing `performance.now()`.
+	engine.monotonicNow = typeof monotonicNow === 'function' ? monotonicNow : null;
 	engine.reversedBuffers = new WeakMap();
 	engine.positionListeners = new Set(onPosition ? [onPosition] : []);
 	engine.meterListeners = new Set(onMeter ? [onMeter] : []);
