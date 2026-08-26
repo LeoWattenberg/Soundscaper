@@ -33,6 +33,11 @@ export const EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST = new RegExp(
 	`${editorPath}${editorOptionalArchiveModule}\\.(?:[cm]?[jt]s)$`,
 );
 
+/** Shared FFT runtime loaded by spectrogram and selection-effect consumers. */
+export const EDITOR_PFFFT_RUNTIME_CHUNK_TEST = new RegExp(
+	`${editorPath}pffft\\.js$`,
+);
+
 /** Effect and Analyze implementations reached only after their eager action facade runs. */
 export const EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST = new RegExp(
 	`${editorPath}(?:${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)|controller[\\\\/]analysis-service\\.ts)$`,
@@ -91,6 +96,16 @@ export const chunkGroups = [
 		name: 'editor-shell-design-components',
 		test: DESIGN_SYSTEM_EDITOR_SHELL_COMPONENT_CHUNK_TEST,
 		priority: 94,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		// Keep the shared FFT leaf out of the broader execution group. A dynamic
+		// spectrogram import must not evaluate every unrelated effect/export entry.
+		name: 'editor-pffft-runtime',
+		test: EDITOR_PFFFT_RUNTIME_CHUNK_TEST,
+		priority: 99,
+		minSize: 0,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
 	},
