@@ -31,6 +31,7 @@ const HIGHLIGHT_SETTINGS = Object.freeze({
 	maximumDurationSeconds: 60,
 	targetAspectWidth: 9 as const,
 	targetAspectHeight: 16 as const,
+	editorialRerank: false,
 });
 
 test('the owned video/highlight registry is closed and settings-bound', () => {

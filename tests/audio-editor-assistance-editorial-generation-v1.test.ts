@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import {
 	ASSISTANCE_EDITORIAL_GENERATION_MAXIMUM_OUTPUT_BYTES,
+	createAssistanceEditorialGenerationPlanFromHighlightCandidatesV1,
 	createAssistanceEditorialGenerationPlanV1,
 	reviewAssistanceEditorialGenerationOutputV1,
 	reviewAssistanceEditorialGenerationPlanV1,
@@ -24,6 +25,31 @@ const EVIDENCE = Object.freeze([
 		visualSummary: 'A visible audience reaction follows a quick reveal.',
 	}),
 ]);
+
+const HIGHLIGHT_CANDIDATES = Object.freeze({
+	schemaVersion: 1,
+	kind: 'highlight-candidates',
+	sourceId: 'video-source',
+	sampleRate: 48_000,
+	sourceSize: Object.freeze({ width: 1_920, height: 1_080 }),
+	targetAspect: Object.freeze({ width: 9, height: 16 }),
+	candidates: Object.freeze([
+		Object.freeze({
+			id: 'highlight-2', startFrame: 0, endFrame: 720_000,
+			sourceStartFrame: 0, sourceEndFrame: 450, score: 0.9,
+			evidenceMode: 'transcript', transcriptExcerpt: EVIDENCE[0].transcriptExcerpt,
+			visualSummary: EVIDENCE[0].visualSummary, selected: false,
+			videoOccurrenceId: 'video-clip', audioOccurrenceId: 'audio-clip',
+		}),
+		Object.freeze({
+			id: 'highlight-1', startFrame: 720_000, endFrame: 1_440_000,
+			sourceStartFrame: 450, sourceEndFrame: 900, score: 0.8,
+			evidenceMode: 'speechless', transcriptExcerpt: null,
+			visualSummary: EVIDENCE[1].visualSummary, selected: false,
+			videoOccurrenceId: 'video-clip', audioOccurrenceId: 'audio-clip',
+		}),
+	]),
+});
 
 test('Qwen editorial plans close generation over known candidates and inert JSON fields', () => {
 	const plan = createAssistanceEditorialGenerationPlanV1(EVIDENCE);
@@ -50,6 +76,20 @@ test('Qwen editorial plans close generation over known candidates and inert JSON
 	assert.ok(Object.isFrozen(plan.evidence));
 	assert.ok(Object.isFrozen(plan.runtime));
 	assert.deepEqual(reviewAssistanceEditorialGenerationPlanV1(plan), plan);
+});
+
+test('ranked highlight candidates become a closed editorial plan without granting timing authority', () => {
+	const plan = createAssistanceEditorialGenerationPlanFromHighlightCandidatesV1(
+		HIGHLIGHT_CANDIDATES,
+	);
+
+	assert.deepEqual(plan.evidence, EVIDENCE);
+	assert.deepEqual(plan.authorizedCandidateIds, ['highlight-2', 'highlight-1']);
+	assert.doesNotMatch(plan.prompt, /startFrame|endFrame|sourceFrame/iu);
+	assert.throws(() => createAssistanceEditorialGenerationPlanFromHighlightCandidatesV1({
+		...HIGHLIGHT_CANDIDATES,
+		candidates: [{ ...HIGHLIGHT_CANDIDATES.candidates[0], selected: true }],
+	}), /selected|candidate/iu);
 });
 
 test('editorial evidence is bounded, unique, and never fabricates speech for speechless footage', () => {

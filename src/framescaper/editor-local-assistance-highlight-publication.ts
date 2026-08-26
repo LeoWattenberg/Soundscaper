@@ -200,6 +200,10 @@ function bindHighlight(
 	const videoSourceEndFrame = safeAdd(clipSourceStart, mapBoundary(
 		sequenceEnd - clipSequenceStart, clipSourceCount, clipSequenceCount,
 	), 'highlight video source end');
+	if (proposal.sourceStartFrame !== videoSourceStartFrame
+		|| proposal.sourceEndFrame !== videoSourceEndFrame) {
+		throw new RangeError('Highlight proposal source timing disagrees with current source authority.');
+	}
 	assertWithinRange(video.range, videoSourceStartFrame, videoSourceEndFrame, 'video');
 	const audioClipStart = integer(audio.clip.timelineStartFrame, 0, 'audio timeline start');
 	const audioDuration = integer(audio.clip.durationFrames, 1, 'audio duration');

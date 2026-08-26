@@ -19,8 +19,12 @@ export interface FramescaperAssistanceHighlightProposalV1 {
 	readonly id: string;
 	readonly startFrame: number;
 	readonly endFrame: number;
+	readonly sourceStartFrame: number;
+	readonly sourceEndFrame: number;
 	readonly score: number;
 	readonly evidenceMode: 'transcript' | 'speechless';
+	readonly transcriptExcerpt: string | null;
+	readonly visualSummary: string;
 	readonly selected: false;
 	readonly videoOccurrenceId: string;
 	readonly audioOccurrenceId: string;
@@ -38,7 +42,8 @@ export interface FramescaperAssistanceHighlightReviewV1 {
 
 const REVIEW_FIELDS = Object.freeze(['kind', 'schemaVersion', 'workflowId', 'fence', 'proposals']);
 const PROPOSAL_FIELDS = Object.freeze([
-	'id', 'startFrame', 'endFrame', 'score', 'evidenceMode', 'selected',
+	'id', 'startFrame', 'endFrame', 'sourceStartFrame', 'sourceEndFrame', 'score',
+	'evidenceMode', 'transcriptExcerpt', 'visualSummary', 'selected',
 	'videoOccurrenceId', 'audioOccurrenceId', 'title', 'cropKeyframes',
 ]);
 const KEYFRAME_FIELDS = Object.freeze(['sourceFrame', 'authority', 'trackIds', 'crop']);
@@ -80,12 +85,23 @@ function reviewProposal(
 	const startFrame = frame(record.startFrame, `${label} start`);
 	const endFrame = frame(record.endFrame, `${label} end`);
 	if (endFrame <= startFrame) throw new RangeError(`${label} must have positive timing.`);
+	const sourceStartFrame = frame(record.sourceStartFrame, `${label} source start`);
+	const sourceEndFrame = frame(record.sourceEndFrame, `${label} source end`);
+	if (sourceEndFrame <= sourceStartFrame) {
+		throw new RangeError(`${label} must have positive source timing.`);
+	}
 	if (record.selected !== false) {
 		throw new TypeError('Reviewed highlight proposals must remain unselected until explicit acceptance.');
 	}
 	if (record.evidenceMode !== 'transcript' && record.evidenceMode !== 'speechless') {
 		throw new TypeError(`${label} has an unsupported evidence mode.`);
 	}
+	const transcriptExcerpt = record.transcriptExcerpt === null ? null
+		: evidenceText(record.transcriptExcerpt, 8_192, `${label} transcript excerpt`);
+	if ((record.evidenceMode === 'transcript') !== (transcriptExcerpt !== null)) {
+		throw new TypeError(`${label} transcript excerpt disagrees with its evidence mode.`);
+	}
+	const visualSummary = evidenceText(record.visualSummary, 2_048, `${label} visual summary`);
 	const cropValues = boundedArray(
 		record.cropKeyframes, 2, MAXIMUM_CROP_KEYFRAMES, `${label} crop keyframes`,
 	);
@@ -99,9 +115,9 @@ function reviewProposal(
 		return keyframe;
 	});
 	return Object.freeze({
-		id, startFrame, endFrame,
+		id, startFrame, endFrame, sourceStartFrame, sourceEndFrame,
 		score: unit(record.score, `${label} score`),
-		evidenceMode: record.evidenceMode,
+		evidenceMode: record.evidenceMode, transcriptExcerpt, visualSummary,
 		selected: false,
 		videoOccurrenceId: stableId(record.videoOccurrenceId, `${label} video occurrence`),
 		audioOccurrenceId: stableId(record.audioOccurrenceId, `${label} audio occurrence`),
@@ -171,6 +187,14 @@ function stableId(value: unknown, name: string): string {
 function title(value: unknown, name: string): string {
 	if (typeof value !== 'string' || value.length < 1 || value.length > 160
 		|| value !== value.trim() || INVALID_TEXT.test(value)) throw new TypeError(`The ${name} title is invalid.`);
+	return value;
+}
+
+function evidenceText(value: unknown, maximum: number, name: string): string {
+	if (typeof value !== 'string' || value.length < 1 || value.length > maximum
+		|| value !== value.trim() || INVALID_TEXT.test(value)) {
+		throw new TypeError(`The ${name} is invalid.`);
+	}
 	return value;
 }
 

@@ -7,6 +7,7 @@ import {
 	reviewAssistanceEditorialProposalV1,
 	type AssistanceEditorialProposalV1,
 } from './m7-semantic-results.ts';
+import { reviewOwnedHighlightCandidatesV1 } from './owned-video-highlight-validation-v1.ts';
 
 export const ASSISTANCE_EDITORIAL_GENERATION_SCHEMA_VERSION = 1;
 export const ASSISTANCE_EDITORIAL_PROMPT_TEMPLATE_ID = 'qwen3-editorial-v1';
@@ -70,6 +71,19 @@ export function createAssistanceEditorialGenerationPlanV1(
 	evidenceValue: unknown,
 ): AssistanceEditorialGenerationPlanV1 {
 	return canonicalPlan(normalizeEvidence(evidenceValue));
+}
+
+/** Project deterministic highlight evidence into Qwen's closed, timing-free authority. */
+export function createAssistanceEditorialGenerationPlanFromHighlightCandidatesV1(
+	value: unknown,
+): AssistanceEditorialGenerationPlanV1 {
+	const candidates = reviewOwnedHighlightCandidatesV1(value);
+	return createAssistanceEditorialGenerationPlanV1(candidates.candidates.map((candidate) => ({
+		candidateId: candidate.id,
+		evidenceMode: candidate.evidenceMode,
+		transcriptExcerpt: candidate.transcriptExcerpt,
+		visualSummary: candidate.visualSummary,
+	})));
 }
 
 /** Re-admit a plan crossing an IPC or utility-process boundary. */

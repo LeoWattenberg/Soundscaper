@@ -68,7 +68,11 @@ class FakeChild extends EventEmitter implements AssistanceLlamaCppChild {
 
 async function fixture(
 	context: TestContext,
-	options: Readonly<{ maximumByteLength?: number; planBody?: string; modelId?: string }> = {},
+	options: Readonly<{
+		maximumByteLength?: number;
+		planBody?: string;
+		modelId?: string;
+	}> = {},
 ) {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-llama-worker-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
@@ -106,6 +110,27 @@ async function fixture(
 		},
 	});
 	return { job, plan, paths: { input, model, output } };
+}
+
+function highlightCandidatesBody(): string {
+	return JSON.stringify({
+		schemaVersion: 1, kind: 'highlight-candidates', sourceId: 'video-source',
+		sampleRate: 48_000, sourceSize: { width: 1_920, height: 1_080 },
+		targetAspect: { width: 9, height: 16 },
+		candidates: [{
+			id: 'candidate-a', startFrame: 0, endFrame: 720_000,
+			sourceStartFrame: 0, sourceEndFrame: 450, score: 0.9,
+			evidenceMode: 'transcript', transcriptExcerpt: EVIDENCE[0].transcriptExcerpt,
+			visualSummary: EVIDENCE[0].visualSummary, selected: false,
+			videoOccurrenceId: 'video-clip', audioOccurrenceId: 'audio-clip',
+		}, {
+			id: 'candidate-b', startFrame: 720_000, endFrame: 1_440_000,
+			sourceStartFrame: 450, sourceEndFrame: 900, score: 0.8,
+			evidenceMode: 'speechless', transcriptExcerpt: null,
+			visualSummary: EVIDENCE[1].visualSummary, selected: false,
+			videoOccurrenceId: 'video-clip', audioOccurrenceId: 'audio-clip',
+		}],
+	});
 }
 
 test('the llama.cpp worker runs one offline CPU-only greedy grammar invocation', async (context) => {
@@ -161,6 +186,28 @@ test('the llama.cpp worker runs one offline CPU-only greedy grammar invocation',
 	assert.deepEqual(progress, [0, 1]);
 	await assert.rejects(readFile(promptPath), /ENOENT/iu);
 	await assert.rejects(readFile(grammarPath), /ENOENT/iu);
+});
+
+test('the llama.cpp worker derives the closed prompt from deterministic ranked candidates', async (context) => {
+	const { job, paths } = await fixture(context, { planBody: highlightCandidatesBody() });
+	let prompt = '';
+	const spawn: AssistanceLlamaCppSpawn = (_executable, args) => {
+		const child = new FakeChild();
+		prompt = readFileSync(args[args.indexOf('--file') + 1] as string, 'utf8');
+		queueMicrotask(() => {
+			child.stdout.end(JSON.stringify(VALID_PROPOSAL));
+			child.emit('close', 0, null);
+		});
+		return child;
+	};
+	const worker = createAssistanceLlamaCppWorkerSpawnerV1({ spawn })(job, {
+		onProgress: () => undefined,
+	});
+	await worker.completion;
+	assert.match(prompt, /candidate-a/u);
+	assert.match(prompt, /A compact opening promise/u);
+	assert.doesNotMatch(prompt, /startFrame|endFrame|sourceFrame/iu);
+	assert.deepEqual(JSON.parse((await readFile(paths.output)).toString()), VALID_PROPOSAL);
 });
 
 test('unsafe editorial text is refused before the reservation is populated', async (context) => {

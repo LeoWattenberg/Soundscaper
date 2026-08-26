@@ -49,7 +49,7 @@ test('guided defaults bind the product decisions without silently enabling publi
 	assert.deepEqual(defaultAssistanceWorkflowSettingsV1('make-highlights'), {
 		settingsVersion: 1, workflowId: 'make-highlights', resultCount: 5,
 		minimumDurationSeconds: 15, maximumDurationSeconds: 60,
-		targetAspectWidth: 9, targetAspectHeight: 16,
+		targetAspectWidth: 9, targetAspectHeight: 16, editorialRerank: false,
 	});
 	assert.deepEqual(defaultAssistanceWorkflowSettingsV1('generate-editorial-text'), {
 		settingsVersion: 1, workflowId: 'generate-editorial-text', enabled: false,
@@ -94,7 +94,7 @@ test('advanced recipes remain exact single-operation recipes with no hidden para
 test('canonical serialization is stable and contains only the admitted settings body', () => {
 	const settings = defaultAssistanceWorkflowSettingsV1('make-highlights');
 	assert.equal(serializeAssistanceWorkflowSettingsV1(settings),
-		'{"maximumDurationSeconds":60,"minimumDurationSeconds":15,"resultCount":5,"settingsVersion":1,"targetAspectHeight":16,"targetAspectWidth":9,"workflowId":"make-highlights"}');
+		'{"editorialRerank":false,"maximumDurationSeconds":60,"minimumDurationSeconds":15,"resultCount":5,"settingsVersion":1,"targetAspectHeight":16,"targetAspectWidth":9,"workflowId":"make-highlights"}');
 	assert.equal(serializeAssistanceWorkflowSettingsV1({
 		workflowId: 'mark-cuts', mode: 'accurate', settingsVersion: 1,
 	}), '{"mode":"accurate","settingsVersion":1,"workflowId":"mark-cuts"}');

@@ -303,6 +303,9 @@ function selectStages(
 		if (stage.stageId === 'recognize-speech') {
 			return models.filter(({ task }) => task === 'speech-recognition').length === 1;
 		}
+		if (stage.stageId === 'rerank-editorial') {
+			return settings.workflowId === 'make-highlights' && settings.editorialRerank;
+		}
 		return false;
 	}));
 }

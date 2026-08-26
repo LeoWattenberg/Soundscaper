@@ -108,6 +108,8 @@ export interface AssistanceOwnedHighlightSignalCandidateV1 {
 	readonly sourceStartFrame: number;
 	readonly sourceEndFrame: number;
 	readonly transcriptEvidence: boolean;
+	readonly transcriptExcerpt: string | null;
+	readonly visualSummary: string;
 	readonly hook: number;
 	readonly conversationalStructure: number;
 	readonly excitement: number;
@@ -137,6 +139,8 @@ export interface AssistanceOwnedRankedHighlightCandidateV1 {
 	readonly sourceEndFrame: number;
 	readonly score: number;
 	readonly evidenceMode: 'transcript' | 'speechless';
+	readonly transcriptExcerpt: string | null;
+	readonly visualSummary: string;
 	readonly selected: false;
 	readonly videoOccurrenceId: string;
 	readonly audioOccurrenceId: string;

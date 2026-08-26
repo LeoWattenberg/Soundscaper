@@ -19,6 +19,7 @@ import {
 } from './assistance-runtime-family-worker-entry.ts';
 import {
 	ASSISTANCE_EDITORIAL_GENERATION_MAXIMUM_OUTPUT_TOKENS,
+	createAssistanceEditorialGenerationPlanFromHighlightCandidatesV1,
 	reviewAssistanceEditorialGenerationOutputV1,
 	reviewAssistanceEditorialGenerationPlanV1,
 	type AssistanceEditorialGenerationPlanV1,
@@ -183,7 +184,14 @@ async function readEditorialPlan(
 	} catch (error) {
 		throw new TypeError('The editorial generation plan is not valid UTF-8 JSON.', { cause: error });
 	}
-	return reviewAssistanceEditorialGenerationPlanV1(value);
+	return isHighlightCandidates(value)
+		? createAssistanceEditorialGenerationPlanFromHighlightCandidatesV1(value)
+		: reviewAssistanceEditorialGenerationPlanV1(value);
+}
+
+function isHighlightCandidates(value: unknown): boolean {
+	return value !== null && typeof value === 'object' && !Array.isArray(value)
+		&& (value as Readonly<{ kind?: unknown }>).kind === 'highlight-candidates';
 }
 
 async function withInvocationFiles<T>(

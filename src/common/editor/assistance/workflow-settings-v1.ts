@@ -58,6 +58,7 @@ export type AssistanceWorkflowSettingsV1 =
 		maximumDurationSeconds: number;
 		targetAspectWidth: 9;
 		targetAspectHeight: 16;
+		editorialRerank: boolean;
 	}>)
 	| (SettingsBase<'generate-editorial-text'> & Readonly<{
 		enabled: boolean;
@@ -97,7 +98,7 @@ export function defaultAssistanceWorkflowSettingsV1(
 			targetAspectWidth: 9, targetAspectHeight: 16 });
 		case 'make-highlights': return Object.freeze({ ...base, workflowId,
 			resultCount: 5, minimumDurationSeconds: 15, maximumDurationSeconds: 60,
-			targetAspectWidth: 9, targetAspectHeight: 16 });
+			targetAspectWidth: 9, targetAspectHeight: 16, editorialRerank: false });
 		case 'generate-editorial-text': return Object.freeze({ ...base, workflowId,
 			enabled: false, fields: EDITORIAL_FIELDS });
 		default: return Object.freeze({ ...base, workflowId,
@@ -197,7 +198,7 @@ function reframe(row: JsonRecord, workflowId: 'reframe'): AssistanceWorkflowSett
 
 function highlights(row: JsonRecord, workflowId: 'make-highlights'): AssistanceWorkflowSettingsV1 {
 	exact(row, ['settingsVersion', 'workflowId', 'resultCount', 'minimumDurationSeconds',
-		'maximumDurationSeconds', 'targetAspectWidth', 'targetAspectHeight']);
+		'maximumDurationSeconds', 'targetAspectWidth', 'targetAspectHeight', 'editorialRerank']);
 	literal(row.minimumDurationSeconds, 15, 'highlight minimum duration');
 	literal(row.targetAspectWidth, 9, 'highlight target width');
 	literal(row.targetAspectHeight, 16, 'highlight target height');
@@ -206,7 +207,8 @@ function highlights(row: JsonRecord, workflowId: 'make-highlights'): AssistanceW
 		minimumDurationSeconds: 15,
 		maximumDurationSeconds: integer(row.maximumDurationSeconds, 15, 180,
 			'highlight maximum duration'),
-		targetAspectWidth: 9, targetAspectHeight: 16 });
+		targetAspectWidth: 9, targetAspectHeight: 16,
+		editorialRerank: boolean(row.editorialRerank, 'editorial reranking') });
 }
 
 function editorial(row: JsonRecord, workflowId: 'generate-editorial-text'): AssistanceWorkflowSettingsV1 {

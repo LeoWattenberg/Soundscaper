@@ -219,6 +219,62 @@ test('Accurate Mark Cuts stages its exact frame pack and never substitutes Fast'
 	assert.equal(fixture.custodyEvents[0]?.slotId, 'frame-pack');
 });
 
+test('Make Highlights adds Qwen only after explicit editorial rerank opt-in', async () => {
+	const fixture = preparationFixture();
+	const videoProject: FixtureProject = { ...project(),
+		sources: [{ id: 'video-source', kind: 'video', contentSha256: SOURCE_SHA256 }],
+		clips: [{ id: 'video-clip', kind: 'video', sourceId: 'video-source',
+			sequenceId: 'main-sequence', avLinkId: null, reversed: false, speedRatio: 1 }],
+	};
+	const preparation = createLocalAssistanceGuidedWorkflowPreparation({
+		getProject: () => videoProject, getSelectedClipId: () => 'video-clip',
+		captureProject: () => ({ revision: 4 }), assertProject: () => undefined,
+		preflightStorage: async () => undefined,
+		currentSelectionFence: () => ({
+			projectId: 'project-1', schemaVersion: 30, revision: 4,
+			sequenceId: 'main-sequence', occurrenceIds: ['video-clip'],
+			sourceId: 'video-source', sourceSha256: SOURCE_SHA256,
+			sourceStartFrame: 0, sourceEndFrame: 120,
+			linkMembershipSha256: '12'.repeat(32), timingAuthoritySha256: '34'.repeat(32),
+		}),
+		selected: {
+			listSelectedMedia: async () => ({ sources: [{ sourceId: 'video-source',
+				label: 'Video', mediaKind: 'video', operations: ['shot-detection'] }] }),
+			prepareSelectedMedia: async () => ({ sourceId: 'video-source',
+				operation: 'shot-detection', shotDetectionMode: 'fast', selectionFence: {
+					projectId: 'project-1', schemaVersion: 30, revision: 4,
+					sequenceId: 'main-sequence', occurrenceIds: ['video-clip'],
+					sourceId: 'video-source', sourceSha256: SOURCE_SHA256,
+					sourceStartFrame: 0, sourceEndFrame: 120,
+					linkMembershipSha256: '12'.repeat(32), timingAuthoritySha256: '34'.repeat(32),
+				}, inputs: [{ role: 'video', mediaType: 'video/mp4',
+					bytes: new Blob([new Uint8Array([1, 2, 3])]) }], outputs: [],
+			}),
+		},
+	});
+	const settings = { ...defaultAssistanceWorkflowSettingsV1('make-highlights'),
+		editorialRerank: true } as const;
+	const result = await preparation.prepareGuidedWorkflow({ jobId: JOB_ID,
+		workflowId: 'make-highlights', settings,
+		models: [model('qwen3-4b-q4-k-m', '1.0.0', 'editorial-generation', 10)],
+		custody: fixture.custody, signal: new AbortController().signal });
+	assert.equal(result.outcome, 'prepared');
+	if (result.outcome !== 'prepared') return;
+	assert.deepEqual(result.workflow.stageIds, [
+		'gather-signals', 'rank-highlights', 'rerank-editorial', 'assemble-highlights',
+	]);
+	assert.deepEqual(result.workflow.models.map(({ stageId, slotId, modelId }) => ({
+		stageId, slotId, modelId,
+	})), [{ stageId: 'rerank-editorial', slotId: 'editorial-generator',
+		modelId: 'qwen3-4b-q4-k-m' }]);
+	assert.ok(result.workflow.inputs.some(({ stageId, slotId }) => (
+		stageId === 'rerank-editorial' && slotId === 'highlight-candidates'
+	)));
+	assert.ok(result.workflow.inputs.some(({ stageId, slotId }) => (
+		stageId === 'assemble-highlights' && slotId === 'editorial-proposal'
+	)));
+});
+
 interface FixtureProject {
 	readonly id: string;
 	readonly schemaVersion: number;

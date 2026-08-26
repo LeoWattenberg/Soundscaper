@@ -68,7 +68,7 @@ test('each Guided recipe selects one frozen, strictly validated default settings
 	assert.deepEqual(guided.getSnapshot().settings, {
 		settingsVersion: 1, workflowId: 'make-highlights', resultCount: 5,
 		minimumDurationSeconds: 15, maximumDurationSeconds: 60,
-		targetAspectWidth: 9, targetAspectHeight: 16,
+		targetAspectWidth: 9, targetAspectHeight: 16, editorialRerank: false,
 	});
 	const markup = renderDialog(guided.getSnapshot());
 	assert.match(markup, /Exact settings/u);
@@ -96,11 +96,13 @@ test('Guided workflow settings are editable only through their exact validated b
 	guided.selectWorkflow('make-highlights');
 	guided.setSettings({ settingsVersion: 1, workflowId: 'make-highlights',
 		resultCount: 20, minimumDurationSeconds: 15, maximumDurationSeconds: 180,
-		targetAspectWidth: 9, targetAspectHeight: 16 });
+		targetAspectWidth: 9, targetAspectHeight: 16, editorialRerank: true });
 	const highlightsMarkup = renderDialog(guided.getSnapshot());
 	assert.match(highlightsMarkup, /Highlight proposals/u);
 	assert.match(highlightsMarkup, /min="1" max="20" step="1" value="20"/u);
 	assert.match(highlightsMarkup, /min="15" max="180" step="1" value="180"/u);
+	assert.match(highlightsMarkup, /Use installed Qwen to rerank known candidates/u);
+	assert.match(highlightsMarkup, /type="checkbox" checked=""/u);
 });
 
 test('Guided never calls the workflow bridge without an aggregate preparation seam', async () => {

@@ -18,6 +18,7 @@ import {
 	ownedBoolean,
 	ownedExactRecord,
 	ownedInteger,
+	ownedNullableText,
 	ownedText,
 	ownedUnit,
 } from './owned-transform-validation-v1.ts';
@@ -51,7 +52,8 @@ const SIGNALS_FIELDS = Object.freeze([
 ] as const);
 const SIGNAL_FIELDS = Object.freeze([
 	'id', 'startFrame', 'endFrame', 'sourceStartFrame', 'sourceEndFrame',
-	'transcriptEvidence', 'hook', 'conversationalStructure', 'excitement',
+	'transcriptEvidence', 'transcriptExcerpt', 'visualSummary',
+	'hook', 'conversationalStructure', 'excitement',
 	'energyDynamics', 'semanticSelfContainedness', 'shotStructure', 'visualInterest',
 	'duplication', 'videoOccurrenceId', 'audioOccurrenceId',
 ] as const);
@@ -60,7 +62,8 @@ const CANDIDATES_FIELDS = Object.freeze([
 ] as const);
 const RANKED_FIELDS = Object.freeze([
 	'id', 'startFrame', 'endFrame', 'sourceStartFrame', 'sourceEndFrame', 'score',
-	'evidenceMode', 'selected', 'videoOccurrenceId', 'audioOccurrenceId',
+	'evidenceMode', 'transcriptExcerpt', 'visualSummary', 'selected',
+	'videoOccurrenceId', 'audioOccurrenceId',
 ] as const);
 const PROPOSALS_FIELDS = Object.freeze([
 	'schemaVersion', 'kind', 'workflowId', 'targetAspect', 'proposals',
@@ -199,8 +202,15 @@ export function reviewOwnedHighlightSignalsV1(value: unknown): AssistanceOwnedHi
 		const item = ownedExactRecord(candidate, SIGNAL_FIELDS, label);
 		const id = uniqueId(item.id, seen, label);
 		const range = timingRange(item, label);
-		return Object.freeze({ id, ...range,
-			transcriptEvidence: ownedBoolean(item.transcriptEvidence, `${label} transcript evidence`),
+		const transcriptEvidence = ownedBoolean(item.transcriptEvidence,
+			`${label} transcript evidence`);
+		const transcriptExcerpt = ownedNullableText(item.transcriptExcerpt, 8_192,
+			`${label} transcript excerpt`);
+		if (transcriptEvidence !== (transcriptExcerpt !== null)) {
+			throw new TypeError(`${label} transcript excerpt disagrees with its evidence mode.`);
+		}
+		return Object.freeze({ id, ...range, transcriptEvidence, transcriptExcerpt,
+			visualSummary: ownedText(item.visualSummary, 2_048, `${label} visual summary`),
 			hook: ownedUnit(item.hook, `${label} hook`),
 			conversationalStructure: ownedUnit(item.conversationalStructure, `${label} structure`),
 			excitement: ownedUnit(item.excitement, `${label} excitement`),
@@ -319,9 +329,15 @@ function rankedCandidate(
 	if (item.evidenceMode !== 'transcript' && item.evidenceMode !== 'speechless') {
 		throw new TypeError(`${label} evidence mode is unsupported.`);
 	}
+	const transcriptExcerpt = ownedNullableText(item.transcriptExcerpt, 8_192,
+		`${label} transcript excerpt`);
+	if ((item.evidenceMode === 'transcript') !== (transcriptExcerpt !== null)) {
+		throw new TypeError(`${label} transcript excerpt disagrees with its evidence mode.`);
+	}
 	if (item.selected !== false) throw new TypeError(`${label} must begin unselected.`);
 	return Object.freeze({ id, ...range, score: ownedUnit(item.score, `${label} score`),
-		evidenceMode: item.evidenceMode, selected: false,
+		evidenceMode: item.evidenceMode, transcriptExcerpt,
+		visualSummary: ownedText(item.visualSummary, 2_048, `${label} visual summary`), selected: false,
 		videoOccurrenceId: stableId(item.videoOccurrenceId, `${label} video occurrence`),
 		audioOccurrenceId: stableId(item.audioOccurrenceId, `${label} audio occurrence`) });
 }

@@ -120,8 +120,11 @@ export function gatherOwnedHighlightSignalsV1(
 		const language = transcript.signals.get(window.id);
 		const transcriptEvidence = language !== undefined
 			&& transcript.ranges.some((range) => overlaps(startFrame, endFrame, range.start, range.end));
+		const transcriptExcerpt = transcriptEvidence
+			? boundedTranscriptExcerpt(transcript.ranges, startFrame, endFrame) : null;
 		return Object.freeze({ id: window.id, startFrame, endFrame,
-			sourceStartFrame, sourceEndFrame, transcriptEvidence,
+			sourceStartFrame, sourceEndFrame, transcriptEvidence, transcriptExcerpt,
+			visualSummary: `Admitted shot-structure score ${window.shotStructure.toFixed(6)}; visual-interest score ${window.visualInterest.toFixed(6)}.`,
 			hook: transcriptEvidence ? language.hook : 0,
 			conversationalStructure: transcriptEvidence ? language.conversationalStructure : 0,
 			excitement: maximumOverlapScore(reactionRanges, startFrame, endFrame),
@@ -160,7 +163,8 @@ export function rankOwnedHighlightsV1(
 		const source = byId.get(candidate.id)!;
 		return Object.freeze({ ...candidate, sourceStartFrame: source.sourceStartFrame,
 			sourceEndFrame: source.sourceEndFrame, videoOccurrenceId: source.videoOccurrenceId,
-			audioOccurrenceId: source.audioOccurrenceId });
+			audioOccurrenceId: source.audioOccurrenceId,
+			transcriptExcerpt: source.transcriptExcerpt, visualSummary: source.visualSummary });
 	});
 	return reviewOwnedHighlightCandidatesV1({ schemaVersion: 1, kind: 'highlight-candidates',
 		sourceId: signals.sourceId, sampleRate: signals.sampleRate, sourceSize: signals.sourceSize,
@@ -283,7 +287,7 @@ function reviewAudioSignals(value: unknown, known: ReadonlySet<string>): Readonl
 function reviewTranscriptSignals(value: unknown, known: ReadonlySet<string>, video: ReviewedVideo) {
 	if (value === null) return Object.freeze({ signals: new Map<string, Readonly<{
 		hook: number; conversationalStructure: number; semanticSelfContainedness: number;
-	}>>(), ranges: [] as readonly Readonly<{ start: number; end: number }>[],
+	}>>(), ranges: [] as readonly Readonly<{ start: number; end: number; text: string }>[],
 		timelineEdges: [] as readonly number[] });
 	const row = ownedExactRecord(value, TRANSCRIPT_FIELDS, 'highlight transcript signals');
 	if (row.schemaVersion !== 1 || row.kind !== 'highlight-transcript-signals') {
@@ -292,13 +296,14 @@ function reviewTranscriptSignals(value: unknown, known: ReadonlySet<string>, vid
 	const transcript = reviewOwnedAssistanceTranscriptV1(row.transcript);
 	const offset = ownedInteger(row.sourceTimelineStartFrame, 0, Number.MAX_SAFE_INTEGER,
 		'highlight transcript timeline start');
-	const ranges = transcript.segments.map(({ startFrame, endFrame }) => Object.freeze({
+	const ranges = transcript.segments.map(({ startFrame, endFrame, text }) => Object.freeze({
 		start: nearestAuthorityTimeline(video.authority, ownedSafeAdd(offset, Number(scaleSampleFrame(
 			startFrame, transcript.sampleRate, video.sampleRate, 'enclosingStart')),
 			'transcript timeline start')),
 		end: nearestAuthorityTimeline(video.authority, ownedSafeAdd(offset, Number(scaleSampleFrame(
 			endFrame, transcript.sampleRate, video.sampleRate, 'enclosingEnd')),
 			'transcript timeline end')),
+		text,
 	})).filter(({ start, end }) => end > start);
 	const signals = new Map<string, Readonly<{
 		hook: number; conversationalStructure: number; semanticSelfContainedness: number;
@@ -478,6 +483,18 @@ function maximumOverlapScore(
 
 function overlaps(leftStart: number, leftEnd: number, rightStart: number, rightEnd: number): boolean {
 	return Math.max(leftStart, rightStart) < Math.min(leftEnd, rightEnd);
+}
+
+function boundedTranscriptExcerpt(
+	ranges: readonly Readonly<{ start: number; end: number; text: string }>[],
+	start: number,
+	end: number,
+): string {
+	const excerpt = ranges.filter((range) => overlaps(start, end, range.start, range.end))
+		.map(({ text }) => text.trim()).filter(Boolean).join(' ').trim();
+	if (excerpt === '') throw new TypeError('Transcript evidence requires admitted nonempty text.');
+	const characters = [...excerpt];
+	return characters.length <= 8_192 ? excerpt : characters.slice(0, 8_192).join('').trim();
 }
 
 function admittedCandidate<T>(

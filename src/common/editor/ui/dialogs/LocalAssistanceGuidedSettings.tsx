@@ -133,6 +133,11 @@ export default function LocalAssistanceGuidedSettings({
 				'Maximum seconds per proposal')} value={settings.maximumDurationSeconds}
 				min={15} max={180} step={1} disabled={disabled}
 				onChange={(maximumDurationSeconds) => commit({ ...settings, maximumDurationSeconds })} />
+			<CheckboxSetting disabled={disabled} checked={settings.editorialRerank}
+				onChange={(editorialRerank) => commit({ ...settings, editorialRerank })}>
+				{text(copy, 'localAssistanceHighlightEditorialRerank',
+					'Use installed Qwen to rerank known candidates')}
+			</CheckboxSetting>
 			<p>{text(copy, 'localAssistanceHighlightFormat', 'Minimum 15 seconds · target 9:16')}</p>
 		</SettingsGroup>;
 		case 'generate-editorial-text': return <SettingsGroup copy={copy}>
