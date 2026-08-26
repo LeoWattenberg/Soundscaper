@@ -18,6 +18,7 @@ import {
 import {
 	assistanceWorkflowStageGraph,
 	validateAssistanceWorkflow,
+	type AssistanceWorkflowV1,
 } from '../src/common/editor/assistance/workflow.ts';
 import { assistanceWorkflowFixture, WORKFLOW_JOB_ID } from './helpers/assistance-workflow-fixture.ts';
 
@@ -73,9 +74,8 @@ test('primitive workflow stages execute through operation-v1 and record exact au
 
 test('primitive projection refuses ambiguous multi-source authority without touching custody', async () => {
 	const request = enhancementWorkflow();
-	const second = { ...request.fence.sourceRanges[0]!, slotId: 'secondary-video',
-		mediaKind: 'video' as const, sourceId: 'source-b', sourceSha256: '13'.repeat(32),
-		sourceSampleRate: null, occurrenceIds: ['occurrence-b'] };
+	const second = { ...request.fence.sourceRanges[0]!, slotId: 'secondary-audio',
+		sourceId: 'source-b', sourceSha256: '13'.repeat(32), occurrenceIds: ['occurrence-b'] };
 	const multi = validateAssistanceWorkflow({ ...request,
 		fence: { ...request.fence, sourceRanges: [...request.fence.sourceRanges, second] } });
 	let touched = false;
@@ -91,6 +91,39 @@ test('primitive projection refuses ambiguous multi-source authority without touc
 		outcome: 'unavailable', reason: 'stage-unavailable',
 	});
 	assert.equal(touched, false);
+});
+
+test('editorial reranking projects video authority from a linked audio/video highlight fence', async () => {
+	const request = highlightsWorkflow();
+	const input = validateAssistanceStagedInputClaim({ claimVersion: 1, claimId: INPUT_ID,
+		jobId: WORKFLOW_JOB_ID, role: 'editorial-context', mediaType: 'application/json', byteLength: 4,
+		sha256: 'aa'.repeat(32) });
+	const reservation = validateAssistanceOutputReservation({ claimVersion: 1, claimId: OUTPUT_ID,
+		jobId: WORKFLOW_JOB_ID, role: 'editorial-proposal', mediaType: 'application/json',
+		maximumByteLength: 4096 });
+	const output = validateAssistanceOutputClaim({ claimVersion: 1, claimId: OUTPUT_ID,
+		jobId: WORKFLOW_JOB_ID, role: 'editorial-proposal', mediaType: 'application/json',
+		byteLength: 4, sha256: 'bb'.repeat(32) });
+	let operationRequest: unknown = null;
+	const runtime = createAssistanceWorkflowOperationStageRuntime({
+		operations: { executeStaged: async (value) => {
+			operationRequest = value;
+			return { contractVersion: 1, jobId: WORKFLOW_JOB_ID,
+				operation: 'editorial-generation' as const, outcome: 'completed' as const,
+				result: { contractVersion: 1, jobId: WORKFLOW_JOB_ID,
+					operation: 'editorial-generation' as const, outputs: [output] } };
+		} },
+		custody: {
+			operationInputClaim: async () => input,
+			outputReservationForClaim: () => reservation,
+			recordAuthenticatedOutputForClaim: async () => output,
+		},
+	});
+	assert.deepEqual(await runtime(stageExecution(request, () => undefined, 'rerank-editorial')),
+		{ outcome: 'completed' });
+	const validated = validateAssistanceOperationRequest(operationRequest);
+	assert.equal(validated.selectionFence.sourceId, 'source-video');
+	assert.deepEqual(validated.selectionFence.occurrenceIds, ['occurrence-video']);
 });
 
 test('workflow OCR canonicalizes only two byte-identical detector and recognizer bindings', () => {
@@ -120,13 +153,54 @@ function enhancementWorkflow() {
 	}));
 }
 
+function highlightsWorkflow(): AssistanceWorkflowV1 {
+	const stageIds = ['gather-signals', 'rank-highlights', 'rerank-editorial',
+		'assemble-highlights'] as const;
+	const models = [{ bindingVersion: 1 as const, stageId: 'rerank-editorial',
+		slotId: 'editorial-generator', modelId: 'qwen3-4b-q4-k-m', version: 'bc640142',
+		artifactSha256s: ['01'.repeat(32)] }];
+	const inputs = [
+		workflowClaim('input', 'gather-signals', 'video', 1),
+		workflowClaim('input', 'rank-highlights', 'highlight-signals', 2),
+		workflowClaim('input', 'rerank-editorial', 'highlight-candidates', 3),
+		workflowClaim('input', 'assemble-highlights', 'highlight-candidates', 4),
+	];
+	const outputs = [
+		workflowClaim('output', 'gather-signals', 'highlight-signals', 5),
+		workflowClaim('output', 'rank-highlights', 'highlight-candidates', 6),
+		workflowClaim('output', 'rerank-editorial', 'editorial-proposal', 7),
+		workflowClaim('output', 'assemble-highlights', 'highlight-proposals', 8),
+	];
+	const single = assistanceWorkflowFixture({ workflowId: 'make-highlights', stageIds,
+		models, inputs, outputs });
+	const video = { ...single.fence.sourceRanges[0]!, slotId: 'primary-video',
+		mediaKind: 'video' as const, sourceId: 'source-video', sourceSha256: '13'.repeat(32),
+		sourceSampleRate: null, occurrenceIds: ['occurrence-video'], sourceEndFrame: 100,
+		linkMembershipSha256: '35'.repeat(32), timingAuthoritySha256: '57'.repeat(32) };
+	const audio = { ...single.fence.sourceRanges[0]!, sourceEndFrame: 96_000 };
+	return validateAssistanceWorkflow({ ...single,
+		fence: { ...single.fence, sourceRanges: [audio, video] } });
+}
+
+function workflowClaim(
+	direction: 'input' | 'output', stageId: string, slotId: string, index: number,
+) {
+	return { claimVersion: 1 as const, direction,
+		claimId: index.toString(16).padStart(40, '0'), jobId: WORKFLOW_JOB_ID, stageId, slotId };
+}
+
 function stageExecution(
-	request: ReturnType<typeof enhancementWorkflow>,
+	request: AssistanceWorkflowV1,
 	progress: (completed: number, total: number) => void,
+	stageId = request.stageIds[0]!,
 ): AssistanceWorkflowStageExecutionV1 {
-	const stage = assistanceWorkflowStageGraph(request.workflowId)[0]!;
-	const base = { request, stage, stageIndex: 0, stageCount: 1,
-		inputs: request.inputs, outputs: request.outputs, models: request.models,
+	const stage = assistanceWorkflowStageGraph(request.workflowId)
+		.find((candidate) => candidate.stageId === stageId)!;
+	const stageIndex = request.stageIds.indexOf(stageId);
+	const base = { request, stage, stageIndex, stageCount: request.stageIds.length,
+		inputs: request.inputs.filter((claim) => claim.stageId === stageId),
+		outputs: request.outputs.filter((claim) => claim.stageId === stageId),
+		models: request.models.filter((claim) => claim.stageId === stageId),
 		signal: new AbortController().signal };
 	return Object.freeze({ ...base, custody: createAssistanceWorkflowStageCustodyToken(base), progress });
 }

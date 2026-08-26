@@ -13,6 +13,7 @@ import type {
 	AssistanceWorkflowStageExecutionV1,
 	AssistanceWorkflowStageResultV1,
 } from './assistance-workflow-executor.ts';
+import type { AssistanceWorkflowSourceRangeV1 } from '../src/common/editor/assistance/workflow.ts';
 
 type OperationService = Pick<ReturnType<typeof createAssistanceOperationService>, 'executeStaged'>;
 type WorkflowCustody = Pick<AssistanceWorkflowCustody,
@@ -36,7 +37,8 @@ export function createAssistanceWorkflowOperationStageRuntime(
 		const stage = assertStage(stageValue);
 		const operation = stage.stage.operation;
 		if (!operation) throw new TypeError('A deterministic workflow stage cannot enter operation-v1.');
-		if (stage.request.fence.sourceRanges.length !== 1) return unavailable('stage-unavailable');
+		const range = operationSourceRange(stage);
+		if (!range) return unavailable('stage-unavailable');
 		const inputs = await Promise.all(stage.inputs.map((claim) =>
 			options.custody.operationInputClaim(claim, operation, stage.signal)));
 		const outputs = stage.outputs.map((claim) => options.custody.outputReservationForClaim(claim));
@@ -44,7 +46,7 @@ export function createAssistanceWorkflowOperationStageRuntime(
 		try {
 			request = validateAssistanceOperationRequest({ contractVersion: 1,
 				jobId: stage.request.jobId, operation,
-				selectionFence: selectionFence(stage),
+				selectionFence: selectionFence(stage, range),
 				models: operationModelBindings(stage, operation),
 				inputs, outputs });
 		} catch (error) {
@@ -100,15 +102,33 @@ export function canonicalizeAssistanceWorkflowOperationModelBindingsV1(
 	return Object.freeze([first]);
 }
 
-function selectionFence(stage: AssistanceWorkflowStageExecutionV1) {
+function selectionFence(
+	stage: AssistanceWorkflowStageExecutionV1,
+	range: AssistanceWorkflowSourceRangeV1,
+) {
 	const fence = stage.request.fence;
-	const range = fence.sourceRanges[0]!;
 	return Object.freeze({ projectId: fence.projectId, schemaVersion: fence.schemaVersion,
 		revision: fence.revision, sequenceId: fence.sequenceId,
 		occurrenceIds: range.occurrenceIds, sourceId: range.sourceId,
 		sourceSha256: range.sourceSha256, sourceStartFrame: range.sourceStartFrame,
 		sourceEndFrame: range.sourceEndFrame, linkMembershipSha256: range.linkMembershipSha256,
 		timingAuthoritySha256: range.timingAuthoritySha256 });
+}
+
+function operationSourceRange(
+	stage: AssistanceWorkflowStageExecutionV1,
+): AssistanceWorkflowSourceRangeV1 | null {
+	const inputSlots = new Set(stage.inputs.map(({ slotId }) => slotId));
+	const hasAudio = inputSlots.has('audio');
+	const hasVideo = inputSlots.has('video') || inputSlots.has('frame-pack');
+	if (hasAudio && hasVideo) return null;
+	const preferredKind = hasAudio ? 'audio'
+		: hasVideo || (stage.request.workflowId === 'make-highlights'
+			&& stage.stage.stageId === 'rerank-editorial') ? 'video' : null;
+	const matches = preferredKind === null
+		? stage.request.fence.sourceRanges
+		: stage.request.fence.sourceRanges.filter(({ mediaKind }) => mediaKind === preferredKind);
+	return matches.length === 1 ? matches[0]! : null;
 }
 
 function assertStage(value: AssistanceWorkflowStageExecutionV1): AssistanceWorkflowStageExecutionV1 {
