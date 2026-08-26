@@ -329,11 +329,14 @@ variables have already been exported into its process environment.
 3. Authorize the Cloudflare GitHub app for `LeoWattenberg/Soundscaper` and select
    that repository.
 4. Use production branch `main`, the Vite framework preset, gated build command
-   `npm run build:pages`, and output directory `dist`. Leave the root directory
-   empty. This command authenticates the checked-in runtime-publication approval
-   and preflights the exact live pointer, release objects, CORS, metadata, and
-   Cloudflare cache status before Pages can publish either a production or
-   preview deployment; do not replace it with the ungated `npm run build`.
+	`npm run build:pages`, and output directory `dist`. Leave the root directory
+	empty. This command authenticates the checked-in runtime-publication approval
+	and preflights the exact live pointer, release objects, CORS, metadata, and
+	Cloudflare cache status. It also verifies that the live Pages hostname preserves
+	the checked-in no-cache/no-store headers for stable documents, product artwork,
+	manifests, offline audit data, and both workers while keeping hashed assets
+	immutable. Both checks run before Pages can publish either a production or preview
+	deployment; do not replace it with the ungated `npm run build`.
 5. Attach `soundscaper.org` under the Pages project's custom domains.
 
 Cloudflare will build and deploy every push to `main` and create preview

@@ -5,7 +5,10 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { verifyFfmpegRuntimeManifest } from '../scripts/lib/ffmpeg-runtime-manifest.mjs';
-import { preflightPagesDeployment } from '../scripts/lib/pages-deploy-preflight.mjs';
+import {
+	preflightPagesDeployment,
+	verifyLivePagesCachePolicy,
+} from '../scripts/lib/pages-deploy-preflight.mjs';
 import { runtimePointer } from '../scripts/lib/ffmpeg-runtime-publisher.mjs';
 import { createFixture } from './helpers/ffmpeg-runtime-fixture.mjs';
 
@@ -77,10 +80,67 @@ test('Pages CLI authenticates policy before any live runtime request', async () 
 		source.indexOf("purpose: 'runtime-publication'") < source.indexOf('const result = await preflightPagesDeployment'),
 		'checked-in publication authorization must precede live preflight requests',
 	);
+	assert.ok(
+		source.indexOf('const result = await preflightPagesDeployment')
+			< source.indexOf('const pages = await verifyLivePagesCachePolicy'),
+		'the exact runtime must be live before the Pages hostname cache policy is accepted',
+	);
 	assert.match(packageMetadata.scripts['build:pages'], /npm run build.*preflight-pages-deploy\.mjs/u);
 	assert.match(packageMetadata.scripts.deploy, /^npm run build:pages && wrangler pages deploy/u);
 	assert.match(documentation, /gated build command\s+`npm run build:pages`/u);
 	assert.match(documentation, /do not replace it with the ungated `npm run build`/u);
+});
+
+test('live Pages policy preserves checked-in browser TTLs for stable routes and immutable assets', async () => {
+	const origin = 'https://soundscaper.org';
+	const assetPath = '/assets/site-entry-AbCd1234.js';
+	const policies = new Map([
+		...['/', '/en/', '/embed/en/', '/framescaper/en/', '/framescaper/embed/en/']
+			.map((path) => [path, { cacheControl: 'no-cache' }]),
+		...[
+			'/logo/logo-klein-schwarz.svg',
+			'/logo/logo-klein-weiß.svg',
+			'/logo/framescaper-icon.svg',
+			'/offline-icons/soundscaper-180.png',
+			'/offline-icons/framescaper-180.png',
+			'/manifest-soundscaper.webmanifest',
+			'/manifest-framescaper.webmanifest',
+		].map((path) => [path, { cacheControl: 'no-cache' }]),
+		['/offline-shell.json', { cacheControl: 'no-store' }],
+		['/service-worker.js', { cacheControl: 'no-store', serviceWorkerAllowed: '/' }],
+		['/framescaper/service-worker.js', {
+			cacheControl: 'no-store', serviceWorkerAllowed: '/framescaper/',
+		}],
+		[assetPath, { cacheControl: 'public, max-age=31536000, immutable' }],
+	]);
+	const requests = [];
+	const fetchImpl = async (url) => {
+		const parsed = new URL(url);
+		const pathname = decodeURIComponent(parsed.pathname);
+		requests.push(pathname);
+		const policy = policies.get(pathname);
+		if (!policy) return new Response(null, { status: 404 });
+		return new Response('ok', {
+			status: 200,
+			headers: {
+				'cache-control': policy.cacheControl,
+				...(policy.serviceWorkerAllowed
+					? { 'service-worker-allowed': policy.serviceWorkerAllowed }
+					: {}),
+			},
+		});
+	};
+
+	assert.deepEqual(await verifyLivePagesCachePolicy({ origin, assetPath, fetchImpl }), {
+		verifiedRouteCount: policies.size,
+	});
+	assert.deepEqual(requests.sort(), [...policies.keys()].sort());
+
+	policies.get('/en/').cacheControl = 'public, max-age=14400';
+	await assert.rejects(
+		() => verifyLivePagesCachePolicy({ origin, assetPath, fetchImpl }),
+		/Cache-Control is invalid.*\/en\//u,
+	);
 });
 
 function objectResponse(object) {
