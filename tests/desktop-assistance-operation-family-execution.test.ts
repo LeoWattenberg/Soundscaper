@@ -279,7 +279,7 @@ test('wrong additional model task roles fail before a worker receives file grant
 		operation: 'speech-enhancement', modelId, version, digest,
 		outputs: [{ role: 'enhanced-audio', mediaType: 'audio/wav' }],
 	});
-	await assert.rejects(service.run(operation), /wrong model task role/iu);
+	await assert.rejects(service.run(operation), /wrong model task role|exact DeepFilterNet3/iu);
 	assert.equal(seen.length, 0);
 });
 

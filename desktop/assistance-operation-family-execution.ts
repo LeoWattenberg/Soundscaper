@@ -120,6 +120,12 @@ async function resolveExactModel(
 		|| request.operation === 'beat-tracking')) {
 		assertAssistanceOnnxAudioModelBindingV1(request.operation, request.models[0]!);
 	}
+	if (subjectBindings === null && (request.operation === 'speech-enhancement'
+		|| request.operation === 'source-separation')) {
+		assertAssistanceOnnxEnhancementSeparationModelBindingV1(
+			request.operation, request.models[0]!,
+		);
+	}
 	if (subjectBindings === null && request.operation === 'word-alignment') {
 		assertAssistanceWav2Vec2EnglishAlignmentModelBindingV1(request.models[0]!);
 	}
@@ -167,6 +173,22 @@ export function assertAssistanceOnnxAudioModelBindingV1(
 	if ((binding.modelId !== 'beat-this-small0' && binding.modelId !== 'beat-this-final0')
 		|| binding.version !== '1.1.0') {
 		throw new TypeError('Beat tracking requires an exact Beat This v1.1.0 model identity.');
+	}
+}
+
+/** Close enhancement and separation substitution before catalog/status lookup. */
+export function assertAssistanceOnnxEnhancementSeparationModelBindingV1(
+	operation: 'speech-enhancement' | 'source-separation',
+	binding: AssistanceOperationModelBinding,
+): void {
+	if (operation === 'speech-enhancement') {
+		if (binding.modelId !== 'deepfilternet3' || binding.version !== '3.0.0') {
+			throw new TypeError('Speech enhancement requires the exact DeepFilterNet3 3.0.0 identity.');
+		}
+		return;
+	}
+	if (binding.modelId !== 'tiger-dnr' || binding.version !== '1.0.0') {
+		throw new TypeError('Source separation requires the exact TIGER-DnR 1.0.0 identity.');
 	}
 }
 
