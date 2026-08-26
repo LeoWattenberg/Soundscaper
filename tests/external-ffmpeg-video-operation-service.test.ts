@@ -171,7 +171,7 @@ test('video service rejects pending input when a ready session is cancelled or e
 			if (!idle) assert.equal(await fixture.service.cancel(fixture.owner, session.operationId), true);
 			await rejected;
 			assert.equal(launches, 0);
-			if (idle) await waitFor(async () => (await readdir(root)).length === 0);
+			if (idle) assert.deepEqual([await fixture.service.revokeOwner(fixture.owner), await readdir(root)], [true, []]);
 			await fixture.service.begin(fixture.owner, PLAN);
 		} finally {
 			await fixture.service.dispose();
