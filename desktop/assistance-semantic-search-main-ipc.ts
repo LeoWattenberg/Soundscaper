@@ -2,6 +2,7 @@
 
 /** Window-owned IPC for short-lived, prompt-free semantic-search authorization. */
 
+import { IPC } from './constants.js';
 import type { AssistanceSemanticSearchSession } from
 	'../src/common/editor/assistance/async-search-provider.ts';
 import {
@@ -12,12 +13,15 @@ import type {
 	AssistanceSemanticQueryExecutorV1,
 } from './assistance-semantic-query-executor.ts';
 
+// Read the names from the shared map rather than restating them: the sandboxed preload
+// cannot import it, so a registration test compares the two tables, and a channel main
+// registers under a name the bridge does not invoke is a surface nobody can reach.
 export const ASSISTANCE_SEMANTIC_SEARCH_IPC_CHANNELS = Object.freeze({
-	open: 'soundscaper:v1:assistance:semantic-search:open',
-	authorize: 'soundscaper:v1:assistance:semantic-search:authorize',
-	revoke: 'soundscaper:v1:assistance:semantic-search:revoke',
-	query: 'soundscaper:v1:assistance:semantic-search:query',
-	cancelQuery: 'soundscaper:v1:assistance:semantic-search:cancel-query',
+	open: IPC.assistanceSemanticSearchOpen,
+	authorize: IPC.assistanceSemanticSearchAuthorize,
+	revoke: IPC.assistanceSemanticSearchRevoke,
+	query: IPC.assistanceSemanticSearchQuery,
+	cancelQuery: IPC.assistanceSemanticSearchCancelQuery,
 } as const);
 
 const QUERY_FIELDS = Object.freeze([
