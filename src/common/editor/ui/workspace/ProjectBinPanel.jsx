@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Button, ContextMenu, ContextMenuItem, DialogHeader } from '@dilsonspickles/components';
 
 import { AUDIO_EDITOR_TRACK_COLORS } from '../../project-audio-factory.js';
-import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { createFramescaperVideoProxyApplicationMenuItems } from '../framescaper-video-proxy-application-menu.ts';
 import ProjectBinCard from './ProjectBinCard.jsx';
@@ -73,10 +72,6 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 	const sourceById = new Map((project?.sources || []).map((source) => [source.id, source]));
 	const missingSourceIds = new Set(snapshot.missingSourceIds || []);
 	const mutationBlocked = selectAudioEditorEditBlock(snapshot).blocked;
-	const positionFrame = useAudioEditorTelemetrySelector(
-		controller,
-		(telemetry) => Math.max(0, Number(telemetry.positionFrame) || 0),
-	);
 	const selectedMediaTrack = project?.tracks.find((track) => (
 		track.id === snapshot.selectedTrackId && ['audio', 'video'].includes(track.type)
 	)) || null;
@@ -416,7 +411,6 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 							mutationBlocked={mutationBlocked}
 							missing={item.clips.some((clip) => missingSourceIds.has(clip.sourceId))}
 							selectedMediaTrack={selectedMediaTrack}
-							positionFrame={positionFrame}
 							preview={snapshot.projectBinPreview}
 							run={run}
 							onOpenMenu={(event) => openItemMenu(event, item)}

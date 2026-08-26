@@ -182,15 +182,25 @@ export function projectBinPeakRanges(
 			peakLength,
 			Math.max(start + 1, Math.ceil((sourceStartFrame + sourceDurationFrames) / blockSize)),
 		);
-		const minimums = new Float32Array(peakLength).fill(1);
-		const maximums = new Float32Array(peakLength).fill(-1);
-		for (const channel of peakChannels) {
-			for (let block = 0; block < peakLength; block += 1) {
-				minimums[block] = Math.min(minimums[block], channel.minimums[block]);
-				maximums[block] = Math.max(maximums[block], channel.maximums[block]);
+		const columns = Math.max(1, Math.min(maximumColumns, end - start));
+		const ranges: ProjectBinRange[] = [];
+		for (let column = 0; column < columns; column += 1) {
+			const rangeStart = Math.floor(start + column * (end - start) / columns);
+			const rangeEnd = Math.max(
+				rangeStart + 1,
+				Math.ceil(start + (column + 1) * (end - start) / columns),
+			);
+			let minimum = 1;
+			let maximum = -1;
+			for (const channel of peakChannels) {
+				for (let block = rangeStart; block < rangeEnd; block += 1) {
+					minimum = Math.min(minimum, Number(channel.minimums[block]) || 0);
+					maximum = Math.max(maximum, Number(channel.maximums[block]) || 0);
+				}
 			}
+			ranges.push({ minimum, maximum });
 		}
-		return aggregateProjectBinRanges(minimums, maximums, start, end, maximumColumns);
+		return ranges;
 	}
 	const buffer = visual.buffer;
 	if (!buffer?.numberOfChannels || !buffer.length || typeof buffer.getChannelData !== 'function') return [];

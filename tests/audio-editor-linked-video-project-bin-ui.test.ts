@@ -64,8 +64,6 @@ function renderProjectBin(
 ): string {
 	const noop = () => undefined;
 	const controller = {
-		subscribeTelemetry: () => noop,
-		getTelemetrySnapshot: () => ({ positionFrame: 0 }),
 		actions: { project: {}, projectBin: {} },
 	};
 	return renderToStaticMarkup(React.createElement(ProjectBinPanel, {

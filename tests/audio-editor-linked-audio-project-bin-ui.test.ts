@@ -27,6 +27,15 @@ test('the Project Bin exposes the localized linked-WAV chooser only when its pla
 	assert.match(busy, /button--disabled[^>]* disabled=""[^>]*>[\s\S]*?>Link WAV/u);
 });
 
+test('the Project Bin resolves placement at click time without subscribing the panel to playback telemetry', async () => {
+	const source = await readFile(PANEL_URL, 'utf8');
+
+	assert.doesNotMatch(source, /useAudioEditorTelemetrySelector/u);
+	assert.doesNotMatch(source, /positionFrame=/u);
+	assert.doesNotMatch(source, /timelineStartFrame:/u);
+	assert.doesNotThrow(() => renderProjectBin(ENGLISH_COPY, false));
+});
+
 test('the linked-WAV Project Bin action forwards only the chosen File and opaque locator snapshot', async () => {
 	const source = await readFile(PANEL_URL, 'utf8');
 	const importAction = source.slice(source.indexOf('const chooseLinkedAudio'), source.indexOf('const relinkLinkedAudio'));
@@ -87,8 +96,6 @@ function renderProjectBin(
 ): string {
 	const noop = () => undefined;
 	const controller = {
-		subscribeTelemetry: () => noop,
-		getTelemetrySnapshot: () => ({ positionFrame: 0 }),
 		actions: { project: {}, projectBin: {} },
 	};
 	return renderToStaticMarkup(React.createElement(ProjectBinPanel, {

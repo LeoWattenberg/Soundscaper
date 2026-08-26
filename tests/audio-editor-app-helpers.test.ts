@@ -21,6 +21,7 @@ import {
 } from '../src/common/editor/ui/workspace-shortcuts.ts';
 import {
 	projectBinItems,
+	projectBinPeakRanges,
 	projectBinWaveformPath,
 } from '../src/common/editor/ui/workspace/project-bin-model.ts';
 import { clampFloatingPanelGeometry } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
@@ -163,6 +164,42 @@ test('project-bin view models deduplicate items and create bounded waveform path
 	}, { id: 'audio', sourceStartFrame: 0, sourceDurationFrames: 3 }, 3, 20);
 	assert.match(path, /^M0\.00 /u);
 	assert.equal(path.split('M').length - 1, 3);
+});
+
+test('project-bin peak ranges only read blocks covered by the clip window', () => {
+	const length = 1_000_000;
+	const reads: number[] = [];
+	const channel = (sign: number): ArrayLike<number> => new Proxy({ length } as ArrayLike<number>, {
+		get(target, property, receiver) {
+			if (property === 'length') return length;
+			if (typeof property === 'string' && /^\d+$/u.test(property)) {
+				const index = Number(property);
+				reads.push(index);
+				assert.ok(index >= 400 && index < 408, `read off-window peak block ${index}`);
+				return sign * (index - 399) / 10;
+			}
+			return Reflect.get(target, property, receiver);
+		},
+	});
+	const ranges = projectBinPeakRanges({
+		peaks: {
+			levels: [{
+				blockSize: 10,
+				channels: [
+					{ minimums: channel(-1), maximums: channel(1) },
+					{ minimums: channel(-0.5), maximums: channel(0.5) },
+				],
+			}],
+		},
+	}, {
+		id: 'windowed',
+		sourceStartFrame: 4_000,
+		sourceDurationFrames: 80,
+	}, 4);
+
+	assert.equal(ranges.length, 4);
+	assert.deepEqual(ranges[0], { minimum: -0.2, maximum: 0.2 });
+	assert.ok(reads.length <= 32, `expected bounded peak reads, received ${reads.length}`);
 });
 
 test('application-menu track moves keep linked lane blocks together', () => {

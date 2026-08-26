@@ -26,7 +26,6 @@ export default function ProjectBinCard({
 	mutationBlocked,
 	missing,
 	selectedMediaTrack,
-	positionFrame,
 	preview,
 	run,
 	onOpenMenu,
@@ -210,7 +209,6 @@ export default function ProjectBinCard({
 						title={copy.projectBinAddToTimeline}
 						onClick={() => run(() => controller.actions.projectBin.place(clip.id, {
 							...(selectedMediaTrack ? { trackId: selectedMediaTrack.id } : {}),
-							timelineStartFrame: positionFrame,
 						}))}
 					>
 						<Icon name="plus" size={15} />
