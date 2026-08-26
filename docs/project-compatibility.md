@@ -121,31 +121,54 @@ or release qualification.
 
 <!-- policy-narrative:current-local-assistance-transcript-custody -->
 Selected Soundscaper S30 and Framescaper F31 own the closed assistanceAssets
-collection and org.soundscaper.capability.assistance-assets. The active desktop
-workflow can accept only a reviewed authenticated speech-recognition result.
-Acceptance revalidates the exact project revision, sequence, selected
+collection and org.soundscaper.capability.assistance-assets. The active
+menu-reached desktop path has four executable closed operations: installed
+catalog-authenticated Parakeet speech recognition, Silero voice-activity
+detection, paired Pyannote segmentation plus ERes2Net speaker diarization
+through the authenticated Sherpa helper, and model-free shot detection only
+while main owns a current compatible external FFmpeg/FFprobe admission and the
+fixed scdet canary passes. The remaining eleven closed operations return typed
+unavailable outcomes without substitute models, fabricated output, implicit
+installation, or canonical mutation. Every completed result is semantically
+reviewed before an explicit acceptance can reach ordinary project state.
+Transcript acceptance revalidates the exact project revision, sequence, selected
 occurrence, source digest and range, link membership, and timing authority
 through an AssistanceProposalSession; stages one canonical content-addressed
 transcript-v1 JSON body; and commits its digest-bound reference with a
 deterministic ordinary label track as one undoable project command. A whole
 rerun replaces that owned transcript track and reference instead of merging
-inferred text. A stale fence, reference race, body-publication fault, or
-project-commit failure refuses the edit and rolls back newly owned body
-publication. History, reopen, clone, selected-product storage retention, and
-current-format .scape export/import preserve the strict reference and body;
-.scape authenticates descriptor, size, SHA-256, source binding, sample rate,
-model artifacts, and canonical transcript semantics, and collision import
+inferred text. Voice-activity and diarization acceptance revalidate exact 16 kHz
+reviewed ranges and the same selection fence, then deterministically replace
+only their owned ordinary Silences or anonymous Speakers label track in one
+stale-safe command. Shot acceptance admits one model-free reviewed, ordered
+source-frame/presentation-tick result, rechecks exact source-frame authority,
+and deterministically replaces only its owned in-selection timeline annotations
+as one command. Reviewed English Parakeet transcript cleanup derives bounded
+filler and repetition proposals plus silence proposals only from an optional
+same-fence Silero review; only explicitly selected proposals become one disjoint
+link-aware track-ripple-delete command that expands across authenticated A/V
+link membership, and cleanup publishes no assistance asset. A stale fence,
+owned-state collision, reference race, body-publication fault, or project-commit
+failure refuses the edit; newly owned transcript body publication rolls back on
+failure. History, reopen, clone, selected-product storage retention, and
+current-format .scape export/import preserve the strict transcript reference and
+body; .scape authenticates descriptor, size, SHA-256, source binding, sample
+rate, model artifacts, and canonical transcript semantics, and collision import
 rebinds the source, body, and immutable reference together. AUP4 reports
 transcript and source-binding omission explicitly. Web routes retain and edit
-the resulting ordinary label/project state but run no model inference. A missing
-or corrupt external body cannot become a valid assistance result or archive
-export and grants no inference authority. Only the selected S30 and F31 runtime
-profiles advertise the assistance-asset command; generic V17/V18 and historical
-product profiles do not acquire it. Every non-speech operation still returns its
-typed unavailable result unless its own adapter is implemented and passes the
-same hard licensing, catalog-signature, artifact-integrity, runtime,
-selected-media, and consent gates. Pending manual or owner-lab qualification
-neither disables this bounded implemented path nor relaxes any hard gate.
+the resulting ordinary label, annotation, cleanup, and project state but run no
+model or external-executable inference. A missing or corrupt transcript body
+cannot become a valid assistance result or archive export and grants no
+inference authority. Only the selected S30 and F31 runtime profiles advertise
+the assistance-asset and maintained acceptance commands; generic V17/V18 and
+historical product profiles do not acquire them. Licensing, catalog-signature,
+artifact-integrity, runtime/platform, selected-media, storage-integrity,
+explicit-consent, and external-executable admission gates remain fail closed.
+The catalog's declared EU R2 mirrors still have no recorded real write or remote
+read-back, and missing mirror availability grants no unpinned upstream fallback.
+Pending manual or owner-lab qualification remains documentary, nonblocking,
+unprovisioned, and open; it neither disables these bounded implemented paths nor
+relaxes any hard gate.
 <!-- /policy-narrative:current-local-assistance-transcript-custody -->
 
 ## Framescaper V22–V30 compatibility and custody

@@ -36,6 +36,8 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 	assert.match(capture.summary, /landed proxy target.*claim cleanup.*session-history.*playback.*app-snapshot.*without regenerating.*later project edit/isu);
 	assert.match(capture.summary, /selected F31 capture-derived scheduler.*post-commit generation.*separate from F31's menu-reached general editorial proxy lifecycle.*generation.*adaptive Original\/Proxy\/Auto preview selection.*offline editing.*relink.*regeneration.*cancellation.*atomic cleanup.*Neither route.*memory.*RSS/isu);
 	assert.match(capture.summary, /implementation.*active on F31 web and desktop.*manual qualification.*open.*synthetic media.*packaged no-device smoke.*control-plane/isu);
+	assert.match(capture.summary,
+		/Configured Chromium, Firefox, and WebKit.*eight-case workflow.*synthetic media.*24 configured-engine cases.*neither substitutes for qualification/isu);
 	assert.match(capture.summary, /no aggregate duration.*global byte.*browser heap.*RSS.*quota reservation.*30-minute.*unprovisioned/isu);
 	assertEvidence(capture, [
 		'src/common/editor/controller/framescaper-browser-capture-source.ts',
@@ -92,6 +94,10 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 		'src/framescaper/editor-controller-v18.ts',
 		'src/framescaper/editor-controller-v19.ts',
 		'src/framescaper/editor-controller-v27.ts',
+		'src/framescaper/product-route-v31.ts',
+		'src/framescaper/ui/FramescaperAudioEditorBootstrapV31.tsx',
+		'src/framescaper/editor-controller-v31.ts',
+		'src/framescaper/editor-project-environment-v31.ts',
 		'src/framescaper/product.js',
 		'src/framescaper/editor-project-claim-cleanup-profile.ts',
 		'src/framescaper/editor-project-environment-v19.ts',
@@ -119,6 +125,8 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 		'tests/audio-editor-framescaper-captured-video-proxy-reconciliation.test.ts',
 		'tests/audio-editor-project-services.test.ts',
 		'tests/audio-editor-project-switch-service.test.ts',
+		'tests/audio-editor-framescaper-project-v31.test.ts',
+		'tests/audio-editor-framescaper-v31-product-parity.test.tsx',
 		'tests/browser/framescaper-v19-capture.spec.js',
 		'tests/quality-budget-m8a-capture-collector.test.ts',
 	]);
@@ -148,6 +156,10 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 		'desktop/protocol.js',
 		'electron-builder.config.cjs',
 		'src/framescaper/editor-controller-v27.ts',
+		'src/framescaper/product-route-v31.ts',
+		'src/framescaper/ui/FramescaperAudioEditorBootstrapV31.tsx',
+		'src/framescaper/editor-controller-v31.ts',
+		'src/framescaper/editor-project-environment-v31.ts',
 		'src/framescaper/product.js',
 		'tests/desktop-framescaper-capture-desktop-port.test.ts',
 		'tests/desktop-framescaper-capture-artifact-smoke.test.js',
@@ -157,6 +169,8 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 		'tests/desktop-protocol.test.js',
 		'tests/framescaper-capture-cloudflare-policy.test.js',
 		'tests/audio-editor-framescaper-v27-route.test.tsx',
+		'tests/audio-editor-framescaper-project-v31.test.ts',
+		'tests/audio-editor-framescaper-v31-product-parity.test.tsx',
 	]);
 	assert.match(threatModel, /policy-narrative:framescaper-capture-desktop-consent-authority/u);
 });
@@ -184,6 +198,10 @@ test('capability and roadmap activate F31 while real-device qualification remain
 			'tests/audio-editor-framescaper-capture-ui.test.tsx',
 		],
 		'web-enhanced': [
+			'src/framescaper/product-route-v31.ts',
+			'src/framescaper/ui/FramescaperAudioEditorBootstrapV31.tsx',
+			'src/framescaper/editor-controller-v31.ts',
+			'src/framescaper/editor-project-environment-v31.ts',
 			'src/common/editor/controller/framescaper-browser-capture-source.ts',
 			'src/common/editor/controller/framescaper-capture-app-composition.ts',
 			'src/common/editor/controller/framescaper-capture-canonical-pcm.ts',
@@ -238,6 +256,8 @@ test('capability and roadmap activate F31 while real-device qualification remain
 	assert.match(plan, /crash-safe creation and append protocol landed in commit `917add78`.*framescaper-capture-app-composition\.ts.*capture-spool-append-intent-repository\.ts.*capture-spool-operation-lock\.ts.*capture-rollback-lock\.test\.ts.*capture-terminal-retirement\.test\.ts/isu);
 	assert.match(plan, /Commit `15a50dcb`.*framescaper-capture-stream-timing\.ts.*numeric.*null.*capture-shared-timing\.test\.ts/isu);
 	assert.match(plan, /Commit `70d1192e`.*framescaper-v19-capture\.spec\.js.*eight configured-Chromium.*incomplete-runtime denial.*mixed.*inactive origin.*source-ended recovery.*does not.*qualify.*external/isu);
+	assert.match(plan,
+		/Commits `5ccf6447`, `2c6e2a94`, and `16029166`.*selected F31.*Chromium, Firefox, and WebKit.*eight cases.*24 configured-engine cases.*synthetic.*still unqualified/isu);
 	assert.match(plan, /Milestone 8B MIDI remains independently blocked and is outside this plan/iu);
 	assert.match(plan, /Status:.*Implemented and active on selected F31 standalone web and desktop.*framescaperCapture: true.*Recording Setup.*default-hidden.*View > Panels.*framescaperWebVcr: false.*manual qualification remains open/isu);
 });
