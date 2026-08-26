@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
@@ -47,6 +47,40 @@ test('ZIP source authentication safely extracts UTF-8 vendor paths into the pinn
 		}),
 		/content is invalid/iu,
 	);
+});
+
+test('source authentication works where the temporary directory is reached through a link', async (context) => {
+	// macOS reports a temporary directory under /var, which is a symbolic link to
+	// /private/var. Every path derived from it then fails the canonical-directory
+	// rule the extracted tree is authenticated by, so the macOS codec host build
+	// stopped before it configured anything. Point TMPDIR through a link to
+	// reproduce that shape from any platform.
+	const root = await mkdtemp(join(tmpdir(), 'm5-source-linked-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const real = join(root, 'real-temporary');
+	const linked = join(root, 'linked-temporary');
+	await mkdir(real);
+	await symlink(real, linked);
+
+	const sourceRoot = join(root, 'source');
+	await mkdir(sourceRoot, { recursive: true });
+	await writeFile(join(sourceRoot, 'api.h'), 'authenticated api\n');
+	const expectedTree = collectExtractedSourceTree(sourceRoot);
+	const archive = zipStore({ 'SDK/api.h': Buffer.from('authenticated api\n') });
+
+	const previous = process.env.TMPDIR;
+	process.env.TMPDIR = linked;
+	context.after(() => {
+		if (previous === undefined) delete process.env.TMPDIR;
+		else process.env.TMPDIR = previous;
+	});
+	assert.equal(tmpdir(), linked, 'the fixture must actually move the temporary directory');
+
+	const audit = authenticateMilestone5SourceArchiveExtraction({
+		archiveBytes: archive, archiveName: 'SDK-fixture.zip', expectedTree,
+	});
+	assert.equal(audit.fileCount, 1);
+	assert.equal(audit.sha256, expectedTree.sha256);
 });
 
 test('ZIP source authentication rejects traversal before writing archive entries', async (context) => {

@@ -39,7 +39,10 @@ export function authenticateMilestone5SourceArchiveExtraction({
 	// between archive hashing, inventory, and extraction.
 	const archiveBytes = Buffer.from(archiveBytesValue);
 	const archiveSha256 = createHash('sha256').update(archiveBytes).digest('hex');
-	const temporary = mkdtempSync(resolve(tmpdir(), 'm5-source-archive-'));
+	// Resolved once: macOS reports a temporary directory under /var, which is a
+	// symbolic link to /private/var, and every path derived from it would then
+	// fail the canonical-directory rule the extracted tree is authenticated by.
+	const temporary = realpathSync(mkdtempSync(resolve(tmpdir(), 'm5-source-archive-')));
 	try {
 		const archivePath = resolve(temporary, archiveName);
 		writeFileSync(archivePath, archiveBytes, { flag: 'wx', mode: 0o400 });
