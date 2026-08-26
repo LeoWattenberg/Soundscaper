@@ -61,15 +61,20 @@ export default function VideoRetimeDialog({
 	const [status, setStatus] = useState('');
 	const [error, setError] = useState('');
 
+	// The ramp start is the only field the direction decides. Resetting the freeze
+	// frame with it discarded an entry from the separate Freeze frame fieldset
+	// that the direction has nothing to do with.
 	useEffect(() => {
-		const first = String(model.bounds?.sourceFirstFrame ?? 0);
-		setFreezeFrame(first);
 		setSourceStartFrame(direction === 'forward'
-			? first
+			? String(model.bounds?.sourceFirstFrame ?? 0)
 			: String(model.bounds?.sourceLastFrame ?? 0));
+	}, [direction, model.bounds?.sourceFirstFrame, model.bounds?.sourceLastFrame]);
+
+	useEffect(() => {
+		setFreezeFrame(String(model.bounds?.sourceFirstFrame ?? 0));
 		setStatus('');
 		setError('');
-	}, [direction, model.clipId, model.bounds?.sourceFirstFrame, model.bounds?.sourceLastFrame]);
+	}, [model.clipId, model.bounds?.sourceFirstFrame]);
 	useEffect(() => {
 		setExactMapText(exactMapSeed);
 	}, [exactMapSeed]);
