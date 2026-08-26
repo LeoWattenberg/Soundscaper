@@ -125,7 +125,12 @@ export function createSoundscaperProductionApplicationMenuItems(
 			automationTargetAvailable, mode, actions,
 		}));
 	}
-	if (enabled(input.capabilities.audioTrackFreeze) && hasFreezableRealtimeEffects(selectedAudioTrack)) {
+	// A frozen track keeps the submenu even after its rack stops being freezable:
+	// unfreeze, refresh and commit are exactly the operations that matter once the
+	// live effects are gone, and without them a frozen track would go on playing
+	// and exporting a stale render with no way to release it.
+	if (enabled(input.capabilities.audioTrackFreeze)
+		&& (hasFreezableRealtimeEffects(selectedAudioTrack) || hasOwnData(selectedAudioTrack, 'audioFreeze'))) {
 		tracks.push(freezeMenu({
 			copy, exactProject, mutationBlocked: commonMutationBlocked || locked,
 			selectedAudioTrack, trackId,
@@ -237,7 +242,10 @@ function freezeMenu(input: Readonly<{
 		invoke: () => input.trackId === null ? undefined : input.actions.freeze(name, input.trackId),
 	});
 	return branch('soundscaper-freeze', freezeLabel(input.copy, input.status), [
-		operation('soundscaper-freeze-track', input.copy.freezeTrack, 'freeze', !frozen && hasAudio),
+		operation(
+			'soundscaper-freeze-track', input.copy.freezeTrack, 'freeze',
+			!frozen && hasAudio && hasFreezableRealtimeEffects(input.selectedAudioTrack),
+		),
 		operation('soundscaper-refresh-freeze', input.copy.refreshFrozenTrack, 'refresh', frozen),
 		operation('soundscaper-unfreeze-track', input.copy.unfreezeTrack, 'unfreeze', frozen),
 		operation('soundscaper-commit-freeze', input.copy.commitFrozenTrack, 'commit', frozen && input.status === 'fresh'),

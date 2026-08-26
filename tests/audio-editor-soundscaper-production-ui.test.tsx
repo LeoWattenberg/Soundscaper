@@ -140,6 +140,23 @@ test('freeze lifecycle enablement reflects selected-track ownership and freshnes
 		freezeStatus: 'none',
 	}, actions([])).tracks;
 	assert.deepEqual(bypassedRealtimeEffects.map(({ id }) => id), ['soundscaper-automation']);
+
+	// Bypassing the rack of a track that is already frozen must not take away the
+	// operations that release the freeze: the track keeps playing and exporting
+	// its stale render until one of them is used.
+	const frozenWithBypassedRack = createSoundscaperProductionApplicationMenuItems({
+		productId: 'soundscaper', capabilities: CAPABILITIES,
+		project: project(freezeRecord(), ['clip'], [{ enabled: true, bypassed: true }]),
+		selectedTrackId: 'voice', automationMode: 'read', editingBlocked: false,
+		freezeStatus: 'stale', freezeActionsAvailable: true,
+	}, actions([])).tracks;
+	assert.deepEqual(frozenWithBypassedRack.map(({ id }) => id), [
+		'soundscaper-automation', 'soundscaper-freeze',
+	]);
+	assert.deepEqual(
+		frozenWithBypassedRack[1]?.items?.filter(({ disabled }) => !disabled).map(({ id }) => id),
+		['soundscaper-refresh-freeze', 'soundscaper-unfreeze-track'],
+	);
 });
 
 test('the dialog model derives bounded lane, graph, selection, and blocking state', () => {
