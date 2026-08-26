@@ -155,6 +155,13 @@ test('only deterministic shot detection may run without a local model', () => {
 		inputs: [{ ...input('video'), mediaType: 'video/mp4' }],
 		outputs: [output('shot-boundaries')],
 	})).models.length, 0);
+	const accurate = validateAssistanceOperationRequest(request({
+		operation: 'shot-detection',
+		models: [{ ...MODEL, modelId: 'transnetv2' }],
+		inputs: [input('frame-pack')],
+		outputs: [output('shot-boundaries')],
+	}));
+	assert.equal(accurate.inputs[0]?.role, 'frame-pack');
 	assert.throws(
 		() => validateAssistanceOperationRequest(request({ models: [] })),
 		/requires at least one exact model binding/iu,

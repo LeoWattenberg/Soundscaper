@@ -41,7 +41,8 @@ test('runtime-family task routing is closed over the three isolated CPU families
 	assert.equal(runtimeFamilyForAssistanceTask('shot-detection'), 'onnxruntime-node');
 	assert.equal(runtimeFamilyForAssistanceTask('speech-recognition'), 'whisper-cpp');
 	assert.equal(runtimeFamilyForAssistanceTask('editorial-generation'), 'llama-cpp');
-	assert.equal(runtimeFamilyForAssistanceTask('text-embedding'), 'llama-cpp');
+	assert.equal(runtimeFamilyForAssistanceTask('text-embedding'), 'onnxruntime-node',
+		'the retained nomic ONNX model must not be sent to the Qwen-only llama runtime');
 	assert.throws(() => runtimeFamilyForAssistanceTask('voice-activity-detection'),
 		/task|family|unsupported/iu);
 });

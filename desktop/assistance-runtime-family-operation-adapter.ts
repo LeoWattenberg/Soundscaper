@@ -22,7 +22,7 @@ import type { AssistanceRuntimeFamilyId } from './assistance-runtime-family-mani
 
 const ONNX_TASKS = new Set<AssistanceRuntimeFamilyTask>([
 	'word-alignment', 'speech-enhancement', 'source-separation', 'audio-tagging',
-	'beat-tracking', 'image-text-embedding', 'optical-character-recognition',
+	'beat-tracking', 'text-embedding', 'image-text-embedding', 'optical-character-recognition',
 	'shot-detection', 'face-detection', 'object-detection', 'saliency-detection',
 ]);
 const MAXIMUM_SETTINGS_DEPTH = 16;
@@ -68,7 +68,7 @@ export function runtimeFamilyForAssistanceTask(
 	const task = taskValue as AssistanceRuntimeFamilyTask;
 	if (ONNX_TASKS.has(task)) return 'onnxruntime-node';
 	if (task === 'speech-recognition') return 'whisper-cpp';
-	if (task === 'editorial-generation' || task === 'text-embedding') return 'llama-cpp';
+	if (task === 'editorial-generation') return 'llama-cpp';
 	throw new RangeError(`${task} is not an additional runtime-family task.`);
 }
 

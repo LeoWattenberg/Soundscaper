@@ -121,7 +121,7 @@ const OPERATION_SPECS = Object.freeze({
 	'text-embedding': spec(['transcript', 'text'], [['transcript', 'text']], ['embeddings']),
 	'image-text-embedding': spec(['frame-pack', 'text'], [['frame-pack', 'text']], ['embeddings']),
 	'optical-character-recognition': spec(['frame-pack'], [['frame-pack']], ['recognized-text']),
-	'shot-detection': spec(['video'], [['video']], ['shot-boundaries']),
+	'shot-detection': spec(['video', 'frame-pack'], [['video', 'frame-pack']], ['shot-boundaries']),
 	'subject-detection': spec(['frame-pack'], [['frame-pack']], ['subject-tracks']),
 	'saliency-detection': spec(['frame-pack'], [['frame-pack']], ['saliency-map']),
 	'editorial-generation': spec(['editorial-context'], [['editorial-context']], ['editorial-proposal']),

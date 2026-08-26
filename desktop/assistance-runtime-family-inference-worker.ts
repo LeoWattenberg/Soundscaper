@@ -19,6 +19,9 @@ import {
 	unavailableAssistanceRuntimeFamilyWorkerAdapter,
 	type AssistanceRuntimeFamilyWorkerJobOptions,
 } from './assistance-runtime-family-worker-entry.ts';
+import {
+	createAssistanceOnnxRuntimeWorkerAdapterV1,
+} from './assistance-onnx-runtime-worker.ts';
 
 export interface AssistanceRuntimeFamilyInferenceWorkerOptions {
 	readonly job: AssistanceRuntimeFamilyAdmittedJob;
@@ -38,6 +41,9 @@ export async function runAssistanceRuntimeFamilyInferenceWorkerV1(
 	const job = validateAdmittedJob(options.job);
 	const request = requestFrom(job);
 	const runJob = options.runJob ?? runAssistanceRuntimeFamilyWorkerJobV1;
+	const execute = options.execute ?? (job.familyId === 'onnxruntime-node'
+		? createAssistanceOnnxRuntimeWorkerAdapterV1()
+		: unavailableAssistanceRuntimeFamilyWorkerAdapter);
 	let sequence = 0;
 	const send = (message: unknown): void => {
 		options.post(validateAssistanceRuntimeFamilyProcessMessageV1(message, request));
@@ -45,7 +51,7 @@ export async function runAssistanceRuntimeFamilyInferenceWorkerV1(
 	try {
 		const result = await runJob({
 			job,
-			execute: options.execute ?? unavailableAssistanceRuntimeFamilyWorkerAdapter,
+			execute,
 			onProgress: (value) => {
 				send({
 					protocolVersion: 1, type: 'progress', jobId: request.jobId,

@@ -10,6 +10,7 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'desktop/assistance-job-protocol.js',
 	'desktop/assistance-llama-cpp-worker.js',
 	'desktop/assistance-main-ipc.js',
+	'desktop/assistance-onnx-runtime-worker.js',
 	'desktop/assistance-operation-contract.js',
 	'desktop/assistance-operation-family-execution.js',
 	'desktop/assistance-operation-main-ipc.js',
