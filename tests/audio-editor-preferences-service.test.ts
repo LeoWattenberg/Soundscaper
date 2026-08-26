@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	createEditorPreferenceActionDelegates,
 	createEditorPreferencesService,
+	type EditorPreferenceActionSource,
 	type EditorPreferencesServiceDependencies,
 } from '../src/common/editor/controller/preferences-service.ts';
 
@@ -379,4 +381,69 @@ test('durable mutations use the required writer without changing best-effort loa
 	assert.deepEqual(calls, ['best-effort']);
 	await assert.rejects(service.setWorkspace('compact'), /required unavailable/u);
 	assert.deepEqual(calls, ['best-effort', 'required']);
+});
+
+test('preference action delegates forward every editor action to its service method', async () => {
+	const calls: Array<readonly unknown[]> = [];
+	const record = (name: string) => (...args: unknown[]) => { calls.push([name, ...args]); return name; };
+	const source: EditorPreferenceActionSource = {
+		setWorkspace: record('setWorkspace'),
+		toggleToolbar: record('toggleToolbar'),
+		moveToolbar: record('moveToolbar'),
+		setToolbarButton: record('setToolbarButton'),
+		togglePanel: record('togglePanel'),
+		setPanel: record('setPanel'),
+		movePanel: record('movePanel'),
+		setShortcut: record('setShortcut'),
+		createWorkspace: record('createWorkspace'),
+		updateWorkspace: record('updateWorkspace'),
+		deleteWorkspace: record('deleteWorkspace'),
+	};
+	const delegates = createEditorPreferenceActionDelegates(source, (prefix) => `${prefix}-1`);
+
+	assert.equal(delegates.setWorkspacePreference('compact'), 'setWorkspace');
+	delegates.toggleToolbarPreference('tools');
+	delegates.moveToolbarPreference('tools', 2);
+	delegates.setToolbarButtonPreference('play', false);
+	delegates.togglePanelPreference('mixer');
+	delegates.setPanelPreference('mixer');
+	delegates.movePanelPreference('mixer', 'left', 1);
+	delegates.setShortcutPreference('play', ['Space']);
+	delegates.createWorkspacePreference('Mine');
+	delegates.updateWorkspacePreference('mine');
+	delegates.deleteWorkspacePreference('mine');
+
+	assert.deepEqual(calls, [
+		['setWorkspace', 'compact'],
+		['toggleToolbar', 'tools'],
+		['moveToolbar', 'tools', 2],
+		['setToolbarButton', 'play', false],
+		['togglePanel', 'mixer'],
+		['setPanel', 'mixer', {}],
+		['movePanel', 'mixer', 'left', 1],
+		['setShortcut', 'play', ['Space']],
+		['createWorkspace', 'Mine', 'workspace-1'],
+		['updateWorkspace', 'mine', {}],
+		['deleteWorkspace', 'mine'],
+	]);
+});
+
+test('preference action delegates keep an explicitly supplied workspace identifier', () => {
+	const created: unknown[] = [];
+	const delegates = createEditorPreferenceActionDelegates({
+		setWorkspace: () => undefined,
+		toggleToolbar: () => undefined,
+		moveToolbar: () => undefined,
+		setToolbarButton: () => undefined,
+		togglePanel: () => undefined,
+		setPanel: () => undefined,
+		movePanel: () => undefined,
+		setShortcut: () => undefined,
+		createWorkspace: (name, workspaceId) => { created.push([name, workspaceId]); },
+		updateWorkspace: () => undefined,
+		deleteWorkspace: () => undefined,
+	}, () => { throw new Error('identifier generation is not expected'); });
+
+	delegates.createWorkspacePreference('Mine', 'workspace-explicit');
+	assert.deepEqual(created, [['Mine', 'workspace-explicit']]);
 });

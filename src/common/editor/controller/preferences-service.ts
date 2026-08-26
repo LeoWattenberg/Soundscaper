@@ -272,3 +272,40 @@ export function createEditorPreferencesService<Preferences extends EditorPrefere
 		return persist(dependencies.deleteWorkspace(dependencies.getPreferences(), workspaceId));
 	}
 }
+
+export interface EditorPreferenceActionSource {
+	readonly setWorkspace: (workspaceId: string) => unknown;
+	readonly toggleToolbar: (toolbarId: string) => unknown;
+	readonly moveToolbar: (toolbarId: string, requestedIndex: unknown) => unknown;
+	readonly setToolbarButton: (buttonId: string, visible: unknown) => unknown;
+	readonly togglePanel: (panelId: string) => unknown;
+	readonly setPanel: (panelId: string, changes?: unknown) => unknown;
+	readonly movePanel: (panelId: string, dock: unknown, requestedIndex: unknown) => unknown;
+	readonly setShortcut: (actionId: string, bindings: unknown) => unknown;
+	readonly createWorkspace: (name: unknown, workspaceId: string) => unknown;
+	readonly updateWorkspace: (workspaceId: string, changes?: unknown) => unknown;
+	readonly deleteWorkspace: (workspaceId: string) => unknown;
+}
+
+/**
+ * Names the preference service surface the way editor actions expose it, so the composition
+ * root binds one delegate factory instead of a wrapper per preference action.
+ */
+export function createEditorPreferenceActionDelegates(
+	preferences: EditorPreferenceActionSource,
+	createId: (prefix: string) => string,
+) {
+	return Object.freeze({
+		setWorkspacePreference: (workspaceId: string) => preferences.setWorkspace(workspaceId),
+		toggleToolbarPreference: (toolbarId: string) => preferences.toggleToolbar(toolbarId),
+		moveToolbarPreference: (toolbarId: string, requestedIndex: unknown) => preferences.moveToolbar(toolbarId, requestedIndex),
+		setToolbarButtonPreference: (buttonId: string, visible: unknown) => preferences.setToolbarButton(buttonId, visible),
+		togglePanelPreference: (panelId: string) => preferences.togglePanel(panelId),
+		setPanelPreference: (panelId: string, changes: unknown = {}) => preferences.setPanel(panelId, changes),
+		movePanelPreference: (panelId: string, dock: unknown, requestedIndex: unknown) => preferences.movePanel(panelId, dock, requestedIndex),
+		setShortcutPreference: (actionId: string, bindings: unknown) => preferences.setShortcut(actionId, bindings),
+		createWorkspacePreference: (name: unknown, workspaceId: string = createId('workspace')) => preferences.createWorkspace(name, workspaceId),
+		updateWorkspacePreference: (workspaceId: string, changes: unknown = {}) => preferences.updateWorkspace(workspaceId, changes),
+		deleteWorkspacePreference: (workspaceId: string) => preferences.deleteWorkspace(workspaceId),
+	});
+}

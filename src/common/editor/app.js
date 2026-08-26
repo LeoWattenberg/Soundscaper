@@ -156,7 +156,10 @@ import { createNyquistHostService } from './controller/nyquist-host-service.ts';
 import { createNyquistGeneratedAudioService } from './controller/nyquist-generated-audio-service.ts';
 import { createDeferredEditorExportService } from './controller/deferred-export-service.ts';
 import { normalizeEditorExportSettings } from './controller/export-settings.ts';
-import { createEditorPreferencesService } from './controller/preferences-service.ts';
+import {
+	createEditorPreferenceActionDelegates,
+	createEditorPreferencesService,
+} from './controller/preferences-service.ts';
 import { createControllerSoundActivationPolicy } from './controller/sound-activation-controller-composition.ts';
 import { createProjectSaveService } from './controller/project-save-service.ts';
 import { createProjectMutationService } from './controller/project-mutation-service.ts';
@@ -595,6 +598,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 		updateWorkspace: updateCustomAudioEditorWorkspace,
 		deleteWorkspace: deleteCustomAudioEditorWorkspace,
 	});
+	const {
+		createWorkspacePreference, deleteWorkspacePreference, movePanelPreference, moveToolbarPreference,
+		setPanelPreference, setShortcutPreference, setToolbarButtonPreference, setWorkspacePreference,
+		togglePanelPreference, toggleToolbarPreference, updateWorkspacePreference,
+	} = createEditorPreferenceActionDelegates(preferencesService, createStableId);
 	const projectSessionService = createProjectSessionService({
 		productId,
 		recentProjectsSettingKey,
@@ -2017,29 +2025,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 	function updatePreferences(patch) { return preferencesService.update(patch); }
 	function revertFactorySettings() { return preferencesService.revertFactorySettings(); }
-	function setWorkspacePreference(workspaceId) { return preferencesService.setWorkspace(workspaceId); }
-	function toggleToolbarPreference(toolbarId) { return preferencesService.toggleToolbar(toolbarId); }
-	function moveToolbarPreference(toolbarId, requestedIndex) { return preferencesService.moveToolbar(toolbarId, requestedIndex); }
-	function setToolbarButtonPreference(buttonId, visible) { return preferencesService.setToolbarButton(buttonId, visible); }
-	function togglePanelPreference(panelId) { return preferencesService.togglePanel(panelId); }
-	function setPanelPreference(panelId, changes = {}) {
-		return preferencesService.setPanel(panelId, changes);
-	}
-	function movePanelPreference(panelId, dock, requestedIndex) {
-		return preferencesService.movePanel(panelId, dock, requestedIndex);
-	}
-	function setShortcutPreference(actionId, bindings) {
-		return preferencesService.setShortcut(actionId, bindings);
-	}
-	function createWorkspacePreference(name, workspaceId = createStableId('workspace')) {
-		return preferencesService.createWorkspace(name, workspaceId);
-	}
-	function updateWorkspacePreference(workspaceId, changes = {}) {
-		return preferencesService.updateWorkspace(workspaceId, changes);
-	}
-	function deleteWorkspacePreference(workspaceId) {
-		return preferencesService.deleteWorkspace(workspaceId);
-	}
 	function sessionTab(projectId) {
 		return projectSessionService.sessionTab(projectId);
 	}
