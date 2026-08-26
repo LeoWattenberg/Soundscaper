@@ -41,6 +41,10 @@ export interface LocalAssistanceGuidedFramescaperAcceptancePorts {
 	readonly acceptHighlightResult?: (
 		request: LocalAssistanceGuidedHighlightAcceptanceRequest,
 	) => Awaitable<void>;
+	readonly retainReframeResult?: (request: Readonly<{
+		readonly workflow: AssistanceWorkflowV1;
+		readonly result: AssistanceOwnedReframePathV1;
+	}>) => Awaitable<void>;
 }
 
 export function reviewLocalAssistanceGuidedFramescaperSemantics(
@@ -90,6 +94,7 @@ export async function publishLocalAssistanceGuidedFramescaperSelection(
 			throw new TypeError('Guided Reframe has no authenticated publication port.');
 		}
 		await dependencies.acceptReframeResult({ fence: workflow.fence, result });
+		await dependencies.retainReframeResult?.({ workflow, result });
 		return;
 	}
 	const result = outputs.get('highlight-proposals')?.semantic as

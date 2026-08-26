@@ -12,11 +12,20 @@ import {
 	reviewAssistanceAudioTagsV1,
 	reviewAssistanceEditorialProposalV1,
 } from './m7-semantic-results.ts';
+import {
+	reviewAssistanceAcceptedReframeDerivativeV1,
+	type AssistanceAcceptedReframeDerivativeV1,
+} from './reframe-derivative-v1.ts';
 import type {
 	AssistanceOwnedHighlightCandidatesV1,
 	AssistanceOwnedHighlightProposalsV1,
 	AssistanceOwnedHighlightSignalsV1,
 } from './owned-video-highlight-transform-types-v1.ts';
+import {
+	assertOwnedHighlightCropAspectV1,
+	assertOwnedHighlightReframeVideoAuthorityV1,
+	createOwnedHighlightCropKeyframesV1,
+} from './owned-highlight-crop-evidence-v1.ts';
 import {
 	dimensions,
 	reviewOwnedHighlightCandidatesV1,
@@ -33,7 +42,6 @@ import {
 	ownedUnit,
 	reviewOwnedAssistanceTranscriptV1,
 } from './owned-transform-validation-v1.ts';
-import { planAssistanceReframePathV1 } from './reframe-planner-v1.ts';
 import { reviewAssistanceShotBoundariesV1 } from './shot-boundaries-v1.ts';
 import type { AssistanceWorkflowSettingsV1 } from './workflow-settings-v1.ts';
 
@@ -45,7 +53,7 @@ const GATHER_FIELDS = Object.freeze([
 const VIDEO_FIELDS = Object.freeze([
 	'schemaVersion', 'kind', 'sourceId', 'sampleRate', 'timescale', 'sourceSize',
 	'videoOccurrenceId', 'audioOccurrenceId', 'selectionStartFrame', 'selectionEndFrame',
-	'sourceTimeAuthority', 'windows',
+	'reframeEvidence', 'sourceTimeAuthority', 'windows',
 ] as const);
 const TIME_FIELDS = Object.freeze(['sourceFrame', 'presentationTick', 'timelineFrame'] as const);
 const WINDOW_FIELDS = Object.freeze([
@@ -95,13 +103,14 @@ interface ReviewedVideo {
 	readonly audioOccurrenceId: string | null;
 	readonly selectionStartFrame: number;
 	readonly selectionEndFrame: number;
+	readonly reframeEvidence: AssistanceAcceptedReframeDerivativeV1 | null;
 	readonly authority: readonly TimeAuthority[];
 	readonly windows: readonly VideoWindow[];
 }
 
 export function gatherOwnedHighlightSignalsV1(
 	inputsValue: unknown,
-	_settings: Settings,
+	settings: Settings,
 ): AssistanceOwnedHighlightSignalsV1 {
 	const inputs = ownedExactRecord(inputsValue, GATHER_FIELDS, 'gather-signals inputs');
 	const video = reviewVideo(inputs.video);
@@ -144,6 +153,9 @@ export function gatherOwnedHighlightSignalsV1(
 		const shotStructure = shotAvailable
 			? shotStructureScore(shotEdges, startFrame, endFrame, video.sampleRate) : 0;
 		const visualInterest = visualAvailable ? window.visualInterest : 0;
+		const cropKeyframes = createOwnedHighlightCropKeyframesV1({ video,
+			sourceStartFrame, sourceEndFrame,
+			targetAspect: { width: settings.targetAspectWidth, height: settings.targetAspectHeight } });
 		return Object.freeze({ id: window.id, startFrame, endFrame,
 			sourceStartFrame, sourceEndFrame, transcriptEvidence, transcriptExcerpt,
 			visualSummary: `Admitted shot-structure score ${shotStructure.toFixed(6)}; authenticated semantic visual-interest score ${visualInterest.toFixed(6)}.`,
@@ -156,7 +168,7 @@ export function gatherOwnedHighlightSignalsV1(
 			shotStructure, visualInterest, speechlessAvailableWeight,
 			duplication: duplication[index] ?? 0,
 			videoOccurrenceId: video.videoOccurrenceId,
-			audioOccurrenceId: video.audioOccurrenceId });
+			audioOccurrenceId: video.audioOccurrenceId, cropKeyframes });
 	});
 	return reviewOwnedHighlightSignalsV1({ schemaVersion: 1, kind: 'highlight-signals',
 		sourceId: video.sourceId, sampleRate: video.sampleRate, sourceSize: video.sourceSize,
@@ -184,9 +196,11 @@ export function rankOwnedHighlightsV1(
 	const byId = new Map(signals.candidates.map((candidate) => [candidate.id, candidate]));
 	const candidates = ranked.map((candidate) => {
 		const source = byId.get(candidate.id)!;
+		assertOwnedHighlightCropAspectV1(source.cropKeyframes, signals.sourceSize,
+			{ width: settings.targetAspectWidth, height: settings.targetAspectHeight });
 		return Object.freeze({ ...candidate, sourceStartFrame: source.sourceStartFrame,
 			sourceEndFrame: source.sourceEndFrame, videoOccurrenceId: source.videoOccurrenceId,
-			audioOccurrenceId: source.audioOccurrenceId,
+			audioOccurrenceId: source.audioOccurrenceId, cropKeyframes: source.cropKeyframes,
 			transcriptExcerpt: source.transcriptExcerpt, visualSummary: source.visualSummary });
 	});
 	return reviewOwnedHighlightCandidatesV1({ schemaVersion: 1, kind: 'highlight-candidates',
@@ -214,17 +228,11 @@ export function assembleOwnedHighlightsV1(
 	const editorialById = new Map(editorial?.candidates.map((candidate) =>
 		[candidate.candidateId, candidate] as const) ?? []);
 	const proposals = ordered.map((candidate, index) => {
-		if (candidate.sourceEndFrame - candidate.sourceStartFrame < 2) {
-			throw new RangeError('A highlight proposal needs two exact source crop anchors.');
-		}
-		const cropKeyframes = planAssistanceReframePathV1({ sourceSize: candidates.sourceSize,
-			targetAspect: candidates.targetAspect, samples: [
-				{ sourceFrame: candidate.sourceStartFrame, subjects: [], saliency: null },
-				{ sourceFrame: candidate.sourceEndFrame - 1, subjects: [], saliency: null },
-			] }).map(({ schemaVersion: _, ...keyframe }) => keyframe);
+		assertOwnedHighlightCropAspectV1(candidate.cropKeyframes,
+			candidates.sourceSize, candidates.targetAspect);
 		const authored = editorialById.get(candidate.id);
-		return Object.freeze({ ...candidate, title: authored?.title ?? `Highlight ${String(index + 1)}`,
-			cropKeyframes: Object.freeze(cropKeyframes) });
+		return Object.freeze({ ...candidate,
+			title: authored?.title ?? `Highlight ${String(index + 1)}` });
 	});
 	return Object.freeze({ schemaVersion: 1, kind: 'highlight-proposals',
 		workflowId: 'make-highlights', targetAspect: Object.freeze({ width: 9, height: 16 }),
@@ -283,12 +291,19 @@ function reviewVideo(value: unknown): ReviewedVideo {
 			shotStructure: ownedUnit(item.shotStructure, `highlight window ${id} shot structure`),
 			visualInterest: ownedUnit(item.visualInterest, `highlight window ${id} visual interest`) });
 	});
-	return Object.freeze({ sourceId: stableId(row.sourceId, 'highlight source ID'), sampleRate,
-		timescale, sourceSize: dimensions(row.sourceSize, 'highlight source size'),
+	const reframeEvidence = row.reframeEvidence === null ? null
+		: reviewAssistanceAcceptedReframeDerivativeV1(row.reframeEvidence);
+	const sourceId = stableId(row.sourceId, 'highlight source ID');
+	const sourceSize = dimensions(row.sourceSize, 'highlight source size');
+	if (reframeEvidence !== null) assertOwnedHighlightReframeVideoAuthorityV1(reframeEvidence, {
+		sourceId, timescale, sourceSize,
+		authority, selectionStartFrame, selectionEndFrame,
+	});
+	return Object.freeze({ sourceId, sampleRate, timescale, sourceSize,
 		videoOccurrenceId: stableId(row.videoOccurrenceId, 'highlight video occurrence'),
 		audioOccurrenceId: row.audioOccurrenceId === null ? null
 			: stableId(row.audioOccurrenceId, 'highlight audio occurrence'),
-		selectionStartFrame, selectionEndFrame, authority: Object.freeze(authority),
+		selectionStartFrame, selectionEndFrame, reframeEvidence, authority: Object.freeze(authority),
 		windows: Object.freeze(windows) });
 }
 

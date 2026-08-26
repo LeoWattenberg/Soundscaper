@@ -100,6 +100,10 @@ export interface LocalAssistanceGuidedPreparationDependencies {
 		projectId: string,
 		signal: AbortSignal,
 	) => PromiseLike<readonly unknown[]> | readonly unknown[];
+	readonly loadReframeDerivatives?: (
+		projectId: string,
+		signal: AbortSignal,
+	) => PromiseLike<readonly unknown[]> | readonly unknown[];
 	readonly selected: SelectedPreparationPort;
 }
 
@@ -148,7 +152,8 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 					describeSelectedVideoSourceTime: dependencies.selected.describeSelectedVideoSourceTime,
 					prepareSelectedMedia: dependencies.selected.prepareSelectedMedia,
 					loadTranscriptBody: dependencies.loadTranscriptBody,
-					loadVisualIndexDerivatives: dependencies.loadVisualIndexDerivatives }) : null;
+					loadVisualIndexDerivatives: dependencies.loadVisualIndexDerivatives,
+					loadReframeDerivatives: dependencies.loadReframeDerivatives }) : null;
 			if (request.workflowId === 'make-highlights' && highlightInputs === null) {
 				throw new UnavailableError('source-custody-unavailable');
 			}
@@ -566,6 +571,8 @@ function assertDependencies(value: LocalAssistanceGuidedPreparationDependencies)
 		|| (value.loadTranscriptBody !== undefined && typeof value.loadTranscriptBody !== 'function')
 		|| (value.loadVisualIndexDerivatives !== undefined
 			&& typeof value.loadVisualIndexDerivatives !== 'function')
+		|| (value.loadReframeDerivatives !== undefined
+			&& typeof value.loadReframeDerivatives !== 'function')
 		|| !value.selected || typeof value.selected.listSelectedMedia !== 'function'
 		|| typeof value.selected.prepareSelectedMedia !== 'function') {
 		throw new TypeError('Guided preparation requires exact project, storage, and media custody ports.');

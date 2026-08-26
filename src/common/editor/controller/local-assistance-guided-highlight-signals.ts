@@ -3,6 +3,10 @@
 /** Project-authoritative, model-free highlight windows and audio dynamics. */
 
 import { reviewAssistanceFloat32MonoWaveV1 } from '../assistance/float32-mono-wave-v1.ts';
+import {
+	reviewAssistanceAcceptedReframeDerivativeV1,
+	type AssistanceAcceptedReframeDerivativeV1,
+} from '../assistance/reframe-derivative-v1.ts';
 import { scaleSampleFrame } from '../timeline-time.ts';
 import {
 	validateAssistanceWorkflowSettingsV1,
@@ -33,6 +37,7 @@ export interface LocalAssistanceGuidedHighlightVideoSignalsV1 {
 	readonly audioOccurrenceId: string | null;
 	readonly selectionStartFrame: number;
 	readonly selectionEndFrame: number;
+	readonly reframeEvidence: AssistanceAcceptedReframeDerivativeV1 | null;
 	readonly sourceTimeAuthority: readonly Readonly<{
 		readonly sourceFrame: number;
 		readonly presentationTick: string;
@@ -60,7 +65,7 @@ const FRAME_FIELDS = Object.freeze(['sourceFrame', 'presentationTick', 'timeline
 const VIDEO_FIELDS = Object.freeze([
 	'schemaVersion', 'kind', 'sourceId', 'sampleRate', 'timescale', 'sourceSize',
 	'videoOccurrenceId', 'audioOccurrenceId', 'selectionStartFrame', 'selectionEndFrame',
-	'sourceTimeAuthority', 'windows',
+	'reframeEvidence', 'sourceTimeAuthority', 'windows',
 ] as const);
 const WINDOW_FIELDS = Object.freeze([
 	'id', 'startFrame', 'endFrame', 'shotStructure', 'visualInterest',
@@ -93,6 +98,7 @@ export function createLocalAssistanceGuidedHighlightVideoSignalsV1(request: Read
 		videoOccurrenceId: authority.videoOccurrenceId, audioOccurrenceId,
 		selectionStartFrame: authority.selectionStartFrame,
 		selectionEndFrame: authority.selectionEndFrame,
+		reframeEvidence: null,
 		sourceTimeAuthority: authority.frames,
 		windows });
 }
@@ -343,6 +349,8 @@ function reviewVideoSignals(value: unknown): LocalAssistanceGuidedHighlightVideo
 			return Object.freeze({ id: stableId(window.id, 'highlight candidate'), startFrame, endFrame,
 				shotStructure: 0 as const, visualInterest: 0 as const });
 		});
+	const reframeEvidence = row.reframeEvidence === null ? null
+		: reviewAssistanceAcceptedReframeDerivativeV1(row.reframeEvidence);
 	return Object.freeze({ schemaVersion: 1, kind: 'highlight-video-signals',
 		sourceId: stableId(row.sourceId, 'highlight source'), sampleRate,
 		timescale: integer(row.timescale, 1, 'highlight source timescale'),
@@ -351,7 +359,7 @@ function reviewVideoSignals(value: unknown): LocalAssistanceGuidedHighlightVideo
 		videoOccurrenceId: stableId(row.videoOccurrenceId, 'highlight video occurrence'),
 		audioOccurrenceId: row.audioOccurrenceId === null ? null
 			: stableId(row.audioOccurrenceId, 'highlight audio occurrence'),
-		selectionStartFrame, selectionEndFrame,
+		selectionStartFrame, selectionEndFrame, reframeEvidence,
 		sourceTimeAuthority: Object.freeze(sourceTimeAuthority), windows: Object.freeze(windows) });
 }
 

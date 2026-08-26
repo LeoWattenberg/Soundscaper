@@ -15,6 +15,9 @@ import {
 	prepareLocalAssistanceGuidedHighlightVisualEvidenceV1,
 } from './local-assistance-guided-highlight-visual-evidence.ts';
 import {
+	prepareLocalAssistanceGuidedHighlightReframeEvidenceV1,
+} from './local-assistance-guided-reframe-derivative.ts';
+import {
 	prepareLocalAssistanceGuidedTranscriptInput,
 	type LocalAssistanceGuidedExternalInput,
 	type LocalAssistanceGuidedPrimitiveFence,
@@ -61,6 +64,10 @@ export interface LocalAssistanceGuidedHighlightPreparationRequestV1 {
 		projectId: string,
 		signal: AbortSignal,
 	) => PromiseLike<readonly unknown[]> | readonly unknown[];
+	readonly loadReframeDerivatives?: (
+		projectId: string,
+		signal: AbortSignal,
+	) => PromiseLike<readonly unknown[]> | readonly unknown[];
 }
 
 export interface LocalAssistanceGuidedHighlightPreparedInputsV1 {
@@ -103,7 +110,16 @@ export async function prepareLocalAssistanceGuidedHighlightInputsV1(
 			video: initialVideoSignals, fence: videoFence, records: visualRecords,
 			signal: request.signal,
 		});
-	const videoSignals = visual?.video ?? initialVideoSignals;
+	const reframeRecords = request.loadReframeDerivatives === undefined ? null
+		: await request.loadReframeDerivatives(videoFence.projectId, request.signal);
+	request.signal.throwIfAborted();
+	const reframeEvidence = reframeRecords === null ? null
+		: prepareLocalAssistanceGuidedHighlightReframeEvidenceV1({
+			video: visual?.video ?? initialVideoSignals, fence: videoFence,
+			records: reframeRecords, signal: request.signal,
+		});
+	const videoSignals = Object.freeze({ ...(visual?.video ?? initialVideoSignals),
+		reframeEvidence });
 	const embeddings = visual === null ? null : Object.freeze({
 		mediaType: EMBEDDING_MATRIX_MEDIA_TYPE,
 		bytes: new Blob([visual.embeddings], { type: EMBEDDING_MATRIX_MEDIA_TYPE }),

@@ -502,7 +502,7 @@ function highlightVideoSignals() {
 	return { schemaVersion: 1, kind: 'highlight-video-signals', sourceId: 'video-source',
 		sampleRate: 1_000, timescale: 1, sourceSize: { width: 1_920, height: 1_080 },
 		videoOccurrenceId: 'video-occurrence', audioOccurrenceId: 'audio-occurrence',
-		selectionStartFrame: 0, selectionEndFrame: 40_000,
+		selectionStartFrame: 0, selectionEndFrame: 40_000, reframeEvidence: null,
 		sourceTimeAuthority: [0, 20, 40].map((sourceFrame) => ({ sourceFrame,
 			presentationTick: String(sourceFrame), timelineFrame: sourceFrame * 1_000 })),
 		windows: [{ id: 'highlight-a', startFrame: 0, endFrame: 40_000,

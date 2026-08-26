@@ -29,6 +29,9 @@ import {
 	retainLocalAssistanceGuidedReactionScores,
 } from './local-assistance-guided-reaction-derivative.ts';
 import {
+	retainLocalAssistanceGuidedAcceptedReframePathV1,
+} from './local-assistance-guided-reframe-derivative.ts';
+import {
 	acknowledgeLocalAssistanceGuidedEditorialSelection,
 } from './local-assistance-guided-editorial-acceptance.ts';
 import { validateAssistanceWorkflow } from '../assistance/workflow.ts';
@@ -87,6 +90,24 @@ export function createLocalAssistancePreparationRuntime(
 				acceptFramescaperReframe(request),
 			acceptHighlightResult: (request: LocalAssistanceGuidedHighlightAcceptanceRequest) =>
 				acceptFramescaperHighlights(request),
+			...(dependencies.assistanceDerivativeRepository ? {
+				retainReframeResult: async ({ workflow, result }: Readonly<{
+					workflow: unknown; result: unknown;
+				}>) => {
+					try {
+						await retainLocalAssistanceGuidedAcceptedReframePathV1({ workflow, result,
+							repository: dependencies.assistanceDerivativeRepository!,
+							currentProject: () => {
+								const project = dependencies.getProject() as
+									Readonly<Record<string, unknown>>;
+								return { projectId: project.id, projectRevision: project.revision };
+							},
+						});
+					} catch {
+						// Disposable crop evidence cannot turn an already committed edit into failure.
+					}
+				},
+			} : {}),
 		} : {}),
 	}) : null;
 	const selectedPreparation = createLocalAssistanceSelectedPreparation({
@@ -109,6 +130,14 @@ export function createLocalAssistancePreparationRuntime(
 				signal.throwIfAborted();
 				const records = await dependencies.assistanceDerivativeRepository!.listProject(
 					projectId, ['visual-index'],
+				);
+				signal.throwIfAborted();
+				return records;
+			},
+			loadReframeDerivatives: async (projectId: string, signal: AbortSignal) => {
+				signal.throwIfAborted();
+				const records = await dependencies.assistanceDerivativeRepository!.listProject(
+					projectId, ['reframe-path'],
 				);
 				signal.throwIfAborted();
 				return records;

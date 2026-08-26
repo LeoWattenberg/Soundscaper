@@ -56,6 +56,7 @@ const SIGNAL_FIELDS = Object.freeze([
 	'hook', 'conversationalStructure', 'excitement',
 	'energyDynamics', 'semanticSelfContainedness', 'shotStructure', 'visualInterest',
 	'speechlessAvailableWeight', 'duplication', 'videoOccurrenceId', 'audioOccurrenceId',
+	'cropKeyframes',
 ] as const);
 const CANDIDATES_FIELDS = Object.freeze([
 	'schemaVersion', 'kind', 'sourceId', 'sampleRate', 'sourceSize', 'targetAspect', 'candidates',
@@ -63,12 +64,12 @@ const CANDIDATES_FIELDS = Object.freeze([
 const RANKED_FIELDS = Object.freeze([
 	'id', 'startFrame', 'endFrame', 'sourceStartFrame', 'sourceEndFrame', 'score',
 	'evidenceMode', 'transcriptExcerpt', 'visualSummary', 'selected',
-	'videoOccurrenceId', 'audioOccurrenceId',
+	'videoOccurrenceId', 'audioOccurrenceId', 'cropKeyframes',
 ] as const);
 const PROPOSALS_FIELDS = Object.freeze([
 	'schemaVersion', 'kind', 'workflowId', 'targetAspect', 'proposals',
 ] as const);
-const PROPOSAL_FIELDS = Object.freeze([...RANKED_FIELDS, 'title', 'cropKeyframes'] as const);
+const PROPOSAL_FIELDS = Object.freeze([...RANKED_FIELDS, 'title'] as const);
 const CROP_KEYFRAME_FIELDS = Object.freeze(['sourceFrame', 'authority', 'trackIds', 'crop'] as const);
 const CROP_FIELDS = Object.freeze(['left', 'top', 'right', 'bottom'] as const);
 const ANCHORS = new Set<unknown>([
@@ -234,7 +235,8 @@ export function reviewOwnedHighlightSignalsV1(value: unknown): AssistanceOwnedHi
 			duplication: ownedUnit(item.duplication, `${label} duplication`),
 			videoOccurrenceId: stableId(item.videoOccurrenceId, `${label} video occurrence`),
 			audioOccurrenceId: nullableStableId(item.audioOccurrenceId,
-				`${label} audio occurrence`) });
+				`${label} audio occurrence`),
+			cropKeyframes: reviewCropKeyframes(item.cropKeyframes, range, label) });
 	});
 	return Object.freeze({ schemaVersion: 1, kind: 'highlight-signals',
 		sourceId: stableId(row.sourceId, 'highlight source ID'),
@@ -277,28 +279,7 @@ export function reviewOwnedHighlightProposalsV1(value: unknown): AssistanceOwned
 			if (title !== title.trim() || INVALID_TITLE.test(title)) {
 				throw new TypeError(`${label} title must be inert, non-executable plain text.`);
 			}
-			let priorFrame = -1;
-			const cropKeyframes = ownedArray(item.cropKeyframes, 4_096,
-				`${label} crop keyframes`, 2).map((candidateKeyframe, keyframeIndex) => {
-				const keyframe = ownedExactRecord(candidateKeyframe, CROP_KEYFRAME_FIELDS,
-					`${label} crop keyframe ${String(keyframeIndex)}`);
-				const sourceFrame = ownedInteger(keyframe.sourceFrame, 0, Number.MAX_SAFE_INTEGER,
-					`${label} crop source frame`);
-				if (sourceFrame <= priorFrame) throw new RangeError(`${label} crops must be ordered.`);
-				priorFrame = sourceFrame;
-				if (keyframe.authority !== 'subject' && keyframe.authority !== 'saliency'
-					&& keyframe.authority !== 'center') throw new TypeError(`${label} crop authority is invalid.`);
-				const trackIds = ownedArray(keyframe.trackIds, 256, `${label} crop track IDs`)
-					.map((id) => stableId(id, `${label} crop track ID`));
-				if (trackIds.some((id, trackIndex) => trackIndex > 0
-					&& id <= trackIds[trackIndex - 1]!)) throw new TypeError(`${label} crop tracks are invalid.`);
-				if ((keyframe.authority === 'subject') !== (trackIds.length > 0)) {
-					throw new TypeError(`${label} crop subject authority is ambiguous.`);
-				}
-				return Object.freeze({ sourceFrame, authority: keyframe.authority,
-					trackIds: Object.freeze(trackIds), crop: crop(keyframe.crop, label) });
-			});
-			return Object.freeze({ ...base, title, cropKeyframes: Object.freeze(cropKeyframes) });
+			return Object.freeze({ ...base, title });
 		});
 	return Object.freeze({ schemaVersion: 1, kind: 'highlight-proposals',
 		workflowId: 'make-highlights', targetAspect: Object.freeze({ width: 9, height: 16 }),
@@ -352,7 +333,45 @@ function rankedCandidate(
 		evidenceMode: item.evidenceMode, transcriptExcerpt,
 		visualSummary: ownedText(item.visualSummary, 2_048, `${label} visual summary`), selected: false,
 		videoOccurrenceId: stableId(item.videoOccurrenceId, `${label} video occurrence`),
-		audioOccurrenceId: nullableStableId(item.audioOccurrenceId, `${label} audio occurrence`) });
+		audioOccurrenceId: nullableStableId(item.audioOccurrenceId, `${label} audio occurrence`),
+		cropKeyframes: reviewCropKeyframes(item.cropKeyframes, range, label) });
+}
+
+function reviewCropKeyframes(
+	value: unknown,
+	range: Readonly<{ sourceStartFrame: number; sourceEndFrame: number }>,
+	label: string,
+) {
+	let priorFrame = range.sourceStartFrame - 1;
+	const cropKeyframes = ownedArray(value, 4_096, `${label} crop keyframes`, 2)
+		.map((candidate, index) => {
+			const keyframe = ownedExactRecord(candidate, CROP_KEYFRAME_FIELDS,
+				`${label} crop keyframe ${String(index)}`);
+			const sourceFrame = ownedInteger(keyframe.sourceFrame, range.sourceStartFrame,
+				range.sourceEndFrame - 1, `${label} crop source frame`);
+			if (sourceFrame <= priorFrame) throw new RangeError(`${label} crops must be ordered.`);
+			priorFrame = sourceFrame;
+			if (keyframe.authority !== 'subject' && keyframe.authority !== 'saliency'
+				&& keyframe.authority !== 'center') {
+				throw new TypeError(`${label} crop authority is invalid.`);
+			}
+			const trackIds = ownedArray(keyframe.trackIds, 256, `${label} crop track IDs`)
+				.map((id) => stableId(id, `${label} crop track ID`));
+			if (trackIds.some((id, trackIndex) => trackIndex > 0
+				&& id <= trackIds[trackIndex - 1]!)) {
+				throw new TypeError(`${label} crop tracks are invalid.`);
+			}
+			if ((keyframe.authority === 'subject') !== (trackIds.length > 0)) {
+				throw new TypeError(`${label} crop subject authority is ambiguous.`);
+			}
+			return Object.freeze({ sourceFrame, authority: keyframe.authority,
+				trackIds: Object.freeze(trackIds), crop: crop(keyframe.crop, label) });
+		});
+	if (cropKeyframes[0]!.sourceFrame !== range.sourceStartFrame
+		|| cropKeyframes.at(-1)!.sourceFrame !== range.sourceEndFrame - 1) {
+		throw new RangeError(`${label} crops must bind both exact proposal boundaries.`);
+	}
+	return Object.freeze(cropKeyframes);
 }
 
 function nullableStableId(value: unknown, label: string): string | null {

@@ -411,6 +411,7 @@ function highlightInputs() {
 			sourceSize: { width: 1_920, height: 1_080 },
 			videoOccurrenceId: 'video-occurrence', audioOccurrenceId: 'audio-occurrence',
 			selectionStartFrame: 0, selectionEndFrame: 180_000,
+			reframeEvidence: null,
 			sourceTimeAuthority: timing,
 			windows: [
 				{ id: 'a', startFrame: 14_000, endFrame: 61_000,

@@ -22,6 +22,7 @@ test('guided highlights create deterministic bounded windows from exact forward 
 		sampleRate: 1_000, timescale: 1_000, sourceSize: { width: 1_920, height: 1_080 },
 		videoOccurrenceId: 'video-occurrence', audioOccurrenceId: 'audio-occurrence',
 		selectionStartFrame: 10_000, selectionEndFrame: 40_000,
+		reframeEvidence: null,
 		sourceTimeAuthority: [
 			{ sourceFrame: 10, presentationTick: '100', timelineFrame: 10_000 },
 			{ sourceFrame: 25, presentationTick: '850', timelineFrame: 25_000 },

@@ -124,6 +124,7 @@ export interface AssistanceOwnedHighlightSignalCandidateV1 {
 	readonly duplication: number;
 	readonly videoOccurrenceId: string;
 	readonly audioOccurrenceId: string | null;
+	readonly cropKeyframes: readonly AssistanceOwnedHighlightCropKeyframeV1[];
 }
 
 export interface AssistanceOwnedHighlightSignalsV1 {
@@ -148,6 +149,7 @@ export interface AssistanceOwnedRankedHighlightCandidateV1 {
 	readonly selected: false;
 	readonly videoOccurrenceId: string;
 	readonly audioOccurrenceId: string | null;
+	readonly cropKeyframes: readonly AssistanceOwnedHighlightCropKeyframeV1[];
 }
 
 export interface AssistanceOwnedHighlightCandidatesV1 {

@@ -99,6 +99,8 @@ const UTF8 = new TextEncoder();
 /**
  * Derive a reusable cache identity. Transport/job IDs and project revision are
  * excluded; exact source/timing/settings/recipe/model authority remains bound.
+ * Accepted Reframe paths additionally bind their publication-base revision so
+ * distinct reviewed user crop edits never collide under one immutable key.
  */
 export function createAssistanceDerivativeIdentityV1(
 	workflowValue: unknown,
@@ -311,6 +313,7 @@ function identityDescriptor(workflow: AssistanceWorkflowV1, kind: AssistanceDeri
 	return {
 		schemaVersion: ASSISTANCE_DERIVATIVE_SCHEMA_VERSION,
 		projectId: fence.projectId,
+		...(kind === 'reframe-path' ? { projectRevision: fence.revision } : {}),
 		projectSchemaVersion: fence.schemaVersion,
 		sequenceId: fence.sequenceId,
 		workflowId: workflow.workflowId,
