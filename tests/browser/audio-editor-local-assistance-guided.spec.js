@@ -10,6 +10,7 @@ import {
 	stubStorageEstimate,
 } from './audio-editor-test-helpers.js';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
+import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 const CFR = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
@@ -17,7 +18,7 @@ const CFR = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
 test.describe('menu-only Guided Local Assistance', () => {
 	registerAudioEditorHooks();
 
-	test('installs separately, cancels preparation, then reviews one consented workflow', async ({ page }) => {
+	test('installs separately, accepts and undoes one workflow, then cancels preparation', async ({ page }) => {
 		test.setTimeout(120_000);
 		await stubStorageEstimate(page, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
 		await installPinnedFfmpegRuntimeRoutes(page);
@@ -36,6 +37,8 @@ test.describe('menu-only Guided Local Assistance', () => {
 		await selectedClip.focus();
 		await page.keyboard.press('Enter');
 		await expect(selectedClip.locator('.clip-display')).toHaveClass(/clip-display--selected/u);
+		const projectId = await editor.getAttribute('data-project-id');
+		expect(projectId).toBeTruthy();
 
 		await expect(page.locator('[data-local-assistance="true"]')).toHaveCount(0);
 		await expect(page.locator('[data-local-model-manager="true"]')).toHaveCount(0);
@@ -111,16 +114,50 @@ test.describe('menu-only Guided Local Assistance', () => {
 		await expect(accept).toBeEnabled();
 		await choice.uncheck();
 		await expect(accept).toBeDisabled();
+		await choice.check();
+		await accept.click();
+		await expect(guided.getByRole('status')).toHaveText('The proposal was accepted.');
+		await assistance.locator('button').filter({ hasText: /^Close$/u }).click();
+		await expect(assistance).toBeHidden();
+
+		await expect.poll(() => storedShotAnnotations(page, projectId), { timeout: 15_000 })
+			.toHaveLength(1);
+		const [acceptedMarker] = await storedShotAnnotations(page, projectId);
+		expect(acceptedMarker).toMatchObject({
+			name: 'Shot 1', kind: 'marker', anchor: 'sample', color: 'orange',
+			ownership: {
+				schemaVersion: 1, operation: 'shot-detection', detector: 'ffmpeg-scdet',
+				timescale: 12_800, sourceFrameCount: 22, sourceStartFrame: 0,
+				sourceEndFrame: 22, sourceFrame: 10, presentationTick: '5120', score: 0.9,
+			},
+		});
+		expect(acceptedMarker.id).toMatch(/^assistance-shot:[a-f\d]{64}:10$/u);
+		expect(acceptedMarker.positionFrame).toBeGreaterThan(0);
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect.poll(() => storedShotAnnotations(page, projectId), { timeout: 15_000 })
+			.toHaveLength(0);
 
 		await page.evaluate(() => { globalThis.__m7AssistanceFixture.stallNextCreate = true; });
-		await workflowSelection.selectOption({ label: 'Clean Filler & Silence' });
-		await workflowSelection.selectOption({ label: 'Mark Cuts' });
-		await guided.getByRole('button', { name: 'Run Guided workflow', exact: true }).click();
+		await selectedClip.focus();
+		await page.keyboard.press('Enter');
+		await chooseCommandAction(page, editor, 'Analyze', 'Local Assistance…');
+		const cancellationDialog = page.getByRole('dialog', {
+			name: 'Local Assistance', exact: true,
+		});
+		const cancellationGuided = cancellationDialog.getByRole('tabpanel', {
+			name: 'Guided', exact: true,
+		});
+		await cancellationGuided.getByRole('combobox', { name: 'Workflow', exact: true })
+			.selectOption({ label: 'Mark Cuts' });
+		await cancellationGuided.getByRole('button', { name: 'Run Guided workflow', exact: true })
+			.click();
 		await expect.poll(() => fixtureSnapshot(page).then(({ createWaits }) => createWaits)).toBe(1);
-		await expect(guided.getByRole('status')).toHaveText('Preparing the aggregate workflow request.');
-		await guided.getByRole('button', { name: 'Cancel', exact: true }).click();
+		await expect(cancellationGuided.getByRole('status'))
+			.toHaveText('Preparing the aggregate workflow request.');
+		await cancellationGuided.getByRole('button', { name: 'Cancel', exact: true }).click();
 		await page.evaluate(() => globalThis.__m7AssistanceFixture.releaseCreate());
-		await expect(guided.getByRole('status')).toHaveText('The local operation was cancelled.');
+		await expect(cancellationGuided.getByRole('status'))
+			.toHaveText('The local operation was cancelled.');
 		await expect.poll(() => fixtureSnapshot(page).then(({ cancelCalls }) => cancelCalls))
 			.toBeGreaterThan(0);
 		expect(consentMessages).toHaveLength(1);
@@ -136,6 +173,36 @@ async function fixtureSnapshot(page) {
 		cancelCalls: globalThis.__m7AssistanceFixture.cancelCalls,
 		progressEvents: globalThis.__m7AssistanceFixture.progressEvents,
 	}));
+}
+
+async function storedShotAnnotations(page, projectId) {
+	return page.evaluate(async ({ databaseName, id }) => {
+		const result = (request) => new Promise((resolve, reject) => {
+			request.onsuccess = () => resolve(request.result);
+			request.onerror = () => reject(request.error);
+		});
+		const database = await result(indexedDB.open(databaseName));
+		try {
+			const project = await result(
+				database.transaction('projects', 'readonly').objectStore('projects').get(id),
+			);
+			return (project?.timelineAnnotations ?? []).filter((annotation) => (
+				annotation.opaqueExtensions?.['org.soundscaper.assistance-shot-boundaries-v1']
+			)).map((annotation) => ({
+				id: annotation.id,
+				name: annotation.name,
+				kind: annotation.kind,
+				anchor: annotation.anchor,
+				color: annotation.color,
+				positionFrame: annotation.positionFrame,
+				ownership: annotation.opaqueExtensions[
+					'org.soundscaper.assistance-shot-boundaries-v1'
+				],
+			}));
+		} finally {
+			database.close();
+		}
+	}, { databaseName: FRAMESCAPER_DATABASE_NAME, id: projectId });
 }
 
 async function installLocalAssistanceFixture(page) {
@@ -243,8 +310,9 @@ async function installLocalAssistanceFixture(page) {
 				const ranges = request.fence.sourceRanges.map((range) => (
 					`${range.sourceId}:${String(range.sourceStartFrame)}-${String(range.sourceEndFrame)}`
 				)).join(', ');
-		const models = request.models.map((model) => `${model.modelId}@${model.version}`).join(', ')
-			|| 'none';
+				const models = request.models.map((model) => (
+					`${model.modelId}@${model.version}`
+				)).join(', ') || 'none';
 				const outputs = request.outputs.map(({ slotId }) => slotId).join(', ');
 				const accepted = globalThis.confirm([
 					'Local Assistance consent',
