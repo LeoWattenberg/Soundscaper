@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import {
+	chmod,
 	lstat,
 	mkdtemp,
 	readFile,
@@ -259,4 +260,27 @@ test('job release aborts active staging, removes all custody atomically, and is 
 		}),
 		/unknown|released|job/iu,
 	);
+});
+
+/**
+ * A release can fail for reasons that pass: on Windows a helper may still hold
+ * the staged file open when the job is cancelled. Caching that rejection would
+ * make the failure permanent — every later release returns the same settled
+ * promise — so the directory could never be reclaimed and the job would count
+ * against the admission bound for the rest of the process.
+ */
+test('a failed job release can be retried rather than cached forever', async (t) => {
+	const { registry, root } = await fixture(t);
+	const jobId = await registry.createJob();
+	const jobPath = join(root, jobId);
+	await lstat(jobPath);
+
+	// Make the first removal fail the way a still-open handle would, by taking
+	// away the parent's write permission.
+	await chmod(root, 0o500);
+	await assert.rejects(registry.releaseJob(jobId));
+	await chmod(root, 0o700);
+
+	assert.equal(await registry.releaseJob(jobId), true, 'the retry reclaims the job');
+	await assert.rejects(lstat(jobPath), /ENOENT/iu);
 });

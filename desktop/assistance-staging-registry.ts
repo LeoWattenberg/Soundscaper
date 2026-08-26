@@ -248,9 +248,18 @@ export class AssistanceStagingRegistry {
 		job.controller.abort(new DOMException('The assistance staging job was released.', 'AbortError'));
 		const operations = [...job.operations];
 		const release = (async (): Promise<boolean> => {
-			await Promise.allSettled(operations);
-			await this.#assertJobDirectory(job);
-			await rm(job.path, { recursive: true, force: false, maxRetries: 0 });
+			try {
+				await Promise.allSettled(operations);
+				await this.#assertJobDirectory(job);
+				await rm(job.path, { recursive: true, force: false, maxRetries: 0 });
+			} catch (error) {
+				// Caching the rejection would make one failure permanent: every later
+				// release would return the same settled promise, so a directory the
+				// removal could not take on the first attempt — a helper still holding
+				// the staged file — could never be reclaimed.
+				job.releasePromise = null;
+				throw error;
+			}
 			job.claims.clear();
 			this.#jobs.delete(job.jobId);
 			return true;

@@ -240,8 +240,11 @@ export function createAssistanceOperationService(options: AssistanceOperationSer
 		const active = activeRuns.get(jobId);
 		active?.controller.abort(new AssistanceOperationCancelledError(jobId));
 		if (active) await active.quiesced;
-		await options.registry.releaseJob(jobId);
+		// The id is surrendered before the removal is attempted, as the run failure
+		// path does: a release that throws must not leave the job counted against
+		// the admission bound for the rest of the process.
 		jobs.delete(jobId);
+		await options.registry.releaseJob(jobId);
 		return cancellation(jobId, 'cancelled');
 	}
 
@@ -250,8 +253,8 @@ export function createAssistanceOperationService(options: AssistanceOperationSer
 		const active = activeRuns.get(jobId);
 		active?.controller.abort(new AssistanceOperationCancelledError(jobId));
 		if (active) await active.quiesced;
-		await options.registry.releaseJob(jobId);
 		jobs.delete(jobId);
+		await options.registry.releaseJob(jobId);
 		return true;
 	}
 
