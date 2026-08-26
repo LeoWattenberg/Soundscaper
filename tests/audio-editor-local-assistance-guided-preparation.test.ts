@@ -165,7 +165,7 @@ test('reverse, nested, multicamera, live, linked-unverifiable, and stale authori
 	assert.equal(stale.releases, 1);
 });
 
-test('Accurate Mark Cuts never substitutes Fast or drops independently framed packs', async () => {
+test('Accurate Mark Cuts stages its exact frame pack and never substitutes Fast', async () => {
 	const fixture = preparationFixture();
 	const videoProject: FixtureProject = { ...project(),
 		sources: [{ id: 'video-source', kind: 'video', contentSha256: SOURCE_SHA256 }],
@@ -209,9 +209,14 @@ test('Accurate Mark Cuts never substitutes Fast or drops independently framed pa
 		workflowId: 'mark-cuts', settings: { settingsVersion: 1, workflowId: 'mark-cuts',
 			mode: 'accurate' }, models: [model('transnetv2', '2.0.0', 'shot-detection', 9)],
 		custody: fixture.custody, signal: new AbortController().signal });
-	assert.deepEqual(result, { outcome: 'unavailable', reason: 'aggregate-custody-unavailable' });
+	assert.equal(result.outcome, 'prepared');
+	if (result.outcome !== 'prepared') return;
+	assert.deepEqual(result.workflow.inputs.map(({ stageId, slotId }) => `${stageId}:${slotId}`), [
+		'detect-shots:frame-pack', 'normalize-cuts:shot-boundaries',
+	]);
 	assert.deepEqual(modes, ['accurate']);
-	assert.equal(fixture.custodyEvents.length, 0);
+	assert.equal(fixture.custodyEvents[0]?.kind, 'input');
+	assert.equal(fixture.custodyEvents[0]?.slotId, 'frame-pack');
 });
 
 interface FixtureProject {

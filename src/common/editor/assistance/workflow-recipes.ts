@@ -127,13 +127,15 @@ const GUIDED_GRAPHS = Object.freeze({
 	]),
 	'mark-cuts': graph([
 		stage({ stageId: 'detect-shots', operation: 'shot-detection',
-			inputs: ['video'], outputs: ['shot-boundaries'], optionalModels: ['accurate-shot-detector'] }),
+			inputs: [], optionalInputs: ['video', 'frame-pack'], outputs: ['shot-boundaries'],
+			optionalModels: ['accurate-shot-detector'] }),
 		stage({ stageId: 'normalize-cuts', operation: null, after: ['detect-shots'],
 			inputs: ['shot-boundaries'], outputs: ['cut-proposals'] }),
 	]),
 	'index-video': graph([
 		stage({ stageId: 'detect-shots', operation: 'shot-detection',
-			inputs: ['video'], outputs: ['shot-boundaries'], optionalModels: ['accurate-shot-detector'] }),
+			inputs: [], optionalInputs: ['video', 'frame-pack'], outputs: ['shot-boundaries'],
+			optionalModels: ['accurate-shot-detector'] }),
 		stage({ stageId: 'sample-shot-frames', operation: null, after: ['detect-shots'],
 			inputs: ['video', 'shot-boundaries'], outputs: ['frame-pack'] }),
 		stage({ stageId: 'embed-visuals', operation: 'image-text-embedding', after: ['sample-shot-frames'],

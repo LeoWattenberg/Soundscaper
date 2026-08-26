@@ -160,6 +160,7 @@ export function validateAssistanceWorkflow(value: unknown): AssistanceWorkflowV1
 	assertRequiredClaims(outputs, 'output', selected);
 	const models = validateModels(record.models, selected);
 	assertRequiredModels(models, selected);
+	assertShotModeAuthority(workflowId, settings, inputs, models);
 	if (fence.recipeSha256 !== assistanceWorkflowRecipeSha256V1(
 		workflowId, recipeVersion, stageIds,
 	)) {
@@ -356,6 +357,27 @@ function assertRequiredClaims(
 				throw new TypeError(`The assistance workflow omitted required ${direction} slot ${slot.slotId}.`);
 			}
 		}
+	}
+}
+
+function assertShotModeAuthority(
+	workflowId: AssistanceWorkflowId,
+	settings: AssistanceWorkflowSettingsV1,
+	inputs: readonly AssistanceWorkflowInputClaimV1[],
+	models: readonly AssistanceWorkflowModelBindingV1[],
+): void {
+	const mode = settings.workflowId === 'mark-cuts' ? settings.mode
+		: settings.workflowId === 'index-video' ? settings.shotMode : null;
+	if (mode === null) return;
+	const expectedInput = mode === 'accurate' ? 'frame-pack' : 'video';
+	const shotInputs = inputs.filter(({ stageId }) => stageId === 'detect-shots');
+	if (shotInputs.length !== 1 || shotInputs[0]!.slotId !== expectedInput) {
+		throw new TypeError('The assistance shot input disagrees with its explicit mode.');
+	}
+	const shotModels = models.filter(({ stageId, slotId }) =>
+		stageId === 'detect-shots' && slotId === 'accurate-shot-detector');
+	if (shotModels.length !== (mode === 'accurate' ? 1 : 0)) {
+		throw new TypeError('The assistance shot model disagrees with its explicit mode.');
 	}
 }
 

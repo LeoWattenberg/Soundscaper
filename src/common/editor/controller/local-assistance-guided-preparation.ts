@@ -138,7 +138,8 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 			const producedSlots = new Set<string>();
 			for (const stage of stages) {
 				for (const slot of stage.inputSlots) {
-					if (!slot.required || producedSlots.has(slot.slotId)) continue;
+					const selectedShotInput = stage.operation === 'shot-detection' && slot.slotId === (shotMode(settings) === 'accurate' ? 'frame-pack' : 'video');
+					if ((!slot.required && !selectedShotInput) || producedSlots.has(slot.slotId)) continue;
 					const external = await prepareExternalInput(
 						dependencies, project, inventory, stage, slot.slotId, settings, request.signal,
 					);
@@ -167,7 +168,7 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 						inputs.push(assertHandle(bound, 'input', request.jobId, stage.stageId, slot.slotId));
 						continue;
 					}
-					if (!slot.required) continue;
+					if (!slot.required && !externalByBinding.has(bindingKey(stage.stageId, slot.slotId))) continue;
 					const external = externalByBinding.get(bindingKey(stage.stageId, slot.slotId)) ?? null;
 					if (external === null) throw new UnavailableError(externalReason(slot.slotId));
 					const staged = await request.custody.stageInput({ jobId: request.jobId,
@@ -221,8 +222,8 @@ async function prepareExternalInput(
 	if (slotId === 'transcript') {
 		return prepareTranscriptInput(dependencies, project, inventory, signal);
 	}
-	if (slotId !== 'audio' && slotId !== 'video') return null;
-	const source = inventory.filter(({ mediaKind }) => mediaKind === slotId);
+	if (slotId !== 'audio' && slotId !== 'video' && slotId !== 'frame-pack') return null;
+	const source = inventory.filter(({ mediaKind }) => mediaKind === (slotId === 'frame-pack' ? 'video' : slotId));
 	if (source.length !== 1) return null;
 	const operation = slotId === 'video' ? 'shot-detection' : stage.operation;
 	if (!operation || (slotId === 'audio' && !AUDIO_OPERATIONS.has(operation))) return null;
@@ -231,12 +232,11 @@ async function prepareExternalInput(
 		sourceId: source[0]!.sourceId, operation, ...(mode ? { shotDetectionMode: mode } : {}), signal,
 	});
 	const prepared = primitivePrepared(value, source[0]!.sourceId, operation, mode);
-	const input = prepared.inputs.find((candidate) => candidate.role === slotId);
-	if (!input && slotId === 'video' && mode === 'accurate'
-		&& prepared.inputs.some(({ role }) => role === 'frame-pack')) {
+	const matches = prepared.inputs.filter((candidate) => candidate.role === slotId);
+	if (matches.length !== 1) {
 		throw new UnavailableError('aggregate-custody-unavailable');
 	}
-	if (!input) throw new TypeError('Selected-media preparation omitted its exact aggregate source input.');
+	const input = matches[0]!;
 	return Object.freeze({ mediaType: input.mediaType, bytes: input.bytes, fence: prepared.fence });
 }
 

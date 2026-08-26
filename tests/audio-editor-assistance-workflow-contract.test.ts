@@ -125,6 +125,29 @@ function workflow(overrides: Record<string, unknown> = {}): AssistanceWorkflowV1
 	} as AssistanceWorkflowV1;
 }
 
+function markCutsWorkflow(mode: 'fast' | 'accurate', inputSlot: 'video' | 'frame-pack') {
+	const workflowId = 'mark-cuts' as const;
+	const settings = { settingsVersion: 1 as const, workflowId, mode };
+	const stageIds = ['detect-shots', 'normalize-cuts'];
+	const models = mode === 'accurate' ? [{ bindingVersion: 1 as const,
+		stageId: 'detect-shots', slotId: 'accurate-shot-detector', modelId: 'transnetv2',
+		version: '2.0.0', artifactSha256s: [SHA_D] }] : [];
+	return {
+		contractVersion: 1 as const, jobId: JOB_ID, workflowId,
+		recipeVersion: 1, settingsVersion: 1, settings,
+		fence: fence({ sourceRanges: [{ ...fence().sourceRanges[0],
+			slotId: 'primary-video', mediaKind: 'video', sourceSampleRate: null }],
+			recipeSha256: assistanceWorkflowRecipeSha256V1(workflowId, 1, stageIds),
+			settingsSha256: assistanceWorkflowSettingsSha256V1(settings),
+			modelBindingsSha256: assistanceWorkflowModelBindingsSha256V1(models) }),
+		stageIds, models,
+		inputs: [claim('input', 'detect-shots', inputSlot, 1),
+			claim('input', 'normalize-cuts', 'shot-boundaries', 2)],
+		outputs: [claim('output', 'detect-shots', 'shot-boundaries', 3),
+			claim('output', 'normalize-cuts', 'cut-proposals', 4)],
+	};
+}
+
 test('the aggregate request carries and authenticates one exact per-workflow settings body', () => {
 	const request = workflow();
 	assert.deepEqual(validateAssistanceWorkflow(request).settings,
@@ -205,6 +228,28 @@ test('main can derive an immutable permitted graph without trusting renderer-sup
 			.map(({ slotId }) => slotId),
 		['text-chunks', 'embeddings'],
 	);
+	assert.deepEqual(assistanceWorkflowStageGraph('mark-cuts')[0]?.inputSlots, [
+		{ slotId: 'video', required: false }, { slotId: 'frame-pack', required: false },
+	]);
+});
+
+test('shot workflows admit exactly the input and model selected by their explicit mode', () => {
+	assert.equal(validateAssistanceWorkflow(markCutsWorkflow('fast', 'video')).settings.mode, 'fast');
+	assert.equal(validateAssistanceWorkflow(markCutsWorkflow('accurate', 'frame-pack')).settings.mode,
+		'accurate');
+	assert.throws(() => validateAssistanceWorkflow(markCutsWorkflow('fast', 'frame-pack')),
+		/shot.*input|mode/iu);
+	assert.throws(() => validateAssistanceWorkflow(markCutsWorkflow('accurate', 'video')),
+		/shot.*input|mode/iu);
+	const both = markCutsWorkflow('accurate', 'frame-pack');
+	assert.throws(() => validateAssistanceWorkflow({ ...both,
+		inputs: [claim('input', 'detect-shots', 'video', 9), ...both.inputs] }),
+		/shot.*input|mode/iu);
+	const missingModel = markCutsWorkflow('accurate', 'frame-pack');
+	assert.throws(() => validateAssistanceWorkflow({ ...missingModel, models: [],
+		fence: { ...missingModel.fence,
+			modelBindingsSha256: assistanceWorkflowModelBindingsSha256V1([]) } }),
+		/shot.*model|mode/iu);
 });
 
 test('a workflow admits exact stages, slotted claims, model bindings, and aggregate fence', () => {
