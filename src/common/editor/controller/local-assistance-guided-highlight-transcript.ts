@@ -106,8 +106,8 @@ function scores(
 	transcriptRate: number,
 	video: LocalAssistanceGuidedHighlightVideoSignalsV1,
 ) {
-	const firstStart = timelineFrame(segments[0]!.startFrame, transcriptRate, video, 'enclosingStart');
-	const lastEnd = timelineFrame(segments.at(-1)!.endFrame, transcriptRate, video, 'enclosingEnd');
+	const firstStart = timelineStartFrame(segments[0]!.startFrame, transcriptRate, video);
+	const lastEnd = timelineEndFrame(segments.at(-1)!.endFrame, transcriptRate, video);
 	const duration = windowEnd - windowStart;
 	const words = segments.reduce((count, { text }) => count
 		+ text.trim().split(/\s+/u).filter(Boolean).length, 0);
@@ -130,19 +130,35 @@ function overlapsWindow(
 	transcriptRate: number,
 	video: LocalAssistanceGuidedHighlightVideoSignalsV1,
 ): boolean {
-	const start = timelineFrame(segment.startFrame, transcriptRate, video, 'enclosingStart');
-	const end = timelineFrame(segment.endFrame, transcriptRate, video, 'enclosingEnd');
+	const start = timelineStartFrame(segment.startFrame, transcriptRate, video);
+	const end = timelineEndFrame(segment.endFrame, transcriptRate, video);
 	return Math.max(start, windowStart) < Math.min(end, windowEnd);
 }
 
-function timelineFrame(
+// The two rounding policies stay literal at their call sites: the shared timeline
+// conversion audit classifies every helper call by the policy it names, and a policy
+// threaded through a parameter cannot be classified at all.
+function timelineStartFrame(
 	frame: number,
 	transcriptRate: number,
 	video: LocalAssistanceGuidedHighlightVideoSignalsV1,
-	mode: 'enclosingStart' | 'enclosingEnd',
 ): number {
-	const relative = Number(scaleSampleFrame(frame, transcriptRate, video.sampleRate, mode));
-	const result = video.selectionStartFrame + relative;
+	return timelineFrame(scaleSampleFrame(frame, transcriptRate, video.sampleRate, 'enclosingStart'), video);
+}
+
+function timelineEndFrame(
+	frame: number,
+	transcriptRate: number,
+	video: LocalAssistanceGuidedHighlightVideoSignalsV1,
+): number {
+	return timelineFrame(scaleSampleFrame(frame, transcriptRate, video.sampleRate, 'enclosingEnd'), video);
+}
+
+function timelineFrame(
+	relative: bigint | number,
+	video: LocalAssistanceGuidedHighlightVideoSignalsV1,
+): number {
+	const result = video.selectionStartFrame + Number(relative);
 	if (!Number.isSafeInteger(result)) throw new RangeError('Highlight transcript timing overflowed.');
 	return result;
 }

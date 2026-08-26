@@ -2,6 +2,7 @@
 
 import type { TimeRoundingPolicy } from './timeline-time.ts';
 import { FOUNDATION_RATE_CONVERSION_AUDIT_SITES } from './foundation-rate-conversion-audit-sites.ts';
+import { FOUNDATION_TIME_CONVERSION_ASSISTANCE_SITES } from './foundation-time-conversion-audit-assistance.ts';
 
 export type FoundationTimeConversionPolicy = TimeRoundingPolicy | 'exact';
 
@@ -38,7 +39,13 @@ export interface FoundationTimeConversionSite {
  * match here. Pixel, FFT, byte-size, and PCM-quantization rounding is outside
  * this deliberately narrow inventory.
  */
-export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversionSite[] = deepFreeze([
+const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversionSite[] = deepFreeze([
+	{
+		id: 'audacity-live-capability-windows',
+		file: 'src/common/editor/audacity-effects/live-capabilities.js',
+		behavior: 'Declared fade and pause windows resolve their seconds as nearest sample instants, matching the live effect graph that consumes them.',
+		conversions: [{ helper: 'secondsToSampleFrame', policies: ['point'] }],
+	},
 	{
 		id: 'audacity-annotation-import',
 		file: 'src/common/editor/audacity-annotation-interchange.ts',
@@ -242,24 +249,6 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 			{ helper: 'sampleFrameToVideoFrame', policies: ['point'] },
 			{ helper: 'videoFrameRangeToSampleRange', policies: ['point'] },
 		],
-	},
-	{
-		id: 'local-assistance-cleanup-range-conversion',
-		file: 'src/common/editor/controller/local-assistance-cleanup-acceptance.ts',
-		behavior: 'Reviewed voice activity point-resolves the selected source extent at the model rate, then encloses accepted silence strictly inside the speech-free source range before authoring one ripple edit.',
-		conversions: [{ helper: 'scaleSampleFrame', policies: ['point', 'enclosingStart', 'enclosingEnd'] }],
-	},
-	{
-		id: 'local-assistance-range-label-conversion',
-		file: 'src/common/editor/controller/local-assistance-range-label-acceptance.ts',
-		behavior: 'Reviewed voice and speaker ranges point-resolve the selected source extent at the model rate, then outward-enclose each accepted label on the project timeline.',
-		conversions: [{ helper: 'scaleSampleFrame', policies: ['point', 'enclosingStart', 'enclosingEnd'] }],
-	},
-	{
-		id: 'local-assistance-selected-media-conversion',
-		file: 'src/common/editor/controller/local-assistance-selected-media.ts',
-		behavior: 'Selected dry audio resolves its complete project-rate frame count once to the nearest model-rate output length before bounded streaming resampling.',
-		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
 	},
 	{
 		id: 'legacy-recording-count-in',
@@ -561,6 +550,12 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 			{ helper: 'roundRational', policies: ['point'] },
 		],
 	},
+]);
+
+/** Every maintained conversion site: the editor foundation plus the assistance slices. */
+export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversionSite[] = Object.freeze([
+	...FOUNDATION_TIME_CONVERSION_EDITOR_SITES,
+	...FOUNDATION_TIME_CONVERSION_ASSISTANCE_SITES,
 ]);
 
 function deepFreeze<Value>(value: Value): Readonly<Value> {
