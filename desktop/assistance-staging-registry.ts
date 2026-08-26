@@ -36,8 +36,15 @@ import {
 	writeAssistanceStagingBytes,
 	type AssistanceStagingFileIdentity,
 } from './assistance-staging-private-files.ts';
+import {
+	errorCode,
+	limit,
+	opaqueId,
+	sameInputClaim,
+	sameOutputClaim,
+	sameReservation,
+} from './assistance-staging-registry-comparisons.ts';
 
-const OPAQUE_ID = /^[a-f\d]{40}$/u;
 const ZERO_SHA256 = '0'.repeat(64);
 const EMPTY_SHA256 = createHash('sha256').digest('hex');
 const MAXIMUM_ID_ATTEMPTS = 32;
@@ -574,34 +581,4 @@ export class AssistanceStagingRegistry {
 			throw new Error('The assistance job directory changed identity.');
 		}
 	}
-}
-
-function sameInputClaim(left: AssistanceStagedInputClaim, right: AssistanceStagedInputClaim): boolean {
-	return left.claimId === right.claimId && left.jobId === right.jobId && left.role === right.role
-		&& left.mediaType === right.mediaType && left.byteLength === right.byteLength && left.sha256 === right.sha256;
-}
-function sameReservation(left: AssistanceOutputReservation, right: AssistanceOutputReservation): boolean {
-	return left.claimId === right.claimId && left.jobId === right.jobId && left.role === right.role
-		&& left.mediaType === right.mediaType && left.maximumByteLength === right.maximumByteLength;
-}
-function sameOutputClaim(left: AssistanceOutputClaim, right: AssistanceOutputClaim): boolean {
-	return left.claimId === right.claimId && left.jobId === right.jobId && left.role === right.role
-		&& left.mediaType === right.mediaType && left.byteLength === right.byteLength && left.sha256 === right.sha256;
-}
-function opaqueId(value: unknown, label: string): string {
-	if (typeof value !== 'string' || !OPAQUE_ID.test(value)) throw new TypeError(
-		`An assistance ${label} id must be 40 lowercase hexadecimal characters.`,
-	);
-	return value;
-}
-function limit(value: unknown, fallback: number, maximum: number, label: string): number {
-	const selected = value === undefined ? fallback : value;
-	if (!Number.isSafeInteger(selected) || Number(selected) < 1 || Number(selected) > maximum) throw new RangeError(
-		`The ${label} limit is outside its hard bound.`,
-	);
-	return Number(selected);
-}
-function errorCode(error: unknown): string {
-	return typeof error === 'object' && error !== null && 'code' in error
-		? String((error as { code?: unknown }).code) : '';
 }
