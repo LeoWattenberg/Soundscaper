@@ -1,31 +1,41 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { expect, test, toneA } from './audio-editor-test-fixtures.js';
+import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
 	chooseCommandAction,
 	chooseNestedCommandAction,
-	clipByName,
 	collectClientErrors,
-	importFiles,
 	registerAudioEditorHooks,
 	stubStorageEstimate,
 } from './audio-editor-test-helpers.js';
+import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
+import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
+
+const CFR = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
 
 test.describe('menu-only Guided Local Assistance', () => {
 	registerAudioEditorHooks();
 
-	test('keeps menu-only Guided workflows separate from explicit model install', async ({ page }) => {
-		test.setTimeout(30_000);
+	test('installs separately, cancels preparation, then reviews one consented workflow', async ({ page }) => {
+		test.setTimeout(120_000);
 		await stubStorageEstimate(page, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
+		await installPinnedFfmpegRuntimeRoutes(page);
 		await installLocalAssistanceFixture(page);
 		const errors = collectClientErrors(page);
-		const editor = await bootEditor(page, '/embed/en/');
-		await importFiles(editor, [toneA]);
-		const selectedClip = clipByName(editor, toneA.name);
+		const editor = await bootEditor(page, '/framescaper/en/');
+		await editor.locator('[data-import-input]').setInputFiles([CFR.file]);
+		const sourceName = CFR.file.name.replace(/\.[^.]+$/u, '');
+		const addToTimeline = editor.getByRole('button', {
+			name: `Add to timeline: ${sourceName}`, exact: true,
+		});
+		await expect(addToTimeline).toBeVisible({ timeout: 60_000 });
+		await addToTimeline.click();
+		const selectedClip = editor.getByRole('group', { name: /^Video clip:/u }).first();
+		await expect(selectedClip).toBeVisible({ timeout: 30_000 });
 		await selectedClip.focus();
 		await page.keyboard.press('Enter');
-		await expect(selectedClip.locator('.clip-display')).toHaveAttribute('data-selected', 'true');
+		await expect(selectedClip.locator('.clip-display')).toHaveClass(/clip-display--selected/u);
 
 		await expect(page.locator('[data-local-assistance="true"]')).toHaveCount(0);
 		await expect(page.locator('[data-local-model-manager="true"]')).toHaveCount(0);
@@ -39,6 +49,7 @@ test.describe('menu-only Guided Local Assistance', () => {
 			.toHaveAttribute('aria-selected', 'true');
 		await expect.poll(() => fixtureSnapshot(page).then(({ installCalls }) => installCalls)).toBe(0);
 		await assistance.locator('button').filter({ hasText: /^Close$/u }).click();
+		await expect(assistance).toBeHidden();
 
 		await chooseNestedCommandAction(page, editor, 'Tools', ['Local Models', 'Manage Models…']);
 		const manager = page.getByRole('dialog', { name: 'Local Models', exact: true });
@@ -50,16 +61,69 @@ test.describe('menu-only Guided Local Assistance', () => {
 		await expect(model.getByRole('button', { name: 'Remove', exact: true })).toBeVisible();
 		await expect.poll(() => fixtureSnapshot(page).then(({ installCalls }) => installCalls)).toBe(1);
 		await manager.locator('button').filter({ hasText: /^Close$/u }).click();
+		await expect(manager).toBeHidden();
 		await selectedClip.focus();
 		await page.keyboard.press('Enter');
-		await expect(selectedClip.locator('.clip-display')).toHaveAttribute('data-selected', 'true');
+		await expect(selectedClip.locator('.clip-display')).toHaveClass(/clip-display--selected/u);
 
 		await chooseCommandAction(page, editor, 'Analyze', 'Local Assistance…');
 		assistance = page.getByRole('dialog', { name: 'Local Assistance', exact: true });
-		const workflowSelection = assistance.getByRole('tabpanel', { name: 'Guided', exact: true })
-			.getByRole('combobox', { name: 'Workflow', exact: true });
+		const guided = assistance.getByRole('tabpanel', { name: 'Guided', exact: true });
+		const workflowSelection = guided.getByRole('combobox', { name: 'Workflow', exact: true });
 		await expect(workflowSelection).toHaveValue('');
-		await expect(workflowSelection.locator('option', { hasText: 'Enhance Dialogue' })).toHaveCount(1);
+		await expect(workflowSelection.locator('option', { hasText: 'Mark Cuts' })).toHaveCount(1);
+		await workflowSelection.selectOption({ label: 'Mark Cuts' });
+		const fastMode = guided.getByRole('radio', { name: 'Fast · model-free', exact: true });
+		const accurateMode = guided.getByRole('radio', { name: 'Accurate · TransNetV2', exact: true });
+		await expect(fastMode).toBeChecked();
+		await accurateMode.check();
+		await expect(accurateMode).toBeChecked();
+		await fastMode.check();
+		await expect(fastMode).toBeChecked();
+
+		const consentMessages = [];
+		page.on('dialog', async (dialog) => {
+			consentMessages.push(dialog.message());
+			expect(dialog.type()).toBe('confirm');
+			await dialog.accept();
+		});
+		await guided.getByRole('button', { name: 'Run Guided workflow', exact: true }).click();
+		await expect(guided.getByRole('status')).toHaveText('detect-shots · running');
+		await expect.poll(() => fixtureSnapshot(page).then(({ progressEvents }) => progressEvents)).toBe(1);
+		await page.evaluate(() => globalThis.__m7AssistanceFixture.completeRun());
+		await expect(guided.getByRole('status')).toContainText('The Guided workflow completed.');
+
+		expect(consentMessages).toHaveLength(1);
+		expect(consentMessages[0]).toContain('Workflow: mark-cuts');
+		expect(consentMessages[0]).toContain('Stages: detect-shots, normalize-cuts');
+		expect(consentMessages[0]).toContain('Models: none');
+		expect(consentMessages[0]).toContain('Outputs: shot-boundaries, cut-proposals');
+		expect(consentMessages[0]).toMatch(/Selection: .+:[0-9]+-[0-9]+/u);
+
+		await guided.getByRole('button', { name: 'Review result', exact: true }).click();
+		const review = guided.getByRole('region', { name: 'Guided workflow review', exact: true });
+		await expect(review).toBeVisible();
+		const choice = review.getByRole('checkbox', { name: 'Cut 1', exact: true });
+		const accept = guided.getByRole('button', { name: 'Accept selected', exact: true });
+		await expect(choice).not.toBeChecked();
+		await expect(accept).toBeDisabled();
+		await choice.check();
+		await expect(accept).toBeEnabled();
+		await choice.uncheck();
+		await expect(accept).toBeDisabled();
+
+		await page.evaluate(() => { globalThis.__m7AssistanceFixture.stallNextCreate = true; });
+		await workflowSelection.selectOption({ label: 'Clean Filler & Silence' });
+		await workflowSelection.selectOption({ label: 'Mark Cuts' });
+		await guided.getByRole('button', { name: 'Run Guided workflow', exact: true }).click();
+		await expect.poll(() => fixtureSnapshot(page).then(({ createWaits }) => createWaits)).toBe(1);
+		await expect(guided.getByRole('status')).toHaveText('Preparing the aggregate workflow request.');
+		await guided.getByRole('button', { name: 'Cancel', exact: true }).click();
+		await page.evaluate(() => globalThis.__m7AssistanceFixture.releaseCreate());
+		await expect(guided.getByRole('status')).toHaveText('The local operation was cancelled.');
+		await expect.poll(() => fixtureSnapshot(page).then(({ cancelCalls }) => cancelCalls))
+			.toBeGreaterThan(0);
+		expect(consentMessages).toHaveLength(1);
 		await expect.poll(() => fixtureSnapshot(page).then(({ installCalls }) => installCalls)).toBe(1);
 		expect(errors).toEqual([]);
 	});
@@ -68,6 +132,9 @@ test.describe('menu-only Guided Local Assistance', () => {
 async function fixtureSnapshot(page) {
 	return page.evaluate(() => ({
 		installCalls: globalThis.__m7AssistanceFixture.installCalls,
+		createWaits: globalThis.__m7AssistanceFixture.createWaits,
+		cancelCalls: globalThis.__m7AssistanceFixture.cancelCalls,
+		progressEvents: globalThis.__m7AssistanceFixture.progressEvents,
 	}));
 }
 
@@ -79,10 +146,10 @@ async function installLocalAssistanceFixture(page) {
 			createWaits: 0,
 			cancelCalls: 0,
 			progressEvents: 0,
-			stallNextCreate: true,
+			stallNextCreate: false,
 			releaseCreate: () => undefined,
 			completeRun: () => undefined,
-			latestAudio: null,
+			latestInput: null,
 			id: 1,
 		};
 		const workflowListeners = new Set();
@@ -144,7 +211,7 @@ async function installLocalAssistanceFixture(page) {
 		};
 		const custody = Object.freeze({
 			stageInput: async (request) => {
-				state.latestAudio = request.bytes.slice(0, request.bytes.size, request.mediaType);
+				state.latestInput = request.bytes.slice(0, request.bytes.size, request.mediaType);
 				return inputHandle(request);
 			},
 			reserveOutput: async (request) => outputHandle(request),
@@ -176,7 +243,8 @@ async function installLocalAssistanceFixture(page) {
 				const ranges = request.fence.sourceRanges.map((range) => (
 					`${range.sourceId}:${String(range.sourceStartFrame)}-${String(range.sourceEndFrame)}`
 				)).join(', ');
-				const models = request.models.map((model) => `${model.modelId}@${model.version}`).join(', ');
+		const models = request.models.map((model) => `${model.modelId}@${model.version}`).join(', ')
+			|| 'none';
 				const outputs = request.outputs.map(({ slotId }) => slotId).join(', ');
 				const accepted = globalThis.confirm([
 					'Local Assistance consent',
@@ -212,10 +280,26 @@ async function installLocalAssistanceFixture(page) {
 				return Object.freeze({ contractVersion: 1, jobId, outcome: 'cancelled' });
 			},
 			readOutput: async ({ claim }) => {
-				if (!outputReservations.has(claim.claimId) || !(state.latestAudio instanceof Blob)) {
+				if (!outputReservations.has(claim.claimId) || !(state.latestInput instanceof Blob)) {
 					throw new Error('Fixture output custody is unavailable.');
 				}
-				return state.latestAudio.slice(0, state.latestAudio.size, 'audio/wav');
+				const semantic = claim.slotId === 'cut-proposals' ? {
+					schemaVersion: 1,
+					kind: 'cut-proposals',
+					mode: 'fast',
+					detector: 'ffmpeg-scdet',
+					timescale: 12_800,
+					sourceFrameCount: 22,
+					proposals: [{ id: 'cut:10:5120', sourceFrame: 10,
+						presentationTick: '5120', score: 0.9, selected: false }],
+				} : {
+					schemaVersion: 1,
+					detector: 'ffmpeg-scdet',
+					timescale: 12_800,
+					sourceFrameCount: 22,
+					boundaries: [{ sourceFrame: 10, presentationTick: '5120', score: 0.9 }],
+				};
+				return new Blob([JSON.stringify(semantic)], { type: 'application/json' });
 			},
 			onProgress: (listener) => {
 				workflowListeners.add(listener);
@@ -245,6 +329,16 @@ async function installLocalAssistanceFixture(page) {
 			onOpenProject: () => () => undefined,
 			onCloseRequested: () => () => undefined,
 			onWindowStateChanged: () => () => undefined,
+			readNativeTierControls: async () => Object.freeze({
+				probeHelperEnabled: false,
+				probeHelperQuarantined: false,
+				audioHelperEnabled: false,
+				audioHelperQuarantined: false,
+				nativeEffectDiscoveryEnabled: false,
+			}),
+			applyNativeTierControl: async () => {
+				throw new Error('The Local Assistance fixture does not mutate native-tier controls.');
+			},
 			listAssistanceModels: async () => Object.freeze({ runtimeAvailable: true,
 				runtimeReason: null, models: Object.freeze([managerModel()]) }),
 			installAssistanceModel: async () => {
