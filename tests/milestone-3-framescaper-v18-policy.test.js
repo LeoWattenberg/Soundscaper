@@ -109,13 +109,14 @@ test('production capability and security registers select F31 over its executabl
 	}
 });
 
-test('milestone narratives report local V27 activation without closing external qualification', async () => {
+test('milestone narratives report selected F31 inheritance without closing external qualification', async () => {
 	const roadmap = await text('roadmap.md');
 	assert.match(roadmap, /Milestone 3.*Status:.*In progress/isu);
-	assert.match(roadmap, /Selected V27.*set\/reset.*constant.*ramp.*reverse.*freeze.*Edit menu/isu);
+	assert.match(roadmap,
+		/Selected F31.*immutable exact V28.*V27-forwarded V20.*set\/reset.*constant.*ramp.*reverse.*freeze.*Edit menu/isu);
 	assert.match(roadmap, /exact ordinal authority.*preview.*browser export.*NTSC.*verified VFR/isu);
 	assert.match(roadmap, /proxy\s+lifecycle.*generation, attach, detach, relink.*Original\/Proxy\/Auto.*offline editing.*atomic cleanup/isu);
-	assert.match(roadmap, /fixed-GPU, Safari, Windows, signing.*external.*remain/isu);
+	assert.match(roadmap, /fixed-GPU, Safari, Windows,\s+signing.*external.*remain/isu);
 
 	const plan = await text('docs/milestones-1-to-4-activation-plan.md');
 	assert.match(plan, /Milestone 3 — V20 retime and proxy activation/iu);
