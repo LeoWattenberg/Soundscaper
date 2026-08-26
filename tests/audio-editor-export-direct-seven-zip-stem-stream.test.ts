@@ -13,6 +13,7 @@ import {
 	type ExportServiceRuntime,
 } from '../src/common/editor/controller/export-service.ts';
 import { createSevenZipStemArchivePlan } from '../src/common/editor/controller/stem-archive.ts';
+import { encodeWav } from '../src/common/editor/wav.js';
 
 const FINAL_PREFIX_BYTES = 32;
 const DIRECT_SEVEN_ZIP_GOLDEN_BASE64 =
@@ -132,10 +133,16 @@ test('export service directly publishes 7z with one-stem preflight and no Blob d
 	assert.ok(fixture.events.indexOf('append:zero-prefix') < fixture.events.indexOf('render:track-0'));
 	assert.ok(fixture.events.indexOf('close') < fixture.events.indexOf('patch'));
 	assert.ok(fixture.events.indexOf('patch') < fixture.events.indexOf('commit'));
-	assert.equal(
-		Buffer.from(fixture.target.bytes()).toString('base64'),
-		DIRECT_SEVEN_ZIP_GOLDEN_BASE64,
+	// The byte-for-byte golden lives on the low-level test above, which owns the
+	// placeholder payload. This route delivers real WAV stems, because the export
+	// service conforms every stem by reading it back before it joins the archive.
+	const written = fixture.target.bytes();
+	assert.deepEqual(
+		written.subarray(0, 6),
+		Uint8Array.of(0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c),
+		'a real 7z signature is written',
 	);
+	assert.equal(written.byteLength, fixture.plan.archive.expectedByteLength);
 });
 
 test('render and entry-size failures clean staged stems and abort exactly once', async () => {
@@ -238,8 +245,31 @@ function directSevenZipPlan() {
 	};
 }
 
+/**
+ * A real one-frame WAV: the service route conforms every delivered stem by
+ * reading it back, so a placeholder byte string claiming to be a WAV is the
+ * writer fault that conformance exists to refuse.
+ */
+function serviceStemBytes(index: number): Uint8Array {
+	return encodeWav([Float32Array.of(index === 0 ? 0 : 0.5)], {
+		sampleRate: 48_000, bitDepth: 16, float: false, dither: 'none',
+	});
+}
+
 function servicePlan() {
-	const plan = directSevenZipPlan();
+	const stemByteLength = serviceStemBytes(0).byteLength;
+	const entries = [
+		{ fileName: '01-dialogue.wav', expectedByteLength: stemByteLength },
+		{ fileName: '02-music.wav', expectedByteLength: stemByteLength },
+	];
+	const plan = {
+		mode: 'stems',
+		format: 'wav',
+		mimeType: 'audio/wav',
+		outputFileBytesPerRender: stemByteLength,
+		outputs: entries.map(({ fileName }, index) => ({ fileName, trackId: `track-${index}` })),
+		archive: createSevenZipStemArchivePlan('session-stems', entries),
+	};
 	return {
 		...plan,
 		outputBytesPerRender: plan.outputFileBytesPerRender,
@@ -298,7 +328,7 @@ function serviceFixture() {
 		createTemporaryFileSink: async () => { throw new Error('unexpected temporary sink'); },
 		createWavStreamEncoder: () => { throw new Error('unexpected WAV stream encoder'); },
 		encodeAiff: () => { throw new Error('unexpected AIFF encoder'); },
-		encodeWav: (channels: readonly Float32Array[]) => stemBytes(channels[0]?.[0] === 0 ? 0 : 1),
+		encodeWav: (channels: readonly Float32Array[]) => serviceStemBytes(channels[0]?.[0] === 0 ? 0 : 1),
 		ffmpeg: { dispose: () => undefined },
 		fileService: {
 			prepareSave: () => target,

@@ -283,6 +283,32 @@ test('export service keeps nested destination abort idempotent after a ZIP write
 	}
 });
 
+/**
+ * Only the archive container streams on the Save As route — each stem still
+ * reaches it as readable bytes. Reporting the delivery as unverified let a stem
+ * that the browser download route refuses publish silently to the user's file.
+ */
+test('a stem whose bytes disagree with the plan fails the direct archive delivery', async () => {
+	const fixture = serviceFixture('stream', {
+		// The plan states 48 kHz; the file declares 44.1 kHz. The byte length is
+		// unchanged, so only reading the delivered stem can catch it.
+		encodeStem: () => encodeWav([Float32Array.of(0)], {
+			sampleRate: 44_100, bitDepth: 16, float: false, dither: 'none',
+		}),
+	});
+
+	await createEditorExportService(fixture.runtime).handleExportAction(
+		'export', { mode: 'stems', format: 'wav' },
+	);
+
+	assert.equal(fixture.target.commits(), 0, 'a refused delivery is never committed');
+	assert.match(
+		fixture.errors.map((error) => String(error)).join('\n'),
+		/conformance|sample rate/iu,
+		'the delivery is refused for what conformance found, not published silently',
+	);
+});
+
 function eligiblePlan() {
 	// Derived from the stem the fixture actually writes, so the plan keeps
 	// describing the file rather than a byte count that happens to match.
@@ -317,7 +343,11 @@ type PrepareMode = 'stream' | 'blob' | 'cancelled';
 
 function serviceFixture(
 	mode: PrepareMode,
-	targetFailures: Readonly<{ writeError?: Error; abortError?: Error }> = {},
+	targetFailures: Readonly<{
+		writeError?: Error;
+		abortError?: Error;
+		encodeStem?: (index: number) => Uint8Array;
+	}> = {},
 ) {
 	const events: string[] = [];
 	const downloads: Array<Readonly<Record<string, unknown>>> = [];
@@ -366,7 +396,9 @@ function serviceFixture(
 		createTemporaryFileSink: async () => { throw new Error('unexpected temporary sink'); },
 		createWavStreamEncoder: () => { throw new Error('unexpected WAV stream encoder'); },
 		encodeAiff: () => { throw new Error('unexpected AIFF encoder'); },
-		encodeWav: (channels: readonly Float32Array[]) => stemBytes(channels[0]?.[0] === 0 ? 0 : 1),
+		encodeWav: (channels: readonly Float32Array[]) => (targetFailures.encodeStem ?? stemBytes)(
+			channels[0]?.[0] === 0 ? 0 : 1,
+		),
 		ffmpeg: { dispose: () => undefined },
 		fileService: {
 			prepareSave: () => {

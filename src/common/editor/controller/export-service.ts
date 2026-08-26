@@ -245,23 +245,29 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				fileName = plan.outputs[0].fileName;
 			} else if (directStemArchive) {
 				if (!plan.archive) throw new Error('The stem export plan has no archive descriptor.');
+				const findings: DeliveryConformanceFinding[] = [];
 				directOutput = await streamDirectStemArchive({
 					destination: pendingDirectDestination as DirectPcmDestination, plan, signal: abort.signal,
 					assertCurrent: assertExportCurrent,
 					async renderStem(output, index) {
 						const snapshot = stemProject(exportProject, output.trackId);
-						return renderAndEncode(snapshot, plan, settings, abort.signal, exportRenderSources, output, {
-							start: index / plan.outputs.length,
-							end: (index + 1) / plan.outputs.length,
-						}, null, null, assertExportCurrent);
+						const encoded = await renderAndEncode(
+							snapshot, plan, settings, abort.signal, exportRenderSources, output, {
+								start: index / plan.outputs.length,
+								end: (index + 1) / plan.outputs.length,
+							}, null, null, assertExportCurrent,
+						);
+						// Only the archive container streams: each stem still reaches it
+						// as readable bytes, so it is conformed from its own bytes just
+						// as the browser stem route conforms it. Reporting the delivery
+						// as unverified here would let a stem that fails conformance on
+						// the download route publish silently through Save As.
+						findings.push(...await conformDeliveredExport(plan, encoded));
+						return encoded;
 					},
 					onStemComplete(progress) { updateExportProgress(progress); },
 				});
-				// Streamed straight to its destination, so no stem was ever held as
-				// readable bytes. Saying so is the point: a stems delivery reported
-				// nothing at all about conformance, and a silent report reads as a
-				// clean one rather than as an unchecked one.
-				stemConformance = await conformDeliveredExport(plan, { directDestination: true });
+				stemConformance = Object.freeze(findings);
 				fileName = plan.archive.fileName;
 			} else {
 				if (!plan.archive) throw new Error('The stem export plan has no archive descriptor.');
