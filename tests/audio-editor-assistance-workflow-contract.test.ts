@@ -45,6 +45,7 @@ function fence(overrides: Record<string, unknown> = {}) {
 			mediaKind: 'audio',
 			sourceId: 'source-a',
 			sourceSha256: SHA_A,
+			sourceSampleRate: 48_000,
 			occurrenceIds: ['occurrence-a'],
 			sourceStartFrame: 0,
 			sourceEndFrame: 96_000,
@@ -285,6 +286,7 @@ test('the aggregate fence binds every source range and refuses ambiguous or unsu
 		mediaKind: 'video',
 		sourceId: 'source-b',
 		sourceSha256: SHA_D,
+		sourceSampleRate: null,
 		occurrenceIds: ['occurrence-b'],
 		retimeKind: 'monotonic-forward',
 	};
@@ -293,6 +295,7 @@ test('the aggregate fence binds every source range and refuses ambiguous or unsu
 		transcriptBodySha256: SHA_A,
 	}));
 	assert.equal(aggregate.sourceRanges.length, 2);
+	assert.equal(aggregate.sourceRanges[0]?.sourceSampleRate, 48_000);
 	assert.equal(aggregate.transcriptBodySha256, SHA_A);
 	assert.throws(
 		() => validateAssistanceWorkflowFenceV1(fence({ sourceRanges: [
@@ -311,6 +314,18 @@ test('the aggregate fence binds every source range and refuses ambiguous or unsu
 			...fence().sourceRanges[0], sourceEndFrame: 0,
 		}] })),
 		/source range/iu,
+	);
+	assert.throws(
+		() => validateAssistanceWorkflowFenceV1(fence({ sourceRanges: [{
+			...fence().sourceRanges[0], sourceSampleRate: null,
+		}] })),
+		/sample rate/iu,
+	);
+	assert.throws(
+		() => validateAssistanceWorkflowFenceV1(fence({ sourceRanges: [{
+			...second, sourceSampleRate: 24,
+		}] })),
+		/sample rate/iu,
 	);
 	assert.throws(
 		() => validateAssistanceWorkflowFenceV1(fence({ sourceRanges: [

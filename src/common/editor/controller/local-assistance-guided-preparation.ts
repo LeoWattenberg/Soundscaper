@@ -389,6 +389,7 @@ function aggregateFence(
 	const sourceRanges: readonly AssistanceWorkflowSourceRangeV1[] = Object.freeze([Object.freeze({
 		slotId: kind === 'audio' ? 'primary-audio' : 'primary-video', mediaKind: kind,
 		sourceId: primitive.sourceId, sourceSha256: digest(primitive.sourceSha256),
+		sourceSampleRate: kind === 'audio' ? positiveFrame(project.sampleRate, 8_000) : null,
 		occurrenceIds: Object.freeze([...primitive.occurrenceIds]),
 		sourceStartFrame: primitive.sourceStartFrame, sourceEndFrame: primitive.sourceEndFrame,
 		linkMembershipSha256: digest(primitive.linkMembershipSha256),
@@ -402,7 +403,6 @@ function aggregateFence(
 		recipeSha256: hash({ recipeVersion: 1, stages }), settingsSha256: hashJson(settingsBody),
 		modelBindingsSha256: hash(models) });
 }
-
 function primitivePrepared(
 	value: unknown, sourceId: string, operation: AssistanceOperation, mode?: 'fast' | 'accurate',
 ): Readonly<{ inputs: readonly Readonly<{ role: string; mediaType: string; bytes: Blob }>[];

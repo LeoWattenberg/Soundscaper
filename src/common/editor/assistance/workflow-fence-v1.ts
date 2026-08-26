@@ -9,6 +9,7 @@ export interface AssistanceWorkflowSourceRangeV1 {
 	readonly mediaKind: 'audio' | 'video';
 	readonly sourceId: string;
 	readonly sourceSha256: string;
+	readonly sourceSampleRate: number | null;
 	readonly occurrenceIds: readonly string[];
 	readonly sourceStartFrame: number;
 	readonly sourceEndFrame: number;
@@ -35,7 +36,7 @@ const FENCE_KEYS = Object.freeze([
 	'transcriptBodySha256', 'recipeSha256', 'settingsSha256', 'modelBindingsSha256',
 ]);
 const RANGE_KEYS = Object.freeze([
-	'slotId', 'mediaKind', 'sourceId', 'sourceSha256', 'occurrenceIds', 'sourceStartFrame',
+	'slotId', 'mediaKind', 'sourceId', 'sourceSha256', 'sourceSampleRate', 'occurrenceIds', 'sourceStartFrame',
 	'sourceEndFrame', 'linkMembershipSha256', 'timingAuthoritySha256', 'retimeKind',
 ]);
 const SHA256 = /^[a-f\d]{64}$/u;
@@ -89,6 +90,16 @@ function validateSourceRange(
 	}
 	const occurrences = boundedArray(record.occurrenceIds, 1, 256, 'source occurrence IDs')
 		.map((candidate) => domainId(candidate, 'occurrence ID'));
+	const mediaKind = enumValue(record.mediaKind, ['audio', 'video'] as const, 'source media kind');
+	let sourceSampleRate: number | null;
+	if (mediaKind === 'audio') {
+		sourceSampleRate = boundedInteger(record.sourceSampleRate, 8_000, 768_000, 'source sample rate');
+	} else {
+		if (record.sourceSampleRate !== null) {
+			throw new TypeError('A video workflow source sample rate must be null.');
+		}
+		sourceSampleRate = null;
+	}
 	for (const occurrenceId of occurrences) {
 		if (allOccurrences.has(occurrenceId)) {
 			throw new TypeError('Assistance workflow occurrence IDs must be globally unique.');
@@ -97,9 +108,10 @@ function validateSourceRange(
 	}
 	return Object.freeze({
 		slotId: slotId(record.slotId, 'source-range slot ID'),
-		mediaKind: enumValue(record.mediaKind, ['audio', 'video'] as const, 'source media kind'),
+		mediaKind,
 		sourceId: domainId(record.sourceId, 'source ID'),
 		sourceSha256: digest(record.sourceSha256, 'source'),
+		sourceSampleRate,
 		occurrenceIds: Object.freeze(occurrences),
 		sourceStartFrame,
 		sourceEndFrame,
@@ -175,6 +187,13 @@ function digest(value: unknown, label: string): string {
 function positiveInteger(value: unknown, label: string): number {
 	if (!Number.isSafeInteger(value) || Number(value) < 1) {
 		throw new RangeError(`The assistance ${label} is out of range.`);
+	}
+	return Number(value);
+}
+
+function boundedInteger(value: unknown, minimum: number, maximum: number, label: string): number {
+	if (!Number.isSafeInteger(value) || Number(value) < minimum || Number(value) > maximum) {
+		throw new RangeError(`The assistance workflow ${label} is out of range.`);
 	}
 	return Number(value);
 }

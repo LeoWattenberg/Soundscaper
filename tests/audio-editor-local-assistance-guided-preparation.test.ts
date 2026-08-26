@@ -39,7 +39,7 @@ test('enhancement preparation binds exact media, model, settings, recipe, and ca
 	assert.equal(result.workflow.outputs.length, 1);
 	assert.deepEqual(result.workflow.fence.sourceRanges, [{
 		slotId: 'primary-audio', mediaKind: 'audio', sourceId: 'voice-source',
-		sourceSha256: SOURCE_SHA256, occurrenceIds: ['voice-clip'],
+		sourceSha256: SOURCE_SHA256, sourceSampleRate: 48_000, occurrenceIds: ['voice-clip'],
 		sourceStartFrame: 24_000, sourceEndFrame: 72_000,
 		linkMembershipSha256: '12'.repeat(32), timingAuthoritySha256: '34'.repeat(32),
 		retimeKind: 'identity',

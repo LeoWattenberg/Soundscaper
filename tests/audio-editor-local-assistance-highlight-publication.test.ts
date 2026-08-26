@@ -58,13 +58,13 @@ function fence(value: FramescaperProjectV31): AssistanceWorkflowFenceV1 {
 		sequenceId: 'main-sequence',
 		sourceRanges: [{
 			slotId: 'audio-main', mediaKind: 'audio', sourceId: 'audio-source',
-			sourceSha256: AUDIO_SHA256, occurrenceIds: ['audio-clip'],
+			sourceSha256: AUDIO_SHA256, sourceSampleRate: 48_000, occurrenceIds: ['audio-clip'],
 			sourceStartFrame: 0, sourceEndFrame: 48_000,
 			linkMembershipSha256: '56'.repeat(32), timingAuthoritySha256: '78'.repeat(32),
 			retimeKind: 'identity',
 		}, {
 			slotId: 'video-main', mediaKind: 'video', sourceId: 'video-source',
-			sourceSha256: VIDEO_SHA256, occurrenceIds: ['video-clip'],
+			sourceSha256: VIDEO_SHA256, sourceSampleRate: null, occurrenceIds: ['video-clip'],
 			sourceStartFrame: 0, sourceEndFrame: 10,
 			linkMembershipSha256: '56'.repeat(32), timingAuthoritySha256: '9a'.repeat(32),
 			retimeKind: 'identity',

@@ -74,7 +74,7 @@ test('primitive projection refuses ambiguous multi-source authority without touc
 	const request = enhancementWorkflow();
 	const second = { ...request.fence.sourceRanges[0]!, slotId: 'secondary-video',
 		mediaKind: 'video' as const, sourceId: 'source-b', sourceSha256: '13'.repeat(32),
-		occurrenceIds: ['occurrence-b'] };
+		sourceSampleRate: null, occurrenceIds: ['occurrence-b'] };
 	const multi = validateAssistanceWorkflow({ ...request,
 		fence: { ...request.fence, sourceRanges: [...request.fence.sourceRanges, second] } });
 	let touched = false;
