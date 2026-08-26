@@ -12,7 +12,7 @@ const MAX_SAFE_INTEGER_BIGINT = BigInt(Number.MAX_SAFE_INTEGER);
  * Encode channel-aligned PCM samples as a complete WAV file.
  *
  * @param {ArrayLike<Float32Array> | AudioBuffer} input
- * @param {{ container?: 'auto' | 'bw64', sampleRate?: number, bitDepth?: 16 | 20 | 24 | 32, float?: boolean, dither?: boolean|string, metadata?: Record<string, *>, markers?: readonly import('./riff-markers.ts').RiffMarkerInput[], ixml?: import('./ixml.ts').IxmlMetadataInput|null, cart?: import('./cart-metadata.ts').CartMetadataInput|null, bext?: import('./broadcast-wave.ts').BextMetadataInput, preDataChunks?: Uint8Array | readonly Uint8Array[], trailingChunks?: Uint8Array | readonly Uint8Array[], channelMask?: number, random?: () => number }} [options]
+ * @param {{ container?: 'auto' | 'bw64', sampleRate?: number, bitDepth?: 16 | 20 | 24 | 32, float?: boolean, dither?: boolean|string, metadata?: Record<string, *>, markers?: readonly import('./riff-markers.js').RiffMarkerInput[], ixml?: import('./ixml.js').IxmlMetadataInput|null, cart?: import('./cart-metadata.js').CartMetadataInput|null, bext?: import('./broadcast-wave.js').BextMetadataInput, preDataChunks?: Uint8Array | readonly Uint8Array[], trailingChunks?: Uint8Array | readonly Uint8Array[], channelMask?: number, random?: () => number }} [options]
  * @returns {Uint8Array}
  */
 export function encodeWav(input, options = {}) {
@@ -42,10 +42,10 @@ export function encodeWav(input, options = {}) {
  *   float?: boolean,
  *   dither?: boolean | 'none' | 'triangular' | 'triangular-highpass',
  *   metadata?: Record<string, *>,
- *   markers?: readonly import('./riff-markers.ts').RiffMarkerInput[],
- *   ixml?: import('./ixml.ts').IxmlMetadataInput | null,
- *   cart?: import('./cart-metadata.ts').CartMetadataInput | null,
- *   bext?: import('./broadcast-wave.ts').BextMetadataInput,
+ *   markers?: readonly import('./riff-markers.js').RiffMarkerInput[],
+ *   ixml?: import('./ixml.js').IxmlMetadataInput | null,
+ *   cart?: import('./cart-metadata.js').CartMetadataInput | null,
+ *   bext?: import('./broadcast-wave.js').BextMetadataInput,
  *   preDataChunks?: Uint8Array | readonly Uint8Array[],
  *   trailingChunks?: Uint8Array | readonly Uint8Array[],
  *   channelMask?: number,
@@ -200,7 +200,7 @@ export function createWavStreamEncoder(options) {
  * Inspect the exact on-disk WAV layout without allocating PCM or file-sized buffers.
  * An explicit `trailingByteLength` takes precedence over the encoded `metadata` size.
  *
- * @param {{ container?: 'auto' | 'bw64', sampleRate?: number, channelCount?: number, totalFrames?: number, bitDepth?: 16 | 20 | 24 | 32, float?: boolean, preDataChunks?: Uint8Array | readonly Uint8Array[], trailingChunks?: Uint8Array | readonly Uint8Array[], trailingByteLength?: number, metadata?: Record<string, *>, markers?: readonly import('./riff-markers.ts').RiffMarkerInput[], ixml?: import('./ixml.ts').IxmlMetadataInput|null, cart?: import('./cart-metadata.ts').CartMetadataInput|null, bext?: import('./broadcast-wave.ts').BextMetadataInput, channelMask?: number }} [options]
+ * @param {{ container?: 'auto' | 'bw64', sampleRate?: number, channelCount?: number, totalFrames?: number, bitDepth?: 16 | 20 | 24 | 32, float?: boolean, preDataChunks?: Uint8Array | readonly Uint8Array[], trailingChunks?: Uint8Array | readonly Uint8Array[], trailingByteLength?: number, metadata?: Record<string, *>, markers?: readonly import('./riff-markers.js').RiffMarkerInput[], ixml?: import('./ixml.js').IxmlMetadataInput|null, cart?: import('./cart-metadata.js').CartMetadataInput|null, bext?: import('./broadcast-wave.js').BextMetadataInput, channelMask?: number }} [options]
  * @returns {{ container: 'riff' | 'rf64' | 'bw64', byteLength: number, headerByteLength: number, riffSize: number, dataByteLength: number, dataPadByteLength: number, trailingByteLength: number, bextByteLength: number }}
  */
 export function inspectWavLayout(options = {}) {

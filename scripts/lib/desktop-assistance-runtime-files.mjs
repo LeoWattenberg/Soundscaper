@@ -42,6 +42,7 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'desktop/assistance-runtime-family-thread-worker.js',
 	'desktop/assistance-runtime-family-utility-worker.js',
 	'desktop/assistance-runtime-family-worker-entry.js',
+	'desktop/assistance-semantic-query-executor.js',
 	'desktop/assistance-service.js',
 	'desktop/assistance-sherpa-diarizer.js',
 	'desktop/assistance-sherpa-recognizer.js',
