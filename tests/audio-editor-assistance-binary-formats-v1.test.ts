@@ -9,6 +9,11 @@ import {
 	reviewAssistanceEmbeddingMatrixV1,
 	reviewAssistanceFramePackV1,
 } from '../src/common/editor/assistance/binary-formats-v1.ts';
+import {
+	createAssistanceVisualFramePackV2,
+	reviewAssistanceVisualFramePack,
+	reviewAssistanceVisualFramePackV2,
+} from '../src/common/editor/assistance/visual-frame-pack-v2.ts';
 
 test('embedding matrix v1 round-trips deterministic normalized Float32 rows', () => {
 	const bytes = createAssistanceEmbeddingMatrixV1({
@@ -108,6 +113,75 @@ test('assistance frame-pack v1 rejects unsafe, unordered, truncated, and trailin
 	const trailing = new Uint8Array(body.byteLength + 1);
 	trailing.set(body);
 	assert.throws(() => reviewAssistanceFramePackV1(trailing), /trailing/iu);
+});
+
+test('assistance visual frame-pack v2 authenticates source and raster geometry independently', () => {
+	const chunks = createAssistanceVisualFramePackV2({
+		sourceWidth: 1_920,
+		sourceHeight: 1_080,
+		rasterWidth: 2,
+		rasterHeight: 1,
+		timescale: 90_000,
+		maximumChunkBytes: 9,
+		frames: [
+			{ sourceFrame: 2, presentationTick: '3003', rgba: new Uint8Array([
+				255, 0, 0, 255, 0, 255, 0, 255,
+			]) },
+			{ sourceFrame: 5, presentationTick: '6006', rgba: new Uint8Array([
+				0, 0, 255, 255, 255, 255, 255, 255,
+			]) },
+		],
+	});
+	assert.ok(chunks.length > 5);
+	assert.ok(chunks.every((chunk) => chunk.byteLength <= 9));
+	const reviewed = reviewAssistanceVisualFramePackV2(chunks);
+	assert.deepEqual({
+		schemaVersion: reviewed.schemaVersion,
+		sourceWidth: reviewed.sourceWidth,
+		sourceHeight: reviewed.sourceHeight,
+		rasterWidth: reviewed.rasterWidth,
+		rasterHeight: reviewed.rasterHeight,
+		timescale: reviewed.timescale,
+		frameCount: reviewed.frameCount,
+	}, { schemaVersion: 2, sourceWidth: 1_920, sourceHeight: 1_080,
+		rasterWidth: 2, rasterHeight: 1, timescale: 90_000, frameCount: 2 });
+	assert.deepEqual(reviewed.frame(0), {
+		sourceFrame: 2,
+		presentationTick: '3003',
+		rgba: new Uint8Array([255, 0, 0, 255, 0, 255, 0, 255]),
+	});
+	const isolated = reviewed.frame(0);
+	isolated.rgba[0] = 0;
+	assert.equal(reviewed.frame(0).rgba[0], 255);
+});
+
+test('visual frame-pack review normalizes v1 geometry and keeps v2 strict', () => {
+	const v1 = createAssistanceFramePackV1({ width: 2, height: 1, timescale: 1_000,
+		frames: [{ sourceFrame: 7, presentationTick: '100', rgba: new Uint8Array(8) }] });
+	const reviewed = reviewAssistanceVisualFramePack(v1);
+	assert.deepEqual({ schemaVersion: reviewed.schemaVersion,
+		sourceWidth: reviewed.sourceWidth, sourceHeight: reviewed.sourceHeight,
+		rasterWidth: reviewed.rasterWidth, rasterHeight: reviewed.rasterHeight,
+	}, { schemaVersion: 1, sourceWidth: 2, sourceHeight: 1, rasterWidth: 2, rasterHeight: 1 });
+	assert.throws(() => reviewAssistanceVisualFramePackV2(v1), /magic|version|unsupported/iu);
+});
+
+test('assistance visual frame-pack v2 rejects invalid independent geometry and malformed bodies', () => {
+	const request = { sourceWidth: 1_920, sourceHeight: 1_080, rasterWidth: 1, rasterHeight: 1,
+		timescale: 1_000, maximumChunkBytes: 1_024,
+		frames: [{ sourceFrame: 0, presentationTick: '0', rgba: new Uint8Array([0, 0, 0, 255]) }] };
+	assert.throws(() => createAssistanceVisualFramePackV2({ ...request, sourceWidth: 0 }),
+		/source.*width/iu);
+	assert.throws(() => createAssistanceVisualFramePackV2({ ...request, rasterWidth: 4_097 }),
+		/raster.*width/iu);
+	assert.throws(() => createAssistanceVisualFramePackV2({ ...request,
+		frames: [{ ...request.frames[0], rgba: new Uint8Array(8) }] }), /RGBA.*length/iu);
+	const body = join(createAssistanceVisualFramePackV2(request));
+	assert.throws(() => reviewAssistanceVisualFramePackV2(body.subarray(0, body.byteLength - 1)),
+		/truncated/iu);
+	const trailing = new Uint8Array(body.byteLength + 1);
+	trailing.set(body);
+	assert.throws(() => reviewAssistanceVisualFramePack(trailing), /trailing/iu);
 });
 
 function join(chunks: readonly Uint8Array[]): Uint8Array {

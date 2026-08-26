@@ -23,6 +23,8 @@ import {
 	createAssistanceFramePackV1,
 	reviewAssistanceEmbeddingMatrixV1,
 } from '../src/common/editor/assistance/binary-formats-v1.ts';
+import { createAssistanceVisualFramePackV2 } from
+	'../src/common/editor/assistance/visual-frame-pack-v2.ts';
 import {
 	reviewAssistanceOcrResultV1,
 	reviewAssistanceSaliencyResultV1,
@@ -54,7 +56,8 @@ interface WorkerFixtureOptions {
 test('SigLIP2 embeds VFR-ordered frame packs with exact CPU graph tensors', async (context) => {
 	const value = await fixture(context, {
 		task: 'image-text-embedding', operation: 'image-text-embedding', inputRole: 'frame-pack',
-		inputMediaType: 'application/vnd.soundscaper.frame-pack', inputBody: framePack(2),
+		inputMediaType: 'application/vnd.soundscaper.frame-pack',
+		inputBody: visualFramePack(2, 1_920, 1_080, 2, 1),
 		outputRole: 'embeddings',
 		outputMediaType: 'application/vnd.soundscaper.embedding-matrix-v1',
 		artifacts: siglipArtifacts(),
@@ -110,7 +113,8 @@ test('SigLIP2 executes its pinned byte-fallback BPE and text-only graph signatur
 test('U2-Net-P retains sampled source/tick authority and emits bounded saliency', async (context) => {
 	const value = await fixture(context, {
 		task: 'saliency-detection', operation: 'saliency-detection', inputRole: 'frame-pack',
-		inputMediaType: 'application/vnd.soundscaper.frame-pack', inputBody: framePack(1),
+		inputMediaType: 'application/vnd.soundscaper.frame-pack',
+		inputBody: visualFramePack(1, 1_920, 1_080, 2, 1),
 		outputRole: 'saliency-map',
 		outputMediaType: 'application/vnd.soundscaper.saliency-map+json',
 		artifacts: [{ modelId: 'u2netp-saliency', version: '1.0.0', role: 'u2netp' }],
@@ -129,7 +133,7 @@ test('U2-Net-P retains sampled source/tick authority and emits bounded saliency'
 	}));
 	await run(value, runtime);
 	const result = reviewAssistanceSaliencyResultV1(
-		JSON.parse(await readFile(value.output, 'utf8')) as unknown, authority(2, 1, 1),
+		JSON.parse(await readFile(value.output, 'utf8')) as unknown, authority(1_920, 1_080, 1),
 	);
 	assert.deepEqual(result.frames[0].sourceFrame, 7);
 	assert.deepEqual(result.frames[0].presentationTick, '100');
@@ -157,7 +161,8 @@ test('composite YuNet and D-FINE publish non-biometric face/person detections', 
 		[String(index), index === 0 ? 'person' : `class-${String(index)}`]));
 	const value = await fixture(context, {
 		task: 'subject-detection', operation: 'subject-detection', inputRole: 'frame-pack',
-		inputMediaType: 'application/vnd.soundscaper.frame-pack', inputBody: framePack(1),
+		inputMediaType: 'application/vnd.soundscaper.frame-pack',
+		inputBody: visualFramePack(1, 1_920, 1_080, 2, 1),
 		outputRole: 'subject-tracks',
 		outputMediaType: 'application/json',
 		artifacts: [
@@ -175,7 +180,7 @@ test('composite YuNet and D-FINE publish non-biometric face/person detections', 
 		? yunetSession() : dfineSession());
 	await run(value, runtime);
 	const result = reviewAssistanceSubjectResultV1(
-		JSON.parse(await readFile(value.output, 'utf8')) as unknown, authority(2, 1, 1),
+		JSON.parse(await readFile(value.output, 'utf8')) as unknown, authority(1_920, 1_080, 1),
 	);
 	assert.deepEqual(result.frames[0]!.subjects.map((subject) =>
 		[subject.kind, subject.classId, subject.label]), [
@@ -190,7 +195,7 @@ test('PP-OCRv4 executes detection, orientation, and CTC recognition with one mod
 		const value = await fixture(context, {
 			task: 'optical-character-recognition', operation: 'optical-character-recognition',
 			inputRole: 'frame-pack', inputMediaType: 'application/vnd.soundscaper.frame-pack',
-			inputBody: framePack(1, 64, 32), outputRole: 'recognized-text',
+			inputBody: visualFramePack(1, 1_920, 1_080, 64, 32), outputRole: 'recognized-text',
 			outputMediaType: 'application/vnd.soundscaper.recognized-text+json',
 			artifacts: [
 				{ modelId: 'ppocr-v4-mobile', version: '4.0.0', role: 'text_detection' },
@@ -203,7 +208,8 @@ test('PP-OCRv4 executes detection, orientation, and CTC recognition with one mod
 		const runtime = fakeRuntime((path) => ocrSession(basename(path)));
 		await run(value, runtime);
 			const result = reviewAssistanceOcrResultV1(
-				JSON.parse(await readFile(value.output, 'utf8')) as unknown, authority(64, 32, 1),
+				JSON.parse(await readFile(value.output, 'utf8')) as unknown,
+				authority(1_920, 1_080, 1),
 			);
 		assert.equal(result.frames[0].sourceFrame, 7);
 		assert.equal(result.frames[0].presentationTick, '100');
@@ -258,6 +264,20 @@ function framePack(count: number, width = 2, height = 1): Uint8Array {
 		frames: Array.from({ length: count }, (_, index) => ({ sourceFrame: 7 + index * 2,
 			presentationTick: String(100 + index * 150),
 			rgba: rgba(width, height, index === 0 ? [255, 255, 255, 255] : [0, 0, 0, 255]) })) }));
+}
+
+function visualFramePack(
+	count: number,
+	sourceWidth: number,
+	sourceHeight: number,
+	rasterWidth: number,
+	rasterHeight: number,
+): Uint8Array {
+	return Buffer.concat(createAssistanceVisualFramePackV2({ sourceWidth, sourceHeight,
+		rasterWidth, rasterHeight, timescale: 1_000,
+		frames: Array.from({ length: count }, (_, index) => ({ sourceFrame: 7 + index * 2,
+			presentationTick: String(100 + index * 150), rgba: rgba(rasterWidth, rasterHeight,
+				index === 0 ? [255, 255, 255, 255] : [0, 0, 0, 255]) })) }));
 }
 
 function authority(width: number, height: number, count: number) {

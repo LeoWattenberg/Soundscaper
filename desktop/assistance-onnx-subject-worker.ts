@@ -101,8 +101,10 @@ async function executeSubjects(
 			context.signal?.throwIfAborted();
 			const frame = await source.readFrame(index);
 			const [faces, objects] = await Promise.all([
-				detectFaces(runtime, faceSession, frame.rgba, source.width, source.height),
-				detectObjects(runtime, objectSession, frame.rgba, source.width, source.height, labels),
+				detectFaces(runtime, faceSession, frame.rgba,
+					source.rasterWidth, source.rasterHeight),
+				detectObjects(runtime, objectSession, frame.rgba,
+					source.rasterWidth, source.rasterHeight, labels),
 			]);
 			const subjects = [...faces, ...objects].sort(compareSubjects).slice(0, 1_024);
 			frames.push(Object.freeze({ sourceFrame: frame.sourceFrame,

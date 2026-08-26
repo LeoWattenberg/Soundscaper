@@ -65,8 +65,8 @@ async function executeSaliency(
 		for (let index = 0; index < source.frameCount; index += 1) {
 			context.signal?.throwIfAborted();
 			const frame = await source.readFrame(index);
-			const data = resizeAssistanceRgbaToChwFloatV1(frame.rgba, source.width, source.height,
-				SIZE, SIZE, NORMALIZATION);
+			const data = resizeAssistanceRgbaToChwFloatV1(frame.rgba,
+				source.rasterWidth, source.rasterHeight, SIZE, SIZE, NORMALIZATION);
 			const outputs = exactAssistanceOnnxOutputsV1(await session.run({
 				'input.1': new runtime.Tensor('float32', data, [1, 3, SIZE, SIZE]),
 			}), OUTPUT_NAMES);

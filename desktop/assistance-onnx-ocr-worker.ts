@@ -96,12 +96,13 @@ async function executeOcr(
 		for (let index = 0; index < source.frameCount; index += 1) {
 			context.signal?.throwIfAborted();
 			const frame = await source.readFrame(index);
-			const boxes = await detectText(runtime, detector, frame.rgba, source.width, source.height);
+			const boxes = await detectText(runtime, detector, frame.rgba,
+				source.rasterWidth, source.rasterHeight);
 			const regions: AssistanceOcrRegionV1[] = [];
 			for (const candidate of boxes) {
 				context.signal?.throwIfAborted();
 				const recognized = await recognizeText(runtime, orientation, recognizer,
-					frame.rgba, source.width, source.height, candidate.box, dictionary);
+					frame.rgba, source.rasterWidth, source.rasterHeight, candidate.box, dictionary);
 				if (recognized) regions.push(Object.freeze({ ...recognized, box: candidate.box,
 					confidence: Math.fround(Math.sqrt(candidate.confidence * recognized.confidence)) }));
 			}

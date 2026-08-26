@@ -124,7 +124,8 @@ async function embedFrames(
 			const data = new Float32Array(count * 3 * IMAGE_SIZE * IMAGE_SIZE);
 			for (let row = 0; row < count; row += 1) {
 				const frame = await source.readFrame(batchIndex * IMAGE_BATCH + row);
-				data.set(resizeAssistanceRgbaToChwFloatV1(frame.rgba, source.width, source.height,
+				data.set(resizeAssistanceRgbaToChwFloatV1(frame.rgba,
+					source.rasterWidth, source.rasterHeight,
 					IMAGE_SIZE, IMAGE_SIZE, SIGLIP_NORMALIZATION),
 				row * 3 * IMAGE_SIZE * IMAGE_SIZE);
 			}

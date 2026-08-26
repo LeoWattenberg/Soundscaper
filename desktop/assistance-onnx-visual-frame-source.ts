@@ -5,10 +5,10 @@
 import { readFile } from 'node:fs/promises';
 
 import {
-	reviewAssistanceFramePackV1,
-	type AssistanceFramePackV1Frame,
-	type ReviewedAssistanceFramePackV1,
-} from '../src/common/editor/assistance/binary-formats-v1.ts';
+	reviewAssistanceVisualFramePack,
+	type AssistanceVisualFramePackFrame,
+	type ReviewedAssistanceVisualFramePack,
+} from '../src/common/editor/assistance/visual-frame-pack-v2.ts';
 import type {
 	AssistanceRuntimeFamilyInputGrantV1,
 } from './assistance-runtime-family-job-contract.ts';
@@ -25,15 +25,19 @@ interface PackIndexV1 {
 }
 
 export interface AssistanceOnnxVisualFrameAuthorityV1 {
+	/** Full source geometry used by semantic results and crop authority. */
 	readonly width: number;
 	readonly height: number;
+	/** Bounded RGBA geometry used only for tensor preprocessing. */
+	readonly rasterWidth: number;
+	readonly rasterHeight: number;
 	readonly timescale: number;
 	readonly frameCount: number;
 	readonly frames: readonly Readonly<{
 		readonly sourceFrame: number;
 		readonly presentationTick: string;
 	}>[];
-	readFrame(ordinal: number): Promise<AssistanceFramePackV1Frame>;
+	readFrame(ordinal: number): Promise<AssistanceVisualFramePackFrame>;
 	release(): void;
 }
 
@@ -47,6 +51,8 @@ export async function openAssistanceOnnxVisualFrameSourceV1(
 	}
 	let width: number | null = null;
 	let height: number | null = null;
+	let rasterWidth: number | null = null;
+	let rasterHeight: number | null = null;
 	let timescale: number | null = null;
 	let priorSource = -1;
 	let priorTick = -1n;
@@ -54,14 +60,17 @@ export async function openAssistanceOnnxVisualFrameSourceV1(
 	const packs: PackIndexV1[] = [];
 	for (const [inputIndex, input] of inputs.entries()) {
 		signal?.throwIfAborted();
-		const reviewed = reviewAssistanceFramePackV1(await readFile(input.path));
+		const reviewed = reviewAssistanceVisualFramePack(await readFile(input.path));
 		if (reviewed.frameCount < 1) throw new RangeError('A visual frame pack cannot be empty.');
-		if (width !== null && (reviewed.width !== width || reviewed.height !== height
+		if (width !== null && (reviewed.sourceWidth !== width || reviewed.sourceHeight !== height
+			|| reviewed.rasterWidth !== rasterWidth || reviewed.rasterHeight !== rasterHeight
 			|| reviewed.timescale !== timescale)) {
 			throw new RangeError('Visual frame-pack chunks disagree about geometry or timescale.');
 		}
-		width ??= reviewed.width;
-		height ??= reviewed.height;
+		width ??= reviewed.sourceWidth;
+		height ??= reviewed.sourceHeight;
+		rasterWidth ??= reviewed.rasterWidth;
+		rasterHeight ??= reviewed.rasterHeight;
 		timescale ??= reviewed.timescale;
 		const sourceFrames: number[] = [];
 		const presentationTicks: string[] = [];
@@ -84,12 +93,14 @@ export async function openAssistanceOnnxVisualFrameSourceV1(
 			frameCount: reviewed.frameCount, sourceFrames: Object.freeze(sourceFrames),
 			presentationTicks: Object.freeze(presentationTicks) }));
 	}
-	if (width === null || height === null || timescale === null) {
+	if (width === null || height === null || rasterWidth === null || rasterHeight === null
+		|| timescale === null) {
 		throw new RangeError('Visual ONNX execution requires at least one reviewed frame.');
 	}
 	let cachedInputIndex = -1;
-	let cached: ReviewedAssistanceFramePackV1 | null = null;
-	return Object.freeze({ width, height, timescale, frameCount: frames.length,
+	let cached: ReviewedAssistanceVisualFramePack | null = null;
+	return Object.freeze({ width, height, rasterWidth, rasterHeight,
+		timescale, frameCount: frames.length,
 		frames: Object.freeze(frames),
 		async readFrame(ordinalValue: number) {
 			if (!Number.isSafeInteger(ordinalValue) || ordinalValue < 0 || ordinalValue >= frames.length) {
@@ -99,9 +110,11 @@ export async function openAssistanceOnnxVisualFrameSourceV1(
 				&& ordinalValue < ordinalStart + frameCount)!;
 			if (cachedInputIndex !== pack.inputIndex || cached === null) {
 				signal?.throwIfAborted();
-				cached = reviewAssistanceFramePackV1(await readFile(inputs[pack.inputIndex]!.path));
+				cached = reviewAssistanceVisualFramePack(await readFile(inputs[pack.inputIndex]!.path));
 				cachedInputIndex = pack.inputIndex;
-				if (cached.width !== width || cached.height !== height || cached.timescale !== timescale
+				if (cached.sourceWidth !== width || cached.sourceHeight !== height
+					|| cached.rasterWidth !== rasterWidth || cached.rasterHeight !== rasterHeight
+					|| cached.timescale !== timescale
 					|| cached.frameCount !== pack.frameCount) {
 					throw new Error('A visual frame pack changed after its authenticated metadata pass.');
 				}
