@@ -298,9 +298,11 @@ async function removeCompletedCheckpoint(client, key, file, artifact, partSize, 
 }
 
 async function multipartUpload({ client, key, file, handle, artifact, contentType, partSize, signal }) {
-	const { checkpoint, path: checkpointPath } = await beginOrResumeMultipart(
+	let upload = await beginOrResumeMultipart(
 		client, key, file, artifact, contentType, partSize, signal,
 	);
+	let { checkpoint } = upload;
+	let checkpointPath = upload.path;
 	const stagingStatus = await client.head(checkpoint.stagingKey, {
 		acceptedStatuses: [200, 404], ...(signal ? { signal } : {}),
 	});
@@ -308,9 +310,28 @@ async function multipartUpload({ client, key, file, handle, artifact, contentTyp
 		const partCount = Math.ceil(artifact.byteLength / partSize);
 		assert(partCount >= 1 && partCount <= MAXIMUM_MULTIPART_PARTS,
 			'Model mirror artifact needs too many multipart parts');
-		const remoteParts = await client.listParts(
-			checkpoint.stagingKey, checkpoint.uploadId, signal ? { signal } : {},
+		let remoteParts = await client.listParts(
+			checkpoint.stagingKey,
+			checkpoint.uploadId,
+			{ allowMissing: true, ...(signal ? { signal } : {}) },
 		);
+		if (remoteParts === null) {
+			// R2 aborts incomplete multipart uploads after its configured
+			// lifecycle (seven days by default). A local checkpoint can outlive
+			// that remote state, so replace it instead of failing every retry.
+			await rm(checkpointPath, { force: true });
+			upload = await beginOrResumeMultipart(
+				client, key, file, artifact, contentType, partSize, signal,
+			);
+			checkpoint = upload.checkpoint;
+			checkpointPath = upload.path;
+			remoteParts = await client.listParts(
+				checkpoint.stagingKey,
+				checkpoint.uploadId,
+				{ allowMissing: true, ...(signal ? { signal } : {}) },
+			);
+			assert(remoteParts !== null, 'New model mirror multipart upload is unavailable');
+		}
 		let existing;
 		try {
 			existing = validateRemoteParts(remoteParts, artifact, partSize, partCount);

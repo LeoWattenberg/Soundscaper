@@ -284,15 +284,17 @@ export class R2Client {
 		return Object.freeze({ uploadId });
 	}
 
-	async listParts(key, uploadId, { signal } = {}) {
+	async listParts(key, uploadId, { allowMissing = false, signal } = {}) {
 		assert(typeof uploadId === 'string' && uploadId.length > 0, 'R2 multipart upload ID is invalid');
 		const parts = [];
 		let marker;
 		do {
 			const response = await this.request('GET', key, {
+				acceptedStatuses: allowMissing ? [200, 404] : [200],
 				query: { 'max-parts': 1_000, 'part-number-marker': marker, uploadId },
 				signal,
 			});
+			if (response.status === 404) return null;
 			const xml = await response.text();
 			for (const match of xml.matchAll(/<Part>([\s\S]*?)<\/Part>/gu)) {
 				const partNumber = Number(xmlValue(match[1], 'PartNumber'));

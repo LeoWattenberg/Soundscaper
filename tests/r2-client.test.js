@@ -113,6 +113,25 @@ test('R2 requests retry only a bounded number of transient responses', async () 
 	assert.equal(rejectedCalls, 3, 'a persistent transient response cannot create an unbounded loop');
 });
 
+test('R2 multipart listing can report an expired upload without hiding other errors', async () => {
+	const expired = testClient(async () => new Response('<Error><Code>NoSuchUpload</Code></Error>', {
+		status: 404,
+	}));
+	assert.equal(await expired.listParts(
+		'models/example/1.0.0/model.onnx.upload-expired',
+		'expired-upload',
+		{ allowMissing: true },
+	), null);
+
+	const strict = testClient(async () => new Response('<Error><Code>NoSuchUpload</Code></Error>', {
+		status: 404,
+	}));
+	await assert.rejects(
+		strict.listParts('models/example/1.0.0/model.onnx.upload-expired', 'expired-upload'),
+		/returned HTTP 404.*NoSuchUpload/isu,
+	);
+});
+
 test('an already-aborted R2 request performs no network attempt', async () => {
 	let calls = 0;
 	const controller = new AbortController();
