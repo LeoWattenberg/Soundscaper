@@ -2,11 +2,17 @@
 
 /** Authenticated, frame-exact selected-video custody for explicit shot modes. */
 
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
+
 import {
 	normalizeAssistanceOperation,
 	type AssistanceOperation,
 } from '../assistance/operation.ts';
-import type { AssistanceSelectionFence } from '../assistance/proposal-session.ts';
+import {
+	validateAssistanceSelectionFence,
+	type AssistanceSelectionFence,
+} from '../assistance/proposal-session.ts';
 import {
 	normalizeLocalAssistanceShotDetectionMode,
 	type LocalAssistanceShotDetectionMode,
@@ -20,6 +26,11 @@ import {
 	createLocalAssistanceSelectionFence,
 } from './local-assistance-selected-media.ts';
 import {
+	createLocalAssistanceSelectedVideoTimingBinding,
+	mapLocalAssistanceSelectedVideoTimingBoundary,
+	type LocalAssistanceSelectedVideoTimingBinding,
+} from './local-assistance-selected-video-timing.ts';
+import {
 	loadVideoExportOriginal,
 	type VideoExportOriginalStore,
 } from './video-export-original-loader.ts';
@@ -28,6 +39,7 @@ const HARD_MAXIMUM_INPUT_BYTES = 8 * 1024 * 1024 * 1024;
 const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
 const SHOT_BOUNDARIES_MEDIA_TYPE = 'application/vnd.soundscaper.shot-boundaries+json';
 const SHA256 = /^[a-f\d]{64}$/u;
+const UTF8 = new TextEncoder();
 const VIDEO_MEDIA_TYPES = new Set([
 	'video/mp4',
 	'video/quicktime',
@@ -70,8 +82,22 @@ export interface LocalAssistanceSelectedVideoAuthority {
 	readonly sequence: DataRecord;
 	readonly sourceStartFrame: number;
 	readonly sourceEndFrame: number;
+	readonly timingAuthority: Readonly<{
+		readonly schemaVersion: 1;
+		readonly sourceTiming: 'cfr' | 'vfr';
+		readonly mapping: 'uniform-wall-clock' | 'forward-retime-v2';
+	}>;
 	readonly fence: AssistanceSelectionFence;
 }
+
+interface SelectedVideoAuthorityState {
+	readonly source: DataRecord;
+	readonly clip: DataRecord;
+	readonly binding: LocalAssistanceSelectedVideoTimingBinding;
+	readonly timingAuthoritySha256: string;
+}
+
+const SELECTED_VIDEO_AUTHORITY_STATES = new WeakMap<object, SelectedVideoAuthorityState>();
 
 export interface LocalAssistanceSelectedVideoPrepared {
 	readonly sourceId: string;
@@ -227,7 +253,6 @@ export function resolveLocalAssistanceSelectedVideoAuthority(
 		throw new Error('The selected video occurrence has ambiguous sequence ownership.');
 	}
 	const sequence = sequences[0]!;
-	assertIdentityTiming(clip, source, sequence);
 	const sequenceStart = integer(clip.sequenceStartFrame, 0, 'sequence start frame');
 	const sequenceCount = integer(clip.sequenceFrameCount, 1, 'sequence frame count');
 	const sequenceEnd = safeAdd(sequenceStart, sequenceCount, 'sequence end frame');
@@ -237,10 +262,43 @@ export function resolveLocalAssistanceSelectedVideoAuthority(
 	if (sourceEnd > integer(source.sourceFrameCount, 1, 'source frame count')) {
 		throw new RangeError('The selected video occurrence exceeds its source-frame bounds.');
 	}
-	const fence = createLocalAssistanceSelectionFence(project, clip, source, track,
+	videoMediaType(source.mimeType);
+	digest(source.contentSha256, 'source digest');
+	storageKey(source.storageKey);
+	const timing = createLocalAssistanceSelectedVideoTimingBinding(project, clip, source, sequence, {
+		sequenceStart, sequenceCount, sequenceEnd, sourceStart, sourceEnd,
+	});
+	const baseFence = createLocalAssistanceSelectionFence(project, clip, source, track,
 		sequenceStart, sequenceEnd, sourceStart, sourceEnd);
-	return Object.freeze({ project, source, clip, track, sequence,
-		sourceStartFrame: sourceStart, sourceEndFrame: sourceEnd, fence });
+	const fence = timingSelectionFence(baseFence, timing.fenceMaterial);
+	const authority = Object.freeze({ project, source, clip, track, sequence,
+		sourceStartFrame: sourceStart, sourceEndFrame: sourceEnd,
+		timingAuthority: Object.freeze({
+			schemaVersion: 1 as const,
+			sourceTiming: timing.sourceTimingKind,
+			mapping: timing.mappingKind,
+		}),
+		fence });
+	SELECTED_VIDEO_AUTHORITY_STATES.set(authority, Object.freeze({
+		source, clip, binding: timing, timingAuthoritySha256: fence.timingAuthoritySha256,
+	}));
+	return authority;
+}
+
+/** Map one authenticated source boundary into this occurrence's exact sequence grid. */
+export function mapLocalAssistanceSelectedVideoSourceBoundary(
+	authority: LocalAssistanceSelectedVideoAuthority,
+	sourceFrameValue: number,
+): number | null {
+	if (!authority || typeof authority !== 'object') {
+		throw new TypeError('Selected-video boundary mapping requires exact video authority.');
+	}
+	const state = SELECTED_VIDEO_AUTHORITY_STATES.get(authority);
+	if (!state || authority.source !== state.source || authority.clip !== state.clip
+		|| authority.fence.timingAuthoritySha256 !== state.timingAuthoritySha256) {
+		throw new TypeError('Selected-video boundary mapping requires current authenticated timing authority.');
+	}
+	return mapLocalAssistanceSelectedVideoTimingBoundary(state.binding, sourceFrameValue);
 }
 
 function assertDependencies(value: unknown): asserts value is LocalAssistanceSelectedVideoPreparationDependencies {
@@ -283,29 +341,18 @@ function assertOneSelectedOccurrence(selection: DataRecord | null | undefined, c
 	}
 }
 
-function assertIdentityTiming(clip: DataRecord, source: DataRecord, sequence: DataRecord): void {
-	if (clip.reversed === true || clip.speedRatio !== 1) {
-		throw new Error('Selected-video preparation requires forward identity timing.');
-	}
-	if (clip.retimeMap !== null) {
-		throw new Error('Selected-video preparation refuses occurrence retime maps.');
-	}
-	if (clip.sequenceFrameCount !== clip.sourceFrameCount) {
-		throw new Error('Selected-video preparation requires one-to-one frame geometry.');
-	}
-	const decision = dataRecord(source.timingDecision, 'video timing decision');
-	if (source.timingAsset !== null || decision.mode !== 'conform-cfr-at-ingest') {
-		throw new Error('Selected-video preparation requires canonical CFR source timing.');
-	}
-	const frameRate = rational(source.frameRate, 'source frame rate');
-	const decisionRate = rational(decision.rate, 'timing-decision rate');
-	const sequenceRate = rational(sequence.rate, 'sequence frame rate');
-	if (!sameRational(frameRate, decisionRate) || !sameRational(frameRate, sequenceRate)) {
-		throw new Error('Selected-video preparation requires identity rate authority.');
-	}
-	videoMediaType(source.mimeType);
-	digest(source.contentSha256, 'source digest');
-	storageKey(source.storageKey);
+function timingSelectionFence(
+	fence: AssistanceSelectionFence,
+	material: DataRecord,
+): AssistanceSelectionFence {
+	return validateAssistanceSelectionFence({
+		...fence,
+		timingAuthoritySha256: digestValue(material),
+	});
+}
+
+function digestValue(value: unknown): string {
+	return bytesToHex(sha256(UTF8.encode(JSON.stringify(value))));
 }
 
 function preparationRequest(value: unknown): Readonly<{
@@ -332,24 +379,6 @@ function preparationRequest(value: unknown): Readonly<{
 			: 'fast',
 		...(record.signal ? { signal: record.signal } : {}),
 	});
-}
-
-function dataRecord(value: unknown, label: string): DataRecord {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new TypeError(`The selected ${label} is invalid.`);
-	}
-	return value as DataRecord;
-}
-
-function rational(value: unknown, label: string): Readonly<{ num: number; den: number }> {
-	const record = dataRecord(value, label);
-	return Object.freeze({ num: integer(record.num, 1, `${label} numerator`),
-		den: integer(record.den, 1, `${label} denominator`) });
-}
-
-function sameRational(left: Readonly<{ num: number; den: number }>,
-	right: Readonly<{ num: number; den: number }>): boolean {
-	return BigInt(left.num) * BigInt(right.den) === BigInt(right.num) * BigInt(left.den);
 }
 
 function inputBound(value: unknown): number {

@@ -13,13 +13,27 @@ import {
 } from '../src/common/editor/controller/local-assistance-selected-preparation.ts';
 import {
 	createLocalAssistanceSelectedVideoPreparation,
+	mapLocalAssistanceSelectedVideoSourceBoundary,
+	resolveLocalAssistanceSelectedVideoAuthority,
 } from '../src/common/editor/controller/local-assistance-selected-video.ts';
 import {
 	normalizeLocalAssistancePreparedMedia,
 } from '../src/common/editor/ui/local-assistance-preparation.ts';
+import {
+	registerVideoTimingIndex,
+	unregisterVideoTimingIndex,
+} from '../src/common/editor/video-source-time.ts';
+import {
+	createVideoTimingAssetPublication,
+	validateVideoTimingAssetBytes,
+} from '../src/common/editor/video-timing-asset.ts';
 
 const VIDEO_BYTES = new TextEncoder().encode('exact-cfr-video-body');
 const VIDEO_SHA256 = bytesToHex(sha256(VIDEO_BYTES));
+const VFR_PRESENTATION_TICKS = Object.freeze(Array.from({ length: 240 }, (_, frame) => (
+	BigInt(frame * 100 + (frame >= 24 ? 400 : 0))
+)));
+const VFR_TIMING = vfrTiming();
 
 interface VideoOriginalStoreFixture {
 	loadMediaAsset(
@@ -140,20 +154,88 @@ test('selected video preparation falls back pathlessly to the linked original', 
 	assert.equal(prepared.inputs[0]?.bytes.type, 'video/mp4');
 });
 
-test('reverse, VFR, retimed, nested, multicamera, and ambiguous video authority refuses before custody', async () => {
+test('verified exact VFR preparation binds presentation timing and maps cuts by wall clock', async () => {
+	const project = exactVfrProject();
+	const source = project.sources[0]!;
+	const timing = source.timingAsset as ReturnType<typeof vfrTiming>['reference'];
+	registerVideoTimingIndex(source, validateVideoTimingAssetBytes(timing, VFR_TIMING.bytes));
+	try {
+		const authority = resolveLocalAssistanceSelectedVideoAuthority({
+			getProject: () => project,
+			getSelectedClipId: () => 'video-clip',
+		});
+		assert.equal(mapLocalAssistanceSelectedVideoSourceBoundary(authority, 20), 10);
+		assert.equal(mapLocalAssistanceSelectedVideoSourceBoundary(authority, 24), 18,
+			'irregular presentation time, not ordinal distance, owns the sequence boundary');
+		assert.equal(mapLocalAssistanceSelectedVideoSourceBoundary(authority, 120), 110);
+		assert.equal(mapLocalAssistanceSelectedVideoSourceBoundary(authority, 19), null);
+
+		const prepared = await videoFixture(project).preparation.prepareSelectedMedia({
+			sourceId: 'video-source', operation: 'shot-detection',
+		});
+		assert.equal(prepared.selectionFence.sourceStartFrame, 20);
+		assert.equal(prepared.selectionFence.sourceEndFrame, 120);
+		assert.notEqual(prepared.selectionFence.timingAuthoritySha256,
+			(await videoFixture().preparation.prepareSelectedMedia({
+				sourceId: 'video-source', operation: 'shot-detection',
+			})).selectionFence.timingAuthoritySha256);
+	} finally {
+		unregisterVideoTimingIndex(source);
+	}
+
+	const unavailable = videoFixture(exactVfrProject());
+	await assert.rejects(unavailable.preparation.prepareSelectedMedia({
+		sourceId: 'video-source', operation: 'shot-detection',
+	}), /verified timing view|timing authority/iu);
+	assert.deepEqual(unavailable.events, []);
+});
+
+test('monotonic forward V16 retimes prepare and invert source cuts deterministically', async () => {
+	const project = withClip(videoProject(), {
+		sequenceFrameCount: 50,
+		retimeMap: forwardRetimeMap(),
+	});
+	const authority = resolveLocalAssistanceSelectedVideoAuthority({
+		getProject: () => project,
+		getSelectedClipId: () => 'video-clip',
+	});
+	assert.equal(mapLocalAssistanceSelectedVideoSourceBoundary(authority, 20), 10);
+	assert.equal(mapLocalAssistanceSelectedVideoSourceBoundary(authority, 24), 12);
+	assert.equal(mapLocalAssistanceSelectedVideoSourceBoundary(authority, 25), 13,
+		'an exact half-boundary uses the canonical point-rounding policy');
+	assert.equal(mapLocalAssistanceSelectedVideoSourceBoundary(authority, 120), 60);
+	assert.equal(mapLocalAssistanceSelectedVideoSourceBoundary(authority, 121), null);
+
+	const prepared = await videoFixture(project).preparation.prepareSelectedMedia({
+		sourceId: 'video-source', operation: 'shot-detection', shotDetectionMode: 'accurate',
+	});
+	assert.equal(prepared.shotDetectionMode, 'accurate');
+	assert.equal(prepared.selectionFence.sourceStartFrame, 20);
+	assert.equal(prepared.selectionFence.sourceEndFrame, 120);
+	assert.notEqual(prepared.selectionFence.timingAuthoritySha256,
+		(await videoFixture().preparation.prepareSelectedMedia({
+			sourceId: 'video-source', operation: 'shot-detection',
+		})).selectionFence.timingAuthoritySha256);
+});
+
+test('reverse, freeze, non-monotonic, unverifiable, nested, multicamera, and ambiguous video authority refuses before custody', async () => {
 	const base = videoProject();
 	const cases: readonly Readonly<[string, ReturnType<typeof videoProject>, RegExp]>[] = [
 		['non-F31', { ...base, schemaVersion: 28 }, /F31/iu],
-		['reverse', withClip(base, { reversed: true }), /forward identity/iu],
-		['VFR', withSource(base, {
+		['reverse flag', withClip(base, { reversed: true }), /reverse|forward/iu],
+		['unverified VFR', withSource(base, {
 			timingDecision: { mode: 'exact', rate: { num: 24, den: 1 } },
-			timingAsset: { storageKey: 'timing' },
-		}), /CFR/iu],
-		['retime', withClip(base, { retimeMap: { feature: 'video-retime', points: [] } }), /retime/iu],
-		['rate conform', {
-			...base,
-			sequences: [{ ...base.sequences[0]!, rate: { num: 25, den: 1 } }],
-		}, /identity rate/iu],
+			timingAsset: VFR_TIMING.reference,
+		}), /verified timing view|timing authority/iu],
+		['reverse curve', withClip(base, { retimeMap: reverseRetimeMap() }), /reverse|forward/iu],
+		['freeze curve', withClip(base, { retimeMap: freezeRetimeMap() }), /freeze|forward/iu],
+		['non-monotonic curve', withClip(base, {
+			sequenceFrameCount: 50,
+			retimeMap: nonMonotonicRetimeMap(),
+		}), /reverse|forward|monotonic/iu],
+		['malformed retime', withClip(base, {
+			retimeMap: { feature: 'video-retime', points: [] },
+		}), /retime|version|map/iu],
 		['nested', {
 			...base,
 			subsequences: [{ id: 'nested', sequenceId: 'main-sequence',
@@ -343,6 +425,71 @@ function withSource(
 	change: Readonly<Record<string, unknown>>,
 ): ReturnType<typeof videoProject> {
 	return { ...project, sources: [{ ...project.sources[0]!, ...change }] } as ReturnType<typeof videoProject>;
+}
+
+function exactVfrProject(): ReturnType<typeof videoProject> {
+	return withSource(videoProject(), {
+		timingDecision: { mode: 'exact', rate: { num: 24, den: 1 } },
+		timingAsset: VFR_TIMING.reference,
+	});
+}
+
+function vfrTiming() {
+	return createVideoTimingAssetPublication(VIDEO_SHA256, {
+		timescale: 2_400,
+		presentationTicks: VFR_PRESENTATION_TICKS,
+		finalFrameDurationTicks: 100n,
+	});
+}
+
+function forwardRetimeMap() {
+	return {
+		feature: 'video-retime', version: 2,
+		points: [
+			{ outerFrame: 0, sourceFrame: { num: 20, den: 1 } },
+			{ outerFrame: 50, sourceFrame: { num: 120, den: 1 } },
+		],
+		segments: [{ mode: 'constant-forward' }],
+	};
+}
+
+function reverseRetimeMap() {
+	return {
+		feature: 'video-retime', version: 2,
+		points: [
+			{ outerFrame: 0, sourceFrame: { num: 120, den: 1 } },
+			{ outerFrame: 100, sourceFrame: { num: 20, den: 1 } },
+		],
+		segments: [{ mode: 'constant-reverse' }],
+	};
+}
+
+function freezeRetimeMap() {
+	return {
+		feature: 'video-retime', version: 2,
+		points: [
+			{ outerFrame: 0, sourceFrame: { num: 20, den: 1 } },
+			{ outerFrame: 100, sourceFrame: { num: 20, den: 1 } },
+		],
+		segments: [{ mode: 'freeze' }],
+	};
+}
+
+function nonMonotonicRetimeMap() {
+	return {
+		feature: 'video-retime', version: 2,
+		points: [
+			{ outerFrame: 0, sourceFrame: { num: 20, den: 1 } },
+			{ outerFrame: 25, sourceFrame: { num: 45, den: 1 } },
+			{ outerFrame: 50, sourceFrame: { num: 20, den: 1 } },
+		],
+		segments: [
+			{ mode: 'ramp-forward', startVelocity: { num: 2, den: 1 },
+				endVelocity: { num: 0, den: 1 } },
+			{ mode: 'ramp-reverse', startVelocity: { num: 0, den: 1 },
+				endVelocity: { num: 2, den: 1 } },
+		],
+	};
 }
 
 function videoBlob(type = 'video/mp4'): Blob {

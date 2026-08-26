@@ -33,8 +33,9 @@ import {
 	VIDEO_TIMING_ASSET_MAXIMUM_FRAMES,
 	VIDEO_TIMING_ASSET_MAXIMUM_TIMESCALE,
 } from '../video-timing-asset-reference.ts';
-import type {
-	LocalAssistanceSelectedVideoAuthority,
+import {
+	mapLocalAssistanceSelectedVideoSourceBoundary,
+	type LocalAssistanceSelectedVideoAuthority,
 } from './local-assistance-selected-video.ts';
 
 const EXTENSION_KEY = 'org.soundscaper.assistance-shot-boundaries-v1';
@@ -74,9 +75,11 @@ interface NormalizedAuthority {
 	readonly sampleRate: number;
 	readonly sequenceRate: RationalRate;
 	readonly sequenceStartFrame: number;
+	readonly sequenceEndFrame: number;
 	readonly sourceStartFrame: number;
 	readonly sourceEndFrame: number;
 	readonly sourceFrameCount: number;
+	readonly mapSourceBoundary: (sourceFrame: number) => number | null;
 	readonly timelineAnnotations: readonly TimelineAnnotationV11[];
 	readonly tempoMap: unknown;
 }
@@ -148,15 +151,15 @@ function createMarkers(
 ): readonly TimelineAnnotationV11[] {
 	const digest = fenceDigest(request.fence);
 	const batchId = `assistance-shot-batch:${digest}`;
-	const inSelection = request.review.boundaries.filter(({ sourceFrame }) => (
-		sourceFrame > authority.sourceStartFrame && sourceFrame < authority.sourceEndFrame
-	));
-	return Object.freeze(inSelection.map((boundary, index) => {
-		const sequenceFrame = safeAdd(
-			authority.sequenceStartFrame,
-			boundary.sourceFrame - authority.sourceStartFrame,
-			'shot sequence frame',
-		);
+	const inSelection = request.review.boundaries.flatMap((boundary) => {
+		if (boundary.sourceFrame <= authority.sourceStartFrame
+			|| boundary.sourceFrame >= authority.sourceEndFrame) return [];
+		const sequenceFrame = authority.mapSourceBoundary(boundary.sourceFrame);
+		return sequenceFrame !== null && sequenceFrame > authority.sequenceStartFrame
+			&& sequenceFrame < authority.sequenceEndFrame
+			? [Object.freeze({ boundary, sequenceFrame })] : [];
+	});
+	return Object.freeze(inSelection.map(({ boundary, sequenceFrame }, index) => {
 		const positionFrame = sequenceFrameBoundarySample(
 			sequenceFrame, authority.sequenceRate, authority.sampleRate,
 		);
@@ -321,6 +324,7 @@ function normalizeAuthority(value: LocalAssistanceSelectedVideoAuthority): Norma
 	const sampleRate = integer(project.sampleRate, 1, 'project sample rate');
 	const sequenceStartFrame = integer(clip.sequenceStartFrame, 0, 'clip sequence start');
 	const sequenceFrameCount = integer(clip.sequenceFrameCount, 1, 'clip sequence count');
+	const sequenceEndFrame = safeAdd(sequenceStartFrame, sequenceFrameCount, 'clip sequence end');
 	const sourceStartFrame = integer(value.sourceStartFrame, 0, 'selected source start');
 	const sourceEndFrame = integer(value.sourceEndFrame, 1, 'selected source end');
 	const sourceInFrame = integer(clip.sourceInFrame, 0, 'clip source start');
@@ -329,15 +333,28 @@ function normalizeAuthority(value: LocalAssistanceSelectedVideoAuthority): Norma
 		|| sourceEndFrame !== safeAdd(sourceInFrame,
 			integer(clip.sourceFrameCount, 1, 'clip source count'), 'clip source end')
 		|| sourceEndFrame !== fence.sourceEndFrame
-		|| sequenceFrameCount !== sourceEndFrame - sourceStartFrame
 		|| sourceEndFrame > sourceFrameCount) throw new AssistanceProposalStaleError();
+	let mappedStart: number | null;
+	let mappedEnd: number | null;
+	try {
+		mappedStart = mapLocalAssistanceSelectedVideoSourceBoundary(value, sourceStartFrame);
+		mappedEnd = mapLocalAssistanceSelectedVideoSourceBoundary(value, sourceEndFrame);
+	} catch {
+		throw new AssistanceProposalStaleError();
+	}
+	if (mappedStart !== sequenceStartFrame || mappedEnd !== sequenceEndFrame) {
+		throw new AssistanceProposalStaleError();
+	}
 	const rate = dataRecord(sequence.rate, 'sequence rate');
 	const sequenceRate = Object.freeze({
 		num: integer(rate.num, 1, 'sequence rate numerator'),
 		den: integer(rate.den, 1, 'sequence rate denominator'),
 	});
 	return Object.freeze({ fence, sampleRate, sequenceRate,
-		sequenceStartFrame, sourceStartFrame, sourceEndFrame, sourceFrameCount,
+		sequenceStartFrame, sequenceEndFrame, sourceStartFrame, sourceEndFrame, sourceFrameCount,
+		mapSourceBoundary: (sourceFrame: number): number | null => (
+			mapLocalAssistanceSelectedVideoSourceBoundary(value, sourceFrame)
+		),
 		timelineAnnotations: Object.freeze(project.timelineAnnotations as TimelineAnnotationV11[]),
 		tempoMap: project.tempoMap });
 }

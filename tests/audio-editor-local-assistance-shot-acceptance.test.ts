@@ -9,13 +9,11 @@ import {
 import {
 	createLocalAssistanceShotAcceptance,
 } from '../src/common/editor/controller/local-assistance-shot-acceptance.ts';
+import {
+	resolveLocalAssistanceSelectedVideoAuthority,
+} from '../src/common/editor/controller/local-assistance-selected-video.ts';
 
-const FENCE = Object.freeze({
-	projectId: 'project-1', schemaVersion: 31, revision: 7, sequenceId: 'main-sequence',
-	occurrenceIds: Object.freeze(['video-clip']), sourceId: 'video-source',
-	sourceSha256: 'ab'.repeat(32), sourceStartFrame: 20, sourceEndFrame: 120,
-	linkMembershipSha256: 'cd'.repeat(32), timingAuthoritySha256: 'ef'.repeat(32),
-});
+const SOURCE_SHA256 = 'ab'.repeat(32);
 
 const TRANSNET_MODEL = Object.freeze({
 	modelId: 'transnetv2', version: '1.0.0', task: 'shot-detection',
@@ -57,28 +55,52 @@ function accurateReviewed(boundaries = [
 	return reviewed(boundaries, { detector: 'transnetv2', ...options });
 }
 
-function authority(timelineAnnotations: readonly Readonly<Record<string, unknown>>[] = []) {
+function authority(
+	timelineAnnotations: readonly Readonly<Record<string, unknown>>[] = [],
+	clipChange: Readonly<Record<string, unknown>> = {},
+) {
 	const project = Object.freeze({
 		id: 'project-1', schemaVersion: 31, revision: 7, sampleRate: 48_000,
+		primarySequenceId: 'main-sequence',
+		selection: Object.freeze({ clipIds: Object.freeze(['video-clip']) }),
 		tempoMap: Object.freeze({
 			mode: 'musical', events: Object.freeze([Object.freeze({
 				beat: Object.freeze({ num: 0, den: 1 }), bpm: Object.freeze({ num: 120, den: 1 }),
 			})]),
 		}),
 		timelineAnnotations: Object.freeze(timelineAnnotations),
-	});
-	return Object.freeze({
-		project,
-		source: Object.freeze({ id: 'video-source', sourceFrameCount: 240 }),
-		clip: Object.freeze({
-			id: 'video-clip', sequenceId: 'main-sequence', sequenceStartFrame: 10,
+		sources: Object.freeze([Object.freeze({
+			id: 'video-source', name: 'Camera', kind: 'video', storageKey: 'video-original',
+			mimeType: 'video/mp4', contentSha256: SOURCE_SHA256, sourceFrameCount: 240,
+			frameRate: Object.freeze({ num: 24, den: 1 }), timingAsset: null,
+			timingDecision: Object.freeze({
+				mode: 'conform-cfr-at-ingest', rate: Object.freeze({ num: 24, den: 1 }),
+			}),
+		})]),
+		clips: Object.freeze([Object.freeze({
+			id: 'video-clip', title: 'Camera', kind: 'video', sourceId: 'video-source',
+			sequenceId: 'main-sequence', sequenceStartFrame: 10,
 			sequenceFrameCount: 100, sourceInFrame: 20, sourceFrameCount: 100,
-		}),
-		track: Object.freeze({ id: 'video-track', type: 'video', clipIds: Object.freeze(['video-clip']) }),
-		sequence: Object.freeze({ id: 'main-sequence', rate: Object.freeze({ num: 24, den: 1 }) }),
-		sourceStartFrame: 20, sourceEndFrame: 120, fence: FENCE,
+			retimeMap: null, reversed: false, speedRatio: 1, avLinkId: null,
+			...clipChange,
+		})]),
+		tracks: Object.freeze([Object.freeze({
+			id: 'video-track', type: 'video', clipIds: Object.freeze(['video-clip']),
+		})]),
+		sequences: Object.freeze([Object.freeze({
+			id: 'main-sequence', rate: Object.freeze({ num: 24, den: 1 }),
+			trackIds: Object.freeze(['video-track']),
+		})]),
+		subsequences: Object.freeze([]),
+		multicameraGroups: Object.freeze([]),
+	});
+	return resolveLocalAssistanceSelectedVideoAuthority({
+		getProject: () => project,
+		getSelectedClipId: () => 'video-clip',
 	});
 }
+
+const FENCE = authority().fence;
 
 test('reviewed cuts inside the exact occurrence become one stable F31 marker batch', async () => {
 	let current = authority();
@@ -143,6 +165,50 @@ test('reviewed TransNetV2 cuts emit the same canonical markers and never timelin
 	assert.equal(annotation.positionFrame, 28_000);
 	const extensions = annotation.opaqueExtensions as Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 	assert.equal(extensions['org.soundscaper.assistance-shot-boundaries-v1']?.detector, 'transnetv2');
+});
+
+test('shot acceptance maps source boundaries through authenticated forward-retime authority', async () => {
+	const current = authority([], {
+		sequenceFrameCount: 50,
+		retimeMap: Object.freeze({
+			feature: 'video-retime', version: 2,
+			points: Object.freeze([
+				Object.freeze({ outerFrame: 0, sourceFrame: Object.freeze({ num: 20, den: 1 }) }),
+				Object.freeze({ outerFrame: 50, sourceFrame: Object.freeze({ num: 120, den: 1 }) }),
+			]),
+			segments: Object.freeze([Object.freeze({ mode: 'constant-forward' })]),
+		}),
+	});
+	const commits: Readonly<Record<string, unknown>>[] = [];
+	const acceptance = createLocalAssistanceShotAcceptance({
+		currentAuthority: () => current,
+		captureProject: () => current.project,
+		assertProject: (token) => assert.strictEqual(token, current.project),
+		commit: (command) => commits.push(command),
+	});
+	await acceptance.acceptValidatedResult(Object.freeze({
+		...reviewed([
+			{ sourceFrame: 24, presentationTick: '90090', score: 0.8 },
+			{ sourceFrame: 25, presentationTick: '112612', score: 0.7 },
+		]),
+		selectionFence: current.fence,
+	}));
+	const batch = commits[0] as Readonly<{
+		commands: readonly Readonly<{ annotation: Readonly<Record<string, unknown>> }>[];
+	}>;
+	assert.deepEqual(batch.commands.map(({ annotation }) => annotation.positionFrame), [24_000, 26_000]);
+
+	const detached = Object.freeze({ ...current });
+	const refused = createLocalAssistanceShotAcceptance({
+		currentAuthority: () => detached as never,
+		captureProject: () => current.project,
+		assertProject: () => undefined,
+		commit: () => undefined,
+	});
+	await assert.rejects(refused.acceptValidatedResult(Object.freeze({
+		...reviewed([{ sourceFrame: 24, presentationTick: '90090', score: 0.8 }]),
+		selectionFence: current.fence,
+	})), /stale|media authority/iu);
 });
 
 test('shot acceptance binds each detector to its exact model identity and role', async () => {
