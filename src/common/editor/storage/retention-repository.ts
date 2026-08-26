@@ -35,6 +35,7 @@ import type { StorageRepositoryPort } from './repository-port.ts';
 import type { SourceRecordRepository } from './source-record-repository.ts';
 import type { SourceRepository } from './source-repository.ts';
 import type { TransientAnalysisCacheRepository } from './transient-analysis-cache-repository.ts';
+import type { AssistanceDerivativeRepository } from './assistance-derivative-repository.ts';
 
 const WAVEFORM_PEAK_CACHE_PREFIXES = Object.freeze(['audio-editor-peaks-v1:', 'audio-editor-peaks-v2:']);
 
@@ -62,6 +63,7 @@ export interface RetentionRepositoryOptions {
 	readonly encodedCaptureSpools: Pick<EncodedCaptureSpoolRepository, 'retainedMediaChunkTokens'>;
 	readonly encodedCaptureChunks: Pick<OpfsPreferredEncodedCaptureChunkPort, 'retainedPaths'>;
 	readonly transientAnalysisCache: Pick<TransientAnalysisCacheRepository, 'purge'>;
+	readonly assistanceDerivatives?: Pick<AssistanceDerivativeRepository, 'purge'>;
 }
 
 /** Cross-domain reachability, temporary cleanup, and whole-store clearing. */
@@ -280,6 +282,7 @@ export class RetentionRepository {
 			// Reproducible analyses are availability-only. A failed bounded purge
 			// remains retryable and cannot change authoritative reachability truth.
 			await this.#options.transientAnalysisCache.purge().catch(() => undefined);
+			await this.#options.assistanceDerivatives?.purge().catch(() => undefined);
 		}
 
 		for (const source of deletedSources) {

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { AnalysisCacheRoutingRepository } from './analysis-cache-routing-repository.ts';
+import { AssistanceDerivativeRepository } from './assistance-derivative-repository.ts';
 import type { DerivativeCacheLimits } from './derivative-cache-policy.ts';
 import { KeyValueRepository } from './key-value-repository.ts';
 import { LinkedAudioOriginalSourceReader } from './linked-audio-original-source-reader.ts';
@@ -45,6 +46,7 @@ export interface StorageRepositories {
 	readonly analysis: KeyValueRepository;
 	readonly analysisCache: AnalysisCacheRoutingRepository;
 	readonly transientAnalysisCache: TransientAnalysisCacheRepository;
+	readonly assistanceDerivatives: AssistanceDerivativeRepository;
 	readonly sources: SourceRepository;
 	readonly media: MediaRepository;
 	readonly linkedOriginalBindings: LinkedOriginalRepository;
@@ -116,6 +118,7 @@ export function createStorageRepositories(
 		limits: options.transientAnalysisCacheLimits,
 		now: options.transientAnalysisCacheNow,
 	});
+	const assistanceDerivatives = new AssistanceDerivativeRepository(analysis);
 	const analysisCache = new AnalysisCacheRoutingRepository(analysis, transientAnalysisCache);
 	const media = new MediaRepository(port, opfs, {
 		cacheLimits: options.derivativeCacheLimits,
@@ -183,6 +186,7 @@ export function createStorageRepositories(
 		analysis,
 		analysisCache,
 		transientAnalysisCache,
+		assistanceDerivatives,
 		sources,
 		media,
 		linkedOriginalBindings,
@@ -198,7 +202,7 @@ export function createStorageRepositories(
 		pcm,
 		retention: new RetentionRepository({
 			port, sourceRecords, sources, media, opfs, rawPcmSpools,
-			encodedCaptureSpools, encodedCaptureChunks, transientAnalysisCache,
+			encodedCaptureSpools, encodedCaptureChunks, transientAnalysisCache, assistanceDerivatives,
 		}),
 		rawPcmSpools,
 		encodedCaptureChunks,

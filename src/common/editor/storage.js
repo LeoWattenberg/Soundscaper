@@ -108,6 +108,7 @@ export class AudioEditorProjectStore {
 		this.settingsRepository = repositories.settings;
 		this.analysisRepository = repositories.analysis;
 		this.analysisCacheRepository = repositories.analysisCache || repositories.analysis;
+		this.assistanceDerivativeRepository = repositories.assistanceDerivatives || null;
 		this.sourceRepository = repositories.sources;
 		this.rawPcmSpoolRepository = repositories.rawPcmSpools;
 		this.encodedCaptureChunkRepository = repositories.encodedCaptureChunks;
@@ -178,7 +179,9 @@ export class AudioEditorProjectStore {
 	}
 
 	async deleteProject(projectId) {
-		return this.linkedOriginalStoreService.deleteProject(projectId, () => this.projectRepository.delete(projectId));
+		const result = await this.linkedOriginalStoreService.deleteProject(projectId, () => this.projectRepository.delete(projectId));
+		await this.assistanceDerivativeRepository?.purgeProject(projectId).catch(() => undefined);
+		return result;
 	}
 
 	/** Binding-preserving replace-import rollback; see restoreStoreProjectSnapshot. */
