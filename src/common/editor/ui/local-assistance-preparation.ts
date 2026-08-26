@@ -12,6 +12,8 @@ import {
 	type AssistanceSelectionFence,
 } from '../assistance/proposal-session.ts';
 import {
+	LOCAL_ASSISTANCE_TRANSNET_V2_MODEL_ID,
+	LOCAL_ASSISTANCE_TRANSNET_V2_MODEL_TASK,
 	normalizeLocalAssistanceShotDetectionMode,
 	type LocalAssistanceShotDetectionMode,
 } from '../assistance/shot-detection-mode.ts';
@@ -137,6 +139,7 @@ const MODEL_TASK_SLOTS = Object.freeze({
 	'saliency-detection': modelTaskSlots(['saliency-detection']),
 	'editorial-generation': modelTaskSlots(['editorial-generation']),
 } satisfies Readonly<Record<AssistanceOperation, readonly LocalAssistanceModelTaskSlot[]>>);
+const ACCURATE_SHOT_MODEL_TASK_SLOTS = modelTaskSlots([LOCAL_ASSISTANCE_TRANSNET_V2_MODEL_TASK]);
 
 const MEDIA_KINDS = Object.freeze([
 	'audio', 'video', 'frame-pack', 'transcript', 'text', 'editorial-context',
@@ -221,6 +224,10 @@ export function normalizeLocalAssistancePreparedMedia(
 	if (Object.hasOwn(expected, 'shotDetectionMode') && expected.operation !== 'shot-detection') {
 		throw new TypeError('Only shot detection may expect a Mark Cuts mode.');
 	}
+	if (expected.operation === 'shot-detection' && Object.hasOwn(expected, 'shotDetectionMode')
+		&& !hasShotDetectionMode) {
+		throw new TypeError('Prepared selected media omitted its exact Mark Cuts mode.');
+	}
 	const shotDetectionMode = operation === 'shot-detection'
 		? (hasShotDetectionMode
 			? normalizeLocalAssistanceShotDetectionMode(record.shotDetectionMode)
@@ -242,22 +249,28 @@ export function normalizeLocalAssistancePreparedMedia(
 export function localAssistanceModelCompatible(
 	operation: AssistanceOperation,
 	model: LocalAssistanceModel,
+	shotDetectionMode?: LocalAssistanceShotDetectionMode,
 ): boolean {
-	return MODEL_TASK_SLOTS[operation].some((slot) => slot.includes(model.task));
+	const slots = operationModelTaskSlots(operation, shotDetectionMode);
+	return slots.some((slot) => slot.includes(model.task))
+		&& (operation !== 'shot-detection' || model.modelId === LOCAL_ASSISTANCE_TRANSNET_V2_MODEL_ID);
 }
 
 export function localAssistanceModelTaskSlots(
 	operation: AssistanceOperation,
+	shotDetectionMode?: LocalAssistanceShotDetectionMode,
 ): readonly LocalAssistanceModelTaskSlot[] {
-	return MODEL_TASK_SLOTS[operation];
+	return operationModelTaskSlots(operation, shotDetectionMode);
 }
 
 export function localAssistanceOperationModelsAvailable(
 	operation: AssistanceOperation,
 	models: readonly LocalAssistanceModel[],
+	shotDetectionMode?: LocalAssistanceShotDetectionMode,
 ): boolean {
-	return MODEL_TASK_SLOTS[operation].every(
-		(slot) => models.some((model) => slot.includes(model.task)),
+	return operationModelTaskSlots(operation, shotDetectionMode).every(
+		(slot) => models.some((model) => slot.includes(model.task)
+			&& localAssistanceModelCompatible(operation, model, shotDetectionMode)),
 	);
 }
 
@@ -265,22 +278,49 @@ export function localAssistanceSelectedModels(
 	operation: AssistanceOperation,
 	models: readonly LocalAssistanceModel[],
 	selectedModelIds: readonly string[],
+	shotDetectionMode?: LocalAssistanceShotDetectionMode,
 ): readonly LocalAssistanceModel[] | null {
+	const slots = operationModelTaskSlots(operation, shotDetectionMode);
 	if (new Set(selectedModelIds).size !== selectedModelIds.length) return null;
 	const selected = selectedModelIds.map(
 		(modelId) => models.find((model) => model.modelId === modelId) ?? null,
 	);
 	if (selected.some((model) => model === null)) return null;
 	const resolved = selected as readonly LocalAssistanceModel[];
-	if (resolved.length !== MODEL_TASK_SLOTS[operation].length
-		|| resolved.some((model) => !localAssistanceModelCompatible(operation, model))) return null;
+	if (resolved.length !== slots.length || resolved.some(
+		(model) => !localAssistanceModelCompatible(operation, model, shotDetectionMode),
+	)) return null;
 	const ordered: LocalAssistanceModel[] = [];
-	for (const slot of MODEL_TASK_SLOTS[operation]) {
-		const matches = resolved.filter((model) => slot.includes(model.task));
+	for (const slot of slots) {
+		const matches = resolved.filter((model) => slot.includes(model.task)
+			&& localAssistanceModelCompatible(operation, model, shotDetectionMode));
 		if (matches.length !== 1) return null;
 		ordered.push(matches[0]!);
 	}
 	return Object.freeze(ordered);
+}
+
+export function assertLocalAssistanceShotDetectionReviewMode(
+	mode: LocalAssistanceShotDetectionMode,
+	review: LocalAssistanceOutputReview,
+): void {
+	const detector = mode === 'accurate' ? 'transnetv2' : 'ffmpeg-scdet';
+	if (review.kind !== 'shot-boundaries' || review.detector !== detector) {
+		throw new TypeError('Mark Cuts returned an output from the opposite detection mode.');
+	}
+}
+
+function operationModelTaskSlots(
+	operation: AssistanceOperation,
+	shotDetectionMode?: LocalAssistanceShotDetectionMode,
+): readonly LocalAssistanceModelTaskSlot[] {
+	if (operation !== 'shot-detection') {
+		if (shotDetectionMode !== undefined) throw new TypeError('Only Mark Cuts has a detection mode.');
+		return MODEL_TASK_SLOTS[operation];
+	}
+	const mode = shotDetectionMode === undefined
+		? 'fast' : normalizeLocalAssistanceShotDetectionMode(shotDetectionMode);
+	return mode === 'accurate' ? ACCURATE_SHOT_MODEL_TASK_SLOTS : MODEL_TASK_SLOTS[operation];
 }
 
 function normalizeInputs(value: unknown, operation: OperationSpec): readonly LocalAssistancePreparedInput[] {

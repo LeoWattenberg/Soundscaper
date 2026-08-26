@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
 import { ASSISTANCE_OPERATIONS, type AssistanceOperation } from '../../assistance/operation.ts';
+import type { LocalAssistanceShotDetectionMode } from '../../assistance/shot-detection-mode.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import LocalAssistanceCleanupReview from './LocalAssistanceCleanupReview.tsx';
 import type { LocalAssistanceTranscriptCleanupPreset } from '../local-assistance-cleanup.ts';
 import LocalAssistanceOutputReviewList from './LocalAssistanceOutputReview.tsx';
 import type { LocalAssistanceBridge } from '../local-assistance-bridge.ts';
-import { localAssistanceModelTaskSlots,
+import { localAssistanceModelCompatible, localAssistanceModelTaskSlots,
 	type LocalAssistanceSelectedMediaPreparationPort } from '../local-assistance-preparation.ts';
 import {
 	createLocalAssistanceSessionStore,
@@ -33,6 +34,7 @@ export interface LocalAssistanceDialogViewProps {
 	readonly onClose: () => void;
 	readonly onSelectSource: (sourceId: string) => unknown;
 	readonly onSelectOperation: (operation: AssistanceOperation) => unknown;
+	readonly onShotDetectionModeChange?: (mode: LocalAssistanceShotDetectionMode) => unknown;
 	readonly onSelectModel: (modelId: string) => unknown;
 	readonly onConsentChange: (consent: boolean) => unknown;
 	readonly onRun: () => unknown;
@@ -66,6 +68,7 @@ export default function LocalAssistanceDialog({
 		onClose={onClose}
 		onSelectSource={store.selectSource}
 		onSelectOperation={store.selectOperation}
+		onShotDetectionModeChange={store.selectShotDetectionMode}
 		onSelectModel={store.selectModel}
 		onConsentChange={store.setConsent}
 		onRun={() => store.run()}
@@ -86,15 +89,18 @@ export default function LocalAssistanceDialog({
 
 export function LocalAssistanceDialogView({
 	copy, snapshot, reviewOpen = false, onClose, onSelectSource, onSelectOperation,
-	onSelectModel, onConsentChange, onRun, onCancel, onReview, onAccept,
+	onShotDetectionModeChange = () => undefined, onSelectModel,
+	onConsentChange, onRun, onCancel, onReview, onAccept,
 	onCleanupSelectionChange = () => undefined,
 	onCleanupPresetChange = () => undefined,
 	onCleanupAccept = () => undefined, onCleanupReject = () => undefined,
 }: LocalAssistanceDialogViewProps) {
 	const source = snapshot.sources.find(({ sourceId }) => sourceId === snapshot.selectedSourceId) ?? null;
 	const operationSet = new Set(source?.operations ?? []);
+	const shotDetectionMode = snapshot.selectedOperation === 'shot-detection'
+		? snapshot.shotDetectionMode : undefined;
 	const modelTaskSlots = snapshot.selectedOperation
-		? localAssistanceModelTaskSlots(snapshot.selectedOperation)
+		? localAssistanceModelTaskSlots(snapshot.selectedOperation, shotDetectionMode)
 		: EMPTY_MODEL_TASK_SLOTS;
 	const message = phaseMessage(copy, snapshot);
 	return <AudioEditorDialogShell
@@ -134,8 +140,21 @@ export function LocalAssistanceDialogView({
 						disabled={!operationSet.has(operation)}>{operation}</option>)}
 				</select>
 			</label>
+			{snapshot.selectedOperation === 'shot-detection' && <fieldset
+				className="kw-local-assistance__shot-mode" disabled={busy(snapshot)}>
+				<legend>{text(copy, 'localAssistanceShotDetectionMode', 'Mark Cuts mode')}</legend>
+				<label><input type="radio" name="local-assistance-shot-mode" value="fast"
+					checked={snapshot.shotDetectionMode === 'fast'} onChange={() => {
+						void onShotDetectionModeChange('fast');
+					}} />{text(copy, 'localAssistanceShotDetectionFast', 'Fast · model-free')}</label>
+				<label><input type="radio" name="local-assistance-shot-mode" value="accurate"
+					checked={snapshot.shotDetectionMode === 'accurate'} onChange={() => {
+						void onShotDetectionModeChange('accurate');
+					}} />{text(copy, 'localAssistanceShotDetectionAccurate', 'Accurate · TransNetV2')}</label>
+			</fieldset>}
 			{modelTaskSlots.map((slot) => {
-				const compatibleModels = snapshot.models.filter((model) => slot.includes(model.task));
+				const compatibleModels = snapshot.models.filter((model) => slot.includes(model.task)
+					&& localAssistanceModelCompatible(snapshot.selectedOperation!, model, shotDetectionMode));
 				const selectedModelId = snapshot.selectedModelIds.find(
 					(modelId) => compatibleModels.some((model) => model.modelId === modelId),
 				) ?? '';

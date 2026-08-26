@@ -162,7 +162,8 @@ test('the focused EN/DE catalog and dialog expose all operations without an impl
 	assert.equal(GERMAN_COPY.localAssistance, 'Lokale Assistenz');
 	const snapshot: LocalAssistanceSnapshot = Object.freeze({
 		phase: 'ready', sources: INVENTORY.sources, models: Object.freeze([MODEL]),
-		selectedSourceId: 'source-1', selectedOperation: null, selectedModelIds: Object.freeze([]), consent: false,
+		selectedSourceId: 'source-1', selectedOperation: null, shotDetectionMode: 'fast',
+		selectedModelIds: Object.freeze([]), consent: false,
 		progress: null, result: null, unavailableReason: null, error: null,
 		canRun: false, canCancel: false, canReview: false, canAccept: false,
 	});

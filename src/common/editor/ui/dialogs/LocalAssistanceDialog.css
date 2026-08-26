@@ -10,6 +10,17 @@
 	gap: 0.25rem;
 }
 
+.kw-local-assistance__shot-mode {
+	display: grid;
+	gap: 0.5rem;
+	grid-column: 1 / -1;
+}
+
+.kw-local-assistance__shot-mode label {
+	display: flex;
+	gap: 0.4rem;
+}
+
 .kw-local-assistance__selections select,
 .kw-local-assistance__progress progress {
 	width: 100%;

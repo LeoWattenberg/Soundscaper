@@ -140,6 +140,7 @@ test('speaker diarization renders one installed-model selector per required task
 		})]),
 		models: Object.freeze([EMBEDDING_MODEL, SECOND_SEGMENTATION_MODEL, SEGMENTATION_MODEL]),
 		selectedSourceId: 'source-1', selectedOperation: 'speaker-diarization',
+		shotDetectionMode: 'fast',
 		selectedModelIds: Object.freeze([SEGMENTATION_MODEL.modelId, EMBEDDING_MODEL.modelId]),
 		consent: false, progress: null, result: null, unavailableReason: null, error: null,
 		canRun: false, canCancel: false, canReview: false, canAccept: false,
@@ -156,6 +157,7 @@ test('speaker diarization renders one installed-model selector per required task
 	assert.match(markup, /<option value="segmentation-model" selected="">/u);
 	assert.match(markup, /<option value="embedding-model" selected="">/u);
 	assert.equal(markup.match(/<select/gu)?.length, 4);
+	assert.doesNotMatch(markup, /Mark Cuts mode/u);
 });
 
 test('preparation represents shot detection as a zero-model operation contract', () =>
