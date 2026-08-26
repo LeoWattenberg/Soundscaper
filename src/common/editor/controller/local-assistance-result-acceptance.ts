@@ -3,6 +3,13 @@
 /** Controller-owned dispatch for semantically reviewed assistance results. */
 
 import {
+	createLocalAssistanceTranscriptCleanupWorkflow,
+	type LocalAssistanceTranscriptCleanupWorkflow,
+} from './local-assistance-cleanup-workflow.ts';
+import type {
+	LocalAssistanceTranscriptCleanupAuthority,
+} from './local-assistance-cleanup-acceptance.ts';
+import {
 	createLocalAssistanceRangeLabelAcceptance,
 	type LocalAssistanceRangeLabelAuthority,
 } from './local-assistance-range-label-acceptance.ts';
@@ -23,8 +30,18 @@ export interface LocalAssistanceResultAcceptanceDependencies {
 
 export function createLocalAssistanceResultAcceptance(
 	dependencies: LocalAssistanceResultAcceptanceDependencies,
-): Readonly<{ acceptValidatedResult(request: unknown): Promise<void> }> {
+): Readonly<LocalAssistanceTranscriptCleanupWorkflow & {
+	acceptValidatedResult(request: unknown): Promise<void>;
+}> {
 	const rangeLabels = createLocalAssistanceRangeLabelAcceptance(dependencies);
+	const cleanup = createLocalAssistanceTranscriptCleanupWorkflow({
+		currentAuthority: dependencies.currentAuthority as () => LocalAssistanceTranscriptCleanupAuthority,
+		captureProject: dependencies.captureProject,
+		assertProject: dependencies.assertProject,
+		commit: (command) => dependencies.commit(
+			command as unknown as Readonly<Record<string, unknown>>,
+		),
+	});
 	const transcript = dependencies.store
 		? createLocalAssistanceTranscriptAcceptance({
 			currentAuthority: dependencies.currentAuthority,
@@ -35,6 +52,7 @@ export function createLocalAssistanceResultAcceptance(
 		})
 		: null;
 	return Object.freeze({
+		...cleanup,
 		acceptValidatedResult(request: unknown): Promise<void> {
 			const operation = resultOperation(request);
 			if (operation === 'speech-recognition') {
