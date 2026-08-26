@@ -2,6 +2,7 @@
 
 #include "os_audio_codec.h"
 #include "os_mp3_profile.h"
+#include "os_audio_codec_windows_session.h"
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -23,6 +24,7 @@
 namespace {
 
 using Microsoft::WRL::ComPtr;
+using soundscaper::os_audio::MediaFoundationSession;
 
 enum class OutputInspection {
 	exact,
@@ -171,22 +173,17 @@ soundscaper_pro_os_mp3_encode_result encode(
 		return answer(SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST);
 	}
 
-	const HRESULT comStatus = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-	const bool uninitializeCom = SUCCEEDED(comStatus);
-	if (FAILED(comStatus) && comStatus != RPC_E_CHANGED_MODE) {
-		return answer(SOUNDSCAPER_PRO_OS_CODEC_API_UNAVAILABLE);
-	}
-	if (FAILED(MFStartup(MF_VERSION, MFSTARTUP_FULL))) {
-		if (uninitializeCom) CoUninitialize();
-		return answer(SOUNDSCAPER_PRO_OS_CODEC_API_UNAVAILABLE);
-	}
+	// Declared before every interface pointer below, so Media Foundation is shut
+	// down only once each of them has already been released.
+	MediaFoundationSession session;
+	if (!session.start()) return answer(SOUNDSCAPER_PRO_OS_CODEC_API_UNAVAILABLE);
 	bool keepOutput = false;
 	ComPtr<IMFSinkWriter> writer;
 	auto finish = [&](soundscaper_pro_os_mp3_encode_result result) {
+		// Released here as well as at scope exit: the sink writer holds the output
+		// file open, and Windows refuses to delete a file that is still open.
 		writer.Reset();
 		if (!keepOutput) DeleteFileW(outputPath.c_str());
-		MFShutdown();
-		if (uninitializeCom) CoUninitialize();
 		return result;
 	};
 	if (FAILED(MFCreateSinkWriterFromURL(outputPath.c_str(), nullptr, nullptr, &writer))) {

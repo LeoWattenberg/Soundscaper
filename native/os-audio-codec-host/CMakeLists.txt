@@ -56,6 +56,7 @@ if(APPLE)
 elseif(WIN32)
 	target_sources(soundscaper_os_audio_codec_core PRIVATE
 		"${SOUNDSCAPER_REVIEWED_CODEC_SOURCE}/os_audio_codec_windows.cpp"
+		"${SOUNDSCAPER_REVIEWED_CODEC_SOURCE}/os_audio_codec_windows_session.h"
 		"${SOUNDSCAPER_REVIEWED_CODEC_SOURCE}/os_mp3_encode_windows.cpp"
 	)
 	target_link_libraries(soundscaper_os_audio_codec_core PRIVATE

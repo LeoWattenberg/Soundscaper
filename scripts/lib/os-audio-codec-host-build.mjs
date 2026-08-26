@@ -43,6 +43,7 @@ export const OS_AUDIO_CODEC_HOST_SOURCE_FILES = Object.freeze([
 	'native/soundscaper-professional-host/src/os_audio_codec.h',
 	'native/soundscaper-professional-host/src/os_audio_codec_mac.mm',
 	'native/soundscaper-professional-host/src/os_audio_codec_windows.cpp',
+	'native/soundscaper-professional-host/src/os_audio_codec_windows_session.h',
 	'native/soundscaper-professional-host/src/os_mp3_encode_windows.cpp',
 	'native/soundscaper-professional-host/src/os_mp3_profile.cpp',
 	'native/soundscaper-professional-host/src/os_mp3_profile.h',

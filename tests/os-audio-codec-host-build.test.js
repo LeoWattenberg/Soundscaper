@@ -91,6 +91,7 @@ test('build plans authenticate exact Electron 43.1.1 headers and close the targe
 		'native/soundscaper-professional-host/src/os_audio_codec.h',
 		'native/soundscaper-professional-host/src/os_audio_codec_mac.mm',
 		'native/soundscaper-professional-host/src/os_audio_codec_windows.cpp',
+		'native/soundscaper-professional-host/src/os_audio_codec_windows_session.h',
 		'native/soundscaper-professional-host/src/os_mp3_encode_windows.cpp',
 		'native/soundscaper-professional-host/src/os_mp3_profile.cpp',
 		'native/soundscaper-professional-host/src/os_mp3_profile.h',
@@ -331,6 +332,32 @@ test('the portable exact MP3 profile canary remains buildable without a target O
 	assert.equal(built.status, 0, built.stderr || built.stdout);
 	const executed = spawnSync(executable, [], { encoding: 'utf8' });
 	assert.equal(executed.status, 0, executed.stderr || executed.stdout);
+});
+
+test('Media Foundation is shut down only by the guard every interface outlives', async () => {
+	// A Media Foundation interface released after MFShutdown or CoUninitialize is
+	// undefined behaviour, and it segfaulted the Windows codec self-test: the
+	// source reader and its media types were declared after the lambda that shut
+	// the platform down, so they were released last. The guard fixes the order by
+	// construction — it is declared first, so it is destroyed last — but only for
+	// as long as nothing else tears the platform down on its own.
+	const windowsSources = OS_AUDIO_CODEC_HOST_SOURCE_FILES
+		.filter((file) => /_windows(?:_session)?\.(?:cpp|h)$/u.test(file));
+	assert.equal(windowsSources.length, 3, 'expected the Windows translation units and their guard');
+	for (const relativePath of windowsSources) {
+		const source = await readFile(join(ROOT, relativePath), 'utf8');
+		const owned = relativePath.endsWith('os_audio_codec_windows_session.h');
+		for (const call of ['MFStartup', 'MFShutdown', 'CoInitializeEx', 'CoUninitialize']) {
+			assert.equal(source.includes(`${call}(`), owned,
+				`${relativePath} must reach ${call} only through MediaFoundationSession`);
+		}
+		if (owned) continue;
+		const guard = source.indexOf('MediaFoundationSession session;');
+		assert.notEqual(guard, -1, `${relativePath} must own its platform through the guard`);
+		const firstInterface = source.search(/\bComPtr</u);
+		assert.ok(firstInterface > guard,
+			`${relativePath} must declare the guard before any interface pointer it outlives`);
+	}
 });
 
 test('the authenticated source closure is checked out identically on every runner', () => {
