@@ -85,7 +85,7 @@ export const EDITOR_EFFECT_DIALOG_SHELL_CHUNK_TEST = /(?:^|[\\/])(?:vendor[\\/]a
 const DESIGN_SYSTEM_EDITOR_SHELL_COMPONENT_CHUNK_TEST = /(?:^|[\\/])vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?:AddTrackFlyout|ApplicationHeader|Button|Checkbox|Clip|ClipBody|ClipHeader|CloudProjectIndicator|ContextMenu|ContextMenuItem|DialogHeader|Dropdown|EnvelopeCurve|EnvelopeInteractionLayer|EnvelopeOverlay|EnvelopePoint|Flyout|GhostButton|Icon|Knob|LabelMarker|LabeledCheckbox|LabeledRadio|MidiClipBody|MixerChannel|MixerEffect|MixerFader|MixerFaderHandle|MixerPanel|NumberStepper|PanKnob|PanelHeader|PlayheadCursor|Radio|RulerFlyout|SelectionToolbar|Separator|Slider|TextInput|TimeCode|TimelineRuler|TimelineRulerContextMenu|ToggleButton|ToggleToolButton|ToolButton|Toolbar|Tooltip|Track|TrackControlPanel|TrackMeter|TransportButton|VerticalRuler)[\\/]/;
 const EDITOR_CODEC_FOUNDATION_CHUNK_TEST = /src[\\/]common[\\/]editor[\\/](?:wavpack[\\/]|staffpad[\\/]|parametric-eq[\\/](?:parameters|design|wasm-runtime|wasm-loader)\.js$)/;
 const EDITOR_EFFECT_CONTRACT_CHUNK_TEST = /(?:src[\\/]common[\\/](?:i18n[\\/]action-parity\.js|editor[\\/](?:audacity-effects[\\/](?:contracts|live-capabilities)\.js|nyquist[\\/]plugin-registry\.js|reviewed-effects[\\/](?:errors|manifest|selection-effect-contract|utility-gain-package)\.ts)))$/;
-const framescaperProjectFoundationModule = String.raw`(?:editor-video-proxy-action-runtime-v20|editor-native-(?:openfx-authoring-model|render-plan-authority)-v28|editor-selected-v27-authoring-controller|editor-project-(?:companion-audio-scope-v15|unified-render-(?:openfx|plan-v28|professional)|v(?:28|32)|v(?:25|28|31|32)-foundation|feature-requirements-v(?:25|26|28|32)|feature-capability-profile-v(?:25|26|28|32)|storage-profile-v(?:25|26|28|32)|runtime-profile-v(?:25|26|28|32)(?:-prerequisite)?|v(?:25|28|32)-validation|v28-openfx-validation))`;
+const framescaperProjectFoundationModule = String.raw`(?:editor-video-proxy-action-runtime-v20|editor-native-(?:openfx-authoring-model|project-action-requests|render-plan-authority)-v28|editor-selected-v27-authoring-controller|editor-project-(?:companion-audio-scope-v15|v25-source-command|v27-finishing-command|unified-render-(?:openfx|plan-v28|professional)|v(?:28|32)|v(?:25|28|31|32)-foundation|feature-requirements-v(?:25|26|28|32)|feature-capability-profile-v(?:25|26|28|32)|storage-profile-v(?:25|26|28|32)|runtime-profile-v(?:25|26|28|32)(?:-prerequisite)?|v(?:25|28|32)-validation|v28-openfx-validation))`;
 const FRAMESCAPER_PROJECT_FOUNDATION_CHUNK_TEST = new RegExp(
 	`src[\\\\/]framescaper[\\\\/]${framescaperProjectFoundationModule}\\.ts$`,
 );
@@ -94,7 +94,7 @@ const FRAMESCAPER_SESSION_CLIPBOARD_CHUNK_TEST = /src[\\/]framescaper[\\/]editor
 
 /** Flat editor modules and `assistance/` domain modules shared by the shell and dialogs. */
 export const EDITOR_DOMAIN_CHUNK_TEST = new RegExp(
-	`${editorPath}(?!${editorOptionalArchiveModule}\\.(?:[cm]?[jt]s)$)(?!${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)$)(?:[^\\\\/]+|assistance[\\\\/][^\\\\/]+)\\.(?:[cm]?[jt]s)$`,
+	`${editorPath}(?!${editorOptionalArchiveModule}\\.(?:[cm]?[jt]s)$)(?!${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)$)(?:[^\\\\/]+|(?:assistance|platform)[\\\\/][^\\\\/]+)\\.(?:[cm]?[jt]s)$`,
 );
 
 /** @type {import('rolldown').CodeSplittingGroup[]} */
@@ -258,7 +258,7 @@ export const chunkGroups = [
 	},
 	{
 		name: 'editor-shell',
-		test: new RegExp(`${editorPath}(?!${editorOptionalSurfaceModule}$)ui[\\\\/](?!(?:dialogs|inspector)[\\\\/])`),
+		test: new RegExp(`${editorPath}(?!${editorOptionalSurfaceModule}$)ui[\\\\/](?!(?:dialogs[\\\\/](?!editor-dialog-model\\.js$)|inspector[\\\\/]))`),
 		priority: 70,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
