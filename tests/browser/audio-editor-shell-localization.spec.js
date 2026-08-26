@@ -4,6 +4,7 @@ import {
 	monoTone,
 	test,
 	toneA,
+	TRANSLATIONS_ROOT,
 } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
@@ -32,6 +33,50 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(page.locator('.site-sidebar')).toHaveCount(0);
 		await expect(page.locator('.tool-intro')).toBeHidden();
 		await expect(page.locator('[data-audio-editor]')).toHaveAttribute('data-audio-editor-bound', 'true');
+	});
+
+	test('keeps the editor suspended until its lazy core stylesheet is available', async ({ page }) => {
+		let releaseCss;
+		let requestedCss = false;
+		const cssGate = new Promise((resolve) => { releaseCss = resolve; });
+		await page.route(/\/assets\/editor-shell-[^/]+\.css$/u, async (route) => {
+			requestedCss = true;
+			await cssGate;
+			await route.continue();
+		});
+
+		await page.goto('/en/', { waitUntil: 'domcontentloaded' });
+		await expect(page.locator('[role="status"]')).toContainText('Loading project');
+		await expect.poll(() => requestedCss).toBe(true);
+		await expect(page.locator('[data-audio-editor]')).toHaveCount(0);
+
+		releaseCss();
+		await waitForEditor(page);
+		await expect(page.locator('[data-audio-editor]')).toBeVisible();
+	});
+
+	test('defers translation discovery until idle or locale-selector interaction', async ({ page }) => {
+		let manifestRequests = 0;
+		page.on('request', (request) => {
+			if (request.url() === `${TRANSLATIONS_ROOT}/latest.json`) manifestRequests += 1;
+		});
+		await page.addInitScript(() => {
+			Object.defineProperties(window, {
+				requestIdleCallback: { configurable: true, value: () => 1 },
+				cancelIdleCallback: { configurable: true, value: () => {} },
+			});
+		});
+
+		await page.goto('/en/');
+		await waitForEditor(page);
+		expect(manifestRequests).toBe(0);
+
+		const selector = page.locator('[data-locale-select]');
+		await selector.focus();
+		await expect.poll(() => manifestRequests).toBe(1);
+		await selector.dispatchEvent('pointerdown');
+		await page.waitForTimeout(50);
+		expect(manifestRequests).toBe(1);
 	});
 
 	test('fails closed when exact V30 durable project storage is unavailable', async ({ page }) => {
