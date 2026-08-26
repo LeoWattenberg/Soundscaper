@@ -215,7 +215,7 @@ test('PANNs cancellation is observed between authenticated inference batches', a
 
 test('main-side ONNX audio identity admission is closed before model lookup', () => {
 	assert.doesNotThrow(() => assertAssistanceOnnxAudioModelBindingV1('audio-tagging', {
-		modelId: 'panns-cnn10', version: 'converted-v1',
+		modelId: 'panns-cnn10', version: '1.0.0',
 		artifactSha256s: ['a'.repeat(64)],
 	}));
 	for (const modelId of ['beat-this-small0', 'beat-this-final0']) {

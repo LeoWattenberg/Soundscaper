@@ -55,6 +55,8 @@ const DIRECT_ADDITIONAL_OPERATIONS = new Set<AssistanceOperationRequest['operati
 const GIB = 1024 ** 3;
 const WAV2VEC2_BASE_960H_SHA256 =
 	'b73fe60ddcd3fd07f91d65d50b4f10ba99039104c4fb5db5bdafbb27610bb6eb';
+const QWEN3_4B_Q4_K_M_SHA256 =
+	'7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5';
 const SUBJECT_MODEL_REQUIREMENTS = Object.freeze([
 	Object.freeze({ modelId: 'yunet-face-detection-2026may', version: '2026.5.0',
 		task: 'face-detection', artifactSha256s: Object.freeze([
@@ -166,6 +168,12 @@ async function resolveExactModel(
 	if (subjectBindings === null && request.operation === 'word-alignment') {
 		assertAssistanceWav2Vec2EnglishAlignmentModelBindingV1(request.models[0]!);
 	}
+	if (subjectBindings === null && request.operation === 'shot-detection') {
+		assertAssistanceTransNetV2ModelBindingV1(request.models[0]!);
+	}
+	if (subjectBindings === null && request.operation === 'editorial-generation') {
+		assertAssistanceQwenEditorialModelBindingV1(request.models[0]!);
+	}
 	if (subjectBindings === null && request.operation === 'text-embedding') {
 		assertAssistanceOnnxTextEmbeddingModelBindingV1(request.models[0]!);
 	}
@@ -241,8 +249,8 @@ export function assertAssistanceOnnxAudioModelBindingV1(
 	binding: AssistanceOperationModelBinding,
 ): void {
 	if (operation === 'audio-tagging') {
-		if (binding.modelId !== 'panns-cnn10') {
-			throw new TypeError('Audio tagging requires the exact PANNs Cnn10 model identity.');
+		if (binding.modelId !== 'panns-cnn10' || binding.version !== '1.0.0') {
+			throw new TypeError('Audio tagging requires the exact PANNs Cnn10 1.0.0 model identity.');
 		}
 		return;
 	}
@@ -282,9 +290,31 @@ export function assertAssistanceWav2Vec2EnglishAlignmentModelBindingV1(
 	binding: AssistanceOperationModelBinding,
 ): void {
 	if (binding.modelId !== 'wav2vec2-base-960h'
+		|| binding.version !== '1.0.0'
 		|| binding.artifactSha256s.length !== 1
 		|| binding.artifactSha256s[0] !== WAV2VEC2_BASE_960H_SHA256) {
 		throw new TypeError('Word alignment requires the exact pinned wav2vec2-base-960h revision identity and digest.');
+	}
+}
+
+/** Close accurate-shot substitution before catalog/status lookup. */
+export function assertAssistanceTransNetV2ModelBindingV1(
+	binding: AssistanceOperationModelBinding,
+): void {
+	if (binding.modelId !== 'transnetv2' || binding.version !== '1.0.0') {
+		throw new TypeError('Accurate shot detection requires the exact TransNetV2 1.0.0 identity.');
+	}
+}
+
+/** Close optional editorial-generation substitution against the direct GGUF pin. */
+export function assertAssistanceQwenEditorialModelBindingV1(
+	binding: AssistanceOperationModelBinding,
+): void {
+	if (binding.modelId !== 'qwen3-4b-q4-k-m'
+		|| binding.version !== '1.0.0'
+		|| binding.artifactSha256s.length !== 1
+		|| binding.artifactSha256s[0] !== QWEN3_4B_Q4_K_M_SHA256) {
+		throw new TypeError('Editorial generation requires the exact pinned Qwen3-4B Q4_K_M identity and digest.');
 	}
 }
 
