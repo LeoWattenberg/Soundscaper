@@ -22,6 +22,9 @@ import {
 	createLocalAssistanceGuidedSessionStore,
 	type LocalAssistanceGuidedSnapshot,
 } from '../src/common/editor/ui/local-assistance-guided-session-store.ts';
+import type {
+	LocalAssistanceGuidedReviewedResult,
+} from '../src/common/editor/ui/local-assistance-guided-result-review.ts';
 import type { LocalAssistanceWorkflowBridge } from '../src/common/editor/ui/local-assistance-workflow-bridge.ts';
 import type { LocalAssistanceBridge } from '../src/common/editor/ui/local-assistance-bridge.ts';
 import type {
@@ -186,6 +189,46 @@ test('completed Guided output remains unchecked until its terminal claim passes 
 		review={guided.getSnapshot().review!} selectedChoiceIds={guided.getSnapshot().selectedChoiceIds}
 		onChoiceChange={() => undefined} />), /type="checkbox" checked=""/u);
 	await guided.dispose();
+});
+
+test('Guided editorial review renders admitted text as inert, transient content', () => {
+	const candidateId = 'selection:abababababababababababab';
+	const review: LocalAssistanceGuidedReviewedResult = {
+		reviewVersion: 1,
+		jobId: WORKFLOW_JOB_ID,
+		workflowId: 'generate-editorial-text',
+		outputs: [{
+			stageId: 'generate-editorial-text',
+			slotId: 'editorial-proposal',
+			claim: {
+				claimVersion: 1,
+				claimId: '03'.repeat(20),
+				jobId: WORKFLOW_JOB_ID,
+				stageId: 'generate-editorial-text',
+				direction: 'output',
+				slotId: 'editorial-proposal',
+			},
+			mediaType: 'application/vnd.soundscaper.editorial-proposal+json',
+			byteLength: 128,
+			sha256: '04'.repeat(32),
+			body: new Blob(['{}'], { type: 'application/vnd.soundscaper.editorial-proposal+json' }),
+			semantic: {
+				schemaVersion: 1,
+				candidates: [{ candidateId, title: 'A bounded title', hook: 'A bounded hook',
+					chapters: ['Opening', 'Payoff'], explanation: 'Why this works' }],
+			},
+		}],
+		choices: [{ id: candidateId, kind: 'editorial', label: 'Editorial text 1',
+			selected: false, enabled: true }],
+	};
+	const markup = renderToStaticMarkup(<LocalAssistanceGuidedReview copy={ENGLISH_COPY}
+		review={review} selectedChoiceIds={[]} onChoiceChange={() => undefined} />);
+	assert.match(markup, /A bounded title/u);
+	assert.match(markup, /A bounded hook/u);
+	assert.match(markup, /Opening/u);
+	assert.match(markup, /Payoff/u);
+	assert.match(markup, /Why this works/u);
+	assert.doesNotMatch(markup, /contenteditable/iu);
 });
 
 test('Guided acceptance publishes only checked choices and releases completed native custody', async () => {

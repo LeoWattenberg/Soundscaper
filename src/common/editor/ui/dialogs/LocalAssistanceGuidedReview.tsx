@@ -29,6 +29,8 @@ export default function LocalAssistanceGuidedReview({
 		)).join(' · ')}</p>
 		{review.outputs.filter(({ mediaType }) => mediaType === 'audio/wav').map((output) =>
 			<AudioAudition key={output.claim.claimId} body={output.body} label={output.slotId} />)}
+		{review.workflowId === 'generate-editorial-text'
+			? <EditorialProposals review={review} /> : null}
 		{review.choices.length === 0
 			? <p>{text(copy, 'localAssistanceNoProposals', 'No proposals were found.')}</p>
 			: <fieldset>
@@ -40,6 +42,49 @@ export default function LocalAssistanceGuidedReview({
 				</label>)}
 			</fieldset>}
 	</section>;
+}
+
+interface EditorialCandidate {
+	readonly candidateId: string;
+	readonly title: string | null;
+	readonly hook: string | null;
+	readonly chapters: readonly string[];
+	readonly explanation: string | null;
+}
+
+function EditorialProposals({ review }: Readonly<{ review: LocalAssistanceGuidedReviewedResult }>) {
+	const candidates = editorialCandidates(review);
+	return <div className="kw-local-assistance__editorial-proposals">
+		{candidates.map((candidate, index) => <article key={candidate.candidateId}
+			aria-label={`Editorial proposal ${String(index + 1)}`}>
+			{candidate.title === null ? null : <h4>{candidate.title}</h4>}
+			{candidate.hook === null ? null : <p>{candidate.hook}</p>}
+			{candidate.chapters.length === 0 ? null : <ol>
+				{candidate.chapters.map((chapter) => <li key={chapter}>{chapter}</li>)}
+			</ol>}
+			{candidate.explanation === null ? null : <p>{candidate.explanation}</p>}
+		</article>)}
+	</div>;
+}
+
+function editorialCandidates(review: LocalAssistanceGuidedReviewedResult): readonly EditorialCandidate[] {
+	const semantic = review.outputs.find(({ slotId }) => slotId === 'editorial-proposal')?.semantic;
+	if (!semantic || typeof semantic !== 'object' || Array.isArray(semantic)) return [];
+	const values = (semantic as Readonly<Record<string, unknown>>).candidates;
+	if (!Array.isArray(values)) return [];
+	return values.filter(isEditorialCandidate);
+}
+
+function isEditorialCandidate(value: unknown): value is EditorialCandidate {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	const row = value as Readonly<Record<string, unknown>>;
+	return typeof row.candidateId === 'string'
+		&& nullableString(row.title) && nullableString(row.hook) && nullableString(row.explanation)
+		&& Array.isArray(row.chapters) && row.chapters.every((chapter) => typeof chapter === 'string');
+}
+
+function nullableString(value: unknown): value is string | null {
+	return value === null || typeof value === 'string';
 }
 
 function AudioAudition({ body, label }: Readonly<{ body: Blob; label: string }>) {
