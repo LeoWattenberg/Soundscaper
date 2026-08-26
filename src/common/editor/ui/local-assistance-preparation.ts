@@ -47,6 +47,7 @@ export interface LocalAssistancePreparedInput {
 }
 
 export interface LocalAssistancePreparedOutput {
+	readonly slotId?: 'enhanced-audio' | 'dialogue' | 'music' | 'effects';
 	readonly role: LocalAssistanceOutputRole;
 	readonly mediaType: string;
 	readonly maximumByteLength: number;
@@ -84,8 +85,10 @@ export interface LocalAssistanceValidatedResultAcceptanceRequest {
 	readonly selectionFence: AssistanceSelectionFence;
 	readonly models: readonly LocalAssistanceModel[];
 	readonly outputs: readonly Readonly<{
+		readonly slotId?: 'enhanced-audio' | 'dialogue' | 'music' | 'effects';
 		readonly claim: LocalAssistanceOutputClaim;
 		readonly review: LocalAssistanceOutputReview;
+		readonly bytes?: Blob;
 	}>[];
 }
 
@@ -211,7 +214,7 @@ export function normalizeLocalAssistancePreparedMedia(
 	}
 	const operationSpec = OPERATION_SPECS[operation];
 	const inputs = normalizeInputs(record.inputs, operationSpec);
-	const outputs = normalizeOutputs(record.outputs, operationSpec);
+	const outputs = normalizeOutputs(record.outputs, operationSpec, operation);
 	if (hasShotDetectionMode && operation !== 'shot-detection') {
 		throw new TypeError('Only shot detection may carry a Mark Cuts mode.');
 	}
@@ -304,14 +307,29 @@ function normalizeInputs(value: unknown, operation: OperationSpec): readonly Loc
 	return Object.freeze(inputs);
 }
 
-function normalizeOutputs(value: unknown, operation: OperationSpec): readonly LocalAssistancePreparedOutput[] {
+function normalizeOutputs(
+	value: unknown,
+	operation: OperationSpec,
+	operationId: AssistanceOperation,
+): readonly LocalAssistancePreparedOutput[] {
 	if (!Array.isArray(value) || value.length < 1 || value.length > 64) {
 		throw new TypeError('Prepared selected media needs bounded output reservations.');
 	}
-	return Object.freeze(value.map((candidate) => {
-		const record = exactRecord(candidate, ['role', 'mediaType', 'maximumByteLength'], 'prepared output');
+	const slots = operationId === 'speech-enhancement'
+		? ['enhanced-audio'] as const
+		: operationId === 'source-separation' ? ['dialogue', 'music', 'effects'] as const : null;
+	if (slots && value.length !== slots.length) {
+		throw new TypeError('Prepared selected media omitted an exact audio publication slot.');
+	}
+	return Object.freeze(value.map((candidate, index) => {
+		const record = exactRecord(candidate,
+			slots ? ['slotId', 'role', 'mediaType', 'maximumByteLength']
+				: ['role', 'mediaType', 'maximumByteLength'], 'prepared output');
 		const role = enumValue(record.role, operation.outputs, 'operation output role');
-		return Object.freeze({ role,
+		if (slots && record.slotId !== slots[index]) {
+			throw new TypeError('Prepared audio publication slots must be complete and canonical.');
+		}
+		return Object.freeze({ ...(slots ? { slotId: slots[index] } : {}), role,
 			mediaType: admittedMediaType(record.mediaType, role, OUTPUT_MEDIA_TYPES),
 			maximumByteLength: bytes(record.maximumByteLength) });
 	}));

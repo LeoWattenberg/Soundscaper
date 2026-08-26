@@ -161,6 +161,7 @@ export interface EffectAudioServiceRuntime {
 	) => number;
 	readonly audacityEffectMemoryError: () => Error;
 	readonly preflightStorage: (bytes: number, kind: 'effect') => Promise<unknown>;
+	readonly createId: (prefix: string) => string;
 	readonly cloneProject: (project: EffectAudioProject) => EffectAudioProject;
 	readonly audacitySelectionChannelCount: (
 		project: EffectAudioProject,
@@ -501,6 +502,8 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 		captureProject: runtime.captureProject,
 		assertProject: (token: unknown) => runtime.assertProject(token as EditorProjectToken),
 		renderDryTrackRange,
+		createId: runtime.createId,
+		preflightStorage: runtime.preflightStorage,
 		...(runtime.assistanceStore ? { assistanceStore: runtime.assistanceStore } : {}),
 		...(runtime.assistanceVideoStore ? { assistanceVideoStore: runtime.assistanceVideoStore } : {}),
 		commit: runtime.commit,

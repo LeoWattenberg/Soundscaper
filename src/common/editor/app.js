@@ -1299,6 +1299,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		estimateAudacityEffectPeakBytes,
 		audacityEffectMemoryError: () => audacityEffectMemoryError(copy),
 		preflightStorage,
+		createId: createStableId,
 		cloneProject: projectRuntime.cloneProject,
 		audacitySelectionChannelCount,
 		renderSnapshot,

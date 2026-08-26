@@ -81,6 +81,7 @@ export interface LocalAssistanceSelectedMediaPrepared {
 		bytes: Blob;
 	}>[];
 	readonly outputs: readonly Readonly<{
+		readonly slotId?: 'enhanced-audio' | 'dialogue' | 'music' | 'effects';
 		role: string;
 		mediaType: string;
 		maximumByteLength: number;
@@ -169,7 +170,7 @@ export function createLocalAssistanceSelectedMediaPreparation(
 			selectionFence: selected.fence,
 			inputs: Object.freeze([Object.freeze({ role: 'audio' as const,
 				mediaType: 'audio/wav' as const, bytes: input })]),
-			outputs: Object.freeze([outputFor(request.operation as AudioOperation)]),
+			outputs: outputsFor(request.operation as AudioOperation),
 		});
 	}
 
@@ -269,9 +270,10 @@ export function createLocalAssistanceSelectionFence(
 	});
 }
 
-function outputFor(operation: AudioOperation): Readonly<{
+function outputsFor(operation: AudioOperation): readonly Readonly<{
+	slotId?: 'enhanced-audio' | 'dialogue' | 'music' | 'effects';
 	role: string; mediaType: string; maximumByteLength: number;
-}> {
+}>[] {
 	const values = {
 		'voice-activity-detection': ['voice-activity', 'application/vnd.soundscaper.voice-activity+json'],
 		'speech-recognition': ['transcript', 'application/vnd.soundscaper.transcript+json'],
@@ -282,7 +284,13 @@ function outputFor(operation: AudioOperation): Readonly<{
 		'beat-tracking': ['beat-grid', 'application/vnd.soundscaper.beat-grid+json'],
 	} satisfies Readonly<Record<AudioOperation, readonly [string, string]>>;
 	const [role, mediaType] = values[operation];
-	return Object.freeze({ role, mediaType, maximumByteLength: MAXIMUM_OUTPUT_BYTES });
+	const slots = operation === 'speech-enhancement'
+		? ['enhanced-audio'] as const
+		: operation === 'source-separation' ? ['dialogue', 'music', 'effects'] as const : null;
+	return Object.freeze((slots ?? [null]).map((slotId) => Object.freeze({
+		...(slotId === null ? {} : { slotId }), role, mediaType,
+		maximumByteLength: MAXIMUM_OUTPUT_BYTES,
+	})));
 }
 
 function prepareRequest(value: unknown): Readonly<{

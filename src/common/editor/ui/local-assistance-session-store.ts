@@ -51,6 +51,7 @@ export type LocalAssistanceUiUnavailableReason =
 	| 'no-compatible-model';
 
 export interface LocalAssistanceOutputBody {
+	readonly slotId?: 'enhanced-audio' | 'dialogue' | 'music' | 'effects';
 	readonly claim: LocalAssistanceOutputClaim;
 	readonly bytes: Blob;
 	readonly review: LocalAssistanceOutputReview;
@@ -285,6 +286,9 @@ export function createLocalAssistanceSessionStore(
 				jobId: job.jobId, role: output.role, mediaType: output.mediaType,
 				maximumByteLength: output.maximumByteLength,
 			})));
+			const preparedOutputByClaim = new Map(outputs.map((reservation, index) => [
+				reservation.claimId, prepared.outputs[index]!,
+			]));
 			if (cancelRequested) throw new CancelledSession();
 			update({ phase: 'running' });
 			const outcome = await options.bridge.run(Object.freeze({
@@ -301,7 +305,12 @@ export function createLocalAssistanceSessionStore(
 				const bodies = await Promise.all(outcome.result.outputs.map(async (claim) => {
 					const bytes = await options.bridge!.readOutput({ jobId: job.jobId, claim });
 					const review = await reviewLocalAssistanceOutput(claim, bytes, reviewAuthority);
-					return Object.freeze({ claim, bytes, review });
+					const preparedOutput = preparedOutputByClaim.get(claim.claimId);
+					if (!preparedOutput) throw new Error('The assistance output lost its prepared slot authority.');
+					return Object.freeze({
+						...(preparedOutput.slotId ? { slotId: preparedOutput.slotId } : {}),
+						claim, bytes, review,
+					});
 				}));
 				completed = Object.freeze({ operation, outputs: Object.freeze(bodies) });
 				completedAcceptance = Object.freeze({
@@ -309,7 +318,9 @@ export function createLocalAssistanceSessionStore(
 					operation,
 					selectionFence: prepared.selectionFence,
 					models,
-					outputs: Object.freeze(bodies.map(({ claim, review }) => Object.freeze({ claim, review }))),
+					outputs: Object.freeze(bodies.map(({ slotId, claim, bytes, review }) => Object.freeze(
+						slotId ? { slotId, claim, bytes, review } : { claim, review },
+					))),
 				});
 			}
 		} catch (error) {

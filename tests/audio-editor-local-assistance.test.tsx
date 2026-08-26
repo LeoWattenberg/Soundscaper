@@ -13,6 +13,7 @@ import {
 import {
 	localAssistanceModelTaskSlots,
 	type LocalAssistanceSelectedMediaPreparationPort,
+	type LocalAssistanceValidatedResultAcceptanceRequest,
 } from '../src/common/editor/ui/local-assistance-preparation.ts';
 import {
 	createLocalAssistanceSessionStore,
@@ -193,30 +194,30 @@ test('one explicit run stages Blob input, validates output, and releases custody
 	assert.match(markup, /Hello from the interview\./u);
 });
 
-test('enhancement review derives exact output authority from its conformed staged input', async () => {
+test('enhancement review retains its authenticated Blob and publication slot for acceptance', async () => {
 	const inputBytes = encodeWav([
 		Float32Array.of(0.1, 0.2, 0.3), Float32Array.of(-0.1, -0.2, -0.3),
 	], { sampleRate: 48_000, bitDepth: 32, float: true, dither: false });
-	const input = new Blob([inputBytes], { type: 'audio/wav' });
-	const output = new Blob([inputBytes], { type: 'audio/wav' });
+	const input = new Blob([inputBytes.slice().buffer], { type: 'audio/wav' });
+	const output = new Blob([inputBytes.slice().buffer], { type: 'audio/wav' });
 	const model = Object.freeze({
-		modelId: 'enhancer', version: '1.0.0', task: 'speech-enhancement',
+		modelId: 'deepfilternet3', version: '3.0.0', task: 'speech-enhancement',
 		artifactSha256s: Object.freeze(['e'.repeat(64)]),
 	});
 	const bridge: LocalAssistanceBridge = Object.freeze({
 		models: async () => Object.freeze([model]),
 		createJob: async () => Object.freeze({ contractVersion: 1 as const, jobId: JOB_ID }),
-		stageInput: async (request) => Object.freeze({
+		stageInput: async (request: Parameters<LocalAssistanceBridge['stageInput']>[0]) => Object.freeze({
 			claimVersion: 1 as const, claimId: 'd'.repeat(40), jobId: request.jobId,
 			role: request.role, mediaType: request.mediaType, byteLength: request.byteLength,
 			sha256: 'd'.repeat(64),
 		}),
-		reserveOutput: async (request) => Object.freeze({
+		reserveOutput: async (request: Parameters<LocalAssistanceBridge['reserveOutput']>[0]) => Object.freeze({
 			claimVersion: 1 as const, claimId: OUTPUT_CLAIM_ID, jobId: request.jobId,
 			role: request.role, mediaType: request.mediaType,
 			maximumByteLength: request.maximumByteLength,
 		}),
-		run: async (request) => Object.freeze({
+		run: async (request: Parameters<LocalAssistanceBridge['run']>[0]) => Object.freeze({
 			contractVersion: 1 as const, jobId: request.jobId,
 			operation: 'speech-enhancement' as const, outcome: 'completed' as const,
 			result: Object.freeze({ contractVersion: 1 as const, jobId: request.jobId,
@@ -226,13 +227,14 @@ test('enhancement review derives exact output authority from its conformed stage
 					byteLength: output.size, sha256: OUTPUT_SHA256,
 				})]) }),
 		}),
-		cancel: async (jobId) => Object.freeze({
+		cancel: async (jobId: string) => Object.freeze({
 			contractVersion: 1 as const, jobId, outcome: 'not-active' as const,
 		}),
 		readOutput: async () => output,
 		release: async () => true,
 		onProgress: () => () => undefined,
 	});
+	const accepted: unknown[] = [];
 	const preparation: LocalAssistanceSelectedMediaPreparationPort = Object.freeze({
 		listSelectedMedia: async () => Object.freeze({ sources: Object.freeze([Object.freeze({
 			sourceId: 'source-1', label: 'Dialogue', mediaKind: 'audio' as const,
@@ -242,21 +244,30 @@ test('enhancement review derives exact output authority from its conformed stage
 			sourceId: 'source-1', operation: 'speech-enhancement' as const, selectionFence: FENCE,
 			inputs: Object.freeze([Object.freeze({ role: 'audio' as const,
 				mediaType: 'audio/wav', bytes: input })]),
-			outputs: Object.freeze([Object.freeze({ role: 'enhanced-audio' as const,
+			outputs: Object.freeze([Object.freeze({ slotId: 'enhanced-audio' as const,
+				role: 'enhanced-audio' as const,
 				mediaType: 'audio/wav', maximumByteLength: 4096 })]),
 		}),
+		acceptValidatedResult: async (request: LocalAssistanceValidatedResultAcceptanceRequest) => {
+			accepted.push(request);
+		},
 	});
 	const store = createLocalAssistanceSessionStore({ bridge, preparation });
 	await store.load();
 	store.selectSource('source-1');
 	store.selectOperation('speech-enhancement');
-	store.selectModel('enhancer');
+	store.selectModel('deepfilternet3');
 	store.setConsent(true);
 	await store.run();
 	assert.deepEqual(store.getSnapshot().result?.outputs[0]?.review, {
 		kind: 'audio-wave', role: 'enhanced-audio', sampleRate: 48_000,
 		channelCount: 2, frameCount: 3, sampleFormat: 'float32',
 	});
+	await store.accept();
+	const request = accepted[0] as Readonly<Record<string, unknown>>;
+	const outputs = request.outputs as readonly Readonly<Record<string, unknown>>[];
+	assert.equal(outputs[0]?.slotId, 'enhanced-audio');
+	assert.equal(outputs[0]?.bytes, output);
 });
 
 test('reviewed speech output enables one explicit controller-owned acceptance', async () => {

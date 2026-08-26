@@ -40,6 +40,9 @@ export function createLocalAssistancePreparationRuntime(
 		} : {}),
 		captureProject: dependencies.captureProject,
 		store: assistanceStore,
+		audioStore: assistanceStore,
+		createId: dependencies.createId,
+		preflightStorage: dependencies.preflightStorage,
 		assertProject: dependencies.assertProject,
 		commit: dependencies.commit,
 	}) : null;

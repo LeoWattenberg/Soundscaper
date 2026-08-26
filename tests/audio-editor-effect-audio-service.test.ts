@@ -137,6 +137,7 @@ function createHarness(options: Readonly<{
 		estimateAudacityEffectPeakBytes: () => 1,
 		audacityEffectMemoryError: () => new Error('Too large'),
 		preflightStorage: async (bytes) => { preflightBytes.push(bytes); },
+		createId: (prefix) => `${prefix}-id`,
 		cloneProject: (value) => structuredClone(value),
 		audacitySelectionChannelCount: () => 1,
 		renderSnapshot: async (snapshot, renderOptions) => {

@@ -113,6 +113,23 @@ test('audio preparation conforms each inference family without discarding requir
 	}
 });
 
+test('enhancement and TIGER preparation reserve their closed publication slots', async () => {
+	const enhancement = await fixture().preparation.prepareSelectedMedia({
+		sourceId: 'voice-source', operation: 'speech-enhancement',
+	});
+	assert.deepEqual(enhancement.outputs, [{
+		slotId: 'enhanced-audio', role: 'enhanced-audio', mediaType: 'audio/wav',
+		maximumByteLength: 64 * 1024 * 1024,
+	}]);
+	const separation = await fixture().preparation.prepareSelectedMedia({
+		sourceId: 'voice-source', operation: 'source-separation',
+	});
+	assert.deepEqual(separation.outputs, ['dialogue', 'music', 'effects'].map((slotId) => ({
+		slotId, role: 'separated-audio', mediaType: 'audio/wav',
+		maximumByteLength: 64 * 1024 * 1024,
+	})));
+});
+
 test('selection fences change with link and timing authority and preparation rechecks currentness', async () => {
 	const base = fixture();
 	const first = await base.preparation.prepareSelectedMedia({

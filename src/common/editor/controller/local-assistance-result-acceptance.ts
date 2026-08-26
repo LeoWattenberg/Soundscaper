@@ -33,8 +33,14 @@ import {
 	createLocalAssistanceTranscriptAcceptance,
 	type LocalAssistanceTranscriptAcceptanceStore,
 } from './local-assistance-transcript-acceptance.ts';
+import {
+	createLocalAssistanceAudioPublicationAcceptance,
+	type LocalAssistanceAudioPublicationAuthority,
+	type LocalAssistanceAudioPublicationStore,
+} from './local-assistance-audio-publication.ts';
 
-export type LocalAssistanceResultAcceptanceStore = LocalAssistanceTranscriptAcceptanceStore;
+export type LocalAssistanceResultAcceptanceStore = LocalAssistanceTranscriptAcceptanceStore
+	& LocalAssistanceAudioPublicationStore;
 
 export interface LocalAssistanceResultAcceptanceDependencies {
 	readonly currentAuthority: () => LocalAssistanceRangeLabelAuthority;
@@ -42,6 +48,9 @@ export interface LocalAssistanceResultAcceptanceDependencies {
 	readonly captureProject: () => unknown;
 	readonly assertProject: (token: unknown) => void;
 	readonly store?: LocalAssistanceTranscriptAcceptanceStore;
+	readonly audioStore?: LocalAssistanceAudioPublicationStore;
+	readonly createId?: (prefix: string) => string;
+	readonly preflightStorage?: (bytes: number, category: 'effect') => Promise<unknown>;
 	readonly commit: (command: Readonly<Record<string, unknown>>) => void;
 }
 
@@ -81,6 +90,18 @@ export function createLocalAssistanceResultAcceptance(
 			commit: dependencies.commit,
 		})
 		: null;
+	const audio = dependencies.audioStore && dependencies.createId && dependencies.preflightStorage
+		? createLocalAssistanceAudioPublicationAcceptance({
+			currentAuthority: dependencies.currentAuthority as unknown as
+				() => LocalAssistanceAudioPublicationAuthority,
+			captureProject: dependencies.captureProject,
+			assertProject: dependencies.assertProject,
+			createId: dependencies.createId,
+			preflightStorage: dependencies.preflightStorage,
+			store: dependencies.audioStore,
+			commit: dependencies.commit,
+		})
+		: null;
 	return Object.freeze({
 		...cleanup,
 		createReactionReviewSession(
@@ -111,6 +132,10 @@ export function createLocalAssistanceResultAcceptance(
 			if (operation === 'shot-detection') {
 				if (!shots) throw new Error('Shot acceptance requires selected-video authority.');
 				return shots.acceptValidatedResult(request);
+			}
+			if (operation === 'speech-enhancement' || operation === 'source-separation') {
+				if (!audio) throw new Error('Audio assistance acceptance requires derived-source storage.');
+				return audio.acceptValidatedResult(request);
 			}
 			throw new RangeError('This reviewed assistance result has no project acceptance adapter.');
 		},
