@@ -176,8 +176,17 @@ function captureImages(project: FramescaperProjectV32): ImageState {
 
 function restoreImages(project: Record<string, unknown>, images: ImageState): Record<string, unknown> {
 	project.schemaVersion = 32;
+	// A timeline image belongs to exactly one video track. When the inherited
+	// command removed that track the image goes with it: restoring it would
+	// leave a clip the validator refuses for having no owner, which would make
+	// the removal itself impossible.
+	const trackIds = new Set(records(project.tracks, 'tracks').map(({ id }) => String(id)));
+	const timelineClips = images.timelineClips.filter(
+		(clip) => trackIds.has(images.trackByClip.get(String(clip.id)) ?? ''),
+	);
+	const restoredIds = new Set([...timelineClips, ...images.binClips].map(({ id }) => String(id)));
 	project.sources = [...records(project.sources, 'sources'), ...structuredClone(images.sources)];
-	project.clips = [...records(project.clips, 'clips'), ...structuredClone(images.timelineClips)];
+	project.clips = [...records(project.clips, 'clips'), ...structuredClone(timelineClips)];
 	const bin = record(project.projectBin, 'projectBin');
 	bin.clips = [...records(bin.clips, 'projectBin.clips'), ...structuredClone(images.binClips)];
 	project.tracks = records(project.tracks, 'tracks').map((track) => {
@@ -190,7 +199,7 @@ function restoreImages(project: Record<string, unknown>, images: ImageState): Re
 	const selection = record(project.selection, 'selection');
 	if (Array.isArray(selection.clipIds)) selection.clipIds = [
 		...selection.clipIds,
-		...images.selectedClipIds,
+		...[...images.selectedClipIds].filter((id) => restoredIds.has(id)),
 	];
 	return project;
 }
