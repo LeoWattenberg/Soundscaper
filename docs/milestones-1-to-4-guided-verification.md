@@ -2,7 +2,7 @@
 
 This is the checked-in local sign-off record for the Milestones 1–4 activation.
 It verifies product workflows after the automated gates pass; it is not evidence
-for Windows, Safari, fixed-GPU, signing, or owner-host qualification. Later
+for Safari, fixed-GPU, signing, or owner-host qualification. Later
 milestones have their own record in
 [milestones 5–9 guided local verification](milestones-5-to-9-guided-verification.md).
 
@@ -24,6 +24,8 @@ follow-up build that was retested.
 | Browser build identifier | pending |
 | Soundscaper Linux package identifier | pending |
 | Framescaper Linux package identifier | pending |
+| Soundscaper Windows x64 package identifier | pending |
+| Framescaper Windows x64 package identifier | pending |
 | Distribution and version | pending |
 | Architecture | pending |
 | Desktop/session type | pending |
@@ -99,12 +101,12 @@ application data directory.
 | --- | --- | --- | --- | --- |
 | FD-01 | The packaged runtime reports complete product, version, Electron/Chromium/Node, OS, architecture, package, GPU, and fixture identity. | pending | pending | — |
 | FD-02 | Repeat FB-02 through FB-17 in the packaged application. | pending | pending | — |
-| FD-03 | Seed a V12-only library and verify first open completes the immutable V12→V17 cascade before V18 copy-forward. Interrupt and reopen during each import phase, verify idempotent completion without mutating or deleting V12 or V17, then repeat from an already settled V17 library and confirm V18 does not reopen or rewrite its source lineage. | pending | pending | — |
-| FD-04 | Close during a save/publication, reopen, and verify the V18 writer lease, persistent fencing, journal recovery, and exact project state. | pending | pending | — |
+| FD-03 | Seed a settled V19 source library and verify first open copy-forwards it into V20: the V19 store is opened read-only, its exact V28 documents are explicitly reimported into F31, and every referenced managed body is copied byte-for-byte. Interrupt and reopen during each import phase, verify idempotent completion without duplication, and confirm V19 and its inherited V18, V17, and V12 lease, lineage, and journal state are never reopened for writing, rewritten, or deleted. | pending | pending | — |
+| FD-04 | Close during a save/publication, reopen, and verify the V20 writer lease, persistent fencing, journal recovery, and exact project state. | pending | pending | — |
 | FD-05 | Start a second Framescaper writer; verify admission fencing, draining, renewal, and exact release. | pending | pending | — |
 | FD-06 | Inspect the application data roots and verify no Soundscaper catalog, database, media root, lease, or journal is present. | pending | pending | — |
 
-## Paired product isolation
+## Paired product isolation — Linux
 
 Run both Linux packages concurrently.
 
@@ -115,6 +117,46 @@ Run both Linux packages concurrently.
 | PI-03 | Crash one product during publication; the other continues saving and its lease/fence state does not change. | pending | pending | — |
 | PI-04 | Open a cross-product `.scape`; supported content reimports explicitly, unsupported content is preserved or refused as documented, and no shared catalog is created. | pending | pending | — |
 
+## Windows desktop — Soundscaper
+
+Install the current Windows x64 Soundscaper artifact in a clean application data
+directory. Windows x64 is one of the open external qualification items, and
+`m2-electron-lease-matrix` still records its Soundscaper V11 Windows x64 row as
+`pending-external`; these rows are where that pass is recorded when it is run.
+
+| ID | Check | Result | Notes | Issue |
+| --- | --- | --- | --- | --- |
+| SW-01 | The packaged runtime reports complete product, version, Electron/Chromium/Node, OS, architecture, package, GPU, and fixture identity, and names Windows x64 rather than inheriting a Linux fingerprint. | pending | pending | — |
+| SW-02 | Repeat SB-02 through SB-08 in the packaged Windows application, including the per-machine assisted NSIS installer and the no-install ZIP, and verify the installer's `.aup4` association while the ZIP registers none. | pending | pending | — |
+| SW-03 | Close during a save, reopen, and verify the Soundscaper V11 writer lease, journal recovery, and exact project state under `user_version` 13 and scope `v11`. | pending | pending | — |
+| SW-04 | Start a second Soundscaper writer; verify admission fencing, a strictly higher fencing token, and exact release without affecting Framescaper. | pending | pending | — |
+| SW-05 | Inspect the application data roots and verify no Framescaper catalog, database, media root, lease, or journal is present, then uninstall and confirm the local project library survives. | pending | pending | — |
+
+## Windows desktop — Framescaper
+
+Install the current Windows x64 Framescaper artifact in a separate clean
+application data directory.
+
+| ID | Check | Result | Notes | Issue |
+| --- | --- | --- | --- | --- |
+| FW-01 | The packaged runtime reports complete product, version, Electron/Chromium/Node, OS, architecture, package, GPU, and fixture identity, and names Windows x64. | pending | pending | — |
+| FW-02 | Repeat FB-02 through FB-17 in the packaged Windows application. | pending | pending | — |
+| FW-03 | Repeat FD-03's V19 to V20 copy-forward on Windows, including an interrupted import, and confirm the source lineage is never reopened for writing, rewritten, or deleted. | pending | pending | — |
+| FW-04 | Close during a save/publication, reopen, and verify the V20 writer lease, persistent fencing, journal recovery, and exact project state under `user_version` 22 and scope `v20`. | pending | pending | — |
+| FW-05 | Start a second Framescaper writer; verify admission fencing, draining, renewal, and exact release. | pending | pending | — |
+| FW-06 | Inspect the application data roots and verify no Soundscaper catalog, database, media root, lease, or journal is present. | pending | pending | — |
+
+## Paired product isolation — Windows
+
+Run both Windows x64 packages concurrently.
+
+| ID | Check | Result | Notes | Issue |
+| --- | --- | --- | --- | --- |
+| PW-01 | Create, edit, save, close, and reopen one project in each product while both writers are alive. | pending | pending | — |
+| PW-02 | Verify distinct database files, `user_version` values, scopes, media roots, leases, fencing counters, and publication journals. | pending | pending | — |
+| PW-03 | Crash one product during publication; the other continues saving and its lease/fence state does not change. | pending | pending | — |
+| PW-04 | Open a cross-product `.scape`; supported content reimports explicitly, unsupported content is preserved or refused as documented, and no shared catalog is created. | pending | pending | — |
+
 ## Completion record
 
 | Field | Recorded value |
@@ -124,8 +166,11 @@ Run both Linux packages concurrently.
 | Browser evidence location | pending |
 | Soundscaper Linux evidence location | pending |
 | Framescaper Linux evidence location | pending |
-| Paired-isolation evidence location | pending |
-| Remaining external qualification items | Windows x64; Safari; fixed-GPU; signing; owner-host M3 long-form and M4B2 evidence |
+| Paired-isolation Linux evidence location | pending |
+| Soundscaper Windows evidence location | pending |
+| Framescaper Windows evidence location | pending |
+| Paired-isolation Windows evidence location | pending |
+| Remaining external qualification items | Safari; fixed-GPU; signing; owner-host M3 long-form and M4B2 evidence |
 | Verifier conclusion | pending |
 
 Local activation may be declared only when the conclusion records `pass` and
