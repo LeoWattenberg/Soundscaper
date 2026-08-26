@@ -35,6 +35,12 @@ const ASSISTANCE_SITES: readonly FoundationTimeConversionSite[] = [
 		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
 	},
 	{
+		id: 'local-assistance-guided-highlight-preparation',
+		file: 'src/common/editor/controller/local-assistance-guided-highlight-preparation.ts',
+		behavior: 'Guided highlight preparation point-resolves the prepared audio duration at the video rate to prove a linked pair describes the same extent before either is staged.',
+		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'local-assistance-guided-highlight-signals',
 		file: 'src/common/editor/controller/local-assistance-guided-highlight-signals.ts',
 		behavior: 'Guided highlight signals point-resolve the analysed duration at the fixed audio rate and outward-enclose each scanned window, so an energy block is never sampled short of the range it covers.',
