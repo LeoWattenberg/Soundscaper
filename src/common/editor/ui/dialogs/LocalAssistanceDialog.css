@@ -172,7 +172,7 @@
 }
 
 .kw-local-assistance__crop-overlay {
-	background: var(--kw-editor-surface-raised, transparent);
+	background: var(--kw-editor-stage-raised);
 	border: 1px solid var(--kw-editor-line);
 	box-sizing: border-box;
 	height: 8rem;
