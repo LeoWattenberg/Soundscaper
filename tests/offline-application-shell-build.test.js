@@ -35,6 +35,7 @@ test('offline shell generation inventories exact route URLs and emits installabl
 		'/assets/application-abc.js',
 		'/assets/framescaper-core.js',
 		'/assets/optional-dialog.js',
+		'/assets/output-worklet.js',
 		'/assets/shared.js',
 		'/assets/soundscaper-core.js',
 		'/embed/en/',
@@ -62,6 +63,21 @@ test('offline shell generation inventories exact route URLs and emits installabl
 	);
 	assert.equal(soundWorker.installUrls.includes('/assets/optional-dialog.js'), false);
 	assert.equal(frameWorker.installUrls.includes('/assets/soundscaper-core.js'), false);
+	for (const optionalAsset of [
+		'/assets/core-font.woff2',
+		'/assets/output-worklet.js',
+		'/assets/plugin.ny',
+		'/assets/runtime-codec.wasm',
+	]) assert.equal(urls.includes(optionalAsset), true, optionalAsset);
+	for (const worker of [soundWorker, frameWorker]) {
+		assert.equal(worker.installUrls.includes('/assets/core-icon.png'), true);
+		for (const optionalAsset of [
+			'/assets/core-font.woff2',
+			'/assets/output-worklet.js',
+			'/assets/plugin.ny',
+			'/assets/runtime-codec.wasm',
+		]) assert.equal(worker.installUrls.includes(optionalAsset), false, optionalAsset);
+	}
 	assert.ok(soundWorker.installAssetCount < audit.assets.length);
 	assert.ok(frameWorker.installAssetCount < audit.assets.length);
 
@@ -133,7 +149,12 @@ async function shellFixture(context) {
 		fixtureFile(outputRoot, 'framescaper/en/index.html', '<!doctype html><title>Framescaper</title>'),
 		fixtureFile(outputRoot, 'framescaper/embed/en/index.html', '<!doctype html><title>Framescaper embed</title>'),
 		fixtureFile(outputRoot, 'assets/application-abc.js', 'export const application = 1;'),
+		fixtureFile(outputRoot, 'assets/core-font.woff2', 'font'),
+		fixtureFile(outputRoot, 'assets/core-icon.png', 'image'),
 		fixtureFile(outputRoot, 'assets/shared.js', 'export const shared = 1;'),
+		fixtureFile(outputRoot, 'assets/output-worklet.js', 'self.onmessage = () => undefined;'),
+		fixtureFile(outputRoot, 'assets/plugin.ny', 'return s;'),
+		fixtureFile(outputRoot, 'assets/runtime-codec.wasm', 'wasm'),
 		fixtureFile(outputRoot, 'assets/soundscaper-core.js', 'export const soundscaper = 1;'),
 		fixtureFile(outputRoot, 'assets/framescaper-core.js', 'export const framescaper = 1;'),
 		fixtureFile(outputRoot, 'assets/optional-dialog.js', 'export const optional = 1;'),
@@ -152,7 +173,16 @@ async function shellFixture(context) {
 					'src/framescaper/ui/FramescaperAudioEditorBootstrapV31.tsx',
 				],
 			},
-			'_shared.js': { file: 'assets/shared.js' },
+			'_shared.js': {
+				file: 'assets/shared.js',
+				assets: [
+					'assets/core-font.woff2',
+					'assets/core-icon.png',
+					'assets/output-worklet.js',
+					'assets/plugin.ny',
+					'assets/runtime-codec.wasm',
+				],
+			},
 			'src/soundscaper/ui/SoundscaperAudioEditorBootstrapV30.tsx': {
 				file: 'assets/soundscaper-core.js', imports: ['_shared.js'], isDynamicEntry: true,
 				dynamicImports: ['_optional.js'],

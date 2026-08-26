@@ -130,12 +130,20 @@ function staticManifestClosure(manifest, rootKey) {
 		if (!plainObject(entry) || typeof entry.file !== 'string') {
 			throw new Error(`Offline build manifest entry is missing: ${key}`);
 		}
-		for (const path of [entry.file, ...stringArray(entry.css), ...stringArray(entry.assets)]) {
-			if (!/\.(?:woff2?|[ot]tf)$/iu.test(path)) urls.add(`/${path.replace(/^\/+/, '')}`);
+		for (const path of [entry.file, ...stringArray(entry.css)]) {
+			urls.add(`/${path.replace(/^\/+/, '')}`);
+		}
+		for (const path of stringArray(entry.assets)) {
+			if (installCoreAsset(path)) urls.add(`/${path.replace(/^\/+/, '')}`);
 		}
 		for (const imported of stringArray(entry.imports)) pending.push(imported);
 	}
 	return urls;
+}
+
+function installCoreAsset(path) {
+	if (/\.(?:woff2?|[ot]tf|wasm|ny)$/iu.test(path)) return false;
+	return !/(?:^|[/_.-])(?:worker|worklet)(?:[/_.-]|$)/iu.test(path);
 }
 
 function previousInstallUrls({ assets, previousAudit, productId }) {
