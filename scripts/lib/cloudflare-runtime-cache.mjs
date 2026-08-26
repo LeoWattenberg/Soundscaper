@@ -79,6 +79,7 @@ export async function configureRuntimeCacheRules({
 		assert(!refs.has(rule.ref), `Cloudflare cache ruleset contains duplicate ref ${rule.ref}`);
 		refs.add(rule.ref);
 	}
+	assertPurgeCompatibleCacheKeys(ruleset.rules, new URL(policy.publicOrigin).hostname);
 	const desiredByRef = new Map(desired.map((rule) => [rule.ref, rule]));
 	const merged = [
 		...ruleset.rules.filter((rule) => !desiredByRef.has(rule.ref)).map(writableRule),
@@ -99,6 +100,38 @@ export async function configureRuntimeCacheRules({
 function writableRule(rule) {
 	const { id: _id, version: _version, last_updated: _lastUpdated, ...writable } = rule;
 	return writable;
+}
+
+// R2 CORS responses vary by Origin, so collapsing runtime objects onto a
+// URL-only custom key would mix incompatible responses. Cloudflare requires
+// every custom-key input for a single-file purge; retain a custom key only
+// when its rule is provably limited to another hostname.
+function assertPurgeCompatibleCacheKeys(rules, runtimeHost) {
+	for (const rule of rules) {
+		if (rule?.action !== 'set_cache_settings'
+			|| !rule.action_parameters || !Object.hasOwn(rule.action_parameters, 'cache_key')
+			|| ruleIsExactlyForAnotherHost(rule, runtimeHost)) continue;
+		const identity = rule.ref || rule.id || '<unreferenced>';
+		throw new Error(
+			`Cloudflare custom cache key rule ${identity} may affect ${runtimeHost}; `
+			+ 'exact URL purges cannot safely clear all of its variants',
+		);
+	}
+}
+
+function ruleIsExactlyForAnotherHost(rule, runtimeHost) {
+	if (typeof rule.expression !== 'string') return false;
+	let expression = rule.expression.trim();
+	if (expression.startsWith('(') && expression.endsWith(')')) {
+		expression = expression.slice(1, -1).trim();
+	}
+	const match = /^http\.host\s+eq\s+("(?:[^"\\]|\\.)*")$/u.exec(expression);
+	if (!match) return false;
+	try {
+		return String(JSON.parse(match[1])).toLowerCase() !== runtimeHost.toLowerCase();
+	} catch {
+		return false;
+	}
 }
 
 async function parseApiResponse(response, statuses, label) {

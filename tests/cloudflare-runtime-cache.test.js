@@ -43,7 +43,10 @@ test('configuration replaces owned refs while preserving unrelated cache rules',
 		description: 'keep me',
 		expression: '(http.host eq "example.org")',
 		action: 'set_cache_settings',
-		action_parameters: { cache: true },
+		action_parameters: {
+			cache: true,
+			cache_key: { custom_key: { query_string: { include: ['*'] } } },
+		},
 		version: '7',
 		last_updated: '2026-01-01T00:00:00Z',
 	};
@@ -76,6 +79,8 @@ test('configuration replaces owned refs while preserving unrelated cache rules',
 	assert.equal(body.rules[0].ref, unrelated.ref);
 	assert.equal(body.rules[0].id, undefined);
 	assert.equal(body.rules[0].description, 'keep me');
+	assert.deepEqual(body.rules[0].action_parameters, unrelated.action_parameters,
+		'a custom cache key proven disjoint from the runtime host is preserved');
 	assert.equal(body.rules[1].ref, broadUnrelated.ref,
 		'unrelated rules retain their relative order ahead of owned terminal rules');
 	assert.deepEqual(body.rules[2].action_parameters, {
@@ -89,6 +94,40 @@ test('configuration replaces owned refs while preserving unrelated cache rules',
 		runtimeCacheRules(policy).map(({ ref }) => ref),
 		'owned cache rules must run last so a broad pre-existing rule cannot override them',
 	);
+});
+
+test('configuration refuses a preserved custom cache key that could shard exact runtime purges', async () => {
+	const requests = [];
+	const broadCustomKey = {
+		ref: 'unrelated-runtime-cache-key-v1',
+		description: 'broad custom key would survive the owned TTL rule',
+		expression: '(http.host contains "soundscaper.org")',
+		action: 'set_cache_settings',
+		action_parameters: {
+			cache: true,
+			cache_key: {
+				custom_key: {
+					header: { include: ['accept-language'] },
+				},
+			},
+		},
+	};
+	const fetchImpl = async (_url, options) => {
+		requests.push(options.method);
+		if (options.method !== 'GET') throw new Error('ruleset mutation must not occur');
+		return apiResponse(200, {
+			id: 'ruleset-id', name: 'Existing', description: 'Existing rules', kind: 'zone',
+			rules: [broadCustomKey],
+		});
+	};
+
+	await assert.rejects(
+		() => configureRuntimeCacheRules({
+			policy, zoneId: ZONE, apiToken: TOKEN, fetchImpl,
+		}),
+		/custom cache key.*unrelated-runtime-cache-key-v1.*exact URL purges/iu,
+	);
+	assert.deepEqual(requests, ['GET']);
 });
 
 test('the CLI checks publication authorization before constructing a Cloudflare request', async () => {
