@@ -296,7 +296,9 @@ test('model-free shot detection executes one authenticated staged video through 
 	const requests: Array<Parameters<AssistanceShotRuntimeAdapter['detect']>[0]> = [];
 	const shotDetectionRuntime: AssistanceShotRuntimeAdapter = Object.freeze({
 		status: async () => ({ available: true, reason: null, moduleId: 'external-ffmpeg-scdet' }),
-		detect: async (request) => { requests.push(request); return detected; },
+		detect: async (request: Parameters<AssistanceShotRuntimeAdapter['detect']>[0]) => {
+			requests.push(request); return detected;
+		},
 	});
 	const { service, progress } = await fixture(t, { shotDetectionRuntime });
 	const request = await shotDetectionRequest(service);

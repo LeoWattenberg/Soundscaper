@@ -120,7 +120,9 @@ test('shot acceptance refuses source mismatch, model authority, stale selection,
 			...reviewed().outputs[0]!.review, sourceFrameCount: 241,
 		} }],
 	}), /source-frame count/iu);
-	current = Object.freeze({ ...current, fence: Object.freeze({ ...FENCE, revision: 8 }) });
+	current = Object.freeze({
+		...current, fence: Object.freeze({ ...FENCE, revision: 8 }),
+	}) as unknown as typeof current;
 	await assert.rejects(acceptance.acceptValidatedResult(reviewed()), /stale|selection/iu);
 
 	const full = Array.from({ length: 4_096 }, (_, index) => Object.freeze({
