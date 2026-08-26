@@ -26,7 +26,7 @@ import {
 	type FramescaperProjectV32,
 } from './editor-project-v32.ts';
 
-export const FRAMESCAPER_TIMELINE_IMAGE_BODY_KIND_V32 = 'timeline-image-asset' as const;
+export const FRAMESCAPER_TIMELINE_IMAGE_BODY_KIND_V32 = 'timeline-image' as const;
 export const FRAMESCAPER_TIMELINE_IMAGE_BODY_ENCODING_V32 = 'framescaper-image-asset-v1' as const;
 
 const TRANSITION_FIELDS = ['expected', 'project'] as const;
