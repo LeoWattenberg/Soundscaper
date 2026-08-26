@@ -270,34 +270,45 @@ test('Accurate Mark Cuts stages its exact frame pack and never substitutes Fast'
 test('Make Highlights adds Qwen only after explicit editorial rerank opt-in', async () => {
 	const fixture = preparationFixture();
 	const videoProject: FixtureProject = { ...project(),
-		sources: [{ id: 'video-source', kind: 'video', contentSha256: SOURCE_SHA256 }],
+		sources: [{ id: 'video-source', kind: 'video', contentSha256: SOURCE_SHA256 },
+			{ id: 'audio-source', kind: 'audio', contentSha256: 'cd'.repeat(32),
+				sampleRate: 48_000 }],
 		clips: [{ id: 'video-clip', kind: 'video', sourceId: 'video-source',
-			sequenceId: 'main-sequence', avLinkId: null, reversed: false, speedRatio: 1 }],
+			sequenceId: 'main-sequence', avLinkId: 'linked-av', reversed: false, speedRatio: 1 },
+		{ id: 'audio-clip', kind: 'audio', sourceId: 'audio-source',
+			sequenceId: 'main-sequence', avLinkId: 'linked-av', reversed: false, speedRatio: 1,
+			pitchCents: 0, stretchToTempo: false, warpMap: null }],
 	};
+	const linkMembershipSha256 = '12'.repeat(32);
+	const videoFence = {
+		projectId: 'project-1', schemaVersion: 30, revision: 4,
+		sequenceId: 'main-sequence', occurrenceIds: ['audio-clip', 'video-clip'],
+		sourceId: 'video-source', sourceSha256: SOURCE_SHA256,
+		sourceStartFrame: 0, sourceEndFrame: 120,
+		linkMembershipSha256, timingAuthoritySha256: '34'.repeat(32),
+	};
+	const audioFence = { ...videoFence, sourceId: 'audio-source', sourceSha256: 'cd'.repeat(32),
+		sourceStartFrame: 0, sourceEndFrame: 240_000,
+		timingAuthoritySha256: '56'.repeat(32) };
 	const preparation = createLocalAssistanceGuidedWorkflowPreparation({
 		getProject: () => videoProject, getSelectedClipId: () => 'video-clip',
 		captureProject: () => ({ revision: 4 }), assertProject: () => undefined,
 		preflightStorage: async () => undefined,
-		currentSelectionFence: () => ({
-			projectId: 'project-1', schemaVersion: 30, revision: 4,
-			sequenceId: 'main-sequence', occurrenceIds: ['video-clip'],
-			sourceId: 'video-source', sourceSha256: SOURCE_SHA256,
-			sourceStartFrame: 0, sourceEndFrame: 120,
-			linkMembershipSha256: '12'.repeat(32), timingAuthoritySha256: '34'.repeat(32),
-		}),
+		currentSelectionFence: () => videoFence,
 		selected: {
-			listSelectedMedia: async () => ({ sources: [{ sourceId: 'video-source',
-				label: 'Video', mediaKind: 'video', operations: ['shot-detection'] }] }),
-			prepareSelectedMedia: async () => ({ sourceId: 'video-source',
-				operation: 'shot-detection', shotDetectionMode: 'fast', selectionFence: {
-					projectId: 'project-1', schemaVersion: 30, revision: 4,
-					sequenceId: 'main-sequence', occurrenceIds: ['video-clip'],
-					sourceId: 'video-source', sourceSha256: SOURCE_SHA256,
-					sourceStartFrame: 0, sourceEndFrame: 120,
-					linkMembershipSha256: '12'.repeat(32), timingAuthoritySha256: '34'.repeat(32),
-				}, inputs: [{ role: 'video', mediaType: 'video/mp4',
-					bytes: new Blob([new Uint8Array([1, 2, 3])]) }], outputs: [],
-			}),
+			listSelectedMedia: async () => ({ sources: [
+				{ sourceId: 'audio-source', label: 'Audio', mediaKind: 'audio',
+					operations: ['audio-tagging'] },
+				{ sourceId: 'video-source', label: 'Video', mediaKind: 'video',
+					operations: ['shot-detection'] },
+			] }),
+			prepareSelectedMedia: async ({ operation }) => operation === 'audio-tagging'
+				? { sourceId: 'audio-source', operation, selectionFence: audioFence,
+					inputs: [{ role: 'audio', mediaType: 'audio/wav',
+						bytes: new Blob([new Uint8Array([4, 5, 6])]) }], outputs: [] }
+				: { sourceId: 'video-source', operation: 'shot-detection', shotDetectionMode: 'fast',
+					selectionFence: videoFence, inputs: [{ role: 'video', mediaType: 'video/mp4',
+						bytes: new Blob([new Uint8Array([1, 2, 3])]) }], outputs: [] },
 		},
 	});
 	const settings = { ...defaultAssistanceWorkflowSettingsV1('make-highlights'),
@@ -321,6 +332,12 @@ test('Make Highlights adds Qwen only after explicit editorial rerank opt-in', as
 	assert.ok(result.workflow.inputs.some(({ stageId, slotId }) => (
 		stageId === 'assemble-highlights' && slotId === 'editorial-proposal'
 	)));
+	assert.deepEqual(result.workflow.inputs.filter(({ stageId }) => stageId === 'gather-signals')
+		.map(({ slotId }) => slotId), ['video', 'audio']);
+	assert.deepEqual(result.workflow.fence.sourceRanges.map(({ mediaKind, sourceId }) => ({
+		mediaKind, sourceId,
+	})), [{ mediaKind: 'audio', sourceId: 'audio-source' },
+		{ mediaKind: 'video', sourceId: 'video-source' }]);
 });
 
 interface FixtureProject {

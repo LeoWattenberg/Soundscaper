@@ -1,17 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { sha256 } from '@noble/hashes/sha2.js';
-import { bytesToHex } from '@noble/hashes/utils.js';
-
 import type { AssistanceOperation } from '../assistance/operation.ts';
 import {
 	assistanceWorkflowStageGraph,
 	validateAssistanceWorkflow,
 	type AssistanceGuidedWorkflowId,
 	type AssistanceWorkflowClaimV1,
-	type AssistanceWorkflowFenceV1,
 	type AssistanceWorkflowModelBindingV1,
-	type AssistanceWorkflowSourceRangeV1,
 	type AssistanceWorkflowStageSpec,
 	type AssistanceWorkflowV1,
 } from '../assistance/workflow.ts';
@@ -32,6 +27,10 @@ import {
 	prepareLocalAssistanceGuidedTranscriptInput,
 	type LocalAssistanceGuidedPrimitiveFence,
 } from './local-assistance-guided-transcript-context.ts';
+import {
+	createLocalAssistanceGuidedAggregateFenceV1,
+	LocalAssistanceGuidedFenceUnavailableError,
+} from './local-assistance-guided-fence.ts';
 
 const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
 const SHA256 = /^[a-f\d]{64}$/u;
@@ -137,7 +136,10 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 			for (const stage of stages) {
 				for (const slot of stage.inputSlots) {
 					const selectedShotInput = stage.operation === 'shot-detection' && slot.slotId === (shotMode(settings) === 'accurate' ? 'frame-pack' : 'video');
-					if ((!slot.required && !selectedShotInput) || producedSlots.has(slot.slotId)) continue;
+					const selectedHighlightAudio = request.workflowId === 'make-highlights'
+						&& stage.stageId === 'gather-signals' && slot.slotId === 'audio';
+					if ((!slot.required && !selectedShotInput && !selectedHighlightAudio)
+						|| producedSlots.has(slot.slotId)) continue;
 					const external = await prepareExternalInput(
 						dependencies, project, inventory, stage, slot.slotId, settings, request.signal,
 					);
@@ -149,12 +151,12 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 			}
 			const preparedFences = [...externalByBinding.values()].map((external) => external!.fence);
 			if (preparedFences.length < 1) throw new UnavailableError('source-custody-unavailable');
-			assertSamePrimitiveFences(preparedFences);
 			const reviewAuthority = await deriveLocalAssistanceGuidedReviewAuthority(
 				request.workflowId, [...externalByBinding.values()].filter((value) => value !== null),
 			);
 			const settingsBody = serializeAssistanceWorkflowSettingsV1(settings);
-			const fence = aggregateFence(project, preparedFences[0]!, stages, settingsBody, models);
+			const fence = createLocalAssistanceGuidedAggregateFenceV1({ project,
+				primitiveFences: preparedFences, stages, settingsBody, models });
 			const outputBySlot = new Map<string, LocalAssistanceAggregateCustodyHandle>();
 			const inputs: AssistanceWorkflowClaimV1[] = [];
 			const outputs: AssistanceWorkflowClaimV1[] = [];
@@ -196,7 +198,10 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 			return Object.freeze({ outcome: 'prepared', workflow, reviewAuthority });
 		} catch (error) {
 			await request.custody.release(request.jobId).catch(() => false);
-			if (error instanceof UnavailableError) return unavailable(error.reason);
+			if (error instanceof UnavailableError
+				|| error instanceof LocalAssistanceGuidedFenceUnavailableError) {
+				return unavailable(error.reason);
+			}
 			throw error;
 		}
 	}
@@ -226,7 +231,9 @@ async function prepareExternalInput(
 	if (slotId !== 'audio' && slotId !== 'video' && slotId !== 'frame-pack') return null;
 	const source = inventory.filter(({ mediaKind }) => mediaKind === (slotId === 'frame-pack' ? 'video' : slotId));
 	if (source.length !== 1) return null;
-	const operation = slotId === 'video' ? 'shot-detection' : stage.operation;
+	const operation = slotId === 'video' ? 'shot-detection'
+		: slotId === 'audio' && stage.stageId === 'gather-signals' ? 'audio-tagging'
+			: stage.operation;
 	if (!operation || (slotId === 'audio' && !AUDIO_OPERATIONS.has(operation))) return null;
 	const mode = operation === 'shot-detection' ? shotMode(settings) : undefined;
 	const value = await dependencies.selected.prepareSelectedMedia({
@@ -313,51 +320,6 @@ const MODEL_SLOT_TASKS: Readonly<Record<string, string>> = Object.freeze({
 	'saliency-detector': 'saliency-detection', 'editorial-generator': 'editorial-generation',
 });
 
-function aggregateFence(
-	project: Record<string, unknown>,
-	primitive: PrimitiveFence,
-	stages: readonly AssistanceWorkflowStageSpec[],
-	settingsBody: string,
-	models: readonly AssistanceWorkflowModelBindingV1[],
-): AssistanceWorkflowFenceV1 {
-	if (primitive.projectId !== project.id || primitive.schemaVersion !== project.schemaVersion
-		|| primitive.revision !== project.revision) throw new DOMException('stale', 'AbortError');
-	const clips = recordArray(project.clips);
-	const occurrences = primitive.occurrenceIds.map((occurrenceId) => {
-		const matches = clips.filter(({ id }) => id === occurrenceId);
-		if (matches.length !== 1) throw new UnavailableError('timing-authority-unavailable');
-		return matches[0]!;
-	});
-	if (occurrences.some(({ sourceId }) => sourceId !== primitive.sourceId)) {
-		throw new UnavailableError('timing-authority-unavailable');
-	}
-	const selected = occurrences.find(({ id }) => id === project.selectedClipId) ?? occurrences[0]!;
-	const kind = selected.kind;
-	if (kind !== 'audio' && kind !== 'video') throw new UnavailableError('selected-media-unavailable');
-	if (selected.reversed === true || (typeof selected.speedRatio === 'number' && selected.speedRatio <= 0)) {
-		throw new UnavailableError('timing-authority-unavailable');
-	}
-	const sources = recordArray(project.sources).filter(({ id }) => id === primitive.sourceId);
-	if (sources.length !== 1 || liveSource(sources[0]!)) {
-		throw new UnavailableError('source-custody-unavailable');
-	}
-	const sourceRanges: readonly AssistanceWorkflowSourceRangeV1[] = Object.freeze([Object.freeze({
-		slotId: kind === 'audio' ? 'primary-audio' : 'primary-video', mediaKind: kind,
-		sourceId: primitive.sourceId, sourceSha256: digest(primitive.sourceSha256),
-		sourceSampleRate: kind === 'audio' ? positiveFrame(project.sampleRate, 8_000) : null,
-		occurrenceIds: Object.freeze([...primitive.occurrenceIds]),
-		sourceStartFrame: primitive.sourceStartFrame, sourceEndFrame: primitive.sourceEndFrame,
-		linkMembershipSha256: digest(primitive.linkMembershipSha256),
-		timingAuthoritySha256: digest(primitive.timingAuthoritySha256),
-		retimeKind: selected.retimeMap == null ? 'identity' : 'monotonic-forward',
-	})]);
-	return Object.freeze({ fenceVersion: 1, projectId: String(project.id),
-		schemaVersion: Number(project.schemaVersion), revision: Number(project.revision),
-		sequenceId: primitive.sequenceId, sourceRanges,
-		transcriptBodySha256: transcriptDigest(project, primitive.sourceId),
-		recipeSha256: hash({ recipeVersion: 1, stages }), settingsSha256: hashJson(settingsBody),
-		modelBindingsSha256: hash(models) });
-}
 function primitivePrepared(
 	value: unknown, sourceId: string, operation: AssistanceOperation, mode?: 'fast' | 'accurate',
 ): Readonly<{ inputs: readonly Readonly<{ role: string; mediaType: string; bytes: Blob }>[];
@@ -415,13 +377,6 @@ function assertHandle(
 	return claim;
 }
 
-function assertSamePrimitiveFences(values: readonly PrimitiveFence[]): void {
-	const first = JSON.stringify(values[0]);
-	if (values.some((value) => JSON.stringify(value) !== first)) {
-		throw new DOMException('Selected-media authority changed during aggregate preparation.', 'AbortError');
-	}
-}
-
 function bindingKey(stageId: string, slotId: string): string { return `${stageId}\0${slotId}`; }
 function assertSafeProjectTopology(project: Record<string, unknown>): void {
 	if (recordArray(project.subsequences).length > 0 || recordArray(project.multicameraGroups).length > 0) {
@@ -452,15 +407,6 @@ function recordArray(value: unknown): Record<string, unknown>[] {
 	return Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => (
 		Boolean(item) && typeof item === 'object' && !Array.isArray(item)
 	)) : [];
-}
-
-function transcriptDigest(project: Record<string, unknown>, sourceId: string): string | null {
-	const digests = new Set(recordArray(project.assistanceAssets)
-		.filter((asset) => asset.kind === 'transcript-v1' && asset.sourceId === sourceId)
-		.map((asset) => dataRecord(asset.body, 'transcript body').sha256)
-		.map(digest));
-	if (digests.size > 1) throw new UnavailableError('transcript-custody-unavailable');
-	return [...digests][0] ?? null;
 }
 
 function normalizeModel(model: LocalAssistanceModel): LocalAssistanceModel {
@@ -495,16 +441,6 @@ function externalReason(slotId: string): LocalAssistanceGuidedPreparationUnavail
 		return 'derived-custody-unavailable';
 	}
 	return 'source-custody-unavailable';
-}
-
-function hash(value: unknown): string { return hashJson(canonicalJson(value)); }
-function hashJson(value: string): string { return bytesToHex(sha256(new TextEncoder().encode(value))); }
-function canonicalJson(value: unknown): string {
-	if (value === null || typeof value === 'boolean' || typeof value === 'string'
-		|| (typeof value === 'number' && Number.isFinite(value))) return JSON.stringify(value);
-	if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-	const row = dataRecord(value, 'canonical workflow digest');
-	return `{${Object.keys(row).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(row[key])}`).join(',')}}`;
 }
 
 function liveSource(source: Record<string, unknown>): boolean {
