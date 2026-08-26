@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Authenticated CPU ONNX custody for DeepFilterNet3 and pending TIGER-DnR. */
+/** Authenticated CPU ONNX custody for DeepFilterNet3 and TIGER-DnR. */
 
 import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -17,15 +17,24 @@ import {
 	reviewAssistanceDeepFilterAuxiliaryV1,
 	synthesizeAssistanceDeepFilterChannelV1,
 } from '../src/common/editor/assistance/deepfilternet3-signal-v1.ts';
+import {
+	ASSISTANCE_TIGER_DNR_CHUNK_FRAMES,
+	ASSISTANCE_TIGER_DNR_SAMPLE_RATE,
+	createTigerDnrChunkPlanV1,
+	extractTigerDnrChunkV1,
+	mergeTigerDnrStemV1,
+	tigerDnrIstftV1,
+	tigerDnrStftV1,
+	type TigerDnrSpectrumV1,
+} from '../src/common/editor/assistance/tiger-dnr-signal-v1.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
 import type {
 	AssistanceOnnxInferenceSessionV1,
 	AssistanceOnnxRuntimeModuleV1,
 	AssistanceOnnxTensorV1,
 } from './assistance-onnx-runtime-worker.ts';
-import {
-	AssistanceRuntimeFamilyAdapterUnavailableError,
-	type AssistanceRuntimeFamilyWorkerExecutionContext,
+import type {
+	AssistanceRuntimeFamilyWorkerExecutionContext,
 } from './assistance-runtime-family-worker-entry.ts';
 
 type RuntimeLoader = (entrypoint: string) => PromiseLike<AssistanceOnnxRuntimeModuleV1>;
@@ -37,6 +46,9 @@ const DEEPFILTER_OUTPUT_NAMES = Object.freeze(['erb_mask', 'df_coefs']);
 const DEEPFILTER_ARTIFACT_ROLES = Object.freeze([
 	'deepfilter', 'deepfilter-auxiliary', 'config',
 ]);
+const TIGER_INPUT_NAMES = Object.freeze(['spectrum_ri']);
+const TIGER_OUTPUT_NAMES = Object.freeze(['complex_masks']);
+const TIGER_STEM_COUNT = 3;
 const CONFIG_FIELDS = Object.freeze([
 	'architectures', 'conv_lookahead', 'df_bins', 'df_lookahead', 'df_order',
 	'erb_bands', 'fft_bins', 'fft_size', 'hop_size', 'library_name',
@@ -55,7 +67,7 @@ export function createAssistanceOnnxEnhancementSeparationWorkerAdapterV1(
 			return executeDeepFilterNet3(context, loadRuntime);
 		}
 		if (context.grant.task === 'source-separation') {
-			return refusePendingTigerDnr(context);
+			return executeTigerDnr(context, loadRuntime);
 		}
 		throw new TypeError('The ONNX enhancement and separation adapter received a foreign task.');
 	};
@@ -87,10 +99,10 @@ async function executeDeepFilterNet3(
 	const wave = reviewCanonicalFloat32Wave(waveBytes, ASSISTANCE_DEEPFILTER_SAMPLE_RATE);
 	context.signal?.throwIfAborted();
 	const runtime = runtimeValue(await loadRuntime(context.job.descriptor.entrypoint));
-	const session = await createCpuSession(runtime, models.network.path);
+	const session = await createCpuSession(runtime, models.network.path, 'DeepFilterNet3');
 	try {
-		assertExactNames(session.inputNames, DEEPFILTER_INPUT_NAMES, 'input');
-		assertExactNames(session.outputNames, DEEPFILTER_OUTPUT_NAMES, 'output');
+		assertExactNames(session.inputNames, DEEPFILTER_INPUT_NAMES, 'input', 'DeepFilterNet3');
+		assertExactNames(session.outputNames, DEEPFILTER_OUTPUT_NAMES, 'output', 'DeepFilterNet3');
 		const enhanced: Float32Array[] = [];
 		for (let channel = 0; channel < wave.channels.length; channel += 1) {
 			context.signal?.throwIfAborted();
@@ -126,24 +138,73 @@ async function executeDeepFilterNet3(
 	}
 }
 
-function refusePendingTigerDnr(context: AssistanceRuntimeFamilyWorkerExecutionContext): never {
+async function executeTigerDnr(
+	context: AssistanceRuntimeFamilyWorkerExecutionContext,
+	loadRuntime: RuntimeLoader,
+): Promise<unknown> {
 	assertRuntimeJob(context, 'source-separation');
 	assertSettings(context, 'source-separation', [
 		'separated-audio', 'separated-audio', 'separated-audio',
 	]);
 	const { grant } = context;
-	if (grant.inputs.length !== 1 || grant.inputs[0]?.role !== 'audio'
-		|| grant.inputs[0].mediaType !== AUDIO_MEDIA_TYPE
+	const input = grant.inputs[0];
+	if (grant.inputs.length !== 1 || input?.role !== 'audio'
+		|| input.mediaType !== AUDIO_MEDIA_TYPE || input.byteLength > MAXIMUM_WAVE_BYTES
 		|| grant.models.length !== 1 || grant.models[0]?.modelId !== 'tiger-dnr'
 		|| grant.models[0].version !== '1.0.0' || grant.models[0].artifactRole !== 'network'
 		|| grant.outputs.length !== 3 || grant.outputs.some((output) =>
 			output.role !== 'separated-audio' || output.mediaType !== AUDIO_MEDIA_TYPE)) {
 		throw new TypeError('TIGER-DnR requires one exact network, audio input, and ordered D/M/E WAV grants.');
 	}
-	// The pinned source is a safetensors checkpoint. The owned ONNX recipe still has
-	// no converted digest or parity evidence, so loading any alleged network here
-	// would silently bless an unauthenticated artifact form.
-	throw new AssistanceRuntimeFamilyAdapterUnavailableError();
+	context.signal?.throwIfAborted();
+	context.onProgress(0);
+	const wave = reviewCanonicalFloat32Wave(await readFile(input.path),
+		ASSISTANCE_TIGER_DNR_SAMPLE_RATE);
+	const plan = createTigerDnrChunkPlanV1({ schemaVersion: 1,
+		sourceFrameCount: wave.channels[0]!.length });
+	context.signal?.throwIfAborted();
+	const runtime = runtimeValue(await loadRuntime(context.job.descriptor.entrypoint));
+	const session = await createCpuSession(runtime, grant.models[0].path, 'TIGER-DnR');
+	const chunks = Array.from({ length: TIGER_STEM_COUNT }, () => [] as Array<Readonly<{
+		readonly chunkIndex: number; readonly channels: readonly Float32Array[];
+	}>>);
+	try {
+		assertExactNames(session.inputNames, TIGER_INPUT_NAMES, 'input', 'TIGER-DnR');
+		assertExactNames(session.outputNames, TIGER_OUTPUT_NAMES, 'output', 'TIGER-DnR');
+		for (const chunk of plan.chunks) {
+			context.signal?.throwIfAborted();
+			const channels = extractTigerDnrChunkV1({ schemaVersion: 1, plan,
+				chunkIndex: chunk.chunkIndex, channels: wave.channels });
+			const spectrum = tigerDnrStftV1({ schemaVersion: 1,
+				sampleRate: ASSISTANCE_TIGER_DNR_SAMPLE_RATE, channels });
+			const result = exactTigerOutputs(await session.run({
+				spectrum_ri: new runtime.Tensor('float32', packTigerSpectrum(spectrum),
+					[spectrum.channelCount, 2, spectrum.frequencyBinCount,
+						spectrum.timeFrameCount]),
+			}));
+			context.signal?.throwIfAborted();
+			const masks = finiteFloatTensor(result.complex_masks,
+				[spectrum.channelCount, TIGER_STEM_COUNT, 2,
+					spectrum.frequencyBinCount, spectrum.timeFrameCount],
+				'TIGER-DnR complex masks');
+			for (let stem = 0; stem < TIGER_STEM_COUNT; stem += 1) {
+				context.signal?.throwIfAborted();
+				chunks[stem]!.push(Object.freeze({ chunkIndex: chunk.chunkIndex,
+					channels: tigerDnrIstftV1({ schemaVersion: 1,
+						spectrum: applyTigerMask(spectrum, masks, stem),
+						sourceFrameCount: ASSISTANCE_TIGER_DNR_CHUNK_FRAMES }),
+				}));
+			}
+			context.onProgress((chunk.chunkIndex + 1) / (plan.chunks.length + 1));
+		}
+		const bodies = chunks.map((stemChunks) => encodeWav(mergeTigerDnrStemV1({
+			schemaVersion: 1, plan, channelCount: wave.channels.length, chunks: stemChunks,
+		}), { sampleRate: ASSISTANCE_TIGER_DNR_SAMPLE_RATE,
+			bitDepth: 32, float: true, dither: false }));
+		return publishWaves(context, bodies);
+	} finally {
+		await session.release?.();
+	}
 }
 
 function exactDeepFilterModels(models: AssistanceRuntimeFamilyWorkerExecutionContext['grant']['models']):
@@ -258,6 +319,7 @@ function assertSettings(
 async function createCpuSession(
 	runtime: AssistanceOnnxRuntimeModuleV1,
 	modelPath: string,
+	label: string,
 ): Promise<AssistanceOnnxInferenceSessionV1> {
 	const session = await runtime.InferenceSession.create(modelPath, {
 		executionProviders: ['cpu'], graphOptimizationLevel: 'all',
@@ -266,7 +328,7 @@ async function createCpuSession(
 	if (!session || typeof session !== 'object' || !Array.isArray(session.inputNames)
 		|| !Array.isArray(session.outputNames) || typeof session.run !== 'function'
 		|| session.release !== undefined && typeof session.release !== 'function') {
-		throw new TypeError('The DeepFilterNet3 ONNX inference session surface is invalid.');
+		throw new TypeError(`The ${label} ONNX inference session surface is invalid.`);
 	}
 	return session;
 }
@@ -291,6 +353,16 @@ function exactOutputs(
 	return value;
 }
 
+function exactTigerOutputs(
+	value: Readonly<Record<string, AssistanceOnnxTensorV1>>,
+): Readonly<Record<string, AssistanceOnnxTensorV1>> {
+	if (!value || typeof value !== 'object' || Array.isArray(value)
+		|| JSON.stringify(Object.keys(value)) !== JSON.stringify(TIGER_OUTPUT_NAMES)) {
+		throw new TypeError('The TIGER-DnR result tensor inventory is invalid.');
+	}
+	return value;
+}
+
 function floatTensor(
 	value: AssistanceOnnxTensorV1 | undefined,
 	dims: readonly number[],
@@ -304,9 +376,71 @@ function floatTensor(
 	return value.data;
 }
 
-function assertExactNames(actual: readonly string[], expected: readonly string[], kind: string): void {
+function finiteFloatTensor(
+	value: AssistanceOnnxTensorV1 | undefined,
+	dims: readonly number[],
+	label: string,
+): Float32Array {
+	const data = floatTensor(value, dims, label);
+	for (const element of data) {
+		if (!Number.isFinite(element)) throw new RangeError(`${label} must contain only finite values.`);
+	}
+	return data;
+}
+
+function packTigerSpectrum(spectrum: TigerDnrSpectrumV1): Float32Array {
+	const { channelCount, frequencyBinCount, timeFrameCount } = spectrum;
+	const output = new Float32Array(channelCount * 2 * frequencyBinCount * timeFrameCount);
+	for (let channel = 0; channel < channelCount; channel += 1) {
+		const source = spectrum.channels[channel]!;
+		for (let component = 0; component < 2; component += 1) {
+			const plane = component === 0 ? source.real : source.imaginary;
+			for (let frequency = 0; frequency < frequencyBinCount; frequency += 1) {
+				for (let time = 0; time < timeFrameCount; time += 1) {
+					output[((channel * 2 + component) * frequencyBinCount + frequency)
+						* timeFrameCount + time] = plane[time * frequencyBinCount + frequency]!;
+				}
+			}
+		}
+	}
+	return output;
+}
+
+function applyTigerMask(
+	spectrum: TigerDnrSpectrumV1,
+	masks: Float32Array,
+	stem: number,
+): TigerDnrSpectrumV1 {
+	const { frequencyBinCount, timeFrameCount } = spectrum;
+	const channels = spectrum.channels.map((source, channel) => {
+		const real = new Float32Array(frequencyBinCount * timeFrameCount);
+		const imaginary = new Float32Array(real.length);
+		for (let frequency = 0; frequency < frequencyBinCount; frequency += 1) {
+			for (let time = 0; time < timeFrameCount; time += 1) {
+				const spectrumOffset = time * frequencyBinCount + frequency;
+				const maskOffset = (((channel * TIGER_STEM_COUNT + stem) * 2)
+					* frequencyBinCount + frequency) * timeFrameCount + time;
+				const sourceReal = source.real[spectrumOffset]!;
+				const sourceImaginary = source.imaginary[spectrumOffset]!;
+				const maskReal = masks[maskOffset]!;
+				const maskImaginary = masks[maskOffset + frequencyBinCount * timeFrameCount]!;
+				real[spectrumOffset] = sourceReal * maskReal - sourceImaginary * maskImaginary;
+				imaginary[spectrumOffset] = sourceReal * maskImaginary + sourceImaginary * maskReal;
+			}
+		}
+		return Object.freeze({ real, imaginary });
+	});
+	return Object.freeze({ ...spectrum, channels: Object.freeze(channels) });
+}
+
+function assertExactNames(
+	actual: readonly string[],
+	expected: readonly string[],
+	kind: string,
+	label: string,
+): void {
 	if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-		throw new TypeError(`The DeepFilterNet3 ONNX graph ${kind} signature is invalid.`);
+		throw new TypeError(`The ${label} ONNX graph ${kind} signature is invalid.`);
 	}
 }
 

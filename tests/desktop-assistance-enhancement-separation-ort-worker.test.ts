@@ -17,7 +17,6 @@ import {
 	assertAssistanceOnnxEnhancementSeparationModelBindingV1,
 } from '../desktop/assistance-operation-family-execution.ts';
 import {
-	AssistanceRuntimeFamilyAdapterUnavailableError,
 	runAssistanceRuntimeFamilyWorkerJobV1,
 } from '../desktop/assistance-runtime-family-worker-entry.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
@@ -131,6 +130,34 @@ async function enhancementFixture(
 	return Object.freeze({ job: job('speech-enhancement', grant), paths, inputBytes });
 }
 
+async function separationFixture(context: TestContext) {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-tiger-ort-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const inputBytes = audio(2_048, 44_100);
+	const modelBytes = Buffer.from('converted-tiger-network');
+	const input = join(root, 'audio.wav');
+	const model = join(root, 'tiger-dnr.onnx');
+	const outputs = OUTPUT_IDS.map((_, index) => join(root, `stem-${String(index)}.wav`));
+	await Promise.all([writeFile(input, inputBytes), writeFile(model, modelBytes),
+		...outputs.map((path) => writeFile(path, new Uint8Array()))]);
+	const grant = await captureAssistanceRuntimeFamilyJobGrantV1({
+		jobId: JOB_ID, familyId: 'onnxruntime-node', task: 'source-separation',
+		settingsJson: JSON.stringify({ schemaVersion: 1, operation: 'source-separation',
+			inputRoles: ['audio'], outputRoles: ['separated-audio', 'separated-audio',
+				'separated-audio'] }),
+		inputs: [{ claim: { claimVersion: 1, claimId: INPUT_ID, jobId: JOB_ID,
+			role: 'audio', mediaType: 'audio/wav', byteLength: inputBytes.byteLength,
+			sha256: digest(inputBytes) }, path: input }],
+		models: [{ modelId: 'tiger-dnr', version: '1.0.0', artifactRole: 'network',
+			path: model, byteLength: modelBytes.byteLength, sha256: digest(modelBytes) }],
+		outputs: outputs.map((path, index) => ({ reservation: { claimVersion: 1,
+			claimId: OUTPUT_IDS[index]!, jobId: JOB_ID, role: 'separated-audio' as const,
+			mediaType: 'audio/wav', maximumByteLength: 16 * 1024 * 1024 }, path })),
+	});
+	return Object.freeze({ job: job('source-separation', grant),
+		paths: Object.freeze({ input, model, outputs: Object.freeze(outputs) }), inputBytes });
+}
+
 test('DeepFilterNet3 preserves exact 48 kHz multichannel geometry through its CPU graph',
 	async (context) => {
 		const fixture = await enhancementFixture(context);
@@ -223,47 +250,76 @@ test('DeepFilterNet3 observes cancellation between channel graph calls without p
 		assert.equal((await readFile(fixture.paths.output)).byteLength, 0);
 	});
 
-test('TIGER remains typed unavailable while its pinned safetensors lacks converted ONNX evidence',
+test('TIGER preserves exact 44.1 kHz multichannel geometry through owned D/M/E overlap-add',
 	async (context) => {
-		const root = await mkdtemp(join(tmpdir(), 'soundscaper-tiger-ort-'));
-		context.after(() => rm(root, { recursive: true, force: true }));
-		const inputBytes = audio(2_048, 44_100);
-		const modelBytes = Buffer.from('pending-converted-network');
-		const input = join(root, 'audio.wav');
-		const model = join(root, 'tiger-dnr.onnx');
-		const outputs = OUTPUT_IDS.map((_, index) => join(root, `stem-${String(index)}.wav`));
-		await Promise.all([writeFile(input, inputBytes), writeFile(model, modelBytes),
-			...outputs.map((path) => writeFile(path, new Uint8Array()))]);
-		const grant = await captureAssistanceRuntimeFamilyJobGrantV1({
-			jobId: JOB_ID, familyId: 'onnxruntime-node', task: 'source-separation',
-			settingsJson: JSON.stringify({ schemaVersion: 1, operation: 'source-separation',
-				inputRoles: ['audio'], outputRoles: ['separated-audio', 'separated-audio',
-					'separated-audio'] }),
-			inputs: [{ claim: { claimVersion: 1, claimId: INPUT_ID, jobId: JOB_ID,
-				role: 'audio', mediaType: 'audio/wav', byteLength: inputBytes.byteLength,
-				sha256: digest(inputBytes) }, path: input }],
-			models: [{ modelId: 'tiger-dnr', version: '1.0.0', artifactRole: 'network',
-				path: model, byteLength: modelBytes.byteLength, sha256: digest(modelBytes) }],
-			outputs: outputs.map((path, index) => ({ reservation: { claimVersion: 1,
-				claimId: OUTPUT_IDS[index]!, jobId: JOB_ID, role: 'separated-audio' as const,
-				mediaType: 'audio/wav', maximumByteLength: 16 * 1024 * 1024 }, path })),
+		const fixture = await separationFixture(context);
+		const feedGeometries: number[][] = [];
+		let released = 0;
+		const progress: number[] = [];
+		const result = await runAssistanceRuntimeFamilyWorkerJobV1({
+			job: fixture.job,
+			onProgress: (ratio) => progress.push(ratio),
+			execute: createAssistanceOnnxRuntimeWorkerAdapterV1({ loadRuntime: async () =>
+				fakeRuntime(['spectrum_ri'], ['complex_masks'], async (feeds) => {
+					feedGeometries.push([...feeds.spectrum_ri!.dims]);
+					return tigerMasks(feeds.spectrum_ri!, [1, 0.5, -0.25]);
+				}, () => { released += 1; }) }),
 		});
-		let loaded = false;
-		await assert.rejects(runAssistanceRuntimeFamilyWorkerJobV1({
-			job: job('source-separation', grant),
-			execute: createAssistanceOnnxRuntimeWorkerAdapterV1({ loadRuntime: async () => {
-				loaded = true; return fakeRuntime([], [], async () => ({}));
-			} }),
-		}), (error: unknown) => {
-			assert.ok(error instanceof AssistanceRuntimeFamilyAdapterUnavailableError);
-			assert.equal(error.code, 'ADAPTER_UNAVAILABLE');
-			assert.match(error.message, /converted|ONNX|adapter/iu);
-			return true;
-		});
-		assert.equal(loaded, false);
-		assert.deepEqual((await Promise.all(outputs.map((path) => readFile(path))))
-			.map(({ byteLength }) => byteLength), [0, 0, 0]);
+		assert.equal(released, 1);
+		assert.equal(feedGeometries.length, 3);
+		assert.ok(feedGeometries.every((dims) =>
+			JSON.stringify(dims) === JSON.stringify([2, 2, 1_025, 1_034])));
+		assert.equal(progress[0], 0);
+		assert.equal(progress.at(-1), 1);
+		const inputWave = inspectFloatWave(fixture.inputBytes);
+		const stemBytes = await Promise.all(fixture.paths.outputs.map((path) => readFile(path)));
+		const stems = stemBytes.map(inspectFloatWave);
+		assert.deepEqual(stems.map((stem) => ({ sampleRate: stem.sampleRate,
+			channelCount: stem.channels.length, frameCount: stem.channels[0]!.length })), [
+			{ sampleRate: 44_100, channelCount: 2, frameCount: 2_048 },
+			{ sampleRate: 44_100, channelCount: 2, frameCount: 2_048 },
+			{ sampleRate: 44_100, channelCount: 2, frameCount: 2_048 },
+		]);
+		for (let stem = 0; stem < stems.length; stem += 1) {
+			const factor = [1, 0.5, -0.25][stem]!;
+			for (let channel = 0; channel < inputWave.channels.length; channel += 1) {
+				const error = inputWave.channels[channel]!.reduce((maximum, sample, frame) =>
+					Math.max(maximum, Math.abs(sample * factor
+						- stems[stem]!.channels[channel]![frame]!)), 0);
+				assert.ok(error < 3e-4, `stem ${String(stem)} identity error ${String(error)}`);
+			}
+			assert.equal(result.outputs[stem]!.sha256, digest(stemBytes[stem]!));
+		}
 	});
+
+test('TIGER rejects foreign graph output and cancellation without publishing stems',
+	async (context) => {
+		const fixture = await separationFixture(context);
+		await assert.rejects(runAssistanceRuntimeFamilyWorkerJobV1({
+			job: fixture.job,
+			execute: createAssistanceOnnxRuntimeWorkerAdapterV1({ loadRuntime: async () =>
+				fakeRuntime(['spectrum_ri'], ['complex_masks'], async (feeds) => {
+					const outputs = tigerMasks(feeds.spectrum_ri!, [1, 0.5, -0.25]);
+					(outputs.complex_masks.data as Float32Array)[0] = Number.NaN;
+					return outputs;
+				}) }),
+		}), /finite|mask|tensor/iu);
+
+		const cancelled = await separationFixture(context);
+		const controller = new AbortController();
+		let released = 0;
+		await assert.rejects(runAssistanceRuntimeFamilyWorkerJobV1({
+			job: cancelled.job, signal: controller.signal,
+			execute: createAssistanceOnnxRuntimeWorkerAdapterV1({ loadRuntime: async () =>
+				fakeRuntime(['spectrum_ri'], ['complex_masks'], async (feeds) => {
+					controller.abort(new DOMException('cancelled', 'AbortError'));
+					return tigerMasks(feeds.spectrum_ri!, [1, 0.5, -0.25]);
+				}, () => { released += 1; }) }),
+		}), { name: 'AbortError' });
+		assert.equal(released, 1);
+		assert.deepEqual((await Promise.all(cancelled.paths.outputs.map((path) => readFile(path))))
+			.map(({ byteLength }) => byteLength), [0, 0, 0]);
+});
 
 test('main closes enhancement and separation model substitution before catalog lookup', () => {
 	assert.doesNotThrow(() => assertAssistanceOnnxEnhancementSeparationModelBindingV1(
@@ -310,6 +366,28 @@ function identityDeepFilterOutput(frames: number): Readonly<Record<string, Tenso
 		erb_mask: tensor(mask, [1, 1, frames, 32]),
 		df_coefs: tensor(coefficients, [1, 5, frames, 96, 2]),
 	});
+}
+
+function tigerMasks(
+	input: TensorValue,
+	factors: readonly [number, number, number],
+): Readonly<Record<string, TensorValue>> {
+	const [batchChannels, components, frequencies, frames] = input.dims;
+	assert.equal(components, 2);
+	const values = new Float32Array(batchChannels! * factors.length * 2 * frequencies! * frames!);
+	for (let batchChannel = 0; batchChannel < batchChannels!; batchChannel += 1) {
+		for (let stem = 0; stem < factors.length; stem += 1) {
+			for (let frequency = 0; frequency < frequencies!; frequency += 1) {
+				for (let frame = 0; frame < frames!; frame += 1) {
+					const index = ((((batchChannel * factors.length + stem) * 2) * frequencies!
+						+ frequency) * frames!) + frame;
+					values[index] = factors[stem]!;
+				}
+			}
+		}
+	}
+	return Object.freeze({ complex_masks: tensor(values,
+		[batchChannels!, factors.length, 2, frequencies!, frames!]) });
 }
 
 function tensor(data: Float32Array, dims: readonly number[]): TensorValue {

@@ -123,6 +123,7 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/assistance/transcript-indexing-v1.js',
 	'src/common/editor/assistance/transcript-ingest.js',
 	'src/common/editor/assistance/transcript.js',
+	'src/common/editor/assistance/tiger-dnr-signal-v1.js',
 	'src/common/editor/assistance/transnetv2-onnx-adapter-v1.js',
 	'src/common/editor/assistance/transnetv2-postprocess-v1.js',
 	'src/common/editor/assistance/visual-semantic-results-v1.js',
