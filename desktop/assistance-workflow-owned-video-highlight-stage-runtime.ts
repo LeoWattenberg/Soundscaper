@@ -24,6 +24,8 @@ import {
 	validateAssistanceWorkflowCustodyClaimV1,
 	type AssistanceWorkflowCustodyClaimV1,
 } from '../src/common/editor/assistance/workflow-custody-v1.ts';
+import type { AssistanceVisualSearchTagV1 } from
+	'../src/common/editor/assistance/visual-search-records-v1.ts';
 import {
 	reviewFramescaperAssistanceHighlightsV1,
 } from '../src/framescaper/editor-local-assistance-highlight-review.ts';
@@ -88,7 +90,10 @@ export interface AssistanceWorkflowOwnedVisualTagsMaterializationRequestV1 {
 
 export interface AssistanceWorkflowOwnedVisualTagsMaterializationV1 {
 	readonly matrix: Uint8Array;
-	readonly tags: unknown;
+	readonly tags: readonly Readonly<{
+		readonly resultId: string;
+		readonly tags: readonly AssistanceVisualSearchTagV1[];
+	}>[];
 }
 
 /** Closed main-only seam for data that cannot truthfully be represented by current slotted bodies. */
