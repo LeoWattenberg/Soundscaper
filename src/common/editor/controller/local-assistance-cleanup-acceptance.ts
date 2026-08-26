@@ -169,7 +169,16 @@ export function createLocalAssistanceTranscriptCleanupSession(
 	if (sourceProposals.length < 1) {
 		throw new RangeError('The reviewed transcript produced no cleanup proposals.');
 	}
-	const proposals = Object.freeze(sourceProposals.map((proposal) => timelineProposal(proposal, initial)));
+	// A degenerate proposal is dropped rather than thrown on, as the voice-activity
+	// path alongside it already does: a model can emit a zero-duration word, and
+	// refusing the whole session for one would take away every other well-formed
+	// proposal in the transcript.
+	const proposals = Object.freeze(
+		sourceProposals.flatMap((proposal) => timelineProposal(proposal, initial)),
+	);
+	if (proposals.length < 1) {
+		throw new RangeError('The reviewed transcript produced no cleanup proposals.');
+	}
 	const proposalById = new Map(proposals.map((proposal) => [proposal.id, proposal]));
 	const decisionCommands = new Map(proposals.map((proposal) => [
 		proposal.id,
@@ -249,13 +258,10 @@ function decisionProposalId(
 function timelineProposal(
 	proposal: DisfluencyProposal,
 	authority: NormalizedAuthority,
-): DisfluencyProposal {
+): readonly DisfluencyProposal[] {
 	const startFrame = projectFrame(proposal.startFrame, authority);
 	const endFrame = projectFrame(proposal.endFrame, authority);
-	if (endFrame <= startFrame) {
-		throw new RangeError('A transcript cleanup proposal has no selected timeline extent.');
-	}
-	return Object.freeze({ ...proposal, startFrame, endFrame });
+	return endFrame > startFrame ? [Object.freeze({ ...proposal, startFrame, endFrame })] : [];
 }
 
 function projectFrame(sourceFrame: number, authority: NormalizedAuthority): number {

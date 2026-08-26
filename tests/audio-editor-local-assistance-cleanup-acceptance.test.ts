@@ -140,7 +140,7 @@ class CleanupFixture {
 	}
 
 	createSession(overrides: Partial<Pick<LocalAssistanceTranscriptCleanupRequest,
-		'models' | 'options' | 'voiceActivity'>> = {}) {
+		'models' | 'options' | 'voiceActivity' | 'review'>> = {}) {
 		const authority = this.currentAuthority();
 		return createLocalAssistanceTranscriptCleanupSession({
 			currentAuthority: () => this.currentAuthority(),
@@ -153,7 +153,7 @@ class CleanupFixture {
 			},
 		}, {
 			selectionFence: authority.fence,
-			review: REVIEW,
+			review: overrides.review ?? REVIEW,
 			models: overrides.models ?? Object.freeze([Object.freeze({
 				modelId: 'parakeet-tdt-0.6b-v2',
 				version: '1',
@@ -219,6 +219,36 @@ test('reviewed transcript timing becomes deterministic subset-selectable cleanup
 	assert.equal(command.startFrame, 57_600);
 	assert.equal(command.endFrame, 67_200);
 	assert.match(command.splitClipIds?.['audio-clip'] ?? '', /^clip-/u);
+});
+
+/**
+ * A recognition model can predict an integer frame duration of zero. Such a
+ * proposal has no timeline extent and cannot be applied, but refusing the whole
+ * session for one would take away every well-formed proposal in the transcript
+ * and make Clean-up unusable for that recording.
+ */
+test('a zero-duration reviewed word is skipped, not fatal to the whole session', () => {
+	const fixture = new CleanupFixture();
+	const review = Object.freeze({
+		...REVIEW,
+		segments: Object.freeze([Object.freeze({
+			...REVIEW.segments[0]!,
+			words: Object.freeze([
+				...REVIEW.segments[0]!.words.slice(0, 4),
+				// A filler the model gave no duration at all, in order between the
+				// words that surround it.
+				Object.freeze({ text: 'um', startSeconds: 1.4, endSeconds: 1.4, confidence: 0.9 }),
+				...REVIEW.segments[0]!.words.slice(4),
+			]),
+		})]),
+	});
+	const session = fixture.createSession({ review });
+
+	assert.deepEqual(
+		session.snapshot().proposals.map(({ id }) => id),
+		['filler-19200-28800', 'filler-57600-67200'],
+		'the well-formed proposals survive the degenerate one',
+	);
 });
 
 test('only same-fence reviewed VAD can add silence cleanup proposals', () => {
