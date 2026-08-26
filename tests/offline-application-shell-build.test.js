@@ -7,7 +7,16 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 
-import { generateOfflineApplicationShell } from '../scripts/lib/offline-application-shell.mjs';
+import {
+	generateOfflineApplicationShell,
+	MAXIMUM_INSTALL_ASSET_BYTES,
+	MAXIMUM_INSTALL_ASSET_COUNT,
+} from '../scripts/lib/offline-application-shell.mjs';
+
+test('each product install core retains the approved request and byte ceilings', () => {
+	assert.equal(MAXIMUM_INSTALL_ASSET_COUNT, 128);
+	assert.equal(MAXIMUM_INSTALL_ASSET_BYTES, 8 * 1024 * 1024);
+});
 
 test('offline shell generation inventories exact route URLs and emits installable product manifests', async (context) => {
 	const outputRoot = await shellFixture(context);
