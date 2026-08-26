@@ -3,7 +3,7 @@
 /** Source, build-recipe and runtime-payload audit for the 5B media host. */
 
 import { createHash } from 'node:crypto';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
 import {
@@ -15,6 +15,7 @@ import {
 	verifyBoostHeaderClosureManifest,
 } from './boost-header-closure.mjs';
 import { lineEndingPolicyFindings } from './line-ending-policy.mjs';
+import { listNativeSourceTree } from './native-source-tree.mjs';
 
 export const FRAMESCAPER_MEDIA_HOST_ROOT = 'native/framescaper-media-host';
 export const FRAMESCAPER_MEDIA_HOST_SOURCE_MANIFEST =
@@ -103,10 +104,14 @@ export function auditFramescaperMediaHost({ repositoryRoot }) {
 	const manifest = readFramescaperMediaHostSourceManifest(root);
 	const findings = [];
 	const hostRoot = resolve(root, FRAMESCAPER_MEDIA_HOST_ROOT);
-	const actual = listFiles(hostRoot)
-		.map((path) => relative(hostRoot, path).split('\\').join('/'))
-		.filter((path) => !SOURCE_EXCLUSIONS.has(path) && !path.startsWith('prebuilt/') && !path.startsWith('out/'))
-		.sort();
+	const tree = listNativeSourceTree(hostRoot);
+	const audited = (path) => !SOURCE_EXCLUSIONS.has(path)
+		&& !path.startsWith('prebuilt/') && !path.startsWith('out/');
+	const hostPath = (path) => relative(hostRoot, path).split('\\').join('/');
+	const actual = tree.files.map(hostPath).filter(audited).sort();
+	for (const path of tree.irregular.map(hostPath).filter(audited).sort()) {
+		findings.push(`Irregular media-host source entry: ${path}`);
+	}
 	const pins = new Map(manifest.sourceFiles.map((entry) => [entry.path, entry]));
 	for (const path of actual) if (!pins.has(path)) findings.push(`Unpinned media-host source: ${path}`);
 	for (const [path, pin] of pins) {
@@ -449,13 +454,7 @@ function payloadDescriptors(entry) {
 }
 
 function listFiles(directory) {
-	const files = [];
-	for (const entry of readdirSync(directory, { withFileTypes: true })) {
-		const path = join(directory, entry.name);
-		if (entry.isDirectory()) files.push(...listFiles(path));
-		else if (entry.isFile() && !entry.isSymbolicLink() && statSync(path).isFile()) files.push(path);
-	}
-	return files;
+	return listNativeSourceTree(directory).files;
 }
 
 function digest(bytes) {

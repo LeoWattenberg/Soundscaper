@@ -2,8 +2,8 @@
 
 import { createHash } from 'node:crypto';
 import {
-	closeSync, constants, fstatSync, lstatSync, openSync, readFileSync, readdirSync,
-	realpathSync, statSync,
+	closeSync, constants, fstatSync, lstatSync, openSync, readFileSync,
+	realpathSync,
 } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 
@@ -17,6 +17,7 @@ import {
 	validateNativeIsolationReviewPolicy,
 } from '../../desktop/native-isolation-review-policy.mjs';
 import { lineEndingPolicyFindings } from './line-ending-policy.mjs';
+import { listNativeSourceTree } from './native-source-tree.mjs';
 
 export const FRAMESCAPER_OPENFX_HOST_ROOT = 'native/framescaper-openfx-host';
 export const FRAMESCAPER_OPENFX_SOURCE_MANIFEST =
@@ -118,9 +119,12 @@ export function auditFramescaperOpenFxHost({ repositoryRoot }) {
 		findings.push('The OpenFX 1.5.1 signed-tag source pin drifted.');
 	}
 	const hostRoot = join(repositoryRoot, FRAMESCAPER_OPENFX_HOST_ROOT);
-	const actualPaths = sourcePaths(hostRoot).filter(
-		(path) => !path.startsWith('prebuilt/') && !path.startsWith('out/'),
-	);
+	const tree = sourceTree(hostRoot);
+	const audited = (path) => !path.startsWith('prebuilt/') && !path.startsWith('out/');
+	const actualPaths = tree.files.filter(audited);
+	for (const path of tree.irregular.filter(audited)) {
+		findings.push(`Irregular OpenFX host source entry: ${path}`);
+	}
 	const listedPaths = Array.isArray(manifest.sourceFiles)
 		? manifest.sourceFiles.map(({ path }) => path) : [];
 	if (JSON.stringify(listedPaths) !== JSON.stringify(actualPaths)) {
@@ -392,20 +396,13 @@ export function framescaperOpenFxProductionReadinessStageSummary(release, target
 	});
 }
 
-function sourcePaths(root) {
-	const result = [];
-	visit(root);
-	return result.sort();
-
-	function visit(directory) {
-		for (const entry of readdirSync(directory, { withFileTypes: true })) {
-			const path = join(directory, entry.name);
-			if (entry.isDirectory()) visit(path);
-			else if (entry.isFile() && entry.name !== 'source-manifest.json' && statSync(path).isFile()) {
-				result.push(relative(root, path).replaceAll('\\', '/'));
-			}
-		}
-	}
+function sourceTree(root) {
+	const tree = listNativeSourceTree(root);
+	const hostPath = (path) => relative(root, path).replaceAll('\\', '/');
+	return {
+		files: tree.files.map(hostPath).filter((path) => path !== 'source-manifest.json').sort(),
+		irregular: tree.irregular.map(hostPath).sort(),
+	};
 }
 
 function auditBuiltTarget(repositoryRoot, id, target) {

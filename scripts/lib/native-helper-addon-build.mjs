@@ -15,8 +15,10 @@
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { basename, join, relative, resolve } from 'node:path';
+
+import { listNativeSourceTree } from './native-source-tree.mjs';
 
 export const NATIVE_HELPER_ADDON_ROOT = 'native/soundscaper-helper-addon';
 export const NATIVE_HELPER_ADDON_SOURCE_MANIFEST = `${NATIVE_HELPER_ADDON_ROOT}/source-manifest.json`;
@@ -76,6 +78,9 @@ export function auditNativeHelperAddon({ repositoryRoot }) {
 	const pinned = new Map(manifest.sourceFiles.map((entry) => [entry.path, entry]));
 	for (const path of listSourceFiles(sourceRoot).map((file) => relative(sourceRoot, file).split('\\').join('/'))) {
 		if (!pinned.has(path)) findings.push(`Unpinned native helper addon source: ${path}`);
+	}
+	for (const file of listNativeSourceTree(sourceRoot).irregular) {
+		findings.push(`Irregular native helper addon source entry: ${relative(sourceRoot, file).split('\\').join('/')}`);
 	}
 	for (const [path, entry] of pinned) {
 		if (!SHA256_PATTERN.test(String(entry.sha256))) {
@@ -218,12 +223,9 @@ function toolchainIdentity(compiler, run) {
 }
 
 function listSourceFiles(directory) {
-	return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-		const path = join(directory, entry.name);
-		if (entry.isDirectory()) return listSourceFiles(path);
-		if (!entry.isFile()) return [];
-		const extension = entry.name.slice(entry.name.lastIndexOf('.'));
-		return SOURCE_EXTENSIONS.has(extension) ? [path] : [];
+	return listNativeSourceTree(directory).files.filter((path) => {
+		const name = basename(path);
+		return SOURCE_EXTENSIONS.has(name.slice(name.lastIndexOf('.')));
 	});
 }
 
