@@ -19,7 +19,26 @@ test('desktop composition gives local assistance the authenticated external FFmp
 	assert.match(registration,
 		/import \{ ASSISTANCE_WORKFLOW_IPC_CHANNELS, registerAssistanceWorkflowIpc \} from '\.\/project-library-runtime\/desktop\/assistance-workflow-main-ipc\.js';/u);
 	assert.match(registration,
-		/registerAssistanceWorkflowIpc\(\{[\s\S]*?createAssistanceWorkflowService\(\{ onProgress \}\)[\s\S]*?confirmWorkflow:/u);
+		/import \{ AssistanceWorkflowCustody \} from '\.\/project-library-runtime\/desktop\/assistance-workflow-custody\.js';/u);
+	assert.match(registration,
+		/import \{ createAssistanceWorkflowExecutor \} from '\.\/project-library-runtime\/desktop\/assistance-workflow-executor\.js';/u);
+	assert.match(registration,
+		/import \{ createAssistanceWorkflowOwnedAudioCutStageRuntime \} from '\.\/project-library-runtime\/desktop\/assistance-workflow-owned-audio-cut-stage-runtime\.js';/u);
+	assert.match(registration,
+		/import \{ createAssistanceWorkflowNomicTokenizerResolverV1 \} from '\.\/project-library-runtime\/desktop\/assistance-workflow-nomic-tokenizer-resolver\.js';/u);
+	assert.match(registration,
+		/createAssistanceWorkflowOwnedAudioCutStageRuntime\(\{[\s\S]*?custody: workflowCustody,[\s\S]*?resolveTokenizer: resolveNomicTokenizer,[\s\S]*?\}\)/u);
+	assert.match(registration,
+		/const resolveNomicTokenizer = \(request\) => createAssistanceWorkflowNomicTokenizerResolverV1\(\{[\s\S]*?models: createService\(\),[\s\S]*?\}\)\(request\);/u);
+	assert.match(registration,
+		/createAssistanceWorkflowExecutor\(\{[\s\S]*?resolveCustody:[\s\S]*?runPrimitiveStage:[\s\S]*?deterministicHandlers,/u);
+	assert.match(registration,
+		/registerAssistanceWorkflowIpc\(\{[\s\S]*?\bon,[\s\S]*?createAssistanceWorkflowService\(\{[\s\S]*?custody: workflowCustody,[\s\S]*?execute: workflowExecute,[\s\S]*?onProgress,[\s\S]*?createTransfers:/u);
+	assert.match(registration,
+		/createTransfers: \(workflows\) => new AssistanceWorkflowTransfers\(\{[\s\S]*?custody: workflowCustody,[\s\S]*?workflows,[\s\S]*?\}\)/u);
+	assert.match(registration, /`Settings: \$\{JSON\.stringify\(request\.settings\)\}`/u);
+	assert.equal((registration.match(/new AssistanceStagingRegistry\(/gu) ?? []).length, 1,
+		'primitive and aggregate jobs share one authenticated staging authority');
 	assert.match(main,
 		/registerAssistance\(\{[\s\S]*?externalFfmpegPreferences: externalFfmpegPreferences\.service[\s\S]*?\}\)/u);
 });

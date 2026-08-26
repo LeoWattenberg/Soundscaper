@@ -29,8 +29,14 @@ import { createExternalFfmpegAssistanceShotRuntimeAdapter } from './project-libr
 import { ASSISTANCE_OPERATION_IPC_CHANNELS, registerAssistanceOperationIpc } from './project-library-runtime/desktop/assistance-operation-main-ipc.js';
 import { createAssistanceOperationService } from './project-library-runtime/desktop/assistance-operation-service.js';
 import { createAssistanceRuntimeFamilyDesktopStartup } from './project-library-runtime/desktop/assistance-runtime-family-startup.js';
+import { AssistanceWorkflowCustody } from './project-library-runtime/desktop/assistance-workflow-custody.js';
+import { createAssistanceWorkflowExecutor } from './project-library-runtime/desktop/assistance-workflow-executor.js';
 import { ASSISTANCE_WORKFLOW_IPC_CHANNELS, registerAssistanceWorkflowIpc } from './project-library-runtime/desktop/assistance-workflow-main-ipc.js';
+import { createAssistanceWorkflowNomicTokenizerResolverV1 } from './project-library-runtime/desktop/assistance-workflow-nomic-tokenizer-resolver.js';
+import { createAssistanceWorkflowOperationStageRuntime } from './project-library-runtime/desktop/assistance-workflow-operation-stage-runtime.js';
+import { createAssistanceWorkflowOwnedAudioCutStageRuntime } from './project-library-runtime/desktop/assistance-workflow-owned-audio-cut-stage-runtime.js';
 import { createAssistanceWorkflowService } from './project-library-runtime/desktop/assistance-workflow-service.js';
+import { AssistanceWorkflowTransfers } from './project-library-runtime/desktop/assistance-workflow-transfers.js';
 import { AssistanceStagingRegistry } from './project-library-runtime/desktop/assistance-staging-registry.js';
 
 /**
@@ -88,6 +94,7 @@ async function confirmWorkflow(dialog, window, request, stages) {
 		detail: [
 			`Workflow: ${request.workflowId}`,
 			`Stages: ${stages.map(({ stageId }) => stageId).join(', ')}`,
+			`Settings: ${JSON.stringify(request.settings)}`,
 			`Selected ranges: ${request.fence.sourceRanges.map((range) =>
 				`${range.mediaKind} ${range.sourceStartFrame}–${range.sourceEndFrame}`).join(', ')}`,
 			`Timeline items: ${request.fence.sourceRanges.reduce((count, range) =>
@@ -202,35 +209,72 @@ export function registerAssistance({
 		},
 		createService,
 	});
-	const operationIpc = registerAssistanceOperationIpc({
-		channels: ASSISTANCE_OPERATION_IPC_CHANNELS,
-		handle,
-		on,
-		sendToRenderer,
-		createOperations: (onProgress) => createAssistanceOperationService({
-			registry: new AssistanceStagingRegistry({
-				root: resolve(join(app.getPath('userData'), 'assistance-staging-v1')),
-			}),
+	const staging = new AssistanceStagingRegistry({
+		root: resolve(join(app.getPath('userData'), 'assistance-staging-v1')),
+	});
+	let operations = null;
+	let publishOperationProgress = null;
+	const resolveOperations = (onProgress = null) => {
+		if (onProgress) publishOperationProgress = onProgress;
+		operations ??= createAssistanceOperationService({
+			registry: staging,
 			models: createService(),
 			runtime,
 			voiceActivityRuntime: runtime,
 			diarizationRuntime: runtime,
 			shotDetectionRuntime,
 			additionalRuntime: runtimeFamilies.operations,
-			onProgress,
-		}),
+			onProgress: (progress) => publishOperationProgress?.(progress),
+		});
+		return operations;
+	};
+	const operationIpc = registerAssistanceOperationIpc({
+		channels: ASSISTANCE_OPERATION_IPC_CHANNELS,
+		handle,
+		on,
+		sendToRenderer,
+		createOperations: (onProgress) => resolveOperations(onProgress),
 		confirmOperation: (request) => confirmOperation(dialog, windowFor(), request),
+	});
+	const workflowCustody = new AssistanceWorkflowCustody({ staging });
+	const workflowPrimitive = createAssistanceWorkflowOperationStageRuntime({
+		operations: Object.freeze({
+			executeStaged: (request, signal) => resolveOperations().executeStaged(request, signal),
+		}),
+		custody: workflowCustody,
+	});
+	const resolveNomicTokenizer = (request) => createAssistanceWorkflowNomicTokenizerResolverV1({
+		models: createService(),
+	})(request);
+	const deterministicHandlers = createAssistanceWorkflowOwnedAudioCutStageRuntime({
+		custody: workflowCustody,
+		resolveTokenizer: resolveNomicTokenizer,
+	});
+	const workflowExecute = createAssistanceWorkflowExecutor({
+		resolveCustody: (stage) => workflowCustody.resolveStage(stage),
+		runPrimitiveStage: workflowPrimitive,
+		deterministicHandlers,
 	});
 	const workflowIpc = registerAssistanceWorkflowIpc({
 		channels: ASSISTANCE_WORKFLOW_IPC_CHANNELS,
 		handle,
+		on,
 		sendToRenderer,
-		createWorkflows: (onProgress) => createAssistanceWorkflowService({ onProgress }),
+		createWorkflows: (onProgress) => createAssistanceWorkflowService({
+			custody: workflowCustody,
+			execute: workflowExecute,
+			onProgress,
+		}),
+		createTransfers: (workflows) => new AssistanceWorkflowTransfers({
+			custody: workflowCustody,
+			workflows,
+		}),
 		confirmWorkflow: (request, stages) => confirmWorkflow(dialog, windowFor(), request, stages),
 	});
 	return Object.freeze({ dispose: async () => {
 		await workflowIpc.dispose();
 		await operationIpc.dispose();
+		await operations?.dispose();
 		runtimeFamilies.dispose();
 		runtime.dispose();
 	} });
