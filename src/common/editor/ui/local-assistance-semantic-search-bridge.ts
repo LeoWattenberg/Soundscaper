@@ -24,7 +24,7 @@ export function resolveLocalAssistanceSemanticSearchBridge(
 		Promise.resolve((value[method] as (request: unknown) => unknown).call(value, argument))
 	);
 	return Object.freeze({
-		async open(authorityValue) {
+		async open(authorityValue: AssistanceSemanticSearchProjectAuthorityV1) {
 			const authority = projectAuthority(authorityValue);
 			const session = validateAssistanceSemanticSearchSession(
 				await invoke('open', authority),
@@ -32,7 +32,9 @@ export function resolveLocalAssistanceSemanticSearchBridge(
 			assertAuthority(session, authority);
 			return session;
 		},
-		async authorize(requestValue) {
+		async authorize(
+			requestValue: Parameters<AssistanceSemanticSearchSessionPortV1['authorize']>[0],
+		) {
 			const request = authorizationRequest(requestValue);
 			const authorized = validateAssistanceSemanticSearchSession(
 				await invoke('authorize', request),
@@ -42,7 +44,7 @@ export function resolveLocalAssistanceSemanticSearchBridge(
 			}
 			return authorized;
 		},
-		async revoke(sessionIdValue) {
+		async revoke(sessionIdValue: string) {
 			const sessionId = sessionIdValueOf(sessionIdValue);
 			const result = await invoke('revoke', sessionId);
 			if (typeof result !== 'boolean') {

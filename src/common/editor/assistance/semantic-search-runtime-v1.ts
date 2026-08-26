@@ -7,6 +7,7 @@ import {
 	validateAssistanceSemanticSearchSession,
 	type AssistanceAsyncSearchCoordinator,
 	type AssistanceAsyncSearchProvider,
+	type AssistanceAsyncSearchRequest,
 	type AssistanceSemanticSearchSession,
 } from './async-search-provider.ts';
 import {
@@ -87,7 +88,7 @@ export function createAssistanceSemanticSearchMenuSourceV1(options: Readonly<{
 		throw new TypeError('Semantic-search menu activation requires exact session, custody, and model ports.');
 	}
 	const now = options.now ?? Date.now;
-	return Object.freeze({ async open(authorityValue) {
+	return Object.freeze({ async open(authorityValue: AssistanceSemanticSearchProjectAuthorityV1) {
 		const authority = projectAuthority(authorityValue);
 		const opening = new AbortController();
 		const custodyValue = await options.custody.loadAuthenticated(authority, opening.signal);
@@ -110,7 +111,7 @@ export function createAssistanceSemanticSearchMenuSourceV1(options: Readonly<{
 			);
 			assertSessionAuthority(session, authority);
 			const authorizedProvider: AssistanceAsyncSearchProvider = Object.freeze({
-				search: async (request) => {
+				search: async (request: AssistanceAsyncSearchRequest) => {
 					const authorized = validateAssistanceSemanticSearchSession(
 						await options.sessions.authorize({
 							session: request.session,
