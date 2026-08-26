@@ -26,6 +26,16 @@ import {
 	reviewLocalAssistanceOutput,
 	type LocalAssistanceOutputReview,
 } from './local-assistance-result-review.ts';
+import {
+	createLocalAssistanceTranscriptCleanupPreparation,
+	createLocalAssistanceTranscriptCleanupState,
+	localAssistanceCleanupVoiceActivity,
+	localAssistanceTranscriptCleanupEligible,
+	localAssistanceTranscriptCleanupPortAvailable,
+	normalizeLocalAssistanceTranscriptCleanupProposals,
+	type LocalAssistanceTranscriptCleanupState,
+	type LocalAssistanceTranscriptCleanupVoiceActivity,
+} from './local-assistance-cleanup.ts';
 
 export type LocalAssistancePhase =
 	| 'idle' | 'loading' | 'selection-required' | 'ready' | 'preparing' | 'running'
@@ -61,10 +71,12 @@ export interface LocalAssistanceSnapshot {
 	readonly result: LocalAssistanceValidatedResult | null;
 	readonly unavailableReason: LocalAssistanceUiUnavailableReason | null;
 	readonly error: string | null;
+	readonly cleanup?: LocalAssistanceTranscriptCleanupState | null;
 	readonly canRun: boolean;
 	readonly canCancel: boolean;
 	readonly canReview: boolean;
 	readonly canAccept: boolean;
+	readonly canPrepareTranscriptCleanup?: boolean;
 }
 
 export interface LocalAssistanceSessionStore {
@@ -79,6 +91,10 @@ export interface LocalAssistanceSessionStore {
 	run(): Promise<void>;
 	cancel(): Promise<void>;
 	accept(): Promise<void>;
+	prepareTranscriptCleanup(): Promise<void>;
+	setTranscriptCleanupProposalSelected(proposalId: string, selected: boolean): void;
+	acceptTranscriptCleanup(): Promise<void>;
+	rejectTranscriptCleanup(): Promise<void>;
 	dispose(): Promise<void>;
 }
 
@@ -90,17 +106,20 @@ interface StoreOptions {
 const EMPTY_SOURCES = Object.freeze([]) as readonly LocalAssistanceSelectedMediaSource[];
 const EMPTY_MODELS = Object.freeze([]) as readonly LocalAssistanceModel[];
 const EMPTY_MODEL_IDS = Object.freeze([]) as readonly string[];
+const EMPTY_PROPOSALS = Object.freeze([]);
 
 export function createLocalAssistanceSessionStore(
 	options: StoreOptions,
 ): LocalAssistanceSessionStore {
 	const listeners = new Set<() => void>();
 	let pendingAcceptance: LocalAssistanceValidatedResultAcceptanceRequest | null = null;
+	let reviewedVoiceActivity: LocalAssistanceTranscriptCleanupVoiceActivity | null = null;
+	let cleanupEpoch = 0;
 	let snapshot = freezeSnapshot({
 		phase: 'idle', sources: EMPTY_SOURCES, models: EMPTY_MODELS,
 		selectedSourceId: null, selectedOperation: null, selectedModelIds: EMPTY_MODEL_IDS,
-		consent: false, progress: null, result: null, unavailableReason: null, error: null,
-	}, false);
+		consent: false, progress: null, result: null, unavailableReason: null, error: null, cleanup: null,
+	}, false, false);
 	let progressDisconnect: (() => void) | null = null;
 	let activeJobId: string | null = null;
 	let activeOperation: AssistanceOperation | null = null;
@@ -114,7 +133,9 @@ export function createLocalAssistanceSessionStore(
 	const emit = () => listeners.forEach((listener) => listener());
 	const update = (change: Partial<LocalAssistanceSnapshot>) => {
 		snapshot = freezeSnapshot({ ...snapshot, ...change }, pendingAcceptance !== null
-			&& typeof options.preparation?.acceptValidatedResult === 'function');
+			&& typeof options.preparation?.acceptValidatedResult === 'function',
+		pendingAcceptance !== null && localAssistanceTranscriptCleanupPortAvailable(options.preparation)
+			&& localAssistanceTranscriptCleanupEligible(pendingAcceptance));
 		emit();
 	};
 	const connect = () => {
@@ -134,10 +155,20 @@ export function createLocalAssistanceSessionStore(
 			progressDisconnect = null;
 		};
 	};
+	const discardCleanupSession = (): void => {
+		cleanupEpoch += 1;
+		if (snapshot.cleanup?.phase !== 'loading' && snapshot.cleanup?.phase !== 'review') return;
+		const cancelCleanup = options.preparation?.cancelTranscriptCleanup;
+		if (cancelCleanup) {
+			void cancelCleanup.call(options.preparation).catch(() => undefined);
+		}
+	};
 
 	const load = async (): Promise<void> => {
 		if (disposed) return;
+		discardCleanupSession();
 		pendingAcceptance = null;
+		reviewedVoiceActivity = null;
 		if (!options.preparation) {
 			update({ phase: 'selection-required', sources: EMPTY_SOURCES, models: EMPTY_MODELS,
 				unavailableReason: 'selection-required', error: null });
@@ -148,7 +179,7 @@ export function createLocalAssistanceSessionStore(
 				unavailableReason: 'bridge-unavailable', error: null });
 			return;
 		}
-		update({ phase: 'loading', unavailableReason: null, error: null, result: null });
+		update({ phase: 'loading', unavailableReason: null, error: null, result: null, cleanup: null });
 		try {
 			const [inventoryValue, modelValues] = await Promise.all([
 				options.preparation.listSelectedMedia(), options.bridge.models(),
@@ -159,7 +190,7 @@ export function createLocalAssistanceSessionStore(
 				sources: inventory.sources, models: modelValues,
 				selectedSourceId: null, selectedOperation: null, selectedModelIds: EMPTY_MODEL_IDS,
 				consent: false, unavailableReason: inventory.sources.length ? null : 'selection-required',
-				error: null, progress: null, result: null });
+				error: null, progress: null, result: null, cleanup: null });
 		} catch {
 			if (!disposed) update({ phase: 'error', error: 'Local assistance could not load its selected-media inventory.',
 				unavailableReason: null });
@@ -170,10 +201,12 @@ export function createLocalAssistanceSessionStore(
 		if (!snapshot.sources.some((source) => source.sourceId === sourceId)) {
 			throw new TypeError('The selected local-assistance source is unavailable.');
 		}
+		discardCleanupSession();
 		pendingAcceptance = null;
+		reviewedVoiceActivity = null;
 		update({ phase: 'ready', selectedSourceId: sourceId, selectedOperation: null,
 			selectedModelIds: EMPTY_MODEL_IDS, consent: false, progress: null, result: null,
-			unavailableReason: null, error: null });
+			unavailableReason: null, error: null, cleanup: null });
 	};
 	const selectOperation = (operation: AssistanceOperation): void => {
 		const source = selectedSource(snapshot);
@@ -181,10 +214,11 @@ export function createLocalAssistanceSessionStore(
 			throw new TypeError('The selected media does not admit that assistance operation.');
 		}
 		const modelsAvailable = localAssistanceOperationModelsAvailable(operation, snapshot.models);
+		discardCleanupSession();
 		pendingAcceptance = null;
 		update({ phase: modelsAvailable ? 'ready' : 'unavailable', selectedOperation: operation,
 			selectedModelIds: EMPTY_MODEL_IDS, consent: false, progress: null, result: null,
-			unavailableReason: modelsAvailable ? null : 'no-compatible-model', error: null });
+			unavailableReason: modelsAvailable ? null : 'no-compatible-model', error: null, cleanup: null });
 	};
 	const selectModel = (modelId: string): void => {
 		const operation = snapshot.selectedOperation;
@@ -193,10 +227,11 @@ export function createLocalAssistanceSessionStore(
 			throw new TypeError('The selected local-assistance model is incompatible.');
 		}
 		const modelsAvailable = localAssistanceOperationModelsAvailable(operation, snapshot.models);
+		discardCleanupSession();
 		pendingAcceptance = null;
 		update({ phase: modelsAvailable ? 'ready' : 'unavailable',
 			selectedModelIds: selectedModelIds(snapshot, model),
-			consent: false, result: null,
+			consent: false, result: null, cleanup: null,
 			unavailableReason: modelsAvailable ? null : 'no-compatible-model', error: null });
 	};
 	const setConsent = (consent: boolean): void => {
@@ -217,8 +252,10 @@ export function createLocalAssistanceSessionStore(
 		activeOperation = operation;
 		lastProgressSequence = -1;
 		lastProgressPhase = -1;
+		discardCleanupSession();
 		pendingAcceptance = null;
-		update({ phase: 'preparing', progress: null, result: null, unavailableReason: null, error: null });
+		update({ phase: 'preparing', progress: null, result: null, unavailableReason: null,
+			error: null, cleanup: null });
 		let completed: LocalAssistanceValidatedResult | null = null;
 		let completedAcceptance: LocalAssistanceValidatedResultAcceptanceRequest | null = null;
 		let unavailableReason: LocalAssistanceUnavailableReason | null = null;
@@ -297,6 +334,9 @@ export function createLocalAssistanceSessionStore(
 				error: null, unavailableReason });
 		} else if (completed) {
 			pendingAcceptance = completedAcceptance;
+			if (completedAcceptance?.operation === 'voice-activity-detection') {
+				reviewedVoiceActivity = localAssistanceCleanupVoiceActivity(completedAcceptance);
+			}
 			update({ phase: 'completed', result: completed, progress: null,
 				error: null, unavailableReason: null });
 		} else {
@@ -340,10 +380,106 @@ export function createLocalAssistanceSessionStore(
 			});
 		}
 	};
+	const prepareTranscriptCleanup = async (): Promise<void> => {
+		const port = options.preparation?.prepareTranscriptCleanup;
+		const acceptance = pendingAcceptance;
+		if (!snapshot.canPrepareTranscriptCleanup || !port || !acceptance) {
+			throw new Error('No authenticated Parakeet transcript is ready for cleanup review.');
+		}
+		discardCleanupSession();
+		const epoch = cleanupEpoch;
+		const request = createLocalAssistanceTranscriptCleanupPreparation(
+			acceptance, reviewedVoiceActivity,
+		);
+		update({ cleanup: createLocalAssistanceTranscriptCleanupState(
+			'loading', EMPTY_PROPOSALS, EMPTY_MODEL_IDS,
+			request.voiceActivity !== null, null) });
+		try {
+			const value = await port.call(options.preparation, request);
+			if (disposed || epoch !== cleanupEpoch) return;
+			const proposals = normalizeLocalAssistanceTranscriptCleanupProposals(
+				value, request.selectionFence,
+			);
+			update({ cleanup: createLocalAssistanceTranscriptCleanupState(
+				'review', proposals, EMPTY_MODEL_IDS,
+				request.voiceActivity !== null, null) });
+		} catch (error) {
+			if (disposed || epoch !== cleanupEpoch) return;
+			const unavailable = error instanceof RangeError
+				&& /produced no cleanup proposals/u.test(error.message);
+			update({ cleanup: createLocalAssistanceTranscriptCleanupState(
+				unavailable ? 'unavailable' : 'error',
+				EMPTY_PROPOSALS, EMPTY_MODEL_IDS, request.voiceActivity !== null,
+				error instanceof Error ? error.message : 'Transcript cleanup preparation failed.') });
+		}
+	};
+	const setTranscriptCleanupProposalSelected = (proposalId: string, selected: boolean): void => {
+		const cleanup = snapshot.cleanup;
+		if (cleanup?.phase !== 'review' || typeof selected !== 'boolean'
+			|| !cleanup.proposals.some(({ id }) => id === proposalId)) {
+			throw new TypeError('The transcript cleanup proposal choice is unavailable.');
+		}
+		const proposalIds = new Set(cleanup.selectedProposalIds);
+		if (selected) proposalIds.add(proposalId);
+		else proposalIds.delete(proposalId);
+		update({ cleanup: createLocalAssistanceTranscriptCleanupState('review', cleanup.proposals,
+			Object.freeze([...proposalIds]), cleanup.usesVoiceActivity, null) });
+	};
+	const acceptTranscriptCleanup = async (): Promise<void> => {
+		const port = options.preparation?.acceptTranscriptCleanup;
+		const cleanup = snapshot.cleanup;
+		if (cleanup?.phase !== 'review' || cleanup.selectedProposalIds.length < 1 || !port) {
+			throw new Error('No selected transcript cleanup proposals are ready to apply.');
+		}
+		const epoch = cleanupEpoch;
+		update({ cleanup: createLocalAssistanceTranscriptCleanupState('accepting', cleanup.proposals,
+			cleanup.selectedProposalIds, cleanup.usesVoiceActivity, null) });
+		try {
+			await port.call(options.preparation, cleanup.selectedProposalIds);
+			if (disposed || epoch !== cleanupEpoch) return;
+			pendingAcceptance = null;
+			update({ phase: 'accepted', cleanup: createLocalAssistanceTranscriptCleanupState(
+				'accepted', cleanup.proposals,
+				cleanup.selectedProposalIds, cleanup.usesVoiceActivity, null) });
+		} catch (error) {
+			if (disposed || epoch !== cleanupEpoch) return;
+			pendingAcceptance = null;
+			update({ cleanup: createLocalAssistanceTranscriptCleanupState('error', cleanup.proposals,
+				cleanup.selectedProposalIds, cleanup.usesVoiceActivity,
+				error instanceof Error ? error.message : 'Transcript cleanup could not be applied.') });
+		}
+	};
+	const rejectTranscriptCleanup = async (): Promise<void> => {
+		const port = options.preparation?.rejectTranscriptCleanup;
+		const cleanup = snapshot.cleanup;
+		if (cleanup?.phase !== 'review' || !port) {
+			throw new Error('No transcript cleanup proposal review is ready to reject.');
+		}
+		const epoch = cleanupEpoch;
+		update({ cleanup: createLocalAssistanceTranscriptCleanupState('accepting', cleanup.proposals,
+			cleanup.selectedProposalIds, cleanup.usesVoiceActivity, null) });
+		try {
+			await port.call(options.preparation);
+			if (disposed || epoch !== cleanupEpoch) return;
+			update({ cleanup: createLocalAssistanceTranscriptCleanupState('rejected', cleanup.proposals,
+				cleanup.selectedProposalIds, cleanup.usesVoiceActivity, null) });
+		} catch (error) {
+			if (disposed || epoch !== cleanupEpoch) return;
+			update({ cleanup: createLocalAssistanceTranscriptCleanupState('error', cleanup.proposals,
+				cleanup.selectedProposalIds, cleanup.usesVoiceActivity,
+				error instanceof Error ? error.message : 'Transcript cleanup could not be rejected.') });
+		}
+	};
 	const dispose = async (): Promise<void> => {
 		disposed = true;
 		pendingAcceptance = null;
+		reviewedVoiceActivity = null;
+		cleanupEpoch += 1;
 		cancelRequested = true;
+		if ((snapshot.cleanup?.phase === 'loading' || snapshot.cleanup?.phase === 'review')
+			&& options.preparation?.cancelTranscriptCleanup) {
+			try { await options.preparation.cancelTranscriptCleanup(); } catch { /* Discard is best-effort. */ }
+		}
 		preparationController?.abort(new CancelledSession());
 		if (activeJobId && options.bridge) {
 			try { await options.bridge.cancel(activeJobId); } catch { /* Release remains in run finally. */ }
@@ -357,13 +493,16 @@ export function createLocalAssistanceSessionStore(
 	return Object.freeze({
 		getSnapshot: () => snapshot,
 		subscribe(listener: () => void) { listeners.add(listener); return () => listeners.delete(listener); },
-		connect, load, selectSource, selectOperation, selectModel, setConsent, run, cancel, accept, dispose,
+		connect, load, selectSource, selectOperation, selectModel, setConsent, run, cancel, accept,
+		prepareTranscriptCleanup, setTranscriptCleanupProposalSelected,
+		acceptTranscriptCleanup, rejectTranscriptCleanup, dispose,
 	});
 }
 
 function freezeSnapshot(value: Omit<LocalAssistanceSnapshot,
-	'canRun' | 'canCancel' | 'canReview' | 'canAccept'>,
+	'canRun' | 'canCancel' | 'canReview' | 'canAccept' | 'canPrepareTranscriptCleanup'>,
 	acceptanceAvailable: boolean,
+	cleanupAvailable: boolean,
 ): LocalAssistanceSnapshot {
 	const source = selectedSource(value);
 	const models = value.selectedOperation === null ? null : localAssistanceSelectedModels(
@@ -377,7 +516,10 @@ function freezeSnapshot(value: Omit<LocalAssistanceSnapshot,
 		canCancel: value.phase === 'preparing' || value.phase === 'running' || value.phase === 'cancelling',
 		canReview: value.phase === 'completed' && Boolean(value.result?.outputs.length),
 		canAccept: value.phase === 'completed' && Boolean(value.result?.outputs.length)
-			&& acceptanceAvailable,
+			&& acceptanceAvailable && value.cleanup?.phase !== 'loading'
+			&& value.cleanup?.phase !== 'review' && value.cleanup?.phase !== 'accepting',
+		canPrepareTranscriptCleanup: value.phase === 'completed'
+			&& Boolean(value.result?.outputs.length) && cleanupAvailable && value.cleanup == null,
 	});
 }
 
