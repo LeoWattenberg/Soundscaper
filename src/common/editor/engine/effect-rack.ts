@@ -3,7 +3,7 @@
 import {
 	audacityLiveEffectCapability,
 	isAudacityLiveEffect,
-} from '../audacity-effects/live.js';
+} from '../audacity-effects/live-capabilities.js';
 import {
 	addNode,
 	connect,

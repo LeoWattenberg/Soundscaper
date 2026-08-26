@@ -67,7 +67,7 @@ export interface AnalysisState {
 	deliveryReport?: unknown;
 }
 
-interface AnalysisDependencies {
+export interface AnalysisDependencies {
 	readonly lifetime: EditorControllerLifetime;
 	readonly copy: AnalysisCopy;
 	readonly state: AnalysisState;

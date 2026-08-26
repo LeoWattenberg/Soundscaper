@@ -8,7 +8,10 @@ import test from 'node:test';
 import {
 	chunkGroupForModulePath,
 	chunkGroups,
+	EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST,
 	EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST,
+	EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST,
+	EDITOR_OPTIONAL_SURFACE_CHUNK_TEST,
 } from '../scripts/lib/build-chunk-groups.mjs';
 
 /**
@@ -36,6 +39,7 @@ const MODULE_PATTERN = /\.(?:[cm]?[jt]s)$/u;
 test('every shared flat editor domain module has an owning chunk group', () => {
 	const unowned = flatEditorModules()
 		.filter((path) => !EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST.test(path))
+		.filter((path) => !EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST.test(path))
 		.filter((path) => chunkGroupForModulePath(path) === null);
 	assert.deepEqual(unowned, [], 'these modules would be placed by reachability alone');
 });
@@ -62,7 +66,7 @@ test('the shell, controller, and storage groups keep the flat modules they name'
 	// A dialog stays outside every path-matched group, so it can be split off and
 	// loaded when it is opened rather than when the editor boots.
 	assert.equal(chunkGroupForModulePath('src/common/editor/ui/inspector/ExportDialog.jsx'), null);
-	assert.equal(chunkGroupForModulePath('src/common/editor/ui/VideoDeliveryFields.jsx'), 'editor-shell');
+	assert.equal(chunkGroupForModulePath('src/common/editor/ui/AudioEditorMenuBar.jsx'), 'editor-shell');
 });
 
 test('the domain group sits below the groups whose modules it would otherwise claim', () => {
@@ -94,9 +98,21 @@ test('editor groups never absorb shared application dependencies recursively', (
 	}
 });
 
+test('the site entry has highest-priority non-recursive ownership', () => {
+	const siteEntry = chunkGroups.find((candidate) => candidate.name === 'site-entry');
+	assert.ok(siteEntry);
+	assert.deepEqual(siteEntry.tags, ['$initial']);
+	assert.equal(siteEntry.includeDependenciesRecursively, false);
+	assert.ok(chunkGroups.every((candidate) => (
+		candidate === siteEntry || Number(siteEntry.priority) > Number(candidate.priority)
+	)));
+});
+
 test('optional archive code and its ZIP vendor are placed by dynamic reachability', () => {
 	for (const path of [
 		'src/common/editor/scape-project.js',
+		'src/common/editor/scape-archive-layout.ts',
+		'src/common/editor/scape-archive-layout-witness.ts',
 		'src/common/editor/scape-import-transaction.ts',
 		'src/common/editor/aup-legacy.js',
 		'src/common/editor/aup4-client.js',
@@ -109,6 +125,114 @@ test('optional archive code and its ZIP vendor are placed by dynamic reachabilit
 		null,
 		'ZIP must stay behind lazy archive import/export actions',
 	);
+	assert.equal(
+		chunkGroupForModulePath('node_modules/@ffmpeg/ffmpeg/dist/esm/classes.js'),
+		null,
+		'FFmpeg client code must stay behind its existing dynamic runtime import',
+	);
+});
+
+test('optional effect and analysis implementations have a dedicated lazy owner', () => {
+	for (const path of [
+		'src/common/editor/analysis.js',
+		'src/common/editor/pffft.js',
+		'src/common/editor/selection-effects-runtime.js',
+		'src/common/editor/spectral-edit.js',
+		'src/common/editor/spectral-edit-admission.ts',
+		'src/common/editor/spectral-edit-admission.ts',
+		'src/common/editor/controller/analysis-service.ts',
+		'src/common/editor/controller/export-service.ts',
+	]) {
+		assert.ok(EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST.test(path), `${path} must be an optional execution module`);
+		assert.equal(chunkGroupForModulePath(path), 'editor-optional-execution', `${path} must stay behind its lazy action`);
+	}
+	assert.equal(chunkGroupForModulePath('node_modules/@echogarden/pffft-wasm/simd.js'), null);
+});
+
+test('stateful local assistance implementations share one dedicated lazy owner', () => {
+	for (const path of [
+		'src/common/editor/controller/local-assistance-runtime.ts',
+		'src/common/editor/controller/local-assistance-selected-media.ts',
+		'src/common/editor/controller/local-assistance-selected-video.ts',
+		'src/common/editor/controller/local-assistance-selected-preparation.ts',
+		'src/common/editor/controller/local-assistance-selected-media-router.ts',
+		'src/common/editor/controller/local-assistance-result-acceptance.ts',
+		'src/common/editor/controller/local-assistance-cleanup-workflow.ts',
+		'src/common/editor/controller/local-assistance-cleanup-acceptance.ts',
+		'src/common/editor/controller/local-assistance-range-label-acceptance.ts',
+		'src/common/editor/controller/local-assistance-shot-acceptance.ts',
+		'src/common/editor/controller/local-assistance-transcript-acceptance.ts',
+		'src/common/editor/assistance/disfluency.ts',
+		'src/common/editor/assistance/transcript-body-publication-v1.ts',
+		'src/common/editor/assistance/transcript-labels.ts',
+		'src/common/editor/assistance/vad-silence.ts',
+	]) {
+		assert.ok(EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST.test(path), `${path} must be optional assistance`);
+		assert.equal(chunkGroupForModulePath(path), 'editor-optional-assistance');
+	}
+	assert.equal(
+		chunkGroupForModulePath('src/common/editor/controller/deferred-local-assistance-runtime.ts'),
+		'editor-controller-core',
+	);
+	const group = chunkGroups.find((candidate) => candidate.name === 'editor-optional-assistance');
+	assert.ok(group);
+	assert.equal(group.includeDependenciesRecursively, false);
+});
+
+test('menu-opened execution and UI surfaces use dedicated lazy owners', () => {
+	for (const path of [
+		'src/common/editor/controller/direct-compressed-export.ts',
+		'src/common/editor/controller/video-export-service.ts',
+		'src/common/editor/controller/delivery-conformance-action.ts',
+	]) {
+		assert.ok(EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST.test(path), `${path} must be optional execution`);
+		assert.equal(chunkGroupForModulePath(path), 'editor-optional-execution');
+	}
+	for (const path of [
+		'src/common/editor/ui/ParametricEqEditor.jsx',
+		'src/common/editor/ui/local-assistance-session-store.ts',
+		'src/common/editor/ui/workspace/RecordingSetupPanel.tsx',
+	]) {
+		assert.ok(EDITOR_OPTIONAL_SURFACE_CHUNK_TEST.test(path), `${path} must be a lazy UI surface`);
+		assert.equal(chunkGroupForModulePath(path), 'editor-optional-surfaces');
+	}
+	assert.equal(
+		chunkGroupForModulePath('vendor/audacity-design-system/components/src/EffectsPanel/EffectsPanel.tsx'),
+		'vendor-optional-effects',
+	);
+	assert.equal(
+		chunkGroupForModulePath('vendor/audacity-design-system/components/src/EffectsPanel/index.ts'),
+		'vendor-optional-effects',
+	);
+	for (const name of ['editor-optional-execution', 'editor-optional-surfaces', 'vendor-optional-effects']) {
+		const group = chunkGroups.find((candidate) => candidate.name === name);
+		assert.ok(group);
+		assert.equal(group.includeDependenciesRecursively, false);
+	}
+});
+
+test('small product-ready foundations have non-recursive semantic owners', () => {
+	for (const [path, owner] of [
+		['src/common/editor/wavpack/pcm.js', 'editor-codec-foundations'],
+		['src/common/editor/staffpad/parameters.js', 'editor-codec-foundations'],
+		['src/common/editor/parametric-eq/wasm-loader.js', 'editor-codec-foundations'],
+		['src/common/i18n/action-parity.js', 'editor-effect-contracts'],
+		['src/common/editor/audacity-effects/live-capabilities.js', 'editor-effect-contracts'],
+		['src/common/editor/reviewed-effects/selection-effect-contract.ts', 'editor-effect-contracts'],
+		['src/framescaper/editor-project-v31-foundation.ts', 'framescaper-project-foundations'],
+		['src/framescaper/editor-project-v32.ts', 'framescaper-project-foundations'],
+	] as const) {
+		assert.equal(chunkGroupForModulePath(path), owner, path);
+	}
+	for (const name of [
+		'editor-codec-foundations',
+		'editor-effect-contracts',
+		'framescaper-project-foundations',
+	]) {
+		const group = chunkGroups.find((candidate) => candidate.name === name);
+		assert.ok(group);
+		assert.equal(group.includeDependenciesRecursively, false);
+	}
 });
 
 test('editor UI imports exact internal design-system modules', () => {

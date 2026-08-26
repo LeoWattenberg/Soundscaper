@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { fft, initializePffft, isPffftReady } from './pffft.js';
-
 const listeners = new Set();
 const hammingWindows = new Map();
 const rowSpanCache = new Map();
@@ -13,6 +11,7 @@ const MAXIMUM_ROW_SPAN_CACHE_ENTRIES = 32;
 const MAXIMUM_COLOR_CACHE_ENTRIES = 512;
 let revision = 0;
 let preparation = null;
+let runtime = null;
 
 export function subscribePffftSpectrogram(listener) {
 	listeners.add(listener);
@@ -26,7 +25,9 @@ export function pffftSpectrogramRevision() {
 export function preparePffftSpectrogram(fftWindowSize) {
 	normalizeWindowSize(fftWindowSize);
 	if (!preparation) {
-		preparation = initializePffft().then(() => {
+		preparation = import('./pffft.js').then(async (module) => {
+			await module.initializePffft();
+			runtime = module;
 			revision += 1;
 			for (const listener of listeners) listener(revision);
 		}).catch((error) => {
@@ -38,7 +39,7 @@ export function preparePffftSpectrogram(fftWindowSize) {
 }
 
 export function pffftSpectrogramBandEnergies(waveformData, width, options = {}) {
-	if (!isPffftReady()) return null;
+	if (!runtime?.isPffftReady()) return null;
 	const fftWindowSize = normalizeWindowSize(options.fftWindowSize);
 	const frequencyBands = normalizeBandCount(options.frequencyBands, fftWindowSize);
 	const pixelSkip = Math.max(1, Math.floor(Number(options.pixelSkip) || 1));
@@ -55,7 +56,7 @@ export function pffftSpectrogramBandEnergies(waveformData, width, options = {}) 
 			const sample = Number(waveformData[sampleIndex + index]) || 0;
 			real[index] = sample * window[index];
 		}
-		fft(real, imaginary, false);
+		runtime.fft(real, imaginary, false);
 		columns.push(groupComplexMagnitudes(real, imaginary, frequencyBands));
 	}
 	return columns;

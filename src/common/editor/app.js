@@ -1,4 +1,4 @@
-import { findNearestAudioZeroCrossing } from './analysis.js';
+import { findNearestAudioZeroCrossing } from './zero-crossing.js';
 import { createAiffStreamEncoder, encodeAiff } from './aiff.js';
 import {
 	collectRelatedClipIds,
@@ -75,13 +75,11 @@ import {
 } from './sample-edit.js';
 import { SCAPE_MIME_TYPE } from './scape-project-format.ts';
 import {
-	applyAudioSelectionEffectAsync,
 	estimateAudioSelectionEffectOutputFrames,
 	estimateAudioSelectionEffectPeakBytes,
 } from './selection-effects.js';
 import { createAudioEditorSessionController } from './session.js';
 import { snapAudioEditorFrameWithProject } from './snap-grid.js';
-import { applySpectralGain } from './spectral-edit.js';
 import {
 	audioEditorVideoThumbnailTimes,
 	createAudioEditorVideoFrameExtractor,
@@ -96,22 +94,18 @@ import { createVideoExportPlan } from './video-export.js';
 import { productProfile } from '../products.js';
 import {
 	AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES,
-	applyAudacityEffectAsync,
 	assertAudacityEffectOutput,
-	captureAudacityNoiseProfile,
 	estimateAudacityEffectPeakBytes,
-} from './audacity-effects/index.js';
+} from './audacity-effects/contracts.js';
 import {
 	audacitySelectionChannelCount,
 	matchAudacitySelectionChannels,
 } from './audacity-selection.js';
-import { initializePffft } from './pffft.js';
 import {
 	assertPlayAtSpeedStaffPadMemorySafe,
 	createAudioEditorEngine,
 	effectRackLatencyFrames, isAudioEditorEngineSupported,
 } from './engine.js';
-import { loadParametricEqWasmModule } from './parametric-eq/index.js';
 import {
 	RECORDING_CHANNEL_COUNT_MAXIMUM,
 	RECORDING_INPUT_GAIN_DEFAULT,
@@ -134,13 +128,14 @@ import { createEditorCodecRuntime } from './editor-codec-runtime.ts'; import { i
 import { createSourceBufferCache } from './source-buffer-cache.js'; import { createEbuR128MeterNode } from './ebu-r128-node.js';
 import { createEbuR128Meter } from './ebu-r128.js'; import { acquireProjectLock } from './project-lock.js';
 import { createProjectStore } from './storage.js'; import { createWavStreamEncoder, encodeWav } from './wav.js';
-import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js'; import { NyquistEvaluationClient } from './nyquist/client.js';
+import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
 import { ENGLISH_COPY } from '../i18n/catalogs.js';
 import { normalizeBcp47Locale } from '../i18n/locale.js';
 import { EditorControllerLifetime, EditorProjectGeneration, isEditorDisposedError } from './controller/lifecycle.ts';
 import { deferredArchiveRuntime } from './controller/deferred-archive-runtime.ts';
+import { deferredEffectRuntime } from './controller/deferred-effect-runtime.ts';
 import { connectProductNativeRenderInputAuthority } from './controller/product-native-render-input-authority.ts'; import { renderProductNativeAudioToSink } from './controller/product-native-render-audio-stream.ts';
-import { createAudioAnalysisService } from './controller/analysis-service.ts';
+import { createDeferredAudioAnalysisService } from './controller/deferred-analysis-service.ts';
 import { createEditorAnalysisVisuals } from './controller/analysis-visuals.ts';
 import { createGroupedEditorActions } from './controller/action-facade.ts';
 import { guardEditorControllerActions } from './controller/controller-action-guard.ts';
@@ -159,7 +154,7 @@ import { createEffectAudioService } from './controller/effect-audio-service.ts';
 import { createSelectionEffectWorkerService } from './controller/selection-effect-worker-service.ts';
 import { createNyquistHostService } from './controller/nyquist-host-service.ts';
 import { createNyquistGeneratedAudioService } from './controller/nyquist-generated-audio-service.ts';
-import { createEditorExportService } from './controller/export-service.ts';
+import { createDeferredEditorExportService } from './controller/deferred-export-service.ts';
 import { normalizeEditorExportSettings } from './controller/export-settings.ts';
 import { createEditorPreferencesService } from './controller/preferences-service.ts';
 import { createControllerSoundActivationPolicy } from './controller/sound-activation-controller-composition.ts';
@@ -392,7 +387,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		onLoading: () => setStatus(copy.ffmpegLoading),
 		onProgress: (progress) => updateExportProgress(progress), fileService,
 	});
-	const nyquistClient = options.nyquistEvaluator ? null : new NyquistEvaluationClient(options.nyquistClientOptions);
+	const nyquistClient = options.nyquistEvaluator ? null : deferredEffectRuntime.createNyquistClient(options.nyquistClientOptions);
 	const nyquistEvaluator = options.nyquistEvaluator || ((request, evaluateOptions) => (
 		nyquistClient.evaluate(request, evaluateOptions)
 	));
@@ -401,7 +396,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		sampleRate,
 		rate,
 		{ signal, onProgress } = {},
-	) => applyAudacityEffectAsync(
+	) => deferredEffectRuntime.applyAudacityEffectAsync(
 		'audacity-change-tempo',
 		channels,
 		sampleRate,
@@ -729,7 +724,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		disposeRenderEngines: clipTimePitchCacheService.disposeRenderEngines, sourceBuffers, sourceChunkProviders, sourcePeaks, state, stopProjectBinPreview, stopRecording, store,
 		switchProject, ...(options.framescaperCaptureRouteSchemaVersion ? { beginCaptureInterlockedAdminOperation: framescaperCaptureAdminInterlock.beginAdminOperation } : {}),
 	});
-	const analysisService = createAudioAnalysisService({
+	const analysisService = createDeferredAudioAnalysisService({
 		lifetime, copy, state,
 		captureProject: () => projectGeneration.capture(project?.id ?? null),
 		assertProject: (token) => projectGeneration.assertCurrent(token),
@@ -1188,7 +1183,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		exportVideo,
 		handleExportAction,
 		renderSnapshot,
-	} = createEditorExportService({
+	} = createDeferredEditorExportService({
 		abortError, applyMediaChannelMapping, audioBufferChannels, cloneProject: projectRuntime.cloneProject,
 		copy, createAiffStreamEncoder, createCacheAwareRenderEngine, createExportPlan,
 		createStableId, createStreamingStemArchive, createStreamingWindowedSincResampler, createTemporaryFileSink,
@@ -1255,11 +1250,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 		copy,
 		captureProject: () => projectGeneration.capture(project.id),
 		assertProject: (token) => projectGeneration.assertCurrent(token),
-		loadParametricEqWasmModule,
-		initializePffft,
-		captureNoiseProfile: captureAudacityNoiseProfile,
-		applySelectionEffect: applyAudioSelectionEffectAsync,
-		applySpectralGain,
+		loadParametricEqWasmModule: deferredEffectRuntime.loadParametricEqWasmModule,
+		initializePffft: deferredEffectRuntime.initializePffft,
+		captureNoiseProfile: deferredEffectRuntime.captureAudacityNoiseProfile,
+		applySelectionEffect: deferredEffectRuntime.applyAudioSelectionEffectAsync,
+		applySpectralGain: deferredEffectRuntime.applySpectralGain,
 		onProgress: (value) => taskProgress.updateActive(value),
 	});
 	const effectSelectionService = createEffectSelectionService({

@@ -8,13 +8,13 @@ import {
 import {
 	audacityLiveEffectCapability,
 	audacityLiveEffectTailFrames,
-} from './audacity-effects/live.js';
+} from './audacity-effects/live-capabilities.js';
 import { canonicalCopyValue, effectNameCopyKey } from '../i18n/canonical-extras.js';
 import { normalizeNativePluginEffect, updateNativePluginEffect } from './native-plugin-effect.ts';
 import {
 	REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_DEFINITION, REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_LABEL,
 	REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE,
-} from './reviewed-effects/selection-effect.ts';
+} from './reviewed-effects/selection-effect-contract.ts';
 
 const EQ_FREQUENCIES = Object.freeze([100, 500, 2_000, 8_000]);
 export const MISSING_EFFECT_TYPE = 'missing';

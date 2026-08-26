@@ -14,22 +14,9 @@ import {
 	projectTrackFolderMediaStateV12,
 } from '../track-folder-media-runtime.ts';
 import {
-	inspectSpectralEditChannels,
-	MAXIMUM_SPECTRAL_EDIT_USEFUL_BINARY_BYTES,
-	planSpectralEditWorkflowAdmission,
-} from '../spectral-edit-admission.ts';
-import {
-	resolveLocalAssistanceSelectedMediaAuthority,
-} from './local-assistance-selected-media.ts';
-import { resolveLocalAssistanceSelectedVideoAuthority } from './local-assistance-selected-video.ts';
-import {
-	createLocalAssistanceSelectedPreparation,
-	type LocalAssistanceSelectedVideoStore,
-} from './local-assistance-selected-preparation.ts';
-import {
-	createLocalAssistanceResultAcceptance,
-	type LocalAssistanceResultAcceptanceStore,
-} from './local-assistance-result-acceptance.ts';
+	createDeferredLocalAssistancePreparation,
+} from './deferred-local-assistance-runtime.ts';
+import { loadDeferredSpectralEditAdmission } from './deferred-spectral-edit-admission.ts';
 
 const NOISE_PROFILE_TASK = 'selection-effect-noise-profile';
 const SPECTRAL_EFFECT_TASK = 'selection-effect-spectral';
@@ -214,8 +201,8 @@ export interface EffectAudioServiceRuntime {
 		}>,
 	) => Promise<Float32Array[]>;
 	readonly serializeNoiseProfile: (profile: unknown) => unknown;
-	readonly assistanceStore?: LocalAssistanceResultAcceptanceStore;
-	readonly assistanceVideoStore?: LocalAssistanceSelectedVideoStore;
+	readonly assistanceStore?: unknown;
+	readonly assistanceVideoStore?: unknown;
 	readonly commit: (command: Readonly<Record<string, unknown>>) => void;
 	readonly persistAudacityEffectResults: (
 		results: readonly SelectionEffectResult[],
@@ -429,6 +416,11 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 
 	async function applySpectralSelection(requestedGainDb: unknown): Promise<true | null> {
 		if (runtime.editingBlocked()) return null;
+		const {
+			inspectSpectralEditChannels,
+			MAXIMUM_SPECTRAL_EDIT_USEFUL_BINARY_BYTES,
+			planSpectralEditWorkflowAdmission,
+		} = await loadDeferredSpectralEditAdmission();
 		const project = runtime.getProject();
 		if (project.schemaVersion < 2) throw new Error(runtime.copy.v2Required);
 		const selection = runtime.activeSelection();
@@ -503,35 +495,15 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 		}
 	}
 
-	const selectedMediaDependencies = {
+	const selectedMediaPreparation = createDeferredLocalAssistancePreparation({
 		getProject: runtime.getProject,
 		getSelectedClipId: () => runtime.state.selectedClipId,
 		captureProject: runtime.captureProject,
 		assertProject: (token: unknown) => runtime.assertProject(token as EditorProjectToken),
 		renderDryTrackRange,
-	};
-	const resultAcceptance = runtime.assistanceStore ? createLocalAssistanceResultAcceptance({
-		currentAuthority: () => resolveLocalAssistanceSelectedMediaAuthority(selectedMediaDependencies),
-		...(runtime.assistanceVideoStore ? {
-			currentVideoAuthority: () => resolveLocalAssistanceSelectedVideoAuthority(
-				selectedMediaDependencies,
-			),
-		} : {}),
-		captureProject: runtime.captureProject, store: runtime.assistanceStore,
-		assertProject: (token) => runtime.assertProject(token as EditorProjectToken), commit: runtime.commit,
-	}) : null;
-	const selectedPreparation = createLocalAssistanceSelectedPreparation({
-		...selectedMediaDependencies,
-		...(runtime.assistanceVideoStore ? { videoStore: runtime.assistanceVideoStore } : {}),
-		...(resultAcceptance ? { acceptValidatedResult: resultAcceptance.acceptValidatedResult } : {}),
-	});
-	const selectedMediaPreparation = Object.freeze({ ...selectedPreparation,
-		...(resultAcceptance ? {
-			prepareTranscriptCleanup: resultAcceptance.prepareTranscriptCleanup,
-			acceptTranscriptCleanup: resultAcceptance.acceptTranscriptCleanup,
-			rejectTranscriptCleanup: resultAcceptance.rejectTranscriptCleanup,
-			cancelTranscriptCleanup: resultAcceptance.cancelTranscriptCleanup,
-		} : {}),
+		...(runtime.assistanceStore ? { assistanceStore: runtime.assistanceStore } : {}),
+		...(runtime.assistanceVideoStore ? { assistanceVideoStore: runtime.assistanceVideoStore } : {}),
+		commit: runtime.commit,
 	});
 
 	return Object.freeze({

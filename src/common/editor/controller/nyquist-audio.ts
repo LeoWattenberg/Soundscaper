@@ -1,4 +1,4 @@
-import { assertAudacityEffectOutput } from '../audacity-effects/index.js';
+import { assertAudacityEffectOutput } from '../audacity-effects/contracts.js';
 
 interface NyquistAudioResult extends Record<string, unknown> {
 	readonly type?: string;

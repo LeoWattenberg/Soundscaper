@@ -21,16 +21,41 @@
  */
 
 const editorPath = String.raw`src[\\/]common[\\/]editor[\\/]`;
-const editorOptionalArchiveModule = String.raw`(?:aup-legacy(?:-block-budget|-conversion|-xml)?|aup4-(?:client|opaque-persistence|profile|sanitization)|audacity-(?:annotation-interchange|tempo-import)|scape-(?:archive-copy|archive-manifest|archive-reader|export-destination|import-transaction|project-source-remap)|scape-project)`;
+const editorOptionalArchiveModule = String.raw`(?:aup-legacy(?:-block-budget|-conversion|-xml)?|aup4-(?:client|opaque-persistence|profile|sanitization)|audacity-(?:annotation-interchange|tempo-import)|scape-(?:archive-(?:copy|layout(?:-witness)?|manifest|reader)|export-destination|import-transaction|project-source-remap)|scape-project)`;
+const editorOptionalExecutionModule = String.raw`(?:analysis|pffft|selection-effects-runtime|spectral-edit(?:-admission)?)`;
+const editorOptionalControllerModule = String.raw`(?:analysis-service|audio-export-render-orchestration|audio-rendered-fallback-export|delivery-conformance-action|desktop-audio-export-capability|direct-(?:aiff-export|audio-render-plan|broadcast-wave-export|bw64-export|bwf-export|compressed-export|compressed-plan|compressed-stem-archive-plan|export-dispatch|mp3-export|native-stem-archive-plan|offline-compressed-export|offline-pcm-export|pcm-export|stem-archive-export|video-export|video-plan-contract|wav-export)|export-render-project|export-service|realtime-export-pcm-transform|rendered-audio-encoding|video-export-service|video-rendered-fallback-export)`;
+const editorOptionalAssistanceModule = String.raw`(?:local-assistance-runtime|local-assistance-(?:selected-media|selected-video|selected-preparation|selected-media-router|result-acceptance|cleanup-workflow|cleanup-acceptance|range-label-acceptance|shot-acceptance|transcript-acceptance))`;
+const editorOptionalSurfaceModule = String.raw`ui[\\/](?:AudacityEffectLayout\.jsx|ParametricEqEditor\.jsx|SoundActivationPreferences\.tsx|VideoDeliveryFields\.jsx|desktop-export-codec-model\.ts|export-(?:dialog-audio-codec-options\.ts|dialog-model\.js|preset-model\.ts)|framescaper-native-services-dialog-model\.ts|framescaper-v27-(?:caption-file-interchange|finishing-dialog-model|visual-inspector-model)\.ts|local-assistance-(?:cleanup|preparation|session-store)\.ts|local-model-manager-store\.ts|soundscaper-(?:production-dialog-model|routing-editor-model)\.ts|video-keyframe-(?:curve-transfer|dialog-model)\.ts|workspace[\\/](?:FramescaperCaptureSources|RecordingSetupPanel|WebVcrPanel|WebVcrPreview)\.tsx)`;
 
 /** Archive/interchange implementation modules owned only by lazy file-menu actions. */
 export const EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST = new RegExp(
 	`${editorPath}${editorOptionalArchiveModule}\\.(?:[cm]?[jt]s)$`,
 );
 
+/** Effect and Analyze implementations reached only after their eager action facade runs. */
+export const EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST = new RegExp(
+	`${editorPath}(?:${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)|controller[\\\\/]${editorOptionalControllerModule}\\.ts)$`,
+);
+
+/** Stateful assistance workflows loaded only after their menu-owned dialog is invoked. */
+export const EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST = new RegExp(
+	`${editorPath}(?:controller[\\/]${editorOptionalAssistanceModule}|assistance[\\/](?:disfluency|transcript-body-publication-v1|transcript-labels|vad-silence))\\.ts$`,
+);
+
+/** Menu-opened UI implementations that remain behind existing React.lazy surfaces. */
+export const EDITOR_OPTIONAL_SURFACE_CHUNK_TEST = new RegExp(
+	`${editorPath}${editorOptionalSurfaceModule}$`,
+);
+
+const DESIGN_SYSTEM_OPTIONAL_EFFECTS_CHUNK_TEST = /(?:^|[\\/])vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?:EffectsPanel[\\/].*|EffectDialog[\\/]EffectHeader\.tsx)$/;
+const EDITOR_CODEC_FOUNDATION_CHUNK_TEST = /src[\\/]common[\\/]editor[\\/](?:wavpack[\\/]|staffpad[\\/]|parametric-eq[\\/](?:parameters|design|wasm-runtime|wasm-loader)\.js$)/;
+const EDITOR_EFFECT_CONTRACT_CHUNK_TEST = /(?:src[\\/]common[\\/](?:i18n[\\/]action-parity\.js|editor[\\/](?:audacity-effects[\\/](?:contracts|live-capabilities)\.js|nyquist[\\/]plugin-registry\.js|reviewed-effects[\\/](?:errors|manifest|selection-effect-contract|utility-gain-package)\.ts)))$/;
+const FRAMESCAPER_PROJECT_FOUNDATION_CHUNK_TEST = /src[\\/]framescaper[\\/](?:editor-video-proxy-action-runtime-v20|editor-native-openfx-authoring-model-v28|editor-project-v28|editor-project-feature-requirements-v28|editor-project-v31-foundation|editor-project-feature-requirements-v32|editor-project-v32|editor-selected-v27-authoring-controller)\.ts$/;
+
+
 /** Flat editor modules and `assistance/` domain modules shared by the shell and dialogs. */
 export const EDITOR_DOMAIN_CHUNK_TEST = new RegExp(
-	`${editorPath}(?!${editorOptionalArchiveModule}\\.(?:[cm]?[jt]s)$)(?:[^\\\\/]+|assistance[\\\\/][^\\\\/]+)\\.(?:[cm]?[jt]s)$`,
+	`${editorPath}(?!${editorOptionalArchiveModule}\\.(?:[cm]?[jt]s)$)(?!${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)$)(?:[^\\\\/]+|assistance[\\\\/][^\\\\/]+)\\.(?:[cm]?[jt]s)$`,
 );
 
 /** @type {import('rolldown').CodeSplittingGroup[]} */
@@ -53,9 +78,58 @@ export const chunkGroups = [
 		// keep their implementation and CSS together instead of emitting one request
 		// per shared component reached by both the shell and lazy dialogs.
 		name: 'vendor-design-system-components',
-		test: /(?:^|[\\/])vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?!(?:ThemeProvider|contexts|hooks|utils|constants\.ts|assets[\\/]fonts)(?:[\\/]|$))/,
+		test: /(?:^|[\\/])vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?!(?:ThemeProvider|contexts|hooks|utils|constants\.ts|assets[\\/]fonts)(?:[\\/]|$))(?!(?:EffectsPanel[\\/]|EffectDialog[\\/]EffectHeader\.tsx$))/,
 		priority: 94,
 		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		name: 'editor-optional-execution',
+		test: EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST,
+		priority: 93,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		name: 'editor-optional-assistance',
+		test: EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST,
+		priority: 93,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		name: 'vendor-optional-effects',
+		test: DESIGN_SYSTEM_OPTIONAL_EFFECTS_CHUNK_TEST,
+		priority: 93,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		name: 'editor-optional-surfaces',
+		test: EDITOR_OPTIONAL_SURFACE_CHUNK_TEST,
+		priority: 92,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		name: 'editor-codec-foundations',
+		test: EDITOR_CODEC_FOUNDATION_CHUNK_TEST,
+		priority: 98,
+		maxSize: 490_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		name: 'editor-effect-contracts',
+		test: EDITOR_EFFECT_CONTRACT_CHUNK_TEST,
+		priority: 98,
+		maxSize: 490_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		name: 'framescaper-project-foundations',
+		test: FRAMESCAPER_PROJECT_FOUNDATION_CHUNK_TEST,
+		priority: 98,
+		maxSize: 490_000,
 		includeDependenciesRecursively: false,
 	},
 	{
@@ -81,14 +155,14 @@ export const chunkGroups = [
 	},
 	{
 		name: 'editor-controller-core',
-		test: new RegExp(`${editorPath}(?:app\\.js|controller[\\\\/]|commands(?:\\.js|[\\\\/])|facade\\.ts|index\\.js)`),
+		test: new RegExp(`${editorPath}(?!controller[\\\\/](?:${editorOptionalControllerModule}|${editorOptionalAssistanceModule})\\.ts$)(?:app\\.js|controller[\\\\/]|commands(?:\\.js|[\\\\/])|facade\\.ts|index\\.js)`),
 		priority: 75,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
 	},
 	{
 		name: 'editor-shell',
-		test: new RegExp(`${editorPath}ui[\\\\/](?!(?:dialogs|inspector)[\\\\/])`),
+		test: new RegExp(`${editorPath}(?!${editorOptionalSurfaceModule}$)ui[\\\\/](?!(?:dialogs|inspector)[\\\\/])`),
 		priority: 70,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
@@ -115,15 +189,18 @@ export const chunkGroups = [
 	},
 	{
 		name: 'vendor',
-		test: /node_modules[\\/](?!@zip\.js[\\/]zip\.js[\\/])/,
+		test: /node_modules[\\/](?!(?:@zip\.js[\\/]zip\.js|@echogarden[\\/]pffft-wasm|@ffmpeg[\\/]ffmpeg)[\\/])/,
 		priority: 60,
 		maxSize: 400_000,
 	},
 	{
-		name: 'application',
+		// Own only the HTML/main/site entry role. Editor and product modules retain
+		// their semantic owners even when they sit in the selected startup graph.
+		name: 'site-entry',
 		tags: ['$initial'],
-		priority: 10,
+		priority: 110,
 		maxSize: 400_000,
+		includeDependenciesRecursively: false,
 	},
 ];
 

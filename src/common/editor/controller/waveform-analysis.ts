@@ -1,4 +1,3 @@
-import { analyzeAudioChannels } from '../analysis.js';
 import { WAVEFORM_PEAK_BLOCK_SIZES } from '../waveform-peak-contract.ts';
 import { abortError, throwIfAborted } from './app-helpers.ts';
 
@@ -217,6 +216,7 @@ export async function analyzeChannelsInWorker(
 ): Promise<unknown> {
 	throwIfAborted(signal);
 	if (typeof Worker !== 'function') {
+		const { analyzeAudioChannels } = await import('../analysis.js');
 		const result = analyzeAudioChannels(channels, sampleRate);
 		throwIfAborted(signal);
 		return result;

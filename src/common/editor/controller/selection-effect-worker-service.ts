@@ -2,19 +2,16 @@
 
 import { cloneAudacityWorkerPayload } from './nyquist-audio.ts';
 import { WorkerRequestCancelledError, WorkerRequestTimeoutError } from '../worker-protocol.ts';
-import {
-	inspectSpectralEditChannels,
-	planSpectralEditJobAdmission,
-} from '../spectral-edit-admission.ts';
+import { loadDeferredSpectralEditAdmission } from './deferred-spectral-edit-admission.ts';
 import type { EditorProjectToken } from './lifecycle.ts';
 import {
-	applyReviewedUtilityGainSelectionOffline,
 	REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE,
-} from '../reviewed-effects/selection-effect.ts';
+} from '../reviewed-effects/selection-effect-contract.ts';
 import type { ReviewedEffectOfflineOptions } from '../reviewed-effects/offline-worker-client.ts';
 
 const DEFAULT_EFFECT_WORKER_TIMEOUT_MS = 120_000;
 const INTRINSIC_TYPED_ARRAY_SET = intrinsicTypedArraySet();
+type InspectSpectralEditChannels = typeof import('../spectral-edit-admission.ts')['inspectSpectralEditChannels'];
 
 export interface EffectWorkerLike {
 	onmessage: ((event: Readonly<{ data: unknown }>) => void) | null;
@@ -79,7 +76,7 @@ export interface SelectionEffectWorkerServiceRuntime {
 		channels: Float32Array[],
 		sampleRate: number,
 		params: unknown,
-	) => unknown;
+	) => PromiseLike<unknown> | unknown;
 	readonly applySelectionEffect: (
 		effectType: string,
 		channels: Float32Array[],
@@ -143,7 +140,7 @@ export function createSelectionEffectWorkerService(runtime: SelectionEffectWorke
 			options.signal?.addEventListener('abort', onAbort, { once: true });
 			try {
 				const channels = await (
-					runtime.applyReviewedSelectionEffect ?? applyReviewedUtilityGainSelectionOffline
+					runtime.applyReviewedSelectionEffect ?? applyReviewedSelectionEffect
 				)(request.channels, request.sampleRate, request.params, {
 					signal: owner.signal,
 					onProgress: options.onProgress ?? runtime.onProgress,
@@ -165,7 +162,7 @@ export function createSelectionEffectWorkerService(runtime: SelectionEffectWorke
 				await runtime.initializePffft();
 				runtime.assertProject(projectToken);
 				throwIfAborted(options.signal);
-				const profile = runtime.captureNoiseProfile(request.channels, request.sampleRate, request.params);
+				const profile = await runtime.captureNoiseProfile(request.channels, request.sampleRate, request.params);
 				runtime.assertProject(projectToken);
 				return { profile };
 			}
@@ -218,6 +215,12 @@ export function createSelectionEffectWorkerService(runtime: SelectionEffectWorke
 	): Promise<Float32Array[]> {
 		const projectToken = runtime.captureProject();
 		throwIfAborted(options.signal);
+		const {
+			inspectSpectralEditChannels,
+			planSpectralEditJobAdmission,
+		} = await loadDeferredSpectralEditAdmission();
+		runtime.assertProject(projectToken);
+		throwIfAborted(options.signal);
 		const input = inspectSpectralEditChannels(channels, { label: 'Spectral edit input' });
 		const admission = planSpectralEditJobAdmission({
 			channelCount: input.channelCount,
@@ -240,7 +243,12 @@ export function createSelectionEffectWorkerService(runtime: SelectionEffectWorke
 			const result = await runtime.applySpectralGain(fallbackChannels, spectralOptions);
 			runtime.assertProject(projectToken);
 			throwIfAborted(options.signal);
-			return exactSpectralResultChannels(result, geometry, 'Spectral edit fallback result');
+			return exactSpectralResultChannels(
+				result,
+				geometry,
+				'Spectral edit fallback result',
+				inspectSpectralEditChannels,
+			);
 		}
 
 		const timeoutMs = normalizeTimeout(options.timeoutMs ?? runtime.timeoutMs);
@@ -255,7 +263,7 @@ export function createSelectionEffectWorkerService(runtime: SelectionEffectWorke
 			signal: options.signal,
 			timeoutMs,
 			processingFailedMessage: runtime.copy.effectProcessingFailed,
-			acceptMessage: (data) => spectralWorkerMessage(data, geometry),
+			acceptMessage: (data) => spectralWorkerMessage(data, geometry, inspectSpectralEditChannels),
 			setOwner: (owner) => { spectralOwner = owner; },
 			clearOwner: (owner) => {
 				if (spectralOwner === owner) spectralOwner = null;
@@ -277,6 +285,18 @@ export function createSelectionEffectWorkerService(runtime: SelectionEffectWorke
 	}
 
 	return Object.freeze({ cancelWorkers, runSelectionEffectWorker, runSpectralEditWorker });
+}
+
+async function applyReviewedSelectionEffect(
+	channels: unknown,
+	sampleRate: number,
+	params: unknown,
+	options?: ReviewedEffectOfflineOptions,
+): Promise<readonly Float32Array[]> {
+	const { applyReviewedUtilityGainSelectionOffline } = await import(
+		'../reviewed-effects/selection-effect.ts'
+	);
+	return applyReviewedUtilityGainSelectionOffline(channels, sampleRate, params, options);
 }
 
 interface ExecuteWorkerOptions<Result> {
@@ -370,19 +390,28 @@ function selectionWorkerMessage(data: unknown): SelectionEffectWorkerResult | Er
 function spectralWorkerMessage(
 	data: unknown,
 	geometry: Readonly<{ channelCount: number; frameCount: number }>,
+	inspectChannels: InspectSpectralEditChannels,
 ): Readonly<{ channels: Float32Array[] }> | Error | null {
 	if (!isRecord(data)) return null;
 	if (data.type === 'error') return workerReportedError(data);
 	if (data.type !== 'result') return null;
-	return { channels: exactSpectralResultChannels(data.channels, geometry, 'Spectral edit worker result') };
+	return {
+		channels: exactSpectralResultChannels(
+			data.channels,
+			geometry,
+			'Spectral edit worker result',
+			inspectChannels,
+		),
+	};
 }
 
 function exactSpectralResultChannels(
 	channels: unknown,
 	geometry: Readonly<{ channelCount: number; frameCount: number }>,
 	label: string,
+	inspectChannels: InspectSpectralEditChannels,
 ): Float32Array[] {
-	const result = inspectSpectralEditChannels(channels, {
+	const result = inspectChannels(channels, {
 		label,
 		expectedChannelCount: geometry.channelCount,
 		expectedFrameCount: geometry.frameCount,

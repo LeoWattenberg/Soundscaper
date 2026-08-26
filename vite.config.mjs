@@ -7,6 +7,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 import { chunkGroups, workerChunkGroups } from './scripts/lib/build-chunk-groups.mjs';
+import { enforceStartupGraphBudgets } from './scripts/lib/startup-graph-budget.mjs';
 import scopeAudacityDesignSystemCss, {
 	getScopedDesignSystemFiles,
 	isDesignSystemCssFile,
@@ -61,6 +62,7 @@ export default defineConfig({
 		createPffftNodeModuleBrowserShim(),
 		react(),
 		assertDesignSystemCssScoped(),
+		enforceStartupGraphBudgets(),
 	],
 	resolve: {
 		// File-targeted public aliases plus an app-internal deep component alias.

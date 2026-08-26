@@ -5,7 +5,7 @@ import {
 } from './audacity-effects/manifest.js';
 import {
 	audacityLiveEffectCapability,
-} from './audacity-effects/live.js';
+} from './audacity-effects/live-capabilities.js';
 import {
 	AUDIO_EFFECT_DEFINITIONS,
 	PARAMETRIC_EQ_BAND_TYPES,

@@ -3,7 +3,7 @@
 import {
 	AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES,
 	estimateAudacityEffectPeakBytes,
-} from '../audacity-effects/index.js';
+} from '../audacity-effects/contracts.js';
 import { EDITOR_TIMELINE_MINIMUM_SECONDS } from '../project.js';
 import type { EngineClip, EngineProject } from './types.ts';
 

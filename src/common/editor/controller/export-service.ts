@@ -59,11 +59,12 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		stemProject, store, throwIfAborted, toggleExport,
 		updateExportProgress, taskProgress, verifyProjectFallbackIntegrity,
 	} = runtime;
-	const { renderSnapshot, withRenderProgress } = createExportSnapshotRenderer({
-		options, sourceBuffers, taskProgress,
-		createCacheAwareRenderEngine, prepareCommittedTimePitchCaches,
-		throwIfAborted, updateExportProgress,
-	});
+	const { renderSnapshot, withRenderProgress } = runtime.exportSnapshotRenderer
+		?? createExportSnapshotRenderer({
+			options, sourceBuffers, taskProgress,
+			createCacheAwareRenderEngine, prepareCommittedTimePitchCaches,
+			throwIfAborted, updateExportProgress,
+		});
 	const exportVideo = createEditorVideoExportAction(runtime, renderSnapshot);
 	const renderRealtimeEncoded = createRealtimeEncodedAudioExport({
 		applyMediaChannelMapping, copy, createAiffStreamEncoder, createCacheAwareRenderEngine,
