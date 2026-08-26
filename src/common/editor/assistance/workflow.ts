@@ -23,7 +23,6 @@ import {
 	type AssistanceWorkflowSettingsV1,
 } from './workflow-settings-v1.ts';
 import {
-	ASSISTANCE_WORKFLOW_FENCE_VERSION,
 	validateAssistanceWorkflowFenceV1,
 	type AssistanceWorkflowFenceV1,
 } from './workflow-fence-v1.ts';
@@ -123,7 +122,6 @@ const PROGRESS_KEYS = Object.freeze([
 ]);
 const SHA256 = /^[a-f\d]{64}$/u;
 const OPAQUE_JOB_ID = /^[a-f\d]{40}$/u;
-const DOMAIN_ID = /^[A-Za-z\d][A-Za-z\d._:-]{0,255}$/u;
 const SLOT_ID = /^[a-z\d](?:[a-z\d.-]{0,62}[a-z\d])?$/u;
 const MODEL_ID = /^[a-z\d](?:[a-z\d.-]{0,126}[a-z\d])?$/u;
 const MAXIMUM_CLAIMS = 256;
@@ -501,13 +499,6 @@ function jobIdValue(value: unknown): string {
 function opaqueClaimId(value: unknown): string {
 	if (typeof value !== 'string' || !OPAQUE_JOB_ID.test(value)) {
 		throw new TypeError('An assistance workflow claim ID must be 40 lowercase hexadecimal characters.');
-	}
-	return value;
-}
-
-function domainId(value: unknown, label: string): string {
-	if (typeof value !== 'string' || !DOMAIN_ID.test(value)) {
-		throw new TypeError(`The assistance workflow ${label} is invalid.`);
 	}
 	return value;
 }
