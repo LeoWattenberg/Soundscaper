@@ -124,6 +124,7 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/assistance/transnetv2-postprocess-v1.js',
 	'src/common/editor/assistance/visual-semantic-results-v1.js',
 	'src/common/editor/assistance/vad-silence.js',
+	'src/common/editor/assistance/visual-frame-pack-v2.js',
 	'src/common/editor/assistance/visual-indexing-v1.js',
 	'src/common/editor/assistance/visual-search-records-v1.js',
 	'src/common/editor/assistance/wav2vec2-english-tokenizer-v1.js',
