@@ -18,7 +18,10 @@ test('desktop packaging publishes ten cells before one exact matrix assessment',
 	);
 	const packageStart = workflow.indexOf('\n  package:');
 	const aggregateStart = workflow.indexOf('\n  milestone-5-handoff-matrix:');
-	const nextJob = workflow.indexOf('\n  package-with-tests:', aggregateStart);
+	// Bounded by whichever job comes next rather than by one named job, so a job
+	// added after the aggregate cannot be read as part of it.
+	const nextJob = aggregateStart + 1
+		+ workflow.slice(aggregateStart + 1).search(/\n {2}[a-z][\w-]*:\n/u);
 	assert.ok(packageStart > 0 && aggregateStart > packageStart && nextJob > aggregateStart);
 	const packageJob = workflow.slice(packageStart, aggregateStart);
 	const aggregateJob = workflow.slice(aggregateStart, nextJob);
