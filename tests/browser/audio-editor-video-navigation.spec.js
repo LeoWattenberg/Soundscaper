@@ -80,7 +80,7 @@ test.describe('3B-4a shuttle and edit-point navigation', () => {
 		// A held L emits one deliberate keydown followed by repeat=true. It stays at
 		// +1x; a later deliberate L advances exactly one rung to +2x. Neither press
 		// reaches the legacy Loop preference binding in Framescaper.
-		await beginStatusObservation(editor.locator('[data-status]'));
+		await beginStatusObservation(editor);
 		await focusWorkspace(editor);
 		await editor.evaluate((element) => {
 			const emit = (type, repeat = false) => element.dispatchEvent(new KeyboardEvent(type, {
@@ -95,7 +95,7 @@ test.describe('3B-4a shuttle and edit-point navigation', () => {
 			emit('keydown');
 			emit('keyup');
 		});
-		await expectObservedStatus(editor.locator('[data-status]'), /2(?:x|×)/u);
+		await expectObservedStatus(editor, /2(?:x|×)/u);
 		// The shuttle rung is reported in the status line rather than a menu check mark.
 		await page.keyboard.press('Escape');
 		await pressWorkspaceKey(page, editor, 'K');
@@ -142,12 +142,21 @@ async function pressWorkspaceKey(page, editor, key) {
 	await page.keyboard.press(key);
 }
 
-async function beginStatusObservation(status) {
-	await status.evaluate((element) => {
+// Observe the editor root rather than the status node itself. A re-render can
+// replace that node outright, which orphans an observer bound to it: the array
+// then keeps only the announcement present at setup and every later one is lost.
+// That is how a held-L shuttle run reported just "Shuttle stopped …" on Firefox
+// while the +2x rung it was asserting had been announced on a fresh node.
+async function beginStatusObservation(editor) {
+	await editor.evaluate((element) => {
 		const previous = globalThis.__soundscaperShuttleStatusObservation;
 		previous?.observer?.disconnect();
 		const values = [];
-		const record = () => values.push(element.textContent || '');
+		const read = () => element.querySelector('[data-status]')?.textContent || '';
+		const record = () => {
+			const value = read();
+			if (values.at(-1) !== value) values.push(value);
+		};
 		const observer = new MutationObserver(record);
 		observer.observe(element, { childList: true, characterData: true, subtree: true });
 		globalThis.__soundscaperShuttleStatusObservation = { observer, values };
@@ -155,11 +164,11 @@ async function beginStatusObservation(status) {
 	});
 }
 
-async function expectObservedStatus(status, expected) {
-	await expect.poll(() => status.evaluate(() => (
+async function expectObservedStatus(editor, expected) {
+	await expect.poll(() => editor.evaluate(() => (
 		globalThis.__soundscaperShuttleStatusObservation?.values ?? []
 	))).toContainEqual(expect.stringMatching(expected));
-	await status.evaluate(() => {
+	await editor.evaluate(() => {
 		globalThis.__soundscaperShuttleStatusObservation?.observer?.disconnect();
 		delete globalThis.__soundscaperShuttleStatusObservation;
 	});
