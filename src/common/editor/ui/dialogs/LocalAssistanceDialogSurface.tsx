@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { useMemo } from 'react';
+
 import LocalAssistanceDialog, { type LocalAssistanceDialogProps } from './LocalAssistanceDialog.tsx';
 import { resolveLocalAssistanceBridge } from '../local-assistance-bridge.ts';
 
@@ -12,5 +14,6 @@ export interface LocalAssistanceDialogSurfaceProps
 export default function LocalAssistanceDialogSurface({
 	bridgeScope, ...props
 }: LocalAssistanceDialogSurfaceProps) {
-	return <LocalAssistanceDialog {...props} bridge={resolveLocalAssistanceBridge(bridgeScope)} />;
+	const bridge = useMemo(() => resolveLocalAssistanceBridge(bridgeScope), [bridgeScope]);
+	return <LocalAssistanceDialog {...props} bridge={bridge} />;
 }

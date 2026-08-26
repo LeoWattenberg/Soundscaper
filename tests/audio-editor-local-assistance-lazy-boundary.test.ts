@@ -18,7 +18,12 @@ test('the workspace defers Local Assistance bridge resolution with its dialog', 
 	assert.doesNotMatch(workspace, /const localAssistanceBridge =/u);
 
 	const surface = source('src/common/editor/ui/dialogs/LocalAssistanceDialogSurface.tsx');
-	assert.match(surface, /resolveLocalAssistanceBridge\(bridgeScope\)/u);
+	assert.match(surface, /import \{ useMemo \} from 'react'/u);
+	assert.match(surface,
+		/const bridge = useMemo\(\(\) => resolveLocalAssistanceBridge\(bridgeScope\), \[bridgeScope\]\)/u);
+	assert.match(surface, /<LocalAssistanceDialog \{\.\.\.props\} bridge=\{bridge\}/u);
+	assert.doesNotMatch(surface,
+		/<LocalAssistanceDialog \{\.\.\.props\} bridge=\{resolveLocalAssistanceBridge\(bridgeScope\)\}/u);
 	assert.match(surface, /<LocalAssistanceDialog/u);
 });
 
