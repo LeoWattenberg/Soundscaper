@@ -58,6 +58,9 @@ function parseArguments(argv) {
 			throw new Error(`Unrecognised argument: ${argument}`);
 		}
 	}
+	if (options.writeCatalog && !options.publish) {
+		throw new Error('--write-catalog requires --publish so public readback precedes catalog recording');
+	}
 	return options;
 }
 

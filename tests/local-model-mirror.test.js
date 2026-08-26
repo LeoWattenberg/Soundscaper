@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -518,4 +519,20 @@ test('publishing needs a licensing evidence record at all', () => {
 	assert.throws(() => assertPublishable(EVIDENCE, 'absent-model'), /no licensing evidence record/iu);
 	assert.throws(() => assertPublishable(null, 'silero-vad-v6'), /needs the licensing evidence register/iu);
 	assert.deepEqual(assertPublishable(EVIDENCE, 'silero-vad-v6').id, 'silero-vad-v6');
+});
+
+test('the mirror CLI cannot record catalog URLs before public publication and readback', () => {
+	const result = spawnSync(process.execPath, [
+		'scripts/mirror-local-models.mjs',
+		'--model', 'silero-vad-v6',
+		'--write-catalog',
+	], {
+		cwd: new URL('..', import.meta.url),
+		encoding: 'utf8',
+	});
+
+	assert.notEqual(result.status, 0);
+	assert.match(result.stderr, /--write-catalog.*--publish|public.*readback/iu);
+	assert.doesNotMatch(result.stdout, /Staging in|verified only|Recorded mirrored artifacts/iu,
+		'the command must fail before fetching, staging, or recording any artifact');
 });
