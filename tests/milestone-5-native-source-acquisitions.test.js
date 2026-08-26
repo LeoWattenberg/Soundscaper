@@ -39,8 +39,8 @@ const EXPECTED_PINS = {
 		'cd71a7515b0e9a012e1ac9b1f8415bebcaf6fc97d4db32286642ac4c0fbe24f9'],
 	x265: ['4.2', 'e444744c03978c1fb4e037168967020cf2648427', 1833442,
 		'40b1ea0453e0309f0eba934e0ddf533f8f6295966679e8894e8f1c1c8d5e1210'],
-	libvpx: ['1.16.0', '1024874c5919305883187e2953de8fcb4c3d7fa6', 5683549,
-		'c41cef6a4f18500a08df606a00d014707fac31c83f2788160bae51287ed027ab'],
+	libvpx: ['1.16.0', '1024874c5919305883187e2953de8fcb4c3d7fa6', 5635379,
+		'7a479a3c66b9f5d5542a4c6a1b7d3768a983b1e5c14c60a9396edc9b649e015c'],
 	libopus: ['1.6', 'a8b13e40d751c7b40833b94fc9437c5c3439da89', 36317446,
 		'b7637334527201fdfd6dd6a02e67aceffb0e5e60155bbd89175647a80301c92c'],
 };
@@ -219,6 +219,30 @@ test('source packet rejects duplicate, missing, malformed, or activated source r
 		}
 	}
 	assert.throws(() => requireMilestone5NativeSource(register, 'not-a-source'), /not pinned/u);
+});
+
+test('every pinned archive URL can actually satisfy its byte-exact pin', () => {
+	// A Gitiles `+archive` tarball is generated per request and its gzip
+	// container is not reproducible, so byteLength/sha256 recorded from one
+	// fetch never match the next one and the source can never authenticate —
+	// which is how the libvpx row sat permanently unauthenticatable while its
+	// extracted-tree identity was correct all along. Pin such upstreams to a
+	// byte-stable mirror instead.
+	const register = readMilestone5NativeSourceAcquisitions(repositoryRoot);
+	const delegated = JSON.parse(readFileSync(
+		resolve(repositoryRoot, 'native/framescaper-media-host/build/ffmpeg-9.0.1-external-sources.json'),
+		'utf8',
+	));
+	const pinned = [
+		...register.sources.map(({ id, archive }) => [id, archive.url]),
+		...delegated.libraries.map(({ id, url }) => [`ffmpeg-external:${id}`, url]),
+	];
+	for (const [id, url] of pinned) {
+		assert.equal(
+			/\/\+archive\//u.test(url), false,
+			`${id} is pinned to an on-demand Gitiles archive, whose bytes differ per fetch: ${url}`,
+		);
+	}
 });
 
 function sha256(bytes) {

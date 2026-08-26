@@ -211,10 +211,10 @@
 				"commit": "1024874c5919305883187e2953de8fcb4c3d7fa6"
 			},
 			"archive": {
-				"url": "https://chromium.googlesource.com/webm/libvpx/+archive/refs/tags/v1.16.0.tar.gz",
+				"url": "https://github.com/webmproject/libvpx/archive/refs/tags/v1.16.0.tar.gz",
 				"fileName": "libvpx-1.16.0.tar.gz",
-				"byteLength": 5683549,
-				"sha256": "c41cef6a4f18500a08df606a00d014707fac31c83f2788160bae51287ed027ab"
+				"byteLength": 5635379,
+				"sha256": "7a479a3c66b9f5d5542a4c6a1b7d3768a983b1e5c14c60a9396edc9b649e015c"
 			},
 			"extractedTree": {
 				"algorithm": "framescaper-portable-source-tree-sha256-v1",

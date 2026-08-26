@@ -30,8 +30,8 @@ const EXPECTED = Object.freeze({
 	}),
 	libvpx: Object.freeze({
 		version: '1.16.0', revision: '1024874c5919305883187e2953de8fcb4c3d7fa6',
-		tag: 'v1.16.0', byteLength: 5_683_549,
-		sha256: 'c41cef6a4f18500a08df606a00d014707fac31c83f2788160bae51287ed027ab',
+		tag: 'v1.16.0', byteLength: 5_635_379,
+		sha256: '7a479a3c66b9f5d5542a4c6a1b7d3768a983b1e5c14c60a9396edc9b649e015c',
 		fileCount: 1_250, treeSha256: '459375253b653cc26d057e102b134fb4ac3664a8eab5a01de87176d950a92594',
 		configureFlag: '--enable-libvpx',
 	}),
