@@ -28,6 +28,21 @@ class FakeWorker implements EffectWorkerLike {
 	terminate(): void { this.terminated += 1; }
 }
 
+/**
+ * The spectral run defers its admission module through a dynamic import, so no
+ * worker exists on the turn the call is made. Waiting for it beats reading an
+ * index that is still empty, which the non-null assertion used to hide until it
+ * threw on a property of undefined.
+ */
+async function firstSpectralWorker(workers: readonly FakeWorker[]): Promise<FakeWorker> {
+	for (let attempt = 0; attempt < 200 && workers.length === 0; attempt += 1) {
+		await new Promise((resolve) => { setTimeout(resolve, 0); });
+	}
+	const worker = workers[0];
+	assert.ok(worker, 'the spectral run created its worker');
+	return worker;
+}
+
 function createHarness(options: Readonly<{
 	workers?: boolean;
 	selectionFactory?: () => FakeWorker;
@@ -311,7 +326,7 @@ test('spectral workers preserve exact typed results without coercion', async () 
 		input,
 		SPECTRAL_OPTIONS,
 	);
-	const worker = harness.spectralWorkers[0]!;
+	const worker = await firstSpectralWorker(harness.spectralWorkers);
 	const posted = worker.posted as { channels: Float32Array[] };
 	assert.notEqual(posted.channels[0], input[0]);
 	assert.notEqual(posted.channels[1], input[1]);
@@ -349,7 +364,7 @@ test('spectral workers reject malformed result storage immediately and clean up'
 			[new Float32Array(2), new Float32Array(2)],
 			SPECTRAL_OPTIONS,
 		);
-		const worker = harness.spectralWorkers[0]!;
+		const worker = await firstSpectralWorker(harness.spectralWorkers);
 		worker.onmessage?.({ data: { type: 'result', channels } });
 		await assert.rejects(pending, /Spectral edit worker result/iu);
 		assert.equal(worker.terminated, 1);
@@ -361,7 +376,7 @@ test('spectral workers reject malformed result storage immediately and clean up'
 		[new Float32Array(2)],
 		SPECTRAL_OPTIONS,
 	);
-	const worker = harness.spectralWorkers[0]!;
+	const worker = await firstSpectralWorker(harness.spectralWorkers);
 	worker.onmessage?.({ data: { type: 'result' } });
 	await assert.rejects(pending, /Spectral edit worker result/iu);
 	assert.equal(worker.terminated, 1);
