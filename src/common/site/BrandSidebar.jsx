@@ -3,15 +3,15 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { bundledSiteCopyForLocale } from '../i18n/site-copy.js';
 import { localeLanguage } from '../i18n/locale.js';
 import { DEFAULT_LOCALE_TAGS, getLocaleDescriptor, ROUTE_LOCALES } from '../i18n/locales.js';
-import { productLocalePath, otherProductId, productProfile } from '../products.js';
+import { otherProductId, productIdentity, productLocalePath } from '../product-identities.js';
 import { createApplicationReadyScheduler } from './application-ready-scheduler.js';
 
 const TRANSLATIONS_BASE_URL = import.meta.env.PUBLIC_TRANSLATIONS_BASE_URL
 	|| 'https://translations.soundscaper.org/runtime/translations/audacity/4/';
 
 export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
-	const profile = productProfile(productId);
-	const otherProduct = productProfile(otherProductId(productId));
+	const profile = productIdentity(productId);
+	const otherProduct = productIdentity(otherProductId(productId));
 	const localeDescriptor = getLocaleDescriptor(locale);
 	if (!localeDescriptor) throw new Error(`Unknown editor locale: ${locale}`);
 	const chromeLocale = localeLanguage(localeDescriptor.locale) === 'de' ? 'de' : 'en';

@@ -89,11 +89,6 @@
       "count": 1
     }
   },
-  "src/common/products.js": {
-    "no-constant-binary-expression": {
-      "count": 1
-    }
-  },
   "src/common/site/App.jsx": {
     "no-unused-vars": {
       "count": 1

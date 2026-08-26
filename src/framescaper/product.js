@@ -1,11 +1,9 @@
 import { SHARED_CAPABILITIES } from '../common/product-capabilities.js';
+import { PRODUCT_IDENTITIES } from '../common/product-identities.js';
 
 export const FRAMESCAPER_PROFILE = {
-	id: 'framescaper',
-	name: 'Framescaper',
+	...PRODUCT_IDENTITIES.framescaper,
 	description: 'A local-first video editor for the web and desktop.',
-	basePath: '/framescaper',
-	defaultWorkspace: 'video-editor',
 	enabledCommands: ['project', 'timeline', 'transport', 'audio-mix', 'video-basic', 'video-effects', 'video-compositing', 'export-audio', 'export-video'],
 	panels: ['project-bin', 'track-list', 'mixer', 'video-preview', 'source-monitor', 'video-effects', 'playback-meter'],
 	importChoices: ['scape', 'audacity-project', 'audio', 'video', 'labels'],
