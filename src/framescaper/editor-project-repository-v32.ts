@@ -51,10 +51,38 @@ export class FramescaperProjectRepositoryV32 implements ProjectRepositoryPort {
 		const currentValue = await this.#delegate.load(project.id);
 		if (currentValue === null) throw new Error('Ordinary V32 save cannot create a project.');
 		const current = this.#exact(currentValue);
-		assertPermittedAttachments(current, project);
+		await this.#assertPermittedAttachments(current, project);
 		const saved = await this.#delegate.saveIfCurrent!(current, project, postCommit);
 		if (saved === null) throw new Error('The V32 project changed before save.');
 		return this.#exact(saved);
+	}
+
+
+	/**
+	 * An image body is published atomically with the revision that introduces it,
+	 * so a source the stored project no longer carries may still be one this
+	 * project published earlier and an undo removed. Redoing that import
+	 * re-references the same committed body rather than attaching a new one, and
+	 * refusing it would wedge every later autosave. Only a body no stored
+	 * revision ever carried is a genuinely new attachment.
+	 */
+	async #assertPermittedAttachments(
+		expected: FramescaperProjectV32,
+		project: FramescaperProjectV32,
+	): Promise<void> {
+		const introduced = unpublishedImageAttachments(expected, project);
+		if (introduced.size === 0) return;
+		const published = new Map<string, string>();
+		for (const revision of await this.#delegate.listRevisions(project.id)) {
+			let stored: FramescaperProjectV32;
+			try { stored = this.#exact(revision.project); } catch { continue; }
+			for (const [id, value] of imageAuthority(stored)) published.set(id, value);
+		}
+		for (const [id, value] of introduced) {
+			if (published.get(id) !== value) {
+				throw new Error('A new V32 image body requires atomic timeline-image publication.');
+			}
+		}
 	}
 
 	async saveIfCurrent(
@@ -65,7 +93,7 @@ export class FramescaperProjectRepositoryV32 implements ProjectRepositoryPort {
 		const expected = this.#exact(expectedValue);
 		const project = this.#exact(projectValue);
 		if (expected.id !== project.id) throw new Error('V32 compare-and-swap cannot change project identity.');
-		assertPermittedAttachments(expected, project);
+		await this.#assertPermittedAttachments(expected, project);
 		return this.#optionalExact(await this.#delegate.saveIfCurrent!(expected, project, postCommit));
 	}
 
@@ -137,7 +165,17 @@ function assertNoAttachments(project: FramescaperProjectV32, operation: string):
 	}
 }
 
-function assertPermittedAttachments(expected: FramescaperProjectV32, project: FramescaperProjectV32): void {
+/**
+ * The image sources a save introduces that the stored project does not carry.
+ *
+ * Changing the authority of a source that is already stored is always refused;
+ * an unknown one is left for the caller to resolve against what this project
+ * has published before.
+ */
+function unpublishedImageAttachments(
+	expected: FramescaperProjectV32,
+	project: FramescaperProjectV32,
+): ReadonlyMap<string, string> {
 	const beforeProxies = proxyAuthority(expected);
 	const afterProxies = proxyAuthority(project);
 	if (beforeProxies.size !== afterProxies.size
@@ -145,14 +183,17 @@ function assertPermittedAttachments(expected: FramescaperProjectV32, project: Fr
 		throw new Error('Ordinary V32 save cannot introduce or change a proxy attachment.');
 	}
 	const beforeImages = imageAuthority(expected);
+	const introduced = new Map<string, string>();
 	for (const [id, value] of imageAuthority(project)) {
 		if (!beforeImages.has(id)) {
-			throw new Error('A new V32 image body requires atomic timeline-image publication.');
+			introduced.set(id, value);
+			continue;
 		}
 		if (beforeImages.get(id) !== value) {
 			throw new Error('Ordinary V32 save cannot change immutable image-body authority.');
 		}
 	}
+	return introduced;
 }
 
 function proxyAuthority(project: FramescaperProjectV32): ReadonlyMap<string, string> {
