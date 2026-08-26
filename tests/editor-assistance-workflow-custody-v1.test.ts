@@ -40,6 +40,17 @@ test('external, reserved, and producer custody bind exact slotted data authority
 	});
 	assert.equal(intermediate.claimId, output.claimId);
 	assert.equal(Object.isFrozen(intermediate.producer), true);
+
+	const videoAuthority = createAssistanceWorkflowCustodyClaimV1({
+		custodyVersion: 1, workflowId: 'index-video', direction: 'input',
+		jobId: JOB_ID, stageId: 'sample-shot-frames', slotId: 'video-authority',
+		claimId: '9'.repeat(40), role: 'video-authority',
+		mediaType: 'application/vnd.soundscaper.video-authority+json',
+		byteLength: 4_096, sha256: SHA256, maximumByteLength: null, producer: null,
+	});
+	assert.equal(videoAuthority.role, 'video-authority');
+	assert.equal(videoAuthority.mediaType,
+		'application/vnd.soundscaper.video-authority+json');
 });
 
 test('custody refuses invented identities, paths, incompatible media, and unsafe producers', () => {

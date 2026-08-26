@@ -135,6 +135,19 @@ test('selected preparation composition routes F31 video without entering the aud
 		sourceId: 'video-source', operation: 'shot-detection',
 	}));
 	assert.equal(audioRenders, 0);
+	const described = await preparation.describeSelectedVideoSourceTime();
+	assert.equal(described.selectionFence.sourceId, 'video-source');
+	assert.deepEqual({
+		kind: described.descriptor.kind,
+		sourceId: described.descriptor.sourceId,
+		sourceStartFrame: described.descriptor.sourceStartFrame,
+		sourceEndFrame: described.descriptor.sourceEndFrame,
+	}, {
+		kind: 'selected-video-source-time-authority',
+		sourceId: 'video-source',
+		sourceStartFrame: 20,
+		sourceEndFrame: 120,
+	});
 });
 
 test('selected video preparation falls back pathlessly to the linked original', async () => {
@@ -348,6 +361,10 @@ test('selected-media router exposes one inventory and routes model-free video wi
 				operations: ['shot-detection'] as const }] };
 		},
 		async prepareSelectedMedia() { calls.push('video'); return { owner: 'video' }; },
+		async describeSelectedVideoSourceTime() {
+			calls.push('describe-video');
+			return { descriptor: { kind: 'authority' }, selectionFence: { sourceId: 'video-source' } };
+		},
 	};
 	const router = createLocalAssistanceSelectedMediaPreparationRouter({ audio, video });
 	assert.deepEqual((await router.listSelectedMedia()).sources.map(({ sourceId }) => sourceId), [
@@ -359,13 +376,18 @@ test('selected-media router exposes one inventory and routes model-free video wi
 	assert.deepEqual(await router.prepareSelectedMedia({
 		sourceId: 'audio-source', operation: 'speech-recognition',
 	}), { owner: 'audio' });
+	assert.deepEqual(await router.describeSelectedVideoSourceTime(), {
+		descriptor: { kind: 'authority' }, selectionFence: { sourceId: 'video-source' },
+	});
 	await router.acceptValidatedResult?.({ reviewed: true });
-	assert.deepEqual(calls, ['video', 'audio', 'accept']);
+	assert.deepEqual(calls, ['video', 'audio', 'describe-video', 'accept']);
 
 	const audioOnly = createLocalAssistanceSelectedMediaPreparationRouter({ audio, video: null });
 	await assert.rejects(audioOnly.prepareSelectedMedia({
 		sourceId: 'video-source', operation: 'shot-detection',
 	}), /selected video preparation/iu);
+	await assert.rejects(audioOnly.describeSelectedVideoSourceTime(),
+		/selected video preparation/iu);
 });
 
 function videoFixture(

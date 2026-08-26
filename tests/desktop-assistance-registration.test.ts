@@ -27,11 +27,15 @@ test('desktop composition gives local assistance the authenticated external FFmp
 	assert.match(registration,
 		/import \{ createAssistanceWorkflowOwnedVideoHighlightStageRuntime \} from '\.\/project-library-runtime\/desktop\/assistance-workflow-owned-video-highlight-stage-runtime\.js';/u);
 	assert.match(registration,
+		/import \{ createExternalFfmpegAssistanceVideoMaterializer \} from '\.\/project-library-runtime\/desktop\/assistance-external-ffmpeg-video-materializer\.js';/u);
+	assert.match(registration,
 		/import \{ createAssistanceWorkflowNomicTokenizerResolverV1 \} from '\.\/project-library-runtime\/desktop\/assistance-workflow-nomic-tokenizer-resolver\.js';/u);
 	assert.match(registration,
 		/createAssistanceWorkflowOwnedAudioCutStageRuntime\(\{[\s\S]*?custody: workflowCustody,[\s\S]*?resolveTokenizer: resolveNomicTokenizer,[\s\S]*?\}\)/u);
 	assert.match(registration,
-		/createAssistanceWorkflowOwnedVideoHighlightStageRuntime\(\{[\s\S]*?custody: workflowCustody,[\s\S]*?\}\)/u);
+		/createAssistanceWorkflowOwnedVideoHighlightStageRuntime\(\{[\s\S]*?custody: workflowCustody,[\s\S]*?materializer: videoMaterializer,[\s\S]*?\}\)/u);
+	assert.match(registration,
+		/createExternalFfmpegAssistanceVideoMaterializer\(\{\s*preferences: externalFfmpegPreferences,?\s*\}\)/u);
 	assert.match(registration,
 		/deterministicHandlers = Object\.freeze\(\{[\s\S]*?\.\.\.audioCutHandlers,[\s\S]*?\.\.\.videoHighlightHandlers,[\s\S]*?\}\)/u);
 	assert.match(registration,

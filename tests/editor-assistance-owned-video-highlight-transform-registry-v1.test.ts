@@ -97,6 +97,34 @@ test('sample-shot-frames applies the exact elapsed-time rules over VFR authority
 	}), /source-time authority/u);
 });
 
+test('sample-shot-frames keeps trimmed sparse forward-retime authority exact', () => {
+	const registry = createAssistanceOwnedVideoHighlightTransformRegistryV1();
+	const frames = Array.from({ length: 30 }, (_, index) => {
+		const sourceFrame = 20 + index * 2;
+		return { sourceFrame, presentationTick: String(sourceFrame),
+			timelineFrame: 10_000 + index * 1_000 };
+	});
+	const result = registry.run({ schemaVersion: 1, transformId: 'sample-shot-frames',
+		settings: INDEX_SETTINGS, inputs: { video: {
+			schemaVersion: 1, kind: 'video-source-time-authority', sourceId: 'video-source',
+			width: 1_920, height: 1_080, sourceStartFrame: 20, sourceEndFrame: 80,
+			timescale: 10, presentationEndTick: '80', frames,
+		}, 'shot-boundaries': {
+			schemaVersion: 1, detector: 'transnetv2', timescale: 10, sourceFrameCount: 100,
+			boundaries: [
+				{ sourceFrame: 30, presentationTick: '30', score: 0.9 },
+				{ sourceFrame: 50, presentationTick: '50', score: 0.8 },
+			],
+		} } });
+	assert.deepEqual(result.outputs['frame-pack'].frames.map(({ shotId, sourceFrame,
+		presentationTick, timelineFrame }) => ({ shotId, sourceFrame, presentationTick,
+		timelineFrame })), [
+		{ shotId: 'shot:000000', sourceFrame: 26, presentationTick: '26', timelineFrame: 13_000 },
+		{ shotId: 'shot:000001', sourceFrame: 40, presentationTick: '40', timelineFrame: 20_000 },
+		{ shotId: 'shot:000002', sourceFrame: 66, presentationTick: '66', timelineFrame: 33_000 },
+	]);
+});
+
 test('publish-video-index binds normalized embeddings, non-biometric tags, OCR, and jumps', () => {
 	const registry = createAssistanceOwnedVideoHighlightTransformRegistryV1();
 	const sampled = registry.run({
@@ -305,7 +333,8 @@ test('speechless highlight windows retain their admitted boundaries without shot
 function videoAuthority() {
 	return {
 		schemaVersion: 1 as const, kind: 'video-source-time-authority' as const,
-		sourceId: 'video-source', width: 1_920, height: 1_080, timescale: 10,
+		sourceId: 'video-source', width: 1_920, height: 1_080,
+		sourceStartFrame: 0, sourceEndFrame: 241, timescale: 10,
 		presentationEndTick: '241',
 		frames: Array.from({ length: 241 }, (_, sourceFrame) => ({
 			sourceFrame, presentationTick: String(sourceFrame), timelineFrame: sourceFrame * 100,

@@ -49,6 +49,9 @@ export interface AssistanceVideoSourceTimeAuthorityV1 {
 	readonly sourceId: string;
 	readonly width: number;
 	readonly height: number;
+	readonly sourceStartFrame: number;
+	/** Exclusive selected source boundary. */
+	readonly sourceEndFrame: number;
 	readonly timescale: number;
 	readonly presentationEndTick: string;
 	readonly frames: readonly AssistanceVideoSourceTimeFrameV1[];

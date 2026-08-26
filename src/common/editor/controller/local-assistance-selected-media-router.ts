@@ -23,31 +23,42 @@ export interface LocalAssistancePreparationRequest {
 	readonly signal?: AbortSignal;
 }
 
-export interface LocalAssistanceSelectedMediaPreparationPort<Prepared = unknown> {
+export interface LocalAssistanceSelectedMediaPreparationPort<Prepared = unknown, Description = unknown> {
 	listSelectedMedia(): Promise<LocalAssistancePreparationInventory>;
 	prepareSelectedMedia(request: LocalAssistancePreparationRequest): Promise<Prepared>;
+	describeSelectedVideoSourceTime?(): Promise<Description>;
 	acceptValidatedResult?(request: unknown): Promise<void>;
 }
 
-export interface LocalAssistanceSelectedMediaPreparationRouter<AudioPrepared = unknown, VideoPrepared = unknown>
+export interface LocalAssistanceSelectedMediaPreparationRouter<
+	AudioPrepared = unknown, VideoPrepared = unknown, VideoDescription = unknown,
+>
 {
 	listSelectedMedia(): Promise<LocalAssistancePreparationInventory>;
 	prepareSelectedMedia(request: LocalAssistancePreparationRequest): Promise<AudioPrepared | VideoPrepared>;
+	describeSelectedVideoSourceTime(): Promise<VideoDescription>;
 	acceptValidatedResult?(request: unknown): Promise<void>;
 }
 
 export interface LocalAssistanceSelectedMediaPreparationRouterDependencies<
 	AudioPrepared = unknown,
 	VideoPrepared = unknown,
+	VideoDescription = unknown,
 > {
 	readonly audio: LocalAssistanceSelectedMediaPreparationPort<AudioPrepared>;
-	readonly video: LocalAssistanceSelectedMediaPreparationPort<VideoPrepared> | null;
+	readonly video: LocalAssistanceSelectedMediaPreparationPort<VideoPrepared, VideoDescription> | null;
 }
 
 /** Keep mode-explicit video shot detection separate from the audio render pipeline. */
-export function createLocalAssistanceSelectedMediaPreparationRouter<AudioPrepared, VideoPrepared>(
-	dependencies: LocalAssistanceSelectedMediaPreparationRouterDependencies<AudioPrepared, VideoPrepared>,
-): Readonly<LocalAssistanceSelectedMediaPreparationRouter<AudioPrepared, VideoPrepared>> {
+export function createLocalAssistanceSelectedMediaPreparationRouter<
+	AudioPrepared, VideoPrepared, VideoDescription,
+>(
+	dependencies: LocalAssistanceSelectedMediaPreparationRouterDependencies<
+		AudioPrepared, VideoPrepared, VideoDescription
+	>,
+): Readonly<LocalAssistanceSelectedMediaPreparationRouter<
+	AudioPrepared, VideoPrepared, VideoDescription
+>> {
 	if (!dependencies || typeof dependencies !== 'object'
 		|| !preparationPort(dependencies.audio)
 		|| (dependencies.video !== null && !preparationPort(dependencies.video))) {
@@ -74,9 +85,17 @@ export function createLocalAssistanceSelectedMediaPreparationRouter<AudioPrepare
 		return dependencies.video.prepareSelectedMedia(request);
 	}
 
+	function describeSelectedVideoSourceTime(): Promise<VideoDescription> {
+		if (!dependencies.video?.describeSelectedVideoSourceTime) {
+			return Promise.reject(new Error('Exact selected video preparation is unavailable.'));
+		}
+		return dependencies.video.describeSelectedVideoSourceTime();
+	}
+
 	return Object.freeze({
 		listSelectedMedia,
 		prepareSelectedMedia,
+		describeSelectedVideoSourceTime,
 		...(dependencies.audio.acceptValidatedResult ? {
 			acceptValidatedResult: (request: unknown) => (
 				dependencies.audio.acceptValidatedResult!(request)

@@ -16,6 +16,7 @@ export const ASSISTANCE_DATA_CLAIM_VERSION = 1;
 export const ASSISTANCE_INPUT_ROLES = Object.freeze([
 	'audio',
 	'video',
+	'video-authority',
 	'frame-pack',
 	'transcript',
 	'text',
@@ -105,6 +106,7 @@ const MEDIA_TYPE = /^[a-z\d][a-z\d!#$&^_.+-]{0,126}\/[a-z\d][a-z\d!#$&^_.+-]{0,1
 const INPUT_MEDIA_TYPES = Object.freeze({
 	audio: Object.freeze(['audio/wav', 'audio/x-wav', 'audio/flac']),
 	video: Object.freeze(['video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska']),
+	'video-authority': jsonTypes('video-authority'),
 	'frame-pack': Object.freeze(['application/vnd.soundscaper.frame-pack']),
 	transcript: Object.freeze(['application/json', 'application/vnd.soundscaper.transcript+json']),
 	text: Object.freeze(['text/plain']),
@@ -261,7 +263,7 @@ function roleMediaType<Role extends string>(
 	return candidate;
 }
 
-function jsonTypes(role: AssistanceOutputRole): readonly string[] {
+function jsonTypes(role: AssistanceInputRole | AssistanceOutputRole): readonly string[] {
 	return Object.freeze(['application/json', `application/vnd.soundscaper.${role}+json`]);
 }
 

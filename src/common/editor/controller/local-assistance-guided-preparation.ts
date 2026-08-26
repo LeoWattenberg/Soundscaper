@@ -74,6 +74,7 @@ interface SelectedPreparationPort {
 		shotDetectionMode?: 'fast' | 'accurate';
 		signal?: AbortSignal;
 	}>): Promise<unknown>;
+	describeSelectedVideoSourceTime?(): Promise<unknown>;
 }
 
 export interface LocalAssistanceGuidedPreparationDependencies {
@@ -227,6 +228,22 @@ async function prepareExternalInput(
 		return slotId === 'transcript'
 			? prepareLocalAssistanceGuidedTranscriptInput(options)
 			: prepareLocalAssistanceGuidedEditorialContext(options);
+	}
+	if (slotId === 'video-authority') {
+		if (!dependencies.selected.describeSelectedVideoSourceTime) return null;
+		signal.throwIfAborted();
+		const described = dataRecord(await dependencies.selected.describeSelectedVideoSourceTime(),
+			'selected-video source-time description');
+		signal.throwIfAborted();
+		const fence = primitiveFence(described.selectionFence);
+		const descriptor = correlateSelectedVideoDescriptor(described.descriptor, fence);
+		const bytes = new Blob([JSON.stringify(descriptor)], {
+			type: 'application/vnd.soundscaper.video-authority+json',
+		});
+		if (bytes.size < 1 || bytes.size > MAXIMUM_OUTPUT_BYTES) {
+			throw new UnavailableError('timing-authority-unavailable');
+		}
+		return Object.freeze({ mediaType: bytes.type, bytes, fence });
 	}
 	if (slotId !== 'audio' && slotId !== 'video' && slotId !== 'frame-pack') return null;
 	const source = inventory.filter(({ mediaKind }) => mediaKind === (slotId === 'frame-pack' ? 'video' : slotId));
@@ -436,11 +453,29 @@ function shotMode(settings: AssistanceWorkflowSettingsV1): 'fast' | 'accurate' {
 function externalReason(slotId: string): LocalAssistanceGuidedPreparationUnavailableReason {
 	if (slotId === 'transcript') return 'transcript-custody-unavailable';
 	if (slotId === 'editorial-context') return 'editorial-context-custody-unavailable';
+	if (slotId === 'video-authority') return 'timing-authority-unavailable';
 	if (slotId === 'frame-pack' || slotId === 'shot-boundaries'
 		|| slotId === 'reaction-ranges' || slotId === 'embeddings') {
 		return 'derived-custody-unavailable';
 	}
 	return 'source-custody-unavailable';
+}
+
+function correlateSelectedVideoDescriptor(value: unknown, fence: PrimitiveFence): unknown {
+	const row = dataRecord(value, 'selected-video source-time descriptor');
+	if (row.schemaVersion !== 1 || row.kind !== 'selected-video-source-time-authority'
+		|| row.projectId !== fence.projectId || row.projectRevision !== fence.revision
+		|| row.sequenceId !== fence.sequenceId || row.sourceId !== fence.sourceId
+		|| row.sourceSha256 !== fence.sourceSha256
+		|| row.timingAuthoritySha256 !== fence.timingAuthoritySha256
+		|| row.sourceStartFrame !== fence.sourceStartFrame
+		|| row.sourceEndFrame !== fence.sourceEndFrame
+		|| typeof row.videoOccurrenceId !== 'string'
+		|| !fence.occurrenceIds.includes(row.videoOccurrenceId)
+		|| !Array.isArray(row.frames) || row.frames.length < 2) {
+		throw new UnavailableError('timing-authority-unavailable');
+	}
+	return value;
 }
 
 function liveSource(source: Record<string, unknown>): boolean {

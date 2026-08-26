@@ -273,6 +273,35 @@ test('workflow custody stages exact Blobs and reserves pathless slotted outputs'
 	assert.equal(await fixture.bridge.localAssistance.workflow.custody.release(JOB_ID), true);
 });
 
+test('workflow preload admits selected-video authority only through its closed Index Video slot', async () => {
+	const text = '{"schemaVersion":1}';
+	const body = new Blob([text], { type: 'application/vnd.soundscaper.video-authority+json' });
+	const bytes = Buffer.from(text);
+	const sha256 = createHash('sha256').update(bytes).digest('hex');
+	const reservation = { dataPlaneVersion: 1, transport: 'message-port', streamId: STREAM_ID,
+		direction: 'host-to-helper', authentication: 'trailer-sha256-v1',
+		byteLength: bytes.byteLength, maximumChunkBytes: bytes.byteLength, maximumInFlightChunks: 1 };
+	const custody = workflowCustody({ workflowId: 'index-video', direction: 'input',
+		claimId: CLAIM_ID, stageId: 'sample-shot-frames', slotId: 'video-authority',
+		role: 'video-authority', mediaType: body.type, byteLength: bytes.byteLength,
+		sha256, maximumByteLength: null });
+	const fixture = await loadPreload({ responses: [
+		{ contractVersion: 1, jobId: JOB_ID, streamId: STREAM_ID, reservation },
+		workflowCustodyHandle(custody),
+	], onPostMessage(_channel, _control, ports) {
+		ports[0].on('message', (message) => {
+			if (message.type === 'chunk') ports[0].postMessage({ dataPlaneVersion: 1, type: 'ack',
+				streamId: STREAM_ID, sequence: message.sequence,
+				receivedBytes: message.offset + message.bytes.byteLength });
+		});
+	} });
+	assert.deepEqual(plain(await fixture.bridge.localAssistance.workflow.custody.stageInput({
+		jobId: JOB_ID, workflowId: 'index-video', stageId: 'sample-shot-frames',
+		slotId: 'video-authority', mediaType: body.type, byteLength: bytes.byteLength,
+		sha256, bytes: body,
+	})), plain(workflowCustodyHandle(custody)));
+});
+
 test('workflow custody binds only one exact earlier producer and strips no hidden path', async () => {
 	const producer = workflowCustody({ workflowId: 'transcribe-captions', direction: 'output',
 		claimId: '5'.repeat(40), stageId: 'recognize-speech', slotId: 'transcript', role: 'transcript',

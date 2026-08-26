@@ -60,6 +60,8 @@ test('the main bridge executes all seven closed transforms through authenticated
 			settings: { ...indexSettings, includeOcr: false },
 			bodies: {
 				'sample-shot-frames:video': Uint8Array.of(0, 0, 0, 20, 102, 116, 121, 112),
+				'sample-shot-frames:video-authority': selectedVideoAuthority(
+					digest(Uint8Array.of(0, 0, 0, 20, 102, 116, 121, 112))),
 				'sample-shot-frames:shot-boundaries': shotBoundaries(),
 				'publish-video-index:visual-embeddings': createAssistanceEmbeddingMatrixV1({
 					dimensions: 2, vectors: [[1, 0]],
@@ -68,10 +70,7 @@ test('the main bridge executes all seven closed transforms through authenticated
 			},
 		});
 		const materializer = {
-			resolveVideoSource: ({ purpose }: Readonly<{ purpose: string }>) => {
-				assert.equal(purpose, 'shot-sampling');
-				return videoAuthority();
-			},
+			resolveVideoSource: () => assert.fail('Index Video must use authenticated sidecar authority.'),
 			materializeFramePack: ({ plan }: Readonly<{ plan: AssistanceOwnedFramePackPlanV1 }>) =>
 				createAssistanceFramePackV1({ width: plan.width, height: plan.height,
 					timescale: plan.timescale, frames: plan.frames.map((frame) => ({
@@ -147,11 +146,13 @@ test('shot sampling is typed unavailable without real RGBA materialization', asy
 	await withDirectory(async (directory) => {
 		const harness = await workflowHarness(directory, 'index-video', { bodies: {
 			'sample-shot-frames:video': Uint8Array.of(1, 2, 3),
+			'sample-shot-frames:video-authority': selectedVideoAuthority(
+				digest(Uint8Array.of(1, 2, 3))),
 			'sample-shot-frames:shot-boundaries': shotBoundaries(),
 		} });
 		const handlers = createAssistanceWorkflowOwnedVideoHighlightStageRuntime({
 			custody: harness.custody,
-			materializer: { resolveVideoSource: () => videoAuthority() },
+			materializer: {},
 		});
 		assert.deepEqual(await handlers['sample-shot-frames'](
 			harness.execution('sample-shot-frames'),
@@ -206,12 +207,15 @@ test('materialized semantics remain inside the exact aggregate source fence', as
 	await withDirectory(async (directory) => {
 		const harness = await workflowHarness(directory, 'index-video', { bodies: {
 			'sample-shot-frames:video': Uint8Array.of(1, 2, 3),
+			'sample-shot-frames:video-authority': {
+				...selectedVideoAuthority(digest(Uint8Array.of(1, 2, 3))),
+				sourceId: 'outside-fence',
+			},
 			'sample-shot-frames:shot-boundaries': shotBoundaries(),
 		} });
 		const handlers = createAssistanceWorkflowOwnedVideoHighlightStageRuntime({
 			custody: harness.custody,
 			materializer: {
-				resolveVideoSource: () => ({ ...videoAuthority(), sourceId: 'outside-fence' }),
 				materializeFramePack: ({ plan }) => createAssistanceFramePackV1({
 					width: plan.width, height: plan.height, timescale: plan.timescale,
 					frames: plan.frames.map((frame) => ({ sourceFrame: frame.sourceFrame,
@@ -287,7 +291,10 @@ async function workflowHarness(
 	const jobId = createHash('sha1').update(`${directory}:${workflowId}`).digest('hex');
 	const canonicalInputs = inputs.map((candidate) => ({ ...candidate, jobId }));
 	const canonicalOutputs = outputs.map((candidate) => ({ ...candidate, jobId }));
-	const fence = workflowFence(workflowId, settings, stageIds, models);
+	const externalVideo = options.bodies['sample-shot-frames:video']
+		?? options.bodies['gather-signals:video'];
+	const fence = workflowFence(workflowId, settings, stageIds, models,
+		externalVideo === undefined ? undefined : digest(binaryBody(externalVideo, 'video')));
 	const request = {
 		contractVersion: 1 as const, jobId, workflowId, recipeVersion: 1, settingsVersion: 1,
 		settings, fence, stageIds, models, inputs: canonicalInputs, outputs: canonicalOutputs,
@@ -396,6 +403,7 @@ function workflowFence(
 	settings: AssistanceWorkflowSettingsV1,
 	stageIds: readonly string[],
 	models: AssistanceWorkflowV1['models'],
+	videoSourceSha256 = '12'.repeat(32),
 ) {
 	const audioRange = { slotId: 'audio-main', mediaKind: 'audio' as const,
 		sourceId: 'audio-source', sourceSha256: '78'.repeat(32), sourceSampleRate: 48_000,
@@ -403,7 +411,7 @@ function workflowFence(
 		linkMembershipSha256: '34'.repeat(32), timingAuthoritySha256: '9a'.repeat(32),
 		retimeKind: 'identity' as const };
 	const videoRange = { slotId: 'video-main', mediaKind: 'video' as const,
-		sourceId: 'video-source', sourceSha256: '12'.repeat(32), sourceSampleRate: null,
+		sourceId: 'video-source', sourceSha256: videoSourceSha256, sourceSampleRate: null,
 		occurrenceIds: ['video-occurrence'], sourceStartFrame: 0, sourceEndFrame: 41,
 		linkMembershipSha256: '34'.repeat(32), timingAuthoritySha256: '56'.repeat(32),
 		retimeKind: 'identity' as const };
@@ -464,17 +472,21 @@ function digest(value: Uint8Array): string {
 	return createHash('sha256').update(value).digest('hex');
 }
 
-function videoAuthority() {
-	return { schemaVersion: 1 as const, kind: 'video-source-time-authority' as const,
-		sourceId: 'video-source', width: 1, height: 1, timescale: 10,
-		presentationEndTick: '10', frames: Array.from({ length: 10 }, (_, sourceFrame) => ({
-			sourceFrame, presentationTick: String(sourceFrame), timelineFrame: sourceFrame * 100,
+function selectedVideoAuthority(sourceSha256 = '12'.repeat(32)) {
+	return { schemaVersion: 1 as const, kind: 'selected-video-source-time-authority' as const,
+		projectId: 'project-a', projectRevision: 1, sequenceId: 'sequence-a',
+		videoOccurrenceId: 'video-occurrence', sourceId: 'video-source',
+		sourceSha256, timingAuthoritySha256: '56'.repeat(32),
+		sourceWidth: 1, sourceHeight: 1, sourceStartFrame: 0, sourceEndFrame: 41,
+		sampleRate: 48_000, timescale: 100, selectionStartFrame: 0, selectionEndFrame: 410,
+		frames: Array.from({ length: 42 }, (_, sourceFrame) => ({
+			sourceFrame, presentationTick: String(sourceFrame), timelineFrame: sourceFrame * 10,
 		})) };
 }
 
 function shotBoundaries() {
-	return { schemaVersion: 1 as const, detector: 'ffmpeg-scdet' as const, timescale: 10,
-		sourceFrameCount: 10, boundaries: [] };
+	return { schemaVersion: 1 as const, detector: 'ffmpeg-scdet' as const, timescale: 100,
+		sourceFrameCount: 41, boundaries: [] };
 }
 
 function subjectDetections() {

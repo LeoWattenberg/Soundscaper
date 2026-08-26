@@ -52,6 +52,7 @@ const FRAME_PACK = Object.freeze(['application/vnd.soundscaper.frame-pack']);
 const EXTERNAL_INPUT_SPECS = Object.freeze({
 	audio: spec('audio', ['audio/wav', 'audio/x-wav', 'audio/flac']),
 	video: spec('video', ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska']),
+	'video-authority': spec('video-authority', JSON('video-authority')),
 	'frame-pack': spec('frame-pack', FRAME_PACK),
 	transcript: spec('transcript', JSON('transcript')),
 	text: spec('text', ['text/plain']),

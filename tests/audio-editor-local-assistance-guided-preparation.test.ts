@@ -267,6 +267,62 @@ test('Accurate Mark Cuts stages its exact frame pack and never substitutes Fast'
 	assert.equal(fixture.custodyEvents[0]?.slotId, 'frame-pack');
 });
 
+test('Index Video stages exact selected-video timing authority beside raw decode custody', async () => {
+	const fixture = preparationFixture();
+	const timingAuthoritySha256 = '34'.repeat(32);
+	const videoFence = {
+		projectId: 'project-1', schemaVersion: 30, revision: 4,
+		sequenceId: 'main-sequence', occurrenceIds: ['video-clip'],
+		sourceId: 'video-source', sourceSha256: SOURCE_SHA256,
+		sourceStartFrame: 20, sourceEndFrame: 24,
+		linkMembershipSha256: '12'.repeat(32), timingAuthoritySha256,
+	};
+	const videoProject: FixtureProject = { ...project(),
+		sources: [{ id: 'video-source', kind: 'video', contentSha256: SOURCE_SHA256 }],
+		clips: [{ id: 'video-clip', kind: 'video', sourceId: 'video-source',
+			sequenceId: 'main-sequence', avLinkId: null, reversed: false, speedRatio: 1 }],
+	};
+	const descriptor = { schemaVersion: 1, kind: 'selected-video-source-time-authority',
+		projectId: 'project-1', projectRevision: 4, sequenceId: 'main-sequence',
+		videoOccurrenceId: 'video-clip', sourceId: 'video-source', sourceSha256: SOURCE_SHA256,
+		timingAuthoritySha256, sourceWidth: 1_920, sourceHeight: 1_080,
+		sourceStartFrame: 20, sourceEndFrame: 24, sampleRate: 48_000, timescale: 24,
+		selectionStartFrame: 96_000, selectionEndFrame: 104_000,
+		frames: [20, 21, 22, 23, 24].map((sourceFrame) => ({ sourceFrame,
+			presentationTick: String(sourceFrame),
+			timelineFrame: 96_000 + (sourceFrame - 20) * 2_000 })) } as const;
+	const preparation = createLocalAssistanceGuidedWorkflowPreparation({
+		getProject: () => videoProject, getSelectedClipId: () => 'video-clip',
+		captureProject: () => ({ revision: 4 }), assertProject: () => undefined,
+		preflightStorage: async () => undefined, currentSelectionFence: () => videoFence,
+		selected: {
+			listSelectedMedia: async () => ({ sources: [{ sourceId: 'video-source',
+				label: 'Video', mediaKind: 'video', operations: ['shot-detection'] }] }),
+			prepareSelectedMedia: async () => ({ sourceId: 'video-source',
+				operation: 'shot-detection', shotDetectionMode: 'fast', selectionFence: videoFence,
+				inputs: [{ role: 'video', mediaType: 'video/mp4',
+					bytes: new Blob([new Uint8Array([1, 2, 3])], { type: 'video/mp4' }) }],
+				outputs: [] }),
+			describeSelectedVideoSourceTime: async () => ({ selectionFence: videoFence, descriptor }),
+		},
+	});
+	const indexSettings = defaultAssistanceWorkflowSettingsV1('index-video');
+	if (indexSettings.workflowId !== 'index-video') assert.fail('Index settings changed identity.');
+	const result = await preparation.prepareGuidedWorkflow({ jobId: JOB_ID,
+		workflowId: 'index-video', settings: { ...indexSettings, includeOcr: true }, models: [
+			model('siglip2-base-patch16-224', '1.0.0', 'image-text-embedding', 11),
+			model('pp-ocrv4-det', '1.0.0', 'optical-character-recognition', 12),
+		], custody: fixture.custody, signal: new AbortController().signal });
+	assert.equal(result.outcome, 'prepared');
+	if (result.outcome !== 'prepared') return;
+	assert.deepEqual(result.workflow.inputs.filter(({ stageId }) => stageId === 'sample-shot-frames')
+		.map(({ slotId }) => slotId), ['video', 'video-authority', 'shot-boundaries']);
+	const staged = fixture.stagedBodies.get('video-authority');
+	assert.ok(staged);
+	assert.deepEqual(JSON.parse(new TextDecoder().decode(staged)) as Readonly<Record<string, unknown>>,
+		descriptor);
+});
+
 test('Make Highlights adds Qwen only after explicit editorial rerank opt-in', async () => {
 	const fixture = preparationFixture();
 	const videoProject: FixtureProject = { ...project(),

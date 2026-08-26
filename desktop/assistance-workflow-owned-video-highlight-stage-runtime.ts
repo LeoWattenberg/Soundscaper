@@ -6,7 +6,6 @@ import {
 	ASSISTANCE_BINARY_MAXIMUM_BYTES,
 	ASSISTANCE_FRAME_PACK_MAXIMUM_CHUNK_BYTES,
 	reviewAssistanceEmbeddingMatrixV1,
-	reviewAssistanceFramePackV1,
 } from '../src/common/editor/assistance/binary-formats-v1.ts';
 import { createAssistanceOwnedVideoHighlightTransformRegistryV1 } from
 	'../src/common/editor/assistance/owned-video-highlight-transform-registry-v1.ts';
@@ -40,6 +39,10 @@ import type {
 } from './assistance-workflow-executor.ts';
 import { assertAssistanceOwnedVideoHighlightResultFenceV1 } from
 	'./assistance-workflow-owned-video-highlight-fence.ts';
+import { materializeAssistanceSelectedVideoAuthorityV1 } from
+	'./assistance-selected-video-authority.ts';
+import { assertAssistanceOwnedFramePackMatchesPlanV1 } from
+	'./assistance-owned-frame-pack-materialization.ts';
 
 export const ASSISTANCE_WORKFLOW_OWNED_VIDEO_HIGHLIGHT_STAGE_IDS = Object.freeze([
 	'sample-shot-frames',
@@ -133,7 +136,7 @@ const MAXIMUM_SOURCE_BYTES = 16 * 1024 ** 3;
 const MAXIMUM_HELD_FRAME_PLANS = 128;
 const STAGE_SPECS: Readonly<Record<StageId, StageSpec>> = Object.freeze({
 	'sample-shot-frames': stage('index-video', [input('video', 'video'),
-		input('shot-boundaries', 'json')], 'frame-pack'),
+		input('video-authority', 'json'), input('shot-boundaries', 'json')], 'frame-pack'),
 	'publish-video-index': stage('index-video', [input('visual-embeddings', 'matrix'),
 		input('recognized-text', 'json')], 'video-index'),
 	'track-subjects': stage('reframe', [input('subject-tracks', 'json')], 'tracked-subjects'),
@@ -221,10 +224,17 @@ async function transformInputs(
 ): Promise<Readonly<Record<string, unknown>>> {
 	const values = Object.fromEntries(Object.entries(resolved).map(([slotId, item]) =>
 		[slotId, item?.value ?? null])) as Record<string, unknown>;
-	if (stageId === 'sample-shot-frames' || stageId === 'gather-signals') {
+	if (stageId === 'sample-shot-frames') {
 		const source = requiredResolved(resolved.video, 'video');
-		const purpose = stageId === 'sample-shot-frames' ? 'shot-sampling' : 'highlight-signals';
-		const value = await options.materializer?.resolveVideoSource?.({ purpose, request,
+		values.video = materializeAssistanceSelectedVideoAuthorityV1({
+			value: requiredResolved(resolved['video-authority'], 'video-authority').value,
+			request, videoClaim: source.capture.claim,
+		});
+		delete values['video-authority'];
+	}
+	if (stageId === 'gather-signals') {
+		const source = requiredResolved(resolved.video, 'video');
+		const value = await options.materializer?.resolveVideoSource?.({ purpose: 'highlight-signals', request,
 			source: source.capture, signal });
 		signal.throwIfAborted();
 		if (value === null || value === undefined) unavailable('Video semantic materialization is unavailable.');
@@ -289,7 +299,7 @@ async function prepareOutput(
 		if (materialized === null || materialized === undefined) {
 			unavailable('RGBA frame-pack materialization is unavailable.');
 		}
-		assertFramePackMatchesPlan(materialized, plan);
+		assertAssistanceOwnedFramePackMatchesPlanV1(materialized, plan);
 		chunks = Object.freeze(materialized.map((chunk) => chunk.slice()));
 	} else {
 		if (token.mediaType !== JSON_MEDIA
@@ -421,25 +431,6 @@ function highlightProposals(
 		throw new TypeError('The highlight result changed its transform identity.');
 	}
 	return result.outputs['highlight-proposals'];
-}
-
-function assertFramePackMatchesPlan(
-	chunks: readonly Uint8Array[],
-	plan: AssistanceOwnedFramePackPlanV1,
-): void {
-	const reviewed = reviewAssistanceFramePackV1(chunks);
-	if (reviewed.width !== plan.width || reviewed.height !== plan.height
-		|| reviewed.timescale !== plan.timescale || reviewed.frameCount !== plan.frames.length) {
-		throw new RangeError('Materialized frame-pack geometry disagrees with its deterministic plan.');
-	}
-	for (let index = 0; index < reviewed.frameCount; index += 1) {
-		const frame = reviewed.frame(index);
-		const expected = plan.frames[index]!;
-		if (frame.sourceFrame !== expected.sourceFrame
-			|| frame.presentationTick !== expected.presentationTick) {
-			throw new RangeError('Materialized frame-pack timing disagrees with its deterministic plan.');
-		}
-	}
 }
 
 function validateExecution(stageId: StageId, execution: AssistanceWorkflowStageExecutionV1) {

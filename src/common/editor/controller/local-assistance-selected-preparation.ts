@@ -13,8 +13,14 @@ import {
 } from './local-assistance-selected-media-router.ts';
 import {
 	createLocalAssistanceSelectedVideoPreparation,
+	resolveLocalAssistanceSelectedVideoAuthority,
 	type LocalAssistanceSelectedVideoPrepared,
 } from './local-assistance-selected-video.ts';
+import {
+	createLocalAssistanceSelectedVideoSourceTimeDescriptorV1,
+	type LocalAssistanceSelectedVideoSourceTimeDescriptorV1,
+} from './local-assistance-selected-video-source-time.ts';
+import type { AssistanceSelectionFence } from '../assistance/proposal-session.ts';
 import type { VideoExportOriginalStore } from './video-export-original-loader.ts';
 
 export type LocalAssistanceSelectedVideoStore = VideoExportOriginalStore;
@@ -28,7 +34,9 @@ export function createLocalAssistanceSelectedPreparation(
 	dependencies: LocalAssistanceSelectedPreparationDependencies,
 ): Readonly<LocalAssistanceSelectedMediaPreparationRouter<
 	LocalAssistanceSelectedMediaPrepared,
-	LocalAssistanceSelectedVideoPrepared
+	LocalAssistanceSelectedVideoPrepared,
+	Readonly<{ readonly descriptor: LocalAssistanceSelectedVideoSourceTimeDescriptorV1;
+		readonly selectionFence: AssistanceSelectionFence }>
 >> {
 	const audio = createLocalAssistanceSelectedMediaPreparation({
 		...dependencies,
@@ -36,14 +44,25 @@ export function createLocalAssistanceSelectedPreparation(
 			dependencies.getProject(), dependencies.getSelectedClipId(),
 		),
 	});
-	const video = dependencies.videoStore ? createLocalAssistanceSelectedVideoPreparation({
+	const video = dependencies.videoStore ? videoPreparation(dependencies) : null;
+	return createLocalAssistanceSelectedMediaPreparationRouter({ audio, video });
+}
+
+function videoPreparation(dependencies: LocalAssistanceSelectedPreparationDependencies) {
+	const base = createLocalAssistanceSelectedVideoPreparation({
 		getProject: dependencies.getProject,
 		getSelectedClipId: dependencies.getSelectedClipId,
 		captureProject: dependencies.captureProject,
 		assertProject: dependencies.assertProject,
-		store: dependencies.videoStore,
-	}) : null;
-	return createLocalAssistanceSelectedMediaPreparationRouter({ audio, video });
+		store: dependencies.videoStore!,
+	});
+	return Object.freeze({ ...base, async describeSelectedVideoSourceTime() {
+		const token = dependencies.captureProject();
+		const authority = resolveLocalAssistanceSelectedVideoAuthority(dependencies);
+		const descriptor = createLocalAssistanceSelectedVideoSourceTimeDescriptorV1(authority);
+		dependencies.assertProject(token);
+		return Object.freeze({ descriptor, selectionFence: authority.fence });
+	} });
 }
 
 function selectedOrLinkedAudioClipId(projectValue: unknown, selectedId: string | null): string | null {

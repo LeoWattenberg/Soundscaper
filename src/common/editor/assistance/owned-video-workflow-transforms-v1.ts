@@ -66,22 +66,26 @@ export function sampleOwnedShotFramesV1(
 	if (shots.detector !== expectedDetector) {
 		throw new TypeError('Shot sampling refuses substitution for the authenticated detector mode.');
 	}
-	if (shots.timescale !== video.timescale || shots.sourceFrameCount !== video.frames.length) {
+	if (shots.timescale !== video.timescale || shots.sourceFrameCount < video.sourceEndFrame) {
 		throw new RangeError('Shot sampling disagrees with its exact video source-time authority.');
 	}
-	for (const boundary of shots.boundaries) {
-		if (video.frames[boundary.sourceFrame]?.presentationTick !== boundary.presentationTick) {
+	const boundaries = shots.boundaries.filter(({ sourceFrame }) => (
+		sourceFrame > video.sourceStartFrame && sourceFrame < video.sourceEndFrame
+	));
+	for (const boundary of boundaries) {
+		const exact = frameBySource(video.frames, boundary.sourceFrame);
+		if (exact?.presentationTick !== boundary.presentationTick) {
 			throw new RangeError('A shot boundary disagrees with its exact video source-time authority.');
 		}
 	}
-	const starts = [0, ...shots.boundaries.map(({ sourceFrame }) => sourceFrame)
-		.filter((sourceFrame) => sourceFrame > 0)];
+	const starts = [Object.freeze({ sourceFrame: video.sourceStartFrame,
+		presentationTick: video.frames[0]!.presentationTick }), ...boundaries];
 	const result: AssistanceOwnedFramePackPlanV1['frames'][number][] = [];
-	for (const [shotIndex, startFrame] of starts.entries()) {
-		const endFrame = starts[shotIndex + 1] ?? video.frames.length;
-		const startTick = BigInt(video.frames[startFrame]!.presentationTick);
+	for (const [shotIndex, start] of starts.entries()) {
+		const end = starts[shotIndex + 1];
+		const startTick = BigInt(start.presentationTick);
 		const endTick = shotIndex + 1 < starts.length
-			? BigInt(video.frames[endFrame]!.presentationTick)
+			? BigInt(end!.presentationTick)
 			: BigInt(video.presentationEndTick);
 		const duration = endTick - startTick;
 		if (duration < 1n || duration > BigInt(Number.MAX_SAFE_INTEGER)) {
@@ -93,7 +97,10 @@ export function sampleOwnedShotFramesV1(
 		], video.timescale);
 		for (const anchor of anchors) {
 			const targetTick = startTick + BigInt(anchor.sourceFrame);
-			const source = firstFrameAtOrAfter(video.frames, startFrame, endFrame, targetTick);
+			const source = firstFrameAtOrAfter(video.frames,
+				firstFrameIndexAtOrAfter(video.frames, start.sourceFrame),
+				end ? firstFrameIndexAtOrAfter(video.frames, end.sourceFrame) : video.frames.length,
+				targetTick);
 			if (result.at(-1)?.sourceFrame === source.sourceFrame) continue;
 			result.push(Object.freeze({ resultId: `visual-sample:${String(result.length)}`,
 				shotId, anchor: anchor.anchor, sourceFrame: source.sourceFrame,
@@ -103,6 +110,28 @@ export function sampleOwnedShotFramesV1(
 	return reviewOwnedFramePackPlanV1({ schemaVersion: 1, kind: 'frame-pack-plan',
 		sourceId: video.sourceId, width: video.width, height: video.height,
 		timescale: video.timescale, frames: result });
+}
+
+function frameBySource(
+	frames: ReturnType<typeof reviewOwnedVideoSourceTimeAuthorityV1>['frames'],
+	sourceFrame: number,
+) {
+	const index = firstFrameIndexAtOrAfter(frames, sourceFrame);
+	return frames[index]?.sourceFrame === sourceFrame ? frames[index] : null;
+}
+
+function firstFrameIndexAtOrAfter(
+	frames: ReturnType<typeof reviewOwnedVideoSourceTimeAuthorityV1>['frames'],
+	sourceFrame: number,
+): number {
+	let low = 0;
+	let high = frames.length;
+	while (low < high) {
+		const middle = low + Math.floor((high - low) / 2);
+		if (frames[middle]!.sourceFrame < sourceFrame) low = middle + 1;
+		else high = middle;
+	}
+	return low;
 }
 
 export function publishOwnedVideoIndexV1(

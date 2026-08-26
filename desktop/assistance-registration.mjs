@@ -26,6 +26,7 @@ import { createAssistanceHelperRuntimeAdapter } from './project-library-runtime/
 import { createAssistanceJobHost } from './project-library-runtime/desktop/assistance-job-host.js';
 import { assistanceServiceFrom, registerAssistanceIpc } from './project-library-runtime/desktop/assistance-main-ipc.js';
 import { createExternalFfmpegAssistanceShotRuntimeAdapter } from './project-library-runtime/desktop/assistance-external-ffmpeg-shot-runtime.js';
+import { createExternalFfmpegAssistanceVideoMaterializer } from './project-library-runtime/desktop/assistance-external-ffmpeg-video-materializer.js';
 import { ASSISTANCE_OPERATION_IPC_CHANNELS, registerAssistanceOperationIpc } from './project-library-runtime/desktop/assistance-operation-main-ipc.js';
 import { createAssistanceOperationService } from './project-library-runtime/desktop/assistance-operation-service.js';
 import { createAssistanceRuntimeFamilyDesktopStartup } from './project-library-runtime/desktop/assistance-runtime-family-startup.js';
@@ -259,8 +260,12 @@ export function registerAssistance({
 		custody: workflowCustody,
 		resolveTokenizer: resolveNomicTokenizer,
 	});
+	const videoMaterializer = createExternalFfmpegAssistanceVideoMaterializer({
+		preferences: externalFfmpegPreferences,
+	});
 	const videoHighlightHandlers = createAssistanceWorkflowOwnedVideoHighlightStageRuntime({
 		custody: workflowCustody,
+		materializer: videoMaterializer,
 	});
 	const deterministicHandlers = Object.freeze({
 		...audioCutHandlers,

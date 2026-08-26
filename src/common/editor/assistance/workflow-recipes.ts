@@ -137,7 +137,7 @@ const GUIDED_GRAPHS = Object.freeze({
 			inputs: [], optionalInputs: ['video', 'frame-pack'], outputs: ['shot-boundaries'],
 			optionalModels: ['accurate-shot-detector'] }),
 		stage({ stageId: 'sample-shot-frames', operation: null, after: ['detect-shots'],
-			inputs: ['video', 'shot-boundaries'], outputs: ['frame-pack'] }),
+			inputs: ['video', 'video-authority', 'shot-boundaries'], outputs: ['frame-pack'] }),
 		stage({ stageId: 'embed-visuals', operation: 'image-text-embedding', after: ['sample-shot-frames'],
 			inputs: ['frame-pack'], outputs: ['visual-embeddings'], models: ['visual-embedder'] }),
 		stage({ stageId: 'recognize-text', operation: 'optical-character-recognition',

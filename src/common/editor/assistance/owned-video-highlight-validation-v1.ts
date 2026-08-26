@@ -31,7 +31,7 @@ const INVALID_TITLE = /(?:[\p{Cc}\p{Cf}\p{Zl}\p{Zp}`{}\\]|<[^>]*>|```|\[[^\]]*\]
 
 const SOURCE_FIELDS = Object.freeze([
 	'schemaVersion', 'kind', 'sourceId', 'width', 'height', 'timescale',
-	'presentationEndTick', 'frames',
+	'sourceStartFrame', 'sourceEndFrame', 'presentationEndTick', 'frames',
 ] as const);
 const SOURCE_FRAME_FIELDS = Object.freeze([
 	'sourceFrame', 'presentationTick', 'timelineFrame',
@@ -83,7 +83,12 @@ export function reviewOwnedVideoSourceTimeAuthorityV1(
 	const sourceId = stableId(row.sourceId, 'video source ID');
 	const width = ownedInteger(row.width, 1, 4_096, 'video source width');
 	const height = ownedInteger(row.height, 1, 4_096, 'video source height');
+	const sourceStartFrame = ownedInteger(row.sourceStartFrame, 0, 0xffff_ffff,
+		'video selected source start');
+	const sourceEndFrame = ownedInteger(row.sourceEndFrame, sourceStartFrame + 1, 0xffff_ffff,
+		'video selected source end');
 	const timescale = ownedInteger(row.timescale, 1, 0x7fff_ffff, 'video source timescale');
+	let priorSource = sourceStartFrame - 1;
 	let priorTick = -1n;
 	let priorTimeline = -1;
 	const frames = ownedArray(row.frames, VIDEO_TIMING_ASSET_MAXIMUM_FRAMES,
@@ -92,8 +97,8 @@ export function reviewOwnedVideoSourceTimeAuthorityV1(
 		const frame = ownedExactRecord(candidate, SOURCE_FRAME_FIELDS, label);
 		const sourceFrame = ownedInteger(frame.sourceFrame, 0, 0xffff_ffff,
 			`${label} source ordinal`);
-		if (sourceFrame !== index) {
-			throw new RangeError('Video source-time authority must bind every source ordinal once.');
+		if (sourceFrame <= priorSource || sourceFrame >= sourceEndFrame) {
+			throw new RangeError('Video source-time authority must remain inside its selected range.');
 		}
 		const presentationTick = canonicalTick(frame.presentationTick, `${label} presentation tick`);
 		const tick = BigInt(presentationTick);
@@ -103,16 +108,21 @@ export function reviewOwnedVideoSourceTimeAuthorityV1(
 			throw new RangeError('Video source-time authority must remain forward and monotonic.');
 		}
 		priorTick = tick;
+		priorSource = sourceFrame;
 		priorTimeline = timelineFrame;
 		return Object.freeze({ sourceFrame, presentationTick, timelineFrame });
 	});
+	if (frames[0]!.sourceFrame !== sourceStartFrame) {
+		throw new RangeError('Video source-time authority must bind its selected start frame.');
+	}
 	const presentationEndTick = canonicalTick(row.presentationEndTick,
 		'video source presentation end tick');
 	if (BigInt(presentationEndTick) <= priorTick) {
 		throw new RangeError('Video source presentation end must follow its final frame.');
 	}
 	return Object.freeze({ schemaVersion: 1, kind: 'video-source-time-authority',
-		sourceId, width, height, timescale, presentationEndTick, frames: Object.freeze(frames) });
+		sourceId, width, height, sourceStartFrame, sourceEndFrame, timescale,
+		presentationEndTick, frames: Object.freeze(frames) });
 }
 
 export function reviewOwnedFramePackPlanV1(value: unknown): AssistanceOwnedFramePackPlanV1 {
