@@ -13,7 +13,7 @@ import {
 } from '../src/common/editor/history.js';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 
-const WORKLOAD_ID = 'm3-longform-editorial-2h-v1';
+const WORKLOAD_ID = 'm3-longform-editorial-2h-v2';
 const METRIC_ID = 'editorial.retainedHeapDeltaBytes';
 const CHILD_FLAG = 'SOUNDSCAPER_MEASURE_M3_FOUNDATION_HISTORY';
 
@@ -30,7 +30,7 @@ if (process.env[CHILD_FLAG] === '1') {
 			localDiagnosticCommand: 'npm run quality:collect:m3-longform',
 			routineBrowserTestBehavior: 'skip-with-explicit-collector',
 			qualificationPublication: 'accepted-only-after-qualified-environment-and-digest-bound-verification',
-			generatorRevision: 1,
+			generatorRevision: 2,
 			seed: 1_554_098_974,
 			durationSeconds: 7_200,
 			sampleRate: 48_000,
@@ -47,7 +47,7 @@ if (process.env[CHILD_FLAG] === '1') {
 			},
 			seekCheckpointsSamples: [0, 2_880_000, 86_400_000, 172_800_000, 345_552_000],
 			scrollFrameIntervalSampleCount: 240,
-			projectSha256: '4c96e2405d63ff282a28a6577c9da32d3598183e5ad59131cb3ca1977df34427',
+			projectSha256: 'f971f162d4d018e3685fec751a2277a93fe898d91334c145d307e3329c5131f3',
 			editPlanSha256: '2167cb31e4ff5454c6443c40904aadc12ae9cb2ca7cb22addee906f71a1fcadf',
 		});
 		assert.deepEqual(threshold, {

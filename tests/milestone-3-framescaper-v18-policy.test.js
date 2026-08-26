@@ -141,7 +141,7 @@ test('milestone 3 closure blockers remain explicit and unpromoted', async () => 
 	);
 	assert.equal(m3Profile.status, 'pending-external');
 	assert.equal(m3Profile.environmentId, 'owner-qualified-windows-x64-rtx3090-01');
-	assert.equal(byId(budgets.fixtures, 'm3-longform-editorial-2h-v1').status, 'provisional');
+	assert.equal(byId(budgets.fixtures, 'm3-longform-editorial-2h-v2').status, 'provisional');
 	assert.equal(byId(budgets.workloads, 'm3-longform-editorial').status, 'provisional');
 
 	const compatibility = await json('config/project-compatibility.json');

@@ -3,14 +3,14 @@
 import type { AudioEditorCommand } from '../commands/protocol.ts';
 import { resolveRuntimeClipProjection } from '../runtime-clip-projection.ts';
 import { sampleFrameToVideoFrame } from '../timeline-time.ts';
-import { applySoundscaperProjectCommandV23 } from '../../../soundscaper/editor-project-v23-commands.ts';
+import { applySoundscaperProjectCommandV30 } from '../../../soundscaper/editor-project-v30-commands.ts';
 import {
-	createSoundscaperProjectV23,
-	type SoundscaperProjectV23,
-} from '../../../soundscaper/editor-project-v23.ts';
+	createSoundscaperProjectV30,
+	type SoundscaperProjectV30,
+} from '../../../soundscaper/editor-project-v30.ts';
 
 export const M3_LONGFORM_EDITORIAL_WORKLOAD_ID = 'm3-longform-editorial';
-export const M3_LONGFORM_EDITORIAL_FIXTURE_ID = 'm3-longform-editorial-2h-v1';
+export const M3_LONGFORM_EDITORIAL_FIXTURE_ID = 'm3-longform-editorial-2h-v2';
 export const M3_LONGFORM_EDITORIAL_PROFILE = 'deterministic-two-hour-editorial-v1';
 
 const SAMPLE_RATE = 48_000;
@@ -28,7 +28,7 @@ const VIDEO_FRAME_SAMPLES = SAMPLE_RATE / VIDEO_RATE.num;
 const EDIT_SEED = 1_554_098_974;
 
 export interface M3LongformEditorialSpecification {
-	readonly generatorRevision: 1;
+	readonly generatorRevision: 2;
 	readonly seed: number;
 	readonly durationSeconds: number;
 	readonly sampleRate: number;
@@ -72,7 +72,7 @@ export interface M3LongformEditorialPositionCheck extends M3LongformEditorialExp
 }
 
 export const M3_LONGFORM_EDITORIAL_SPECIFICATION: M3LongformEditorialSpecification = Object.freeze({
-	generatorRevision: 1,
+	generatorRevision: 2,
 	seed: EDIT_SEED,
 	durationSeconds: DURATION_SECONDS,
 	sampleRate: SAMPLE_RATE,
@@ -95,12 +95,12 @@ export const M3_LONGFORM_EDITORIAL_SPECIFICATION: M3LongformEditorialSpecificati
 		DURATION_SAMPLES - SAMPLE_RATE,
 	]),
 	scrollFrameIntervalSampleCount: 240,
-	expectedProjectSha256: '4c96e2405d63ff282a28a6577c9da32d3598183e5ad59131cb3ca1977df34427',
+	expectedProjectSha256: 'f971f162d4d018e3685fec751a2277a93fe898d91334c145d307e3329c5131f3',
 	expectedEditPlanSha256: '2167cb31e4ff5454c6443c40904aadc12ae9cb2ca7cb22addee906f71a1fcadf',
 });
 
 /** Create the deterministic current-schema media graph before editorial commands. */
-export function createM3LongformEditorialBaseProject(): SoundscaperProjectV23 {
+export function createM3LongformEditorialBaseProject(): SoundscaperProjectV30 {
 	const sources: Record<string, unknown>[] = [];
 	const clips: Record<string, unknown>[] = [];
 	const tracks: Record<string, unknown>[] = [];
@@ -173,7 +173,7 @@ export function createM3LongformEditorialBaseProject(): SoundscaperProjectV23 {
 			clipIds: [clipId],
 		});
 	}
-	return createSoundscaperProjectV23({
+	return createSoundscaperProjectV30({
 		id: M3_LONGFORM_EDITORIAL_FIXTURE_ID,
 		title: 'Milestone 3 two-hour editorial workload',
 		createdAt: '1970-01-01T00:00:00.000Z',
@@ -259,12 +259,12 @@ export function createM3LongformEditorialEditPlan(): M3LongformEditorialEditPlan
 
 /** Replay the complete plan through ordinary command batches with deterministic commit times. */
 export function applyM3LongformEditorialEditPlan(
-	project: SoundscaperProjectV23,
+	project: SoundscaperProjectV30,
 	plan: M3LongformEditorialEditPlan,
-): SoundscaperProjectV23 {
+): SoundscaperProjectV30 {
 	let next = project;
 	for (let offset = 0; offset < plan.commands.length; offset += COMMANDS_PER_TRANSACTION) {
-		next = applySoundscaperProjectCommandV23(next, {
+		next = applySoundscaperProjectCommandV30(next, {
 			type: 'batch',
 			commands: plan.commands.slice(offset, offset + COMMANDS_PER_TRANSACTION),
 		}, { now: new Date(offset) });
@@ -274,7 +274,7 @@ export function applyM3LongformEditorialEditPlan(
 
 /** Compare the final persisted/runtime coordinates with the plan's independent oracle. */
 export function resolveM3LongformEditorialPositionChecks(
-	project: SoundscaperProjectV23,
+	project: SoundscaperProjectV30,
 	plan: M3LongformEditorialEditPlan,
 ): readonly M3LongformEditorialPositionCheck[] {
 	const clipById = new Map(project.clips.map((clip) => [String(clip.id), clip]));
@@ -300,7 +300,7 @@ export function resolveM3LongformEditorialPositionChecks(
 export function createM3LongformEditorialWorkload(): Readonly<{
 	readonly specification: M3LongformEditorialSpecification;
 	readonly editPlan: M3LongformEditorialEditPlan;
-	readonly project: SoundscaperProjectV23;
+	readonly project: SoundscaperProjectV30;
 	readonly positionChecks: readonly M3LongformEditorialPositionCheck[];
 }> {
 	const editPlan = createM3LongformEditorialEditPlan();

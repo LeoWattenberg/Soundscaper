@@ -137,7 +137,7 @@
 				"environmentId": "owner-qualified-windows-x64-rtx3090-01",
 				"observedEnvironmentId": "packaged-runtime-win32-x64",
 				"workloadId": "m3-longform-editorial",
-				"fixtureId": "m3-longform-editorial-2h-v1",
+				"fixtureId": "m3-longform-editorial-2h-v2",
 				"profile": "deterministic-two-hour-editorial-v1",
 				"observationClass": "decoded-media-av-scheduling-v1",
 				"rendererClass": "hardware",
@@ -155,7 +155,7 @@
 					"displayMode": null
 				},
 				"fixture": {
-					"generatorRevision": 1,
+					"generatorRevision": 2,
 					"seed": 1554098974,
 					"durationSeconds": 7200,
 					"sampleRate": 48000,
@@ -170,7 +170,7 @@
 						"selectionChanges": 2500,
 						"trackMixChanges": 2500
 					},
-					"projectSha256": "4c96e2405d63ff282a28a6577c9da32d3598183e5ad59131cb3ca1977df34427",
+					"projectSha256": "f971f162d4d018e3685fec751a2277a93fe898d91334c145d307e3329c5131f3",
 					"editPlanSha256": "2167cb31e4ff5454c6443c40904aadc12ae9cb2ca7cb22addee906f71a1fcadf"
 				},
 				"rawSampleCounts": {
@@ -1049,7 +1049,7 @@
 			]
 		},
 		{
-			"id": "m3-longform-editorial-2h-v1",
+			"id": "m3-longform-editorial-2h-v2",
 			"milestones": ["3"],
 			"status": "provisional",
 			"kind": "deterministic-current-schema-project-generator",
@@ -1057,7 +1057,7 @@
 				"localDiagnosticCommand": "npm run quality:collect:m3-longform",
 				"routineBrowserTestBehavior": "skip-with-explicit-collector",
 				"qualificationPublication": "accepted-only-after-qualified-environment-and-digest-bound-verification",
-				"generatorRevision": 1,
+				"generatorRevision": 2,
 				"seed": 1554098974,
 				"durationSeconds": 7200,
 				"sampleRate": 48000,
@@ -1074,7 +1074,7 @@
 				},
 				"seekCheckpointsSamples": [0, 2880000, 86400000, 172800000, 345552000],
 				"scrollFrameIntervalSampleCount": 240,
-				"projectSha256": "4c96e2405d63ff282a28a6577c9da32d3598183e5ad59131cb3ca1977df34427",
+				"projectSha256": "f971f162d4d018e3685fec751a2277a93fe898d91334c145d307e3329c5131f3",
 				"editPlanSha256": "2167cb31e4ff5454c6443c40904aadc12ae9cb2ca7cb22addee906f71a1fcadf"
 			},
 			"limitation": "The deterministic current-schema project and 10,000-command replay establish structural shape and exact persisted/runtime positions. The opt-in browser harness decodes both repository-owned VP8/Opus fixtures and samples their AudioContext and requestVideoFrameCallback presentation clocks while measuring seek, scroll and retained heap in the same long-form session. Formal acceptance is emitted only by nightly packaged-runtime verification when the complete diagnostic matches the owner-designated host profile exactly.",
@@ -1518,7 +1518,7 @@
 			"id": "m3-longform-editorial",
 			"milestone": "3",
 			"status": "provisional",
-			"fixtureIds": ["m3-longform-editorial-2h-v1"],
+			"fixtureIds": ["m3-longform-editorial-2h-v2"],
 			"environmentIds": ["owner-qualified-windows-x64-rtx3090-01"],
 			"thresholds": [
 				{ "metricId": "editorial.audioPositionErrorSamples", "comparison": "eq", "value": 0, "unit": "samples" },

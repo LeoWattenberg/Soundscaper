@@ -682,11 +682,6 @@ The safe progression is:
    consolidated result artifact.
 5. Add device/native labs only when the corresponding milestone contracts land.
 
-Generated results belong under ignored `test-results/` and should be uploaded as
-CI artifacts. An accepted summary can be reviewed and versioned separately, but
-raw generated `test-results`, `playwright-report`, or coverage content must not
-be committed.
-
 ### Milestone 6 reference master, and its vertical companion
 
 `m6-reference-master-suite-v1` specifies a ten-minute 1280x720 video master
@@ -715,6 +710,36 @@ including, now, each unbuilt fixture by name.
 
 Reviewing commit: the milestone 6B-5 exit-evidence change that introduced
 `m6-reference-master-vertical-v1`.
+
+### Milestone 3 long-form editorial, revised to the maintained schema
+
+`m3-longform-editorial-2h-v1` generated its two-hour project at Soundscaper
+project schema V23 while the maintained product had moved to V30. Its declared
+kind is `deterministic-current-schema-project-generator`, and the browser
+harness seeds the generated document straight into the project store rather than
+through an import that could migrate it, so the maintained product refused the
+fixture outright with `Soundscaper V30 project.nativePluginStates is required`.
+The workload was therefore uncollectable: no M3 long-form diagnostic could be
+produced on any host, qualified or not.
+
+`m3-longform-editorial-2h-v2` replaces it — a fixture change is a new fixture
+revision, never a silent edit to an existing baseline. Nothing about the
+workload's shape moved: the same seed, duration, sample rate, frame rate, track
+counts, edit count and transaction size, and the identical 10,000-command edit
+plan whose `editPlanSha256` is unchanged, because the plan is commands and never
+depended on the project schema. What changed is that the generator builds and
+replays through the V30 project owner, so `generatorRevision` is `2` and
+`projectSha256` is `f971f162d4d018e3685fec751a2277a93fe898d91334c145d307e3329c5131f3`.
+No threshold moved, and the workload stays `provisional`; the fixed-GPU profile
+that admits it remains `pending-external`.
+
+The revision was found by running the opt-in metric specs on a hosted runner
+for the first time. `tests/audio-editor-m3-longform-editorial-workload.test.ts`
+pins the fixture to the newest declared Soundscaper schema so the next schema
+bump fails there rather than silently rotting the fixture again.
+
+Reviewing commit: the change that moved the long-form generator onto the
+maintained Soundscaper project schema.
 
 ## Changing a threshold
 

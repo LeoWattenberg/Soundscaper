@@ -85,7 +85,7 @@ test('the owner-designated packaged Windows host independently qualifies M3 long
 		{
 			diagnosticKey: 'm3-longform-editorial',
 			workloadId: 'm3-longform-editorial',
-			fixtureId: 'm3-longform-editorial-2h-v1',
+			fixtureId: 'm3-longform-editorial-2h-v2',
 			profile: 'deterministic-two-hour-editorial-v1',
 			observationClass: 'decoded-media-av-scheduling-v1',
 			metricIds: ['editorial.audioPositionErrorSamples', 'editorial.videoPositionErrorFrames',
@@ -116,7 +116,7 @@ test('formal workload qualification fails closed for fixture and raw sample-coun
 	const definition = {
 		diagnosticKey: 'm3-longform-editorial',
 		workloadId: 'm3-longform-editorial',
-		fixtureId: 'm3-longform-editorial-2h-v1',
+		fixtureId: 'm3-longform-editorial-2h-v2',
 		profile: 'deterministic-two-hour-editorial-v1',
 		observationClass: 'decoded-media-av-scheduling-v1',
 		metricIds: ['editorial.audioPositionErrorSamples'],
@@ -252,7 +252,7 @@ test('the quality register keeps the fixed-GPU profiles open until full owner id
 		forcedCollectionsBefore: 3,
 		forcedCollectionsAfter: 3,
 	});
-	assert.equal(profiles[1].fixture.generatorRevision, 1);
+	assert.equal(profiles[1].fixture.generatorRevision, 2);
 	assert.equal(profiles[2].fingerprint.gpuDriverVersion, null);
 	assert.deepEqual(profiles[3].rawSampleCounts, {
 		cases: 4,

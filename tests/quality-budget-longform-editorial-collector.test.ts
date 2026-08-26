@@ -26,7 +26,7 @@ const FINGERPRINT = Object.freeze({
 });
 
 const expectedFixture = Object.freeze({
-	generatorRevision: 1,
+	generatorRevision: 2,
 	seed: 1_554_098_974,
 	durationSeconds: 7_200,
 	sampleRate: 48_000,
@@ -41,7 +41,7 @@ const expectedFixture = Object.freeze({
 		selectionChanges: 2_500,
 		trackMixChanges: 2_500,
 	}),
-	projectSha256: '4c96e2405d63ff282a28a6577c9da32d3598183e5ad59131cb3ca1977df34427',
+	projectSha256: 'f971f162d4d018e3685fec751a2277a93fe898d91334c145d307e3329c5131f3',
 	editPlanSha256: '2167cb31e4ff5454c6443c40904aadc12ae9cb2ca7cb22addee906f71a1fcadf',
 });
 
@@ -52,7 +52,7 @@ function makeDiagnostic() {
 		profile: 'deterministic-two-hour-editorial-v1',
 		observationClass: 'decoded-media-av-scheduling-v1',
 		workloadId: 'm3-longform-editorial',
-		fixtureId: 'm3-longform-editorial-2h-v1',
+		fixtureId: 'm3-longform-editorial-2h-v2',
 		environmentId: 'packaged-runtime-win32-x64',
 		rendererClass: 'hardware',
 		environmentFingerprint: FINGERPRINT,
@@ -230,7 +230,7 @@ test('the registered runnable harness delegates formal acceptance to packaged ni
 			fingerprint: Record<string, unknown>;
 		}>;
 	};
-	const fixture = quality.fixtures.find(({ id }) => id === 'm3-longform-editorial-2h-v1');
+	const fixture = quality.fixtures.find(({ id }) => id === 'm3-longform-editorial-2h-v2');
 	const workload = quality.workloads.find(({ id }) => id === 'm3-longform-editorial');
 	const environment = quality.environments.find(({ id }) => id === QUALIFICATION_ENVIRONMENT_ID);
 	const profile = (quality as typeof quality & {

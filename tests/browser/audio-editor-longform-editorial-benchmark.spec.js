@@ -57,7 +57,7 @@ test('collects the opt-in two-hour editorial diagnostic without qualifying the h
 	else await bootEditor(page, '/embed/en/');
 	await seedProject(page, workload.project);
 	await page.reload();
-	const editor = await waitForEditor(page);
+	const editor = await waitForSeededEditor(page);
 	await expect(editor.locator('.application-header__windows-title'))
 		.toContainText('Milestone 3 two-hour editorial workload');
 	await expect(editor).toHaveAttribute('data-track-count', '26');
@@ -217,6 +217,29 @@ async function measureDecodedAvDrift(page) {
 		}
 		return samples;
 	}, fixtures);
+}
+
+// The long-form fixture declares 26 two-hour sources without local media,
+// because not one of the six registered metrics reads their bytes: positions
+// are structural, A/V drift is measured from separate probe fixtures, and seek,
+// scroll and retained heap are properties of the editor. The seeded editor
+// therefore settles on the missing-source notice rather than `success`. Accept
+// exactly that notice, so any other error still fails the benchmark.
+const MISSING_SOURCES_NOTICE = 'Some local audio sources are missing.';
+
+async function waitForSeededEditor(page) {
+	const editor = page.locator('[data-audio-editor]');
+	await expect(editor).toBeVisible({ timeout: 20_000 });
+	await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true', { timeout: 20_000 });
+	const status = editor.locator('[data-status]');
+	await expect.poll(async () => {
+		const state = await status.getAttribute('data-state');
+		if (state !== 'error') return state;
+		return (await status.textContent())?.includes(MISSING_SOURCES_NOTICE) === true
+			? 'missing-sources'
+			: 'error';
+	}, { timeout: 30_000 }).toMatch(/^(?:success|missing-sources)$/u);
+	return editor;
 }
 
 async function seedProject(page, project) {
