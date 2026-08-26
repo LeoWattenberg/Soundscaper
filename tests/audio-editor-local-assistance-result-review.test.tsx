@@ -13,6 +13,8 @@ import {
 	reviewLocalAssistanceOutput,
 	type LocalAssistanceOutputReview,
 } from '../src/common/editor/ui/local-assistance-result-review.ts';
+import { createAssistanceEmbeddingMatrixV1 } from
+	'../src/common/editor/assistance/binary-formats-v1.ts';
 import LocalAssistanceOutputReviewList from
 	'../src/common/editor/ui/dialogs/LocalAssistanceOutputReview.tsx';
 
@@ -82,6 +84,76 @@ test('shot-boundary review admits exact source ordinals and renders detector evi
 	assert.match(markup, /90090\/90000/u);
 });
 
+test('word alignment, excitement tags, and beats receive bounded semantic review', async () => {
+	const alignment = await review('word-alignment', {
+		schemaVersion: 1, sampleRate: 16_000,
+		words: [{ segmentIndex: 0, wordIndex: 0, text: 'Aligned', startSample: 100,
+			endSample: 1_600, confidence: 0.8 }],
+	});
+	assert.equal(alignment.kind, 'word-alignment');
+	assert.match(render(alignment, 'word-alignment'), /Aligned.*100–1600 samples.*80%/su);
+
+	const tags = await review('audio-tags', {
+		schemaVersion: 1, sampleRate: 32_000, windowSamples: 32_000,
+		windows: [{ startSample: 0, scores: { laughter: 0.75, applause: 0.2, cheering: 0 } }],
+	});
+	assert.equal(tags.kind, 'audio-tags');
+	assert.match(render(tags, 'audio-tags'), /Laughter 75%.*Applause 20%.*Cheering 0%/su);
+
+	const beats = await review('beat-grid', {
+		schemaVersion: 1, sampleRate: 22_050,
+		points: [{ sample: 0, kind: 'downbeat', confidence: 0.9 }],
+		tempoProposal: { kind: 'constant', bpm: 120 },
+	});
+	assert.equal(beats.kind, 'beat-grid');
+	assert.match(render(beats, 'beat-grid'), /Downbeat.*sample 0.*90%.*120 BPM/su);
+});
+
+test('binary embedding matrices receive normalized dimensional review', async () => {
+	const bytes = createAssistanceEmbeddingMatrixV1({
+		dimensions: 3,
+		vectors: [[1, 0, 0], [0, 1, 0]],
+	});
+	const body = new Blob([bytes], { type: 'application/vnd.soundscaper.embedding-matrix-v1' });
+	const reviewed = await reviewLocalAssistanceOutput(
+		claim('embeddings', body.type, body), body,
+	);
+	assert.equal(reviewed.kind, 'embeddings');
+	assert.match(render(reviewed, 'embeddings'), /2 normalized vectors.*3 dimensions/u);
+});
+
+test('editorial review admits known identities only and renders generated fields as text', async () => {
+	const value = {
+		schemaVersion: 1,
+		candidates: [{
+			candidateId: 'candidate-2', title: 'A compact title', hook: 'Start here',
+			chapters: ['Opening', 'Payoff'], explanation: 'Known evidence supports this order.',
+		}, {
+			candidateId: 'candidate-1', title: null, hook: null, chapters: [], explanation: null,
+		}],
+	};
+	const bytes = new TextEncoder().encode(JSON.stringify(value));
+	const body = new Blob([bytes], { type: 'application/vnd.soundscaper.editorial-proposal+json' });
+	const reviewed = await reviewLocalAssistanceOutput(
+		claim('editorial-proposal', body.type, body), body,
+		{ editorialCandidateIds: ['candidate-1', 'candidate-2'] },
+	);
+	assert.equal(reviewed.kind, 'editorial-proposal');
+	const markup = render(reviewed, 'editorial-proposal');
+	assert.match(markup, /A compact title/u);
+	assert.match(markup, /Start here/u);
+	assert.match(markup, /Opening/u);
+	assert.match(markup, /Known evidence supports this order/u);
+
+	await assert.rejects(reviewLocalAssistanceOutput(
+		claim('editorial-proposal', body.type, body), body,
+		{ editorialCandidateIds: ['candidate-1', 'candidate-3'] },
+	), /unknown candidate/iu);
+	await assert.rejects(reviewLocalAssistanceOutput(
+		claim('editorial-proposal', body.type, body), body,
+	), /candidate authority/iu);
+});
+
 test('voice-activity review rejects inexact JSON, rates, and unsafe or overlapping geometry', async () => {
 	await assert.rejects(reviewBytes('voice-activity', new Uint8Array([0xc3, 0x28])),
 		/valid UTF-8 JSON/u);
@@ -133,14 +205,16 @@ test('semantic review requires the output role-specific JSON media type', async 
 });
 
 async function review(
-	role: 'voice-activity' | 'speaker-turns' | 'shot-boundaries',
+	role: 'voice-activity' | 'speaker-turns' | 'shot-boundaries'
+		| 'word-alignment' | 'audio-tags' | 'beat-grid',
 	value: unknown,
 ): Promise<LocalAssistanceOutputReview> {
 	return reviewBytes(role, new TextEncoder().encode(JSON.stringify(value)));
 }
 
 async function reviewBytes(
-	role: 'voice-activity' | 'speaker-turns' | 'shot-boundaries',
+	role: 'voice-activity' | 'speaker-turns' | 'shot-boundaries'
+		| 'word-alignment' | 'audio-tags' | 'beat-grid',
 	bytes: Uint8Array,
 ): Promise<LocalAssistanceOutputReview> {
 	const buffer = new ArrayBuffer(bytes.byteLength);

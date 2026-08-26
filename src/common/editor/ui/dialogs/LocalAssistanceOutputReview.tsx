@@ -73,6 +73,73 @@ function SemanticReview({ copy, review }: Readonly<{
 			</li>)}
 		</ol>;
 	}
+	if (review.kind === 'word-alignment') {
+		return <ol className="kw-local-assistance__word-alignment"
+			aria-label={text(copy, 'localAssistanceWordAlignment', 'Word alignment')}>
+			{review.words.map((word) => <li key={`${word.segmentIndex}:${word.wordIndex}`}>
+				<span>{word.text}</span>
+				<small>{template(text(copy, 'localAssistanceAlignedWordRange',
+					'{start}–{end} samples · {confidence}'), {
+					start: String(word.startSample), end: String(word.endSample),
+					confidence: word.confidence === null
+						? text(copy, 'localAssistanceConfidenceUnreported', 'confidence unreported')
+						: `${formatPercent(word.confidence)}%`,
+				})}</small>
+			</li>)}
+		</ol>;
+	}
+	if (review.kind === 'audio-tags') {
+		return <ol className="kw-local-assistance__audio-tags"
+			aria-label={text(copy, 'localAssistanceExcitementScores', 'Excitement scores')}>
+			{review.windows.map((window) => <li key={window.startSample}>
+				<span>{template(text(copy, 'localAssistanceExcitementWindow', 'Window {start} s'), {
+					start: formatSeconds(window.startSample / review.sampleRate),
+				})}</span>
+				<small>{template(text(copy, 'localAssistanceExcitementWindowScores',
+					'Laughter {laughter}% · Applause {applause}% · Cheering {cheering}%'), {
+					laughter: formatPercent(window.scores.laughter),
+					applause: formatPercent(window.scores.applause),
+					cheering: formatPercent(window.scores.cheering),
+				})}</small>
+			</li>)}
+		</ol>;
+	}
+	if (review.kind === 'beat-grid') {
+		return <div className="kw-local-assistance__beat-grid">
+			<ol aria-label={text(copy, 'localAssistanceBeatPoints', 'Beat and downbeat points')}>
+				{review.points.map((point) => <li key={`${point.sample}:${point.kind}`}>
+					<span>{template(text(copy, 'localAssistanceBeatPoint', '{kind} · sample {sample}'), {
+						kind: point.kind === 'downbeat'
+							? text(copy, 'localAssistanceDownbeat', 'Downbeat')
+							: text(copy, 'localAssistanceBeat', 'Beat'),
+						sample: String(point.sample),
+					})}</span>
+					<small>{point.confidence === null
+						? text(copy, 'localAssistanceConfidenceUnreported', 'confidence unreported')
+						: `${formatPercent(point.confidence)}%`}</small>
+				</li>)}
+			</ol>
+			{review.tempoProposal && <p>{tempoSummary(copy, review.tempoProposal)}</p>}
+		</div>;
+	}
+	if (review.kind === 'embeddings') {
+		return <p className="kw-local-assistance__embeddings">{template(text(copy,
+			'localAssistanceEmbeddingSummary', '{rows} normalized vectors · {dimensions} dimensions'), {
+			rows: String(review.rowCount), dimensions: String(review.dimensions),
+		})}</p>;
+	}
+	if (review.kind === 'editorial-proposal') {
+		return <ol className="kw-local-assistance__editorial"
+			aria-label={text(copy, 'localAssistanceEditorialProposals', 'Editorial proposals')}>
+			{review.candidates.map((candidate) => <li key={candidate.candidateId}>
+				<strong>{candidate.title ?? candidate.candidateId}</strong>
+				{candidate.hook && <p>{candidate.hook}</p>}
+				{candidate.chapters.length > 0 && <ul>{candidate.chapters.map((chapter, index) =>
+					<li key={`${candidate.candidateId}:chapter:${index}`}>{chapter}</li>)}</ul>}
+				{candidate.explanation && <small>{candidate.explanation}</small>}
+			</li>)}
+		</ol>;
+	}
 	return <ol className="kw-local-assistance__speaker-turns"
 		aria-label={text(copy, 'localAssistanceSpeakerTurns', 'Speaker turns')}>
 		{review.turns.map((turn, index) => <li
@@ -83,6 +150,18 @@ function SemanticReview({ copy, review }: Readonly<{
 			<SampleRange copy={copy} range={turn} sampleRate={review.sampleRate} />
 		</li>)}
 	</ol>;
+}
+
+function tempoSummary(copy: Copy, value: Extract<LocalAssistanceOutputReview,
+{ readonly kind: 'beat-grid' }>['tempoProposal']): string {
+	if (!value) return '';
+	if (value.kind === 'constant') return template(text(copy, 'localAssistanceConstantTempoProposal',
+		'Tempo proposal · {bpm} BPM'), { bpm: formatTempo(value.bpm) });
+	return template(text(copy, 'localAssistanceHeldTempoProposal',
+		'Tempo proposal · {count} piecewise-held changes · {tempos}'), {
+		count: String(value.changes.length),
+		tempos: value.changes.map(({ bpm }) => `${formatTempo(bpm)} BPM`).join(', '),
+	});
 }
 
 function SampleRange({ copy, range, sampleRate }: Readonly<{
@@ -115,4 +194,8 @@ function formatSeconds(value: number): string {
 
 function formatPercent(value: number): string {
 	return (value * 100).toFixed(1).replace(/\.0$/u, '');
+}
+
+function formatTempo(value: number): string {
+	return value.toFixed(3).replace(/(?:\.0+|(\.\d*?)0+)$/u, '$1');
 }

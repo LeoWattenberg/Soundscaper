@@ -6,6 +6,20 @@ import {
 	MAX_TRANSCRIPT_SEGMENTS,
 	MAX_TRANSCRIPT_WORDS_PER_SEGMENT,
 } from '../assistance/transcript.ts';
+import {
+	reviewAssistanceEmbeddingMatrixV1,
+	type ReviewedAssistanceEmbeddingMatrixV1,
+} from '../assistance/binary-formats-v1.ts';
+import {
+	reviewAssistanceAudioTagsV1,
+	reviewAssistanceBeatGridV1,
+	reviewAssistanceEditorialProposalV1,
+	reviewAssistanceWordAlignmentV1,
+	type AssistanceAudioTagsV1,
+	type AssistanceBeatGridV1,
+	type AssistanceEditorialProposalV1,
+	type AssistanceWordAlignmentV1,
+} from '../assistance/m7-semantic-results.ts';
 import type { LocalAssistanceOutputClaim } from './local-assistance-bridge.ts';
 import {
 	reviewLocalAssistanceShotBoundaries,
@@ -30,6 +44,25 @@ const SPEAKER_TURN_MEDIA_TYPES = new Set([
 const SHOT_BOUNDARY_MEDIA_TYPES = new Set([
 	'application/json',
 	'application/vnd.soundscaper.shot-boundaries+json',
+]);
+const WORD_ALIGNMENT_MEDIA_TYPES = new Set([
+	'application/json',
+	'application/vnd.soundscaper.word-alignment+json',
+]);
+const AUDIO_TAG_MEDIA_TYPES = new Set([
+	'application/json',
+	'application/vnd.soundscaper.audio-tags+json',
+]);
+const BEAT_GRID_MEDIA_TYPES = new Set([
+	'application/json',
+	'application/vnd.soundscaper.beat-grid+json',
+]);
+const EDITORIAL_PROPOSAL_MEDIA_TYPES = new Set([
+	'application/json',
+	'application/vnd.soundscaper.editorial-proposal+json',
+]);
+const EMBEDDING_MATRIX_MEDIA_TYPES = new Set([
+	'application/vnd.soundscaper.embedding-matrix-v1',
 ]);
 const SEGMENT_KEYS = Object.freeze([
 	'startSeconds', 'endSeconds', 'text', 'words', 'speaker',
@@ -80,15 +113,45 @@ export interface LocalAssistanceSpeakerTurnsReview {
 	readonly turns: readonly LocalAssistanceSpeakerTurnReview[];
 }
 
+export type LocalAssistanceWordAlignmentReview = Readonly<{
+	readonly kind: 'word-alignment';
+}> & AssistanceWordAlignmentV1;
+
+export type LocalAssistanceAudioTagsReview = Readonly<{
+	readonly kind: 'audio-tags';
+}> & AssistanceAudioTagsV1;
+
+export type LocalAssistanceBeatGridReview = Readonly<{
+	readonly kind: 'beat-grid';
+}> & AssistanceBeatGridV1;
+
+export type LocalAssistanceEmbeddingsReview = Readonly<{
+	readonly kind: 'embeddings';
+}> & ReviewedAssistanceEmbeddingMatrixV1;
+
+export type LocalAssistanceEditorialProposalReview = Readonly<{
+	readonly kind: 'editorial-proposal';
+}> & AssistanceEditorialProposalV1;
+
+export interface LocalAssistanceReviewAuthority {
+	readonly editorialCandidateIds?: readonly string[];
+}
+
 export type LocalAssistanceOutputReview =
 	| LocalAssistanceTranscriptReview
 	| LocalAssistanceVoiceActivityReview
 	| LocalAssistanceSpeakerTurnsReview
-	| LocalAssistanceShotBoundariesReview;
+	| LocalAssistanceShotBoundariesReview
+	| LocalAssistanceWordAlignmentReview
+	| LocalAssistanceAudioTagsReview
+	| LocalAssistanceBeatGridReview
+	| LocalAssistanceEmbeddingsReview
+	| LocalAssistanceEditorialProposalReview;
 
 export async function reviewLocalAssistanceOutput(
 	claim: LocalAssistanceOutputClaim,
 	body: Blob,
+	authority: LocalAssistanceReviewAuthority = {},
 ): Promise<LocalAssistanceOutputReview> {
 	if (!reviewMediaType(claim)) {
 		throw new TypeError('This local-assistance output has no semantic reviewer.');
@@ -97,9 +160,13 @@ export async function reviewLocalAssistanceOutput(
 		|| body.size < 1 || body.size > MAXIMUM_REVIEW_BYTES) {
 		throw new RangeError('The local-assistance review body exceeds its exact bound.');
 	}
+	const bytes = await body.arrayBuffer();
+	if (claim.role === 'embeddings') {
+		return withReviewKind('embeddings', reviewAssistanceEmbeddingMatrixV1(bytes));
+	}
 	let value: unknown;
 	try {
-		const text = new TextDecoder('utf-8', { fatal: true }).decode(await body.arrayBuffer());
+		const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 		value = JSON.parse(text) as unknown;
 	} catch {
 		throw new TypeError(claim.role === 'transcript'
@@ -109,6 +176,23 @@ export async function reviewLocalAssistanceOutput(
 	if (claim.role === 'voice-activity') return voiceActivityReview(value);
 	if (claim.role === 'speaker-turns') return speakerTurnsReview(value);
 	if (claim.role === 'shot-boundaries') return reviewLocalAssistanceShotBoundaries(value);
+	if (claim.role === 'word-alignment') {
+		return withReviewKind('word-alignment', reviewAssistanceWordAlignmentV1(value));
+	}
+	if (claim.role === 'audio-tags') {
+		return withReviewKind('audio-tags', reviewAssistanceAudioTagsV1(value));
+	}
+	if (claim.role === 'beat-grid') {
+		return withReviewKind('beat-grid', reviewAssistanceBeatGridV1(value));
+	}
+	if (claim.role === 'editorial-proposal') {
+		if (!authority.editorialCandidateIds) {
+			throw new TypeError('Editorial semantic review requires exact candidate authority.');
+		}
+		return withReviewKind('editorial-proposal', reviewAssistanceEditorialProposalV1(
+			value, authority.editorialCandidateIds,
+		));
+	}
 	return transcriptReview(value);
 }
 
@@ -117,7 +201,21 @@ function reviewMediaType(claim: LocalAssistanceOutputClaim): boolean {
 	if (claim.role === 'voice-activity') return VOICE_ACTIVITY_MEDIA_TYPES.has(claim.mediaType);
 	if (claim.role === 'speaker-turns') return SPEAKER_TURN_MEDIA_TYPES.has(claim.mediaType);
 	if (claim.role === 'shot-boundaries') return SHOT_BOUNDARY_MEDIA_TYPES.has(claim.mediaType);
+	if (claim.role === 'word-alignment') return WORD_ALIGNMENT_MEDIA_TYPES.has(claim.mediaType);
+	if (claim.role === 'audio-tags') return AUDIO_TAG_MEDIA_TYPES.has(claim.mediaType);
+	if (claim.role === 'beat-grid') return BEAT_GRID_MEDIA_TYPES.has(claim.mediaType);
+	if (claim.role === 'embeddings') return EMBEDDING_MATRIX_MEDIA_TYPES.has(claim.mediaType);
+	if (claim.role === 'editorial-proposal') {
+		return EDITORIAL_PROPOSAL_MEDIA_TYPES.has(claim.mediaType);
+	}
 	return false;
+}
+
+function withReviewKind<Kind extends string, Result extends Readonly<object>>(
+	kind: Kind,
+	result: Result,
+): Readonly<{ readonly kind: Kind }> & Result {
+	return Object.freeze({ kind, ...result });
 }
 
 function voiceActivityReview(value: unknown): LocalAssistanceVoiceActivityReview {

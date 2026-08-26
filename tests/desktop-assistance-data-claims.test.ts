@@ -110,4 +110,18 @@ test('claim ids, job ids, roles, and media types are admitted from closed vocabu
 		role: 'enhanced-audio',
 		mediaType: 'audio/wav',
 	});
+	assert.deepEqual(validateAssistanceOutputReservation({
+		...RESERVATION,
+		role: 'embeddings',
+		mediaType: 'application/vnd.soundscaper.embedding-matrix-v1',
+	}), {
+		...RESERVATION,
+		role: 'embeddings',
+		mediaType: 'application/vnd.soundscaper.embedding-matrix-v1',
+	});
+	assert.throws(() => validateAssistanceOutputReservation({
+		...RESERVATION,
+		role: 'embeddings',
+		mediaType: 'application/vnd.soundscaper.embeddings+json',
+	}), /embeddings.*media type/iu);
 });

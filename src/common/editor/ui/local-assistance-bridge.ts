@@ -154,7 +154,8 @@ const OUTPUT_MEDIA_TYPES: Readonly<Record<LocalAssistanceOutputRole, readonly st
 	'enhanced-audio': Object.freeze(['audio/wav', 'audio/flac']),
 	'separated-audio': Object.freeze(['audio/wav', 'audio/flac']),
 	'audio-tags': jsonTypes('audio-tags'), 'beat-grid': jsonTypes('beat-grid'),
-	embeddings: jsonTypes('embeddings'), 'recognized-text': jsonTypes('recognized-text'),
+	embeddings: Object.freeze(['application/vnd.soundscaper.embedding-matrix-v1']),
+	'recognized-text': jsonTypes('recognized-text'),
 	'shot-boundaries': jsonTypes('shot-boundaries'), 'subject-tracks': jsonTypes('subject-tracks'),
 	'saliency-map': jsonTypes('saliency-map'), 'editorial-proposal': jsonTypes('editorial-proposal'),
 });

@@ -102,7 +102,9 @@ const OUTPUT_MEDIA_TYPES = Object.freeze({
 	'separated-audio': Object.freeze(['audio/wav', 'audio/flac']),
 	'audio-tags': jsonTypes('audio-tags'),
 	'beat-grid': jsonTypes('beat-grid'),
-	embeddings: jsonTypes('embeddings'),
+	embeddings: Object.freeze([
+		'application/vnd.soundscaper.embedding-matrix-v1',
+	]),
 	'recognized-text': jsonTypes('recognized-text'),
 	'shot-boundaries': jsonTypes('shot-boundaries'),
 	'subject-tracks': jsonTypes('subject-tracks'),
