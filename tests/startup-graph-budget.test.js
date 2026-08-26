@@ -35,6 +35,17 @@ test('production startup budgets reject editor ownership in the static entry gra
 	);
 });
 
+test('production startup budgets reject either product tree in the static entry graph', () => {
+	for (const product of ['soundscaper', 'framescaper']) {
+		const bundle = fixtureBundle();
+		bundle['assets/shared.js'].modules[`/workspace/src/${product}/startup-helper.ts`] = {};
+		assert.throws(
+			() => assertProductionStartupGraphs(bundle),
+			new RegExp(`static entry.*src/${product}/`, 'iu'),
+		);
+	}
+});
+
 test('approved graph ceilings remain hard limits', () => {
 	assert.deepEqual(STARTUP_GRAPH_BUDGETS.initial, {
 		requests: 10,

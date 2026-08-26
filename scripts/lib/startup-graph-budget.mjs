@@ -117,7 +117,8 @@ function assertStaticEntryOwnership(graph) {
 	if (forbiddenFile) throw new Error(`static entry startup graph owns forbidden editor asset ${forbiddenFile}.`);
 	const forbiddenModule = [...graph.moduleIds].find((moduleId) => (
 		moduleId.includes('/src/common/editor/')
-		|| Object.values(PRODUCT_BOOTSTRAPS).some((bootstrap) => moduleId.endsWith(bootstrap))
+		|| moduleId.includes('/src/soundscaper/')
+		|| moduleId.includes('/src/framescaper/')
 	));
 	if (forbiddenModule) throw new Error(`static entry startup graph owns forbidden editor module ${forbiddenModule}.`);
 }
