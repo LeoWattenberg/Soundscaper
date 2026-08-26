@@ -38,6 +38,11 @@ export const EDITOR_PFFFT_RUNTIME_CHUNK_TEST = new RegExp(
 	`${editorPath}pffft\\.js$`,
 );
 
+/** Selection dispatcher shared by the main-thread and worker fallbacks. */
+export const EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST = new RegExp(
+	`${editorPath}selection-effects-runtime\\.js$`,
+);
+
 /** Effect and Analyze implementations reached only after their eager action facade runs. */
 export const EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST = new RegExp(
 	`${editorPath}(?:${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)|controller[\\\\/]analysis-service\\.ts)$`,
@@ -105,6 +110,16 @@ export const chunkGroups = [
 		name: 'editor-pffft-runtime',
 		test: EDITOR_PFFFT_RUNTIME_CHUNK_TEST,
 		priority: 99,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		// The selection dispatcher imports Audacity and spectral implementations.
+		// Keep it out of their broader owner so its lazy facade cannot import itself.
+		name: 'editor-selection-effects-runtime',
+		test: EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST,
+		priority: 98,
 		minSize: 0,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,

@@ -14,6 +14,7 @@ import {
 	EDITOR_OPTIONAL_EXPORT_CHUNK_TEST,
 	EDITOR_OPTIONAL_SURFACE_CHUNK_TEST,
 	EDITOR_PFFFT_RUNTIME_CHUNK_TEST,
+	EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST,
 } from '../scripts/lib/build-chunk-groups.mjs';
 
 /**
@@ -137,7 +138,6 @@ test('optional archive code and its ZIP vendor are placed by dynamic reachabilit
 test('optional effect and analysis implementations have a dedicated lazy owner', () => {
 	for (const path of [
 		'src/common/editor/analysis.js',
-		'src/common/editor/selection-effects-runtime.js',
 		'src/common/editor/spectral-edit.js',
 		'src/common/editor/spectral-edit-admission.ts',
 		'src/common/editor/controller/analysis-service.ts',
@@ -154,6 +154,17 @@ test('PFFFT has an isolated lazy runtime owner', () => {
 	assert.ok(EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST.test(path));
 	assert.equal(chunkGroupForModulePath(path), 'editor-pffft-runtime');
 	const group = chunkGroups.find((candidate) => candidate.name === 'editor-pffft-runtime');
+	assert.ok(group);
+	assert.equal(group.includeDependenciesRecursively, false);
+	assert.equal(group.minSize, 0);
+});
+
+test('selection effects have an isolated lazy runtime owner', () => {
+	const path = 'src/common/editor/selection-effects-runtime.js';
+	assert.ok(EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST.test(path));
+	assert.ok(EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST.test(path));
+	assert.equal(chunkGroupForModulePath(path), 'editor-selection-effects-runtime');
+	const group = chunkGroups.find((candidate) => candidate.name === 'editor-selection-effects-runtime');
 	assert.ok(group);
 	assert.equal(group.includeDependenciesRecursively, false);
 	assert.equal(group.minSize, 0);
