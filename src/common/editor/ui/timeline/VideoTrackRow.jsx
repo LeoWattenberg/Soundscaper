@@ -21,7 +21,7 @@ export function VideoTrackRow({
 	isFlatNavigation,
 	trackBaseTabIndex,
 	panelWidth,
-	viewportStartFrame,
+	renderViewportStartFrame,
 	viewportDurationFrames,
 	pixelsPerSecond,
 	sampleRate,
@@ -73,10 +73,10 @@ export function VideoTrackRow({
 		return projected;
 	}, [clipDragPreview, clipLookup, projectBinDragPreview, track.id, trackClips]);
 	const projection = useMemo(() => projectClipsToViewport(clips, {
-		viewportStartFrame,
+		viewportStartFrame: renderViewportStartFrame,
 		viewportDurationFrames,
 		sampleRate,
-	}), [clips, sampleRate, viewportDurationFrames, viewportStartFrame]);
+	}), [clips, renderViewportStartFrame, sampleRate, viewportDurationFrames]);
 	const windowLeft = framesToSeconds(projection.overscanStartFrame, { sampleRate }) * pixelsPerSecond;
 	const windowFrames = Math.max(1, projection.overscanEndFrame - projection.overscanStartFrame);
 	const windowWidth = Math.max(1, framesToSeconds(windowFrames, { sampleRate }) * pixelsPerSecond);

@@ -51,7 +51,7 @@ export function TrackListView({
 	verticalRulerWidth,
 	pixelsPerSecond,
 	sampleRate,
-	viewportStartFrame,
+	renderViewportStartFrame,
 	viewportDurationFrames,
 	waveformRulerState,
 	recordingPreviews,
@@ -149,7 +149,7 @@ export function TrackListView({
 					isFlatNavigation={isFlatNavigation}
 					trackBaseTabIndex={trackBaseTabIndex}
 					panelWidth={panelWidth}
-					viewportStartFrame={viewportStartFrame}
+					renderViewportStartFrame={renderViewportStartFrame}
 					viewportDurationFrames={viewportDurationFrames}
 					pixelsPerSecond={pixelsPerSecond}
 					sampleRate={sampleRate}
@@ -187,7 +187,8 @@ export function TrackListView({
 					isFlatNavigation={isFlatNavigation}
 					trackBaseTabIndex={trackBaseTabIndex}
 					panelWidth={panelWidth}
-					viewportStartFrame={viewportStartFrame}
+					renderViewportStartFrame={renderViewportStartFrame}
+					viewModelRevision={snapshot}
 					viewportDurationFrames={viewportDurationFrames}
 					pixelsPerSecond={pixelsPerSecond}
 					sampleRate={sampleRate}

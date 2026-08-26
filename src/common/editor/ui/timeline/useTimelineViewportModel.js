@@ -26,6 +26,7 @@ import {
 	VERTICAL_RULER_WIDTH,
 } from './constants.ts';
 import { timelineAnnotationsAvailable } from './timeline-annotation-ui-model.ts';
+import { useAnchoredTimelineRenderScrollX } from './timeline-render-window.ts';
 
 export function useTimelineViewportModel({
 	controller,
@@ -138,6 +139,17 @@ export function useTimelineViewportModel({
 	const timelineWidth = Math.max(viewportWidth, Math.ceil(durationSeconds * pixelsPerSecond));
 	const viewportStartFrame = Math.max(0, secondsToFrames(scrollX / pixelsPerSecond, { sampleRate }));
 	const viewportDurationFrames = Math.max(1, secondsToFrames(viewportWidth / pixelsPerSecond, { sampleRate }));
+	const renderScrollX = useAnchoredTimelineRenderScrollX({
+		scrollX,
+		viewportWidth,
+		pixelsPerSecond,
+		sampleRate,
+		resetToken: project,
+	});
+	const renderViewportStartFrame = Math.max(
+		0,
+		secondsToFrames(renderScrollX / pixelsPerSecond, { sampleRate }),
+	);
 	const projectIndex = useMemo(
 		() => createTimelineProjectIndex(project),
 		[project?.clips, project?.sources, project?.tracks],
@@ -195,6 +207,8 @@ export function useTimelineViewportModel({
 		durationSeconds,
 		timelineWidth,
 		viewportStartFrame,
+		renderScrollX,
+		renderViewportStartFrame,
 		viewportDurationFrames,
 		projectIndex,
 		selectedClipIdSet,

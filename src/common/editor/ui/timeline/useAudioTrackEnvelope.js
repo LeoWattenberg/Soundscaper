@@ -54,7 +54,5 @@ export function useAudioTrackEnvelope({
 		});
 		setEnvelopePreviewRevision((revision) => revision + 1);
 	};
-	void envelopePreviewRevision;
-
-	return { envelopePreviewRef, updateEnvelope };
+	return { envelopePreviewRef, envelopePreviewRevision, updateEnvelope };
 }

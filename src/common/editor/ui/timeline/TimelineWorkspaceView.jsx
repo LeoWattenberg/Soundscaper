@@ -70,7 +70,8 @@ export function TimelineWorkspaceView({
 		durationFrames,
 		durationSeconds,
 		timelineWidth,
-		viewportStartFrame,
+		renderScrollX,
+		renderViewportStartFrame,
 		viewportDurationFrames,
 		projectIndex,
 		visualTrackHeight,
@@ -166,6 +167,7 @@ export function TimelineWorkspaceView({
 			data-automation-tool={automationToolEnabled ? 'true' : 'false'}
 			data-has-annotations={showTimelineAnnotations ? 'true' : 'false'}
 			data-show-markers={markerLaneVisible ? 'true' : 'false'}
+			data-render-scroll-x={renderScrollX}
 			data-edit-block-reason={editBlock.reason || undefined}
 			style={{
 				'--track-panel-width': `${panelWidth}px`,
@@ -385,7 +387,7 @@ export function TimelineWorkspaceView({
 						verticalRulerWidth={verticalRulerWidth}
 						pixelsPerSecond={pixelsPerSecond}
 						sampleRate={sampleRate}
-						viewportStartFrame={viewportStartFrame}
+						renderViewportStartFrame={renderViewportStartFrame}
 						viewportDurationFrames={viewportDurationFrames}
 						waveformRulerState={waveformRulerState}
 						recordingPreviews={recordingPreviews}

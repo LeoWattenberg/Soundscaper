@@ -20,13 +20,12 @@ import {
 import {
 	pcmWindowCoversProjectedClip,
 	recordingPreviewId,
-	toDesignRecordingPreview,
 } from './preview.ts';
+import { createAudioTrackRowClipViewModels } from './audio-track-row-view-model.js';
 import { clipGroups, focusFirst } from './timeline-navigation.js';
 import { renderAmplitudeRulers } from './track-row-helpers.jsx';
 import { useAudioTrackEnvelope } from './useAudioTrackEnvelope.js';
 import { useAudioTrackRowNavigation } from './useAudioTrackRowNavigation.js';
-import { createTimelineClipViewModel } from './waveform-view-model.ts';
 import { resolveAudioEditorColor } from './TimelineOverlayComponents.jsx';
 
 const CLIP_HEADER_HEIGHT = 20;
@@ -44,8 +43,9 @@ export function AudioTrackRow({
 	isFlatNavigation,
 	trackBaseTabIndex,
 	panelWidth,
-	viewportStartFrame,
+	renderViewportStartFrame,
 	viewportDurationFrames,
+	viewModelRevision,
 	pixelsPerSecond,
 	sampleRate,
 	timelineWidth,
@@ -120,11 +120,11 @@ export function AudioTrackRow({
 		return projected;
 	}, [clipDragPreview, clipLookup, projectBinDragPreview, recordingPreview, track.id, track.type, trackClips]);
 	const projection = useMemo(() => projectClipsToViewport(clips, {
-		viewportStartFrame,
+		viewportStartFrame: renderViewportStartFrame,
 		viewportDurationFrames,
 		sampleRate,
-	}), [clips, sampleRate, viewportDurationFrames, viewportStartFrame]);
-	const { envelopePreviewRef, updateEnvelope } = useAudioTrackEnvelope({
+	}), [clips, renderViewportStartFrame, sampleRate, viewportDurationFrames]);
+	const { envelopePreviewRef, envelopePreviewRevision, updateEnvelope } = useAudioTrackEnvelope({
 		controller,
 		run,
 		blocked,
@@ -157,54 +157,50 @@ export function AudioTrackRow({
 	const windowLeft = framesToSeconds(projection.overscanStartFrame, { sampleRate }) * pixelsPerSecond;
 	const windowFrames = Math.max(1, projection.overscanEndFrame - projection.overscanStartFrame);
 	const windowWidth = Math.max(1, framesToSeconds(windowFrames, { sampleRate }) * pixelsPerSecond);
-	const projectedClips = projection.clips.map((clip) => clip.isRecordingPreview
-		? toDesignRecordingPreview(
-			clip,
+	const projectedClips = useMemo(() => {
+		// These revisions deliberately invalidate visual data held behind stable
+		// controller and preview refs without making scroll position a dependency.
+		void envelopePreviewRevision;
+		void viewModelRevision;
+		return createAudioTrackRowClipViewModels({
+			controller,
+			sourceLookup,
+			clips: projection.clips,
 			recordingPreview,
-			projection.overscanStartFrame,
+			overscanStartFrame: projection.overscanStartFrame,
 			pixelsPerSecond,
 			sampleRate,
 			copy,
-			displayMode === 'multiview',
-		)
-		: createTimelineClipViewModel({
-			controller,
-			sourceLookup,
-			clip,
+			displayMode,
 			project,
-			geometry: {
-				overscanStartFrame: projection.overscanStartFrame,
-				pixelsPerSecond,
-				sampleRate,
-			},
-			selection: {
-				selectedClipIds: selectedClipIdSet.size ? selectedClipIdSet : selectedClipId,
-			},
-			copy,
-			rendering: {
-				showRms,
-				halfWave: displayMode === 'half-wave',
-				color: resolveAudioEditorColor(clip.color, resolveAudioEditorColor(track.color)),
-				reuseSummaryForCompatibility: displayMode === 'waveform' || displayMode === 'half-wave',
-				allowPeakPyramid: displayMode !== 'spectrogram',
-				provideAudacitySpectrogram: displayMode === 'spectrogram' || displayMode === 'multiview',
-			},
-			cache: waveformCache,
-			reuseCachedWaveform: Boolean(
-				draggingClipIds?.has(clip.id)
-					&& clip.waveformPreviewKind !== 'trim'
-					&& clip.waveformPreviewKind !== 'rate-stretch',
-			),
-		})).map((clip) => {
-			const preview = envelopePreviewRef.current.get(String(clip.id));
-			return preview ? {
-				...clip,
-				envelopePoints: preview.designPoints,
-				audacityWaveform: clip.audacityWaveform
-					? { ...clip.audacityWaveform, envelope: preview.envelope }
-					: undefined,
-			} : clip;
+			selectedClipIds: selectedClipIdSet.size ? selectedClipIdSet : selectedClipId,
+			showRms,
+			trackColor: track.color,
+			waveformCache,
+			draggingClipIds,
+			envelopePreviews: envelopePreviewRef.current,
 		});
+	}, [
+		controller,
+		copy,
+		displayMode,
+		draggingClipIds,
+		envelopePreviewRef,
+		envelopePreviewRevision,
+		pixelsPerSecond,
+		project,
+		projection.clips,
+		projection.overscanStartFrame,
+		recordingPreview,
+		sampleRate,
+		selectedClipId,
+		selectedClipIdSet,
+		showRms,
+		sourceLookup,
+		track.color,
+		viewModelRevision,
+		waveformCache,
+	]);
 	useEffect(() => {
 		const root = trackWindowRef.current;
 		if (!root) return;
