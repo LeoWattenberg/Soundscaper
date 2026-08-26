@@ -7,7 +7,23 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 
-import { generateOfflineApplicationShell } from '../scripts/lib/offline-application-shell.mjs';
+import {
+	generateOfflineApplicationShell,
+	MAXIMUM_INSTALL_ASSET_BYTES,
+	MAXIMUM_INSTALL_ASSET_COUNT,
+} from '../scripts/lib/offline-application-shell.mjs';
+
+test('the install budget is bounded by bytes, and separately by request count', () => {
+	// A visitor downloads the whole install set before the application works
+	// offline, so the byte budget is the promise being made — and it is nearly
+	// full. The count is a separate guard, against an install that fans out into
+	// an unreasonable number of requests; code splitting moved it, because the
+	// same payload now arrives as many small chunks rather than a few large ones.
+	// Relieving one bound by raising the other would give the promise away, so
+	// both are pinned rather than left to whichever build first exceeds one.
+	assert.equal(MAXIMUM_INSTALL_ASSET_BYTES, 8 * 1024 * 1024);
+	assert.equal(MAXIMUM_INSTALL_ASSET_COUNT, 256);
+});
 
 test('offline shell generation inventories exact route URLs and emits installable product manifests', async (context) => {
 	const outputRoot = await shellFixture(context);

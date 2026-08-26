@@ -14,8 +14,15 @@ import {
 const MAXIMUM_ASSET_BYTES = 25 * 1024 * 1024;
 const MAXIMUM_AGGREGATE_BYTES = 256 * 1024 * 1024;
 const MAXIMUM_ASSET_COUNT = 4_096;
-const MAXIMUM_INSTALL_ASSET_BYTES = 8 * 1024 * 1024;
-const MAXIMUM_INSTALL_ASSET_COUNT = 128;
+/**
+ * What a visitor must download before the application works offline is bounded
+ * by bytes; that budget is the promise and it is nearly full. The count is the
+ * separate guard against an install that fans out into an unreasonable number of
+ * requests, and code-splitting the editor turned the same payload into many
+ * small chunks rather than a few large ones, so the two bounds moved apart.
+ */
+export const MAXIMUM_INSTALL_ASSET_BYTES = 8 * 1024 * 1024;
+export const MAXIMUM_INSTALL_ASSET_COUNT = 256;
 const BUILD_MANIFEST = '.offline-build-manifest.json';
 const CONTROL_FILES = new Set([
 	BUILD_MANIFEST,
