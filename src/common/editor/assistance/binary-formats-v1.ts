@@ -69,7 +69,7 @@ export interface ReviewedAssistanceFramePackV1 {
 /** Encode row-major, little-endian Float32 vectors after enforcing unit L2 norm. */
 export function createAssistanceEmbeddingMatrixV1(
 	draft: AssistanceEmbeddingMatrixV1Draft,
-): Uint8Array {
+): Uint8Array<ArrayBuffer> {
 	const dimensions = integer(draft?.dimensions, 1, MAXIMUM_EMBEDDING_DIMENSIONS,
 		'embedding dimension');
 	if (!Array.isArray(draft?.vectors) || draft.vectors.length > MAXIMUM_EMBEDDING_ROWS) {
