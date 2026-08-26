@@ -181,7 +181,8 @@ export function createLocalAssistancePreparationRuntime(
 				reason: 'workflow-publication-unavailable' as const,
 			});
 			const availability = guidedAcceptance.createAcceptanceSession({ workflow,
-				reviewedResult: request.reviewedResult });
+				reviewedResult: request.reviewedResult,
+				...(request.highlightDraft === undefined ? {} : { highlightDraft: request.highlightDraft }) });
 			if (availability.outcome !== 'ready') return availability;
 			if (workflow.workflowId === 'mark-reactions' && request.selectedChoiceIds.length > 0) {
 				await retainLocalAssistanceGuidedReactionScores({ workflow,

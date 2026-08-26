@@ -51,6 +51,12 @@ export interface LocalAssistanceDialogViewProps {
 	readonly onReviewGuided?: () => unknown;
 	readonly onAcceptGuided?: () => unknown;
 	readonly onGuidedChoiceChange?: (choiceId: string, selected: boolean) => unknown;
+	readonly onGuidedHighlightTitleChange?: (proposalId: string, title: string) => unknown;
+	readonly onGuidedHighlightTrimChange?: (
+		proposalId: string, startFrame: number, endFrame: number,
+	) => unknown;
+	readonly onGuidedHighlightCropChange?: (proposalId: string, sourceFrame: number,
+		crop: Readonly<{ left: number; top: number; right: number; bottom: number }>) => unknown;
 	readonly onSelectSource: (sourceId: string) => unknown;
 	readonly onSelectOperation: (operation: AssistanceOperation) => unknown;
 	readonly onShotDetectionModeChange?: (mode: LocalAssistanceShotDetectionMode) => unknown;
@@ -100,6 +106,9 @@ export default function LocalAssistanceDialog({
 		onReviewGuided={() => guidedStore.review()}
 		onAcceptGuided={() => guidedStore.accept()}
 		onGuidedChoiceChange={guidedStore.setReviewChoiceSelected}
+		onGuidedHighlightTitleChange={guidedStore.setHighlightTitle}
+		onGuidedHighlightTrimChange={guidedStore.setHighlightTrim}
+		onGuidedHighlightCropChange={guidedStore.setHighlightCrop}
 		onSelectSource={store.selectSource}
 		onSelectOperation={store.selectOperation}
 		onShotDetectionModeChange={store.selectShotDetectionMode}
@@ -129,6 +138,9 @@ export function LocalAssistanceDialogView({
 	onRunGuided = () => undefined, onCancelGuided = () => undefined,
 	onReviewGuided = () => undefined, onAcceptGuided = () => undefined,
 	onGuidedChoiceChange = () => undefined,
+	onGuidedHighlightTitleChange = () => undefined,
+	onGuidedHighlightTrimChange = () => undefined,
+	onGuidedHighlightCropChange = () => undefined,
 	onSelectSource, onSelectOperation,
 	onShotDetectionModeChange = () => undefined, onSelectModel,
 	onConsentChange, onRun, onCancel, onReview, onAccept,
@@ -183,7 +195,10 @@ export function LocalAssistanceDialogView({
 			onSelectWorkflow={onSelectWorkflow} onSettingsChange={onGuidedSettingsChange}
 			onRun={onRunGuided} onCancel={onCancelGuided} onReview={onReviewGuided}
 			onAccept={onAcceptGuided}
-			onChoiceChange={onGuidedChoiceChange} />}
+			onChoiceChange={onGuidedChoiceChange}
+			onHighlightTitleChange={onGuidedHighlightTitleChange}
+			onHighlightTrimChange={onGuidedHighlightTrimChange}
+			onHighlightCropChange={onGuidedHighlightCropChange} />}
 		{activeSurface === 'advanced' && <section id="local-assistance-advanced-panel"
 			className="kw-local-assistance__advanced" role="tabpanel"
 			aria-label={text(copy, 'localAssistanceAdvanced', 'Advanced')}>

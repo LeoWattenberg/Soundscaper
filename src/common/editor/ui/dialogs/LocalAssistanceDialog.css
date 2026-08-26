@@ -153,3 +153,36 @@
 	color: var(--kw-editor-muted);
 	font-size: 0.875rem;
 }
+
+.kw-local-assistance__highlight-proposals {
+	display: grid;
+	gap: 1rem;
+}
+
+.kw-local-assistance__highlight-proposals article,
+.kw-local-assistance__highlight-proposals label {
+	display: grid;
+	gap: 0.25rem;
+}
+
+.kw-local-assistance__highlight-trim {
+	display: grid;
+	gap: 0.5rem;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.kw-local-assistance__crop-overlay {
+	background: var(--kw-editor-surface-raised, transparent);
+	border: 1px solid var(--kw-editor-line);
+	box-sizing: border-box;
+	height: 8rem;
+	margin-bottom: 0.5rem;
+}
+
+.kw-local-assistance__crop-overlay span {
+	border: 2px solid var(--kw-editor-accent);
+	display: block;
+	height: 100%;
+	min-height: 0.25rem;
+	min-width: 0.25rem;
+}

@@ -8,6 +8,10 @@ import {
 	createLocalAssistanceGuidedResultAcceptance,
 } from '../src/common/editor/controller/local-assistance-guided-result-acceptance.ts';
 import {
+	createLocalAssistanceGuidedHighlightDraftV1,
+	setLocalAssistanceGuidedHighlightTitleV1,
+} from '../src/common/editor/controller/local-assistance-guided-highlight-edits.ts';
+import {
 	assistanceWorkflowModelBindingsSha256V1,
 	assistanceWorkflowRecipeSha256V1,
 	type AssistanceWorkflowModelBindingV1,
@@ -73,6 +77,32 @@ test('Guided Highlights forwards only the explicit initially-unselected proposal
 	await ready.session.accept(['highlight-b']);
 	assert.deepEqual(calls, [{ fence: workflow.fence, result,
 		selectedProposalIds: ['highlight-b'] }]);
+});
+
+test('Guided Highlights revalidates bounded review edits separately from authenticated evidence', async () => {
+	const workflow = highlightWorkflow();
+	const result = highlightResult();
+	const held = reviewed(workflow, 'assemble-highlights', 'highlight-proposals', result,
+		result.proposals.map(({ id }) => ({ id, kind: 'highlight', label: id })));
+	const draft = setLocalAssistanceGuidedHighlightTitleV1(
+		createLocalAssistanceGuidedHighlightDraftV1(result), 'highlight-b', 'Edited title',
+	);
+	const calls: unknown[] = [];
+	const availability = createLocalAssistanceGuidedResultAcceptance({
+		currentSelectionFence: () => primitiveFence(workflow, true),
+		acceptHighlightResult: async (request) => { calls.push(request); },
+	}).createAcceptanceSession({ workflow, reviewedResult: held, highlightDraft: draft });
+	assert.equal(availability.outcome, 'ready');
+	if (availability.outcome !== 'ready') return;
+	await availability.session.accept(['highlight-b']);
+	assert.equal((calls[0] as { result: ReturnType<typeof highlightResult> }).result
+		.proposals[1]?.title, 'Edited title');
+	const hostile = { ...draft, proposals: [{ ...draft.proposals[0]!, score: 1 }, draft.proposals[1]!] };
+	assert.throws(() => createLocalAssistanceGuidedResultAcceptance({
+		currentSelectionFence: () => primitiveFence(workflow, true),
+		acceptHighlightResult: async () => undefined,
+	}).createAcceptanceSession({ workflow, reviewedResult: held, highlightDraft: hostile }),
+	/evidence|authority|rewrite/iu);
 });
 
 test('Guided Framescaper workflows remain unavailable without their publication ports', () => {

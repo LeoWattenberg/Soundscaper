@@ -13,6 +13,8 @@ import type {
 	AssistanceWorkflowFenceV1,
 	AssistanceWorkflowV1,
 } from '../assistance/workflow.ts';
+import { validateLocalAssistanceGuidedHighlightDraftV1 } from
+	'./local-assistance-guided-highlight-edits.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 export type LocalAssistanceGuidedFramescaperWorkflowId = 'reframe' | 'make-highlights';
@@ -44,6 +46,7 @@ export interface LocalAssistanceGuidedFramescaperAcceptancePorts {
 export function reviewLocalAssistanceGuidedFramescaperSemantics(
 	workflowId: LocalAssistanceGuidedFramescaperWorkflowId,
 	outputs: ReadonlyMap<string, ReviewedOutput>,
+	highlightDraft?: unknown,
 ): ReadonlyMap<string, unknown> {
 	const transformId = workflowId === 'reframe' ? 'plan-crops' : 'assemble-highlights';
 	const values = Object.fromEntries([...outputs].map(([slotId, output]) => [
@@ -52,7 +55,15 @@ export function reviewLocalAssistanceGuidedFramescaperSemantics(
 	const reviewed = reviewAssistanceOwnedVideoHighlightTransformResultV1({
 		schemaVersion: 1, transformId, outputs: values,
 	});
-	return new Map(Object.entries(reviewed.outputs));
+	if (workflowId !== 'make-highlights' || highlightDraft === undefined) {
+		return new Map(Object.entries(reviewed.outputs));
+	}
+	if (reviewed.transformId !== 'assemble-highlights') {
+		throw new TypeError('The Guided highlight review changed transform identity.');
+	}
+	return new Map([['highlight-proposals', validateLocalAssistanceGuidedHighlightDraftV1(
+		reviewed.outputs['highlight-proposals'], highlightDraft,
+	)]]);
 }
 
 export function localAssistanceGuidedFramescaperChoices(

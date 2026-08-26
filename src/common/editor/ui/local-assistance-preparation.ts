@@ -104,6 +104,7 @@ export interface LocalAssistanceGuidedWorkflowAcceptanceRequest {
 	readonly workflow: unknown;
 	readonly reviewedResult: LocalAssistanceGuidedReviewedResult;
 	readonly selectedChoiceIds: readonly string[];
+	readonly highlightDraft?: unknown;
 	readonly readOutput: (request: Readonly<{
 		readonly jobId: string;
 		readonly workflowId: AssistanceGuidedWorkflowId;

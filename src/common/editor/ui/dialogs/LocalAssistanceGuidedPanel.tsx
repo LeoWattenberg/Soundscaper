@@ -29,6 +29,12 @@ export interface LocalAssistanceGuidedPanelProps {
 	readonly onReview: () => unknown;
 	readonly onAccept: () => unknown;
 	readonly onChoiceChange: (choiceId: string, selected: boolean) => unknown;
+	readonly onHighlightTitleChange: (proposalId: string, title: string) => unknown;
+	readonly onHighlightTrimChange: (
+		proposalId: string, startFrame: number, endFrame: number,
+	) => unknown;
+	readonly onHighlightCropChange: (proposalId: string, sourceFrame: number,
+		crop: Readonly<{ left: number; top: number; right: number; bottom: number }>) => unknown;
 }
 
 const LABELS: Readonly<Record<AssistanceGuidedWorkflowId, string>> = Object.freeze({
@@ -49,7 +55,7 @@ const LABELS: Readonly<Record<AssistanceGuidedWorkflowId, string>> = Object.free
 
 export default function LocalAssistanceGuidedPanel({
 	copy, snapshot, onSelectWorkflow, onSettingsChange, onRun, onCancel, onReview, onAccept,
-	onChoiceChange,
+	onChoiceChange, onHighlightTitleChange, onHighlightTrimChange, onHighlightCropChange,
 }: LocalAssistanceGuidedPanelProps) {
 	const graph = snapshot.selectedWorkflowId
 		? assistanceWorkflowStageGraph(snapshot.selectedWorkflowId) : null;
@@ -101,7 +107,11 @@ export default function LocalAssistanceGuidedPanel({
 		{snapshot.review && <Suspense fallback={<p role="status">
 			{text(copy, 'localAssistanceReviewLoading', 'Opening review…')}
 		</p>}><LocalAssistanceGuidedReview copy={copy} review={snapshot.review}
-			selectedChoiceIds={snapshot.selectedChoiceIds} onChoiceChange={onChoiceChange} /></Suspense>}
+			selectedChoiceIds={snapshot.selectedChoiceIds} onChoiceChange={onChoiceChange}
+			highlightDraft={snapshot.highlightDraft}
+			onHighlightTitleChange={onHighlightTitleChange}
+			onHighlightTrimChange={onHighlightTrimChange}
+			onHighlightCropChange={onHighlightCropChange} /></Suspense>}
 		{message && <p role={snapshot.phase === 'error' ? 'alert' : 'status'} aria-live="polite">
 			{message}
 		</p>}

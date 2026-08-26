@@ -131,6 +131,7 @@ export interface LocalAssistanceGuidedResultAcceptance {
 	createAcceptanceSession(request: Readonly<{
 		readonly workflow: unknown;
 		readonly reviewedResult: unknown;
+		readonly highlightDraft?: unknown;
 	}>): LocalAssistanceGuidedAcceptanceAvailability;
 }
 
@@ -200,7 +201,7 @@ export function createLocalAssistanceGuidedResultAcceptance(
 	return Object.freeze({ createAcceptanceSession });
 
 	function createAcceptanceSession(value: Readonly<{
-		readonly workflow: unknown; readonly reviewedResult: unknown;
+		readonly workflow: unknown; readonly reviewedResult: unknown; readonly highlightDraft?: unknown;
 	}>): LocalAssistanceGuidedAcceptanceAvailability {
 		const requestedId = workflowId(value?.workflow);
 		if (!SUPPORTED.has(requestedId)) return unsupported(requestedId,
@@ -218,7 +219,8 @@ export function createLocalAssistanceGuidedResultAcceptance(
 			? workflow.fence.sourceRanges.flatMap(({ occurrenceIds }) => occurrenceIds).sort()
 			: range.occurrenceIds);
 		assertCurrentFence(dependencies, fence);
-		const review = normalizeReview(workflow, workflowIdValue, value.reviewedResult);
+		const review = normalizeReview(workflow, workflowIdValue, value.reviewedResult,
+			value.highlightDraft);
 		return Object.freeze({ outcome: 'ready' as const,
 			session: createSession(dependencies, workflow, workflowIdValue, fence, review) });
 	}
@@ -338,6 +340,7 @@ function normalizeReview(
 	workflow: AssistanceWorkflowV1,
 	workflowId: SupportedWorkflowId,
 	value: unknown,
+	highlightDraft?: unknown,
 ): NormalizedReview {
 	const row = exactRecord(value, ['reviewVersion', 'jobId', 'workflowId', 'outputs', 'choices'],
 		'Guided reviewed result');
@@ -356,7 +359,7 @@ function normalizeReview(
 		}
 		bySlot.set(output.slotId, output);
 	}
-	const semantics = reviewSemantics(workflowId, bySlot);
+	const semantics = reviewSemantics(workflowId, bySlot, highlightDraft);
 	for (const [slotId, semantic] of semantics) {
 		const output = bySlot.get(slotId)!;
 		bySlot.set(slotId, Object.freeze({ ...output, semantic }));
@@ -394,6 +397,7 @@ function reviewedOutput(
 function reviewSemantics(
 	workflowId: SupportedWorkflowId,
 	outputs: ReadonlyMap<string, ReviewedOutput>,
+	highlightDraft?: unknown,
 ): ReadonlyMap<string, unknown> {
 	if (workflowId === 'enhance-dialogue' || workflowId === 'separate-dialogue-music-effects') {
 		const expectedRole = workflowId === 'enhance-dialogue' ? 'enhanced-audio' : 'separated-audio';
@@ -408,7 +412,7 @@ function reviewSemantics(
 		}));
 	}
 	if (workflowId === 'reframe' || workflowId === 'make-highlights') {
-		return reviewLocalAssistanceGuidedFramescaperSemantics(workflowId, outputs);
+		return reviewLocalAssistanceGuidedFramescaperSemantics(workflowId, outputs, highlightDraft);
 	}
 	const transformId = workflowId === 'transcribe-captions' ? 'assemble-captions'
 		: workflowId === 'clean-filler-silence' ? 'propose-cleanup'

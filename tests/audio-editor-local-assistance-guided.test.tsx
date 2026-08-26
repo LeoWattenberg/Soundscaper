@@ -231,6 +231,39 @@ test('Guided editorial review renders admitted text as inert, transient content'
 	assert.doesNotMatch(markup, /contenteditable/iu);
 });
 
+test('Guided highlight review exposes bounded title, trim, transcript, and crop controls', () => {
+	const draft = { schemaVersion: 1 as const, kind: 'highlight-proposals' as const,
+		workflowId: 'make-highlights' as const, targetAspect: { width: 9 as const, height: 16 as const },
+		proposals: [{ id: 'highlight-a', startFrame: 0, endFrame: 48_000,
+			sourceStartFrame: 0, sourceEndFrame: 24, score: 0.8,
+			evidenceMode: 'transcript' as const, transcriptExcerpt: 'Exact transcript cue.',
+			visualSummary: 'Exact visual evidence.', selected: false as const,
+			videoOccurrenceId: 'video-occurrence', audioOccurrenceId: 'audio-occurrence',
+			title: 'Editable title', cropKeyframes: [crop(0), crop(23)] }],
+	};
+	const output = { stageId: 'assemble-highlights', slotId: 'highlight-proposals',
+		claim: { claimVersion: 1 as const, direction: 'output' as const,
+			claimId: '03'.repeat(20), jobId: WORKFLOW_JOB_ID,
+			stageId: 'assemble-highlights', slotId: 'highlight-proposals' },
+		mediaType: 'application/vnd.soundscaper.highlight-proposals+json', byteLength: 2,
+		sha256: '04'.repeat(32), body: new Blob(['{}'], {
+			type: 'application/vnd.soundscaper.highlight-proposals+json',
+		}), semantic: draft };
+	const review: LocalAssistanceGuidedReviewedResult = { reviewVersion: 1,
+		jobId: WORKFLOW_JOB_ID, workflowId: 'make-highlights', outputs: [output],
+		choices: [{ id: 'highlight-a', kind: 'highlight', label: 'Highlight 1',
+			selected: false, enabled: true }] };
+	const markup = renderToStaticMarkup(<LocalAssistanceGuidedReview copy={ENGLISH_COPY}
+		review={review} selectedChoiceIds={[]} onChoiceChange={() => undefined}
+		highlightDraft={draft} />);
+	assert.match(markup, /Editable title/u);
+	assert.match(markup, /Start frame/u);
+	assert.match(markup, /End frame/u);
+	assert.match(markup, /Exact transcript cue/u);
+	assert.match(markup, /Draggable crop overlay/u);
+	assert.match(markup, /type="range"/u);
+});
+
 test('Guided acceptance publishes only checked choices and releases completed native custody', async () => {
 	const captions = new Blob([JSON.stringify({
 		schemaVersion: 1, kind: 'captions', sourceId: 'source-a', sampleRate: 48_000,
@@ -277,6 +310,11 @@ function primitivePreparation(
 		prepareSelectedMedia: async () => { throw new Error('Primitive preparation is not used.'); },
 		...extra,
 	});
+}
+
+function crop(sourceFrame: number) {
+	return { sourceFrame, authority: 'center' as const, trackIds: [],
+		crop: { left: 0.341796875, top: 0, right: 0.341796875, bottom: 0 } };
 }
 
 function workflowBridge(options: Readonly<{ completedBody?: Blob }> = {}) {

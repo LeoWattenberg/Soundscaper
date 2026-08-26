@@ -24,6 +24,14 @@ import {
 import type {
 	LocalAssistanceBridge,
 } from './local-assistance-bridge.ts';
+import type { AssistanceOwnedHighlightProposalsV1 } from
+	'../assistance/owned-video-highlight-transform-types-v1.ts';
+import {
+	createLocalAssistanceGuidedHighlightDraftV1,
+	setLocalAssistanceGuidedHighlightCropV1,
+	setLocalAssistanceGuidedHighlightTitleV1,
+	setLocalAssistanceGuidedHighlightTrimV1,
+} from '../controller/local-assistance-guided-highlight-edits.ts';
 import {
 	LOCAL_ASSISTANCE_GUIDED_PREPARATION_UNAVAILABLE_REASONS,
 	type LocalAssistanceGuidedPreparationUnavailableReason,
@@ -59,6 +67,7 @@ export interface LocalAssistanceGuidedSnapshot {
 	readonly progress: AssistanceWorkflowProgressV1 | null;
 	readonly result: LocalAssistanceWorkflowOutcome | null;
 	readonly review: LocalAssistanceGuidedReviewedResult | null;
+	readonly highlightDraft: AssistanceOwnedHighlightProposalsV1 | null;
 	readonly selectedChoiceIds: readonly string[];
 	readonly unavailableReason: LocalAssistanceGuidedUnavailableReason | null;
 	readonly error: string | null;
@@ -75,6 +84,10 @@ export interface LocalAssistanceGuidedSessionStore {
 	selectWorkflow(workflowId: AssistanceGuidedWorkflowId): void;
 	setSettings(settings: AssistanceWorkflowSettingsV1): void;
 	setReviewChoiceSelected(choiceId: string, selected: boolean): void;
+	setHighlightTitle(proposalId: string, title: string): void;
+	setHighlightTrim(proposalId: string, startFrame: number, endFrame: number): void;
+	setHighlightCrop(proposalId: string, sourceFrame: number,
+		crop: Readonly<{ left: number; top: number; right: number; bottom: number }>): void;
 	run(): Promise<void>;
 	review(): Promise<void>;
 	accept(): Promise<void>;
@@ -91,7 +104,8 @@ const GUIDED_IDS = new Set<unknown>(ASSISTANCE_GUIDED_WORKFLOW_IDS);
 export const INITIAL_LOCAL_ASSISTANCE_GUIDED_SNAPSHOT: LocalAssistanceGuidedSnapshot = freezeSnapshot({
 	surface: 'guided', phase: 'selection-required', workflowIds: ASSISTANCE_GUIDED_WORKFLOW_IDS,
 	selectedWorkflowId: null, settings: null, progress: null, result: null,
-	review: null, selectedChoiceIds: Object.freeze([]), unavailableReason: null, error: null,
+	review: null, highlightDraft: null, selectedChoiceIds: Object.freeze([]),
+	unavailableReason: null, error: null,
 });
 
 export function createLocalAssistanceGuidedSessionStore(
@@ -133,7 +147,8 @@ export function createLocalAssistanceGuidedSessionStore(
 		const unavailableReason = availability(options);
 		update({ selectedWorkflowId: selected, settings,
 			phase: unavailableReason ? 'unavailable' : 'ready', unavailableReason,
-			progress: null, result: null, review: null, selectedChoiceIds: Object.freeze([]), error: null });
+			progress: null, result: null, review: null, highlightDraft: null,
+			selectedChoiceIds: Object.freeze([]), error: null });
 	};
 	const setSettings = (settingsValue: AssistanceWorkflowSettingsV1): void => {
 		if (snapshot.canCancel) throw new Error('The active Guided workflow settings are immutable.');
@@ -145,7 +160,8 @@ export function createLocalAssistanceGuidedSessionStore(
 		);
 		const unavailableReason = availability(options);
 		update({ settings, phase: unavailableReason ? 'unavailable' : 'ready', unavailableReason,
-			progress: null, result: null, review: null, selectedChoiceIds: Object.freeze([]), error: null });
+			progress: null, result: null, review: null, highlightDraft: null,
+			selectedChoiceIds: Object.freeze([]), error: null });
 	};
 
 	const execute = async (): Promise<void> => {
@@ -156,7 +172,7 @@ export function createLocalAssistanceGuidedSessionStore(
 		const workflowId = snapshot.selectedWorkflowId!;
 		const settings = validateAssistanceWorkflowSettingsV1(snapshot.settings, workflowId);
 		cancelRequested = false;
-		update({ phase: 'preparing', progress: null, result: null, review: null,
+		update({ phase: 'preparing', progress: null, result: null, review: null, highlightDraft: null,
 			selectedChoiceIds: Object.freeze([]),
 			unavailableReason: null, error: null });
 		let outcome: LocalAssistanceWorkflowOutcome | null = null;
@@ -239,12 +255,13 @@ export function createLocalAssistanceGuidedSessionStore(
 			|| !workflow?.readOutput) throw new Error('The Guided result is not ready for review.');
 		const retained = retainedJobs.get(snapshot.result.jobId);
 		if (!retained) throw new Error('The Guided result custody has expired.');
-		update({ phase: 'reviewing', review: null, error: null });
+		update({ phase: 'reviewing', review: null, highlightDraft: null, error: null });
 		try {
 			const reviewed = await reviewLocalAssistanceGuidedResult({ workflow: retained.workflow,
 				result: snapshot.result.result, authority: retained.reviewAuthority,
 				readOutput: (request) => workflow.readOutput!(request) });
 			if (!disposed) update({ phase: 'review-ready', review: reviewed,
+				highlightDraft: highlightResult(reviewed),
 				selectedChoiceIds: Object.freeze([]), error: null });
 		} catch (error) {
 			if (!disposed) update({ phase: 'error', review: null,
@@ -266,6 +283,23 @@ export function createLocalAssistanceGuidedSessionStore(
 		update({ selectedChoiceIds: Object.freeze(snapshot.review.choices
 			.filter(({ id }) => ids.has(id)).map(({ id }) => id)) });
 	};
+	const setHighlightTitle = (proposalId: string, title: string): void => {
+		const draft = openHighlightDraft(snapshot);
+		update({ highlightDraft: setLocalAssistanceGuidedHighlightTitleV1(draft, proposalId, title) });
+	};
+	const setHighlightTrim = (proposalId: string, startFrame: number, endFrame: number): void => {
+		const draft = openHighlightDraft(snapshot);
+		update({ highlightDraft: setLocalAssistanceGuidedHighlightTrimV1(
+			highlightOriginal(snapshot.review!), draft, proposalId, startFrame, endFrame,
+		) });
+	};
+	const setHighlightCrop = (proposalId: string, sourceFrame: number,
+		crop: Readonly<{ left: number; top: number; right: number; bottom: number }>): void => {
+		const draft = openHighlightDraft(snapshot);
+		update({ highlightDraft: setLocalAssistanceGuidedHighlightCropV1(
+			draft, proposalId, sourceFrame, crop,
+		) });
+	};
 	const accept = async (): Promise<void> => {
 		if (!snapshot.canAccept || !snapshot.review || !workflow?.readOutput
 			|| !options.preparation?.acceptGuidedWorkflowResult) {
@@ -278,6 +312,7 @@ export function createLocalAssistanceGuidedSessionStore(
 		try {
 			const outcome = await options.preparation.acceptGuidedWorkflowResult({
 				workflow: retained.workflow, reviewedResult: snapshot.review, selectedChoiceIds,
+				...(snapshot.highlightDraft ? { highlightDraft: snapshot.highlightDraft } : {}),
 				readOutput: (request) => workflow.readOutput!(request),
 			});
 			if (isUnsupportedAcceptance(outcome)) {
@@ -324,8 +359,34 @@ export function createLocalAssistanceGuidedSessionStore(
 		getSnapshot: () => snapshot,
 		subscribe(listener: () => void) { listeners.add(listener); return () => listeners.delete(listener); },
 		selectSurface, selectWorkflow, setSettings, setReviewChoiceSelected,
+		setHighlightTitle, setHighlightTrim, setHighlightCrop,
 		run, review, accept, cancel, dispose,
 	});
+}
+
+function highlightResult(
+	review: LocalAssistanceGuidedReviewedResult,
+): AssistanceOwnedHighlightProposalsV1 | null {
+	if (review.workflowId !== 'make-highlights') return null;
+	return createLocalAssistanceGuidedHighlightDraftV1(highlightOriginal(review));
+}
+
+function highlightOriginal(review: LocalAssistanceGuidedReviewedResult): unknown {
+	const matches = review.outputs.filter(({ slotId }) => slotId === 'highlight-proposals');
+	if (matches.length !== 1) {
+		throw new TypeError('The Guided highlight review lost its exact proposal terminal.');
+	}
+	return matches[0]!.semantic;
+}
+
+function openHighlightDraft(
+	value: LocalAssistanceGuidedSnapshot,
+): AssistanceOwnedHighlightProposalsV1 {
+	if (value.phase !== 'review-ready' || value.review?.workflowId !== 'make-highlights'
+		|| !value.highlightDraft) {
+		throw new Error('The Guided highlight review is not open.');
+	}
+	return value.highlightDraft;
 }
 
 function availability(options: Options): LocalAssistanceGuidedUnavailableReason | null {
