@@ -28,7 +28,7 @@
 }
 
 .kw-local-assistance__error {
-	color: var(--kw-color-danger, #b42318);
+	color: var(--kw-editor-danger);
 }
 
 .kw-local-assistance__outputs {
@@ -37,7 +37,7 @@
 }
 
 .kw-local-assistance__cleanup {
-	border-top: 1px solid var(--kw-color-border, #d0d5dd);
+	border-top: 1px solid var(--kw-editor-line);
 	margin-top: 1rem;
 	padding-top: 0.75rem;
 }
@@ -59,7 +59,7 @@
 }
 
 .kw-local-assistance__cleanup-list small {
-	color: var(--kw-color-text-muted, #667085);
+	color: var(--kw-editor-muted);
 	grid-column: 2;
 }
 
@@ -69,6 +69,6 @@
 }
 
 .kw-local-assistance__deferred {
-	color: var(--kw-color-text-muted, #667085);
+	color: var(--kw-editor-muted);
 	font-size: 0.875rem;
 }

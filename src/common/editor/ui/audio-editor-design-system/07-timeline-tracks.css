@@ -429,7 +429,12 @@
 	padding: 1px 3px;
 	border: 1px solid currentColor;
 	border-radius: 2px;
-	color: inherit;
+	/*
+	 * The light field is borrowed from the audio clip header, whose text is dark
+	 * already. A video clip header is light-on-dark, so inheriting its colour
+	 * would put near-white text on this near-white field.
+	 */
+	color: #14151a;
 	background: rgb(255 255 255 / 90%);
 	font: inherit;
 	outline: none;
