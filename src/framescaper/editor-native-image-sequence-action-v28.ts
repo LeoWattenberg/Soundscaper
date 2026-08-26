@@ -84,20 +84,33 @@ export function bindFramescaperNativeImageSequenceActionV28(
 	if (existing.surfaces.includes('image-sequence-import')) {
 		throw new Error('Selected V28 image-sequence import is already bound.');
 	}
+	const runtime = composeFramescaperNativeProjectActionRuntimes([
+		existing, createActionRuntime(options),
+	]);
+	bindFramescaperNativeProjectActionRuntime(options.owner, runtime);
+	return runtime;
+}
+
+/** Create the exact action slice used by deferred selected-F31 composition. */
+export function createFramescaperNativeImageSequenceActionRuntimeV28(
+	options: BindFramescaperNativeImageSequenceActionV28Options,
+): FramescaperNativeProjectActionRuntime {
+	assertOptions(options);
+	return createActionRuntime(options);
+}
+
+function createActionRuntime(
+	options: BindFramescaperNativeImageSequenceActionV28Options,
+): FramescaperNativeProjectActionRuntime {
 	const mintId = options.mintId ?? (() => `image-sequence-${globalThis.crypto.randomUUID()}`);
 	const importSequence = serialize((request: FramescaperNativeImageSequenceImportRequestV28) => (
 		importCurrentSequence(options, mintId, request)
 	));
-	const runtime = composeFramescaperNativeProjectActionRuntimes([
-		existing,
-		createFramescaperNativeProjectActionSubsetRuntime(SURFACES, {
-			'image-sequence-import': (request) => importSequence(
-				snapshotFramescaperNativeImageSequenceImportRequestV28(request),
-			),
-		}),
-	]);
-	bindFramescaperNativeProjectActionRuntime(options.owner, runtime);
-	return runtime;
+	return createFramescaperNativeProjectActionSubsetRuntime(SURFACES, {
+		'image-sequence-import': (request) => importSequence(
+			snapshotFramescaperNativeImageSequenceImportRequestV28(request),
+		),
+	});
 }
 
 async function importCurrentSequence(

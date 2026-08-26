@@ -12,7 +12,6 @@ import {
 } from '../common/editor/native-media-capability-snapshot.ts';
 import type {
 	NativeQueueInputFingerprintV1,
-	NativeQueueReservationsV1,
 } from '../common/editor/native-queue-record.ts';
 import {
 	bindFramescaperNativeCarrierRegeneration,
@@ -40,6 +39,7 @@ import type {
 	FramescaperNativeRenderAudioInputStreamV28,
 	FramescaperNativeRenderInputStreamV28,
 } from './editor-native-render-input-stream-producer-v28.ts';
+import { FRAMESCAPER_V28_RENDER_QUEUE_RESERVATIONS } from './editor-native-render-queue-reservations-v28.ts';
 import type { FramescaperNativeRgbaFramePackV1Sink } from './native-render-frame-pack-v1.ts';
 import { createFramescaperProjectUnifiedExactRenderPlanV28 } from './editor-project-unified-render-plan-v28.ts';
 import { cloneFramescaperProjectV28, type FramescaperProjectV28 } from './editor-project-v28.ts';
@@ -47,14 +47,7 @@ import { cloneFramescaperProjectV28, type FramescaperProjectV28 } from './editor
 const SURFACES = Object.freeze(['render-queue-enqueue'] as const);
 const SHA256 = /^[a-f0-9]{64}$/u;
 
-export const FRAMESCAPER_V28_RENDER_QUEUE_RESERVATIONS: NativeQueueReservationsV1 =
-	Object.freeze({
-		cpuCores: 2,
-		processTreeRssBytes: 4 * 1_024 ** 3,
-		scratchBytes: 32 * 1_024 ** 3,
-		minimumFreeBytes: 10 * 1_024 ** 3,
-		hardwareBackend: null,
-	});
+export { FRAMESCAPER_V28_RENDER_QUEUE_RESERVATIONS } from './editor-native-render-queue-reservations-v28.ts';
 
 export interface FramescaperNativeRenderQueueProjectOwnerV28 {
 	readonly project: unknown;
@@ -80,6 +73,16 @@ export function bindFramescaperNativeRenderQueueActionV28(
 	profile: unknown,
 	owner: FramescaperNativeRenderQueueProjectOwnerV28,
 ): FramescaperNativeProjectActionRuntime {
+	const runtime = createFramescaperNativeRenderQueueActionRuntimeV28(profile, owner);
+	bindFramescaperNativeProjectActionRuntime(owner as object, runtime);
+	return runtime;
+}
+
+/** Create the exact action slice used by deferred selected-F31 composition. */
+export function createFramescaperNativeRenderQueueActionRuntimeV28(
+	profile: unknown,
+	owner: FramescaperNativeRenderQueueProjectOwnerV28,
+): FramescaperNativeProjectActionRuntime {
 	if (!owner || (typeof owner !== 'object' && typeof owner !== 'function')) {
 		throw new TypeError('The selected V28 render queue requires its controller owner.');
 	}
@@ -95,7 +98,6 @@ export function bindFramescaperNativeRenderQueueActionV28(
 		async (jobId) => enqueueCurrentProject(
 			profile, owner, await recoverableDelivery(profile, owner, jobId), jobId,
 		));
-	bindFramescaperNativeProjectActionRuntime(owner as object, runtime);
 	return runtime;
 }
 

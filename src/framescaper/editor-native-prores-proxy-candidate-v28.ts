@@ -25,8 +25,8 @@ import {
 	type FramescaperNativeServicesBridge,
 } from '../common/editor/ui/framescaper-native-services-bridge.ts';
 import type { FramescaperCapturedVideoProxyRuntimeComposition } from './editor-captured-video-proxy-scheduler-composition.ts';
-import { FRAMESCAPER_V28_RENDER_QUEUE_RESERVATIONS } from './editor-native-render-queue-action-v28.ts';
 import { createFramescaperNativeRenderPlanAuthorityV28 } from './editor-native-render-plan-authority-v28.ts';
+import { FRAMESCAPER_V28_RENDER_QUEUE_RESERVATIONS } from './editor-native-render-queue-reservations-v28.ts';
 import { createFramescaperProjectUnifiedExactRenderPlanV28 } from './editor-project-unified-render-plan-v28.ts';
 import { cloneFramescaperProjectV28, type FramescaperProjectV28 } from './editor-project-v28.ts';
 
@@ -45,6 +45,13 @@ export interface FramescaperNativeProResProxyCandidateV28Options {
 	readonly waitForPoll?: (signal?: AbortSignal) => Promise<void>;
 }
 
+export interface FramescaperNativeProResProxyGeneratorV28Options {
+	readonly profile: unknown;
+	readonly getProject: () => unknown;
+	readonly bridge: FramescaperNativeServicesBridge;
+	readonly waitForPoll?: (signal?: AbortSignal) => Promise<void>;
+}
+
 /** Return null outside the authenticated desktop bridge; never substitute another native recipe. */
 export function createFramescaperNativeProResProxyCandidateObserverV28(
 	options: FramescaperNativeProResProxyCandidateV28Options,
@@ -56,7 +63,25 @@ export function createFramescaperNativeProResProxyCandidateObserverV28(
 	if (!proxyBridgeAvailable(bridge)) return null;
 	const probes = timingProbes(options.composition);
 	if (probes.length === 0) return null;
-	const generator: VideoProxyCandidateGeneratorPort = Object.freeze({
+	const generator = createFramescaperNativeProResProxyGeneratorV28({
+		profile: options.profile, getProject: options.getProject, bridge,
+		...(options.waitForPoll ? { waitForPoll: options.waitForPoll } : {}),
+	});
+	return createVideoProxyCandidateObserver({
+		generator, recipe: RECIPE, probes, maximumBytes: MAXIMUM_PROXY_BYTES,
+	});
+}
+
+/** @internal Exact execution factory used by the deferred selected-F31 wrapper. */
+export function createFramescaperNativeProResProxyGeneratorV28(
+	options: FramescaperNativeProResProxyGeneratorV28Options,
+): VideoProxyCandidateGeneratorPort {
+	if (!options || typeof options !== 'object' || typeof options.getProject !== 'function'
+		|| !proxyBridgeAvailable(options.bridge)
+		|| (options.waitForPoll !== undefined && typeof options.waitForPoll !== 'function')) {
+		throw new TypeError('Selected V28 native proxy generation requires its exact execution ports.');
+	}
+	return Object.freeze({
 		...GENERATOR,
 		generate: (
 			_original: Parameters<VideoProxyCandidateGeneratorPort['generate']>[0],
@@ -64,13 +89,10 @@ export function createFramescaperNativeProResProxyCandidateObserverV28(
 			recipe: Parameters<VideoProxyCandidateGeneratorPort['generate']>[2],
 			generation: Parameters<VideoProxyCandidateGeneratorPort['generate']>[3],
 		) => generate({
-			profile: options.profile, getProject: options.getProject, bridge,
+			profile: options.profile, getProject: options.getProject, bridge: options.bridge,
 			identity, recipe, signal: generation.signal, assertCurrent: generation.assertCurrent,
 			waitForPoll: options.waitForPoll ?? waitForPoll,
 		}),
-	});
-	return createVideoProxyCandidateObserver({
-		generator, recipe: RECIPE, probes, maximumBytes: MAXIMUM_PROXY_BYTES,
 	});
 }
 

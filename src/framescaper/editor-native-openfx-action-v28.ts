@@ -92,6 +92,11 @@ export interface FramescaperOpenFxInteractAuthoringModelV28 {
 	readonly instances: readonly FramescaperOpenFxInteractInstanceV28[];
 }
 
+export interface FramescaperNativeOpenFxActionRuntimeCompositionV28 {
+	readonly actionRuntime: FramescaperNativeProjectActionRuntime;
+	readonly authoringRuntime: FramescaperNativeOpenFxAuthoringRuntimeV28;
+}
+
 export function framescaperNativeOpenFxActionBridgeAvailableV28(
 	value: unknown,
 ): value is FramescaperNativeOpenFxActionBridgeV28 {
@@ -108,11 +113,31 @@ export function bindFramescaperNativeOpenFxActionV28(
 	const existing = framescaperNativeProjectActionRuntimeFor(options.owner);
 	if (!existing) throw new Error('Selected V28 OpenFX authoring requires its existing native action runtime.');
 	if (existing.surfaces.includes('ofx-add')) throw new Error('Selected V28 OpenFX authoring is already bound.');
+	const created = createOpenFxActionRuntimeComposition(options);
+	const runtime = composeFramescaperNativeProjectActionRuntimes([
+		existing, created.actionRuntime,
+	]);
+	bindFramescaperNativeProjectActionRuntime(options.owner, runtime);
+	bindRegisteredOpenFxRuntime(options.owner, created.authoringRuntime);
+	return runtime;
+}
+
+/** Create the exact unbound action and authoring slices used by selected F31. */
+export function createFramescaperNativeOpenFxActionRuntimeV28(
+	options: BindFramescaperNativeOpenFxActionV28Options,
+): FramescaperNativeOpenFxActionRuntimeCompositionV28 {
+	assertOptions(options);
+	return createOpenFxActionRuntimeComposition(options);
+}
+
+function createOpenFxActionRuntimeComposition(
+	options: BindFramescaperNativeOpenFxActionV28Options,
+): FramescaperNativeOpenFxActionRuntimeCompositionV28 {
 	const mintId = options.mintId ?? (() => `ofx-${globalThis.crypto.randomUUID()}`);
 	const author = serializeRequest((request: FramescaperOpenFxAuthoringRequestV28) => (
 		authorEffect(options, mintId, request)
 	));
-	const authoring = Object.freeze({
+	const authoringRuntime: FramescaperNativeOpenFxAuthoringRuntimeV28 = Object.freeze({
 		model: () => loadAuthoringModel(options),
 		author,
 		interactModel: () => loadInteractModel(options),
@@ -123,15 +148,10 @@ export function bindFramescaperNativeOpenFxActionV28(
 			commitInteractResult(options, request, result)
 		)),
 	});
-	const runtime = composeFramescaperNativeProjectActionRuntimes([
-		existing,
-		createFramescaperNativeProjectActionSubsetRuntime(SURFACES, {
-			'ofx-add': serialize(() => addSelectedFilter(options, mintId)),
-		}),
-	]);
-	bindFramescaperNativeProjectActionRuntime(options.owner, runtime);
-	bindRegisteredOpenFxRuntime(options.owner, authoring);
-	return runtime;
+	const actionRuntime = createFramescaperNativeProjectActionSubsetRuntime(SURFACES, {
+		'ofx-add': serialize(() => addSelectedFilter(options, mintId)),
+	});
+	return Object.freeze({ actionRuntime, authoringRuntime });
 }
 
 export function framescaperNativeOpenFxAuthoringRuntimeForV28(

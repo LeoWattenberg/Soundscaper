@@ -197,20 +197,37 @@ test('optional export execution has an isolated lazy owner', () => {
 test('stateful local assistance implementations share one dedicated lazy owner', () => {
 	for (const path of [
 		'src/common/editor/controller/local-assistance-runtime.ts',
+		'src/common/editor/controller/local-assistance-audio-preparation.ts',
 		'src/common/editor/controller/local-assistance-selected-media.ts',
 		'src/common/editor/controller/local-assistance-selected-video.ts',
 		'src/common/editor/controller/local-assistance-selected-preparation.ts',
 		'src/common/editor/controller/local-assistance-selected-media-router.ts',
 		'src/common/editor/controller/local-assistance-result-acceptance.ts',
+		'src/common/editor/controller/local-assistance-reaction-acceptance.ts',
 		'src/common/editor/controller/local-assistance-cleanup-workflow.ts',
 		'src/common/editor/controller/local-assistance-cleanup-acceptance.ts',
 		'src/common/editor/controller/local-assistance-range-label-acceptance.ts',
 		'src/common/editor/controller/local-assistance-shot-acceptance.ts',
 		'src/common/editor/controller/local-assistance-transcript-acceptance.ts',
 		'src/common/editor/assistance/disfluency.ts',
+		'src/common/editor/assistance/binary-formats-v1.ts',
+		'src/common/editor/assistance/highlight-ranking-v1.ts',
+		'src/common/editor/assistance/m7-semantic-results.ts',
+		'src/common/editor/assistance/proposal-session.ts',
+		'src/common/editor/assistance/reaction-proposals.ts',
+		'src/common/editor/assistance/reframe-planner-v1.ts',
+		'src/common/editor/assistance/scene-scores.ts',
+		'src/common/editor/assistance/shot-detection.ts',
+		'src/common/editor/assistance/speaker-attribution.ts',
 		'src/common/editor/assistance/transcript-body-publication-v1.ts',
+		'src/common/editor/assistance/transcript-cleanup-presets.ts',
+		'src/common/editor/assistance/transcript-indexing-v1.ts',
+		'src/common/editor/assistance/transcript-ingest.ts',
 		'src/common/editor/assistance/transcript-labels.ts',
 		'src/common/editor/assistance/vad-silence.ts',
+		'src/common/editor/assistance/visual-indexing-v1.ts',
+		'src/common/editor/assistance/workflow-recipes.ts',
+		'src/common/editor/assistance/workflow.ts',
 	]) {
 		assert.ok(EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST.test(path), `${path} must be optional assistance`);
 		assert.equal(chunkGroupForModulePath(path), 'editor-optional-assistance');
@@ -226,7 +243,11 @@ test('stateful local assistance implementations share one dedicated lazy owner',
 
 test('menu-opened execution and UI surfaces use dedicated lazy owners', () => {
 	for (const path of [
+		'src/common/editor/ui/local-assistance-bridge.ts',
+		'src/common/editor/ui/local-assistance-result-review.ts',
 		'src/common/editor/ui/local-assistance-session-store.ts',
+		'src/common/editor/ui/local-assistance-shot-review.ts',
+		'src/common/editor/ui/local-assistance-workflow-bridge.ts',
 		'src/common/editor/ui/workspace/RecordingSetupPanel.tsx',
 	]) {
 		assert.ok(EDITOR_OPTIONAL_SURFACE_CHUNK_TEST.test(path), `${path} must be a lazy UI surface`);
@@ -305,6 +326,11 @@ test('small product-ready foundations have non-recursive semantic owners', () =>
 		['src/framescaper/editor-project-storage-profile-v28.ts', 'framescaper-project-foundations'],
 		['src/framescaper/editor-project-runtime-profile-v28-prerequisite.ts', 'framescaper-project-foundations'],
 		['src/framescaper/editor-project-runtime-profile-v28.ts', 'framescaper-project-foundations'],
+		['src/framescaper/editor-native-render-plan-authority-v28.ts', 'framescaper-project-foundations'],
+		['src/framescaper/editor-project-companion-audio-scope-v15.ts', 'framescaper-project-foundations'],
+		['src/framescaper/editor-project-unified-render-plan-v28.ts', 'framescaper-project-foundations'],
+		['src/framescaper/editor-project-unified-render-openfx.ts', 'framescaper-project-foundations'],
+		['src/framescaper/editor-project-unified-render-professional.ts', 'framescaper-project-foundations'],
 		['src/framescaper/editor-project-v32-foundation.ts', 'framescaper-project-foundations'],
 		['src/framescaper/editor-project-feature-capability-profile-v32.ts', 'framescaper-project-foundations'],
 		['src/framescaper/editor-project-storage-profile-v32.ts', 'framescaper-project-foundations'],
