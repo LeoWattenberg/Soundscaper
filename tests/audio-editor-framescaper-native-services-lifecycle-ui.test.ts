@@ -241,3 +241,34 @@ function watchRule() {
 		enabled: true,
 	};
 }
+
+/**
+ * The surface polls on an interval alongside user actions, so a snapshot request
+ * issued before an action can resolve after the refresh that action triggered.
+ * Publishing it would restore the state the action just replaced.
+ */
+test('a superseded refresh response never overwrites a newer one', async () => {
+	const pending: Array<(value: FramescaperNativeServicesProjection) => void> = [];
+	const bridge = {
+		...lifecycleBridge().bridge,
+		snapshot: () => new Promise<FramescaperNativeServicesProjection>((resolve) => {
+			pending.push(resolve);
+		}),
+	} as FramescaperNativeServicesBridge;
+	const store = createFramescaperNativeServicesStore(bridge);
+
+	const slow = store.refresh();
+	const fast = store.refresh();
+	// The newer request answers first, then the older one arrives late.
+	pending[1]!({ ...snapshot(), nativeMediaEnabled: false });
+	await fast;
+	assert.equal(store.getSnapshot()?.services.nativeMediaEnabled, false);
+
+	pending[0]!({ ...snapshot(), nativeMediaEnabled: true });
+	await slow;
+	assert.equal(
+		store.getSnapshot()?.services.nativeMediaEnabled,
+		false,
+		'the stale response is discarded rather than published',
+	);
+});

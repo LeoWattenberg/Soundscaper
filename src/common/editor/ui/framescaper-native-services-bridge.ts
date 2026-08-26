@@ -210,8 +210,10 @@ export function createFramescaperNativeServicesStore(
 	let snapshot: FramescaperNativeServicesRendererSnapshot | null = null;
 	let refreshedAt = Number.NEGATIVE_INFINITY;
 	let inFlight: Promise<FramescaperNativeServicesRendererSnapshot> | null = null;
+	let generation = 0;
 	const listeners = new Set<() => void>();
 	const refresh = async (): Promise<FramescaperNativeServicesRendererSnapshot> => {
+		const issued = ++generation;
 		const [servicesValue, capabilityValue, preferencesValue, displaysValue] = await Promise.all([
 			bridge.snapshot(),
 			bridge.capabilities?.().catch(() => null) ?? Promise.resolve(null),
@@ -237,6 +239,11 @@ export function createFramescaperNativeServicesStore(
 			externalDisplays: displays.displays,
 			activeExternalDisplayId: displays.activeDisplayId,
 		});
+		// The interval poll runs alongside user actions, so an older request can
+		// resolve after a newer one. Publishing it would restore the projection the
+		// action just replaced — and stamp the refresh time, suppressing the poll
+		// that would have corrected it.
+		if (issued !== generation) return snapshot ?? next;
 		snapshot = next;
 		refreshedAt = clock();
 		for (const listener of listeners) listener();
