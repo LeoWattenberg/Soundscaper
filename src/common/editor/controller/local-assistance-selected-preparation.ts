@@ -30,7 +30,12 @@ export function createLocalAssistanceSelectedPreparation(
 	LocalAssistanceSelectedMediaPrepared,
 	LocalAssistanceSelectedVideoPrepared
 >> {
-	const audio = createLocalAssistanceSelectedMediaPreparation(dependencies);
+	const audio = createLocalAssistanceSelectedMediaPreparation({
+		...dependencies,
+		getSelectedClipId: () => selectedOrLinkedAudioClipId(
+			dependencies.getProject(), dependencies.getSelectedClipId(),
+		),
+	});
 	const video = dependencies.videoStore ? createLocalAssistanceSelectedVideoPreparation({
 		getProject: dependencies.getProject,
 		getSelectedClipId: dependencies.getSelectedClipId,
@@ -39,4 +44,20 @@ export function createLocalAssistanceSelectedPreparation(
 		store: dependencies.videoStore,
 	}) : null;
 	return createLocalAssistanceSelectedMediaPreparationRouter({ audio, video });
+}
+
+function selectedOrLinkedAudioClipId(projectValue: unknown, selectedId: string | null): string | null {
+	if (typeof selectedId !== 'string' || selectedId.length < 1 || !projectValue
+		|| typeof projectValue !== 'object' || Array.isArray(projectValue)) return selectedId;
+	const clipsValue = (projectValue as Readonly<Record<string, unknown>>).clips;
+	if (!Array.isArray(clipsValue)) return selectedId;
+	const clips = clipsValue.filter((candidate): candidate is Readonly<Record<string, unknown>> => (
+		Boolean(candidate) && typeof candidate === 'object' && !Array.isArray(candidate)
+	));
+	const selected = clips.filter(({ id }) => id === selectedId);
+	if (selected.length !== 1 || selected[0]!.kind !== 'video') return selectedId;
+	const linkId = selected[0]!.avLinkId;
+	if (typeof linkId !== 'string' || linkId.length < 1) return selectedId;
+	const linked = clips.filter(({ kind, avLinkId }) => kind === 'audio' && avLinkId === linkId);
+	return linked.length === 1 && typeof linked[0]!.id === 'string' ? linked[0]!.id : selectedId;
 }
