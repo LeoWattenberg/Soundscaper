@@ -303,9 +303,8 @@ function selectStages(
 		if (stage.stageId === 'recognize-speech') {
 			return models.filter(({ task }) => task === 'speech-recognition').length === 1;
 		}
-		if (stage.stageId === 'rerank-editorial') {
-			return settings.workflowId === 'make-highlights' && settings.editorialRerank;
-		}
+		if (stage.stageId === 'rerank-editorial') return settings.workflowId === 'make-highlights'
+			&& settings.editorialRerank;
 		return false;
 	}));
 }
@@ -471,7 +470,6 @@ function assertSamePrimitiveFences(values: readonly PrimitiveFence[]): void {
 }
 
 function bindingKey(stageId: string, slotId: string): string { return `${stageId}\0${slotId}`; }
-
 function assertSafeProjectTopology(project: Record<string, unknown>): void {
 	if (recordArray(project.subsequences).length > 0 || recordArray(project.multicameraGroups).length > 0) {
 		throw new UnavailableError('timing-authority-unavailable');
@@ -588,7 +586,6 @@ function assertDependencies(value: LocalAssistanceGuidedPreparationDependencies)
 		throw new TypeError('Guided preparation requires exact project, storage, and media custody ports.');
 	}
 }
-
 function unavailable(
 	reason: LocalAssistanceGuidedPreparationUnavailableReason,
 ): LocalAssistanceGuidedWorkflowPreparationOutcome {
