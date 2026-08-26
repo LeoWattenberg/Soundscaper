@@ -28,7 +28,8 @@ export const HIGHLIGHT_RANKING_V1_MAXIMUM_OVERLAP = 0.25;
 const CANDIDATE_FIELDS = Object.freeze([
 	'id', 'startFrame', 'endFrame', 'transcriptEvidence', 'hook',
 	'conversationalStructure', 'excitement', 'energyDynamics',
-	'semanticSelfContainedness', 'shotStructure', 'visualInterest', 'duplication',
+	'semanticSelfContainedness', 'shotStructure', 'visualInterest',
+	'speechlessAvailableWeight', 'duplication',
 ] as const);
 const OPTION_FIELDS = Object.freeze([
 	'sampleRate', 'maximumResults', 'minimumDurationSeconds', 'maximumDurationSeconds',
@@ -52,6 +53,7 @@ export interface AssistanceHighlightCandidateV1 {
 	readonly semanticSelfContainedness: number;
 	readonly shotStructure: number;
 	readonly visualInterest: number;
+	readonly speechlessAvailableWeight: number;
 	readonly duplication: number;
 }
 
@@ -108,6 +110,11 @@ export function rankAssistanceHighlightsV1(
 }
 
 function candidateScore(candidate: AssistanceHighlightCandidateV1): number {
+	const speechlessNumerator = candidate.shotStructure
+		* HIGHLIGHT_RANKING_V1_SPEECHLESS_WEIGHTS.shotStructure
+		+ candidate.excitement * HIGHLIGHT_RANKING_V1_SPEECHLESS_WEIGHTS.excitement
+		+ candidate.energyDynamics * HIGHLIGHT_RANKING_V1_SPEECHLESS_WEIGHTS.energyDynamics
+		+ candidate.visualInterest * HIGHLIGHT_RANKING_V1_SPEECHLESS_WEIGHTS.visualInterest;
 	const raw = candidate.transcriptEvidence
 		? candidate.hook * HIGHLIGHT_RANKING_V1_WEIGHTS.hook
 			+ candidate.conversationalStructure
@@ -116,10 +123,8 @@ function candidateScore(candidate: AssistanceHighlightCandidateV1): number {
 			+ candidate.energyDynamics * HIGHLIGHT_RANKING_V1_WEIGHTS.energyDynamics
 			+ candidate.semanticSelfContainedness
 				* HIGHLIGHT_RANKING_V1_WEIGHTS.semanticSelfContainedness
-		: candidate.shotStructure * HIGHLIGHT_RANKING_V1_SPEECHLESS_WEIGHTS.shotStructure
-			+ candidate.excitement * HIGHLIGHT_RANKING_V1_SPEECHLESS_WEIGHTS.excitement
-			+ candidate.energyDynamics * HIGHLIGHT_RANKING_V1_SPEECHLESS_WEIGHTS.energyDynamics
-			+ candidate.visualInterest * HIGHLIGHT_RANKING_V1_SPEECHLESS_WEIGHTS.visualInterest;
+		: candidate.speechlessAvailableWeight === 0
+			? 0 : speechlessNumerator / candidate.speechlessAvailableWeight;
 	return quantize(raw * (1 - candidate.duplication * HIGHLIGHT_RANKING_V1_DUPLICATION_PENALTY));
 }
 
@@ -151,6 +156,8 @@ function normalizeCandidate(
 		),
 		shotStructure: unit(record.shotStructure, 'shot structure'),
 		visualInterest: unit(record.visualInterest, 'visual interest'),
+		speechlessAvailableWeight: unit(record.speechlessAvailableWeight,
+			'speechless available weight'),
 		duplication: unit(record.duplication, 'duplication'),
 	});
 }

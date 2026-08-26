@@ -120,6 +120,7 @@ export interface AssistanceOwnedHighlightSignalCandidateV1 {
 	readonly semanticSelfContainedness: number;
 	readonly shotStructure: number;
 	readonly visualInterest: number;
+	readonly speechlessAvailableWeight: number;
 	readonly duplication: number;
 	readonly videoOccurrenceId: string;
 	readonly audioOccurrenceId: string;

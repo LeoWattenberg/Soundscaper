@@ -227,18 +227,21 @@ test('highlight stages snap evidence, rank deterministically, and assemble safe 
 		inputs: highlightInputs(),
 	}).outputs['highlight-signals'];
 	assert.deepEqual(gathered.candidates.map(({ id, startFrame, endFrame, sourceStartFrame,
-		sourceEndFrame, transcriptEvidence, duplication }) => ({ id, startFrame, endFrame,
-		sourceStartFrame, sourceEndFrame, transcriptEvidence, duplication })), [
+		sourceEndFrame, transcriptEvidence, speechlessAvailableWeight, duplication }) => ({ id,
+		startFrame, endFrame, sourceStartFrame, sourceEndFrame, transcriptEvidence,
+		speechlessAvailableWeight, duplication })), [
 		{ id: 'a', startFrame: 15_000, endFrame: 60_000, sourceStartFrame: 15,
-			sourceEndFrame: 60, transcriptEvidence: true, duplication: 1 },
+			sourceEndFrame: 60, transcriptEvidence: true,
+			speechlessAvailableWeight: 0.6, duplication: 1 },
 		{ id: 'b', startFrame: 60_000, endFrame: 90_000, sourceStartFrame: 60,
 			sourceEndFrame: 90, transcriptEvidence: true,
-			duplication: Math.fround(Math.SQRT1_2) },
+			speechlessAvailableWeight: 0.6, duplication: Math.fround(Math.SQRT1_2) },
 		{ id: 'c', startFrame: 90_000, endFrame: 120_000, sourceStartFrame: 90,
 			sourceEndFrame: 120, transcriptEvidence: false,
-			duplication: Math.fround(Math.SQRT1_2) },
+			speechlessAvailableWeight: 0.6, duplication: Math.fround(Math.SQRT1_2) },
 		{ id: 'd', startFrame: 15_000, endFrame: 60_000, sourceStartFrame: 15,
-			sourceEndFrame: 60, transcriptEvidence: true, duplication: 1 },
+			sourceEndFrame: 60, transcriptEvidence: true,
+			speechlessAvailableWeight: 0.6, duplication: 1 },
 	]);
 
 	const ranked = registry.run({
@@ -321,13 +324,29 @@ test('speechless highlight windows retain their admitted boundaries without shot
 			'reaction-ranges': null, embeddings: null,
 		} }).outputs['highlight-signals'];
 	assert.deepEqual(gathered.candidates.map(({ id, startFrame, endFrame,
-		sourceStartFrame, sourceEndFrame }) => ({ id, startFrame, endFrame,
-		sourceStartFrame, sourceEndFrame })), [
+		sourceStartFrame, sourceEndFrame, speechlessAvailableWeight }) => ({ id, startFrame,
+		endFrame, sourceStartFrame, sourceEndFrame, speechlessAvailableWeight })), [
 		{ id: 'speechless-a', startFrame: 15_000, endFrame: 60_000,
-			sourceStartFrame: 15, sourceEndFrame: 60 },
+			sourceStartFrame: 15, sourceEndFrame: 60, speechlessAvailableWeight: 0 },
 		{ id: 'speechless-b', startFrame: 90_000, endFrame: 120_000,
-			sourceStartFrame: 90, sourceEndFrame: 120 },
+			sourceStartFrame: 90, sourceEndFrame: 120, speechlessAvailableWeight: 0 },
 	]);
+	const ranked = registry.run({ schemaVersion: 1, transformId: 'rank-highlights',
+		settings: HIGHLIGHT_SETTINGS, inputs: { 'highlight-signals': gathered } })
+		.outputs['highlight-candidates'];
+	assert.deepEqual(ranked.candidates.map(({ score }) => score), [0, 0]);
+});
+
+test('owned highlight signal review rejects malformed speechless availability', () => {
+	const registry = createAssistanceOwnedVideoHighlightTransformRegistryV1();
+	const gathered = registry.run({ schemaVersion: 1, transformId: 'gather-signals',
+		settings: HIGHLIGHT_SETTINGS, inputs: highlightInputs() }).outputs['highlight-signals'];
+	assert.throws(() => registry.run({ schemaVersion: 1, transformId: 'rank-highlights',
+		settings: HIGHLIGHT_SETTINGS, inputs: { 'highlight-signals': {
+			...gathered,
+			candidates: [{ ...gathered.candidates[0], speechlessAvailableWeight: Number.NaN },
+				...gathered.candidates.slice(1)],
+		} } }), /available weight/iu);
 });
 
 function videoAuthority() {

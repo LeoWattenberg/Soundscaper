@@ -20,6 +20,7 @@ function candidate(
 		startFrame: startSeconds * SAMPLE_RATE,
 		endFrame: (startSeconds + 30) * SAMPLE_RATE,
 		transcriptEvidence: true,
+		speechlessAvailableWeight: 1,
 		hook: 0,
 		conversationalStructure: 0,
 		excitement: 0,
@@ -73,6 +74,21 @@ test('speechless candidates use only shot, reaction, energy, and visual evidence
 	assert.equal(speechless?.evidenceMode, 'speechless');
 });
 
+test('speechless ranking renormalizes only over authenticated available evidence', () => {
+	const [energyOnly] = rankAssistanceHighlightsV1([candidate('energy-only', 0, {
+		transcriptEvidence: false,
+		speechlessAvailableWeight: 0.15,
+		energyDynamics: 0.6,
+	})], { sampleRate: SAMPLE_RATE });
+	const [noEvidence] = rankAssistanceHighlightsV1([candidate('no-evidence', 0, {
+		transcriptEvidence: false,
+		speechlessAvailableWeight: 0,
+	})], { sampleRate: SAMPLE_RATE });
+
+	assert.equal(energyOnly?.score, 0.6);
+	assert.equal(noEvidence?.score, 0);
+});
+
 test('ranking applies the fixed duplication penalty before stable tie breaking', () => {
 	const ranked = rankAssistanceHighlightsV1([
 		candidate('later', 80, { hook: 0.8 }),
@@ -120,6 +136,12 @@ test('count and duration controls are bounded and malformed evidence fails close
 	assert.throws(() => rankAssistanceHighlightsV1([
 		candidate('nan', 0, { excitement: Number.NaN }),
 	], { sampleRate: SAMPLE_RATE }), /unit interval/iu);
+	assert.throws(() => rankAssistanceHighlightsV1([
+		candidate('bad-availability', 0, { speechlessAvailableWeight: 1.01 }),
+	], { sampleRate: SAMPLE_RATE }), /available weight/iu);
+	assert.throws(() => rankAssistanceHighlightsV1([
+		candidate('nan-availability', 0, { speechlessAvailableWeight: Number.NaN }),
+	], { sampleRate: SAMPLE_RATE }), /available weight/iu);
 	assert.throws(() => rankAssistanceHighlightsV1([
 		candidate('duplicate', 0), candidate('duplicate', 100),
 	], { sampleRate: SAMPLE_RATE }), /unique/iu);

@@ -55,7 +55,7 @@ const SIGNAL_FIELDS = Object.freeze([
 	'transcriptEvidence', 'transcriptExcerpt', 'visualSummary',
 	'hook', 'conversationalStructure', 'excitement',
 	'energyDynamics', 'semanticSelfContainedness', 'shotStructure', 'visualInterest',
-	'duplication', 'videoOccurrenceId', 'audioOccurrenceId',
+	'speechlessAvailableWeight', 'duplication', 'videoOccurrenceId', 'audioOccurrenceId',
 ] as const);
 const CANDIDATES_FIELDS = Object.freeze([
 	'schemaVersion', 'kind', 'sourceId', 'sampleRate', 'sourceSize', 'targetAspect', 'candidates',
@@ -229,6 +229,8 @@ export function reviewOwnedHighlightSignalsV1(value: unknown): AssistanceOwnedHi
 				`${label} self-containedness`),
 			shotStructure: ownedUnit(item.shotStructure, `${label} shot structure`),
 			visualInterest: ownedUnit(item.visualInterest, `${label} visual interest`),
+			speechlessAvailableWeight: ownedUnit(item.speechlessAvailableWeight,
+				`${label} speechless available weight`),
 			duplication: ownedUnit(item.duplication, `${label} duplication`),
 			videoOccurrenceId: stableId(item.videoOccurrenceId, `${label} video occurrence`),
 			audioOccurrenceId: stableId(item.audioOccurrenceId, `${label} audio occurrence`) });

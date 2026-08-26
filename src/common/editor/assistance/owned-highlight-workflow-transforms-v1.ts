@@ -4,7 +4,10 @@
 
 import { scaleSampleFrame } from '../timeline-time.ts';
 import { reviewAssistanceEmbeddingMatrixV1 } from './binary-formats-v1.ts';
-import { rankAssistanceHighlightsV1 } from './highlight-ranking-v1.ts';
+import {
+	HIGHLIGHT_RANKING_V1_SPEECHLESS_WEIGHTS,
+	rankAssistanceHighlightsV1,
+} from './highlight-ranking-v1.ts';
 import { reviewAssistanceEditorialProposalV1 } from './m7-semantic-results.ts';
 import type {
 	AssistanceOwnedHighlightCandidatesV1,
@@ -105,6 +108,14 @@ export function gatherOwnedHighlightSignalsV1(
 	const shotEdges = reviewShotEdges(inputs['shot-boundaries'], video);
 	const reactionRanges = reviewReactionRanges(inputs['reaction-ranges'], video.sampleRate);
 	const duplication = reviewDuplication(inputs.embeddings, video.windows.length);
+	const shotAvailable = inputs['shot-boundaries'] !== null;
+	const reactionAvailable = inputs['reaction-ranges'] !== null;
+	const energyAvailable = inputs.audio !== null;
+	const speechlessAvailableWeight = quantize(
+		(shotAvailable ? HIGHLIGHT_RANKING_V1_SPEECHLESS_WEIGHTS.shotStructure : 0)
+		+ (reactionAvailable ? HIGHLIGHT_RANKING_V1_SPEECHLESS_WEIGHTS.excitement : 0)
+		+ (energyAvailable ? HIGHLIGHT_RANKING_V1_SPEECHLESS_WEIGHTS.energyDynamics : 0),
+	);
 	const edges = canonicalEdges(video, shotEdges, transcript.timelineEdges);
 	const candidates = video.windows.map((window, index) => {
 		const startFrame = nearest(edges, window.startFrame);
@@ -122,16 +133,18 @@ export function gatherOwnedHighlightSignalsV1(
 			&& transcript.ranges.some((range) => overlaps(startFrame, endFrame, range.start, range.end));
 		const transcriptExcerpt = transcriptEvidence
 			? boundedTranscriptExcerpt(transcript.ranges, startFrame, endFrame) : null;
+		const shotStructure = shotAvailable ? window.shotStructure : 0;
+		const visualInterest = 0;
 		return Object.freeze({ id: window.id, startFrame, endFrame,
 			sourceStartFrame, sourceEndFrame, transcriptEvidence, transcriptExcerpt,
-			visualSummary: `Admitted shot-structure score ${window.shotStructure.toFixed(6)}; visual-interest score ${window.visualInterest.toFixed(6)}.`,
+			visualSummary: `Admitted shot-structure score ${shotStructure.toFixed(6)}; visual-interest score ${visualInterest.toFixed(6)}.`,
 			hook: transcriptEvidence ? language.hook : 0,
 			conversationalStructure: transcriptEvidence ? language.conversationalStructure : 0,
 			excitement: maximumOverlapScore(reactionRanges, startFrame, endFrame),
 			energyDynamics: audio.get(window.id) ?? 0,
 			semanticSelfContainedness: transcriptEvidence
 				? language.semanticSelfContainedness : 0,
-			shotStructure: window.shotStructure, visualInterest: window.visualInterest,
+			shotStructure, visualInterest, speechlessAvailableWeight,
 			duplication: duplication[index] ?? 0,
 			videoOccurrenceId: video.videoOccurrenceId,
 			audioOccurrenceId: video.audioOccurrenceId });
@@ -154,6 +167,7 @@ export function rankOwnedHighlightsV1(
 		excitement: candidate.excitement, energyDynamics: candidate.energyDynamics,
 		semanticSelfContainedness: candidate.semanticSelfContainedness,
 		shotStructure: candidate.shotStructure, visualInterest: candidate.visualInterest,
+		speechlessAvailableWeight: candidate.speechlessAvailableWeight,
 		duplication: candidate.duplication,
 	})), { sampleRate: signals.sampleRate, maximumResults: settings.resultCount,
 		minimumDurationSeconds: settings.minimumDurationSeconds,
@@ -516,4 +530,8 @@ function canonicalTick(value: unknown): string {
 	if (typeof value !== 'string' || !/^(?:0|[1-9]\d*)$/u.test(value)
 		|| BigInt(value) > 0x7fff_ffff_ffff_ffffn) throw new RangeError('A highlight presentation tick is invalid.');
 	return value;
+}
+
+function quantize(value: number): number {
+	return Math.round(value * 1_000_000_000_000) / 1_000_000_000_000;
 }
