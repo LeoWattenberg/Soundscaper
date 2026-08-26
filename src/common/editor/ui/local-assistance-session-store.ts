@@ -26,6 +26,7 @@ import {
 	reviewLocalAssistanceOutput,
 	type LocalAssistanceOutputReview,
 } from './local-assistance-result-review.ts';
+import { deriveLocalAssistanceReviewAuthority } from './local-assistance-review-authority.ts';
 import {
 	createLocalAssistanceTranscriptCleanupPreparation,
 	createLocalAssistanceTranscriptCleanupState,
@@ -270,6 +271,7 @@ export function createLocalAssistanceSessionStore(
 			});
 			preparationController = null;
 			const prepared = normalizeLocalAssistancePreparedMedia(preparedValue, { sourceId, operation });
+			const reviewAuthority = await deriveLocalAssistanceReviewAuthority(prepared);
 			if (cancelRequested) throw new CancelledSession();
 			const job = await options.bridge.createJob();
 			activeJobId = job.jobId;
@@ -298,7 +300,7 @@ export function createLocalAssistanceSessionStore(
 			else {
 				const bodies = await Promise.all(outcome.result.outputs.map(async (claim) => {
 					const bytes = await options.bridge!.readOutput({ jobId: job.jobId, claim });
-					const review = await reviewLocalAssistanceOutput(claim, bytes);
+					const review = await reviewLocalAssistanceOutput(claim, bytes, reviewAuthority);
 					return Object.freeze({ claim, bytes, review });
 				}));
 				completed = Object.freeze({ operation, outputs: Object.freeze(bodies) });

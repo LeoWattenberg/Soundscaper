@@ -17,6 +17,7 @@ import { createAssistanceEmbeddingMatrixV1 } from
 	'../src/common/editor/assistance/binary-formats-v1.ts';
 import LocalAssistanceOutputReviewList from
 	'../src/common/editor/ui/dialogs/LocalAssistanceOutputReview.tsx';
+import { encodeWav } from '../src/common/editor/wav.js';
 
 const JOB_ID = 'a'.repeat(40);
 const CLAIM_ID = 'b'.repeat(40);
@@ -120,6 +121,80 @@ test('binary embedding matrices receive normalized dimensional review', async ()
 	);
 	assert.equal(reviewed.kind, 'embeddings');
 	assert.match(render(reviewed, 'embeddings'), /2 normalized vectors.*3 dimensions/u);
+});
+
+test('enhancement and separation WAVs require exact authenticated Float32 geometry', async () => {
+	const bytes = encodeWav([
+		Float32Array.of(0.25, -0.25, 0.5),
+		Float32Array.of(-0.5, 0.75, 0),
+	], { sampleRate: 48_000, bitDepth: 32, float: true, dither: false });
+	const body = new Blob([bytes], { type: 'audio/wav' });
+	const authority = { audioWave: { sampleRate: 48_000, channelCount: 2, frameCount: 3 } };
+	for (const role of ['enhanced-audio', 'separated-audio'] as const) {
+		const reviewed = await reviewLocalAssistanceOutput(
+			claim(role, body.type, body), body, authority,
+		);
+		assert.deepEqual(reviewed, {
+			kind: 'audio-wave', role, sampleRate: 48_000, channelCount: 2,
+			frameCount: 3, sampleFormat: 'float32',
+		});
+		const markup = render(reviewed, role);
+		assert.match(markup, /Float32 WAV/u);
+		assert.match(markup, /2 channels/u);
+		assert.match(markup, /3 frames/u);
+		assert.match(markup, /48000 Hz/u);
+	}
+});
+
+test('audio WAV review is header-bounded and does not inherit the JSON body limit', async () => {
+	const frames = 2_100_000;
+	const bytes = encodeWav([new Float32Array(frames)], {
+		sampleRate: 48_000, bitDepth: 32, float: true, dither: false,
+	});
+	assert.ok(bytes.byteLength > 8 * 1024 * 1024);
+	const body = new Blob([bytes], { type: 'audio/wav' });
+	const reviewed = await reviewLocalAssistanceOutput(
+		claim('enhanced-audio', body.type, body), body,
+		{ audioWave: { sampleRate: 48_000, channelCount: 1, frameCount: frames } },
+	);
+	assert.equal(reviewed.kind, 'audio-wave');
+});
+
+test('audio WAV review rejects missing authority, inexact geometry, integer PCM, and extra bytes', async () => {
+	const floatBytes = encodeWav([Float32Array.of(0, 0)], {
+		sampleRate: 48_000, bitDepth: 32, float: true, dither: false,
+	});
+	const floatBody = new Blob([floatBytes], { type: 'audio/wav' });
+	const outputClaim = claim('enhanced-audio', floatBody.type, floatBody);
+	await assert.rejects(
+		reviewLocalAssistanceOutput(outputClaim, floatBody),
+		/exact audio geometry authority/iu,
+	);
+	for (const audioWave of [
+		{ sampleRate: 44_100, channelCount: 1, frameCount: 2 },
+		{ sampleRate: 48_000, channelCount: 2, frameCount: 2 },
+		{ sampleRate: 48_000, channelCount: 1, frameCount: 3 },
+	] as const) {
+		await assert.rejects(
+			reviewLocalAssistanceOutput(outputClaim, floatBody, { audioWave }),
+			/exact audio geometry/iu,
+		);
+	}
+
+	const integerBytes = encodeWav([Float32Array.of(0, 0)], {
+		sampleRate: 48_000, bitDepth: 32, dither: false,
+	});
+	const integerBody = new Blob([integerBytes], { type: 'audio/wav' });
+	await assert.rejects(reviewLocalAssistanceOutput(
+		claim('enhanced-audio', integerBody.type, integerBody), integerBody,
+		{ audioWave: { sampleRate: 48_000, channelCount: 1, frameCount: 2 } },
+	), /Float32/iu);
+
+	const paddedBody = new Blob([floatBytes, Uint8Array.of(0)], { type: 'audio/wav' });
+	await assert.rejects(reviewLocalAssistanceOutput(
+		claim('enhanced-audio', paddedBody.type, paddedBody), paddedBody,
+		{ audioWave: { sampleRate: 48_000, channelCount: 1, frameCount: 2 } },
+	), /canonical|extra/iu);
 });
 
 test('editorial review admits known identities only and renders generated fields as text', async () => {

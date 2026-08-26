@@ -25,6 +25,7 @@ import {
 	reviewLocalAssistanceShotBoundaries,
 	type LocalAssistanceShotBoundariesReview,
 } from './local-assistance-shot-review.ts';
+import { inspectWavBlobPcm } from '../wav-import.js';
 
 const MAXIMUM_REVIEW_BYTES = 8 * 1024 * 1024;
 const MAXIMUM_SAMPLE_RANGES = 100_000;
@@ -64,6 +65,7 @@ const EDITORIAL_PROPOSAL_MEDIA_TYPES = new Set([
 const EMBEDDING_MATRIX_MEDIA_TYPES = new Set([
 	'application/vnd.soundscaper.embedding-matrix-v1',
 ]);
+const AUDIO_WAVE_MEDIA_TYPES = new Set(['audio/wav']);
 const SEGMENT_KEYS = Object.freeze([
 	'startSeconds', 'endSeconds', 'text', 'words', 'speaker',
 ]);
@@ -133,8 +135,21 @@ export type LocalAssistanceEditorialProposalReview = Readonly<{
 	readonly kind: 'editorial-proposal';
 }> & AssistanceEditorialProposalV1;
 
+export interface LocalAssistanceAudioWaveGeometry {
+	readonly sampleRate: number;
+	readonly channelCount: number;
+	readonly frameCount: number;
+}
+
+export interface LocalAssistanceAudioWaveReview extends LocalAssistanceAudioWaveGeometry {
+	readonly kind: 'audio-wave';
+	readonly role: 'enhanced-audio' | 'separated-audio';
+	readonly sampleFormat: 'float32';
+}
+
 export interface LocalAssistanceReviewAuthority {
 	readonly editorialCandidateIds?: readonly string[];
+	readonly audioWave?: LocalAssistanceAudioWaveGeometry;
 }
 
 export type LocalAssistanceOutputReview =
@@ -146,7 +161,8 @@ export type LocalAssistanceOutputReview =
 	| LocalAssistanceAudioTagsReview
 	| LocalAssistanceBeatGridReview
 	| LocalAssistanceEmbeddingsReview
-	| LocalAssistanceEditorialProposalReview;
+	| LocalAssistanceEditorialProposalReview
+	| LocalAssistanceAudioWaveReview;
 
 export async function reviewLocalAssistanceOutput(
 	claim: LocalAssistanceOutputClaim,
@@ -157,9 +173,10 @@ export async function reviewLocalAssistanceOutput(
 		throw new TypeError('This local-assistance output has no semantic reviewer.');
 	}
 	if (!(body instanceof Blob) || body.size !== claim.byteLength
-		|| body.size < 1 || body.size > MAXIMUM_REVIEW_BYTES) {
+		|| body.size < 1 || (!isAudioWaveRole(claim.role) && body.size > MAXIMUM_REVIEW_BYTES)) {
 		throw new RangeError('The local-assistance review body exceeds its exact bound.');
 	}
+	if (isAudioWaveRole(claim.role)) return audioWaveReview(claim.role, body, authority.audioWave);
 	const bytes = await body.arrayBuffer();
 	if (claim.role === 'embeddings') {
 		return withReviewKind('embeddings', reviewAssistanceEmbeddingMatrixV1(bytes));
@@ -197,6 +214,7 @@ export async function reviewLocalAssistanceOutput(
 }
 
 function reviewMediaType(claim: LocalAssistanceOutputClaim): boolean {
+	if (isAudioWaveRole(claim.role)) return AUDIO_WAVE_MEDIA_TYPES.has(claim.mediaType);
 	if (claim.role === 'transcript') return TRANSCRIPT_MEDIA_TYPES.has(claim.mediaType);
 	if (claim.role === 'voice-activity') return VOICE_ACTIVITY_MEDIA_TYPES.has(claim.mediaType);
 	if (claim.role === 'speaker-turns') return SPEAKER_TURN_MEDIA_TYPES.has(claim.mediaType);
@@ -209,6 +227,76 @@ function reviewMediaType(claim: LocalAssistanceOutputClaim): boolean {
 		return EDITORIAL_PROPOSAL_MEDIA_TYPES.has(claim.mediaType);
 	}
 	return false;
+}
+
+function isAudioWaveRole(
+	role: LocalAssistanceOutputClaim['role'],
+): role is LocalAssistanceAudioWaveReview['role'] {
+	return role === 'enhanced-audio' || role === 'separated-audio';
+}
+
+async function audioWaveReview(
+	role: LocalAssistanceAudioWaveReview['role'],
+	body: Blob,
+	authorityValue: LocalAssistanceAudioWaveGeometry | undefined,
+): Promise<LocalAssistanceAudioWaveReview> {
+	const authority = exactAudioWaveGeometry(authorityValue);
+	const descriptor = await inspectWavBlobPcm(body) as Readonly<{
+		container: string;
+		encoding: string;
+		sampleFormat: string;
+		formatTag: number;
+		subFormatTag: number;
+		sampleRate: number;
+		channelCount: number;
+		frameCount: number;
+		bitDepth: number;
+		validBitsPerSample: number;
+		bytesPerSample: number;
+		dataOffset: number;
+		dataByteLength: number;
+		riffByteLength: number;
+		sourceByteLength: number;
+	}>;
+	if (descriptor.container !== 'wav' || descriptor.encoding !== 'ieee-float'
+		|| descriptor.sampleFormat !== 'float32' || descriptor.formatTag !== 3
+		|| descriptor.subFormatTag !== 3 || descriptor.bitDepth !== 32
+		|| descriptor.validBitsPerSample !== 32 || descriptor.bytesPerSample !== 4) {
+		throw new TypeError('The local-assistance audio result must be a Float32 WAV.');
+	}
+	if (descriptor.sampleRate !== authority.sampleRate
+		|| descriptor.channelCount !== authority.channelCount
+		|| descriptor.frameCount !== authority.frameCount) {
+		throw new RangeError('The local-assistance WAV does not preserve its exact audio geometry.');
+	}
+	const dataByteLength = authority.frameCount * authority.channelCount * 4;
+	if (!Number.isSafeInteger(dataByteLength) || descriptor.dataOffset !== 44
+		|| descriptor.dataByteLength !== dataByteLength
+		|| descriptor.dataOffset + dataByteLength !== body.size
+		|| descriptor.riffByteLength !== body.size || descriptor.sourceByteLength !== body.size) {
+		throw new RangeError('The local-assistance WAV is not the canonical geometry-exact body.');
+	}
+	return Object.freeze({
+		kind: 'audio-wave', role, sampleRate: authority.sampleRate,
+		channelCount: authority.channelCount, frameCount: authority.frameCount,
+		sampleFormat: 'float32',
+	});
+}
+
+function exactAudioWaveGeometry(
+	value: LocalAssistanceAudioWaveGeometry | undefined,
+): LocalAssistanceAudioWaveGeometry {
+	if (!value || typeof value !== 'object' || Array.isArray(value)
+		|| Reflect.ownKeys(value).length !== 3
+		|| !Number.isSafeInteger(value.sampleRate) || value.sampleRate < 8_000
+		|| value.sampleRate > 384_000
+		|| !Number.isSafeInteger(value.channelCount) || value.channelCount < 1
+		|| value.channelCount > 64
+		|| !Number.isSafeInteger(value.frameCount) || value.frameCount < 1) {
+		throw new TypeError('Local-assistance WAV review requires exact audio geometry authority.');
+	}
+	return Object.freeze({ sampleRate: value.sampleRate,
+		channelCount: value.channelCount, frameCount: value.frameCount });
 }
 
 function withReviewKind<Kind extends string, Result extends Readonly<object>>(

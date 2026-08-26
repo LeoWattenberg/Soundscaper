@@ -140,6 +140,14 @@ function SemanticReview({ copy, review }: Readonly<{
 			</li>)}
 		</ol>;
 	}
+	if (review.kind === 'audio-wave') {
+		return <p className="kw-local-assistance__audio-wave">{template(text(copy,
+			'localAssistanceAudioWaveSummary',
+			'Float32 WAV · {channels} channels · {frames} frames · {sampleRate} Hz'), {
+			channels: String(review.channelCount), frames: String(review.frameCount),
+			sampleRate: String(review.sampleRate),
+		})}</p>;
+	}
 	return <ol className="kw-local-assistance__speaker-turns"
 		aria-label={text(copy, 'localAssistanceSpeakerTurns', 'Speaker turns')}>
 		{review.turns.map((turn, index) => <li
