@@ -11,7 +11,7 @@ import { cloneFramescaperProjectV19 } from './editor-project-v19.ts';
 import { cloneFramescaperProjectV20 } from './editor-project-v20.ts';
 import { cloneFramescaperProjectV27 } from './editor-project-v27.ts';
 import { cloneFramescaperProjectV28 } from './editor-project-v28.ts';
-import { cloneFramescaperProjectV30 } from './editor-project-v30.ts';
+import { cloneFramescaperProjectV32 } from './editor-project-v32.ts';
 import { cloneFramescaperProjectV31 } from './editor-project-v31.ts';
 
 interface CapturedVideoProxyProjectCodec {
@@ -28,7 +28,7 @@ export function cloneCapturedVideoProxyProject(
 	if (codec.schemaVersion === 20) return cloneFramescaperProjectV20(codec.profile, project);
 	if (codec.schemaVersion === 27) return cloneFramescaperProjectV27(codec.profile, project);
 	if (codec.schemaVersion === 28) return cloneFramescaperProjectV28(codec.profile, project);
-	if (codec.schemaVersion === 30) return cloneFramescaperProjectV30(codec.profile, project);
+	if (codec.schemaVersion === 32) return cloneFramescaperProjectV32(codec.profile, project);
 	return cloneFramescaperProjectV31(codec.profile, project);
 }
 

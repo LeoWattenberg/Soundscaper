@@ -10,13 +10,13 @@ import {
 import { readFramescaperProjectSchemaVersion, snapshotFramescaperOpaqueProject } from './editor-project-v18.ts';
 import { assertFramescaperProjectV31Profile } from './editor-project-runtime-profile-v31.ts';
 import {
-	cloneFramescaperProjectV30,
-	createFramescaperProjectV30,
-	reimportFramescaperProjectV30,
-	type FramescaperProjectV30,
-	type FramescaperProjectV30Options,
-} from './editor-project-v30.ts';
-import { FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v30.ts';
+	cloneFramescaperProjectV32,
+	createFramescaperProjectV32,
+	reimportFramescaperProjectV32,
+	type FramescaperProjectV32,
+	type FramescaperProjectV32Options,
+} from './editor-project-v32.ts';
+import { FRAMESCAPER_V32_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v32.ts';
 import {
 	validateFramescaperProjectV31,
 	type FramescaperProjectV31,
@@ -28,7 +28,7 @@ export {
 	type FramescaperProjectV31,
 } from './editor-project-v31-validation.ts';
 
-export type FramescaperProjectV31Options = FramescaperProjectV30Options & Readonly<{
+export type FramescaperProjectV31Options = FramescaperProjectV32Options & Readonly<{
 	readonly assistanceAssets?: readonly unknown[];
 }>;
 
@@ -43,7 +43,7 @@ export class FramescaperProjectV31ReimportRequiredError extends RangeError {
 	readonly code = 'REIMPORT_REQUIRED' as const;
 
 	constructor(readonly schemaVersion: number) {
-		super(schemaVersion === 28 || schemaVersion === 30
+		super(schemaVersion === 28 || schemaVersion === 32
 			? `Framescaper V${String(schemaVersion)} requires explicit reimport into F31.`
 			: `Framescaper schema ${String(schemaVersion)} is not an admitted F31 reimport source.`);
 		this.name = 'FramescaperProjectV31ReimportRequiredError';
@@ -59,10 +59,10 @@ export function createFramescaperProjectV31(
 	options: FramescaperProjectV31Options = {},
 ): FramescaperProjectV31 {
 	assertFramescaperProjectV31Profile(profile);
-	const { assistanceAssets: assetValues = [], ...v30Options } = options;
-	const foundation = createFramescaperProjectV30(
-		FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE,
-		v30Options,
+	const { assistanceAssets: assetValues = [], ...v32Options } = options;
+	const foundation = createFramescaperProjectV32(
+		FRAMESCAPER_V32_PROJECT_RUNTIME_PROFILE,
+		v32Options,
 	) as unknown as Record<string, unknown>;
 	foundation.schemaVersion = FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION;
 	foundation.assistanceAssets = normalizeAssistanceAssetReferencesV1(assetValues);
@@ -109,23 +109,23 @@ export function loadFramescaperProjectV31(
 	});
 }
 
-/** Admit exact V28 or V30 authority into writable F31 without dropping timeline images. */
+/** Admit exact V28 or V32 authority into writable F31 without dropping timeline images. */
 export function reimportFramescaperProjectV31(
 	profile: unknown,
 	value: unknown,
 ): FramescaperProjectV31 {
 	assertFramescaperProjectV31Profile(profile);
 	const schemaVersion = readFramescaperProjectSchemaVersion(value);
-	if (schemaVersion !== 28 && schemaVersion !== 30) {
+	if (schemaVersion !== 28 && schemaVersion !== 32) {
 		throw new FramescaperProjectV31ReimportRequiredError(schemaVersion);
 	}
-	const foundation = schemaVersion === 30
-		? cloneFramescaperProjectV30(FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE, value)
-		: reimportFramescaperProjectV30(FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE, value);
-	return upgradeV30(profile, foundation);
+	const foundation = schemaVersion === 32
+		? cloneFramescaperProjectV32(FRAMESCAPER_V32_PROJECT_RUNTIME_PROFILE, value)
+		: reimportFramescaperProjectV32(FRAMESCAPER_V32_PROJECT_RUNTIME_PROFILE, value);
+	return upgradeV32(profile, foundation);
 }
 
-function upgradeV30(profile: unknown, foundation: FramescaperProjectV30): FramescaperProjectV31 {
+function upgradeV32(profile: unknown, foundation: FramescaperProjectV32): FramescaperProjectV31 {
 	const project = structuredClone(foundation) as unknown as Record<string, unknown>;
 	project.schemaVersion = FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION;
 	project.assistanceAssets = normalizeAssistanceAssetReferencesV1([]);

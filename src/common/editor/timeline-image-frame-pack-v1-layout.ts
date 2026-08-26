@@ -9,7 +9,7 @@ import {
 	type FramescaperImageFrameTimingV1,
 	type FramescaperImageSourceV1,
 	type FramescaperImageTimingModeV1,
-} from './timeline-image-model-v30.ts';
+} from './timeline-image-model-v32.ts';
 
 export const FRAMESCAPER_IMAGE_FRAME_PACK_VERSION = 1 as const;
 export const FRAMESCAPER_IMAGE_FRAME_PACK_HEADER_BYTES = 256;

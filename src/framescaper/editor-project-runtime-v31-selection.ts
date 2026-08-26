@@ -59,8 +59,8 @@ import {
 	type FramescaperSessionClipboardV13,
 } from './editor-session-clipboard-v13.ts';
 import { prepareFramescaperVideoTransitionAllocationsV31 } from './editor-project-v31-transition-allocation.ts';
-import { FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v30.ts';
-import { framescaperProjectV30FoundationShapeV31 } from './editor-project-v31-foundation.ts';
+import { FRAMESCAPER_V32_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v32.ts';
+import { framescaperProjectV32FoundationShapeV31 } from './editor-project-v31-foundation.ts';
 
 type LockFactory = (projectId: string, options?: Record<string, unknown>) => Promise<unknown>;
 type SessionFactory = () => ReturnType<typeof createAudioEditorSessionController>;
@@ -169,8 +169,8 @@ export function createEditorProjectRuntimeV31Selection(
 		createEditSessionClipboard: (project, descriptor) => createClipboard(project, descriptor),
 		prepareEditClipboardPaste: (project, clipboard, command, createId) => (
 			prepareFramescaperSessionClipboardPasteV13(
-				FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE,
-				framescaperProjectV30FoundationShapeV31(project),
+				FRAMESCAPER_V32_PROJECT_RUNTIME_PROFILE,
+				framescaperProjectV32FoundationShapeV31(project),
 				clipboard,
 				command,
 				createId,
@@ -178,8 +178,8 @@ export function createEditorProjectRuntimeV31Selection(
 		),
 		prepareEditClipboardPasteCommand: (project, clipboard, command, createId) => (
 			prepareFramescaperSessionClipboardPasteV13(
-				FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE,
-				framescaperProjectV30FoundationShapeV31(project),
+				FRAMESCAPER_V32_PROJECT_RUNTIME_PROFILE,
+				framescaperProjectV32FoundationShapeV31(project),
 				clipboard,
 				command,
 				createId,
@@ -236,8 +236,8 @@ function createClipboard(
 	descriptor: AudioEditorClipboard,
 ): FramescaperSessionClipboardV13 {
 	return createFramescaperSessionClipboardV13(
-		FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE,
-		framescaperProjectV30FoundationShapeV31(project),
+		FRAMESCAPER_V32_PROJECT_RUNTIME_PROFILE,
+		framescaperProjectV32FoundationShapeV31(project),
 		descriptor,
 	);
 }

@@ -10,7 +10,7 @@ import {
 import {
 	createFramescaperVideoProxyActionsV20,
 	createFramescaperVideoProxyActionsV27,
-	createFramescaperVideoProxyActionsV30,
+	createFramescaperVideoProxyActionsV32,
 } from '../src/framescaper/editor-video-proxy-actions-v20.ts';
 import { FramescaperVideoProxyCleanupCoordinatorV20 } from '../src/framescaper/editor-video-proxy-cleanup-v20.ts';
 import type { FramescaperCapturedVideoProxyRequest } from '../src/common/editor/controller/framescaper-capture-derivative-scheduler.ts';
@@ -168,14 +168,14 @@ test('V27 requires and uses its own detach command builder while sharing the lif
 	assert.equal(framescaperVideoProxyActionRuntimeFor(owner.owner), runtime);
 });
 
-test('V30 preserves the authenticated editorial proxy lifecycle', async () => {
-	const owner = ownerFixture(30, attachment());
+test('V32 preserves the authenticated editorial proxy lifecycle', async () => {
+	const owner = ownerFixture(32, attachment());
 	const commands: unknown[] = [];
 	owner.commit = (command) => { commands.push(command); owner.detach(); };
-	const runtime = createFramescaperVideoProxyActionsV30({
+	const runtime = createFramescaperVideoProxyActionsV32({
 		owner: owner.owner as never,
 		cleanup: cleanupFixture(owner),
-		createSessionId: () => 'v30-session',
+		createSessionId: () => 'v32-session',
 		createScheduler: () => Object.assign(async () => undefined, { dispose: async () => undefined }),
 		createAttachExistingScheduler: () => Object.assign(
 			async () => undefined, { dispose: async () => undefined },
@@ -443,7 +443,7 @@ test('cancelling an existing-body attachment disposes its exact scheduler', asyn
 	assert.equal(disposals, 1);
 });
 
-function ownerFixture(schemaVersion: 20 | 27 | 30, proxyAttachment: unknown) {
+function ownerFixture(schemaVersion: 20 | 27 | 32, proxyAttachment: unknown) {
 	let prior: Record<string, unknown> | null = null;
 	let project = projectFixture(schemaVersion, proxyAttachment);
 	const fixture = {
@@ -513,7 +513,7 @@ function cleanupFixture(
 	});
 }
 
-function projectFixture(schemaVersion: 20 | 27 | 30, proxyAttachment: unknown): Record<string, unknown> {
+function projectFixture(schemaVersion: 20 | 27 | 32, proxyAttachment: unknown): Record<string, unknown> {
 	return {
 		schemaVersion, id: 'proxy-project', revision: 4,
 		sources: [{

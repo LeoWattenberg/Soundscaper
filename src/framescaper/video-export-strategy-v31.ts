@@ -11,12 +11,12 @@ import type {
 	ProductVideoExportProjectRequest,
 } from '../common/editor/controller/product-video-export-strategy.ts';
 import { sameProjectSnapshot } from '../common/editor/storage/project-snapshot-equality.ts';
-import { FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v30.ts';
+import { FRAMESCAPER_V32_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v32.ts';
 import { assertFramescaperProjectV31Profile } from './editor-project-runtime-profile-v31.ts';
-import { framescaperProjectV30FoundationShapeV31 } from './editor-project-v31-foundation.ts';
+import { framescaperProjectV32FoundationShapeV31 } from './editor-project-v31-foundation.ts';
 import type { FramescaperVideoExportStrategyV27Dependencies } from './video-export-strategy-v27.ts';
-import type { FramescaperVideoExportAssetStoreV30 } from './video-export-strategy-v30.ts';
-import { createFramescaperVideoExportStrategyV30 } from './video-export-strategy-v30.ts';
+import type { FramescaperVideoExportAssetStoreV32 } from './video-export-strategy-v32.ts';
+import { createFramescaperVideoExportStrategyV32 } from './video-export-strategy-v32.ts';
 import type { FramescaperSelectedOpenFxExecutionV28 } from './selected-v28-openfx-exact-planes.ts';
 
 interface ExportAuthorityV31 {
@@ -28,12 +28,12 @@ interface ExportAuthorityV31 {
 export function createFramescaperVideoExportStrategyV31(
 	profile: unknown,
 	dependencies?: FramescaperVideoExportStrategyV27Dependencies,
-	assetStore?: FramescaperVideoExportAssetStoreV30,
+	assetStore?: FramescaperVideoExportAssetStoreV32,
 	openFxExecute?: FramescaperSelectedOpenFxExecutionV28['execute'],
 ): ProductVideoExportStrategy {
 	assertFramescaperProjectV31Profile(profile);
-	const delegate = createFramescaperVideoExportStrategyV30(
-		FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE, dependencies, assetStore, openFxExecute,
+	const delegate = createFramescaperVideoExportStrategyV32(
+		FRAMESCAPER_V32_PROJECT_RUNTIME_PROFILE, dependencies, assetStore, openFxExecute,
 	);
 	const exports = new WeakMap<object, ExportAuthorityV31>();
 	const plans = new WeakMap<object, ExportAuthorityV31>();
@@ -80,7 +80,7 @@ export function createFramescaperVideoExportStrategyV31(
 function projectAuthority(project: Readonly<Record<string, unknown>>): ExportAuthorityV31 {
 	return Object.freeze({
 		canonicalProject: project,
-		foundation: framescaperProjectV30FoundationShapeV31(project),
+		foundation: framescaperProjectV32FoundationShapeV31(project),
 	});
 }
 
@@ -95,7 +95,7 @@ function currentAuthority(
 	if (!authority || authority.canonicalProject !== request.canonicalProject) {
 		throw new TypeError('The browser export projection is not owned by this exact F31 project.');
 	}
-	const current = framescaperProjectV30FoundationShapeV31(request.canonicalProject);
+	const current = framescaperProjectV32FoundationShapeV31(request.canonicalProject);
 	if (!sameProjectSnapshot(current, authority.foundation)) {
 		throw new Error('The selected F31 browser export projection is stale.');
 	}

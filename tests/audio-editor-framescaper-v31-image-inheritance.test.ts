@@ -22,15 +22,15 @@ import {
 	reimportFramescaperProjectV31,
 	validateFramescaperProjectV31,
 } from '../src/framescaper/editor-project-v31.ts';
-import { createFramescaperV30ImageFixture } from './helpers/framescaper-v30-image-fixture.ts';
+import { createFramescaperV32ImageFixture } from './helpers/framescaper-v32-image-fixture.ts';
 
 type Store = ReturnType<typeof createProjectStore>;
 type ClipboardPasteCommand = Readonly<{
 	readonly type: 'clipboard/paste';
 } & AudioEditorCommandPayloads['clipboard/paste']>;
 
-test('selected F31 reimports V30 image authority without dropping assistance custody', () => {
-	const fixture = createFramescaperV30ImageFixture({ imageOnly: true });
+test('selected F31 reimports V32 image authority without dropping assistance custody', () => {
+	const fixture = createFramescaperV32ImageFixture({ imageOnly: true });
 	const project = reimportFramescaperProjectV31(
 		FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE,
 		fixture.project,
@@ -54,8 +54,8 @@ test('selected F31 reimports V30 image authority without dropping assistance cus
 		.some(({ id, kind }) => id === fixture.source.id && kind === 'image'), true);
 });
 
-test('selected F31 executes V30 image commands while retaining its own schema', () => {
-	const fixture = createFramescaperV30ImageFixture({ imageOnly: true });
+test('selected F31 executes V32 image commands while retaining its own schema', () => {
+	const fixture = createFramescaperV32ImageFixture({ imageOnly: true });
 	const project = reimportFramescaperProjectV31(
 		FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE,
 		fixture.project,
@@ -89,8 +89,8 @@ test('selected F31 executes V30 image commands while retaining its own schema', 
 	assert.equal(validateFramescaperProjectV31(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, moved), true);
 });
 
-test('selected F31 copy and paste retains V30 image body ownership', async (context) => {
-	const fixture = createFramescaperV30ImageFixture();
+test('selected F31 copy and paste retains V32 image body ownership', async (context) => {
+	const fixture = createFramescaperV32ImageFixture();
 	const runtime = createEditorProjectRuntimeV31Selection(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE);
 	const project = reimportFramescaperProjectV31(
 		FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE,

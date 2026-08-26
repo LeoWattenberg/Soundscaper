@@ -46,9 +46,14 @@ one-shot cross-product event every later schema binds to.
   `editor-project-feature-capability-profile-v24.ts:14-23` to
   `editor-project-runtime-profile-v24.ts:8-19`; the `.scape` binding is one
   50-line adapter, `editor-scape-native-v24.ts:17-49`. Numbers come from one
-  serialized namespace, `src/common/editor/project-schema-version.ts:3-26`, where
-  17 to 29 except 18 are claimed on `main` and V30 claims 30 (`:15` on
-  `codex/milestone-8-images`).
+  serialized namespace, `src/common/editor/project-schema-version.ts`, where 17
+  to 32 except 18 are claimed on `main`: 30 is the Soundscaper assistance-asset
+  generation, 31 is selected Framescaper capture, and 32 is the Framescaper
+  timeline-image generation. That image generation was authored as V30 on
+  `codex/milestone-8-images` and had to be renumbered when it merged, because
+  Soundscaper had claimed 30 meanwhile and a number identifies exactly one
+  product. Take the next free number, and take it when you land, not when you
+  start.
 - **A shared command protocol and one commit boundary.**
   `src/common/editor/commands/protocol.ts:31` is the authoritative discriminant
   list, `registry.ts` and `domain-registry.ts` enforce exactly-one-domain

@@ -13,10 +13,10 @@ import { assertFramescaperProjectV31Profile } from './editor-project-runtime-pro
 import { FRAMESCAPER_V31_PROJECT_STORAGE_PROFILE } from './editor-project-storage-profile-v31.ts';
 import { cloneFramescaperProjectV31 } from './editor-project-v31.ts';
 import {
-	FramescaperTimelineImagePublisherV30,
-	type FramescaperTimelineImageProjectCodecV30,
-	type FramescaperTimelineImagePublicationStoreV30,
-} from './editor-timeline-image-publication-v30.ts';
+	FramescaperTimelineImagePublisherV32,
+	type FramescaperTimelineImageProjectCodecV32,
+	type FramescaperTimelineImagePublicationStoreV32,
+} from './editor-timeline-image-publication-v32.ts';
 
 const DEFINITION = Object.freeze({
 	generation: 'F31',
@@ -29,7 +29,7 @@ const DEFINITION = Object.freeze({
 	),
 });
 
-const IMAGE_PROJECT_CODEC: FramescaperTimelineImageProjectCodecV30 = Object.freeze({
+const IMAGE_PROJECT_CODEC: FramescaperTimelineImageProjectCodecV32 = Object.freeze({
 	authenticate: assertFramescaperProjectV31Profile,
 	clone: (profile: unknown, project: unknown) => cloneFramescaperProjectV31(profile, project) as never,
 	apply: (
@@ -43,7 +43,7 @@ const IMAGE_PROJECT_CODEC: FramescaperTimelineImageProjectCodecV30 = Object.free
 });
 
 export interface FramescaperProjectStoreAuthorityV31 extends FramescaperCandidateProjectStoreAuthority {
-	readonly timelineImages: FramescaperTimelineImagePublisherV30;
+	readonly timelineImages: FramescaperTimelineImagePublisherV32;
 }
 
 const AUTHORITIES = new WeakMap<AudioEditorProjectStore, FramescaperProjectStoreAuthorityV31>();
@@ -64,9 +64,9 @@ export function framescaperProjectStoreAuthorityV31(profile: unknown, store: unk
 	if (existing) return existing;
 	const authority = Object.freeze({
 		...base,
-		timelineImages: new FramescaperTimelineImagePublisherV30(profile, {
+		timelineImages: new FramescaperTimelineImagePublisherV32(profile, {
 			port: base.port,
-			store: exactStore as unknown as FramescaperTimelineImagePublicationStoreV30,
+			store: exactStore as unknown as FramescaperTimelineImagePublicationStoreV32,
 			projectCodec: IMAGE_PROJECT_CODEC,
 		}),
 	});

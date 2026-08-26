@@ -138,10 +138,10 @@ test('selected V27, V28, and F31 expose maintained visual workflows without the 
 	}
 });
 
-test('selected V30 exposes Add Images through Generate when the image action is bound', () => {
+test('selected V32 exposes Add Images through Generate when the image action is bound', () => {
 	const calls: FramescaperCandidateAuthoringSurface[] = [];
 	const items = createFramescaperCandidateAuthoringMenuItems({
-		productId: 'framescaper', project: { schemaVersion: 30 }, editingBlocked: false,
+		productId: 'framescaper', project: { schemaVersion: 32 }, editingBlocked: false,
 		projectCapabilities: { videoStills: true },
 		actionSurfaces: ['video-still'],
 	}, { open: (surface) => { calls.push(surface); } });

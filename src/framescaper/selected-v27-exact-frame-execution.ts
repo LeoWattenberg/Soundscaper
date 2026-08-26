@@ -263,7 +263,7 @@ export async function createFramescaperSelectedExactFrameExecutionV27(options: R
 					trackId, [entry], trackFrames, rawVisuals, openFx, width, height, signal,
 				);
 			}
-			// V30 preview coalesces inherited visual entries before its authenticated
+			// V32 preview coalesces inherited visual entries before its authenticated
 			// image entries on each track; export preserves that painter order.
 			for (const picture of request.supplementalPictures ?? []) renderSupplementalPicture(
 				picture, supplementalVisuals, activeVisualIds, trackFrames, width, height,

@@ -420,8 +420,8 @@ function settingsDigest(stack: VideoProcessorStackV1): string {
 
 function projectRecord(value: unknown): Readonly<Record<string, unknown>> {
 	const project = record(value, 'Selected V27 motion-analysis project');
-	if (project.schemaVersion !== 27 && project.schemaVersion !== 28 && project.schemaVersion !== 30) {
-		throw new RangeError('Motion analysis requires selected schema V27, V28, or V30.');
+	if (project.schemaVersion !== 27 && project.schemaVersion !== 28 && project.schemaVersion !== 32) {
+		throw new RangeError('Motion analysis requires selected schema V27, V28, or V32.');
 	}
 	return project;
 }

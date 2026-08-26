@@ -93,7 +93,7 @@ export function createFramescaperVideoProxyPreviewMediaResolverV20(
 	return async (request) => {
 		const sourceId = String(request?.source?.id ?? '');
 		if (!sourceId || request.source.kind !== 'video'
-			|| ![20, 27, 28, 30, 31].includes(Number(request.project.schemaVersion))) return null;
+			|| ![20, 27, 28, 31, 32].includes(Number(request.project.schemaVersion))) return null;
 		const mode = options.getMode(sourceId);
 		const attachmentValue = request.source.proxyAttachment;
 		if (attachmentValue == null) {
@@ -150,8 +150,8 @@ export const createFramescaperVideoProxyPreviewMediaResolverV27 =
 export const createFramescaperVideoProxyPreviewMediaResolverV28 =
 	createFramescaperVideoProxyPreviewMediaResolverV20;
 
-/** V30 preserves V28 source-domain proxy verification alongside image assets. */
-export const createFramescaperVideoProxyPreviewMediaResolverV30 =
+/** V32 preserves V28 source-domain proxy verification alongside image assets. */
+export const createFramescaperVideoProxyPreviewMediaResolverV32 =
 	createFramescaperVideoProxyPreviewMediaResolverV20;
 
 function unavailable(

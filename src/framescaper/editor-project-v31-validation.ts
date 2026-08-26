@@ -12,28 +12,28 @@ import {
 } from './editor-project-feature-requirements-v31.ts';
 import { assertFramescaperProjectV31Profile } from './editor-project-runtime-profile-v31.ts';
 import {
-	FRAMESCAPER_V30_PROJECT_FIELDS,
-	validateFramescaperProjectV30,
-	type FramescaperProjectV30,
-} from './editor-project-v30-validation.ts';
-import { FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v30.ts';
-import { framescaperProjectV30FoundationShapeV31 } from './editor-project-v31-foundation.ts';
+	FRAMESCAPER_V32_PROJECT_FIELDS,
+	validateFramescaperProjectV32,
+	type FramescaperProjectV32,
+} from './editor-project-v32-validation.ts';
+import { FRAMESCAPER_V32_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v32.ts';
+import { framescaperProjectV32FoundationShapeV31 } from './editor-project-v31-foundation.ts';
 
 export { FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION } from '../common/editor/project-schema-version.ts';
 
 export const FRAMESCAPER_V31_PROJECT_FIELDS = Object.freeze([
-	...FRAMESCAPER_V30_PROJECT_FIELDS,
+	...FRAMESCAPER_V32_PROJECT_FIELDS,
 	'assistanceAssets',
 ] as const);
 
-export interface FramescaperProjectV31 extends Omit<FramescaperProjectV30,
+export interface FramescaperProjectV31 extends Omit<FramescaperProjectV32,
 	'schemaVersion' | 'featureRequirements'> {
 	readonly schemaVersion: 31;
-	readonly featureRequirements: FramescaperProjectV30['featureRequirements'];
+	readonly featureRequirements: FramescaperProjectV32['featureRequirements'];
 	readonly assistanceAssets: readonly Readonly<AssistanceAssetReferenceV1>[];
 }
 
-/** Validate exact F31 assistance over its authenticated V30 image foundation. */
+/** Validate exact F31 assistance over its authenticated V32 image foundation. */
 export function validateFramescaperProjectV31(
 	profile: unknown,
 	project: unknown,
@@ -45,9 +45,9 @@ export function validateFramescaperProjectV31(
 			`Unsupported Framescaper project schema version: ${String(candidate.schemaVersion)}.`,
 		);
 	}
-	validateFramescaperProjectV30(
-		FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE,
-		framescaperProjectV30FoundationShapeV31(candidate),
+	validateFramescaperProjectV32(
+		FRAMESCAPER_V32_PROJECT_RUNTIME_PROFILE,
+		framescaperProjectV32FoundationShapeV31(candidate),
 	);
 	const assets = normalizeAssistanceAssetReferencesV1(
 		readClosedDomainField(candidate, 'assistanceAssets', 'Framescaper F31 project'),

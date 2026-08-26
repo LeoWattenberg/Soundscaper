@@ -84,7 +84,7 @@ export const chunkGroups = [
 		// Framescaper feature slice. Keep it out of the selected bootstrap chunk while
 		// preserving one semantic owner for modules shared by its menu-opened surfaces.
 		name: 'framescaper-timeline-images',
-		test: /src[\\/]framescaper[\\/](?:editor-(?:image-(?:import-coordinator|placement)-v30|project-v30-image-command|selected-v30-image|session-clipboard-v13|timeline-image)|video-export-image-)/,
+		test: /src[\\/]framescaper[\\/](?:editor-(?:image-(?:import-coordinator|placement)-v32|project-v32-image-command|selected-v32-image|session-clipboard-v13|timeline-image)|video-export-image-)/,
 		priority: 64,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,

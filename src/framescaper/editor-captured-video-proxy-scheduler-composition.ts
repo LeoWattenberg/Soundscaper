@@ -43,9 +43,9 @@ import {
 	type FramescaperEditorProjectEnvironmentV28,
 } from './editor-project-environment-v28.ts';
 import {
-	assertFramescaperEditorProjectEnvironmentV30,
-	type FramescaperEditorProjectEnvironmentV30,
-} from './editor-project-environment-v30.ts';
+	assertFramescaperEditorProjectEnvironmentV32,
+	type FramescaperEditorProjectEnvironmentV32,
+} from './editor-project-environment-v32.ts';
 import {
 	assertFramescaperEditorProjectEnvironmentV31,
 	type FramescaperEditorProjectEnvironmentV31,
@@ -55,14 +55,14 @@ import { reconcileFramescaperProjectFeatureRequirementsV19 } from './editor-proj
 import { reconcileFramescaperProjectFeatureRequirementsV20 } from './editor-project-feature-requirements-v20.ts';
 import { reconcileFramescaperProjectFeatureRequirementsV27 } from './editor-project-feature-requirements-v27.ts';
 import { reconcileFramescaperProjectFeatureRequirementsV28 } from './editor-project-feature-requirements-v28.ts';
-import { reconcileFramescaperProjectFeatureRequirementsV30 } from './editor-project-feature-requirements-v30.ts';
+import { reconcileFramescaperProjectFeatureRequirementsV32 } from './editor-project-feature-requirements-v32.ts';
 import { reconcileFramescaperProjectFeatureRequirementsV31 } from './editor-project-feature-requirements-v31.ts';
 import { framescaperProjectStoreAuthorityV18 } from './editor-project-store-v18.ts';
 import { framescaperProjectStoreAuthorityV19 } from './editor-project-store-v19.ts';
 import { framescaperProjectStoreAuthorityV20 } from './editor-project-store-v20.ts';
 import { framescaperProjectStoreAuthorityV27 } from './editor-project-store-v27.ts';
 import { framescaperProjectStoreAuthorityV28 } from './editor-project-store-v28.ts';
-import { framescaperProjectStoreAuthorityV30 } from './editor-project-store-v30.ts';
+import { framescaperProjectStoreAuthorityV32 } from './editor-project-store-v32.ts';
 import { framescaperProjectStoreAuthorityV31 } from './editor-project-store-v31.ts';
 import { framescaperProjectForAuthoredFoundationV18 } from './editor-project-v18-runtime.ts';
 import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v18.ts';
@@ -74,7 +74,7 @@ import { framescaperProjectV20FoundationV27 } from './editor-project-v27-runtime
 import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v27.ts';
 import type { FramescaperProjectV27 } from './editor-project-v27.ts';
 import { framescaperProjectV27FoundationShapeV28 } from './editor-project-v28-foundation.ts';
-import { framescaperProjectV28FoundationShapeV30 } from './editor-project-v30-foundation.ts';
+import { framescaperProjectV28FoundationShapeV32 } from './editor-project-v32-foundation.ts';
 import { framescaperProjectV28FoundationShapeV31 } from './editor-project-v31-foundation.ts';
 import type { FramescaperVideoProxyCapacityStoreV18 } from './editor-video-proxy-attachment-capacity-v18.ts';
 
@@ -352,17 +352,17 @@ export function capturedVideoProxySchedulerDependenciesV28(
 	};
 }
 
-export function capturedVideoProxySchedulerDependenciesV30(
-	environmentValue: FramescaperEditorProjectEnvironmentV30 | unknown,
+export function capturedVideoProxySchedulerDependenciesV32(
+	environmentValue: FramescaperEditorProjectEnvironmentV32 | unknown,
 	sessionValue: unknown,
 	composition: FramescaperCapturedVideoProxyRuntimeComposition,
 ): CapturedVideoProxySchedulerDependencies {
-	const environment = assertFramescaperEditorProjectEnvironmentV30(environmentValue);
+	const environment = assertFramescaperEditorProjectEnvironmentV32(environmentValue);
 	const session = assertSession(sessionValue);
-	const authority = framescaperProjectStoreAuthorityV30(environment.runtime.profile, environment.store);
-	if (!authority.opfs) throw new TypeError('Captured V30 proxy scheduling requires exact OPFS authority.');
+	const authority = framescaperProjectStoreAuthorityV32(environment.runtime.profile, environment.store);
+	if (!authority.opfs) throw new TypeError('Captured V32 proxy scheduling requires exact OPFS authority.');
 	return {
-		schemaVersion: 30,
+		schemaVersion: 32,
 		profile: environment.runtime.profile,
 		store: environment.store as CapturedVideoProxySchedulerStore,
 		projectForRelationship: (project) => framescaperProjectForAuthoredFoundationV18(
@@ -374,13 +374,13 @@ export function capturedVideoProxySchedulerDependenciesV30(
 					framescaperProjectV20FoundationV27(
 						FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,
 						framescaperProjectV27FoundationShapeV28(
-							framescaperProjectV28FoundationShapeV30(project),
+							framescaperProjectV28FoundationShapeV32(project),
 						),
 					),
 				),
 			),
 		),
-		reconcileProjectRequirements: (project) => reconcileFramescaperProjectFeatureRequirementsV30(
+		reconcileProjectRequirements: (project) => reconcileFramescaperProjectFeatureRequirementsV32(
 			environment.runtime.profile, project,
 		),
 		loadAuthoritativeProject: (projectId, signal) => Promise.resolve(environment.controllerStore.loadProject(

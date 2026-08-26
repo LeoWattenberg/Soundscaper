@@ -16,7 +16,7 @@ import {
 	type VideoVisualPresentationV1,
 } from '../video-visual-presentation-v27.ts';
 import { framescaperProjectV27FoundationShapeV28 } from '../../../framescaper/editor-project-v28-foundation.ts';
-import { framescaperProjectV27FoundationShapeV30 } from '../../../framescaper/editor-project-v30-foundation.ts';
+import { framescaperProjectV27FoundationShapeV32 } from '../../../framescaper/editor-project-v32-foundation.ts';
 import { framescaperProjectV28FoundationShapeV31 } from '../../../framescaper/editor-project-v31-foundation.ts';
 
 type Data = Readonly<Record<string, unknown>>;
@@ -153,15 +153,15 @@ function emptyModel(project: Data): FramescaperV27VisualInspectorModel {
 }
 
 function projectRecord(value: unknown): Data {
-	let input = record(value, 'V27, V28, V30, or F31 visual inspector project');
+	let input = record(value, 'V27, V28, V32, or F31 visual inspector project');
 	if (input.schemaVersion === 31) {
 		input = record(framescaperProjectV28FoundationShapeV31(input), 'F31 visual inspector foundation');
 	}
-	if (input.schemaVersion !== 27 && input.schemaVersion !== 28 && input.schemaVersion !== 30) {
-		throw new RangeError('The visual inspector requires Framescaper V27, V28, V30, or F31.');
+	if (input.schemaVersion !== 27 && input.schemaVersion !== 28 && input.schemaVersion !== 32) {
+		throw new RangeError('The visual inspector requires Framescaper V27, V28, V32, or F31.');
 	}
-	return input.schemaVersion === 30
-		? record(framescaperProjectV27FoundationShapeV30(input), 'V30 visual inspector foundation')
+	return input.schemaVersion === 32
+		? record(framescaperProjectV27FoundationShapeV32(input), 'V32 visual inspector foundation')
 		: input.schemaVersion === 28
 		? record(framescaperProjectV27FoundationShapeV28(input), 'V28 visual inspector foundation')
 		: input;

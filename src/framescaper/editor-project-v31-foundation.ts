@@ -5,33 +5,33 @@ import {
 } from '../common/editor/project-owned-feature-requirements.ts';
 import type { ProjectFeatureRequirementsManifest } from '../common/editor/project-feature-requirements.ts';
 import {
-	reconcileFramescaperProjectFeatureRequirementsV30,
-} from './editor-project-feature-requirements-v30.ts';
-import { framescaperProjectV28FoundationShapeV30 } from './editor-project-v30-foundation.ts';
-import { FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v30.ts';
-import type { FramescaperProjectV30 } from './editor-project-v30.ts';
+	reconcileFramescaperProjectFeatureRequirementsV32,
+} from './editor-project-feature-requirements-v32.ts';
+import { framescaperProjectV28FoundationShapeV32 } from './editor-project-v32-foundation.ts';
+import { FRAMESCAPER_V32_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v32.ts';
+import type { FramescaperProjectV32 } from './editor-project-v32.ts';
 import type { FramescaperProjectV28 } from './editor-project-v28.ts';
 
-/** Detach F31-only assistance custody while retaining authenticated V30 image authority. */
-export function framescaperProjectV30FoundationShapeV31(project: unknown): FramescaperProjectV30 {
+/** Detach F31-only assistance custody while retaining authenticated V32 image authority. */
+export function framescaperProjectV32FoundationShapeV31(project: unknown): FramescaperProjectV32 {
 	const foundation = structuredClone(record(project, 'Framescaper F31 project'));
-	foundation.schemaVersion = 30;
+	foundation.schemaVersion = 32;
 	delete foundation.assistanceAssets;
 	const manifest = record(foundation.featureRequirements, 'featureRequirements');
 	const requirements = records(manifest.requirements, 'featureRequirements.requirements').filter((row) => (
 		row.id !== PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.assistanceAssets
 	));
 	foundation.featureRequirements = { ...manifest, requirements } as unknown as ProjectFeatureRequirementsManifest;
-	foundation.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV30(
-		FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE,
+	foundation.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV32(
+		FRAMESCAPER_V32_PROJECT_RUNTIME_PROFILE,
 		foundation,
 	);
-	return foundation as unknown as FramescaperProjectV30;
+	return foundation as unknown as FramescaperProjectV32;
 }
 
-/** Detach both F31 assistance and V30 image authority for immutable V28 consumers. */
+/** Detach both F31 assistance and V32 image authority for immutable V28 consumers. */
 export function framescaperProjectV28FoundationShapeV31(project: unknown): FramescaperProjectV28 {
-	return framescaperProjectV28FoundationShapeV30(framescaperProjectV30FoundationShapeV31(project));
+	return framescaperProjectV28FoundationShapeV32(framescaperProjectV32FoundationShapeV31(project));
 }
 
 function record(value: unknown, name: string): Record<string, unknown> {

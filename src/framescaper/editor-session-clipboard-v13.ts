@@ -13,9 +13,9 @@ import {
 	normalizeFramescaperImageSourceV1,
 	type FramescaperImageClipV1,
 	type FramescaperImageSourceV1,
-} from '../common/editor/timeline-image-model-v30.ts';
-import { framescaperProjectV28FoundationShapeV30 } from './editor-project-v30-foundation.ts';
-import { validateFramescaperProjectV30, type FramescaperProjectV30 } from './editor-project-v30.ts';
+} from '../common/editor/timeline-image-model-v32.ts';
+import { framescaperProjectV28FoundationShapeV32 } from './editor-project-v32-foundation.ts';
+import { validateFramescaperProjectV32, type FramescaperProjectV32 } from './editor-project-v32.ts';
 import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v28.ts';
 import {
 	createFramescaperSessionClipboardV12,
@@ -52,14 +52,14 @@ const FIELDS = Object.freeze([
 const IMAGE_FIELDS = Object.freeze(['schemaVersion', 'kind', 'sourceIds', 'clips']);
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
 
-/** Snapshot selected V30 image authority beside an exact filtered V12 foundation. */
+/** Snapshot selected V32 image authority beside an exact filtered V12 foundation. */
 export function createFramescaperSessionClipboardV13(
 	profile: unknown,
 	projectValue: unknown,
 	descriptorValue: AudioEditorClipboard,
 ): FramescaperSessionClipboardV13 {
-	validateFramescaperProjectV30(profile, projectValue);
-	const project = projectValue as FramescaperProjectV30;
+	validateFramescaperProjectV32(profile, projectValue);
+	const project = projectValue as FramescaperProjectV32;
 	const descriptor = normalizeAudioEditorClipboardDescriptor(descriptorValue);
 	const bindings = bindDescriptorClips(project, descriptor);
 	const imageClips = imageClipsForBindings(project, bindings, descriptor);
@@ -78,7 +78,7 @@ export function createFramescaperSessionClipboardV13(
 	)));
 	const foundation = createFramescaperSessionClipboardV12(
 		FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE,
-		framescaperProjectV28FoundationShapeV30(project),
+		framescaperProjectV28FoundationShapeV32(project),
 		filterDescriptor(descriptor, imageKeys),
 	);
 	return normalizeFramescaperSessionClipboardV13({
@@ -179,7 +179,7 @@ export function framescaperSessionClipboardV12FoundationV13(
 	});
 }
 
-/** Clipboard roots equal storage keys by V30 invariant, so generic source-ID retention remains sound. */
+/** Clipboard roots equal storage keys by V32 invariant, so generic source-ID retention remains sound. */
 export function collectFramescaperSessionClipboardImageStorageKeysV13(value: unknown): readonly string[] {
 	const clipboard = normalizeFramescaperSessionClipboardV13(value);
 	const imageIds = new Set(clipboard.images.sourceIds);
@@ -214,7 +214,7 @@ function normalizeImages(value: unknown): FramescaperImageClipboardV13 {
 }
 
 function imageClipsForBindings(
-	project: FramescaperProjectV30,
+	project: FramescaperProjectV32,
 	bindings: readonly FramescaperClipboardClipBindingV11[],
 	descriptor: AudioEditorClipboard,
 ): readonly FramescaperImageClipV1[] {
@@ -236,7 +236,7 @@ function imageClipsForBindings(
 }
 
 function bindDescriptorClips(
-	project: FramescaperProjectV30,
+	project: FramescaperProjectV32,
 	descriptor: AudioEditorClipboard,
 ): readonly FramescaperClipboardClipBindingV11[] {
 	const trackById = new Map(project.tracks.map((track) => [track.id, track]));

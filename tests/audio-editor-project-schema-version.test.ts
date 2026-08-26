@@ -74,14 +74,44 @@ test('product-specific predicates retain their exact maintained schema sets', ()
 	assert.equal(schema.isFramescaperVideoCompositionProjectSchema(19), true);
 	assert.equal(schema.isFramescaperVideoCompositionProjectSchema(20), true);
 	assert.equal(schema.isFramescaperVideoCompositionProjectSchema(18), false);
-	for (const version of [27, 28, 30]) {
+	for (const version of [27, 28, 32]) {
 		assert.equal(schema.isSelectedFramescaperProjectSchema(version), true);
 		assert.equal(schema.isFramescaperVideoProxyProjectSchema(version), true);
 	}
+	// 30 is the Soundscaper assistance generation, never a Framescaper one.
+	assert.equal(schema.isSelectedFramescaperProjectSchema(30), false);
+	assert.equal(schema.isFramescaperVideoProxyProjectSchema(30), false);
 	assert.equal(schema.isSelectedFramescaperProjectSchema(20), false);
 	assert.equal(schema.isFramescaperVideoProxyProjectSchema(20), true);
 	for (const dormant of [25, 26]) {
 		assert.equal(schema.isSelectedFramescaperProjectSchema(dormant), false);
 		assert.equal(schema.isFramescaperVideoProxyProjectSchema(dormant), false);
 	}
+});
+
+test('every declared project schema number is claimed by exactly one product', () => {
+	// A document carries one integer `schemaVersion` and nothing else that says
+	// which product wrote it, so the dispatch that picks a validator, a reimport
+	// route or opaque custody has only that integer to go on. Two products
+	// sharing a number is therefore not a naming clash but a correctness bug:
+	// the milestone-8 image branch numbered its generation 30 while Soundscaper
+	// claimed 30 for assistance custody, and a Soundscaper archive opened in
+	// Framescaper was reimported as an image project instead of being held
+	// opaquely. Renumbering the image generation to 32 restored the invariant;
+	// this pins it so the next concurrent generation cannot repeat the collision.
+	const owners = new Map();
+	for (const [name, value] of Object.entries(schema)) {
+		const claimed = /^(AUDIO_EDITOR|SOUNDSCAPER|FRAMESCAPER)_PROJECT_V\d+_SCHEMA_VERSION$/u.exec(name);
+		if (!claimed || typeof value !== 'number') continue;
+		const product = claimed[1];
+		assert.equal(name, `${product}_PROJECT_V${String(value)}_SCHEMA_VERSION`,
+			`${name} must be named for the number it declares`);
+		const existing = owners.get(value);
+		assert.equal(existing, undefined,
+			`schema ${String(value)} is claimed by both ${String(existing)} and ${name}`);
+		owners.set(value, name);
+	}
+	assert.equal(owners.get(30), 'SOUNDSCAPER_PROJECT_V30_SCHEMA_VERSION');
+	assert.equal(owners.get(31), 'FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION');
+	assert.equal(owners.get(32), 'FRAMESCAPER_PROJECT_V32_SCHEMA_VERSION');
 });

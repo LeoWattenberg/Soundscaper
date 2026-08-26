@@ -34,10 +34,10 @@ import type {
 } from './editor-video-proxy-action-runtime-v20.ts';
 import { createFramescaperVideoProxyPreviewMediaResolverV28 } from './editor-video-proxy-preview-media-v20.ts';
 import {
-	bindFramescaperSelectedImageAuthoringControllerV30,
-	type FramescaperSelectedImageFileServiceV30,
-} from './editor-selected-v30-image-authoring-controller.ts';
-import { bindFramescaperSelectedImagePreviewControllerV30 } from './editor-selected-v30-image-preview-controller.ts';
+	bindFramescaperSelectedImageAuthoringControllerV32,
+	type FramescaperSelectedImageFileServiceV32,
+} from './editor-selected-v32-image-authoring-controller.ts';
+import { bindFramescaperSelectedImagePreviewControllerV32 } from './editor-selected-v32-image-preview-controller.ts';
 import { cloneFramescaperProjectV31 } from './editor-project-v31.ts';
 
 const PRESENTATION_FIELDS = ['locale', 'copy', 'fileService'] as const;
@@ -170,7 +170,7 @@ export function createFramescaperAudioEditorControllerV31(
 		prepareNativeRenderInputStreamV31,
 		...(openFxExecute ? { openFxExecute } : {}),
 	});
-	bindFramescaperSelectedImageAuthoringControllerV30({
+	bindFramescaperSelectedImageAuthoringControllerV32({
 		controller: controller as never,
 		session: sessionController as never,
 		executeCommand: (history, command, options) => environment.runtime.executeCommand(
@@ -179,10 +179,10 @@ export function createFramescaperAudioEditorControllerV31(
 		publishIfCurrent: (request) => environment.timelineImages.publishIfCurrent(request),
 		schemaVersion: 31,
 		...(presentation.fileService === undefined ? {} : {
-			fileService: presentation.fileService as FramescaperSelectedImageFileServiceV30,
+			fileService: presentation.fileService as FramescaperSelectedImageFileServiceV32,
 		}),
 	});
-	bindFramescaperSelectedImagePreviewControllerV30({
+	bindFramescaperSelectedImagePreviewControllerV32({
 		controller,
 		profile: environment.runtime.profile,
 		store: environment.controllerStore,

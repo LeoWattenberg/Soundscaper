@@ -78,7 +78,7 @@ export interface FramescaperVideoProxyActionsV20Options {
 }
 
 export interface FramescaperVideoProxyActionsOptions extends FramescaperVideoProxyActionsV20Options {
-	readonly schemaVersion: 20 | 27 | 28 | 30 | 31;
+	readonly schemaVersion: 20 | 27 | 28 | 31 | 32;
 	readonly createDetachCommand?: (
 		sourceId: string,
 		expectedAttachment: unknown,
@@ -91,7 +91,7 @@ export interface FramescaperVideoProxyActionsV27Options extends FramescaperVideo
 }
 
 export type FramescaperVideoProxyActionsV28Options = FramescaperVideoProxyActionsV27Options;
-export type FramescaperVideoProxyActionsV30Options = FramescaperVideoProxyActionsV27Options;
+export type FramescaperVideoProxyActionsV32Options = FramescaperVideoProxyActionsV27Options;
 /** Bind selected V20 editorial proxy actions to its authenticated controller. */
 export function bindFramescaperVideoProxyActionsV20(
 	environment: Readonly<FramescaperEditorProjectEnvironmentV20>,
@@ -137,10 +137,10 @@ export function createFramescaperVideoProxyActionsV28(
 	return createFramescaperVideoProxyActions({ ...options, schemaVersion: 28 });
 }
 
-export function createFramescaperVideoProxyActionsV30(
-	options: FramescaperVideoProxyActionsV30Options,
+export function createFramescaperVideoProxyActionsV32(
+	options: FramescaperVideoProxyActionsV32Options,
 ): FramescaperVideoProxyActionRuntime {
-	return createFramescaperVideoProxyActions({ ...options, schemaVersion: 30 });
+	return createFramescaperVideoProxyActions({ ...options, schemaVersion: 32 });
 }
 
 /** Shared selected-project seam; V27 injects its exact scheduler and command wire. */
@@ -501,7 +501,7 @@ function proxyRequest(
 
 function exactProject(
 	value: unknown,
-	schemaVersion: 20 | 27 | 28 | 30 | 31,
+	schemaVersion: 20 | 27 | 28 | 31 | 32,
 ): Readonly<Record<string, unknown>> {
 	if (!value || typeof value !== 'object' || Array.isArray(value)
 		|| (value as Readonly<Record<string, unknown>>).schemaVersion !== schemaVersion) {
@@ -575,7 +575,7 @@ function secureSessionId(): string {
 function assertOptions(options: FramescaperVideoProxyActionsOptions): void {
 	if (!options?.owner || typeof options.owner !== 'object'
 		|| typeof options.createScheduler !== 'function'
-		|| ![20, 27, 28, 30, 31].includes(options.schemaVersion)
+		|| ![20, 27, 28, 31, 32].includes(options.schemaVersion)
 		|| (options.schemaVersion !== 20 && typeof options.createAttachExistingScheduler !== 'function')
 		|| (options.previewTrust !== undefined && typeof options.previewTrust !== 'function')
 		|| !options.cleanup || typeof options.cleanup.prepareReplacement !== 'function'

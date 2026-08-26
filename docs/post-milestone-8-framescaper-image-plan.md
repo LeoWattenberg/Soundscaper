@@ -25,7 +25,7 @@ interpretation of ambiguous HDR data.
 
 ## Implementation checkpoint
 
-As of 2026-08-25, the browser-native vertical slice is implemented. V30 owns
+As of 2026-08-25, the browser-native vertical slice is implemented. V32 owns
 strict image source and clip records, authenticated deterministic frame packs,
 atomic commands and publication, storage/archive/clipboard retention,
 menu-reached authoring, collision-safe placement, timeline and Project Bin
@@ -68,14 +68,17 @@ closed; the implemented slice does not claim arbitrary-format support.
   project frame may be skipped rather than lengthened. Extending a clip holds
   its final frame; trimming and splitting preserve the exact source tick.
 
-## V30 project and asset contract
+## V32 project and asset contract
 
-Framescaper schema V30 derives from V28. V29 remains Soundscaper-owned. V30
+Framescaper schema V32 derives from V28. V29 and V30 remain Soundscaper-owned,
+so the image generation takes 32 rather than the 30 this plan first froze: a
+schema number identifies exactly one product, and Soundscaper claimed 30 for its
+assistance-asset generation while this work was in progress. V32
 explicitly reimports V28; V25 and V26 remain opaque, and unknown later schemas
 remain read-only. Existing V28 `kind: "still"` records are preserved without a
 body rewrite.
 
-V30 adds strict `kind: "image"` source and clip records. A source owns one
+V32 adds strict `kind: "image"` source and clip records. A source owns one
 immutable body whose storage key equals its source id. The descriptor records
 the original filename, MIME hint, recognized format, byte length and digest;
 canonical width, height, alpha, frame count, microsecond duration and timing
@@ -107,7 +110,7 @@ same bytes to a new source/storage identity without recompression.
 
 Projects containing image sources declare
 `org.soundscaper.capability.timeline-images-v1`. The requirement is absent when
-no V30 image source exists.
+no V32 image source exists.
 
 ## Format, decoder, and color contract
 
@@ -181,7 +184,7 @@ chunks remain below the repository ceiling.
 ### 8+I-0: Plan and compatibility
 
 - Land this owner plan and roadmap sequencing first.
-- Add V30 predicates, capability requirement, V28 reimport, and future-schema
+- Add V32 predicates, capability requirement, V28 reimport, and future-schema
   custody tests without changing V25/V26 treatment.
 
 ### 8+I-1: Deterministic image asset

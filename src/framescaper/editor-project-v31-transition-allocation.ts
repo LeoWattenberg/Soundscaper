@@ -6,10 +6,10 @@ import {
 	snapshotAssistanceAssetUpsertCommandV1,
 } from '../common/editor/assistance/assistance-asset-command-v1.ts';
 import type { FramescaperProjectCommandV31 } from './editor-project-v31-commands.ts';
-import { prepareFramescaperVideoTransitionAllocationsV30 } from './editor-project-v30-transition-allocation.ts';
-import { FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v30.ts';
+import { prepareFramescaperVideoTransitionAllocationsV32 } from './editor-project-v32-transition-allocation.ts';
+import { FRAMESCAPER_V32_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v32.ts';
 import { assertFramescaperProjectV31Profile } from './editor-project-runtime-profile-v31.ts';
-import { framescaperProjectV30FoundationShapeV31 } from './editor-project-v31-foundation.ts';
+import { framescaperProjectV32FoundationShapeV31 } from './editor-project-v31-foundation.ts';
 import { validateFramescaperProjectV31 } from './editor-project-v31.ts';
 
 export function prepareFramescaperVideoTransitionAllocationsV31(
@@ -31,9 +31,9 @@ export function prepareFramescaperVideoTransitionAllocationsV31(
 		const childCommand = compound.commands.length === 1
 			? compound.commands[0]!
 			: { type: 'batch' as const, commands: compound.commands };
-		const prepared = prepareFramescaperVideoTransitionAllocationsV30(
-			FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE,
-			framescaperProjectV30FoundationShapeV31(project),
+		const prepared = prepareFramescaperVideoTransitionAllocationsV32(
+			FRAMESCAPER_V32_PROJECT_RUNTIME_PROFILE,
+			framescaperProjectV32FoundationShapeV31(project),
 			childCommand,
 			createId,
 		);
@@ -43,9 +43,9 @@ export function prepareFramescaperVideoTransitionAllocationsV31(
 			: [prepared];
 		return snapshotAssistanceAssetUpsertCommandV1({ ...compound, commands });
 	}
-	return prepareFramescaperVideoTransitionAllocationsV30(
-		FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE,
-		framescaperProjectV30FoundationShapeV31(project),
+	return prepareFramescaperVideoTransitionAllocationsV32(
+		FRAMESCAPER_V32_PROJECT_RUNTIME_PROFILE,
+		framescaperProjectV32FoundationShapeV31(project),
 		command,
 		createId,
 	);

@@ -454,7 +454,7 @@ test('keeps final-profile consumption within the closed maintained Framescaper p
 		'src/framescaper/editor-project-runtime-profile-v22.ts', 'src/framescaper/editor-project-runtime-profile-v24.ts',
 		'src/framescaper/editor-project-runtime-profile-v25.ts', 'src/framescaper/editor-project-runtime-profile-v26.ts',
 		'src/framescaper/editor-project-runtime-profile-v27.ts', 'src/framescaper/editor-project-runtime-profile-v28.ts',
-		'src/framescaper/editor-project-runtime-profile-v30.ts',
+		'src/framescaper/editor-project-runtime-profile-v32.ts',
 		'src/framescaper/editor-project-runtime-profile-v31.ts',
 		'src/framescaper/editor-project-runtime-v18-selection.ts',
 		'src/framescaper/editor-project-runtime-v19-selection.ts',

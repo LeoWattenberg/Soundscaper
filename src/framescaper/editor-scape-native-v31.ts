@@ -22,8 +22,8 @@ import {
 	validateFramescaperProjectV31,
 	type FramescaperProjectV31,
 } from './editor-project-v31.ts';
-import { createFramescaperScapeProjectAssetExtensionV30 } from './editor-scape-assets-v30.ts';
-import { framescaperProjectV30FoundationShapeV31 } from './editor-project-v31-foundation.ts';
+import { createFramescaperScapeProjectAssetExtensionV32 } from './editor-scape-assets-v32.ts';
+import { framescaperProjectV32FoundationShapeV31 } from './editor-project-v31-foundation.ts';
 import { rebindFramescaperSourceIdentitiesV31 } from './editor-project-v31-source-rebind.ts';
 
 export interface FramescaperScapeNativeStoreV31 {
@@ -37,7 +37,7 @@ export function createFramescaperScapeNativeRuntimeV31(profile: unknown) {
 	const projectAssetExtension = createAssetExtension(profile);
 	const migrateProject = (value: unknown) => {
 		const version = readFramescaperProjectSchemaVersion(value);
-		if (version === 28 || version === 30) return Object.freeze({
+		if (version === 28 || version === 32) return Object.freeze({
 			project: reimportFramescaperProjectV31(profile, value),
 			readOnly: false,
 			intrinsicReadOnly: false,
@@ -96,9 +96,9 @@ export function createFramescaperScapeNativeRuntimeV31(profile: unknown) {
 }
 
 function createAssetExtension(profile: unknown): Readonly<ScapeProjectAssetExtension> {
-	const inherited = createFramescaperScapeProjectAssetExtensionV30(profile, {
+	const inherited = createFramescaperScapeProjectAssetExtensionV32(profile, {
 		authenticate: assertFramescaperProjectV31Profile,
-		clone: (codecProfile, project) => framescaperProjectV30FoundationShapeV31(
+		clone: (codecProfile, project) => framescaperProjectV32FoundationShapeV31(
 			cloneFramescaperProjectV31(codecProfile, project),
 		),
 		validate: validateFramescaperProjectV31,

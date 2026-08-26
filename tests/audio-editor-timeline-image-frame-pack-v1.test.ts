@@ -15,7 +15,7 @@ import {
 import {
 	FRAMESCAPER_IMAGE_ASSET_MIME_TYPE,
 	type FramescaperImageSourceV1,
-} from '../src/common/editor/timeline-image-model-v30.ts';
+} from '../src/common/editor/timeline-image-model-v32.ts';
 
 const ENCODER = new TextEncoder();
 

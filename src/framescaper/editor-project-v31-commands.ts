@@ -10,31 +10,31 @@ import {
 	reconcileFramescaperProjectFeatureRequirementsV31,
 } from './editor-project-feature-requirements-v31.ts';
 import {
-	applyFramescaperProjectCommandV30,
-	snapshotFramescaperProjectCommandV30,
-	type FramescaperProjectCommandOptionsV30,
-	type FramescaperProjectCommandV30,
-} from './editor-project-v30-commands.ts';
-import { FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v30.ts';
+	applyFramescaperProjectCommandV32,
+	snapshotFramescaperProjectCommandV32,
+	type FramescaperProjectCommandOptionsV32,
+	type FramescaperProjectCommandV32,
+} from './editor-project-v32-commands.ts';
+import { FRAMESCAPER_V32_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v32.ts';
 import { assertFramescaperProjectV31Profile } from './editor-project-runtime-profile-v31.ts';
-import { framescaperProjectV30FoundationShapeV31 } from './editor-project-v31-foundation.ts';
+import { framescaperProjectV32FoundationShapeV31 } from './editor-project-v31-foundation.ts';
 import {
 	validateFramescaperProjectV31,
 	type FramescaperProjectV31,
 } from './editor-project-v31.ts';
 
 export type FramescaperProjectCommandV31 =
-	| FramescaperProjectCommandV30
+	| FramescaperProjectCommandV32
 	| AssistanceAssetUpsertCommandV1;
-export type FramescaperProjectCommandOptionsV31 = FramescaperProjectCommandOptionsV30;
+export type FramescaperProjectCommandOptionsV31 = FramescaperProjectCommandOptionsV32;
 
 export function snapshotFramescaperProjectCommandV31(value: unknown): FramescaperProjectCommandV31 {
 	return hasAssistanceAssetUpsertCommandTypeV1(value)
 		? snapshotAssistanceAssetUpsertCommandV1(value)
-		: snapshotFramescaperProjectCommandV30(value);
+		: snapshotFramescaperProjectCommandV32(value);
 }
 
-/** Execute inherited V30 image semantics without allowing F31 custody to be dropped. */
+/** Execute inherited V32 image semantics without allowing F31 custody to be dropped. */
 export function applyFramescaperProjectCommandV31(
 	profile: unknown,
 	projectValue: unknown,
@@ -53,9 +53,9 @@ export function applyFramescaperProjectCommandV31(
 			options,
 		);
 	}
-	const applied = applyFramescaperProjectCommandV30(
-		FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE,
-		framescaperProjectV30FoundationShapeV31(project),
+	const applied = applyFramescaperProjectCommandV32(
+		FRAMESCAPER_V32_PROJECT_RUNTIME_PROFILE,
+		framescaperProjectV32FoundationShapeV31(project),
 		command,
 		options,
 	) as unknown as Record<string, unknown>;
@@ -77,9 +77,9 @@ function applyAssistanceCommand(
 		const childCommand = command.commands.length === 1
 			? command.commands[0]!
 			: { type: 'batch' as const, commands: command.commands };
-		const applied = applyFramescaperProjectCommandV30(
-			FRAMESCAPER_V30_PROJECT_RUNTIME_PROFILE,
-			framescaperProjectV30FoundationShapeV31(project),
+		const applied = applyFramescaperProjectCommandV32(
+			FRAMESCAPER_V32_PROJECT_RUNTIME_PROFILE,
+			framescaperProjectV32FoundationShapeV31(project),
 			childCommand,
 			options,
 		) as unknown as Record<string, unknown>;
