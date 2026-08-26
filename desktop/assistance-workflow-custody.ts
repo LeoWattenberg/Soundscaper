@@ -13,6 +13,10 @@ import {
 	type AssistanceOutputRole,
 	type AssistanceStagedInputClaim,
 } from './assistance-data-claims.ts';
+import {
+	normalizeAssistanceOperation,
+	type AssistanceOperation,
+} from '../src/common/editor/assistance/operation.ts';
 import type { AssistanceStagingRegistry } from './assistance-staging-registry.ts';
 import {
 	createAssistanceWorkflowStageCustodyToken,
@@ -28,14 +32,24 @@ import {
 } from '../src/common/editor/assistance/workflow-custody-v1.ts';
 import {
 	validateAssistanceWorkflow,
+	assistanceWorkflowStageGraph,
 	type AssistanceWorkflowClaimV1,
 	type AssistanceWorkflowId,
+	type AssistanceWorkflowOutputClaimV1,
 	type AssistanceWorkflowV1,
 } from '../src/common/editor/assistance/workflow.ts';
 
 export interface AssistanceWorkflowCustodyHandleV1 {
 	readonly custody: AssistanceWorkflowCustodyClaimV1;
 	readonly workflowClaim: AssistanceWorkflowClaimV1;
+}
+
+/** Main-only authenticated output authority. Its private path never crosses IPC. */
+export interface AssistanceWorkflowAuthenticatedOutputV1 {
+	readonly custody: AssistanceWorkflowCustodyClaimV1;
+	readonly workflowClaim: AssistanceWorkflowOutputClaimV1;
+	readonly claim: AssistanceOutputClaim;
+	readonly path: string;
 }
 
 export interface AssistanceWorkflowStageInputRequest {
@@ -261,10 +275,17 @@ export class AssistanceWorkflowCustody {
 	/** Main-only primitive projection. Producer outputs are re-staged as authenticated inputs. */
 	async operationInputClaim(
 		value: unknown,
+		operationValue: AssistanceOperation,
 		signal?: AbortSignal,
 	): Promise<AssistanceStagedInputClaim> {
 		const custody = this.workflowCustodyClaim(value);
 		if (custody.direction !== 'input') throw new TypeError('A workflow input claim is required.');
+		const operation = normalizeAssistanceOperation(operationValue);
+		const stage = assistanceWorkflowStageGraph(custody.workflowId)
+			.find(({ stageId }) => stageId === custody.stageId);
+		if (!stage || stage.operation !== operation) {
+			throw new TypeError('The workflow consumer operation does not own that input slot.');
+		}
 		const job = this.#boundJob(custody.jobId, custody.workflowId);
 		const record = job.inputs.get(bindingKey(custody.stageId, custody.slotId));
 		if (!record || !sameCustody(record.custody, custody)) {
@@ -272,9 +293,13 @@ export class AssistanceWorkflowCustody {
 		}
 		if (record.claim) return record.claim;
 		const resolved = await this.resolveInput(custody, signal);
+		const role = intermediateInputRole(
+			resolved.claim.role, custody.slotId, operation, resolved.claim.mediaType,
+		);
+		validateAssistanceStagedInputClaim({ ...resolved.claim, role });
 		const bytes = createReadStream(resolved.path, { signal }) as AsyncIterable<Uint8Array>;
 		return this.#staging.stageInput({ jobId: custody.jobId,
-			role: resolved.claim.role as AssistanceInputRole,
+			role,
 			mediaType: resolved.claim.mediaType, byteLength: resolved.claim.byteLength,
 			bytes, ...(signal ? { signal } : {}) });
 	}
@@ -299,6 +324,24 @@ export class AssistanceWorkflowCustody {
 			throw new Error('The workflow claim has no exact main-owned custody.');
 		}
 		return record.custody;
+	}
+
+	async openAuthenticatedOutput(
+		value: unknown,
+		signal?: AbortSignal,
+	): Promise<AssistanceWorkflowAuthenticatedOutputV1> {
+		const custody = this.workflowCustodyClaim(value);
+		if (custody.direction !== 'output') {
+			throw new TypeError('A workflow output claim is required for review.');
+		}
+		const output = this.#output(custody);
+		if (!output.claim) throw new Error('The workflow output is not authenticated for review.');
+		const path = await this.#staging.resolveOutputClaimPathForMain(
+			custody.jobId, output.claim, signal,
+		);
+		return Object.freeze({ custody,
+			workflowClaim: workflowClaimFromCustodyV1(custody) as AssistanceWorkflowOutputClaimV1,
+			claim: output.claim, path });
 	}
 
 	openOutput(value: unknown, signal?: AbortSignal): Promise<string> {
@@ -396,6 +439,47 @@ export class AssistanceWorkflowCustody {
 		if (!job) throw new Error('The workflow custody job is unknown or released.');
 		return job;
 	}
+}
+
+const INTERMEDIATE_INPUT_PROJECTIONS = Object.freeze([
+	Object.freeze({ sourceRole: 'transcript', slotId: 'transcript', operation: 'word-alignment',
+		inputRole: 'transcript' }),
+	Object.freeze({ sourceRole: 'transcript', slotId: 'transcript', operation: 'text-embedding',
+		inputRole: 'transcript' }),
+	Object.freeze({ sourceRole: 'text-chunks', slotId: 'text-chunks', operation: 'text-embedding',
+		inputRole: 'transcript' }),
+	Object.freeze({ sourceRole: 'highlight-candidates', slotId: 'highlight-candidates',
+		operation: 'editorial-generation', inputRole: 'editorial-context' }),
+	Object.freeze({ sourceRole: 'frame-pack', slotId: 'frame-pack',
+		operation: 'image-text-embedding', inputRole: 'frame-pack' }),
+	Object.freeze({ sourceRole: 'frame-pack', slotId: 'frame-pack',
+		operation: 'optical-character-recognition', inputRole: 'frame-pack' }),
+	Object.freeze({ sourceRole: 'frame-pack', slotId: 'frame-pack',
+		operation: 'shot-detection', inputRole: 'frame-pack' }),
+	Object.freeze({ sourceRole: 'frame-pack', slotId: 'frame-pack',
+		operation: 'subject-detection', inputRole: 'frame-pack' }),
+	Object.freeze({ sourceRole: 'frame-pack', slotId: 'frame-pack',
+		operation: 'saliency-detection', inputRole: 'frame-pack' }),
+] satisfies readonly Readonly<{ sourceRole: string; slotId: string;
+	operation: AssistanceOperation; inputRole: AssistanceInputRole }>[]);
+
+function intermediateInputRole(
+	sourceRole: string,
+	slot: string,
+	operation: AssistanceOperation,
+	mediaType: string,
+): AssistanceInputRole {
+	const projection = INTERMEDIATE_INPUT_PROJECTIONS.find((candidate) =>
+		candidate.sourceRole === sourceRole && candidate.slotId === slot
+		&& candidate.operation === operation);
+	if (!projection) {
+		throw new TypeError('That workflow intermediate role is not admitted by the consumer operation.');
+	}
+	if ((sourceRole === 'text-chunks' || sourceRole === 'highlight-candidates')
+		&& mediaType !== 'application/json') {
+		throw new TypeError('Structured workflow intermediates require matching JSON media.');
+	}
+	return projection.inputRole;
 }
 
 function handle(custody: AssistanceWorkflowCustodyClaimV1): AssistanceWorkflowCustodyHandleV1 {

@@ -8,7 +8,9 @@ import {
 	ASSISTANCE_WORKFLOW_CONTRACT_VERSION,
 	AssistanceWorkflowProgressTracker,
 	assistanceWorkflowStageGraph,
+	normalizeAssistanceWorkflowId,
 	validateAssistanceWorkflow,
+	type AssistanceWorkflowId,
 	type AssistanceWorkflowOutputClaimV1,
 	type AssistanceWorkflowProgressPhase,
 	type AssistanceWorkflowProgressV1,
@@ -17,6 +19,7 @@ import {
 } from '../src/common/editor/assistance/workflow.ts';
 import type {
 	AssistanceWorkflowCustody,
+	AssistanceWorkflowAuthenticatedOutputV1,
 	AssistanceWorkflowCustodyHandleV1,
 	AssistanceWorkflowOutputReservationRequest,
 	AssistanceWorkflowProducerBindingRequest,
@@ -85,7 +88,7 @@ export interface AssistanceWorkflowServiceOptions {
 	readonly mintJobId?: () => string;
 	readonly custody?: Pick<AssistanceWorkflowCustody,
 		'createJob' | 'assertJob' | 'reserveOutput' | 'bindProducer'
-		| 'validateWorkflow' | 'releaseJob'>;
+		| 'validateWorkflow' | 'openAuthenticatedOutput' | 'releaseJob'>;
 	readonly onProgress?: (progress: AssistanceWorkflowProgressV1) => void;
 	readonly execute?: (
 		request: AssistanceWorkflowV1,
@@ -115,6 +118,7 @@ export function createAssistanceWorkflowService(options: AssistanceWorkflowServi
 	const mintJobId = options.mintJobId ?? (() => randomBytes(20).toString('hex'));
 	const jobs = new Set<string>();
 	const completedJobs = new Set<string>();
+	const reviewableJobs = new Set<string>();
 	const activeRuns = new Map<string, ActiveRun>();
 
 	async function createJob(): Promise<AssistanceWorkflowJobV1> {
@@ -171,7 +175,9 @@ export function createAssistanceWorkflowService(options: AssistanceWorkflowServi
 		const active = Object.freeze({ controller, quiesced: execution.then(() => undefined, () => undefined) });
 		activeRuns.set(request.jobId, active);
 		try {
-			return await execution;
+			const outcome = await execution;
+			if (outcome.outcome === 'completed') reviewableJobs.add(request.jobId);
+			return outcome;
 		} catch (error) {
 			if (controller.signal.aborted) {
 				throw new AssistanceWorkflowCancelledError(request.jobId, {
@@ -262,6 +268,7 @@ export function createAssistanceWorkflowService(options: AssistanceWorkflowServi
 		activeRuns.delete(jobId);
 		jobs.delete(jobId);
 		completedJobs.delete(jobId);
+		reviewableJobs.delete(jobId);
 		await options.custody?.releaseJob(jobId);
 		return cancellation(jobId, 'cancelled');
 	}
@@ -272,7 +279,25 @@ export function createAssistanceWorkflowService(options: AssistanceWorkflowServi
 		if (activeRuns.has(jobId)) throw new Error('An active assistance workflow must be cancelled first.');
 		jobs.delete(jobId);
 		completedJobs.delete(jobId);
+		reviewableJobs.delete(jobId);
 		return options.custody ? options.custody.releaseJob(jobId) : true;
+	}
+
+	async function openOutput(value: unknown): Promise<AssistanceWorkflowAuthenticatedOutputV1> {
+		const request = workflowOutputReadRequest(value);
+		assertJob(request.jobId);
+		if (!reviewableJobs.has(request.jobId)) {
+			throw new Error('Only a completed assistance workflow may expose output for review.');
+		}
+		if (!options.custody) throw new Error('Aggregate workflow custody is unavailable.');
+		const opened = await options.custody.openAuthenticatedOutput(request.claim);
+		if (opened.custody.jobId !== request.jobId
+			|| opened.custody.workflowId !== request.workflowId
+			|| opened.custody.direction !== 'output'
+			|| JSON.stringify(opened.workflowClaim) !== JSON.stringify(request.claim)) {
+			throw new TypeError('The authenticated workflow output is not exactly correlated.');
+		}
+		return opened;
 	}
 
 	function assertMutableJob(jobIdValue: unknown): void {
@@ -288,7 +313,25 @@ export function createAssistanceWorkflowService(options: AssistanceWorkflowServi
 	}
 
 	return Object.freeze({ createJob, assertJob, admitWorkflow, reserveOutput,
-		bindProducer, run, cancel, release, dispose });
+		bindProducer, run, openOutput, cancel, release, dispose });
+}
+
+function workflowOutputReadRequest(value: unknown): Readonly<{
+	jobId: string; workflowId: AssistanceWorkflowId; claim: AssistanceWorkflowOutputClaimV1;
+}> {
+	const record = exactRecord(value, ['jobId', 'workflowId', 'claim'], 'workflow output read request');
+	const jobId = opaqueId(record.jobId);
+	const workflowId = normalizeAssistanceWorkflowId(record.workflowId);
+	const claim = exactRecord(record.claim,
+		['claimVersion', 'direction', 'claimId', 'jobId', 'stageId', 'slotId'],
+		'workflow output claim');
+	if (claim.claimVersion !== 1 || claim.direction !== 'output'
+		|| opaqueId(claim.jobId) !== jobId) {
+		throw new TypeError('The workflow output claim is not job-correlated.');
+	}
+	return Object.freeze({ jobId, workflowId, claim: Object.freeze({ claimVersion: 1,
+		direction: 'output', claimId: opaqueId(claim.claimId), jobId,
+		stageId: slotId(claim.stageId), slotId: slotId(claim.slotId) }) });
 }
 
 function unavailableExecution(
@@ -332,4 +375,23 @@ function opaqueId(value: unknown): string {
 		throw new TypeError('The assistance workflow job ID is invalid.');
 	}
 	return value;
+}
+
+function slotId(value: unknown): string {
+	if (typeof value !== 'string' || !/^[a-z\d](?:[a-z\d.-]{0,62}[a-z\d])?$/u.test(value)) {
+		throw new TypeError('The assistance workflow stage or slot is invalid.');
+	}
+	return value;
+}
+
+function exactRecord(value: unknown, keys: readonly string[], label: string): Record<string, unknown> {
+	if (!value || typeof value !== 'object' || Array.isArray(value) || ArrayBuffer.isView(value)) {
+		throw new TypeError(`The ${label} must be a plain record.`);
+	}
+	const record = value as Record<string, unknown>;
+	if (Object.keys(record).length !== keys.length
+		|| Object.keys(record).some((key) => !keys.includes(key))) {
+		throw new TypeError(`The ${label} carries unsupported fields.`);
+	}
+	return record;
 }

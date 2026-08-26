@@ -38,7 +38,7 @@ export function createAssistanceWorkflowOperationStageRuntime(
 		if (!operation) throw new TypeError('A deterministic workflow stage cannot enter operation-v1.');
 		if (stage.request.fence.sourceRanges.length !== 1) return unavailable('stage-unavailable');
 		const inputs = await Promise.all(stage.inputs.map((claim) =>
-			options.custody.operationInputClaim(claim, stage.signal)));
+			options.custody.operationInputClaim(claim, operation, stage.signal)));
 		const outputs = stage.outputs.map((claim) => options.custody.outputReservationForClaim(claim));
 		let request: AssistanceOperationRequest;
 		try {

@@ -22,6 +22,8 @@ export const ASSISTANCE_WORKFLOW_IPC_CHANNELS = Object.freeze({
 	bindProducer: 'soundscaper:v1:assistance:workflow:bind-producer',
 	run: 'soundscaper:v1:assistance:workflow:run',
 	cancel: 'soundscaper:v1:assistance:workflow:cancel',
+	readOutput: 'soundscaper:v1:assistance:workflow:read-output',
+	outputPort: 'soundscaper:v1:assistance:workflow:output-port',
 	release: 'soundscaper:v1:assistance:workflow:release',
 	progress: 'soundscaper:v1:event:assistance-workflow-progress',
 } as const);
@@ -119,6 +121,10 @@ export function registerAssistanceWorkflowIpc(options: AssistanceWorkflowIpcOpti
 			() => resolve().bindProducer(producerRequest(value)),
 			'The assistance workflow producer could not be bound.',
 		));
+		options.handle(options.channels.readOutput, (_event, value) => pathless(
+			() => resolveTransfers().prepareOutput(outputReadRequest(value)),
+			'The assistance workflow output could not be read.',
+		));
 		options.handle(options.channels.release, (_event, value) => pathless(async () => {
 			const jobId = opaqueId(value);
 			await resolveTransfers().cancelJob(jobId);
@@ -128,6 +134,12 @@ export function registerAssistanceWorkflowIpc(options: AssistanceWorkflowIpcOpti
 			const port = exactEventPort(event);
 			if (!port) return;
 			try { void resolveTransfers().acceptInputPort(value, port).catch(() => undefined); }
+			catch { port.close(); }
+		});
+		options.on(options.channels.outputPort, (event, value) => {
+			const port = exactEventPort(event);
+			if (!port) return;
+			try { void resolveTransfers().acceptOutputPort(value, port).catch(() => undefined); }
 			catch { port.close(); }
 		});
 	}
@@ -169,6 +181,16 @@ function producerRequest(value: unknown) {
 		'producerStageId', 'producerSlotId', 'producerClaimId',
 	], 'workflow producer binding');
 	return row as unknown as Parameters<AssistanceWorkflows['bindProducer']>[0];
+}
+
+function outputReadRequest(value: unknown) {
+	const row = plainRecord(value, 'workflow output read request');
+	assertExactKeys(row, ['jobId', 'workflowId', 'claim'], 'workflow output read request');
+	const claim = plainRecord(row.claim, 'workflow output claim');
+	assertExactKeys(claim,
+		['claimVersion', 'direction', 'claimId', 'jobId', 'stageId', 'slotId'],
+		'workflow output claim');
+	return row;
 }
 
 function plainRecord(value: unknown, label: string): Record<string, unknown> {

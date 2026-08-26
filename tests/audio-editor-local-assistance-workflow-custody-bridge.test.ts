@@ -85,11 +85,42 @@ test('producer binding preserves one exact earlier claim and legacy workflow bri
 		custody: { ...raw.custody, shellPath: '/renderer/bin' } }), null);
 });
 
-function workflowRaw(custody: Record<string, unknown>) {
+test('renderer workflow review returns only a slot-compatible completed output Blob', async () => {
+	const claim = Object.freeze({ claimVersion: 1 as const, direction: 'output' as const,
+		claimId: claimId(41), jobId: WORKFLOW_JOB_ID,
+		stageId: 'enhance-dialogue', slotId: 'enhanced-audio' });
+	const body = new Blob([new Uint8Array([82, 73, 70, 70])], { type: 'audio/wav' });
+	const bridge = resolveLocalAssistanceWorkflowBridge(workflowRaw({
+		stageInput: async () => { throw new Error('unused'); },
+		reserveOutput: async () => { throw new Error('unused'); },
+		bindProducer: async () => { throw new Error('unused'); },
+		release: async () => true,
+	}, async (request) => {
+		assert.deepEqual(request, { jobId: WORKFLOW_JOB_ID,
+			workflowId: 'enhance-dialogue', claim });
+		return body;
+	}));
+	assert.ok(bridge?.readOutput);
+	const reviewed = await bridge.readOutput({ jobId: WORKFLOW_JOB_ID,
+		workflowId: 'enhance-dialogue', claim });
+	assert.equal(reviewed.size, 4);
+	assert.equal(reviewed.type, 'audio/wav');
+
+	const malformed = resolveLocalAssistanceWorkflowBridge(workflowRaw({
+		stageInput: async () => { throw new Error('unused'); },
+		reserveOutput: async () => { throw new Error('unused'); },
+		bindProducer: async () => { throw new Error('unused'); },
+		release: async () => true,
+	}, async () => new Blob(['{}'], { type: 'application/json' })));
+	await assert.rejects(malformed!.readOutput!({ jobId: WORKFLOW_JOB_ID,
+		workflowId: 'enhance-dialogue', claim }), /media|slot|Blob/iu);
+});
+
+function workflowRaw(custody: Record<string, unknown>, readOutput?: (request: unknown) => Promise<Blob>) {
 	return { createJob: async () => ({ contractVersion: 1, jobId: WORKFLOW_JOB_ID }),
 		run: async () => { throw new Error('unused'); },
 		cancel: async () => ({ contractVersion: 1, jobId: WORKFLOW_JOB_ID, outcome: 'cancelled' }),
-		onProgress: () => () => undefined, custody };
+		onProgress: () => () => undefined, ...(readOutput ? { readOutput } : {}), custody };
 }
 
 function token(value: Omit<AssistanceWorkflowCustodyClaimV1,

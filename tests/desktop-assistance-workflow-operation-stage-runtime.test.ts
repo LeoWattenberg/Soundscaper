@@ -45,7 +45,9 @@ test('primitive workflow stages execute through operation-v1 and record exact au
 					operation: 'speech-enhancement' as const, outputs: [output] } };
 		} },
 		custody: {
-			operationInputClaim: async () => input,
+		operationInputClaim: async (_claim, operation) => {
+			assert.equal(operation, 'speech-enhancement'); return input;
+		},
 			outputReservationForClaim: () => reservation,
 			recordAuthenticatedOutputForClaim: async (claim, result) => {
 				recorded.push([claim, result]); return output;

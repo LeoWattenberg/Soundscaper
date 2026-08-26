@@ -73,12 +73,6 @@ test('workflow jobs own one pathless namespace with authenticated external and p
 		const produced = await custody.resolveInput(assembledTranscript.custody, new AbortController().signal);
 		assert.equal(produced.claim.sha256, authenticated.sha256);
 		assert.equal(produced.path, outputPath);
-		const restaged = await custody.operationInputClaim(
-			assembledTranscript.workflowClaim, new AbortController().signal,
-		);
-		assert.equal(restaged.role, 'transcript');
-		assert.equal(restaged.sha256, authenticated.sha256);
-
 		const captionsReservation = custody.outputReservationForClaim(captions.workflowClaim);
 		assert.equal(captionsReservation.claimId, captions.custody.claimId);
 		const captionsPath = await staging.resolveOutputReservationPathForMain(
@@ -90,6 +84,15 @@ test('workflow jobs own one pathless namespace with authenticated external and p
 			captions.workflowClaim, captionsClaim,
 		),
 			captionsClaim);
+		const review = await custody.openAuthenticatedOutput(
+			captions.workflowClaim, new AbortController().signal,
+		);
+		assert.deepEqual(review.workflowClaim, captions.workflowClaim);
+		assert.deepEqual(review.claim, captionsClaim);
+		assert.equal(review.path, captionsPath);
+		await writeFile(captionsPath, new Uint8Array(captionsClaim.byteLength).fill(120), { flag: 'r+' });
+		await assert.rejects(custody.openAuthenticatedOutput(captions.workflowClaim),
+			/digest|identity|changed|authenticate/iu);
 		await assert.rejects(custody.recordAuthenticatedOutput(captions.custody, captionsClaim),
 			/already authenticated/iu);
 		assert.equal(await custody.releaseJob(jobId), true);
@@ -123,10 +126,48 @@ test('workflow custody rejects renderer-minted, cross-job, stale, and unreserved
 			inputs: assistanceWorkflowFixture().inputs.map((claim) => ({ ...claim, jobId })),
 		})), /custody|claim|staged/iu);
 		await custody.releaseJob(jobId);
+		await assert.rejects(custody.openAuthenticatedOutput(transcript.workflowClaim),
+			/job|released|unknown/iu);
 		await assert.rejects(async () => custody.openOutput(
 			transcript.custody, new AbortController().signal,
 		),
 			/job|released|unknown/iu);
+	});
+});
+
+test('primitive projection maps only closed consumer roles and refuses before staging', async () => {
+	await withTempDirectory('workflow-custody-projection-', async (directory) => {
+		let ordinal = 0;
+		const staging = new AssistanceStagingRegistry({ root: join(directory, 'private'),
+			mintId: () => (++ordinal).toString(16).padStart(40, '0') });
+		const custody = new AssistanceWorkflowCustody({ staging });
+		const { jobId } = await custody.createJob();
+		const transcript = new TextEncoder().encode('{"segments":[]}');
+		await custody.stageInput({ jobId, workflowId: 'index-transcript',
+			stageId: 'chunk-transcript', slotId: 'transcript', mediaType: 'application/json',
+			byteLength: transcript.byteLength, bytes: chunks(transcript) });
+		const textChunks = await custody.reserveOutput({ jobId, workflowId: 'index-transcript',
+			stageId: 'chunk-transcript', slotId: 'text-chunks', maximumByteLength: 4096 });
+		const embeddedInput = custody.bindProducer({ jobId, workflowId: 'index-transcript',
+			stageId: 'embed-transcript', slotId: 'text-chunks',
+			producerStageId: 'chunk-transcript', producerSlotId: 'text-chunks',
+			producerClaimId: textChunks.custody.claimId });
+		const path = await custody.openOutput(textChunks.custody);
+		const body = new TextEncoder().encode('[{"text":"hello"}]');
+		await writeFile(path, body, { flag: 'r+' });
+		const authenticated = await custody.authenticateOutput(textChunks.custody);
+		const beforeRefusal = ordinal;
+		await assert.rejects(custody.operationInputClaim(
+			embeddedInput.workflowClaim, 'editorial-generation',
+		), /consumer operation|not admitted/iu);
+		assert.equal(ordinal, beforeRefusal, 'refusal must happen before a new staging claim is minted');
+		const projected = await custody.operationInputClaim(
+			embeddedInput.workflowClaim, 'text-embedding',
+		);
+		assert.equal(projected.role, 'transcript');
+		assert.equal(projected.mediaType, 'application/json');
+		assert.equal(projected.sha256, authenticated.sha256);
+		await custody.releaseJob(jobId);
 	});
 });
 

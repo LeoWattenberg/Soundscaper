@@ -8,10 +8,11 @@ export function lazyAssistanceWorkflowBridge(value: unknown): LocalAssistanceWor
 	if (!isRecord(value)) return null;
 	const methods = ['createJob', 'run', 'cancel', 'onProgress'] as const;
 	const keys = Object.keys(value);
-	if ((keys.length !== methods.length && keys.length !== methods.length + 1)
-		|| keys.some((key) => key !== 'custody' && !methods.includes(
+	if (keys.some((key) => key !== 'custody' && key !== 'readOutput' && !methods.includes(
 			key as typeof methods[number],
-		)) || methods.some((method) => typeof value[method] !== 'function')) return null;
+	)) || methods.some((method) => typeof value[method] !== 'function')) return null;
+	const hasReadOutput = value.readOutput !== undefined;
+	if (hasReadOutput && typeof value.readOutput !== 'function') return null;
 	const custodyMethods = ['stageInput', 'reserveOutput', 'bindProducer', 'release'] as const;
 	const hasCustody = value.custody !== undefined;
 	const rawCustody = isRecord(value.custody) ? value.custody : null;
@@ -52,6 +53,13 @@ export function lazyAssistanceWorkflowBridge(value: unknown): LocalAssistanceWor
 				return bridge.custody.release(...args);
 			},
 		}) } : {}),
+		...(hasReadOutput ? { async readOutput(
+			...args: Parameters<NonNullable<LocalAssistanceWorkflowBridge['readOutput']>>
+		) {
+			const bridge = await resolve();
+			if (!bridge.readOutput) throw new TypeError('Workflow output review is unavailable.');
+			return bridge.readOutput(...args);
+		} } : {}),
 		createJob: async () => (await resolve()).createJob(),
 		run: async (request: Parameters<LocalAssistanceWorkflowBridge['run']>[0]) =>
 			(await resolve()).run(request),

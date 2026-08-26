@@ -24,6 +24,7 @@ const REQUEST = Object.freeze({ contractVersion: 1, jobId: JOB_ID, operation: 's
 		artifactSha256s: [DIGEST] }], inputs: [INPUT], outputs: [OUTPUT] });
 const WORKFLOW_REQUEST = Object.freeze({ contractVersion: 1, jobId: JOB_ID,
 	workflowId: 'enhance-dialogue', recipeVersion: 1, settingsVersion: 1,
+	settings: { settingsVersion: 1, workflowId: 'enhance-dialogue', placement: 'project-bin' },
 	fence: { fenceVersion: 1, projectId: 'project-1', schemaVersion: 31, revision: 1,
 		sequenceId: 'sequence-1', sourceRanges: [{ slotId: 'primary-audio', mediaKind: 'audio',
 			sourceId: 'source-1', sourceSha256: 'b'.repeat(64), occurrenceIds: ['occurrence-1'],
@@ -196,6 +197,39 @@ test('workflow preload validation rejects renderer stage injection and path-bear
 		/workflow|schema|fields|outcome/iu);
 });
 
+test('workflow preload requires transcript chunks beside embeddings for index publication', async () => {
+	const claim = (direction, claimId, stageId, slotId) => Object.freeze({ claimVersion: 1,
+		direction, claimId, jobId: JOB_ID, stageId, slotId });
+	const request = Object.freeze({ ...WORKFLOW_REQUEST, workflowId: 'index-transcript',
+		settings: { settingsVersion: 1, workflowId: 'index-transcript' },
+		stageIds: ['chunk-transcript', 'embed-transcript', 'publish-transcript-index'],
+		models: [{ bindingVersion: 1, stageId: 'embed-transcript', slotId: 'text-embedder',
+			modelId: 'nomic-embed-text-v1.5', version: '1.5.0', artifactSha256s: [DIGEST] }],
+		inputs: [
+			claim('input', '5'.repeat(40), 'chunk-transcript', 'transcript'),
+			claim('input', '6'.repeat(40), 'embed-transcript', 'text-chunks'),
+			claim('input', '7'.repeat(40), 'publish-transcript-index', 'text-chunks'),
+			claim('input', '8'.repeat(40), 'publish-transcript-index', 'embeddings'),
+		],
+		outputs: [
+			claim('output', '9'.repeat(40), 'chunk-transcript', 'text-chunks'),
+			claim('output', 'a'.repeat(40), 'embed-transcript', 'embeddings'),
+			claim('output', 'b'.repeat(40), 'publish-transcript-index', 'transcript-index'),
+		],
+	});
+	const fixture = await loadPreload({ responses: [{ contractVersion: 1, jobId: JOB_ID,
+		workflowId: 'index-transcript', outcome: 'unavailable', reason: 'stage-unavailable' }] });
+	await fixture.bridge.localAssistance.workflow.run(request);
+	assert.deepEqual(plain(fixture.invocations[0][1].inputs), plain(request.inputs));
+
+	const omitted = await loadPreload({ responses: [] });
+	await assert.rejects(omitted.bridge.localAssistance.workflow.run({ ...request,
+		inputs: request.inputs.filter(({ stageId, slotId }) =>
+			stageId !== 'publish-transcript-index' || slotId !== 'text-chunks'),
+	}), /required workflow input|workflow/iu);
+	assert.equal(omitted.invocations.length, 0);
+});
+
 test('workflow custody stages exact Blobs and reserves pathless slotted outputs', async () => {
 	const body = new Blob(['RIFF'], { type: 'audio/wav' });
 	const sha256 = createHash('sha256').update('RIFF').digest('hex');
@@ -266,6 +300,52 @@ test('workflow custody binds only one exact earlier producer and strips no hidde
 		slotId: 'transcript', producer: { ...producer, path: '/private/result.json' },
 	}), /custody|fields|invalid/iu);
 	assert.equal(injected.invocations.length, 0);
+});
+
+test('workflow output review revalidates exact slotted bytes over a pathless MessagePort', async () => {
+	const body = Buffer.from('RIFF-reviewed');
+	const sha256 = createHash('sha256').update(body).digest('hex');
+	const workflowClaim = WORKFLOW_REQUEST.outputs[0];
+	const binding = { dataPlaneVersion: 1, transport: 'message-port', streamId: STREAM_ID,
+		direction: 'helper-to-host', byteLength: body.byteLength, sha256,
+		maximumChunkBytes: 1024, maximumInFlightChunks: 1 };
+	const offer = { contractVersion: 1, jobId: JOB_ID, workflowId: 'enhance-dialogue',
+		workflowClaim, mediaType: 'audio/wav', binding };
+	const fixture = await loadPreload({ responses: [offer],
+		onPostMessage(channel, control, ports) {
+			assert.equal(channel, 'soundscaper:v1:assistance:workflow:output-port');
+			assert.deepEqual(plain(control), { jobId: JOB_ID, workflowId: 'enhance-dialogue',
+				workflowClaim, streamId: STREAM_ID, binding });
+			const port = ports[0];
+			port.on('message', (message) => {
+				if (message.type === 'ack') port.postMessage({ dataPlaneVersion: 1, type: 'complete',
+					streamId: STREAM_ID, byteLength: body.byteLength, sha256 });
+			});
+			port.postMessage({ dataPlaneVersion: 1, type: 'chunk', streamId: STREAM_ID,
+				sequence: 0, offset: 0, bytes: body });
+		} });
+	const reviewed = await fixture.bridge.localAssistance.workflow.readOutput({ jobId: JOB_ID,
+		workflowId: 'enhance-dialogue', claim: workflowClaim });
+	assert.equal(reviewed.type, 'audio/wav');
+	assert.equal(Buffer.from(await reviewed.arrayBuffer()).toString(), body.toString());
+	assert.doesNotMatch(JSON.stringify(fixture.invocations), /path|private/iu);
+
+	const malformed = await loadPreload({ responses: [{ ...offer, path: '/private/result.wav' }] });
+	await assert.rejects(malformed.bridge.localAssistance.workflow.readOutput({ jobId: JOB_ID,
+		workflowId: 'enhance-dialogue', claim: workflowClaim }), /workflow|offer|fields/iu);
+
+	const corrupt = await loadPreload({ responses: [offer], onPostMessage(_channel, _control, ports) {
+		const port = ports[0];
+		const bytes = Buffer.alloc(body.byteLength, 120);
+		port.on('message', (message) => {
+			if (message.type === 'ack') port.postMessage({ dataPlaneVersion: 1, type: 'complete',
+				streamId: STREAM_ID, byteLength: body.byteLength, sha256 });
+		});
+		port.postMessage({ dataPlaneVersion: 1, type: 'chunk', streamId: STREAM_ID,
+			sequence: 0, offset: 0, bytes });
+	} });
+	await assert.rejects(corrupt.bridge.localAssistance.workflow.readOutput({ jobId: JOB_ID,
+		workflowId: 'enhance-dialogue', claim: workflowClaim }), /digest/iu);
 });
 
 async function loadPreload({ responses, onPostMessage = () => {} }) {

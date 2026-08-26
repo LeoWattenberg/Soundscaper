@@ -9,6 +9,8 @@ import {
 	assistanceWorkflowStageGraph,
 	validateAssistanceWorkflow,
 	validateAssistanceWorkflowProgress,
+	type AssistanceWorkflowId,
+	type AssistanceWorkflowOutputClaimV1,
 	type AssistanceWorkflowProgressV1,
 	type AssistanceWorkflowV1,
 } from '../assistance/workflow.ts';
@@ -93,6 +95,11 @@ export interface LocalAssistanceWorkflowBridge {
 		jobId: string;
 		outcome: 'cancelled' | 'not-active';
 	}>>;
+	readOutput?(request: Readonly<{
+		jobId: string;
+		workflowId: AssistanceWorkflowId;
+		claim: AssistanceWorkflowOutputClaimV1;
+	}>): Promise<Blob>;
 	onProgress(listener: (progress: AssistanceWorkflowProgressV1) => void): () => void;
 }
 
@@ -102,17 +109,32 @@ const JOB_ID = /^[a-f\d]{40}$/u;
 export function resolveLocalAssistanceWorkflowBridge(value: unknown): LocalAssistanceWorkflowBridge | null {
 	if (!isRecord(value)) return null;
 	const keys = Object.keys(value);
-	if ((keys.length !== METHODS.length && keys.length !== METHODS.length + 1)
-		|| keys.some((key) => key !== 'custody' && !METHODS.includes(
+	if (keys.some((key) => key !== 'custody' && key !== 'readOutput' && !METHODS.includes(
 			key as typeof METHODS[number],
 	)) || METHODS.some((method) => typeof value[method] !== 'function')) return null;
+	const hasReadOutput = value.readOutput !== undefined;
+	if (hasReadOutput && typeof value.readOutput !== 'function') return null;
 	const custody = value.custody === undefined ? undefined : resolveCustody(value.custody);
 	if (value.custody !== undefined && custody === null) return null;
-	const invoke = (method: typeof METHODS[number], ...args: readonly unknown[]) =>
+	const invoke = (method: typeof METHODS[number] | 'readOutput', ...args: readonly unknown[]) =>
 		(value[method] as (...parameters: readonly unknown[]) => unknown).apply(value, [...args]);
 	const active = new Map<string, AssistanceWorkflowV1>();
 	return Object.freeze({
 		...(custody ? { custody } : {}),
+		...(hasReadOutput ? { async readOutput(requestValue: Readonly<{
+			jobId: string; workflowId: AssistanceWorkflowId; claim: AssistanceWorkflowOutputClaimV1;
+		}>) {
+			const request = workflowOutputReadRequest(requestValue);
+			const body = await invoke('readOutput', request);
+			const spec = assistanceWorkflowCustodySlotSpec(
+				request.workflowId, request.claim.stageId, 'output', request.claim.slotId,
+			);
+			if (!(body instanceof Blob) || body.size < 1 || body.size > 16 * 1024 ** 4
+				|| !spec.mediaTypes.includes(body.type)) {
+				throw new TypeError('The reviewed workflow output Blob disagrees with its slot.');
+			}
+			return body.slice(0, body.size, body.type);
+		} } : {}),
 		async createJob() {
 			const record = exactRecord(await invoke('createJob'), ['contractVersion', 'jobId'], 'job');
 			if (record.contractVersion !== 1) throw new TypeError('The workflow contract version is unsupported.');
@@ -149,6 +171,26 @@ export function resolveLocalAssistanceWorkflowBridge(value: unknown): LocalAssis
 			return () => { (unsubscribe as () => void)(); };
 		},
 	});
+}
+
+function workflowOutputReadRequest(value: unknown): Readonly<{
+	jobId: string; workflowId: AssistanceWorkflowId; claim: AssistanceWorkflowOutputClaimV1;
+}> {
+	const row = exactRecord(value, ['jobId', 'workflowId', 'claim'], 'output review request');
+	const expectedJobId = jobId(row.jobId);
+	const claim = exactRecord(row.claim,
+		['claimVersion', 'direction', 'claimId', 'jobId', 'stageId', 'slotId'],
+		'output review claim');
+	if (claim.claimVersion !== 1 || claim.direction !== 'output'
+		|| jobId(claim.jobId) !== expectedJobId) {
+		throw new TypeError('The workflow output review claim is not job-correlated.');
+	}
+	const workflowId = row.workflowId as AssistanceWorkflowId;
+	assistanceWorkflowCustodySlotSpec(workflowId, claim.stageId, 'output', claim.slotId);
+	return Object.freeze({ jobId: expectedJobId, workflowId,
+		claim: Object.freeze({ claimVersion: 1, direction: 'output',
+			claimId: jobId(claim.claimId), jobId: expectedJobId,
+			stageId: String(claim.stageId), slotId: String(claim.slotId) }) });
 }
 
 function resolveCustody(value: unknown): LocalAssistanceWorkflowCustodyBridge | null {

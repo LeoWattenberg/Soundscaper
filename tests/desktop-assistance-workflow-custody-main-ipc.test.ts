@@ -30,6 +30,15 @@ test('workflow custody IPC stages pathlessly and delegates only exact slotted re
 		},
 		awaitInput: async () => { events.push('await'); return input; },
 		acceptInputPort: async () => { events.push('port'); },
+		prepareOutput: async () => { events.push('read-output'); return {
+			contractVersion: 1, jobId: WORKFLOW_JOB_ID, workflowId: 'enhance-dialogue',
+			workflowClaim: output.workflowClaim, mediaType: 'audio/wav', binding: {
+				dataPlaneVersion: 1, transport: 'message-port', streamId: STREAM_ID,
+				direction: 'helper-to-host', byteLength: 4, sha256: 'aa'.repeat(32),
+				maximumChunkBytes: 4, maximumInFlightChunks: 1,
+			},
+		}; },
+		acceptOutputPort: async () => { events.push('output-port'); },
 		cancelJob: async () => { events.push('cancel-transfer'); },
 		dispose: async () => undefined,
 	} as unknown as AssistanceWorkflowTransfers;
@@ -39,6 +48,7 @@ test('workflow custody IPC stages pathlessly and delegates only exact slotted re
 		reserveOutput: async () => { events.push('reserve'); return output; },
 		bindProducer: () => { events.push('bind'); return input; },
 		validateWorkflow: () => assistanceWorkflowFixture(),
+		openAuthenticatedOutput: async () => { throw new Error('unused'); },
 		releaseJob: async () => { events.push('release'); return true; },
 	};
 	const registration = registerAssistanceWorkflowIpc({
@@ -71,6 +81,17 @@ test('workflow custody IPC stages pathlessly and delegates only exact slotted re
 		slotId: 'audio', producerStageId: 'enhance-dialogue',
 		producerSlotId: 'enhanced-audio', producerClaimId: output.custody.claimId,
 	}), input);
+	const read = await handlers.get(ASSISTANCE_WORKFLOW_IPC_CHANNELS.readOutput)?.({}, {
+		jobId: WORKFLOW_JOB_ID, workflowId: 'enhance-dialogue', claim: output.workflowClaim,
+	}) as { binding: { streamId: string } };
+	assert.equal(read.binding.streamId, STREAM_ID);
+	const outputPort = { postMessage: () => undefined, on: () => undefined, close: () => undefined };
+	listeners.get(ASSISTANCE_WORKFLOW_IPC_CHANNELS.outputPort)?.({ ports: [outputPort] }, {
+		jobId: WORKFLOW_JOB_ID, workflowId: 'enhance-dialogue',
+		workflowClaim: output.workflowClaim, streamId: STREAM_ID, binding: read.binding,
+	});
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.equal(events.includes('output-port'), true);
 	assert.equal(await handlers.get(ASSISTANCE_WORKFLOW_IPC_CHANNELS.release)?.({}, WORKFLOW_JOB_ID), true);
 	assert.deepEqual(events.slice(-2), ['cancel-transfer', 'release']);
 	assert.doesNotMatch(JSON.stringify({ input, output }), /path|private/iu);
@@ -85,7 +106,8 @@ test('workflow custody IPC rejects renderer paths before transfer or reservation
 		handle: (channel, handler) => handlers.set(channel, handler), on: () => undefined,
 		sendToRenderer: () => undefined,
 		createWorkflows: () => createAssistanceWorkflowService(),
-		createTransfers: () => ({ prepareInput: () => { called = true; } } as never),
+		createTransfers: () => ({ prepareInput: () => { called = true; },
+			prepareOutput: () => { called = true; }, dispose: async () => undefined } as never),
 		confirmWorkflow: async () => true,
 	});
 	await assert.rejects(Promise.resolve(handlers.get(ASSISTANCE_WORKFLOW_IPC_CHANNELS.stage)?.({}, {
@@ -93,6 +115,14 @@ test('workflow custody IPC rejects renderer paths before transfer or reservation
 		stageId: 'enhance-dialogue', slotId: 'audio', mediaType: 'audio/wav', byteLength: 4,
 		sha256: 'aa'.repeat(32), path: '/renderer/file.wav',
 	})), /could not be staged/iu);
+	assert.equal(called, false);
+	await assert.rejects(Promise.resolve(
+		handlers.get(ASSISTANCE_WORKFLOW_IPC_CHANNELS.readOutput)?.({}, {
+			jobId: WORKFLOW_JOB_ID, workflowId: 'enhance-dialogue',
+			claim: { ...handle('output', 'enhance-dialogue', 'enhanced-audio', '44'.repeat(20)).workflowClaim,
+				path: '/renderer/result.wav' },
+		}),
+	), /could not be read/iu);
 	assert.equal(called, false);
 	await registration.dispose();
 });

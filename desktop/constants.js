@@ -206,6 +206,8 @@ export const IPC = Object.freeze({
 	assistanceWorkflowBindProducer: 'soundscaper:v1:assistance:workflow:bind-producer',
 	assistanceWorkflowRun: 'soundscaper:v1:assistance:workflow:run',
 	assistanceWorkflowCancel: 'soundscaper:v1:assistance:workflow:cancel',
+	assistanceWorkflowReadOutput: 'soundscaper:v1:assistance:workflow:read-output',
+	assistanceWorkflowOutputPort: 'soundscaper:v1:assistance:workflow:output-port',
 	assistanceWorkflowRelease: 'soundscaper:v1:assistance:workflow:release',
 	assistanceWorkflowProgress: 'soundscaper:v1:event:assistance-workflow-progress',
 	externalFfmpegStatus: 'soundscaper:v1:ffmpeg:status',
