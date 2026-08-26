@@ -77,10 +77,11 @@ test('archive implementations stay unloaded until their existing actions run and
 	assert.equal(calls.legacy, 1);
 
 	const retention = { retain() {} };
-	assert.deepEqual(await runtime.inspectScapeProject('project.scape', null, {}, retention), {
-		operation: 'inspect', args: ['project.scape', null, {}, retention],
+	const scapeInput = new Blob(['project.scape']);
+	assert.deepEqual(await runtime.inspectScapeProject(scapeInput, null, {}, retention), {
+		operation: 'inspect', args: [scapeInput, null, {}, retention],
 	});
-	await runtime.importScapeProject('project.scape', {}, {});
+	await runtime.importScapeProject(scapeInput, {}, {});
 	await runtime.exportScapeProject({}, {}, {});
 	assert.equal(calls.scape, 1);
 	await runtime.copyFutureScapeArchive(new Blob(), () => {}, {});
