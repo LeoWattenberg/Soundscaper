@@ -410,7 +410,7 @@
 
 #kw-audio-editor-design-system .audio-editor-playhead-boundary .playhead-cursor {
 	left: 0 !important;
-	transform: translate3d(var(--playhead-x), 0, 0);
+	transform: translate3d(var(--timeline-playhead-x, 0px), 0, 0);
 	will-change: transform;
 }
 

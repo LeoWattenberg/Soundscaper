@@ -138,6 +138,32 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('projects one playback position through the ruler, media, and output playheads', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [longTone]);
+		await editor.getByRole('button', { name: 'Add track', exact: true }).click();
+		await page.locator('.add-track-flyout')
+			.getByRole('checkbox', { name: 'Show master track', exact: true })
+			.check();
+		const playbackPositions = () => editor.evaluate((root) => [
+			root.querySelector('.audio-editor-ruler-playhead')?.getBoundingClientRect().x,
+			root.querySelector('[data-playhead] .playhead-cursor__line')?.getBoundingClientRect().x,
+			root.querySelector('.audio-editor-output-playhead')?.getBoundingClientRect().x,
+		]);
+		const initial = await playbackPositions();
+
+		await editor.getByRole('button', { name: 'Play', exact: true }).click();
+		await expect.poll(async () => {
+			const positions = await playbackPositions();
+			return Math.max(...positions) - Math.min(...positions);
+		}).toBeLessThanOrEqual(1);
+		await expect.poll(async () => (await playbackPositions())[1]).toBeGreaterThan(initial[1] + 2);
+		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
+
+		expect(errors).toEqual([]);
+	});
+
 	test('rejects pointer clip moves onto output tracks', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');

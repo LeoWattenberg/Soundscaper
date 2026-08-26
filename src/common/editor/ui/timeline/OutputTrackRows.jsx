@@ -20,7 +20,6 @@ import {
 	envelopeValueToDb,
 	mergeDesignEnvelopePoints,
 } from '../../automation.js';
-import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import {
 	DEFAULT_TRACK_HEIGHT as TRACK_HEIGHT,
 	dbToLinear,
@@ -55,9 +54,6 @@ export function OutputTrackDock({
 	onOpenEffects,
 }) {
 	const dockRef = useRef(null);
-	const positionFrame = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.positionFrame || 0);
-	const transportState = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.transportState);
-	const playheadX = CLIP_CONTENT_OFFSET + framesToSeconds(positionFrame, { sampleRate }) * pixelsPerSecond;
 	const outputRows = useCallback(() => [
 		...(dockRef.current?.querySelectorAll(':scope > [data-output-track-row]') || []),
 	], []);
@@ -69,32 +65,13 @@ export function OutputTrackDock({
 		focusFirst(outputRows()[rowIndex]?.querySelector('[data-output-lane]'))
 	), [outputRows]);
 
-	useEffect(() => {
-		const dock = dockRef.current;
-		if (!dock) return undefined;
-		let animationFrame = 0;
-		const update = (frame) => {
-			const x = CLIP_CONTENT_OFFSET + framesToSeconds(frame, { sampleRate }) * pixelsPerSecond;
-			dock.style.setProperty('--output-playhead-x', `${x}px`);
-		};
-		const draw = () => {
-			update(controller.engine?.getPositionFrames?.() ?? positionFrame);
-			animationFrame = globalThis.requestAnimationFrame(draw);
-		};
-		update(positionFrame);
-		if (transportState === 'playing') animationFrame = globalThis.requestAnimationFrame(draw);
-		return () => {
-			if (animationFrame) globalThis.cancelAnimationFrame(animationFrame);
-		};
-	}, [controller, pixelsPerSecond, positionFrame, sampleRate, transportState]);
-
 	return (
 		<div
 			ref={dockRef}
 			className="audio-editor-output-dock"
 			data-output-track-dock
 			aria-label={copy.output}
-			style={{ height, '--output-playhead-x': `${playheadX}px` }}
+			style={{ height }}
 			onDragEnter={(event) => {
 				event.preventDefault();
 				event.stopPropagation();
@@ -391,7 +368,6 @@ export function OutputTrackRow({
 					<div
 						className="audio-editor-output-playhead"
 						aria-hidden="true"
-						style={{ transform: 'translate3d(var(--output-playhead-x), 0, 0)' }}
 					/>
 				</div>
 			</div>

@@ -73,69 +73,8 @@ export function resolveAudioEditorColor(color, fallback = AUDIO_EDITOR_TRACK_COL
 		: fallback;
 }
 
-export function TelemetryRulerPlayhead({
-	controller,
-	pixelsPerSecond,
-	scrollX,
-	sampleRate,
-	viewportWidth,
-}) {
-	const positionFrame = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.positionFrame || 0);
-	const transportState = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.transportState);
-	const cursorRef = useRef(null);
-	useEffect(() => {
-		const cursor = cursorRef.current;
-		if (!cursor) return undefined;
-		let animationFrame = 0;
-		const update = (frame) => {
-			const x = CLIP_CONTENT_OFFSET + framesToSeconds(frame, { sampleRate }) * pixelsPerSecond - scrollX;
-			cursor.style.transform = `translate3d(${x}px, 0, 0)`;
-			cursor.style.visibility = x >= CLIP_CONTENT_OFFSET && x <= viewportWidth ? 'visible' : 'hidden';
-		};
-		const draw = () => {
-			update(controller.engine?.getPositionFrames?.() ?? positionFrame);
-			animationFrame = globalThis.requestAnimationFrame(draw);
-		};
-		update(positionFrame);
-		if (transportState === 'playing') animationFrame = globalThis.requestAnimationFrame(draw);
-		return () => {
-			if (animationFrame) globalThis.cancelAnimationFrame(animationFrame);
-		};
-	}, [controller, pixelsPerSecond, positionFrame, sampleRate, scrollX, transportState, viewportWidth]);
-	const x = CLIP_CONTENT_OFFSET + framesToSeconds(positionFrame, { sampleRate }) * pixelsPerSecond - scrollX;
-	return (
-		<div
-			className="audio-editor-ruler-playhead"
-			aria-hidden="true"
-			ref={cursorRef}
-			style={{
-				transform: `translate3d(${x}px, 0, 0)`,
-				visibility: x >= CLIP_CONTENT_OFFSET && x <= viewportWidth ? 'visible' : 'hidden',
-			}}
-		/>
-	);
-}
-
-export function PinnedPlayheadScroller({
-	controller,
-	enabled,
-	pixelsPerSecond,
-	sampleRate,
-	scrollRef,
-	timelineWidth,
-	transportState,
-	viewportWidth,
-}) {
-	const positionFrame = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.positionFrame || 0);
-	useEffect(() => {
-		const element = scrollRef.current;
-		if (!element || !enabled || transportState !== 'playing') return;
-		const positionPixels = framesToSeconds(positionFrame, { sampleRate }) * pixelsPerSecond;
-		const maximumScroll = Math.max(0, timelineWidth - viewportWidth);
-		const nextScroll = Math.max(0, Math.min(maximumScroll, positionPixels - viewportWidth / 2));
-		if (Math.abs(element.scrollLeft - nextScroll) > 1) element.scrollLeft = nextScroll;
-	}, [enabled, pixelsPerSecond, positionFrame, sampleRate, scrollRef, timelineWidth, transportState, viewportWidth]);
-	return null;
+export function RulerPlayhead() {
+	return <div className="audio-editor-ruler-playhead" aria-hidden="true" />;
 }
 
 export function TelemetryPlayhead({
@@ -150,8 +89,6 @@ export function TelemetryPlayhead({
 	run,
 }) {
 	const positionFrame = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.positionFrame || 0);
-	const transportState = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.transportState);
-	const playheadRef = useRef(null);
 	const scrubbingRef = useRef(false);
 	const scrubDragRef = useRef(null);
 	const finishScrub = useCallback(() => {
@@ -175,30 +112,10 @@ export function TelemetryPlayhead({
 			finishScrub();
 		};
 	}, [finishPointerScrub, finishScrub]);
-	useEffect(() => {
-		const playhead = playheadRef.current;
-		if (!playhead) return undefined;
-		let animationFrame = 0;
-		const update = (frame) => {
-			const x = CLIP_CONTENT_OFFSET + framesToSeconds(frame, { sampleRate }) * pixelsPerSecond;
-			playhead.style.setProperty('--playhead-x', `${x}px`);
-		};
-		const draw = () => {
-			update(controller.engine?.getPositionFrames?.() ?? positionFrame);
-			animationFrame = globalThis.requestAnimationFrame(draw);
-		};
-		update(positionFrame);
-		if (transportState === 'playing') animationFrame = globalThis.requestAnimationFrame(draw);
-		return () => {
-			if (animationFrame) globalThis.cancelAnimationFrame(animationFrame);
-		};
-	}, [controller, pixelsPerSecond, positionFrame, sampleRate, transportState]);
-	const positionPixels = CLIP_CONTENT_OFFSET + framesToSeconds(positionFrame, { sampleRate }) * pixelsPerSecond;
 	return (
 		<div
 			className="audio-editor-playhead-boundary"
 			data-playhead
-			ref={playheadRef}
 			role="slider"
 			tabIndex={0}
 			aria-label={copy.playhead}
@@ -206,7 +123,6 @@ export function TelemetryPlayhead({
 			aria-valuemax={durationFrames}
 			aria-valuenow={positionFrame}
 			style={{
-				'--playhead-x': `${positionPixels}px`,
 				left: panelWidth,
 				width: viewportWidth,
 				touchAction: 'none',

@@ -20,14 +20,14 @@ import { usesSequenceTimecodeDisplay } from './sequence-ruler-model.ts';
 import { resolveSequenceTimingView } from '../../sequence-timing-model.ts';
 import { OutputTrackDock } from './OutputTrackRows.jsx';
 import {
-	PinnedPlayheadScroller,
+	RulerPlayhead,
 	TelemetryPlayhead,
-	TelemetryRulerPlayhead,
 	TimeSelectionOverlay,
 	TimelineRateStretchPreviewGuide,
 	TimelineSlipSlidePreviewGuides,
 	TimelineTrimPreviewGuide,
 } from './TimelineOverlayComponents.jsx';
+import { TimelinePlaybackProjection } from './TimelinePlaybackProjection.tsx';
 import { ContainerAddTrackFlyout } from './TimelineFlyouts.jsx';
 import { TimelineMenus } from './TimelineMenus.jsx';
 
@@ -52,7 +52,6 @@ export function TimelineWorkspaceView({
 }) {
 	const {
 		project,
-		transportState,
 		isFlatNavigation,
 		timelineRulerTabIndex,
 		trackBaseTabIndex,
@@ -173,6 +172,19 @@ export function TimelineWorkspaceView({
 				'--vertical-ruler-width': `${verticalRulerWidth}px`,
 			}}
 		>
+			<TimelinePlaybackProjection
+				controller={controller}
+				rootRef={timelinePanelRef}
+				scrollRef={scrollRef}
+				pixelsPerSecond={pixelsPerSecond}
+				sampleRate={sampleRate}
+				timelineWidth={timelineWidth}
+				viewportWidth={viewportWidth}
+				pinned={Boolean(
+					snapshot.timeline?.pinnedPlayhead
+					&& snapshot.timeline?.updateDisplayWhilePlaying !== false
+				)}
+			/>
 			<div
 				className="audio-editor-timeline-scroll"
 				data-timeline
@@ -312,13 +324,7 @@ export function TimelineWorkspaceView({
 								run={run}
 								createAnnotation={createAnnotation}
 							/>}
-							<TelemetryRulerPlayhead
-								controller={controller}
-								pixelsPerSecond={pixelsPerSecond}
-								scrollX={scrollX}
-								sampleRate={sampleRate}
-								viewportWidth={viewportWidth}
-							/>
+							<RulerPlayhead />
 						</div>
 						{verticalRulerWidth > 0 && <div
 							className="audio-editor-ruler-scale-corner"
@@ -434,19 +440,6 @@ export function TimelineWorkspaceView({
 						sampleRate={sampleRate}
 						height={Math.max(TRACK_HEIGHT, totalTrackHeight)}
 						run={run}
-					/>
-					<PinnedPlayheadScroller
-						controller={controller}
-						enabled={Boolean(
-							snapshot.timeline?.pinnedPlayhead
-							&& snapshot.timeline?.updateDisplayWhilePlaying !== false
-						)}
-						pixelsPerSecond={pixelsPerSecond}
-						sampleRate={sampleRate}
-						scrollRef={scrollRef}
-						timelineWidth={timelineWidth}
-						transportState={transportState}
-						viewportWidth={viewportWidth}
 					/>
 				</div>
 			</div>
