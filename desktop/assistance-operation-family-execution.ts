@@ -48,9 +48,38 @@ const GIB = 1024 ** 3;
 const WAV2VEC2_BASE_960H_SHA256 =
 	'b73fe60ddcd3fd07f91d65d50b4f10ba99039104c4fb5db5bdafbb27610bb6eb';
 const SUBJECT_MODEL_REQUIREMENTS = Object.freeze([
-	Object.freeze({ modelId: 'yunet-face-detection-2026may', task: 'face-detection' }),
-	Object.freeze({ modelId: 'dfine-nano-coco', task: 'object-detection' }),
+	Object.freeze({ modelId: 'yunet-face-detection-2026may', version: '2026.5.0',
+		task: 'face-detection', artifactSha256s: Object.freeze([
+			'ebafce4e3c118d6554634be5c27ab333b4c047a9a8c3faf1d7cf93101c22f0f0',
+		]) }),
+	Object.freeze({ modelId: 'dfine-nano-coco', version: '1.0.0',
+		task: 'object-detection', artifactSha256s: Object.freeze([
+			'0f684f409618ee8a822410e754a29caa817d1aa16283ce89cad936d0a48e2f35',
+			'a5c7533f3b72be6bb102b93e1b34ca3643af4e0590408a7881543cbb0aa80c4c',
+			'cd38cd59999e7a95d68e487fbe5132df3d4e5c32a0836add57e6126ba0c4eaf1',
+		].sort()) }),
 ] as const);
+const VISUAL_SINGLE_MODEL_REQUIREMENTS = Object.freeze({
+	'image-text-embedding': Object.freeze({ modelId: 'siglip2-base-patch16-224',
+		version: '2.0.0', artifactSha256s: Object.freeze([
+			'0dd31785a2713f1113ef2272472165c69d580473dae38d7b47568ac587795e70',
+			'3a0603d3a00c05a80a6ded4743c16aaac7b1e62cdcc7e362e7ce418659b96400',
+			'9b36b57ebaf20f09bf4c22100ccc21877ea6bfe5aead0c00c59f8af8ccefacfc',
+			'cb9140fae3ac5122c972d37adf83e1248471a38147ad76f8215c8872c6fd8322',
+			'e43a9f7692d3819886a82cb2097048258d444f123c67d37ec825f9345b019cf2',
+		].sort()) }),
+	'optical-character-recognition': Object.freeze({ modelId: 'ppocr-v4-mobile',
+		version: '4.0.0', artifactSha256s: Object.freeze([
+			'48fc40f24f6d2a207a2b1091d3437eb3cc3eb6b676dc3ef9c37384005483683b',
+			'a1c84d9bdb9ab29043c58896224d32941783eb821629618416dcb08f12886492',
+			'd2a7720d45a54257208b1e13e36a8479894cb74155a5efe29462512d42f49da9',
+			'e47acedf663230f8863ff1ab0e64dd2d82b838fceb5957146dab185a89d6215c',
+		].sort()) }),
+	'saliency-detection': Object.freeze({ modelId: 'u2netp-saliency', version: '1.0.0',
+		artifactSha256s: Object.freeze([
+			'309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8',
+		]) }),
+} as const);
 type ModelStatus = Awaited<ReturnType<ModelService['status']>>;
 type InstalledModels = Awaited<ReturnType<ModelService['listInstalled']>>;
 
@@ -132,6 +161,12 @@ async function resolveExactModel(
 	if (subjectBindings === null && request.operation === 'text-embedding') {
 		assertAssistanceOnnxTextEmbeddingModelBindingV1(request.models[0]!);
 	}
+	if (request.operation === 'subject-detection'
+		|| request.operation === 'image-text-embedding'
+		|| request.operation === 'optical-character-recognition'
+		|| request.operation === 'saliency-detection') {
+		assertAssistanceOnnxVisualModelBindingsV1(request.operation, request.models);
+	}
 	const [status, installed] = await Promise.all([models.status(), models.listInstalled()]);
 	signal.throwIfAborted();
 	if (subjectBindings !== null) {
@@ -209,6 +244,40 @@ export function assertAssistanceWav2Vec2EnglishAlignmentModelBindingV1(
 		|| binding.artifactSha256s.length !== 1
 		|| binding.artifactSha256s[0] !== WAV2VEC2_BASE_960H_SHA256) {
 		throw new TypeError('Word alignment requires the exact pinned wav2vec2-base-960h revision identity and digest.');
+	}
+}
+
+/** Close every cataloged visual model and artifact substitution before path resolution. */
+export function assertAssistanceOnnxVisualModelBindingsV1(
+	operation: 'image-text-embedding' | 'optical-character-recognition'
+		| 'subject-detection' | 'saliency-detection',
+	bindings: readonly AssistanceOperationModelBinding[],
+): void {
+	if (operation === 'subject-detection') {
+		const exact = exactSubjectBindings(bindings);
+		for (let index = 0; index < SUBJECT_MODEL_REQUIREMENTS.length; index += 1) {
+			assertPinnedBinding(exact[index]!, SUBJECT_MODEL_REQUIREMENTS[index]!,
+				'Subject detection');
+		}
+		return;
+	}
+	if (bindings.length !== 1) {
+		throw new TypeError(`${operation} requires one exact visual model binding.`);
+	}
+	assertPinnedBinding(bindings[0]!, VISUAL_SINGLE_MODEL_REQUIREMENTS[operation],
+		operation === 'image-text-embedding' ? 'Image/text embedding'
+			: operation === 'optical-character-recognition' ? 'OCR' : 'Saliency detection');
+}
+
+function assertPinnedBinding(
+	binding: AssistanceOperationModelBinding,
+	requirement: Readonly<{ modelId: string; version: string; artifactSha256s: readonly string[] }>,
+	label: string,
+): void {
+	if (binding.modelId !== requirement.modelId || binding.version !== requirement.version
+		|| JSON.stringify(binding.artifactSha256s)
+			!== JSON.stringify(requirement.artifactSha256s)) {
+		throw new TypeError(`${label} requires its exact pinned model identity and artifact inventory.`);
 	}
 }
 

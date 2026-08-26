@@ -8,6 +8,7 @@ import { validateAssistanceOutputClaim,
 	validateAssistanceStagedInputClaim } from '../desktop/assistance-data-claims.ts';
 import { validateAssistanceOperationRequest } from '../desktop/assistance-operation-contract.ts';
 import {
+	canonicalizeAssistanceWorkflowOperationModelBindingsV1,
 	createAssistanceWorkflowOperationStageRuntime,
 } from '../desktop/assistance-workflow-operation-stage-runtime.ts';
 import {
@@ -90,6 +91,21 @@ test('primitive projection refuses ambiguous multi-source authority without touc
 		outcome: 'unavailable', reason: 'stage-unavailable',
 	});
 	assert.equal(touched, false);
+});
+
+test('workflow OCR canonicalizes only two byte-identical detector and recognizer bindings', () => {
+	const binding = Object.freeze({ modelId: 'ppocr-v4-mobile', version: '4.0.0',
+		artifactSha256s: Object.freeze(['01'.repeat(32), '02'.repeat(32)]) });
+	assert.deepEqual(canonicalizeAssistanceWorkflowOperationModelBindingsV1(
+		'optical-character-recognition', [binding, { ...binding }]), [binding]);
+	assert.throws(() => canonicalizeAssistanceWorkflowOperationModelBindingsV1(
+		'optical-character-recognition', [binding, { ...binding, version: '4.0.1' }]),
+	/exactly identical|PP-OCR/iu);
+	assert.throws(() => canonicalizeAssistanceWorkflowOperationModelBindingsV1(
+		'optical-character-recognition', [binding, { ...binding,
+			artifactSha256s: ['01'.repeat(32), '03'.repeat(32)] }]), /exactly identical|PP-OCR/iu);
+	assert.equal(canonicalizeAssistanceWorkflowOperationModelBindingsV1(
+		'image-text-embedding', [binding, { ...binding }]).length, 2);
 });
 
 function enhancementWorkflow() {

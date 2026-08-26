@@ -45,8 +45,7 @@ export function createAssistanceWorkflowOperationStageRuntime(
 			request = validateAssistanceOperationRequest({ contractVersion: 1,
 				jobId: stage.request.jobId, operation,
 				selectionFence: selectionFence(stage),
-				models: stage.models.map(({ modelId, version, artifactSha256s }) =>
-					Object.freeze({ modelId, version, artifactSha256s })),
+				models: operationModelBindings(stage, operation),
 				inputs, outputs });
 		} catch (error) {
 			if (error instanceof TypeError || error instanceof RangeError) {
@@ -71,6 +70,34 @@ export function createAssistanceWorkflowOperationStageRuntime(
 		stage.progress(1, 1);
 		return Object.freeze({ outcome: 'completed' });
 	};
+}
+
+function operationModelBindings(
+	stage: AssistanceWorkflowStageExecutionV1,
+	operation: NonNullable<AssistanceWorkflowStageExecutionV1['stage']['operation']>,
+): readonly Readonly<{ modelId: string; version: string;
+	artifactSha256s: readonly string[] }>[] {
+	const projected = stage.models.map(({ modelId, version, artifactSha256s }) =>
+		Object.freeze({ modelId, version, artifactSha256s }));
+	return canonicalizeAssistanceWorkflowOperationModelBindingsV1(operation, projected);
+}
+
+/** Collapse only the workflow's two byte-identical PP-OCR role bindings. */
+export function canonicalizeAssistanceWorkflowOperationModelBindingsV1(
+	operation: NonNullable<AssistanceWorkflowStageExecutionV1['stage']['operation']>,
+	projected: readonly Readonly<{ modelId: string; version: string;
+		artifactSha256s: readonly string[] }>[],
+): readonly Readonly<{ modelId: string; version: string;
+	artifactSha256s: readonly string[] }>[] {
+	if (operation !== 'optical-character-recognition' || projected.length !== 2) {
+		return Object.freeze([...projected]);
+	}
+	const [first, second] = projected;
+	if (first?.modelId !== second?.modelId || first.version !== second.version
+		|| JSON.stringify(first.artifactSha256s) !== JSON.stringify(second.artifactSha256s)) {
+		throw new TypeError('The PP-OCR detector and recognizer bindings are not exactly identical.');
+	}
+	return Object.freeze([first]);
 }
 
 function selectionFence(stage: AssistanceWorkflowStageExecutionV1) {

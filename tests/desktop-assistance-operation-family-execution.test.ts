@@ -11,6 +11,9 @@ import {
 	createAssistanceOperationService,
 	type AssistanceOperationServiceOptions,
 } from '../desktop/assistance-operation-service.ts';
+import {
+	assertAssistanceOnnxVisualModelBindingsV1,
+} from '../desktop/assistance-operation-family-execution.ts';
 import type {
 	AssistanceRuntimeFamilyOperationAdapter,
 	AssistanceRuntimeFamilyOperationRequest,
@@ -79,13 +82,17 @@ async function subjectFixture(
 	t.after(() => rm(root, { recursive: true, force: true }));
 	const artifacts = Object.freeze([
 		Object.freeze({ modelId: 'yunet-face-detection-2026may', version: '2026.5.0',
-			task: 'face-detection', fileName: 'face_detection_yunet_2026may.onnx', body: 'yunet' }),
+			task: 'face-detection', fileName: 'face_detection_yunet_2026may.onnx', body: 'yunet',
+			digest: 'ebafce4e3c118d6554634be5c27ab333b4c047a9a8c3faf1d7cf93101c22f0f0' }),
 		Object.freeze({ modelId: 'dfine-nano-coco', version: '1.0.0',
-			task: objectTask, fileName: 'model.onnx', body: 'dfine-network' }),
+			task: objectTask, fileName: 'model.onnx', body: 'dfine-network',
+			digest: '0f684f409618ee8a822410e754a29caa817d1aa16283ce89cad936d0a48e2f35' }),
 		Object.freeze({ modelId: 'dfine-nano-coco', version: '1.0.0',
-			task: objectTask, fileName: 'config.json', body: 'dfine-config' }),
+			task: objectTask, fileName: 'config.json', body: 'dfine-config',
+			digest: 'a5c7533f3b72be6bb102b93e1b34ca3643af4e0590408a7881543cbb0aa80c4c' }),
 		Object.freeze({ modelId: 'dfine-nano-coco', version: '1.0.0',
-			task: objectTask, fileName: 'preprocessor_config.json', body: 'dfine-preprocessor' }),
+			task: objectTask, fileName: 'preprocessor_config.json', body: 'dfine-preprocessor',
+			digest: 'cd38cd59999e7a95d68e487fbe5132df3d4e5c32a0836add57e6126ba0c4eaf1' }),
 	]);
 	await Promise.all(artifacts.map(async ({ modelId, fileName, body }) => {
 		const directory = join(root, modelId);
@@ -109,8 +116,8 @@ async function subjectFixture(
 		listInstalled: async () => [...byModel].map(([modelId, entries]) => ({
 			modelId, version: entries[0]!.version,
 			totalBytes: entries.reduce((total, { body }) => total + Buffer.byteLength(body), 0),
-			artifacts: entries.map(({ fileName, body }) => ({ fileName,
-				byteLength: Buffer.byteLength(body), sha256: sha256(body) })),
+			artifacts: entries.map(({ fileName, body, digest }) => ({ fileName,
+				byteLength: Buffer.byteLength(body), sha256: digest })),
 		})),
 		resolveModelPaths: async (modelId) => Object.fromEntries(
 			(byModel.get(modelId) ?? []).map(({ fileName }) => [
@@ -130,7 +137,7 @@ async function subjectFixture(
 		service,
 		bindings: Object.freeze([...byModel].map(([modelId, entries]) => Object.freeze({
 			modelId, version: entries[0]!.version,
-			artifactSha256s: Object.freeze(entries.map(({ body }) => sha256(body)).sort()),
+			artifactSha256s: Object.freeze(entries.map(({ digest }) => digest).sort()),
 		}))),
 	};
 }
@@ -330,4 +337,40 @@ test('subject detection exposes typed adapter unavailability without substitutin
 	assert.equal(calls, 1);
 	assert.equal(outcome.outcome, 'unavailable');
 	if (outcome.outcome === 'unavailable') assert.equal(outcome.reason, 'adapter-unavailable');
+});
+
+test('cataloged visual operations close exact identities, versions, and artifact inventories', () => {
+	const siglip = Object.freeze({ modelId: 'siglip2-base-patch16-224', version: '2.0.0',
+		artifactSha256s: Object.freeze([
+			'0dd31785a2713f1113ef2272472165c69d580473dae38d7b47568ac587795e70',
+			'3a0603d3a00c05a80a6ded4743c16aaac7b1e62cdcc7e362e7ce418659b96400',
+			'9b36b57ebaf20f09bf4c22100ccc21877ea6bfe5aead0c00c59f8af8ccefacfc',
+			'cb9140fae3ac5122c972d37adf83e1248471a38147ad76f8215c8872c6fd8322',
+			'e43a9f7692d3819886a82cb2097048258d444f123c67d37ec825f9345b019cf2',
+		].sort()) });
+	const ocr = Object.freeze({ modelId: 'ppocr-v4-mobile', version: '4.0.0',
+		artifactSha256s: Object.freeze([
+			'48fc40f24f6d2a207a2b1091d3437eb3cc3eb6b676dc3ef9c37384005483683b',
+			'a1c84d9bdb9ab29043c58896224d32941783eb821629618416dcb08f12886492',
+			'd2a7720d45a54257208b1e13e36a8479894cb74155a5efe29462512d42f49da9',
+			'e47acedf663230f8863ff1ab0e64dd2d82b838fceb5957146dab185a89d6215c',
+		].sort()) });
+	const saliency = Object.freeze({ modelId: 'u2netp-saliency', version: '1.0.0',
+		artifactSha256s: Object.freeze([
+			'309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8',
+		]) });
+	assert.doesNotThrow(() => assertAssistanceOnnxVisualModelBindingsV1(
+		'image-text-embedding', [siglip]));
+	assert.doesNotThrow(() => assertAssistanceOnnxVisualModelBindingsV1(
+		'optical-character-recognition', [ocr]));
+	assert.doesNotThrow(() => assertAssistanceOnnxVisualModelBindingsV1(
+		'saliency-detection', [saliency]));
+	assert.throws(() => assertAssistanceOnnxVisualModelBindingsV1(
+		'image-text-embedding', [{ ...siglip, version: '2.0.1' }]), /exact pinned/iu);
+	assert.throws(() => assertAssistanceOnnxVisualModelBindingsV1(
+		'optical-character-recognition', [{ ...ocr,
+			artifactSha256s: [...ocr.artifactSha256s.slice(0, -1), 'f'.repeat(64)].sort() }]),
+	/exact pinned/iu);
+	assert.throws(() => assertAssistanceOnnxVisualModelBindingsV1(
+		'saliency-detection', [{ ...saliency, modelId: 'saliency-substitute' }]), /exact pinned/iu);
 });
