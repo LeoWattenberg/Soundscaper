@@ -234,9 +234,15 @@ test('main can derive an immutable permitted graph without trusting renderer-sup
 });
 
 test('shot workflows admit exactly the input and model selected by their explicit mode', () => {
-	assert.equal(validateAssistanceWorkflow(markCutsWorkflow('fast', 'video')).settings.mode, 'fast');
-	assert.equal(validateAssistanceWorkflow(markCutsWorkflow('accurate', 'frame-pack')).settings.mode,
-		'accurate');
+	const fastSettings = validateAssistanceWorkflow(markCutsWorkflow('fast', 'video')).settings;
+	const accurateSettings = validateAssistanceWorkflow(
+		markCutsWorkflow('accurate', 'frame-pack'),
+	).settings;
+	if (fastSettings.workflowId !== 'mark-cuts' || accurateSettings.workflowId !== 'mark-cuts') {
+		assert.fail('The Mark Cuts fixture changed workflow identity.');
+	}
+	assert.equal(fastSettings.mode, 'fast');
+	assert.equal(accurateSettings.mode, 'accurate');
 	assert.throws(() => validateAssistanceWorkflow(markCutsWorkflow('fast', 'frame-pack')),
 		/shot.*input|mode/iu);
 	assert.throws(() => validateAssistanceWorkflow(markCutsWorkflow('accurate', 'video')),
