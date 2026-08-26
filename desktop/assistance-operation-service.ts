@@ -11,6 +11,10 @@ import {
 } from './assistance-data-claims.ts';
 import type { SpeakerDiarizationRuntimeAdapter } from './assistance-diarization-runtime.ts';
 import {
+	executeAssistanceOperationWithRuntimeFamily,
+	isAssistanceRuntimeFamilyOperationRequest,
+} from './assistance-operation-family-execution.ts';
+import {
 	ASSISTANCE_OPERATION_CONTRACT_VERSION,
 	AssistanceOperationProgressTracker,
 	validateAssistanceOperationRequest,
@@ -21,6 +25,9 @@ import {
 } from './assistance-operation-contract.ts';
 import type { AssistanceService } from './assistance-service.ts';
 import type { AssistanceShotRuntimeAdapter } from './assistance-shot-runtime.ts';
+import type {
+	AssistanceRuntimeFamilyOperationAdapter,
+} from './assistance-runtime-family-operation-adapter.ts';
 import type { AssistanceStagingRegistry } from './assistance-staging-registry.ts';
 import type { SpeechModelPaths, SpeechRuntimeAdapter } from './assistance-speech-runtime.ts';
 import type { VoiceActivityRuntimeAdapter } from './assistance-vad-runtime.ts';
@@ -103,6 +110,7 @@ export interface AssistanceOperationServiceOptions {
 	readonly voiceActivityRuntime?: VoiceActivityRuntimeAdapter;
 	readonly diarizationRuntime?: SpeakerDiarizationRuntimeAdapter;
 	readonly shotDetectionRuntime?: AssistanceShotRuntimeAdapter;
+	readonly additionalRuntime?: AssistanceRuntimeFamilyOperationAdapter;
 	readonly onProgress?: (progress: AssistanceOperationProgress) => void;
 	readonly mintStreamId?: () => string;
 }
@@ -181,6 +189,49 @@ export function createAssistanceOperationService(options: AssistanceOperationSer
 		emit('staging-input');
 		const inputPaths = await Promise.all(request.inputs.map((claim) =>
 			options.registry.resolveInputPathForMain(request.jobId, claim, signal)));
+		if (isAssistanceRuntimeFamilyOperationRequest(request)) {
+			emit('loading-model');
+			if (!options.additionalRuntime) {
+				emit('finalizing');
+				return unavailable(request, 'adapter-unavailable');
+			}
+			emit('running');
+			const familyResult = await executeAssistanceOperationWithRuntimeFamily({
+				request, inputPaths, models: options.models, registry: options.registry,
+				runtime: options.additionalRuntime, signal,
+				onProgress: (value) => emit('running', value, 1),
+			});
+			if (familyResult.outcome === 'unavailable') {
+				emit('finalizing');
+				return unavailable(request, familyResult.reason);
+			}
+			signal.throwIfAborted();
+			emit('staging-output');
+			const outputs = await Promise.all(request.outputs.map((reservation) =>
+				options.registry.authenticateOutput(request.jobId, reservation, signal)));
+			for (const [index, output] of outputs.entries()) {
+				const summary = familyResult.outputs[index];
+				if (!summary || summary.claimId !== output.claimId || summary.role !== output.role
+					|| summary.mediaType !== output.mediaType || summary.byteLength !== output.byteLength
+					|| summary.sha256 !== output.sha256) {
+					throw new Error('The runtime-family output changed after worker authentication.');
+				}
+			}
+			emit('finalizing');
+			const result = validateAssistanceOperationResult({
+				contractVersion: ASSISTANCE_OPERATION_CONTRACT_VERSION,
+				jobId: request.jobId,
+				operation: request.operation,
+				outputs,
+			}, request);
+			return Object.freeze({
+				contractVersion: ASSISTANCE_OPERATION_BRIDGE_VERSION,
+				jobId: request.jobId,
+				operation: request.operation,
+				outcome: 'completed',
+				result,
+			});
+		}
 		if (request.operation !== 'speech-recognition' && request.operation !== 'voice-activity-detection'
 			&& request.operation !== 'speaker-diarization' && request.operation !== 'shot-detection') {
 			emit('finalizing');
