@@ -8,39 +8,25 @@ import {
 	type AssistanceRuntimeFamilyDescriptor,
 	type AssistanceRuntimeFamilyId,
 } from './assistance-runtime-family-manifest.ts';
+import {
+	AssistanceRuntimeFamilyTaskContractError,
+	validateAssistanceRuntimeFamilyJobRequestV1,
+	type AssistanceRuntimeFamilyAdmittedJob,
+	type AssistanceRuntimeFamilyJobRequestV1,
+} from './assistance-runtime-family-job-contract.ts';
 import { HelperCrashLedger } from './helper-supervision-state.ts';
 
-export const ASSISTANCE_RUNTIME_FAMILY_PROTOCOL_VERSION = 1;
 export const ASSISTANCE_RUNTIME_FAMILY_CANCELLATION_BUDGET_MS = 2_000;
-
-export const ASSISTANCE_RUNTIME_FAMILY_TASKS = Object.freeze({
-	'onnxruntime-node': Object.freeze([
-		'word-alignment', 'speech-enhancement', 'source-separation', 'audio-tagging',
-		'beat-tracking', 'text-embedding', 'image-text-embedding',
-		'optical-character-recognition', 'shot-detection', 'face-detection',
-		'object-detection', 'saliency-detection',
-	] as const),
-	'whisper-cpp': Object.freeze(['speech-recognition'] as const),
-	'llama-cpp': Object.freeze(['editorial-generation'] as const),
-});
-
-type OnnxTask = (typeof ASSISTANCE_RUNTIME_FAMILY_TASKS)['onnxruntime-node'][number];
-type WhisperTask = (typeof ASSISTANCE_RUNTIME_FAMILY_TASKS)['whisper-cpp'][number];
-type LlamaTask = (typeof ASSISTANCE_RUNTIME_FAMILY_TASKS)['llama-cpp'][number];
-export type AssistanceRuntimeFamilyTask = OnnxTask | WhisperTask | LlamaTask;
-
-export interface AssistanceRuntimeFamilyJobRequestV1 {
-	readonly protocolVersion: typeof ASSISTANCE_RUNTIME_FAMILY_PROTOCOL_VERSION;
-	readonly jobId: string;
-	readonly familyId: AssistanceRuntimeFamilyId;
-	readonly task: AssistanceRuntimeFamilyTask;
-	readonly maximumRssBytes: number;
-	readonly maximumDurationMs: number;
-}
-
-export interface AssistanceRuntimeFamilyAdmittedJob extends AssistanceRuntimeFamilyJobRequestV1 {
-	readonly descriptor: AssistanceRuntimeFamilyDescriptor;
-}
+export {
+	ASSISTANCE_RUNTIME_FAMILY_PROTOCOL_VERSION,
+	ASSISTANCE_RUNTIME_FAMILY_TASKS,
+	validateAssistanceRuntimeFamilyJobRequestV1,
+} from './assistance-runtime-family-job-contract.ts';
+export type {
+	AssistanceRuntimeFamilyAdmittedJob,
+	AssistanceRuntimeFamilyJobRequestV1,
+	AssistanceRuntimeFamilyTask,
+} from './assistance-runtime-family-job-contract.ts';
 
 export interface AssistanceRuntimeFamilyProcessWorker {
 	readonly completion: Promise<unknown>;
@@ -156,49 +142,6 @@ interface FamilySlot {
 	active: ActiveJob | null;
 }
 
-const JOB_ID = /^[a-f\d]{40}$/u;
-const GIB = 1024 ** 3;
-const MAXIMUM_RSS_BYTES = 64 * GIB;
-const MAXIMUM_DURATION_MS = 24 * 60 * 60_000;
-const REQUEST_KEYS = Object.freeze([
-	'protocolVersion', 'jobId', 'familyId', 'task', 'maximumRssBytes', 'maximumDurationMs',
-]);
-
-export function validateAssistanceRuntimeFamilyJobRequestV1(
-	value: unknown,
-): AssistanceRuntimeFamilyJobRequestV1 {
-	if (!plainRecord(value)) throw new TypeError('A runtime-family job must be a plain record.');
-	const keys = Object.keys(value);
-	if (keys.length !== REQUEST_KEYS.length || keys.some((key) => !REQUEST_KEYS.includes(key))) {
-		throw new TypeError('A runtime-family job must carry exactly its schema fields.');
-	}
-	if (value.protocolVersion !== ASSISTANCE_RUNTIME_FAMILY_PROTOCOL_VERSION
-		|| typeof value.familyId !== 'string'
-		|| !Object.hasOwn(ASSISTANCE_RUNTIME_FAMILY_DEFINITIONS, value.familyId)) {
-		throw new TypeError('A runtime-family job identity or protocol version is invalid.');
-	}
-	const familyId = value.familyId as AssistanceRuntimeFamilyId;
-	if (typeof value.task !== 'string'
-		|| !(ASSISTANCE_RUNTIME_FAMILY_TASKS[familyId] as readonly string[]).includes(value.task)) {
-		throw new AssistanceRuntimeFamilyError('unsupported-task', familyId,
-			`${String(value.task)} is not admitted by ${familyId}.`,
-			typeof value.jobId === 'string' ? value.jobId : null);
-	}
-	if (typeof value.jobId !== 'string' || !JOB_ID.test(value.jobId)
-		|| !boundedInteger(value.maximumRssBytes, 1, MAXIMUM_RSS_BYTES)
-		|| !boundedInteger(value.maximumDurationMs, 1, MAXIMUM_DURATION_MS)) {
-		throw new TypeError('A runtime-family job resource admission is invalid.');
-	}
-	return Object.freeze({
-		protocolVersion: ASSISTANCE_RUNTIME_FAMILY_PROTOCOL_VERSION,
-		jobId: value.jobId,
-		familyId,
-		task: value.task as AssistanceRuntimeFamilyTask,
-		maximumRssBytes: value.maximumRssBytes as number,
-		maximumDurationMs: value.maximumDurationMs as number,
-	});
-}
-
 export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFamilyRouterOptions) {
 	assertOptions(options);
 	const setTimeoutImpl = options.setTimeoutImpl ?? setTimeout;
@@ -231,6 +174,11 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 		try {
 			request = validateAssistanceRuntimeFamilyJobRequestV1(value);
 		} catch (error) {
+			if (error instanceof AssistanceRuntimeFamilyTaskContractError) {
+				return Promise.reject(new AssistanceRuntimeFamilyError(
+					'unsupported-task', error.familyId, error.message, error.jobId,
+				));
+			}
 			return Promise.reject(error instanceof AssistanceRuntimeFamilyError ? error
 				: new AssistanceRuntimeFamilyError('invalid-request', inferredFamily(value),
 					errorMessage(error), inferredJobId(value)));
@@ -552,10 +500,6 @@ function boundedOption(value: number | undefined, fallback: number, maximum: num
 		throw new RangeError(`The runtime-family ${label} is invalid.`);
 	}
 	return admitted;
-}
-
-function boundedInteger(value: unknown, minimum: number, maximum: number): boolean {
-	return Number.isSafeInteger(value) && (value as number) >= minimum && (value as number) <= maximum;
 }
 
 function inferredFamily(value: unknown): AssistanceRuntimeFamilyId {

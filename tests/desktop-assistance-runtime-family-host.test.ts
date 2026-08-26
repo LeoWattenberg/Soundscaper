@@ -89,14 +89,38 @@ class FakeProcess implements AssistanceRuntimeFamilyProcess {
 function request(
 	familyId: AssistanceRuntimeFamilyId = 'onnxruntime-node',
 	task = 'shot-detection',
+	jobId = JOB_ID,
 ) {
+	const grant = Object.freeze({
+		grantVersion: 1 as const, jobId, familyId, task,
+		settingsJson: '{}',
+		inputs: Object.freeze([Object.freeze({
+			claimId: '1'.repeat(40), role: 'video', mediaType: 'video/mp4',
+			path: '/private/input', byteLength: 1, sha256: '1'.repeat(64),
+			identity: Object.freeze({ dev: 1, ino: 1 }),
+		})]),
+		models: Object.freeze([Object.freeze({
+			modelId: 'model', version: '1.0.0', artifactRole: 'network',
+			path: '/private/model', byteLength: 1, sha256: '2'.repeat(64),
+			identity: Object.freeze({ dev: 1, ino: 2 }),
+		})]),
+		outputs: Object.freeze([Object.freeze({
+			claimId: '3'.repeat(40), role: 'shot-boundaries',
+			mediaType: 'application/vnd.soundscaper.shot-boundaries+json',
+			path: '/private/output', maximumByteLength: 1,
+			initialByteLength: 0 as const,
+			initialSha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+			identity: Object.freeze({ dev: 1, ino: 3 }),
+		})]),
+	});
 	return Object.freeze({
 		protocolVersion: ASSISTANCE_RUNTIME_FAMILY_PROTOCOL_VERSION,
-		jobId: JOB_ID,
+		jobId,
 		familyId,
 		task,
 		maximumRssBytes: 2 * GIB,
 		maximumDurationMs: 60_000,
+		grant,
 	});
 }
 
@@ -135,7 +159,7 @@ test('routing is lazy, task-closed, CPU-bound, and reuses only the selected fami
 	process.workers[0]!.resolve({ boundaries: [] });
 	assert.deepEqual(await first, { boundaries: [] });
 
-	const second = router.run({ ...request(), jobId: 'cd'.repeat(20) });
+	const second = router.run(request('onnxruntime-node', 'shot-detection', 'cd'.repeat(20)));
 	await until(() => process.workers.length === 2);
 	process.workers[1]!.resolve('again');
 	assert.equal(await second, 'again');
@@ -236,7 +260,7 @@ test('RSS violations terminate only that family process', async () => {
 test('crash quarantine is independent for each runtime family and explicit to clear', async () => {
 	const { router, processes } = harness({ quarantineCrashLimit: 2 });
 	for (let index = 0; index < 2; index += 1) {
-		const result = router.run({ ...request(), jobId: String(index + 1).repeat(40) });
+		const result = router.run(request('onnxruntime-node', 'shot-detection', String(index + 1).repeat(40)));
 		await until(() => processes['onnxruntime-node'].length === index + 1);
 		processes['onnxruntime-node'][index]!.exit(139);
 		await assert.rejects(result, typed('runtime-exit'));
