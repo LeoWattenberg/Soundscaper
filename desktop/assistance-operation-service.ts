@@ -180,11 +180,27 @@ export function createAssistanceOperationService(options: AssistanceOperationSer
 		}
 	}
 
+	async function executeStaged(
+		value: unknown,
+		signal: AbortSignal,
+	): Promise<AssistanceOperationOutcome> {
+		if (!(signal instanceof AbortSignal)) {
+			throw new TypeError('Main-owned staged execution requires one cancellation signal.');
+		}
+		signal.throwIfAborted();
+		const request = validateAssistanceOperationRequest(value);
+		if (jobs.has(request.jobId)) {
+			throw new Error('A renderer-owned operation job cannot enter aggregate staged execution.');
+		}
+		return execute(request, signal, undefined);
+	}
+
 	async function execute(
 		request: AssistanceOperationRequest,
 		signal: AbortSignal,
+		publish: AssistanceOperationServiceOptions['onProgress'] = options.onProgress,
 	): Promise<AssistanceOperationOutcome> {
-		const emit = progressEmitter(request, options.onProgress);
+		const emit = progressEmitter(request, publish);
 		emit('queued');
 		emit('staging-input');
 		const inputPaths = await Promise.all(request.inputs.map((claim) =>
@@ -326,7 +342,7 @@ export function createAssistanceOperationService(options: AssistanceOperationSer
 	}
 
 	return Object.freeze({ models, createJob, assertJob: assertOwnedJob,
-		stageInput, reserveOutput, run, cancel, release, openOutput, dispose });
+		stageInput, reserveOutput, run, executeStaged, cancel, release, openOutput, dispose });
 }
 
 type ProgressEmitter = (
