@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
-import { CLIP_CONTENT_OFFSET } from '@dilsonspickles/components';
+import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import { createTimelinePlaybackFrameLoop } from './timeline-playback-frame-loop.ts';

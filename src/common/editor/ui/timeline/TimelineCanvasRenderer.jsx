@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
-import { useTheme } from '@dilsonspickles/components';
+import { useTheme } from '@soundscaper/design-system/ThemeProvider';
 
 import { boundedCanvasDimensions } from '../../design-system-adapters.js';
 import { createEnvelopeValueEvaluator } from '../../automation.js';

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { TrackMeter } from '@dilsonspickles/components';
+import { TrackMeter } from '@soundscaper/design-system/TrackMeter';
 
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import { meterPercent } from './geometry.ts';
