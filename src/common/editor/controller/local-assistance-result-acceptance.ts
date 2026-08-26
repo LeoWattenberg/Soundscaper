@@ -14,6 +14,11 @@ import {
 	type LocalAssistanceRangeLabelAuthority,
 } from './local-assistance-range-label-acceptance.ts';
 import {
+	createLocalAssistanceReactionReviewSession,
+	type LocalAssistanceReactionReviewSession,
+} from './local-assistance-reaction-acceptance.ts';
+import type { AssistanceReactionProposalOptions } from '../assistance/reaction-proposals.ts';
+import {
 	createLocalAssistanceShotAcceptance,
 } from './local-assistance-shot-acceptance.ts';
 import type {
@@ -39,6 +44,10 @@ export function createLocalAssistanceResultAcceptance(
 	dependencies: LocalAssistanceResultAcceptanceDependencies,
 ): Readonly<LocalAssistanceTranscriptCleanupWorkflow & {
 	acceptValidatedResult(request: unknown): Promise<void>;
+	createReactionReviewSession(
+		request: unknown,
+		options?: AssistanceReactionProposalOptions,
+	): LocalAssistanceReactionReviewSession;
 }> {
 	const rangeLabels = createLocalAssistanceRangeLabelAcceptance(dependencies);
 	const shots = dependencies.currentVideoAuthority
@@ -68,6 +77,12 @@ export function createLocalAssistanceResultAcceptance(
 		: null;
 	return Object.freeze({
 		...cleanup,
+		createReactionReviewSession(
+			request: unknown,
+			options: AssistanceReactionProposalOptions = {},
+		): LocalAssistanceReactionReviewSession {
+			return createLocalAssistanceReactionReviewSession(dependencies, request, options);
+		},
 		acceptValidatedResult(request: unknown): Promise<void> {
 			const operation = resultOperation(request);
 			if (operation === 'speech-recognition') {
