@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { VideoCanvasFit } from '../../video-canvas-fit.ts';
+
 export interface ProductVideoVisualPreviewLedger {
 	readonly requestedNodeIds: readonly string[];
 	readonly consumedNodeIds: readonly string[];
@@ -51,6 +53,12 @@ export interface ProductVideoVisualPreviewCreateRequest {
 	readonly project: unknown;
 	readonly width: number;
 	readonly height: number;
+	/**
+	 * The delivery canvas fit being previewed. Playback and export are the same
+	 * render, so a reframed delivery has to be composited here the way it will be
+	 * exported. Absent, the inherited `contain` placement stands.
+	 */
+	readonly fit?: VideoCanvasFit;
 }
 
 export interface ProductVideoVisualProjectBinThumbnailRequest

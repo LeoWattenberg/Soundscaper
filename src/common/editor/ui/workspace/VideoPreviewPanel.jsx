@@ -124,6 +124,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 		project: canonicalProject,
 		width: referenceCanvas.width,
 		height: referenceCanvas.height,
+		fit: referenceCanvas.fit,
 		requestFrame: () => { requestProductVisualFrameRef.current(); },
 	});
 	const layerResolution = useMemo(() => {

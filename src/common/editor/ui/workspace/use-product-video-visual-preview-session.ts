@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 
+import type { VideoCanvasFit } from '../../video-canvas-fit.ts';
+
 import {
 	productVideoVisualPreviewRuntimeFor,
 	type ProductVideoVisualPreviewFrame,
@@ -27,6 +29,7 @@ export function useProductVideoVisualPreviewSession(options: Readonly<{
 	readonly project: unknown;
 	readonly width: number;
 	readonly height: number;
+	readonly fit?: VideoCanvasFit;
 	readonly requestFrame: () => void;
 }>): Readonly<{
 	readonly sessionRef: RefObject<ProductVideoVisualPreviewSession | null>;
@@ -69,6 +72,7 @@ export function useProductVideoVisualPreviewSession(options: Readonly<{
 		setState(pending);
 		void runtime.create({
 			project: options.project, width: options.width, height: options.height,
+			...(options.fit === undefined ? {} : { fit: options.fit }),
 		}).then((session) => {
 			if (!live) {
 				session?.dispose();
@@ -88,7 +92,7 @@ export function useProductVideoVisualPreviewSession(options: Readonly<{
 			if (sessionRef.current === ownedSession) sessionRef.current = null;
 			ownedSession?.dispose();
 		};
-	}, [options.height, options.project, options.width, runtime, updateFrame]);
+	}, [options.fit, options.height, options.project, options.width, runtime, updateFrame]);
 	return Object.freeze({ sessionRef, state, updateFrame, resolveTransitionWeight });
 }
 

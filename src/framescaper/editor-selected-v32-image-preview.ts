@@ -9,6 +9,7 @@ import type {
 	ProductVideoVisualProjectBinThumbnail,
 	ProductVideoVisualProjectBinThumbnailRequest,
 } from '../common/editor/ui/workspace/product-video-visual-preview-runtime.ts';
+import type { VideoCanvasFit } from '../common/editor/video-canvas-fit.ts';
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../common/editor/video-clip-composition.ts';
 import { resolveVideoRenderDescription } from '../common/editor/video-render-description.ts';
 import {
@@ -113,7 +114,7 @@ export async function createFramescaperSelectedVisualPreviewSessionV32(
 	options: FramescaperSelectedVisualPreviewOptionsV32,
 ): Promise<ProductVideoVisualPreviewSession | null> {
 	const project = admittedProject(options?.profile, options?.project, options?.cloneProject);
-	const canvas = previewCanvas(options?.width, options?.height);
+	const canvas = previewCanvas(options?.width, options?.height, options?.fit);
 	throwIfFramescaperImagePreviewAbortedV32(options.signal);
 	const contexts = imageClipContexts(project);
 	const plannedSources = planTimelineSources(project, contexts, canvas);
@@ -544,12 +545,22 @@ function admittedProject(
 	return (cloneProject ?? cloneFramescaperProjectV32)(profile, value);
 }
 
-function previewCanvas(width: unknown, height: unknown): Readonly<{ width: number; height: number }> {
+function previewCanvas(
+	width: unknown,
+	height: unknown,
+	fit: VideoCanvasFit | undefined,
+): Readonly<{ width: number; height: number; fit?: VideoCanvasFit }> {
 	const even = (value: unknown, name: string) => {
 		const dimension = positiveDimension(value, name);
 		return Math.max(2, dimension - dimension % 2);
 	};
-	return Object.freeze({ width: even(width, 'V32 preview width'), height: even(height, 'V32 preview height') });
+	// Playback and export are the same render, so the delivery fit the export
+	// applies has to reach the image placement here too.
+	return Object.freeze({
+		width: even(width, 'V32 preview width'),
+		height: even(height, 'V32 preview height'),
+		...(fit === undefined ? {} : { fit }),
+	});
 }
 
 function positiveDimension(value: unknown, name: string): number {
