@@ -140,6 +140,7 @@
 		"desktop/assistance-operation-service.ts",
 		"desktop/assistance-operation-transfers.ts",
 		"desktop/assistance-data-claims.ts",
+		"desktop/assistance-external-ffmpeg-shot-runtime.ts",
 		"desktop/assistance-operation-contract.ts",
 		"desktop/assistance-staging-private-files.ts",
 		"desktop/assistance-staging-registry.ts",
