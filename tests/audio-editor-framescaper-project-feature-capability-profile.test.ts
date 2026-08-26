@@ -374,6 +374,7 @@ test('keeps private capability ownership within the closed cumulative domain set
 	assert.deepEqual(genericPathReferences, [
 		'scripts/lib/desktop-5b-transitive-runtime-files.mjs',
 		'scripts/lib/desktop-project-library-runtime.mjs',
+		'scripts/lib/desktop-project-library-v20-runtime-files.mjs',
 		'scripts/lib/desktop-project-library-v27-runtime-files.mjs',
 		FINAL_GENERIC_MODULE,
 		// Dormant V25 import rechecks capability authority at both native-admission
@@ -401,7 +402,9 @@ test('keeps private capability ownership within the closed cumulative domain set
 		'src/soundscaper/editor-project-feature-capability-profile-v21.ts', 'src/soundscaper/editor-project-feature-capability-profile-v23.ts', 'src/soundscaper/editor-project-feature-capability-profile-v29.ts',
 		'src/soundscaper/editor-project-feature-capability-profile-v30.ts',
 		'src/soundscaper/editor-project-feature-compatibility-v21.ts', 'src/soundscaper/editor-project-feature-compatibility-v23.ts', 'src/soundscaper/editor-project-feature-compatibility-v29.ts',
+		'src/soundscaper/editor-project-feature-compatibility-v30.ts',
 		'src/soundscaper/editor-project-runtime-profile-v21.ts', 'src/soundscaper/editor-project-runtime-profile-v23.ts', 'src/soundscaper/editor-project-runtime-profile-v29.ts',
+		'src/soundscaper/editor-project-runtime-profile-v30.ts',
 		TEST_MODULE,
 		FINAL_TEST_MODULE,
 		'tests/audio-editor-framescaper-project-v20-profile.test.ts',
@@ -413,7 +416,9 @@ test('keeps private capability ownership within the closed cumulative domain set
 		'tests/audio-editor-soundscaper-project-v30.test.ts',
 		'tests/audio-editor-soundscaper-v21-feature-registration.test.ts',
 		'tests/audio-editor-soundscaper-v23-runtime-selection.test.ts',
+		'tests/audio-editor-soundscaper-v30-selection.test.ts',
 		'tests/helpers/desktop-project-library-v27-runtime-fixture.js',
+		'tests/project-compatibility-v14-policy.test.js',
 	]);
 	assert.deepEqual(privateIdReferences, [
 		PRODUCT_MODULE,
