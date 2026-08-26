@@ -242,10 +242,14 @@ test('highlight stages snap evidence, rank deterministically, and assemble safe 
 		{ authority: 'center', sourceFrame: 119 },
 	]);
 	assert.equal(assembled.proposals[0]?.cropKeyframes[0]?.crop.left, 0.341796875);
-	assert.deepEqual(reviewAssistanceOwnedVideoHighlightTransformResultV1(
+	const reviewed = reviewAssistanceOwnedVideoHighlightTransformResultV1(
 		JSON.parse(JSON.stringify({ schemaVersion: 1, transformId: 'assemble-highlights',
 			outputs: { 'highlight-proposals': assembled } })) as unknown,
-	).outputs['highlight-proposals'], assembled);
+	);
+	if (reviewed.transformId !== 'assemble-highlights') {
+		assert.fail('The reviewed result changed its authenticated transform identity.');
+	}
+	assert.deepEqual(reviewed.outputs['highlight-proposals'], assembled);
 });
 
 test('highlight transforms reject malformed scores and preserve empty no-event results', () => {
