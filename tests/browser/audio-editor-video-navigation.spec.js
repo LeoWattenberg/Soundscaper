@@ -151,15 +151,21 @@ async function beginStatusObservation(editor) {
 	await editor.evaluate((element) => {
 		const previous = globalThis.__soundscaperShuttleStatusObservation;
 		previous?.observer?.disconnect();
+		if (previous?.sampler !== undefined) clearInterval(previous.sampler);
 		const values = [];
 		const read = () => element.querySelector('[data-status]')?.textContent || '';
 		const record = () => {
 			const value = read();
 			if (values.at(-1) !== value) values.push(value);
 		};
+		// A mutation callback reads the DOM as it stands when the callback runs, not as it
+		// stood when the mutation queued, so several status writes in one task collapse into
+		// whichever text survives - the shuttle rung this reports is exactly that transient.
+		// Sampling alongside the observer is what actually observes it.
 		const observer = new MutationObserver(record);
 		observer.observe(element, { childList: true, characterData: true, subtree: true });
-		globalThis.__soundscaperShuttleStatusObservation = { observer, values };
+		const sampler = setInterval(record, 1);
+		globalThis.__soundscaperShuttleStatusObservation = { observer, sampler, values };
 		record();
 	});
 }
@@ -169,7 +175,9 @@ async function expectObservedStatus(editor, expected) {
 		globalThis.__soundscaperShuttleStatusObservation?.values ?? []
 	))).toContainEqual(expect.stringMatching(expected));
 	await editor.evaluate(() => {
-		globalThis.__soundscaperShuttleStatusObservation?.observer?.disconnect();
+		const observation = globalThis.__soundscaperShuttleStatusObservation;
+		observation?.observer?.disconnect();
+		if (observation?.sampler !== undefined) clearInterval(observation.sampler);
 		delete globalThis.__soundscaperShuttleStatusObservation;
 	});
 }
