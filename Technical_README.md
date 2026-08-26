@@ -112,7 +112,7 @@ Soundscaper 0.2 can now be built as an unsigned desktop preview:
 | Platform | Architectures | Packages |
 | --- | --- | --- |
 | Windows | x64, ARM64 | Per-machine assisted NSIS installer and no-install ZIP |
-| macOS | Intel, Apple silicon | DMG |
+| macOS | Apple silicon | DMG |
 | Linux | x64, ARM64 | AppImage and Debian package |
 
 The Windows installer requires administrator approval because Windows only
