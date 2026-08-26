@@ -87,11 +87,11 @@ test('projects one exact admission, hashes both executables, qualifies first, th
 	const preference = preferenceFixture(admitted);
 	const events: string[] = [];
 	const controller = new AbortController();
-	let captured: ExternalFfmpegShotDetectorOptions | null = null;
+	const captured: ExternalFfmpegShotDetectorOptions[] = [];
 	const runtime = createExternalFfmpegAssistanceShotRuntimeAdapter({
 		preferences: preference.service,
 		createDetector(options) {
-			captured = options;
+			captured.push(options);
 			return detectorFixture({
 				async qualify(request) {
 					events.push('qualify');
@@ -110,8 +110,8 @@ test('projects one exact admission, hashes both executables, qualifies first, th
 
 	assert.equal(await runtime.detect({ videoPath, signal: controller.signal }), RESULT);
 	assert.deepEqual(events, ['qualify', 'detect']);
-	assert.equal(captured?.workingDirectory, root);
-	assert.deepEqual(captured?.pair, {
+	assert.equal(captured[0]?.workingDirectory, root);
+	assert.deepEqual(captured[0]?.pair, {
 		executablePath: ffmpegPath,
 		ffmpegSha256: sha256(ffmpegBytes),
 		ffprobePath,
@@ -285,7 +285,7 @@ interface DetectorFixtureOverrides {
 
 function detectorFixture(overrides: DetectorFixtureOverrides = {}): ExternalFfmpegShotDetector {
 	return Object.freeze({
-		async qualify(request) {
+		async qualify(request?: Readonly<{ readonly signal?: AbortSignal }>) {
 			await overrides.qualify?.(request);
 			return Object.freeze({
 				schemaVersion: 1,
