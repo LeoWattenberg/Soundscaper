@@ -211,21 +211,25 @@ test('package-content authority requires null and absence outside supported Soun
 	}), /Framescaper.*OS audio codec|OS audio codec.*Framescaper/iu);
 });
 
-test('Framescaper rejects its static-FFmpeg media host while retaining OpenFX closure', async (context) => {
-	const forbidden = await framescaperPackageTree(context);
-	await assert.rejects(writeDesktopPackageContentManifest({
-		resourcesRoot: forbidden.resourcesRoot,
-		runtimeManifestPath: forbidden.runtimeManifestPath,
-		productId: 'framescaper',
-		targetId: 'linux-x64',
-	}), /forbidden bundled FFmpeg.*framescaper-media-host/iu);
-
-	const fixture = await framescaperPackageTree(context);
-	await makeMediaHostPending(fixture);
-	const written = await writeDesktopPackageContentManifest({
+test('Framescaper admits its authenticated media host but no unmanaged FFmpeg payload', async (context) => {
+	const writeFramescaperManifest = (fixture) => writeDesktopPackageContentManifest({
 		resourcesRoot: fixture.resourcesRoot, runtimeManifestPath: fixture.runtimeManifestPath,
 		productId: 'framescaper', targetId: 'linux-x64',
 	});
+	for (const smuggled of ['ffmpeg', 'ffprobe.exe', 'libavcodec.so.61', 'ffmpeg-core.wasm']) {
+		const forbidden = await framescaperPackageTree(context);
+		await writeFile(join(
+			forbidden.resourcesRoot, 'runtime/native/framescaper-media-host/linux-x64', smuggled,
+		), 'unmanaged FFmpeg payload');
+		await assert.rejects(writeFramescaperManifest(forbidden),
+			new RegExp(`forbidden bundled FFmpeg.*framescaper-media-host.*${smuggled}`, 'isu'), smuggled);
+	}
+	const authenticated = await writeFramescaperManifest(await framescaperPackageTree(context));
+	assert.equal(authenticated.status, 'installed-resource-closure-audited');
+
+	const fixture = await framescaperPackageTree(context);
+	await makeMediaHostPending(fixture);
+	const written = await writeFramescaperManifest(fixture);
 	assert.equal(written.status, 'installed-resource-closure-audited');
 
 	const reportOnly = await framescaperPackageTree(context);
@@ -241,12 +245,7 @@ test('Framescaper rejects its static-FFmpeg media host while retaining OpenFX cl
 		`runtime/native/framescaper-openfx-host/linux-x64/${name}`,
 	));
 	await writeJson(reportOnly.runtimeManifestPath, reportOnly.runtimeManifest);
-	const automated = await writeDesktopPackageContentManifest({
-		resourcesRoot: reportOnly.resourcesRoot,
-		runtimeManifestPath: reportOnly.runtimeManifestPath,
-		productId: 'framescaper',
-		targetId: 'linux-x64',
-	});
+	const automated = await writeFramescaperManifest(reportOnly);
 	assert.equal(automated.status, 'installed-resource-closure-audited');
 });
 

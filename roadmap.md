@@ -166,7 +166,7 @@ Known architectural constraints that drive later work:
 | Milestone | Status | Purpose |
 | --- | --- | --- |
 | 1. Baseline contracts | **Implemented for build/test; automated reference evidence pending** | Close reproducible machine quality evidence; human platform checks belong to milestone 9. |
-| 2. Shared platform/storage/media | **Implemented routes enabled across the maintained test matrix; automated evidence pending** | Finish safe scale, handoff, media ownership, and compatibility foundations. |
+| 2. Shared platform/storage/media | **In progress — current priority; implemented routes enabled across the maintained test matrix, automated evidence pending** | Finish safe scale, handoff, media ownership, and compatibility foundations. |
 | 3. Editorial foundations | **In progress — parallel tracks** | Add professional time, arrangement, and editorial models. |
 | 4. Production surfaces | **Local implementation enabled; human qualification belongs to milestone 9** | Complete automation, routing, compositing, captions, and finishing. |
 | 5. Electron-native services | **In progress — implemented routes enabled for testing; target payloads open** | Add isolated native media, audio, render, and plug-in services. |

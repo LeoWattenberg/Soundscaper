@@ -56,9 +56,12 @@ test('milestone-5 handoff reports unauthenticated engineering inputs without cla
 		'nativeIsolationSecurityReview',
 		'productionSigningAndNotarization',
 	]);
-	// Four: the FFmpeg external libraries, whose native-codecs review is open.
+	// None: every pinned source is build/test-activated. The four FFmpeg external
+	// libraries no longer carry a per-source activation block, so the open
+	// native-codecs review must still surface through the licensing gate and the
+	// blocked policy rows asserted below — never as silent readiness.
 	assert.deepEqual(handoff.sources, {
-		authenticated: 0, pendingExternal: 10, activationBlocked: 4, total: 10,
+		authenticated: 0, pendingExternal: 10, activationBlocked: 0, total: 10,
 	});
 	assert.deepEqual(handoff.payloads, {
 		built: 1,

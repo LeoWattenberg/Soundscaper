@@ -74,21 +74,48 @@ test('current packaged lease qualification admits Soundscaper V11 and Framescape
 	], [30, 31]);
 });
 
-test('desktop preview CI runs both selected products on qualified x64 targets', async () => {
-	const [workflow, runner] = await Promise.all([
+// The closure register splits release-qualification evidence from automated test
+// activation: platformSet records what milestone 2 historically qualified, while
+// testActivation records what CI must actually run. The packaged lease job has to
+// be exactly testActivation.desktopTargets — no fewer, so an activated target
+// cannot quietly stop running, and no more, so a retired target cannot reappear.
+const DESKTOP_TARGET_PLATFORMS = new Map([['windows', 'win'], ['macos', 'mac'], ['linux', 'linux']]);
+
+function desktopTargetCells(targetIds) {
+	return targetIds.map((id) => {
+		const [os, arch] = id.split('-');
+		const platform = DESKTOP_TARGET_PLATFORMS.get(os);
+		assert.ok(platform, `unknown desktop target OS in ${id}`);
+		return `${platform}/${arch}`;
+	}).sort();
+}
+
+test('desktop preview CI runs both selected products on every test-activated target', async () => {
+	const [workflow, runner, closure] = await Promise.all([
 		readFile(new URL('../.github/workflows/desktop-preview.yml', import.meta.url), 'utf8'),
 		readFile(new URL('../scripts/lib/desktop-project-library-lease-matrix.mjs', import.meta.url), 'utf8'),
+		readFile(new URL('../config/milestone-2-closure.json', import.meta.url), 'utf8').then(JSON.parse),
 	]);
 	const jobMarker = '\n  soundscaper-project-library-lease-matrix:';
 	const jobIndex = workflow.indexOf(jobMarker);
 	assert.notEqual(jobIndex, -1, 'missing packaged lease job');
 	const leaseJob = workflow.slice(jobIndex);
-	for (const target of [
-		['win', 'x64'], ['linux', 'x64'],
-	]) {
-		assert.match(leaseJob, new RegExp(`platform: ${target[0]}[\\s\\S]{0,80}arch: ${target[1]}`, 'u'));
+	const activated = desktopTargetCells(closure.testActivation.desktopTargets);
+	assert.deepEqual(activated, ['linux/arm64', 'linux/x64', 'mac/arm64', 'win/arm64', 'win/x64']);
+	for (const cell of activated) {
+		const [platform, arch] = cell.split('/');
+		assert.match(leaseJob, new RegExp(`platform: ${platform}\\n\\s+arch: ${arch}\\n`, 'u'), cell);
 	}
-	assert.doesNotMatch(leaseJob, /platform: (?:mac|win)[\s\S]{0,80}arch: arm64|platform: linux[\s\S]{0,80}arch: arm64/u);
+	assert.deepEqual(
+		[...leaseJob.matchAll(/^\s+platform: (\w+)\n\s+arch: (\w+)$/gmu)]
+			.map(([, platform, arch]) => `${platform}/${arch}`).sort(),
+		activated,
+		'the packaged lease matrix must be exactly the test-activated desktop targets',
+	);
+	for (const cell of desktopTargetCells(closure.platformSet.retiredDesktopTargets)) {
+		const [platform, arch] = cell.split('/');
+		assert.doesNotMatch(leaseJob, new RegExp(`platform: ${platform}\\n\\s+arch: ${arch}\\n`, 'u'), cell);
+	}
 	assert.match(leaseJob, /for product in soundscaper framescaper/u);
 	assert.match(leaseJob, /release\/desktop-lease-matrix\/\$product/u);
 	assert.match(leaseJob, /desktop:smoke:project-library-lease-matrix/u);

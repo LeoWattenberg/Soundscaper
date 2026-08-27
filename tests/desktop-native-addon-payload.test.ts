@@ -71,7 +71,10 @@ test('a target with no built payload reports its named blocker', async () => {
 	const availability = await describeNativeAddonAvailability({ ...developmentLocation, platform: 'win32', arch: 'arm64' });
 	assert.equal(availability.status, 'unavailable');
 	assert.equal(availability.reason, 'payload-pending-external');
-	assert.match(availability.detail, /Windows ARM64 build host/u);
+	assert.match(availability.detail,
+		/No authenticated Windows ARM64 helper-addon payload has been built/u);
+	assert.doesNotMatch(availability.detail,
+		/licens|review|readiness|signing|notari|qualification|manual|patent|notice/iu);
 });
 
 test('a missing or altered payload is reported rather than loaded', async () => {

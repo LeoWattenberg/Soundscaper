@@ -3,8 +3,8 @@
 	"scopeRevision": 2,
 	"milestone": "2",
 	"frozenAt": "2026-08-08",
-	"revisedAt": "2026-08-27",
-	"revisionReason": "Revision 2 retains the historical qualified/deferred evidence split. Current automated test activation includes WebKit and every maintained desktop target; human qualification is deferred only as milestone-9 stable 1.0 release evidence. The deprecated macos-x64 target remains retired.",
+	"revisedAt": "2026-08-09",
+	"revisionReason": "User-approved revision 2: WebKit validation is deferred because the pinned Playwright WebKit build exposes no OPFS, no MediaRecorder, and no IndexedDB Blob storage; ARM64 validation is deferred for lack of hardware access; the deprecated macos-x64 target is retired.",
 	"completionRule": "Milestone 2 closes when every item in this revision is implemented. Work not named here cannot block closure.",
 	"expansionPolicy": {
 		"newCapabilitiesDisposition": "milestone-3-or-later",

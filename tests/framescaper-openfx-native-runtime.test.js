@@ -7,7 +7,10 @@ import test from 'node:test';
 import { MessageChannel } from 'node:worker_threads';
 
 import { assertOfxPluginDescriptorV1 } from '../src/common/editor/native-ofx-descriptor.ts';
-import { createOpenFxHelperJobRunner } from '../desktop/openfx-helper-job.ts';
+import {
+	createOpenFxHelperJobRunner,
+	selfTestFramescaperOpenFxHelper,
+} from '../desktop/openfx-helper-job.ts';
 import { receiveHelperDataPlaneReservedFile } from '../desktop/helper-data-plane-io.ts';
 import { requireExactRetimeClosure } from './helpers/framescaper-boost-closure.js';
 import {
@@ -112,18 +115,26 @@ test('the helper runner carries the actual native scanner descriptor over its re
 		expectedOpenFxNativeScannerDescriptor(build.sha256));
 });
 
-test('production entry points refuse third-party loading without OS isolation attestation', (context) => {
+test('production entry points attest no OS isolation and are refused third-party loading', async (context) => {
 	const build = buildContractFixture(context);
 	if (build === null) return;
 	try {
-		const refused = run(build.blockedScanner, [
-			'--scan', build.plugin, '--sha256', build.sha256,
-		]);
-		assert.equal(refused.status, 78);
-		assert.deepEqual(JSON.parse(refused.stderr), {
-			error: 'isolation-unavailable',
-			message: 'isolation-unavailable: no reviewed OS isolation launcher attestation is implemented; third-party OpenFX loading is disabled.',
+		const declared = run(build.blockedScanner, ['--self-test']);
+		assert.equal(declared.status, 0, declared.stderr);
+		assert.deepEqual(Object.fromEntries(Object.entries(JSON.parse(declared.stdout)).filter(
+			([key]) => key === 'contractFixture' || key.endsWith('Exposed')
+				|| key === 'osIsolationAttested' || key === 'thirdPartyExecutionEnabled',
+		)), {
+			contractFixture: false, osIsolationAttested: false, thirdPartyExecutionEnabled: false,
+			networkSuiteExposed: false, arbitraryFilesystemSuiteExposed: false,
+			vendorTopLevelWindowsExposed: false,
 		});
+		await assert.rejects(
+			() => selfTestFramescaperOpenFxHelper(
+				{ scanner: nativeExecutable(build.blockedScanner) }, 'scanner', nativeProcessInvoker,
+			),
+			/lacks production isolation and real third-party execution readiness/u,
+		);
 	} finally {
 		build.cleanup();
 	}

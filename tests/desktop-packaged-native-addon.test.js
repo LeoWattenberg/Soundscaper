@@ -152,5 +152,8 @@ test('a target whose payload is pending-external packages its manifest and nothi
 	});
 	assert.equal(summary.target, PENDING_TARGET);
 	assert.equal(summary.payload, null);
-	assert.match(summary.blockedBy, /macOS ARM64 build host/u);
+	assert.match(summary.blockedBy,
+		/No authenticated macOS ARM64 helper-addon payload has been built/u);
+	assert.doesNotMatch(summary.blockedBy,
+		/licens|review|readiness|signing|notari|qualification|manual|patent|notice/iu);
 });

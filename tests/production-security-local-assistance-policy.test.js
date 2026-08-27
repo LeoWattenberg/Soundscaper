@@ -100,7 +100,7 @@ test('Milestone 7 policy records conditional workflow activation and its externa
 	assert.match(externalExecutableRisk.exposure,
 		/assistance shot.*scdet.*canary.*path-based runners.*replacement.*dynamically loaded libraries/isu);
 	assert.match(activationClaims,
-		/Delivered boundary \(2026-08-27\).*conditionally activates.*production activation remains blocked/isu);
+		/Delivered boundary \(2026-08-27\).*conditionally activates.*enabled for testing.*typed machine unavailability rather than substitute inference or an implicit download.*remain fail closed.*Licensing and owner qualification are milestone-9 stable 1\.0 blockers only/isu);
 	assert.match(historicalClaims,
 		/Historical slice record.*local-models.*enabled.*thirteen.*permitted/isu);
 });
