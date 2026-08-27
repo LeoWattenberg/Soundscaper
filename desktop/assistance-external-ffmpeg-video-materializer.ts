@@ -32,6 +32,8 @@ import type {
 } from './external-ffmpeg-preference-service.ts';
 import { curatedExternalFfmpegVideoEnvironment } from './external-ffmpeg-video-process.ts';
 import { shouldDetachProcessTree, terminateProcessTree } from './process-tree-termination.ts';
+import { assistanceSourceMatchesIdentityV1 } from
+	'./assistance-authenticated-source-snapshot.ts';
 
 type Preferences = Pick<ExternalFfmpegPreferenceService, 'admission' | 'invalidateAdmission'>;
 
@@ -99,10 +101,15 @@ export function createExternalFfmpegAssistanceVideoMaterializer(
 				+ safeProduct(frameBytes + 16, frames.length), 0);
 			if (!Number.isSafeInteger(aggregateBytes) || aggregateBytes > 512 * 1024 * 1024) return null;
 			const sourcePath = admittedSourcePath(request.source.path);
+			const sourceIdentity = Object.freeze({ byteLength: request.source.claim.byteLength,
+				sha256: request.source.claim.sha256 });
 			const identity = await matchesIdentity(inspected.pair, digestExecutable);
 			request.signal.throwIfAborted();
 			if (!identity) {
 				await options.preferences.invalidateAdmission(inspected.admission, 'identity-changed');
+				return null;
+			}
+			if (!await assistanceSourceMatchesIdentityV1(sourcePath, sourceIdentity, request.signal)) {
 				return null;
 			}
 			const packs: Array<readonly Uint8Array[]> = [];
@@ -128,7 +135,10 @@ export function createExternalFfmpegAssistanceVideoMaterializer(
 				}
 				request.signal.throwIfAborted();
 				if (!(rgba instanceof Uint8Array) || rgba.byteLength !== expectedByteLength
-					|| options.preferences.admission() !== inspected.admission) return null;
+					|| options.preferences.admission() !== inspected.admission
+					|| !await assistanceSourceMatchesIdentityV1(
+						sourcePath, sourceIdentity, request.signal,
+					)) return null;
 				packs.push(createAssistanceVisualFramePackV2({ sourceWidth: plan.width,
 					sourceHeight: plan.height, rasterWidth: raster.width, rasterHeight: raster.height,
 					timescale: plan.timescale, frames: frames.map((frame, index) => Object.freeze({

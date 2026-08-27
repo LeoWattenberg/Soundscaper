@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 
 import {
@@ -21,6 +25,9 @@ import type { AssistanceWorkflowV1 } from '../src/common/editor/assistance/workf
 
 const FFMPEG_SHA = '12'.repeat(32);
 const FFPROBE_SHA = '34'.repeat(32);
+const SOURCE = Uint8Array.of(0, 0, 0, 20, 102, 116, 121, 112);
+let sourceDirectory = '';
+let sourcePath = '';
 const PLAN = Object.freeze({ schemaVersion: 1 as const, kind: 'frame-pack-plan' as const,
 	sourceId: 'video-source', width: 1_024, height: 512, timescale: 1_000,
 	frames: Object.freeze([
@@ -32,6 +39,14 @@ const PLAN = Object.freeze({ schemaVersion: 1 as const, kind: 'frame-pack-plan' 
 			timelineFrame: 9_600 }),
 	]),
 });
+
+test.before(async () => {
+	sourceDirectory = await mkdtemp(join(tmpdir(), 'assistance-video-materializer-source-'));
+	sourcePath = join(sourceDirectory, 'video.input');
+	await writeFile(sourcePath, SOURCE);
+});
+
+test.after(async () => await rm(sourceDirectory, { recursive: true, force: true }));
 
 test('the admitted FFmpeg materializer decodes exact ordinals into bounded visual frame packs', async () => {
 	const admission = admitted();
@@ -46,9 +61,7 @@ test('the admitted FFmpeg materializer decodes exact ordinals into bounded visua
 			return new Uint8Array(request.expectedByteLength).fill(7);
 		},
 	});
-	const packs = await materializer.materializeFramePack!({ request: {} as AssistanceWorkflowV1,
-		plan: PLAN, source: { path: '/private/job/video.input', claim: {} as never },
-		signal: new AbortController().signal });
+	const packs = await materializer.materializeFramePack!(frameRequest());
 	assert.ok(packs);
 	assert.equal(packs!.length, 1);
 	const reviewed = reviewAssistanceVisualFramePackV2(packs![0]!);
@@ -168,9 +181,30 @@ test('the frame materializer propagates cancellation without publishing partial 
 	}), (error) => error === reason);
 });
 
+test('the frame materializer rejects decoded bytes when its authenticated source changes', async () => {
+	await withDirectory(async (directory) => {
+		const sourcePath = join(directory, 'video.input');
+		const source = Uint8Array.of(0, 0, 0, 20, 102, 116, 121, 112);
+		await writeFile(sourcePath, source);
+		const admission = admitted();
+		const materializer = createExternalFfmpegAssistanceVideoMaterializer({ preferences: {
+			admission: () => admission, async invalidateAdmission() { return {} as never; },
+		}, digestExecutable: async (path) => path.endsWith('ffmpeg') ? FFMPEG_SHA : FFPROBE_SHA,
+			decodeFrames: async (request) => {
+				await writeFile(request.sourcePath, Uint8Array.from(source, (value) => value ^ 0xff));
+				return new Uint8Array(request.expectedByteLength);
+			} });
+		assert.equal(await materializer.materializeFramePack!({ ...frameRequest(), source: {
+			path: sourcePath, claim: { byteLength: source.byteLength,
+				sha256: createHash('sha256').update(source).digest('hex') } as never,
+		} }), null);
+	});
+});
+
 function frameRequest() {
 	return { request: {} as AssistanceWorkflowV1, plan: PLAN,
-		source: { path: '/private/job/video.input', claim: {} as never },
+		source: { path: sourcePath, claim: { byteLength: SOURCE.byteLength,
+			sha256: createHash('sha256').update(SOURCE).digest('hex') } as never },
 		signal: new AbortController().signal };
 }
 
@@ -186,4 +220,9 @@ function admitted() {
 		}), capabilities: Object.freeze({ encoders: Object.freeze([]), decoders: Object.freeze([]),
 		muxers: Object.freeze(['rawvideo']), demuxers: Object.freeze([]),
 		filters: Object.freeze(['format', 'scale', 'select']) }) });
+}
+
+async function withDirectory(run: (directory: string) => Promise<void>): Promise<void> {
+	const directory = await mkdtemp(join(tmpdir(), 'assistance-video-materializer-test-'));
+	try { await run(directory); } finally { await rm(directory, { recursive: true, force: true }); }
 }

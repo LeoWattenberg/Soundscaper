@@ -47,6 +47,14 @@ import { assertAssistanceOwnedFramePackMatchesPlanV1 } from
 	'./assistance-owned-frame-pack-materialization.ts';
 import { createAssistanceVisualFramePackSetV1 } from
 	'../src/common/editor/assistance/visual-frame-pack-set-v1.ts';
+import {
+	snapshotAssistanceAuthenticatedSourceV1,
+} from './assistance-authenticated-source-snapshot.ts';
+import {
+	createAssistanceHeldFramePlanStoreV1,
+	type AssistanceHeldFramePlanReservationV1,
+	type AssistanceHeldFramePlanStoreV1,
+} from './assistance-held-frame-plan-store.ts';
 
 export const ASSISTANCE_WORKFLOW_OWNED_VIDEO_HIGHLIGHT_STAGE_IDS = Object.freeze([
 	'sample-shot-frames',
@@ -126,11 +134,7 @@ export interface AssistanceWorkflowOwnedVideoHighlightStageRuntimeOptionsV1 {
 interface ResolvedInput {
 	readonly value: unknown;
 	readonly capture: AssistanceWorkflowOwnedVideoHighlightInputCaptureV1;
-}
-
-interface StoredFramePlan {
-	readonly identity: string;
-	readonly plan: AssistanceOwnedFramePackPlanV1;
+	readonly dispose?: () => Promise<void>;
 }
 
 const JSON_MEDIA = 'application/json';
@@ -162,7 +166,9 @@ export function createAssistanceWorkflowOwnedVideoHighlightStageRuntime(
 	optionsValue: AssistanceWorkflowOwnedVideoHighlightStageRuntimeOptionsV1,
 ): Readonly<Record<StageId, AssistanceWorkflowOwnedStageHandler>> {
 	const options = validateOptions(optionsValue);
-	const framePlans = new Map<string, StoredFramePlan>();
+	const framePlans = createAssistanceHeldFramePlanStoreV1<AssistanceOwnedFramePackPlanV1>(
+		MAXIMUM_HELD_FRAME_PLANS,
+	);
 	return Object.freeze(Object.fromEntries(ASSISTANCE_WORKFLOW_OWNED_VIDEO_HIGHLIGHT_STAGE_IDS.map(
 		(stageId) => [stageId, (execution: AssistanceWorkflowStageExecutionV1) =>
 			runStage(stageId, execution, options, framePlans)],
@@ -173,51 +179,57 @@ async function runStage(
 	stageId: StageId,
 	execution: AssistanceWorkflowStageExecutionV1,
 	options: AssistanceWorkflowOwnedVideoHighlightStageRuntimeOptionsV1,
-	framePlans: Map<string, StoredFramePlan>,
+	framePlans: AssistanceHeldFramePlanStoreV1<AssistanceOwnedFramePackPlanV1>,
 ) {
+	let reservation: AssistanceHeldFramePlanReservationV1<AssistanceOwnedFramePackPlanV1> | null = null;
 	try {
 		const request = validateExecution(stageId, execution);
 		const spec = STAGE_SPECS[stageId];
 		const resolved: Record<string, ResolvedInput | null> = {};
-		for (const inputSpec of spec.inputs) {
-			const claim = execution.inputs.find(({ slotId }) => slotId === inputSpec.slotId);
-			if (!claim) {
-				if (inputSpec.optional) { resolved[inputSpec.slotId] = null; continue; }
-				throw new TypeError(`The owned ${stageId} stage omitted ${inputSpec.slotId}.`);
+		let prepared: PreparedOutput;
+		let sampledPlan: AssistanceOwnedFramePackPlanV1 | null = null;
+		try {
+			for (const inputSpec of spec.inputs) {
+				const claim = execution.inputs.find(({ slotId }) => slotId === inputSpec.slotId);
+				if (!claim) {
+					if (inputSpec.optional) { resolved[inputSpec.slotId] = null; continue; }
+					throw new TypeError(`The owned ${stageId} stage omitted ${inputSpec.slotId}.`);
+				}
+				resolved[inputSpec.slotId] = await resolveInput(claim, inputSpec, execution, options.custody);
 			}
-			resolved[inputSpec.slotId] = await resolveInput(claim, inputSpec, execution, options.custody);
-		}
-		execution.progress(1, 4);
-		const inputs = await transformInputs(stageId, request, resolved, options, framePlans,
-			execution.signal);
-		execution.signal.throwIfAborted();
-		const result = createAssistanceOwnedVideoHighlightTransformRegistryV1().run({
-			schemaVersion: 1, transformId: stageId, settings: request.settings, inputs,
-		});
-		assertAssistanceOwnedVideoHighlightResultFenceV1(result, request);
-		const heldPlan = framePlans.get(request.jobId);
-		if (stageId === 'sample-shot-frames' && (heldPlan
-			? heldPlan.identity !== workflowIdentity(request) : framePlans.size >= MAXIMUM_HELD_FRAME_PLANS))
-			unavailable('The exact sampled-frame plan inventory cannot admit this workflow.');
-		const prepared = await prepareOutput(stageId, result, request, resolved,
-			execution, options);
+			execution.progress(1, 4);
+			const inputs = await transformInputs(stageId, request, resolved, options, framePlans,
+				execution.signal);
+			execution.signal.throwIfAborted();
+			const result = createAssistanceOwnedVideoHighlightTransformRegistryV1().run({
+				schemaVersion: 1, transformId: stageId, settings: request.settings, inputs,
+			});
+			assertAssistanceOwnedVideoHighlightResultFenceV1(result, request);
+			if (stageId === 'sample-shot-frames') {
+				sampledPlan = framePlan(result);
+				reservation = framePlans.reserve(request.jobId, workflowIdentity(request));
+				if (!reservation) {
+					unavailable('The exact sampled-frame plan inventory cannot admit this workflow.');
+				}
+			}
+			prepared = await prepareOutput(stageId, result, request, resolved, execution, options);
+		} finally { await disposeResolvedInputs(resolved); }
 		execution.progress(2, 4);
 		await writePrepared(prepared, execution, options.custody);
 		execution.progress(3, 4);
 		await authenticatePrepared(prepared, execution, options.custody);
-		if (stageId === 'sample-shot-frames') {
-			storeFramePlan(framePlans, request, framePlan(result));
-		} else if (stageId === 'publish-video-index') {
-			framePlans.delete(request.jobId);
-		}
 		execution.progress(4, 4);
+		if (sampledPlan && !reservation!.commit(sampledPlan, execution.signal)) {
+			execution.signal.throwIfAborted();
+			unavailable('The exact sampled-frame plan inventory was cancelled.');
+		}
 		return Object.freeze({ outcome: 'completed' as const });
 	} catch (error) {
 		if (error instanceof OwnedVideoHighlightStageUnavailableError) {
 			return Object.freeze({ outcome: 'unavailable' as const, reason: 'stage-unavailable' as const });
 		}
 		throw error;
-	}
+	} finally { reservation?.release(); }
 }
 
 async function transformInputs(
@@ -225,7 +237,7 @@ async function transformInputs(
 	request: AssistanceWorkflowV1,
 	resolved: Readonly<Record<string, ResolvedInput | null>>,
 	options: AssistanceWorkflowOwnedVideoHighlightStageRuntimeOptionsV1,
-	framePlans: ReadonlyMap<string, StoredFramePlan>,
+	framePlans: AssistanceHeldFramePlanStoreV1<AssistanceOwnedFramePackPlanV1>,
 	signal: AbortSignal,
 ): Promise<Readonly<Record<string, unknown>>> {
 	const values = Object.fromEntries(Object.entries(resolved).map(([slotId, item]) =>
@@ -239,20 +251,20 @@ async function transformInputs(
 		delete values['video-authority'];
 	}
 	if (stageId === 'publish-video-index') {
-		const stored = framePlans.get(request.jobId);
-		if (!stored || stored.identity !== workflowIdentity(request)) {
+		const plan = framePlans.take(request.jobId, workflowIdentity(request));
+		if (!plan) {
 			unavailable('The exact sampled-frame plan is unavailable for index publication.');
 		}
 		const matrix = requiredResolved(resolved['visual-embeddings'], 'visual-embeddings').value;
 		if (!(matrix instanceof Uint8Array)) throw new TypeError('Visual embeddings lost binary custody.');
-		const tagged = await options.materializer?.resolveVisualTags?.({ request, plan: stored.plan,
+		const tagged = await options.materializer?.resolveVisualTags?.({ request, plan,
 			matrix: matrix.slice(), signal });
 		signal.throwIfAborted();
 		if (!tagged || !(tagged.matrix instanceof Uint8Array)) {
 			unavailable('Visual tag materialization is unavailable.');
 		}
 		values['visual-embeddings'] = Object.freeze({ schemaVersion: 1,
-			kind: 'visual-embeddings', framePack: stored.plan, matrix: tagged.matrix.slice(),
+			kind: 'visual-embeddings', framePack: plan, matrix: tagged.matrix.slice(),
 			tags: tagged.tags });
 	}
 	if (stageId === 'assemble-highlights') {
@@ -346,8 +358,11 @@ async function resolveInput(
 		|| token.maximumByteLength !== null && resolvedClaim.byteLength > token.maximumByteLength) {
 		throw new RangeError(`The ${spec.slotId} input exceeds or disagrees with its byte bound.`);
 	}
-	const bytes = await readExactBytes(resolved.path, resolvedClaim.byteLength, execution.signal,
-		spec.kind !== 'video');
+	const snapshot = spec.kind === 'video' ? await snapshotAssistanceAuthenticatedSourceV1(
+		resolved.path, resolvedClaim, execution.signal,
+	) : null;
+	const bytes = snapshot ? { body: null, sha256: snapshot.sha256 }
+		: await readExactBytes(resolved.path, resolvedClaim.byteLength, execution.signal, true);
 	if (bytes.sha256 !== resolvedClaim.sha256) {
 		throw new Error(`The ${spec.slotId} input changed after authentication; its digest is stale.`);
 	}
@@ -357,8 +372,8 @@ async function resolveInput(
 		reviewAssistanceEmbeddingMatrixV1(bytes.body!);
 		value = bytes.body!;
 	}
-	return Object.freeze({ value,
-		capture: Object.freeze({ claim: resolvedClaim, path: resolved.path }) });
+	return Object.freeze({ value, capture: Object.freeze({ claim: resolvedClaim,
+		path: snapshot?.path ?? resolved.path }), ...(snapshot ? { dispose: snapshot.dispose } : {}) });
 }
 
 async function writePrepared(
@@ -530,16 +545,14 @@ function parseJson(bytes: Uint8Array, label: string): unknown {
 	catch { throw new TypeError(`The ${label} input is not strict JSON.`); }
 }
 
-function storeFramePlan(
-	plans: Map<string, StoredFramePlan>,
-	request: AssistanceWorkflowV1,
-	plan: AssistanceOwnedFramePackPlanV1,
-): void {
-	plans.set(request.jobId, Object.freeze({ identity: workflowIdentity(request), plan }));
-}
-
 function workflowIdentity(request: AssistanceWorkflowV1): string {
 	return createHash('sha256').update(JSON.stringify(request)).digest('hex');
+}
+
+async function disposeResolvedInputs(
+	resolved: Readonly<Record<string, ResolvedInput | null>>,
+): Promise<void> {
+	for (const input of Object.values(resolved).reverse()) await input?.dispose?.();
 }
 
 function requiredResolved(value: ResolvedInput | null | undefined, slotId: string): ResolvedInput {

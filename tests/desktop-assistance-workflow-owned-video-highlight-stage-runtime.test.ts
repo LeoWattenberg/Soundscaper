@@ -12,6 +12,8 @@ import {
 	createAssistanceWorkflowOwnedVideoHighlightStageRuntime,
 	type AssistanceWorkflowOwnedVideoHighlightStageCustodyV1,
 } from '../desktop/assistance-workflow-owned-video-highlight-stage-runtime.ts';
+import { createAssistanceHeldFramePlanStoreV1 } from
+	'../desktop/assistance-held-frame-plan-store.ts';
 import { openAssistanceOnnxVisualFrameSourceV1 } from
 	'../desktop/assistance-onnx-visual-frame-source.ts';
 import type {
@@ -70,14 +72,22 @@ test('the main bridge executes all seven closed transforms through authenticated
 					dimensions: 2, vectors: [[1, 0]],
 				}),
 			},
-			});
-			const materializer = {
-				materializeFramePack: ({ plan }: Readonly<{ plan: AssistanceOwnedFramePackPlanV1 }>) =>
-					[createAssistanceFramePackV1({ width: plan.width, height: plan.height,
-						timescale: plan.timescale, frames: plan.frames.map((frame) => ({
-							sourceFrame: frame.sourceFrame, presentationTick: frame.presentationTick,
-							rgba: Uint8Array.of(1, 2, 3, 255),
-						})) })],
+		});
+		const originalVideoPath = index.inputPath('sample-shot-frames', 'video');
+		let decodedVideoPath = '';
+		const materializer = {
+			materializeFramePack: async ({ plan, source }: Readonly<{ plan: AssistanceOwnedFramePackPlanV1;
+				source: { path: string } }>) => {
+				decodedVideoPath = source.path;
+				assert.notEqual(source.path, originalVideoPath);
+				await writeFile(originalVideoPath, Uint8Array.of(9, 9, 9, 9, 9, 9, 9, 9));
+				assert.deepEqual([...await readFile(source.path)], [0, 0, 0, 20, 102, 116, 121, 112]);
+				return [createAssistanceFramePackV1({ width: plan.width, height: plan.height,
+					timescale: plan.timescale, frames: plan.frames.map((frame) => ({
+						sourceFrame: frame.sourceFrame, presentationTick: frame.presentationTick,
+						rgba: Uint8Array.of(1, 2, 3, 255),
+					})) })];
+			},
 			resolveVisualTags: ({ plan }: Readonly<{ plan: AssistanceOwnedFramePackPlanV1 }>) =>
 				({ matrix: createAssistanceEmbeddingMatrixV1({ dimensions: 2, vectors: [[1, 0]] }),
 					tags: plan.frames.map(({ resultId }) => ({ resultId, tags: [] })) }),
@@ -88,6 +98,7 @@ test('the main bridge executes all seven closed transforms through authenticated
 		assert.deepEqual(await indexHandlers['sample-shot-frames'](
 			index.execution('sample-shot-frames'),
 		), { outcome: 'completed' });
+		await assert.rejects(stat(decodedVideoPath));
 		const frameBytes = await readFile(index.outputPath('sample-shot-frames', 'frame-pack'));
 		const reviewedFrames = reviewAssistanceVisualFramePackInventory(frameBytes);
 		assert.equal(reviewedFrames.length, 1);
@@ -159,6 +170,67 @@ test('shot sampling is typed unavailable without real RGBA materialization', asy
 		assert.equal(harness.openCount, 0);
 		assert.deepEqual(harness.authenticated, []);
 		await assert.rejects(stat(harness.outputPath('sample-shot-frames', 'frame-pack')));
+	});
+});
+
+test('held frame-plan custody is one-shot, abort-safe, and evicts stale capacity', () => {
+	const store = createAssistanceHeldFramePlanStoreV1<object>(2);
+	const firstSignal = new AbortController();
+	assert.equal(store.reserve('job-a', 'identity-a')!.commit({ plan: 'a' }, firstSignal.signal), true);
+	assert.equal(store.size, 1);
+	firstSignal.abort();
+	assert.equal(store.size, 0);
+
+	const second = { plan: 'b' };
+	assert.equal(store.reserve('job-b', 'identity-b')!.commit(second,
+		new AbortController().signal), true);
+	assert.equal(store.take('job-b', 'wrong-identity'), null);
+	assert.equal(store.take('job-b', 'identity-b'), second);
+	assert.equal(store.take('job-b', 'identity-b'), null);
+
+	for (const suffix of ['c', 'd']) {
+		assert.equal(store.reserve(`job-${suffix}`, `identity-${suffix}`)!.commit({ plan: suffix },
+			new AbortController().signal), true);
+	}
+	const replacement = store.reserve('job-e', 'identity-e');
+	assert.ok(replacement, 'one stale held plan must be evicted instead of leaking the capacity cap');
+	replacement.release();
+	assert.equal(store.take('job-c', 'identity-c'), null);
+	assert.deepEqual(store.take('job-d', 'identity-d'), { plan: 'd' });
+});
+
+test('failed video-index publication consumes its exact held frame plan', async () => {
+	await withDirectory(async (directory) => {
+		const video = Uint8Array.of(0, 0, 0, 20, 102, 116, 121, 112);
+		const settings = defaultAssistanceWorkflowSettingsV1('index-video');
+		if (settings.workflowId !== 'index-video') assert.fail('Index settings changed identity.');
+		const harness = await workflowHarness(directory, 'index-video', { settings: {
+			...settings, includeOcr: false,
+		}, bodies: {
+			'sample-shot-frames:video': video,
+			'sample-shot-frames:video-authority': selectedVideoAuthority(digest(video)),
+			'sample-shot-frames:shot-boundaries': shotBoundaries(),
+			'publish-video-index:visual-embeddings': createAssistanceEmbeddingMatrixV1({
+				dimensions: 2, vectors: [[1, 0]],
+			}),
+		} });
+		const handlers = createAssistanceWorkflowOwnedVideoHighlightStageRuntime({
+			custody: harness.custody,
+			materializer: {
+				materializeFramePack: ({ plan }) => [createAssistanceFramePackV1({ width: plan.width,
+					height: plan.height, timescale: plan.timescale,
+					frames: plan.frames.map(({ sourceFrame, presentationTick }) => ({ sourceFrame,
+						presentationTick, rgba: Uint8Array.of(0, 0, 0, 255) })) })],
+				resolveVisualTags() { throw new Error('fixture tag failure'); },
+			},
+		});
+		assert.deepEqual(await handlers['sample-shot-frames'](
+			harness.execution('sample-shot-frames')), { outcome: 'completed' });
+		await assert.rejects(async () => await handlers['publish-video-index'](
+			harness.execution('publish-video-index')), /fixture tag failure/u);
+		assert.deepEqual(await handlers['publish-video-index'](
+			harness.execution('publish-video-index')),
+		{ outcome: 'unavailable', reason: 'stage-unavailable' });
 	});
 });
 
