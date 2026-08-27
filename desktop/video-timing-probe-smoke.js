@@ -27,7 +27,7 @@ const EXPECTED_FIXTURES = Object.freeze([
 		kind: 'vfr',
 		name: 'timing-probe-vfr-irregular.webm',
 		sourceSha256: '29042248295aa6bfbf7adc0e15a2cfecf716279452073f7410734251aed31ae4',
-		nominalRate: Object.freeze({ num: 35, den: 2 }),
+		nominalRate: Object.freeze({ num: 250, den: 29 }),
 		timescale: 1_000,
 		presentationTicks: Object.freeze(['0', '30', '200', '245', '542', '602', '830', '879']),
 		finalFrameDurationTicks: '49',

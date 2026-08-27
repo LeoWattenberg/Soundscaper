@@ -18,9 +18,9 @@ const DESKTOP_VIDEO_EXPORT_CAPABILITIES = Object.freeze({
 	}),
 });
 
-test('browser video export prepares early and streams exact MP4 and WebM outputs directly', async () => {
+test('desktop composed video export streams exact MP4 and WebM outputs directly', async () => {
 	for (const format of ['mp4', 'webm'] as const) {
-		const fixture = createFixture({ format });
+		const fixture = createDesktopFixture({ format });
 		const result = await fixture.exportVideo({ format: `video-${format}` });
 
 		assert.deepEqual(result, {
@@ -28,10 +28,12 @@ test('browser video export prepares early and streams exact MP4 and WebM outputs
 			fileName: `Direct-video.${format}`,
 			mimeType: `video/${format}`,
 			size: 4,
-			method: 'file-system-access',
+			method: 'desktop',
 		});
-		assertOrder(fixture.events, ['plan', 'prepare', 'preflight', 'load', 'render-audio', 'encode-sink']);
-		assertOrder(fixture.events, ['encode-sink', 'open:4:exact', 'write:2', 'write:2', 'seal', 'commit']);
+		assertOrder(fixture.events, ['plan', 'preflight', 'load', 'render-audio', 'encode-sink']);
+		assertOrder(fixture.events, [
+			'encode-sink', 'prepare', 'open:4:exact', 'write:2', 'write:2', 'seal', 'commit',
+		]);
 		assert.equal(fixture.events.includes('encode-bytes'), false);
 		assert.equal(fixture.events.includes('download'), false);
 		assert.deepEqual(fixture.prepareRequests, [{
@@ -49,7 +51,7 @@ test('browser video export prepares early and streams exact MP4 and WebM outputs
 });
 
 test('desktop video export selects its target only from sink open after FFmpeg stats output', async () => {
-	const fixture = createFixture({ desktop: true });
+	const fixture = createDesktopFixture();
 	const result = await fixture.exportVideo();
 
 	assert.equal(result?.method, 'desktop');
@@ -59,7 +61,7 @@ test('desktop video export selects its target only from sink open after FFmpeg s
 });
 
 test('desktop video export refuses unavailable formats before project preparation or publication work', async () => {
-	const fixture = createFixture({ desktop: true, desktopVideoCapabilities: null });
+	const fixture = createDesktopFixture({ desktopVideoCapabilities: null });
 
 	await assert.rejects(fixture.exportVideo(), /Edit > Preferences > General/u);
 	assert.deepEqual(fixture.events, []);
@@ -67,7 +69,7 @@ test('desktop video export refuses unavailable formats before project preparatio
 
 test('desktop late chooser cancellation returns silently without publication', async () => {
 	const cancellation = Object.freeze({ mode: 'cancelled', cancelled: true, fileName: 'Direct-video.mp4' });
-	const fixture = createFixture({ desktop: true, prepared: cancellation });
+	const fixture = createDesktopFixture({ prepared: cancellation });
 	const result = await fixture.exportVideo();
 
 	assert.strictEqual(result, cancellation);
@@ -77,25 +79,29 @@ test('desktop late chooser cancellation returns silently without publication', a
 	assert.equal(fixture.errors.length, 0);
 });
 
-test('browser early picker cancellation returns silently before any encode work', async () => {
+test('browser composed export fails closed before picker or encoder work', async () => {
 	const cancellation = Object.freeze({ mode: 'cancelled', cancelled: true, fileName: 'Direct-video.mp4' });
 	const fixture = createFixture({ prepared: cancellation });
 	const result = await fixture.exportVideo();
 
-	assert.strictEqual(result, cancellation);
+	assert.equal(result, null);
+	assert.equal((fixture.errors[0] as { code?: unknown }).code, 'BROWSER_VIDEO_ENCODER_UNAVAILABLE');
+	assert.match((fixture.errors[0] as Error).message, /only a keyed frame delivery/iu);
+	assert.equal(fixture.events.includes('prepare'), false);
 	assert.equal(fixture.events.includes('encode-sink'), false);
 	assert.equal(fixture.events.includes('encode-bytes'), false);
 	assert.equal(fixture.events.includes('download'), false);
-	assert.equal(fixture.errors.length, 0);
+	assert.equal(fixture.errors.length, 1);
 });
 
-test('prepared Blob mode preserves legacy whole-byte video publication', async () => {
-	const fixture = createFixture({ prepared: Object.freeze({ mode: 'blob' }) });
+test('desktop composed export without a direct target preserves whole-byte publication', async () => {
+	const fixture = createDesktopFixture({ directTarget: false });
 	const result = await fixture.exportVideo();
 
 	assert.equal(result?.url, 'blob:legacy-video');
 	assert.equal(result?.method, 'object-url');
-	assertOrder(fixture.events, ['plan', 'prepare', 'load', 'render-audio', 'encode-bytes', 'download']);
+	assertOrder(fixture.events, ['plan', 'load', 'render-audio', 'encode-bytes', 'download']);
+	assert.equal(fixture.events.includes('prepare'), false);
 	assert.equal(fixture.events.includes('encode-sink'), false);
 	assert.equal(fixture.downloads.length, 1);
 	assert.ok(fixture.downloads[0]?.blob instanceof Blob);
@@ -103,7 +109,7 @@ test('prepared Blob mode preserves legacy whole-byte video publication', async (
 });
 
 test('direct video publication cleans prior output, closes before commit, and tolerates ownership loss during commit', async () => {
-	const fixture = createFixture({
+	const fixture = createDesktopFixture({
 		priorOutput: true,
 		onCommit() { fixture.state.disposed = true; },
 	});
@@ -117,7 +123,7 @@ test('direct video publication cleans prior output, closes before commit, and to
 });
 
 test('direct video rejects plan drift and count disagreement with one rollback and no commit', async (context) => {
-	const drift = createFixture({
+	const drift = createDesktopFixture({
 		afterOpen(plan) { plan.mimeType = 'video/webm'; },
 	});
 	assert.equal(await drift.exportVideo(), null);
@@ -125,7 +131,7 @@ test('direct video rejects plan drift and count disagreement with one rollback a
 	assert.equal(drift.events.filter((event) => event === 'abort').length, 1);
 	assert.equal(drift.events.includes('commit'), false);
 
-	const counts = createFixture({ emittedByteLength: 3 });
+	const counts = createDesktopFixture({ emittedByteLength: 3 });
 	assert.equal(await counts.exportVideo(), null);
 	assert.match((counts.errors[0] as Error).message, /byte count|byte length/iu);
 	assert.equal(counts.events.filter((event) => event === 'abort').length, 1);
@@ -152,7 +158,7 @@ test('direct video rejects plan drift and count disagreement with one rollback a
 
 test('direct video declines stale, aliased, and underspecified plans before target preparation', async () => {
 	for (const invalidPlan of ['legacy', 'alias', 'underspecified'] as const) {
-		const fixture = createFixture({ invalidPlan });
+		const fixture = createDesktopFixture({ invalidPlan });
 		const result = await fixture.exportVideo();
 		assert.equal(result?.method, 'object-url');
 		assert.equal(fixture.events.includes('prepare'), false);
@@ -164,7 +170,7 @@ test('direct video declines stale, aliased, and underspecified plans before targ
 test('direct video write and close failures roll back once and aggregate cleanup failure', async () => {
 	for (const failure of ['write', 'close'] as const) {
 		const primary = new Error(`${failure} failed`);
-		const fixture = createFixture({ [failure === 'write' ? 'writeFailure' : 'closeFailure']: primary });
+		const fixture = createDesktopFixture({ [failure === 'write' ? 'writeFailure' : 'closeFailure']: primary });
 		assert.equal(await fixture.exportVideo(), null);
 		assert.strictEqual(fixture.errors[0], primary);
 		assert.equal(fixture.events.filter((event) => event === 'abort').length, 1);
@@ -174,7 +180,7 @@ test('direct video write and close failures roll back once and aggregate cleanup
 
 	const primary = new Error('write failed');
 	const cleanup = new Error('abort failed');
-	const aggregate = createFixture({ writeFailure: primary, abortFailure: cleanup });
+	const aggregate = createDesktopFixture({ writeFailure: primary, abortFailure: cleanup });
 	assert.equal(await aggregate.exportVideo(), null);
 	assert.ok(aggregate.errors[0] instanceof AggregateError);
 	assert.deepEqual((aggregate.errors[0] as AggregateError).errors, [primary, cleanup]);
@@ -182,7 +188,7 @@ test('direct video write and close failures roll back once and aggregate cleanup
 	assert.equal(aggregate.events.includes('commit'), false);
 	assert.equal(aggregate.events.includes('download'), false);
 
-	const synchronous = createFixture({
+	const synchronous = createDesktopFixture({
 		writeFailure: primary, abortFailure: cleanup, abortSynchronously: true,
 	});
 	assert.equal(await synchronous.exportVideo(), null);
@@ -193,7 +199,7 @@ test('direct video write and close failures roll back once and aggregate cleanup
 
 test('direct video commit failure rolls back the destination without stale publication', async () => {
 	const primary = new Error('commit failed');
-	const fixture = createFixture({ commitFailure: primary });
+	const fixture = createDesktopFixture({ commitFailure: primary });
 	assert.equal(await fixture.exportVideo(), null);
 	assert.strictEqual(fixture.errors[0], primary);
 	assertOrder(fixture.events, ['seal', 'commit', 'abort']);
@@ -201,7 +207,7 @@ test('direct video commit failure rolls back the destination without stale publi
 	assert.equal(fixture.events.includes('download'), false);
 
 	const cleanup = new Error('abort failed');
-	const aggregate = createFixture({ commitFailure: primary, abortFailure: cleanup });
+	const aggregate = createDesktopFixture({ commitFailure: primary, abortFailure: cleanup });
 	assert.equal(await aggregate.exportVideo(), null);
 	assert.ok(aggregate.errors[0] instanceof AggregateError);
 	assert.deepEqual((aggregate.errors[0] as AggregateError).errors, [primary, cleanup]);
@@ -210,12 +216,12 @@ test('direct video commit failure rolls back the destination without stale publi
 });
 
 test('rendered-fallback integrity admission precedes direct target preparation and supplies verified media', async () => {
-	const fixture = createFixture({ renderedFallback: true });
+	const fixture = createDesktopFixture({ renderedFallback: true });
 	const result = await fixture.exportVideo();
 
-	assert.equal(result?.method, 'file-system-access');
+	assert.equal(result?.method, 'desktop');
 	assertOrder(fixture.events, [
-		'projection', 'integrity', 'integrity-current', 'integrity-blob', 'plan', 'prepare', 'encode-sink',
+		'projection', 'integrity', 'integrity-current', 'integrity-blob', 'plan', 'encode-sink', 'prepare',
 	]);
 	assert.equal(fixture.events.includes('load'), false, 'the verified fallback body bypasses ordinary storage loading');
 	assert.strictEqual(fixture.encodedVideoBlobs.get('fallback-video'), fixture.verifiedFallbackBlob);
@@ -229,6 +235,7 @@ interface FixtureOptions {
 	readonly commitFailure?: Error;
 	readonly desktop?: boolean;
 	readonly desktopVideoCapabilities?: unknown;
+	readonly directTarget?: boolean;
 	readonly emittedByteLength?: number;
 	readonly format?: Format;
 	readonly invalidPlan?: 'legacy' | 'alias' | 'underspecified';
@@ -323,7 +330,7 @@ function createFixture(options: FixtureOptions = {}) {
 					? DESKTOP_VIDEO_EXPORT_CAPABILITIES
 					: options.desktopVideoCapabilities;
 			},
-			async prepareSave(request: Record<string, unknown>) {
+			prepareSave: options.directTarget === false ? undefined : async (request: Record<string, unknown>) => {
 				events.push('prepare');
 				const { signal: _signal, ...captured } = request;
 				prepareRequests.push(captured);
@@ -381,6 +388,10 @@ function createFixture(options: FixtureOptions = {}) {
 		events, errors, statuses, prepareRequests, downloads, encodedVideoBlobs, verifiedFallbackBlob, state,
 		exportVideo: createEditorVideoExportAction(runtime, renderSnapshot),
 	};
+}
+
+function createDesktopFixture(options: Omit<FixtureOptions, 'desktop'> = {}) {
+	return createFixture({ ...options, desktop: true });
 }
 
 interface DirectSink {

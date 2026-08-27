@@ -20,6 +20,7 @@ const CASES = Object.freeze({
 		'renders a local WAV mix when OfflineAudioContext is available',
 		'falls back to bounded realtime WAV rendering without OfflineAudioContext',
 		'validates export choices and cancels a realtime render',
+		'generates a complete MP3 with the dedicated browser codec',
 	],
 });
 

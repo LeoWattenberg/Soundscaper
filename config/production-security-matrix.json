@@ -1428,9 +1428,10 @@
 				},
 				{
 					"id": "video-rendered-fallback-export",
-					"summary": "Exact schema-17 rendered-fallback admission still authenticates the selected relationship, source, body geometry, and SHA-256 into private immutable providers without changing the canonical project. A verified video fallback may enter only a separately governed delivery route. In the production browser, only an exact keyed-frame delivery with an admitted WebCodecs configuration uses the native MP4/WebM encoder and Mediabunny muxer; composed-graph or otherwise unsupported browser delivery returns typed unavailability and never falls back to FFmpeg WebAssembly. Desktop delivery retains its separately governed external provider. Task, generation, operation, and relationship currentness plus AbortSignal fence verification, rendering, selected encoding, and publication. This control adds no codec, browser, packaged-runtime, range-transport, reference-scale, or whole-handoff atomicity qualification.",
+					"summary": "Exact schema-17 rendered-fallback admission still authenticates the selected relationship, source, body geometry, and SHA-256 into private immutable providers without changing the canonical project. The operation-time selector binds the relationship role, optional target clip ID, source ID, and SHA-256 together with requirement and feature identity. The video-clip-render-v1 branch replaces only its selected target during ordinary video composition or export while the canonical project, history, and save state remain unchanged. A verified video fallback may enter only a separately governed delivery route. In the production browser, only an exact keyed-frame delivery with an admitted WebCodecs configuration uses the native MP4/WebM encoder and Mediabunny muxer; composed-graph or otherwise unsupported browser delivery returns typed unavailability and never falls back to FFmpeg WebAssembly. Desktop delivery retains its separately governed external provider. Task, generation, operation, and relationship currentness plus AbortSignal fence verification, rendering, selected encoding, and publication. This control adds no codec, browser, packaged-runtime, range-transport, reference-scale, or whole-handoff atomicity qualification.",
 					"evidence": [
 						{ "kind": "implementation", "path": "src/common/editor/project-feature-video-rendered-fallback.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/project-fallback-integrity-snapshot.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/project-fallback-integrity-video.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/video-rendered-fallback-export.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/video-export-service.ts" },
@@ -1438,6 +1439,9 @@
 						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-video-encoder.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-mediabunny-execution.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-video-rendered-fallback-export.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-project-fallback-integrity-relationships.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-video-rendered-fallback-delivery-projection.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-video-clip-fallback-export-regression.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-mixed-rendered-fallback-video-export.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-video-delivery-encoder-tier.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-video-keyframe-mediabunny-execution.test.ts" },

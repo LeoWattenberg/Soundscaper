@@ -8,6 +8,7 @@
  */
 
 import { type ExportServiceRuntime } from '../../src/common/editor/controller/export-service.ts';
+import type { FfmpegOutputSink } from '../../src/common/editor/ffmpeg-output-stream.ts';
 import { encodeAiff } from '../../src/common/editor/aiff.js';
 import { encodeWav } from '../../src/common/editor/wav.js';
 
@@ -407,4 +408,26 @@ export function createFixture() {
 		setRealtimeThrows: (value: boolean) => { realtimeThrows = value; },
 		setSinkPersistent: (value: boolean) => { sinkPersistent = value; },
 	};
+}
+
+export function legacyVideoFfmpegFixture(events: string[]) {
+	return Object.freeze({
+		async encodeVideo(
+			_videoBlobs: unknown,
+			_audioMix: unknown,
+			plan: Readonly<{ mimeType: string }>,
+		) {
+			events.push('legacy-encode');
+			return { bytes: Uint8Array.of(1, 2, 3, 4), mimeType: plan.mimeType };
+		},
+		async encodeVideoToSink(
+			_videoBlobs: unknown, _audioMix: unknown,
+			plan: Readonly<{ extension: string; mimeType: string }>, sink: FfmpegOutputSink<unknown>,
+		) {
+			events.push('legacy-encode');
+			await sink.open(4); await sink.write(Uint8Array.of(1, 2, 3, 4));
+			const output = await sink.close();
+			return { output, byteLength: 4, chunkCount: 1, extension: `.${plan.extension}`, mimeType: plan.mimeType };
+		},
+	});
 }

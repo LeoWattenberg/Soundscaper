@@ -42,6 +42,7 @@ interface ExportSource {
 }
 
 interface ExportFixtureOptions {
+	readonly desktop?: boolean;
 	readonly fallback?: boolean;
 	readonly outputCleanup?: () => Promise<void> | void;
 	readonly verify?: (
@@ -228,6 +229,14 @@ function createFixture(options: ExportFixtureOptions = {}) {
 			},
 		},
 		fileService: {
+			isDesktop: options.desktop !== false,
+			getDesktopVideoExportCapabilities: () => Object.freeze({
+				schemaVersion: 1,
+				formats: Object.freeze({
+					mp4: Object.freeze({ available: true, provider: 'external-ffmpeg', reason: null }),
+					webm: Object.freeze({ available: true, provider: 'external-ffmpeg', reason: null }),
+				}),
+			}),
 			async createDownload(request: unknown) {
 				events.push('download');
 				downloads.push(request);
@@ -340,6 +349,18 @@ test('video export verifies and uses only the rendered fallback while retaining 
 	assert.ok(fixture.events.indexOf('integrity-current') < fixture.events.indexOf('plan'));
 	assert.ok(fixture.events.indexOf('integrity-blob') < fixture.events.indexOf('plan'));
 	assert.ok(fixture.events.indexOf('render-audio') < fixture.events.indexOf('encode-video'));
+});
+
+test('browser composed fallback delivery refuses instead of reviving FFmpeg', async () => {
+	const fixture = createFixture({ desktop: false });
+	const result = await createEditorExportService(fixture.runtime).exportVideo();
+
+	assert.equal(result, null);
+	assert.match((fixture.errors[0] as Error).message, /only a keyed frame delivery/iu);
+	assert.deepEqual(fixture.loadedStorageKeys, []);
+	assert.deepEqual(fixture.encodedPlans, []);
+	assert.deepEqual(fixture.downloads, []);
+	assert.equal(fixture.events.includes('encode-video'), false);
 });
 
 test('video fallback integrity refusal happens before planning, body loading, encoding, or publication', async () => {

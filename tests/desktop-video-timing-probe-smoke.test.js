@@ -148,7 +148,9 @@ test('packaged timing probe admits each backend against the rate that backend re
 
 	assert.throws(() => validateDesktopVideoTimingProbeResult(timingResult(plan, 'guessed'), plan),
 		/decision does not match/iu);
-	assert.throws(() => validateDesktopVideoTimingProbeResult(timingResult(plan, 'container'), plan),
+	assert.throws(() => validateDesktopVideoTimingProbeResult(timingResult(plan, 'container', {
+		'vfr-irregular-webm-v1': { num: 35, den: 2 },
+	}), plan),
 		/decision does not match/iu);
 });
 
@@ -172,17 +174,20 @@ test('packaged timing-probe emits bounded path-free evidence after exact validat
 			databaseName: 'kw-media-framescaper-editor-v31',
 			opfsDirectoryName: 'framescaper-editor-v31-sources',
 		},
-		fixtures: plan.fixtures.map((fixture) => ({
-			id: fixture.id,
-			kind: fixture.kind,
-			name: fixture.name,
-			sourceSha256: fixture.sourceSha256,
-			frameRate: fixture.nominalRate,
-			sourceFrameCount: fixture.presentationTicks.length,
-			timingDecision: { mode: 'exact', backend: 'ffmpeg', rate: fixture.nominalRate },
-			timingAsset: timingResult(plan).fixtures.find(({ id }) => id === fixture.id).timingAsset,
-			presentationTicks: fixture.presentationTicks,
-		})),
+		fixtures: plan.fixtures.map((fixture) => {
+			const observation = result.fixtures.find(({ id }) => id === fixture.id);
+			return {
+				id: fixture.id,
+				kind: fixture.kind,
+				name: fixture.name,
+				sourceSha256: fixture.sourceSha256,
+				frameRate: observation.frameRate,
+				sourceFrameCount: fixture.presentationTicks.length,
+				timingDecision: observation.timingDecision,
+				timingAsset: observation.timingAsset,
+				presentationTicks: fixture.presentationTicks,
+			};
+		}),
 	});
 	const encoded = formatDesktopVideoTimingProbeEvidence(evidence);
 	assert.deepEqual(JSON.parse(encoded), evidence);
@@ -491,7 +496,10 @@ function timingResult(plan, backend = 'ffmpeg', rates = null) {
 		token: plan.token,
 		fixtures: plan.fixtures.map((fixture) => {
 			const bytes = timingBytes(fixture);
-			const rate = rates?.[fixture.id] ?? fixture.nominalRate;
+			const rate = rates?.[fixture.id] ?? (backend === 'ffmpeg'
+				&& fixture.id === 'vfr-irregular-webm-v1'
+				? { num: 35, den: 2 }
+				: fixture.nominalRate);
 			return {
 				id: fixture.id,
 				name: fixture.name,

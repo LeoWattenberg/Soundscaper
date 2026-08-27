@@ -26,15 +26,14 @@ const mappedClip = Object.freeze({
 	sourceInFrame: 0, sourceFrameCount: 3,
 });
 
-test('video export verifies and registers exact timing before synchronous planning', async () => {
-	const fixture = createFixture(blobFromBytes(publication.bytes));
-	const cancelled = await fixture.exportVideo();
+test('composed browser export releases verified timing when native encoding fails closed', async () => {
+	const fixture = createFixture(blobFromBytes(publication.bytes), false);
 
-	assert.equal(cancelled?.cancelled, true);
-	assert.deepEqual(fixture.events, ['timing-load', 'plan', 'prepare']);
+	assert.equal(await fixture.exportVideo(), null);
+	assert.deepEqual(fixture.events, ['timing-load', 'plan']);
 	assert.equal(fixture.plannedSourceFrame, 1.75);
 	assert.equal(mappedSourceFrame(fixture.source), 1.5, 'export releases its timing registration after planning');
-	assert.deepEqual(fixture.errors, []);
+	assert.match((fixture.errors[0] as Error).message, /only a keyed frame delivery/iu);
 });
 
 test('video export rejects corrupt exact timing before plan construction', async () => {
@@ -49,7 +48,7 @@ test('video export rejects corrupt exact timing before plan construction', async
 });
 
 test('video export restores an independently registered preview timing index', async () => {
-	const fixture = createFixture(blobFromBytes(publication.bytes));
+	const fixture = createFixture(blobFromBytes(publication.bytes), true);
 	registerVideoTimingIndex(fixture.source, {
 		timescale: 1_000,
 		frameCount: 3,
@@ -66,7 +65,7 @@ test('video export restores an independently registered preview timing index', a
 	}
 });
 
-function createFixture(timingBlob: Blob) {
+function createFixture(timingBlob: Blob, desktop = false) {
 	const events: string[] = [];
 	const errors: unknown[] = [];
 	let plannedSourceFrame: number | null = null;
@@ -109,9 +108,24 @@ function createFixture(timingBlob: Blob) {
 			return videoPlan();
 		},
 		encodeWav: () => new Uint8Array(),
-		ffmpeg: {},
+		ffmpeg: {
+			async encodeVideoToSink(
+				_videoBlobs: unknown, _audioMix: unknown, _plan: unknown,
+				sink: Readonly<{ open(byteLength: number): Promise<void> }>,
+			) {
+				await sink.open(4);
+				throw new Error('The cancelled desktop destination must stop encoding.');
+			},
+		},
 		fileService: {
-			isDesktop: false,
+			isDesktop: desktop,
+			getDesktopVideoExportCapabilities: () => Object.freeze({
+				schemaVersion: 1,
+				formats: Object.freeze({
+					mp4: Object.freeze({ available: true, provider: 'external-ffmpeg', reason: null }),
+					webm: Object.freeze({ available: true, provider: 'external-ffmpeg', reason: null }),
+				}),
+			}),
 			prepareSave() {
 				events.push('prepare');
 				return Object.freeze({ mode: 'cancelled', cancelled: true });
@@ -138,6 +152,10 @@ function createFixture(timingBlob: Blob) {
 		state,
 		store: {
 			async loadMediaAsset(storageKey: string) {
+				if (storageKey === 'video-storage') {
+					events.push('video-load');
+					return new Blob([Uint8Array.of(1)], { type: 'video/mp4' });
+				}
 				assert.equal(storageKey, publication.reference.storageKey);
 				events.push('timing-load');
 				return timingBlob;

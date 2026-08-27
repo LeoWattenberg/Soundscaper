@@ -18,8 +18,11 @@ import { createVideoKeyframeExportPlanV7 } from '../src/common/editor/video-keyf
 import { registeredVideoTimingIndex } from '../src/common/editor/video-source-time.ts';
 import { createVideoTimingAssetPublication } from '../src/common/editor/video-timing-asset.ts';
 import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from '../src/common/editor/video-export-plan-version.ts';
-import { createFixture as createExportServiceFixture } from './helpers/export-service-fixture.ts';
-import { withWebCodecsSupport } from './helpers/webcodecs-test-environment.ts';
+import {
+	createFixture as createExportServiceFixture,
+	legacyVideoFfmpegFixture,
+} from './helpers/export-service-fixture.ts';
+import { installWebCodecsSupport } from './helpers/webcodecs-test-environment.ts';
 
 const SAMPLE_RATE = 48_000;
 const ACTIVE_SOURCE_ID = 'active-video';
@@ -36,7 +39,9 @@ const OFF_RANGE_TIMING_PUBLICATION = createVideoTimingAssetPublication(OFF_RANGE
 	presentationTicks: [0n, 200n, 350n],
 	finalFrameDurationTicks: 150n,
 });
-
+let restoreWebCodecs: () => void;
+test.beforeEach(() => { restoreWebCodecs = installWebCodecsSupport(); });
+test.afterEach(() => { restoreWebCodecs(); });
 test('keyed strategy plans before exact timing and excludes off-range timing media', async () => {
 	const fixture = createFixture({ mode: 'blob' });
 	const result = await fixture.exportVideo({
@@ -103,14 +108,16 @@ test('keyed strategy releases exact timing and publishes nothing after encoder f
 	assert.equal(registeredVideoTimingIndex(fixture.activeSource), undefined);
 });
 
-test('a static product range preserves the unchanged legacy V6 encoder path', async () => {
-	const fixture = createFixture({ mode: 'blob', staticRange: true });
+test('a desktop static product range preserves the legacy V6 FFmpeg encoder path', async () => {
+	const fixture = createFixture({ mode: 'direct', staticRange: true, desktop: true });
 	const result = await fixture.exportVideo({ format: 'video-mp4' });
 
-	assert.equal(result?.url, 'blob:keyed-video');
+	assert.deepEqual(result, {
+		url: null, fileName: 'Keyed-video.mp4', mimeType: 'video/mp4', size: 4, method: 'file-system-access',
+	});
 	assertOrder(fixture.events, [
 		'product-plan', 'active-timing-load', 'off-range-timing-load',
-		'legacy-plan', 'prepare', 'legacy-encode', 'download',
+		'legacy-plan', 'legacy-encode', 'prepare', 'open:4:exact', 'write:4', 'seal', 'commit',
 	]);
 	assert.equal(fixture.events.includes('product-encode'), false);
 	assert.equal(fixture.events.includes('product-encode-sink'), false);
@@ -129,7 +136,7 @@ test('common strategy rejects missing, duplicate, and accessor active source IDs
 
 test('common strategy preserves video format aliases and refuses unsupported formats', async () => {
 	for (const staticRange of [false, true]) {
-		const fixture = createFixture({ mode: 'blob', staticRange, cancelPreparation: true });
+		const fixture = createFixture({ mode: 'blob', staticRange, cancelPreparation: true, desktop: staticRange });
 		assert.equal((await fixture.exportVideo({ format: 'video-vp9' }))?.cancelled, true);
 		assert.ok(fixture.events.includes('product-format:webm'));
 		if (staticRange) assert.ok(fixture.events.includes('legacy-format:webm'));
@@ -141,14 +148,12 @@ test('common strategy preserves video format aliases and refuses unsupported for
 });
 
 test('desktop keyed delivery stays on external FFmpeg when WebCodecs is available', async () => {
-	await withWebCodecsSupport(async () => {
-		const browser = createFixture({ mode: 'blob' }); await browser.exportVideo({ format: 'video-mp4' });
-		assert.ok(browser.events.includes('product-encoder:webcodecs'));
-		const desktop = createFixture({ mode: 'direct', desktop: true });
-		await desktop.exportVideo({ format: 'video-mp4' });
-		assert.ok(desktop.events.includes('product-encoder:ffmpeg'));
-		assert.equal(desktop.events.includes('product-encoder:webcodecs'), false);
-	});
+	const browser = createFixture({ mode: 'blob' }); await browser.exportVideo({ format: 'video-mp4' });
+	assert.ok(browser.events.includes('product-encoder:webcodecs'));
+	const desktop = createFixture({ mode: 'direct', desktop: true });
+	await desktop.exportVideo({ format: 'video-mp4' });
+	assert.ok(desktop.events.includes('product-encoder:ffmpeg'));
+	assert.equal(desktop.events.includes('product-encoder:webcodecs'), false);
 });
 test('product picture authority exports stills and generators without fake video timing or audio', async () => {
 	for (const kind of ['still', 'generator'] as const) {
@@ -209,7 +214,7 @@ function createPictureOnlyFixture(kind: 'still' | 'generator', withAudio: boolea
 		audioMix?: Blob | null;
 	} = {};
 	const plan: ProductVideoExportPlan = Object.freeze({
-		version: 13, format: 'mp4', extension: 'mp4', mimeType: 'video/mp4',
+		version: 13, format: 'mp4', extension: 'mp4', mimeType: 'video/mp4', sampleRate: SAMPLE_RATE, quality: 'balanced',
 		range: Object.freeze({ startFrame: 0, endFrame: SAMPLE_RATE, durationFrames: SAMPLE_RATE }),
 		canvas: Object.freeze({
 			width: 640, height: 360, frameRate: Object.freeze({ num: 1, den: 1 }),
@@ -434,12 +439,7 @@ function createFixture(options: FixtureOptions) {
 			return legacyPlan();
 		},
 		encodeWav: () => Uint8Array.of(0x52, 0x49, 0x46, 0x46),
-		ffmpeg: {
-			async encodeVideo() {
-				events.push('legacy-encode');
-				return { bytes: Uint8Array.of(1, 2, 3, 4), mimeType: 'video/mp4' };
-			},
-		},
+		ffmpeg: legacyVideoFfmpegFixture(events),
 		fileService: {
 			isDesktop: options.desktop === true,
 			getDesktopVideoExportCapabilities: () => Object.freeze({

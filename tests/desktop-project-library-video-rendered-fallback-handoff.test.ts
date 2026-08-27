@@ -25,6 +25,7 @@ import { createProjectStore, type AudioEditorProjectStore } from '../src/common/
 import type { DesktopSharedProjectBridge } from '../src/common/editor/storage/desktop-shared-project-repository.ts';
 import type { EditorController } from '../src/common/editor/types.ts';
 import { createVideoEffect } from '../src/common/editor/video-effects.js';
+import { availableDesktopVideoExportCapabilities } from './helpers/desktop-video-export-capabilities.js';
 
 const ORIGINAL_BYTES = Uint8Array.of(0, 0, 0, 24, 102, 116, 121, 112, 111, 114, 105, 103);
 const FALLBACK_BYTES = Uint8Array.of(0, 0, 0, 24, 102, 116, 121, 112, 102, 97, 108, 108);
@@ -66,7 +67,7 @@ interface VideoExportCall {
 	readonly plan: Readonly<Record<string, unknown>>;
 }
 
-test('fresh Soundscaper acquires, plays, and delivers an unknown whole-project video fallback', async (context) => {
+test('fresh desktop Soundscaper acquires, plays, and delivers an unknown whole-project video fallback', async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'scape-video-fallback-handoff-'));
 	const resources = trackResources(context, appDataPath);
 	const fixture = fallbackProjectFixture();
@@ -376,7 +377,8 @@ function createVideoExportProbe() {
 			dispose() {},
 		}),
 		fileService: Object.freeze({
-			isDesktop: false,
+			isDesktop: true,
+			getDesktopVideoExportCapabilities: availableDesktopVideoExportCapabilities,
 			async createDownload(request: Readonly<{ purpose?: unknown; suggestedName?: unknown }>) {
 				downloads.push(request);
 				return Object.freeze({

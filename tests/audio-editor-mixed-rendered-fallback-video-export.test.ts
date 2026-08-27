@@ -13,6 +13,7 @@ import type {
 import type { VideoRenderedFallbackDeliveryProjection } from '../src/common/editor/controller/playback-project-service.ts';
 import { createEditorVideoExportAction } from '../src/common/editor/controller/video-export-service.ts';
 import { admitVideoRenderedFallbackExport } from '../src/common/editor/controller/video-rendered-fallback-export.ts';
+import { availableDesktopVideoExportCapabilities } from './helpers/desktop-video-export-capabilities.js';
 
 const AUDIO_FEATURE_ID = 'org.example.future-audio-pipeline';
 const VIDEO_FEATURE_ID = 'org.example.future-video-pipeline';
@@ -63,7 +64,7 @@ test('video delivery admits one audio and one video fallback through one integri
 	assert.equal(Object.isFrozen(admitted), true);
 });
 
-test('mixed video export reuses verified video and renders verified audio through private sources', async () => {
+test('desktop mixed video export reuses verified video and renders verified audio through private sources', async () => {
 	const canonical = mixedExportProject();
 	const before = structuredClone(canonical);
 	const projected = Object.freeze({
@@ -152,6 +153,8 @@ test('mixed video export reuses verified video and renders verified audio throug
 			},
 		},
 		fileService: {
+			isDesktop: true,
+			getDesktopVideoExportCapabilities: availableDesktopVideoExportCapabilities,
 			async createDownload(request: Readonly<{ signal?: AbortSignal }>) {
 				events.push('download');
 				assert.equal(request.signal?.aborted, false);

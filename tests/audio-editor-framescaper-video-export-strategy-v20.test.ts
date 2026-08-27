@@ -369,7 +369,7 @@ test('V20 export projection is deeply immutable and stale canonical carriers fai
 	assert.equal(encodes, 0);
 });
 
-test('common lifecycle bypasses the invalid schema-17 exact-project clone for keyed and static V20', async () => {
+test('common lifecycle bypasses the invalid schema-17 clone and fails closed without a native static path', async () => {
 	for (const keyed of [false, true]) {
 		const project = keyed ? keyedProject() : createFramescaperProjectV20(PROFILE, framescaperV20Options());
 		const playbackProjects = createFramescaperPlaybackProjectServiceV20(PROFILE);
@@ -431,16 +431,44 @@ test('common lifecycle bypasses the invalid schema-17 exact-project clone for ke
 			throwIfAborted(signal?: AbortSignal) { if (signal?.aborted) throw signal.reason; },
 			toggleExport() {},
 		}, async () => { throw new Error('cancelled target must not render audio'); });
-		const result = await exportVideo({
+		const run = () => exportVideo({
 			format: 'video-mp4',
 			...(keyed ? { range: { startFrame: 48_000, endFrame: 96_000 } } : {}),
 		});
-		assert.equal(result?.cancelled, true);
+		const result = keyed ? await withSupportedWebCodecs(run) : await run();
+		assert.equal(keyed ? result?.cancelled : result, keyed ? true : null);
 		assert.equal(cloneCalls, 0);
 		assert.equal(legacyPlanCalls, keyed ? 0 : 1);
-		assert.deepEqual(errors, []);
+		if (keyed) assert.deepEqual(errors, []);
+		else {
+			assert.equal(errors.length, 1);
+			assert.match(String((errors[0] as Error).message), /only a keyed frame delivery/iu);
+		}
 	}
 });
+
+async function withSupportedWebCodecs<Value>(run: () => Promise<Value>): Promise<Value> {
+	const names = ['VideoFrame', 'VideoEncoder', 'AudioData', 'AudioEncoder'] as const;
+	const descriptors = names.map((name) => Object.getOwnPropertyDescriptor(globalThis, name));
+	class SupportedEncoder {
+		static async isConfigSupported() { return { supported: true }; }
+	}
+	Object.defineProperties(globalThis, {
+		VideoFrame: { configurable: true, value: class {} },
+		VideoEncoder: { configurable: true, value: SupportedEncoder },
+		AudioData: { configurable: true, value: class {} },
+		AudioEncoder: { configurable: true, value: SupportedEncoder },
+	});
+	try {
+		return await run();
+	} finally {
+		for (const [index, name] of names.entries()) {
+			const descriptor = descriptors[index];
+			if (descriptor) Object.defineProperty(globalThis, name, descriptor);
+			else Reflect.deleteProperty(globalThis, name);
+		}
+	}
+}
 
 function keyedProject() {
 	const options = framescaperV20Options();

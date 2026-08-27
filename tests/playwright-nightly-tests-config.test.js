@@ -194,14 +194,16 @@ test('diagnostic runs keep the canonical visual baseline on Linux Chromium', asy
 	assert.ok(snapshots.every((snapshot) => snapshot.endsWith('-chromium-linux.png')));
 });
 
-test('the GPU readback encoder witness is host-qualified away from Windows headless Chromium', async () => {
+test('the browser-native encoder admission witness is host-independent and FFmpeg-free', async () => {
 	const browserSpec = await readFile(
 		new URL('./browser/audio-editor-video-delivery-encoder-tiers.spec.js', import.meta.url),
 		'utf8',
 	);
 
+	assert.doesNotMatch(browserSpec, /process\.platform === 'win32'/u);
 	assert.match(
 		browserSpec,
-		/test\.skip\(\s*process\.platform === 'win32',\s*'[^']*Windows headless Chromium[^']*'\s*,?\s*\)/u,
+		/requestedUrls\.filter\(isFfmpegRuntimeRequest\)\)\.toEqual\(\[\]\)/u,
 	);
+	assert.match(browserSpec, /hasSharedArrayBuffer:\s*false/u);
 });

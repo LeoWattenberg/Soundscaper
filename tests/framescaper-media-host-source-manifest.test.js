@@ -109,11 +109,16 @@ test('the build input audit binds its Boost requirement to the independently pin
 	});
 });
 
-test('the browser FFmpeg runtime stays on @ffmpeg/core 0.12.10', () => {
+test('legacy FFmpeg audit tooling stays pinned and outside production dependencies', () => {
 	const packageJson = JSON.parse(readFileSync(join(repositoryRoot, 'package.json'), 'utf8'));
 	const lock = JSON.parse(readFileSync(join(repositoryRoot, 'package-lock.json'), 'utf8'));
-	assert.equal(packageJson.dependencies['@ffmpeg/core'], '0.12.10');
+	assert.equal(Object.hasOwn(packageJson.dependencies, '@ffmpeg/core'), false);
+	assert.equal(Object.hasOwn(packageJson.dependencies, '@ffmpeg/ffmpeg'), false);
+	assert.equal(packageJson.devDependencies['@ffmpeg/core'], '0.12.10');
+	assert.equal(packageJson.devDependencies['@ffmpeg/ffmpeg'], '0.12.15');
 	assert.equal(lock.packages['node_modules/@ffmpeg/core'].version, '0.12.10');
+	assert.equal(lock.packages['node_modules/@ffmpeg/core'].dev, true);
+	assert.equal(lock.packages['node_modules/@ffmpeg/ffmpeg'].dev, true);
 });
 
 test('the C++20 contract fixture self-tests and rejects raw FFmpeg arguments', (context) => {

@@ -27,6 +27,7 @@ import {
 } from '../src/common/editor/project-media-factory.ts';
 import { createVideoExportPlan } from '../src/common/editor/video-export.js';
 import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from '../src/common/editor/video-export-plan-version.ts';
+import { availableDesktopVideoExportCapabilities } from './helpers/desktop-video-export-capabilities.js';
 
 const SAMPLE_RATE = 48_000;
 const TARGET_START = 24_000;
@@ -107,7 +108,7 @@ interface RenderRange {
 	readonly preRollFrames: number;
 }
 
-test('mixed video export composes admitted audio and clip-local video fallbacks in the actual plan', async () => {
+test('desktop mixed video export composes admitted audio and clip-local video fallbacks in the actual plan', async () => {
 	const canonical = clipFallbackProject();
 	const before = structuredClone(canonical);
 	const playbackProjects = createPlaybackProjectService({ audioEffects: false, videoEffects: false });
@@ -202,8 +203,8 @@ test('mixed video export composes admitted audio and clip-local video fallbacks 
 			},
 		},
 		fileService: {
-			isDesktop: false,
-			prepareSave: () => Object.freeze({ mode: 'blob' as const }),
+			isDesktop: true,
+			getDesktopVideoExportCapabilities: availableDesktopVideoExportCapabilities,
 			createDownload(request: Readonly<{ blob: Blob }>) {
 				publishedBlob = request.blob;
 				return Object.freeze({
@@ -292,7 +293,7 @@ test('mixed video export composes admitted audio and clip-local video fallbacks 
 
 	const result = await createEditorVideoExportAction(runtime, renderSnapshot)({ format: 'video-mp4' });
 
-	assert.equal(errors.length, 0);
+	assert.deepEqual(errors, []);
 	assert.deepEqual(result, {
 		url: 'blob:clip-fallback-export',
 		fileName: 'Clip-fallback-export.mp4',

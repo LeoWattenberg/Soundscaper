@@ -26,6 +26,11 @@ const V27_LIFECYCLE_SPEC = join(BROWSER_TESTS, 'audio-editor-framescaper-v27-pro
 const TEST_FILE = /\.(?:spec|test)\.[cm]?[jt]sx?$/u;
 const BUILTIN_MODULES = new Set(builtinModules.flatMap((name) => [name, `node:${name}`]));
 
+test('the nightly runtime carries the browser-native container fixture dependency', async () => {
+	const staged = new Set((await resolveNightlyTestRuntimePackages(REPOSITORY_ROOT)).map(({ name }) => name));
+	assert.equal(staged.has('mediabunny'), true);
+});
+
 test('the nightly test payload satisfies every import its browser specs reach', async () => {
 	const browserTests = (await collectTestFiles(BROWSER_TESTS))
 		.filter((path) => isStagedInput(relative(REPOSITORY_ROOT, path)));
