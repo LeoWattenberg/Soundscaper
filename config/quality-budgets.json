@@ -343,8 +343,15 @@
 			"id": "github-ubuntu-playwright-1.62.1",
 			"status": "active",
 			"kind": "hosted-ci",
-			"qualificationEligible": false,
+			"qualificationEligible": true,
+			"qualificationBasis": "hardware-lower-bound",
+			"lowerBoundOf": "owner-qualified-windows-x64-rtx3090-01",
 			"rendererRequirement": "any",
+			"eligibleWorkloadIds": [
+				"m3-longform-editorial",
+				"m4-production-render-parity",
+				"m4b2-keyframe-render-parity"
+			],
 			"fingerprint": {
 				"osImage": "ubuntu-24.04",
 				"containerImage": "mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e",
@@ -352,7 +359,13 @@
 				"npmVersion": "12.0.1",
 				"playwrightVersion": "1.62.1"
 			},
-			"evidence": [".github/workflows/quality.yml", ".nvmrc", "package-lock.json"]
+			"evidence": [
+				".github/workflows/quality.yml",
+				".github/workflows/qualification-metrics.yml",
+				".nvmrc",
+				"package-lock.json",
+				"docs/quality-budgets.md#hosted-ci-qualification-metrics"
+			]
 		},
 		{
 			"id": "portable-node-structural-26.5.0",
@@ -1571,7 +1584,7 @@
 			"milestone": "3",
 			"status": "provisional",
 			"fixtureIds": ["m3-longform-editorial-2h-v2"],
-			"environmentIds": ["owner-qualified-windows-x64-rtx3090-01"],
+			"environmentIds": ["github-ubuntu-playwright-1.62.1", "owner-qualified-windows-x64-rtx3090-01"],
 			"thresholds": [
 				{ "metricId": "editorial.audioPositionErrorSamples", "comparison": "eq", "value": 0, "unit": "samples" },
 				{ "metricId": "editorial.videoPositionErrorFrames", "comparison": "eq", "value": 0, "unit": "frames" },

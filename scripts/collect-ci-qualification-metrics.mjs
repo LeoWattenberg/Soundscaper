@@ -8,6 +8,7 @@ import { dirname, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { createHostedQualificationArtifacts } from './lib/ci-qualification-artifacts.mjs';
 import {
 	HOSTED_CI_ENVIRONMENT_ID,
 	createCiQualificationMetricsEvidence,
@@ -65,12 +66,27 @@ export async function collectCiQualificationMetrics(options, dependencies = {}) 
 		budgetSha256: createHash('sha256').update(configBytes).digest('hex'),
 		playwrightExit: exit,
 	});
+	// Every workload that met its thresholds also leaves the accepted result and
+	// raw pair the cohort auditor binds by digest, so a qualifying hosted run can
+	// be recorded in the register without committing the artifacts.
+	const qualificationArtifacts = createHostedQualificationArtifacts({
+		workloads: evidence.summary.workloads,
+		config: JSON.parse(configBytes.toString('utf8')),
+		environment: evidence.environment,
+		sourceRevision: evidence.summary.sourceRevision,
+		budgetSha256: evidence.summary.budgetSha256,
+		nodeVersion: dependencies.nodeVersion ?? process.versions.node,
+	});
 	await Promise.all([
 		writeFile(resolve(runRoot, 'console.log'), consoleOutput, { flag: 'wx' }),
 		writeFile(resolve(runRoot, 'raw.json'), `${JSON.stringify(evidence.raw, null, '\t')}\n`, { flag: 'wx' }),
 		writeFile(resolve(runRoot, 'summary.json'), `${JSON.stringify(evidence.summary, null, '\t')}\n`, { flag: 'wx' }),
+		...qualificationArtifacts.flatMap((artifact) => [
+			writeFile(resolve(runRoot, artifact.resultFileName), artifact.resultBytes, { flag: 'wx' }),
+			writeFile(resolve(runRoot, artifact.rawFileName), artifact.rawBytes, { flag: 'wx' }),
+		]),
 	]);
-	return Object.freeze({ ...evidence, runRoot });
+	return Object.freeze({ ...evidence, runRoot, qualificationArtifacts });
 }
 
 export function parseCiQualificationMetricsCliOptions(argv) {
@@ -146,6 +162,9 @@ if (isMainModule()) {
 				console.log(`not attempted: ${skipped.diagnosticKey}: ${skipped.reason}`);
 			}
 			for (const observation of evidence.summary.observations) console.log(`observation: ${observation}`);
+			for (const artifact of evidence.qualificationArtifacts) {
+				console.log(`qualification evidence: ${artifact.resultFileName}`);
+			}
 			for (const failure of evidence.summary.failures) console.error(`failure: ${failure}`);
 			console.log(`Hosted CI qualification metrics written to ${evidence.runRoot}`);
 			process.exitCode = evidence.passed ? 0 : 1;

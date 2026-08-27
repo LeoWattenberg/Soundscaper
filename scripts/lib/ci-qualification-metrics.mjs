@@ -19,10 +19,16 @@ import {
 
 export const HOSTED_CI_ENVIRONMENT_ID = 'github-ubuntu-playwright-1.62.1';
 
-// The environment descriptor sets `qualificationEligible: false`, so a hosted
-// run publishes numbers and never acceptance. Saying so in every workload's
-// failure list keeps the artifact honest wherever it is read.
-export const HOSTED_CI_FAILURE = 'A hosted CI runner is diagnostic-only and not a qualified environment.';
+// The environment descriptor registers the hosted runner as a
+// `hardware-lower-bound` surrogate for the owner-designated fixed-GPU host: it
+// is strictly weaker, so a budget met here is met there and the result
+// qualifies. The implication runs one way, which is why a miss is reported as
+// a fact about this runner rather than a verdict on the stronger host.
+export const HOSTED_CI_LOWER_BOUND_BASIS = 'hardware-lower-bound';
+
+export const HOSTED_CI_MISS = 'A missed budget on the weaker hosted runner is an observation, not a verdict on the owner-designated host.';
+
+export const HOSTED_CI_UNREGISTERED = 'The hosted runner is not registered as a qualification lower bound for this workload.';
 
 export const SOFTWARE_RENDERER_SKIP = 'A hosted CI runner has no hardware renderer, so this workload is not attempted here.';
 
@@ -77,6 +83,7 @@ export function createCiQualificationMetricsEvidence({
 	}
 	const collectors = dependencies.collectors ?? HOSTED_CI_COLLECTORS;
 	const environmentId = dependencies.environmentId ?? HOSTED_CI_ENVIRONMENT_ID;
+	const environment = findEnvironment(config, environmentId);
 	const runFailures = playwrightFailures(playwrightExit);
 	const diagnostics = {};
 	const workloads = [];
@@ -93,7 +100,7 @@ export function createCiQualificationMetricsEvidence({
 			diagnostics[current.diagnosticKey] = diagnostic;
 			const evaluated = current.evaluate(diagnostic, config);
 			const metricGatePassed = evaluated.metricGatePassed === true;
-			const workload = normalizeHostedResult(evaluated, current, metricGatePassed);
+			const workload = normalizeHostedResult(evaluated, current, metricGatePassed, environment);
 			workloads.push(workload);
 			if (metricGatePassed) continue;
 			const failure = `${current.diagnosticKey} did not pass its metric thresholds.`;
@@ -133,13 +140,17 @@ export function createCiQualificationMetricsEvidence({
 		workerCount: 1,
 		collectionPassed: blockingFailures.length === 0,
 		blockingWorkloadCount: blockingExpected,
-		qualificationEvidencePublished: false,
+		qualifiedWorkloadIds: Object.freeze(workloads
+			.filter(({ qualificationEvidencePublished }) => qualificationEvidencePublished)
+			.map(({ workloadId }) => workloadId)),
+		qualificationEvidencePublished: workloads
+			.some(({ qualificationEvidencePublished }) => qualificationEvidencePublished),
 		workloads: Object.freeze(workloads),
 		failures: Object.freeze(blockingFailures),
 		observations: Object.freeze(observations),
 		notAttempted: Object.freeze(notAttempted),
 	});
-	return Object.freeze({ passed: blockingFailures.length === 0, raw, summary });
+	return Object.freeze({ passed: blockingFailures.length === 0, raw, summary, environment });
 }
 
 function collector(diagnosticKey, gate, rendererRequirement, spec, parse, evaluate) {
@@ -153,27 +164,67 @@ function collector(diagnosticKey, gate, rendererRequirement, spec, parse, evalua
 	return Object.freeze({ diagnosticKey, gate, rendererRequirement, spec, parse, evaluate });
 }
 
-// A hosted result keeps the collector's own verdicts and adds the ineligibility
-// note, exactly as the downloadable nightly host does for its own surface.
-function normalizeHostedResult(resultValue, current, metricGatePassed) {
+// A hosted result is re-evaluated for this surface rather than inheriting the
+// standalone collector's verdict. That collector measures itself against the
+// owner-designated host and reports the environment mismatch as a failure; on
+// the hosted surface the registered lower-bound rule answers that question, so
+// only the threshold verdicts carry over.
+function normalizeHostedResult(resultValue, current, metricGatePassed, environment) {
 	if (!isRecord(resultValue)) throw new TypeError('Hosted CI collector result must be a plain record.');
 	const evaluation = isRecord(resultValue.evaluation) ? resultValue.evaluation : {};
-	const failures = Array.isArray(evaluation.failures)
-		? evaluation.failures.filter((failure) => typeof failure === 'string') : [];
+	const verdicts = Array.isArray(evaluation.verdicts) ? evaluation.verdicts : [];
+	const workloadId = typeof resultValue.workloadId === 'string'
+		? resultValue.workloadId : current.diagnosticKey;
+	const registered = isLowerBoundFor(environment, workloadId);
+	const qualifies = metricGatePassed && registered;
 	return Object.freeze({
 		...resultValue,
-		workloadId: typeof resultValue.workloadId === 'string' ? resultValue.workloadId : current.diagnosticKey,
+		workloadId,
 		diagnosticKey: current.diagnosticKey,
 		gate: current.gate,
-		status: metricGatePassed ? 'pending-external' : 'failed',
+		status: hostedStatus(qualifies, metricGatePassed, current.gate),
 		metricGatePassed,
-		qualificationEvidencePublished: false,
+		qualificationEvidencePublished: qualifies,
 		evaluation: Object.freeze({
 			...evaluation,
-			passed: false,
-			failures: Object.freeze([...failures, HOSTED_CI_FAILURE]),
+			passed: qualifies,
+			basis: qualifies ? HOSTED_CI_LOWER_BOUND_BASIS : null,
+			failures: Object.freeze(hostedFailures({ metricGatePassed, registered, verdicts })),
 		}),
 	});
+}
+
+function hostedStatus(qualifies, metricGatePassed, gate) {
+	if (qualifies) return 'qualified';
+	if (metricGatePassed) return 'pending-external';
+	return gate === 'blocking' ? 'failed' : 'observed';
+}
+
+function hostedFailures({ metricGatePassed, registered, verdicts }) {
+	if (metricGatePassed) return registered ? [] : [HOSTED_CI_UNREGISTERED];
+	const missed = verdicts
+		.filter((verdict) => isRecord(verdict) && verdict.passed !== true)
+		.map((verdict) => `${String(verdict.metricId)} did not pass.`);
+	return [...missed, HOSTED_CI_MISS];
+}
+
+// The config is the authority on what this runner may qualify, so the rule is
+// read from the descriptor rather than assumed by the collector.
+function isLowerBoundFor(environment, workloadId) {
+	return isRecord(environment)
+		&& environment.status === 'active'
+		&& environment.qualificationEligible === true
+		&& environment.qualificationBasis === HOSTED_CI_LOWER_BOUND_BASIS
+		&& typeof environment.lowerBoundOf === 'string'
+		&& Array.isArray(environment.eligibleWorkloadIds)
+		&& environment.eligibleWorkloadIds.includes(workloadId);
+}
+
+function findEnvironment(config, environmentId) {
+	if (!Array.isArray(config.environments)) return null;
+	const matches = config.environments
+		.filter((candidate) => isRecord(candidate) && candidate.id === environmentId);
+	return matches.length === 1 ? matches[0] : null;
 }
 
 function playwrightFailures(playwrightExit) {

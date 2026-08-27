@@ -22,9 +22,12 @@ interface BudgetArtifact {
 }
 
 interface BudgetEnvironment {
+	readonly eligibleWorkloadIds?: readonly string[];
 	readonly evidence: readonly string[];
 	readonly fingerprint: Readonly<Record<string, string | number | null>>;
 	readonly id: string;
+	readonly lowerBoundOf?: string;
+	readonly qualificationBasis?: string;
 	readonly qualificationEligible: boolean;
 	readonly rendererRequirement: RendererRequirement;
 	readonly status: EnvironmentStatus;
@@ -392,7 +395,9 @@ test('quality budget contract names numeric gates and the exact qualified struct
 
 	const hostedPlaywright = environments.get('github-ubuntu-playwright-1.62.1');
 	assert.equal(hostedPlaywright?.status, 'active');
-	assert.equal(hostedPlaywright?.qualificationEligible, false);
+	assert.equal(hostedPlaywright?.qualificationEligible, true);
+	assert.equal(hostedPlaywright?.qualificationBasis, 'hardware-lower-bound');
+	assert.equal(hostedPlaywright?.lowerBoundOf, 'owner-qualified-windows-x64-rtx3090-01');
 
 	const keyedFixture = fixtures.get('m4b2-keyframe-parity-rgba-v1');
 	const keyedWorkload = config.workloads.find(({ id }) => id === 'm4b2-keyframe-render-parity');
@@ -447,6 +452,42 @@ test('quality budget contract names numeric gates and the exact qualified struct
 		...config.fixtures.flatMap(({ evidence }) => evidence),
 		...config.workloads.flatMap(({ evidence }) => evidence),
 	]);
+});
+
+test('a lower-bound environment qualifies only workloads its stronger host also admits', async () => {
+	const config = JSON.parse(await readFile(configUrl, 'utf8')) as QualityBudgetConfig;
+	const environments = new Map(config.environments.map((environment) => [environment.id, environment]));
+	const workloads = new Map(config.workloads.map((workload) => [workload.id, workload]));
+	let lowerBoundCount = 0;
+	for (const environment of config.environments) {
+		if (environment.qualificationEligible) {
+			assert.ok(
+				Array.isArray(environment.eligibleWorkloadIds) && environment.eligibleWorkloadIds.length > 0,
+				`${environment.id} is qualification-eligible and must name its eligible workloads`,
+			);
+		}
+		if (environment.qualificationBasis !== 'hardware-lower-bound') {
+			assert.equal(environment.lowerBoundOf, undefined,
+				`${environment.id} names a stronger host without claiming the lower-bound basis`);
+			continue;
+		}
+		lowerBoundCount += 1;
+		// The rule only holds one way: a budget met on the weaker machine is met
+		// on the stronger one. That is meaningless unless the stronger host is
+		// registered and the workload is measured against it as well.
+		const stronger = environments.get(environment.lowerBoundOf ?? '');
+		assert.ok(stronger, `${environment.id} names unknown stronger host ${String(environment.lowerBoundOf)}`);
+		assert.equal(environment.qualificationEligible, true);
+		for (const workloadId of environment.eligibleWorkloadIds ?? []) {
+			const workload = workloads.get(workloadId);
+			assert.ok(workload, `${environment.id} is eligible for unknown workload ${workloadId}`);
+			assert.ok(workload.environmentIds.includes(environment.id),
+				`${workloadId} does not admit lower-bound environment ${environment.id}`);
+			assert.ok(workload.environmentIds.includes(stronger.id),
+				`${workloadId} qualifies from ${environment.id} without admitting ${stronger.id}`);
+		}
+	}
+	assert.equal(lowerBoundCount, 1, 'exactly one registered lower-bound environment is expected');
 });
 
 test('quality budget inputs pin the checked-in Node, npm, Playwright, and browser revisions', async () => {
