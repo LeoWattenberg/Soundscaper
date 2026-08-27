@@ -59,7 +59,7 @@ test('selected-media inventory exposes only operations with an exact audio input
 	assert.deepEqual(inventory, { sources: [{
 		sourceId: 'voice-source', label: 'Interview clip', mediaKind: 'audio',
 		operations: [
-			'voice-activity-detection', 'speech-recognition', 'speaker-diarization',
+			'voice-activity-detection', 'speech-recognition', 'word-alignment', 'speaker-diarization',
 			'speech-enhancement', 'source-separation', 'audio-tagging', 'beat-tracking',
 		],
 	}] });
@@ -98,6 +98,7 @@ test('audio preparation conforms each inference family without discarding requir
 	const expected = [
 		['voice-activity-detection', 16_000, 1],
 		['speech-recognition', 16_000, 1],
+		['word-alignment', 16_000, 1],
 		['speaker-diarization', 16_000, 1],
 		['speech-enhancement', 48_000, 2],
 		['source-separation', 44_100, 2],
@@ -115,6 +116,15 @@ test('audio preparation conforms each inference family without discarding requir
 		assert.equal(view.getUint32(24, true), sampleRate, operation);
 		assert.equal(view.getUint32(40, true), sampleRate * channelCount * 4, operation);
 	}
+});
+
+test('word alignment preparation exposes one bounded authenticated JSON result', async () => {
+	const result = await fixture().preparation.prepareSelectedMedia({
+		sourceId: 'voice-source', operation: 'word-alignment',
+	});
+	assert.deepEqual(result.outputs, [{ role: 'word-alignment',
+		mediaType: 'application/vnd.soundscaper.word-alignment+json',
+		maximumByteLength: 64 * 1024 * 1024 }]);
 });
 
 test('enhancement and TIGER preparation reserve their closed publication slots', async () => {

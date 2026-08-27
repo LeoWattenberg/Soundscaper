@@ -60,26 +60,24 @@ test('the registry exposes only the eight owned audio/cut transforms and exact r
 });
 
 test('caption assembly re-admits transcript and alignment semantics into bounded JSON cues', () => {
+	const alignment = {
+		schemaVersion: 1, sourceSampleRate: 48_000, sourceStartFrame: 0,
+		alignment: {
+			schemaVersion: 1, sampleRate: 16_000,
+			words: [
+				{ segmentIndex: 0, wordIndex: 0, text: 'um', startSample: 100,
+					endSample: 2_000, confidence: 0.8 },
+				{ segmentIndex: 0, wordIndex: 1, text: 'welcome', startSample: 3_000,
+					endSample: 10_000, confidence: 0.95 },
+			],
+		},
+	};
 	const result = registry.run({
 		schemaVersion: 1, transformId: 'assemble-captions',
 		settings: settings('transcribe-captions', {
 			recognizer: 'whisper', language: 'en', englishWhisperAlignment: 'when-installed',
 		}),
-		inputs: {
-			transcript: transcript(),
-			'word-alignment': {
-				schemaVersion: 1, sourceSampleRate: 48_000, sourceStartFrame: 0,
-				alignment: {
-					schemaVersion: 1, sampleRate: 16_000,
-					words: [
-						{ segmentIndex: 0, wordIndex: 0, text: 'um', startSample: 100,
-							endSample: 2_000, confidence: 0.8 },
-						{ segmentIndex: 0, wordIndex: 1, text: 'welcome', startSample: 3_000,
-							endSample: 10_000, confidence: 0.95 },
-					],
-				},
-			},
-		},
+		inputs: { transcript: transcript(), 'word-alignment': alignment },
 	});
 	assert.deepEqual(result.outputs.captions.cues, [{
 		cueId: 'caption:0', startFrame: 0, endFrame: 48_000, text: 'um welcome',
@@ -89,6 +87,31 @@ test('caption assembly re-admits transcript and alignment semantics into bounded
 		],
 	}]);
 	assert.equal(result.outputs.captions.alignmentApplied, true);
+	const automaticEnglish = registry.run({
+		schemaVersion: 1, transformId: 'assemble-captions',
+		settings: settings('transcribe-captions', {
+			recognizer: 'whisper', language: 'auto', englishWhisperAlignment: 'when-installed',
+		}),
+		inputs: { transcript: transcript(), 'word-alignment': alignment },
+	});
+	assert.equal(automaticEnglish.outputs.captions.alignmentApplied, true);
+	const automaticFrench = registry.run({
+		schemaVersion: 1, transformId: 'assemble-captions',
+		settings: settings('transcribe-captions', {
+			recognizer: 'whisper', language: 'auto', englishWhisperAlignment: 'when-installed',
+		}),
+		inputs: { transcript: { ...transcript(), language: 'fr' }, 'word-alignment': {
+			...alignment, alignment: { ...alignment.alignment, words: [] },
+		} },
+	});
+	assert.equal(automaticFrench.outputs.captions.alignmentApplied, false);
+	assert.throws(() => registry.run({
+		schemaVersion: 1, transformId: 'assemble-captions',
+		settings: settings('transcribe-captions', {
+			recognizer: 'whisper', language: 'auto', englishWhisperAlignment: 'when-installed',
+		}),
+		inputs: { transcript: { ...transcript(), language: 'fr' }, 'word-alignment': alignment },
+	}), /English|non-English|empty/iu);
 	assert.deepEqual(
 		reviewAssistanceOwnedAudioCutTransformResultV1(JSON.parse(JSON.stringify(result))),
 		result,

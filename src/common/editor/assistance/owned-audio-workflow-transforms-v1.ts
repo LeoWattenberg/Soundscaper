@@ -341,10 +341,11 @@ function alignedCaptionWords(
 	settings: Settings<'transcribe-captions'>,
 ): readonly (readonly Readonly<{
 	text: string; startFrame: number; endFrame: number; confidence: number | null;
-}>[])[] {
-	if (settings.recognizer !== 'whisper' || settings.language !== 'en'
+}>[])[] | null {
+	if (settings.recognizer !== 'whisper'
+		|| (settings.language !== 'en' && settings.language !== 'auto')
 		|| settings.englishWhisperAlignment !== 'when-installed') {
-		throw new RangeError('Word alignment is admitted only for explicitly selected English Whisper.');
+		throw new RangeError('Word alignment is admitted only for selected English-capable Whisper.');
 	}
 	const wrapper = ownedExactRecord(value, ALIGNMENT_WRAPPER_FIELDS, 'word-alignment source wrapper');
 	exactV1(wrapper.schemaVersion, 'word-alignment source wrapper');
@@ -356,6 +357,12 @@ function alignedCaptionWords(
 	const sourceStart = ownedInteger(wrapper.sourceStartFrame, 0, Number.MAX_SAFE_INTEGER,
 		'word-alignment source start frame');
 	const alignment = reviewAssistanceWordAlignmentV1(wrapper.alignment);
+	if (transcript.language !== 'en') {
+		if (settings.language !== 'auto' || alignment.words.length !== 0) {
+			throw new RangeError('Non-English Whisper output must retain an empty alignment result.');
+		}
+		return null;
+	}
 	const expected = transcript.segments.flatMap((segment, segmentIndex) =>
 		segment.words.map((word, wordIndex) => ({ segment, segmentIndex, word, wordIndex })));
 	if (alignment.words.length !== expected.length) {

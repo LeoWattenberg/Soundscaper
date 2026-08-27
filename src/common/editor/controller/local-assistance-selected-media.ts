@@ -26,6 +26,7 @@ const SHA256 = /^[a-f\d]{64}$/u;
 const AUDIO_OPERATIONS = Object.freeze([
 	'voice-activity-detection',
 	'speech-recognition',
+	'word-alignment',
 	'speaker-diarization',
 	'speech-enhancement',
 	'source-separation',
@@ -300,6 +301,7 @@ function outputsFor(operation: AudioOperation, audioWaveByteLength: number): rea
 	const values = {
 		'voice-activity-detection': ['voice-activity', 'application/vnd.soundscaper.voice-activity+json'],
 		'speech-recognition': ['transcript', 'application/vnd.soundscaper.transcript+json'],
+		'word-alignment': ['word-alignment', 'application/vnd.soundscaper.word-alignment+json'],
 		'speaker-diarization': ['speaker-turns', 'application/vnd.soundscaper.speaker-turns+json'],
 		'speech-enhancement': ['enhanced-audio', 'audio/wav'],
 		'source-separation': ['separated-audio', 'audio/wav'],
