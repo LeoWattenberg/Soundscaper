@@ -5,6 +5,11 @@
 import type { AssistanceTrackedSubjectResultV1 } from './subject-tracker-v1.ts';
 import { MAXIMUM_ASSISTANCE_EDITORIAL_CHAPTERS } from './m7-semantic-results.ts';
 import { VIDEO_TIMING_ASSET_MAXIMUM_FRAMES } from '../video-timing-asset-reference.ts';
+import {
+	reviewAssistanceSourceTimeRowsV1,
+	type AssistanceSourceTimeRowV1,
+	type ReviewedAssistanceSourceTimeRowsV1,
+} from './source-time-rows-v1.ts';
 import type {
 	AssistanceOwnedFramePackPlanV1,
 	AssistanceOwnedHighlightCandidatesV1,
@@ -81,7 +86,9 @@ const ANCHORS = new Set<unknown>([
 
 export function reviewOwnedVideoSourceTimeAuthorityV1(
 	value: unknown,
-): AssistanceVideoSourceTimeAuthorityV1 {
+): Omit<AssistanceVideoSourceTimeAuthorityV1, 'frames'> & Readonly<{
+	readonly frames: ReviewedAssistanceSourceTimeRowsV1;
+}> {
 	const row = ownedExactRecord(value, SOURCE_FIELDS, 'video source-time authority');
 	exactIdentity(row, 'video-source-time-authority', 'video source-time authority');
 	const sourceId = stableId(row.sourceId, 'video source ID');
@@ -92,41 +99,88 @@ export function reviewOwnedVideoSourceTimeAuthorityV1(
 	const sourceEndFrame = ownedInteger(row.sourceEndFrame, sourceStartFrame + 1, 0xffff_ffff,
 		'video selected source end');
 	const timescale = ownedInteger(row.timescale, 1, 0x7fff_ffff, 'video source timescale');
-	let priorSource = sourceStartFrame - 1;
+	const frames = reviewVideoSourceFrames(row.frames);
+	if (frames.first.sourceFrame !== sourceStartFrame
+		|| frames.last.sourceFrame >= sourceEndFrame) {
+		throw new RangeError('Video source-time authority must bind its selected start frame.');
+	}
+	const presentationEndTick = canonicalTick(row.presentationEndTick,
+		'video source presentation end tick');
+	if (BigInt(presentationEndTick) <= BigInt(frames.last.presentationTick)) {
+		throw new RangeError('Video source presentation end must follow its final frame.');
+	}
+	return Object.freeze({ schemaVersion: 1, kind: 'video-source-time-authority',
+		sourceId, width, height, sourceStartFrame, sourceEndFrame, timescale,
+		presentationEndTick, frames });
+}
+
+function reviewVideoSourceFrames(value: unknown): ReviewedAssistanceSourceTimeRowsV1 {
+	if (Array.isArray(value) && value[0] && typeof value[0] === 'object'
+		&& (value[0] as Record<string, unknown>).kind === 'source-time-rows') {
+		const reviewed = reviewAssistanceSourceTimeRowsV1(value);
+		if (reviewed.rowCount > VIDEO_TIMING_ASSET_MAXIMUM_FRAMES) {
+			throw new RangeError('Video source-time frames exceed their exact inventory bound.');
+		}
+		return reviewed;
+	}
+	let priorSource = -1;
 	let priorTick = -1n;
 	let priorTimeline = -1;
-	const frames = ownedArray(row.frames, VIDEO_TIMING_ASSET_MAXIMUM_FRAMES,
+	const rows = ownedArray(value, VIDEO_TIMING_ASSET_MAXIMUM_FRAMES,
 		'video source-time frames', 1).map((candidate, index) => {
 		const label = `video source-time frame ${String(index)}`;
 		const frame = ownedExactRecord(candidate, SOURCE_FRAME_FIELDS, label);
 		const sourceFrame = ownedInteger(frame.sourceFrame, 0, 0xffff_ffff,
 			`${label} source ordinal`);
-		if (sourceFrame <= priorSource || sourceFrame >= sourceEndFrame) {
-			throw new RangeError('Video source-time authority must remain inside its selected range.');
-		}
 		const presentationTick = canonicalTick(frame.presentationTick, `${label} presentation tick`);
-		const tick = BigInt(presentationTick);
 		const timelineFrame = ownedInteger(frame.timelineFrame, 0, Number.MAX_SAFE_INTEGER,
 			`${label} timeline frame`);
-		if (tick <= priorTick || timelineFrame < priorTimeline) {
+		if (sourceFrame <= priorSource || BigInt(presentationTick) <= priorTick
+			|| timelineFrame < priorTimeline) {
 			throw new RangeError('Video source-time authority must remain forward and monotonic.');
 		}
-		priorTick = tick;
 		priorSource = sourceFrame;
+		priorTick = BigInt(presentationTick);
 		priorTimeline = timelineFrame;
 		return Object.freeze({ sourceFrame, presentationTick, timelineFrame });
 	});
-	if (frames[0]!.sourceFrame !== sourceStartFrame) {
-		throw new RangeError('Video source-time authority must bind its selected start frame.');
+	return sourceFrameReader(Object.freeze(rows));
+}
+
+function sourceFrameReader(rows: readonly AssistanceSourceTimeRowV1[]):
+	ReviewedAssistanceSourceTimeRowsV1 {
+	const row = (ordinal: number): AssistanceSourceTimeRowV1 => {
+		if (!Number.isSafeInteger(ordinal) || ordinal < 0 || ordinal >= rows.length) {
+			throw new RangeError('The video source-time row ordinal is invalid.');
+		}
+		return rows[ordinal]!;
+	};
+	return Object.freeze({ rowCount: rows.length, first: rows[0]!, last: rows.at(-1)!, row,
+		firstAtOrAfterSource: (sourceFrame: number) => lowerBoundRows(rows,
+			(candidate) => candidate.sourceFrame < sourceFrame),
+		firstAtOrAfterPresentationTick: (presentationTick: string) => {
+			const target = BigInt(canonicalTick(presentationTick, 'video source presentation tick'));
+			return lowerBoundRows(rows, (candidate) => BigInt(candidate.presentationTick) < target);
+		},
+		firstAtOrAfterTimeline: (timelineFrame: number) => lowerBoundRows(rows,
+			(candidate) => candidate.timelineFrame < timelineFrame),
+		prefix: (rowCount: number) => {
+			if (!Number.isSafeInteger(rowCount) || rowCount < 1 || rowCount > rows.length) {
+				throw new RangeError('The video source-time prefix row count is invalid.');
+			}
+			return Object.freeze(rows.slice(0, rowCount));
+		} });
+}
+
+function lowerBoundRows<T>(rows: readonly T[], before: (row: T) => boolean): number {
+	let low = 0;
+	let high = rows.length;
+	while (low < high) {
+		const middle = low + Math.floor((high - low) / 2);
+		if (before(rows[middle]!)) low = middle + 1;
+		else high = middle;
 	}
-	const presentationEndTick = canonicalTick(row.presentationEndTick,
-		'video source presentation end tick');
-	if (BigInt(presentationEndTick) <= priorTick) {
-		throw new RangeError('Video source presentation end must follow its final frame.');
-	}
-	return Object.freeze({ schemaVersion: 1, kind: 'video-source-time-authority',
-		sourceId, width, height, sourceStartFrame, sourceEndFrame, timescale,
-		presentationEndTick, frames: Object.freeze(frames) });
+	return low;
 }
 
 export function reviewOwnedFramePackPlanV1(value: unknown): AssistanceOwnedFramePackPlanV1 {

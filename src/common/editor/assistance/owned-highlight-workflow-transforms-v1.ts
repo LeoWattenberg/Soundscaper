@@ -4,7 +4,10 @@
 
 import { scaleSampleFrame } from '../timeline-time.ts';
 import { reviewAssistanceEmbeddingMatrixV1 } from './binary-formats-v1.ts';
-import { reviewAssistanceSourceTimeRowsV1 } from './source-time-rows-v1.ts';
+import {
+	reviewAssistanceSourceTimeRowsV1,
+	type ReviewedAssistanceSourceTimeRowsV1,
+} from './source-time-rows-v1.ts';
 import {
 	HIGHLIGHT_RANKING_V1_SPEECHLESS_WEIGHTS,
 	rankAssistanceHighlightsV1,
@@ -79,12 +82,6 @@ const RANK_FIELDS = Object.freeze(['highlight-signals'] as const);
 const ASSEMBLE_FIELDS = Object.freeze(['highlight-candidates', 'editorial'] as const);
 const MAXIMUM_DUPLICATION_MULTIPLY_ADDS = 10_000_000;
 
-interface TimeAuthority {
-	readonly sourceFrame: number;
-	readonly presentationTick: string;
-	readonly timelineFrame: number;
-}
-
 interface VideoWindow {
 	readonly id: string;
 	readonly startFrame: number;
@@ -103,7 +100,7 @@ interface ReviewedVideo {
 	readonly selectionStartFrame: number;
 	readonly selectionEndFrame: number;
 	readonly reframeEvidence: AssistanceAcceptedReframeDerivativeV1 | null;
-	readonly authority: readonly TimeAuthority[];
+	readonly authority: ReviewedAssistanceSourceTimeRowsV1;
 	readonly windows: readonly VideoWindow[];
 }
 
@@ -253,10 +250,8 @@ function reviewVideo(value: unknown): ReviewedVideo {
 		Number.MAX_SAFE_INTEGER, 'highlight selection end');
 	if (selectionEndFrame <= selectionStartFrame) throw new RangeError('The highlight selection is empty.');
 	const reviewedAuthority = reviewAssistanceSourceTimeRowsV1(row.sourceTimeAuthority);
-	const authority = Array.from({ length: reviewedAuthority.rowCount }, (_, index) =>
-		reviewedAuthority.row(index));
-	if (authority[0]!.timelineFrame !== selectionStartFrame
-		|| authority.at(-1)!.timelineFrame !== selectionEndFrame) {
+	if (reviewedAuthority.first.timelineFrame !== selectionStartFrame
+		|| reviewedAuthority.last.timelineFrame !== selectionEndFrame) {
 		throw new RangeError('Highlight source-time authority must bind both selection endpoints.');
 	}
 	const seen = new Set<string>();
@@ -281,13 +276,13 @@ function reviewVideo(value: unknown): ReviewedVideo {
 	const sourceSize = dimensions(row.sourceSize, 'highlight source size');
 	if (reframeEvidence !== null) assertOwnedHighlightReframeVideoAuthorityV1(reframeEvidence, {
 		sourceId, timescale, sourceSize,
-		authority, selectionStartFrame, selectionEndFrame,
+		authority: reviewedAuthority, selectionStartFrame, selectionEndFrame,
 	});
 	return Object.freeze({ sourceId, sampleRate, timescale, sourceSize,
 		videoOccurrenceId: stableId(row.videoOccurrenceId, 'highlight video occurrence'),
 		audioOccurrenceId: row.audioOccurrenceId === null ? null
 			: stableId(row.audioOccurrenceId, 'highlight audio occurrence'),
-		selectionStartFrame, selectionEndFrame, reframeEvidence, authority: Object.freeze(authority),
+		selectionStartFrame, selectionEndFrame, reframeEvidence, authority: reviewedAuthority,
 		windows: Object.freeze(windows) });
 }
 
@@ -350,7 +345,7 @@ function reviewShotEdges(value: unknown, video: ReviewedVideo): readonly number[
 	if (value === null) return Object.freeze([]);
 	const shots = reviewAssistanceShotBoundariesV1(value);
 	if (shots.timescale !== video.timescale
-		|| shots.sourceFrameCount !== video.authority.at(-1)!.sourceFrame + 1) {
+		|| shots.sourceFrameCount !== video.authority.last.sourceFrame + 1) {
 		throw new RangeError('Highlight shots disagree with exact source-time authority.');
 	}
 	return Object.freeze(shots.boundaries.map((boundary) => {
@@ -482,30 +477,18 @@ function nearest(values: readonly number[], target: number): number {
 	return target - left <= right - target ? left : right;
 }
 
-function nearestAuthorityTimeline(authority: readonly TimeAuthority[], target: number): number {
-	let low = 0;
-	let high = authority.length;
-	while (low < high) {
-		const middle = low + Math.floor((high - low) / 2);
-		if (authority[middle]!.timelineFrame < target) low = middle + 1;
-		else high = middle;
-	}
-	if (low === 0) return authority[0]!.timelineFrame;
-	if (low === authority.length) return authority.at(-1)!.timelineFrame;
-	const left = authority[low - 1]!.timelineFrame;
-	const right = authority[low]!.timelineFrame;
+function nearestAuthorityTimeline(authority: ReviewedAssistanceSourceTimeRowsV1, target: number): number {
+	const low = authority.firstAtOrAfterTimeline(target);
+	if (low === 0) return authority.first.timelineFrame;
+	if (low === authority.rowCount) return authority.last.timelineFrame;
+	const left = authority.row(low - 1).timelineFrame;
+	const right = authority.row(low).timelineFrame;
 	return target - left <= right - target ? left : right;
 }
 
-function sourceAtTimeline(authority: readonly TimeAuthority[], timelineFrame: number): number {
-	let low = 0;
-	let high = authority.length;
-	while (low < high) {
-		const middle = low + Math.floor((high - low) / 2);
-		if (authority[middle]!.timelineFrame < timelineFrame) low = middle + 1;
-		else high = middle;
-	}
-	const exact = authority[low];
+function sourceAtTimeline(authority: ReviewedAssistanceSourceTimeRowsV1, timelineFrame: number): number {
+	const index = authority.firstAtOrAfterTimeline(timelineFrame);
+	const exact = index < authority.rowCount ? authority.row(index) : undefined;
 	if (!exact || exact.timelineFrame !== timelineFrame) {
 		throw new RangeError('A snapped highlight edge lacks exact source-time authority.');
 	}
@@ -513,17 +496,13 @@ function sourceAtTimeline(authority: readonly TimeAuthority[], timelineFrame: nu
 }
 
 function sourceAuthorityAt(
-	authority: readonly TimeAuthority[],
+	authority: ReviewedAssistanceSourceTimeRowsV1,
 	sourceFrame: number,
-): TimeAuthority | undefined {
-	let low = 0;
-	let high = authority.length;
-	while (low < high) {
-		const middle = low + Math.floor((high - low) / 2);
-		if (authority[middle]!.sourceFrame < sourceFrame) low = middle + 1;
-		else high = middle;
-	}
-	return authority[low]?.sourceFrame === sourceFrame ? authority[low] : undefined;
+): ReturnType<ReviewedAssistanceSourceTimeRowsV1['row']> | undefined {
+	const index = authority.firstAtOrAfterSource(sourceFrame);
+	if (index >= authority.rowCount) return undefined;
+	const candidate = authority.row(index);
+	return candidate.sourceFrame === sourceFrame ? candidate : undefined;
 }
 
 function maximumOverlapScore(

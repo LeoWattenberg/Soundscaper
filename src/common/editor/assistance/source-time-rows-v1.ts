@@ -39,7 +39,9 @@ export interface ReviewedAssistanceSourceTimeRowsV1 {
 	readonly last: AssistanceSourceTimeRowV1;
 	row(ordinal: number): AssistanceSourceTimeRowV1;
 	firstAtOrAfterSource(sourceFrame: number): number;
+	firstAtOrAfterPresentationTick(presentationTick: string): number;
 	firstAtOrAfterTimeline(timelineFrame: number): number;
+	prefix(rowCount: number): AssistanceSourceTimeRowsInventoryV1;
 }
 
 /** Encode strict rows into independently bounded canonical base64 chunks. */
@@ -110,14 +112,19 @@ export function reviewAssistanceSourceTimeRowsV1(
 		last: row(rows.sourceFrames.length - 1), row,
 		firstAtOrAfterSource: (sourceFrame: number) => lowerBound(rows.sourceFrames,
 			integer(sourceFrame, 0, MAXIMUM_SOURCE_FRAME, 'source frame')),
+		firstAtOrAfterPresentationTick: (presentationTick: string) => lowerBoundBigInt(
+			rows.presentationTicks, BigInt(tick(presentationTick, 'presentation tick'))),
 		firstAtOrAfterTimeline: (timelineFrame: number) => lowerBoundBigInt(rows.timelineFrames,
-			BigInt(integer(timelineFrame, 0, Number.MAX_SAFE_INTEGER, 'timeline frame'))) });
+			BigInt(integer(timelineFrame, 0, Number.MAX_SAFE_INTEGER, 'timeline frame'))),
+		prefix: (rowCount: number) => rowsPrefix(rows,
+			integer(rowCount, 1, rows.sourceFrames.length, 'source-time prefix row count'), row) });
 }
 
 interface DecodedRows {
 	readonly sourceFrames: Uint32Array;
 	readonly presentationTicks: BigUint64Array;
 	readonly timelineFrames: BigUint64Array;
+	readonly chunks: readonly AssistanceSourceTimeRowsChunkV1[] | null;
 }
 
 function decodeChunks(value: unknown[]): DecodedRows {
@@ -153,7 +160,8 @@ function decodeChunks(value: unknown[]): DecodedRows {
 		}
 	}
 	validateDecoded(sourceFrames, presentationTicks, timelineFrames);
-	return Object.freeze({ sourceFrames, presentationTicks, timelineFrames });
+	return Object.freeze({ sourceFrames, presentationTicks, timelineFrames,
+		chunks: Object.freeze(chunks) });
 }
 
 function decodeLegacy(value: unknown[]): DecodedRows {
@@ -170,7 +178,51 @@ function decodeLegacy(value: unknown[]): DecodedRows {
 		timelineFrames[index] = BigInt(row.timelineFrame);
 	}
 	validateDecoded(sourceFrames, presentationTicks, timelineFrames);
-	return Object.freeze({ sourceFrames, presentationTicks, timelineFrames });
+	return Object.freeze({ sourceFrames, presentationTicks, timelineFrames, chunks: null });
+}
+
+function rowsPrefix(
+	rows: DecodedRows,
+	rowCount: number,
+	row: (ordinal: number) => AssistanceSourceTimeRowV1,
+): AssistanceSourceTimeRowsInventoryV1 {
+	if (rows.chunks === null || rowCount === 1) {
+		return Object.freeze(Array.from({ length: rowCount }, (_, index) => row(index)));
+	}
+	const chunks: AssistanceSourceTimeRowsChunkV1[] = [];
+	let retained = 0;
+	for (const chunk of rows.chunks) {
+		if (retained === rowCount) break;
+		const remaining = rowCount - retained;
+		if (remaining >= chunk.rowCount) {
+			chunks.push(chunk);
+			retained += chunk.rowCount;
+			continue;
+		}
+		chunks.push(chunkFromDecoded(rows, retained, remaining));
+		retained += remaining;
+	}
+	if (retained !== rowCount) throw new RangeError('Source-time prefix lost exact row custody.');
+	return Object.freeze(chunks);
+}
+
+function chunkFromDecoded(
+	rows: DecodedRows,
+	start: number,
+	rowCount: number,
+): AssistanceSourceTimeRowsChunkV1 {
+	const bytes = new Uint8Array(rowCount * ROW_BYTES);
+	const view = new DataView(bytes.buffer);
+	for (let index = 0; index < rowCount; index += 1) {
+		const sourceIndex = start + index;
+		const offset = index * ROW_BYTES;
+		view.setUint32(offset, rows.sourceFrames[sourceIndex]!, true);
+		view.setBigUint64(offset + 4, rows.presentationTicks[sourceIndex]!, true);
+		view.setBigUint64(offset + 12, rows.timelineFrames[sourceIndex]!, true);
+	}
+	return Object.freeze({ schemaVersion: 1, kind: 'source-time-rows', rowCount,
+		firstSourceFrame: rows.sourceFrames[start]!,
+		lastSourceFrame: rows.sourceFrames[start + rowCount - 1]!, bodyBase64: encodeBase64(bytes) });
 }
 
 function validateDecoded(

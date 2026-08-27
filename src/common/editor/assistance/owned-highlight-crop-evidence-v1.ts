@@ -5,16 +5,11 @@
 import type { AssistanceAcceptedReframeDerivativeV1 } from './reframe-derivative-v1.ts';
 import type { AssistanceOwnedHighlightCropKeyframeV1 } from
 	'./owned-video-highlight-transform-types-v1.ts';
+import type { ReviewedAssistanceSourceTimeRowsV1 } from './source-time-rows-v1.ts';
 import {
 	interpolateAssistanceReframeCropV1,
 	planAssistanceReframePathV1,
 } from './reframe-planner-v1.ts';
-
-interface TimeAuthority {
-	readonly sourceFrame: number;
-	readonly presentationTick: string;
-	readonly timelineFrame: number;
-}
 
 interface VideoGeometry {
 	readonly sourceId: string;
@@ -22,7 +17,7 @@ interface VideoGeometry {
 	readonly sourceSize: Readonly<{ width: number; height: number }>;
 	readonly selectionStartFrame: number;
 	readonly selectionEndFrame: number;
-	readonly authority: readonly TimeAuthority[];
+	readonly authority: ReviewedAssistanceSourceTimeRowsV1;
 }
 
 export function createOwnedHighlightCropKeyframesV1(request: Readonly<{
@@ -78,18 +73,25 @@ export function assertOwnedHighlightReframeVideoAuthorityV1(
 		|| evidence.result.authority.width !== video.sourceSize.width
 		|| evidence.result.authority.height !== video.sourceSize.height
 		|| evidence.result.authority.timescale !== video.timescale
-		|| video.authority[0]!.sourceFrame !== range.sourceStartFrame
-		|| video.authority.at(-1)!.sourceFrame !== range.sourceEndFrame
-		|| video.authority[0]!.timelineFrame !== video.selectionStartFrame
-		|| video.authority.at(-1)!.timelineFrame !== video.selectionEndFrame) {
+		|| video.authority.first.sourceFrame !== range.sourceStartFrame
+		|| video.authority.last.sourceFrame !== range.sourceEndFrame
+		|| video.authority.first.timelineFrame !== video.selectionStartFrame
+		|| video.authority.last.timelineFrame !== video.selectionEndFrame) {
 		throw new RangeError('Accepted Reframe evidence disagrees with Highlight video geometry.');
 	}
-	const timing = new Map(video.authority.map(({ sourceFrame, presentationTick }) =>
-		[sourceFrame, presentationTick] as const));
 	if (evidence.result.authority.frames.some(({ sourceFrame, presentationTick }) =>
-		timing.get(sourceFrame) !== presentationTick)) {
+		sourcePresentationTick(video.authority, sourceFrame) !== presentationTick)) {
 		throw new RangeError('Accepted Reframe evidence disagrees with Highlight source time.');
 	}
+}
+
+function sourcePresentationTick(
+	authority: ReviewedAssistanceSourceTimeRowsV1,
+	sourceFrame: number,
+): string | undefined {
+	const index = authority.firstAtOrAfterSource(sourceFrame);
+	return index < authority.rowCount && authority.row(index).sourceFrame === sourceFrame
+		? authority.row(index).presentationTick : undefined;
 }
 
 export function assertOwnedHighlightCropAspectV1(

@@ -4,7 +4,10 @@
 
 import { VIDEO_TIMING_ASSET_MAXIMUM_FRAMES } from
 	'../src/common/editor/video-timing-asset-reference.ts';
-import { reviewAssistanceSourceTimeRowsV1 } from
+import {
+	reviewAssistanceSourceTimeRowsV1,
+	type AssistanceSourceTimeRowsInventoryV1,
+} from
 	'../src/common/editor/assistance/source-time-rows-v1.ts';
 import type { AssistanceVideoSourceTimeAuthorityV1 } from
 	'../src/common/editor/assistance/owned-video-highlight-transform-types-v1.ts';
@@ -17,8 +20,6 @@ const DESCRIPTOR_FIELDS = Object.freeze([
 	'timescale', 'selectionStartFrame', 'selectionEndFrame', 'frames',
 ] as const);
 const ID = /^[A-Za-z\d][A-Za-z\d._:-]{0,255}$/u;
-const TICK = /^(?:0|[1-9]\d*)$/u;
-const MAXIMUM_TICK = 0x7fff_ffff_ffff_ffffn;
 
 export function materializeAssistanceSelectedVideoAuthorityV1(options: Readonly<{
 	readonly value: unknown;
@@ -62,35 +63,29 @@ export function materializeAssistanceSelectedVideoAuthorityV1(options: Readonly<
 	if (reviewedRows.rowCount > VIDEO_TIMING_ASSET_MAXIMUM_FRAMES + 1) {
 		throw new RangeError('The selected-video timing sidecar frame inventory is outside its bound.');
 	}
-	let priorSource = sourceStartFrame - 1;
-	let priorTick = -1n;
-	let priorTimeline = -1;
-	const frames = Array.from({ length: reviewedRows.rowCount }, (_, index) => {
-		const frame = reviewedRows.row(index);
-		const sourceFrame = integer(frame.sourceFrame, sourceStartFrame, sourceEndFrame,
-			`sidecar row ${String(index)} source frame`);
-		const presentationTick = tick(frame.presentationTick,
-			`sidecar row ${String(index)} presentation tick`);
-		const timelineFrame = integer(frame.timelineFrame, selectionStartFrame, selectionEndFrame,
-			`sidecar row ${String(index)} timeline frame`);
-		if (sourceFrame <= priorSource || BigInt(presentationTick) <= priorTick
-			|| timelineFrame < priorTimeline) {
-			throw new RangeError('The selected-video timing sidecar must remain forward and monotonic.');
-		}
-		priorSource = sourceFrame; priorTick = BigInt(presentationTick); priorTimeline = timelineFrame;
-		return Object.freeze({ sourceFrame, presentationTick, timelineFrame });
-	});
-	if (frames[0]!.sourceFrame !== sourceStartFrame
-		|| frames[0]!.timelineFrame !== selectionStartFrame
-		|| frames.at(-1)!.sourceFrame !== sourceEndFrame
-		|| frames.at(-1)!.timelineFrame !== selectionEndFrame) {
+	if (reviewedRows.first.sourceFrame !== sourceStartFrame
+		|| reviewedRows.first.timelineFrame !== selectionStartFrame
+		|| reviewedRows.last.sourceFrame !== sourceEndFrame
+		|| reviewedRows.last.timelineFrame !== selectionEndFrame) {
 		throw new RangeError('The selected-video timing sidecar does not bind both selected endpoints.');
 	}
-	const end = frames.at(-1)!;
+	const frames = retainedFrames(row.frames, reviewedRows);
 	return Object.freeze({ schemaVersion: 1, kind: 'video-source-time-authority', sourceId,
 		width, height, sourceStartFrame, sourceEndFrame, timescale,
-		presentationEndTick: end.presentationTick,
-		frames: Object.freeze(frames.slice(0, -1)) });
+		presentationEndTick: reviewedRows.last.presentationTick, frames });
+}
+
+function retainedFrames(
+	value: unknown,
+	rows: ReturnType<typeof reviewAssistanceSourceTimeRowsV1>,
+): AssistanceSourceTimeRowsInventoryV1 {
+	const activeCount = rows.rowCount - 1;
+	const compact = Array.isArray(value) && value[0] && typeof value[0] === 'object'
+		&& (value[0] as Record<string, unknown>).kind === 'source-time-rows';
+	if (!compact || activeCount === 1) {
+		return Object.freeze(Array.from({ length: activeCount }, (_, index) => rows.row(index)));
+	}
+	return rows.prefix(activeCount);
 }
 
 function exactRecord<const Key extends string>(
@@ -117,11 +112,4 @@ function integer(value: unknown, minimum: number, maximum: number, label: string
 		throw new RangeError(`The ${label} is invalid.`);
 	}
 	return Number(value);
-}
-
-function tick(value: unknown, label: string): string {
-	if (typeof value !== 'string' || !TICK.test(value) || BigInt(value) > MAXIMUM_TICK) {
-		throw new RangeError(`The ${label} is invalid.`);
-	}
-	return value;
 }

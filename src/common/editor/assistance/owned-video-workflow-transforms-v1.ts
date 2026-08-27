@@ -79,7 +79,7 @@ export function sampleOwnedShotFramesV1(
 		}
 	}
 	const starts = [Object.freeze({ sourceFrame: video.sourceStartFrame,
-		presentationTick: video.frames[0]!.presentationTick }), ...boundaries];
+		presentationTick: video.frames.first.presentationTick }), ...boundaries];
 	const result: AssistanceOwnedFramePackPlanV1['frames'][number][] = [];
 	for (const [shotIndex, start] of starts.entries()) {
 		const end = starts[shotIndex + 1];
@@ -99,7 +99,7 @@ export function sampleOwnedShotFramesV1(
 			const targetTick = startTick + BigInt(anchor.sourceFrame);
 			const source = firstFrameAtOrAfter(video.frames,
 				firstFrameIndexAtOrAfter(video.frames, start.sourceFrame),
-				end ? firstFrameIndexAtOrAfter(video.frames, end.sourceFrame) : video.frames.length,
+				end ? firstFrameIndexAtOrAfter(video.frames, end.sourceFrame) : video.frames.rowCount,
 				targetTick);
 			if (result.at(-1)?.sourceFrame === source.sourceFrame) continue;
 			result.push(Object.freeze({ resultId: `visual-sample:${String(result.length)}`,
@@ -117,21 +117,15 @@ function frameBySource(
 	sourceFrame: number,
 ) {
 	const index = firstFrameIndexAtOrAfter(frames, sourceFrame);
-	return frames[index]?.sourceFrame === sourceFrame ? frames[index] : null;
+	return index < frames.rowCount && frames.row(index).sourceFrame === sourceFrame
+		? frames.row(index) : null;
 }
 
 function firstFrameIndexAtOrAfter(
 	frames: ReturnType<typeof reviewOwnedVideoSourceTimeAuthorityV1>['frames'],
 	sourceFrame: number,
 ): number {
-	let low = 0;
-	let high = frames.length;
-	while (low < high) {
-		const middle = low + Math.floor((high - low) / 2);
-		if (frames[middle]!.sourceFrame < sourceFrame) low = middle + 1;
-		else high = middle;
-	}
-	return low;
+	return frames.firstAtOrAfterSource(sourceFrame);
 }
 
 export function publishOwnedVideoIndexV1(
@@ -234,19 +228,13 @@ export function planOwnedCropsV1(
 }
 
 function firstFrameAtOrAfter(
-	frames: AssistanceOwnedFramePackPlanV1['frames'] | ReturnType<typeof reviewOwnedVideoSourceTimeAuthorityV1>['frames'],
+	frames: ReturnType<typeof reviewOwnedVideoSourceTimeAuthorityV1>['frames'],
 	start: number,
 	end: number,
 	target: bigint,
 ) {
-	let low = start;
-	let high = end;
-	while (low < high) {
-		const middle = low + Math.floor((high - low) / 2);
-		if (BigInt(frames[middle]!.presentationTick) < target) low = middle + 1;
-		else high = middle;
-	}
-	return frames[Math.min(end - 1, low)]!;
+	const found = frames.firstAtOrAfterPresentationTick(target.toString());
+	return frames.row(Math.max(start, Math.min(end - 1, found)));
 }
 
 function sampleAuthority(framePack: AssistanceOwnedFramePackPlanV1):

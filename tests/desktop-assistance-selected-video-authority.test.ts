@@ -5,7 +5,10 @@ import test from 'node:test';
 
 import { materializeAssistanceSelectedVideoAuthorityV1 } from
 	'../desktop/assistance-selected-video-authority.ts';
-import { createAssistanceSourceTimeRowChunksV1 } from
+import {
+	createAssistanceSourceTimeRowChunksV1,
+	reviewAssistanceSourceTimeRowsV1,
+} from
 	'../src/common/editor/assistance/source-time-rows-v1.ts';
 import type { AssistanceWorkflowV1 } from '../src/common/editor/assistance/workflow.ts';
 
@@ -31,8 +34,15 @@ test('desktop materializes compact authority beyond 100,000 rows without losing 
 			occurrenceIds: ['video-occurrence'] }] } } as unknown as AssistanceWorkflowV1;
 	const authority = materializeAssistanceSelectedVideoAuthorityV1({ value, request,
 		videoClaim: { role: 'video', sha256: sourceSha256 } });
-	assert.equal(authority.frames.length, sourceEndFrame);
-	assert.deepEqual(authority.frames.at(-1), { sourceFrame: 100_000,
+	assert.ok(authority.frames.length < 4, 'compact input must not expand into one object per frame');
+	assert.equal((authority.frames[0] as { kind?: string }).kind, 'source-time-rows');
+	assert.equal((authority.frames[0] as { bodyBase64?: string }).bodyBase64,
+		frames[0]!.bodyBase64, 'complete chunks must be retained without re-encoding');
+	assert.equal((authority.frames.at(-1) as { rowCount?: number }).rowCount,
+		frames.at(-1)!.rowCount - 1, 'only the endpoint-bearing final chunk is rewritten');
+	const reviewed = reviewAssistanceSourceTimeRowsV1(authority.frames);
+	assert.equal(reviewed.rowCount, sourceEndFrame);
+	assert.deepEqual(reviewed.last, { sourceFrame: 100_000,
 		presentationTick: '300001', timelineFrame: 200_000_000 });
 	assert.equal(authority.presentationEndTick, '300004');
 	assert.ok(JSON.stringify(value).length < 4 * 1024 * 1024);

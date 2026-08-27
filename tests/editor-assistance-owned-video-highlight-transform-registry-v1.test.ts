@@ -5,6 +5,8 @@ import test from 'node:test';
 
 import { createAssistanceEmbeddingMatrixV1 } from
 	'../src/common/editor/assistance/binary-formats-v1.ts';
+import { createAssistanceSourceTimeRowChunksV1 } from
+	'../src/common/editor/assistance/source-time-rows-v1.ts';
 import {
 	ASSISTANCE_OWNED_VIDEO_HIGHLIGHT_TRANSFORM_IDS_V1,
 	createAssistanceOwnedVideoHighlightTransformRegistryV1,
@@ -123,6 +125,36 @@ test('sample-shot-frames keeps trimmed sparse forward-retime authority exact', (
 		{ shotId: 'shot:000001', sourceFrame: 40, presentationTick: '40', timelineFrame: 20_000 },
 		{ shotId: 'shot:000002', sourceFrame: 66, presentationTick: '66', timelineFrame: 33_000 },
 	]);
+});
+
+test('sample-shot-frames uses random access over compact long source-time custody', () => {
+	const sourceEndFrame = 131_073;
+	const frames = createAssistanceSourceTimeRowChunksV1((function* () {
+		for (let sourceFrame = 0; sourceFrame < sourceEndFrame; sourceFrame += 1) {
+			yield { sourceFrame, presentationTick: String(sourceFrame + 1),
+				timelineFrame: sourceFrame * 2 };
+		}
+	})());
+	assert.ok(frames.length < 4);
+	const result = createAssistanceOwnedVideoHighlightTransformRegistryV1().run({
+		schemaVersion: 1, transformId: 'sample-shot-frames', settings: INDEX_SETTINGS,
+		inputs: { video: {
+			schemaVersion: 1, kind: 'video-source-time-authority', sourceId: 'video-source',
+			width: 1_920, height: 1_080, sourceStartFrame: 0, sourceEndFrame,
+			timescale: 10, presentationEndTick: String(sourceEndFrame + 1), frames,
+		}, 'shot-boundaries': {
+			schemaVersion: 1, detector: 'transnetv2', timescale: 10,
+			sourceFrameCount: sourceEndFrame, boundaries: [
+				{ sourceFrame: 65_536, presentationTick: '65537', score: 0.9 },
+			],
+		} },
+	});
+	assert.deepEqual(result.outputs['frame-pack'].frames.map(({ shotId }) => shotId), [
+		'shot:000000', 'shot:000000', 'shot:000000',
+		'shot:000001', 'shot:000001', 'shot:000001',
+	]);
+	assert.ok(result.outputs['frame-pack'].frames.every(({ sourceFrame }) =>
+		sourceFrame < sourceEndFrame));
 });
 
 test('publish-video-index binds normalized embeddings, non-biometric tags, OCR, and jumps', () => {

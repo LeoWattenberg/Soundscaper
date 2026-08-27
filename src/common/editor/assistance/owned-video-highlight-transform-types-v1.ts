@@ -3,6 +3,7 @@
 /** Closed pathless contracts for deterministic Framescaper and highlight transforms. */
 
 import type { AssistanceTrackedSubjectResultV1 } from './subject-tracker-v1.ts';
+import type { AssistanceSourceTimeRowsInventoryV1 } from './source-time-rows-v1.ts';
 import type {
 	AssistanceReframePathResultV1,
 	AssistanceVisualFrameAuthorityV1,
@@ -54,7 +55,7 @@ export interface AssistanceVideoSourceTimeAuthorityV1 {
 	readonly sourceEndFrame: number;
 	readonly timescale: number;
 	readonly presentationEndTick: string;
-	readonly frames: readonly AssistanceVideoSourceTimeFrameV1[];
+	readonly frames: AssistanceSourceTimeRowsInventoryV1;
 }
 
 export interface AssistanceOwnedFramePackPlanFrameV1
