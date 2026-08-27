@@ -14,6 +14,8 @@ import {
 	createAssistanceOnnxRuntimeWorkerAdapterV1,
 	type AssistanceOnnxRuntimeModuleV1,
 } from '../desktop/assistance-onnx-runtime-worker.ts';
+import { createAssistanceOnnxAudioRuntimeWorkerAdapterV1 } from
+	'../desktop/assistance-onnx-audio-runtime-worker.ts';
 import { captureAssistanceRuntimeFamilyJobGrantV1 } from '../desktop/assistance-runtime-family-file-grants.ts';
 import { runAssistanceRuntimeFamilyWorkerJobV1 } from '../desktop/assistance-runtime-family-worker-entry.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
@@ -158,6 +160,19 @@ test('Beat This runs pinned padded log-mel chunks and publishes the deterministi
 	});
 });
 
+test('Beat This rejects insufficient reflect-padding geometry before loading its runtime', async (context) => {
+	const value = await fixture(context, 'beat-tracking', new Float32Array(512));
+	let loaded = false;
+	await assert.rejects(runAssistanceRuntimeFamilyWorkerJobV1({
+		job: value.job,
+		execute: createAssistanceOnnxRuntimeWorkerAdapterV1({ loadRuntime: async () => {
+			loaded = true;
+			return fakeRuntime([], [], async () => ({}));
+		} }),
+	}), /reflect|geometry|sample/iu);
+	assert.equal(loaded, false);
+});
+
 test('ONNX audio adapters reject substitutions, foreign graphs, and malformed tensors', async (context) => {
 	const substituted = await fixture(context, 'audio-tagging', new Float32Array(32_000), {
 		modelId: 'substitute-tagger',
@@ -212,6 +227,77 @@ test('PANNs cancellation is observed between authenticated inference batches', a
 	}), { name: 'AbortError' });
 	assert.equal(calls, 1);
 });
+
+test('PANNs long-media execution reads one ordered second at a time', async (context) => {
+	const value = await fixture(context, 'audio-tagging', new Float32Array(32_000));
+	const sampleCount = 32_000 * 11 * 60;
+	const reads: Array<readonly [number, number]> = [];
+	let closed = 0;
+	const runtime = fakeRuntime(['waveform'], ['clipwise_probabilities', 'embedding'], async () => ({
+		clipwise_probabilities: tensorValue(new Float32Array(527), [1, 527]),
+		embedding: tensorValue(new Float32Array(512), [1, 512]),
+	}));
+	await runAssistanceRuntimeFamilyWorkerJobV1({
+		job: value.job,
+		execute: createAssistanceOnnxAudioRuntimeWorkerAdapterV1(async () => runtime, {
+			openWaveFile: async (_path, sampleRate, byteLength) => Object.freeze({
+				sampleRate, byteLength, sampleCount, maximumObservedFileReadBytes: 0,
+				async readSamples(startSample: number, count: number) {
+					reads.push([startSample, count]);
+					return new Float32Array(count);
+				},
+				async close() { closed += 1; },
+			}),
+		}),
+	});
+
+	assert.equal(reads.length, 11 * 60);
+	assert.deepEqual(reads[0], [0, 32_000]);
+	assert.deepEqual(reads.at(-1), [sampleCount - 32_000, 32_000]);
+	assert.ok(reads.every(([, count]) => count <= 32_000));
+	assert.equal(closed, 1);
+	assert.equal(JSON.parse(await readFile(value.output, 'utf8')).windows.length, 11 * 60);
+});
+
+test('Beat This long-media execution retains overlap authority without a whole spectrogram',
+	async (context) => {
+		const value = await fixture(context, 'beat-tracking', new Float32Array(1_024));
+		const sampleCount = 22_050 * 11 * 60;
+		const logMelRanges: Array<readonly [number, number]> = [];
+		const sampleReads: number[] = [];
+		let closed = 0;
+		const runtime = fakeRuntime(['log_mel_spectrogram'], ['beat_logits', 'downbeat_logits'],
+			async (feeds) => {
+				const frames = feeds.log_mel_spectrogram!.dims[1]!;
+				return { beat_logits: tensorValue(new Float32Array(frames).fill(-10), [1, frames]),
+					downbeat_logits: tensorValue(new Float32Array(frames).fill(-10), [1, frames]) };
+			});
+		await runAssistanceRuntimeFamilyWorkerJobV1({
+			job: value.job,
+			execute: createAssistanceOnnxAudioRuntimeWorkerAdapterV1(async () => runtime, {
+				openWaveFile: async (_path, sampleRate, byteLength) => Object.freeze({
+					sampleRate, byteLength, sampleCount, maximumObservedFileReadBytes: 0,
+					async readSamples(_startSample: number, count: number) {
+						sampleReads.push(count);
+						return new Float32Array(count);
+					},
+					async close() { closed += 1; },
+				}),
+				async createBeatLogMelRange(source, frameStart, frameCount) {
+					logMelRanges.push([frameStart, frameCount]);
+					await source.readSamples(Math.min(frameStart * 441, source.sampleCount - 1), 1);
+					return Object.freeze({ frameCount, melBins: 128 as const,
+						values: new Float32Array(frameCount * 128) });
+				},
+			}),
+		});
+
+		assert.ok(logMelRanges.length > 20);
+		assert.ok(logMelRanges.every(([, frameCount]) => frameCount <= 1_500));
+		assert.ok(sampleReads.every((count) => count === 1));
+		assert.equal(closed, 1);
+		assert.deepEqual(JSON.parse(await readFile(value.output, 'utf8')).points, []);
+	});
 
 test('main-side ONNX audio identity admission is closed before model lookup', () => {
 	assert.doesNotThrow(() => assertAssistanceOnnxAudioModelBindingV1('audio-tagging', {

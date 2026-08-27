@@ -13,6 +13,8 @@ import {
 import {
 	resolveLocalAssistanceWorkflowBridge,
 } from '../src/common/editor/ui/local-assistance-workflow-bridge.ts';
+import { bindLocalAssistancePreparedAudioWaveRelease } from
+	'../src/common/editor/controller/local-assistance-audio-spool-release.ts';
 import { WORKFLOW_JOB_ID } from './helpers/assistance-workflow-fixture.ts';
 
 test('renderer workflow custody hashes Blobs and correlates main-minted slot handles', async () => {
@@ -41,6 +43,8 @@ test('renderer workflow custody hashes Blobs and correlates main-minted slot han
 	const bridge = resolveLocalAssistanceWorkflowBridge(raw);
 	assert.ok(bridge?.custody);
 	const bytes = new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'audio/wav' });
+	let released = 0;
+	bindLocalAssistancePreparedAudioWaveRelease(bytes, async () => { released += 1; });
 	const staged = await bridge.custody.stageInput({ jobId: WORKFLOW_JOB_ID,
 		workflowId: 'enhance-dialogue', stageId: 'enhance-dialogue', slotId: 'audio',
 		mediaType: 'audio/wav', bytes, signal: new AbortController().signal });
@@ -51,6 +55,7 @@ test('renderer workflow custody hashes Blobs and correlates main-minted slot han
 		maximumByteLength: 4096 });
 	assert.equal(reserved.custody.maximumByteLength, 4096);
 	assert.equal((calls[0] as { bytes?: unknown }).bytes instanceof Blob, true);
+	assert.equal(released, 1);
 	assert.doesNotMatch(JSON.stringify(calls), /path|private/iu);
 	assert.equal(await bridge.custody.release(WORKFLOW_JOB_ID), true);
 });

@@ -3,25 +3,30 @@
 /** Reviewed CPU ONNX adapters for PANNs Cnn10 and Beat This v1.1.0. */
 
 import { createHash } from 'node:crypto';
-import { readFile, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 
 import {
 	ASSISTANCE_BEAT_THIS_FRAMES_PER_SECOND,
 	createAssistanceBeatThisGridV1,
 } from '../src/common/editor/assistance/beat-this-postprocess-v1.ts';
 import {
+	ASSISTANCE_BEAT_THIS_FFT_SIZE,
+	ASSISTANCE_BEAT_THIS_HOP_SAMPLES,
 	ASSISTANCE_BEAT_THIS_MEL_BINS,
-	createAssistanceBeatThisLogMelV1,
+	createAssistanceBeatThisLogMelRangeV1,
+	type AssistanceBeatThisLogMelV1,
+	type AssistanceBeatThisPcmSourceV1,
 } from '../src/common/editor/assistance/beat-this-log-mel-v1.ts';
 import {
 	ASSISTANCE_PANNS_CNN10_AUDIOSET_CLASS_COUNT,
 	ASSISTANCE_PANNS_CNN10_MAXIMUM_WINDOWS,
-	createAssistancePannsCnn10AudioTagsV1,
+	createAssistancePannsCnn10ScoreProjectorV1,
 	type AssistancePannsCnn10ClassBindingV1,
 } from '../src/common/editor/assistance/panns-cnn10-postprocess-v1.ts';
 import {
-	reviewAssistanceFloat32MonoWaveV1,
-} from '../src/common/editor/assistance/float32-mono-wave-v1.ts';
+	reviewAssistanceAudioTagsV1,
+	type AssistanceAudioTagWindowV1,
+} from '../src/common/editor/assistance/m7-semantic-results.ts';
 import type {
 	AssistanceOnnxInferenceSessionV1,
 	AssistanceOnnxRuntimeModuleV1,
@@ -30,8 +35,28 @@ import type {
 import type {
 	AssistanceRuntimeFamilyWorkerExecutionContext,
 } from './assistance-runtime-family-worker-entry.ts';
+import {
+	openAssistanceFloat32MonoWaveFileV1,
+	type AssistanceFloat32MonoWaveFileV1,
+} from './assistance-float32-mono-wave-file-reader.ts';
 
 type RuntimeLoader = (entrypoint: string) => PromiseLike<AssistanceOnnxRuntimeModuleV1>;
+type WaveFileOpener = (
+	path: string,
+	expectedSampleRate: number,
+	expectedByteLength: number,
+) => Promise<AssistanceFloat32MonoWaveFileV1>;
+type BeatLogMelRange = (
+	source: AssistanceBeatThisPcmSourceV1,
+	frameStart: number,
+	frameCount: number,
+	signal?: AbortSignal,
+) => Promise<AssistanceBeatThisLogMelV1>;
+
+export interface AssistanceOnnxAudioRuntimeWorkerDependenciesV1 {
+	readonly openWaveFile?: WaveFileOpener;
+	readonly createBeatLogMelRange?: BeatLogMelRange;
+}
 
 const AUDIO_INPUT_MEDIA_TYPE = 'audio/wav';
 const AUDIO_TAG_RESULT_MEDIA_TYPE = 'application/vnd.soundscaper.audio-tags+json';
@@ -64,13 +89,27 @@ const PANNS_CLASS_BINDINGS = Object.freeze([
 
 export function createAssistanceOnnxAudioRuntimeWorkerAdapterV1(
 	loadRuntime: RuntimeLoader,
+	dependencies: AssistanceOnnxAudioRuntimeWorkerDependenciesV1 = {},
 ): (context: AssistanceRuntimeFamilyWorkerExecutionContext) => Promise<unknown> {
 	if (typeof loadRuntime !== 'function') {
 		throw new TypeError('The ONNX audio runtime loader is invalid.');
 	}
+	if (!dependencies || typeof dependencies !== 'object'
+		|| dependencies.openWaveFile !== undefined && typeof dependencies.openWaveFile !== 'function'
+		|| dependencies.createBeatLogMelRange !== undefined
+			&& typeof dependencies.createBeatLogMelRange !== 'function') {
+		throw new TypeError('The ONNX audio worker dependencies are invalid.');
+	}
+	const openWaveFile = dependencies.openWaveFile ?? openAssistanceFloat32MonoWaveFileV1;
+	const createBeatLogMelRange = dependencies.createBeatLogMelRange
+		?? createAssistanceBeatThisLogMelRangeV1;
 	return async (context) => {
-		if (context.grant.task === 'audio-tagging') return executePanns(context, loadRuntime);
-		if (context.grant.task === 'beat-tracking') return executeBeatThis(context, loadRuntime);
+		if (context.grant.task === 'audio-tagging') {
+			return executePanns(context, loadRuntime, openWaveFile);
+		}
+		if (context.grant.task === 'beat-tracking') {
+			return executeBeatThis(context, loadRuntime, openWaveFile, createBeatLogMelRange);
+		}
 		throw new TypeError('The ONNX audio adapter received a foreign task.');
 	};
 }
@@ -78,6 +117,7 @@ export function createAssistanceOnnxAudioRuntimeWorkerAdapterV1(
 async function executePanns(
 	context: AssistanceRuntimeFamilyWorkerExecutionContext,
 	loadRuntime: RuntimeLoader,
+	openWaveFile: WaveFileOpener,
 ): Promise<unknown> {
 	assertRuntimeJob(context, 'audio-tagging');
 	assertSettings(context, 'audio-tagging', 'audio-tags');
@@ -92,50 +132,60 @@ async function executePanns(
 	}
 	context.signal?.throwIfAborted();
 	context.onProgress(0);
-	const wave = reviewAssistanceFloat32MonoWaveV1(
-		await readFile(grant.inputs[0]!.path), PANNS_SAMPLE_RATE,
+	const wave = await openWaveFile(
+		grant.inputs[0]!.path, PANNS_SAMPLE_RATE, grant.inputs[0]!.byteLength,
 	);
-	const windowCount = Math.ceil(wave.samples.length / PANNS_WINDOW_SAMPLES);
-	if (windowCount < 1 || windowCount > ASSISTANCE_PANNS_CNN10_MAXIMUM_WINDOWS) {
-		throw new RangeError('PANNs Cnn10 audio exceeds the one-second window capacity.');
-	}
-	context.signal?.throwIfAborted();
-	const runtime = runtimeValue(await loadRuntime(context.job.descriptor.entrypoint));
-	const session = await createCpuSession(runtime, grant.models[0]!.path);
 	try {
-		assertExactNames(session.inputNames, PANNS_INPUT_NAMES, 'PANNs Cnn10 input');
-		assertExactNames(session.outputNames, PANNS_OUTPUT_NAMES, 'PANNs Cnn10 output');
-		const windows: Array<Readonly<{ startSample: number; scores: Float32Array }>> = [];
-		for (let windowIndex = 0; windowIndex < windowCount; windowIndex += 1) {
-			context.signal?.throwIfAborted();
-			const startSample = windowIndex * PANNS_WINDOW_SAMPLES;
-			const input = new Float32Array(PANNS_WINDOW_SAMPLES);
-			input.set(wave.samples.subarray(startSample, startSample + PANNS_WINDOW_SAMPLES));
-			const output = exactOutputs(await session.run({
-				waveform: new runtime.Tensor('float32', input, [1, PANNS_WINDOW_SAMPLES]),
-			}), PANNS_OUTPUT_NAMES, 'PANNs Cnn10');
-			const probabilities = floatTensor(output.clipwise_probabilities,
-				[1, ASSISTANCE_PANNS_CNN10_AUDIOSET_CLASS_COUNT], 'PANNs Cnn10 probabilities', true);
-			floatTensor(output.embedding, [1, 512], 'PANNs Cnn10 embedding', false);
-			windows.push(Object.freeze({ startSample, scores: new Float32Array(probabilities.data) }));
-			context.signal?.throwIfAborted();
-			context.onProgress((windowIndex + 1) / (windowCount + 1));
+		const windowCount = Math.ceil(wave.sampleCount / PANNS_WINDOW_SAMPLES);
+		if (windowCount < 1 || windowCount > ASSISTANCE_PANNS_CNN10_MAXIMUM_WINDOWS) {
+			throw new RangeError('PANNs Cnn10 audio exceeds the one-second window capacity.');
 		}
-		const result = createAssistancePannsCnn10AudioTagsV1({
-			schemaVersion: 1, sampleRate: PANNS_SAMPLE_RATE, channelCount: 1,
-			windowSamples: PANNS_WINDOW_SAMPLES,
-			classCount: ASSISTANCE_PANNS_CNN10_AUDIOSET_CLASS_COUNT,
-			scoreKind: 'probabilities', classBindings: PANNS_CLASS_BINDINGS, windows,
-		});
-		return await publishJson(context, result);
+		context.signal?.throwIfAborted();
+		const runtime = runtimeValue(await loadRuntime(context.job.descriptor.entrypoint));
+		const session = await createCpuSession(runtime, grant.models[0]!.path);
+		try {
+			assertExactNames(session.inputNames, PANNS_INPUT_NAMES, 'PANNs Cnn10 input');
+			assertExactNames(session.outputNames, PANNS_OUTPUT_NAMES, 'PANNs Cnn10 output');
+			const projector = createAssistancePannsCnn10ScoreProjectorV1(
+				'probabilities', PANNS_CLASS_BINDINGS,
+			);
+			const windows: AssistanceAudioTagWindowV1[] = [];
+			for (let windowIndex = 0; windowIndex < windowCount; windowIndex += 1) {
+				context.signal?.throwIfAborted();
+				const startSample = windowIndex * PANNS_WINDOW_SAMPLES;
+				const retainedSamples = Math.min(PANNS_WINDOW_SAMPLES, wave.sampleCount - startSample);
+				const ranged = await wave.readSamples(startSample, retainedSamples, context.signal);
+				const input = retainedSamples === PANNS_WINDOW_SAMPLES
+					? ranged : zeroPad(ranged, PANNS_WINDOW_SAMPLES);
+				const output = exactOutputs(await session.run({
+					waveform: new runtime.Tensor('float32', input, [1, PANNS_WINDOW_SAMPLES]),
+				}), PANNS_OUTPUT_NAMES, 'PANNs Cnn10');
+				const probabilities = floatTensor(output.clipwise_probabilities,
+					[1, ASSISTANCE_PANNS_CNN10_AUDIOSET_CLASS_COUNT],
+					'PANNs Cnn10 probabilities', true);
+				floatTensor(output.embedding, [1, 512], 'PANNs Cnn10 embedding', false);
+				windows.push(projector.project(startSample, probabilities.data));
+				context.signal?.throwIfAborted();
+				context.onProgress((windowIndex + 1) / (windowCount + 1));
+			}
+			const result = reviewAssistanceAudioTagsV1({
+				schemaVersion: 1, sampleRate: PANNS_SAMPLE_RATE,
+				windowSamples: PANNS_WINDOW_SAMPLES, windows,
+			});
+			return await publishJson(context, result);
+		} finally {
+			await session.release?.();
+		}
 	} finally {
-		await session.release?.();
+		await wave.close();
 	}
 }
 
 async function executeBeatThis(
 	context: AssistanceRuntimeFamilyWorkerExecutionContext,
 	loadRuntime: RuntimeLoader,
+	openWaveFile: WaveFileOpener,
+	createBeatLogMelRange: BeatLogMelRange,
 ): Promise<unknown> {
 	assertRuntimeJob(context, 'beat-tracking');
 	assertSettings(context, 'beat-tracking', 'beat-grid');
@@ -151,48 +201,55 @@ async function executeBeatThis(
 	}
 	context.signal?.throwIfAborted();
 	context.onProgress(0);
-	const wave = reviewAssistanceFloat32MonoWaveV1(
-		await readFile(grant.inputs[0]!.path), BEAT_SAMPLE_RATE,
+	const wave = await openWaveFile(
+		grant.inputs[0]!.path, BEAT_SAMPLE_RATE, grant.inputs[0]!.byteLength,
 	);
-	const spectrogram = await createAssistanceBeatThisLogMelV1(wave.samples, context.signal);
-	const starts = beatChunkStarts(spectrogram.frameCount);
-	context.signal?.throwIfAborted();
-	const runtime = runtimeValue(await loadRuntime(context.job.descriptor.entrypoint));
-	const session = await createCpuSession(runtime, model.path);
 	try {
-		assertExactNames(session.inputNames, BEAT_INPUT_NAMES, 'Beat This input');
-		assertExactNames(session.outputNames, BEAT_OUTPUT_NAMES, 'Beat This output');
-		const beatLogits = new Float32Array(spectrogram.frameCount);
-		const downbeatLogits = new Float32Array(spectrogram.frameCount);
-		const assigned = new Uint8Array(spectrogram.frameCount);
-		for (let chunkIndex = 0; chunkIndex < starts.length; chunkIndex += 1) {
-			context.signal?.throwIfAborted();
-			const chunk = beatChunk(spectrogram.values, spectrogram.frameCount, starts[chunkIndex]!);
-			const output = exactOutputs(await session.run({
-				log_mel_spectrogram: new runtime.Tensor(
-					'float32', chunk.values, [1, chunk.frameCount, ASSISTANCE_BEAT_THIS_MEL_BINS],
-				),
-			}), BEAT_OUTPUT_NAMES, 'Beat This');
-			const beats = floatTensor(output.beat_logits, [1, chunk.frameCount],
-				'Beat This beat logits', false).data;
-			const downbeats = floatTensor(output.downbeat_logits, [1, chunk.frameCount],
-				'Beat This downbeat logits', false).data;
-			stitchBeatChunk(starts[chunkIndex]!, beats, downbeats,
-				beatLogits, downbeatLogits, assigned);
-			context.signal?.throwIfAborted();
-			context.onProgress((chunkIndex + 1) / (starts.length + 1));
+		if (wave.sampleCount <= ASSISTANCE_BEAT_THIS_FFT_SIZE / 2) {
+			throw new RangeError('Beat This PCM cannot satisfy exact reflect-padded geometry.');
 		}
-		if (assigned.some((value) => value !== 1)) {
-			throw new Error('Beat This chunks did not retain one exact authority for every frame.');
+		const frameCount = Math.floor(wave.sampleCount / ASSISTANCE_BEAT_THIS_HOP_SAMPLES) + 1;
+		const starts = beatChunkStarts(frameCount);
+		context.signal?.throwIfAborted();
+		const runtime = runtimeValue(await loadRuntime(context.job.descriptor.entrypoint));
+		const session = await createCpuSession(runtime, model.path);
+		try {
+			assertExactNames(session.inputNames, BEAT_INPUT_NAMES, 'Beat This input');
+			assertExactNames(session.outputNames, BEAT_OUTPUT_NAMES, 'Beat This output');
+			const beatLogits = new Float32Array(frameCount);
+			const downbeatLogits = new Float32Array(frameCount);
+			const assigned = new Uint8Array(frameCount);
+			for (let chunkIndex = 0; chunkIndex < starts.length; chunkIndex += 1) {
+				context.signal?.throwIfAborted();
+				const chunk = await beatChunk(wave, frameCount, starts[chunkIndex]!,
+					createBeatLogMelRange, context.signal);
+				const output = exactOutputs(await session.run({
+					log_mel_spectrogram: new runtime.Tensor('float32', chunk.values,
+						[1, chunk.frameCount, ASSISTANCE_BEAT_THIS_MEL_BINS]),
+				}), BEAT_OUTPUT_NAMES, 'Beat This');
+				const beats = floatTensor(output.beat_logits, [1, chunk.frameCount],
+					'Beat This beat logits', false).data;
+				const downbeats = floatTensor(output.downbeat_logits, [1, chunk.frameCount],
+					'Beat This downbeat logits', false).data;
+				stitchBeatChunk(starts[chunkIndex]!, beats, downbeats,
+					beatLogits, downbeatLogits, assigned);
+				context.signal?.throwIfAborted();
+				context.onProgress((chunkIndex + 1) / (starts.length + 1));
+			}
+			if (assigned.some((value) => value !== 1)) {
+				throw new Error('Beat This chunks did not retain one exact authority for every frame.');
+			}
+			const result = createAssistanceBeatThisGridV1({
+				schemaVersion: 1, sampleRate: BEAT_SAMPLE_RATE,
+				framesPerSecond: ASSISTANCE_BEAT_THIS_FRAMES_PER_SECOND,
+				beatLogits, downbeatLogits,
+			});
+			return await publishJson(context, result);
+		} finally {
+			await session.release?.();
 		}
-		const result = createAssistanceBeatThisGridV1({
-			schemaVersion: 1, sampleRate: BEAT_SAMPLE_RATE,
-			framesPerSecond: ASSISTANCE_BEAT_THIS_FRAMES_PER_SECOND,
-			beatLogits, downbeatLogits,
-		});
-		return await publishJson(context, result);
 	} finally {
-		await session.release?.();
+		await wave.close();
 	}
 }
 
@@ -297,11 +354,13 @@ function beatChunkStarts(frameCount: number): readonly number[] {
 	return Object.freeze(starts);
 }
 
-function beatChunk(
-	values: Float32Array,
+async function beatChunk(
+	source: AssistanceBeatThisPcmSourceV1,
 	frameCount: number,
 	start: number,
-): Readonly<{ frameCount: number; values: Float32Array }> {
+	createBeatLogMelRange: BeatLogMelRange,
+	signal?: AbortSignal,
+): Promise<Readonly<{ frameCount: number; values: Float32Array }>> {
 	const sourceStart = Math.max(start, 0);
 	const sourceEnd = Math.min(start + BEAT_CHUNK_FRAMES, frameCount);
 	const left = Math.max(0, -start);
@@ -312,9 +371,23 @@ function beatChunk(
 		throw new RangeError('Beat This produced invalid padded chunk geometry.');
 	}
 	const chunk = new Float32Array(chunkFrames * ASSISTANCE_BEAT_THIS_MEL_BINS);
-	chunk.set(values.subarray(sourceStart * ASSISTANCE_BEAT_THIS_MEL_BINS,
-		sourceEnd * ASSISTANCE_BEAT_THIS_MEL_BINS), left * ASSISTANCE_BEAT_THIS_MEL_BINS);
+	const spectrogram = await createBeatLogMelRange(
+		source, sourceStart, sourceEnd - sourceStart, signal,
+	);
+	if (spectrogram.frameCount !== sourceEnd - sourceStart
+		|| spectrogram.melBins !== ASSISTANCE_BEAT_THIS_MEL_BINS
+		|| spectrogram.values.length !== (sourceEnd - sourceStart) * ASSISTANCE_BEAT_THIS_MEL_BINS) {
+		throw new RangeError('Beat This ranged preprocessing returned invalid chunk geometry.');
+	}
+	chunk.set(spectrogram.values, left * ASSISTANCE_BEAT_THIS_MEL_BINS);
 	return Object.freeze({ frameCount: chunkFrames, values: chunk });
+}
+
+function zeroPad(samples: Float32Array, sampleCount: number): Float32Array {
+	if (samples.length >= sampleCount) return samples;
+	const result = new Float32Array(sampleCount);
+	result.set(samples);
+	return result;
 }
 
 function stitchBeatChunk(

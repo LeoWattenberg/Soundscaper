@@ -15,6 +15,8 @@ import {
 } from '../assistance/proposal-session.ts';
 import type { AssistanceSemanticSearchSessionPortV1 } from
 	'../assistance/semantic-search-runtime-v1.ts';
+import { releaseLocalAssistancePreparedAudioWave } from
+	'../controller/local-assistance-audio-spool-release.ts';
 import { lazyAssistanceWorkflowBridge } from './local-assistance-lazy-workflow-bridge.ts';
 import { lazyLocalAssistanceSemanticSearchBridge } from
 	'./local-assistance-lazy-semantic-search-bridge.ts';
@@ -228,20 +230,24 @@ export function resolveLocalAssistanceBridge(value: unknown): LocalAssistanceBri
 			return Object.freeze({ contractVersion: 1 as const, jobId: jobId(record.jobId) });
 		},
 		async stageInput(value: Parameters<LocalAssistanceBridge['stageInput']>[0]) {
-			const request = normalizeStageInput(value);
-			const sha256 = await blobSha256(request.bytes);
-			const claim = normalizeInputClaim(await invoke('stageInput', Object.freeze({
-				jobId: request.jobId, role: request.role, mediaType: request.mediaType, sha256,
-				bytes: request.bytes,
-			})));
-			if (claim.jobId !== request.jobId || claim.role !== request.role
-				|| claim.mediaType !== request.mediaType || claim.byteLength !== request.byteLength) {
-				throw new TypeError('The staged input claim disagrees with its exact Blob request.');
+			try {
+				const request = normalizeStageInput(value);
+				const sha256 = await blobSha256(request.bytes);
+				const claim = normalizeInputClaim(await invoke('stageInput', Object.freeze({
+					jobId: request.jobId, role: request.role, mediaType: request.mediaType, sha256,
+					bytes: request.bytes,
+				})));
+				if (claim.jobId !== request.jobId || claim.role !== request.role
+					|| claim.mediaType !== request.mediaType || claim.byteLength !== request.byteLength) {
+					throw new TypeError('The staged input claim disagrees with its exact Blob request.');
+				}
+				if (sha256 !== claim.sha256) {
+					throw new TypeError('The staged input claim digest disagrees with its Blob body.');
+				}
+				return claim;
+			} finally {
+				await releaseLocalAssistancePreparedAudioWave(value.bytes).catch(() => undefined);
 			}
-			if (sha256 !== claim.sha256) {
-				throw new TypeError('The staged input claim digest disagrees with its Blob body.');
-			}
-			return claim;
 		},
 		async reserveOutput(value: Parameters<LocalAssistanceBridge['reserveOutput']>[0]) {
 			const request = normalizeReserveOutput(value);

@@ -8,6 +8,7 @@ import {
 	ASSISTANCE_PANNS_CNN10_MAXIMUM_BINDINGS,
 	ASSISTANCE_PANNS_CNN10_MAXIMUM_WINDOWS,
 	createAssistancePannsCnn10AudioTagsV1,
+	createAssistancePannsCnn10ScoreProjectorV1,
 } from '../src/common/editor/assistance/panns-cnn10-postprocess-v1.ts';
 
 const BINDINGS = Object.freeze([
@@ -77,6 +78,16 @@ test('PANNs Cnn10 converts finite logits stably before maximum aggregation', () 
 	assert.equal(result.windows[0]?.scores.applause,
 		Math.round((1 / (1 + Math.exp(-2))) * 1e12) / 1e12);
 	assert.equal(result.windows[0]?.scores.cheering, 1);
+});
+
+test('PANNs Cnn10 bounded window projection is semantically equal to whole-result projection', () => {
+	const input = request();
+	const whole = createAssistancePannsCnn10AudioTagsV1(input);
+	const projector = createAssistancePannsCnn10ScoreProjectorV1('probabilities', BINDINGS);
+	const streamed = input.windows.map((window) => projector.project(window.startSample, window.scores));
+
+	assert.deepEqual(streamed, whole.windows);
+	assert.ok(streamed.every((window) => Object.isFrozen(window) && Object.isFrozen(window.scores)));
 });
 
 test('PANNs Cnn10 binds an ordered, unique exact-index AudioSet authority', () => {

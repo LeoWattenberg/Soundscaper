@@ -18,7 +18,7 @@ const HALF_FFT = ASSISTANCE_BEAT_THIS_FFT_SIZE / 2;
 const MINIMUM_FREQUENCY_HZ = 30;
 const MAXIMUM_FREQUENCY_HZ = 11_000;
 const LOG_MULTIPLIER = 1_000;
-const MAXIMUM_SAMPLES = ASSISTANCE_BEAT_THIS_SAMPLE_RATE * 60 * 10;
+const MAXIMUM_RANGE_FRAMES = 1_500;
 const CANCELLATION_FRAME_INTERVAL = 16;
 const HANN_WINDOW = periodicHann();
 const MEL_FILTER_BANK = slaneyMelFilterBank();
@@ -30,35 +30,79 @@ export interface AssistanceBeatThisLogMelV1 {
 	readonly values: Float32Array;
 }
 
+export interface AssistanceBeatThisPcmSourceV1 {
+	readonly sampleCount: number;
+	readSamples(
+		startSample: number,
+		sampleCount: number,
+		signal?: AbortSignal,
+	): PromiseLike<Float32Array>;
+}
+
 export async function createAssistanceBeatThisLogMelV1(
 	samples: Float32Array,
 	signal?: AbortSignal,
 ): Promise<AssistanceBeatThisLogMelV1> {
-	if (!(samples instanceof Float32Array) || samples.length <= HALF_FFT
-		|| samples.length > MAXIMUM_SAMPLES) {
+	if (!(samples instanceof Float32Array) || samples.length <= HALF_FFT) {
 		throw new RangeError('Beat This PCM length cannot satisfy exact reflect-padded STFT geometry.');
 	}
-	if (signal !== undefined && !(signal instanceof AbortSignal)) {
-		throw new TypeError('Beat This preprocessing requires a valid cancellation signal.');
-	}
-	for (let start = 0; start < samples.length; start += 262_144) {
-		signal?.throwIfAborted();
-		const end = Math.min(samples.length, start + 262_144);
-		for (let index = start; index < end; index += 1) {
-			if (!Number.isFinite(samples[index]!)) {
-				throw new RangeError('Every Beat This PCM sample must be finite.');
-			}
-		}
-		if (end < samples.length) await yieldForCancellation(signal);
-	}
 	const frameCount = Math.floor(samples.length / ASSISTANCE_BEAT_THIS_HOP_SAMPLES) + 1;
+	const values = new Float32Array(frameCount * ASSISTANCE_BEAT_THIS_MEL_BINS);
+	const source: AssistanceBeatThisPcmSourceV1 = Object.freeze({
+		sampleCount: samples.length,
+		readSamples: (startSample: number, sampleCount: number) => Promise.resolve(
+			samples.subarray(startSample, startSample + sampleCount),
+		),
+	});
+	for (let frameStart = 0; frameStart < frameCount; frameStart += MAXIMUM_RANGE_FRAMES) {
+		const range = await createAssistanceBeatThisLogMelRangeV1(
+			source, frameStart, Math.min(MAXIMUM_RANGE_FRAMES, frameCount - frameStart), signal,
+		);
+		values.set(range.values, frameStart * ASSISTANCE_BEAT_THIS_MEL_BINS);
+	}
+	signal?.throwIfAborted();
+	return Object.freeze({ frameCount, melBins: ASSISTANCE_BEAT_THIS_MEL_BINS, values });
+}
+
+/** Compute only one overlap-owned model range from a bounded positioned PCM source. */
+export async function createAssistanceBeatThisLogMelRangeV1(
+	source: AssistanceBeatThisPcmSourceV1,
+	frameStart: number,
+	frameCount: number,
+	signal?: AbortSignal,
+): Promise<AssistanceBeatThisLogMelV1> {
+	assertRangeRequest(source, frameStart, frameCount, signal);
+	const firstCenter = frameStart * ASSISTANCE_BEAT_THIS_HOP_SAMPLES;
+	const lastCenter = (frameStart + frameCount - 1) * ASSISTANCE_BEAT_THIS_HOP_SAMPLES;
+	const firstWindowSample = firstCenter - HALF_FFT;
+	const lastWindowSample = lastCenter + HALF_FFT - 1;
+	let readStart = Math.max(0, firstWindowSample);
+	let readEnd = Math.min(source.sampleCount, lastWindowSample + 1);
+	if (lastWindowSample >= source.sampleCount) {
+		readStart = Math.min(readStart, reflectedIndex(lastWindowSample, source.sampleCount));
+	}
+	if (firstWindowSample < 0) {
+		readEnd = Math.max(readEnd, reflectedIndex(firstWindowSample, source.sampleCount) + 1);
+	}
+	signal?.throwIfAborted();
+	const samples = await source.readSamples(readStart, readEnd - readStart, signal);
+	signal?.throwIfAborted();
+	if (!(samples instanceof Float32Array) || samples.length !== readEnd - readStart) {
+		throw new RangeError('Beat This PCM source returned inexact ranged geometry.');
+	}
+	for (const sample of samples) {
+		if (!Number.isFinite(sample)) {
+			throw new RangeError('Every Beat This PCM sample must be finite.');
+		}
+	}
 	const values = new Float32Array(frameCount * ASSISTANCE_BEAT_THIS_MEL_BINS);
 	const real = new Float32Array(ASSISTANCE_BEAT_THIS_FFT_SIZE);
 	const imaginary = new Float32Array(ASSISTANCE_BEAT_THIS_FFT_SIZE);
 	const magnitude = new Float32Array(HALF_FFT + 1);
 	for (let frame = 0; frame < frameCount; frame += 1) {
 		signal?.throwIfAborted();
-		fillWindowedFrame(real, imaginary, samples, frame);
+		fillWindowedFrame(real, imaginary, samples, readStart,
+			frameStart + frame, source.sampleCount);
 		fftInPlace(real, imaginary);
 		for (let frequency = 0; frequency <= HALF_FFT; frequency += 1) {
 			magnitude[frequency] = Math.fround(
@@ -87,16 +131,39 @@ export async function createAssistanceBeatThisLogMelV1(
 	return Object.freeze({ frameCount, melBins: ASSISTANCE_BEAT_THIS_MEL_BINS, values });
 }
 
+function assertRangeRequest(
+	source: AssistanceBeatThisPcmSourceV1,
+	frameStart: number,
+	frameCount: number,
+	signal?: AbortSignal,
+): void {
+	if (!source || typeof source !== 'object' || typeof source.readSamples !== 'function'
+		|| !Number.isSafeInteger(source.sampleCount) || source.sampleCount <= HALF_FFT) {
+		throw new RangeError('Beat This preprocessing requires one exact ranged PCM source.');
+	}
+	const totalFrames = Math.floor(source.sampleCount / ASSISTANCE_BEAT_THIS_HOP_SAMPLES) + 1;
+	if (!Number.isSafeInteger(frameStart) || frameStart < 0
+		|| !Number.isSafeInteger(frameCount) || frameCount < 1 || frameCount > MAXIMUM_RANGE_FRAMES
+		|| frameStart + frameCount > totalFrames) {
+		throw new RangeError('Beat This preprocessing range exceeds its bounded frame authority.');
+	}
+	if (signal !== undefined && !(signal instanceof AbortSignal)) {
+		throw new TypeError('Beat This preprocessing requires a valid cancellation signal.');
+	}
+}
+
 function fillWindowedFrame(
 	real: Float32Array,
 	imaginary: Float32Array,
 	samples: Float32Array,
+	readStart: number,
 	frame: number,
+	totalSamples: number,
 ): void {
 	const center = frame * ASSISTANCE_BEAT_THIS_HOP_SAMPLES;
 	for (let index = 0; index < ASSISTANCE_BEAT_THIS_FFT_SIZE; index += 1) {
-		const sourceIndex = reflectedIndex(center + index - HALF_FFT, samples.length);
-		real[index] = Math.fround(samples[sourceIndex]! * HANN_WINDOW[index]!);
+		const sourceIndex = reflectedIndex(center + index - HALF_FFT, totalSamples);
+		real[index] = Math.fround(samples[sourceIndex - readStart]! * HANN_WINDOW[index]!);
 		imaginary[index] = 0;
 	}
 }

@@ -4,8 +4,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { resolveLocalAssistanceBridge } from '../src/common/editor/ui/local-assistance-bridge.ts';
+import { bindLocalAssistancePreparedAudioWaveRelease } from
+	'../src/common/editor/controller/local-assistance-audio-spool-release.ts';
 import { assistanceWorkflowFixture, WORKFLOW_JOB_ID } from './helpers/assistance-workflow-fixture.ts';
-import { rawBridgeFixture } from './helpers/local-assistance-fixtures.ts';
+import { JOB_ID, rawBridgeFixture } from './helpers/local-assistance-fixtures.ts';
 
 test('the renderer bridge optionally projects the shared workflow-v1 boundary', async () => {
 	const progressState: { listener: ((value: unknown) => void) | null } = { listener: null };
@@ -54,4 +56,15 @@ test('legacy operation-only bridges remain valid while malformed workflow surfac
 		...legacy,
 		workflow: { createJob() {}, run() {}, cancel() {}, onProgress() {}, executeShell() {} },
 	} }), null);
+});
+
+test('operation input custody releases a disk-backed prepared body after staging', async () => {
+	const body = new Blob(['audio'], { type: 'audio/wav' });
+	let released = 0;
+	bindLocalAssistancePreparedAudioWaveRelease(body, async () => { released += 1; });
+	const bridge = resolveLocalAssistanceBridge({ localAssistance: rawBridgeFixture().api });
+	assert.ok(bridge);
+	await bridge.stageInput({ jobId: JOB_ID, role: 'audio', mediaType: 'audio/wav',
+		byteLength: body.size, bytes: body });
+	assert.equal(released, 1);
 });

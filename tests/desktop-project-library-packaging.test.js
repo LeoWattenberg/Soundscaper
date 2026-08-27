@@ -45,6 +45,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 	assert.ok(result.files.includes('src/common/editor/track-folder-v12.js'));
 	assert.ok(result.files.includes('src/common/editor/track-hierarchy-v12.js'));
 	assert.ok(result.files.includes('src/common/editor/timeline-annotation.js'));
+	assert.ok(result.files.includes('desktop/assistance-float32-mono-wave-file-reader.js'));
 	assert.equal(result.files.includes('src/common/editor/project-current.js'), false);
 	assert.equal(result.files.includes('src/common/editor/pffft.js'), true);
 	const runtime = await import(`${pathToFileURL(join(outputRoot, 'desktop/project-library-host.js')).href}?test=${Date.now()}`);

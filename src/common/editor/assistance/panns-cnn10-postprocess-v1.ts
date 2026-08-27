@@ -8,6 +8,7 @@ import {
 	MAXIMUM_ASSISTANCE_AUDIO_TAG_WINDOWS,
 	reviewAssistanceAudioTagsV1,
 	type AssistanceAudioTagsV1,
+	type AssistanceAudioTagWindowV1,
 	type AssistanceExcitementScoresV1,
 } from './m7-semantic-results.ts';
 
@@ -51,6 +52,26 @@ export interface AssistancePannsCnn10PostprocessRequestV1 {
 	readonly scoreKind: AssistancePannsCnn10ScoreKindV1;
 	readonly classBindings: readonly AssistancePannsCnn10ClassBindingV1[];
 	readonly windows: readonly AssistancePannsCnn10WindowV1[];
+}
+
+export interface AssistancePannsCnn10ScoreProjectorV1 {
+	project(startSample: number, scores: Float32Array): AssistanceAudioTagWindowV1;
+}
+
+/** Validate the class authority once, then retain only the three admitted excitement scores. */
+export function createAssistancePannsCnn10ScoreProjectorV1(
+	scoreKind: AssistancePannsCnn10ScoreKindV1,
+	classBindingValue: unknown,
+): AssistancePannsCnn10ScoreProjectorV1 {
+	if (scoreKind !== 'logits' && scoreKind !== 'probabilities') {
+		throw new TypeError('The PANNs Cnn10 score kind must be logits or probabilities.');
+	}
+	const bindings = classBindings(classBindingValue);
+	return Object.freeze({
+		project(startSample: number, scores: Float32Array) {
+			return projectModelWindow(startSample, scores, scoreKind, bindings, 'PANNs Cnn10 window');
+		},
+	});
 }
 
 /**
@@ -140,33 +161,42 @@ function modelWindows(
 		const row = exactRecord(candidate, WINDOW_FIELDS, label);
 		const startSample = integer(row.startSample, 0, Number.MAX_SAFE_INTEGER,
 			`${label} start sample`);
-		if (startSample % ASSISTANCE_AUDIO_TAG_WINDOW_SAMPLES !== 0) {
-			throw new RangeError(`${label} must start on the exact one-second sample grid.`);
-		}
 		if (startSample <= priorStart) {
 			throw new RangeError('PANNs Cnn10 windows must be strictly ordered.');
 		}
 		priorStart = startSample;
-		const scores = modelScores(row.scores, scoreKind, label);
-		const aggregated: Record<AssistancePannsCnn10SignalV1, number> = {
-			laughter: 0,
-			applause: 0,
-			cheering: 0,
-		};
-		for (const binding of bindings) {
-			const probability = scoreKind === 'logits'
-				? sigmoid(scores[binding.index]!)
-				: scores[binding.index]!;
-			aggregated[binding.signal] = Math.max(aggregated[binding.signal], probability);
-		}
-		const excitement: AssistanceExcitementScoresV1 = Object.freeze({
-			laughter: canonicalProbability(aggregated.laughter),
-			applause: canonicalProbability(aggregated.applause),
-			cheering: canonicalProbability(aggregated.cheering),
-		});
-		return Object.freeze({ startSample, scores: excitement });
+		return projectModelWindow(startSample, row.scores as Float32Array,
+			scoreKind, bindings, label);
 	});
 	return Object.freeze(windows);
+}
+
+function projectModelWindow(
+	startSample: number,
+	scoreValue: Float32Array,
+	scoreKind: AssistancePannsCnn10ScoreKindV1,
+	bindings: readonly AssistancePannsCnn10ClassBindingV1[],
+	label: string,
+): AssistanceAudioTagWindowV1 {
+	const start = integer(startSample, 0, Number.MAX_SAFE_INTEGER, `${label} start sample`);
+	if (start % ASSISTANCE_AUDIO_TAG_WINDOW_SAMPLES !== 0) {
+		throw new RangeError(`${label} must start on the exact one-second sample grid.`);
+	}
+	const scores = modelScores(scoreValue, scoreKind, label);
+	const aggregated: Record<AssistancePannsCnn10SignalV1, number> = {
+		laughter: 0, applause: 0, cheering: 0,
+	};
+	for (const binding of bindings) {
+		const probability = scoreKind === 'logits'
+			? sigmoid(scores[binding.index]!) : scores[binding.index]!;
+		aggregated[binding.signal] = Math.max(aggregated[binding.signal], probability);
+	}
+	const excitement: AssistanceExcitementScoresV1 = Object.freeze({
+		laughter: canonicalProbability(aggregated.laughter),
+		applause: canonicalProbability(aggregated.applause),
+		cheering: canonicalProbability(aggregated.cheering),
+	});
+	return Object.freeze({ startSample: start, scores: excitement });
 }
 
 function modelScores(

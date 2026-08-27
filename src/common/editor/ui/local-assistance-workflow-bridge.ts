@@ -21,6 +21,8 @@ import {
 	workflowClaimFromCustodyV1,
 	type AssistanceWorkflowCustodyClaimV1,
 } from '../assistance/workflow-custody-v1.ts';
+import { releaseLocalAssistancePreparedAudioWave } from
+	'../controller/local-assistance-audio-spool-release.ts';
 
 export const LOCAL_ASSISTANCE_WORKFLOW_UNAVAILABLE_REASONS = Object.freeze([
 	'workflow-runner-unavailable', 'stage-unavailable', 'model-unavailable',
@@ -203,22 +205,26 @@ function resolveCustody(value: unknown): LocalAssistanceWorkflowCustodyBridge | 
 		(value[method] as (...parameters: readonly unknown[]) => unknown).apply(value, [...args]);
 	return Object.freeze({
 		async stageInput(requestValue: Parameters<LocalAssistanceWorkflowCustodyBridge['stageInput']>[0]) {
-			const request = custodyInputRequest(requestValue);
-			request.signal.throwIfAborted();
-			const byteLength = request.bytes.size;
-			const digest = await digestBlob(request.bytes, request.signal);
-			const result = custodyHandle(await invoke('stageInput', Object.freeze({
-				jobId: request.jobId, workflowId: request.workflowId,
-				stageId: request.stageId, slotId: request.slotId,
-				mediaType: request.mediaType, byteLength,
-				sha256: digest, bytes: request.bytes,
-			})), request, 'input');
-			if (result.custody.byteLength !== byteLength || result.custody.sha256 !== digest
-				|| result.custody.mediaType !== request.mediaType || result.custody.producer !== null) {
-				throw new TypeError('Staged workflow custody disagrees with its exact Blob.');
+			try {
+				const request = custodyInputRequest(requestValue);
+				request.signal.throwIfAborted();
+				const byteLength = request.bytes.size;
+				const digest = await digestBlob(request.bytes, request.signal);
+				const result = custodyHandle(await invoke('stageInput', Object.freeze({
+					jobId: request.jobId, workflowId: request.workflowId,
+					stageId: request.stageId, slotId: request.slotId,
+					mediaType: request.mediaType, byteLength,
+					sha256: digest, bytes: request.bytes,
+				})), request, 'input');
+				if (result.custody.byteLength !== byteLength || result.custody.sha256 !== digest
+					|| result.custody.mediaType !== request.mediaType || result.custody.producer !== null) {
+					throw new TypeError('Staged workflow custody disagrees with its exact Blob.');
+				}
+				request.signal.throwIfAborted();
+				return result;
+			} finally {
+				await releaseLocalAssistancePreparedAudioWave(requestValue.bytes).catch(() => undefined);
 			}
-			request.signal.throwIfAborted();
-			return result;
 		},
 		async reserveOutput(requestValue: Parameters<LocalAssistanceWorkflowCustodyBridge['reserveOutput']>[0]) {
 			const request = custodyReservationRequest(requestValue);
