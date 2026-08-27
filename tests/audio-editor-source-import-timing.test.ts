@@ -9,7 +9,7 @@ import {
 	type ImportVideoRuntime,
 } from '../src/common/editor/controller/source-import.ts';
 import { planVideoImportTiming } from '../src/common/editor/controller/video-import-timing.ts';
-import { createFixture } from './audio-editor-source-import.test.ts';
+import { createFixture } from './helpers/audio-editor-source-import-fixture.ts';
 import { videoFile } from './helpers/audio-editor-source-import-fixture.ts';
 
 type MutableImportVideoRuntime = {
@@ -106,7 +106,23 @@ test('exact timing owns imported source duration and one aligned A/V placement',
 	let fittedFrames = 0;
 	runtime.fitAudioBufferToFrames = (buffer: Readonly<Record<string, unknown>>, frameCount: number) => {
 		fittedFrames = frameCount;
-		return { ...buffer, length: frameCount };
+		// Mirror the real fit rather than only relabelling the length: imported audio now
+		// proves the PCM it committed matches the frame count the project records, so a
+		// buffer that claims frames it cannot supply is refused - as it should be.
+		const channelCount = Math.max(1, Number(buffer.numberOfChannels) || 1);
+		const read = buffer.getChannelData as ((channel: number) => Float32Array) | undefined;
+		const channels = Array.from({ length: channelCount }, (_, channel) => {
+			const fitted = new Float32Array(frameCount);
+			fitted.set((read?.call(buffer, channel) ?? new Float32Array(0)).subarray(0, frameCount));
+			return fitted;
+		});
+		return {
+			...buffer,
+			length: frameCount,
+			numberOfChannels: channelCount,
+			channels,
+			getChannelData: (channel: number) => channels[channel] ?? new Float32Array(frameCount),
+		};
 	};
 
 	await createImportVideoFile(runtime)(new File([Uint8Array.of(1, 2, 3)], 'exact.webm', {
