@@ -434,3 +434,78 @@ test('the router refuses a power etiquette port that cannot be observed', () => 
 		powerEtiquette: { observe: () => ({ onBatteryPower: false, thermalState: 'nominal' }) } as never,
 	}), TypeError);
 });
+
+test('a family that finished its work releases its process after the quiet period', async () => {
+	const idle: { fire: (() => void) | null } = { fire: null };
+	const { router, processes } = harness({
+		idleUnloadMs: 90_000,
+		setTimeoutImpl: ((callback: () => void, delay: number) => {
+			if (delay === 90_000) { idle.fire = callback; return 0 as unknown as ReturnType<typeof setTimeout>; }
+			return setTimeout(callback, delay);
+		}) as unknown as typeof setTimeout,
+	});
+	const first = router.run(request());
+	await until(() => processes['onnxruntime-node'][0]?.workers.length === 1);
+	const process = processes['onnxruntime-node'][0]!;
+	process.workers[0]!.resolve({ boundaries: [] });
+	await first;
+	assert.deepEqual(router.snapshot('onnxruntime-node').state, 'ready');
+	await until(() => idle.fire !== null);
+	idle.fire!();
+	await until(() => process.terminations === 1);
+	assert.equal(router.snapshot('onnxruntime-node').processSpawned, false);
+	assert.equal(router.snapshot('onnxruntime-node').recentCrashes, 0,
+		'an intentional idle unload is not a crash');
+
+	const second = router.run(request('onnxruntime-node', 'shot-detection', 'cd'.repeat(20)));
+	await until(() => processes['onnxruntime-node'].length === 2);
+	processes['onnxruntime-node'][1]!.workers[0]!.resolve('again');
+	assert.equal(await second, 'again');
+	router.dispose();
+});
+
+test('a family that is busy again keeps the process its next job is using', async () => {
+	const idle: { fire: (() => void) | null } = { fire: null };
+	const { router, processes } = harness({
+		idleUnloadMs: 90_000,
+		setTimeoutImpl: ((callback: () => void, delay: number) => {
+			if (delay === 90_000) { idle.fire = callback; return 0 as unknown as ReturnType<typeof setTimeout>; }
+			return setTimeout(callback, delay);
+		}) as unknown as typeof setTimeout,
+	});
+	const first = router.run(request());
+	await until(() => processes['onnxruntime-node'][0]?.workers.length === 1);
+	const process = processes['onnxruntime-node'][0]!;
+	process.workers[0]!.resolve('cuts');
+	await first;
+	await until(() => idle.fire !== null);
+	const second = router.run(request('onnxruntime-node', 'shot-detection', 'cd'.repeat(20)));
+	await until(() => process.workers.length === 2);
+	idle.fire!();
+	assert.equal(process.terminations, 0, 'a busy family must never be unloaded underneath its job');
+	process.workers[1]!.resolve('again');
+	assert.equal(await second, 'again');
+	assert.equal(processes['onnxruntime-node'].length, 1);
+	router.dispose();
+});
+
+test('disposal cancels a pending idle unload rather than terminating twice', async () => {
+	const idle: { fire: (() => void) | null } = { fire: null };
+	const { router, processes } = harness({
+		idleUnloadMs: 90_000,
+		setTimeoutImpl: ((callback: () => void, delay: number) => {
+			if (delay === 90_000) { idle.fire = callback; return 0 as unknown as ReturnType<typeof setTimeout>; }
+			return setTimeout(callback, delay);
+		}) as unknown as typeof setTimeout,
+	});
+	const first = router.run(request());
+	await until(() => processes['onnxruntime-node'][0]?.workers.length === 1);
+	const process = processes['onnxruntime-node'][0]!;
+	process.workers[0]!.resolve('cuts');
+	await first;
+	await until(() => idle.fire !== null);
+	router.dispose();
+	await until(() => process.terminations === 1);
+	idle.fire!();
+	assert.equal(process.terminations, 1);
+});

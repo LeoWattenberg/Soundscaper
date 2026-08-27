@@ -244,9 +244,11 @@ not a fifth inference family:
   battery or reports serious or critical thermal pressure, resuming it when the
   condition clears and reporting a typed `power-deferred` result once the bounded
   hold budget elapses. A hold never touches a job that already started, and a
-  power reading the host cannot supply admits rather than stalls. Scrub-time
-  throttling, user-facing pause controls, and multi-family idle unloading remain
-  future adapter work.
+  power reading the host cannot supply admits rather than stalls. A family that
+  has been quiet for two minutes releases its utility process, so nothing keeps
+  gigabytes warm for a job that is not coming; the next job spawns it again, and
+  an intentional unload is never recorded as a crash. Scrub-time throttling and
+  user-facing pause controls remain future adapter work.
 
 ## Model catalog decision
 
@@ -728,10 +730,11 @@ workers and deterministic adapters; every affected package route remains typed
 unavailable until its exact signed model and authenticated target payload are
 admitted. Long enhancement/separation processing uses bounded spooled chunks,
 and cancellation terminates the worker/process rather than waiting for whole
-media completion. Background scheduling priority applies to
-every assistance helper, and the runtime-family router holds new jobs under
-battery or serious thermal pressure; the bounded Sherpa speech paths keep the
-priority drop without the hold.
+media completion. Background scheduling priority applies to every assistance
+helper; the runtime-family router additionally holds new jobs under battery or
+serious thermal pressure and releases a family that has been quiet for two
+minutes, while the bounded Sherpa speech paths keep the priority drop without
+the hold.
 External FFmpeg is user-configured and hard-admitted; it is not a bundled
 assistance runtime or authority for other operations.
 
