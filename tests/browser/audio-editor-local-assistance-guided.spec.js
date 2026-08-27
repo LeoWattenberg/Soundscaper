@@ -13,7 +13,17 @@ import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
-const CFR = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
+// Keep this desktop-assistance workflow focused on consent and publication. The
+// H.264 browser-FFmpeg timing probe retains an explicit WebKit qualification
+// deferral, while this repository-owned VP8 fixture carries the same exact VFR
+// authority the shot reviewer must validate.
+const VIDEO = videoTimingProbeMedia.find(({ id }) => id === 'vfr-irregular-webm-v1');
+const CUT_FIXTURE = Object.freeze({
+	timescale: 1_000,
+	sourceFrameCount: 8,
+	sourceFrame: 4,
+	presentationTick: '542',
+});
 const ADVANCED_OPERATIONS = Object.freeze([
 	'voice-activity-detection',
 	'speech-recognition',
@@ -42,8 +52,8 @@ test.describe('menu-only Local Assistance workflows', () => {
 		await installLocalAssistanceFixture(page);
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/framescaper/en/');
-		await editor.locator('[data-import-input]').setInputFiles([CFR.file]);
-		const sourceName = CFR.file.name.replace(/\.[^.]+$/u, '');
+		await editor.locator('[data-import-input]').setInputFiles([VIDEO.file]);
+		const sourceName = VIDEO.file.name.replace(/\.[^.]+$/u, '');
 		const addToTimeline = editor.getByRole('button', {
 			name: `Add to timeline: ${sourceName}`, exact: true,
 		});
@@ -144,11 +154,16 @@ test.describe('menu-only Local Assistance workflows', () => {
 			name: 'Shot 1', kind: 'marker', anchor: 'sample', color: 'orange',
 			ownership: {
 				schemaVersion: 1, operation: 'shot-detection', detector: 'ffmpeg-scdet',
-				timescale: 12_800, sourceFrameCount: 22, sourceStartFrame: 0,
-				sourceEndFrame: 22, sourceFrame: 10, presentationTick: '5120', score: 0.9,
+				timescale: CUT_FIXTURE.timescale,
+				sourceFrameCount: CUT_FIXTURE.sourceFrameCount,
+				sourceStartFrame: 0,
+				sourceEndFrame: CUT_FIXTURE.sourceFrameCount,
+				sourceFrame: CUT_FIXTURE.sourceFrame,
+				presentationTick: CUT_FIXTURE.presentationTick,
+				score: 0.9,
 			},
 		});
-		expect(acceptedMarker.id).toMatch(/^assistance-shot:[a-f\d]{64}:10$/u);
+		expect(acceptedMarker.id).toMatch(/^assistance-shot:[a-f\d]{64}:4$/u);
 		expect(acceptedMarker.positionFrame).toBeGreaterThan(0);
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 		await expect.poll(() => storedShotAnnotations(page, projectId), { timeout: 15_000 })
@@ -189,8 +204,8 @@ test.describe('menu-only Local Assistance workflows', () => {
 		await installLocalAssistanceFixture(page);
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/framescaper/en/');
-		await editor.locator('[data-import-input]').setInputFiles([CFR.file]);
-		const sourceName = CFR.file.name.replace(/\.[^.]+$/u, '');
+		await editor.locator('[data-import-input]').setInputFiles([VIDEO.file]);
+		const sourceName = VIDEO.file.name.replace(/\.[^.]+$/u, '');
 		await editor.getByRole('button', {
 			name: `Add to timeline: ${sourceName}`, exact: true,
 		}).click();
@@ -250,7 +265,7 @@ test.describe('menu-only Local Assistance workflows', () => {
 		});
 		await assistance.getByRole('button', { name: 'Review result', exact: true }).click();
 		await expect(advanced.getByRole('list', { name: 'Shot boundaries' })).toContainText(
-			'Source frame 10',
+			`Source frame ${String(CUT_FIXTURE.sourceFrame)}`,
 		);
 		expect(errors).toEqual([]);
 	});
@@ -299,7 +314,7 @@ async function storedShotAnnotations(page, projectId) {
 }
 
 async function installLocalAssistanceFixture(page) {
-	await page.addInitScript(() => {
+	await page.addInitScript((cutFixture) => {
 		const state = {
 			installed: false,
 			installCalls: 0,
@@ -453,16 +468,25 @@ async function installLocalAssistanceFixture(page) {
 					kind: 'cut-proposals',
 					mode: 'fast',
 					detector: 'ffmpeg-scdet',
-					timescale: 12_800,
-					sourceFrameCount: 22,
-					proposals: [{ id: 'cut:10:5120', sourceFrame: 10,
-						presentationTick: '5120', score: 0.9, selected: false }],
+					timescale: cutFixture.timescale,
+					sourceFrameCount: cutFixture.sourceFrameCount,
+					proposals: [{
+						id: `cut:${String(cutFixture.sourceFrame)}:${cutFixture.presentationTick}`,
+						sourceFrame: cutFixture.sourceFrame,
+						presentationTick: cutFixture.presentationTick,
+						score: 0.9,
+						selected: false,
+					}],
 				} : {
 					schemaVersion: 1,
 					detector: 'ffmpeg-scdet',
-					timescale: 12_800,
-					sourceFrameCount: 22,
-					boundaries: [{ sourceFrame: 10, presentationTick: '5120', score: 0.9 }],
+					timescale: cutFixture.timescale,
+					sourceFrameCount: cutFixture.sourceFrameCount,
+					boundaries: [{
+						sourceFrame: cutFixture.sourceFrame,
+						presentationTick: cutFixture.presentationTick,
+						score: 0.9,
+					}],
 				};
 				return new Blob([JSON.stringify(semantic)], { type: 'application/json' });
 			},
@@ -537,5 +561,5 @@ async function installLocalAssistanceFixture(page) {
 		Object.defineProperty(globalThis, 'soundscaperDesktop', {
 			configurable: true, value: Object.freeze({ v1: bridge }),
 		});
-	});
+	}, CUT_FIXTURE);
 }
