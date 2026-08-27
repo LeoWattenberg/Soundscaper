@@ -6,7 +6,7 @@ import {
 } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
-	chooseFileAction,
+	chooseExportProjectFileAction,
 	chooseNestedCommandAction,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
@@ -173,7 +173,7 @@ async function bootedEditor(page) {
 
 async function exportProject(page, editor) {
 	const downloading = page.waitForEvent('download');
-	await chooseFileAction(page, editor, 'Export project file (.scape)');
+	await chooseExportProjectFileAction(page, editor);
 	const download = await downloading;
 	const path = await download.path();
 	expect(path).toBeTruthy();

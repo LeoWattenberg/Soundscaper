@@ -14,3 +14,18 @@ test('workspace drops route AUP3 and AUP4 as projects instead of media', () => {
 		labels: [labels],
 	});
 });
+
+test('workspace drops route every accepted project suffix as a project', () => {
+	const projects = [
+		{ name: 'legacy.scape' },
+		{ name: 'home.sscape' },
+		{ name: 'video.FSCAPE' },
+		{ name: 'reserved.liscape' },
+	];
+	const media = [{ name: 'take.wav' }, { name: 'disguised.sscape.zip' }, { name: 'effect.scapefx' }];
+	assert.deepEqual(partitionWorkspaceFiles([...projects, ...media]), {
+		projects,
+		media,
+		labels: [],
+	});
+});

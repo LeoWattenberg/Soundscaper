@@ -34,7 +34,7 @@ export class ScapeImportQuotaError extends Error {
 	readonly details: Readonly<ScapeImportQuotaErrorDetails>;
 
 	constructor(details: ScapeImportQuotaErrorDetails) {
-		super('There is not enough storage available to import this .scape project.');
+		super('There is not enough storage available to import this Scape project.');
 		this.name = 'ScapeImportQuotaError';
 		this.details = Object.freeze({ ...details });
 	}
@@ -45,22 +45,22 @@ export function scapeImportCapacityRequirement(
 	manifest: ScapeImportCapacityManifest,
 ): Readonly<ScapeImportCapacityRequirement> {
 	if (!manifest || typeof manifest !== 'object' || !Array.isArray(manifest.assets)) {
-		throw new TypeError('A .scape manifest with an asset list is required for import capacity admission.');
+		throw new TypeError('A Scape manifest with an asset list is required for import capacity admission.');
 	}
 	let assetBytes = 0;
 	for (const asset of manifest.assets) {
 		const size = asset?.size;
 		if (!Number.isSafeInteger(size) || size < 0) {
-			throw new RangeError('A .scape manifest asset size must be a safe non-negative integer.');
+			throw new RangeError('A Scape manifest asset size must be a safe non-negative integer.');
 		}
 		if (size > Number.MAX_SAFE_INTEGER - assetBytes) {
-			throw new RangeError('The .scape import asset-byte total exceeds the supported safe integer range.');
+			throw new RangeError('The Scape import asset-byte total exceeds the supported safe integer range.');
 		}
 		assetBytes += size;
 	}
 	const headroomBytes = Math.floor(assetBytes / 10) + (assetBytes % 10 === 0 ? 0 : 1);
 	if (assetBytes > Number.MAX_SAFE_INTEGER - headroomBytes) {
-		throw new RangeError('The .scape import required free bytes exceed the supported safe integer range.');
+		throw new RangeError('The Scape import required free bytes exceed the supported safe integer range.');
 	}
 	return Object.freeze({
 		assetBytes,
@@ -78,10 +78,10 @@ export async function preflightScapeImportCapacity(
 	const estimateStorage = options.estimateStorage;
 	const estimateStorageForPreflight = options.estimateStorageForPreflight;
 	if (estimateStorage != null && typeof estimateStorage !== 'function') {
-		throw new TypeError('The .scape import storage estimator must be a function.');
+		throw new TypeError('The Scape import storage estimator must be a function.');
 	}
 	if (estimateStorageForPreflight != null && typeof estimateStorageForPreflight !== 'function') {
-		throw new TypeError('The .scape import preflight storage estimator must be a function.');
+		throw new TypeError('The Scape import preflight storage estimator must be a function.');
 	}
 	const estimate = await awaitScapeReadOperation(
 		() => estimateStorageForPreflight

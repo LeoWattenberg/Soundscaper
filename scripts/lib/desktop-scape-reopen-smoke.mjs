@@ -36,6 +36,9 @@ export {
 };
 
 export const MAX_DESKTOP_SCAPE_REOPEN_PLAN_BYTES = 4 * 1024;
+// The reopen stage must be launched with no project argument at all, so this
+// rejects every accepted project suffix rather than only the legacy one.
+const PROJECT_SUFFIX_PATTERN = /\.(?:sscape|fscape|liscape|scape)$/iu;
 const MAXIMUM_CHILD_OUTPUT_BYTES = 1024 * 1024;
 
 export function createDesktopScapeReopenSmokePlan({
@@ -309,7 +312,7 @@ function validateInvocation(value) {
 	const plan = validateScapeReopenSmokePlan(value.plan);
 	const decoded = decodeDesktopScapeReopenSmokePlan(value.encodedPlan);
 	if (JSON.stringify(decoded) !== JSON.stringify(plan) || value.productId !== plan.productId
-		|| value.appArguments.some((argument) => argument.endsWith('.scape'))) {
+		|| value.appArguments.some((argument) => PROJECT_SUFFIX_PATTERN.test(argument))) {
 		throw new Error('Desktop Scape-reopen invocation does not match its plan');
 	}
 }

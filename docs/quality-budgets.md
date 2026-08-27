@@ -589,7 +589,7 @@ allowlisted bytes have been fetched, verified, and cached on use. A partial
 FFmpeg runtime update retains the previous complete verified release.
 <!-- /policy-narrative:milestone-2-offline-cache-qualification -->
 The eviction
-workflow exports a current `.scape`, removes the origin's IndexedDB database,
+workflow exports a current Scape project file, removes the origin's IndexedDB database,
 reopens the usable empty editor, and restores the same project identity from
 the archive. WebKit qualification is deferred by milestone-2 closure scope
 revision 2; the pinned Playwright WebKit build exposes no OPFS, no

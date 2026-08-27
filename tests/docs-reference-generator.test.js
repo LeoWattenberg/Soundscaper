@@ -20,6 +20,7 @@ const products = Object.freeze([
 	Object.freeze({
 		id: 'soundscaper',
 		name: 'Soundscaper',
+		projectFileExtension: '.sscape',
 		shortcuts: Object.freeze({ disabledCommandIds: Object.freeze([]) }),
 		importChoices: Object.freeze(['scape', 'audio']),
 		exportChoices: Object.freeze(['scape', 'audio', 'video']),
@@ -28,6 +29,7 @@ const products = Object.freeze([
 	Object.freeze({
 		id: 'framescaper',
 		name: 'Framescaper',
+		projectFileExtension: '.fscape',
 		shortcuts: Object.freeze({ disabledCommandIds: Object.freeze(['generate']) }),
 		importChoices: Object.freeze(['scape', 'video']),
 		exportChoices: Object.freeze(['scape', 'audio', 'video']),
@@ -126,11 +128,21 @@ test('capability reference renders product-owned families and a reviewed feature
 	assert.match(rendered, /Local assistance assets.*Enabled.*Enabled/u);
 	assert.doesNotMatch(rendered, /\n# Product capabilities\n/u, 'frontmatter supplies the page heading');
 	assert.match(rendered, /Video effects.*Not enabled.*Enabled/u);
-	assert.match(rendered, /Soundscaper.*\.scape, Audio/u);
-	assert.match(rendered, /Framescaper.*\.scape, Video/u);
+	// One machine-level `scape` family, rendered under each product's own suffix.
+	assert.match(rendered, /Soundscaper.*\.sscape, Audio/u);
+	assert.match(rendered, /Framescaper.*\.fscape, Video/u);
+	assert.doesNotMatch(rendered, /\| \.scape,/u);
 	assert.match(rendered, /disabled capability can still be preserved/u);
 	assert.match(rendered, /\[Export formats\]\(\/reference\/generated\/formats\/\)/u);
 	assert.doesNotMatch(rendered, /\d{4}-\d{2}-\d{2}T\d{2}:/u);
+});
+
+test('capability reference rejects a product family with no declared suffix', () => {
+	const missingExtension = products.map((product) => ({ ...product, projectFileExtension: undefined }));
+	assert.throws(
+		() => renderCapabilityReference({ products: missingExtension }),
+		/No reviewed documentation label exists for format family scape/u,
+	);
 });
 
 test('capability reference rejects a new key until its public label is reviewed', () => {

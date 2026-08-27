@@ -245,7 +245,7 @@ async function preflightVerification(
 			expectedBytes = mediaAssetSize(metadata, target.claim.sourceId);
 		}
 		if (expectedBytes > SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes - admittedBytes) {
-			throw new RangeError('Rendered fallbacks exceed the cumulative .scape expanded-byte limit.');
+			throw new RangeError('Rendered fallbacks exceed the cumulative Scape expanded-byte limit.');
 		}
 		admittedBytes += expectedBytes;
 		plans.push(Object.freeze({ ...target, expectedBytes }));

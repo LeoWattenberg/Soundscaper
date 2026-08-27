@@ -106,19 +106,19 @@ function resolveLimits(overrides: Partial<ScapeArchiveLimits>): ScapeArchiveLimi
 	}
 	for (const key of Reflect.ownKeys(overrides)) {
 		if (typeof key !== 'string' || !Object.hasOwn(SCAPE_ARCHIVE_LIMITS, key)) {
-			throw new TypeError(`Unsupported .scape archive limit: ${String(key)}.`);
+			throw new TypeError(`Unsupported Scape archive limit: ${String(key)}.`);
 		}
 		const descriptor = Object.getOwnPropertyDescriptor(overrides, key);
 		if (!descriptor || !Object.hasOwn(descriptor, 'value')) {
-			throw new TypeError(`The .scape ${key} limit must be a data property.`);
+			throw new TypeError(`The Scape ${key} limit must be a data property.`);
 		}
 	}
 	const limits = { ...SCAPE_ARCHIVE_LIMITS, ...overrides };
 	for (const key of Object.keys(SCAPE_ARCHIVE_LIMITS) as (keyof ScapeArchiveLimits)[]) {
 		const value = limits[key];
-		if (!Number.isSafeInteger(value) || value < 1) throw new RangeError(`Invalid .scape ${key} limit.`);
+		if (!Number.isSafeInteger(value) || value < 1) throw new RangeError(`Invalid Scape ${key} limit.`);
 		if (value > SCAPE_ARCHIVE_LIMITS[key]) {
-			throw new RangeError(`The .scape ${key} limit cannot exceed the hard limit.`);
+			throw new RangeError(`The Scape ${key} limit cannot exceed the hard limit.`);
 		}
 	}
 	return limits;
@@ -130,27 +130,27 @@ function snapshotEntries(
 	signal?: AbortSignal,
 ): readonly ScapeArchiveEntry[] {
 	if (!Array.isArray(values)) throw new TypeError('Framescaper Scape entries must be an array.');
-	if (values.length > limits.maximumEntryCount) throw new RangeError('The .scape archive contains too many entries.');
+	if (values.length > limits.maximumEntryCount) throw new RangeError('The Scape archive contains too many entries.');
 	const filenames = new Set<string>();
 	let expanded = 0;
 	const entries = values.map((value): ScapeArchiveEntry => {
 		throwIfScapeAborted(signal);
-		if (!value || typeof value !== 'object') throw new TypeError('A .scape entry is invalid.');
+		if (!value || typeof value !== 'object') throw new TypeError('A Scape entry is invalid.');
 		const filename = entryName(value.filename);
-		if (filenames.has(filename)) throw new Error(`Duplicate .scape entry: ${filename}.`);
+		if (filenames.has(filename)) throw new Error(`Duplicate Scape entry: ${filename}.`);
 		filenames.add(filename);
-		if (value.directory) throw new Error(`The .scape archive contains an unsupported directory entry: ${filename}.`);
-		if (value.encrypted) throw new Error(`The .scape entry ${filename} is encrypted.`);
+		if (value.directory) throw new Error(`The Scape archive contains an unsupported directory entry: ${filename}.`);
+		if (value.encrypted) throw new Error(`The Scape entry ${filename} is encrypted.`);
 		const compressedSize = entrySize(value.compressedSize, filename, 'compressed');
 		const uncompressedSize = entrySize(value.uncompressedSize, filename, 'uncompressed');
 		if (value.compressionMethod !== 0) {
-			throw new Error(`The .scape entry ${filename} must use ZIP STORE.`);
+			throw new Error(`The Scape entry ${filename} must use ZIP STORE.`);
 		}
 		if (compressedSize !== uncompressedSize) {
-			throw new Error(`The .scape STORE entry ${filename} has inconsistent sizes.`);
+			throw new Error(`The Scape STORE entry ${filename} has inconsistent sizes.`);
 		}
 		if (uncompressedSize > limits.maximumExpandedBytes - expanded) {
-			throw new RangeError('The .scape archive exceeds the declared expansion limit.');
+			throw new RangeError('The Scape archive exceeds the declared expansion limit.');
 		}
 		expanded += uncompressedSize;
 		const getData = value.getData;
@@ -191,7 +191,7 @@ async function readBoundedEntry(
 	budget: ScapeExpandedByteBudget,
 	signal?: AbortSignal,
 ): Promise<Uint8Array> {
-	if (!entry.getData) throw new Error(`The .scape archive is missing ${label}.`);
+	if (!entry.getData) throw new Error(`The Scape archive is missing ${label}.`);
 	if (entry.uncompressedSize > maximumBytes) throw new RangeError(`${label} exceeds the metadata limit.`);
 	const chunks: Uint8Array[] = [];
 	let size = 0;
@@ -242,12 +242,12 @@ function validateManifest(
 	claim(project, 'project document', entries, owned);
 	const sourceIds = new Set<string>();
 	for (const asset of assets) {
-		if (sourceIds.has(asset.sourceId)) throw new Error(`Duplicate .scape source asset: ${asset.sourceId}.`);
+		if (sourceIds.has(asset.sourceId)) throw new Error(`Duplicate Scape source asset: ${asset.sourceId}.`);
 		sourceIds.add(asset.sourceId);
 		claim(asset, `asset ${asset.sourceId}`, entries, owned);
 	}
 	for (const filename of entries.keys()) {
-		if (!owned.has(filename)) throw new Error(`Unreferenced entry: ${filename} in the .scape archive.`);
+		if (!owned.has(filename)) throw new Error(`Unreferenced entry: ${filename} in the Scape archive.`);
 	}
 	return value as FramescaperScapeManifestV18;
 }
@@ -339,16 +339,16 @@ function claim(
 	owned: Set<string>,
 ): void {
 	const entry = String(descriptorValue.entry);
-	if (METADATA_ENTRIES.has(entry) && entry !== 'project.json') throw new Error(`The .scape entry ${entry} is reserved.`);
-	if (owned.has(entry)) throw new Error(`The .scape entry ${entry} is owned more than once.`);
+	if (METADATA_ENTRIES.has(entry) && entry !== 'project.json') throw new Error(`The Scape entry ${entry} is reserved.`);
+	if (owned.has(entry)) throw new Error(`The Scape entry ${entry} is owned more than once.`);
 	const body = requiredEntry(entries, entry);
-	if (body.uncompressedSize !== descriptorValue.size) throw new Error(`The .scape ${label} size does not match its entry.`);
+	if (body.uncompressedSize !== descriptorValue.size) throw new Error(`The Scape ${label} size does not match its entry.`);
 	owned.add(entry);
 }
 
 function requiredEntry(entries: ReadonlyMap<string, ScapeArchiveEntry>, filename: string): ScapeArchiveEntry {
 	const entry = entries.get(filename);
-	if (!entry?.getData) throw new Error(`The .scape archive is missing ${filename}.`);
+	if (!entry?.getData) throw new Error(`The Scape archive is missing ${filename}.`);
 	return entry;
 }
 
@@ -369,7 +369,7 @@ function readonlyMap<Key, Value>(source: ReadonlyMap<Key, Value>): ReadonlyMap<K
 
 function parseJson(bytes: Uint8Array, label: string): unknown {
 	try { return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)); }
-	catch { throw new Error(`The .scape ${label} is not valid UTF-8 JSON.`); }
+	catch { throw new Error(`The Scape ${label} is not valid UTF-8 JSON.`); }
 }
 
 function deepFreezeJson(value: unknown): void {
@@ -404,13 +404,13 @@ function denseArray(value: unknown, label: string): unknown[] {
 function entryName(value: unknown): string {
 	if (typeof value !== 'string' || !value || value.startsWith('/') || value.endsWith('/')
 		|| value.includes('\\') || value.includes('\0') || value.split('/').some((part) => !part || part === '.' || part === '..')) {
-		throw new TypeError('A .scape entry name is unsafe.');
+		throw new TypeError('A Scape entry name is unsafe.');
 	}
 	return value;
 }
 
 function entrySize(value: unknown, filename: string, label: string): number {
-	if (!Number.isSafeInteger(value) || Number(value) < 0) throw new RangeError(`The .scape entry ${filename} has an invalid ${label} size.`);
+	if (!Number.isSafeInteger(value) || Number(value) < 0) throw new RangeError(`The Scape entry ${filename} has an invalid ${label} size.`);
 	return Number(value);
 }
 
@@ -422,5 +422,5 @@ function nonEmptyString(value: unknown, label: string): string {
 function toBytes(value: unknown): Uint8Array {
 	if (value instanceof Uint8Array) return value;
 	if (value instanceof ArrayBuffer) return new Uint8Array(value);
-	throw new TypeError('A .scape metadata entry emitted non-byte data.');
+	throw new TypeError('A Scape metadata entry emitted non-byte data.');
 }

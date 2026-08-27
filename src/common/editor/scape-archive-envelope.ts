@@ -127,15 +127,15 @@ async function validateEntryLayouts(
 function resolveLimits(overrides: Partial<ScapeArchiveLimits>): ScapeArchiveLimits {
 	for (const name of Object.keys(overrides)) {
 		if (!Object.hasOwn(SCAPE_ARCHIVE_LIMITS, name)) {
-			throw new TypeError(`Unsupported .scape archive limit: ${name}.`);
+			throw new TypeError(`Unsupported Scape archive limit: ${name}.`);
 		}
 	}
 	const limits = { ...SCAPE_ARCHIVE_LIMITS, ...overrides };
 	for (const name of Object.keys(SCAPE_ARCHIVE_LIMITS) as (keyof ScapeArchiveLimits)[]) {
 		const value = limits[name];
-		if (!Number.isSafeInteger(value) || value < 1) throw new RangeError(`Invalid .scape ${name} limit.`);
+		if (!Number.isSafeInteger(value) || value < 1) throw new RangeError(`Invalid Scape ${name} limit.`);
 		if (value > SCAPE_ARCHIVE_LIMITS[name]) {
-			throw new RangeError(`The .scape ${name} limit cannot exceed the hard limit.`);
+			throw new RangeError(`The Scape ${name} limit cannot exceed the hard limit.`);
 		}
 	}
 	return limits;
@@ -147,30 +147,30 @@ function indexEntries(
 	signal?: AbortSignal,
 ): Map<string, ScapeArchiveEntry> {
 	if (entries.length > limits.maximumEntryCount) {
-		throw new RangeError('The .scape archive contains too many entries.');
+		throw new RangeError('The Scape archive contains too many entries.');
 	}
 	const entryByName = new Map<string, ScapeArchiveEntry>();
 	let declaredExpandedBytes = 0;
 	for (const entry of entries) {
 		throwIfScapeAborted(signal);
 		validateScapeEntryName(entry.filename);
-		if (entryByName.has(entry.filename)) throw new Error(`Duplicate .scape entry: ${entry.filename}.`);
-		if (entry.directory) throw new Error(`The .scape archive contains an unsupported directory entry: ${entry.filename}.`);
-		if (entry.encrypted) throw new Error(`The .scape archive contains ${entry.filename}; encrypted entries are not supported.`);
+		if (entryByName.has(entry.filename)) throw new Error(`Duplicate Scape entry: ${entry.filename}.`);
+		if (entry.directory) throw new Error(`The Scape archive contains an unsupported directory entry: ${entry.filename}.`);
+		if (entry.encrypted) throw new Error(`The Scape archive contains ${entry.filename}; encrypted entries are not supported.`);
 		validateEntrySize(entry.compressedSize, entry.filename, 'compressed');
 		validateEntrySize(entry.uncompressedSize, entry.filename, 'uncompressed');
 		if (entry.compressionMethod !== 0) {
 			throw new Error(
-				`The .scape entry ${entry.filename} uses unsupported ZIP compression method ${String(entry.compressionMethod)}; portable .scape entries must use STORE.`,
+				`The Scape entry ${entry.filename} uses unsupported ZIP compression method ${String(entry.compressionMethod)}; portable Scape entries must use STORE.`,
 			);
 		}
 		if (entry.compressedSize !== entry.uncompressedSize) {
 			throw new Error(
-				`The .scape STORE entry ${entry.filename} has inconsistent compressed and uncompressed sizes.`,
+				`The Scape STORE entry ${entry.filename} has inconsistent compressed and uncompressed sizes.`,
 			);
 		}
 		if (entry.uncompressedSize > limits.maximumExpandedBytes - declaredExpandedBytes) {
-			throw new RangeError('The .scape archive exceeds the declared expansion limit.');
+			throw new RangeError('The Scape archive exceeds the declared expansion limit.');
 		}
 		declaredExpandedBytes += entry.uncompressedSize;
 		entryByName.set(entry.filename, entry);
@@ -180,7 +180,7 @@ function indexEntries(
 
 function validateEntrySize(value: number, filename: string, label: string): void {
 	if (!Number.isSafeInteger(value) || value < 0) {
-		throw new RangeError(`The .scape entry ${filename} has an invalid ${label} size.`);
+		throw new RangeError(`The Scape entry ${filename} has an invalid ${label} size.`);
 	}
 }
 
@@ -196,7 +196,7 @@ async function readBoundedTextEntry(
 	signal?: AbortSignal,
 ): Promise<string> {
 	throwIfScapeAborted(signal);
-	if (typeof entry.getData !== 'function') throw new Error(`The .scape archive is missing ${label}.`);
+	if (typeof entry.getData !== 'function') throw new Error(`The Scape archive is missing ${label}.`);
 	assertMetadataLimit(entry, label, maximumBytes);
 	const decoder = new TextDecoder();
 	const textChunks: string[] = [];
@@ -225,28 +225,28 @@ function parseScapeManifest(text: string, additionalAssetKinds: readonly string[
 	try {
 		value = JSON.parse(text);
 	} catch {
-		throw new Error('The .scape manifest is not valid JSON.');
+		throw new Error('The Scape manifest is not valid JSON.');
 	}
-	if (!isRecord(value) || value.format !== SCAPE_FORMAT) throw new RangeError('This is not a .scape project.');
+	if (!isRecord(value) || value.format !== SCAPE_FORMAT) throw new RangeError('This is not a Scape project.');
 	if (value.formatVersion !== SCAPE_FORMAT_VERSION) {
-		throw new RangeError(`Unsupported .scape format version: ${String(value.formatVersion)}.`);
+		throw new RangeError(`Unsupported Scape format version: ${String(value.formatVersion)}.`);
 	}
 	if (!isRecord(value.project) || !Array.isArray(value.assets)) {
-		throw new TypeError('The .scape manifest is incomplete.');
+		throw new TypeError('The Scape manifest is incomplete.');
 	}
 	validateDescriptor(value.project);
 	const assetKinds = allowedAssetKinds(additionalAssetKinds);
 	for (const asset of value.assets) {
-		if (!isRecord(asset)) throw new TypeError('A .scape asset descriptor is invalid.');
+		if (!isRecord(asset)) throw new TypeError('A Scape asset descriptor is invalid.');
 		validateDescriptor(asset);
 		if (typeof asset.sourceId !== 'string' || !asset.sourceId) {
-			throw new TypeError('A .scape asset has an invalid source ID.');
+			throw new TypeError('A Scape asset has an invalid source ID.');
 		}
 		if (typeof asset.kind !== 'string' || !assetKinds.has(asset.kind)) {
-			throw new TypeError(`A .scape asset has an invalid kind: ${String(asset.kind)}.`);
+			throw new TypeError(`A Scape asset has an invalid kind: ${String(asset.kind)}.`);
 		}
 		if (typeof asset.encoding !== 'string' || !asset.encoding) {
-			throw new TypeError('A .scape asset has an invalid encoding.');
+			throw new TypeError('A Scape asset has an invalid encoding.');
 		}
 	}
 	return value as unknown as ScapeManifest;
@@ -254,14 +254,14 @@ function parseScapeManifest(text: string, additionalAssetKinds: readonly string[
 
 function allowedAssetKinds(additional: readonly string[]): ReadonlySet<string> {
 	if (!Array.isArray(additional) || additional.length > 64) {
-		throw new TypeError('Additional .scape asset kinds must be a bounded array.');
+		throw new TypeError('Additional Scape asset kinds must be a bounded array.');
 	}
 	const result = new Set(['audio', 'video', 'video-timing']);
 	for (const kind of additional) {
 		if (typeof kind !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/u.test(kind)) {
-			throw new TypeError(`An additional .scape asset kind is invalid: ${String(kind)}.`);
+			throw new TypeError(`An additional Scape asset kind is invalid: ${String(kind)}.`);
 		}
-		if (result.has(kind)) throw new Error(`Duplicate .scape asset kind: ${kind}.`);
+		if (result.has(kind)) throw new Error(`Duplicate Scape asset kind: ${kind}.`);
 		result.add(kind);
 	}
 	return result;
@@ -270,10 +270,10 @@ function allowedAssetKinds(additional: readonly string[]): ReadonlySet<string> {
 function validateDescriptor(descriptor: Record<string, unknown>): void {
 	validateScapeEntryName(descriptor.entry);
 	if (!Number.isSafeInteger(descriptor.size) || (descriptor.size as number) < 0) {
-		throw new RangeError('A .scape asset has an invalid size.');
+		throw new RangeError('A Scape asset has an invalid size.');
 	}
 	if (!/^[a-f0-9]{64}$/u.test(String(descriptor.sha256 ?? ''))) {
-		throw new TypeError('A .scape asset has an invalid SHA-256 digest.');
+		throw new TypeError('A Scape asset has an invalid SHA-256 digest.');
 	}
 }
 
@@ -283,21 +283,21 @@ function validateManifestOwnership(
 	limits: ScapeArchiveLimits,
 ): void {
 	if (manifest.project.entry !== SCAPE_PROJECT_ENTRY) {
-		throw new Error(`The .scape project descriptor must own ${SCAPE_PROJECT_ENTRY}.`);
+		throw new Error(`The Scape project descriptor must own ${SCAPE_PROJECT_ENTRY}.`);
 	}
 	const ownedEntries = new Set([SCAPE_MANIFEST_ENTRY]);
 	claimDescriptor(manifest.project, 'project document', entryByName, ownedEntries);
 	const sourceIds = new Set<string>();
 	for (const asset of manifest.assets) {
-		if (sourceIds.has(asset.sourceId)) throw new Error(`Duplicate .scape source asset: ${asset.sourceId}.`);
+		if (sourceIds.has(asset.sourceId)) throw new Error(`Duplicate Scape source asset: ${asset.sourceId}.`);
 		sourceIds.add(asset.sourceId);
 		if (asset.entry === SCAPE_MANIFEST_ENTRY || asset.entry === SCAPE_PROJECT_ENTRY) {
-			throw new Error(`The .scape entry ${asset.entry} is reserved.`);
+			throw new Error(`The Scape entry ${asset.entry} is reserved.`);
 		}
 		claimDescriptor(asset, `asset ${asset.sourceId}`, entryByName, ownedEntries);
 	}
 	for (const filename of entryByName.keys()) {
-		if (!ownedEntries.has(filename)) throw new Error(`Unreferenced entry: ${filename} in the .scape archive.`);
+		if (!ownedEntries.has(filename)) throw new Error(`Unreferenced entry: ${filename} in the Scape archive.`);
 	}
 	const projectEntry = requiredFileEntry(entryByName, SCAPE_PROJECT_ENTRY);
 	assertMetadataLimit(projectEntry, SCAPE_PROJECT_ENTRY, limits.maximumProjectBytes);
@@ -310,11 +310,11 @@ function claimDescriptor(
 	ownedEntries: Set<string>,
 ): void {
 	if (ownedEntries.has(descriptor.entry)) {
-		throw new Error(`The .scape entry ${descriptor.entry} is owned by more than one descriptor.`);
+		throw new Error(`The Scape entry ${descriptor.entry} is owned by more than one descriptor.`);
 	}
 	const entry = requiredFileEntry(entryByName, descriptor.entry);
 	if (descriptor.size !== entry.uncompressedSize) {
-		throw new Error(`The .scape ${label} declared size does not match its archive entry.`);
+		throw new Error(`The Scape ${label} declared size does not match its archive entry.`);
 	}
 	ownedEntries.add(descriptor.entry);
 }
@@ -325,7 +325,7 @@ function requiredFileEntry(
 ): ScapeArchiveEntry {
 	const entry = entryByName.get(filename);
 	if (!entry || entry.directory || typeof entry.getData !== 'function') {
-		throw new Error(`The .scape archive is missing ${filename}.`);
+		throw new Error(`The Scape archive is missing ${filename}.`);
 	}
 	return entry;
 }
@@ -339,7 +339,7 @@ function validateScapeEntryName(value: unknown): asserts value is string {
 		|| value.includes('\0')
 		|| value.split('/').includes('..')
 	) {
-		throw new Error(`Unsafe .scape entry name: ${String(value)}.`);
+		throw new Error(`Unsafe Scape entry name: ${String(value)}.`);
 	}
 }
 
@@ -350,5 +350,5 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function toBytes(value: unknown): Uint8Array {
 	if (value instanceof Uint8Array) return value;
 	if (value instanceof ArrayBuffer) return new Uint8Array(value);
-	throw new TypeError('A .scape text entry emitted a non-byte chunk.');
+	throw new TypeError('A Scape text entry emitted a non-byte chunk.');
 }

@@ -121,7 +121,7 @@ function validateImportAssets(
 		({ kind }) => kind === ASSISTANCE_TRANSCRIPT_SCAPE_KIND_V1,
 	);
 	if (descriptors.length !== groups.length) {
-		throw new Error('The `.scape` assistance transcript inventory is incomplete or unreferenced.');
+		throw new Error('The Scape assistance transcript inventory is incomplete or unreferenced.');
 	}
 	const descriptorByStorageKey = new Map<string, ScapeAssetDescriptor>();
 	for (const descriptor of descriptors) {
@@ -160,7 +160,7 @@ async function stageImportAssets(
 		throwIfScapeAborted(request.signal);
 		const descriptor = validation.descriptorByStorageKey.get(group.body.storageKey)!;
 		const entry = request.entryByName.get(descriptor.entry);
-		if (!entry) throw new Error(`The .scape archive is missing ${descriptor.entry}.`);
+		if (!entry) throw new Error(`The Scape archive is missing ${descriptor.entry}.`);
 		const archiveBytes = await readArchiveBytes(entry, descriptor, group.body, request);
 		const transcript = authenticateTranscriptBody(archiveBytes, group.references, validation.sampleRate);
 		const currentAssets = group.references.map((original) => reboundAsset(

@@ -35,7 +35,7 @@ library copy; **Save As** creates a new Audacity interchange file.
 
 The browser and desktop libraries are separate. Move a project deliberately:
 
-- Use `.scape` for the full Soundscaper/Framescaper project.
+- Use a Scape project file — `.sscape` from Soundscaper, `.fscape` from Framescaper — for the full project.
 - Use AUP4 when you specifically need audio interchange with Audacity.
 - Export rendered audio or video as a durable playback copy.
 

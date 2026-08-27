@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 /**
- * The checksum manifest of the `.scape` this session just wrote.
+ * The checksum manifest of the Scape archive this session just wrote.
  *
  * It is built by reading the written archive back and digesting what is in it,
  * never by copying the digests the writer computed on the way out. A manifest

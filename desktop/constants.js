@@ -10,6 +10,18 @@ export const SESSION_PARTITION = PRODUCT_ID === 'framescaper' ? 'persist:framesc
 export const UPDATE_TAG_PREFIX = PRODUCT_ID === 'framescaper' ? 'framescaper-v' : 'v';
 export const SETTINGS_SCHEMA_VERSION = 1;
 
+// Mirrors src/common/project-file-extensions.ts, which the Electron main
+// process cannot import: this file has to stay dependency-free for the packaged
+// runtime. tests/desktop-project-file-extensions.test.js fails on any drift.
+export const PROJECT_FILE_EXTENSION = PRODUCT_ID === 'framescaper' ? '.fscape' : '.sscape';
+export const LEGACY_PROJECT_FILE_EXTENSION = '.scape';
+export const ACCEPTED_PROJECT_FILE_EXTENSIONS = Object.freeze([
+	'.sscape',
+	'.fscape',
+	'.liscape',
+	'.scape',
+]);
+
 export const SUPPORTED_LOCALES = Object.freeze([
 	'en',
 	'de',

@@ -43,7 +43,7 @@ class BlobScapeExportDestination implements ScapeExportDestination {
 		throwIfScapeAborted(signal);
 		const result = await writer.close(undefined, { zip64: true });
 		throwIfScapeAborted(signal);
-		if (!(result instanceof Blob)) throw new TypeError('The .scape archive writer did not produce a Blob.');
+		if (!(result instanceof Blob)) throw new TypeError('The Scape archive writer did not produce a Blob.');
 		this.#byteLength = result.size;
 		return result;
 	}
@@ -55,7 +55,7 @@ class BlobScapeExportDestination implements ScapeExportDestination {
 		} catch (error) {
 			cleanupErrors.push(error);
 		}
-		throw aggregateScapeErrors(primary, cleanupErrors, 'The .scape export and archive cleanup both failed.');
+		throw aggregateScapeErrors(primary, cleanupErrors, 'The Scape export and archive cleanup both failed.');
 	}
 }
 
@@ -106,7 +106,7 @@ class ExternalScapeExportDestination implements ScapeExportDestination {
 			cleanupErrors.push(error);
 		}
 		this.#release();
-		throw aggregateScapeErrors(primary, cleanupErrors, 'The .scape export and destination cleanup both failed.');
+		throw aggregateScapeErrors(primary, cleanupErrors, 'The Scape export and destination cleanup both failed.');
 	}
 
 	async #write(value: Uint8Array): Promise<void> {
@@ -131,5 +131,5 @@ class ExternalScapeExportDestination implements ScapeExportDestination {
 function toBytes(value: unknown): Uint8Array {
 	if (value instanceof Uint8Array) return value;
 	if (value instanceof ArrayBuffer) return new Uint8Array(value);
-	throw new TypeError('A .scape archive writer emitted a non-byte chunk.');
+	throw new TypeError('A Scape archive writer emitted a non-byte chunk.');
 }

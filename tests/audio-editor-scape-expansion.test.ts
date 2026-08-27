@@ -263,8 +263,8 @@ test('compressed Scape entries reject from metadata before decompression or stor
 	const targetStore = memoryStore('scape-compression-target');
 	const before = await inventory(targetStore);
 
-	await assert.rejects(inspectScapeProject(compressed), /portable \.scape entries must use STORE/iu);
-	await assert.rejects(importScapeProject(compressed, targetStore), /portable \.scape entries must use STORE/iu);
+	await assert.rejects(inspectScapeProject(compressed), /portable Scape entries must use STORE/iu);
+	await assert.rejects(importScapeProject(compressed, targetStore), /portable Scape entries must use STORE/iu);
 	assert.deepEqual(await inventory(targetStore), before);
 });
 

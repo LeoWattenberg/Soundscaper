@@ -5,7 +5,7 @@ import {
 } from '../common/editor/assistance/assistance-asset-reference-v1.ts';
 import { rebindFramescaperSourceIdentitiesV32 } from './editor-project-v32-source-rebind.ts';
 
-/** Follow one `.scape` collision through inherited visuals and F31 transcripts. */
+/** Follow one Scape collision through inherited visuals and F31 transcripts. */
 export function rebindFramescaperSourceIdentitiesV31(
 	project: Record<string, unknown>,
 	sourceIdMap: ReadonlyMap<string, string>,

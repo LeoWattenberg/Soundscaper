@@ -44,19 +44,19 @@ export function createScapeArchiveLayoutWitness(
 	let retainedBytes = 0;
 	return Object.freeze({
 		record(offset: number, bytes: Uint8Array): void {
-			if (bound) throw new Error('The .scape structural witness is already bound.');
+			if (bound) throw new Error('The Scape structural witness is already bound.');
 			if (!Number.isSafeInteger(offset) || offset < 0 || offset > source.size - bytes.byteLength) {
-				throw new RangeError('The .scape structural witness received an invalid byte range.');
+				throw new RangeError('The Scape structural witness received an invalid byte range.');
 			}
 			if (bytes.byteLength > SCAPE_MAXIMUM_STRUCTURAL_WITNESS_BYTES - retainedBytes) {
-				throw new RangeError('The .scape structural witness exceeds its portable byte limit.');
+				throw new RangeError('The Scape structural witness exceeds its portable byte limit.');
 			}
 			const retained = bytes.slice();
 			ranges.push({ bytes: retained, end: offset + retained.byteLength, offset });
 			retainedBytes += retained.byteLength;
 		},
 		bind(): ScapeArchiveByteSource {
-			if (bound) throw new Error('The .scape structural witness is already bound.');
+			if (bound) throw new Error('The Scape structural witness is already bound.');
 			bound = true;
 			const clusters = clusterWitnessRanges(ranges);
 			ranges.length = 0;
@@ -116,7 +116,7 @@ function assertWitnessOverlap(existing: readonly WitnessRange[], next: WitnessRa
 		const end = Math.min(prior.end, next.end);
 		for (let offset = start; offset < end; offset += 1) {
 			if (prior.bytes[offset - prior.offset] !== next.bytes[offset - next.offset]) {
-				throw new Error('The .scape byte source changed during structural validation.');
+				throw new Error('The Scape byte source changed during structural validation.');
 			}
 		}
 	}

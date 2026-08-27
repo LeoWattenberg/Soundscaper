@@ -4,7 +4,6 @@ import test from 'node:test';
 import {
 	aup4ReportHasMissingPcm,
 	ensureAup4FileName,
-	ensureScapeFileName,
 	formatBytes,
 	historyEntrySummary,
 	isAudacityProjectFile,
@@ -156,7 +155,6 @@ test('controller file helpers preserve formats, summaries, and compatibility cou
 	assert.equal(labelExportFileName('episode.wav', 'json'), 'episode.json');
 	assert.equal(labelMimeType('json'), 'application/json+chapters');
 	assert.equal(ensureAup4FileName('mix'), 'mix.aup4');
-	assert.equal(ensureScapeFileName('mix'), 'mix.scape');
 
 	const report = normalizeAup4CompatibilityReport({
 		items: [{ disposition: 'preserved' }, { disposition: 'missing', code: 'MISSING_LOCAL_AUDIO' }],

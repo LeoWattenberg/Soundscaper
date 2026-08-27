@@ -9,7 +9,7 @@ Framescaper is the video-focused view of the shared editor. It emphasizes video
 preview, source monitoring, picture effects, compositing, nested sequences, and
 multicamera work.
 
-Soundscaper and Framescaper can open the same `.scape` project. Use Soundscaper
+Soundscaper and Framescaper open each other’s project files: `.sscape`, `.fscape`, and the older `.scape` all work in both. Use Soundscaper
 for recording and detailed audio production, then hand the project back to
 Framescaper for picture work.
 

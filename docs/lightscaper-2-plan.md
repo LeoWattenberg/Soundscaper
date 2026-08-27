@@ -44,7 +44,7 @@ one-shot cross-product event every later schema binds to.
   borrows the traversal budget; `editor-project-v24-history.ts:25-30` is the
   history record; four profile modules run from
   `editor-project-feature-capability-profile-v24.ts:14-23` to
-  `editor-project-runtime-profile-v24.ts:8-19`; the `.scape` binding is one
+  `editor-project-runtime-profile-v24.ts:8-19`; the Scape binding is one
   50-line adapter, `editor-scape-native-v24.ts:17-49`. Numbers come from one
   serialized namespace, `src/common/editor/project-schema-version.ts`, where 17
   to 32 except 18 are claimed on `main`: 30 is the Soundscaper assistance-asset
@@ -70,7 +70,7 @@ one-shot cross-product event every later schema binds to.
   defaults to 20 (`storage.js:34`); `readCursorPage` (`:218-237`) pages cursors
   at 64 records (`:36`); digests take 4 MiB slices
   (`storage/media-content-digest.ts:15`).
-- **A `.scape` archive with a documented extension seam.**
+- **A Scape archive with a documented extension seam.**
   `scape-archive-envelope.ts:18-23` pins `maximumEntryCount: 4_096`, 32 MiB
   manifest, 256 MiB project, 64 GiB expansion; `:43-59` is the asset descriptor
   with a mandatory `sha256`; `:299-300` refuses any entry no descriptor claims;
@@ -193,7 +193,7 @@ already shows a product-owned union with an inheritance path
 (`editor-project-v24-commands.ts:38-41`), and `applyEditorCommand` is gated on
 the exact shared schema version (`commands.js:89-91`).
 
-### `.scape` carries the catalog as digest-pinned shards
+### Scape carries the catalog as digest-pinned shards
 
 A catalog archive is `manifest.json` plus `project.json` (the spine) plus
 JSON-Lines shards under two new asset kinds, `photo-catalog-shard` and
@@ -281,7 +281,7 @@ too, so it lands announced and serialized, with its schema tests.
 | The catalog as one project document | Four independent ceilings refuse it: 100 000 traversal nodes (`scape-project-document.ts:38`), 256 MiB per publication counting document plus revision (`project-publication-admission.ts:8`), 200 whole-project undo clones (`history.js:4`), 20 retained revisions (`storage.js:34`). It breaks at ~3 571 photos. |
 | Photo rows in the `settings`/`analysis` key-value domain | `MAXIMUM_KEY_VALUE_INVENTORY_RECORDS = 65_536` (`storage/key-value-repository.ts:8`) is already below six figures, and the domain has no secondary index, so every browse would be a full scan. |
 | Per-photo project documents with a light index | One project row, one lock, and one revision chain per photo multiplies `projects`/`revisions` writes by the photo count and gives the Project Bin 100 000 entries; the lock model is one lease per project (`project-lock.js:3-5`). |
-| One `.scape` entry per photo | `maximumEntryCount: 4_096` (`scape-archive-envelope.ts:19`) caps the archive two orders of magnitude below target; shards of 4 096 rows reach a million photos in 245 entries. |
+| One Scape entry per photo | `maximumEntryCount: 4_096` (`scape-archive-envelope.ts:19`) caps the archive two orders of magnitude below target; shards of 4 096 rows reach a million photos in 245 entries. |
 | Routing catalog commands through `applyEditorCommand` | It is gated on the exact shared schema version (`commands.js:89-91`) and commits one whole project; V24 already shows the product-owned union with an inheritance path. |
 | An npm EXIF/IPTC parser | Full licensing, notice, and tracked-version chain plus Pages bytes for a general parser, against a ~30-tag read model the repository's own bounded-reader precedents cover. |
 
@@ -293,7 +293,7 @@ too, so it lands announced and serialized, with its schema tests.
 | L2A | Parallel track | `PhotoCatalogV1` schema family over the substrate |
 | L2B | Parallel track (file-disjoint) | `DevelopStackV1`, the process-version registry, and its goldens |
 | L2C | Parallel, may open at L2.0 | `PhotoMetadataReadV1`, its bounded reader, and the fuzz corpus |
-| L2D | Serialized | `.scape` disposition, cross-product read, catalog-scale budget |
+| L2D | Serialized | Scape disposition, cross-product read, catalog-scale budget |
 
 L2A and L2B must not begin until every L2.0 acceptance check passes; L2C shares
 no file with any other phase and opens once the V30 image classification is on
@@ -424,7 +424,7 @@ at pickup, and any packet that grows one names it here first.
   unregistered one is refused, never defaulted; no path rewrites a stack's
   `processVersion` implicitly — only a `develop/set-stack` command carrying both
   versions, journaled with its inverse, may change it, and preset application,
-  sync, clipboard paste, `.scape` import, and cross-product handoff all preserve
+  sync, clipboard paste, Scape import, and cross-product handoff all preserve
   the recorded version; the stack records no sample format, primaries, or
   transfer, because the render profile is a per-buffer declaration supplied by
   the evaluator, so widening the admitted set in L7 reopens every existing stack
@@ -485,7 +485,7 @@ at pickup, and any packet that grows one names it here first.
 - **Stop condition:** stop if the read model needs a tag whose interpretation
   depends on a maker note — record it unsupported and refuse.
 
-### WP-L2D.0 — `.scape` disposition, cross-product read, and budget
+### WP-L2D.0 — Scape disposition, cross-product read, and budget
 
 - **Outcome:** `src/lightscaper/editor-scape-native-v31.ts` on the
   `editor-scape-native-v24.ts:17-49` pattern; a `ScapeProjectAssetExtension`
@@ -527,7 +527,7 @@ at pickup, and any packet that grows one names it here first.
   `config/quality-budgets.json` rather than repeated as a literal.
 - **Non-goals:** no merge-on-import (L3 Optional), relink, export presets, or
   develop rendering in Framescaper (L5).
-- **Stop condition:** stop if a threshold can only be met by raising a `.scape`
+- **Stop condition:** stop if a threshold can only be met by raising a Scape
   or publication limit — a schema needing them raised is the wrong schema.
 
 ## Quality-budget and evidence duties
@@ -583,11 +583,11 @@ at pickup, and any packet that grows one names it here first.
   filename are chosen together: a test over a `src/common/editor/` module takes a
   neutral `photo-*`/`render-sample-*` name and runs under `--shard=common`.
 - **Schema revisions stay serialized product-wide.** The V31 number claim, the
-  database version bump, and the `.scape` asset-kind registration are three
+  database version bump, and the Scape asset-kind registration are three
   serialized events; at most one is in flight, and none overlaps V30 landing.
 - **Never fork a shared module into `src/lightscaper/`.** `DevelopStackV1`, the
   render-sample modules, and the metadata reader live under `src/common/editor/`
-  with Framescaper-side tests; only the V31 family and its `.scape` adapter are
+  with Framescaper-side tests; only the V31 family and its Scape adapter are
   product-owned.
 - **Shared fate on repo gates.** `npm run check` stays green on every push;
   because many sessions work this tree at once, staging names explicit paths and

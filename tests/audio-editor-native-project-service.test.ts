@@ -342,7 +342,8 @@ test('a future-schema scape saves only as an exact unchanged archive copy', asyn
 test('native project validation and editing gates reject before starting work', async () => {
 	const blocked = createFixture({ editingBlocked: () => true });
 	const service = createNativeProjectService(blocked.runtime);
-	await assert.rejects(service.openScape(nativeFile('audio.wav')), /Choose a \.scape/u);
+	await assert.rejects(service.openScape(nativeFile('audio.wav')), /Choose a Scape project file/u);
+	await assert.rejects(service.openScape(nativeFile('disguised.sscape.zip')), /Choose a Scape project file/u);
 	await assert.rejects(service.openAudacityProject(nativeFile('audio.wav')), /Choose an Audacity project/u);
 	assert.equal(await service.openScape(nativeFile('blocked.scape')), null);
 	assert.equal(await service.openAudacityProject(nativeFile('blocked.aup3')), undefined);

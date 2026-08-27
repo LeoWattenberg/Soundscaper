@@ -103,7 +103,7 @@ test('Scape-open plan and invocation bind the exact positional fixture to isolat
 		mode: DESKTOP_SCAPE_OPEN_SMOKE_MODE,
 		productId: 'soundscaper',
 		token: TOKEN,
-		archive: { name: 'packaged-current-schema.scape', byteLength: ARCHIVE_BYTES },
+		archive: { name: 'packaged-current-schema.sscape', byteLength: ARCHIVE_BYTES },
 		project: {
 			id: 'packaged-scape-open-project', title: 'Packaged Scape Open', revision: 7,
 			sourceId: 'packaged-source', trackId: 'packaged-track', clipId: 'packaged-clip',
@@ -116,7 +116,7 @@ test('Scape-open plan and invocation bind the exact positional fixture to isolat
 
 	const invocation = invocationFixture();
 	assert.deepEqual(invocation.plan, plan);
-	assert.equal(invocation.scapePath, '/tmp/scape-open-profile/packaged-current-schema.scape');
+	assert.equal(invocation.scapePath, '/tmp/scape-open-profile/packaged-current-schema.sscape');
 	assert.equal(invocation.userDataPath, '/tmp/scape-open-profile/profile');
 	assert.equal(invocation.sharedAppDataPath, '/tmp/scape-open-profile/application-data');
 	assert.ok(invocation.executableCandidates.includes('/release/desktop/linux-unpacked/soundscaper'));
@@ -129,7 +129,7 @@ test('Scape-open plan and invocation bind the exact positional fixture to isolat
 		'--lang=en',
 		'--mute-audio',
 		'--autoplay-policy=no-user-gesture-required',
-		'/tmp/scape-open-profile/packaged-current-schema.scape',
+		'/tmp/scape-open-profile/packaged-current-schema.sscape',
 	]);
 	assert.throws(() => createDesktopScapeOpenSmokePlan({
 		archiveByteLength: DESKTOP_SCAPE_OPEN_ARCHIVE_MINIMUM_BYTES,
@@ -142,7 +142,7 @@ test('Scape-open plan and invocation bind the exact positional fixture to isolat
 	assert.throws(() => createDesktopScapeOpenSmokeInvocation({
 		arch: 'x64', archiveByteLength: ARCHIVE_BYTES, outputRoot: '/release/desktop',
 		platform: 'linux', profileRoot: '/tmp/scape-open-profile',
-		scapePath: '/tmp/outside/packaged-current-schema.scape', token: TOKEN,
+		scapePath: '/tmp/outside/packaged-current-schema.sscape', token: TOKEN,
 	}), /inside its isolated profile/iu);
 });
 
@@ -291,7 +291,7 @@ function invocationFixture() {
 		outputRoot: '/release/desktop',
 		platform: 'linux',
 		profileRoot: '/tmp/scape-open-profile',
-		scapePath: '/tmp/scape-open-profile/packaged-current-schema.scape',
+		scapePath: '/tmp/scape-open-profile/packaged-current-schema.sscape',
 		token: TOKEN,
 	});
 }

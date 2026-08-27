@@ -12,9 +12,9 @@ import {
 	assertNoSeriousAxeViolations,
 	bootEditor,
 	chooseCommandAction,
-	chooseFileAction,
 	chooseNestedCommandAction,
 	collectClientErrors,
+	chooseExportProjectFileAction,
 	importFiles,
 	registerAudioEditorHooks,
 	waitForEditor,
@@ -217,7 +217,7 @@ test.describe('native timeline annotations', () => {
 			await routeTranslations(framesPage);
 			const frameErrors = collectClientErrors(framesPage);
 			const framescaper = await bootEditor(framesPage, '/framescaper/embed/en/');
-			await openScapeArchive(framescaper, outbound, 'timeline-annotations.scape');
+			await openScapeArchive(framescaper, outbound, 'timeline-annotations.sscape');
 			await expect(framescaper.locator('[data-status]')).toHaveAttribute('data-state', 'error', {
 				timeout: 20_000,
 			});
@@ -234,7 +234,7 @@ test.describe('native timeline annotations', () => {
 			await routeTranslations(homePage);
 			const homeErrors = collectClientErrors(homePage);
 			const home = await bootEditor(homePage, '/embed/en/');
-			await openScapeArchive(home, outbound, 'timeline-annotations-return.scape');
+			await openScapeArchive(home, outbound, 'timeline-annotations-return.sscape');
 			await expect(home).toHaveAttribute('data-project-id', projectId, { timeout: 20_000 });
 			await expect(home).not.toHaveAttribute('data-edit-block-reason', /.+/u);
 			await expect(home.locator('[data-project-feature-compatibility]')).toHaveCount(0);
@@ -311,7 +311,7 @@ async function captureScapeArchive(page, editor) {
 		value: undefined,
 	}));
 	const downloading = page.waitForEvent('download');
-	await chooseFileAction(page, editor, 'Export project file (.scape)');
+	await chooseExportProjectFileAction(page, editor);
 	const download = await downloading;
 	const path = await download.path();
 	expect(path).toBeTruthy();

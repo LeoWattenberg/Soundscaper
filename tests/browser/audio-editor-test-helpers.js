@@ -5,6 +5,7 @@ import {
 	test,
 	TRANSLATIONS_ROOT,
 } from './audio-editor-test-fixtures.js';
+import { projectFileExtensionForProduct } from '../../src/common/project-file-extensions.ts';
 import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { settleFiniteAnimations } from './helpers/settle-finite-animations.js';
 
@@ -15,6 +16,21 @@ export {
 	stubDisplayCapture,
 	stubStorageEstimate,
 } from './helpers/browser-environment-stubs.js';
+
+/**
+ * The File-menu label for the Scape export, which names the suffix the running
+ * product writes. Specs must not hard-code it: Soundscaper offers `.sscape` and
+ * Framescaper `.fscape` from the same catalog message.
+ */
+export function exportProjectFileAction(productId = 'soundscaper') {
+	return `Export project file (${projectFileExtensionForProduct(productId)})`;
+}
+
+/** Invoke the Scape export under whichever product this editor is running. */
+export async function chooseExportProjectFileAction(page, editor) {
+	const productId = await editor.getAttribute('data-product');
+	await chooseFileAction(page, editor, exportProjectFileAction(productId || 'soundscaper'));
+}
 
 export function registerAudioEditorHooks() {
 	test.beforeEach(async ({ page }) => {

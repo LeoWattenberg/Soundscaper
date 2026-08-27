@@ -99,7 +99,7 @@ test('strict .scape envelope rejects compressed and inconsistent STORE entries b
 
 		await assert.rejects(
 			readScapeArchiveEnvelope(fixture.entries.map(({ entry }) => entry)),
-			/portable \.scape entries must use STORE/iu,
+			/portable Scape entries must use STORE/iu,
 		);
 		assert.equal(fixture.totalCalls(), 0);
 	});
@@ -224,7 +224,7 @@ test('strict .scape envelope enforces one-to-one reserved and asset entry owners
 
 		await assert.rejects(
 			readScapeArchiveEnvelope(fixture.entries.map(({ entry }) => entry)),
-			/duplicate \.scape source asset: source-1/iu,
+			/duplicate Scape source asset: source-1/iu,
 		);
 	});
 

@@ -55,11 +55,11 @@ test('project archive entry points reject unbranded byte-source lookalikes', asy
 
 	await assert.rejects(
 		inspectScapeProject(fakeSource),
-		/trusted \.scape archive byte source/iu,
+		/trusted Scape archive byte source/iu,
 	);
 	await assert.rejects(
 		importScapeProject(fakeSource, memoryStore('scape-project-unbranded')),
-		/trusted \.scape archive byte source/iu,
+		/trusted Scape archive byte source/iu,
 	);
 });
 

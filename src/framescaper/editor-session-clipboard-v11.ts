@@ -121,13 +121,13 @@ export function createFramescaperSessionClipboardV11(
 	if (records(project.subsequences, 'V27 clipboard subsequences').length > 0) {
 		throw new Error(
 			'The Framescaper V11 session clipboard cannot preserve a nested-sequence graph; '
-			+ 'use .scape copy-only preservation.',
+			+ 'use Scape copy-only preservation.',
 		);
 	}
 	if (records(project.multicameraGroups, 'V27 clipboard multicamera groups').length > 0) {
 		throw new Error(
 			'The Framescaper V11 session clipboard cannot preserve a multicamera graph; '
-			+ 'use .scape copy-only preservation.',
+			+ 'use Scape copy-only preservation.',
 		);
 	}
 	const session = createAudioEditorSessionClipboard(project, { descriptor });

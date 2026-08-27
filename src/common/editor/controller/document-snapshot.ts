@@ -132,7 +132,7 @@ export interface EditorDocumentSnapshotState {
 	readonly clipboard: unknown;
 	readonly status: Readonly<{ message: string; state: string }>;
 	readonly deliveryReport?: unknown;
-	/** The checksum manifest of the .scape this session last wrote, if it held one. */
+	/** The checksum manifest of the Scape this session last wrote, if it held one. */
 	readonly archiveManifest?: unknown;
 	readonly videoDeliveryPreviewCanvas?: unknown;
 	readonly saveState: string;

@@ -26,7 +26,7 @@ export async function extractScapeVideo(
 	signal?: AbortSignal,
 	expandedByteBudget?: ScapeExpandedByteBudget,
 ): Promise<ScapeExtractedVideo> {
-	if (typeof entry.getData !== 'function') throw new Error(`The .scape archive is missing ${entry.filename}.`);
+	if (typeof entry.getData !== 'function') throw new Error(`The Scape archive is missing ${entry.filename}.`);
 	assertScapeVideoWriter(writer);
 	throwIfScapeAborted(signal);
 	const digest = sha256.create();
@@ -36,7 +36,7 @@ export async function extractScapeVideo(
 			throwIfScapeAborted(signal);
 			const bytes = toBytes(chunk);
 			if (bytes.byteLength > SCAPE_VIDEO_MAXIMUM_CHUNK_BYTES) {
-				throw new RangeError('A .scape asset emission exceeds the fixed 4 MiB video chunk limit.');
+				throw new RangeError('A Scape asset emission exceeds the fixed 4 MiB video chunk limit.');
 			}
 			expandedByteBudget?.consume(bytes.byteLength, entry.filename);
 			if (bytes.byteLength > entry.uncompressedSize - size) {
@@ -68,7 +68,7 @@ function assertScapeVideoWriter(value: unknown): asserts value is ScapeVideoWrit
 function toBytes(value: unknown): Uint8Array {
 	if (value instanceof Uint8Array) return value;
 	if (value instanceof ArrayBuffer) return new Uint8Array(value);
-	throw new TypeError('A .scape asset emitted a non-byte chunk.');
+	throw new TypeError('A Scape asset emitted a non-byte chunk.');
 }
 
 function hex(bytes: Uint8Array): string {

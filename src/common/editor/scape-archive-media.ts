@@ -222,7 +222,7 @@ export async function extractScapeAudio(
 	expandedByteBudget?: ScapeExpandedByteBudget,
 	audioChunkBudget = new ScapeAudioChunkBudget(),
 ): Promise<ScapeExtractedAsset> {
-	if (typeof entry.getData !== 'function') throw new Error(`The .scape archive is missing ${entry.filename}.`);
+	if (typeof entry.getData !== 'function') throw new Error(`The Scape archive is missing ${entry.filename}.`);
 	const sourceGeometry = scapeAudioSourceLayout(source);
 	const digest = sha256.create();
 	let size = 0;
@@ -326,7 +326,7 @@ export function scapeHex(bytes: Uint8Array): string {
 function toBytes(value: unknown): Uint8Array {
 	if (value instanceof Uint8Array) return value;
 	if (value instanceof ArrayBuffer) return new Uint8Array(value);
-	throw new TypeError('A .scape asset emitted a non-byte chunk.');
+	throw new TypeError('A Scape asset emitted a non-byte chunk.');
 }
 
 function assertScapeEntryEmissionWithinSize(

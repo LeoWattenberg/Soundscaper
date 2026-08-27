@@ -52,6 +52,15 @@ module.exports = {
 	],
 	fileAssociations: [
 		{
+			// Each build claims its own suffix plus the legacy one. Neither app
+			// claims `.liscape`, which Lightscaper will register for itself.
+			ext: framescaper ? 'fscape' : 'sscape',
+			name: framescaper ? 'Framescaper Project' : 'Soundscaper Project',
+			description: `${productName} project`,
+			mimeType: 'application/vnd.soundscaper.scape+zip',
+			role: 'Editor',
+		},
+		{
 			ext: 'scape',
 			name: 'Scape Project',
 			description: 'Soundscaper/Framescaper project',
@@ -60,7 +69,8 @@ module.exports = {
 		},
 		...(!framescaper ? [{
 			ext: ['aup3', 'aup4'],
-			name: 'Soundscaper Project',
+			// Named for what it is: 'Soundscaper Project' now belongs to `.sscape`.
+			name: 'Audacity Project',
 			description: 'Audacity project',
 			mimeType: 'application/x-audacity-project',
 			role: 'Editor',

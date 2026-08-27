@@ -332,7 +332,7 @@ test('the V18 session clipboard refuses a nested graph before generic clipboard 
 	});
 	assert.throws(
 		() => createFramescaperSessionClipboardV18(PROFILE, project, options),
-		/session clipboard.*cannot preserve.*nested.*\.scape/iu,
+		/session clipboard.*cannot preserve.*nested.*Scape copy-only/iu,
 	);
 	assert.equal(optionReads, 0);
 
@@ -373,7 +373,7 @@ test('multicamera interchange is copy-only for Soundscaper and refuses lossy ses
 	});
 	assert.throws(
 		() => createFramescaperSessionClipboardV18(PROFILE, project, options),
-		/session clipboard.*cannot preserve.*multicamera.*\.scape/iu,
+		/session clipboard.*cannot preserve.*multicamera.*Scape copy-only/iu,
 	);
 	assert.equal(optionReads, 0);
 });

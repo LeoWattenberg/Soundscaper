@@ -36,5 +36,5 @@ these conditions.
 
 Stop recording and play the new clip before continuing. Wait for the project
 status to report that saving is complete. For irreplaceable material, export a
-rendered audio copy and a `.scape` project rather than relying only on the
+rendered audio copy and a `.sscape` project rather than relying only on the
 local library.

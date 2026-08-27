@@ -92,6 +92,7 @@ import {
 } from './video-effects.js';
 import { createVideoExportPlan } from './video-export.js';
 import { productProfile } from '../products.js';
+import { withProjectFileExtension } from '../project-file-extensions.ts';
 import {
 	AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES,
 	assertAudacityEffectOutput,
@@ -228,7 +229,6 @@ import {
 	aup4ReportHasMissingPcm,
 	classifyMobile,
 	ensureAup4FileName,
-	ensureScapeFileName,
 	formatLegacyAupWarning,
 	formatBytes,
 	formatPlaybackRate,
@@ -871,7 +871,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		estimateStorageForPreflight, preflightStorage,
 		createStableId,
 		ensureAup4FileName,
-		ensureScapeFileName,
+		projectFileExtension: product.projectFileExtension, ensureProjectFileName: withProjectFileExtension,
 		sourcePcmBytes,
 		loadStoredSourceChannels,
 		requestAup4FileHandle: deferredArchiveRuntime.requestAup4FileHandle,

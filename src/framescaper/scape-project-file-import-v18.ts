@@ -373,7 +373,7 @@ function requiredCanonicalDescriptor(
 
 function requiredEntry(entries: ReadonlyMap<string, ScapeArchiveEntry>, name: string): ScapeArchiveEntry {
 	const entry = entries.get(name);
-	if (!entry?.getData) throw new Error(`The .scape archive is missing ${name}.`);
+	if (!entry?.getData) throw new Error(`The Scape archive is missing ${name}.`);
 	return entry;
 }
 

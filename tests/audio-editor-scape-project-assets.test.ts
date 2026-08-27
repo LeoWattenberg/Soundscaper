@@ -157,7 +157,7 @@ test('scape project assets reject non-bijective or invalid source identities', a
 			{ id: 'video-source', kind: 'video' },
 		] },
 		assets: [audio, { ...audio, entry: 'audio/duplicate.f32c' }],
-		expected: /duplicate \.scape source asset/iu,
+		expected: /duplicate Scape source asset/iu,
 	}, {
 		name: 'invalid project source record',
 		project: { sources: [null] },

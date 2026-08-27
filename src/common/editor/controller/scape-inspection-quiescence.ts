@@ -295,7 +295,7 @@ export function createScapeInspectionQuiescence(
 		}
 		if (failures.length === 1) throw failures[0];
 		if (failures.length > 1) {
-			throw new AggregateError(failures, 'Multiple .scape inspections failed while draining cleanup.');
+			throw new AggregateError(failures, 'Multiple Scape inspections failed while draining cleanup.');
 		}
 	}
 }

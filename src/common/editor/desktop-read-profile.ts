@@ -1,5 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+// Every accepted project suffix takes the 65 GiB Scape range profile, so a
+// Framescaper `.fscape` is never quietly demoted to bounded materialization.
+import { isProjectFileName } from '../project-file-extensions.ts';
+
 export const DESKTOP_READ_PROFILE_LINKED_AUDIO_RANGE = 'linked-audio-range-v1';
 export const DESKTOP_READ_PROFILE_LINKED_VIDEO_RANGE = 'linked-video-range-v1';
 export const DESKTOP_READ_PROFILE_MATERIALIZED = 'materialized-v1';
@@ -56,7 +60,7 @@ export function assertDesktopLinkedVideoReadProfile(
 	if (descriptor?.readProfile !== DESKTOP_READ_PROFILE_LINKED_VIDEO_RANGE
 		|| typeof descriptor.mimeType !== 'string'
 		|| !/^video\/[a-z0-9][a-z0-9!#$&^_.+-]*$/u.test(descriptor.mimeType)
-		|| isScapeName(descriptor.name)) {
+		|| isProjectFileName(descriptor.name)) {
 		throw new TypeError('A canonical linked-video desktop read profile is required.');
 	}
 	if (!Number.isSafeInteger(descriptor.size) || (descriptor.size as number) < 1
@@ -71,7 +75,7 @@ export function assertDesktopMaterializedReadProfile(
 	if (descriptor?.readProfile !== DESKTOP_READ_PROFILE_MATERIALIZED) {
 		throw new TypeError('A materialized desktop read profile is required.');
 	}
-	if (isScapeName(descriptor.name) || descriptor.mimeType === DESKTOP_SCAPE_MIME_TYPE) {
+	if (isProjectFileName(descriptor.name) || descriptor.mimeType === DESKTOP_SCAPE_MIME_TYPE) {
 		throw new TypeError('A Scape descriptor cannot use the materialized desktop read profile.');
 	}
 }
@@ -81,7 +85,7 @@ export function assertDesktopScapeReadProfile(
 	maximumBytes: number,
 ): void {
 	if (descriptor?.readProfile !== DESKTOP_READ_PROFILE_SCAPE_RANGE
-		|| !isScapeName(descriptor.name)
+		|| !isProjectFileName(descriptor.name)
 		|| descriptor.mimeType !== DESKTOP_SCAPE_MIME_TYPE) {
 		throw new TypeError('A canonical desktop Scape range read profile is required.');
 	}
@@ -100,8 +104,4 @@ export function desktopScapeReadMaximum(value: unknown): number {
 		throw new RangeError('The desktop Scape read maximum must not exceed its hard limit.');
 	}
 	return value;
-}
-
-function isScapeName(value: unknown): boolean {
-	return typeof value === 'string' && /\.scape$/iu.test(value);
 }

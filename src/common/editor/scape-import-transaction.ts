@@ -81,21 +81,21 @@ export class ScapeImportTransaction {
 	}
 
 	trackProvisionalSource(sourceId: string): void {
-		if (this.#complete) throw new Error('The .scape import transaction is already complete.');
+		if (this.#complete) throw new Error('The Scape import transaction is already complete.');
 		if (!this.#sourceIds.includes(sourceId)) this.#sourceIds.push(sourceId);
 	}
 
 	trackProvisionalMedia(publication: OwnedMediaAssetPublication): void {
-		if (this.#complete) throw new Error('The .scape import transaction is already complete.');
+		if (this.#complete) throw new Error('The Scape import transaction is already complete.');
 		if (!publication || typeof publication !== 'object'
 			|| typeof publication.discardIfCurrent !== 'function') {
-			throw new TypeError('A .scape provisional media publication requires exact ownership.');
+			throw new TypeError('A Scape provisional media publication requires exact ownership.');
 		}
 		if (!this.#mediaPublications.includes(publication)) this.#mediaPublications.push(publication);
 	}
 
 	async captureProject(projectId: string): Promise<void> {
-		if (this.#projectSnapshot) throw new Error('The .scape target project was already captured.');
+		if (this.#projectSnapshot) throw new Error('The Scape target project was already captured.');
 		throwIfScapeAborted(this.#signal);
 		const current = await awaitScapeOperation(this.#store.loadProject(projectId), this.#signal);
 		const revisions = await awaitScapeOperation(this.#store.listProjectRevisions(projectId), this.#signal);
@@ -105,7 +105,7 @@ export class ScapeImportTransaction {
 
 	async publishProject(project: ScapeProjectDocument): Promise<void> {
 		if (this.#projectId !== project.id || !this.#projectSnapshot) {
-			throw new Error('The .scape target project was not captured before publication.');
+			throw new Error('The Scape target project was not captured before publication.');
 		}
 		throwIfScapeAborted(this.#signal);
 		this.#projectWriteAttempted = true;
@@ -113,14 +113,14 @@ export class ScapeImportTransaction {
 		const canCreateExactly = typeof createExactly === 'function';
 		const canDeleteExactly = typeof this.#store.deleteProjectIfCurrent === 'function';
 		if (this.#projectSnapshot.current === null && canCreateExactly !== canDeleteExactly) {
-			throw new TypeError('Create-only .scape publication requires exact-current rollback.');
+			throw new TypeError('Create-only Scape publication requires exact-current rollback.');
 		}
 		if (this.#projectSnapshot.current === null && canCreateExactly) {
 			this.#createOnlyPublicationAttempted = true;
 			const created = await createExactly.call(this.#store, project);
-			if (created === null) throw new Error('The .scape target project was created concurrently.');
+			if (created === null) throw new Error('The Scape target project was created concurrently.');
 			if (created.id !== project.id) {
-				throw new Error('Create-only .scape publication changed the target project identity.');
+				throw new Error('Create-only Scape publication changed the target project identity.');
 			}
 			// Retain the repository's creation-fence token before observing cancellation.
 			this.#createdProject = created;
@@ -164,13 +164,13 @@ export class ScapeImportTransaction {
 				}
 			}
 		}
-		throw aggregateScapeErrors(primary, cleanupErrors, 'The .scape import and rollback both failed.');
+		throw aggregateScapeErrors(primary, cleanupErrors, 'The Scape import and rollback both failed.');
 	}
 
 	async #restoreProject(projectId: string, snapshot: ProjectSnapshot): Promise<boolean> {
 		if (this.#createdProject) {
 			if (typeof this.#store.deleteProjectIfCurrent !== 'function') {
-				throw new TypeError('Create-only .scape publication lost its exact-current rollback capability.');
+				throw new TypeError('Create-only Scape publication lost its exact-current rollback capability.');
 			}
 			return this.#store.deleteProjectIfCurrent(this.#createdProject);
 		}

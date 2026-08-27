@@ -39,7 +39,7 @@ export async function copyFutureScapeArchive(
 	write: (bytes: Uint8Array) => void | PromiseLike<void>,
 	options: ScapeArchiveCopyOptions = {},
 ): Promise<ScapeArchiveCopyResult> {
-	if (typeof write !== 'function') throw new TypeError('A .scape archive copy sink is required.');
+	if (typeof write !== 'function') throw new TypeError('A Scape archive copy sink is required.');
 	const signal = options.signal;
 	const schemaVersion = await withScapeProjectInput(input, signal, async (entries) => {
 		const { manifest, projectText } = await readScapeArchiveEnvelope(
@@ -78,16 +78,16 @@ function futureSchemaVersion(declared: number | undefined, projectText: string):
 	try {
 		document = JSON.parse(projectText);
 	} catch {
-		throw new Error('The .scape archive project document is not JSON.');
+		throw new Error('The Scape archive project document is not JSON.');
 	}
 	const schemaVersion = document && typeof document === 'object'
 		? (document as Readonly<{ schemaVersion?: unknown }>).schemaVersion
 		: undefined;
 	if (!Number.isSafeInteger(schemaVersion) || (schemaVersion as number) <= AUDIO_EDITOR_PROJECT_SCHEMA_VERSION) {
-		throw new Error('Only a future-schema .scape archive can be saved as an unchanged copy.');
+		throw new Error('Only a future-schema Scape archive can be saved as an unchanged copy.');
 	}
 	if (declared !== undefined && declared !== schemaVersion) {
-		throw new Error('The .scape manifest schema version does not match its project document.');
+		throw new Error('The Scape manifest schema version does not match its project document.');
 	}
 	return schemaVersion as number;
 }

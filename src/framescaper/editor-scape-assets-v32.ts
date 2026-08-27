@@ -33,7 +33,7 @@ const V32_PROJECT_CODEC: FramescaperScapeImageProjectCodecV32 = Object.freeze({
 	validate: validateFramescaperProjectV32,
 });
 
-/** V32 `.scape` ownership: immutable V27 assets plus one semantic body per image source. */
+/** V32 Scape ownership: immutable V27 assets plus one semantic body per image source. */
 export function createFramescaperScapeProjectAssetExtensionV32(
 	profile: unknown,
 	codec: FramescaperScapeImageProjectCodecV32 = V32_PROJECT_CODEC,

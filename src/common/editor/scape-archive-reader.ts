@@ -43,7 +43,7 @@ export async function withScapeArchiveReader<Value>(
 	action: (entries: readonly ScapeArchiveEntry[]) => Promise<Value>,
 	createReader: ScapeArchiveReaderFactory = createZipArchiveReader,
 ): Promise<Value> {
-	if (!(input instanceof Blob)) throw new TypeError('A .scape Blob is required.');
+	if (!(input instanceof Blob)) throw new TypeError('A Scape Blob is required.');
 	throwIfScapeAborted(signal);
 	const reader = await createReader(input, signal);
 	return useScapeArchiveReader(reader, signal, action);
@@ -75,7 +75,7 @@ async function useScapeArchiveReader<Value>(
 			throwIfScapeAborted(signal);
 			entries.push(entry);
 			if (entries.length > SCAPE_ARCHIVE_LIMITS.maximumEntryCount) {
-				throw new RangeError('The .scape archive contains too many entries.');
+				throw new RangeError('The Scape archive contains too many entries.');
 			}
 		}
 		throwIfScapeAborted(signal);
@@ -94,7 +94,7 @@ async function useScapeArchiveReader<Value>(
 			if (failed) throw aggregateScapeErrors(
 				failure,
 				[closeError],
-				'The .scape operation and archive-reader cleanup both failed.',
+				'The Scape operation and archive-reader cleanup both failed.',
 			);
 			throw closeError;
 		}
@@ -142,7 +142,7 @@ class ScapeZipByteSourceReader extends Reader<ScapeArchiveByteSource> {
 		if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(size)
 			|| !Number.isSafeInteger(chunkSize) || offset < 0 || size < 0
 			|| chunkSize < 1 || offset > this.size - size) {
-			throw new RangeError('The .scape ZIP reader requested an invalid payload stream.');
+			throw new RangeError('The Scape ZIP reader requested an invalid payload stream.');
 		}
 		let chunkOffset = 0;
 		// zip.js constructs this stream even for overlap-only checks. A zero
@@ -160,7 +160,7 @@ class ScapeZipByteSourceReader extends Reader<ScapeArchiveByteSource> {
 					Math.min(chunkSize, remaining),
 				);
 				if (!bytes.byteLength) {
-					throw new Error('The .scape ZIP payload stream ended before its declared size.');
+					throw new Error('The Scape ZIP payload stream ended before its declared size.');
 				}
 				chunkOffset += bytes.byteLength;
 				controller.enqueue(bytes);
@@ -172,7 +172,7 @@ class ScapeZipByteSourceReader extends Reader<ScapeArchiveByteSource> {
 	override async readUint8Array(offset: number, length: number): Promise<Uint8Array> {
 		if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(length)
 			|| offset < 0 || length < 0 || offset > this.size) {
-			throw new RangeError('The .scape ZIP reader requested an invalid byte range.');
+			throw new RangeError('The Scape ZIP reader requested an invalid byte range.');
 		}
 		const availableLength = Math.min(length, this.size - offset);
 		return readScapeArchiveByteRange(this.#source, {

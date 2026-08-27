@@ -1919,6 +1919,32 @@
 			]
 		},
 		{
+			"id": "current-product-native-project-file-suffix",
+			"status": "implemented",
+			"requiredOutcome": "Each product writes its own project-file suffix and opens every product's, so a project archive is never refused for carrying the suffix another product gave it, and a saved file never claims a product that did not write it.",
+			"currentBehavior": "Soundscaper writes .sscape, Framescaper writes .fscape, and the roadmap-only Lightscaper reserves .liscape. Those three and the legacy .scape are accepted case-insensitively by browser file inputs, drag and drop, the native open dialog, OS association and positional launch, and the desktop range-capability router, and each one takes the 65 GiB scape-range-v1 desktop read profile rather than bounded materialization. A suffix is a routing hint only: manifest, schema, capability, and digest validation remain authoritative, and a disguised terminal name such as mix.sscape.zip is not a project. Saving replaces any recognized project suffix with the active product's and otherwise appends it, including for a retained future-schema archive, which is renamed but copied byte for byte. Save pickers and OS associations advertise only the active product's suffix plus legacy .scape; neither shipping app claims .liscape. The shared Scape archive schema, the application/vnd.soundscaper.scape+zip media type, the scape-project format, the scape-range-v1 profile, and the .scapefx plug-in suffix are unchanged, and no migration or format-version bump is involved.",
+			"evidence": [
+				"src/common/project-file-extensions.ts",
+				"src/common/product-profiles.js",
+				"src/common/editor/controller/native-project-service.ts",
+				"src/common/editor/controller/native-scape-save.ts",
+				"src/common/editor/desktop-read-profile.ts",
+				"src/common/editor/ui/workspace/workspace-file-routing.js",
+				"desktop/constants.js",
+				"desktop/validation.js",
+				"desktop/file-associations.js",
+				"desktop/read-selection-service.js",
+				"electron-builder.config.cjs",
+				"tests/project-file-extensions.test.ts",
+				"tests/project-extension-copy.test.ts",
+				"tests/audio-editor-native-project-suffixes.test.ts",
+				"tests/desktop-project-file-extensions.test.js",
+				"tests/desktop-project-file-associations.test.js",
+				"tests/desktop-read-profile-project-suffixes.test.ts",
+				"tests/browser/audio-editor-scape-product-roundtrip.spec.js"
+			]
+		},
+		{
 			"id": "future-archive-format-rejection",
 			"status": "implemented",
 			"requiredOutcome": "An unknown .scape container format is rejected before project or media persistence rather than guessed or partially imported.",

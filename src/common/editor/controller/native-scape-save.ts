@@ -1,41 +1,63 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { SCAPE_MIME_TYPE } from '../scape-project-format.ts';
+import type { ProjectFileExtension } from '../../project-file-extensions.ts';
 import { recordScapeArchiveManifest } from './scape-archive-manifest-action.ts';
 import type {
 	NativePreparedSave,
 	NativeProjectDocument,
-	NativeProjectFileService,
+	NativeProjectFileType,
 	NativeProjectServiceRuntime,
 	NativeSavedFile,
 	SaveScapeOptions,
 	ScapeExportResult,
 } from './native-project-types.ts';
 
-const SCAPE_FILE_TYPES = Object.freeze([Object.freeze({
-	description: 'Scape project',
-	accept: Object.freeze({
-		'application/vnd.soundscaper.scape+zip': Object.freeze(['.scape']),
-	}),
-})]);
+// A save picker offers the suffix this product writes and nothing else; the
+// four accepted suffixes matter when opening, not when naming a new file.
+const SCAPE_FILE_TYPES_BY_EXTENSION = new Map<string, readonly NativeProjectFileType[]>();
 
-export async function prepareNativeScapeSave(
-	fileService: NativeProjectFileService,
+function scapeFileTypes(extension: ProjectFileExtension): readonly NativeProjectFileType[] {
+	const cached = SCAPE_FILE_TYPES_BY_EXTENSION.get(extension);
+	if (cached) return cached;
+	const types = Object.freeze([Object.freeze({
+		description: 'Scape project',
+		accept: Object.freeze({
+			[SCAPE_MIME_TYPE]: Object.freeze([extension]),
+		}),
+	})]);
+	SCAPE_FILE_TYPES_BY_EXTENSION.set(extension, types);
+	return types;
+}
+
+/**
+ * Name the archive for the product that is saving it and open its destination.
+ * Both the exporting and the unchanged-copy save start here, so the picker and
+ * the suggested name can never disagree about which suffix is being written.
+ */
+export async function beginNativeScapeSave(
+	runtime: Pick<NativeProjectServiceRuntime,
+	'ensureProjectFileName' | 'fileService' | 'projectFileExtension' | 'scapeMimeType'>,
 	request: Readonly<{
-		fileName: string;
-		mimeType: string;
+		fallbackFileName: unknown;
 		options: SaveScapeOptions;
 		signal: AbortSignal;
 	}>,
-): Promise<NativePreparedSave> {
-	return fileService.prepareSave({
+): Promise<Readonly<{ fileName: string; prepared: NativePreparedSave }>> {
+	const extension = runtime.projectFileExtension;
+	const fileName = runtime.ensureProjectFileName(
+		request.options.fileName || request.fallbackFileName, extension,
+	);
+	const prepared = await runtime.fileService.prepareSave({
 		purpose: 'project',
-		suggestedName: request.fileName,
-		mimeType: request.mimeType,
+		suggestedName: fileName,
+		mimeType: runtime.scapeMimeType,
 		target: request.options.saveTarget,
-		types: SCAPE_FILE_TYPES,
+		types: scapeFileTypes(extension),
 		useFileSystemAccess: request.options.useFileSystemAccess !== false,
 		signal: request.signal,
 	});
+	return { fileName, prepared };
 }
 
 export async function publishNativeScape(
@@ -96,7 +118,8 @@ export interface NativeRetainedScapeArchive {
 /** Orchestrate the unchanged-copy save of a retained future-schema archive. */
 export async function saveNativeScapeArchiveCopy(
 	runtime: Pick<NativeProjectServiceRuntime,
-	'copy' | 'copyFutureScapeArchive' | 'ensureScapeFileName' | 'fileService' | 'scapeMimeType' | 'setStatus'>,
+	'copy' | 'copyFutureScapeArchive' | 'ensureProjectFileName' | 'fileService'
+	| 'projectFileExtension' | 'scapeMimeType' | 'setStatus'>,
 	request: Readonly<{
 		assertReady(): void;
 		fallbackFileName: unknown;
@@ -106,9 +129,9 @@ export async function saveNativeScapeArchiveCopy(
 	}>,
 ): Promise<(NativeSavedFile & { readonly manifest: Readonly<Record<string, unknown>> })
 | Readonly<{ cancelled: true }>> {
-	const fileName = runtime.ensureScapeFileName(request.options.fileName || request.fallbackFileName);
-	const prepared = await prepareNativeScapeSave(runtime.fileService, {
-		fileName, mimeType: runtime.scapeMimeType, options: request.options, signal: request.signal,
+	// The bytes are copied unchanged; only the name follows the saving product.
+	const { fileName, prepared } = await beginNativeScapeSave(runtime, {
+		fallbackFileName: request.fallbackFileName, options: request.options, signal: request.signal,
 	});
 	if (prepared.mode === 'cancelled') return { cancelled: true };
 	request.assertReady();

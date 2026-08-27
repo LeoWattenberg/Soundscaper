@@ -89,6 +89,32 @@ post-bind Electron linked-PCM source reads.
 Canonical PCM portability is the contract; the selected external container is
 neither transferred nor reconstructed.
 
+## Product-native project file suffixes
+
+Soundscaper writes `.sscape`, Framescaper writes `.fscape`, and the
+roadmap-only Lightscaper reserves `.liscape`. Every product accepts all three
+plus the legacy `.scape`, case-insensitively, so a project archive is never
+refused for carrying the suffix another product gave it.
+
+- A suffix is a routing hint only. Manifest, schema, capability, and digest
+  validation remain the authority on what a file is, and a disguised terminal
+  name such as `mix.sscape.zip` is not a project.
+- Saving replaces any recognized project suffix with the active product's and
+  otherwise appends it, so a Soundscaper `Mix.sscape` saved from Framescaper
+  becomes `Mix.fscape`. A retained future-schema archive is renamed the same
+  way and still copied byte for byte.
+- Save pickers and operating-system associations advertise only the active
+  product's suffix plus legacy `.scape`. Neither shipping app claims
+  `.liscape`.
+- Every accepted suffix takes the 65 GiB `scape-range-v1` desktop read profile;
+  none falls back to bounded materialization.
+
+The archive itself is unchanged. The shared Scape schema, the
+`application/vnd.soundscaper.scape+zip` media type, the `scape-project` format,
+the `scape-range-v1` profile, and the `.scapefx` plug-in suffix all keep their
+existing values, and no migration or format-version bump is involved. Legacy
+`.scape` opening has no sunset; production code simply never emits it.
+
 ## Framescaper F31 product isolation
 
 <!-- policy-narrative:framescaper-v18-product-isolation -->

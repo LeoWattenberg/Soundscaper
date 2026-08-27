@@ -104,7 +104,7 @@ largest page canvas. Fully transparent output pixels have zero RGB.
 
 Preview, thumbnails, web export, and native export share one frame-pack reader
 and timing mapper. History, clipboard, storage retention, garbage collection,
-`.scape`, project handoff, and the desktop library treat the body as one
+Scape, project handoff, and the desktop library treat the body as one
 immutable asset. Clipboard reuse is digest-based; an id conflict copies the
 same bytes to a new source/storage identity without recompression.
 
@@ -226,7 +226,7 @@ chunks remain below the repository ceiling.
 ## Exit gate
 
 - Static, animated, and multipage admitted fixtures survive import, edit,
-  preview, render, save/reopen, clipboard, `.scape`, and desktop handoff with
+  preview, render, save/reopen, clipboard, Scape, and desktop handoff with
   exact source timing and authenticated asset bodies.
 - Menu, picker, Project Bin, and drop workflows pass collision, mixed-media,
   partial-failure, cancellation, focus, status, undo, and accessibility tests.

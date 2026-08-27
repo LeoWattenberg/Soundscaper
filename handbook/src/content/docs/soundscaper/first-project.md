@@ -41,4 +41,4 @@ Use the transport controls to play the project. When it is ready, choose
 rendered file.
 
 An audio export is a delivery copy, not an editable backup. Also export a
-[`.scape` project file](/projects-and-data/project-files/) for important work.
+[`.sscape` project file](/projects-and-data/project-files/) for important work.

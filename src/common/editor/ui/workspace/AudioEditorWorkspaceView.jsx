@@ -1,6 +1,7 @@
 import { Button } from '@soundscaper/design-system/Button';
 
 import { productProfile } from '../../../products.js';
+import { ACCEPTED_PROJECT_FILE_EXTENSION_LIST } from '../../../project-file-extensions.ts';
 import AudioEditorButtonTooltips from '../AudioEditorButtonTooltips.jsx';
 import EditorOverlayHost from '../EditorOverlayHost.tsx';
 import AudioEditorMenuBar from '../AudioEditorMenuBar.jsx';
@@ -152,7 +153,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 				aria-label={copy.open}
 				type="file"
 				tabIndex={-1}
-				accept=".scape,.aup3,.aup4,application/vnd.soundscaper.scape+zip,application/x-audacity-project,application/vnd.audacity.aup4"
+				accept={`${ACCEPTED_PROJECT_FILE_EXTENSION_LIST},.aup3,.aup4,application/vnd.soundscaper.scape+zip,application/x-audacity-project,application/vnd.audacity.aup4`}
 				onChange={(event) => {
 					const file = event.currentTarget.files?.[0];
 					event.currentTarget.value = '';

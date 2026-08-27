@@ -16,7 +16,7 @@ import {
 
 const SOURCE_KINDS = Object.freeze(['still', 'generator']);
 
-/** Selected V27-only durable asset ownership for portable `.scape` archives. */
+/** Selected V27-only durable asset ownership for portable Scape archives. */
 export function createFramescaperScapeProjectAssetExtensionV27(
 	profile: unknown,
 ): Readonly<ScapeProjectAssetExtension> {

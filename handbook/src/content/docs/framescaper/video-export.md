@@ -26,5 +26,5 @@ Keep the editor open until the export reports completion.
 Open the exported file in a separate player. Check its duration, first and last
 frames, picture orientation, audio synchronization, and expected captions.
 
-The rendered video cannot replace the editable project. Export a `.scape` copy
+The rendered video cannot replace the editable project. Export a `.fscape` copy
 as well when you need to preserve the timeline and project media.

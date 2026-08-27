@@ -9,10 +9,10 @@ export class ScapeAudioChunkBudget {
 
 	constructor(maximumChunks = SCAPE_MAXIMUM_AUDIO_CHUNKS) {
 		if (!Number.isSafeInteger(maximumChunks) || maximumChunks < 1) {
-			throw new RangeError('The .scape audio-chunk limit must be a positive safe integer.');
+			throw new RangeError('The Scape audio-chunk limit must be a positive safe integer.');
 		}
 		if (maximumChunks > SCAPE_MAXIMUM_AUDIO_CHUNKS) {
-			throw new RangeError('The .scape audio-chunk limit cannot exceed the hard limit.');
+			throw new RangeError('The Scape audio-chunk limit cannot exceed the hard limit.');
 		}
 		this.#maximumChunks = maximumChunks;
 	}
@@ -31,10 +31,10 @@ export class ScapeAudioChunkBudget {
 
 	consumeMany(chunkCount: number, label: string): void {
 		if (!Number.isSafeInteger(chunkCount) || chunkCount < 0) {
-			throw new RangeError(`Audio source ${label} has an invalid .scape PCM chunk count.`);
+			throw new RangeError(`Audio source ${label} has an invalid Scape PCM chunk count.`);
 		}
 		if (chunkCount > this.#maximumChunks - this.#usedChunks) {
-			throw new RangeError(`Audio source ${label} exceeds the .scape archive PCM chunk limit.`);
+			throw new RangeError(`Audio source ${label} exceeds the Scape archive PCM chunk limit.`);
 		}
 		this.#usedChunks += chunkCount;
 	}
@@ -47,7 +47,7 @@ export class ScapeExpandedByteBudget {
 
 	constructor(maximumBytes: number) {
 		if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 1) {
-			throw new RangeError('The .scape actual expanded-byte limit must be a positive safe integer.');
+			throw new RangeError('The Scape actual expanded-byte limit must be a positive safe integer.');
 		}
 		this.#maximumBytes = maximumBytes;
 	}
@@ -62,10 +62,10 @@ export class ScapeExpandedByteBudget {
 
 	consume(byteLength: number, label: string): void {
 		if (!Number.isSafeInteger(byteLength) || byteLength < 0) {
-			throw new RangeError(`The .scape entry ${label} emitted an invalid byte count.`);
+			throw new RangeError(`The Scape entry ${label} emitted an invalid byte count.`);
 		}
 		if (byteLength > this.#maximumBytes - this.#usedBytes) {
-			throw new RangeError('The .scape archive exceeds the cumulative actual expanded-byte limit.');
+			throw new RangeError('The Scape archive exceeds the cumulative actual expanded-byte limit.');
 		}
 		this.#usedBytes += byteLength;
 	}

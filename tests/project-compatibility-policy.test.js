@@ -53,7 +53,7 @@ test('compatibility rules distinguish enforced guarantees from planned lossless 
 		'unavailable-native-feature': 'planned',
 		'video-proxy-fallback': 'implemented',
 		'audio-freeze-fallback': 'implemented',
-		'future-archive-format-rejection': 'implemented',
+		'current-product-native-project-file-suffix': 'implemented', 'future-archive-format-rejection': 'implemented',
 	};
 	assert.deepEqual(
 		Object.fromEntries([...rules].map(([id, rule]) => [id, rule.status])),
