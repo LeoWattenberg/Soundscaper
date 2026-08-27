@@ -23,8 +23,8 @@ const ASSISTANCE_SITES: readonly FoundationTimeConversionSite[] = [
 		conversions: [{ helper: 'scaleSampleFrame', policies: ['enclosingStart', 'enclosingEnd'] }],
 	},
 	{
-		id: 'local-assistance-audio-preparation-conversion',
-		file: 'src/common/editor/controller/local-assistance-audio-preparation.ts',
+		id: 'local-assistance-audio-geometry-conversion',
+		file: 'src/common/editor/controller/local-assistance-audio-geometry.ts',
 		behavior: 'Prepared assistance audio resolves its complete project-rate frame count once to the nearest model-rate output length before bounded streaming resampling.',
 		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
 	},
