@@ -31,6 +31,8 @@ enum class AacLcM4aRefusal : uint32_t {
 	esdsDecoderConfig = 12u,
 	esdsDecoderSpecificInfo = 13u,
 	esdsSyncLayer = 14u,
+	esdsObjectType = 15u,
+	esdsStreamType = 16u,
 };
 
 bool exactAacLcM4a(

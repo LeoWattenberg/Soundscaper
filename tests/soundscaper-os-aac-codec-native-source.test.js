@@ -55,16 +55,15 @@ test('target native ABI and bridge expose exact bounded AAC-LC M4A encode', asyn
 	assert.match(selfTest, /exactAacLcM4a/u);
 });
 
-test('Windows AAC decoder proves M4A mp4a and AAC-LC before emitting float PCM', async () => {
+test('Windows AAC decoder proves the exact tuple from the file, then decodes float PCM', async () => {
 	const source = await readFile(join(SOURCE, 'src/os_audio_codec_windows.cpp'), 'utf8');
 	for (const witness of [
-		'MFAudioFormat_AAC', 'MF_MT_MPEG4_SAMPLE_DESCRIPTION',
-		'MF_MT_MPEG4_CURRENT_SAMPLE_ENTRY', 'MF_MT_AAC_PAYLOAD_TYPE',
-		'MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION', 'MFAudioFormat_Float',
+		'MFAudioFormat_AAC', 'MF_MT_AAC_PAYLOAD_TYPE', 'MFAudioFormat_Float',
 		'sourceSampleRate', 'sourceChannelCount',
 	]) assert.match(source, new RegExp(witness, 'u'), witness);
-	assert.match(source, /['"]mp4a['"]|\{\s*'m',\s*'p',\s*'4',\s*'a'\s*\}/u);
-	assert.match(source, /0x29u.*0x2au.*0x2bu/su);
+	// The media type says what it is; the file's own AudioSpecificConfig proves
+	// it, and at the rate and channel count that media type reported.
+	assert.match(source, /exactAacLcInput\(inputPath, request->input_bytes, sampleRate, channelCount/u);
 	assert.match(source, /sampleRate != sourceSampleRate.*channelCount != sourceChannelCount/su);
 });
 
@@ -160,14 +159,19 @@ test('an admitted M4A is not required to carry an initial object descriptor', as
 		'the fixture that must be admitted carries no profile-level indication');
 
 	const windows = await readFile(join(SOURCE, 'src/os_audio_codec_windows.cpp'), 'utf8');
-	for (const attribute of ['MF_MT_AAC_PAYLOAD_TYPE', 'MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION']) {
-		assert.match(windows, new RegExp(`SUCCEEDED\\([^\\n]*${attribute}`, 'u'),
-			`${attribute} must be read as optional, not required to be present`);
-		assert.doesNotMatch(windows, new RegExp(`exactUnsigned\\(type, ${attribute}`, 'u'),
-			`${attribute} must not be required to be present`);
+	assert.match(windows, /SUCCEEDED\([^\n]*MF_MT_AAC_PAYLOAD_TYPE/u,
+		'the payload type is optional and only a stated non-raw value refuses');
+	assert.doesNotMatch(windows, /exactUnsigned\(type, MF_MT_AAC_PAYLOAD_TYPE/u);
+	// The decoder must not gate admission on either descriptor the source
+	// synthesises for a file that carries neither.
+	const decodeSide = windows.slice(0, windows.indexOf('encodeOperatingSystemAacM4a'));
+	for (const attribute of ['MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION',
+		'MF_MT_MPEG4_SAMPLE_DESCRIPTION', 'MF_MT_MPEG4_CURRENT_SAMPLE_ENTRY']) {
+		assert.doesNotMatch(decodeSide, new RegExp(`GetUINT32\\([^\\n]*${attribute}`, 'u'), attribute);
+		assert.doesNotMatch(decodeSide, new RegExp(`GetBlob[A-Za-z]*\\([^\\n]*${attribute}`, 'u'), attribute);
 	}
-	assert.match(windows, /profile != 0x29u && profile != 0x2au && profile != 0x2bu/u,
-		'a profile-level indication that is present is still held to AAC-LC');
+	// The encoder still states an AAC-LC profile on the type it writes.
+	assert.match(windows, /SetUINT32\(MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION, 0x29u\)/u);
 });
 
 test('both reviewed targets admit an M4A input from its own authenticated bytes', async () => {
@@ -226,6 +230,7 @@ test('a refused profile names the layer it stopped at, all the way to the canary
 		['audioTrackCount', 5], ['trackShape', 6], ['sampleDescription', 7], ['esds', 8],
 		['audioSpecificConfig', 9], ['esdsFullBox', 10], ['esdsElementaryStream', 11],
 		['esdsDecoderConfig', 12], ['esdsDecoderSpecificInfo', 13], ['esdsSyncLayer', 14],
+		['esdsObjectType', 15], ['esdsStreamType', 16],
 	]) assert.match(profile, new RegExp(`${name} = ${value}u,`, 'u'), name);
 
 	// The Windows media-type refusals share the field in a disjoint range, so a
@@ -234,7 +239,8 @@ test('a refused profile names the layer it stopped at, all the way to the canary
 	assert.match(windowsUnit, /enum class MediaTypeRefusal : uint32_t/u);
 	const codes = [...windowsUnit.matchAll(/^\t([a-zA-Z]+) = (\d+)u,$/gmu)]
 		.map(([, , value]) => Number(value)).filter((value) => value !== 0);
-	assert.ok(codes.length >= 8, 'every media-type refusal names itself');
+	assert.ok(codes.length >= 5, 'every media-type refusal names itself');
+	assert.equal(new Set(codes).size, codes.length, 'two refusals must not share a number');
 	assert.ok(codes.every((value) => value >= 100),
 		'a media-type refusal must not collide with a profile-parser layer');
 

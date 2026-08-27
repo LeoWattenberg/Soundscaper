@@ -245,8 +245,16 @@ bool exactEsds(
 	refusal = AacLcM4aRefusal::esdsDecoderConfig;
 	Descriptor decoder{};
 	if (!descriptor(input, offset, es.end, decoder) || decoder.tag != 0x04u
-		|| decoder.end - decoder.payload < 13u || input[decoder.payload] != 0x40u
-		|| input[decoder.payload + 1u] != 0x15u) return false;
+		|| decoder.end - decoder.payload < 13u) return false;
+	refusal = AacLcM4aRefusal::esdsObjectType;
+	if (input[decoder.payload] != 0x40u) return false;
+	/* streamType occupies the top six bits, upStream the next, and the last bit
+	 * is reserved. The reserved bit is required to be set and carries nothing,
+	 * and writers disagree about it, so an audio stream that is not upstream is
+	 * admitted whichever way that bit is written. */
+	refusal = AacLcM4aRefusal::esdsStreamType;
+	const uint8_t streamType = input[decoder.payload + 1u];
+	if (streamType >> 2u != 0x05u || (streamType >> 1u & 1u) != 0u) return false;
 	refusal = AacLcM4aRefusal::esdsDecoderSpecificInfo;
 	Descriptor config{};
 	const size_t configOffset = decoder.payload + 13u;

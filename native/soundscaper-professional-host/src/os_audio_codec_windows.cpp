@@ -17,7 +17,6 @@
 #include <cstdint>
 #include <cmath>
 #include <cstring>
-#include <iterator>
 #include <limits>
 #include <string>
 #include <vector>
@@ -46,9 +45,6 @@ enum class MediaTypeRefusal : uint32_t {
 	mp3Format = 101u,
 	aacFormat = 102u,
 	aacPayloadType = 103u,
-	aacProfileLevel = 104u,
-	sampleDescriptionAttributes = 105u,
-	sampleDescriptionShape = 106u,
 	floatOutputRefused = 107u,
 	grantedFloatType = 108u,
 };
@@ -174,49 +170,6 @@ bool exactUnsigned(IMFMediaType *type, REFGUID key, uint32_t expected)
 	return SUCCEEDED(type->GetUINT32(key, &value)) && value == expected;
 }
 
-uint32_t bigEndian32(const BYTE *bytes)
-{
-	return static_cast<uint32_t>(bytes[0]) << 24u
-		| static_cast<uint32_t>(bytes[1]) << 16u
-		| static_cast<uint32_t>(bytes[2]) << 8u
-		| static_cast<uint32_t>(bytes[3]);
-}
-
-bool exactMp4aSampleDescription(IMFMediaType *type, MediaTypeRefusal &refusal)
-{
-	refusal = MediaTypeRefusal::sampleDescriptionAttributes;
-	UINT32 currentEntry = 0u;
-	UINT32 blobBytes = 0u;
-	if (FAILED(type->GetUINT32(MF_MT_MPEG4_CURRENT_SAMPLE_ENTRY, &currentEntry))
-		|| currentEntry != 0u
-		|| FAILED(type->GetBlobSize(MF_MT_MPEG4_SAMPLE_DESCRIPTION, &blobBytes))
-		|| blobBytes < 24u || blobBytes > 1024u * 1024u) return false;
-	refusal = MediaTypeRefusal::sampleDescriptionShape;
-	std::vector<BYTE> blob(blobBytes);
-	UINT32 copied = 0u;
-	if (FAILED(type->GetBlob(MF_MT_MPEG4_SAMPLE_DESCRIPTION,
-		blob.data(), blobBytes, &copied)) || copied != blobBytes) return false;
-	constexpr BYTE stsd[] = { 's', 't', 's', 'd' };
-	constexpr BYTE mp4a[] = { 'm', 'p', '4', 'a' };
-	if (bigEndian32(blob.data()) != blobBytes
-		|| !std::equal(std::begin(stsd), std::end(stsd), blob.begin() + 4u)
-		|| bigEndian32(blob.data() + 8u) != 0u) return false;
-	const uint32_t entryCount = bigEndian32(blob.data() + 12u);
-	if (entryCount < 1u || entryCount > 64u) return false;
-	size_t offset = 16u;
-	for (uint32_t index = 0u; index < entryCount; ++index) {
-		if (offset > blob.size() || blob.size() - offset < 8u) return false;
-		const uint32_t entryBytes = bigEndian32(blob.data() + offset);
-		if (entryBytes < 8u || entryBytes > blob.size() - offset) return false;
-		if (index == currentEntry
-			&& !std::equal(std::begin(mp4a), std::end(mp4a), blob.begin() + offset + 4u)) return false;
-		offset += entryBytes;
-	}
-	if (offset != blob.size()) return false;
-	refusal = MediaTypeRefusal::none;
-	return true;
-}
-
 bool exactNativeType(
 	IMFMediaType *type,
 	ReviewedCodec codec,
@@ -238,26 +191,26 @@ bool exactNativeType(
 		refusal = MediaTypeRefusal::none;
 		return true;
 	}
-	/* Both of these are optional on an MPEG-4 media type. MF_MT_AAC_PAYLOAD_TYPE
-	 * is documented to default to 0, raw_data_block elements, when it is absent,
-	 * and MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION carries the file's
-	 * audioProfileLevelIndication, which only exists when the file carries an
-	 * initial object descriptor. Requiring either to be present refuses ordinary
-	 * conforming M4A files. The AudioSpecificConfig in the file itself is the
-	 * witness that the stream is AAC-LC, and the caller proves it from the bytes. */
+	/* MF_MT_AAC_PAYLOAD_TYPE is optional and defaults to raw_data_block elements,
+	 * so only a stated non-raw payload refuses. The profile-level indication and
+	 * the sample description blob are deliberately not consulted: the first
+	 * mirrors an initial object descriptor an ordinary M4A need not carry, and on
+	 * a file without one this source reports a value that names no AAC profile at
+	 * all; the second is documented only as the raw data in the sample
+	 * description box, without pinning whether that includes the box header. Both
+	 * restate what the caller proves byte-exactly from the file: one audio track,
+	 * one mp4a sample entry, one esds, and an AAC-LC AudioSpecificConfig at the
+	 * rate and channel count this media type reports. */
 	refusal = MediaTypeRefusal::aacPayloadType;
 	UINT32 payloadType = 0u;
 	if (SUCCEEDED(type->GetUINT32(MF_MT_AAC_PAYLOAD_TYPE, &payloadType)) && payloadType != 0u) {
 		return false;
 	}
-	refusal = MediaTypeRefusal::aacProfileLevel;
-	UINT32 profile = 0u;
-	if (SUCCEEDED(type->GetUINT32(MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION, &profile))
-		&& profile != 0x29u && profile != 0x2au && profile != 0x2bu) return false;
 	refusal = MediaTypeRefusal::aacFormat;
 	if (subtype != MFAudioFormat_AAC || sampleRate < 8000u || sampleRate > 48000u
 		|| channelCount < 1u || channelCount > 6u) return false;
-	return exactMp4aSampleDescription(type, refusal);
+	refusal = MediaTypeRefusal::none;
+	return true;
 }
 
 bool writeAll(HANDLE output, const BYTE *bytes, DWORD length)

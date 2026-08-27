@@ -2,6 +2,7 @@
 
 #include "os_aac_m4a_profile.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <fstream>
 #include <iterator>
@@ -64,5 +65,32 @@ int main(int argc, char **argv)
 		|| refusal != AacLcM4aRefusal::fileType) return 13;
 	if (soundscaper::os_audio::exactAacLcM4aFile(argv[2], he.size(), 48000u, 2u, refusal)
 		|| refusal != AacLcM4aRefusal::audioSpecificConfig) return 14;
+
+	/* The decoder configuration's second byte packs streamType, upStream and one
+	 * reserved bit. Writers disagree about the reserved bit, so both spellings of
+	 * an audio stream are admitted while the fields that carry meaning are not. */
+	constexpr uint8_t decoderConfig[] = { 0x40u, 0x15u, 0x00u, 0x00u, 0x00u };
+	const auto found = std::search(lc.begin(), lc.end(),
+		std::begin(decoderConfig), std::end(decoderConfig));
+	if (found == lc.end()
+		|| std::search(found + 1, lc.end(), std::begin(decoderConfig),
+			std::end(decoderConfig)) != lc.end()) return 15;
+	const size_t streamTypeOffset = static_cast<size_t>(found - lc.begin()) + 1u;
+	auto reservedClear = lc;
+	reservedClear[streamTypeOffset] = 0x14u;
+	if (!soundscaper::os_audio::exactAacLcM4a(reservedClear, 48000u, 2u, refusal)
+		|| refusal != AacLcM4aRefusal::none) return 16;
+	auto visualStream = lc;
+	visualStream[streamTypeOffset] = 0x11u;
+	if (soundscaper::os_audio::exactAacLcM4a(visualStream, 48000u, 2u, refusal)
+		|| refusal != AacLcM4aRefusal::esdsStreamType) return 17;
+	auto upstream = lc;
+	upstream[streamTypeOffset] = 0x17u;
+	if (soundscaper::os_audio::exactAacLcM4a(upstream, 48000u, 2u, refusal)
+		|| refusal != AacLcM4aRefusal::esdsStreamType) return 18;
+	auto wrongObject = lc;
+	wrongObject[streamTypeOffset - 1u] = 0x67u;
+	if (soundscaper::os_audio::exactAacLcM4a(wrongObject, 48000u, 2u, refusal)
+		|| refusal != AacLcM4aRefusal::esdsObjectType) return 19;
 	return 0;
 }
