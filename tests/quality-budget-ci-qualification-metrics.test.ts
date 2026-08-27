@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -272,6 +272,32 @@ test('collection writes its console log, raw and summary once and refuses to ove
 		/EEXIST/u,
 		'a second run must not overwrite retained evidence',
 	);
+});
+
+test('collection rebuilds a run root that Playwright cleared while the specs ran', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'ci-metrics-'));
+	const playwrightOutputDirectory = join(root, 'test-results');
+	const outputDirectory = join(playwrightOutputDirectory, 'ci-qualification-metrics');
+	const consoleOutput = [
+		`SOUNDSCAPER_M4_PRODUCTION_PARITY ${JSON.stringify(makeM4ProductionParityDiagnostic())}`,
+		`SOUNDSCAPER_M4B2_KEYFRAME_PARITY ${JSON.stringify(makeM4B2KeyframeParityDiagnostic())}`,
+	].join('\n');
+	const evidence = await collectCiQualificationMetrics({ outputDirectory, allowLocal: false }, {
+		processEnvironment: { GITHUB_ACTIONS: 'true', GITHUB_SHA: SOURCE_REVISION },
+		// Playwright empties its own `outputDir` before the first spec starts, and
+		// the hosted run root lives inside it.
+		runPlaywright: async () => {
+			await rm(playwrightOutputDirectory, { recursive: true, force: true });
+			return { consoleOutput, exit: PASSING_EXIT };
+		},
+		configBytes,
+	});
+	assert.equal(evidence.passed, true);
+	assert.equal(await readFile(join(outputDirectory, 'console.log'), 'utf8'), consoleOutput);
+	const summary = JSON.parse(await readFile(join(outputDirectory, 'summary.json'), 'utf8')) as {
+		readonly kind: string;
+	};
+	assert.equal(summary.kind, 'soundscaper-hosted-ci-metrics');
 });
 
 test('the CLI defaults its output directory and accepts only one', () => {

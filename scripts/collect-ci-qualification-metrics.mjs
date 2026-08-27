@@ -48,9 +48,15 @@ export async function collectCiQualificationMetrics(options, dependencies = {}) 
 	}
 	const runRoot = resolve(REPOSITORY_ROOT, outputDirectory);
 	await mkdir(dirname(runRoot), { recursive: true });
+	// Reserving the run root up front makes a re-run over retained evidence fail
+	// in a second rather than after half an hour of Playwright.
 	await mkdir(runRoot, { recursive: false });
 	const runPlaywright = dependencies.runPlaywright ?? runMetricSpecs;
 	const { consoleOutput, exit } = await runPlaywright(processEnvironment);
+	// Playwright empties its own `outputDir` before every run, and the default run
+	// root lives inside `test-results`, so the reservation is gone by now. The
+	// exclusive writes below still refuse to overwrite evidence that survived.
+	await mkdir(runRoot, { recursive: true });
 	const configBytes = dependencies.configBytes ?? await readFile(CONFIG_PATH);
 	const evidence = createCiQualificationMetricsEvidence({
 		consoleOutput,
