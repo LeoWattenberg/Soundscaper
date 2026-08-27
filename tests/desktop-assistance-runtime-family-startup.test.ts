@@ -89,3 +89,31 @@ test('startup refuses foreign manifest keys before exposing operation routing', 
 	assert.throws(() => startup({ shell: pendingManifest('onnxruntime-node') } as never),
 		/manifest.*family|key|inventory/iu);
 });
+
+test('startup refuses a background-priority hook that cannot be called', () => {
+	assert.throws(() => createAssistanceRuntimeFamilyDesktopStartup({
+		runtimeRoot: resolve('fixture-runtime'),
+		helperPath: resolve('fixture-runtime-family-helper.js'),
+		platform: 'linux', architecture: 'x64',
+		fork: () => { throw new Error('no fork is expected'); },
+		applyBackgroundPriority: 'low' as unknown as (pid: number) => void,
+		totalMemoryBytes: () => 32 * GIB,
+		availableMemoryBytes: () => 24 * GIB,
+	}), TypeError);
+});
+
+test('startup carries the power etiquette port into the router rather than dropping it', () => {
+	// The router validates the port when it is constructed, so a port it would
+	// refuse proves the option reached it instead of being quietly discarded.
+	assert.throws(() => createAssistanceRuntimeFamilyDesktopStartup({
+		runtimeRoot: resolve('fixture-runtime'),
+		helperPath: resolve('fixture-runtime-family-helper.js'),
+		platform: 'linux', architecture: 'x64',
+		fork: () => { throw new Error('no fork is expected'); },
+		powerEtiquette: Object.freeze({
+			observe: () => Object.freeze({ onBatteryPower: false, thermalState: 'nominal' as const }),
+		}) as never,
+		totalMemoryBytes: () => 32 * GIB,
+		availableMemoryBytes: () => 24 * GIB,
+	}), TypeError);
+});

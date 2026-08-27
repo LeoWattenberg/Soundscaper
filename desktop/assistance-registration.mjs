@@ -9,10 +9,10 @@
  * assembled here and main names the subsystem once.
  */
 
-import { freemem, totalmem } from 'node:os';
+import { constants as osConstants, freemem, setPriority, totalmem } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
 
-import { utilityProcess } from 'electron/main';
+import { powerMonitor, utilityProcess } from 'electron/main';
 
 import assistanceCatalog from '../config/local-model-catalog.json' with { type: 'json' };
 import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
@@ -29,6 +29,7 @@ import { createExternalFfmpegAssistanceShotRuntimeAdapter } from './project-libr
 import { createExternalFfmpegAssistanceVideoMaterializer } from './project-library-runtime/desktop/assistance-external-ffmpeg-video-materializer.js';
 import { ASSISTANCE_OPERATION_IPC_CHANNELS, registerAssistanceOperationIpc } from './project-library-runtime/desktop/assistance-operation-main-ipc.js';
 import { createAssistanceOperationService } from './project-library-runtime/desktop/assistance-operation-service.js';
+import { applyAssistanceBackgroundPriority, normalizeAssistanceThermalState } from './project-library-runtime/desktop/assistance-power-etiquette-v1.js';
 import { createAssistanceRuntimeFamilyDesktopStartup } from './project-library-runtime/desktop/assistance-runtime-family-startup.js';
 import { createAssistanceSemanticQueryExecutorV1 } from './project-library-runtime/desktop/assistance-semantic-query-executor.js';
 import { AssistanceWorkflowCustody } from './project-library-runtime/desktop/assistance-workflow-custody.js';
@@ -117,6 +118,35 @@ async function confirmWorkflow(dialog, window, request, stages) {
 	return result?.response === 0;
 }
 
+const POWER_ETIQUETTE_EVENTS = Object.freeze(['on-ac', 'on-battery', 'thermal-state-change']);
+
+/**
+ * Optional inference is background work. It runs below the editor's scheduling
+ * priority, and the runtime-family router holds new jobs while the machine is on
+ * battery or reports serious thermal pressure.
+ */
+function assistancePowerEtiquette() {
+	return Object.freeze({
+		observe: () => Object.freeze({
+			onBatteryPower: powerMonitor.isOnBatteryPower() === true,
+			thermalState: normalizeAssistanceThermalState(
+				typeof powerMonitor.getCurrentThermalState === 'function'
+					? powerMonitor.getCurrentThermalState() : 'unknown',
+			),
+		}),
+		subscribe: (listener) => {
+			for (const event of POWER_ETIQUETTE_EVENTS) powerMonitor.on(event, listener);
+			return () => {
+				for (const event of POWER_ETIQUETTE_EVENTS) powerMonitor.off(event, listener);
+			};
+		},
+	});
+}
+
+function assistanceBackgroundPriority(pid) {
+	applyAssistanceBackgroundPriority(pid, setPriority, osConstants.priority.PRIORITY_BELOW_NORMAL);
+}
+
 export function registerAssistance({
 	channels, handle, on, sendToRenderer, app, settings, dialog, windowFor,
 	externalFfmpegPreferences,
@@ -149,6 +179,7 @@ export function registerAssistance({
 				},
 			);
 			child = forked;
+			assistanceBackgroundPriority(forked.pid);
 			return Object.freeze({
 				postMessage: (message, transfer = []) => forked.postMessage(message, transfer),
 				onMessage: (listener) => forked.on('message', listener),
@@ -181,6 +212,8 @@ export function registerAssistance({
 			const metric = app.getAppMetrics().find((entry) => entry.pid === pid);
 			return metric ? metric.memory.workingSetSize * 1024 : null;
 		},
+		applyBackgroundPriority: assistanceBackgroundPriority,
+		powerEtiquette: assistancePowerEtiquette(),
 		totalMemoryBytes: totalmem,
 		availableMemoryBytes: freemem,
 	});

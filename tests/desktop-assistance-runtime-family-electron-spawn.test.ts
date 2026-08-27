@@ -184,3 +184,23 @@ async function until(predicate: () => boolean): Promise<void> {
 	}
 	assert.fail('The Electron spawn condition was not reached.');
 }
+
+test('the spawned inference process is dropped to background priority as soon as it exists', async () => {
+	const priorities: number[] = [];
+	const rig = harness({ applyBackgroundPriority: (pid: number) => priorities.push(pid) });
+	await spawnReady(rig);
+	assert.deepEqual(priorities, [123]);
+});
+
+test('an operating system that refuses background priority still yields a usable process', async () => {
+	const rig = harness({
+		applyBackgroundPriority: () => { throw new Error('EPERM'); },
+	});
+	const { process } = await spawnReady(rig);
+	assert.equal(process.familyId, 'onnxruntime-node');
+	assert.equal(rig.children[0]!.kills, 0);
+});
+
+test('the spawn refuses a background-priority hook that is not callable', () => {
+	assert.throws(() => harness({ applyBackgroundPriority: 'low' }), TypeError);
+});

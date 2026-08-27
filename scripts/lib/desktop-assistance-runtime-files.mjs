@@ -32,6 +32,7 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'desktop/assistance-operation-main-ipc.js',
 	'desktop/assistance-operation-service.js',
 	'desktop/assistance-operation-transfers.js',
+	'desktop/assistance-power-etiquette-v1.js',
 	'desktop/assistance-semantic-search-main-ipc.js',
 	'desktop/assistance-semantic-search-session-authority.js',
 	'desktop/assistance-runtime-family-electron-spawn.js',

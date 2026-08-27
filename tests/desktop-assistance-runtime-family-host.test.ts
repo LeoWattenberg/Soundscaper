@@ -16,6 +16,10 @@ import type {
 	AssistanceRuntimeFamilyDescriptor,
 	AssistanceRuntimeFamilyId,
 } from '../desktop/assistance-runtime-family-manifest.ts';
+import type {
+	AssistancePowerEtiquettePort,
+	AssistancePowerObservation,
+} from '../desktop/assistance-power-etiquette-v1.ts';
 
 const GIB = 1024 ** 3;
 const JOB_ID = 'ab'.repeat(20);
@@ -313,3 +317,120 @@ async function within<T>(promise: Promise<T>, milliseconds: number): Promise<T> 
 		}),
 	]);
 }
+
+class FakeEtiquettePort implements AssistancePowerEtiquettePort {
+	observation: AssistancePowerObservation;
+	subscriptions = 0;
+	readonly #listeners = new Set<() => void>();
+
+	constructor(observation: AssistancePowerObservation) {
+		this.observation = observation;
+	}
+
+	observe(): AssistancePowerObservation { return this.observation; }
+
+	subscribe(listener: () => void): () => void {
+		this.subscriptions += 1;
+		this.#listeners.add(listener);
+		return () => this.#listeners.delete(listener);
+	}
+
+	change(observation: AssistancePowerObservation): void {
+		this.observation = observation;
+		for (const listener of [...this.#listeners]) listener();
+	}
+}
+
+/** Arms only the power hold, so the router's own timers keep their real behaviour. */
+function heldTimers(budgetMs: number) {
+	const held: { fire: (() => void) | null } = { fire: null };
+	const setTimeoutImpl = ((callback: () => void, delay: number) => {
+		if (delay === budgetMs && held.fire === null) {
+			held.fire = callback;
+			return 0 as unknown as ReturnType<typeof setTimeout>;
+		}
+		return setTimeout(callback, delay);
+	}) as unknown as typeof setTimeout;
+	return { held, setTimeoutImpl };
+}
+
+test('a machine on mains power spawns inference without arming a hold', async () => {
+	const powerEtiquette = new FakeEtiquettePort({ onBatteryPower: false, thermalState: 'nominal' });
+	const { router, processes } = harness({ powerEtiquette });
+	const first = router.run(request());
+	await until(() => processes['onnxruntime-node'][0]?.workers.length === 1);
+	processes['onnxruntime-node'][0]!.workers[0]!.resolve({ boundaries: [] });
+	assert.deepEqual(await first, { boundaries: [] });
+	assert.equal(powerEtiquette.subscriptions, 0);
+	router.dispose();
+});
+
+test('a battery hold delays the spawn and releases it when mains power returns', async () => {
+	const powerEtiquette = new FakeEtiquettePort({ onBatteryPower: true, thermalState: 'nominal' });
+	const holds: string[] = [];
+	const { router, processes } = harness({ powerEtiquette });
+	const pending = router.run(request(), { onPowerHold: (reason) => holds.push(reason) });
+	await until(() => powerEtiquette.subscriptions === 1);
+	assert.deepEqual(holds, ['on-battery']);
+	assert.equal(processes['onnxruntime-node'].length, 0,
+		'a held job must not spawn its utility process');
+	powerEtiquette.change({ onBatteryPower: false, thermalState: 'nominal' });
+	await until(() => processes['onnxruntime-node'][0]?.workers.length === 1);
+	processes['onnxruntime-node'][0]!.workers[0]!.resolve({ boundaries: [] });
+	assert.deepEqual(await pending, { boundaries: [] });
+	router.dispose();
+});
+
+test('a sustained thermal hold defers the job with a typed code and no spawn', async () => {
+	const powerEtiquette = new FakeEtiquettePort({ onBatteryPower: false, thermalState: 'critical' });
+	const { held, setTimeoutImpl } = heldTimers(5_000);
+	const { router, processes } = harness({
+		powerEtiquette, powerHoldBudgetMs: 5_000, setTimeoutImpl,
+	});
+	const pending = router.run(request());
+	await until(() => held.fire !== null);
+	held.fire!();
+	const error = await pending.then(() => null, (value: unknown) => value);
+	assert.ok(error instanceof AssistanceRuntimeFamilyError);
+	assert.equal(error.code, 'power-deferred');
+	assert.equal(error.jobId, JOB_ID);
+	assert.match(error.message, /critical thermal pressure/u);
+	assert.equal(processes['onnxruntime-node'].length, 0);
+	router.dispose();
+});
+
+test('cancelling a power-held job reports cancellation rather than a deferral', async () => {
+	const powerEtiquette = new FakeEtiquettePort({ onBatteryPower: true, thermalState: 'nominal' });
+	const controller = new AbortController();
+	const { router, processes } = harness({ powerEtiquette });
+	const pending = router.run(request(), { signal: controller.signal });
+	await until(() => powerEtiquette.subscriptions === 1);
+	controller.abort();
+	await assert.rejects(pending, typed('cancelled'));
+	assert.equal(processes['onnxruntime-node'].length, 0);
+	router.dispose();
+});
+
+test('a deferred job releases its family slot instead of leaving it reserved', async () => {
+	const powerEtiquette = new FakeEtiquettePort({ onBatteryPower: false, thermalState: 'serious' });
+	const { held, setTimeoutImpl } = heldTimers(5_000);
+	const { router, processes } = harness({
+		powerEtiquette, powerHoldBudgetMs: 5_000, setTimeoutImpl,
+	});
+	const deferred = router.run(request());
+	await until(() => held.fire !== null);
+	held.fire!();
+	await assert.rejects(deferred, typed('power-deferred'));
+	powerEtiquette.change({ onBatteryPower: false, thermalState: 'nominal' });
+	const pending = router.run(request());
+	await until(() => processes['onnxruntime-node'][0]?.workers.length === 1);
+	processes['onnxruntime-node'][0]!.workers[0]!.resolve({ boundaries: [] });
+	assert.deepEqual(await pending, { boundaries: [] });
+	router.dispose();
+});
+
+test('the router refuses a power etiquette port that cannot be observed', () => {
+	assert.throws(() => harness({
+		powerEtiquette: { observe: () => ({ onBatteryPower: false, thermalState: 'nominal' }) } as never,
+	}), TypeError);
+});

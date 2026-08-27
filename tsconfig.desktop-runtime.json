@@ -168,6 +168,7 @@
 		"desktop/assistance-external-ffmpeg-shot-runtime.ts",
 		"desktop/assistance-external-ffmpeg-video-materializer.ts",
 		"desktop/assistance-operation-contract.ts",
+		"desktop/assistance-power-etiquette-v1.ts",
 		"desktop/assistance-staging-private-files.ts",
 		"desktop/assistance-staging-registry.ts",
 		"desktop/assistance-helper-runtime.ts",

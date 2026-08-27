@@ -14,6 +14,12 @@ import {
 	type AssistanceRuntimeFamilyAdmittedJob,
 	type AssistanceRuntimeFamilyJobRequestV1,
 } from './assistance-runtime-family-job-contract.ts';
+import {
+	ASSISTANCE_POWER_HOLD_BUDGET_MS,
+	awaitAssistancePowerAdmission,
+	type AssistancePowerEtiquettePort,
+	type AssistancePowerHoldReason,
+} from './assistance-power-etiquette-v1.ts';
 import { HelperCrashLedger } from './helper-supervision-state.ts';
 
 export const ASSISTANCE_RUNTIME_FAMILY_CANCELLATION_BUDGET_MS = 2_000;
@@ -50,6 +56,7 @@ export interface AssistanceRuntimeFamilyProcess {
 export interface AssistanceRuntimeFamilyRunOptions {
 	readonly signal?: AbortSignal;
 	readonly onProgress?: (value: number) => void;
+	readonly onPowerHold?: (reason: AssistancePowerHoldReason) => void;
 }
 
 export interface AssistanceRuntimeFamilyRouterOptions {
@@ -63,6 +70,9 @@ export interface AssistanceRuntimeFamilyRouterOptions {
 	readonly availableMemoryBytes: () => number;
 	readonly cancellationBudgetMs?: number;
 	readonly rssPollIntervalMs?: number;
+	/** Optional inference is background work, so it waits for mains power and a cool machine. */
+	readonly powerEtiquette?: AssistancePowerEtiquettePort;
+	readonly powerHoldBudgetMs?: number;
 	readonly quarantineCrashLimit?: number;
 	readonly quarantineWindowMs?: number;
 	readonly now?: () => number;
@@ -82,6 +92,7 @@ export type AssistanceRuntimeFamilyErrorCode =
 	| 'payload-missing'
 	| 'payload-digest-mismatch'
 	| 'insufficient-memory'
+	| 'power-deferred'
 	| 'quarantined'
 	| 'busy'
 	| 'cancelled'
@@ -155,6 +166,9 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 		'cancellation budget',
 	);
 	const rssPollIntervalMs = boundedOption(options.rssPollIntervalMs, 100, 10_000, 'RSS interval');
+	const powerHoldBudgetMs = boundedOption(
+		options.powerHoldBudgetMs, ASSISTANCE_POWER_HOLD_BUDGET_MS, 600_000, 'power hold budget',
+	);
 	const expectedTerminations = new WeakSet<object>();
 	let disposed = false;
 	let reservedMemoryBytes = 0;
@@ -206,6 +220,7 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 		request: AssistanceRuntimeFamilyJobRequestV1,
 		runOptions: AssistanceRuntimeFamilyRunOptions,
 	): Promise<unknown> {
+		await admitPower(request, runOptions);
 		assertMemoryAdmission(request);
 		reservedMemoryBytes += request.maximumRssBytes;
 		try {
@@ -269,6 +284,32 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 		} finally {
 			reservedMemoryBytes -= request.maximumRssBytes;
 		}
+	}
+
+	/**
+	 * Holds new work while the machine runs on battery or reports serious thermal
+	 * pressure. The hold is bounded, and it never touches a job already running:
+	 * a transient condition delays admission, a sustained one reports it.
+	 */
+	async function admitPower(
+		request: AssistanceRuntimeFamilyJobRequestV1,
+		runOptions: AssistanceRuntimeFamilyRunOptions,
+	): Promise<void> {
+		const port = options.powerEtiquette;
+		if (port === undefined) return;
+		const outcome = await awaitAssistancePowerAdmission({
+			port,
+			holdBudgetMs: powerHoldBudgetMs,
+			...(runOptions.signal === undefined ? {} : { signal: runOptions.signal }),
+			...(runOptions.onPowerHold === undefined ? {} : { onHold: runOptions.onPowerHold }),
+			setTimeoutImpl, clearTimeoutImpl,
+		});
+		if (outcome.outcome === 'admitted') return;
+		if (outcome.outcome === 'cancelled') {
+			throw failure('cancelled', request, 'The runtime-family job was cancelled.');
+		}
+		throw failure('power-deferred', request,
+			`${request.familyId} deferred its job: ${outcome.detail}`);
 	}
 
 	const descriptors = new WeakMap<object, AssistanceRuntimeFamilyDescriptor>();
@@ -498,6 +539,11 @@ function assertOptions(options: AssistanceRuntimeFamilyRouterOptions): void {
 	if (!options || typeof options.availability !== 'function'
 		|| typeof options.totalMemoryBytes !== 'function' || typeof options.availableMemoryBytes !== 'function') {
 		throw new TypeError('The runtime-family router options are incomplete.');
+	}
+	const port = options.powerEtiquette;
+	if (port !== undefined
+		&& (!port || typeof port.observe !== 'function' || typeof port.subscribe !== 'function')) {
+		throw new TypeError('The runtime-family router power etiquette port is invalid.');
 	}
 	for (const familyId of Object.keys(ASSISTANCE_RUNTIME_FAMILY_DEFINITIONS) as AssistanceRuntimeFamilyId[]) {
 		if (typeof options.spawns?.[familyId] !== 'function') {
