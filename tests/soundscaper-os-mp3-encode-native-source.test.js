@@ -53,6 +53,17 @@ test('build and target self-test bind Windows MP3 encode while macOS stays fail-
 	assert.match(selfTest, /bitrate_kbps = 160u/u);
 	assert.match(selfTest, /defined\(_WIN32\)[\s\S]*validMp3Encode/u);
 	assert.match(selfTest, /defined\(__APPLE__\)[\s\S]*SOUNDSCAPER_PRO_OS_CODEC_API_UNAVAILABLE/u);
+	// A Windows host without the optional encoder still has to refuse cleanly:
+	// no output, no counters, and never a half-written file.
+	assert.match(selfTest, /mp3EncoderPresent/u);
+	assert.match(
+		selfTest,
+		/exact_tuple_passed != 0u \|\| mp3Encoded\.output_bytes != 0u[\s\S]{0,200}exists\(mp3EncodeOutputPath\)/u,
+	);
+	assert.match(selfTest, /did not refuse fail-closed/u);
+	// The bitrate the request names is still refused before the native API,
+	// whether or not the host can encode at all.
+	assert.match(selfTest, /mp3EncoderPresent[\s\S]*bitrate_kbps = 160u/u);
 });
 
 test('portable exact MP3 profile parser accepts only a complete 192 kbps frame chain', async (context) => {
