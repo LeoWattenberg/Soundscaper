@@ -88,7 +88,7 @@ test('both recipes own exactly five pending targets and FFmpeg starts from a clo
 	const external = validateFramescaperMediaHostExternalSourceManifest(json(join(
 		repositoryRoot, 'native/framescaper-media-host/build/ffmpeg-9.0.1-external-sources.json',
 	)));
-	assert.equal(external.activation, 'blocked-policy');
+	assert.equal(external.activation, 'test-enabled');
 	assert.deepEqual(external.libraries.map(({ id }) => id), FRAMESCAPER_MEDIA_HOST_EXTERNAL_SOURCE_IDS);
 	assert.ok(external.libraries.every(({ sha256, extractedTree }) => (
 		/^[a-f0-9]{64}$/u.test(sha256) && /^[a-f0-9]{64}$/u.test(extractedTree.sha256)

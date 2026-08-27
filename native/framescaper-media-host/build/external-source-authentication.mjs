@@ -49,7 +49,7 @@ export function validateFramescaperMediaHostExternalSourceManifest(value) {
 		'schemaVersion', 'sourceDateEpoch', 'activation', 'libraries',
 	], 'external-source manifest');
 	if (manifest.schemaVersion !== 1 || manifest.sourceDateEpoch !== 1_786_492_800
-		|| manifest.activation !== 'blocked-policy' || !Array.isArray(manifest.libraries)
+		|| manifest.activation !== 'test-enabled' || !Array.isArray(manifest.libraries)
 		|| manifest.libraries.length !== FRAMESCAPER_MEDIA_HOST_EXTERNAL_SOURCE_IDS.length) {
 		throw new TypeError('The media-host external-source manifest identity is unsupported.');
 	}
