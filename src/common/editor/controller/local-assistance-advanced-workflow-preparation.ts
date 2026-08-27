@@ -21,15 +21,15 @@ import {
 import type { LocalAssistanceModel } from '../ui/local-assistance-bridge.ts';
 import type { LocalAssistanceWorkflowCustodyBridge } from
 	'../ui/local-assistance-workflow-bridge.ts';
-import {
-	localAssistanceSelectedModels,
-	normalizeLocalAssistancePreparedMedia,
-	type LocalAssistancePreparedMedia,
-	type LocalAssistanceSelectedMediaPreparationPort,
+import type {
+	LocalAssistancePreparedMedia,
+	LocalAssistanceSelectedMediaPreparationPort,
 } from '../ui/local-assistance-preparation.ts';
+import { localAssistanceSelectedModels } from './local-assistance-model-selection.ts';
+import { normalizeLocalAssistancePreparedMedia } from './local-assistance-prepared-media.ts';
 import { createLocalAssistanceGuidedAggregateFenceV1 } from
 	'./local-assistance-guided-fence.ts';
-import { deriveLocalAssistanceReviewAuthority } from '../ui/local-assistance-review-authority.ts';
+import { deriveLocalAssistanceReviewAuthority } from './local-assistance-review-authority.ts';
 
 export interface LocalAssistanceAdvancedWorkflowPreparationRequest {
 	readonly jobId: string;
