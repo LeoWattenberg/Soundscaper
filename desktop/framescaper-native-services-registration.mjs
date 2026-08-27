@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { createHash, randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
 	createFramescaperNativeQueueStorageAuthority,
@@ -18,7 +17,7 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 		platform: options.externalDisplay.platform,
 		hardwareEncodeEnabled: () => options.settings.snapshot().nativeHardwareEncodeEnabled === true,
 	});
-	const capabilityPolicy = await (dependencies.loadCapabilityPolicy ?? loadCapabilityPolicy)();
+	const executionPolicy = framescaperNativeExecutionPolicy();
 	const scratchRoot = resolve(options.userDataPath, 'framescaper-native-scratch');
 	const nodePorts = modules.createNodePorts({
 		scratchRoot,
@@ -125,7 +124,7 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 				&& observed.manifestDigest === reservation.manifestDigest
 				&& observed.rootIdentity === reservation.rootIdentity;
 		},
-		licensingCleared: (record) => queueOperationCleared(capabilityPolicy, record),
+		licensingCleared: (record) => queueOperationExecutionEnabled(executionPolicy, record),
 	});
 	const projectAuthority = projectBodyAuthority === null ? null
 			: modules.createSelectedV28ProjectAuthority({
@@ -143,7 +142,7 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 				};
 				return Object.freeze({ beforePublication: assert, afterPublication: assert });
 			},
-			licensingCleared: (record) => queueOperationCleared(capabilityPolicy, record),
+			licensingCleared: (record) => queueOperationExecutionEnabled(executionPolicy, record),
 				recordProxyOutput: (record, root, receipt) => (
 					proxyOutputBroker.recordPublished(record, root, receipt)
 				),
@@ -159,7 +158,7 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 			runtime: openFxRuntime,
 			scratchRoot: resolve(options.userDataPath, 'framescaper-openfx-scratch'),
 			preferences: () => preferenceSnapshot(options.settings.snapshot()),
-			policyCleared: () => capabilityPolicy.openFxCleared === true,
+			policyCleared: () => executionPolicy.openFxExecutionEnabled === true,
 			selectPluginBinary: options.selectOpenFxPluginBinary,
 			createMessageChannel: options.createMessageChannel,
 			currentProject: currentOpenFxProject,
@@ -215,7 +214,7 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 				preferences: preferenceSnapshot(options.settings.snapshot()),
 				mediaRuntime,
 				openFxRuntime,
-				policy: capabilityPolicy,
+				policy: capabilityReportExecutionPolicy(executionPolicy),
 				externalDisplay: options.externalDisplay,
 				externalDisplaySupport: modules.externalDisplaySupport,
 				queueSourceAuthorityMounted: projectAuthority !== null, queueCapacityAuthorityMounted: queueCapacity !== null,
@@ -287,7 +286,7 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 			userDataPath: options.userDataPath, route: options.imageSequenceImportAuthority,
 			project: options.projectAuthority, controller: runtime.controller, mediaRuntime,
 			executable: () => mediaExecutable(mediaRuntime), createMessageChannel: options.createMessageChannel,
-			mintOpaqueId: nodePorts.mintOpaqueId, runtimeAvailable: () => mediaRuntime.available() && options.settings.snapshot().nativeMediaEnabled === true, policyCleared: capabilityPolicy.imageSequencesCleared === true,
+			mintOpaqueId: nodePorts.mintOpaqueId, runtimeAvailable: () => mediaRuntime.available() && options.settings.snapshot().nativeMediaEnabled === true, policyCleared: executionPolicy.imageSequencesExecutionEnabled === true,
 		});
 	} catch (error) {
 		await runtime.close();
@@ -535,63 +534,31 @@ export function framescaperImageSequenceImportAuthorityMounted(value) {
 	try { return value.isRouted() === true; }
 	catch { return false; }
 }
-async function loadCapabilityPolicy() {
-	let value;
-	try {
-		value = JSON.parse(String(await readFile(resolve(
-			import.meta.dirname, '../config/production-licensing-matrix.json',
-		))));
-	} catch (error) {
-		throw new Error('Framescaper cannot read its native capability policy.', { cause: error });
-	}
-	return framescaperNativeCapabilityPolicy(value);
-}
-export function framescaperNativeCapabilityPolicy(value) {
-	const nativeCodecsCleared = policyRowCleared(value, 'futureDistributionGates', 'native-codecs')
-		&& policyRowCleared(value, 'nativeFormatPolicies', 'codec-native-ffmpeg-current-set');
-	const selectedRenderCodecCleared = nativeCodecsCleared
-		&& policyRowCleared(value, 'nativeFormatPolicies', 'codec-encode-prores-mov-422-hq');
-	const proxyCodecCleared = nativeCodecsCleared
-		&& policyRowCleared(value, 'nativeFormatPolicies', 'codec-encode-prores-mov-proxy');
-	return Object.freeze({
-		nativeCodecsCleared,
-		selectedRenderCodecCleared,
-		proxyCodecCleared,
-		imageSequencesCleared: nativeCodecsCleared
-			&& [
-				'codec-decode-png-image-sequence',
-				'codec-decode-tiff-image-sequence',
-				'codec-decode-openexr-image-sequence',
-				'codec-encode-png-image-sequence',
-				'codec-encode-tiff-image-sequence',
-				'codec-encode-openexr-image-sequence',
-			].every((id) => policyRowCleared(value, 'nativeFormatPolicies', id)),
-		openFxCleared: policyRowCleared(value, 'futureDistributionGates', 'native-plugins')
-			&& policyRowCleared(value, 'nativeFormatPolicies', 'plugin-format-ofx')
-			&& policyRowCleared(value, 'runtimeProvenance', 'framescaper-openfx-1-5-1-source-candidate'),
-	});
-}
-export function framescaperNativeQueueOperationCleared(policy, record) {
-	if (record?.taskKind === 'encoded-export') return policy.selectedRenderCodecCleared === true;
-	if (record?.taskKind === 'proxy-generation') return policy.proxyCodecCleared === true;
-	if (record?.taskKind === 'image-sequence-export') return policy.imageSequencesCleared === true;
+const NATIVE_EXECUTION_POLICY = Object.freeze({
+	nativeCodecsExecutionEnabled: true,
+	selectedRenderCodecExecutionEnabled: true,
+	proxyCodecExecutionEnabled: true,
+	imageSequencesExecutionEnabled: true,
+	openFxExecutionEnabled: true,
+});
+/** Human licensing review is an M9 release input, never runtime execution authority. */
+export function framescaperNativeExecutionPolicy() { return NATIVE_EXECUTION_POLICY; }
+export function framescaperNativeQueueOperationExecutionEnabled(policy, record) {
+	if (record?.taskKind === 'encoded-export') return policy.selectedRenderCodecExecutionEnabled === true;
+	if (record?.taskKind === 'proxy-generation') return policy.proxyCodecExecutionEnabled === true;
+	if (record?.taskKind === 'image-sequence-export') return policy.imageSequencesExecutionEnabled === true;
 	return false;
 }
-const queueOperationCleared = framescaperNativeQueueOperationCleared;
-export function framescaperNativePolicyRowCleared(value, collection, id) {
-	const rows = value?.[collection];
-	if (!Array.isArray(rows)) throw new TypeError(`Licensing policy ${collection} is absent.`);
-	const matches = rows.filter((row) => row?.id === id);
-	if (matches.length !== 1 || typeof matches[0]?.status !== 'string') {
-		throw new TypeError(`Licensing policy row ${id} is absent or duplicated.`);
-	}
-	const accepted = collection === 'futureDistributionGates' ? ['enabled']
-		: collection === 'nativeFormatPolicies' ? ['implemented']
-			: collection === 'runtimeProvenance' ? ['documented', 'recorded'] : null;
-	if (accepted === null) throw new TypeError(`Licensing policy ${collection} is unsupported.`);
-	return accepted.includes(matches[0].status);
+const queueOperationExecutionEnabled = framescaperNativeQueueOperationExecutionEnabled;
+/** Compatibility mapper for the existing renderer capability DTO field names. */
+function capabilityReportExecutionPolicy(policy) {
+	return Object.freeze({
+		nativeCodecsCleared: policy.nativeCodecsExecutionEnabled === true,
+		proxyCodecCleared: policy.proxyCodecExecutionEnabled === true,
+		imageSequencesCleared: policy.imageSequencesExecutionEnabled === true,
+		openFxCleared: policy.openFxExecutionEnabled === true,
+	});
 }
-const policyRowCleared = framescaperNativePolicyRowCleared;
 function mediaExecutable(mediaRuntime) {
 	const payload = mediaRuntime.payloadAvailability;
 	if (payload?.status !== 'available') return null;

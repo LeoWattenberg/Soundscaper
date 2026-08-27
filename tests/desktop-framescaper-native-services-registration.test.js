@@ -205,10 +205,7 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 				return Object.freeze({ dispose: () => { ipcDisposals += 1; } });
 			},
 		},
-		loadCapabilityPolicy: async () => Object.freeze({
-			nativeCodecsCleared: true, selectedRenderCodecCleared: true, proxyCodecCleared: true,
-			imageSequencesCleared: true, openFxCleared: false,
-		}),
+		loadCapabilityPolicy: () => { throw new Error('human release review must not be read'); },
 	});
 	assert.ok(registration);
 	assert.match(runtimeOptions.databasePath, /framescaper-native-services\.sqlite$/u);
@@ -231,6 +228,10 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	assert.equal(capabilities.value.queueCapacityAuthorityMounted, true);
 	assert.equal(capabilities.value.watchProjectMutationMounted, true);
 	assert.equal(capabilities.value.imageSequenceImportMounted, true);
+	assert.deepEqual(capabilities.value.policy, {
+		nativeCodecsCleared: true, proxyCodecCleared: true,
+		imageSequencesCleared: true, openFxCleared: true,
+	}, 'legacy capability DTO names carry machine execution admission, not human review');
 	assert.equal(capabilities.value.externalDisplay.placementSupported, true);
 	mediaRuntime.payloadAvailability = {
 		status: 'available', descriptor: { sha256: 'b'.repeat(64) },
@@ -249,6 +250,7 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	assert.equal(imageSequenceImportOptions.project, registrationInput.projectAuthority);
 	assert.equal(imageSequenceImportOptions.controller, controller);
 	assert.equal(imageSequenceImportOptions.policyCleared, true);
+	assert.equal(openFxServiceOptions.policyCleared(), true);
 	assert.equal(await runtimeOptions.nativeQueueExecution.prepare({}, {}), prepared);
 	assert.deepEqual(await runtimeOptions.revalidate({ record: {}, root: {}, rootAuthorized: true }), {
 		projectRevisionMatches: true, planFingerprintMatches: true,
@@ -411,10 +413,7 @@ test('a runtime startup failure releases the session display subscription', asyn
 			createCapabilityReport: (value) => ({ value }),
 			externalDisplaySupport: () => ({ supported: false, reason: 'unsupported-platform' }),
 		},
-		loadCapabilityPolicy: async () => ({
-			nativeCodecsCleared: false, selectedRenderCodecCleared: false, proxyCodecCleared: false,
-			imageSequencesCleared: false, openFxCleared: false,
-		}),
+		loadCapabilityPolicy: () => { throw new Error('human release review must not be read'); },
 	}), /startup failed/u);
 	assert.equal(disposals, 1);
 });
