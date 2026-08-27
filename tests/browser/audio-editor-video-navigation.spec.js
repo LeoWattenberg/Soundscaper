@@ -81,21 +81,24 @@ test.describe('3B-4a shuttle and edit-point navigation', () => {
 		// +1x; a later deliberate L advances exactly one rung to +2x. Neither press
 		// reaches the legacy Loop preference binding in Framescaper.
 		await beginStatusObservation(editor);
+		// Only the repeat is dispatched by hand, because Playwright cannot synthesise one.
+		// The two deliberate presses stay real key events: a page-constructed KeyboardEvent
+		// is untrusted, and dispatching all three that way left the shuttle untouched on
+		// every CI engine while passing locally.
+		// The two deliberate presses stay adjacent and real. A page-constructed KeyboardEvent
+		// is untrusted and moved the shuttle on no CI engine at all, and anything slow between
+		// the presses lets the shuttle reach the sequence end and stop before the second lands.
 		await focusWorkspace(editor);
+		await page.keyboard.press('L');
+		await page.keyboard.press('L');
+		// Playwright cannot synthesise the repeat a held key emits, so that one is dispatched
+		// by hand. It must not advance a rung.
 		await editor.evaluate((element) => {
-			const emit = (type, repeat = false) => element.dispatchEvent(new KeyboardEvent(type, {
-				bubbles: true,
-				cancelable: true,
-				key: 'l',
-				repeat,
+			element.dispatchEvent(new KeyboardEvent('keydown', {
+				bubbles: true, cancelable: true, key: 'l', repeat: true,
 			}));
-			emit('keydown');
-			emit('keydown', true);
-			emit('keyup');
-			emit('keydown');
-			emit('keyup');
 		});
-		await expectObservedStatus(editor, /2(?:x|×)/u);
+		await expectObservedStatus(editor, /2(?:x|×)/u, /3(?:x|×)/u);
 		// The shuttle rung is reported in the status line rather than a menu check mark.
 		await page.keyboard.press('Escape');
 		await pressWorkspaceKey(page, editor, 'K');
@@ -170,10 +173,15 @@ async function beginStatusObservation(editor) {
 	});
 }
 
-async function expectObservedStatus(editor, expected) {
-	await expect.poll(() => editor.evaluate(() => (
+async function expectObservedStatus(editor, expected, forbidden = null) {
+	const observed = () => editor.evaluate(() => (
 		globalThis.__soundscaperShuttleStatusObservation?.values ?? []
-	))).toContainEqual(expect.stringMatching(expected));
+	));
+	await expect.poll(observed).toContainEqual(expect.stringMatching(expected));
+	if (forbidden) {
+		// A repeat from a held key must not advance a rung of its own.
+		expect(await observed()).not.toContainEqual(expect.stringMatching(forbidden));
+	}
 	await editor.evaluate(() => {
 		const observation = globalThis.__soundscaperShuttleStatusObservation;
 		observation?.observer?.disconnect();
