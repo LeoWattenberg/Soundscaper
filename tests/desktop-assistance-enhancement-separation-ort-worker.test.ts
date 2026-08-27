@@ -11,6 +11,16 @@ import {
 	createAssistanceOnnxRuntimeWorkerAdapterV1,
 	type AssistanceOnnxRuntimeModuleV1,
 } from '../desktop/assistance-onnx-runtime-worker.ts';
+import {
+	createAssistanceOnnxEnhancementSeparationWorkerAdapterV1,
+} from '../desktop/assistance-onnx-enhancement-separation-worker.ts';
+import type {
+	AssistanceFloat32WaveGeometryV1,
+} from '../desktop/assistance-streaming-float32-wave.ts';
+import {
+	ASSISTANCE_WAVE_RANGE_IO_MAXIMUM_BYTES,
+	createNodeAssistanceFloat32WaveStorageV1,
+} from '../desktop/assistance-streaming-float32-wave.ts';
 import { captureAssistanceRuntimeFamilyJobGrantV1 } from
 	'../desktop/assistance-runtime-family-file-grants.ts';
 import {
@@ -18,8 +28,14 @@ import {
 } from '../desktop/assistance-operation-family-execution.ts';
 import {
 	runAssistanceRuntimeFamilyWorkerJobV1,
+	type AssistanceRuntimeFamilyWorkerExecutionContext,
 } from '../desktop/assistance-runtime-family-worker-entry.ts';
+import {
+	ASSISTANCE_TIGER_DNR_CHUNK_FRAMES,
+	ASSISTANCE_TIGER_DNR_CHUNK_HOP_FRAMES,
+} from '../src/common/editor/assistance/tiger-dnr-signal-v1.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
+import { virtualWaveStorage } from './fixtures/assistance-streaming-wave.ts';
 
 const JOB_ID = '1'.repeat(40);
 const INPUT_ID = '2'.repeat(40);
@@ -250,6 +266,32 @@ test('DeepFilterNet3 observes cancellation between channel graph calls without p
 		assert.equal((await readFile(fixture.paths.output)).byteLength, 0);
 	});
 
+test('authenticated WAV custody bounds every range read, spool write, and publication write',
+	async (context) => {
+		const fixture = await enhancementFixture(context, { audio: audio(140_000) });
+		const events: Array<Readonly<{ kind: string; byteLength: number }>> = [];
+		const storage = createNodeAssistanceFloat32WaveStorageV1((event) => events.push(event));
+		const input = fixture.job.grant.inputs[0]!;
+		const output = fixture.job.grant.outputs[0]!;
+		const source = await storage.openSource(input, 48_000);
+		const channels = await source.readFrames({ startFrame: 0,
+			frameCount: source.geometry.frameCount, channelStart: 0,
+			channelCount: source.geometry.channelCount });
+		await source.close();
+		const sink = await storage.openSink(output, source.geometry);
+		await sink.writeFrames(channels);
+		const sealed = await sink.seal();
+		await sink.publish();
+		await sink.commit();
+		assert.equal(sealed.byteLength, fixture.inputBytes.byteLength);
+		assert.equal(sealed.sha256, digest(fixture.inputBytes));
+		assert.deepEqual(new Set(events.map(({ kind }) => kind)), new Set([
+			'input-read', 'spool-write', 'publication-read', 'publication-write',
+		]));
+		assert.ok(events.every(({ byteLength }) =>
+			byteLength > 0 && byteLength <= ASSISTANCE_WAVE_RANGE_IO_MAXIMUM_BYTES));
+	});
+
 test('TIGER preserves exact 44.1 kHz multichannel geometry through owned D/M/E overlap-add',
 	async (context) => {
 		const fixture = await separationFixture(context);
@@ -321,6 +363,108 @@ test('TIGER rejects foreign graph output and cancellation without publishing ste
 			.map(({ byteLength }) => byteLength), [0, 0, 0]);
 });
 
+test('DeepFilterNet3 streams a long four-channel source through bounded context sessions',
+	async (context) => {
+		const fixture = await enhancementFixture(context);
+		const frameCount = 2_501;
+		const storage = virtualWaveStorage({ sampleRate: 48_000, channelCount: 4,
+			frameCount, expectedFactor: 1 });
+		const jobValue = virtualWaveJob(fixture.job, storage.geometry);
+		const tensors: number[][] = [];
+		const result = await createAssistanceOnnxEnhancementSeparationWorkerAdapterV1(
+			async () => fakeRuntime(['feat_erb', 'feat_spec'], ['erb_mask', 'df_coefs'],
+				async (feeds) => {
+					tensors.push([...feeds.feat_erb!.dims]);
+					return identityDeepFilterOutput(feeds.feat_erb!.dims[2]!);
+				}),
+			{ waveStorage: storage, deepFilterChunkFrames: 960,
+				deepFilterContextFrames: 480 },
+		)(workerContext(jobValue));
+
+		assert.equal(result.outputs[0]!.byteLength, storage.geometry.byteLength);
+		assert.ok(storage.reads.length > 1);
+		assert.ok(storage.reads.every(({ frameCount: frames }) => frames <= 1_920));
+		assert.ok(tensors.length > storage.geometry.channelCount);
+		assert.ok(tensors.every((dims) => dims[0] === 1 && dims[2]! <= 6));
+		assert.ok(storage.sinks[0]!.maximumSampleError < 2e-4,
+			`streaming identity error ${String(storage.sinks[0]!.maximumSampleError)}`);
+		assert.deepEqual(storage.sinks.map(({ writtenFrames, published, rolledBack }) =>
+			({ writtenFrames, published, rolledBack })), [
+			{ writtenFrames: frameCount, published: true, rolledBack: false },
+		]);
+	});
+
+test('TIGER streams sparse four-channel chunks through bounded tensors and rolling overlap-add',
+	async (context) => {
+		const fixture = await separationFixture(context);
+		const frameCount = ASSISTANCE_TIGER_DNR_CHUNK_HOP_FRAMES + 2_048;
+		const storage = virtualWaveStorage({ sampleRate: 44_100, channelCount: 4,
+			frameCount, sparse: true, expectedFactor: 0 });
+		const jobValue = virtualWaveJob(fixture.job, storage.geometry);
+		const tensors: number[][] = [];
+		const result = await createAssistanceOnnxEnhancementSeparationWorkerAdapterV1(
+			async () => fakeRuntime(['spectrum_ri'], ['complex_masks'], async (feeds) => {
+				tensors.push([...feeds.spectrum_ri!.dims]);
+				return tigerMasks(feeds.spectrum_ri!, [0, 0, 0]);
+			}), { waveStorage: storage },
+		)(workerContext(jobValue));
+
+		assert.deepEqual(result.outputs.map(({ byteLength }) => byteLength),
+			[storage.geometry.byteLength, storage.geometry.byteLength, storage.geometry.byteLength]);
+		assert.ok(storage.reads.length > 1);
+		assert.ok(storage.reads.every(({ frameCount: frames, channelCount }) =>
+			frames <= ASSISTANCE_TIGER_DNR_CHUNK_FRAMES && channelCount <= 2));
+		assert.ok(tensors.length > 1);
+		assert.ok(tensors.every((dims) => dims[0]! <= 2
+			&& JSON.stringify(dims.slice(1)) === JSON.stringify([2, 1_025, 1_034])));
+		assert.ok(storage.sinks.every(({ maximumSampleError }) => maximumSampleError < 3e-4));
+		assert.deepEqual(storage.sinks.map(({ writtenFrames, maximumWriteFrames,
+			published, rolledBack }) => ({ writtenFrames, maximumWriteFrames,
+			published, rolledBack })), Array.from({ length: 3 }, () => ({
+			writtenFrames: frameCount, maximumWriteFrames: 16_384,
+			published: true, rolledBack: false,
+		})));
+	});
+
+test('enhancement and separation remove the 512 MiB WAV cap while cancellation stays bounded',
+	async (context) => {
+		const enhancement = await enhancementFixture(context);
+		const separation = await separationFixture(context);
+		for (const candidate of [
+			{ task: 'speech-enhancement' as const, fixture: enhancement, sampleRate: 48_000 },
+			{ task: 'source-separation' as const, fixture: separation, sampleRate: 44_100 },
+		]) {
+			const channelCount = 4;
+			const frameCount = Math.ceil((512 * 1024 ** 2 + 1 - 44) / (channelCount * 4));
+			const storage = virtualWaveStorage({ sampleRate: candidate.sampleRate,
+				channelCount, frameCount, sparse: true });
+			assert.ok(storage.geometry.byteLength > 512 * 1024 ** 2);
+			const jobValue = virtualWaveJob(candidate.fixture.job, storage.geometry);
+			const controller = new AbortController();
+			const tensors: number[][] = [];
+			const runtime = candidate.task === 'speech-enhancement'
+				? fakeRuntime(['feat_erb', 'feat_spec'], ['erb_mask', 'df_coefs'], async (feeds) => {
+					tensors.push([...feeds.feat_erb!.dims]);
+					controller.abort(new DOMException('cancelled', 'AbortError'));
+					return identityDeepFilterOutput(feeds.feat_erb!.dims[2]!);
+				})
+				: fakeRuntime(['spectrum_ri'], ['complex_masks'], async (feeds) => {
+					tensors.push([...feeds.spectrum_ri!.dims]);
+					controller.abort(new DOMException('cancelled', 'AbortError'));
+					return tigerMasks(feeds.spectrum_ri!, [0, 0, 0]);
+				});
+			await assert.rejects(createAssistanceOnnxEnhancementSeparationWorkerAdapterV1(
+				async () => runtime,
+				{ waveStorage: storage, deepFilterChunkFrames: 960,
+					deepFilterContextFrames: 480 },
+			)(workerContext(jobValue, controller.signal)), { name: 'AbortError' });
+			assert.equal(tensors.length, 1);
+			assert.ok(storage.reads.every(({ frameCount: frames, channelCount: channels }) =>
+				frames <= ASSISTANCE_TIGER_DNR_CHUNK_FRAMES && channels <= 4));
+			assert.ok(storage.sinks.every(({ published, rolledBack }) => !published && rolledBack));
+		}
+	});
+
 test('main closes enhancement and separation model substitution before catalog lookup', () => {
 	assert.doesNotThrow(() => assertAssistanceOnnxEnhancementSeparationModelBindingV1(
 		'speech-enhancement', { modelId: 'deepfilternet3', version: '3.0.0',
@@ -339,6 +483,31 @@ test('main closes enhancement and separation model substitution before catalog l
 			artifactSha256s: ['b'.repeat(64)] },
 	), /TIGER|exact/iu);
 });
+
+function virtualWaveJob<Task extends 'speech-enhancement' | 'source-separation'>(
+	value: ReturnType<typeof job<Task>>,
+	geometry: AssistanceFloat32WaveGeometryV1,
+): ReturnType<typeof job<Task>> {
+	const grant = Object.freeze({ ...value.grant,
+		inputs: Object.freeze(value.grant.inputs.map((input) => Object.freeze({
+			...input, byteLength: geometry.byteLength,
+		}))),
+		outputs: Object.freeze(value.grant.outputs.map((output) => Object.freeze({
+			...output, maximumByteLength: geometry.byteLength,
+		}))),
+	});
+	return Object.freeze({ ...value, grant });
+}
+
+function workerContext(
+	value: ReturnType<typeof job>,
+	signal?: AbortSignal,
+): AssistanceRuntimeFamilyWorkerExecutionContext {
+	return Object.freeze({ job: value, grant: value.grant,
+		settings: Object.freeze(JSON.parse(value.grant.settingsJson) as Record<string, unknown>),
+		...(signal ? { signal } : {}), onProgress() {},
+	});
+}
 
 function job<Task extends 'speech-enhancement' | 'source-separation'>(task: Task, grant: Awaited<
 	ReturnType<typeof captureAssistanceRuntimeFamilyJobGrantV1>

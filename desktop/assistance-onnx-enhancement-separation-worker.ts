@@ -2,8 +2,7 @@
 
 /** Authenticated CPU ONNX custody for DeepFilterNet3 and TIGER-DnR. */
 
-import { createHash } from 'node:crypto';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 
 import {
 	analyzeAssistanceDeepFilterChannelV1,
@@ -21,13 +20,14 @@ import {
 	ASSISTANCE_TIGER_DNR_CHUNK_FRAMES,
 	ASSISTANCE_TIGER_DNR_SAMPLE_RATE,
 	createTigerDnrChunkPlanV1,
-	extractTigerDnrChunkV1,
-	mergeTigerDnrStemV1,
 	tigerDnrIstftV1,
 	tigerDnrStftV1,
-	type TigerDnrSpectrumV1,
+	type TigerDnrChunkPlanV1,
 } from '../src/common/editor/assistance/tiger-dnr-signal-v1.ts';
-import { encodeWav } from '../src/common/editor/wav.js';
+import {
+	createTigerDnrStreamingOverlapV1,
+	type TigerDnrStreamingOverlapV1,
+} from '../src/common/editor/assistance/tiger-dnr-streaming-overlap-v1.ts';
 import type {
 	AssistanceOnnxInferenceSessionV1,
 	AssistanceOnnxRuntimeModuleV1,
@@ -36,6 +36,20 @@ import type {
 import type {
 	AssistanceRuntimeFamilyWorkerExecutionContext,
 } from './assistance-runtime-family-worker-entry.ts';
+import type {
+	AssistanceRuntimeFamilyJobResultV1,
+} from './assistance-runtime-family-job-contract.ts';
+import {
+	applyTigerDnrMaskV1,
+	packTigerDnrSpectrumV1,
+} from './assistance-tiger-dnr-onnx-tensors.ts';
+import {
+	createNodeAssistanceFloat32WaveStorageV1,
+	type AssistanceFloat32WaveSealedOutputV1,
+	type AssistanceFloat32WaveSinkV1,
+	type AssistanceFloat32WaveSourceV1,
+	type AssistanceFloat32WaveStorageV1,
+} from './assistance-streaming-float32-wave.ts';
 
 type RuntimeLoader = (entrypoint: string) => PromiseLike<AssistanceOnnxRuntimeModuleV1>;
 type SupportedTask = 'speech-enhancement' | 'source-separation';
@@ -54,36 +68,89 @@ const CONFIG_FIELDS = Object.freeze([
 	'erb_bands', 'fft_bins', 'fft_size', 'hop_size', 'library_name',
 	'min_nb_erb_freqs', 'model_type', 'norm_tau', 'normalization_alpha', 'sample_rate',
 ]);
-const MAXIMUM_WAVE_BYTES = 512 * 1024 ** 2;
+export const ASSISTANCE_DEEPFILTER_STREAM_CHUNK_FRAMES = 4
+	* ASSISTANCE_DEEPFILTER_SAMPLE_RATE;
+export const ASSISTANCE_DEEPFILTER_STREAM_CONTEXT_FRAMES = ASSISTANCE_DEEPFILTER_SAMPLE_RATE;
+export const ASSISTANCE_TIGER_SESSION_MAXIMUM_CHANNELS = 2;
+export const ASSISTANCE_TIGER_OUTPUT_WRITE_FRAMES = 16_384;
+
+export interface AssistanceOnnxEnhancementSeparationWorkerOptionsV1 {
+	readonly waveStorage?: AssistanceFloat32WaveStorageV1;
+	readonly deepFilterChunkFrames?: number;
+	readonly deepFilterContextFrames?: number;
+}
 
 export function createAssistanceOnnxEnhancementSeparationWorkerAdapterV1(
 	loadRuntime: RuntimeLoader,
-): (context: AssistanceRuntimeFamilyWorkerExecutionContext) => Promise<unknown> {
+	options: AssistanceOnnxEnhancementSeparationWorkerOptionsV1 = {},
+): (context: AssistanceRuntimeFamilyWorkerExecutionContext) =>
+	Promise<AssistanceRuntimeFamilyJobResultV1> {
 	if (typeof loadRuntime !== 'function') {
 		throw new TypeError('The ONNX enhancement and separation runtime loader is invalid.');
 	}
+	const workerOptions = exactWorkerOptions(options);
 	return async (context) => {
 		if (context.grant.task === 'speech-enhancement') {
-			return executeDeepFilterNet3(context, loadRuntime);
+			return executeDeepFilterNet3(context, loadRuntime, workerOptions);
 		}
 		if (context.grant.task === 'source-separation') {
-			return executeTigerDnr(context, loadRuntime);
+			return executeTigerDnr(context, loadRuntime, workerOptions.waveStorage);
 		}
 		throw new TypeError('The ONNX enhancement and separation adapter received a foreign task.');
 	};
 }
 
+function exactWorkerOptions(
+	value: AssistanceOnnxEnhancementSeparationWorkerOptionsV1,
+): Readonly<{
+	readonly waveStorage: AssistanceFloat32WaveStorageV1;
+	readonly deepFilterChunkFrames: number;
+	readonly deepFilterContextFrames: number;
+}> {
+	if (!value || typeof value !== 'object' || Array.isArray(value)
+		|| Object.keys(value).some((key) => ![
+			'waveStorage', 'deepFilterChunkFrames', 'deepFilterContextFrames',
+		].includes(key))) {
+		throw new TypeError('The enhancement and separation worker options are invalid.');
+	}
+	const waveStorage = value.waveStorage ?? createNodeAssistanceFloat32WaveStorageV1();
+	if (!waveStorage || typeof waveStorage.openSource !== 'function'
+		|| typeof waveStorage.openSink !== 'function') {
+		throw new TypeError('The enhancement and separation WAV storage is invalid.');
+	}
+	const deepFilterChunkFrames = value.deepFilterChunkFrames
+		?? ASSISTANCE_DEEPFILTER_STREAM_CHUNK_FRAMES;
+	const deepFilterContextFrames = value.deepFilterContextFrames
+		?? ASSISTANCE_DEEPFILTER_STREAM_CONTEXT_FRAMES;
+	if (!Number.isSafeInteger(deepFilterChunkFrames)
+		|| deepFilterChunkFrames < ASSISTANCE_DEEPFILTER_HOP_FRAMES
+		|| deepFilterChunkFrames > 10 * ASSISTANCE_DEEPFILTER_SAMPLE_RATE
+		|| deepFilterChunkFrames % ASSISTANCE_DEEPFILTER_HOP_FRAMES !== 0
+		|| !Number.isSafeInteger(deepFilterContextFrames)
+		|| deepFilterContextFrames < ASSISTANCE_DEEPFILTER_HOP_FRAMES
+		|| deepFilterContextFrames > 2 * ASSISTANCE_DEEPFILTER_SAMPLE_RATE
+		|| deepFilterContextFrames % ASSISTANCE_DEEPFILTER_HOP_FRAMES !== 0) {
+		throw new RangeError('The DeepFilterNet3 streaming window geometry is invalid.');
+	}
+	return Object.freeze({ waveStorage, deepFilterChunkFrames, deepFilterContextFrames });
+}
+
 async function executeDeepFilterNet3(
 	context: AssistanceRuntimeFamilyWorkerExecutionContext,
 	loadRuntime: RuntimeLoader,
-): Promise<unknown> {
+	options: Readonly<{
+		readonly waveStorage: AssistanceFloat32WaveStorageV1;
+		readonly deepFilterChunkFrames: number;
+		readonly deepFilterContextFrames: number;
+	}>,
+): Promise<AssistanceRuntimeFamilyJobResultV1> {
 	assertRuntimeJob(context, 'speech-enhancement');
 	assertSettings(context, 'speech-enhancement', ['enhanced-audio']);
 	const { grant } = context;
 	const input = grant.inputs[0];
 	const output = grant.outputs[0];
 	if (grant.inputs.length !== 1 || input?.role !== 'audio'
-		|| input.mediaType !== AUDIO_MEDIA_TYPE || input.byteLength > MAXIMUM_WAVE_BYTES
+		|| input.mediaType !== AUDIO_MEDIA_TYPE
 		|| grant.outputs.length !== 1 || output?.role !== 'enhanced-audio'
 		|| output.mediaType !== AUDIO_MEDIA_TYPE) {
 		throw new TypeError('DeepFilterNet3 requires one exact audio input and enhanced WAV output.');
@@ -91,57 +158,83 @@ async function executeDeepFilterNet3(
 	const models = exactDeepFilterModels(grant.models);
 	context.signal?.throwIfAborted();
 	context.onProgress(0);
-	const [waveBytes, configurationBytes, auxiliaryBytes] = await Promise.all([
-		readFile(input.path), readFile(models.config.path), readFile(models.auxiliary.path),
+	const [configurationBytes, auxiliaryBytes] = await Promise.all([
+		readFile(models.config.path), readFile(models.auxiliary.path),
 	]);
 	reviewDeepFilterConfig(configurationBytes);
 	reviewAssistanceDeepFilterAuxiliaryV1(auxiliaryBytes);
-	const wave = reviewCanonicalFloat32Wave(waveBytes, ASSISTANCE_DEEPFILTER_SAMPLE_RATE);
-	context.signal?.throwIfAborted();
-	const runtime = runtimeValue(await loadRuntime(context.job.descriptor.entrypoint));
-	const session = await createCpuSession(runtime, models.network.path, 'DeepFilterNet3');
+	const source = await options.waveStorage.openSource(
+		input, ASSISTANCE_DEEPFILTER_SAMPLE_RATE, context.signal,
+	);
+	let sink: AssistanceFloat32WaveSinkV1 | null = null;
+	let completed = false;
 	try {
-		assertExactNames(session.inputNames, DEEPFILTER_INPUT_NAMES, 'input', 'DeepFilterNet3');
-		assertExactNames(session.outputNames, DEEPFILTER_OUTPUT_NAMES, 'output', 'DeepFilterNet3');
-		const enhanced: Float32Array[] = [];
-		for (let channel = 0; channel < wave.channels.length; channel += 1) {
-			context.signal?.throwIfAborted();
-			const analysis = analyzeAssistanceDeepFilterChannelV1(
-				wave.channels[channel]!, context.signal,
-			);
-			const result = exactOutputs(await session.run({
-				feat_erb: new runtime.Tensor('float32', analysis.erbFeatures,
-					[1, 1, analysis.frameCount, ASSISTANCE_DEEPFILTER_ERB_BANDS]),
-				feat_spec: new runtime.Tensor('float32', analysis.spectrumFeatures,
-					[1, 2, analysis.frameCount, ASSISTANCE_DEEPFILTER_BINS]),
-			}));
-			context.signal?.throwIfAborted();
-			const mask = floatTensor(result.erb_mask,
-				[1, 1, analysis.frameCount, ASSISTANCE_DEEPFILTER_ERB_BANDS],
-				'DeepFilterNet3 ERB mask');
-			const coefficients = floatTensor(result.df_coefs,
-				[1, ASSISTANCE_DEEPFILTER_ORDER, analysis.frameCount,
-					ASSISTANCE_DEEPFILTER_BINS, 2], 'DeepFilterNet3 coefficients');
-			enhanced.push(synthesizeAssistanceDeepFilterChannelV1(
-				analysis, mask, coefficients, context.signal,
-			));
-			context.signal?.throwIfAborted();
-			context.onProgress((channel + 1) / (wave.channels.length + 1));
+		sink = await options.waveStorage.openSink(output, source.geometry, context.signal);
+		context.signal?.throwIfAborted();
+		const runtime = runtimeValue(await loadRuntime(context.job.descriptor.entrypoint));
+		const session = await createCpuSession(runtime, models.network.path, 'DeepFilterNet3');
+		try {
+			assertExactNames(session.inputNames, DEEPFILTER_INPUT_NAMES, 'input', 'DeepFilterNet3');
+			assertExactNames(session.outputNames, DEEPFILTER_OUTPUT_NAMES, 'output', 'DeepFilterNet3');
+			const chunkCount = Math.ceil(source.geometry.frameCount / options.deepFilterChunkFrames);
+			const workUnits = chunkCount * source.geometry.channelCount;
+			let completedUnits = 0;
+			for (let coreStart = 0; coreStart < source.geometry.frameCount;
+				coreStart += options.deepFilterChunkFrames) {
+				context.signal?.throwIfAborted();
+				const coreFrames = Math.min(options.deepFilterChunkFrames,
+					source.geometry.frameCount - coreStart);
+				const readStart = Math.max(0, coreStart - options.deepFilterContextFrames);
+				const readEnd = Math.min(source.geometry.frameCount,
+					coreStart + coreFrames + options.deepFilterContextFrames);
+				const channels = await source.readFrames({ startFrame: readStart,
+					frameCount: readEnd - readStart, channelStart: 0,
+					channelCount: source.geometry.channelCount }, context.signal);
+				const enhanced: Float32Array[] = [];
+				for (const channel of channels) {
+					context.signal?.throwIfAborted();
+					const analysis = analyzeAssistanceDeepFilterChannelV1(channel, context.signal);
+					const result = exactOutputs(await session.run({
+						feat_erb: new runtime.Tensor('float32', analysis.erbFeatures,
+							[1, 1, analysis.frameCount, ASSISTANCE_DEEPFILTER_ERB_BANDS]),
+						feat_spec: new runtime.Tensor('float32', analysis.spectrumFeatures,
+							[1, 2, analysis.frameCount, ASSISTANCE_DEEPFILTER_BINS]),
+					}));
+					context.signal?.throwIfAborted();
+					const mask = floatTensor(result.erb_mask,
+						[1, 1, analysis.frameCount, ASSISTANCE_DEEPFILTER_ERB_BANDS],
+						'DeepFilterNet3 ERB mask');
+					const coefficients = floatTensor(result.df_coefs,
+						[1, ASSISTANCE_DEEPFILTER_ORDER, analysis.frameCount,
+							ASSISTANCE_DEEPFILTER_BINS, 2], 'DeepFilterNet3 coefficients');
+					const resultChannel = synthesizeAssistanceDeepFilterChannelV1(
+						analysis, mask, coefficients, context.signal,
+					);
+					const cropStart = coreStart - readStart;
+					enhanced.push(resultChannel.slice(cropStart, cropStart + coreFrames));
+					completedUnits += 1;
+					context.onProgress(completedUnits / (workUnits + 1));
+				}
+				await sink.writeFrames(enhanced, context.signal);
+			}
+		} finally {
+			await session.release?.();
 		}
-		const body = encodeWav(enhanced, {
-			sampleRate: ASSISTANCE_DEEPFILTER_SAMPLE_RATE,
-			bitDepth: 32, float: true, dither: false,
-		});
-		return publishWaves(context, [body]);
+		await source.close();
+		const sealed = await publishSinks(context, [sink]);
+		completed = true;
+		return workerResult(context, sealed);
 	} finally {
-		await session.release?.();
+		await source.close().catch(() => undefined);
+		if (!completed && sink) await sink.rollback().catch(() => undefined);
 	}
 }
 
 async function executeTigerDnr(
 	context: AssistanceRuntimeFamilyWorkerExecutionContext,
 	loadRuntime: RuntimeLoader,
-): Promise<unknown> {
+	waveStorage: AssistanceFloat32WaveStorageV1,
+): Promise<AssistanceRuntimeFamilyJobResultV1> {
 	assertRuntimeJob(context, 'source-separation');
 	assertSettings(context, 'source-separation', [
 		'separated-audio', 'separated-audio', 'separated-audio',
@@ -149,7 +242,7 @@ async function executeTigerDnr(
 	const { grant } = context;
 	const input = grant.inputs[0];
 	if (grant.inputs.length !== 1 || input?.role !== 'audio'
-		|| input.mediaType !== AUDIO_MEDIA_TYPE || input.byteLength > MAXIMUM_WAVE_BYTES
+		|| input.mediaType !== AUDIO_MEDIA_TYPE
 		|| grant.models.length !== 1 || grant.models[0]?.modelId !== 'tiger-dnr'
 		|| grant.models[0].version !== '1.0.0' || grant.models[0].artifactRole !== 'network'
 		|| grant.outputs.length !== 3 || grant.outputs.some((output) =>
@@ -158,53 +251,167 @@ async function executeTigerDnr(
 	}
 	context.signal?.throwIfAborted();
 	context.onProgress(0);
-	const wave = reviewCanonicalFloat32Wave(await readFile(input.path),
-		ASSISTANCE_TIGER_DNR_SAMPLE_RATE);
+	const source = await waveStorage.openSource(input,
+		ASSISTANCE_TIGER_DNR_SAMPLE_RATE, context.signal);
 	const plan = createTigerDnrChunkPlanV1({ schemaVersion: 1,
-		sourceFrameCount: wave.channels[0]!.length });
-	context.signal?.throwIfAborted();
-	const runtime = runtimeValue(await loadRuntime(context.job.descriptor.entrypoint));
-	const session = await createCpuSession(runtime, grant.models[0].path, 'TIGER-DnR');
-	const chunks = Array.from({ length: TIGER_STEM_COUNT }, () => [] as Array<Readonly<{
-		readonly chunkIndex: number; readonly channels: readonly Float32Array[];
-	}>>);
+		sourceFrameCount: source.geometry.frameCount });
+	const sinks: AssistanceFloat32WaveSinkV1[] = [];
+	let completed = false;
 	try {
-		assertExactNames(session.inputNames, TIGER_INPUT_NAMES, 'input', 'TIGER-DnR');
-		assertExactNames(session.outputNames, TIGER_OUTPUT_NAMES, 'output', 'TIGER-DnR');
-		for (const chunk of plan.chunks) {
-			context.signal?.throwIfAborted();
-			const channels = extractTigerDnrChunkV1({ schemaVersion: 1, plan,
-				chunkIndex: chunk.chunkIndex, channels: wave.channels });
-			const spectrum = tigerDnrStftV1({ schemaVersion: 1,
-				sampleRate: ASSISTANCE_TIGER_DNR_SAMPLE_RATE, channels });
-			const result = exactTigerOutputs(await session.run({
-				spectrum_ri: new runtime.Tensor('float32', packTigerSpectrum(spectrum),
-					[spectrum.channelCount, 2, spectrum.frequencyBinCount,
-						spectrum.timeFrameCount]),
-			}));
-			context.signal?.throwIfAborted();
-			const masks = finiteFloatTensor(result.complex_masks,
-				[spectrum.channelCount, TIGER_STEM_COUNT, 2,
-					spectrum.frequencyBinCount, spectrum.timeFrameCount],
-				'TIGER-DnR complex masks');
-			for (let stem = 0; stem < TIGER_STEM_COUNT; stem += 1) {
-				context.signal?.throwIfAborted();
-				chunks[stem]!.push(Object.freeze({ chunkIndex: chunk.chunkIndex,
-					channels: tigerDnrIstftV1({ schemaVersion: 1,
-						spectrum: applyTigerMask(spectrum, masks, stem),
-						sourceFrameCount: ASSISTANCE_TIGER_DNR_CHUNK_FRAMES }),
-				}));
-			}
-			context.onProgress((chunk.chunkIndex + 1) / (plan.chunks.length + 1));
+		for (const output of grant.outputs) {
+			sinks.push(await waveStorage.openSink(output, source.geometry, context.signal));
 		}
-		const bodies = chunks.map((stemChunks) => encodeWav(mergeTigerDnrStemV1({
-			schemaVersion: 1, plan, channelCount: wave.channels.length, chunks: stemChunks,
-		}), { sampleRate: ASSISTANCE_TIGER_DNR_SAMPLE_RATE,
-			bitDepth: 32, float: true, dither: false }));
-		return publishWaves(context, bodies);
+		context.signal?.throwIfAborted();
+		const runtime = runtimeValue(await loadRuntime(context.job.descriptor.entrypoint));
+		const session = await createCpuSession(runtime, grant.models[0].path, 'TIGER-DnR');
+		try {
+			assertExactNames(session.inputNames, TIGER_INPUT_NAMES, 'input', 'TIGER-DnR');
+			assertExactNames(session.outputNames, TIGER_OUTPUT_NAMES, 'output', 'TIGER-DnR');
+			const overlap = createTigerDnrStreamingOverlapV1(plan, source.geometry.channelCount);
+			const batchCount = Math.ceil(source.geometry.channelCount
+				/ ASSISTANCE_TIGER_SESSION_MAXIMUM_CHANNELS);
+			const workUnits = plan.chunks.length * batchCount;
+			let completedUnits = 0;
+			for (const chunk of plan.chunks) {
+				overlap.beginChunk(chunk.chunkIndex);
+				for (let channelStart = 0; channelStart < source.geometry.channelCount;
+					channelStart += ASSISTANCE_TIGER_SESSION_MAXIMUM_CHANNELS) {
+					context.signal?.throwIfAborted();
+					const channelCount = Math.min(ASSISTANCE_TIGER_SESSION_MAXIMUM_CHANNELS,
+						source.geometry.channelCount - channelStart);
+					const channels = await readTigerChunkChannels(
+						source, plan, chunk.chunkIndex, channelStart, channelCount, context.signal,
+					);
+					const spectrum = tigerDnrStftV1({ schemaVersion: 1,
+						sampleRate: ASSISTANCE_TIGER_DNR_SAMPLE_RATE, channels });
+					const result = exactTigerOutputs(await session.run({
+						spectrum_ri: new runtime.Tensor('float32', packTigerDnrSpectrumV1(spectrum),
+							[spectrum.channelCount, 2, spectrum.frequencyBinCount,
+								spectrum.timeFrameCount]),
+					}));
+					context.signal?.throwIfAborted();
+					const masks = finiteFloatTensor(result.complex_masks,
+						[spectrum.channelCount, TIGER_STEM_COUNT, 2,
+							spectrum.frequencyBinCount, spectrum.timeFrameCount],
+						'TIGER-DnR complex masks');
+					const stems = Array.from({ length: TIGER_STEM_COUNT }, (_, stem) =>
+						tigerDnrIstftV1({ schemaVersion: 1,
+							spectrum: applyTigerDnrMaskV1(spectrum, masks, stem),
+							sourceFrameCount: ASSISTANCE_TIGER_DNR_CHUNK_FRAMES }));
+					overlap.addChannelBatch(channelStart, stems, context.signal);
+					completedUnits += 1;
+					context.onProgress(completedUnits / (workUnits + 1));
+				}
+				await drainTigerOverlap(overlap, plan, overlap.finishChunk(), sinks, context.signal);
+			}
+			overlap.finish();
+		} finally {
+			await session.release?.();
+		}
+		await source.close();
+		const sealed = await publishSinks(context, sinks);
+		completed = true;
+		return workerResult(context, sealed);
 	} finally {
-		await session.release?.();
+		await source.close().catch(() => undefined);
+		if (!completed) await Promise.all(sinks.map((sink) => sink.rollback().catch(() => undefined)));
 	}
+}
+
+async function readTigerChunkChannels(
+	source: AssistanceFloat32WaveSourceV1,
+	plan: TigerDnrChunkPlanV1,
+	chunkIndex: number,
+	channelStart: number,
+	channelCount: number,
+	signal?: AbortSignal,
+): Promise<readonly Float32Array[]> {
+	const chunk = plan.chunks[chunkIndex];
+	if (!chunk) throw new RangeError('The TIGER-DnR source chunk index is invalid.');
+	const sourceStart = Math.max(0, chunk.paddedStartFrame - plan.cropStartFrame);
+	const localStart = Math.max(0, plan.cropStartFrame - chunk.paddedStartFrame);
+	const copyFrames = Math.min(plan.sourceFrameCount - sourceStart,
+		ASSISTANCE_TIGER_DNR_CHUNK_FRAMES - localStart,
+		chunk.availableFrameCount - localStart);
+	const output = Array.from({ length: channelCount }, () =>
+		new Float32Array(ASSISTANCE_TIGER_DNR_CHUNK_FRAMES));
+	if (copyFrames > 0) {
+		const input = await source.readFrames({ startFrame: sourceStart, frameCount: copyFrames,
+			channelStart, channelCount }, signal);
+		for (let channel = 0; channel < channelCount; channel += 1) {
+			output[channel]!.set(input[channel]!, localStart);
+		}
+	}
+	return Object.freeze(output);
+}
+
+async function drainTigerOverlap(
+	overlap: TigerDnrStreamingOverlapV1,
+	plan: TigerDnrChunkPlanV1,
+	safePaddedEnd: number,
+	sinks: readonly AssistanceFloat32WaveSinkV1[],
+	signal?: AbortSignal,
+): Promise<void> {
+	const sourceEnd = plan.cropStartFrame + plan.sourceFrameCount;
+	while (overlap.paddedPosition < safePaddedEnd) {
+		signal?.throwIfAborted();
+		const position = overlap.paddedPosition;
+		if (position < plan.cropStartFrame) {
+			overlap.drain(Math.min(safePaddedEnd, plan.cropStartFrame) - position, false, signal);
+			continue;
+		}
+		if (position >= sourceEnd) {
+			overlap.drain(safePaddedEnd - position, false, signal);
+			continue;
+		}
+		const frames = Math.min(ASSISTANCE_TIGER_OUTPUT_WRITE_FRAMES,
+			safePaddedEnd - position, sourceEnd - position);
+		const stems = overlap.drain(frames, true, signal);
+		if (!stems || stems.length !== sinks.length) {
+			throw new TypeError('The streaming TIGER stem inventory is invalid.');
+		}
+		for (let stem = 0; stem < sinks.length; stem += 1) {
+			await sinks[stem]!.writeFrames(stems[stem]!, signal);
+		}
+	}
+}
+
+async function publishSinks(
+	context: AssistanceRuntimeFamilyWorkerExecutionContext,
+	sinks: readonly AssistanceFloat32WaveSinkV1[],
+): Promise<readonly AssistanceFloat32WaveSealedOutputV1[]> {
+	if (sinks.length !== context.grant.outputs.length) {
+		throw new TypeError('The enhanced WAV inventory does not satisfy its exact reservations.');
+	}
+	try {
+		const sealed: AssistanceFloat32WaveSealedOutputV1[] = [];
+		for (const sink of sinks) sealed.push(await sink.seal(context.signal));
+		context.signal?.throwIfAborted();
+		for (const sink of sinks) await sink.publish(context.signal);
+		context.signal?.throwIfAborted();
+		for (const sink of sinks) await sink.commit();
+		context.onProgress(1);
+		return Object.freeze(sealed);
+	} catch (error) {
+		await Promise.all(sinks.map((sink) => sink.rollback().catch(() => undefined)));
+		throw error;
+	}
+}
+
+function workerResult(
+	context: AssistanceRuntimeFamilyWorkerExecutionContext,
+	sealed: readonly AssistanceFloat32WaveSealedOutputV1[],
+): AssistanceRuntimeFamilyJobResultV1 {
+	return Object.freeze({
+		resultVersion: 1, jobId: context.grant.jobId,
+		familyId: context.grant.familyId, task: context.grant.task,
+		outputs: Object.freeze(sealed.map((body, index) => {
+			const reservation = context.grant.outputs[index]!;
+			return Object.freeze({ claimId: reservation.claimId, role: reservation.role,
+				mediaType: reservation.mediaType, byteLength: body.byteLength,
+				sha256: body.sha256 });
+		})),
+	});
 }
 
 function exactDeepFilterModels(models: AssistanceRuntimeFamilyWorkerExecutionContext['grant']['models']):
@@ -250,45 +457,6 @@ function reviewDeepFilterConfig(value: Uint8Array): void {
 		!== JSON.stringify((expected as Record<string, unknown>)[field]))) {
 		throw new TypeError('The DeepFilterNet3 configuration does not match the pinned DSP contract.');
 	}
-}
-
-function reviewCanonicalFloat32Wave(
-	value: Uint8Array,
-	expectedSampleRate: number,
-): Readonly<{ channels: readonly Float32Array[] }> {
-	if (!(value instanceof Uint8Array) || value.byteLength < 48
-		|| value.byteLength > MAXIMUM_WAVE_BYTES) {
-		throw new RangeError('Enhancement audio is outside its exact WAV capacity.');
-	}
-	const view = new DataView(value.buffer, value.byteOffset, value.byteLength);
-	if (ascii(value, 0) !== 'RIFF' || ascii(value, 8) !== 'WAVE'
-		|| view.getUint32(4, true) !== value.byteLength - 8
-		|| ascii(value, 12) !== 'fmt ' || view.getUint32(16, true) !== 16
-		|| view.getUint16(20, true) !== 3 || ascii(value, 36) !== 'data'
-		|| view.getUint32(40, true) !== value.byteLength - 44) {
-		throw new TypeError('Enhancement audio requires one canonical RIFF Float32 WAV.');
-	}
-	const channelCount = view.getUint16(22, true);
-	const blockAlign = channelCount * 4;
-	if (channelCount < 1 || channelCount > 64 || view.getUint32(24, true) !== expectedSampleRate
-		|| view.getUint32(28, true) !== expectedSampleRate * blockAlign
-		|| view.getUint16(32, true) !== blockAlign || view.getUint16(34, true) !== 32
-		|| (value.byteLength - 44) % blockAlign !== 0) {
-		throw new RangeError('Enhancement audio changed its exact sample-rate or channel geometry.');
-	}
-	const frameCount = (value.byteLength - 44) / blockAlign;
-	if (!Number.isSafeInteger(frameCount) || frameCount < 1) {
-		throw new RangeError('Enhancement audio has no complete sample frames.');
-	}
-	const channels = Array.from({ length: channelCount }, () => new Float32Array(frameCount));
-	for (let frame = 0; frame < frameCount; frame += 1) {
-		for (let channel = 0; channel < channelCount; channel += 1) {
-			const sample = view.getFloat32(44 + (frame * channelCount + channel) * 4, true);
-			if (!Number.isFinite(sample)) throw new RangeError('Enhancement audio samples must be finite.');
-			channels[channel]![frame] = sample;
-		}
-	}
-	return Object.freeze({ channels: Object.freeze(channels) });
 }
 
 function assertRuntimeJob(
@@ -388,51 +556,6 @@ function finiteFloatTensor(
 	return data;
 }
 
-function packTigerSpectrum(spectrum: TigerDnrSpectrumV1): Float32Array {
-	const { channelCount, frequencyBinCount, timeFrameCount } = spectrum;
-	const output = new Float32Array(channelCount * 2 * frequencyBinCount * timeFrameCount);
-	for (let channel = 0; channel < channelCount; channel += 1) {
-		const source = spectrum.channels[channel]!;
-		for (let component = 0; component < 2; component += 1) {
-			const plane = component === 0 ? source.real : source.imaginary;
-			for (let frequency = 0; frequency < frequencyBinCount; frequency += 1) {
-				for (let time = 0; time < timeFrameCount; time += 1) {
-					output[((channel * 2 + component) * frequencyBinCount + frequency)
-						* timeFrameCount + time] = plane[time * frequencyBinCount + frequency]!;
-				}
-			}
-		}
-	}
-	return output;
-}
-
-function applyTigerMask(
-	spectrum: TigerDnrSpectrumV1,
-	masks: Float32Array,
-	stem: number,
-): TigerDnrSpectrumV1 {
-	const { frequencyBinCount, timeFrameCount } = spectrum;
-	const channels = spectrum.channels.map((source, channel) => {
-		const real = new Float32Array(frequencyBinCount * timeFrameCount);
-		const imaginary = new Float32Array(real.length);
-		for (let frequency = 0; frequency < frequencyBinCount; frequency += 1) {
-			for (let time = 0; time < timeFrameCount; time += 1) {
-				const spectrumOffset = time * frequencyBinCount + frequency;
-				const maskOffset = (((channel * TIGER_STEM_COUNT + stem) * 2)
-					* frequencyBinCount + frequency) * timeFrameCount + time;
-				const sourceReal = source.real[spectrumOffset]!;
-				const sourceImaginary = source.imaginary[spectrumOffset]!;
-				const maskReal = masks[maskOffset]!;
-				const maskImaginary = masks[maskOffset + frequencyBinCount * timeFrameCount]!;
-				real[spectrumOffset] = sourceReal * maskReal - sourceImaginary * maskImaginary;
-				imaginary[spectrumOffset] = sourceReal * maskImaginary + sourceImaginary * maskReal;
-			}
-		}
-		return Object.freeze({ real, imaginary });
-	});
-	return Object.freeze({ ...spectrum, channels: Object.freeze(channels) });
-}
-
 function assertExactNames(
 	actual: readonly string[],
 	expected: readonly string[],
@@ -442,37 +565,4 @@ function assertExactNames(
 	if (JSON.stringify(actual) !== JSON.stringify(expected)) {
 		throw new TypeError(`The ${label} ONNX graph ${kind} signature is invalid.`);
 	}
-}
-
-async function publishWaves(
-	context: AssistanceRuntimeFamilyWorkerExecutionContext,
-	bodies: readonly Uint8Array[],
-): Promise<unknown> {
-	context.signal?.throwIfAborted();
-	if (bodies.length !== context.grant.outputs.length) {
-		throw new TypeError('The enhanced WAV inventory does not satisfy its exact reservations.');
-	}
-	await Promise.all(bodies.map(async (body, index) => {
-		const reservation = context.grant.outputs[index]!;
-		if (body.byteLength < 45 || body.byteLength > reservation.maximumByteLength) {
-			throw new RangeError('An enhanced WAV exceeds its authenticated output reservation.');
-		}
-		await writeFile(reservation.path, body);
-	}));
-	context.signal?.throwIfAborted();
-	context.onProgress(1);
-	return Object.freeze({
-		resultVersion: 1, jobId: context.grant.jobId,
-		familyId: context.grant.familyId, task: context.grant.task,
-		outputs: Object.freeze(bodies.map((body, index) => {
-			const reservation = context.grant.outputs[index]!;
-			return Object.freeze({ claimId: reservation.claimId, role: reservation.role,
-				mediaType: reservation.mediaType, byteLength: body.byteLength,
-				sha256: createHash('sha256').update(body).digest('hex') });
-		})),
-	});
-}
-
-function ascii(value: Uint8Array, offset: number): string {
-	return String.fromCharCode(...value.subarray(offset, offset + 4));
 }
