@@ -40,7 +40,6 @@ export function registerDesktopNativeTier(options) {
 	const seams = requireNativeTierSeams(options);
 	let activation = createSoundscaperNativeActivationPolicy({
 		sourceAudit: options.nativeSourceAudit ?? null,
-		pluginIsolationEnforced: options.nativePluginIsolationEnforced === true,
 	});
 	const backendActivated = typeof options.isBackendActivated === 'function'
 		? options.isBackendActivated : (backend) => activation.audioBackend(backend);
@@ -67,9 +66,6 @@ export function registerDesktopNativeTier(options) {
 				if (payload.status === 'available') {
 					activation = createSoundscaperNativeActivationPolicy({
 						sourceAudit: payload.descriptor.sourceAudit,
-						// The current utilityProcess host is same-UID and has no
-						// authenticated OS launcher, regardless of signed review bytes.
-						pluginIsolationEnforced: false,
 					});
 				}
 			}

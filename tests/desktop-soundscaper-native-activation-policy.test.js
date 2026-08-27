@@ -11,12 +11,19 @@ import {
 	productionSoundscaperPluginFormatActivated,
 } from '../desktop/soundscaper-native-activation-policy.mjs';
 
-test('checked-in native policy keeps every backend and user plug-in format closed', () => {
+test('checked-in native policy keeps payload-backed audio closed and exposes platform plug-in formats', () => {
 	for (const backend of ['coreaudio', 'wasapi', 'asio', 'pipewire', 'alsa', 'jack']) {
 		assert.equal(productionSoundscaperAudioBackendActivated(backend), false, backend);
 	}
-	for (const format of ['vst3', 'clap', 'au', 'lv2', 'fixture']) {
-		assert.equal(productionSoundscaperPluginFormatActivated(format), false, format);
+	const expected = {
+		vst3: ['darwin', 'win32', 'linux'].includes(process.platform),
+		clap: ['darwin', 'win32', 'linux'].includes(process.platform),
+		au: process.platform === 'darwin',
+		lv2: process.platform === 'linux',
+		fixture: false,
+	};
+	for (const [format, available] of Object.entries(expected)) {
+		assert.equal(productionSoundscaperPluginFormatActivated(format), available, format);
 	}
 });
 
@@ -45,7 +52,7 @@ test('fixture stays test-only even if its implemented evidence row exists', () =
 	assert.equal(policy.pluginFormat('fixture'), false);
 });
 
-test('third-party formats require an actually enforced OS launcher, not signed release readiness', () => {
+test('third-party format visibility is platform-scoped and independent of release review', () => {
 	const mutableLicensing = structuredClone(licensing);
 	const mutableSources = structuredClone(sources);
 	activate(mutableLicensing.futureDistributionGates, 'native-plugins', 'enabled');
@@ -65,12 +72,14 @@ test('third-party formats require an actually enforced OS launcher, not signed r
 			},
 		},
 	};
-	assert.equal(createSoundscaperNativeActivationPolicy(common).pluginFormat('vst3'), false,
-		'a current same-UID utility process is not an isolated launcher');
+	assert.equal(createSoundscaperNativeActivationPolicy(common).pluginFormat('vst3'), true,
+		'the format surface is visible before a payload is selected');
 	assert.equal(createSoundscaperNativeActivationPolicy({
 		...common, pluginIsolationEnforced: true,
 	}).pluginFormat('vst3'), true,
-	'Milestone 9 release review does not block an authenticated, isolated test path');
+	'Milestone 9 release review does not change the test surface');
+	assert.equal(createSoundscaperNativeActivationPolicy({ ...common, platform: 'freebsd' })
+		.pluginFormat('vst3'), false, 'unsupported platforms remain machine-unavailable');
 });
 
 function activate(rows, id, value, field = 'status') {

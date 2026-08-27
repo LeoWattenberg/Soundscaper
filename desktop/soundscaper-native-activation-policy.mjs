@@ -22,7 +22,6 @@ const FORMATS = Object.freeze({
 export function createSoundscaperNativeActivationPolicy({
 	sources = sourceAcquisitions,
 	sourceAudit = null,
-	pluginIsolationEnforced = false,
 	platform = process.platform,
 } = {}) {
 	const source = (id) => {
@@ -40,10 +39,13 @@ export function createSoundscaperNativeActivationPolicy({
 	const activated = (entry) => Boolean(entry)
 		&& entry.platforms.includes(platform)
 		&& entry.sources.every(source);
+	const surfaceAvailable = (entry) => Boolean(entry) && entry.platforms.includes(platform);
 	return Object.freeze({
 		audioBackend: (backend) => activated(BACKENDS[backend]),
-		pluginFormat: (format) => format !== 'fixture' && pluginIsolationEnforced === true
-			&& activated(FORMATS[format]),
+		// Format visibility is not execution authority. The helper reopens the
+		// exact payload and plug-in bytes and enforces the target OS launcher at
+		// each scan/host operation; pending M9 review must not hide the surface.
+		pluginFormat: (format) => format !== 'fixture' && surfaceAvailable(FORMATS[format]),
 	});
 }
 

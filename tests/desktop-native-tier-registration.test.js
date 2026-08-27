@@ -115,7 +115,7 @@ test('production audio-session IPC reaches the real service and keeps unavailabl
 	assert.equal(registration.tier.audio.realtimeBroker.snapshot().owned, false);
 });
 
-test('checked-in production policy blocks third-party hosting before an available payload is consulted', async (context) => {
+test('checked-in policy exposes third-party formats and defers execution to machine payload admission', async (context) => {
 	let helperCreations = 0;
 	const registration = createRegistration(await temporaryUserData(context), {}, {
 		isPluginHostFormatActivated: undefined,
@@ -131,26 +131,28 @@ test('checked-in production policy blocks third-party hosting before an availabl
 	await registration.tier.ready();
 	const availability = await registration.invoke(IPC.nativePluginAvailability);
 	const vst3 = availability.consent.formats.find(({ format }) => format === 'vst3');
-	assert.deepEqual({ supported: vst3.supported, granted: vst3.granted, roots: vst3.roots }, {
-		supported: false, granted: false, roots: [],
-	});
-	await assert.rejects(
-		() => registration.invoke(IPC.nativePluginConsent, { format: 'vst3', action: 'grant' }),
-		/blocked by production policy/u,
-	);
+	assert.equal(vst3.supported, true);
+	assert.equal(vst3.granted, false);
+	assert.equal(await registration.invoke(
+		IPC.nativePluginConsent, { format: 'vst3', action: 'grant' },
+	).then((value) => value.formats.find(({ format }) => format === 'vst3').granted), true);
 	assert.equal((await registration.invoke(IPC.nativePluginScan, {
 		format: 'vst3', rootId: 'renderer-cannot-name-a-path',
-	})).code, 'consent-required');
+	})).code, 'unknown-root');
 	const admission = registration.tier.plugins.registry.record(pluginObservation({ format: 'vst3' }));
 	assert.equal(admission.status, 'recorded');
 	if (admission.status !== 'recorded') return;
+	await registration.invoke(IPC.nativePluginReviewInstallation, {
+		installationId: admission.installationId, action: 'allow',
+	});
 	await assert.rejects(
 		() => registration.invoke(IPC.nativePluginInstantiate, {
 			installationId: admission.installationId, instanceId: null, sampleRate: 48_000,
 		}),
-		/production activation gate/u,
+		/stub MessageChannel.*native stream.*gate/u,
 	);
-	assert.equal(helperCreations, 0, 'policy refusal must happen before payload or spawn authority is consulted');
+	assert.equal(helperCreations, 1,
+		'execution reaches the machine-authenticated helper and stream/launcher boundary');
 });
 
 test('checked-in production policy never offers or executes the fixture format', async (context) => {
