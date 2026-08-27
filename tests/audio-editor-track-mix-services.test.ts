@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
@@ -214,6 +215,55 @@ test('derived source persistence removes a committed source when project ownersh
 	assert.equal(peakCache.has('derived'), false);
 });
 
+test('derived source persistence replaces inherited identity with its committed PCM identity', async () => {
+	const channels = [Float32Array.of(0.25, -0.5)];
+	const identity = canonicalPcmIdentity(channels);
+	const buffers = new Map<string, AudioBufferLike>();
+	const service = createDerivedSourceService({
+		lifetime: { assertActive() {} },
+		copy: { effectInvalidAudio: 'Invalid audio' },
+		getProject: () => projectFixture(),
+		captureProject: () => ({ generation: 1, projectId: 'project' }),
+		assertProject() {},
+		createId: () => 'derived',
+		projectSampleRate: () => 48_000,
+		retireSourceChunkProvider: async () => undefined,
+		getAudioContext: async () => ({}),
+		createBufferFromChannels: async (values, sampleRate) => audioBufferFixture(values, sampleRate),
+		loadSourceChannels: async () => channels,
+		writeBuffer: async (writer, buffer) => { await writer.write([buffer.getChannelData(0)]); },
+		generateWaveformPeaks: async () => ({ levels: [] }),
+		peakCacheKey: (sourceId) => `peaks:${sourceId}`,
+		cacheSourceBuffer: (sourceId, buffer) => { buffers.set(sourceId, buffer); },
+		sourceBuffers: buffers,
+		sourcePeaks: new Map(),
+		sourceChunkFrames: channels[0]!.length,
+		store: {
+			beginSourceWrite: async () => ({
+				write: async () => undefined,
+				commit: async () => ({
+					sha256: identity.contentSha256,
+					byteLength: identity.byteLength,
+					frameCount: channels[0]!.length,
+				}),
+				abort: async () => undefined,
+			}),
+			saveAnalysis: async () => undefined,
+			deleteSource: async () => undefined,
+		},
+	});
+
+	const result = await service.persistDerivedSource({
+		...sourceFixture('source'),
+		contentSha256: 'a'.repeat(64),
+		byteLength: 99,
+	}, channels, 'Derived');
+
+	assert.notEqual(result.source.contentSha256, 'a'.repeat(64));
+	assert.equal(result.source.contentSha256, identity.contentSha256);
+	assert.equal(result.source.byteLength, identity.byteLength);
+});
+
 test('derived source failure drains its provider before backing deletion and preserves cleanup context', async () => {
 	const project = projectFixture({ sources: [sourceFixture('source')] });
 	const primaryFailure = new Error('waveform generation failed');
@@ -242,7 +292,7 @@ test('derived source failure drains its provider before backing deletion and pre
 		getAudioContext: async () => ({}),
 		createBufferFromChannels: async (channels, sampleRate) => audioBufferFixture(channels, sampleRate),
 		loadSourceChannels: async () => [new Float32Array([1, 2])],
-		writeBuffer: async () => undefined,
+		writeBuffer: async (writer, buffer) => { await writer.write([buffer.getChannelData(0)]); },
 		generateWaveformPeaks: async () => { throw primaryFailure; },
 		peakCacheKey: (sourceId) => `peaks:${sourceId}`,
 		cacheSourceBuffer: (sourceId, buffer) => {
@@ -507,4 +557,22 @@ function audioBufferFixture(channels: readonly Float32Array[], sampleRate: numbe
 		sampleRate,
 		getChannelData: (channel: number) => channels[channel] ?? new Float32Array(),
 	};
+}
+
+function canonicalPcmIdentity(channels: readonly Float32Array[]) {
+	const frameCount = channels[0]?.length ?? 0;
+	const bytes = new Uint8Array(4 + channels.length * frameCount * Float32Array.BYTES_PER_ELEMENT);
+	const view = new DataView(bytes.buffer);
+	view.setUint32(0, frameCount, true);
+	let offset = 4;
+	for (const channel of channels) {
+		for (const sample of channel) {
+			view.setFloat32(offset, sample, true);
+			offset += Float32Array.BYTES_PER_ELEMENT;
+		}
+	}
+	return Object.freeze({
+		contentSha256: createHash('sha256').update(bytes).digest('hex'),
+		byteLength: bytes.byteLength,
+	});
 }
