@@ -3,11 +3,11 @@
 /**
  * The catalog of models the product offers, and what state each one is in.
  *
- * The catalog is data rather than code, so offering a model is a reviewed data
- * change. V2 is authenticated before parsing and binds each offered entry to
- * the canonical digest of one complete, permitted licensing-evidence row.
- * Refused, unresolved, unsigned, and unmirrored models never enter the runtime
- * catalog.
+ * The catalog is data rather than code. V2 is authenticated before parsing and
+ * binds each offered entry to the canonical digest of its licensing-evidence
+ * row. Pending human review remains milestone-9 release metadata; unsigned,
+ * unmirrored, or artifact-incomplete models cannot construct machine execution
+ * authority.
  *
  * Distribution provenance also distinguishes an identity mirror from a
  * reproducible conversion. Identity mirrors must match every upstream byte;

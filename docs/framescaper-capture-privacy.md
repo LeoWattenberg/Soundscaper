@@ -4,8 +4,9 @@
 > `framescaperCapture:true` and activates capture on standalone web and desktop
 > through its exact controller, app binding, and runtime probe. Recording Setup
 > remains default-hidden and requires explicit opt-in through **View > Panels**.
-> Manual real-device and owner-lab qualification remains open and provisional;
-> `framescaperWebVcr:false` keeps the post-milestone extension disabled.
+> Manual real-device and owner-lab qualification is tracked only by the
+> milestone-9 stable 1.0 admission record. `framescaperWebVcr:true` enables the
+> default-hidden, Record-menu-owned post-milestone extension for testing now.
 
 The selected F31 capture implementation is local-first. It can capture a
 camera, microphone, display, or a supported combination of those sources.
@@ -121,16 +122,16 @@ Locks alone is not a durability or device qualification claim.
 Historical exact schema-19 web, schema-18 desktop, and schema-20 web/desktop
 remain compatibility routes, and embedded Framescaper remains denied.
 
-## Dormant Web VCR privacy boundary
+## Active Web VCR privacy boundary
 
-The Framescaper Web VCR software substrate is disabled behind
-`framescaperWebVcr: false`. The normal production application therefore has no
-Web VCR menu or panel and does not create its remote guest, popup, persistent
-profile, or capture grant. The following rules describe maintained dormant
-contracts and activation gates, not an available product feature.
+The Framescaper Web VCR software substrate is enabled with
+`framescaperWebVcr: true`. Its panel is default-hidden and summon-only from the
+Record menu. Startup and ordinary project use create no remote guest, popup,
+persistent profile, or capture grant; those resources are materialized lazily
+only after a direct user action summons the feature.
 
-If activated after qualification, Web VCR authentication would live only in a
-dedicated persistent profile. Browser URL, page title, and login state stay
+Web VCR authentication lives only in a dedicated persistent profile. Browser
+URL, page title, and login state stay
 ephemeral; crop gesture history and diagnostic data stay out of project state. The remote
 page naturally receives the navigation and interactive input sent to it, but
 it receives no editor preload, IPC, filesystem, project, helper, shell, or
@@ -145,7 +146,7 @@ an ordinary project asset. An uncropped intermediate is capture-owned working
 data, never a Project Bin asset, and must be removed after verified crop
 publication or preserved only inside the existing explicit recovery envelope
 until import or discard. Exact-surface, encoder-crop, cropped-only retention,
-sync, drop, teardown, and recovery budgets all fail closed before activation.
+sync, drop, teardown, and recovery machine checks all fail closed per recording.
 
 The deterministic loopback HTTPS fixture and its Linux x64/Xvfb packaged
 feasibility smoke are evidence only. The smoke emits `qualification: false`
@@ -154,7 +155,8 @@ video, page audio, visual-marker, crop/ended, data-clear, and teardown checks.
 It does not establish the supported real-runtime matrix, encoder performance,
 long-session, platform, or privacy qualification, and it uses only a checked-in
 test certificate and loopback content rather than public network or provider
-credentials.
+credentials. Those human reviews are milestone-9 stable 1.0 admission checks;
+they never disable the enabled build or test surface.
 
 ## Qualification status
 

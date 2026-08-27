@@ -7,12 +7,10 @@
  * desktop tier when its authenticated payload is present. Human distribution
  * review is recorded for Milestone 9 but never hides the implemented route.
  *
- * A preset never creates legal availability. Each names the rows it depends on
- * and reports their recorded status verbatim; a row this file cannot find is
- * unavailable rather than assumed fine, because a preset that cannot locate its
- * gate has no basis for claiming it passed. Nothing here simulates a cleared
- * row, and clearing one is external work — a licensing decision, a contract
- * change admitting a media job kind, and a native binary — none of it here.
+ * Each preset names the production licensing rows Milestone 9 must review
+ * before stable 1.0. Those rows never hide an implemented target or disable
+ * build, test, package, or execution; exact machine executors perform their own
+ * payload, platform, containment, consent, and capacity admission.
  */
 
 import { VIDEO_EXPORT_FORMATS } from './video-export.js';
@@ -244,12 +242,10 @@ export function resolvePlatformDeliveryAvailability(
 }
 
 /**
- * The plan options this preset means, or null when it cannot deliver.
- *
- * Null is the whole substrate: a blocked preset resolves to nothing rather than
- * to options a plan builder would happily accept and deliver as something else.
- * The caller is expected to follow the fallback, which is why every gated preset
- * names one.
+ * The browser-video plan options this preset means, or null when this preset is
+ * owned by a different executor. Native targets return null here because their
+ * exact queue execution is exposed by `resolvePlatformDeliveryExecution`, not
+ * because human licensing review is pending.
  */
 export function resolvePlatformDeliveryPlanOptions(
 	preset: PlatformDeliveryPreset,

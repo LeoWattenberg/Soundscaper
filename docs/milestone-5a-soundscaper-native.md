@@ -150,16 +150,19 @@ The implemented route and remaining gates are explicit:
    contracts. No authenticated built launcher or professional target payload,
    independently signed isolation-readiness review, professional package/manual
    run, accepted cohort, or provisioned native lab exists. Signing/notarization
-   identities, release keys, and target toolchains are likewise absent; no
-   blocked row is promoted or simulated.
+   identities, release keys, and target toolchains are likewise absent. These
+   human records remain pending for Milestone 9 stable-release admission and
+   are neither promoted nor consulted by current execution.
 
 The entry rule is therefore exact: external source acquisition, target builds,
-licensing/patent/notices/trademark clearance, signing/notarization, independent
-isolation review, and physical qualification cannot be simulated. There is no
-remaining in-repository 5A software packet, but third-party execution stays
-production-closed until an authenticated built per-OS launcher and exact target
-payload are bound to independently signed readiness evidence. Neither category
-may be inferred or filled from a neighbouring target.
+payload identity, platform compatibility, containment, consent, quarantine,
+and capacity cannot be simulated. There is no remaining in-repository 5A
+software packet; third-party execution is enabled for testing when an
+authenticated per-OS launcher and exact target payload pass those machine
+checks. Licensing/patent/notices/trademark clearance, signing/notarization,
+independent isolation review, and physical qualification are Milestone 9
+stable-1.0 release inputs and never execution inputs. No machine or release
+evidence may be inferred from a neighbouring target.
 
 ## Non-negotiable invariants
 
@@ -290,8 +293,11 @@ may be inferred or filled from a neighbouring target.
 ### Hosting, state, PDC, and vendor UI
 
 - VST3 and CLAP are cross-platform targets; Audio Units is macOS-only and LV2
-  Linux-only. Each format remains disabled until its platform/source/license/
-  notice row and packaged fixture pass.
+  Linux-only. Each platform-appropriate format is exposed for testing now.
+  Actual scan and host execution still requires the exact authenticated target
+  payload, OS launcher, plug-in digest, user consent, and non-quarantined state.
+  Source/license/notice and packaged-fixture review belongs to milestone 9 and
+  blocks stable 1.0 admission, not the test surface.
 - Isolation is one host process per renderer owner and plug-in binary digest.
   Multiple instances of that exact digest may share the host, but unrelated
   binaries and renderer owners never do. Revocation kills the matching host and
@@ -338,14 +344,16 @@ may be inferred or filled from a neighbouring target.
 5. **5A-2 — Software complete; packaged format evidence open.** Explicit
    consent, roots, scanner, registry, trust/compatibility decisions, durable
    quarantine, retry/revoke, and the menu-owned dialog are implemented.
-6. **5A-3 — Software complete; third-party activation open.** Real-time/offline
+6. **5A-3 — Software complete; third-party testing enabled.** Real-time/offline
    DSP, bounded state, exact PDC, recovery, revocation, helper-owned vendor UI,
-   and the reviewed per-OS launcher contracts exist. VST3, CLAP, AU, and LV2
-   remain licensing-, payload-, readiness-, signing-, and target-gated.
-7. **5A-4 — Evidence software complete; qualification open.** The collector,
+   and the per-OS launcher contracts exist. VST3, CLAP, AU, and LV2 are exposed
+   for testing and execute when exact payload, platform, containment, consent,
+   and quarantine checks pass. Human licensing, readiness, signing, and lab
+   review are Milestone 9 stable-1.0 release gates only.
+7. **5A-4 — Evidence software complete; release qualification open.** The collector,
    verifier, and correctness/fault suites exist. Five-target packaged fixtures,
    independently signed readiness, and the no-retry native-lab cohort remain
-   pending-external.
+   pending-external for Milestone 9 and do not disable current testing.
 
 5A-1 and 5A-2 may run in parallel only after their applicable 5A-0 exits. 5A-3
 requires 5A-0c, the 5A-2 registry/revocation model, and the already-implemented

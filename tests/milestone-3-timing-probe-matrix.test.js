@@ -80,9 +80,9 @@ test('WP-0.3 geometry fixtures state one picture under three declarations', () =
 	}
 });
 
-test('WP-0.3 does not overclaim the unexecuted supported Electron matrix', () => {
+test('WP-0.3 activates the full maintained Electron matrix without overclaiming release qualification', () => {
 	const electronVersion = packageJson.devDependencies.electron;
-	const expected = milestone2.platformSet.desktopTargets.flatMap((target) => (
+	const expected = milestone2.testActivation.desktopTargets.flatMap((target) => (
 		['soundscaper', 'framescaper'].map((product) => `${product}:${target}`)
 	)).sort();
 	assert.deepEqual(
@@ -92,12 +92,12 @@ test('WP-0.3 does not overclaim the unexecuted supported Electron matrix', () =>
 	for (const row of matrix.electronRows) {
 		assert.equal(row.version, electronVersion);
 		assert.equal(row.status, 'pending-external');
+		assert.equal(row.testActivation, 'automated');
+		assert.equal(row.humanReviewMilestone, 9);
 		assert.ok(row.blocker);
+		assert.match(row.blocker, /test.*enabled.*stable 1\.0.*pending/iu);
 	}
-	assert.match(matrix.minimumFollowUp, /ordinary-import timing-probe harness/iu);
-	for (const row of matrix.electronRows.filter(({ target }) => target === 'linux-x64')) {
-		assert.match(row.blocker, /harness exists.*runner execution.*accepted result/iu);
-	}
+	assert.match(matrix.minimumFollowUp, /accept.*results.*all ten.*milestone 9/iu);
 });
 
 async function json(path) {

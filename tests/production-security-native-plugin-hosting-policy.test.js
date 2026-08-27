@@ -18,8 +18,8 @@ test('the native plug-in hosting row describes the out-of-process host that ship
 	);
 	const controls = new Map(risk.currentControls.map((control) => [control.id, control]));
 
-	const fence = controls.get('unreached-plugin-hosting-surface');
-	assert.ok(fence, 'the surface fence must say what is and is not reachable');
+	const fence = controls.get('menu-reached-plugin-hosting-surface');
+	assert.ok(fence, 'the surface control must say what is and is not machine-runnable');
 	assert.match(
 		fence.summary,
 		/Soundscaper S30.*exact S29 foundation.*insert.*native-plugin.*persistent supervised host.*real-time and offline.*V21 PDC.*vendor window/iu,
@@ -28,8 +28,14 @@ test('the native plug-in hosting row describes the out-of-process host that ship
 		fence.summary,
 		/Framescaper F31.*immutable V28 foundation.*scan, enable and Add OFX.*context-aware V14 frame graph.*all six contexts.*Interact Suite V1.*DrawSuite V1/iu,
 	);
-	assert.match(fence.summary, /VST3, CLAP, Audio Units, LV2 and OpenFX remain fail-closed.*fixture/iu);
-	assert.match(fence.summary, /launcher source.*no authenticated built target payload\/launcher.*signed readiness/iu);
+	assert.match(
+		fence.summary,
+		/VST3, CLAP, Audio Units, LV2 and OpenFX.*enabled for testing.*human.*milestone 9.*stable 1\.0.*never.*execution/iu,
+	);
+	assert.match(
+		fence.summary,
+		/no authenticated built target payload\/launcher.*machine.*unavailable/iu,
+	);
 	assertEvidence(fence, [
 		'desktop/preload.mjs',
 		'desktop/plugin-registration.mjs',
@@ -56,7 +62,7 @@ test('the native plug-in hosting row describes the out-of-process host that ship
 	);
 	assert.match(
 		execution.summary,
-		/re-hashes the granted file.*changed digest.*unreviewed installation.*dlopen.*RTLD_NOW \| RTLD_LOCAL/iu,
+		/re-hashes the granted file.*changed digest.*different installation.*dlopen.*RTLD_NOW \| RTLD_LOCAL/iu,
 	);
 	assert.match(
 		execution.summary,
@@ -120,20 +126,20 @@ test('the native plug-in hosting row describes the out-of-process host that ship
 	]);
 });
 
-test('the native plug-in hosting row keeps its gaps unsoftened', async () => {
+test('the native plug-in hosting row enables testing while keeping machine gaps unsoftened', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	const risk = matrix.risks.find(({ id }) => id === 'native-plugin-hosting');
-	assert.equal(risk.status, 'planned');
-	assert.equal(risk.releaseDisposition, 'surface-disabled');
+	assert.equal(risk.status, 'partial');
+	assert.equal(risk.releaseDisposition, 'conditional');
 	const residuals = new Map(risk.residualRisks.map((residual) => [residual.id, residual]));
 
 	const authority = residuals.get('hosted-plugin-ambient-authority');
 	assert.ok(authority, 'ambient authority must remain a named residual risk');
 	assert.match(
 		authority.exposure,
-		/launcher source.*Linux namespaces\/Landlock\/seccomp.*macOS Seatbelt.*Windows AppContainer.*no authenticated built launcher.*crash containment.*(?:not|rather than) a demonstrated hostile-code boundary/iu,
+		/launcher source.*Linux namespaces\/Landlock\/seccomp.*macOS Seatbelt.*Windows AppContainer.*no authenticated built launcher.*machine-unavailable/iu,
 	);
-	assert.match(authority.exposure, /no accepted signature or publisher-verification channel/iu);
+	assert.match(authority.exposure, /signature or publisher-verification.*milestone 9.*stable 1\.0/iu);
 
 	const unexercised = residuals.get('unexercised-plugin-hosting-gates');
 	assert.ok(unexercised, 'the unexercised hosting gates must remain a named residual risk');
@@ -141,7 +147,14 @@ test('the native plug-in hosting row keeps its gaps unsoftened', async () => {
 		unexercised.exposure,
 		/product callers.*Soundscaper S30.*exact S29 foundation.*real-time and offline hosting.*V21 PDC.*vendor-window lifecycle.*Framescaper F31.*immutable V28 foundation.*all six contexts/iu,
 	);
-	assert.match(unexercised.exposure, /external source audit is 0\/10.*OpenFX payload manifest is empty.*no authenticated built per-OS launcher.*no shipped process/iu);
+	assert.match(
+		unexercised.exposure,
+		/external source audit is 0\/10.*OpenFX payload manifest is empty.*no authenticated built per-OS launcher.*machine payload/iu,
+	);
+	assert.match(
+		unexercised.requiredControl,
+		/human.*milestone 9.*stable 1\.0.*not.*(?:execution|testing)/iu,
+	);
 	for (const residual of risk.residualRisks) {
 		assert.ok(residual.requiredControl.length > 0, residual.id);
 		assert.ok(residual.acceptanceCriteria.length > 0, residual.id);
@@ -163,20 +176,23 @@ test('the native helper row stops describing hosting and device opening as absen
 	assert.match(residual.acceptanceCriteria.join(' '), /m5-helper-fault-and-loopback-v1/u);
 });
 
-test('the threat-model narrative separates implemented hosting from external activation', async () => {
+test('the threat-model narrative separates enabled testing from machine and release admission', async () => {
 	const threatModel = (await readFile(threatModelUrl, 'utf8')).replace(/\s+/gu, ' ');
 	assert.doesNotMatch(threatModel, /plug-in hosting remain out of scope/iu);
 	assert.doesNotMatch(threatModel, /discovers operating-system audio backends and opens no device/iu);
 	assert.match(
 		threatModel,
-		/planned and surface-disabled.*not activated.*not (?:because|that) no product hosting code exists/iu,
+		/partial and conditionally admitted.*enabled for testing.*human.*milestone 9.*stable 1\.0/iu,
 	);
 	assert.match(
 		threatModel,
 		/Soundscaper S30\/V11.*exact S29-founded.*real-time and offline.*V21 PDC.*vendor.*Framescaper F31\/V14\/V20.*immutable V28 foundation.*all six contexts.*Interact Suite V1.*DrawSuite V1/iu,
 	);
 	assert.match(threatModel, /0\/10.*payload.*pending-external.*zero accepted cohorts/iu);
-	assert.match(threatModel, /launcher source.*Landlock.*Seatbelt.*AppContainer.*no authenticated built/iu);
+	assert.match(
+		threatModel,
+		/launcher source.*Landlock.*Seatbelt.*AppContainer.*no authenticated built.*machine payload/iu,
+	);
 });
 
 function assertEvidence(control, paths) {

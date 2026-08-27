@@ -364,11 +364,11 @@ test('the dialog names the target a route without an executor actually falls bac
 	assert.equal(findPlatformDeliveryPreset('native-alpha-mezzanine')!.fallbackPresetId, 'native-mezzanine-prores');
 });
 
-test('a licensing-cleared native target still degrades visibly in the web dialog', () => {
-	// The moment a native codec's licensing rows clear, the preset becomes
-	// available — but its execution still has no plan in the web tier. The
-	// dialog must resolve it to the named fallback with degradedFrom stating
-	// the asked-for target, never to a request naming no target at all.
+test('an implemented native target degrades visibly in the web dialog', () => {
+	// Human licensing status does not control availability, but the browser
+	// executor still has no native plan. The dialog resolves to the named
+	// fallback with degradedFrom stating the asked-for target, never to a
+	// request naming no target at all.
 	const cleared = {
 		rows: ['codec-encode-prores-mov-422-hq', 'codec-native-ffmpeg-current-set'].map((id) => ({
 			id, status: 'cleared',
@@ -377,7 +377,7 @@ test('a licensing-cleared native target still degrades visibly in the web dialog
 	const target = statedVideoDeliveryTarget(
 		{ deliveryTarget: 'native-mezzanine-prores' }, cleared,
 	);
-	assert.ok(target, 'a cleared native target must still resolve to a delivery');
+	assert.ok(target, 'an implemented native target must resolve to a delivery');
 	assert.equal(target.presetId, 'web-1080p');
 	assert.equal(target.degradedFrom, 'native-mezzanine-prores');
 });

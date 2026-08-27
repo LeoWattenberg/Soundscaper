@@ -3,8 +3,8 @@
 	"scopeRevision": 2,
 	"milestone": "2",
 	"frozenAt": "2026-08-08",
-	"revisedAt": "2026-08-09",
-	"revisionReason": "User-approved revision 2: WebKit validation is deferred because the pinned Playwright WebKit build exposes no OPFS, no MediaRecorder, and no IndexedDB Blob storage; ARM64 validation is deferred for lack of hardware access; the deprecated macos-x64 target is retired.",
+	"revisedAt": "2026-08-27",
+	"revisionReason": "Revision 2 retains the historical qualified/deferred evidence split. Current automated test activation includes WebKit and every maintained desktop target; human qualification is deferred only as milestone-9 stable 1.0 release evidence. The deprecated macos-x64 target remains retired.",
 	"completionRule": "Milestone 2 closes when every item in this revision is implemented. Work not named here cannot block closure.",
 	"expansionPolicy": {
 		"newCapabilitiesDisposition": "milestone-3-or-later",
@@ -20,8 +20,9 @@
 	},
 	"testActivation": {
 		"browserProjects": ["chromium", "firefox", "webkit"],
+		"desktopTargets": ["windows-x64", "windows-arm64", "macos-arm64", "linux-x64", "linux-arm64"],
 		"humanReviewMilestone": 9,
-		"policy": "Manual browser-engine qualification is a stable 1.0 release-admission input at milestone 9 and never disables automated testing. Tests skip only when the current engine reports a concrete missing API or runtime capability."
+		"policy": "Manual browser-engine and desktop-target qualification is a stable 1.0 release-admission input at milestone 9 and never disables automated testing. Tests skip only when the current engine, target, or runner reports a concrete missing API or runtime capability."
 	},
 	"gates": [
 		{
@@ -189,7 +190,7 @@
 			"qualifiedBrowserProjects": ["chromium", "firefox"],
 			"deferredBrowserProjects": ["webkit"],
 			"acceptance": [
-				"Each workflow ID passes in each qualified browserProject or records a truthful unsupported outcome with the Web Core fallback passing; WebKit qualification is deferred by scope revision 2.",
+				"Each workflow ID passes in each historically qualified browserProject or records a truthful unsupported outcome with the Web Core fallback passing. Scope revision 2 deferred WebKit release qualification, while current test activation runs WebKit and skips only a concrete missing API or runtime capability.",
 				"A failed workflow leaves the last committed project and installed application shell usable."
 			],
 			"ownerRefs": ["docs/quality-budgets.md", "docs/production-threat-model.md"]
@@ -333,7 +334,7 @@
 				"crash-restart-recovery"
 			],
 			"acceptance": [
-				"The seven product-specific workflow IDs pass for both Soundscaper and Framescaper packages on each qualified desktopTarget, and cross-product-simultaneous-open passes once per paired package set; scope revision 2 defers deferredDesktopTargets validation and retires macos-x64.",
+				"The seven product-specific workflow IDs retain historical qualification evidence for both Soundscaper and Framescaper packages on each platformSet.desktopTarget, and cross-product-simultaneous-open retains one result per paired package set. Current automated testing runs every testActivation.desktopTarget; human qualification of the historically deferred targets belongs to milestone 9. macos-x64 remains retired.",
 				"Fencing tokens increase monotonically and no losing writer publishes a project or managed-media descriptor."
 			],
 			"ownerRefs": ["docs/project-compatibility.md", "docs/production-threat-model.md"]
@@ -432,7 +433,7 @@
 			"packagedProductPairQualified": true,
 			"acceptance": [
 				"Each workflow ID opens on the less-capable product, uses its admitted fallback, saves or exports without canonical mutation and returns to the originating product with editable and opaque state preserved.",
-				"The web workflows pass each qualified browserProject, with WebKit deferred by scope revision 2; the Electron workflows pass the packaged product pair."
+				"The web workflows pass each historically qualified browserProject. Scope revision 2 deferred WebKit release qualification, while current test activation runs WebKit and skips only a concrete missing API or runtime capability; the Electron workflows pass the packaged product pair."
 			],
 			"ownerRefs": ["docs/project-compatibility.md", "config/project-compatibility.json"]
 		}

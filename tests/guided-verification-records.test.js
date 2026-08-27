@@ -130,4 +130,9 @@ test('the canonical record remains reachable while the roadmap link migrates', a
 	const direct = roadmap.includes(RECORD.path);
 	const throughCompatibilityStub = LEGACY_PATHS.some((path) => roadmap.includes(path));
 	assert.ok(direct || throughCompatibilityStub);
+	assert.match(
+		roadmap,
+		/every human.*checkpoint.*milestone 9.*stable 1\.0.*never.*(?:build|building).*test.*package.*runtime/isu,
+	);
+	assert.doesNotMatch(roadmap, /8B.*Blocked|Blocked.*Audacity/iu);
 });

@@ -25,8 +25,8 @@ cross into ordinary project metadata; raw and unselected output never enters
 `.scape`. Existing Parakeet, VAD, diarization, cleanup, and model-free fast
 shots remain active.
 
-Production activation remains blocked for every new model-backed route whose
-release evidence is incomplete. The repository has a CPython 3.12,
+Every implemented model-backed route is visible and enabled for testing. The
+repository has a CPython 3.12,
 hash-locked, offline runner for TIGER, PANNs, Beat This `small0`, and
 TransNetV2 source-framework/ONNX parity, but no converted artifacts or live
 parity result have been retained; their signed catalog entries do not exist.
@@ -35,11 +35,13 @@ All five target payload closures for `onnxruntime-node`
 `pending-external`, as does the Windows-arm64 Sherpa Node addon. No live EU R2
 publication and public full-SHA-256 read-back has been recorded, and the five
 packaged target canaries and owner-lab workload have not run. Those states
-produce typed unavailability rather than substitute inference or an implicit
-download. The selected F31 capture route remains active, with its separate
-real-device qualification pending. Licensing, external catalog signature,
+produce typed machine unavailability rather than substitute inference or an
+implicit download. The selected F31 capture route remains active, with its
+separate real-device qualification pending. External catalog signature,
 artifact digest, runtime/platform compatibility, selected-media authority,
-storage integrity, consent, and external-FFmpeg admission remain fail closed.
+storage integrity, consent, and external-FFmpeg machine admission remain fail
+closed. Licensing and owner qualification are milestone-9 stable 1.0 blockers
+only.
 
 ## Outcome
 
@@ -52,16 +54,17 @@ storage integrity, consent, and external-FFmpeg admission remain fail closed.
   nonblocking. Record implementation as active and qualification as pending or
   unqualified in diagnostics and documentation without adding a user-facing
   preview or qualification warning.
-- Keep licensing, artifact integrity, explicit consent, selected-media
-  authority, runtime compatibility, storage durability, and security checks
-  fail-closed.
+- Keep artifact integrity, explicit consent, selected-media authority, runtime
+  compatibility, storage durability, and security checks fail-closed. Report
+  human licensing review to milestone 9 without disabling current work.
 
 ## Model supply chain and native runtime
 
-- Enable only the `local-models` future-distribution gate. An offered model
-  must have `distributionStatus: permitted`, complete evidence, exact runtime
-  compatibility, and mirrored artifact pins. All other future gates remain
-  disabled.
+- Enable the complete implemented model catalog for testing. An offered model
+  must still have an authenticated catalog entry, exact runtime compatibility,
+  and mirrored artifact pins. `distributionStatus` is milestone-9 release
+  metadata and cannot hide a machine-complete model. All human reviews are
+  consolidated into stable 1.0 admission.
 - Introduce signed catalog V2: Ed25519 over canonical JSON, pinned current and
   next public keys, repository-external release private keys, and explicit
   rotation. Separate upstream source artifacts from distributable artifacts.
@@ -176,8 +179,10 @@ workflow rather than asserted for the whole milestone:
   enumeration or permission prompt before user action. Preserve standalone
   origin/focus/grant checks, embedded denial, exact source grants,
   pause/resume/stop/recovery, proxy scheduling, reopen, and cleanup.
-- Leave `framescaperWebVcr` false. Assistance never consumes live capture;
-  stopped and persisted capture may be analyzed later.
+- Keep `framescaperWebVcr` true and its Record-menu panel default-hidden and
+  lazily materialized for testing. Assistance never consumes live capture;
+  stopped and persisted capture may be analyzed later. Packaged real-runtime
+  review is a milestone-9 stable 1.0 input, not an activation switch.
 - Land atomic staged commits in this order: plan; model policy and manager; job
   and runtime substrate; S30 and 7A slices; F31 and 7B slices; M8A activation;
   evidence and documentation closure. Flip each slice only after automated hard

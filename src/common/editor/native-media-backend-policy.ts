@@ -51,8 +51,8 @@ export type NativeMediaHardwareBackend = (typeof NATIVE_MEDIA_HARDWARE_BACKENDS)
 /**
  * Candidate backends per platform and operation. Membership here is a claim
  * about what the pinned FFmpeg build could offer, never that it does: the
- * capability snapshot still has to say the build, probe, self-test, licensing
- * row, and user opt-in all agree.
+ * capability snapshot still has to say the build, probe, self-test, platform,
+ * and user opt-in all agree. Human review is milestone-9 release metadata.
  */
 export const NATIVE_MEDIA_BACKEND_CANDIDATES: Readonly<Record<
 	NativeMediaPlatform,

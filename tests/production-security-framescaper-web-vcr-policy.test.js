@@ -9,10 +9,10 @@ const ENVIRONMENT_ID = 'framescaper-web-vcr-runtime-matrix';
 const FIXTURE_ID = 'm8plus-web-vcr-loopback-https-v1';
 const WORKLOAD_ID = 'm8plus-web-vcr-long-session';
 
-test('Web VCR software evidence remains behind the false production capability', async () => {
+test('Web VCR is enabled for ordinary Framescaper testing', async () => {
 	const capabilities = await json('config/production-capabilities.json');
 	const framescaper = capabilities.products.framescaper;
-	assert.equal(framescaper.applicationFeatures.framescaperWebVcr, false);
+	assert.equal(framescaper.applicationFeatures.framescaperWebVcr, true);
 	assert.equal(framescaper.platforms['electron-enhanced'].status, 'partial');
 	assert.equal(framescaper.platforms['electron-only'].status, 'partial');
 	for (const path of [
@@ -47,12 +47,12 @@ test('Web VCR software evidence remains behind the false production capability',
 		'tests/audio-editor-web-vcr-snapshot-order.test.ts',
 	]) assert.ok(
 		framescaper.platforms['electron-enhanced'].evidence.includes(path),
-		`Electron Enhanced inventory needs dormant Web VCR evidence from ${path}`,
+		`Electron Enhanced inventory needs Web VCR evidence from ${path}`,
 	);
 	assert.equal(capabilities.products.soundscaper.applicationFeatures.framescaperWebVcr, undefined);
 });
 
-test('Web VCR isolated-guest control records the narrow dormant security substrate', async () => {
+test('Web VCR isolated-guest control records the active lazy security boundary', async () => {
 	const [matrix, threatModel, privacy] = await Promise.all([
 		json('config/production-security-matrix.json'),
 		text('docs/production-threat-model.md'),
@@ -61,19 +61,18 @@ test('Web VCR isolated-guest control records the narrow dormant security substra
 	const risk = matrix.risks.find(({ id }) => id === 'electron-renderer-ipc-boundary');
 	const control = risk?.currentControls.find(({ id }) => id === CONTROL_ID);
 	assert.ok(control);
-	assert.match(control.summary, /integrated.*dormant.*framescaperWebVcr.*false/isu);
-	assert.match(control.summary, /framescaperWebVcr.*false.*normal production artifact.*no.*guest.*capture grant/isu);
-	assert.match(control.summary, /unavailable.*roadmap-gate.*without.*handshake.*guest open/isu);
+	assert.match(control.summary, /integrated.*active.*framescaperWebVcr.*true/isu);
+	assert.match(control.summary, /default-hidden.*Record.*no.*guest.*until.*direct user.*summon/isu);
 	assert.match(control.summary, /persist:framescaper-web-vcr-v1.*sandbox.*context isolation.*Node.*web security/isu);
 	assert.match(control.summary, /HTTPS.*about:blank.*credentials.*downloads.*permissions.*four.*popup/isu);
 	assert.match(control.summary, /remote.*no preload.*IPC.*filesystem.*project.*helper.*shell.*DevTools/isu);
 	assert.match(control.summary, /closed.*owner.*generation.*10-second.*single-use.*no media bytes/isu);
 	assert.match(control.summary, /destroy.*guest.*popup.*before.*cookies.*cache.*site storage/isu);
-	assert.match(control.summary, /720p.*1080p.*software.*4K.*unavailable.*no platform claim/isu);
+	assert.match(control.summary, /720p.*1080p.*enabled.*4K.*unavailable.*no platform claim/isu);
 	assert.match(control.summary, /packaged feasibility smoke.*TLS.*authentication.*scaled input.*owned guest.*page audio.*visual marker/isu);
 	assert.match(control.summary, /Electron 43.*display.*camera.*preflight.*10-second.*metadata.*no.*camera capture.*guest-partition/isu);
-	assert.match(control.summary, /milestone 8.*5B.*packaged.*runtime.*qualification.*fixture.*not qualification/isu);
-	assert.match(control.summary, /no activated-product.*packaged-runtime-qualification.*platform-support claim/isu);
+	assert.match(control.summary, /human.*review.*stable 1\.0 admission only.*never disable/isu);
+	assert.match(control.summary, /no packaged-runtime-qualification.*platform-support claim/isu);
 	assertEvidence(control, [
 		'desktop/framescaper-web-vcr-capture-authority.ts',
 		'desktop/framescaper-web-vcr-contract.ts',
@@ -112,7 +111,7 @@ test('Web VCR isolated-guest control records the narrow dormant security substra
 		'tests/production-security-framescaper-web-vcr-policy.test.js',
 	]);
 	assert.match(threatModel, new RegExp(`policy-narrative:${CONTROL_ID}`, 'u'));
-	assert.match(privacy, /Web VCR.*software substrate.*disabled.*framescaperWebVcr.*false/isu);
+	assert.match(privacy, /Web VCR.*enabled.*framescaperWebVcr.*true.*default-hidden.*Record/isu);
 	assert.match(privacy, /persistent profile.*URL.*title.*login.*crop gesture.*diagnostic.*project state/isu);
 	assert.match(privacy, /deterministic.*HTTPS fixture.*evidence only.*not.*platform.*qualification/isu);
 });
@@ -152,7 +151,7 @@ test('Web VCR quality records inherit capture budgets without claiming qualifica
 	});
 });
 
-test('Web VCR roadmap and owning plan report implemented-but-disabled truthfully', async () => {
+test('Web VCR roadmap and owning plan report the enabled test surface truthfully', async () => {
 	const [roadmap, plan] = await Promise.all([
 		text('roadmap.md'), text('docs/post-milestone-8-web-vcr-plan.md'),
 	]);
@@ -160,17 +159,17 @@ test('Web VCR roadmap and owning plan report implemented-but-disabled truthfully
 		roadmap.indexOf('## 8+. Post-milestone-8 Framescaper Web VCR extension'),
 		roadmap.indexOf('## 9. Final convergence and qualification'),
 	);
-	assert.match(section, /Status:.*Implemented.*provisional.*disabled/isu);
-	assert.match(section, /framescaperWebVcr.*false/isu);
-	assert.match(section, /milestone 8.*milestone-5B.*activation.*blocked/isu);
-	assert.match(section, /720p.*1080p.*software substrate.*no platform claim/isu);
+	assert.match(section, /Status:.*Implemented and enabled for testing/isu);
+	assert.match(section, /framescaperWebVcr.*true/isu);
+	assert.match(section, /human.*qualification.*milestone 9.*stable 1\.0.*never disables/isu);
+	assert.match(section, /720p.*1080p.*enabled.*no platform claim/isu);
 	assert.match(section, /4K.*unavailable/isu);
 	assert.match(section, /deterministic.*HTTPS fixture.*not.*qualification/isu);
 	assert.match(section, /packaged feasibility.*qualification.*false.*720p.*1080p/isu);
-	assert.match(plan, /Implementation status.*implemented.*disabled/isu);
-	assert.match(plan, /framescaperWebVcr.*false.*normal production/isu);
+	assert.match(plan, /Implementation status.*implemented.*enabled for testing/isu);
+	assert.match(plan, /framescaperWebVcr.*true.*default-hidden.*Record/isu);
 	assert.match(plan, /packaged feasibility.*720p.*1080p.*qualification.*false/isu);
-	assert.match(plan, /real-runtime matrix.*remain open.*4K.*unavailable/isu);
+	assert.match(plan, /real-runtime\s+matrix.*stable 1\.0 admission.*4K.*unavailable/isu);
 	assert.match(plan, /loopback HTTPS fixture.*evidence only.*not.*qualification/isu);
 });
 

@@ -3,17 +3,17 @@
 /*
  * The benign fixture plug-in ABI.
  *
- * Milestone 5A-3 says to add benign format fixtures before any real format, and
- * the licensing register keeps VST3, CLAP, Audio Units and LV2 fail-closed until
- * their source, licence and notice rows pass. The gate does not bend for
- * convenience, so the scanner and host machinery is proven against this format
- * instead: it is our own code under our own licence, it exercises every path a
+ * Milestone 5A-3 says to add benign format fixtures before any real format.
+ * The scanner and host machinery is proven against this repository-owned
+ * format while real VST3, CLAP, Audio Units and LV2 adapters remain governed by
+ * authenticated payload and containment checks. Human licensing review is a
+ * milestone-9 release input, not execution authority. This fixture exercises every path a
  * real format will — descriptors, classification, topology, latency, opaque
  * state, crashes, hangs, oversize answers — and it is never offered to a user.
  *
  * A fixture is an ordinary shared library exporting `soundscaper_fixture_entry_v1`.
- * Nothing here is a stand-in for a real plug-in SDK; when a format's gate opens,
- * its adapter implements the same helper-side surface this one does.
+ * Nothing here is a stand-in for a real plug-in SDK; each real adapter
+ * implements the same helper-side surface this one does.
  */
 
 #ifndef SOUNDSCAPER_FIXTURE_PLUGIN_ABI_H

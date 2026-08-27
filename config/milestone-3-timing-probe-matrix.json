@@ -101,31 +101,93 @@
 		{
 			"product": "soundscaper",
 			"version": "43.1.1",
-			"target": "linux-x64",
+			"target": "windows-x64",
 			"status": "pending-external",
-			"blocker": "The packaged Electron timing-probe harness exists for this Linux x64 product; maintained-runner execution and an accepted result remain required."
+			"testActivation": "automated",
+			"humanReviewMilestone": 9,
+			"blocker": "Automated packaged timing-probe testing is enabled on this target; an accepted stable 1.0 result remains pending for milestone 9."
 		},
 		{
 			"product": "framescaper",
 			"version": "43.1.1",
-			"target": "linux-x64",
+			"target": "windows-x64",
 			"status": "pending-external",
-			"blocker": "The packaged Electron timing-probe harness exists for this Linux x64 product; maintained-runner execution and an accepted result remain required."
+			"testActivation": "automated",
+			"humanReviewMilestone": 9,
+			"blocker": "Automated packaged timing-probe testing is enabled on this target; an accepted stable 1.0 result remains pending for milestone 9."
 		},
 		{
 			"product": "soundscaper",
 			"version": "43.1.1",
-			"target": "windows-x64",
+			"target": "windows-arm64",
 			"status": "pending-external",
-			"blocker": "A Windows x64 packaged runner and accepted timing-probe result are required."
+			"testActivation": "automated",
+			"humanReviewMilestone": 9,
+			"blocker": "Automated packaged timing-probe testing is enabled on this target; an accepted stable 1.0 result remains pending for milestone 9."
 		},
 		{
 			"product": "framescaper",
 			"version": "43.1.1",
-			"target": "windows-x64",
+			"target": "windows-arm64",
 			"status": "pending-external",
-			"blocker": "A Windows x64 packaged runner and accepted timing-probe result are required."
+			"testActivation": "automated",
+			"humanReviewMilestone": 9,
+			"blocker": "Automated packaged timing-probe testing is enabled on this target; an accepted stable 1.0 result remains pending for milestone 9."
+		},
+		{
+			"product": "soundscaper",
+			"version": "43.1.1",
+			"target": "macos-arm64",
+			"status": "pending-external",
+			"testActivation": "automated",
+			"humanReviewMilestone": 9,
+			"blocker": "Automated packaged timing-probe testing is enabled on this target; an accepted stable 1.0 result remains pending for milestone 9."
+		},
+		{
+			"product": "framescaper",
+			"version": "43.1.1",
+			"target": "macos-arm64",
+			"status": "pending-external",
+			"testActivation": "automated",
+			"humanReviewMilestone": 9,
+			"blocker": "Automated packaged timing-probe testing is enabled on this target; an accepted stable 1.0 result remains pending for milestone 9."
+		},
+		{
+			"product": "soundscaper",
+			"version": "43.1.1",
+			"target": "linux-x64",
+			"status": "pending-external",
+			"testActivation": "automated",
+			"humanReviewMilestone": 9,
+			"blocker": "Automated packaged timing-probe testing is enabled on this target; an accepted stable 1.0 result remains pending for milestone 9."
+		},
+		{
+			"product": "framescaper",
+			"version": "43.1.1",
+			"target": "linux-x64",
+			"status": "pending-external",
+			"testActivation": "automated",
+			"humanReviewMilestone": 9,
+			"blocker": "Automated packaged timing-probe testing is enabled on this target; an accepted stable 1.0 result remains pending for milestone 9."
+		},
+		{
+			"product": "soundscaper",
+			"version": "43.1.1",
+			"target": "linux-arm64",
+			"status": "pending-external",
+			"testActivation": "automated",
+			"humanReviewMilestone": 9,
+			"blocker": "Automated packaged timing-probe testing is enabled on this target; an accepted stable 1.0 result remains pending for milestone 9."
+		},
+		{
+			"product": "framescaper",
+			"version": "43.1.1",
+			"target": "linux-arm64",
+			"status": "pending-external",
+			"testActivation": "automated",
+			"humanReviewMilestone": 9,
+			"blocker": "Automated packaged timing-probe testing is enabled on this target; an accepted stable 1.0 result remains pending for milestone 9."
 		}
 	],
-	"minimumFollowUp": "Execute the packaged ordinary-import timing-probe harness on the maintained linux-x64 runner and publish accepted Soundscaper and Framescaper results; add the corresponding windows-x64 runner execution and accepted results."
+	"minimumFollowUp": "Accept stable 1.0 qualification results for all ten automated product/target rows through the milestone 9 campaign."
 }

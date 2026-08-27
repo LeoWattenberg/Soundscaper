@@ -11,10 +11,9 @@
  * the whole root.
  *
  * Nothing here hosts anything. A scan grants no project audio and leaves no
- * plug-in resident, and the formats whose licensing rows are still closed are
- * reported as seen-but-not-enabled rather than quietly skipped: a user who put
- * a VST3 in the folder deserves to know the editor found it and why it is not
- * offered.
+ * plug-in resident. Every known format is reported; hosting availability is
+ * decided later by its authenticated adapter, payload, platform, and
+ * containment authority, never by pending human release review.
  */
 
 /** Closed format-to-candidate mapping; the verified payload declares its subset. */

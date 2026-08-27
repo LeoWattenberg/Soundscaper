@@ -129,8 +129,9 @@ test('milestone narratives report selected F31 inheritance without closing exter
 
 test('milestone 3 closure blockers remain explicit and unpromoted', async () => {
 	const matrix = await json('config/milestone-3-timing-probe-matrix.json');
-	assert.equal(matrix.electronRows.length, 4);
+	assert.equal(matrix.electronRows.length, 10);
 	assert.deepEqual(new Set(matrix.electronRows.map(({ status }) => status)), new Set(['pending-external']));
+	assert.deepEqual(new Set(matrix.electronRows.map(({ testActivation }) => testActivation)), new Set(['automated']));
 
 	const budgets = await json('config/quality-budgets.json');
 	const ownerHost = byId(budgets.environments, 'owner-qualified-windows-x64-rtx3090-01');

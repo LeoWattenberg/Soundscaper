@@ -83,8 +83,8 @@
 		},
 		{
 			"path": "fixture_plugin_abi.h",
-			"byteLength": 3405,
-			"sha256": "48d6cc3c70c46f32183e0240ad24a25b0f3be8e9c6a301c86d94019ba24c5ca5"
+			"byteLength": 3386,
+			"sha256": "3ef91efd2277e0f7eb44b5befce5eff3b810a026887ee2541a1a3688ec4f4bd9"
 		},
 		{
 			"path": "pipewire_session.c",

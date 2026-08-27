@@ -5,8 +5,10 @@
 > through its immutable V28 foundation to exact V14 render authority, the main render queue, persistent services V3, the exact watch/bin/proxy flow, native
 > media and OpenFX routes; historical V20 through V27 machinery remains an
 > implementation source or explicit re-import boundary, and V25/V26 retain
-> opaque, read-only custody. F31 product activation does not activate those
-> native routes; no Milestone 5 qualification or release activation is claimed.
+> opaque, read-only custody. The implemented native routes are enabled for
+> build and test whenever their exact payload, platform, containment, consent,
+> quarantine, and capacity checks pass. Human qualification remains a
+> Milestone 9 stable-1.0 release input, never a Milestone 5 activation gate.
 
 > The source audit authenticates 0/10 required exact archive/extracted-tree
 > inputs until a cache is provisioned — see
@@ -15,9 +17,11 @@
 > All five Soundscaper professional payload rows are `pending-external`;
 > both five-target Framescaper payload manifests are empty and every row is
 > `pending-external`. Per-OS launcher source/contracts/tests exist, but
-> authenticated target payloads, independently signed readiness, licensing and
-> redistribution clearance, signing/notarization identities and keys, accepted
-> packages/manual runs, and native-lab cohorts do not.
+> authenticated target payloads do not. Independently signed readiness,
+> licensing and redistribution clearance, signing/notarization identities and
+> keys, accepted packages/manual runs, and native-lab cohorts are also absent;
+> those human records block stable 1.0 admission in Milestone 9, not current
+> build, test, package, catalog visibility, or otherwise machine-admitted use.
 
 > Owning source for milestone-5 sequencing, the helper-contract and
 > plug-in/codec decisions, their invariants, and the bounded work
@@ -67,7 +71,8 @@ integration waits for the owning shared contract (roadmap.md:565-566).
   is menu-reached and off by default, and refusal or loss preserves a truthful
   Web Core fallback. The per-OS child launcher source/contracts/tests implement
   Linux namespaces/Landlock/seccomp, macOS Seatbelt, and Windows AppContainer;
-  no authenticated target launcher/payload set or signed readiness exists.
+  no authenticated target launcher/payload set exists. Signed readiness is
+  tracked for Milestone 9 release admission and is not an execution input.
 - **A hardened IPC discipline to extend, not reinvent.** Every channel
   passes the trust gate (`assertTrustedIpc`,
   `desktop/main.mjs:362-382`: sender identity, main-frame check,
@@ -127,11 +132,12 @@ integration waits for the owning shared contract (roadmap.md:565-566).
   preview, browser export, and native carrier execution. Empty payload manifests
   keep production dispatch fail-closed.
 - **The helper security surface remains partial by evidence, not by software
-  reach.** Product callers, reviewed isolation-launcher contracts, pathless
+  reach.** Product callers, isolation-launcher contracts, pathless
   bridges, supervision, vendor-window ownership, and fail-closed activation now
-  exist. The residual risks are unauthenticated external source trees and target
-  payloads, missing independent signed readiness and publisher provenance,
-  blocked licensing, and zero accepted native-lab cohorts.
+  exist. Unauthenticated external source trees and target payloads remain exact
+  machine refusals. Missing independent signed readiness, publisher provenance,
+  licensing review, and native-lab cohorts remain Milestone 9 release risks and
+  cannot make an otherwise machine-admitted surface unavailable for testing.
 
 ## The helper contract (the milestone's one-way door)
 
@@ -169,7 +175,8 @@ assistance helper retrofitted onto them — conforms:
    discipline at docs/milestone-7-plan.md:183-187 carries over).
 7. **Binary provenance and packaging** — per-platform helper binaries
    digest-pinned in manifests, verified at staging and pack time, with
-   licensing rows and notices in the same change
+   licensing rows and notices reported in the same change for Milestone 9
+   release admission
    (docs/production-licensing-policy.md:69-71): the ffmpeg-runtime
    pipeline generalized.
 
@@ -179,9 +186,10 @@ families with kind-correlated main grants, deny-only resource controls,
 direction-correct validation, an exact 64 KiB control bound, and separately
 bounded authenticated data planes. Main preflight prevents invalid grants from
 spawning a helper; cancellation waits for engine quiescence; qualifying forced
-terminations feed quarantine; and bounded progress reaches product UI. The
-remaining gates are external payload, licensing, signed-readiness, package,
-manual, and native-lab evidence rather than another helper-contract slice.
+terminations feed quarantine; and bounded progress reaches product UI. Exact
+external payload and target checks remain machine execution gates. Licensing,
+signed-readiness, package review, manual, and native-lab evidence remain
+Milestone 9 stable-release gates rather than another helper-contract slice.
 
 `native-helper-processes` remains **partial** because none of the professional
 target matrices is qualified. Scanner and host controls remain separate because
@@ -265,11 +273,11 @@ terms a person must accept — the Steinberg ASIO SDK above all.
 The cache is deliberately outside the repository and outside the product's
 dependency graph. Nothing provisioned is committed, bundled, linked, or
 redistributed, and authenticating a source grants no redistribution, trademark,
-patent, signing, activation, or qualification approval: the licensing gates, the
-per-target payload rows, the signed readiness evidence, and the native-lab
-cohorts stay exactly as blocked as they were. What it changes is that the source
-gate the activation policy checks can now be satisfied by evidence rather than
-being unreachable on every machine.
+patent, signing, or stable-release approval. Per-target payload rows remain
+machine admission inputs; licensing, signed readiness, and native-lab evidence
+remain Milestone 9 release inputs. What provisioning changes is that the exact
+source and payload checks can be satisfied by evidence rather than being
+unreachable on every machine.
 
 ### Rejected alternatives (recorded to prevent re-litigation)
 
@@ -279,8 +287,8 @@ being unreachable on every machine.
 | In-process plug-in hosting | "A malicious native plug-in is not made safe merely by running in another ordinary user process" (docs/production-threat-model.md:23) — and in-process is strictly worse; hosting is out-of-process with supervision, always. |
 | A second renderer-reachable spawn channel | The residual acceptance forbids exposing raw spawn authority to the renderer (config/production-security-matrix.json:8508-8515); helpers are spawned and owned by main only. |
 | Forking the editor engine for native paths | The exit gate requires native and web to implement the same semantic render plans (roadmap.md:611-612); the native tier accelerates plans, it never reinterprets them. |
-| Enlarging the codec set because native FFmpeg makes it easy | The blocked corresponding-source and patent-review gates are fail-closed; capability follows evidence, not convenience. |
-| Selecting a plug-in SDK from remembered licensing terms | Upstream licensing changes. Pin and review the exact selected revision, then update the fail-closed row, source delivery, and notices from that evidence. |
+| Enlarging the codec set because native FFmpeg makes it easy | Machine capability still follows an exact authenticated payload and verified codec support; corresponding-source and patent review remain Milestone 9 stable-release inputs. |
+| Selecting a plug-in SDK from remembered licensing terms | Upstream licensing changes. Pin the exact selected revision and record the licensing, source-delivery, and notice review for Milestone 9 without hiding or disabling the machine-admitted test surface. |
 
 ## Phase structure
 
@@ -457,16 +465,18 @@ only its status and ordering boundary. 5B is decomposed at pickup.
   targets with CI wiring.
 - **Invariants:** no unverified byte executes from a helper path;
   fuse state (`strictlyRequireAllFuses`,
-  `scripts/desktop-after-pack.mjs:34-49`) is preserved; licensing
-  gates stay fail-closed — a format without its row does not ship.
+  `scripts/desktop-after-pack.mjs:34-49`) is preserved; licensing review stays
+  fail-closed for stable 1.0 admission while current builds and test packages
+  continue to expose machine-admitted formats.
 - **Acceptance:** pack-time verification fails on a tampered helper
   binary; notices render for every shipped runtime; signing
   verification passes on signed targets or records the named identity
   blocker.
 - **Non-goals:** no auto-update (the notification-only posture,
   `desktop/update-check.js:1-46`, is unchanged).
-- **Stop condition:** stop if a licensing gate cannot be satisfied for
-  a format — the format waits; the gate does not bend.
+- **Stop condition:** stop a stable 1.0 release if a licensing review cannot be
+  satisfied for a format. Keep the current format buildable and testable while
+  the Milestone 9 release gate remains pending.
 
 ### 5A plan (Soundscaper native tier)
 

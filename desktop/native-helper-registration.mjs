@@ -160,7 +160,7 @@ export function registerDesktopNativeAudioHelper({
 	});
 }
 
-/** Current production policy blocks every native backend pending reviewed activation evidence. */
+/** Resolve machine activation for native backends; human review never supplies execution authority. */
 export function productionAudioBackendActivated() {
 	return productionSoundscaperAudioBackendActivated(...arguments);
 }

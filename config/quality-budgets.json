@@ -1412,7 +1412,7 @@
 			"specification": {
 				"definedOnlyAfterEntryGate": true
 			},
-			"evidence": ["roadmap.md#8b-midi-strictly-after-audacity-design-review"]
+			"evidence": ["roadmap.md#8b-midi"]
 		},
 		{
 			"id": "m9-complete-system-soak-8h-v1",
@@ -1450,7 +1450,9 @@
 			"specification": {
 				"requiredDecodeRows": ["decode-h264", "decode-hevc", "decode-vp9", "decode-av1", "decode-prores", "decode-dnxhr", "decode-png-sequence", "decode-tiff-sequence", "decode-openexr-sequence"],
 				"requiredEncodeRows": ["encode-mp4-h264", "encode-webm-vp9", "encode-mov-prores-proxy", "encode-mov-prores-422-hq", "encode-mov-prores-4444", "encode-mxf-dnxhr-hqx", "encode-matroska-ffv1", "encode-png-sequence", "encode-tiff-sequence", "encode-openexr-sequence"],
-				"blockedUntilLicensingRowsClear": true
+				"testActivation": "enabled",
+				"humanReviewMilestone": 9,
+				"humanReviewBlocks": "stable-1.0-release-admission"
 			},
 			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "config/production-licensing-matrix.json", "tests/audio-editor-native-media-professional-tier.test.ts", "tests/audio-editor-native-media-proxy-recipe.test.ts", "tests/audio-editor-native-media-image-sequence-v25.test.ts", "tests/audio-editor-video-source-professional-v25.test.ts", "tests/audio-editor-framescaper-video-proxy-lifecycle-v25.test.ts", "scripts/collect-m5b-professional-media-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		},
@@ -1866,7 +1868,7 @@
 				{ "metricId": "reviewedDesign.liveTimingP95Ms", "comparison": "lte", "value": 20, "unit": "ms" },
 				{ "metricId": "reviewedDesign.deviceTeardownP95Ms", "comparison": "lte", "value": 1000, "unit": "ms" }
 			],
-			"evidence": ["roadmap.md#8b-midi-strictly-after-audacity-design-review"]
+			"evidence": ["roadmap.md#8b-midi"]
 		},
 		{
 			"id": "m9-complete-system-soak",

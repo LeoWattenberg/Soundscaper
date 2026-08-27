@@ -27,7 +27,7 @@ fixture, environment, metric, and threshold identifiers.
   revisions are pinned from checked-in dependency and workflow inputs.
 - Chromium browser workflows run in the digest-pinned Playwright container.
   Their release status remains provisional.
-- Firefox and WebKit now run in the maintained functional matrix alongside
+- Automated tests for Firefox and WebKit now run in the maintained functional matrix alongside
   Chromium. All three remain provisional rather than performance- or
   release-qualified. Playwright WebKit is useful engine evidence; it is not by
   itself a Safari release qualification.
@@ -622,10 +622,11 @@ FFmpeg runtime update retains the previous complete verified release.
 The eviction
 workflow exports a current `.scape`, removes the origin's IndexedDB database,
 reopens the usable empty editor, and restores the same project identity from
-the archive. WebKit qualification is deferred by milestone-2 closure scope
-revision 2; the pinned Playwright WebKit build exposes no OPFS, no
-MediaRecorder, and no IndexedDB Blob storage, so the two OPFS workflows
-cannot run there. These small functional workflows do not qualify real
+the archive. Milestone-2 scope revision 2 historically deferred WebKit release
+qualification; that human checkpoint now belongs to milestone 9. Automated
+testing runs the pinned Playwright WebKit build today and skips an individual
+workflow only when a concrete API or runtime probe—such as OPFS, MediaRecorder,
+or an IndexedDB Blob round trip—fails. These small functional workflows do not qualify real
 quota exhaustion thresholds, storage reservation, browser eviction policy,
 abrupt process death, power loss, reference-scale capacity, heap, or RSS.
 
