@@ -18,6 +18,11 @@
 		"deferredDesktopTargets": ["windows-arm64", "macos-arm64", "linux-arm64"],
 		"retiredDesktopTargets": ["macos-x64"]
 	},
+	"testActivation": {
+		"browserProjects": ["chromium", "firefox", "webkit"],
+		"humanReviewMilestone": 9,
+		"policy": "Manual browser-engine qualification is a stable 1.0 release-admission input at milestone 9 and never disables automated testing. Tests skip only when the current engine reports a concrete missing API or runtime capability."
+	},
 	"gates": [
 		{
 			"id": "m2-gate-bounded-pipelines",

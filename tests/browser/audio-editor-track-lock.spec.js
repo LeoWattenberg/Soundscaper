@@ -10,6 +10,10 @@ import { TRACK_MENU_TRIGGER, chooseTrackMenuAction } from './helpers/track-menu.
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { FRAMESCAPER_DATABASE_NAME, SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
+import {
+	DURABLE_MEDIA_STORAGE_REQUIRED,
+	hasDurableMediaStorageCapability,
+} from './helpers/durable-media-storage-capability.js';
 
 const CFR = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
 
@@ -72,10 +76,13 @@ test.describe('persisted shared track locking', () => {
 		await expectPersistedLock(page, projectId, trackId, false, SOUNDSCAPER_DATABASE_NAME);
 	});
 
-	test('a locked Framescaper video lane refuses trim and is skipped by edit navigation', async ({ browserName, page }) => {
-		test.skip(browserName === 'webkit', 'Milestone 3 inherits the explicit WebKit qualification deferral.');
+	test('a locked Framescaper video lane refuses trim and is skipped by edit navigation', async ({ page }) => {
 		test.setTimeout(120_000);
 		const editor = await bootEditor(page, '/framescaper/en/');
+		test.skip(
+			!await page.evaluate(hasDurableMediaStorageCapability),
+			DURABLE_MEDIA_STORAGE_REQUIRED,
+		);
 		await editor.locator('[data-import-input]').setInputFiles([CFR.file]);
 		await addVideoToTimeline(editor);
 		const videoClip = editor.getByRole('group', { name: /^Video clip:/u });

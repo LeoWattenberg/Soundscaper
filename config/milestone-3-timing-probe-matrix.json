@@ -2,6 +2,11 @@
 	"schemaVersion": 1,
 	"workPacket": "WP-0.3",
 	"acceptance": "Probe results on the supported-browser and Electron matrix for representative CFR and VFR fixtures, and probed geometry carried to the presented picture for rotated and anamorphic fixtures.",
+	"manualQualification": {
+		"milestone": 9,
+		"blocks": "stable-1.0-release-admission",
+		"testActivation": "non-blocking"
+	},
 	"fixtures": [
 		{
 			"id": "cfr-25fps-mp4-v1",
@@ -75,8 +80,21 @@
 			"project": "webkit",
 			"version": "26.5",
 			"revision": "2336",
-			"status": "deferred",
-			"reason": "Milestone-2 scope revision 2 and the milestone-3 watch item explicitly defer WebKit qualification."
+			"status": "automated",
+			"capabilityRequirements": ["durable-media-storage"],
+			"unsupportedDisposition": "capability-skip",
+			"fixtureIds": [
+				"cfr-25fps-mp4-v1",
+				"vfr-irregular-webm-v1",
+				"geometry-anamorphic-mp4-v1",
+				"geometry-rotated-mp4-v1",
+				"geometry-rotated-anamorphic-mp4-v1"
+			],
+			"evidence": [
+				"tests/browser/audio-editor-video-timing-probe.spec.js",
+				"tests/browser/audio-editor-video-source-geometry.spec.js",
+				"tests/browser/audio-editor-video-source-reprobe.spec.js"
+			]
 		}
 	],
 	"electronRows": [

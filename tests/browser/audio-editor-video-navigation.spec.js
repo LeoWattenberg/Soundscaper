@@ -3,6 +3,10 @@ import { expect, test } from '@playwright/test';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
+import {
+	DURABLE_MEDIA_STORAGE_REQUIRED,
+	hasDurableMediaStorageCapability,
+} from './helpers/durable-media-storage-capability.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
@@ -19,11 +23,14 @@ test.describe('3B-4a shuttle and edit-point navigation', () => {
 		}));
 	});
 
-	test('the fixed shuttle and edit-point keys drive one programme playhead', async ({ browserName, page }) => {
-		test.skip(browserName === 'webkit', 'Milestone 3 inherits the explicit WebKit qualification deferral.');
+	test('the fixed shuttle and edit-point keys drive one programme playhead', async ({ page }) => {
 		test.setTimeout(180_000);
 
 		const editor = await openFramescaper(page);
+		test.skip(
+			!await page.evaluate(hasDurableMediaStorageCapability),
+			DURABLE_MEDIA_STORAGE_REQUIRED,
+		);
 		await editor.locator('[data-import-input]').setInputFiles([CFR.file]);
 		await expect.poll(() => binVideoClips(page), { timeout: 60_000 }).not.toHaveLength(0);
 		await addToTimeline(editor);

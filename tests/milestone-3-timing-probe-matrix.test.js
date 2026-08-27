@@ -12,23 +12,35 @@ const matrix = await json('config/milestone-3-timing-probe-matrix.json');
 const milestone2 = await json('config/milestone-2-closure.json');
 const quality = await json('config/quality-budgets.json');
 const packageJson = await json('package.json');
+const milestone3Plan = await readFile('docs/milestone-3-plan.md', 'utf8');
 
-test('WP-0.3 matrix pins the supported browser engines and keeps WebKit explicitly deferred', async () => {
+test('WP-0.3 matrix enables every maintained browser for automated testing', async () => {
 	assert.equal(matrix.workPacket, 'WP-0.3');
 	assert.deepEqual(
 		matrix.browserRows.filter(({ status }) => status === 'automated').map(({ project }) => project),
-		milestone2.platformSet.browserProjects,
+		milestone2.testActivation.browserProjects,
 	);
-	assert.deepEqual(
-		matrix.browserRows.filter(({ status }) => status === 'deferred').map(({ project }) => project),
-		milestone2.platformSet.deferredBrowserProjects,
-	);
+	assert.deepEqual(matrix.browserRows.filter(({ status }) => status === 'deferred'), []);
+	assert.equal(milestone2.testActivation.humanReviewMilestone, 9);
+	assert.match(milestone2.testActivation.policy, /never disables automated testing/iu);
+	assert.deepEqual(matrix.manualQualification, {
+		milestone: 9,
+		blocks: 'stable-1.0-release-admission',
+		testActivation: 'non-blocking',
+	});
 	for (const row of matrix.browserRows) {
 		const pinned = quality.softwareInputs.browsers[row.project];
 		assert.equal(row.version, pinned.version);
 		assert.equal(row.revision, pinned.revision);
 		for (const evidence of row.evidence ?? []) await access(evidence);
 	}
+	const webkit = matrix.browserRows.find(({ project }) => project === 'webkit');
+	assert.deepEqual(webkit.capabilityRequirements, ['durable-media-storage']);
+	assert.equal(webkit.unsupportedDisposition, 'capability-skip');
+	assert.match(
+		milestone3Plan,
+		/manual browser-engine qualification.*milestone 9.*stable 1\.0.*does not disable build or test/isu,
+	);
 });
 
 test('WP-0.3 timing and geometry media are repository-generated, digest-pinned, and all assigned to every automated browser row', () => {

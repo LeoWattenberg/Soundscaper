@@ -3,6 +3,10 @@ import { expect, test } from '@playwright/test';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
+import {
+	DURABLE_MEDIA_STORAGE_REQUIRED,
+	hasDurableMediaStorageCapability,
+} from './helpers/durable-media-storage-capability.js';
 import { createUnreportedVideoSourceCharacteristicsV25 } from '../../src/common/editor/video-source-professional-characteristics-v25.ts';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
@@ -27,11 +31,14 @@ test.describe('3B-2c re-import upgrade qualification', () => {
 		}));
 	});
 
-	test('a source imported without a probe is re-read into exact timing', async ({ browserName, page }) => {
-		test.skip(browserName === 'webkit', 'Milestone 3 inherits the explicit WebKit qualification deferral.');
+	test('a source imported without a probe is re-read into exact timing', async ({ page }) => {
 		test.setTimeout(120_000);
 
 		let editor = await openFramescaper(page);
+		test.skip(
+			!await page.evaluate(hasDurableMediaStorageCapability),
+			DURABLE_MEDIA_STORAGE_REQUIRED,
+		);
 		await importFixture(editor, page);
 
 		// The import itself reads the file exactly, which is the state the upgrade
@@ -92,13 +99,15 @@ test.describe('3B-2c re-import upgrade qualification', () => {
 	});
 
 	test('re-reading a source the document already describes exactly changes nothing', async ({
-		browserName,
 		page,
 	}) => {
-		test.skip(browserName === 'webkit', 'Milestone 3 inherits the explicit WebKit qualification deferral.');
 		test.setTimeout(120_000);
 
 		const editor = await openFramescaper(page);
+		test.skip(
+			!await page.evaluate(hasDurableMediaStorageCapability),
+			DURABLE_MEDIA_STORAGE_REQUIRED,
+		);
 		await importFixture(editor, page);
 		const imported = await persistedVideoSource(page);
 
