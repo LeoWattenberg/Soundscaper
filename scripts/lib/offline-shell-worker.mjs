@@ -20,6 +20,7 @@ export function offlineShellFunctionSources() {
 		installOfflineShell,
 		activateOfflineShell,
 		pathBelongsToProduct,
+		pathIsProjectTransferDocument,
 		offlineNavigationFallbackPaths,
 		matchOfflineNavigationFallback,
 		cacheVerifiedAssetOnUse,
@@ -314,6 +315,40 @@ function pathBelongsToProduct(pathname, productId) {
 	return productId === 'framescaper' ? framescaperPath : !framescaperPath;
 }
 
+/**
+ * The two cross-origin project transfer documents, and every path reserved
+ * under their prefix.
+ *
+ * `TRANSFER_ROUTE_PREFIX` in `src/common/transfer/transfer-routes.js` is the
+ * authority for that prefix; it is repeated as a literal here because this
+ * function is serialised into the generated worker and can carry no imports.
+ *
+ * The worker declines these outright - it neither caches them nor answers them
+ * from its cache - and two independent reasons point the same way. They are the
+ * only documents `public/_headers` gives a per-document opener policy
+ * (`same-origin-allow-popups` for the sender, `unsafe-none` for the receiver)
+ * and marks `Cache-Control: no-cache`, because the popup handshake exists only
+ * for as long as the opener relationship does; the origin's own response is the
+ * only thing that carries that policy faithfully. And no product installs these
+ * documents, so the offline navigation fallback has nothing to offer a
+ * `/transfer/` path but an editor shell: it reads `transfer` as a locale
+ * segment, finds no shell entry for it and lands on the cached `/en/` document,
+ * whose `Cross-Origin-Opener-Policy: same-origin` severs `window.opener` -
+ * turning a routing miss into what looks like a broken handshake protocol.
+ *
+ * A transfer navigation that cannot reach the network therefore fails as a
+ * plain network error, which is honest, rather than quietly mounting the editor
+ * with the opener already cut.
+ *
+ * @param {string} pathname
+ * @returns {boolean}
+ */
+function pathIsProjectTransferDocument(pathname) {
+	// Never answered from the shell cache: an editor shell's same-origin COOP
+	// severs the popup opener the project transfer handshake runs over.
+	return pathname === '/transfer' || pathname.startsWith('/transfer/');
+}
+
 function offlineNavigationFallbackPaths(pathname, configuration, shellPaths) {
 	let segments = String(pathname).split('/').filter(Boolean);
 	if (configuration.productId === 'framescaper') segments = segments.slice(1);
@@ -328,6 +363,7 @@ function offlineNavigationFallbackPaths(pathname, configuration, shellPaths) {
 }
 
 async function matchOfflineNavigationFallback(cache, pathname, configuration, descriptors, cryptoImpl) {
+	if (pathIsProjectTransferDocument(pathname)) return null;
 	for (const path of offlineNavigationFallbackPaths(pathname, configuration, descriptors)) {
 		const descriptor = descriptors.get(path);
 		if (!descriptor) continue;
@@ -376,6 +412,7 @@ export async function handleApplicationShellFetch({
 	if (request.method !== 'GET') return null;
 	const requestUrl = new URL(request.url);
 	if (requestUrl.origin !== origin) return null;
+	if (pathIsProjectTransferDocument(requestUrl.pathname)) return null;
 	if (request.mode === 'navigate' && !pathBelongsToProduct(requestUrl.pathname, configuration.productId)) return null;
 	const descriptors = new Map(configuration.assets.map((asset) => [asset.url, asset]));
 	const descriptor = descriptors.get(requestUrl.pathname);

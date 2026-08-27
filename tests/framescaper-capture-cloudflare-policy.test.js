@@ -31,6 +31,12 @@ test('Pages assigns exactly one product- and route-specific document capture pol
 	}
 	assert.equal(policyRules.some(({ pattern }) => pattern === '/*'), false);
 	assert.equal(policyRules.filter(({ pattern }) => matches(pattern, '/assets/editor.js')).length, 0);
+	// And nothing in the file detaches a capture policy on the way past: these
+	// five rules are the only thing that decides what a document may capture.
+	assert.deepEqual(
+		rules.filter(({ detached }) => detached.has('permissions-policy')).map(({ pattern }) => pattern),
+		[],
+	);
 });
 
 function parseHeaderRules(value) {
@@ -40,8 +46,19 @@ function parseHeaderRules(value) {
 		const line = rawLine.trimEnd();
 		if (!line.trim() || line.trimStart().startsWith('#')) continue;
 		if (!/^\s/u.test(rawLine)) {
-			current = { pattern: line, headers: new Map() };
+			current = { pattern: line, headers: new Map(), detached: new Set() };
 			rules.push(current);
+			continue;
+		}
+		// Cloudflare's detach form, `! Header-Name`, carries no value and no
+		// colon. The two transfer documents use it to drop the wildcard opener
+		// policy before naming their own; nothing here detaches a permissions
+		// policy, so recording the name is enough to keep this parser honest
+		// about lines it has seen.
+		const detach = /^\s+!\s*([A-Za-z0-9-]+)\s*$/u.exec(rawLine);
+		if (detach) {
+			assert.ok(current, `invalid _headers line: ${rawLine}`);
+			current.detached.add(detach[1].toLowerCase());
 			continue;
 		}
 		const match = /^\s+([^:]+):\s*(.*)$/u.exec(rawLine);

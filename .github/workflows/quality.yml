@@ -47,6 +47,20 @@ jobs:
           # before it reports a single rule. The ubuntu-24.04 runner has 16 GiB.
           NODE_OPTIONS: --max-old-space-size=8192
 
+      - name: Measure the built transfer documents against the build just made
+        # The `tests` shards below never build, so the three assertions in this
+        # file that read `dist/` skipped in every CI run - and they are the only
+        # ones that can see the edge that matters: rolldown injects
+        # `vite/preload-helper` into the transfer chunk for its dynamic archive
+        # import, the `$initial` site-entry group owns the helper together with
+        # react-dom, and no source-level model of the import closure can see
+        # that. This is the one job that holds a build, so it is the job that
+        # measures it. The variable makes an absent `dist/` a failure here rather
+        # than a skip, so the guard cannot quietly stand itself down again.
+        run: node --import tsx --import ./scripts/node-style-asset-loader.mjs --test tests/project-transfer-standalone-page-chunks.test.ts
+        env:
+          SOUNDSCAPER_TRANSFER_BUILD_REQUIRED: '1'
+
       - name: Upload the verified website build
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

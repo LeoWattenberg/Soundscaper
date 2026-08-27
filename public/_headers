@@ -7,6 +7,24 @@
 
 # Cloudflare joins same-name headers from every matching rule. These document
 # path shapes are deliberately disjoint so each response receives one policy.
+#
+# Cross-Origin-Opener-Policy stays on /*, and the two /transfer/ documents opt
+# out of it with the "! Header-Name" detach rather than attaching a second
+# value. Joining is the danger: "same-origin, same-origin-allow-popups" is not a
+# valid COOP value, it parses as no policy at all. But naming the strict value on
+# each document route instead of on /* is worse in the other direction - it
+# leaves every path outside the emitted document set (a route added later, a
+# rewrite, anything the route generator does not write an index.html for) with
+# Cross-Origin-Embedder-Policy and no opener policy, which is unsafe-none. The
+# strict value is the one a path must get by saying nothing, so it lives on the
+# wildcard and the two documents that genuinely need something else detach it
+# first. Neither editor route names a policy of its own any more; each inherits
+# the same same-origin value it has always had.
+#
+# Cross-Origin-Embedder-Policy is on /* for a different reason and is never
+# detached: it is not per-document. Worker scripts under /assets/ inherit their
+# owner's embedder policy and must carry it on their own response, and the
+# SharedArrayBuffer the editor depends on needs both halves.
 /
 	Permissions-Policy: microphone=(self), speaker-selection=(self), display-capture=(self), camera=(), geolocation=()
 	Cache-Control: no-cache
@@ -25,6 +43,33 @@
 
 /framescaper/embed/:locale/
 	Permissions-Policy: microphone=(), speaker-selection=(), display-capture=(), camera=(), geolocation=()
+	Cache-Control: no-cache
+
+# The two cross-origin project transfer documents, and only these two.
+#
+# Browser storage is partitioned by top-level site, so a Framescaper project
+# held under soundscaper.org is unreachable once Framescaper moves to its own
+# origin. These pages are how it crosses: each origin reads its own storage
+# first-party and the projects travel as .scape archives. The one-click path is
+# a popup, because a popup is a top-level context with ordinary first-party
+# storage while a cross-origin iframe under COEP: credentialless gets an
+# ephemeral empty bucket and can see nothing.
+#
+# A popup handshake only exists while the opener relationship does, and
+# same-origin COOP severs it from either end. The sender keeps its own agent
+# cluster but must be allowed to open a cross-origin popup; the popup itself
+# must accept a cross-origin opener, or window.opener is null and no message can
+# ever be exchanged. Neither value reaches any other response: these are two
+# exact paths, matched by no other rule in this file, and neither page touches
+# SharedArrayBuffer - the transfer modules refuse shared memory outright.
+/transfer/send/
+	! Cross-Origin-Opener-Policy
+	Cross-Origin-Opener-Policy: same-origin-allow-popups
+	Cache-Control: no-cache
+
+/transfer/receive/
+	! Cross-Origin-Opener-Policy
+	Cross-Origin-Opener-Policy: unsafe-none
 	Cache-Control: no-cache
 
 /assets/*

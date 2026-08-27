@@ -167,11 +167,14 @@ Known architectural constraints that drive later work:
 | 8. Capture and MIDI | **8A active — qualification open; 8B Blocked** | Selected Framescaper F31 activates recording on web and desktop while real-device and owner-lab qualification remains open; MIDI waits for upstream design review. |
 | 8+I. Framescaper timeline images | **Browser-native vertical slice implemented; converter and qualification work open** | Import retained raster assets as authenticated timeline media; FFmpeg, ImageMagick, multipage, and extended color/format tiers remain open. |
 | 8+. Framescaper Web VCR | **Software substrate implemented — provisional, disabled** | Keep the dormant contracts, security seams, controller, crop pipeline, and UI behind `framescaperWebVcr: false` until post-milestone-8 runtime qualification. |
-| 9. Final qualification | **Planned** | Requalify the complete product, including the accepted post-milestone-8 extension, and release matrix. |
+| 8+C. Framescaper product origin | **Planned** | Move Framescaper to its own origin and make cross-product project movement a durable archive handoff, while pre-release clean breaks remain legal. |
+| 9. Final qualification | **Planned** | Requalify the complete product, including the accepted post-milestone-8 extensions, and release matrix. |
+| 9+. Installable distribution | **Planned** | Install both products from Chrome for Android as independent apps, with an optional Google Play Trusted Web Activity track. |
 
 Earlier milestones may ship independently. The complete roadmap does not close
-until milestone 8, the Web VCR extension, and milestone 9 close. Milestone 7
-may be skipped.
+until milestone 8, the Web VCR extension, the 8+C origin move, and milestone 9
+close. Milestone 7 may be skipped, and 9+ is post-release scope that closes no
+milestone-9 gate.
 
 ## 1. Baseline contracts and quality budgets
 
@@ -893,9 +896,73 @@ invent an interim Soundscaper-only design.
 - Every enabled tier must meet milestone 8A's long-session sync, drop, teardown, and recovery budgets plus exact-surface, encoder-crop, and cropped-only retention gates; unqualified 4K stays unavailable.
 - A real packaged workflow must prove that resulting media follows the same reopen, relink, proxy, edit, Scape, handoff, and delivery paths as other Framescaper recordings without persisting browser state.
 
+## 8+C. Framescaper product origin and cross-product storage
+
+**Status:** **Planned.** No packet has started. The topology decision — separate
+origins versus sibling paths on one origin — is the first packet and gates every
+other one; its outcome and the dated retirement window belong in this status
+line.
+
+**Depends on:** the maintained `.scape` archive, Project Bin, and per-route
+response-policy contracts only. It does not wait for milestone 8, 8+I, or 8+.
+It is numbered here, ahead of milestone 9, because the ordering is the design:
+until WP-9.0.0 freezes the first-release baseline the product deliberately
+carries no data guarantees and the IndexedDB backend still drops every object
+store on a version bump, so an origin change destroys only what the product has
+not yet promised. Landing the cutover in this extension keeps the transfer a
+courtesy; landing it after the freeze turns the same work into a data-loss event
+with a release-blocking retention commitment.
+
+**Goal:** give Framescaper its own origin without stranding a single project,
+and make movement between the two products a durable first-class action rather
+than an accident of shared browser storage.
+
+Sequencing, the topology decision, and the bounded work packets are owned by the
+[product origins plan](docs/post-milestone-8c-product-origins-plan.md).
+
+- **Shared — Planned:** a frozen round-trip contract naming exactly what
+  survives a Soundscaper/Framescaper `.scape` round trip in both directions and
+  which omissions must be surfaced rather than silently dropped.
+- **Shared — Planned:** a user-initiated "send to the other product" action in
+  both products, built on the existing archive paths. This is the durable
+  replacement for shared storage and is worth shipping whether or not the origin
+  moves.
+- **Web Core — Planned:** the second origin served with the full response-policy
+  set duplicated from `public/_headers`, generated from the same product table
+  rather than forked, with `crossOriginIsolated` asserted true on every editor
+  route instead of inspected.
+- **Web Core — Planned:** a bulk cutover ceremony — an enumerate-and-export
+  route on the old origin and a receiver popup on the new one, both on dedicated
+  routes that need no cross-origin isolation — idempotent, resumable, and honest
+  about partial completion. Manual `.scape` export and import remains the
+  fallback that assumes no platform behavior at all.
+- **Web Core — Planned:** redirects, service-worker scope retirement, and the
+  installable re-mint, with the transfer route excluded from the redirect for
+  the whole published retention window.
+- **Shared — Deferred:** continuous cross-origin shared storage. Third-party
+  storage is partitioned by top-level site and `COEP: credentialless` gives an
+  embedded cross-origin document an ephemeral bucket, so no broker origin,
+  Storage Access API dependency, Related Website Set, or relaxation of COOP,
+  COEP, or CSP on an editor route is in scope.
+
+### Exit gate
+
+- The chosen topology and a dated retirement window are recorded in this status
+  line before any packet after the decision starts.
+- A fixture project per product round-trips in both directions with every
+  permitted omission asserted, and `config/project-compatibility.json` names the
+  contract.
+- A multi-project transfer survives a killed receiver, resumes, leaves exactly
+  one copy of each project, and transfers nothing new on a second run; the
+  exporting origin deletes nothing as a side effect of transfer.
+- An installed pre-cutover Framescaper app reaches either the new origin or the
+  transfer route — never a redirect loop and never a blank shell.
+- The transfer route is removed only on the committed schedule, and no telemetry
+  is added to decide whether the window was long enough.
+
 ## 9. Final convergence and qualification
 
-**Depends on:** milestones 1–6, both milestone-8 sub-phases, and every accepted Web VCR platform tier above.
+**Depends on:** milestones 1–6, both milestone-8 sub-phases, every accepted Web VCR platform tier above, and the 8+C cutover, which is sequenced deliberately ahead of WP-9.0.0's baseline freeze.
 
 **Goal:** qualify the complete products as coherent systems.
 
@@ -930,6 +997,72 @@ packets are owned by the [milestone-9 plan](docs/milestone-9-plan.md).
 - Release artifacts pass notices, hashes, provenance, codec/plug-in licensing,
   package smoke, signatures, and update/recovery gates.
 
+## 9+. Installable distribution (PWA and Trusted Web Activity)
+
+**Status:** **Planned.** Phase 0 measures real devices and changes no product
+code; roughly ten load-bearing questions here are empirical and are answered
+before the packets that branch on them start.
+
+**Depends on:** milestone 9 and 8+C. The two product scopes must already be
+disjoint — neither a prefix of the other — and under the separate-origins
+topology that means the Framescaper origin must already be served correctly
+before the first WebAPK is minted. Durability additionally waits on WP-9.0.0.
+
+**Goal:** make both products installable from Chrome for Android as independent
+apps that survive a real device, with an optional Google Play Trusted Web
+Activity around the same origin.
+
+Sequencing, the vehicle decision, and the bounded work packets are owned by the
+[installable distribution plan](docs/post-milestone-9-installable-distribution-plan.md).
+
+- **Web Enhanced — Planned:** two branded, localized, independently installable
+  apps with maskable and themed icons, per-locale `lang`/`dir`/`start_url`, and
+  a manifest `id` that stays byte-identical across locales so installs do not
+  fork per language. The browser tab remains the documented fallback.
+- **Web Core — Planned:** the offered export targets follow the available
+  runtime, so an installed app without a published FFmpeg core completes the PCM
+  targets and explains the absence of the rest instead of throwing.
+- **Web Core — Planned:** touch and viewport work so every editor control is
+  operable with a finger at tablet sizes in both orientations, kept that way by
+  a curated mobile browser configuration. Tablet-first is the recorded scope;
+  phone support is a later, separately scoped decision.
+- **Web Enhanced — Planned:** device survival — page lifecycle, wake lock, media
+  session, output-route change, and a preview decoder cap drawn from the
+  measured device ceiling, each with a fallback when the facility is absent or
+  refused.
+- **Web Core — Planned:** offline completeness, so an installed app in airplane
+  mode opens a project, applies a runtime-backed effect, and exports in the
+  user's locale, with an explicit user-triggered service-worker activation.
+- **Web Core — Blocked:** durability across a product-version bump. The
+  drop-every-store upgrade branch must be replaced by a real upgrade path before
+  an auto-updating installed app may ship, and that waits on WP-9.0.0's
+  first-release baseline freeze.
+- **Web Enhanced — Optional:** the Google Play track — Digital Asset Links
+  served correctly, a Trusted Web Activity package per product, and the listing.
+  It proceeds only if cross-origin isolation survives a TWA on a real
+  Chrome-default device; the installable web app is unaffected either way.
+- **Shared — Deferred:** every WebView vehicle. Android System WebView has no
+  site isolation and cannot grant cross-origin-isolated capabilities regardless
+  of response headers, so a WebView shell permanently forfeits
+  `SharedArrayBuffer`. A native Android port, notifications, and telemetry are
+  out of scope with it.
+
+### Exit gate
+
+- Both products install as distinct apps with disjoint scopes, and a link to one
+  product's `start_url` is not captured by the other's app.
+- Every editor control is operable by touch at the recorded tablet viewports in
+  both orientations with no horizontal page overflow, and `crossOriginIsolated`
+  remains true on every route of the mobile matrix, including shell-served
+  navigations.
+- A long export finishes with the screen off, or background export is explicitly
+  declared unsupported and prevented rather than silently attempted.
+- No installable release ships before WP-9.0.0 closes, and a project survives a
+  product-version bump and a browser restart.
+- The optional Play track closes only with verified Digital Asset Links, a
+  fullscreen launch with no URL bar, and a listing that claims no capability the
+  build ships without.
+
 ## Interface and schema commitments
 
 - `PlatformCapabilities` remains immutable, runtime-derived, test-injectable,
@@ -942,6 +1075,9 @@ packets are owned by the [milestone-9 plan](docs/milestone-9-plan.md).
   automation/keyframes, sequences, media links, native-effect state, feature
   requirements, and rendered fallbacks.
 - Capture contracts are designed only in milestone 8A; after milestone 8, Web VCR may register one capture-source adapter but no new clock, persistence model, generic remote IPC, or project schema. MIDI contracts are designed only after milestone 8B's upstream review gate.
+- The 8+C cross-product transfer moves discrete `.scape` archives and claims no
+  project schema number and no new archive envelope; a bundle container, if one
+  ever becomes necessary, claims its number at merge time and not before.
 - Every schema addition defines validation, migration, future-version behavior,
   clone/serialization, commands/history, Scape, AUP4 disposition where
   relevant, and retention/deletion behavior.
@@ -959,6 +1095,8 @@ packets are owned by the [milestone-9 plan](docs/milestone-9-plan.md).
 | Framescaper capture | Permissions, supported source combinations, long-recording sync, device loss, recovery, and normal media handoff. |
 | Framescaper Web VCR | Record-dropdown-only availability, isolated persistent HTTPS browsing, target/manual crop, local-mute independence, background capture, quit recovery, capability-gated resolution, cropped-only retention, and normal recorded-media handoff. |
 | MIDI | Tests derived from pinned Audacity design: migration, timing, fallback, instruments, accessibility, Scape, and AUP4. |
+| Framescaper origin transfer | Multi-project cutover across origins: resumable after a killed receiver, exactly one copy per project, reported omissions matching the round-trip fixture matrix, no side-effect deletion, and no redirect loop for an installed pre-cutover app. |
+| Installable distribution | Distinct installable apps with disjoint scopes, touch operation at the recorded tablet viewports, cross-origin isolation on installed and shell-served navigations, screen-off export or its enforced refusal, offline localized open/effect/export, and survival of a product-version bump. |
 | Accessibility | Keyboard and assistive-technology completion at supported zoom, contrast, locale, and direction. |
 | Distribution | Browser and desktop matrices, licenses, notices, hashes, signatures, and package smoke. |
 
