@@ -4,6 +4,9 @@ import {
 	AudioSample,
 	AudioSampleSource,
 	BufferTarget,
+	BufferSource,
+	Input,
+	MP4,
 	Mp4OutputFormat,
 	Output,
 } from 'mediabunny';
@@ -27,6 +30,7 @@ export interface BrowserAacEncodeRequest {
 }
 
 const AUDIO_SAMPLE_FRAMES = 2_048;
+const AAC_LC_CODEC_PROFILE = 'mp4a.40.2';
 
 export async function probeBrowserAacEncoding(
 	encoder: BrowserAudioEncoderProbe | undefined = (
@@ -97,7 +101,15 @@ export async function encodeBrowserAacM4a(
 	if (target.buffer.byteLength > request.maximumOutputBytes) {
 		throw new RangeError('The WebCodecs AAC output exceeds its requested byte bound.');
 	}
-	return new Uint8Array(target.buffer);
+	const bytes = new Uint8Array(target.buffer);
+	await validateBrowserAacM4aOutput(bytes, {
+		frameCount: request.frameCount,
+		channelCount: request.channelCount,
+		sampleRate: request.sampleRate,
+		...(request.signal ? { signal: request.signal } : {}),
+	});
+	throwIfAborted(request.signal);
+	return bytes;
 }
 
 export class BrowserAacUnavailableError extends Error {
@@ -106,6 +118,109 @@ export class BrowserAacUnavailableError extends Error {
 	constructor(message: string) {
 		super(message);
 		this.name = 'BrowserAacUnavailableError';
+	}
+}
+
+export interface BrowserAacM4aExpectation {
+	readonly frameCount: number;
+	readonly sampleRate: number;
+	readonly channelCount: number;
+	readonly signal?: AbortSignal;
+}
+
+export interface BrowserAacM4aValidation {
+	readonly codec: 'aac';
+	readonly codecProfile: typeof AAC_LC_CODEC_PROFILE;
+	readonly sampleRate: number;
+	readonly channelCount: number;
+	readonly durationSeconds: number;
+}
+
+export class BrowserAacM4aValidationError extends Error {
+	readonly code = 'BROWSER_AAC_M4A_VALIDATION_FAILED';
+
+	constructor(message: string, options?: ErrorOptions) {
+		super(message, options);
+		this.name = 'BrowserAacM4aValidationError';
+	}
+}
+
+/** Demux and bind the completed file to the exact PCM geometry that produced it. */
+export async function validateBrowserAacM4aOutput(
+	bytes: Uint8Array,
+	expectationValue: BrowserAacM4aExpectation,
+): Promise<BrowserAacM4aValidation> {
+	if (!(bytes instanceof Uint8Array) || bytes.byteLength < 1) {
+		throw new BrowserAacM4aValidationError('Browser AAC output must contain M4A bytes.');
+	}
+	const expectation = normalizeValidationExpectation(expectationValue);
+	throwIfAborted(expectation.signal);
+	const input = new Input({ source: new BufferSource(bytes), formats: [MP4] });
+	const onAbort = (): void => input.dispose();
+	expectation.signal?.addEventListener('abort', onAbort, { once: true });
+	try {
+		const [format, readable, tracks, audioTracks, videoTracks] = await Promise.all([
+			input.getFormat(), input.canRead(), input.getTracks(),
+			input.getAudioTracks(), input.getVideoTracks(),
+		]);
+		throwIfAborted(expectation.signal);
+		if (format !== MP4 || !readable) {
+			throw new BrowserAacM4aValidationError('Browser AAC output is not a readable MP4 file.');
+		}
+		if (tracks.length !== 1 || audioTracks.length !== 1 || videoTracks.length !== 0) {
+			throw new BrowserAacM4aValidationError(
+				'Browser AAC output must contain exactly one audio track and no other tracks.',
+			);
+		}
+		const audio = audioTracks[0]!;
+		const [codec, codecProfile, decoderConfig, sampleRate, channelCount, durationSeconds] = await Promise.all([
+			audio.getCodec(), audio.getCodecParameterString(), audio.getDecoderConfig(),
+			audio.getSampleRate(), audio.getNumberOfChannels(), input.computeDuration([audio]),
+		]);
+		throwIfAborted(expectation.signal);
+		if (codec !== 'aac' || codecProfile !== AAC_LC_CODEC_PROFILE
+			|| decoderConfig?.codec !== AAC_LC_CODEC_PROFILE
+			|| decoderConfig.description === undefined || decoderConfig.description.byteLength < 1) {
+			throw new BrowserAacM4aValidationError(
+				`Browser AAC output must contain AAC-LC profile ${AAC_LC_CODEC_PROFILE}.`,
+			);
+		}
+		if (sampleRate !== expectation.sampleRate || decoderConfig.sampleRate !== expectation.sampleRate) {
+			throw new BrowserAacM4aValidationError(
+				'Browser AAC output sample rate does not match the requested PCM sample rate.',
+			);
+		}
+		if (channelCount !== expectation.channelCount
+			|| decoderConfig.numberOfChannels !== expectation.channelCount) {
+			throw new BrowserAacM4aValidationError(
+				'Browser AAC output channel count does not match the requested PCM channel count.',
+			);
+		}
+		const requestedDuration = expectation.frameCount / expectation.sampleRate;
+		const durationTolerance = Math.max(1 / expectation.sampleRate, Number.EPSILON);
+		if (!Number.isFinite(durationSeconds) || durationSeconds <= 0
+			|| Math.abs(durationSeconds - requestedDuration) > durationTolerance) {
+			throw new BrowserAacM4aValidationError(
+				'Browser AAC output duration does not match the requested PCM duration.',
+			);
+		}
+		return Object.freeze({
+			codec: 'aac' as const,
+			codecProfile: AAC_LC_CODEC_PROFILE,
+			sampleRate,
+			channelCount,
+			durationSeconds,
+		});
+	} catch (error) {
+		throwIfAborted(expectation.signal);
+		if (error instanceof BrowserAacM4aValidationError) throw error;
+		throw new BrowserAacM4aValidationError(
+			'Browser AAC output could not be demuxed as a complete M4A file.',
+			{ cause: error },
+		);
+	} finally {
+		expectation.signal?.removeEventListener('abort', onAbort);
+		input.dispose();
 	}
 }
 
@@ -138,6 +253,26 @@ function normalizeRequest(request: BrowserAacEncodeRequest): BrowserAacEncodeReq
 		maximumOutputBytes,
 		...(request.metadata ? { metadata: Object.freeze({ ...request.metadata }) } : {}),
 		...(request.signal ? { signal: request.signal } : {}),
+	});
+}
+
+function normalizeValidationExpectation(
+	value: BrowserAacM4aExpectation,
+): BrowserAacM4aExpectation {
+	if (!value || typeof value !== 'object') {
+		throw new TypeError('Browser AAC validation requires an expected PCM geometry.');
+	}
+	const frameCount = positiveInteger(value.frameCount, 'validation frame count');
+	const sampleRate = positiveInteger(value.sampleRate, 'validation sample rate');
+	const channelCount = positiveInteger(value.channelCount, 'validation channel count');
+	if (value.signal !== undefined && (
+		typeof AbortSignal !== 'function' || !(value.signal instanceof AbortSignal)
+	)) throw new TypeError('Browser AAC validation signal must be an AbortSignal.');
+	return Object.freeze({
+		frameCount,
+		sampleRate,
+		channelCount,
+		...(value.signal ? { signal: value.signal } : {}),
 	});
 }
 

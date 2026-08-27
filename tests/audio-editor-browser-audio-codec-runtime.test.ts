@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	BrowserCodecRuntimeDisposedError,
 	BrowserCodecRuntimeUnsupportedError,
 	createBrowserAudioCodecRuntime,
 	type BrowserDedicatedAudioCodecClient,
@@ -85,6 +86,35 @@ test('browser audio runtime generates a direct destination from dedicated codec 
 		['write', [10, 11, 12]],
 		['close'],
 	]);
+});
+
+test('disposing the browser audio runtime cancels an active destination stream', async () => {
+	const output = Uint8Array.from({ length: 13 }, (_value, index) => index);
+	const client = clientFixture([], output);
+	const runtime = createBrowserAudioCodecRuntime({ codecClient: client, webCodecsAac: false });
+	const wav = new Blob([Uint8Array.from(encodeWav([
+		Float32Array.of(0, 0),
+	], { sampleRate: 48_000, bitDepth: 32, float: true }))], { type: 'audio/wav' });
+	let closeCalls = 0;
+	let abortReason: unknown;
+	const sink: FfmpegOutputSink<string> = {
+		async open() {},
+		async write() { runtime.dispose(); },
+		async close() { closeCalls += 1; return 'must-not-publish'; },
+		async abort(reason) { abortReason = reason; },
+	};
+
+	await assert.rejects(
+		() => runtime.encodeFileToSink(wav, 'mp3', sink, {
+			bitRate: 192,
+			maximumOutputBytes: 1_024,
+			maximumOutputChunkBytes: 5,
+		}),
+		(error) => error instanceof BrowserCodecRuntimeDisposedError,
+	);
+	assert.equal(closeCalls, 0);
+	assert.ok(abortReason instanceof BrowserCodecRuntimeDisposedError);
+	assert.equal(client.disposed, true);
 });
 
 test('browser audio runtime routes AAC/M4A file generation to WebCodecs', async () => {

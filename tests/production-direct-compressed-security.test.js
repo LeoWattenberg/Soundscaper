@@ -74,7 +74,7 @@ test('exact direct compressed publication has browser-native ownership and rollb
 	);
 	assert.match(
 		publication.summary,
-		/AAC\/M4A.*WebCodecs AudioEncoder.*Mediabunny.*capability probing.*complete M4A/isu,
+		/AAC\/M4A.*WebCodecs AudioEncoder.*Mediabunny.*capability probing.*complete M4A.*demux.*readable MP4.*one AAC-LC audio track.*sample rate.*channel count.*duration/isu,
 	);
 	assert.match(
 		publication.summary,
@@ -98,7 +98,7 @@ test('exact direct compressed publication has browser-native ownership and rollb
 	);
 	assert.match(
 		rollback.summary,
-		/dedicated WebAssembly encode.*terminates its worker.*rejects pending.*AAC\/M4A.*not currently interruptible.*discarded before publication/isu,
+		/dedicated WebAssembly encode.*terminates its worker.*rejects pending.*AAC\/M4A.*races every awaited.*probe.*mux.*finalization.*validation.*abort cancels the output.*disposes the demux input.*no aborted or stale result reaches publication/isu,
 	);
 	assert.match(
 		rollback.summary,

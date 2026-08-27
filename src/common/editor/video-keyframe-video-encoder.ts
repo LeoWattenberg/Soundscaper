@@ -139,7 +139,7 @@ const DEFAULT_DEPENDENCIES: VideoKeyframeVideoEncoderDependencies = Object.freez
 
 /** Encode one authenticated exact-frame source without exposing MEMFS path authority. */
 export async function encodeVideoKeyframeVideo(
-	editorFfmpegValue: VideoKeyframeVideoEditorFfmpeg,
+	editorFfmpegValue: VideoKeyframeVideoEditorFfmpeg | null | undefined,
 	requestValue: VideoKeyframeVideoEncoderRequest,
 	dependenciesValue: VideoKeyframeVideoEncoderDependencies = DEFAULT_DEPENDENCIES,
 ): Promise<VideoKeyframeVideoEncoderResult> {
@@ -190,7 +190,7 @@ export async function encodeVideoKeyframeVideo(
 
 /** Deliver directly through bounded ranges before the generation-scoped lease is released. */
 export async function encodeVideoKeyframeVideoToSink<Output>(
-	editorFfmpegValue: VideoKeyframeVideoEditorFfmpeg,
+	editorFfmpegValue: VideoKeyframeVideoEditorFfmpeg | null | undefined,
 	requestValue: VideoKeyframeVideoEncoderRequest,
 	sinkValue: FfmpegOutputSink<Output>,
 	dependenciesValue: VideoKeyframeVideoEncoderDependencies = DEFAULT_DEPENDENCIES,
@@ -248,7 +248,7 @@ interface DeliveryStrategy<Output> {
 }
 
 async function encodeManaged<Output>(
-	editorFfmpegValue: VideoKeyframeVideoEditorFfmpeg,
+	editorFfmpegValue: VideoKeyframeVideoEditorFfmpeg | null | undefined,
 	requestValue: VideoKeyframeVideoEncoderRequest,
 	dependenciesValue: VideoKeyframeVideoEncoderDependencies,
 	createDelivery: (request: NormalizedRequest) => DeliveryStrategy<Output>,

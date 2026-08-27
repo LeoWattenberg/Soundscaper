@@ -31,6 +31,7 @@ const {
 const { resolveRuntimeProjectProjection } = await import('../src/common/editor/runtime-clip-projection.ts');
 const { createProjectStore } = await import('../src/common/editor/storage.js');
 const { createPersistedVideoProject } = await import('./helpers/persisted-video-project-fixture.ts');
+const { availableDesktopVideoExportCapabilities } = await import('./helpers/desktop-video-export-capabilities.js');
 const { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } = await import('../src/common/editor/video-export-plan-version.ts');
 
 const COPY = Object.freeze({
@@ -854,20 +855,10 @@ test('desktop video export API and generic FFmpeg dispatch stage raw media and a
 		new Float32Array(fixture.audioSource.frameCount),
 	]);
 	const ffmpeg = createVideoMemoryFfmpeg();
-	const renderCalls = [];
-	const downloads = [];
-	const cleanups = [];
+	const renderCalls = [], downloads = [], cleanups = [];
 	const fileService = {
 		isDesktop: true,
-		async getDesktopVideoExportCapabilities() {
-			return {
-				schemaVersion: 1,
-				formats: {
-					mp4: { available: true, provider: 'external-ffmpeg', reason: null },
-					webm: { available: true, provider: 'external-ffmpeg', reason: null },
-				},
-			};
-		},
+		getDesktopVideoExportCapabilities: availableDesktopVideoExportCapabilities,
 		async createDownload(request) {
 			downloads.push(request);
 			return {

@@ -5,8 +5,9 @@
  *
  * The plan never changes because WebCodecs is or is not present: it states a
  * canvas, a rate, and a quality tier, and this decides only which encoder is
- * asked to produce those bytes. An unqualified browser is therefore a fallback
- * to the shipped FFmpeg, reported per delivery, and never a failed export.
+ * asked to produce those bytes. An unqualified browser is reported with the
+ * legacy `ffmpeg` tier token for caller compatibility. The production browser
+ * turns that result into an explicit refusal; it has no FFmpeg fallback.
  *
  * The codec string has to carry a level, and the level has to admit the canvas
  * and rate the plan asked for — a level that does not is the encoder quietly
@@ -15,6 +16,8 @@
  * canvas past every level is refused here with the reason rather than at an
  * encoder that would only say "unsupported".
  */
+
+import { createVideoWebCodecsEncoderConfiguration } from './video-webcodecs-producer.ts';
 
 export type VideoWebCodecsTier = 'webcodecs' | 'ffmpeg';
 
@@ -126,6 +129,7 @@ export function resolveVideoWebCodecsCodec(
 export async function resolveVideoWebCodecsSupport(
 	videoCodec: string,
 	canvas: VideoWebCodecsCanvas,
+	bitrate: number,
 	encoder: EncoderConfigProbe | undefined,
 ): Promise<VideoWebCodecsSupport> {
 	if (typeof encoder?.isConfigSupported !== 'function') {
@@ -138,14 +142,12 @@ export async function resolveVideoWebCodecsSupport(
 	const { width, height, frameRate } = canvasGeometry(canvas);
 	let probed: { supported?: boolean };
 	try {
-		probed = await encoder.isConfigSupported(Object.freeze({
+		probed = await encoder.isConfigSupported(createVideoWebCodecsEncoderConfiguration({
+			videoCodec,
 			codec,
-			width,
-			height,
-			framerate: frameRate.num / frameRate.den,
-			// Annex B for H.264 and raw frames for VP9 are what the elementary
-			// stream remux reads; a description-bearing variant would not be.
-			...(videoCodec === 'h264' ? { avc: Object.freeze({ format: 'annexb' }) } : {}),
+			canvas: { width, height, frameRate },
+			bitrate,
+			...(videoCodec === 'h264' ? { h264Format: 'avc' as const } : {}),
 		}));
 	} catch (error) {
 		return fallback(`This browser refused the ${codec} configuration: ${errorText(error)}`);

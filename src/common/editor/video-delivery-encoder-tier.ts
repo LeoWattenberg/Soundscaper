@@ -93,9 +93,13 @@ export async function resolveVideoDeliveryEncoderTier(
 			videoCodec: string;
 		}>;
 		const canvas = request.canvas as VideoWebCodecsCanvas;
+		const bitrate = resolveVideoDeliveryWebCodecsBitrate(
+			descriptor.videoCodec, request.quality, canvas,
+		);
 		const support = await resolveVideoWebCodecsSupport(
 			descriptor.videoCodec,
 			canvas,
+			bitrate,
 			encoder as never,
 		);
 		if (support.tier !== 'webcodecs' || !support.codec) {
@@ -109,9 +113,7 @@ export async function resolveVideoDeliveryEncoderTier(
 		return Object.freeze({
 			tier: 'webcodecs' as const,
 			codec: support.codec,
-			bitrate: resolveVideoDeliveryWebCodecsBitrate(
-				descriptor.videoCodec, request.quality, canvas,
-			),
+			bitrate,
 			reason: null,
 		});
 	} catch (error) {

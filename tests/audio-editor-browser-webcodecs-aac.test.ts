@@ -4,10 +4,19 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	BrowserAacM4aValidationError,
 	encodeBrowserAacM4a,
 	probeBrowserAacEncoding,
+	validateBrowserAacM4aOutput,
 } from '../src/common/editor/browser-webcodecs-aac.ts';
 import { browserAacMetadataTags } from '../src/common/editor/browser-aac-metadata.ts';
+import { aacLcM4a48_000Fixture } from './helpers/os-audio-codec-fixtures.ts';
+
+const EXPECTED_M4A_GEOMETRY = Object.freeze({
+	frameCount: 2_400,
+	sampleRate: 48_000,
+	channelCount: 2,
+});
 
 test('AAC capability uses the browser exact WebCodecs configuration probe', async () => {
 	const seen: unknown[] = [];
@@ -53,6 +62,60 @@ test('AAC metadata maps only fields the MP4 muxer can state exactly', () => {
 	assert.throws(
 		() => browserAacMetadataTags({ trackNumber: 'side A' }),
 		/positive integer/iu,
+	);
+});
+
+test('AAC output validation demuxes an exact AAC-LC audio-only MP4', async () => {
+	assert.deepEqual(await validateBrowserAacM4aOutput(
+		aacLcM4a48_000Fixture(), EXPECTED_M4A_GEOMETRY,
+	), {
+		codec: 'aac', codecProfile: 'mp4a.40.2', sampleRate: 48_000,
+		channelCount: 2, durationSeconds: 0.05,
+	});
+});
+
+test('AAC output validation rejects unreadable bytes and non-LC profiles', async () => {
+	await assert.rejects(
+		() => validateBrowserAacM4aOutput(
+			Uint8Array.of(0, 0, 0, 8, 0x66, 0x74, 0x79, 0x70), EXPECTED_M4A_GEOMETRY,
+		),
+		(error) => error instanceof BrowserAacM4aValidationError,
+	);
+	const highEfficiency = aacLcM4a48_000Fixture();
+	const audioSpecificConfig = Buffer.from(highEfficiency).indexOf(Buffer.from('119056e500', 'hex'));
+	assert.equal(audioSpecificConfig, 528);
+	highEfficiency[audioSpecificConfig] = 0x29;
+	await assert.rejects(
+		() => validateBrowserAacM4aOutput(highEfficiency, EXPECTED_M4A_GEOMETRY),
+		/AAC-LC.*mp4a\.40\.2/iu,
+	);
+});
+
+test('AAC output validation binds sample rate, channels, and duration to the request', async () => {
+	const bytes = aacLcM4a48_000Fixture();
+	await assert.rejects(
+		() => validateBrowserAacM4aOutput(bytes, { ...EXPECTED_M4A_GEOMETRY, sampleRate: 44_100 }),
+		/sample rate.*requested/iu,
+	);
+	await assert.rejects(
+		() => validateBrowserAacM4aOutput(bytes, { ...EXPECTED_M4A_GEOMETRY, channelCount: 1 }),
+		/channel count.*requested/iu,
+	);
+	await assert.rejects(
+		() => validateBrowserAacM4aOutput(bytes, { ...EXPECTED_M4A_GEOMETRY, frameCount: 4_800 }),
+		/duration.*requested/iu,
+	);
+});
+
+test('AAC output validation observes cancellation before demux', async () => {
+	const controller = new AbortController();
+	const reason = new DOMException('AAC validation cancelled.', 'AbortError');
+	controller.abort(reason);
+	await assert.rejects(
+		() => validateBrowserAacM4aOutput(aacLcM4a48_000Fixture(), {
+			...EXPECTED_M4A_GEOMETRY, signal: controller.signal,
+		}),
+		(error) => error === reason,
 	);
 });
 

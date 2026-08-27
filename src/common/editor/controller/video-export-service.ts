@@ -34,10 +34,13 @@ import { resolveVideoCaptionCues } from '../video-caption-cues.ts';
 import { videoExportPlanFormat } from '../video-export-request-format.ts';
 import { loadVideoBurnInFonts } from '../video-burn-in-font.ts';
 import { videoBurnInFontSubsetIds } from '../video-caption-burn-in.ts';
-import { DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT } from '../video-delivery-audio-layout.ts';
 import { resolveVideoDeliveryEncoderTier, VIDEO_DELIVERY_FFMPEG_ENCODER } from '../video-delivery-encoder-tier.ts';
 import { loadVideoExportOriginal } from './video-export-original-loader.ts';
 import { assertDesktopVideoExportAvailable } from '../desktop-video-export-capability.ts';
+import {
+	stagedAudioChannelCount,
+	stagedAudioChannelLayout,
+} from './video-export-staged-audio.ts';
 
 export interface VideoExportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -59,32 +62,6 @@ const NO_TASK_PROGRESS = Object.freeze({
 	setPhase: () => false,
 	finish: () => false,
 });
-
-/** Create the video delivery action without coupling audio export orchestration to video runtime details. */
-/**
- * The layout the plan's staged audio input asks for.
- *
- * Read from the plan rather than the request because the plan is what the
- * encoders were admitted against, and a product strategy may have built it.
- */
-function stagedAudioChannelLayout(plan: RuntimeValue): string {
-	const audioInput = (plan.inputs as RuntimeValue[]).find(
-		(input: RuntimeValue) => input.kind === 'staged-audio-mix',
-	);
-	return (audioInput?.channelLayout as string | undefined) ?? DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT;
-}
-
-/** Resolve the exact channel geometry the staged mix will hand to WebCodecs. */
-function stagedAudioChannelCount(plan: RuntimeValue, project: RuntimeValue): number {
-	const layout = stagedAudioChannelLayout(plan);
-	if (layout === 'mono') return 1;
-	if (layout === 'stereo') return 2;
-	const channels = Number(project.masterChannels ?? 2);
-	if (!Number.isSafeInteger(channels) || channels < 1 || channels > 32) {
-		throw new RangeError('The video delivery master channel count is invalid.');
-	}
-	return channels;
-}
 
 /**
  * Write the caption sidecar a plan asks for, after its video has been published.

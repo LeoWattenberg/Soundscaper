@@ -89,7 +89,14 @@ test('native mux production requests AVC and preserves each chunk metadata callb
 		},
 	});
 
-	assert.deepEqual(harness.configs[0]?.avc, { format: 'avc' });
+	assert.deepEqual(harness.configs[0], {
+		codec: 'avc1.4d001f',
+		width: 4,
+		height: 2,
+		framerate: 30_000 / 1_001,
+		bitrate: 5_000,
+		avc: { format: 'avc' },
+	});
 	assert.equal(received.length, 1);
 	assert.equal(received[0]?.metadata, metadata, 'decoder configuration reaches the muxer intact');
 	assert.deepEqual(received[0]?.chunk, harness.emittedChunks[0]);

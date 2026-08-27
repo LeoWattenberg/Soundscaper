@@ -154,8 +154,9 @@ function offlineRequest(
 		endFrame: plan.range.endFrame,
 		format: plan.format,
 		quality: plan.quality,
-		...(request.webCodecs ? { webCodecs: request.webCodecs } : {}),
-		editorFfmpeg: request.editorFfmpeg as VideoKeyframeOfflineVideoExportRequest['editorFfmpeg'],
+		...(request.webCodecs
+			? { webCodecs: request.webCodecs }
+			: { editorFfmpeg: request.editorFfmpeg as VideoKeyframeOfflineVideoExportRequest['editorFfmpeg'] }),
 		...(request.audioMix instanceof Blob ? { audioMix: request.audioMix } : {}),
 		...(request.maximumOutputBytes === undefined ? {} : {
 			maximumOutputBytes: request.maximumOutputBytes as number,

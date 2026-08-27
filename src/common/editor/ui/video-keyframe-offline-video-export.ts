@@ -78,7 +78,8 @@ export interface VideoKeyframeOfflineVideoExportRequest {
 	readonly quality?: VideoDeliveryQuality;
 	/** Present when the delivery's capability probe chose the browser's encoder. */
 	readonly webCodecs?: VideoKeyframeOfflineWebCodecsDecision;
-	readonly editorFfmpeg: VideoKeyframeVideoEditorFfmpeg;
+	/** Required only when no browser encoder decision is present. */
+	readonly editorFfmpeg?: VideoKeyframeVideoEditorFfmpeg;
 	readonly audioMix?: Blob;
 	readonly ringCapacityBytes?: number;
 	readonly audioRingCapacityBytes?: number;
@@ -104,7 +105,7 @@ export interface VideoKeyframeOfflineVideoExportDependencies {
 	readonly createRenderer: typeof createVideoKeyframeOfflineRgbaRenderer;
 	readonly encodeVideo: typeof encodeVideoKeyframeVideo;
 	readonly encodeVideoToSink?: (
-		editorFfmpeg: VideoKeyframeVideoEditorFfmpeg,
+		editorFfmpeg: VideoKeyframeVideoEditorFfmpeg | null | undefined,
 		request: VideoKeyframeVideoEncoderRequest,
 		sink: FfmpegOutputSink<unknown>,
 	) => Promise<VideoKeyframeVideoSinkEncoderResult<unknown>>;
@@ -120,7 +121,7 @@ interface NormalizedRequest {
 	readonly format: VideoKeyframeEncoderFormat;
 	readonly quality: VideoDeliveryQuality;
 	readonly webCodecs?: VideoKeyframeOfflineWebCodecsDecision;
-	readonly editorFfmpeg: VideoKeyframeVideoEditorFfmpeg;
+	readonly editorFfmpeg?: VideoKeyframeVideoEditorFfmpeg;
 	readonly audioMix?: Blob;
 	readonly encoderOptions: Readonly<Record<string, number>>;
 	readonly sourceTimeoutMs?: number;
@@ -319,6 +320,12 @@ function normalizeRequest(value: unknown): NormalizedRequest {
 		&& (request.audioRingCapacityBytes !== undefined || request.maximumAudioBytes !== undefined)) {
 		throw new TypeError('Offline video export audio options require audioMix.');
 	}
+	const webCodecs = request.webCodecs === undefined
+		? undefined
+		: snapshotWebCodecs(request.webCodecs);
+	const editorFfmpeg = webCodecs === undefined
+		? snapshotEditorFfmpeg(request.editorFfmpeg)
+		: undefined;
 	return Object.freeze({
 		project,
 		timingBySourceId,
@@ -328,10 +335,7 @@ function normalizeRequest(value: unknown): NormalizedRequest {
 		...(endFrame === undefined ? {} : { endFrame }),
 		format: request.format,
 		quality: normalizeVideoDeliveryQuality(request.quality, 'offline video export quality'),
-		...(request.webCodecs === undefined ? {} : {
-			webCodecs: snapshotWebCodecs(request.webCodecs),
-		}),
-		editorFfmpeg: snapshotEditorFfmpeg(request.editorFfmpeg),
+		...(webCodecs === undefined ? { editorFfmpeg } : { webCodecs }),
 		...(request.audioMix === undefined ? {} : {
 			audioMix: canonicalMediaContentBlob(request.audioMix),
 		}),

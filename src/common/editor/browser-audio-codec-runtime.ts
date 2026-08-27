@@ -170,14 +170,15 @@ export function createBrowserAudioCodecRuntime(options: BrowserAudioCodecRuntime
 			sink: FfmpegOutputSink<Output>,
 			settings: BrowserAudioCodecRuntimeSettings = {},
 		) {
-			const encoded = await encodeFile(file, format, settings);
+			const signal = operationSignal(settings.signal, lifetimeAbort.signal);
+			const encoded = await encodeFile(file, format, { ...settings, signal });
 			const streamed = await streamFfmpegOutputFile({
 				async statFile() { return { size: encoded.bytes.byteLength }; },
 				async readFileRange(_path, offset, maximumBytes) {
 					return encoded.bytes.slice(offset, offset + maximumBytes);
 				},
 			}, 'browser-dedicated-audio-result', sink, {
-				...(settings.signal ? { signal: settings.signal } : {}),
+				signal,
 				...(settings.assertCurrent ? { assertCurrent: settings.assertCurrent } : {}),
 				maximumChunkBytes: settings.maximumOutputChunkBytes
 					?? FFMPEG_OUTPUT_STREAM_MAXIMUM_CHUNK_BYTES,

@@ -264,10 +264,7 @@ test.describe('selected Framescaper F31 recoverable capture', () => {
 				sourceCount: 4,
 				videoSourceCount: 2,
 				proxyAttachmentCount: 0,
-				videoSources: [
-					{ characteristicsBackend: 'container', proxyAttached: false },
-					{ characteristicsBackend: 'container', proxyAttached: false },
-				],
+				videoSources: Array(2).fill({ characteristicsBackend: 'container', proxyAttached: false }),
 				projectBinClipCount: 4,
 			});
 

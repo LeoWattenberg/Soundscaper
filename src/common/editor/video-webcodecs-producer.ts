@@ -114,6 +114,40 @@ export interface VideoWebCodecsChunkProduceRequest
 	) => Awaitable<void>;
 }
 
+export interface VideoWebCodecsEncoderConfigurationRequest {
+	readonly videoCodec: string;
+	/** Preserve the full codec string accepted during admission. */
+	readonly codec: string;
+	readonly canvas: Readonly<{
+		readonly width: number;
+		readonly height: number;
+		readonly frameRate: Readonly<{ readonly num: number; readonly den: number }>;
+	}>;
+	/** Preserve the exact delivery bitrate selected before admission. */
+	readonly bitrate: number;
+	readonly h264Format?: 'annexb' | 'avc';
+}
+
+/** The single exact `VideoEncoderConfig` shape used by admission and execution. */
+export function createVideoWebCodecsEncoderConfiguration(
+	request: VideoWebCodecsEncoderConfigurationRequest,
+): Readonly<Record<string, unknown>> {
+	const width = positiveInteger(request.canvas?.width, 'canvas width');
+	const height = positiveInteger(request.canvas?.height, 'canvas height');
+	const num = positiveInteger(request.canvas?.frameRate?.num, 'canvas frame rate numerator');
+	const den = positiveInteger(request.canvas?.frameRate?.den, 'canvas frame rate denominator');
+	return Object.freeze({
+		codec: request.codec,
+		width,
+		height,
+		framerate: num / den,
+		bitrate: positiveInteger(request.bitrate, 'bitrate'),
+		...(request.videoCodec === 'h264'
+			? { avc: Object.freeze({ format: request.h264Format ?? 'annexb' }) }
+			: {}),
+	});
+}
+
 /**
  * Encode every frame of the source, writing an elementary stream as it goes.
  *
@@ -189,16 +223,13 @@ export async function produceVideoWebCodecsChunks(
 	};
 
 	try {
-		encoder.configure({
+		encoder.configure(createVideoWebCodecsEncoderConfiguration({
+			videoCodec: request.videoCodec,
 			codec: request.codec,
-			width,
-			height,
-			framerate: frameRate.num / frameRate.den,
+			canvas: { width, height, frameRate },
 			bitrate: request.bitrate,
-			...(request.videoCodec === 'h264'
-				? { avc: { format: request.h264Format ?? 'annexb' } }
-				: {}),
-		});
+			...(request.h264Format ? { h264Format: request.h264Format } : {}),
+		}));
 		const rgba = new Uint8Array(producer.byteLength);
 		for (let index = 0; index < frameSource.frameCount; index += 1) {
 			assertReady(request, failure);
@@ -311,4 +342,11 @@ function abortError(): Error {
 	const error = new Error('The video export was cancelled.');
 	error.name = 'AbortError';
 	return error;
+}
+
+function positiveInteger(value: unknown, name: string): number {
+	if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
+		throw new RangeError(`Video WebCodecs ${name} must be a positive safe integer.`);
+	}
+	return value;
 }

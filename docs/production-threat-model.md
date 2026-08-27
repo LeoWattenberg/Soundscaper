@@ -455,7 +455,9 @@ Each payload's exact byte length and SHA-256 are checked before WebAssembly
 compilation, closed profiles refuse unsupported tuples, and format-specific
 validators reject empty, incomplete, or structurally inconsistent output.
 AAC/M4A uses the browser WebCodecs AudioEncoder through Mediabunny only after
-the exact configuration probe succeeds and returns one complete M4A file.
+the exact configuration probe succeeds and returns one complete M4A file only
+after demux confirms readable MP4, exactly one AAC-LC audio track, exact sample
+rate and channel count, and requested duration.
 The browser codec runtime advertises `ffmpegAvailable: false`. Custom FFmpeg,
 unsupported formats or profiles, and unsupported probe, conform, trim, proxy,
 or general media operations return typed unavailability with no FFmpeg
@@ -471,10 +473,10 @@ commit, and requires emitted, destination-written, and committed-result byte
 agreement without a final download Blob.
 
 Cancellation of a dedicated WebAssembly encode terminates its worker. AAC/M4A
-checks cancellation and currentness before and after its WebCodecs/Mediabunny
-call; the current complete-file AAC request has no mid-encode AbortSignal, so a
-late abort or stale result is discarded before publication rather than claimed
-as force-cancelled. Browser audio currently retains mapped Float32 PCM and one
+races every awaited WebCodecs/Mediabunny probe, mux, finalization, and validation
+operation against cancellation; abort cancels the output or disposes the demux
+input, and no aborted or stale result reaches publication. Browser audio
+currently retains mapped Float32 PCM and one
 complete encoded result under non-raiseable 128 MiB input/output bounds. Those
 bounds do not qualify end-to-end streaming, browser or worker heap, WebAssembly
 memory, RSS, GC, CPU, elapsed time, codec conformance, reference scale,

@@ -39,6 +39,7 @@ test('a delivery past every level is refused here, with a reason, not at an enco
 	const support = await resolveVideoWebCodecsSupport(
 		'h264',
 		{ width: 16_384, height: 16_384, frameRate: RATE_30 },
+		5_000,
 		{ isConfigSupported: async () => ({ supported: true }) },
 	);
 	assert.equal(support.tier, 'ffmpeg');
@@ -46,7 +47,7 @@ test('a delivery past every level is refused here, with a reason, not at an enco
 });
 
 test('a browser without the API falls back rather than failing', async () => {
-	const support = await resolveVideoWebCodecsSupport('h264', canvas(), undefined);
+	const support = await resolveVideoWebCodecsSupport('h264', canvas(), 5_000, undefined);
 
 	assert.deepEqual({ ...support }, {
 		tier: 'ffmpeg',
@@ -56,7 +57,7 @@ test('a browser without the API falls back rather than failing', async () => {
 });
 
 test('a browser with the API but not the codec falls back, and says which codec', async () => {
-	const support = await resolveVideoWebCodecsSupport('vp9', canvas(), {
+	const support = await resolveVideoWebCodecsSupport('vp9', canvas(), 5_001, {
 		isConfigSupported: async () => ({ supported: false }),
 	});
 
@@ -65,7 +66,7 @@ test('a browser with the API but not the codec falls back, and says which codec'
 });
 
 test('a probe that throws is a fallback carrying what it said', async () => {
-	const support = await resolveVideoWebCodecsSupport('h264', canvas(), {
+	const support = await resolveVideoWebCodecsSupport('h264', canvas(), 5_002, {
 		isConfigSupported: () => Promise.reject(new TypeError('bad config')),
 	});
 
@@ -75,25 +76,27 @@ test('a probe that throws is a fallback carrying what it said', async () => {
 
 test('a supported configuration selects the tier and states the codec it probed', async () => {
 	const probes: Record<string, unknown>[] = [];
-	const support = await resolveVideoWebCodecsSupport('h264', canvas(), {
+	const support = await resolveVideoWebCodecsSupport('h264', canvas(), 2_764_800, {
 		isConfigSupported: async (config) => { probes.push(config); return { supported: true }; },
 	});
 
 	assert.deepEqual({ ...support }, { tier: 'webcodecs', codec: 'avc1.4d001f', reason: null });
-	// Annex B is what the elementary-stream remux reads; a description-bearing
-	// variant would mux into a file no demuxer could open.
-	assert.deepEqual(probes[0]!.avc, { format: 'annexb' });
+	// The production browser muxer consumes description-bearing AVC, so this
+	// probe must not admit an Annex-B configuration that execution never uses.
+	assert.deepEqual(probes[0]!.avc, { format: 'avc' });
 	assert.equal(probes[0]!.width, 1_280);
 	assert.equal(probes[0]!.framerate, 30);
+	assert.equal(probes[0]!.bitrate, 2_764_800);
 });
 
 test('VP9 is probed without an H.264 bitstream-format option it has no meaning for', async () => {
 	const probes: Record<string, unknown>[] = [];
-	await resolveVideoWebCodecsSupport('vp9', canvas(), {
+	await resolveVideoWebCodecsSupport('vp9', canvas(), 1_935_360, {
 		isConfigSupported: async (config) => { probes.push(config); return { supported: true }; },
 	});
 
 	assert.equal(Object.hasOwn(probes[0]!, 'avc'), false);
+	assert.equal(probes[0]!.bitrate, 1_935_360);
 });
 
 function codec(videoCodec: string, width: number, height: number, frameRate: { num: number; den: number }) {

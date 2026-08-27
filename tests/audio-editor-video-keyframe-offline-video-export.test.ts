@@ -223,7 +223,7 @@ test('offline direct entry forwards one managed sink and preserves browser clean
 	const dependencies: VideoKeyframeOfflineVideoExportDependencies = Object.freeze({
 		...harnessDependencies(events),
 		async encodeVideoToSink(
-			_editor: VideoKeyframeVideoEditorFfmpeg,
+			_editor: VideoKeyframeVideoEditorFfmpeg | null | undefined,
 			_request: VideoKeyframeVideoEncoderRequest,
 			receivedSink: FfmpegOutputSink<unknown>,
 		): Promise<VideoKeyframeVideoSinkEncoderResult<unknown>> {

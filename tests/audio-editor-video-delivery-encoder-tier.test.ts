@@ -15,14 +15,28 @@ const CANVAS = Object.freeze({
 });
 
 test('a qualified browser encodes the keyed delivery and the decision carries no reason', async () => {
+	const probes: Readonly<Record<string, unknown>>[] = [];
 	const decision = await withVideoFrame(() => resolveVideoDeliveryEncoderTier({
 		format: 'mp4', canvas: CANVAS, quality: 'balanced', eligible: true,
-	}, supportingEncoder()));
+	}, {
+		async isConfigSupported(config: Readonly<Record<string, unknown>>) {
+			probes.push(config);
+			return { supported: true };
+		},
+	}));
 	assert.equal(decision.tier, 'webcodecs');
 	assert.equal(decision.codec, 'avc1.4d0028');
 	assert.equal(decision.reason, null);
 	// 1920x1080 at 29.97 with H.264's balanced 0.10 bits per pixel.
 	assert.equal(decision.bitrate, 6_214_585);
+	assert.deepEqual(probes, [{
+		codec: decision.codec,
+		width: CANVAS.width,
+		height: CANVAS.height,
+		framerate: CANVAS.frameRate.num / CANVAS.frameRate.den,
+		bitrate: decision.bitrate,
+		avc: { format: 'avc' },
+	}]);
 });
 
 test('a composed-graph delivery refuses instead of falling back to browser FFmpeg', async () => {
@@ -91,6 +105,13 @@ test('the WebM delivery is probed and reported as VP9, not as the container', as
 	assert.match(String(probes[0]?.codec), /^vp09\./u);
 	// VP9's high tier is 0.12 bits per pixel, below H.264's 0.18 for the same tier.
 	assert.equal(decision.bitrate, 7_457_502);
+	assert.deepEqual(probes, [{
+		codec: decision.codec,
+		width: CANVAS.width,
+		height: CANVAS.height,
+		framerate: CANVAS.frameRate.num / CANVAS.frameRate.den,
+		bitrate: decision.bitrate,
+	}]);
 });
 
 test('an audio delivery probes the exact browser codec tuple before rendering', async () => {

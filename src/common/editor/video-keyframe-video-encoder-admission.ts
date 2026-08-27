@@ -191,7 +191,7 @@ export function manageProducer(
 	return Object.freeze({ value: managed, disposed: () => disposed });
 }
 
-export function validateEditorFfmpeg(value: VideoKeyframeVideoEditorFfmpeg): VideoKeyframeVideoEditorFfmpeg {
+export function validateEditorFfmpeg(value: unknown): VideoKeyframeVideoEditorFfmpeg {
 	if (!value || (typeof value !== 'object' && typeof value !== 'function')) {
 		throw new TypeError('Video keyframe encoding requires an editor FFmpeg operation owner.');
 	}
