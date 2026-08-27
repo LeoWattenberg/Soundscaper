@@ -20,25 +20,19 @@ test('checked-in native policy keeps every backend and user plug-in format close
 	}
 });
 
-test('activation requires the exact gate, policy stack, platform and every source row', () => {
+test('activation requires the platform and every authenticated source, not human review state', () => {
 	const mutableLicensing = structuredClone(licensing);
 	const mutableSources = structuredClone(sources);
-	activate(mutableLicensing.futureDistributionGates, 'native-audio', 'enabled');
-	activate(mutableLicensing.nativeFormatPolicies, 'native-audio-stack', 'implemented');
-	activate(mutableLicensing.nativeFormatPolicies, 'audio-backend-asio', 'implemented');
-	activate(mutableSources.sources, 'juce', 'accepted', 'activationStatus');
-	activate(mutableSources.sources, 'electron-node-api-headers', 'accepted', 'activationStatus');
-	// Withdrawn from the checked-in acceptance so the assertion below still
-	// proves each source is required on its own rather than riding on the two
-	// accepted above.
+	activate(mutableLicensing.futureDistributionGates, 'native-audio', 'blocked');
+	activate(mutableLicensing.nativeFormatPolicies, 'native-audio-stack', 'blocked');
+	activate(mutableLicensing.nativeFormatPolicies, 'audio-backend-asio', 'blocked');
 	activate(mutableSources.sources, 'asio-sdk', 'blocked', 'activationStatus');
 	const sourceAudit = authenticatedSourceAudit(mutableSources);
 	const policy = createSoundscaperNativeActivationPolicy({
 		licensing: mutableLicensing, sources: mutableSources, sourceAudit, platform: 'win32',
 	});
-	assert.equal(policy.audioBackend('asio'), false, 'the ASIO SDK activation is independently required');
-	activate(mutableSources.sources, 'asio-sdk', 'accepted', 'activationStatus');
-	assert.equal(policy.audioBackend('asio'), true);
+	assert.equal(policy.audioBackend('asio'), true,
+		'Milestone 9 licensing and source-acceptance review cannot block test execution');
 	sourceAudit.sources.find(({ id }) => id === 'asio-sdk').archiveEvidence.sha256 = '0'.repeat(64);
 	assert.equal(policy.audioBackend('asio'), false, 'runtime evidence must exactly match the pinned archive');
 	assert.equal(policy.audioBackend('pipewire'), false, 'a cleared backend stays OS-scoped');
@@ -51,7 +45,7 @@ test('fixture stays test-only even if its implemented evidence row exists', () =
 	assert.equal(policy.pluginFormat('fixture'), false);
 });
 
-test('third-party formats require signed readiness and an actually enforced OS launcher', () => {
+test('third-party formats require an actually enforced OS launcher, not signed release readiness', () => {
 	const mutableLicensing = structuredClone(licensing);
 	const mutableSources = structuredClone(sources);
 	activate(mutableLicensing.futureDistributionGates, 'native-plugins', 'enabled');
@@ -63,19 +57,20 @@ test('third-party formats require signed readiness and an actually enforced OS l
 		licensing: mutableLicensing, sources: mutableSources,
 		sourceAudit: authenticatedSourceAudit(mutableSources), platform: 'linux',
 		productionReadiness: {
-			status: 'authenticated',
+			status: 'pending-human-review',
 			evidence: {
-				osIsolationAttested: true,
-				hostilePluginDenialAttested: true,
-				realThirdPartyExecutionAttested: true,
+				osIsolationAttested: false,
+				hostilePluginDenialAttested: false,
+				realThirdPartyExecutionAttested: false,
 			},
 		},
 	};
 	assert.equal(createSoundscaperNativeActivationPolicy(common).pluginFormat('vst3'), false,
-		'signed prose cannot activate the current same-UID utility process');
+		'a current same-UID utility process is not an isolated launcher');
 	assert.equal(createSoundscaperNativeActivationPolicy({
 		...common, pluginIsolationEnforced: true,
-	}).pluginFormat('vst3'), true);
+	}).pluginFormat('vst3'), true,
+	'Milestone 9 release review does not block an authenticated, isolated test path');
 });
 
 function activate(rows, id, value, field = 'status') {

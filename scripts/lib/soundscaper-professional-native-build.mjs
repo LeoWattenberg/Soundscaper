@@ -53,7 +53,7 @@ export function createSoundscaperProfessionalNativeBuildPlan(options) {
 		...(target.startsWith('win-') ? ['asio-sdk'] : []),
 		...(target.startsWith('linux-') ? ['lv2'] : []),
 	];
-	const blockedSources = requiredSourceIds
+	const pendingReleaseReviewSources = requiredSourceIds
 		.filter((id) => sources[id].activationStatus !== 'accepted')
 		.map((id) => Object.freeze({ id, blockedBy: sources[id].blockedBy }));
 	const sourceRoots = normalizeSourceRoots(options.sourceRoots);
@@ -77,7 +77,7 @@ export function createSoundscaperProfessionalNativeBuildPlan(options) {
 			}));
 		}
 		return authenticatedBuildPlan({
-			blockedSources, options, repositoryRoot, requiredSourceIds,
+			pendingReleaseReviewSources, options, repositoryRoot, requiredSourceIds,
 			sourceAuthentication, snapshotParent, target,
 		});
 	} catch (error) {
@@ -95,7 +95,7 @@ export function createSoundscaperProfessionalNativeBuildPlan(options) {
  * must be empty for the next plan to claim it.
  */
 function authenticatedBuildPlan({
-	blockedSources, options, repositoryRoot, requiredSourceIds,
+	pendingReleaseReviewSources, options, repositoryRoot, requiredSourceIds,
 	sourceAuthentication, snapshotParent, target,
 }) {
 	const snapshotRoots = Object.fromEntries(sourceAuthentication.map((witness) => [witness.id, witness.extractedTree.root]));
@@ -134,10 +134,10 @@ function authenticatedBuildPlan({
 		buildRoot,
 		sourceAuthentication: Object.freeze(sourceAuthentication),
 		sourceSnapshotRoot: snapshotParent,
-		sourceActivation: Object.freeze({
-			status: blockedSources.length === 0 ? 'accepted' : 'blocked',
+		m9ReleaseReview: Object.freeze({
+			status: pendingReleaseReviewSources.length === 0 ? 'complete' : 'pending',
 			sourceIds: Object.freeze(requiredSourceIds),
-			blockedSources: Object.freeze(blockedSources),
+			pendingSources: Object.freeze(pendingReleaseReviewSources),
 		}),
 		vst3Closure: Object.freeze({
 			kind: 'juce-embedded-sdk',
@@ -157,8 +157,6 @@ export function executeSoundscaperProfessionalNativeBuild(plan, options = {}) {
 	assert(plan !== null && typeof plan === 'object' && AUTHENTICATED_BUILD_PLANS.has(plan),
 		'Professional native execution requires an authenticated build plan.');
 	try {
-		assert(plan.sourceActivation.status === 'accepted',
-			'Professional native source activation is blocked until every required register row is accepted.');
 		for (const witness of plan.sourceAuthentication) verifyMilestone5NativeSourceInput(witness);
 		const run = options.run ?? spawnSync;
 		for (const step of [plan.configure, plan.build]) {

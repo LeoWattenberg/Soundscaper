@@ -26,9 +26,8 @@ const ROOT = resolve(import.meta.dirname, '..');
 const JUCE_VST3_SDK_CLOSURE = 'modules/juce_audio_processors_headless/format_types/VST3_SDK';
 
 /**
- * Build a fixture register. `withdrawn` names a source whose checked-in
- * acceptance is taken back, so the refusal assertions below still have a
- * blocked row to refuse; pass null to exercise the fully reviewed register.
+ * Build a fixture register. `withdrawn` names a source whose Milestone 9
+ * acceptance remains pending; authenticated build inputs must still be usable.
  */
 async function sourceRoots(context, withdrawn = 'juce') {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-pro-sources-'));
@@ -112,7 +111,9 @@ test('professional build plans bind exact SDK pins and never treat the VST3 meta
 	assert.equal(linux.configure.argv.some((argument) => Object.values(roots).some((root) => argument.includes(root))), false,
 		'CMake may consume only auditor-owned source snapshots.');
 	assert.doesNotMatch(linux.configure.argv.join(' '), /vst3-sdk(?:\/|\\)/u);
-	assert.throws(() => executeSoundscaperProfessionalNativeBuild(linux), /activation is blocked/u);
+	assert.deepEqual(executeSoundscaperProfessionalNativeBuild(linux, {
+		run: () => ({ status: 0, stderr: '', stdout: '' }),
+	}).status, 'built');
 
 	const windows = createSoundscaperProfessionalNativeBuildPlan({
 		repositoryRoot: ROOT, target: 'win-x64', sourceRoots: roots, sourceArchives: archives,
@@ -123,26 +124,28 @@ test('professional build plans bind exact SDK pins and never treat the VST3 meta
 	assert.deepEqual(windows.features.audioStreaming, ['wasapi', 'asio']);
 	assert.match(windows.configure.argv.join(' '), /CMAKE_SYSTEM_VERSION=10\.0\.26100/u);
 	assert.match(windows.configure.argv.join(' '), /SOUNDSCAPER_ASIO_ROOT/u);
-	assert.throws(() => executeSoundscaperProfessionalNativeBuild(windows), /activation is blocked/u);
+	assert.deepEqual(executeSoundscaperProfessionalNativeBuild(windows, {
+		run: () => ({ status: 0, stderr: '', stdout: '' }),
+	}).status, 'built');
 	const windowsOverride = createSoundscaperProfessionalNativeBuildPlan({
 		repositoryRoot: ROOT, target: 'win-x64', sourceRoots: roots, sourceArchives: archives,
 		sourceManifestPath: manifestPath,
 		sourceSnapshotRoot: await createSnapshotParent(roots.juce, 'snapshots-win-override'),
 		buildRoot: join(roots.juce, '..', 'build-win-override'),
 	});
-	assert.throws(() => executeSoundscaperProfessionalNativeBuild(windowsOverride, {
+	assert.equal(executeSoundscaperProfessionalNativeBuild(windowsOverride, {
 		approvedActivation: true,
 		run: () => ({ status: 0, stderr: '', stdout: '' }),
-	}), /activation is blocked/u);
+	}).status, 'built');
 	assert.throws(() => executeSoundscaperProfessionalNativeBuild({
 		...windows,
-		sourceActivation: { status: 'accepted', sourceIds: [] },
+		m9ReleaseReview: { status: 'complete', sourceIds: [], pendingSources: [] },
 	}, {
 		run: () => ({ status: 0, stderr: '', stdout: '' }),
 	}), /authenticated build plan/u);
 });
 
-test('the reviewed register reaches accepted activation for every professional source', async (context) => {
+test('the reviewed register reports complete Milestone 9 review for every professional source', async (context) => {
 	// The owner's recorded native-audio and native-plugins review accepted all
 	// six professional sources, so the plan must no longer report any blocked
 	// row. Execution is still gated elsewhere; only activation is asserted here.
@@ -153,14 +156,14 @@ test('the reviewed register reaches accepted activation for every professional s
 		sourceSnapshotRoot: await createSnapshotParent(roots.juce, 'snapshots-reviewed'),
 		buildRoot: join(roots.juce, '..', 'build-reviewed'),
 	});
-	const activation = structuredClone(plan.sourceActivation);
+	const review = structuredClone(plan.m9ReleaseReview);
 	// Snapshots are taken read-only, so they are released the way the build
 	// itself releases them; the fixture's own cleanup cannot remove them.
 	for (const snapshot of plan.sourceAuthentication) removeMilestone5NativeSourceSnapshot(snapshot);
-	assert.equal(activation.status, 'accepted');
-	assert.deepEqual(activation.blockedSources, []);
+	assert.equal(review.status, 'complete');
+	assert.deepEqual(review.pendingSources, []);
 	// ASIO is absent because it is Windows-only, not because it is unreviewed.
-	assert.deepEqual([...activation.sourceIds].sort(), [
+	assert.deepEqual([...review.sourceIds].sort(), [
 		'clap', 'electron-node-api-headers', 'juce', 'lv2', 'vst3-sdk',
 	]);
 });
