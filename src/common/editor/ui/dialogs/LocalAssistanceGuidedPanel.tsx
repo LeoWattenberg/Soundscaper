@@ -115,6 +115,7 @@ export default function LocalAssistanceGuidedPanel({
 			auditionSourceStartFrame={snapshot.auditionSourceStartFrame}
 			auditionSourceSampleRate={snapshot.auditionSourceSampleRate}
 			previewVideo={snapshot.previewVideo}
+			highlightSourceTimeAuthority={snapshot.highlightSourceTimeAuthority}
 			reframeDraft={snapshot.reframeDraft} onReframeCropChange={onReframeCropChange}
 			highlightDraft={snapshot.highlightDraft}
 			onHighlightTitleChange={onHighlightTitleChange}

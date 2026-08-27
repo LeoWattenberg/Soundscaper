@@ -30,11 +30,13 @@ export interface AssistanceWorkflowReviewAuthorityV1 {
 	readonly reviewAuthorityVersion: 1;
 	readonly audioWave: AssistanceWorkflowAudioReviewAuthorityV1 | null;
 	readonly editorialCandidateIds: readonly string[] | null;
+	/** Exact staged highlight-video signals retained only for transient source-time review. */
+	readonly highlightVideoSignals: AssistanceWorkflowReviewMediaAssetV1 | null;
 	readonly media: AssistanceWorkflowReviewMediaV1;
 }
 
 const AUTHORITY_FIELDS = Object.freeze([
-	'reviewAuthorityVersion', 'audioWave', 'editorialCandidateIds', 'media',
+	'reviewAuthorityVersion', 'audioWave', 'editorialCandidateIds', 'highlightVideoSignals', 'media',
 ]);
 const AUDIO_FIELDS = Object.freeze(['sampleRate', 'channelCount', 'frameCount']);
 const MEDIA_FIELDS = Object.freeze(['audio', 'video']);
@@ -48,7 +50,7 @@ const SHA256 = /^[a-f\d]{64}$/u;
 
 export function createEmptyAssistanceWorkflowReviewAuthorityV1(): AssistanceWorkflowReviewAuthorityV1 {
 	return Object.freeze({ reviewAuthorityVersion: 1, audioWave: null, editorialCandidateIds: null,
-		media: Object.freeze({ audio: null, video: null }) });
+		highlightVideoSignals: null, media: Object.freeze({ audio: null, video: null }) });
 }
 
 export function validateAssistanceWorkflowReviewAuthorityV1(
@@ -76,7 +78,10 @@ export function validateAssistanceWorkflowReviewAuthorityV1(
 		editorialCandidateIds = Object.freeze(ids);
 	}
 	const media = reviewMedia(row.media);
-	return Object.freeze({ reviewAuthorityVersion: 1, audioWave, editorialCandidateIds, media });
+	const highlightVideoSignals = mediaAsset(row.highlightVideoSignals,
+		'application/vnd.soundscaper.highlight-video-signals+json', 'highlight-video signals');
+	return Object.freeze({ reviewAuthorityVersion: 1, audioWave, editorialCandidateIds,
+		highlightVideoSignals, media });
 }
 
 function reviewMedia(value: unknown): AssistanceWorkflowReviewMediaV1 {

@@ -13,6 +13,7 @@ test('review media with its own valid digest cannot substitute for another stage
 	const workflow = assistanceWorkflowFixture();
 	await assert.rejects(verifyLocalAssistanceGuidedReviewMediaAuthority(workflow, {
 		reviewAuthorityVersion: 1, audioWave: null, editorialCandidateIds: null,
+		highlightVideoSignals: null,
 		media: { audio: {
 			stageId: 'detect-speech', slotId: 'audio', claimId: '0'.repeat(39) + '2',
 			mediaType: body.type, byteLength: body.size,

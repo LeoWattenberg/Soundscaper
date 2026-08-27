@@ -171,6 +171,29 @@
 	grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.kw-local-assistance__highlight-preview {
+	display: grid;
+	gap: 0.25rem;
+}
+
+.kw-local-assistance__highlight-preview-frame {
+	background: #000;
+	position: relative;
+}
+
+.kw-local-assistance__highlight-preview-frame video {
+	display: block;
+	max-height: 24rem;
+	width: 100%;
+}
+
+.kw-local-assistance__highlight-preview-crop {
+	border: 2px solid var(--kw-editor-accent);
+	box-sizing: border-box;
+	pointer-events: none;
+	position: absolute;
+}
+
 .kw-local-assistance__crop-overlay {
 	background: var(--kw-editor-stage-raised);
 	border: 1px solid var(--kw-editor-line);

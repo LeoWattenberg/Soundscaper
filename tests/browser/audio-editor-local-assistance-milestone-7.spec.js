@@ -143,24 +143,52 @@ test.describe('Milestone 7 Guided workflow qualification', () => {
 		await expect(reframePosition).toHaveValue('0.2');
 
 		review = await runAndReview(page, reopenedGuided, 'Make Highlights');
-		await expect(review.locator('label', { hasText: 'Transport preview' }).locator('video'))
-			.toHaveCount(1);
 		await expect(review.getByRole('checkbox', { name: 'Highlight 1', exact: true }))
 			.not.toBeChecked();
 		const proposal = review.getByRole('article', { name: 'Highlight proposal 1', exact: true });
+		await expect(review.getByRole('group', { name: 'Transport preview', exact: true }))
+			.toHaveCount(0);
+		await proposal.getByRole('button', { name: 'Preview Highlight 1', exact: true }).click();
+		const preview = review.getByRole('group', { name: 'Transport preview', exact: true });
+		const previewVideo = preview.locator('video');
+		await expect(previewVideo).toHaveCount(1);
+		await expect(preview).toHaveAttribute('data-highlight-proposal-id', 'highlight-a');
+		await expect(preview).toHaveAttribute('data-preview-source-start-frame', '0');
+		const initialEndSeconds = Number(await preview.getAttribute('data-preview-end-seconds'));
+		expect(initialEndSeconds).toBeGreaterThan(0);
+		await expect.poll(() => previewVideo.evaluate((video) => video.currentTime))
+			.toBeCloseTo(Number(await preview.getAttribute('data-preview-start-seconds')), 3);
 		const title = proposal.getByRole('textbox', { name: 'Title', exact: true });
 		await title.fill('Edited launch title');
 		await title.press('Tab');
 		await expect(title).toHaveValue('Edited launch title');
 		const end = proposal.getByRole('spinbutton', { name: 'End frame', exact: true });
-		await end.fill('40000');
+		await end.fill('41000');
 		await end.press('Tab');
+		await expect(end).toHaveValue('40000');
 		await expect(proposal).toContainText('Preview range: 0–40000');
+		await expect(preview).toHaveAttribute('data-preview-source-end-frame', '12');
+		const { highlightSourceTimeRows } = await milestone7FixtureSnapshot(page);
+		expect(highlightSourceTimeRows.some(({ timelineFrame }) => timelineFrame === 41_000))
+			.toBe(false);
+		expect(highlightSourceTimeRows.find(({ timelineFrame }) => timelineFrame === 40_000))
+			.toMatchObject({ sourceFrame: 12 });
+		const editedEndSeconds = Number(await preview.getAttribute('data-preview-end-seconds'));
+		expect(editedEndSeconds).toBeLessThan(initialEndSeconds);
 		const highlightPosition = proposal.getByRole('slider', {
 			name: 'Horizontal position', exact: true,
 		}).first();
 		await highlightPosition.fill('0.2');
 		await expect(highlightPosition).toHaveValue('0.2');
+		await expect(preview.getByLabel('Highlight crop preview', { exact: true }))
+			.toHaveAttribute('data-crop-left', '0.2');
+		const stopped = await previewVideo.evaluate((video, endSeconds) => {
+			video.currentTime = endSeconds;
+			video.dispatchEvent(new Event('timeupdate'));
+			return { paused: video.paused, currentTime: video.currentTime };
+		}, editedEndSeconds);
+		expect(stopped.paused).toBe(true);
+		expect(stopped.currentTime).toBeCloseTo(editedEndSeconds, 3);
 		expect(errors).toEqual([]);
 	});
 });

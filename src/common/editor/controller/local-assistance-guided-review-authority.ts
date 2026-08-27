@@ -36,6 +36,12 @@ export async function deriveLocalAssistanceGuidedReviewAuthority(
 	signal?: AbortSignal,
 ): Promise<AssistanceWorkflowReviewAuthorityV1> {
 	const media = await reviewMedia(workflowId, inputs, signal);
+	const highlightVideoSignals = workflowId === 'make-highlights'
+		? await uniqueAsset(inputs, ({ stageId, slotId, mediaType }) => stageId === 'gather-signals'
+			&& slotId === 'video'
+			&& mediaType === 'application/vnd.soundscaper.highlight-video-signals+json',
+		'application/vnd.soundscaper.highlight-video-signals+json', signal)
+		: null;
 	if (workflowId === 'generate-editorial-text') {
 		const contexts = inputs.filter(({ mediaType }) =>
 			mediaType === 'application/vnd.soundscaper.editorial-context+json');
@@ -53,13 +59,14 @@ export async function deriveLocalAssistanceGuidedReviewAuthority(
 		}
 		const plan = reviewAssistanceEditorialGenerationPlanV1(parsed);
 		return validateAssistanceWorkflowReviewAuthorityV1({ reviewAuthorityVersion: 1,
-			audioWave: null, editorialCandidateIds: plan.authorizedCandidateIds, media });
+			audioWave: null, editorialCandidateIds: plan.authorizedCandidateIds,
+			highlightVideoSignals, media });
 	}
 	if (workflowId !== 'enhance-dialogue' && workflowId !== 'separate-dialogue-music-effects') {
 		return media.audio === null && media.video === null
 			? createEmptyAssistanceWorkflowReviewAuthorityV1()
 			: validateAssistanceWorkflowReviewAuthorityV1({ reviewAuthorityVersion: 1,
-				audioWave: null, editorialCandidateIds: null, media });
+				audioWave: null, editorialCandidateIds: null, highlightVideoSignals, media });
 	}
 	if (media.audio === null) {
 		throw new TypeError('Guided audio review requires one exact adapter-owned WAV input.');
@@ -78,7 +85,8 @@ export async function deriveLocalAssistanceGuidedReviewAuthority(
 	}
 	return validateAssistanceWorkflowReviewAuthorityV1({ reviewAuthorityVersion: 1,
 		audioWave: { sampleRate: descriptor.sampleRate, channelCount: descriptor.channelCount,
-			frameCount: descriptor.frameCount }, editorialCandidateIds: null, media });
+			frameCount: descriptor.frameCount }, editorialCandidateIds: null,
+		highlightVideoSignals, media });
 }
 
 async function reviewMedia(

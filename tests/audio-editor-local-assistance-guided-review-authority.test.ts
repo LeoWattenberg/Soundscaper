@@ -42,10 +42,28 @@ test('cleanup review refuses adapter inputs with ambiguous byte custody', async 
 	]), /ambiguous/iu);
 });
 
+test('highlight review retains the exact staged video-signal authority claim', async () => {
+	const body = new Blob([JSON.stringify({ schemaVersion: 1,
+		kind: 'highlight-video-signals', sourceTimeAuthority: { exact: true } })], {
+		type: 'application/vnd.soundscaper.highlight-video-signals+json',
+	});
+	const authority = await deriveLocalAssistanceGuidedReviewAuthority('make-highlights', [
+		{ stageId: 'gather-signals', slotId: 'video', claimId: '33'.repeat(20),
+			mediaType: body.type, bytes: body },
+		{ stageId: 'detect-highlight-shots', slotId: 'video', claimId: '44'.repeat(20),
+			mediaType: 'video/mp4', bytes: new Blob(['video'], { type: 'video/mp4' }) },
+	]);
+	assert.equal(authority.highlightVideoSignals?.stageId, 'gather-signals');
+	assert.equal(authority.highlightVideoSignals?.slotId, 'video');
+	assert.equal(authority.highlightVideoSignals?.claimId, '33'.repeat(20));
+	assert.equal(authority.highlightVideoSignals?.body, body);
+});
+
 test('workflow-v1 review media strictly requires its exact staged input claim identity', () => {
 	const body = speechWave(0.25);
 	assert.throws(() => validateAssistanceWorkflowReviewAuthorityV1({
 		reviewAuthorityVersion: 1, audioWave: null, editorialCandidateIds: null,
+		highlightVideoSignals: null,
 		media: { audio: { stageId: 'detect-speech', slotId: 'audio', mediaType: 'audio/wav',
 			byteLength: body.size, sha256: '11'.repeat(32), body }, video: null },
 	}), /exactly its schema fields/iu);

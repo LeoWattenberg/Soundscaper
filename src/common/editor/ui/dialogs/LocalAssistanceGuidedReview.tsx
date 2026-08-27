@@ -2,7 +2,7 @@
 
 /** Lazy Guided review surface; every admitted choice begins unchecked. */
 
-import { useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 
 import type {
 	LocalAssistanceGuidedReviewedResult,
@@ -13,6 +13,11 @@ import type { AssistanceOwnedReframePathV1 } from
 	'../../assistance/owned-video-highlight-transform-types-v1.ts';
 import { createLocalAssistanceCleanupAuditionWave } from
 	'../local-assistance-cleanup-audition.ts';
+import { createLocalAssistanceGuidedHighlightPreviewPlanV1,
+	snapLocalAssistanceGuidedHighlightTrimBoundaryV1 } from
+	'../../controller/local-assistance-guided-highlight-preview.ts';
+import type { LocalAssistanceSelectedVideoSourceTimeDescriptorV1 } from
+	'../../controller/local-assistance-selected-video-source-time.ts';
 
 type Copy = Readonly<Record<string, string | undefined>>;
 type ReviewCrop = Readonly<{ left: number; top: number; right: number; bottom: number }>;
@@ -26,6 +31,7 @@ export interface LocalAssistanceGuidedReviewProps {
 	readonly auditionSourceStartFrame?: number | null;
 	readonly auditionSourceSampleRate?: number | null;
 	readonly previewVideo?: Blob | null;
+	readonly highlightSourceTimeAuthority?: LocalAssistanceSelectedVideoSourceTimeDescriptorV1 | null;
 	readonly reframeDraft?: AssistanceOwnedReframePathV1 | null;
 	readonly onReframeCropChange?: (sourceFrame: number,
 		crop: Readonly<{ left: number; top: number; right: number; bottom: number }>) => unknown;
@@ -40,6 +46,7 @@ export interface LocalAssistanceGuidedReviewProps {
 
 export default function LocalAssistanceGuidedReview({
 	copy, review, selectedChoiceIds, onChoiceChange, auditionAudio = null, previewVideo = null,
+	highlightSourceTimeAuthority = null,
 	auditionSourceStartFrame = null, auditionSourceSampleRate = null,
 	reframeDraft, highlightDraft,
 	onReframeCropChange = () => undefined,
@@ -63,16 +70,14 @@ export default function LocalAssistanceGuidedReview({
 				'Audition skips checked ranges without changing the project.')}</p> : null}
 		{review.outputs.filter(({ mediaType }) => mediaType === 'audio/wav').map((output) =>
 			<AudioAudition key={output.claim.claimId} body={output.body} label={output.slotId} />)}
-		{review.workflowId === 'make-highlights' && previewVideo !== null
-			? <VideoTransport body={previewVideo}
-				label={text(copy, 'localAssistanceHighlightTransportPreview', 'Transport preview')} />
-			: null}
 		{review.workflowId === 'generate-editorial-text'
 			? <EditorialProposals review={review} /> : null}
 		{review.workflowId === 'reframe' && reframeDraft
 			? <ReframePath copy={copy} draft={reframeDraft} onCrop={onReframeCropChange} /> : null}
-		{review.workflowId === 'make-highlights' && highlightDraft
-			? <HighlightProposals copy={copy} draft={highlightDraft} onTitle={onHighlightTitleChange}
+		{review.workflowId === 'make-highlights' && highlightDraft && previewVideo !== null
+			&& highlightSourceTimeAuthority !== null
+			? <HighlightReview copy={copy} body={previewVideo} draft={highlightDraft}
+				authority={highlightSourceTimeAuthority} onTitle={onHighlightTitleChange}
 				onTrim={onHighlightTrimChange} onCrop={onHighlightCropChange} /> : null}
 		{review.choices.length === 0
 			? <p>{text(copy, 'localAssistanceNoProposals', 'No proposals were found.')}</p>
@@ -205,9 +210,39 @@ function unit(value: number): number {
 	return Math.round(value * 1_000_000_000) / 1_000_000_000;
 }
 
-function HighlightProposals({ copy, draft, onTitle, onTrim, onCrop }: Readonly<{
+function HighlightReview({ copy, body, draft, authority, onTitle, onTrim, onCrop }: Readonly<{
+	copy: Copy;
+	body: Blob;
+	draft: AssistanceOwnedHighlightProposalsV1;
+	authority: LocalAssistanceSelectedVideoSourceTimeDescriptorV1;
+	onTitle: (proposalId: string, title: string) => unknown;
+	onTrim: (proposalId: string, startFrame: number, endFrame: number) => unknown;
+	onCrop: (proposalId: string, sourceFrame: number,
+		crop: Readonly<{ left: number; top: number; right: number; bottom: number }>) => unknown;
+}>) {
+	const [activeId, setActiveId] = useState<string | null>(null);
+	const proposal = draft.proposals.find(({ id }) => id === activeId) ?? null;
+	const plan = proposal === null ? null
+		: createLocalAssistanceGuidedHighlightPreviewPlanV1(authority, proposal);
+	return <>
+		{plan === null ? <p>{text(copy, 'localAssistanceHighlightChoosePreview',
+			'Choose a highlight proposal to preview its exact source interval and crop.')}</p>
+			: <HighlightVideoTransport body={body} plan={plan}
+				label={text(copy, 'localAssistanceHighlightTransportPreview', 'Transport preview')}
+				cropLabel={text(copy, 'localAssistanceHighlightCropPreview',
+					'Highlight crop preview')} />}
+		<HighlightProposals copy={copy} draft={draft} authority={authority} activeId={activeId}
+			onPreview={setActiveId} onTitle={onTitle} onTrim={onTrim} onCrop={onCrop} />
+	</>;
+}
+
+function HighlightProposals({ copy, draft, authority, activeId, onPreview, onTitle, onTrim,
+	onCrop }: Readonly<{
 	copy: Copy;
 	draft: AssistanceOwnedHighlightProposalsV1;
+	authority: LocalAssistanceSelectedVideoSourceTimeDescriptorV1;
+	activeId: string | null;
+	onPreview: (proposalId: string) => unknown;
 	onTitle: (proposalId: string, title: string) => unknown;
 	onTrim: (proposalId: string, startFrame: number, endFrame: number) => unknown;
 	onCrop: (proposalId: string, sourceFrame: number,
@@ -216,6 +251,11 @@ function HighlightProposals({ copy, draft, onTitle, onTrim, onCrop }: Readonly<{
 	return <div className="kw-local-assistance__highlight-proposals">
 		{draft.proposals.map((proposal, index) => <article key={proposal.id}
 			aria-label={`${text(copy, 'localAssistanceHighlightProposal', 'Highlight proposal')} ${String(index + 1)}`}>
+			<button type="button" aria-pressed={activeId === proposal.id}
+				onClick={() => { void onPreview(proposal.id); }}>
+				{`${text(copy, 'localAssistanceHighlightPreview', 'Preview')} ${
+					text(copy, 'localAssistanceHighlightChoice', 'Highlight')} ${String(index + 1)}`}
+			</button>
 			<label>{text(copy, 'localAssistanceHighlightTitle', 'Title')}<input type="text"
 				key={proposal.title} defaultValue={proposal.title} minLength={1} maxLength={160} required
 				onBlur={(event) => { void onTitle(proposal.id, event.currentTarget.value); }} /></label>
@@ -231,17 +271,29 @@ function HighlightProposals({ copy, draft, onTitle, onTrim, onCrop }: Readonly<{
 			<div className="kw-local-assistance__highlight-trim">
 				<label>{text(copy, 'localAssistanceHighlightStartFrame', 'Start frame')}
 					<input type="number" key={`start:${String(proposal.startFrame)}`}
-					min={proposal.startFrame} max={proposal.endFrame - trimStep(proposal)}
-					step={trimStep(proposal)} defaultValue={proposal.startFrame}
-					onBlur={(event) => { void onTrim(proposal.id,
-						Number(event.currentTarget.value), proposal.endFrame); }} /></label>
+					min={proposal.startFrame} max={proposal.endFrame - 1}
+					step={1} defaultValue={proposal.startFrame}
+					onBlur={(event) => {
+						const frame = snapLocalAssistanceGuidedHighlightTrimBoundaryV1(
+							authority, proposal, 'start', Number(event.currentTarget.value),
+						);
+						event.currentTarget.value = String(frame);
+						void onTrim(proposal.id, frame, proposal.endFrame);
+					}} /></label>
 				<label>{text(copy, 'localAssistanceHighlightEndFrame', 'End frame')}
 					<input type="number" key={`end:${String(proposal.endFrame)}`}
-					min={proposal.startFrame + trimStep(proposal)} max={proposal.endFrame}
-					step={trimStep(proposal)} defaultValue={proposal.endFrame}
-					onBlur={(event) => { void onTrim(proposal.id, proposal.startFrame,
-						Number(event.currentTarget.value)); }} /></label>
+					min={proposal.startFrame + 1} max={proposal.endFrame}
+					step={1} defaultValue={proposal.endFrame}
+					onBlur={(event) => {
+						const frame = snapLocalAssistanceGuidedHighlightTrimBoundaryV1(
+							authority, proposal, 'end', Number(event.currentTarget.value),
+						);
+						event.currentTarget.value = String(frame);
+						void onTrim(proposal.id, proposal.startFrame, frame);
+					}} /></label>
 			</div>
+			<small>{text(copy, 'localAssistanceHighlightTrimSnap',
+				'Trim values snap inward to exact admitted source-time boundaries.')}</small>
 			<p>{text(copy, 'localAssistanceHighlightPreviewRange', 'Preview range')}:{' '}
 				{String(proposal.startFrame)}–{String(proposal.endFrame)}</p>
 			{proposal.transcriptExcerpt === null
@@ -259,13 +311,6 @@ function HighlightProposals({ copy, draft, onTitle, onTrim, onCrop }: Readonly<{
 			</fieldset>)}
 		</article>)}
 	</div>;
-}
-
-function trimStep(proposal: AssistanceOwnedHighlightProposalsV1['proposals'][number]): number {
-	const timeline = proposal.endFrame - proposal.startFrame;
-	const source = proposal.sourceEndFrame - proposal.sourceStartFrame;
-	const value = timeline / source;
-	return Number.isSafeInteger(value) && value > 0 ? value : 1;
 }
 
 interface EditorialCandidate {
@@ -379,14 +424,66 @@ function parseAuditionRanges(
 	});
 }
 
-function VideoTransport({ body, label }: Readonly<{ body: Blob; label: string }>) {
+function HighlightVideoTransport({ body, label, cropLabel, plan }: Readonly<{
+	body: Blob;
+	label: string;
+	cropLabel: string;
+	plan: ReturnType<typeof createLocalAssistanceGuidedHighlightPreviewPlanV1>;
+}>) {
 	const [source, setSource] = useState<string>();
+	const video = useRef<HTMLVideoElement>(null);
 	useEffect(() => {
 		const url = URL.createObjectURL(body);
 		setSource(url);
 		return () => URL.revokeObjectURL(url);
 	}, [body]);
-	return <label>{label}<video controls preload="metadata" src={source} /></label>;
+	useEffect(() => {
+		if (video.current !== null && video.current.currentTime !== plan.startSeconds) {
+			video.current.currentTime = plan.startSeconds;
+		}
+	}, [plan.proposalId, plan.startSeconds]);
+	const seek = (): void => {
+		if (video.current !== null && video.current.currentTime !== plan.startSeconds) {
+			video.current.currentTime = plan.startSeconds;
+		}
+	};
+	return <div className="kw-local-assistance__highlight-preview" role="group" aria-label={label}
+		data-highlight-proposal-id={plan.proposalId}
+		data-preview-start-seconds={plan.startSeconds}
+		data-preview-end-seconds={plan.endSeconds}
+		data-preview-source-start-frame={plan.sourceStartFrame}
+		data-preview-source-end-frame={plan.sourceEndFrame}>
+		<strong>{label}</strong>
+		<div className="kw-local-assistance__highlight-preview-frame">
+			<video ref={video} controls preload="metadata" src={source}
+				onLoadedMetadata={seek}
+				onPlay={(event) => {
+					if (event.currentTarget.currentTime < plan.startSeconds
+						|| event.currentTarget.currentTime >= plan.endSeconds) seek();
+				}}
+				onTimeUpdate={(event) => {
+					if (event.currentTarget.currentTime < plan.endSeconds) return;
+					event.currentTarget.pause();
+					if (event.currentTarget.currentTime > plan.endSeconds) {
+						event.currentTarget.currentTime = plan.endSeconds;
+					}
+				}}
+				onSeeked={(event) => {
+					if (event.currentTarget.currentTime < plan.startSeconds) seek();
+					else if (event.currentTarget.currentTime > plan.endSeconds) {
+						event.currentTarget.currentTime = plan.endSeconds;
+					}
+				}} />
+			<span className="kw-local-assistance__highlight-preview-crop"
+				aria-label={cropLabel}
+				data-crop-left={plan.crop.left} data-crop-top={plan.crop.top}
+				data-crop-right={plan.crop.right} data-crop-bottom={plan.crop.bottom}
+				style={{ left: `${String(plan.crop.left * 100)}%`,
+					top: `${String(plan.crop.top * 100)}%`,
+					width: `${String((1 - plan.crop.left - plan.crop.right) * 100)}%`,
+					height: `${String((1 - plan.crop.top - plan.crop.bottom) * 100)}%` }} />
+		</div>
+	</div>;
 }
 
 function text(copy: Copy, key: string, fallback: string): string { return copy[key] || fallback; }

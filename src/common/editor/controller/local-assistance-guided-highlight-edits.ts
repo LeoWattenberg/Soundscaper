@@ -9,6 +9,11 @@ import type {
 	AssistanceOwnedHighlightCropKeyframeV1,
 	AssistanceOwnedHighlightProposalsV1,
 } from '../assistance/owned-video-highlight-transform-types-v1.ts';
+import {
+	findLocalAssistanceSelectedVideoSourceTimeByTimelineFrameV1,
+	reviewLocalAssistanceSelectedVideoSourceTimeDescriptorV1,
+	type LocalAssistanceSelectedVideoSourceTimeDescriptorV1,
+} from './local-assistance-selected-video-source-time.ts';
 
 type Crop = AssistanceOwnedHighlightCropKeyframeV1['crop'];
 
@@ -36,9 +41,15 @@ export function setLocalAssistanceGuidedHighlightTrimV1(
 	proposalId: string,
 	startFrame: number,
 	endFrame: number,
+	sourceTimeAuthorityValue: unknown,
 ): AssistanceOwnedHighlightProposalsV1 {
 	const original = proposals(originalValue);
-	const draft = validateLocalAssistanceGuidedHighlightDraftV1(original, draftValue);
+	const sourceTimeAuthority = reviewLocalAssistanceSelectedVideoSourceTimeDescriptorV1(
+		sourceTimeAuthorityValue,
+	);
+	const draft = validateLocalAssistanceGuidedHighlightDraftV1(
+		original, draftValue, sourceTimeAuthority,
+	);
 	const base = exactProposal(original, proposalId);
 	return proposals({ ...draft, proposals: replace(draft, proposalId, (current) => {
 		if (!Number.isSafeInteger(startFrame) || !Number.isSafeInteger(endFrame)
@@ -46,8 +57,8 @@ export function setLocalAssistanceGuidedHighlightTrimV1(
 			|| endFrame <= startFrame) {
 			throw new RangeError('A Guided highlight trim must remain inside its current range.');
 		}
-		const sourceStartFrame = mapSourceBoundary(base, startFrame);
-		const sourceEndFrame = mapSourceBoundary(base, endFrame);
+		const sourceStartFrame = mapSourceBoundary(base, startFrame, sourceTimeAuthority);
+		const sourceEndFrame = mapSourceBoundary(base, endFrame, sourceTimeAuthority);
 		if (sourceEndFrame <= sourceStartFrame) {
 			throw new RangeError('A Guided highlight trim collapsed its exact source mapping.');
 		}
@@ -86,9 +97,13 @@ export function setLocalAssistanceGuidedHighlightCropV1(
 export function validateLocalAssistanceGuidedHighlightDraftV1(
 	originalValue: unknown,
 	draftValue: unknown,
+	sourceTimeAuthorityValue: unknown,
 ): AssistanceOwnedHighlightProposalsV1 {
 	const original = proposals(originalValue);
 	const draft = proposals(draftValue);
+	const sourceTimeAuthority = reviewLocalAssistanceSelectedVideoSourceTimeDescriptorV1(
+		sourceTimeAuthorityValue,
+	);
 	if (!same(original.targetAspect, draft.targetAspect)
 		|| draft.proposals.length !== original.proposals.length) {
 		throw new TypeError('A Guided highlight draft changed proposal-set authority.');
@@ -100,8 +115,12 @@ export function validateLocalAssistanceGuidedHighlightDraftV1(
 		}
 		if (candidate.startFrame < base.startFrame || candidate.endFrame > base.endFrame
 			|| candidate.endFrame <= candidate.startFrame
-			|| candidate.sourceStartFrame !== mapSourceBoundary(base, candidate.startFrame)
-			|| candidate.sourceEndFrame !== mapSourceBoundary(base, candidate.endFrame)
+			|| base.sourceStartFrame !== mapSourceBoundary(base, base.startFrame, sourceTimeAuthority)
+			|| base.sourceEndFrame !== mapSourceBoundary(base, base.endFrame, sourceTimeAuthority)
+			|| candidate.sourceStartFrame !== mapSourceBoundary(
+				base, candidate.startFrame, sourceTimeAuthority)
+			|| candidate.sourceEndFrame !== mapSourceBoundary(
+				base, candidate.endFrame, sourceTimeAuthority)
 			|| candidate.cropKeyframes[0]?.sourceFrame !== candidate.sourceStartFrame
 			|| candidate.cropKeyframes.at(-1)?.sourceFrame !== candidate.sourceEndFrame - 1
 			|| candidate.cropKeyframes.some(({ sourceFrame }) => sourceFrame < candidate.sourceStartFrame
@@ -150,20 +169,20 @@ function exactProposal(
 function mapSourceBoundary(
 	base: AssistanceOwnedHighlightProposalsV1['proposals'][number],
 	timelineFrame: number,
+	authority: LocalAssistanceSelectedVideoSourceTimeDescriptorV1,
 ): number {
 	if (!Number.isSafeInteger(timelineFrame) || timelineFrame < base.startFrame
 		|| timelineFrame > base.endFrame) {
 		throw new RangeError('A Guided highlight trim boundary is outside its proposal.');
 	}
-	const timelineDuration = BigInt(base.endFrame - base.startFrame);
-	const numerator = BigInt(timelineFrame - base.startFrame)
-		* BigInt(base.sourceEndFrame - base.sourceStartFrame);
-	if (numerator % timelineDuration !== 0n) {
+	const row = findLocalAssistanceSelectedVideoSourceTimeByTimelineFrameV1(
+		authority, timelineFrame,
+	);
+	if (row === null || row.sourceFrame < base.sourceStartFrame
+		|| row.sourceFrame > base.sourceEndFrame) {
 		throw new RangeError('A Guided highlight trim has no exact source-time mapping.');
 	}
-	const result = base.sourceStartFrame + Number(numerator / timelineDuration);
-	if (!Number.isSafeInteger(result)) throw new RangeError('A Guided highlight trim mapping overflowed.');
-	return result;
+	return row.sourceFrame;
 }
 
 function cropAt(

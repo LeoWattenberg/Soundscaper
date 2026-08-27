@@ -128,7 +128,7 @@ export interface LocalAssistanceGuidedResultAcceptance {
 		readonly workflow: unknown;
 		readonly reviewedResult: unknown;
 		readonly reframeDraft?: unknown;
-		readonly highlightDraft?: unknown;
+		readonly highlightDraft?: unknown; readonly highlightSourceTimeAuthority?: unknown;
 	}>): LocalAssistanceGuidedAcceptanceAvailability;
 }
 
@@ -200,7 +200,7 @@ export function createLocalAssistanceGuidedResultAcceptance(
 
 	function createAcceptanceSession(value: Readonly<{
 		readonly workflow: unknown; readonly reviewedResult: unknown;
-		readonly reframeDraft?: unknown; readonly highlightDraft?: unknown;
+		readonly reframeDraft?: unknown; readonly highlightDraft?: unknown; readonly highlightSourceTimeAuthority?: unknown;
 	}>): LocalAssistanceGuidedAcceptanceAvailability {
 		const requestedId = workflowId(value?.workflow);
 		if (!SUPPORTED.has(requestedId)) return unsupported(requestedId,
@@ -220,7 +220,7 @@ export function createLocalAssistanceGuidedResultAcceptance(
 			: range.occurrenceIds);
 		assertCurrentFence(dependencies, fence);
 		const review = normalizeReview(workflow, workflowIdValue, value.reviewedResult,
-			value.highlightDraft, value.reframeDraft);
+			value.highlightDraft, value.reframeDraft, value.highlightSourceTimeAuthority);
 		return Object.freeze({ outcome: 'ready' as const,
 			session: createSession(dependencies, workflow, workflowIdValue, fence, review) });
 	}
@@ -341,8 +341,7 @@ function normalizeReview(
 	workflow: AssistanceWorkflowV1,
 	workflowId: SupportedWorkflowId,
 	value: unknown,
-	highlightDraft?: unknown,
-	reframeDraft?: unknown,
+	highlightDraft?: unknown, reframeDraft?: unknown, highlightSourceTimeAuthority?: unknown,
 ): NormalizedReview {
 	const row = exactRecord(value, ['reviewVersion', 'jobId', 'workflowId', 'outputs', 'choices'],
 		'Guided reviewed result');
@@ -361,7 +360,8 @@ function normalizeReview(
 		}
 		bySlot.set(output.slotId, output);
 	}
-	const semantics = reviewSemantics(workflowId, bySlot, highlightDraft, reframeDraft);
+	const semantics = reviewSemantics(workflowId, bySlot, highlightDraft, reframeDraft,
+		highlightSourceTimeAuthority);
 	for (const [slotId, semantic] of semantics) {
 		const output = bySlot.get(slotId)!;
 		bySlot.set(slotId, Object.freeze({ ...output, semantic }));
@@ -399,8 +399,7 @@ function reviewedOutput(
 function reviewSemantics(
 	workflowId: SupportedWorkflowId,
 	outputs: ReadonlyMap<string, ReviewedOutput>,
-	highlightDraft?: unknown,
-	reframeDraft?: unknown,
+	highlightDraft?: unknown, reframeDraft?: unknown, highlightSourceTimeAuthority?: unknown,
 ): ReadonlyMap<string, unknown> {
 	if (workflowId === 'enhance-dialogue' || workflowId === 'separate-dialogue-music-effects') {
 		const expectedRole = workflowId === 'enhance-dialogue' ? 'enhanced-audio' : 'separated-audio';
@@ -416,7 +415,7 @@ function reviewSemantics(
 	}
 	if (workflowId === 'reframe' || workflowId === 'make-highlights') {
 		return reviewLocalAssistanceGuidedFramescaperSemantics(
-			workflowId, outputs, highlightDraft, reframeDraft,
+			workflowId, outputs, highlightDraft, reframeDraft, highlightSourceTimeAuthority,
 		);
 	}
 	const transformId = workflowId === 'transcribe-captions' ? 'assemble-captions'

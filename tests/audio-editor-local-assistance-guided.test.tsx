@@ -136,7 +136,8 @@ test('Guided uses the optional bridge only after preparation returns one exact a
 			return { outcome: 'prepared', workflow: assistanceWorkflowFixture({ jobId: request.jobId,
 				workflowId: request.workflowId, settingsVersion: request.settings.settingsVersion }),
 				reviewAuthority: { reviewAuthorityVersion: 1, audioWave: null,
-					editorialCandidateIds: null, media: { audio: null, video: null } } };
+					editorialCandidateIds: null, highlightVideoSignals: null,
+					media: { audio: null, video: null } } };
 		},
 	});
 	const guided = createLocalAssistanceGuidedSessionStore({ bridge: fixture.localBridge, preparation });
@@ -173,7 +174,7 @@ test('completed Guided output remains unchecked until its terminal claim passes 
 			workflow: assistanceWorkflowFixture({ jobId: request.jobId,
 				workflowId: request.workflowId, settingsVersion: request.settings.settingsVersion }),
 			reviewAuthority: { reviewAuthorityVersion: 1, audioWave: null,
-				editorialCandidateIds: null, media: { audio: {
+				editorialCandidateIds: null, highlightVideoSignals: null, media: { audio: {
 					stageId: 'detect-speech', slotId: 'audio', claimId: '0'.repeat(39) + '1',
 					mediaType: 'audio/wav',
 					byteLength: audition.size, sha256: auditionSha256, body: audition,
@@ -210,7 +211,7 @@ test('forged Guided review media is refused before native workflow execution', a
 			workflow: assistanceWorkflowFixture({ jobId: request.jobId,
 				workflowId: request.workflowId, settingsVersion: request.settings.settingsVersion }),
 			reviewAuthority: { reviewAuthorityVersion: 1, audioWave: null,
-				editorialCandidateIds: null, media: { audio: {
+				editorialCandidateIds: null, highlightVideoSignals: null, media: { audio: {
 					stageId: 'detect-speech', slotId: 'audio', claimId: '0'.repeat(39) + '1',
 					mediaType: 'audio/wav',
 					byteLength: audition.size, sha256: 'ff'.repeat(32), body: audition,
@@ -342,6 +343,14 @@ test('Guided highlight review exposes bounded title, trim, transcript, and crop 
 	const markup = renderToStaticMarkup(<LocalAssistanceGuidedReview copy={ENGLISH_COPY}
 		review={review} selectedChoiceIds={[]} onChoiceChange={() => undefined}
 		highlightDraft={draft}
+		highlightSourceTimeAuthority={{ schemaVersion: 1,
+			kind: 'selected-video-source-time-authority', projectId: 'project-a', projectRevision: 1,
+			sequenceId: 'sequence-a', videoOccurrenceId: 'video-occurrence', sourceId: 'video-source',
+			sourceSha256: '11'.repeat(32), timingAuthoritySha256: '22'.repeat(32),
+			sourceWidth: 1_920, sourceHeight: 1_080, sourceStartFrame: 0, sourceEndFrame: 24,
+			sampleRate: 48_000, timescale: 24, selectionStartFrame: 0, selectionEndFrame: 48_000,
+			frames: [{ sourceFrame: 0, presentationTick: '0', timelineFrame: 0 },
+				{ sourceFrame: 24, presentationTick: '24', timelineFrame: 48_000 }] }}
 		previewVideo={new Blob([Uint8Array.of(0, 1, 2)], { type: 'video/mp4' })} />);
 	assert.match(markup, /Editable title/u);
 	assert.match(markup, /Start frame/u);
@@ -352,8 +361,9 @@ test('Guided highlight review exposes bounded title, trim, transcript, and crop 
 	assert.match(markup, /The evidence resolves cleanly/u);
 	assert.match(markup, /Draggable crop overlay/u);
 	assert.match(markup, /type="range"/u);
-	assert.match(markup, /Transport preview/u);
-	assert.match(markup, /<video controls=""/u);
+	assert.match(markup, /Preview Highlight 1/u);
+	assert.match(markup, /Choose a highlight proposal to preview its exact source interval/u);
+	assert.doesNotMatch(markup, /<video controls=""/u);
 });
 
 test('Guided enhancement review exposes the authenticated original beside its result', () => {
@@ -414,7 +424,8 @@ test('changing a completed Guided workflow releases discarded native and media c
 			workflow: assistanceWorkflowFixture({ jobId: request.jobId,
 				workflowId: request.workflowId, settingsVersion: request.settings.settingsVersion }),
 			reviewAuthority: { reviewAuthorityVersion: 1, audioWave: null,
-				editorialCandidateIds: null, media: { audio: null, video: null } } }),
+				editorialCandidateIds: null, highlightVideoSignals: null,
+				media: { audio: null, video: null } } }),
 	});
 	const guided = createLocalAssistanceGuidedSessionStore({
 		bridge: fixture.localBridge, preparation,
@@ -442,7 +453,8 @@ test('Guided acceptance publishes only checked choices and retries failed native
 			workflow: assistanceWorkflowFixture({ jobId: request.jobId,
 				workflowId: request.workflowId, settingsVersion: request.settings.settingsVersion }),
 			reviewAuthority: { reviewAuthorityVersion: 1, audioWave: null,
-				editorialCandidateIds: null, media: { audio: null, video: null } } }),
+				editorialCandidateIds: null, highlightVideoSignals: null,
+				media: { audio: null, video: null } } }),
 		acceptGuidedWorkflowResult: async (request) => {
 			accepted.push(request);
 			return { outcome: 'accepted', selectedIds: request.selectedChoiceIds };

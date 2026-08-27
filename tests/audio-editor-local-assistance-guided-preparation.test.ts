@@ -42,7 +42,7 @@ test('enhancement preparation binds exact media, model, settings, recipe, and ca
 	const { media, ...reviewAuthority } = result.reviewAuthority;
 	assert.deepEqual(reviewAuthority, { reviewAuthorityVersion: 1,
 		audioWave: { sampleRate: 48_000, channelCount: 2, frameCount: 3 },
-		editorialCandidateIds: null });
+		editorialCandidateIds: null, highlightVideoSignals: null });
 	assert.equal(media.audio?.stageId, 'enhance-dialogue');
 	assert.equal(media.audio?.slotId, 'audio');
 	assert.equal(media.audio?.claimId, result.workflow.inputs[0]?.claimId);
@@ -153,6 +153,7 @@ test('standalone editorial generation derives one bounded selection context from
 	assert.deepEqual(result.reviewAuthority, {
 		reviewAuthorityVersion: 1, audioWave: null,
 		editorialCandidateIds: [`selection:${SOURCE_SHA256.slice(0, 24)}`],
+		highlightVideoSignals: null,
 		media: { audio: null, video: null },
 	});
 	const context = JSON.parse(new TextDecoder().decode(
@@ -508,4 +509,11 @@ test('Make Highlights adds Qwen only after explicit editorial rerank opt-in', as
 		mediaKind, sourceId,
 	})), [{ mediaKind: 'audio', sourceId: 'audio-source' },
 		{ mediaKind: 'video', sourceId: 'video-source' }]);
+	assert.equal(result.reviewAuthority.highlightVideoSignals?.stageId, 'gather-signals');
+	assert.equal(result.reviewAuthority.highlightVideoSignals?.slotId, 'video');
+	assert.equal(result.reviewAuthority.highlightVideoSignals?.mediaType,
+		'application/vnd.soundscaper.highlight-video-signals+json');
+	assert.equal(result.workflow.inputs.some(({ claimId }) => (
+		claimId === result.reviewAuthority.highlightVideoSignals?.claimId
+	)), true);
 });

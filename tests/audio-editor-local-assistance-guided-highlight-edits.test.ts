@@ -20,7 +20,7 @@ test('Guided highlight edits stay bounded to the authenticated proposal', () => 
 	const titled = setLocalAssistanceGuidedHighlightTitleV1(initial, 'highlight-a',
 		'A tighter opening');
 	const trimmed = setLocalAssistanceGuidedHighlightTrimV1(original, titled,
-		'highlight-a', 12_000, 48_000);
+		'highlight-a', 12_000, 48_000, sourceTimeAuthority());
 	const edited = setLocalAssistanceGuidedHighlightCropV1(trimmed, 'highlight-a', 12,
 		{ left: 0.2, top: 0, right: 0.48, bottom: 0 });
 	const proposal = edited.proposals[0]!;
@@ -33,21 +33,34 @@ test('Guided highlight edits stay bounded to the authenticated proposal', () => 
 	assert.deepEqual(proposal.cropKeyframes[0]?.crop,
 		{ left: 0.2, top: 0, right: 0.48, bottom: 0 });
 	assert.equal(Object.isFrozen(proposal.cropKeyframes), true);
-	assert.deepEqual(validateLocalAssistanceGuidedHighlightDraftV1(original, edited), edited);
+	assert.deepEqual(validateLocalAssistanceGuidedHighlightDraftV1(
+		original, edited, sourceTimeAuthority(),
+	), edited);
 });
 
-test('Guided highlight trims require exact inward source-time mapping', () => {
-	const original = proposals({ sourceEndFrame: 239,
-		cropKeyframes: [crop(0, 0.341796875), crop(238, 0.341796875)] });
+test('Guided highlight trims use admitted VFR and ramp-retime rows instead of endpoint ratios', () => {
+	const original = proposals({ sourceEndFrame: 24,
+		cropKeyframes: [crop(0, 0.341796875), crop(23, 0.341796875)] });
 	const draft = createLocalAssistanceGuidedHighlightDraftV1(original);
+	const authority = sourceTimeAuthority([
+		row(0, 0, 0), row(5, 6_500, 12_000), row(12, 15_100, 30_000), row(24, 31_000, 96_000),
+	]);
+	const trimmed = setLocalAssistanceGuidedHighlightTrimV1(
+		original, draft, 'highlight-a', 12_000, 30_000, authority,
+	);
+	assert.deepEqual(trimmed.proposals[0], {
+		...draft.proposals[0], startFrame: 12_000, endFrame: 30_000,
+		sourceStartFrame: 5, sourceEndFrame: 12,
+		cropKeyframes: [crop(5, 0.341796875), crop(11, 0.341796875)],
+	});
 	assert.throws(() => setLocalAssistanceGuidedHighlightTrimV1(
-		original, draft, 'highlight-a', 1, 48_000,
+		original, draft, 'highlight-a', 1, 48_000, authority,
 	), /exact|mapping/iu);
 	assert.throws(() => setLocalAssistanceGuidedHighlightTrimV1(
-		original, draft, 'highlight-a', -1, 48_000,
+		original, draft, 'highlight-a', -1, 48_000, authority,
 	), /range|trim|invalid/iu);
 	assert.throws(() => setLocalAssistanceGuidedHighlightTrimV1(
-		original, draft, 'highlight-a', 0, 96_001,
+		original, draft, 'highlight-a', 0, 96_001, authority,
 	), /range|trim/iu);
 });
 
@@ -62,7 +75,7 @@ test('Guided highlight drafts cannot rewrite evidence, identities, or unsafe tex
 	), /crop|aperture/iu);
 	assert.throws(() => validateLocalAssistanceGuidedHighlightDraftV1(original, {
 		...draft, proposals: [{ ...draft.proposals[0]!, score: 1 }],
-	}), /evidence|authority|rewrite/iu);
+	}, sourceTimeAuthority()), /evidence|authority|rewrite/iu);
 });
 
 function proposals(overrides: Readonly<Record<string, unknown>> = {}) {
@@ -83,4 +96,21 @@ function proposals(overrides: Readonly<Record<string, unknown>> = {}) {
 function crop(sourceFrame: number, left: number) {
 	return { sourceFrame, authority: 'center' as const, trackIds: [],
 		crop: { left, top: 0, right: 1 - 0.31640625 - left, bottom: 0 } };
+}
+
+function sourceTimeAuthority(frames = [row(0, 0, 0), row(12, 12_000, 12_000),
+	row(48, 48_000, 48_000), row(96, 96_000, 96_000)]) {
+	const first = frames[0]!;
+	const last = frames.at(-1)!;
+	return { schemaVersion: 1 as const, kind: 'selected-video-source-time-authority' as const,
+		projectId: 'project-a', projectRevision: 1, sequenceId: 'sequence-a',
+		videoOccurrenceId: 'video-occurrence', sourceId: 'video-source',
+		sourceSha256: '11'.repeat(32), timingAuthoritySha256: '22'.repeat(32),
+		sourceWidth: 1_920, sourceHeight: 1_080, sourceStartFrame: first.sourceFrame,
+		sourceEndFrame: last.sourceFrame, sampleRate: 48_000, timescale: 1_000,
+		selectionStartFrame: first.timelineFrame, selectionEndFrame: last.timelineFrame, frames };
+}
+
+function row(sourceFrame: number, presentationTick: number, timelineFrame: number) {
+	return { sourceFrame, presentationTick: String(presentationTick), timelineFrame };
 }

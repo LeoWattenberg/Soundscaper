@@ -149,7 +149,8 @@ test('Guided Highlights revalidates bounded review edits separately from authent
 	const availability = createLocalAssistanceGuidedResultAcceptance({
 		currentSelectionFence: () => primitiveFence(workflow, true),
 		acceptHighlightResult: async (request) => { calls.push(request); },
-	}).createAcceptanceSession({ workflow, reviewedResult: held, highlightDraft: draft });
+	}).createAcceptanceSession({ workflow, reviewedResult: held, highlightDraft: draft,
+		highlightSourceTimeAuthority: highlightSourceTimeAuthority() });
 	assert.equal(availability.outcome, 'ready');
 	if (availability.outcome !== 'ready') return;
 	await availability.session.accept(['highlight-b']);
@@ -159,7 +160,8 @@ test('Guided Highlights revalidates bounded review edits separately from authent
 	assert.throws(() => createLocalAssistanceGuidedResultAcceptance({
 		currentSelectionFence: () => primitiveFence(workflow, true),
 		acceptHighlightResult: async () => undefined,
-	}).createAcceptanceSession({ workflow, reviewedResult: held, highlightDraft: hostile }),
+	}).createAcceptanceSession({ workflow, reviewedResult: held, highlightDraft: hostile,
+		highlightSourceTimeAuthority: highlightSourceTimeAuthority() }),
 	/evidence|authority|rewrite/iu);
 });
 
@@ -290,6 +292,19 @@ function highlight(id: string, startFrame: number, endFrame: number,
 function cropKeyframe(sourceFrame: number, left: number) {
 	return { sourceFrame, authority: 'center', trackIds: [],
 		crop: { left, top: 0, right: 1 - 0.31640625 - left, bottom: 0 } };
+}
+
+function highlightSourceTimeAuthority() {
+	return { schemaVersion: 1, kind: 'selected-video-source-time-authority',
+		projectId: 'project-a', projectRevision: 1, sequenceId: 'sequence-a',
+		videoOccurrenceId: 'video-occurrence', sourceId: 'video-source',
+		sourceSha256: '78'.repeat(32), timingAuthoritySha256: 'bc'.repeat(32),
+		sourceWidth: 1_920, sourceHeight: 1_080, sourceStartFrame: 0, sourceEndFrame: 240,
+		sampleRate: 48_000, timescale: 24, selectionStartFrame: 0, selectionEndFrame: 96_000,
+		frames: [{ sourceFrame: 0, presentationTick: '0', timelineFrame: 0 },
+			{ sourceFrame: 120, presentationTick: '120', timelineFrame: 48_000 },
+			{ sourceFrame: 240, presentationTick: '240', timelineFrame: 96_000 }],
+	};
 }
 
 function model(stageId: string, slotId: string, modelId: string): AssistanceWorkflowModelBindingV1 {

@@ -29,6 +29,7 @@ export async function installMilestone7LocalAssistanceFixture(page) {
 			progressEvents: 0,
 			queryCalls: 0,
 			requests: new Map(),
+			stagedInputBodies: new Map(),
 			stagedSlots: [],
 		};
 		const workflowListeners = new Set();
@@ -62,7 +63,11 @@ export async function installMilestone7LocalAssistanceFixture(page) {
 		const custody = Object.freeze({
 			stageInput: async (request) => {
 				state.stagedSlots.push(`${request.stageId}:${request.slotId}`);
-				state.latestInput = request.bytes.slice(0, request.bytes.size, request.mediaType);
+				const body = request.bytes.slice(0, request.bytes.size, request.mediaType);
+				state.latestInput = body;
+				state.stagedInputBodies.set(
+					`${request.jobId}:${request.stageId}:${request.slotId}`, body,
+				);
 				return inputHandle(request);
 			},
 			reserveOutput: async (request) => outputHandle(request),
@@ -221,6 +226,8 @@ export async function installMilestone7LocalAssistanceFixture(page) {
 			const sourceEnd = Math.max(sourceStart + 1, audio?.sourceEndFrame ?? 48_000);
 			const videoStart = video?.sourceStartFrame ?? 0;
 			const videoEnd = Math.max(videoStart + 2, video?.sourceEndFrame ?? 24);
+			const highlightSignals = request.workflowId === 'make-highlights'
+				? await stagedJson(request.jobId, 'gather-signals', 'video') : null;
 			const sampleFrame = Math.min(videoEnd - 1, videoStart + 10);
 			const timelineFrame = 12_000;
 			const captionEnd = Math.min(sourceEnd, sourceStart + 24_000);
@@ -245,7 +252,8 @@ export async function installMilestone7LocalAssistanceFixture(page) {
 						label: 'spoken launch plan', embeddingRow: 0 }] },
 				'video-index': videoIndex(video, matrix, matrixSha256, sampleFrame, timelineFrame),
 				'reframe-path': reframePath(request, videoStart, videoEnd),
-				'highlight-proposals': highlightProposals(request, videoStart, videoEnd),
+				'highlight-proposals': request.workflowId === 'make-highlights'
+					? highlightProposals(request, highlightSignals) : null,
 			};
 			if (slotId === 'embeddings' || slotId === 'visual-embeddings') {
 				return new Blob([matrix], { type: outputMediaType(slotId) });
@@ -282,11 +290,22 @@ export async function installMilestone7LocalAssistanceFixture(page) {
 					height: request.settings.targetAspectHeight }, keyframes: [crop(start, left),
 					crop(end - 1, left)] } };
 		}
-		function highlightProposals(request, start, end) {
-			const timelineEnd = (end - start) * 4_000;
+		function highlightProposals(request, signals) {
+			const rows = signals?.sourceTimeAuthority;
+			if (!Array.isArray(rows) || rows.length < 2
+				|| rows.some((row) => row?.kind === 'source-time-rows')) {
+				throw new Error('Fixture highlight timing authority is unavailable.');
+			}
+			const start = rows[0];
+			const end = rows.at(-1);
+			if (start.timelineFrame !== signals.selectionStartFrame
+				|| end.timelineFrame !== signals.selectionEndFrame) {
+				throw new Error('Fixture highlight timing authority lost its admitted endpoints.');
+			}
 			return { schemaVersion: 1, kind: 'highlight-proposals', workflowId: 'make-highlights',
 				targetAspect: { width: 9, height: 16 }, proposals: [{ id: 'highlight-a',
-					startFrame: 0, endFrame: timelineEnd, sourceStartFrame: start, sourceEndFrame: end,
+					startFrame: start.timelineFrame, endFrame: end.timelineFrame,
+					sourceStartFrame: start.sourceFrame, sourceEndFrame: end.sourceFrame,
 					score: 0.8, evidenceMode: 'transcript', transcriptExcerpt: 'Exact transcript cue.',
 					visualSummary: 'Presenter beside the launch plan.', selected: false,
 					videoOccurrenceId: request.fence.sourceRanges.find(({ mediaKind }) =>
@@ -295,7 +314,13 @@ export async function installMilestone7LocalAssistanceFixture(page) {
 						mediaKind === 'audio')?.occurrenceIds[0] ?? null,
 					title: 'Launch plan highlight', hook: 'A concise opening hook.',
 					chapters: ['Opening'], explanation: 'Selected from authenticated evidence.',
-					cropKeyframes: [crop(start, 0.341796875), crop(end - 1, 0.341796875)] }] };
+					cropKeyframes: [crop(start.sourceFrame, 0.341796875),
+						crop(end.sourceFrame - 1, 0.341796875)] }] };
+		}
+		async function stagedJson(jobId, stageId, slotId) {
+			const body = state.stagedInputBodies.get(`${jobId}:${stageId}:${slotId}`);
+			if (!(body instanceof Blob)) throw new Error('Fixture staged JSON body is unavailable.');
+			return JSON.parse(await body.text());
 		}
 		function crop(sourceFrame, left) {
 			return { sourceFrame, authority: 'center', trackIds: [],
@@ -331,13 +356,17 @@ export async function completeMilestone7Run(page) {
 }
 
 export async function milestone7FixtureSnapshot(page) {
-	return page.evaluate(() => ({
-		consents: [...globalThis.__milestone7Fixture.consents],
-		modelCalls: globalThis.__milestone7Fixture.modelCalls,
-		progressEvents: globalThis.__milestone7Fixture.progressEvents,
-		queryCalls: globalThis.__milestone7Fixture.queryCalls,
-		stagedSlots: [...globalThis.__milestone7Fixture.stagedSlots],
-		workflowFences: [...globalThis.__milestone7Fixture.requests.values()]
-			.map(({ workflowId, fence }) => ({ workflowId, fence })),
-	}));
+	return page.evaluate(async () => {
+		const state = globalThis.__milestone7Fixture;
+		const stagedVideo = [...state.stagedInputBodies.entries()]
+			.filter(([key]) => key.endsWith(':gather-signals:video')).at(-1)?.[1];
+		const signals = stagedVideo instanceof Blob ? JSON.parse(await stagedVideo.text()) : null;
+		return {
+			consents: [...state.consents], highlightSourceTimeRows: signals?.sourceTimeAuthority ?? [],
+			modelCalls: state.modelCalls, progressEvents: state.progressEvents,
+			queryCalls: state.queryCalls, stagedSlots: [...state.stagedSlots],
+			workflowFences: [...state.requests.values()]
+				.map(({ workflowId, fence }) => ({ workflowId, fence })),
+		};
+	});
 }

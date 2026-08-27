@@ -297,7 +297,9 @@ export function createLocalAssistancePreparationRuntime(
 			const availability = guidedAcceptance.createAcceptanceSession({ workflow,
 				reviewedResult: request.reviewedResult,
 				...(request.reframeDraft === undefined ? {} : { reframeDraft: request.reframeDraft }),
-				...(request.highlightDraft === undefined ? {} : { highlightDraft: request.highlightDraft }) });
+				...(request.highlightDraft === undefined ? {} : { highlightDraft: request.highlightDraft }),
+				...(request.highlightSourceTimeAuthority === undefined ? {}
+					: { highlightSourceTimeAuthority: request.highlightSourceTimeAuthority }) });
 			if (availability.outcome !== 'ready') return availability;
 			const accepted = await availability.session.accept(request.selectedChoiceIds);
 			if (accepted.outcome === 'accepted' && request.selectedChoiceIds.length > 0) {

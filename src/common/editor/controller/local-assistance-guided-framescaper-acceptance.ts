@@ -54,6 +54,7 @@ export function reviewLocalAssistanceGuidedFramescaperSemantics(
 	outputs: ReadonlyMap<string, ReviewedOutput>,
 	highlightDraft?: unknown,
 	reframeDraft?: unknown,
+	highlightSourceTimeAuthority?: unknown,
 ): ReadonlyMap<string, unknown> {
 	const transformId = workflowId === 'reframe' ? 'plan-crops' : 'assemble-highlights';
 	const values = Object.fromEntries([...outputs].map(([slotId, output]) => [
@@ -77,7 +78,7 @@ export function reviewLocalAssistanceGuidedFramescaperSemantics(
 		throw new TypeError('The Guided highlight review changed transform identity.');
 	}
 	return new Map([['highlight-proposals', validateLocalAssistanceGuidedHighlightDraftV1(
-		reviewed.outputs['highlight-proposals'], highlightDraft,
+		reviewed.outputs['highlight-proposals'], highlightDraft, highlightSourceTimeAuthority,
 	)]]);
 }
 

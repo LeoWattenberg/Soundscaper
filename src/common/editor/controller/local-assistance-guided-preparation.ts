@@ -41,6 +41,8 @@ import {
 } from './local-assistance-guided-output-capacity.ts';
 import { localAssistanceGuidedModelCandidates } from './local-assistance-guided-model-selection.ts';
 import { selectLocalAssistanceGuidedStages } from './local-assistance-guided-stage-selection.ts';
+import { reviewLocalAssistanceSelectedVideoSourceTimeDescriptorV1 } from
+	'./local-assistance-selected-video-source-time.ts';
 
 const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
 const SHA256 = /^[a-f\d]{64}$/u;
@@ -500,7 +502,8 @@ function externalReason(slotId: string): LocalAssistanceGuidedPreparationUnavail
 }
 
 function correlateSelectedVideoDescriptor(value: unknown, fence: PrimitiveFence): unknown {
-	const row = dataRecord(value, 'selected-video source-time descriptor');
+	const descriptor = reviewLocalAssistanceSelectedVideoSourceTimeDescriptorV1(value);
+	const row = dataRecord(descriptor, 'selected-video source-time descriptor');
 	if (row.schemaVersion !== 1 || row.kind !== 'selected-video-source-time-authority'
 		|| row.projectId !== fence.projectId || row.projectRevision !== fence.revision
 		|| row.sequenceId !== fence.sequenceId || row.sourceId !== fence.sourceId
@@ -509,11 +512,10 @@ function correlateSelectedVideoDescriptor(value: unknown, fence: PrimitiveFence)
 		|| row.sourceStartFrame !== fence.sourceStartFrame
 		|| row.sourceEndFrame !== fence.sourceEndFrame
 		|| typeof row.videoOccurrenceId !== 'string'
-		|| !fence.occurrenceIds.includes(row.videoOccurrenceId)
-		|| !Array.isArray(row.frames) || row.frames.length < 2) {
+		|| !fence.occurrenceIds.includes(row.videoOccurrenceId)) {
 		throw new UnavailableError('timing-authority-unavailable');
 	}
-	return value;
+	return descriptor;
 }
 
 function liveSource(source: Record<string, unknown>): boolean {

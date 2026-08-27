@@ -35,6 +35,10 @@ import {
 	setLocalAssistanceGuidedHighlightTitleV1,
 	setLocalAssistanceGuidedHighlightTrimV1,
 } from '../controller/local-assistance-guided-highlight-edits.ts';
+import { readLocalAssistanceGuidedHighlightSourceTimeAuthorityV1 } from
+	'../controller/local-assistance-guided-highlight-preview.ts';
+import type { LocalAssistanceSelectedVideoSourceTimeDescriptorV1 } from
+	'../controller/local-assistance-selected-video-source-time.ts';
 import {
 	createLocalAssistanceGuidedReframeDraftV1,
 	setLocalAssistanceGuidedReframeCropV1,
@@ -82,6 +86,7 @@ export interface LocalAssistanceGuidedSnapshot {
 	readonly auditionSourceStartFrame: number | null;
 	readonly auditionSourceSampleRate: number | null;
 	readonly previewVideo: Blob | null;
+	readonly highlightSourceTimeAuthority: LocalAssistanceSelectedVideoSourceTimeDescriptorV1 | null;
 	readonly reframeDraft: AssistanceOwnedReframePathV1 | null;
 	readonly highlightDraft: AssistanceOwnedHighlightProposalsV1 | null;
 	readonly selectedChoiceIds: readonly string[];
@@ -123,7 +128,8 @@ export const INITIAL_LOCAL_ASSISTANCE_GUIDED_SNAPSHOT: LocalAssistanceGuidedSnap
 	surface: 'guided', phase: 'selection-required', workflowIds: ASSISTANCE_GUIDED_WORKFLOW_IDS,
 	selectedWorkflowId: null, settings: null, progress: null, result: null,
 	review: null, auditionAudio: null, auditionSourceStartFrame: null,
-	auditionSourceSampleRate: null, previewVideo: null, reframeDraft: null, highlightDraft: null,
+	auditionSourceSampleRate: null, previewVideo: null, highlightSourceTimeAuthority: null,
+	reframeDraft: null, highlightDraft: null,
 	selectedChoiceIds: Object.freeze([]),
 	unavailableReason: null, error: null,
 });
@@ -179,6 +185,7 @@ export function createLocalAssistanceGuidedSessionStore(
 			phase: unavailableReason ? 'unavailable' : 'ready', unavailableReason,
 			progress: null, result: null, review: null, auditionAudio: null,
 			auditionSourceStartFrame: null, auditionSourceSampleRate: null, previewVideo: null,
+			highlightSourceTimeAuthority: null,
 			reframeDraft: null,
 			highlightDraft: null,
 			selectedChoiceIds: Object.freeze([]), error: null });
@@ -196,6 +203,7 @@ export function createLocalAssistanceGuidedSessionStore(
 		update({ settings, phase: unavailableReason ? 'unavailable' : 'ready', unavailableReason,
 			progress: null, result: null, review: null, auditionAudio: null,
 			auditionSourceStartFrame: null, auditionSourceSampleRate: null, previewVideo: null,
+			highlightSourceTimeAuthority: null,
 			reframeDraft: null,
 			highlightDraft: null,
 			selectedChoiceIds: Object.freeze([]), error: null });
@@ -211,7 +219,8 @@ export function createLocalAssistanceGuidedSessionStore(
 		cancelRequested = false;
 		update({ phase: 'preparing', progress: null, result: null, review: null,
 			auditionAudio: null, auditionSourceStartFrame: null, auditionSourceSampleRate: null,
-			previewVideo: null, reframeDraft: null, highlightDraft: null,
+			previewVideo: null, highlightSourceTimeAuthority: null,
+			reframeDraft: null, highlightDraft: null,
 			selectedChoiceIds: Object.freeze([]),
 			unavailableReason: null, error: null });
 		let outcome: LocalAssistanceWorkflowOutcome | null = null;
@@ -309,17 +318,21 @@ export function createLocalAssistanceGuidedSessionStore(
 		if (!retained) throw new Error('The Guided result custody has expired.');
 		update({ phase: 'reviewing', review: null, auditionAudio: null,
 			auditionSourceStartFrame: null, auditionSourceSampleRate: null, previewVideo: null,
-			reframeDraft: null, highlightDraft: null, error: null });
+			highlightSourceTimeAuthority: null, reframeDraft: null, highlightDraft: null, error: null });
 		try {
 			const reviewed = await reviewLocalAssistanceGuidedResult({ workflow: retained.workflow,
 				result: snapshot.result.result, authority: retained.reviewAuthority,
 				readOutput: (request) => workflow.readOutput!(request) });
 			const audition = auditionAuthority(retained.workflow, retained.reviewAuthority.media.audio);
+			const highlightSourceTimeAuthority = retained.workflow.workflowId === 'make-highlights'
+				? await readLocalAssistanceGuidedHighlightSourceTimeAuthorityV1(retained.workflow,
+					retained.reviewAuthority.highlightVideoSignals?.body ?? new Blob()) : null;
 			if (!disposed) update({ phase: 'review-ready', review: reviewed,
 				auditionAudio: retained.reviewAuthority.media.audio?.body ?? null,
 				auditionSourceStartFrame: audition?.sourceStartFrame ?? null,
 				auditionSourceSampleRate: audition?.sourceSampleRate ?? null,
 				previewVideo: retained.reviewAuthority.media.video?.body ?? null,
+				highlightSourceTimeAuthority,
 				reframeDraft: reframeResult(reviewed),
 				highlightDraft: highlightResult(reviewed),
 				selectedChoiceIds: Object.freeze([]), error: null });
@@ -328,7 +341,7 @@ export function createLocalAssistanceGuidedSessionStore(
 			const released = await custodyReleases?.release(snapshot.result.jobId) ?? false;
 			if (!disposed) update({ phase: 'error', review: null, auditionAudio: null,
 				auditionSourceStartFrame: null, auditionSourceSampleRate: null,
-				previewVideo: null, reframeDraft: null,
+				previewVideo: null, highlightSourceTimeAuthority: null, reframeDraft: null,
 				error: released ? error instanceof Error ? error.message
 					: 'The Guided result review failed.'
 					: 'Guided review failed and native custody remains pending for retry.' });
@@ -362,6 +375,7 @@ export function createLocalAssistanceGuidedSessionStore(
 		const draft = openHighlightDraft(snapshot);
 		update({ highlightDraft: setLocalAssistanceGuidedHighlightTrimV1(
 			highlightOriginal(snapshot.review!), draft, proposalId, startFrame, endFrame,
+			snapshot.highlightSourceTimeAuthority,
 		) });
 	};
 	const setHighlightCrop = (proposalId: string, sourceFrame: number,
@@ -385,6 +399,8 @@ export function createLocalAssistanceGuidedSessionStore(
 				workflow: retained.workflow, reviewedResult: snapshot.review, selectedChoiceIds,
 				...(snapshot.reframeDraft ? { reframeDraft: snapshot.reframeDraft } : {}),
 				...(snapshot.highlightDraft ? { highlightDraft: snapshot.highlightDraft } : {}),
+				...(snapshot.highlightSourceTimeAuthority
+					? { highlightSourceTimeAuthority: snapshot.highlightSourceTimeAuthority } : {}),
 				readOutput: (request) => workflow.readOutput!(request),
 			});
 			if (isUnsupportedAcceptance(outcome)) {

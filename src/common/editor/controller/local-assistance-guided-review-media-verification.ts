@@ -15,7 +15,8 @@ export async function verifyLocalAssistanceGuidedReviewMediaAuthority(
 	signal: AbortSignal,
 ): Promise<void> {
 	const authority = validateAssistanceWorkflowReviewAuthorityV1(authorityValue);
-	for (const asset of [authority.media.audio, authority.media.video]) {
+	for (const asset of [authority.media.audio, authority.media.video,
+		authority.highlightVideoSignals]) {
 		if (asset === null) continue;
 		const claims = workflow.inputs.filter(({ direction, claimId, stageId, slotId }) =>
 			direction === 'input' && claimId === asset.claimId
