@@ -44,7 +44,9 @@ test('ambiguous or absent linked audio is not inferred from a selected video', a
 		linkedProject().clips.filter(({ kind }) => kind === 'video'),
 		[...linkedProject().clips, { ...linkedProject().clips[1]!, id: 'audio-clip-2' }],
 	]) {
-		const project = { ...linkedProject(), clips };
+		const project = { ...linkedProject(), clips,
+			selection: { ...linkedProject().selection,
+				clipIds: ['video-clip'], trackIds: ['video-track'] } };
 		const preparation = createLocalAssistanceSelectedPreparation({
 			getProject: () => project, getSelectedClipId: () => 'video-clip',
 			captureProject: () => null, assertProject: () => undefined,
@@ -94,8 +96,8 @@ function linkedProject() {
 	return {
 		id: 'project-a', schemaVersion: 31, revision: 8, sampleRate: 48_000,
 		primarySequenceId: 'main-sequence',
-		selection: { startFrame: 0, endFrame: 48_000, clipIds: ['video-clip'],
-			trackIds: ['video-track'] },
+		selection: { startFrame: 0, endFrame: 48_000,
+			clipIds: ['video-clip', 'audio-clip'], trackIds: ['video-track', 'audio-track'] },
 		sources: [{ id: 'video-source', name: 'Camera', kind: 'video',
 			storageKey: 'video-source', mimeType: 'video/mp4', contentSha256: '12'.repeat(32),
 			sampleFrameCount: 48_000, sourceFrameCount: 10, frameRate: { num: 10, den: 1 },

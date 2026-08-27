@@ -47,6 +47,8 @@ import {
 	type LocalAssistanceSelectedVideoModelFramePackPrepared,
 	type LocalAssistanceSelectedVideoModelOperation,
 } from './local-assistance-selected-video-model-preparation.ts';
+import { assertLocalAssistanceSelectedVideoOccurrenceSelection } from
+	'./local-assistance-selected-video-selection.ts';
 import {
 	readLocalAssistanceSelectedVideoShotAnchorFrames,
 } from './local-assistance-selected-video-shot-anchors.ts';
@@ -345,12 +347,12 @@ export function resolveLocalAssistanceSelectedVideoAuthority(
 	if (typeof clipId !== 'string' || clipId === '') {
 		throw new Error('Local assistance requires one selected video occurrence.');
 	}
-	assertOneSelectedOccurrence(project.selection, clipId);
 	const clips = project.clips.filter((candidate) => candidate.id === clipId);
 	if (clips.length !== 1 || clips[0]?.kind !== 'video') {
 		throw new Error('Local assistance requires one selected video occurrence.');
 	}
 	const clip = clips[0];
+	assertLocalAssistanceSelectedVideoOccurrenceSelection(project, clip);
 	const owners = project.tracks.filter((track) => track.type === 'video'
 		&& Array.isArray(track.clipIds)
 		&& track.clipIds.filter((candidate) => candidate === clipId).length === 1);
@@ -487,14 +489,6 @@ function selectedVideoProject(value: unknown): SelectedVideoProject {
 		sampleRate: integer(project.sampleRate, 1, 'project sample rate'),
 		primarySequenceId: identifier(project.primarySequenceId, 'primary sequence ID'),
 	};
-}
-
-function assertOneSelectedOccurrence(selection: DataRecord | null | undefined, clipId: string): void {
-	if (!selection || !Object.hasOwn(selection, 'clipIds')) return;
-	if (!Array.isArray(selection.clipIds) || selection.clipIds.length !== 1
-		|| selection.clipIds[0] !== clipId) {
-		throw new Error('Local assistance requires one selected video occurrence.');
-	}
 }
 
 function timingSelectionFence(
