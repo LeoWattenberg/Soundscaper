@@ -92,5 +92,28 @@ int main(int argc, char **argv)
 	wrongObject[streamTypeOffset - 1u] = 0x67u;
 	if (soundscaper::os_audio::exactAacLcM4a(wrongObject, 48000u, 2u, refusal)
 		|| refusal != AacLcM4aRefusal::esdsObjectType) return 19;
+
+	/* The same container is branded differently by different writers, so the
+	 * declaration is admitted broadly while the track itself still has to prove
+	 * what it is. The brands sit at the major brand and every compatible brand. */
+	auto rebrand = [&lc](const char *major, const char *compatible) {
+		auto copy = lc;
+		for (size_t index = 0u; index < 4u; ++index) {
+			copy[8u + index] = static_cast<uint8_t>(major[index]);
+			copy[16u + index] = static_cast<uint8_t>(compatible[index]);
+			copy[20u + index] = static_cast<uint8_t>(compatible[index]);
+			copy[24u + index] = static_cast<uint8_t>(compatible[index]);
+		}
+		return copy;
+	};
+	for (const char *brand : { "mp42", "mp41", "isom", "iso2", "M4A " }) {
+		if (!soundscaper::os_audio::exactAacLcM4a(rebrand(brand, brand), 48000u, 2u, refusal)
+			|| refusal != AacLcM4aRefusal::none) return 20;
+	}
+	// A brand carried only as a compatible brand is still a declaration.
+	if (!soundscaper::os_audio::exactAacLcM4a(rebrand("qt  ", "mp42"), 48000u, 2u, refusal)
+		|| refusal != AacLcM4aRefusal::none) return 21;
+	if (soundscaper::os_audio::exactAacLcM4a(rebrand("qt  ", "wave"), 48000u, 2u, refusal)
+		|| refusal != AacLcM4aRefusal::fileType) return 22;
 	return 0;
 }
