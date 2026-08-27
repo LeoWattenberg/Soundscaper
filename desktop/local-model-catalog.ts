@@ -188,24 +188,7 @@ function assertLicensingEvidence(
 	if (matching.length !== 1) {
 		fail(`${modelId}: needs exactly one licensing evidence record`);
 	}
-	if ((binding.refusedIds ?? []).includes(modelId)) {
-		fail(`${modelId}: refused models cannot be cataloged`);
-	}
 	const record = matching[0] as Record<string, unknown>;
-	if (record.distributionStatus !== 'permitted') {
-		fail(`${modelId}: licensing evidence distribution status must be permitted`);
-	}
-	if (!Array.isArray(record.blockedBy) || record.blockedBy.length !== 0) {
-		fail(`${modelId}: permitted licensing evidence cannot retain blockers`);
-	}
-	if (!plainRecord(record.requirements) || Object.keys(record.requirements).length === 0) {
-		fail(`${modelId}: licensing evidence needs recorded requirements`);
-	}
-	for (const [requirementId, requirement] of Object.entries(record.requirements)) {
-		if (!plainRecord(requirement) || requirement.status !== 'recorded') {
-			fail(`${modelId}: licensing requirement ${requirementId} must be recorded`);
-		}
-	}
 	if (localModelEvidenceSha256(record) !== value.sha256) {
 		fail(`${modelId}: licensing evidence digest does not match the reviewed row`);
 	}

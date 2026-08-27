@@ -53,7 +53,9 @@ test('seven pending catalog tasks map every Milestone 7 supply identity exactly'
 		assert.deepEqual(task.platforms, FIVE_PLATFORMS);
 		assert.equal(task.catalogStatus, 'pending-external');
 		assert.equal(task.activationStatus, 'pending-external');
-		assert.ok(task.catalogBlockedBy.includes('licensing-evidence'));
+		assert.ok(!task.catalogBlockedBy.includes('licensing-evidence'));
+		assert.equal(task.m9ReleaseReviewStatus, 'pending');
+		assert.deepEqual(task.m9ReleaseReviewBlockedBy, ['licensing-evidence']);
 		assert.ok(task.catalogBlockedBy.includes('immutable-public-readback'));
 		assert.ok(task.catalogBlockedBy.includes('external-catalog-signature'));
 		assert.ok(task.activationBlockedBy.includes('runtime-target-closure'));

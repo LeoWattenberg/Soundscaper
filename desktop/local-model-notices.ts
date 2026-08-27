@@ -92,9 +92,6 @@ function evidenceFor(
 		|| localModelEvidenceSha256(evidence) !== entry.licensingEvidence.sha256) {
 		throw new Error(`Installed local model ${entry.modelId} licensing evidence digest is invalid.`);
 	}
-	if (evidence.distributionStatus !== 'permitted') {
-		throw new Error(`Installed local model ${entry.modelId} is not permitted for notice delivery.`);
-	}
 	return evidence;
 }
 

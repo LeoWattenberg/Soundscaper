@@ -218,9 +218,9 @@ export interface AssistanceServiceFactoryOptions {
 }
 
 /**
- * Derives the licensing binding from the register the build ships, so the
- * catalog is checked against the same evidence a reviewer reads rather than
- * against a list duplicated for the runtime.
+ * Binds catalog metadata to the exact register the build ships. Human review
+ * status remains report-only until Milestone 9; runtime admission still
+ * authenticates the catalog, artifacts, platform, memory, and evidence digest.
  */
 export function assistanceServiceFrom(options: AssistanceServiceFactoryOptions): AssistanceService {
 	const register = options.licensingMatrix as {
