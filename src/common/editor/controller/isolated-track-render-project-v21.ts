@@ -2,8 +2,7 @@
 
 import { createDefaultMixerGraphV21, type MixerGraphV21 } from '../mixer-graph-v21.ts';
 import {
-	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
-	isSoundscaperProductionProjectSchema,
+	isProductionMixerProjectSchema,
 } from '../project-schema-version.ts';
 import type { ProjectFeatureRequirementsManifest } from '../project-feature-requirements.ts';
 import {
@@ -20,7 +19,7 @@ interface IsolatedTrackRenderTrackV21 extends Readonly<Record<string, unknown>> 
 }
 
 export interface IsolatedTrackRenderProjectV21 extends Readonly<Record<string, unknown>> {
-	readonly schemaVersion: typeof SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION;
+	readonly schemaVersion: number;
 	readonly featureRequirements: ProjectFeatureRequirementsManifest;
 	readonly masterChannels: number;
 	readonly tracks: readonly IsolatedTrackRenderTrackV21[];
@@ -43,8 +42,8 @@ export function createIsolatedTrackRenderProjectV21(
 	authored: IsolatedTrackRenderProjectV21,
 	request: IsolatedTrackRenderRequestV21,
 ): IsolatedTrackRenderProjectV21 {
-	if (!isSoundscaperProductionProjectSchema(authored.schemaVersion)) {
-		throw new TypeError('An exact Soundscaper V21 project is required.');
+	if (!isProductionMixerProjectSchema(authored.schemaVersion)) {
+		throw new TypeError('An exact production mixer V21 project is required.');
 	}
 	// Flatten folder state onto the leaves before narrowing to one track. The
 	// projection is engine-only and keeps the authored folders and sequence

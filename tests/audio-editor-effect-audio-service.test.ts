@@ -159,6 +159,26 @@ test('V21 dry rendering reaches the exact graph compiler without fabricating leg
 	});
 });
 
+test('F31 linked-audio dry rendering preserves the shared production mixer authority', async () => {
+	const project = { ...v21RenderProject(), schemaVersion: 31 };
+	const canonical = structuredClone(project);
+	const harness = createHarness({
+		project: project as unknown as EffectAudioProject,
+		validateRenderSnapshot: (snapshot) => {
+			assert.doesNotThrow(() => projectGraphLatencyFramesV21(snapshot as never, {
+				includeMaster: false,
+			}));
+		},
+	});
+
+	await harness.service.renderDryTrackRange('track-a', 100, 200, 1, ['clip-a']);
+
+	const snapshot = harness.snapshots[0]!;
+	assert.equal(snapshot.schemaVersion, 31);
+	assert.equal(Object.hasOwn(snapshot.mixer, 'routes'), false);
+	assert.deepEqual(project, canonical);
+});
+
 test('dry render completion is rejected after a project switch', async () => {
 	const harness = createHarness({ deferRender: true });
 	const pending = harness.service.renderDryTrackRange('track-a', 100, 200);
