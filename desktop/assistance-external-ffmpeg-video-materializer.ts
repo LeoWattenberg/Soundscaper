@@ -13,6 +13,9 @@ import { classifyAssistanceVisualTagEmbeddingsV1 } from
 	'../src/common/editor/assistance/visual-tag-classification-v1.ts';
 import { createAssistanceVisualFramePackV2 } from
 	'../src/common/editor/assistance/visual-frame-pack-v2.ts';
+import {
+	ASSISTANCE_VISUAL_FRAME_PACK_SET_MAXIMUM_PACKS,
+} from '../src/common/editor/assistance/visual-frame-pack-set-v1.ts';
 import type {
 	AssistanceWorkflowOwnedFramePackMaterializationRequestV1,
 	AssistanceWorkflowOwnedVisualTagsMaterializationRequestV1,
@@ -82,12 +85,19 @@ export function createExternalFfmpegAssistanceVideoMaterializer(
 			const plan = reviewOwnedFramePackPlanV1(request.plan);
 			const admission = options.preferences.admission();
 			const inspected = inspectAdmission(admission);
-			if (inspected === null || plan.frames.length < 1
-				|| plan.frames.length > MAXIMUM_FRAME_COUNT) return null;
+			if (inspected === null || plan.frames.length < 1) return null;
 			const raster = rasterGeometry(plan.width, plan.height);
 			const frameBytes = safeProduct(raster.width, raster.height, 4);
-			const expectedByteLength = safeProduct(frameBytes, plan.frames.length);
-			if (expectedByteLength + plan.frames.length * 16 + 128 > MAXIMUM_PACK_BYTES) return null;
+			const maximumFramesByBytes = Math.floor((MAXIMUM_PACK_BYTES - 128) / (frameBytes + 16));
+			const framesPerPack = Math.min(MAXIMUM_FRAME_COUNT, maximumFramesByBytes);
+			if (framesPerPack < 1) return null;
+			const batches = frameBatches(plan.frames, framesPerPack);
+			if (batches.length < 1 || batches.length > ASSISTANCE_VISUAL_FRAME_PACK_SET_MAXIMUM_PACKS) {
+				return null;
+			}
+			const aggregateBytes = batches.reduce((total, frames) => total + 128
+				+ safeProduct(frameBytes + 16, frames.length), 0);
+			if (!Number.isSafeInteger(aggregateBytes) || aggregateBytes > 512 * 1024 * 1024) return null;
 			const sourcePath = admittedSourcePath(request.source.path);
 			const identity = await matchesIdentity(inspected.pair, digestExecutable);
 			request.signal.throwIfAborted();
@@ -95,37 +105,42 @@ export function createExternalFfmpegAssistanceVideoMaterializer(
 				await options.preferences.invalidateAdmission(inspected.admission, 'identity-changed');
 				return null;
 			}
-			let rgba: Uint8Array | null;
-			try {
-				rgba = await decodeFrames(Object.freeze({
-					executablePath: inspected.pair.executablePath, sourcePath,
-					sourceFrames: Object.freeze(plan.frames.map(({ sourceFrame }) => sourceFrame)),
-					rasterWidth: raster.width, rasterHeight: raster.height,
-					expectedByteLength, signal: request.signal,
-				}));
-			} catch (error) {
+			const packs: Array<readonly Uint8Array[]> = [];
+			for (const frames of batches) {
 				request.signal.throwIfAborted();
-				if (error instanceof DecodeError && error.reason === 'spawn') {
-					await options.preferences.invalidateAdmission(
-						inspected.admission, 'executable-unavailable',
-					);
+				const expectedByteLength = safeProduct(frameBytes, frames.length);
+				let rgba: Uint8Array | null;
+				try {
+					rgba = await decodeFrames(Object.freeze({
+						executablePath: inspected.pair.executablePath, sourcePath,
+						sourceFrames: Object.freeze(frames.map(({ sourceFrame }) => sourceFrame)),
+						rasterWidth: raster.width, rasterHeight: raster.height,
+						expectedByteLength, signal: request.signal,
+					}));
+				} catch (error) {
+					request.signal.throwIfAborted();
+					if (error instanceof DecodeError && error.reason === 'spawn') {
+						await options.preferences.invalidateAdmission(
+							inspected.admission, 'executable-unavailable',
+						);
+					}
+					return null;
 				}
-				return null;
+				request.signal.throwIfAborted();
+				if (!(rgba instanceof Uint8Array) || rgba.byteLength !== expectedByteLength
+					|| options.preferences.admission() !== inspected.admission) return null;
+				packs.push(createAssistanceVisualFramePackV2({ sourceWidth: plan.width,
+					sourceHeight: plan.height, rasterWidth: raster.width, rasterHeight: raster.height,
+					timescale: plan.timescale, frames: frames.map((frame, index) => Object.freeze({
+						sourceFrame: frame.sourceFrame, presentationTick: frame.presentationTick,
+						rgba: rgba!.slice(index * frameBytes, (index + 1) * frameBytes),
+					})) }));
 			}
-			request.signal.throwIfAborted();
-			if (!(rgba instanceof Uint8Array) || rgba.byteLength !== expectedByteLength
-				|| options.preferences.admission() !== inspected.admission) return null;
 			if (!await matchesIdentity(inspected.pair, digestExecutable)) {
 				await options.preferences.invalidateAdmission(inspected.admission, 'identity-changed');
 				return null;
 			}
-			const frames = plan.frames.map((frame, index) => Object.freeze({
-				sourceFrame: frame.sourceFrame, presentationTick: frame.presentationTick,
-				rgba: rgba!.slice(index * frameBytes, (index + 1) * frameBytes),
-			}));
-			return createAssistanceVisualFramePackV2({ sourceWidth: plan.width,
-				sourceHeight: plan.height, rasterWidth: raster.width, rasterHeight: raster.height,
-				timescale: plan.timescale, frames });
+			return Object.freeze(packs);
 		},
 		resolveVisualTags(request: AssistanceWorkflowOwnedVisualTagsMaterializationRequestV1) {
 			request.signal.throwIfAborted();
@@ -138,6 +153,21 @@ export function createExternalFfmpegAssistanceVideoMaterializer(
 					tags: classified.tags[index]! }))) });
 		},
 	});
+}
+
+function frameBatches(
+	frames: AssistanceWorkflowOwnedFramePackMaterializationRequestV1['plan']['frames'],
+	maximumFrames: number,
+): readonly (typeof frames)[] {
+	const result: Array<typeof frames> = [];
+	for (let offset = 0; offset < frames.length; offset += maximumFrames) {
+		const batch = Object.freeze(frames.slice(offset, offset + maximumFrames));
+		const expression = batch.map(({ sourceFrame }) =>
+			`eq(n\\,${String(sourceFrame)})`).join('+');
+		if (Buffer.byteLength(expression) > MAXIMUM_FILTER_BYTES) return Object.freeze([]);
+		result.push(batch);
+	}
+	return Object.freeze(result);
 }
 
 function inspectAdmission(admission: ExternalFfmpegRuntimeAdmission | null): Readonly<{

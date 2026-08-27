@@ -11,8 +11,12 @@ import {
 import {
 	createLocalAssistanceSelectedVideoModelFramePack,
 } from '../src/common/editor/controller/local-assistance-selected-video-model-preparation.ts';
-import { createLocalAssistanceSelectedVideoSourceTimeDescriptorV1 } from
-	'../src/common/editor/controller/local-assistance-selected-video-source-time.ts';
+import {
+	createLocalAssistanceSelectedVideoSourceTimeDescriptorV1,
+	findLocalAssistanceSelectedVideoSourceTimeBySourceFrameV1,
+	findLocalAssistanceSelectedVideoSourceTimeByTimelineFrameV1,
+	reviewLocalAssistanceSelectedVideoSourceTimeDescriptorV1,
+} from '../src/common/editor/controller/local-assistance-selected-video-source-time.ts';
 import { sequenceFrameBoundarySample } from '../src/common/editor/sequence-frame-navigation.ts';
 import {
 	registerVideoTimingIndex,
@@ -201,10 +205,100 @@ test('selected-video source/timeline authority canonicalizes forward-retime coll
 			getProject: () => project, getSelectedClipId: () => 'video-clip',
 		}),
 	);
-	assert.deepEqual(descriptor.frames.map(({ sourceFrame }) => sourceFrame),
+	const frames = descriptor.frames as readonly Readonly<{
+		sourceFrame: number; timelineFrame: number;
+	}>[];
+	assert.deepEqual(frames.map(({ sourceFrame }) => sourceFrame),
 		Array.from({ length: 51 }, (_, index) => 20 + index * 2));
-	assert.deepEqual(descriptor.frames.map(({ timelineFrame }) => timelineFrame),
+	assert.deepEqual(frames.map(({ timelineFrame }) => timelineFrame),
 		Array.from({ length: 51 }, (_, index) => 20_000 + index * 2_000));
+});
+
+test('selected-video source-time authority compactly binds more than 100,000 exact boundaries', () => {
+	const frameCount = 100_001;
+	const project = { ...baseProject(),
+		selection: { ...baseProject().selection, endFrame: frameCount * 2_000 },
+		sources: [{ ...baseProject().sources[0]!, sourceFrameCount: frameCount,
+			sampleFrameCount: frameCount * 2_000 }],
+		clips: [{ ...baseProject().clips[0]!, sequenceStartFrame: 0,
+			sequenceFrameCount: frameCount, sourceInFrame: 0, sourceFrameCount: frameCount }],
+	} as unknown as ReturnType<typeof baseProject>;
+	const descriptor = createLocalAssistanceSelectedVideoSourceTimeDescriptorV1(
+		resolveLocalAssistanceSelectedVideoAuthority({
+			getProject: () => project, getSelectedClipId: () => 'video-clip',
+		}),
+	);
+	assert.ok(descriptor.frames.length > 1 && descriptor.frames.length < 10);
+	assert.equal((descriptor.frames[0] as { kind?: string }).kind, 'source-time-rows');
+	const reviewed = reviewLocalAssistanceSelectedVideoSourceTimeDescriptorV1(
+		JSON.parse(JSON.stringify(descriptor)),
+	);
+	assert.deepEqual(findLocalAssistanceSelectedVideoSourceTimeBySourceFrameV1(
+		reviewed, 100_000), {
+		sourceFrame: 100_000, presentationTick: '100000', timelineFrame: 200_000_000,
+	});
+	assert.deepEqual(findLocalAssistanceSelectedVideoSourceTimeByTimelineFrameV1(
+		reviewed, 200_002_000), {
+		sourceFrame: 100_001, presentationTick: '100001', timelineFrame: 200_002_000,
+	});
+	assert.equal(findLocalAssistanceSelectedVideoSourceTimeByTimelineFrameV1(
+		reviewed, 200_001_999), null);
+});
+
+test('compact long authority round-trips exact VFR ticks through non-linear forward retime', () => {
+	const frameCount = 100_001;
+	const ticks = Array.from({ length: frameCount }, (_, sourceFrame) =>
+		BigInt(sourceFrame * 100 + sourceFrame % 2));
+	const timing = createVideoTimingAssetPublication(VIDEO_SHA256, {
+		timescale: 2_400, presentationTicks: ticks, finalFrameDurationTicks: 100n,
+	});
+	const project = { ...baseProject(),
+		selection: { ...baseProject().selection, endFrame: frameCount * 2_000 },
+		sources: [{ ...baseProject().sources[0]!, sourceFrameCount: frameCount,
+			sampleFrameCount: frameCount * 2_000, timingAsset: timing.reference,
+			timingDecision: { mode: 'exact', rate: { num: 24, den: 1 }, backend: 'fixture' } }],
+		clips: [{ ...baseProject().clips[0]!, sequenceStartFrame: 0,
+			sequenceFrameCount: frameCount, sourceInFrame: 0, sourceFrameCount: frameCount,
+			retimeMap: { feature: 'video-retime', version: 2,
+				points: [
+					{ outerFrame: 0, sourceFrame: { num: 0, den: 1 } },
+					{ outerFrame: frameCount, sourceFrame: { num: frameCount, den: 1 } },
+				], segments: [{ mode: 'ramp-forward',
+					startVelocity: { num: 1, den: 2 },
+					endVelocity: { num: 3, den: 2 } }] } }],
+	} as unknown as ReturnType<typeof baseProject>;
+	const source = project.sources[0]!;
+	registerVideoTimingIndex(source, validateVideoTimingAssetBytes(timing.reference, timing.bytes));
+	try {
+		const authority = resolveLocalAssistanceSelectedVideoAuthority({
+			getProject: () => project, getSelectedClipId: () => 'video-clip',
+		});
+		assert.equal(authority.timingAuthority.sourceTiming, 'vfr');
+		assert.equal(authority.timingAuthority.mapping, 'forward-retime-v2');
+		const descriptor = reviewLocalAssistanceSelectedVideoSourceTimeDescriptorV1(
+			JSON.parse(JSON.stringify(createLocalAssistanceSelectedVideoSourceTimeDescriptorV1(
+				authority,
+			))),
+		);
+		assert.equal((descriptor.frames[0] as { kind?: string }).kind, 'source-time-rows');
+		const nearEnd = findLocalAssistanceSelectedVideoSourceTimeBySourceFrameV1(
+			descriptor, 100_000,
+		);
+		assert.equal(nearEnd?.presentationTick, '10000000');
+		const midpoint = Array.from({ length: 16 }, (_, offset) =>
+			findLocalAssistanceSelectedVideoSourceTimeBySourceFrameV1(
+				descriptor, 50_000 + offset,
+			)).find((candidate) => candidate !== null);
+		assert.ok(midpoint && midpoint.sourceFrame < 50_016
+			&& midpoint.timelineFrame > 110_000_000,
+			'non-linear ramp inverse must not collapse to endpoint-linear timing');
+		assert.deepEqual(findLocalAssistanceSelectedVideoSourceTimeByTimelineFrameV1(
+			descriptor, midpoint.timelineFrame), midpoint);
+		assert.deepEqual(findLocalAssistanceSelectedVideoSourceTimeBySourceFrameV1(
+			descriptor, frameCount), {
+			sourceFrame: frameCount, presentationTick: '10000100', timelineFrame: 200_002_000,
+		});
+	} finally { unregisterVideoTimingIndex(source); }
 });
 
 test('selected-video Reframe rejects stale shot timing and propagates cancellation before custody', async () => {

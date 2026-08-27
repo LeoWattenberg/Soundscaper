@@ -4,6 +4,7 @@
 
 import { scaleSampleFrame } from '../timeline-time.ts';
 import { reviewAssistanceEmbeddingMatrixV1 } from './binary-formats-v1.ts';
+import { reviewAssistanceSourceTimeRowsV1 } from './source-time-rows-v1.ts';
 import {
 	HIGHLIGHT_RANKING_V1_SPEECHLESS_WEIGHTS,
 	rankAssistanceHighlightsV1,
@@ -33,7 +34,6 @@ import {
 	stableId,
 } from './owned-video-highlight-validation-v1.ts';
 import {
-	ASSISTANCE_OWNED_TRANSFORM_MAXIMUM_ITEMS,
 	ASSISTANCE_OWNED_TRANSFORM_MAXIMUM_PROPOSALS,
 	ownedArray,
 	ownedExactRecord,
@@ -55,7 +55,6 @@ const VIDEO_FIELDS = Object.freeze([
 	'videoOccurrenceId', 'audioOccurrenceId', 'selectionStartFrame', 'selectionEndFrame',
 	'reframeEvidence', 'sourceTimeAuthority', 'windows',
 ] as const);
-const TIME_FIELDS = Object.freeze(['sourceFrame', 'presentationTick', 'timelineFrame'] as const);
 const WINDOW_FIELDS = Object.freeze([
 	'id', 'startFrame', 'endFrame', 'shotStructure', 'visualInterest',
 ] as const);
@@ -253,26 +252,9 @@ function reviewVideo(value: unknown): ReviewedVideo {
 	const selectionEndFrame = ownedInteger(row.selectionEndFrame, 1,
 		Number.MAX_SAFE_INTEGER, 'highlight selection end');
 	if (selectionEndFrame <= selectionStartFrame) throw new RangeError('The highlight selection is empty.');
-	let priorSource = -1;
-	let priorTick = -1n;
-	let priorTimeline = -1;
-	const authority = ownedArray(row.sourceTimeAuthority, ASSISTANCE_OWNED_TRANSFORM_MAXIMUM_ITEMS,
-		'highlight source-time authority', 2).map((candidate, index) => {
-		const item = ownedExactRecord(candidate, TIME_FIELDS,
-			`highlight source-time authority ${String(index)}`);
-		const sourceFrame = ownedInteger(item.sourceFrame, 0, 0xffff_ffff, 'highlight source frame');
-		const presentationTick = canonicalTick(item.presentationTick);
-		const timelineFrame = ownedInteger(item.timelineFrame, selectionStartFrame,
-			selectionEndFrame, 'highlight timeline frame');
-		if (sourceFrame <= priorSource || BigInt(presentationTick) <= priorTick
-			|| timelineFrame <= priorTimeline) {
-			throw new RangeError('Highlight source-time authority must be strictly forward and ordered.');
-		}
-		priorSource = sourceFrame;
-		priorTick = BigInt(presentationTick);
-		priorTimeline = timelineFrame;
-		return Object.freeze({ sourceFrame, presentationTick, timelineFrame });
-	});
+	const reviewedAuthority = reviewAssistanceSourceTimeRowsV1(row.sourceTimeAuthority);
+	const authority = Array.from({ length: reviewedAuthority.rowCount }, (_, index) =>
+		reviewedAuthority.row(index));
 	if (authority[0]!.timelineFrame !== selectionStartFrame
 		|| authority.at(-1)!.timelineFrame !== selectionEndFrame) {
 		throw new RangeError('Highlight source-time authority must bind both selection endpoints.');
@@ -578,12 +560,6 @@ function admittedCandidate<T>(
 	const id = stableId(value, `highlight ${label} candidate ID`);
 	if (!known.has(id) || seen.has(id)) throw new TypeError(`Highlight ${label} scores have ambiguous authority.`);
 	return id;
-}
-
-function canonicalTick(value: unknown): string {
-	if (typeof value !== 'string' || !/^(?:0|[1-9]\d*)$/u.test(value)
-		|| BigInt(value) > 0x7fff_ffff_ffff_ffffn) throw new RangeError('A highlight presentation tick is invalid.');
-	return value;
 }
 
 function quantize(value: number): number {

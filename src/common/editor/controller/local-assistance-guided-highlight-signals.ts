@@ -14,6 +14,13 @@ import {
 } from '../assistance/workflow-settings-v1.ts';
 import type { LocalAssistanceSelectedVideoSourceTimeDescriptorV1 } from
 	'./local-assistance-selected-video-source-time.ts';
+import {
+	localAssistanceSelectedVideoSourceTimeRowsV1,
+	reviewLocalAssistanceSelectedVideoSourceTimeDescriptorV1,
+} from './local-assistance-selected-video-source-time.ts';
+import { reviewAssistanceSourceTimeRowsV1,
+	type AssistanceSourceTimeRowsInventoryV1,
+	type ReviewedAssistanceSourceTimeRowsV1 } from '../assistance/source-time-rows-v1.ts';
 
 type HighlightSettings = Extract<AssistanceWorkflowSettingsV1,
 	{ readonly workflowId: 'make-highlights' }>;
@@ -38,11 +45,7 @@ export interface LocalAssistanceGuidedHighlightVideoSignalsV1 {
 	readonly selectionStartFrame: number;
 	readonly selectionEndFrame: number;
 	readonly reframeEvidence: AssistanceAcceptedReframeDerivativeV1 | null;
-	readonly sourceTimeAuthority: readonly Readonly<{
-		readonly sourceFrame: number;
-		readonly presentationTick: string;
-		readonly timelineFrame: number;
-	}>[];
+	readonly sourceTimeAuthority: AssistanceSourceTimeRowsInventoryV1;
 	readonly windows: readonly LocalAssistanceGuidedHighlightWindowV1[];
 }
 
@@ -55,13 +58,6 @@ export interface LocalAssistanceGuidedHighlightAudioSignalsV1 {
 	}>[];
 }
 
-const AUTHORITY_FIELDS = Object.freeze([
-	'schemaVersion', 'kind', 'projectId', 'projectRevision', 'sequenceId', 'videoOccurrenceId',
-	'sourceId', 'sourceSha256', 'timingAuthoritySha256', 'sourceWidth', 'sourceHeight',
-	'sourceStartFrame', 'sourceEndFrame', 'sampleRate', 'timescale', 'selectionStartFrame',
-	'selectionEndFrame', 'frames',
-] as const);
-const FRAME_FIELDS = Object.freeze(['sourceFrame', 'presentationTick', 'timelineFrame'] as const);
 const VIDEO_FIELDS = Object.freeze([
 	'schemaVersion', 'kind', 'sourceId', 'sampleRate', 'timescale', 'sourceSize',
 	'videoOccurrenceId', 'audioOccurrenceId', 'selectionStartFrame', 'selectionEndFrame',
@@ -70,14 +66,12 @@ const VIDEO_FIELDS = Object.freeze([
 const WINDOW_FIELDS = Object.freeze([
 	'id', 'startFrame', 'endFrame', 'shotStructure', 'visualInterest',
 ] as const);
-const MAXIMUM_AUTHORITY_ROWS = 100_000;
 const MAXIMUM_WINDOWS = 80;
 const MAXIMUM_AUDIO_BYTES = 512 * 1024 * 1024;
 const AUDIO_SAMPLE_RATE = 32_000;
 const ENERGY_BLOCK_FRAMES = 8_000;
 const CANCELLATION_FRAMES = 262_144;
 const STABLE_ID = /^[A-Za-z\d][A-Za-z\d._:-]{0,255}$/u;
-const SHA256 = /^[a-f\d]{64}$/u;
 
 export function createLocalAssistanceGuidedHighlightVideoSignalsV1(request: Readonly<{
 	readonly authority: LocalAssistanceSelectedVideoSourceTimeDescriptorV1;
@@ -155,12 +149,12 @@ function createWindows(
 			: authority.selectionStartFrame + Math.round(
 				(totalFrames - targetDuration) * index / (count - 1),
 			);
-		const startIndex = nearestTimelineIndex(authority.frames, startTarget);
-		const start = authority.frames[startIndex]!;
-		const endIndex = nearestAdmittedEndIndex(authority.frames, startIndex,
+		const startIndex = nearestTimelineIndex(authority.rows, startTarget);
+		const start = authority.rows.row(startIndex);
+		const endIndex = nearestAdmittedEndIndex(authority.rows, startIndex,
 			start.timelineFrame + targetDuration, minimumFrames, maximumFrames);
 		if (endIndex === null) continue;
-		const end = authority.frames[endIndex]!;
+		const end = authority.rows.row(endIndex);
 		const id = `highlight:${authority.sourceSha256.slice(0, 12)}:${String(start.sourceFrame)}:${
 			String(end.sourceFrame)}`;
 		if (seen.has(id)) continue;
@@ -172,54 +166,41 @@ function createWindows(
 }
 
 function nearestAdmittedEndIndex(
-	frames: readonly SourceFrame[],
+	frames: ReviewedAssistanceSourceTimeRowsV1,
 	startIndex: number,
 	target: number,
 	minimumDuration: number,
 	maximumDuration: number,
 ): number | null {
-	const start = frames[startIndex]!.timelineFrame;
+	const start = frames.row(startIndex).timelineFrame;
 	let first = lowerBoundTimeline(frames, start + minimumDuration);
 	if (first <= startIndex) first = startIndex + 1;
 	let last = upperBoundTimeline(frames, start + maximumDuration) - 1;
-	last = Math.min(last, frames.length - 1);
+	last = Math.min(last, frames.rowCount - 1);
 	if (first > last) return null;
 	const nearest = nearestTimelineIndex(frames, target);
 	return Math.min(last, Math.max(first, nearest));
 }
 
-interface SourceFrame {
-	readonly sourceFrame: number;
-	readonly presentationTick: string;
-	readonly timelineFrame: number;
-}
-
-function nearestTimelineIndex(frames: readonly SourceFrame[], target: number): number {
+function nearestTimelineIndex(frames: ReviewedAssistanceSourceTimeRowsV1, target: number): number {
 	const right = lowerBoundTimeline(frames, target);
 	if (right === 0) return 0;
-	if (right === frames.length) return frames.length - 1;
+	if (right === frames.rowCount) return frames.rowCount - 1;
 	const left = right - 1;
-	return target - frames[left]!.timelineFrame <= frames[right]!.timelineFrame - target
+	return target - frames.row(left).timelineFrame <= frames.row(right).timelineFrame - target
 		? left : right;
 }
 
-function lowerBoundTimeline(frames: readonly SourceFrame[], target: number): number {
-	let low = 0;
-	let high = frames.length;
-	while (low < high) {
-		const middle = low + Math.floor((high - low) / 2);
-		if (frames[middle]!.timelineFrame < target) low = middle + 1;
-		else high = middle;
-	}
-	return low;
+function lowerBoundTimeline(frames: ReviewedAssistanceSourceTimeRowsV1, target: number): number {
+	return frames.firstAtOrAfterTimeline(target);
 }
 
-function upperBoundTimeline(frames: readonly SourceFrame[], target: number): number {
+function upperBoundTimeline(frames: ReviewedAssistanceSourceTimeRowsV1, target: number): number {
 	let low = 0;
-	let high = frames.length;
+	let high = frames.rowCount;
 	while (low < high) {
 		const middle = low + Math.floor((high - low) / 2);
-		if (frames[middle]!.timelineFrame <= target) low = middle + 1;
+		if (frames.row(middle).timelineFrame <= target) low = middle + 1;
 		else high = middle;
 	}
 	return low;
@@ -270,54 +251,9 @@ function windowDynamics(
 }
 
 function reviewSourceTimeAuthority(value: unknown) {
-	const row = exactRecord(value, AUTHORITY_FIELDS, 'selected-video source-time authority');
-	if (row.schemaVersion !== 1 || row.kind !== 'selected-video-source-time-authority') {
-		throw new TypeError('Selected-video source-time authority has an unsupported identity.');
-	}
-	const sourceStartFrame = integer(row.sourceStartFrame, 0, 'source start frame');
-	const sourceEndFrame = integer(row.sourceEndFrame, 1, 'source end frame');
-	const selectionStartFrame = integer(row.selectionStartFrame, 0, 'selection start frame');
-	const selectionEndFrame = integer(row.selectionEndFrame, 1, 'selection end frame');
-	if (sourceEndFrame <= sourceStartFrame || selectionEndFrame <= selectionStartFrame) {
-		throw new RangeError('Selected-video source-time authority has empty geometry.');
-	}
-	const candidates = boundedArray(row.frames, 2, MAXIMUM_AUTHORITY_ROWS, 'source-time rows');
-	let priorSource = -1;
-	let priorTick = -1n;
-	let priorTimeline = -1;
-	const frames = candidates.map((candidate) => {
-		const frame = exactRecord(candidate, FRAME_FIELDS, 'source-time row');
-		const sourceFrame = integer(frame.sourceFrame, 0, 'source frame');
-		const presentationTick = tick(frame.presentationTick);
-		const timelineFrame = integer(frame.timelineFrame, 0, 'timeline frame');
-		if (sourceFrame <= priorSource || BigInt(presentationTick) <= priorTick
-			|| timelineFrame <= priorTimeline) {
-			throw new RangeError('Selected-video source-time authority must be strictly forward.');
-		}
-		priorSource = sourceFrame; priorTick = BigInt(presentationTick); priorTimeline = timelineFrame;
-		return Object.freeze({ sourceFrame, presentationTick, timelineFrame });
-	});
-	if (frames[0]!.sourceFrame !== sourceStartFrame || frames.at(-1)!.sourceFrame !== sourceEndFrame
-		|| frames[0]!.timelineFrame !== selectionStartFrame
-		|| frames.at(-1)!.timelineFrame !== selectionEndFrame) {
-		throw new RangeError('Selected-video source-time authority does not bind exact endpoints.');
-	}
-	return Object.freeze({
-		projectId: stableId(row.projectId, 'project'),
-		projectRevision: integer(row.projectRevision, 0, 'project revision'),
-		sequenceId: stableId(row.sequenceId, 'sequence'),
-		videoOccurrenceId: stableId(row.videoOccurrenceId, 'video occurrence'),
-		sourceId: stableId(row.sourceId, 'video source'),
-		sourceSha256: digest(row.sourceSha256, 'source'),
-		timingAuthoritySha256: digest(row.timingAuthoritySha256, 'timing authority'),
-		sourceWidth: integer(row.sourceWidth, 1, 'source width'),
-		sourceHeight: integer(row.sourceHeight, 1, 'source height'),
-		sourceStartFrame, sourceEndFrame,
-		sampleRate: integer(row.sampleRate, 1, 'timeline sample rate'),
-		timescale: integer(row.timescale, 1, 'source timescale'),
-		selectionStartFrame, selectionEndFrame,
-		frames: Object.freeze(frames),
-	});
+	const descriptor = reviewLocalAssistanceSelectedVideoSourceTimeDescriptorV1(value);
+	return Object.freeze({ ...descriptor,
+		rows: localAssistanceSelectedVideoSourceTimeRowsV1(descriptor) });
 }
 
 function reviewVideoSignals(value: unknown): LocalAssistanceGuidedHighlightVideoSignalsV1 {
@@ -330,13 +266,12 @@ function reviewVideoSignals(value: unknown): LocalAssistanceGuidedHighlightVideo
 	const selectionEndFrame = integer(row.selectionEndFrame, 1, 'highlight selection end');
 	if (selectionEndFrame <= selectionStartFrame) throw new RangeError('Highlight selection is empty.');
 	const size = exactRecord(row.sourceSize, ['width', 'height'] as const, 'highlight source size');
-	const sourceTimeAuthority = boundedArray(row.sourceTimeAuthority, 2,
-		MAXIMUM_AUTHORITY_ROWS, 'highlight source-time rows').map((candidate) => {
-		const frame = exactRecord(candidate, FRAME_FIELDS, 'highlight source-time row');
-		return Object.freeze({ sourceFrame: integer(frame.sourceFrame, 0, 'highlight source frame'),
-			presentationTick: tick(frame.presentationTick),
-			timelineFrame: integer(frame.timelineFrame, 0, 'highlight timeline frame') });
-	});
+	const reviewedAuthority = reviewAssistanceSourceTimeRowsV1(row.sourceTimeAuthority);
+	if (reviewedAuthority.first.timelineFrame !== selectionStartFrame
+		|| reviewedAuthority.last.timelineFrame !== selectionEndFrame) {
+		throw new RangeError('Highlight source-time rows do not bind the selection endpoints.');
+	}
+	const sourceTimeAuthority = row.sourceTimeAuthority as AssistanceSourceTimeRowsInventoryV1;
 	const windows = boundedArray(row.windows, 0, MAXIMUM_WINDOWS, 'highlight windows')
 		.map((candidate) => {
 			const window = exactRecord(candidate, WINDOW_FIELDS, 'highlight window');
@@ -360,7 +295,7 @@ function reviewVideoSignals(value: unknown): LocalAssistanceGuidedHighlightVideo
 		audioOccurrenceId: row.audioOccurrenceId === null ? null
 			: stableId(row.audioOccurrenceId, 'highlight audio occurrence'),
 		selectionStartFrame, selectionEndFrame, reframeEvidence,
-		sourceTimeAuthority: Object.freeze(sourceTimeAuthority), windows: Object.freeze(windows) });
+		sourceTimeAuthority, windows: Object.freeze(windows) });
 }
 
 function exactRecord<const Key extends string>(
@@ -388,21 +323,6 @@ function boundedArray(value: unknown, minimum: number, maximum: number, label: s
 function stableId(value: unknown, label: string): string {
 	if (typeof value !== 'string' || !STABLE_ID.test(value)) {
 		throw new TypeError(`The ${label} ID is invalid.`);
-	}
-	return value;
-}
-
-function digest(value: unknown, label: string): string {
-	if (typeof value !== 'string' || !SHA256.test(value)) {
-		throw new TypeError(`The ${label} digest is invalid.`);
-	}
-	return value;
-}
-
-function tick(value: unknown): string {
-	if (typeof value !== 'string' || !/^(?:0|[1-9]\d*)$/u.test(value)
-		|| BigInt(value) > 0x7fff_ffff_ffff_ffffn) {
-		throw new RangeError('The source-time presentation tick is invalid.');
 	}
 	return value;
 }

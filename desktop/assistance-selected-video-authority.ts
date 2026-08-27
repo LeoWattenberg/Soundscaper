@@ -4,6 +4,8 @@
 
 import { VIDEO_TIMING_ASSET_MAXIMUM_FRAMES } from
 	'../src/common/editor/video-timing-asset-reference.ts';
+import { reviewAssistanceSourceTimeRowsV1 } from
+	'../src/common/editor/assistance/source-time-rows-v1.ts';
 import type { AssistanceVideoSourceTimeAuthorityV1 } from
 	'../src/common/editor/assistance/owned-video-highlight-transform-types-v1.ts';
 import type { AssistanceWorkflowV1 } from '../src/common/editor/assistance/workflow.ts';
@@ -14,7 +16,6 @@ const DESCRIPTOR_FIELDS = Object.freeze([
 	'sourceWidth', 'sourceHeight', 'sourceStartFrame', 'sourceEndFrame', 'sampleRate',
 	'timescale', 'selectionStartFrame', 'selectionEndFrame', 'frames',
 ] as const);
-const FRAME_FIELDS = Object.freeze(['sourceFrame', 'presentationTick', 'timelineFrame'] as const);
 const ID = /^[A-Za-z\d][A-Za-z\d._:-]{0,255}$/u;
 const TICK = /^(?:0|[1-9]\d*)$/u;
 const MAXIMUM_TICK = 0x7fff_ffff_ffff_ffffn;
@@ -57,15 +58,15 @@ export function materializeAssistanceSelectedVideoAuthorityV1(options: Readonly<
 		'sidecar selection start');
 	const selectionEndFrame = integer(row.selectionEndFrame, selectionStartFrame + 1,
 		Number.MAX_SAFE_INTEGER, 'sidecar selection end');
-	if (!Array.isArray(row.frames) || row.frames.length < 2
-		|| row.frames.length > VIDEO_TIMING_ASSET_MAXIMUM_FRAMES) {
+	const reviewedRows = reviewAssistanceSourceTimeRowsV1(row.frames);
+	if (reviewedRows.rowCount > VIDEO_TIMING_ASSET_MAXIMUM_FRAMES + 1) {
 		throw new RangeError('The selected-video timing sidecar frame inventory is outside its bound.');
 	}
 	let priorSource = sourceStartFrame - 1;
 	let priorTick = -1n;
 	let priorTimeline = -1;
-	const frames = row.frames.map((value, index) => {
-		const frame = exactRecord(value, FRAME_FIELDS, `selected-video timing row ${String(index)}`);
+	const frames = Array.from({ length: reviewedRows.rowCount }, (_, index) => {
+		const frame = reviewedRows.row(index);
 		const sourceFrame = integer(frame.sourceFrame, sourceStartFrame, sourceEndFrame,
 			`sidecar row ${String(index)} source frame`);
 		const presentationTick = tick(frame.presentationTick,

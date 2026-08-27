@@ -12,6 +12,8 @@ import {
 	createAssistanceWorkflowOwnedVideoHighlightStageRuntime,
 	type AssistanceWorkflowOwnedVideoHighlightStageCustodyV1,
 } from '../desktop/assistance-workflow-owned-video-highlight-stage-runtime.ts';
+import { openAssistanceOnnxVisualFrameSourceV1 } from
+	'../desktop/assistance-onnx-visual-frame-source.ts';
 import type {
 	AssistanceOutputClaim,
 	AssistanceStagedInputClaim,
@@ -23,8 +25,9 @@ import {
 import {
 	createAssistanceEmbeddingMatrixV1,
 	createAssistanceFramePackV1,
-	reviewAssistanceFramePackV1,
 } from '../src/common/editor/assistance/binary-formats-v1.ts';
+import { reviewAssistanceVisualFramePackInventory } from
+	'../src/common/editor/assistance/visual-frame-pack-set-v1.ts';
 import type { AssistanceOwnedFramePackPlanV1 } from
 	'../src/common/editor/assistance/owned-video-highlight-transform-types-v1.ts';
 import {
@@ -70,11 +73,11 @@ test('the main bridge executes all seven closed transforms through authenticated
 			});
 			const materializer = {
 				materializeFramePack: ({ plan }: Readonly<{ plan: AssistanceOwnedFramePackPlanV1 }>) =>
-				createAssistanceFramePackV1({ width: plan.width, height: plan.height,
-					timescale: plan.timescale, frames: plan.frames.map((frame) => ({
-						sourceFrame: frame.sourceFrame, presentationTick: frame.presentationTick,
-						rgba: Uint8Array.of(1, 2, 3, 255),
-					})) }),
+					[createAssistanceFramePackV1({ width: plan.width, height: plan.height,
+						timescale: plan.timescale, frames: plan.frames.map((frame) => ({
+							sourceFrame: frame.sourceFrame, presentationTick: frame.presentationTick,
+							rgba: Uint8Array.of(1, 2, 3, 255),
+						})) })],
 			resolveVisualTags: ({ plan }: Readonly<{ plan: AssistanceOwnedFramePackPlanV1 }>) =>
 				({ matrix: createAssistanceEmbeddingMatrixV1({ dimensions: 2, vectors: [[1, 0]] }),
 					tags: plan.frames.map(({ resultId }) => ({ resultId, tags: [] })) }),
@@ -86,8 +89,9 @@ test('the main bridge executes all seven closed transforms through authenticated
 			index.execution('sample-shot-frames'),
 		), { outcome: 'completed' });
 		const frameBytes = await readFile(index.outputPath('sample-shot-frames', 'frame-pack'));
-		const reviewedFrames = reviewAssistanceFramePackV1(frameBytes);
-		assert.equal(reviewedFrames.frameCount, 1);
+		const reviewedFrames = reviewAssistanceVisualFramePackInventory(frameBytes);
+		assert.equal(reviewedFrames.length, 1);
+		assert.equal(reviewedFrames[0]!.frameCount, 1);
 		assert.equal(new TextDecoder().decode(frameBytes).includes('frame-pack-plan'), false);
 		assert.deepEqual(await indexHandlers['publish-video-index'](
 			index.execution('publish-video-index'),
@@ -158,6 +162,65 @@ test('shot sampling is typed unavailable without real RGBA materialization', asy
 	});
 });
 
+test('guided dense-shot sampling crosses one producer as ordered strict frame packs', async () => {
+	await withDirectory(async (directory) => {
+		const shotCount = 342;
+		const shotFrames = 13;
+		const sourceEndFrame = shotCount * shotFrames;
+		const video = Uint8Array.of(1, 3, 3, 7);
+		const authority = { ...selectedVideoAuthority(digest(video)), sourceEndFrame, timescale: 1,
+			selectionEndFrame: sourceEndFrame * 48_000,
+			frames: Array.from({ length: sourceEndFrame + 1 }, (_, sourceFrame) => ({
+				sourceFrame, presentationTick: String(sourceFrame), timelineFrame: sourceFrame * 48_000,
+			})) };
+		const boundaries = Array.from({ length: shotCount - 1 }, (_, index) => {
+			const sourceFrame = (index + 1) * shotFrames;
+			return { sourceFrame, presentationTick: String(sourceFrame), score: 1 };
+		});
+		const harness = await workflowHarness(directory, 'index-video', {
+			videoSourceEndFrame: sourceEndFrame,
+			bodies: {
+				'sample-shot-frames:video': video,
+				'sample-shot-frames:video-authority': authority,
+				'sample-shot-frames:shot-boundaries': {
+					schemaVersion: 1, detector: 'ffmpeg-scdet', timescale: 1,
+					sourceFrameCount: sourceEndFrame, boundaries,
+				},
+			},
+		});
+		const handlers = createAssistanceWorkflowOwnedVideoHighlightStageRuntime({
+			custody: harness.custody,
+			materializer: { materializeFramePack: ({ plan }) => Object.freeze([
+				plan.frames.slice(0, 1_024), plan.frames.slice(1_024),
+			].filter((frames) => frames.length > 0).map((frames) => createAssistanceFramePackV1({
+				width: plan.width, height: plan.height, timescale: plan.timescale,
+				frames: frames.map(({ sourceFrame, presentationTick }) => ({
+					sourceFrame, presentationTick, rgba: Uint8Array.of(0, 0, 0, 255),
+				})),
+			}))) },
+		});
+		assert.deepEqual(await handlers['sample-shot-frames'](
+			harness.execution('sample-shot-frames')),
+		{ outcome: 'completed' });
+		const path = harness.outputPath('sample-shot-frames', 'frame-pack');
+		const body = await readFile(path);
+		const file = await stat(path);
+		const packs = reviewAssistanceVisualFramePackInventory(body);
+		assert.deepEqual(packs.map(({ frameCount }) => frameCount), [1_024, 2]);
+		const source = await openAssistanceOnnxVisualFrameSourceV1([{
+			claimId: '11'.repeat(20),
+			role: 'frame-pack', mediaType: 'application/vnd.soundscaper.frame-pack',
+			byteLength: file.size, sha256: digest(body), path,
+			identity: { dev: Number(file.dev), ino: Number(file.ino) },
+		}]);
+		try {
+			assert.equal(source.frameCount, 1_026);
+			assert.ok((await source.readFrame(1_024)).sourceFrame
+				> (await source.readFrame(1_023)).sourceFrame);
+		} finally { source.release(); }
+	});
+});
+
 test('the bridge rechecks media, bounds, digests, and output reservations before publication', async () => {
 	await withDirectory(async (directory) => {
 		const corrupt = await workflowHarness(directory, 'reframe', { bodies: {
@@ -211,11 +274,11 @@ test('materialized semantics remain inside the exact aggregate source fence', as
 		const handlers = createAssistanceWorkflowOwnedVideoHighlightStageRuntime({
 			custody: harness.custody,
 			materializer: {
-				materializeFramePack: ({ plan }) => createAssistanceFramePackV1({
+				materializeFramePack: ({ plan }) => [createAssistanceFramePackV1({
 					width: plan.width, height: plan.height, timescale: plan.timescale,
 					frames: plan.frames.map((frame) => ({ sourceFrame: frame.sourceFrame,
 						presentationTick: frame.presentationTick, rgba: Uint8Array.of(0, 0, 0, 255) })),
-				}),
+				})],
 			},
 		});
 		await assert.rejects(async () => await handlers['sample-shot-frames'](
@@ -255,6 +318,7 @@ interface HarnessOptions {
 	readonly settings?: AssistanceWorkflowSettingsV1;
 	readonly bodies: Readonly<Record<string, unknown>>;
 	readonly maximumOutputBytes?: number;
+	readonly videoSourceEndFrame?: number;
 }
 
 async function workflowHarness(
@@ -292,7 +356,8 @@ async function workflowHarness(
 	const canonicalOutputs = outputs.map((candidate) => ({ ...candidate, jobId }));
 	const externalVideo = options.bodies['sample-shot-frames:video'];
 	const fence = workflowFence(workflowId, settings, stageIds, models,
-		externalVideo === undefined ? undefined : digest(binaryBody(externalVideo, 'video')));
+		externalVideo === undefined ? undefined : digest(binaryBody(externalVideo, 'video')),
+		options.videoSourceEndFrame);
 	const request = {
 		contractVersion: 1 as const, jobId, workflowId, recipeVersion: 1, settingsVersion: 1,
 		settings, fence, stageIds, models, inputs: canonicalInputs, outputs: canonicalOutputs,
@@ -412,6 +477,7 @@ function workflowFence(
 	stageIds: readonly string[],
 	models: AssistanceWorkflowV1['models'],
 	videoSourceSha256 = '12'.repeat(32),
+	videoSourceEndFrame = 41,
 ) {
 	const audioRange = { slotId: 'audio-main', mediaKind: 'audio' as const,
 		sourceId: 'audio-source', sourceSha256: '78'.repeat(32), sourceSampleRate: 48_000,
@@ -420,7 +486,8 @@ function workflowFence(
 		retimeKind: 'identity' as const };
 	const videoRange = { slotId: 'video-main', mediaKind: 'video' as const,
 		sourceId: 'video-source', sourceSha256: videoSourceSha256, sourceSampleRate: null,
-		occurrenceIds: ['video-occurrence'], sourceStartFrame: 0, sourceEndFrame: 41,
+		occurrenceIds: ['video-occurrence'], sourceStartFrame: 0,
+		sourceEndFrame: videoSourceEndFrame,
 		linkMembershipSha256: '34'.repeat(32), timingAuthoritySha256: '56'.repeat(32),
 		retimeKind: 'identity' as const };
 	return {

@@ -45,6 +45,8 @@ import { materializeAssistanceSelectedVideoAuthorityV1 } from
 	'./assistance-selected-video-authority.ts';
 import { assertAssistanceOwnedFramePackMatchesPlanV1 } from
 	'./assistance-owned-frame-pack-materialization.ts';
+import { createAssistanceVisualFramePackSetV1 } from
+	'../src/common/editor/assistance/visual-frame-pack-set-v1.ts';
 
 export const ASSISTANCE_WORKFLOW_OWNED_VIDEO_HIGHLIGHT_STAGE_IDS = Object.freeze([
 	'sample-shot-frames',
@@ -99,7 +101,8 @@ export interface AssistanceWorkflowOwnedVisualTagsMaterializationV1 {
 /** Closed main-only seam for data that cannot truthfully be represented by current slotted bodies. */
 export interface AssistanceWorkflowOwnedVideoHighlightMaterializerV1 {
 	materializeFramePack?(request: AssistanceWorkflowOwnedFramePackMaterializationRequestV1):
-		PromiseLike<readonly Uint8Array[] | null> | readonly Uint8Array[] | null;
+		PromiseLike<readonly (readonly Uint8Array[])[] | null>
+		| readonly (readonly Uint8Array[])[] | null;
 	resolveVisualTags?(request: AssistanceWorkflowOwnedVisualTagsMaterializationRequestV1):
 		PromiseLike<AssistanceWorkflowOwnedVisualTagsMaterializationV1 | null>
 		| AssistanceWorkflowOwnedVisualTagsMaterializationV1 | null;
@@ -295,7 +298,7 @@ async function prepareOutput(
 			unavailable('RGBA frame-pack materialization is unavailable.');
 		}
 		assertAssistanceOwnedFramePackMatchesPlanV1(materialized, plan);
-		chunks = Object.freeze(materialized.map((chunk) => chunk.slice()));
+		chunks = createAssistanceVisualFramePackSetV1(materialized);
 	} else {
 		if (token.mediaType !== JSON_MEDIA
 			&& token.mediaType !== `application/vnd.soundscaper.${token.role}+json`) {

@@ -5,10 +5,11 @@
 import { readFile } from 'node:fs/promises';
 
 import {
-	reviewAssistanceVisualFramePack,
 	type AssistanceVisualFramePackFrame,
 	type ReviewedAssistanceVisualFramePack,
 } from '../src/common/editor/assistance/visual-frame-pack-v2.ts';
+import { reviewAssistanceVisualFramePackInventory } from
+	'../src/common/editor/assistance/visual-frame-pack-set-v1.ts';
 import type {
 	AssistanceRuntimeFamilyInputGrantV1,
 } from './assistance-runtime-family-job-contract.ts';
@@ -18,6 +19,7 @@ const MAXIMUM_VISUAL_FRAMES = 100_000;
 
 interface PackIndexV1 {
 	readonly inputIndex: number;
+	readonly packIndex: number;
 	readonly ordinalStart: number;
 	readonly frameCount: number;
 	readonly sourceFrames: readonly number[];
@@ -58,60 +60,70 @@ export async function openAssistanceOnnxVisualFrameSourceV1(
 	let priorTick = -1n;
 	const frames: Array<Readonly<{ sourceFrame: number; presentationTick: string }>> = [];
 	const packs: PackIndexV1[] = [];
+	const inventories: Array<readonly ReviewedAssistanceVisualFramePack[]> = [];
 	for (const [inputIndex, input] of inputs.entries()) {
 		signal?.throwIfAborted();
-		const reviewed = reviewAssistanceVisualFramePack(await readFile(input.path));
-		if (reviewed.frameCount < 1) throw new RangeError('A visual frame pack cannot be empty.');
-		if (width !== null && (reviewed.sourceWidth !== width || reviewed.sourceHeight !== height
-			|| reviewed.rasterWidth !== rasterWidth || reviewed.rasterHeight !== rasterHeight
-			|| reviewed.timescale !== timescale)) {
-			throw new RangeError('Visual frame-pack chunks disagree about geometry or timescale.');
-		}
-		width ??= reviewed.sourceWidth;
-		height ??= reviewed.sourceHeight;
-		rasterWidth ??= reviewed.rasterWidth;
-		rasterHeight ??= reviewed.rasterHeight;
-		timescale ??= reviewed.timescale;
-		const sourceFrames: number[] = [];
-		const presentationTicks: string[] = [];
-		for (let index = 0; index < reviewed.frameCount; index += 1) {
-			const frame = reviewed.frame(index);
-			if (frame.sourceFrame <= priorSource || BigInt(frame.presentationTick) <= priorTick) {
-				throw new RangeError('Visual frame packs must retain ordered VFR source/tick authority.');
+		const inventory = reviewAssistanceVisualFramePackInventory(await readFile(input.path));
+		inventories.push(inventory);
+		for (const [packIndex, reviewed] of inventory.entries()) {
+			if (reviewed.frameCount < 1) throw new RangeError('A visual frame pack cannot be empty.');
+			if (width !== null && (reviewed.sourceWidth !== width || reviewed.sourceHeight !== height
+				|| reviewed.rasterWidth !== rasterWidth || reviewed.rasterHeight !== rasterHeight
+				|| reviewed.timescale !== timescale)) {
+				throw new RangeError('Visual frame-pack chunks disagree about geometry or timescale.');
 			}
-			priorSource = frame.sourceFrame;
-			priorTick = BigInt(frame.presentationTick);
-			sourceFrames.push(frame.sourceFrame);
-			presentationTicks.push(frame.presentationTick);
-			frames.push(Object.freeze({ sourceFrame: frame.sourceFrame,
-				presentationTick: frame.presentationTick }));
-			if (frames.length > MAXIMUM_VISUAL_FRAMES) {
-				throw new RangeError('Visual ONNX execution exceeds its exact frame bound.');
+			width ??= reviewed.sourceWidth;
+			height ??= reviewed.sourceHeight;
+			rasterWidth ??= reviewed.rasterWidth;
+			rasterHeight ??= reviewed.rasterHeight;
+			timescale ??= reviewed.timescale;
+			const sourceFrames: number[] = [];
+			const presentationTicks: string[] = [];
+			for (let index = 0; index < reviewed.frameCount; index += 1) {
+				const frame = reviewed.frame(index);
+				if (frame.sourceFrame <= priorSource || BigInt(frame.presentationTick) <= priorTick) {
+					throw new RangeError('Visual frame packs must retain ordered VFR source/tick authority.');
+				}
+				priorSource = frame.sourceFrame;
+				priorTick = BigInt(frame.presentationTick);
+				sourceFrames.push(frame.sourceFrame);
+				presentationTicks.push(frame.presentationTick);
+				frames.push(Object.freeze({ sourceFrame: frame.sourceFrame,
+					presentationTick: frame.presentationTick }));
+				if (frames.length > MAXIMUM_VISUAL_FRAMES) {
+					throw new RangeError('Visual ONNX execution exceeds its exact frame bound.');
+				}
 			}
+			packs.push(Object.freeze({ inputIndex, packIndex,
+				ordinalStart: frames.length - reviewed.frameCount,
+				frameCount: reviewed.frameCount, sourceFrames: Object.freeze(sourceFrames),
+				presentationTicks: Object.freeze(presentationTicks) }));
 		}
-		packs.push(Object.freeze({ inputIndex, ordinalStart: frames.length - reviewed.frameCount,
-			frameCount: reviewed.frameCount, sourceFrames: Object.freeze(sourceFrames),
-			presentationTicks: Object.freeze(presentationTicks) }));
 	}
 	if (width === null || height === null || rasterWidth === null || rasterHeight === null
 		|| timescale === null) {
 		throw new RangeError('Visual ONNX execution requires at least one reviewed frame.');
 	}
 	let cachedInputIndex = -1;
+	let cachedPackIndex = -1;
 	let cached: ReviewedAssistanceVisualFramePack | null = null;
+	let released = false;
 	return Object.freeze({ width, height, rasterWidth, rasterHeight,
 		timescale, frameCount: frames.length,
 		frames: Object.freeze(frames),
 		async readFrame(ordinalValue: number) {
+			if (released) throw new Error('The visual frame source has been released.');
 			if (!Number.isSafeInteger(ordinalValue) || ordinalValue < 0 || ordinalValue >= frames.length) {
 				throw new RangeError('A visual adapter requested a frame outside reviewed custody.');
 			}
 			const pack = packs.find(({ ordinalStart, frameCount }) => ordinalValue >= ordinalStart
 				&& ordinalValue < ordinalStart + frameCount)!;
-			if (cachedInputIndex !== pack.inputIndex || cached === null) {
+			if (cachedInputIndex !== pack.inputIndex || cachedPackIndex !== pack.packIndex
+				|| cached === null) {
 				signal?.throwIfAborted();
-				cached = reviewAssistanceVisualFramePack(await readFile(inputs[pack.inputIndex]!.path));
+				cached = inventories[pack.inputIndex]![pack.packIndex]!;
 				cachedInputIndex = pack.inputIndex;
+				cachedPackIndex = pack.packIndex;
 				if (cached.sourceWidth !== width || cached.sourceHeight !== height
 					|| cached.rasterWidth !== rasterWidth || cached.rasterHeight !== rasterHeight
 					|| cached.timescale !== timescale
@@ -127,7 +139,13 @@ export async function openAssistanceOnnxVisualFrameSourceV1(
 			}
 			return frame;
 		},
-		release() { cached = null; cachedInputIndex = -1; },
+		release() {
+			released = true;
+			cached = null;
+			cachedInputIndex = -1;
+			cachedPackIndex = -1;
+			inventories.length = 0;
+		},
 	});
 }
 

@@ -46,11 +46,12 @@ test('the admitted FFmpeg materializer decodes exact ordinals into bounded visua
 			return new Uint8Array(request.expectedByteLength).fill(7);
 		},
 	});
-	const chunks = await materializer.materializeFramePack!({ request: {} as AssistanceWorkflowV1,
+	const packs = await materializer.materializeFramePack!({ request: {} as AssistanceWorkflowV1,
 		plan: PLAN, source: { path: '/private/job/video.input', claim: {} as never },
 		signal: new AbortController().signal });
-	assert.ok(chunks);
-	const reviewed = reviewAssistanceVisualFramePackV2(chunks!);
+	assert.ok(packs);
+	assert.equal(packs!.length, 1);
+	const reviewed = reviewAssistanceVisualFramePackV2(packs![0]!);
 	assert.deepEqual({ sourceWidth: reviewed.sourceWidth, sourceHeight: reviewed.sourceHeight,
 		rasterWidth: reviewed.rasterWidth, rasterHeight: reviewed.rasterHeight,
 		frameCount: reviewed.frameCount }, {
@@ -70,6 +71,34 @@ test('the admitted FFmpeg materializer decodes exact ordinals into bounded visua
 		{ resultId: 'visual-sample:0', tags: ['person'] },
 		{ resultId: 'visual-sample:1', tags: ['outdoor'] },
 	]);
+});
+
+test('the admitted FFmpeg materializer emits ordered strict packs beyond 341 long shots', async () => {
+	const admission = admitted();
+	const calls: AssistanceExternalFfmpegFrameDecodeRequestV1[] = [];
+	const frames = Array.from({ length: 342 * 3 }, (_, index) => Object.freeze({
+		resultId: `visual-sample:${String(index)}`, shotId: `shot:${String(Math.floor(index / 3))}`,
+		anchor: ['first-quarter', 'midpoint', 'third-quarter'][index % 3] as
+			'first-quarter' | 'midpoint' | 'third-quarter',
+		sourceFrame: index * 10, presentationTick: String(index * 100 + 1),
+		timelineFrame: index * 1_000,
+	}));
+	const materializer = createExternalFfmpegAssistanceVideoMaterializer({
+		preferences: { admission: () => admission,
+			async invalidateAdmission() { return {} as never; } },
+		digestExecutable: async (path) => path.endsWith('ffmpeg') ? FFMPEG_SHA : FFPROBE_SHA,
+		decodeFrames: async (request) => {
+			calls.push(request);
+			return new Uint8Array(request.expectedByteLength);
+		},
+	});
+	const packs = await materializer.materializeFramePack!({ ...frameRequest(),
+		plan: { ...PLAN, width: 1, height: 1, frames } });
+	assert.ok(packs);
+	assert.deepEqual(packs!.map((pack) => reviewAssistanceVisualFramePackV2(pack).frameCount),
+		[1_024, 2]);
+	assert.deepEqual(calls.map(({ sourceFrames }) => sourceFrames.length), [1_024, 2]);
+	assert.equal(reviewAssistanceVisualFramePackV2(packs![1]!).frame(0).sourceFrame, 10_240);
 });
 
 function visualTagMatrix(): Uint8Array {
@@ -110,7 +139,7 @@ test('the frame materializer typed-refuses absent, underqualified, changed, and 
 	assert.deepEqual(invalidated, ['identity-changed']);
 
 	const oversizedPlan = { ...PLAN, width: 4_096, height: 4_096,
-		frames: Array.from({ length: 70 }, (_, index) => ({ resultId: `visual-sample:${String(index)}`,
+		frames: Array.from({ length: 4_033 }, (_, index) => ({ resultId: `visual-sample:${String(index)}`,
 			shotId: 'shot:000000', anchor: 'midpoint' as const, sourceFrame: index,
 			presentationTick: String(index), timelineFrame: index })) };
 	let decoded = false;

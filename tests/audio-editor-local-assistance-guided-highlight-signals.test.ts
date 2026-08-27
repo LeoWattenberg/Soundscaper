@@ -7,11 +7,19 @@ import {
 	createLocalAssistanceGuidedHighlightAudioSignalsV1,
 	createLocalAssistanceGuidedHighlightVideoSignalsV1,
 } from '../src/common/editor/controller/local-assistance-guided-highlight-signals.ts';
+import { createAssistanceSourceTimeRowChunksV1 } from
+	'../src/common/editor/assistance/source-time-rows-v1.ts';
+import { gatherOwnedHighlightSignalsV1 } from
+	'../src/common/editor/assistance/owned-highlight-workflow-transforms-v1.ts';
 import { defaultAssistanceWorkflowSettingsV1 } from
+	'../src/common/editor/assistance/workflow-settings-v1.ts';
+import type { AssistanceWorkflowSettingsV1 } from
 	'../src/common/editor/assistance/workflow-settings-v1.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
 
-const SETTINGS = defaultAssistanceWorkflowSettingsV1('make-highlights');
+const SETTINGS = defaultAssistanceWorkflowSettingsV1('make-highlights') as Extract<
+	AssistanceWorkflowSettingsV1, { readonly workflowId: 'make-highlights' }
+>;
 
 test('guided highlights create deterministic bounded windows from exact forward source time', () => {
 	const result = createLocalAssistanceGuidedHighlightVideoSignalsV1({
@@ -83,6 +91,28 @@ test('guided highlight signals reject stale geometry, inexact WAVs, and cancella
 	await assert.rejects(createLocalAssistanceGuidedHighlightAudioSignalsV1({
 		body: short, video, signal: controller.signal,
 	}), { name: 'AbortError' });
+});
+
+test('guided highlights preserve compact long source-time custody through owned gathering', () => {
+	const sourceEndFrame = 100_001;
+	const frames = createAssistanceSourceTimeRowChunksV1((function* () {
+		for (let sourceFrame = 0; sourceFrame <= sourceEndFrame; sourceFrame += 1) {
+			yield { sourceFrame, presentationTick: String(sourceFrame + 1),
+				timelineFrame: sourceFrame * 1_000 };
+		}
+	})());
+	const video = createLocalAssistanceGuidedHighlightVideoSignalsV1({ authority: {
+		...sourceTimeAuthority(), sourceStartFrame: 0, sourceEndFrame,
+		selectionStartFrame: 0, selectionEndFrame: sourceEndFrame * 1_000, frames,
+	}, audioOccurrenceId: null, settings: SETTINGS });
+	assert.equal((video.sourceTimeAuthority[0] as { kind?: string }).kind, 'source-time-rows');
+	const serialized = JSON.stringify(video);
+	assert.ok(serialized.length < 4 * 1024 * 1024);
+	const gathered = gatherOwnedHighlightSignalsV1({ video: JSON.parse(serialized), audio: null,
+		transcript: null, 'shot-boundaries': null, 'audio-tags': null,
+		'reaction-ranges': null, embeddings: null }, SETTINGS);
+	assert.ok(gathered.candidates.length > 0);
+	assert.equal(gathered.candidates[0]!.sourceStartFrame, 0);
 });
 
 function sourceTimeAuthority() {

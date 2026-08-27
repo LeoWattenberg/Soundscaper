@@ -11,6 +11,7 @@ import {
 	reviewAssistanceAcceptedReframeDerivativeV1,
 	type AssistanceAcceptedReframeDerivativeV1,
 } from '../assistance/reframe-derivative-v1.ts';
+import { reviewAssistanceSourceTimeRowsV1 } from '../assistance/source-time-rows-v1.ts';
 import {
 	validateAssistanceWorkflow,
 	type AssistanceWorkflowV1,
@@ -138,8 +139,11 @@ function matches(
 		|| video.timescale !== derivative.result.authority.timescale
 		|| derivative.result.path.targetAspect.width !== 9
 		|| derivative.result.path.targetAspect.height !== 16) return false;
-	const timing = new Map(video.sourceTimeAuthority.map(({ sourceFrame, presentationTick }) =>
-		[sourceFrame, presentationTick] as const));
+	const reviewedTiming = reviewAssistanceSourceTimeRowsV1(video.sourceTimeAuthority);
+	const timing = new Map(Array.from({ length: reviewedTiming.rowCount }, (_, index) => {
+		const { sourceFrame, presentationTick } = reviewedTiming.row(index);
+		return [sourceFrame, presentationTick] as const;
+	}));
 	return derivative.result.authority.frames.every(({ sourceFrame, presentationTick }) =>
 		timing.get(sourceFrame) === presentationTick);
 }
