@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Reconstruct live aggregate authority before publishing reusable Guided output. */
+/** Reconstruct live aggregate authority before publishing any workflow output. */
 
 import {
 	assistanceWorkflowStageGraph,
@@ -21,8 +21,8 @@ interface SelectedPublicationAuthorityPort {
 	listSelectedMedia(): Promise<unknown>;
 	prepareSelectedMedia(request: Readonly<{
 		readonly sourceId: string;
-		readonly operation: 'shot-detection';
-		readonly shotDetectionMode: 'fast' | 'accurate';
+		readonly operation: 'voice-activity-detection' | 'shot-detection';
+		readonly shotDetectionMode?: 'fast' | 'accurate';
 		readonly signal: AbortSignal;
 	}>): Promise<unknown>;
 }
@@ -45,9 +45,21 @@ export function createLocalAssistanceGuidedPublicationFenceResolver(
 ): Readonly<{
 	resolveCurrentFence(workflow: AssistanceWorkflowV1, signal: AbortSignal):
 		Promise<AssistanceWorkflowFenceV1>;
+	assertCurrentFence(workflow: AssistanceWorkflowV1, signal: AbortSignal): Promise<void>;
 }> {
 	assertDependencies(dependencies);
-	return Object.freeze({ resolveCurrentFence });
+	return Object.freeze({ resolveCurrentFence, assertCurrentFence });
+
+	async function assertCurrentFence(
+		workflowValue: AssistanceWorkflowV1,
+		signal: AbortSignal,
+	): Promise<void> {
+		const workflow = validateAssistanceWorkflow(workflowValue);
+		const current = await resolveCurrentFence(workflow, signal);
+		if (JSON.stringify(current) !== JSON.stringify(workflow.fence)) {
+			throw new DOMException('The assistance workflow aggregate fence is stale.', 'AbortError');
+		}
+	}
 
 	async function resolveCurrentFence(
 		workflowValue: AssistanceWorkflowV1,
@@ -57,17 +69,14 @@ export function createLocalAssistanceGuidedPublicationFenceResolver(
 			throw new TypeError('Guided publication fence resolution requires one cancellation signal.');
 		}
 		const workflow = validateAssistanceWorkflow(workflowValue);
-		if (workflow.workflowId !== 'index-transcript' && workflow.workflowId !== 'index-video'
-			&& workflow.workflowId !== 'mark-cuts' && workflow.workflowId !== 'reframe'
-			&& workflow.workflowId !== 'make-highlights') {
-			throw new RangeError('This Guided workflow has no reusable publication fence.');
-		}
 		const token = dependencies.captureProject();
 		signal.throwIfAborted();
 		const project = dataRecord(dependencies.getProject(), 'current publication project');
-		const primitiveFences = workflow.workflowId === 'index-transcript'
-			? [await resolveTranscriptFence(project, signal)]
-			: await resolveVideoWorkflowFences(workflow, signal);
+		const primitiveFences = await resolveWorkflowFences(workflow, signal);
+		if (workflow.fence.transcriptBodySha256 !== null) {
+			await assertTranscriptBodies(project, primitiveFences,
+				workflow.fence.transcriptBodySha256, signal);
+		}
 		dependencies.assertProject(token);
 		signal.throwIfAborted();
 		const selectedStages = new Set(workflow.stageIds);
@@ -82,52 +91,90 @@ export function createLocalAssistanceGuidedPublicationFenceResolver(
 		return fence;
 	}
 
-	async function resolveTranscriptFence(
+	async function assertTranscriptBodies(
 		project: Record<string, unknown>,
+		primitiveFences: readonly AssistanceSelectionFence[],
+		digest: string,
 		signal: AbortSignal,
-	) {
-		const fence = validateAssistanceSelectionFence(dependencies.currentSelectionFence());
+	): Promise<void> {
 		const inventory = inventorySources(await dependencies.selected.listSelectedMedia());
-		const prepared = await prepareLocalAssistanceGuidedTranscriptInput({ project, inventory,
-			fence, loadTranscriptBody: dependencies.loadTranscriptBody, signal });
-		if (prepared === null) {
-			throw new Error('The current Guided transcript index source or body is unavailable.');
+		const sourceIds = transcriptSourceIds(project, digest);
+		if (sourceIds.size < 1) {
+			throw new Error('The current assistance transcript body authority is unavailable.');
 		}
-		return prepared.fence;
+		for (const fence of primitiveFences.filter(({ sourceId }) => sourceIds.has(sourceId))) {
+			const prepared = await prepareLocalAssistanceGuidedTranscriptInput({ project, inventory,
+				fence, loadTranscriptBody: dependencies.loadTranscriptBody, signal });
+			if (prepared === null) {
+				throw new Error('The current assistance transcript source or body is unavailable.');
+			}
+			sourceIds.delete(fence.sourceId);
+		}
+		if (sourceIds.size > 0) {
+			throw new Error('The current assistance transcript source authority is unavailable.');
+		}
 	}
 
-	async function resolveVideoWorkflowFences(
+	async function resolveWorkflowFences(
 		workflow: AssistanceWorkflowV1,
 		signal: AbortSignal,
 	): Promise<readonly AssistanceSelectionFence[]> {
-		const ranges = workflow.fence.sourceRanges.filter(({ mediaKind }) => mediaKind === 'video');
-		if (ranges.length !== 1 || dependencies.currentVideoSelectionFence === undefined) {
-			throw new TypeError('Guided publication has no sole live video authority.');
+		const result: AssistanceSelectionFence[] = [];
+		for (const range of workflow.fence.sourceRanges) {
+			const operation = range.mediaKind === 'audio'
+				? 'voice-activity-detection' as const : 'shot-detection' as const;
+			const mode = range.mediaKind === 'video' ? videoMode(workflow) : null;
+			const prepared = dataRecord(await dependencies.selected.prepareSelectedMedia({
+				sourceId: range.sourceId, operation,
+				...(mode === null ? {} : { shotDetectionMode: mode }), signal,
+			}), 'current workflow source preparation');
+			if (prepared.sourceId !== range.sourceId || prepared.operation !== operation
+				|| (mode !== null && prepared.shotDetectionMode !== mode)) {
+				throw new Error('The current workflow preparation changed source or mode authority.');
+			}
+			const fence = validateAssistanceSelectionFence(prepared.selectionFence);
+			assertSelectedFence(fence, range.mediaKind);
+			result.push(fence);
+			signal.throwIfAborted();
 		}
-		const mode = workflow.workflowId === 'index-video'
-			&& workflow.settings.workflowId === 'index-video' ? workflow.settings.shotMode
-			: workflow.workflowId === 'mark-cuts' && workflow.settings.workflowId === 'mark-cuts'
-				? workflow.settings.mode : 'fast';
-		const prepared = dataRecord(await dependencies.selected.prepareSelectedMedia({
-			sourceId: ranges[0]!.sourceId, operation: 'shot-detection',
-			shotDetectionMode: mode, signal,
-		}), 'current video publication preparation');
-		if (prepared.sourceId !== ranges[0]!.sourceId || prepared.operation !== 'shot-detection'
-			|| prepared.shotDetectionMode !== mode) {
-			throw new Error('The current Guided video preparation changed source or mode authority.');
-		}
-		const preparedFence = validateAssistanceSelectionFence(prepared.selectionFence);
-		const videoFence = validateAssistanceSelectionFence(
-			dependencies.currentVideoSelectionFence(),
-		);
-		if (JSON.stringify(preparedFence) !== JSON.stringify(videoFence)) {
-			throw new DOMException('The current Guided video source authority is stale.', 'AbortError');
-		}
-		if (workflow.workflowId !== 'make-highlights') return Object.freeze([videoFence]);
-		const selected = validateAssistanceSelectionFence(dependencies.currentSelectionFence());
-		return Object.freeze(selected.sourceId === videoFence.sourceId
-			? [videoFence] : [selected, videoFence]);
+		return Object.freeze(result);
 	}
+
+	function assertSelectedFence(
+		prepared: AssistanceSelectionFence,
+		mediaKind: 'audio' | 'video',
+	): void {
+		const value = mediaKind === 'video' && dependencies.currentVideoSelectionFence
+			? dependencies.currentVideoSelectionFence() : dependencies.currentSelectionFence();
+		const selected = validateAssistanceSelectionFence(value);
+		if (selected.sourceId === prepared.sourceId
+			&& JSON.stringify(selected) !== JSON.stringify(prepared)) {
+			throw new DOMException('The current assistance source authority is stale.', 'AbortError');
+		}
+	}
+}
+
+function videoMode(workflow: AssistanceWorkflowV1): 'fast' | 'accurate' {
+	if (workflow.workflowId === 'index-video' && workflow.settings.workflowId === 'index-video') {
+		return workflow.settings.shotMode;
+	}
+	if (workflow.workflowId === 'mark-cuts' && workflow.settings.workflowId === 'mark-cuts') {
+		return workflow.settings.mode;
+	}
+	if (workflow.workflowId === 'advanced:shot-detection') {
+		return workflow.models.length === 0 ? 'fast' : 'accurate';
+	}
+	return 'fast';
+}
+
+function transcriptSourceIds(project: Record<string, unknown>, digest: string): Set<string> {
+	const result = new Set<string>();
+	for (const asset of recordArray(project.assistanceAssets)) {
+		const body = recordValue(asset.body);
+		if (asset.kind === 'transcript-v1' && typeof asset.sourceId === 'string'
+			&& body?.sha256 === digest) result.add(asset.sourceId);
+	}
+	return result;
 }
 
 function inventorySources(value: unknown): readonly Readonly<{
@@ -159,6 +206,17 @@ function assertDependencies(value: LocalAssistanceGuidedPublicationFenceDependen
 		|| typeof value.selected.prepareSelectedMedia !== 'function') {
 		throw new TypeError('Guided publication fence resolution requires exact live authority ports.');
 	}
+}
+
+function recordArray(value: unknown): Record<string, unknown>[] {
+	return Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => (
+		Boolean(item) && typeof item === 'object' && !Array.isArray(item)
+	)) : [];
+}
+
+function recordValue(value: unknown): Record<string, unknown> | null {
+	return value && typeof value === 'object' && !Array.isArray(value) && !ArrayBuffer.isView(value)
+		? value as Record<string, unknown> : null;
 }
 
 function dataRecord(value: unknown, label: string): Record<string, unknown> {

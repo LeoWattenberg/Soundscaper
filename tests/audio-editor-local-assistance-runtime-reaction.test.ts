@@ -27,7 +27,7 @@ const JOB_ID = '01'.repeat(20);
 const MODEL_SHA256 = '34'.repeat(32);
 const MEDIA_TYPE = 'application/vnd.soundscaper.audio-tags+json';
 
-test('Guided reaction acceptance retains authenticated PANNs scores before publishing labels', async () => {
+test('Guided reaction acceptance publishes labels before retaining authenticated PANNs scores', async () => {
 	const project = audioProject();
 	const authority = resolveLocalAssistanceSelectedMediaAuthority({
 		getProject: () => project,
@@ -44,6 +44,11 @@ test('Guided reaction acceptance retains authenticated PANNs scores before publi
 	});
 	const repository = derivativeRepository();
 	const commands: unknown[] = [];
+	const save = repository.save.bind(repository);
+	repository.save = async (...args: Parameters<typeof repository.save>) => {
+		assert.equal(commands.length, 1, 'disposable retention follows canonical publication');
+		return save(...args);
+	};
 	const runtime = createLocalAssistancePreparationRuntime({
 		assistanceStore: inertAssistanceStore(),
 		assistanceDerivativeRepository: repository,

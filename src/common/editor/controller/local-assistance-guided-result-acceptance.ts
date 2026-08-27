@@ -102,17 +102,15 @@ interface BeatReviewSessionPort {
 	cancel(): Promise<void>;
 }
 
-export interface LocalAssistanceGuidedResultAcceptanceDependencies
-	extends LocalAssistanceGuidedFramescaperAcceptancePorts {
+export interface LocalAssistanceGuidedResultAcceptanceDependencies extends LocalAssistanceGuidedFramescaperAcceptancePorts {
 	/** Same selected-media projection used by primitive preparation and acceptance. */
 	readonly currentSelectionFence: () => unknown;
+	readonly assertCurrentWorkflowFence: (workflow: AssistanceWorkflowV1, signal: AbortSignal) => Awaitable<void>;
 	/** Existing transcript/shot result facade. */
 	readonly acceptValidatedResult?: (request: unknown) => Awaitable<void>;
 	/** Existing geometry-authenticated audio publication controller. */
-	readonly acceptAudioResult?: (
-		request: unknown,
-		choice: LocalAssistanceAudioPublicationChoice,
-	) => Awaitable<void>;
+	readonly acceptAudioResult?: (request: unknown,
+		choice: LocalAssistanceAudioPublicationChoice) => Awaitable<void>;
 	/** Existing disjoint ripple-delete publisher over reviewed cleanup proposals. */
 	readonly acceptCleanupResult?: (request: Readonly<{
 		readonly selectionFence: AssistanceSelectionFence;
@@ -180,6 +178,7 @@ export function createLocalAssistanceGuidedResultAcceptance(
 ): Readonly<LocalAssistanceGuidedResultAcceptance> {
 	if (!dependencies || typeof dependencies !== 'object'
 		|| typeof dependencies.currentSelectionFence !== 'function'
+		|| typeof dependencies.assertCurrentWorkflowFence !== 'function'
 		|| (dependencies.acceptValidatedResult !== undefined
 			&& typeof dependencies.acceptValidatedResult !== 'function')
 		|| (dependencies.acceptAudioResult !== undefined
@@ -262,6 +261,7 @@ function createSession(
 		}
 		phase = 'accepting';
 		try {
+			await dependencies.assertCurrentWorkflowFence(workflow, controller.signal);
 			assertCurrentFence(dependencies, fence);
 			if (proposalSession) await proposalSession.accept(ids);
 			else if (workflowId !== 'detect-beats-tempo' && workflowId !== 'mark-reactions'

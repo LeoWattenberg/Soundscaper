@@ -426,14 +426,14 @@ test('changing a completed Guided workflow releases discarded native and media c
 	await guided.dispose();
 });
 
-test('Guided acceptance publishes only checked choices and releases completed native custody', async () => {
+test('Guided acceptance publishes only checked choices and retries failed native custody release', async () => {
 	const captions = new Blob([JSON.stringify({
 		schemaVersion: 1, kind: 'captions', sourceId: 'source-a', sampleRate: 48_000,
 		alignmentApplied: false,
 		cues: [{ cueId: 'caption:0', startFrame: 0, endFrame: 24_000,
 			text: 'Hello', words: [] }],
 	})], { type: 'application/vnd.soundscaper.captions+json' });
-	const fixture = workflowBridge({ completedBody: captions });
+	const fixture = workflowBridge({ completedBody: captions, releaseResults: [false, true] });
 	const accepted: unknown[] = [];
 	const preparation = primitivePreparation({
 		prepareGuidedWorkflow: async (request) => ({ outcome: 'prepared',
@@ -460,8 +460,9 @@ test('Guided acceptance publishes only checked choices and releases completed na
 	assert.deepEqual((accepted[0] as Readonly<Record<string, unknown>>).selectedChoiceIds, ['captions']);
 	assert.equal(typeof (accepted[0] as Readonly<Record<string, unknown>>).readOutput, 'function');
 	assert.equal(fixture.releases, 1);
+	assert.match(guided.getSnapshot().error ?? '', /custody.*retry/iu);
 	await guided.dispose();
-	assert.equal(fixture.releases, 1, 'accepted output custody is not released twice');
+	assert.equal(fixture.releases, 2, 'accepted output custody retries exactly once during disposal');
 });
 
 function primitivePreparation(
@@ -492,7 +493,9 @@ function reframeReview(semantic: unknown): LocalAssistanceGuidedReviewedResult {
 		selected: false, enabled: true }] };
 }
 
-function workflowBridge(options: Readonly<{ completedBody?: Blob }> = {}) {
+function workflowBridge(options: Readonly<{
+	completedBody?: Blob; releaseResults?: readonly boolean[];
+}> = {}) {
 	let createCalls = 0;
 	let releases = 0;
 	const requests: Parameters<LocalAssistanceWorkflowBridge['run']>[0][] = [];
@@ -501,7 +504,10 @@ function workflowBridge(options: Readonly<{ completedBody?: Blob }> = {}) {
 			stageInput: async () => { throw new Error('Preparation fixture owns staging.'); },
 			reserveOutput: async () => { throw new Error('Preparation fixture owns reservations.'); },
 			bindProducer: async () => { throw new Error('Preparation fixture owns producer binding.'); },
-			release: async () => { releases += 1; return true; },
+			release: async () => {
+				releases += 1;
+				return options.releaseResults?.[releases - 1] ?? true;
+			},
 		}),
 		createJob: async () => {
 			createCalls += 1;

@@ -56,8 +56,31 @@ test('the Advanced surface executes, reviews, and accepts only through one workf
 	await store.accept();
 	assert.equal(store.getSnapshot().phase, 'accepted');
 	assert.equal(fixture.accepted.length, 1);
+	assert.deepEqual(fixture.aggregateChecks, ['advanced:speech-recognition']);
 	const accepted = fixture.accepted[0] as Readonly<Record<string, unknown>>;
 	assert.equal(accepted.operation, 'speech-recognition');
+	await store.dispose();
+});
+
+test('Advanced acceptance preserves reviewed output when aggregate authority is stale', async () => {
+	const fixture = advancedFixture();
+	const store = createLocalAssistanceAdvancedWorkflowSessionStore(fixture);
+	store.connect();
+	await store.load();
+	store.selectSource('source-a');
+	store.selectOperation('speech-recognition');
+	store.selectModel('speech-model');
+	await store.run();
+	fixture.aggregateCurrent = false;
+	await store.accept();
+	assert.equal(store.getSnapshot().phase, 'completed');
+	assert.equal(store.getSnapshot().canAccept, true);
+	assert.match(store.getSnapshot().error ?? '', /aggregate fence is stale/iu);
+	assert.equal(fixture.accepted.length, 0);
+	fixture.aggregateCurrent = true;
+	await store.accept();
+	assert.equal(store.getSnapshot().phase, 'accepted');
+	assert.equal(fixture.accepted.length, 1);
 	await store.dispose();
 });
 
@@ -174,6 +197,8 @@ function advancedFixture(
 		?? 'application/vnd.soundscaper.transcript+json';
 	const outputValue = options.outputValue ?? TRANSCRIPT;
 	let operationCalls = 0;
+	let aggregateCurrent = true;
+	const aggregateChecks: string[] = [];
 	let ordinal = 0;
 	let progress: ((value: AssistanceWorkflowProgressV1) => void) | null = null;
 	const custody: LocalAssistanceWorkflowCustodyBridge = Object.freeze({
@@ -245,7 +270,7 @@ function advancedFixture(
 			}; },
 		},
 	});
-	const preparation: LocalAssistanceSelectedMediaPreparationPort = Object.freeze({
+	const preparationValue = Object.freeze({
 		listSelectedMedia: async () => ({ sources: [{ sourceId: 'source-a', label: 'Interview',
 			mediaKind: 'audio', operations: [operation] }] }),
 		prepareSelectedMedia: async (request: Parameters<
@@ -255,8 +280,17 @@ function advancedFixture(
 		acceptValidatedResult: async (request: Parameters<
 			NonNullable<LocalAssistanceSelectedMediaPreparationPort['acceptValidatedResult']>
 		>[0]) => { accepted.push(request); },
+		assertCurrentWorkflowFence: async (workflowValue: unknown) => {
+			const workflow = workflowValue as Readonly<Record<string, unknown>>;
+			aggregateChecks.push(String(workflow.workflowId));
+			if (!aggregateCurrent) throw new DOMException('aggregate fence is stale', 'AbortError');
+		},
 	});
-	return { bridge, preparation, calls, accepted, get operationCalls() { return operationCalls; } };
+	const preparation: LocalAssistanceSelectedMediaPreparationPort = preparationValue;
+	return { bridge, preparation, calls, accepted, aggregateChecks,
+		get aggregateCurrent() { return aggregateCurrent; },
+		set aggregateCurrent(value: boolean) { aggregateCurrent = value; },
+		get operationCalls() { return operationCalls; } };
 }
 
 function advancedFixturePrepared(request: Readonly<Record<string, unknown>>, fence: unknown) {

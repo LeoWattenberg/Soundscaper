@@ -58,6 +58,7 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 ): LocalAssistanceSessionStore {
 	const listeners = new Set<() => void>();
 	let pendingAcceptance: LocalAssistanceValidatedResultAcceptanceRequest | null = null;
+	let pendingWorkflow: AssistanceWorkflowV1 | null = null;
 	let snapshot = freezeSnapshot({ phase: 'idle', sources: EMPTY_SOURCES, models: EMPTY_MODELS,
 		selectedSourceId: null, selectedOperation: null, shotDetectionMode: 'fast',
 		selectedModelIds: EMPTY_MODEL_IDS, consent: false, progress: null, result: null,
@@ -77,6 +78,8 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 	const update = (change: Partial<LocalAssistanceSnapshot>): void => {
 		snapshot = freezeSnapshot({ ...snapshot, ...change }, pendingAcceptance !== null
 			&& ADVANCED_PROJECT_ACCEPTANCE_OPERATIONS.has(pendingAcceptance.operation)
+			&& pendingWorkflow !== null
+			&& typeof options.preparation?.assertCurrentWorkflowFence === 'function'
 			&& typeof options.preparation?.acceptValidatedResult === 'function');
 		emit();
 	};
@@ -96,6 +99,7 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 	const load = async (): Promise<void> => {
 		if (disposed) return;
 		pendingAcceptance = null;
+		pendingWorkflow = null;
 		if (!options.preparation) return unavailableSelection();
 		if (!workflow?.custody || !workflow.readOutput
 			|| typeof options.preparation.prepareAdvancedWorkflow !== 'function') {
@@ -127,6 +131,7 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 			throw new TypeError('The selected local-assistance source is unavailable.');
 		}
 		pendingAcceptance = null;
+		pendingWorkflow = null;
 		update({ phase: 'ready', selectedSourceId: sourceId, selectedOperation: null,
 			shotDetectionMode: 'fast', selectedModelIds: EMPTY_MODEL_IDS, consent: false,
 			progress: null, result: null, unavailableReason: null, error: null, cleanup: null });
@@ -137,6 +142,7 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 			throw new TypeError('The selected media does not admit that assistance operation.');
 		}
 		pendingAcceptance = null;
+		pendingWorkflow = null;
 		const available = localAssistanceOperationModelsAvailable(operation, snapshot.models,
 			operation === 'shot-detection' ? 'fast' : undefined);
 		update({ phase: available ? 'ready' : 'unavailable', selectedOperation: operation,
@@ -149,6 +155,7 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 			throw new TypeError('Only Mark Cuts has a supported detection mode.');
 		}
 		pendingAcceptance = null;
+		pendingWorkflow = null;
 		const available = localAssistanceOperationModelsAvailable('shot-detection', snapshot.models, mode);
 		update({ phase: available ? 'ready' : 'unavailable', shotDetectionMode: mode,
 			selectedModelIds: EMPTY_MODEL_IDS, consent: false, progress: null, result: null,
@@ -162,6 +169,7 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 			throw new TypeError('The selected local-assistance model is incompatible.');
 		}
 		pendingAcceptance = null;
+		pendingWorkflow = null;
 		update({ phase: 'ready', selectedModelIds: selectModelIds(snapshot, model), consent: false,
 			progress: null, result: null, unavailableReason: null, error: null });
 	};
@@ -185,12 +193,14 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 		cancelRequested = false;
 		activeOperation = operation;
 		pendingAcceptance = null;
+		pendingWorkflow = null;
 		lastProgressSequence = -1;
 		lastProgressPhase = -1;
 		update({ phase: 'preparing', progress: null, result: null,
 			unavailableReason: null, error: null, cleanup: null });
 		let completed: LocalAssistanceSnapshot['result'] = null;
 		let acceptance: LocalAssistanceValidatedResultAcceptanceRequest | null = null;
+		let preparedWorkflow: AssistanceWorkflowV1 | null = null;
 		let unavailableReason: LocalAssistanceUiUnavailableReason | null = null;
 		let consentDeclined = false;
 		let failure: unknown = null;
@@ -211,6 +221,7 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 					? 'no-compatible-model' : 'bridge-unavailable';
 			} else {
 				const authority = await deriveLocalAssistanceReviewAuthority(prepared.prepared);
+				preparedWorkflow = prepared.workflow;
 				signal.throwIfAborted();
 				update({ phase: 'running' });
 				const outcome = await workflow.run(prepared.workflow);
@@ -263,6 +274,7 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 			update({ phase: 'unavailable', progress: null, result: null, unavailableReason, error: null });
 		} else if (completed && acceptance) {
 			pendingAcceptance = acceptance;
+			pendingWorkflow = preparedWorkflow;
 			update({ phase: 'completed', progress: null, result: completed,
 				unavailableReason: null, error: null });
 		} else {
@@ -284,15 +296,22 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 	};
 	const accept = async (): Promise<void> => {
 		const request = pendingAcceptance;
+		const workflowAuthority = pendingWorkflow;
 		const port = options.preparation?.acceptValidatedResult;
-		if (!snapshot.canAccept || !request || !port) throw new Error('No reviewed proposal is ready.');
-		pendingAcceptance = null;
+		const assertFence = options.preparation?.assertCurrentWorkflowFence;
+		if (!snapshot.canAccept || !request || !workflowAuthority || !port || !assertFence) {
+			throw new Error('No reviewed proposal is ready.');
+		}
 		update({ phase: 'accepting', error: null });
 		try {
+			await assertFence.call(options.preparation, workflowAuthority,
+				new AbortController().signal);
 			await port.call(options.preparation, request);
+			pendingAcceptance = null;
+			pendingWorkflow = null;
 			if (!disposed) update({ phase: 'accepted', error: null });
 		} catch (error) {
-			if (!disposed) update({ phase: 'error', unavailableReason: null,
+			if (!disposed) update({ phase: 'completed', unavailableReason: null,
 				error: error instanceof Error ? error.message : 'The proposal could not be accepted.' });
 		}
 	};
@@ -302,6 +321,7 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 	const dispose = async (): Promise<void> => {
 		disposed = true;
 		pendingAcceptance = null;
+		pendingWorkflow = null;
 		cancelRequested = true;
 		controller?.abort(new AdvancedCancelledError());
 		if (activeJobId && workflow) await workflow.cancel(activeJobId).catch(() => undefined);

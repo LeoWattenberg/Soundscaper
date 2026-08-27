@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import {
-	createLocalAssistanceGuidedResultAcceptance,
+	createLocalAssistanceGuidedResultAcceptance as createGuidedResultAcceptance,
 } from '../src/common/editor/controller/local-assistance-guided-result-acceptance.ts';
 import {
 	assistanceWorkflowModelBindingsSha256V1,
@@ -25,6 +25,17 @@ const SOURCE_SHA256 = '12'.repeat(32);
 const MODEL_SHA256 = '34'.repeat(32);
 const LINK_SHA256 = '56'.repeat(32);
 const TIMING_SHA256 = '78'.repeat(32);
+
+type AcceptanceDependencies = Parameters<typeof createGuidedResultAcceptance>[0];
+function createLocalAssistanceGuidedResultAcceptance(
+	dependencies: Omit<AcceptanceDependencies, 'assertCurrentWorkflowFence'>
+		& Partial<Pick<AcceptanceDependencies, 'assertCurrentWorkflowFence'>>,
+) {
+	return createGuidedResultAcceptance({
+		assertCurrentWorkflowFence: async () => undefined,
+		...dependencies,
+	});
+}
 
 test('Guided caption acceptance starts unchecked, adapts absolute cues, and revalidates authority', async () => {
 	const workflow = workflowFixture('transcribe-captions', {
@@ -52,11 +63,16 @@ test('Guided caption acceptance starts unchecked, adapts absolute cues, and reva
 	const review = reviewed(workflow, [terminalOutput(workflow, 'assemble-captions', 'captions', captions)],
 		[{ id: 'captions', kind: 'captions', label: '1 caption cue' }]);
 	let current = primitiveFence(workflow);
+	let aggregateCurrent = true;
 	const requests: unknown[] = [];
-	const adapter = createLocalAssistanceGuidedResultAcceptance({
+	const dependencies = {
 		currentSelectionFence: () => current,
-		acceptValidatedResult: async (request) => { requests.push(request); },
-	});
+		assertCurrentWorkflowFence: async () => {
+			if (!aggregateCurrent) throw new DOMException('aggregate fence is stale', 'AbortError');
+		},
+		acceptValidatedResult: async (request: unknown) => { requests.push(request); },
+	};
+	const adapter = createLocalAssistanceGuidedResultAcceptance(dependencies);
 	const ready = adapter.createAcceptanceSession({ workflow, reviewedResult: review });
 	assert.equal(ready.outcome, 'ready');
 	if (ready.outcome !== 'ready') return;
@@ -82,6 +98,14 @@ test('Guided caption acceptance starts unchecked, adapts absolute cues, and reva
 	if (stale.outcome !== 'ready') return;
 	current = { ...current, revision: current.revision + 1 };
 	await assert.rejects(stale.session.accept(['captions']), /proposal no longer matches|stale/iu);
+
+	current = primitiveFence(workflow);
+	const aggregateStale = adapter.createAcceptanceSession({ workflow, reviewedResult: review });
+	assert.equal(aggregateStale.outcome, 'ready');
+	if (aggregateStale.outcome !== 'ready') return;
+	aggregateCurrent = false;
+	await assert.rejects(aggregateStale.session.accept(['captions']), /aggregate fence is stale/iu);
+	assert.equal(requests.length, 1, 'full aggregate authority is checked adjacent to publication');
 });
 
 test('Guided enhancement and complete D/M/E selection reuse geometry-authenticated publication', async () => {

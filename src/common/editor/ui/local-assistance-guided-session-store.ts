@@ -53,6 +53,8 @@ import {
 	reviewLocalAssistanceGuidedResult,
 	type LocalAssistanceGuidedReviewedResult,
 } from './local-assistance-guided-result-review.ts';
+import { createLocalAssistanceGuidedCustodyReleaseTracker } from
+	'./local-assistance-guided-custody-release.ts';
 
 export type LocalAssistanceDialogSurface = 'guided' | 'advanced';
 export type LocalAssistanceGuidedPhase =
@@ -140,6 +142,10 @@ export function createLocalAssistanceGuidedSessionStore(
 		reviewAuthority: AssistanceWorkflowReviewAuthorityV1;
 	}>>();
 	const workflow = options.bridge?.workflow ?? null;
+	const custodyReleases = workflow?.custody
+		? createLocalAssistanceGuidedCustodyReleaseTracker(
+			(jobId) => workflow.custody!.release(jobId),
+		) : null;
 
 	const emit = (): void => listeners.forEach((listener) => listener());
 	const update = (change: Partial<LocalAssistanceGuidedSnapshot>): void => {
@@ -149,9 +155,7 @@ export function createLocalAssistanceGuidedSessionStore(
 	const releaseRetainedJobs = (): void => {
 		const jobIds = [...retainedJobs.keys()];
 		retainedJobs.clear();
-		if (jobIds.length > 0 && workflow?.custody) {
-			void Promise.allSettled(jobIds.map((jobId) => workflow.custody!.release(jobId)));
-		}
+		custodyReleases?.releaseLater(jobIds);
 	};
 	const selectSurface = (surface: LocalAssistanceDialogSurface): void => {
 		if (surface !== 'guided' && surface !== 'advanced') {
@@ -213,6 +217,10 @@ export function createLocalAssistanceGuidedSessionStore(
 		let failure: unknown = null;
 		let progressDisconnect: (() => void) | null = null;
 		try {
+			if (custodyReleases && custodyReleases.pendingCount() > 0
+				&& !await custodyReleases.releaseAll()) {
+				throw new Error('Prior Guided native custody must release before another workflow can run.');
+			}
 			controller = new AbortController();
 			const job = await workflow.createJob();
 			activeJobId = job.jobId;
@@ -223,7 +231,9 @@ export function createLocalAssistanceGuidedSessionStore(
 			});
 			const prepared = normalizePreparationOutcome(preparedValue);
 			if (prepared.outcome === 'unavailable') {
-				await workflow.custody.release(job.jobId);
+				if (!await custodyReleases!.release(job.jobId)) {
+					throw new Error('Guided native custody could not be released.');
+				}
 				activeJobId = null;
 				throw new GuidedPreparationUnavailableError(prepared.reason);
 			}
@@ -246,7 +256,9 @@ export function createLocalAssistanceGuidedSessionStore(
 			if (outcome.outcome === 'completed') retainedJobs.set(job.jobId, Object.freeze({
 				workflow: request, reviewAuthority: prepared.reviewAuthority,
 			}));
-			else await workflow.custody.release(job.jobId);
+			else if (!await custodyReleases!.release(job.jobId)) {
+				throw new Error('Guided native custody could not be released.');
+			}
 			activeJobId = null;
 		} catch (error) {
 			failure = error;
@@ -256,7 +268,7 @@ export function createLocalAssistanceGuidedSessionStore(
 			if (activeJobId) {
 				const failedJobId = activeJobId;
 				try { await workflow.cancel(failedJobId); } catch { /* Original failure remains authoritative. */ }
-				try { await workflow.custody.release(failedJobId); } catch { /* Best-effort custody cleanup. */ }
+				await custodyReleases!.release(failedJobId);
 				activeJobId = null;
 			}
 		}
@@ -312,11 +324,13 @@ export function createLocalAssistanceGuidedSessionStore(
 				selectedChoiceIds: Object.freeze([]), error: null });
 		} catch (error) {
 			retainedJobs.delete(snapshot.result.jobId);
-			await workflow.custody?.release(snapshot.result.jobId).catch(() => false);
+			const released = await custodyReleases?.release(snapshot.result.jobId) ?? false;
 			if (!disposed) update({ phase: 'error', review: null, auditionAudio: null,
 				auditionSourceStartFrame: null, auditionSourceSampleRate: null,
 				previewVideo: null, reframeDraft: null,
-				error: error instanceof Error ? error.message : 'The Guided result review failed.' });
+				error: released ? error instanceof Error ? error.message
+					: 'The Guided result review failed.'
+					: 'Guided review failed and native custody remains pending for retry.' });
 		}
 	};
 	const setReviewChoiceSelected = (choiceId: string, selected: boolean): void => {
@@ -380,8 +394,9 @@ export function createLocalAssistanceGuidedSessionStore(
 				throw new TypeError('Guided acceptance returned an invalid decision outcome.');
 			}
 			retainedJobs.delete(snapshot.review.jobId);
-			await workflow.custody?.release(snapshot.review.jobId).catch(() => false);
-			if (!disposed) update({ phase: 'accepted', error: null });
+			const released = await custodyReleases?.release(snapshot.review.jobId) ?? false;
+			if (!disposed) update({ phase: 'accepted', error: released ? null
+				: 'Accepted output custody did not release and will retry during disposal.' });
 		} catch (error) {
 			if (!disposed) update({ phase: 'review-ready',
 				error: error instanceof Error ? error.message : 'Guided result acceptance failed.' });
@@ -404,11 +419,9 @@ export function createLocalAssistanceGuidedSessionStore(
 			try { await workflow.cancel(activeJobId); } catch { /* Best-effort disposal. */ }
 		}
 		await running;
-		if (workflow?.custody) {
-			const custody = workflow.custody;
-			await Promise.allSettled([...retainedJobs.keys()].map((jobId) => custody.release(jobId)));
-			retainedJobs.clear();
-		}
+		for (const jobId of retainedJobs.keys()) custodyReleases?.track(jobId);
+		retainedJobs.clear();
+		await custodyReleases?.releaseAll();
 		listeners.clear();
 	};
 

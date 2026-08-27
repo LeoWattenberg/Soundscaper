@@ -86,8 +86,31 @@ export function createLocalAssistancePreparationRuntime(
 		assertProject: dependencies.assertProject,
 		commit: dependencies.commit,
 	}) : null;
+	const selectedPreparation = createLocalAssistanceSelectedPreparation({
+		...selectedMediaDependencies,
+		...(assistanceVideoStore ? { videoStore: assistanceVideoStore } : {}),
+		...(resultAcceptance ? { acceptValidatedResult: resultAcceptance.acceptValidatedResult } : {}),
+	});
+	const publicationFenceResolver = createLocalAssistanceGuidedPublicationFenceResolver({
+		getProject: dependencies.getProject,
+		captureProject: dependencies.captureProject,
+		assertProject: dependencies.assertProject,
+		currentSelectionFence,
+		...(assistanceVideoStore ? {
+			currentVideoSelectionFence: () => currentVideoAuthority().fence,
+		} : {}),
+		...(assistanceStore ? {
+			loadTranscriptBody: (storageKey: string, signal: AbortSignal) => {
+				signal.throwIfAborted();
+				return assistanceStore.loadMediaAsset(storageKey);
+			},
+		} : {}),
+		selected: selectedPreparation,
+	});
 	const guidedAcceptance = resultAcceptance ? createLocalAssistanceGuidedResultAcceptance({
 		currentSelectionFence,
+		assertCurrentWorkflowFence: (workflow, signal) =>
+			publicationFenceResolver.assertCurrentFence(workflow, signal),
 		acceptValidatedResult: (request) => resultAcceptance.acceptValidatedResult(request),
 		acceptAudioResult: (request, choice) => resultAcceptance.acceptAudioResult(request, choice),
 		acceptCleanupResult: (request) => resultAcceptance.acceptCleanupResult(request),
@@ -119,32 +142,11 @@ export function createLocalAssistancePreparationRuntime(
 			} : {}),
 		} : {}),
 	}) : null;
-	const selectedPreparation = createLocalAssistanceSelectedPreparation({
-		...selectedMediaDependencies,
-		...(assistanceVideoStore ? { videoStore: assistanceVideoStore } : {}),
-		...(resultAcceptance ? { acceptValidatedResult: resultAcceptance.acceptValidatedResult } : {}),
-	});
 	const advancedPreparation = createLocalAssistanceAdvancedWorkflowPreparation({
 		getProject: dependencies.getProject,
 		captureProject: dependencies.captureProject,
 		assertProject: dependencies.assertProject,
 		preflightStorage: (bytes) => dependencies.preflightStorage(bytes, 'effect'),
-		selected: selectedPreparation,
-	});
-	const publicationFenceResolver = createLocalAssistanceGuidedPublicationFenceResolver({
-		getProject: dependencies.getProject,
-		captureProject: dependencies.captureProject,
-		assertProject: dependencies.assertProject,
-		currentSelectionFence,
-		...(assistanceVideoStore ? {
-			currentVideoSelectionFence: () => currentVideoAuthority().fence,
-		} : {}),
-		...(assistanceStore ? {
-			loadTranscriptBody: (storageKey: string, signal: AbortSignal) => {
-				signal.throwIfAborted();
-				return assistanceStore.loadMediaAsset(storageKey);
-			},
-		} : {}),
 		selected: selectedPreparation,
 	});
 	const guidedPreparation = createLocalAssistanceGuidedWorkflowPreparation({
@@ -218,6 +220,10 @@ export function createLocalAssistancePreparationRuntime(
 		...selectedPreparation,
 		prepareAdvancedWorkflow: advancedPreparation.prepareAdvancedWorkflow,
 		prepareGuidedWorkflow: guidedPreparation.prepareGuidedWorkflow,
+		assertCurrentWorkflowFence: (
+			workflow: Parameters<typeof publicationFenceResolver.assertCurrentFence>[0],
+			signal: AbortSignal,
+		) => publicationFenceResolver.assertCurrentFence(workflow, signal),
 		async acceptGuidedWorkflowResult(request: LocalAssistanceGuidedWorkflowAcceptanceRequest) {
 			const workflow = validateAssistanceWorkflow(request.workflow);
 			if (workflow.workflowId === 'generate-editorial-text') {
@@ -226,6 +232,8 @@ export function createLocalAssistancePreparationRuntime(
 					selectedChoiceIds: request.selectedChoiceIds,
 				});
 			}
+			const publicationSignal = new AbortController().signal;
+			await publicationFenceResolver.assertCurrentFence(workflow, publicationSignal);
 			const currentProject = () => {
 				const project = dependencies.getProject() as Readonly<Record<string, unknown>>;
 				return { projectId: project.id, projectRevision: project.revision };
@@ -257,23 +265,28 @@ export function createLocalAssistancePreparationRuntime(
 				...(request.reframeDraft === undefined ? {} : { reframeDraft: request.reframeDraft }),
 				...(request.highlightDraft === undefined ? {} : { highlightDraft: request.highlightDraft }) });
 			if (availability.outcome !== 'ready') return availability;
-			if (workflow.workflowId === 'mark-reactions' && request.selectedChoiceIds.length > 0) {
-				await retainLocalAssistanceGuidedReactionScores({ workflow,
-					readOutput: request.readOutput,
-					repository: dependencies.assistanceDerivativeRepository!, currentProject,
-				});
+			const accepted = await availability.session.accept(request.selectedChoiceIds);
+			if (accepted.outcome === 'accepted' && request.selectedChoiceIds.length > 0) {
+				try {
+					if (workflow.workflowId === 'mark-reactions') {
+						await retainLocalAssistanceGuidedReactionScores({ workflow,
+							readOutput: request.readOutput,
+							repository: dependencies.assistanceDerivativeRepository!, currentProject,
+						});
+					} else if (dependencies.assistanceDerivativeRepository
+						&& (workflow.workflowId === 'mark-cuts' || workflow.workflowId === 'reframe'
+							|| workflow.workflowId === 'make-highlights')) {
+						await retainLocalAssistanceGuidedReusableDerivatives({ workflow,
+							review: request.reviewedResult, readOutput: request.readOutput,
+							repository: dependencies.assistanceDerivativeRepository,
+							resolveCurrentFence: publicationFenceResolver.resolveCurrentFence,
+						});
+					}
+				} catch {
+					// Disposable evidence cannot turn an already committed edit into failure.
+				}
 			}
-			if (dependencies.assistanceDerivativeRepository
-				&& request.selectedChoiceIds.length > 0
-				&& (workflow.workflowId === 'mark-cuts' || workflow.workflowId === 'reframe'
-					|| workflow.workflowId === 'make-highlights')) {
-				await retainLocalAssistanceGuidedReusableDerivatives({ workflow,
-					review: request.reviewedResult, readOutput: request.readOutput,
-					repository: dependencies.assistanceDerivativeRepository,
-					resolveCurrentFence: publicationFenceResolver.resolveCurrentFence,
-				});
-			}
-			return await availability.session.accept(request.selectedChoiceIds);
+			return accepted;
 		},
 		...(resultAcceptance ? {
 			prepareTranscriptCleanup: resultAcceptance.prepareTranscriptCleanup,

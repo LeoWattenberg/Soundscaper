@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import {
-	createLocalAssistanceGuidedResultAcceptance,
+	createLocalAssistanceGuidedResultAcceptance as createGuidedResultAcceptance,
 } from '../src/common/editor/controller/local-assistance-guided-result-acceptance.ts';
 import {
 	createLocalAssistanceGuidedHighlightDraftV1,
@@ -29,6 +29,16 @@ import {
 
 const JOB_ID = '01'.repeat(20);
 const MODEL_SHA256 = '34'.repeat(32);
+
+type AcceptanceDependencies = Parameters<typeof createGuidedResultAcceptance>[0];
+function createLocalAssistanceGuidedResultAcceptance(
+	dependencies: Omit<AcceptanceDependencies, 'assertCurrentWorkflowFence'>,
+) {
+	return createGuidedResultAcceptance({
+		assertCurrentWorkflowFence: async () => undefined,
+		...dependencies,
+	});
+}
 
 test('Guided Reframe keeps its path unchecked and revalidates before exact publication', async () => {
 	const workflow = reframeWorkflow();
