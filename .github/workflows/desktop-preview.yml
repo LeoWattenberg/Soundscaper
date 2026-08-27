@@ -454,15 +454,13 @@ jobs:
           SOUNDSCAPER_SMOKE_XVFB: ${{ runner.os == 'Linux' && 'true' || 'false' }}
 
       - name: Probe packaged CFR and VFR timing persistence
-        if: matrix.target.arch == 'x64' && (matrix.target.platform == 'linux' || matrix.target.platform == 'win')
         run: npm run desktop:smoke:timing-probe
         env:
-          SOUNDSCAPER_SMOKE_ARCH: x64
+          SOUNDSCAPER_SMOKE_ARCH: ${{ matrix.target.arch }}
           SOUNDSCAPER_SMOKE_XVFB: ${{ runner.os == 'Linux' && 'true' || 'false' }}
           SOUNDSCAPER_VIDEO_TIMING_PROBE_RESULT: ${{ runner.temp }}/desktop-video-timing-probe-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
 
       - name: Upload bounded timing-probe evidence
-        if: matrix.target.arch == 'x64' && (matrix.target.platform == 'linux' || matrix.target.platform == 'win')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: desktop-video-timing-probe-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}
@@ -815,10 +813,22 @@ jobs:
             platform: win
             arch: x64
             node_arch: x64
+          - runner: windows-11-arm
+            platform: win
+            arch: arm64
+            node_arch: x64
+          - runner: macos-15
+            platform: mac
+            arch: arm64
+            node_arch: arm64
           - runner: ubuntu-22.04
             platform: linux
             arch: x64
             node_arch: x64
+          - runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            node_arch: arm64
     steps:
       - name: Check out source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

@@ -87,7 +87,7 @@ export function createFramescaperWebVcrRuntimeV1(
 	const options = runtimeOptions(value);
 	const capability = Object.freeze(options.productId !== 'framescaper'
 		? { status: 'unavailable' as const, reason: 'wrong-product' as const, detail: null }
-		: !options.qualified
+		: !options.enabled
 			? { status: 'unavailable' as const, reason: options.unavailableReason ?? 'roadmap-gate', detail: null }
 			: { status: 'available' as const, resolutions: Object.freeze(['720p', '1080p'] as const) });
 	const host = createFramescaperWebVcrHostLifecycleV1({

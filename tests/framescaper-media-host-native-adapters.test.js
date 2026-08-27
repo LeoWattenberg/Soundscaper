@@ -196,7 +196,7 @@ test('decode has a dedicated bounded scratch output and never gains destination 
 	}
 });
 
-test('image-sequence pack admission binds inventory, rate, roles, index, and every frame digest', (context) => {
+test('image-sequence pack admission reaches the machine executor after binding every input', (context) => {
 	const fixture = buildContractHost(context);
 	if (fixture === null) return;
 	try {
@@ -204,8 +204,7 @@ test('image-sequence pack admission binds inventory, rate, roles, index, and eve
 		const admitted = run(fixture.executable, sequenceArguments(sequence));
 		assert.equal(admitted.status, 78, admitted.stderr);
 		assert.deepEqual(JSON.parse(admitted.stdout), {
-			error: 'image-sequence-licensing-unavailable', operation: 'media-decode',
-			policyRow: 'codec-decode-png-image-sequence',
+			error: 'contract-build-has-no-ffmpeg', operation: 'media-decode',
 		});
 		assert.equal(exists(sequence.decodeOutput), false);
 
@@ -334,6 +333,8 @@ test('FFmpeg adapter source uses libav APIs and contains no argv or filter-strin
 	const selectedRender = readFileSync(join(sourceRoot, 'ffmpeg_selected_v20_render.cpp'), 'utf8');
 	const selectedCapture = readFileSync(join(sourceRoot, 'selected_v20_plan_capture.cpp'), 'utf8');
 	const framePack = readFileSync(join(sourceRoot, 'selected_v20_frame_pack.cpp'), 'utf8');
+	const imageSequence = readFileSync(join(sourceRoot, 'ffmpeg_image_sequence_decode.cpp'), 'utf8');
+	const contractHost = readFileSync(join(sourceRoot, 'media_host.cpp'), 'utf8');
 	for (const api of ['avformat_open_input', 'avcodec_send_packet', 'avcodec_receive_frame']) {
 		assert.match(decodeSession, new RegExp(api, 'u'));
 	}
@@ -380,6 +381,15 @@ test('FFmpeg adapter source uses libav APIs and contains no argv or filter-strin
 	assert.doesNotMatch(selectedRender, /includes_staged_captions/u);
 	assert.doesNotMatch(selected, /avfilter_graph_parse|system\s*\(|popen\s*\(|execv/iu);
 	assert.doesNotMatch(selected, /-vf|-filter_complex|-codec:|-c:v/iu);
+	for (const token of [
+		'AV_CODEC_ID_PNG', 'AV_CODEC_ID_TIFF', 'AV_CODEC_ID_EXR',
+		'avcodec_send_packet', 'avcodec_receive_frame',
+		'return decode(job, *job.image_sequence)',
+	]) assert.ok(imageSequence.includes(token), `image-sequence executor omits ${token}`);
+	for (const source of [imageSequence, contractHost]) {
+		assert.doesNotMatch(source,
+			/FRAMESCAPER_MEDIA_HOST_CONFORMANCE_IMAGE_SEQUENCE|image_sequence_policy_enabled|image-sequence-(?:licensing|policy)-unavailable/u);
+	}
 });
 
 function buildContractHost(context) {

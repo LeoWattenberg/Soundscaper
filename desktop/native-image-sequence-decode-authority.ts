@@ -84,7 +84,7 @@ export interface FramescaperNativeImageSequenceDecodeAuthorityOptions {
 	readonly mediaRuntime: Pick<FramescaperNativeMediaRuntime, 'available' | 'runJob'>;
 	readonly mintOpaqueId: () => string;
 	readonly runtimeAvailable: () => boolean;
-	readonly policyCleared: boolean;
+	/** Report-only milestone-9 stable-release review status. */
 }
 
 export class FramescaperNativeImageSequenceDecodeAuthority {
@@ -155,9 +155,9 @@ export class FramescaperNativeImageSequenceDecodeAuthority {
 		owner: object,
 		request: Extract<FramescaperNativeImageSequenceDecodeRequest, { operation: 'decode' }>,
 	): Promise<unknown> {
-		if (!this.#options.policyCleared || !this.#options.runtimeAvailable()
+		if (!this.#options.runtimeAvailable()
 			|| !this.#options.mediaRuntime.available()) {
-			throw new Error('Native image-sequence decode is unavailable or not policy-cleared.');
+			throw new Error('Native image-sequence decode is unavailable.');
 		}
 		if (this.#active.size >= MAXIMUM_ACTIVE_DECODE_REQUESTS
 			|| this.#claims.size + this.#active.size >= MAXIMUM_OPEN_CLAIMS
@@ -436,7 +436,7 @@ function assertOptions(options: FramescaperNativeImageSequenceDecodeAuthorityOpt
 		|| typeof options.project.readProjectBundle !== 'function' || typeof options.executable !== 'function'
 		|| typeof options.createMessageChannel !== 'function' || typeof options.mediaRuntime?.available !== 'function'
 		|| typeof options.mediaRuntime.runJob !== 'function' || typeof options.mintOpaqueId !== 'function'
-		|| typeof options.runtimeAvailable !== 'function' || typeof options.policyCleared !== 'boolean') {
+		|| typeof options.runtimeAvailable !== 'function') {
 		throw new TypeError('Image-sequence decode authority options are incomplete.');
 	}
 }

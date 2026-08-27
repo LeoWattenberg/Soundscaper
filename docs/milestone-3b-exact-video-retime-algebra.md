@@ -206,5 +206,6 @@ maintained workflow consumes it yet.
 
 The immediate follow-up is 3B-5b's atomic V16 curve persistence and preservation
 slice. Maintained retime consumers and nested sequences remain later 3B-5
-slices. The four packaged Electron timing-probe rows remain `pending-external`,
-and WebKit remains deferred; this algebra changes neither.
+slices. The ten packaged Electron timing-probe rows run automated tests and
+remain `pending-external` only for milestone-9 release admission. WebKit
+automated testing is enabled; this algebra changes neither release fact.

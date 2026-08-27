@@ -105,7 +105,7 @@ test('qualified recovery reaches an explicitly mounted dispatcher during startup
 		revalidate: ({ rootAuthorized }) => ({
 			projectRevisionMatches: true, planFingerprintMatches: true,
 			inputFingerprintsMatch: true, rootGrantAuthorized: rootAuthorized,
-			rootGrantValid: true, licensingCleared: true, helperBuildMatches: true,
+			rootGrantValid: true, helperBuildMatches: true,
 			scratchIdentityMatches: true,
 		}),
 		dispatchRecovered: (records) => { dispatched.push(...records.map((row) => row.jobId)); },
@@ -158,7 +158,7 @@ test('enabling Native Media wakes qualified recovered work once per preference t
 		revalidate: ({ rootAuthorized }) => ({
 			projectRevisionMatches: true, planFingerprintMatches: true,
 			inputFingerprintsMatch: true, rootGrantAuthorized: rootAuthorized,
-			rootGrantValid: true, licensingCleared: true, helperBuildMatches: true,
+			rootGrantValid: true, helperBuildMatches: true,
 			scratchIdentityMatches: true,
 		}),
 		nativeQueueExecution: {
@@ -381,7 +381,7 @@ test('startup recovery dispatch uses frame counts reverified by project authorit
 		publicationPortFor: () => { throw new Error('must not publish during recovery'); },
 		publicationFenceFor: () => { throw new Error('must not fence during recovery'); },
 		reserveScratch: () => undefined, settleScratch: async () => undefined,
-		scratchMatches: () => true, licensingCleared: () => true,
+		scratchMatches: () => true,
 		checkpointStore: {
 			read: async () => Object.freeze({
 				version: 1 as const, jobId: record.jobId, planFingerprint: record.planFingerprint,

@@ -43,11 +43,12 @@ Every target payload for ONNX Runtime 1.29.0, whisper.cpp v1.9.3, and llama.cpp
 b10509 is `pending-external`, and Sherpa still lacks a Windows-arm64 Node
 addon. Live EU R2 publication/full-digest public read-back, five-target
 packaged canaries, and owner-lab qualification are also absent. Each affected
-workflow therefore fails closed with typed unavailability until its exact
-model, runtime, and release evidence is admitted; no substitute inference or
-implicit download is allowed. Licensing, external catalog signature, artifact
-digest, runtime/platform compatibility, selected-media authority, storage,
-consent, and external-FFmpeg admission remain hard gates.
+workflow fails closed only when its exact signed catalog entry, model artifact,
+runtime payload, platform, selected-media authority, storage, consent, or
+external-FFmpeg machine admission is unavailable; no substitute inference or
+implicit download is allowed. Licensing and owner-lab review are reported by
+milestone 9 and block stable 1.0 admission, not build, packaging, catalog
+visibility, or testing.
 Low-disk Whisper, GTCRN/RNNoise, CUDA Cacophony, GPU execution providers, and a
 fine-tuned highlight classifier remain research/watch items outside this
 delivery, not hidden prerequisites.
@@ -400,9 +401,10 @@ This answers "how are we shipping them."
 - **Catalog:** a versioned, signed catalog manifest ships with the app:
   model id → version, download URL, byte size, SHA-256, license id,
   attribution text, capability requirements (RAM floor, platform), and
-  the licensing-gate evidence pointers the fail-closed `local-models`
-  matrix entry requires. The catalog is data, so adding a model is a
-  reviewed data change, not a code change.
+  the licensing-evidence pointers milestone-9 stable 1.0 admission reports.
+  Machine activation depends on the signed entry, exact artifact, platform,
+  and runtime compatibility, not completion of that human review. The catalog
+  is data, so adding a model is a catalog change, not a code change.
 - **Downloads:** user-action-only, size-bounded, digest-verified,
   resumable (HTTP Range + streamed SHA-256, atomic rename on completion),
   cancellable, with capacity preflight — the exact pattern the verified
@@ -586,7 +588,7 @@ manual sign-off as an execution switch:
 
 | Area | Current implementation |
 | --- | --- |
-| Catalog and licensing | The authenticated Ed25519 catalog V2 retains thirteen admitted entries. Supply candidates now pin wav2vec2 and Qwen sources plus conversion recipes for TIGER, PANNs, Beat This, and TransNetV2, but none joins the production catalog before converted-artifact/parity closure and external signing. Unknown keys, incomplete licensing, refused weights, and artifact drift fail closed. |
+| Catalog and licensing | The authenticated Ed25519 catalog V2 retains thirteen admitted entries. Supply candidates now pin wav2vec2 and Qwen sources plus conversion recipes for TIGER, PANNs, Beat This, and TransNetV2, but none joins the executable catalog before converted-artifact/parity closure and external signing. Unknown keys and artifact drift fail closed. Incomplete human licensing review is reported to milestone 9 and blocks stable 1.0 admission only. |
 | Model lifecycle | A user-settable, content-addressed filesystem store supports capacity preflight, explicit resumable install, cancellation after quiescence, preseed, relocation by copy/verify/swap, removal, garbage collection, notices, and reconciliation after external deletion. **Tools > Local Models > Manage Models…** is lazy and desktop-only. No model is installed or repaired implicitly. |
 | Native runtime | Sherpa ONNX 1.13.5 remains authenticated on linux-x64, linux-arm64, mac-arm64, and win-x64; its Windows-arm64 Node addon is pending. Isolated, supervised CPU-only family contracts, workers, memory admission, crash quarantine, and termination cancellation exist for ONNX Runtime 1.29.0, whisper.cpp v1.9.3, and llama.cpp b10509, but every five-target payload row remains `pending-external`. Fast shots retain the separately admitted external-FFmpeg path. |
 | Job and data boundary | `AssistanceWorkflow` adds a closed workflow graph, one aggregate fence, versioned settings, slotted claims, exact model roles, stage progress, one main-owned consent authority, strict frame-pack/embedding formats, bounded semantic reviewers, and project-isolated disposable custody over all guided and fifteen Advanced recipes. Review media is incrementally hashed and bound to its exact stage/slot claim before native execution. Adapter-owned preprocessing preserves each model's required sample rate/channels; long media remains under one whole-selection fence. VFR and monotonic forward retimes use source-time authority; reverse, ambiguous nested, multicamera, and live inputs refuse. |
@@ -628,8 +630,8 @@ Activation has four explicit boundaries:
 | 7B | Parallel track | Framescaper-surface assistance: shots, frame semantics, reframe, clip maker, vertical-delivery lookahead |
 
 The activation decision admits implemented 7A/7B slices once their hard
-licensing, authenticity, selected-media, compatibility, and consent checks
-pass; it does not wait for manual or owner-lab evidence. An incomplete adapter
+authenticity, artifact, selected-media, compatibility, and consent checks pass;
+it does not wait for licensing, manual, or owner-lab review. An incomplete adapter
 still refuses rather than bypassing those checks. The speech stack is shared:
 7A owns the speech services and 7B consumes them read-only through their
 published service interfaces; ownership stays file-disjoint per the
@@ -660,28 +662,30 @@ were uploaded.
 
 - **Outcome:** The roadmap re-tiering, dependency-note revision, and
   plan-delegation lines landed with this plan on 2026-08-11
-  (user-approved). This packet owns the licensing enactment: the
-  `local-models` licensing gate's
-  enablement path implemented as a per-model evidence record (weights and
-  code license review, training-data provenance, model card and use
-  restrictions, versioned download notices and hashes —
-  config/production-licensing-matrix.json:339-342) so cataloging a model
-  is a reviewed, fail-closed data change; the first evidence records
+  (user-approved). This packet owns the licensing evidence record: the
+  `local-models` gate's per-model record covers weights and code license
+  review, training-data provenance, model card and use restrictions, and
+  versioned download notices and hashes
+  (config/production-licensing-matrix.json:339-342). The human fields feed
+  milestone-9 release admission, while signed catalog identity and artifact
+  hashes remain machine-verifiable activation requirements. The first records
   authored for the launch set (Silero VAD, Parakeet v2/v3, Whisper
   turbo, pyannote segmentation, ERes2Net, DeepFilterNet3, Spleeter).
 - **Invariants:** The `#7-optional-local-assistance` anchor is preserved
-  (roadmap.md:961). The gate stays fail-closed: unknown, conflicting, or
-  incomplete license evidence blocks the catalog entry, never warns
-  (docs/production-licensing-policy.md:173-175). No loader or capability
-  flag bypasses the gate (docs/production-licensing-policy.md:151-153).
+  (roadmap.md:961). Unknown, conflicting, or incomplete human license evidence
+  is surfaced in milestone 9 and blocks stable 1.0 admission, never current
+  catalog visibility or testing. No loader or capability flag bypasses signed
+  catalog identity, exact artifact digest, runtime, platform, storage, or
+  consent checks.
 - **Acceptance:** Licensing matrix tests cover accept/reject paths for
   model evidence records; the landed roadmap edit keeps
   `tests/roadmap-guidance.test.js` green (verified 2026-08-11); notices
   render for a cataloged model in the About surface offline, which
   7.0.0a defers to the first slice that mirrors an artifact.
 - **Non-goals:** No download code, no runtime, no UI beyond notices.
-- **Stop condition:** Stop if any launch-set model fails license review —
-  the catalog shrinks; the schedule does not stretch to rescue a weight.
+- **Stop condition:** Stop stable 1.0 admission if a launch-set model fails
+  license review. Stop current execution only when signed catalog, artifact,
+  runtime, platform, storage, consent, or selected-media checks fail.
 
 ### WP-7.0.1 — Model manager and storage
 
@@ -1164,9 +1168,10 @@ entries and ONNX Runtime payloads pass release admission.
 - No auto-apply mode for any proposal; no assistance result mutates a
   document without an explicit accept.
 - No face recognition or cross-project voice identification.
-- No weight or runtime ships without its licensing-gate evidence record;
-  no gated-download URL (Hugging Face auth walls) is ever a distribution
-  source.
+- No weight or runtime enters a stable 1.0 release without its milestone-9
+  licensing-evidence record; pending review does not block authenticated local
+  build, packaging, or testing. No gated-download URL (Hugging Face auth walls)
+  is ever a distribution source.
 - Deterministic non-AI editing and delivery remain complete without this
   milestone (roadmap.md:766-767); removing every model and the helper
   binary leaves a fully functional editor.

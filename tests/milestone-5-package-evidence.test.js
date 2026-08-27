@@ -38,9 +38,9 @@ test('a genuine package audit binds one exact target manifest and every packaged
 		productId: 'soundscaper',
 		targetId: 'linux-x64',
 	}, {
-		auditPackageArtifactContent: async () => {
+		auditPackageArtifactContent: async (options) => {
 			unauthenticatedExtractionCalls += 1;
-			throw new Error('Unauthenticated package extraction was attempted.');
+			return auditDesktopPackageArtifactContent(options);
 		},
 	});
 
@@ -50,7 +50,9 @@ test('a genuine package audit binds one exact target manifest and every packaged
 	assert.equal(Object.isFrozen(audit), true);
 	assert.equal(audit.status, 'release-authentication-pending');
 	assert.equal(audit.releaseAuthentication.status, 'pending-external');
-	assert.equal(unauthenticatedExtractionCalls, 0);
+	assert.equal(audit.automatedStatus, 'installed-application-closure-audited');
+	assert.match(audit.automatedEvidenceSha256, /^[a-f\d]{64}$/u);
+	assert.equal(unauthenticatedExtractionCalls, 2);
 	assert.deepEqual({
 		productId: audit.productId,
 		targetId: audit.targetId,
@@ -78,7 +80,9 @@ test('a genuine package audit binds one exact target manifest and every packaged
 			byteLength: debianBytes.byteLength, sha256: digest(debianBytes),
 		},
 	]);
-	assert.ok(audit.packages.every(({ content }) => content === null));
+	assert.ok(audit.packages.every(({ content }) => (
+		content.status === 'installed-resource-closure-audited'
+	)));
 	const manifestBytes = await readFile(join(fixture.packageRoot, MANIFEST));
 	assert.deepEqual({
 		name: audit.runtimeManifest.name,
@@ -143,6 +147,8 @@ test('a genuine package audit binds one exact target manifest and every packaged
 	assert.equal(authenticatedAudit.releaseAuthentication.status, 'authenticated');
 	assert.equal(authenticatedAudit.releaseAuthentication.keyId, 'fixture-release-review');
 	assert.equal(authenticatedAudit.status, 'installed-application-closure-audited');
+	assert.equal(authenticatedAudit.automatedStatus, 'installed-application-closure-audited');
+	assert.equal(authenticatedAudit.automatedEvidenceSha256, audit.automatedEvidenceSha256);
 	assert.ok(authenticatedAudit.packages.every(({ content }) => (
 		content.status === 'installed-resource-closure-audited'
 		&& /^[a-f\d]{64}$/u.test(content.installedClosureSha256)
@@ -151,6 +157,25 @@ test('a genuine package audit binds one exact target manifest and every packaged
 		authenticatedAudit.packages[0].content.installedClosureSha256,
 		authenticatedAudit.packages[1].content.installedClosureSha256,
 	);
+
+	const authenticationPath = join(
+		fixture.packageRoot,
+		milestone5PackageReleaseAuthenticationEvidenceName('soundscaper', 'linux-x64'),
+	);
+	const invalidEnvelope = JSON.parse(await readFile(authenticationPath, 'utf8'));
+	invalidEnvelope.signature = Buffer.alloc(64).toString('base64');
+	await writeJson(authenticationPath, invalidEnvelope);
+	const invalidHumanAudit = await auditMilestone5PackageEvidence({
+		repositoryRoot: fixture.root,
+		packageRoot: fixture.packageRoot,
+		productId: 'soundscaper',
+		targetId: 'linux-x64',
+	});
+	assert.equal(invalidHumanAudit.status, 'release-authentication-invalid-report-only');
+	assert.equal(invalidHumanAudit.releaseAuthentication.status, 'invalid-report-only');
+	assert.equal(invalidHumanAudit.automatedStatus, 'installed-application-closure-audited');
+	assert.equal(invalidHumanAudit.automatedEvidenceSha256, audit.automatedEvidenceSha256);
+	assert.ok(invalidHumanAudit.packages.every(({ content }) => content !== null));
 });
 
 test('package admission rejects missing, unexpected, wrong-version, source-revision, and wrong-target names', {

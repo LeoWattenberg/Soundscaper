@@ -495,7 +495,7 @@
 		"configurationEvidence": "THIRD_PARTY_LICENSES.md#ffmpeg-webassembly-export-and-import-core"
 	},
 	"desktopCodecPolicy": {
-		"scope": "soundscaper-application-codec-provider-layer-excluding-electron-framework-internals",
+		"scope": "soundscaper-general-codec-provider-layer-excluding-electron-framework-internals-and-the-exact-authenticated-framescaper-media-host",
 		"artifactSurfaces": ["electron-renderer", "electron-runtime-assets", "electron-shell", "desktop-release-assets"],
 		"bundledFfmpeg": false,
 		"bundledLibav": false,
@@ -1034,11 +1034,13 @@
 		{
 			"id": "codec-native-ffmpeg-current-set",
 			"kind": "codec-capability",
-			"upstreamLicensing": "The shipped browser runtime remains the FFmpeg GPL build with thirteen enabled external libraries pinned by the ffmpeg register. The separate native candidate pins FFmpeg 9.0.1 in GPL mode with no external libraries and admits codec or container flags only after their licensing rows clear.",
+			"upstreamLicensing": "The shipped browser runtime remains the FFmpeg GPL build with thirteen enabled external libraries pinned by the ffmpeg register. The separate native candidate pins FFmpeg 9.0.1 in GPL mode with no external libraries. Its authenticated build recipe is enabled for testing; per-codec human review is milestone-9 stable 1.0 release evidence.",
 			"agplCompatibilityDirection": "Each GPL-2.0-or-later build combines into this AGPL-3.0-only work compatibly; the native 9.0.1 source and recipe are a separate blocked provenance record and do not replace or upgrade the browser runtime.",
-			"redistribution": "No Soundscaper native media-host or FFmpeg 9.0.1 application-provider binary ships, and desktop application-resource audits reject application-supplied FFmpeg, libav, and FFmpeg WebAssembly. Each desktop package does contain Electron's exact verified alternate framework libffmpeg, intended upstream to omit proprietary codec support; it is Chromium infrastructure, not this provider row. User-installed external FFmpeg is executed in place and is not copied into any production artifact. A future built provider target may enter a runtime payload manifest only after its exact enabled set clears corresponding-source, notices, patent, signing, and target review and the desktop exclusion policy is deliberately revised.",
+			"redistribution": "An exact target-built Framescaper media host may enter its authenticated runtime payload manifest and a test package before human review completes; general-purpose FFmpeg programs, WebAssembly, archives, and loose libav payloads remain forbidden. Each desktop package also contains Electron's exact verified alternate framework libffmpeg, intended upstream to omit proprietary codec support; it is Chromium infrastructure, not this provider row. User-installed external FFmpeg is executed in place and is not copied into an artifact. Stable 1.0 redistribution still requires the milestone-9 corresponding-source, notices, patent, signing, and target review.",
 			"status": "blocked",
-			"blocker": "ffmpeg-enabled-library-corresponding-source and ffmpeg-enabled-codec-patent-review remain blocked for the Web runtime, while the native FFmpeg 9.0.1 provider candidate has no reviewed build payload, exact codec/container clearance, signature, or target evidence and is forbidden by the current application-provider package policy. Verification of Electron's separate alternate framework library supplies none of that provider qualification.",
+			"blocker": "Milestone-9 stable 1.0 corresponding-source, notices, patent, signing, and target review remains incomplete. The authenticated native FFmpeg 9.0.1 recipe, payload staging, and exact package exception are enabled for build and testing now.",
+			"testActivation": "enabled",
+			"humanReviewMilestone": 9,
 			"evidence": ["docs/production-licensing-policy.md", "config/ffmpeg-runtime-manifest.json", "desktop/ffmpeg-corresponding-source.json", "native/framescaper-media-host/source-manifest.json", "native/framescaper-media-host/THIRD_PARTY_NOTICES.md", "config/framescaper-media-host-payload-manifest.json", "config/electron-alternate-ffmpeg-manifest.json", "scripts/lib/desktop-codec-policy.mjs", "scripts/lib/electron-alternate-ffmpeg.mjs", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
@@ -1046,9 +1048,11 @@
 			"kind": "codec-capability",
 			"upstreamLicensing": "Platform encoder/decoder services (NVENC, Quick Sync, VideoToolbox, VAAPI) reached through their platform interfaces",
 			"agplCompatibilityDirection": "System-service linkage is used, not combined source; no license flows into the work.",
-			"redistribution": "Nothing is redistributed, but enablement is a per-codec, per-jurisdiction patent question first and a performance feature second.",
+			"redistribution": "Nothing is redistributed. Machine-complete hardware paths are enabled for testing; per-codec, per-jurisdiction patent review is milestone-9 stable 1.0 evidence.",
 			"status": "blocked",
-			"blocker": "No jurisdiction-specific patent review is recorded for any hardware-accelerated codec path; enablement waits on the native-codecs gate.",
+			"blocker": "No jurisdiction-specific patent review is recorded for stable 1.0 admission; machine-complete hardware paths remain enabled for testing.",
+			"testActivation": "enabled",
+			"humanReviewMilestone": 9,
 			"evidence": ["docs/production-licensing-policy.md", "roadmap.md#5-electron-native-services-and-extensibility"]
 		},
 		{
@@ -1196,9 +1200,11 @@
 			"execution": "software",
 			"upstreamLicensing": "FFmpeg internal PNG decoder in the pinned GPL-2.0-or-later native candidate.",
 			"agplCompatibilityDirection": "The decoder combines into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
-			"redistribution": "No PNG sequence decoder binary ships until corresponding source, notices, interoperability, and payload evidence are recorded.",
+			"redistribution": "The built-in PNG decoder is enabled in authenticated build and test payloads. Stable 1.0 redistribution waits for milestone-9 corresponding-source, notices, interoperability, and target review.",
 			"status": "blocked",
-			"blocker": "PNG decode is disabled in the native recipe; sequence interoperability, payload, and five-target reviews remain incomplete.",
+			"blocker": "PNG decode is enabled for authenticated build and testing; milestone-9 stable 1.0 sequence interoperability and target review remains incomplete.",
+			"testActivation": "enabled",
+			"humanReviewMilestone": 9,
 			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
@@ -1211,9 +1217,11 @@
 			"execution": "software",
 			"upstreamLicensing": "FFmpeg internal TIFF decoder in the pinned GPL-2.0-or-later native candidate.",
 			"agplCompatibilityDirection": "The decoder combines into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
-			"redistribution": "No TIFF sequence decoder binary ships until corresponding source, notices, interoperability, and payload evidence are recorded.",
+			"redistribution": "The built-in TIFF decoder is enabled in authenticated build and test payloads. Stable 1.0 redistribution waits for milestone-9 corresponding-source, notices, interoperability, and target review.",
 			"status": "blocked",
-			"blocker": "TIFF decode is disabled in the native recipe; sequence interoperability, payload, and five-target reviews remain incomplete.",
+			"blocker": "TIFF decode is enabled for authenticated build and testing; milestone-9 stable 1.0 sequence interoperability and target review remains incomplete.",
+			"testActivation": "enabled",
+			"humanReviewMilestone": 9,
 			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
@@ -1226,9 +1234,11 @@
 			"execution": "software",
 			"upstreamLicensing": "FFmpeg internal EXR decoder in the pinned GPL-2.0-or-later native candidate; any future libOpenEXR linkage carries BSD-3-Clause terms.",
 			"agplCompatibilityDirection": "The internal decoder combines under FFmpeg's GPL posture; permissive OpenEXR code would combine into this AGPL-3.0-only work.",
-			"redistribution": "No OpenEXR sequence decoder binary ships until its exact implementation, corresponding source, notices, interoperability, and payload evidence are recorded.",
+			"redistribution": "The built-in OpenEXR decoder is enabled in authenticated build and test payloads. Stable 1.0 redistribution waits for milestone-9 corresponding-source, notices, interoperability, and target review.",
 			"status": "blocked",
-			"blocker": "EXR decode is disabled in the native recipe and no libOpenEXR implementation is admitted; notices, payload, and five-target reviews remain incomplete.",
+			"blocker": "The internal EXR decoder is enabled for authenticated build and testing without libOpenEXR; milestone-9 stable 1.0 notices, interoperability, and target review remains incomplete.",
+			"testActivation": "enabled",
+			"humanReviewMilestone": 9,
 			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
@@ -1376,9 +1386,11 @@
 			"execution": "software",
 			"upstreamLicensing": "FFmpeg internal PNG encoder in the pinned GPL-2.0-or-later native candidate.",
 			"agplCompatibilityDirection": "The encoder combines into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
-			"redistribution": "No PNG sequence encoder binary ships until corresponding source, notices, alpha interoperability, and payload evidence are recorded.",
+			"redistribution": "The built-in PNG encoder and image2 muxer are enabled in authenticated build and test payloads. Stable 1.0 redistribution waits for milestone-9 corresponding-source, notices, alpha interoperability, and target review.",
 			"status": "blocked",
-			"blocker": "PNG encode is disabled in the native recipe; alpha, sequence, payload, and five-target reviews remain incomplete.",
+			"blocker": "PNG encode is enabled for authenticated build and testing; milestone-9 stable 1.0 alpha, sequence, and target review remains incomplete.",
+			"testActivation": "enabled",
+			"humanReviewMilestone": 9,
 			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
@@ -1391,9 +1403,11 @@
 			"execution": "software",
 			"upstreamLicensing": "FFmpeg internal TIFF encoder in the pinned GPL-2.0-or-later native candidate.",
 			"agplCompatibilityDirection": "The encoder combines into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
-			"redistribution": "No TIFF sequence encoder binary ships until corresponding source, notices, alpha interoperability, and payload evidence are recorded.",
+			"redistribution": "The built-in TIFF encoder and image2 muxer are enabled in authenticated build and test payloads. Stable 1.0 redistribution waits for milestone-9 corresponding-source, notices, alpha interoperability, and target review.",
 			"status": "blocked",
-			"blocker": "TIFF encode is disabled in the native recipe; alpha, sequence, payload, and five-target reviews remain incomplete.",
+			"blocker": "TIFF encode is enabled for authenticated build and testing; milestone-9 stable 1.0 alpha, sequence, and target review remains incomplete.",
+			"testActivation": "enabled",
+			"humanReviewMilestone": 9,
 			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
@@ -1406,9 +1420,11 @@
 			"execution": "software",
 			"upstreamLicensing": "FFmpeg internal EXR encoder in the pinned GPL-2.0-or-later native candidate; any future libOpenEXR linkage carries BSD-3-Clause terms.",
 			"agplCompatibilityDirection": "The internal encoder combines under FFmpeg's GPL posture; permissive OpenEXR code would combine into this AGPL-3.0-only work.",
-			"redistribution": "No OpenEXR sequence encoder binary ships until its exact implementation, corresponding source, notices, alpha/HDR interoperability, and payload evidence are recorded.",
+			"redistribution": "The built-in OpenEXR encoder and image2 muxer are enabled in authenticated build and test payloads. Stable 1.0 redistribution waits for milestone-9 corresponding-source, notices, alpha/HDR interoperability, and target review.",
 			"status": "blocked",
-			"blocker": "EXR encode is disabled in the native recipe and no libOpenEXR implementation is admitted; alpha/HDR, payload, and five-target reviews remain incomplete.",
+			"blocker": "The internal EXR encoder is enabled for authenticated build and testing without libOpenEXR; milestone-9 stable 1.0 alpha/HDR and target review remains incomplete.",
+			"testActivation": "enabled",
+			"humanReviewMilestone": 9,
 			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json", "THIRD_PARTY_LICENSES.md"]
 		}
 	],

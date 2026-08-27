@@ -13,6 +13,10 @@ import {
 } from './helpers/pinned-video-frame-decoder.mjs';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { hasWebGl2Capability } from './helpers/webgl2-capability.js';
+import {
+	DURABLE_MEDIA_STORAGE_REQUIRED,
+	hasDurableMediaStorageCapability,
+} from './helpers/durable-media-storage-capability.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
@@ -35,10 +39,13 @@ test.describe('3B-2b source display geometry qualification', () => {
 		browserName,
 		page,
 	}) => {
-		test.skip(browserName === 'webkit', 'Milestone 3 inherits the explicit WebKit qualification deferral.');
 		test.setTimeout(90_000);
 
 		const editor = await openFramescaper(page);
+		test.skip(
+			!await page.evaluate(hasDurableMediaStorageCapability),
+			DURABLE_MEDIA_STORAGE_REQUIRED,
+		);
 		await editor.locator('[data-import-input]').setInputFiles(
 			videoSourceGeometryMedia.map(({ file }) => file),
 		);
@@ -92,10 +99,8 @@ test.describe('3B-2b source display geometry qualification', () => {
 	});
 
 	test('an anamorphic source exports at its display geometry with the picture upright', async ({
-		browserName,
 		page,
 	}) => {
-		test.skip(browserName === 'webkit', 'Milestone 3 inherits the explicit WebKit qualification deferral.');
 		// The export runs the production FFmpeg core, which competes for CPU with
 		// every other worker when the whole suite runs.
 		test.setTimeout(300_000);
@@ -111,10 +116,20 @@ test.describe('3B-2b source display geometry qualification', () => {
 			'The browser video export composites each frame through WebGL2, '
 				+ 'which this browser environment refuses; the export surfaces the disclosed failure status instead.',
 		);
-		expect(await page.evaluate(() => ({
+		const streamCapability = await page.evaluate(() => ({
 			crossOriginIsolated: globalThis.crossOriginIsolated,
 			sharedArrayBuffer: typeof globalThis.SharedArrayBuffer,
-		}))).toEqual({ crossOriginIsolated: true, sharedArrayBuffer: 'function' });
+		}));
+		test.skip(
+			!streamCapability.crossOriginIsolated || streamCapability.sharedArrayBuffer !== 'function',
+			'The bounded video export stream requires cross-origin isolation and SharedArrayBuffer, '
+				+ 'which this browser environment does not expose.',
+		);
+		expect(streamCapability).toEqual({ crossOriginIsolated: true, sharedArrayBuffer: 'function' });
+		test.skip(
+			!await page.evaluate(hasDurableMediaStorageCapability),
+			DURABLE_MEDIA_STORAGE_REQUIRED,
+		);
 		await editor.locator('[data-import-input]').setInputFiles([ROTATED_ANAMORPHIC.file]);
 		await expect.poll(async () => (await persistedVideoSources(page)).length, {
 			timeout: 45_000,

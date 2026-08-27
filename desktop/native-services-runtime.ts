@@ -368,7 +368,6 @@ function failClosedRevalidation(
 		inputFingerprintsMatch: false,
 		rootGrantAuthorized: context.rootAuthorized,
 		rootGrantValid: false,
-		licensingCleared: false,
 		helperBuildMatches: false,
 		scratchIdentityMatches: false,
 	});

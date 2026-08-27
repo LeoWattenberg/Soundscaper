@@ -30,12 +30,6 @@ extern "C" {
 namespace framescaper::media {
 namespace {
 
-#if defined(FRAMESCAPER_MEDIA_HOST_CONFORMANCE_IMAGE_SEQUENCE)
-constexpr bool image_sequence_policy_enabled = true;
-#else
-constexpr bool image_sequence_policy_enabled = false;
-#endif
-
 class sequence_decode_failure final : public std::runtime_error {
 public:
 	sequence_decode_failure(std::string code, std::string message, const int exit_code = 70)
@@ -182,19 +176,13 @@ struct decoder final {
 	return "decode-openexr-sequence";
 }
 
-[[nodiscard]] std::string_view policy_row(const image_sequence_profile profile) {
-	if (profile == image_sequence_profile::png) return "codec-decode-png-image-sequence";
-	if (profile == image_sequence_profile::tiff) return "codec-decode-tiff-image-sequence";
-	return "codec-decode-openexr-image-sequence";
-}
-
 [[nodiscard]] decoder open_decoder(const image_sequence_profile profile) {
 	decoder result;
 	const auto* codec = avcodec_find_decoder(codec_id(profile));
 	if (codec == nullptr) {
 		throw sequence_decode_failure(
 			"image-sequence-decoder-unavailable",
-			"The pinned FFmpeg build does not provide the licensed still decoder.", 78
+			"The pinned FFmpeg build does not provide the requested still decoder.", 78
 		);
 	}
 	result.context = avcodec_alloc_context3(codec);
@@ -326,10 +314,6 @@ void read_frame_packet(
 engine_result execute_image_sequence_decode(const invocation& job) {
 	if (!job.image_sequence) {
 		return {78, "{\"error\":\"image-sequence-grant-missing\",\"operation\":\"media-decode\"}"};
-	}
-	if (!image_sequence_policy_enabled) {
-		return {78, "{\"error\":\"image-sequence-licensing-unavailable\",\"operation\":\"media-decode\","
-			"\"policyRow\":\"" + std::string{policy_row(job.image_sequence->profile)} + "\"}"};
 	}
 	try { return decode(job, *job.image_sequence); }
 	catch (const sequence_decode_failure& error) {

@@ -27,11 +27,18 @@
 		"--enable-swscale",
 		"--enable-decoder=prores",
 		"--enable-decoder=pcm_f32le",
+		"--enable-decoder=png",
+		"--enable-decoder=tiff",
+		"--enable-decoder=exr",
 		"--enable-encoder=prores_ks",
 		"--enable-encoder=pcm_s16le",
+		"--enable-encoder=png",
+		"--enable-encoder=tiff",
+		"--enable-encoder=exr",
 		"--enable-demuxer=mov",
 		"--enable-demuxer=wav",
 		"--enable-muxer=mov",
+		"--enable-muxer=image2",
 		"--enable-protocol=file",
 		"--enable-protocol=pipe"
 	],
@@ -39,22 +46,21 @@
 		"rawFfmpegArguments": false,
 		"network": false,
 		"externalLibraries": [],
-		"enabledDecoders": ["prores", "pcm_f32le"],
-		"enabledEncoders": ["prores_ks", "pcm_s16le"],
+		"enabledDecoders": ["prores", "pcm_f32le", "png", "tiff", "exr"],
+		"enabledEncoders": ["prores_ks", "pcm_s16le", "png", "tiff", "exr"],
 		"enabledDemuxers": ["mov", "wav"],
-		"enabledMuxers": ["mov"],
+		"enabledMuxers": ["mov", "image2"],
 		"enabledProtocols": ["file", "pipe"],
 		"blockedComponents": [
 			"av1",
-			"exr",
 			"h264",
 			"hevc",
 			"libvpx-vp9",
 			"libx264",
-			"png",
-			"tiff",
 			"vp9"
 		],
-		"payloadPublicationRequiresLicensingAndTargetEvidence": true
+		"payloadPublicationRequiresAuthenticatedTargetEvidence": true,
+		"humanReviewMilestone": 9,
+		"humanReviewBlocks": "stable-1.0-release-admission"
 	}
 }

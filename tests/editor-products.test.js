@@ -25,7 +25,7 @@ test('product profiles are immutable and resolve distinct routes and capability 
 	assert.equal(PRODUCT_PROFILES.soundscaper.capabilities.videoRetime, false);
 	assert.equal(PRODUCT_PROFILES.framescaper.capabilities.audioRecording, false);
 	assert.equal(PRODUCT_PROFILES.framescaper.applicationFeatures.framescaperCapture, true);
-	assert.equal(PRODUCT_PROFILES.framescaper.applicationFeatures.framescaperWebVcr, false);
+	assert.equal(PRODUCT_PROFILES.framescaper.applicationFeatures.framescaperWebVcr, true);
 	assert.equal(PRODUCT_PROFILES.framescaper.capabilities.videoEffects, true);
 	assert.equal(PRODUCT_PROFILES.framescaper.capabilities.timelineAnnotations, true);
 	assert.equal(PRODUCT_PROFILES.framescaper.capabilities.audioWarp, false);

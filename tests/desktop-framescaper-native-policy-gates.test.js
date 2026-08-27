@@ -1,69 +1,36 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
-	framescaperNativeCapabilityPolicy,
-	framescaperNativePolicyRowCleared,
-	framescaperNativeQueueOperationCleared,
+	framescaperNativeExecutionPolicy,
+	framescaperNativeQueueOperationExecutionEnabled,
 } from '../desktop/framescaper-native-services-registration.mjs';
 
-test('Framescaper native policy uses each collection exact activation vocabulary', () => {
-	const policy = {
-		futureDistributionGates: [{ id: 'native-codecs', status: 'enabled' }],
-		nativeFormatPolicies: [{ id: 'codec', status: 'implemented' }],
-		runtimeProvenance: [{ id: 'host', status: 'documented' }],
-	};
-	assert.equal(framescaperNativePolicyRowCleared(
-		policy, 'futureDistributionGates', 'native-codecs',
-	), true);
-	assert.equal(framescaperNativePolicyRowCleared(policy, 'nativeFormatPolicies', 'codec'), true);
-	assert.equal(framescaperNativePolicyRowCleared(policy, 'runtimeProvenance', 'host'), true);
-	policy.futureDistributionGates[0].status = 'implemented';
-	policy.nativeFormatPolicies[0].status = 'enabled';
-	policy.runtimeProvenance[0].status = 'implemented';
-	assert.equal(framescaperNativePolicyRowCleared(
-		policy, 'futureDistributionGates', 'native-codecs',
-	), false);
-	assert.equal(framescaperNativePolicyRowCleared(policy, 'nativeFormatPolicies', 'codec'), false);
-	assert.equal(framescaperNativePolicyRowCleared(policy, 'runtimeProvenance', 'host'), false);
+test('native execution policy is independent of human licensing review state', () => {
+	const policy = framescaperNativeExecutionPolicy();
+	assert.deepEqual(policy, {
+		nativeCodecsExecutionEnabled: true,
+		selectedRenderCodecExecutionEnabled: true,
+		proxyCodecExecutionEnabled: true,
+		imageSequencesExecutionEnabled: true,
+	});
+	assert.equal(Object.isFrozen(policy), true);
+	for (const taskKind of [
+		'encoded-export', 'proxy-generation', 'image-sequence-export',
+	]) {
+		assert.equal(framescaperNativeQueueOperationExecutionEnabled(policy, { taskKind }), true);
+	}
+	assert.equal(framescaperNativeQueueOperationExecutionEnabled(policy, {
+		taskKind: 'future-operation',
+	}), false, 'unknown execution operations remain fail-closed');
 });
 
-test('selected ProRes export opens only after its exact format row and parent gate clear', () => {
-	const matrix = {
-		futureDistributionGates: [
-			{ id: 'native-codecs', status: 'enabled' },
-			{ id: 'native-plugins', status: 'disabled' },
-		],
-		nativeFormatPolicies: [
-			{ id: 'codec-native-ffmpeg-current-set', status: 'implemented' },
-			{ id: 'codec-encode-prores-mov-proxy', status: 'implemented' },
-			{ id: 'codec-encode-prores-mov-422-hq', status: 'implemented' },
-			{ id: 'codec-decode-png-image-sequence', status: 'blocked' },
-			{ id: 'codec-decode-tiff-image-sequence', status: 'blocked' },
-			{ id: 'codec-decode-openexr-image-sequence', status: 'blocked' },
-			{ id: 'codec-encode-png-image-sequence', status: 'blocked' },
-			{ id: 'codec-encode-tiff-image-sequence', status: 'blocked' },
-			{ id: 'codec-encode-openexr-image-sequence', status: 'blocked' },
-			{ id: 'plugin-format-ofx', status: 'blocked' },
-		],
-		runtimeProvenance: [
-			{ id: 'framescaper-openfx-1-5-1-source-candidate', status: 'documented' },
-		],
-	};
-	let policy = framescaperNativeCapabilityPolicy(matrix);
-	assert.equal(policy.selectedRenderCodecCleared, true);
-	assert.equal(framescaperNativeQueueOperationCleared(
-		policy, { taskKind: 'encoded-export' },
-	), true);
-
-	matrix.nativeFormatPolicies.find(({ id }) => id === 'codec-encode-prores-mov-422-hq').status = 'blocked';
-	policy = framescaperNativeCapabilityPolicy(matrix);
-	assert.equal(policy.nativeCodecsCleared, true,
-		'the authenticated current FFmpeg set remains distinct from a selected export policy');
-	assert.equal(policy.selectedRenderCodecCleared, false);
-	assert.equal(framescaperNativeQueueOperationCleared(
-		policy, { taskKind: 'encoded-export' },
-	), false);
+test('native runtime registration does not read the human production licensing matrix', async () => {
+	const source = await readFile(new URL(
+		'../desktop/framescaper-native-services-registration.mjs', import.meta.url,
+	), 'utf8');
+	assert.doesNotMatch(source, /production-licensing-matrix|loadCapabilityPolicy|policyRowCleared/u);
 });

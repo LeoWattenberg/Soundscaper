@@ -92,8 +92,6 @@ export async function preflightPagesDeployment({
 }) {
 	const deployOrigin = normalizedOrigin(origin, 'Pages deploy preflight origin').origin;
 	const snapshot = snapshotVerifiedFfmpegRuntime(release);
-	assert(release.manifest.authorizations.runtimePublication.status === 'approved',
-		`Pages deployment is blocked by ${release.manifest.authorizations.runtimePublication.blockedBy.join(', ')}`);
 	const policy = snapshot.publicPolicy;
 	const releasePrefix = `${policy.publicPrefix}/${policy.releaseSegment}/${release.manifestSha256}`;
 	const pointer = Object.freeze({

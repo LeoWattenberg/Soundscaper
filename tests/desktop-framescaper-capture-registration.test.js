@@ -24,10 +24,11 @@ test('main delegates capture security without growing either ceiling-owned entry
 	assert.match(registration, /framescaper-capture-sandbox-preload\.cjs/u);
 	assert.match(registration, /registerFramescaperWebVcrDesktopV1/u);
 	assert.match(registration, /webVcrCapture: webVcr\.captureAuthority/u);
-	assert.match(registration, /qualification: seams\.webVcrQualification/u);
+	assert.match(registration, /enabled: seams\.webVcrEnabled/u);
+	assert.match(registration, /smokeTrust: seams\.webVcrSmokeTrust/u);
 	assert.match(registration,
-		/seams\.webVcrQualification && seams\.observeWebVcrDisplaySecurityWitness/u,
-		'the internal request witness must remain packaged-qualification-only');
+		/seams\.webVcrSmokeTrust && seams\.observeWebVcrDisplaySecurityWitness/u,
+		'the internal request witness must remain packaged-smoke-only');
 	assert.match(main, /desktopSmokeProbe\.observeWebVcrDisplaySecurityWitness/u);
 	assert.match(registration, /productId !== 'framescaper'/u);
 });

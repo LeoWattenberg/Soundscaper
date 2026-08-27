@@ -25,7 +25,7 @@ It is not an implementation log or an evidence register. Do not append exact fix
 - milestone-7 sequencing, runtime and model-catalog decisions, and work packets: [milestone-7 plan](docs/milestone-7-plan.md);
 - milestone-9 sequencing, qualification-campaign decisions, and work packets: [milestone-9 plan](docs/milestone-9-plan.md);
 - performance fixtures and numeric qualification: [quality budgets](docs/quality-budgets.md) and [machine-readable budgets](config/quality-budgets.json);
-- what a person must still run, watch, listen to, or decide: the guided verification records for [milestones 1–4](docs/milestones-1-to-4-guided-verification.md) and [milestones 5–9](docs/milestones-5-to-9-guided-verification.md);
+- what a person must still run, watch, listen to, or decide: the single [milestone-9 guided verification and 1.0 admission record](docs/milestone-9-guided-verification.md);
 - release severity and waiver rules: [release policy](docs/release-policy.md);
 - licensing and provenance: [production licensing policy](docs/production-licensing-policy.md) and its machine-readable matrix;
 - platform and product claims: [capability inventory](config/production-capabilities.json); and
@@ -35,8 +35,8 @@ It is not an implementation log or an evidence register. Do not append exact fix
 
 - Work on the earliest incomplete prerequisite whose next step is actionable in
   the available repository and environment, unless the user explicitly chooses
-  another milestone. Do not invent substitute work for a named external
-  qualification blocker.
+  another milestone. External qualification is milestone-9 release work, not a
+  reason to pause implementation or hide an implemented test surface.
 - Every change must name one roadmap outcome or exit-gate gap that it advances.
   State non-goals before expanding an owning schema or platform boundary.
 - Prefer a complete vertical slice and an observable acceptance test over a new
@@ -104,10 +104,11 @@ Through milestones 1–7:
   permission expansion, or UI. Existing Soundscaper microphone and desktop
   recording may be maintained.
 
-Framescaper capture starts only in milestone 8A. MIDI starts only after the
-milestone 8B Audacity design gate. The Framescaper Web VCR extension starts
-only after milestone 8 closes; it may reuse milestone-8 capture contracts but
-must not become an earlier hidden recording path.
+Framescaper capture starts in milestone 8A. MIDI implementation belongs to
+milestone 8B; Audacity design review is a milestone-9 stable 1.0 admission
+check, not permission to build or test it. The enabled Framescaper Web VCR
+extension reuses milestone-8A capture contracts and adds no parallel recording
+path.
 
 ## Status and platform notation
 
@@ -120,6 +121,12 @@ must not become an earlier hidden recording path.
 | **Blocked** | Accepted scope waits on a named external decision or dependency. |
 | **Deferred** | Deliberately outside the current completion target. |
 | **Optional** | Valuable work that does not block full product functionality. |
+
+Every human or manual qualification checkpoint belongs to milestone 9 and
+blocks stable 1.0 admission only. It never disables build, test, package, or
+runtime access to an implemented surface. Machine-verifiable
+integrity, containment, compatibility, consent, resource, and payload-presence
+checks remain fail-closed at the point of use.
 
 | Platform | Contract |
 | --- | --- |
@@ -147,9 +154,10 @@ Known architectural constraints that drive later work:
 - browser storage remains quota- and eviction-bound;
 - Electron has explicit managed handoff for canonical PCM and retained original
   video, but not a complete cross-product managed-media library;
-- native codec, audio, plug-in, and persistent-service product routes now exist
-  behind fail-closed payload and activation policy, but none is externally
-  qualified; and
+- native codec, audio, plug-in, and persistent-service product routes are
+  enabled for testing behind fail-closed machine payload, platform,
+  containment, consent, and integrity checks; their human qualification is a
+  milestone-9 stable 1.0 concern; and
 - Safari, fixed-GPU, whole-process memory, and broad OS/architecture evidence
   remain incomplete.
 
@@ -157,16 +165,16 @@ Known architectural constraints that drive later work:
 
 | Milestone | Status | Purpose |
 | --- | --- | --- |
-| 1. Baseline contracts | **In progress — external qualification** | Close reproducible quality qualification. |
-| 2. Shared platform/storage/media | **In progress — current priority** | Finish safe scale, handoff, media ownership, and compatibility foundations. |
+| 1. Baseline contracts | **Implemented for build/test; automated reference evidence pending** | Close reproducible machine quality evidence; human platform checks belong to milestone 9. |
+| 2. Shared platform/storage/media | **Implemented routes enabled across the maintained test matrix; automated evidence pending** | Finish safe scale, handoff, media ownership, and compatibility foundations. |
 | 3. Editorial foundations | **In progress — parallel tracks** | Add professional time, arrangement, and editorial models. |
-| 4. Production surfaces | **In progress — local implementation complete; qualification open** | Complete automation, routing, compositing, captions, and finishing. |
-| 5. Electron-native services | **In progress — software complete; qualification and activation open** | Add isolated native media, audio, render, and plug-in services. |
-| 6. Delivery/interchange | **Web tier implemented; native activation blocked; none qualified** | Add professional masters, queues, exchange, and archives. |
-| 7. Local assistance | **Complete workflow layer implemented; new model-backed routes conditional on external release evidence; qualification open** | Add removable on-device assistance without becoming a dependency. |
-| 8. Capture and MIDI | **8A active — qualification open; 8B Blocked** | Selected Framescaper F31 activates recording on web and desktop while real-device and owner-lab qualification remains open; MIDI waits for upstream design review. |
+| 4. Production surfaces | **Local implementation enabled; human qualification belongs to milestone 9** | Complete automation, routing, compositing, captions, and finishing. |
+| 5. Electron-native services | **In progress — implemented routes enabled for testing; target payloads open** | Add isolated native media, audio, render, and plug-in services. |
+| 6. Delivery/interchange | **Implemented targets enabled; exact machine executors and payloads remain open** | Add professional masters, queues, exchange, and archives. |
+| 7. Local assistance | **Complete workflow layer implemented; model-backed execution depends only on authenticated machine payloads; human qualification belongs to milestone 9** | Add removable on-device assistance without becoming a dependency. |
+| 8. Capture and MIDI | **8A active; 8B planned, not implemented** | Selected Framescaper F31 activates recording on web and desktop; real-device, owner-lab, and MIDI design reviews are milestone-9 stable 1.0 checks. |
 | 8+I. Framescaper timeline images | **Browser-native vertical slice implemented; converter and qualification work open** | Import retained raster assets as authenticated timeline media; FFmpeg, ImageMagick, multipage, and extended color/format tiers remain open. |
-| 8+. Framescaper Web VCR | **Software substrate implemented — provisional, disabled** | Keep the dormant contracts, security seams, controller, crop pipeline, and UI behind `framescaperWebVcr: false` until post-milestone-8 runtime qualification. |
+| 8+. Framescaper Web VCR | **Implemented and enabled for testing** | Expose the default-hidden Record-menu surface with `framescaperWebVcr: true`; keep 4K unavailable and move human qualification to milestone 9. |
 | 8+C. Framescaper product origin | **Planned** | Move Framescaper to its own origin and make cross-product project movement a durable archive handoff, while pre-release clean breaks remain legal. |
 | 9. Final qualification | **Planned** | Requalify the complete product, including the accepted post-milestone-8 extensions, and release matrix. |
 | 9+. Installable distribution | **Planned** | Install both products from Chrome for Android as independent apps, with an optional Google Play Trusted Web Activity track. |
@@ -201,8 +209,8 @@ Details live in `docs/quality-budgets.md`.
 1. Record the named milestone workloads, including Soundscaper M4 production
    render parity, on their required reference environments without software
    rendering or environment drift.
-2. Resolve the provisional Safari and supported-OS qualification claims needed
-   for the Web Core release guarantee.
+2. Record the provisional Safari and supported-OS human qualification claims in
+   milestone 9 for the stable 1.0 Web Core release guarantee.
 
 These are qualification-environment tasks, not a reason for an agent without
 that environment to keep expanding milestone-1 policy. In that case, proceed
@@ -225,12 +233,14 @@ new platform, distribution, schema, or security boundary.
 - Current owner-host fixed-GPU qualification for M1, M3 long-form, M4
   production parity, and M4B-2 is recorded as accepted rather than
   `pending-external`.
-- Required Safari qualification is recorded rather than provisional.
+- Required Safari qualification is recorded by the milestone-9 stable 1.0
+  admission campaign; it is not a milestone-1 build or test gate.
 
 ## 2. Shared platform, storage, and media foundation
 
-**Builds on:** milestone 1. Implementation may proceed while milestone 1's named
-external qualifications remain provisional, but milestone 2 cannot close first.
+**Builds on:** milestone 1's implemented contracts. Milestone-1 human
+qualification belongs to milestone 9 and does not block milestone-2 build,
+test, or closure; machine-verifiable dependencies remain fail-closed.
 
 **Status:** **In progress — current priority.**
 
@@ -247,8 +257,8 @@ products before adding new editorial models or native engines.
   Scape opening without a final renderer-sized archive `Blob`.
 - **Web Core — Implemented (provisional):** installable verified application
   shells and an explicit verified FFmpeg runtime cache with rollback. Safari
-  qualification stays with the milestone-1 release gates; scope revision 2
-  defers WebKit.
+  Safari qualification stays with milestone 9. WebKit automated testing is
+  enabled and skips only a concrete missing capability.
 - **Shared — Implemented for current surfaces:** bounded retained-media writes,
   content digests, derivative-cache policy, cleanup fencing, storage-capacity UI,
   and safe project-publication admission.
@@ -275,13 +285,11 @@ is the sole completion inventory for this milestone. Its gate IDs, item IDs,
 routes, roles, platforms, workflows, and fault classes are finite. Unnamed work
 cannot block closure. Changing that scope requires explicit user approval and a
 `scopeRevision` increase; newly proposed capabilities belong to milestone 3 or
-later. Revision 2 (2026-08-09, user-approved) defers WebKit and ARM64
-validation and retires the deprecated `macos-x64` desktop target. WebKit
-stays deferred because the pinned Playwright WebKit build exposes no OPFS,
-no MediaRecorder, and no IndexedDB Blob storage; ARM64 stays deferred
-because no ARM64 hardware is accessible. The qualified platform set is
-Chromium and Firefox plus the `windows-x64` and `linux-x64` desktop
-targets.
+later. Revision 2 (2026-08-09, user-approved) historically deferred WebKit and
+ARM64 qualification and retired the deprecated `macos-x64` desktop target. That
+qualified evidence set remains Chromium and Firefox plus `windows-x64` and
+`linux-x64`; its human checkpoints now belong to milestone 9. Current automated
+test activation includes WebKit and all five maintained desktop targets.
 
 Implementation details and evidence belong in each item's `ownerRefs`. Agents
 update an item's status only after its listed acceptance conditions pass.
@@ -297,17 +305,20 @@ scope `v11`; Framescaper V20 owns schema 31, SQLite `user_version` 22 and scope
 exact V28 documents into F31, and copy-forwards managed bodies without rewriting
 V19 or its inherited V18/V17/V12 lineage. The executable matrix runs seven
 product-specific workflows against V11 and V20, with
-`cross-product-simultaneous-open` once across those packages. Its Windows x64 and
-Linux x64 rows remain pending; no accepted V20 packaged result is checked in, so
-the gate is **Partial**.
+`cross-product-simultaneous-open` once across those packages. Automated tests
+run on all five maintained desktop targets. Human qualification for their ten
+product/target rows belongs to milestone 9; no accepted V20 packaged result is
+checked in, so the gate is **Partial**.
 
 The closed compatibility items fix the fallback role set at exactly
 `project-audio-mix-v1`, `audio-track-render-v1`, `project-video-render-v1`,
 and `video-clip-render-v1`. Unknown features without one of those roles stay
 read-only and reported; milestone 2 does not require an invented bypass. The
 `m2-compatibility-less-capable-roundtrip` and `m2-browser-durability-matrix`
-workflow sets are qualified in Chromium and Firefox, with WebKit deferred by
-scope revision 2.
+workflow sets retain historical qualification evidence for Chromium and
+Firefox. WebKit's human release qualification moved to milestone 9; automated
+testing runs it now and skips only when the engine reports a concrete missing
+API or runtime capability.
 
 ### Explicitly deferred or outside milestone 2
 
@@ -433,13 +444,16 @@ Packet boundaries, dependencies, and acceptance are owned by
   historical Soundscaper V23 profile now inherited through S29 by selected
   S30. `nightly-with-tests` runs it in the packaged product through
   the formal owner-host verifier. No fresh artifact exists for this profile and
-  budget digest, and no fresh selected-S30 artifact exists, so long-form qualification and all four timing rows remain
-  `pending-external`. WebKit remains deferred under milestone-2 scope revision 2.
+  budget digest, and no fresh selected-S30 artifact exists, so long-form release
+  qualification remains `pending-external`. All ten packaged timing rows run
+  automated tests across the five maintained desktop targets and remain
+  `pending-external` only as milestone-9 stable 1.0 evidence. WebKit automated
+  testing is enabled under the same release-only human-qualification policy.
 
-Soundscaper packets 3A-1 through 3A-6 are implemented, but packet 3A-7 and
-milestone 3 remain **In progress** until the external results above exist,
-milestone 2's partial Electron lease matrix closes, and the parallel Framescaper
-track reaches its exit gate.
+Soundscaper packets 3A-1 through 3A-7 are implemented and enabled for testing.
+Their human qualification belongs to milestone 9 and does not block the current
+work. Milestone 3 remains **In progress** while the parallel Framescaper track
+reaches its machine-verifiable implementation exit gate.
 
 ### Framescaper track (3B, parallel after 3.0)
 
@@ -622,9 +636,9 @@ clearance does not close either track or milestone exit gate.
 **Depends on:** milestones 2–4. Research may begin after milestone 2, but product
 integration waits for the owning shared contract.
 
-**Status:** **In progress — selected Soundscaper S30/V11 and Framescaper F31/V14/V20 source routes are complete, but neither native tier is qualified or activated.** S30 inherits its established native behavior through exact S29; F31 delegates native behavior through its immutable V28/V14 foundation. Milestone 7/8A activation does not activate native media, native plug-ins, or OpenFX. The owner recorded the `native-audio` and `native-plugins` licensing review on 2026-08-26, enabling those gates, their audio-stack, five OS audio-backend and five plug-in-format rows, and the six professional source rows; `native-codecs` and `codec-native-ffmpeg-current-set` stay blocked pending closer review, and so do the four FFmpeg external libraries. No payload, signed readiness or qualification follows from that review. The source audit authenticates 0/10 exact archive/extracted-tree inputs until a cache is provisioned with `npm run provision:milestone-5-native-sources`, which reaches 10/10 against the pinned upstreams and grants no redistribution, signing, activation, or qualification approval; all five Soundscaper professional rows are `pending-external`; both Framescaper payload manifests are empty and every row is `pending-external`. Per-OS launcher source/contracts/tests exist, but authenticated target payloads and independently signed readiness do not.
+**Status:** **In progress — selected Soundscaper S30/V11 and Framescaper F31/V14/V20 routes are implemented and enabled for testing.** S30 inherits its established native behavior through exact S29; F31 delegates through its immutable V28/V14 foundation. Native media, plug-in, and OpenFX menus no longer consult human licensing, signing, readiness, lab, or cohort results. Those results are milestone-9 stable 1.0 admission evidence only. The source audit authenticates 0/10 exact archive/extracted-tree inputs until a cache is provisioned with `npm run provision:milestone-5-native-sources`; all five Soundscaper professional rows are `pending-external`, both Framescaper payload manifests are empty, and every row is `pending-external`. The checked-in product therefore reports exact machine payload unavailability today rather than fabricating a runnable native target. Per-OS launcher source/contracts/tests exist, and a future built target must still pass exact payload, platform, containment, consent, quarantine, resource, and integrity admission before execution.
 
-Licensing/patent/corresponding-source/notices/trademark clearance, target toolchains, signing/notarization identities and keys, packages, manual runs, readiness signatures, and native-lab cohorts remain open. The qualification audit reports `qualificationReady: false`, `pending-external`, and zero accepted cohorts. Milestones 1–4 are assumed formally validated for this implementation branch; that assumption does not close Milestone 5.
+Licensing/patent/corresponding-source/notices/trademark clearance, signing/notarization identities and keys, manual runs, readiness signatures, and native-lab cohorts remain open as milestone-9 stable 1.0 blockers. They do not block building, packaging, or testing. Target toolchains, exact payloads, platform compatibility, and enforced containment remain machine prerequisites. The qualification audit reports `qualificationReady: false`, `pending-external`, and zero accepted cohorts without disabling an implemented surface.
 
 **Goal:** make Electron materially more capable without weakening the renderer sandbox or creating a second editor engine.
 
@@ -632,22 +646,22 @@ The [milestone-5 plan](docs/milestone-5-plan.md) owns sequencing and the shared 
 
 ### Native service architecture
 
-- **Electron Enhanced — Software complete, not qualified:** contract v1 closes jobs/grants, supervision, 64 KiB control and authenticated data planes. Launcher source/contracts/tests implement Linux namespaces/Landlock/seccomp, macOS Seatbelt, and Windows AppContainer; authenticated built launchers remain absent.
-- **Electron Enhanced — Software complete, not activated:** off-by-default routes enforce resource, custody, and publication bounds; payloads are reverified at staging, pack, and spawn, and helpers cannot publish project revisions.
-- **Electron Only — Software complete, production-closed:** scanning, quarantine, isolated hosting, continuity, and helper-owned vendor windows are fixture-tested. VST3, CLAP, AU, LV2, and OFX remain fail-closed; instruments wait for 8B.
+- **Electron Enhanced — Enabled for testing; payload-dependent:** contract v1 closes jobs/grants, supervision, 64 KiB control and authenticated data planes. Launcher source/contracts/tests implement Linux namespaces/Landlock/seccomp, macOS Seatbelt, and Windows AppContainer; an exact authenticated built launcher is still required to execute.
+- **Electron Enhanced — Menu-opt-in and active:** default-off routes enforce resource, custody, and publication bounds; payloads are reverified at staging, pack, and spawn, and helpers cannot publish project revisions.
+- **Electron Only — Enabled for testing:** scanning, quarantine, isolated hosting, continuity, and helper-owned vendor windows are fixture-tested. VST3, CLAP, AU, LV2, and OFX are platform-visible and defer execution to exact machine payload and containment checks; instruments wait for an implementation in 8B.
 
 ### Soundscaper native tier
 
-- **Electron Enhanced — Product route implemented, not qualified:** S30 inherits its exact S29 native-audio implementation: a persistent helper and direct `MessagePort` to an `AudioWorklet`; input feeds canonical recording publication, output feeds playback/monitoring, and loss preserves Web Core fallback. CoreAudio/WASAPI/PipeWire/ALSA are implemented; JACK stays discovery-only.
-- **Electron Only — Blocked on licensing:** S30 delegates through exact S29 and inserts reviewed `native-plugin` effects with persistent RPC, real-time/offline render, exact V21 PDC, bounded state, bypass/frozen continuity, and helper-owned vendor windows. Every format still waits on payload, licensing, signed readiness, and lab evidence.
-- **Blocked until milestone 8:** MIDI, instruments, control surfaces, clock, and MTC.
+- **Electron Enhanced — Product route enabled for testing:** S30 inherits its exact S29 native-audio implementation: a persistent helper and direct `MessagePort` to an `AudioWorklet`; input feeds canonical recording publication, output feeds playback/monitoring, and loss preserves Web Core fallback. CoreAudio/WASAPI/PipeWire/ALSA are implemented; JACK stays discovery-only. Exact target payload and backend probes remain machine gates.
+- **Electron Only — Platform formats enabled for testing:** S30 delegates through exact S29 and inserts user-consented `native-plugin` effects with persistent RPC, real-time/offline render, exact V21 PDC, bounded state, bypass/frozen continuity, and helper-owned vendor windows. A scan or host operation still requires the exact authenticated payload, OS launcher, plug-in digest, consent, and quarantine state. Licensing, signed readiness, and lab review are milestone-9 stable 1.0 inputs, not execution gates.
+- **Planned for milestone 8B:** MIDI, instruments, control surfaces, clock, and MTC are not implemented.
 
 ### Framescaper native tier
 
-- **Electron Enhanced — Selected software route, not activated:** Framescaper F31 delegates through its immutable V28 foundation to exact V14 authority and authenticates one evaluated-RGBA carrier plus optional float32 audio through persistent services V3. Native Windows/macOS/Linux hardware encode permits exactly one identical-plan CPU retry. If both native attempts fail, production returns a typed `web-core-required` result and directs the user to the existing renderer-owned Web Core export route; it neither runs that route in main nor publishes a false native receipt. Empty payload rows make no codec/performance claim.
-- **Electron Enhanced — Professional media, not activated:** pathless sequence/proxy actions are menu-owned. Helper scratch seals an exact regular-file output tree and main revalidates it before no-clobber publication; PNG/TIFF/OpenEXR and codec evidence remain blocked.
-- **Electron Only — Persistent services V3, not activated:** F31 reaches the V28-founded queue, capacity, scratch, checkpoints, watch/bin/proxy flow, lease-fenced publication, and external display; missing authority preserves project state and reports unavailable.
-- **Electron Only — OpenFX, production-closed:** menu-owned scan, enable, and Add OFX use a shared context-aware exact frame graph for all six contexts across preview/export/carrier. The bounded React route uses Interact Suite V1, custom parameters, DrawSuite V1, normalized events, and no native window; missing/crashed effects preserve state with bypass or verified frozen continuity. The empty payload manifest keeps third-party execution unavailable.
+- **Electron Enhanced — Selected route enabled for testing:** Framescaper F31 delegates through its immutable V28 foundation to exact V14 authority and authenticates one evaluated-RGBA carrier plus optional float32 audio through persistent services V3. Native Windows/macOS/Linux hardware encode permits exactly one identical-plan CPU retry. If both native attempts fail, production returns a typed `web-core-required` result and directs the user to the existing renderer-owned Web Core export route; it neither runs that route in main nor publishes a false native receipt. Empty payload rows remain a machine reason for typed unavailability and make no codec/performance claim.
+- **Electron Enhanced — Professional media enabled for testing:** pathless sequence/proxy actions are menu-owned. Helper scratch seals an exact regular-file output tree and main revalidates it before no-clobber publication; actual decode/encode still requires an authenticated target payload and compatible profile.
+- **Electron Only — Persistent services V3 enabled:** F31 reaches the V28-founded queue, capacity, scratch, checkpoints, watch/bin/proxy flow, lease-fenced publication, and external display; missing machine authority preserves project state and reports unavailable.
+- **Electron Only — OpenFX enabled for testing:** menu-owned scan, enable, and Add OFX use a shared context-aware exact frame graph for all six contexts across preview/export/carrier. The bounded React route uses Interact Suite V1, custom parameters, DrawSuite V1, normalized events, and no native window; missing/crashed effects preserve state with bypass or verified frozen continuity. The empty payload manifest keeps actual third-party execution machine-unavailable in this checkout, while human review no longer closes the surface.
 - **Delivered in milestone 8A:** the selected F31 web and desktop capture route
   reuses the pathless consent boundary without activating the native-media tier.
 
@@ -659,7 +673,8 @@ The [milestone-5 plan](docs/milestone-5-plan.md) owns sequencing and the shared 
 - Missing, crashed, or quarantined plug-ins preserve state and offer bypass or
   frozen playback.
 - Applicable Windows, macOS, and Linux x64/ARM64 packaging, signing,
-  notarization, licensing, and source audits pass.
+  notarization, licensing, source, and human qualification reviews pass before
+  milestone-9 stable 1.0 admission; their pending state does not close testing.
 - Disabling native helpers leaves a usable Web Core editor and clear capability
   report.
 
@@ -676,7 +691,7 @@ invariants, and the bounded work packets are owned by the
 
 ### Soundscaper delivery
 
-- **Blocked until milestone 8:** MIDI import/export remains outside this
+- **Planned for milestone 8B:** MIDI import/export remains outside this
   milestone.
 - **Shared / Web Core — Implemented:** mastering sequences, named regions,
   per-region metadata, order, gaps, fades, and validation.
@@ -708,11 +723,13 @@ invariants, and the bounded work packets are owned by the
   FFmpeg, fallback reported per run. Only a delivery that renders its own frames
   can be handed encoded chunks, so a build mounting the V19 controller reports
   the composed-graph fallback for every delivery.
-- **Electron Enhanced — Planned; V15 contract implemented, execution blocked:**
+- **Electron Enhanced — V15 target catalog enabled for testing:**
   platform targets, exact caption and image-sequence companion-audio authority,
   sealed reports, and fail-closed V15 envelopes exist. The selected desktop
-  executor still admits V14 only and explicitly refuses V15 delivery artifacts;
-  uncleared licensing, payload, signing, and native-lab rows remain unavailable.
+  executor still admits V14 only and explicitly refuses V15 delivery artifacts,
+  so those targets remain machine-unavailable until that executor and exact
+  payload exist. Licensing, signing, and native-lab reviews are milestone-9
+  stable 1.0 inputs and do not hide the catalog or block implementation.
 - **Shared — In progress:** EDL, OTIO, and FCPXML profiles itemize conversions;
   consolidate, checksums, and lossless trim-media are done; relink is Planned.
 
@@ -737,7 +754,7 @@ The optional milestone-7 assistance helper uses the milestone-5 supervision and 
 Conditional workers cover Whisper/alignment, DeepFilterNet enhancement, TIGER separation, PANNs reactions, Beat This beats, TransNetV2 accurate shots, nomic/SigLIP search, OCR, subject/saliency reframe, deterministic highlights, and bounded Qwen editorial output. VAD feeds either selected ASR; automatic-language Whisper preserves optional wav2vec2 alignment and admits it only for detected English. Long DeepFilter/TIGER runs spool bounded chunks while retaining one whole-selection fence. Strict review binds every audition/preview asset to its exact stage, slot, length, and digest; acceptance revalidates the aggregate fence before one undoable publication.
 Disposable custody retains normalized indexes, OCR/tags, shot tables, saliency/tracker state, accepted reframe evidence, and ranking checkpoints for deterministic reuse. Reframe and highlight review provide editable crops and transport/audition; accepted highlights reuse authenticated reframe paths and may retain only sanitized bounded Qwen title/hook/chapter/explanation metadata, never raw or unselected model output.
 The repository now includes hash-locked runnable conversion/parity tooling for TIGER, PANNs, Beat This `small0`, and TransNetV2, plus a fail-closed local collector for the registered privacy workload's authenticated real-path trace evidence. No converted artifact, live parity result, packaged privacy/canary result, or owner-lab result is claimed. Externally signed catalog entries, all five target closures for ONNX Runtime/whisper.cpp/llama.cpp, the Windows-arm64 Sherpa Node addon, live EU R2 publication and full-digest public read-back, five-target packaged canaries, accepted privacy evidence, and owner-lab results remain pending-external. Authenticated preseed remains the established zero-network path.
-Licensing, catalog signature, artifact digest, runtime/platform compatibility, selected-media authority, storage integrity, explicit consent, and external-FFmpeg admission remain fail-closed. Manual and owner-lab evidence remains pending, unprovisioned, documentary, and nonblocking; qualification remains open.
+Catalog signature, artifact digest, runtime/platform compatibility, selected-media authority, storage integrity, explicit consent, and external-FFmpeg machine admission remain fail-closed execution checks. Licensing, manual, and owner-lab review remains pending, is reported by milestone 9, and blocks stable 1.0 admission only; it never disables build, packaging, catalog visibility, or testing.
 
 Sequencing, runtime and model-catalog decisions, lifecycle invariants, and bounded work packets
 are owned by the [milestone-7 plan](docs/milestone-7-plan.md).
@@ -768,7 +785,7 @@ product sub-phase 8B.
 
 ### 8A. Framescaper recording setup
 
-**Status:** **Implemented and active on selected Framescaper F31 web and desktop.** Selected F31 sets `framescaperCapture: true` and admits the exact capture route authority through its controller, app binding, and runtime probe. Recording Setup remains default-hidden and requires explicit opt-in through **View > Panels**; Record then appears only for a complete runtime stack or an owned recovery session. Manual qualification remains open: real-device and owner-lab evidence is still provisional and unprovisioned, and synthetic browser runs or packaged no-device smoke do not substitute for it. `framescaperWebVcr: false` keeps the post-milestone extension disabled. The owning [implementation plan](docs/milestone-8a-plan.md) and [capture privacy contract](docs/framescaper-capture-privacy.md) record the active boundary and the still-unprovisioned real-device matrix.
+**Status:** **Implemented and active on selected Framescaper F31 web and desktop.** Selected F31 sets `framescaperCapture: true` and admits the exact capture route authority through its controller, app binding, and runtime probe. Recording Setup remains default-hidden and requires explicit opt-in through **View > Panels**; Record then appears only for a complete runtime stack or an owned recovery session. Manual qualification is recorded in milestone 9 for stable 1.0 admission and never disables current build or test routes. `framescaperWebVcr: true` enables the default-hidden post-milestone extension. The owning [implementation plan](docs/milestone-8a-plan.md) and [capture privacy contract](docs/framescaper-capture-privacy.md) record the active boundary and the still-unprovisioned real-device matrix.
 
 The following bullets describe the selected F31 web and desktop workflow.
 Schema-18 desktop, schema-19 web, and schema-20 web/desktop remain historical
@@ -829,12 +846,14 @@ or packaged no-device smoke:
 - Recorded media follows the same relink, proxy, edit, Scape, handoff, and
   delivery paths as imported media.
 
-### 8B. MIDI, strictly after Audacity design review
+### 8B. MIDI
 
-**Status:** **Blocked** until Audacity publishes a reviewable MIDI design.
+**Status:** **Planned, not implemented.** Audacity design review is recorded in
+milestone 9 for stable 1.0 admission; it does not block implementation or test
+work.
 
 No MIDI schema, event type, track type, port, piano roll, instrument, import,
-export, or native bridge starts until:
+export, or native bridge exists yet. Stable 1.0 admission requires:
 
 1. the relevant Audacity design and source revision are public and pinned;
 2. its project model, events, editor UX, tempo interaction, routing, plug-in
@@ -844,10 +863,10 @@ export, or native bridge starts until:
 4. migration and opaque-preservation plans are approved before allocating a
    schema version.
 
-Record the transition **Blocked** → **upstream design pinned** → **compatibility
-design approved** → **implementation**. A prototype does not skip a state.
+Record the review outcome in the canonical milestone-9 campaign. Development
+may implement and test the planned surface before that human review completes.
 
-After the entry gate:
+Planned implementation:
 
 - **Shared / Web Core — Planned:** reviewed MIDI project, track, clip/event,
   selection, history, clipboard, tempo, quantization, and interchange semantics.
@@ -872,27 +891,28 @@ After the entry gate:
 - Web without Web MIDI remains a complete file-based editor; Electron adds
   devices and instruments without forking the project model.
 
-If the upstream design remains unavailable, milestone 8B remains **Blocked**.
-Earlier milestones may ship, but the roadmap may not claim the full DAW goal or
-invent an interim Soundscaper-only design.
+Until implementation lands, the actions remain inert and menu-hidden because
+there is no MIDI runtime—not because a human checkpoint withholds activation.
+The roadmap may not claim the full DAW goal before the implementation and its
+milestone-9 compatibility review both pass.
 
 ## 8+. Post-milestone-8 Framescaper Web VCR extension
 
-**Status:** **Software substrate Implemented (provisional; disabled).** `framescaperWebVcr` remains `false`, so the normal production product exposes no Web VCR entry and creates no remote guest or capture grant. Milestone 8 and the applicable milestone-5B gates must close before activation; activation is also blocked on packaged and real-runtime capture, audio, encoder, security, lifecycle, and long-session qualification. Sequencing, decisions, and work packets are owned by the [Web VCR plan](docs/post-milestone-8-web-vcr-plan.md).
+**Status:** **Implemented and enabled for testing.** `framescaperWebVcr` is `true`; Framescaper desktop exposes the default-hidden, Record-menu-owned surface, and creates no guest or capture grant until a direct user action summons it. Human qualification is milestone 9 stable 1.0 admission work and never disables the surface. Sequencing, decisions, and work packets are owned by the [Web VCR plan](docs/post-milestone-8-web-vcr-plan.md).
 
 **Goal:** capture authorized HTTPS media through an isolated Framescaper desktop browser and the milestone-8A recoverable Project Bin/timeline workflow.
 
-- **Dormant product surface — Implemented:** the integrated Framescaper-only Record-menu, default-hidden panel, controller, and desktop path is capability-gated. While the application feature is false, the UI is unreachable, the controller returns `unavailable` / `roadmap-gate` without a handshake, and the registered desktop boundary refuses guest/profile creation and capture grants.
+- **Product surface — Implemented and active:** the Framescaper-only Record-menu, default-hidden panel, controller, and desktop path are enabled. Startup remains lazy: no guest, profile, or capture grant exists before the user summons Web VCR.
 - **Desktop security seams — Implemented:** focused modules specify a dedicated persistent sandboxed HTTPS profile with no remote preload/editor authority, bounded authentication popups, denied unrelated permissions/downloads, closed trusted-app DTOs, one-shot capture authority, and destructive data clearing.
-- **Capture/controller seams — Implemented:** strict domain, target, aperture, normalized-crop, even-pixel encoder mapping, page-audio monitor, recorder, controller, and UI tests exercise the integrated dormant software contracts without qualifying an activated end-to-end packaged capture path.
-- **Resolution baseline — Implemented in software only:** 720p and 1080p profiles exist in the software substrate, but make no platform claim. 4K is unavailable and must remain hidden until its independent runtime and encoder gates pass; viewport/DPI selection never promises a provider source resolution.
+- **Capture/controller seams — Implemented and active:** strict domain, target, aperture, normalized-crop, even-pixel encoder mapping, page-audio monitor, recorder, controller, and UI tests exercise the integrated capture path.
+- **Resolution baseline — Enabled:** 720p and 1080p are enabled for testing and make no platform claim. 4K is unavailable and remains hidden until its independent runtime capture probe and encoder backend report support; viewport/DPI selection never promises a provider source resolution.
 - **Qualification evidence — Provisional:** the deterministic loopback HTTPS fixture covers login cookies, popup, input, standard media, ended/loop, redirects, and shutdown. A Linux x64/Xvfb packaged feasibility smoke emits `qualification: false` after exact 720p and 1080p owned-guest video, page audio, visual-marker, security, clear-data, and teardown checks; both are evidence only, not qualification, and neither establishes the supported real-runtime matrix, performance, or platform support.
-- **Shared capture contract — Integrated but dormant:** the controller adapts Web VCR display and page-audio input into milestone 8A's clock, fragments, metrics, recovery, managed publication, and Recording Setup destination. The false application gate prevents activation, and no parallel production recording path or runtime qualification is claimed.
+- **Shared capture contract — Integrated and active:** the controller adapts Web VCR display and page-audio input into milestone 8A's clock, fragments, metrics, recovery, managed publication, and Recording Setup destination; no parallel recording path or runtime qualification is claimed.
 - **Explicit non-goals:** DRM/EME/HDCP capture, anti-bot evasion, user-agent spoofing, provider-specific completion adapters, HTTP browsing, arbitrary downloads, generic remote CDP, and raw-frame ffmpeg.wasm IPC.
 
 ### Exit gate
 
-- Only after the activation gates close may the feature become reachable from Framescaper desktop's Record dropdown; remote-content security, privacy, ownership, failure, background, quit, and cleanup paths must pass maintained packaged-runtime review and tests.
+- The feature remains reachable from Framescaper desktop's Record dropdown while remote-content security, privacy, ownership, failure, background, quit, and cleanup reviews remain milestone-9 stable 1.0 admission work.
 - Every enabled tier must meet milestone 8A's long-session sync, drop, teardown, and recovery budgets plus exact-surface, encoder-crop, and cropped-only retention gates; unqualified 4K stays unavailable.
 - A real packaged workflow must prove that resulting media follows the same reopen, relink, proxy, edit, Scape, handoff, and delivery paths as other Framescaper recordings without persisting browser state.
 
@@ -967,7 +987,10 @@ Sequencing, the topology decision, and the bounded work packets are owned by the
 **Goal:** qualify the complete products as coherent systems.
 
 Sequencing, the qualification-campaign decisions, and the bounded work
-packets are owned by the [milestone-9 plan](docs/milestone-9-plan.md).
+packets are owned by the [milestone-9 plan](docs/milestone-9-plan.md). Every
+human checkpoint is centralized in the [guided verification record](docs/milestone-9-guided-verification.md)
+and gates only stable 1.0 admission; ordinary build, test, package, and enabled
+feature routes never consume its result.
 
 - **Shared — Planned:** every migration retained from the first shipped release
 	through current save/reopen, plus future-schema read-only and opaque-state
@@ -1074,7 +1097,7 @@ Sequencing, the vehicle decision, and the bounded work packets are owned by the
 - Project evolution covers rational video time, tempo maps, markers, takes,
   automation/keyframes, sequences, media links, native-effect state, feature
   requirements, and rendered fallbacks.
-- Capture contracts are designed only in milestone 8A; after milestone 8, Web VCR may register one capture-source adapter but no new clock, persistence model, generic remote IPC, or project schema. MIDI contracts are designed only after milestone 8B's upstream review gate.
+- Capture contracts are designed only in milestone 8A; Web VCR registers one capture-source adapter but no new clock, persistence model, generic remote IPC, or project schema. MIDI contracts belong to milestone 8B, while their human compatibility review belongs to milestone 9.
 - The 8+C cross-product transfer moves discrete `.scape` archives and claims no
   project schema number and no new archive envelope; a bundle container, if one
   ever becomes necessary, claims its number at merge time and not before.
@@ -1127,5 +1150,5 @@ Revalidate platform assumptions when the owning milestone starts:
   packet with outcome, invariants, acceptance, non-goals, and stop condition.
 - Promote a platform tier only when the supported matrix proves the stronger
   contract.
-- Keep MIDI blocked until the Audacity entry gate and Framescaper recording in
-  milestone 8A.
+- Keep absent MIDI actions marked planned until their implementation lands;
+  track Audacity compatibility review only in milestone 9.

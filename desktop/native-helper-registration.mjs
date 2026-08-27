@@ -160,7 +160,7 @@ export function registerDesktopNativeAudioHelper({
 	});
 }
 
-/** Current production policy blocks every native backend pending reviewed activation evidence. */
+/** Resolve machine activation for native backends; human review never supplies execution authority. */
 export function productionAudioBackendActivated() {
 	return productionSoundscaperAudioBackendActivated(...arguments);
 }
@@ -190,8 +190,9 @@ export function createDesktopNativeAddonHelperSupervisor({
 	const supervisor = new HelperSupervisor({
 		verifyBinary: async () => {
 			descriptor = await verifyPayload();
-			if (professional && role !== 'audio' && !descriptor.productionReadiness) {
-				throw new Error('A professional plug-in helper requires signed production isolation readiness.');
+			if (professional && role !== 'audio'
+				&& (!descriptor.pluginPeer || !descriptor.isolation?.entrypoint)) {
+				throw new Error('A professional plug-in helper requires an authenticated peer/isolation closure.');
 			}
 		},
 		spawn: async () => {

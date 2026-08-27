@@ -149,7 +149,7 @@ export function failClosedFramescaperMediaRevalidation(helperBuildMatches, rootG
 	return Object.freeze({
 		projectRevisionMatches: false, planFingerprintMatches: true,
 		inputFingerprintsMatch: false, rootGrantAuthorized, rootGrantValid: false,
-		licensingCleared: false, helperBuildMatches, scratchIdentityMatches: false,
+		helperBuildMatches, scratchIdentityMatches: false,
 	});
 }
 

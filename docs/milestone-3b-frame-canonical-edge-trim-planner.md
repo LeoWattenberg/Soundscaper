@@ -154,8 +154,9 @@ tools must still cite and satisfy their own foundation coordinate-matrix rows.
 - The production build guard passed with the largest JavaScript chunk at
   387,422 bytes. This deliberately unexposed planner slice makes no browser
   qualification claim of its own.
-- The four packaged Electron timing-probe rows remain `pending-external`, and
-  WebKit remains explicitly deferred.
+- The ten packaged Electron timing-probe rows run automated tests and remain
+  `pending-external` only for milestone-9 release admission; WebKit automated
+  testing is enabled under the same policy.
 
 ## Implementation sequence
 
@@ -188,5 +189,6 @@ tools must still cite and satisfy their own foundation coordinate-matrix rows.
 - Stop if integrating the planner is required to prove the pure model; live UI
   and controller ownership belong to the next bounded slice.
 
-The four packaged Electron timing-probe rows remain `pending-external`, and the
-explicit WebKit deferral remains unchanged.
+The ten packaged Electron timing-probe rows run automated tests and remain
+`pending-external` only for milestone-9 release admission. WebKit automated
+testing is enabled; its human release qualification remains milestone-9 work.

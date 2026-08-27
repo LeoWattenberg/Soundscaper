@@ -60,10 +60,20 @@ export function aggregateMilestone5HandoffMatrix(values) {
 		throw new Error('Milestone 5 handoff matrix package names must be globally unique.');
 	}
 	const groupedBlockers = groupBlockers(cells);
-	const milestoneReleaseReady = matrixInputsAuthenticated
-		? cells.every(({ packageCellReady }) => packageCellReady)
+	const milestoneAutomatedReady = matrixInputsAuthenticated
+		? cells.every(({ packageCellAutomatedReady }) => packageCellAutomatedReady)
 		: null;
 	const first = cells[0];
+	const automatedEvidenceSha256 = sha256(Buffer.from(JSON.stringify({
+		schemaVersion: 1,
+		sourceRevision: first.sourceRevision,
+		applicationVersion: first.packageEvidence.applicationVersion,
+		cells: cells.map((cell) => ({
+			productId: cell.assessmentScope.productId,
+			targetId: cell.assessmentScope.targetId,
+			automatedEvidenceSha256: cell.automatedEvidenceSha256,
+		})),
+	})));
 	return deepFreeze({
 		schemaVersion: 2,
 		assessmentScope: {
@@ -76,19 +86,22 @@ export function aggregateMilestone5HandoffMatrix(values) {
 		qualificationSourceRevision: first.qualification.sourceRevision,
 		applicationVersion: first.packageEvidence.applicationVersion,
 		matrixInputsAuthenticated,
+		milestoneAutomatedReady,
+		automatedEvidenceSha256,
 		engineeringEvidenceAuthenticated: matrixInputsAuthenticated
 			&& cells.every(({ engineeringEvidenceAuthenticated }) => (
 			engineeringEvidenceAuthenticated
 		)),
-		milestoneReleaseReady,
+		milestoneReleaseReady: null,
 		status: matrixInputsAuthenticated
-			? (milestoneReleaseReady ? 'ready' : 'pending-external')
+			? (milestoneAutomatedReady ? 'automated-ready' : 'automated-blocked')
 			: 'unattributed-serialized-cells',
 		packageCount: cells.reduce((count, cell) => count + cell.packageEvidence.packageCount, 0),
 		totalPackageBytes: cells.reduce((total, cell) => (
 			total + cell.packageEvidence.totalPackageBytes
 		), 0),
 		cells: cells.map((cell) => cellSummary(cell, matrixInputsAuthenticated)),
+		automatedBlockers: groupedBlockers,
 		blockers: groupedBlockers,
 	});
 }
@@ -122,7 +135,7 @@ export async function assembleMilestone5HandoffMatrix(optionsValue) {
 		));
 	}
 	const matrix = aggregateMilestone5HandoffMatrix(handoffs);
-	if (!matrix.matrixInputsAuthenticated || matrix.milestoneReleaseReady === null) {
+	if (!matrix.matrixInputsAuthenticated || matrix.milestoneAutomatedReady === null) {
 		throw new Error('Milestone 5 matrix assembly lost its in-process audit authority.');
 	}
 	return matrix;
@@ -201,7 +214,10 @@ function validateCell(cell, identity) {
 	}
 	if (cell.assemblyInputsAuthenticated !== true || cell.sourceInputsAudited !== true
 		|| typeof cell.engineeringEvidenceAuthenticated !== 'boolean'
-		|| (cell.packageCellReady && cell.engineeringEvidenceAuthenticated !== true)) {
+		|| typeof cell.automatedEvidenceAuthenticated !== 'boolean'
+		|| cell.engineeringEvidenceAuthenticated !== cell.automatedEvidenceAuthenticated
+		|| typeof cell.packageCellAutomatedReady !== 'boolean'
+		|| cell.packageCellReady !== null) {
 		throw new Error(`Milestone 5 handoff ${cellId(identity)} is not authenticated.`);
 	}
 	if (!SOURCE_REVISION.test(String(cell.sourceRevision))
@@ -210,17 +226,24 @@ function validateCell(cell, identity) {
 		|| cell.sourceRevisionBinding.sourceRevision !== cell.sourceRevision) {
 		throw new Error(`Milestone 5 handoff ${cellId(identity)} has an invalid source binding.`);
 	}
-	if (cell.milestoneReleaseReady !== null || !Array.isArray(cell.blockers)
-		|| cell.blockers.some((item) => typeof item?.id !== 'string' || item.id.length === 0
+	if (cell.milestoneReleaseReady !== null || !Array.isArray(cell.automatedBlockers)
+		|| !isDeepStrictEqual(cell.blockers, cell.automatedBlockers)
+		|| cell.automatedBlockers.some((item) => typeof item?.id !== 'string' || item.id.length === 0
 			|| typeof item?.reason !== 'string' || item.reason.length === 0)
-		|| new Set(cell.blockers.map(({ id }) => id)).size !== cell.blockers.length) {
+		|| new Set(cell.automatedBlockers.map(({ id }) => id)).size
+			!== cell.automatedBlockers.length
+		|| !SHA256.test(String(cell.automatedEvidenceSha256))
+		|| sha256(Buffer.from(JSON.stringify(cell.automatedEvidence)))
+			!== cell.automatedEvidenceSha256) {
 		throw new Error(`Milestone 5 handoff ${cellId(identity)} has invalid blocker state.`);
 	}
 	const prerequisitesReady = validateReadinessSummary(cell, identity);
 	validateInputDigests(cell, identity);
-	const expectedReady = prerequisitesReady && cell.blockers.length === 0;
-	if (cell.packageCellReady !== expectedReady
-		|| cell.status !== (expectedReady ? 'ready' : 'pending-external')) {
+	const expectedReady = prerequisitesReady && cell.automatedEvidenceAuthenticated
+		&& cell.automatedBlockers.length === 0;
+	if (cell.packageCellAutomatedReady !== expectedReady
+		|| cell.automatedStatus !== (expectedReady ? 'automated-ready' : 'automated-blocked')
+		|| cell.status !== cell.automatedStatus) {
 		throw new Error(`Milestone 5 handoff ${cellId(identity)} has inconsistent cell readiness.`);
 	}
 	validateQualification(cell, identity);
@@ -265,18 +288,27 @@ function validatePackageEvidence(cell, identity) {
 	const releaseAuthentication = evidence?.releaseAuthentication;
 	const policyPath = MILESTONE_5_HANDOFF_INPUT_PATHS.releaseAuthenticationPolicy;
 	const policyEvidence = releaseAuthentication?.policyEvidence;
-	if (!['authenticated', 'pending-external'].includes(releaseAuthentication?.status)
-		|| (releaseAuthentication.status === 'authenticated'
-			? evidence?.status !== 'installed-application-closure-audited'
-			: evidence?.status !== 'release-authentication-pending')
-		|| (releaseAuthentication.status === 'authenticated'
-			? releaseAuthentication.blockedBy !== null
-				|| releaseAuthentication.evidence?.name
-					!== `release-authentication-${identity.productId}-${identity.targetId}.json`
-			: typeof releaseAuthentication.blockedBy !== 'string'
-				|| releaseAuthentication.blockedBy.length < 16
-				|| releaseAuthentication.evidence !== null)
-		|| (cell.packageCellReady && releaseAuthentication.status !== 'authenticated')
+	const expectedAuthenticationName =
+		`release-authentication-${identity.productId}-${identity.targetId}.json`;
+	const releaseObservationValid = releaseAuthentication?.status === 'authenticated'
+		? evidence?.status === 'installed-application-closure-audited'
+			&& releaseAuthentication.blockedBy === null
+			&& releaseAuthentication.evidence?.name === expectedAuthenticationName
+		: releaseAuthentication?.status === 'pending-external'
+			? evidence?.status === 'release-authentication-pending'
+				&& typeof releaseAuthentication.blockedBy === 'string'
+				&& releaseAuthentication.blockedBy.length >= 16
+				&& releaseAuthentication.evidence === null
+			: releaseAuthentication?.status === 'invalid-report-only'
+				&& evidence?.status === 'release-authentication-invalid-report-only'
+				&& typeof releaseAuthentication.blockedBy === 'string'
+				&& releaseAuthentication.blockedBy.length > 0
+				&& [null, expectedAuthenticationName].includes(
+					releaseAuthentication.evidence?.name ?? null,
+				);
+	if (!releaseObservationValid
+		|| evidence?.automatedStatus !== 'installed-application-closure-audited'
+		|| !SHA256.test(String(evidence?.automatedEvidenceSha256))
 		|| evidence.productId !== identity.productId
 		|| evidence.targetId !== identity.targetId || evidence.sourceRevision !== cell.sourceRevision
 		|| typeof evidence.applicationVersion !== 'string' || evidence.applicationVersion.length === 0
@@ -288,13 +320,6 @@ function validatePackageEvidence(cell, identity) {
 		|| policyEvidence.byteLength !== cell.inputDigests?.[policyPath]?.byteLength
 		|| policyEvidence.sha256 !== cell.inputDigests?.[policyPath]?.sha256) {
 		throw new Error(`Milestone 5 handoff ${cellId(identity)} has an unbound package authentication policy.`);
-	}
-	const signatureBlockers = cell.blockers.filter(({ id }) => id === 'package-signature:pending');
-	if (releaseAuthentication.status === 'pending-external'
-		? signatureBlockers.length !== 1
-			|| signatureBlockers[0].reason !== releaseAuthentication.blockedBy
-		: signatureBlockers.length !== 0) {
-		throw new Error(`Milestone 5 handoff ${cellId(identity)} has inconsistent package authentication blockers.`);
 	}
 	const inventory = desktopReleaseTargetPackageInventory(
 		identity.productId,
@@ -311,13 +336,8 @@ function validatePackageEvidence(cell, identity) {
 	}
 	const contentClosures = evidence.packages.map(({ content }) => content);
 	const firstContent = contentClosures[0];
-	if (releaseAuthentication.status === 'pending-external') {
-		if (contentClosures.some((content) => content !== null)) {
-			throw new Error(`Milestone 5 handoff ${cellId(identity)} extracted an unauthenticated package.`);
-		}
-	} else {
-		for (const content of contentClosures) {
-			if (content?.status !== 'installed-resource-closure-audited'
+	for (const content of contentClosures) {
+		if (content?.status !== 'installed-resource-closure-audited'
 			|| content.productId !== identity.productId || content.targetId !== identity.targetId
 			|| content.applicationVersion !== evidence.applicationVersion
 			|| content.sourceRevision !== cell.sourceRevision
@@ -336,8 +356,7 @@ function validatePackageEvidence(cell, identity) {
 			|| content.fileCount !== firstContent.fileCount || content.totalBytes !== firstContent.totalBytes
 			|| content.installedFileCount !== firstContent.installedFileCount
 			|| content.installedTotalBytes !== firstContent.installedTotalBytes) {
-				throw new Error(`Milestone 5 handoff ${cellId(identity)} has invalid package-content evidence.`);
-			}
+			throw new Error(`Milestone 5 handoff ${cellId(identity)} has invalid package-content evidence.`);
 		}
 	}
 	const descriptors = [
@@ -382,10 +401,15 @@ function validatePackageEvidence(cell, identity) {
 function validateReadinessSummary(cell, identity) {
 	const sources = cell.sources;
 	const payloads = cell.payloads;
-	const qualification = cell.qualification;
 	const licensing = cell.licensing;
+	const automatedSources = cell.automatedEvidence?.sources;
+	const automatedPayloads = cell.automatedEvidence?.payloads;
 	const sourceCount = MILESTONE_5_NATIVE_SOURCE_IDS.length;
-	if (sources?.total !== sourceCount || !integerInRange(sources.authenticated, 0, sourceCount)
+	if (cell.automatedEvidence?.schemaVersion !== 1
+		|| !Array.isArray(automatedSources) || automatedSources.length !== sourceCount
+		|| !Array.isArray(automatedPayloads)
+		|| automatedPayloads.length !== MILESTONE_5_PAYLOAD_ROW_COUNT
+		|| sources?.total !== sourceCount || !integerInRange(sources.authenticated, 0, sourceCount)
 		|| !integerInRange(sources.pendingExternal, 0, sourceCount)
 		|| sources.authenticated + sources.pendingExternal !== sources.total
 		|| !integerInRange(sources.activationBlocked, 0, sourceCount)
@@ -398,16 +422,49 @@ function validateReadinessSummary(cell, identity) {
 		|| !uniqueNonemptyStrings(licensing?.blockedPolicyRows)) {
 		throw new Error(`Milestone 5 handoff ${cellId(identity)} has an invalid readiness summary.`);
 	}
-	return sources.authenticated === sources.total
-		&& sources.pendingExternal === 0
-		&& sources.activationBlocked === 0
-		&& payloads.built === MILESTONE_5_PAYLOAD_ROW_COUNT
-		&& qualification.provisionedProfileCount === 18
-		&& qualification.acceptedCohortCount === MILESTONE_5_HANDOFF_WORKLOAD_IDS.length
-		&& qualification.sourceRevision !== null
-		&& qualification.pendingHandoffGates.length === 0
-		&& licensing.disabledGates.length === 0
-		&& licensing.blockedPolicyRows.length === 0;
+	const authenticatedSources = automatedSources.filter(({ authenticationStatus }) => (
+		authenticationStatus === 'authenticated'
+	)).length;
+	const builtPayloads = automatedPayloads.filter(({ buildStatus, payloadEvidence }) => (
+		buildStatus === 'built' && payloadEvidence !== null
+	)).length;
+	if (sources.authenticated !== authenticatedSources
+		|| sources.pendingExternal !== sourceCount - authenticatedSources
+		|| payloads.built !== builtPayloads
+		|| payloads.pendingExternal !== MILESTONE_5_PAYLOAD_ROW_COUNT - builtPayloads
+		|| !isDeepStrictEqual(cell.automatedEvidence.package, automatedPackageEvidence(cell))) {
+		throw new Error(`Milestone 5 handoff ${cellId(identity)} machine summary drifted from automated evidence.`);
+	}
+	return authenticatedSources === sourceCount
+		&& builtPayloads === MILESTONE_5_PAYLOAD_ROW_COUNT
+		&& cell.packageEvidence.packages.every(({ content }) => content !== null);
+}
+
+function automatedPackageEvidence(cell) {
+	const evidence = cell.packageEvidence;
+	return {
+		productId: evidence.productId,
+		targetId: evidence.targetId,
+		applicationVersion: evidence.applicationVersion,
+		sourceRevision: evidence.sourceRevision,
+		runtimeManifest: {
+			name: evidence.runtimeManifest.name,
+			byteLength: evidence.runtimeManifest.byteLength,
+			sha256: evidence.runtimeManifest.sha256,
+		},
+		packages: evidence.packages.map((entry) => ({
+			label: entry.label,
+			name: entry.name,
+			byteLength: entry.byteLength,
+			sha256: entry.sha256,
+			content: entry.content === null ? null : {
+				status: entry.content.status,
+				closureSha256: entry.content.closureSha256,
+				contentManifestSha256: entry.content.contentManifestSha256,
+				installedClosureSha256: entry.content.installedClosureSha256,
+			},
+		})),
+	};
 }
 
 function validateInputDigests(cell, identity) {
@@ -451,32 +508,25 @@ function isAllowedInputDigestPath(path, cell) {
 
 function validateCommonEvidence(cells) {
 	const first = cells[0];
-	const firstGlobalDigests = globalInputDigests(first.inputDigests);
 	for (const cell of cells.slice(1)) {
 		if (cell.sourceRevision !== first.sourceRevision
 			|| cell.packageEvidence.applicationVersion !== first.packageEvidence.applicationVersion
-			|| !isDeepStrictEqual(cell.sources, first.sources)
-			|| !isDeepStrictEqual(cell.payloads, first.payloads)
-			|| !isDeepStrictEqual(cell.qualification, first.qualification)
-			|| !isDeepStrictEqual(cell.licensing, first.licensing)
-			|| !isDeepStrictEqual(globalInputDigests(cell.inputDigests), firstGlobalDigests)) {
-			throw new Error('Milestone 5 handoff matrix cells disagree on source, version, or shared digests.');
+			|| !isDeepStrictEqual(
+				cell.automatedEvidence?.sources,
+				first.automatedEvidence?.sources,
+			)
+			|| !isDeepStrictEqual(
+				cell.automatedEvidence?.payloads,
+				first.automatedEvidence?.payloads,
+			)) {
+			throw new Error('Milestone 5 handoff matrix cells disagree on automated source or payload evidence.');
 		}
 	}
 }
 
-function globalInputDigests(value) {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new Error('Milestone 5 handoff matrix is missing shared input digests.');
-	}
-	return Object.fromEntries(Object.entries(value)
-		.filter(([key]) => !key.startsWith('desktop-package:'))
-		.sort(([left], [right]) => left.localeCompare(right)));
-}
-
 function groupBlockers(cells) {
 	const grouped = new Map();
-	for (const cell of cells) for (const item of cell.blockers) {
+	for (const cell of cells) for (const item of cell.automatedBlockers) {
 		const key = `${item.id}\0${item.reason}`;
 		const entry = grouped.get(key) ?? { id: item.id, reason: item.reason, cells: [] };
 		entry.cells.push(cellId(cell.assessmentScope));
@@ -489,10 +539,11 @@ function cellSummary(cell, authenticated) {
 	return {
 		productId: cell.assessmentScope.productId,
 		targetId: cell.assessmentScope.targetId,
-		packageCellReady: authenticated ? cell.packageCellReady : null,
-		declaredPackageCellReady: cell.packageCellReady,
+		packageCellAutomatedReady: authenticated ? cell.packageCellAutomatedReady : null,
+		declaredPackageCellAutomatedReady: cell.packageCellAutomatedReady,
+		packageCellReady: null,
 		status: authenticated ? cell.status : 'unattributed-serialized-cell',
-		blockerCount: cell.blockers.length,
+		automatedBlockerCount: cell.automatedBlockers.length,
 		packageEvidence: cell.packageEvidence,
 	};
 }

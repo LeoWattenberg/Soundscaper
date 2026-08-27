@@ -35,7 +35,7 @@ function input(overrides: Partial<NativeChildWindowsAuthorityProfileInput> = {})
 		brand: 'soundscaper-professional', target: 'win-x64', launcherId: 'fixture-launcher',
 		launcherSha256: '21'.repeat(32), sandboxProfileSha256: '22'.repeat(32),
 		brokerPolicySha256: '23'.repeat(32), executable: artifact(1, '31'.repeat(32)),
-		reviewedPayload: artifact(2, '32'.repeat(32)), runtimeClosure: Object.freeze([]),
+		workloadPayload: artifact(2, '32'.repeat(32)), runtimeClosure: Object.freeze([]),
 		readOnly: Object.freeze([]), readExecute: Object.freeze([]), writeOnly: Object.freeze([]),
 		...overrides,
 	});

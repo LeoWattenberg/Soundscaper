@@ -6,20 +6,39 @@ import { spawn as nodeSpawn, type ChildProcess, type SpawnOptions } from 'node:c
 import { createHash } from 'node:crypto';
 import { constants } from 'node:fs';
 import { open, type FileHandle } from 'node:fs/promises';
-import { isAbsolute } from 'node:path';
+import { basename, isAbsolute } from 'node:path';
 import type { Readable, Writable } from 'node:stream';
 
 import {
 	bindNativeChildProcess,
-	type NativeChildFramedControl,
 	type NativeChildFramedControlBinding,
 } from './native-child-framed-control.ts';
-import {
-	assertNativeChildReviewedWorkload,
-	projectNativeChildReviewedWorkload,
-	type NativeChildReviewedWorkload,
-} from './native-child-reviewed-workload.ts';
+import type {
+	EnforcedNativeChildLaunch,
+	NativeChildIsolationArtifactDescriptor,
+	NativeChildIsolationCompletion,
+	NativeChildIsolationLaunch,
+	NativeChildIsolationLauncherOptions,
+	NativeChildIsolationLaunchRequest,
+	NativeChildIsolationPathGrant,
+	NativeChildIsolationSpawn as Spawn,
+	NativeChildIsolationTarget,
+	NativeChildMachineWorkload,
+} from './native-child-isolation-contract.ts';
+import { soundscaperProfessionalRuntimeClosureSha256 } from './soundscaper-professional-native-readiness.mjs';
 import { createNativeChildWindowsAuthorityProfile } from './native-child-windows-authority.ts';
+
+export type {
+	EnforcedNativeChildLaunch,
+	NativeChildIsolationArtifactDescriptor,
+	NativeChildIsolationCompletion,
+	NativeChildIsolationLaunch,
+	NativeChildIsolationLauncherOptions,
+	NativeChildIsolationLaunchRequest,
+	NativeChildIsolationPathGrant,
+	NativeChildIsolationTarget,
+	NativeChildMachineWorkload,
+};
 
 const SHA256 = /^[a-f\d]{64}$/u;
 const TARGETS = Object.freeze(['linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64'] as const);
@@ -39,23 +58,7 @@ const MAXIMUM_ARGUMENT_BYTES = 32_768;
 const LINUX_O_PATH = 0x20_0000;
 const LINUX_O_CLOEXEC = 0x8_0000;
 
-export type NativeChildIsolationTarget = (typeof TARGETS)[number];
-
-export interface NativeChildIsolationArtifactDescriptor {
-	readonly path: string;
-	readonly byteLength: number;
-	readonly sha256: string;
-	readonly identity: Readonly<{ readonly dev: number; readonly ino: number }>;
-}
-
-export interface NativeChildIsolationPathGrant {
-	readonly path: string;
-	readonly kind: 'file' | 'directory';
-	readonly identity: Readonly<{ readonly dev: number; readonly ino: number }>;
-}
-
-export interface NativeChildIsolationReviewedContract {
-	readonly status: 'authenticated';
+interface NativeChildIsolationContainmentAuthority {
 	readonly launcher: Readonly<{
 		readonly schemaVersion: 1;
 		readonly target: NativeChildIsolationTarget;
@@ -70,81 +73,37 @@ export interface NativeChildIsolationReviewedContract {
 		readonly childProcesses: 'denied';
 		readonly dynamicCode: 'admitted-plugin-only' | 'denied';
 	}>;
-	readonly workload: NativeChildReviewedWorkload;
+	readonly workload: NativeChildMachineWorkloadBinding;
 }
 
-export interface NativeChildIsolationLaunchRequest {
-	readonly executable: NativeChildIsolationArtifactDescriptor;
-	readonly arguments: readonly string[];
-	readonly readOnly: readonly NativeChildIsolationPathGrant[];
-	readonly readExecute: readonly NativeChildIsolationPathGrant[];
-	readonly writeOnly: readonly NativeChildIsolationPathGrant[];
-	readonly runtimeClosure?: readonly NativeChildIsolationArtifactDescriptor[];
-	readonly reviewedPayload?: NativeChildIsolationArtifactDescriptor;
-	readonly stdin?: 'ignore' | 'pipe';
-	readonly extraInput?: Readonly<{ readonly childFd: 3 }> | null;
-	readonly framedControl: NativeChildFramedControlBinding | null;
-	readonly resourcePolicy: Readonly<{
-		readonly maximumJobDurationMs: number;
-		readonly maximumRssBytes: number;
-	}>;
+interface RuntimeLibraryBinding {
+	readonly name: string;
+	readonly byteLength: number;
+	readonly sha256: string;
 }
 
-export interface NativeChildIsolationCompletion {
-	readonly exitCode: number;
-	readonly signal: NodeJS.Signals | null;
-	readonly stdout: string;
-	readonly stderr: string;
-}
-
-export interface EnforcedNativeChildLaunch {
-	readonly schemaVersion: 1;
-	readonly kind: 'native-child-os-isolation-enforced';
-	readonly target: NativeChildIsolationTarget;
-	readonly launcherId: string;
-	readonly pid: number;
-}
-
-export interface NativeChildIsolationLaunch {
-	readonly enforcement: EnforcedNativeChildLaunch;
-	readonly stdin: Writable | null;
-	readonly extraInput: Readonly<{ readonly childFd: 3; readonly sink: Writable }> | null;
-	readonly control: NativeChildFramedControl | null;
-	readonly completion: Promise<NativeChildIsolationCompletion>;
-	kill(signal?: NodeJS.Signals): boolean;
-}
-
-type Spawn = (command: string, arguments_: readonly string[], options: SpawnOptions) => ChildProcess;
-
-export interface NativeChildIsolationLauncherOptions {
-	readonly target: NativeChildIsolationTarget;
-	/** Must be the exact branded result of a reopened Ed25519 readiness verifier. */
-	readonly reviewedContract: unknown | null;
-	readonly artifacts: Readonly<{
-		readonly launcher: NativeChildIsolationArtifactDescriptor;
-		readonly sandboxProfile: NativeChildIsolationArtifactDescriptor;
-		readonly brokerPolicy: NativeChildIsolationArtifactDescriptor;
-	}>;
-	readonly spawn?: Spawn;
-	readonly enforcementTimeoutMs?: number;
-}
+type NativeChildMachineWorkloadBinding =
+	| Readonly<{ kind: 'soundscaper'; payloads: readonly string[]; runtimeClosureSha256: string }>
+	| Readonly<{ kind: 'openfx' | 'media'; payloads: readonly string[];
+		readonly runtimeLibraries: readonly RuntimeLibraryBinding[] }>;
 
 const enforcedLaunches = new WeakSet<object>();
 
 export function createNativeChildIsolationLauncher(options: NativeChildIsolationLauncherOptions) {
-	const target = targetValue(options?.target);
-	const reviewed = options?.reviewedContract === null ? null : reviewedContract(options?.reviewedContract, target);
-	const artifacts = artifactSet(options?.artifacts);
-	const spawn = options.spawn ?? nodeSpawn;
-	const enforcementTimeoutMs = boundedInteger(options.enforcementTimeoutMs ?? 5_000, 100, 30_000,
+	const input = closed(options, ['target', 'machineWorkload', 'artifacts', 'spawn', 'enforcementTimeoutMs'], 2);
+	const target = targetValue(input.target);
+	const artifacts = artifactSet(input.artifacts);
+	const containment = machineContainmentAuthority(input.machineWorkload as NativeChildMachineWorkload, target, artifacts);
+	const spawn = input.spawn === undefined ? nodeSpawn : input.spawn as Spawn;
+	if (typeof spawn !== 'function') throw new TypeError('A native isolation spawn seam must be a function.');
+	const enforcementTimeoutMs = boundedInteger(input.enforcementTimeoutMs ?? 5_000, 100, 30_000,
 		'enforcement timeout');
-	const verify = () => verifyProductionArtifacts(target, reviewed, artifacts);
+	const verify = () => verifyMachineArtifacts(target, containment, artifacts);
 	return Object.freeze({
-		productionReady: async () => {
+		machineReady: async () => {
 			try {
 				await verify();
-				if (reviewed === null) throw new Error('A signed native-isolation review is not mounted.');
-				return Object.freeze({ status: 'ready' as const, target, launcherId: reviewed.launcher.launcherId });
+				return Object.freeze({ status: 'ready' as const, target, launcherId: containment.launcher.launcherId });
 			} catch (error) {
 				return Object.freeze({ status: 'unavailable' as const, target, detail: errorMessage(error) });
 			}
@@ -152,11 +111,11 @@ export function createNativeChildIsolationLauncher(options: NativeChildIsolation
 		launch: async (request: NativeChildIsolationLaunchRequest): Promise<NativeChildIsolationLaunch> => {
 			try { await verify(); }
 			catch (error) {
-				throw new Error(`The native child launcher is not production-ready: ${errorMessage(error)}`, { cause: error });
+				throw new Error(`The native child machine-containment launcher is unavailable: ${errorMessage(error)}`,
+					{ cause: error });
 			}
-			if (reviewed === null) throw new Error('A signed native-isolation review is not mounted.');
 			return launchTargetChild({
-				target, reviewed, artifacts, request, spawn, enforcementTimeoutMs,
+				target, containment, artifacts, request, spawn, enforcementTimeoutMs,
 			});
 		},
 	});
@@ -166,43 +125,42 @@ export function isEnforcedNativeChildLaunch(value: unknown): value is EnforcedNa
 	return !!value && typeof value === 'object' && enforcedLaunches.has(value);
 }
 
-async function verifyProductionArtifacts(
+async function verifyMachineArtifacts(
 	target: NativeChildIsolationTarget,
-	reviewed: NativeChildIsolationReviewedContract | null,
+	containment: NativeChildIsolationContainmentAuthority,
 	artifacts: ReturnType<typeof artifactSet>,
 ): Promise<void> {
-	if (reviewed === null) throw new Error('No signed native-isolation review is mounted.');
 	if (runtimeTarget() !== target) {
 		throw new Error(`No actually enforced ${target} native child launcher is implemented on this runtime.`);
 	}
 	const launcherIds = target.startsWith('linux-') ? LINUX_LAUNCHER_IDS
 		: TARGET_LAUNCHER_IDS[target as keyof typeof TARGET_LAUNCHER_IDS] ?? [];
-	if (!launcherIds.includes(reviewed.launcher.launcherId)) {
-		throw new Error('The signed readiness names no admitted target native child launcher.');
+	if (!launcherIds.includes(containment.launcher.launcherId)) {
+		throw new Error('The machine containment contract names no admitted target native child launcher.');
 	}
-	if (reviewed.launcher.launcherPayloadSha256 !== artifacts.launcher.sha256
-		|| reviewed.launcher.sandboxProfileSha256 !== artifacts.sandboxProfile.sha256
-		|| reviewed.launcher.brokerPolicySha256 !== artifacts.brokerPolicy.sha256) {
-		throw new Error('The launcher, sandbox profile, or broker policy digest differs from signed readiness.');
+	if (containment.launcher.launcherPayloadSha256 !== artifacts.launcher.sha256
+		|| containment.launcher.sandboxProfileSha256 !== artifacts.sandboxProfile.sha256
+		|| containment.launcher.brokerPolicySha256 !== artifacts.brokerPolicy.sha256) {
+		throw new Error('The launcher, sandbox profile, or broker policy differs from machine containment.');
 	}
-	const handles = await Promise.all([
-		openAuthenticatedFile(artifacts.launcher),
-		openAuthenticatedFile(artifacts.sandboxProfile),
-		openAuthenticatedFile(artifacts.brokerPolicy),
-	]);
-	await closeAll(handles);
+	const handles: FileHandle[] = [];
+	try {
+		for (const artifact of [artifacts.launcher, artifacts.sandboxProfile, artifacts.brokerPolicy]) {
+			handles.push(await openAuthenticatedFile(artifact));
+		}
+	} finally { await closeAll(handles); }
 }
 
 async function launchTargetChild(options: Readonly<{
 	target: NativeChildIsolationTarget;
-	reviewed: NativeChildIsolationReviewedContract;
+	containment: NativeChildIsolationContainmentAuthority;
 	artifacts: ReturnType<typeof artifactSet>;
 	request: NativeChildIsolationLaunchRequest;
 	spawn: Spawn;
 	enforcementTimeoutMs: number;
 }>): Promise<NativeChildIsolationLaunch> {
 	const request = launchRequest(options.request);
-	assertNativeChildReviewedWorkload(options.reviewed.workload, request);
+	assertMachineWorkload(options.containment.workload, request);
 	const artifactHandles: FileHandle[] = [];
 	let child: ChildProcess | null = null;
 	let completion: Promise<NativeChildIsolationCompletion> | null = null;
@@ -214,8 +172,8 @@ async function launchTargetChild(options: Readonly<{
 			await openAuthenticatedFile(options.artifacts.brokerPolicy),
 			await openAuthenticatedFile(request.executable),
 		);
-		const separateReviewedPayload = request.reviewedPayload.path !== request.executable.path;
-		if (separateReviewedPayload) artifactHandles.push(await openAuthenticatedFile(request.reviewedPayload));
+		const separateWorkloadPayload = request.workloadPayload.path !== request.executable.path;
+		if (separateWorkloadPayload) artifactHandles.push(await openAuthenticatedFile(request.workloadPayload));
 		for (const artifact of request.runtimeClosure) artifactHandles.push(await openAuthenticatedFile(artifact));
 		for (const grant of [...request.readOnly, ...request.readExecute, ...request.writeOnly]) {
 			artifactHandles.push(await openPathGrant(grant));
@@ -232,11 +190,11 @@ async function launchTargetChild(options: Readonly<{
 		];
 		if (options.target.startsWith('win-')) {
 			arguments_.push(`--authority-profile=${windowsAuthorityProfile(
-				options.target, options.reviewed, options.artifacts, request,
+				options.target, options.containment, options.artifacts, request,
 			)}`);
 		}
 		let inheritedFd = 8;
-		if (separateReviewedPayload) arguments_.push(`--read-execute-fd=${String(inheritedFd++)}`);
+		if (separateWorkloadPayload) arguments_.push(`--read-execute-fd=${String(inheritedFd++)}`);
 		for (const _artifact of request.runtimeClosure) arguments_.push(`--read-execute-fd=${String(inheritedFd++)}`);
 		for (const [kind, grants] of [
 			['read-only', request.readOnly], ['read-execute', request.readExecute], ['write-only', request.writeOnly],
@@ -268,7 +226,7 @@ async function launchTargetChild(options: Readonly<{
 		}
 		const enforcement = Object.freeze({
 			schemaVersion: 1 as const, kind: 'native-child-os-isolation-enforced' as const,
-			target: options.target, launcherId: options.reviewed.launcher.launcherId, pid: Number(child.pid),
+			target: options.target, launcherId: options.containment.launcher.launcherId, pid: Number(child.pid),
 		});
 		enforcedLaunches.add(enforcement);
 		const extraInputSink = extraInputSourceFd === null ? null : child.stdio?.[extraInputSourceFd];
@@ -352,7 +310,7 @@ async function openPathGrant(value: NativeChildIsolationPathGrant): Promise<File
 function launchRequest(value: NativeChildIsolationLaunchRequest) {
 	const record = closed(value, [
 		'executable', 'arguments', 'readOnly', 'readExecute', 'writeOnly', 'resourcePolicy', 'framedControl',
-		'runtimeClosure', 'reviewedPayload', 'stdin', 'extraInput',
+		'runtimeClosure', 'workloadPayload', 'stdin', 'extraInput',
 	], 4);
 	const arguments_ = textArray(record.arguments, MAXIMUM_ARGUMENTS, 'native child arguments');
 	if (arguments_.reduce((total, argument) => total + Buffer.byteLength(argument), 0) > MAXIMUM_ARGUMENT_BYTES) {
@@ -382,7 +340,7 @@ function launchRequest(value: NativeChildIsolationLaunchRequest) {
 	return Object.freeze({
 		executable, arguments: arguments_, readOnly, readExecute, writeOnly,
 		resourcePolicy, runtimeClosure,
-		reviewedPayload: record.reviewedPayload === undefined ? executable : artifactDescriptor(record.reviewedPayload),
+		workloadPayload: record.workloadPayload === undefined ? executable : artifactDescriptor(record.workloadPayload),
 		framedControl: record.framedControl === null ? null
 			: record.framedControl as unknown as NativeChildFramedControlBinding,
 		stdin: record.stdin === 'pipe' ? 'pipe' as const : 'ignore' as const,
@@ -396,29 +354,105 @@ function extraInputRequest(value: unknown): Readonly<{ readonly childFd: 3 }> {
 	return Object.freeze({ childFd: 3 });
 }
 
-function reviewedContract(value: unknown, target: NativeChildIsolationTarget): NativeChildIsolationReviewedContract {
-	const projected = projectNativeChildReviewedWorkload(value);
-	const launcherValue = projected.launcher;
-	const soundscaper = projected.workload.kind === 'soundscaper';
-	const launcherFields = [
-		'schemaVersion', 'target', 'launcherId', 'launcherPayloadSha256', 'sandboxProfileSha256',
-		'brokerPolicySha256', 'filesystem', 'network', 'childProcesses', 'dynamicCode',
-	];
-	if (soundscaper) launcherFields.push('peerPayloadSha256', 'runtimeClosureSha256');
-	const launcher = closed(launcherValue, launcherFields);
-	if (launcher.schemaVersion !== 1 || launcher.target !== target
-		|| typeof launcher.launcherId !== 'string' || launcher.launcherId.length > 128
-		|| !digest(launcher.launcherPayloadSha256) || !digest(launcher.sandboxProfileSha256)
-		|| !digest(launcher.brokerPolicySha256)
-		|| (soundscaper && (!digest(launcher.peerPayloadSha256) || !digest(launcher.runtimeClosureSha256)))
-		|| (launcher.filesystem !== 'broker-grant-only' && launcher.filesystem !== 'broker-only')
-		|| launcher.network !== 'denied' || launcher.childProcesses !== 'denied'
-		|| (launcher.dynamicCode !== 'admitted-plugin-only' && launcher.dynamicCode !== 'denied')) {
-		throw new TypeError('An authenticated native-isolation review contract is required.');
+function assertMachineWorkload(
+	workload: NativeChildMachineWorkloadBinding,
+	request: ReturnType<typeof launchRequest>,
+): void {
+	if (!workload.payloads.includes(request.workloadPayload.sha256)) {
+		throw new Error('The native child payload is outside its machine-authenticated workload.');
+	}
+	if (request.runtimeClosure.some(({ path }) => path === request.workloadPayload.path)) {
+		throw new Error('The machine-authenticated workload payload cannot also be a runtime-library row.');
+	}
+	if (workload.kind === 'soundscaper') {
+		if (soundscaperProfessionalRuntimeClosureSha256(request.runtimeClosure)
+			!== workload.runtimeClosureSha256) {
+			throw new Error('The professional runtime closure differs from its machine-authenticated workload.');
+		}
+		if (request.executable.sha256 !== request.workloadPayload.sha256
+			&& !request.runtimeClosure.some(({ sha256 }) => sha256 === request.executable.sha256)) {
+			throw new Error('The professional runtime loader is outside its machine-authenticated closure.');
+		}
+	} else {
+		const libraries = request.executable.sha256 === request.workloadPayload.sha256
+			? request.runtimeClosure : [request.executable, ...request.runtimeClosure];
+		const observed = libraries.map((entry) => ({
+			name: basename(entry.path), byteLength: entry.byteLength, sha256: entry.sha256,
+		})).sort((left, right) => left.name.localeCompare(right.name, 'en'));
+		if (JSON.stringify(observed) !== JSON.stringify(workload.runtimeLibraries)) {
+			throw new Error('The native child runtime libraries differ from its machine-authenticated workload.');
+		}
+	}
+	if (request.executable.sha256 !== request.workloadPayload.sha256
+		&& request.arguments.filter((value) => value === request.workloadPayload.path).length !== 1) {
+		throw new Error('The authenticated runtime loader does not select the machine-authenticated workload payload.');
+	}
+}
+
+function machineContainmentAuthority(
+	value: NativeChildMachineWorkload,
+	target: NativeChildIsolationTarget,
+	artifacts: ReturnType<typeof artifactSet>,
+): NativeChildIsolationContainmentAuthority {
+	const fields = value?.kind === 'soundscaper'
+		? ['kind', 'payloads', 'runtimeClosure']
+		: ['kind', 'payloads', 'runtimeLibraries'];
+	const row = closed(value, fields);
+	if (row.kind !== 'soundscaper' && row.kind !== 'media' && row.kind !== 'openfx') {
+		throw new TypeError('A native isolation machine workload kind is invalid.');
+	}
+	const payloads = artifactArray(row.payloads);
+	const expectedPayloads = row.kind === 'openfx' ? 2 : 1;
+	if (payloads.length !== expectedPayloads) {
+		throw new TypeError('A native isolation machine workload has an invalid payload inventory.');
+	}
+	const framescaper = row.kind !== 'soundscaper';
+	const launcherId = target.startsWith('linux-')
+		? `${framescaper ? 'framescaper' : 'soundscaper'}-linux-landlock-seccomp-namespaces-v1`
+		: target.startsWith('mac-')
+			? `${framescaper ? 'framescaper' : 'soundscaper'}-macos-seatbelt-broker-v1`
+			: `${framescaper ? 'framescaper' : 'soundscaper'}-windows-appcontainer-job-v1`;
+	const commonLauncher = {
+		schemaVersion: 1 as const,
+		target,
+		launcherId,
+		launcherPayloadSha256: artifacts.launcher.sha256,
+		sandboxProfileSha256: artifacts.sandboxProfile.sha256,
+		brokerPolicySha256: artifacts.brokerPolicy.sha256,
+		filesystem: row.kind === 'openfx' ? 'broker-only' as const : 'broker-grant-only' as const,
+		network: 'denied' as const,
+		childProcesses: 'denied' as const,
+		dynamicCode: row.kind === 'media' ? 'denied' as const : 'admitted-plugin-only' as const,
+	};
+	if (row.kind === 'soundscaper') {
+		const runtimeClosure = artifactArray(row.runtimeClosure);
+		return Object.freeze({
+			launcher: Object.freeze({
+				...commonLauncher,
+				peerPayloadSha256: payloads[0]!.sha256,
+				runtimeClosureSha256: soundscaperProfessionalRuntimeClosureSha256(runtimeClosure),
+			}),
+			workload: Object.freeze({
+				kind: 'soundscaper',
+				payloads: Object.freeze(payloads.map(({ sha256 }) => sha256)),
+				runtimeClosureSha256: soundscaperProfessionalRuntimeClosureSha256(runtimeClosure),
+			}),
+		});
+	}
+	const runtimeLibraries = artifactArray(row.runtimeLibraries).map((entry) => Object.freeze({
+		name: basename(entry.path), byteLength: entry.byteLength, sha256: entry.sha256,
+	})).sort((left, right) => left.name.localeCompare(right.name, 'en'));
+	if (new Set(runtimeLibraries.map(({ name }) => name)).size !== runtimeLibraries.length) {
+		throw new TypeError('A native isolation machine workload repeats a runtime-library name.');
 	}
 	return Object.freeze({
-		status: 'authenticated', launcher: Object.freeze({ ...launcher }), workload: projected.workload,
-	}) as NativeChildIsolationReviewedContract;
+		launcher: Object.freeze(commonLauncher),
+		workload: Object.freeze({
+			kind: row.kind,
+			payloads: Object.freeze(payloads.map(({ sha256 }) => sha256)),
+			runtimeLibraries: Object.freeze(runtimeLibraries),
+		}),
+	});
 }
 
 function artifactSet(value: unknown) {
@@ -518,21 +552,21 @@ function errorMessage(error: unknown): string { return error instanceof Error ? 
 
 function windowsAuthorityProfile(
 	target: NativeChildIsolationTarget,
-	reviewed: NativeChildIsolationReviewedContract,
+	containment: NativeChildIsolationContainmentAuthority,
 	artifacts: ReturnType<typeof artifactSet>,
 	request: ReturnType<typeof launchRequest>,
 ): string {
-	const brand = reviewed.workload.kind === 'soundscaper' ? 'soundscaper-professional'
-		: reviewed.workload.kind === 'media' ? 'framescaper-media' : 'framescaper-openfx';
+	const brand = containment.workload.kind === 'soundscaper' ? 'soundscaper-professional'
+		: containment.workload.kind === 'media' ? 'framescaper-media' : 'framescaper-openfx';
 	return createNativeChildWindowsAuthorityProfile({
 		brand,
 		target,
-		launcherId: reviewed.launcher.launcherId,
+		launcherId: containment.launcher.launcherId,
 		launcherSha256: artifacts.launcher.sha256,
 		sandboxProfileSha256: artifacts.sandboxProfile.sha256,
 		brokerPolicySha256: artifacts.brokerPolicy.sha256,
 		executable: request.executable,
-		reviewedPayload: request.reviewedPayload,
+		workloadPayload: request.workloadPayload,
 		runtimeClosure: request.runtimeClosure,
 		readOnly: request.readOnly,
 		readExecute: request.readExecute,

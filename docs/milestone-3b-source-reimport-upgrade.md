@@ -193,7 +193,7 @@ which it appends to.
   undo, which contract 8 exists to prevent.
 - No batch upgrade of every stale source at once. One source, one command, one
   undo entry; a sweep can be built on it once the single case is proven.
-- No relabelling of the four packaged Electron probe rows.
+- No relabelling of the ten automated packaged Electron release-evidence rows.
 
 ## What landing it established
 

@@ -25,6 +25,9 @@ test('professional payload authority is closed for every unbuilt target', async 
 		const release = await verifySoundscaperProfessionalNativePayload({ repositoryRoot: ROOT, target });
 		assert.equal(release.target.status, 'pending-external');
 		assert.equal(release.payload, null);
+		assert.match(release.target.blockedBy, /authenticated.*payload.*built/iu);
+		assert.doesNotMatch(release.target.blockedBy,
+			/licens|review|readiness|signing|notari|qualification|manual|patent|notice/iu);
 	}
 });
 
@@ -79,6 +82,10 @@ test('runtime resolution selects only the authenticated professional payload', a
 	assert.match(available.descriptor.isolation.launcher.path, /milestone5-native-isolation-launcher$/u);
 	assert.equal(available.descriptor.isolation.entrypoint.path, available.descriptor.pluginPeer.path);
 	assert.equal(available.descriptor.sourceAudit.status, 'authenticated');
+	assert.deepEqual(available.descriptor.m9ReleaseReview, {
+		scope: 'stable-1.0-release', status: 'pending',
+		detail: 'No independent professional-native review is recorded for stable 1.0 release admission.',
+	});
 	const pending = await describeSoundscaperProfessionalNativePayload({
 		applicationRoot: ROOT, packaged: false, resourcesPath: '',
 		platform: 'darwin', arch: 'arm64',
@@ -98,19 +105,21 @@ test('a built payload cannot substitute well-shaped source digests for the pinne
 	}), /built record is invalid/iu);
 });
 
-test('signed production readiness is reopened and bound to payload, sources, build and OS launcher', async (context) => {
+test('signed review is M9 metadata and cannot disable the machine-authenticated payload', async (context) => {
 	const fixture = await builtFixture(context, { productionReadiness: true });
 	const release = await verifySoundscaperProfessionalNativePayload({
 		repositoryRoot: fixture.root, target: 'linux-x64',
 	});
-	assert.equal(release.productionReadiness.evidence.status, 'authenticated');
-	assert.equal(release.productionReadiness.evidence.evidence.launcher.network, 'denied');
+	assert.equal(release.m9ReleaseReview.status, 'complete');
+	assert.equal(release.m9ReleaseReview.evidence.evidence.evidence.launcher.network, 'denied');
 	const evidencePath = join(fixture.root,
 		'native/soundscaper-professional-host/prebuilt/linux-x64/soundscaper-professional-native-readiness.json');
 	await writeFile(evidencePath, `${await readFile(evidencePath)} `);
-	await assert.rejects(() => verifySoundscaperProfessionalNativePayload({
+	const changed = await verifySoundscaperProfessionalNativePayload({
 		repositoryRoot: fixture.root, target: 'linux-x64',
-	}), /readiness evidence changed|byte length|signature/iu);
+	});
+	assert.equal(changed.payload.sha256, fixture.sha256);
+	assert.equal(changed.m9ReleaseReview.status, 'invalid');
 });
 
 async function builtFixture(context, options = {}) {

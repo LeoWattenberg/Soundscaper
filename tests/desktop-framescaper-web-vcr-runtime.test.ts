@@ -13,8 +13,8 @@ import {
 const OWNER = Object.freeze(Object.create(null)) as object;
 const RECORDING_TOKEN = 'e'.repeat(32);
 
-test('runtime stays roadmap-gated unless qualification is injected and opens an exact isolated guest', async () => {
-	const gated = runtime({ qualified: false });
+test('runtime stays roadmap-gated unless enabled and opens an exact isolated guest', async () => {
+	const gated = runtime({ enabled: false });
 	assert.deepEqual(gated.value.handshake(), {
 		version: 1,
 		capability: { status: 'unavailable', reason: 'roadmap-gate', detail: null },
@@ -48,7 +48,7 @@ test('runtime stays roadmap-gated unless qualification is injected and opens an 
 	assert.deepEqual(harness.windows[0]?.loaded, ['about:blank']);
 	assert.deepEqual(harness.windows[0]?.audioMuted, [true], 'the trusted captured-track clone is the sole monitor path');
 	assert.equal(harness.observerStarts, 1);
-	await assert.rejects(() => harness.value.open(OWNER, { resolution: '4k' }), /qualified|resolution/iu);
+	await assert.rejects(() => harness.value.open(OWNER, { resolution: '4k' }), /available|resolution/iu);
 });
 
 test('runtime maps canonical normalized input and locks browser mutation to host capture state', async () => {

@@ -145,7 +145,6 @@ test('selected V28 truthfully routes its exact evaluated carrier only through na
 		}),
 		publicationPortFor: publication.portFor,
 		publicationFenceFor: publication.fenceFor,
-		licensingCleared: () => true,
 	});
 
 	const prepared = await authority.prepare(record, ROOT);
@@ -251,7 +250,6 @@ test('selected V28 runs its carrier-free legacy-unmanaged full-frame family on n
 			directoryIdentity: ROOT.directoryIdentity }),
 		publicationPortFor: publication.portFor,
 		publicationFenceFor: publication.fenceFor,
-		licensingCleared: () => true,
 	});
 	const prepared = await authority.prepare(record, ROOT);
 	const result = await prepared.execute!({ signal: new AbortController().signal, onProgress: () => undefined });
@@ -334,7 +332,6 @@ test('selected V28 attempts the opted-in OS baseline encoder once before identic
 			directoryIdentity: ROOT.directoryIdentity }),
 		publicationPortFor: publication.portFor,
 		publicationFenceFor: publication.fenceFor,
-		licensingCleared: () => true,
 	});
 	const prepared = await authority.prepare(record, ROOT);
 	const result = await prepared.execute!({ signal: new AbortController().signal, onProgress: () => undefined });
@@ -414,7 +411,6 @@ test('selected V28 prepares one exact original as a native ProRes Proxy MOV job'
 			directoryIdentity: ROOT.directoryIdentity }),
 		publicationPortFor: publication.portFor,
 		publicationFenceFor: publication.fenceFor,
-		licensingCleared: () => true,
 		recordProxyOutput: (_record, _root, receipt) => {
 			recordedProxyOutput = receipt.sha256 === '34'.repeat(32);
 		},
@@ -575,7 +571,6 @@ function imageSequenceReservationFixture() {
 			platform: 'linux', probeRoot: async () => ({ exists: false, directory: false,
 				symbolicLink: false, canonicalPath: '', volumeIdentity: '', directoryIdentity: '' }),
 			publicationPortFor: () => ({}) as never, publicationFenceFor: () => ({}) as never,
-			licensingCleared: () => true,
 		})
 	);
 	return Object.freeze({ bodies, plan, request, authorityWithBodies, authority: authorityWithBodies(bodies) });

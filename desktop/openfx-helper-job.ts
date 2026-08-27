@@ -270,7 +270,7 @@ export class OpenFxHelperJobRunner implements OpenFxHelperJobRunnerPort {
 			const canonicalGrant = canonicalOpenFxV12NativeGrant({
 				grant, pluginPath: plugin.path, pluginIndex, planPath, timingAssets, inputPaths, outputPath,
 				qualifiedBackends: Object.freeze([
-					'cpu', ...this.#descriptor.productionReadiness.qualifiedGpuBackends,
+					'cpu', ...this.#descriptor.qualifiedGpuBackends,
 				]),
 				maximumControlBytes: OPENFX_HOST_CONTROL_MAXIMUM_BYTES,
 			});

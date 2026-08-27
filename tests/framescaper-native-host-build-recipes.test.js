@@ -64,6 +64,9 @@ test('both recipes own exactly five pending targets and FFmpeg starts from a clo
 			const row = manifest.targets[target.id];
 			assert.equal(row.status, 'pending-external');
 			assert.equal(row.toolchainIdentity, null);
+			assert.match(row.blockedBy, /authenticated.*payload.*built/iu);
+			assert.doesNotMatch(row.blockedBy,
+				/licens|review|readiness|signing|notari|qualification|manual|patent|notice/iu);
 			if (kind === 'media') assert.equal(row.payload, null);
 			else {
 				assert.equal(row.scannerPayload, null);
@@ -77,18 +80,24 @@ test('both recipes own exactly five pending targets and FFmpeg starts from a clo
 	assert.equal(configuration.configureFlags[0], '--disable-everything');
 	assert.deepEqual(configuration.configureFlags.filter((flag) => /--enable-(?:decoder|encoder|demuxer|muxer|protocol)=/u.test(flag)), [
 		'--enable-decoder=prores', '--enable-decoder=pcm_f32le',
+		'--enable-decoder=png', '--enable-decoder=tiff', '--enable-decoder=exr',
 		'--enable-encoder=prores_ks', '--enable-encoder=pcm_s16le',
+		'--enable-encoder=png', '--enable-encoder=tiff', '--enable-encoder=exr',
 		'--enable-demuxer=mov', '--enable-demuxer=wav',
-		'--enable-muxer=mov', '--enable-protocol=file', '--enable-protocol=pipe',
+		'--enable-muxer=mov', '--enable-muxer=image2',
+		'--enable-protocol=file', '--enable-protocol=pipe',
 	]);
 	assert.deepEqual(configuration.policy.externalLibraries, []);
 	assert.equal(configuration.policy.rawFfmpegArguments, false);
 	assert.equal(configuration.policy.network, false);
-	assert.doesNotMatch(configuration.configureFlags.join('\n'), /libx264|libvpx|hevc|av1|png|tiff|exr/iu);
+	assert.match(configuration.configureFlags.join('\n'), /png.*tiff.*exr/isu);
+	assert.doesNotMatch(configuration.configureFlags.join('\n'), /libx264|libvpx|hevc|av1/iu);
+	assert.equal(configuration.policy.payloadPublicationRequiresAuthenticatedTargetEvidence, true);
+	assert.equal(configuration.policy.humanReviewMilestone, 9);
 	const external = validateFramescaperMediaHostExternalSourceManifest(json(join(
 		repositoryRoot, 'native/framescaper-media-host/build/ffmpeg-9.0.1-external-sources.json',
 	)));
-	assert.equal(external.activation, 'blocked-policy');
+	assert.equal(external.activation, 'test-enabled');
 	assert.deepEqual(external.libraries.map(({ id }) => id), FRAMESCAPER_MEDIA_HOST_EXTERNAL_SOURCE_IDS);
 	assert.ok(external.libraries.every(({ sha256, extractedTree }) => (
 		/^[a-f0-9]{64}$/u.test(sha256) && /^[a-f0-9]{64}$/u.test(extractedTree.sha256)

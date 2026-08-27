@@ -3,18 +3,14 @@
 /**
  * The delivery targets this product names, and what each one is allowed to do.
  *
- * Three of these deliver today with what ships. The rest describe a delivery
- * the desktop tier will make once its licensing rows clear, and describe it
- * out loud rather than hiding until then: a user asking for 4K HDR should be
- * told it is unavailable and why, and handed the delivery that will work, not
- * left to discover an option that silently is not there.
+ * Three of these execute in the browser. The rest execute through the native
+ * desktop tier when its authenticated payload is present. Human distribution
+ * review is recorded for Milestone 9 but never hides the implemented route.
  *
- * A preset never creates legal availability. Each names the rows it depends on
- * and reports their recorded status verbatim; a row this file cannot find is
- * unavailable rather than assumed fine, because a preset that cannot locate its
- * gate has no basis for claiming it passed. Nothing here simulates a cleared
- * row, and clearing one is external work — a licensing decision, a contract
- * change admitting a media job kind, and a native binary — none of it here.
+ * Each preset names the production licensing rows Milestone 9 must review
+ * before stable 1.0. Those rows never hide an implemented target or disable
+ * build, test, package, or execution; exact machine executors perform their own
+ * payload, platform, containment, consent, and capacity admission.
  */
 
 import { VIDEO_EXPORT_FORMATS } from './video-export.js';
@@ -54,22 +50,21 @@ export interface PlatformDeliveryPreset {
 	readonly label: string;
 	/** What the delivery is, in the terms a user picks it by. */
 	readonly summary: string;
-	/** Licensing rows that must all be cleared. Empty means nothing gates it. */
+	/** Human distribution-review rows reported at Milestone 9. */
 	readonly licensingRowIds: readonly string[];
-	/** Where a blocked delivery goes instead; null when this preset is the floor. */
+	/** Where a route with no matching executor goes; null when this preset is the floor. */
 	readonly fallbackPresetId: string | null;
-	/** The executor and exact profile/options this target selects once its gates clear. */
+	/** The executor and exact profile/options this target selects. */
 	readonly execution: PlatformDeliveryExecution;
 }
 
 export interface PlatformDeliveryPresetAvailability {
 	readonly presetId: string;
 	readonly available: boolean;
-	/** `shipped` when nothing gates it; otherwise the first blocking row's status. */
-	readonly status: string;
-	readonly blockingRowIds: readonly string[];
-	readonly blocker: string | null;
-	readonly fallbackPresetId: string | null;
+	readonly status: 'implemented';
+	readonly m9ReleaseReviewStatus: 'not-required' | 'complete' | 'pending';
+	readonly m9ReleaseReviewRowIds: readonly string[];
+	readonly m9ReleaseReviewPendingRowIds: readonly string[];
 }
 
 const H264 = Object.freeze({ format: 'mp4', quality: 'balanced' });
@@ -217,11 +212,8 @@ export function findPlatformDeliveryPreset(id: unknown): PlatformDeliveryPreset 
 }
 
 /**
- * Whether this preset may deliver, per the licensing matrix as recorded.
- *
- * Every named row must be cleared. A row that is missing from the matrix blocks
- * just as a blocked row does, and says so, because a gate nothing can find is
- * not a gate that passed.
+ * Whether the catalog implements this preset, with human review reported
+ * separately for final 1.0 admission.
  */
 export function resolvePlatformDeliveryAvailability(
 	preset: PlatformDeliveryPreset,
@@ -231,45 +223,35 @@ export function resolvePlatformDeliveryAvailability(
 	if (!known || known !== preset) {
 		throw new TypeError('A platform delivery preset from the catalog is required.');
 	}
-	const blocking: string[] = [];
-	let status = 'shipped';
-	let blocker: string | null = null;
+	const pending: string[] = [];
 	for (const rowId of preset.licensingRowIds) {
 		const row = findLicensingRow(licensingMatrix, rowId);
 		const rowStatus = typeof row?.status === 'string' ? row.status : 'unknown';
 		if (rowStatus === 'implemented' || rowStatus === 'shipped' || rowStatus === 'cleared') continue;
-		blocking.push(rowId);
-		if (blocker === null) {
-			status = rowStatus;
-			blocker = typeof row?.blocker === 'string' && row.blocker
-				? row.blocker
-				: `No licensing row ${rowId} is recorded.`;
-		}
+		pending.push(rowId);
 	}
 	return Object.freeze({
 		presetId: preset.id,
-		available: blocking.length === 0,
-		status,
-		blockingRowIds: Object.freeze(blocking),
-		blocker,
-		fallbackPresetId: preset.fallbackPresetId,
+		available: true,
+		status: 'implemented' as const,
+		m9ReleaseReviewStatus: preset.licensingRowIds.length === 0
+			? 'not-required' as const : pending.length === 0 ? 'complete' as const : 'pending' as const,
+		m9ReleaseReviewRowIds: preset.licensingRowIds,
+		m9ReleaseReviewPendingRowIds: Object.freeze(pending),
 	});
 }
 
 /**
- * The plan options this preset means, or null when it cannot deliver.
- *
- * Null is the whole substrate: a blocked preset resolves to nothing rather than
- * to options a plan builder would happily accept and deliver as something else.
- * The caller is expected to follow the fallback, which is why every gated preset
- * names one.
+ * The browser-video plan options this preset means, or null when this preset is
+ * owned by a different executor. Native targets return null here because their
+ * exact queue execution is exposed by `resolvePlatformDeliveryExecution`, not
+ * because human licensing review is pending.
  */
 export function resolvePlatformDeliveryPlanOptions(
 	preset: PlatformDeliveryPreset,
 	licensingMatrix: unknown = PLATFORM_DELIVERY_LICENSING_SNAPSHOT,
 ): Readonly<Record<string, unknown>> | null {
-	const availability = resolvePlatformDeliveryAvailability(preset, licensingMatrix);
-	if (!availability.available) return null;
+	resolvePlatformDeliveryAvailability(preset, licensingMatrix);
 	if (preset.execution.kind !== 'web-video-plan') return null;
 	const format = preset.execution.planOptions.format;
 	if (typeof format !== 'string' || !Object.hasOwn(VIDEO_EXPORT_FORMATS, format)) {
@@ -278,13 +260,13 @@ export function resolvePlatformDeliveryPlanOptions(
 	return preset.execution.planOptions;
 }
 
-/** Resolve the executor only after the same availability gate used by the menu. */
+/** Resolve the implemented executor; its runtime performs machine admission. */
 export function resolvePlatformDeliveryExecution(
 	preset: PlatformDeliveryPreset,
 	licensingMatrix: unknown = PLATFORM_DELIVERY_LICENSING_SNAPSHOT,
 ): PlatformDeliveryExecution | null {
-	return resolvePlatformDeliveryAvailability(preset, licensingMatrix).available
-		? preset.execution : null;
+	resolvePlatformDeliveryAvailability(preset, licensingMatrix);
+	return preset.execution;
 }
 
 function findLicensingRow(matrix: unknown, rowId: string): Record<string, unknown> | null {

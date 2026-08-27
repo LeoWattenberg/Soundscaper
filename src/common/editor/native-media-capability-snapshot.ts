@@ -5,8 +5,9 @@
  * milestone-5B native tier can currently do, and why.
  *
  * Runtime capability is an intersection, never a single flag: the pinned helper
- * build, the driver probe, the self-test, the fail-closed licensing row, the
- * master switch, and the user's per-feature opt-in all have to agree. The
+ * build, the driver probe, the self-test, the master switch, and the user's
+ * per-feature opt-in all have to agree. Human policy review remains separate
+ * milestone-9 stable-release metadata. The
  * snapshot keeps those apart so the report stays accurate when any one of them
  * is missing — most importantly when every helper is disabled and the editor
  * falls back to Web Core, where the report must still say what would have been
@@ -95,7 +96,7 @@ export type NativeMediaCapabilityReason = (typeof NATIVE_MEDIA_CAPABILITY_REASON
  * collapsing them loses the answer to "why can I not use this?".
  */
 export interface NativeMediaCapabilityObservationV1 {
-	/** The fail-closed licensing/provenance row for this capability is clear. */
+	/** Report-only milestone-9 licensing/provenance review status. */
 	readonly policyCleared: boolean;
 	/** The native media master switch is on. */
 	readonly masterEnabled: boolean;
@@ -174,8 +175,9 @@ const { exactKeys, plainRecord: record } = createNativeValidators({
 });
 
 /**
- * Every observation defaults to its fail-closed value: nothing is cleared,
- * built, probed, self-tested, or opted into until something says so.
+ * Every observation defaults to its fail-closed value: nothing is built,
+ * probed, self-tested, or opted into until something says so. Policy review
+ * also defaults pending, but it does not affect runtime resolution.
  */
 export const NATIVE_MEDIA_CAPABILITY_CLOSED_OBSERVATION: NativeMediaCapabilityObservationV1 =
 	Object.freeze({
@@ -192,18 +194,15 @@ export const NATIVE_MEDIA_CAPABILITY_CLOSED_OBSERVATION: NativeMediaCapabilityOb
 /**
  * Resolve one capability's state from its observations.
  *
- * Precedence is deliberate. A blocked licensing row dominates everything: it is
- * a permanent, fail-closed fact that must not be masked by a switch the user
- * could flip. Quarantine comes next so a capability that hurt the editor stays
- * visibly quarantined rather than reading as merely off. Only then does the
- * master switch answer, followed by the evidence the capability exists at all,
- * and finally its health.
+ * Precedence is deliberate. Quarantine comes first so a capability that hurt
+ * the editor stays visibly quarantined rather than reading as merely off. Only
+ * then does the master switch answer, followed by the evidence the capability
+ * exists at all, and finally its health.
  */
 export function resolveNativeMediaCapability(
 	observation: Partial<NativeMediaCapabilityObservationV1>,
 ): NativeMediaCapabilityResolutionV1 {
 	const facts = { ...NATIVE_MEDIA_CAPABILITY_CLOSED_OBSERVATION, ...observation };
-	if (!facts.policyCleared) return resolution('blocked-policy', 'policy-row-blocked');
 	if (facts.quarantined) return resolution('quarantined', 'quarantined-after-repeated-failure');
 	if (!facts.masterEnabled) return resolution('disabled', 'master-switch-off');
 	if (!facts.buildSupported) return resolution('unavailable', 'build-does-not-support');

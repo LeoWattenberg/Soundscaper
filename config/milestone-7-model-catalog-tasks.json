@@ -23,10 +23,12 @@
 			],
 			"sourceAuthorities": [],
 			"releaseEvidence": { "publicReadbackSha256": null, "signedCatalogEntrySha256": null },
+			"m9ReleaseReviewStatus": "pending",
+			"m9ReleaseReviewBlockedBy": ["licensing-evidence"],
 			"catalogStatus": "pending-external",
-			"catalogBlockedBy": ["external-catalog-signature", "immutable-public-readback", "licensing-evidence"],
+			"catalogBlockedBy": ["external-catalog-signature", "immutable-public-readback"],
 			"activationStatus": "pending-external",
-			"activationBlockedBy": ["external-catalog-signature", "immutable-public-readback", "licensing-evidence", "runtime-target-closure"]
+			"activationBlockedBy": ["external-catalog-signature", "immutable-public-readback", "runtime-target-closure"]
 		},
 		{
 			"catalogModelId": "tiger-dnr",
@@ -42,10 +44,12 @@
 			],
 			"sourceAuthorities": [],
 			"releaseEvidence": { "publicReadbackSha256": null, "signedCatalogEntrySha256": null },
+			"m9ReleaseReviewStatus": "pending",
+			"m9ReleaseReviewBlockedBy": ["licensing-evidence"],
 			"catalogStatus": "pending-external",
-			"catalogBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "licensing-evidence", "source-framework-parity"],
+			"catalogBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "source-framework-parity"],
 			"activationStatus": "pending-external",
-			"activationBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "licensing-evidence", "runtime-target-closure", "source-framework-parity"]
+			"activationBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "runtime-target-closure", "source-framework-parity"]
 		},
 		{
 			"catalogModelId": "panns-cnn10",
@@ -74,10 +78,12 @@
 				}
 			],
 			"releaseEvidence": { "publicReadbackSha256": null, "signedCatalogEntrySha256": null },
+			"m9ReleaseReviewStatus": "pending",
+			"m9ReleaseReviewBlockedBy": ["licensing-evidence"],
 			"catalogStatus": "pending-external",
-			"catalogBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "licensing-evidence", "source-framework-parity"],
+			"catalogBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "source-framework-parity"],
 			"activationStatus": "pending-external",
-			"activationBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "licensing-evidence", "runtime-target-closure", "source-framework-parity"]
+			"activationBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "runtime-target-closure", "source-framework-parity"]
 		},
 		{
 			"catalogModelId": "beat-this-small0",
@@ -93,10 +99,12 @@
 			],
 			"sourceAuthorities": [],
 			"releaseEvidence": { "publicReadbackSha256": null, "signedCatalogEntrySha256": null },
+			"m9ReleaseReviewStatus": "pending",
+			"m9ReleaseReviewBlockedBy": ["licensing-evidence"],
 			"catalogStatus": "pending-external",
-			"catalogBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "licensing-evidence", "source-framework-parity"],
+			"catalogBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "source-framework-parity"],
 			"activationStatus": "pending-external",
-			"activationBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "licensing-evidence", "runtime-target-closure", "source-framework-parity"]
+			"activationBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "runtime-target-closure", "source-framework-parity"]
 		},
 		{
 			"catalogModelId": "beat-this-final0",
@@ -112,10 +120,12 @@
 			],
 			"sourceAuthorities": [],
 			"releaseEvidence": { "publicReadbackSha256": null, "signedCatalogEntrySha256": null },
+			"m9ReleaseReviewStatus": "pending",
+			"m9ReleaseReviewBlockedBy": ["licensing-evidence"],
 			"catalogStatus": "pending-external",
-			"catalogBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "licensing-evidence", "source-framework-parity"],
+			"catalogBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "source-framework-parity"],
 			"activationStatus": "pending-external",
-			"activationBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "licensing-evidence", "runtime-target-closure", "source-framework-parity"]
+			"activationBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "runtime-target-closure", "source-framework-parity"]
 		},
 		{
 			"catalogModelId": "transnetv2",
@@ -131,10 +141,12 @@
 			],
 			"sourceAuthorities": [],
 			"releaseEvidence": { "publicReadbackSha256": null, "signedCatalogEntrySha256": null },
+			"m9ReleaseReviewStatus": "pending",
+			"m9ReleaseReviewBlockedBy": ["licensing-evidence"],
 			"catalogStatus": "pending-external",
-			"catalogBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "licensing-evidence", "source-framework-parity"],
+			"catalogBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "source-framework-parity"],
 			"activationStatus": "pending-external",
-			"activationBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "licensing-evidence", "runtime-target-closure", "source-framework-parity"]
+			"activationBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "runtime-target-closure", "source-framework-parity"]
 		},
 		{
 			"catalogModelId": "qwen3-4b-q4-k-m",
@@ -156,10 +168,12 @@
 			],
 			"sourceAuthorities": [],
 			"releaseEvidence": { "publicReadbackSha256": null, "signedCatalogEntrySha256": null },
+			"m9ReleaseReviewStatus": "pending",
+			"m9ReleaseReviewBlockedBy": ["licensing-evidence"],
 			"catalogStatus": "pending-external",
-			"catalogBlockedBy": ["external-catalog-signature", "immutable-public-readback", "licensing-evidence"],
+			"catalogBlockedBy": ["external-catalog-signature", "immutable-public-readback"],
 			"activationStatus": "pending-external",
-			"activationBlockedBy": ["external-catalog-signature", "immutable-public-readback", "licensing-evidence", "runtime-target-closure"]
+			"activationBlockedBy": ["external-catalog-signature", "immutable-public-readback", "runtime-target-closure"]
 		}
 	]
 }

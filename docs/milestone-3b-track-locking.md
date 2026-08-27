@@ -213,7 +213,8 @@ rate-stretch, and the remaining keyboard-complete trim feedback.
   reachability needs a new visible control or changes lock into visibility,
   playback exclusion, or project read-only state.
 
-The four packaged Electron timing-probe rows remain `pending-external`, and
-WebKit remains explicitly deferred. A focused Chromium result may qualify only
+The ten packaged Electron timing-probe rows run automated tests and remain
+`pending-external` only for milestone-9 release admission. WebKit automated
+testing is enabled. A focused Chromium result may qualify only
 that workflow; it cannot relabel packaged, crash, power-loss, cross-process, or
 other-browser evidence.

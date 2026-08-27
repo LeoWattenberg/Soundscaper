@@ -1,7 +1,7 @@
 {
 	"schemaVersion": 1,
 	"sourceDateEpoch": 1786492800,
-	"activation": "blocked-policy",
+	"activation": "test-enabled",
 	"libraries": [
 		{
 			"id": "x264",

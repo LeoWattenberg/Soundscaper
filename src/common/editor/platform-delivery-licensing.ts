@@ -9,8 +9,8 @@
  * test reads `config/production-licensing-matrix.json` and fails the moment
  * these two disagree — nothing here may claim a status the matrix does not.
  *
- * Editing this file does not clear a row. Clearing one is a recorded licensing
- * decision in the matrix, and this file follows it rather than leading it.
+ * Editing this file does not clear a row. These statuses feed the milestone-9
+ * stable 1.0 report only; preset visibility and execution never depend on them.
  */
 
 export interface PlatformDeliveryLicensingRow {
@@ -33,12 +33,12 @@ export const PLATFORM_DELIVERY_LICENSING_ROWS: readonly PlatformDeliveryLicensin
 	Object.freeze({
 		id: "codec-native-ffmpeg-current-set",
 		status: "blocked",
-		blocker: "ffmpeg-enabled-library-corresponding-source and ffmpeg-enabled-codec-patent-review remain blocked for the Web runtime, while the native FFmpeg 9.0.1 provider candidate has no reviewed build payload, exact codec/container clearance, signature, or target evidence and is forbidden by the current application-provider package policy. Verification of Electron's separate alternate framework library supplies none of that provider qualification.",
+		blocker: "Milestone-9 stable 1.0 corresponding-source, notices, patent, signing, and target review remains incomplete. The authenticated native FFmpeg 9.0.1 recipe, payload staging, and exact package exception are enabled for build and testing now.",
 	}),
 	Object.freeze({
 		id: "codec-hardware-acceleration",
 		status: "blocked",
-		blocker: "No jurisdiction-specific patent review is recorded for any hardware-accelerated codec path; enablement waits on the native-codecs gate.",
+		blocker: "No jurisdiction-specific patent review is recorded for stable 1.0 admission; machine-complete hardware paths remain enabled for testing.",
 	}),
 	Object.freeze({
 		id: "codec-encode-prores-mov-422-hq",
@@ -53,7 +53,7 @@ export const PLATFORM_DELIVERY_LICENSING_ROWS: readonly PlatformDeliveryLicensin
 	Object.freeze({
 		id: "codec-encode-png-image-sequence",
 		status: "blocked",
-		blocker: "PNG encode is disabled in the native recipe; alpha, sequence, payload, and five-target reviews remain incomplete.",
+		blocker: "PNG encode is enabled for authenticated build and testing; milestone-9 stable 1.0 alpha, sequence, and target review remains incomplete.",
 	}),]);
 
 /** The same rows in the shape the availability resolver reads a matrix in. */

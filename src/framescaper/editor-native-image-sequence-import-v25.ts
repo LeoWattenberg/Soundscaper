@@ -91,7 +91,7 @@ export interface FramescaperImageSequenceNativeAdmissionRequestV25 {
 
 export interface FramescaperImageSequenceImportPortsV25 {
 	capabilities(): Awaitable<unknown>;
-	clearedPolicyRowIds(): Awaitable<readonly string[]>;
+	/** Report-only milestone-9 stable-release review input; composition never awaits it. */
 	createSourcePackWriter(): Awaitable<NativeMediaImageSequenceSourcePackWriterV25>;
 	publishInventory(
 		bytes: Uint8Array,
@@ -146,7 +146,6 @@ export async function composeFramescaperImageSequenceImportV25(
 		}));
 	}
 	const inventory = createNativeMediaImageSequenceInventoryV25(resolved, entries);
-	const policyRows = clearedPolicyRows(await options.ports.clearedPolicyRowIds());
 	const writer = await options.ports.createSourcePackWriter();
 	assertWriter(writer);
 	let inventoryPublished = false;
@@ -180,7 +179,6 @@ export async function composeFramescaperImageSequenceImportV25(
 			inventory: inventory.reference,
 			sourcePack,
 			characteristics,
-			clearedPolicyRowIds: policyRows,
 		});
 		await options.commit(
 			projectSource(options.project, descriptor),
@@ -377,7 +375,7 @@ function assertPorts(options: ComposeFramescaperImageSequenceImportV25Options): 
 		throw new TypeError('Candidate image-sequence composition requires selection and commit ports.');
 	}
 	for (const method of [
-		'capabilities', 'clearedPolicyRowIds', 'createSourcePackWriter',
+		'capabilities', 'createSourcePackWriter',
 		'publishInventory', 'cleanupInventory', 'admit',
 	] as const) {
 		if (typeof options.ports?.[method] !== 'function') {
@@ -396,18 +394,6 @@ function assertWriter(value: unknown): asserts value is NativeMediaImageSequence
 			throw new TypeError(`Candidate image-sequence source-pack writer requires ${method}.`);
 		}
 	}
-}
-
-function clearedPolicyRows(value: unknown): readonly string[] {
-	if (!Array.isArray(value) || value.length > 64
-		|| Reflect.ownKeys(value).length !== value.length + 1) {
-		throw new TypeError('Candidate image-sequence policy rows must be a bounded dense array.');
-	}
-	const rows = value.map((row) => stableId(row, 'policy row ID'));
-	if (new Set(rows).size !== rows.length) {
-		throw new TypeError('Candidate image-sequence policy rows must be unique.');
-	}
-	return Object.freeze(rows);
 }
 
 function decodeProfile(extension: string): FramescaperImageSequenceNativeAdmissionRequestV25['profileId'] {

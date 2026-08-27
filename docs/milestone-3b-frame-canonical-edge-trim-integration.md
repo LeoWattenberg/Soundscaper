@@ -138,8 +138,9 @@ current path. Packet 3B-4 remains in progress.
   persistence, linked-audio alignment, one-step undo/redo, an existing pointer
   trim handle, absence of new default-visible controls, and Soundscaper menu
   exclusion.
-- The four packaged Electron timing-probe rows remain `pending-external`, and
-  WebKit remains explicitly deferred. This Chromium result does not relabel
+- The ten packaged Electron timing-probe rows run automated tests and remain
+  `pending-external` only for milestone-9 release admission. WebKit automated
+  testing is enabled. This Chromium result does not relabel
   either deferred matrix.
 
 ## Implementation sequence
@@ -220,6 +221,7 @@ set atomically. That cost is intentionally larger than this integration slice.
 - Stop if the slice needs a new command type, schema revision, capability ID,
   compatibility rule, or persisted derived cache.
 
-The four packaged Electron timing-probe rows remain `pending-external`, and the
-explicit WebKit deferral remains unchanged. This slice may record only its
+The ten packaged Electron timing-probe rows run automated tests and remain
+`pending-external` only for milestone-9 release admission. WebKit automated
+testing is enabled. This slice may record only its
 qualified local Chromium result.

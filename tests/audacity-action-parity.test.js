@@ -14,10 +14,7 @@ import {
 	evaluateAudacityEnableWhen,
 	resolveAudacityActionId,
 } from '../src/common/editor/audacity-action-parity.js';
-import {
-	AUDACITY_ACTION_ROADMAP_DISPOSITION,
-	AUDACITY_MIDI_FENCE,
-} from '../src/common/editor/audacity-action-roadmap.ts';
+import { AUDACITY_ACTION_ROADMAP_DISPOSITION, AUDACITY_MIDI_FENCE } from '../src/common/editor/audacity-action-roadmap.ts';
 import {
 	AUDIO_EDITOR_CRITICAL_APPLICATION_MENU_ACTION_IDS,
 	AUDIO_EDITOR_UNAVAILABLE_APPLICATION_MENU_ACTION_IDS,
@@ -88,7 +85,11 @@ test('every Audacity action has a roadmap disposition with actionable ownership'
 		}
 		assert.match(definition.roadmapMilestone, /^(?:[1-9]|8[AB])$/u, definition.id);
 	}
-	for (const [disposition, count] of dispositions) assert.ok(count > 0, disposition);
+	for (const [disposition, count] of dispositions) {
+		if (disposition === AUDACITY_ACTION_ROADMAP_DISPOSITION.BLOCKED) {
+			assert.equal(count, 0, 'human review cannot block implementation work');
+		} else assert.ok(count > 0, disposition);
+	}
 
 	assert.deepEqual(
 		Object.values(AUDACITY_ACTION_MANIFEST)
@@ -128,11 +129,7 @@ test('every Audacity action has a roadmap disposition with actionable ownership'
 });
 
 test('upstream disabled and TODO actions stay explicit, inert, and user-explainable', () => {
-	const requiredDisabled = [
-		'export-midi',
-		'menu-macros',
-		'reset-configuration',
-	];
+	const requiredDisabled = ['export-midi', 'menu-macros', 'reset-configuration'];
 
 	for (const id of requiredDisabled) {
 		const definition = audacityActionDefinition(id);
@@ -287,7 +284,7 @@ test('milestone 3 import and analysis actions have exact menu ownership and hand
 	}
 });
 
-test('the milestone 8B MIDI fence keeps every pinned action inert and off command surfaces', () => {
+test('the unimplemented milestone 8B MIDI plan stays inert while human review moves to M9', () => {
 	const midiActionIds = ['export-midi', 'midi-device-info', 'local://midi-track'];
 	assert.deepEqual(AUDACITY_MIDI_FENCE.actionIds, midiActionIds);
 	assert.ok(Object.isFrozen(AUDACITY_MIDI_FENCE));
@@ -297,11 +294,13 @@ test('the milestone 8B MIDI fence keeps every pinned action inert and off comman
 		assert.equal(definition.handler, null, id);
 		assert.equal(definition.enableWhen, 'never', id);
 		assert.equal(definition.shortcut, null, id);
-		assert.equal(definition.roadmapDisposition, 'blocked', id);
+		assert.equal(definition.roadmapDisposition, 'planned', id);
 		assert.equal(definition.roadmapMilestone, '8B', id);
-		assert.equal(definition.blockedThroughMilestone, 7, id);
+		assert.equal(definition.releaseReviewMilestone, '9', id);
+		assert.equal(definition.blockedThroughMilestone, undefined, id);
 		assert.match(audacityActionReason(id, 'en'), /milestone 8B/u, id);
-		assert.match(audacityActionReason(id, 'en'), /pending Audacity MIDI design/u, id);
+		assert.match(audacityActionReason(id, 'en'), /not implemented/u, id);
+		assert.match(audacityActionReason(id, 'en'), /stable 1\.0 admission/u, id);
 	}
 
 	const shortcutIds = collectAudacityShortcutCommands([]).map(({ id }) => id);

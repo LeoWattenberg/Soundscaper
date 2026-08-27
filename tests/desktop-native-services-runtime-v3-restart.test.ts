@@ -84,7 +84,7 @@ test('graceful V3 shutdown leaves active atomic work recoverable instead of canc
 		revalidate: ({ rootAuthorized }) => ({
 			projectRevisionMatches: true, planFingerprintMatches: true,
 			inputFingerprintsMatch: true, rootGrantAuthorized: rootAuthorized,
-			rootGrantValid: true, licensingCleared: true, helperBuildMatches: true,
+			rootGrantValid: true, helperBuildMatches: true,
 			scratchIdentityMatches: true,
 		}),
 	});
@@ -137,7 +137,7 @@ test('a queued carrier row restarts into carrier regeneration, not a false finge
 			inputFingerprintsMatch: record.state === 'paused'
 				&& record.lastFailureCode === 'awaiting-carrier-regeneration',
 			rootGrantAuthorized: rootAuthorized,
-			rootGrantValid: true, licensingCleared: true, helperBuildMatches: true,
+			rootGrantValid: true, helperBuildMatches: true,
 			scratchIdentityMatches: true,
 		}),
 	});
@@ -213,7 +213,7 @@ test('a rich-plan proxy restarts without waiting for renderer carrier regenerati
 		now: () => ++now, revalidate: ({ rootAuthorized }) => ({
 			projectRevisionMatches: true, planFingerprintMatches: true,
 			inputFingerprintsMatch: true, rootGrantAuthorized: rootAuthorized,
-			rootGrantValid: true, licensingCleared: true, helperBuildMatches: true,
+			rootGrantValid: true, helperBuildMatches: true,
 			scratchIdentityMatches: true,
 		}),
 		nativeQueueExecution: {
@@ -357,7 +357,7 @@ test('explicit pathless root reauthorization replaces only an identical revoked 
 				projectRevisionMatches: true, planFingerprintMatches: true,
 				inputFingerprintsMatch: true, rootGrantAuthorized: rootAuthorized,
 				rootGrantValid: candidate?.grantId === newGrantId,
-				licensingCleared: true, helperBuildMatches: true, scratchIdentityMatches: true,
+				helperBuildMatches: true, scratchIdentityMatches: true,
 			});
 		},
 	});

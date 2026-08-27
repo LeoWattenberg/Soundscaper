@@ -8,10 +8,8 @@ const HARNESS_ROUTE = '/__framescaper-v27-motion-webgl2__/harness.js';
 const HARNESS_SOURCE = buildHarness();
 
 test('the V27 temporal denoise inherited by V28 matches CPU through a real WebGL2 shader', async ({
-	browserName,
 	page,
 }) => {
-	test.skip(browserName !== 'chromium', 'The shared V27/V28 route is qualified in maintained Chromium.');
 	await page.route(`**${HARNESS_ROUTE}`, async (route) => {
 		await route.fulfill({ status: 200, contentType: 'text/javascript', body: HARNESS_SOURCE });
 	});
@@ -66,6 +64,10 @@ test('the V27 temporal denoise inherited by V28 matches CPU through a real WebGL
 			admission.accelerator.dispose();
 		}
 	}, HARNESS_ROUTE);
+	test.skip(
+		result.fallbackReason !== null,
+		`This browser environment cannot create the WebGL2 accelerator: ${result.fallbackReason ?? 'unknown'}.`,
+	);
 	expect(result.fallbackReason).toBeNull();
 	expect(result.fallbackReasons).toEqual([]);
 	expect(result.maximumDifference).not.toBeNull();

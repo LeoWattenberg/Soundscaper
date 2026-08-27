@@ -95,7 +95,7 @@ sequencing statement this plan controls, `unresolved` is a fact about the
 upstream artifact that may never resolve. Both block distribution
 identically; only their remedies differ.
 
-## Contract 2: distribution status is derived, never authored
+## Contract 2: stable-release distribution status is derived, never authored
 
 `blockedBy` is the sorted list of requirement ids whose status is not
 `recorded`. `distributionStatus` is `permitted` when `blockedBy` is
@@ -103,16 +103,18 @@ empty and `blocked` otherwise. The validator recomputes both and rejects
 a record whose authored values disagree. An incomplete record therefore
 cannot be typo'd, optimised, or hand-waved into a distributable state —
 which is the fail-closed rule expressed as arithmetic rather than as a
-review instruction.
+review instruction. This derived status feeds milestone-9 stable 1.0
+admission only; it cannot hide an authenticated model, block local packaging,
+or disable testing.
 
-## Contract 3: every launch-set record is blocked at this slice
+## Contract 3: every launch-set release record is pending at this slice
 
 `versioned-download-notices-and-hashes` requires a pinned artifact with a
 byte length and a SHA-256. No artifact is mirrored yet — that is WP-7.0.1
 — so this requirement is `pending` for every record and the entire launch
-set is `blocked`. This is recorded as an acceptance assertion, not as an
-incidental outcome: the slice ships a closed gate and proves it is
-closed.
+set is `blocked` for stable 1.0 admission. This is recorded as a release-review
+assertion, not runtime authority: machine-complete catalog entries remain
+visible and testable.
 
 Two records are additionally blocked on `weights-and-code-license-review`
 with status `unresolved`, and they are the reason the mechanism needs

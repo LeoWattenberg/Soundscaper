@@ -3,13 +3,13 @@
 /**
  * The benign format fixtures the plug-in scanner and host are proven against.
  *
- * Every real plug-in format stays fail-closed behind its licensing row, and the
- * milestone's stop condition is explicit that the format waits rather than the
- * gate bending. So the machinery is proven against fixtures that are our own
- * code under our own licence: one source built once per variant, including the
+ * Real plug-in formats are visible for testing and run only through their
+ * authenticated adapters, payloads, and containment authority. The machinery
+ * is also proven against fixtures that are our own code under our own licence:
+ * one source built once per variant, including the
  * ones that genuinely abort, genuinely hang, and genuinely answer with more
  * state than the cap allows — a simulated crash would exercise the simulation
- * rather than the supervision.
+ * rather than the supervision. Human review remains milestone-9 release work.
  *
  * Like the addon, these are pinned per target and audited without a compiler,
  * and only the host's own target is ever built.

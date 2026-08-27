@@ -177,7 +177,7 @@ document change.
 - No baked rotation at ingest: the conform-at-ingest path keeps re-probing its
   own output, so whatever it bakes stays described by the characteristics that
   describe the stored bytes.
-- No relabelling of the four packaged Electron probe rows.
+- No relabelling of the ten automated packaged Electron release-evidence rows.
 - No geometry correction in the unaccelerated preview fallback. It draws the
   decoded element straight into the panel and already mirrors neither the export
   canvas nor the display geometry; making it exact is a change to that renderer

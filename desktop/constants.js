@@ -1,6 +1,7 @@
 import productConfig from './product.json' with { type: 'json' };
 
 export const PRODUCT_ID = (process.env.SCAPE_PRODUCT || productConfig.id) === 'framescaper' ? 'framescaper' : 'soundscaper';
+export const FRAMESCAPER_WEB_VCR_ENABLED = PRODUCT_ID === 'framescaper';
 export const APP_NAME = PRODUCT_ID === 'framescaper' ? 'Framescaper' : 'Soundscaper';
 export const APP_ID = PRODUCT_ID === 'framescaper' ? 'org.framescaper.desktop' : 'org.soundscaper.desktop';
 export const APP_SCHEME = PRODUCT_ID === 'framescaper' ? 'framescaper-app' : 'soundscaper-app';

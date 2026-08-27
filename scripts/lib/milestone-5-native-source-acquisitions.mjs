@@ -454,7 +454,8 @@ function validateFramescaperExternalSourceClosure(register, delegatedBytes) {
 		throw new Error(`Unable to read the delegated FFmpeg external-source manifest: ${error.message}`, { cause: error });
 	}
 	assert(manifest.schemaVersion === 1, 'The FFmpeg external-source schemaVersion must be 1.');
-	assert(manifest.activation === 'blocked-policy', 'FFmpeg external-source activation must stay blocked-policy.');
+	assert(manifest.activation === 'test-enabled',
+		'FFmpeg external-source activation must stay enabled for authenticated build/test use.');
 	const expectedIds = ['x264', 'x265', 'libvpx', 'libopus'];
 	assertExactIds(manifest.libraries, expectedIds, 'FFmpeg external library');
 	for (const library of manifest.libraries) {

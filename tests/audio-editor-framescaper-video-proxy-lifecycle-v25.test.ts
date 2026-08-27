@@ -12,19 +12,18 @@ import { createUnreportedVideoSourceCharacteristicsV25 } from '../src/common/edi
 
 const ROWS = ['codec-native-ffmpeg-current-set', 'codec-encode-prores-mov-proxy'] as const;
 
-test('generation is a ProRes Proxy/MOV queue job and licensing fails closed', async () => {
+test('generation queues ProRes Proxy/MOV while pending licensing remains release metadata', async () => {
 	const fixture = lifecycle();
-	const blocked = await fixture.controller.generate({ sourceId: 'video-1', clearedPolicyRowIds: [] });
-	assert.deepEqual(blocked, {
-		status: 'blocked-policy',
-		blockedPolicyRowIds: [...ROWS],
+	const pending = await fixture.controller.generate({ sourceId: 'video-1', clearedPolicyRowIds: [] });
+	assert.deepEqual(pending, {
+		status: 'queued', jobId: 'job-1', pendingReleasePolicyRowIds: [...ROWS],
 	});
-	assert.equal(fixture.enqueued.length, 0);
+	assert.equal(fixture.enqueued.length, 1);
 
 	const queued = await fixture.controller.generate({ sourceId: 'video-1', clearedPolicyRowIds: ROWS });
-	assert.deepEqual(queued, { status: 'queued', jobId: 'job-1' });
-	assert.equal(fixture.enqueued[0]?.kind, 'media-proxy');
-	assert.deepEqual(fixture.enqueued[0]?.recipe, {
+	assert.deepEqual(queued, { status: 'queued', jobId: 'job-1', pendingReleasePolicyRowIds: [] });
+	assert.equal(fixture.enqueued[1]?.kind, 'media-proxy');
+	assert.deepEqual(fixture.enqueued[1]?.recipe, {
 		recipeId: 'framescaper-native-prores-proxy-mov-v1',
 		recipeVersion: 1,
 		profileId: 'encode-mov-prores-proxy',
@@ -169,7 +168,7 @@ test('the cumulative V26 candidate inherits the complete V25 proxy lifecycle', a
 	assert.equal(fixture.project.schemaVersion, 26);
 	assert.equal(fixture.project.sources[0]?.proxyAttachment?.sha256, '22'.repeat(32));
 	const queued = await fixture.controller.generate({ sourceId: 'video-1', clearedPolicyRowIds: ROWS });
-	assert.deepEqual(queued, { status: 'queued', jobId: 'job-1' });
+	assert.deepEqual(queued, { status: 'queued', jobId: 'job-1', pendingReleasePolicyRowIds: [] });
 });
 
 function lifecycle(

@@ -97,6 +97,12 @@ const EXTERNAL_CODEC_EVIDENCE = [
 	'tests/external-ffmpeg-video-operation-service.test.ts',
 	'tests/desktop-video-codec-registration.test.js',
 ];
+const FRAMESCAPER_NATIVE_MEDIA_EVIDENCE = [
+	'scripts/lib/desktop-codec-policy.mjs',
+	'scripts/lib/framescaper-native-host-payload-staging.mjs',
+	'tests/desktop-codec-policy.test.js',
+	'tests/desktop-framescaper-native-host-payload-staging.test.js',
+];
 
 test('desktop codec security separates Electron framework, application, and external FFmpeg', async () => {
 	const [matrixText, plan] = await Promise.all([
@@ -112,6 +118,7 @@ test('desktop codec security separates Electron framework, application, and exte
 	assertEvidence(helperPayload, BUNDLED_CODEC_EVIDENCE);
 	assertEvidence(helperPayload, OS_CODEC_EVIDENCE);
 	assertEvidence(helperPayload, EXTERNAL_CODEC_EVIDENCE);
+	assertEvidence(helperPayload, FRAMESCAPER_NATIVE_MEDIA_EVIDENCE);
 	assertEvidence(helperPayload, [
 		'src/common/editor/controller/desktop-audio-export-capability.ts',
 		'tests/audio-editor-desktop-export-capability.test.ts',
@@ -120,7 +127,11 @@ test('desktop codec security separates Electron framework, application, and exte
 	]);
 	assert.match(
 		helperPayload.summary,
-		/application supplies no FFmpeg helper engine.*application-supplied FFmpeg.*libav.*FFmpeg WebAssembly.*alternate Chromium libffmpeg.*framework exception.*never a Soundscaper provider tier/iu,
+		/application supplies no general-purpose FFmpeg helper engine.*reject unmanaged FFmpeg programs.*loose libav.*FFmpeg WebAssembly.*archives/iu,
+	);
+	assert.match(
+		helperPayload.summary,
+		/Framescaper.*exact authenticated target media-host payload.*containment closure.*build and test packages.*pending human review cannot withhold it.*alternate Chromium libffmpeg.*framework exception.*never a Soundscaper provider tier/iu,
 	);
 	assert.match(
 		helperPayload.summary,
@@ -138,7 +149,7 @@ test('desktop codec security separates Electron framework, application, and exte
 		'.github/workflows/desktop-preview.yml',
 		...ELECTRON_EVIDENCE,
 		...BUNDLED_CODEC_EVIDENCE,
-		'scripts/lib/desktop-codec-policy.mjs',
+		...FRAMESCAPER_NATIVE_MEDIA_EVIDENCE,
 		'scripts/lib/desktop-renderer-codec-audit.mjs',
 		'scripts/lib/desktop-bundled-codec-notices.mjs',
 		'scripts/lib/desktop-bundled-audio-codec-runtime-closure.mjs',
@@ -159,7 +170,15 @@ test('desktop codec security separates Electron framework, application, and exte
 	]);
 	assert.match(
 		packageIntegrity.summary,
-		/application-codec policy.*reject application-supplied FFmpeg.*libav.*FFmpeg WebAssembly.*static FFmpeg host.*WebM\/AV1 payloads.*exactly seven reviewed compressed-audio WASM files.*libFLAC.*libopus.*libvorbis.*WavPack.*mpg123.*LAME.*TwoLAME.*complete authenticated isolation runtime closure.*exact-length.*SHA-256.*undeclared codec WASM.*deterministic seven-codec corresponding-source ZIP.*target-native OS audio codec.*mac-arm64.*win-x64.*win-arm64.*no mac-x64.*alternate Chromium libffmpeg.*five supported targets.*external-video runner.*ffmpeg\/ffprobe bytes stay outside.*WinGet\/Homebrew.*neither patent clearance nor non-infringement/iu,
+		/application-codec policy.*reject unmanaged FFmpeg programs.*loose libav.*FFmpeg WebAssembly.*archives.*unqualified WebM\/AV1 payloads/iu,
+	);
+	assert.match(
+		packageIntegrity.summary,
+		/admit.*exact Framescaper media-host subtree.*target manifest.*payload.*runtime closure.*isolation launcher.*package inventory.*human release review.*milestone-9 metadata.*never blocks a build or test package/iu,
+	);
+	assert.match(
+		packageIntegrity.summary,
+		/exactly seven reviewed compressed-audio WASM files.*libFLAC.*libopus.*libvorbis.*WavPack.*mpg123.*LAME.*TwoLAME.*complete authenticated isolation runtime closure.*exact-length.*SHA-256.*undeclared codec WASM.*deterministic seven-codec corresponding-source ZIP.*target-native OS audio codec.*mac-arm64.*win-x64.*win-arm64.*no mac-x64.*alternate Chromium libffmpeg.*five supported targets.*external-video runner.*ffmpeg\/ffprobe bytes stay outside.*WinGet\/Homebrew.*neither patent clearance nor non-infringement/iu,
 	);
 	assert.match(
 		plan,

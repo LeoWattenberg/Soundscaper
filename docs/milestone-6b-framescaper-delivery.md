@@ -165,14 +165,13 @@ bound every slice below, and each one narrows scope rather than widening it:
    consumes label tracks through its existing sidecar/burn-in seam; adopting
    the V27 track model remains an explicit later delivery integration rather
    than an implied current capability.
-5. **Every codec-capability licensing row is blocked.** All six rows
-   and the `native-codecs` gate are shut. Helper contract v1 now admits closed
-   media/render kinds, and 5B has V7–V12 plan admission, professional profiles,
-   a V2 queue/controller, and a bounded FFmpeg source host. Both 5B payload
-   manifests remain empty, most unified semantics are typed unsupported, and
-   no licensing, target, signing, or hardware gate is cleared. 6B-4 is
-   therefore a dormant integration candidate and honest declaration, not
-   enablement.
+5. **Codec licensing review is release evidence, not test activation.** The six
+   native targets are implemented and visible for testing. Helper contract v1
+   admits their closed media/render kinds, and 5B has V7–V12 plan admission,
+   professional profiles, a V2 queue/controller, and a bounded FFmpeg source
+   host. Exact payload, target, platform, containment, and project-authority
+   checks still fail closed at execution. The licensing rows are reported by
+   milestone 9 and block stable 1.0 admission only.
 
 Since the plan was first grounded, a V7 keyframe export subsystem
 (`video-keyframe-export-plan-v7.ts` and siblings, FFmpeg-backed, with a
@@ -186,8 +185,8 @@ builders, not beside them.
 Implementation order: **6B-1** (options and the canvas lift) first — every
 later slice consumes its option surface; then **6B-2a/6B-2b** (captions) and
 **6B-3** (WebCodecs tier) in parallel, file-disjoint; **6B-4** substrate after
-WP-6.0.2, its gated rows staying shut; **6B-5** evidence alongside, publishing
-last.
+WP-6.0.2, with its catalog enabled for testing; **6B-5** evidence alongside,
+publishing last.
 
 ## 6B-1 — Canvas, aspect, and delivery options
 
@@ -395,47 +394,42 @@ milestone's gate exists to catch.
   elementary-stream boundary frame-for-frame — an approximate rate is the
   one thing this tier may not trade for speed.
 
-**6B-4's substrate landed on 2026-08-18, and every gated row is still shut.**
-The catalog names nine delivery targets: three deliver today with what ships,
-and six — 4K HDR10, 10-bit SDR, hardware H.264, ProRes mezzanine, alpha
-mezzanine, and PNG image sequences — declare the licensing rows they wait on and
-resolve to no plan at all. A blocked target is followed to its fallback rather
-than refused, so a user who asks for 4K HDR gets 1080p and is told both the
-blocker and the substitution, in the dialog and in the delivery report.
+**6B-4's substrate landed on 2026-08-18 and is enabled for testing.** The
+catalog names nine delivery targets, including six native targets — 4K HDR10,
+10-bit SDR, hardware H.264, ProRes mezzanine, alpha mezzanine, and PNG image
+sequences. Human licensing status never hides or disables them. On the browser
+executor, a native request follows its declared fallback and reports
+`executor-unavailable`; on the native executor, exact payload, target,
+platform, containment, capacity, consent, and project-authority checks decide
+whether work can run.
 
-Nothing here clears a row or simulates one being cleared. The app carries a
-snapshot of only the rows the catalog names, because the matrix is a large
-config document the running product has no other reason to hold, and a test
-reads `config/production-licensing-matrix.json` and fails the moment the two
-disagree — the snapshot follows the recorded decision and cannot lead it. A row
-the matrix does not contain blocks exactly as a blocked row does: a gate nothing
-can find is not a gate that passed.
+The app retains the relevant licensing snapshot for milestone-9 reporting and
+stable 1.0 admission. It is not execution authority, and neither a pending nor
+an unknown human-review row changes build, package, catalog, or test behavior.
 
-## 6B-4 — Electron format tier and platform presets (substrate only until rows clear)
+## 6B-4 — Electron format tier and platform presets
 
 - **Outcome:** the preset and plan substrate for 4K/HDR, 10-bit, hardware
   encode, image sequences, alpha, and mezzanine delivery, and the platform
-  preset catalog — every preset declaring its legal availability from the
-  licensing matrix and degrading visibly, per WP-6.0.2. Against today's
-  matrix that means: presets exist, declare `blocked` per their rows
-  (config/production-licensing-matrix.json:516-576), and resolve to no plan.
-  Enablement of any row is external: a cleared licensing decision plus the
-  serialized 5.0 contract change admitting a media job kind, plus the 5B
-  native binary — none simulated here.
+  preset catalog. Every implemented preset is visible and testable. Browser
+  delivery degrades a native target visibly because that executor cannot run
+  it; native delivery requires an authenticated 5B payload and the exact
+  machine-verifiable runtime authorities. Licensing status is milestone-9
+  stable-release evidence, never current execution authority.
 - **Invariants:** a preset never creates legal availability; no codec byte
   ships ahead of its row; the Electron queue binding stays behind
   `PersistentRenderQueuePortV1`
   (`platform/persistent-render-queue-port.ts:39`) and the unimplemented
   `render-job-port` host seam — no second execution path.
-- **Acceptance:** every catalog preset renders its legal status and
-  fallback; a gated preset's degradation is visible in the dialog and the
-  report; no test simulates a cleared row.
+- **Acceptance:** every catalog preset is selectable; a browser-executor
+  fallback is visible in the dialog and report, while an authenticated native
+  route runs or reports one exact machine-verifiable reason.
 - **Non-goals:** no licensing decisions, no FFmpeg enabled-set growth, no
   helper contract changes — those are 5.0/5B-owned.
-- **Stop condition:** stop on any codec whose milestone-5 gates are not
-  clear — the preset declares unavailability instead; stop if declaring a
-  preset would require inventing a licensing vocabulary the matrix does not
-  already have.
+- **Stop condition:** stop current execution only when an exact payload,
+  platform, containment, capacity, consent, or project-authority check fails.
+  Stop stable 1.0 admission when a required milestone-9 licensing review is
+  pending.
 
 ## 6B-5 — Exit evidence
 

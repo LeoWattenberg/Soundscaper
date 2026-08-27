@@ -74,7 +74,6 @@ function nativeOptions() {
 				masterEnabled: false,
 				entries: [],
 			}),
-			clearedPolicyRowIds: () => [],
 			createSourcePackWriter: () => ({
 				write: () => undefined,
 				commit: () => undefined,

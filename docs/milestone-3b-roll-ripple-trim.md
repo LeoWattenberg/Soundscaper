@@ -256,5 +256,6 @@ do not ripple in this slice.
   facts, or if pointer integration needs a new default-visible surface or changes
   ordinary audio trim/Soundscaper behavior.
 
-The four packaged Electron timing-probe rows remain `pending-external`, and
-WebKit remains deferred. A focused Chromium result qualifies only that workflow.
+The ten packaged Electron timing-probe rows run automated tests and remain
+`pending-external` only for milestone-9 release admission. WebKit automated
+testing is enabled. A focused Chromium result qualifies only that workflow.

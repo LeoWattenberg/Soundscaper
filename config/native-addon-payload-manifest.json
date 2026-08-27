@@ -37,7 +37,7 @@
 			"platform": "linux",
 			"arch": "arm64",
 			"status": "pending-external",
-			"blockedBy": "No Linux ARM64 build host is provisioned; cross-building is external work and is never filled in from another target's bytes.",
+			"blockedBy": "No authenticated Linux ARM64 helper-addon payload has been built for the exact target.",
 			"toolchainIdentity": null,
 			"payload": null
 		},
@@ -46,7 +46,7 @@
 			"platform": "darwin",
 			"arch": "arm64",
 			"status": "pending-external",
-			"blockedBy": "No macOS ARM64 build host is provisioned; the Apple toolchain and signing identity are the named milestone-5 external blockers.",
+			"blockedBy": "No authenticated macOS ARM64 helper-addon payload has been built for the exact target.",
 			"toolchainIdentity": null,
 			"payload": null
 		},
@@ -55,7 +55,7 @@
 			"platform": "win32",
 			"arch": "x64",
 			"status": "pending-external",
-			"blockedBy": "No Windows x64 build host is provisioned; cross-building is external work and is never filled in from another target's bytes.",
+			"blockedBy": "No authenticated Windows x64 helper-addon payload has been built for the exact target.",
 			"toolchainIdentity": null,
 			"payload": null
 		},
@@ -64,7 +64,7 @@
 			"platform": "win32",
 			"arch": "arm64",
 			"status": "pending-external",
-			"blockedBy": "No Windows ARM64 build host is provisioned; cross-building is external work and is never filled in from another target's bytes.",
+			"blockedBy": "No authenticated Windows ARM64 helper-addon payload has been built for the exact target.",
 			"toolchainIdentity": null,
 			"payload": null
 		}

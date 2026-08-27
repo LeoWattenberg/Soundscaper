@@ -3,7 +3,7 @@
 > Owning source for milestone-8A sequencing, capture contracts, durability and
 > recovery invariants, platform decisions, and bounded work packets. The
 > [roadmap](../roadmap.md#8a-framescaper-recording-setup) owns scope and status.
-> Milestone 8B MIDI remains independently blocked and is outside this plan.
+> Milestone 8B MIDI remains planned but unimplemented and is outside this plan.
 
 ## Summary
 
@@ -15,11 +15,11 @@ MIDI remains fenced and unchanged.
 The product sets `framescaperCapture: true` and admits the exact capture route
 authority through its controller, app binding, and runtime probe.
 Recording Setup remains default-hidden and requires explicit opt-in through **View > Panels**.
-`framescaperWebVcr: false` keeps the post-milestone extension disabled.
+`framescaperWebVcr: true` enables the default-hidden, Record-menu-owned
+post-milestone extension for testing.
 Schema-19 web, schema-18 desktop, and schema-20 web/desktop remain historical
-compatibility surfaces. Activation intentionally precedes qualification:
-manual qualification remains open until the provisional, unprovisioned real-device and
-owner-lab matrix passes all six source combinations.
+compatibility surfaces. Manual real-device and owner-lab review is tracked only
+by milestone 9 for stable 1.0 admission and never disables these active routes.
 
 ## Work packets
 
@@ -213,7 +213,7 @@ selection, offline editing, detach, relink, regeneration, and cancellation.
   completion does not qualify that matrix.
 - Update security, privacy, platform-capability, and quality evidence through
   their owning registers and required narrative-sync and digest-repin workflows.
-- Preserve all MIDI fences and leave milestone 8B blocked.
+- Preserve the absent MIDI runtime and leave milestone 8B planned until it is implemented.
 
 #### Committed timing and configured-browser evidence
 

@@ -83,8 +83,8 @@
 		},
 		{
 			"path": "fixture_plugin_abi.h",
-			"byteLength": 3405,
-			"sha256": "48d6cc3c70c46f32183e0240ad24a25b0f3be8e9c6a301c86d94019ba24c5ca5"
+			"byteLength": 3386,
+			"sha256": "3ef91efd2277e0f7eb44b5befce5eff3b810a026887ee2541a1a3688ec4f4bd9"
 		},
 		{
 			"path": "pipewire_session.c",
@@ -140,25 +140,25 @@
 		},
 		"linux-arm64": {
 			"status": "pending-external",
-			"blockedBy": "No Linux ARM64 build host is provisioned; cross-building is external work and is never filled in from another target's bytes.",
+			"blockedBy": "No authenticated Linux ARM64 helper-addon payload has been built for the exact target.",
 			"toolchainIdentity": null,
 			"payload": null
 		},
 		"mac-arm64": {
 			"status": "pending-external",
-			"blockedBy": "No macOS ARM64 build host is provisioned; the Apple toolchain and signing identity are the named milestone-5 external blockers.",
+			"blockedBy": "No authenticated macOS ARM64 helper-addon payload has been built for the exact target.",
 			"toolchainIdentity": null,
 			"payload": null
 		},
 		"win-x64": {
 			"status": "pending-external",
-			"blockedBy": "No Windows x64 build host is provisioned; cross-building is external work and is never filled in from another target's bytes.",
+			"blockedBy": "No authenticated Windows x64 helper-addon payload has been built for the exact target.",
 			"toolchainIdentity": null,
 			"payload": null
 		},
 		"win-arm64": {
 			"status": "pending-external",
-			"blockedBy": "No Windows ARM64 build host is provisioned; cross-building is external work and is never filled in from another target's bytes.",
+			"blockedBy": "No authenticated Windows ARM64 helper-addon payload has been built for the exact target.",
 			"toolchainIdentity": null,
 			"payload": null
 		}
@@ -166,7 +166,7 @@
 	"fixturePlugins": {
 		"root": "native/soundscaper-fixture-plugins",
 		"suffix": ".scapefx",
-		"description": "Benign format fixtures the scanner and host machinery is proven against while every real plug-in format stays fail-closed behind its licensing row.",
+		"description": "Benign format fixtures the scanner and host machinery is proven against while authenticated real plug-in payloads are absent in this checkout.",
 		"sourceFiles": [
 			{
 				"path": "fixture_plugin.c",

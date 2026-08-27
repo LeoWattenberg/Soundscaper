@@ -7,6 +7,10 @@ import {
 	FRAMESCAPER_DATABASE_NAME,
 	FRAMESCAPER_OPFS_DIRECTORY_NAME,
 } from './helpers/editor-databases.js';
+import {
+	DURABLE_MEDIA_STORAGE_REQUIRED,
+	hasDurableMediaStorageCapability,
+} from './helpers/durable-media-storage-capability.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
@@ -23,10 +27,8 @@ test.describe('WP-0.3 browser timing-probe qualification', () => {
 	});
 
 	test('extracts and persists exact CFR and irregular VFR timing with the production FFmpeg probe', async ({
-		browserName,
 		page,
 	}) => {
-		test.skip(browserName === 'webkit', 'Milestone 3 inherits the explicit WebKit qualification deferral.');
 		test.setTimeout(60_000);
 
 		await page.goto('/framescaper/en/');
@@ -36,6 +38,10 @@ test.describe('WP-0.3 browser timing-probe qualification', () => {
 		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 15_000 });
 		const decline = page.getByRole('button', { name: 'Decline', exact: true });
 		if (await decline.isVisible()) await decline.click();
+		test.skip(
+			!await page.evaluate(hasDurableMediaStorageCapability),
+			DURABLE_MEDIA_STORAGE_REQUIRED,
+		);
 
 		await editor.locator('[data-import-input]').setInputFiles(videoTimingProbeMedia.map(({ file }) => file));
 		await expect.poll(async () => (await persistedTimingEvidence(page)).length, {

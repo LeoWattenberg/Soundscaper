@@ -235,12 +235,6 @@ function professional() {
 			sha256: UNIFIED_SHA_A, byteLength: 4_096,
 		},
 		characteristics,
-		clearedPolicyRowIds: [
-			'codec-native-ffmpeg-current-set',
-			'codec-decode-png-image-sequence',
-			'codec-decode-tiff-image-sequence',
-			'codec-decode-openexr-image-sequence',
-		],
 	});
 	return {
 		kind: 'professional-media', nodeId: 'professional-node', sourceNodeId: 'source-node',

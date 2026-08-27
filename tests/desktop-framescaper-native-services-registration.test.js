@@ -110,7 +110,7 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 		revalidate: async (_record, _root, rootAuthorized) => ({
 			projectRevisionMatches: true, planFingerprintMatches: true,
 			inputFingerprintsMatch: true, rootGrantAuthorized: rootAuthorized, rootGrantValid: true,
-			licensingCleared: false, helperBuildMatches: false, scratchIdentityMatches: true,
+			helperBuildMatches: false, scratchIdentityMatches: true,
 		}),
 		prepare: async () => prepared,
 		projectState: () => Object.freeze({ open: true, writable: true }),
@@ -205,10 +205,7 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 				return Object.freeze({ dispose: () => { ipcDisposals += 1; } });
 			},
 		},
-		loadCapabilityPolicy: async () => Object.freeze({
-			nativeCodecsCleared: true, selectedRenderCodecCleared: true, proxyCodecCleared: true,
-			imageSequencesCleared: true, openFxCleared: false,
-		}),
+		loadCapabilityPolicy: () => { throw new Error('human release review must not be read'); },
 	});
 	assert.ok(registration);
 	assert.match(runtimeOptions.databasePath, /framescaper-native-services\.sqlite$/u);
@@ -231,6 +228,10 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	assert.equal(capabilities.value.queueCapacityAuthorityMounted, true);
 	assert.equal(capabilities.value.watchProjectMutationMounted, true);
 	assert.equal(capabilities.value.imageSequenceImportMounted, true);
+	assert.deepEqual(capabilities.value.policy, {
+		nativeCodecsCleared: true, proxyCodecCleared: true,
+		imageSequencesCleared: true, openFxCleared: true,
+	}, 'legacy capability DTO names carry machine execution admission, not human review');
 	assert.equal(capabilities.value.externalDisplay.placementSupported, true);
 	mediaRuntime.payloadAvailability = {
 		status: 'available', descriptor: { sha256: 'b'.repeat(64) },
@@ -248,12 +249,13 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	assert.equal(imageSequenceImportOptions.route.candidateGeneration, 28);
 	assert.equal(imageSequenceImportOptions.project, registrationInput.projectAuthority);
 	assert.equal(imageSequenceImportOptions.controller, controller);
-	assert.equal(imageSequenceImportOptions.policyCleared, true);
+	assert.equal('policyCleared' in imageSequenceImportOptions, false);
+	assert.equal('policyCleared' in openFxServiceOptions, false);
 	assert.equal(await runtimeOptions.nativeQueueExecution.prepare({}, {}), prepared);
 	assert.deepEqual(await runtimeOptions.revalidate({ record: {}, root: {}, rootAuthorized: true }), {
 		projectRevisionMatches: true, planFingerprintMatches: true,
 		inputFingerprintsMatch: true, rootGrantAuthorized: true, rootGrantValid: true,
-		licensingCleared: false, helperBuildMatches: false, scratchIdentityMatches: true,
+		helperBuildMatches: false, scratchIdentityMatches: true,
 	});
 	assert.equal(authorityOptions.project, registrationInput.projectAuthority);
 	assert.equal(selectedV28AuthorityOptions.projectSchemaVersion, 31);
@@ -282,9 +284,6 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	assert.equal(selectedV28AuthorityOptions.watch, projectAuthorityRuntime);
 	assert.equal(selectedV28AuthorityOptions.renderInputs, renderInputStaging);
 	assert.equal(runtimeOptions.checkpointStore, nodePorts.checkpointStore);
-	assert.equal(authorityOptions.licensingCleared({ taskKind: 'encoded-export' }), true);
-	assert.equal(authorityOptions.licensingCleared({ taskKind: 'proxy-generation' }), true);
-	assert.equal(authorityOptions.licensingCleared({ taskKind: 'image-sequence-export' }), true);
 	assert.equal(nodePortOptions.watchLocator, registrationInput.watchImportAuthority.locator);
 	assert.equal(runtimeOptions.nativeMediaEnabled(), false);
 	assert.equal(mediaRuntimeStartOptions.enabled(), false,
@@ -411,10 +410,7 @@ test('a runtime startup failure releases the session display subscription', asyn
 			createCapabilityReport: (value) => ({ value }),
 			externalDisplaySupport: () => ({ supported: false, reason: 'unsupported-platform' }),
 		},
-		loadCapabilityPolicy: async () => ({
-			nativeCodecsCleared: false, selectedRenderCodecCleared: false, proxyCodecCleared: false,
-			imageSequencesCleared: false, openFxCleared: false,
-		}),
+		loadCapabilityPolicy: () => { throw new Error('human release review must not be read'); },
 	}), /startup failed/u);
 	assert.equal(disposals, 1);
 });

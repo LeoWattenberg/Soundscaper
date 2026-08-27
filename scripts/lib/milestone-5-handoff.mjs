@@ -17,13 +17,13 @@ import {
 import {
 	auditMilestone5Payloads,
 	isAuditedMilestone5Payloads,
-	milestone5PayloadRequiresProductionReadiness,
 } from './milestone-5-payload-audit.mjs';
 import {
 	auditMilestone5PackageEvidence,
 	isAuditedMilestone5PackageEvidence,
 } from './milestone-5-package-evidence.mjs';
 import { validateMilestone5PackagePayloadBinding } from './milestone-5-handoff-package-binding.mjs';
+import { assessMilestone5AutomatedReadiness } from './milestone-5-handoff-automated-readiness.mjs';
 import {
 	NATIVE_OS_LAB_PROFILES_V2,
 	NATIVE_OS_LAB_REQUIRED_PROFILE_IDS,
@@ -70,6 +70,7 @@ const HANDOFF_GATE_IDS = Object.freeze([
 const SOURCE_REVISION = /^(?:[a-f\d]{40}|[a-f\d]{64})$/u;
 const ASSEMBLED_HANDOFF_INPUTS = new WeakSet();
 const ASSEMBLED_HANDOFF_OUTPUTS = new WeakSet();
+const ASSEMBLED_HANDOFF_SOURCE_REVISIONS = new WeakMap();
 
 export function assessMilestone5Handoff(inputs) {
 	assertRecord(inputs, 'Milestone 5 handoff inputs');
@@ -79,14 +80,12 @@ export function assessMilestone5Handoff(inputs) {
 	);
 	const sources = validateSourceAcquisitions(inputs.sourceAcquisitions, sourceInputsAudited);
 	const lab = findLab(inputs.qualityBudgets);
-	const workloads = validateWorkloads(inputs.qualityBudgets);
+	validateWorkloads(inputs.qualityBudgets);
 	const qualificationAuthenticated = isAuditedMilestone5QualificationEvidence(
 		inputs.qualificationAudit,
 	);
 	const payloadsAuthenticated = isAuditedMilestone5Payloads(inputs.payloadAudit);
 	const packageAudited = isAuditedMilestone5PackageEvidence(inputs.packageAudit);
-	const packageAuthenticated = packageAudited
-		&& inputs.packageAudit.releaseAuthentication?.status === 'authenticated';
 	const cohorts = qualificationAuthenticated
 		? validateAcceptedCohorts(inputs.qualificationAudit.cohorts)
 		: [];
@@ -100,95 +99,25 @@ export function assessMilestone5Handoff(inputs) {
 		? validateAuditedPayloads(inputs, declaredPayloadRows)
 		: declaredPayloadRows;
 	const licensing = validateMilestone5LicensingReadiness(inputs.licensingMatrix);
-	const blockers = [];
-	if (!assemblyInputsAuthenticated) {
-		blockers.push(blocker('assembly-audit:missing',
-			'No repository-assembled source/input audit authority was supplied.'));
-	}
-	if (!sourceInputsAudited) {
-		blockers.push(blocker('source-audit:missing',
-			'No in-process exact archive and extracted-tree source audit was supplied.'));
-	}
-	if (!qualificationAuthenticated) {
-		blockers.push(blocker('qualification-audit:missing',
-			'No authenticated raw-measurement qualification audit was supplied.'));
-	}
-	if (!payloadsAuthenticated) {
-		blockers.push(blocker('payload-audit:missing',
-			'No source-manifest and byte-authenticated native payload audit was supplied.'));
-	}
-	if (!packageAudited) {
-		blockers.push(blocker('package-audit:missing',
-			'No exact staged-runtime and packaged-byte audit was supplied.'));
-	} else {
-		if (payloadsAuthenticated) validateMilestone5PackagePayloadBinding(
-			inputs.packageAudit,
-			inputs.payloadAudit,
-			MILESTONE_5_HANDOFF_INPUT_PATHS,
-		);
-		if (!packageAuthenticated) {
-			blockers.push(blocker('package-signature:pending',
-				inputs.packageAudit.releaseAuthentication?.blockedBy
-					?? 'The package release-authentication evidence is pending.'));
-		}
-	}
-
-	for (const row of payloadRows) {
-		if (row.status !== 'built') blockers.push(blocker(`payload:${row.product}:${row.id}`, row.blockedBy));
-	}
-	for (const source of sources) {
-		if (source.authenticationStatus !== 'authenticated') {
-			blockers.push(blocker(`source-authentication:${source.id}`,
-				source.authenticationBlockedBy
-					?? `No exact archive and extracted-tree authentication exists for ${source.id}.`));
-		}
-		if (source.activationStatus !== 'accepted') {
-			blockers.push(blocker(`source-activation:${source.id}`, source.blockedBy));
-		}
-	}
-	if (lab.status !== 'active' || lab.qualificationEligible !== true) {
-		blockers.push(blocker('lab:unprovisioned',
-			`native-os-lab-matrix is ${String(lab.status)} and qualificationEligible=${String(lab.qualificationEligible)}.`));
-	}
-	for (const platformId of Object.keys(lab.physicalHosts)) {
-		if (lab.physicalHosts[platformId] === null) {
-			blockers.push(blocker(`lab:host:${platformId}`, `No exact physical host is registered for ${platformId}.`));
-		}
-	}
 	const pendingHandoffGates = HANDOFF_GATE_IDS.filter((id) => lab.handoffGates[id] !== 'accepted');
-	for (const id of pendingHandoffGates) {
-		blockers.push(blocker(`handoff:${id}`, `The native OS lab handoff gate ${id} is ${lab.handoffGates[id]}.`));
-	}
-	for (const workload of workloads) {
-		if (workload.status !== 'qualified') {
-			blockers.push(blocker(`qualification:${workload.id}`, `Workload ${workload.id} is ${workload.status}.`));
-		}
-		if (!workload.registered) {
-			blockers.push(blocker(`qualification-registry:${workload.id}`,
-				`Workload ${workload.id} is not registered in qualification.qualifiedWorkloadIds.`));
-		}
-		const cohort = cohorts.find((candidate) => candidate.workloadId === workload.id);
-		if (cohort?.status !== 'accepted') {
-			blockers.push(blocker(`cohort:${workload.id}`,
-				cohort ? `The supplied cohort for ${workload.id} is ${cohort.status}.`
-					: `No complete accepted cohort was supplied for ${workload.id}.`));
-		}
-	}
-	for (const id of licensing.disabledGates) {
-		blockers.push(blocker(`licensing-gate:${id}`, `Future distribution gate ${id} is disabled.`));
-	}
-	for (const id of licensing.blockedPolicyRows) {
-		blockers.push(blocker(`policy-row:${id}`, `Native policy row ${id} is blocked.`));
-	}
-
-	const built = payloadRows.filter(({ status }) => status === 'built').length;
+	if (packageAudited && payloadsAuthenticated) validateMilestone5PackagePayloadBinding(
+		inputs.packageAudit,
+		inputs.payloadAudit,
+		MILESTONE_5_HANDOFF_INPUT_PATHS,
+	);
+	const automated = assessMilestone5AutomatedReadiness({
+		assemblyInputsAuthenticated,
+		sourceInputsAudited,
+		payloadsAuthenticated,
+		packageAudited,
+		sourceRevisionAuthenticated: ASSEMBLED_HANDOFF_SOURCE_REVISIONS.get(inputs) === true,
+		sources,
+		payloadRows,
+		packageAudit: packageAudited ? inputs.packageAudit : null,
+	});
+	const built = payloadRows.filter(({ buildStatus }) => buildStatus === 'built').length;
 	const provisionedProfileCount = lab.profiles.filter(({ platformId }) =>
 		lab.physicalHosts[platformId] !== null).length;
-	const sourceEvidenceAuthenticated = sourceInputsAudited
-		&& sources.every(({ authenticationStatus }) => authenticationStatus === 'authenticated');
-	const engineeringEvidenceAuthenticated = qualificationAuthenticated && payloadsAuthenticated
-		&& sourceEvidenceAuthenticated;
-	const packageCellReady = assemblyInputsAuthenticated && packageAuthenticated && blockers.length === 0;
 	return deepFreeze({
 		schemaVersion: 2,
 		assessmentScope: packageAudited
@@ -200,12 +129,13 @@ export function assessMilestone5Handoff(inputs) {
 			: { kind: 'engineering-inputs' },
 		assemblyInputsAuthenticated,
 		sourceInputsAudited,
-		engineeringEvidenceAuthenticated,
-		packageCellReady,
+		engineeringEvidenceAuthenticated: automated.automatedEvidenceAuthenticated,
+		...automated,
+		packageCellReady: null,
 		// Whole-milestone readiness requires an exact ten-cell aggregate. A
 		// single package job is intentionally incapable of making that claim.
 		milestoneReleaseReady: null,
-		status: packageCellReady ? 'ready' : 'pending-external',
+		status: automated.automatedStatus,
 		sources: {
 			authenticated: sources.filter(({ authenticationStatus }) => (
 				authenticationStatus === 'authenticated'
@@ -231,7 +161,7 @@ export function assessMilestone5Handoff(inputs) {
 			? packageEvidenceSummary(inputs.packageAudit)
 			: null,
 		licensing,
-		blockers,
+		blockers: automated.automatedBlockers,
 	});
 }
 
@@ -329,6 +259,10 @@ export async function assembleMilestone5Handoff(
 		};
 	}
 	ASSEMBLED_HANDOFF_INPUTS.add(inputs);
+	ASSEMBLED_HANDOFF_SOURCE_REVISIONS.set(
+		inputs,
+		sourceRevisionBinding.status === 'authenticated-clean-head',
+	);
 	const assessment = assessMilestone5Handoff(inputs);
 	const revisionBinding = assessment.qualification.sourceRevision === null
 		? null
@@ -344,18 +278,9 @@ export async function assembleMilestone5Handoff(
 		assert(postflight.sourceRevision === sourceRevisionBinding.sourceRevision,
 			'Milestone 5 handoff source revision changed during assembly.');
 	}
-	const blockers = sourceAuthenticated ? assessment.blockers : [
-		...assessment.blockers,
-		blocker('source-revision:unattributed',
-			'The working-tree handoff was not authenticated to one clean HEAD revision.'),
-	];
-	const packageCellReady = sourceAuthenticated && assessment.packageCellReady;
 	const handoff = deepFreeze({
 		...assessment,
-		packageCellReady,
-		status: packageCellReady ? 'ready' : 'pending-external',
 		qualification: { ...assessment.qualification, revisionBinding },
-		blockers,
 		sourceRevision: sourceAuthenticated ? revision : null,
 		observedHeadRevision,
 		sourceRevisionBinding,
@@ -470,36 +395,27 @@ function validateAuditedPayloads(inputs, declaredRows) {
 		assert(matches.length === 1 && matches[0].buildStatus === declared.status,
 			`Milestone 5 authenticated payload row ${identity} disagrees with its manifest.`);
 		const row = matches[0];
-		const readinessRequired = milestone5PayloadRequiresProductionReadiness(declared.product);
-		const declaredTarget = inputs[
-			declared.product === 'soundscaper-professional'
-				? 'soundscaperProfessionalPayload'
-				: declared.product === 'framescaper-openfx' ? 'openFxHostPayload'
-					: declared.product === 'soundscaper' ? 'nativeAddonPayload' : 'mediaHostPayload'
-		].targets.find(({ id }) => id === declared.id);
-		assert(row.productionReadiness === null
-			? !readinessRequired || declaredTarget.productionReadiness === null
-			: readinessRequired && row.productionReadiness.verified?.status === 'authenticated'
-				&& JSON.stringify(row.productionReadiness.reference)
-					=== JSON.stringify(declaredTarget.productionReadiness),
-		`Milestone 5 authenticated payload row ${identity} has inconsistent production readiness.`);
-		assert(row.status === 'built'
-			? row.buildStatus === 'built' && row.blockedBy === null
-				&& (!readinessRequired || row.productionReadiness !== null)
-			: typeof row.blockedBy === 'string' && row.blockedBy.length > 0,
-		`Milestone 5 authenticated payload row ${identity} has inconsistent release eligibility.`);
+		assert(JSON.stringify(row.payloadEvidence) === JSON.stringify(declared.payloadEvidence),
+			`Milestone 5 authenticated payload row ${identity} has inconsistent machine evidence.`);
 	}
 	return audit.rows.map((row) => ({
+		identity: row.identity,
 		product: row.product,
 		id: row.targetId,
+		targetId: row.targetId,
+		buildStatus: row.buildStatus,
+		payloadEvidence: row.payloadEvidence,
 		status: row.status,
 		blockedBy: row.blockedBy,
+		productionReadiness: row.productionReadiness,
 	}));
 }
 
 function packageEvidenceSummary(audit) {
 	return {
 		status: audit.status,
+		automatedStatus: audit.automatedStatus,
+		automatedEvidenceSha256: audit.automatedEvidenceSha256,
 		releaseAuthentication: { ...audit.releaseAuthentication },
 		productId: audit.productId,
 		targetId: audit.targetId,
@@ -570,12 +486,35 @@ function validatePayloadManifest(manifest, product) {
 			? target.payload !== null && target.blockedBy === null
 			: target.payload === null && typeof target.blockedBy === 'string' && target.blockedBy.length > 0,
 			`Milestone 5 ${product} payload ${target.id} has inconsistent evidence.`);
-		return { product, id: target.id, status: target.status, blockedBy: target.blockedBy };
+		return {
+			identity: `${product}:${target.id}`,
+			product,
+			id: target.id,
+			targetId: target.id,
+			buildStatus: target.status,
+			payloadEvidence: target.status === 'built'
+				? machinePayloadEvidence(target, product) : null,
+			status: target.status,
+			blockedBy: target.blockedBy,
+			productionReadiness: target.productionReadiness ?? null,
+		};
 	});
 }
 
-function blocker(id, reason) {
-	return { id, reason };
+function machinePayloadEvidence(target, product) {
+	if (product === 'soundscaper') return structuredClone(target.payload);
+	if (product === 'soundscaper-professional') return structuredClone({
+		payload: target.payload,
+		pluginPeer: target.pluginPeer,
+		isolation: target.isolation,
+		sourceAuthentication: target.sourceAuthentication,
+		toolchainIdentity: target.toolchainIdentity,
+	});
+	if (product === 'framescaper-media') return structuredClone({
+		payload: target.payload,
+		isolationPayload: target.isolationPayload,
+	});
+	return structuredClone(target.payload);
 }
 
 function currentRevision(repositoryRoot) {

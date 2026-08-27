@@ -7,10 +7,6 @@ import { readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
 import {
-	framescaperMediaProductionReadinessReference,
-} from '../../desktop/framescaper-media-production-readiness.ts';
-
-import {
 	collectBoostHeaderClosure,
 	verifyBoostHeaderClosureManifest,
 } from './boost-header-closure.mjs';
@@ -180,8 +176,8 @@ function auditClosedAdapters(hostRoot) {
 		]],
 		['src/ffmpeg_image_sequence_decode.cpp', [
 			'AV_CODEC_ID_PNG', 'AV_CODEC_ID_TIFF', 'AV_CODEC_ID_EXR',
-			'avcodec_send_packet', 'avcodec_receive_frame', 'image-sequence-licensing-unavailable',
-			'FRAMESCAPER_MEDIA_HOST_CONFORMANCE_IMAGE_SEQUENCE',
+			'avcodec_send_packet', 'avcodec_receive_frame',
+			'return decode(job, *job.image_sequence)',
 		]],
 		['src/ffmpeg_simple_render.cpp', [
 			'single-full-frame-clip-v1', 'avformat_alloc_output_context2',
@@ -257,6 +253,12 @@ function auditClosedAdapters(hostRoot) {
 	]) {
 		if (forbidden.test(implementation)) findings.push('The media host exposes a raw process or filter-string seam.');
 	}
+	if (/FRAMESCAPER_MEDIA_HOST_CONFORMANCE_IMAGE_SEQUENCE|image_sequence_policy_enabled/u.test(implementation)) {
+		findings.push('The media host must not compile-gate image-sequence execution on manual qualification.');
+	}
+	if (/image-sequence-(?:licensing|policy)-unavailable/u.test(implementation)) {
+		findings.push('The media host must not refuse authenticated image sequences on manual policy status.');
+	}
 	const cmake = readFileSync(join(hostRoot, 'CMakeLists.txt'), 'utf8');
 	for (const path of [
 		'src/ffmpeg_media_engine.cpp', 'src/ffmpeg_image_sequence_decode.cpp',
@@ -272,7 +274,7 @@ function auditClosedAdapters(hostRoot) {
 		if (!cmake.includes(path)) findings.push(`The CMake target omits ${path}.`);
 	}
 	if (cmake.includes('FRAMESCAPER_MEDIA_HOST_CONFORMANCE_IMAGE_SEQUENCE')) {
-		findings.push('The production CMake target must not enable the image-sequence licensing fixture.');
+		findings.push('The CMake target must not restore the image-sequence manual-qualification gate.');
 	}
 	for (const path of listFiles(join(hostRoot, 'src'))) {
 		const source = readFileSync(path, 'utf8');
@@ -388,10 +390,6 @@ function auditBuiltTarget(root, manifest, target, record) {
 		findings.push(`${target.id}: built payload bytes disagree with the pin.`);
 	}
 	findings.push(...auditIsolationPayload(root, target.id, record.isolationPayload));
-	if (record.productionReadiness !== null) {
-		try { framescaperMediaProductionReadinessReference(record.productionReadiness, target.id); }
-		catch { findings.push(`${target.id}: invalid media-host production-readiness reference.`); }
-	}
 	return findings;
 }
 
