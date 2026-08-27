@@ -5,6 +5,8 @@ import test from 'node:test';
 
 import { createLocalAssistanceAdvancedWorkflowPreparation } from
 	'../src/common/editor/controller/local-assistance-advanced-workflow-preparation.ts';
+import { LocalAssistanceAdvancedContextUnavailableError } from
+	'../src/common/editor/controller/local-assistance-advanced-selected-context.ts';
 import { defaultAssistanceWorkflowSettingsV1 } from
 	'../src/common/editor/assistance/workflow-settings-v1.ts';
 import {
@@ -100,6 +102,27 @@ test('Advanced preparation rejects cross-operation recipes and refuses incomplet
 		signal: new AbortController().signal,
 	}), { outcome: 'unavailable', reason: 'model-binding-unavailable' });
 	assert.deepEqual(fixture.events, []);
+});
+
+test('Advanced preparation reports disappearing transcript context as typed unavailability', async () => {
+	const fixture = preparationFixture('speech-enhancement');
+	const token = Object.freeze({ revision: 7 });
+	const preparation = createLocalAssistanceAdvancedWorkflowPreparation({
+		getProject: () => ({ id: 'unused' }), captureProject: () => token,
+		assertProject: (value) => assert.equal(value, token),
+		preflightStorage: async () => undefined,
+		selected: { prepareSelectedMedia: async () => {
+			throw new LocalAssistanceAdvancedContextUnavailableError();
+		} },
+	});
+	assert.deepEqual(await preparation.prepareAdvancedWorkflow({
+		jobId: JOB_ID, workflowId: 'advanced:text-embedding', sourceId: 'source-a',
+		operation: 'text-embedding',
+		settings: defaultAssistanceWorkflowSettingsV1('advanced:text-embedding'),
+		models: [model('nomic-embed-text-v1.5', 'text-embedding', 8)],
+		custody: fixture.custody, signal: new AbortController().signal,
+	}), { outcome: 'unavailable', reason: 'source-custody-unavailable' });
+	assert.equal(fixture.releases, 1);
 });
 
 function preparationFixture(operation: 'speech-enhancement' | 'source-separation' | 'speaker-diarization') {

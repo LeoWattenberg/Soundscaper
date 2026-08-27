@@ -1,13 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	resolveLocalAssistanceSelectedMediaAuthority,
-} from './local-assistance-selected-media.ts';
-import {
 	resolveLocalAssistanceSelectedVideoAuthority,
 } from './local-assistance-selected-video.ts';
 import {
 	createLocalAssistanceSelectedPreparation,
+	resolveLocalAssistanceSelectedAudioAuthority,
 	type LocalAssistanceSelectedVideoStore,
 } from './local-assistance-selected-preparation.ts';
 import {
@@ -16,6 +14,9 @@ import {
 import {
 	createLocalAssistanceAdvancedWorkflowPreparation,
 } from './local-assistance-advanced-workflow-preparation.ts';
+import {
+	createLocalAssistanceAdvancedSelectedContextPreparation,
+} from './local-assistance-advanced-selected-context.ts';
 import {
 	createLocalAssistanceResultAcceptance,
 	type LocalAssistanceResultAcceptanceStore,
@@ -67,14 +68,36 @@ export function createLocalAssistancePreparationRuntime(
 		selectedMediaDependencies,
 	);
 	const currentSelectionFence = () => {
-		try { return resolveLocalAssistanceSelectedMediaAuthority(selectedMediaDependencies).fence; }
+		try {
+			return resolveLocalAssistanceSelectedAudioAuthority({
+				...selectedMediaDependencies,
+				...(assistanceVideoStore ? { videoStore: assistanceVideoStore } : {}),
+			}).fence;
+		}
 		catch (audioError) {
 			if (!assistanceVideoStore) throw audioError;
 			return currentVideoAuthority().fence;
 		}
 	};
+	const selectionFenceForSource = (sourceId: string) => {
+		try {
+			const audio = resolveLocalAssistanceSelectedAudioAuthority({
+				...selectedMediaDependencies,
+				...(assistanceVideoStore ? { videoStore: assistanceVideoStore } : {}),
+			});
+			if (audio.fence.sourceId === sourceId) return audio.fence;
+		} catch { /* The selected source may be video-only. */ }
+		if (assistanceVideoStore) {
+			const video = currentVideoAuthority();
+			if (video.fence.sourceId === sourceId) return video.fence;
+		}
+		throw new Error('The requested Advanced context source is not selected or linked.');
+	};
 	const resultAcceptance = assistanceStore ? createLocalAssistanceResultAcceptance({
-		currentAuthority: () => resolveLocalAssistanceSelectedMediaAuthority(selectedMediaDependencies),
+		currentAuthority: () => resolveLocalAssistanceSelectedAudioAuthority({
+			...selectedMediaDependencies,
+			...(assistanceVideoStore ? { videoStore: assistanceVideoStore } : {}),
+		}),
 		...(assistanceVideoStore ? {
 			currentVideoAuthority,
 		} : {}),
@@ -90,6 +113,17 @@ export function createLocalAssistancePreparationRuntime(
 		...selectedMediaDependencies,
 		...(assistanceVideoStore ? { videoStore: assistanceVideoStore } : {}),
 		...(resultAcceptance ? { acceptValidatedResult: resultAcceptance.acceptValidatedResult } : {}),
+	});
+	const advancedSelectedPreparation = createLocalAssistanceAdvancedSelectedContextPreparation({
+		getProject: dependencies.getProject,
+		selectionFenceForSource,
+		...(assistanceStore ? {
+			loadTranscriptBody: (storageKey: string, signal: AbortSignal) => {
+				signal.throwIfAborted();
+				return assistanceStore.loadMediaAsset(storageKey);
+			},
+		} : {}),
+		selected: selectedPreparation,
 	});
 	const publicationFenceResolver = createLocalAssistanceGuidedPublicationFenceResolver({
 		getProject: dependencies.getProject,
@@ -108,7 +142,7 @@ export function createLocalAssistancePreparationRuntime(
 		selected: selectedPreparation,
 	});
 	const guidedAcceptance = resultAcceptance ? createLocalAssistanceGuidedResultAcceptance({
-		currentSelectionFence,
+		currentSelectionFence: selectionFenceForSource,
 		assertCurrentWorkflowFence: (workflow, signal) =>
 			publicationFenceResolver.assertCurrentFence(workflow, signal),
 		acceptValidatedResult: (request) => resultAcceptance.acceptValidatedResult(request),
@@ -147,7 +181,7 @@ export function createLocalAssistancePreparationRuntime(
 		captureProject: dependencies.captureProject,
 		assertProject: dependencies.assertProject,
 		preflightStorage: (bytes) => dependencies.preflightStorage(bytes, 'effect'),
-		selected: selectedPreparation,
+		selected: advancedSelectedPreparation,
 	});
 	const guidedPreparation = createLocalAssistanceGuidedWorkflowPreparation({
 		getProject: dependencies.getProject,
@@ -217,7 +251,7 @@ export function createLocalAssistancePreparationRuntime(
 		}, request.selectedProposalIds);
 	}
 	return Object.freeze({
-		...selectedPreparation,
+		...advancedSelectedPreparation,
 		prepareAdvancedWorkflow: advancedPreparation.prepareAdvancedWorkflow,
 		prepareGuidedWorkflow: guidedPreparation.prepareGuidedWorkflow,
 		assertCurrentWorkflowFence: (

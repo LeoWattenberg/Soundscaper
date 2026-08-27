@@ -5,7 +5,10 @@ import test from 'node:test';
 
 import {
 	createLocalAssistanceSelectedPreparation,
+	resolveLocalAssistanceSelectedAudioAuthority,
 } from '../src/common/editor/controller/local-assistance-selected-preparation.ts';
+import { createLocalAssistancePreparationRuntime } from
+	'../src/common/editor/controller/local-assistance-runtime.ts';
 
 test('a selected video exposes its one exact linked audio peer for highlight signal preparation', async () => {
 	const project = linkedProject();
@@ -51,6 +54,40 @@ test('ambiguous or absent linked audio is not inferred from a selected video', a
 		assert.deepEqual((await preparation.listSelectedMedia()).sources.map(({ mediaKind }) => mediaKind),
 			['video']);
 	}
+});
+
+test('linked-audio Advanced acceptance revalidates the audio authority while video stays selected', async () => {
+	const project = linkedProject();
+	const dependencies = {
+		getProject: () => project, getSelectedClipId: () => 'video-clip',
+		captureProject: () => project, assertProject: (token: unknown) => assert.equal(token, project),
+		renderDryTrackRange: async () => [new Float32Array(48_000)],
+	};
+	const authority = resolveLocalAssistanceSelectedAudioAuthority(dependencies);
+	const commands: unknown[] = [];
+	const runtime = createLocalAssistancePreparationRuntime({
+		...dependencies,
+		assistanceStore: {
+			getMediaAssetMetadata: async () => null, loadMediaAsset: async () => null,
+			beginMediaAssetWrite: async () => { throw new Error('not reached'); },
+			beginSourceWrite: async () => { throw new Error('not reached'); },
+			deleteSource: async () => undefined,
+		},
+		createId: (prefix) => `${prefix}-fixture`, preflightStorage: async () => undefined,
+		commit: (command) => { commands.push(command); },
+	});
+	await runtime.acceptValidatedResult?.({
+		sourceId: 'audio-source', operation: 'voice-activity-detection',
+		selectionFence: authority.fence,
+		models: [{ modelId: 'silero-vad-v6', version: '6.2.0',
+			task: 'voice-activity-detection', artifactSha256s: ['56'.repeat(32)] }],
+		outputs: [{ claim: { claimVersion: 1, claimId: 'a'.repeat(40), jobId: 'b'.repeat(40),
+			role: 'voice-activity', mediaType: 'application/vnd.soundscaper.voice-activity+json',
+			byteLength: 128, sha256: '78'.repeat(32) },
+		review: { kind: 'voice-activity', sampleRate: 16_000,
+			segments: [{ startSample: 0, sampleCount: 8_000 }] } }],
+	});
+	assert.equal(commands.length, 1);
 });
 
 function linkedProject() {

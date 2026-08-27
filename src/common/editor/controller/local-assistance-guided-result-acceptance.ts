@@ -104,7 +104,7 @@ interface BeatReviewSessionPort {
 
 export interface LocalAssistanceGuidedResultAcceptanceDependencies extends LocalAssistanceGuidedFramescaperAcceptancePorts {
 	/** Same selected-media projection used by primitive preparation and acceptance. */
-	readonly currentSelectionFence: () => unknown;
+	readonly currentSelectionFence: (sourceId: string) => unknown;
 	readonly assertCurrentWorkflowFence: (workflow: AssistanceWorkflowV1, signal: AbortSignal) => Awaitable<void>;
 	/** Existing transcript/shot result facade. */
 	readonly acceptValidatedResult?: (request: unknown) => Awaitable<void>;
@@ -537,7 +537,7 @@ function assertCurrentFence(
 	dependencies: LocalAssistanceGuidedResultAcceptanceDependencies,
 	expected: AssistanceSelectionFence,
 ): void {
-	const current = validateAssistanceSelectionFence(dependencies.currentSelectionFence());
+	const current = validateAssistanceSelectionFence(dependencies.currentSelectionFence(expected.sourceId));
 	if (!sameFence(expected, current)) throw new AssistanceProposalStaleError();
 }
 

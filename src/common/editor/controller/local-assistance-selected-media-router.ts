@@ -51,6 +51,7 @@ export interface LocalAssistanceSelectedMediaPreparationRouterDependencies<
 }
 
 const VIDEO_OPERATIONS = new Set<AssistanceOperation>([
+	'image-text-embedding', 'optical-character-recognition',
 	'shot-detection', 'subject-detection', 'saliency-detection',
 ]);
 

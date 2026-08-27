@@ -30,6 +30,8 @@ import { normalizeLocalAssistancePreparedMedia } from './local-assistance-prepar
 import { createLocalAssistanceGuidedAggregateFenceV1 } from
 	'./local-assistance-guided-fence.ts';
 import { deriveLocalAssistanceReviewAuthority } from './local-assistance-review-authority.ts';
+import { LocalAssistanceAdvancedContextUnavailableError } from
+	'./local-assistance-advanced-selected-context.ts';
 
 export interface LocalAssistanceAdvancedWorkflowPreparationRequest {
 	readonly jobId: string;
@@ -49,7 +51,8 @@ export type LocalAssistanceAdvancedWorkflowPreparationOutcome = Readonly<{
 	prepared: LocalAssistancePreparedMedia;
 }> | Readonly<{
 	outcome: 'unavailable';
-	reason: 'aggregate-custody-unavailable' | 'model-binding-unavailable';
+	reason: 'aggregate-custody-unavailable' | 'model-binding-unavailable'
+		| 'source-custody-unavailable';
 }>;
 
 export interface LocalAssistanceAdvancedWorkflowPreparationDependencies {
@@ -115,7 +118,8 @@ export function createLocalAssistanceAdvancedWorkflowPreparation(
 			}
 			const stage = graph[0]!;
 			const inputSlots = prepared.inputs.map(({ role }) => role);
-			if (new Set(inputSlots).size !== inputSlots.length
+			if (inputSlots.some((slotId, index) => inputSlots.indexOf(slotId) !== index
+				&& slotId !== 'frame-pack')
 				|| inputSlots.some((slotId) => !stage.inputSlots.some(({ slotId: admitted }) => admitted === slotId))) {
 				throw new TypeError('Prepared Advanced inputs disagree with the closed operation recipe.');
 			}
@@ -158,6 +162,9 @@ export function createLocalAssistanceAdvancedWorkflowPreparation(
 			return Object.freeze({ outcome: 'prepared', workflow, prepared });
 		} catch (error) {
 			await request.custody.release(request.jobId).catch(() => false);
+			if (error instanceof LocalAssistanceAdvancedContextUnavailableError) {
+				return unavailable('source-custody-unavailable');
+			}
 			throw error;
 		}
 	}
@@ -217,7 +224,8 @@ function assertDependencies(value: LocalAssistanceAdvancedWorkflowPreparationDep
 }
 
 function unavailable(
-	reason: 'aggregate-custody-unavailable' | 'model-binding-unavailable',
+	reason: 'aggregate-custody-unavailable' | 'model-binding-unavailable'
+		| 'source-custody-unavailable',
 ): LocalAssistanceAdvancedWorkflowPreparationOutcome {
 	return Object.freeze({ outcome: 'unavailable', reason });
 }

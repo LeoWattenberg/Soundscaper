@@ -218,7 +218,9 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 				sourceId, operation, mode, models);
 			if (prepared.outcome === 'unavailable') {
 				unavailableReason = prepared.reason === 'model-binding-unavailable'
-					? 'no-compatible-model' : 'bridge-unavailable';
+					? 'no-compatible-model'
+					: prepared.reason === 'source-custody-unavailable'
+						? 'selection-required' : 'bridge-unavailable';
 			} else {
 				const authority = await deriveLocalAssistanceReviewAuthority(prepared.prepared);
 				preparedWorkflow = prepared.workflow;
@@ -340,7 +342,8 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 
 type PreparedOutcome = Readonly<{ outcome: 'prepared'; workflow: AssistanceWorkflowV1;
 	prepared: LocalAssistancePreparedMedia }> | Readonly<{ outcome: 'unavailable';
-	reason: 'aggregate-custody-unavailable' | 'model-binding-unavailable' }>;
+	reason: 'aggregate-custody-unavailable' | 'model-binding-unavailable'
+		| 'source-custody-unavailable' }>;
 
 function normalizeAdvancedPreparation(
 	value: unknown, jobId: string, workflowId: AssistanceAdvancedWorkflowId,
@@ -353,7 +356,8 @@ function normalizeAdvancedPreparation(
 	const row = value as Record<string, unknown>;
 	if (row.outcome === 'unavailable') {
 		const reason = row.reason === 'aggregate-custody-unavailable'
-			|| row.reason === 'model-binding-unavailable' ? row.reason : null;
+			|| row.reason === 'model-binding-unavailable'
+			|| row.reason === 'source-custody-unavailable' ? row.reason : null;
 		if (Object.keys(row).length !== 2 || reason === null) {
 			throw new TypeError('Advanced preparation returned an unsupported refusal.');
 		}

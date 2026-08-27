@@ -4,6 +4,8 @@
 
 import {
 	createLocalAssistanceSelectedMediaPreparation,
+	resolveLocalAssistanceSelectedMediaAuthority,
+	type LocalAssistanceSelectedMediaAuthority,
 	type LocalAssistanceSelectedMediaPrepared,
 	type LocalAssistanceSelectedMediaPreparationDependencies,
 } from './local-assistance-selected-media.ts';
@@ -28,6 +30,18 @@ export type LocalAssistanceSelectedVideoStore = VideoExportOriginalStore;
 export interface LocalAssistanceSelectedPreparationDependencies
 	extends LocalAssistanceSelectedMediaPreparationDependencies {
 	readonly videoStore?: VideoExportOriginalStore;
+}
+
+/** Resolve the selected or uniquely linked audio occurrence without rendering its samples. */
+export function resolveLocalAssistanceSelectedAudioAuthority(
+	dependencies: LocalAssistanceSelectedPreparationDependencies,
+): LocalAssistanceSelectedMediaAuthority {
+	return resolveLocalAssistanceSelectedMediaAuthority({
+		...dependencies,
+		getSelectedClipId: () => selectedOrLinkedAudioClipId(
+			dependencies.getProject(), dependencies.getSelectedClipId(),
+		),
+	});
 }
 
 export function createLocalAssistanceSelectedPreparation(

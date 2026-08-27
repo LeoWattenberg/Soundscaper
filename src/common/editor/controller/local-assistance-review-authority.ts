@@ -24,7 +24,8 @@ export async function deriveLocalAssistanceReviewAuthority(
 	prepared: LocalAssistancePreparedMedia,
 ): Promise<LocalAssistanceReviewAuthority> {
 	if (prepared.operation === 'editorial-generation') return editorialAuthority(prepared);
-	if (prepared.operation === 'optical-character-recognition'
+	if (prepared.operation === 'image-text-embedding'
+		|| prepared.operation === 'optical-character-recognition'
 		|| prepared.operation === 'subject-detection'
 		|| prepared.operation === 'saliency-detection') return visualAuthority(prepared);
 	if (prepared.operation !== 'speech-enhancement' && prepared.operation !== 'source-separation') {
@@ -69,15 +70,37 @@ async function visualAuthority(
 	prepared: LocalAssistancePreparedMedia,
 ): Promise<LocalAssistanceReviewAuthority> {
 	const inputs = prepared.inputs.filter(({ role }) => role === 'frame-pack');
-	if (inputs.length !== 1) {
-		throw new TypeError('Visual review requires one exact frame-pack input.');
+	if (inputs.length < 1 || inputs.length > 64) {
+		throw new TypeError('Visual review requires a bounded frame-pack inventory.');
 	}
-	const pack = reviewAssistanceVisualFramePack(new Uint8Array(await inputs[0]!.bytes.arrayBuffer()));
-	const frames = Object.freeze(Array.from({ length: pack.frameCount }, (_, ordinal) => {
-		const frame = pack.frame(ordinal);
-		return Object.freeze({ sourceFrame: frame.sourceFrame,
-			presentationTick: frame.presentationTick });
-	}));
-	return Object.freeze({ visualFrames: Object.freeze({ width: pack.sourceWidth,
-		height: pack.sourceHeight, timescale: pack.timescale, frames }) });
+	let geometry: Readonly<{ sourceWidth: number; sourceHeight: number;
+		rasterWidth: number; rasterHeight: number; timescale: number }> | null = null;
+	const frames: Array<Readonly<{ sourceFrame: number; presentationTick: string }>> = [];
+	for (const { bytes } of inputs) {
+		const pack = reviewAssistanceVisualFramePack(new Uint8Array(await bytes.arrayBuffer()));
+		geometry ??= Object.freeze({ sourceWidth: pack.sourceWidth, sourceHeight: pack.sourceHeight,
+			rasterWidth: pack.rasterWidth, rasterHeight: pack.rasterHeight,
+			timescale: pack.timescale });
+		if (pack.sourceWidth !== geometry.sourceWidth || pack.sourceHeight !== geometry.sourceHeight
+			|| pack.rasterWidth !== geometry.rasterWidth || pack.rasterHeight !== geometry.rasterHeight
+			|| pack.timescale !== geometry.timescale) {
+			throw new TypeError('Visual frame packs changed their exact geometry or timing scale.');
+		}
+		for (let ordinal = 0; ordinal < pack.frameCount; ordinal += 1) {
+			const frame = pack.frame(ordinal);
+			const prior = frames.at(-1);
+			if (prior && (frame.sourceFrame <= prior.sourceFrame
+				|| BigInt(frame.presentationTick) <= BigInt(prior.presentationTick))) {
+				throw new TypeError('Visual frame packs are not globally ordered.');
+			}
+			frames.push(Object.freeze({ sourceFrame: frame.sourceFrame,
+				presentationTick: frame.presentationTick }));
+		}
+	}
+	if (geometry === null || frames.length < 1) {
+		throw new TypeError('Visual review requires at least one exact frame.');
+	}
+	return Object.freeze({ visualFrames: Object.freeze({ width: geometry.sourceWidth,
+		height: geometry.sourceHeight, timescale: geometry.timescale,
+		frames: Object.freeze(frames) }) });
 }

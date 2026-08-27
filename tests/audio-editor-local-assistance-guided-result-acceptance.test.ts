@@ -66,7 +66,10 @@ test('Guided caption acceptance starts unchecked, adapts absolute cues, and reva
 	let aggregateCurrent = true;
 	const requests: unknown[] = [];
 	const dependencies = {
-		currentSelectionFence: () => current,
+		currentSelectionFence: (sourceId: string) => {
+			assert.equal(sourceId, 'source-a');
+			return current;
+		},
 		assertCurrentWorkflowFence: async () => {
 			if (!aggregateCurrent) throw new DOMException('aggregate fence is stale', 'AbortError');
 		},
