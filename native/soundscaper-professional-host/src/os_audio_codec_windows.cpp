@@ -2,6 +2,7 @@
 
 #include "os_audio_codec.h"
 #include "os_aac_m4a_profile.h"
+#include "os_audio_codec_windows_file_bytes.h"
 #include "os_audio_codec_windows_session.h"
 
 #define WIN32_LEAN_AND_MEAN
@@ -24,6 +25,7 @@
 namespace {
 
 using Microsoft::WRL::ComPtr;
+using soundscaper::os_audio::BoundedFileRead;
 using soundscaper::os_audio::MediaFoundationSession;
 
 enum class ReviewedCodec {
@@ -34,6 +36,9 @@ enum class ReviewedCodec {
 enum class EncodedOutputInspection {
 	exact,
 	invalid,
+	/* The completed file was read whole and is not the exact admitted tuple.
+	 * That is a verdict about the encoder's output, not a failure to encode. */
+	notExact,
 	overLimit,
 };
 
@@ -98,8 +103,6 @@ bool exactInputFile(const std::wstring &path, uint64_t expectedBytes)
 	return size.QuadPart == expectedBytes;
 }
 
-bool readAll(HANDLE input, BYTE *bytes, size_t length);
-
 bool exactEncodeRequest(const soundscaper_pro_os_aac_m4a_encode_request *request)
 {
 	return request != nullptr && requestShapeValues(
@@ -133,7 +136,7 @@ bool readExactFloatInput(
 	const bool read = metadata && (information.dwFileAttributes
 		& (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) == 0u
 		&& size.QuadPart == expectedBytes
-		&& readAll(input, bytes.data(), bytes.size());
+		&& soundscaper::os_audio::readAllBytes(input, bytes.data(), bytes.size());
 	const bool closed = CloseHandle(input) != 0;
 	if (!read || !closed) return false;
 	pcm.resize(bytes.size() / sizeof(float));
@@ -159,28 +162,33 @@ EncodedOutputInspection inspectEncodedOutput(
 	uint64_t maximumBytes,
 	uint64_t &outputBytes)
 {
-	WIN32_FILE_ATTRIBUTE_DATA metadata{};
-	if (!GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &metadata)
-		|| (metadata.dwFileAttributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) != 0u) {
-		return EncodedOutputInspection::invalid;
+	std::vector<uint8_t> bytes;
+	const BoundedFileRead outcome = soundscaper::os_audio::boundedFileBytes(path, maximumBytes, bytes);
+	if (outcome == BoundedFileRead::overLimit) return EncodedOutputInspection::overLimit;
+	if (outcome != BoundedFileRead::read) return EncodedOutputInspection::invalid;
+	if (!soundscaper::os_audio::exactAacLcM4a(bytes, 48000u, 2u)) {
+		return EncodedOutputInspection::notExact;
 	}
-	ULARGE_INTEGER size{};
-	size.HighPart = metadata.nFileSizeHigh;
-	size.LowPart = metadata.nFileSizeLow;
-	if (size.QuadPart == 0u) return EncodedOutputInspection::invalid;
-	if (size.QuadPart > maximumBytes) return EncodedOutputInspection::overLimit;
-	if (size.QuadPart > std::numeric_limits<DWORD>::max()) return EncodedOutputInspection::invalid;
-	HANDLE input = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
-		FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
-	if (input == INVALID_HANDLE_VALUE) return EncodedOutputInspection::invalid;
-	std::vector<uint8_t> bytes(static_cast<size_t>(size.QuadPart));
-	const bool read = readAll(input, bytes.data(), bytes.size());
-	const bool closed = CloseHandle(input) != 0;
-	if (!read || !closed || !soundscaper::os_audio::exactAacLcM4a(bytes, 48000u, 2u)) {
-		return EncodedOutputInspection::invalid;
-	}
-	outputBytes = size.QuadPart;
+	outputBytes = bytes.size();
 	return EncodedOutputInspection::exact;
+}
+
+/**
+ * Proves the admitted M4A input is exact AAC-LC from its own bytes. The length
+ * was already authenticated, so a file that is no longer exactly that long is
+ * refused by the bound rather than read in part.
+ */
+bool exactAacLcInput(
+	const std::wstring &path,
+	uint64_t expectedBytes,
+	uint32_t sampleRate,
+	uint32_t channelCount)
+{
+	std::vector<uint8_t> bytes;
+	if (expectedBytes == 0u || expectedBytes > 32u * 1024u * 1024u
+		|| soundscaper::os_audio::boundedFileBytes(path, expectedBytes, bytes) != BoundedFileRead::read
+		|| bytes.size() != expectedBytes) return false;
+	return soundscaper::os_audio::exactAacLcM4a(bytes, sampleRate, channelCount);
 }
 
 bool exactUnsigned(IMFMediaType *type, REFGUID key, uint32_t expected)
@@ -243,13 +251,23 @@ bool exactNativeType(
 	if (codec == ReviewedCodec::mp3) return subtype == MFAudioFormat_MP3
 		&& sampleRate >= 8000u && sampleRate <= 192000u
 		&& channelCount >= 1u && channelCount <= 2u;
+	/* Both of these are optional on an MPEG-4 media type. MF_MT_AAC_PAYLOAD_TYPE
+	 * is documented to default to 0, raw_data_block elements, when it is absent,
+	 * and MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION carries the file's
+	 * audioProfileLevelIndication, which only exists when the file carries an
+	 * initial object descriptor. Requiring either to be present refuses ordinary
+	 * conforming M4A files. The AudioSpecificConfig in the file itself is the
+	 * witness that the stream is AAC-LC, and the caller proves it from the bytes. */
+	UINT32 payloadType = 0u;
+	if (SUCCEEDED(type->GetUINT32(MF_MT_AAC_PAYLOAD_TYPE, &payloadType)) && payloadType != 0u) {
+		return false;
+	}
 	UINT32 profile = 0u;
+	if (SUCCEEDED(type->GetUINT32(MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION, &profile))
+		&& profile != 0x29u && profile != 0x2au && profile != 0x2bu) return false;
 	return subtype == MFAudioFormat_AAC
 		&& sampleRate >= 8000u && sampleRate <= 48000u
 		&& channelCount >= 1u && channelCount <= 6u
-		&& exactUnsigned(type, MF_MT_AAC_PAYLOAD_TYPE, 0u)
-		&& SUCCEEDED(type->GetUINT32(MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION, &profile))
-		&& (profile == 0x29u || profile == 0x2au || profile == 0x2bu)
 		&& exactMp4aSampleDescription(type);
 }
 
@@ -260,19 +278,6 @@ bool writeAll(HANDLE output, const BYTE *bytes, DWORD length)
 		DWORD written = 0u;
 		if (!WriteFile(output, bytes + offset, length - offset, &written, nullptr) || written == 0u) return false;
 		offset += written;
-	}
-	return true;
-}
-
-bool readAll(HANDLE input, BYTE *bytes, size_t length)
-{
-	size_t offset = 0u;
-	while (offset < length) {
-		const DWORD requested = static_cast<DWORD>(std::min<size_t>(
-			length - offset, std::numeric_limits<DWORD>::max()));
-		DWORD readBytes = 0u;
-		if (!ReadFile(input, bytes + offset, requested, &readBytes, nullptr) || readBytes == 0u) return false;
-		offset += readBytes;
 	}
 	return true;
 }
@@ -353,6 +358,11 @@ soundscaper_pro_os_mp3_decode_result decodeOperatingSystemAudio(
 		|| sampleRate != sourceSampleRate || channelCount != sourceChannelCount
 		|| !exactUnsigned(grantedType.Get(), MF_MT_AUDIO_BLOCK_ALIGNMENT,
 			channelCount * static_cast<uint32_t>(sizeof(float)))) {
+		return finish(answer(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, true));
+	}
+
+	if (codec == ReviewedCodec::aacM4a
+		&& !exactAacLcInput(inputPath, request->input_bytes, sampleRate, channelCount)) {
 		return finish(answer(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, true));
 	}
 
@@ -538,7 +548,9 @@ soundscaper_pro_os_aac_m4a_encode_result encodeOperatingSystemAacM4a(
 	if (inspected != EncodedOutputInspection::exact) {
 		return finish(encodeAnswer(inspected == EncodedOutputInspection::overLimit
 			? SOUNDSCAPER_PRO_OS_CODEC_OUTPUT_LIMIT
-			: SOUNDSCAPER_PRO_OS_CODEC_ENCODE_FAILED, true));
+			: inspected == EncodedOutputInspection::notExact
+				? SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED
+				: SOUNDSCAPER_PRO_OS_CODEC_ENCODE_FAILED, true));
 	}
 	soundscaper_pro_os_aac_m4a_encode_result result = encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_OK, true);
 	result.exact_tuple_passed = 1u;

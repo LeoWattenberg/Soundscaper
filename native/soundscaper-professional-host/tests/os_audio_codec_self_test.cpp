@@ -366,7 +366,10 @@ int main()
 		reportDecode(adtsResult, adtsOutputPath);
 		return fail(8, "raw ADTS AAC was not refused as an unsupported tuple");
 	}
-#if defined(__APPLE__)
+/* Both reviewed targets now prove the admitted profile from the file's own
+ * AudioSpecificConfig, so both must refuse a declared-SBR variant of a stream
+ * they would otherwise accept. */
+#if defined(_WIN32) || defined(__APPLE__)
 	const std::string heInputText = heInputPath.string();
 	const std::string heOutputText = heOutputPath.string();
 	const soundscaper_pro_os_mp3_decode_request heRequest{

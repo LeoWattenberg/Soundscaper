@@ -91,6 +91,7 @@ test('build plans authenticate exact Electron 43.1.1 headers and close the targe
 		'native/soundscaper-professional-host/src/os_audio_codec.h',
 		'native/soundscaper-professional-host/src/os_audio_codec_mac.mm',
 		'native/soundscaper-professional-host/src/os_audio_codec_windows.cpp',
+		'native/soundscaper-professional-host/src/os_audio_codec_windows_file_bytes.h',
 		'native/soundscaper-professional-host/src/os_audio_codec_windows_session.h',
 		'native/soundscaper-professional-host/src/os_mp3_encode_windows.cpp',
 		'native/soundscaper-professional-host/src/os_mp3_profile.cpp',
@@ -342,8 +343,9 @@ test('Media Foundation is shut down only by the guard every interface outlives',
 	// construction — it is declared first, so it is destroyed last — but only for
 	// as long as nothing else tears the platform down on its own.
 	const windowsSources = OS_AUDIO_CODEC_HOST_SOURCE_FILES
-		.filter((file) => /_windows(?:_session)?\.(?:cpp|h)$/u.test(file));
-	assert.equal(windowsSources.length, 3, 'expected the Windows translation units and their guard');
+		.filter((file) => /_windows(?:_session|_file_bytes)?\.(?:cpp|h)$/u.test(file));
+	assert.equal(windowsSources.length, 4,
+		'expected the Windows translation units and the headers they share');
 	for (const relativePath of windowsSources) {
 		const source = await readFile(join(ROOT, relativePath), 'utf8');
 		const owned = relativePath.endsWith('os_audio_codec_windows_session.h');
@@ -351,7 +353,9 @@ test('Media Foundation is shut down only by the guard every interface outlives',
 			assert.equal(source.includes(`${call}(`), owned,
 				`${relativePath} must reach ${call} only through MediaFoundationSession`);
 		}
-		if (owned) continue;
+		// Only a translation unit that talks to Media Foundation owns a session;
+		// the shared headers are held to reaching none of it.
+		if (owned || !relativePath.endsWith('.cpp')) continue;
 		const guard = source.indexOf('MediaFoundationSession session;');
 		assert.notEqual(guard, -1, `${relativePath} must own its platform through the guard`);
 		const firstInterface = source.search(/\bComPtr</u);

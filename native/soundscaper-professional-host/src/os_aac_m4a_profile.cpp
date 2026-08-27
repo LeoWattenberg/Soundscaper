@@ -5,8 +5,10 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <fstream>
 #include <limits>
 #include <span>
+#include <vector>
 
 namespace soundscaper::os_audio {
 namespace {
@@ -390,6 +392,26 @@ bool exactAacLcM4a(
 		return true;
 	});
 	return valid && foundFileType && foundMovie && audioTracks == 1u && exactAudio;
+}
+
+bool exactAacLcM4aFile(
+	const char *path,
+	uint64_t expectedBytes,
+	uint32_t sampleRate,
+	uint32_t channelCount)
+{
+	if (path == nullptr || expectedBytes == 0u || expectedBytes > 32u * 1024u * 1024u
+		|| expectedBytes > std::numeric_limits<size_t>::max()
+		|| expectedBytes > static_cast<uint64_t>(std::numeric_limits<std::streamsize>::max())) {
+		return false;
+	}
+	std::ifstream file(path, std::ios::binary);
+	std::vector<uint8_t> bytes(static_cast<size_t>(expectedBytes));
+	if (!file.read(reinterpret_cast<char *>(bytes.data()),
+		static_cast<std::streamsize>(bytes.size()))) return false;
+	// A longer file is a different file than the one whose length was authenticated.
+	if (file.peek() != std::char_traits<char>::eof()) return false;
+	return exactAacLcM4a(bytes, sampleRate, channelCount);
 }
 
 } // namespace soundscaper::os_audio

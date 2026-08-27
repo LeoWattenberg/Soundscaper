@@ -29,6 +29,9 @@ enum class ReviewedCodec {
 enum class EncodedOutputInspection {
 	exact,
 	invalid,
+	/* The completed file was read whole and is not the exact admitted tuple.
+	 * That is a verdict about the encoder's output, not a failure to encode. */
+	notExact,
 	overLimit,
 };
 
@@ -159,8 +162,9 @@ EncodedOutputInspection inspectEncodedOutput(
 	std::vector<uint8_t> bytes(static_cast<size_t>(bytes64));
 	const bool readOutput = readAll(descriptor, bytes.data(), bytes.size());
 	const bool closed = close(descriptor) == 0;
-	if (!readOutput || !closed || !soundscaper::os_audio::exactAacLcM4a(bytes, 48000u, 2u)) {
-		return EncodedOutputInspection::invalid;
+	if (!readOutput || !closed) return EncodedOutputInspection::invalid;
+	if (!soundscaper::os_audio::exactAacLcM4a(bytes, 48000u, 2u)) {
+		return EncodedOutputInspection::notExact;
 	}
 	outputBytes = bytes64;
 	return EncodedOutputInspection::exact;
@@ -209,24 +213,6 @@ bool exactAacM4aContainer(ExtAudioFileRef input)
 		&& fileFormatBytes == sizeof(fileFormat) && fileFormat == kAudioFileM4AType;
 }
 
-bool exactAacLcInput(
-	const char *path,
-	uint64_t expectedBytes,
-	uint32_t sampleRate,
-	uint32_t channelCount)
-{
-	if (expectedBytes == 0u || expectedBytes > 32u * 1024u * 1024u
-		|| expectedBytes > std::numeric_limits<size_t>::max()
-		|| expectedBytes > static_cast<uint64_t>(std::numeric_limits<std::streamsize>::max())) return false;
-	std::ifstream file(path, std::ios::binary);
-	std::vector<uint8_t> bytes(static_cast<size_t>(expectedBytes));
-	if (!file.read(reinterpret_cast<char *>(bytes.data()), static_cast<std::streamsize>(bytes.size()))) {
-		return false;
-	}
-	if (file.peek() != std::char_traits<char>::eof()) return false;
-	return soundscaper::os_audio::exactAacLcM4a(bytes, sampleRate, channelCount);
-}
-
 soundscaper_pro_os_mp3_decode_result decodeOperatingSystemAudio(
 	const soundscaper_pro_os_mp3_decode_request *request,
 	ReviewedCodec codec)
@@ -273,7 +259,7 @@ soundscaper_pro_os_mp3_decode_result decodeOperatingSystemAudio(
 	}
 	const uint32_t sampleRate = static_cast<uint32_t>(source.mSampleRate);
 	const uint32_t channelCount = source.mChannelsPerFrame;
-	if (codec == ReviewedCodec::aacM4a && !exactAacLcInput(
+	if (codec == ReviewedCodec::aacM4a && !soundscaper::os_audio::exactAacLcM4aFile(
 		request->input_path_utf8, request->input_bytes, sampleRate, channelCount)) {
 		return finish(answer(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, true), -1);
 	}
@@ -472,7 +458,9 @@ soundscaper_pro_os_aac_m4a_encode_result encodeOperatingSystemAacM4a(
 	if (inspected != EncodedOutputInspection::exact) {
 		return finish(encodeAnswer(inspected == EncodedOutputInspection::overLimit
 			? SOUNDSCAPER_PRO_OS_CODEC_OUTPUT_LIMIT
-			: SOUNDSCAPER_PRO_OS_CODEC_ENCODE_FAILED, true));
+			: inspected == EncodedOutputInspection::notExact
+				? SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED
+				: SOUNDSCAPER_PRO_OS_CODEC_ENCODE_FAILED, true));
 	}
 	soundscaper_pro_os_aac_m4a_encode_result result = encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_OK, true);
 	result.exact_tuple_passed = 1u;

@@ -138,3 +138,61 @@ test('target CTest uses exact positive M4A and wrong-container/profile fixtures'
 		assert.equal(createHash('sha256').update(fixture).digest('hex'), sha256, name);
 	}
 });
+
+/**
+ * `audioProfileLevelIndication` lives in an MPEG-4 initial object descriptor,
+ * which an ordinary M4A need not carry: the pinned canary, written by the
+ * digest-pinned FFmpeg image, has no `iods` box at all. Media Foundation
+ * therefore has no such field to report for it, and the Windows decoder used to
+ * require the attribute to be present, which refused every conforming file
+ * written this way. MF_MT_AAC_PAYLOAD_TYPE is documented as optional with a
+ * default of 0 for the same reason. Both must stay optional-if-absent and
+ * checked-if-present, with the file's own AudioSpecificConfig as the witness.
+ */
+test('an admitted M4A is not required to carry an initial object descriptor', async () => {
+	const source = await readFile(join(SOURCE, 'tests/os_audio_codec_self_test.cpp'), 'utf8');
+	const block = /constexpr char aacM4aCanaryBase64\[\] =([\s\S]*?);/u.exec(source)?.[1];
+	const canary = Buffer.from(
+		[...block.matchAll(/"([^"]*)"/gu)].map((match) => match[1]).join(''), 'base64');
+	assert.equal(canary.subarray(4, 8).toString('latin1'), 'ftyp');
+	assert.equal(canary.includes(Buffer.from('iods', 'latin1')), false,
+		'the fixture that must be admitted carries no profile-level indication');
+
+	const windows = await readFile(join(SOURCE, 'src/os_audio_codec_windows.cpp'), 'utf8');
+	for (const attribute of ['MF_MT_AAC_PAYLOAD_TYPE', 'MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION']) {
+		assert.match(windows, new RegExp(`SUCCEEDED\\([^\\n]*${attribute}`, 'u'),
+			`${attribute} must be read as optional, not required to be present`);
+		assert.doesNotMatch(windows, new RegExp(`exactUnsigned\\(type, ${attribute}`, 'u'),
+			`${attribute} must not be required to be present`);
+	}
+	assert.match(windows, /profile != 0x29u && profile != 0x2au && profile != 0x2bu/u,
+		'a profile-level indication that is present is still held to AAC-LC');
+});
+
+test('both reviewed targets admit an M4A input from its own authenticated bytes', async () => {
+	const [windows, mac, profile, canary] = await Promise.all([
+		readFile(join(SOURCE, 'src/os_audio_codec_windows.cpp'), 'utf8'),
+		readFile(join(SOURCE, 'src/os_audio_codec_mac.mm'), 'utf8'),
+		readFile(join(SOURCE, 'src/os_aac_m4a_profile.h'), 'utf8'),
+		readFile(join(SOURCE, 'tests/os_audio_codec_self_test.cpp'), 'utf8'),
+	]);
+	assert.match(profile, /bool exactAacLcM4aFile\(/u);
+	assert.match(mac, /exactAacLcM4aFile\(\s*\n?\s*request->input_path_utf8/u);
+	// Windows reads it wide, so an admission never depends on the ANSI code page.
+	assert.match(windows, /exactAacLcInput\(inputPath, request->input_bytes/u);
+	assert.match(windows, /boundedFileBytes\(path, expectedBytes, bytes\)/u);
+	// And with the config proven, the declared-SBR refusal applies to both.
+	assert.match(canary, /#if defined\(_WIN32\) \|\| defined\(__APPLE__\)\s*\n\tconst std::string heInputText/u);
+});
+
+test('an encoder output that is refused reports the tuple, not an encode failure', async () => {
+	for (const name of ['src/os_audio_codec_windows.cpp', 'src/os_audio_codec_mac.mm']) {
+		const source = await readFile(join(SOURCE, name), 'utf8');
+		assert.match(source, /EncodedOutputInspection::notExact/u, name);
+		assert.match(
+			source,
+			/notExact\s*\n?\s*\?\s*SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED/u,
+			`${name} must separate a refused output from a failed encode`,
+		);
+	}
+});
