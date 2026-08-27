@@ -7,10 +7,6 @@ import { readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
 import {
-	framescaperMediaProductionReadinessReference,
-} from '../../desktop/framescaper-media-production-readiness.ts';
-
-import {
 	collectBoostHeaderClosure,
 	verifyBoostHeaderClosureManifest,
 } from './boost-header-closure.mjs';
@@ -388,10 +384,6 @@ function auditBuiltTarget(root, manifest, target, record) {
 		findings.push(`${target.id}: built payload bytes disagree with the pin.`);
 	}
 	findings.push(...auditIsolationPayload(root, target.id, record.isolationPayload));
-	if (record.productionReadiness !== null) {
-		try { framescaperMediaProductionReadinessReference(record.productionReadiness, target.id); }
-		catch { findings.push(`${target.id}: invalid media-host production-readiness reference.`); }
-	}
 	return findings;
 }
 

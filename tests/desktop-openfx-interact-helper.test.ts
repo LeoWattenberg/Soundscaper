@@ -108,7 +108,11 @@ async function createFixture(context: test.TestContext) {
 		openfxVersion: '1.5.1', openfxCommit: 'ab77951', scanner, runtimeHost,
 		isolation: { launcher: scanner, sandboxProfile: scanner,
 			brokerPolicy: scanner, runtimeLibraries: [] },
-		productionReadiness: openFxProductionReadinessFixture(scanner.sha256, runtimeHost.sha256),
+		qualifiedGpuBackends: ['opengl', 'opencl', 'cuda'],
+		m9ReleaseReview: {
+			scope: 'stable-1.0-release', status: 'complete',
+			evidence: openFxProductionReadinessFixture(scanner.sha256, runtimeHost.sha256),
+		},
 	};
 	return { descriptor: host, plugin, scratch: {
 		rootPath: scratchPath, rootIdentity: { dev: scratch.dev, ino: scratch.ino },

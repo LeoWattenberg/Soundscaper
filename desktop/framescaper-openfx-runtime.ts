@@ -183,7 +183,8 @@ function assertSameDescriptor(
 		|| !sameExecutable(expected.scanner, actual.scanner)
 		|| !sameExecutable(expected.runtimeHost, actual.runtimeHost)
 		|| !sameIsolation(expected.isolation, actual.isolation)
-		|| JSON.stringify(expected.productionReadiness) !== JSON.stringify(actual.productionReadiness)) {
+		|| JSON.stringify(expected.qualifiedGpuBackends)
+			!== JSON.stringify(actual.qualifiedGpuBackends)) {
 		throw new Error('The Framescaper OpenFX-host payload identity changed after authentication.');
 	}
 }

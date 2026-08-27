@@ -86,11 +86,21 @@ test('a built target stages only its exact verified media and two OpenFX executa
 	});
 	const summary = await stageVerifiedFramescaperNativeHostPayloads({ release, outputRoot });
 	assert.equal(summary.mediaHost.status, 'built');
+	assert.deepEqual(summary.mediaHost.m9ReleaseReview, {
+		scope: 'stable-1.0-release',
+		status: 'pending',
+		detail: 'No independent media-host review is recorded for stable 1.0 release admission.',
+	});
 	assert.equal(summary.mediaHost.productionReadiness, null);
 	assert.deepEqual(Object.keys(summary.mediaHost.reviewPolicy).sort(), [
 		'byteLength', 'name', 'sha256',
 	]);
 	assert.equal(summary.openFxHost.status, 'built');
+	assert.deepEqual(summary.openFxHost.m9ReleaseReview, {
+		scope: 'stable-1.0-release',
+		status: 'pending',
+		detail: 'No independent OpenFX-host review is recorded for stable 1.0 release admission.',
+	});
 	assert.equal(summary.openFxHost.productionReadiness, null);
 	assert.deepEqual(Object.keys(summary.openFxHost.reviewPolicy).sort(), [
 		'byteLength', 'name', 'sha256',
@@ -127,6 +137,12 @@ test('signed OpenFX readiness and its scoped review policy survive exact staging
 		repositoryRoot, target: TARGET, targetSource: 'declared',
 	});
 	const summary = await stageVerifiedFramescaperNativeHostPayloads({ release, outputRoot });
+	assert.deepEqual(summary.openFxHost.m9ReleaseReview, {
+		scope: 'stable-1.0-release',
+		status: 'complete',
+		reviewer: 'synthetic OpenFX isolation reviewer',
+		reviewedAt: '2026-08-24',
+	});
 	assert.equal(summary.openFxHost.productionReadiness.verified.status, 'authenticated');
 	assert.equal(
 		summary.openFxHost.productionReadiness.verified.evidence.target,
@@ -154,6 +170,27 @@ test('signed OpenFX readiness and its scoped review policy survive exact staging
 	);
 });
 
+test('invalid OpenFX M9 review metadata does not withhold exact isolated host payloads', async (context) => {
+	const repositoryRoot = builtFixture(context, 'framescaper-invalid-reviewed-host-fixture-');
+	attachOpenFxReadiness(repositoryRoot);
+	writeFileSync(
+		join(repositoryRoot, 'config/framescaper-openfx-production-readiness', `${TARGET}.json`),
+		Buffer.from('invalidated review evidence'),
+	);
+	const outputRoot = temporaryRoot(context, 'framescaper-invalid-reviewed-host-stage-');
+	const release = await verifyFramescaperNativeHostPayloads({
+		repositoryRoot, target: TARGET, targetSource: 'declared',
+	});
+	const summary = await stageVerifiedFramescaperNativeHostPayloads({ release, outputRoot });
+	assert.equal(summary.openFxHost.status, 'built');
+	assert.equal(summary.openFxHost.payloads.length, 6);
+	assert.equal(summary.openFxHost.productionReadiness, null);
+	assert.equal(summary.openFxHost.m9ReleaseReview.scope, 'stable-1.0-release');
+	assert.equal(summary.openFxHost.m9ReleaseReview.status, 'invalid');
+	assert.match(summary.openFxHost.m9ReleaseReview.detail, /M9 review is invalid/iu);
+	await assert.doesNotReject(() => verifyStagedFramescaperNativeHostPayloads({ release, outputRoot }));
+});
+
 test('signed media-host readiness and its independent review policy survive exact staging', async (context) => {
 	const repositoryRoot = builtFixture(context, 'framescaper-reviewed-media-host-fixture-');
 	attachMediaReadiness(repositoryRoot);
@@ -162,6 +199,12 @@ test('signed media-host readiness and its independent review policy survive exac
 		repositoryRoot, target: TARGET, targetSource: 'declared',
 	});
 	const summary = await stageVerifiedFramescaperNativeHostPayloads({ release, outputRoot });
+	assert.deepEqual(summary.mediaHost.m9ReleaseReview, {
+		scope: 'stable-1.0-release',
+		status: 'complete',
+		reviewer: 'synthetic media isolation reviewer',
+		reviewedAt: '2026-08-24',
+	});
 	assert.equal(summary.mediaHost.productionReadiness.verified.status, 'authenticated');
 	assert.equal(summary.mediaHost.productionReadiness.verified.evidence.target, TARGET);
 	const mediaOutput = join(outputRoot, 'native/framescaper-media-host', TARGET);

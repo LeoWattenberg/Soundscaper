@@ -190,8 +190,9 @@ export function createDesktopNativeAddonHelperSupervisor({
 	const supervisor = new HelperSupervisor({
 		verifyBinary: async () => {
 			descriptor = await verifyPayload();
-			if (professional && role !== 'audio' && !descriptor.productionReadiness) {
-				throw new Error('A professional plug-in helper requires signed production isolation readiness.');
+			if (professional && role !== 'audio'
+				&& (!descriptor.pluginPeer || !descriptor.isolation?.entrypoint)) {
+				throw new Error('A professional plug-in helper requires an authenticated peer/isolation closure.');
 			}
 		},
 		spawn: async () => {

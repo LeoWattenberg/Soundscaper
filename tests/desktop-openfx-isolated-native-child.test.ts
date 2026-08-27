@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { createHash, generateKeyPairSync, sign } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import {
 	access, chmod, copyFile, mkdir, mkdtemp, readFile, readdir, realpath, rm, stat, writeFile,
 } from 'node:fs/promises';
@@ -16,7 +16,6 @@ import type {
 	FramescaperOpenFxHostDescriptor,
 } from '../desktop/framescaper-openfx-host-payload.ts';
 import { createIsolatedOpenFxNativeChildAuthority } from '../desktop/openfx-isolated-native-child.ts';
-import { verifyOpenFxProductionReadiness } from '../desktop/openfx-production-readiness.ts';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const NATIVE_ROOT = join(ROOT, 'native/milestone-5-native-isolation-launcher');
@@ -24,7 +23,7 @@ const PROFILE = join(NATIVE_ROOT, 'profiles/linux-v1.json');
 const BROKER = join(NATIVE_ROOT, 'profiles/linux-broker-v1.json');
 const execFileAsync = promisify(execFile);
 
-test('the actual OpenFX scanner child executes only the one signed-and-granted plug-in', {
+test('the actual OpenFX scanner child executes only the machine-authenticated and granted plug-in', {
 	skip: process.platform !== 'linux' || process.arch !== 'x64',
 }, async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'openfx-isolated-child-'));
@@ -69,14 +68,15 @@ test('the actual OpenFX scanner child executes only the one signed-and-granted p
 		descriptor(launcherPath), descriptor(PROFILE), descriptor(BROKER), descriptor(scannerPath),
 		descriptor(runtimePath), descriptor(admittedPath),
 	]);
-	const productionReadiness = await signedReadiness({
-		launcher, sandboxProfile, brokerPolicy, scanner, runtimeHost, runtimeLibraries,
-	});
 	const descriptorValue: FramescaperOpenFxHostDescriptor = Object.freeze({
 		target: 'linux-x64', runtime: 'linux-x64', hostVersion: '1.0.0',
 		openfxVersion: '1.5.1', openfxCommit: 'ab77951', scanner, runtimeHost,
 		isolation: Object.freeze({ launcher, sandboxProfile, brokerPolicy, runtimeLibraries }),
-		productionReadiness,
+		qualifiedGpuBackends: Object.freeze(['opengl', 'opencl', 'cuda'] as const),
+		m9ReleaseReview: Object.freeze({
+			scope: 'stable-1.0-release', status: 'pending',
+			detail: 'Human acceptance is intentionally absent from this runtime test.',
+		}),
 	});
 	const authority = createIsolatedOpenFxNativeChildAuthority(descriptorValue);
 	assert.equal((await authority.productionReady()).status, 'ready');
@@ -90,13 +90,25 @@ test('the actual OpenFX scanner child executes only the one signed-and-granted p
 	}).completion;
 	assert.equal(result.exitCode, 0, result.stderr);
 	assert.deepEqual(JSON.parse(result.stdout), { admittedResult: 42, siblingDenied: true });
-	assert.throws(() => createIsolatedOpenFxNativeChildAuthority({
+	const changed = createIsolatedOpenFxNativeChildAuthority({
 		...descriptorValue,
 		scanner: Object.freeze({ ...scanner, sha256: 'ff'.repeat(32) }),
-	}), /differ.*signed readiness/iu);
-	assert.throws(() => createIsolatedOpenFxNativeChildAuthority({
-		...descriptorValue, productionReadiness: structuredClone(productionReadiness),
-	}), /branded.*Ed25519/iu);
+	});
+	assert.equal((await changed.productionReady()).status, 'ready');
+	await assert.rejects(changed.invoke({
+		executablePath: scanner.path,
+		arguments: ['--scan', plugin.path, '--sha256', plugin.sha256],
+	}, {
+		plugin: await pathGrant(plugin.path), pluginResources: [], pluginRuntime: [],
+		readOnly: [], writeOnly: [],
+	}).completion, /changed identity, bytes, or digest/iu);
+	const changedReview = createIsolatedOpenFxNativeChildAuthority({
+		...descriptorValue,
+		m9ReleaseReview: Object.freeze({
+			scope: 'stable-1.0-release', status: 'invalid', detail: 'fixture review failure',
+		}),
+	});
+	assert.equal((await changedReview.productionReady()).status, 'ready');
 });
 
 test('the isolated runtime admits the Interact invocation form without write authority', {
@@ -124,14 +136,15 @@ test('the isolated runtime admits the Interact invocation form without write aut
 		descriptor(launcherPath), descriptor(PROFILE), descriptor(BROKER),
 		descriptor(scannerPath), descriptor(runtimePath),
 	]);
-	const productionReadiness = await signedReadiness({
-		launcher, sandboxProfile, brokerPolicy, scanner, runtimeHost, runtimeLibraries,
-	});
 	const authority = createIsolatedOpenFxNativeChildAuthority(Object.freeze({
 		target: 'linux-x64', runtime: 'linux-x64', hostVersion: '1.0.0',
 		openfxVersion: '1.5.1', openfxCommit: 'ab77951', scanner, runtimeHost,
 		isolation: Object.freeze({ launcher, sandboxProfile, brokerPolicy, runtimeLibraries }),
-		productionReadiness,
+		qualifiedGpuBackends: Object.freeze(['opengl', 'opencl', 'cuda'] as const),
+		m9ReleaseReview: Object.freeze({
+			scope: 'stable-1.0-release', status: 'pending',
+			detail: 'Human acceptance is intentionally absent from this runtime test.',
+		}),
 	}));
 	const grantSha256 = digest(await readFile(grantPath));
 	const interactInvocation = {
@@ -158,60 +171,6 @@ test('the isolated runtime admits the Interact invocation form without write aut
 		})}\n`,
 	}, interactAuthority), /one output directory/u);
 });
-
-async function signedReadiness(input: Readonly<{
-	launcher: FramescaperOpenFxExecutableDescriptor;
-	sandboxProfile: FramescaperOpenFxExecutableDescriptor;
-	brokerPolicy: FramescaperOpenFxExecutableDescriptor;
-	scanner: FramescaperOpenFxExecutableDescriptor;
-	runtimeHost: FramescaperOpenFxExecutableDescriptor;
-	runtimeLibraries: readonly FramescaperOpenFxExecutableDescriptor[];
-}>) {
-	const evidence = Object.freeze({
-		schemaVersion: 1, kind: 'framescaper-openfx-production-readiness', target: 'linux-x64',
-		scannerSha256: input.scanner.sha256, runtimeHostSha256: input.runtimeHost.sha256,
-		qualifiedGpuBackends: ['opengl', 'opencl', 'cuda'],
-		runtimeLibraries: Object.freeze(input.runtimeLibraries.map((library) => Object.freeze({
-			name: basename(library.path), byteLength: library.byteLength, sha256: library.sha256,
-		}))),
-		launcher: Object.freeze({
-			schemaVersion: 1, target: 'linux-x64',
-			launcherId: 'framescaper-linux-landlock-seccomp-namespaces-v1',
-			launcherPayloadSha256: input.launcher.sha256,
-			sandboxProfileSha256: input.sandboxProfile.sha256,
-			brokerPolicySha256: input.brokerPolicy.sha256,
-			filesystem: 'broker-only', network: 'denied', childProcesses: 'denied',
-			dynamicCode: 'admitted-plugin-only',
-		}),
-		openfxVersion: '1.5.1', osIsolationAttested: true, hostilePluginDenialAttested: true,
-		realThirdPartyExecutionAttested: true, reviewedAt: '2026-08-24', reviewer: 'Fixture Reviewer',
-	});
-	const bytes = Buffer.from(JSON.stringify(evidence));
-	const { privateKey, publicKey } = generateKeyPairSync('ed25519');
-	return verifyOpenFxProductionReadiness(Object.freeze({
-		schemaVersion: 2, status: 'reviewed', target: 'linux-x64',
-		evidence: Object.freeze({
-			path: 'config/framescaper-openfx-production-readiness/linux-x64.json',
-			byteLength: bytes.byteLength, sha256: digest(bytes),
-		}),
-		signature: Object.freeze({
-			algorithm: 'ed25519', reviewKeyId: 'fixture-openfx-review',
-			valueBase64: sign(null, bytes, privateKey).toString('base64'),
-		}),
-	}), {
-		scannerSha256: input.scanner.sha256, runtimeHostSha256: input.runtimeHost.sha256,
-		isolation: {
-			launcherSha256: input.launcher.sha256, sandboxProfileSha256: input.sandboxProfile.sha256,
-			brokerPolicySha256: input.brokerPolicy.sha256,
-			runtimeLibraries: input.runtimeLibraries.map((library) => ({
-				name: basename(library.path), byteLength: library.byteLength, sha256: library.sha256,
-			})),
-		},
-	}, {
-		readEvidence: async () => Buffer.from(bytes),
-		resolveReviewPublicKey: async () => publicKey.export({ type: 'spki', format: 'pem' }),
-	});
-}
 
 async function stageElfClosure(host: string, runtimeRoot: string): Promise<void> {
 	const [{ stdout: programHeaders }, { stdout: dependencies }] = await Promise.all([

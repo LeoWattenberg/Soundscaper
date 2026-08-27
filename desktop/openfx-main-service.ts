@@ -244,7 +244,7 @@ export class FramescaperOpenFxMainService {
 	qualifiedGpuBackends() {
 		const availability = this.#options.runtime.payloadAvailability;
 		return availability.status === 'available'
-			? availability.descriptor.productionReadiness.qualifiedGpuBackends
+			? availability.descriptor.qualifiedGpuBackends
 			: Object.freeze([]);
 	}
 

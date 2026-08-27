@@ -41,10 +41,13 @@ export function createIsolatedOpenFxHostProcessInvoker(
 export function createIsolatedOpenFxNativeChildAuthority(
 	descriptor: FramescaperOpenFxHostDescriptor,
 ) {
-	assertDescriptorReadiness(descriptor);
 	const launcher = createNativeChildIsolationLauncher({
 		target: descriptor.target,
-		reviewedContract: descriptor.productionReadiness,
+		machineWorkload: Object.freeze({
+			kind: 'openfx' as const,
+			payloads: Object.freeze([descriptor.scanner, descriptor.runtimeHost]),
+			runtimeLibraries: descriptor.isolation.runtimeLibraries,
+		}),
 		artifacts: {
 			launcher: descriptor.isolation.launcher,
 			sandboxProfile: descriptor.isolation.sandboxProfile,
@@ -145,29 +148,6 @@ function isolatedDispatch(
 		arguments: Object.freeze(['--library-path', runtimeRoot, host.path, ...arguments_]),
 		runtimeClosure: Object.freeze(descriptor.isolation.runtimeLibraries.filter((entry) => entry !== loader)),
 	});
-}
-
-function assertDescriptorReadiness(descriptor: FramescaperOpenFxHostDescriptor): void {
-	const readiness = descriptor.productionReadiness;
-	if (descriptor.scanner.sha256 !== readiness.scannerSha256
-		|| descriptor.runtimeHost.sha256 !== readiness.runtimeHostSha256
-		|| descriptor.isolation.launcher.sha256 !== readiness.launcher.launcherPayloadSha256
-		|| descriptor.isolation.sandboxProfile.sha256 !== readiness.launcher.sandboxProfileSha256
-		|| descriptor.isolation.brokerPolicy.sha256 !== readiness.launcher.brokerPolicySha256) {
-		throw new Error('The OpenFX child payload or isolation artifacts differ from signed readiness.');
-	}
-	const runtimeLibraries = descriptor.isolation.runtimeLibraries.map((library) => Object.freeze({
-		name: basename(library.path), byteLength: library.byteLength, sha256: library.sha256,
-	}));
-	if (JSON.stringify(runtimeLibraries) !== JSON.stringify(readiness.runtimeLibraries)) {
-		throw new Error('The OpenFX child runtime closure differs from signed readiness.');
-	}
-	if (descriptor.target.startsWith('linux-')) {
-		const loaderName = LINUX_RUNTIME_LOADERS[descriptor.target as keyof typeof LINUX_RUNTIME_LOADERS];
-		if (runtimeLibraries.filter(({ name }) => name === loaderName).length !== 1) {
-			throw new Error('The OpenFX Linux child requires its target-specific signed runtime loader.');
-		}
-	}
 }
 
 function selectedExecutable(

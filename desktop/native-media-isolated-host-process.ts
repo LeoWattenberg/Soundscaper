@@ -76,7 +76,11 @@ export async function runIsolatedNativeMediaHostControl(
 function mediaLauncher(descriptor: FramescaperMediaHostDescriptor) {
 	return createNativeChildIsolationLauncher({
 		target: descriptor.target,
-		reviewedContract: descriptor.productionReadiness,
+		machineWorkload: Object.freeze({
+			kind: 'media' as const,
+			payloads: Object.freeze([descriptorArtifact(descriptor)]),
+			runtimeLibraries: descriptor.isolation.runtimeLibraries,
+		}),
 		artifacts: {
 			launcher: descriptor.isolation.launcher,
 			sandboxProfile: descriptor.isolation.sandboxProfile,

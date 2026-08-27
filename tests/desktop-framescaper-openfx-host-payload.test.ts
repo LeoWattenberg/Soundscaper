@@ -80,7 +80,11 @@ test('a built OpenFX target requires two independently authenticated payloads', 
 				brokerPolicy: runtimeDescriptor(BROKER_PATH, BROKER),
 				runtimeLibraries: [runtimeDescriptor(LIBRARY_PATH, LIBRARY)],
 			},
-			productionReadiness: productionReadinessEvidence(),
+			qualifiedGpuBackends: ['opengl', 'opencl', 'cuda'],
+			m9ReleaseReview: {
+				scope: 'stable-1.0-release', status: 'complete',
+				evidence: productionReadinessEvidence(),
+			},
 		});
 	assert.deepEqual(reads, [
 		MANIFEST_PATH, SCANNER_PATH, RUNTIME_PATH, LAUNCHER_PATH, PROFILE_PATH,
@@ -131,7 +135,7 @@ test('prepared desktop development resolves both hosts from its staged external 
 	assert.equal(reads.length, 9);
 });
 
-test('OpenFX readiness mutation between independent evidence opens is refused', async () => {
+test('OpenFX review mutation is reported without disabling authenticated payloads', async () => {
 	let evidenceReads = 0;
 	const changed = productionReadinessEvidenceBytes();
 	changed[changed.byteLength - 1] ^= 1;
@@ -147,9 +151,9 @@ test('OpenFX readiness mutation between independent evidence opens is refused', 
 		},
 	});
 	assert.equal(evidenceReads, 2);
-	assert.equal(availability.status, 'unavailable');
-	assert.equal(availability.status === 'unavailable' ? availability.reason : null,
-		'production-readiness-evidence-mismatch');
+	assert.equal(availability.status, 'available');
+	assert.equal(availability.status === 'available'
+		? availability.descriptor.m9ReleaseReview.status : null, 'invalid');
 });
 
 test('pending, partial, altered, and malformed OpenFX payloads remain unavailable', async () => {
@@ -173,18 +177,17 @@ test('pending, partial, altered, and malformed OpenFX payloads remain unavailabl
 	}
 });
 
-test('a built payload remains unavailable without reviewed production-readiness evidence', async () => {
+test('a built payload stays available while OpenFX review remains pending for stable 1.0', async () => {
 	const availability = await describeFramescaperOpenFxHostAvailability(
 		location(), ports(manifest({ attested: false })),
 	);
-	assert.equal(availability.status, 'unavailable');
-	assert.equal(
-		availability.status === 'unavailable' ? availability.reason : null,
-		'production-readiness-unattested',
-	);
+	assert.equal(availability.status, 'available');
+	if (availability.status !== 'available') return;
+	assert.equal(availability.descriptor.m9ReleaseReview.status, 'pending');
+	assert.deepEqual(availability.descriptor.qualifiedGpuBackends, ['opengl', 'opencl', 'cuda']);
 });
 
-test('caller-authored readiness cannot replace reopened signed launcher evidence', async () => {
+test('untrusted review is invalid M9 metadata and cannot disable machine-authenticated hosting', async () => {
 	const untrusted = generateKeyPairSync('ed25519');
 	const availability = await describeFramescaperOpenFxHostAvailability(
 		location(), {
@@ -192,11 +195,9 @@ test('caller-authored readiness cannot replace reopened signed launcher evidence
 			resolveReviewPublicKey: () => untrusted.publicKey.export({ type: 'spki', format: 'pem' }),
 		},
 	);
-	assert.equal(availability.status, 'unavailable');
-	assert.equal(
-		availability.status === 'unavailable' ? availability.reason : null,
-		'production-readiness-evidence-mismatch',
-	);
+	assert.equal(availability.status, 'available');
+	assert.equal(availability.status === 'available'
+		? availability.descriptor.m9ReleaseReview.status : null, 'invalid');
 });
 
 test('the OpenFX spawn verifier rechecks both payloads before every process spawn', async () => {

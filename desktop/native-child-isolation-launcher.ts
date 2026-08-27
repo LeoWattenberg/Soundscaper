@@ -6,7 +6,7 @@ import { spawn as nodeSpawn, type ChildProcess, type SpawnOptions } from 'node:c
 import { createHash } from 'node:crypto';
 import { constants } from 'node:fs';
 import { open, type FileHandle } from 'node:fs/promises';
-import { isAbsolute } from 'node:path';
+import { basename, isAbsolute } from 'node:path';
 import type { Readable, Writable } from 'node:stream';
 
 import {
@@ -19,6 +19,7 @@ import {
 	projectNativeChildReviewedWorkload,
 	type NativeChildReviewedWorkload,
 } from './native-child-reviewed-workload.ts';
+import { soundscaperProfessionalRuntimeClosureSha256 } from './soundscaper-professional-native-readiness.mjs';
 import { createNativeChildWindowsAuthorityProfile } from './native-child-windows-authority.ts';
 
 const SHA256 = /^[a-f\d]{64}$/u;
@@ -118,8 +119,10 @@ type Spawn = (command: string, arguments_: readonly string[], options: SpawnOpti
 
 export interface NativeChildIsolationLauncherOptions {
 	readonly target: NativeChildIsolationTarget;
-	/** Must be the exact branded result of a reopened Ed25519 readiness verifier. */
-	readonly reviewedContract: unknown | null;
+	/** Legacy M9 report input. It is never required for execution admission. */
+	readonly reviewedContract?: unknown | null;
+	/** Machine authority derived from exact payload and runtime-closure descriptors. */
+	readonly machineWorkload?: NativeChildMachineWorkload;
 	readonly artifacts: Readonly<{
 		readonly launcher: NativeChildIsolationArtifactDescriptor;
 		readonly sandboxProfile: NativeChildIsolationArtifactDescriptor;
@@ -129,12 +132,31 @@ export interface NativeChildIsolationLauncherOptions {
 	readonly enforcementTimeoutMs?: number;
 }
 
+export type NativeChildMachineWorkload =
+	| Readonly<{
+		readonly kind: 'soundscaper';
+		readonly payloads: readonly NativeChildIsolationArtifactDescriptor[];
+		readonly runtimeClosure: readonly NativeChildIsolationArtifactDescriptor[];
+	}>
+	| Readonly<{
+		readonly kind: 'media' | 'openfx';
+		readonly payloads: readonly NativeChildIsolationArtifactDescriptor[];
+		readonly runtimeLibraries: readonly NativeChildIsolationArtifactDescriptor[];
+	}>;
+
 const enforcedLaunches = new WeakSet<object>();
 
 export function createNativeChildIsolationLauncher(options: NativeChildIsolationLauncherOptions) {
 	const target = targetValue(options?.target);
-	const reviewed = options?.reviewedContract === null ? null : reviewedContract(options?.reviewedContract, target);
 	const artifacts = artifactSet(options?.artifacts);
+	const machineWorkload = options?.machineWorkload;
+	const reviewedInput = options?.reviewedContract;
+	if (machineWorkload !== undefined && reviewedInput !== undefined && reviewedInput !== null) {
+		throw new TypeError('Native isolation accepts machine containment or legacy review metadata, not both.');
+	}
+	const reviewed = machineWorkload === undefined
+		? reviewedInput === undefined || reviewedInput === null ? null : reviewedContract(reviewedInput, target)
+		: machineContainmentContract(machineWorkload, target, artifacts);
 	const spawn = options.spawn ?? nodeSpawn;
 	const enforcementTimeoutMs = boundedInteger(options.enforcementTimeoutMs ?? 5_000, 100, 30_000,
 		'enforcement timeout');
@@ -143,7 +165,7 @@ export function createNativeChildIsolationLauncher(options: NativeChildIsolation
 		productionReady: async () => {
 			try {
 				await verify();
-				if (reviewed === null) throw new Error('A signed native-isolation review is not mounted.');
+				if (reviewed === null) throw new Error('No machine native-isolation workload is mounted.');
 				return Object.freeze({ status: 'ready' as const, target, launcherId: reviewed.launcher.launcherId });
 			} catch (error) {
 				return Object.freeze({ status: 'unavailable' as const, target, detail: errorMessage(error) });
@@ -154,7 +176,7 @@ export function createNativeChildIsolationLauncher(options: NativeChildIsolation
 			catch (error) {
 				throw new Error(`The native child launcher is not production-ready: ${errorMessage(error)}`, { cause: error });
 			}
-			if (reviewed === null) throw new Error('A signed native-isolation review is not mounted.');
+			if (reviewed === null) throw new Error('No machine native-isolation workload is mounted.');
 			return launchTargetChild({
 				target, reviewed, artifacts, request, spawn, enforcementTimeoutMs,
 			});
@@ -171,19 +193,19 @@ async function verifyProductionArtifacts(
 	reviewed: NativeChildIsolationReviewedContract | null,
 	artifacts: ReturnType<typeof artifactSet>,
 ): Promise<void> {
-	if (reviewed === null) throw new Error('No signed native-isolation review is mounted.');
+	if (reviewed === null) throw new Error('No machine native-isolation workload is mounted.');
 	if (runtimeTarget() !== target) {
 		throw new Error(`No actually enforced ${target} native child launcher is implemented on this runtime.`);
 	}
 	const launcherIds = target.startsWith('linux-') ? LINUX_LAUNCHER_IDS
 		: TARGET_LAUNCHER_IDS[target as keyof typeof TARGET_LAUNCHER_IDS] ?? [];
 	if (!launcherIds.includes(reviewed.launcher.launcherId)) {
-		throw new Error('The signed readiness names no admitted target native child launcher.');
+		throw new Error('The machine containment contract names no admitted target native child launcher.');
 	}
 	if (reviewed.launcher.launcherPayloadSha256 !== artifacts.launcher.sha256
 		|| reviewed.launcher.sandboxProfileSha256 !== artifacts.sandboxProfile.sha256
 		|| reviewed.launcher.brokerPolicySha256 !== artifacts.brokerPolicy.sha256) {
-		throw new Error('The launcher, sandbox profile, or broker policy digest differs from signed readiness.');
+		throw new Error('The launcher, sandbox profile, or broker policy differs from machine containment.');
 	}
 	const handles = await Promise.all([
 		openAuthenticatedFile(artifacts.launcher),
@@ -419,6 +441,74 @@ function reviewedContract(value: unknown, target: NativeChildIsolationTarget): N
 	return Object.freeze({
 		status: 'authenticated', launcher: Object.freeze({ ...launcher }), workload: projected.workload,
 	}) as NativeChildIsolationReviewedContract;
+}
+
+function machineContainmentContract(
+	value: NativeChildMachineWorkload,
+	target: NativeChildIsolationTarget,
+	artifacts: ReturnType<typeof artifactSet>,
+): NativeChildIsolationReviewedContract {
+	const fields = value?.kind === 'soundscaper'
+		? ['kind', 'payloads', 'runtimeClosure']
+		: ['kind', 'payloads', 'runtimeLibraries'];
+	const row = closed(value, fields);
+	if (row.kind !== 'soundscaper' && row.kind !== 'media' && row.kind !== 'openfx') {
+		throw new TypeError('A native isolation machine workload kind is invalid.');
+	}
+	const payloads = artifactArray(row.payloads);
+	const expectedPayloads = row.kind === 'openfx' ? 2 : 1;
+	if (payloads.length !== expectedPayloads) {
+		throw new TypeError('A native isolation machine workload has an invalid payload inventory.');
+	}
+	const framescaper = row.kind !== 'soundscaper';
+	const launcherId = target.startsWith('linux-')
+		? `${framescaper ? 'framescaper' : 'soundscaper'}-linux-landlock-seccomp-namespaces-v1`
+		: target.startsWith('mac-')
+			? `${framescaper ? 'framescaper' : 'soundscaper'}-macos-seatbelt-broker-v1`
+			: `${framescaper ? 'framescaper' : 'soundscaper'}-windows-appcontainer-job-v1`;
+	const commonLauncher = {
+		schemaVersion: 1 as const,
+		target,
+		launcherId,
+		launcherPayloadSha256: artifacts.launcher.sha256,
+		sandboxProfileSha256: artifacts.sandboxProfile.sha256,
+		brokerPolicySha256: artifacts.brokerPolicy.sha256,
+		filesystem: row.kind === 'openfx' ? 'broker-only' as const : 'broker-grant-only' as const,
+		network: 'denied' as const,
+		childProcesses: 'denied' as const,
+		dynamicCode: row.kind === 'media' ? 'denied' as const : 'admitted-plugin-only' as const,
+	};
+	if (row.kind === 'soundscaper') {
+		const runtimeClosure = artifactArray(row.runtimeClosure);
+		return Object.freeze({
+			status: 'authenticated',
+			launcher: Object.freeze({
+				...commonLauncher,
+				peerPayloadSha256: payloads[0]!.sha256,
+				runtimeClosureSha256: soundscaperProfessionalRuntimeClosureSha256(runtimeClosure),
+			}),
+			workload: Object.freeze({
+				kind: 'soundscaper',
+				payloads: Object.freeze(payloads.map(({ sha256 }) => sha256)),
+				runtimeClosureSha256: soundscaperProfessionalRuntimeClosureSha256(runtimeClosure),
+			}),
+		});
+	}
+	const runtimeLibraries = artifactArray(row.runtimeLibraries).map((entry) => Object.freeze({
+		name: basename(entry.path), byteLength: entry.byteLength, sha256: entry.sha256,
+	})).sort((left, right) => left.name.localeCompare(right.name, 'en'));
+	if (new Set(runtimeLibraries.map(({ name }) => name)).size !== runtimeLibraries.length) {
+		throw new TypeError('A native isolation machine workload repeats a runtime-library name.');
+	}
+	return Object.freeze({
+		status: 'authenticated',
+		launcher: Object.freeze(commonLauncher),
+		workload: Object.freeze({
+			kind: row.kind,
+			payloads: Object.freeze(payloads.map(({ sha256 }) => sha256)),
+			runtimeLibraries: Object.freeze(runtimeLibraries),
+		}),
+	});
 }
 
 function artifactSet(value: unknown) {

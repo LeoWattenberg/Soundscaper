@@ -149,7 +149,7 @@ test('artifact drift fails closed before a launcher process is spawned', {
 	});
 	const readiness = await launcher.productionReady();
 	assert.equal(readiness.status, 'unavailable');
-	assert.match(readiness.detail, /launcher.*digest|contract/iu);
+	assert.match(readiness.detail, /launcher.*(?:differs|digest)|contract/iu);
 	await assert.rejects(launcher.launch({
 		executable: launcherArtifact, arguments: [], readOnly: [], readExecute: [], writeOnly: [],
 		resourcePolicy: policy(), framedControl: null,
@@ -252,7 +252,7 @@ test('forged readiness and a launcher that never attests cannot mount production
 	assert.equal(killedBySignal, true);
 });
 
-test('authenticated local bytes alone are never production readiness', {
+test('machine-authenticated containment is production-ready without a human release review', {
 	skip: process.platform !== 'linux' || process.arch !== 'x64',
 }, async (context) => {
 	const fixture = await buildFixture(context);
@@ -261,13 +261,20 @@ test('authenticated local bytes alone are never production readiness', {
 	]);
 	let spawns = 0;
 	const launcher = createNativeChildIsolationLauncher({
-		target: 'linux-x64', reviewedContract: null,
+		target: 'linux-x64',
+		machineWorkload: Object.freeze({
+			kind: 'soundscaper' as const,
+			payloads: Object.freeze([launcherArtifact]),
+			runtimeClosure: Object.freeze([]),
+		}),
 		artifacts: { launcher: launcherArtifact, sandboxProfile: profile, brokerPolicy: broker },
 		spawn: ((..._arguments: never[]) => { spawns += 1; throw new Error('unreachable'); }) as never,
 	});
 	const readiness = await launcher.productionReady();
-	assert.equal(readiness.status, 'unavailable');
-	assert.match(readiness.detail, /signed|review/iu);
+	assert.deepEqual(readiness, {
+		status: 'ready', target: 'linux-x64',
+		launcherId: 'soundscaper-linux-landlock-seccomp-namespaces-v1',
+	});
 	assert.equal(spawns, 0);
 });
 

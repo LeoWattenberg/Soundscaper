@@ -316,8 +316,8 @@ export async function createProfessionalNativeHelperRoleSeams(location, role, po
 	if (role === 'audio') {
 		return { addonPath: descriptor.path, addonSha256: descriptor.sha256, loadAddon: loadVerifiedNativeAddon };
 	}
-	if (!descriptor.productionReadiness || !descriptor.pluginPeer || !descriptor.isolation?.entrypoint) {
-		throw new Error('Professional plug-in roles require reopened signed peer/isolation readiness.');
+	if (!descriptor.pluginPeer || !descriptor.isolation?.entrypoint) {
+		throw new Error('Professional plug-in roles require an authenticated peer/isolation closure.');
 	}
 	const createLauncher = ports.createLauncher ?? (await import(
 		'./project-library-runtime/desktop/native-child-isolation-launcher.js')).createNativeChildIsolationLauncher;
@@ -325,7 +325,11 @@ export async function createProfessionalNativeHelperRoleSeams(location, role, po
 		'./project-library-runtime/desktop/soundscaper-professional-plugin-peer.js')).createSoundscaperProfessionalPluginPeer;
 	const launcher = createLauncher({
 		target: descriptor.target,
-		reviewedContract: descriptor.productionReadiness,
+		machineWorkload: Object.freeze({
+			kind: 'soundscaper',
+			payloads: Object.freeze([descriptor.pluginPeer]),
+			runtimeClosure: descriptor.isolation.runtimeClosure,
+		}),
 		artifacts: {
 			launcher: descriptor.isolation.launcher,
 			sandboxProfile: descriptor.isolation.sandboxProfile,

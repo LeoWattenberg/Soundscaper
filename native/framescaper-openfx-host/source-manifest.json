@@ -155,8 +155,8 @@
 		},
 		{
 			"path": "src/isolation_contract.hpp",
-			"byteLength": 4728,
-			"sha256": "addf7969560af7428639200d9bfa50edae087b9bc63d7a2e9321c41339cda2c7"
+			"byteLength": 4839,
+			"sha256": "93ea3a24fd4b823c63cb233669f7a9ee516020825290f2049dab8a3e501df5af"
 		},
 		{
 			"path": "src/loaded_plugin_binary.cpp",

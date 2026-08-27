@@ -448,7 +448,11 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 					isolation: {
 						launcher: scanner, sandboxProfile: scanner, brokerPolicy: scanner, runtimeLibraries: [],
 					},
-					productionReadiness: openFxProductionReadinessFixture(scanner.sha256, runtimeHost.sha256),
+					qualifiedGpuBackends: ['opengl', 'opencl', 'cuda'] as const,
+					m9ReleaseReview: {
+						scope: 'stable-1.0-release' as const, status: 'complete' as const,
+						evidence: openFxProductionReadinessFixture(scanner.sha256, runtimeHost.sha256),
+					},
 				} }
 				: { status: 'unavailable' as const, reason: 'payload-pending-external' as const,
 					detail: 'No authenticated OpenFX payload.' }; },

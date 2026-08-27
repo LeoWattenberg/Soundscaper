@@ -187,7 +187,8 @@ export function auditFramescaperOpenFxHost({ repositoryRoot }) {
 		findings.push('The OpenFX native loader can run without an isolation-attestation gate.');
 	}
 	const isolation = sourceText.get('src/isolation_contract.hpp') ?? '';
-	if (!isolation.includes('isolation-unavailable: no reviewed OS isolation launcher attestation is implemented')
+	if (!isolation.includes('require_os_isolation_for_plugin_execution() noexcept {}')
+		|| !isolation.includes('Human release review is intentionally not an in-process execution oracle.')
 		|| !isolation.includes('unavailable-upstream-openfx-1.5.1-defines-only-v1')) {
 		findings.push('The OpenFX isolation or pinned Interact-suite limitation is not explicit.');
 	}
@@ -315,70 +316,109 @@ export function verifyFramescaperOpenFxPayloadManifest({ repositoryRoot }) {
 export async function verifyFramescaperOpenFxPayloadRelease({ repositoryRoot }) {
 	const root = resolve(repositoryRoot);
 	const release = verifyFramescaperOpenFxPayloadManifest({ repositoryRoot: root });
-	const reviewPolicyBytes = regularCanonicalFile(
-		root,
-		MILESTONE_5_NATIVE_ISOLATION_REVIEW_POLICY_PATH,
-		'OpenFX native-isolation review policy',
-	);
-	const reviewPolicy = parseJson(reviewPolicyBytes, 'OpenFX native-isolation review policy');
-	validateNativeIsolationReviewPolicy(reviewPolicy);
+	let reviewPolicyBytes = null;
+	let reviewPolicy = null;
+	let reviewPolicyFailure = null;
+	try {
+		reviewPolicyBytes = regularCanonicalFile(
+			root,
+			MILESTONE_5_NATIVE_ISOLATION_REVIEW_POLICY_PATH,
+			'OpenFX native-isolation review policy',
+		);
+		reviewPolicy = parseJson(reviewPolicyBytes, 'OpenFX native-isolation review policy');
+		validateNativeIsolationReviewPolicy(reviewPolicy);
+	} catch (error) { reviewPolicyFailure = errorMessage(error); }
 	const productionReadiness = {};
+	const m9ReleaseReview = {};
 	for (const target of release.payload.targets) {
 		if (target.status !== 'built' || target.productionReadiness === null) {
 			productionReadiness[target.id] = null;
+			m9ReleaseReview[target.id] = Object.freeze({
+				scope: 'stable-1.0-release', status: 'pending',
+				detail: 'No independent OpenFX-host review is recorded for stable 1.0 release admission.',
+			});
 			continue;
 		}
-		const reference = openFxProductionReadinessReference(
-			target.productionReadiness,
-			target.id,
-		);
-		const evidence = await verifyOpenFxProductionReadiness(reference, {
-			scannerSha256: target.payload.scannerPayload.sha256,
-			runtimeHostSha256: target.payload.runtimeHostPayload.sha256,
-			isolation: {
-				launcherSha256: target.payload.isolationPayload.launcherPayload.sha256,
-				sandboxProfileSha256: target.payload.isolationPayload.sandboxProfilePayload.sha256,
-				brokerPolicySha256: target.payload.isolationPayload.brokerPolicyPayload.sha256,
-				runtimeLibraries: target.payload.isolationPayload.runtimeLibraryPayloads.map((library) => ({
-					name: library.path.split('/').at(-1),
-					byteLength: library.byteLength,
-					sha256: library.sha256,
-				})),
-			},
-		}, {
-			readEvidence: async (path) => regularCanonicalFile(
-				root, path, `OpenFX ${target.id} production-readiness evidence`,
-			),
-			resolveReviewPublicKey: (_target, keyId) => resolveNativeIsolationReviewPublicKey(
-				reviewPolicy,
-				{ usage: 'framescaper-openfx-production-readiness', target: target.id, keyId },
-			),
-		});
-		const evidenceBytes = regularCanonicalFile(
-			root,
-			reference.evidence.path,
-			`reopened OpenFX ${target.id} production-readiness evidence`,
-		);
-		verifyDescriptor(evidenceBytes, reference.evidence,
-			`reopened OpenFX ${target.id} production-readiness evidence`);
-		productionReadiness[target.id] = Object.freeze({
-			reference,
-			evidence: Object.freeze({ status: 'authenticated', evidence }),
-			evidenceBytes,
-		});
+		try {
+			if (reviewPolicy === null) throw new Error(
+				`The M9 review policy is unavailable: ${reviewPolicyFailure ?? 'not mounted'}.`,
+			);
+			const reference = openFxProductionReadinessReference(
+				target.productionReadiness,
+				target.id,
+			);
+			const evidence = await verifyOpenFxProductionReadiness(reference, {
+				scannerSha256: target.payload.scannerPayload.sha256,
+				runtimeHostSha256: target.payload.runtimeHostPayload.sha256,
+				isolation: {
+					launcherSha256: target.payload.isolationPayload.launcherPayload.sha256,
+					sandboxProfileSha256: target.payload.isolationPayload.sandboxProfilePayload.sha256,
+					brokerPolicySha256: target.payload.isolationPayload.brokerPolicyPayload.sha256,
+					runtimeLibraries: target.payload.isolationPayload.runtimeLibraryPayloads.map((library) => ({
+						name: library.path.split('/').at(-1),
+						byteLength: library.byteLength,
+						sha256: library.sha256,
+					})),
+				},
+			}, {
+				readEvidence: async (path) => regularCanonicalFile(
+					root, path, `OpenFX ${target.id} production-readiness evidence`,
+				),
+				resolveReviewPublicKey: (_target, keyId) => resolveNativeIsolationReviewPublicKey(
+					reviewPolicy,
+					{ usage: 'framescaper-openfx-production-readiness', target: target.id, keyId },
+				),
+			});
+			const evidenceBytes = regularCanonicalFile(
+				root,
+				reference.evidence.path,
+				`reopened OpenFX ${target.id} production-readiness evidence`,
+			);
+			verifyDescriptor(evidenceBytes, reference.evidence,
+				`reopened OpenFX ${target.id} production-readiness evidence`);
+			productionReadiness[target.id] = Object.freeze({
+				reference,
+				evidence: Object.freeze({ status: 'authenticated', evidence }),
+				evidenceBytes,
+			});
+			m9ReleaseReview[target.id] = Object.freeze({
+				scope: 'stable-1.0-release', status: 'complete',
+				evidence: productionReadiness[target.id],
+			});
+		} catch (error) {
+			productionReadiness[target.id] = null;
+			m9ReleaseReview[target.id] = Object.freeze({
+				scope: 'stable-1.0-release', status: 'invalid',
+				detail: `The recorded OpenFX-host M9 review is invalid: ${errorMessage(error)}`.slice(0, 512),
+			});
+		}
 	}
 	const verified = Object.freeze({
 		...release,
-		reviewPolicy: Object.freeze({
+		reviewPolicy: reviewPolicyBytes === null ? null : Object.freeze({
 			name: FRAMESCAPER_OPENFX_REVIEW_POLICY_NAME,
 			byteLength: reviewPolicyBytes.byteLength,
 			sha256: digest(reviewPolicyBytes),
 			bytes: reviewPolicyBytes,
 		}),
 		productionReadiness: Object.freeze(productionReadiness),
+		m9ReleaseReview: Object.freeze(m9ReleaseReview),
 	});
 	VERIFIED_PAYLOAD_RELEASES.add(verified);
 	return verified;
+}
+
+export function framescaperOpenFxM9ReleaseReviewStageSummary(release, targetId) {
+	assertVerifiedPayloadRelease(release);
+	const review = release.m9ReleaseReview[targetId];
+	if (!review) throw new Error(`The OpenFX-host release has no ${String(targetId)} M9 review row.`);
+	if (review.status !== 'complete') return deepFreeze(structuredClone(review));
+	return deepFreeze({
+		scope: review.scope,
+		status: review.status,
+		reviewer: review.evidence.evidence.evidence.reviewer,
+		reviewedAt: review.evidence.evidence.evidence.reviewedAt,
+	});
 }
 
 export function framescaperOpenFxProductionReadinessStageSummary(release, targetId) {
@@ -468,13 +508,6 @@ function auditBuiltTarget(repositoryRoot, id, target) {
 			findings.push(`OpenFX target ${id} ${field} is missing or not a canonical file.`);
 		}
 	}
-	if (target.productionReadiness !== null) {
-		try {
-			openFxProductionReadinessReference(target.productionReadiness, id);
-		} catch {
-			findings.push(`OpenFX target ${id} has an invalid production-readiness attestation.`);
-		}
-	}
 	return findings;
 }
 
@@ -559,6 +592,10 @@ function deepFreeze(value) {
 		for (const child of Object.values(value)) deepFreeze(child);
 	}
 	return value;
+}
+
+function errorMessage(error) {
+	return error instanceof Error ? error.message : String(error);
 }
 
 function sameFields(value, fields) {

@@ -522,7 +522,11 @@ function openFxRuntimeFingerprint(descriptor) {
 		target: descriptor.target,
 		scannerSha256: descriptor.scanner.sha256,
 		runtimeHostSha256: descriptor.runtimeHost.sha256,
-		productionReadiness: descriptor.productionReadiness,
+		qualifiedGpuBackends: descriptor.qualifiedGpuBackends,
+		launcherSha256: descriptor.isolation.launcher.sha256,
+		sandboxProfileSha256: descriptor.isolation.sandboxProfile.sha256,
+		brokerPolicySha256: descriptor.isolation.brokerPolicy.sha256,
+		runtimeLibrarySha256: descriptor.isolation.runtimeLibraries.map(({ sha256 }) => sha256),
 	}))).digest('hex');
 }
 /** A pathless picker is not exact V25 project mutation authority. */

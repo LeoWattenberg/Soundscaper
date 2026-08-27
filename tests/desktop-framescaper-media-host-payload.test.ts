@@ -64,7 +64,9 @@ test('a built current-target payload is selected only after exact byte and ident
 			brokerPolicy: runtimeDescriptor(BROKER_PATH, BROKER),
 			runtimeLibraries: [runtimeDescriptor(LIBRARY_PATH, LIBRARY)],
 		},
-		productionReadiness: readinessEvidence(),
+		m9ReleaseReview: {
+			scope: 'stable-1.0-release', status: 'complete', evidence: readinessEvidence(),
+		},
 	});
 	assert.deepEqual(reads, [
 		MANIFEST_PATH, DEVELOPMENT_PATH, LAUNCHER_PATH, PROFILE_PATH, BROKER_PATH,
@@ -133,13 +135,16 @@ test('pending, missing, altered, and malformed payloads stay explicitly unavaila
 	}
 });
 
-test('built media bytes remain unavailable without independently signed readiness', async () => {
+test('built media bytes stay available while independent review remains M9 release metadata', async () => {
 	const result = await describeFramescaperMediaHostAvailability(
 		location(), ports(manifest({ attested: false })),
 	);
-	assert.equal(result.status, 'unavailable');
-	assert.equal(result.status === 'unavailable' ? result.reason : null,
-		'production-readiness-unattested');
+	assert.equal(result.status, 'available');
+	if (result.status !== 'available') return;
+	assert.deepEqual(result.descriptor.m9ReleaseReview, {
+		scope: 'stable-1.0-release', status: 'pending',
+		detail: 'No independent media-host review is recorded for stable 1.0 release admission.',
+	});
 });
 
 test('the spawn verifier fails closed and rechecks the payload on every call', async () => {

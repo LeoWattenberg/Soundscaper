@@ -10,7 +10,6 @@ import {
 	framescaperMediaProductionReadinessReference,
 	verifyFramescaperMediaProductionReadiness,
 	type FramescaperMediaProductionReadinessEvidenceV1,
-	type FramescaperMediaProductionReadinessReferenceV2,
 	type FramescaperMediaRuntimeLibraryEvidenceV1,
 } from './framescaper-media-production-readiness.ts';
 
@@ -60,8 +59,20 @@ export interface FramescaperMediaHostDescriptor {
 		readonly brokerPolicy: FramescaperMediaHostExecutableDescriptor;
 		readonly runtimeLibraries: readonly FramescaperMediaHostExecutableDescriptor[];
 	}>;
-	readonly productionReadiness: FramescaperMediaProductionReadinessEvidenceV1;
+	readonly m9ReleaseReview: FramescaperMediaHostM9ReleaseReview;
 }
+
+export type FramescaperMediaHostM9ReleaseReview =
+	| Readonly<{
+		readonly scope: 'stable-1.0-release';
+		readonly status: 'complete';
+		readonly evidence: FramescaperMediaProductionReadinessEvidenceV1;
+	}>
+	| Readonly<{
+		readonly scope: 'stable-1.0-release';
+		readonly status: 'pending' | 'invalid';
+		readonly detail: string;
+	}>;
 
 export interface FramescaperMediaHostExecutableDescriptor {
 	readonly path: string;
@@ -134,7 +145,7 @@ interface TargetRecord {
 	readonly blockedBy: string | null;
 	readonly payload: PayloadIdentity | null;
 	readonly isolationPayload: IsolationPayloadIdentity | null;
-	readonly productionReadiness: FramescaperMediaProductionReadinessReferenceV2 | null;
+	readonly productionReadiness: unknown | null;
 }
 
 interface PayloadManifest {
@@ -184,12 +195,6 @@ export async function describeFramescaperMediaHostAvailability(
 			target.blockedBy ?? `No Framescaper media-host payload has been built for ${targetId}.`,
 		);
 	}
-	if (target.productionReadiness === null) {
-		return unavailable(
-			'production-readiness-unattested',
-			`The ${targetId} media host has no independent OS-isolation and hostile-media review.`,
-		);
-	}
 	const payload = manifest.payloads.find(({ id }) => id === targetId)!;
 	try {
 		const [mediaHost, launcher, sandboxProfile, brokerPolicy, ...runtimeLibraries] = await Promise.all([
@@ -198,24 +203,17 @@ export async function describeFramescaperMediaHostAvailability(
 				payloadPath(location, targetId, identity.path), identity, ports,
 			)),
 		]);
-		const productionReadiness = await verifyFramescaperMediaProductionReadiness(
-			target.productionReadiness,
-			Object.freeze({
-				mediaHostSha256: mediaHost.sha256,
-				isolation: Object.freeze({
-					launcherSha256: launcher!.sha256,
-					sandboxProfileSha256: sandboxProfile!.sha256,
-					brokerPolicySha256: brokerPolicy!.sha256,
-					runtimeLibraries: runtimeLibraryEvidence(runtimeLibraries),
-				}),
-			}),
-			Object.freeze({
-				readEvidence: (path: string) => ports.readFile(readinessEvidencePath(
-					location, targetId, path,
-				)),
-				resolveReviewPublicKey: ports.resolveReviewPublicKey ?? (() => null),
-			}),
-		);
+		const m9ReleaseReview = await mediaHostM9ReleaseReview({
+			reference: target.productionReadiness,
+			location,
+			targetId,
+			mediaHost,
+			launcher: launcher!,
+			sandboxProfile: sandboxProfile!,
+			brokerPolicy: brokerPolicy!,
+			runtimeLibraries,
+			ports,
+		});
 		return Object.freeze({
 			status: 'available' as const,
 			descriptor: Object.freeze({
@@ -231,20 +229,66 @@ export async function describeFramescaperMediaHostAvailability(
 					launcher: launcher!, sandboxProfile: sandboxProfile!, brokerPolicy: brokerPolicy!,
 					runtimeLibraries: Object.freeze(runtimeLibraries),
 				}),
-				productionReadiness,
+				m9ReleaseReview,
 			}),
 		});
 	} catch (error) {
 		const missing = isMissing(error);
-		const readiness = !missing && /production-readiness|signed media|trusted Ed25519/iu
-			.test(errorMessage(error));
 		return unavailable(
-			missing ? 'payload-missing' : readiness
-				? 'production-readiness-evidence-mismatch' : 'payload-digest-mismatch',
+			missing ? 'payload-missing' : 'payload-digest-mismatch',
 			missing ? `A Framescaper media-host payload is missing: ${errorMessage(error)}`
-				: readiness ? errorMessage(error)
-					: 'The Framescaper media-host payload closure does not match its pinned bytes.',
+				: 'The Framescaper media-host payload closure does not match its pinned bytes.',
 		);
+	}
+}
+
+async function mediaHostM9ReleaseReview(input: Readonly<{
+	reference: unknown | null;
+	location: FramescaperMediaHostPayloadLocation;
+	targetId: FramescaperMediaHostTargetId;
+	mediaHost: FramescaperMediaHostExecutableDescriptor;
+	launcher: FramescaperMediaHostExecutableDescriptor;
+	sandboxProfile: FramescaperMediaHostExecutableDescriptor;
+	brokerPolicy: FramescaperMediaHostExecutableDescriptor;
+	runtimeLibraries: readonly FramescaperMediaHostExecutableDescriptor[];
+	ports: FramescaperMediaHostPayloadPorts;
+}>): Promise<FramescaperMediaHostM9ReleaseReview> {
+	if (input.reference === null) return Object.freeze({
+		scope: 'stable-1.0-release' as const,
+		status: 'pending' as const,
+		detail: 'No independent media-host review is recorded for stable 1.0 release admission.',
+	});
+	try {
+		const reference = framescaperMediaProductionReadinessReference(
+			input.reference, input.targetId,
+		);
+		const evidence = await verifyFramescaperMediaProductionReadiness(
+			reference,
+			Object.freeze({
+				mediaHostSha256: input.mediaHost.sha256,
+				isolation: Object.freeze({
+					launcherSha256: input.launcher.sha256,
+					sandboxProfileSha256: input.sandboxProfile.sha256,
+					brokerPolicySha256: input.brokerPolicy.sha256,
+					runtimeLibraries: runtimeLibraryEvidence(input.runtimeLibraries),
+				}),
+			}),
+			Object.freeze({
+				readEvidence: (path: string) => input.ports.readFile(readinessEvidencePath(
+					input.location, input.targetId, path,
+				)),
+				resolveReviewPublicKey: input.ports.resolveReviewPublicKey ?? (() => null),
+			}),
+		);
+		return Object.freeze({
+			scope: 'stable-1.0-release' as const, status: 'complete' as const, evidence,
+		});
+	} catch (error) {
+		return Object.freeze({
+			scope: 'stable-1.0-release' as const,
+			status: 'invalid' as const,
+			detail: `The recorded media-host M9 release review is invalid: ${errorMessage(error)}`.slice(0, 512),
+		});
 	}
 }
 
@@ -332,8 +376,7 @@ function targetRecord(value: unknown): TargetRecord {
 		payload: record.payload === null ? null : payloadIdentity(record.payload, id),
 		isolationPayload: record.isolationPayload === null
 			? null : isolationPayload(record.isolationPayload, id),
-		productionReadiness: record.productionReadiness === null
-			? null : framescaperMediaProductionReadinessReference(record.productionReadiness, id),
+		productionReadiness: record.productionReadiness,
 	});
 }
 
