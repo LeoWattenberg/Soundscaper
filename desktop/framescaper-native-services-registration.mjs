@@ -156,7 +156,6 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 			runtime: openFxRuntime,
 			scratchRoot: resolve(options.userDataPath, 'framescaper-openfx-scratch'),
 			preferences: () => preferenceSnapshot(options.settings.snapshot()),
-			policyCleared: () => executionPolicy.openFxExecutionEnabled === true,
 			selectPluginBinary: options.selectOpenFxPluginBinary,
 			createMessageChannel: options.createMessageChannel,
 			currentProject: currentOpenFxProject,
@@ -541,7 +540,6 @@ const NATIVE_EXECUTION_POLICY = Object.freeze({
 	selectedRenderCodecExecutionEnabled: true,
 	proxyCodecExecutionEnabled: true,
 	imageSequencesExecutionEnabled: true,
-	openFxExecutionEnabled: true,
 });
 /** Human licensing review is an M9 release input, never runtime execution authority. */
 export function framescaperNativeExecutionPolicy() { return NATIVE_EXECUTION_POLICY; }
@@ -557,7 +555,7 @@ function capabilityReportExecutionPolicy(policy) {
 		nativeCodecsCleared: policy.nativeCodecsExecutionEnabled === true,
 		proxyCodecCleared: policy.proxyCodecExecutionEnabled === true,
 		imageSequencesCleared: policy.imageSequencesExecutionEnabled === true,
-		openFxCleared: policy.openFxExecutionEnabled === true,
+		openFxCleared: true,
 	});
 }
 function mediaExecutable(mediaRuntime) {

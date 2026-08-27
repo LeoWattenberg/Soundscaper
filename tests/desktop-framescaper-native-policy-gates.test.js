@@ -16,7 +16,6 @@ test('native execution policy is independent of human licensing review state', (
 		selectedRenderCodecExecutionEnabled: true,
 		proxyCodecExecutionEnabled: true,
 		imageSequencesExecutionEnabled: true,
-		openFxExecutionEnabled: true,
 	});
 	assert.equal(Object.isFrozen(policy), true);
 	for (const taskKind of [

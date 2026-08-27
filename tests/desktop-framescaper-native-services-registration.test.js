@@ -250,7 +250,7 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	assert.equal(imageSequenceImportOptions.project, registrationInput.projectAuthority);
 	assert.equal(imageSequenceImportOptions.controller, controller);
 	assert.equal('policyCleared' in imageSequenceImportOptions, false);
-	assert.equal(openFxServiceOptions.policyCleared(), true);
+	assert.equal('policyCleared' in openFxServiceOptions, false);
 	assert.equal(await runtimeOptions.nativeQueueExecution.prepare({}, {}), prepared);
 	assert.deepEqual(await runtimeOptions.revalidate({ record: {}, root: {}, rootAuthorized: true }), {
 		projectRevisionMatches: true, planFingerprintMatches: true,

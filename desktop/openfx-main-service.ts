@@ -75,7 +75,6 @@ export interface FramescaperOpenFxMainServiceOptions {
 		readonly nativeMediaEnabled: boolean;
 		readonly ofxConsentEnabled: boolean;
 	}>;
-	readonly policyCleared: () => boolean;
 	readonly selectPluginBinary: () => Promise<string | null>;
 	readonly createMessageChannel: () => FramescaperOpenFxMainServiceMessageChannel;
 	readonly currentProject: (
@@ -104,7 +103,7 @@ export class FramescaperOpenFxMainService {
 
 	constructor(options: FramescaperOpenFxMainServiceOptions) {
 		if (!options || !options.runtime || typeof options.runtime.available !== 'function'
-			|| typeof options.preferences !== 'function' || typeof options.policyCleared !== 'function'
+			|| typeof options.preferences !== 'function'
 			|| typeof options.selectPluginBinary !== 'function'
 			|| typeof options.createMessageChannel !== 'function'
 			|| typeof options.currentProject !== 'function'
@@ -556,7 +555,6 @@ export class FramescaperOpenFxMainService {
 		const preferences = this.#options.preferences();
 		if (preferences.nativeMediaEnabled !== true) throw new Error('Native media is off.');
 		if (preferences.ofxConsentEnabled !== true) throw new Error('OpenFX consent is off.');
-		if (this.#options.policyCleared() !== true) throw new Error('OpenFX licensing policy is not cleared.');
 		if (!this.#options.runtime.available() || this.#options.runtime.manager === null) {
 			throw new Error(this.#options.runtime.reason ?? 'The authenticated OpenFX payload runtime is unavailable.');
 		}
