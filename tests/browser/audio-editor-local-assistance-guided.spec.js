@@ -14,8 +14,25 @@ import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 const CFR = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
+const ADVANCED_OPERATIONS = Object.freeze([
+	'voice-activity-detection',
+	'speech-recognition',
+	'word-alignment',
+	'speaker-diarization',
+	'speech-enhancement',
+	'source-separation',
+	'audio-tagging',
+	'beat-tracking',
+	'text-embedding',
+	'image-text-embedding',
+	'optical-character-recognition',
+	'shot-detection',
+	'subject-detection',
+	'saliency-detection',
+	'editorial-generation',
+]);
 
-test.describe('menu-only Guided Local Assistance', () => {
+test.describe('menu-only Local Assistance workflows', () => {
 	registerAudioEditorHooks();
 
 	test('installs separately, accepts and undoes one workflow, then cancels preparation', async ({ page }) => {
@@ -164,6 +181,80 @@ test.describe('menu-only Guided Local Assistance', () => {
 		await expect.poll(() => fixtureSnapshot(page).then(({ installCalls }) => installCalls)).toBe(1);
 		expect(errors).toEqual([]);
 	});
+
+	test('keeps Advanced opt-in and runs a primitive through one workflow consent', async ({ page }) => {
+		test.setTimeout(120_000);
+		await stubStorageEstimate(page, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
+		await installPinnedFfmpegRuntimeRoutes(page);
+		await installLocalAssistanceFixture(page);
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/framescaper/en/');
+		await editor.locator('[data-import-input]').setInputFiles([CFR.file]);
+		const sourceName = CFR.file.name.replace(/\.[^.]+$/u, '');
+		await editor.getByRole('button', {
+			name: `Add to timeline: ${sourceName}`, exact: true,
+		}).click();
+		const selectedClip = editor.getByRole('group', { name: /^Video clip:/u }).first();
+		await expect(selectedClip).toBeVisible({ timeout: 30_000 });
+		await selectedClip.focus();
+		await page.keyboard.press('Enter');
+		await expect(selectedClip.locator('.clip-display')).toHaveClass(/clip-display--selected/u);
+
+		await chooseCommandAction(page, editor, 'Analyze', 'Local Assistance…');
+		const assistance = page.getByRole('dialog', { name: 'Local Assistance', exact: true });
+		const guidedTab = assistance.getByRole('tab', { name: 'Guided', exact: true });
+		const advancedTab = assistance.getByRole('tab', { name: 'Advanced', exact: true });
+		await expect(guidedTab).toHaveAttribute('aria-selected', 'true');
+		await expect(assistance.getByRole('tabpanel', { name: 'Advanced', exact: true }))
+			.toHaveCount(0);
+		await advancedTab.click();
+		const advanced = assistance.getByRole('tabpanel', { name: 'Advanced', exact: true });
+		await expect(advancedTab).toHaveAttribute('aria-selected', 'true');
+		await expect(advanced).toBeVisible();
+
+		const source = advanced.getByRole('combobox', { name: 'Selected media', exact: true });
+		await expect(source.locator('option')).toHaveCount(2);
+		await source.selectOption({ index: 1 });
+		const operation = advanced.getByRole('combobox', { name: 'Operation', exact: true });
+		expect((await operation.locator('option').allTextContents()).slice(1)).toEqual(ADVANCED_OPERATIONS);
+		await expect(advanced.locator('input[type="checkbox"]')).toHaveCount(0);
+		await expect(advanced).toContainText(
+			'Run locally opens one consent dialog for this exact operation, model, input, and output selection.',
+		);
+		await operation.selectOption('shot-detection');
+		await expect(advanced.getByText('This operation requires no installed model binding.'))
+			.toBeVisible();
+
+		const consentMessages = [];
+		page.on('dialog', async (dialog) => {
+			consentMessages.push(dialog.message());
+			expect(dialog.type()).toBe('confirm');
+			await dialog.accept();
+		});
+		await advanced.getByRole('button', { name: 'Run locally', exact: true }).click();
+		await expect(advanced.getByText('Running the local model.', { exact: true })).toBeVisible();
+		await page.evaluate(() => globalThis.__m7AssistanceFixture.completeRun());
+		await expect(advanced.getByText('A validated local result is available.', { exact: true }))
+			.toBeVisible();
+
+		expect(consentMessages).toHaveLength(1);
+		expect(consentMessages[0]).toContain('Workflow: advanced:shot-detection');
+		expect(consentMessages[0]).toContain('Stages: run-shot-detection');
+		expect(consentMessages[0]).toContain('Models: none');
+		expect(consentMessages[0]).toContain('Outputs: shot-boundaries');
+		await expect.poll(() => fixtureSnapshot(page)).toMatchObject({
+			workflowRuns: [{ workflowId: 'advanced:shot-detection',
+				stageIds: ['run-shot-detection'] }],
+			primitiveRuns: 0,
+			installCalls: 0,
+		});
+		await assistance.getByRole('button', { name: 'Review result', exact: true }).click();
+		await expect(advanced.getByRole('list', { name: 'Shot boundaries' })).toContainText(
+			'Source frame 10',
+		);
+		expect(errors).toEqual([]);
+	});
+
 });
 
 async function fixtureSnapshot(page) {
@@ -172,6 +263,8 @@ async function fixtureSnapshot(page) {
 		createWaits: globalThis.__m7AssistanceFixture.createWaits,
 		cancelCalls: globalThis.__m7AssistanceFixture.cancelCalls,
 		progressEvents: globalThis.__m7AssistanceFixture.progressEvents,
+		workflowRuns: globalThis.__m7AssistanceFixture.workflowRuns,
+		primitiveRuns: globalThis.__m7AssistanceFixture.primitiveRuns,
 	}));
 }
 
@@ -213,6 +306,8 @@ async function installLocalAssistanceFixture(page) {
 			createWaits: 0,
 			cancelCalls: 0,
 			progressEvents: 0,
+			workflowRuns: [],
+			primitiveRuns: 0,
 			stallNextCreate: false,
 			releaseCreate: () => undefined,
 			completeRun: () => undefined,
@@ -307,6 +402,8 @@ async function installLocalAssistanceFixture(page) {
 				});
 			},
 			run: async (request) => {
+				state.workflowRuns.push(Object.freeze({ workflowId: request.workflowId,
+					stageIds: Object.freeze([...request.stageIds]) }));
 				const ranges = request.fence.sourceRanges.map((range) => (
 					`${range.sourceId}:${String(range.sourceStartFrame)}-${String(range.sourceEndFrame)}`
 				)).join(', ');
@@ -382,7 +479,10 @@ async function installLocalAssistanceFixture(page) {
 			createJob: async () => Object.freeze({ contractVersion: 1, jobId: opaqueId() }),
 			stageInput: async () => { throw new Error('Primitive staging is not used.'); },
 			reserveOutput: async () => { throw new Error('Primitive reservation is not used.'); },
-			run: async () => { throw new Error('Primitive inference is not used.'); },
+			run: async () => {
+				state.primitiveRuns += 1;
+				throw new Error('Primitive inference is not used.');
+			},
 			cancel: async (jobId) => Object.freeze({ contractVersion: 1, jobId, outcome: 'not-active' }),
 			readOutput: async () => { throw new Error('Primitive output is not used.'); },
 			release: async () => true,
