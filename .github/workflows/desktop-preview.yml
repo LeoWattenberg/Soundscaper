@@ -83,6 +83,22 @@ jobs:
           # before it reports a single rule. The ubuntu-24.04 runner has 16 GiB.
           NODE_OPTIONS: --max-old-space-size=8192
 
+      - name: Measure the built transfer documents against the build just made
+        # The same step quality.yml runs, for the same reason and in the same
+        # place. This job is a duplicate of that one - it builds the site, then
+        # publishes it as `verified-site-build` - so a build it uploads without
+        # this step is a build nothing measured, sitting under the artifact name
+        # that says otherwise. The `tests` shards below never build, and the
+        # three assertions in this file that read `dist/` are the only ones that
+        # can see the chunk-graph edge no source-level model declares: rolldown
+        # injects `vite/preload-helper` into the transfer chunk for its dynamic
+        # archive import, and the `$initial` site-entry group owns that helper
+        # together with react-dom. The variable makes an absent `dist/` a failure
+        # here rather than a skip, so the guard cannot quietly stand itself down.
+        run: node --import tsx --import ./scripts/node-style-asset-loader.mjs --test tests/project-transfer-standalone-page-chunks.test.ts
+        env:
+          SOUNDSCAPER_TRANSFER_BUILD_REQUIRED: '1'
+
       - name: Upload the verified website build
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

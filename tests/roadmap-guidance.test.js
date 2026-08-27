@@ -16,7 +16,17 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 	const roadmap = await readFile(roadmapUrl, 'utf8');
 	const lineCount = roadmap.split('\n').length;
 
-	assert.ok(lineCount <= 1_000, `roadmap grew to ${lineCount} lines`);
+	// The ceiling exists to keep the roadmap a map rather than a record: it stops
+	// agents accumulating evidence — measurements, run results, dated outcomes,
+	// historical narrative — in a file whose job is to say what is next. That
+	// material belongs in the owning plan documents and machine-readable
+	// registers, which is why the assertions below also forbid test counts,
+	// green-run notes, and observed timings. The remaining lines are therefore
+	// room for genuinely new scope, not spare capacity: it was raised from 1_000
+	// when milestones 8+C and 9+ were added, and the correct response to hitting
+	// it again is a new owning document, not a compression pass over the
+	// milestone sections that are already here.
+	assert.ok(lineCount <= 1_400, `roadmap grew to ${lineCount} lines`);
 	assert.match(roadmap, /## How to use this roadmap/iu);
 	assert.match(roadmap, /### Agent operating rules/iu);
 	assert.match(roadmap, /earliest incomplete prerequisite/iu);

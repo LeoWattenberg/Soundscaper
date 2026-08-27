@@ -92,6 +92,29 @@ const FRAMESCAPER_PROJECT_FOUNDATION_CHUNK_TEST = new RegExp(
 const FRAMESCAPER_SESSION_CLIPBOARD_CHUNK_TEST = /src[\\/]framescaper[\\/]editor-session-clipboard-v(?:8|11(?:-(?:controller|selection))?)\.ts$/;
 
 
+/**
+ * The schema-number vocabulary, owned apart from the editor domain it lives in.
+ *
+ * Project schema numbers are one global namespace: a number identifies exactly
+ * one product's document generation, so there is exactly one module that says
+ * which number means what, and a second copy of those predicates would be a
+ * correctness hazard rather than a tidiness one. The transfer documents ask that
+ * module which product wrote a stored project, and they are the reason it needs
+ * an owner of its own.
+ *
+ * `project-schema-version.ts` has no imports at all - it is constants and
+ * predicates over a number - but chunks load whole. While the editor domain
+ * group claimed it, the standalone transfer page's one call to
+ * `isFramescaperSequenceProjectSchema` made it statically import an
+ * `editor-domain` chunk, and through that chunk's own imports the transfer
+ * documents carried 62 modulepreloads totalling 5.29 MiB of editor code onto a
+ * page that mounts no editor. Owning the leaf here emits it as its own small
+ * chunk that both worlds can import without dragging the other's graph.
+ */
+export const PROJECT_SCHEMA_VERSION_CHUNK_TEST = new RegExp(
+	`${editorPath}project-schema-version\\.ts$`,
+);
+
 /** Flat editor modules and `assistance/` domain modules shared by the shell and dialogs. */
 export const EDITOR_DOMAIN_CHUNK_TEST = new RegExp(
 	`${editorPath}(?!${editorOptionalArchiveModule}\\.(?:[cm]?[jt]s)$)(?!${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)$)(?:[^\\\\/]+|(?:assistance|platform)[\\\\/][^\\\\/]+)\\.(?:[cm]?[jt]s)$`,
@@ -147,6 +170,17 @@ export const chunkGroups = [
 		// remain a distinct dynamic owner even while other assistance surfaces are shared.
 		name: 'editor-assistance-semantic-search-runtime',
 		test: EDITOR_ASSISTANCE_SEMANTIC_SEARCH_RUNTIME_CHUNK_TEST,
+		priority: 99,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		// A dependency-free leaf both the editor and the standalone transfer pages
+		// read. Deliberately not named `editor-`: a transfer document loading it is
+		// loading the schema-number vocabulary, not the editor.
+		name: 'project-schema-versions',
+		test: PROJECT_SCHEMA_VERSION_CHUNK_TEST,
 		priority: 99,
 		minSize: 0,
 		maxSize: 400_000,
