@@ -14,10 +14,7 @@ import {
 	evaluateAudacityEnableWhen,
 	resolveAudacityActionId,
 } from '../src/common/editor/audacity-action-parity.js';
-import {
-	AUDACITY_ACTION_ROADMAP_DISPOSITION,
-	AUDACITY_MIDI_FENCE,
-} from '../src/common/editor/audacity-action-roadmap.ts';
+import { AUDACITY_ACTION_ROADMAP_DISPOSITION, AUDACITY_MIDI_FENCE } from '../src/common/editor/audacity-action-roadmap.ts';
 import {
 	AUDIO_EDITOR_CRITICAL_APPLICATION_MENU_ACTION_IDS,
 	AUDIO_EDITOR_UNAVAILABLE_APPLICATION_MENU_ACTION_IDS,
@@ -132,11 +129,7 @@ test('every Audacity action has a roadmap disposition with actionable ownership'
 });
 
 test('upstream disabled and TODO actions stay explicit, inert, and user-explainable', () => {
-	const requiredDisabled = [
-		'export-midi',
-		'menu-macros',
-		'reset-configuration',
-	];
+	const requiredDisabled = ['export-midi', 'menu-macros', 'reset-configuration'];
 
 	for (const id of requiredDisabled) {
 		const definition = audacityActionDefinition(id);

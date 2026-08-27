@@ -101,9 +101,8 @@ interface FileStat {
 export interface FramescaperOpenFxHostPayloadPorts {
 	readonly readFile: (path: string) => Promise<Buffer>;
 	readonly stat: (path: string) => Promise<FileStat>;
-	readonly resolveReviewPublicKey?: (
-		target: FramescaperOpenFxHostTargetId, reviewKeyId: string,
-	) => Promise<string | Buffer | null> | string | Buffer | null;
+	readonly resolveReviewPublicKey?: (target: FramescaperOpenFxHostTargetId, reviewKeyId: string) =>
+		Promise<string | Buffer | null> | string | Buffer | null;
 }
 
 interface PayloadIdentity {
@@ -168,10 +167,8 @@ const TARGET_GPU_BACKENDS = Object.freeze({
 	'win-arm64': Object.freeze(['opengl', 'opencl'] as const),
 } satisfies Readonly<Record<FramescaperOpenFxHostTargetId, readonly OpenFxGpuBackend[]>>);
 
-export function framescaperOpenFxHostTargetFor(
-	platform: string,
-	architecture: string,
-): FramescaperOpenFxHostTargetId | null {
+export function framescaperOpenFxHostTargetFor(platform: string, architecture: string):
+	FramescaperOpenFxHostTargetId | null {
 	const key = `${platform}-${architecture}`;
 	return Object.hasOwn(FRAMESCAPER_OPENFX_HOST_RUNTIME_TARGETS, key)
 		? FRAMESCAPER_OPENFX_HOST_RUNTIME_TARGETS[key as RuntimeKey]
@@ -473,12 +470,8 @@ function isolationPayload(value: unknown, id: FramescaperOpenFxHostTargetId): Pa
 	});
 }
 
-function payloadIdentity(
-	value: unknown,
-	id: FramescaperOpenFxHostTargetId,
-	executableName: string | null,
-	directory = 'bin',
-): PayloadIdentity {
+function payloadIdentity(value: unknown, id: FramescaperOpenFxHostTargetId,
+	executableName: string | null, directory = 'bin'): PayloadIdentity {
 	const record = closedRecord(value, ['path', 'byteLength', 'sha256']);
 	const prefix = `${RUNTIME_PREFIX}/prebuilt/${id}/${directory}/`;
 	const name = typeof record.path === 'string' ? record.path.slice(prefix.length) : '';
@@ -533,19 +526,15 @@ function isolationPayloads(value: PayloadPair['isolationPayload']): readonly Pay
 	]);
 }
 
-function runtimeLibraryEvidence(
-	libraries: readonly FramescaperOpenFxExecutableDescriptor[],
-): readonly OpenFxRuntimeLibraryEvidenceV1[] {
+function runtimeLibraryEvidence(libraries: readonly FramescaperOpenFxExecutableDescriptor[]):
+	readonly OpenFxRuntimeLibraryEvidenceV1[] {
 	return Object.freeze(libraries.map((library) => Object.freeze({
 		name: basename(library.path), byteLength: library.byteLength, sha256: library.sha256,
 	})));
 }
 
-function payloadPath(
-	location: FramescaperOpenFxHostPayloadLocation,
-	targetId: FramescaperOpenFxHostTargetId,
-	pinnedPath: string,
-): string {
+function payloadPath(location: FramescaperOpenFxHostPayloadLocation,
+	targetId: FramescaperOpenFxHostTargetId, pinnedPath: string): string {
 	return location.externalRuntimeRoot
 		? join(resolve(location.externalRuntimeRoot), RUNTIME_PREFIX, targetId, basename(pinnedPath))
 		: location.packaged
@@ -553,11 +542,8 @@ function payloadPath(
 		: safeDevelopmentPath(location.applicationRoot, pinnedPath);
 }
 
-function readinessEvidencePath(
-	location: FramescaperOpenFxHostPayloadLocation,
-	targetId: FramescaperOpenFxHostTargetId,
-	referencePath: string,
-): string {
+function readinessEvidencePath(location: FramescaperOpenFxHostPayloadLocation,
+	targetId: FramescaperOpenFxHostTargetId, referencePath: string): string {
 	const name = 'framescaper-openfx-production-readiness.json';
 	if (location.packaged) {
 		return join(location.resourcesPath, 'runtime', RUNTIME_PREFIX, targetId, name);
@@ -593,10 +579,8 @@ function safeIdentity(value: number): boolean {
 	return Number.isSafeInteger(value) && value >= 0;
 }
 
-function unavailable(
-	reason: FramescaperOpenFxHostUnavailableReason,
-	detail: string,
-): FramescaperOpenFxHostAvailability {
+function unavailable(reason: FramescaperOpenFxHostUnavailableReason,
+	detail: string): FramescaperOpenFxHostAvailability {
 	return Object.freeze({ status: 'unavailable' as const, reason, detail });
 }
 

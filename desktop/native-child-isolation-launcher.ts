@@ -11,11 +11,34 @@ import type { Readable, Writable } from 'node:stream';
 
 import {
 	bindNativeChildProcess,
-	type NativeChildFramedControl,
 	type NativeChildFramedControlBinding,
 } from './native-child-framed-control.ts';
+import type {
+	EnforcedNativeChildLaunch,
+	NativeChildIsolationArtifactDescriptor,
+	NativeChildIsolationCompletion,
+	NativeChildIsolationLaunch,
+	NativeChildIsolationLauncherOptions,
+	NativeChildIsolationLaunchRequest,
+	NativeChildIsolationPathGrant,
+	NativeChildIsolationSpawn as Spawn,
+	NativeChildIsolationTarget,
+	NativeChildMachineWorkload,
+} from './native-child-isolation-contract.ts';
 import { soundscaperProfessionalRuntimeClosureSha256 } from './soundscaper-professional-native-readiness.mjs';
 import { createNativeChildWindowsAuthorityProfile } from './native-child-windows-authority.ts';
+
+export type {
+	EnforcedNativeChildLaunch,
+	NativeChildIsolationArtifactDescriptor,
+	NativeChildIsolationCompletion,
+	NativeChildIsolationLaunch,
+	NativeChildIsolationLauncherOptions,
+	NativeChildIsolationLaunchRequest,
+	NativeChildIsolationPathGrant,
+	NativeChildIsolationTarget,
+	NativeChildMachineWorkload,
+};
 
 const SHA256 = /^[a-f\d]{64}$/u;
 const TARGETS = Object.freeze(['linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64'] as const);
@@ -34,21 +57,6 @@ const MAXIMUM_GRANTS = 64;
 const MAXIMUM_ARGUMENT_BYTES = 32_768;
 const LINUX_O_PATH = 0x20_0000;
 const LINUX_O_CLOEXEC = 0x8_0000;
-
-export type NativeChildIsolationTarget = (typeof TARGETS)[number];
-
-export interface NativeChildIsolationArtifactDescriptor {
-	readonly path: string;
-	readonly byteLength: number;
-	readonly sha256: string;
-	readonly identity: Readonly<{ readonly dev: number; readonly ino: number }>;
-}
-
-export interface NativeChildIsolationPathGrant {
-	readonly path: string;
-	readonly kind: 'file' | 'directory';
-	readonly identity: Readonly<{ readonly dev: number; readonly ino: number }>;
-}
 
 interface NativeChildIsolationContainmentAuthority {
 	readonly launcher: Readonly<{
@@ -78,74 +86,6 @@ type NativeChildMachineWorkloadBinding =
 	| Readonly<{ kind: 'soundscaper'; payloads: readonly string[]; runtimeClosureSha256: string }>
 	| Readonly<{ kind: 'openfx' | 'media'; payloads: readonly string[];
 		readonly runtimeLibraries: readonly RuntimeLibraryBinding[] }>;
-
-export interface NativeChildIsolationLaunchRequest {
-	readonly executable: NativeChildIsolationArtifactDescriptor;
-	readonly arguments: readonly string[];
-	readonly readOnly: readonly NativeChildIsolationPathGrant[];
-	readonly readExecute: readonly NativeChildIsolationPathGrant[];
-	readonly writeOnly: readonly NativeChildIsolationPathGrant[];
-	readonly runtimeClosure?: readonly NativeChildIsolationArtifactDescriptor[];
-	readonly workloadPayload?: NativeChildIsolationArtifactDescriptor;
-	readonly stdin?: 'ignore' | 'pipe';
-	readonly extraInput?: Readonly<{ readonly childFd: 3 }> | null;
-	readonly framedControl: NativeChildFramedControlBinding | null;
-	readonly resourcePolicy: Readonly<{
-		readonly maximumJobDurationMs: number;
-		readonly maximumRssBytes: number;
-	}>;
-}
-
-export interface NativeChildIsolationCompletion {
-	readonly exitCode: number;
-	readonly signal: NodeJS.Signals | null;
-	readonly stdout: string;
-	readonly stderr: string;
-}
-
-export interface EnforcedNativeChildLaunch {
-	readonly schemaVersion: 1;
-	readonly kind: 'native-child-os-isolation-enforced';
-	readonly target: NativeChildIsolationTarget;
-	readonly launcherId: string;
-	readonly pid: number;
-}
-
-export interface NativeChildIsolationLaunch {
-	readonly enforcement: EnforcedNativeChildLaunch;
-	readonly stdin: Writable | null;
-	readonly extraInput: Readonly<{ readonly childFd: 3; readonly sink: Writable }> | null;
-	readonly control: NativeChildFramedControl | null;
-	readonly completion: Promise<NativeChildIsolationCompletion>;
-	kill(signal?: NodeJS.Signals): boolean;
-}
-
-type Spawn = (command: string, arguments_: readonly string[], options: SpawnOptions) => ChildProcess;
-
-export interface NativeChildIsolationLauncherOptions {
-	readonly target: NativeChildIsolationTarget;
-	/** Machine authority derived from exact payload and runtime-closure descriptors. */
-	readonly machineWorkload: NativeChildMachineWorkload;
-	readonly artifacts: Readonly<{
-		readonly launcher: NativeChildIsolationArtifactDescriptor;
-		readonly sandboxProfile: NativeChildIsolationArtifactDescriptor;
-		readonly brokerPolicy: NativeChildIsolationArtifactDescriptor;
-	}>;
-	readonly spawn?: Spawn;
-	readonly enforcementTimeoutMs?: number;
-}
-
-export type NativeChildMachineWorkload =
-	| Readonly<{
-		readonly kind: 'soundscaper';
-		readonly payloads: readonly NativeChildIsolationArtifactDescriptor[];
-		readonly runtimeClosure: readonly NativeChildIsolationArtifactDescriptor[];
-	}>
-	| Readonly<{
-		readonly kind: 'media' | 'openfx';
-		readonly payloads: readonly NativeChildIsolationArtifactDescriptor[];
-		readonly runtimeLibraries: readonly NativeChildIsolationArtifactDescriptor[];
-	}>;
 
 const enforcedLaunches = new WeakSet<object>();
 

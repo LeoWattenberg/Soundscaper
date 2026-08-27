@@ -3,14 +3,7 @@
 import assert from 'node:assert/strict';
 import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import {
-	cpSync,
-	lstatSync,
-	mkdirSync,
-	mkdtempSync,
-	readFileSync,
-	rmSync,
-	symlinkSync,
-	writeFileSync,
+	cpSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync,
 } from 'node:fs';
 import { access, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -19,12 +12,8 @@ import test from 'node:test';
 
 import { verifyPackagedFramescaperNativeHostResources } from '../scripts/desktop-after-pack.mjs';
 import { verifyStagedFramescaperNativeHostsBeforePack } from '../scripts/desktop-before-pack.mjs';
-import {
-	deriveFramescaperMediaHostPayloadManifest,
-} from '../scripts/lib/framescaper-media-host-build.mjs';
-import {
-	deriveFramescaperOpenFxPayloadManifest,
-} from '../scripts/lib/framescaper-openfx-host-build.mjs';
+import { deriveFramescaperMediaHostPayloadManifest } from '../scripts/lib/framescaper-media-host-build.mjs';
+import { deriveFramescaperOpenFxPayloadManifest } from '../scripts/lib/framescaper-openfx-host-build.mjs';
 import {
 	framescaperNativeHostPayloadStageSummary,
 	stageVerifiedFramescaperNativeHostPayloads,
@@ -37,12 +26,9 @@ const TARGET = 'linux-x64';
 const MEDIA_ROOT = 'native/framescaper-media-host';
 const OPENFX_ROOT = 'native/framescaper-openfx-host';
 const MEDIA_PATH = `${MEDIA_ROOT}/prebuilt/${TARGET}/framescaper-media-host`;
-const MEDIA_LAUNCHER_PATH =
-	`${MEDIA_ROOT}/prebuilt/${TARGET}/isolation/milestone5-native-isolation-launcher`;
-const MEDIA_PROFILE_PATH =
-	`${MEDIA_ROOT}/prebuilt/${TARGET}/isolation/milestone5-native-isolation-profile.json`;
-const MEDIA_BROKER_PATH =
-	`${MEDIA_ROOT}/prebuilt/${TARGET}/isolation/milestone5-native-isolation-broker.json`;
+const MEDIA_LAUNCHER_PATH = `${MEDIA_ROOT}/prebuilt/${TARGET}/isolation/milestone5-native-isolation-launcher`;
+const MEDIA_PROFILE_PATH = `${MEDIA_ROOT}/prebuilt/${TARGET}/isolation/milestone5-native-isolation-profile.json`;
+const MEDIA_BROKER_PATH = `${MEDIA_ROOT}/prebuilt/${TARGET}/isolation/milestone5-native-isolation-broker.json`;
 const MEDIA_LIBRARY_PATH = `${MEDIA_ROOT}/prebuilt/${TARGET}/lib/libframescaper-media.so`;
 const SCANNER_PATH = `${OPENFX_ROOT}/prebuilt/${TARGET}/bin/framescaper-ofx-scanner`;
 const RUNTIME_PATH = `${OPENFX_ROOT}/prebuilt/${TARGET}/bin/framescaper-ofx-runtime-host`;
@@ -87,8 +73,7 @@ test('a built target stages only its exact verified media and two OpenFX executa
 	const summary = await stageVerifiedFramescaperNativeHostPayloads({ release, outputRoot });
 	assert.equal(summary.mediaHost.status, 'built');
 	assert.deepEqual(summary.mediaHost.m9ReleaseReview, {
-		scope: 'stable-1.0-release',
-		status: 'pending',
+		scope: 'stable-1.0-release', status: 'pending',
 		detail: 'No independent media-host review is recorded for stable 1.0 release admission.',
 	});
 	assert.equal(summary.mediaHost.productionReadiness, null);
@@ -97,8 +82,7 @@ test('a built target stages only its exact verified media and two OpenFX executa
 	]);
 	assert.equal(summary.openFxHost.status, 'built');
 	assert.deepEqual(summary.openFxHost.m9ReleaseReview, {
-		scope: 'stable-1.0-release',
-		status: 'pending',
+		scope: 'stable-1.0-release', status: 'pending',
 		detail: 'No independent OpenFX-host review is recorded for stable 1.0 release admission.',
 	});
 	assert.equal(summary.openFxHost.productionReadiness, null);
@@ -108,16 +92,13 @@ test('a built target stages only its exact verified media and two OpenFX executa
 	const mediaOutput = join(outputRoot, 'native/framescaper-media-host', TARGET);
 	const openFxOutput = join(outputRoot, 'native/framescaper-openfx-host', TARGET);
 	assert.deepEqual((await readdir(mediaOutput)).sort(), [
-		'framescaper-media-host', 'libframescaper-media.so',
-		'milestone-5-native-isolation-review-policy.json',
-		'milestone5-native-isolation-broker.json', 'milestone5-native-isolation-launcher',
-		'milestone5-native-isolation-profile.json',
+		'framescaper-media-host', 'libframescaper-media.so', 'milestone-5-native-isolation-review-policy.json',
+		'milestone5-native-isolation-broker.json', 'milestone5-native-isolation-launcher', 'milestone5-native-isolation-profile.json',
 	]);
 	assert.deepEqual((await readdir(openFxOutput)).sort(), [
 		'framescaper-ofx-runtime-host', 'framescaper-ofx-scanner', 'ld-linux-x86-64.so.2',
-		'milestone-5-native-isolation-review-policy.json',
-		'milestone5-native-isolation-broker.json', 'milestone5-native-isolation-launcher',
-		'milestone5-native-isolation-profile.json',
+		'milestone-5-native-isolation-review-policy.json', 'milestone5-native-isolation-broker.json',
+		'milestone5-native-isolation-launcher', 'milestone5-native-isolation-profile.json',
 	]);
 	assert.deepEqual(readFileSync(join(mediaOutput, 'framescaper-media-host')), MEDIA_BYTES);
 	assert.deepEqual(readFileSync(join(openFxOutput, 'framescaper-ofx-scanner')), SCANNER_BYTES);
@@ -138,49 +119,32 @@ test('signed OpenFX readiness and its scoped review policy survive exact staging
 	});
 	const summary = await stageVerifiedFramescaperNativeHostPayloads({ release, outputRoot });
 	assert.deepEqual(summary.openFxHost.m9ReleaseReview, {
-		scope: 'stable-1.0-release',
-		status: 'complete',
-		reviewer: 'synthetic OpenFX isolation reviewer',
-		reviewedAt: '2026-08-24',
+		scope: 'stable-1.0-release', status: 'complete',
+		reviewer: 'synthetic OpenFX isolation reviewer', reviewedAt: '2026-08-24',
 	});
 	assert.equal(summary.openFxHost.productionReadiness.verified.status, 'authenticated');
-	assert.equal(
-		summary.openFxHost.productionReadiness.verified.evidence.target,
-		TARGET,
-	);
+	assert.equal(summary.openFxHost.productionReadiness.verified.evidence.target, TARGET);
 	const openFxOutput = join(outputRoot, 'native/framescaper-openfx-host', TARGET);
 	assert.deepEqual((await readdir(openFxOutput)).sort(), [
-		'framescaper-ofx-runtime-host',
-		'framescaper-ofx-scanner',
-		'framescaper-openfx-production-readiness.json',
-		'ld-linux-x86-64.so.2',
-		'milestone-5-native-isolation-review-policy.json',
-		'milestone5-native-isolation-broker.json',
-		'milestone5-native-isolation-launcher',
-		'milestone5-native-isolation-profile.json',
+		'framescaper-ofx-runtime-host', 'framescaper-ofx-scanner',
+		'framescaper-openfx-production-readiness.json', 'ld-linux-x86-64.so.2',
+		'milestone-5-native-isolation-review-policy.json', 'milestone5-native-isolation-broker.json',
+		'milestone5-native-isolation-launcher', 'milestone5-native-isolation-profile.json',
 	]);
 	await assert.doesNotReject(() => verifyStagedFramescaperNativeHostPayloads({ release, outputRoot }));
-	await writeFile(
-		join(openFxOutput, 'framescaper-openfx-production-readiness.json'),
-		Buffer.from('changed readiness evidence'),
-	);
-	await assert.rejects(
-		() => verifyStagedFramescaperNativeHostPayloads({ release, outputRoot }),
-		/OpenFX.*production-readiness.*(?:byte length|digest)/iu,
-	);
+	await writeFile(join(openFxOutput, 'framescaper-openfx-production-readiness.json'),
+		Buffer.from('changed readiness evidence'));
+	await assert.rejects(() => verifyStagedFramescaperNativeHostPayloads({ release, outputRoot }),
+		/OpenFX.*production-readiness.*(?:byte length|digest)/iu);
 });
 
 test('invalid OpenFX M9 review metadata does not withhold exact isolated host payloads', async (context) => {
 	const repositoryRoot = builtFixture(context, 'framescaper-invalid-reviewed-host-fixture-');
 	attachOpenFxReadiness(repositoryRoot);
-	writeFileSync(
-		join(repositoryRoot, 'config/framescaper-openfx-production-readiness', `${TARGET}.json`),
-		Buffer.from('invalidated review evidence'),
-	);
+	writeFileSync(join(repositoryRoot, 'config/framescaper-openfx-production-readiness', `${TARGET}.json`),
+		Buffer.from('invalidated review evidence'));
 	const outputRoot = temporaryRoot(context, 'framescaper-invalid-reviewed-host-stage-');
-	const release = await verifyFramescaperNativeHostPayloads({
-		repositoryRoot, target: TARGET, targetSource: 'declared',
-	});
+	const release = await verifyFramescaperNativeHostPayloads({ repositoryRoot, target: TARGET, targetSource: 'declared' });
 	const summary = await stageVerifiedFramescaperNativeHostPayloads({ release, outputRoot });
 	assert.equal(summary.openFxHost.status, 'built');
 	assert.equal(summary.openFxHost.payloads.length, 6);
@@ -200,10 +164,8 @@ test('signed media-host readiness and its independent review policy survive exac
 	});
 	const summary = await stageVerifiedFramescaperNativeHostPayloads({ release, outputRoot });
 	assert.deepEqual(summary.mediaHost.m9ReleaseReview, {
-		scope: 'stable-1.0-release',
-		status: 'complete',
-		reviewer: 'synthetic media isolation reviewer',
-		reviewedAt: '2026-08-24',
+		scope: 'stable-1.0-release', status: 'complete',
+		reviewer: 'synthetic media isolation reviewer', reviewedAt: '2026-08-24',
 	});
 	assert.equal(summary.mediaHost.productionReadiness.verified.status, 'authenticated');
 	assert.equal(summary.mediaHost.productionReadiness.verified.evidence.target, TARGET);

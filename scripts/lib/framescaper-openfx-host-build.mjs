@@ -1,10 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createHash } from 'node:crypto';
-import {
-	closeSync, constants, fstatSync, lstatSync, openSync, readFileSync,
-	realpathSync,
-} from 'node:fs';
+import { closeSync, constants, fstatSync, lstatSync, openSync, readFileSync, realpathSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import {
@@ -24,10 +21,8 @@ export const FRAMESCAPER_OPENFX_SOURCE_MANIFEST =
 	`${FRAMESCAPER_OPENFX_HOST_ROOT}/source-manifest.json`;
 export const FRAMESCAPER_OPENFX_PAYLOAD_MANIFEST =
 	'config/framescaper-openfx-host-payload-manifest.json';
-export const FRAMESCAPER_OPENFX_READINESS_EVIDENCE_NAME =
-	'framescaper-openfx-production-readiness.json';
-export const FRAMESCAPER_OPENFX_REVIEW_POLICY_NAME =
-	'milestone-5-native-isolation-review-policy.json';
+export const FRAMESCAPER_OPENFX_READINESS_EVIDENCE_NAME = 'framescaper-openfx-production-readiness.json';
+export const FRAMESCAPER_OPENFX_REVIEW_POLICY_NAME = 'milestone-5-native-isolation-review-policy.json';
 
 const TARGET_IDS = Object.freeze([
 	'linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64',
