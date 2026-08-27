@@ -80,14 +80,29 @@ test('Pages CLI authenticates policy before any live runtime request', async () 
 		readFile('package.json', 'utf8').then(JSON.parse),
 		readFile('Technical_README.md', 'utf8'),
 	]);
+	// The checked-in authorization is read first and decides whether the live
+	// runtime is audited at all: an unpublished runtime has no objects to audit,
+	// and the licensing gates that block publication are not something a deploy
+	// can clear. The ordering below is what keeps that a policy decision rather
+	// than an inference from whatever the origin happens to answer.
 	assert.ok(
-		source.indexOf("purpose: 'runtime-publication'") < source.indexOf('const result = await preflightPagesDeployment'),
+		source.indexOf('readRuntimePublicationAuthorization(repositoryRoot)')
+			< source.indexOf("purpose: 'runtime-publication'"),
+		'the checked-in authorization must be read before the manifest is verified',
+	);
+	assert.ok(
+		source.indexOf("purpose: 'runtime-publication'") < source.indexOf('preflightPagesDeployment({ release, origin })'),
 		'checked-in publication authorization must precede live preflight requests',
 	);
 	assert.ok(
-		source.indexOf('const result = await preflightPagesDeployment')
+		source.indexOf('preflightPagesDeployment({ release, origin })')
 			< source.indexOf('const pages = await verifyLivePagesCachePolicy'),
 		'the exact runtime must be live before the Pages hostname cache policy is accepted',
+	);
+	assert.match(
+		source,
+		/publication\.status === 'approved'/u,
+		'only an approved publication reaches the live runtime audit',
 	);
 	// The gate must never take its audit sample from the build it is gating: the
 	// live origin is the previous deployment and has none of the new hashes.
@@ -418,13 +433,18 @@ test('a deployed origin is never mistaken for one that was never deployed', asyn
 	);
 });
 
-test('the deploy job can finish its first Framescaper run against an origin that does not exist yet', async () => {
-	// framescaper.org has no deployment until this job makes one, so its build
-	// carries the cold-start declaration. soundscaper.org is live, so nothing
-	// there may be excused: a declaration on that build would let an outage of
-	// the origin the deploy is replacing pass as "never deployed".
+test('the Framescaper deploy audits its own project rather than a hostname serving another product', async () => {
+	// framescaper.org is not pointed at the framescaper project yet, so that
+	// hostname answers with Soundscaper: auditing it would pass or fail on the
+	// wrong product's content. The project's own hostname is named explicitly
+	// instead, and it already carries a deployment — so no cold start may be
+	// declared here either. A declaration on a live origin would let an outage
+	// of the origin the deploy is replacing pass as "never deployed", which is
+	// exactly the failure the declaration exists to make impossible.
 	const workflow = await readFile('.github/workflows/quality.yml', 'utf8');
 	const section = (name, next) => workflow.slice(workflow.indexOf(`- name: Build ${name}`), workflow.indexOf(`- name: Deploy ${next}`));
-	assert.match(section('Framescaper', 'Framescaper'), /SCAPE_PAGES_COLD_START: "1"/u);
+	assert.match(section('Framescaper', 'Framescaper'), /SCAPE_DEPLOY_AUDIT_ORIGIN: https:\/\/framescaper\.pages\.dev/u);
+	assert.doesNotMatch(section('Framescaper', 'Framescaper'), /SCAPE_PAGES_COLD_START/u);
 	assert.doesNotMatch(section('Soundscaper', 'Soundscaper'), /SCAPE_PAGES_COLD_START/u);
+	assert.doesNotMatch(section('Soundscaper', 'Soundscaper'), /SCAPE_DEPLOY_AUDIT_ORIGIN/u);
 });

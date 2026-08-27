@@ -42,12 +42,10 @@ try {
 	// absence is fatal again: this branch can only excuse a state the
 	// repository has already recorded, never one discovered at the origin.
 	const publication = await readRuntimePublicationAuthorization(repositoryRoot);
-	const result = publication.status === 'blocked'
-		? null
-		: await preflightPagesDeployment({
-			release: await verifyFfmpegRuntimeManifest({ repositoryRoot, purpose: 'runtime-publication' }),
-			origin,
-		});
+	const release = publication.status === 'approved'
+		? await verifyFfmpegRuntimeManifest({ repositoryRoot, purpose: 'runtime-publication' })
+		: null;
+	const result = release === null ? null : await preflightPagesDeployment({ release, origin });
 	const pages = await verifyLivePagesCachePolicy({ routing, origin, coldStart });
 	console.log(result === null
 		? 'FFmpeg runtime publication is blocked by '
