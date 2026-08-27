@@ -44,9 +44,11 @@ export function createAssistanceWorkflowOperationStageRuntime(
 		const outputs = stage.outputs.map((claim) => options.custody.outputReservationForClaim(claim));
 		let request: AssistanceOperationRequest;
 		try {
+			const settings = operationSettings(stage, operation);
 			request = validateAssistanceOperationRequest({ contractVersion: 1,
 				jobId: stage.request.jobId, operation,
 				selectionFence: selectionFence(stage, range),
+				...(settings ? { settings } : {}),
 				models: operationModelBindings(stage, operation),
 				inputs, outputs });
 		} catch (error) {
@@ -72,6 +74,18 @@ export function createAssistanceWorkflowOperationStageRuntime(
 		stage.progress(1, 1);
 		return Object.freeze({ outcome: 'completed' });
 	};
+}
+
+function operationSettings(
+	stage: AssistanceWorkflowStageExecutionV1,
+	operation: NonNullable<AssistanceWorkflowStageExecutionV1['stage']['operation']>,
+) {
+	const settings = stage.request.settings;
+	if (operation !== 'speech-recognition' || stage.request.workflowId !== 'transcribe-captions'
+		|| settings.workflowId !== 'transcribe-captions' || settings.recognizer !== 'whisper') {
+		return null;
+	}
+	return Object.freeze({ settingsVersion: 1 as const, language: settings.language });
 }
 
 function operationModelBindings(

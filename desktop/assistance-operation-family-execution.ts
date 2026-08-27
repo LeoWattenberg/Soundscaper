@@ -125,6 +125,9 @@ export async function executeAssistanceOperationWithRuntimeFamily(
 		settings: Object.freeze({
 			schemaVersion: 1,
 			operation: options.request.operation,
+			...(options.request.operation === 'speech-recognition'
+				? { language: options.request.settings?.language ?? 'auto' }
+				: {}),
 			selectionFence: options.request.selectionFence,
 			inputRoles: Object.freeze(options.request.inputs.map(({ role }) => role)),
 			outputRoles: Object.freeze(options.request.outputs.map(({ role }) => role)),

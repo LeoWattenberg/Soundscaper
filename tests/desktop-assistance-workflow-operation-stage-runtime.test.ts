@@ -18,6 +18,7 @@ import {
 import {
 	assistanceWorkflowStageGraph,
 	validateAssistanceWorkflow,
+	type AssistanceWorkflowClaimV1,
 	type AssistanceWorkflowV1,
 } from '../src/common/editor/assistance/workflow.ts';
 import { assistanceWorkflowFixture, WORKFLOW_JOB_ID } from './helpers/assistance-workflow-fixture.ts';
@@ -70,6 +71,46 @@ test('primitive workflow stages execute through operation-v1 and record exact au
 	});
 	assert.equal(recorded.length, 1);
 	assert.deepEqual(progress, [[1, 1]]);
+});
+
+test('Whisper workflow projection carries the exact selected language into operation-v1', async () => {
+	for (const language of ['auto', 'en'] as const) {
+		const request = whisperWorkflow(language);
+		let operationRequest: unknown = null;
+		const runtime = createAssistanceWorkflowOperationStageRuntime({
+			operations: { executeStaged: async (value) => {
+				operationRequest = value;
+				return { contractVersion: 1, jobId: WORKFLOW_JOB_ID,
+					operation: 'speech-recognition' as const, outcome: 'unavailable' as const,
+					reason: 'model-unavailable' as const };
+			} },
+			custody: {
+				operationInputClaim: async (claimValue) => {
+					const claim = claimValue as AssistanceWorkflowClaimV1;
+					return validateAssistanceStagedInputClaim({
+						claimVersion: 1, claimId: claim.claimId, jobId: WORKFLOW_JOB_ID,
+						role: claim.slotId === 'audio' ? 'audio' : 'voice-activity',
+						mediaType: claim.slotId === 'audio' ? 'audio/wav' : 'application/json',
+						byteLength: 4, sha256: 'aa'.repeat(32),
+					});
+				},
+				outputReservationForClaim: (claimValue) => {
+					const claim = claimValue as AssistanceWorkflowClaimV1;
+					return validateAssistanceOutputReservation({
+						claimVersion: 1, claimId: claim.claimId, jobId: WORKFLOW_JOB_ID,
+						role: 'transcript', mediaType: 'application/json', maximumByteLength: 4096,
+					});
+				},
+				recordAuthenticatedOutputForClaim: async () => {
+					throw new Error('An unavailable operation must not publish output.');
+				},
+			},
+		});
+		assert.deepEqual(await runtime(stageExecution(request, () => undefined, 'recognize-speech')),
+			{ outcome: 'unavailable', reason: 'model-unavailable' });
+		assert.deepEqual(validateAssistanceOperationRequest(operationRequest).settings,
+			{ settingsVersion: 1, language });
+	}
 });
 
 test('primitive projection refuses ambiguous multi-source authority without touching custody', async () => {
@@ -150,6 +191,20 @@ function enhancementWorkflow() {
 			jobId: WORKFLOW_JOB_ID, stageId: 'enhance-dialogue', slotId: 'audio' }],
 		outputs: [{ claimVersion: 1, direction: 'output', claimId: OUTPUT_ID,
 			jobId: WORKFLOW_JOB_ID, stageId: 'enhance-dialogue', slotId: 'enhanced-audio' }],
+	}));
+}
+
+function whisperWorkflow(language: 'auto' | 'en'): AssistanceWorkflowV1 {
+	return validateAssistanceWorkflow(assistanceWorkflowFixture({
+		settings: { settingsVersion: 1, workflowId: 'transcribe-captions',
+			recognizer: 'whisper', language, englishWhisperAlignment: 'when-installed' },
+		models: [
+			{ bindingVersion: 1, stageId: 'detect-speech', slotId: 'vad', modelId: 'silero-vad',
+				version: '6.2.0', artifactSha256s: ['01'.repeat(32)] },
+			{ bindingVersion: 1, stageId: 'recognize-speech', slotId: 'speech-recognizer',
+				modelId: 'whisper-large-v3-turbo-ggml', version: '1.0.0',
+				artifactSha256s: ['02'.repeat(32)] },
+		],
 	}));
 }
 

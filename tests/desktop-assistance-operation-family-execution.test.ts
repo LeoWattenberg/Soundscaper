@@ -266,12 +266,19 @@ test('Whisper speech dispatch never substitutes the existing Sherpa recognizer',
 		modelId, version, task: 'speech-recognition', fileName: 'ggml-large-v3-turbo-q5_0.bin',
 		additionalRuntime: writingRuntime(seen, [transcript]),
 	});
-	const operation = await request(service, {
+	const operation = Object.freeze({ ...await request(service, {
+		operation: 'speech-recognition', modelId, version, digest,
+		outputs: [{ role: 'transcript', mediaType: 'application/json' }],
+	}), settings: Object.freeze({ settingsVersion: 1 as const, language: 'en' as const }) });
+	assert.equal((await service.run(operation)).outcome, 'completed');
+	assert.equal(seen[0]?.task, 'speech-recognition');
+	assert.equal(seen[0]?.settings.language, 'en');
+	const automatic = await request(service, {
 		operation: 'speech-recognition', modelId, version, digest,
 		outputs: [{ role: 'transcript', mediaType: 'application/json' }],
 	});
-	assert.equal((await service.run(operation)).outcome, 'completed');
-	assert.equal(seen[0]?.task, 'speech-recognition');
+	assert.equal((await service.run(automatic)).outcome, 'completed');
+	assert.equal(seen[1]?.settings.language, 'auto');
 });
 
 test('wrong additional model task roles fail before a worker receives file grants', async (t) => {

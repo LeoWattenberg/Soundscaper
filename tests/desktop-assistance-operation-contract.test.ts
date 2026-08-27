@@ -126,6 +126,27 @@ test('speech recognition optionally admits one authenticated voice-activity clai
 	})), /at most one voice-activity/iu);
 });
 
+test('speech recognition binds only the closed optional language settings', () => {
+	assert.deepEqual(validateAssistanceOperationRequest(request({
+		settings: { settingsVersion: 1, language: 'en' },
+	})).settings, { settingsVersion: 1, language: 'en' });
+	assert.equal(validateAssistanceOperationRequest(request()).settings, undefined,
+		'operation-v1 callers that omit settings retain automatic language detection');
+	for (const settings of [
+		{ settingsVersion: 1, language: 'EN' },
+		{ settingsVersion: 1, language: 'de' },
+		{ settingsVersion: 2, language: 'en' },
+		{ settingsVersion: 1, language: 'en', command: '--prompt injected' },
+	]) {
+		assert.throws(() => validateAssistanceOperationRequest(request({ settings })),
+			/language settings|language|settings version|schema keys/iu);
+	}
+	assert.throws(() => validateAssistanceOperationRequest(request({
+		operation: 'audio-tagging', outputs: [output('audio-tags')],
+		settings: { settingsVersion: 1, language: 'en' },
+	})), /does not admit.*settings|language settings/iu);
+});
+
 test('operation requests admit only pathless claims and operation-owned roles', () => {
 	assert.throws(
 		() => validateAssistanceOperationRequest(request({ mediaPaths: ['/private/source.wav'] })),

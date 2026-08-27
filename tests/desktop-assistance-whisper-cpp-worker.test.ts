@@ -43,6 +43,7 @@ async function fixture(
 	context: TestContext,
 	maximumByteLength = 64 * 1024,
 	voiceActivityBody?: unknown,
+	language: unknown = 'auto',
 ) {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-whisper-worker-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
@@ -72,7 +73,7 @@ async function fixture(
 		jobId: JOB_ID, familyId: 'whisper-cpp', task: 'speech-recognition',
 		settingsJson: JSON.stringify({ operation: 'speech-recognition',
 			inputRoles: voiceActivityBody === undefined ? ['audio'] : ['audio', 'voice-activity'],
-			outputRoles: ['transcript'] }),
+			outputRoles: ['transcript'], language }),
 		inputs,
 		models: [{ modelId: 'whisper-large-v3-turbo-ggml', version: '1.0.0',
 			artifactRole: 'ggml-large-v3-turbo-q5_0', path: model,
@@ -117,7 +118,7 @@ function successfulSpawn(
 }
 
 test('the Whisper worker runs one authenticated CPU-only greedy CLI and publishes normalized JSON', async (context) => {
-	const { job, paths } = await fixture(context);
+	const { job, paths } = await fixture(context, 64 * 1024, undefined, 'en');
 	const seen: Array<{ executable: string; args: readonly string[]; shell: boolean | undefined }> = [];
 	const progress: number[] = [];
 	const spawnWorker = createAssistanceWhisperCppWorkerSpawnerV1({ spawn: successfulSpawn(seen) });
@@ -130,7 +131,7 @@ test('the Whisper worker runs one authenticated CPU-only greedy CLI and publishe
 		'--model', paths.model, '--file', paths.input,
 		'--output-json', '--output-file', '-', '--no-prints', '--no-gpu',
 		'--temperature', '0', '--temperature-inc', '0', '--no-fallback',
-		'--language', 'auto', '--threads', '4',
+		'--language', 'en', '--threads', '4',
 	]);
 	const body = await readFile(paths.output);
 	assert.deepEqual(JSON.parse(body.toString()), {
@@ -142,6 +143,25 @@ test('the Whisper worker runs one authenticated CPU-only greedy CLI and publishe
 	});
 	assert.equal(result.outputs[0]?.sha256, digest(body));
 	assert.deepEqual(progress, [0, 1]);
+});
+
+test('the Whisper worker retains automatic language selection and rejects malformed values', async (context) => {
+	const automatic = await fixture(context);
+	const seen: Array<{ executable: string; args: readonly string[]; shell: boolean | undefined }> = [];
+	await createAssistanceWhisperCppWorkerSpawnerV1({ spawn: successfulSpawn(seen) })(automatic.job, {
+		onProgress: () => undefined,
+	}).completion;
+	assert.equal(seen[0]?.args[seen[0].args.indexOf('--language') + 1], 'auto');
+
+	for (const language of ['EN', 'de', '', ['en']]) {
+		const malformed = await fixture(context, 64 * 1024, undefined, language);
+		let spawns = 0;
+		const spawn: AssistanceWhisperCppSpawn = () => { spawns += 1; throw new Error('must not spawn'); };
+		await assert.rejects(createAssistanceWhisperCppWorkerSpawnerV1({ spawn })(malformed.job, {
+			onProgress: () => undefined,
+		}).completion, /language/iu);
+		assert.equal(spawns, 0);
+	}
 });
 
 test('the Whisper worker slices reviewed VAD ranges and restores selection-relative timing', async (context) => {

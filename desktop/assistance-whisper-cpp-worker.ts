@@ -63,6 +63,8 @@ interface NormalizedWhisperResult {
 	}>[];
 }
 
+type WhisperLanguage = 'auto' | 'en';
+
 export function createAssistanceWhisperCppWorkerSpawnerV1(
 	options: AssistanceWhisperCppWorkerSpawnerOptions = {},
 ): (
@@ -118,6 +120,7 @@ async function executeWhisperCpp(
 		|| JSON.stringify(settings.outputRoles) !== '["transcript"]') {
 		throw new TypeError('The whisper.cpp adapter settings do not bind speech recognition.');
 	}
+	const language = whisperLanguage(settings.language);
 	const input = grant.inputs.find(({ role }) => role === 'audio');
 	const voiceActivity = grant.inputs.find(({ role }) => role === 'voice-activity');
 	if (!input || input.mediaType !== 'audio/wav'
@@ -137,14 +140,19 @@ async function executeWhisperCpp(
 	context.onProgress(0);
 	let normalized: Readonly<{ language: string | null; segments: readonly unknown[] }>;
 	if (voiceActivity === undefined) {
-		const stdout = await runWhisperCli(context, spawn, model.path, input.path,
-			output.maximumByteLength, terminationGraceMs);
+		const stdout = await runWhisperCli(
+			context, spawn, model.path, input.path, language, output.maximumByteLength,
+			terminationGraceMs,
+		);
 		normalized = normalizeWhisperJson(stdout, 0);
 	} else {
 		normalized = await recognizeVoiceActivityRanges(
-			context, spawn, input.path, voiceActivity.path, model.path, output.maximumByteLength,
-			terminationGraceMs,
+			context, spawn, input.path, voiceActivity.path, model.path, language,
+			output.maximumByteLength, terminationGraceMs,
 		);
+	}
+	if (language !== 'auto' && normalized.language !== null && normalized.language !== language) {
+		throw new TypeError('The whisper.cpp result language disagrees with the authenticated selection.');
 	}
 	context.signal?.throwIfAborted();
 	const body = Buffer.from(JSON.stringify(normalized), 'utf8');
@@ -175,6 +183,7 @@ async function recognizeVoiceActivityRanges(
 	audioPath: string,
 	voiceActivityPath: string,
 	modelPath: string,
+	language: WhisperLanguage,
 	maximumOutputBytes: number,
 	terminationGraceMs: number,
 ): Promise<Readonly<{ language: string | null; segments: readonly unknown[] }>> {
@@ -195,7 +204,8 @@ async function recognizeVoiceActivityRanges(
 			context.signal?.throwIfAborted();
 			await writeSpeechSegmentWave(audioPath, segmentPath, range, context.signal);
 			const stdout = await runWhisperCli(
-				context, spawn, modelPath, segmentPath, maximumOutputBytes, terminationGraceMs,
+				context, spawn, modelPath, segmentPath, language, maximumOutputBytes,
+				terminationGraceMs,
 			);
 			const normalized = normalizeWhisperJson(
 				stdout, range.startSample / geometry.sampleRate,
@@ -221,6 +231,7 @@ async function runWhisperCli(
 	spawn: AssistanceWhisperCppSpawn,
 	modelPath: string,
 	audioPath: string,
+	language: WhisperLanguage,
 	maximumOutputBytes: number,
 	terminationGraceMs: number,
 ): Promise<Uint8Array> {
@@ -231,12 +242,19 @@ async function runWhisperCli(
 			'--model', modelPath, '--file', audioPath,
 			'--output-json', '--output-file', '-', '--no-prints', '--no-gpu',
 			'--temperature', '0', '--temperature-inc', '0', '--no-fallback',
-			'--language', 'auto', '--threads', '4',
+			'--language', language, '--threads', '4',
 		]),
 		maximumStdoutBytes: maximumOutputBytes,
 		terminationGraceMs,
 		signal: context.signal,
 	});
+}
+
+function whisperLanguage(value: unknown): WhisperLanguage {
+	if (value !== 'auto' && value !== 'en') {
+		throw new TypeError('The authenticated whisper.cpp language is unsupported.');
+	}
+	return value;
 }
 
 async function writeSpeechSegmentWave(

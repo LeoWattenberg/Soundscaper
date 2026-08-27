@@ -36,6 +36,11 @@ export const ASSISTANCE_PROGRESS_PHASES = Object.freeze([
 
 export type AssistanceProgressPhase = (typeof ASSISTANCE_PROGRESS_PHASES)[number];
 
+export interface AssistanceSpeechRecognitionSettingsV1 {
+	readonly settingsVersion: 1;
+	readonly language: 'auto' | 'en';
+}
+
 export type AssistanceOperationRequest = {
 	readonly [Operation in AssistanceOperation]: Readonly<{
 		contractVersion: typeof ASSISTANCE_OPERATION_CONTRACT_VERSION;
@@ -45,7 +50,9 @@ export type AssistanceOperationRequest = {
 		models: readonly AssistanceOperationModelBinding[];
 		inputs: readonly AssistanceStagedInputClaim[];
 		outputs: readonly AssistanceOutputReservation[];
-	}>;
+	} & (Operation extends 'speech-recognition'
+		? { readonly settings?: AssistanceSpeechRecognitionSettingsV1 }
+		: { readonly settings?: never })>;
 }[AssistanceOperation];
 
 export interface AssistanceOperationModelBinding {
@@ -130,6 +137,8 @@ const OPERATION_SPECS = Object.freeze({
 const REQUEST_KEYS = Object.freeze([
 	'contractVersion', 'jobId', 'operation', 'selectionFence', 'models', 'inputs', 'outputs',
 ]);
+const REQUEST_WITH_SETTINGS_KEYS = Object.freeze([...REQUEST_KEYS, 'settings']);
+const SPEECH_RECOGNITION_SETTINGS_KEYS = Object.freeze(['settingsVersion', 'language']);
 const RESULT_KEYS = Object.freeze(['contractVersion', 'jobId', 'operation', 'outputs']);
 const PROGRESS_KEYS = Object.freeze([
 	'contractVersion', 'jobId', 'operation', 'sequence', 'phase', 'completed', 'total',
@@ -143,8 +152,11 @@ const MAXIMUM_MODEL_ARTIFACTS = 64;
 const MAXIMUM_CLAIMS = 64;
 
 export function validateAssistanceOperationRequest(value: unknown): AssistanceOperationRequest {
-	const record = operationRecord(value, REQUEST_KEYS, 'An assistance operation request');
+	const hasSettings = hasOwnSettings(value);
+	const record = operationRecord(value, hasSettings ? REQUEST_WITH_SETTINGS_KEYS : REQUEST_KEYS,
+		'An assistance operation request');
 	const operation = normalizeAssistanceOperation(record.operation);
+	const settings = validateOperationSettings(operation, record.settings, hasSettings);
 	const jobId = opaqueJobId(record.jobId);
 	const selectionFence = validateAssistanceSelectionFence(record.selectionFence);
 	const models = validateModels(record.models, operation);
@@ -167,10 +179,36 @@ export function validateAssistanceOperationRequest(value: unknown): AssistanceOp
 		jobId,
 		operation,
 		selectionFence,
+		...(settings ? { settings } : {}),
 		models: Object.freeze(models),
 		inputs: Object.freeze(inputs),
 		outputs: Object.freeze(outputs),
 	}) as AssistanceOperationRequest;
+}
+
+function hasOwnSettings(value: unknown): boolean {
+	if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+	return Object.hasOwn(value, 'settings');
+}
+
+function validateOperationSettings(
+	operation: AssistanceOperation,
+	value: unknown,
+	present: boolean,
+): AssistanceSpeechRecognitionSettingsV1 | undefined {
+	if (!present) return undefined;
+	if (operation !== 'speech-recognition') {
+		throw new TypeError(`The ${operation} operation does not admit language settings.`);
+	}
+	const record = exactRecord(value, SPEECH_RECOGNITION_SETTINGS_KEYS,
+		'Speech-recognition language settings');
+	if (record.settingsVersion !== 1) {
+		throw new TypeError('The speech-recognition settings version is unsupported.');
+	}
+	if (record.language !== 'auto' && record.language !== 'en') {
+		throw new TypeError('The speech-recognition language is unsupported.');
+	}
+	return Object.freeze({ settingsVersion: 1, language: record.language });
 }
 
 export function validateAssistanceOperationResult(
