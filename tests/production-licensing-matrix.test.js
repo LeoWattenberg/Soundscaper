@@ -102,10 +102,21 @@ test('matrix exactly covers the package-lock v3 non-development runtime closure'
 		await assertEvidence(dependency.evidence);
 	}
 
-	const types = matrix.npmProductionClosure.find(({ name }) => name === '@ffmpeg/types');
-	assert.equal(types.role, 'transitive-types-only');
-	assert.deepEqual(types.artifactSurfaces, []);
-	assert.equal(matrix.npmProductionClosure.some(({ name }) => name === '@ffmpeg/util'), false);
+	for (const name of ['@ffmpeg/core', '@ffmpeg/ffmpeg', '@ffmpeg/types']) {
+		assert.equal(lock.packages[`node_modules/${name}`].dev, true, `${name} must stay development-only`);
+		assert.equal(matrix.npmProductionClosure.some((dependency) => dependency.name === name), false);
+	}
+	for (const name of ['@ffmpeg/core', '@ffmpeg/ffmpeg']) {
+		assert.equal(packageMetadata.devDependencies[name], lock.packages[`node_modules/${name}`].version);
+	}
+	const mediabunny = matrix.npmProductionClosure.find(({ name }) => name === 'mediabunny');
+	assert.equal(mediabunny.role, 'browser-media-container-runtime');
+	assert.deepEqual(mediabunny.artifactSurfaces, ['web-pages-bundle']);
+	for (const name of ['@types/dom-mediacapture-transform', '@types/dom-webcodecs']) {
+		const types = matrix.npmProductionClosure.find((dependency) => dependency.name === name);
+		assert.equal(types.role, 'transitive-types-only');
+		assert.deepEqual(types.artifactSurfaces, []);
+	}
 });
 
 test('shipped Electron is tracked separately from the non-development npm closure', async () => {
@@ -172,11 +183,14 @@ test('runtime provenance entries and release gates fail closed without claiming 
 	assert.match(gates.get('ffmpeg-enabled-library-corresponding-source').blocker, /every enabled library/u);
 	assert.match(gates.get('ffmpeg-enabled-codec-patent-review').blocker, /jurisdiction/u);
 	assert.match(gates.get('web-notice-delivery').blocker, /web route|web artifact/u);
-	const ffmpegCore = matrix.npmProductionClosure.find(({ name }) => name === '@ffmpeg/core');
-	const ffmpegWrapper = matrix.npmProductionClosure.find(({ name }) => name === '@ffmpeg/ffmpeg');
-	assert.deepEqual(ffmpegCore.artifactSurfaces, ['web-runtime-assets']);
-	assert.deepEqual(ffmpegWrapper.artifactSurfaces, ['web-pages-bundle']);
-	assert.deepEqual(provenance.get('ffmpeg-core-wasm').artifactSurfaces, ['web-runtime-assets']);
+	assert.equal(matrix.npmProductionClosure.some(({ name }) => name.startsWith('@ffmpeg/')), false);
+	assert.deepEqual(provenance.get('ffmpeg-core-wasm').artifactSurfaces, []);
+	assert.equal(
+		provenance.get('ffmpeg-core-wasm').provenanceKind,
+		'retained-legacy-publication-audit-tooling-not-browser-runtime',
+	);
+	assert.equal(matrix.ffmpeg.dependencyScope, 'development-only-legacy-publication-audit-tooling');
+	assert.deepEqual(matrix.ffmpeg.artifactSurfaces, []);
 	const codecPolicy = matrix.desktopCodecPolicy;
 	assert.equal(codecPolicy.scope,
 		'soundscaper-general-codec-provider-layer-excluding-electron-framework-internals-and-the-exact-authenticated-framescaper-media-host');

@@ -19,7 +19,6 @@ import {
 	installMilestone7LocalAssistanceFixture,
 	milestone7FixtureSnapshot,
 } from './helpers/milestone-7-local-assistance.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 const VIDEO = createDeterministicSilentVideoFixture('milestone-7-workflows.webm');
 const LINKED_AV = createDeterministicAvFixture('milestone-7-linked-workflows.webm');
@@ -195,7 +194,6 @@ test.describe('Milestone 7 Guided workflow qualification', () => {
 
 async function installFixture(page) {
 	await stubStorageEstimate(page, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
-	await installPinnedFfmpegRuntimeRoutes(page);
 	await installMilestone7LocalAssistanceFixture(page);
 	return collectClientErrors(page);
 }

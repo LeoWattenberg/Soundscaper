@@ -38,7 +38,7 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 	);
 	assert.match(
 		rule.currentBehavior,
-		/joint selector-mode verification.*audio.*video selectors.*cumulative.*64 GiB.*before.*body reads.*full canonical audio.*chunk scan.*private chunk provider.*canonical native Blob.*exact immutable Blob.*before video planning.*storage preflight.*render.*FFmpeg.*output publication/iu,
+		/joint selector-mode verification.*audio.*video selectors.*cumulative.*64 GiB.*before.*body reads.*full canonical audio.*chunk scan.*private chunk provider.*canonical native Blob.*exact immutable Blob.*before video planning.*storage preflight.*render.*selected encoding.*output publication/iu,
 	);
 
 	assert.match(
@@ -71,7 +71,7 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 	);
 	assert.match(
 		rule.currentBehavior,
-		/export asserts project, task, and generation currentness.*before verification.*after verification.*exact selector.*after FFmpeg.*owned signal.*output publication.*rechecks currentness.*cleanup.*refusal or cancellation.*no plan.*storage preflight.*audio render.*FFmpeg.*output publication/iu,
+		/export asserts project, task, and generation currentness.*before verification.*after verification.*exact selector.*after selected encoding.*owned signal.*output publication.*rechecks currentness.*cleanup.*refusal or cancellation.*no plan.*storage preflight.*audio render.*selected encoding.*output publication/iu,
 	);
 
 	assert.match(
@@ -84,7 +84,7 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 	);
 	assert.match(
 		rule.currentBehavior,
-		/portable \.scape.*round-trips the relationship.*copy collision.*remaps the fallback source ID.*preserving the target clip ID.*corrupting.*after activation.*operation-time verification.*rejects delivery before FFmpeg and output.*restoring.*reuses.*verified Blob.*canonical document.*unchanged/iu,
+		/portable \.scape.*round-trips the relationship.*copy collision.*remaps the fallback source ID.*preserving the target clip ID.*corrupting.*after activation.*operation-time verification.*rejects delivery before selected encoding and output.*restoring.*reuses.*verified Blob.*canonical document.*unchanged/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -148,8 +148,9 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 	);
 	assert.match(
 		normalizedDocumentation,
-		/private chunk provider.*canonical native `Blob`.*exact immutable `Blob`.*nonselected fallback bodies.*not read.*before the video plan.*storage preflight.*render.*FFmpeg.*publication/isu,
+		/private chunk provider.*canonical native `Blob`.*exact immutable `Blob`.*nonselected fallback bodies.*not read.*before the video plan.*storage preflight.*render.*selected encoding.*publication/isu,
 	);
+	assert.match(normalizedDocumentation, /production browsers.*keyed-frame.*WebCodecs.*Mediabunny.*no FFmpeg WebAssembly fallback/isu);
 	assert.match(
 		normalizedDocumentation,
 		/`project-video-render-v1`.*whole-project behavior.*exact video kind.*project sample rate.*positive safe-integer frame count.*width.*height.*positive finite frame rate.*replaces all timeline video clips and tracks.*one neutral clip and track.*full source.*frame zero.*preserves audio and label.*Project Bin.*sources.*canonical field/isu,

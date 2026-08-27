@@ -13,7 +13,6 @@ import {
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 const PNG = Buffer.from(
 	'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACAQMAAABIeJ9nAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAGUExURf8gAP///4DcGxUAAAABYktHRAH/Ai3eAAAAB3RJTUUH6ggZEjoj/gYZhQAAAAxJREFUCNdjYGBgAAAABAABJzQnCgAAAABJRU5ErkJggg==',
@@ -30,9 +29,6 @@ test.describe('Framescaper selected timeline images', () => {
 		);
 		test.setTimeout(360_000);
 		const clientErrors = collectClientErrors(page);
-		await installPinnedFfmpegRuntimeRoutes(page, {
-			sameOriginRoot: '/__framescaper-v32-ffmpeg',
-		});
 		await installProductionIsolationHeaders(page, '/framescaper/en/');
 		let editor = await bootEditor(page, '/framescaper/en/');
 		const projectId = await editor.getAttribute('data-project-id');

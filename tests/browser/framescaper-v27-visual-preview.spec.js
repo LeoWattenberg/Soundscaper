@@ -14,7 +14,6 @@ import {
 } from './audio-editor-test-helpers.js';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { hasWebGl2Capability } from './helpers/webgl2-capability.js';
 
 const CFR_VIDEO = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
@@ -206,7 +205,6 @@ test.describe('selected V28 exact visual preview', () => {
 		test.skip(browserName === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
 		test.setTimeout(VISUAL_WORKFLOW_TIMEOUT);
 		const clientErrors = collectClientErrors(page);
-		await installPinnedFfmpegRuntimeRoutes(page);
 		const editor = await bootEditor(page, '/framescaper/embed/en/');
 		test.skip(!await page.evaluate(hasWebGl2Capability), WEBGL2_COMPOSITED_PREVIEW_REQUIRED);
 		await importFiles(editor, [CFR_VIDEO.file], VISUAL_FFMPEG_OPTIONS);
@@ -286,9 +284,6 @@ test.describe('selected V28 exact visual preview', () => {
 		);
 		test.setTimeout(VISUAL_WORKFLOW_TIMEOUT);
 		const clientErrors = collectClientErrors(page);
-		await installPinnedFfmpegRuntimeRoutes(page, {
-			sameOriginRoot: '/__framescaper-v27-ffmpeg',
-		});
 		await installProductionIsolationHeaders(page, '/framescaper/en/');
 		const editor = await bootEditor(page, '/framescaper/en/');
 		expect(await page.evaluate(() => ({

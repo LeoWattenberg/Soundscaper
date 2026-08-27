@@ -74,6 +74,18 @@ function stagedAudioChannelLayout(plan: RuntimeValue): string {
 	return (audioInput?.channelLayout as string | undefined) ?? DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT;
 }
 
+/** Resolve the exact channel geometry the staged mix will hand to WebCodecs. */
+function stagedAudioChannelCount(plan: RuntimeValue, project: RuntimeValue): number {
+	const layout = stagedAudioChannelLayout(plan);
+	if (layout === 'mono') return 1;
+	if (layout === 'stereo') return 2;
+	const channels = Number(project.masterChannels ?? 2);
+	if (!Number.isSafeInteger(channels) || channels < 1 || channels > 32) {
+		throw new RangeError('The video delivery master channel count is invalid.');
+	}
+	return channels;
+}
+
 /**
  * Write the caption sidecar a plan asks for, after its video has been published.
  *
@@ -265,6 +277,12 @@ export function createEditorVideoExportAction(
 				canvas: plan.canvas,
 				quality: plan.quality,
 				eligible: Boolean(productPlan),
+				...(includeAudio ? {
+					audio: {
+						sampleRate: Number(plan.sampleRate),
+						channelCount: stagedAudioChannelCount(plan, exportProject),
+					},
+				} : {}),
 			});
 			assertVideoExportCurrent();
 			// Same rule as the audio path: the report describes the plan that runs.

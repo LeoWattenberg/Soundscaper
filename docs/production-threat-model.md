@@ -3,7 +3,7 @@
 This document records the production security baseline for Soundscaper's local-first Web and Electron editor. The machine-readable control register is
 [`config/production-security-matrix.json`](../config/production-security-matrix.json). Its checked-in implementation and test references are the evidence for each current claim.
 
-The model is grounded on 2026-08-26. It must be updated when a trust boundary, supported input, renderer bridge, worker ABI, native executable, plug-in surface, release channel, or long-job lifecycle changes.
+The model is grounded on 2026-08-27. It must be updated when a trust boundary, supported input, renderer bridge, worker ABI, native executable, plug-in surface, release channel, or long-job lifecycle changes.
 
 ## Meaning of the statuses
 
@@ -288,7 +288,7 @@ a canonical native `Blob`, and size-checks and hashes that same object with
 SHA-256 through non-raiseable 4 MiB windows. Nonselected fallback bodies are not
 read. Its admission returns that same verified object.
 Export reuses it with no second fallback-store read, eliminating the selected
-fallback's storage-reread TOCTOU between admission and FFmpeg. It is the sole
+fallback's storage-reread TOCTOU between admission and encoding. It is the sole
 video input for the whole-project role or the selected target input for the
 clip-local role while ordinary unaffected video remains in the composition.
 
@@ -306,7 +306,12 @@ the scan aborts the joint admission before the video body loads, and later drift
 aborts the next provider read. A video-only admission interleaves no such fence
 with its body read and relies on the full admission recheck that follows
 verification. The export-task signal fences verifier work, the separately staged
-audio render, and FFmpeg. On the legacy prepared-`Blob` branch, post-encode
+audio render, and the selected encoder. In the production browser, only an
+exact keyed-frame route with an admitted WebCodecs configuration continues into
+Mediabunny MP4/WebM muxing. Composed-graph and otherwise unsupported browser
+delivery fails closed with typed unavailability and no FFmpeg WebAssembly
+fallback. Desktop delivery retains its separately governed external provider.
+On the prepared-`Blob` branch, post-encode
 currentness precedes output-`Blob` construction. After prior-output cleanup is
 awaited, cancellation and currentness are asserted again before download
 publication, and the same export-task signal is passed through that publication
@@ -314,10 +319,10 @@ request. After publication returns,
 cancellation and currentness are checked again. When that check refuses a late
 result, its returned recoverable cleanup handle is awaited before refusal; this
 does not make publication transactional or undo an external destination that
-provides no such handle. FFmpeg maps audio only from the separately staged mix,
-so embedded audio in the fallback container is ignored. A stale
+provides no such handle. Delivery audio comes only from the separately staged
+mix, so embedded audio in the fallback container is ignored. A stale
 activation-time digest, missing managed body, wrong body, or digest mismatch
-refuses before planning, FFmpeg, and either downstream publication route,
+refuses before planning, selected encoding, and either downstream publication route,
 including download.
 
 The `org.example.future-video-pipeline` unknown-feature witness supplies a
@@ -401,190 +406,100 @@ The 385 MiB Node witness remains WAV-only. Packaged completion evidence covers W
 
 Packaged Soundscaper Linux x64 completion acceptance covers WAV, integer AIFF, BWF, and first-party authored BW64 and drives the maintained UI and controller through Electron 43, preload IPC, and `AtomicSaveManager`. A 48 kHz, two-channel encoded input with 792,000 frames was observed after import/decode as a 791,999-frame project range and produced 6,335,992 signed-16-bit frames at 384 kHz and 16 channels. The planner's 405,503,488-byte float geometry exceeds the 384 MiB threshold. The completed classic RIFF/WAV is 202,751,788 bytes. Its independent verifier streams through EOF in reads no larger than one MiB, retains at most the 31 bytes below one 32-byte PCM frame, compares all 95,039,880 non-primary channel samples with their primary sample and observes zero mismatches, and applies tolerant non-silence, positive/negative, zero-crossing, peak, mean, and RMS bounds. The same packaged sequence selects the exact AIFF option, reselects 16-bit PCM after the format default is applied, validates the application's canonical `.aiff` suggestion and combined `WAV and AIFF audio mix` filter with `wav`, `aif`, and `aiff` extensions, and completes a 202,751,798-byte classic AIFF. Its independent verifier requires a regular non-symbolic file with stable identity and size; uses reads no larger than one MiB; validates exact FORM/AIFF, 18-byte COMM, 16-channel, 6,335,992-frame, 16-bit, 384-kHz 80-bit-rate, and 202,751,752-byte SSND geometry with zero offset and block size; and proves that 202,751,744 bytes of big-endian PCM start at byte 54 with no pad or trailing bytes. It retains at most the observed 10-byte partial-frame carry, compares all 95,039,880 non-primary channel samples with zero mismatches, and applies the same tolerant signal bounds. The sequence then selects the exact BWF option, reselects 16-bit PCM after the format default, restores the custom 16-channel mapping after the BWF stereo default, retains 384 kHz, validates the canonical `.wav` suggestion and the same combined `WAV and AIFF audio mix` filter, and completes a 202,752,510-byte RIFF/WAVE BWF. Electron receives the same `wav`, `aif`, and `aiff` filter extensions rather than BWF-specific File System Access `types`. Its independent verifier requires a regular non-symbolic file with stable identity and size and uses reads no larger than one MiB. It validates a 689-byte bext payload at byte 12 with one-byte pad and 698-byte total chunk; a 40-byte extensible fmt at byte 710 with 16 channels, 384 kHz, signed 16-bit PCM, and the PCM GUID; and a 202,751,744-byte data payload whose PCM starts at byte 766 with no data pad or trailing bytes. It retains at most the 31-byte partial-frame carry, compares all 95,039,880 non-primary channel samples with zero mismatches, and applies the same tolerant signal bounds. The deterministic BEXT carries description `Soundscaper packaged BWF smoke`, originator `Soundscaper`, reference `PACKAGED-BWF-0001`, date 2026-07-30, time 12:34:56, input TimeReference 6,000 scaled to 48,000, version 2, a deterministic nonempty 64-byte UMID whose normalized 128 lowercase hexadecimal digits are pinned and whose 64 payload bytes are compared exactly, loudness sentinels, and two-row CodingHistory naming 48,000-Hz input and 384,000-Hz output. A separate first-party authored BW64 fixture uses a 44-second, six-channel, 2,112,000-frame source at 48 kHz and produces 16,896,000 frames at 384 kHz, six channels, and signed 16-bit PCM. Its 405,504,000-byte Float32 render geometry exceeds the 402,653,184-byte direct threshold, and the completed BW64 is exactly 202,755,508 bytes. The bounded verifier uses reads no larger than one MiB and validates exact BW64/ds64/BEXT/fmt/CHNA/data/AXML structure and placement, a 202,752,000-byte PCM payload, and canonical 5.1 CHNA and ADM metadata. It performs 84,480,000 channel comparisons with zero mismatches and observes at most 8 carry bytes, 16,894,241 nonzero frames, 8,447,121 positive frames, 8,447,120 negative frames, 19,359 crossings, peak 9,830, and RMS 6,950.862. All four whole-file SHA-256 values remain diagnostic and are not pinned; the exact BW64 BEXT, CHNA, and AXML payload hashes are pinned by the verifier. A WAV-only cancellation run independently observed a 33,554,476-byte staging file through a prefix no larger than 65,536 bytes, validated its RIFF geometry and nonzero payload, then observed removal of both the unpublished destination and every staging file. No browser download was visible after the packaged sequence. CI runs this packaged sequence only for Soundscaper Linux x64. The harness validates the application save choices and `audio-pcm-mix` purpose before supplying isolated targets ahead of `dialog.showSaveDialog`, so it bypasses and does not qualify the native OS picker. It also does not directly observe exact-size session negotiation or the negotiated four-MiB destination-write limit; separate shared-route controls cover those contracts. This is not a 65 GiB WAV, BWF, or BW64 run or a 4,294,967,302-byte AIFF run, and does not qualify browser heap, renderer or main-process RSS, quota, filesystem or parent-directory durability, crash or power-loss behavior, Windows, macOS, ARM, installers, Framescaper, AIFF-C float, other integer AIFF precisions, AIFF metadata or padding variants, other BWF or BW64 precisions or metadata variants, passthrough or third-party BW64, or other formats. Packaged AIFF does not qualify visible progress, cancellation, rollback, staging cleanup, or commit races. Packaged BWF does not qualify visible progress, cancellation, rollback, staging cleanup, commit races, loudness, RF64, or scale. Packaged authored BW64 does not qualify visible progress, cancellation, rollback, staging cleanup, commit races, loudness, passthrough or third-party interoperability, or 65 GiB scale. The exact decode and frame geometry is pinned-runtime-specific and must be revisited on Electron upgrades. Actual-device mobile behavior remains unqualified. The injected-File-System-Access direct-WAV browser case stalls the selected writer's non-cancellable close after commit admission; maintained Chromium and Firefox each return the cancelled task to the Start-export state before release, then observe exactly one complete destination publication with zero aborts and no stale success status, output link, Object URL, or browser download. That qualifies only this application-path classic-WAV commit race; AIFF, BWF, BW64, WebKit, native-picker, actual-device, reference-scale, packaged, crash, power-loss, and durability commit races remain unqualified.
 
-The direct stem-archive slice is deliberately separate from the direct mix claim
-and owns archive publication rather than native-container or codec conformance.
-Its native-PCM branch admits only exact ZIP32 or 7z Copy archives of WAV, AIFF,
-or BWF. Before target selection, both variants require identical nonempty output
-and archive-entry lists, ordered flat canonical names, one exact positive size
-per entry, and an exact archive MIME, extension, and safe-integer byte length.
-ZIP32 requires a recomputed eligible layout whose complete geometry agrees with
-the plan. The 7z branch requires the same recomputed ZIP32 planning geometry but
-may carry an ineligible ZIP32 layout; its own exact Copy archive length is
-independently recomputed from the entries. Closed positive admission covers
-canonical WAV and BWF with `audio/wav` and `.wav`, and AIFF with `audio/aiff`
-and `.aiff`, in both native archive formats. Compressed stems remain ZIP32-only.
+The direct stem-archive slice owns exact ZIP32 and 7z Copy publication. Native
+PCM admits only canonical WAV, AIFF, or BWF stems with exact names, MIME values,
+extensions, sizes, order, and recomputed layouts. The 7z Copy route retains one
+fixed 32-byte position-zero final-prefix patch; a missing, failed, repeated, or
+size-changing patch cannot commit.
 
-The compressed branch admits the seven canonical built-in formats—MP3, FLAC,
-Ogg Vorbis, Opus, WavPack, MP2, and AAC/M4A—for either a canonical
-`realtime-stream` stem plan or a centrally admitted `offline` stem plan.
-Admission takes one owned plan snapshot and binds its fingerprint through
-publication. The realtime strategy-aware staging bound is its output-width
-`outputBytesPerRender`. The offline staging bound is
-`max(outputFrames × inputChannels × offlineBytesPerSample,
-outputBytesPerRender)`. The first term is the offline input-width staging
-payload; `offlineBytesPerSample` is the requested FLAC integer bytes per sample
-or four bytes for the other six formats. The second term is the possible
-realtime-retry output-width staging payload: `outputFrames × outputChannels ×
-Float32(4)`, including for FLAC. Each entry receives a per-entry maximum of
-`max(strategy-aware staging bound, 1 MiB)`. A synthetic maximum ZIP32 layout is
-checked before target selection. That cap is a refusal boundary only: it does
-not qualify a codec expansion bound, codec conformance, or scale.
+Compressed stems remain ZIP32-only and admit the same seven canonical formats
+under an owned realtime or centrally admitted offline plan fingerprint and a
+per-entry refusal bound. In production browsers, reviewed digest-pinned
+WebAssembly providers produce complete FLAC, MP3, Ogg Vorbis, Opus, WavPack,
+and MP2 files. WebCodecs plus Mediabunny produces complete AAC/M4A files only
+after exact capability admission. Unsupported profiles, custom FFmpeg, and an
+unavailable AAC configuration fail closed with no browser FFmpeg fallback.
+Desktop provider composition remains under the unchanged bundled,
+operating-system, and user-selected external-provider controls.
 
-A native prepared exact-size or compressed prepared maximum-size Web/Electron
-streaming destination is selected and opened before any render. Native
-temporary-storage preflight remains the largest sequential intermediate, so at
-most one complete stem is staged at a time. A direct 7z destination additionally
-declares one fixed 32-byte final prefix. The Copy writer first appends a
-zero-filled 32-byte placeholder, then the ordered stem bodies and complete next
-header. Only after the exact append stream is complete and sealed may the
-destination replace that fixed prefix once at position zero; the patch cannot
-change its written-byte count, and commit requires the patch to have completed.
-The compressed preflight charges the same strategy-aware staging bound: realtime
-uses `outputBytesPerRender`, while offline uses the exact two-term maximum above.
-It excludes WAV framing, codec output, and the aggregate legacy staging claim.
-Offline encoding stages the unmapped input width and leaves canonical channel
-mapping to FFmpeg, so only one mapping owner applies. Compressed publication
-then retains a complete staged WAV `Blob`, the complete worker MEMFS output, and
-one complete encoded result at a time. It derives the actual entry sizes,
-recomputes the actual ZIP32 layout, preserves entry order, and requires actual,
-emitted, destination-written, and committed byte counts to agree. The shared
-ZIP32 writer still reads a non-Blob source in at-most-64-KiB slices, awaits sink
-backpressure, and closes before the explicit commit. There is no final archive
-`Blob`, and no direct branch invokes the download publisher.
+Per-stem browser encoding is sequential and retains at most the current
+complete encoded result. ZIP32 reads source bytes in at-most-64-KiB slices,
+awaits sink backpressure, recomputes every actual entry size and the final
+layout, closes the destination before explicit commit, and requires archive,
+emitted, destination-written, and committed-result byte agreement. The direct
+route creates no final archive Blob or download publication. It is not
+end-to-end streaming: the browser codec stage retains complete mapped PCM and
+encoded-file bytes before archive range delivery. Prepared Blob mode remains a
+separately bounded archive/download path.
 
-The compressed service witness names `01-Voice.mp3` and `02-Music.mp3`,
-preflights eight raw bytes instead of the 16-byte aggregate legacy claim,
-applies a 1,048,576-byte maximum to each entry and a 2,097,406-byte maximum
-ZIP32 destination, then streams three- and five-byte injected encoded bodies
-into a recomputed 262-byte actual ZIP32 archive. This proves transport and
-accounting, not actual FFmpeg execution. The native ZIP32 witness retains its
-four-byte preflight, two ordered four-byte WAV markers, exact 268-byte archive,
-64 KiB source slicing, and 272-byte Blob-fallback preflight. A separate small
-injected 7z witness uses the same two four-byte marker stems and four-byte
-largest-intermediate preflight, retains at most one complete stem, and produces
-an exact 151-byte golden archive through append, seal, one 32-byte prefix patch,
-and commit with zero final archive `Blob`s or download calls. The production
-planner selects 7z only for ZIP32 overflow; this small route witness avoids
-claiming an exercised large export. All marker bytes remain archive-protocol
-evidence rather than native-container conformance vectors.
+The direct archive rollback contract carries cancellation and currentness
+through sequential render, encode, entry admission, finalization, close, and
+commit admission. An ordinary offline renderer or encoder failure may retry
+only the current stem before any bytes for that ZIP entry are exposed.
+Cancellation, currentness loss, integrity failure, plan drift, or a failure
+after entry admission never retries. Aborting a dedicated codec terminates its
+worker and rejects pending work. Any pre-commit refusal cleans the current
+intermediate and aborts an acquired unpublished destination exactly once.
+Crash, power loss, durable cleanup, browser heap, codec-worker memory, RSS, GC,
+CPU, elapsed time, and reference scale remain unqualified.
 
-For a centrally admitted offline plan, an ordinary offline renderer or encoder
-failure cleans its partial intermediate and may retry only the current stem
-through realtime rendering before any bytes for that ZIP entry are exposed.
-Currentness is asserted before that retry. Cancellation, fallback-integrity
-failure, or currentness loss does not retry. Plan or fingerprint drift, empty
-output, an over-cap result, reported/actual size disagreement, actual ZIP32
-layout drift, failure after entry admission, or cancellation cleans the current
-owned intermediate, aborts an unpublished destination exactly once, and does
-not commit or publish. On native 7z, plan drift after sealing refuses the final
-prefix; a prefix-patch failure remains observable, preserves cleanup context,
-and aborts the unpublished destination exactly once. Missing, failed, or
-repeated patch attempts cannot reach commit. Prepared Blob mode still declines
-the direct route and keeps the legacy Blob/download fallback. Custom FFmpeg and
-compressed 7z stems, BW64 stems, video, inexact or reordered archives, and
-final-Blob direct publication remain outside direct admission. The Node fixture
-does not qualify File System Access, Electron filesystem or native-picker
-behavior, actual FFmpeg codec execution, codec conformance or expansion, worker
-MEMFS allocation, renderer heap, process RSS, garbage-collection, CPU or
-elapsed-time behavior, packaged UI, browsers or operating systems, reference
-scale, quota, crash, power loss, or durability.
+The direct compressed whole-mix route remains closed to seven canonical
+identities: MP3, FLAC, Ogg Vorbis, Opus, WavPack, MP2, and AAC/M4A. Their
+canonical format identity, extension, full result MIME, normalized settings,
+channel mapping, and metadata are revalidated rather than inferred from a
+shared picker MIME.
 
-The direct compressed whole-mix slice admits only the seven canonical built-in
-FFmpeg formats: MP3, FLAC, Ogg Vorbis, Opus, WavPack, MP2, and AAC/M4A, with
-their exact descriptor MIME values, extensions, normalized settings, channel
-mappings, and metadata. Codec-qualified Vorbis and Opus result MIME values use
-base `audio/ogg` only as the picker hint, while MP3 and MP2 share `audio/mpeg`;
-canonical format identity and extension therefore remain part of admission.
-The `realtime-stream` branch still requires its maintained memory reason and
-exact four-byte-per-output-sample plan. The centrally admitted offline branch
-accepts only one canonical mix with exact range, tail, output geometry, input
-width, mapping, planner thresholds, pre-roll, and reported graph latency, and
-whose complete central offline-output admission recomputes exactly. Its
-non-raiseable 256 MiB ceiling
-covers the exact useful-binary context and crop output only; it is not an
-end-to-end memory bound for sources, graph state, staging, heap, RSS, or GC.
+Six reviewed digest-pinned WebAssembly providers produce complete FLAC, MP3,
+Ogg Vorbis, Opus, WavPack, and MP2 files inside a dedicated browser worker.
+Each payload's exact byte length and SHA-256 are checked before WebAssembly
+compilation, closed profiles refuse unsupported tuples, and format-specific
+validators reject empty, incomplete, or structurally inconsistent output.
+AAC/M4A uses the browser WebCodecs AudioEncoder through Mediabunny only after
+the exact configuration probe succeeds and returns one complete M4A file.
+The browser codec runtime advertises `ffmpegAvailable: false`. Custom FFmpeg,
+unsupported formats or profiles, and unsupported probe, conform, trim, proxy,
+or general media operations return typed unavailability with no FFmpeg
+fallback.
 
-Realtime rendering maps and resamples PCM before staging and gives FFmpeg
-preserve geometry. Offline rendering resamples first, validates exact
-`Float32Array` input-channel and frame geometry, stages the unmapped input
-width, and gives FFmpeg the canonical mapping, so mapping is applied exactly
-once on either route. FLAC stages an integer 16- or 24-bit WAV and gives
-requested dither to the staging encoder. Every non-FLAC format stages Float32
-WAV. FFmpeg dither is enabled exactly when the normalized sample format is not
-`float32`, dither is not `none`, and the format is not FLAC; this covers integer
-WavPack and explicitly dither-enabled lossy settings, while float WavPack
-disables it. Realtime preflight retains its output-width Float32 payload claim.
-Offline preflight takes the maximum of the plan's required temporary bytes and
-a raw staging PCM payload: input channels times frames times requested FLAC
-integer bytes, or four bytes for the other six formats. That count excludes WAV
-framing and padding and is not an exact staged-file size or storage reservation.
+The production bundle audit rejects FFmpeg package specifiers, core JavaScript
+and WASM assets, the browser runtime loader and public runtime URL, and the
+legacy runtime-cache seam. The generated service worker contains no browser
+FFmpeg fetch, cache, or serving branch. Browser direct publication admits the
+complete encoded byte length before opening its writer, delivers monotonic
+at-most-one-MiB ranges with one awaited sink write, closes before explicit
+commit, and requires emitted, destination-written, and committed-result byte
+agreement without a final download Blob.
 
-The service selects a prepared target before render but keeps its exact writer
-unopened until after successful FFmpeg execution and a safe nonnegative stat.
-Only an ordinary offline renderer failure may reuse that same unopened target
-through the realtime branch; cancellation, fallback-integrity or currentness
-loss, and every post-render failure do not retry. A maintained first-party
-rendered fallback reaches this route only after projection and fresh private
-provider verification; its canonical project and global buffers, providers,
-and caches remain unchanged. Each complete staged WAV is mounted through
-WORKERFS, and the complete encoded output remains in worker MEMFS. The patched
-worker returns exact monotonic ranges of at most one MiB, with one read and one
-awaited destination write at a time under sink backpressure and no whole-output
-`readFile` transfer into the renderer. Exact stat, emitted, and
-destination-written counts precede destination close and explicit commit; the
-committed-result size is checked afterward. The direct route creates no final
-renderer compressed-audio `Blob` and makes no download publication. Prepared
-Blob mode retains the legacy whole-read, final-Blob, and download path.
-
-Cancellation and currentness checks surround target preparation, rendering,
-resampling, synchronous offline WAV construction, FFmpeg execution, stat, range
-transfer, destination operations, staging cleanup, and commit admission for all
-seven formats. Synchronous WAV construction cannot be interrupted while it is
-running, but checks immediately before and after it fence cancellation,
-currentness loss, and plan drift before FFmpeg. Cancellation during FFmpeg
-execution terminates the runtime; any pre-commit failure aborts the unpublished
-destination exactly once, including when its underlying abort throws
-synchronously. Output deletion, WORKERFS unmount, and mount-directory deletion
-are all attempted, and a cleanup failure terminates the runtime and remains
-observable with an earlier primary failure. Ownership loss during the
-non-cancellable commit returns the committed file without stale success UI;
-committed-size drift is a post-publication integrity failure, not rollback.
-All-seven service cases use a mock five-byte output. The virtual
-269,484,049-byte, 258-range Node case proves transport arithmetic and
-backpressure only. Offline staging materializes a complete WAV byte array and
-Blob, and the complete worker MEMFS output, staged-input residency, and native
-or WASM codec memory remain unbounded. Renderer or browser heap, GC, RSS, CPU,
-elapsed time, actual codec execution and conformance, and reference-scale
-behavior are unqualified. Actual browser, operating-system, native-picker,
-packaged, quota, durability, crash, and power-loss behavior are also
-unqualified, as are custom FFmpeg, compressed stems, video, and other
-noncanonical delivery. A desktop prepared target has a 900,000-millisecond
-TTL, so long offline packaged elapsed-time behavior is specifically not
-qualified.
+Cancellation of a dedicated WebAssembly encode terminates its worker. AAC/M4A
+checks cancellation and currentness before and after its WebCodecs/Mediabunny
+call; the current complete-file AAC request has no mid-encode AbortSignal, so a
+late abort or stale result is discarded before publication rather than claimed
+as force-cancelled. Browser audio currently retains mapped Float32 PCM and one
+complete encoded result under non-raiseable 128 MiB input/output bounds. Those
+bounds do not qualify end-to-end streaming, browser or worker heap, WebAssembly
+memory, RSS, GC, CPU, elapsed time, codec conformance, reference scale,
+durability, crash, or power loss. Desktop reviewed bundled audio and
+user-selected external FFmpeg providers remain separate and unchanged.
 
 <!-- policy-narrative:exact-direct-mp4-webm-video-save -->
-The maintained exact direct MP4 route binds canonical `mp4`, `.mp4`, and `video/mp4`, and the exact direct WebM route binds canonical `webm`, `.webm`, and `video/webm`. Both use target purpose `video`, require a safe matching output name, and retain their canonical version-6 descriptor-bound and exact detached version-7 keyed plans, complete fingerprints, structural validation, SHA-256 evidence, exact stat/emitted/written/committed byte agreement, at-most-1-MiB monotonic range reads, backpressure, currentness checks, one explicit commit, and Blob-versus-direct publication boundaries. Browser V6 keeps WORKERFS/MEMFS source, staged-audio, and output ownership; browser V7 keeps its bounded SharedArrayBuffer RGBA and optional WAV rings. Desktop Soundscaper S30 inherits the exact S29 implementation, admits only the exact V7 keyed-RGBA subset, and deliberately forces the desktop provider even when WebCodecs exists. Desktop availability requires exact capability tokens plus a successful live canary for the current external ffmpeg/ffprobe pair: H.264/AAC MP4 uses `libx264` and `aac`, while WebM uses VP9/Opus through `libvpx-vp9` and `libopus`. An exact ffprobe then attests exactly two streams at indices 0 and 1, 16x16 `yuv420p` video, and 48 kHz stereo audio before availability. Renderer writes are pathless at-most-1-MiB chunks into main-private pipes; finalized output stays in main-private scratch for bounded reads and the same container, digest, byte-count, and publication checks. Bundled video, operating-system video, and AV1 remain disabled; external WebM is VP9, not AV1. Codec conformance, broad FFmpeg-version/platform behavior, packaged UI, reference-scale performance, aggregate memory, RSS, CPU, filesystem durability, crash, and power loss remain unqualified.
+The exact MP4 route binds `mp4`, `.mp4`, and `video/mp4`; WebM binds `webm`, `.webm`, and `video/webm`. Both require target purpose `video`, a safe name, unchanged exact plan fingerprint, currentness, structural validation, digest and byte-count agreement, close before one commit, and Blob-versus-direct publication boundaries. The production browser admits only the exact keyed-frame path: WebCodecs encodes H.264 for MP4 or VP9 for WebM and dynamically loaded Mediabunny muxes optional PCM as AAC or Opus into one complete container. An ineligible composed-graph path, missing WebCodecs capability, unsupported tuple, malformed audio, muxer refusal, or output-bound failure refuses with no browser FFmpeg fallback. Browser output is capped at 512 MiB and range-delivered in at-most-1-MiB chunks; no production browser imports, fetches, caches, or executes FFmpeg WebAssembly. Desktop Soundscaper S30 remains unchanged: it forces the desktop provider, requires exact capability tokens and a live canary for the current external ffmpeg/ffprobe pair, uses `libx264`/`aac` for MP4 and `libvpx-vp9`/`libopus` for WebM, and attests the two-stream probe. Renderer writes remain pathless into main-private pipes and finalized output remains in main-private scratch. Bundled video, operating-system video, and AV1 remain disabled; external WebM is VP9. Codec conformance, broad platforms, packaged UI, scale, aggregate memory, RSS, CPU, durability, crash, and power loss remain unqualified.
 <!-- /policy-narrative:exact-direct-mp4-webm-video-save -->
 
 <!-- policy-narrative:bounded-keyed-rgba-av-encoding -->
-The selected V27 browser export's maintained keyed V20 encoder admits an exact generated-RGBA frame source at no more than 1,280 by 720, 1 through 30 frames per second for A/V, 2,000,000 frames, 8 MiB per reusable frame allocation, and 1 TiB of logical RGBA work. Its browser branch owns at most two SharedArrayBuffer input rings, one video and one optional audio, under a 16 MiB aggregate capacity with serial awaited writes and producer-consumer backpressure. The desktop Soundscaper S30 branch inherits the exact S29 implementation and uses the same exact plan but writes pathless at-most-1-MiB chunks to owner-scoped main-private FFmpeg pipes and keeps finalized output in main-private scratch; ready-idle and runtime deadlines, owner loss, cancellation, and shutdown terminate the process tree and clean the session. Optional audio must be one canonical 1 through 32 channel float32 WAV of at most 2 GiB, 8,000 through 768,000 samples per second, and the exact export-range frame count. MP4 and WebM command grammar fixes raw RGBA, format, pixel format, codecs, metadata removal, exact rational rate, bounded audio padding, and duration. Final output is capped at 512 MiB. Blob delivery owns one exact allocation and finite container validation. Direct delivery captures per-block and whole-file SHA-256 evidence, structurally validates finite MP4 or WebM, and binds publication to exact size and digest so same-size replacement refuses before close. A generation-scoped provider lease plus task currentness and AbortSignal checks fence acquisition, producer rendering, input writes, encoder execution, and output external operations. Cleanup is always attempted. The browser branch aborts and disposes both rings, deletes MEMFS output, and terminates its runtime when required; the desktop branch cancels or deletes its owner-scoped main session, drains the child process, removes scratch, aborts an acquired destination exactly once, and preserves cleanup failures. This selected control reuses the existing video routes and does not qualify source and staged-audio Blob residency, browser or worker heap, native or WASM codec memory, RSS, GC, CPU, elapsed time, codec conformance, reference scale, broad platform behavior, quota, durability, crash, or power loss.
+The selected V27 keyed browser encoder admits exact generated RGBA at no more than 1,280 by 720, 1 through 30 frames per second, 2,000,000 frames, 8 MiB per reusable frame allocation, and 1 TiB logical RGBA work. It requires an admitted WebCodecs configuration, encodes H.264 for MP4 or VP9 for WebM frame by frame, and dynamically loads Mediabunny to mux chunks and optional canonical float32 WAV PCM as AAC or Opus into one complete container. Missing WebCodecs, non-keyed routes, unsupported configurations, malformed PCM, or mux failure refuses without browser FFmpeg. Output is capped at 512 MiB. AbortSignal and currentness fence audio reads, frame production, WebCodecs submission, mux writes, finalization, and publication; failure cancels the muxer, closes resources, disposes the producer, and temporary complete output bytes are cleared after delivery. Direct publication retains structural, SHA-256, exact-size/digest, and same-size-replacement checks. Desktop S30 remains unchanged: exact S29 plans write pathless at-most-1-MiB chunks to owner-scoped main-private external-FFmpeg pipes and use main-private scratch with process-tree cancellation. Complete-container and source residency, heap, native/WASM/WebCodecs memory, RSS, GC, CPU, time, conformance, scale, platform breadth, quota, durability, crash, and power loss remain unqualified.
 <!-- /policy-narrative:bounded-keyed-rgba-av-encoding -->
 
-The frozen milestone-2 publication-route register is implemented for exactly
+The frozen milestone-2 publication-route register remains implemented for exactly
 15 route IDs. `scape-browser-blob`, `audio-mix-browser-blob`,
 `audio-stems-browser-blob`, and `video-browser-blob` are the four retained
-browser-Blob fallbacks. They share one non-raiseable 512 MiB final-output
-ceiling. Scape admits its estimated canonical archive before archive output and
-rechecks the completed Blob. Legacy FFmpeg audio and video paths stat and admit
-the worker output before a whole-file `readFile`, require the returned bytes to
-match that stat exactly, admit encoder bytes before final Blob construction,
-and recheck owned or temporary-file-backed Blobs before download publication.
-Lower-only seams cannot raise the production ceiling. Native audio output is
-also subject to the earlier central render-output and realtime-staging
-admissions described above; the 512 MiB check is its final publication fence,
-not a replacement working-set model.
+browser-Blob fallbacks under one non-raiseable 512 MiB final-output ceiling.
+Scape rechecks its completed archive. Browser compressed audio admits complete
+browser-native file bytes from the dedicated providers or WebCodecs plus
+Mediabunny, and keyed video admits one complete Mediabunny MP4/WebM container,
+before final Blob construction and before download publication. No browser
+route stats or reads FFmpeg MEMFS because production browser FFmpeg is absent.
 
-The other eleven IDs are direct streaming routes:
+The other eleven IDs remain direct publication routes:
 `scape-file-system-access`, `scape-electron`,
 `audio-mix-direct-native-pcm`,
 `audio-mix-direct-compressed-realtime`,
@@ -593,16 +508,14 @@ The other eleven IDs are direct streaming routes:
 `audio-stems-direct-native-pcm-7z`,
 `audio-stems-direct-compressed-zip-realtime`,
 `audio-stems-direct-compressed-zip-offline`, `video-direct-mp4`, and
-`video-direct-webm`. Each maps to the owning archive, PCM, compressed-audio,
-stem-archive, or video hard-limit and count-agreement control in
-`config/production-security-matrix.json`. None performs final renderer-sized
-Blob construction or download publication. This route-level qualification
-means each named path completes within its owning admission or refuses before
-unsafe final-output materialization or publication. It does not add browser
-heap, worker MEMFS, encoder, codec, RSS, GC-headroom, CPU, elapsed-time,
-reference-scale, quota, crash, power-loss, durability, native-picker, packaged,
-or cross-platform claims; those remain with the resource, fault, durability,
-and platform qualification items.
+`video-direct-webm`. Each maps to its archive, PCM, compressed-audio,
+stem-archive, or video control. None performs final renderer-sized Blob
+construction or download publication. Browser-native compressed and video
+routes range-deliver from a complete generated buffer, so direct publication
+does not imply streaming codec generation. This route-level qualification does
+not add browser heap, codec worker or Mediabunny memory, RSS, GC-headroom, CPU,
+elapsed-time, reference-scale, quota, crash, power-loss, durability,
+native-picker, packaged, or cross-platform claims.
 
 ### Electron renderer, IPC, and filesystem capabilities
 
@@ -1320,8 +1233,9 @@ not prove that native `startRendering()` stopped, and concurrent calls on the
 same or separate engines and renderers can overlap without a product-wide
 reservation. Other render paths—including realtime capture beyond the
 maintained worklet-to-sink stream described next, generic selection effects and
-spectral replacement, software or injected renderers, FFmpeg/WASM encoding, and
-native hosts—remain outside this central offline control. The export strategy
+spectral replacement, software or injected renderers, dedicated audio-codec
+WebAssembly, WebCodecs/Mediabunny encoding and muxing, and native hosts—remain
+outside this central offline control. The export strategy
 alignment is a per-plan decision, not a heap, RSS, GC, or product-wide
 reservation; other engines and renderers can still overlap, and direct engine
 callers retain the separate software-renderer fallback.
@@ -1428,8 +1342,8 @@ The required cancellation contract is end-to-end: one signal flows from the user
 
 `publicationFaultQualification` in `config/production-security-matrix.json`
 records one explicit outcome for every publication-path and fault-class
-combination in the milestone-2 closure inventory: fifteen publication paths
-crossed with eight fault classes, one hundred twenty cells in total. A
+combination in the milestone-2 closure inventory: fourteen publication paths
+crossed with eight fault classes, one hundred twelve cells in total. A
 `witnessed` cell carries automated evidence that the previous commit is
 preserved or a recoverable journal is exposed and that no partial destination
 is advertised. An `inapplicable` cell records why the fault class has no
@@ -1456,8 +1370,9 @@ is never replaced and the orphan is never advertised as a result.
 The separate milestone-2 browser durability matrix is qualified in Chromium
 and Firefox for `indexeddb-quota-refusal`, `opfs-quota-refusal`,
 `indexeddb-multitab-writer`, `opfs-multitab-writer`,
-`offline-shell-upgrade`, `offline-runtime-rollback`, and
-`storage-eviction-recovery`. The IndexedDB workflow injects a synchronous
+`offline-shell-upgrade`, and `storage-eviction-recovery`. The former mutable
+FFmpeg runtime rollback workflow is no longer a production path and has been
+removed from the closure inventory. The IndexedDB workflow injects a synchronous
 `QuotaExceededError` into current-project publication after a prior revision is
 committed, observes the new revision remain dirty, and reloads the prior
 commit. The OPFS workflow injects the same typed refusal into the production
@@ -1473,8 +1388,10 @@ Shell upgrade begins with a prior complete cache, activates one complete current
 active-product cache, and retires only safely obsolete caches. The current
 product's verified core is guaranteed offline after installation; optional
 assets and the other product become available offline only after their exact
-allowlisted bytes have been fetched, verified, and cached on use. A partial
-FFmpeg runtime update retains the previous complete verified release.
+allowlisted bytes have been fetched, verified, and cached on use. Dedicated
+audio WASM payloads and dynamically loaded WebCodecs/Mediabunny chunks are
+ordinary digest-bound application assets; no FFmpeg runtime is fetched, cached,
+served, or retained for rollback.
 <!-- /policy-narrative:milestone-2-offline-cache-qualification-threat-model -->
 Storage-eviction recovery exports a
 `.scape`, deletes the product-local IndexedDB database, proves the empty editor
@@ -1492,7 +1409,46 @@ unqualified.
 
 ### Dependency and release integrity
 
-`runtime-supply-chain` remains **partial**. In-tree StaffPad, Nyquist, Parametric EQ, and the seven desktop compressed-audio modules retain pinned source/binary audits. Controlled Web FFmpeg publication validates one checked-in policy manifest that ties exact runtime bytes, every published content type, and publication metadata to the current source descriptor, aggregate notice, licensing and security matrices, policies, threat model, LF checkout rules, and a central public-origin, release-path, pointer, cache, and stable Cache Rules-ref policy. The Web publisher derives its full-manifest-SHA release prefix and no-store final pointer from that policy, and the production build refuses the removed mutable core-base override. Invalid or blocked preflight invokes no injected client, CORS, Cloudflare Cache Rules, purge, or public-smoke operation. After approval, immutable uploads are conditional and exactly read back, and public release objects are purged and smoke-tested. Pointer promotion uses strong-ETag CAS and exact read-back. Failed smoke conditionally restores an existing pointer; for a first pointer it conditionally replaces only its own candidate with a consumer-rejected unavailable marker or leaves a concurrent writer untouched, without an unconditional delete. The stable-ref rules retain unrelated ordering and append owned rules last. Pages deployment requires DYNAMIC or BYPASS pointer evidence without Age plus the exact live release inventory and eligible immutable cache statuses. Publication consumes a private verified byte snapshot. The checked-in human authorization blocks promotion of a stable 1.0 public pointer through milestone-9 release admission, but it does not block private/test publication, build, packaging, or runtime verification. Desktop application assembly uses a separate FFmpeg absence policy: its renderer composition, stage tree, copied application resources, and release inputs reject application-supplied FFmpeg, libav, FFmpeg WebAssembly, the historical static FFmpeg host, and unqualified WebM/AV1 payloads. Preparation stages exactly the reviewed libFLAC 1.5.0, libopus 1.6.1/libogg 1.3.6, libvorbis 1.3.7/libogg 1.3.6, WavPack 5.9.0, mpg123 1.33.7, LAME 4.0, and TwoLAME 0.4.0 WASM files after regular-file, exact-length, and SHA-256 verification. A canonical manifest binds the complete isolation control/transitive-JavaScript/WASM closure; main reauthenticates it before each fresh utility-process fork, and the helper reauthenticates before import. Package assembly also stages and audits the exact component notice/source-manifest/toolchain-license set and ships a deterministic seven-codec corresponding-source ZIP plus checksum. Target-native CI builds the isolated operating-system codec addon for mac-arm64, win-x64, and win-arm64, runs native canaries, signs and strictly verifies macOS bytes before hashing, and exports an authenticated canonical build result. Preparation, beforePack, afterPack, the content manifest, and startup bind the exact target, manifest, payload, signing evidence, byte length, and SHA-256; Linux requires no OS codec subtree and mac-x64 is rejected. The Electron framework is a second explicit exception to the application-resource boundary: `downloadAlternateFFmpeg` selects Electron's matching alternate Chromium library, intended upstream to omit proprietary codec support, and afterPack verifies its exact target, path, type, length, and SHA-256 for linux-x64, linux-arm64, mac-arm64, win-x64, and win-arm64, with no mac-x64 target. The release assembler accepts no application FFmpeg sidecar or archive. The verified framework library is Chromium infrastructure, not a Soundscaper provider tier. User-installed FFmpeg is distinct, executes in place only after exact-pair probing and user selection or explicit WinGet/Homebrew confirmation, and remains outside the artifact closure. These gates qualify the seven exact reviewed audio slices and, for a passing target-native package build, the enumerated Media Foundation or AudioToolbox audio tuples. The shipped external-video runner can use only a live-qualified current pair for H.264/AAC MP4 and VP9/Opus WebM keyed-RGBA export, while the FFmpeg/ffprobe bytes remain outside the artifact and source closure. Bundled and operating-system video and AV1 remain disabled, and external WebM is VP9 rather than AV1. The audio-only Linux x64 multi-version lab does not qualify video compatibility. These controls do not qualify every external FFmpeg version/codec/platform combination, a malicious selected executable or dynamic-library closure, broad interoperability or performance, or patent clearance and non-infringement.
+`runtime-supply-chain` remains **partial**. In-tree StaffPad, Nyquist,
+Parametric EQ, and seven reviewed compressed-audio WebAssembly providers retain
+pinned source and binary audits. The production browser authenticates the exact
+lazy-loaded payload length and SHA-256 before compilation. Six payloads produce
+complete FLAC, MP3/LAME, Ogg Vorbis, Opus, WavPack, and MP2/TwoLAME files;
+mpg123 owns MP3/MP2 decode. Closed imports, tuple and geometry bounds, output
+validators, and dedicated-worker termination fence this browser surface.
+WebCodecs supplies admitted AAC/H.264/VP9 primitives and Mediabunny supplies
+complete M4A, MP4, and WebM container generation.
+
+The production browser contains no FFmpeg WebAssembly import, fetch, cache, or
+runtime. Its emitted-bundle audit rejects `@ffmpeg/ffmpeg`, `@ffmpeg/core`,
+`ffmpeg-core` JavaScript/WASM assets, the old browser loader and public runtime
+URL, and the legacy CacheStorage namespace. The generated service worker has no
+FFmpeg runtime branch, browser preferences have no runtime installer, and
+Pages deployment validates Pages cache policy without requiring FFmpeg pointer
+or release objects.
+
+The checked-in FFmpeg WebAssembly manifest, publisher, source bundle, cache-rule
+scripts, and tests remain only legacy development, reproducibility, and audit
+tooling. The FFmpeg packages are development-only and have no production
+artifact surface. Stable publication and any browser reactivation remain
+blocked. Reactivation requires an explicit architecture and dependency review,
+updated licensing/security/patent evidence, restored bounded consumer and
+authenticity controls, independent protected approval attestation, recorded
+publication/rollback drills, and a deliberate reviewed change to the bundle
+audit. The manifest's self-declared review marker preserves internal consistency
+but is not production authorization.
+
+Desktop composition remains separate and unchanged. Package assembly rejects
+application-supplied FFmpeg or libav sidecars while staging the exact reviewed
+audio WASMs and their source/notice closure for isolated utility helpers.
+Electron's separately pinned alternate Chromium `libffmpeg` remains framework
+infrastructure, not a Soundscaper codec-provider tier. A user-selected external
+FFmpeg/ffprobe pair remains outside the artifact, runs only after the existing
+qualification and consent controls, and owns admitted desktop audio plus exact
+H.264/AAC MP4 or VP9/Opus WebM keyed video. Bundled and operating-system video
+and AV1 remain disabled. These controls do not qualify every external version,
+dynamic-library closure, malicious selected executable, broad interoperability,
+performance, aggregate codec memory, or patent clearance.
 
 The active local-model path adds a distinct authenticated supply boundary. A
 canonical Ed25519 catalog is verified against pinned current and successor
@@ -1513,79 +1469,45 @@ verification described under native helpers.
 
 The Web application shell now has a separate verified availability boundary.
 Schema v2 inventories one complete allowlist of at most 4,096 regular assets,
-25 MiB each and 256 MiB in aggregate, but gives each product its own bounded
-install core. Each install descriptor is at most 4 MiB, and batches admit at
-most four requests and 4 MiB of declared body bytes at once. Exact lengths and
-SHA-256 digests, the product scope, fallbacks, and service-worker template are
-bound into the release identity. Two stable no-store classic workers control
-Soundscaper at `/` and Framescaper at `/framescaper/`; registration waits for
-editor readiness and an idle opportunity and cannot reject application
-startup. The current product's core is guaranteed after installation. Optional
-features and the other product become available offline only after exact
-allowlisted bytes are fetched, verified, and cached on use.
+25 MiB each and 256 MiB in aggregate, with at most 4 MiB per install
+descriptor. Exact lengths and SHA-256 digests, product scope, fallbacks, and the
+service-worker template enter the release identity. Soundscaper at `/` and
+Framescaper at `/framescaper/` use separate no-store scoped classic workers.
+Registration waits for editor readiness and an idle opportunity and cannot
+reject application startup.
 
-Installation re-verifies reusable entries from complete current-product v2 and
-legacy v1 caches, writes readiness last, and removes only the failed candidate.
-Both products treat legacy v1 as read-only reuse input; Framescaper leaves that
-shared cache in place for an older root worker. Activation refuses an
-incomplete cache, claims clients before retiring only the current product's
-safe obsolete caches, and a failed takeover leaves the previous release
-available. Product-path isolation applies to navigations, while scoped workers
-may verify shared allowlisted subresources. A failed allowlisted navigation
-fetch, HTTP status, length, or digest uses only the matching verified English
-product and embed-mode fallback and never serves mismatched bytes. Generated
-product manifests and stable revalidated icons make both editors installable.
+Install batches admit at most four requests and 4 MiB of declared body bytes at
+once. Installation re-verifies complete reusable entries, writes readiness last,
+and removes only a failed candidate. Activation refuses an incomplete cache,
+claims clients before retiring only the current product's safe obsolete caches,
+and a failed takeover leaves the previous application shell available. A failed
+allowlisted navigation uses only the matching verified English product and
+embed-mode fallback and never serves mismatched bytes.
 
-The explicit Web FFmpeg download follows the no-store production pointer only
-after a user action. It bounds the pointer to 64 KiB, manifest to 512 KiB, each
-runtime file to 64 MiB, aggregate files to 65 MiB, and each streaming chunk to
-4 MiB; restricts origin and content-addressed release paths; and verifies
-pointer-bound manifest and runtime byte lengths and SHA-256 digests. For a
-non-identity `Content-Encoding`, the transport `Content-Length` is advisory and
-the bounded decoded body remains authoritative; cached bodies are normalized.
-Candidate caches are isolated. A cooperative same-origin Web Lock serializes a
-fresh state read, complete final-cache copy, active-state commit, and cleanup;
-same-release retries reuse a complete referenced cache, and cleanup after the
-state commit is best effort. The store rechecks cached body lengths and SHA-256
-digests before reporting readiness and retains one previous complete release.
-Only state-committed active and previous descriptors are eligible through the
-service worker, which validates the bounded state and streams each normalized
-cached body through an exact byte-count and SHA-256 verifier. Partial, altered,
-cancelled, failed, or concurrently committed updates do not expose an
-incomplete active state. The editor uses a ready installed release without
-network access and otherwise retains its pinned network fallback; it does not
-implicitly download a runtime.
+This offline boundary is the application shell only. Production preferences
+contain no FFmpeg runtime installer, and no FFmpeg runtime is fetched, cached,
+served, or retained for rollback. The generated service worker has no FFmpeg
+fetch/cache/serve path; an old runtime URL bypasses legacy cache handling and
+follows ordinary network behavior. The emitted-bundle audit independently
+rejects FFmpeg package imports, core JavaScript/WASM assets, the browser loader
+and public runtime URL, and the legacy cache namespace. Dedicated audio WASM
+payloads and dynamically loaded WebCodecs/Mediabunny chunks are ordinary
+digest-bound application assets governed by the shell allowlist, not a mutable
+external codec runtime.
 
-These controls qualify repository-owned admission and consumer-side detection
-of incomplete or pointer-inconsistent releases, not an independent authenticity
-root. The checked-in manifest's review marker and payload digest are
-self-declared, and a compromised asset host can replace the final pointer with
-a new internally self-consistent release. A digest-pinned central policy now
-binds the public origin, release and pointer layout, cache metadata, and stable
-Cache Rules refs. The browser's production fallback derives its exact release
-path from the full-manifest SHA-256. Immutable R2 writes are conditional and
-exactly read back; pointer promotion uses strong-ETag CAS, read-back, exact
-purge, public smoke, and guarded rollback. The tested Cache Rules reconcile by
-stable ref while preserving unrelated rules, and Pages preflight rejects an
-absent or altered pointer or release as well as immutable responses whose
-Cloudflare cache status is missing or ineligible. These controls have no
-recorded production application while publication remains blocked, and neither
-the checked-in policy nor a self-consistent asset-host release is independently
-authenticated. Web Locks provide cooperative serialization only: browsers
-without them report runtime storage unsupported, and older or noncooperating
-application code remains outside the commit protocol. A killed client can
-leave an unserved candidate or pre-commit final cache until later cleanup. The
-streamed cache verifier prevents a module or WASM load from completing after a
-terminal digest mismatch, but an arbitrary streaming consumer can observe
-prefix chunks before that error. CacheStorage quota and eviction can remove
-availability, and there is no product-wide cache reservation. Shell
-installation materializes one admitted asset body before caching it. WebKit and
-Safari service-worker workflows, actual storage-pressure retention,
-runtime-cache multi-tab updates, downgrade drills, and actual-device offline
-behavior remain unqualified. Web notice delivery, complete corresponding source
-for every enabled FFmpeg library, and distribution-specific codec patent review
-remain blocked in the licensing matrix. Desktop previews remain unsigned and
-do not qualify signing, notarization, rollback, or key rotation.
+The retained external FFmpeg WebAssembly publisher and pointer/cache code are
+development-only legacy audit machinery, not an active offline or authenticity
+boundary. No production browser consumes their pointer, manifest, release
+objects, or CacheStorage state. Any reactivation remains blocked by the bundle
+audit and requires protected independent approval plus a reviewed architecture,
+licensing, security, and rollback qualification change.
+
+These controls do not qualify actual CacheStorage eviction or storage pressure,
+cross-browser and actual-device offline behavior, product-wide cache
+reservation, shell-install body amplification, codec execution while offline,
+or power-loss behavior. The application-shell fault matrix retains its own
+install/activation evidence; the obsolete mutable FFmpeg runtime-cache path and
+its rollback workflow are no longer production publication routes.
 
 The licensing/provenance matrix is a separate release control. Passing a security audit does not establish license or patent clearance, and provenance documentation alone does not establish runtime isolation.
 

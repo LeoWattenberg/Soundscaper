@@ -76,9 +76,9 @@ Audacity-backed static locale routes are generated from the reviewed allowlist
 in `src/common/i18n/locales.js`. Embedding views without the Soundscaper sidebar use
 the same tags under `/embed/<locale>/`.
 
-The production FFmpeg runtime is loaded lazily from the content-addressed release
-pinned by the complete reviewed runtime-manifest digest at build time. Tests and
-desktop integrations may still pass an explicit `coreBaseURL` to the editor.
+The production browser does not load FFmpeg. Compressed audio exports lazily use
+the reviewed, format-specific codec workers; AAC and keyed video exports use the
+browser's WebCodecs implementation with the Mediabunny container muxer.
 Audacity-derived locale packs are resolved from the versioned root configured by
 `PUBLIC_TRANSLATIONS_BASE_URL`. Copy `.env.example` to `.env` to override that
 locale-pack URL locally.
@@ -104,8 +104,8 @@ those profiles and applies the `.c8rc.json` thresholds to the union, so the gate
 still measures the whole suite.
 
 `npm run build` fails when any generated Pages asset exceeds Cloudflare's 25 MiB
-limit or any emitted JavaScript chunk exceeds 500,000 bytes. FFmpeg's larger
-WASM runtime is therefore published to R2 rather than included in `dist/`.
+limit or any emitted JavaScript chunk exceeds 500,000 bytes. It also audits the
+browser bundle for application-supplied FFmpeg imports, assets, and fetch seams.
 
 ## Desktop preview
 
@@ -125,10 +125,11 @@ certificate, so Gatekeeper or SmartScreen may show an unknown-developer
 warning. A future public release will include `SHA256SUMS` for every artifact.
 
 The desktop editor and all released languages work offline. Its package contains
-the pinned FFmpeg 0.12.10 JavaScript/WebAssembly runtime plus a digest-verified
-snapshot of the current Audacity-derived translations; those larger runtime
-files remain outside the Cloudflare Pages `dist/` build. The app's only runtime
-network request is a throttled GitHub check for a newer release notification.
+the reviewed dedicated audio codec payloads, Electron's authenticated framework
+codec library, and a digest-verified snapshot of the current Audacity-derived
+translations. User-configured external FFmpeg remains a desktop-only provider.
+The app's only runtime network request is a throttled GitHub check for a newer
+release notification.
 It never downloads or installs an update automatically and sends no telemetry.
 
 Desktop projects remain in the app's autosaved local library. Opening or
@@ -270,7 +271,7 @@ Pages deployment therefore does not need a GitHub Actions deployment workflow,
 `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, or an R2 bucket variable. The
 independent translation publisher described below has narrowly scoped S3
 credentials for its dedicated bucket; those credentials are never available to
-the Pages build or the separately authorized FFmpeg asset publisher.
+the Pages build.
 
 ### Two projects, one repository
 
@@ -311,7 +312,11 @@ finally drops those documents is the same deploy that must add their permanent
 redirects to `framescaper.org`, and `scripts/preflight-pages-deploy.mjs` audits
 them as redirects from that point on rather than expecting a document.
 
-### 1. Publish the FFmpeg runtime to R2
+### 1. Retained legacy FFmpeg publication tooling
+
+The production browser and Pages deployment do not publish, import, fetch, or
+preflight this runtime. The following blocked procedure remains only to reproduce
+and audit the historical publication records; it is not a deployment prerequisite.
 
 Create an R2 Standard bucket named `soundscaper-assets`. Give it the custom
 domain `assets.soundscaper.org` and public read access.
@@ -369,12 +374,10 @@ variables have already been exported into its process environment.
    that repository.
 4. Use production branch `main`, the Vite framework preset, gated build command
 	`npm run build:pages`, and output directory `dist`. Leave the root directory
-	empty. This command authenticates the checked-in runtime-publication approval
-	and preflights the exact live pointer, release objects, CORS, metadata, and
-	Cloudflare cache status. It also verifies that the live Pages hostname preserves
+	empty. This command verifies that the live Pages hostname preserves
 	the checked-in no-cache/no-store headers for stable documents, product artwork,
 	manifests, offline audit data, and both workers while keeping hashed assets
-	immutable. Both checks run before Pages can publish either a production or preview
+	immutable. The check runs before Pages can publish either a production or preview
 	deployment; do not replace it with the ungated `npm run build`.
 5. Attach `soundscaper.org` under the Pages project's custom domains.
 6. Repeat steps 1–5 for a second Pages project named `framescaper`, connected to

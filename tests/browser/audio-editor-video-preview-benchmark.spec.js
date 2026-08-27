@@ -6,7 +6,6 @@ import {
 	createVideoPreviewBenchmarkFixture,
 	videoPreviewBenchmarkMedia,
 } from './fixtures/video-preview-benchmark-media.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { packagedRuntimeEnvironmentFingerprint } from './helpers/packaged-runtime-environment.js';
 
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
@@ -201,7 +200,6 @@ async function installBenchmarkRoutes(page) {
 			return renderingContext;
 		};
 	});
-	await installPinnedFfmpegRuntimeRoutes(page);
 }
 
 async function bootVideoEditor(page) {

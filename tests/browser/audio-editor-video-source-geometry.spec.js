@@ -5,14 +5,8 @@ import {
 	resolveVideoSourcePresentation,
 } from '../../src/common/editor/video-source-presentation.ts';
 import { videoSourceGeometryMedia } from './fixtures/video-source-geometry-media.js';
-import { chooseDropdown, openExportDialog } from './audio-editor-test-helpers.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
-import {
-	decodePinnedVideoRgbFrame,
-	readRgbPixel,
-} from './helpers/pinned-video-frame-decoder.mjs';
+import { openExportDialog } from './audio-editor-test-helpers.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
-import { hasWebGl2Capability } from './helpers/webgl2-capability.js';
 import {
 	DURABLE_MEDIA_STORAGE_REQUIRED,
 	hasDurableMediaStorageCapability,
@@ -26,7 +20,6 @@ const ROTATED_ANAMORPHIC = videoSourceGeometryMedia.find(
 
 test.describe('3B-2b source display geometry qualification', () => {
 	test.beforeEach(async ({ page }) => {
-		await installPinnedFfmpegRuntimeRoutes(page);
 		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
 			status: 200,
 			contentType: 'application/json',
@@ -59,6 +52,7 @@ test.describe('3B-2b source display geometry qualification', () => {
 			const source = sources.find(({ name }) => name === fixture.file.name);
 			expect(source, `${fixture.id} must persist a source`).toBeTruthy();
 			expect(source.contentSha256).toBe(fixture.sourceSha256);
+			expect(source.characteristics.backend).toBe('container');
 
 			// Coded geometry, the rotation, and the pixel aspect ratio are three
 			// facts about one frame: the probe reads frames the display matrix has
@@ -98,34 +92,12 @@ test.describe('3B-2b source display geometry qualification', () => {
 		await expect(properties.locator('[data-source-note]')).toHaveCount(0);
 	});
 
-	test('an anamorphic source exports at its display geometry with the picture upright', async ({
+	test('an anamorphic composed source refuses browser export before target publication', async ({
 		page,
 	}) => {
-		// The export runs the production FFmpeg core, which competes for CPU with
-		// every other worker when the whole suite runs.
-		test.setTimeout(300_000);
+		test.setTimeout(90_000);
 
-		// Production serves Framescaper with the isolation headers from
-		// public/_headers. Vite preview does not apply that deployment file, so
-		// reproduce the production response before exercising V28's bounded
-		// SharedArrayBuffer frame stream.
-		await installProductionIsolationHeaders(page, '/framescaper/en/');
 		const editor = await openFramescaper(page);
-		test.skip(
-			!await page.evaluate(hasWebGl2Capability),
-			'The browser video export composites each frame through WebGL2, '
-				+ 'which this browser environment refuses; the export surfaces the disclosed failure status instead.',
-		);
-		const streamCapability = await page.evaluate(() => ({
-			crossOriginIsolated: globalThis.crossOriginIsolated,
-			sharedArrayBuffer: typeof globalThis.SharedArrayBuffer,
-		}));
-		test.skip(
-			!streamCapability.crossOriginIsolated || streamCapability.sharedArrayBuffer !== 'function',
-			'The bounded video export stream requires cross-origin isolation and SharedArrayBuffer, '
-				+ 'which this browser environment does not expose.',
-		);
-		expect(streamCapability).toEqual({ crossOriginIsolated: true, sharedArrayBuffer: 'function' });
 		test.skip(
 			!await page.evaluate(hasDurableMediaStorageCapability),
 			DURABLE_MEDIA_STORAGE_REQUIRED,
@@ -136,75 +108,22 @@ test.describe('3B-2b source display geometry qualification', () => {
 		}).toBe(1);
 		await addToTimeline(editor, ROTATED_ANAMORPHIC);
 
-		// The direct route writes the finished file straight to its target and
-		// publishes no download, so the target is where the exported bytes are.
+		// This source needs the composed-graph path. The production browser has no
+		// FFmpeg fallback, so choosing MP4 must fail before a writer is acquired.
 		await installVideoSaveTarget(page);
 		const exportDialog = await openExportDialog(page, editor);
-		await chooseDropdown(page, exportDialog.getByRole('group', { name: 'Format', exact: true }), 'MP4 video');
-		await exportDialog.locator('[data-export-action="start"]').getByRole('button').click();
-		await expect.poll(
-			() => page.evaluate(() => globalThis.__videoSaveTarget.closes),
-			{ timeout: 240_000 },
-		).toBe(1);
-
-		const publication = await page.evaluate(() => {
-			const state = globalThis.__videoSaveTarget;
-			const byteLength = state.chunks.reduce((total, chunk) => total + chunk.byteLength, 0);
-			const bytes = new Uint8Array(byteLength);
-			let offset = 0;
-			for (const chunk of state.chunks) {
-				bytes.set(chunk, offset);
-				offset += chunk.byteLength;
-			}
-			const binary = [];
-			for (let start = 0; start < bytes.byteLength; start += 32_768) {
-				binary.push(String.fromCharCode(...bytes.subarray(start, start + 32_768)));
-			}
-			return { fileName: state.fileName, byteLength, base64: btoa(binary.join('')) };
-		});
-		// Firefox on Windows can advance and fire presentation callbacks while
-		// returning only black pixels from HTMLVideoElement canvas readback. Decode
-		// the exact bytes written to the target with Soundscaper's pinned software
-		// core so this export proof is independent of that compositor surface.
-		const { base64, ...published } = publication;
-		const decoded = await decodePinnedVideoRgbFrame(Buffer.from(base64, 'base64'));
-		const insetX = Math.round(decoded.width / 4);
-		const insetY = Math.round(decoded.height / 4);
-		const rendered = {
-			...published,
-			width: decoded.width,
-			height: decoded.height,
-			topLeft: quadrant(decoded, insetX, insetY),
-			topRight: quadrant(decoded, decoded.width - insetX, insetY),
-			bottomLeft: quadrant(decoded, insetX, decoded.height - insetY),
-			bottomRight: quadrant(decoded, decoded.width - insetX, decoded.height - insetY),
-		};
-
-		// The decoded frame is the source's display geometry, so the picture fills it:
-		// an export that dropped the pixel aspect ratio letterboxes instead.
-		expect({ width: rendered.width, height: rendered.height }).toEqual(ROTATED_ANAMORPHIC.display);
-		// A quarter turn counter-clockwise carries the source's top right corner
-		// to the top left. The export declares no rotation of its own, so this is
-		// what a player shows without turning the picture a second time.
-		expect(rendered.fileName).toMatch(/\.mp4$/u);
-		expect(rendered.byteLength).toBeGreaterThan(0);
-		expect(rendered).toMatchObject({
-			topLeft: 'green',
-			topRight: 'white',
-			bottomLeft: 'red',
-			bottomRight: 'blue',
+		const format = exportDialog.getByRole('group', { name: 'Format', exact: true });
+		await format.getByRole('button').click();
+		await page.getByRole('option', { name: 'MP4 video', exact: true }).click();
+		await expect(page.getByRole('alert')).toContainText(
+			/Unsupported export format: video-mp4|Browser-native video export is unavailable/u,
+		);
+		await expect(exportDialog).toBeHidden();
+		expect(await page.evaluate(() => globalThis.__videoSaveTarget)).toEqual({
+			chunks: [], closes: 0, fileName: null,
 		});
 	});
 });
-
-function quadrant(frame, x, y) {
-	const [red, green, blue] = readRgbPixel(frame, { x, y });
-	if (red > 140 && green < 110 && blue < 110) return 'red';
-	if (green > 140 && red < 110 && blue < 110) return 'green';
-	if (blue > 140 && red < 110 && green < 110) return 'blue';
-	if (red > 170 && green > 170 && blue > 170) return 'white';
-	return `rgb(${String(red)},${String(green)},${String(blue)})`;
-}
 
 /** Collect the bytes the direct export route writes to its prepared target. */
 async function installVideoSaveTarget(page) {
@@ -226,31 +145,6 @@ async function installVideoSaveTarget(page) {
 						async abort() {},
 					}),
 				};
-			},
-		});
-	});
-}
-
-async function installProductionIsolationHeaders(page, path) {
-	await page.route(`**${path}`, async (route) => {
-		const response = await route.fetch();
-		await route.fulfill({
-			response,
-			headers: {
-				...response.headers(),
-				'Cross-Origin-Opener-Policy': 'same-origin',
-				'Cross-Origin-Embedder-Policy': 'credentialless',
-			},
-		});
-	});
-	await page.route('**/assets/worker-*.js', async (route) => {
-		const response = await route.fetch();
-		await route.fulfill({
-			response,
-			headers: {
-				...response.headers(),
-				'Cross-Origin-Embedder-Policy': 'credentialless',
-				'Cross-Origin-Resource-Policy': 'same-origin',
 			},
 		});
 	});

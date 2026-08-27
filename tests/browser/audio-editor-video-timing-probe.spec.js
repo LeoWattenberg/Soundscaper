@@ -2,7 +2,6 @@ import { expect, test } from '@playwright/test';
 
 import { validateVideoTimingAssetBytes } from '../../src/common/editor/video-timing-asset.ts';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import {
 	FRAMESCAPER_DATABASE_NAME,
 	FRAMESCAPER_OPFS_DIRECTORY_NAME,
@@ -17,7 +16,6 @@ const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translat
 
 test.describe('WP-0.3 browser timing-probe qualification', () => {
 	test.beforeEach(async ({ page }) => {
-		await installPinnedFfmpegRuntimeRoutes(page);
 		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
 			status: 200,
 			contentType: 'application/json',
@@ -26,7 +24,7 @@ test.describe('WP-0.3 browser timing-probe qualification', () => {
 		}));
 	});
 
-	test('extracts and persists exact CFR and irregular VFR timing with the production FFmpeg probe', async ({
+	test('extracts and persists exact CFR and irregular VFR timing with the production container probe', async ({
 		page,
 	}) => {
 		test.setTimeout(60_000);
@@ -60,7 +58,7 @@ test.describe('WP-0.3 browser timing-probe qualification', () => {
 			expect(source.timingDecision).toEqual({
 				mode: 'exact',
 				rate: fixture.nominalRate,
-				backend: 'ffmpeg',
+				backend: 'container',
 			});
 			expect(source.timingAsset).toMatchObject({
 				sha256: fixture.timingSha256,
@@ -73,12 +71,12 @@ test.describe('WP-0.3 browser timing-probe qualification', () => {
 			// The same probe run reports what the source is, not only when its
 			// frames are; an unreported characteristic stays null rather than
 			// arriving as a plausible default.
-			expect(source.characteristics.backend).toBe('ffmpeg');
+			expect(source.characteristics.backend).toBe('container');
 			expect(source.characteristics.codedWidth).toBe(32);
 			expect(source.characteristics.codedHeight).toBe(24);
-			expect(source.characteristics.fieldOrder).toBe('progressive');
-			expect(source.characteristics.hasAlpha).toBe(false);
-			expect(source.characteristics.videoCodec).toMatch(/^(?:h264|vp8|vp9|av1)$/u);
+			expect(source.characteristics.fieldOrder).toBeNull();
+			expect(source.characteristics.hasAlpha).toBe(fixture.kind === 'vfr');
+			expect(source.characteristics.videoCodec).toBe(fixture.kind === 'cfr' ? 'h264' : 'vp8');
 			expect(source.videoCodec).toBe(source.characteristics.videoCodec);
 			expect(source.characteristics.audioStreams).toBeNull();
 			expect(source.characteristics.extractedAudioStreamIndex).toBeNull();
@@ -111,7 +109,8 @@ test.describe('WP-0.3 browser timing-probe qualification', () => {
 		const properties = page.getByRole('dialog', { name: 'Source properties', exact: true });
 		await expect(properties).toBeVisible();
 		await expect(properties.locator('[data-source-property="Coded size"] dd')).toHaveText('32 × 24');
-		await expect(properties.locator('[data-source-property="Field order"] dd')).toHaveText('progressive');
+		await expect(properties.locator('[data-source-property="Field order"] dd'))
+			.toHaveAttribute('data-reported', 'false');
 		await expect(properties.locator('[data-source-property="Source start timecode"] dd'))
 			.toHaveAttribute('data-reported', 'false');
 		await expect(properties.locator('[data-source-property="Video codec"] dd'))

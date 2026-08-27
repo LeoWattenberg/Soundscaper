@@ -12,7 +12,6 @@ import {
 } from './audio-editor-test-helpers.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { FRAMESCAPER_DATABASE_NAME, SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 const DATABASE_NAME = SOUNDSCAPER_DATABASE_NAME;
 const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
@@ -58,7 +57,6 @@ test.describe('milestone 2 browser storage durability', () => {
 
 	test('opfs-quota-refusal preserves the project or uses the IndexedDB fallback', async ({ page }) => {
 		test.setTimeout(60_000);
-		await installPinnedFfmpegRuntimeRoutes(page);
 		let wrappedWorkerRequests = 0;
 		await page.route(/\/assets\/opfs-sync-worker-[^/?]+\.js(?:\?.*)?$/u, async (route) => {
 			wrappedWorkerRequests += 1;

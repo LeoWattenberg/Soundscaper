@@ -2,7 +2,6 @@ import { expect, test, toneA, TRANSLATIONS_ROOT } from './audio-editor-test-fixt
 import { bootEditor, importFiles, waitForEditor } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { FRAMESCAPER_DATABASE_NAME, SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { evaluateWithTransientBrowserRetry } from './helpers/transient-evaluation-retry.js';
 
@@ -13,7 +12,6 @@ const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob 
 
 test.describe('Framescaper canonical clip-focus trim keyboard routing', () => {
 	test.beforeEach(async ({ page }) => {
-		await installPinnedFfmpegRuntimeRoutes(page);
 		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
 			status: 200,
 			contentType: 'application/json',

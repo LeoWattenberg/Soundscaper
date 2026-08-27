@@ -84,6 +84,8 @@ test('the shared Soundscaper site route advances to the product-owned V30 bootst
 	assert.match(bootstrap, /createSoundscaperEditorProjectEnvironmentV30\(\{\s*storeOptions:\s*\{\s*linkedOriginalPort:\s*fileService\.linkedOriginalPort,\s*linkedVideoOriginalPort:\s*fileService\.linkedVideoOriginalPort,?\s*\},?\s*\}\)/su);
 	assert.match(environment, /createSoundscaperProjectRuntimeV30Selection/u);
 	assert.match(controller, /projectRuntime:\s*environment\.runtime/u);
+	assert.match(controller, /createSoundscaperVideoExportStrategyV30\(\s*environment\.runtime\s*\)/u);
+	assert.doesNotMatch(controller, /createSoundscaperDesktopVideoExportStrategyV30/u);
 	assert.doesNotMatch(bootstrap, /createAudioEditorController|AudioEditorBootstrap\.jsx/u);
 });
 

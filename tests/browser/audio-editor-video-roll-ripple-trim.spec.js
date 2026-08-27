@@ -6,7 +6,6 @@ import {
 } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
@@ -26,7 +25,6 @@ const MENU_ROWS = Object.freeze([
 
 test.describe('Framescaper frame-canonical roll and ripple trim qualification', () => {
 	test.beforeEach(async ({ page }) => {
-		await installPinnedFfmpegRuntimeRoutes(page);
 		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
 			status: 200,
 			contentType: 'application/json',

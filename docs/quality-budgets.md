@@ -427,6 +427,11 @@ not WAV framing, codec output, or aggregate legacy staging, and the synthetic
 maximum ZIP32 destination is selected and opened before render. The cap is a
 refusal boundary, not a qualified codec expansion or conformance bound.
 
+The following provider-injected FFmpeg/MEMFS fixtures are retained historical
+transport and publication witnesses only. They do not describe the production
+browser codec runtime, which now uses dedicated reviewed audio WASMs and
+WebCodecs/Mediabunny complete-file generation with no FFmpeg fallback.
+
 The exact compressed witness names `01-Voice.mp3` and `02-Music.mp3`, has an
 eight-byte raw preflight and a 16-byte aggregate legacy claim, gives each entry
 a 1,048,576-byte maximum, and opens a 2,097,406-byte maximum ZIP32 destination.
@@ -604,8 +609,9 @@ synchronously copied through worker messages.
 The milestone-2 browser durability matrix is qualified in Chromium and Firefox
 for the exact workflow IDs `indexeddb-quota-refusal`, `opfs-quota-refusal`,
 `indexeddb-multitab-writer`, `opfs-multitab-writer`,
-`offline-shell-upgrade`, `offline-runtime-rollback`, and
-`storage-eviction-recovery`. IndexedDB quota injection leaves the failed
+`offline-shell-upgrade`, and `storage-eviction-recovery`. The former mutable
+FFmpeg runtime rollback workflow is no longer a production browser path and is
+absent from the closure inventory. IndexedDB quota injection leaves the failed
 revision dirty and reloads the preceding commit. The OPFS worker witness
 injects `QuotaExceededError` at its synchronous write boundary and either
 refuses without changing the current project or exercises the repository's
@@ -616,8 +622,10 @@ Shell upgrade begins with a prior complete cache, activates one complete current
 active-product cache, and retires only safely obsolete caches. The current
 product's verified core is guaranteed offline after installation; optional
 assets and the other product become available offline only after their exact
-allowlisted bytes have been fetched, verified, and cached on use. A partial
-FFmpeg runtime update retains the previous complete verified release.
+allowlisted bytes have been fetched, verified, and cached on use. Dedicated
+audio WASM payloads and dynamically loaded WebCodecs/Mediabunny chunks are
+ordinary digest-bound application assets; no FFmpeg runtime is fetched, cached,
+served, or retained for rollback.
 <!-- /policy-narrative:milestone-2-offline-cache-qualification -->
 The eviction
 workflow exports a current Scape project file, removes the origin's IndexedDB database,

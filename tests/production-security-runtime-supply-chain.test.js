@@ -10,63 +10,66 @@ async function readRuntimeSupplyChainRisk() {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	return matrix.risks.find(({ id }) => id === 'runtime-supply-chain');
 }
-
-test('runtime publication controls and residual risks stay represented in the security matrix', async () => {
+test('legacy FFmpeg WASM publication remains blocked and absent from production browsers', async () => {
 	const runtimeSupplyChain = await readRuntimeSupplyChainRisk();
 	assert.ok(runtimeSupplyChain);
-	const validatedRuntime = runtimeSupplyChain.currentControls.find(
+	const legacyRuntime = runtimeSupplyChain.currentControls.find(
 		({ id }) => id === 'validated-ffmpeg-runtime-publication',
 	);
-	assert.ok(validatedRuntime);
+	assert.ok(legacyRuntime);
 	for (const path of [
-		'.gitattributes',
 		'THIRD_PARTY_LICENSES.md',
-		'Technical_README.md',
 		'config/ffmpeg-runtime-manifest.json',
 		'config/ffmpeg-runtime-publication-policy.json',
 		'config/production-licensing-matrix.json',
-		'config/release-severity-policy.json',
-		'desktop/ffmpeg-corresponding-source.json',
-		'docs/production-licensing-policy.md',
-		'r2-cors.json',
 		'scripts/lib/ffmpeg-runtime-manifest.mjs',
 		'scripts/lib/ffmpeg-runtime-publisher.mjs',
-		'scripts/lib/cloudflare-runtime-cache.mjs',
-		'scripts/lib/pages-deploy-preflight.mjs',
-		'scripts/configure-ffmpeg-runtime-cache.mjs',
-		'scripts/preflight-pages-deploy.mjs',
 		'scripts/publish-runtime-assets.mjs',
-		'src/common/editor/ffmpeg.js',
-		'vite.config.mjs',
 		'scripts/audit-ffmpeg-runtime.mjs',
+		'scripts/lib/browser-bundle-codec-audit.mjs',
+		'scripts/check-build-chunks.mjs',
+		'scripts/lib/offline-service-worker.mjs',
 		'tests/ffmpeg-runtime-manifest.test.js',
 		'tests/ffmpeg-runtime-publisher.test.js',
-		'tests/cloudflare-runtime-cache.test.js',
-		'tests/pages-deploy-preflight.test.js',
-		'tests/ffmpeg-runtime-public-policy.test.ts',
-	]) assert.ok(validatedRuntime.evidence.some((item) => item.path === path));
+		'tests/browser-bundle-codec-audit.test.js',
+		'tests/offline-service-worker.test.js',
+		'tests/browser/offline-ffmpeg-runtime-download.spec.js',
+	]) assert.ok(legacyRuntime.evidence.some((item) => item.path === path), path);
+	assert.equal(legacyRuntime.evidence.some(({ path }) => path === 'src/common/editor/ffmpeg.js'), false);
 	assert.match(
-		validatedRuntime.summary,
-		/self-consistent Web FFmpeg runtime policy manifest.*package and lock identity.*JavaScript and WebAssembly byte lengths.*SHA-256.*R2 bucket and base prefix.*content types.*immutable cache metadata.*CORS policy.*corresponding-source descriptor.*aggregate notice.*licensing and security matrices.*threat model.*LF checkout rules.*central.*public-origin.*cache.*rule-ref policy.*Web publisher.*full-manifest-SHA release prefix and no-store final pointer.*before the publisher invokes Wrangler.*private snapshot.*conditional.*read-back.*strong-ETag.*CAS.*rollback.*stable-ref.*Cache Rules.*Pages.*preflight.*desktop build and release assemblers do not consume this runtime.*separate desktop package-integrity control proves their absence.*do not authenticate independent human approval/isu,
+		legacyRuntime.summary,
+		/retained solely as legacy development and reproducibility tooling.*development-only dependencies.*no production artifact surface/isu,
 	);
-	assert.match(validatedRuntime.summary, /content types.*runtime.*manifest.*notice.*corresponding-source.*pointer/isu);
-	assert.match(validatedRuntime.summary, /unavailable marker.*concurrent writer.*without.*unconditional delete/isu);
-	assert.match(validatedRuntime.summary, /unrelated rule order.*owned.*rules last.*cannot override/isu);
-	assert.match(validatedRuntime.summary, /pointer DYNAMIC or BYPASS.*without Age/isu);
-	assert.match(validatedRuntime.summary, /reject.*mutable FFmpeg base override.*full-manifest digest/isu);
-	assert.equal(runtimeSupplyChain.residualRisks.some(
-		({ id }) => id === 'external-runtime-publication',
-	), false);
-	assert.ok(runtimeSupplyChain.residualRisks.some(
+	assert.match(
+		legacyRuntime.summary,
+		/No production browser imports.*derives a runtime URL.*fetches.*caches.*executes FFmpeg WebAssembly/isu,
+	);
+	assert.match(
+		legacyRuntime.summary,
+		/bundle audit rejects.*package specifiers.*ffmpeg-core.*old loader.*legacy cache namespace.*service worker.*no FFmpeg.*preferences.*no runtime download/isu,
+	);
+	assert.match(
+		legacyRuntime.summary,
+		/stable publication and browser reactivation remain blocked.*independent approval attestation.*deliberate audit change/isu,
+	);
+	assert.match(
+		legacyRuntime.summary,
+		/Desktop external FFmpeg.*alternate Chromium `libffmpeg`.*distinct.*unchanged/isu,
+	);
+
+	const reactivation = runtimeSupplyChain.residualRisks.find(
 		({ id }) => id === 'served-external-runtime-authentication',
-	));
-	assert.ok(runtimeSupplyChain.residualRisks.some(
+	);
+	assert.ok(reactivation);
+	assert.match(
+		reactivation.exposure,
+		/development-only legacy audit machinery.*no production browser consumes.*dormant.*blocked by the bundle audit/isu,
+	);
+	assert.match(reactivation.requiredControl, /Before any.*reactivation.*protected approval attestation/isu);
+	const attestation = runtimeSupplyChain.residualRisks.find(
 		({ id }) => id === 'runtime-manifest-review-attestation',
-	));
-	assert.equal(runtimeSupplyChain.residualRisks.some(
-		({ id }) => id === 'desktop-runtime-package-copy-integrity',
-	), false);
-	assert.ok(runtimeSupplyChain.residualRisks.some(
-		({ id }) => id === 'signed-update-qualification',
-	));
+	);
+	assert.ok(attestation);
+	assert.match(attestation.exposure, /self-declared.*blocked-reactivation risk.*rather than an active runtime exposure/isu);
+	assert.ok(runtimeSupplyChain.residualRisks.some(({ id }) => id === 'signed-update-qualification'));
 });

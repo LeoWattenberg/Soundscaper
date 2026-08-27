@@ -19,7 +19,7 @@ const item = closure.items.find(({ id }) => id === 'm2-publication-fault-matrix'
 
 const OUTCOME_VOCABULARY = ['inapplicable', 'platform-delegated', 'unqualified', 'witnessed'];
 const EXPECTED_TALLY = Object.freeze({
-	witnessed: 103,
+	witnessed: 95,
 	inapplicable: 9,
 	'platform-delegated': 8,
 	unqualified: 0,
@@ -76,7 +76,7 @@ test('every fault cell is witnessed with real evidence or carries an explicit re
 
 test('the threat model owns the register narrative and its residuals', () => {
 	assert.match(threatModel, /### Crash-safe publication fault register/u);
-	assert.match(threatModel, /fifteen publication paths\ncrossed with eight fault classes, one hundred twenty cells in total/u);
+	assert.match(threatModel, /fourteen publication paths\ncrossed with eight fault classes, one hundred twelve cells in total/u);
 	assert.match(threatModel, /recorded platform qualification failure, never a silent skip; the\nregister currently contains none/u);
 	assert.match(threatModel, /does not convert simulation limits into qualified claims/u);
 	assert.match(threatModel, /hard worker termination is not\ninjected/u);

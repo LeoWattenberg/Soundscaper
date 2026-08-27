@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-08-26",
+	"groundedAt": "2026-08-27",
 	"modelDocument": "docs/production-threat-model.md",
 	"statusDefinitions": {
 		"enforced": "Every named control for the narrowly described current surface has implementation and automated verification evidence.",
@@ -566,37 +566,6 @@
 					"restart-after-commit": { "outcome": "witnessed", "evidence": [
 						{ "kind": "test", "path": "tests/browser/offline-application-shell.spec.js" },
 						{ "kind": "test", "path": "tests/offline-service-worker.test.js" }
-					] }
-				}
-			},
-			{
-				"id": "offline-runtime-cache",
-				"faults": {
-					"cancel-before-stage": { "outcome": "witnessed", "evidence": [
-						{ "kind": "test", "path": "tests/offline-ffmpeg-runtime-cache.test.ts" }
-					] },
-					"cancel-during-body": { "outcome": "witnessed", "evidence": [
-						{ "kind": "test", "path": "tests/offline-ffmpeg-runtime-cache.test.ts" }
-					] },
-					"renderer-loss": { "outcome": "witnessed", "evidence": [
-						{ "kind": "test", "path": "tests/offline-browser-runtime-store.test.ts" }
-					] },
-					"helper-loss": { "outcome": "witnessed", "evidence": [
-						{ "kind": "test", "path": "tests/offline-service-worker.test.js" }
-					] },
-					"quota-or-disk-full": { "outcome": "witnessed", "evidence": [
-						{ "kind": "test", "path": "tests/offline-ffmpeg-runtime-cache.test.ts" },
-						{ "kind": "test", "path": "tests/offline-browser-runtime-store.test.ts" }
-					] },
-					"commit-failure": { "outcome": "witnessed", "evidence": [
-						{ "kind": "test", "path": "tests/offline-browser-runtime-store.test.ts" }
-					] },
-					"restart-after-staged-write": { "outcome": "witnessed", "evidence": [
-						{ "kind": "test", "path": "tests/offline-browser-runtime-store.test.ts" }
-					] },
-					"restart-after-commit": { "outcome": "witnessed", "evidence": [
-						{ "kind": "test", "path": "tests/browser/offline-ffmpeg-runtime-download.spec.js" },
-						{ "kind": "test", "path": "tests/browser/offline-ffmpeg-runtime-service-worker.spec.js" }
 					] }
 				}
 			}
@@ -1459,39 +1428,19 @@
 				},
 				{
 					"id": "video-rendered-fallback-export",
-					"summary": "For exact schema 17, the project-video-render-v1 whole-project branch accepts exactly one item with a canonical namespaced feature ID that is unavailable or unknown and has declared and effective rendered-fallback dispositions. The closed role supplies fixed full-render media semantics while the feature ID remains opaque, and delivery does not discover, load, or execute supplied feature code. The video-clip-render-v1 branch accepts only an exact registered videoEffects item that is unavailable with declared and effective rendered-fallback dispositions. Either branch may enter only the narrow final video delivery projection when its report descriptor exactly matches the canonical manifest by requirement ID, feature ID, relationship role, optional target clip ID, video kind, source ID, and SHA-256. The delivery projection applies the maintained active audio rendered-fallback projection of either closed audio role first and then that video fallback, represents at most one audio and one video rendered fallback, applies no bypass projections, and leaves the canonical project, history, and save state unchanged; unrepresented, duplicate same-kind, unsupported-role, or additional rendered fallbacks reject instead of exporting a partial projection. Under the owned export task signal, the operation-time selector binds the exact role, target clip ID, source ID, and SHA-256 with the requirement and feature IDs. Relationship snapshot currentness rejects role, target, source-geometry, target-duration, or target-effect drift. Exactly one role-defined audio fallback of either closed audio role and one maintained video fallback may be delivered together through a single joint operation-time integrity admission that applies their cumulative non-raiseable 64 GiB preflight before both selected fallback body reads, scans the selected audio chunk sequence first to return a digest-bound private chunk provider, and only then size-checks and hashes the selected video body into one exact immutable Blob; nonselected fallback bodies are not read. The verifier reads only selected bodies, constructs one canonical native Blob, and size-checks and hashes that same object through non-raiseable 4 MiB windows. Export reuses it without a second fallback-store read: as the sole video input for project-video-render-v1, or as the selected target input for video-clip-render-v1 while ordinary unaffected video remains in the composition. The clip-local ordinary video export preserves target placement, track membership, and layer and transition context; an active audio fallback renders through an empty private buffer map and its verified provider as the sole private chunk source without committed time-pitch cache preparation, otherwise separately staged canonical audio clips and effects render into the mix; embedded fallback audio is ignored. The verified Blob may then follow either the separately governed direct MP4/WebM route or legacy final-Blob route; this control does not add codec qualification. Task, project-generation, and operation currentness are asserted before verification, after admission, after FFmpeg, and around publication. The task signal fences verifier work, audio render, and FFmpeg; a returned recoverable stale publication is cleaned up. Selector mismatch, stale activation digest, missing or wrong body, or digest mismatch refuses before planning and output. Managed transfer authenticates descriptors and bodies rather than the manifest; the org.example.future-video-pipeline unknown-feature whole-project witness retains its exact fallback bytes, while the clip-local fresh-recipient witness retains target identity and fallback bytes before independent relationship admission. The retained immutable Blob supplies point-in-time bytes and creates no durable storage-record lease or cross-process guarantee. The exact one-audio/one-video composition is qualified; multiple clip fallbacks, duplicate same-kind fallbacks, other mixed fallback relationships, other relationship roles, generic authoring, and third-party feature-code activation are unqualified; standalone audio delivery admits no such composition, where simultaneous rendered fallbacks of any kind still reject before verification. Freeze, proxy, linked or unmanaged delivery, and broad export parity are unqualified. Packaged runtime and UI workflows, browser behavior, codec qualification, range transport, reference-scale evidence, and whole-handoff atomicity are unqualified.",
+					"summary": "Exact schema-17 rendered-fallback admission still authenticates the selected relationship, source, body geometry, and SHA-256 into private immutable providers without changing the canonical project. A verified video fallback may enter only a separately governed delivery route. In the production browser, only an exact keyed-frame delivery with an admitted WebCodecs configuration uses the native MP4/WebM encoder and Mediabunny muxer; composed-graph or otherwise unsupported browser delivery returns typed unavailability and never falls back to FFmpeg WebAssembly. Desktop delivery retains its separately governed external provider. Task, generation, operation, and relationship currentness plus AbortSignal fence verification, rendering, selected encoding, and publication. This control adds no codec, browser, packaged-runtime, range-transport, reference-scale, or whole-handoff atomicity qualification.",
 					"evidence": [
-						{ "kind": "implementation", "path": "src/common/editor/project-feature-capabilities.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/project-feature-video-rendered-fallback.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/project-feature-video-clip-render-v1.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/project-fallback-integrity.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/project-fallback-integrity-audio.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/project-fallback-integrity-video.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/project-fallback-integrity-snapshot.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/playback-project-service.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/audio-rendered-fallback-export.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/video-rendered-fallback-export.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/direct-video-export.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/video-export-service.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/project-visual-service.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/export-service.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/ui/workspace/ProjectFeatureCompatibilityNotice.tsx" },
-						{ "kind": "implementation", "path": "src/common/editor/video-export.js" },
-						{ "kind": "implementation", "path": "src/common/editor/video-ffmpeg.js" },
-						{ "kind": "implementation", "path": "src/common/editor/app.js" },
-						{ "kind": "test", "path": "tests/audio-editor-project-feature-video-rendered-fallback.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-video-rendered-fallback-delivery-projection.test.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/video-delivery-encoder-tier.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-video-encoder.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-mediabunny-execution.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-video-rendered-fallback-export.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-video-clip-fallback-export-regression.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-export-direct-video.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-project-fallback-integrity.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-project-fallback-integrity-selection.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-project-fallback-integrity-mixed-selection.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-project-fallback-integrity-relationships.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-mixed-rendered-fallback-video-export.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-project-visual-service.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-project-feature-compatibility-notice.test.ts" },
-						{ "kind": "test", "path": "tests/desktop-project-library-video-rendered-fallback-handoff.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-video-delivery-encoder-tier.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-video-keyframe-mediabunny-execution.test.ts" },
 						{ "kind": "test", "path": "tests/production-security-video-rendered-fallback-export.test.js" }
 					]
 				},
@@ -1613,10 +1562,12 @@
 				},
 				{
 					"id": "bounded-custom-ffmpeg-arguments",
-					"summary": "Custom FFmpeg exports use allowlisted protocols and reject extra inputs, reports, and unbounded arguments.",
+					"summary": "The production browser codec runtime rejects `custom-ffmpeg` with a typed `BROWSER_CODEC_RUNTIME_UNSUPPORTED` error before codec work and exposes no browser-native probe, trim, proxy, conform, or general FFmpeg-operation fallback. Unsupported browser operations fail closed instead of importing, fetching, caching, or executing FFmpeg WebAssembly. The separately composed desktop provider retains its existing fixed, allowlisted external-FFmpeg argument and protocol policy.",
 					"evidence": [
 						{ "kind": "implementation", "path": "src/common/editor/media-export.js" },
-						{ "kind": "test", "path": "tests/audio-editor-media-export.test.js" }
+						{ "kind": "implementation", "path": "src/common/editor/browser-audio-codec-runtime.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-media-export.test.js" },
+						{ "kind": "test", "path": "tests/audio-editor-browser-audio-codec-runtime.test.ts" }
 					]
 				},
 				{
@@ -1660,7 +1611,7 @@
 			"residualRisks": [
 				{
 					"id": "compressed-media-corpus",
-					"exposure": "Disposable imported-video capture now bounds metadata-derived nominal source-frame geometry, requested canvas geometry, and the completed encoded Blob, but object-URL creation and loadedmetadata precede that gate. Browser-native decode surfaces need not be RGBA, and decoder, codec, canvas, encoder, driver, browser heap, process RSS, and GC overhead remain unbounded. The full Blob exists before its size check, the toDataURL fallback first materializes base64 and decoded bytes, an active encoder is not force-cancelled, and separate extractors can overlap without a product-wide reservation. Broader compressed audio and video surfaces still lack a maintained malformed-input corpus and common decode or encode resource and elapsed-time qualification. The external-video job timeout is only a termination bound for its two exact encode plans.",
+					"exposure": "Disposable imported-video capture and browser-native exports retain local geometry and final-output bounds, but dedicated audio WebAssembly, WebCodecs audio/video encoders, Mediabunny muxers, browser decoders, canvas/driver state, and complete input/output buffers still lack one maintained malformed-media corpus and aggregate heap, RSS, GC, CPU, concurrency, cancellation, and elapsed-time qualification. The dedicated audio validators cover exact supported file structure and payload integrity, and unsupported tuples fail closed, but these controls are not adversarial codec-family resource evidence. Separate exporters can overlap without a product-wide reservation; desktop external-video deadlines remain termination bounds only.",
 					"requiredControl": "Add codec-family corpus tests and explicit aggregate decoder, encoder, browser-memory, output, concurrency, cancellation, and elapsed-time budgets.",
 					"ownerMilestone": "1 and 5",
 					"acceptanceCriteria": ["CI exercises truncated, oversized, recursive, and decompression-amplification fixtures without publishing partial output."]
@@ -2659,107 +2610,68 @@
 				},
 				{
 					"id": "exact-direct-compressed-mix-save",
-					"summary": "The maintained exact direct compressed whole-mix route is closed to one mix and the seven canonical built-in FFmpeg formats: `mp3` with `audio/mpeg` and `.mp3`; `flac` with `audio/flac` and `.flac`; `ogg-vorbis` with `audio/ogg; codecs=vorbis` and `.ogg`; `opus` with `audio/ogg; codecs=opus` and `.opus`; `wavpack` with `audio/x-wavpack` and `.wv`; `mp2` with `audio/mpeg` and `.mp2`; and `aac-m4a` with `audio/mp4` and `.m4a`. Codec-qualified Ogg result MIME values remain exact while picker acceptance uses the base `audio/ogg`; because MP3 and MP2 share `audio/mpeg`, admission binds the canonical format identity, extension, full MIME, normalized encoding, channel mapping, and metadata rather than trusting MIME alone. The closed settings are the maintained descriptor choices: MP3 at 128, 192, 256, or 320 kbps and at most two channels; FLAC int16 or int24 at compression 0–8 and at most eight channels; Vorbis quality -1–10 and at most eight channels; Opus at 64, 96, 128, 160, 192, 256, or 320 kbps and at most eight channels; WavPack int16, int24, int32, or float32 at compression 0–5 and at most eight channels; MP2 at 128, 160, 192, 224, 256, 320, or 384 kbps and at most two channels; and AAC/M4A at 96, 128, 160, 192, 256, or 320 kbps and at most eight channels. Every admitted plan has an 8–384 kHz sample rate, positive output frames, a canonical nonempty range, exact normalized settings, no compressed file-size claim, and no archive. A `realtime-stream` plan must retain its maintained memory reason and exact four-byte-per-output-sample plan. Realtime-stream rendering maps and resamples before staging and gives FFmpeg preserve geometry. A centrally admitted offline plan must pass exact revalidation of its single-mix range, tail, input and output geometry, mapping, planner thresholds, pre-roll, and reported graph latency, and its complete central offline-output admission must recompute exactly. Its non-raiseable 256 MiB ceiling covers exact useful-binary context and crop output, not end-to-end memory. Offline rendering resamples first, validates exact `Float32Array` source geometry, stages unmapped input-width PCM, and gives FFmpeg the canonical mapping, so either strategy applies mapping exactly once. FLAC alone stages an integer WAV at the requested 16- or 24-bit depth; the staging encoder owns requested dither and FFmpeg dither is disabled. Every non-FLAC format stages Float32 WAV. FFmpeg dither is enabled exactly when the normalized sample format is not `float32`, dither is not `none`, and the format is not FLAC; this includes integer WavPack and explicitly dither-enabled lossy settings, while float WavPack disables it. Realtime temporary preflight retains its output-width Float32 payload claim and its nonpersistent 96 MiB refusal. Offline preflight takes the maximum of the required temporary bytes and a raw staging PCM payload based on input channel count and frame count, using requested FLAC integer bytes or four bytes for every other format; it excludes WAV framing and padding and is not an exact staged-file size or storage reservation. The route selects a generic audio target before render but leaves it unopened; only after FFmpeg execution and a safe nonnegative stat does it open the exact-size writer. Only an ordinary offline renderer failure may reuse the same unopened target in realtime; cancellation, fallback-integrity or currentness loss, and every post-render failure do not retry. First-party rendered-fallback projection and private-provider verification finish before planning, selection, rendering, and publication without mutating canonical or global source state. Prepared Blob mode declines the direct route and preserves the legacy whole-read, final-Blob, and download path. The complete staged WAV is a `Blob` mounted through WORKERFS while the complete encoded output remains in worker MEMFS. The patched runtime reads monotonically increasing exact ranges of at most one MiB, keeps at most one read and one awaited destination write active under backpressure, and never invokes whole-file `readFile` for this output. FFmpeg stat, emitted, destination-written, and committed-result byte counts must agree; destination close precedes explicit commit, with no final renderer compressed-audio `Blob` or download publication on the direct path. Focused Node service evidence covers all seven formats in both strategies with a five-byte output, two realtime chunks or one offline chunk, exact picker contracts and staging/dither ownership, prepared-Blob fallback, and a virtual 269,484,049-byte output in 258 exact ranges. The virtual case proves transport arithmetic and backpressure only; it is not actual codec execution, codec conformance, mapping conformance, or reference-scale evidence. Custom FFmpeg, compressed stems, video, actual browser or operating-system behavior, native picker and packaged application behavior, quota, durability, crash, and power loss remain unqualified. Worker MEMFS, native or WASM codec memory, staged-input residency, renderer or browser heap, GC, process RSS, CPU, and elapsed time also remain unqualified. The 900,000-millisecond desktop prepared-target TTL leaves long offline packaged elapsed-time behavior unqualified.",
+					"summary": "The exact compressed whole-mix route remains closed to seven canonical identities: MP3 (`audio/mpeg`, `.mp3`), FLAC (`audio/flac`, `.flac`), Ogg Vorbis (`audio/ogg; codecs=vorbis`, `.ogg`), Opus (`audio/ogg; codecs=opus`, `.opus`), WavPack (`audio/x-wavpack`, `.wv`), MP2 (`audio/mpeg`, `.mp2`), and AAC/M4A (`audio/mp4`, `.m4a`). Canonical identity, extension, full result MIME, normalized settings, mapping, and metadata are revalidated rather than trusting shared picker MIME values. In production browsers, six reviewed digest-pinned WebAssembly providers produce complete FLAC, MP3, Ogg Vorbis, Opus, WavPack, and MP2 files in a dedicated worker. Exact payload length and SHA-256 are verified before compilation, closed profiles reject unsupported tuples, and format validators reject incomplete output. AAC/M4A uses WebCodecs AudioEncoder through Mediabunny only after exact capability probing and returns one complete M4A. The browser runtime advertises `ffmpegAvailable: false`; custom FFmpeg, unsupported formats or profiles, and unsupported media operations return typed unavailability with no FFmpeg fallback. A production bundle audit rejects FFmpeg package specifiers, core assets, runtime loader, URL, and cache seam. Direct publication admits the complete encoded length before opening its writer, transfers at-most-1-MiB ranges with one awaited write, closes before commit, and requires byte-count agreement without a final download Blob. Browser encoding retains mapped PCM and one complete encoded result under 128 MiB input/output bounds; it is not end-to-end streaming or a heap, RSS, GC, CPU, elapsed-time, scale, durability, crash, or power-loss qualification. Desktop bundled and user-selected external providers remain separately governed and unchanged.",
 					"evidence": [
-						{ "kind": "implementation", "path": "patches/npm/@ffmpeg+ffmpeg+0.12.15.patch" },
-						{ "kind": "implementation", "path": "src/common/editor/media-export.js" },
-						{ "kind": "implementation", "path": "src/common/editor/export.js" },
+						{ "kind": "implementation", "path": "src/common/editor/browser-audio-codec-runtime.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/browser-dedicated-audio-codec.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/browser-dedicated-audio-output-validation.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/browser-dedicated-audio-worker-client.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/browser-webcodecs-aac.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/ffmpeg-output-stream.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/ffmpeg.js" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/direct-audio-render-plan.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/direct-compressed-plan.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/direct-compressed-export.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/direct-offline-compressed-export.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/rendered-audio-encoding.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/audio-export-render-orchestration.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/export-service.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/file-save-stream.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-media-export.test.js" },
-						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-output-range-patch.test.js" },
-						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-output-stream.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-idle.test.js" },
-						{ "kind": "test", "path": "tests/audio-editor-direct-audio-render-plan.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-direct-offline-compressed-export.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-export-direct-compressed-matrix.test.ts" },
+						{ "kind": "implementation", "path": "scripts/lib/browser-bundle-codec-audit.mjs" },
+						{ "kind": "test", "path": "tests/audio-editor-browser-audio-codec-runtime.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-browser-dedicated-codec.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-browser-webcodecs-aac.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-export-direct-compressed-service.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-rendered-direct-offline-compressed.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-export-direct-offline-compressed-service.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-export-direct-offline-compressed-fallback.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-export-direct-mp3.test.ts" }
+						{ "kind": "test", "path": "tests/browser-bundle-codec-audit.test.js" }
 					]
 				},
 				{
 					"id": "exact-direct-mp4-webm-video-save",
-					"summary": "The maintained exact direct MP4 route binds canonical `mp4`, `.mp4`, and `video/mp4`, and the exact direct WebM route binds canonical `webm`, `.webm`, and `video/webm`. Both use target purpose `video`, require a safe matching output name, and retain their canonical version-6 descriptor-bound and exact detached version-7 keyed plans, complete fingerprints, structural validation, SHA-256 evidence, exact stat/emitted/written/committed byte agreement, at-most-1-MiB monotonic range reads, backpressure, currentness checks, one explicit commit, and Blob-versus-direct publication boundaries. Browser V6 keeps WORKERFS/MEMFS source, staged-audio, and output ownership; browser V7 keeps its bounded SharedArrayBuffer RGBA and optional WAV rings. Desktop Soundscaper S30 inherits the exact S29 implementation, admits only the exact V7 keyed-RGBA subset, and deliberately forces the desktop provider even when WebCodecs exists. Desktop availability requires exact capability tokens plus a successful live canary for the current external ffmpeg/ffprobe pair: H.264/AAC MP4 uses `libx264` and `aac`, while WebM uses VP9/Opus through `libvpx-vp9` and `libopus`. An exact ffprobe then attests exactly two streams at indices 0 and 1, 16x16 `yuv420p` video, and 48 kHz stereo audio before availability. Renderer writes are pathless at-most-1-MiB chunks into main-private pipes; finalized output stays in main-private scratch for bounded reads and the same container, digest, byte-count, and publication checks. Bundled video, operating-system video, and AV1 remain disabled; external WebM is VP9, not AV1. Codec conformance, broad FFmpeg-version/platform behavior, packaged UI, reference-scale performance, aggregate memory, RSS, CPU, filesystem durability, crash, and power loss remain unqualified.",
+					"summary": "The exact MP4 route binds `mp4`, `.mp4`, and `video/mp4`; WebM binds `webm`, `.webm`, and `video/webm`. Both require target purpose `video`, a safe name, unchanged exact plan fingerprint, currentness, structural validation, digest and byte-count agreement, close before one commit, and Blob-versus-direct publication boundaries. The production browser admits only the exact keyed-frame path: WebCodecs encodes H.264 for MP4 or VP9 for WebM and dynamically loaded Mediabunny muxes optional PCM as AAC or Opus into one complete container. An ineligible composed-graph path, missing WebCodecs capability, unsupported tuple, malformed audio, muxer refusal, or output-bound failure refuses with no browser FFmpeg fallback. Browser output is capped at 512 MiB and range-delivered in at-most-1-MiB chunks; no production browser imports, fetches, caches, or executes FFmpeg WebAssembly. Desktop Soundscaper S30 remains unchanged: it forces the desktop provider, requires exact capability tokens and a live canary for the current external ffmpeg/ffprobe pair, uses `libx264`/`aac` for MP4 and `libvpx-vp9`/`libopus` for WebM, and attests the two-stream probe. Renderer writes remain pathless into main-private pipes and finalized output remains in main-private scratch. Bundled video, operating-system video, and AV1 remain disabled; external WebM is VP9. Codec conformance, broad platforms, packaged UI, scale, aggregate memory, RSS, CPU, durability, crash, and power loss remain unqualified.",
 					"evidence": [
-						{ "kind": "implementation", "path": "patches/npm/@ffmpeg+ffmpeg+0.12.15.patch" },
-						{ "kind": "implementation", "path": "src/common/editor/ffmpeg-output-stream.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/ffmpeg-video-output.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/ffmpeg.js" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/direct-video-export.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/direct-video-plan-contract.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/video-export-service.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/video-rendered-fallback-export.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/file-service.js" },
-						{ "kind": "implementation", "path": "src/common/editor/file-save-stream.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/video-export.js" },
-						{ "kind": "implementation", "path": "src/common/editor/video-ffmpeg.js" },
-						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-video-container-stream.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/video-delivery-encoder-tier.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-video-encoder.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-mediabunny-execution.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/video-mediabunny-muxer.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-video-output.ts" },
-						{ "kind": "implementation", "path": "src/framescaper/video-export-strategy-v20.ts" },
-						{ "kind": "implementation", "path": "src/soundscaper/video-export-strategy-v29.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/direct-video-export.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/video-export-service.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/desktop-video-codec-runtime.ts" },
 						{ "kind": "implementation", "path": "desktop/external-ffmpeg-video-operation-service.ts" },
 						{ "kind": "implementation", "path": "desktop/external-ffmpeg-video-qualification.ts" },
 						{ "kind": "implementation", "path": "desktop/external-ffmpeg-video-canary-inspection.ts" },
-						{ "kind": "implementation", "path": "desktop/save-targets.js" },
-						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-output-range-patch.test.js" },
-						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-output-stream.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-video-output.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-idle.test.js" },
+						{ "kind": "test", "path": "tests/audio-editor-video-delivery-encoder-tier.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-video-keyframe-mediabunny-execution.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-video-mediabunny-muxer.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-export-direct-video.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-direct-video-keyframe-plan-v7.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-video-ffmpeg.test.js" },
-						{ "kind": "test", "path": "tests/audio-editor-video-rendered-fallback-export.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-video-keyframe-video-sink-encoder.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-framescaper-video-export-strategy-v20.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-soundscaper-video-export-strategy-v29.test.ts" },
 						{ "kind": "test", "path": "tests/external-ffmpeg-video-operation-service.test.ts" },
 						{ "kind": "test", "path": "tests/external-ffmpeg-video-qualification.test.ts" },
-						{ "kind": "test", "path": "tests/external-ffmpeg-video-canary-inspection.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-file-service.test.js" },
-						{ "kind": "test", "path": "tests/desktop-save-capacity.test.js" },
-						{ "kind": "test", "path": "tests/desktop-save.test.js" }
+						{ "kind": "test", "path": "tests/external-ffmpeg-video-canary-inspection.test.ts" }
 					]
 				},
 				{
 					"id": "direct-stem-archive-save",
-					"summary": "The maintained direct stem-archive slice owns ZIP32 and 7z Copy publication while existing format-specific controls continue to own native-container and codec conformance. Its native-PCM branch admits only an exact ZIP32 or 7z Copy archive of WAV, AIFF, or BWF stems. Before target selection both variants require `stems` mode, a nonempty output list, one positive safe-integer native output size, canonical archive MIME and extension, and matching archive entries in the same order with exact flat names and sizes. ZIP32 requires a recomputed eligible layout whose entry count, local bytes, central-directory bytes, and total archive byte length exactly match the plan. The 7z branch requires the same recomputed ZIP32 planning geometry, which may be ineligible, and an exact independently recomputed Copy archive byte length. Closed native positive admission covers WAV and BWF with `audio/wav` and `.wav`, and AIFF with `audio/aiff` and `.aiff`, in both archive formats. Compressed stems remain ZIP32-only. Its compressed branch admits the seven canonical built-ins—MP3, FLAC, Ogg Vorbis, Opus, WavPack, MP2, and AAC/M4A—for either a canonical `realtime-stream` stem plan or a centrally admitted `offline` stem plan, captured as one owned snapshot whose fingerprint is rechecked through publication. Centrally admitted offline plans carry exact route-neutral central offline-render evidence, and the selected render strategy and strategy-aware staging bound enter that fingerprint. The realtime strategy-aware staging bound is the raw output-width `outputBytesPerRender`. The offline staging bound is `max(outputFrames × inputChannels × offlineBytesPerSample, outputBytesPerRender)`. The first term is the offline input-width staging payload; `offlineBytesPerSample` is requested FLAC integer bytes per sample or four bytes for the other six formats. The second term is the possible realtime-retry output-width staging payload: `outputFrames × outputChannels × Float32(4)`, including for FLAC. Each compressed entry receives a per-entry maximum of `max(strategy-aware staging bound, 1 MiB)`; admission computes a synthetic maximum ZIP32 layout from those maxima before target selection. That maximum is an enforced refusal boundary only, not a qualified codec expansion, conformance, or scale bound. The shared Web/Electron file-service abstraction accepts a native prepared exact-size streaming destination or compressed prepared maximum-size streaming destination and selects and opens it before any render. Native per-stem staging remains sequential, retains at most one complete stem, and its temporary-storage preflight charges the largest sequential intermediate rather than the aggregate. A direct 7z destination declares one fixed 32-byte final prefix. The Copy writer appends a zero-filled 32-byte placeholder, ordered stem bodies, and its complete next header; only after the exact stream is complete and sealed may the destination patch that fixed position-zero prefix once without changing its byte count, and commit requires the patch. Compressed temporary-storage preflight charges the same strategy-aware staging bound: realtime uses `outputBytesPerRender`, while offline uses that exact two-term maximum. It excludes WAV framing, codec output, and the aggregate legacy staging claim. Offline encoding stages the unmapped input width and leaves canonical channel mapping to FFmpeg, so mapping has one owner. The shared pass-through ZIP32 encoder bounds non-Blob input source slices to 64 KiB and awaits serial sink backpressure before accepting the next slice; the exact 7z Copy writer shares serial backpressure and one-entry-at-a-time admission. Finalization requires emitted bytes to equal the recomputed actual ZIP32 layout before it closes the destination; only after close may explicit commit require planned or actual, emitted, destination-written, and committed-result byte counts to agree. The compressed branch retains a complete staged WAV `Blob`, a complete worker MEMFS output, and one complete encoded result at a time; it recomputes actual entry sizes, preserves order, and checks all byte counts while constructing no final ZIP `Blob` and invoking no download publisher. Prepared Blob mode declines the direct route, so the existing browser Blob/download path proceeds unchanged. The focused native provider-injected Node service fixtures preflight exactly four bytes and open their exact target before rendering two ordered four-byte WAV-plan marker outputs. ZIP32 reconstructs an exact 268-byte archive. A deliberately small injected 7z route appends its zero prefix before render, retains at most one complete stem, seals and patches before commit, and matches an exact 151-byte golden archive. Both construct no final archive `Blob` and call neither the legacy archive nor download publisher. The production planner selects 7z only for ZIP32 overflow, so the small golden route is correctness rather than scale evidence. Those marker outputs isolate archive publication and are not native WAV conformance evidence. Prepared Blob mode instead proves the unchanged 272-byte legacy temporary-storage preflight, ordered archive additions, and download publication. The compressed service witness names `01-Voice.mp3` and `02-Music.mp3`, makes an eight-byte raw preflight instead of its 16-byte aggregate legacy staging claim, applies a 1,048,576-byte per-entry maximum and 2,097,406-byte maximum ZIP32 layout, then streams three- and five-byte encoded bodies into a recomputed 262-byte actual ZIP32 archive. All-seven service cases exercise both render strategies with injected encoded bytes, strategy-bound preflight, target opening before render, one encoded stem retained at a time, and no legacy archive or download publication. The shared engine fixture reconstructs an exact 468-byte four-entry archive and feeds 256 KiB through 64 KiB source slices while a blocked sink admits only one slice and one active write. Custom FFmpeg and compressed 7z stems, BW64 stems, video, inexact or reordered archives, and final-Blob direct publication remain excluded. The provider-injected evidence exercises the shared Web/Electron protocol but does not qualify File System Access, an Electron filesystem, a native picker, actual FFmpeg codec execution, codec conformance, codec expansion, renderer heap, process RSS, worker MEMFS allocation, garbage collection, CPU, elapsed time, browser or operating-system behavior, packaged UI, reference scale, quota, crash, power loss, or durability.",
+					"summary": "The direct stem-archive slice owns exact ZIP32 and 7z Copy publication. Native PCM admits only canonical WAV, AIFF, or BWF stems with exact names, sizes, order, and recomputed layouts; 7z Copy retains its fixed 32-byte final-prefix patch. Compressed stems remain ZIP32-only and admit the same seven canonical compressed identities under owned realtime or centrally admitted offline plan fingerprints and per-entry refusal bounds. In production browsers, reviewed digest-pinned WebAssembly providers produce complete FLAC, MP3, Ogg Vorbis, Opus, WavPack, and MP2 entries; WebCodecs plus Mediabunny produces complete AAC/M4A entries after capability admission. Unsupported profiles, custom FFmpeg, and unavailable WebCodecs configurations fail closed without a browser FFmpeg fallback. Per-stem encoding is sequential and retains at most the current complete result; ZIP32 uses at-most-64-KiB slices, awaits backpressure, recomputes actual sizes/layout, closes before commit, and requires byte-count agreement. The direct route creates no final archive Blob, although browser codec generation retains complete PCM and encoded-file bytes. Prepared Blob mode uses its separately bounded archive/download path. Compressed 7z, BW64 stems, video, inexact archives, scale, heap, worker memory, RSS, GC, CPU, time, durability, crash, and power loss remain outside this control. Desktop provider composition remains unchanged.",
 					"evidence": [
-						{ "kind": "implementation", "path": "src/common/editor/controller/audio-export-render-orchestration.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/direct-audio-render-plan.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/direct-compressed-plan.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/browser-audio-codec-runtime.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/browser-dedicated-audio-codec.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/browser-webcodecs-aac.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/direct-compressed-stem-archive-plan.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/direct-native-stem-archive-plan.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/direct-pcm-export.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/direct-stem-archive-export.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/export-service.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/rendered-audio-encoding.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/sequential-seven-zip-copy.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/sequential-zip32-stream.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/stem-archive.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/file-save-stream.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/zip32.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-direct-audio-render-plan.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-direct-native-stem-archive-plan.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-export-direct-compressed-stem-archive.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-export-direct-compressed-stem-stream.test.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/export-service.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-browser-dedicated-codec.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-browser-webcodecs-aac.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-export-direct-compressed-stem-service.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-compressed-stem-stream.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-export-direct-seven-zip-stem-stream.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-offline-compressed-stem-encoding.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-export-direct-stem-archive.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-export-direct-stem-stream.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-final-prefix-save.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-sequential-seven-zip-copy.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-sequential-zip32-stream.test.ts" }
 					]
@@ -4016,44 +3928,42 @@
 			"currentControls": [
 				{
 					"id": "bounded-browser-export-blob-publication",
-					"summary": "The maintained browser-download audio mix, audio stem-archive, MP4, and WebM routes share one non-raiseable 512 MiB final-output ceiling. Legacy FFmpeg audio and video output is statted and admitted before a whole-file worker read; the returned Uint8Array must exactly match that stat. The selected V27 browser export's maintained keyed V20 delegate independently stats, bounds, range-reads, and structurally validates its exact MP4 or WebM into one size-matched Uint8Array before the common video service applies this same publication bound. Encoder bytes are admitted before final Blob construction, owned or temporary-file-backed Blobs are rechecked before download publication, and lower-only focused seams exercise exact refusal without a large allocation. Cancellation and currentness are checked around FFmpeg stat, every keyed range, and publication. This is a final-output and publication bound, not an end-to-end encoder, worker MEMFS, renderer heap, RSS, GC-headroom, CPU, elapsed-time, browser, codec, quota, or durability qualification. Direct destinations retain their independently admitted streamed limits and never enter this Blob boundary; V27 selection does not change the frozen route inventory or qualify those resources.",
+					"summary": "Browser-download audio mix, stem-archive, MP4, and WebM routes share one non-raiseable 512 MiB final-output ceiling. Compressed audio is admitted as complete file bytes from the dedicated reviewed WebAssembly providers or WebCodecs plus Mediabunny; exact keyed video is admitted as one complete Mediabunny container from WebCodecs chunks. Bytes must be nonempty, within codec and publication bounds, current, and format-valid before final Blob construction; owned or temporary-file-backed Blobs are rechecked before download. Unsupported operations fail closed, and there is no production browser FFmpeg import, fetch, cache, runtime, stat, MEMFS, or whole-file FFmpeg read. This is a publication fence, not an end-to-end memory bound: audio retains mapped PCM and a complete encoded file, video retains a complete container, and heap, worker/WASM/WebCodecs memory, RSS, GC, CPU, time, conformance, scale, quota, and durability remain unqualified. Direct destinations avoid the final download Blob but browser-native generation still completes in memory before range delivery.",
 					"evidence": [
 						{ "kind": "implementation", "path": "src/common/editor/browser-export-output.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/ffmpeg.js" },
-						{ "kind": "implementation", "path": "src/common/editor/ffmpeg-video-output.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/browser-audio-codec-runtime.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/browser-dedicated-audio-codec.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/browser-webcodecs-aac.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-mediabunny-execution.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/video-mediabunny-muxer.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/export-service.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/video-export-service.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-video-container.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-video-output.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-browser-export-output.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-browser-output.test.js" },
-						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-video-output.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-video-keyframe-video-encoder.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-browser-audio-codec-runtime.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-browser-webcodecs-aac.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-video-keyframe-mediabunny-execution.test.ts" },
 						{ "kind": "test", "path": "tests/production-pipeline-route-qualification.test.ts" }
 					]
 				},
 				{
 					"id": "bounded-keyed-rgba-av-encoding",
-					"summary": "The selected V27 browser export's maintained keyed V20 encoder admits an exact generated-RGBA frame source at no more than 1,280 by 720, 1 through 30 frames per second for A/V, 2,000,000 frames, 8 MiB per reusable frame allocation, and 1 TiB of logical RGBA work. Its browser branch owns at most two SharedArrayBuffer input rings, one video and one optional audio, under a 16 MiB aggregate capacity with serial awaited writes and producer-consumer backpressure. The desktop Soundscaper S30 branch inherits the exact S29 implementation and uses the same exact plan but writes pathless at-most-1-MiB chunks to owner-scoped main-private FFmpeg pipes and keeps finalized output in main-private scratch; ready-idle and runtime deadlines, owner loss, cancellation, and shutdown terminate the process tree and clean the session. Optional audio must be one canonical 1 through 32 channel float32 WAV of at most 2 GiB, 8,000 through 768,000 samples per second, and the exact export-range frame count. MP4 and WebM command grammar fixes raw RGBA, format, pixel format, codecs, metadata removal, exact rational rate, bounded audio padding, and duration. Final output is capped at 512 MiB. Blob delivery owns one exact allocation and finite container validation. Direct delivery captures per-block and whole-file SHA-256 evidence, structurally validates finite MP4 or WebM, and binds publication to exact size and digest so same-size replacement refuses before close. A generation-scoped provider lease plus task currentness and AbortSignal checks fence acquisition, producer rendering, input writes, encoder execution, and output external operations. Cleanup is always attempted. The browser branch aborts and disposes both rings, deletes MEMFS output, and terminates its runtime when required; the desktop branch cancels or deletes its owner-scoped main session, drains the child process, removes scratch, aborts an acquired destination exactly once, and preserves cleanup failures. This selected control reuses the existing video routes and does not qualify source and staged-audio Blob residency, browser or worker heap, native or WASM codec memory, RSS, GC, CPU, elapsed time, codec conformance, reference scale, broad platform behavior, quota, durability, crash, or power loss.",
+					"summary": "The selected V27 keyed browser encoder admits exact generated RGBA at no more than 1,280 by 720, 1 through 30 frames per second, 2,000,000 frames, 8 MiB per reusable frame allocation, and 1 TiB logical RGBA work. It requires an admitted WebCodecs configuration, encodes H.264 for MP4 or VP9 for WebM frame by frame, and dynamically loads Mediabunny to mux chunks and optional canonical float32 WAV PCM as AAC or Opus into one complete container. Missing WebCodecs, non-keyed routes, unsupported configurations, malformed PCM, or mux failure refuses without browser FFmpeg. Output is capped at 512 MiB. AbortSignal and currentness fence audio reads, frame production, WebCodecs submission, mux writes, finalization, and publication; failure cancels the muxer, closes resources, disposes the producer, and temporary complete output bytes are cleared after delivery. Direct publication retains structural, SHA-256, exact-size/digest, and same-size-replacement checks. Desktop S30 remains unchanged: exact S29 plans write pathless at-most-1-MiB chunks to owner-scoped main-private external-FFmpeg pipes and use main-private scratch with process-tree cancellation. Complete-container and source residency, heap, native/WASM/WebCodecs memory, RSS, GC, CPU, time, conformance, scale, platform breadth, quota, durability, crash, and power loss remain unqualified.",
 					"evidence": [
-						{ "kind": "implementation", "path": "patches/npm/@ffmpeg+ffmpeg+0.12.15.patch" },
 						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-encoder-admission.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-encoder-stream.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-audio-input.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-video-container-stream.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/video-webcodecs-producer.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-video-encoder.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-video-operation.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-video-output.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-video-sink.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-mediabunny-execution.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/video-mediabunny-muxer.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/desktop-video-codec-runtime.ts" },
 						{ "kind": "implementation", "path": "desktop/external-ffmpeg-video-operation-service.ts" },
 						{ "kind": "implementation", "path": "desktop/external-ffmpeg-video-session-cleanup.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-video-keyframe-av-encoder.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-video-keyframe-encoder-stream.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-video-keyframe-video-sink-encoder.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-video-webcodecs-producer.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-video-keyframe-native-video-encoder.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-video-keyframe-mediabunny-execution.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-video-mediabunny-muxer.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-desktop-video-codec-runtime.test.ts" },
-						{ "kind": "test", "path": "tests/external-ffmpeg-video-session-cleanup.test.ts" },
-						{ "kind": "test", "path": "tests/browser/audio-editor-video-keyframe-video-encoder.spec.js" }
+						{ "kind": "test", "path": "tests/external-ffmpeg-video-session-cleanup.test.ts" }
 					]
 				},
 				{
@@ -4273,86 +4183,53 @@
 				},
 				{
 					"id": "direct-compressed-mix-save-rollback",
-					"summary": "The direct compressed whole-mix route carries the owned export signal and currentness assertion through target selection, either admitted render strategy, WAV staging, FFmpeg execution, stat, every exact range read and awaited destination write, destination close, staged-WAV cleanup, and pre-commit admission for all seven formats. Offline currentness, cancellation, and exact central-plan checks run before rendering, after rendering and resampling, immediately before and after synchronous WAV construction, and before FFmpeg. Synchronous WAV construction cannot be interrupted while it runs; checks before and after it fence cancellation, stale ownership, and plan drift before external encoding. Only an ordinary offline renderer failure may reuse the still-unopened destination through realtime rendering. Abort, fallback-integrity or currentness failure and every post-render staging, FFmpeg, cancellation, or cleanup failure never retry. Cancellation during FFmpeg execution terminates the runtime. Cancellation, currentness loss, plan or descriptor drift, stat or range refusal, encoder failure, short or oversized output, target open/write/close failure, staged-file cleanup failure, or byte-count disagreement before commit aborts the unpublished destination exactly once, including when the prepared target abort fails synchronously, and performs no download publication. Primary and destination-cleanup failures remain together in an `AggregateError`. FFmpeg cleanup attempts MEMFS output delete, WORKERFS unmount, and mount-directory delete even after failure; any cleanup failure terminates the runtime to reclaim remaining worker state and stays observable alongside an earlier primary failure. Realtime staged-WAV cleanup failure additionally attempts the staging sink abort; offline staging releases its byte and Blob references after handoff. Exact FFmpeg-stat, emitted, and destination-written counts plus an unchanged plan precede one explicit non-cancellable commit. Ownership loss during that commit returns the committed result without stale success UI, while committed-result size drift is a post-publication integrity failure, not rollback. Focused Node tests cover all-seven success in both strategies, central-admission and rendered-geometry refusal, synchronous-stage fencing, renderer-only fallback, no post-render retry, exact-once synchronous and asynchronous abort, cleanup aggregation, runtime termination, cross-format result and plan drift, chooser cancellation, nonpersistent realtime-staging refusal, prepared-Blob fallback, first-party private rendered fallback, and the commit ownership and committed-size races. This does not qualify crash or power-loss rollback, durable filesystem cleanup, actual browser or operating-system lifecycle, native-picker or packaged behavior, reference scale, worker MEMFS or codec memory, staged-input residency, heap, RSS, CPU, elapsed time, custom FFmpeg, compressed stems, or video. The 900,000-millisecond desktop prepared-target TTL leaves long offline packaged elapsed-time behavior unqualified.",
+					"summary": "The direct compressed route carries its signal and currentness through target selection, rendering, PCM staging, browser-native or desktop encoding, bounded delivery, close, and pre-commit admission for all seven formats. In production browsers, cancellation of a dedicated WebAssembly encode terminates its worker and rejects pending operations; payload, profile, validation, short-output, and bound failures remain unpublished. AAC/M4A checks cancellation and currentness before and after WebCodecs/Mediabunny; that complete-file call is not currently interruptible through its request, so a late abort or stale result is discarded before publication. No browser cleanup deletes MEMFS, unmounts WORKERFS, or terminates FFmpeg because none is present. Any pre-commit refusal or target failure aborts an acquired unpublished destination exactly once and performs no download; primary and cleanup failures remain observable together. Close, emitted/written agreement, and unchanged plan precede one non-cancellable commit. Ownership loss during commit returns the committed result without stale success UI; committed-size drift is post-publication failure. Desktop cancellation remains under existing provider controls. Crash, power loss, durable cleanup, browser lifecycle, scale, complete-buffer residency, heap, RSS, CPU, and time remain unqualified.",
 					"evidence": [
-						{ "kind": "implementation", "path": "src/common/editor/ffmpeg-output-stream.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/ffmpeg.js" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/direct-audio-render-plan.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/direct-compressed-plan.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/browser-audio-codec-runtime.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/browser-dedicated-audio-worker-client.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/browser-webcodecs-aac.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/direct-compressed-export.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/direct-offline-compressed-export.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/rendered-audio-encoding.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/audio-export-render-orchestration.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/export-service.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-output-stream.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-idle.test.js" },
-						{ "kind": "test", "path": "tests/audio-editor-direct-audio-render-plan.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-direct-offline-compressed-export.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-export-direct-compressed-matrix.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-browser-audio-codec-runtime.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-browser-dedicated-codec.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-browser-webcodecs-aac.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-export-direct-compressed-service.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-rendered-direct-offline-compressed.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-export-direct-offline-compressed-service.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-export-direct-offline-compressed-fallback.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-export-direct-mp3.test.ts" }
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-offline-compressed-service.test.ts" }
 					]
 				},
 				{
 					"id": "direct-mp4-webm-video-save-rollback",
-					"summary": "The direct MP4 and WebM route carries its owned export signal and currentness checks through rendered-fallback verification when applicable, V6 or version-7 keyed planning, target preparation, storage preflight, source loading and keyed SHA-256 authentication, optional audio rendering and float32-WAV admission, FFmpeg execution, stat, container validation, every exact range read and awaited destination write, close, and pre-commit admission. The keyed path keeps one generation-scoped provider and exact timing lease through encoder and publication cleanup and rejects project, projection, plan, source, timing, output-size, structural-container, per-block digest, or whole-file digest drift. Cancellation during FFmpeg execution terminates the active runtime or external process tree. Browser chooser cancellation returns before preflight, and late desktop chooser cancellation returns silently without publishing. Cancellation, ownership or currentness loss, plan drift, stat or range refusal, FFmpeg failure, target failure, cleanup failure, or byte disagreement aborts an acquired unpublished destination exactly once. Cleanup is always attempted. The browser branch deletes MEMFS output, unmounts WORKERFS, removes mount directories, disposes its rings and producer, and terminates its runtime on incomplete or failed cleanup. The desktop branch cancels or deletes its owner-scoped main session, drains the process tree, closes descriptors, removes scratch, and leaves a failed cleanup retryable and observable with any primary failure. Sink close/seal plus exact stat, emitted, destination-written, structure and digest evidence, and an unchanged full-plan fingerprint precede one explicit non-cancellable commit. Late ownership loss during commit returns the committed result without stale success UI; committed-result size drift is a post-publication integrity failure, not rollback. Focused Node tests cover MP4 and WebM, V6 and V7, browser and desktop lifecycle branches, exact-once rollback, same-size replacement, cleanup aggregation, and the commit race. This does not qualify crash or power-loss rollback, filesystem durability, broad operating-system lifecycle, packaged UI, reference scale, aggregate memory, RSS, CPU, or elapsed time.",
+					"summary": "The direct MP4/WebM route carries signal and currentness through fallback verification, planning, target preparation, source authentication, optional audio admission, selected encoding, container validation, delivery, close, and pre-commit admission. The production browser accepts only exact keyed WebCodecs delivery. Abort or staleness fences audio reads, frame production, chunk writes, mux finalization, and output operations; failure cancels Mediabunny, closes resources, disposes the producer, clears temporary complete output after delivery, and aborts an acquired unpublished destination exactly once. Unsupported or composed-graph browser video refuses before provider work and never falls back to FFmpeg WebAssembly. Exact size, structure, per-block and whole-file digest, emitted/written agreement, and unchanged fingerprint precede one commit. Desktop cleanup remains unchanged: cancellation terminates its external process tree and owner session, closes descriptors, and removes main-private scratch. Late ownership loss during commit returns the committed result without stale success UI; result drift is post-publication failure. Crash, power loss, durability, packaged UI, scale, complete-container memory, RSS, CPU, and time remain unqualified.",
 					"evidence": [
-						{ "kind": "implementation", "path": "src/common/editor/ffmpeg-output-stream.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/ffmpeg-video-output.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/ffmpeg.js" },
+						{ "kind": "implementation", "path": "src/common/editor/video-delivery-encoder-tier.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-video-encoder.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-mediabunny-execution.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/video-mediabunny-muxer.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/direct-video-export.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/direct-video-plan-contract.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/video-export-service.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-video-container-stream.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/video-keyframe-video-output.ts" },
-						{ "kind": "implementation", "path": "src/framescaper/video-export-strategy-v20.ts" },
-						{ "kind": "implementation", "path": "src/soundscaper/video-export-strategy-v29.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/desktop-video-codec-runtime.ts" },
 						{ "kind": "implementation", "path": "desktop/external-ffmpeg-video-session-cleanup.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/file-save-stream.ts" },
-						{ "kind": "implementation", "path": "desktop/save-targets.js" },
-						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-output-stream.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-video-output.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-ffmpeg-idle.test.js" },
+						{ "kind": "test", "path": "tests/audio-editor-video-keyframe-native-video-encoder.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-video-keyframe-mediabunny-execution.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-video-mediabunny-muxer.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-export-direct-video.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-direct-video-keyframe-plan-v7.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-video-keyframe-video-sink-encoder.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-framescaper-video-export-strategy-v20.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-soundscaper-video-export-strategy-v29.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-desktop-video-codec-runtime.test.ts" },
-						{ "kind": "test", "path": "tests/external-ffmpeg-video-session-cleanup.test.ts" },
-						{ "kind": "test", "path": "tests/desktop-save-capacity.test.js" },
-						{ "kind": "test", "path": "tests/desktop-save.test.js" }
+						{ "kind": "test", "path": "tests/external-ffmpeg-video-session-cleanup.test.ts" }
 					]
 				},
 				{
 					"id": "direct-stem-archive-save-rollback",
-					"summary": "The direct native-PCM exact-size ZIP32 and 7z Copy routes plus the canonical compressed maximum-size ZIP32 route, including realtime and centrally admitted offline compressed stems, select and open their staged destination before rendering and carry the owned task signal and currentness checks through sequential stem rendering, optional pre-entry retry, and archive output. The compressed route rechecks its owned plan and fingerprint around render, archive addition, finalization, close, and commit. For a centrally admitted offline plan, an ordinary offline renderer or encoder failure cleans its partial intermediate and may retry only the current stem through a realtime retry before any bytes for that ZIP entry are exposed. Currentness is asserted before retry; cancellation, fallback-integrity failure, and currentness loss do not retry. Plan or fingerprint drift refuses before ZIP entry admission, and no retry begins after an entry has started. Plan or fingerprint drift, an empty encoded result, a result above its per-entry maximum, disagreement between reported and actual encoded bytes, actual ZIP32 layout or byte-count disagreement, any render, encoder, source-read, sink-write, destination-close, or cleanup failure, and cancellation at any of those stages cleans the current staged WAV and encoded result and aborts the unpublished destination exactly once; there is no commit, final ZIP `Blob`, or download publication. The native route likewise cancels a pending source read where present, cleans the current per-stem staging, and aborts before publication. Native 7z plan drift after sealing refuses the final prefix; a prefix-patch failure stays observable with cleanup context and aborts the unpublished destination exactly once. Missing, failed, or repeated patch attempts cannot reach commit, and a successful fixed 32-byte patch leaves destination accounting unchanged. Nested archive and service cleanup remains idempotent and reaches the underlying prepared abort exactly once. Sink cleanup failure remains observable with the primary failure. Destination close and exact planned or actual, emitted, and destination-written checks precede the explicit non-cancellable commit. If ownership is lost during that commit, the committed result is returned without stale success UI publication; committed-result size drift remains a post-publication integrity failure, not rollback. Focused Node evidence covers initial and central offline plan refusal, plan and fingerprint drift, offline current-stem-only renderer and encoder retry, stale ownership retry refusal, empty and over-cap encoded output, reported-count and actual ZIP32 layout drift, render and encode failure, cancellation during the next stem, pending Blob-read cancellation, blocked final-write abort, close and cleanup failure, native 7z post-seal drift and prefix-patch failure, underlying exact-once abort, zero commit, zero final archive `Blob`, and zero download publication. Prepared Blob mode retains its existing legacy lifecycle. This does not qualify crash or power-loss rollback, durable filesystem cleanup, packaged Electron, native-picker, browser or operating-system behavior, custom FFmpeg or compressed 7z stems, BW64, video, final-Blob direct publication, or reference scale.",
+					"summary": "Direct native ZIP32/7z and compressed ZIP32 carry signal and currentness through sequential rendering, encoding, archive addition, finalization, close, and commit admission. Offline may retry only the current stem after an ordinary renderer or encoder failure and only before entry bytes are exposed; cancellation, staleness, integrity failure, plan drift, or any post-entry failure never retries. In browsers, aborting a dedicated codec terminates its worker; unavailable AAC or any profile/output refusal fails closed without FFmpeg. Empty or over-bound output, size/layout drift, I/O failure, and cancellation clean the current intermediate and abort the unpublished destination exactly once, with no commit, final archive Blob, or download. Native 7z drift refuses its final prefix; failed or repeated patches cannot commit. Exact archive/emitted/written counts precede non-cancellable commit. Ownership loss during commit returns the result without stale UI; size drift is post-publication failure. Prepared Blob mode retains its bounded lifecycle. Crash, power loss, durability, packaged/native-picker behavior, scale, complete codec-file residency, heap, worker memory, RSS, CPU, and time remain unqualified.",
 					"evidence": [
-						{ "kind": "implementation", "path": "src/common/editor/controller/audio-export-render-orchestration.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/direct-audio-render-plan.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/direct-compressed-plan.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/direct-compressed-stem-archive-plan.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/direct-native-stem-archive-plan.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/direct-pcm-export.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/browser-dedicated-audio-worker-client.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/direct-stem-archive-export.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/export-service.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/controller/rendered-audio-encoding.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/sequential-seven-zip-copy.ts" },
 						{ "kind": "implementation", "path": "src/common/editor/controller/sequential-zip32-stream.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/file-save-stream.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-direct-audio-render-plan.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-direct-native-stem-archive-plan.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-export-direct-compressed-stem-archive.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-export-direct-compressed-stem-stream.test.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/controller/export-service.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-browser-dedicated-codec.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-export-direct-compressed-stem-service.test.ts" },
+						{ "kind": "test", "path": "tests/audio-editor-export-direct-compressed-stem-stream.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-export-direct-seven-zip-stem-stream.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-offline-compressed-stem-encoding.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-export-direct-stem-stream.test.ts" },
-						{ "kind": "test", "path": "tests/audio-editor-final-prefix-save.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-sequential-seven-zip-copy.test.ts" },
 						{ "kind": "test", "path": "tests/audio-editor-sequential-zip32-stream.test.ts" }
 					]
@@ -4649,7 +4526,7 @@
 				},
 				{
 					"id": "render-worker-resident-set-accounting",
-					"exposure": "StaffPad clip-cache, maintained spectral gain/delete selection, central OfflineAudioContext output/crop, maintained realtime worklet-to-sink, audio-warp transient analysis, and exact audio-warp playback/export useful-binary accounting are not bounds on browser heap, process RSS, or GC headroom. The StaffPad queue and realtime credit window are job-local, and the spectral, offline-render, transient-detector, and exact-warp-window controls have no product-wide reservation, so other coordinators and concurrent calls on the same or separate engines and renderers can overlap them. Transient analysis excludes JavaScript candidate-object overhead, codec state, structured-clone and message objects, cache serialization and persistence clones, runtime overhead, and unrelated jobs. Exact warp windows enumerate at most about 64 MiB across the current and one prefetched playback window but exclude AudioContext and graph objects, scheduler objects, software or injected renderer internals, source/cache residency outside returned window PCM, runtime overhead, and unrelated jobs; a missed render deadline stops rather than proving gapless playback. The maintained spectral useful-binary upper bound covers only its enumerated ownership model and is not a browser heap, process RSS, or GC-headroom bound. The spectral control does not account for persistence buffers, AudioBuffer and channel copies, generic selection effects and spectral replacement, software or injected renderers, worker and structured-clone message objects, the PFFFT module heap and setup or retained transform plans beyond the current charged regions, runtime overhead, or other concurrent spectral, effect, or render jobs. The realtime control enumerates at most 32 MiB of outstanding transferred, queued, or active-sink planar PCM plus one maximum 2 MiB worklet staging or replacement packet, but it does not account browser structured-clone/message objects, AudioContext, graph, source/cache, resampler, encoder, persistence, or WASM state; a sink can also retain channels after its promise settles outside the queue contract. Source/cache residency, permanent AudioBuffer and channel snapshots, reverse-cache copies, streamed-source chunks, graph nodes, worklets, WASM or codec state, message objects, persistence buffers, and runtime overhead can be additive. An OfflineAudioContext factory can allocate before returned geometry is checked, and caller cancellation does not prove that native startRendering() has stopped. Other render paths—including realtime capture outside the maintained worklet-to-sink stream, generic selection effects and spectral replacement, software or injected renderers, FFmpeg/WASM encoding, and native hosts—remain outside these controls. The maintained export strategy now consults the central admission before offline render or context work, but that per-plan decision is not a heap, RSS, GC, or product-wide reservation; direct engine callers retain the central software-renderer fallback, and other engines and renderers can overlap. Disposable imported-video poster and thumbnail capture has separate geometry, serialization, cancellation-fence, and post-encode Blob controls, but it is not a decoder/RSS qualification or an editorial proxy. Milestone 8A capture-derived and selected V27 editorial video proxies have exact job-local body-capacity admission, and V27 owns menu-reached generation, attach/detach, relink/regenerate, adaptive selection, offline editing, and original-authoritative delivery refusal. These controls still provide no pre-encode end-to-end working-set, decoder, browser-heap, process-RSS, GC-headroom, or product-wide qualification.",
+					"exposure": "StaffPad clip-cache, maintained spectral gain/delete selection, central OfflineAudioContext output/crop, maintained realtime worklet-to-sink, audio-warp transient analysis, and exact audio-warp playback/export useful-binary accounting are not bounds on browser heap, process RSS, or GC headroom. The StaffPad queue and realtime credit window are job-local, and the spectral, offline-render, transient-detector, and exact-warp-window controls have no product-wide reservation, so other coordinators and concurrent calls on the same or separate engines and renderers can overlap them. Transient analysis excludes JavaScript candidate-object overhead, codec state, structured-clone and message objects, cache serialization and persistence clones, runtime overhead, and unrelated jobs. Exact warp windows enumerate at most about 64 MiB across the current and one prefetched playback window but exclude AudioContext and graph objects, scheduler objects, software or injected renderer internals, source/cache residency outside returned window PCM, runtime overhead, and unrelated jobs; a missed render deadline stops rather than proving gapless playback. The maintained spectral useful-binary upper bound covers only its enumerated ownership model and is not a browser heap, process RSS, or GC-headroom bound. The spectral control does not account for persistence buffers, AudioBuffer and channel copies, generic selection effects and spectral replacement, software or injected renderers, worker and structured-clone message objects, the PFFFT module heap and setup or retained transform plans beyond the current charged regions, runtime overhead, or other concurrent spectral, effect, or render jobs. The realtime control enumerates at most 32 MiB of outstanding transferred, queued, or active-sink planar PCM plus one maximum 2 MiB worklet staging or replacement packet, but it does not account browser structured-clone/message objects, AudioContext, graph, source/cache, resampler, encoder, persistence, or WASM state; a sink can also retain channels after its promise settles outside the queue contract. Source/cache residency, permanent AudioBuffer and channel snapshots, reverse-cache copies, streamed-source chunks, graph nodes, worklets, WASM or codec state, message objects, persistence buffers, and runtime overhead can be additive. An OfflineAudioContext factory can allocate before returned geometry is checked, and caller cancellation does not prove that native startRendering() has stopped. Other render paths—including realtime capture outside the maintained worklet-to-sink stream, generic selection effects and spectral replacement, software or injected renderers, dedicated audio-codec WebAssembly, WebCodecs encoders, Mediabunny complete-file/container generation, and native hosts—remain outside these controls. The maintained export strategy now consults the central admission before offline render or context work, but that per-plan decision is not a heap, RSS, GC, or product-wide reservation; direct engine callers retain the central software-renderer fallback, and other engines and renderers can overlap. Disposable imported-video poster and thumbnail capture has separate geometry, serialization, cancellation-fence, and post-encode Blob controls, but it is not a decoder/RSS qualification or an editorial proxy. Milestone 8A capture-derived and selected V27 editorial video proxies have exact job-local body-capacity admission, and V27 owns menu-reached generation, attach/detach, relink/regenerate, adaptive selection, offline editing, and original-authoritative delivery refusal. These controls still provide no pre-encode end-to-end working-set, decoder, browser-heap, process-RSS, GC-headroom, or product-wide qualification.",
 					"requiredControl": "Establish end-to-end per-job and aggregate browser, worker, and renderer RSS limits with measured heap and GC headroom across maintained render paths, plus a format-aware pre-encode maximum for genuine editorial video proxies.",
 					"ownerMilestone": "2",
 					"acceptanceCriteria": ["Browser and desktop reference workloads prove pre-allocation refusal and bounded browser, worker, and renderer resident sets for every maintained render path and editorial proxy build."]
@@ -4669,11 +4546,8 @@
 			"currentControls": [
 				{
 					"id": "pinned-in-tree-wasm-audits",
-					"summary": "StaffPad, Nyquist, Parametric EQ, and all seven desktop compressed-audio WebAssembly providers record source and binary hashes and have fail-fast audit scripts. Desktop staging admits only exact regular files for libFLAC 1.5.0, libopus 1.6.1/libogg 1.3.6, libvorbis 1.3.7/libogg 1.3.6, WavPack 5.9.0, mpg123 1.33.7, LAME 4.0, and TwoLAME 0.4.0 after byte-length and SHA-256 checks and rejects mac-x64. One canonical execution-closure manifest covers the control module, every transitive JavaScript import, and every WASM payload. Main reauthenticates the closure before each fresh utility-process fork, the helper reauthenticates before import, and startup qualification uses one-shot utility canaries rather than importing codec code in main.",
+					"summary": "StaffPad, Nyquist, Parametric EQ, and seven reviewed compressed-audio WebAssembly providers record exact source/binary hashes and have fail-fast audits. The production browser reuses six file-producing payloads for FLAC, MP3/LAME, Ogg Vorbis, Opus, WavPack, and MP2/TwoLAME, plus mpg123 for MP3/MP2 decoding. Before browser compilation, exact length and SHA-256 are verified; imports are closed, tuples and geometry are bounded, complete files are validated, and a dedicated worker terminates pending work on abort. Desktop staging remains unchanged: seven exact files are authenticated, mac-x64 is rejected, the JavaScript/WASM closure is reauthenticated before every utility-process fork and again in the helper, and one-shot canaries avoid importing codec code in main.",
 					"evidence": [
-						{ "kind": "document", "path": "src/common/editor/staffpad/source-manifest.json" },
-						{ "kind": "document", "path": "src/common/editor/nyquist/source-manifest.json" },
-						{ "kind": "document", "path": "src/common/editor/parametric-eq/source-manifest.json" },
 						{ "kind": "document", "path": "src/common/editor/flac/source-manifest.json" },
 						{ "kind": "document", "path": "src/common/editor/opus/source-manifest.json" },
 						{ "kind": "document", "path": "src/common/editor/vorbis/source-manifest.json" },
@@ -4681,9 +4555,6 @@
 						{ "kind": "document", "path": "src/common/editor/mpg123/source-manifest.json" },
 						{ "kind": "document", "path": "src/common/editor/lame/source-manifest.json" },
 						{ "kind": "document", "path": "src/common/editor/twolame/source-manifest.json" },
-						{ "kind": "audit", "path": "scripts/audit-staffpad-wasm.mjs" },
-						{ "kind": "audit", "path": "scripts/audit-nyquist-wasm.mjs" },
-						{ "kind": "audit", "path": "scripts/audit-parametric-eq-wasm.mjs" },
 						{ "kind": "audit", "path": "scripts/audit-flac-wasm.mjs" },
 						{ "kind": "audit", "path": "scripts/audit-opus-wasm.mjs" },
 						{ "kind": "audit", "path": "scripts/audit-vorbis-wasm.mjs" },
@@ -4691,27 +4562,14 @@
 						{ "kind": "audit", "path": "scripts/audit-mpg123-wasm.mjs" },
 						{ "kind": "audit", "path": "scripts/audit-lame-wasm.mjs" },
 						{ "kind": "audit", "path": "scripts/audit-twolame-wasm.mjs" },
+						{ "kind": "implementation", "path": "src/common/editor/browser-dedicated-audio-codec.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/browser-dedicated-audio-output-validation.ts" },
+						{ "kind": "implementation", "path": "src/common/editor/browser-dedicated-audio-worker-client.ts" },
 						{ "kind": "implementation", "path": "scripts/lib/desktop-bundled-audio-runtime.mjs" },
 						{ "kind": "implementation", "path": "scripts/lib/desktop-bundled-audio-codec-runtime-closure.mjs" },
-						{ "kind": "implementation", "path": "desktop/bundled-audio-codec-runtime-payload.mjs" },
-						{ "kind": "implementation", "path": "desktop/bundled-audio-codec-electron-spawn.mjs" },
-						{ "kind": "implementation", "path": "desktop/bundled-flac-audio-codec-runtime.ts" },
-						{ "kind": "implementation", "path": "desktop/bundled-opus-audio-codec-runtime.ts" },
-						{ "kind": "implementation", "path": "desktop/bundled-vorbis-audio-codec-runtime.ts" },
-						{ "kind": "implementation", "path": "desktop/bundled-wavpack-audio-codec-runtime.ts" },
-						{ "kind": "implementation", "path": "desktop/bundled-mpg123-audio-codec-runtime.ts" },
-						{ "kind": "implementation", "path": "desktop/bundled-lame-audio-codec-runtime.ts" },
-						{ "kind": "implementation", "path": "desktop/bundled-twolame-audio-codec-runtime.ts" },
-						{ "kind": "test", "path": "tests/desktop-bundled-flac-audio-codec-runtime.test.ts" },
-						{ "kind": "test", "path": "tests/desktop-bundled-opus-audio-codec-runtime.test.ts" },
-						{ "kind": "test", "path": "tests/desktop-bundled-vorbis-audio-codec-runtime.test.ts" },
-						{ "kind": "test", "path": "tests/desktop-audio-codec-runtime-staging.test.js" },
+						{ "kind": "test", "path": "tests/audio-editor-browser-dedicated-codec.test.ts" },
 						{ "kind": "test", "path": "tests/desktop-bundled-audio-codec-runtime-payload.test.js" },
-						{ "kind": "test", "path": "tests/desktop-bundled-audio-codec-electron-spawn.test.js" },
-						{ "kind": "test", "path": "tests/desktop-bundled-wavpack-audio-codec-runtime.test.ts" },
-						{ "kind": "test", "path": "tests/desktop-bundled-mpg123-audio-codec-runtime.test.ts" },
-						{ "kind": "test", "path": "tests/desktop-bundled-lame-audio-codec-runtime.test.ts" },
-						{ "kind": "test", "path": "tests/desktop-bundled-twolame-audio-codec-runtime.test.ts" }
+						{ "kind": "test", "path": "tests/desktop-bundled-audio-codec-electron-spawn.test.js" }
 					]
 				},
 				{
@@ -4818,74 +4676,59 @@
 				},
 				{
 					"id": "validated-ffmpeg-runtime-publication",
-					"summary": "One checked-in, self-consistent Web FFmpeg runtime policy manifest binds the package and lock identity, exact JavaScript and WebAssembly byte lengths and SHA-256 digests, R2 bucket and base prefix, content types for every runtime, manifest, notice, corresponding-source, and pointer object, immutable cache metadata, CORS policy, corresponding-source descriptor, aggregate notice, licensing and security matrices, licensing policy, threat model, release-severity policy, LF checkout rules, and a central public-origin, release-path, pointer, cache, and stable rule-ref policy. The Web publisher derives a full-manifest-SHA release prefix and no-store final pointer from that reviewed policy. One shared validator rejects unknown, missing, unsafe, symbolic, stale, or tampered inputs before the publisher invokes Wrangler or constructs an R2 or Cloudflare client, and publication consumes a private snapshot of bytes retained by validation. Only after the fail-closed publication authorization is approved does the publisher apply pinned CORS, conditionally create immutable content-addressed objects, verify exact R2 read-back and public bytes and metadata after exact cache purges, and promote the pointer with strong-ETag CAS, read-back, purge, and public smoke. Failed-smoke rollback conditionally restores an existing pointer; a failed first promotion conditionally replaces only its own candidate with a consumer-rejected unavailable marker, or leaves a concurrent writer untouched, without an unsafe unconditional delete. A stable-ref Cloudflare Cache Rules script preserves unrelated rule order and appends the owned pointer, release, and Pages rules last, so a pre-existing broad rule cannot override the pointer bypass or immutable origin policy. The Pages deployment preflight verifies the exact live pointer and release inventory, requires pointer DYNAMIC or BYPASS evidence without Age, and refuses missing, altered, encoded, incorrectly typed, non-CORS, wrongly cached, or Cloudflare-DYNAMIC immutable objects. Production builds reject the removed mutable FFmpeg base override and derive the browser network fallback only from the full-manifest digest. Offline regressions prove blocked authorization invokes none of the injected client, CORS, purge, or public-fetch operations. The desktop build and release assemblers do not consume this runtime or its source sidecars; the separate desktop package-integrity control proves their absence. The manifest review marker and payload digest detect inconsistent edits but do not authenticate independent human approval. That approval remains a Milestone 9 stable-1.0 public-publication gate; it does not block builds, tests, packages, or the isolated test-publication route.",
+					"summary": "The FFmpeg WebAssembly manifest, publisher, cache-rule scripts, source bundle, and audit tests are retained solely as legacy development and reproducibility tooling. `@ffmpeg/core`, `@ffmpeg/ffmpeg`, and `@ffmpeg/types` are development-only dependencies with no production artifact surface. No production browser imports the wrapper/core, derives a runtime URL, fetches a pointer/release, caches runtime bytes, or executes FFmpeg WebAssembly. The production bundle audit rejects package specifiers, `ffmpeg-core` assets, the old loader/URL, and legacy cache namespace; the service worker has no FFmpeg cache/serve branch and preferences expose no runtime download. The manifest still pins legacy bytes, notices, source, and policy evidence for historical audits, but stable publication and browser reactivation remain blocked. Reactivation requires explicit dependency/architecture review, independent approval attestation, restored consumer/authenticity controls, updated licensing/threat evidence, and a deliberate audit change. Desktop external FFmpeg and Electron's pinned alternate Chromium `libffmpeg` remain distinct and unchanged.",
 					"evidence": [
-						{ "kind": "document", "path": ".gitattributes" },
 						{ "kind": "document", "path": "THIRD_PARTY_LICENSES.md" },
-						{ "kind": "document", "path": "Technical_README.md" },
 						{ "kind": "document", "path": "config/ffmpeg-runtime-manifest.json" },
 						{ "kind": "document", "path": "config/ffmpeg-runtime-publication-policy.json" },
 						{ "kind": "document", "path": "config/production-licensing-matrix.json" },
-						{ "kind": "document", "path": "config/release-severity-policy.json" },
-						{ "kind": "document", "path": "desktop/ffmpeg-corresponding-source.json" },
-						{ "kind": "document", "path": "docs/production-licensing-policy.md" },
-						{ "kind": "document", "path": "r2-cors.json" },
 						{ "kind": "implementation", "path": "scripts/lib/ffmpeg-runtime-manifest.mjs" },
 						{ "kind": "implementation", "path": "scripts/lib/ffmpeg-runtime-publisher.mjs" },
-						{ "kind": "implementation", "path": "scripts/lib/cloudflare-runtime-cache.mjs" },
-						{ "kind": "implementation", "path": "scripts/lib/pages-deploy-preflight.mjs" },
-						{ "kind": "implementation", "path": "scripts/configure-ffmpeg-runtime-cache.mjs" },
-						{ "kind": "implementation", "path": "scripts/preflight-pages-deploy.mjs" },
 						{ "kind": "implementation", "path": "scripts/publish-runtime-assets.mjs" },
-						{ "kind": "implementation", "path": "src/common/editor/ffmpeg.js" },
-						{ "kind": "implementation", "path": "vite.config.mjs" },
 						{ "kind": "audit", "path": "scripts/audit-ffmpeg-runtime.mjs" },
+						{ "kind": "implementation", "path": "scripts/lib/browser-bundle-codec-audit.mjs" },
+						{ "kind": "implementation", "path": "scripts/check-build-chunks.mjs" },
+						{ "kind": "implementation", "path": "scripts/lib/offline-service-worker.mjs" },
 						{ "kind": "test", "path": "tests/ffmpeg-runtime-manifest.test.js" },
 						{ "kind": "test", "path": "tests/ffmpeg-runtime-publisher.test.js" },
-						{ "kind": "test", "path": "tests/cloudflare-runtime-cache.test.js" },
-						{ "kind": "test", "path": "tests/pages-deploy-preflight.test.js" },
-						{ "kind": "test", "path": "tests/ffmpeg-runtime-public-policy.test.ts" }
+						{ "kind": "test", "path": "tests/browser-bundle-codec-audit.test.js" },
+						{ "kind": "test", "path": "tests/offline-service-worker.test.js" },
+						{ "kind": "test", "path": "tests/browser/offline-ffmpeg-runtime-download.spec.js" }
 					]
 				},
 				{
 					"id": "verified-web-offline-shell-and-runtime-cache",
-					"summary": "The production Web build generates offline-shell schema v2 with one complete verified allowlist and a separate active-product install core for Soundscaper and Framescaper, including localized routes and product assets while leaving optional features and the other product to cache on use. Generation permits only regular nonsymbolic output, at most 4,096 assets, 25 MiB per asset, 4 MiB per install descriptor, and 256 MiB aggregate, and binds exact byte lengths and SHA-256 digests with the service-worker template into the release identity. Two stable no-store scoped classic workers control Soundscaper at `/` and Framescaper at `/framescaper/`; registration waits for editor readiness and an idle opportunity, remains nonblocking, and does not add the former startup request waterfall. Installation uses at most four concurrent requests and 4 MiB of aggregate in-flight verified body capacity, re-verifies reusable current-v2 and complete legacy v1 cache entries, writes readiness last, and removes only a failed installation candidate. Both products treat the complete legacy v1 cache as read-only reuse input, and Framescaper does not delete the shared legacy v1 cache while an older root worker may still need it. Activation requires readiness, claims clients before retiring only the current product's older complete shell caches, and leaves the other product isolated. Allowlisted subresources may be verified and cached within either scope; product-path isolation applies only to navigations. An allowlisted navigation fetch or verification failure uses the matching verified English product and embed-mode fallback and never serves mismatched bytes. Production HTTP(S) registration is delayed and nonblocking, while Electron, non-HTTP documents, and unsupported browsers are unchanged. The Web preferences expose an explicit FFmpeg runtime download; no runtime download occurs implicitly. Its strict boundary permits only the pinned production origin and content-addressed versioned release layout, bounds pointer bytes to 64 KiB, manifest bytes to 512 KiB, each file to 64 MiB, aggregate files to 65 MiB, and streamed chunks to 4 MiB, and verifies pointer-bound manifest and asset lengths and SHA-256 digests. For non-identity Content-Encoding, decoded stream bounds and digests remain authoritative while cached responses are normalized. CacheStorage transactions isolate candidates and copy complete files before active-state publication; cooperative same-origin Web Locks serialize each fresh-state commit and cleanup, same-release retries reuse a complete cache, and post-commit cleanup is best effort. The store revalidates exact cached body lengths and SHA-256 digests and retains one prior complete release. Only state-committed active and previous descriptors are eligible through the service worker, whose cached responses are streamed through exact byte-length and SHA-256 verification before completion. The editor prefers a ready installed release and otherwise keeps its pinned network fallback. Focused Node and Chromium workflows cover shell identity, failed install and activation retention, product-scoped offline reload, explicit download, encoded, altered, and partial runtime handling, serialized publication, previous-version recovery, committed-only serving, cached-body revalidation, and orphan denial.",
+					"summary": "The production Web build generates offline-shell schema v2 with a verified allowlist and separate Soundscaper/Framescaper install cores. It admits at most 4,096 regular assets, 25 MiB each, 4 MiB per descriptor, and 256 MiB aggregate and binds exact lengths and SHA-256 with the worker template. Scoped no-store workers register after readiness/idle without blocking; install uses at most four requests and 4 MiB declared in flight, re-verifies complete reusable entries, writes readiness last, and removes only a failed candidate. Activation claims clients before retiring only safe obsolete caches; failed navigations use the matching verified English product/embed fallback. The offline boundary is application shell only: UI has no FFmpeg installer, the service worker has no FFmpeg fetch/cache/serve path, old runtime URLs bypass legacy cache handling, and the bundle audit rejects the loader, assets, URL, and cache namespace. Dedicated audio WASMs and dynamically loaded WebCodecs/Mediabunny chunks are ordinary digest-bound build assets, not a mutable external runtime. Storage pressure, eviction, cross-browser offline behavior, and end-to-end codec execution remain unqualified.",
 					"evidence": [
 						{ "kind": "document", "path": "public/_headers" },
 						{ "kind": "implementation", "path": "scripts/lib/offline-application-shell.mjs" },
 						{ "kind": "implementation", "path": "scripts/lib/offline-shell-worker.mjs" },
 						{ "kind": "implementation", "path": "scripts/lib/offline-service-worker.mjs" },
+						{ "kind": "implementation", "path": "scripts/lib/browser-bundle-codec-audit.mjs" },
 						{ "kind": "implementation", "path": "src/common/offline/application-shell.ts" },
-						{ "kind": "implementation", "path": "src/common/offline/ffmpeg-runtime-cache.ts" },
-						{ "kind": "implementation", "path": "src/common/offline/browser-runtime-store.ts" },
-						{ "kind": "implementation", "path": "src/common/offline/browser-ffmpeg-runtime.ts" },
-						{ "kind": "implementation", "path": "src/common/editor/ffmpeg.js" },
-						{ "kind": "implementation", "path": "src/common/editor/ui/dialogs/OfflineRuntimePreferencePanel.tsx" },
+						{ "kind": "implementation", "path": "src/common/editor/ui/dialogs/WorkspacePreferencesDialog.jsx" },
 						{ "kind": "test", "path": "tests/offline-application-shell-build.test.js" },
 						{ "kind": "test", "path": "tests/offline-service-worker.test.js" },
 						{ "kind": "test", "path": "tests/offline-service-worker-runtime-fetch.test.js" },
 						{ "kind": "test", "path": "tests/offline-application-shell-registration.test.ts" },
-						{ "kind": "test", "path": "tests/offline-ffmpeg-runtime-cache.test.ts" },
-						{ "kind": "test", "path": "tests/offline-browser-runtime-store.test.ts" },
-						{ "kind": "test", "path": "tests/offline-browser-ffmpeg-runtime.test.ts" },
+						{ "kind": "test", "path": "tests/browser-bundle-codec-audit.test.js" },
 						{ "kind": "test", "path": "tests/browser/offline-application-shell.spec.js" },
-						{ "kind": "test", "path": "tests/browser/offline-ffmpeg-runtime-download.spec.js" },
-						{ "kind": "test", "path": "tests/browser/offline-ffmpeg-runtime-service-worker.spec.js" }
+						{ "kind": "test", "path": "tests/browser/offline-ffmpeg-runtime-download.spec.js" }
 					]
 				}
 			],
 			"residualRisks": [
 				{
 					"id": "served-external-runtime-authentication",
-					"exposure": "The Web consumer resolves the no-store final pointer at the pinned production origin, verifies pointer-bound manifest and runtime lengths and SHA-256 digests under bounded decoded streaming, serializes cooperative CacheStorage publication with Web Locks, commits complete state last, revalidates cached bodies, serves only state-committed active or previous descriptors, and retains one prior complete release. The digest-pinned publication policy now binds the public origin, release and pointer layout, every published content type, cache metadata, and stable Cache Rules refs; the browser production fallback derives the exact content-addressed release from the full-manifest SHA-256 and the build refuses the removed mutable override. After authorization, the publisher conditionally creates immutable R2 objects with exact read-back, uses strong-ETag CAS for pointer promotion, verifies public bytes and metadata after cache purges, and performs failed-smoke rollback by conditionally restoring a prior pointer or replacing only its own failed first pointer with a consumer-rejected marker while preserving a concurrent writer. Owned Cache Rules run after preserved unrelated rules, and Pages preflight rejects an absent, altered, or edge-cached pointer, any pointer Age, and immutable release objects with a missing or ineligible Cloudflare cache status. These are consumer-side consistency and rollback controls, not an independent authenticity root: a compromised asset host or repository approval path can still replace the pointer with a new internally self-consistent release, and production application of the tested R2, CORS, purge, and Cache Rules workflows is not recorded while publication is blocked. Web Locks are cooperative; older or noncooperating clients remain outside the commit contract, killed clients can leave unserved orphan caches, and CacheStorage eviction or quota pressure can remove availability.",
-					"requiredControl": "Independently authenticate the pointer and full manifest with a protected approval attestation bound to the complete manifest digest, record production application and rollback drills for the pinned R2 and Cloudflare configuration, and qualify cross-browser multi-tab behavior including stale clients without weakening the bounded two-version rollback.",
+					"exposure": "The retained FFmpeg WebAssembly publisher and pointer/cache policy are development-only legacy audit machinery; no production browser consumes their pointer, manifest, release objects, or CacheStorage state. Earlier consistency checks are dormant rather than a production authenticity root. The review marker is self-declared, production publication is not recorded, and future reactivation could admit a self-consistent unauthorized release without protected attestation. Any production browser consumer remains blocked by the bundle audit and requires an explicit reviewed architecture change.",
+					"requiredControl": "Before any FFmpeg WebAssembly browser reactivation, independently authenticate the pointer and complete manifest with a protected approval attestation, record publication and rollback drills, restore bounded consumer/cache qualification, and deliberately update the production bundle audit and security review.",
 					"ownerMilestone": "2",
 					"acceptanceCriteria": ["A protected independent attestation for a different manifest digest is rejected before publication; a recorded production publish, rollback, and cache-policy drill proves the exact pinned configuration; cross-browser multi-tab consumers, including stale clients, reject a self-consistent unauthorized release as well as altered or partial bodies and retain the last complete verified version."]
 				},
 				{
 					"id": "runtime-manifest-review-attestation",
-					"exposure": "The review status, reviewer, date, and payload digest are self-declared in the same editable manifest. They prove internal consistency and detect stale linked evidence, but do not independently authenticate approval.",
-					"requiredControl": "Require independent approval through protected repository and publication workflows, and bind a signature or immutable CI attestation to the full manifest digest before public authorization can become approved.",
+					"exposure": "The retained legacy runtime manifest's reviewer, date, status, and payload digest are self-declared in the same editable file. They preserve internal audit consistency but do not authenticate approval; because the browser has no FFmpeg WebAssembly consumer, this is a blocked-reactivation risk rather than an active runtime exposure.",
+					"requiredControl": "Require protected repository approval plus a signature or immutable CI attestation bound to the complete manifest digest before any legacy FFmpeg WebAssembly publication or browser consumer can be reactivated.",
 					"ownerMilestone": "1",
 					"acceptanceCriteria": ["A publication attempt with no independently verifiable approval attestation fails before any remote operation, and an attestation for a different manifest digest is rejected."]
 				},

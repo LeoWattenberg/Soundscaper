@@ -36,6 +36,44 @@ test('desktop compressed export refuses an unavailable exact tuple before render
 	assert.equal(fixture.calls.includes('render-realtime'), false);
 });
 
+test('browser compressed export preflights the complete-file codec before rendering', async () => {
+	const fixture = createFixture();
+	const compressed = defaultPlan();
+	compressed.format = 'mp3';
+	compressed.mimeType = 'audio/mpeg';
+	compressed.encoding = { bitRate: 192 };
+	compressed.outputs = [{ fileName: 'mix.mp3', trackId: null }];
+	fixture.setPlan(compressed);
+	const requests: unknown[] = [];
+	const runtime = {
+		...fixture.runtime,
+		ffmpeg: {
+			...fixture.runtime.ffmpeg,
+			async preflightEncodeFile(format: string, settings: unknown) {
+				requests.push({ format, settings });
+				throw new Error('browser codec tuple unavailable');
+			},
+		},
+	};
+	await createEditorExportService(runtime).handleExportAction('export', {
+		format: 'mp3', maximumOutputBytes: 4_096,
+	});
+	assert.equal(requests.length, 1);
+	assert.equal((requests[0] as { format: string }).format, 'mp3');
+	const preflightSettings = (requests[0] as { settings: Record<string, unknown> }).settings;
+	assert.ok(preflightSettings.signal instanceof AbortSignal);
+	assert.deepEqual({ ...preflightSettings, signal: undefined }, {
+		bitRate: 192,
+		frameCount: 6,
+		metadata: { title: 'Mix' },
+		maximumOutputBytes: 4_096,
+		signal: undefined,
+	});
+	assert.match(String(fixture.errors[0]), /tuple unavailable/iu);
+	assert.equal(fixture.downloads.length, 0);
+	assert.equal(fixture.preflightBytes.length, 0);
+});
+
 test('export action cancellation and preconditions preserve idle state', async () => {
 	const fixture = createFixture();
 	let aborted = false;
@@ -297,7 +335,7 @@ test('renderSnapshot supports both injected and owned render engines', async () 
 
 test('video export loads media, mixes audio, sanitizes names, and publishes output', async () => {
 	const fixture = createFixture();
-	const result = await createEditorExportService(fixture.runtime).handleExportAction('export', {
+	const result = await createEditorExportService(desktopVideoRuntime(fixture)).handleExportAction('export', {
 		format: 'video-mp4', range: 'project', canvas: { width: 1_920 },
 	});
 	assert.equal(result.fileName, 'Cafe-Film.mp4');
@@ -314,19 +352,19 @@ test('video export supports silent cancellation and reports missing media', asyn
 		clips: [{ id: 'video-clip', kind: 'video', sourceId: 'video-source' }],
 	});
 	silent.setPublishCancelled(true);
-	const cancelled = await createEditorExportService(silent.runtime).exportVideo({ format: 'video-webm' });
+	const cancelled = await createEditorExportService(desktopVideoRuntime(silent)).exportVideo({ format: 'video-webm' });
 	assert.equal(cancelled.cancelled, true);
 	assert.equal(silent.calls.includes('video-audio:false'), true);
 	assert.equal(silent.downloads.at(-1)?.suggestedName, 'video-project.webm');
 
 	const missingMedia = createFixture();
 	missingMedia.setMediaAvailable(false);
-	assert.equal(await createEditorExportService(missingMedia.runtime).exportVideo(), null);
+	assert.equal(await createEditorExportService(desktopVideoRuntime(missingMedia)).exportVideo(), null);
 	assert.match((missingMedia.errors[0] as Error).message, /Local sources missing/iu);
 
 	const preflight = createFixture();
 	preflight.setPreflightFails(true);
-	assert.equal(await createEditorExportService(preflight.runtime).exportVideo(), null);
+	assert.equal(await createEditorExportService(desktopVideoRuntime(preflight)).exportVideo(), null);
 	assert.match((preflight.errors[0] as Error).message, /preflight failed/u);
 });
 
@@ -334,27 +372,27 @@ test('video export validates the timeline and cleans late publications', async (
 	const absent = createFixture();
 	absent.setProject({ ...defaultProject(), tracks: [{ id: 'audio', type: 'audio', clipIds: [] }] });
 	await assert.rejects(
-		() => createEditorExportService(absent.runtime).exportVideo(),
+		() => createEditorExportService(desktopVideoRuntime(absent)).exportVideo(),
 		/Add visible picture content/iu,
 	);
 
 	const hidden = createFixture();
 	hidden.setProject({ ...defaultProject(), tracks: [{ id: 'video', type: 'video', hidden: true, clipIds: ['video-clip'] }] });
 	await assert.rejects(
-		() => createEditorExportService(hidden.runtime).exportVideo(),
+		() => createEditorExportService(desktopVideoRuntime(hidden)).exportVideo(),
 		/Add visible picture content/iu,
 	);
 
 	const missing = createFixture();
 	missing.setMissingSources(true);
 	await assert.rejects(
-		() => createEditorExportService(missing.runtime).exportVideo(),
+		() => createEditorExportService(desktopVideoRuntime(missing)).exportVideo(),
 		/Local sources missing/iu,
 	);
 
 	const late = createFixture();
 	late.setDisposeDuringPublish(true);
-	assert.equal(await createEditorExportService(late.runtime).exportVideo(), null);
+	assert.equal(await createEditorExportService(desktopVideoRuntime(late)).exportVideo(), null);
 	assert.equal(late.calls.includes('download-cleanup'), true);
 	assert.equal(late.errors.length, 0);
 });
@@ -463,7 +501,7 @@ test('a request naming a delivery target is routed to the video path, not the au
 		deliveryTarget: 'web-vp9-1080p',
 	}, { metadata: {} });
 	const fixture = createFixture();
-	const output = await createEditorExportService(fixture.runtime).handleExportAction('export', request);
+	const output = await createEditorExportService(desktopVideoRuntime(fixture)).handleExportAction('export', request);
 	assert.match(output.fileName, /\.webm$/u, `a WebM target must deliver WebM, not ${output.fileName}`);
 });
 
@@ -482,12 +520,29 @@ test('a video delivery stating mono stages the mix as one channel', async () => 
 	}, { metadata: {} });
 	assert.equal(request.audioLayout, 'mono');
 
-	await createEditorExportService(fixture.runtime).handleExportAction('export', request);
+	await createEditorExportService(desktopVideoRuntime(fixture)).handleExportAction('export', request);
 	assert.deepEqual(fixture.encodedChannelCounts, [1]);
 
 	const preserved = createFixture();
-	await createEditorExportService(preserved.runtime).handleExportAction('export', {
+	await createEditorExportService(desktopVideoRuntime(preserved)).handleExportAction('export', {
 		...request, audioLayout: undefined,
 	});
 	assert.deepEqual(preserved.encodedChannelCounts, [2], 'an unstated layout still delivers the project channels');
 });
+
+function desktopVideoRuntime(fixture: ReturnType<typeof createFixture>) {
+	return {
+		...fixture.runtime,
+		fileService: {
+			...fixture.runtime.fileService,
+			isDesktop: true,
+			getDesktopVideoExportCapabilities: async () => ({
+				schemaVersion: 1,
+				formats: {
+					mp4: { available: true, provider: 'external-ffmpeg', reason: null },
+					webm: { available: true, provider: 'external-ffmpeg', reason: null },
+				},
+			}),
+		},
+	};
+}

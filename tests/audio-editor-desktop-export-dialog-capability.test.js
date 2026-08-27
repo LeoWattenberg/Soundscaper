@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { exportDialogCompressionLevels } from '../src/common/editor/ui/export-dialog-audio-codec-options.ts';
+
 test('desktop export dialog queries main status, filters formats, and refuses stale selections', async () => {
 	const [dialog, overlays] = await Promise.all([
 		readFile('src/common/editor/ui/inspector/ExportDialog.jsx', 'utf8'),
@@ -13,7 +15,8 @@ test('desktop export dialog queries main status, filters formats, and refuses st
 	assert.match(dialog, /fileService\.getDesktopAudioCodecCapabilities\(desktopCodecQuery\)/u);
 	assert.match(dialog, /audioFormatDescriptors\.map/u);
 	assert.match(dialog, /desktopExportFormatAvailable\(descriptor\.id, desktopCodecCapabilities\)/u);
-	assert.match(dialog, /desktopExportWavPackCompressionLevels\(\)/u);
+	assert.match(dialog, /exportDialogCompressionLevels\(settings\.format, desktop\)/u);
+	assert.deepEqual(exportDialogCompressionLevels('wavpack', true), [0, 1, 2, 3, 4, 5]);
 	assert.match(dialog, /desktopExportSelectionReason\(settings, desktopCodecCapabilities/u);
 	assert.match(dialog, /useDesktopVideoExportCapabilities\(fileService, isOpen\)/u);
 	assert.match(dialog, /desktopVideoCapabilities\.reason\(settings\.format\)/u);

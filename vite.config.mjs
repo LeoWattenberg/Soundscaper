@@ -1,6 +1,4 @@
 // @ts-check
-import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import react from '@vitejs/plugin-react';
@@ -17,17 +15,9 @@ import scopeAudacityDesignSystemCss, {
 import { createPffftNodeModuleBrowserShim } from './scripts/vite-pffft-browser-shim.mjs';
 import { PRODUCT_IDS, normalizeProductId } from './src/common/product-identities.js';
 
-if (Object.hasOwn(process.env, 'PUBLIC_FFMPEG_CORE_BASE_URL')) {
-	throw new Error(
-		'PUBLIC_FFMPEG_CORE_BASE_URL is unsupported; production FFmpeg must use the full-manifest-digest release.',
-	);
-}
-
 const productId = resolveBuiltProductId(process.env.SCAPE_PRODUCT);
 const vendoredDesignSystem = resolve(import.meta.dirname, 'vendor/audacity-design-system');
 const desktopCodecComposition = process.env.SCAPE_DESKTOP_CODEC_RUNTIME === 'main-process';
-const ffmpegRuntimeManifestBytes = readFileSync(resolve(import.meta.dirname, 'config/ffmpeg-runtime-manifest.json'));
-const ffmpegRuntimeManifestSha256 = createHash('sha256').update(ffmpegRuntimeManifestBytes).digest('hex');
 
 /**
  * The one product this build emits, named by SCAPE_PRODUCT.
@@ -117,7 +107,6 @@ export default defineConfig({
 	envPrefix: ['VITE_', 'PUBLIC_'],
 	define: {
 		__SCAPE_PRODUCT__: JSON.stringify(productId),
-		__FFMPEG_RUNTIME_MANIFEST_SHA256__: JSON.stringify(ffmpegRuntimeManifestSha256),
 	},
 	worker: {
 		format: 'es',

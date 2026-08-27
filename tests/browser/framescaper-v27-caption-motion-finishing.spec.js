@@ -11,11 +11,9 @@ import {
 } from './audio-editor-test-helpers.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 test('selected F31 imports and exports caption files and publishes built-in motion analysis', async ({ page }) => {
 	test.setTimeout(180_000);
-	await installPinnedFfmpegRuntimeRoutes(page);
 	await disableNativeSavePicker(page);
 	const clientErrors = collectClientErrors(page);
 	const editor = await bootEditor(page, '/framescaper/embed/en/');

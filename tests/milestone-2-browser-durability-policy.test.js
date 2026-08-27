@@ -11,7 +11,6 @@ const workflowIds = [
 	'indexeddb-multitab-writer',
 	'opfs-multitab-writer',
 	'offline-shell-upgrade',
-	'offline-runtime-rollback',
 	'storage-eviction-recovery',
 ];
 
@@ -25,7 +24,6 @@ test('milestone 2 preserves historical evidence while activating every browser f
 			'tests/browser/audio-editor-export-session.spec.js',
 			'tests/browser/audio-editor-opfs-worker.spec.js',
 			'tests/browser/offline-application-shell.spec.js',
-			'tests/browser/offline-ffmpeg-runtime-download.spec.js',
 		].map((path) => readFile(new URL(path, root), 'utf8'))).then((files) => files.join('\n')),
 	]);
 	const item = inventory.items.find(({ id }) => id === 'm2-browser-durability-matrix');
@@ -41,7 +39,7 @@ test('milestone 2 preserves historical evidence while activating every browser f
 	assert.equal(inventory.testActivation.humanReviewMilestone, 9);
 	for (const id of workflowIds) assert.match(browserEvidence, new RegExp(`\\b${id}\\b`, 'u'), id);
 	for (const document of [qualityBudgets, threatModel]) {
-		assert.match(document, /indexeddb-quota-refusal.*opfs-quota-refusal.*indexeddb-multitab-writer.*opfs-multitab-writer.*offline-shell-upgrade.*offline-runtime-rollback.*storage-eviction-recovery/isu);
+		assert.match(document, /indexeddb-quota-refusal.*opfs-quota-refusal.*indexeddb-multitab-writer.*opfs-multitab-writer.*offline-shell-upgrade.*storage-eviction-recovery/isu);
 		assert.match(document, /WebKit.*milestone 9/isu);
 		assert.match(document, /automated test.*(?:runs?|run).*WebKit|WebKit.*automated test/isu);
 	}

@@ -1,7 +1,6 @@
 import { expect, test } from '@playwright/test';
 
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { hasWebGl2Capability } from './helpers/webgl2-capability.js';
 
@@ -12,7 +11,6 @@ const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob 
 
 test.describe('dedicated OPFS storage worker', () => {
 	test.beforeEach(async ({ context, page }) => {
-		await installPinnedFfmpegRuntimeRoutes(page);
 		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
 			status: 200,
 			contentType: 'application/json',

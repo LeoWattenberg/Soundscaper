@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	BrowserVideoEncoderUnavailableError,
 	resolveVideoDeliveryEncoderTier,
 } from '../src/common/editor/video-delivery-encoder-tier.ts';
 
@@ -24,52 +25,55 @@ test('a qualified browser encodes the keyed delivery and the decision carries no
 	assert.equal(decision.bitrate, 6_214_585);
 });
 
-test('a composed-graph delivery says why rather than reporting a browser capability', async () => {
-	const decision = await withVideoFrame(() => resolveVideoDeliveryEncoderTier({
-		format: 'mp4', canvas: CANVAS, quality: 'balanced', eligible: false,
-	}, supportingEncoder()));
-	assert.equal(decision.tier, 'ffmpeg');
-	assert.equal(decision.codec, null);
-	assert.equal(decision.bitrate, null);
-	assert.match(decision.reason ?? '', /filter graph/u);
+test('a composed-graph delivery refuses instead of falling back to browser FFmpeg', async () => {
+	await assert.rejects(
+		withVideoFrame(() => resolveVideoDeliveryEncoderTier({
+			format: 'mp4', canvas: CANVAS, quality: 'balanced', eligible: false,
+		}, supportingEncoder())),
+		(error: unknown) => error instanceof BrowserVideoEncoderUnavailableError
+			&& /browser-native.*keyed/iu.test(error.message),
+	);
 });
 
-test('an unqualified browser falls back with its reason instead of failing', async () => {
+test('an unqualified browser refuses instead of falling back to browser FFmpeg', async () => {
 	for (const [encoder, match] of [
 		[undefined, /no WebCodecs video encoder/u],
 		[{ isConfigSupported: async () => ({ supported: false }) }, /does not encode/u],
 		[{ isConfigSupported: () => Promise.reject(new Error('nope')) }, /refused/u],
 	] as const) {
-		const decision = await withVideoFrame(() => resolveVideoDeliveryEncoderTier({
-			format: 'webm', canvas: CANVAS, quality: 'draft', eligible: true,
-		}, encoder));
-		assert.equal(decision.tier, 'ffmpeg');
-		assert.match(decision.reason ?? '', match);
+		await assert.rejects(
+			withVideoFrame(() => resolveVideoDeliveryEncoderTier({
+				format: 'webm', canvas: CANVAS, quality: 'draft', eligible: true,
+			}, encoder)),
+			(error: unknown) => error instanceof BrowserVideoEncoderUnavailableError
+				&& match.test(error.message),
+		);
 	}
 });
 
-test('an unisolated runtime falls back before asking its encoder probe', async () => {
+test('WebCodecs video no longer requires cross-origin isolation for an FFmpeg ring', async () => {
 	let probed = false;
-	const decision = await resolveVideoDeliveryEncoderTier({
-		format: 'mp4', canvas: CANVAS, quality: 'balanced', eligible: true,
-	}, {
-		async isConfigSupported() {
-			probed = true;
-			return { supported: true };
-		},
-	});
+	const decision = await withVideoFrame(() => resolveVideoDeliveryEncoderTier({
+			format: 'mp4', canvas: CANVAS, quality: 'balanced', eligible: true,
+		}, {
+			async isConfigSupported() {
+				probed = true;
+				return { supported: true };
+			},
+		}));
 
-	assert.equal(probed, false);
-	assert.equal(decision.tier, 'ffmpeg');
-	assert.match(decision.reason ?? '', /cross-origin isolated/u);
+	assert.equal(probed, true);
+	assert.equal(decision.tier, 'webcodecs');
 });
 
-test('a browser with an encoder but no frame constructor falls back', async () => {
-	const decision = await withVideoDeliveryIsolation(() => resolveVideoDeliveryEncoderTier({
-		format: 'mp4', canvas: CANVAS, quality: 'high', eligible: true,
-	}, supportingEncoder()));
-	assert.equal(decision.tier, 'ffmpeg');
-	assert.match(decision.reason ?? '', /video frame/u);
+test('a browser with an encoder but no frame constructor refuses', async () => {
+	await assert.rejects(
+		resolveVideoDeliveryEncoderTier({
+			format: 'mp4', canvas: CANVAS, quality: 'high', eligible: true,
+		}, supportingEncoder()),
+		(error: unknown) => error instanceof BrowserVideoEncoderUnavailableError
+			&& /video frame/u.test(error.message),
+	);
 });
 
 test('the WebM delivery is probed and reported as VP9, not as the container', async () => {
@@ -89,7 +93,41 @@ test('the WebM delivery is probed and reported as VP9, not as the container', as
 	assert.equal(decision.bitrate, 7_457_502);
 });
 
-test('a plan the probe cannot describe falls back rather than failing the delivery', async () => {
+test('an audio delivery probes the exact browser codec tuple before rendering', async () => {
+	const probes: Readonly<Record<string, unknown>>[] = [];
+	const decision = await withWebCodecsMedia(() => resolveVideoDeliveryEncoderTier({
+		format: 'mp4', canvas: CANVAS, quality: 'balanced', eligible: true,
+		audio: { sampleRate: 48_000, channelCount: 2 },
+	}, supportingEncoder(), {
+		async isConfigSupported(config: Readonly<Record<string, unknown>>) {
+			probes.push(config);
+			return { supported: true };
+		},
+	}));
+
+	assert.equal(decision.tier, 'webcodecs');
+	assert.deepEqual(probes, [{
+		codec: 'mp4a.40.2',
+		sampleRate: 48_000,
+		numberOfChannels: 2,
+		bitrate: 192_000,
+	}]);
+});
+
+test('an audio delivery refuses when the browser lacks its matching WebCodecs encoder', async () => {
+	await assert.rejects(
+		withWebCodecsMedia(() => resolveVideoDeliveryEncoderTier({
+			format: 'webm', canvas: CANVAS, quality: 'draft', eligible: true,
+			audio: { sampleRate: 48_000, channelCount: 1 },
+		}, supportingEncoder(), {
+			isConfigSupported: async () => ({ supported: false }),
+		})),
+		(error: unknown) => error instanceof BrowserVideoEncoderUnavailableError
+			&& /Opus audio/u.test(error.message),
+	);
+});
+
+test('a plan the probe cannot describe refuses without an FFmpeg fallback', async () => {
 	for (const request of [
 		{ format: 'mp4', canvas: undefined, quality: 'balanced', eligible: true },
 		// A composed-graph plan states its rate as a number, not a rational.
@@ -97,12 +135,13 @@ test('a plan the probe cannot describe falls back rather than failing the delive
 		{ format: 'gif', canvas: CANVAS, quality: 'balanced', eligible: true },
 		{ format: 'mp4', canvas: CANVAS, quality: undefined, eligible: true },
 	] as const) {
-		const decision = await withVideoFrame(() => resolveVideoDeliveryEncoderTier(
-			request as never, supportingEncoder(),
-		));
-		assert.equal(decision.tier, 'ffmpeg');
-		assert.equal(decision.bitrate, null);
-		assert.match(decision.reason ?? '', /could not be described|does not encode|no .* level/u);
+		await assert.rejects(
+			withVideoFrame(() => resolveVideoDeliveryEncoderTier(
+				request as never, supportingEncoder(),
+			)),
+			(error: unknown) => error instanceof BrowserVideoEncoderUnavailableError
+				&& /could not be described|does not encode|no .* level/u.test(error.message),
+		);
 	}
 });
 
@@ -111,27 +150,25 @@ function supportingEncoder() {
 }
 
 async function withVideoFrame<Value>(run: () => Promise<Value>): Promise<Value> {
-	return withVideoDeliveryIsolation(async () => {
-		const globals = globalThis as Record<string, unknown>;
-		const original = Object.hasOwn(globals, 'VideoFrame') ? globals.VideoFrame : undefined;
-		globals.VideoFrame = class {};
-		try {
-			return await run();
-		} finally {
-			if (original === undefined) delete globals.VideoFrame;
-			else globals.VideoFrame = original;
-		}
-	});
-}
-
-async function withVideoDeliveryIsolation<Value>(run: () => Promise<Value>): Promise<Value> {
 	const globals = globalThis as Record<string, unknown>;
-	const original = Object.getOwnPropertyDescriptor(globals, 'crossOriginIsolated');
-	Object.defineProperty(globals, 'crossOriginIsolated', { configurable: true, value: true });
+	const original = Object.hasOwn(globals, 'VideoFrame') ? globals.VideoFrame : undefined;
+	globals.VideoFrame = class {};
 	try {
 		return await run();
 	} finally {
-		if (original) Object.defineProperty(globals, 'crossOriginIsolated', original);
-		else delete globals.crossOriginIsolated;
+		if (original === undefined) delete globals.VideoFrame;
+		else globals.VideoFrame = original;
+	}
+}
+
+async function withWebCodecsMedia<Value>(run: () => Promise<Value>): Promise<Value> {
+	const globals = globalThis as Record<string, unknown>;
+	const original = Object.hasOwn(globals, 'AudioData') ? globals.AudioData : undefined;
+	globals.AudioData = class {};
+	try {
+		return await withVideoFrame(run);
+	} finally {
+		if (original === undefined) delete globals.AudioData;
+		else globals.AudioData = original;
 	}
 }

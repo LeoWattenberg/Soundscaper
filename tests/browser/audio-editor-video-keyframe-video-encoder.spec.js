@@ -6,36 +6,52 @@ import { fileURLToPath } from 'node:url';
 import { transform } from 'esbuild';
 
 const ROOT = '/__video-keyframe-video-encoder__';
-const PACKAGE_FILES = [
-	'index.js', 'classes.js', 'const.js', 'errors.js', 'types.js', 'utils.js', 'worker.js',
+const ENTRY_MODULES = [
+	'runtime-clip-projection.ts',
+	'video-keyframe-export-frame-source.ts',
+	'ui/video-keyframe-offline-rgba-renderer.ts',
+	'video-keyframe-video-encoder.ts',
+	'video-delivery-encoder-tier.ts',
 ];
 const NOBLE_HASH_FILES = ['sha2.js', '_md.js', '_u64.js', 'utils.js'];
 
-test('encodes exact offline WebGL frames through the bounded production FFmpeg stream', async ({
+test('encodes and muxes a complete MP4 without FFmpeg, a lease, or shared memory', async ({
 	browserName,
 	page,
 }) => {
-	test.skip(browserName !== 'chromium', 'The dormant encoder witness needs Chromium WebGL and shared memory.');
+	test.skip(browserName !== 'chromium', 'The production WebCodecs witness needs Chromium.');
 	test.setTimeout(120_000);
+	const requestedUrls = [];
+	page.on('request', (request) => { requestedUrls.push(request.url()); });
 	await installRoutes(page);
 	await page.goto(`${ROOT}/index.html`);
 	const result = await page.evaluate(async (root) => {
-		if (!crossOriginIsolated || typeof SharedArrayBuffer !== 'function') {
-			throw new Error('The video keyframe encoder witness requires cross-origin isolation.');
+		if (crossOriginIsolated || typeof SharedArrayBuffer === 'function') {
+			throw new Error('The browser-native encoder witness must not depend on shared memory.');
 		}
-		const [projection, frameSourceModule, rendererModule, encoderModule, ffmpegPackage] =
+		const [projection, frameSourceModule, rendererModule, encoderModule, tierModule, media] =
 			await Promise.all([
 				import(`${root}/src/common/editor/runtime-clip-projection.ts`),
 				import(`${root}/src/common/editor/video-keyframe-export-frame-source.ts`),
 				import(`${root}/src/common/editor/ui/video-keyframe-offline-rgba-renderer.ts`),
 				import(`${root}/src/common/editor/video-keyframe-video-encoder.ts`),
-				import('@ffmpeg/ffmpeg'),
+				import(`${root}/src/common/editor/video-delivery-encoder-tier.ts`),
+				import('mediabunny'),
 			]);
 		const project = projection.resolveRuntimeProjectProjection(createProject());
 		const frameSource = frameSourceModule.createVideoKeyframeExportFrameSource({
 			project,
 			canvas: { width: 64, height: 64, frameRate: 2 },
 		});
+		const decision = await tierModule.resolveVideoDeliveryEncoderTier({
+			format: 'mp4',
+			canvas: frameSource.canvas,
+			quality: 'balanced',
+			eligible: true,
+		});
+		if (decision.tier !== 'webcodecs' || !decision.codec || !decision.bitrate) {
+			throw new Error('Chromium declined the browser-native MP4 delivery tier.');
+		}
 		const sourceCanvas = createSourceCanvas();
 		let presentationDisposals = 0;
 		const presentation = Object.freeze({
@@ -54,125 +70,115 @@ test('encodes exact offline WebGL frames through the bounded production FFmpeg s
 			canvas: document.createElement('canvas'),
 			resolveSource: () => presentation,
 		});
-		const ffmpeg = new ffmpegPackage.FFmpeg();
-		let terminated = false;
-		await bounded(ffmpeg.load({
-			classWorkerURL: `${root}/ffmpeg/worker.js`,
-			coreURL: `${root}/core/ffmpeg-core.js`,
-			wasmURL: `${root}/core/ffmpeg-core.wasm`,
-		}), 60_000);
-		const editorFfmpeg = Object.freeze({
-			runVideoKeyframeEncoderOperation: (operation) => operation(Object.freeze({
-				createInputStream: (...args) => ffmpeg.createInputStream(...args),
-				exec: (...args) => ffmpeg.exec(...args),
-				statFile: (...args) => ffmpeg.statFile(...args),
-				readFileRange: (...args) => ffmpeg.readFileRange(...args),
-				deleteFile: (...args) => ffmpeg.deleteFile(...args),
-				terminateExecution() { terminated = true; ffmpeg.terminate(); },
-				isExecutionTerminated: () => terminated,
-			})),
+		// A null owner is intentional: this branch must never take an FFmpeg lease.
+		const encoded = await bounded(encoderModule.encodeVideoKeyframeVideo(null, {
+			frameSource,
+			producer: renderer,
+			format: 'mp4',
+			quality: 'balanced',
+			webCodecs: {
+				codec: decision.codec,
+				bitrate: decision.bitrate,
+				encoderClass: globalThis.VideoEncoder,
+				videoFrameClass: globalThis.VideoFrame,
+			},
+			ringCapacityBytes: 4_096,
+			maximumOutputBytes: 1024 * 1024,
+			maximumOutputChunkBytes: 4_096,
+		}, {
+			createJobToken: () => '0123456789abcdef0123456789abcdef',
+		}), 80_000);
+		if (encoded.byteLength > 1024 * 1024) {
+			throw new Error('The encoded video witness exceeded its output bound.');
+		}
+		const input = new media.Input({
+			source: new media.BufferSource(encoded.bytes),
+			formats: [media.MP4],
 		});
+		let container;
 		try {
-			const audioFrames = new Float32Array(48_000);
-			for (let index = 0; index < audioFrames.length; index += 1) {
-				audioFrames[index] = Math.sin((index / 48_000) * Math.PI * 880) * 0.125;
+			const [format, canRead, mimeType, duration, videoTrack, audioTracks] = await Promise.all([
+				input.getFormat(),
+				input.canRead(),
+				input.getMimeType(),
+				input.computeDuration(),
+				input.getPrimaryVideoTrack(),
+				input.getAudioTracks(),
+			]);
+			if (!videoTrack) {
+				throw new Error('The completed MP4 does not contain a primary video track.');
 			}
-			const audioMix = floatWav(audioFrames, 48_000);
-			const encoded = await bounded(encoderModule.encodeVideoKeyframeVideo(editorFfmpeg, {
-				frameSource,
-				producer: renderer,
-				format: 'mp4',
-				audioMix,
-				ringCapacityBytes: 4_096,
-				audioRingCapacityBytes: 4_096,
-				maximumOutputBytes: 1024 * 1024,
-				maximumOutputChunkBytes: 4_096,
-			}, {
-				createJobToken: () => '0123456789abcdef0123456789abcdef',
-			}), 80_000);
-			if (encoded.byteLength > 1024 * 1024) {
-				throw new Error('The encoded A/V probe exceeded its witnessed output bound.');
-			}
-			const firstBox = [...encoded.bytes.subarray(0, 12)];
-			const probePath = '/framescaper-keyframes-av-probe.mp4';
-			const decodedAudioPath = '/framescaper-keyframes-av-probe.f32le';
-			let probeWritten = false;
-			let decodedAudioWritten = false;
-			let probeExitCode;
-			let decodedAudioByteLength;
-			let authoredAudioPrefixError;
-			try {
-				await bounded(ffmpeg.writeFile(probePath, encoded.bytes), 10_000);
-				probeWritten = true;
-				probeExitCode = await bounded(ffmpeg.exec([
-					'-v', 'error', '-i', probePath,
-					'-map', '0:v:0', '-map', '0:a:0',
-					'-f', 'null', '-',
-				]), 20_000);
-				if (probeExitCode !== 0) {
-					throw new Error(`The encoded A/V probe exited with ${String(probeExitCode)}.`);
-				}
-				const decodeExitCode = await bounded(ffmpeg.exec([
-					'-v', 'error', '-i', probePath, '-map', '0:a:0',
-					'-f', 'f32le', '-acodec', 'pcm_f32le', decodedAudioPath,
-				]), 20_000);
-				if (decodeExitCode !== 0) {
-					throw new Error(`The encoded audio decode probe exited with ${String(decodeExitCode)}.`);
-				}
-				decodedAudioWritten = true;
-				const decodedAudio = await bounded(ffmpeg.readFile(decodedAudioPath), 10_000);
-				if (!(decodedAudio instanceof Uint8Array)) {
-					throw new Error('The encoded audio decode probe returned no bytes.');
-				}
-				decodedAudioByteLength = decodedAudio.byteLength;
-				if (decodedAudioByteLength < audioFrames.length * 4) {
-					throw new Error('The encoded audio decode probe truncated the authored sample range.');
-				}
-				const decodedSamples = new Float32Array(
-					decodedAudio.buffer, decodedAudio.byteOffset, Math.floor(decodedAudio.byteLength / 4),
-				);
-				let absoluteError = 0;
-				let authoredMagnitude = 0;
-				for (let index = 0; index < audioFrames.length; index += 1) {
-					absoluteError += Math.abs(decodedSamples[index] - audioFrames[index]);
-					authoredMagnitude += Math.abs(audioFrames[index]);
-				}
-				authoredAudioPrefixError = absoluteError / authoredMagnitude;
-				if (authoredAudioPrefixError > 0.2) {
-					throw new Error('The encoded audio decode probe did not preserve its authored prefix.');
-				}
-			} finally {
-				if (decodedAudioWritten) await bounded(ffmpeg.deleteFile(decodedAudioPath), 10_000);
-				if (probeWritten) await bounded(ffmpeg.deleteFile(probePath), 10_000);
-			}
-			return {
-				byteLength: encoded.byteLength,
-				firstBox,
-				format: encoded.format,
-				extension: encoded.extension,
-				mimeType: encoded.mimeType,
-				frameCount: encoded.frameCount,
-				rgbaChunkCount: encoded.rgbaChunkCount,
-				outputChunkCount: encoded.outputChunkCount,
-				audioByteLength: encoded.audioByteLength,
-				audioChunkCount: encoded.audioChunkCount,
-				probeExitCode,
-				decodedAudioByteLength,
-				authoredAudioPrefixError,
-				presentationDisposals,
+			const [
+				videoCodec,
+				videoConfig,
+				codedWidth,
+				codedHeight,
+			] = await Promise.all([
+				videoTrack.getCodec(),
+				videoTrack.getDecoderConfig(),
+				videoTrack.getCodedWidth(),
+				videoTrack.getCodedHeight(),
+			]);
+			container = {
+				isMp4: format === media.MP4,
+				canRead,
+				mimeType,
+				duration,
+				videoCodec,
+				videoConfigCodec: videoConfig?.codec ?? null,
+				videoConfigBytes: videoConfig?.description?.byteLength ?? 0,
+				codedWidth,
+				codedHeight,
+				audioTrackCount: audioTracks.length,
+				videoPackets: await packetEvidence(media, videoTrack),
 			};
 		} finally {
-			if (!terminated) ffmpeg.terminate();
+			input.dispose();
+		}
+		return {
+			byteLength: encoded.byteLength,
+			firstBox: [...encoded.bytes.subarray(0, 12)],
+			format: encoded.format,
+			extension: encoded.extension,
+			mimeType: encoded.mimeType,
+			videoEncoder: encoded.videoEncoder,
+			codec: encoded.codec,
+			frameCount: encoded.frameCount,
+			rgbaChunkCount: encoded.rgbaChunkCount,
+			outputChunkCount: encoded.outputChunkCount,
+			presentationDisposals,
+			inputDisposed: input.disposed,
+			crossOriginIsolated,
+			hasSharedArrayBuffer: typeof SharedArrayBuffer === 'function',
+			container,
+		};
+
+		async function packetEvidence(mediaModule, track) {
+			const sink = new mediaModule.EncodedPacketSink(track);
+			let count = 0;
+			let byteLength = 0;
+			let firstType = null;
+			let lastEnd = 0;
+			for await (const packet of sink.packets()) {
+				if (count === 0) firstType = packet.type;
+				count += 1;
+				byteLength += packet.byteLength;
+				lastEnd = Math.max(lastEnd, packet.timestamp + packet.duration);
+			}
+			return { count, byteLength, firstType, lastEnd };
 		}
 
 		function bounded(operation, timeoutMs) {
-			return Promise.race([
-				operation,
-				new Promise((_, reject) => setTimeout(
-					() => reject(new Error('Timed out during real keyframe video encoding.')),
+			return new Promise((resolve, reject) => {
+				const timer = setTimeout(
+					() => reject(new Error('Timed out during browser-native keyframe video encoding.')),
 					timeoutMs,
-				)),
-			]);
+				);
+				operation.then(
+					(value) => { clearTimeout(timer); resolve(value); },
+					(error) => { clearTimeout(timer); reject(error); },
+				);
+			});
 		}
 
 		function createSourceCanvas() {
@@ -185,34 +191,6 @@ test('encodes exact offline WebGL frames through the bounded production FFmpeg s
 			context.fillStyle = '#0040ff';
 			context.fillRect(0, 8, 32, 8);
 			return canvas;
-		}
-
-		function floatWav(samples, sampleRate) {
-			const bytes = new Uint8Array(44 + samples.length * 4);
-			const view = new DataView(bytes.buffer);
-			ascii(view, 0, 'RIFF');
-			view.setUint32(4, bytes.length - 8, true);
-			ascii(view, 8, 'WAVE');
-			ascii(view, 12, 'fmt ');
-			view.setUint32(16, 16, true);
-			view.setUint16(20, 3, true);
-			view.setUint16(22, 1, true);
-			view.setUint32(24, sampleRate, true);
-			view.setUint32(28, sampleRate * 4, true);
-			view.setUint16(32, 4, true);
-			view.setUint16(34, 32, true);
-			ascii(view, 36, 'data');
-			view.setUint32(40, samples.length * 4, true);
-			for (let index = 0; index < samples.length; index += 1) {
-				view.setFloat32(44 + index * 4, samples[index], true);
-			}
-			return new Blob([bytes.buffer], { type: 'audio/wav' });
-		}
-
-		function ascii(view, offset, value) {
-			for (let index = 0; index < value.length; index += 1) {
-				view.setUint8(offset + index, value.charCodeAt(index));
-			}
 		}
 
 		function createProject() {
@@ -267,80 +245,85 @@ test('encodes exact offline WebGL frames through the bounded production FFmpeg s
 		}
 	}, ROOT);
 
+	expect(requestedUrls.filter(isFfmpegRuntimeRequest)).toEqual([]);
+	expect(result.crossOriginIsolated).toBe(false);
+	expect(result.hasSharedArrayBuffer).toBe(false);
 	expect(result.byteLength).toBeGreaterThan(12);
 	expect(String.fromCharCode(...result.firstBox.slice(4, 8))).toBe('ftyp');
 	expect(result).toMatchObject({
 		format: 'mp4',
 		extension: '.mp4',
 		mimeType: 'video/mp4',
+		videoEncoder: 'webcodecs',
 		frameCount: 2,
-		rgbaChunkCount: 8,
-		audioByteLength: 192_044,
-		audioChunkCount: 47,
-		probeExitCode: 0,
+		rgbaChunkCount: 2,
 		presentationDisposals: 1,
+		inputDisposed: true,
+		container: {
+			isMp4: true,
+			canRead: true,
+			videoCodec: 'avc',
+			codedWidth: 64,
+			codedHeight: 64,
+			audioTrackCount: 0,
+		},
 	});
+	expect(result.codec).toMatch(/^avc1\./u);
 	expect(result.outputChunkCount).toBeGreaterThan(0);
-	expect(result.decodedAudioByteLength).toBeGreaterThanOrEqual(48_000 * 4);
-	expect(result.decodedAudioByteLength).toBeLessThanOrEqual((48_000 + 1_023) * 4);
-	expect(result.authoredAudioPrefixError).toBeLessThanOrEqual(0.2);
+	expect(result.container.mimeType).toMatch(/^video\/mp4/u);
+	expect(result.container.duration).toBeGreaterThanOrEqual(1);
+	expect(result.container.duration).toBeLessThanOrEqual(1.05);
+	expect(result.container.videoConfigCodec).toMatch(/^avc1\./u);
+	expect(result.container.videoConfigBytes).toBeGreaterThan(0);
+	expect(result.container.videoPackets).toMatchObject({ count: 2, firstType: 'key' });
+	expect(result.container.videoPackets.byteLength).toBeGreaterThan(0);
+	expect(result.container.videoPackets.lastEnd).toBeGreaterThanOrEqual(1);
 });
 
+function isFfmpegRuntimeRequest(value) {
+	const url = new URL(value);
+	return url.pathname.includes('/node_modules/@ffmpeg/')
+		|| url.pathname.includes('/ffmpeg/')
+		|| url.pathname.includes('/core/ffmpeg-core');
+}
+
 async function installRoutes(page) {
-	const editorModules = await transpileEditorModules();
-	const packageRoot = new URL('../../node_modules/@ffmpeg/ffmpeg/dist/esm/', import.meta.url);
-	const coreRoot = new URL('../../node_modules/@ffmpeg/core/dist/esm/', import.meta.url);
+	const routes = await transpileEditorModules();
 	const nobleRoot = new URL('../../node_modules/@noble/hashes/', import.meta.url);
-	const routes = new Map(editorModules);
-	for (const name of PACKAGE_FILES) {
-		routes.set(`${ROOT}/ffmpeg/${name}`, {
-			body: await readFile(new URL(name, packageRoot)),
-			contentType: 'text/javascript',
-		});
-	}
 	for (const name of NOBLE_HASH_FILES) {
 		routes.set(`${ROOT}/noble/${name}`, {
 			body: await readFile(new URL(name, nobleRoot)),
 			contentType: 'text/javascript',
 		});
 	}
-	for (const [name, contentType] of [
-		['ffmpeg-core.js', 'text/javascript'],
-		['ffmpeg-core.wasm', 'application/wasm'],
-	]) {
-		routes.set(`${ROOT}/core/${name}`, {
-			body: await readFile(new URL(name, coreRoot)),
-			contentType,
-		});
-	}
+	routes.set(`${ROOT}/mediabunny.mjs`, {
+		body: await readFile(new URL(
+			'../../node_modules/mediabunny/dist/bundles/mediabunny.min.mjs', import.meta.url,
+		)),
+		contentType: 'text/javascript',
+	});
 	await page.route(`**${ROOT}/**`, async (route) => {
 		const pathname = new URL(route.request().url()).pathname;
 		if (pathname === `${ROOT}/index.html`) {
 			await route.fulfill({
 				status: 200,
 				contentType: 'text/html',
-				headers: isolationHeaders(),
 				body: `<!doctype html><meta charset="utf-8">
-					<script type="importmap">{"imports":{"@ffmpeg/ffmpeg":"${ROOT}/ffmpeg/index.js","@noble/hashes/sha2.js":"${ROOT}/noble/sha2.js"}}</script>
-					<title>video keyframe encoder</title>`,
+					<script type="importmap">{"imports":{"mediabunny":"${ROOT}/mediabunny.mjs","@noble/hashes/sha2.js":"${ROOT}/noble/sha2.js"}}</script>
+					<title>browser-native video keyframe encoder</title>`,
 			});
 			return;
 		}
 		const descriptor = routes.get(pathname);
 		await route.fulfill(descriptor === undefined
 			? { status: 404, body: `Unknown fixture path ${pathname}` }
-			: { status: 200, headers: isolationHeaders(), ...descriptor });
+			: { status: 200, ...descriptor });
 	});
 }
 
 async function transpileEditorModules() {
 	const sourceRoot = new URL('../../src/common/editor/', import.meta.url);
-	const pending = [
-		'runtime-clip-projection.ts',
-		'video-keyframe-export-frame-source.ts',
-		'ui/video-keyframe-offline-rgba-renderer.ts',
-		'video-keyframe-video-encoder.ts',
-	].map((name) => new URL(name, sourceRoot));
+	const pending = ENTRY_MODULES.map((name) => new URL(name, sourceRoot));
 	const discovered = new Map();
 	while (pending.length > 0) {
 		const url = pending.pop();
@@ -374,12 +357,4 @@ async function transpileEditorModules() {
 		if (path.endsWith('.ts')) routes.set(path.replace(/\.ts$/u, '.js'), descriptor);
 	}
 	return routes;
-}
-
-function isolationHeaders() {
-	return {
-		'Cross-Origin-Opener-Policy': 'same-origin',
-		'Cross-Origin-Embedder-Policy': 'credentialless',
-		'Cross-Origin-Resource-Policy': 'same-origin',
-	};
 }

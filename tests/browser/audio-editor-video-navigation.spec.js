@@ -1,7 +1,6 @@
 import { expect, test } from '@playwright/test';
 
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import {
 	DURABLE_MEDIA_STORAGE_REQUIRED,
@@ -14,7 +13,6 @@ const CFR = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
 
 test.describe('3B-4a shuttle and edit-point navigation', () => {
 	test.beforeEach(async ({ page }) => {
-		await installPinnedFfmpegRuntimeRoutes(page);
 		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
 			status: 200,
 			contentType: 'application/json',

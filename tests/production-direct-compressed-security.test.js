@@ -18,7 +18,7 @@ const FORMAT_CONTRACTS = Object.freeze([
 ]);
 const FORMAT_IDS = Object.freeze(FORMAT_CONTRACTS.map(({ id }) => id));
 
-test('exact direct compressed publication has narrow capability and rollback controls', async () => {
+test('exact direct compressed publication has browser-native ownership and rollback controls', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	const publication = findControl(
 		matrix,
@@ -30,118 +30,83 @@ test('exact direct compressed publication has narrow capability and rollback con
 		'long-job-cancellation',
 		'direct-compressed-mix-save-rollback',
 	);
-	assert.equal(findOptionalControl(matrix, 'exact-direct-realtime-compressed-mix-save'), null);
-	assert.equal(findOptionalControl(matrix, 'direct-realtime-compressed-mix-save-rollback'), null);
-	assert.equal(findOptionalControl(matrix, 'exact-direct-realtime-mp3-mix-save'), null);
-	assert.equal(findOptionalControl(matrix, 'direct-realtime-mp3-mix-save-rollback'), null);
 
 	for (const path of [
-		'patches/npm/@ffmpeg+ffmpeg+0.12.15.patch',
-		'src/common/editor/media-export.js',
-		'src/common/editor/export.js',
-		'src/common/editor/ffmpeg-output-stream.ts',
-		'src/common/editor/ffmpeg.js',
-		'src/common/editor/controller/direct-audio-render-plan.ts',
-		'src/common/editor/controller/direct-compressed-plan.ts',
-		'src/common/editor/controller/direct-compressed-export.ts',
-		'src/common/editor/controller/direct-offline-compressed-export.ts',
-		'src/common/editor/controller/rendered-audio-encoding.ts',
-		'src/common/editor/controller/audio-export-render-orchestration.ts',
-		'src/common/editor/controller/export-service.ts',
-		'src/common/editor/file-save-stream.ts',
-		'tests/audio-editor-media-export.test.js',
-		'tests/audio-editor-ffmpeg-output-range-patch.test.js',
-		'tests/audio-editor-ffmpeg-output-stream.test.ts',
-		'tests/audio-editor-ffmpeg-idle.test.js',
-		'tests/audio-editor-direct-audio-render-plan.test.ts',
-		'tests/audio-editor-direct-offline-compressed-export.test.ts',
-		'tests/audio-editor-export-direct-compressed-matrix.test.ts',
-		'tests/audio-editor-export-direct-compressed-service.test.ts',
-		'tests/audio-editor-rendered-direct-offline-compressed.test.ts',
-		'tests/audio-editor-export-direct-offline-compressed-service.test.ts',
-		'tests/audio-editor-export-direct-offline-compressed-fallback.test.ts',
-		'tests/audio-editor-export-direct-mp3.test.ts',
+		'src/common/editor/browser-audio-codec-runtime.ts',
+		'src/common/editor/browser-dedicated-audio-codec.ts',
+		'src/common/editor/browser-dedicated-audio-output-validation.ts',
+		'src/common/editor/browser-dedicated-audio-worker-client.ts',
+		'src/common/editor/browser-webcodecs-aac.ts',
+		'scripts/lib/browser-bundle-codec-audit.mjs',
+		'tests/audio-editor-browser-audio-codec-runtime.test.ts',
+		'tests/audio-editor-browser-dedicated-codec.test.ts',
+		'tests/audio-editor-browser-webcodecs-aac.test.ts',
+		'tests/browser-bundle-codec-audit.test.js',
 	]) {
 		assert.ok(publication.evidence.some((item) => item.path === path), path);
 		await access(new URL(`../${path}`, import.meta.url));
 	}
 	for (const path of [
-		'src/common/editor/ffmpeg-output-stream.ts',
-		'src/common/editor/ffmpeg.js',
-		'src/common/editor/controller/direct-audio-render-plan.ts',
-		'src/common/editor/controller/direct-compressed-plan.ts',
-		'src/common/editor/controller/direct-compressed-export.ts',
-		'src/common/editor/controller/direct-offline-compressed-export.ts',
-		'src/common/editor/controller/rendered-audio-encoding.ts',
-		'src/common/editor/controller/audio-export-render-orchestration.ts',
-		'src/common/editor/controller/export-service.ts',
-		'tests/audio-editor-ffmpeg-output-stream.test.ts',
-		'tests/audio-editor-ffmpeg-idle.test.js',
-		'tests/audio-editor-direct-audio-render-plan.test.ts',
-		'tests/audio-editor-direct-offline-compressed-export.test.ts',
-		'tests/audio-editor-export-direct-compressed-matrix.test.ts',
-		'tests/audio-editor-export-direct-compressed-service.test.ts',
-		'tests/audio-editor-rendered-direct-offline-compressed.test.ts',
-		'tests/audio-editor-export-direct-offline-compressed-service.test.ts',
-		'tests/audio-editor-export-direct-offline-compressed-fallback.test.ts',
-		'tests/audio-editor-export-direct-mp3.test.ts',
+		'src/common/editor/browser-audio-codec-runtime.ts',
+		'src/common/editor/browser-dedicated-audio-worker-client.ts',
+		'src/common/editor/browser-webcodecs-aac.ts',
+		'tests/audio-editor-browser-audio-codec-runtime.test.ts',
+		'tests/audio-editor-browser-dedicated-codec.test.ts',
+		'tests/audio-editor-browser-webcodecs-aac.test.ts',
 	]) assert.ok(rollback.evidence.some((item) => item.path === path), path);
 
-	assert.match(
-		publication.summary,
-		/direct compressed.*one mix.*`mp3`.*`flac`.*`ogg-vorbis`.*`opus`.*`wavpack`.*`mp2`.*`aac-m4a`.*FFmpeg/isu,
+	assert.equal(publication.evidence.some(({ path }) => path === 'src/common/editor/ffmpeg.js'), false);
+	assert.equal(
+		publication.evidence.some(({ path }) => path === 'patches/npm/@ffmpeg+ffmpeg+0.12.15.patch'),
+		false,
 	);
 	assert.match(
 		publication.summary,
-		/codec-qualified.*Ogg.*picker.*base `audio\/ogg`.*MP3 and MP2.*`audio\/mpeg`.*format.*extension/isu,
+		/seven canonical identities.*MP3.*FLAC.*Ogg Vorbis.*Opus.*WavPack.*MP2.*AAC\/M4A/isu,
 	);
 	assert.match(
 		publication.summary,
-		/realtime-stream.*map.*before.*staging.*FFmpeg.*preserve.*offline.*unmapped.*input-width.*FFmpeg.*mapping.*exactly once/isu,
+		/six reviewed digest-pinned WebAssembly providers.*complete FLAC.*MP3.*Ogg Vorbis.*Opus.*WavPack.*MP2.*dedicated worker/isu,
 	);
 	assert.match(
 		publication.summary,
-		/centrally admitted offline.*256 MiB.*context.*crop.*not.*end-to-end/isu,
+		/exact payload length.*SHA-256.*before compilation.*closed profiles.*format validators/isu,
 	);
 	assert.match(
 		publication.summary,
-		/FLAC.*integer WAV.*staging encoder.*dither.*non-FLAC.*Float32 WAV.*FFmpeg dither.*sample format.*not `float32`.*dither.*not `none`/isu,
+		/AAC\/M4A.*WebCodecs AudioEncoder.*Mediabunny.*capability probing.*complete M4A/isu,
 	);
 	assert.match(
 		publication.summary,
-		/offline.*preflight.*maximum.*required temporary.*raw staging PCM payload.*input channel.*excludes.*WAV framing.*padding/isu,
+		/ffmpegAvailable: false.*custom FFmpeg.*typed unavailability.*no FFmpeg fallback/isu,
 	);
 	assert.match(
 		publication.summary,
-		/selects.*target before render.*after FFmpeg.*stat.*open.*exact-size writer.*ordinary offline renderer failure.*same unopened target.*Prepared Blob mode.*legacy.*final-Blob.*download/isu,
+		/bundle audit rejects.*package specifiers.*core assets.*runtime loader.*URL.*cache seam/isu,
 	);
 	assert.match(
 		publication.summary,
-		/WORKERFS.*worker MEMFS.*at most one MiB.*one read and one.*write.*backpressure.*never.*whole-file `readFile`.*stat.*emitted.*destination-written.*committed-result/isu,
+		/complete encoded length.*at-most-1-MiB ranges.*one awaited write.*closes before commit.*without a final download Blob/isu,
 	);
 	assert.match(
 		publication.summary,
-		/269,484,049-byte.*258.*transport arithmetic and backpressure only.*not.*codec execution.*reference-scale/isu,
+		/retains mapped PCM.*complete encoded result.*128 MiB.*not end-to-end streaming.*heap.*RSS.*qualification/isu,
 	);
 	assert.match(
 		publication.summary,
-		/custom FFmpeg.*stems.*video.*browser.*operating-system.*native picker.*packaged.*worker MEMFS.*native or WASM.*heap.*RSS.*unqualified/isu,
+		/Desktop bundled.*external providers.*separately governed.*unchanged/isu,
 	);
 	assert.match(
 		rollback.summary,
-		/synchronous WAV construction.*cannot be interrupted.*checks.*before and after.*ordinary offline renderer failure.*reuse.*unopened.*post-render.*never retry/isu,
+		/dedicated WebAssembly encode.*terminates its worker.*rejects pending.*AAC\/M4A.*not currently interruptible.*discarded before publication/isu,
 	);
 	assert.match(
 		rollback.summary,
-		/cancellation during FFmpeg execution.*terminates.*runtime.*before commit aborts.*unpublished destination.*exactly once.*abort fails synchronously.*AggregateError/isu,
+		/No browser cleanup deletes MEMFS.*unmounts WORKERFS.*terminates FFmpeg.*none is present/isu,
 	);
 	assert.match(
 		rollback.summary,
-		/MEMFS output delete.*WORKERFS unmount.*mount-directory delete.*cleanup failure.*terminates.*runtime.*observable/isu,
-	);
-	assert.match(
-		rollback.summary,
-		/non-cancellable commit.*ownership.*committed result.*without stale success UI.*committed-result size.*post-publication integrity failure.*not rollback/isu,
+		/aborts an acquired unpublished destination exactly once.*close.*non-cancellable commit.*without stale success UI/isu,
 	);
 });
 
@@ -252,11 +217,11 @@ test('the threat and quality documents limit direct compressed claims to the pro
 
 	assert.match(
 		threatModel,
-		/direct compressed.*seven.*realtime-stream.*centrally admitted offline.*target before render.*exact writer.*after.*stat.*WORKERFS.*worker MEMFS.*one[- ]MiB.*backpressure.*no whole-output.*renderer.*close.*commit.*no final\s+renderer.*`Blob`/isu,
+		/direct compressed.*seven canonical.*six reviewed.*complete FLAC.*MP3.*Vorbis.*Opus.*WavPack.*MP2.*AAC.*WebCodecs.*Mediabunny.*no FFmpeg\s+fallback/isu,
 	);
 	assert.match(
 		threatModel,
-		/worker MEMFS.*native or WASM codec memory.*reference-scale.*browser.*operating-system.*packaged.*crash.*power-loss.*unqualified/isu,
+		/complete encoded.*at-most-one-MiB|complete encoded.*at-most-1-MiB/isu,
 	);
 	assert.match(
 		qualityBudgets,
@@ -270,12 +235,4 @@ function findControl(matrix, riskId, controlId) {
 	const control = risk.currentControls.find(({ id }) => id === controlId);
 	assert.ok(control, controlId);
 	return control;
-}
-
-function findOptionalControl(matrix, controlId) {
-	for (const risk of matrix.risks) {
-		const control = risk.currentControls.find(({ id }) => id === controlId);
-		if (control) return control;
-	}
-	return null;
 }

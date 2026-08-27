@@ -136,12 +136,14 @@ test('an edit made while the media is being cut refuses the commit', async () =>
 	assert.equal(committed.length, 0, 'nothing is bound to a document the cut never saw');
 });
 
-test('a project with no FFmpeg answers null rather than pretending', async () => {
-	const group = createProjectMediaActionGroup({
-		state: {}, getProject: () => project(), store: createStore() as never, ffmpeg: null,
-	});
-	assert.equal(await group.trim(), null);
-	assert.equal(group.planTrim(), null);
+test('a project without a trim operation answers null rather than pretending', async () => {
+	for (const ffmpeg of [null, {}]) {
+		const group = createProjectMediaActionGroup({
+			state: {}, getProject: () => project(), store: createStore() as never, ffmpeg,
+		});
+		assert.equal(await group.trim(), null);
+		assert.equal(group.planTrim(), null);
+	}
 });
 
 function project() {

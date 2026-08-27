@@ -22,7 +22,7 @@
 
 const editorPath = String.raw`src[\\/]common[\\/]editor[\\/]`;
 const editorOptionalArchiveModule = String.raw`(?:aup-legacy(?:-block-budget|-conversion|-xml)?|aup4-(?:client|opaque-persistence|profile|sanitization)|audacity-(?:annotation-interchange|tempo-import)|scape-(?:archive-(?:copy|layout(?:-witness)?|manifest|reader)|export-destination|import-transaction|project-source-remap)|scape-project)`;
-const editorOptionalExecutionModule = String.raw`(?:analysis|pffft|selection-effects-runtime|spectral-edit(?:-admission)?)`;
+const editorOptionalExecutionModule = String.raw`(?:analysis|browser-(?:dedicated-audio-worker-client|webcodecs-aac)|pffft|selection-effects-runtime|spectral-edit(?:-admission)?|video-(?:keyframe-mediabunny-execution|mediabunny-muxer))`;
 const editorOptionalExportControllerModule = String.raw`(?:audio-export-render-orchestration|audio-realtime-encoded-export|audio-rendered-fallback-export|delivery-conformance-action|desktop-audio-export-capability|direct-(?:aiff-export|audio-render-plan|broadcast-wave-export|bw64-export|bwf-export|compressed-export|compressed-plan|compressed-stem-archive-plan|export-dispatch|mp3-export|native-stem-archive-plan|offline-compressed-export|offline-pcm-export|pcm-export|stem-archive-export|video-export|video-plan-contract|wav-export)|export-render-project|export-service|realtime-export-pcm-transform|rendered-audio-encoding|video-export-service|video-rendered-fallback-export)`;
 const editorOptionalControllerModule = String.raw`(?:analysis-service|${editorOptionalExportControllerModule})`;
 const editorOptionalAssistanceModule = String.raw`local-assistance-[^\\/]+`;
@@ -122,6 +122,13 @@ export const EDITOR_DOMAIN_CHUNK_TEST = new RegExp(
 
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const chunkGroups = [
+	{
+		name: 'vendor-mediabunny',
+		test: /node_modules[\\/]mediabunny[\\/]/,
+		priority: 101,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
 	{
 		name: 'vendor-react',
 		test: /node_modules[\\/](?:react|react-dom|scheduler)[\\/]/,

@@ -176,7 +176,8 @@ export async function createFixture(context) {
 	await Promise.all([
 		writeJson(join(root, 'package.json'), {
 			name: 'soundscaper',
-			dependencies: { '@ffmpeg/core': '0.12.10' },
+			dependencies: {},
+			devDependencies: { '@ffmpeg/core': '0.12.10' },
 		}),
 		writeJson(join(root, 'package-lock.json'), {
 			lockfileVersion: 3,

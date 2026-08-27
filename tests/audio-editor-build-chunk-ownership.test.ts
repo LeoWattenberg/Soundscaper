@@ -112,6 +112,22 @@ test('the shell, controller, and storage groups keep the flat modules they name'
 	);
 	assert.equal(chunkGroupForModulePath('src/common/editor/index.js'), 'editor-controller-core');
 	assert.equal(chunkGroupForModulePath('src/common/editor/facade.ts'), 'editor-controller-core');
+	assert.equal(
+		chunkGroupForModulePath('src/common/editor/browser-webcodecs-aac.ts'),
+		'editor-optional-execution',
+	);
+	assert.equal(
+		chunkGroupForModulePath('src/common/editor/browser-dedicated-audio-worker-client.ts'),
+		'editor-optional-execution',
+	);
+	assert.equal(
+		chunkGroupForModulePath('src/common/editor/video-mediabunny-muxer.ts'),
+		'editor-optional-execution',
+	);
+	assert.equal(
+		chunkGroupForModulePath('node_modules/mediabunny/dist/index.js'),
+		'vendor-mediabunny',
+	);
 	assert.equal(chunkGroupForModulePath('src/common/editor/history.js'), 'editor-storage-model');
 	assert.equal(chunkGroupForModulePath('src/common/editor/video-timeline.js'), 'editor-timeline');
 	// A dialog stays outside every path-matched group, so it can be split off and

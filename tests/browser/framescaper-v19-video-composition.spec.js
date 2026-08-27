@@ -10,16 +10,11 @@ import {
 	openNestedCommandMenu,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
 
 test.describe('Framescaper V19 video composition authoring', () => {
 	registerAudioEditorHooks();
-
-	test.beforeEach(async ({ page }) => {
-		await installPinnedFfmpegRuntimeRoutes(page);
-	});
 
 	test('authors by keyboard with announced validation, accessible colors, history, reset, and reopen', async ({ browserName, page }, testInfo) => {
 		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);

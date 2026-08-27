@@ -15,8 +15,7 @@ export function ffmpegRuntimeReleaseBaseUrl(releaseId: string): string {
 }
 
 export function builtFfmpegRuntimeReleaseBaseUrl(): string | null {
-	if (typeof __FFMPEG_RUNTIME_MANIFEST_SHA256__ === 'undefined') return null;
-	return ffmpegRuntimeReleaseBaseUrl(__FFMPEG_RUNTIME_MANIFEST_SHA256__);
+	return null;
 }
 
 export function preferredFfmpegRuntimeFallbackBaseUrl(

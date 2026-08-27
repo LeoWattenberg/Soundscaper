@@ -155,8 +155,7 @@
 				"electron-shared-project",
 				"electron-managed-media",
 				"linked-binding-indexeddb",
-				"offline-shell-cache",
-				"offline-runtime-cache"
+				"offline-shell-cache"
 			],
 			"faultIds": [
 				"cancel-before-stage",
@@ -184,7 +183,6 @@
 				"indexeddb-multitab-writer",
 				"opfs-multitab-writer",
 				"offline-shell-upgrade",
-				"offline-runtime-rollback",
 				"storage-eviction-recovery"
 			],
 			"qualifiedBrowserProjects": ["chromium", "firefox"],

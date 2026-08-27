@@ -122,7 +122,7 @@ test('StaffPad clip-cache render admission remains narrowly evidenced and docume
 	);
 	assert.match(
 		threatModel,
-		/other render paths.*(?:OfflineAudioContext|realtime capture|effect|spectral|FFmpeg)/isu,
+		/other render paths.*dedicated audio-codec\s+WebAssembly.*WebCodecs.*Mediabunny/isu,
 		`${name} must retain other render paths as residuals`,
 	);
 	assert.match(

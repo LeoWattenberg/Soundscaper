@@ -24,7 +24,6 @@ import { chooseUncheckedTrackMenuAction } from './helpers/track-menu.js';
 import { longTone } from './audio-editor-test-fixtures.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
 const FREEZE_SAMPLE_RATE = 48_000;
@@ -109,7 +108,6 @@ test.describe('Soundscaper exact V30 production UI', () => {
 	test('imports exact-timing A/V with one aligned V30 media-lane duration', async ({ page }, testInfo) => {
 		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
 		test.setTimeout(90_000);
-		await installPinnedFfmpegRuntimeRoutes(page);
 		const clientErrors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [createDeterministicAvFixture('v30-exact-timing.webm')]);

@@ -43,7 +43,7 @@ export interface ProjectMediaActionRuntime {
 	readonly setStatus?: (message: string, tone?: string) => void;
 	readonly copy?: Readonly<Record<string, string>>;
 	readonly fileService?: { saveFile?: (request: never) => unknown } | null;
-	readonly ffmpeg?: TrimMediaFfmpegHost | null;
+	readonly ffmpeg?: Partial<TrimMediaFfmpegHost> | null;
 	/** Applies a command batch through the project's own history. */
 	readonly commit?: (command: unknown) => unknown;
 }
@@ -153,11 +153,12 @@ export function createProjectMediaActionGroup(runtime: ProjectMediaActionRuntime
 
 function trimRequest(runtime: ProjectMediaActionRuntime, signal?: AbortSignal) {
 	const project = runtime.getProject?.();
-	if (!project || !runtime.store || !runtime.ffmpeg) return null;
+	const ffmpeg = runtime.ffmpeg;
+	if (!project || !runtime.store || typeof ffmpeg?.runTrimMediaOperation !== 'function') return null;
 	return {
 		project,
 		store: runtime.store as unknown as TrimMediaStore,
-		ffmpeg: runtime.ffmpeg,
+		ffmpeg: ffmpeg as TrimMediaFfmpegHost,
 		assertCurrent: projectFence(runtime, project),
 		...(signal ? { signal } : {}),
 	};

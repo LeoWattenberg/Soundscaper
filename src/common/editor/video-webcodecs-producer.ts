@@ -5,10 +5,10 @@
  *
  * This is the WebCodecs tier's producer. It renders the same frames the FFmpeg
  * path renders, hands each one to the browser's encoder, and emits the encoded
- * chunks as an elementary stream for `video-remux-ffmpeg.ts` to put a container
- * on. Nothing here decides what the delivery is: the canvas, the rate, and the
- * quality tier all come from the plan, and this only asks a different encoder
- * to produce them.
+ * chunks either to the browser-native container muxer or, for development-only
+ * legacy callers, to an elementary-stream writer. Nothing here decides what the
+ * delivery is: the canvas, the rate, and the quality tier all come from the
+ * plan, and this only asks the browser encoder to produce them.
  *
  * Three things it must not do. It must not let frames pile up in the encoder's
  * queue — one RGBA frame is megabytes, and an unbounded queue is the browser
@@ -31,8 +31,11 @@ const ENCODER_TICK_MS = 4;
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
-interface EncodedChunkLike {
+export interface VideoWebCodecsEncodedChunk {
 	readonly byteLength: number;
+	readonly type: 'key' | 'delta';
+	readonly timestamp: number;
+	readonly duration?: number | null;
 	copyTo(target: Uint8Array): void;
 }
 
@@ -50,7 +53,7 @@ interface EncoderLike {
 
 interface EncoderConstructor {
 	new (callbacks: Readonly<{
-		output: (chunk: EncodedChunkLike, metadata?: unknown) => void;
+		output: (chunk: VideoWebCodecsEncodedChunk, metadata?: EncodedVideoChunkMetadata) => void;
 		error: (error: unknown) => void;
 	}>): EncoderLike;
 }
@@ -100,6 +103,17 @@ export interface VideoWebCodecsProduceResult {
 	readonly byteLength: number;
 }
 
+export interface VideoWebCodecsChunkProduceRequest
+	extends Omit<VideoWebCodecsProduceRequest, 'write'> {
+	/** MP4 consumes length-prefixed AVC; the legacy elementary-stream path consumes Annex-B. */
+	readonly h264Format?: 'annexb' | 'avc';
+	/** Receives each browser chunk with the exact metadata emitted beside it. */
+	readonly writeChunk: (
+		chunk: VideoWebCodecsEncodedChunk,
+		metadata?: EncodedVideoChunkMetadata,
+	) => Awaitable<void>;
+}
+
 /**
  * Encode every frame of the source, writing an elementary stream as it goes.
  *
@@ -111,7 +125,7 @@ export interface VideoWebCodecsProduceResult {
 export async function produceVideoWebCodecsStream(
 	request: VideoWebCodecsProduceRequest,
 ): Promise<VideoWebCodecsProduceResult> {
-	const { frameSource, producer, videoFrameClass } = request;
+	const { frameSource } = request;
 	const { width, height, frameRate } = frameSource.canvas;
 	const writer = createVideoElementaryStreamWriter({
 		videoCodec: request.videoCodec,
@@ -120,24 +134,57 @@ export async function produceVideoWebCodecsStream(
 		frameRate,
 		frameCount: frameSource.frameCount,
 	});
-	const pending: Uint8Array[] = [];
+	let byteLength = 0;
+	const header = writer.header();
+	byteLength += header.byteLength;
+	if (header.byteLength > 0) await request.write(header);
+	let chunkIndex = 0;
+	const encoded = await produceVideoWebCodecsChunks({
+		...request,
+		h264Format: 'annexb',
+		async writeChunk(chunk) {
+			const payload = new Uint8Array(chunk.byteLength);
+			chunk.copyTo(payload);
+			const bytes = writer.frame(payload, chunkIndex);
+			chunkIndex += 1;
+			byteLength += bytes.byteLength;
+			await request.write(bytes);
+		},
+	});
+	return Object.freeze({ ...encoded, byteLength });
+}
+
+/** Encode every exact frame while preserving WebCodecs chunk timing and decoder metadata. */
+export async function produceVideoWebCodecsChunks(
+	request: VideoWebCodecsChunkProduceRequest,
+): Promise<VideoWebCodecsProduceResult> {
+	const { frameSource, producer, videoFrameClass } = request;
+	const { width, height, frameRate } = frameSource.canvas;
+	const pending: {
+		chunk: VideoWebCodecsEncodedChunk;
+		metadata?: EncodedVideoChunkMetadata;
+	}[] = [];
 	let failure: unknown = null;
 	const encoder = new request.encoderClass({
-		output: (chunk) => {
-			const bytes = new Uint8Array(chunk.byteLength);
-			chunk.copyTo(bytes);
-			pending.push(bytes);
+		output: (chunk, metadata) => {
+			pending.push({ chunk, ...(metadata === undefined ? {} : { metadata }) });
 		},
 		error: (error) => { failure ??= error; },
 	});
+	const closeEncoder = (): void => {
+		if (encoder.state === 'closed') return;
+		try { encoder.close(); } catch { /* The active encode or abort failure remains primary. */ }
+	};
+	const onAbort = (): void => closeEncoder();
+	request.signal?.addEventListener('abort', onAbort, { once: true });
 	let chunkCount = 0;
 	let byteLength = 0;
 	const drain = async () => {
 		while (pending.length > 0) {
-			const bytes = writer.frame(pending.shift()!, chunkCount);
+			const next = pending.shift()!;
 			chunkCount += 1;
-			byteLength += bytes.byteLength;
-			await request.write(bytes);
+			byteLength += next.chunk.byteLength;
+			await request.writeChunk(next.chunk, next.metadata);
 		}
 	};
 
@@ -148,12 +195,10 @@ export async function produceVideoWebCodecsStream(
 			height,
 			framerate: frameRate.num / frameRate.den,
 			bitrate: request.bitrate,
-			...(request.videoCodec === 'h264' ? { avc: { format: 'annexb' } } : {}),
+			...(request.videoCodec === 'h264'
+				? { avc: { format: request.h264Format ?? 'annexb' } }
+				: {}),
 		});
-		const header = writer.header();
-		byteLength += header.byteLength;
-		if (header.byteLength > 0) await request.write(header);
-
 		const rgba = new Uint8Array(producer.byteLength);
 		for (let index = 0; index < frameSource.frameCount; index += 1) {
 			assertReady(request, failure);
@@ -163,10 +208,8 @@ export async function produceVideoWebCodecsStream(
 				format: 'RGBA',
 				codedWidth: width,
 				codedHeight: height,
-				// Microseconds from the rational directly: a decimal rate would
-				// drift a frame every few minutes at 30000/1001.
 				timestamp: frameTimestamp(index, frameRate),
-				duration: frameTimestamp(1, frameRate),
+				duration: frameTimestamp(index + 1, frameRate) - frameTimestamp(index, frameRate),
 			});
 			try {
 				encoder.encode(videoFrame, { keyFrame: index === 0 });
@@ -180,12 +223,13 @@ export async function produceVideoWebCodecsStream(
 				await drain();
 			}
 		}
-		await encoder.flush();
+		await awaitWithAbort(encoder.flush(), request.signal);
 		assertReady(request, failure);
 		await drain();
 		return Object.freeze({ frameCount: frameSource.frameCount, chunkCount, byteLength });
 	} finally {
-		if (encoder.state !== 'closed') encoder.close();
+		request.signal?.removeEventListener('abort', onAbort);
+		closeEncoder();
 	}
 }
 
@@ -197,7 +241,10 @@ export function frameTimestamp(
 	return Math.round((index * MICROSECONDS_PER_SECOND * frameRate.den) / frameRate.num);
 }
 
-function assertReady(request: VideoWebCodecsProduceRequest, failure: unknown): void {
+function assertReady(
+	request: Readonly<{ signal?: AbortSignal; assertCurrent?: () => void }>,
+	failure: unknown,
+): void {
 	if (failure) throw failure;
 	if (request.signal?.aborted) throw abortError();
 	request.assertCurrent?.();
@@ -205,6 +252,30 @@ function assertReady(request: VideoWebCodecsProduceRequest, failure: unknown): v
 
 function signalOptions(signal: AbortSignal | undefined) {
 	return signal ? Object.freeze({ signal }) : Object.freeze({});
+}
+
+function awaitWithAbort<Value>(operation: PromiseLike<Value>, signal?: AbortSignal): Promise<Value> {
+	if (!signal) return Promise.resolve(operation);
+	if (signal.aborted) return Promise.reject(abortError());
+	return new Promise<Value>((resolve, reject) => {
+		let settled = false;
+		const finish = (complete: () => void): void => {
+			if (settled) return;
+			settled = true;
+			signal.removeEventListener('abort', onAbort);
+			complete();
+		};
+		const onAbort = (): void => finish(() => reject(abortError()));
+		signal.addEventListener('abort', onAbort, { once: true });
+		if (signal.aborted) {
+			onAbort();
+			return;
+		}
+		void Promise.resolve(operation).then(
+			(value) => finish(() => resolve(value)),
+			(error: unknown) => finish(() => reject(error)),
+		);
+	});
 }
 
 /**

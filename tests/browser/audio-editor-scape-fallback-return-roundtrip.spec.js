@@ -35,7 +35,6 @@ import {
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 import { createDeterministicSilentVideoFixture } from './fixtures/deterministic-av-media.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { promoteFramescaperArchiveToSoundscaperV30 } from './helpers/scape-exact-project-fixtures.js';
 
 const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
@@ -96,7 +95,6 @@ test.describe('exact-product rendered-fallback Scape return roundtrips', () => {
 	for (const workflow of WORKFLOWS) {
 		test(workflow.id, async ({ browser, page }) => {
 			test.setTimeout(120_000);
-			await installPinnedFfmpegRuntimeRoutes(page);
 			const fixtureProduct = workflow.kind === 'video' ? 'framescaper' : workflow.origin;
 			const origin = await bootEditor(page, PRODUCT_PATHS[fixtureProduct]);
 			const originErrors = collectClientErrors(page);
@@ -376,7 +374,6 @@ async function assertFallbackPlayback(runtime, workflow) {
 
 async function openProductRuntime(browser, baseURL, productId) {
 	const page = await browser.newPage({ baseURL, serviceWorkers: 'block' });
-	await installPinnedFfmpegRuntimeRoutes(page);
 	await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
 		status: 200,
 		contentType: 'application/json',

@@ -49,7 +49,7 @@ test('threat-model documentation defines the limits of enforced controls', async
 	for (const risk of matrix.risks) assert.match(documentation, new RegExp(`\\b${risk.id}\\b`, 'u'));
 	assert.match(documentation, /enforced does not mean risk-free/iu);
 	assert.match(documentation, /workers? provide fault isolation, not an operating-system security boundary/iu);
-	assert.match(documentation, /native plug-ins? execute arbitrary code with the user account's authority/iu);
+	assert.match(documentation, /native plug-ins? execute arbitrary code.*exact per-OS launcher.*rather than.*same-UID/isu);
 	assert.match(documentation, /local operating-system compromise is out of scope/iu);
 	assert.match(
 		documentation,
@@ -233,7 +233,10 @@ test('disposable video preview cache evidence binds current originals without cl
 	);
 	const decoderResidual = mediaRisk?.residualRisks.find(({ id }) => id === 'compressed-media-corpus');
 	assert.ok(decoderResidual);
-	assert.match(decoderResidual.exposure, /decoder.*codec.*browser heap.*process RSS.*unbounded/iu);
+	assert.match(
+		decoderResidual.exposure,
+		/dedicated audio WebAssembly.*WebCodecs.*Mediabunny.*decoders.*heap.*RSS.*GC.*qualification/isu,
+	);
 
 	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
 	const normalizedDocumentation = documentation.replace(/\s+/gu, ' ');

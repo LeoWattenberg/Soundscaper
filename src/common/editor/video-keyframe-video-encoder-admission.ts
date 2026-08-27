@@ -224,13 +224,28 @@ export function normalizeDependencies(
 	value: VideoKeyframeVideoEncoderDependencies,
 ): VideoKeyframeVideoEncoderDependencies {
 	const record = closedRecord(
-		value, new Set(['createJobToken']), 'video keyframe video encoder dependencies',
+		value, new Set(['createJobToken', 'executeBrowserWebCodecs']),
+		'video keyframe video encoder dependencies',
 	);
 	const createJobToken = requiredFunction(
 		record, 'createJobToken', 'video keyframe video encoder dependencies',
 	);
+	const executeBrowserWebCodecs = Object.hasOwn(record, 'executeBrowserWebCodecs')
+		? requiredFunction(
+			record, 'executeBrowserWebCodecs', 'video keyframe video encoder dependencies',
+		) as VideoKeyframeVideoEncoderDependencies['executeBrowserWebCodecs']
+		: undefined;
 	return Object.freeze({
 		createJobToken() { return Reflect.apply(createJobToken, value, []) as string; },
+		...(executeBrowserWebCodecs ? {
+			executeBrowserWebCodecs(request: Parameters<NonNullable<
+				VideoKeyframeVideoEncoderDependencies['executeBrowserWebCodecs']
+			>>[0]) {
+				return Reflect.apply(executeBrowserWebCodecs, value, [request]) as ReturnType<NonNullable<
+					VideoKeyframeVideoEncoderDependencies['executeBrowserWebCodecs']
+				>>;
+			},
+		} : {}),
 	});
 }
 

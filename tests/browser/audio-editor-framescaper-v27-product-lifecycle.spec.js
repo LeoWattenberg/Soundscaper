@@ -11,13 +11,8 @@ import {
 } from './audio-editor-test-helpers.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 test.describe('selected Framescaper F31 product lifecycle', () => {
-	test.beforeEach(async ({ page }) => {
-		await installPinnedFfmpegRuntimeRoutes(page);
-	});
-
 	test('authors and reopens exact keyframes through the shipped route', async ({ page }) => {
 		test.setTimeout(180_000);
 		const clientErrors = collectClientErrors(page);

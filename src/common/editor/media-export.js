@@ -7,13 +7,11 @@ const MAX_CUSTOM_ARGUMENTS = 64;
 const MAX_CUSTOM_ARGUMENT_LENGTH = 256;
 
 /**
- * The checked-in FFmpeg package is the single-threaded upstream wasm core. Its
- * build configuration enables LAME, libvorbis, and libopus; FFmpeg's native
- * FLAC, WavPack, MP2, and AAC encoders are also present. Keeping this profile
- * explicit lets a later custom core replace it without changing export plans.
+ * Legacy capability vocabulary used by provider-neutral export plans. Browser
+ * and desktop compositions replace this with their exact provider report.
  */
 export const BUNDLED_FFMPEG_EXPORT_PROFILE = deepFreeze({
-	id: '@ffmpeg/core@0.12.10',
+	id: 'legacy-bundled-codec-profile-v1',
 	singleThreaded: true,
 	encoders: ['aac', 'flac', 'libmp3lame', 'libopus', 'libvorbis', 'mp2', 'wavpack'],
 	muxers: ['flac', 'ipod', 'mp2', 'mp3', 'ogg', 'opus', 'wv'],

@@ -8,7 +8,6 @@ import {
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
@@ -16,7 +15,6 @@ const PERSISTENCE_TIMEOUT = { timeout: 15_000 };
 
 test.describe('Framescaper linked audio menus and video visibility controls', () => {
 	test.beforeEach(async ({ page }) => {
-		await installPinnedFfmpegRuntimeRoutes(page);
 		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
 			status: 200,
 			contentType: 'application/json',

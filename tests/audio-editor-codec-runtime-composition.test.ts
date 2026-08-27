@@ -14,11 +14,26 @@ import {
 } from '../desktop/desktop-audio-codec-operation-contract.ts';
 import type { DesktopAudioCodecCapabilityQuery } from '../desktop/desktop-audio-codec-capability-contract.ts';
 
-test('browser codec composition retains the lazy browser FFmpeg runtime', () => {
+test('browser codec composition uses dedicated codecs without a browser FFmpeg runtime', () => {
 	const runtime = createBrowserRuntime({ idleTimeoutMs: false });
 	assert.equal(typeof runtime.load, 'function');
 	assert.equal(typeof runtime.decode, 'function');
 	assert.equal(typeof runtime.encodeFileToSink, 'function');
+	assert.equal(runtime.capabilities().profileId, 'browser-dedicated-codecs-v1');
+	assert.equal(runtime.capabilities().ffmpegAvailable, false);
+	assert.equal(runtime.capabilities().formats.mp3.available, true);
+	assert.equal(runtime.capabilities().formats['custom-ffmpeg'].available, false);
+	for (const operation of [
+		'encodeVideo',
+		'encodeVideoToSink',
+		'probeVideoTiming',
+		'conformVideoToCfr',
+		'runVideoKeyframeEncoderOperation',
+		'runTrimMediaOperation',
+		'runProxyMediaOperation',
+	] as const) {
+		assert.equal(Object.hasOwn(runtime, operation), false, `${operation} must not advertise a missing capability`);
+	}
 	runtime.dispose();
 });
 

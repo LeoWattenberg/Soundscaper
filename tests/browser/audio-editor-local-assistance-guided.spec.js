@@ -11,11 +11,9 @@ import {
 } from './audio-editor-test-helpers.js';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
-// Keep this desktop-assistance workflow focused on consent and publication. The
-// H.264 browser-FFmpeg timing probe retains an explicit WebKit qualification
-// deferral, while this repository-owned VP8 fixture carries the same exact VFR
+// Keep this desktop-assistance workflow focused on consent and publication.
+// This repository-owned VP8 fixture carries the exact container timing
 // authority the shot reviewer must validate.
 const VIDEO = videoTimingProbeMedia.find(({ id }) => id === 'vfr-irregular-webm-v1');
 const CUT_FIXTURE = Object.freeze({
@@ -48,7 +46,6 @@ test.describe('menu-only Local Assistance workflows', () => {
 	test('installs separately, accepts and undoes one workflow, then cancels preparation', async ({ page }) => {
 		test.setTimeout(120_000);
 		await stubStorageEstimate(page, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
-		await installPinnedFfmpegRuntimeRoutes(page);
 		await installLocalAssistanceFixture(page);
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/framescaper/en/');
@@ -200,7 +197,6 @@ test.describe('menu-only Local Assistance workflows', () => {
 	test('keeps Advanced opt-in and runs a primitive through one workflow consent', async ({ page }) => {
 		test.setTimeout(120_000);
 		await stubStorageEstimate(page, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
-		await installPinnedFfmpegRuntimeRoutes(page);
 		await installLocalAssistanceFixture(page);
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/framescaper/en/');

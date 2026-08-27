@@ -30,7 +30,6 @@ import {
 	stubStorageEstimate,
 } from './audio-editor-test-helpers.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import {
 	createScapePcmPayload,
 	promoteFramescaperArchiveToSoundscaperV30,
@@ -355,7 +354,6 @@ test.describe('Scape open feature decisions', () => {
 	test('opens exact S30 video effects in Soundscaper as persistent control-free bypass placeholders', async ({ page }, testInfo) => {
 		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
 		test.setTimeout(90_000);
-		await installPinnedFfmpegRuntimeRoutes(page);
 		const fixture = createDeterministicAvFixture('compatibility-video.webm');
 		const errors = collectClientErrors(page);
 		const framescaper = await bootEditor(page, '/framescaper/embed/en/');
@@ -422,7 +420,6 @@ test.describe('Scape open feature decisions', () => {
 	test('preserves exact S30 retime curves only after explicit read-only consent', async ({ page }, testInfo) => {
 		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
 		test.setTimeout(120_000);
-		await installPinnedFfmpegRuntimeRoutes(page);
 		const errors = collectClientErrors(page);
 		const framescaper = await bootEditor(page, '/framescaper/embed/en/');
 		await importFiles(framescaper, [createDeterministicAvFixture('retime-preservation.webm')]);

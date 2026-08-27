@@ -17,7 +17,6 @@ import SoundActivationPreferences from '../SoundActivationPreferences.tsx';
 import { workspacePanelAvailable } from '../framescaper-capture-ui-model.ts';
 import { workspacePreferencesPage } from '../workspace/workspace-preferences-routing.ts';
 import DesktopFfmpegPreferencePanel from './DesktopFfmpegPreferencePanel.tsx';
-import OfflineRuntimePreferencePanel from './OfflineRuntimePreferencePanel.tsx';
 import {
 	WORKSPACE_DOCK_IDS,
 	WORKSPACE_DISCOVERABLE_PANEL_IDS,
@@ -66,7 +65,6 @@ export default function WorkspacePreferencesDialog({
 		{ id: 'workspace', label: copy.workspace, icon: iconNameToChar('WORKSPACE') },
 		{ id: 'panels', label: copy.panels, icon: iconNameToChar('SPLIT_VIEW_VERTICAL') },
 		{ id: 'shortcuts', label: copy.shortcuts, icon: iconNameToChar('SHORTCUTS') },
-		...(!fileService.isDesktop ? [{ id: 'offline', label: copy.offlineRuntime, icon: iconNameToChar('CLOUD_FILE') }] : []),
 	];
 	const selectedPageLabel = pages.find((page) => page.id === selectedPage)?.label || copy.preferencesTitle;
 	const appearanceTheme = preferences.appearance.theme;
@@ -395,10 +393,6 @@ export default function WorkspacePreferencesDialog({
 								</div>
 								<Button variant="secondary" onClick={() => run(() => controller.actions.preferences.resetShortcuts())}>{copy.shortcutsReset}</Button>
 							</PreferencePanel>
-						)}
-
-						{selectedPage === 'offline' && !fileService.isDesktop && (
-							<OfflineRuntimePreferencePanel copy={copy} />
 						)}
 					</main>
 		</AudioEditorDialogShell>

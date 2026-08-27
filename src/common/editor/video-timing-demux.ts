@@ -11,6 +11,7 @@
  */
 
 import { normalizeRational, type RationalRate } from './timeline-time.ts';
+import { readContainerVideoSourceCharacteristics } from './video-container-characteristics.ts';
 import { demuxIsobmffVideoTiming, type VideoTimingDemuxTrack } from './video-timing-demux-isobmff.ts';
 import { demuxMatroskaVideoTiming } from './video-timing-demux-matroska.ts';
 import {
@@ -23,6 +24,7 @@ import {
 	VIDEO_TIMING_ASSET_MAXIMUM_TIMESCALE,
 } from './video-timing-asset-reference.ts';
 import type { VideoTimingProbePort, VideoTimingProbeResult } from './video-timing-probe.ts';
+import type { VideoSourceCharacteristics } from './video-source-characteristics.ts';
 
 const ISOBMFF_BRANDS = new Set(['ftyp', 'styp', 'moov', 'mdat', 'free', 'skip', 'wide']);
 const MATROSKA_MAGIC = Object.freeze([0x1a, 0x45, 0xdf, 0xa3]);
@@ -53,7 +55,10 @@ export async function demuxVideoTiming(
 	if (track === null) {
 		throw new VideoTimingDemuxError('The container does not state exact video frame timing.');
 	}
-	return timingResult(track);
+	const characteristics = await readContainerVideoSourceCharacteristics(input, {
+		...(options.signal ? { signal: options.signal } : {}),
+	});
+	return timingResult(track, characteristics);
 }
 
 /**
@@ -87,7 +92,10 @@ async function demuxContainer(
 	return null;
 }
 
-function timingResult(track: VideoTimingDemuxTrack): VideoTimingProbeResult {
+function timingResult(
+	track: VideoTimingDemuxTrack,
+	characteristics: VideoSourceCharacteristics,
+): VideoTimingProbeResult {
 	const frameCount = track.presentationTicks.length;
 	if (frameCount === 0 || frameCount > VIDEO_TIMING_ASSET_MAXIMUM_FRAMES) {
 		throw new VideoTimingDemuxError('The container states no persistable video frame count.');
@@ -100,6 +108,7 @@ function timingResult(track: VideoTimingDemuxTrack): VideoTimingProbeResult {
 		presentationTicks: track.presentationTicks,
 		finalFrameDurationTicks: track.finalFrameDurationTicks,
 		nominalRate: nominalRate(track),
+		characteristics,
 	});
 }
 

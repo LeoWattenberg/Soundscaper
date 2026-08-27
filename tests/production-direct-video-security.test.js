@@ -21,63 +21,40 @@ const FORMAT_CONTRACTS = Object.freeze([
 ]);
 
 const PUBLICATION_EVIDENCE = Object.freeze([
-	'patches/npm/@ffmpeg+ffmpeg+0.12.15.patch',
-	'src/common/editor/ffmpeg-output-stream.ts',
-	'src/common/editor/ffmpeg-video-output.ts',
-	'src/common/editor/ffmpeg.js',
+	'src/common/editor/video-delivery-encoder-tier.ts',
+	'src/common/editor/video-keyframe-video-encoder.ts',
+	'src/common/editor/video-keyframe-mediabunny-execution.ts',
+	'src/common/editor/video-mediabunny-muxer.ts',
+	'src/common/editor/video-keyframe-video-output.ts',
 	'src/common/editor/controller/direct-video-export.ts',
-	'src/common/editor/controller/direct-video-plan-contract.ts',
 	'src/common/editor/controller/video-export-service.ts',
-	'src/common/editor/controller/video-rendered-fallback-export.ts',
-	'src/common/editor/file-service.js',
-	'src/common/editor/file-save-stream.ts',
-	'src/common/editor/video-export.js',
-	'src/common/editor/video-ffmpeg.js',
 	'src/common/editor/desktop-video-codec-runtime.ts',
-	'src/soundscaper/video-export-strategy-v29.ts',
 	'desktop/external-ffmpeg-video-operation-service.ts',
 	'desktop/external-ffmpeg-video-qualification.ts',
 	'desktop/external-ffmpeg-video-canary-inspection.ts',
-	'desktop/save-targets.js',
-	'tests/audio-editor-ffmpeg-output-range-patch.test.js',
-	'tests/audio-editor-ffmpeg-output-stream.test.ts',
-	'tests/audio-editor-ffmpeg-video-output.test.ts',
-	'tests/audio-editor-ffmpeg-idle.test.js',
+	'tests/audio-editor-video-delivery-encoder-tier.test.ts',
+	'tests/audio-editor-video-keyframe-mediabunny-execution.test.ts',
+	'tests/audio-editor-video-mediabunny-muxer.test.ts',
 	'tests/audio-editor-export-direct-video.test.ts',
-	'tests/audio-editor-direct-video-keyframe-plan-v7.test.ts',
-	'tests/audio-editor-video-ffmpeg.test.js',
-	'tests/audio-editor-video-rendered-fallback-export.test.ts',
-	'tests/audio-editor-soundscaper-video-export-strategy-v29.test.ts',
 	'tests/external-ffmpeg-video-operation-service.test.ts',
 	'tests/external-ffmpeg-video-qualification.test.ts',
 	'tests/external-ffmpeg-video-canary-inspection.test.ts',
-	'tests/audio-editor-file-service.test.js',
-	'tests/desktop-save-capacity.test.js',
-	'tests/desktop-save.test.js',
 ]);
 
 const ROLLBACK_EVIDENCE = Object.freeze([
-	'src/common/editor/ffmpeg-output-stream.ts',
-	'src/common/editor/ffmpeg-video-output.ts',
-	'src/common/editor/ffmpeg.js',
+	'src/common/editor/video-delivery-encoder-tier.ts',
+	'src/common/editor/video-keyframe-video-encoder.ts',
+	'src/common/editor/video-keyframe-mediabunny-execution.ts',
+	'src/common/editor/video-mediabunny-muxer.ts',
 	'src/common/editor/controller/direct-video-export.ts',
-	'src/common/editor/controller/direct-video-plan-contract.ts',
 	'src/common/editor/controller/video-export-service.ts',
 	'src/common/editor/desktop-video-codec-runtime.ts',
-	'src/soundscaper/video-export-strategy-v29.ts',
 	'desktop/external-ffmpeg-video-session-cleanup.ts',
-	'src/common/editor/file-save-stream.ts',
-	'desktop/save-targets.js',
-	'tests/audio-editor-ffmpeg-output-stream.test.ts',
-	'tests/audio-editor-ffmpeg-video-output.test.ts',
-	'tests/audio-editor-ffmpeg-idle.test.js',
+	'tests/audio-editor-video-keyframe-native-video-encoder.test.ts',
+	'tests/audio-editor-video-keyframe-mediabunny-execution.test.ts',
+	'tests/audio-editor-video-mediabunny-muxer.test.ts',
 	'tests/audio-editor-export-direct-video.test.ts',
-	'tests/audio-editor-direct-video-keyframe-plan-v7.test.ts',
-	'tests/audio-editor-soundscaper-video-export-strategy-v29.test.ts',
-	'tests/audio-editor-desktop-video-codec-runtime.test.ts',
 	'tests/external-ffmpeg-video-session-cleanup.test.ts',
-	'tests/desktop-save-capacity.test.js',
-	'tests/desktop-save.test.js',
 ]);
 
 const KEYED_PROJECT_EVIDENCE = Object.freeze([
@@ -110,27 +87,24 @@ const KEYED_EXPORT_AUTHORITY_EVIDENCE = Object.freeze([
 ]);
 
 const KEYED_ENCODER_EVIDENCE = Object.freeze([
-	'patches/npm/@ffmpeg+ffmpeg+0.12.15.patch',
 	'src/common/editor/video-keyframe-encoder-admission.ts',
-	'src/common/editor/video-keyframe-encoder-stream.ts',
 	'src/common/editor/video-keyframe-audio-input.ts',
-	'src/common/editor/video-keyframe-video-container-stream.ts',
+	'src/common/editor/video-webcodecs-producer.ts',
 	'src/common/editor/video-keyframe-video-encoder.ts',
-	'src/common/editor/video-keyframe-video-operation.ts',
-	'src/common/editor/video-keyframe-video-output.ts',
-	'src/common/editor/video-keyframe-video-sink.ts',
+	'src/common/editor/video-keyframe-mediabunny-execution.ts',
+	'src/common/editor/video-mediabunny-muxer.ts',
 	'src/common/editor/desktop-video-codec-runtime.ts',
 	'desktop/external-ffmpeg-video-operation-service.ts',
 	'desktop/external-ffmpeg-video-session-cleanup.ts',
-	'tests/audio-editor-video-keyframe-av-encoder.test.ts',
-	'tests/audio-editor-video-keyframe-encoder-stream.test.ts',
-	'tests/audio-editor-video-keyframe-video-sink-encoder.test.ts',
+	'tests/audio-editor-video-webcodecs-producer.test.ts',
+	'tests/audio-editor-video-keyframe-native-video-encoder.test.ts',
+	'tests/audio-editor-video-keyframe-mediabunny-execution.test.ts',
+	'tests/audio-editor-video-mediabunny-muxer.test.ts',
 	'tests/audio-editor-desktop-video-codec-runtime.test.ts',
 	'tests/external-ffmpeg-video-session-cleanup.test.ts',
-	'tests/browser/audio-editor-video-keyframe-video-encoder.spec.js',
 ]);
 
-test('exact direct MP4 and WebM publication has narrow capability and rollback controls', async () => {
+test('exact direct MP4 and WebM publication separates browser-native and desktop providers', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	const publication = findControl(
 		matrix,
@@ -155,52 +129,51 @@ test('exact direct MP4 and WebM publication has narrow capability and rollback c
 	for (const path of ROLLBACK_EVIDENCE) {
 		assert.ok(rollback.evidence.some((item) => item.path === path), path);
 	}
-	for (const path of [
-		'src/common/editor/controller/direct-video-export.ts',
-		'src/common/editor/controller/video-export-service.ts',
-		'tests/audio-editor-export-direct-video.test.ts',
-	]) assert.ok(fallback.evidence.some((item) => item.path === path), path);
-
-	assert.match(
-		publication.summary,
-		/exact direct.*MP4.*`mp4`.*`\.mp4`.*`video\/mp4`.*WebM.*`webm`.*`\.webm`.*`video\/webm`.*purpose `video`.*safe.*version-6.*descriptor.*version-7 keyed.*fingerprint.*structural.*SHA-256.*stat.*emitted.*written.*committed/isu,
-	);
-	assert.match(
-		publication.summary,
-		/browser V6.*WORKERFS\/MEMFS.*browser V7.*SharedArrayBuffer.*desktop Soundscaper S30.*exact S29 implementation.*exact V7 keyed-RGBA.*forces the desktop provider.*WebCodecs/isu,
-	);
-	assert.match(
-		publication.summary,
-		/live canary.*current external ffmpeg\/ffprobe pair.*H\.264\/AAC MP4.*`libx264`.*`aac`.*WebM.*VP9\/Opus.*`libvpx-vp9`.*`libopus`.*exact ffprobe.*two streams.*16x16.*yuv420p.*48 kHz stereo/isu,
-	);
-	assert.match(
-		publication.summary,
-		/pathless.*at-most-1-MiB chunks.*main-private pipes.*main-private scratch.*bounded reads.*container.*digest.*byte-count.*publication/isu,
-	);
-	assert.match(
-		publication.summary,
-		/bundled video.*operating-system video.*AV1 remain disabled.*external WebM is VP9.*not AV1.*codec conformance.*broad FFmpeg-version\/platform.*packaged UI.*reference-scale.*aggregate memory.*RSS.*CPU.*durability.*crash.*power loss.*unqualified/isu,
+	assert.equal(publication.evidence.some(({ path }) => path === 'src/common/editor/ffmpeg.js'), false);
+	assert.equal(
+		publication.evidence.some(({ path }) => path === 'patches/npm/@ffmpeg+ffmpeg+0.12.15.patch'),
+		false,
 	);
 
 	assert.match(
-		rollback.summary,
-		/currentness.*verification.*plan.*target.*preflight.*source.*audio.*FFmpeg.*stat.*range.*write.*close.*pre-commit/isu,
+		publication.summary,
+		/exact MP4 route.*`mp4`.*`\.mp4`.*`video\/mp4`.*WebM.*`webm`.*`\.webm`.*`video\/webm`/isu,
+	);
+	assert.match(
+		publication.summary,
+		/production browser.*exact keyed-frame path.*WebCodecs.*H\.264.*VP9.*Mediabunny.*AAC.*Opus.*complete container/isu,
+	);
+	assert.match(
+		publication.summary,
+		/ineligible composed-graph.*missing WebCodecs.*unsupported tuple.*refuses.*no browser FFmpeg fallback/isu,
+	);
+	assert.match(
+		publication.summary,
+		/512 MiB.*at-most-1-MiB.*no production browser imports, fetches, caches, or executes FFmpeg WebAssembly/isu,
+	);
+	assert.match(
+		publication.summary,
+		/Desktop Soundscaper S30.*unchanged.*external ffmpeg\/ffprobe.*`libx264`.*`aac`.*`libvpx-vp9`.*`libopus`.*two-stream probe/isu,
+	);
+	assert.match(
+		publication.summary,
+		/pathless.*main-private pipes.*main-private scratch.*bundled video.*operating-system video.*AV1 remain disabled/isu,
 	);
 	assert.match(
 		rollback.summary,
-		/cancellation during FFmpeg.*terminates.*runtime or external process tree.*chooser cancellation.*silently.*without publishing.*abort.*unpublished destination exactly once/isu,
+		/production browser.*exact keyed WebCodecs.*cancels Mediabunny.*disposes the producer.*aborts.*exactly once/isu,
 	);
 	assert.match(
 		rollback.summary,
-		/browser branch.*MEMFS output.*WORKERFS.*mount directories.*desktop branch.*owner-scoped main session.*drains the process tree.*removes scratch.*failed cleanup retryable.*observable/isu,
+		/unsupported or composed-graph.*never falls back to FFmpeg WebAssembly.*per-block and whole-file digest.*precede one commit/isu,
 	);
 	assert.match(
 		rollback.summary,
-		/close\/seal.*exact stat.*emitted.*destination-written.*structure.*digest.*non-cancellable commit.*late ownership.*committed result.*without stale success UI.*size drift.*post-publication.*not rollback/isu,
+		/Desktop cleanup remains unchanged.*external process tree.*owner session.*main-private scratch/isu,
 	);
 	assert.match(
 		fallback.summary,
-		/exact schema 17.*relationship role.*target clip ID.*canonical native Blob.*sole video input.*project-video-render-v1.*selected target input.*video-clip-render-v1.*direct MP4\/WebM route.*legacy final-Blob route.*does not add codec qualification/isu,
+		/only an exact keyed-frame delivery.*WebCodecs.*Mediabunny.*composed-graph.*typed unavailability.*never falls back to FFmpeg WebAssembly.*Desktop delivery/isu,
 	);
 });
 
@@ -243,11 +216,11 @@ test('selected keyed V20 admission and encoding reuse the existing video publica
 		}
 	}
 	for (const path of [
-		'src/common/editor/video-keyframe-video-container-stream.ts',
-		'src/common/editor/video-keyframe-video-output.ts',
-		'src/framescaper/video-export-strategy-v20.ts',
-		'tests/audio-editor-video-keyframe-video-sink-encoder.test.ts',
-		'tests/audio-editor-framescaper-video-export-strategy-v20.test.ts',
+		'src/common/editor/video-keyframe-video-encoder.ts',
+		'src/common/editor/video-keyframe-mediabunny-execution.ts',
+		'src/common/editor/video-mediabunny-muxer.ts',
+		'tests/audio-editor-video-keyframe-mediabunny-execution.test.ts',
+		'tests/audio-editor-video-mediabunny-muxer.test.ts',
 	]) {
 		assert.ok(publication.evidence.some((item) => item.path === path), path);
 		assert.ok(rollback.evidence.some((item) => item.path === path), path);
@@ -283,32 +256,29 @@ test('selected keyed V20 admission and encoding reuse the existing video publica
 		encoder.summary,
 		/1,280.*720.*1 through 30.*2,000,000.*1 TiB/isu,
 	);
-	assert.match(encoder.summary, /two SharedArrayBuffer.*rings.*16 MiB/isu);
 	assert.match(
 		encoder.summary,
-		/desktop Soundscaper S30.*exact S29 implementation.*same exact plan.*pathless.*at-most-1-MiB chunks.*owner-scoped main-private FFmpeg pipes.*main-private scratch.*deadline.*owner loss.*process tree/isu,
-	);
-	assert.match(encoder.summary, /float32 WAV.*2 GiB.*8,000 through 768,000/isu);
-	assert.match(
-		encoder.summary,
-		/MP4.*WebM.*SHA-256.*structurally.*exact size.*digest.*same-size replacement.*before close/isu,
+		/WebCodecs.*H\.264.*VP9.*dynamically loads Mediabunny.*AAC.*Opus.*complete container/isu,
 	);
 	assert.match(
 		encoder.summary,
-		/generation.*currentness.*AbortSignal.*acquisition.*render.*encode.*output.*external operations/isu,
+		/Missing WebCodecs.*non-keyed routes.*refuses without browser FFmpeg.*512 MiB/isu,
 	);
 	assert.match(
 		encoder.summary,
-		/cleanup.*always attempted.*browser branch.*disposes both rings.*MEMFS.*desktop branch.*owner-scoped main session.*drains the child process.*removes scratch.*destination exactly once/isu,
+		/AbortSignal.*currentness.*audio reads.*frame production.*mux writes.*finalization.*publication/isu,
 	);
-	assert.match(encoder.summary, /preserves cleanup failures/iu);
-	assert.doesNotMatch(encoder.summary, /checks.*cleanup await|fence every.*cleanup await/isu);
 	assert.match(
 		encoder.summary,
-		/selected V27.*maintained keyed V20 encoder.*existing video routes.*does not qualify.*heap.*RSS.*GC.*CPU.*elapsed.*codec conformance.*reference scale/isu,
+		/cancels the muxer.*disposes the producer.*output bytes.*cleared after delivery.*structural.*SHA-256.*same-size-replacement/isu,
 	);
-	assert.match(publication.summary, /version-6.*version-7 keyed.*publication boundaries/isu);
-	assert.match(rollback.summary, /version-7 keyed.*generation-scoped.*structural-container.*digest.*exactly once/isu);
+	assert.match(
+		encoder.summary,
+		/Desktop S30.*unchanged.*exact S29 plans.*pathless.*external-FFmpeg pipes.*main-private scratch.*process-tree cancellation/isu,
+	);
+	assert.match(encoder.summary, /complete-container.*heap.*RSS.*GC.*CPU.*conformance.*scale.*unqualified/isu);
+	assert.match(publication.summary, /publication boundaries.*production browser.*exact keyed-frame path/isu);
+	assert.match(rollback.summary, /exact keyed WebCodecs.*exactly once.*whole-file digest/isu);
 
 	assert.deepEqual(
 		matrix.publicationRouteQualification.routes
@@ -401,7 +371,7 @@ test('the threat and quality documents limit direct video claims to the proved t
 		readFile(new URL('../docs/production-threat-model.md', import.meta.url), 'utf8'),
 		readFile(new URL('../docs/quality-budgets.md', import.meta.url), 'utf8'),
 	]);
-	const threatStart = threatModel.indexOf('The maintained exact direct MP4 route');
+	const threatStart = threatModel.indexOf('The exact MP4 route');
 	const threatEnd = threatModel.indexOf('\n### Electron renderer', threatStart);
 	assert.ok(threatStart >= 0 && threatEnd > threatStart);
 	const threatDocumentation = threatModel.slice(threatStart, threatEnd).replace(/\s+/gu, ' ');
@@ -412,11 +382,11 @@ test('the threat and quality documents limit direct video claims to the proved t
 
 	assert.match(
 		threatDocumentation,
-		/direct MP4.*WebM.*version[- ]6.*version[- ]7 keyed.*SHA-256.*stat.*committed.*at-most-1-MiB.*browser V6.*WORKERFS\/MEMFS.*browser V7.*SharedArrayBuffer.*desktop Soundscaper S30.*exact S29 implementation.*live canary.*H\.264\/AAC.*VP9\/Opus.*main-private pipes.*main-private scratch/isu,
+		/exact MP4.*WebM.*production browser.*keyed-frame.*WebCodecs.*H\.264.*VP9.*Mediabunny.*AAC.*Opus.*no browser FFmpeg fallback.*Desktop Soundscaper S30.*external ffmpeg\/ffprobe.*main-private pipes.*main-private scratch/isu,
 	);
 	assert.match(
 		threatDocumentation,
-		/bundled video.*operating-system video.*AV1 remain disabled.*WebM is VP9.*not AV1.*codec conformance.*broad FFmpeg-version\/platform.*packaged UI.*reference-scale.*aggregate memory.*RSS.*CPU.*durability.*crash.*power loss.*unqualified/isu,
+		/bundled video.*operating-system video.*AV1 remain disabled.*external WebM is VP9.*codec conformance.*packaged UI.*scale.*memory.*RSS.*CPU.*durability.*crash.*power loss.*unqualified/isu,
 	);
 	assert.match(
 		qualityDocumentation,

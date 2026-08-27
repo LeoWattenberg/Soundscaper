@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import { videoTimingProbeMedia } from './browser/fixtures/video-timing-probe-media.js';
+import { videoSourceGeometryMedia } from './browser/fixtures/video-source-geometry-media.js';
 import {
 	encodeVideoTimingAsset,
 	decodeVideoTimingAsset,
@@ -15,11 +16,14 @@ import {
 	VideoTimingDemuxError,
 } from '../src/common/editor/video-timing-demux.ts';
 import { probeVideoTiming } from '../src/common/editor/video-timing-probe.ts';
+import { normalizeVideoSourceCharacteristics } from '../src/common/editor/video-source-characteristics.ts';
 
 const CFR = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1')!;
 const VFR = videoTimingProbeMedia.find(({ id }) => id === 'vfr-irregular-webm-v1')!;
 
-function blobFor(fixture: typeof CFR): Blob {
+function blobFor(fixture: Readonly<{
+	readonly file: Readonly<{ readonly buffer: Uint8Array; readonly mimeType: string }>;
+}>): Blob {
 	return new Blob([Uint8Array.from(fixture.file.buffer)], { type: fixture.file.mimeType });
 }
 
@@ -33,6 +37,20 @@ test('the container demuxer reads the pinned CFR MP4 timing exactly', async () =
 	assert.equal(result.finalFrameDurationTicks, CFR.finalFrameDurationTicks);
 	assert.deepEqual({ ...result.nominalRate }, { ...CFR.nominalRate },
 		'a constant-rate track has one coded rate, and 12800/512 is exactly 25/1');
+	assert.deepEqual(result.characteristics, {
+		backend: 'container',
+		codedWidth: 32,
+		codedHeight: 24,
+		rotationDegrees: null,
+		pixelAspectRatio: { num: 1, den: 1 },
+		fieldOrder: null,
+		hasAlpha: false,
+		videoCodec: 'h264',
+		colour: { primaries: null, transfer: null, matrix: null, range: null },
+		audioStreams: null,
+		extractedAudioStreamIndex: null,
+		startTimecode: null,
+	});
 
 	const asset = encodeVideoTimingAsset(result);
 	assert.equal(createHash('sha256').update(asset).digest('hex'), CFR.timingSha256);
@@ -51,11 +69,43 @@ test('the container demuxer reads the pinned irregular WebM timing exactly', asy
 	assert.equal(createHash('sha256').update(asset).digest('hex'), VFR.timingSha256,
 		'the persisted timing body is the evidence, and it must not depend on the backend');
 
-	// Variable-rate media has no coded rate to recover. The average across the
-	// track is what this backend reports, and it is not the rate FFmpeg estimates
-	// from its own timestamp histogram.
-	assert.deepEqual({ ...result.nominalRate }, { num: 250, den: 29 });
-	assert.notDeepEqual({ ...result.nominalRate }, { ...VFR.nominalRate });
+	// Variable-rate media has no coded rate to recover. The exact average across
+	// the occupied presentation span is the browser-native nominal answer.
+	assert.deepEqual({ ...result.nominalRate }, { ...VFR.nominalRate });
+	assert.deepEqual(result.characteristics, {
+		backend: 'container',
+		codedWidth: 32,
+		codedHeight: 24,
+		rotationDegrees: null,
+		pixelAspectRatio: { num: 1, den: 1 },
+		fieldOrder: null,
+		hasAlpha: true,
+		videoCodec: 'vp8',
+		colour: { primaries: null, transfer: null, matrix: null, range: null },
+		audioStreams: null,
+		extractedAudioStreamIndex: null,
+		startTimecode: null,
+	});
+});
+
+test('the container demuxer reports coded geometry separately from rotation and sample aspect', async () => {
+	for (const fixture of videoSourceGeometryMedia) {
+		const result = await demuxVideoTiming(blobFor(fixture));
+		const characteristics = normalizeVideoSourceCharacteristics(result.characteristics);
+		assert.deepEqual({
+			codedWidth: characteristics.codedWidth,
+			codedHeight: characteristics.codedHeight,
+			rotationDegrees: characteristics.rotationDegrees,
+			pixelAspectRatio: characteristics.pixelAspectRatio,
+			videoCodec: characteristics.videoCodec,
+		}, {
+			codedWidth: fixture.coded.width,
+			codedHeight: fixture.coded.height,
+			rotationDegrees: fixture.rotationDegrees,
+			pixelAspectRatio: fixture.pixelAspectRatio,
+			videoCodec: 'h264',
+		}, fixture.id);
+	}
 });
 
 test('the container demuxer refuses what it cannot read exactly', async () => {

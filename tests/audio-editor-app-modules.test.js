@@ -49,6 +49,13 @@ test('heavy workspace dialogs retain direct lazy entry points', async () => {
 	}
 });
 
+test('browser preferences do not retain the legacy FFmpeg offline runtime', async () => {
+	const preferences = await readFile(new URL('dialogs/WorkspacePreferencesDialog.jsx', UI_ROOT), 'utf8');
+	assert.doesNotMatch(preferences, /OfflineRuntimePreferencePanel/u);
+	assert.doesNotMatch(preferences, /id: ['"]offline['"]/u);
+	assert.doesNotMatch(preferences, /selectedPage === ['"]offline['"]/u);
+});
+
 test('menus and keyboard runtime are not owned by the React app shell', async () => {
 	const app = await readFile(new URL('AudioEditorApp.jsx', UI_ROOT), 'utf8');
 	assert.doesNotMatch(app, /function createApplicationMenus/);

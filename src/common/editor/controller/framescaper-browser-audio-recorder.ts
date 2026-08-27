@@ -429,6 +429,6 @@ function assertUsable(state: FramescaperCaptureAudioRecorderState, failure: Erro
 function runtimeTrackProcessorConstructor(): FramescaperAudioTrackProcessorConstructor | null {
 	const runtime = globalThis as typeof globalThis & { MediaStreamTrackProcessor?: unknown };
 	return typeof runtime.MediaStreamTrackProcessor === 'function'
-		? runtime.MediaStreamTrackProcessor as FramescaperAudioTrackProcessorConstructor
+		? runtime.MediaStreamTrackProcessor as unknown as FramescaperAudioTrackProcessorConstructor
 		: null;
 }

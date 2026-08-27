@@ -4,6 +4,8 @@ import { readdirSync, statSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { auditBrowserBundleCodecComposition } from './lib/browser-bundle-codec-audit.mjs';
+
 const root = resolve(import.meta.dirname, '..');
 const buildDirectory = join(root, 'dist');
 const javaScriptChunkPattern = /\.(?:c|m)?js$/u;
@@ -40,6 +42,7 @@ export function findFontInventoryProblems(
 }
 
 export function checkBuildChunks(directory = buildDirectory) {
+	const codecComposition = auditBrowserBundleCodecComposition({ root: directory });
 	const records = collectFiles(directory)
 		.map((path) => ({
 			path: relative(root, path).split(sep).join('/'),
@@ -62,6 +65,7 @@ export function checkBuildChunks(directory = buildDirectory) {
 	console.log(
 		`Checked ${javaScriptRecords.length} built JavaScript chunks; largest is ${javaScriptRecords[0].path} at ${javaScriptRecords[0].size.toLocaleString('en-US')} bytes.`,
 	);
+	console.log(`Audited ${codecComposition.inspectedFileCount} browser bundle files for application-supplied FFmpeg.`);
 }
 
 function collectFiles(directory) {

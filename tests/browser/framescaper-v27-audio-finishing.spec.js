@@ -12,13 +12,8 @@ import {
 } from './audio-editor-test-helpers.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 test.describe('selected Framescaper F31 audio finishing', () => {
-	test.beforeEach(async ({ page }) => {
-		await installPinnedFfmpegRuntimeRoutes(page);
-	});
-
 	test('authors, restores, executes, and delivers the shared V21 audio workflows from menus', async ({ page }) => {
 		test.setTimeout(180_000);
 		await disableNativeSavePicker(page);

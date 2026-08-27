@@ -328,9 +328,18 @@ other WavPack versions, profiles, platforms, or producers. The BSD-3-Clause
 license, exact review, and interoperability result do not establish absence of
 patent exposure or patent clearance.
 
-## FFmpeg WebAssembly export and import core
+## Retained legacy FFmpeg WebAssembly publication and audit tooling
 
-The Web editor lazily loads the upstream single-thread `@ffmpeg/core` 0.12.10 package through the MIT-licensed `@ffmpeg/ffmpeg` 0.12.15 wrapper. This Web-only runtime is not included in an Electron renderer, desktop runtime resource tree, or desktop release asset. The combined core is GPL-2.0-or-later and is used on the Web surface for media decode fallback and FLAC, MP3, Ogg Vorbis, Opus, WavPack, MP2, AAC/M4A, and explicitly bounded custom output.
+The upstream single-thread `@ffmpeg/core` 0.12.10 package, the MIT-licensed
+`@ffmpeg/ffmpeg` 0.12.15 wrapper, and its `@ffmpeg/types` 0.12.4 definitions
+are now development-only dependencies retained for historical publication
+manifests, audit tooling, fixtures, and development parity checks. They are not
+members of the npm production closure. The production browser bundle audit
+rejects the packages, core JavaScript or WebAssembly, runtime loader, asset URL,
+and legacy cache seam; no browser or desktop application artifact imports,
+packages, publishes, or fetches this core. The combined core remains
+GPL-2.0-or-later, so its exact provenance and terms remain recorded while the
+legacy evidence is retained.
 
 - package source and build scripts: <https://github.com/ffmpegwasm/ffmpeg.wasm/tree/v12.15>
 - npm source archive: <https://registry.npmjs.org/@ffmpeg/core/-/core-0.12.10.tgz>
@@ -345,19 +354,25 @@ The exact configuration string embedded in the shipped core is:
 --target-os=none --arch=x86_32 --enable-cross-compile --disable-asm --disable-stripping --disable-programs --disable-doc --disable-debug --disable-runtime-cpudetect --disable-autodetect --nm=emnm --ar=emar --ranlib=emranlib --cc=emcc --cxx=em++ --objcc=emcc --dep-cc=emcc --extra-cflags='-I/opt/include -O3 -msimd128' --extra-cxxflags='-I/opt/include -O3 -msimd128' --disable-pthreads --disable-w32threads --disable-os2threads --enable-gpl --enable-libx264 --enable-libx265 --enable-libvpx --enable-libmp3lame --enable-libtheora --enable-libvorbis --enable-libopus --enable-zlib --enable-libwebp --enable-libfreetype --enable-libfribidi --enable-libass --enable-libzimg
 ```
 
-That upstream build enables GPL components and the following separately licensed libraries: x264 and x265 (GPL-2.0-or-later), libvpx (BSD-3-Clause), LAME (LGPL-2.0-or-later), libtheora and libvorbis (BSD-3-Clause), libopus (BSD-3-Clause), zlib (Zlib), libwebp (BSD-3-Clause), FreeType (FTL or GPL-2.0-only), FriBidi (LGPL-2.1-or-later), libass (ISC), and zimg (WTFPL-2.0). The upstream build recipe identifies their licenses and preferred source locations, but fetches dependency sources during the build and does not vendor the exact complete source snapshot used for the npm core. This missing provenance keeps qualified Web runtime publication gated. The combined core is offered under GPL-2.0-or-later; the repository's AGPL-3.0-only application is compatible with that selected GPL option.
+That upstream build enables GPL components and the following separately licensed libraries: x264 and x265 (GPL-2.0-or-later), libvpx (BSD-3-Clause), LAME (LGPL-2.0-or-later), libtheora and libvorbis (BSD-3-Clause), libopus (BSD-3-Clause), zlib (Zlib), libwebp (BSD-3-Clause), FreeType (FTL or GPL-2.0-only), FriBidi (LGPL-2.1-or-later), libass (ISC), and zimg (WTFPL-2.0). The upstream build recipe identifies their licenses and preferred source locations, but fetches dependency sources during the build and does not vendor the exact complete source snapshot used for the npm core. This missing provenance blocks any future reactivation of the legacy publication tooling. The combined core is offered under GPL-2.0-or-later; the repository's AGPL-3.0-only application is compatible with that selected GPL option.
 
-The npm core artifacts themselves are unpatched. Local integration is confined to `src/common/editor/ffmpeg.js`, `media-export.js`, and `video-ffmpeg.js`: same-origin lazy loading, a serialized single-worker queue, abort handling, WORKERFS staging, codec-capability/error reporting, metadata/channel-map arguments, deterministic timeline composition, and rejection of extra inputs, network/file protocols, reports, and unbounded custom arguments. Vite only fingerprints and copies the package artifacts. Video export invokes the enabled x264 encoder for MP4 or libvpx-vp9 for WebM, with AAC or libopus audio respectively; it does not invoke x265. The editor includes no SBSMS, SoundTouch, SoX, or other time-stretch library in this core.
+The npm core artifacts themselves are unpatched. Historical integration modules
+and tests remain reviewable in the repository, but current browser composition
+uses dedicated codec modules, browser WebCodecs, and a dedicated container
+writer. The production build gate scans every emitted browser file and service
+worker after static and offline-shell generation and fails if the wrapper, core,
+core asset names, loader, public runtime URL, or cache namespace re-enters the
+artifact.
 
 `desktop/ffmpeg-corresponding-source.json` currently pins an FFmpeg source
 archive and the `v12.15` ffmpeg.wasm build-source archive. It does not inventory
 or pin complete corresponding source for every enabled external library.
-Web runtime publication tooling validates those descriptors, and the checked-in
-runtime policy manifest hashes them to reject provenance drift, but neither
-check establishes corresponding-source completeness. Qualified Web runtime
-distribution therefore remains blocked by the licensing matrix. The descriptor
+The retained legacy publication tooling validates those descriptors, and the
+checked-in runtime policy manifest hashes them to reject provenance drift, but
+neither check establishes corresponding-source completeness. Any future
+reactivation therefore remains blocked by the licensing matrix. The descriptor
 name is historical; neither it nor its referenced archives are copied into a
-desktop package or desktop release set.
+browser bundle, desktop package, or desktop release set.
 
 ## Desktop codec execution and external FFmpeg
 
@@ -443,8 +458,8 @@ flags only after their licensing rows clear.
 and the host-local notice pin the candidate source and five build recipes.
 [`config/framescaper-media-host-payload-manifest.json`](config/framescaper-media-host-payload-manifest.json)
 contains no payloads: every target is `pending-external`. This source record
-does not alter the browser `@ffmpeg/core` 0.12.10 / FFmpeg 5.1.4 runtime above
-and does not authorize native codec distribution.
+does not activate the development-only legacy `@ffmpeg/core` 0.12.10 / FFmpeg
+5.1.4 evidence above and does not authorize native codec distribution.
 
 ## OpenFX 1.5.1 source candidate
 
@@ -476,8 +491,9 @@ The initial effect inventory and parameter behavior were researched against:
 - GStreamer `1.28.5`: <https://gitlab.freedesktop.org/gstreamer/gstreamer/-/tree/1.28.5>;
   project licensing FAQ:
   <https://gstreamer.freedesktop.org/documentation/frequently-asked-questions/licensing.html>.
-- FFmpeg filter behavior shipped through the separately noticed
-  `@ffmpeg/core` `0.12.10` runtime above:
+- FFmpeg filter behavior used as a documentation reference for independently
+  authored plans, without shipping the development-only legacy
+  `@ffmpeg/core` `0.12.10` above:
   <https://ffmpeg.org/ffmpeg-filters.html>.
 
 MLT and GStreamer are catalog and behavior references only. Any future reuse
@@ -534,14 +550,14 @@ The browser tools can distribute the following pinned browser-side packages as p
 - Roseus colormap — MIT; Copyright © dofuuz; the 256-entry colormap table embedded in `vendor/audacity-design-system/components/src/utils/spectrogram.ts`; source: <https://github.com/dofuuz/roseus>
 - `@fontsource/inter` 5.3.0 — SIL Open Font License 1.1; self-hosted WOFF/WOFF2 distribution of Inter, Copyright 2016 The Inter Project Authors; source metadata and font files: <https://github.com/fontsource/font-files/tree/main/fonts/google/inter>; upstream font source: <https://github.com/rsms/inter>; full license text is retained in the installed package's `LICENSE` file
 - `@fontsource/ubuntu` 5.3.0 — Ubuntu Font Licence 1.0; self-hosted WOFF/WOFF2 distribution of Ubuntu, Copyright 2010-2011 Canonical Ltd.; source metadata and font files: <https://github.com/fontsource/font-files/tree/main/fonts/google/ubuntu>; upstream font source: <https://launchpad.net/ubuntu-font-family>; full license text is retained in the installed package's `LICENSE` file
-- `@ffmpeg/ffmpeg` 0.12.15 — MIT; source: <https://github.com/ffmpegwasm/ffmpeg.wasm>
-- `@ffmpeg/types` 0.12.4 — MIT; transitive type definitions used by the FFmpeg wrapper and not emitted as runtime JavaScript; source: <https://github.com/ffmpegwasm/ffmpeg.wasm>
-- `@ffmpeg/core` 0.12.10 — GPL-2.0-or-later; build scripts and upstream source references: <https://github.com/ffmpegwasm/ffmpeg.wasm/tree/v12.15>; a complete corresponding-source snapshot for the exact npm binary remains required by the release gate above
 - `@sqlite.org/sqlite-wasm` 3.53.0-build1 — official SQLite WebAssembly distribution; SQLite core is dedicated to the public domain; source and blessing: <https://sqlite.org/wasm/doc/trunk/index.md> and <https://sqlite.org/copyright.html>
 - `@zip.js/zip.js` 2.8.33 — BSD-3-Clause; Copyright © 2023 Gildas Lormeau; source and license: <https://github.com/gildas-lormeau/zip.js/tree/v2.8.33>
 - `@noble/hashes` 2.2.0 — MIT; Copyright © 2022 Paul Miller; source and license: <https://github.com/paulmillr/noble-hashes/tree/2.2.0>
 - `fflate` 0.8.3 — MIT; source: <https://github.com/101arrowz/fflate>
 - `@echogarden/pffft-wasm` 0.4.2 — UCAR/NCAR permissive license; SIMD WebAssembly build of PFFFT used by spectrograms, spectral editing, and FFT-based effects; source: <https://github.com/echogarden-project/pffft-wasm>
+- `mediabunny` 1.55.3 — MPL-2.0; unmodified pure-TypeScript browser media toolkit used for browser-native AAC and MP4/WebM container generation; exact npm archive: <https://registry.npmjs.org/mediabunny/-/mediabunny-1.55.3.tgz> (`sha512-kpBhMiJHGmerizzObAT1XLZDyImO4ZEKXaxjjfxGVkycQ0U5of/xlLepm1Izp3P+3jlaedFSRI5fJnv3Q5xV6A==`); upstream source: <https://github.com/Vanilagy/mediabunny>
+- `@types/dom-mediacapture-transform` 0.1.12 — MIT; transitive compile-time definitions required by Mediabunny, represented in the npm production closure but not emitted as runtime JavaScript; exact npm archive: <https://registry.npmjs.org/@types/dom-mediacapture-transform/-/dom-mediacapture-transform-0.1.12.tgz> (`sha512-d7/QsLRwF864A5mgIM/YrfiglHoYn7zgCcAoJgW404r+2DwnNr7EBbLnCWpmOMgH8y0te73L1AV6H1bmauaWFw==`); source: <https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/dom-mediacapture-transform>
+- `@types/dom-webcodecs` 0.1.13 — MIT; transitive compile-time WebCodecs definitions required by Mediabunny, represented in the npm production closure but not emitted as runtime JavaScript; exact npm archive: <https://registry.npmjs.org/@types/dom-webcodecs/-/dom-webcodecs-0.1.13.tgz> (`sha512-O5hkiFIcjjszPIYyUSyvScyvrBoV3NOEEZx/pMlsu44TKzWNkLVBBxnxJz42in5n3QIolYOcBYFCPZZ0h8SkwQ==`); source: <https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/dom-webcodecs>
 - `react` 19.2.7 — MIT; Copyright © Meta Platforms, Inc. and affiliates; source and license: <https://github.com/facebook/react/tree/v19.2.7/packages/react>
 - `react-dom` 19.2.7 — MIT; Copyright © Meta Platforms, Inc. and affiliates; source and license: <https://github.com/facebook/react/tree/v19.2.7/packages/react-dom>
 - `scheduler` 0.27.0 — MIT; transitive React scheduler runtime; Copyright © Meta Platforms, Inc. and affiliates; source and license: <https://github.com/facebook/react/tree/v19.2.7/packages/scheduler>

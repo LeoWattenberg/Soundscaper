@@ -1,7 +1,6 @@
 import { expect, test } from '@playwright/test';
 
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import {
 	DURABLE_MEDIA_STORAGE_REQUIRED,
@@ -22,7 +21,6 @@ const FABRICATED_FRAME_COUNT = Math.round(
 
 test.describe('3B-2c re-import upgrade qualification', () => {
 	test.beforeEach(async ({ page }) => {
-		await installPinnedFfmpegRuntimeRoutes(page);
 		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
 			status: 200,
 			contentType: 'application/json',
@@ -76,7 +74,7 @@ test.describe('3B-2c re-import upgrade qualification', () => {
 		expect(upgraded.timingDecision).toEqual({
 			mode: 'exact',
 			rate: CFR.nominalRate,
-			backend: 'ffmpeg',
+			backend: 'container',
 		});
 		expect(upgraded.timingAsset).toMatchObject({
 			sourceSha256: CFR.sourceSha256,

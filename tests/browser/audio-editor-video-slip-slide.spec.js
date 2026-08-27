@@ -6,7 +6,6 @@ import {
 } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { validateVideoTimingAssetBytes } from '../../src/common/editor/video-timing-asset.ts';
 import {
 	FRAMESCAPER_DATABASE_NAME,
@@ -30,7 +29,6 @@ const MENU_ROWS = Object.freeze([
 
 test.describe('Framescaper frame-canonical slip and slide qualification', () => {
 	test.beforeEach(async ({ page }) => {
-		await installPinnedFfmpegRuntimeRoutes(page);
 		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
 			status: 200,
 			contentType: 'application/json',
@@ -58,7 +56,7 @@ test.describe('Framescaper frame-canonical slip and slide qualification', () => 
 		assertContiguousLinkedPresentation(baseline);
 		const active = baseline.videos[1];
 		const source = baseline.videoSources.find(({ id }) => id === active.sourceId);
-		expect(source.timingDecision).toMatchObject({ mode: 'exact', backend: 'ffmpeg' });
+		expect(source.timingDecision).toMatchObject({ mode: 'exact', backend: 'container' });
 		expect(source.startTimecode).toBeNull();
 		expect(source.timingAsset).toMatchObject({
 			sourceSha256: source.contentSha256,

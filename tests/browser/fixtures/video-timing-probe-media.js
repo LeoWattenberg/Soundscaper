@@ -32,7 +32,7 @@ export const videoTimingProbeMedia = Object.freeze([
 			buffer: Buffer.from(VFR_WEBM_BASE64, 'base64'),
 		}),
 		sourceSha256: '29042248295aa6bfbf7adc0e15a2cfecf716279452073f7410734251aed31ae4',
-		nominalRate: Object.freeze({ num: 35, den: 2 }),
+		nominalRate: Object.freeze({ num: 250, den: 29 }),
 		timescale: 1_000,
 		presentationTicks: Object.freeze([0n, 30n, 200n, 245n, 542n, 602n, 830n, 879n]),
 		finalFrameDurationTicks: 49n,

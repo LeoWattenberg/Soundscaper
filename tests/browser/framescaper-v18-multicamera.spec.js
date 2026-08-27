@@ -7,7 +7,6 @@ import {
 	chooseNestedCommandAction,
 } from './audio-editor-test-helpers.js';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
 const MULTICAMERA_REQUIREMENT_ID = 'framescaper.multicamera';
@@ -15,7 +14,6 @@ const CFR = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
 
 test.describe('Framescaper selected-web multicamera workflow', () => {
 	test.beforeEach(async ({ page }) => {
-		await installPinnedFfmpegRuntimeRoutes(page);
 		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
 			status: 200,
 			contentType: 'application/json',

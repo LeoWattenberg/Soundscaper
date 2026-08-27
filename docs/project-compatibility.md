@@ -1451,7 +1451,7 @@ separately verifies the manifest fallback digest in the controller after shadow
 publication and before transient activation. After activation, replacing the
 local fallback with corrupt same-shaped bytes proves that stale activation-time
 admission cannot authorize delivery: maintained video export rejects before
-FFmpeg or output publication. Restoring the exact body allows fresh
+selected encoding or output publication. Restoring the exact body allows fresh
 selector-bound operation-time verification to return the exact size- and
 digest-verified native `Blob`. Delivery reuses that same immutable `Blob`
 directly as its only video input without a second fallback storage read, while
@@ -1975,7 +1975,7 @@ digest-bound private chunk provider; the selected video body is then loaded
 under the export-task signal, size-checked and hashed as its canonical native
 `Blob`, and retained as that exact immutable `Blob`. Nonselected fallback bodies
 are not read, and verification completes before the video plan, storage
-preflight, audio render, FFmpeg call, or publication.
+preflight, audio render, selected encoding, or publication.
 
 `project-video-render-v1` retains the whole-project behavior. Its source must
 have the exact video kind, match the project sample rate, carry positive
@@ -2026,7 +2026,12 @@ read-only and unmodified.
 
 Export checks project, task, generation, and operation currentness before and
 after verification, binds admission to the canonical relationship, and checks
-again after FFmpeg and publication. Refusal or cancellation begins no later
+again after selected encoding and publication. In production browsers, only an
+exact keyed-frame route with an admitted WebCodecs configuration uses
+Mediabunny MP4/WebM muxing. Composed-graph and otherwise unsupported browser
+delivery fails closed with typed unavailability and no FFmpeg WebAssembly
+fallback; desktop external-provider delivery remains separately governed.
+Refusal or cancellation begins no later
 planning or media work. The relationship snapshot includes role, target clip ID,
 canonical source and duration, maintained target effects, and required source
 geometry. Role, target, context, or same-source relationship conflict rejects
@@ -2321,9 +2326,9 @@ and selectors, and repeats those fences after verification. It reuses that same
 immutable `Blob` directly as the whole-project plan's only video input or the
 clip-local plan's selected target input, without a second fallback storage
 read; any unaffected clip-local video input still loads through ordinary storage
-reads. It then checks currentness again after FFmpeg and across output
+reads. It then checks currentness again after selected encoding and across output
 publication. Verification completes before video planning, storage preflight,
-audio rendering, FFmpeg, or output publication. A mismatch or cancellation
+audio rendering, selected encoding, or output publication. A mismatch or cancellation
 reaches none of that later delivery work.
 
 These are exact point-in-time provider and immutable-`Blob` admissions at the

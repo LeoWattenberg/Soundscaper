@@ -2,7 +2,6 @@ import {
 	expect,
 	longTone,
 	monoTone,
-	readFile,
 	test,
 	toneA,
 	toneB,
@@ -450,31 +449,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		}
 	});
 
-	test('encodes a local MP3 with the self-hosted FFmpeg core', async ({ page }) => {
-		test.skip(process.env.AUDIO_EDITOR_FFMPEG_BROWSER !== '1', 'Enable for the 31 MB FFmpeg integration check.');
-		// Exercise the production runtime URL contract with the exact pinned npm
-		// bytes so CDN availability and CORS configuration cannot make CI flaky.
-		const runtimeRoot = 'https://assets.soundscaper.org/runtime/ffmpeg/0.12.10';
-		const runtimeFiles = new Map([
-			['ffmpeg-core.js', {
-				file: new URL('../../node_modules/@ffmpeg/core/dist/esm/ffmpeg-core.js', import.meta.url),
-				contentType: 'text/javascript',
-			}],
-			['ffmpeg-core.wasm', {
-				file: new URL('../../node_modules/@ffmpeg/core/dist/esm/ffmpeg-core.wasm', import.meta.url),
-				contentType: 'application/wasm',
-			}],
-		]);
-		await page.route(`${runtimeRoot}/**`, async (route) => {
-			const fixture = runtimeFiles.get(new URL(route.request().url()).pathname.split('/').at(-1));
-			if (!fixture) return route.fulfill({ status: 404, body: 'Unknown FFmpeg runtime asset.' });
-			return route.fulfill({
-				status: 200,
-				contentType: fixture.contentType,
-				body: await readFile(fixture.file),
-			});
-		});
-		await disableOfflineAudio(page);
+	test('generates a complete MP3 with the dedicated browser codec', async ({ page }) => {
+		test.setTimeout(90_000);
+		await disableNativeSavePicker(page);
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
@@ -482,7 +459,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'MP3');
 		await exportDialog.getByRole('button', { name: 'Start export' }).click();
 		const download = exportDialog.locator('[data-export-download]');
-		await expect(download).toBeVisible({ timeout: 90_000 });
+		const failure = exportDialog.locator('.audio-editor-field-error');
+		await expect(download.or(failure)).toBeVisible({ timeout: 60_000 });
+		expect(await failure.allTextContents()).toEqual([]);
 		await expect(download).toHaveAttribute('download', /\.mp3$/);
 		const signature = await download.evaluate(async (link) => {
 			const bytes = new Uint8Array(await (await fetch(link.href)).arrayBuffer());

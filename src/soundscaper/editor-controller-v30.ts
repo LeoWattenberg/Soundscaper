@@ -31,7 +31,7 @@ import {
 	quiesceNativePluginState,
 	type NativePluginStateQuiescencePurpose,
 } from '../common/editor/native-plugin-state-quiescence.ts';
-import { createSoundscaperDesktopVideoExportStrategyV30 } from './video-export-strategy-v30.ts';
+import { createSoundscaperVideoExportStrategyV30 } from './video-export-strategy-v30.ts';
 
 const PRESENTATION_FIELDS = ['locale', 'copy', 'fileService'] as const;
 
@@ -59,9 +59,7 @@ export function createSoundscaperAudioEditorControllerV30(
 	const environment = assertSoundscaperEditorProjectEnvironmentV30(environmentValue);
 	const presentation = snapshotPresentation(presentationValue);
 	const scapeProjectRuntime = createSoundscaperScapeNativeRuntimeV30();
-	const productVideoExportStrategy = createSoundscaperDesktopVideoExportStrategyV30(
-		environment.runtime, presentation.fileService,
-	);
+	const productVideoExportStrategy = createSoundscaperVideoExportStrategyV30(environment.runtime);
 	const nativePluginStateStore = environment.controllerStore as unknown as
 		SoundscaperAup4NativePluginStateStoreV30;
 	let productController: SoundscaperAudioEditorControllerV30 | null = null;

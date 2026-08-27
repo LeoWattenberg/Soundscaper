@@ -841,7 +841,7 @@ test('cross-project video paste creates one adjacent paired lane group with fres
 	}
 });
 
-test('video export API and generic export dispatch stage raw media and audio for MP4 and WebM', async () => {
+test('desktop video export API and generic FFmpeg dispatch stage raw media and audio for MP4 and WebM', async () => {
 	const store = createMemoryStore();
 	const fixture = createPersistedVideoProject({ timeline: true });
 	store.projects.set(fixture.project.id, structuredClone(fixture.project));
@@ -858,7 +858,16 @@ test('video export API and generic export dispatch stage raw media and audio for
 	const downloads = [];
 	const cleanups = [];
 	const fileService = {
-		isDesktop: false,
+		isDesktop: true,
+		async getDesktopVideoExportCapabilities() {
+			return {
+				schemaVersion: 1,
+				formats: {
+					mp4: { available: true, provider: 'external-ffmpeg', reason: null },
+					webm: { available: true, provider: 'external-ffmpeg', reason: null },
+				},
+			};
+		},
 		async createDownload(request) {
 			downloads.push(request);
 			return {

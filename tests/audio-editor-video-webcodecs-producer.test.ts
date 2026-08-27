@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import {
 	frameTimestamp,
+	produceVideoWebCodecsChunks,
 	produceVideoWebCodecsStream,
 	VIDEO_WEBCODECS_MAXIMUM_QUEUE_DEPTH,
 	type VideoWebCodecsProduceRequest,
@@ -33,6 +34,13 @@ test('timestamps come from the rational rate, not a decimal standing in for it',
 	assert.equal(frameTimestamp(107_892, RATE_2997), 3_599_996_400);
 });
 
+test('frame durations span adjacent rational timestamps without gaps or overlaps', async () => {
+	const harness = createHarness({ frameCount: 3 });
+	await produceVideoWebCodecsStream(harness.request);
+
+	assert.deepEqual(harness.frameDurations, [33_367, 33_366, 33_367]);
+});
+
 test('an H.264 stream is written bare and a VP9 one gets its IVF framing', async () => {
 	const h264 = createHarness({ frameCount: 2, videoCodec: 'h264' });
 	await produceVideoWebCodecsStream(h264.request);
@@ -57,6 +65,34 @@ test('the encoder is configured with what the plan decided and nothing else', as
 		bitrate: 5_000,
 		avc: { format: 'annexb' },
 	});
+});
+
+test('native mux production requests AVC and preserves each chunk metadata callback', async () => {
+	const metadata = {
+		decoderConfig: {
+			codec: 'avc1.4d001f',
+			codedWidth: 4,
+			codedHeight: 2,
+			description: Uint8Array.of(1, 0x4d, 0, 0x1f),
+		},
+	} as EncodedVideoChunkMetadata;
+	const harness = createHarness({ frameCount: 1, metadata });
+	const received: Readonly<{ chunk: unknown; metadata?: EncodedVideoChunkMetadata }>[] = [];
+	await produceVideoWebCodecsChunks({
+		...harness.request,
+		h264Format: 'avc',
+		writeChunk(chunk, emittedMetadata) {
+			(received as { chunk: unknown; metadata?: EncodedVideoChunkMetadata }[]).push({
+				chunk,
+				...(emittedMetadata ? { metadata: emittedMetadata } : {}),
+			});
+		},
+	});
+
+	assert.deepEqual(harness.configs[0]?.avc, { format: 'avc' });
+	assert.equal(received.length, 1);
+	assert.equal(received[0]?.metadata, metadata, 'decoder configuration reaches the muxer intact');
+	assert.deepEqual(received[0]?.chunk, harness.emittedChunks[0]);
 });
 
 test('frames do not pile up in the encoder queue', async () => {
@@ -103,6 +139,23 @@ test('an aborted export stops and closes rather than finishing quietly', async (
 	assert.ok(harness.renderedFrames.length < 6);
 });
 
+test('an abort interrupts a pending encoder flush and closes the encoder', {
+	timeout: 2_000,
+}, async () => {
+	const controller = new AbortController();
+	const harness = createHarness({
+		frameCount: 1,
+		hangFlush: true,
+		onFlush: () => controller.abort(),
+	});
+
+	await assert.rejects(
+		produceVideoWebCodecsStream({ ...harness.request, signal: controller.signal }),
+		(error: Error) => error.name === 'AbortError',
+	);
+	assert.equal(harness.closed, true);
+});
+
 test('the delivery tier becomes a bitrate the same way it becomes a CRF', () => {
 	const canvas = { width: 1_280, height: 720, frameRate: { num: 30, den: 1 } };
 
@@ -125,8 +178,11 @@ function createHarness(options: {
 	holdQueue?: boolean;
 	drainOnTask?: boolean;
 	failAtFrame?: number;
-	onFrame?: (index: number) => void;
-}) {
+		onFrame?: (index: number) => void;
+		hangFlush?: boolean;
+		onFlush?: () => void;
+		metadata?: EncodedVideoChunkMetadata;
+	}) {
 	const renderedFrames: number[] = [];
 	const written: Uint8Array[] = [];
 	const configs: Record<string, unknown>[] = [];
@@ -136,11 +192,19 @@ function createHarness(options: {
 		written,
 		configs,
 		keyFrameFlags,
+		frameDurations: [] as number[],
 		closed: false,
 		maximumObservedQueue: 0,
+		emittedChunks: [] as unknown[],
 		request: null as unknown as VideoWebCodecsProduceRequest,
 	};
-	let output: ((chunk: { byteLength: number; copyTo(target: Uint8Array): void }) => void) | null = null;
+	let output: ((chunk: {
+		byteLength: number;
+		type: 'key' | 'delta';
+		timestamp: number;
+		duration: number;
+		copyTo(target: Uint8Array): void;
+	}, metadata?: EncodedVideoChunkMetadata) => void) | null = null;
 	let onError: ((error: unknown) => void) | null = null;
 	const queued: number[] = [];
 
@@ -175,17 +239,31 @@ function createHarness(options: {
 
 		#emit() {
 			if (queued.length === 0) return;
-			queued.shift();
-			output?.({ byteLength: 4, copyTo: (target: Uint8Array) => target.set([1, 2, 3, 4]) });
+			const index = queued.shift()!;
+			const chunk = {
+				byteLength: 4,
+				type: index === 0 ? 'key' as const : 'delta' as const,
+				timestamp: frameTimestamp(index, RATE_2997),
+				duration: frameTimestamp(1, RATE_2997),
+				copyTo: (target: Uint8Array) => target.set([1, 2, 3, 4]),
+			};
+			harness.emittedChunks.push(chunk);
+			output?.(chunk, options.metadata);
 		}
 
-		async flush() { while (queued.length > 0) this.#emit(); }
+		async flush() {
+			while (queued.length > 0) this.#emit();
+			options.onFlush?.();
+			if (options.hangFlush) await new Promise<never>(() => undefined);
+		}
 
 		close() { harness.closed = true; this.state = 'closed'; }
 	}
 
 	class FakeVideoFrame {
-		constructor(_data: Uint8Array, _init: Record<string, unknown>) {}
+		constructor(_data: Uint8Array, init: Record<string, unknown>) {
+			harness.frameDurations.push(Number(init.duration));
+		}
 		close() {}
 	}
 

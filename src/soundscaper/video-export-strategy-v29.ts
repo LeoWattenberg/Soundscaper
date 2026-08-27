@@ -46,7 +46,7 @@ const DEFAULT_DEPENDENCIES: SoundscaperVideoExportStrategyV29Dependencies = Obje
 	encodeOfflineToSink: encodeVideoKeyframeOfflineVideoToSink as OfflineSinkEncoder,
 });
 
-/** Expose the keyed route only to the desktop file-service authority. */
+/** Retained desktop-only factory for older controller compositions. */
 export function createSoundscaperDesktopVideoExportStrategyV29(
 	runtime: Pick<ControllerProjectRuntime, 'cloneProject' | 'projectForRuntimeConsumers'>,
 	fileService: unknown,
@@ -55,7 +55,7 @@ export function createSoundscaperDesktopVideoExportStrategyV29(
 	return createSoundscaperVideoExportStrategyV29(runtime);
 }
 
-/** Own the selected Soundscaper V29 keyed-RGBA desktop delivery. */
+/** Own the selected Soundscaper V29 keyed-RGBA browser or desktop delivery. */
 export function createSoundscaperVideoExportStrategyV29(
 	runtime: Pick<ControllerProjectRuntime, 'cloneProject' | 'projectForRuntimeConsumers'>,
 	dependenciesValue: SoundscaperVideoExportStrategyV29Dependencies | unknown = DEFAULT_DEPENDENCIES,

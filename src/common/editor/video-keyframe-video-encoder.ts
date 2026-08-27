@@ -8,6 +8,7 @@ import {
 	type VideoKeyframeVideoEncoderTier,
 } from './video-keyframe-encoder-stream.ts';
 import type { VideoDeliveryQuality } from './video-delivery-quality.ts';
+import { resolveVideoDeliveryFfmpegQuality } from './video-delivery-quality.ts';
 import type {
 	VideoKeyframeExportFrame,
 	VideoKeyframeExportFrameSource,
@@ -31,7 +32,11 @@ import type {
 	VideoKeyframeVideoEditorFfmpeg,
 } from './video-keyframe-ffmpeg-operation.ts';
 import type { VideoKeyframeWebCodecsEncode } from './video-keyframe-webcodecs-execution.ts';
-import type { FfmpegOutputSink } from './ffmpeg-output-stream.ts';
+import type {
+	VideoKeyframeMediabunnyExecutionRequest,
+	VideoKeyframeMediabunnyExecutionResult,
+} from './video-keyframe-mediabunny-execution.ts';
+import type { FfmpegOutputFileSource, FfmpegOutputSink } from './ffmpeg-output-stream.ts';
 import {
 	collectVideoKeyframeVideoOutput,
 	streamVideoKeyframeVideoOutput,
@@ -117,10 +122,19 @@ export interface VideoKeyframeVideoSinkEncoderResult<Output> {
 
 export interface VideoKeyframeVideoEncoderDependencies {
 	createJobToken(): string;
+	executeBrowserWebCodecs?(
+		request: VideoKeyframeMediabunnyExecutionRequest,
+	): Promise<VideoKeyframeMediabunnyExecutionResult>;
 }
 
 const DEFAULT_DEPENDENCIES: VideoKeyframeVideoEncoderDependencies = Object.freeze({
 	createJobToken: createCryptographicJobToken,
+	async executeBrowserWebCodecs(request: VideoKeyframeMediabunnyExecutionRequest) {
+		const { executeVideoKeyframeMediabunnyEncoder } = await import(
+			'./video-keyframe-mediabunny-execution.ts'
+		);
+		return executeVideoKeyframeMediabunnyEncoder(request);
+	},
 });
 
 /** Encode one authenticated exact-frame source without exposing MEMFS path authority. */
@@ -149,6 +163,21 @@ export async function encodeVideoKeyframeVideo(
 					byteLength: output.byteLength,
 					chunkCount: output.chunkCount,
 				});
+			},
+			deliverNative(bytes: Uint8Array<ArrayBuffer>, path: string) {
+				return collectVideoKeyframeVideoOutput({
+					source: nativeOutputSource(bytes),
+					path,
+					format: request.format,
+					maximumBytes: request.maximumOutputBytes,
+					maximumChunkBytes: request.maximumOutputChunkBytes,
+					signal: request.signal,
+					assertCurrent: request.assertCurrent,
+				}).then((output) => Object.freeze({
+					output: output.bytes,
+					byteLength: output.byteLength,
+					chunkCount: output.chunkCount,
+				}));
 			},
 			discard(output: Uint8Array<ArrayBuffer>) { output.fill(0); },
 		}),
@@ -184,6 +213,17 @@ export async function encodeVideoKeyframeVideoToSink<Output>(
 						assertCurrent: request.assertCurrent,
 					}, managedSink.value);
 				},
+				deliverNative(bytes: Uint8Array<ArrayBuffer>, path: string) {
+					return streamVideoKeyframeVideoOutput({
+						source: nativeOutputSource(bytes),
+						path,
+						format: request.format,
+						maximumBytes: request.maximumOutputBytes,
+						maximumChunkBytes: request.maximumOutputChunkBytes,
+						signal: request.signal,
+						assertCurrent: request.assertCurrent,
+					}, managedSink.value);
+				},
 			}),
 		);
 		return Object.freeze({
@@ -200,6 +240,10 @@ interface DeliveryStrategy<Output> {
 		lease: VideoKeyframeEncoderOperationLease,
 		path: string,
 	): Promise<VideoKeyframeDeliveredOutput<Output>>;
+	deliverNative(
+		bytes: Uint8Array<ArrayBuffer>,
+		path: string,
+	): Promise<VideoKeyframeDeliveredOutput<Output>>;
 	discard?(output: Output): void;
 }
 
@@ -209,12 +253,15 @@ async function encodeManaged<Output>(
 	dependenciesValue: VideoKeyframeVideoEncoderDependencies,
 	createDelivery: (request: NormalizedRequest) => DeliveryStrategy<Output>,
 ) {
-	const editorFfmpeg = validateEditorFfmpeg(editorFfmpegValue);
 	const request = normalizeRequest(requestValue);
 	const dependencies = normalizeDependencies(dependenciesValue);
+	const editorFfmpeg = request.webCodecs ? null : validateEditorFfmpeg(editorFfmpegValue);
 	const delivery = createDelivery(request);
 	const managedProducer = manageProducer(request.producer, request.frameSource);
-	let result: Awaited<ReturnType<typeof runVideoKeyframeVideoOperation<Output>>> | null = null;
+	let result: Readonly<{
+		encoded: VideoKeyframeEncoderResult | VideoKeyframeMediabunnyExecutionResult;
+		delivered: VideoKeyframeDeliveredOutput<Output>;
+	}> | null = null;
 	let primary: unknown;
 	let hasPrimary = false;
 	try {
@@ -254,25 +301,48 @@ async function encodeManaged<Output>(
 		const admittedWorkload = admitVideoKeyframeEncoderWorkload(request.webCodecs
 			? { ...workloadRequest, videoEncoder: 'webcodecs' }
 			: workloadRequest);
-		result = await editorFfmpeg.runVideoKeyframeEncoderOperation(
-			(leaseValue) => {
-				const lease = validateLease(leaseValue);
-				return runVideoKeyframeVideoOperation({
-					lease,
-					workload: workloadRequest,
-					producer: managedProducer.value,
-					...(request.webCodecs ? { webCodecs: request.webCodecs } : {}),
-					...(audioSource ? { audioSource } : {}),
-					outputPath: paths.output,
-					format: request.format,
-					...(request.signal ? { signal: request.signal } : {}),
-					...(request.assertCurrent ? { assertCurrent: request.assertCurrent } : {}),
-					deliver: delivery.deliver,
-					...(delivery.discard ? { discard: delivery.discard } : {}),
-				});
-			},
-			operationOptions(request, admittedWorkload, audioSource?.byteLength ?? null),
-		);
+		if (request.webCodecs) {
+			const execute = dependencies.executeBrowserWebCodecs ?? DEFAULT_DEPENDENCIES.executeBrowserWebCodecs!;
+			const audioBitrate = audioSource
+				? resolveVideoDeliveryFfmpegQuality(request.format, request.quality).audioBitRateKbps * 1_000
+				: undefined;
+			const encoded = await execute({
+				workload: admittedWorkload,
+				frameSource: request.frameSource,
+				producer: managedProducer.value,
+				webCodecs: request.webCodecs,
+				...(audioSource ? { audioSource, audioBitrate } : {}),
+				maximumOutputBytes: request.maximumOutputBytes,
+				...(request.signal ? { signal: request.signal } : {}),
+				...(request.assertCurrent ? { assertCurrent: request.assertCurrent } : {}),
+			});
+			let delivered: VideoKeyframeDeliveredOutput<Output>;
+			try {
+				delivered = await delivery.deliverNative(encoded.bytes, paths.output);
+			} finally {
+				encoded.bytes.fill(0);
+			}
+			result = Object.freeze({ encoded, delivered });
+		} else {
+			result = await editorFfmpeg!.runVideoKeyframeEncoderOperation(
+				(leaseValue) => {
+					const lease = validateLease(leaseValue);
+					return runVideoKeyframeVideoOperation({
+						lease,
+						workload: workloadRequest,
+						producer: managedProducer.value,
+						...(audioSource ? { audioSource } : {}),
+						outputPath: paths.output,
+						format: request.format,
+						...(request.signal ? { signal: request.signal } : {}),
+						...(request.assertCurrent ? { assertCurrent: request.assertCurrent } : {}),
+						deliver: delivery.deliver,
+						...(delivery.discard ? { discard: delivery.discard } : {}),
+					});
+				},
+				operationOptions(request, admittedWorkload, audioSource?.byteLength ?? null),
+			);
+		}
 	} catch (error) {
 		primary = error;
 		hasPrimary = true;
@@ -298,8 +368,17 @@ async function encodeManaged<Output>(
 	return result;
 }
 
+function nativeOutputSource(bytes: Uint8Array<ArrayBuffer>): FfmpegOutputFileSource {
+	return Object.freeze({
+		async statFile() { return Object.freeze({ size: bytes.byteLength }); },
+		async readFileRange(_path: string, offset: number, maximumBytes: number) {
+			return bytes.slice(offset, offset + maximumBytes);
+		},
+	});
+}
+
 function resultMetadata<Output>(
-	encoded: VideoKeyframeEncoderResult,
+	encoded: VideoKeyframeEncoderResult | VideoKeyframeMediabunnyExecutionResult,
 	delivered: VideoKeyframeDeliveredOutput<Output>,
 ) {
 	return Object.freeze({

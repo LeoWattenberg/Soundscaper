@@ -10,18 +10,21 @@
  * quietly took the slower path with no explanation is exactly the reporting
  * failure this milestone's gate exists to catch.
  *
- * Every "no" therefore carries its reason, including the ones that have nothing
- * to do with the browser: a composed-graph delivery has no place to put encoded
- * chunks, because FFmpeg is compositing the picture itself, and saying so is
- * more useful than reporting a capability the browser may well have.
+ * Browser delivery has no hidden encoder fallback. Every "no" is therefore an
+ * explicit refusal: the production browser graph does not contain FFmpeg, and
+ * silently changing execution backends would make the delivery report false.
  */
 
 import { getVideoExportFormat } from './video-export.js';
-import { resolveVideoDeliveryWebCodecsBitrate } from './video-delivery-quality.ts';
+import {
+	resolveVideoDeliveryFfmpegQuality,
+	resolveVideoDeliveryWebCodecsBitrate,
+} from './video-delivery-quality.ts';
 import {
 	resolveVideoWebCodecsSupport,
 	type VideoWebCodecsCanvas,
 } from './video-webcodecs-capability.ts';
+import { browserWebCodecsAudioConfiguration } from './browser-webcodecs-audio-profile.ts';
 
 export interface VideoDeliveryEncoderDecision {
 	readonly tier: 'webcodecs' | 'ffmpeg';
@@ -34,15 +37,26 @@ export interface VideoDeliveryEncoderDecision {
 export interface VideoDeliveryEncoderTierRequest {
 	/** `mp4` or `webm`, as the plan states it. */
 	readonly format: string;
-	/** The plan's canvas, whatever shape it is: an unreadable one is a fallback. */
+	/** The plan's canvas, whatever shape it is: an unreadable one is refused. */
 	readonly canvas: unknown;
 	readonly quality: unknown;
+	/** Exact staged-audio geometry when the delivery carries an audio track. */
+	readonly audio?: Readonly<{
+		readonly sampleRate: number;
+		readonly channelCount: number;
+	}>;
 	/**
 	 * Whether this delivery's path can consume an encoded stream at all. Only
 	 * the keyed path renders RGBA frames a `VideoEncoder` could be handed; the
 	 * composed-graph path asks FFmpeg to build the picture from its inputs.
 	 */
 	readonly eligible: boolean;
+}
+
+interface AudioEncoderProbe {
+	isConfigSupported?(config: Readonly<Record<string, unknown>>): Promise<Readonly<{
+		supported?: boolean;
+	}>>;
 }
 
 const FFMPEG_ONLY: VideoDeliveryEncoderDecision = Object.freeze({
@@ -52,26 +66,32 @@ const FFMPEG_ONLY: VideoDeliveryEncoderDecision = Object.freeze({
 	reason: null,
 });
 
+export class BrowserVideoEncoderUnavailableError extends Error {
+	readonly code = 'BROWSER_VIDEO_ENCODER_UNAVAILABLE';
+
+	constructor(reason: string) {
+		super(`Browser-native video export is unavailable: ${reason}`);
+		this.name = 'BrowserVideoEncoderUnavailableError';
+	}
+}
+
 /** Decide the encoder for one delivery, with the reason when it is not the browser's. */
 export async function resolveVideoDeliveryEncoderTier(
 	request: VideoDeliveryEncoderTierRequest,
 	encoder: unknown = (globalThis as Record<string, unknown>).VideoEncoder,
+	audioEncoder: unknown = (globalThis as Record<string, unknown>).AudioEncoder,
 ): Promise<VideoDeliveryEncoderDecision> {
 	if (!request.eligible) {
-		return fallback('This delivery is composed by FFmpeg’s own filter graph.');
-	}
-	if ((globalThis as Record<string, unknown>).crossOriginIsolated !== true
-		|| typeof (globalThis as Record<string, unknown>).SharedArrayBuffer !== 'function') {
-		return fallback('This page is not cross-origin isolated for WebCodecs video delivery.');
+		throw unavailable('only a keyed frame delivery can use the browser-native encoder and muxer.');
 	}
 	if (typeof (globalThis as Record<string, unknown>).VideoFrame !== 'function') {
-		return fallback('This browser has no WebCodecs video frame.');
+		throw unavailable('this browser has no WebCodecs video frame.');
 	}
-	// Nothing about asking this question may fail a delivery: a plan the probe
-	// cannot describe — an unstated rate, a canvas of another shape — falls back
-	// to the encoder that was going to run anyway, and says why.
 	try {
-		const descriptor = getVideoExportFormat(String(request.format)) as Readonly<{ videoCodec: string }>;
+		const descriptor = getVideoExportFormat(String(request.format)) as Readonly<{
+			id: 'mp4' | 'webm';
+			videoCodec: string;
+		}>;
 		const canvas = request.canvas as VideoWebCodecsCanvas;
 		const support = await resolveVideoWebCodecsSupport(
 			descriptor.videoCodec,
@@ -79,7 +99,12 @@ export async function resolveVideoDeliveryEncoderTier(
 			encoder as never,
 		);
 		if (support.tier !== 'webcodecs' || !support.codec) {
-			return fallback(support.reason ?? 'This browser does not encode this delivery.');
+			throw unavailable(support.reason ?? 'This browser does not encode this delivery.');
+		}
+		if (request.audio !== undefined) {
+			await assertAudioEncoderSupport(
+				descriptor.id, request.quality, request.audio, audioEncoder as AudioEncoderProbe | undefined,
+			);
 		}
 		return Object.freeze({
 			tier: 'webcodecs' as const,
@@ -90,8 +115,42 @@ export async function resolveVideoDeliveryEncoderTier(
 			reason: null,
 		});
 	} catch (error) {
-		return fallback(`This delivery could not be described to a WebCodecs encoder: ${errorText(error)}`);
+		if (error instanceof BrowserVideoEncoderUnavailableError) throw error;
+		throw unavailable(`this delivery could not be described to a WebCodecs encoder: ${errorText(error)}`);
 	}
+}
+
+async function assertAudioEncoderSupport(
+	format: 'mp4' | 'webm',
+	quality: unknown,
+	audio: NonNullable<VideoDeliveryEncoderTierRequest['audio']>,
+	encoder: AudioEncoderProbe | undefined,
+): Promise<void> {
+	const label = format === 'mp4' ? 'AAC' : 'Opus';
+	if (typeof (globalThis as Readonly<Record<string, unknown>>).AudioData !== 'function'
+		|| typeof encoder?.isConfigSupported !== 'function') {
+		throw unavailable(`this browser has no WebCodecs ${label} audio encoder.`);
+	}
+	const sampleRate = positiveInteger(audio.sampleRate, 'audio sample rate');
+	const numberOfChannels = positiveInteger(audio.channelCount, 'audio channel count');
+	const bitrate = resolveVideoDeliveryFfmpegQuality(format, quality).audioBitRateKbps * 1_000;
+	let supported = false;
+	try {
+		supported = (await encoder.isConfigSupported(browserWebCodecsAudioConfiguration(
+			format === 'mp4' ? 'aac' : 'opus',
+			{ sampleRate, channelCount: numberOfChannels, bitrate },
+		))).supported === true;
+	} catch {
+		throw unavailable(`the WebCodecs ${label} audio capability probe was refused.`);
+	}
+	if (!supported) throw unavailable(`this browser does not encode ${label} audio for the delivery.`);
+}
+
+function positiveInteger(value: unknown, label: string): number {
+	if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
+		throw new RangeError(`Browser-native video ${label} must be a positive integer.`);
+	}
+	return value;
 }
 
 function errorText(error: unknown): string {
@@ -101,6 +160,6 @@ function errorText(error: unknown): string {
 /** The decision a delivery carries when nothing was chosen against it. */
 export const VIDEO_DELIVERY_FFMPEG_ENCODER: VideoDeliveryEncoderDecision = FFMPEG_ONLY;
 
-function fallback(reason: string): VideoDeliveryEncoderDecision {
-	return Object.freeze({ tier: 'ffmpeg' as const, codec: null, bitrate: null, reason });
+function unavailable(reason: string): BrowserVideoEncoderUnavailableError {
+	return new BrowserVideoEncoderUnavailableError(reason);
 }

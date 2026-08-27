@@ -148,6 +148,15 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				productName,
 			});
 			await assertDesktopAudioExportCapability(ffmpeg, plan);
+			if (typeof ffmpeg.preflightEncodeFile === 'function') {
+				await ffmpeg.preflightEncodeFile(plan.format, {
+					...plan.encoding,
+					frameCount: plan.outputFrames,
+					metadata: plan.metadata,
+					maximumOutputBytes: browserMaximumOutputBytes,
+					signal: abort.signal,
+				});
+			}
 			// Derived from the plan this delivery is about to execute, so the report
 			// describes the render that actually happens rather than the settings
 			// that were asked for. It is session state, never project state: a

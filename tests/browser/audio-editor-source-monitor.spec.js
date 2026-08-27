@@ -1,7 +1,6 @@
 import { expect, test } from '@playwright/test';
 
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import {
 	DURABLE_MEDIA_STORAGE_REQUIRED,
@@ -18,7 +17,6 @@ const SOURCE_FRAMES = CFR.presentationTicks.length;
 
 test.describe('3B-3b source monitor qualification', () => {
 	test.beforeEach(async ({ page }) => {
-		await installPinnedFfmpegRuntimeRoutes(page);
 		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
 			status: 200,
 			contentType: 'application/json',

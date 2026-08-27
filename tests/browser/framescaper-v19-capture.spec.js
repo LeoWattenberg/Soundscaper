@@ -18,7 +18,6 @@ import {
 } from './audio-editor-test-helpers.js';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 const SOURCE_LABELS = Object.freeze({
 	camera: 'Camera',
@@ -224,9 +223,8 @@ test.describe('selected Framescaper F31 recoverable capture', () => {
 			expect(beforeReopen.enumerateCalls).toBe(1);
 		});
 
-		test('publishes mixed camera, display, microphone, and system audio with completed proxies', async ({ page }) => {
+		test('publishes mixed capture while unavailable browser proxies fail closed', async ({ page }) => {
 			test.setTimeout(180_000);
-		await installPinnedFfmpegRuntimeRoutes(page);
 		await installCaptureHarness(page, { persistentQuota: true, videoKind: 'cfr' });
 		let editor = await bootEditor(page, '/framescaper/en/');
 		const projectId = await editor.getAttribute('data-project-id');
@@ -252,18 +250,24 @@ test.describe('selected Framescaper F31 recoverable capture', () => {
 				await expect(projectBinCaptureCard(editor, `${name} Capture`)).toBeVisible();
 			}
 			expect((await captureHarnessState(page)).videoDataEvents).toBe(2);
-			await expect.poll(async () => {
-				const state = await storedCaptureState(page, projectId);
-				const status = await editor.locator('[data-status]').innerText();
-				if (state.proxyAttachmentCount < 2 && status.includes('derivatives completed with failures')) {
-					throw new Error(`${status}\nPersisted F31 capture: ${JSON.stringify(state)}`);
-				}
-				return state;
-			}, { timeout: 90_000 }).toMatchObject({
+			await expect(editor.locator('[data-status]')).toContainText(
+				'capture derivatives completed with failures', { timeout: 90_000 },
+			);
+			await expect(editor.locator('[data-status]')).toContainText(
+				'This runtime cannot generate captured video proxies.',
+			);
+			await expect.poll(
+				() => storedCaptureState(page, projectId),
+				{ timeout: 90_000 },
+			).toMatchObject({
 				schemaVersion: 31,
 				sourceCount: 4,
 				videoSourceCount: 2,
-				proxyAttachmentCount: 2,
+				proxyAttachmentCount: 0,
+				videoSources: [
+					{ characteristicsBackend: 'container', proxyAttached: false },
+					{ characteristicsBackend: 'container', proxyAttached: false },
+				],
 				projectBinClipCount: 4,
 			});
 

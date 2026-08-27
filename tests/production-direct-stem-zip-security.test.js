@@ -8,7 +8,7 @@ const matrixUrl = new URL('../config/production-security-matrix.json', import.me
 const budgetsUrl = new URL('../config/quality-budgets.json', import.meta.url);
 const offlineStagingFormula = 'max(outputFrames × inputChannels × offlineBytesPerSample, outputBytesPerRender)';
 
-test('direct stem-archive publication has narrow capability and rollback controls', async () => {
+test('direct stem archives use browser-native complete-file codecs and exact rollback', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	const publication = findControl(
 		matrix,
@@ -20,52 +20,17 @@ test('direct stem-archive publication has narrow capability and rollback control
 		'long-job-cancellation',
 		'direct-stem-archive-save-rollback',
 	);
-	const atomicSave = findControl(
-		matrix,
-		'desktop-write-path-capabilities',
-		'opaque-single-use-atomic-save',
-	);
-	const ownedLifecycle = findControl(
-		matrix,
-		'desktop-write-path-capabilities',
-		'renderer-document-owned-save-lifecycle',
-	);
-	for (const oldId of [
-		'exact-direct-native-pcm-zip32-stem-save',
-		'direct-native-pcm-zip32-stem-save-rollback',
-		'direct-zip32-stem-save',
-		'direct-zip32-stem-save-rollback',
-	]) {
-		assert.equal(matrix.risks.some(({ currentControls }) => (
-			currentControls.some(({ id }) => id === oldId)
-		)), false, oldId);
-	}
 
 	for (const path of [
-		'src/common/editor/controller/audio-export-render-orchestration.ts',
-		'src/common/editor/controller/direct-audio-render-plan.ts',
-		'src/common/editor/controller/direct-compressed-plan.ts',
-		'src/common/editor/controller/direct-compressed-stem-archive-plan.ts',
-		'src/common/editor/controller/direct-native-stem-archive-plan.ts',
-		'src/common/editor/controller/direct-pcm-export.ts',
+		'src/common/editor/browser-audio-codec-runtime.ts',
+		'src/common/editor/browser-dedicated-audio-codec.ts',
+		'src/common/editor/browser-webcodecs-aac.ts',
 		'src/common/editor/controller/direct-stem-archive-export.ts',
-		'src/common/editor/controller/export-service.ts',
-		'src/common/editor/controller/rendered-audio-encoding.ts',
 		'src/common/editor/controller/sequential-seven-zip-copy.ts',
 		'src/common/editor/controller/sequential-zip32-stream.ts',
-		'src/common/editor/controller/stem-archive.ts',
-		'src/common/editor/file-save-stream.ts',
-		'src/common/editor/controller/zip32.ts',
-		'tests/audio-editor-direct-audio-render-plan.test.ts',
-		'tests/audio-editor-direct-native-stem-archive-plan.test.ts',
-		'tests/audio-editor-export-direct-compressed-stem-archive.test.ts',
-		'tests/audio-editor-export-direct-compressed-stem-stream.test.ts',
+		'tests/audio-editor-browser-dedicated-codec.test.ts',
+		'tests/audio-editor-browser-webcodecs-aac.test.ts',
 		'tests/audio-editor-export-direct-compressed-stem-service.test.ts',
-		'tests/audio-editor-export-direct-seven-zip-stem-stream.test.ts',
-		'tests/audio-editor-offline-compressed-stem-encoding.test.ts',
-		'tests/audio-editor-export-direct-stem-archive.test.ts',
-		'tests/audio-editor-export-direct-stem-stream.test.ts',
-		'tests/audio-editor-final-prefix-save.test.ts',
 		'tests/audio-editor-sequential-seven-zip-copy.test.ts',
 		'tests/audio-editor-sequential-zip32-stream.test.ts',
 	]) {
@@ -73,139 +38,49 @@ test('direct stem-archive publication has narrow capability and rollback control
 		await access(new URL(`../${path}`, import.meta.url));
 	}
 	for (const path of [
-		'src/common/editor/controller/audio-export-render-orchestration.ts',
-		'src/common/editor/controller/direct-audio-render-plan.ts',
-		'src/common/editor/controller/direct-compressed-plan.ts',
-		'src/common/editor/controller/direct-compressed-stem-archive-plan.ts',
-		'src/common/editor/controller/direct-native-stem-archive-plan.ts',
-		'src/common/editor/controller/direct-pcm-export.ts',
+		'src/common/editor/browser-dedicated-audio-worker-client.ts',
 		'src/common/editor/controller/direct-stem-archive-export.ts',
-		'src/common/editor/controller/export-service.ts',
-		'src/common/editor/controller/rendered-audio-encoding.ts',
-		'src/common/editor/controller/sequential-seven-zip-copy.ts',
-		'src/common/editor/controller/sequential-zip32-stream.ts',
-		'src/common/editor/file-save-stream.ts',
-		'tests/audio-editor-direct-audio-render-plan.test.ts',
-		'tests/audio-editor-direct-native-stem-archive-plan.test.ts',
-		'tests/audio-editor-export-direct-compressed-stem-archive.test.ts',
-		'tests/audio-editor-export-direct-compressed-stem-stream.test.ts',
+		'tests/audio-editor-browser-dedicated-codec.test.ts',
 		'tests/audio-editor-export-direct-compressed-stem-service.test.ts',
-		'tests/audio-editor-export-direct-seven-zip-stem-stream.test.ts',
-		'tests/audio-editor-offline-compressed-stem-encoding.test.ts',
-		'tests/audio-editor-export-direct-stem-stream.test.ts',
-		'tests/audio-editor-final-prefix-save.test.ts',
-		'tests/audio-editor-sequential-seven-zip-copy.test.ts',
-		'tests/audio-editor-sequential-zip32-stream.test.ts',
 	]) assert.ok(rollback.evidence.some((item) => item.path === path), path);
-	for (const path of [
-		'desktop/constants.js',
-		'desktop/main.mjs',
-		'desktop/preload.mjs',
-		'desktop/save-targets.js',
-		'src/common/editor/file-save-stream.ts',
-		'tests/audio-editor-final-prefix-save.test.ts',
-		'tests/desktop-final-prefix-bridge-integration.test.ts',
-		'tests/desktop-final-prefix-protocol.test.js',
-		'tests/desktop-final-prefix-save.test.js',
-	]) {
-		assert.ok(atomicSave.evidence.some((item) => item.path === path), path);
-		await access(new URL(`../${path}`, import.meta.url));
-	}
-	assert.ok(ownedLifecycle.evidence.some(({ path }) => path === 'tests/desktop-final-prefix-save.test.js'));
-	assert.match(
-		atomicSave.summary,
-		/exact session.*fixed 32-byte final-prefix patch.*owner-bound.*no caller-selected offset.*every declared byte.*position zero exactly once.*without changing.*byte count.*blocks finish.*missing or failed patch/isu,
-	);
-	assert.match(ownedLifecycle.summary, /drains admitted begin, chunk, final-prefix-patch, finish, and abort/iu);
 
 	assert.match(
 		publication.summary,
-		/native-PCM.*exact ZIP32 or 7z Copy.*WAV, AIFF, or BWF stems.*matching archive entries.*same order.*exact flat names and sizes.*ZIP32.*recomputed eligible layout.*7z.*exact independently recomputed Copy archive byte length/isu,
+		/exact ZIP32 and 7z Copy.*WAV, AIFF, or BWF.*exact names.*sizes.*order.*recomputed layouts.*fixed 32-byte/isu,
 	);
 	assert.match(
 		publication.summary,
-		/WAV and BWF.*`audio\/wav`.*`\.wav`.*AIFF.*`audio\/aiff`.*`\.aiff`.*both archive formats/isu,
-	);
-	assert.match(publication.summary, /Compressed stems remain ZIP32-only/iu);
-	assert.match(
-		publication.summary,
-		/seven canonical.*MP3.*FLAC.*Ogg Vorbis.*Opus.*WavPack.*MP2.*AAC\/M4A.*canonical `realtime-stream`.*centrally admitted `offline`.*owned snapshot.*fingerprint/isu,
-	);
-	assert.ok(publication.summary.includes(offlineStagingFormula));
-	assert.match(
-		publication.summary,
-		/offlineBytesPerSample.*requested FLAC integer bytes per sample.*four bytes.*other six formats.*second term.*realtime-retry output-width.*outputFrames.*outputChannels.*Float32\(4\).*including for FLAC/isu,
+		/Compressed stems remain ZIP32-only.*seven canonical.*realtime.*offline.*per-entry refusal/isu,
 	);
 	assert.match(
 		publication.summary,
-		/per-entry maximum.*max.*strategy-aware staging bound.*1 MiB.*synthetic maximum ZIP32.*before target selection.*refusal boundary.*not.*codec expansion.*conformance.*scale/isu,
+		/WebAssembly providers.*complete FLAC.*MP3.*Ogg Vorbis.*Opus.*WavPack.*MP2.*WebCodecs.*Mediabunny.*AAC\/M4A/isu,
 	);
 	assert.match(
 		publication.summary,
-		/native.*prepared exact-size.*compressed.*prepared maximum-size.*selects and opens.*before.*render/isu,
+		/Unsupported profiles.*custom FFmpeg.*fail closed.*without a browser FFmpeg fallback/isu,
 	);
 	assert.match(
 		publication.summary,
-		/native.*retains at most one complete stem.*temporary-storage preflight charges the largest sequential intermediate.*fixed 32-byte final prefix.*zero-filled 32-byte placeholder.*complete and sealed.*position-zero prefix once.*without changing its byte count.*commit requires the patch.*compressed.*strategy-aware staging bound.*realtime.*outputBytesPerRender.*offline.*exact two-term maximum.*excludes.*WAV framing.*codec output.*aggregate legacy staging claim/isu,
+		/sequential.*current complete result.*at-most-64-KiB.*backpressure.*recomputes actual.*closes before commit.*byte-count agreement/isu,
 	);
 	assert.match(
 		publication.summary,
-		/source slices to 64 KiB.*awaits.*sink backpressure.*emitted bytes.*ZIP32 layout.*closes the destination.*after close.*planned or actual, emitted, destination-written, and committed-result byte counts/isu,
-	);
-	assert.match(
-		publication.summary,
-		/compressed.*staged WAV `Blob`.*worker MEMFS.*one complete encoded result.*actual entry sizes.*order.*byte counts.*no final ZIP `Blob`.*no download publisher/isu,
-	);
-	assert.match(
-		publication.summary,
-		/Prepared Blob mode declines the direct route.*browser Blob\/download path proceeds unchanged/isu,
-	);
-	assert.match(
-		publication.summary,
-		/custom FFmpeg.*compressed 7z stems.*BW64 stems.*video.*final-Blob direct publication.*remain excluded/isu,
-	);
-	assert.match(
-		publication.summary,
-		/does not qualify.*actual FFmpeg codec execution.*codec conformance.*codec expansion.*heap.*RSS.*MEMFS.*garbage collection.*CPU.*elapsed time.*browser or operating-system behavior.*reference scale/isu,
-	);
-	assert.match(
-		publication.summary,
-		/WAV and BWF.*`audio\/wav`.*`\.wav`.*AIFF.*`audio\/aiff`.*`\.aiff`/isu,
-	);
-	assert.match(
-		publication.summary,
-		/preflight.*exactly four bytes.*two ordered four-byte WAV-plan marker outputs.*exact 268-byte archive.*small injected 7z.*zero prefix before render.*at most one complete stem.*seals and patches before commit.*exact 151-byte golden archive.*no final archive `Blob`.*neither the legacy archive nor download publisher.*correctness rather than scale/isu,
-	);
-	assert.match(
-		publication.summary,
-		/Prepared Blob mode.*272-byte legacy temporary-storage preflight.*ordered archive additions.*download publication/isu,
-	);
-	assert.match(
-		publication.summary,
-		/`01-Voice\.mp3`.*`02-Music\.mp3`.*eight-byte raw preflight.*16-byte aggregate legacy.*1,048,576-byte per-entry maximum.*2,097,406-byte maximum ZIP32.*three- and five-byte.*262-byte actual ZIP32/isu,
+		/no final archive Blob.*retains complete PCM and encoded-file bytes.*Prepared Blob mode.*separately bounded/isu,
 	);
 	assert.match(
 		rollback.summary,
-		/plan or fingerprint drift.*empty encoded result.*per-entry maximum.*reported and actual.*actual ZIP32 layout.*failure.*cancellation.*cleans.*aborts the unpublished destination exactly once.*no commit.*final ZIP `Blob`.*download publication/isu,
+		/retry only the current stem.*before entry bytes.*cancellation.*never retries/isu,
 	);
 	assert.match(
 		rollback.summary,
-		/centrally admitted offline.*ordinary offline renderer or encoder failure.*current stem.*realtime retry.*before.*ZIP entry.*currentness.*cancellation.*integrity.*do not retry.*plan or fingerprint drift.*refus.*before.*ZIP entry.*no retry.*after.*entry/isu,
+		/aborting a dedicated codec terminates its worker.*unavailable AAC.*fails closed without FFmpeg/isu,
 	);
 	assert.match(
 		rollback.summary,
-		/Destination close.*precede.*non-cancellable commit.*ownership.*committed result.*committed-result size drift.*post-publication integrity failure, not rollback/isu,
+		/abort the unpublished destination exactly once.*no commit.*final archive Blob.*download/isu,
 	);
-	assert.match(
-		rollback.summary,
-		/Nested archive and service cleanup.*underlying prepared abort exactly once.*zero commit.*zero download publication/isu,
-	);
-	assert.match(
-		rollback.summary,
-		/native 7z plan drift after sealing.*refuses the final prefix.*prefix-patch failure.*cleanup context.*aborts.*exactly once.*Missing, failed, or repeated patch attempts.*cannot reach commit.*fixed 32-byte patch.*accounting unchanged/isu,
-	);
-	assert.doesNotMatch(publication.summary, /offline compressed stems.*remain excluded/iu);
-	assert.doesNotMatch(rollback.summary, /offline compressed stems.*qualif(?:y|ied).*excluded/iu);
+	assert.equal(publication.evidence.some(({ path }) => path === 'src/common/editor/ffmpeg.js'), false);
 });
 
 test('the direct stem-archive fixture records native ZIP32/7z and compressed ZIP32 without scale claims', async () => {
@@ -375,67 +250,31 @@ test('the direct stem-archive fixture records native ZIP32/7z and compressed ZIP
 	for (const path of fixture.evidence) await access(new URL(`../${path.split('#')[0]}`, import.meta.url));
 });
 
-test('the threat and quality documents state the exact slice and its exclusions', async () => {
+test('the threat and quality documents separate current codecs from historical fixtures', async () => {
 	const [threatModel, qualityBudgets] = await Promise.all([
 		readFile(new URL('../docs/production-threat-model.md', import.meta.url), 'utf8'),
 		readFile(new URL('../docs/quality-budgets.md', import.meta.url), 'utf8'),
 	]);
-	const normalizedThreatModel = threatModel.replace(/\s+/gu, ' ');
-	const normalizedQualityBudgets = qualityBudgets.replace(/\s+/gu, ' ');
 
 	assert.match(
 		threatModel,
-		/direct stem-archive slice.*native-PCM.*exact ZIP32 or 7z Copy.*WAV, AIFF.*BWF.*Compressed stems remain ZIP32-only.*seven canonical.*MP3.*AAC\/M4A.*realtime-stream.*centrally admitted.*offline.*owned.*snapshot.*fingerprint.*per-entry maximum/isu,
-	);
-	assert.ok(normalizedThreatModel.includes(offlineStagingFormula));
-	assert.match(
-		threatModel,
-		/offlineBytesPerSample.*requested FLAC integer bytes per sample.*four bytes.*other six formats.*outputFrames.*outputChannels.*Float32\(4\).*including for FLAC.*synthetic maximum ZIP32.*before\s+target selection.*compressed prepared maximum-size.*before render/isu,
+		/direct stem-archive.*ZIP32.*7z Copy.*Compressed stems.*ZIP32-only.*complete FLAC.*MP3.*Vorbis.*Opus.*WavPack.*MP2.*WebCodecs.*Mediabunny.*AAC\/M4A/isu,
 	);
 	assert.match(
 		threatModel,
-		/compressed preflight.*strategy-aware staging bound.*realtime.*outputBytesPerRender.*offline.*exact two-term maximum.*excludes WAV\s+framing.*codec\s+output.*aggregate legacy staging claim/isu,
+		/unsupported profiles.*custom FFmpeg.*fail closed.*no browser FFmpeg fallback.*no final archive Blob/isu,
 	);
 	assert.match(
 		threatModel,
-		/at\s+most one complete stem.*fixed 32-byte final prefix.*zero-filled 32-byte placeholder.*complete and sealed/isu,
-	);
-	assert.match(
-		threatModel,
-		/replace that fixed prefix once at position zero.*patch cannot\s+change.*written-byte count.*commit requires the patch/isu,
-	);
-	assert.match(
-		threatModel,
-		/staged WAV\s+`Blob`.*worker MEMFS output.*one complete encoded result.*no final archive\s+`Blob`/isu,
-	);
-	assert.match(
-		threatModel,
-		/ordinary offline renderer.*current stem.*realtime rendering.*Currentness/isu,
-	);
-	assert.match(
-		threatModel,
-		/Custom FFmpeg.*compressed 7z stems.*BW64 stems.*reference\s+scale.*crash.*power loss.*durability/isu,
+		/at-most-64-KiB.*backpressure.*not.*end-to-end.*complete.*PCM.*encoded-file bytes/isu,
 	);
 	assert.match(
 		qualityBudgets,
-		/direct stem-archive publication.*native-PCM ZIP32 and 7z Copy.*canonical realtime and centrally\s+admitted offline compressed ZIP32.*small focused Node correctness/isu,
-	);
-	assert.ok(normalizedQualityBudgets.includes(offlineStagingFormula));
-	assert.match(
-		qualityBudgets,
-		/requested FLAC integer bytes per\s+sample.*other six formats.*outputFrames.*outputChannels.*Float32\(4\).*including for\s+FLAC.*maximum\s+ZIP32 destination.*actual ZIP32 archive/isu,
+		/direct stem-archive publication.*small focused Node correctness/isu,
 	);
 	assert.match(
 		qualityBudgets,
-		/retain.*complete staged WAV `Blob`.*worker\s+MEMFS output.*complete encoded result/isu,
-	);
-	assert.match(
-		qualityBudgets,
-		/small injected route fixture.*four-byte largest sequential intermediate.*exact 151-byte destination.*zero-filled 32-byte prefix.*at most one complete four-byte stem.*stream is sealed.*fixed 32-byte prefix once.*without changing.*written-byte count.*completed bytes match.*7z Copy golden.*no final archive `Blob`/isu,
-	);
-	assert.match(
-		qualityBudgets,
-		/File System Access.*Electron filesystem.*native picker.*browser or operating-system behavior.*compressed 7z stems.*reference scale remains excluded.*renderer-heap.*process-RSS.*quota.*crash.*power-loss.*filesystem-durability.*bounded-memory workload, which stays planned/isu,
+		/provider-injected FFmpeg\/MEMFS fixtures.*retained historical.*do not describe the production\s+browser codec runtime.*dedicated reviewed audio WASMs.*WebCodecs\/Mediabunny.*no FFmpeg fallback/isu,
 	);
 });
 

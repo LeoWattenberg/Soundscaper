@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-08-26",
+	"groundedAt": "2026-08-27",
 	"policyDocument": "docs/production-licensing-policy.md",
 	"lockfile": {
 		"path": "package-lock.json",
@@ -17,10 +17,10 @@
 		},
 		{
 			"id": "web-runtime-assets",
-			"description": "Versioned optional runtimes fetched from assets.soundscaper.org rather than bundled into Pages.",
+			"description": "Versioned optional non-codec assets fetched from assets.soundscaper.org rather than bundled into Pages. The checked-in FFmpeg WebAssembly publication manifests and audit scripts are retained legacy tooling only; the production browser does not import, package, publish, or fetch that runtime.",
 			"artifactStatus": "distributed",
 			"noticeDeliveryStatus": "blocked",
-			"evidence": ["src/common/editor/ffmpeg.js", "config/ffmpeg-runtime-manifest.json", "scripts/lib/ffmpeg-runtime-manifest.mjs", "scripts/publish-runtime-assets.mjs"]
+			"evidence": ["scripts/manage-audacity-translation-release.mjs", "config/ffmpeg-runtime-manifest.json", "scripts/lib/ffmpeg-runtime-manifest.mjs"]
 		},
 		{
 			"id": "electron-renderer",
@@ -45,7 +45,7 @@
 		},
 		{
 			"id": "desktop-release-assets",
-			"description": "Public desktop packages, notices, checksums, and source archives required for content actually redistributed. Each package contains the seven exact reviewed compressed-audio WebAssembly providers and the exact verified Electron alternate framework libffmpeg for its target. Release assembly emits one preferred corresponding-source ZIP for those seven providers before SHA256SUMS: it fail-closed validates their exact shipped WASM identities, source manifests, upstream archives, Soundscaper wrappers, in-tree WavPack snapshot, build scripts and transitive helpers, configuration, relink instructions, and license texts, and records every included source byte in a deterministic internal receipt. This desktop source delivery does not close the separate Web FFmpeg corresponding-source or codec-patent gates. macOS ARM64 and Windows x64/ARM64 Soundscaper packages additionally require a target-native, canary-tested repository-owned operating-system codec addon whose exact manifest, payload, target, signing evidence, byte length, and SHA-256 are authenticated through staging and packaging; Linux has no OS codec payload and macOS x64 is unsupported. User-installed external FFmpeg remains outside this artifact closure and is not copied into the release set.",
+			"description": "Public desktop packages, notices, checksums, and source archives required for content actually redistributed. Each package contains the seven exact reviewed compressed-audio WebAssembly providers and the exact verified Electron alternate framework libffmpeg for its target. Release assembly emits one preferred corresponding-source ZIP for those seven providers before SHA256SUMS: it fail-closed validates their exact shipped WASM identities, source manifests, upstream archives, Soundscaper wrappers, in-tree WavPack snapshot, build scripts and transitive helpers, configuration, relink instructions, and license texts, and records every included source byte in a deterministic internal receipt. This desktop source delivery does not qualify any future reactivation of the retained legacy FFmpeg WebAssembly publication tooling. macOS ARM64 and Windows x64/ARM64 Soundscaper packages additionally require a target-native, canary-tested repository-owned operating-system codec addon whose exact manifest, payload, target, signing evidence, byte length, and SHA-256 are authenticated through staging and packaging; Linux has no OS codec payload and macOS x64 is unsupported. User-installed external FFmpeg remains outside this artifact closure and is not copied into the release set.",
 			"artifactStatus": "blocked",
 			"noticeDeliveryStatus": "implemented",
 			"evidence": ["config/electron-alternate-ffmpeg-manifest.json", "config/desktop-bundled-codec-corresponding-source.json", "docs/desktop-bundled-codec-corresponding-source.md", "src/common/editor/flac/source-manifest.json", "src/common/editor/opus/source-manifest.json", "src/common/editor/vorbis/source-manifest.json", "src/common/editor/wavpack/source-manifest.json", "src/common/editor/mpg123/source-manifest.json", "src/common/editor/lame/source-manifest.json", "src/common/editor/twolame/source-manifest.json", "scripts/lib/desktop-codec-policy.mjs", "scripts/lib/desktop-bundled-audio-runtime.mjs", "scripts/lib/desktop-bundled-codec-notices.mjs", "scripts/lib/desktop-bundled-codec-corresponding-source.mjs", "scripts/lib/bundled-codec-source-input.mjs", "scripts/lib/electron-alternate-ffmpeg.mjs", "scripts/desktop-release-assets.mjs", "tests/desktop-audio-codec-runtime-staging.test.js", "tests/desktop-bundled-codec-notices.test.js", "tests/desktop-bundled-codec-corresponding-source.test.js", "THIRD_PARTY_LICENSES.md"]
@@ -61,39 +61,6 @@
 			"role": "application-runtime",
 			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
 			"noticeMarker": "`@echogarden/pffft-wasm` 0.4.2",
-			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
-		},
-		{
-			"lockPath": "node_modules/@ffmpeg/core",
-			"name": "@ffmpeg/core",
-			"version": "0.12.10",
-			"license": "GPL-2.0-or-later",
-			"direct": true,
-			"role": "external-versioned-runtime",
-			"artifactSurfaces": ["web-runtime-assets"],
-			"noticeMarker": "`@ffmpeg/core` 0.12.10",
-			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "scripts/publish-runtime-assets.mjs"]
-		},
-		{
-			"lockPath": "node_modules/@ffmpeg/ffmpeg",
-			"name": "@ffmpeg/ffmpeg",
-			"version": "0.12.15",
-			"license": "MIT",
-			"direct": true,
-			"role": "application-runtime",
-			"artifactSurfaces": ["web-pages-bundle"],
-			"noticeMarker": "`@ffmpeg/ffmpeg` 0.12.15",
-			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
-		},
-		{
-			"lockPath": "node_modules/@ffmpeg/types",
-			"name": "@ffmpeg/types",
-			"version": "0.12.4",
-			"license": "MIT",
-			"direct": false,
-			"role": "transitive-types-only",
-			"artifactSurfaces": [],
-			"noticeMarker": "`@ffmpeg/types` 0.12.4",
 			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
@@ -141,6 +108,28 @@
 			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
+			"lockPath": "node_modules/@types/dom-mediacapture-transform",
+			"name": "@types/dom-mediacapture-transform",
+			"version": "0.1.12",
+			"license": "MIT",
+			"direct": false,
+			"role": "transitive-types-only",
+			"artifactSurfaces": [],
+			"noticeMarker": "`@types/dom-mediacapture-transform` 0.1.12",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
+			"lockPath": "node_modules/@types/dom-webcodecs",
+			"name": "@types/dom-webcodecs",
+			"version": "0.1.13",
+			"license": "MIT",
+			"direct": false,
+			"role": "transitive-types-only",
+			"artifactSurfaces": [],
+			"noticeMarker": "`@types/dom-webcodecs` 0.1.13",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
 			"lockPath": "node_modules/@zip.js/zip.js",
 			"name": "@zip.js/zip.js",
 			"version": "2.8.33",
@@ -161,6 +150,17 @@
 			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
 			"noticeMarker": "`fflate` 0.8.3",
 			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
+			"lockPath": "node_modules/mediabunny",
+			"name": "mediabunny",
+			"version": "1.55.3",
+			"license": "MPL-2.0",
+			"direct": true,
+			"role": "browser-media-container-runtime",
+			"artifactSurfaces": ["web-pages-bundle"],
+			"noticeMarker": "`mediabunny` 1.55.3",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "src/common/editor/browser-webcodecs-aac.ts", "src/common/editor/video-mediabunny-muxer.ts"]
 		},
 		{
 			"lockPath": "node_modules/react",
@@ -427,7 +427,9 @@
 		{
 			"id": "ffmpeg-core-wasm",
 			"status": "blocked",
-			"artifactSurfaces": ["web-runtime-assets"],
+			"artifactSurfaces": [],
+			"provenanceKind": "retained-legacy-publication-audit-tooling-not-browser-runtime",
+			"qualification": "The development-only packages and publication records are retained to reproduce and audit historical evidence. They are outside the production browser dependency closure and no application artifact publishes, packages, imports, or fetches this runtime.",
 			"evidence": ["config/ffmpeg-runtime-manifest.json", "THIRD_PARTY_LICENSES.md", "desktop/ffmpeg-corresponding-source.json", "scripts/lib/ffmpeg-runtime-manifest.mjs", "scripts/publish-runtime-assets.mjs", "tests/ffmpeg-runtime-manifest.test.js"]
 		},
 		{
@@ -475,6 +477,8 @@
 	"ffmpeg": {
 		"package": "@ffmpeg/core",
 		"version": "0.12.10",
+		"dependencyScope": "development-only-legacy-publication-audit-tooling",
+		"artifactSurfaces": [],
 		"runtimeManifest": "config/ffmpeg-runtime-manifest.json",
 		"correspondingSourceManifest": "desktop/ffmpeg-corresponding-source.json",
 		"enabledExternalLibraries": [
@@ -492,7 +496,7 @@
 			"libass",
 			"zimg"
 		],
-		"configurationEvidence": "THIRD_PARTY_LICENSES.md#ffmpeg-webassembly-export-and-import-core"
+		"configurationEvidence": "THIRD_PARTY_LICENSES.md#retained-legacy-ffmpeg-webassembly-publication-and-audit-tooling"
 	},
 	"desktopCodecPolicy": {
 		"scope": "soundscaper-general-codec-provider-layer-excluding-electron-framework-internals-and-the-exact-authenticated-framescaper-media-host",
@@ -841,12 +845,13 @@
 			"id": "desktop-bundled-codec-corresponding-source",
 			"status": "implemented",
 			"scope": "seven-exact-reviewed-bundled-desktop-audio-codec-wasm-modules",
-			"qualification": "A preferred deterministic corresponding-source ZIP is emitted and checksummed with every desktop release. It contains exact verified upstream source archives, the complete in-tree WavPack snapshot, Soundscaper wrappers, build scripts and transitive helpers, source configuration, relink/replacement instructions, and licenses for the seven exact shipped module identities. It does not qualify the separate Web FFmpeg runtime, Electron framework internals, OS providers, external FFmpeg, patent clearance, or non-infringement.",
+			"qualification": "A preferred deterministic corresponding-source ZIP is emitted and checksummed with every desktop release. It contains exact verified upstream source archives, the complete in-tree WavPack snapshot, Soundscaper wrappers, build scripts and transitive helpers, source configuration, relink/replacement instructions, and licenses for the seven exact shipped module identities. It does not qualify any future reactivation of the retained legacy FFmpeg WebAssembly publication tooling, Electron framework internals, OS providers, external FFmpeg, patent clearance, or non-infringement.",
 			"evidence": ["config/desktop-bundled-codec-corresponding-source.json", "docs/desktop-bundled-codec-corresponding-source.md", "scripts/lib/desktop-bundled-codec-corresponding-source.mjs", "scripts/lib/bundled-codec-source-input.mjs", "scripts/desktop-release-assets.mjs", "tests/desktop-bundled-codec-corresponding-source.test.js"]
 		},
 		{
 			"id": "ffmpeg-runtime-manifest-integrity",
 			"status": "implemented",
+			"scope": "retained-legacy-publication-audit-tooling-not-production-browser-runtime",
 			"evidence": [".gitattributes", "THIRD_PARTY_LICENSES.md", "config/ffmpeg-runtime-manifest.json", "config/production-security-matrix.json", "config/release-severity-policy.json", "desktop/ffmpeg-corresponding-source.json", "docs/production-licensing-policy.md", "docs/production-threat-model.md", "r2-cors.json", "scripts/lib/ffmpeg-runtime-manifest.mjs", "scripts/lib/ffmpeg-runtime-publisher.mjs", "scripts/publish-runtime-assets.mjs", "scripts/audit-ffmpeg-runtime.mjs", "tests/ffmpeg-runtime-manifest.test.js"]
 		},
 		{
@@ -858,13 +863,13 @@
 		{
 			"id": "ffmpeg-enabled-library-corresponding-source",
 			"status": "blocked",
-			"blocker": "The current manifest identifies FFmpeg and ffmpeg.wasm archives but does not inventory and pin complete corresponding source for every enabled library in the binary.",
+			"blocker": "Any future reactivation of the retained legacy publication tooling remains blocked because its manifest identifies FFmpeg and ffmpeg.wasm archives but does not inventory and pin complete corresponding source for every enabled library in the binary.",
 			"evidence": ["desktop/ffmpeg-corresponding-source.json", "THIRD_PARTY_LICENSES.md", "scripts/publish-runtime-assets.mjs"]
 		},
 		{
 			"id": "ffmpeg-enabled-codec-patent-review",
 			"status": "blocked",
-			"blocker": "No distribution-specific, jurisdiction-specific patent review is recorded for the enabled codec set.",
+			"blocker": "Any future publication of the retained legacy core remains blocked because no distribution-specific, jurisdiction-specific patent review is recorded for its enabled codec set.",
 			"evidence": ["THIRD_PARTY_LICENSES.md"]
 		}
 	],
@@ -1034,7 +1039,7 @@
 		{
 			"id": "codec-native-ffmpeg-current-set",
 			"kind": "codec-capability",
-			"upstreamLicensing": "The shipped browser runtime remains the FFmpeg GPL build with thirteen enabled external libraries pinned by the ffmpeg register. The separate native candidate pins FFmpeg 9.0.1 in GPL mode with no external libraries. Its authenticated build recipe is enabled for testing; per-codec human review is milestone-9 stable 1.0 release evidence.",
+			"upstreamLicensing": "The former browser FFmpeg GPL build with thirteen enabled external libraries remains only as development-time legacy publication and audit evidence; it is outside the production closure and browser artifact surfaces. The separate native candidate pins FFmpeg 9.0.1 in GPL mode with no external libraries. Its authenticated build recipe is enabled for testing; per-codec human review is milestone-9 stable 1.0 release evidence.",
 			"agplCompatibilityDirection": "Each GPL-2.0-or-later build combines into this AGPL-3.0-only work compatibly; the native 9.0.1 source and recipe are a separate blocked provenance record and do not replace or upgrade the browser runtime.",
 			"redistribution": "An exact target-built Framescaper media host may enter its authenticated runtime payload manifest and a test package before human review completes; general-purpose FFmpeg programs, WebAssembly, archives, and loose libav payloads remain forbidden. Each desktop package also contains Electron's exact verified alternate framework libffmpeg, intended upstream to omit proprietary codec support; it is Chromium infrastructure, not this provider row. User-installed external FFmpeg is executed in place and is not copied into an artifact. Stable 1.0 redistribution still requires the milestone-9 corresponding-source, notices, patent, signing, and target review.",
 			"status": "blocked",

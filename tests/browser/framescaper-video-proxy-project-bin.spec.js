@@ -7,11 +7,9 @@ import {
 	collectClientErrors,
 } from './audio-editor-test-helpers.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 
 test('Project Bin video menu lazily opens proxies for the clicked source', async ({ page }) => {
 	test.setTimeout(120_000);
-	await installPinnedFfmpegRuntimeRoutes(page);
 	const clientErrors = collectClientErrors(page);
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
 	await editor.locator('[data-project-bin-input]').setInputFiles([

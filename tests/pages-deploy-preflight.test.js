@@ -16,7 +16,7 @@ import { webBuildRouting } from '../scripts/lib/product-web-routing.mjs';
 import { runtimePointer } from '../scripts/lib/ffmpeg-runtime-publisher.mjs';
 import { createFixture } from './helpers/ffmpeg-runtime-fixture.mjs';
 
-test('Pages preflight accepts only the exact live content-addressed release and cache metadata', async (context) => {
+test('legacy runtime publication preflight accepts only exact content-addressed objects', async (context) => {
 	const fixture = await createFixture(context);
 	const release = await verifyFfmpegRuntimeManifest({
 		repositoryRoot: fixture.root,
@@ -74,40 +74,20 @@ test('Pages preflight accepts only the exact live content-addressed release and 
 	);
 });
 
-test('Pages CLI authenticates policy before any live runtime request', async () => {
+test('Pages CLI verifies only the deployed Pages cache policy', async () => {
 	const [source, packageMetadata, documentation] = await Promise.all([
 		readFile('scripts/preflight-pages-deploy.mjs', 'utf8'),
 		readFile('package.json', 'utf8').then(JSON.parse),
 		readFile('Technical_README.md', 'utf8'),
 	]);
-	// The checked-in authorization is read first and decides whether the live
-	// runtime is audited at all: an unpublished runtime has no objects to audit,
-	// and the licensing gates that block publication are not something a deploy
-	// can clear. The ordering below is what keeps that a policy decision rather
-	// than an inference from whatever the origin happens to answer.
-	assert.ok(
-		source.indexOf('readRuntimePublicationAuthorization(repositoryRoot)')
-			< source.indexOf("purpose: 'runtime-publication'"),
-		'the checked-in authorization must be read before the manifest is verified',
-	);
-	assert.ok(
-		source.indexOf("purpose: 'runtime-publication'") < source.indexOf('preflightPagesDeployment({ release, origin })'),
-		'checked-in publication authorization must precede live preflight requests',
-	);
-	assert.ok(
-		source.indexOf('preflightPagesDeployment({ release, origin })')
-			< source.indexOf('const pages = await verifyLivePagesCachePolicy'),
-		'the exact runtime must be live before the Pages hostname cache policy is accepted',
-	);
-	assert.match(
-		source,
-		/publication\.status === 'approved'/u,
-		'only an approved publication reaches the live runtime audit',
-	);
+	assert.doesNotMatch(source, /ffmpeg|preflightPagesDeployment|runtime-publication/iu);
+	assert.match(source, /verifyLivePagesCachePolicy/u);
+	assert.match(source, /webBuildRouting/u, 'the audit uses the selected product routing');
 	// The gate must never take its audit sample from the build it is gating: the
 	// live origin is the previous deployment and has none of the new hashes.
 	assert.doesNotMatch(source, /dist\/offline-shell\.json/u, 'the audit sample comes from the live origin');
 	assert.match(source, /admitPagesColdStart\(process\.env\)/u, 'a cold start is declared, never inferred');
+	assert.match(source, /SCAPE_DEPLOY_AUDIT_ORIGIN/u, 'the project hostname may be named explicitly');
 	assert.match(source, /coldStart/u);
 	assert.match(packageMetadata.scripts['build:pages'], /npm run build.*preflight-pages-deploy\.mjs/u);
 	assert.match(packageMetadata.scripts.deploy, /^npm run build:pages && wrangler pages deploy/u);

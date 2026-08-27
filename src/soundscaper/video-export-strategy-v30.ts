@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** V30 retains the selected V29 keyed desktop video delivery implementation. */
+/** V30 retains the selected V29 keyed video delivery implementation. */
 export {
 	createSoundscaperDesktopVideoExportStrategyV29 as createSoundscaperDesktopVideoExportStrategyV30,
 	createSoundscaperVideoExportStrategyV29 as createSoundscaperVideoExportStrategyV30,

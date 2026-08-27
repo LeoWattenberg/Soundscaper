@@ -15,13 +15,10 @@ import {
 	preferredFfmpegRuntimeFallbackBaseUrl,
 } from '../src/common/offline/ffmpeg-runtime-public-policy.ts';
 
-test('runtime URLs share one policy and production builds pin the full manifest digest', async () => {
+test('runtime publication remains reproducible but browser builds do not pin or load it', async () => {
 	const manifestBytes = await readFile('config/ffmpeg-runtime-manifest.json');
 	const manifestSha256 = createHash('sha256').update(manifestBytes).digest('hex');
-	assert.equal(
-		JSON.parse(String(viteConfig.define?.__FFMPEG_RUNTIME_MANIFEST_SHA256__)),
-		manifestSha256,
-	);
+	assert.equal(Object.hasOwn(viteConfig.define ?? {}, '__FFMPEG_RUNTIME_MANIFEST_SHA256__'), false);
 	assert.equal(
 		FFMPEG_RUNTIME_POINTER_URL,
 		'https://assets.soundscaper.org/runtime/ffmpeg/0.12.10/latest.json',
@@ -79,7 +76,7 @@ test('a production-defined manifest release always replaces the legacy direct fa
 	}
 });
 
-test('the production build rejects the removed mutable FFmpeg base override', () => {
+test('the production build has no FFmpeg runtime environment seam', () => {
 	const result = spawnSync(process.execPath, [
 		'--input-type=module',
 		'--eval',
@@ -92,6 +89,6 @@ test('the production build rejects the removed mutable FFmpeg base override', ()
 			PUBLIC_FFMPEG_CORE_BASE_URL: 'https://assets.soundscaper.org/runtime/ffmpeg/0.12.10',
 		},
 	});
-	assert.notEqual(result.status, 0);
-	assert.match(`${result.stdout}\n${result.stderr}`, /PUBLIC_FFMPEG_CORE_BASE_URL is unsupported/iu);
+	assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+	assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /FFmpeg runtime/iu);
 });

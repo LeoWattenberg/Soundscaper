@@ -8,7 +8,6 @@ import {
 } from './audio-editor-test-helpers.js';
 import { TRACK_MENU_TRIGGER, chooseTrackMenuAction } from './helpers/track-menu.js';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
-import { installPinnedFfmpegRuntimeRoutes } from './helpers/pinned-ffmpeg-runtime.js';
 import { FRAMESCAPER_DATABASE_NAME, SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import {
 	DURABLE_MEDIA_STORAGE_REQUIRED,
@@ -19,7 +18,6 @@ const CFR = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
 
 test.describe('persisted shared track locking', () => {
 	test.beforeEach(async ({ page }) => {
-		await installPinnedFfmpegRuntimeRoutes(page);
 		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
 			status: 200,
 			contentType: 'application/json',

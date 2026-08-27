@@ -322,8 +322,10 @@ function validateReview(manifest) {
 
 function validatePackageIdentity(manifest, { projectPackage, lock, installedPackage }) {
 	assert(projectPackage.name === 'soundscaper', 'package.json is not the Soundscaper package');
-	assert(projectPackage.dependencies?.[manifest.package.name] === manifest.package.version,
-		`package.json must pin ${manifest.package.name} ${manifest.package.version}`);
+	assert(projectPackage.dependencies?.[manifest.package.name] === undefined,
+		`package.json production dependencies must exclude legacy ${manifest.package.name}`);
+	assert(projectPackage.devDependencies?.[manifest.package.name] === manifest.package.version,
+		`package.json devDependencies must pin legacy ${manifest.package.name} ${manifest.package.version}`);
 	assert(lock.lockfileVersion === 3, 'package-lock.json must use lockfileVersion 3');
 	const entry = lock.packages?.[manifest.package.lockPath];
 	assertPlainObject(entry, `package-lock ${manifest.package.lockPath}`);

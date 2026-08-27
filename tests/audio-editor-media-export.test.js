@@ -22,12 +22,12 @@ import {
 } from '../src/common/editor/project-current.ts';
 import { encodeWav, inspectWavLayout } from '../src/common/editor/wav.js';
 
-test('media export registry classifies native and pinned FFmpeg formats', () => {
+test('media export registry classifies native and compressed-file formats', () => {
 	assert.deepEqual(Object.keys(MEDIA_EXPORT_FORMATS), [
 		'wav', 'bwf', 'bw64', 'aiff', 'flac', 'mp3', 'ogg-vorbis', 'opus', 'wavpack', 'mp2', 'aac-m4a', 'custom-ffmpeg',
 	]);
 	const bundled = createMediaExportCapabilities();
-	assert.equal(bundled.profileId, '@ffmpeg/core@0.12.10');
+	assert.equal(bundled.profileId, 'legacy-bundled-codec-profile-v1');
 	assert.equal(Object.values(bundled.formats).every((entry) => entry.available), true);
 	assert.equal(listMediaExportFormats(bundled).find((entry) => entry.id === 'aiff').backend, 'native-aiff');
 	assert.equal(listMediaExportFormats(bundled).find((entry) => entry.id === 'ogg-vorbis').codec, 'libvorbis');

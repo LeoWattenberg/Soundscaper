@@ -94,15 +94,19 @@ test('every browser route has one frozen Blob limit and every direct route exclu
 });
 
 test('browser audio and video publication use the shared admission boundary', async () => {
-	const [audio, video, ffmpegVideo] = await Promise.all([
+	const [audio, video, audioRuntime, nativeVideo] = await Promise.all([
 		readFile(new URL('../src/common/editor/controller/export-service.ts', import.meta.url), 'utf8'),
 		readFile(new URL('../src/common/editor/controller/video-export-service.ts', import.meta.url), 'utf8'),
-		readFile(new URL('../src/common/editor/ffmpeg-video-output.ts', import.meta.url), 'utf8'),
+		readFile(new URL('../src/common/editor/browser-audio-codec-runtime.ts', import.meta.url), 'utf8'),
+		readFile(new URL('../src/common/editor/video-keyframe-mediabunny-execution.ts', import.meta.url), 'utf8'),
 	]);
 	assert.match(audio, /prepareBrowserExportBlob/u);
 	assert.match(audio, /admitBrowserExportBlob/u);
 	assert.match(video, /prepareBrowserExportBlob/u);
-	assert.match(ffmpegVideo, /readBoundedFfmpegOutputFile/u);
+	assert.match(audioRuntime, /ffmpegAvailable: false/u);
+	assert.match(audioRuntime, /browser-dedicated-audio-result/u);
+	assert.match(nativeVideo, /executeVideoKeyframeMediabunnyEncoder/u);
+	assert.match(nativeVideo, /complete browser-native delivery/u);
 	assert.doesNotMatch(audio, /new Blob\(\[encoded\.bytes\]/u);
 	assert.doesNotMatch(video, /new Blob\(\[encoded\.bytes\]/u);
 });
@@ -134,14 +138,14 @@ test('the threat model owns the route-level claim without promoting resource qua
 	}
 	assert.match(
 		documentation,
-		/four retained\s+browser-Blob fallbacks.*non-raiseable 512 MiB.*stat and admit.*before a whole-file `readFile`.*before final Blob construction.*before download publication/isu,
+		/four retained\s+browser-Blob fallbacks.*non-raiseable 512 MiB.*complete\s+browser-native.*before final Blob construction.*before download publication/isu,
 	);
 	assert.match(
 		documentation,
-		/other eleven IDs.*direct streaming routes.*None performs final renderer-sized.*Blob construction or download publication/isu,
+		/other eleven IDs.*direct publication routes.*None performs final renderer-sized\s+Blob\s+construction or download publication/isu,
 	);
 	assert.match(
 		documentation,
-		/does not add browser\s+heap.*worker MEMFS.*RSS.*reference-scale.*durability.*packaged.*cross-platform claims/isu,
+		/does\s+not add browser\s+heap.*codec worker.*Mediabunny.*RSS.*reference-scale.*durability.*packaged.*cross-platform claims/isu,
 	);
 });
