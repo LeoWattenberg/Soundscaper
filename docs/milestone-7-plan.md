@@ -11,21 +11,34 @@
 > source-verified on 2026-08-11 and must be re-verified against the pinned
 > artifact when each model is actually cataloged.
 
-**Activation status (2026-08-26):** the complete optional workflow layer is
+**Activation status (2026-08-27):** the complete optional workflow layer is
 implemented on selected Soundscaper S30 and Framescaper F31. A versioned
 `AssistanceWorkflow` contract supplies a closed workflow ID, aggregate fence,
-slotted claims, exact model bindings, guided recipes, Advanced primitive
-recipes, stage consent/progress, strict semantic review, disposable derivative
-custody, and ordinary undoable publishers. Existing authenticated Parakeet,
-Silero, diarization, cleanup, and model-free fast-shot routes stay active. The
-new conditional workers and owned deterministic stages cover Whisper and
-wav2vec2 alignment, enhancement, TIGER separation, PANNs reactions, Beat This,
-TransNetV2, nomic/SigLIP embeddings, OCR, subject/saliency reframe,
+slotted claims, exact model bindings, guided recipes, all fifteen Advanced
+primitive recipes, main-owned consent, stage progress, strict semantic review,
+disposable derivative custody, and ordinary undoable publishers. Existing
+authenticated Parakeet, Silero, diarization, cleanup, and model-free fast-shot
+routes stay active. Conditional workers and owned deterministic stages cover
+Whisper/wav2vec2 alignment, enhancement, TIGER separation, PANNs reactions,
+Beat This, TransNetV2, nomic/SigLIP embeddings, OCR, subject/saliency reframe,
 deterministic highlights, and bounded optional Qwen editorial JSON.
 
+Both ASR choices consume the exact reviewed VAD stage. Automatic-language
+Whisper preserves the optional alignment stage and the worker admits wav2vec2
+only after detecting English. Long DeepFilterNet/TIGER media is spooled through
+bounded channel-preserving chunks under one whole-selection fence. Review
+assets are incrementally hashed and bound to their exact stage and slot;
+cleanup audition is mutation-free, reframe/highlight crops are editable, and
+accepted reframe evidence, indexes, saliency/tracker state, and ranking
+checkpoints remain available for authenticated deterministic reuse. Accepted
+Qwen augmentation is reduced to bounded inert title/hook/chapter/explanation
+metadata; raw and unselected output never enters `.scape`.
+
 That is conditional implementation, not a packaged production-activation
-claim. TIGER, PANNs, Beat This, and TransNetV2 converted artifacts and parity
-evidence are pending; their externally signed catalog entries do not exist.
+claim. A hash-locked CPython 3.12 conversion/parity runner now exists for
+TIGER, PANNs, Beat This `small0`, and TransNetV2, but no converted artifacts or
+live parity evidence are retained; their externally signed catalog entries do
+not exist.
 Every target payload for ONNX Runtime 1.29.0, whisper.cpp v1.9.3, and llama.cpp
 b10509 is `pending-external`, and Sherpa still lacks a Windows-arm64 Node
 addon. Live EU R2 publication/full-digest public read-back, five-target
@@ -149,13 +162,14 @@ plan ships no web inference at all:
 ## Runtime decision
 
 The plan evaluated four inference runtimes, staged so no packet integrates more
-than one new runtime at a time. The active implementation adopts the first
-runtime for exact Parakeet speech recognition, Silero VAD, and paired
-pyannote/ERes2Net diarization. GTCRN/enhancement and separation support in that
-runtime are not active. The other three inference runtimes remain future
-adapter choices, not active capabilities; admitted external FFmpeg fast-shot
-execution is a separate model-free editor runtime, not a fourth inference
-family:
+than one new runtime at a time. Sherpa remains production-admitted for exact
+Parakeet speech recognition, Silero VAD, and paired pyannote/ERes2Net
+diarization. The other three families now have isolated conditional hosts,
+workers, authentication, memory admission, crash quarantine, and termination
+cancellation; none is package-admitted until its exact five-target payload row
+closes. GTCRN/RNNoise and GPU execution providers are excluded. Admitted
+external FFmpeg fast-shot execution is a separate model-free editor runtime,
+not a fifth inference family:
 
 1. **sherpa-onnx-node (Apache-2.0)** — the speech pipeline: Silero VAD,
    Parakeet ASR with per-token timestamps, speaker diarization
@@ -168,42 +182,34 @@ family:
    have one); Windows-on-ARM either gets a self-built binary or reports
    the capability as unavailable.
 2. **whisper.cpp via spawned per-platform `whisper-cli` (MIT)** — the
-   multilingual long tail (~99 languages) and the optional GPU story
-   (Metal/Vulkan/CUDA CLI builds). Spawning the CLI is chosen over the
+   multilingual long tail (~99 languages) through the pinned v1.9.3 CPU
+   baseline. Spawning the CLI is chosen over the
    binding ecosystem deliberately: the best-designed binding
    (smart-whisper) is abandoned, and a CLI segfault cannot take a process
    we own with it. whisper.cpp 1.9.0 added Parakeet support (PR #3735)
    and integrates Silero VAD (the VAD model is a separate download), so a
    future consolidation to fewer runtimes is plausible — re-verify its
    maturity at pickup.
-3. **onnxruntime-node (MIT)** — the vision stack (shots, faces, persons,
+3. **onnxruntime-node (MIT)** — the CPU vision/audio stack (shots, faces, persons,
    saliency, SigLIP 2, OCR) and the wav2vec2 aligner. N-API, so no
-   electron-rebuild. The CPU execution provider (EP) is the baseline on
-   every platform; GPU EPs
-   (CoreML on macOS, DirectML-now/WebGPU-next on Windows, CUDA on
-   linux-x64) are a per-feature opt-in with mandatory CPU fallback. The
-   CUDA EP's npm postinstall download must be disabled in CI and
-   packaging (`--onnxruntime-node-install=skip`).
-4. **node-llama-cpp (MIT)** — the optional editorial-LLM tier and text
-   embeddings (nomic-embed runs under llama.cpp, so embeddings need no
-   extra runtime). Prebuilt binaries for every target including win-arm64;
-   first-class Electron guidance (asar-unpacked, main-side only, no
-   renderer use, no webpack bundling); JSON-schema-constrained generation
-   via GBNF grammars.
+   electron-rebuild. Only the CPU execution provider is admitted by this
+   delivery; package installation must suppress any CUDA-provider download.
+4. **llama.cpp (MIT)** — the optional Qwen editorial tier, pinned to b10509,
+   with no renderer use and grammar-constrained JSON. Nomic embeddings use the
+   cataloged ONNX export, so transcript and visual search do not depend on this
+   optional 16 GiB-RAM family.
 
 ### Process architecture
 
 - All inference runs in an **assistance helper** started as an Electron
   `utilityProcess` — full Node with native addons, crash containment (an
   `exit` event, not a dead editor), and `MessagePortMain` wiring for
-  progress streams. The current Electron composition lazily spawns the
-  assistance utility process only after authenticating the exact packaged
-  Sherpa runtime for Parakeet recognition, Silero VAD, or the exact
-  pyannote/ERes2Net diarization pair. Model-free fast shots instead use the
-  separately admitted fixed-command external-FFmpeg runtime; that route does
-  not grant the helper generic subprocess authority. A dedicated inference
-  worker inside the utility process is the only context that imports the native
-  Sherpa module. Main owns the helper lifecycle,
+  progress streams. Each Sherpa, ONNX Runtime, whisper.cpp, and llama.cpp
+  family is lazy and isolated; main authenticates the exact runtime and model
+  closure before spawning it, and a dedicated inference worker is the only
+  context that imports native code. Model-free fast shots instead use the
+  separately admitted fixed-command external-FFmpeg runtime; that route grants
+  no generic subprocess authority. Main owns the helper lifecycle,
   heartbeats, cancellation deadline, RSS sampling, and exact file grants; no
   renderer receives spawn, binary, or filesystem-path authority. The threat
   model retains `native-helper-processes` as partial because process separation
@@ -255,12 +261,15 @@ YuNet; D-FINE; U²-Net-P; PP-OCRv4 mobile; nomic-embed-text; and SigLIP 2.
 Catalog presence permits authenticated install and custody, not execution.
 The two Parakeet entries match the active Sherpa recognition adapter, Silero
 matches the active VAD adapter, and pyannote segmentation plus ERes2Net form the
-only admitted diarization pair. Whisper, DeepFilterNet3, and every current
-vision/semantic catalog task still lack active adapters and therefore refuse
-with typed unavailable state. Fast shot detection is model-free and relies on
-separately admitted external FFmpeg authority. The catalog's mirror URLs and
-publisher describe the authorized distribution path, but this plan does not
-claim the remote R2 objects have been uploaded or read back durably.
+admitted diarization pair. Whisper, DeepFilterNet3, and the current
+vision/semantic entries have conditional adapters, but those routes refuse with
+typed unavailability until their authenticated target runtime payloads exist;
+catalog presence alone never activates execution. The six supply candidates
+additionally await external catalog signing, and the four converted candidates
+await retained artifact/parity evidence. Fast shot detection is model-free and
+relies on separately admitted external FFmpeg authority. The catalog's mirror
+URLs and publisher describe the authorized distribution path, but this plan
+does not claim the remote R2 objects have been uploaded or read back durably.
 
 ### Speech (7A primary)
 
@@ -270,7 +279,7 @@ claim the remote R2 objects have been uploaded or read back durably.
 | ASR, English default | Parakeet-TDT-0.6b-v2 int8 (ONNX) | ~650 MB | CC-BY-4.0 |
 | ASR, 25 European languages | Parakeet-TDT-0.6b-v3 int8 (ONNX) | ~640 MB | CC-BY-4.0 |
 | ASR, ~99-language long tail | Whisper large-v3-turbo q5_0 (GGML) | ~550 MB | MIT |
-| ASR, low-disk draft tier | Whisper small/base q5 (GGML) | 190/60 MB | MIT |
+| ASR, low-disk draft tier | Excluded from this delivery; no small/base model is cataloged | — | — |
 | Word-timing realignment (EN, Whisper output only) | wav2vec2-base-960h (ONNX) | ~360 MB | Apache-2.0 |
 | Diarization segmentation | pyannote segmentation-3.0 (ONNX, sherpa mirror) | ~6 MB | MIT (upstream HF-gated; mirror the sherpa asset, never the gated URL) |
 | Speaker embeddings | 3D-Speaker ERes2Net | ~30 MB | Apache-2.0 |
@@ -291,12 +300,11 @@ output is needed from it.
 | Task | Model | Disk | License |
 | --- | --- | --- | --- |
 | Denoise, 48 kHz quality | DeepFilterNet3 (ONNX) | ~10 MB | MIT/Apache-2.0 dual |
-| Denoise, ultra-light 16 kHz | GTCRN (sherpa asset) | ~0.5 MB | MIT |
-| Denoise, realtime-light | RNNoise 0.2 (native lib, compiled in) | <1 MB | BSD-3 |
-| Stem separation, default | Spleeter 2/4/5-stems (ONNX) | 40–80 MB | MIT repo including the models, no separate weight terms — cleanest available; confirm in the WP-7.0.0 evidence record (open upstream question deezer/spleeter#898) |
-| Stem separation, high quality | Demucs v4 htdemucs (ONNX) | ~85–170 MB | MIT code; **weights license formally unstated (archived repo)** — legal sign-off before cataloging |
-| Audio tagging (laughter/applause/cheer) | PANNs CNN14 (ONNX; CNN10/mobile tier ~15–40 MB) | ~320 MB | Apache-2.0 code / CC-BY-4.0 weights |
-| Beat/downbeat | Beat This! (ONNX via beat_this_cpp) | tens of MB | MIT code and weights (CPJKU's deliberate contrast to madmom) |
+| Denoise, lower-cost alternatives | GTCRN and RNNoise are excluded from this delivery | — | — |
+| Stem separation, default | TIGER-DnR neural cores (ONNX) with owned STFT/ISTFT/overlap-add; Dialogue/Music/Effects | pending converted artifacts | MIT code and weights |
+| Refused historical separators | Spleeter and Demucs v4 `htdemucs` | — | unresolved weight grants; absent from offered catalog |
+| Audio tagging (laughter/applause/cheer) | PANNs Cnn10 (ONNX) with pinned 527-class AudioSet map | pending converted artifact | Apache-2.0 code / CC-BY-4.0 weights |
+| Beat/downbeat | Beat This `small0` CPU baseline; optional `final0` quality pack | pending converted artifacts | MIT code and weights |
 
 ### Vision and semantics (7B)
 
@@ -308,7 +316,7 @@ upstream bytes, not estimates.
 | Task | Model | Disk | License | State |
 | --- | --- | --- | --- | --- |
 | Shot cuts, fast mode | ffmpeg scene score (`scdet`) | 0 (pinned ffmpeg) | existing posture | no model needed |
-| Shot cuts, accurate mode | TransNetV2 | — | MIT upstream | **blocked**: no ONNX build with a licence traceable to upstream |
+| Shot cuts, accurate mode | TransNetV2 | pending converted artifact | MIT upstream | owned TF→PyTorch→ONNX runner exists; live three-runtime parity and catalog signing pending |
 | Face detection | YuNet 2026may (ONNX) | 0.22 MiB | MIT | pinned |
 | Person/object detection | D-FINE-N COCO (ONNX) | 14.6 MiB | Apache-2.0 | pinned |
 | Track interpolation | ByteTrack/OC-SORT (algorithm port, no weights) | 0 | MIT code | no weights |
@@ -325,7 +333,7 @@ editorial LLM below still needs a GGUF runtime at 7B-4.
 
 | Task | Model | Disk | License |
 | --- | --- | --- | --- |
-| Titles, hooks, chapter names, highlight re-ranking with schema-constrained JSON | Qwen3-4B-Instruct Q4_K_M (GGUF) | 2.5 GB | Apache-2.0 |
+| Titles, hooks, chapter names, highlight re-ranking with schema-constrained JSON | Qwen3-4B Q4_K_M (GGUF) | 2.5 GB | Apache-2.0 |
 
 Gated to ≥16 GB RAM machines; Gemma 4 E4B (Apache-2.0 since April 2026)
 is the fast-follow alternative. Evidence stance: the Rhapsody study
@@ -572,9 +580,9 @@ manual sign-off as an execution switch:
 | Catalog and licensing | The authenticated Ed25519 catalog V2 retains thirteen admitted entries. Supply candidates now pin wav2vec2 and Qwen sources plus conversion recipes for TIGER, PANNs, Beat This, and TransNetV2, but none joins the production catalog before converted-artifact/parity closure and external signing. Unknown keys, incomplete licensing, refused weights, and artifact drift fail closed. |
 | Model lifecycle | A user-settable, content-addressed filesystem store supports capacity preflight, explicit resumable install, cancellation after quiescence, preseed, relocation by copy/verify/swap, removal, garbage collection, notices, and reconciliation after external deletion. **Tools > Local Models > Manage Models…** is lazy and desktop-only. No model is installed or repaired implicitly. |
 | Native runtime | Sherpa ONNX 1.13.5 remains authenticated on linux-x64, linux-arm64, mac-arm64, and win-x64; its Windows-arm64 Node addon is pending. Isolated, supervised CPU-only family contracts, workers, memory admission, crash quarantine, and termination cancellation exist for ONNX Runtime 1.29.0, whisper.cpp v1.9.3, and llama.cpp b10509, but every five-target payload row remains `pending-external`. Fast shots retain the separately admitted external-FFmpeg path. |
-| Job and data boundary | `AssistanceWorkflow` adds a closed workflow graph, one aggregate fence, versioned settings, slotted claims, exact model roles, stage progress, one consent authority, strict frame-pack/embedding formats, bounded semantic reviewers, and project-isolated disposable custody over the compatible fifteen-operation bridge. Adapter-owned preprocessing preserves each model's required sample rate/channels; long media remains under one whole-selection fence. VFR and monotonic forward retimes use source-time authority; reverse, ambiguous nested, multicamera, and live inputs refuse. |
-| Product state | Guided recipes and lazy review surfaces are menu-reached; Advanced exposes validated one-stage primitive recipes. Acceptance starts unselected, revalidates the aggregate fence, and reuses ordinary transcript, label, derived-source, annotation, tempo, sequence, crop, and keyframe commands. Disposable indexes and raw Qwen output never enter `.scape`. |
-| Implemented feature domains | Workers, deterministic preprocess/postprocess, reviewers, and publishers cover the full planned transcription/alignment, cleanup/diarization, enhancement/separation, reactions, beats, cuts, search/OCR, reframe, highlight, and editorial workflow set. Existing Sherpa and fast-shot routes are production-admitted; each new model-backed route remains unavailable in packages until its exact converted model, signed catalog entry, and authenticated target runtime arrive. |
+| Job and data boundary | `AssistanceWorkflow` adds a closed workflow graph, one aggregate fence, versioned settings, slotted claims, exact model roles, stage progress, one main-owned consent authority, strict frame-pack/embedding formats, bounded semantic reviewers, and project-isolated disposable custody over all guided and fifteen Advanced recipes. Review media is incrementally hashed and bound to its exact stage/slot claim before native execution. Adapter-owned preprocessing preserves each model's required sample rate/channels; long media remains under one whole-selection fence. VFR and monotonic forward retimes use source-time authority; reverse, ambiguous nested, multicamera, and live inputs refuse. |
+| Product state | Guided recipes and lazy review surfaces are menu-reached; Advanced exposes validated one-stage primitive recipes. Acceptance starts unselected, revalidates the aggregate fence, and reuses ordinary transcript, label, derived-source, annotation, tempo, sequence, crop, and keyframe commands. Disposable indexes, accepted reframe evidence, saliency/tracker state, and ranking checkpoints support deterministic reuse without a schema change. Raw/unselected Qwen output never enters `.scape`; only bounded sanitized editorial metadata belonging to an accepted proposal may be retained. |
+| Implemented feature domains | Workers, deterministic preprocess/postprocess, reviewers, and publishers cover the full planned transcription/alignment, cleanup/diarization, enhancement/separation, reactions, beats, cuts, search/OCR, reframe, highlight, and editorial workflow set. Both ASRs consume reviewed VAD; auto-language alignment admits only detected English; long DeepFilter/TIGER runs spool bounded chunks; cleanup/audio/visual review is mutation-free and editable. Existing Sherpa and fast-shot routes are production-admitted; each new model-backed route remains unavailable in packages until its exact converted model, signed catalog entry, and authenticated target runtime arrive. |
 
 Activation has four explicit boundaries:
 
@@ -703,16 +711,19 @@ activation; explicit preseed is the authenticated offline path.
 
 ### WP-7.0.2 — Assistance helper substrate
 
-**Current status:** active for the verified Sherpa speech, VAD, and diarization
-slices, plus a separately admitted model-free external-FFmpeg fast-shot route.
-The utility-process supervision, packaged runtime authentication, exact file
-grants, progress, cancellation, Parakeet transcription, Silero speech ranges,
-and pyannote/ERes2Net speaker turns exist. Whisper, alignment, enhancement,
-separation, ONNX vision/semantic tasks, llama.cpp, battery/thermal behavior, and
-the broader adapter outcomes in the original packet below are not active and
-must return typed unavailable state rather than being inferred from the shared
-protocol. External FFmpeg is user-configured and hard-admitted; it is not a
-bundled assistance runtime or authority for other operations.
+**Current status:** active for verified Sherpa speech, VAD, and diarization,
+plus the separately admitted model-free external-FFmpeg fast-shot route.
+Utility-process supervision, runtime authentication, exact file grants,
+progress, cancellation, Parakeet transcription, Silero speech ranges, and
+pyannote/ERes2Net speaker turns exist. Whisper, wav2vec2, DeepFilterNet/TIGER,
+the ONNX vision/semantic stack, and Qwen now have bounded conditional family
+workers and deterministic adapters; every affected package route remains typed
+unavailable until its exact signed model and authenticated target payload are
+admitted. Long enhancement/separation processing uses bounded spooled chunks,
+and cancellation terminates the worker/process rather than waiting for whole
+media completion. Battery/thermal policy remains outside this delivery.
+External FFmpeg is user-configured and hard-admitted; it is not a bundled
+assistance runtime or authority for other operations.
 
 - **Outcome:** The assistance `utilityProcess` helper implementing the
   milestone-5 helper contract's first slice: versioned bounded IPC,
@@ -809,10 +820,13 @@ result and remains documentary rather than an activation switch.
   (milestone 4), no live/streaming transcription (capture is fenced).
   Stop: stop if word timing would need a non-commercial aligner.
   **Current implementation:** the guided recipe orchestrates VAD into an
-  explicitly selected Parakeet or Whisper path and retains atomic transcript
-  replacement plus owned caption labels. Parakeet is admitted today. Whisper
-  and automatic English wav2vec2 alignment are implemented but remain typed
-  unavailable until their signed catalog/runtime payload evidence is admitted.
+  explicitly selected Parakeet v3 or Whisper path and retains atomic transcript
+  replacement plus owned caption labels. The exact reviewed VAD output is fed
+  into either ASR. Automatic-language Whisper keeps the optional wav2vec2 stage,
+  but the alignment worker loads it only for detected English and returns no
+  fabricated alignment for other languages. Parakeet is admitted today;
+  Whisper/alignment remain typed unavailable until their signed catalog/runtime
+  payload evidence is admitted.
   Real-model WER, packaged cancellation, and owner-lab evidence remain open.
 - **7A-2 — Filler and silence cleanup proposals.** Outcome: disfluency +
   silence proposal list with audition; accept commits one disjoint-range
@@ -832,7 +846,10 @@ result and remains documentary rather than an activation switch.
   Explicit subset acceptance commits one link-aware disjoint ripple batch and
   undo step. Reject, cancel, stale authority, and an empty subset make no
   mutation. Mutation-free audition and Conservative/Balanced/Aggressive recipe
-  settings are implemented; planted-fixture and manual qualification remain open.
+  settings are implemented. Balanced retains the established defaults;
+  Conservative uses 1.5 s/100 ms/0.8 confidence and Aggressive uses
+  300 ms/30 ms/0 confidence. Planted-fixture and manual qualification remain
+  open.
 - **7A-3 — Diarization and speaker labels.** Outcome: speaker turns as
   labeled regions; transcript segments gain speakers. Invariants: local
   clustering only; speaker names are user-editable labels, never claimed
@@ -858,10 +875,11 @@ result and remains documentary rather than an activation switch.
   ships with fewer models, not with a trapped one.
   **Current implementation:** DeepFilterNet3 and TIGER have authenticated
   geometry-exact WAV workers, 48 kHz/44.1 kHz channel-preserving preparation,
-  capacity preflight, original/result or stem audition, and atomic Project Bin,
-  range-replacement, or initially-muted D/M/E placement publishers. The existing
-  DeepFilterNet artifact may be admitted independently; TIGER remains unavailable
-  until its converted graph/parity and signed catalog/runtime evidence lands.
+  bounded chunk spooling under one whole-selection fence, capacity preflight,
+  original/result or stem audition, and atomic Project Bin, range-replacement,
+  or initially-muted D/M/E placement publishers. The existing DeepFilterNet
+  artifact may be admitted independently; TIGER remains unavailable until its
+  converted graph/parity and signed catalog/runtime evidence lands.
 - **7A-5 — Semantic transcript search.** Outcome: transcript embeddings
   (nomic-embed) in a local disposable index; palette-integrated "find
   where I said…" jumping to timestamps. Invariants: index is rebuildable,
@@ -871,8 +889,10 @@ result and remains documentary rather than an activation switch.
   **Current implementation:** deterministic overlapping transcript chunks,
   nomic document/query prefixes, strict Float32 matrices, disposable index
   custody, expiring main-authorized query sessions, stale-query cancellation,
-  rank fusion, and exact timeline jumps are implemented. Packaged execution is
-  conditional on the pending ONNX Runtime payload closure.
+  rank fusion, and exact timeline jumps are implemented. Project/source/range,
+  timing, recipe/settings, and model digests key deterministic rebuilds; retained
+  indexes never alter `.scape`. Packaged execution is conditional on the pending
+  ONNX Runtime payload closure.
 - **7A-6 — Beat and tempo suggestions.** Outcome: Beat This! beats and
   downbeats as a label track; optional reviewed tempo-map suggestion
   command. Invariants: the MIDI fence is untouched; no automatic
@@ -882,8 +902,10 @@ result and remains documentary rather than an activation switch.
   **Current implementation:** Beat This preprocessing/postprocessing, ordered
   beat/downbeat review, an owned Beats label track, and separately selected
   exactly representable held-tempo diffs are implemented. The MIDI/signature
-  fence remains untouched. Converted small0/final0 artifacts, parity, catalog
-  signing, and runtime payload evidence still block packaged execution.
+  fence remains untouched. `small0` is the exact CPU default and `final0` is an
+  optional quality pack with no substitution between them. Converted artifacts,
+  live parity, catalog signing, and runtime payload evidence still block
+  packaged execution.
 - **7A-7 — Exit evidence.** The privacy workload run end-to-end on the
   full 7A surface, results recorded without relabeling pending rows.
 
@@ -923,7 +945,9 @@ entries and ONNX Runtime payloads pass release admission.
   **Current implementation:** fixed shot-duration sampling, SigLIP embeddings
   and non-biometric tags, PP-OCR text, disposable storage, transcript/visual/OCR
   reciprocal-rank fusion, cancellable queries, and exact jumps are implemented.
-  Packaged inference is conditional on authenticated ONNX Runtime payloads.
+  Normalized shot tables and index claims are revalidated against the complete
+  live aggregate fence before and after disposable publication. Packaged
+  inference is conditional on authenticated ONNX Runtime payloads.
 - **7B-3 — Subject tracking and reframe proposals.** Outcome: YuNet +
   D-FINE + ported ByteTrack + U²-Net-P produce per-shot subject boxes and
   a proposed crop per shot for a target aspect; review overlay; accepted
@@ -944,9 +968,12 @@ entries and ONNX Runtime payloads pass release admission.
   **Current implementation:** fixed 2 fps plus shot-anchor sampling, YuNet and
   D-FINE detections, deterministic ByteTrack interpolation, U²-Net-P/centre
   fallback, bounded aspect settings, editable overlay/keyframe review, and
-  existing crop/composition command publication are implemented. Production
-  availability and subject-retention qualification await runtime payloads and
-  packaged fixtures.
+  existing crop/composition command publication are implemented. Accepted
+  subject/saliency/tracker evidence is retained with strict source, range,
+  timing, model, settings, and crop-authority provenance and can be reused by
+  highlights; edited keyframes deliberately replace model provenance with
+  reviewed centre authority. Production availability and subject-retention
+  qualification await runtime payloads and packaged fixtures.
 - **7B-4 — Highlight assembly: the clip maker.** Outcome: the full
   composition above — excitement + heuristic + embedding ranking,
   optional LLM re-rank/titles, boundary snapping, proposal review,
@@ -961,9 +988,13 @@ entries and ONNX Runtime payloads pass release admission.
   recorded watch item, not launch scope).
   **Current implementation:** deterministic candidate construction, fixed v1
   ranking/overlap rules, speechless renormalization, initially-unselected review,
-  edits/preview, crop planning, and atomic secondary-sequence publication are
-  implemented. Optional Qwen can only rerank known candidates and emit bounded
-  grammar-constrained JSON. PANNs and Qwen remain unavailable until exact model,
+  transport preview, trim/title/crop edits, retained ranking checkpoints, and
+  atomic secondary-sequence publication are implemented. Crop planning reuses
+  an exact accepted reframe derivative when available and otherwise follows the
+  authenticated fallback chain. Optional Qwen can only rerank known candidates
+  and emit bounded grammar-constrained JSON. Raw/unselected output is discarded;
+  an accepted proposal may retain only sanitized inert title, hook, chapter, and
+  explanation metadata. PANNs and Qwen remain unavailable until exact model,
   runtime, catalog, and package evidence passes.
 - **7B-5 — Vertical delivery lookahead.** Outcome: the render plan gains
   a crop stage and an explicit vertical canvas (1080×1920-class,
@@ -1041,20 +1072,20 @@ entries and ONNX Runtime payloads pass release admission.
   jobs are in-memory, die with the app, and must be cheap to re-run.
   Long-VOD analysis therefore checkpoints per stage into disposable
   derivatives so a re-run resumes coarse-grained.
-- **Selected S30 and F31 own the assistance reference schema, not every
-  workflow.** Their transcript references and body custody do not imply that
-  enhancement, separation, search, reframe, clip-maker, caption styling, or
-  vertical-delivery adapters exist. Diarization and fast shots are active only
-  through the exact bounded review-and-label/annotation routes described
-  above. Each remaining workflow stays unavailable until its own bounded
-  feature slice lands.
+- **Selected S30 and F31 own the assistance reference schema, while accepted
+  results use ordinary state.** Every planned workflow adapter and reviewer now
+  exists, but that implementation does not admit missing model/runtime bytes.
+  Transcript bodies use the assistance reference schema; enhancement, stems,
+  labels, tempo, shots, crops/keyframes, and highlight sequences publish through
+  existing commands. Disposable indexes and retained ranking/reframe evidence
+  do not widen `.scape`. A conditional route stays unavailable until its exact
+  artifact, signed catalog entry, and target payload pass their own hard gates.
 - **The browser has custody but no inference.** Web Soundscaper and
   Framescaper preserve the schema-defined ordinary project state, while new
   model execution and the filesystem model manager remain Electron-only. The
-  current desktop UI can accept reviewed Parakeet transcripts, VAD silences,
-  anonymous speaker turns, cleanup edits, and F31 shot markers into ordinary
-  project state; web routes retain and edit that state but cannot run new
-  inference.
+  current desktop UI can accept every reviewed workflow result whose exact
+  runtime/model gates are admitted into ordinary project state; web routes
+  retain and edit that state but cannot run new inference.
 - **Remote model availability is not established here.** A real R2 upload and
   read-back require the separately scoped publisher credentials and evidence;
   the product continues to fail closed or use explicit authenticated preseed

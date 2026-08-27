@@ -607,9 +607,19 @@ The Milestone 7 supply-candidate register pins upstream identities for
 wav2vec2-base-960h, TIGER-DnR, PANNs Cnn10 and its AudioSet map, Beat This
 small0/final0, TransNetV2, and Qwen3-4B Q4_K_M. Those pins are conversion and
 review inputs, not a redistribution notice. TIGER, PANNs, Beat This, and
-TransNetV2 still lack converted-artifact/parity closure, and none of these six
-tasks has the required new externally signed production catalog entry. They
-are deliberately absent from the cataloged inventory below.
+TransNetV2 now have a repository-owned CPython 3.12 conversion/parity runner.
+Its direct environment (`einops`, `huggingface-hub`, `librosa`, `numpy`,
+`onnx`, `onnx2torch`, `onnxruntime`, `rotary-embedding-torch`, `safetensors`,
+`scipy`, `soundfile`, `soxr`, `tensorflow-cpu`, `tf2onnx`, `torch`,
+`torchaudio`, `torchlibrosa`, and `torchvision`) and transitive artifacts are
+version- and hash-locked in the conversion tool's `pyproject.toml` and
+`uv.lock`. These are external conversion-lab tools, not dependencies or bytes
+distributed in the Soundscaper/Framescaper application, runtime packs, model
+packs, Pages bundle, or ASAR. A retained external run must archive the exact
+environment's applicable licenses and notices before its evidence can be
+admitted. No converted artifact or live parity result is checked in, and none
+of these six tasks has the required new externally signed production catalog
+entry; they are deliberately absent from the cataloged inventory below.
 
 Model weights are separately downloaded, never bundled, and each is recorded in
 `config/production-licensing-matrix.json`. A model is listed below only once its

@@ -1,12 +1,16 @@
 # Milestone 7B: video model licence review and upstream pins
 
-> **Activation status (2026-08-26):** this remains the provenance record for
+> **Activation status (2026-08-27):** this remains the provenance record for
 > the six permitted video/semantic catalog entries, not evidence that their
 > operation adapters or remote objects are production-admitted. Later work now
 > implements the conditional TransNetV2, SigLIP/OCR, subject/saliency/reframe,
 > semantic-search, highlight, and editorial workflow code and reviewed project
-> publishers. Fast FFmpeg shots remain the admitted model-free baseline.
-> TransNetV2 still lacks its converted graph, three-runtime parity, signed
+> publishers. Index/shot/saliency/tracker/ranking custody is persisted only as
+> disposable digest-keyed derivatives; accepted reframe evidence can be reused
+> by editable highlight crops, while only sanitized editorial metadata from an
+> accepted proposal may enter ordinary project state. Fast FFmpeg shots remain
+> the admitted model-free baseline. A hash-locked TransNetV2 runner now exists,
+> but the model still lacks its converted graph, live three-runtime parity, signed
 > catalog entry, and authenticated ONNX Runtime target payloads; the same
 > payload closure blocks the other visual models in packages. Intended EU R2
 > URLs and digests remain metadata, not durable publication/read-back evidence.

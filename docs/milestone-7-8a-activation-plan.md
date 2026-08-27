@@ -1,24 +1,36 @@
 # Milestone 7 and 8A activation plan
 
-## Delivered boundary (2026-08-26)
+## Delivered boundary (2026-08-27)
 
 This branch conditionally activates the complete Milestone 7 workflow layer
-without using manual or owner-lab qualification as an execution switch. It adds
-the versioned `AssistanceWorkflow` contract, aggregate selection fence, guided
-recipes and Advanced primitive recipes, stage-aware consent/progress, strict
-result review, project-isolated disposable custody, adapter-owned audio
-preparation, and reviewed publishers for transcript, cleanup, attribution,
-derived audio, reactions, beats/tempo, shots, semantic indexes, reframe paths,
-and highlight sequences. Runtime-family workers and deterministic owned stages
-cover Whisper/wav2vec2 alignment, DeepFilterNet3, TIGER-DnR, PANNs Cnn10, Beat
-This, TransNetV2, nomic/SigLIP, OCR, subject/saliency/reframe, deterministic
-highlight ranking, and bounded optional Qwen editorial JSON. Existing
-Parakeet, VAD, diarization, cleanup, and model-free fast shots remain active.
+without using manual or owner-lab qualification as an execution switch. The
+versioned `AssistanceWorkflow` contract now owns every guided recipe and all
+fifteen Advanced primitive recipes through one aggregate selection fence,
+slotted claims, exact model bindings, main-owned consent, and stage progress.
+VAD feeds either explicitly selected Parakeet or Whisper; automatic-language
+Whisper retains the optional wav2vec2 stage and admits it only after detecting
+English. Adapter-owned preparation and bounded spooling preserve 16 kHz speech,
+48 kHz channel-preserving DeepFilterNet3, 44.1 kHz channel-preserving TIGER,
+32 kHz PANNs, and 22.05 kHz Beat This under one whole-selection fence.
+
+Strict review media is incrementally hashed and bound to its exact workflow
+input stage and slot. Cleanup audition is mutation-free; enhancement and stem
+review retains original/result and per-stem audition; crop and highlight review
+is transport-backed and editable. Project-isolated disposable custody retains
+normalized indexes, OCR/tags, shot tables, saliency/tracker state, accepted
+reframe evidence, and deterministic ranking checkpoints. Highlight assembly
+reuses authenticated accepted reframe paths. Only sanitized, bounded Qwen
+title/hook/chapter/explanation fields selected into an accepted proposal may
+cross into ordinary project metadata; raw and unselected output never enters
+`.scape`. Existing Parakeet, VAD, diarization, cleanup, and model-free fast
+shots remain active.
 
 Production activation remains blocked for every new model-backed route whose
-release evidence is incomplete. TIGER, PANNs, Beat This, and TransNetV2 still
-need converted artifacts and source-framework parity; their signed catalog
-entries do not exist. All five target payload closures for `onnxruntime-node`
+release evidence is incomplete. The repository has a CPython 3.12,
+hash-locked, offline runner for TIGER, PANNs, Beat This `small0`, and
+TransNetV2 source-framework/ONNX parity, but no converted artifacts or live
+parity result have been retained; their signed catalog entries do not exist.
+All five target payload closures for `onnxruntime-node`
 1.29.0, whisper.cpp v1.9.3, and llama.cpp b10509 remain
 `pending-external`, as does the Windows-arm64 Sherpa Node addon. No live EU R2
 publication and public full-SHA-256 read-back has been recorded, and the five
@@ -177,6 +189,10 @@ workflow rather than asserted for the whole milestone:
   relocation, notices, helper containment, malformed messages,
   crash/restart/quarantine, output claims, and cancellation p95 at or below two
   seconds.
+- Verify every retained review asset against its stage/slot claim, byte length,
+  and SHA-256 before native execution; divergent cleanup adapters, stale
+  aggregate fences, and corrupt or deleted custody must release the job and
+  leave canonical state unchanged.
 - Compare source-framework and ONNX outputs. Run packaged real-model smokes for
   Sherpa, ORT, Whisper, and llama.cpp on all five CPU targets; unsupported
   combinations must return typed unavailable states.
