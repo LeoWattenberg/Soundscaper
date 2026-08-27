@@ -325,14 +325,6 @@ void write_capabilities() {
 
 #if defined(FRAMESCAPER_MEDIA_HOST_CONTRACT_ONLY)
 namespace framescaper::media {
-namespace {
-[[nodiscard]] std::string_view image_sequence_policy_row(const image_sequence_profile profile) {
-	if (profile == image_sequence_profile::png) return "codec-decode-png-image-sequence";
-	if (profile == image_sequence_profile::tiff) return "codec-decode-tiff-image-sequence";
-	return "codec-decode-openexr-image-sequence";
-}
-} // namespace
-
 engine_result self_test_ffmpeg() {
 	return {0, "{\"contractVersion\":1,\"mode\":\"contract-fixture\",\"ok\":true}"};
 }
@@ -358,10 +350,6 @@ engine_result self_test_selected_v28_v14_render() {
 }
 engine_result execute_ffmpeg_job(const invocation& job) {
 	const auto operation_text = std::string{operation_name(job.kind)};
-	if (job.image_sequence) return {
-		78, "{\"error\":\"image-sequence-licensing-unavailable\",\"operation\":\"media-decode\","
-			"\"policyRow\":\"" + std::string{image_sequence_policy_row(job.image_sequence->profile)} + "\"}",
-	};
 	if ((job.kind == operation::media_render || job.kind == operation::media_encode)
 		&& job.admitted_plan.version == 8
 		&& (job.admitted_plan.caption_mux || job.admitted_plan.caption_burn_in

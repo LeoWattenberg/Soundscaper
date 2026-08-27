@@ -68,7 +68,7 @@ test('five target recipes exist but runtime packaging contains no unbuilt payloa
 	assert.equal(framescaperMediaHostTargetForRuntime('darwin', 'x64'), null);
 });
 
-test('the candidate recipe disables network, raw FFmpeg arguments, and external codec growth', () => {
+test('the candidate recipe enables built-in image sequences without external codec growth', () => {
 	const recipe = JSON.parse(readFileSync(join(hostRoot, 'build/ffmpeg-9.0.1-configure.json'), 'utf8'));
 	assert.ok(recipe.configureFlags.includes('--disable-network'));
 	assert.ok(recipe.configureFlags.includes('--disable-autodetect'));
@@ -76,15 +76,17 @@ test('the candidate recipe disables network, raw FFmpeg arguments, and external 
 		rawFfmpegArguments: false,
 		network: false,
 		externalLibraries: [],
-		enabledDecoders: ['prores', 'pcm_f32le'],
-		enabledEncoders: ['prores_ks', 'pcm_s16le'],
+		enabledDecoders: ['prores', 'pcm_f32le', 'png', 'tiff', 'exr'],
+		enabledEncoders: ['prores_ks', 'pcm_s16le', 'png', 'tiff', 'exr'],
 		enabledDemuxers: ['mov', 'wav'],
-		enabledMuxers: ['mov'],
+		enabledMuxers: ['mov', 'image2'],
 		enabledProtocols: ['file', 'pipe'],
 		blockedComponents: [
-			'av1', 'exr', 'h264', 'hevc', 'libvpx-vp9', 'libx264', 'png', 'tiff', 'vp9',
+			'av1', 'h264', 'hevc', 'libvpx-vp9', 'libx264', 'vp9',
 		],
-		payloadPublicationRequiresLicensingAndTargetEvidence: true,
+		payloadPublicationRequiresAuthenticatedTargetEvidence: true,
+		humanReviewMilestone: 9,
+		humanReviewBlocks: 'stable-1.0-release-admission',
 	});
 	const targets = JSON.parse(readFileSync(join(hostRoot, 'build/targets.json'), 'utf8'));
 	assert.deepEqual(targets.targets.map(({ cmakePreset }) => cmakePreset), [
