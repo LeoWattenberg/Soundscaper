@@ -151,6 +151,12 @@ function mergeTracks(
 	return records(baseValue, 'V32 inherited tracks').map((track) => {
 		const owner = canonical.get(stableId(track));
 		if (!owner) return track;
+		if (track.type === 'label' && owner.type === 'label') {
+			if (Object.hasOwn(track, 'clipIds') || Object.hasOwn(owner, 'clipIds')) {
+				throw new TypeError('V32 runtime label tracks cannot carry clipIds.');
+			}
+			return track;
+		}
 		const baseIds = ids(track.clipIds);
 		const baseSet = new Set(baseIds);
 		const authored = ids(owner.clipIds).filter((id) => baseSet.has(id) || imageIds.has(id));

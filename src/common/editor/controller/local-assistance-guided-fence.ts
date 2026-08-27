@@ -116,6 +116,13 @@ function sourceRangeInventory(
 		if (matchingSources.length !== 1 || matchingSources[0]!.kind !== kind
 			|| liveSource(matchingSources[0]!)) unavailable('source-custody-unavailable');
 		const source = matchingSources[0]!;
+		// A source-only workflow still carries the complete selected linked set. Narrowing
+		// this range to its source-local occurrence would make publication disagree with
+		// the exact primitive selection fence. Multi-source workflows distribute the set
+		// across their ranges and their publishers reconstruct its canonical union.
+		const boundOccurrences = bySource.size === 1
+			? occurrenceInventory
+			: occurrences;
 		return Object.freeze({
 			slotId: kind === 'audio' ? 'primary-audio' : 'primary-video',
 			mediaKind: kind,
@@ -123,7 +130,8 @@ function sourceRangeInventory(
 			sourceSha256: digest(primitive.sourceSha256),
 			sourceSampleRate: kind === 'audio'
 				? integer(source.sampleRate ?? project.sampleRate, 8_000, 'audio sample rate') : null,
-			occurrenceIds: Object.freeze(occurrences.map(({ id }) => identifier(id, 'occurrence ID')).sort()),
+			occurrenceIds: Object.freeze(boundOccurrences
+				.map(({ id }) => identifier(id, 'occurrence ID')).sort()),
 			sourceStartFrame: primitive.sourceStartFrame,
 			sourceEndFrame: primitive.sourceEndFrame,
 			linkMembershipSha256: digest(primitive.linkMembershipSha256),

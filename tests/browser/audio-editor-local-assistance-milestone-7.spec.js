@@ -29,13 +29,28 @@ test.describe('Milestone 7 Guided workflow qualification', () => {
 
 	test('reviews transcript audition and independent beat publication choices', async ({ page }) => {
 		test.setTimeout(180_000);
-		const { editor, guided, errors } = await openGuidedLinkedFixture(page);
+		const opened = await openGuidedLinkedFixture(page);
+		const { editor, errors } = opened;
+		let { assistance, guided } = opened;
 		const consentMessages = acceptConsentDialogs(page);
+		await expect(editor.locator('[data-label-track]')).toHaveCount(0);
 
 		let review = await runAndReview(page, guided, 'Transcribe & Captions');
 		const captions = review.getByRole('checkbox', { name: '1 caption cue', exact: true });
 		await expect(captions).not.toBeChecked();
 		await expect(guided.getByRole('button', { name: 'Accept selected', exact: true })).toBeDisabled();
+		await captions.check();
+		await guided.getByRole('button', { name: 'Accept selected', exact: true }).click();
+		await expect(guided.getByRole('status')).toHaveText('The proposal was accepted.');
+		await assistance.locator('button').filter({ hasText: /^Close$/u }).click();
+		await expect(assistance).toBeHidden();
+		await expect(editor.locator('[data-label-track] [data-label-id]')).toHaveCount(1);
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect(editor.locator('[data-label-track]')).toHaveCount(0);
+		await reselectTimelineAudio(editor, page);
+		await chooseCommandAction(page, editor, 'Analyze', 'Local Assistance…');
+		assistance = page.getByRole('dialog', { name: 'Local Assistance', exact: true });
+		guided = assistance.getByRole('tabpanel', { name: 'Guided', exact: true });
 
 		review = await runAndReview(page, guided, 'Enhance Dialogue');
 		await expect(review.locator('label', { hasText: 'Original selection' }).locator('audio'))
@@ -165,13 +180,7 @@ async function openGuidedLinkedFixture(page) {
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', {
 		timeout: 30_000,
 	});
-	const selectedClip = clipByName(
-		editor, `${LINKED_AV.name.replace(/\.[^.]+$/u, '')} Audio`,
-	);
-	await expect(selectedClip).toBeVisible({ timeout: 30_000 });
-	await selectedClip.focus();
-	await page.keyboard.press('Enter');
-	await expect(selectedClip.locator('.clip-display')).toHaveClass(/clip-display--selected/u);
+	await reselectTimelineAudio(editor, page);
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', {
 		timeout: 30_000,
 	});
@@ -179,6 +188,16 @@ async function openGuidedLinkedFixture(page) {
 	const assistance = page.getByRole('dialog', { name: 'Local Assistance', exact: true });
 	const guided = assistance.getByRole('tabpanel', { name: 'Guided', exact: true });
 	return { editor, assistance, guided, errors };
+}
+
+async function reselectTimelineAudio(editor, page) {
+	const selectedClip = clipByName(
+		editor, `${LINKED_AV.name.replace(/\.[^.]+$/u, '')} Audio`,
+	);
+	await expect(selectedClip).toBeVisible({ timeout: 30_000 });
+	await selectedClip.focus();
+	await page.keyboard.press('Enter');
+	await expect(selectedClip.locator('.clip-display')).toHaveClass(/clip-display--selected/u);
 }
 
 async function openGuidedVideoFixture(page) {

@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { prepareTransformClipsCommand } from '../src/common/editor/commands.js';
-import { createAddTrackCommand } from '../src/common/editor/commands/factories.ts';
+import {
+	createAddLabelTrackCommand,
+	createAddTrackCommand,
+} from '../src/common/editor/commands/factories.ts';
 import { planFrameCanonicalEdgeTrim } from '../src/common/editor/frame-canonical-edge-trim-planner.ts';
 import { isRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import { editorProjectStorageProfileNames } from '../src/common/editor/storage/project-storage-profile.ts';
@@ -105,6 +108,29 @@ test('selected V27 runtime owns exact creation, projection, storage, and explici
 		ofxEffects: [{ opaque: true }],
 	});
 	await store.close();
+});
+
+test('selected V27 projections preserve non-clip label tracks', () => {
+	const runtime = createEditorProjectRuntimeV27Selection(PROFILE);
+	const project = projectFixture('label-track-v27');
+	const labeled = runtime.applyCommand(project, createAddLabelTrackCommand({
+		id: 'transcript-labels', name: 'Transcript', labels: [{
+			id: 'transcript-label-1', title: 'Exact caption', startFrame: 0, endFrame: 48_000,
+		}],
+	}) as never);
+
+	for (const projected of [
+		runtime.projectForCommandConsumers(labeled),
+		runtime.projectForRuntimeConsumers(labeled),
+	]) {
+		const track = (projected.tracks as readonly Readonly<Record<string, unknown>>[])
+			.find(({ id }) => id === 'transcript-labels');
+		assert.equal(track?.type, 'label');
+		assert.equal('clipIds' in (track ?? {}), false);
+		assert.deepEqual(track?.labels, [{ id: 'transcript-label-1', title: 'Exact caption',
+			startFrame: 0, endFrame: 48_000, color: 'auto', opaqueExtensions: {},
+			anchor: 'sample', startBeat: null, endBeat: null }]);
+	}
 });
 
 test('inherited V24 commands and history preserve all V27 finishing authority', () => {

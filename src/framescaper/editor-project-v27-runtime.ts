@@ -143,6 +143,12 @@ function mergeTracks(baseValue: unknown, canonicalValue: unknown, visualIds: Rea
 	return records(baseValue, 'runtime tracks').map((track) => {
 		const owner = canonical.get(stableId(track));
 		if (!owner) return track;
+		if (track.type === 'label' && owner.type === 'label') {
+			if (Object.hasOwn(track, 'clipIds') || Object.hasOwn(owner, 'clipIds')) {
+				throw new TypeError('V27 runtime label tracks cannot carry clipIds.');
+			}
+			return track;
+		}
 		const baseIds = ids(track.clipIds);
 		const baseSet = new Set(baseIds);
 		const authored = ids(owner.clipIds).filter((id) => baseSet.has(id) || visualIds.has(id));

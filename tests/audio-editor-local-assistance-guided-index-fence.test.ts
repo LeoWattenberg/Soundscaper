@@ -79,6 +79,35 @@ test('ordinary transcript publication rereads the aggregate transcript body', as
 		/unavailable|body|custody/iu);
 });
 
+test('a single-source aggregate retains the complete linked A/V occurrence authority', () => {
+	const linkedFence = Object.freeze({ ...PRIMITIVE_FENCE,
+		occurrenceIds: Object.freeze(['audio-occurrence', 'video-occurrence']) });
+	const project: Record<string, unknown> = {
+		id: 'project-a', schemaVersion: 31, revision: 8, sampleRate: 48_000,
+		primarySequenceId: 'sequence-a', subsequences: [], multicameraGroups: [],
+		sources: [
+			{ id: 'source-a', kind: 'audio', sampleRate: 48_000,
+				contentSha256: SOURCE_SHA256 },
+			{ id: 'source-video', kind: 'video', contentSha256: '91'.repeat(32) },
+		],
+		clips: [
+			{ id: 'audio-occurrence', kind: 'audio', sourceId: 'source-a',
+				sequenceId: 'sequence-a', avLinkId: 'link-a', reversed: false, speedRatio: 1,
+				stretchToTempo: false, warpMap: null },
+			{ id: 'video-occurrence', kind: 'video', sourceId: 'source-video',
+				sequenceId: 'sequence-a', avLinkId: 'link-a', reversed: false, speedRatio: 1 },
+		],
+		tracks: [], assistanceAssets: [],
+	};
+	const settings = defaultAssistanceWorkflowSettingsV1('transcribe-captions');
+	const aggregate = createLocalAssistanceGuidedAggregateFenceV1({ project,
+		primitiveFences: [linkedFence], stages: assistanceWorkflowStageGraph('transcribe-captions'),
+		settingsBody: serializeAssistanceWorkflowSettingsV1(settings), models: [] });
+
+	assert.deepEqual(aggregate.sourceRanges[0]?.occurrenceIds, linkedFence.occurrenceIds,
+		'the aggregate must not narrow the current primitive linked-occurrence fence');
+});
+
 test('video index publication reauthenticates the external original and exact video fence', async () => {
 	const project: Record<string, unknown> = {
 		id: 'project-a', schemaVersion: 31, revision: 8, sampleRate: 48_000,

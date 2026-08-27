@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { createAddLabelTrackCommand } from '../src/common/editor/commands/factories.ts';
 import { isRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import { createFramescaperPlaybackProjectServiceV32 } from '../src/framescaper/editor-project-playback-v32.ts';
 import { createEditorProjectRuntimeV32Selection } from '../src/framescaper/editor-project-runtime-v32-selection.ts';
@@ -66,6 +67,28 @@ test('V32 runtime and command projections retain image identity, placement, and 
 			)),
 			true,
 		);
+	}
+});
+
+test('V32 runtime and command projections preserve non-clip label tracks', () => {
+	const runtime = createEditorProjectRuntimeV32Selection(PROFILE);
+	const base = runtime.createProject(framescaperV20Options());
+	const labeled = runtime.applyCommand(base, createAddLabelTrackCommand({
+		id: 'transcript-labels', name: 'Transcript', labels: [{
+			id: 'transcript-label-1', title: 'Exact caption', startFrame: 0, endFrame: 48_000,
+		}],
+	}) as never);
+
+	for (const projected of [
+		runtime.projectForCommandConsumers(labeled),
+		runtime.projectForRuntimeConsumers(labeled),
+	]) {
+		const track = records(projected.tracks).find(({ id }) => id === 'transcript-labels');
+		assert.equal(track?.type, 'label');
+		assert.equal('clipIds' in (track ?? {}), false);
+		assert.deepEqual(track?.labels, [{ id: 'transcript-label-1', title: 'Exact caption',
+			startFrame: 0, endFrame: 48_000, color: 'auto', opaqueExtensions: {},
+			anchor: 'sample', startBeat: null, endBeat: null }]);
 	}
 });
 
