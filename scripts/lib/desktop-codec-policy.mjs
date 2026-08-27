@@ -21,7 +21,6 @@ const FFMPEG_CORE = /^ffmpeg-core(?:[.-][A-Za-z0-9._-]+)?$/iu;
 const FFMPEG_SIDECAR = /^ffmpeg-(?:corresponding-source|runtime-manifest|build-source|source)(?:[.-][A-Za-z0-9._-]+)?$/iu;
 const FFMPEG_ARCHIVE = /^ffmpeg(?:-[A-Za-z0-9._-]+)?\.(?:zip|tar|tar\.bz2|tar\.gz|tar\.xz|tbz2|tgz|txz)$/iu;
 const LIBAV_PAYLOAD = /^(?:lib)?(?:avcodec|avdevice|avfilter|avformat|avresample|avutil|postproc|swresample|swscale)(?:[-.][A-Za-z0-9._-]+)?$/iu;
-const STATIC_FFMPEG_HOST_PREFIX = ['runtime', 'native', 'framescaper-media-host'];
 
 export function assertDesktopCodecPolicy(value, label = 'Desktop codec policy') {
 	if (JSON.stringify(value) !== JSON.stringify(DESKTOP_CODEC_POLICY)) {
@@ -33,11 +32,6 @@ export function assertDesktopCodecPolicy(value, label = 'Desktop codec policy') 
 export function isForbiddenDesktopFfmpegPath(path) {
 	const normalized = String(path).replaceAll('\\', '/').replace(/^\.\//u, '');
 	const segments = normalized.split('/').filter(Boolean);
-	for (let index = 0; index <= segments.length - STATIC_FFMPEG_HOST_PREFIX.length; index += 1) {
-		if (STATIC_FFMPEG_HOST_PREFIX.every((segment, offset) => (
-			segments[index + offset]?.toLowerCase() === segment
-		))) return true;
-	}
 	for (let index = 0; index < segments.length - 1; index += 1) {
 		if (segments[index].toLowerCase() === 'runtime'
 			&& segments[index + 1].toLowerCase() === 'ffmpeg') return true;
@@ -52,8 +46,10 @@ export function isForbiddenDesktopFfmpegPath(path) {
 
 /**
  * Audit a staged or packaged resource tree without following symbolic links.
- * This gate is intentionally independent from every FFmpeg manifest: desktop
- * policy proves absence, never admission of a particular FFmpeg build.
+ * This gate rejects general-purpose FFmpeg programs, Web runtimes, archives,
+ * and loose libav payloads. The separately authenticated Framescaper media-host
+ * subtree is admitted by its exact manifest verifier and therefore is not
+ * rejected merely because of its directory name.
  */
 export async function auditDesktopFfmpegAbsence({ root, label = 'Desktop resources' }) {
 	const auditRoot = resolveRequiredRoot(root);
@@ -72,7 +68,7 @@ export async function auditDesktopFfmpegAbsence({ root, label = 'Desktop resourc
 			const name = relative(auditRoot, path).split(sep).join('/');
 			entryCount += 1;
 			if (isForbiddenDesktopFfmpegPath(name)) {
-				throw new Error(`${label} contains forbidden bundled FFmpeg/libav content: ${name}.`);
+				throw new Error(`${label} contains forbidden unmanaged FFmpeg/libav content: ${name}.`);
 			}
 			const metadata = await lstat(path);
 			if (metadata.isDirectory() && !metadata.isSymbolicLink()) await visit(path);
