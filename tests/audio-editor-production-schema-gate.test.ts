@@ -67,6 +67,8 @@ test('the render path in particular asks the predicate', () => {
 		'src/common/editor/engine/project-graph.ts',
 		'src/common/editor/engine/project-automation-scheduler-v21.ts',
 		'src/common/editor/engine/transport-scheduler.ts',
+		'src/common/editor/controller/effect-audio-service.ts',
+		'src/common/editor/controller/isolated-track-render-project-v21.ts',
 	]) {
 		assert.match(
 			readFileSync(file, 'utf8'),
@@ -76,9 +78,7 @@ test('the render path in particular asks the predicate', () => {
 	}
 	for (const file of [
 		'src/common/editor/controller/mix-render-model.ts',
-		'src/common/editor/controller/effect-audio-service.ts',
 		'src/common/editor/controller/effect-macro-service.ts',
-		'src/common/editor/controller/isolated-track-render-project-v21.ts',
 	]) {
 		assert.match(
 			readFileSync(file, 'utf8'),
