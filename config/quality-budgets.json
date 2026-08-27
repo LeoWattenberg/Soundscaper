@@ -1267,7 +1267,14 @@
 				"selectedMediaAssetCount": 2,
 				"unselectedMediaAssetCount": 2
 			},
-			"evidence": ["roadmap.md#7-optional-local-assistance"]
+			"evidence": [
+				"roadmap.md#7-optional-local-assistance",
+				"docs/milestone-7-plan.md#wp-703--job-consent-and-evidence-integration",
+				"docs/quality-budgets.md#milestone-7-local-assistance-privacy-evidence",
+				"scripts/lib/m7-local-assistance-privacy-metrics.mjs",
+				"scripts/collect-m7-local-assistance-privacy-quality.mjs",
+				"tests/quality-budget-m7-local-assistance-privacy-collector.test.ts"
+			]
 		},
 		{
 			"id": "m8a-capture-30m-all-sources-v1",
@@ -1652,7 +1659,14 @@
 				{ "metricId": "assistance.cancellationP95Ms", "comparison": "lte", "value": 2000, "unit": "ms" },
 				{ "metricId": "assistance.canonicalStateLosses", "comparison": "eq", "value": 0, "unit": "count" }
 			],
-			"evidence": ["roadmap.md#7-optional-local-assistance"]
+			"evidence": [
+				"roadmap.md#7-optional-local-assistance",
+				"docs/milestone-7-plan.md#wp-703--job-consent-and-evidence-integration",
+				"docs/quality-budgets.md#milestone-7-local-assistance-privacy-evidence",
+				"scripts/lib/m7-local-assistance-privacy-metrics.mjs",
+				"scripts/collect-m7-local-assistance-privacy-quality.mjs",
+				"tests/quality-budget-m7-local-assistance-privacy-collector.test.ts"
+			]
 		},
 		{
 			"id": "m8a-capture-long-session",

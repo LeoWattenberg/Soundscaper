@@ -209,6 +209,28 @@ unprovisioned. Packaging on hosted Windows, macOS, and Linux runners is valuable
 distribution evidence, but it cannot qualify real audio latency, camera,
 microphone, display-capture, or system-audio budgets without controlled devices.
 
+## Milestone 7 local-assistance privacy evidence
+
+The optional `m7-local-assistance-privacy` collector is locally runnable with
+`npm run quality:collect:m7-assistance-privacy -- --measurement <record.json>`.
+It observes no special measurement path and does not launch inference or create
+sample evidence: the input must be a closed summary from an ordinary real
+workflow run. Admission binds the exact quality-budget digest, source revision,
+authenticated package manifest, signed model catalog, runtime and model artifact
+digests, and the fixture's two selected plus two deliberately unselected media
+identities. One warm-up and five fresh no-retry runs must retain whole-workflow
+post-install network observations, per-asset byte-read ledgers, accepted-output
+digest comparisons, canonical-state checks, and bounded cancellation samples.
+The collector re-derives exactly the five registered metrics, including
+nearest-rank cancellation p95, and retains the raw record beside its aggregate.
+
+This command can produce `pending-external` development evidence or a `failed`
+result. It cannot publish acceptance, relabel a local/package run as the owner
+lab, or turn a software/unknown renderer into fixed-hardware evidence. The
+registered Windows x64 owner environment remains unprovisioned and does not
+admit the M7 workload; no five-target packaged canary or owner-lab result is
+claimed by the existence of this collector.
+
 ## Milestone 4B keyed render parity
 
 `m4b2-keyframe-render-parity` is registered only as a provisional correctness

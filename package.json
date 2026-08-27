@@ -74,6 +74,7 @@
 		"quality:collect:m5b-openfx": "node scripts/collect-m5b-openfx-quality.mjs",
 		"quality:cohort:m5b": "node scripts/collect-m5b-quality-cohort.mjs",
 		"quality:collect:m6-reference-master": "node scripts/collect-m6-reference-master-quality.mjs",
+		"quality:collect:m7-assistance-privacy": "node scripts/collect-m7-local-assistance-privacy-quality.mjs",
 		"quality:collect:m8a-capture": "node scripts/collect-m8a-capture-quality.mjs",
 		"pretest:browser": "npm run build",
 		"test:browser": "playwright test",

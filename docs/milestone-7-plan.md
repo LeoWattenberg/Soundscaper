@@ -774,7 +774,8 @@ fast-shot paths remain admitted; new model-backed workflows are conditional on
 their exact catalog/runtime gates. Reviewed results can publish the ordinary
 transcript, labels, edits, derived sources, tempo, annotations, indexes,
 crop/keyframes, and secondary sequences named by their recipe. The registered
-external privacy workload has no accepted owner-lab or five-target packaged
+privacy workload now has a runnable fail-closed local collector for authenticated
+real-path trace evidence. It has no accepted owner-lab or five-target packaged
 result and remains documentary rather than an activation switch.
 
 - **Outcome:** The `assistance` task kind in the progress coordinator;
@@ -1028,7 +1029,15 @@ entries and ONNX Runtime payloads pass release admission.
   thresholds `networkRequestsAfterInstall eq 0`,
   `unselectedMediaBytesRead eq 0`, `acceptedDigestMismatches eq 0`,
   `cancellationP95Ms lte 2000`, `canonicalStateLosses eq 0`. WP-7.0.3
-  builds the collectors; 7A-7/7B-6 run them.
+  supplies the checked-in collector at
+  `npm run quality:collect:m7-assistance-privacy -- --measurement <record.json>`;
+  7A-7/7B-6 retain actual packaged and owner-lab runs. The collector accepts only
+  one warm-up plus five fresh no-retry runs, exact package/catalog/runtime/model
+  and media digests, whole-workflow post-install network observation, two selected
+  plus two unselected assets, and bounded acceptance/canonical/cancellation
+  ledgers. It writes raw and aggregate development evidence as `pending-external`
+  or `failed`; it has no accepted-evidence mode and synthesizes no model or
+  platform result.
 - The named environment `owner-qualified-windows-x64-rtx3090-01` retains
   historical earlier-workload diagnostics but is currently unprovisioned and
   does not admit `m7-local-assistance-privacy`.
