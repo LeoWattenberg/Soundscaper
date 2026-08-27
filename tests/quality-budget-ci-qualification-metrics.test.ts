@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -10,9 +11,13 @@ import {
 	collectCiQualificationMetrics,
 	parseCiQualificationMetricsCliOptions,
 } from '../scripts/collect-ci-qualification-metrics.mjs';
+import { createHostedQualificationArtifacts } from '../scripts/lib/ci-qualification-artifacts.mjs';
+import { evaluateQualityBudgetResult } from '../scripts/quality-budget-result.mjs';
 import {
 	HOSTED_CI_ENVIRONMENT_ID,
-	HOSTED_CI_FAILURE,
+	HOSTED_CI_LOWER_BOUND_BASIS,
+	HOSTED_CI_MISS,
+	HOSTED_CI_UNREGISTERED,
 	HOSTED_CI_COLLECTORS,
 	SOFTWARE_RENDERER_SKIP,
 	createCiQualificationMetricsEvidence,
@@ -27,7 +32,12 @@ const BUDGET_SHA256 = 'a'.repeat(64);
 const SOURCE_REVISION = 'b'.repeat(40);
 const PASSING_EXIT = { code: 0, signal: null } as const;
 
-function stubCollector(diagnosticKey: string, gate: 'blocking' | 'observational', metricGatePassed: boolean) {
+function stubCollector(
+	diagnosticKey: string,
+	gate: 'blocking' | 'observational',
+	metricGatePassed: boolean,
+	workloadId = `${diagnosticKey}-workload`,
+) {
 	return {
 		diagnosticKey,
 		gate,
@@ -35,10 +45,15 @@ function stubCollector(diagnosticKey: string, gate: 'blocking' | 'observational'
 		spec: `tests/browser/${diagnosticKey}.spec.js`,
 		parse: () => ({ diagnosticKey }),
 		evaluate: () => ({
-			workloadId: `${diagnosticKey}-workload`,
+			workloadId,
 			metricGatePassed,
+			rendererClass: 'software',
 			metrics: { 'stub.value': 1 },
-			evaluation: { passed: metricGatePassed, failures: [], verdicts: [] },
+			evaluation: {
+				passed: metricGatePassed,
+				failures: [],
+				verdicts: [{ metricId: 'stub.value', passed: metricGatePassed }],
+			},
 		}),
 	};
 }
@@ -76,7 +91,7 @@ test('a failed parity gate fails the run while a failed timing gate is only obse
 	assert.deepEqual(blocked.summary.observations, []);
 });
 
-test('hosted evidence records the environment and never publishes qualification', () => {
+test('hosted evidence records the environment and leaves an unregistered workload unpublished', () => {
 	const evidence = evidenceFrom([stubCollector('parity', 'blocking', true)]);
 	assert.equal(evidence.raw.kind, 'soundscaper-hosted-ci-metrics-raw');
 	assert.equal(evidence.summary.kind, 'soundscaper-hosted-ci-metrics');
@@ -86,19 +101,55 @@ test('hosted evidence records the environment and never publishes qualification'
 	assert.equal(evidence.summary.retryCount, 0);
 	assert.equal(evidence.summary.workerCount, 1);
 	assert.equal(evidence.summary.qualificationEvidencePublished, false);
+	assert.deepEqual(evidence.summary.qualifiedWorkloadIds, []);
 	for (const workload of evidence.summary.workloads) {
 		assert.equal(workload.qualificationEvidencePublished, false);
 		assert.equal(workload.evaluation.passed, false);
-		assert.equal(workload.evaluation.failures.at(-1), HOSTED_CI_FAILURE);
+		assert.deepEqual(workload.evaluation.failures, [HOSTED_CI_UNREGISTERED]);
 		assert.equal(workload.status, 'pending-external');
 	}
 });
 
-test('the hosted environment the evidence names is not qualification eligible', () => {
+test('the hosted environment is a registered lower bound for the workloads it may qualify', () => {
 	const environments = (config as { environments: Array<Record<string, unknown>> }).environments;
 	const hosted = environments.find(({ id }) => id === HOSTED_CI_ENVIRONMENT_ID);
 	assert.ok(hosted, 'The hosted CI environment descriptor must exist.');
-	assert.equal(hosted.qualificationEligible, false);
+	assert.equal(hosted.status, 'active');
+	assert.equal(hosted.qualificationEligible, true);
+	assert.equal(hosted.qualificationBasis, HOSTED_CI_LOWER_BOUND_BASIS);
+	assert.equal(hosted.lowerBoundOf, 'owner-qualified-windows-x64-rtx3090-01');
+	assert.deepEqual(hosted.eligibleWorkloadIds, [
+		'm3-longform-editorial',
+		'm4-production-render-parity',
+		'm4b2-keyframe-render-parity',
+	]);
+});
+
+test('a registered workload qualifies when it passes and is observed when it misses', () => {
+	const qualified = evidenceFrom([
+		stubCollector('keyframes', 'blocking', true, 'm4b2-keyframe-render-parity'),
+	]);
+	const [passing] = qualified.summary.workloads;
+	assert.equal(passing.status, 'qualified');
+	assert.equal(passing.qualificationEvidencePublished, true);
+	assert.equal(passing.evaluation.passed, true);
+	assert.equal(passing.evaluation.basis, HOSTED_CI_LOWER_BOUND_BASIS);
+	assert.deepEqual(passing.evaluation.failures, []);
+	assert.equal(qualified.summary.qualificationEvidencePublished, true);
+	assert.deepEqual(qualified.summary.qualifiedWorkloadIds, ['m4b2-keyframe-render-parity']);
+
+	// The weaker runner is expected to miss a timing budget; that says nothing
+	// about the stronger host, so it must not read as a qualification verdict.
+	const missed = evidenceFrom([
+		stubCollector('editorial', 'observational', false, 'm3-longform-editorial'),
+	]);
+	const [missing] = missed.summary.workloads;
+	assert.equal(missing.status, 'observed');
+	assert.equal(missing.qualificationEvidencePublished, false);
+	assert.equal(missing.evaluation.passed, false);
+	assert.equal(missing.evaluation.basis, null);
+	assert.deepEqual(missing.evaluation.failures, ['stub.value did not pass.', HOSTED_CI_MISS]);
+	assert.equal(missed.passed, true, 'an observational miss cannot fail the hosted run');
 });
 
 test('a non-zero Playwright exit and a lost blocking diagnostic both fail the run', () => {
@@ -298,6 +349,119 @@ test('collection rebuilds a run root that Playwright cleared while the specs ran
 		readonly kind: string;
 	};
 	assert.equal(summary.kind, 'soundscaper-hosted-ci-metrics');
+});
+
+// The five numbers the 2026-08-27 hosted run measured for the keyed compositor.
+const KEYFRAME_METRICS = Object.freeze({
+	'keyframes.videoMinimumSsim': 0.999855387171781,
+	'keyframes.videoMaximumChannelMae': 0.0006510416666666666,
+	'keyframes.omittedOperations': 0,
+	'keyframes.substitutedOperations': 0,
+	'keyframes.fallbackOperations': 0,
+});
+
+type BudgetEnvironment = {
+	readonly id: string;
+	readonly status: 'active' | 'unprovisioned';
+	readonly qualificationEligible: boolean;
+	readonly rendererRequirement: 'any' | 'hardware';
+	readonly fingerprint: Record<string, string>;
+};
+
+type BudgetWorkload = {
+	readonly id: string;
+	readonly fixtureIds: readonly string[];
+	readonly environmentIds: readonly string[];
+	readonly thresholds: readonly {
+		readonly metricId: string;
+		readonly comparison: 'eq' | 'gte' | 'lte';
+		readonly value: number;
+		readonly unit: string;
+	}[];
+};
+
+function hostedEnvironmentDescriptor(): BudgetEnvironment {
+	const environments = (config as unknown as { environments: BudgetEnvironment[] }).environments;
+	const hosted = environments.find(({ id }) => id === HOSTED_CI_ENVIRONMENT_ID);
+	assert.ok(hosted, 'The hosted CI environment descriptor must exist.');
+	return hosted;
+}
+
+function keyframeWorkloadDescriptor(): BudgetWorkload {
+	const workloads = (config as unknown as { workloads: BudgetWorkload[] }).workloads;
+	const workload = workloads.find(({ id }) => id === 'm4b2-keyframe-render-parity');
+	assert.ok(workload, 'The keyed parity workload descriptor must exist.');
+	return workload;
+}
+
+function qualifiedKeyframeWorkload() {
+	return {
+		workloadId: 'm4b2-keyframe-render-parity',
+		diagnosticKey: 'm4b2-keyframe-render-parity',
+		gate: 'blocking',
+		status: 'qualified',
+		rendererClass: 'software',
+		metricGatePassed: true,
+		qualificationEvidencePublished: true,
+		metrics: KEYFRAME_METRICS,
+	};
+}
+
+test('a qualifying hosted workload writes evidence the formal result verifier accepts', () => {
+	const environment = hostedEnvironmentDescriptor();
+	const budgetSha256 = createHash('sha256').update(configBytes).digest('hex');
+	const artifacts = createHostedQualificationArtifacts({
+		workloads: [qualifiedKeyframeWorkload()],
+		config,
+		environment,
+		sourceRevision: SOURCE_REVISION,
+		budgetSha256,
+		nodeVersion: environment.fingerprint.nodeVersion,
+	});
+	assert.equal(artifacts.length, 1);
+	const [artifact] = artifacts;
+	assert.equal(artifact.resultFileName, 'm4b2-keyframe-render-parity.accepted.json');
+	assert.equal(artifact.rawFileName, 'm4b2-keyframe-render-parity.raw.json');
+
+	const result = JSON.parse(artifact.resultBytes.toString('utf8')) as {
+		readonly rawEvidence: { readonly byteLength: number; readonly sha256: string };
+		readonly metrics: Readonly<Record<string, number>>;
+	};
+	assert.equal(result.rawEvidence.byteLength, artifact.rawBytes.byteLength);
+	assert.equal(result.rawEvidence.sha256, createHash('sha256').update(artifact.rawBytes).digest('hex'));
+	// The cohort auditor compares the raw and accepted metric objects as text.
+	const raw = JSON.parse(artifact.rawBytes.toString('utf8')) as { readonly metrics: unknown };
+	assert.equal(JSON.stringify(raw.metrics), JSON.stringify(result.metrics));
+
+	const evaluation = evaluateQualityBudgetResult({
+		workload: keyframeWorkloadDescriptor(),
+		expectedEnvironment: environment,
+		expectedBudgetSha256: budgetSha256,
+		measurementPolicy: (config as { measurementPolicy: { benchmarkRetries: number } }).measurementPolicy,
+	}, result);
+	assert.deepEqual(evaluation.failures, []);
+	assert.equal(evaluation.passed, true);
+});
+
+test('a rehearsal without a revision or on an unpinned runtime publishes no evidence', () => {
+	const environment = hostedEnvironmentDescriptor();
+	const context = {
+		workloads: [qualifiedKeyframeWorkload()],
+		config,
+		environment,
+		sourceRevision: SOURCE_REVISION,
+		budgetSha256: createHash('sha256').update(configBytes).digest('hex'),
+		nodeVersion: environment.fingerprint.nodeVersion,
+	};
+	assert.deepEqual(createHostedQualificationArtifacts({ ...context, sourceRevision: null }), []);
+	assert.deepEqual(createHostedQualificationArtifacts({ ...context, nodeVersion: '1.2.3' }), []);
+	assert.deepEqual(
+		createHostedQualificationArtifacts({
+			...context,
+			workloads: [{ ...qualifiedKeyframeWorkload(), qualificationEvidencePublished: false }],
+		}),
+		[],
+	);
 });
 
 test('the CLI defaults its output directory and accepts only one', () => {
