@@ -82,12 +82,20 @@ test('the frozen milestone-2 resource IDs own exact structural workload contract
 	}
 });
 
-test('reviewed no-retry cohorts cover the exact qualified workload set', async () => {
+test('reviewed no-retry cohorts cover the exact qualified structural workload set', async () => {
 	const budgets = JSON.parse(await readFile(budgetsUrl, 'utf8'));
 	const qualifiedIds = [...QUALIFIED_IDS];
-	assert.deepEqual(budgets.qualification.qualifiedWorkloadIds, qualifiedIds);
-	assert.equal(budgets.qualification.acceptedResultCohorts.length, 2);
-	const [historical, observed] = budgets.qualification.acceptedResultCohorts;
+	// Workloads from other milestones qualify through their own cohorts; this
+	// contract owns the frozen structural five and the two cohorts that bind them.
+	assert.deepEqual(
+		budgets.qualification.qualifiedWorkloadIds.slice(0, qualifiedIds.length),
+		qualifiedIds,
+	);
+	const structuralCohorts = budgets.qualification.acceptedResultCohorts.filter(
+		({ environmentId }: { readonly environmentId: string }) => environmentId === ENVIRONMENT_ID,
+	);
+	assert.equal(structuralCohorts.length, 2);
+	const [historical, observed] = structuralCohorts;
 	assert.deepEqual([
 		[historical.id, historical.sourceRevision, historical.budgetSha256],
 		[observed.id, observed.sourceRevision, observed.budgetSha256],
@@ -95,13 +103,12 @@ test('reviewed no-retry cohorts cover the exact qualified workload set', async (
 		['m2-structural-aad0ba1', 'aad0ba1630d6c1a554da1ba5134307d274210f47', '9ebd33f88b5ce7af51a99175b48d6ddf19175b11f962c6f765d2825d59fdf7d1'],
 		['m2-direct-observed-f3d11cb3', 'f3d11cb307a227fefb60cee5392b46e8919d9eb6', 'fe1efab919627fb70cfbc640ece9a8e898895f5b6da19188444f9c45ccf09a78'],
 	]);
-	assert.deepEqual(budgets.qualification.acceptedResultCohorts.flatMap(
+	assert.deepEqual(structuralCohorts.flatMap(
 		(cohort: { readonly artifacts: readonly { readonly workloadId: string }[] }) => (
 			cohort.artifacts.map(({ workloadId }) => workloadId)
 		),
 	), qualifiedIds);
-	for (const cohort of budgets.qualification.acceptedResultCohorts) {
-		assert.equal(cohort.environmentId, ENVIRONMENT_ID);
+	for (const cohort of structuralCohorts) {
 		assert.equal(cohort.attemptCount, 1);
 		assert.equal(cohort.retryCount, 0);
 		assert.equal(cohort.retention, 'reviewed-workspace-artifacts-with-checked-in-byte-length-and-sha256');

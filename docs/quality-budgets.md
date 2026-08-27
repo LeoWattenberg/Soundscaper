@@ -3,7 +3,10 @@
 Soundscaper's quality-budget foundation is **in progress**. The checked-in
 ledger names fixtures and proposed numeric limits, validates its own contract,
 and provides a deterministic fail-closed evaluator. The five frozen milestone 2
-first-party structural workloads have qualified. On 2026-08-21 the project
+first-party structural workloads have qualified, and so have the two
+milestone 4 render-parity workloads, whose exact media comparisons met every
+threshold on the hosted runner registered as a hardware lower bound for the
+owner-designated host. On 2026-08-21 the project
 owner also designated the Windows x64 RTX 3090 machine as the fixed-GPU
 reference and retained its then-current M1 preview, M4 production-parity, and
 M4B-2 keyed-parity results. The packaged collector contract now requires the
@@ -61,6 +64,23 @@ fixture, environment, metric, and threshold identifiers.
   `eb7e9716d75b462f9118084a36ed9a5b2a0a38f309e5345a765e24162a399b45`.
   These retained artifacts predate the complete driver/device/power/display
   identity contract and therefore do not close a current formal row.
+- Hosted qualification run, 2026-08-27: the `Qualification metrics` job at
+  revision `d41c5cb1779920282427c9144a805e9f5bdfccf8` ran the three attemptable
+  metric specs on `github-ubuntu-playwright-1.62.1` with one worker, one
+  attempt, and zero retries. `m4-production-render-parity` reported maximum
+  audio sample error `0`, PDC error `0`, minimum video SSIM
+  `0.9818532248014168`, maximum normalized channel MAE
+  `0.020215907543572983`, and silently omitted effects `0`.
+  `m4b2-keyframe-render-parity` reported minimum SSIM `0.999855387171781`,
+  maximum channel MAE `0.0006510416666666666`, and zero omitted, substituted,
+  or fallback operations. Both met every registered threshold, so the
+  lower-bound rule qualifies them and the `hosted-ci-render-parity-d41c5cb1`
+  cohort binds their retained accepted and raw artifacts by byte length and
+  SHA-256. `m3-longform-editorial` met both position counters and its drift
+  budget and missed seek p95 (`243.3` ms against 200 ms) and scroll interval
+  p95 (`50.1` ms against 33.34 ms) under llvmpipe, which is what the weaker
+  runner is expected to do; it stays an observation.
+  `m1-video-preview-12fx-720p` was not attempted.
 - The 12-effect 1280x720 preview test records timing and heap data against a
   repository-owned, digest-pinned, six-second synthetic VP8 fixture. The active
   `deterministic-video-preview-12fx-v2` collector hashes the actual runtime
@@ -104,9 +124,10 @@ after it has all of the following:
 4. a result evaluated by `scripts/quality-budget-evaluator.mjs`; and
 5. retained raw evidence from a no-retry run.
 
-A workload does not become qualified merely because an individual test passed,
-a proposed threshold was checked in, or a hosted runner happened to report a
-fast result.
+A workload does not become qualified merely because an individual test passed
+or a proposed threshold was checked in. A hosted result satisfies condition 2
+through the registered `hardware-lower-bound` rule and still has to meet the
+other four, including a reviewed cohort binding its retained evidence.
 
 The accepted `m2-structural-aad0ba1` cohort retains the two original frozen
 workload IDs backed by production-path observations. It binds them to source
@@ -119,7 +140,10 @@ fixture limitation below remains in force. The composite
 `m2-streaming-bounded-memory` performance workload is not in the frozen closure
 set and remains planned. The `m2-direct-observed-f3d11cb3` cohort binds the
 remaining three workloads to fresh no-retry evidence after their collector
-stopped publishing fixture specification constants as observations.
+stopped publishing fixture specification constants as observations. The
+`hosted-ci-render-parity-d41c5cb1` cohort binds the two milestone-4
+render-parity workloads to the 2026-08-27 hosted run, whose exact media
+comparisons met every threshold on the registered lower-bound runner.
 
 ## Measurement procedure
 

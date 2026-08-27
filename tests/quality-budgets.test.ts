@@ -143,8 +143,10 @@ test('quality budget contract names numeric gates and the exact qualified struct
 		'm2-direct-stem-archives-v3',
 		'm2-direct-compressed-output-v2',
 		'm2-direct-mp4-webm-video-output-v1',
+		'm4-production-render-parity',
+		'm4b2-keyframe-render-parity',
 	]);
-	assert.equal(config.qualification.acceptedResultCohorts.length, 2);
+	assert.equal(config.qualification.acceptedResultCohorts.length, 3);
 	assert.deepEqual(config.qualification.resultContract, {
 		schemaVersion: 1,
 		evaluator: 'scripts/quality-budget-result.mjs',
@@ -426,9 +428,9 @@ test('quality budget contract names numeric gates and the exact qualified struct
 		qualificationPublication: 'accepted-only-after-qualified-environment-and-digest-bound-verification',
 	});
 	assert.deepEqual(keyedFixture?.evidence, keyedEvidence);
-	assert.match(keyedFixture?.limitation ?? '', /local and hosted correctness only/iu);
+	assert.match(keyedFixture?.limitation ?? '', /exact media correctness/iu);
+	assert.match(keyedFixture?.limitation ?? '', /hardware lower bound/iu);
 	assert.match(keyedFixture?.limitation ?? '', /nightly packaged-runtime verification/iu);
-	assert.equal(keyedWorkload?.status, 'provisional');
 	assert.deepEqual(keyedWorkload?.fixtureIds, ['m4b2-keyframe-parity-rgba-v1']);
 	assert.deepEqual(keyedWorkload?.environmentIds,
 		['github-ubuntu-playwright-1.62.1', 'owner-qualified-windows-x64-rtx3090-01']);
@@ -440,9 +442,24 @@ test('quality budget contract names numeric gates and the exact qualified struct
 		{ metricId: 'keyframes.fallbackOperations', comparison: 'eq', value: 0, unit: 'count' },
 	]);
 	assert.deepEqual(keyedWorkload?.evidence, keyedEvidence);
-	assert.equal(config.qualification.qualifiedWorkloadIds.includes(keyedWorkload?.id ?? ''), false);
-	assert.equal(JSON.stringify(config.qualification.acceptedResultCohorts)
-		.includes('m4b2-keyframe-render-parity'), false);
+	// The keyed comparison is exact media, so the hosted lower bound closes it.
+	assert.equal(keyedWorkload?.status, 'qualified');
+	assert.equal(config.qualification.qualifiedWorkloadIds.includes(keyedWorkload?.id ?? ''), true);
+	const keyedCohort = config.qualification.acceptedResultCohorts
+		.find(({ id }) => id === 'hosted-ci-render-parity-d41c5cb1') as undefined | Readonly<{
+			artifacts: readonly Readonly<{ workloadId: string }>[];
+			attemptCount: number;
+			environmentId: string;
+			retryCount: number;
+		}>;
+	assert.ok(keyedCohort, 'the hosted render-parity cohort must be registered');
+	assert.equal(keyedCohort.environmentId, 'github-ubuntu-playwright-1.62.1');
+	assert.equal(keyedCohort.attemptCount, 1);
+	assert.equal(keyedCohort.retryCount, 0);
+	assert.deepEqual(keyedCohort.artifacts.map(({ workloadId }) => workloadId), [
+		'm4-production-render-parity',
+		'm4b2-keyframe-render-parity',
+	]);
 
 	await assertEvidenceExists([
 		...config.environments.flatMap(({ evidence }) => evidence),

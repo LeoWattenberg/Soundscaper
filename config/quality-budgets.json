@@ -9,9 +9,11 @@
 			"m2-direct-wav-385mib-v1",
 			"m2-direct-stem-archives-v3",
 			"m2-direct-compressed-output-v2",
-			"m2-direct-mp4-webm-video-output-v1"
+			"m2-direct-mp4-webm-video-output-v1",
+			"m4-production-render-parity",
+			"m4b2-keyframe-render-parity"
 		],
-		"reason": "All five frozen milestone-2 first-party structural workloads have reviewed no-retry evidence. The direct stem, compressed-audio, and video workloads are bound to observed production-path diagnostics rather than fixture specification constants. Fixed-hardware performance, browser and renderer heap, process RSS, worker/native/WASM codec memory, device, durability, the unprovisioned Framescaper Web VCR packaged real-runtime matrix, and release qualification remain open or out of these cohorts' scope.",
+		"reason": "All five frozen milestone-2 first-party structural workloads have reviewed no-retry evidence. The direct stem, compressed-audio, and video workloads are bound to observed production-path diagnostics rather than fixture specification constants. The two milestone-4 render-parity workloads are bound to the 2026-08-27 hosted run, which met every threshold on a runner registered as a hardware lower bound for owner-qualified-windows-x64-rtx3090-01. Fixed-hardware timing, browser and renderer heap, process RSS, worker/native/WASM codec memory, device, durability, the unprovisioned Framescaper Web VCR packaged real-runtime matrix, and release qualification remain open or out of these cohorts' scope.",
 		"acceptedResultCohorts": [
 			{
 				"id": "m2-structural-aad0ba1",
@@ -67,6 +69,31 @@
 						"resultSha256": "ca152dd5aa1b7d3543aa8461f6dea7438a818be150f7628ff4362009aa06a93a",
 						"rawByteLength": 4402,
 						"rawSha256": "2b90b8ff8f5ca2f37f4d9c872cd36e0b7e7fff52efee716b4f572f9387760524"
+					}
+				]
+			},
+			{
+				"id": "hosted-ci-render-parity-d41c5cb1",
+				"sourceRevision": "d41c5cb1779920282427c9144a805e9f5bdfccf8",
+				"budgetSha256": "0aeebef01e7d5becd43934c539343cad14567fcb9ccef7249fbc19935cf0f444",
+				"environmentId": "github-ubuntu-playwright-1.62.1",
+				"attemptCount": 1,
+				"retryCount": 0,
+				"retention": "hosted-run-artifacts-with-checked-in-byte-length-and-sha256",
+				"artifacts": [
+					{
+						"workloadId": "m4-production-render-parity",
+						"resultByteLength": 1126,
+						"resultSha256": "5cfb8e67b2c3ea5528db772fcf465deb75f92a87c1f1c968a44d1e4f2ed6c22d",
+						"rawByteLength": 3076,
+						"rawSha256": "25b0d8ca23fac61b8d8a79fa772e07b3a2a23f0b7020f90dd9e04458250e7416"
+					},
+					{
+						"workloadId": "m4b2-keyframe-render-parity",
+						"resultByteLength": 1101,
+						"resultSha256": "3289202c834e80540d7cb12ff38c0a2238da0abda7f2c6506f28d02a62522279",
+						"rawByteLength": 3107,
+						"rawSha256": "e54e6a3b47dea82e278a2b81cd2824a1bf5dd75666c7d32a32fa573131389d4f"
 					}
 				]
 			}
@@ -1161,7 +1188,7 @@
 					"sha256": "a7a1230cdd711e15deaea68e0e5f58028eb684455fb42024e2aed624ad934701"
 				}
 			],
-			"limitation": "The deterministic PCM and RGBA artifacts establish correctness only. Hosted and local observations remain pending-external; formal acceptance is emitted only by nightly packaged-runtime verification on the exact owner-designated hardware profile.",
+			"limitation": "The deterministic PCM and RGBA artifacts establish exact media correctness. The 2026-08-27 hosted run met every threshold on the registered hardware lower bound and qualifies the workload through the hosted-ci-render-parity-d41c5cb1 cohort. A standalone local run remains pending-external, and the owner-designated fixed-GPU profile is still published only by nightly packaged-runtime verification.",
 			"evidence": [
 				"package.json",
 				"src/common/editor/quality/m4-production-parity-workload.ts",
@@ -1205,7 +1232,7 @@
 				"localDiagnosticCommand": "node scripts/collect-m4b2-keyframe-parity-quality.mjs",
 				"qualificationPublication": "accepted-only-after-qualified-environment-and-digest-bound-verification"
 			},
-			"limitation": "The deterministic keyed preview/offline RGBA comparison establishes local and hosted correctness only. Formal acceptance is emitted only by nightly packaged-runtime verification when the complete diagnostic matches the owner-designated host profile exactly.",
+			"limitation": "The deterministic keyed preview/offline RGBA comparison establishes exact media correctness. The 2026-08-27 hosted run met every threshold on the registered hardware lower bound and qualifies the workload through the hosted-ci-render-parity-d41c5cb1 cohort. The owner-designated fixed-GPU profile is still published only by nightly packaged-runtime verification.",
 			"evidence": [
 				"src/common/editor/quality/m4b2-keyframe-parity-workload.ts",
 				"scripts/lib/m4b2-keyframe-parity-metrics.mjs",
@@ -1604,7 +1631,7 @@
 		{
 			"id": "m4-production-render-parity",
 			"milestone": "4",
-			"status": "provisional",
+			"status": "qualified",
 			"fixtureIds": ["video-effect-parity-rgba-v1", "m4-production-parity-v1"],
 			"environmentIds": ["github-ubuntu-playwright-1.62.1", "owner-qualified-windows-x64-rtx3090-01"],
 			"thresholds": [
@@ -1625,7 +1652,7 @@
 		{
 			"id": "m4b2-keyframe-render-parity",
 			"milestone": "4",
-			"status": "provisional",
+			"status": "qualified",
 			"fixtureIds": ["m4b2-keyframe-parity-rgba-v1"],
 			"environmentIds": ["github-ubuntu-playwright-1.62.1", "owner-qualified-windows-x64-rtx3090-01"],
 			"thresholds": [
