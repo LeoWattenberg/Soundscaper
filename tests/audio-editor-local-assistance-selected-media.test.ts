@@ -172,6 +172,25 @@ test('long stereo enhancement and separation geometry exceeds the old cap withou
 });
 
 test('long preparation renders bounded ranges and remains promptly cancellable', async () => {
+	const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+	const writable = Object.freeze({
+		async write() { /* The cancellation path never needs retained test bytes. */ },
+		async close() { /* The cancellation path never completes the spool. */ },
+		async abort() { /* The partial test spool is disposable. */ },
+	});
+	const directory = Object.freeze({
+		async getDirectoryHandle() { return directory; },
+		async getFileHandle() {
+			return Object.freeze({ async createWritable() { return writable; } });
+		},
+		async removeEntry() { /* The partial test spool is disposable. */ },
+	});
+	Object.defineProperty(globalThis, 'navigator', { configurable: true, value: {
+		storage: {
+			estimate: async () => ({ usage: 0, quota: 2 * 1024 ** 3 }),
+			getDirectory: async () => directory,
+		},
+	} });
 	const frames = 48_000 * 601;
 	const longProject = project({
 		selection: { startFrame: 24_000, endFrame: 24_000 + frames,
@@ -193,11 +212,16 @@ test('long preparation renders bounded ranges and remains promptly cancellable',
 			return [new Float32Array(length), new Float32Array(length)];
 		},
 	});
-	await assert.rejects(preparation.prepareSelectedMedia({
-		sourceId: 'voice-source', operation: 'source-separation', signal: controller.signal,
-	}), { name: 'AbortError' });
-	assert.equal(ranges.length, 2);
-	assert.ok(ranges.every(([start, end]) => end - start <= 65_536));
+	try {
+		await assert.rejects(preparation.prepareSelectedMedia({
+			sourceId: 'voice-source', operation: 'source-separation', signal: controller.signal,
+		}), { name: 'AbortError' });
+		assert.equal(ranges.length, 2);
+		assert.ok(ranges.every(([start, end]) => end - start <= 65_536));
+	} finally {
+		if (originalNavigator) Object.defineProperty(globalThis, 'navigator', originalNavigator);
+		else Reflect.deleteProperty(globalThis, 'navigator');
+	}
 });
 
 test('canonical WAV geometry refuses an unrepresentable oversized selection before rendering', () => {
