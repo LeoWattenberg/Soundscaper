@@ -3,12 +3,17 @@
 ## Current boundary
 
 The checked-in conversion execution register and Python conversion module are
-a reproducibility and release-evidence contract. They are not evidence that a
-conversion ran. TIGER-DnR, PANNs
-Cnn10, Beat This `small0`/`final0`, and TransNetV2 all remain
-`pending-external`: no locked exporter environment, retained source-tree
-archive, converted ONNX identity, or source-framework parity result is present.
-Consequently none of these records authorizes a production catalog entry.
+a runnable reproducibility and release-evidence contract. The CPython 3.12
+direct dependencies and complete transitive resolution are hash-locked in
+`pyproject.toml` and `uv.lock`; candidate-specific runners execute authenticated
+source-framework and CPU ONNX Runtime comparisons for TIGER-DnR, PANNs Cnn10,
+Beat This `small0`, and TransNetV2. This is not evidence that a conversion or
+parity run occurred. Those four candidates remain `pending-external`: no
+attested installed exporter environment, retained source-tree archive,
+converted ONNX identity, live framework output, or parity result is present.
+Beat This `final0` remains a separately optional converted artifact outside the
+baseline retained fixture run. Consequently none of these records authorizes a
+production catalog entry.
 
 The non-fetching repository check is:
 
@@ -57,17 +62,30 @@ threaded math libraries. The command record itself receives a canonical
 SHA-256 that retained execution evidence must repeat.
 
 The repository-owned installable module is under
-`scripts/models/milestone-7-conversion-tool/`. Install that local package with
-`--no-deps` inside the separately reviewed conversion environment; dependency
-resolution belongs to the future digest-locked toolchain, not this repository
-or the conversion command. The registered isolated `python3 -I -B -m
-soundscaper_m7_conversion` invocation then resolves only that installed copy.
-Until the complete environment is retained and its lock is recorded in the
-supply recipe, `toolchain-lock` remains a derived blocker and fabricated
-command output cannot be admitted.
+`scripts/models/milestone-7-conversion-tool/`. Create the external CPython 3.12
+environment from its exact `uv.lock` (SHA-256
+`388a9bdc8ccac14f5e16b0ea6cb2fb399c0af59b1dadd0385af7738d7ec139ef`)
+with frozen/hash verification, then install or invoke only that locked module
+without resolving a neighbouring dependency:
 
-The module authenticates all source files before importing PyTorch,
-TensorFlow, ONNX, or exporter packages. It accepts no URL or command fragment,
+```sh
+cd scripts/models/milestone-7-conversion-tool
+uv sync --frozen --no-dev
+```
+
+Perform dependency acquisition before the offline evidence run. Copy the exact
+`uv.lock` bytes into that run's canonical workspace, activate the resulting
+environment, and invoke the registered argv without a shell.
+The registered isolated `python3 -I -B -m soundscaper_m7_conversion` invocation
+resolves only that installed copy. Every parity argv authenticates
+`source-input-manifest.json`, `uv.lock`, and the lock's registered SHA-256 before
+lazy framework imports. The lock makes the repository runner reproducible; it
+does not attest that an external environment was installed or that any model
+ran, so fabricated command output still cannot be admitted.
+
+The module authenticates the fixture, source archive/artifacts, converted
+graphs, and toolchain lock before importing PyTorch, TensorFlow, ONNX, or
+exporter packages. It accepts no URL or command fragment,
 sets the framework offline switches, refuses a visible CUDA provider, safely
 extracts only regular files and directories from the authenticated source
 archive, exports opset-17 graphs without external tensor data or custom
@@ -95,10 +113,14 @@ source-framework-runs/<framework>/<point-role>.i64le
 
 Float matrices must be finite and geometry-exact. Beat/downbeat points and
 shot boundaries are strictly increasing signed 64-bit little-endian indexes.
-The parity command verifies the pinned fixture and converted artifacts, checks
-every required framework/role exactly, computes the registered maximum-error
-or symmetric-index-difference metric, refuses a failed threshold, and writes
-the canonical evidence file once.
+The runner compares TIGER source/ORT neural masks through the same owned
+STFT/mask/ISTFT reconstruction and retains the resulting waveforms; it retains
+PANNs probabilities and embeddings, Beat This `small0` logits plus owned beat
+points, and TransNetV2 TensorFlow/PyTorch/ORT logits plus owned boundaries. The
+parity command checks every required framework/role, computes the registered
+maximum-error or symmetric-index-difference metric, refuses a failed threshold,
+atomically publishes the complete raw-run directory, and exclusively creates
+canonical evidence without overwriting prior files.
 
 The registered files are:
 
@@ -116,11 +138,12 @@ both logits and the deterministic boundary result.
 
 ## Evidence admission
 
-After an external conversion environment exists, update the source archive,
-toolchain, converted output, and parity identities together. Do not fill only
-one half of an identity: a byte length without a SHA-256, or a SHA-256 without a
-byte length, is rejected. Do not mark evidence verified while any derived
-blocker remains.
+The dependency lock is registered, but no installed environment or model run is
+attested. After an external conversion environment exists, retain the source
+archive, command results, converted output, and parity identities together. Do
+not fill only one half of an identity: a byte length without a SHA-256, or a
+SHA-256 without a byte length, is rejected. Do not mark evidence verified while
+any derived blocker remains.
 
 Audit a retained evidence bundle with:
 

@@ -47,7 +47,9 @@ test('conversion execution recipes bind the four pinned supply candidates exactl
 	for (const recipe of register.recipes) {
 		assert.equal(recipe.evidenceStatus, 'pending-external');
 		assert.ok(recipe.blockedBy.includes('source-code-archive-identity'));
-		assert.ok(recipe.blockedBy.includes('toolchain-lock'));
+		assert.equal(recipe.blockedBy.includes('toolchain-lock'), false);
+		assert.equal(modelSupply.candidates.find(({ id }) => id === recipe.candidateId)
+			.conversion.recipe.toolchain.status, 'locked');
 		assert.ok(recipe.blockedBy.includes('converted-output-identity'));
 		assert.ok(recipe.blockedBy.includes('source-framework-parity'));
 		assert.equal(recipe.sourceCode.archive.byteLength, null);

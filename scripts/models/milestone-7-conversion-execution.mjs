@@ -16,6 +16,7 @@ import {
 const SHA256 = /^[a-f\d]{64}$/u;
 const MAXIMUM_FILE_BYTES = 16 * 1024 ** 3;
 const MAXIMUM_EVIDENCE_BYTES = 64 * 1024 ** 3;
+const TOOLCHAIN_LOCK_SHA256 = '388a9bdc8ccac14f5e16b0ea6cb2fb399c0af59b1dadd0385af7738d7ec139ef';
 const ADMITTED_REGISTERS = new WeakSet();
 
 const EXECUTION_POLICY = Object.freeze({
@@ -201,7 +202,10 @@ function expectedCommands(candidateId, planSha256) {
 				'--fixture', 'parity-fixture.bin',
 				'--source-runs', 'source-framework-runs',
 				'--converted-manifest', 'converted-artifacts.json',
-				'--evidence', 'parity-evidence.json'],
+				'--evidence', 'parity-evidence.json',
+				'--source-manifest', 'source-input-manifest.json',
+				'--toolchain-lock', 'uv.lock',
+				'--toolchain-sha256', TOOLCHAIN_LOCK_SHA256],
 		},
 	];
 }

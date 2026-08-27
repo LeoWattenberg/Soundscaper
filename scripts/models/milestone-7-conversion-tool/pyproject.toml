@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools==84.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,7 +9,37 @@ name = "soundscaper-m7-conversion"
 version = "1.0.0"
 description = "Offline deterministic model conversion and parity evidence tool for Soundscaper Milestone 7"
 requires-python = ">=3.12,<3.13"
-license = { text = "AGPL-3.0-only" }
+license = "AGPL-3.0-only"
+dependencies = [
+    "einops==0.8.0",
+    "huggingface-hub==0.26.2",
+    "librosa==0.10.2.post1",
+    "numpy==1.26.4",
+    "onnx==1.17.0",
+    "onnx2torch==1.5.15",
+    "onnxruntime==1.20.1",
+    "rotary-embedding-torch==0.8.5",
+    "safetensors==0.4.5",
+    "scipy==1.14.1",
+    "soundfile==0.12.1",
+    "soxr==0.5.0.post1",
+    "tensorflow-cpu==2.16.1",
+    "tf2onnx==1.16.1",
+    "torch==2.5.1",
+    "torchaudio==2.5.1",
+    "torchlibrosa==0.1.0",
+    "torchvision==0.20.1",
+]
 
 [tool.setuptools]
 packages = ["soundscaper_m7_conversion"]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+torchaudio = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }

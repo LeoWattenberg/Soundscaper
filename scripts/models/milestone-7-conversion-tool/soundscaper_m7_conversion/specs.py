@@ -6,7 +6,7 @@ PROTOCOL = "soundscaper-model-conversion-v1"
 
 CANDIDATES = {
     "tiger-dnr-neural-core": {
-        "plan": "f8e22860e579bdf7ee23d9d72f41740e1e97d6d1a849c4cf4170ef508c631c13",
+        "plan": "b76fc6a4e917988bc7cf72432d4b34487649424e7f2aabd3944fb888ac35470d",
         "revision": "9f18d4a10a7137e1ce8052cfb62215179f1287b6",
         "archive": "tiger-9f18d4a10a7137e1ce8052cfb62215179f1287b6.tar.gz",
         "artifacts": [
@@ -26,7 +26,7 @@ CANDIDATES = {
         ],
     },
     "panns-cnn10": {
-        "plan": "33da2c9f07f86a51b119466c38cca28368c7a58fe5e975cd5eda9c68dd99f2a2",
+        "plan": "2c58822ed2fd8c59e477e5ffe42fc275cea2db606f8e3d7911638bca8a1b2423",
         "revision": "d2f4b8c18eab44737fcc0de1248ae21eb43f6aa4",
         "archive": "audioset-tagging-cnn-d2f4b8c18eab44737fcc0de1248ae21eb43f6aa4.tar.gz",
         "artifacts": [
@@ -49,7 +49,7 @@ CANDIDATES = {
         ],
     },
     "beat-this": {
-        "plan": "bf5cd009d7c20d8cd384ee143eb9e0d3eb1970723748d9f09c86122f3a46eaf0",
+        "plan": "2b886cc72ab4ef322cd4190edf4f3463e6a5135b5127a2b98793f57120efff76",
         "revision": "ad7974846029835307ba19a3d5cefbf40b243041",
         "archive": "beat-this-ad7974846029835307ba19a3d5cefbf40b243041.tar.gz",
         "artifacts": [
@@ -79,7 +79,7 @@ CANDIDATES = {
         ],
     },
     "transnetv2": {
-        "plan": "90bf631430e3aac1df64a329532fa1a0273451c6c0b2da73bad02d11eb707ec7",
+        "plan": "2bc7ca9d964e1ac1b4c91eeccc0d8cf459835d477eebc728b6e2eb95d1bdf8b6",
         "revision": "85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed",
         "archive": "transnetv2-85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed.tar.gz",
         "artifacts": [

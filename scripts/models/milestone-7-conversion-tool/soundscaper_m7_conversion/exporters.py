@@ -13,6 +13,7 @@ import sys
 import tempfile
 
 from .contract import ContractError, sha256_file
+from .source_adapters import create_tiger_neural_core, panns_cnn10_class, tiger_dnr_class
 
 _TORCH_CONFIGURED = False
 
@@ -90,89 +91,46 @@ def torch_runtime():
 def export_tiger(_source_root: Path, checkpoint: Path, output_root: Path, file_name: str) -> Path:
     torch = torch_runtime()
     try:
-        from look2hear.models.tiger_dnr import TIGERDNR
         from safetensors.torch import load_file
     except ImportError as error:
         raise ContractError("The locked TIGER source/exporter dependencies are incomplete.") from error
-    model = TIGERDNR().cpu().eval()
-    state = load_file(str(checkpoint), device="cpu")
-    model.load_state_dict(state, strict=True)
-
-    class TigerDnrNeuralCore(torch.nn.Module):
-        def __init__(self, source):
-            super().__init__()
-            self.dialogue = source.dialog
-            self.music = source.music
-            self.effects = source.effect
-
-        @staticmethod
-        def target_mask(network, spectrum_ri, target_index):
-            batch_channels = spectrum_ri.shape[0]
-            subband_features = []
-            band_start = 0
-            for width, normalizer in zip(network.band_width, network.BN, strict=True):
-                band = spectrum_ri[:, :, band_start:band_start + width].contiguous()
-                subband_features.append(normalizer(band.view(batch_channels, width * 2, -1)))
-                band_start += width
-            features = torch.stack(subband_features, 1)
-            separated = network.separator(features).view(
-                batch_channels, network.nband, network.feature_dim, -1)
-            real_bands = []
-            imaginary_bands = []
-            for index, width in enumerate(network.band_width):
-                raw = network.mask[index](separated[:, index]).view(
-                    batch_channels, 2, 2, network.num_output, width, -1)
-                masks = raw[:, 0] * torch.sigmoid(raw[:, 1])
-                real = masks[:, 0]
-                imaginary = masks[:, 1]
-                real = real - (real.sum(1, keepdim=True) - 1) / network.num_output
-                imaginary = imaginary - imaginary.sum(1, keepdim=True) / network.num_output
-                real_bands.append(real[:, target_index])
-                imaginary_bands.append(imaginary[:, target_index])
-            return torch.stack((torch.cat(real_bands, 1), torch.cat(imaginary_bands, 1)), 1)
-
-        def forward(self, spectrum_ri):
-            dialogue = self.target_mask(self.dialogue, spectrum_ri, 2)
-            music = self.target_mask(self.music, spectrum_ri, 0)
-            effects = self.target_mask(self.effects, spectrum_ri, 1)
-            return torch.stack((dialogue, music, effects), 1)
-
-    wrapper = TigerDnrNeuralCore(model).cpu().eval()
-    example = torch.zeros((1, 2, 1_025, 64), dtype=torch.float32)
-    return export_torch_onnx(wrapper, (example,), output_root, file_name,
-                             ["spectrum_ri"], ["complex_masks"],
-                             {"spectrum_ri": {0: "batch-channel", 3: "frames"},
-                              "complex_masks": {0: "batch-channel", 4: "frames"}})
+    with tiger_dnr_class(_source_root) as TigerDNR:
+        model = TigerDNR().cpu().eval()
+        state = load_file(str(checkpoint), device="cpu")
+        model.load_state_dict(state, strict=True)
+        wrapper = create_tiger_neural_core(model, torch)
+        example = torch.zeros((1, 2, 1_025, 64), dtype=torch.float32)
+        return export_torch_onnx(wrapper, (example,), output_root, file_name,
+                                 ["spectrum_ri"], ["complex_masks"],
+                                 {"spectrum_ri": {0: "batch-channel", 3: "frames"},
+                                  "complex_masks": {0: "batch-channel", 4: "frames"}})
 
 
 def export_panns(_source_root: Path, checkpoint: Path, output_root: Path, file_name: str) -> Path:
     torch = torch_runtime()
-    try:
-        from pytorch.models import Cnn10
-    except ImportError as error:
-        raise ContractError("The locked PANNs source/exporter dependencies are incomplete.") from error
-    model = Cnn10(sample_rate=32_000, window_size=1_024, hop_size=320, mel_bins=64,
-                  fmin=50, fmax=14_000, classes_num=527).cpu().eval()
-    checkpoint_value = torch.load(checkpoint, map_location="cpu", weights_only=True)
-    if not isinstance(checkpoint_value, dict) or "model" not in checkpoint_value:
-        raise ContractError("The PANNs checkpoint container is invalid.")
-    model.load_state_dict(checkpoint_value["model"], strict=True)
+    with panns_cnn10_class(_source_root) as Cnn10:
+        model = Cnn10(sample_rate=32_000, window_size=1_024, hop_size=320, mel_bins=64,
+                      fmin=50, fmax=14_000, classes_num=527).cpu().eval()
+        checkpoint_value = torch.load(checkpoint, map_location="cpu", weights_only=True)
+        if not isinstance(checkpoint_value, dict) or "model" not in checkpoint_value:
+            raise ContractError("The PANNs checkpoint container is invalid.")
+        model.load_state_dict(checkpoint_value["model"], strict=True)
 
-    class PannsOutputs(torch.nn.Module):
-        def __init__(self, source):
-            super().__init__()
-            self.source = source
+        class PannsOutputs(torch.nn.Module):
+            def __init__(self, source):
+                super().__init__()
+                self.source = source
 
-        def forward(self, waveform):
-            outputs = self.source(waveform, None)
-            return outputs["clipwise_output"], outputs["embedding"]
+            def forward(self, waveform):
+                outputs = self.source(waveform, None)
+                return outputs["clipwise_output"], outputs["embedding"]
 
-    example = torch.zeros((1, 64_000), dtype=torch.float32)
-    return export_torch_onnx(PannsOutputs(model).eval(), (example,), output_root, file_name,
-                             ["waveform"], ["clipwise_probabilities", "embedding"],
-                             {"waveform": {0: "batch", 1: "samples"},
-                              "clipwise_probabilities": {0: "batch"},
-                              "embedding": {0: "batch"}})
+        example = torch.zeros((1, 64_000), dtype=torch.float32)
+        return export_torch_onnx(PannsOutputs(model).eval(), (example,), output_root, file_name,
+                                 ["waveform"], ["clipwise_probabilities", "embedding"],
+                                 {"waveform": {0: "batch", 1: "samples"},
+                                  "clipwise_probabilities": {0: "batch"},
+                                  "embedding": {0: "batch"}})
 
 
 def export_beat(_source_root: Path, checkpoint: Path, output_root: Path, file_name: str) -> Path:

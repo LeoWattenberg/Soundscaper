@@ -29,16 +29,16 @@
 			},
 			"conversion": {
 				"status": "converted-artifact-pending",
-				"blockedBy": "No locked conversion environment, converted ONNX digests, or source-framework parity evidence has been recorded.",
+				"blockedBy": "No converted ONNX digests or source-framework parity evidence has been recorded.",
 				"recipe": {
 					"id": "tiger-dnr-neural-core-onnx-v1",
 					"version": 1,
 					"sourceFrameworks": ["pytorch"],
 					"toolchain": {
-						"status": "lock-pending-external",
-						"lockFile": null,
-						"sha256": null,
-						"blockedBy": "The reviewed Python and exporter environment has not been locked and hashed."
+						"status": "locked",
+						"lockFile": "scripts/models/milestone-7-conversion-tool/uv.lock",
+						"sha256": "388a9bdc8ccac14f5e16b0ea6cb2fb399c0af59b1dadd0385af7738d7ec139ef",
+						"blockedBy": null
 					},
 					"input": {
 						"sampleRateHz": 44100,
@@ -128,16 +128,16 @@
 			},
 			"conversion": {
 				"status": "converted-artifact-pending",
-				"blockedBy": "No locked conversion environment, converted ONNX digest, or source-framework parity evidence has been recorded.",
+				"blockedBy": "No converted ONNX digest or source-framework parity evidence has been recorded.",
 				"recipe": {
 					"id": "panns-cnn10-onnx-v1",
 					"version": 1,
 					"sourceFrameworks": ["pytorch"],
 					"toolchain": {
-						"status": "lock-pending-external",
-						"lockFile": null,
-						"sha256": null,
-						"blockedBy": "The reviewed Python and exporter environment has not been locked and hashed."
+						"status": "locked",
+						"lockFile": "scripts/models/milestone-7-conversion-tool/uv.lock",
+						"sha256": "388a9bdc8ccac14f5e16b0ea6cb2fb399c0af59b1dadd0385af7738d7ec139ef",
+						"blockedBy": null
 					},
 					"input": {
 						"sampleRateHz": 32000,
@@ -232,16 +232,16 @@
 			},
 			"conversion": {
 				"status": "converted-artifact-pending",
-				"blockedBy": "No locked conversion environment, converted ONNX digests, or source-framework parity evidence has been recorded.",
+				"blockedBy": "No converted ONNX digests or source-framework parity evidence has been recorded.",
 				"recipe": {
 					"id": "beat-this-onnx-v1",
 					"version": 1,
 					"sourceFrameworks": ["pytorch"],
 					"toolchain": {
-						"status": "lock-pending-external",
-						"lockFile": null,
-						"sha256": null,
-						"blockedBy": "The reviewed Python and exporter environment has not been locked and hashed."
+						"status": "locked",
+						"lockFile": "scripts/models/milestone-7-conversion-tool/uv.lock",
+						"sha256": "388a9bdc8ccac14f5e16b0ea6cb2fb399c0af59b1dadd0385af7738d7ec139ef",
+						"blockedBy": null
 					},
 					"input": {
 						"sampleRateHz": 22050,
@@ -359,16 +359,16 @@
 			},
 			"conversion": {
 				"status": "converted-artifact-pending",
-				"blockedBy": "No locked TensorFlow/PyTorch exporter environment, converted ONNX digest, or three-runtime parity evidence has been recorded.",
+				"blockedBy": "No converted ONNX digest or three-runtime parity evidence has been recorded.",
 				"recipe": {
 					"id": "transnetv2-onnx-v1",
 					"version": 1,
 					"sourceFrameworks": ["tensorflow", "pytorch"],
 					"toolchain": {
-						"status": "lock-pending-external",
-						"lockFile": null,
-						"sha256": null,
-						"blockedBy": "The reviewed TensorFlow, PyTorch, and exporter environment has not been locked and hashed."
+						"status": "locked",
+						"lockFile": "scripts/models/milestone-7-conversion-tool/uv.lock",
+						"sha256": "388a9bdc8ccac14f5e16b0ea6cb2fb399c0af59b1dadd0385af7738d7ec139ef",
+						"blockedBy": null
 					},
 					"input": {
 						"sampleRateHz": 0,

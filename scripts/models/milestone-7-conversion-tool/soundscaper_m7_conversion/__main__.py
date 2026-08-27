@@ -36,6 +36,9 @@ def parser() -> argparse.ArgumentParser:
     parity.add_argument("--source-runs", required=True)
     parity.add_argument("--converted-manifest", required=True)
     parity.add_argument("--evidence", required=True)
+    parity.add_argument("--source-manifest")
+    parity.add_argument("--toolchain-lock")
+    parity.add_argument("--toolchain-sha256")
     return command
 
 
@@ -52,7 +55,16 @@ def execute(arguments) -> dict:
     if arguments.protocol != PROTOCOL:
         raise ContractError("The conversion protocol is unsupported.")
     if arguments.action == "parity":
-        create_parity_evidence(root, arguments, spec)
+        execution = (arguments.source_manifest, arguments.toolchain_lock,
+                     arguments.toolchain_sha256)
+        if any(value is not None for value in execution):
+            if not all(value is not None for value in execution):
+                raise ContractError(
+                    "Authenticated parity requires the source manifest and exact toolchain lock.")
+            from .runner import run_authenticated_parity
+            run_authenticated_parity(root, arguments, spec)
+        else:
+            create_parity_evidence(root, arguments, spec)
         return {"schemaVersion": 1, "candidateId": arguments.candidate,
                 "status": "verified", "evidence": arguments.evidence}
     output_manifest = relative_path(root, arguments.output_manifest,

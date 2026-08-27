@@ -19,11 +19,12 @@ import {
 
 const SHA256 = 'ab'.repeat(32);
 const OTHER_SHA256 = 'cd'.repeat(32);
+const TOOLCHAIN_SHA256 = '388a9bdc8ccac14f5e16b0ea6cb2fb399c0af59b1dadd0385af7738d7ec139ef';
 const EXPECTED_PLAN_SHA256 = Object.freeze({
-	'tiger-dnr-neural-core': 'f8e22860e579bdf7ee23d9d72f41740e1e97d6d1a849c4cf4170ef508c631c13',
-	'panns-cnn10': '33da2c9f07f86a51b119466c38cca28368c7a58fe5e975cd5eda9c68dd99f2a2',
-	'beat-this': 'bf5cd009d7c20d8cd384ee143eb9e0d3eb1970723748d9f09c86122f3a46eaf0',
-	transnetv2: '90bf631430e3aac1df64a329532fa1a0273451c6c0b2da73bad02d11eb707ec7',
+	'tiger-dnr-neural-core': 'b76fc6a4e917988bc7cf72432d4b34487649424e7f2aabd3944fb888ac35470d',
+	'panns-cnn10': '2c58822ed2fd8c59e477e5ffe42fc275cea2db606f8e3d7911638bca8a1b2423',
+	'beat-this': '2b886cc72ab4ef322cd4190edf4f3463e6a5135b5127a2b98793f57120efff76',
+	transnetv2: '2bc7ca9d964e1ac1b4c91eeccc0d8cf459835d477eebc728b6e2eb95d1bdf8b6',
 });
 
 function clone(value) {
@@ -101,9 +102,10 @@ test('every derived recipe is CPU-only ONNX and cannot imply an unbuilt artifact
 			customOperators: false,
 			deterministicAlgorithms: true,
 		});
-		assert.equal(row.conversion.recipe.toolchain.status, 'lock-pending-external');
-		assert.equal(row.conversion.recipe.toolchain.lockFile, null);
-		assert.equal(row.conversion.recipe.toolchain.sha256, null);
+		assert.equal(row.conversion.recipe.toolchain.status, 'locked');
+		assert.equal(row.conversion.recipe.toolchain.lockFile,
+			'scripts/models/milestone-7-conversion-tool/uv.lock');
+		assert.equal(row.conversion.recipe.toolchain.sha256, TOOLCHAIN_SHA256);
 		for (const output of row.conversion.outputs) {
 			assert.equal(output.byteLength, null);
 			assert.equal(output.sha256, null);

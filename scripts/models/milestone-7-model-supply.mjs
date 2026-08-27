@@ -320,9 +320,6 @@ function validateConversion(value, definition) {
 	}
 	if (row.status === 'converted-artifact-pending') {
 		boundedBlocker(row.blockedBy, 'converted-artifact blocker');
-		if (recipe.toolchain.status !== 'lock-pending-external') {
-			throw new Error('A pending conversion cannot claim a locked toolchain.');
-		}
 	} else if (row.blockedBy !== null || recipe.toolchain.status !== 'locked') {
 		throw new Error('A ready converted artifact requires one digest-pinned toolchain.');
 	}
