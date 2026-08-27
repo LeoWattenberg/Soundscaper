@@ -66,7 +66,6 @@ test('the main bridge executes all seven closed transforms through authenticated
 				'publish-video-index:visual-embeddings': createAssistanceEmbeddingMatrixV1({
 					dimensions: 2, vectors: [[1, 0]],
 				}),
-				'publish-video-index:recognized-text': null,
 			},
 			});
 			const materializer = {

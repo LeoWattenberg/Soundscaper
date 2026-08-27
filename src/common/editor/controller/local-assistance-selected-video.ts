@@ -153,6 +153,12 @@ export type LocalAssistanceSelectedVideoPrepared = LocalAssistanceSelectedVideoS
 		readonly selectionFence: AssistanceSelectionFence;
 	}> & LocalAssistanceSelectedVideoModelFramePackPrepared);
 
+export interface LocalAssistanceSelectedVideoPreparationRequest {
+	readonly sourceId: string; readonly operation: AssistanceOperation;
+	readonly shotDetectionMode?: LocalAssistanceShotDetectionMode;
+	readonly inputRole?: 'video' | 'frame-pack'; readonly signal?: AbortSignal;
+}
+
 export interface LocalAssistanceSelectedVideoPreparation {
 	listSelectedMedia(): Promise<Readonly<{ readonly sources: readonly Readonly<{
 		readonly sourceId: string;
@@ -162,12 +168,8 @@ export interface LocalAssistanceSelectedVideoPreparation {
 			'shot-detection', 'subject-detection', 'saliency-detection',
 		];
 	}>[] }>>;
-	prepareSelectedMedia(request: Readonly<{
-		readonly sourceId: string;
-		readonly operation: AssistanceOperation;
-		readonly shotDetectionMode?: LocalAssistanceShotDetectionMode;
-		readonly signal?: AbortSignal;
-	}>): Promise<LocalAssistanceSelectedVideoPrepared>;
+	prepareSelectedMedia(request: LocalAssistanceSelectedVideoPreparationRequest):
+		Promise<LocalAssistanceSelectedVideoPrepared>;
 }
 
 export function createLocalAssistanceSelectedVideoPreparation(
@@ -190,12 +192,8 @@ export function createLocalAssistanceSelectedVideoPreparation(
 		})]) });
 	}
 
-	async function prepareSelectedMedia(value: Readonly<{
-		readonly sourceId: string;
-		readonly operation: AssistanceOperation;
-		readonly shotDetectionMode?: LocalAssistanceShotDetectionMode;
-		readonly signal?: AbortSignal;
-	}>): Promise<LocalAssistanceSelectedVideoPrepared> {
+	async function prepareSelectedMedia(value: LocalAssistanceSelectedVideoPreparationRequest):
+	Promise<LocalAssistanceSelectedVideoPrepared> {
 		const request = preparationRequest(value);
 		request.signal?.throwIfAborted();
 		if (request.operation !== 'shot-detection' && request.operation !== 'subject-detection'
@@ -261,7 +259,8 @@ export function createLocalAssistanceSelectedVideoPreparation(
 			return Object.freeze({ sourceId: request.sourceId, operation: request.operation,
 				selectionFence: selected.fence, ...prepared });
 		}
-		const inputs = request.shotDetectionMode === 'accurate'
+		const inputs = request.inputRole === 'frame-pack'
+			|| request.inputRole === undefined && request.shotDetectionMode === 'accurate'
 			? await accurateFramePackInputs(dependencies, selected, bytes, signal, maximumInputBytes,
 				() => dependencies.assertProject(token))
 			: Object.freeze([Object.freeze({
@@ -514,9 +513,10 @@ function preparationRequest(value: unknown): Readonly<{
 	sourceId: string;
 	operation: AssistanceOperation;
 	shotDetectionMode: LocalAssistanceShotDetectionMode;
+	inputRole?: 'video' | 'frame-pack';
 	signal?: AbortSignal;
 }> {
-	const fields = ['sourceId', 'operation', 'shotDetectionMode', 'signal'];
+	const fields = ['sourceId', 'operation', 'shotDetectionMode', 'inputRole', 'signal'];
 	if (!value || typeof value !== 'object' || Array.isArray(value)
 		|| !Object.hasOwn(value, 'sourceId') || !Object.hasOwn(value, 'operation')
 		|| Reflect.ownKeys(value).some((key) => typeof key !== 'string' || !fields.includes(key))) {
@@ -530,12 +530,19 @@ function preparationRequest(value: unknown): Readonly<{
 	if (operation !== 'shot-detection' && Object.hasOwn(record, 'shotDetectionMode')) {
 		throw new TypeError('Visual model preparation cannot carry a shot-detection mode.');
 	}
+	const inputRole = record.inputRole;
+	if (inputRole !== undefined && (operation !== 'shot-detection'
+		|| inputRole !== 'video' && inputRole !== 'frame-pack')) {
+		throw new TypeError('Selected-video input-role preparation is unsupported.');
+	}
+	const shotDetectionMode = Object.hasOwn(record, 'shotDetectionMode')
+		? normalizeLocalAssistanceShotDetectionMode(record.shotDetectionMode) : 'fast';
+	if (inputRole === 'frame-pack' && shotDetectionMode !== 'accurate') {
+		throw new TypeError('Frame-pack shot preparation requires Accurate mode.');
+	}
 	return Object.freeze({
 		sourceId: identifier(record.sourceId, 'requested source ID'),
-		operation,
-		shotDetectionMode: Object.hasOwn(record, 'shotDetectionMode')
-			? normalizeLocalAssistanceShotDetectionMode(record.shotDetectionMode)
-			: 'fast',
+		operation, shotDetectionMode, ...(inputRole ? { inputRole } : {}),
 		...(record.signal ? { signal: record.signal } : {}),
 	});
 }

@@ -305,6 +305,7 @@ test('Index Video stages exact selected-video timing authority beside raw decode
 		frames: [20, 21, 22, 23, 24].map((sourceFrame) => ({ sourceFrame,
 			presentationTick: String(sourceFrame),
 			timelineFrame: 96_000 + (sourceFrame - 20) * 2_000 })) } as const;
+	const preparations: Array<Readonly<{ mode: unknown; inputRole: unknown }>> = [];
 	const preparation = createLocalAssistanceGuidedWorkflowPreparation({
 		getProject: () => videoProject, getSelectedClipId: () => 'video-clip',
 		captureProject: () => ({ revision: 4 }), assertProject: () => undefined,
@@ -312,11 +313,17 @@ test('Index Video stages exact selected-video timing authority beside raw decode
 		selected: {
 			listSelectedMedia: async () => ({ sources: [{ sourceId: 'video-source',
 				label: 'Video', mediaKind: 'video', operations: ['shot-detection'] }] }),
-			prepareSelectedMedia: async () => ({ sourceId: 'video-source',
-				operation: 'shot-detection', shotDetectionMode: 'fast', selectionFence: videoFence,
-				inputs: [{ role: 'video', mediaType: 'video/mp4',
-					bytes: new Blob([new Uint8Array([1, 2, 3])], { type: 'video/mp4' }) }],
-				outputs: [] }),
+			prepareSelectedMedia: async (request) => {
+				preparations.push({ mode: request.shotDetectionMode, inputRole: request.inputRole });
+				const role = request.inputRole ?? (request.shotDetectionMode === 'accurate'
+					? 'frame-pack' : 'video');
+				return { sourceId: 'video-source', operation: 'shot-detection',
+					shotDetectionMode: request.shotDetectionMode ?? 'fast', selectionFence: videoFence,
+					inputs: [{ role, mediaType: role === 'video' ? 'video/mp4'
+						: 'application/vnd.soundscaper.frame-pack',
+					bytes: new Blob([new Uint8Array([1, 2, 3])], { type: role === 'video'
+							? 'video/mp4' : 'application/vnd.soundscaper.frame-pack' }) }], outputs: [] };
+			},
 			describeSelectedVideoSourceTime: async () => ({ selectionFence: videoFence, descriptor }),
 		},
 	});
@@ -338,7 +345,8 @@ test('Index Video stages exact selected-video timing authority beside raw decode
 
 	const noOcrFixture = preparationFixture();
 	const noOcr = await preparation.prepareGuidedWorkflow({ jobId: 'ab'.repeat(20),
-		workflowId: 'index-video', settings: { ...indexSettings, includeOcr: false }, models: [
+		workflowId: 'index-video', settings: { ...indexSettings, shotMode: 'accurate', includeOcr: false }, models: [
+			model('transnetv2', '1.0.0', 'shot-detection', 9),
 			model('siglip2-base-patch16-224', '2.0.0', 'image-text-embedding', 11),
 		], custody: noOcrFixture.custody, signal: new AbortController().signal });
 	assert.equal(noOcr.outcome, 'prepared');
@@ -348,6 +356,52 @@ test('Index Video stages exact selected-video timing authority beside raw decode
 	assert.deepEqual(noOcr.workflow.inputs
 		.filter(({ stageId }) => stageId === 'publish-video-index')
 		.map(({ slotId }) => slotId), ['visual-embeddings']);
+	assert.deepEqual(preparations.slice(-2), [
+		{ mode: 'accurate', inputRole: 'frame-pack' },
+		{ mode: 'accurate', inputRole: 'video' },
+	], 'accurate detection and raw frame sampling retain distinct input-role custody');
+});
+
+test('Guided Reframe prepares both visual model stages through selected-video frame custody', async () => {
+	const fixture = preparationFixture();
+	const videoFence = { projectId: 'project-1', schemaVersion: 30, revision: 4,
+		sequenceId: 'main-sequence', occurrenceIds: ['video-clip'], sourceId: 'video-source',
+		sourceSha256: SOURCE_SHA256, sourceStartFrame: 20, sourceEndFrame: 120,
+		linkMembershipSha256: '12'.repeat(32), timingAuthoritySha256: '34'.repeat(32) };
+	const videoProject: FixtureProject = { ...project(),
+		sources: [{ id: 'video-source', kind: 'video', contentSha256: SOURCE_SHA256 }],
+		clips: [{ id: 'video-clip', kind: 'video', sourceId: 'video-source',
+			sequenceId: 'main-sequence', avLinkId: null, reversed: false, speedRatio: 1 }] };
+	const operations: string[] = [];
+	const preparation = createLocalAssistanceGuidedWorkflowPreparation({
+		getProject: () => videoProject, getSelectedClipId: () => 'video-clip',
+		captureProject: () => ({ revision: 4 }), assertProject: () => undefined,
+		preflightStorage: async () => undefined, currentSelectionFence: () => videoFence,
+		selected: {
+			listSelectedMedia: async () => ({ sources: [{ sourceId: 'video-source', label: 'Video',
+				mediaKind: 'video', operations: ['subject-detection', 'saliency-detection'] }] }),
+			prepareSelectedMedia: async ({ operation }) => {
+				operations.push(operation);
+				return { sourceId: 'video-source', operation, selectionFence: videoFence,
+					inputs: [{ role: 'frame-pack', mediaType: 'application/vnd.soundscaper.frame-pack',
+						bytes: new Blob([new Uint8Array([1, 2, 3])], {
+							type: 'application/vnd.soundscaper.frame-pack' }) }], outputs: [] };
+			},
+		},
+	});
+	const result = await preparation.prepareGuidedWorkflow({ jobId: 'cd'.repeat(20),
+		workflowId: 'reframe', settings: defaultAssistanceWorkflowSettingsV1('reframe'), models: [
+			model('yunet-face-detection-2026may', '2026.5.0', 'face-detection', 13),
+			model('dfine-nano-coco', '1.0.0', 'object-detection', 14),
+			model('u2netp-saliency', '1.0.0', 'saliency-detection', 15),
+		], custody: fixture.custody, signal: new AbortController().signal });
+	assert.equal(result.outcome, 'prepared');
+	if (result.outcome !== 'prepared') return;
+	assert.deepEqual(operations, ['subject-detection', 'saliency-detection']);
+	assert.deepEqual(result.workflow.inputs.filter(({ slotId }) => slotId === 'frame-pack')
+		.map(({ stageId }) => stageId), ['detect-subjects', 'detect-saliency']);
+	assert.deepEqual(result.workflow.stageIds,
+		['detect-subjects', 'detect-saliency', 'track-subjects', 'plan-crops']);
 });
 
 test('Make Highlights adds Qwen only after explicit editorial rerank opt-in', async () => {

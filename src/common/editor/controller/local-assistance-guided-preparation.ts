@@ -82,6 +82,7 @@ interface SelectedPreparationPort {
 		sourceId: string;
 		operation: AssistanceOperation;
 		shotDetectionMode?: 'fast' | 'accurate';
+		inputRole?: 'video' | 'frame-pack';
 		signal?: AbortSignal;
 	}>): Promise<unknown>;
 	describeSelectedVideoSourceTime?(): Promise<unknown>;
@@ -309,8 +310,11 @@ async function prepareExternalInput(
 	const operation = slotId === 'video' ? 'shot-detection' : stage.operation;
 	if (!operation || (slotId === 'audio' && !AUDIO_OPERATIONS.has(operation))) return null;
 	const mode = operation === 'shot-detection' ? shotMode(settings) : undefined;
+	const inputRole = operation === 'shot-detection'
+		? slotId as 'video' | 'frame-pack' : undefined;
 	const value = await dependencies.selected.prepareSelectedMedia({
-		sourceId: source[0]!.sourceId, operation, ...(mode ? { shotDetectionMode: mode } : {}), signal,
+		sourceId: source[0]!.sourceId, operation, ...(mode ? { shotDetectionMode: mode } : {}),
+		...(inputRole ? { inputRole } : {}), signal,
 	});
 	const prepared = primitivePrepared(value, source[0]!.sourceId, operation, mode);
 	const matches = prepared.inputs.filter((candidate) => candidate.role === slotId);

@@ -20,6 +20,7 @@ export interface LocalAssistancePreparationRequest {
 	readonly sourceId: string;
 	readonly operation: AssistanceOperation;
 	readonly shotDetectionMode?: LocalAssistanceShotDetectionMode;
+	readonly inputRole?: 'video' | 'frame-pack';
 	readonly signal?: AbortSignal;
 }
 
@@ -49,7 +50,11 @@ export interface LocalAssistanceSelectedMediaPreparationRouterDependencies<
 	readonly video: LocalAssistanceSelectedMediaPreparationPort<VideoPrepared, VideoDescription> | null;
 }
 
-/** Keep mode-explicit video shot detection separate from the audio render pipeline. */
+const VIDEO_OPERATIONS = new Set<AssistanceOperation>([
+	'shot-detection', 'subject-detection', 'saliency-detection',
+]);
+
+/** Keep video-owned preparation separate from the audio render pipeline. */
 export function createLocalAssistanceSelectedMediaPreparationRouter<
 	AudioPrepared, VideoPrepared, VideoDescription,
 >(
@@ -76,7 +81,7 @@ export function createLocalAssistanceSelectedMediaPreparationRouter<
 	function prepareSelectedMedia(
 		request: LocalAssistancePreparationRequest,
 	): Promise<AudioPrepared | VideoPrepared> {
-		if (request?.operation !== 'shot-detection') {
+		if (!VIDEO_OPERATIONS.has(request?.operation)) {
 			return dependencies.audio.prepareSelectedMedia(request);
 		}
 		if (!dependencies.video) {

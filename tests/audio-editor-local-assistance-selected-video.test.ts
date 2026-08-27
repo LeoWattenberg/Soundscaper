@@ -108,6 +108,15 @@ test('selected video preparation carries an explicit accurate mode without subst
 		sourceId: 'video-source', operation: 'shot-detection',
 	}), /mode|selection/iu, 'the legacy Fast route must not silently consume Accurate preparation');
 	assert.deepEqual(fixture.events, ['owned:video-original']);
+	const rawFixture = videoFixture();
+	const raw = await rawFixture.preparation.prepareSelectedMedia({
+		sourceId: 'video-source', operation: 'shot-detection', shotDetectionMode: 'accurate',
+		inputRole: 'video',
+	});
+	assert.equal(raw.shotDetectionMode, 'accurate');
+	assert.equal(raw.inputs[0]?.role, 'video');
+	assert.equal(rawFixture.accurateRequests.length, 0,
+		'raw sampling custody must not execute or substitute either detector');
 
 	const refused = videoFixture();
 	await assert.rejects(refused.preparation.prepareSelectedMedia({
@@ -115,6 +124,10 @@ test('selected video preparation carries an explicit accurate mode without subst
 		shotDetectionMode: 'quality' as never,
 	}), /mode|request/iu);
 	assert.deepEqual(refused.events, [], 'an unsupported mode must not fall back to Fast custody');
+	await assert.rejects(refused.preparation.prepareSelectedMedia({
+		sourceId: 'video-source', operation: 'shot-detection', inputRole: 'frame-pack',
+	}), /Accurate|frame-pack/iu);
+	assert.deepEqual(refused.events, [], 'frame-pack custody must not silently upgrade Fast');
 });
 
 test('selected preparation composition routes F31 video without entering the audio renderer', async () => {
@@ -358,7 +371,7 @@ test('selected-media router exposes one inventory and routes model-free video wi
 	const video = {
 		async listSelectedMedia() {
 			return { sources: [{ sourceId: 'video-source', label: 'Video', mediaKind: 'video' as const,
-				operations: ['shot-detection'] as const }] };
+				operations: ['shot-detection', 'subject-detection', 'saliency-detection'] as const }] };
 		},
 		async prepareSelectedMedia() { calls.push('video'); return { owner: 'video' }; },
 		async describeSelectedVideoSourceTime() {
@@ -374,13 +387,19 @@ test('selected-media router exposes one inventory and routes model-free video wi
 		sourceId: 'video-source', operation: 'shot-detection',
 	}), { owner: 'video' });
 	assert.deepEqual(await router.prepareSelectedMedia({
+		sourceId: 'video-source', operation: 'subject-detection',
+	}), { owner: 'video' });
+	assert.deepEqual(await router.prepareSelectedMedia({
+		sourceId: 'video-source', operation: 'saliency-detection',
+	}), { owner: 'video' });
+	assert.deepEqual(await router.prepareSelectedMedia({
 		sourceId: 'audio-source', operation: 'speech-recognition',
 	}), { owner: 'audio' });
 	assert.deepEqual(await router.describeSelectedVideoSourceTime(), {
 		descriptor: { kind: 'authority' }, selectionFence: { sourceId: 'video-source' },
 	});
 	await router.acceptValidatedResult?.({ reviewed: true });
-	assert.deepEqual(calls, ['video', 'audio', 'describe-video', 'accept']);
+	assert.deepEqual(calls, ['video', 'video', 'video', 'audio', 'describe-video', 'accept']);
 
 	const audioOnly = createLocalAssistanceSelectedMediaPreparationRouter({ audio, video: null });
 	await assert.rejects(audioOnly.prepareSelectedMedia({

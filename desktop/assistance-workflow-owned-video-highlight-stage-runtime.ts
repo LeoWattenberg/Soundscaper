@@ -140,7 +140,7 @@ const STAGE_SPECS: Readonly<Record<StageId, StageSpec>> = Object.freeze({
 	'sample-shot-frames': stage('index-video', [input('video', 'video'),
 		input('video-authority', 'json'), input('shot-boundaries', 'json')], 'frame-pack'),
 	'publish-video-index': stage('index-video', [input('visual-embeddings', 'matrix'),
-		input('recognized-text', 'json')], 'video-index'),
+		input('recognized-text', 'json', true)], 'video-index'),
 	'track-subjects': stage('reframe', [input('subject-tracks', 'json')], 'tracked-subjects'),
 	'plan-crops': stage('reframe', [input('tracked-subjects', 'json'),
 		input('saliency-map', 'json')], 'reframe-path'),
