@@ -79,7 +79,7 @@ test('the actual OpenFX scanner child executes only the machine-authenticated an
 		}),
 	});
 	const authority = createIsolatedOpenFxNativeChildAuthority(descriptorValue);
-	assert.equal((await authority.productionReady()).status, 'ready');
+	assert.equal((await authority.machineReady()).status, 'ready');
 	const result = await authority.invoke({
 		executablePath: scanner.path,
 		arguments: ['--scan', plugin.path, '--sha256', plugin.sha256],
@@ -94,7 +94,7 @@ test('the actual OpenFX scanner child executes only the machine-authenticated an
 		...descriptorValue,
 		scanner: Object.freeze({ ...scanner, sha256: 'ff'.repeat(32) }),
 	});
-	assert.equal((await changed.productionReady()).status, 'ready');
+	assert.equal((await changed.machineReady()).status, 'ready');
 	await assert.rejects(changed.invoke({
 		executablePath: scanner.path,
 		arguments: ['--scan', plugin.path, '--sha256', plugin.sha256],
@@ -102,13 +102,13 @@ test('the actual OpenFX scanner child executes only the machine-authenticated an
 		plugin: await pathGrant(plugin.path), pluginResources: [], pluginRuntime: [],
 		readOnly: [], writeOnly: [],
 	}).completion, /changed identity, bytes, or digest/iu);
-	const changedReview = createIsolatedOpenFxNativeChildAuthority({
+	const changedReleaseReview = createIsolatedOpenFxNativeChildAuthority({
 		...descriptorValue,
 		m9ReleaseReview: Object.freeze({
 			scope: 'stable-1.0-release', status: 'invalid', detail: 'fixture review failure',
 		}),
 	});
-	assert.equal((await changedReview.productionReady()).status, 'ready');
+	assert.equal((await changedReleaseReview.machineReady()).status, 'ready');
 });
 
 test('the isolated runtime admits the Interact invocation form without write authority', {

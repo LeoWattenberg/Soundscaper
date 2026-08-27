@@ -126,7 +126,7 @@ test('professional scanner and host roles derive machine containment and select 
 			verifyPayload: async () => descriptor,
 			createLauncher: (options) => {
 				launcherOptions = options;
-				return { productionReady: async () => ({ status: 'ready' }) };
+				return { machineReady: async () => ({ status: 'ready' }) };
 			},
 			createPeer: (options) => { peerOptions = options; return peer; },
 		});

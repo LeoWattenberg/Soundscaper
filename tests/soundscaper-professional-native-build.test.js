@@ -310,10 +310,10 @@ test('target builds select concrete Linux, macOS Seatbelt and Windows AppContain
 	assert.match(windowsProfile, /appcontainer-low-integrity/u);
 	assert.match(runtime, /soundscaper-macos-seatbelt-broker-v1/u);
 	assert.match(runtime, /soundscaper-windows-appcontainer-job-v1/u);
-	assert.match(runtime, /windowsAuthorityProfile[\s\S]*brand[\s\S]*reviewedPayload[\s\S]*runtimeClosure/u);
+	assert.match(runtime, /windowsAuthorityProfile[\s\S]*brand[\s\S]*workloadPayload[\s\S]*runtimeClosure/u);
 	assert.match(windowsAuthority,
-		/brand: input\.brand[\s\S]*reviewedPayload: artifactBinding[\s\S]*runtimeClosure: sortedBindings[\s\S]*value\.sha256/u);
-	assert.match(windowsProfile, /brand-and-reviewed-payload-bound-appcontainer-low-integrity/u);
+		/brand: input\.brand[\s\S]*workloadPayload: artifactBinding[\s\S]*runtimeClosure: sortedBindings[\s\S]*value\.sha256/u);
+	assert.match(windowsProfile, /brand-and-machine-workload-payload-bound-appcontainer-low-integrity/u);
 	assert.doesNotMatch(runtime, /if \(!target\.startsWith\('linux-'\)/u);
 });
 
