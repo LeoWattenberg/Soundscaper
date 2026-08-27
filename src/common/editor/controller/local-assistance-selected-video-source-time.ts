@@ -98,10 +98,11 @@ function* canonicalRows(
 	let pending: LocalAssistanceSelectedVideoSourceTimeFrameV1 | null = null;
 	for (let sourceFrame = sourceStartFrame; sourceFrame <= sourceEndFrame; sourceFrame += 1) {
 		const tick = readLocalAssistanceSelectedVideoSourceBoundaryTick(authority, sourceFrame);
-		const sequenceFrame = mapLocalAssistanceSelectedVideoSourceBoundary(authority, sourceFrame);
-		if (tick === null || sequenceFrame === null) {
+		const sequenceFrame = mapLocalAssistanceSelectedVideoSourceBoundary(authority, sourceFrame, true);
+		if (tick === null) {
 			throw new RangeError('Selected-video source-time authority has an unmapped boundary.');
 		}
+		if (sequenceFrame === null) continue;
 		timescale ??= tick.timescale;
 		if (tick.timescale !== timescale) {
 			throw new RangeError('Selected-video source-time authority changed timescale.');

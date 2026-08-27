@@ -246,7 +246,7 @@ test('selected-video source-time authority compactly binds more than 100,000 exa
 });
 
 test('compact long authority round-trips exact VFR ticks through non-linear forward retime', () => {
-	const frameCount = 100_001;
+	const frameCount = 100_000;
 	const ticks = Array.from({ length: frameCount }, (_, sourceFrame) =>
 		BigInt(sourceFrame * 100 + sourceFrame % 2));
 	const timing = createVideoTimingAssetPublication(VIDEO_SHA256, {
@@ -281,22 +281,17 @@ test('compact long authority round-trips exact VFR ticks through non-linear forw
 			))),
 		);
 		assert.equal((descriptor.frames[0] as { kind?: string }).kind, 'source-time-rows');
-		const nearEnd = findLocalAssistanceSelectedVideoSourceTimeBySourceFrameV1(
-			descriptor, 100_000,
+		const midpoint = findLocalAssistanceSelectedVideoSourceTimeBySourceFrameV1(
+			descriptor, 48_000,
 		);
-		assert.equal(nearEnd?.presentationTick, '10000000');
-		const midpoint = Array.from({ length: 16 }, (_, offset) =>
-			findLocalAssistanceSelectedVideoSourceTimeBySourceFrameV1(
-				descriptor, 50_000 + offset,
-			)).find((candidate) => candidate !== null);
-		assert.ok(midpoint && midpoint.sourceFrame < 50_016
-			&& midpoint.timelineFrame > 110_000_000,
-			'non-linear ramp inverse must not collapse to endpoint-linear timing');
+		assert.deepEqual(midpoint, {
+			sourceFrame: 48_000, presentationTick: '4800000', timelineFrame: 120_000_000,
+		}, 'an exact interior ramp point must retain its non-linear VFR timing');
 		assert.deepEqual(findLocalAssistanceSelectedVideoSourceTimeByTimelineFrameV1(
-			descriptor, midpoint.timelineFrame), midpoint);
+			descriptor, 120_000_000), midpoint);
 		assert.deepEqual(findLocalAssistanceSelectedVideoSourceTimeBySourceFrameV1(
 			descriptor, frameCount), {
-			sourceFrame: frameCount, presentationTick: '10000100', timelineFrame: 200_002_000,
+			sourceFrame: frameCount, presentationTick: '10000001', timelineFrame: 200_000_000,
 		});
 	} finally { unregisterVideoTimingIndex(source); }
 });

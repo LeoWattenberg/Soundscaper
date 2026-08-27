@@ -29,6 +29,7 @@ import {
 	createLocalAssistanceSelectedVideoTimingBinding,
 	createLocalAssistanceSelectedVideoFramePackTiming,
 	createLocalAssistanceSelectedVideoReframeFramePackTiming,
+	mapLocalAssistanceSelectedVideoExactTimingBoundary,
 	mapLocalAssistanceSelectedVideoTimingBoundary,
 	readLocalAssistanceSelectedVideoSourceBoundaryTick as readTimingSourceBoundaryTick,
 	readLocalAssistanceSelectedVideoSourceFrameTick as readTimingSourceFrameTick,
@@ -409,6 +410,7 @@ export function resolveLocalAssistanceSelectedVideoAuthority(
 export function mapLocalAssistanceSelectedVideoSourceBoundary(
 	authority: LocalAssistanceSelectedVideoAuthority,
 	sourceFrameValue: number,
+	requireExactSourceCut = false,
 ): number | null {
 	if (!authority || typeof authority !== 'object') {
 		throw new TypeError('Selected-video boundary mapping requires exact video authority.');
@@ -418,7 +420,9 @@ export function mapLocalAssistanceSelectedVideoSourceBoundary(
 		|| authority.fence.timingAuthoritySha256 !== state.timingAuthoritySha256) {
 		throw new TypeError('Selected-video boundary mapping requires current authenticated timing authority.');
 	}
-	return mapLocalAssistanceSelectedVideoTimingBoundary(state.binding, sourceFrameValue);
+	return requireExactSourceCut
+		? mapLocalAssistanceSelectedVideoExactTimingBoundary(state.binding, sourceFrameValue)
+		: mapLocalAssistanceSelectedVideoTimingBoundary(state.binding, sourceFrameValue);
 }
 
 /** Revalidate one reviewed model sample against the selected source's exact CFR/VFR tick. */

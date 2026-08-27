@@ -165,6 +165,31 @@ export function mapLocalAssistanceSelectedVideoTimingBoundary(
 	return safeAdd(state.sequenceStartFrame, outerFrame, 'mapped sequence boundary');
 }
 
+/**
+ * Map only a source boundary that the persisted occurrence can reproduce exactly. Uniform
+ * wall-clock clips retain their canonical frame-grid rounding; forward retimes must invert to an
+ * exact outer-frame point because highlight publication cannot persist a fractional source cut.
+ */
+export function mapLocalAssistanceSelectedVideoExactTimingBoundary(
+	binding: LocalAssistanceSelectedVideoTimingBinding,
+	sourceFrameValue: number,
+): number | null {
+	const state = BINDING_STATES.get(binding);
+	if (!state) {
+		throw new TypeError('Selected-video exact boundary mapping requires authenticated timing authority.');
+	}
+	const sourceFrame = integer(sourceFrameValue, 0, 'exact source boundary frame');
+	if (sourceFrame < state.sourceStartFrame || sourceFrame > state.sourceEndFrame) return null;
+	const outerFrame = state.mapper === null
+		? mapUniformBoundary(state, sourceFrame)
+		: mapExactRetimedBoundary(state.mapper, sourceFrame);
+	if (outerFrame === null) return null;
+	if (outerFrame < 0 || outerFrame > state.sequenceFrameCount) {
+		throw new RangeError('Selected-video exact boundary mapping escaped its sequence authority.');
+	}
+	return safeAdd(state.sequenceStartFrame, outerFrame, 'exact mapped sequence boundary');
+}
+
 /** Exact source-domain decode points for model frame packs; retimes never rewrite source timing. */
 export function createLocalAssistanceSelectedVideoFramePackTiming(
 	binding: LocalAssistanceSelectedVideoTimingBinding,
@@ -353,6 +378,15 @@ function mapRetimedBoundary(mapper: VideoRetimeRuntimeMapper, sourceFrame: numbe
 	const after = mapper.mapOuterFrame(occurrence.afterOuterFrame);
 	return compareDistance(before, after, target) < 0
 		? occurrence.beforeOuterFrame : occurrence.afterOuterFrame;
+}
+
+function mapExactRetimedBoundary(mapper: VideoRetimeRuntimeMapper, sourceFrame: number): number | null {
+	const occurrences = mapper.invertSourceFrame({ num: sourceFrame, den: 1 }, { policy: 'all' });
+	if (occurrences.length === 0) return null;
+	if (occurrences.length !== 1) {
+		throw new Error('Selected-video exact forward-retime inversion became ambiguous.');
+	}
+	return occurrences[0]!.kind === 'point' ? occurrences[0]!.outerFrame : null;
 }
 
 function compareDistance(

@@ -9,6 +9,17 @@ import {
 	resolveLocalAssistanceSelectedVideoAuthority,
 } from '../src/common/editor/controller/local-assistance-selected-video.ts';
 import {
+	createLocalAssistanceSelectedVideoSourceTimeDescriptorV1,
+	findLocalAssistanceSelectedVideoSourceTimeBySourceFrameV1,
+} from '../src/common/editor/controller/local-assistance-selected-video-source-time.ts';
+import {
+	createLocalAssistanceGuidedHighlightDraftV1,
+	setLocalAssistanceGuidedHighlightTrimV1,
+} from '../src/common/editor/controller/local-assistance-guided-highlight-edits.ts';
+import {
+	snapLocalAssistanceGuidedHighlightTrimBoundaryV1,
+} from '../src/common/editor/controller/local-assistance-guided-highlight-preview.ts';
+import {
 	createFramescaperAssistanceHighlightPublication,
 } from '../src/framescaper/editor-local-assistance-highlight-publication.ts';
 import {
@@ -112,6 +123,42 @@ test('highlight publication refuses a retimed proposal edge that is not the auth
 		assert.equal(session.commits, 0);
 	});
 
+test('edited ramp highlight trims expose and publish only exact round-trip boundaries', async () => {
+	const initial = rampRetimedProject();
+	const authority = createLocalAssistanceSelectedVideoSourceTimeDescriptorV1(selected(initial));
+	assert.equal(findLocalAssistanceSelectedVideoSourceTimeBySourceFrameV1(authority, 50), null,
+		'a nearest inverse must not be exposed as a publishable ramp boundary');
+
+	const original = rampProposals();
+	assert.equal(snapLocalAssistanceGuidedHighlightTrimBoundaryV1(
+		authority, original.proposals[0]!, 'end', 297_600,
+	), 288_000, 'the end control must snap inward past an unpublishable ramp boundary');
+	const edited = setLocalAssistanceGuidedHighlightTrimV1(
+		original, createLocalAssistanceGuidedHighlightDraftV1(original),
+		'highlight-ramp', 96_000, 384_000, authority,
+	);
+	assert.deepEqual({ startFrame: edited.proposals[0]!.startFrame,
+		endFrame: edited.proposals[0]!.endFrame,
+		sourceStartFrame: edited.proposals[0]!.sourceStartFrame,
+		sourceEndFrame: edited.proposals[0]!.sourceEndFrame }, {
+		startFrame: 96_000, endFrame: 384_000, sourceStartFrame: 12, sourceEndFrame: 72,
+	});
+
+	const session = harness(initial);
+	await session.publication.acceptReviewed({
+		kind: 'highlight-proposals', schemaVersion: 1, workflowId: 'make-highlights',
+		fence: fence(initial), proposals: edited.proposals,
+	}, ['highlight-ramp']);
+	assert.equal(session.commits, 1);
+	const video = records(session.history.present.clips).find(({ id, kind }) => (
+		kind === 'video' && id !== 'video-clip' && id !== 'bin-video'
+	));
+	assert.deepEqual({ sequenceFrameCount: video?.sequenceFrameCount,
+		sourceInFrame: video?.sourceInFrame, sourceFrameCount: video?.sourceFrameCount }, {
+		sequenceFrameCount: 60, sourceInFrame: 12, sourceFrameCount: 60,
+	});
+});
+
 function retimedProject(middleSourceFrame = 2): FramescaperProjectV31 {
 	const options = structuredClone(framescaperV20Options());
 	options.id = 'retimed-highlight-project';
@@ -141,6 +188,58 @@ function retimedProject(middleSourceFrame = 2): FramescaperProjectV31 {
 	return createFramescaperProjectV31(PROFILE, options as never);
 }
 
+function rampRetimedProject(): FramescaperProjectV31 {
+	const options = structuredClone(framescaperV20Options());
+	options.id = 'ramp-highlight-project';
+	options.title = 'Ramp highlight project';
+	options.now = NOW;
+	options.selection = { startFrame: 0, endFrame: 480_000,
+		trackIds: ['video-track', 'audio-track'], clipIds: ['video-clip', 'audio-clip'],
+		frequencyRange: null, annotationIds: [] };
+	options.sources = records(options.sources).map((source) => source.id === 'video-source' ? {
+		...source, contentSha256: VIDEO_SHA256, frameCount: 480_000,
+		sampleFrameCount: 480_000, sourceFrameCount: 100,
+	} : { ...source, contentSha256: AUDIO_SHA256, frameCount: 480_000 });
+	options.clips = records(options.clips).map((clip) => clip.id === 'video-clip' ? {
+		...clip, avLinkId: 'source-av-link', sequenceFrameCount: 100, sourceFrameCount: 100,
+		retimeMap: {
+			feature: 'video-retime', version: 2,
+			points: [
+				{ outerFrame: 0, sourceFrame: { num: 0, den: 1 } },
+				{ outerFrame: 100, sourceFrame: { num: 100, den: 1 } },
+			],
+			segments: [{ mode: 'ramp-forward', startVelocity: { num: 1, den: 2 },
+				endVelocity: { num: 3, den: 2 } }],
+		},
+	} : { ...clip, avLinkId: 'source-av-link', sourceDurationFrames: 480_000,
+		durationFrames: 480_000 });
+	options.tracks = records(options.tracks).map((track) => ({
+		...track, laneGroupId: 'source-lane-group',
+	}));
+	return createFramescaperProjectV31(PROFILE, options as never);
+}
+
+function rampProposals() {
+	return {
+		schemaVersion: 1 as const, kind: 'highlight-proposals' as const,
+		workflowId: 'make-highlights' as const,
+		targetAspect: { width: 9 as const, height: 16 as const },
+		proposals: [{ id: 'highlight-ramp', startFrame: 0, endFrame: 480_000,
+			sourceStartFrame: 0, sourceEndFrame: 100, score: 0.8,
+			evidenceMode: 'speechless' as const, transcriptExcerpt: null,
+			visualSummary: 'Authenticated ramp-retime signals.', selected: false as const,
+			videoOccurrenceId: 'video-clip', audioOccurrenceId: 'audio-clip',
+			title: 'Ramp highlight', hook: null, chapters: [], explanation: null,
+			cropKeyframes: [rampCrop(0), rampCrop(99)],
+		}],
+	};
+}
+
+function rampCrop(sourceFrame: number) {
+	return { sourceFrame, authority: 'center' as const, trackIds: [],
+		crop: { left: 0.341796875, top: 0, right: 0.341796875, bottom: 0 } };
+}
+
 function selected(project: FramescaperProjectV31) {
 	return resolveLocalAssistanceSelectedVideoAuthority({
 		getProject: () => project,
@@ -151,19 +250,25 @@ function selected(project: FramescaperProjectV31) {
 function fence(project: FramescaperProjectV31): AssistanceWorkflowFenceV1 {
 	const authority = selected(project);
 	const held = authority.fence;
+	const videoSource = records(project.sources).find(({ id }) => id === 'video-source')!;
+	const audioSource = records(project.sources).find(({ id }) => id === 'audio-source')!;
+	const audioClip = records(project.clips).find(({ id }) => id === 'audio-clip')!;
+	const audioStart = Number(audioClip.sourceStartFrame);
+	const audioEnd = audioStart + Number(audioClip.sourceDurationFrames);
 	return {
 		fenceVersion: 1, projectId: String(project.id), schemaVersion: Number(project.schemaVersion),
 		revision: Number(project.revision), sequenceId: 'main-sequence',
 		sourceRanges: [{
 			slotId: 'primary-audio', mediaKind: 'audio', sourceId: 'audio-source',
-			sourceSha256: AUDIO_SHA256, sourceSampleRate: 48_000, occurrenceIds: ['audio-clip'],
-			sourceStartFrame: 0, sourceEndFrame: 48_000,
+			sourceSha256: String(audioSource.contentSha256), sourceSampleRate: 48_000,
+			occurrenceIds: ['audio-clip'], sourceStartFrame: audioStart, sourceEndFrame: audioEnd,
 			linkMembershipSha256: held.linkMembershipSha256,
 			timingAuthoritySha256: '56'.repeat(32), retimeKind: 'identity',
 		}, {
 			slotId: 'primary-video', mediaKind: 'video', sourceId: 'video-source',
-			sourceSha256: VIDEO_SHA256, sourceSampleRate: null, occurrenceIds: ['video-clip'],
-			sourceStartFrame: 0, sourceEndFrame: 8,
+			sourceSha256: String(videoSource.contentSha256), sourceSampleRate: null,
+			occurrenceIds: ['video-clip'], sourceStartFrame: authority.sourceStartFrame,
+			sourceEndFrame: authority.sourceEndFrame,
 			linkMembershipSha256: held.linkMembershipSha256,
 			timingAuthoritySha256: held.timingAuthoritySha256, retimeKind: 'monotonic-forward',
 		}],
