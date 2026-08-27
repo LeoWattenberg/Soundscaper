@@ -197,11 +197,11 @@ function workflow() {
 		models,
 		inputs: [{
 			claimVersion: 1, direction: 'input', claimId: '2'.repeat(40), jobId,
-			stageId: 'run-text-embedding', slotId: 'input',
+			stageId: 'run-text-embedding', slotId: 'text',
 		}],
 		outputs: [{
 			claimVersion: 1, direction: 'output', claimId: '3'.repeat(40), jobId,
-			stageId: 'run-text-embedding', slotId: 'output',
+			stageId: 'run-text-embedding', slotId: 'embeddings',
 		}],
 	};
 }
