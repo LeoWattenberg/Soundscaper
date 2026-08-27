@@ -36,6 +36,23 @@ enum class ReviewedCodec {
 	aacM4a,
 };
 
+/* Reported through the same refusal_detail as the portable profile parser, in a
+ * disjoint range: 0 means nothing refused, 1 to 99 name a portable profile
+ * layer, and these name a Media Foundation media type the target would not
+ * admit. Only the canary reads them. */
+enum class MediaTypeRefusal : uint32_t {
+	none = 0u,
+	attributes = 100u,
+	mp3Format = 101u,
+	aacFormat = 102u,
+	aacPayloadType = 103u,
+	aacProfileLevel = 104u,
+	sampleDescriptionAttributes = 105u,
+	sampleDescriptionShape = 106u,
+	floatOutputRefused = 107u,
+	grantedFloatType = 108u,
+};
+
 soundscaper_pro_os_mp3_decode_result answer(
 	soundscaper_pro_os_codec_status status,
 	bool nativeApiReached = false)
@@ -165,14 +182,16 @@ uint32_t bigEndian32(const BYTE *bytes)
 		| static_cast<uint32_t>(bytes[3]);
 }
 
-bool exactMp4aSampleDescription(IMFMediaType *type)
+bool exactMp4aSampleDescription(IMFMediaType *type, MediaTypeRefusal &refusal)
 {
+	refusal = MediaTypeRefusal::sampleDescriptionAttributes;
 	UINT32 currentEntry = 0u;
 	UINT32 blobBytes = 0u;
 	if (FAILED(type->GetUINT32(MF_MT_MPEG4_CURRENT_SAMPLE_ENTRY, &currentEntry))
 		|| currentEntry != 0u
 		|| FAILED(type->GetBlobSize(MF_MT_MPEG4_SAMPLE_DESCRIPTION, &blobBytes))
 		|| blobBytes < 24u || blobBytes > 1024u * 1024u) return false;
+	refusal = MediaTypeRefusal::sampleDescriptionShape;
 	std::vector<BYTE> blob(blobBytes);
 	UINT32 copied = 0u;
 	if (FAILED(type->GetBlob(MF_MT_MPEG4_SAMPLE_DESCRIPTION,
@@ -193,24 +212,32 @@ bool exactMp4aSampleDescription(IMFMediaType *type)
 			&& !std::equal(std::begin(mp4a), std::end(mp4a), blob.begin() + offset + 4u)) return false;
 		offset += entryBytes;
 	}
-	return offset == blob.size();
+	if (offset != blob.size()) return false;
+	refusal = MediaTypeRefusal::none;
+	return true;
 }
 
 bool exactNativeType(
 	IMFMediaType *type,
 	ReviewedCodec codec,
 	UINT32 &sampleRate,
-	UINT32 &channelCount)
+	UINT32 &channelCount,
+	MediaTypeRefusal &refusal)
 {
+	refusal = MediaTypeRefusal::attributes;
 	GUID majorType{};
 	GUID subtype{};
 	if (FAILED(type->GetGUID(MF_MT_MAJOR_TYPE, &majorType)) || majorType != MFMediaType_Audio
 		|| FAILED(type->GetGUID(MF_MT_SUBTYPE, &subtype))
 		|| FAILED(type->GetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, &sampleRate))
 		|| FAILED(type->GetUINT32(MF_MT_AUDIO_NUM_CHANNELS, &channelCount))) return false;
-	if (codec == ReviewedCodec::mp3) return subtype == MFAudioFormat_MP3
-		&& sampleRate >= 8000u && sampleRate <= 192000u
-		&& channelCount >= 1u && channelCount <= 2u;
+	if (codec == ReviewedCodec::mp3) {
+		refusal = MediaTypeRefusal::mp3Format;
+		if (subtype != MFAudioFormat_MP3 || sampleRate < 8000u || sampleRate > 192000u
+			|| channelCount < 1u || channelCount > 2u) return false;
+		refusal = MediaTypeRefusal::none;
+		return true;
+	}
 	/* Both of these are optional on an MPEG-4 media type. MF_MT_AAC_PAYLOAD_TYPE
 	 * is documented to default to 0, raw_data_block elements, when it is absent,
 	 * and MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION carries the file's
@@ -218,17 +245,19 @@ bool exactNativeType(
 	 * initial object descriptor. Requiring either to be present refuses ordinary
 	 * conforming M4A files. The AudioSpecificConfig in the file itself is the
 	 * witness that the stream is AAC-LC, and the caller proves it from the bytes. */
+	refusal = MediaTypeRefusal::aacPayloadType;
 	UINT32 payloadType = 0u;
 	if (SUCCEEDED(type->GetUINT32(MF_MT_AAC_PAYLOAD_TYPE, &payloadType)) && payloadType != 0u) {
 		return false;
 	}
+	refusal = MediaTypeRefusal::aacProfileLevel;
 	UINT32 profile = 0u;
 	if (SUCCEEDED(type->GetUINT32(MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION, &profile))
 		&& profile != 0x29u && profile != 0x2au && profile != 0x2bu) return false;
-	return subtype == MFAudioFormat_AAC
-		&& sampleRate >= 8000u && sampleRate <= 48000u
-		&& channelCount >= 1u && channelCount <= 6u
-		&& exactMp4aSampleDescription(type);
+	refusal = MediaTypeRefusal::aacFormat;
+	if (subtype != MFAudioFormat_AAC || sampleRate < 8000u || sampleRate > 48000u
+		|| channelCount < 1u || channelCount > 6u) return false;
+	return exactMp4aSampleDescription(type, refusal);
 }
 
 bool writeAll(HANDLE output, const BYTE *bytes, DWORD length)
@@ -288,12 +317,19 @@ soundscaper_pro_os_mp3_decode_result decodeOperatingSystemAudio(
 		|| FAILED(reader->SetStreamSelection(MF_SOURCE_READER_FIRST_AUDIO_STREAM, TRUE))) {
 		return finish(answer(SOUNDSCAPER_PRO_OS_CODEC_DECODE_FAILED, true));
 	}
+	MediaTypeRefusal mediaType = MediaTypeRefusal::attributes;
+	auto refusedType = [](MediaTypeRefusal reason) {
+		auto refused = answer(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, true);
+		refused.refusal_detail = static_cast<uint32_t>(reason);
+		return refused;
+	};
 	ComPtr<IMFMediaType> nativeType;
 	UINT32 sourceSampleRate = 0u;
 	UINT32 sourceChannelCount = 0u;
 	if (FAILED(reader->GetNativeMediaType(MF_SOURCE_READER_FIRST_AUDIO_STREAM, 0u, &nativeType))
-		|| !exactNativeType(nativeType.Get(), codec, sourceSampleRate, sourceChannelCount)) {
-		return finish(answer(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, true));
+		|| !exactNativeType(nativeType.Get(), codec, sourceSampleRate, sourceChannelCount,
+			mediaType)) {
+		return finish(refusedType(mediaType));
 	}
 
 	ComPtr<IMFMediaType> requestedType;
@@ -301,7 +337,7 @@ soundscaper_pro_os_mp3_decode_result decodeOperatingSystemAudio(
 		|| FAILED(requestedType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio))
 		|| FAILED(requestedType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_Float))
 		|| FAILED(reader->SetCurrentMediaType(MF_SOURCE_READER_FIRST_AUDIO_STREAM, nullptr, requestedType.Get()))) {
-		return finish(answer(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, true));
+		return finish(refusedType(MediaTypeRefusal::floatOutputRefused));
 	}
 	ComPtr<IMFMediaType> grantedType;
 	GUID grantedSubtype{};
@@ -318,7 +354,7 @@ soundscaper_pro_os_mp3_decode_result decodeOperatingSystemAudio(
 		|| sampleRate != sourceSampleRate || channelCount != sourceChannelCount
 		|| !exactUnsigned(grantedType.Get(), MF_MT_AUDIO_BLOCK_ALIGNMENT,
 			channelCount * static_cast<uint32_t>(sizeof(float)))) {
-		return finish(answer(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, true));
+		return finish(refusedType(MediaTypeRefusal::grantedFloatType));
 	}
 
 	AacLcM4aRefusal refusal = AacLcM4aRefusal::none;

@@ -159,10 +159,13 @@ bool writeFloatFixture(const std::filesystem::path &path, const std::vector<floa
  * only observe its exit code. A bare non-zero status therefore says a check
  * failed and nothing about which one or why, so every refusal below names
  * itself on the standard error stream that --output-on-failure surfaces. */
-/* refusal= values are soundscaper::os_audio::AacLcM4aRefusal: 1 bounds,
- * 2 boxStructure, 3 fileType, 4 movie, 5 audioTrackCount, 6 trackShape,
- * 7 sampleDescription, 8 esds, 9 audioSpecificConfig. Zero means the refusal
- * did not come from the portable profile parser at all. */
+/* refusal= 1 to 99 are soundscaper::os_audio::AacLcM4aRefusal, naming a layer of
+ * the portable profile parser: 1 bounds, 2 boxStructure, 3 fileType, 4 movie,
+ * 5 audioTrackCount, 6 trackShape, 7 sampleDescription, 8 esds,
+ * 9 audioSpecificConfig, 10 esdsFullBox, 11 esdsElementaryStream,
+ * 12 esdsDecoderConfig, 13 esdsDecoderSpecificInfo, 14 esdsSyncLayer.
+ * 100 and above name a host media type the target would not admit. Zero means
+ * nothing named a refusal. */
 int fail(int code, const char *check)
 {
 	std::fprintf(stderr, "os-audio-codec canary check %d failed: %s\n", code, check);

@@ -217,11 +217,15 @@ bool exactEsds(
 	uint32_t channelCount,
 	AacLcM4aRefusal &refusal)
 {
-	refusal = AacLcM4aRefusal::esds;
+	refusal = AacLcM4aRefusal::esdsFullBox;
 	if (box.end - box.payload < 4u || unsigned32(input, box.payload) != 0u) return false;
+	refusal = AacLcM4aRefusal::esdsElementaryStream;
 	Descriptor es{};
+	/* The descriptor has to fit inside the box and be parsed whole, but it need
+	 * not be the last thing in it: a writer may pad the box after it, and the
+	 * box length is what bounds the read either way. */
 	if (!descriptor(input, box.payload + 4u, box.end, es)
-		|| es.tag != 0x03u || es.end != box.end || es.end - es.payload < 3u) return false;
+		|| es.tag != 0x03u || es.end > box.end || es.end - es.payload < 3u) return false;
 	size_t offset = es.payload + 2u;
 	const uint8_t flags = input[offset++];
 	if ((flags & 0x80u) != 0u) {
@@ -238,20 +242,24 @@ bool exactEsds(
 		if (es.end - offset < 2u) return false;
 		offset += 2u;
 	}
+	refusal = AacLcM4aRefusal::esdsDecoderConfig;
 	Descriptor decoder{};
 	if (!descriptor(input, offset, es.end, decoder) || decoder.tag != 0x04u
 		|| decoder.end - decoder.payload < 13u || input[decoder.payload] != 0x40u
 		|| input[decoder.payload + 1u] != 0x15u) return false;
+	refusal = AacLcM4aRefusal::esdsDecoderSpecificInfo;
 	Descriptor config{};
 	const size_t configOffset = decoder.payload + 13u;
+	/* A profile-level indication index descriptor may legally follow the decoder
+	 * specific information, so it need only fit rather than end the descriptor. */
 	if (!descriptor(input, configOffset, decoder.end, config) || config.tag != 0x05u
-		|| config.end != decoder.end
+		|| config.end > decoder.end
 		|| !exactAudioSpecificConfig(input.subspan(config.payload, config.end - config.payload),
 			sampleRate, channelCount, refusal)) return false;
-	refusal = AacLcM4aRefusal::esds;
+	refusal = AacLcM4aRefusal::esdsSyncLayer;
 	Descriptor streamLayer{};
 	if (!descriptor(input, decoder.end, es.end, streamLayer) || streamLayer.tag != 0x06u
-		|| streamLayer.end != es.end || streamLayer.end - streamLayer.payload != 1u
+		|| streamLayer.end > es.end || streamLayer.end - streamLayer.payload != 1u
 		|| input[streamLayer.payload] != 0x02u) return false;
 	refusal = AacLcM4aRefusal::none;
 	return true;

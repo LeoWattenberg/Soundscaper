@@ -224,14 +224,27 @@ test('a refused profile names the layer it stopped at, all the way to the canary
 	for (const [name, value] of [
 		['none', 0], ['bounds', 1], ['boxStructure', 2], ['fileType', 3], ['movie', 4],
 		['audioTrackCount', 5], ['trackShape', 6], ['sampleDescription', 7], ['esds', 8],
-		['audioSpecificConfig', 9],
+		['audioSpecificConfig', 9], ['esdsFullBox', 10], ['esdsElementaryStream', 11],
+		['esdsDecoderConfig', 12], ['esdsDecoderSpecificInfo', 13], ['esdsSyncLayer', 14],
 	]) assert.match(profile, new RegExp(`${name} = ${value}u,`, 'u'), name);
+
+	// The Windows media-type refusals share the field in a disjoint range, so a
+	// reader can always tell which admission produced the number.
+	const windowsUnit = await readFile(join(SOURCE, 'src/os_audio_codec_windows.cpp'), 'utf8');
+	assert.match(windowsUnit, /enum class MediaTypeRefusal : uint32_t/u);
+	const codes = [...windowsUnit.matchAll(/^\t([a-zA-Z]+) = (\d+)u,$/gmu)]
+		.map(([, , value]) => Number(value)).filter((value) => value !== 0);
+	assert.ok(codes.length >= 8, 'every media-type refusal names itself');
+	assert.ok(codes.every((value) => value >= 100),
+		'a media-type refusal must not collide with a profile-parser layer');
 
 	// Both results carry it, and neither target drops it on the floor.
 	assert.equal(header.match(/uint32_t refusal_detail;/gu)?.length, 2);
-	for (const [name, source] of [['windows', windows], ['mac', mac]]) {
-		assert.equal(source.match(/refusal_detail = static_cast<uint32_t>/gu)?.length, 2,
-			`${name} must report the refusal from both the admitted input and the encoded output`);
+	// macOS reports the admitted input and the encoded output; Windows reports a
+	// third, the host media type it would not admit.
+	for (const [name, source, sites] of [['windows', windows, 3], ['mac', mac, 2]]) {
+		assert.equal(source.match(/refusal_detail = static_cast<uint32_t>/gu)?.length, sites,
+			`${name} must report every refusal it can produce`);
 	}
 	assert.match(canary, /refusal=%u/u);
 	assert.match(canary, /result\.refusal_detail/u);

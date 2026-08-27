@@ -26,6 +26,11 @@ enum class AacLcM4aRefusal : uint32_t {
 	sampleDescription = 7u,
 	esds = 8u,
 	audioSpecificConfig = 9u,
+	esdsFullBox = 10u,
+	esdsElementaryStream = 11u,
+	esdsDecoderConfig = 12u,
+	esdsDecoderSpecificInfo = 13u,
+	esdsSyncLayer = 14u,
 };
 
 bool exactAacLcM4a(
