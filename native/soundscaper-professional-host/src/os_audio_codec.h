@@ -38,6 +38,10 @@ typedef struct soundscaper_pro_os_mp3_decode_result {
 	uint64_t frame_count;
 	uint32_t sample_rate;
 	uint32_t channel_count;
+	/* Zero unless a refusal names the admission layer it came from. Only the
+	 * target canary reads it: an unattended run otherwise reports that a tuple
+	 * was refused without reporting which rule refused it. */
+	uint32_t refusal_detail;
 } soundscaper_pro_os_mp3_decode_result;
 
 typedef struct soundscaper_pro_os_aac_m4a_encode_request {
@@ -59,6 +63,10 @@ typedef struct soundscaper_pro_os_aac_m4a_encode_result {
 	uint32_t sample_rate;
 	uint32_t channel_count;
 	uint32_t bitrate_kbps;
+	/* Zero unless a refusal names the admission layer it came from. Only the
+	 * target canary reads it: an unattended run otherwise reports that a tuple
+	 * was refused without reporting which rule refused it. */
+	uint32_t refusal_detail;
 } soundscaper_pro_os_aac_m4a_encode_result;
 
 typedef struct soundscaper_pro_os_mp3_encode_request {

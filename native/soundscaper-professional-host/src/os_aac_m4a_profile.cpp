@@ -169,8 +169,10 @@ private:
 bool exactAudioSpecificConfig(
 	std::span<const uint8_t> config,
 	uint32_t expectedSampleRate,
-	uint32_t expectedChannelCount)
+	uint32_t expectedChannelCount,
+	AacLcM4aRefusal &refusal)
 {
+	refusal = AacLcM4aRefusal::audioSpecificConfig;
 	static constexpr std::array<uint32_t, 13u> sampleRates{
 		96000u, 88200u, 64000u, 48000u, 44100u, 32000u, 24000u,
 		22050u, 16000u, 12000u, 11025u, 8000u, 7350u,
@@ -212,8 +214,10 @@ bool exactEsds(
 	std::span<const uint8_t> input,
 	const Box &box,
 	uint32_t sampleRate,
-	uint32_t channelCount)
+	uint32_t channelCount,
+	AacLcM4aRefusal &refusal)
 {
+	refusal = AacLcM4aRefusal::esds;
 	if (box.end - box.payload < 4u || unsigned32(input, box.payload) != 0u) return false;
 	Descriptor es{};
 	if (!descriptor(input, box.payload + 4u, box.end, es)
@@ -243,11 +247,13 @@ bool exactEsds(
 	if (!descriptor(input, configOffset, decoder.end, config) || config.tag != 0x05u
 		|| config.end != decoder.end
 		|| !exactAudioSpecificConfig(input.subspan(config.payload, config.end - config.payload),
-			sampleRate, channelCount)) return false;
+			sampleRate, channelCount, refusal)) return false;
+	refusal = AacLcM4aRefusal::esds;
 	Descriptor streamLayer{};
 	if (!descriptor(input, decoder.end, es.end, streamLayer) || streamLayer.tag != 0x06u
 		|| streamLayer.end != es.end || streamLayer.end - streamLayer.payload != 1u
 		|| input[streamLayer.payload] != 0x02u) return false;
+	refusal = AacLcM4aRefusal::none;
 	return true;
 }
 
@@ -255,8 +261,10 @@ bool exactSampleDescription(
 	std::span<const uint8_t> input,
 	const Box &box,
 	uint32_t sampleRate,
-	uint32_t channelCount)
+	uint32_t channelCount,
+	AacLcM4aRefusal &refusal)
 {
+	refusal = AacLcM4aRefusal::sampleDescription;
 	if (box.end - box.payload < 8u || unsigned32(input, box.payload) != 0u
 		|| unsigned32(input, box.payload + 4u) != 1u) return false;
 	const size_t entry = box.payload + 8u;
@@ -271,23 +279,30 @@ bool exactSampleDescription(
 	bool foundEsds = false;
 	const bool valid = visitBoxes(input, entry + 36u, entry + entryBytes, [&](const Box &child) {
 		if (child.type != esds) return true;
-		if (foundEsds || !exactEsds(input, child, sampleRate, channelCount)) return false;
+		if (foundEsds || !exactEsds(input, child, sampleRate, channelCount, refusal)) return false;
 		foundEsds = true;
 		return true;
 	});
-	return valid && foundEsds;
+	if (!valid || !foundEsds) {
+		if (refusal == AacLcM4aRefusal::none) refusal = AacLcM4aRefusal::sampleDescription;
+		return false;
+	}
+	return true;
 }
 
 bool exactSampleTable(
 	std::span<const uint8_t> input,
 	const Box &box,
 	uint32_t sampleRate,
-	uint32_t channelCount)
+	uint32_t channelCount,
+	AacLcM4aRefusal &refusal)
 {
 	bool foundStsd = false;
 	const bool valid = visitBoxes(input, box.payload, box.end, [&](const Box &child) {
 		if (child.type != stsd) return true;
-		if (foundStsd || !exactSampleDescription(input, child, sampleRate, channelCount)) return false;
+		if (foundStsd || !exactSampleDescription(input, child, sampleRate, channelCount, refusal)) {
+			return false;
+		}
 		foundStsd = true;
 		return true;
 	});
@@ -298,12 +313,13 @@ bool exactMediaInformation(
 	std::span<const uint8_t> input,
 	const Box &box,
 	uint32_t sampleRate,
-	uint32_t channelCount)
+	uint32_t channelCount,
+	AacLcM4aRefusal &refusal)
 {
 	bool foundStbl = false;
 	const bool valid = visitBoxes(input, box.payload, box.end, [&](const Box &child) {
 		if (child.type != stbl) return true;
-		if (foundStbl || !exactSampleTable(input, child, sampleRate, channelCount)) return false;
+		if (foundStbl || !exactSampleTable(input, child, sampleRate, channelCount, refusal)) return false;
 		foundStbl = true;
 		return true;
 	});
@@ -314,7 +330,8 @@ TrackInspection inspectTrack(
 	std::span<const uint8_t> input,
 	const Box &box,
 	uint32_t sampleRate,
-	uint32_t channelCount)
+	uint32_t channelCount,
+	AacLcM4aRefusal &refusal)
 {
 	bool foundMdia = false;
 	bool audio = false;
@@ -335,7 +352,7 @@ TrackInspection inspectTrack(
 			} else if (mediaChild.type == minf) {
 				if (foundMinf) return false;
 				foundMinf = true;
-				mediaExact = exactMediaInformation(input, mediaChild, sampleRate, channelCount);
+				mediaExact = exactMediaInformation(input, mediaChild, sampleRate, channelCount, refusal);
 			}
 			return true;
 		});
@@ -361,45 +378,85 @@ bool exactFileType(std::span<const uint8_t> input, const Box &box)
 bool exactAacLcM4a(
 	std::span<const uint8_t> input,
 	uint32_t sampleRate,
-	uint32_t channelCount)
+	uint32_t channelCount,
+	AacLcM4aRefusal &refusal)
 {
+	refusal = AacLcM4aRefusal::none;
 	if (input.size() < 16u || input.size() > 32u * 1024u * 1024u
 		|| sampleRate < 8000u || sampleRate > 48000u
-		|| channelCount < 1u || channelCount > 6u) return false;
+		|| channelCount < 1u || channelCount > 6u) {
+		refusal = AacLcM4aRefusal::bounds;
+		return false;
+	}
 	bool foundFileType = false;
 	bool foundMovie = false;
 	size_t audioTracks = 0u;
 	bool exactAudio = false;
 	const bool valid = visitBoxes(input, 0u, input.size(), [&](const Box &box) {
 		if (box.type == ftyp) {
-			if (foundFileType || !exactFileType(input, box)) return false;
+			if (foundFileType || !exactFileType(input, box)) {
+				refusal = AacLcM4aRefusal::fileType;
+				return false;
+			}
 			foundFileType = true;
 		} else if (box.type == moov) {
-			if (foundMovie) return false;
+			if (foundMovie) {
+				refusal = AacLcM4aRefusal::movie;
+				return false;
+			}
 			foundMovie = true;
 			const bool movieValid = visitBoxes(input, box.payload, box.end, [&](const Box &child) {
 				if (child.type != trak) return true;
-				const TrackInspection track = inspectTrack(input, child, sampleRate, channelCount);
-				if (!track.valid) return false;
+				const TrackInspection track = inspectTrack(input, child, sampleRate, channelCount, refusal);
+				if (!track.valid) {
+					if (refusal == AacLcM4aRefusal::none) refusal = AacLcM4aRefusal::trackShape;
+					return false;
+				}
 				if (track.audio) {
 					audioTracks += 1u;
 					exactAudio = track.exact;
 				}
 				return true;
 			});
-			if (!movieValid) return false;
+			if (!movieValid) {
+				if (refusal == AacLcM4aRefusal::none) refusal = AacLcM4aRefusal::movie;
+				return false;
+			}
 		}
 		return true;
 	});
-	return valid && foundFileType && foundMovie && audioTracks == 1u && exactAudio;
+	if (!valid) {
+		if (refusal == AacLcM4aRefusal::none) refusal = AacLcM4aRefusal::boxStructure;
+		return false;
+	}
+	if (!foundFileType) { refusal = AacLcM4aRefusal::fileType; return false; }
+	if (!foundMovie) { refusal = AacLcM4aRefusal::movie; return false; }
+	if (audioTracks != 1u) { refusal = AacLcM4aRefusal::audioTrackCount; return false; }
+	if (!exactAudio) {
+		if (refusal == AacLcM4aRefusal::none) refusal = AacLcM4aRefusal::trackShape;
+		return false;
+	}
+	refusal = AacLcM4aRefusal::none;
+	return true;
+}
+
+bool exactAacLcM4a(
+	std::span<const uint8_t> input,
+	uint32_t sampleRate,
+	uint32_t channelCount)
+{
+	AacLcM4aRefusal refusal = AacLcM4aRefusal::none;
+	return exactAacLcM4a(input, sampleRate, channelCount, refusal);
 }
 
 bool exactAacLcM4aFile(
 	const char *path,
 	uint64_t expectedBytes,
 	uint32_t sampleRate,
-	uint32_t channelCount)
+	uint32_t channelCount,
+	AacLcM4aRefusal &refusal)
 {
+	refusal = AacLcM4aRefusal::bounds;
 	if (path == nullptr || expectedBytes == 0u || expectedBytes > 32u * 1024u * 1024u
 		|| expectedBytes > std::numeric_limits<size_t>::max()
 		|| expectedBytes > static_cast<uint64_t>(std::numeric_limits<std::streamsize>::max())) {
@@ -411,7 +468,17 @@ bool exactAacLcM4aFile(
 		static_cast<std::streamsize>(bytes.size()))) return false;
 	// A longer file is a different file than the one whose length was authenticated.
 	if (file.peek() != std::char_traits<char>::eof()) return false;
-	return exactAacLcM4a(bytes, sampleRate, channelCount);
+	return exactAacLcM4a(bytes, sampleRate, channelCount, refusal);
+}
+
+bool exactAacLcM4aFile(
+	const char *path,
+	uint64_t expectedBytes,
+	uint32_t sampleRate,
+	uint32_t channelCount)
+{
+	AacLcM4aRefusal refusal = AacLcM4aRefusal::none;
+	return exactAacLcM4aFile(path, expectedBytes, sampleRate, channelCount, refusal);
 }
 
 } // namespace soundscaper::os_audio

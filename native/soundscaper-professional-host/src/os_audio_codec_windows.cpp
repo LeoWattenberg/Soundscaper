@@ -25,6 +25,7 @@
 namespace {
 
 using Microsoft::WRL::ComPtr;
+using soundscaper::os_audio::AacLcM4aRefusal;
 using soundscaper::os_audio::BoundedFileRead;
 using soundscaper::os_audio::MediaFoundationSession;
 
@@ -160,13 +161,14 @@ bool readExactFloatInput(
 EncodedOutputInspection inspectEncodedOutput(
 	const std::wstring &path,
 	uint64_t maximumBytes,
-	uint64_t &outputBytes)
+	uint64_t &outputBytes,
+	AacLcM4aRefusal &refusal)
 {
 	std::vector<uint8_t> bytes;
 	const BoundedFileRead outcome = soundscaper::os_audio::boundedFileBytes(path, maximumBytes, bytes);
 	if (outcome == BoundedFileRead::overLimit) return EncodedOutputInspection::overLimit;
 	if (outcome != BoundedFileRead::read) return EncodedOutputInspection::invalid;
-	if (!soundscaper::os_audio::exactAacLcM4a(bytes, 48000u, 2u)) {
+	if (!soundscaper::os_audio::exactAacLcM4a(bytes, 48000u, 2u, refusal)) {
 		return EncodedOutputInspection::notExact;
 	}
 	outputBytes = bytes.size();
@@ -182,13 +184,15 @@ bool exactAacLcInput(
 	const std::wstring &path,
 	uint64_t expectedBytes,
 	uint32_t sampleRate,
-	uint32_t channelCount)
+	uint32_t channelCount,
+	AacLcM4aRefusal &refusal)
 {
 	std::vector<uint8_t> bytes;
+	refusal = AacLcM4aRefusal::bounds;
 	if (expectedBytes == 0u || expectedBytes > 32u * 1024u * 1024u
 		|| soundscaper::os_audio::boundedFileBytes(path, expectedBytes, bytes) != BoundedFileRead::read
 		|| bytes.size() != expectedBytes) return false;
-	return soundscaper::os_audio::exactAacLcM4a(bytes, sampleRate, channelCount);
+	return soundscaper::os_audio::exactAacLcM4a(bytes, sampleRate, channelCount, refusal);
 }
 
 bool exactUnsigned(IMFMediaType *type, REFGUID key, uint32_t expected)
@@ -361,9 +365,12 @@ soundscaper_pro_os_mp3_decode_result decodeOperatingSystemAudio(
 		return finish(answer(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, true));
 	}
 
+	AacLcM4aRefusal refusal = AacLcM4aRefusal::none;
 	if (codec == ReviewedCodec::aacM4a
-		&& !exactAacLcInput(inputPath, request->input_bytes, sampleRate, channelCount)) {
-		return finish(answer(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, true));
+		&& !exactAacLcInput(inputPath, request->input_bytes, sampleRate, channelCount, refusal)) {
+		auto refused = answer(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, true);
+		refused.refusal_detail = static_cast<uint32_t>(refusal);
+		return finish(refused);
 	}
 
 	HANDLE output = CreateFileW(outputPath.c_str(), GENERIC_WRITE, 0u, nullptr, CREATE_NEW,
@@ -544,13 +551,17 @@ soundscaper_pro_os_aac_m4a_encode_result encodeOperatingSystemAacM4a(
 	}
 	writer.Reset();
 	uint64_t outputBytes = 0u;
-	const auto inspected = inspectEncodedOutput(outputPath, request->maximum_output_bytes, outputBytes);
+	AacLcM4aRefusal outputRefusal = AacLcM4aRefusal::none;
+	const auto inspected = inspectEncodedOutput(
+		outputPath, request->maximum_output_bytes, outputBytes, outputRefusal);
 	if (inspected != EncodedOutputInspection::exact) {
-		return finish(encodeAnswer(inspected == EncodedOutputInspection::overLimit
+		auto refused = encodeAnswer(inspected == EncodedOutputInspection::overLimit
 			? SOUNDSCAPER_PRO_OS_CODEC_OUTPUT_LIMIT
 			: inspected == EncodedOutputInspection::notExact
 				? SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED
-				: SOUNDSCAPER_PRO_OS_CODEC_ENCODE_FAILED, true));
+				: SOUNDSCAPER_PRO_OS_CODEC_ENCODE_FAILED, true);
+		refused.refusal_detail = static_cast<uint32_t>(outputRefusal);
+		return finish(refused);
 	}
 	soundscaper_pro_os_aac_m4a_encode_result result = encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_OK, true);
 	result.exact_tuple_passed = 1u;

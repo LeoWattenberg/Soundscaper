@@ -140,7 +140,8 @@ bool readExactFloatInput(
 EncodedOutputInspection inspectEncodedOutput(
 	const char *path,
 	uint64_t maximumBytes,
-	uint64_t &outputBytes)
+	uint64_t &outputBytes,
+	soundscaper::os_audio::AacLcM4aRefusal &refusal)
 {
 	const int descriptor = open(path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
 	if (descriptor < 0) return EncodedOutputInspection::invalid;
@@ -163,7 +164,7 @@ EncodedOutputInspection inspectEncodedOutput(
 	const bool readOutput = readAll(descriptor, bytes.data(), bytes.size());
 	const bool closed = close(descriptor) == 0;
 	if (!readOutput || !closed) return EncodedOutputInspection::invalid;
-	if (!soundscaper::os_audio::exactAacLcM4a(bytes, 48000u, 2u)) {
+	if (!soundscaper::os_audio::exactAacLcM4a(bytes, 48000u, 2u, refusal)) {
 		return EncodedOutputInspection::notExact;
 	}
 	outputBytes = bytes64;
@@ -259,9 +260,12 @@ soundscaper_pro_os_mp3_decode_result decodeOperatingSystemAudio(
 	}
 	const uint32_t sampleRate = static_cast<uint32_t>(source.mSampleRate);
 	const uint32_t channelCount = source.mChannelsPerFrame;
+	soundscaper::os_audio::AacLcM4aRefusal refusal = soundscaper::os_audio::AacLcM4aRefusal::none;
 	if (codec == ReviewedCodec::aacM4a && !soundscaper::os_audio::exactAacLcM4aFile(
-		request->input_path_utf8, request->input_bytes, sampleRate, channelCount)) {
-		return finish(answer(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, true), -1);
+		request->input_path_utf8, request->input_bytes, sampleRate, channelCount, refusal)) {
+		auto refused = answer(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, true);
+		refused.refusal_detail = static_cast<uint32_t>(refusal);
+		return finish(refused, -1);
 	}
 	AudioStreamBasicDescription client{};
 	client.mSampleRate = source.mSampleRate;
@@ -453,14 +457,17 @@ soundscaper_pro_os_aac_m4a_encode_result encodeOperatingSystemAacM4a(
 		return finish(encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_ENCODE_FAILED, true));
 	}
 	uint64_t outputBytes = 0u;
+	auto outputRefusal = soundscaper::os_audio::AacLcM4aRefusal::none;
 	const auto inspected = inspectEncodedOutput(
-		request->output_path_utf8, request->maximum_output_bytes, outputBytes);
+		request->output_path_utf8, request->maximum_output_bytes, outputBytes, outputRefusal);
 	if (inspected != EncodedOutputInspection::exact) {
-		return finish(encodeAnswer(inspected == EncodedOutputInspection::overLimit
+		auto refused = encodeAnswer(inspected == EncodedOutputInspection::overLimit
 			? SOUNDSCAPER_PRO_OS_CODEC_OUTPUT_LIMIT
 			: inspected == EncodedOutputInspection::notExact
 				? SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED
-				: SOUNDSCAPER_PRO_OS_CODEC_ENCODE_FAILED, true));
+				: SOUNDSCAPER_PRO_OS_CODEC_ENCODE_FAILED, true);
+		refused.refusal_detail = static_cast<uint32_t>(outputRefusal);
+		return finish(refused);
 	}
 	soundscaper_pro_os_aac_m4a_encode_result result = encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_OK, true);
 	result.exact_tuple_passed = 1u;

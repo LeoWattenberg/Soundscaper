@@ -196,3 +196,34 @@ test('an encoder output that is refused reports the tuple, not an encode failure
 		);
 	}
 });
+
+/**
+ * A packaged target runs the canary unattended, and `TUPLE_UNSUPPORTED` alone
+ * says a rule refused without saying which. The profile parser therefore names
+ * the layer it stopped at, both reviewed targets carry that through their
+ * result, and the canary prints it beside the status.
+ */
+test('a refused profile names the layer it stopped at, all the way to the canary', async () => {
+	const [profile, header, windows, mac, canary] = await Promise.all([
+		readFile(join(SOURCE, 'src/os_aac_m4a_profile.h'), 'utf8'),
+		readFile(join(SOURCE, 'src/os_audio_codec.h'), 'utf8'),
+		readFile(join(SOURCE, 'src/os_audio_codec_windows.cpp'), 'utf8'),
+		readFile(join(SOURCE, 'src/os_audio_codec_mac.mm'), 'utf8'),
+		readFile(join(SOURCE, 'tests/os_audio_codec_self_test.cpp'), 'utf8'),
+	]);
+	assert.match(profile, /enum class AacLcM4aRefusal : uint32_t/u);
+	for (const [name, value] of [
+		['none', 0], ['bounds', 1], ['boxStructure', 2], ['fileType', 3], ['movie', 4],
+		['audioTrackCount', 5], ['trackShape', 6], ['sampleDescription', 7], ['esds', 8],
+		['audioSpecificConfig', 9],
+	]) assert.match(profile, new RegExp(`${name} = ${value}u,`, 'u'), name);
+
+	// Both results carry it, and neither target drops it on the floor.
+	assert.equal(header.match(/uint32_t refusal_detail;/gu)?.length, 2);
+	for (const [name, source] of [['windows', windows], ['mac', mac]]) {
+		assert.equal(source.match(/refusal_detail = static_cast<uint32_t>/gu)?.length, 2,
+			`${name} must report the refusal from both the admitted input and the encoded output`);
+	}
+	assert.match(canary, /refusal=%u/u);
+	assert.match(canary, /result\.refusal_detail/u);
+});

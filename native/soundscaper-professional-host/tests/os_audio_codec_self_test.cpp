@@ -159,6 +159,10 @@ bool writeFloatFixture(const std::filesystem::path &path, const std::vector<floa
  * only observe its exit code. A bare non-zero status therefore says a check
  * failed and nothing about which one or why, so every refusal below names
  * itself on the standard error stream that --output-on-failure surfaces. */
+/* refusal= values are soundscaper::os_audio::AacLcM4aRefusal: 1 bounds,
+ * 2 boxStructure, 3 fileType, 4 movie, 5 audioTrackCount, 6 trackShape,
+ * 7 sampleDescription, 8 esds, 9 audioSpecificConfig. Zero means the refusal
+ * did not come from the portable profile parser at all. */
 int fail(int code, const char *check)
 {
 	std::fprintf(stderr, "os-audio-codec canary check %d failed: %s\n", code, check);
@@ -178,11 +182,12 @@ void reportDecode(
 {
 	std::fprintf(stderr,
 		"  decode: status=%d native_api_reached=%u exact_tuple_passed=%u sample_rate=%u"
-		" channel_count=%u frame_count=%llu output_bytes=%llu file_bytes=%llu\n",
+		" channel_count=%u frame_count=%llu output_bytes=%llu file_bytes=%llu refusal=%u\n",
 		static_cast<int>(result.status), result.native_api_reached, result.exact_tuple_passed,
 		result.sample_rate, result.channel_count,
 		static_cast<unsigned long long>(result.frame_count),
-		static_cast<unsigned long long>(result.output_bytes), fileBytes(outputPath));
+		static_cast<unsigned long long>(result.output_bytes), fileBytes(outputPath),
+		result.refusal_detail);
 }
 
 void reportAacEncode(
@@ -191,11 +196,13 @@ void reportAacEncode(
 {
 	std::fprintf(stderr,
 		"  aac encode: status=%d native_api_reached=%u exact_tuple_passed=%u sample_rate=%u"
-		" channel_count=%u bitrate_kbps=%u frame_count=%llu output_bytes=%llu file_bytes=%llu\n",
+		" channel_count=%u bitrate_kbps=%u frame_count=%llu output_bytes=%llu file_bytes=%llu"
+		" refusal=%u\n",
 		static_cast<int>(result.status), result.native_api_reached, result.exact_tuple_passed,
 		result.sample_rate, result.channel_count, result.bitrate_kbps,
 		static_cast<unsigned long long>(result.frame_count),
-		static_cast<unsigned long long>(result.output_bytes), fileBytes(outputPath));
+		static_cast<unsigned long long>(result.output_bytes), fileBytes(outputPath),
+		result.refusal_detail);
 }
 
 #if defined(_WIN32) || defined(__APPLE__)

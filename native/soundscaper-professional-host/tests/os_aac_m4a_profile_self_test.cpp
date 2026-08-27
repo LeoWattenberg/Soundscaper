@@ -39,5 +39,30 @@ int main(int argc, char **argv)
 		|| soundscaper::os_audio::exactAacLcM4aFile(argv[1], lc.size() + 1u, 48000u, 2u)
 		|| soundscaper::os_audio::exactAacLcM4aFile(argv[1], 0u, 48000u, 2u)
 		|| soundscaper::os_audio::exactAacLcM4aFile(nullptr, lc.size(), 48000u, 2u)) return 8;
+
+	/* An unattended target reports only what the refusal names, so each layer has
+	 * to name itself rather than collapse into one opaque verdict. */
+	using soundscaper::os_audio::AacLcM4aRefusal;
+	AacLcM4aRefusal refusal = AacLcM4aRefusal::audioSpecificConfig;
+	if (!soundscaper::os_audio::exactAacLcM4a(lc, 48000u, 2u, refusal)
+		|| refusal != AacLcM4aRefusal::none) return 9;
+	if (soundscaper::os_audio::exactAacLcM4a(he, 48000u, 2u, refusal)
+		|| refusal != AacLcM4aRefusal::audioSpecificConfig) return 10;
+	std::vector<uint8_t> tiny(8u, 0u);
+	if (soundscaper::os_audio::exactAacLcM4a(tiny, 48000u, 2u, refusal)
+		|| refusal != AacLcM4aRefusal::bounds) return 11;
+	auto truncated = lc;
+	truncated.resize(lc.size() - 1u);
+	if (soundscaper::os_audio::exactAacLcM4a(truncated, 48000u, 2u, refusal)
+		|| refusal != AacLcM4aRefusal::boxStructure) return 12;
+	auto brandless = lc;
+	brandless[8] = 'X';
+	brandless[16] = 'X';
+	brandless[20] = 'X';
+	brandless[24] = 'X';
+	if (soundscaper::os_audio::exactAacLcM4a(brandless, 48000u, 2u, refusal)
+		|| refusal != AacLcM4aRefusal::fileType) return 13;
+	if (soundscaper::os_audio::exactAacLcM4aFile(argv[2], he.size(), 48000u, 2u, refusal)
+		|| refusal != AacLcM4aRefusal::audioSpecificConfig) return 14;
 	return 0;
 }
