@@ -121,54 +121,51 @@ or release qualification.
 
 <!-- policy-narrative:current-local-assistance-transcript-custody -->
 Selected Soundscaper S30 and Framescaper F31 own the closed assistanceAssets
-collection and org.soundscaper.capability.assistance-assets. The active
-menu-reached desktop path has four executable closed operations: installed
-catalog-authenticated Parakeet speech recognition, Silero voice-activity
-detection, paired Pyannote segmentation plus ERes2Net speaker diarization
-through the authenticated Sherpa helper, and model-free shot detection only
-while main owns a current compatible external FFmpeg/FFprobe admission and the
-fixed scdet canary passes. The remaining eleven closed operations return typed
-unavailable outcomes without substitute models, fabricated output, implicit
-installation, or canonical mutation. Every completed result is semantically
-reviewed before an explicit acceptance can reach ordinary project state.
-Transcript acceptance revalidates the exact project revision, sequence, selected
-occurrence, source digest and range, link membership, and timing authority
-through an AssistanceProposalSession; stages one canonical content-addressed
-transcript-v1 JSON body; and commits its digest-bound reference with a
-deterministic ordinary label track as one undoable project command. A whole
-rerun replaces that owned transcript track and reference instead of merging
-inferred text. Voice-activity and diarization acceptance revalidate exact 16 kHz
-reviewed ranges and the same selection fence, then deterministically replace
-only their owned ordinary Silences or anonymous Speakers label track in one
-stale-safe command. Shot acceptance admits one model-free reviewed, ordered
-source-frame/presentation-tick result, rechecks exact source-frame authority,
-and deterministically replaces only its owned in-selection timeline annotations
-as one command. Reviewed English Parakeet transcript cleanup derives bounded
-filler and repetition proposals plus silence proposals only from an optional
-same-fence Silero review; only explicitly selected proposals become one disjoint
-link-aware track-ripple-delete command that expands across authenticated A/V
-link membership, and cleanup publishes no assistance asset. A stale fence,
-owned-state collision, reference race, body-publication fault, or project-commit
-failure refuses the edit; newly owned transcript body publication rolls back on
-failure. History, reopen, clone, selected-product storage retention, and
-current-format .scape export/import preserve the strict transcript reference and
-body; .scape authenticates descriptor, size, SHA-256, source binding, sample
-rate, model artifacts, and canonical transcript semantics, and collision import
-rebinds the source, body, and immutable reference together. AUP4 reports
-transcript and source-binding omission explicitly. Web routes retain and edit
-the resulting ordinary label, annotation, cleanup, and project state but run no
-model or external-executable inference. A missing or corrupt transcript body
-cannot become a valid assistance result or archive export and grants no
-inference authority. Only the selected S30 and F31 runtime profiles advertise
-the assistance-asset and maintained acceptance commands; generic V17/V18 and
-historical product profiles do not acquire them. Licensing, catalog-signature,
-artifact-integrity, runtime/platform, selected-media, storage-integrity,
-explicit-consent, and external-executable admission gates remain fail closed.
-The catalog's declared EU R2 mirrors still have no recorded real write or remote
-read-back, and missing mirror availability grants no unpinned upstream fallback.
-Pending manual or owner-lab qualification remains documentary, nonblocking,
-unprovisioned, and open; it neither disables these bounded implemented paths nor
-relaxes any hard gate.
+collection, org.soundscaper.capability.assistance-assets, and the additive
+AssistanceWorkflow v1 bridge while preserving operation-v1 consumers. Analyze ->
+Local Assistance exposes thirteen Guided recipes and an opt-in Advanced view of
+the existing fifteen primitives; Tools -> Local Models -> Manage Models remains
+the only installation surface, and no browser route runs inference. One
+main-owned consent authority binds the exact selection, permitted stage graph,
+model artifacts, slotted inputs and outputs, settings and recipe versions,
+linked occurrences, source ranges, timing and retime authority, and transcript
+body in an aggregate fence that is revalidated before disposable publication and
+again before acceptance. Existing catalog-authenticated Parakeet, Silero VAD,
+Pyannote-plus-ERes2Net diarization through Sherpa, deterministic cleanup, and
+model-free admitted external-FFmpeg fast shots remain executable. Conditional
+isolated workers and owned deterministic stages implement Whisper with
+English-only wav2vec2 alignment, DeepFilterNet enhancement, TIGER D/M/E
+separation, PANNs reactions, Beat This beats and held-tempo proposals,
+TransNetV2 accurate shots, nomic transcript search, SigLIP and PP-OCR visual
+search, YuNet/D-FINE/ByteTrack/U2-Net reframe, deterministic highlight ranking,
+and bounded grammar-constrained Qwen editorial text. Missing model, runtime,
+platform, conversion, or catalog authority returns typed unavailability without
+implicit installation, upstream fetch, substitution, fabricated output, or
+canonical mutation. Adapter-owned preparation retains exact channel and
+sample-rate geometry, bounded long-media chunks stay under one whole-selection
+fence, and strict semantic reviewers reject malformed, oversized, nonfinite,
+unordered, corrupt, stale, or wrong-role results. Project-isolated disposable
+custody holds embeddings, OCR and tags, shot tables, saliency and tracker state,
+accepted reframe evidence, and ranking checkpoints without changing .scape.
+Explicit review starts proposals unselected and publishes through ordinary
+one-step commands: transcript and caption replacement, link-aware cleanup,
+anonymous speakers, derived enhancement or D/M/E media, reactions, beats and
+representable tempo, shot annotations, crop and keyframes, and editable
+highlight sequences. Unaccepted indexes and raw Qwen output never become project
+state; accepted editorial fields are bounded inert text only. Transcript bodies
+retain digest-bound .scape custody and AUP4 reports their omission explicitly.
+Web routes retain and edit accepted ordinary project state but expose neither
+model installation nor inference. Only selected S30 and F31 profiles advertise
+the maintained workflow and acceptance commands; generic and historical profiles
+gain no authority. The converted TIGER, PANNs, Beat This, and TransNetV2
+artifacts and live parity, externally signed catalog entries, all five ONNX
+Runtime/whisper.cpp/llama.cpp target payload closures, Windows-arm64 Sherpa
+addon, immutable EU R2 publication and full public digest read-back, packaged
+canaries, privacy workload, and owner-lab evidence remain pending-external.
+Licensing, catalog-signature, artifact-integrity, runtime/platform,
+selected-media, storage-integrity, explicit-consent, and external-executable
+gates remain fail closed; manual and owner-lab qualification is documentary,
+nonblocking, unprovisioned, and open.
 <!-- /policy-narrative:current-local-assistance-transcript-custody -->
 
 ## Framescaper V22–V30 compatibility and custody

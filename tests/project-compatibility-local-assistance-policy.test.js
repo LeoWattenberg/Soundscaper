@@ -13,14 +13,22 @@ test('compatibility policy records bounded local-assistance activation', async (
 	);
 	assert.ok(localAssistance);
 	assert.match(localAssistance.requiredOutcome,
-		/reviewed.*Parakeet transcripts and link-aware cleanup.*Silero silences.*anonymous Pyannote.*ERes2Net speaker regions.*external-FFmpeg shot markers.*unavailable.*non-authoritative/isu);
+		/reviewed.*aggregate-fenced AssistanceWorkflow.*disposable derivatives.*deterministic non-assistance editing.*model.*runtime.*platform.*publication evidence non-authoritative/isu);
 	assert.match(localAssistance.currentBehavior,
-		/four.*closed operations.*Parakeet.*Silero.*Pyannote.*ERes2Net.*external FFmpeg.*remaining eleven.*typed unavailable/isu);
+		/thirteen Guided recipes.*fifteen primitives.*Parakeet.*Silero VAD.*Pyannote-plus-ERes2Net.*external-FFmpeg fast shots.*remain executable/isu);
 	assert.match(localAssistance.currentBehavior,
-		/content-addressed transcript-v1.*ordinary label track.*Silences.*anonymous Speakers.*timeline annotations.*link-aware.*track-ripple-delete.*A\/V link membership.*no assistance asset/isu);
+		/Whisper.*wav2vec2 alignment.*DeepFilterNet.*TIGER.*PANNs.*Beat This.*TransNetV2.*nomic.*SigLIP.*PP-OCR.*YuNet.*D-FINE.*ByteTrack.*U2-Net.*Qwen/isu);
 	assert.match(localAssistance.currentBehavior,
-		/manual.*owner-lab qualification.*neither disables.*nor relaxes.*hard gate/isu);
+		/aggregate fence.*revalidated before disposable publication.*before acceptance.*typed unavailability.*without implicit installation.*canonical mutation/isu);
+	assert.match(localAssistance.currentBehavior,
+		/transcript and caption replacement.*link-aware cleanup.*anonymous speakers.*D\/M\/E media.*beats.*tempo.*shot annotations.*crop and keyframes.*highlight sequences/isu);
+	assert.match(localAssistance.currentBehavior,
+		/pending-external.*gates remain fail closed.*manual and owner-lab qualification.*documentary.*nonblocking/isu);
 	for (const reference of [
+		'src/common/editor/assistance/workflow.ts',
+		'src/common/editor/assistance/owned-highlight-workflow-transforms-v1.ts',
+		'desktop/assistance-workflow-service.ts',
+		'desktop/assistance-runtime-family-host.ts',
 		'desktop/assistance-operation-service.ts',
 		'desktop/assistance-sherpa-vad.ts',
 		'desktop/assistance-sherpa-diarizer.ts',
