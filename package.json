@@ -100,6 +100,8 @@
 		"desktop:smoke:project-library-lease-matrix": "node --import tsx scripts/desktop-project-library-lease-matrix.mjs",
 		"desktop:smoke:project-library-source-bearing-handoff": "node scripts/desktop-project-library-source-bearing-handoff-smoke.mjs",
 		"desktop:release-assets": "node scripts/desktop-release-assets.mjs",
+		"release:1.0:admission": "node scripts/check-milestone-9-release-admission.mjs",
+		"release:1.0:admission:json": "node scripts/check-milestone-9-release-admission.mjs --json",
 		"milestone5:handoff": "node scripts/assemble-milestone-5-handoff.mjs",
 		"milestone5:handoff-matrix": "node scripts/aggregate-milestone-5-handoffs.mjs",
 		"milestone5a:native-build-plan": "node scripts/plan-m5a-professional-native-build.mjs",

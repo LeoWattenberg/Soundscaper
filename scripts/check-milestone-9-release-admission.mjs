@@ -1,0 +1,64 @@
+#!/usr/bin/env node
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+import {
+	evaluateMilestone9ReleaseAdmission,
+	parseMilestone9GuidedVerification,
+} from './lib/milestone-9-release-admission.mjs';
+
+const DEFAULT_RECORD = new URL('../docs/milestone-9-guided-verification.md', import.meta.url);
+
+function parseArguments(argv) {
+	let json = false;
+	let record = DEFAULT_RECORD;
+	for (let index = 0; index < argv.length; index += 1) {
+		const argument = argv[index];
+		if (argument === '--json') {
+			json = true;
+			continue;
+		}
+		if (argument === '--record') {
+			const value = argv[index += 1];
+			if (!value) throw new Error('--record requires a Markdown path.');
+			record = pathToFileURL(resolve(value));
+			continue;
+		}
+		throw new Error(`Unexpected argument: ${argument}`);
+	}
+	return { json, record };
+}
+
+export async function runMilestone9ReleaseAdmissionCli(argv = process.argv.slice(2)) {
+	const { json, record } = parseArguments(argv);
+	const markdown = await readFile(record, 'utf8');
+	const result = evaluateMilestone9ReleaseAdmission(parseMilestone9GuidedVerification(markdown));
+	if (json) {
+		process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+	} else {
+		const state = result.admitted ? 'admitted' : 'blocked';
+		process.stdout.write(`Stable 1.0 release is ${state} by the Milestone 9 human-check record.\n`);
+		process.stdout.write(`Results: ${Object.entries(result.counts).map(([name, count]) => `${name}=${count}`).join(', ')}\n`);
+		for (const reason of result.reasons) process.stdout.write(`- ${reason}\n`);
+	}
+	return result.admitted ? 0 : 1;
+}
+
+function isMain() {
+	return Boolean(process.argv[1]) && pathToFileURL(resolve(process.argv[1])).href === import.meta.url;
+}
+
+if (isMain()) {
+	runMilestone9ReleaseAdmissionCli().then(
+		(exitCode) => {
+			process.exitCode = exitCode;
+		},
+		(error) => {
+			console.error(error instanceof Error ? error.message : error);
+			process.exitCode = 2;
+		},
+	);
+}
