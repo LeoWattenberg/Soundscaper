@@ -158,12 +158,14 @@ test('Local Assistance menu is desktop- and capability-gated and survives the Fr
 	indexed[1]?.onClick();
 	assert.deepEqual(opened, ['opened', 'indexed-search']);
 
-	const filtered = filterProductMenus([{ id: 'analyze', items: desktop }], {
+	const filtered = filterProductMenus([{ id: 'analyze', items: indexed }], {
 		audioAnalysis: false, audioGenerators: true, audioEffects: true,
 		audioMacros: true, audioRecording: true, videoMotionTracking: false,
 		assistanceAssets: true,
 	}, 'framescaper');
-	assert.equal(filtered[0]?.items[0]?.id, 'local-assistance');
+	assert.deepEqual(filtered[0]?.items.map(({ id }: { id: string }) => id), [
+		'local-assistance', 'local-assistance-indexed-search',
+	]);
 });
 
 test('menu-opened indexed search reports missing disposable custody inside the existing palette', () => {

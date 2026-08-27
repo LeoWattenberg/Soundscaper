@@ -44,6 +44,7 @@ export function filterProductMenus(menus, capabilities, productId) {
 			if (menu.id === 'analyze' && !capabilities.audioAnalysis) {
 				const retainedAnalyzeItems = new Set([
 					'framescaper-v27-motion-tracking', 'local-assistance',
+					'local-assistance-indexed-search',
 				]);
 				return {
 					...menu,
