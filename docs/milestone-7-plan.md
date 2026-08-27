@@ -237,9 +237,18 @@ not a fifth inference family:
   `assistance.cancellationP95Ms lte 2000`. The existing conventions carry
   over: AbortSignal end-to-end and progress-reset deadlines via the worker
   request broker pattern (`src/common/editor/worker-request-broker.ts`).
-- **Etiquette target:** background priority, battery/thermal pauses, scrub-time
-  throttling, pause controls, and multi-family idle unloading remain future
-  adapter work. They are not claimed by the active bounded Sherpa paths.
+- **Etiquette:** every assistance helper — the Sherpa speech process and each
+  lazy runtime family — is dropped to background scheduling priority as soon as
+  it exists, so CPU-only inference yields to the editor the user is driving. The
+  runtime-family router additionally holds a new job while the machine runs on
+  battery or reports serious or critical thermal pressure, resuming it when the
+  condition clears and reporting a typed `power-deferred` result once the bounded
+  hold budget elapses. A hold never touches a job that already started, and a
+  power reading the host cannot supply admits rather than stalls. A family that
+  has been quiet for two minutes releases its utility process, so nothing keeps
+  gigabytes warm for a job that is not coming; the next job spawns it again, and
+  an intentional unload is never recorded as a crash. Scrub-time throttling and
+  user-facing pause controls remain future adapter work.
 
 ## Model catalog decision
 
@@ -721,7 +730,11 @@ workers and deterministic adapters; every affected package route remains typed
 unavailable until its exact signed model and authenticated target payload are
 admitted. Long enhancement/separation processing uses bounded spooled chunks,
 and cancellation terminates the worker/process rather than waiting for whole
-media completion. Battery/thermal policy remains outside this delivery.
+media completion. Background scheduling priority applies to every assistance
+helper; the runtime-family router additionally holds new jobs under battery or
+serious thermal pressure and releases a family that has been quiet for two
+minutes, while the bounded Sherpa speech paths keep the priority drop without
+the hold.
 External FFmpeg is user-configured and hard-admitted; it is not a bundled
 assistance runtime or authority for other operations.
 
@@ -774,7 +787,8 @@ fast-shot paths remain admitted; new model-backed workflows are conditional on
 their exact catalog/runtime gates. Reviewed results can publish the ordinary
 transcript, labels, edits, derived sources, tempo, annotations, indexes,
 crop/keyframes, and secondary sequences named by their recipe. The registered
-external privacy workload has no accepted owner-lab or five-target packaged
+privacy workload now has a runnable fail-closed local collector for authenticated
+real-path trace evidence. It has no accepted owner-lab or five-target packaged
 result and remains documentary rather than an activation switch.
 
 - **Outcome:** The `assistance` task kind in the progress coordinator;
@@ -827,7 +841,9 @@ result and remains documentary rather than an activation switch.
   fabricated alignment for other languages. Parakeet is admitted today;
   Whisper/alignment remain typed unavailable until their signed catalog/runtime
   payload evidence is admitted.
-  Real-model WER, packaged cancellation, and owner-lab evidence remain open.
+  The word-error-rate and word-timing bounds are registered as
+  `m7-local-assistance-speech-accuracy`; measuring them against a real model,
+  packaged cancellation, and owner-lab evidence remain open.
 - **7A-2 — Filler and silence cleanup proposals.** Outcome: disfluency +
   silence proposal list with audition; accept commits one disjoint-range
   ripple batch. Invariants: proposals are session state; only accepted
@@ -848,8 +864,9 @@ result and remains documentary rather than an activation switch.
   mutation. Mutation-free audition and Conservative/Balanced/Aggressive recipe
   settings are implemented. Balanced retains the established defaults;
   Conservative uses 1.5 s/100 ms/0.8 confidence and Aggressive uses
-  300 ms/30 ms/0 confidence. Planted-fixture and manual qualification remain
-  open.
+  300 ms/30 ms/0 confidence. The planted-fixture precision and recall bounds are
+  registered as `m7-local-assistance-speech-accuracy`; running the fixture and
+  manual qualification remain open.
 - **7A-3 — Diarization and speaker labels.** Outcome: speaker turns as
   labeled regions; transcript segments gain speakers. Invariants: local
   clustering only; speaker names are user-editable labels, never claimed
@@ -861,8 +878,10 @@ result and remains documentary rather than an activation switch.
   embedding bindings execute together independent of UI selection order.
   Authenticated turns are semantically reviewed; explicit acceptance can replace
   the same digest-bound transcript with anonymous speaker attribution and its
-  owned label track in one batch. Cross-project voice identity is absent. DER
-  and owner-lab qualification criteria remain open.
+  owned label track in one batch. Cross-project voice identity is absent. The
+  diarization-error-rate and label-stability criteria are registered as
+  `m7-local-assistance-speech-accuracy`; measuring them and the owner-lab run
+  remain open.
 - **7A-4 — Enhancement and stems as derived sources.** Outcome: denoise
   (DeepFilterNet3/GTCRN) and separation (Spleeter; htdemucs behind its
   legal gate) render derived sources the user swaps in; original media
@@ -1028,7 +1047,27 @@ entries and ONNX Runtime payloads pass release admission.
   thresholds `networkRequestsAfterInstall eq 0`,
   `unselectedMediaBytesRead eq 0`, `acceptedDigestMismatches eq 0`,
   `cancellationP95Ms lte 2000`, `canonicalStateLosses eq 0`. WP-7.0.3
-  builds the collectors; 7A-7/7B-6 run them.
+  supplies the checked-in collector at
+  `npm run quality:collect:m7-assistance-privacy -- --measurement <record.json>`;
+  7A-7/7B-6 retain actual packaged and owner-lab runs. The collector accepts only
+  one warm-up plus five fresh no-retry runs, exact package/catalog/runtime/model
+  and media digests, whole-workflow post-install network observation, two selected
+  plus two unselected assets, and bounded acceptance/canonical/cancellation
+  ledgers. It writes raw and aggregate development evidence as `pending-external`
+  or `failed`; it has no accepted-evidence mode and synthesizes no model or
+  platform result.
+- The accuracy each model-backed route owes is registered rather than left in
+  prose: `m7-local-assistance-speech-accuracy` carries the word-error-rate,
+  word-timing, filler precision/recall, diarization-error-rate, label-stability,
+  search-recall, index-rebuild, and beat/downbeat bounds, and
+  `m7-local-assistance-visual-accuracy` carries the accurate and fast
+  cut F-measures, retrieval hit rate, index size per video hour,
+  subject retention, degenerate-fallback, highlight real-time factor and
+  determinism, vertical golden-frame, and byte-stable unchanged-export bounds
+  (config/quality-budgets.json, docs/quality-budgets.md#milestone-7-local-assistance-accuracy-criteria).
+  Both are `planned` with specified rather than provisioned corpora and no
+  collector: registering a criterion states what a route owes, and is never
+  evidence that it is met.
 - The named environment `owner-qualified-windows-x64-rtx3090-01` retains
   historical earlier-workload diagnostics but is currently unprovisioned and
   does not admit `m7-local-assistance-privacy`.

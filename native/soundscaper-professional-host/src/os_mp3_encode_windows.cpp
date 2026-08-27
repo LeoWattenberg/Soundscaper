@@ -29,8 +29,25 @@ using soundscaper::os_audio::MediaFoundationSession;
 enum class OutputInspection {
 	exact,
 	invalid,
+	/* Read whole and not the exact admitted frame chain. A verdict about what
+	 * the encoder produced, not a failure to produce anything. */
+	notExact,
 	overLimit,
 };
+
+/* Shares the refusal_detail range with the other reviewed Windows codec: 1 to
+ * 99 name a portable profile layer, 100 and above a host media type. Only the
+ * canary reads them. */
+enum class Mp3Refusal : uint32_t {
+	none = 0u,
+	encodedFrameChain = 20u,
+	mp3OutputType = 120u,
+	pcmInputType = 121u,
+};
+
+soundscaper_pro_os_mp3_encode_result refused(
+	soundscaper_pro_os_codec_status status,
+	Mp3Refusal reason);
 
 soundscaper_pro_os_mp3_encode_result answer(
 	soundscaper_pro_os_codec_status status,
@@ -122,6 +139,15 @@ bool readFloatInput(
 	return frameCount > 0u;
 }
 
+soundscaper_pro_os_mp3_encode_result refused(
+	soundscaper_pro_os_codec_status status,
+	Mp3Refusal reason)
+{
+	soundscaper_pro_os_mp3_encode_result result = answer(status, true);
+	result.refusal_detail = static_cast<uint32_t>(reason);
+	return result;
+}
+
 OutputInspection inspectOutput(
 	const std::wstring &path,
 	uint64_t maximumBytes,
@@ -148,8 +174,9 @@ OutputInspection inspectOutput(
 	std::vector<uint8_t> bytes(static_cast<size_t>(size.QuadPart));
 	const bool read = readAll(input, bytes.data(), bytes.size());
 	const bool closed = CloseHandle(input) != 0;
-	if (!read || !closed || !soundscaper::os_audio::exactMp3(bytes, 48000u, 2u, 192u)) {
-		return OutputInspection::invalid;
+	if (!read || !closed) return OutputInspection::invalid;
+	if (!soundscaper::os_audio::exactMp3(bytes, 48000u, 2u, 192u)) {
+		return OutputInspection::notExact;
 	}
 	outputBytes = size.QuadPart;
 	return OutputInspection::exact;
@@ -209,7 +236,7 @@ soundscaper_pro_os_mp3_encode_result encode(
 		|| FAILED(MFInitMediaTypeFromWaveFormatEx(
 			outputType.Get(), &wave.wfx, static_cast<UINT32>(sizeof(wave))))
 		|| FAILED(writer->AddStream(outputType.Get(), &streamIndex))) {
-		return finish(answer(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, true));
+		return finish(refused(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, Mp3Refusal::mp3OutputType));
 	}
 	ComPtr<IMFMediaType> inputType;
 	constexpr UINT32 pcmBlockAlignment = 2u * sizeof(int16_t);
@@ -222,7 +249,7 @@ soundscaper_pro_os_mp3_encode_result encode(
 		|| FAILED(inputType->SetUINT32(MF_MT_AUDIO_BLOCK_ALIGNMENT, pcmBlockAlignment))
 		|| FAILED(inputType->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND, 48000u * pcmBlockAlignment))
 		|| FAILED(writer->SetInputMediaType(streamIndex, inputType.Get(), nullptr))) {
-		return finish(answer(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, true));
+		return finish(refused(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, Mp3Refusal::pcmInputType));
 	}
 	if (FAILED(writer->BeginWriting())) {
 		return finish(answer(SOUNDSCAPER_PRO_OS_CODEC_ENCODE_FAILED, true));
@@ -266,6 +293,10 @@ soundscaper_pro_os_mp3_encode_result encode(
 	uint64_t outputBytes = 0u;
 	const auto inspected = inspectOutput(outputPath, request->maximum_output_bytes, outputBytes);
 	if (inspected != OutputInspection::exact) {
+		if (inspected == OutputInspection::notExact) {
+			return finish(refused(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED,
+				Mp3Refusal::encodedFrameChain));
+		}
 		return finish(answer(inspected == OutputInspection::overLimit
 			? SOUNDSCAPER_PRO_OS_CODEC_OUTPUT_LIMIT
 			: SOUNDSCAPER_PRO_OS_CODEC_ENCODE_FAILED, true));

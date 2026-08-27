@@ -53,6 +53,17 @@ test('build and target self-test bind Windows MP3 encode while macOS stays fail-
 	assert.match(selfTest, /bitrate_kbps = 160u/u);
 	assert.match(selfTest, /defined\(_WIN32\)[\s\S]*validMp3Encode/u);
 	assert.match(selfTest, /defined\(__APPLE__\)[\s\S]*SOUNDSCAPER_PRO_OS_CODEC_API_UNAVAILABLE/u);
+	// A Windows host without the optional encoder still has to refuse cleanly:
+	// no output, no counters, and never a half-written file.
+	assert.match(selfTest, /mp3EncoderPresent/u);
+	assert.match(
+		selfTest,
+		/exact_tuple_passed != 0u \|\| mp3Encoded\.output_bytes != 0u[\s\S]{0,200}exists\(mp3EncodeOutputPath\)/u,
+	);
+	assert.match(selfTest, /did not refuse fail-closed/u);
+	// The bitrate the request names is still refused before the native API,
+	// whether or not the host can encode at all.
+	assert.match(selfTest, /mp3EncoderPresent[\s\S]*bitrate_kbps = 160u/u);
 });
 
 test('portable exact MP3 profile parser accepts only a complete 192 kbps frame chain', async (context) => {
@@ -71,4 +82,34 @@ test('portable exact MP3 profile parser accepts only a complete 192 kbps frame c
 	assert.equal(built.status, 0, built.stderr || built.stdout);
 	const executed = spawnSync(executable, [], { encoding: 'utf8' });
 	assert.equal(executed.status, 0, executed.stderr || executed.stdout);
+});
+
+/**
+ * The Windows MP3 encode path first ran on a real runner today, and it refused
+ * at a media type without saying which of the two it negotiates. Both now name
+ * themselves, in the refusal range the other reviewed codec already shares, so
+ * a refusal on the encoder's output is distinguishable from one on its input.
+ */
+test('the Windows MP3 encoder names which negotiation refused', async () => {
+	const [source, header, canary] = await Promise.all([
+		readFile(join(HOST, 'src/os_mp3_encode_windows.cpp'), 'utf8'),
+		readFile(join(HOST, 'src/os_audio_codec.h'), 'utf8'),
+		readFile(join(HOST, 'tests/os_audio_codec_self_test.cpp'), 'utf8'),
+	]);
+	assert.equal(header.match(/uint32_t refusal_detail;/gu)?.length, 3,
+		'every reviewed result carries the refusal detail');
+	assert.match(source, /enum class Mp3Refusal : uint32_t/u);
+	const codes = Object.fromEntries([...source.matchAll(/^\t([a-zA-Z][a-zA-Z0-9]*) = (\d+)u,$/gmu)]
+		.map(([, name, value]) => [name, Number(value)]));
+	assert.deepEqual(codes, {
+		none: 0, encodedFrameChain: 20, mp3OutputType: 120, pcmInputType: 121,
+	});
+	// The output verdict stays below the host range and the media types above it,
+	// matching the split the AAC codec already reports under.
+	assert.ok(codes.encodedFrameChain < 100 && codes.mp3OutputType >= 100);
+	assert.match(source, /AddStream[\s\S]{0,120}Mp3Refusal::mp3OutputType/u);
+	assert.match(source, /SetInputMediaType[\s\S]{0,120}Mp3Refusal::pcmInputType/u);
+	assert.match(source, /OutputInspection::notExact/u);
+	// And the canary prints it, or the number never reaches a reader.
+	assert.match(canary, /mp3 encode:[\s\S]{0,400}refusal=%u/u);
 });

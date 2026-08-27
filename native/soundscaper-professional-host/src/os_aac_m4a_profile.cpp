@@ -2,6 +2,7 @@
 
 #include "os_aac_m4a_profile.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -32,7 +33,24 @@ constexpr uint32_t stsd = boxType('s', 't', 's', 'd');
 constexpr uint32_t mp4a = boxType('m', 'p', '4', 'a');
 constexpr uint32_t esds = boxType('e', 's', 'd', 's');
 constexpr uint32_t soun = boxType('s', 'o', 'u', 'n');
-constexpr uint32_t m4aBrand = boxType('M', '4', 'A', ' ');
+/* The brands an MPEG-4 file holding one AAC-LC audio track realistically
+ * declares. M4A is Apple's convention for exactly this file and is not
+ * required by the format: the Windows MPEG-4 sink writes the same container
+ * branded mp42, and refusing that refuses a file this codec just produced.
+ * The brand is a declaration, not the proof — what the track actually is gets
+ * established from the sample description and the AudioSpecificConfig. */
+constexpr std::array<uint32_t, 5u> admittedBrands{
+	boxType('M', '4', 'A', ' '),
+	boxType('m', 'p', '4', '1'),
+	boxType('m', 'p', '4', '2'),
+	boxType('i', 's', 'o', 'm'),
+	boxType('i', 's', 'o', '2'),
+};
+
+bool admittedBrand(uint32_t brand)
+{
+	return std::find(admittedBrands.begin(), admittedBrands.end(), brand) != admittedBrands.end();
+}
 
 struct Box {
 	uint32_t type = 0u;
@@ -245,8 +263,16 @@ bool exactEsds(
 	refusal = AacLcM4aRefusal::esdsDecoderConfig;
 	Descriptor decoder{};
 	if (!descriptor(input, offset, es.end, decoder) || decoder.tag != 0x04u
-		|| decoder.end - decoder.payload < 13u || input[decoder.payload] != 0x40u
-		|| input[decoder.payload + 1u] != 0x15u) return false;
+		|| decoder.end - decoder.payload < 13u) return false;
+	refusal = AacLcM4aRefusal::esdsObjectType;
+	if (input[decoder.payload] != 0x40u) return false;
+	/* streamType occupies the top six bits, upStream the next, and the last bit
+	 * is reserved. The reserved bit is required to be set and carries nothing,
+	 * and writers disagree about it, so an audio stream that is not upstream is
+	 * admitted whichever way that bit is written. */
+	refusal = AacLcM4aRefusal::esdsStreamType;
+	const uint8_t streamType = input[decoder.payload + 1u];
+	if (streamType >> 2u != 0x05u || (streamType >> 1u & 1u) != 0u) return false;
 	refusal = AacLcM4aRefusal::esdsDecoderSpecificInfo;
 	Descriptor config{};
 	const size_t configOffset = decoder.payload + 13u;
@@ -374,9 +400,9 @@ TrackInspection inspectTrack(
 bool exactFileType(std::span<const uint8_t> input, const Box &box)
 {
 	if (box.end - box.payload < 8u || (box.end - box.payload - 8u) % 4u != 0u) return false;
-	if (unsigned32(input, box.payload) == m4aBrand) return true;
+	if (admittedBrand(unsigned32(input, box.payload))) return true;
 	for (size_t offset = box.payload + 8u; offset < box.end; offset += 4u) {
-		if (unsigned32(input, offset) == m4aBrand) return true;
+		if (admittedBrand(unsigned32(input, offset))) return true;
 	}
 	return false;
 }

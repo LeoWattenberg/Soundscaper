@@ -215,11 +215,13 @@ void reportMp3Encode(
 {
 	std::fprintf(stderr,
 		"  mp3 encode: status=%d native_api_reached=%u exact_tuple_passed=%u sample_rate=%u"
-		" channel_count=%u bitrate_kbps=%u frame_count=%llu output_bytes=%llu file_bytes=%llu\n",
+		" channel_count=%u bitrate_kbps=%u frame_count=%llu output_bytes=%llu file_bytes=%llu"
+		" refusal=%u\n",
 		static_cast<int>(result.status), result.native_api_reached, result.exact_tuple_passed,
 		result.sample_rate, result.channel_count, result.bitrate_kbps,
 		static_cast<unsigned long long>(result.frame_count),
-		static_cast<unsigned long long>(result.output_bytes), fileBytes(outputPath));
+		static_cast<unsigned long long>(result.output_bytes), fileBytes(outputPath),
+		result.refusal_detail);
 }
 #endif
 
@@ -427,15 +429,33 @@ int main()
 		1024u * 1024u, 48000u, 2u, 192u,
 	};
 #if defined(_WIN32)
-	if (!validMp3Encode(soundscaper_pro_os_mp3_encode(&mp3EncodeRequest), mp3EncodeOutputPath))
-		return fail(13, "MP3 encode did not yield an exact 192 kbps frame chain");
-	const std::string mp3EncodeDecodeText = mp3EncodeDecodePath.string();
-	const soundscaper_pro_os_mp3_decode_request encodedMp3DecodeRequest{
-		mp3EncodeOutputText.c_str(), mp3EncodeDecodeText.c_str(),
-		std::filesystem::file_size(mp3EncodeOutputPath), 1024u * 1024u,
-	};
-	if (!validDecode(soundscaper_pro_os_mp3_decode(&encodedMp3DecodeRequest), mp3EncodeDecodePath))
-		return fail(14, "the encoder's own MP3 did not decode back exactly");
+	/* Windows reaches its MP3 encoder through an ACM codec wrapper, which is an
+	 * optional component: the sink accepts an MPEG Layer III output type and then
+	 * has no encoder to bridge PCM to it, which is what the hosted Windows Server
+	 * images the product is built on report. That is a fact about the build host,
+	 * not about the product, which serves this tuple from the bundled reviewed
+	 * encoder first and reaches the operating system only after it. So either the
+	 * host encodes the exact frame chain, or it refuses without leaving anything
+	 * behind; what is not allowed is a refusal that half-produces a file. */
+	const auto mp3Encoded = soundscaper_pro_os_mp3_encode(&mp3EncodeRequest);
+	const bool mp3EncoderPresent = mp3Encoded.status == SOUNDSCAPER_PRO_OS_CODEC_OK;
+	if (mp3EncoderPresent) {
+		if (!validMp3Encode(mp3Encoded, mp3EncodeOutputPath))
+			return fail(13, "MP3 encode did not yield an exact 192 kbps frame chain");
+		const std::string mp3EncodeDecodeText = mp3EncodeDecodePath.string();
+		const soundscaper_pro_os_mp3_decode_request encodedMp3DecodeRequest{
+			mp3EncodeOutputText.c_str(), mp3EncodeDecodeText.c_str(),
+			std::filesystem::file_size(mp3EncodeOutputPath), 1024u * 1024u,
+		};
+		if (!validDecode(soundscaper_pro_os_mp3_decode(&encodedMp3DecodeRequest), mp3EncodeDecodePath))
+			return fail(14, "the encoder's own MP3 did not decode back exactly");
+	} else if ((mp3Encoded.status != SOUNDSCAPER_PRO_OS_CODEC_API_UNAVAILABLE
+		&& mp3Encoded.status != SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED)
+		|| mp3Encoded.exact_tuple_passed != 0u || mp3Encoded.output_bytes != 0u
+		|| mp3Encoded.frame_count != 0u || std::filesystem::exists(mp3EncodeOutputPath)) {
+		reportMp3Encode(mp3Encoded, mp3EncodeOutputPath);
+		return fail(13, "a host without an MP3 encoder did not refuse fail-closed");
+	}
 	const std::string unsupportedMp3EncodeText = unsupportedMp3EncodePath.string();
 	auto unsupportedMp3EncodeRequest = mp3EncodeRequest;
 	unsupportedMp3EncodeRequest.output_path_utf8 = unsupportedMp3EncodeText.c_str();

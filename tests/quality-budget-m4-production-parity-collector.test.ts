@@ -398,7 +398,8 @@ test('quality config binds M4 qualification to the current owner host and formal
 	assert.equal(fixture?.status, 'provisional');
 	assert.equal(fixture?.kind, 'deterministic-audio-vectors-and-video-golden-frames');
 	assert.equal(fixture?.artifacts?.length, 5);
-	assert.equal(workload?.status, 'provisional');
+	// The hosted lower bound closed this workload; the fixed-GPU profile is still open.
+	assert.equal(workload?.status, 'qualified');
 	assert.equal(workload?.thresholds.length, 5);
 	assert.deepEqual(workload?.environmentIds, [
 		'github-ubuntu-playwright-1.62.1',

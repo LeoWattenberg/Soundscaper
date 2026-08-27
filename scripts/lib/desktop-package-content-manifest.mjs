@@ -10,6 +10,7 @@ import {
 	assertDesktopCodecPolicy,
 	isForbiddenDesktopFfmpegPath,
 } from './desktop-codec-policy.mjs';
+import { assertAssistanceNativeRuntimeClosure } from './desktop-package-assistance-closure.mjs';
 import { assertDesktopPackageOsAudioCodecClosure } from './desktop-package-os-audio-codec-closure.mjs';
 import { assertProfessionalNativeBuiltClosure } from './desktop-package-professional-closure.mjs';
 export const DESKTOP_PACKAGE_CONTENT_MANIFEST_NAME = 'milestone-5-package-content.json';
@@ -253,22 +254,9 @@ function assertRuntimePayloadClosure(runtime, files) {
 		throw new Error('The Framescaper runtime manifest carries Soundscaper professional native authority.');
 	}
 
-	const assistance = runtime.assistanceNativeRuntime;
-	if (!plainRecord(assistance) || assistance.target !== native.target) {
-		throw new Error('The desktop runtime manifest has no exact assistance payload authority.');
-	}
-	if (assistance.status === 'built') {
-		const assistancePrefix = `runtime/${assistance.payload?.root}/`;
-		if (!plainRecord(assistance.payload?.files)) {
-			throw new Error('The assistance runtime manifest has no exact file closure.');
-		}
-		for (const [name, descriptor] of Object.entries(assistance.payload.files)) {
-			requireFile(`${assistancePrefix}${name}`, descriptor,
-				`assistance runtime file ${name}`, assistancePrefix);
-		}
-	} else if (assistance.status !== 'unsupported' || assistance.payload !== null) {
-		throw new Error('The desktop runtime manifest has invalid assistance target state.');
-	}
+	assertAssistanceNativeRuntimeClosure({
+		assistance: runtime.assistanceNativeRuntime, target: native.target, requireFile,
+	});
 	if (runtime.productId === 'framescaper') {
 		const hosts = runtime.framescaperNativeHosts;
 		if (!plainRecord(hosts) || hosts.target !== native.target) {

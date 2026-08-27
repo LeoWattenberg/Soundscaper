@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { EditorControllerLifetime, EditorProjectToken } from './lifecycle.ts';
+import {
+	createImportedAudioContentIdentityWriter,
+	type ImportedAudioContentIdentity,
+	type ImportedAudioContentIdentityWriter,
+} from './imported-audio-content-identity.ts';
 import type { AudioBufferLike } from './source-audio.ts';
 import {
 	findControllerSource,
@@ -113,8 +118,9 @@ export function createDerivedSourceService(
 			name,
 			sampleRate,
 		);
-		await persistBuffer(source, buffer, channels, token);
-		return Object.freeze({ source, buffer, channels: Object.freeze(channels.slice()) });
+		const identity = await persistBuffer(source, buffer, channels, token);
+		const authenticatedSource = Object.freeze({ ...source, ...identity });
+		return Object.freeze({ source: authenticatedSource, buffer, channels: Object.freeze(channels.slice()) });
 	}
 
 	async function persistRenderedMixSource(
@@ -143,8 +149,9 @@ export function createDerivedSourceService(
 			opaqueExtensions: {},
 			chunkFrames: dependencies.sourceChunkFrames,
 		}, channels, sourceId, name, sampleRate);
-		await persistBuffer(source, rendered, channels, token);
-		return Object.freeze({ source, buffer: rendered, channels: Object.freeze(channels) });
+		const identity = await persistBuffer(source, rendered, channels, token);
+		const authenticatedSource = Object.freeze({ ...source, ...identity });
+		return Object.freeze({ source: authenticatedSource, buffer: rendered, channels: Object.freeze(channels) });
 	}
 
 	async function persistBuffer(
@@ -152,22 +159,23 @@ export function createDerivedSourceService(
 		buffer: AudioBufferLike,
 		channels: Float32Array[],
 		token: EditorProjectToken,
-	): Promise<void> {
-		let writer: SourceWriter | null = null;
+	): Promise<ImportedAudioContentIdentity> {
+		let writer: ImportedAudioContentIdentityWriter | null = null;
 		let committed = false;
 		try {
-			writer = await dependencies.store.beginSourceWrite(source.id, {
+			writer = createImportedAudioContentIdentityWriter(await dependencies.store.beginSourceWrite(source.id, {
 				name: source.name,
 				mimeType: source.mimeType || 'audio/wav',
 				sampleRate: source.sampleRate,
 				channelCount: source.channelCount,
 				chunkFrames: source.chunkFrames,
-			});
+			}), Number(source.chunkFrames));
 			assertOwned(token);
 			await dependencies.writeBuffer(writer, buffer);
 			assertOwned(token);
 			await writer.commit({ sampleRate: source.sampleRate, channelCount: source.channelCount });
 			committed = true;
+			const identity = writer.contentIdentity(source.frameCount);
 			assertOwned(token);
 			dependencies.cacheSourceBuffer(source.id, buffer);
 			const peaks = await dependencies.generateWaveformPeaks(channels);
@@ -175,6 +183,7 @@ export function createDerivedSourceService(
 			dependencies.sourcePeaks.set(source.id, peaks);
 			await dependencies.store.saveAnalysis(dependencies.peakCacheKey(source.id), peaks);
 			assertOwned(token);
+			return identity;
 		} catch (error) {
 			if (!committed) await Promise.resolve(writer?.abort()).catch(() => undefined);
 			try {
@@ -229,8 +238,9 @@ function createDerivedSource(
 	name: string,
 	sampleRate: number,
 ): ControllerSource {
+	const { contentSha256: _contentSha256, byteLength: _byteLength, ...contentIndependent } = template;
 	return Object.freeze({
-		...template,
+		...contentIndependent,
 		id,
 		storageKey: id,
 		name,

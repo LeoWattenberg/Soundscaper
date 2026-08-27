@@ -39,6 +39,8 @@ export interface AssistanceRuntimeFamilyElectronSpawnOptions {
 		options: Readonly<{ readonly serviceName: string }>,
 	) => AssistanceRuntimeFamilyElectronChild;
 	readonly sampleRss?: (pid: number) => number | null;
+	/** Drops the spawned inference process to background scheduling priority. */
+	readonly applyBackgroundPriority?: (pid: number) => void;
 	readonly handshakeTimeoutMs?: number;
 	readonly killWaitMs?: number;
 	readonly setTimeoutImpl?: typeof setTimeout;
@@ -88,6 +90,11 @@ async function spawnFamily(
 	const child = inspectChild(options.fork(options.helperPath, [], {
 		serviceName: `soundscaper-assistance-${familyId}`,
 	}));
+	// Inference yields to the editor the user is driving. The child is already live,
+	// so an operating system that refuses the change keeps the inherited priority
+	// rather than leaking the process.
+	try { options.applyBackgroundPriority?.(child.pid); }
+	catch { /* Scheduling etiquette never blocks an admitted runtime. */ }
 	const handshakeTimeoutMs = boundedMilliseconds(
 		options.handshakeTimeoutMs, DEFAULT_HANDSHAKE_TIMEOUT_MS, 10_000, 'handshake timeout',
 	);
@@ -333,7 +340,9 @@ function validateOptions(options: AssistanceRuntimeFamilyElectronSpawnOptions): 
 	if (!options || typeof options.fork !== 'function' || typeof options.helperPath !== 'string'
 		|| !isAbsolute(options.helperPath) || resolve(options.helperPath) !== options.helperPath
 		|| options.helperPath.includes('\0')
-		|| options.sampleRss !== undefined && typeof options.sampleRss !== 'function') {
+		|| options.sampleRss !== undefined && typeof options.sampleRss !== 'function'
+		|| options.applyBackgroundPriority !== undefined
+			&& typeof options.applyBackgroundPriority !== 'function') {
 		throw new TypeError('The runtime-family Electron spawn options are invalid.');
 	}
 }

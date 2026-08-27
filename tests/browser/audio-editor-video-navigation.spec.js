@@ -77,19 +77,27 @@ test.describe('3B-4a shuttle and edit-point navigation', () => {
 		expect(forwardStopFrame).toBeGreaterThan(editPoints[1]);
 		await expectSequenceFrame(readout, rate.num, forwardStopFrame);
 
+		// Every rung needs programme left to run through. A run that reaches the end
+		// stops, stopping resets the rate to zero, and a press from zero is another
+		// +1x rather than +2x — which is what the shuttle had been doing here, half a
+		// second from the tail. Rewinding to the first edit point puts the whole
+		// programme in front of it.
+		for (let index = 0; index < editPoints.length; index += 1) {
+			await pressWorkspaceKey(page, editor, 'ArrowUp');
+		}
+		await expectSequenceFrame(readout, rate.num, editPoints[0]);
+
 		// A held L emits one deliberate keydown followed by repeat=true. It stays at
 		// +1x; a later deliberate L advances exactly one rung to +2x. Neither press
 		// reaches the legacy Loop preference binding in Framescaper.
 		await beginStatusObservation(editor);
-		// Only the repeat is dispatched by hand, because Playwright cannot synthesise one.
-		// The two deliberate presses stay real key events: a page-constructed KeyboardEvent
-		// is untrusted, and dispatching all three that way left the shuttle untouched on
-		// every CI engine while passing locally.
-		// The two deliberate presses stay adjacent and real. A page-constructed KeyboardEvent
-		// is untrusted and moved the shuttle on no CI engine at all, and anything slow between
-		// the presses lets the shuttle reach the sequence end and stop before the second lands.
 		await focusWorkspace(editor);
 		await page.keyboard.press('L');
+		// The rung the second press advances from is the rate the first one reached, so
+		// waiting for it is what makes the pair a rung apart rather than a race. The
+		// press itself still has to be a real key event: a page-constructed one is
+		// untrusted and moved the shuttle on no CI engine at all.
+		await awaitObservedStatus(editor, /1(?:x|×)/u);
 		await page.keyboard.press('L');
 		// Playwright cannot synthesise the repeat a held key emits, so that one is dispatched
 		// by hand. It must not advance a rung.
@@ -173,10 +181,19 @@ async function beginStatusObservation(editor) {
 	});
 }
 
-async function expectObservedStatus(editor, expected, forbidden = null) {
-	const observed = () => editor.evaluate(() => (
+function observedStatuses(editor) {
+	return () => editor.evaluate(() => (
 		globalThis.__soundscaperShuttleStatusObservation?.values ?? []
 	));
+}
+
+/** Wait for one rung to be observed without ending the observation. */
+async function awaitObservedStatus(editor, expected) {
+	await expect.poll(observedStatuses(editor)).toContainEqual(expect.stringMatching(expected));
+}
+
+async function expectObservedStatus(editor, expected, forbidden = null) {
+	const observed = observedStatuses(editor);
 	await expect.poll(observed).toContainEqual(expect.stringMatching(expected));
 	if (forbidden) {
 		// A repeat from a held key must not advance a rung of its own.

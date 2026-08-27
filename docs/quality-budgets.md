@@ -3,7 +3,10 @@
 Soundscaper's quality-budget foundation is **in progress**. The checked-in
 ledger names fixtures and proposed numeric limits, validates its own contract,
 and provides a deterministic fail-closed evaluator. The five frozen milestone 2
-first-party structural workloads have qualified. On 2026-08-21 the project
+first-party structural workloads have qualified, and so have the two
+milestone 4 render-parity workloads, whose exact media comparisons met every
+threshold on the hosted runner registered as a hardware lower bound for the
+owner-designated host. On 2026-08-21 the project
 owner also designated the Windows x64 RTX 3090 machine as the fixed-GPU
 reference and retained its then-current M1 preview, M4 production-parity, and
 M4B-2 keyed-parity results. The packaged collector contract now requires the
@@ -61,6 +64,23 @@ fixture, environment, metric, and threshold identifiers.
   `eb7e9716d75b462f9118084a36ed9a5b2a0a38f309e5345a765e24162a399b45`.
   These retained artifacts predate the complete driver/device/power/display
   identity contract and therefore do not close a current formal row.
+- Hosted qualification run, 2026-08-27: the `Qualification metrics` job at
+  revision `d41c5cb1779920282427c9144a805e9f5bdfccf8` ran the three attemptable
+  metric specs on `github-ubuntu-playwright-1.62.1` with one worker, one
+  attempt, and zero retries. `m4-production-render-parity` reported maximum
+  audio sample error `0`, PDC error `0`, minimum video SSIM
+  `0.9818532248014168`, maximum normalized channel MAE
+  `0.020215907543572983`, and silently omitted effects `0`.
+  `m4b2-keyframe-render-parity` reported minimum SSIM `0.999855387171781`,
+  maximum channel MAE `0.0006510416666666666`, and zero omitted, substituted,
+  or fallback operations. Both met every registered threshold, so the
+  lower-bound rule qualifies them and the `hosted-ci-render-parity-d41c5cb1`
+  cohort binds their retained accepted and raw artifacts by byte length and
+  SHA-256. `m3-longform-editorial` met both position counters and its drift
+  budget and missed seek p95 (`243.3` ms against 200 ms) and scroll interval
+  p95 (`50.1` ms against 33.34 ms) under llvmpipe, which is what the weaker
+  runner is expected to do; it stays an observation.
+  `m1-video-preview-12fx-720p` was not attempted.
 - The 12-effect 1280x720 preview test records timing and heap data against a
   repository-owned, digest-pinned, six-second synthetic VP8 fixture. The active
   `deterministic-video-preview-12fx-v2` collector hashes the actual runtime
@@ -73,9 +93,15 @@ fixture, environment, metric, and threshold identifiers.
   single-context collector, so a fresh owner-host packaged-runtime run is
   required before M1 can be formally accepted under v2. Decoder/audio
   scheduling and other platforms remain outside that future acceptance.
-- Hosted CI is suitable for deterministic correctness checks. Its shared CPU
-  and software-renderer behavior make it ineligible for fixed-hardware timing
-  qualification.
+- Hosted CI is a qualification lower bound. Its shared CPU and software
+  renderer are strictly weaker than the owner-designated fixed-GPU host, so a
+  workload that *meets* its budgets on the hosted runner also meets them there
+  and the hosted result qualifies. The implication runs one way only: a hosted
+  run that misses a timing budget is the expected consequence of the weaker
+  machine and remains an observation, never a regression verdict against the
+  owner host. The environment descriptor records this as
+  `qualificationBasis: "hardware-lower-bound"` and names its stronger host in
+  `lowerBoundOf`.
 
 The existing 500,000-byte JavaScript chunk ceiling and 25 MiB Pages asset
 ceiling remain independent build gates. Registering future measurements here
@@ -98,9 +124,10 @@ after it has all of the following:
 4. a result evaluated by `scripts/quality-budget-evaluator.mjs`; and
 5. retained raw evidence from a no-retry run.
 
-A workload does not become qualified merely because an individual test passed,
-a proposed threshold was checked in, or a hosted runner happened to report a
-fast result.
+A workload does not become qualified merely because an individual test passed
+or a proposed threshold was checked in. A hosted result satisfies condition 2
+through the registered `hardware-lower-bound` rule and still has to meet the
+other four, including a reviewed cohort binding its retained evidence.
 
 The accepted `m2-structural-aad0ba1` cohort retains the two original frozen
 workload IDs backed by production-path observations. It binds them to source
@@ -113,7 +140,10 @@ fixture limitation below remains in force. The composite
 `m2-streaming-bounded-memory` performance workload is not in the frozen closure
 set and remains planned. The `m2-direct-observed-f3d11cb3` cohort binds the
 remaining three workloads to fresh no-retry evidence after their collector
-stopped publishing fixture specification constants as observations.
+stopped publishing fixture specification constants as observations. The
+`hosted-ci-render-parity-d41c5cb1` cohort binds the two milestone-4
+render-parity workloads to the 2026-08-27 hosted run, whose exact media
+comparisons met every threshold on the registered lower-bound runner.
 
 ## Measurement procedure
 
@@ -208,6 +238,73 @@ The native OS, capture-device, and final release matrices are also
 unprovisioned. Packaging on hosted Windows, macOS, and Linux runners is valuable
 distribution evidence, but it cannot qualify real audio latency, camera,
 microphone, display-capture, or system-audio budgets without controlled devices.
+
+## Milestone 7 local-assistance privacy evidence
+
+The optional `m7-local-assistance-privacy` collector is locally runnable with
+`npm run quality:collect:m7-assistance-privacy -- --measurement <record.json>`.
+It observes no special measurement path and does not launch inference or create
+sample evidence: the input must be a closed summary from an ordinary real
+workflow run. Admission binds the exact quality-budget digest, source revision,
+authenticated package manifest, signed model catalog, runtime and model artifact
+digests, and the fixture's two selected plus two deliberately unselected media
+identities. One warm-up and five fresh no-retry runs must retain whole-workflow
+post-install network observations, per-asset byte-read ledgers, accepted-output
+digest comparisons, canonical-state checks, and bounded cancellation samples.
+The collector re-derives exactly the five registered metrics, including
+nearest-rank cancellation p95, and retains the raw record beside its aggregate.
+
+This command can produce `pending-external` development evidence or a `failed`
+result. It cannot publish acceptance, relabel a local/package run as the owner
+lab, or turn a software/unknown renderer into fixed-hardware evidence. The
+registered Windows x64 owner environment remains unprovisioned and does not
+admit the M7 workload; no five-target packaged canary or owner-lab result is
+claimed by the existence of this collector.
+
+## Milestone 7 local-assistance accuracy criteria
+
+`m7-local-assistance-speech-accuracy` and `m7-local-assistance-visual-accuracy`
+register the numeric quality each model-backed assistance route has to reach.
+They exist because the milestone-7 packets named those bounds in prose — a
+word-error-rate bound, a planted-filler precision and recall bound, a
+diarization-error-rate bound, retrieval recall, a beat-grid tolerance, a
+cut-detection F-measure, an index size per hour of video, subject retention, a
+highlight time budget — and prose is not a gate. Writing them down fixes what
+the routes owe before anyone can measure them and argue the bar downward.
+
+Both workloads are `planned`, and their corpora are specified rather than
+provisioned. Neither has a collector, and that is deliberate: no converted
+artifact, signed catalog entry, or target runtime payload exists yet, so there
+is nothing to measure and nothing to accept. Registering a criterion is not
+evidence that it is met, and the milestone's optional status means neither
+workload blocks any other milestone's gate.
+
+The speech corpus is thirty minutes of English speech with three speakers, a
+reference transcript, planted fillers and silences, seeded search phrases, and
+annotated beats. Transcription must reach a word error rate at or below `0.15`
+with a median word-timing error at or below `120 ms`. Cleanup proposals are held
+to precision at or above `0.9` and recall at or above `0.7`: a proposal the user
+must review costs more when it is wrong than when it is missing, so precision is
+the tighter of the two. Diarization must reach a diarization error rate at or
+below `0.2` and produce zero label drifts across re-runs on unchanged media.
+Semantic transcript search must reach recall-at-5 at or above `0.8` with zero
+index rebuild divergences. Beats must land within a `40 ms` median error with a
+downbeat F-measure at or above `0.8`.
+
+The visual reel is one hour of video with annotated shot boundaries including
+dissolves, seeded visual queries, annotated subject shots, deliberately
+subjectless shots, and vertical golden frames. Accurate TransNetV2 cuts must
+reach an F-measure at or above `0.9`; the model-free fast scene-score path is
+held separately at `0.7`, because its dissolve miss class is a known and
+documented property of that mode rather than a defect. Visual retrieval must
+reach a hit rate at or above `0.8` while the disposable index stays at or below
+`64 MiB` per hour of video. Reframe must retain its subject in at least `0.9` of
+annotated shots and must fall back to saliency and then centre on every
+subjectless shot without a failure. Highlight assembly must complete at a
+real-time factor at or below `0.5` and produce identical proposals on identical
+inputs and settings. Vertical delivery must produce zero crop-correct golden
+frame mismatches, and an export that requests no crop must remain byte-stable.
+
 
 ## Milestone 4B keyed render parity
 
@@ -682,8 +779,10 @@ The safe progression is:
    recomputes exactly the five registered metrics and refuses ambiguous,
    truncated, non-finite, retried, or overwrite-prone evidence. **Done**, by
    the `Qualification metrics` workflow described below.
-3. Keep Chromium, Firefox, and WebKit functional/fallback jobs green without
-   treating their hosted timing as performance qualification.
+3. Keep Chromium, Firefox, and WebKit functional/fallback jobs green. Their
+   hosted timing qualifies a workload only through the registered lower-bound
+   rule — a met budget carries to the stronger owner host, a missed one is an
+   observation about the runner.
 4. Provision the fixed GPU host, add an exact environment check, replace the
    runtime-generated preview media with a digest-pinned fixture, and emit one
    consolidated result artifact.
@@ -701,10 +800,18 @@ undetected.
 
 The collector runs one Playwright invocation per spec, single worker and no
 retries, and writes `console.log`, `raw.json` and `summary.json` under
-`test-results/ci-qualification-metrics/`. Each workload carries the same
-`pending-external` status and ineligibility note the downloadable nightly host
-publishes, because `github-ubuntu-playwright-1.62.1` is
-`qualificationEligible: false` and no hosted number can promote a formal row.
+`test-results/ci-qualification-metrics/`, beside one `<workload>.accepted.json`
+and `<workload>.raw.json` pair for every workload that met all of its
+thresholds. Those pairs are the qualification evidence: they carry the exact
+result-contract fields the file verifier and cohort auditor check, so an
+accepted hosted run can be bound into `qualification.acceptedResultCohorts` by
+byte length and SHA-256 without committing the artifacts themselves.
+
+A workload qualifies here because `github-ubuntu-playwright-1.62.1` is a
+registered `hardware-lower-bound` surrogate for
+`owner-qualified-windows-x64-rtx3090-01`. A missed threshold does not
+disqualify anything: the weaker machine is expected to miss a timing budget,
+and the summary records the miss as an observation.
 
 What the run does with each number follows the measurement procedure above:
 
@@ -712,8 +819,9 @@ What the run does with each number follows the measurement procedure above:
   **blocking**. They are exact media comparisons whose SSIM, MAE and
   omitted-operation counters are deterministic, so a regression fails the job.
 - `m3-longform-editorial` is **observational**. Its position counters are exact,
-  but its seek, scroll and retained-heap budgets belong to a fixed environment;
-  a shared runner misses them under load without anything being wrong.
+  and its seek, scroll and retained-heap budgets qualify when the shared runner
+  meets them, but a shared runner misses them under load without anything being
+  wrong, so a miss cannot fail the job.
 - `m1-video-preview-12fx-720p` is **not attempted**. It measures presented
   frames through a twelve-effect 1280x720 WebGL stack, and llvmpipe delivers
   roughly one frame every eleven seconds, so the spec times out short of its

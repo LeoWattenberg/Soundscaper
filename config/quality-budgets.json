@@ -9,9 +9,11 @@
 			"m2-direct-wav-385mib-v1",
 			"m2-direct-stem-archives-v3",
 			"m2-direct-compressed-output-v2",
-			"m2-direct-mp4-webm-video-output-v1"
+			"m2-direct-mp4-webm-video-output-v1",
+			"m4-production-render-parity",
+			"m4b2-keyframe-render-parity"
 		],
-		"reason": "All five frozen milestone-2 first-party structural workloads have reviewed no-retry evidence. The direct stem, compressed-audio, and video workloads are bound to observed production-path diagnostics rather than fixture specification constants. Fixed-hardware performance, browser and renderer heap, process RSS, worker/native/WASM codec memory, device, durability, the unprovisioned Framescaper Web VCR packaged real-runtime matrix, and release qualification remain open or out of these cohorts' scope.",
+		"reason": "All five frozen milestone-2 first-party structural workloads have reviewed no-retry evidence. The direct stem, compressed-audio, and video workloads are bound to observed production-path diagnostics rather than fixture specification constants. The two milestone-4 render-parity workloads are bound to the 2026-08-27 hosted run, which met every threshold on a runner registered as a hardware lower bound for owner-qualified-windows-x64-rtx3090-01. Fixed-hardware timing, browser and renderer heap, process RSS, worker/native/WASM codec memory, device, durability, the unprovisioned Framescaper Web VCR packaged real-runtime matrix, and release qualification remain open or out of these cohorts' scope.",
 		"acceptedResultCohorts": [
 			{
 				"id": "m2-structural-aad0ba1",
@@ -67,6 +69,31 @@
 						"resultSha256": "ca152dd5aa1b7d3543aa8461f6dea7438a818be150f7628ff4362009aa06a93a",
 						"rawByteLength": 4402,
 						"rawSha256": "2b90b8ff8f5ca2f37f4d9c872cd36e0b7e7fff52efee716b4f572f9387760524"
+					}
+				]
+			},
+			{
+				"id": "hosted-ci-render-parity-d41c5cb1",
+				"sourceRevision": "d41c5cb1779920282427c9144a805e9f5bdfccf8",
+				"budgetSha256": "0aeebef01e7d5becd43934c539343cad14567fcb9ccef7249fbc19935cf0f444",
+				"environmentId": "github-ubuntu-playwright-1.62.1",
+				"attemptCount": 1,
+				"retryCount": 0,
+				"retention": "hosted-run-artifacts-with-checked-in-byte-length-and-sha256",
+				"artifacts": [
+					{
+						"workloadId": "m4-production-render-parity",
+						"resultByteLength": 1126,
+						"resultSha256": "5cfb8e67b2c3ea5528db772fcf465deb75f92a87c1f1c968a44d1e4f2ed6c22d",
+						"rawByteLength": 3076,
+						"rawSha256": "25b0d8ca23fac61b8d8a79fa772e07b3a2a23f0b7020f90dd9e04458250e7416"
+					},
+					{
+						"workloadId": "m4b2-keyframe-render-parity",
+						"resultByteLength": 1101,
+						"resultSha256": "3289202c834e80540d7cb12ff38c0a2238da0abda7f2c6506f28d02a62522279",
+						"rawByteLength": 3107,
+						"rawSha256": "e54e6a3b47dea82e278a2b81cd2824a1bf5dd75666c7d32a32fa573131389d4f"
 					}
 				]
 			}
@@ -343,8 +370,15 @@
 			"id": "github-ubuntu-playwright-1.62.1",
 			"status": "active",
 			"kind": "hosted-ci",
-			"qualificationEligible": false,
+			"qualificationEligible": true,
+			"qualificationBasis": "hardware-lower-bound",
+			"lowerBoundOf": "owner-qualified-windows-x64-rtx3090-01",
 			"rendererRequirement": "any",
+			"eligibleWorkloadIds": [
+				"m3-longform-editorial",
+				"m4-production-render-parity",
+				"m4b2-keyframe-render-parity"
+			],
 			"fingerprint": {
 				"osImage": "ubuntu-24.04",
 				"containerImage": "mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e",
@@ -352,7 +386,13 @@
 				"npmVersion": "12.0.1",
 				"playwrightVersion": "1.62.1"
 			},
-			"evidence": [".github/workflows/quality.yml", ".nvmrc", "package-lock.json"]
+			"evidence": [
+				".github/workflows/quality.yml",
+				".github/workflows/qualification-metrics.yml",
+				".nvmrc",
+				"package-lock.json",
+				"docs/quality-budgets.md#hosted-ci-qualification-metrics"
+			]
 		},
 		{
 			"id": "portable-node-structural-26.5.0",
@@ -1148,7 +1188,7 @@
 					"sha256": "a7a1230cdd711e15deaea68e0e5f58028eb684455fb42024e2aed624ad934701"
 				}
 			],
-			"limitation": "The deterministic PCM and RGBA artifacts establish correctness only. Hosted and local observations remain pending-external; formal acceptance is emitted only by nightly packaged-runtime verification on the exact owner-designated hardware profile.",
+			"limitation": "The deterministic PCM and RGBA artifacts establish exact media correctness. The 2026-08-27 hosted run met every threshold on the registered hardware lower bound and qualifies the workload through the hosted-ci-render-parity-d41c5cb1 cohort. A standalone local run remains pending-external, and the owner-designated fixed-GPU profile is still published only by nightly packaged-runtime verification.",
 			"evidence": [
 				"package.json",
 				"src/common/editor/quality/m4-production-parity-workload.ts",
@@ -1192,7 +1232,7 @@
 				"localDiagnosticCommand": "node scripts/collect-m4b2-keyframe-parity-quality.mjs",
 				"qualificationPublication": "accepted-only-after-qualified-environment-and-digest-bound-verification"
 			},
-			"limitation": "The deterministic keyed preview/offline RGBA comparison establishes local and hosted correctness only. Formal acceptance is emitted only by nightly packaged-runtime verification when the complete diagnostic matches the owner-designated host profile exactly.",
+			"limitation": "The deterministic keyed preview/offline RGBA comparison establishes exact media correctness. The 2026-08-27 hosted run met every threshold on the registered hardware lower bound and qualifies the workload through the hosted-ci-render-parity-d41c5cb1 cohort. The owner-designated fixed-GPU profile is still published only by nightly packaged-runtime verification.",
 			"evidence": [
 				"src/common/editor/quality/m4b2-keyframe-parity-workload.ts",
 				"scripts/lib/m4b2-keyframe-parity-metrics.mjs",
@@ -1267,7 +1307,58 @@
 				"selectedMediaAssetCount": 2,
 				"unselectedMediaAssetCount": 2
 			},
-			"evidence": ["roadmap.md#7-optional-local-assistance"]
+			"evidence": [
+				"roadmap.md#7-optional-local-assistance",
+				"docs/milestone-7-plan.md#wp-703--job-consent-and-evidence-integration",
+				"docs/quality-budgets.md#milestone-7-local-assistance-privacy-evidence",
+				"scripts/lib/m7-local-assistance-privacy-metrics.mjs",
+				"scripts/collect-m7-local-assistance-privacy-quality.mjs",
+				"tests/quality-budget-m7-local-assistance-privacy-collector.test.ts"
+			]
+		},
+		{
+			"id": "m7-local-assistance-speech-accuracy-v1",
+			"milestones": ["7"],
+			"status": "planned",
+			"kind": "planned-offline-model-accuracy-corpus",
+			"specification": {
+				"language": "en",
+				"durationSeconds": 1800,
+				"speakerCount": 3,
+				"referenceTranscriptWordCount": 4500,
+				"plantedFillerCount": 120,
+				"plantedSilenceCount": 60,
+				"seededSearchPhraseCount": 25,
+				"annotatedBeatCount": 2400,
+				"annotatedDownbeatCount": 600
+			},
+			"limitation": "The corpus is specified, not provisioned. Every threshold it carries is a criterion for the model-backed routes, and none of them can be measured until the converted artifacts, signed catalog entries, and target runtime payloads exist.",
+			"evidence": [
+				"roadmap.md#7-optional-local-assistance",
+				"docs/milestone-7-plan.md#7a-packets-soundscaper-track-slice-docs-at-pickup",
+				"docs/quality-budgets.md#milestone-7-local-assistance-accuracy-criteria"
+			]
+		},
+		{
+			"id": "m7-local-assistance-visual-accuracy-v1",
+			"milestones": ["7"],
+			"status": "planned",
+			"kind": "planned-offline-model-accuracy-corpus",
+			"specification": {
+				"durationSeconds": 3600,
+				"annotatedShotBoundaryCount": 400,
+				"annotatedDissolveCount": 40,
+				"seededVisualQueryCount": 25,
+				"annotatedSubjectShotCount": 120,
+				"subjectlessShotCount": 20,
+				"verticalGoldenFrameCount": 12
+			},
+			"limitation": "The reel is specified, not provisioned. Its accurate-cut, retrieval, reframe, and highlight thresholds cannot be measured until the converted artifacts, signed catalog entries, and target runtime payloads exist; only the model-free fast-cut and unchanged-export rows are measurable without them.",
+			"evidence": [
+				"roadmap.md#7-optional-local-assistance",
+				"docs/milestone-7-plan.md#7b-packets-framescaper-track-slice-docs-at-pickup",
+				"docs/quality-budgets.md#milestone-7-local-assistance-accuracy-criteria"
+			]
 		},
 		{
 			"id": "m8a-capture-30m-all-sources-v1",
@@ -1520,7 +1611,7 @@
 			"milestone": "3",
 			"status": "provisional",
 			"fixtureIds": ["m3-longform-editorial-2h-v2"],
-			"environmentIds": ["owner-qualified-windows-x64-rtx3090-01"],
+			"environmentIds": ["github-ubuntu-playwright-1.62.1", "owner-qualified-windows-x64-rtx3090-01"],
 			"thresholds": [
 				{ "metricId": "editorial.audioPositionErrorSamples", "comparison": "eq", "value": 0, "unit": "samples" },
 				{ "metricId": "editorial.videoPositionErrorFrames", "comparison": "eq", "value": 0, "unit": "frames" },
@@ -1540,7 +1631,7 @@
 		{
 			"id": "m4-production-render-parity",
 			"milestone": "4",
-			"status": "provisional",
+			"status": "qualified",
 			"fixtureIds": ["video-effect-parity-rgba-v1", "m4-production-parity-v1"],
 			"environmentIds": ["github-ubuntu-playwright-1.62.1", "owner-qualified-windows-x64-rtx3090-01"],
 			"thresholds": [
@@ -1561,7 +1652,7 @@
 		{
 			"id": "m4b2-keyframe-render-parity",
 			"milestone": "4",
-			"status": "provisional",
+			"status": "qualified",
 			"fixtureIds": ["m4b2-keyframe-parity-rgba-v1"],
 			"environmentIds": ["github-ubuntu-playwright-1.62.1", "owner-qualified-windows-x64-rtx3090-01"],
 			"thresholds": [
@@ -1652,7 +1743,62 @@
 				{ "metricId": "assistance.cancellationP95Ms", "comparison": "lte", "value": 2000, "unit": "ms" },
 				{ "metricId": "assistance.canonicalStateLosses", "comparison": "eq", "value": 0, "unit": "count" }
 			],
-			"evidence": ["roadmap.md#7-optional-local-assistance"]
+			"evidence": [
+				"roadmap.md#7-optional-local-assistance",
+				"docs/milestone-7-plan.md#wp-703--job-consent-and-evidence-integration",
+				"docs/quality-budgets.md#milestone-7-local-assistance-privacy-evidence",
+				"scripts/lib/m7-local-assistance-privacy-metrics.mjs",
+				"scripts/collect-m7-local-assistance-privacy-quality.mjs",
+				"tests/quality-budget-m7-local-assistance-privacy-collector.test.ts"
+			]
+		},
+		{
+			"id": "m7-local-assistance-speech-accuracy",
+			"milestone": "7",
+			"status": "planned",
+			"fixtureIds": ["m7-local-assistance-speech-accuracy-v1"],
+			"environmentIds": ["owner-qualified-windows-x64-rtx3090-01"],
+			"thresholds": [
+				{ "metricId": "assistance.transcriptWordErrorRateRatio", "comparison": "lte", "value": 0.15, "unit": "ratio" },
+				{ "metricId": "assistance.transcriptWordTimingMedianErrorMs", "comparison": "lte", "value": 120, "unit": "ms" },
+				{ "metricId": "assistance.fillerProposalPrecisionRatio", "comparison": "gte", "value": 0.9, "unit": "ratio" },
+				{ "metricId": "assistance.fillerProposalRecallRatio", "comparison": "gte", "value": 0.7, "unit": "ratio" },
+				{ "metricId": "assistance.diarizationErrorRateRatio", "comparison": "lte", "value": 0.2, "unit": "ratio" },
+				{ "metricId": "assistance.diarizationLabelDrifts", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "assistance.transcriptSearchRecallAtFiveRatio", "comparison": "gte", "value": 0.8, "unit": "ratio" },
+				{ "metricId": "assistance.transcriptIndexRebuildDivergences", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "assistance.beatGridMedianErrorMs", "comparison": "lte", "value": 40, "unit": "ms" },
+				{ "metricId": "assistance.downbeatFMeasureRatio", "comparison": "gte", "value": 0.8, "unit": "ratio" }
+			],
+			"evidence": [
+				"roadmap.md#7-optional-local-assistance",
+				"docs/milestone-7-plan.md#7a-packets-soundscaper-track-slice-docs-at-pickup",
+				"docs/quality-budgets.md#milestone-7-local-assistance-accuracy-criteria"
+			]
+		},
+		{
+			"id": "m7-local-assistance-visual-accuracy",
+			"milestone": "7",
+			"status": "planned",
+			"fixtureIds": ["m7-local-assistance-visual-accuracy-v1"],
+			"environmentIds": ["owner-qualified-windows-x64-rtx3090-01"],
+			"thresholds": [
+				{ "metricId": "assistance.accurateShotBoundaryFMeasureRatio", "comparison": "gte", "value": 0.9, "unit": "ratio" },
+				{ "metricId": "assistance.fastShotBoundaryFMeasureRatio", "comparison": "gte", "value": 0.7, "unit": "ratio" },
+				{ "metricId": "assistance.visualRetrievalHitRateRatio", "comparison": "gte", "value": 0.8, "unit": "ratio" },
+				{ "metricId": "assistance.visualIndexBytesPerVideoHour", "comparison": "lte", "value": 67108864, "unit": "bytes" },
+				{ "metricId": "assistance.subjectRetentionRatio", "comparison": "gte", "value": 0.9, "unit": "ratio" },
+				{ "metricId": "assistance.reframeDegenerateFallbackFailures", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "assistance.highlightAssemblyRtf", "comparison": "lte", "value": 0.5, "unit": "RTF" },
+				{ "metricId": "assistance.highlightProposalDivergences", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "assistance.verticalCropGoldenFrameMismatches", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "assistance.unchangedExportByteDivergences", "comparison": "eq", "value": 0, "unit": "count" }
+			],
+			"evidence": [
+				"roadmap.md#7-optional-local-assistance",
+				"docs/milestone-7-plan.md#7b-packets-framescaper-track-slice-docs-at-pickup",
+				"docs/quality-budgets.md#milestone-7-local-assistance-accuracy-criteria"
+			]
 		},
 		{
 			"id": "m8a-capture-long-session",

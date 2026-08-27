@@ -22,6 +22,7 @@ import {
 	createAssistanceRuntimeFamilyOperationAdapter,
 	type AssistanceRuntimeFamilyOperationAdapter,
 } from './assistance-runtime-family-operation-adapter.ts';
+import type { AssistancePowerEtiquettePort } from './assistance-power-etiquette-v1.ts';
 
 export interface AssistanceRuntimeFamilyDesktopStartupOptions {
 	readonly runtimeRoot: string;
@@ -31,6 +32,8 @@ export interface AssistanceRuntimeFamilyDesktopStartupOptions {
 	readonly architecture?: string;
 	readonly fork: AssistanceRuntimeFamilyElectronSpawnOptions['fork'];
 	readonly sampleRss?: (pid: number) => number | null;
+	readonly applyBackgroundPriority?: (pid: number) => void;
+	readonly powerEtiquette?: AssistancePowerEtiquettePort;
 	readonly totalMemoryBytes: () => number;
 	readonly availableMemoryBytes: () => number;
 }
@@ -66,12 +69,15 @@ export function createAssistanceRuntimeFamilyDesktopStartup(
 		helperPath: options.helperPath,
 		fork: options.fork,
 		...(options.sampleRss === undefined ? {} : { sampleRss: options.sampleRss }),
+		...(options.applyBackgroundPriority === undefined
+			? {} : { applyBackgroundPriority: options.applyBackgroundPriority }),
 	});
 	const router = createAssistanceRuntimeFamilyRouter({
 		availability,
 		spawns,
 		totalMemoryBytes: options.totalMemoryBytes,
 		availableMemoryBytes: options.availableMemoryBytes,
+		...(options.powerEtiquette === undefined ? {} : { powerEtiquette: options.powerEtiquette }),
 	});
 	return Object.freeze({
 		operations: createAssistanceRuntimeFamilyOperationAdapter({ router }),
@@ -106,6 +112,8 @@ function validateOptions(options: AssistanceRuntimeFamilyDesktopStartupOptions):
 		|| typeof options.totalMemoryBytes !== 'function'
 		|| typeof options.availableMemoryBytes !== 'function'
 		|| options.sampleRss !== undefined && typeof options.sampleRss !== 'function'
+		|| options.applyBackgroundPriority !== undefined
+			&& typeof options.applyBackgroundPriority !== 'function'
 		|| options.platform !== undefined && (typeof options.platform !== 'string' || options.platform === '')
 		|| options.architecture !== undefined
 			&& (typeof options.architecture !== 'string' || options.architecture === '')) {

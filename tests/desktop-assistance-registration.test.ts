@@ -85,3 +85,33 @@ test('indexed search receives one lazy installed-only runtime query executor', a
 		< main.indexOf("name: 'assistance'"),
 		'assistance query cancellation must drain before its shared runtime families');
 });
+
+test('every assistance helper is composed as background work the machine can pause', async () => {
+	const registration = await readFile(
+		new URL('../desktop/assistance-registration.mjs', import.meta.url), 'utf8');
+	assert.match(registration,
+		/import \{ applyAssistanceBackgroundPriority, normalizeAssistanceThermalState \} from '\.\/project-library-runtime\/desktop\/assistance-power-etiquette-v1\.js';/u);
+	assert.match(registration, /import \{ powerMonitor, utilityProcess \} from 'electron\/main';/u);
+	assert.match(registration,
+		/applyAssistanceBackgroundPriority\(pid, setPriority, osConstants\.priority\.PRIORITY_BELOW_NORMAL\)/u);
+	assert.match(registration,
+		/onBatteryPower: powerMonitor\.isOnBatteryPower\(\) === true,[\s\S]*?thermalState: normalizeAssistanceThermalState\(/u);
+	assert.match(registration,
+		/POWER_ETIQUETTE_EVENTS = Object\.freeze\(\['on-ac', 'on-battery', 'thermal-state-change'\]\)/u,
+		'the port must re-evaluate a hold on both power and thermal transitions');
+	assert.match(registration,
+		/for \(const event of POWER_ETIQUETTE_EVENTS\) powerMonitor\.off\(event, listener\);/u,
+		'a released hold must remove exactly the listeners it added');
+	assert.match(registration,
+		/child = forked;\s*assistanceBackgroundPriority\(forked\.pid\);/u,
+		'the Sherpa speech helper runs below the editor too');
+	assert.match(registration,
+		/createAssistanceRuntimeFamilyDesktopStartup\(\{[\s\S]*?applyBackgroundPriority: assistanceBackgroundPriority,[\s\S]*?powerEtiquette: assistancePowerEtiquette\(\),/u);
+});
+
+test('the staged desktop runtime carries the assistance power etiquette module', async () => {
+	const configuration = JSON.parse(await readFile(
+		new URL('../tsconfig.desktop-runtime.json', import.meta.url), 'utf8'));
+	assert.ok(configuration.include.includes('desktop/assistance-power-etiquette-v1.ts'),
+		'the composition root imports it from the staged runtime, so it must be emitted there');
+});

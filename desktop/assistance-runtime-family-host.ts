@@ -14,9 +14,28 @@ import {
 	type AssistanceRuntimeFamilyAdmittedJob,
 	type AssistanceRuntimeFamilyJobRequestV1,
 } from './assistance-runtime-family-job-contract.ts';
+import {
+	ASSISTANCE_POWER_HOLD_BUDGET_MS,
+	awaitAssistancePowerAdmission,
+	type AssistancePowerEtiquettePort,
+	type AssistancePowerHoldReason,
+} from './assistance-power-etiquette-v1.ts';
+import {
+	AssistanceRuntimeFamilyError,
+	assistanceRuntimeErrorMessage as errorMessage,
+	assistanceRuntimeFamilyFailure as failure,
+	inferredAssistanceJobId as inferredJobId,
+	inferredAssistanceRuntimeFamily as inferredFamily,
+} from './assistance-runtime-family-errors-v1.ts';
+import {
+	ASSISTANCE_RUNTIME_FAMILY_IDLE_UNLOAD_MS,
+	createAssistanceIdleUnloadScheduler,
+} from './assistance-runtime-family-idle-unload-v1.ts';
 import { HelperCrashLedger } from './helper-supervision-state.ts';
 
 export const ASSISTANCE_RUNTIME_FAMILY_CANCELLATION_BUDGET_MS = 2_000;
+export { AssistanceRuntimeFamilyError } from './assistance-runtime-family-errors-v1.ts';
+export type { AssistanceRuntimeFamilyErrorCode } from './assistance-runtime-family-errors-v1.ts';
 export {
 	ASSISTANCE_RUNTIME_FAMILY_PROTOCOL_VERSION,
 	ASSISTANCE_RUNTIME_FAMILY_TASKS,
@@ -50,6 +69,7 @@ export interface AssistanceRuntimeFamilyProcess {
 export interface AssistanceRuntimeFamilyRunOptions {
 	readonly signal?: AbortSignal;
 	readonly onProgress?: (value: number) => void;
+	readonly onPowerHold?: (reason: AssistancePowerHoldReason) => void;
 }
 
 export interface AssistanceRuntimeFamilyRouterOptions {
@@ -63,6 +83,11 @@ export interface AssistanceRuntimeFamilyRouterOptions {
 	readonly availableMemoryBytes: () => number;
 	readonly cancellationBudgetMs?: number;
 	readonly rssPollIntervalMs?: number;
+	/** Optional inference is background work, so it waits for mains power and a cool machine. */
+	readonly powerEtiquette?: AssistancePowerEtiquettePort;
+	readonly powerHoldBudgetMs?: number;
+	/** Quiet period after which a warm family process gives its memory back. */
+	readonly idleUnloadMs?: number;
 	readonly quarantineCrashLimit?: number;
 	readonly quarantineWindowMs?: number;
 	readonly now?: () => number;
@@ -70,45 +95,6 @@ export interface AssistanceRuntimeFamilyRouterOptions {
 	readonly clearTimeoutImpl?: typeof clearTimeout;
 	readonly setIntervalImpl?: typeof setInterval;
 	readonly clearIntervalImpl?: typeof clearInterval;
-}
-
-export type AssistanceRuntimeFamilyErrorCode =
-	| 'invalid-request'
-	| 'unsupported-task'
-	| 'unsupported-platform'
-	| 'manifest-missing'
-	| 'manifest-invalid'
-	| 'payload-pending-external'
-	| 'payload-missing'
-	| 'payload-digest-mismatch'
-	| 'insufficient-memory'
-	| 'quarantined'
-	| 'busy'
-	| 'cancelled'
-	| 'cancellation-timeout'
-	| 'runtime-exit'
-	| 'worker-error'
-	| 'malformed-message'
-	| 'resource-violation'
-	| 'disposed';
-
-export class AssistanceRuntimeFamilyError extends Error {
-	readonly code: AssistanceRuntimeFamilyErrorCode;
-	readonly familyId: AssistanceRuntimeFamilyId;
-	readonly jobId: string | null;
-
-	constructor(
-		code: AssistanceRuntimeFamilyErrorCode,
-		familyId: AssistanceRuntimeFamilyId,
-		message: string,
-		jobId: string | null = null,
-	) {
-		super(message);
-		this.name = 'AssistanceRuntimeFamilyError';
-		this.code = code;
-		this.familyId = familyId;
-		this.jobId = jobId;
-	}
 }
 
 export interface AssistanceRuntimeFamilySnapshot {
@@ -155,6 +141,13 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 		'cancellation budget',
 	);
 	const rssPollIntervalMs = boundedOption(options.rssPollIntervalMs, 100, 10_000, 'RSS interval');
+	const powerHoldBudgetMs = boundedOption(
+		options.powerHoldBudgetMs, ASSISTANCE_POWER_HOLD_BUDGET_MS, 600_000, 'power hold budget',
+	);
+	const idleUnloads = createAssistanceIdleUnloadScheduler({
+		idleUnloadMs: options.idleUnloadMs ?? ASSISTANCE_RUNTIME_FAMILY_IDLE_UNLOAD_MS,
+		setTimeoutImpl, clearTimeoutImpl,
+	});
 	const expectedTerminations = new WeakSet<object>();
 	let disposed = false;
 	let reservedMemoryBytes = 0;
@@ -206,6 +199,8 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 		request: AssistanceRuntimeFamilyJobRequestV1,
 		runOptions: AssistanceRuntimeFamilyRunOptions,
 	): Promise<unknown> {
+		idleUnloads.cancel(slot.familyId);
+		await admitPower(request, runOptions);
 		assertMemoryAdmission(request);
 		reservedMemoryBytes += request.maximumRssBytes;
 		try {
@@ -269,6 +264,32 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 		} finally {
 			reservedMemoryBytes -= request.maximumRssBytes;
 		}
+	}
+
+	/**
+	 * Holds new work while the machine runs on battery or reports serious thermal
+	 * pressure. The hold is bounded, and it never touches a job already running:
+	 * a transient condition delays admission, a sustained one reports it.
+	 */
+	async function admitPower(
+		request: AssistanceRuntimeFamilyJobRequestV1,
+		runOptions: AssistanceRuntimeFamilyRunOptions,
+	): Promise<void> {
+		const port = options.powerEtiquette;
+		if (port === undefined) return;
+		const outcome = await awaitAssistancePowerAdmission({
+			port,
+			holdBudgetMs: powerHoldBudgetMs,
+			...(runOptions.signal === undefined ? {} : { signal: runOptions.signal }),
+			...(runOptions.onPowerHold === undefined ? {} : { onHold: runOptions.onPowerHold }),
+			setTimeoutImpl, clearTimeoutImpl,
+		});
+		if (outcome.outcome === 'admitted') return;
+		if (outcome.outcome === 'cancelled') {
+			throw failure('cancelled', request, 'The runtime-family job was cancelled.');
+		}
+		throw failure('power-deferred', request,
+			`${request.familyId} deferred its job: ${outcome.detail}`);
 	}
 
 	const descriptors = new WeakMap<object, AssistanceRuntimeFamilyDescriptor>();
@@ -451,6 +472,17 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 		active.signal?.removeEventListener('abort', active.abortListener!);
 		if (slot.active === active) slot.active = null;
 		if (error) active.reject(error); else active.resolve(value);
+		unloadWhenIdle(slot);
+	}
+
+	/** A family that finished its work keeps no process warm for longer than the quiet period. */
+	function unloadWhenIdle(slot: FamilySlot): void {
+		if (disposed || slot.process === null) return;
+		idleUnloads.schedule(slot.familyId, () => {
+			const process = slot.process;
+			if (process === null || slot.active || slot.reserved || slot.starting) return;
+			void terminateProcess(slot, process);
+		});
 	}
 
 	function snapshot(familyId: AssistanceRuntimeFamilyId): AssistanceRuntimeFamilySnapshot {
@@ -474,6 +506,7 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 	function dispose(): void {
 		if (disposed) return;
 		disposed = true;
+		idleUnloads.dispose();
 		for (const slot of Object.values(slots)) {
 			const active = slot.active;
 			if (active) settle(slot, active,
@@ -486,18 +519,15 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 	return Object.freeze({ run, snapshot, clearQuarantine, dispose });
 }
 
-function failure(
-	code: AssistanceRuntimeFamilyErrorCode,
-	request: AssistanceRuntimeFamilyJobRequestV1,
-	message: string,
-): AssistanceRuntimeFamilyError {
-	return new AssistanceRuntimeFamilyError(code, request.familyId, message, request.jobId);
-}
-
 function assertOptions(options: AssistanceRuntimeFamilyRouterOptions): void {
 	if (!options || typeof options.availability !== 'function'
 		|| typeof options.totalMemoryBytes !== 'function' || typeof options.availableMemoryBytes !== 'function') {
 		throw new TypeError('The runtime-family router options are incomplete.');
+	}
+	const port = options.powerEtiquette;
+	if (port !== undefined
+		&& (!port || typeof port.observe !== 'function' || typeof port.subscribe !== 'function')) {
+		throw new TypeError('The runtime-family router power etiquette port is invalid.');
 	}
 	for (const familyId of Object.keys(ASSISTANCE_RUNTIME_FAMILY_DEFINITIONS) as AssistanceRuntimeFamilyId[]) {
 		if (typeof options.spawns?.[familyId] !== 'function') {
@@ -514,21 +544,3 @@ function boundedOption(value: number | undefined, fallback: number, maximum: num
 	return admitted;
 }
 
-function inferredFamily(value: unknown): AssistanceRuntimeFamilyId {
-	return plainRecord(value) && typeof value.familyId === 'string'
-		&& Object.hasOwn(ASSISTANCE_RUNTIME_FAMILY_DEFINITIONS, value.familyId)
-		? value.familyId as AssistanceRuntimeFamilyId : 'onnxruntime-node';
-}
-
-function inferredJobId(value: unknown): string | null {
-	return plainRecord(value) && typeof value.jobId === 'string' ? value.jobId : null;
-}
-
-function plainRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value)
-		&& (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
-}
-
-function errorMessage(error: unknown): string {
-	return error instanceof Error ? error.message : String(error);
-}

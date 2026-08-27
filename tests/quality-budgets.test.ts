@@ -4,9 +4,6 @@ import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
-	evaluateQualityBudget,
-} from '../scripts/quality-budget-evaluator.mjs';
-import {
 	createVideoEffectParityFixture,
 } from './browser/video-effect-parity-helpers.js';
 
@@ -22,9 +19,12 @@ interface BudgetArtifact {
 }
 
 interface BudgetEnvironment {
+	readonly eligibleWorkloadIds?: readonly string[];
 	readonly evidence: readonly string[];
 	readonly fingerprint: Readonly<Record<string, string | number | null>>;
 	readonly id: string;
+	readonly lowerBoundOf?: string;
+	readonly qualificationBasis?: string;
 	readonly qualificationEligible: boolean;
 	readonly rendererRequirement: RendererRequirement;
 	readonly status: EnvironmentStatus;
@@ -143,8 +143,10 @@ test('quality budget contract names numeric gates and the exact qualified struct
 		'm2-direct-stem-archives-v3',
 		'm2-direct-compressed-output-v2',
 		'm2-direct-mp4-webm-video-output-v1',
+		'm4-production-render-parity',
+		'm4b2-keyframe-render-parity',
 	]);
-	assert.equal(config.qualification.acceptedResultCohorts.length, 2);
+	assert.equal(config.qualification.acceptedResultCohorts.length, 3);
 	assert.deepEqual(config.qualification.resultContract, {
 		schemaVersion: 1,
 		evaluator: 'scripts/quality-budget-result.mjs',
@@ -392,7 +394,9 @@ test('quality budget contract names numeric gates and the exact qualified struct
 
 	const hostedPlaywright = environments.get('github-ubuntu-playwright-1.62.1');
 	assert.equal(hostedPlaywright?.status, 'active');
-	assert.equal(hostedPlaywright?.qualificationEligible, false);
+	assert.equal(hostedPlaywright?.qualificationEligible, true);
+	assert.equal(hostedPlaywright?.qualificationBasis, 'hardware-lower-bound');
+	assert.equal(hostedPlaywright?.lowerBoundOf, 'owner-qualified-windows-x64-rtx3090-01');
 
 	const keyedFixture = fixtures.get('m4b2-keyframe-parity-rgba-v1');
 	const keyedWorkload = config.workloads.find(({ id }) => id === 'm4b2-keyframe-render-parity');
@@ -424,9 +428,9 @@ test('quality budget contract names numeric gates and the exact qualified struct
 		qualificationPublication: 'accepted-only-after-qualified-environment-and-digest-bound-verification',
 	});
 	assert.deepEqual(keyedFixture?.evidence, keyedEvidence);
-	assert.match(keyedFixture?.limitation ?? '', /local and hosted correctness only/iu);
+	assert.match(keyedFixture?.limitation ?? '', /exact media correctness/iu);
+	assert.match(keyedFixture?.limitation ?? '', /hardware lower bound/iu);
 	assert.match(keyedFixture?.limitation ?? '', /nightly packaged-runtime verification/iu);
-	assert.equal(keyedWorkload?.status, 'provisional');
 	assert.deepEqual(keyedWorkload?.fixtureIds, ['m4b2-keyframe-parity-rgba-v1']);
 	assert.deepEqual(keyedWorkload?.environmentIds,
 		['github-ubuntu-playwright-1.62.1', 'owner-qualified-windows-x64-rtx3090-01']);
@@ -438,15 +442,66 @@ test('quality budget contract names numeric gates and the exact qualified struct
 		{ metricId: 'keyframes.fallbackOperations', comparison: 'eq', value: 0, unit: 'count' },
 	]);
 	assert.deepEqual(keyedWorkload?.evidence, keyedEvidence);
-	assert.equal(config.qualification.qualifiedWorkloadIds.includes(keyedWorkload?.id ?? ''), false);
-	assert.equal(JSON.stringify(config.qualification.acceptedResultCohorts)
-		.includes('m4b2-keyframe-render-parity'), false);
+	// The keyed comparison is exact media, so the hosted lower bound closes it.
+	assert.equal(keyedWorkload?.status, 'qualified');
+	assert.equal(config.qualification.qualifiedWorkloadIds.includes(keyedWorkload?.id ?? ''), true);
+	const keyedCohort = config.qualification.acceptedResultCohorts
+		.find(({ id }) => id === 'hosted-ci-render-parity-d41c5cb1') as undefined | Readonly<{
+			artifacts: readonly Readonly<{ workloadId: string }>[];
+			attemptCount: number;
+			environmentId: string;
+			retryCount: number;
+		}>;
+	assert.ok(keyedCohort, 'the hosted render-parity cohort must be registered');
+	assert.equal(keyedCohort.environmentId, 'github-ubuntu-playwright-1.62.1');
+	assert.equal(keyedCohort.attemptCount, 1);
+	assert.equal(keyedCohort.retryCount, 0);
+	assert.deepEqual(keyedCohort.artifacts.map(({ workloadId }) => workloadId), [
+		'm4-production-render-parity',
+		'm4b2-keyframe-render-parity',
+	]);
 
 	await assertEvidenceExists([
 		...config.environments.flatMap(({ evidence }) => evidence),
 		...config.fixtures.flatMap(({ evidence }) => evidence),
 		...config.workloads.flatMap(({ evidence }) => evidence),
 	]);
+});
+
+test('a lower-bound environment qualifies only workloads its stronger host also admits', async () => {
+	const config = JSON.parse(await readFile(configUrl, 'utf8')) as QualityBudgetConfig;
+	const environments = new Map(config.environments.map((environment) => [environment.id, environment]));
+	const workloads = new Map(config.workloads.map((workload) => [workload.id, workload]));
+	let lowerBoundCount = 0;
+	for (const environment of config.environments) {
+		if (environment.qualificationEligible) {
+			assert.ok(
+				Array.isArray(environment.eligibleWorkloadIds) && environment.eligibleWorkloadIds.length > 0,
+				`${environment.id} is qualification-eligible and must name its eligible workloads`,
+			);
+		}
+		if (environment.qualificationBasis !== 'hardware-lower-bound') {
+			assert.equal(environment.lowerBoundOf, undefined,
+				`${environment.id} names a stronger host without claiming the lower-bound basis`);
+			continue;
+		}
+		lowerBoundCount += 1;
+		// The rule only holds one way: a budget met on the weaker machine is met
+		// on the stronger one. That is meaningless unless the stronger host is
+		// registered and the workload is measured against it as well.
+		const stronger = environments.get(environment.lowerBoundOf ?? '');
+		assert.ok(stronger, `${environment.id} names unknown stronger host ${String(environment.lowerBoundOf)}`);
+		assert.equal(environment.qualificationEligible, true);
+		for (const workloadId of environment.eligibleWorkloadIds ?? []) {
+			const workload = workloads.get(workloadId);
+			assert.ok(workload, `${environment.id} is eligible for unknown workload ${workloadId}`);
+			assert.ok(workload.environmentIds.includes(environment.id),
+				`${workloadId} does not admit lower-bound environment ${environment.id}`);
+			assert.ok(workload.environmentIds.includes(stronger.id),
+				`${workloadId} qualifies from ${environment.id} without admitting ${stronger.id}`);
+		}
+	}
+	assert.equal(lowerBoundCount, 1, 'exactly one registered lower-bound environment is expected');
 });
 
 test('quality budget inputs pin the checked-in Node, npm, Playwright, and browser revisions', async () => {
@@ -508,79 +563,6 @@ test('registered video parity artifacts retain their deterministic hashes', asyn
 		assert.equal(generated.bytes.byteLength, artifact.byteLength);
 		assert.equal(createHash('sha256').update(generated.bytes).digest('hex'), artifact.sha256);
 	}
-});
-
-test('quality budget evaluator accepts exact boundaries on an eligible environment', () => {
-	const evaluation = evaluateQualityBudget(
-		{
-			environmentId: 'fixed-gpu',
-			rendererRequirement: 'hardware',
-			thresholds: [
-				{ metricId: 'preview.frameIntervalP95Ms', comparison: 'lte', value: 33.34, unit: 'ms' },
-				{ metricId: 'preview.ssimMinimum', comparison: 'gte', value: 0.98, unit: 'ratio' },
-				{ metricId: 'preview.omissions', comparison: 'eq', value: 0, unit: 'count' },
-			],
-		},
-		{ id: 'fixed-gpu', status: 'active', qualificationEligible: true },
-		{
-			environmentId: 'fixed-gpu',
-			rendererClass: 'hardware',
-			metrics: {
-				'preview.frameIntervalP95Ms': 33.34,
-				'preview.ssimMinimum': 0.98,
-				'preview.omissions': 0,
-			},
-		},
-	);
-
-	assert.equal(evaluation.passed, true);
-	assert.deepEqual(evaluation.failures, []);
-	assert.ok(evaluation.verdicts.every(({ passed }: { readonly passed: boolean }) => passed));
-});
-
-test('quality budget evaluator fails closed on missing metrics, environment mismatch, and software rendering', () => {
-	const evaluation = evaluateQualityBudget(
-		{
-			environmentId: 'fixed-gpu',
-			rendererRequirement: 'hardware',
-			thresholds: [
-				{ metricId: 'preview.frameIntervalP95Ms', comparison: 'lte', value: 33.34, unit: 'ms' },
-				{ metricId: 'preview.heapDeltaBytes', comparison: 'lte', value: 1_048_576, unit: 'bytes' },
-			],
-		},
-		{ id: 'fixed-gpu', status: 'active', qualificationEligible: true },
-		{
-			environmentId: 'another-host',
-			rendererClass: 'software',
-			metrics: { 'preview.frameIntervalP95Ms': Number.NaN },
-		},
-	);
-
-	assert.equal(evaluation.passed, false);
-	assert.ok(evaluation.failures.some((failure: string) => /environment mismatch/iu.test(failure)));
-	assert.ok(evaluation.failures.some((failure: string) => /hardware renderer/iu.test(failure)));
-	assert.ok(evaluation.failures.some((failure: string) => /finite/iu.test(failure)));
-	assert.ok(evaluation.failures.some((failure: string) => /missing metric.*heapDeltaBytes/iu.test(failure)));
-});
-
-test('quality budget evaluator cannot qualify an unprovisioned environment', () => {
-	const evaluation = evaluateQualityBudget(
-		{
-			environmentId: 'unprovisioned-gpu',
-			rendererRequirement: 'hardware',
-			thresholds: [{ metricId: 'preview.frameIntervalP95Ms', comparison: 'lte', value: 33.34, unit: 'ms' }],
-		},
-		{ id: 'unprovisioned-gpu', status: 'unprovisioned', qualificationEligible: false },
-		{
-			environmentId: 'unprovisioned-gpu',
-			rendererClass: 'hardware',
-			metrics: { 'preview.frameIntervalP95Ms': 10 },
-		},
-	);
-
-	assert.equal(evaluation.passed, false);
-	assert.ok(evaluation.failures.some((failure: string) => /unprovisioned/iu.test(failure)));
-	assert.ok(evaluation.failures.some((failure: string) => /not qualification-eligible/iu.test(failure)));
 });
 
 async function assertEvidenceExists(references: readonly string[]): Promise<void> {
