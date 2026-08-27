@@ -327,7 +327,7 @@ test('stateful local assistance implementations share one dedicated lazy owner',
 test('menu-opened execution and UI surfaces use dedicated lazy owners', () => {
 	for (const path of [
 		'src/common/editor/ui/local-assistance-bridge.ts',
-		'src/common/editor/ui/local-assistance-guided-session-store.ts',
+		'src/common/editor/ui/local-assistance-guided-session-store.ts', 'src/common/editor/ui/local-assistance-review-authority.ts',
 		'src/common/editor/ui/local-assistance-result-review.ts',
 		'src/common/editor/ui/local-assistance-session-store.ts',
 		'src/common/editor/ui/local-assistance-shot-review.ts',

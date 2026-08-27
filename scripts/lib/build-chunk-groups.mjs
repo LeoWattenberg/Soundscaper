@@ -72,7 +72,7 @@ export const EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST = new RegExp(
 
 /** Menu-opened UI implementations that remain behind existing React.lazy surfaces. */
 export const EDITOR_OPTIONAL_SURFACE_CHUNK_TEST = new RegExp(
-	`${editorPath}${editorOptionalSurfaceModule}$`,
+	`${editorPath}(?:${editorOptionalSurfaceModule}|ui[\\/]local-assistance-review-authority\\.ts)$`,
 );
 
 /** Shared parameter editor plus its Audacity and parametric-EQ surface implementations. */
