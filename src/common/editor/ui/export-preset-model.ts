@@ -110,7 +110,7 @@ export function statedVideoQuality(
 }
 
 /**
- * The delivery target the dialog picked, resolved through its own gates.
+ * The delivery target the browser dialog picked, resolved through its executor.
  *
  * A target that cannot be delivered is followed to its fallback rather than
  * refused, and says which target it stood in for, because a user who asked for
@@ -129,9 +129,9 @@ export function statedVideoDeliveryTarget(
 	if (!requested) return null;
 	let preset = requested;
 	const seen = new Set<string>();
-	// A target degrades through its named fallback while it is blocked OR while
-	// its execution resolves no plan in this tier: a licensing-cleared native
-	// preset still cannot run from the web dialog, and returning null here
+	// A target degrades through its named fallback while its execution resolves
+	// no plan in this tier: a native preset still cannot run from the web dialog,
+	// and returning null here
 	// would build a request naming no target at all — the hidden conversion
 	// that "degrade visibly" forbids.
 	while (!resolvePlatformDeliveryAvailability(preset, licensingMatrix).available

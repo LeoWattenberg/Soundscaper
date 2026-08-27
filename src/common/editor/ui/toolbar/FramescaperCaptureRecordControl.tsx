@@ -10,11 +10,9 @@ import {
 	framescaperCaptureRecordVisible,
 	persistFramescaperCaptureToolbarOptIn,
 	readFramescaperCaptureToolbarOptIn,
-	workspacePanelAvailable,
 	type FramescaperCaptureUiSnapshot,
 } from '../framescaper-capture-ui-model.ts';
 import {
-	WEB_VCR_PANEL_ID,
 	type WebVcrUiActions,
 	type WebVcrUiSnapshot,
 	webVcrCapabilityAvailable,
@@ -69,10 +67,8 @@ export function framescaperCaptureRecordControlVisible(
 	locallyOptedIn: boolean,
 ): boolean {
 	const productId = snapshot.productId ?? 'soundscaper';
-	return productId === 'framescaper' && (
-		workspacePanelAvailable(productId, WEB_VCR_PANEL_ID, snapshot.webVcr)
-		|| framescaperCaptureRecordVisible(productId, snapshot.capture, locallyOptedIn)
-	);
+	return productId === 'framescaper'
+		&& framescaperCaptureRecordVisible(productId, snapshot.capture, locallyOptedIn);
 }
 
 export function useFramescaperCaptureRecordVisibility(snapshot: CaptureRecordSnapshot): boolean {

@@ -15,6 +15,7 @@ export interface AudacityActionRoadmapContract {
 	readonly roadmapDisposition: AudacityActionRoadmapDisposition;
 	readonly roadmapMilestone?: string;
 	readonly blockedThroughMilestone?: number;
+	readonly releaseReviewMilestone?: '9';
 }
 
 interface AudacityActionDefinitionInput {
@@ -36,9 +37,9 @@ const midiActionIds = Object.freeze(['export-midi', 'midi-device-info', 'local:/
 
 export const AUDACITY_MIDI_FENCE = Object.freeze({
 	actionIds: midiActionIds,
-	disposition: AUDACITY_ACTION_ROADMAP_DISPOSITION.BLOCKED,
+	disposition: AUDACITY_ACTION_ROADMAP_DISPOSITION.PLANNED,
 	roadmapMilestone: '8B',
-	blockedThroughMilestone: 7,
+	releaseReviewMilestone: '9' as const,
 });
 
 const midiActionIdSet = new Set<string>(midiActionIds);
@@ -116,7 +117,7 @@ export function audacityActionRoadmapContract(
 		return {
 			roadmapDisposition: AUDACITY_MIDI_FENCE.disposition,
 			roadmapMilestone: AUDACITY_MIDI_FENCE.roadmapMilestone,
-			blockedThroughMilestone: AUDACITY_MIDI_FENCE.blockedThroughMilestone,
+			releaseReviewMilestone: AUDACITY_MIDI_FENCE.releaseReviewMilestone,
 		};
 	}
 	const roadmapMilestone = plannedActionMilestones[id];

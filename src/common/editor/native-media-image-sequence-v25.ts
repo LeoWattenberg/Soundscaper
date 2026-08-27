@@ -102,7 +102,6 @@ export interface CreateNativeMediaImageSequenceSourceRequestV25 {
 	readonly inventory: NativeMediaImageSequenceInventoryReferenceV25;
 	readonly sourcePack: NativeMediaImageSequenceSourcePackReferenceV25;
 	readonly characteristics: VideoSourceCharacteristicsV25;
-	readonly clearedPolicyRowIds?: readonly string[];
 }
 
 export interface NativeMediaImageSequenceDecodeRequestV25 {
@@ -142,7 +141,6 @@ export interface NativeMediaImageSequenceSourcePackWriterV25 {
 
 export interface FramescaperImageSequenceImportPortsV25 {
 	select(): Awaitable<FramescaperImageSequenceImportSelectionV25 | null>;
-	clearedPolicyRowIds(): readonly string[];
 	createSourcePackWriter(): Awaitable<NativeMediaImageSequenceSourcePackWriterV25>;
 	publishInventory(
 		bytes: Uint8Array,
@@ -243,11 +241,10 @@ export function createNativeMediaImageSequenceSourceV25(
 	const admission = evaluateNativeMediaProfileAdmission({
 		profileId,
 		source: characteristics,
-		clearedPolicyRowIds: request.clearedPolicyRowIds ?? [],
 	});
 	if (!admission.admitted) {
 		throw new NativeMediaImageSequenceV25Error(
-			`Image-sequence decode is blocked licensing rows: ${admission.blockedPolicyRowIds.join(', ')}.`,
+			`Image-sequence decode is incompatible with its native profile: ${admission.refusals.join(', ')}.`,
 		);
 	}
 	return normalizeNativeMediaImageSequenceSourceV25({
@@ -359,7 +356,6 @@ export async function runFramescaperImageSequenceImportV25(
 			inventory: inventory.reference,
 			sourcePack,
 			characteristics: selected.characteristics,
-			clearedPolicyRowIds: ports.clearedPolicyRowIds(),
 		});
 		await writer.commit(sourcePack);
 		await ports.publishInventory(inventory.bytes, inventory.reference);

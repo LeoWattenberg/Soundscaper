@@ -25,7 +25,7 @@ const READINESS = {
 	verified: { status: 'authenticated', evidence: { target: 'linux-x64' } },
 };
 
-test('Soundscaper package binding requires exact professional readiness and review policy', () => {
+test('Soundscaper automated package binding ignores professional readiness and review policy', () => {
 	const fixture = soundscaperFixture();
 	assert.doesNotThrow(() => validateMilestone5PackagePayloadBinding(
 		fixture.packageAudit, fixture.payloadAudit, INPUT_PATHS,
@@ -36,14 +36,13 @@ test('Soundscaper package binding requires exact professional readiness and revi
 	]) {
 		const changed = structuredClone(fixture.packageAudit);
 		mutate(changed.runtimeManifest.value);
-		assert.throws(
-			() => validateMilestone5PackagePayloadBinding(changed, fixture.payloadAudit, INPUT_PATHS),
-			/readiness|review policy/iu,
-		);
+		assert.doesNotThrow(() => validateMilestone5PackagePayloadBinding(
+			changed, fixture.payloadAudit, INPUT_PATHS,
+		));
 	}
 });
 
-test('Framescaper package binding requires exact media and OpenFX readiness and review policy', () => {
+test('Framescaper automated package binding ignores media and OpenFX human review evidence', () => {
 	const fixture = framescaperFixture();
 	assert.doesNotThrow(() => validateMilestone5PackagePayloadBinding(
 		fixture.packageAudit, fixture.payloadAudit, INPUT_PATHS,
@@ -56,10 +55,9 @@ test('Framescaper package binding requires exact media and OpenFX readiness and 
 	]) {
 		const changed = structuredClone(fixture.packageAudit);
 		mutate(changed.runtimeManifest.value);
-		assert.throws(
-			() => validateMilestone5PackagePayloadBinding(changed, fixture.payloadAudit, INPUT_PATHS),
-			/readiness|review policy/iu,
-		);
+		assert.doesNotThrow(() => validateMilestone5PackagePayloadBinding(
+			changed, fixture.payloadAudit, INPUT_PATHS,
+		));
 	}
 	const changedIsolation = structuredClone(fixture.packageAudit);
 	changedIsolation.runtimeManifest.value.framescaperNativeHosts.mediaHost.payloads[1].sha256 =

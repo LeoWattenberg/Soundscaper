@@ -126,6 +126,7 @@ function validateTask(value, expected, inputs) {
 		'sourceAuthorities',
 		'releaseEvidence', 'catalogStatus', 'catalogBlockedBy',
 		'activationStatus', 'activationBlockedBy',
+		'm9ReleaseReviewStatus', 'm9ReleaseReviewBlockedBy',
 	], 'Milestone 7 model catalog task');
 	if (row.catalogModelId !== expected.catalogModelId || row.version !== expected.version
 		|| row.task !== expected.task || row.installTier !== expected.installTier
@@ -144,7 +145,6 @@ function validateTask(value, expected, inputs) {
 		expected,
 		execution: inputs.execution,
 		fixtures: inputs.fixtures,
-		licensingEvidence: inputs.licensingEvidence,
 		offeredModelIds: inputs.offeredModelIds,
 		releaseEvidence,
 	});
@@ -167,6 +167,14 @@ function validateTask(value, expected, inputs) {
 	if (row.activationStatus !== activationStatus) {
 		throw new Error(`${expected.catalogModelId} activationStatus must be ${activationStatus}.`);
 	}
+	const m9ReleaseReviewBlockedBy = licensingReady(
+		inputs.licensingEvidence, expected.catalogModelId,
+	) ? [] : ['licensing-evidence'];
+	const m9ReleaseReviewStatus = m9ReleaseReviewBlockedBy.length === 0 ? 'complete' : 'pending';
+	if (row.m9ReleaseReviewStatus !== m9ReleaseReviewStatus
+		|| !sameArray(row.m9ReleaseReviewBlockedBy, m9ReleaseReviewBlockedBy)) {
+		throw new Error(`${expected.catalogModelId} Milestone 9 release review is not derived from licensing evidence.`);
+	}
 	return {
 		catalogModelId: row.catalogModelId,
 		version: row.version,
@@ -183,6 +191,8 @@ function validateTask(value, expected, inputs) {
 		catalogBlockedBy,
 		activationStatus,
 		activationBlockedBy,
+		m9ReleaseReviewStatus,
+		m9ReleaseReviewBlockedBy,
 	};
 }
 
@@ -278,9 +288,7 @@ function validateReleaseEvidence(value) {
 	return { ...row };
 }
 
-function deriveCatalogBlockers({
-	expected, execution, fixtures, licensingEvidence, offeredModelIds, releaseEvidence,
-}) {
+function deriveCatalogBlockers({ expected, execution, fixtures, offeredModelIds, releaseEvidence }) {
 	const blockers = [];
 	if (expected.supplyBinding.kind === 'converted-output') {
 		const recipe = execution.recipes.find(({ candidateId }) =>
@@ -293,9 +301,6 @@ function deriveCatalogBlockers({
 			blockers.push('converted-artifact-identity');
 		}
 		if (fixture?.evidenceStatus !== 'verified') blockers.push('source-framework-parity');
-	}
-	if (!licensingReady(licensingEvidence, expected.catalogModelId)) {
-		blockers.push('licensing-evidence');
 	}
 	if (releaseEvidence.publicReadbackSha256 === null) {
 		blockers.push('immutable-public-readback');

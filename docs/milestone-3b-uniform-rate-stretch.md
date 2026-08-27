@@ -251,6 +251,7 @@ points browser refusal remains assigned to the next packet that actually does.
   cannot remain exact through one transform, or any public route bypasses live
   V15 lock authority.
 
-The four packaged Electron timing-probe rows remain `pending-external`, and
-WebKit remains deferred. Local implementation may proceed without relabeling
+The ten packaged Electron timing-probe rows run automated tests and remain
+`pending-external` only for milestone-9 release admission. WebKit automated
+testing is enabled. Local implementation may proceed without relabeling
 either qualification boundary.

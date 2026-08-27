@@ -1567,10 +1567,11 @@ closed runner executes `same-project-simultaneous-open`,
 `crash-restart-recovery` for each selected product, then executes
 `cross-product-simultaneous-open` once to prove the V11 and V20 storage roots
 and fencing domains remain physically isolated. Qualification may only lower the
-shipped lease TTL and renewal interval. CI is configured to build both unpacked
-products and emit one bounded no-retry aggregate on Windows x64 and Linux x64.
-Soundscaper V11 Windows x64, Soundscaper V11 Linux x64, Framescaper V20 Windows
-x64, and Framescaper V20 Linux x64 remain pending-external; no accepted packaged
+shipped lease TTL and renewal interval. CI builds both unpacked products and
+emits one bounded no-retry aggregate on every maintained desktop target: Windows
+x64, Windows ARM64, macOS ARM64, Linux x64, and Linux ARM64. Automated test
+activation never waits on human qualification. All ten product/target rows
+remain pending-external milestone-9 stable 1.0 evidence; no accepted packaged
 result is checked in, so this rule and m2-electron-lease-matrix remain Partial.
 <!-- /policy-narrative:desktop-electron-lease-protections -->
 

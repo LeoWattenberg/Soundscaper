@@ -43,6 +43,13 @@ test('OpenFX 1.5.1 is pinned to its signed ab77951 release tag and the source cl
 	});
 });
 
+test('native OpenFX loading delegates machine isolation to the enforced launcher, never human review', () => {
+	const source = readFileSync(join(repositoryRoot,
+		'native/framescaper-openfx-host/src/isolation_contract.hpp'), 'utf8');
+	assert.match(source, /require_os_isolation_for_plugin_execution\(\) noexcept \{\}/u);
+	assert.doesNotMatch(source, /reviewed OS isolation launcher attestation/iu);
+});
+
 test('scanner and runtime are distinct C++20 targets and no unbuilt payload is packaged', () => {
 	const cmake = readFileSync(join(hostRoot, 'CMakeLists.txt'), 'utf8');
 	assert.match(cmake, /add_executable\(framescaper-ofx-scanner/iu);
@@ -104,9 +111,12 @@ test('future built targets require two exact target-root payloads before derivat
 		evidenceSha256: '34'.repeat(32),
 	};
 	writeFileSync(manifestPath, `${JSON.stringify(manifest, null, '\t')}\n`);
-	assert.match(
-		auditFramescaperOpenFxHost({ repositoryRoot: directory }).findings.join('\n'),
-		/invalid production-readiness/iu,
+	const obsoleteReviewAudit = auditFramescaperOpenFxHost({ repositoryRoot: directory });
+	assert.deepEqual(obsoleteReviewAudit.findings, []);
+	assert.deepEqual(
+		deriveFramescaperOpenFxPayloadManifest(obsoleteReviewAudit.manifest)
+			.targets[0].productionReadiness,
+		manifest.targets['linux-x64'].productionReadiness,
 	);
 
 	const signedReference = {

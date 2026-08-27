@@ -2,33 +2,30 @@
 
 > Owning source for the Web VCR product, security, capture, lifecycle, and
 > qualification decisions. The [roadmap](../roadmap.md) owns sequencing and
-> closure status. Activation starts only after milestone 8 closes and consumes
-> milestone 8A's capture contracts rather than creating an earlier recording
-> path.
+> closure status. The enabled feature consumes milestone 8A's capture contracts
+> rather than creating a parallel recording path.
 
 ## Implementation status
 
-The focused Web VCR software substrate is implemented and integrated but
-disabled. Strict
-domain and geometry contracts, desktop security and lifecycle seams, capture
-authority, controller/crop/monitor/recorder modules, and a capability-gated UI
-exist behind `framescaperWebVcr: false`. A normal production Framescaper build
-therefore exposes no Web VCR menu or panel and creates no remote guest, popup,
-persistent browser profile, or capture grant. The controller reports
-`unavailable` / `roadmap-gate` and returns before desktop handshake or guest
-open. This dormant path is maintained
-software evidence; it is not an activated product, packaged real-runtime
-qualification, or platform-support claim.
+The focused Web VCR software substrate is implemented and enabled for testing.
+Strict domain and geometry contracts, desktop security and lifecycle seams,
+capture authority, controller/crop/monitor/recorder modules, and the UI are
+active behind `framescaperWebVcr: true`. The surface is default-hidden and
+summon-only from Framescaper desktop's Record menu. A normal startup creates no
+remote guest, popup, persistent browser profile, or capture grant; a direct user
+action lazily opens the isolated guest. Soundscaper and both browser products
+remain outside the feature boundary.
 
-Activation remains blocked until milestone 8 and the applicable milestone-5B
-native-media gates close. A deterministic Linux x64/Xvfb packaged feasibility
-smoke exercises owned-guest 720p and 1080p video, page audio, authentication,
-input, crop, ended, security, data-clear, and teardown paths and emits
-`qualification: false`. The supported real-runtime matrix, encoder, recovery,
-performance, and registered quality gates remain open. 4K is unavailable until
-its independent capture-surface and encoder qualifications pass.
+A deterministic Linux x64/Xvfb packaged feasibility smoke exercises owned-guest
+720p and 1080p video, page audio, authentication, input, crop, ended, security,
+data-clear, and teardown paths and emits `qualification: false`. Both tiers are
+enabled subject to live machine capability checks. The supported real-runtime
+matrix, encoder, recovery, performance, and registered quality review remain
+stable 1.0 admission work in milestone 9; none disables the build or test
+surface. 4K remains unavailable until its independent runtime capture probe and
+selected encoder backend report support.
 
-Those dependency gates remain open. The packaged feasibility smoke uses the
+The packaged feasibility smoke uses the
 deterministic loopback HTTPS fixture to exercise login-cookie persistence,
 an OAuth-like popup, interactive input, standard HTML media with generated
 video and tone, ended/loop behavior, redirects, and clean shutdown. That
@@ -120,7 +117,7 @@ arbitrary evaluation or CDP methods to the renderer.
 
 ### Feasibility and capability gate
 
-Before activation, prove the complete guest-frame capture path against a
+Machine admission proves the complete guest-frame capture path against a
 deterministic controlled HTTPS page:
 
 1. The isolated guest renders the selected virtual viewport and remains
@@ -234,8 +231,9 @@ acceptance requires exact full-surface dimensions, encoder-compatible crop
 agreement, no retained uncropped project asset, and truthful runtime gating.
 Public websites are never CI dependencies.
 
-Before activation, update the capability inventory, privacy documentation,
-threat model, security matrix, and applicable quality workloads. Refresh every
-digest-controlled evidence pin through its owning script. No platform or 4K
-claim ships before its required packaged, security, performance, licensing, and
-recovery evidence passes.
+Before stable 1.0 admission, review the capability inventory, privacy
+documentation, threat model, security matrix, and applicable quality workloads.
+Refresh every digest-controlled evidence pin through its owning script. No
+platform or 4K claim ships before its required machine capability, packaged,
+security, performance, licensing, and recovery evidence passes; pending human
+review never disables the enabled development surface.

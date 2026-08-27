@@ -35,7 +35,7 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 	assert.match(capture.summary, /proxy request.*session.*origin.*source.*revision.*content digest.*selected F31.*historical schema-18.*schema-19.*schema-20.*inactive-origin.*active app.*reclaim.*determinate failure/isu);
 	assert.match(capture.summary, /landed proxy target.*claim cleanup.*session-history.*playback.*app-snapshot.*without regenerating.*later project edit/isu);
 	assert.match(capture.summary, /selected F31 capture-derived scheduler.*post-commit generation.*separate from F31's menu-reached general editorial proxy lifecycle.*generation.*adaptive Original\/Proxy\/Auto preview selection.*offline editing.*relink.*regeneration.*cancellation.*atomic cleanup.*Neither route.*memory.*RSS/isu);
-	assert.match(capture.summary, /implementation.*active on F31 web and desktop.*manual qualification.*open.*synthetic media.*packaged no-device smoke.*control-plane/isu);
+	assert.match(capture.summary, /implementation.*active on F31 web and desktop.*default-hidden Record-menu surface enabled for testing.*manual.*qualification.*milestone-9 stable 1\.0 admission evidence.*never disables.*implemented route.*synthetic media.*packaged no-device smoke.*control-plane/isu);
 	assert.match(capture.summary,
 		/Configured Chromium, Firefox, and WebKit.*eight-case workflow.*synthetic media.*24 configured-engine cases.*neither substitutes for qualification/isu);
 	assert.match(capture.summary, /no aggregate duration.*global byte.*browser heap.*RSS.*quota reservation.*30-minute.*unprovisioned/isu);
@@ -185,7 +185,7 @@ test('capability and roadmap activate F31 while real-device qualification remain
 	const framescaper = capabilities.products.framescaper;
 	assert.equal(framescaper.projectFeatures.audioRecording, false);
 	assert.deepEqual(framescaper.applicationFeatures, {
-		framescaperCapture: true, framescaperWebVcr: false,
+		framescaperCapture: true, framescaperWebVcr: true,
 	});
 	assert.equal(framescaper.platforms['web-core'].status, 'available');
 	assert.equal(framescaper.platforms['web-enhanced'].status, 'partial');
@@ -239,9 +239,9 @@ test('capability and roadmap activate F31 while real-device qualification remain
 
 	const capture = roadmap.slice(
 		roadmap.indexOf('### 8A. Framescaper recording setup'),
-		roadmap.indexOf('### 8B. MIDI, strictly after Audacity design review'),
+		roadmap.indexOf('### 8B. MIDI'),
 	);
-	assert.match(capture, /Status:.*Implemented and active on selected Framescaper F31 web and desktop.*framescaperCapture: true.*Recording Setup.*default-hidden.*View > Panels.*manual qualification remains open.*framescaperWebVcr: false/isu);
+	assert.match(capture, /Status:.*Implemented and active on selected Framescaper F31 web and desktop.*framescaperCapture: true.*Recording Setup.*default-hidden.*View > Panels.*manual qualification.*milestone 9.*framescaperWebVcr: true/isu);
 	assert.doesNotMatch(roadmap, /Blocked until milestone 8:\*\*[^\n]*(?:Framescaper camera|Framescaper capture)/iu);
 	assert.doesNotMatch(capture, /— Planned:/u);
 	assert.equal((capture.match(/— Implemented \(active; qualification open\):/gu) ?? []).length, 11);
@@ -251,15 +251,15 @@ test('capability and roadmap activate F31 while real-device qualification remain
 	const environment = quality.environments.find(({ id }) => id === 'capture-os-browser-lab-matrix');
 	assert.equal(environment?.status, 'unprovisioned');
 	assert.equal(environment?.qualificationEligible, false);
-	assert.match(roadmap.slice(roadmap.indexOf('### 8B.')), /Status:.*Blocked.*Audacity/isu);
+	assert.match(roadmap.slice(roadmap.indexOf('### 8B.')), /Status:.*Planned.*not implemented.*Audacity.*milestone 9/isu);
 	assert.match(plan, /capture-only proxy route landed in commit `4f4d9d5a`.*framescaper-capture-canonical-publication\.ts.*editor-captured-video-proxy-scheduler\.ts.*captured-video-proxy-final-fence\.test\.ts/isu);
 	assert.match(plan, /crash-safe creation and append protocol landed in commit `917add78`.*framescaper-capture-app-composition\.ts.*capture-spool-append-intent-repository\.ts.*capture-spool-operation-lock\.ts.*capture-rollback-lock\.test\.ts.*capture-terminal-retirement\.test\.ts/isu);
 	assert.match(plan, /Commit `15a50dcb`.*framescaper-capture-stream-timing\.ts.*numeric.*null.*capture-shared-timing\.test\.ts/isu);
 	assert.match(plan, /Commit `70d1192e`.*framescaper-v19-capture\.spec\.js.*eight configured-Chromium.*incomplete-runtime denial.*mixed.*inactive origin.*source-ended recovery.*does not.*qualify.*external/isu);
 	assert.match(plan,
 		/Commits `5ccf6447`, `2c6e2a94`, and `16029166`.*selected F31.*Chromium, Firefox, and WebKit.*eight cases.*24 configured-engine cases.*synthetic.*still unqualified/isu);
-	assert.match(plan, /Milestone 8B MIDI remains independently blocked and is outside this plan/iu);
-	assert.match(plan, /Status:.*Implemented and active on selected F31 standalone web and desktop.*framescaperCapture: true.*Recording Setup.*default-hidden.*View > Panels.*framescaperWebVcr: false.*manual qualification remains open/isu);
+	assert.match(plan, /Milestone 8B MIDI remains planned but unimplemented and is outside this plan/iu);
+	assert.match(plan, /Status:.*Implemented and active on selected F31 standalone web and desktop.*framescaperCapture: true.*Recording Setup.*default-hidden.*View > Panels.*framescaperWebVcr: true.*manual.*review.*milestone 9/isu);
 });
 
 async function json(path) {

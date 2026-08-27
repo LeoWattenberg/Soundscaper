@@ -62,7 +62,7 @@ test('the gated capability rows are named once, and the proxy row names its prof
 	}
 });
 
-test('every observation is closed by default, so nothing is capable until proven', () => {
+test('every machine observation is closed by default, so nothing is capable until proven', () => {
 	assert.deepEqual(NATIVE_MEDIA_CAPABILITY_CLOSED_OBSERVATION, {
 		policyCleared: false,
 		masterEnabled: false,
@@ -74,11 +74,11 @@ test('every observation is closed by default, so nothing is capable until proven
 		userEnabled: false,
 	});
 	assert.deepEqual(resolveNativeMediaCapability({}), {
-		state: 'blocked-policy', reason: 'policy-row-blocked',
+		state: 'disabled', reason: 'master-switch-off',
 	});
 });
 
-test('capability is the intersection of policy, build, probe, self-test, and health', () => {
+test('capability is the intersection of build, probe, self-test, and health', () => {
 	const cleared = { policyCleared: true, masterEnabled: true, buildSupported: true, probeSucceeded: true, selfTestPassed: true };
 
 	assert.deepEqual(resolveNativeMediaCapability(cleared), { state: 'available', reason: 'ready' });
@@ -99,7 +99,7 @@ test('capability is the intersection of policy, build, probe, self-test, and hea
 	});
 });
 
-test('a blocked policy row dominates every switch, and quarantine stays visible', () => {
+test('pending release policy is report-only, while quarantine stays fail-closed', () => {
 	const everythingElseReady = {
 		masterEnabled: true, buildSupported: true, probeSucceeded: true,
 		selfTestPassed: true, userEnabled: true,
@@ -107,7 +107,7 @@ test('a blocked policy row dominates every switch, and quarantine stays visible'
 
 	assert.deepEqual(
 		resolveNativeMediaCapability({ ...everythingElseReady, policyCleared: false }),
-		{ state: 'blocked-policy', reason: 'policy-row-blocked' },
+		{ state: 'available', reason: 'ready' },
 	);
 	// A capability that has hurt the editor must not read as merely switched off.
 	assert.deepEqual(
@@ -116,7 +116,7 @@ test('a blocked policy row dominates every switch, and quarantine stays visible'
 	);
 	assert.deepEqual(
 		resolveNativeMediaCapability({ ...everythingElseReady, policyCleared: false, quarantined: true }),
-		{ state: 'blocked-policy', reason: 'policy-row-blocked' },
+		{ state: 'quarantined', reason: 'quarantined-after-repeated-failure' },
 	);
 });
 
@@ -167,11 +167,11 @@ test('disabling every helper still reports what each capability would have been'
 	assert.equal(snapshot.masterEnabled, false);
 	assert.equal(nativeMediaCapabilityEntry(snapshot, 'codec', proxyCodec.id)?.state, 'disabled');
 	assert.equal(nativeMediaCapabilityEntry(snapshot, 'codec', proxyCodec.id)?.reason, 'master-switch-off');
-	assert.equal(nativeMediaCapabilityEntry(snapshot, 'codec', 'hevc')?.state, 'blocked-policy');
+	assert.equal(nativeMediaCapabilityEntry(snapshot, 'codec', 'hevc')?.state, 'disabled');
 	assert.equal(nativeMediaCapabilityEntry(snapshot, 'queue', 'persistent-render-queue')?.state, 'quarantined');
 	assert.deepEqual(
 		nativeMediaCapabilityRefusals(snapshot).map((entry) => entry.id),
-		['hevc', 'persistent-render-queue'],
+		['persistent-render-queue'],
 	);
 	assert.equal(snapshot.entries.every((entry) => entry.buildFingerprint === FINGERPRINT), true);
 });

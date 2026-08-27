@@ -3,7 +3,7 @@
 import type { FramescaperMediaHostDescriptor } from '../../desktop/framescaper-media-host-payload.ts';
 
 export function framescaperMediaHostDescriptorFixture(
-	base: Omit<FramescaperMediaHostDescriptor, 'isolation' | 'productionReadiness'>,
+	base: Omit<FramescaperMediaHostDescriptor, 'isolation' | 'm9ReleaseReview'>,
 ): FramescaperMediaHostDescriptor {
 	const artifact = (name: string, byte: string, ino: number) => Object.freeze({
 		path: `/synthetic/media-isolation/${name}`,
@@ -19,7 +19,10 @@ export function framescaperMediaHostDescriptorFixture(
 			brokerPolicy: artifact('broker.json', '33', 33),
 			runtimeLibraries: Object.freeze([]),
 		}),
-		productionReadiness: Object.freeze({
+		m9ReleaseReview: Object.freeze({
+			scope: 'stable-1.0-release' as const,
+			status: 'complete' as const,
+			evidence: Object.freeze({
 			schemaVersion: 1,
 			kind: 'framescaper-media-host-production-readiness',
 			target: base.target,
@@ -48,6 +51,7 @@ export function framescaperMediaHostDescriptorFixture(
 			twoHourContinuityAttested: true,
 			reviewedAt: '2026-08-24',
 			reviewer: 'synthetic media fixture',
+			}),
 		}),
 	});
 }

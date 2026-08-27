@@ -47,7 +47,6 @@ test.describe('native timeline annotations', () => {
 	});
 
 	test('authors with pointer and keyboard, announces state, survives forced colors, and reopens', async ({ page, browserName }) => {
-		test.skip(browserName === 'webkit', 'Milestone 3 qualifies this surface in Chromium and Firefox.');
 		test.setTimeout(60_000);
 		await page.setViewportSize({ width: 1440, height: 1100 });
 		const errors = collectClientErrors(page);
@@ -189,8 +188,7 @@ test.describe('native timeline annotations', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('opens Soundscaper V29 as opaque read-only in Framescaper and preserves annotations at home', async ({ browser, page, browserName }) => {
-		test.skip(browserName === 'webkit', 'Milestone 3 qualifies this boundary in Chromium and Firefox.');
+	test('opens Soundscaper V29 as opaque read-only in Framescaper and preserves annotations at home', async ({ browser, page }) => {
 		test.setTimeout(90_000);
 		const originErrors = collectClientErrors(page);
 		const origin = await bootEditor(page, '/embed/en/');
@@ -252,8 +250,7 @@ test.describe('native timeline annotations', () => {
 		expect(originErrors).toEqual([]);
 	});
 
-	test('keeps ruler-corner actions outside both right-edge resize hit targets', async ({ page, browserName }) => {
-		test.skip(browserName === 'webkit', 'Milestone 3 qualifies this surface in Chromium and Firefox.');
+	test('keeps ruler-corner actions outside both right-edge resize hit targets', async ({ page }) => {
 		const [timelineCss, annotationCss] = await Promise.all([
 			readFile(new URL('../../src/common/editor/ui/audio-editor-design-system/07-timeline-tracks.css', import.meta.url), 'utf8'),
 			readFile(new URL('../../src/common/editor/ui/audio-editor-design-system/19-timeline-annotations.css', import.meta.url), 'utf8'),

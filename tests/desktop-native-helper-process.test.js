@@ -103,14 +103,14 @@ test('the helper announces exactly the kinds it implements', () => {
 	assert.deepEqual([...NATIVE_HELPER_JOB_KINDS], ['audio-device', 'plugin-scan', 'plugin-host']);
 });
 
-test('professional scanner and host roles reopen signed authority and select only the isolated peer', async () => {
+test('professional scanner and host roles derive machine containment and select only the isolated peer', async () => {
 	const artifact = (path) => Object.freeze({
 		path, byteLength: 10, sha256: 'a'.repeat(64), identity: Object.freeze({ dev: 1, ino: 2 }),
 	});
 	const peer = Object.freeze({ describe: async () => ({ pluginFormats: ['vst3'] }) });
 	const descriptor = Object.freeze({
 		target: 'linux-x64', path: '/trusted-audio.node', sha256: 'b'.repeat(64),
-		productionReadiness: Object.freeze({ status: 'authenticated' }),
+		m9ReleaseReview: Object.freeze({ scope: 'stable-1.0-release', status: 'pending' }),
 		pluginPeer: artifact('/runtime/soundscaper_professional_peer'),
 		isolation: Object.freeze({
 			launcher: artifact('/runtime/isolation-launcher'),
@@ -126,13 +126,15 @@ test('professional scanner and host roles reopen signed authority and select onl
 			verifyPayload: async () => descriptor,
 			createLauncher: (options) => {
 				launcherOptions = options;
-				return { productionReady: async () => ({ status: 'ready' }) };
+				return { machineReady: async () => ({ status: 'ready' }) };
 			},
 			createPeer: (options) => { peerOptions = options; return peer; },
 		});
 		assert.equal(await seams.loadAddon(), peer);
 		assert.equal(seams.addonPath, descriptor.pluginPeer.path);
-		assert.equal(launcherOptions.reviewedContract, descriptor.productionReadiness);
+		assert.deepEqual(launcherOptions.machineWorkload, {
+			kind: 'soundscaper', payloads: [descriptor.pluginPeer], runtimeClosure: [],
+		});
 		assert.equal(peerOptions.peerExecutable, descriptor.pluginPeer);
 		assert.equal(peerOptions.entryExecutable, descriptor.isolation.entrypoint);
 	}

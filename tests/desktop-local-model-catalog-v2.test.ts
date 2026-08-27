@@ -201,22 +201,19 @@ test('production pins distinct current and successor Ed25519 catalog keys', asyn
 	}));
 });
 
-test('blocked, refused, unresolved, missing, or changed evidence cannot admit a model', () => {
+test('human review state is Milestone 9 metadata while evidence identity stays fail-closed', () => {
 	const permitted = evidence();
 	const entry = entryFor(permitted);
 
-	assert.throws(
-		() => validate(signedCatalog([entry]), [evidence('example-model', 'blocked')]),
-		/distribution status must be permitted/iu,
-	);
-	assert.throws(
-		() => validate(signedCatalog([entry]), [permitted], ['example-model']),
-		/refused models cannot be cataloged/iu,
-	);
-	assert.throws(
-		() => validate(signedCatalog([entry]), [evidence('example-model', 'permitted', 'unresolved')]),
-		/licensing requirement .* must be recorded/iu,
-	);
+	for (const [record, refusedIds] of [
+		[evidence('example-model', 'blocked'), []],
+		[permitted, ['example-model']],
+		[evidence('example-model', 'permitted', 'unresolved'), []],
+	] as const) {
+		assert.doesNotThrow(() => validate(
+			signedCatalog([entryFor(record)]), [record], [...refusedIds],
+		));
+	}
 	assert.throws(
 		() => validate(signedCatalog([entry]), []),
 		/needs exactly one licensing evidence record/iu,
@@ -227,7 +224,7 @@ test('blocked, refused, unresolved, missing, or changed evidence cannot admit a 
 	);
 	assert.throws(
 		() => validate(signedCatalog([entry]), [{ ...permitted, blockedBy: ['unresolved-review'] }]),
-		/cannot retain blockers/iu,
+		/licensing evidence digest does not match/iu,
 	);
 	assert.throws(
 		() => validate(signedCatalog([entry]), [{ ...permitted, purpose: 'Evidence changed after signing.' }]),

@@ -24,7 +24,7 @@ elseif(WIN32)
 	target_link_libraries(milestone5-native-isolation-launcher PRIVATE advapi32 userenv)
 	set(ISOLATION_PROFILES profiles/windows-v1.json profiles/windows-broker-v1.json)
 else()
-	message(FATAL_ERROR "No reviewed native isolation launcher exists for this target")
+	message(FATAL_ERROR "No native isolation launcher is implemented for this target")
 endif()
 
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")

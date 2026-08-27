@@ -27,7 +27,7 @@ fixture, environment, metric, and threshold identifiers.
   revisions are pinned from checked-in dependency and workflow inputs.
 - Chromium browser workflows run in the digest-pinned Playwright container.
   Their release status remains provisional.
-- Firefox and WebKit now run in the maintained functional matrix alongside
+- Automated tests for Firefox and WebKit now run in the maintained functional matrix alongside
   Chromium. All three remain provisional rather than performance- or
   release-qualified. Playwright WebKit is useful engine evidence; it is not by
   itself a Safari release qualification.
@@ -112,8 +112,9 @@ must not weaken either limit.
 `qualified` identifies a workload covered by a reviewed result cohort.
 `provisional` identifies broader fixture evidence that is not itself a
 qualification gate. `planned` identifies an accepted future fixture and its
-starting budget. `optional` applies only to milestone 7. `blocked` preserves the
-milestone 8B upstream-design fence.
+starting budget. `optional` applies only to milestone 7. Human acceptance of a
+fixture is a milestone-9 stable 1.0 admission check, never permission to build
+or test it.
 
 The top-level `qualification.qualifiedWorkloadIds` array admits a workload only
 after it has all of the following:
@@ -621,10 +622,11 @@ FFmpeg runtime update retains the previous complete verified release.
 The eviction
 workflow exports a current Scape project file, removes the origin's IndexedDB database,
 reopens the usable empty editor, and restores the same project identity from
-the archive. WebKit qualification is deferred by milestone-2 closure scope
-revision 2; the pinned Playwright WebKit build exposes no OPFS, no
-MediaRecorder, and no IndexedDB Blob storage, so the two OPFS workflows
-cannot run there. These small functional workflows do not qualify real
+the archive. Milestone-2 scope revision 2 historically deferred WebKit release
+qualification; that human checkpoint now belongs to milestone 9. Automated
+testing runs the pinned Playwright WebKit build today and skips an individual
+workflow only when a concrete API or runtime probe—such as OPFS, MediaRecorder,
+or an IndexedDB Blob round trip—fails. These small functional workflows do not qualify real
 quota exhaustion thresholds, storage reservation, browser eviction policy,
 abrupt process death, power loss, reference-scale capacity, heap, or RSS.
 
@@ -651,8 +653,8 @@ The fixture specifications are deliberately concrete:
 - milestone 6: a one-hour audio master and ten-minute 720p/30 video master;
 - milestone 7: selected and deliberately unselected local media assets;
 - milestone 8A: all six capture-source combinations over 30 minutes;
-- milestone 8B: a named placeholder whose contents are derived only after the
-  Audacity design and compatibility entry gate; and
+- milestone 8B: a named placeholder refined alongside the MIDI implementation,
+  with Audacity design and compatibility acceptance recorded in milestone 9; and
 - milestone 9: an eight-hour complete-system soak.
 
 Except for the explicitly provisional milestone 2 witness, these are
@@ -683,23 +685,29 @@ not trusted as command-line claims. The checked-in
 `config/milestone-5-qualification-evidence.json` register binds all 46 raw
 measurements and the six cohort files; `npm run milestone5:handoff` reopens and
 recomputes that evidence, audits all 20 native-payload rows and ten source
-acquisitions, and derives the licensing and lab blockers itself.
+acquisitions, and reports the licensing, lab, cohort, and reviewer state for
+Milestone 9 without using those human observations in Milestone 5 automation.
 
 One package job supplies `--product`, `--target`, and `--package-root` together
-and may use `--require-ready` only as a package-cell gate. It authenticates one
-clean HEAD revision and the exact staged runtime manifest, corresponding-source
-sidecar, and target package inventory, but deliberately emits
-`milestoneReleaseReady: null`: no individual runner can claim the milestone.
+and may use `--require-automated-ready` only as a machine-evidence package-cell
+gate. It authenticates one clean HEAD revision and the exact staged runtime
+manifest, corresponding-source sidecar, target package inventory, and installed
+content closure. Missing, pending, or invalid human signatures remain visible
+as report-only observations and do not suppress package extraction. Every cell
+deliberately emits `packageCellReady: null` and `milestoneReleaseReady: null`:
+Milestone 5 does not claim final release authority.
 `npm run milestone5:handoff-matrix -- --package-directory <directory>` admits
 the exact two-product, five-target package-root set and re-runs every package,
-payload, source, qualification, licensing, Git ancestry and clean-HEAD audit in
-one process. This is the first authority that can emit a Boolean milestone
-readiness result. A separate `--input-directory` mode validates and hashes ten
-serialized cell reports for inspection, but returns
-`milestoneReleaseReady: null`; canonical caller-authored JSON is not release
-provenance. The optional `--require-ready` fails unless all ten freshly audited
-cells have built payloads, accepted source activations and cohorts, provisioned
-profiles, clear legal/security/signing gates, and enabled licensing rows.
+payload, source, Git ancestry, clean-HEAD, and installed-content audit in one
+process. This is the first authority that can emit the Boolean
+`milestoneAutomatedReady`; it still emits `milestoneReleaseReady: null`. A
+separate `--input-directory` mode validates and hashes ten serialized cell
+reports for inspection, but returns `milestoneAutomatedReady: null`; canonical
+caller-authored JSON is not in-process audit provenance. The optional
+`--require-automated-ready` fails only for source, payload, package-byte, or
+installed-closure failures. Licensing, lab, cohort, reviewer, signing, and
+other manual acceptance belong solely to the Milestone 9 1.0 release decision
+and cannot change this automated verdict or its digest.
 Hosted packaging remains useful distribution evidence but cannot populate a
 physical-host or device/GPU qualification row.
 

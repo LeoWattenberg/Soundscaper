@@ -217,8 +217,9 @@ needs them, and the V14 slot is released for the next revision when S5 lands.
 - No transcoding, proxy generation, retiming, or deinterlacing.
 - No colour management or display transform.
 - No multi-stream audio import; the inventory discloses, it does not import.
-- No probe-matrix evidence relabelling: the four packaged Electron rows in
-  `config/milestone-3-timing-probe-matrix.json` stay `pending-external`.
+- No probe-matrix evidence relabelling: the ten packaged Electron rows in
+  `config/milestone-3-timing-probe-matrix.json` run across all five maintained
+  targets and stay `pending-external` only as milestone-9 release evidence.
 
 ## Stop conditions
 

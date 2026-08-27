@@ -461,7 +461,7 @@ function positive(value: unknown, label: string): number {
 function queueRevalidationCleared(value: NativeQueueRevalidationV1): boolean {
 	return value.projectRevisionMatches && value.planFingerprintMatches
 		&& value.inputFingerprintsMatch && value.rootGrantAuthorized && value.rootGrantValid
-		&& value.licensingCleared && value.helperBuildMatches && value.scratchIdentityMatches;
+		&& value.helperBuildMatches && value.scratchIdentityMatches;
 }
 
 function unavailable(action: string): Error {

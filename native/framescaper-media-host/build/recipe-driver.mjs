@@ -47,23 +47,28 @@ const FFMPEG_CONFIGURE_FLAGS = Object.freeze([
 	'--enable-pic', '--enable-gpl', '--enable-avcodec', '--enable-avfilter',
 	'--enable-avformat', '--enable-swresample', '--enable-swscale',
 	'--enable-decoder=prores', '--enable-decoder=pcm_f32le',
+	'--enable-decoder=png', '--enable-decoder=tiff', '--enable-decoder=exr',
 	'--enable-encoder=prores_ks', '--enable-encoder=pcm_s16le',
+	'--enable-encoder=png', '--enable-encoder=tiff', '--enable-encoder=exr',
 	'--enable-demuxer=mov', '--enable-demuxer=wav',
-	'--enable-muxer=mov', '--enable-protocol=file', '--enable-protocol=pipe',
+	'--enable-muxer=mov', '--enable-muxer=image2',
+	'--enable-protocol=file', '--enable-protocol=pipe',
 ]);
 const FFMPEG_POLICY = Object.freeze({
 	rawFfmpegArguments: false,
 	network: false,
 	externalLibraries: Object.freeze([]),
-	enabledDecoders: Object.freeze(['prores', 'pcm_f32le']),
-	enabledEncoders: Object.freeze(['prores_ks', 'pcm_s16le']),
+	enabledDecoders: Object.freeze(['prores', 'pcm_f32le', 'png', 'tiff', 'exr']),
+	enabledEncoders: Object.freeze(['prores_ks', 'pcm_s16le', 'png', 'tiff', 'exr']),
 	enabledDemuxers: Object.freeze(['mov', 'wav']),
-	enabledMuxers: Object.freeze(['mov']),
+	enabledMuxers: Object.freeze(['mov', 'image2']),
 	enabledProtocols: Object.freeze(['file', 'pipe']),
 	blockedComponents: Object.freeze([
-		'av1', 'exr', 'h264', 'hevc', 'libvpx-vp9', 'libx264', 'png', 'tiff', 'vp9',
+		'av1', 'h264', 'hevc', 'libvpx-vp9', 'libx264', 'vp9',
 	]),
-	payloadPublicationRequiresLicensingAndTargetEvidence: true,
+	payloadPublicationRequiresAuthenticatedTargetEvidence: true,
+	humanReviewMilestone: 9,
+	humanReviewBlocks: 'stable-1.0-release-admission',
 });
 const RECIPES = new WeakMap();
 const EXECUTED = new WeakSet();

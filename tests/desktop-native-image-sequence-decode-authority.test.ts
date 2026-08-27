@@ -268,7 +268,7 @@ async function authorityFixture(t: TestContext,
 	let opaqueId = 0;
 	let jobCount = 0;
 	const authority = new FramescaperNativeImageSequenceDecodeAuthority({
-		root, scratchRoot, policyCleared: true,
+		root, scratchRoot,
 		project: {
 			projectState: () => Object.freeze({ open: true, writable: true }),
 			readProjectBundle: options.readProjectBundle ?? (() => Promise.resolve(bundle)),

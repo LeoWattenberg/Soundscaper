@@ -27,7 +27,7 @@ test('the closed production report always names all six menu capability rows', (
 	assert.equal(report.buildFingerprint, null);
 	assert.equal(report.entries.every((entry) => entry.detail !== null), true);
 	assert.equal(report.entries.every((entry) => entry.buildFingerprint === null), true);
-	assert.equal(report.entries.filter((entry) => entry.state === 'blocked-policy').length, 4);
+	assert.equal(report.entries.filter((entry) => entry.state === 'blocked-policy').length, 0);
 	assert.match(
 		report.entries.find(({ id }) => id === 'image-sequence-import')?.detail ?? '',
 		/only opaque 8-bit sRGB\/RGB\/full-range.*higher-bit-depth, HDR, alpha, or incompatible color/iu,
@@ -70,7 +70,7 @@ test('only an authenticated payload digest becomes a media build fingerprint', (
 		assert.equal(report.entries.find((entry) => entry.id === id)?.state, 'unavailable');
 	}
 	assert.equal(report.entries.find((entry) => entry.id === 'external-display')?.state, 'available');
-	assert.equal(report.entries.find((entry) => entry.id === 'isolated-host')?.state, 'blocked-policy');
+	assert.equal(report.entries.find((entry) => entry.id === 'isolated-host')?.state, 'unavailable');
 });
 
 test('the render queue requires its separate selected V28/V14 carrier self-test', () => {

@@ -34,7 +34,7 @@ test('afterPack proves FFmpeg absence before fuse work', async (context) => {
 		const path = join(fixture.resources, name);
 		await mkdir(dirname(path), { recursive: true });
 		await writeFile(path, 'forbidden desktop payload');
-		await assert.rejects(invoke(), /packaged desktop resources.*forbidden bundled FFmpeg\/libav/iu, name);
+		await assert.rejects(invoke(), /packaged desktop resources.*forbidden unmanaged FFmpeg\/libav/iu, name);
 		assert.equal(fuseCalls.length, 0, name);
 		await rm(path);
 		if (name.startsWith('runtime/ffmpeg/')) {

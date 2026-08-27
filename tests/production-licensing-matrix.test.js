@@ -8,6 +8,7 @@ const matrixUrl = new URL('../config/production-licensing-matrix.json', import.m
 const packageUrl = new URL('../package.json', import.meta.url);
 const lockUrl = new URL('../package-lock.json', import.meta.url);
 const noticesUrl = new URL('../THIRD_PARTY_LICENSES.md', import.meta.url);
+const policyUrl = new URL('../docs/production-licensing-policy.md', import.meta.url);
 const repositoryUrl = new URL('../', import.meta.url);
 
 const SURFACE_IDS = [
@@ -42,6 +43,16 @@ const FUTURE_GATE_IDS = [
 	'native-plugins',
 	'web-effect-packages',
 ];
+
+test('human licensing checks are milestone-9 release inputs, not execution gates', async () => {
+	const policy = await readFile(policyUrl, 'utf8');
+	assert.match(
+		policy,
+		/human.*licensing.*milestone 9.*stable 1\.0.*(?:does not|never).*build.*test.*package.*runtime/isu,
+	);
+	assert.doesNotMatch(policy, /broader capabilities remain disabled until their matrix requirements/iu);
+	assert.match(policy, /machine.*artifact.*payload.*platform.*containment.*consent.*fail closed/isu);
+});
 
 test('production licensing matrix is versioned and distinguishes every distribution surface', async () => {
 	const matrix = await readJson(matrixUrl);
@@ -168,7 +179,7 @@ test('runtime provenance entries and release gates fail closed without claiming 
 	assert.deepEqual(provenance.get('ffmpeg-core-wasm').artifactSurfaces, ['web-runtime-assets']);
 	const codecPolicy = matrix.desktopCodecPolicy;
 	assert.equal(codecPolicy.scope,
-		'soundscaper-application-codec-provider-layer-excluding-electron-framework-internals');
+		'soundscaper-general-codec-provider-layer-excluding-electron-framework-internals-and-the-exact-authenticated-framescaper-media-host');
 	assert.deepEqual(codecPolicy.artifactSurfaces,
 		['electron-renderer', 'electron-runtime-assets', 'electron-shell', 'desktop-release-assets']);
 	assert.deepEqual(
@@ -366,7 +377,7 @@ test('only the evidenced local-model surface is enabled among future distributio
 	]) assert.ok(gates.get('web-effect-packages').evidence.includes(path));
 });
 
-test('native plug-in format and codec policy rows stay fail-closed with named blockers', async () => {
+test('native policy rows separate stable-release review from test activation', async () => {
 	const matrix = await readJson(matrixUrl);
 
 	assert.deepEqual(matrix.nativeFormatPolicies.map(({ id }) => id), [
@@ -412,9 +423,9 @@ test('native plug-in format and codec policy rows stay fail-closed with named bl
 	// Every implemented row is named here rather than exempted by a pattern, so
 	// a future row cannot become implemented by resembling one of these. The
 	// fixture format is this project's own work with no third-party code and so
-	// no gate to wait on; the rest carry the owner's recorded native-audio and
-	// native-plugins review. The codec rows are deliberately absent: that review
-	// is still open, which is why native-codecs stays disabled.
+	// no review to wait on; the rest carry the owner's recorded native-audio and
+	// native-plugins review. Codec rows may retain blocked stable-release status
+	// without disabling their implemented build and test paths.
 	const REVIEWED_ROWS = [
 		'plugin-format-soundscaper-fixture',
 		'native-audio-stack',
@@ -423,10 +434,7 @@ test('native plug-in format and codec policy rows stay fail-closed with named bl
 		'plugin-format-vst3', 'plugin-format-clap', 'plugin-format-audio-units',
 		'plugin-format-lv2', 'plugin-format-ofx',
 	];
-	assert.equal(
-		REVIEWED_ROWS.some((id) => id.startsWith('codec-')), false,
-		'no codec row is reviewed while the native-codecs gate is disabled',
-	);
+	assert.equal(REVIEWED_ROWS.some((id) => id.startsWith('codec-')), false);
 	for (const row of matrix.nativeFormatPolicies) {
 		assert.match(row.kind, /^(?:plugin-format|native-audio-stack|audio-backend|codec-capability)$/u, row.id);
 		if (REVIEWED_ROWS.includes(row.id)) {
@@ -435,7 +443,7 @@ test('native plug-in format and codec policy rows stay fail-closed with named bl
 			await assertEvidence(row.evidence);
 			continue;
 		}
-		assert.equal(row.status, 'blocked', `${row.id} must stay fail-closed until its review is recorded`);
+		assert.equal(row.status, 'blocked', `${row.id} retains stable-release review status`);
 		assert.ok(row.blocker.length > 0, `${row.id} needs a named blocker`);
 		assert.ok(row.upstreamLicensing.length > 0, `${row.id} needs its upstream licensing form`);
 		assert.ok(row.agplCompatibilityDirection.length > 0, `${row.id} needs its compatibility direction`);
@@ -451,8 +459,20 @@ test('native plug-in format and codec policy rows stay fail-closed with named bl
 		if (row.status === 'blocked') assert.match(row.blocker, /native-audio/u, row.id);
 	}
 	const ffmpegRow = matrix.nativeFormatPolicies.find(({ id }) => id === 'codec-native-ffmpeg-current-set');
-	assert.match(ffmpegRow.blocker, /ffmpeg-enabled-library-corresponding-source/u);
-	assert.match(ffmpegRow.blocker, /ffmpeg-enabled-codec-patent-review/u);
+	assert.equal(ffmpegRow.testActivation, 'enabled');
+	assert.equal(ffmpegRow.humanReviewMilestone, 9);
+	assert.match(ffmpegRow.blocker, /enabled for build and testing/iu);
+	for (const id of [
+		'codec-hardware-acceleration',
+		'codec-decode-png-image-sequence', 'codec-decode-tiff-image-sequence',
+		'codec-decode-openexr-image-sequence', 'codec-encode-png-image-sequence',
+		'codec-encode-tiff-image-sequence', 'codec-encode-openexr-image-sequence',
+	]) {
+		const row = matrix.nativeFormatPolicies.find((candidate) => candidate.id === id);
+		assert.equal(row.testActivation, 'enabled', id);
+		assert.equal(row.humanReviewMilestone, 9, id);
+		assert.match(row.blocker, /enabled.*test/iu, id);
+	}
 	const exactCodecRows = matrix.nativeFormatPolicies.filter(({ id }) => /^codec-(?:decode|encode)-/u.test(id));
 	assert.equal(exactCodecRows.length, 24);
 	assert.equal(new Set(exactCodecRows.map((row) => [

@@ -39,6 +39,25 @@ test('the embedded package-content manifest binds the exact installed resource c
 	assert.match(audit.resourcesPath, /usr\/lib\/soundscaper\/resources$/u);
 });
 
+test('human professional readiness fields cannot suppress package-content auditing', async (context) => {
+	const fixture = await packageTree(context);
+	const professional = fixture.runtimeManifest.soundscaperProfessionalNative;
+	professional.reviewPolicy = null;
+	professional.productionReadiness = { verified: { status: 'pending-human-review' } };
+	await rm(join(
+		fixture.resourcesRoot,
+		'runtime/native/soundscaper-professional-host/linux-x64/milestone-5-native-isolation-review-policy.json',
+	));
+	await writeJson(fixture.runtimeManifestPath, fixture.runtimeManifest);
+	const written = await writeDesktopPackageContentManifest({
+		resourcesRoot: fixture.resourcesRoot,
+		runtimeManifestPath: fixture.runtimeManifestPath,
+		productId: 'soundscaper',
+		targetId: 'linux-x64',
+	});
+	assert.equal(written.status, 'installed-resource-closure-audited');
+});
+
 test('content audit rejects changed, extra, symbolic, and decoy resources', async (context) => {
 	for (const failure of ['changed', 'extra', 'symbol', 'decoy']) {
 		const fixture = await packageTree(context);
@@ -209,22 +228,26 @@ test('Framescaper rejects its static-FFmpeg media host while retaining OpenFX cl
 	});
 	assert.equal(written.status, 'installed-resource-closure-audited');
 
-	for (const [host, name, expected] of [[
-		'openfx', 'framescaper-openfx-production-readiness.json', /OpenFX production-readiness evidence/iu,
-	]]) {
-		const missing = await framescaperPackageTree(context);
-		await makeMediaHostPending(missing);
-		await rm(join(
-			missing.resourcesRoot,
-			`runtime/native/framescaper-${host}-host/linux-x64/${name}`,
-		));
-		await assert.rejects(writeDesktopPackageContentManifest({
-			resourcesRoot: missing.resourcesRoot,
-			runtimeManifestPath: missing.runtimeManifestPath,
-			productId: 'framescaper',
-			targetId: 'linux-x64',
-		}), expected);
-	}
+	const reportOnly = await framescaperPackageTree(context);
+	await makeMediaHostPending(reportOnly);
+	const openFx = reportOnly.runtimeManifest.framescaperNativeHosts.openFxHost;
+	openFx.reviewPolicy = null;
+	openFx.productionReadiness = { verified: { status: 'pending-human-review' } };
+	for (const name of [
+		'milestone-5-native-isolation-review-policy.json',
+		'framescaper-openfx-production-readiness.json',
+	]) await rm(join(
+		reportOnly.resourcesRoot,
+		`runtime/native/framescaper-openfx-host/linux-x64/${name}`,
+	));
+	await writeJson(reportOnly.runtimeManifestPath, reportOnly.runtimeManifest);
+	const automated = await writeDesktopPackageContentManifest({
+		resourcesRoot: reportOnly.resourcesRoot,
+		runtimeManifestPath: reportOnly.runtimeManifestPath,
+		productId: 'framescaper',
+		targetId: 'linux-x64',
+	});
+	assert.equal(automated.status, 'installed-resource-closure-audited');
 });
 
 async function makeMediaHostPending(fixture) {

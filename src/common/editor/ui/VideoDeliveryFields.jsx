@@ -7,7 +7,6 @@ import { VIDEO_DELIVERY_AUDIO_LAYOUTS } from '../video-delivery-audio-layout.ts'
 import {
 	findPlatformDeliveryPreset,
 	PLATFORM_DELIVERY_PRESETS,
-	resolvePlatformDeliveryAvailability,
 } from '../platform-delivery-presets.ts';
 import { statedVideoDeliveryTarget } from './export-preset-model.ts';
 import { DesignCheckbox, LabeledDropdown } from './inspector/inspector-controls.jsx';
@@ -73,17 +72,16 @@ export default function VideoDeliveryFields({
 	copy, disabled, labelTracks = [], settings, onChange, captionDeliveryUnavailable = false,
 }) {
 	const target = findPlatformDeliveryPreset(settings.deliveryTarget);
-	const availability = target ? resolvePlatformDeliveryAvailability(target) : null;
 	// The fallback named here has to be the one the delivery actually reaches,
 	// not the next link in the chain: a blocked target whose fallback is itself
 	// blocked is followed further, and naming the middle link promised a
 	// mezzanine while 1080p was what landed.
-	const delivered = availability && !availability.available
+	const delivered = target
 		? statedVideoDeliveryTarget({ deliveryTarget: settings.deliveryTarget })
 		: null;
-	const blockedTarget = availability && !availability.available
+	const blockedTarget = target && delivered?.degradedFrom === target.id
 		? {
-			availability,
+			blocker: copy.videoDeliveryUnavailable,
 			fallbackLabel: findPlatformDeliveryPreset(delivered?.presetId)?.label
 				?? copy.videoDeliveryTargetCustom,
 		}
@@ -100,16 +98,14 @@ export default function VideoDeliveryFields({
 					{ value: '', label: copy.videoDeliveryTargetCustom },
 					...PLATFORM_DELIVERY_PRESETS.map((preset) => ({
 						value: preset.id,
-						label: resolvePlatformDeliveryAvailability(preset).available
-							? preset.label
-							: `${preset.label} — ${copy.videoDeliveryUnavailable}`,
+						label: preset.label,
 					})),
 				]}
 			/>
 			{blockedTarget && (
 				<p className="audio-editor-panel-hint" data-export-field="deliveryTargetBlocked">
 					{copy.videoDeliveryBlockedHint
-						.replace('{blocker}', blockedTarget.availability.blocker)
+						.replace('{blocker}', blockedTarget.blocker)
 						.replace('{fallback}', blockedTarget.fallbackLabel)}
 				</p>
 			)}

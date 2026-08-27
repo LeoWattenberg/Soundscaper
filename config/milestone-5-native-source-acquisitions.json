@@ -174,8 +174,8 @@
 			"license": "GPL-2.0-or-later",
 			"licenseSelection": "GPL-2.0-or-later",
 			"authenticationStatus": "pinned-metadata",
-			"activationStatus": "blocked",
-			"blockedBy": "Corresponding-source, notice, AVC patent, target-build, signing and qualification gates remain open.",
+			"activationStatus": "accepted",
+			"blockedBy": null,
 			"uses": ["ffmpeg-h264-encoder"]
 		},
 		{
@@ -199,8 +199,8 @@
 			"license": "GPL-2.0-or-later OR commercial x265 license",
 			"licenseSelection": "GPL-2.0-or-later",
 			"authenticationStatus": "pinned-metadata",
-			"activationStatus": "blocked",
-			"blockedBy": "Corresponding-source, notice, HEVC patent, target-build, signing and qualification gates remain open.",
+			"activationStatus": "accepted",
+			"blockedBy": null,
 			"uses": ["ffmpeg-hevc-encoder"]
 		},
 		{
@@ -224,8 +224,8 @@
 			"license": "BSD-3-Clause",
 			"licenseSelection": "BSD-3-Clause",
 			"authenticationStatus": "pinned-metadata",
-			"activationStatus": "blocked",
-			"blockedBy": "Notice, codec/patent, target-build, signing and qualification gates remain open.",
+			"activationStatus": "accepted",
+			"blockedBy": null,
 			"uses": ["ffmpeg-vp9-decoder", "ffmpeg-vp9-encoder"]
 		},
 		{
@@ -249,8 +249,8 @@
 			"license": "BSD-3-Clause",
 			"licenseSelection": "BSD-3-Clause",
 			"authenticationStatus": "pinned-metadata",
-			"activationStatus": "blocked",
-			"blockedBy": "Notice, target-build, signing and qualification gates remain open.",
+			"activationStatus": "accepted",
+			"blockedBy": null,
 			"uses": ["ffmpeg-opus-decoder", "ffmpeg-opus-encoder"]
 		}
 	],

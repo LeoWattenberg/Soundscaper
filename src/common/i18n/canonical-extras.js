@@ -234,7 +234,7 @@ const COPY_ENTRIES = Object.freeze([
 	["audacityParityReasonPlugins","External plugin and Nyquist support is intentionally omitted.","Externe Plugins und Nyquist-Unterstützung werden bewusst nicht übernommen."],
 	["audacityParityReasonOs","Operating-system audio, device, and application-lifecycle settings are intentionally omitted.","Betriebssystem-, Audio-Geräte- und Anwendungsoptionen werden bewusst nicht übernommen."],
 	["audacityParityReasonDeveloper","Hidden Extra, diagnostic, benchmark, and developer scaffolding is intentionally omitted.","Verborgene Extra-, Diagnose-, Benchmark- und Entwicklerfunktionen werden bewusst nicht übernommen."],
-	["audacityParityReasonMidi","MIDI is blocked until milestone 8B on the pending Audacity MIDI design.","MIDI bleibt bis Meilenstein 8B aufgrund des ausstehenden Audacity-MIDI-Designs blockiert."],
+	["audacityParityReasonMidi","MIDI is not implemented and remains planned for milestone 8B; Audacity design review is a stable 1.0 admission check.","MIDI ist noch nicht implementiert und bleibt für Meilenstein 8B geplant; die Prüfung des Audacity-Designs ist eine Freigabebedingung für die stabile Version 1.0."],
 	["audacityParityReasonSuperseded","This upstream action is superseded by the maintained Revert to factory settings workflow.","Diese Upstream-Aktion wurde durch den gepflegten Ablauf zum Zurücksetzen auf Werkseinstellungen ersetzt."],
 	["audacityParityLabelExportOther","Export other","Weitere Exporte"],
 	["audacityParityLabelExportMIDI","Export MIDI","MIDI exportieren"],

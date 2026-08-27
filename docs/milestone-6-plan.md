@@ -32,16 +32,18 @@ activation claim:
 - EDL, OTIO, and FCPXML exports now inventory authored caption tracks as explicit
   omissions, including an authored track with no cues in the exported sequence.
 
-Production native activation remains blocked by facts this repository cannot
-manufacture: reviewed codec/licensing decisions, target payloads and
-corresponding-source records, signing/notarization identities, packaged native
-execution, and owner-controlled lab evidence. The milestone-6 qualification
-audit is therefore healthy but `pending-external`: zero of 19 required
+Native surfaces are implemented and enabled for testing. Execution still
+requires facts this repository cannot manufacture: exact target payloads,
+corresponding-source identity, platform compatibility, containment, project
+authority, capacity, and explicit consent. Reviewed codec/licensing decisions,
+signing/notarization review, packaged qualification, and owner-controlled lab
+evidence belong to milestone-9 stable 1.0 admission. The milestone-6
+qualification audit is therefore healthy but `pending-external`: zero of 19 required
 measurements are accepted (one fixed-RTX profile plus the complete 18-profile
 Windows x64/ARM64, macOS ARM64, and Linux x64/ARM64 native matrix). Run
 `npm run audit:milestone-6-qualification` for the authoritative gate and
 `npm run milestone6:handoff-matrix` for the exact external handoff inventory.
-No runtime flag or licensing row is changed while those gates remain open.
+No pending human row disables build, packaging, catalog visibility, or testing.
 
 ## Goals and ordering principle
 
@@ -217,12 +219,13 @@ carry over unchanged.
 ### Presets are validated data over plans
 
 A preset is a versioned, validated record declaring container, codec,
-profile, color, audio layout, captions, metadata, **legal
-availability**, and fallback behavior (roadmap.md:743-744) that
+profile, color, audio layout, captions, metadata, milestone-9 legal-review
+status, and fallback behavior (roadmap.md:743-744) that
 resolves to an export plan — it never carries its own encode path.
-Platform presets whose codecs sit behind the milestone-5 licensing
-gates (config/production-licensing-matrix.json:516-576) declare that
-status explicitly and degrade to available codecs visibly. The preset
+Platform presets with pending milestone-9 licensing rows declare that status
+without hiding or disabling themselves. A browser executor degrades a native
+target visibly because it cannot execute its plan; the native executor instead
+applies exact machine admission. The preset
 system subsumes the flat dialog settings; the milestone-7 vertical
 lookahead (7B-5, docs/milestone-7-plan.md:827-844) never landed, so
 6B-1 owns canvas/aspect and vertical delivery whole, including
@@ -273,7 +276,7 @@ while the FFmpeg path keeps its byte goldens. Audio stays on the ordinary
 FFmpeg encoder, since `AudioEncoder` coverage is thinner than `VideoEncoder`
 and the existing plans already take a separate staged audio input.
 
-Longer term this is also the lever on the blocked licensing gates: once
+Longer term this is also a lever on the milestone-9 licensing review: once
 encoding leaves FFmpeg, a narrower `@ffmpeg/core` rebuild could drop the
 x264, x265, and libvpx encoders and keep muxers and parsers, shrinking the
 enabled library set that `ffmpeg-enabled-library-corresponding-source` and
@@ -389,10 +392,11 @@ which is not redistributable. What landed:
 **6.0 acceptance is met for the web tier, so 6A/6B/6C may open.** What
 remains inside 6.0 is gated on work this milestone does not own:
 
-- The Electron queue binding has a dormant main-owned V2 host and closed media
-  helper kinds, but waits on an attested payload, cleared licensing, complete
-  source authority and candidate activation. The plan's honest-degradation
-  path — the in-session queue — is what runs today.
+- The Electron queue binding has a main-owned V2 host and closed media helper
+  kinds. It runs when an authenticated payload, complete source/project
+  authority, supported platform, containment, capacity, and user consent are
+  present. Pending licensing review is reported to milestone 9 only. The
+  in-session queue remains the browser-executor fallback.
 - The AUP4 report still renders through its own component rather than the
   shared one, though both now draw their copy from
   `src/common/i18n/report-copy.js` and share the disposition vocabulary.
@@ -533,10 +537,11 @@ and
   plan is the meaning, not the encoder.
 - **6B-4 — Electron format tier and platform presets.** Outcome:
   4K/HDR, 10-bit, hardware encode, image sequences, alpha, mezzanine
-  formats, and platform delivery presets with explicit legal status —
-  consuming the milestone-5 native media engine and its per-codec
-  licensing rows. Stop: stop on any codec whose milestone-5 gates are
-  not clear; the preset declares unavailability instead.
+  formats, and platform delivery presets with explicit milestone-9 legal
+  review status — consuming the milestone-5 native media engine and its
+  per-codec report rows. Stop current execution only when the authenticated
+  payload, codec, platform, containment, capacity, consent, or project
+  authority is unavailable; pending human review stops stable 1.0 only.
 - **6B-5 — Exit evidence.** The 6B surface against the ten-minute
   video master and the render-time budgets
   (`delivery.webVideoRenderP95Rtf lte 12`,
@@ -621,12 +626,14 @@ and
   before any plan bump.
 - **Milestone-5 dependencies:** 5B now has exact V7–V12 admission, closed
   media/OFX helper kinds, a main-owned V2 queue/controller, and a bounded native
-  source host. No 5B payload is built, codec licensing remains blocked, the
+  source host. No 5B payload is built, the
   selected V17 renderer now has digest-bound source-body handoff, V20 queue
   admission, and pathless watch mutation, while most unified render semantics
-  remain typed unsupported. Empty payload rows, licensing, and those semantic
-  boundaries still gate 6B-4 and native execution; the web tier of every
-  6.0/6A packet works without them.
+  remain typed unsupported. Empty payload rows and those semantic boundaries
+  still gate native execution, but the 6B-4 catalog is visible for testing and
+  reports exact executor/payload reasons. Human licensing review is a
+  milestone-9 stable 1.0 gate only; the web tier of every 6.0/6A packet works
+  without native payloads.
 - **Milestone-4 dependencies:** selected Framescaper V27 now locally implements
   explicit caption tracks with SRT, WebVTT, and a bounded IMSC 1.1 subset.
   Guided-local and external qualification remain open, and M1–M4 grant no
@@ -657,8 +664,9 @@ and
 
 - No MIDI import/export of any kind (8B fence; roadmap.md:711-712).
 - No cloud rendering, upload targets, or hosted delivery.
-- No codec, muxer, or preset shipping ahead of its licensing/patent
-  gates; legal availability is declared per preset, never implied.
+- No stable 1.0 release while required licensing/patent reviews are pending.
+  Build, packaging, catalog visibility, and testing remain enabled; exact
+  payload, codec, muxer, platform, and containment support is machine-checked.
 - No weakening of the milestone-2 direct-transport invariants, the
   `.scape` digest discipline, or the linked-media lifecycle.
 - No second export stack; plans remain the single semantic authority.

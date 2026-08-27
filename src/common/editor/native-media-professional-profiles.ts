@@ -4,9 +4,9 @@
  * The required professional decode and encode baseline, and the admission that
  * decides whether one profile may carry one source.
  *
- * Two rules shape this module. First, every row names the fail-closed licensing
- * and provenance rows it depends on, and admission refuses a profile whose rows
- * are not cleared: capability follows evidence, never convenience. Second, a
+ * Two rules shape this module. First, every profile names the licensing and
+ * provenance rows milestone 9 must clear before stable 1.0, while pending human
+ * review never disables an implemented build or test path. Second, a
  * profile that cannot preserve a *required* bit depth, chroma, HDR metadata, or
  * alpha is refused before any work begins, rather than flattening the output
  * and relabelling it as if nothing was lost.
@@ -31,7 +31,7 @@ export interface NativeMediaProfileV1 {
 	readonly operation: NativeMediaProfileOperation;
 	readonly codec: string;
 	readonly container: string;
-	/** Every fail-closed licensing and provenance row this profile depends on. */
+	/** Every licensing and provenance row stable 1.0 release review must clear. */
 	readonly policyRowIds: readonly string[];
 	readonly maximumBitDepth: number;
 	readonly chromaFormats: readonly string[];
@@ -64,9 +64,8 @@ const UPTO_422: readonly string[] = Object.freeze(['4:0:0', '4:2:0', '4:2:2']);
 const UPTO_420: readonly string[] = Object.freeze(['4:0:0', '4:2:0']);
 
 /**
- * The required baseline. A row's presence is a requirement, not a claim that it
- * is available: an uncleared row blocks milestone-5B exit rather than silently
- * narrowing the tier.
+ * The required baseline. A row's presence is a stable 1.0 release requirement,
+ * not a claim that human review is already complete.
  */
 export const NATIVE_MEDIA_PROFESSIONAL_PROFILES: readonly NativeMediaProfileV1[] = Object.freeze([
 	decode('decode-h264', 'h264', 'any', rows(...H264_DECODE), 10, UPTO_422, false, true),
@@ -142,7 +141,6 @@ export const NATIVE_MEDIA_PROFILE_POLICY_ROW_IDS: readonly string[] = Object.fre
 
 export const NATIVE_MEDIA_PROFILE_REFUSALS = Object.freeze([
 	'profile-unknown',
-	'policy-row-blocked',
 	'bit-depth-not-preserved',
 	'chroma-not-preserved',
 	'hdr-metadata-not-preserved',
@@ -175,7 +173,7 @@ export interface NativeMediaProfileAdmissionRequestV1 {
 	readonly profileId: string;
 	readonly source: VideoSourceCharacteristicsV25;
 	readonly requirements?: NativeMediaProfileRequirementsV1;
-	/** Licensing rows whose review is recorded as cleared. Empty by default. */
+	/** Stable 1.0 release rows whose milestone-9 review is recorded as cleared. */
 	readonly clearedPolicyRowIds?: readonly string[];
 }
 
@@ -184,7 +182,8 @@ export interface NativeMediaProfileAdmissionVerdictV1 {
 	readonly profileId: string;
 	readonly refusals: readonly NativeMediaProfileRefusal[];
 	readonly disclosures: readonly NativeMediaProfileDisclosure[];
-	readonly blockedPolicyRowIds: readonly string[];
+	/** Pending human review reported to milestone 9; never an execution refusal. */
+	readonly pendingReleasePolicyRowIds: readonly string[];
 }
 
 export function nativeMediaProfile(profileId: string): NativeMediaProfileV1 | null {
@@ -194,8 +193,8 @@ export function nativeMediaProfile(profileId: string): NativeMediaProfileV1 | nu
 /**
  * Decide whether one profile may carry one source.
  *
- * The licensing rows are checked first and independently of everything else: an
- * uncleared row is a refusal no measurement can overturn.
+ * Human licensing rows are reported independently for milestone 9. Machine-
+ * verifiable preservation requirements remain the only execution refusals.
  */
 export function evaluateNativeMediaProfileAdmission(
 	request: NativeMediaProfileAdmissionRequestV1,
@@ -205,10 +204,9 @@ export function evaluateNativeMediaProfileAdmission(
 		return verdict(request.profileId, ['profile-unknown'], [], []);
 	}
 	const cleared = new Set(request.clearedPolicyRowIds ?? []);
-	const blockedPolicyRowIds = profile.policyRowIds.filter((rowId) => !cleared.has(rowId));
+	const pendingReleasePolicyRowIds = profile.policyRowIds.filter((rowId) => !cleared.has(rowId));
 	const refusals: NativeMediaProfileRefusal[] = [];
 	const disclosures: NativeMediaProfileDisclosure[] = [];
-	if (blockedPolicyRowIds.length > 0) refusals.push('policy-row-blocked');
 
 	const requirements = request.requirements ?? {};
 	const source = request.source;
@@ -217,7 +215,7 @@ export function evaluateNativeMediaProfileAdmission(
 	appraiseHdr(profile, source, requirements, refusals, disclosures);
 	appraiseAlpha(profile, source, requirements, refusals, disclosures);
 
-	return verdict(profile.id, refusals, disclosures, blockedPolicyRowIds);
+	return verdict(profile.id, refusals, disclosures, pendingReleasePolicyRowIds);
 }
 
 function appraiseBitDepth(
@@ -292,14 +290,14 @@ function verdict(
 	profileId: string,
 	refusals: readonly NativeMediaProfileRefusal[],
 	disclosures: readonly NativeMediaProfileDisclosure[],
-	blockedPolicyRowIds: readonly string[],
+	pendingReleasePolicyRowIds: readonly string[],
 ): NativeMediaProfileAdmissionVerdictV1 {
 	return Object.freeze({
 		admitted: refusals.length === 0,
 		profileId,
 		refusals: Object.freeze([...refusals]),
 		disclosures: Object.freeze([...disclosures]),
-		blockedPolicyRowIds: Object.freeze([...blockedPolicyRowIds]),
+		pendingReleasePolicyRowIds: Object.freeze([...pendingReleasePolicyRowIds]),
 	});
 }
 

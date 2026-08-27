@@ -122,15 +122,16 @@ test('milestone narratives report selected F31 inheritance without closing exter
 	assert.match(plan, /Milestone 3 — V20 retime and proxy activation/iu);
 	assert.match(plan, /Proxy selection occurs in the source domain.*occurrence retime/isu);
 	assert.match(plan, /Framescaper V27.*does not inherit V25\/V26/isu);
-	const verification = await text('docs/milestones-1-to-4-guided-verification.md');
+	const verification = await text('docs/milestone-9-guided-verification.md');
 	assert.match(verification, /Generate a proxy.*cancel generation.*regenerate.*detach.*relink/isu);
-	assert.match(verification, /Verifier conclusion \| pending/iu);
+	assert.match(verification, /Stable 1\.0 release conclusion \| pending/iu);
 });
 
 test('milestone 3 closure blockers remain explicit and unpromoted', async () => {
 	const matrix = await json('config/milestone-3-timing-probe-matrix.json');
-	assert.equal(matrix.electronRows.length, 4);
+	assert.equal(matrix.electronRows.length, 10);
 	assert.deepEqual(new Set(matrix.electronRows.map(({ status }) => status)), new Set(['pending-external']));
+	assert.deepEqual(new Set(matrix.electronRows.map(({ testActivation }) => testActivation)), new Set(['automated']));
 
 	const budgets = await json('config/quality-budgets.json');
 	const ownerHost = byId(budgets.environments, 'owner-qualified-windows-x64-rtx3090-01');

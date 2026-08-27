@@ -30,13 +30,10 @@ export async function runFramescaperWebVcrDormantRendererSmoke(scope, plan) {
 	}
 	const handshake = await api.handshake();
 	if (handshake?.version !== 1 || handshake.captureGrantTtlMs !== 10_000
-		|| handshake.capability?.status !== 'unavailable'
-		|| handshake.capability.reason !== 'roadmap-gate') {
-		throw new Error('Dormant Web VCR bridge did not stay roadmap-gated.');
+		|| handshake.capability?.status !== 'available'
+		|| JSON.stringify(handshake.capability.resolutions) !== JSON.stringify(['720p', '1080p'])) {
+		throw new Error('Production Web VCR bridge did not expose the supported baseline.');
 	}
-	let openRejected = false;
-	try { await api.open({ resolution: '720p' }); } catch { openRejected = true; }
-	if (!openRejected) throw new Error('Dormant Web VCR bridge opened a guest.');
 	return {
 		schemaVersion: 1,
 		mode: plan.mode,
@@ -44,8 +41,8 @@ export async function runFramescaperWebVcrDormantRendererSmoke(scope, plan) {
 		token: plan.token,
 		qualification: false,
 		preloadBridge,
-		capability: { status: 'unavailable', reason: 'roadmap-gate' },
-		openRejected,
+		capability: { status: 'available', resolutions: ['720p', '1080p'] },
+		openAttempted: false,
 	};
 }
 
@@ -416,13 +413,15 @@ export async function runFramescaperWebVcrPackagedRendererSmoke(scope, plan) {
 export function validateFramescaperWebVcrDormantSmokeResult(value, plan) {
 	const result = closed(value, [
 		'schemaVersion', 'mode', 'productId', 'token', 'qualification', 'preloadBridge',
-		'capability', 'openRejected',
+		'capability', 'openAttempted',
 	], 'dormant smoke result');
 	matchEnvelope(result, plan, FRAMESCAPER_WEB_VCR_DORMANT_SMOKE_MODE);
 	exactArray(result.preloadBridge, PRELOAD_BRIDGE, 'dormant preload bridge');
-	const capability = closed(result.capability, ['status', 'reason'], 'dormant capability');
-	if (capability.status !== 'unavailable' || capability.reason !== 'roadmap-gate'
-		|| result.openRejected !== true) throw new Error('Dormant Web VCR result is not fail-closed.');
+	const capability = closed(result.capability, ['status', 'resolutions'], 'dormant capability');
+	exactArray(capability.resolutions, ['720p', '1080p'], 'dormant baseline resolutions');
+	if (capability.status !== 'available' || result.openAttempted !== false) {
+		throw new Error('Production Web VCR result did not stay guest-lazy.');
+	}
 	return value;
 }
 

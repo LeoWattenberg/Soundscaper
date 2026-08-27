@@ -87,7 +87,7 @@ export function validateWebVcrHandshakeV1(value: unknown): Readonly<WebVcrHandsh
 	const capability = normalizeWebVcrCapability(record.capability);
 	if (capability.status === 'available'
 		&& (!capability.resolutions.includes('720p') || !capability.resolutions.includes('1080p'))) {
-		throw new TypeError('Available Web VCR capability requires the qualified baseline resolutions.');
+		throw new TypeError('Available Web VCR capability requires the supported baseline resolutions.');
 	}
 	return Object.freeze({
 		version: 1,

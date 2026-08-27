@@ -693,9 +693,12 @@ with its atomic capability registration.
 
 ## Watch items (not gates yet)
 
-- WebKit qualification for new editorial workflows inherits the
-  milestone-2 durability caveat; do not claim cross-engine coverage the
-  matrix does not show.
+- Every maintained browser engine is enabled for automated workflow tests.
+  Manual browser-engine qualification belongs to milestone 9 stable 1.0
+  release admission and does not disable build or test. A test may still
+  capability-skip when the current engine concretely lacks a required API;
+  the pinned WebKit build currently exposes neither OPFS nor working
+  IndexedDB Blob storage for imported A/V sources.
 
 ## Non-goals and fences
 

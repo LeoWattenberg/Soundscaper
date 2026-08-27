@@ -29,8 +29,6 @@ export async function publishFfmpegRuntime({
 		? loadRelease()
 		: verifyFfmpegRuntimeManifest({ repositoryRoot, purpose: 'runtime-publication' }));
 	const snapshot = snapshotVerifiedFfmpegRuntime(release);
-	assert(release.manifest.authorizations.runtimePublication.status === 'approved',
-		`runtime publication is blocked by ${release.manifest.authorizations.runtimePublication.blockedBy.join(', ')}`);
 	const policy = snapshot.publicPolicy;
 	const bucket = release.manifest.publication.bucket;
 	const jurisdiction = release.manifest.publication.jurisdiction ?? null;

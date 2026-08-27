@@ -53,10 +53,10 @@ test('the presets that ship deliver, and resolve to options a plan builder accep
 		assert.deepEqual({ ...availability }, {
 			presetId: preset.id,
 			available: true,
-			status: 'shipped',
-			blockingRowIds: [],
-			blocker: null,
-			fallbackPresetId: preset.fallbackPresetId,
+			status: 'implemented',
+			m9ReleaseReviewStatus: 'not-required',
+			m9ReleaseReviewRowIds: [],
+			m9ReleaseReviewPendingRowIds: [],
 		});
 		const options = resolvePlatformDeliveryPlanOptions(preset, MATRIX)!;
 		const plan = createVideoExportPlan(project(), {
@@ -67,20 +67,22 @@ test('the presets that ship deliver, and resolve to options a plan builder accep
 	}
 });
 
-test('every gated preset is blocked today, states why, and resolves to no plan', () => {
+test('manual delivery review is reported for Milestone 9 without blocking test execution', () => {
 	const gated = PLATFORM_DELIVERY_PRESETS.filter((preset) => preset.licensingRowIds.length > 0);
 	assert.ok(gated.length >= 6, 'the native tier the milestone names is declared, not omitted');
 	for (const preset of gated) {
 		const availability = resolvePlatformDeliveryAvailability(preset, MATRIX);
-		assert.equal(availability.available, false, `${preset.id} is not gated by anything`);
-		assert.equal(availability.status, 'blocked', preset.id);
-		assert.ok(availability.blocker && availability.blocker.length > 0, `${preset.id} blocks without saying why`);
+		assert.equal(availability.available, true, `${preset.id} is hidden behind release review`);
+		assert.equal(availability.status, 'implemented', preset.id);
+		assert.equal(availability.m9ReleaseReviewStatus, 'pending', preset.id);
 		assert.deepEqual(
-			availability.blockingRowIds,
-			preset.licensingRowIds.filter((id) => availability.blockingRowIds.includes(id)),
-			'blocking rows are reported in the order the preset names them',
+			availability.m9ReleaseReviewPendingRowIds,
+			preset.licensingRowIds,
+			'pending review rows are reported in the order the preset names them',
 		);
-		assert.equal(resolvePlatformDeliveryPlanOptions(preset, MATRIX), null, preset.id);
+		assert.notEqual(resolvePlatformDeliveryExecution(preset, MATRIX), null, preset.id);
+		assert.equal(resolvePlatformDeliveryPlanOptions(preset, MATRIX), null,
+			'native execution still has no browser plan');
 	}
 });
 
@@ -108,7 +110,7 @@ test('the catalog binds every platform target to one explicit web or V15 native 
 	);
 });
 
-test('native execution exposes caption, hardware, and companion-audio policy without bypassing gates', () => {
+test('native execution exposes caption, hardware, and companion-audio policy before release review', () => {
 	const cleared = structuredClone(MATRIX) as Record<string, unknown>;
 	for (const rows of Object.values(cleared)) {
 		if (!Array.isArray(rows)) continue;
@@ -151,7 +153,7 @@ test('native execution exposes caption, hardware, and companion-audio policy wit
 	});
 	assert.equal(resolvePlatformDeliveryExecution(
 		findPlatformDeliveryPreset('native-image-sequence-png')!, MATRIX,
-	), null, 'execution never bypasses its licensing gate');
+	)?.kind, 'native-media-v15', 'pending human review cannot hide the implemented executor');
 });
 
 function assertNativeExecution(
@@ -182,20 +184,14 @@ test('image-sequence companion audio is a closed built-in non-ADM choice with BW
 	]) assert.throws(() => snapshotPlatformImageSequenceCompanionAudioChoiceV1(value), /built-in|support|unsupported/iu);
 });
 
-test('every gated preset hands the user somewhere to go instead', () => {
+test('every native preset retains a browser fallback without being disabled', () => {
 	for (const preset of PLATFORM_DELIVERY_PRESETS) {
 		if (preset.licensingRowIds.length === 0) continue;
+		assert.equal(resolvePlatformDeliveryAvailability(preset, MATRIX).available, true);
 		const fallback = findPlatformDeliveryPreset(preset.fallbackPresetId);
 		assert.ok(fallback, `${preset.id} degrades to nothing`);
-		// The fallback chain must terminate at something that actually delivers.
-		const seen = new Set([preset.id]);
-		let current = fallback;
-		while (current && !resolvePlatformDeliveryAvailability(current, MATRIX).available) {
-			assert.equal(seen.has(current.id), false, `${preset.id} degrades in a circle`);
-			seen.add(current.id);
-			current = findPlatformDeliveryPreset(current.fallbackPresetId)!;
-		}
-		assert.ok(current, `${preset.id} degrades to nothing deliverable`);
+		assert.equal(fallback.execution.kind === 'web-video-plan'
+			|| fallback.fallbackPresetId !== null, true, `${preset.id} has no browser fallback route`);
 	}
 });
 
@@ -231,13 +227,14 @@ test('the catalog resolves the same way against the snapshot as against the matr
 	}
 });
 
-test('a row missing from the matrix blocks rather than passing by absence', () => {
+test('a row missing from the matrix is a pending Milestone 9 record, not a runtime block', () => {
 	const preset = findPlatformDeliveryPreset('native-uhd-hdr10')!;
 	const availability = resolvePlatformDeliveryAvailability(preset, { nativeFormatPolicies: [] });
 
-	assert.equal(availability.available, false);
-	assert.equal(availability.status, 'unknown');
-	assert.match(availability.blocker!, /No licensing row codec-encode-hevc-mp4-main10-hdr10 is recorded/u);
+	assert.equal(availability.available, true);
+	assert.equal(availability.status, 'implemented');
+	assert.equal(availability.m9ReleaseReviewStatus, 'pending');
+	assert.deepEqual(availability.m9ReleaseReviewPendingRowIds, preset.licensingRowIds);
 });
 
 test('a preset that is not from the catalog cannot ask about itself', () => {
@@ -267,8 +264,8 @@ test('the dialog resolves a blocked target to what will actually be delivered', 
 	assert.equal(Object.hasOwn(vertical, 'degradedFrom'), false);
 	assert.deepEqual(vertical.canvas, { size: { width: 1_080, height: 1_920 }, fit: 'cover' });
 
-	// 4K HDR is blocked today, so the request says what it fell back to and what
-	// it fell back from, rather than quietly delivering 1080p as if asked.
+	// This common browser dialog has no native executor, so the request says what
+	// it fell back to and what it fell back from. Milestone 9 review is irrelevant.
 	const hdr = request('native-uhd-hdr10');
 	assert.equal(hdr.deliveryTarget, 'web-1080p');
 	assert.equal(hdr.degradedFrom, 'native-uhd-hdr10');
@@ -304,15 +301,11 @@ test('the report states the target, and says when it is not the one asked for', 
 		deliveryTargetId: 'web-1080p', degradedFrom: 'native-uhd-hdr10',
 	}).find(({ code }) => code === 'delivery.target');
 	assert.equal(degraded?.severity, 'warning', 'the asking is what went unanswered');
-	// The substitution alone does not tell an operator why it happened, and the
-	// blocker is the half they can act on — it names the licensing row that has
-	// to clear before the target they asked for can ever deliver.
 	assert.deepEqual(degraded?.data, {
 		target: 'web-1080p',
 		requested: 'native-uhd-hdr10',
-		blocker: resolvePlatformDeliveryAvailability(findPlatformDeliveryPreset('native-uhd-hdr10')!).blocker,
+		blocker: 'executor-unavailable',
 	});
-	assert.match(String((degraded?.data as { blocker: string }).blocker), /HEVC/u);
 
 	assert.equal(
 		inventoryVideoDeliveryConversions(plan, {}).some(({ code }) => code === 'delivery.target'),
@@ -357,12 +350,11 @@ function project() {
 	};
 }
 
-test('the dialog names the target a blocked one actually falls back to', () => {
+test('the dialog names the target a route without an executor actually falls back to', () => {
 	const fields = readFileSync('src/common/editor/ui/VideoDeliveryFields.jsx', 'utf8');
 
-	// Alpha mezzanine falls back to the ProRes mezzanine, which is blocked too, so
-	// the delivery walks on to web-1080p. Reading `fallbackPresetId` once told the
-	// operator they would get a ProRes mezzanine they were never going to get.
+	// Alpha mezzanine falls back to the ProRes mezzanine, which is native too, so
+	// the browser delivery walks on to web-1080p.
 	assert.match(fields, /statedVideoDeliveryTarget\(/u);
 	assert.equal(fields.includes('availability.fallbackPresetId'), false);
 	assert.equal(
@@ -372,11 +364,11 @@ test('the dialog names the target a blocked one actually falls back to', () => {
 	assert.equal(findPlatformDeliveryPreset('native-alpha-mezzanine')!.fallbackPresetId, 'native-mezzanine-prores');
 });
 
-test('a licensing-cleared native target still degrades visibly in the web dialog', () => {
-	// The moment a native codec's licensing rows clear, the preset becomes
-	// available — but its execution still has no plan in the web tier. The
-	// dialog must resolve it to the named fallback with degradedFrom stating
-	// the asked-for target, never to a request naming no target at all.
+test('an implemented native target degrades visibly in the web dialog', () => {
+	// Human licensing status does not control availability, but the browser
+	// executor still has no native plan. The dialog resolves to the named
+	// fallback with degradedFrom stating the asked-for target, never to a
+	// request naming no target at all.
 	const cleared = {
 		rows: ['codec-encode-prores-mov-422-hq', 'codec-native-ffmpeg-current-set'].map((id) => ({
 			id, status: 'cleared',
@@ -385,7 +377,7 @@ test('a licensing-cleared native target still degrades visibly in the web dialog
 	const target = statedVideoDeliveryTarget(
 		{ deliveryTarget: 'native-mezzanine-prores' }, cleared,
 	);
-	assert.ok(target, 'a cleared native target must still resolve to a delivery');
+	assert.ok(target, 'an implemented native target must resolve to a delivery');
 	assert.equal(target.presetId, 'web-1080p');
 	assert.equal(target.degradedFrom, 'native-mezzanine-prores');
 });

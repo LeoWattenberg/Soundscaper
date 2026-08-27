@@ -19,13 +19,6 @@ import {
 } from './native-image-sequence-import-main-ipc.ts';
 import type { FramescaperNativeMediaRuntime } from './native-media-runtime.ts';
 
-const POLICY_ROWS = Object.freeze([
-	'codec-native-ffmpeg-current-set',
-	'codec-decode-png-image-sequence',
-	'codec-decode-tiff-image-sequence',
-	'codec-decode-openexr-image-sequence',
-]);
-
 interface ProjectAuthority {
 	projectState(projectId: string): Readonly<{ open: boolean; writable: boolean }>;
 	projectRecord(projectId: string): Readonly<{
@@ -60,7 +53,6 @@ export interface FramescaperNativeImageSequenceRegistrationOptions {
 	readonly createMessageChannel: FramescaperNativeImageSequenceDecodeAuthorityOptions['createMessageChannel'];
 	readonly mintOpaqueId: () => string;
 	readonly runtimeAvailable: () => boolean;
-	readonly policyCleared: boolean;
 }
 
 export interface FramescaperNativeImageSequenceRegistration {
@@ -79,7 +71,6 @@ export async function createFramescaperNativeImageSequenceRegistration(
 		mintOpaqueId: options.mintOpaqueId,
 		capabilities: () => options.controller.capabilities(),
 		runtimeAvailable: options.runtimeAvailable,
-		clearedPolicyRowIds: () => options.policyCleared ? POLICY_ROWS : [],
 		projectState: (projectId) => projectState(options.project, projectId),
 		projectContainsImageSequence: (request) => projectContains(options.project, request),
 		assetReferenced: (storageKey, projectId) => assetReferenced(
@@ -96,7 +87,6 @@ export async function createFramescaperNativeImageSequenceRegistration(
 		mediaRuntime: options.mediaRuntime,
 		mintOpaqueId: options.mintOpaqueId,
 		runtimeAvailable: options.runtimeAvailable,
-		policyCleared: options.policyCleared,
 	});
 	await authority.recover();
 	let importIpc: ReturnType<typeof registerFramescaperNativeImageSequenceImportMainIpc> | null = null;
@@ -217,8 +207,7 @@ function assertOptions(options: FramescaperNativeImageSequenceRegistrationOption
 		|| typeof options.executable !== 'function'
 		|| typeof options.createMessageChannel !== 'function'
 		|| typeof options.mintOpaqueId !== 'function'
-		|| typeof options.runtimeAvailable !== 'function'
-		|| typeof options.policyCleared !== 'boolean') {
+		|| typeof options.runtimeAvailable !== 'function') {
 		throw new TypeError('Framescaper selected-V28 image-sequence registration is invalid.');
 	}
 }

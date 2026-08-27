@@ -8,11 +8,11 @@
 ## Pickup status and sequencing
 
 The 3.0 foundation is the implementation baseline. Its browser and Node gates
-are green, while the four packaged Electron probe rows in
-`config/milestone-3-timing-probe-matrix.json` remain `pending-external` because
-they require Linux and Windows package runners. Work proceeds under the user's
-instruction to implement 3A while that QA runs asynchronously. Those rows are
-not relabelled or treated as passing evidence.
+are green. All ten packaged Electron probe rows in
+`config/milestone-3-timing-probe-matrix.json` are enabled for automated testing
+across the five maintained desktop targets; they remain `pending-external` only
+as milestone-9 stable 1.0 qualification evidence. Those rows are not relabelled
+or treated as passing evidence by this historical packet.
 
 Schema-neutral work lands first. Document schema revisions are serialized: at
 most one revision is in flight, and it is complete before the next begins.

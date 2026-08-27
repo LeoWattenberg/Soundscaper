@@ -12,12 +12,17 @@ import {
 let handoffDirectory = null;
 let packageDirectory = null;
 let outputPath = null;
-let requireReady = false;
+let requireAutomatedReady = false;
 for (let index = 2; index < process.argv.length; index += 1) {
 	const argument = process.argv[index];
 	if (argument === '--require-ready') {
-		if (requireReady) throw new Error('--require-ready may be supplied only once.');
-		requireReady = true;
+		throw new Error('--require-ready is ambiguous; use --require-automated-ready.');
+	}
+	if (argument === '--require-automated-ready') {
+		if (requireAutomatedReady) {
+			throw new Error('--require-automated-ready may be supplied only once.');
+		}
+		requireAutomatedReady = true;
 		continue;
 	}
 	if (['--input-directory', '--package-directory', '--output'].includes(argument)) {
@@ -51,4 +56,4 @@ const handoff = packageDirectory === null
 const bytes = `${JSON.stringify(handoff, null, '\t')}\n`;
 if (outputPath) writeFileSync(resolve(outputPath), bytes, { flag: 'wx' });
 else process.stdout.write(bytes);
-if (requireReady && !handoff.milestoneReleaseReady) process.exitCode = 1;
+if (requireAutomatedReady && !handoff.milestoneAutomatedReady) process.exitCode = 1;

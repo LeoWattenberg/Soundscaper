@@ -266,6 +266,7 @@ each maintained file below 600 lines and register new conversions.
   plan, one `clip/transform-many`, and one undo step, or if reachability requires
   a default-visible surface or changes ordinary move/Soundscaper behavior.
 
-The four packaged Electron timing-probe rows remain `pending-external`, and
-WebKit remains deferred. This focused Chromium result qualifies only that
+The ten packaged Electron timing-probe rows run automated tests and remain
+`pending-external` only for milestone-9 release admission. WebKit automated
+testing is enabled. This focused Chromium result qualifies only that
 workflow.

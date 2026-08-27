@@ -11,34 +11,35 @@ import {
 	productionSoundscaperPluginFormatActivated,
 } from '../desktop/soundscaper-native-activation-policy.mjs';
 
-test('checked-in native policy keeps every backend and user plug-in format closed', () => {
+test('checked-in native policy keeps payload-backed audio closed and exposes platform plug-in formats', () => {
 	for (const backend of ['coreaudio', 'wasapi', 'asio', 'pipewire', 'alsa', 'jack']) {
 		assert.equal(productionSoundscaperAudioBackendActivated(backend), false, backend);
 	}
-	for (const format of ['vst3', 'clap', 'au', 'lv2', 'fixture']) {
-		assert.equal(productionSoundscaperPluginFormatActivated(format), false, format);
+	const expected = {
+		vst3: ['darwin', 'win32', 'linux'].includes(process.platform),
+		clap: ['darwin', 'win32', 'linux'].includes(process.platform),
+		au: process.platform === 'darwin',
+		lv2: process.platform === 'linux',
+		fixture: false,
+	};
+	for (const [format, available] of Object.entries(expected)) {
+		assert.equal(productionSoundscaperPluginFormatActivated(format), available, format);
 	}
 });
 
-test('activation requires the exact gate, policy stack, platform and every source row', () => {
+test('activation requires the platform and every authenticated source, not human review state', () => {
 	const mutableLicensing = structuredClone(licensing);
 	const mutableSources = structuredClone(sources);
-	activate(mutableLicensing.futureDistributionGates, 'native-audio', 'enabled');
-	activate(mutableLicensing.nativeFormatPolicies, 'native-audio-stack', 'implemented');
-	activate(mutableLicensing.nativeFormatPolicies, 'audio-backend-asio', 'implemented');
-	activate(mutableSources.sources, 'juce', 'accepted', 'activationStatus');
-	activate(mutableSources.sources, 'electron-node-api-headers', 'accepted', 'activationStatus');
-	// Withdrawn from the checked-in acceptance so the assertion below still
-	// proves each source is required on its own rather than riding on the two
-	// accepted above.
+	activate(mutableLicensing.futureDistributionGates, 'native-audio', 'blocked');
+	activate(mutableLicensing.nativeFormatPolicies, 'native-audio-stack', 'blocked');
+	activate(mutableLicensing.nativeFormatPolicies, 'audio-backend-asio', 'blocked');
 	activate(mutableSources.sources, 'asio-sdk', 'blocked', 'activationStatus');
 	const sourceAudit = authenticatedSourceAudit(mutableSources);
 	const policy = createSoundscaperNativeActivationPolicy({
 		licensing: mutableLicensing, sources: mutableSources, sourceAudit, platform: 'win32',
 	});
-	assert.equal(policy.audioBackend('asio'), false, 'the ASIO SDK activation is independently required');
-	activate(mutableSources.sources, 'asio-sdk', 'accepted', 'activationStatus');
-	assert.equal(policy.audioBackend('asio'), true);
+	assert.equal(policy.audioBackend('asio'), true,
+		'Milestone 9 licensing and source-acceptance review cannot block test execution');
 	sourceAudit.sources.find(({ id }) => id === 'asio-sdk').archiveEvidence.sha256 = '0'.repeat(64);
 	assert.equal(policy.audioBackend('asio'), false, 'runtime evidence must exactly match the pinned archive');
 	assert.equal(policy.audioBackend('pipewire'), false, 'a cleared backend stays OS-scoped');
@@ -51,7 +52,7 @@ test('fixture stays test-only even if its implemented evidence row exists', () =
 	assert.equal(policy.pluginFormat('fixture'), false);
 });
 
-test('third-party formats require signed readiness and an actually enforced OS launcher', () => {
+test('third-party format visibility is platform-scoped and independent of release review', () => {
 	const mutableLicensing = structuredClone(licensing);
 	const mutableSources = structuredClone(sources);
 	activate(mutableLicensing.futureDistributionGates, 'native-plugins', 'enabled');
@@ -63,19 +64,22 @@ test('third-party formats require signed readiness and an actually enforced OS l
 		licensing: mutableLicensing, sources: mutableSources,
 		sourceAudit: authenticatedSourceAudit(mutableSources), platform: 'linux',
 		productionReadiness: {
-			status: 'authenticated',
+			status: 'pending-human-review',
 			evidence: {
-				osIsolationAttested: true,
-				hostilePluginDenialAttested: true,
-				realThirdPartyExecutionAttested: true,
+				osIsolationAttested: false,
+				hostilePluginDenialAttested: false,
+				realThirdPartyExecutionAttested: false,
 			},
 		},
 	};
-	assert.equal(createSoundscaperNativeActivationPolicy(common).pluginFormat('vst3'), false,
-		'signed prose cannot activate the current same-UID utility process');
+	assert.equal(createSoundscaperNativeActivationPolicy(common).pluginFormat('vst3'), true,
+		'the format surface is visible before a payload is selected');
 	assert.equal(createSoundscaperNativeActivationPolicy({
 		...common, pluginIsolationEnforced: true,
-	}).pluginFormat('vst3'), true);
+	}).pluginFormat('vst3'), true,
+	'Milestone 9 release review does not change the test surface');
+	assert.equal(createSoundscaperNativeActivationPolicy({ ...common, platform: 'freebsd' })
+		.pluginFormat('vst3'), false, 'unsupported platforms remain machine-unavailable');
 });
 
 function activate(rows, id, value, field = 'status') {

@@ -76,17 +76,27 @@ export async function auditMilestone5Payloads(repositoryRootValue) {
 	const rows = [
 		...nativeReleases.map((release) => createMilestone5PayloadAuditRow({
 			product: 'soundscaper', targetId: release.target.id, status: release.target.status,
-			blockedBy: release.target.blockedBy, payload: release.payload, productionReadiness: null,
+			blockedBy: release.target.blockedBy, payload: release.target.payload,
+			productionReadiness: null,
 		})),
 		...professionalReleases.map((release) => createMilestone5PayloadAuditRow({
 			product: 'soundscaper-professional', targetId: release.target.id,
 			status: release.target.status, blockedBy: release.target.blockedBy,
-			payload: release.target.payload,
+			payload: release.target.status === 'built' ? {
+				payload: release.target.payload,
+				pluginPeer: release.target.pluginPeer,
+				isolation: release.target.isolation,
+				sourceAuthentication: release.target.sourceAuthentication,
+				toolchainIdentity: release.target.toolchainIdentity,
+			} : null,
 			productionReadiness: professionalNativePayloadStageSummary(release).productionReadiness,
 		})),
 		...media.payload.targets.map((target) => createMilestone5PayloadAuditRow({
 			product: 'framescaper-media', targetId: target.id, status: target.status,
-			blockedBy: target.blockedBy, payload: target.payload,
+			blockedBy: target.blockedBy, payload: target.status === 'built' ? {
+				payload: target.payload,
+				isolationPayload: target.isolationPayload,
+			} : null,
 			productionReadiness: framescaperMediaProductionReadinessStageSummary(media, target.id),
 		})),
 		...openFx.payload.targets.map((target) => createMilestone5PayloadAuditRow({
@@ -185,6 +195,13 @@ export function createMilestone5PayloadAuditRow({
 	}
 	const readinessAuthenticated = productionReadiness !== null
 		&& productionReadiness?.verified?.status === 'authenticated';
+	const automatedReady = status === 'built';
+	const payloadEvidence = payload === null ? null : structuredClone(payload);
+	const automatedEvidenceSha256 = createHash('sha256').update(JSON.stringify({
+		identity: `${product}:${targetId}`,
+		buildStatus: status,
+		payloadEvidence,
+	})).digest('hex');
 	const releaseStatus = status === 'built' && (!readinessRequired || readinessAuthenticated)
 		? 'built' : 'pending-external';
 	const releaseBlocker = status === 'built' && readinessRequired && !readinessAuthenticated
@@ -195,6 +212,9 @@ export function createMilestone5PayloadAuditRow({
 		product,
 		targetId,
 		buildStatus: status,
+		automatedReady,
+		automatedEvidenceSha256,
+		payloadEvidence,
 		status: releaseStatus,
 		blockedBy: releaseBlocker,
 		productionReadiness: productionReadiness === null

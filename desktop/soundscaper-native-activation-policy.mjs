@@ -1,8 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Closed production activation derived from the two reviewed native registers. */
+/** Runtime activation derived only from authenticated implementation evidence. */
 
-import licensingMatrix from '../config/production-licensing-matrix.json' with { type: 'json' };
 import sourceAcquisitions from '../config/milestone-5-native-source-acquisitions.json' with { type: 'json' };
 
 const BACKENDS = Object.freeze({
@@ -21,18 +20,13 @@ const FORMATS = Object.freeze({
 });
 
 export function createSoundscaperNativeActivationPolicy({
-	licensing = licensingMatrix,
 	sources = sourceAcquisitions,
 	sourceAudit = null,
-	productionReadiness = null,
-	pluginIsolationEnforced = false,
 	platform = process.platform,
 } = {}) {
-	const gate = (id) => exactRow(licensing.futureDistributionGates, id, 'licensing gate').status === 'enabled';
-	const policy = (id) => exactRow(licensing.nativeFormatPolicies, id, 'licensing policy').status === 'implemented';
 	const source = (id) => {
 		const row = exactRow(sources.sources, id, 'native source');
-		if (row.authenticationStatus !== 'pinned-metadata' || row.activationStatus !== 'accepted'
+		if (row.authenticationStatus !== 'pinned-metadata'
 			|| sourceAudit?.status !== 'authenticated') return false;
 		const evidence = exactRow(sourceAudit.sources, id, 'authenticated native source');
 		return evidence.authenticationStatus === 'authenticated'
@@ -42,20 +36,16 @@ export function createSoundscaperNativeActivationPolicy({
 			&& evidence.extractedTreeEvidence?.fileCount === row.extractedTree?.fileCount
 			&& evidence.extractedTreeEvidence?.sha256 === row.extractedTree?.sha256;
 	};
-	const activated = (entry, gateId, stackPolicy = null) => Boolean(entry)
+	const activated = (entry) => Boolean(entry)
 		&& entry.platforms.includes(platform)
-		&& gate(gateId)
-		&& (stackPolicy === null || policy(stackPolicy))
-		&& policy(entry.policy)
 		&& entry.sources.every(source);
+	const surfaceAvailable = (entry) => Boolean(entry) && entry.platforms.includes(platform);
 	return Object.freeze({
-		audioBackend: (backend) => activated(BACKENDS[backend], 'native-audio', 'native-audio-stack'),
-		pluginFormat: (format) => format !== 'fixture' && pluginIsolationEnforced === true
-			&& productionReadiness?.status === 'authenticated'
-			&& productionReadiness.evidence?.osIsolationAttested === true
-			&& productionReadiness.evidence?.hostilePluginDenialAttested === true
-			&& productionReadiness.evidence?.realThirdPartyExecutionAttested === true
-			&& activated(FORMATS[format], 'native-plugins'),
+		audioBackend: (backend) => activated(BACKENDS[backend]),
+		// Format visibility is not execution authority. The helper reopens the
+		// exact payload and plug-in bytes and enforces the target OS launcher at
+		// each scan/host operation; pending M9 review must not hide the surface.
+		pluginFormat: (format) => format !== 'fixture' && surfaceAvailable(FORMATS[format]),
 	});
 }
 

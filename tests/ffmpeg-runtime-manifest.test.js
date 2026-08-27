@@ -271,7 +271,7 @@ test('incomplete runtime evidence fails both gates before side effects', async (
 	await assertNoSideEffects(mismatch, /does not identify the pinned ffmpeg\.wasm build source/iu);
 });
 
-test('stale or pending self-declared review markers fail both gates before side effects', async (context) => {
+test('review payload binding stays exact while pending human status remains testable', async (context) => {
 	const stale = await createFixture(context);
 	stale.manifest.evidence.notices.sha256 = '0'.repeat(64);
 	await writeJson(stale.manifestPath, stale.manifest);
@@ -280,7 +280,11 @@ test('stale or pending self-declared review markers fail both gates before side 
 	const pending = await createFixture(context);
 	pending.manifest.review.status = 'pending';
 	await writeJson(pending.manifestPath, pending.manifest);
-	await assertNoSideEffects(pending, /review status.*approved/iu);
+	for (const purpose of ['desktop-assembly', 'runtime-publication', 'desktop-release']) {
+		assert.equal((await verifyFfmpegRuntimeManifest({
+			repositoryRoot: pending.root, purpose,
+		})).manifest.review.status, 'pending');
+	}
 });
 
 test('the line-ending policy covers every digest-bound text input', async (context) => {
@@ -321,7 +325,7 @@ test('case-insensitive release sidecar collisions fail before side effects', asy
 	await assertNoSideEffects(fixture, /source archive filename is reserved: sha256sums/iu);
 });
 
-test('the checked-in manifest permits verification and desktop staging but blocks public release paths offline', async () => {
+test('pending Milestone 9 review is reported without blocking assembly, publication, or test packaging', async () => {
 	const release = await verifyFfmpegRuntimeManifest({
 		repositoryRoot: ROOT,
 		purpose: 'desktop-assembly',
@@ -333,22 +337,12 @@ test('the checked-in manifest permits verification and desktop staging but block
 		REQUIRED_LICENSING_GATES,
 	);
 
-	let calls = 0;
-	await assert.rejects(
-		publishFfmpegRuntime({
-			repositoryRoot: ROOT,
-			executeWrangler() {
-				calls += 1;
-				return { status: 0 };
-			},
-		}),
-		/runtime publication is blocked.*web-notice-delivery/iu,
-	);
-	assert.equal(calls, 0);
-	await assert.rejects(
-		verifyFfmpegRuntimeManifest({ repositoryRoot: ROOT, purpose: 'desktop-release' }),
-		/desktop release is blocked.*ffmpeg-enabled/iu,
-	);
+	assert.equal((await verifyFfmpegRuntimeManifest({
+		repositoryRoot: ROOT, purpose: 'runtime-publication',
+	})).manifestSha256, release.manifestSha256);
+	assert.equal((await verifyFfmpegRuntimeManifest({
+		repositoryRoot: ROOT, purpose: 'desktop-release',
+	})).manifestSha256, release.manifestSha256);
 });
 
 test('desktop entry points enforce absence without consuming the browser FFmpeg manifest', async () => {

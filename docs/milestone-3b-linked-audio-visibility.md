@@ -98,8 +98,9 @@ uniform rate-stretch, and keyboard-complete trim feedback.
   default-visible control.
 - `npm run check`: **passed** with 5,015 tests total, 5,013 passed and 2 skipped;
   coverage and the production build were green.
-- The four packaged Electron timing-probe rows remain `pending-external`, and
-  WebKit remains explicitly deferred. Neither is relabelled by this Chromium
+- The ten packaged Electron timing-probe rows run automated tests and remain
+  `pending-external` only for milestone-9 release admission. WebKit automated
+  testing is enabled. Neither release qualification is relabelled by this Chromium
   evidence.
 
 ## Implementation sequence
@@ -135,6 +136,7 @@ uniform rate-stretch, and keyboard-complete trim feedback.
 - Stop if a claimed visibility effect is not already derived from `track.hidden`
   by preview, export, and navigation.
 
-The four packaged Electron timing-probe rows remain `pending-external`, and the
-explicit WebKit deferral remains unchanged. This browser slice records only the
+The ten packaged Electron timing-probe rows run automated tests and remain
+`pending-external` only for milestone-9 release admission. WebKit automated
+testing is enabled. This browser slice records only the
 qualified local Chromium result.

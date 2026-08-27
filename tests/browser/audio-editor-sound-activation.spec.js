@@ -13,8 +13,6 @@ import {
 test.describe('Soundscaper sound-activated recording', () => {
 	registerAudioEditorHooks();
 
-	test.skip(({ browserName }) => browserName === 'webkit', 'Milestone 3 pins Chromium and Firefox.');
-
 	test('supports pointer, keyboard, persistence, and forced-colors workflows', async ({ page, browserName }) => {
 		const errors = collectClientErrors(page);
 		let editor = await bootEditor(page, '/embed/en/');
@@ -76,7 +74,14 @@ test.describe('Soundscaper sound-activated recording', () => {
 		await expect.poll(async () => Number(await threshold.inputValue())).toBeGreaterThan(-39);
 		const requestedThreshold = await threshold.inputValue();
 		await expectCommittedPreference(panel, 'data-sound-activation-threshold-db', requestedThreshold);
+		// WebKit commits a pointer-adjusted range's final change on the next
+		// keyboard interaction. Advance once through that public control path so
+		// the value asserted after reload is the browser's final committed value.
+		await threshold.focus();
+		await page.keyboard.press('ArrowLeft');
+		await expect.poll(async () => threshold.inputValue()).not.toBe(requestedThreshold);
 		const persistedThreshold = await threshold.inputValue();
+		await expectCommittedPreference(panel, 'data-sound-activation-threshold-db', persistedThreshold);
 
 		await assertNoSeriousAxeViolations(page, '[data-sound-activation-preferences]');
 		if (browserName === 'chromium') {

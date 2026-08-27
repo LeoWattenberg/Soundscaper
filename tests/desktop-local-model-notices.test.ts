@@ -66,6 +66,26 @@ test('installed-model notices derive only bounded authenticated catalog and evid
 	assert.equal(Object.isFrozen(notices[0]?.provenanceSources), true);
 });
 
+test('pending Milestone 9 distribution review does not suppress authenticated notices', () => {
+	const pendingEvidence = Object.freeze({
+		...EVIDENCE,
+		distributionStatus: 'blocked',
+		blockedBy: Object.freeze(['weights-and-code-license-review']),
+	});
+	const pendingCatalog = Object.freeze({
+		...CATALOG,
+		entries: Object.freeze([Object.freeze({
+			...CATALOG.entries[0]!,
+			licensingEvidence: Object.freeze({
+				id: 'model-v1', sha256: localModelEvidenceSha256(pendingEvidence),
+			}),
+		})]),
+	});
+	assert.equal(createInstalledLocalModelNotices({
+		catalog: pendingCatalog, licensingEvidence: [pendingEvidence], installed: [INSTALLED],
+	})[0]?.modelId, 'model-v1');
+});
+
 test('notice derivation refuses evidence changed after catalog authentication', () => {
 	const changed = { ...EVIDENCE, purpose: 'Changed after signing.' };
 	assert.throws(

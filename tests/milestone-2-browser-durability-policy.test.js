@@ -15,7 +15,7 @@ const workflowIds = [
 	'storage-eviction-recovery',
 ];
 
-test('milestone 2 records the exact Chromium and Firefox durability matrix', async () => {
+test('milestone 2 preserves historical evidence while activating every browser for testing', async () => {
 	const [inventory, qualityBudgets, threatModel, browserEvidence] = await Promise.all([
 		readFile(new URL('config/milestone-2-closure.json', root), 'utf8').then(JSON.parse),
 		readFile(new URL('docs/quality-budgets.md', root), 'utf8'),
@@ -34,19 +34,26 @@ test('milestone 2 records the exact Chromium and Firefox durability matrix', asy
 	assert.deepEqual(item.workflowIds, workflowIds);
 	assert.deepEqual(item.qualifiedBrowserProjects, ['chromium', 'firefox']);
 	assert.deepEqual(item.deferredBrowserProjects, ['webkit']);
+	assert.deepEqual(inventory.testActivation.browserProjects, ['chromium', 'firefox', 'webkit']);
+	assert.deepEqual(inventory.testActivation.desktopTargets, [
+		'windows-x64', 'windows-arm64', 'macos-arm64', 'linux-x64', 'linux-arm64',
+	]);
+	assert.equal(inventory.testActivation.humanReviewMilestone, 9);
 	for (const id of workflowIds) assert.match(browserEvidence, new RegExp(`\\b${id}\\b`, 'u'), id);
 	for (const document of [qualityBudgets, threatModel]) {
 		assert.match(document, /indexeddb-quota-refusal.*opfs-quota-refusal.*indexeddb-multitab-writer.*opfs-multitab-writer.*offline-shell-upgrade.*offline-runtime-rollback.*storage-eviction-recovery/isu);
-		assert.match(document, /Chromium and Firefox.*WebKit qualification\s+is deferred by milestone-2 closure scope\s+revision 2/isu);
+		assert.match(document, /WebKit.*milestone 9/isu);
+		assert.match(document, /automated test.*(?:runs?|run).*WebKit|WebKit.*automated test/isu);
 	}
 });
 
-test('less-capable return qualification records the same two browser engines and packaged pair', async () => {
+test('less-capable return preserves historical qualification without disabling WebKit tests', async () => {
 	const inventory = JSON.parse(await readFile(new URL('config/milestone-2-closure.json', root), 'utf8'));
 	const item = inventory.items.find(({ id }) => id === 'm2-compatibility-less-capable-roundtrip');
 	assert.ok(item);
 	assert.equal(item.status, 'implemented');
 	assert.deepEqual(item.qualifiedBrowserProjects, ['chromium', 'firefox']);
 	assert.deepEqual(item.deferredBrowserProjects, ['webkit']);
+	assert.deepEqual(inventory.testActivation.browserProjects, ['chromium', 'firefox', 'webkit']);
 	assert.equal(item.packagedProductPairQualified, true);
 });

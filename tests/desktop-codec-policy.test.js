@@ -64,7 +64,6 @@ test('desktop FFmpeg payload matcher is narrow but covers core and native libav 
 		'runtime/native/avcodec-61.dll',
 		'runtime/native/libavformat.so.61',
 		'runtime/native/libavutil.dylib',
-		'runtime/native/framescaper-media-host/linux-x64/framescaper-media-host',
 		'desktop/ffmpeg-corresponding-source.json',
 		'ffmpeg-runtime-manifest.json',
 	]) assert.equal(isForbiddenDesktopFfmpegPath(path), true, path);
@@ -74,20 +73,32 @@ test('desktop FFmpeg payload matcher is narrow but covers core and native libav 
 		'desktop/project-library-runtime/src/common/editor/ffmpeg-video-timing-probe.js',
 		'desktop/project-library-runtime/desktop/framescaper-media-host-payload.js',
 		'config/framescaper-media-host-payload-manifest.json',
+		'runtime/native/framescaper-media-host/linux-x64/framescaper-media-host',
+		'runtime/native/framescaper-media-host/linux-x64/libframescaper-media.so',
 		'licenses/THIRD_PARTY_LICENSES.md',
 		'runtime/native/linux-x64/libaom.so',
 	]) assert.equal(isForbiddenDesktopFfmpegPath(path), false, path);
 });
 
-test('desktop resource audit rejects forbidden files, subtrees, and symbolic entries', async (context) => {
+test('desktop resource audit permits the authenticated media host but rejects general FFmpeg', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-codec-absence-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
 	await mkdir(join(root, 'runtime/native/linux-x64'), { recursive: true });
 	await writeFile(join(root, 'runtime/native/linux-x64/libaom.so'), 'reviewed AV1 encoder');
+	await mkdir(join(root, 'runtime/native/framescaper-media-host/linux-x64'), { recursive: true });
+	await writeFile(join(root,
+		'runtime/native/framescaper-media-host/linux-x64/framescaper-media-host'), 'authenticated host');
 	assert.deepEqual(await auditDesktopFfmpegAbsence({ root, label: 'Fixture resources' }), {
 		status: 'no-bundled-ffmpeg',
-		entryCount: 4,
+		entryCount: 7,
 	});
+	await writeFile(join(root,
+		'runtime/native/framescaper-media-host/linux-x64/ffmpeg'), 'unmanaged executable');
+	await assert.rejects(
+		() => auditDesktopFfmpegAbsence({ root, label: 'Fixture resources' }),
+		/Fixture resources.*framescaper-media-host.*ffmpeg/iu,
+	);
+	await rm(join(root, 'runtime/native/framescaper-media-host/linux-x64/ffmpeg'));
 
 	await mkdir(join(root, 'runtime/ffmpeg'), { recursive: true });
 	await assert.rejects(

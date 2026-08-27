@@ -9,8 +9,8 @@ import { basename, join, relative, resolve } from 'node:path';
 import {
 	openFxProductionReadinessReference,
 	verifyOpenFxProductionReadiness,
+	type OpenFxGpuBackend,
 	type OpenFxProductionReadinessEvidenceV1,
-	type OpenFxProductionReadinessReferenceV2,
 	type OpenFxRuntimeLibraryEvidenceV1,
 } from './openfx-production-readiness.ts';
 
@@ -66,8 +66,21 @@ export interface FramescaperOpenFxHostDescriptor {
 		readonly brokerPolicy: FramescaperOpenFxExecutableDescriptor;
 		readonly runtimeLibraries: readonly FramescaperOpenFxExecutableDescriptor[];
 	}>;
-	readonly productionReadiness: OpenFxProductionReadinessEvidenceV1;
+	readonly qualifiedGpuBackends: readonly OpenFxGpuBackend[];
+	readonly m9ReleaseReview: FramescaperOpenFxHostM9ReleaseReview;
 }
+
+export type FramescaperOpenFxHostM9ReleaseReview =
+	| Readonly<{
+		readonly scope: 'stable-1.0-release';
+		readonly status: 'complete';
+		readonly evidence: OpenFxProductionReadinessEvidenceV1;
+	}>
+	| Readonly<{
+		readonly scope: 'stable-1.0-release';
+		readonly status: 'pending' | 'invalid';
+		readonly detail: string;
+	}>;
 
 export type FramescaperOpenFxHostAvailability =
 	| Readonly<{ status: 'available'; descriptor: FramescaperOpenFxHostDescriptor }>
@@ -88,9 +101,8 @@ interface FileStat {
 export interface FramescaperOpenFxHostPayloadPorts {
 	readonly readFile: (path: string) => Promise<Buffer>;
 	readonly stat: (path: string) => Promise<FileStat>;
-	readonly resolveReviewPublicKey?: (
-		target: FramescaperOpenFxHostTargetId, reviewKeyId: string,
-	) => Promise<string | Buffer | null> | string | Buffer | null;
+	readonly resolveReviewPublicKey?: (target: FramescaperOpenFxHostTargetId, reviewKeyId: string) =>
+		Promise<string | Buffer | null> | string | Buffer | null;
 }
 
 interface PayloadIdentity {
@@ -121,7 +133,7 @@ interface TargetRecord {
 	readonly status: 'built' | 'pending-external';
 	readonly blockedBy: string | null;
 	readonly payload: PayloadPair | null;
-	readonly productionReadiness: OpenFxProductionReadinessReferenceV2 | null;
+	readonly productionReadiness: unknown | null;
 }
 
 interface PayloadManifest {
@@ -147,11 +159,16 @@ const LINUX_RUNTIME_LOADERS = Object.freeze({
 	'linux-x64': 'ld-linux-x86-64.so.2',
 	'linux-arm64': 'ld-linux-aarch64.so.1',
 } as const);
+const TARGET_GPU_BACKENDS = Object.freeze({
+	'linux-x64': Object.freeze(['opengl', 'opencl', 'cuda'] as const),
+	'linux-arm64': Object.freeze(['opengl', 'opencl'] as const),
+	'mac-arm64': Object.freeze(['opengl', 'opencl', 'metal'] as const),
+	'win-x64': Object.freeze(['opengl', 'opencl', 'cuda'] as const),
+	'win-arm64': Object.freeze(['opengl', 'opencl'] as const),
+} satisfies Readonly<Record<FramescaperOpenFxHostTargetId, readonly OpenFxGpuBackend[]>>);
 
-export function framescaperOpenFxHostTargetFor(
-	platform: string,
-	architecture: string,
-): FramescaperOpenFxHostTargetId | null {
+export function framescaperOpenFxHostTargetFor(platform: string, architecture: string):
+	FramescaperOpenFxHostTargetId | null {
 	const key = `${platform}-${architecture}`;
 	return Object.hasOwn(FRAMESCAPER_OPENFX_HOST_RUNTIME_TARGETS, key)
 		? FRAMESCAPER_OPENFX_HOST_RUNTIME_TARGETS[key as RuntimeKey]
@@ -189,12 +206,6 @@ export async function describeFramescaperOpenFxHostAvailability(
 			target.blockedBy ?? `No Framescaper OpenFX-host payload has been built for ${targetId}.`,
 		);
 	}
-	if (target.productionReadiness === null) {
-		return unavailable(
-			'production-readiness-unattested',
-			`The ${targetId} OpenFX payload has no reviewed OS-isolation and real third-party execution attestation.`,
-		);
-	}
 	const payload = manifest.payloads.find(({ id }) => id === targetId)!;
 	const scannerPath = payloadPath(location, targetId, payload.scannerPayload.path);
 	const runtimePath = payloadPath(location, targetId, payload.runtimeHostPayload.path);
@@ -206,25 +217,18 @@ export async function describeFramescaperOpenFxHostAvailability(
 				payloadPath(location, targetId, identity.path), identity, ports,
 			)),
 		]);
-		const productionReadiness = await verifyOpenFxProductionReadiness(
-			target.productionReadiness,
-			Object.freeze({
-				scannerSha256: scanner.sha256, runtimeHostSha256: runtimeHost.sha256,
-				isolation: Object.freeze({
-					launcherSha256: launcher!.sha256,
-					sandboxProfileSha256: sandboxProfile!.sha256,
-					brokerPolicySha256: brokerPolicy!.sha256,
-					runtimeLibraries: runtimeLibraryEvidence(runtimeLibraries),
-				}),
-			}),
-			Object.freeze({
-				readEvidence: (path: string) => ports.readFile(readinessEvidencePath(
-					location, targetId, path,
-				)),
-				resolveReviewPublicKey: ports.resolveReviewPublicKey
-					?? (() => null),
-			}),
-		);
+		const m9ReleaseReview = await openFxM9ReleaseReview({
+			reference: target.productionReadiness,
+			location,
+			targetId,
+			scanner,
+			runtimeHost,
+			launcher: launcher!,
+			sandboxProfile: sandboxProfile!,
+			brokerPolicy: brokerPolicy!,
+			runtimeLibraries,
+			ports,
+		});
 		return Object.freeze({
 			status: 'available' as const,
 			descriptor: Object.freeze({
@@ -239,21 +243,68 @@ export async function describeFramescaperOpenFxHostAvailability(
 					launcher: launcher!, sandboxProfile: sandboxProfile!, brokerPolicy: brokerPolicy!,
 					runtimeLibraries: Object.freeze(runtimeLibraries),
 				}),
-				productionReadiness,
+				qualifiedGpuBackends: TARGET_GPU_BACKENDS[targetId],
+				m9ReleaseReview,
 			}),
 		});
 	} catch (error) {
 		const missing = isMissing(error);
-		const readiness = !missing && /production-readiness|signed OpenFX|trusted Ed25519/iu
-			.test(errorMessage(error));
 		return unavailable(
-			missing ? 'payload-missing' : readiness
-				? 'production-readiness-evidence-mismatch' : 'payload-digest-mismatch',
+			missing ? 'payload-missing' : 'payload-digest-mismatch',
 			missing
 				? `A Framescaper OpenFX-host payload is missing: ${errorMessage(error)}`
-				: readiness ? errorMessage(error)
-					: 'The Framescaper OpenFX-host payloads do not match their pinned bytes and identities.',
+				: 'The Framescaper OpenFX-host payloads do not match their pinned bytes and identities.',
 		);
+	}
+}
+
+async function openFxM9ReleaseReview(input: Readonly<{
+	reference: unknown | null;
+	location: FramescaperOpenFxHostPayloadLocation;
+	targetId: FramescaperOpenFxHostTargetId;
+	scanner: FramescaperOpenFxExecutableDescriptor;
+	runtimeHost: FramescaperOpenFxExecutableDescriptor;
+	launcher: FramescaperOpenFxExecutableDescriptor;
+	sandboxProfile: FramescaperOpenFxExecutableDescriptor;
+	brokerPolicy: FramescaperOpenFxExecutableDescriptor;
+	runtimeLibraries: readonly FramescaperOpenFxExecutableDescriptor[];
+	ports: FramescaperOpenFxHostPayloadPorts;
+}>): Promise<FramescaperOpenFxHostM9ReleaseReview> {
+	if (input.reference === null) return Object.freeze({
+		scope: 'stable-1.0-release' as const,
+		status: 'pending' as const,
+		detail: 'No independent OpenFX-host review is recorded for stable 1.0 release admission.',
+	});
+	try {
+		const reference = openFxProductionReadinessReference(input.reference, input.targetId);
+		const evidence = await verifyOpenFxProductionReadiness(
+			reference,
+			Object.freeze({
+				scannerSha256: input.scanner.sha256,
+				runtimeHostSha256: input.runtimeHost.sha256,
+				isolation: Object.freeze({
+					launcherSha256: input.launcher.sha256,
+					sandboxProfileSha256: input.sandboxProfile.sha256,
+					brokerPolicySha256: input.brokerPolicy.sha256,
+					runtimeLibraries: runtimeLibraryEvidence(input.runtimeLibraries),
+				}),
+			}),
+			Object.freeze({
+				readEvidence: (path: string) => input.ports.readFile(readinessEvidencePath(
+					input.location, input.targetId, path,
+				)),
+				resolveReviewPublicKey: input.ports.resolveReviewPublicKey ?? (() => null),
+			}),
+		);
+		return Object.freeze({
+			scope: 'stable-1.0-release' as const, status: 'complete' as const, evidence,
+		});
+	} catch (error) {
+		return Object.freeze({
+			scope: 'stable-1.0-release' as const,
+			status: 'invalid' as const,
+			detail: `The recorded OpenFX-host M9 release review is invalid: ${errorMessage(error)}`.slice(0, 512),
+		});
 	}
 }
 
@@ -354,8 +405,7 @@ function targetRecord(value: unknown): TargetRecord {
 		status,
 		blockedBy: record.blockedBy,
 		payload: record.payload === null ? null : payloadPair(record.payload, id),
-		productionReadiness: record.productionReadiness === null
-			? null : openFxProductionReadinessReference(record.productionReadiness, id),
+		productionReadiness: record.productionReadiness,
 	});
 }
 
@@ -420,12 +470,8 @@ function isolationPayload(value: unknown, id: FramescaperOpenFxHostTargetId): Pa
 	});
 }
 
-function payloadIdentity(
-	value: unknown,
-	id: FramescaperOpenFxHostTargetId,
-	executableName: string | null,
-	directory = 'bin',
-): PayloadIdentity {
+function payloadIdentity(value: unknown, id: FramescaperOpenFxHostTargetId,
+	executableName: string | null, directory = 'bin'): PayloadIdentity {
 	const record = closedRecord(value, ['path', 'byteLength', 'sha256']);
 	const prefix = `${RUNTIME_PREFIX}/prebuilt/${id}/${directory}/`;
 	const name = typeof record.path === 'string' ? record.path.slice(prefix.length) : '';
@@ -480,19 +526,15 @@ function isolationPayloads(value: PayloadPair['isolationPayload']): readonly Pay
 	]);
 }
 
-function runtimeLibraryEvidence(
-	libraries: readonly FramescaperOpenFxExecutableDescriptor[],
-): readonly OpenFxRuntimeLibraryEvidenceV1[] {
+function runtimeLibraryEvidence(libraries: readonly FramescaperOpenFxExecutableDescriptor[]):
+	readonly OpenFxRuntimeLibraryEvidenceV1[] {
 	return Object.freeze(libraries.map((library) => Object.freeze({
 		name: basename(library.path), byteLength: library.byteLength, sha256: library.sha256,
 	})));
 }
 
-function payloadPath(
-	location: FramescaperOpenFxHostPayloadLocation,
-	targetId: FramescaperOpenFxHostTargetId,
-	pinnedPath: string,
-): string {
+function payloadPath(location: FramescaperOpenFxHostPayloadLocation,
+	targetId: FramescaperOpenFxHostTargetId, pinnedPath: string): string {
 	return location.externalRuntimeRoot
 		? join(resolve(location.externalRuntimeRoot), RUNTIME_PREFIX, targetId, basename(pinnedPath))
 		: location.packaged
@@ -500,11 +542,8 @@ function payloadPath(
 		: safeDevelopmentPath(location.applicationRoot, pinnedPath);
 }
 
-function readinessEvidencePath(
-	location: FramescaperOpenFxHostPayloadLocation,
-	targetId: FramescaperOpenFxHostTargetId,
-	referencePath: string,
-): string {
+function readinessEvidencePath(location: FramescaperOpenFxHostPayloadLocation,
+	targetId: FramescaperOpenFxHostTargetId, referencePath: string): string {
 	const name = 'framescaper-openfx-production-readiness.json';
 	if (location.packaged) {
 		return join(location.resourcesPath, 'runtime', RUNTIME_PREFIX, targetId, name);
@@ -540,10 +579,8 @@ function safeIdentity(value: number): boolean {
 	return Number.isSafeInteger(value) && value >= 0;
 }
 
-function unavailable(
-	reason: FramescaperOpenFxHostUnavailableReason,
-	detail: string,
-): FramescaperOpenFxHostAvailability {
+function unavailable(reason: FramescaperOpenFxHostUnavailableReason,
+	detail: string): FramescaperOpenFxHostAvailability {
 	return Object.freeze({ status: 'unavailable' as const, reason, detail });
 }
 

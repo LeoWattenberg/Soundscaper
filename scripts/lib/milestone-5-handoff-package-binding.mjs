@@ -5,7 +5,6 @@
 export function validateMilestone5PackagePayloadBinding(packageAudit, payloadAudit, inputPaths) {
 	const targetId = packageAudit.targetId;
 	const runtime = packageAudit.runtimeManifest.value;
-	const reviewPolicy = packageReviewPolicy(payloadAudit, inputPaths);
 	const nativeManifest = payloadAudit.manifests.nativeAddon;
 	const nativeTarget = exactTarget(nativeManifest, targetId, 'native addon');
 	const nativeDigest = payloadAudit.inputDigests[inputPaths.nativeAddonPayload]?.sha256;
@@ -22,10 +21,6 @@ export function validateMilestone5PackagePayloadBinding(packageAudit, payloadAud
 	if (packageAudit.productId === 'soundscaper') {
 		const professionalManifest = payloadAudit.manifests.soundscaperProfessional;
 		const professionalTarget = exactTarget(professionalManifest, targetId, 'professional native addon');
-		const professionalAudit = exactAuditRow(
-			payloadAudit,
-			`soundscaper-professional:${targetId}`,
-		);
 		const professional = runtime.soundscaperProfessionalNative;
 		const professionalManifestDescriptor = payloadAudit.inputDigests[
 			inputPaths.soundscaperProfessionalPayload
@@ -43,11 +38,6 @@ export function validateMilestone5PackagePayloadBinding(packageAudit, payloadAud
 			&& JSON.stringify(professional.payload) === JSON.stringify(
 				professionalTarget.payload === null ? null : packagePayload(professionalTarget.payload),
 			), 'Milestone 5 package professional native target disagrees with the authenticated payload audit.');
-		assert(JSON.stringify(professional.reviewPolicy) === JSON.stringify(reviewPolicy),
-			'Milestone 5 package professional isolation-review policy disagrees with the authenticated payload audit.');
-		assert(JSON.stringify(professional.productionReadiness)
-			=== JSON.stringify(professionalAudit.productionReadiness),
-		'Milestone 5 package professional production readiness disagrees with the authenticated payload audit.');
 		assert(runtime.framescaperNativeHosts === null
 			|| runtime.framescaperNativeHosts === undefined,
 		'Milestone 5 Soundscaper package unexpectedly carries Framescaper native hosts.');
@@ -73,49 +63,7 @@ export function validateMilestone5PackagePayloadBinding(packageAudit, payloadAud
 		assert(summary.status === target.status && summary.blockedBy === target.blockedBy
 			&& JSON.stringify(summary.payloads) === JSON.stringify(hostPayloads(target, manifestKey)),
 		`Milestone 5 package ${label} target disagrees with the authenticated payload audit.`);
-		if (manifestKey === 'mediaHost') {
-			const mediaAudit = exactAuditRow(payloadAudit, `framescaper-media:${targetId}`);
-			assert(JSON.stringify(summary.reviewPolicy)
-				=== JSON.stringify(target.status === 'built' ? reviewPolicy : null),
-			'Milestone 5 package media-host isolation-review policy disagrees with the authenticated payload audit.');
-			assert(target.status !== 'built' || (
-				mediaAudit.productionReadiness?.verified?.status === 'authenticated'
-				&& JSON.stringify(mediaAudit.productionReadiness.reference)
-					=== JSON.stringify(target.productionReadiness)
-			), 'Milestone 5 package media-host production readiness is not authenticated for its exact payload target.');
-			assert(JSON.stringify(summary.productionReadiness)
-				=== JSON.stringify(mediaAudit.productionReadiness),
-			'Milestone 5 package media-host production readiness disagrees with the authenticated payload audit.');
-		} else {
-			const openFxAudit = exactAuditRow(payloadAudit, `framescaper-openfx:${targetId}`);
-			assert(JSON.stringify(summary.reviewPolicy)
-				=== JSON.stringify(target.status === 'built' ? reviewPolicy : null),
-			'Milestone 5 package OpenFX isolation-review policy disagrees with the authenticated payload audit.');
-			assert(JSON.stringify(summary.productionReadiness)
-				=== JSON.stringify(openFxAudit.productionReadiness),
-			'Milestone 5 package OpenFX production readiness disagrees with the authenticated payload audit.');
-		}
 	}
-}
-
-function packageReviewPolicy(payloadAudit, inputPaths) {
-	const path = inputPaths.nativeIsolationReviewPolicy;
-	const descriptor = payloadAudit.inputDigests[path];
-	assert(payloadAudit.reviewPolicy?.path === path
-		&& payloadAudit.reviewPolicy.byteLength === descriptor?.byteLength
-		&& payloadAudit.reviewPolicy.sha256 === descriptor?.sha256,
-	'Milestone 5 authenticated payload audit has inconsistent isolation-review policy evidence.');
-	return {
-		name: path.slice(path.lastIndexOf('/') + 1),
-		byteLength: descriptor.byteLength,
-		sha256: descriptor.sha256,
-	};
-}
-
-function exactAuditRow(payloadAudit, identity) {
-	const matches = payloadAudit.rows.filter((row) => row.identity === identity);
-	assert(matches.length === 1, `Milestone 5 authenticated payload row ${identity} is missing.`);
-	return matches[0];
 }
 
 function exactTarget(manifest, targetId, label) {

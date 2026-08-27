@@ -214,7 +214,7 @@ test('recovery revalidates everything before a job may run again', () => {
 	assert.equal(recovered.discardedPartialOutput, true, 'an atomic job restarts from zero');
 });
 
-test('each revalidation failure becomes its own typed blocked state', () => {
+test('each machine revalidation failure becomes its own typed blocked state', () => {
 	const running = applyNativeQueueTransition(queued(), { kind: 'dispatch' }, 10).record;
 
 	for (const [key, code] of [
@@ -222,7 +222,6 @@ test('each revalidation failure becomes its own typed blocked state', () => {
 		['projectRevisionMatches', 'project-revision-changed'],
 		['planFingerprintMatches', 'plan-fingerprint-changed'],
 		['inputFingerprintsMatch', 'input-fingerprint-changed'],
-		['licensingCleared', 'licensing-row-blocked'],
 		['helperBuildMatches', 'helper-build-changed'],
 		['scratchIdentityMatches', 'scratch-identity-changed'],
 	] as const) {
@@ -353,7 +352,6 @@ function revalidation(
 		inputFingerprintsMatch: true,
 		rootGrantAuthorized: true,
 		rootGrantValid: true,
-		licensingCleared: true,
 		helperBuildMatches: true,
 		scratchIdentityMatches: true,
 		...overrides,

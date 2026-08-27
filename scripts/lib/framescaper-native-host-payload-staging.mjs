@@ -14,12 +14,14 @@ import {
 	canonicalJson,
 } from './framescaper-media-host-build.mjs';
 import {
+	framescaperMediaM9ReleaseReviewStageSummary,
 	framescaperMediaProductionReadinessStageSummary,
 	verifyFramescaperMediaHostPayloadRelease,
 } from './framescaper-media-host-readiness.mjs';
 import {
 	FRAMESCAPER_OPENFX_PAYLOAD_MANIFEST,
 	FRAMESCAPER_OPENFX_HOST_ROOT,
+	framescaperOpenFxM9ReleaseReviewStageSummary,
 	framescaperOpenFxProductionReadinessStageSummary,
 	verifyFramescaperOpenFxPayloadRelease,
 } from './framescaper-openfx-host-build.mjs';
@@ -170,6 +172,7 @@ async function snapshotMediaHost(root, release, manifestBytes, targetId) {
 	return freezeHost({
 		manifest, manifestBytes, target, payloads,
 		reviewPolicy: target.status === 'built' ? release.reviewPolicy : null,
+		m9ReleaseReview: framescaperMediaM9ReleaseReviewStageSummary(release, targetId),
 		productionReadiness: productionReadiness === null ? null : {
 			...productionReadiness, bytes: readinessRecord.evidenceBytes,
 		},
@@ -200,6 +203,7 @@ async function snapshotOpenFxHost(root, release, manifestBytes, targetId) {
 		target,
 		payloads,
 		reviewPolicy: target.status === 'built' ? release.reviewPolicy : null,
+		m9ReleaseReview: framescaperOpenFxM9ReleaseReviewStageSummary(release, targetId),
 		productionReadiness: productionReadiness === null ? null : {
 			...productionReadiness,
 			bytes: readinessRecord.evidenceBytes,
@@ -273,6 +277,7 @@ function freezeHost({
 	target,
 	payloads,
 	reviewPolicy = undefined,
+	m9ReleaseReview = undefined,
 	productionReadiness = undefined,
 }) {
 	const host = Object.freeze({
@@ -282,6 +287,7 @@ function freezeHost({
 		target,
 		payloads: Object.freeze(payloads),
 		...(reviewPolicy === undefined ? {} : { reviewPolicy }),
+		...(m9ReleaseReview === undefined ? {} : { m9ReleaseReview }),
 		...(productionReadiness === undefined ? {} : { productionReadiness }),
 	});
 	return host;
@@ -301,6 +307,7 @@ function hostSummary(host) {
 				byteLength: host.reviewPolicy.byteLength,
 				sha256: host.reviewPolicy.sha256,
 			},
+			m9ReleaseReview: structuredClone(host.m9ReleaseReview),
 			productionReadiness: host.productionReadiness === null ? null : {
 				reference: structuredClone(host.productionReadiness.reference),
 				evidence: structuredClone(host.productionReadiness.evidence),

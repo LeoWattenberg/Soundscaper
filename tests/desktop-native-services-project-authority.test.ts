@@ -11,7 +11,7 @@ import {
 } from '../src/common/editor/native-queue-record.ts';
 import { nativeQueueKeyedPlanV7 } from './helpers/native-queue-plan-fixture.ts';
 
-test('the main-private authority exactly revalidates project, plan, inputs, root, policy, and payload', async () => {
+test('the main-private authority revalidates machine facts without consulting milestone-9 review', async () => {
 	const plan = nativeQueueKeyedPlanV7();
 	const inputs = Object.freeze([
 		Object.freeze({ sourceId: 'source-a', sha256: '12'.repeat(32) }),
@@ -65,7 +65,6 @@ test('the main-private authority exactly revalidates project, plan, inputs, root
 		reserveScratch: () => undefined,
 		settleScratch: async () => undefined,
 		scratchMatches: () => true,
-		licensingCleared: () => true,
 	});
 
 	assert.deepEqual(authority.watchProject('project-1'), {
@@ -75,8 +74,13 @@ test('the main-private authority exactly revalidates project, plan, inputs, root
 	assert.deepEqual(await authority.revalidate(record, root, true), {
 		projectRevisionMatches: true, planFingerprintMatches: true,
 		inputFingerprintsMatch: true, rootGrantAuthorized: true, rootGrantValid: true,
-		licensingCleared: true, helperBuildMatches: true, scratchIdentityMatches: true,
+		helperBuildMatches: true, scratchIdentityMatches: true,
 	});
+	await assert.rejects(
+		() => authority.prepare(record, root),
+		/V12 native project bundle is unavailable/iu,
+		'prepare must reach machine project admission without a human-review dependency',
+	);
 	revision = 8;
 	assert.equal((await authority.revalidate(record, root, true)).projectRevisionMatches, false);
 });
@@ -161,7 +165,7 @@ test('project revalidation derives verified image-sequence recovery progress fro
 		publicationPortFor: () => { throw new Error('must not publish during revalidation'); },
 		publicationFenceFor: () => { throw new Error('must not fence during revalidation'); },
 		reserveScratch: () => undefined, settleScratch: async () => undefined,
-		scratchMatches: () => true, licensingCleared: () => true,
+		scratchMatches: () => true,
 		checkpointStore: {
 			read: async () => storedCheckpoint,
 			write: async () => undefined,
@@ -202,6 +206,6 @@ function watchAuthority(document: string): FramescaperNativeProjectAuthority {
 		publicationPortFor: () => { throw new Error('unused'); },
 		publicationFenceFor: () => { throw new Error('unused'); },
 		reserveScratch: () => undefined, settleScratch: async () => undefined,
-		scratchMatches: () => false, licensingCleared: () => false,
+		scratchMatches: () => false,
 	});
 }

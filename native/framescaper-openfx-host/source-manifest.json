@@ -155,8 +155,8 @@
 		},
 		{
 			"path": "src/isolation_contract.hpp",
-			"byteLength": 4728,
-			"sha256": "addf7969560af7428639200d9bfa50edae087b9bc63d7a2e9321c41339cda2c7"
+			"byteLength": 4839,
+			"sha256": "93ea3a24fd4b823c63cb233669f7a9ee516020825290f2049dab8a3e501df5af"
 		},
 		{
 			"path": "src/loaded_plugin_binary.cpp",
@@ -278,7 +278,7 @@
 		"linux-x64": {
 			"runtime": "linux-x64",
 			"status": "pending-external",
-			"blockedBy": "No Linux x64 OpenFX licensing, isolation, conformance, payload, or review evidence exists.",
+			"blockedBy": "No authenticated Linux x64 OpenFX scanner and runtime-host payloads have been built for the exact target.",
 			"toolchainIdentity": null,
 			"scannerPayload": null,
 			"runtimeHostPayload": null,
@@ -288,7 +288,7 @@
 		"linux-arm64": {
 			"runtime": "linux-arm64",
 			"status": "pending-external",
-			"blockedBy": "No Linux ARM64 OpenFX build host, isolation, conformance, payload, or review evidence exists.",
+			"blockedBy": "No authenticated Linux ARM64 OpenFX scanner and runtime-host payloads have been built for the exact target.",
 			"toolchainIdentity": null,
 			"scannerPayload": null,
 			"runtimeHostPayload": null,
@@ -298,7 +298,7 @@
 		"mac-arm64": {
 			"runtime": "darwin-arm64",
 			"status": "pending-external",
-			"blockedBy": "No macOS ARM64 OpenFX signing, notarization, isolation, conformance, payload, or hardware evidence exists.",
+			"blockedBy": "No authenticated macOS ARM64 OpenFX scanner and runtime-host payloads have been built for the exact target.",
 			"toolchainIdentity": null,
 			"scannerPayload": null,
 			"runtimeHostPayload": null,
@@ -308,7 +308,7 @@
 		"win-x64": {
 			"runtime": "win32-x64",
 			"status": "pending-external",
-			"blockedBy": "No Windows x64 OpenFX signing, isolation, conformance, payload, or hardware evidence exists.",
+			"blockedBy": "No authenticated Windows x64 OpenFX scanner and runtime-host payloads have been built for the exact target.",
 			"toolchainIdentity": null,
 			"scannerPayload": null,
 			"runtimeHostPayload": null,
@@ -318,7 +318,7 @@
 		"win-arm64": {
 			"runtime": "win32-arm64",
 			"status": "pending-external",
-			"blockedBy": "No Windows Arm64EC OpenFX build, signing, isolation, conformance, payload, or hardware evidence exists.",
+			"blockedBy": "No authenticated Windows Arm64EC OpenFX scanner and runtime-host payloads have been built for the exact target.",
 			"toolchainIdentity": null,
 			"scannerPayload": null,
 			"runtimeHostPayload": null,

@@ -87,7 +87,7 @@ test('carrierless V8 project preparation authenticates originals without a deriv
 			publicationPortFor: () => { throw new Error('publication is outside this staging test'); },
 			publicationFenceFor: () => { throw new Error('publication is outside this staging test'); },
 			reserveScratch: () => undefined, settleScratch: async () => undefined,
-			scratchMatches: () => true, licensingCleared: () => true,
+			scratchMatches: () => true,
 		});
 		const renderInputCalls: string[] = [];
 		const authority = new FramescaperNativeSelectedV20ProjectAuthority({
@@ -204,7 +204,6 @@ test('VFR queue preparation stages exact project timing bodies and mints dedicat
 			reserveScratch: () => undefined,
 			settleScratch: async (_jobId, outcome) => { settlements.push(outcome); },
 			scratchMatches: () => true,
-			licensingCleared: () => true,
 		});
 		assert.equal((await authority.revalidate(record, rootGrant, true)).inputFingerprintsMatch, true);
 		const prepared = await authority.prepare(record, rootGrant);

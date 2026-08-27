@@ -24,14 +24,14 @@ test('an empty pending-external manifest creates no OpenFX manager or child auth
 	assert.equal(runtime.dispose(), true);
 });
 
-test('a built payload without reviewed isolation and real plug-in evidence creates no manager', async () => {
+test('a built payload without human review reaches the genuine machine-isolation gate', async () => {
 	const runtime = await startFramescaperOpenFxRuntime({
 		location: location(), payloadPorts: ports(manifest(true, false)),
 	});
 	assert.equal(runtime.available(), false);
 	assert.equal(runtime.selfTestPassed(), false);
 	assert.equal(runtime.manager, null);
-	assert.match(runtime.reason ?? '', /production-readiness-unattested/iu);
+	assert.match(runtime.reason ?? '', /isolation-launcher-unavailable/iu);
 });
 
 test('signed caller-described bytes remain disabled without their actual reopened launcher artifacts', async () => {

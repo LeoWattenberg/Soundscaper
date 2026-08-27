@@ -29,66 +29,105 @@ const VERIFIED_RELEASES = new WeakSet();
 export async function verifyFramescaperMediaHostPayloadRelease({ repositoryRoot }) {
 	const root = resolve(repositoryRoot);
 	const release = verifyFramescaperMediaHostPayloadManifest({ repositoryRoot: root });
-	const reviewPolicyBytes = regularCanonicalFile(
-		root, MILESTONE_5_NATIVE_ISOLATION_REVIEW_POLICY_PATH,
-		'Framescaper media-host native-isolation review policy',
-	);
-	const reviewPolicy = parseJson(reviewPolicyBytes, 'Framescaper media-host review policy');
-	validateNativeIsolationReviewPolicy(reviewPolicy);
+	let reviewPolicyBytes = null;
+	let reviewPolicy = null;
+	let reviewPolicyFailure = null;
+	try {
+		reviewPolicyBytes = regularCanonicalFile(
+			root, MILESTONE_5_NATIVE_ISOLATION_REVIEW_POLICY_PATH,
+			'Framescaper media-host native-isolation review policy',
+		);
+		reviewPolicy = parseJson(reviewPolicyBytes, 'Framescaper media-host review policy');
+		validateNativeIsolationReviewPolicy(reviewPolicy);
+	} catch (error) { reviewPolicyFailure = errorMessage(error); }
 	const productionReadiness = {};
+	const m9ReleaseReview = {};
 	for (const target of release.payload.targets) {
 		if (target.status !== 'built' || target.productionReadiness === null) {
 			productionReadiness[target.id] = null;
+			m9ReleaseReview[target.id] = Object.freeze({
+				scope: 'stable-1.0-release', status: 'pending',
+				detail: 'No independent media-host review is recorded for stable 1.0 release admission.',
+			});
 			continue;
 		}
-		const reference = framescaperMediaProductionReadinessReference(
-			target.productionReadiness, target.id,
-		);
-		const evidence = await verifyFramescaperMediaProductionReadiness(reference, {
-			mediaHostSha256: target.payload.sha256,
-			isolation: {
-				launcherSha256: target.isolationPayload.launcherPayload.sha256,
-				sandboxProfileSha256: target.isolationPayload.sandboxProfilePayload.sha256,
-				brokerPolicySha256: target.isolationPayload.brokerPolicyPayload.sha256,
-				runtimeLibraries: target.isolationPayload.runtimeLibraryPayloads.map((library) => ({
-					name: library.path.split('/').at(-1),
-					byteLength: library.byteLength,
-					sha256: library.sha256,
-				})),
-			},
-		}, {
-			readEvidence: async (path) => regularCanonicalFile(
-				root, path, `Framescaper media-host ${target.id} readiness evidence`,
-			),
-			resolveReviewPublicKey: (_target, keyId) => resolveNativeIsolationReviewPublicKey(
-				reviewPolicy,
-				{ usage: 'framescaper-media-host-production-readiness', target: target.id, keyId },
-			),
-		});
-		const evidenceBytes = regularCanonicalFile(
-			root, reference.evidence.path,
-			`reopened Framescaper media-host ${target.id} readiness evidence`,
-		);
-		verifyDescriptor(evidenceBytes, reference.evidence,
-			`reopened Framescaper media-host ${target.id} readiness evidence`);
-		productionReadiness[target.id] = Object.freeze({
-			reference,
-			evidence: Object.freeze({ status: 'authenticated', evidence }),
-			evidenceBytes,
-		});
+		try {
+			if (reviewPolicy === null) throw new Error(
+				`The M9 review policy is unavailable: ${reviewPolicyFailure ?? 'not mounted'}.`,
+			);
+			const reference = framescaperMediaProductionReadinessReference(
+				target.productionReadiness, target.id,
+			);
+			const evidence = await verifyFramescaperMediaProductionReadiness(reference, {
+				mediaHostSha256: target.payload.sha256,
+				isolation: {
+					launcherSha256: target.isolationPayload.launcherPayload.sha256,
+					sandboxProfileSha256: target.isolationPayload.sandboxProfilePayload.sha256,
+					brokerPolicySha256: target.isolationPayload.brokerPolicyPayload.sha256,
+					runtimeLibraries: target.isolationPayload.runtimeLibraryPayloads.map((library) => ({
+						name: library.path.split('/').at(-1),
+						byteLength: library.byteLength,
+						sha256: library.sha256,
+					})),
+				},
+			}, {
+				readEvidence: async (path) => regularCanonicalFile(
+					root, path, `Framescaper media-host ${target.id} readiness evidence`,
+				),
+				resolveReviewPublicKey: (_target, keyId) => resolveNativeIsolationReviewPublicKey(
+					reviewPolicy,
+					{ usage: 'framescaper-media-host-production-readiness', target: target.id, keyId },
+				),
+			});
+			const evidenceBytes = regularCanonicalFile(
+				root, reference.evidence.path,
+				`reopened Framescaper media-host ${target.id} readiness evidence`,
+			);
+			verifyDescriptor(evidenceBytes, reference.evidence,
+				`reopened Framescaper media-host ${target.id} readiness evidence`);
+			productionReadiness[target.id] = Object.freeze({
+				reference,
+				evidence: Object.freeze({ status: 'authenticated', evidence }),
+				evidenceBytes,
+			});
+			m9ReleaseReview[target.id] = Object.freeze({
+				scope: 'stable-1.0-release', status: 'complete',
+				evidence: productionReadiness[target.id],
+			});
+		} catch (error) {
+			productionReadiness[target.id] = null;
+			m9ReleaseReview[target.id] = Object.freeze({
+				scope: 'stable-1.0-release', status: 'invalid',
+				detail: `The recorded media-host M9 review is invalid: ${errorMessage(error)}`.slice(0, 512),
+			});
+		}
 	}
 	const verified = Object.freeze({
 		...release,
-		reviewPolicy: Object.freeze({
+		reviewPolicy: reviewPolicyBytes === null ? null : Object.freeze({
 			name: FRAMESCAPER_MEDIA_REVIEW_POLICY_NAME,
 			byteLength: reviewPolicyBytes.byteLength,
 			sha256: digest(reviewPolicyBytes),
 			bytes: reviewPolicyBytes,
 		}),
 		productionReadiness: Object.freeze(productionReadiness),
+		m9ReleaseReview: Object.freeze(m9ReleaseReview),
 	});
 	VERIFIED_RELEASES.add(verified);
 	return verified;
+}
+
+export function framescaperMediaM9ReleaseReviewStageSummary(release, targetId) {
+	assertVerifiedRelease(release);
+	const review = release.m9ReleaseReview[targetId];
+	if (!review) throw new Error(`The Framescaper media-host release has no ${String(targetId)} M9 review row.`);
+	if (review.status !== 'complete') return deepFreeze(structuredClone(review));
+	return deepFreeze({
+		scope: review.scope,
+		status: review.status,
+		reviewer: review.evidence.evidence.evidence.reviewer,
+		reviewedAt: review.evidence.evidence.evidence.reviewedAt,
+	});
 }
 
 export function framescaperMediaProductionReadinessStageSummary(release, targetId) {
@@ -163,4 +202,8 @@ function deepFreeze(value) {
 		for (const child of Object.values(value)) deepFreeze(child);
 	}
 	return value;
+}
+
+function errorMessage(error) {
+	return error instanceof Error ? error.message : String(error);
 }

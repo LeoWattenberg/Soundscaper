@@ -126,9 +126,10 @@ export const NATIVE_AUDIO_INVENTORY_DEVICE_HANDLE = 'inventory';
 /**
  * `fixture` is the benign proof format milestone 5A-3 asks for. It is a real
  * format on the wire so the scanner, registry, host and fault suites exercise
- * exactly the admission a licensed format will, but it names only our own
- * fixture binaries: every third-party format below stays fail-closed behind its
- * licensing row, and the format waits rather than the gate bending.
+ * exactly the admission a third-party format will, but it names only our own
+ * fixture binaries. Third-party execution still requires an authenticated
+ * format adapter and payload; human licensing review is milestone-9 release
+ * metadata and never changes this vocabulary.
  */
 export const HELPER_PLUGIN_FORMATS = Object.freeze([
 	'vst3', 'clap', 'au', 'lv2', 'fixture',

@@ -6,7 +6,7 @@ import test from 'node:test';
 
 const ROOT = new URL('../', import.meta.url);
 
-test('current desktop lease qualification is product-isolated and remains pending external', async () => {
+test('current desktop lease testing covers every maintained target while release qualification remains pending', async () => {
 	const compatibility = await json('config/project-compatibility.json');
 	const rule = compatibility.rules.find(
 		({ id }) => id === 'current-desktop-electron-lease-protections',
@@ -21,10 +21,11 @@ test('current desktop lease qualification is product-isolated and remains pendin
 	assert.match(claim, /seven product-specific workflows.*both products/isu);
 	assert.match(claim, /cross-product-simultaneous-open.*once.*paired packages/isu);
 	for (const product of ['Soundscaper V11', 'Framescaper V20']) {
-		for (const target of ['Windows x64', 'Linux x64']) {
+		for (const target of ['Windows x64', 'Windows ARM64', 'macOS ARM64', 'Linux x64', 'Linux ARM64']) {
 			assert.match(claim, new RegExp(`${product}.*${target}.*pending-external`, 'isu'));
 		}
 	}
+	assert.match(claim, /automated test activation.*all five maintained desktop targets.*human qualification.*milestone-?9/isu);
 	assert.match(claim, /no accepted packaged result/isu);
 
 	const security = await json('config/production-security-matrix.json');
@@ -37,7 +38,8 @@ test('current desktop lease qualification is product-isolated and remains pendin
 	assert.ok(framescaper);
 	assert.match(leaseMatrix.summary, /Soundscaper.*V11.*Framescaper.*V20.*process-lifetime/isu);
 	assert.match(leaseMatrix.summary, /crash-restart-recovery for both selected products.*cross-product-simultaneous-open once/isu);
-	assert.match(leaseMatrix.summary, /Windows x64.*Linux x64.*pending-external/isu);
+	assert.match(leaseMatrix.summary, /automated test activation.*all five maintained desktop targets.*human qualification.*milestone-?9/isu);
+	assert.match(leaseMatrix.summary, /Windows x64.*Windows ARM64.*macOS ARM64.*Linux x64.*Linux ARM64.*pending-external/isu);
 	assert.match(framescaper.summary, /desktop-library V20.*user_version 22.*scope v20/isu);
 	assert.match(framescaper.summary, /V19.*read-only.*V28.*reimports.*F31.*resumes idempotently/isu);
 	assert.match(leaseMatrix.summary, /separate storage scope and database.*storage and fencing isolation/isu);
@@ -65,7 +67,18 @@ test('roadmap binds the M2 inventory to the selected product generations', async
 	assert.match(roadmap, /user_version.*22.*scope.*v20/isu);
 	assert.match(roadmap, /V19.*read-only.*reimports.*V28.*F31/isu);
 	assert.match(roadmap, /without rewriting.*V19.*V18\/V17\/V12/isu);
-	assert.match(roadmap, /Windows x64.*Linux x64.*pending.*no accepted V20 packaged result.*Partial/isu);
+	assert.match(roadmap, /all five maintained desktop targets.*human qualification.*milestone 9.*no accepted V20 packaged result.*Partial/isu);
+
+	const workflow = await text('.github/workflows/desktop-preview.yml');
+	const start = workflow.indexOf('\n  soundscaper-project-library-lease-matrix:');
+	const job = workflow.slice(start);
+	for (const { runner, platform, arch } of [
+		{ runner: 'windows-2025', platform: 'win', arch: 'x64' },
+		{ runner: 'windows-11-arm', platform: 'win', arch: 'arm64' },
+		{ runner: 'macos-15', platform: 'mac', arch: 'arm64' },
+		{ runner: 'ubuntu-22.04', platform: 'linux', arch: 'x64' },
+		{ runner: 'ubuntu-24.04-arm', platform: 'linux', arch: 'arm64' },
+	]) assert.match(job, new RegExp(`runner: ${runner}\\n\\s+platform: ${platform}\\n\\s+arch: ${arch}`, 'u'));
 });
 
 test('current capability inventory names the selected desktop lease owners', async () => {

@@ -17,12 +17,6 @@ import {
 import { resolveNativeMediaImageSequence } from '../src/common/editor/native-media-image-sequence.ts';
 import { createUnreportedVideoSourceCharacteristicsV25 } from '../src/common/editor/video-source-professional-characteristics-v25.ts';
 
-const ROWS = [
-	'codec-native-ffmpeg-current-set',
-	'codec-decode-png-image-sequence',
-	'codec-decode-tiff-image-sequence',
-	'codec-decode-openexr-image-sequence',
-] as const;
 const DIGESTS = ['11'.repeat(32), '22'.repeat(32), '33'.repeat(32)] as const;
 
 test('V25 project JSON stores compact digest-bound inventory and pack references', () => {
@@ -42,7 +36,6 @@ test('V25 project JSON stores compact digest-bound inventory and pack references
 		inventory: publication.reference,
 		sourcePack: pack('aa'.repeat(32), 12_345),
 		characteristics: createUnreportedVideoSourceCharacteristicsV25(),
-		clearedPolicyRowIds: ROWS,
 	});
 
 	assert.equal(source.sourceType, 'image-sequence');
@@ -79,18 +72,20 @@ test('inventory identity binds canonical numeric order and every selected file',
 	]), /exact selected file inventory/u);
 });
 
-test('still-format licensing remains fail-closed before a source can be authored', () => {
+test('pending still-format licensing review does not block source authoring for testing', () => {
 	const selection = resolveNativeMediaImageSequence({
 		fileNames: ['f_001.tif'], frameRate: { num: 25, den: 1 },
 	});
 	const inventory = createNativeMediaImageSequenceInventoryV25(selection, [
 		entry('f_001.tif', 1, DIGESTS[0]),
 	]);
-	assert.throws(() => createNativeMediaImageSequenceSourceV25({
-		id: 'blocked-source', name: 'Blocked', selection,
+	const source = createNativeMediaImageSequenceSourceV25({
+		id: 'testable-source', name: 'Testable', selection,
 		inventory: inventory.reference, sourcePack: pack('aa'.repeat(32), 1_000),
 		characteristics: createUnreportedVideoSourceCharacteristicsV25(),
-	}), /blocked licensing rows.*codec-decode-tiff-image-sequence/u);
+	});
+	assert.equal(source.id, 'testable-source');
+	assert.equal(nativeMediaImageSequenceDecodeRequestV25(source).profileId, 'decode-tiff-sequence');
 });
 
 test('closed source validation rejects reference substitution and embedded frame records', () => {
@@ -121,7 +116,6 @@ test('the controller action publishes the external inventory before one project 
 			frameChunks: (index) => [frames[index]!],
 			characteristics: createUnreportedVideoSourceCharacteristicsV25(),
 		}),
-		clearedPolicyRowIds: () => ROWS,
 		createSourcePackWriter: () => ({
 			write: (chunk) => { events.push(`pack-write:${String(chunk.byteLength)}`); },
 			commit: (reference) => { events.push(`pack-commit:${reference.sha256}`); },
@@ -155,7 +149,6 @@ test('the controller discards an uncommitted source pack and publishes nothing a
 			frameChunks: () => [new TextEncoder().encode('changed-png')],
 			characteristics: createUnreportedVideoSourceCharacteristicsV25(),
 		}),
-		clearedPolicyRowIds: () => ROWS,
 		createSourcePackWriter: () => ({
 			write: () => { events.push('write'); },
 			commit: () => { events.push('pack-commit'); },
@@ -180,7 +173,6 @@ function fixtureSource() {
 		id: 'source', name: 'Source', selection,
 		inventory: inventory.reference, sourcePack: pack('aa'.repeat(32), 1_000),
 		characteristics: createUnreportedVideoSourceCharacteristicsV25(),
-		clearedPolicyRowIds: ROWS,
 	});
 }
 

@@ -22,7 +22,7 @@ test('the timing-probe runner leaves teardown margin beyond the application dead
 	assert.equal(source.includes('}, 100_000);'), false);
 });
 
-test('desktop CI runs the packaged timing probe for both products on Linux and Windows x64', async () => {
+test('desktop CI runs the packaged timing probe for both products on every maintained target', async () => {
 	const workflow = await readFile(resolve(ROOT, '.github/workflows/desktop-preview.yml'), 'utf8');
 	const packageJobStart = workflow.indexOf('\n  package:');
 	const nextJobStart = workflow.indexOf('\n  package-with-tests:', packageJobStart);
@@ -37,16 +37,24 @@ test('desktop CI runs the packaged timing probe for both products on Linux and W
 	assert.ok(directWavIndex > uploadTimingIndex);
 	assert.ok(retainIndex > timingIndex);
 	const step = packageJob.slice(timingIndex, uploadTimingIndex);
-	assert.match(step, /if: matrix\.target\.arch == 'x64'.*matrix\.target\.platform == 'linux'.*matrix\.target\.platform == 'win'/u);
+	assert.doesNotMatch(step, /\n\s+if:/u);
 	assert.doesNotMatch(step, /matrix\.product ==/u);
 	assert.match(step, /run: npm run desktop:smoke:timing-probe/u);
-	assert.match(step, /SOUNDSCAPER_SMOKE_ARCH: x64/u);
+	assert.match(step, /SOUNDSCAPER_SMOKE_ARCH: \$\{\{ matrix\.target\.arch \}\}/u);
 	assert.match(step, /SOUNDSCAPER_SMOKE_XVFB: \$\{\{ runner\.os == 'Linux' && 'true' \|\| 'false' \}\}/u);
 	assert.match(step, /SOUNDSCAPER_VIDEO_TIMING_PROBE_RESULT: \$\{\{ runner\.temp \}\}\/desktop-video-timing-probe-\$\{\{ matrix\.product \}\}-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}\.json/u);
 	const uploadStep = packageJob.slice(uploadTimingIndex, directWavIndex);
+	assert.doesNotMatch(uploadStep, /\n\s+if:/u);
 	assert.match(uploadStep, /actions\/upload-artifact@[a-f\d]+/u);
 	assert.match(uploadStep, /name: desktop-video-timing-probe-\$\{\{ matrix\.product \}\}-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}/u);
 	assert.match(uploadStep, /if-no-files-found: error/u);
 	assert.match(uploadStep, /retention-days: 14/u);
 	assert.equal(workflow.match(/npm run desktop:smoke:timing-probe/gu)?.length, 1);
+	for (const { runner, platform, arch } of [
+		{ runner: 'windows-2025', platform: 'win', arch: 'x64' },
+		{ runner: 'windows-11-arm', platform: 'win', arch: 'arm64' },
+		{ runner: 'macos-15', platform: 'mac', arch: 'arm64' },
+		{ runner: 'ubuntu-22.04', platform: 'linux', arch: 'x64' },
+		{ runner: 'ubuntu-24.04-arm', platform: 'linux', arch: 'arm64' },
+	]) assert.match(packageJob, new RegExp(`runner: ${runner}\\n\\s+platform: ${platform}\\n\\s+arch: ${arch}`, 'u'));
 });

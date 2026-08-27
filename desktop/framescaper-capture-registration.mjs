@@ -50,7 +50,8 @@ export function registerDesktopCaptureSecurity(options) {
 			productId: seams.productId,
 			desktopRoot: seams.desktopRoot,
 			trustedAppSession: seams.desktopSession,
-			qualification: seams.webVcrQualification,
+			enabled: seams.webVcrEnabled,
+			smokeTrust: seams.webVcrSmokeTrust,
 			displaySelectionMode: capture.status().selectionMode === 'system-picker'
 				? 'system-picker' : 'owned-callback',
 			sessionFromPartition: webVcrSeams.sessionFromPartition,
@@ -85,7 +86,7 @@ export function registerDesktopCaptureSecurity(options) {
 			currentOwnerFor: seams.currentOwnerFor,
 			isAppUrl,
 			isEditorDocumentUrl,
-			...(seams.webVcrQualification && seams.observeWebVcrDisplaySecurityWitness
+			...(seams.webVcrSmokeTrust && seams.observeWebVcrDisplaySecurityWitness
 				? { onWebVcrDisplaySecurityWitness: seams.observeWebVcrDisplaySecurityWitness }
 				: {}),
 		});
@@ -200,11 +201,12 @@ function requireSeams(value) {
 }
 
 function requireWebVcrSeams(value) {
-	if (!Object.hasOwn(value, 'webVcrQualification')
-		|| (value.webVcrQualification !== null && typeof value.webVcrQualification !== 'object')
+	if (typeof value.webVcrEnabled !== 'boolean'
+		|| !Object.hasOwn(value, 'webVcrSmokeTrust')
+		|| (value.webVcrSmokeTrust !== null && typeof value.webVcrSmokeTrust !== 'object')
 		|| typeof value.sessionFromPartition !== 'function'
 		|| typeof value.createWebVcrWindow !== 'function') {
-		throw new TypeError('Desktop capture registration requires disabled Web VCR composition seams.');
+		throw new TypeError('Desktop capture registration requires Web VCR composition seams.');
 	}
 	return value;
 }

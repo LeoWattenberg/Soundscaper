@@ -79,8 +79,16 @@ export interface FramescaperVideoProxyCleanupClaimV25 {
 }
 
 export type FramescaperVideoProxyGenerationV25 = Readonly<
-	| { readonly status: 'queued'; readonly jobId: string }
-	| { readonly status: 'blocked-policy'; readonly blockedPolicyRowIds: readonly string[] }
+	| {
+		readonly status: 'queued';
+		readonly jobId: string;
+		readonly pendingReleasePolicyRowIds: readonly string[];
+	}
+	| {
+		readonly status: 'unavailable';
+		readonly refusals: readonly string[];
+		readonly pendingReleasePolicyRowIds: readonly string[];
+	}
 >;
 
 export type FramescaperVideoProxyOfflineStatusV25 = Readonly<{
@@ -147,8 +155,9 @@ export class FramescaperVideoProxyLifecycleV25 {
 		});
 		if (plan.blocked) {
 			return Object.freeze({
-				status: 'blocked-policy',
-				blockedPolicyRowIds: Object.freeze([...plan.blockedPolicyRowIds]),
+				status: 'unavailable',
+				refusals: Object.freeze([...plan.refusals]),
+				pendingReleasePolicyRowIds: plan.pendingReleasePolicyRowIds,
 			});
 		}
 		const jobId = await this.#ports.enqueueProxy(Object.freeze({
@@ -160,7 +169,11 @@ export class FramescaperVideoProxyLifecycleV25 {
 			originalSha256: source.contentSha256,
 			recipe: plan.recipe,
 		}));
-		return Object.freeze({ status: 'queued', jobId: nonEmpty(jobId, 'queue job ID') });
+		return Object.freeze({
+			status: 'queued',
+			jobId: nonEmpty(jobId, 'queue job ID'),
+			pendingReleasePolicyRowIds: plan.pendingReleasePolicyRowIds,
+		});
 	}
 
 	async attach(request: Readonly<{

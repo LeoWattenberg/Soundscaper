@@ -8,6 +8,14 @@ It records evidence and fail-closed release state; it is not legal advice, a
 patent opinion, or a declaration that any component is legally cleared for
 every product, territory, or distribution channel.
 
+Human licensing, patent, provenance, reviewer, and signature decisions are
+Milestone 9 stable 1.0 admission inputs. Their pending state does not disable
+build, test, package, or runtime access to an implemented surface. Machine
+artifact identity, payload presence, platform compatibility, containment,
+consent, and resource checks remain fail closed at the point of use. A missing
+implementation or machine payload therefore remains unavailable for its exact
+technical reason; a pending human review cannot be used as that reason.
+
 ## Dependency closure
 
 The npm production closure is derived from package-lock version 3, not copied
@@ -103,9 +111,11 @@ facts separately recorded for each component.
 
 An audit status of `documented` means that checked-in provenance evidence is
 present and its existing automated audit remains enabled. It is not a legal
-approval. `blocked` means a required fact, review, source bundle, or delivery
-path is absent. Gates may only move from `blocked` when the missing evidence is
-checked in and an automated test verifies it.
+approval. `blocked` means a stable-release fact, review, source bundle, or
+delivery path is absent. It blocks Milestone 9 stable 1.0 admission, not
+engineering access to an implemented surface. Gates may only move from
+`blocked` when the missing evidence is checked in and an automated test verifies
+it.
 
 The checked-in FFmpeg runtime policy manifest is an engineering integrity gate,
 not a license or patent approval. It binds installed runtime bytes to the
@@ -113,12 +123,14 @@ current notice, source descriptor, licensing matrix, and release policy, and
 its authorizations are derived from the matrix's fail-closed gates. Its review
 marker and payload digest are self-declared consistency evidence, not an
 independently authenticated approval. It governs the optional Web runtime:
-public runtime upload remains blocked whenever its notice,
-corresponding-source, or patent gates are blocked. Its legacy desktop-assembly
-authorization is not consumed by the current production desktop entry points
-and does not override the separate desktop codec policy, which requires those
-Web runtime and application-provider bytes to be absent. It does not prohibit
-Electron's separately inventoried alternate framework library.
+stable 1.0 public-runtime admission remains blocked whenever its notice,
+corresponding-source, or patent gates are blocked, while build and test
+publication continue to depend only on the exact machine-verifiable runtime
+closure. Its legacy desktop-assembly authorization is not consumed by the
+current production desktop entry points and does not override the separate
+desktop codec policy, which requires those Web runtime and
+application-provider bytes to be absent. It does not prohibit Electron's
+separately inventoried alternate framework library.
 
 ## Copyleft and corresponding source
 
@@ -208,8 +220,10 @@ does not introduce a third-party package, transitive dependency, or separate
 third-party notice. This narrow provenance record does not satisfy the gate for
 adding externally authored or non-repository-owned effect packages.
 
-The following broader capabilities remain disabled until their matrix
-requirements are implemented:
+The following capabilities may be implemented, built, packaged, and tested
+before their human matrix requirements are accepted. Their exact machine
+dependencies still gate execution, and their human requirements must be
+accepted in Milestone 9 before stable 1.0 admission:
 
 - externally authored or non-repository-owned reviewed web effect packages need
   a complete transitive inventory, immutable artifact/source pins, notice
@@ -407,38 +421,42 @@ omits one, or invents another, is refused by
 `scripts/lib/local-model-evidence.mjs`.
 
 Each requirement is `recorded`, `pending`, or `unresolved`, and only `recorded`
-satisfies it. `pending` marks evidence this milestone cannot hold yet, naming
-the stage that will produce it; `unresolved` marks upstream evidence that is
-missing, conflicting, or unanswered and may never resolve. A model's
-`blockedBy` list and its `distributionStatus` are derived from those statuses
-and verified against the authored values, so an incomplete record cannot be
-converted into a distributable one.
+satisfies stable 1.0 distribution review. `pending` marks evidence this
+milestone cannot hold yet, naming the stage that will produce it; `unresolved`
+marks upstream evidence that is missing, conflicting, or unanswered and may
+never resolve. A model's `blockedBy` list and its `distributionStatus` are
+derived from those statuses and verified against the authored values, so an
+incomplete record cannot be converted into a stable-release approval.
 
-The `local-models` gate is enabled for the individually admitted records in the
-authenticated model catalog. Gate enablement is not blanket approval: only a
-record whose four requirements are all `recorded`, whose derived distribution
-status is `permitted`, and whose exact notices, byte lengths, and digests match
-the signed catalog may be installed or executed. Missing manual runtime
-qualification is non-blocking for those admitted records; artifact
+The `local-models` gate records the stable-release disposition of individually
+reviewed records. Gate enablement is not runtime authority: an implemented
+model route may be installed and executed for testing when its exact catalog
+entry, notices, byte lengths, digests, converted artifact, platform support,
+memory bound, and consent checks pass. Pending or refused human distribution
+status is reported to Milestone 9 and does not disable that test route. Artifact
 authentication remains mandatory immediately before execution. Weights whose
-terms forbid redistribution or commercial use are refused by pattern, and
-models this product has already excluded are listed in `refusedLocalModels`
-with their reason so they are not reintroduced later. Upstream locations
-belong in `provenanceSources`; `evidence` holds repository paths only.
+terms forbid redistribution or commercial use are refused for stable release
+by pattern, and models this product has already excluded are listed in
+`refusedLocalModels` with their reason so they are not accidentally admitted to
+1.0. Upstream locations belong in `provenanceSources`; `evidence` holds
+repository paths only.
 
 A source pin, direct artifact digest, conversion recipe, parity-fixture shape,
-or locally generated catalog candidate is not a production catalog entry.
-TIGER-DnR, PANNs Cnn10, Beat This, and TransNetV2 remain blocked until their
-converted artifact digests and source-framework parity evidence are recorded;
-wav2vec2 and Qwen remain candidates until their complete evidence records and
-externally signed entries land. Cataloged byte lengths and hashes authenticate
-downloads and offline preseed, but do not assert that an EU R2 write or public
-read-back occurred. The release publisher must complete public HEAD, Range, and
-full SHA-256 read-back before a catalog is handed to the external signer.
+or locally generated catalog candidate is not an executable machine payload.
+TIGER-DnR, PANNs Cnn10, Beat This, and TransNetV2 remain technically unavailable
+until their converted artifact digests and source-framework parity evidence are
+recorded; wav2vec2 and Qwen remain candidates until executable catalog entries
+land. Externally signed entries and distribution review are Milestone 9 release
+inputs. Cataloged byte lengths and hashes authenticate downloads and offline
+preseed, but do not assert that an EU R2 write or public read-back occurred. The
+release publisher must complete public HEAD, Range, and full SHA-256 read-back
+before a catalog is handed to the external signer.
 
-Opaque placeholders for unavailable native features do not authorize shipping
-their implementation. Enabling a capability flag, adding a loader, or accepting
-user-provided binaries must not bypass the relevant distribution gate.
+Opaque placeholders do not make an unimplemented native feature available, and
+a loader must not accept a missing, changed, wrong-platform, uncontained, or
+unconsented machine payload. Conversely, a human licensing or qualification row
+must not disable an implemented, machine-authenticated test route; that row is
+enforced by Milestone 9 stable 1.0 admission.
 
 ## Change procedure
 

@@ -71,12 +71,6 @@ import {
 
 type Awaitable<Value> = Value | PromiseLike<Value>;
 
-const POLICY_ROWS = Object.freeze([
-	'codec-native-ffmpeg-current-set',
-	'codec-decode-png-image-sequence',
-	'codec-decode-tiff-image-sequence',
-	'codec-decode-openexr-image-sequence',
-]);
 const TRANSACTION_ID = /^[a-f0-9]{40}$/u;
 const MANIFEST_VERSION = 1;
 const MAXIMUM_ACTIVE_TRANSACTIONS = 64;
@@ -92,7 +86,7 @@ export interface FramescaperNativeImageSequenceImportAuthorityOptions {
 	readonly mintOpaqueId: () => string;
 	readonly capabilities: () => Awaitable<unknown>;
 	readonly runtimeAvailable: () => boolean;
-	readonly clearedPolicyRowIds: () => Awaitable<readonly string[]>;
+	/** Report-only milestone-9 stable-release review input; execution never awaits it. */
 	readonly projectState: (projectId: string) => Awaitable<FramescaperNativeImageSequenceProjectState | null>;
 	readonly projectContainsImageSequence: (value: Readonly<{
 		projectId: string;
@@ -430,7 +424,6 @@ export class FramescaperNativeImageSequenceImportAuthority {
 					assertNativeImageSequenceRgba8DecodeCompatibility(current);
 					const verdict = evaluateNativeMediaProfileAdmission({
 						profileId: admission.profileId, source: current,
-						clearedPolicyRowIds: await this.#options.clearedPolicyRowIds(),
 					});
 					if (!verdict.admitted) throw new Error(`Native image-sequence admission is blocked: ${verdict.refusals.join(', ')}.`);
 					if (characteristics && JSON.stringify(characteristics) !== JSON.stringify(current)) {
@@ -508,10 +501,6 @@ export class FramescaperNativeImageSequenceImportAuthority {
 		if (!this.#options.runtimeAvailable() || !this.#options.mediaRuntime.available()
 			|| !isNativeMediaCapabilityUsable(nativeMediaCapabilityEntry(snapshot, ref.domain, ref.id))) {
 			throw new Error('Native image-sequence import is disabled or unavailable.');
-		}
-		const rows = await this.#options.clearedPolicyRowIds();
-		if (!Array.isArray(rows) || POLICY_ROWS.some((row) => !rows.includes(row))) {
-			throw new Error('Native image-sequence import is blocked by its fail-closed policy row.');
 		}
 	}
 

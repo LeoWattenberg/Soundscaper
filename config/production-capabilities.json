@@ -301,7 +301,7 @@
 			"profileEvidence": "src/framescaper/product.js",
 			"applicationFeatures": {
 				"framescaperCapture": true,
-				"framescaperWebVcr": false
+				"framescaperWebVcr": true
 			},
 			"platforms": {
 				"web-core": {

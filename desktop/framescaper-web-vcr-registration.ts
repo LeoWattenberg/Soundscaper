@@ -52,7 +52,7 @@ interface GuestSession extends FramescaperWebVcrGuestSecuritySession {
 	clearStorageData(): Promise<void>;
 }
 
-export interface FramescaperWebVcrSmokeQualificationV1 {
+export interface FramescaperWebVcrSmokeTrustV1 {
 	readonly kind: 'packaged-smoke-v1';
 	readonly certificate: FramescaperWebVcrSmokeCertificateV1;
 }
@@ -64,7 +64,8 @@ interface RegistrationOptions {
 		registerPreloadScript(value: Readonly<{ readonly type: 'frame'; readonly filePath: string }>): string;
 		unregisterPreloadScript(id: string): void;
 	}>;
-	readonly qualification: FramescaperWebVcrSmokeQualificationV1 | null;
+	readonly enabled: boolean;
+	readonly smokeTrust: FramescaperWebVcrSmokeTrustV1 | null;
 	readonly displaySelectionMode: 'owned-callback' | 'system-picker';
 	readonly sessionFromPartition: (partition: string) => GuestSession;
 	readonly createWindow: (options: unknown) => FramescaperWebVcrElectronWindow;
@@ -89,7 +90,7 @@ export function registerFramescaperWebVcrDesktopV1(
 	value: RegistrationOptions,
 ): Readonly<FramescaperWebVcrRegistrationV1> {
 	const seams = registrationOptions(value);
-	const qualification = validateQualification(seams.qualification);
+	const smokeTrust = validateSmokeTrust(seams.smokeTrust);
 	const preload = registerFramescaperWebVcrTrustedPreloadV1({
 		productId: seams.productId,
 		preloadPath: resolve(seams.desktopRoot, TRUSTED_PRELOAD),
@@ -102,8 +103,8 @@ export function registerFramescaperWebVcrDesktopV1(
 
 	const runtime = createFramescaperWebVcrRuntimeV1({
 		productId: seams.productId,
-		qualified: qualification !== null && seams.displaySelectionMode === 'owned-callback',
-		unavailableReason: qualification !== null && seams.displaySelectionMode === 'system-picker'
+		enabled: seams.enabled && seams.displaySelectionMode === 'owned-callback',
+		unavailableReason: seams.enabled && seams.displaySelectionMode === 'system-picker'
 			? 'unsupported-platform' : 'roadmap-gate',
 		now: seams.now ?? (() => Date.now()),
 		createOpaqueId: seams.createOpaqueId ?? defaultOpaqueId,
@@ -173,16 +174,15 @@ export function registerFramescaperWebVcrDesktopV1(
 
 	function materializeGuestSession(): GuestSession {
 		if (guestSession) return guestSession;
-		if (!qualification || seams.displaySelectionMode !== 'owned-callback') {
-			throw new Error('Web VCR guest qualification is disabled.');
+		if (!seams.enabled || seams.displaySelectionMode !== 'owned-callback') {
+			throw new Error('Web VCR guest is disabled.');
 		}
 		const session = seams.sessionFromPartition(FRAMESCAPER_WEB_VCR_PARTITION);
 		const security = configureFramescaperWebVcrGuestSecurityV1(session);
 		try {
-			const certificate = configureFramescaperWebVcrSmokeCertificateTrustV1(
-				session,
-				qualification.certificate,
-			);
+			const certificate = smokeTrust
+				? configureFramescaperWebVcrSmokeCertificateTrustV1(session, smokeTrust.certificate)
+				: null;
 			guestSession = session;
 			guestSecurity = security;
 			certificateTrust = certificate;
@@ -208,6 +208,7 @@ export function registerFramescaperWebVcrDesktopV1(
 function registrationOptions(value: RegistrationOptions): RegistrationOptions {
 	if (!value || typeof value !== 'object' || value.productId !== 'framescaper'
 		|| typeof value.desktopRoot !== 'string' || !value.desktopRoot
+		|| typeof value.enabled !== 'boolean'
 		|| !['owned-callback', 'system-picker'].includes(value.displaySelectionMode)
 		|| !value.trustedAppSession || typeof value.trustedAppSession.registerPreloadScript !== 'function'
 		|| typeof value.trustedAppSession.unregisterPreloadScript !== 'function'
@@ -222,13 +223,13 @@ function registrationOptions(value: RegistrationOptions): RegistrationOptions {
 	return value;
 }
 
-function validateQualification(
-	value: FramescaperWebVcrSmokeQualificationV1 | null,
-): Readonly<FramescaperWebVcrSmokeQualificationV1> | null {
+function validateSmokeTrust(
+	value: FramescaperWebVcrSmokeTrustV1 | null,
+): Readonly<FramescaperWebVcrSmokeTrustV1> | null {
 	if (value === null) return null;
 	if (!value || typeof value !== 'object' || value.kind !== 'packaged-smoke-v1'
 		|| Reflect.ownKeys(value).length !== 2) {
-		throw new TypeError('Web VCR qualification must be the dedicated packaged-smoke shape.');
+		throw new TypeError('Web VCR smoke trust must use the dedicated packaged-smoke shape.');
 	}
 	return Object.freeze({
 		kind: 'packaged-smoke-v1',

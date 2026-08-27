@@ -188,10 +188,10 @@ stays retired; whether Safari qualification (a milestone-1 release gate,
 roadmap.md:207-208) is achievable with provisioned hardware or is
 re-scoped; and which ARM64 rows the release matrix actually claims.
 Nothing in this plan presumes the answers; every evidence packet scopes
-to the approved matrix. If milestone 8B remains blocked at campaign
-start, milestone 9 qualifies the shipped capability set and the roadmap
-keeps its own rule: the full-DAW goal is not claimed
-(roadmap.md:793-795); MIDI evidence rows activate only after 8B.
+to the approved matrix. If milestone 8B remains unimplemented at campaign
+start, milestone 9 qualifies the shipped capability set and the roadmap keeps
+its own rule: the full-DAW goal is not claimed; MIDI review rows apply only if
+the implementation is proposed for stable 1.0.
 
 ### Qualification run profile
 

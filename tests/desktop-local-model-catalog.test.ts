@@ -158,14 +158,19 @@ test('a model without a licensing evidence record cannot be cataloged', () => {
 	);
 });
 
-test('a refused model cannot be cataloged even with an evidence record', () => {
-	assert.throws(
-		() => validateLocalModelCatalog(
-			catalogOf([entry({ modelId: 'crisperwhisper' })]),
-			binding({ evidenceIds: ['crisperwhisper'], refusedIds: ['crisperwhisper'] }),
-		),
-		/refused models cannot be cataloged/iu,
-	);
+test('Milestone 9 refusal metadata cannot disable an authenticated test catalog', () => {
+	assert.doesNotThrow(() => validateLocalModelCatalog(
+		catalogOf([entry({ modelId: 'crisperwhisper' })]),
+		binding({ evidenceIds: ['crisperwhisper'], refusedIds: ['crisperwhisper'] }),
+	));
+	const pending = evidenceFor('pending-model', 'blocked');
+	assert.doesNotThrow(() => validateLocalModelCatalog(
+		catalogOf([entry({
+			modelId: 'pending-model',
+			licensingEvidence: { id: 'pending-model', sha256: localModelEvidenceSha256(pending) },
+		})]),
+		{ licensingEvidence: [pending], refusedIds: [] },
+	));
 });
 
 test('availability reflects the machine, including for an installed model', () => {

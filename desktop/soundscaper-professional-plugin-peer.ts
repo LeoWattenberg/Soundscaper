@@ -44,7 +44,7 @@ export interface ProfessionalPluginPeerLauncher {
 		readonly readExecute: readonly NativeChildIsolationPathGrant[];
 		readonly writeOnly: readonly NativeChildIsolationPathGrant[];
 		readonly runtimeClosure: readonly NativeChildIsolationArtifactDescriptor[];
-		readonly reviewedPayload: NativeChildIsolationArtifactDescriptor;
+		readonly workloadPayload: NativeChildIsolationArtifactDescriptor;
 		readonly resourcePolicy: Readonly<{ maximumJobDurationMs: number; maximumRssBytes: number }>;
 		readonly framedControl: Readonly<{
 			readonly protocolVersion: 1;
@@ -225,7 +225,7 @@ async function openSession(
 		const arguments_ = entryExecutable.path === peerExecutable.path ? []
 			: ['--library-path', dirname(entryExecutable.path), peerExecutable.path];
 		launch = await launcher.launch({
-			executable: entryExecutable, reviewedPayload: peerExecutable, arguments: arguments_,
+			executable: entryExecutable, workloadPayload: peerExecutable, arguments: arguments_,
 			readOnly: [], readExecute: [pluginGrant], writeOnly: [],
 			runtimeClosure: runtimeReadExecute,
 			resourcePolicy: {

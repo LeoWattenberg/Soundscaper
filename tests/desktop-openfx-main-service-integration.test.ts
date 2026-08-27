@@ -30,7 +30,6 @@ import type {
 	HelperOfxScanJobGrant,
 } from '../desktop/helper-contract.ts';
 import { isHelperOfxInteractJobGrantV1 } from '../desktop/helper-native-ofx-interact-grant.ts';
-import { openFxProductionReadinessFixture } from './helpers/openfx-production-readiness-fixture.ts';
 import {
 	assertUnifiedExactRenderPlanV12,
 	createUnifiedExactRenderPlan,
@@ -165,15 +164,12 @@ test('main resolves VFR timing authority before staging a dormant Retimer attemp
 	assert.equal(fixture.videoTimingStreams, 1);
 });
 
-test('default-off, policy, and missing-payload states fail before selection or helper execution', async (context) => {
+test('default-off and missing-payload states fail before selection or helper execution', async (context) => {
 	const fixture = await createFixture(context);
 	await assert.rejects(() => fixture.service.scan(), /native media.*off/iu);
 	fixture.preferences.nativeMediaEnabled = true;
 	await assert.rejects(() => fixture.service.scan(), /OpenFX consent.*off/iu);
 	fixture.preferences.ofxConsentEnabled = true;
-	fixture.policy.cleared = false;
-	await assert.rejects(() => fixture.service.scan(), /policy/iu);
-	fixture.policy.cleared = true;
 	fixture.payloadAvailable.value = false;
 	await assert.rejects(() => fixture.service.scan(), /payload/iu);
 	fixture.payloadAvailable.value = true;
@@ -431,7 +427,6 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 	const scanner = await executable(scannerPath);
 	const runtimeHost = await executable(runtimePath);
 	const preferences = { nativeMediaEnabled: false, ofxConsentEnabled: false };
-	const policy = { cleared: true };
 	const runtimeAvailable = { available: true };
 	const payloadAvailable = { value: true };
 	let selections = 0;
@@ -448,7 +443,11 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 					isolation: {
 						launcher: scanner, sandboxProfile: scanner, brokerPolicy: scanner, runtimeLibraries: [],
 					},
-					productionReadiness: openFxProductionReadinessFixture(scanner.sha256, runtimeHost.sha256),
+					qualifiedGpuBackends: ['opengl', 'opencl', 'cuda'] as const,
+					m9ReleaseReview: {
+						scope: 'stable-1.0-release' as const, status: 'pending' as const,
+						detail: 'Human OpenFX review remains a Milestone 9 release-admission input.',
+					},
 				} }
 				: { status: 'unavailable' as const, reason: 'payload-pending-external' as const,
 					detail: 'No authenticated OpenFX payload.' }; },
@@ -458,7 +457,6 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 		},
 		scratchRoot: join(root, 'scratch'),
 		preferences: () => preferences,
-		policyCleared: () => policy.cleared,
 		selectPluginBinary: async () => { selections += 1; return pluginPath; },
 		createMessageChannel: () => {
 			channelState.calls += 1;
@@ -481,7 +479,7 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 		mintOpaqueId: () => '11'.repeat(20),
 	});
 	return {
-		service, pluginPath, preferences, policy, runtimeAvailable, payloadAvailable, plan,
+		service, pluginPath, preferences, runtimeAvailable, payloadAvailable, plan,
 		runtimeState, channelState, scratchRoot: join(root, 'scratch'),
 		get selections() { return selections; },
 		get scanJobs() { return scanJobs; },

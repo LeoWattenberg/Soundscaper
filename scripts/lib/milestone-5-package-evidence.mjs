@@ -18,6 +18,7 @@ import {
 import { auditDesktopPackageArtifactContent } from './desktop-package-artifact-extractor.mjs';
 import {
 	completeMilestone5PackageReleaseAuthentication,
+	MILESTONE_5_PACKAGE_RELEASE_AUTHENTICATION_POLICY,
 	milestone5PackageReleaseAuthenticationEvidenceName,
 	preauthenticateMilestone5PackageReleaseAuthentication,
 } from './milestone-5-package-release-authentication.mjs';
@@ -161,29 +162,27 @@ export async function auditMilestone5PackageEvidence(optionsValue, dependencies 
 				content: null,
 			});
 		}
-		const preauthentication = await preauthenticateMilestone5PackageReleaseAuthentication({
-			repositoryRoot,
-			packageRoot,
-			productId,
-			targetId,
-			applicationVersion,
-			sourceRevision,
-			packages,
-			...(dependencies.releaseAuthenticationPolicyBytes === undefined
-				? {} : { policyBytes: dependencies.releaseAuthenticationPolicyBytes }),
-		});
-		if (preauthentication.status === 'pending-external') {
-			return packageAudit({
-				status: 'release-authentication-pending',
-				releaseAuthentication: preauthentication,
+		let preauthentication;
+		try {
+			preauthentication = await preauthenticateMilestone5PackageReleaseAuthentication({
+				repositoryRoot,
+				packageRoot,
 				productId,
 				targetId,
 				applicationVersion,
 				sourceRevision,
-				manifest,
-				manifestName,
-				runtimeFile,
 				packages,
+				...(dependencies.releaseAuthenticationPolicyBytes === undefined
+					? {} : { policyBytes: dependencies.releaseAuthenticationPolicyBytes }),
+			});
+		} catch (error) {
+			preauthentication = await invalidReleaseAuthenticationObservation({
+				error,
+				repositoryRoot,
+				packageRoot,
+				canonicalRoot,
+				releaseAuthenticationName,
+				policyBytes: dependencies.releaseAuthenticationPolicyBytes,
 			});
 		}
 		for (const descriptor of packages) {
@@ -217,12 +216,15 @@ export async function auditMilestone5PackageEvidence(optionsValue, dependencies 
 			|| content.installedTotalBytes !== firstContent.installedTotalBytes)) {
 			throw new Error('Milestone 5 target package formats contain different installed application closures.');
 		}
-		const releaseAuthentication = completeMilestone5PackageReleaseAuthentication({
-			preauthentication,
-			packages,
-		});
+		const releaseAuthentication = preauthentication.status !== 'authenticated-preflight'
+			? preauthentication
+			: completeMilestone5PackageReleaseAuthentication({ preauthentication, packages });
 		return packageAudit({
-			status: 'installed-application-closure-audited',
+			status: releaseAuthentication.status === 'authenticated'
+				? 'installed-application-closure-audited'
+				: releaseAuthentication.status === 'pending-external'
+					? 'release-authentication-pending'
+					: 'release-authentication-invalid-report-only',
 			releaseAuthentication,
 			productId,
 			targetId,
@@ -238,6 +240,46 @@ export async function auditMilestone5PackageEvidence(optionsValue, dependencies 
 	}
 }
 
+async function invalidReleaseAuthenticationObservation({
+	error,
+	repositoryRoot,
+	packageRoot,
+	canonicalRoot,
+	releaseAuthenticationName,
+	policyBytes: suppliedPolicyBytes,
+}) {
+	const policyBytes = suppliedPolicyBytes === undefined
+		? await readFile(resolve(repositoryRoot, MILESTONE_5_PACKAGE_RELEASE_AUTHENTICATION_POLICY))
+		: Buffer.from(suppliedPolicyBytes);
+	const evidence = await lstat(resolve(packageRoot, releaseAuthenticationName))
+		.then(() => readAndDescribeRegularFile({
+			canonicalRoot,
+			label: 'Milestone 5 report-only package release authentication',
+			maximumBytes: 1024 * 1024,
+			name: releaseAuthenticationName,
+			packageRoot,
+			retainBytes: false,
+		}))
+		.catch((readError) => {
+			if (readError.code === 'ENOENT') return null;
+			throw readError;
+		});
+	return deepFreeze({
+		status: 'invalid-report-only',
+		blockedBy: error instanceof Error ? error.message : String(error),
+		evidence: evidence === null ? null : {
+			name: releaseAuthenticationName,
+			byteLength: evidence.byteLength,
+			sha256: evidence.sha256,
+		},
+		policyEvidence: {
+			name: MILESTONE_5_PACKAGE_RELEASE_AUTHENTICATION_POLICY,
+			byteLength: policyBytes.byteLength,
+			sha256: createHash('sha256').update(policyBytes).digest('hex'),
+		},
+	});
+}
+
 function packageAudit({
 	status,
 	releaseAuthentication,
@@ -250,9 +292,31 @@ function packageAudit({
 	runtimeFile,
 	packages: packageDescriptors,
 }) {
+	const automatedEvidence = {
+		schemaVersion: 1,
+		productId,
+		targetId,
+		applicationVersion,
+		sourceRevision,
+		runtimeManifest: {
+			name: manifestName,
+			byteLength: runtimeFile.byteLength,
+			sha256: runtimeFile.sha256,
+		},
+		packages: packageDescriptors.map((descriptor) => ({
+			label: descriptor.label,
+			name: descriptor.name,
+			byteLength: descriptor.byteLength,
+			sha256: descriptor.sha256,
+			content: descriptor.content,
+		})),
+	};
 	const audit = deepFreeze({
 		schemaVersion: 1,
 		status,
+		automatedStatus: 'installed-application-closure-audited',
+		automatedEvidenceSha256: createHash('sha256')
+			.update(JSON.stringify(automatedEvidence)).digest('hex'),
 		releaseAuthentication,
 		productId,
 		targetId,

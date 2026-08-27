@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Launches the actual OpenFX scanner/runtime child through reviewed OS enforcement. */
+/** Launches the actual OpenFX scanner/runtime child through machine-authenticated OS enforcement. */
 
 import type { Writable } from 'node:stream';
 import { basename, dirname } from 'node:path';
@@ -41,10 +41,13 @@ export function createIsolatedOpenFxHostProcessInvoker(
 export function createIsolatedOpenFxNativeChildAuthority(
 	descriptor: FramescaperOpenFxHostDescriptor,
 ) {
-	assertDescriptorReadiness(descriptor);
 	const launcher = createNativeChildIsolationLauncher({
 		target: descriptor.target,
-		reviewedContract: descriptor.productionReadiness,
+		machineWorkload: Object.freeze({
+			kind: 'openfx' as const,
+			payloads: Object.freeze([descriptor.scanner, descriptor.runtimeHost]),
+			runtimeLibraries: descriptor.isolation.runtimeLibraries,
+		}),
 		artifacts: {
 			launcher: descriptor.isolation.launcher,
 			sandboxProfile: descriptor.isolation.sandboxProfile,
@@ -52,7 +55,7 @@ export function createIsolatedOpenFxNativeChildAuthority(
 		},
 	});
 	return Object.freeze({
-		productionReady: () => launcher.productionReady(),
+		machineReady: () => launcher.machineReady(),
 		invoke: ((invocation, authority) => isolatedInvocation(
 			descriptor, launcher, invocation, authority,
 		)) as OpenFxHostProcessInvoker,
@@ -79,7 +82,7 @@ function isolatedInvocation(
 	};
 	const launched = launcher.launch({
 		executable: dispatch.executable,
-		reviewedPayload: dispatch.reviewedPayload,
+		workloadPayload: dispatch.workloadPayload,
 		arguments: dispatch.arguments,
 		readOnly: Object.freeze([...authority.pluginResources, ...authority.readOnly]),
 		readExecute: authority.plugin === null ? []
@@ -129,7 +132,7 @@ function isolatedDispatch(
 	arguments_: readonly string[],
 ) {
 	if (!descriptor.target.startsWith('linux-')) return Object.freeze({
-		executable: host, reviewedPayload: host, arguments: arguments_,
+		executable: host, workloadPayload: host, arguments: arguments_,
 		runtimeClosure: descriptor.isolation.runtimeLibraries,
 	});
 	const loaderName = LINUX_RUNTIME_LOADERS[descriptor.target as keyof typeof LINUX_RUNTIME_LOADERS];
@@ -141,33 +144,10 @@ function isolatedDispatch(
 		throw new Error('The OpenFX Linux runtime closure is not staged in one authenticated library root.');
 	}
 	return Object.freeze({
-		executable: loader, reviewedPayload: host,
+		executable: loader, workloadPayload: host,
 		arguments: Object.freeze(['--library-path', runtimeRoot, host.path, ...arguments_]),
 		runtimeClosure: Object.freeze(descriptor.isolation.runtimeLibraries.filter((entry) => entry !== loader)),
 	});
-}
-
-function assertDescriptorReadiness(descriptor: FramescaperOpenFxHostDescriptor): void {
-	const readiness = descriptor.productionReadiness;
-	if (descriptor.scanner.sha256 !== readiness.scannerSha256
-		|| descriptor.runtimeHost.sha256 !== readiness.runtimeHostSha256
-		|| descriptor.isolation.launcher.sha256 !== readiness.launcher.launcherPayloadSha256
-		|| descriptor.isolation.sandboxProfile.sha256 !== readiness.launcher.sandboxProfileSha256
-		|| descriptor.isolation.brokerPolicy.sha256 !== readiness.launcher.brokerPolicySha256) {
-		throw new Error('The OpenFX child payload or isolation artifacts differ from signed readiness.');
-	}
-	const runtimeLibraries = descriptor.isolation.runtimeLibraries.map((library) => Object.freeze({
-		name: basename(library.path), byteLength: library.byteLength, sha256: library.sha256,
-	}));
-	if (JSON.stringify(runtimeLibraries) !== JSON.stringify(readiness.runtimeLibraries)) {
-		throw new Error('The OpenFX child runtime closure differs from signed readiness.');
-	}
-	if (descriptor.target.startsWith('linux-')) {
-		const loaderName = LINUX_RUNTIME_LOADERS[descriptor.target as keyof typeof LINUX_RUNTIME_LOADERS];
-		if (runtimeLibraries.filter(({ name }) => name === loaderName).length !== 1) {
-			throw new Error('The OpenFX Linux child requires its target-specific signed runtime loader.');
-		}
-	}
 }
 
 function selectedExecutable(

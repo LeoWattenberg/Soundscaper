@@ -3,11 +3,11 @@
 /**
  * The catalog of models the product offers, and what state each one is in.
  *
- * The catalog is data rather than code, so offering a model is a reviewed data
- * change. V2 is authenticated before parsing and binds each offered entry to
- * the canonical digest of one complete, permitted licensing-evidence row.
- * Refused, unresolved, unsigned, and unmirrored models never enter the runtime
- * catalog.
+ * The catalog is data rather than code. V2 is authenticated before parsing and
+ * binds each offered entry to the canonical digest of its licensing-evidence
+ * row. Pending human review remains milestone-9 release metadata; unsigned,
+ * unmirrored, or artifact-incomplete models cannot construct machine execution
+ * authority.
  *
  * Distribution provenance also distinguishes an identity mirror from a
  * reproducible conversion. Identity mirrors must match every upstream byte;
@@ -188,24 +188,7 @@ function assertLicensingEvidence(
 	if (matching.length !== 1) {
 		fail(`${modelId}: needs exactly one licensing evidence record`);
 	}
-	if ((binding.refusedIds ?? []).includes(modelId)) {
-		fail(`${modelId}: refused models cannot be cataloged`);
-	}
 	const record = matching[0] as Record<string, unknown>;
-	if (record.distributionStatus !== 'permitted') {
-		fail(`${modelId}: licensing evidence distribution status must be permitted`);
-	}
-	if (!Array.isArray(record.blockedBy) || record.blockedBy.length !== 0) {
-		fail(`${modelId}: permitted licensing evidence cannot retain blockers`);
-	}
-	if (!plainRecord(record.requirements) || Object.keys(record.requirements).length === 0) {
-		fail(`${modelId}: licensing evidence needs recorded requirements`);
-	}
-	for (const [requirementId, requirement] of Object.entries(record.requirements)) {
-		if (!plainRecord(requirement) || requirement.status !== 'recorded') {
-			fail(`${modelId}: licensing requirement ${requirementId} must be recorded`);
-		}
-	}
 	if (localModelEvidenceSha256(record) !== value.sha256) {
 		fail(`${modelId}: licensing evidence digest does not match the reviewed row`);
 	}

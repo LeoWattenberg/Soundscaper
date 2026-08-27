@@ -395,7 +395,7 @@ export function registerDesktopPluginDiscovery({
 	});
 }
 
-/** Every format, including the test-only fixture, stays closed until an exact reviewed activation is injected. */
+/** Resolve machine activation for every known format; human review is release-report metadata only. */
 export function productionPluginFormatActivated() {
 	return productionSoundscaperPluginFormatActivated(...arguments);
 }

@@ -52,13 +52,13 @@ export async function startFramescaperOpenFxRuntime(
 	}
 	const selected = availability.descriptor;
 	const initialAuthority = createIsolatedOpenFxNativeChildAuthority(selected);
-	const initialReadiness = await initialAuthority.productionReady();
-	if (initialReadiness.status !== 'ready') {
+	const initialMachineAvailability = await initialAuthority.machineReady();
+	if (initialMachineAvailability.status !== 'ready') {
 		return unavailableRuntime(Object.freeze({
 			status: 'unavailable' as const,
 			reason: 'isolation-launcher-unavailable' as const,
-			detail: initialReadiness.detail,
-		}), `isolation-launcher-unavailable: ${initialReadiness.detail}`);
+			detail: initialMachineAvailability.detail,
+		}), `isolation-launcher-unavailable: ${initialMachineAvailability.detail}`);
 	}
 	const verify = createFramescaperOpenFxHostVerifier(options.location, options.payloadPorts);
 	let disposed = false;
@@ -76,9 +76,9 @@ export async function startFramescaperOpenFxRuntime(
 				const next = await verify();
 				assertSameDescriptor(selected, next);
 				const nextAuthority = createIsolatedOpenFxNativeChildAuthority(next);
-				const readiness = await nextAuthority.productionReady();
-				if (readiness.status !== 'ready') {
-					throw new Error(`The OpenFX child-isolation launcher is unavailable: ${readiness.detail}`);
+				const machineAvailability = await nextAuthority.machineReady();
+				if (machineAvailability.status !== 'ready') {
+					throw new Error(`The OpenFX child-isolation launcher is unavailable: ${machineAvailability.detail}`);
 				}
 				current = next;
 				authority = nextAuthority;
@@ -183,7 +183,8 @@ function assertSameDescriptor(
 		|| !sameExecutable(expected.scanner, actual.scanner)
 		|| !sameExecutable(expected.runtimeHost, actual.runtimeHost)
 		|| !sameIsolation(expected.isolation, actual.isolation)
-		|| JSON.stringify(expected.productionReadiness) !== JSON.stringify(actual.productionReadiness)) {
+		|| JSON.stringify(expected.qualifiedGpuBackends)
+			!== JSON.stringify(actual.qualifiedGpuBackends)) {
 		throw new Error('The Framescaper OpenFX-host payload identity changed after authentication.');
 	}
 }

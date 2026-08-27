@@ -109,7 +109,7 @@ test('selected V28 image-sequence jobs publish their authenticated tree through 
 			inspect: async () => ({ byteLength: 16, materialize: async () => Object.freeze([]) }),
 			settle: async () => undefined,
 		},
-		platform: 'linux', licensingCleared: () => true,
+		platform: 'linux',
 		probeRoot: async () => ({ exists: true, directory: true, symbolicLink: false,
 			canonicalPath: ROOT.rootPath, volumeIdentity: ROOT.volumeIdentity,
 			directoryIdentity: ROOT.directoryIdentity }),

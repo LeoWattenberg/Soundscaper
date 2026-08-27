@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { createHash, generateKeyPairSync, sign } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import {
 	access, chmod, copyFile, mkdir, mkdtemp, readFile, realpath, readdir, rm, stat, writeFile,
 } from 'node:fs/promises';
@@ -16,9 +16,6 @@ import type {
 	FramescaperMediaHostExecutableDescriptor,
 } from '../desktop/framescaper-media-host-payload.ts';
 import {
-	verifyFramescaperMediaProductionReadiness,
-} from '../desktop/framescaper-media-production-readiness.ts';
-import {
 	createIsolatedNativeMediaHostProcessInvoker,
 } from '../desktop/native-media-isolated-host-process.ts';
 import type { HelperDataPlaneByteSink } from '../desktop/helper-data-plane-io.ts';
@@ -30,7 +27,7 @@ const PROFILE_PATH = join(LAUNCHER_ROOT, 'profiles/linux-v1.json');
 const BROKER_PATH = join(LAUNCHER_ROOT, 'profiles/linux-broker-v1.json');
 const execute = promisify(execFile);
 
-test('the media invoker uses its reviewed loader closure, fd3, and write-only no-clobber output grant', {
+test('the media invoker uses its machine-authenticated loader closure, fd3, and no-clobber output grant', {
 	skip: process.platform !== 'linux' || process.arch !== 'x64',
 }, async (context) => {
 	const fixture = await isolatedMediaFixture(context);
@@ -60,23 +57,18 @@ test('the media invoker uses its reviewed loader closure, fd3, and write-only no
 	assert.equal(String(await readFile(outputPath)), 'video-body|audio-body');
 });
 
-test('valid media readiness refuses a different executable before the isolated payload can run', {
+test('machine containment refuses changed media bytes before the isolated payload can run', {
 	skip: process.platform !== 'linux' || process.arch !== 'x64',
 }, async (context) => {
 	const fixture = await isolatedMediaFixture(context);
-	const wrongPath = join(fixture.root, 'wrong-media-host');
-	await writeFile(wrongPath, Buffer.from('#!/bin/sh\nexit 0\n'));
-	await chmod(wrongPath, 0o700);
-	const wrong = await descriptor(wrongPath);
 	const changed: FramescaperMediaHostDescriptor = Object.freeze({
-		...fixture.descriptor, path: wrong.path, byteLength: wrong.byteLength,
-		sha256: wrong.sha256, identity: wrong.identity,
+		...fixture.descriptor, sha256: 'ff'.repeat(32),
 	});
 	const outputPath = join(fixture.outputRoot, 'wrong.tmp');
 	const handle = createIsolatedNativeMediaHostProcessInvoker(changed)(
 		mediaInvocation(changed, fixture, outputPath),
 	);
-	await assert.rejects(handle.completion, /outside its signed workload review/iu);
+	await assert.rejects(handle.completion, /changed identity, bytes, or digest/iu);
 	await assert.rejects(access(outputPath), /ENOENT/u);
 });
 
@@ -108,15 +100,15 @@ async function isolatedMediaFixture(context: test.TestContext) {
 	const [host, launcher, profile, broker] = await Promise.all([
 		descriptor(hostPath), descriptor(launcherPath), descriptor(PROFILE_PATH), descriptor(BROKER_PATH),
 	]);
-	const productionReadiness = await verifiedMediaReadiness(
-		host, launcher, profile, broker, runtimeLibraries,
-	);
 	const descriptorValue: FramescaperMediaHostDescriptor = Object.freeze({
 		target: 'linux-x64', runtime: 'linux-x64', path: host.path,
 		byteLength: host.byteLength, sha256: host.sha256,
 		hostVersion: '1.0.0', ffmpegVersion: '9.0.1', identity: host.identity,
 		isolation: Object.freeze({ launcher, sandboxProfile: profile, brokerPolicy: broker, runtimeLibraries }),
-		productionReadiness,
+		m9ReleaseReview: Object.freeze({
+			scope: 'stable-1.0-release', status: 'pending',
+			detail: 'Human acceptance is intentionally absent from this runtime test.',
+		}),
 	});
 	return { root, outputRoot, scratchPath, planPath: await realpath(planPath), descriptor: descriptorValue };
 }
@@ -153,52 +145,6 @@ async function writeInput(
 ): Promise<void> {
 	await sink.write(bytes);
 	await sink.complete();
-}
-
-async function verifiedMediaReadiness(
-	host: FramescaperMediaHostExecutableDescriptor,
-	launcher: FramescaperMediaHostExecutableDescriptor,
-	profile: FramescaperMediaHostExecutableDescriptor,
-	broker: FramescaperMediaHostExecutableDescriptor,
-	runtimeLibraries: readonly FramescaperMediaHostExecutableDescriptor[],
-) {
-	const libraries = runtimeLibraries.map((entry) => Object.freeze({
-		name: basename(entry.path), byteLength: entry.byteLength, sha256: entry.sha256,
-	}));
-	const evidence = Object.freeze({
-		schemaVersion: 1, kind: 'framescaper-media-host-production-readiness', target: 'linux-x64',
-		mediaHostSha256: host.sha256, runtimeLibraries: libraries,
-		launcher: Object.freeze({
-			schemaVersion: 1, target: 'linux-x64',
-			launcherId: 'framescaper-linux-landlock-seccomp-namespaces-v1',
-			launcherPayloadSha256: launcher.sha256, sandboxProfileSha256: profile.sha256,
-			brokerPolicySha256: broker.sha256, filesystem: 'broker-grant-only',
-			network: 'denied', childProcesses: 'denied', dynamicCode: 'denied',
-		}),
-		ffmpegVersion: '9.0.1', osIsolationAttested: true, hostileMediaDenialAttested: true,
-		dualStreamFdRemapAttested: true, twoHourContinuityAttested: true,
-		reviewedAt: '2026-08-24', reviewer: 'isolated media integration fixture',
-	} as const);
-	const bytes = Buffer.from(JSON.stringify(evidence));
-	const keys = generateKeyPairSync('ed25519');
-	return verifyFramescaperMediaProductionReadiness({
-		schemaVersion: 2, status: 'reviewed', target: 'linux-x64',
-		evidence: {
-			path: 'config/framescaper-media-host-production-readiness/linux-x64.json',
-			byteLength: bytes.byteLength, sha256: digest(bytes),
-		},
-		signature: { algorithm: 'ed25519', reviewKeyId: 'isolated-media-fixture',
-			valueBase64: sign(null, bytes, keys.privateKey).toString('base64') },
-	}, {
-		mediaHostSha256: host.sha256,
-		isolation: {
-			launcherSha256: launcher.sha256, sandboxProfileSha256: profile.sha256,
-			brokerPolicySha256: broker.sha256, runtimeLibraries: libraries,
-		},
-	}, {
-		readEvidence: async () => Buffer.from(bytes),
-		resolveReviewPublicKey: () => keys.publicKey.export({ type: 'spki', format: 'pem' }),
-	});
 }
 
 async function stageElfClosure(executable: string, runtime: string): Promise<void> {

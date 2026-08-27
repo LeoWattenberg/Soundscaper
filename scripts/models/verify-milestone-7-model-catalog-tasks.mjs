@@ -41,6 +41,8 @@ const report = Object.freeze({
 		catalogBlockedBy: task.catalogBlockedBy,
 		activationStatus: task.activationStatus,
 		activationBlockedBy: task.activationBlockedBy,
+		m9ReleaseReviewStatus: task.m9ReleaseReviewStatus,
+		m9ReleaseReviewBlockedBy: task.m9ReleaseReviewBlockedBy,
 		artifacts: task.artifacts.map((artifact) => Object.freeze({
 			role: artifact.role,
 			fileName: artifact.distributionFileName,

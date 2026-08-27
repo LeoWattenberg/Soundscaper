@@ -82,4 +82,4 @@ Families describe product entry points, not every file extension a decoder might
 | Capability | Soundscaper | Framescaper |
 | --- | --- | --- |
 | Screen and camera capture | Not enabled | Enabled |
-| Web VCR capture | Not enabled | Not enabled |
+| Web VCR capture | Not enabled | Enabled |
