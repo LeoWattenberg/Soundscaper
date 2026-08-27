@@ -31,12 +31,12 @@ that is not a backup strategy.
 At useful milestones and before clearing or migrating storage:
 
 1. Wait for local saving to complete.
-2. Export a `.scape` project file.
+2. Export a Scape project file (`.sscape` or `.fscape`).
 3. Export and play a rendered delivery.
 4. Copy both to storage outside the editor's local data.
 
 Use AUP4 in addition when Audacity interchange matters, not instead of the
-`.scape` copy.
+Scape project copy.
 
 ## Documentation-site privacy
 

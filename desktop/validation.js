@@ -1,16 +1,29 @@
 import { extname } from 'node:path';
 
 import {
+	ACCEPTED_PROJECT_FILE_EXTENSIONS,
 	APP_HOST,
 	APP_SCHEME,
 	MAX_SAVE_BYTES,
+	PROJECT_FILE_EXTENSION,
+	SCAPE_PROJECT_MIME_TYPE,
 	SUPPORTED_LOCALES,
 } from './constants.js';
 
+// Suffix-only forms, as the picker filters and `extname` comparisons want them.
+const PROJECT_EXTENSIONS = Object.freeze(
+	ACCEPTED_PROJECT_FILE_EXTENSIONS.map((extension) => extension.slice(1)),
+);
+const NATIVE_PROJECT_EXTENSION = PROJECT_FILE_EXTENSION.slice(1);
+
 const FILE_PURPOSES = Object.freeze({
 	project: Object.freeze({
-		extensions: Object.freeze(['scape', 'aup3', 'aup4']),
-		filters: Object.freeze([{ name: 'Scape and Audacity projects', extensions: ['scape', 'aup3', 'aup4'] }]),
+		// Every product opens every product's projects; only saving is native.
+		extensions: Object.freeze([...PROJECT_EXTENSIONS, 'aup3', 'aup4']),
+		filters: Object.freeze([{
+			name: 'Scape and Audacity projects',
+			extensions: [...PROJECT_EXTENSIONS, 'aup3', 'aup4'],
+		}]),
 	}),
 	audio: Object.freeze({
 		extensions: Object.freeze(['aac', 'aif', 'aiff', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'rf64', 'wav', 'webm', 'wv']),
@@ -35,7 +48,10 @@ const FILE_PURPOSES = Object.freeze({
 });
 
 const SAVE_PURPOSES = Object.freeze({
-	project: Object.freeze({ defaultExtension: 'scape', filters: [{ name: 'Scape project', extensions: ['scape'] }] }),
+	project: Object.freeze({
+		defaultExtension: NATIVE_PROJECT_EXTENSION,
+		filters: [{ name: 'Scape project', extensions: [NATIVE_PROJECT_EXTENSION] }],
+	}),
 	aup4: Object.freeze({ defaultExtension: 'aup4', filters: [{ name: 'Audacity interchange', extensions: ['aup4'] }] }),
 	'audio-pcm-mix': Object.freeze({
 		defaultExtension: 'wav',
@@ -75,6 +91,10 @@ const SAVE_PURPOSES = Object.freeze({
 });
 
 const MIME_TYPES = Object.freeze({
+	// Every accepted project suffix carries the one shared Scape media type.
+	...Object.fromEntries(ACCEPTED_PROJECT_FILE_EXTENSIONS.map(
+		(extension) => [extension, SCAPE_PROJECT_MIME_TYPE],
+	)),
 	'.7z': 'application/x-7z-compressed',
 	'.aac': 'audio/aac',
 	'.aif': 'audio/aiff',
@@ -97,7 +117,6 @@ const MIME_TYPES = Object.freeze({
 	'.otio': 'application/json',
 	'.rf64': 'audio/rf64',
 	'.srt': 'application/x-subrip',
-	'.scape': 'application/vnd.soundscaper.scape+zip',
 	'.txt': 'text/plain',
 	'.vtt': 'text/vtt',
 	'.wav': 'audio/wav',

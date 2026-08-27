@@ -3,8 +3,8 @@ import { readFile } from 'node:fs/promises';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
-	chooseFileAction,
 	collectClientErrors,
+	chooseExportProjectFileAction,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 
@@ -29,7 +29,7 @@ test.describe('direct Scape save publication', () => {
 				value: async (options) => {
 					globalThis.__scapeDirectSave.pickerOptions = options;
 					return {
-						name: 'direct.scape',
+						name: 'direct.sscape',
 						async createWritable() {
 							globalThis.__scapeDirectSave.opens += 1;
 							return {
@@ -46,7 +46,7 @@ test.describe('direct Scape save publication', () => {
 			});
 		});
 
-		await chooseFileAction(page, editor, 'Export project file (.scape)');
+		await chooseExportProjectFileAction(page, editor);
 		await expect.poll(() => page.evaluate(() => globalThis.__scapeDirectSave.closes)).toBe(1);
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
 		const saved = await page.evaluate(() => ({
@@ -62,14 +62,14 @@ test.describe('direct Scape save publication', () => {
 		expect(downloads).toBe(0);
 		expect(saved.chunks.length).toBeGreaterThan(0);
 		expect(Math.max(...saved.chunks.map((chunk) => chunk.length))).toBeLessThanOrEqual(4 * 1024 * 1024);
-		expect(saved.pickerOptions.types[0].accept['application/vnd.soundscaper.scape+zip']).toEqual(['.scape']);
+		expect(saved.pickerOptions.types[0].accept['application/vnd.soundscaper.scape+zip']).toEqual(['.sscape']);
 
 		const archive = Buffer.concat(saved.chunks.map((chunk) => Buffer.from(chunk)));
 		const projectInput = editor.locator('[data-aup4-input]');
 		const fileMenu = editor.getByRole('menuitem', { name: 'File', exact: true });
 		await fileMenu.focus();
 		await projectInput.setInputFiles({
-			name: 'direct.scape',
+			name: 'direct.sscape',
 			mimeType: 'application/vnd.soundscaper.scape+zip',
 			buffer: archive,
 		});
@@ -88,7 +88,7 @@ test.describe('direct Scape save publication', () => {
 		await expect(fileMenu).toBeFocused();
 
 		await projectInput.setInputFiles({
-			name: 'direct.scape',
+			name: 'direct.sscape',
 			mimeType: 'application/vnd.soundscaper.scape+zip',
 			buffer: archive,
 		});
@@ -107,15 +107,15 @@ test.describe('direct Scape save publication', () => {
 			value: undefined,
 		}));
 		const downloading = page.waitForEvent('download');
-		await chooseFileAction(page, editor, 'Export project file (.scape)');
+		await chooseExportProjectFileAction(page, editor);
 		const download = await downloading;
-		expect(download.suggestedFilename()).toMatch(/\.scape$/iu);
+		expect(download.suggestedFilename()).toMatch(/\.sscape$/u);
 		const path = await download.path();
 		expect(path).toBeTruthy();
 		const archive = await readFile(path);
 		expect(archive.byteLength).toBeGreaterThan(0);
 		await editor.locator('[data-aup4-input]').setInputFiles({
-			name: 'fallback.scape',
+			name: 'fallback.sscape',
 			mimeType: 'application/vnd.soundscaper.scape+zip',
 			buffer: archive,
 		});

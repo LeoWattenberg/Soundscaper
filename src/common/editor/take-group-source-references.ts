@@ -23,7 +23,7 @@ export function collectTakeGroupSourceIds(
 	return target;
 }
 
-/** Apply a .scape copy-import source collision map to take-owned source references. */
+/** Apply a Scape copy-import source collision map to take-owned source references. */
 export function remapTakeGroupSourceIds(
 	project: unknown,
 	sourceIdMap: ReadonlyMap<string, string>,

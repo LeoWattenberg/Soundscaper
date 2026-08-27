@@ -19,7 +19,7 @@ your editable project document.
 
 ## Editable project files
 
-- `.scape` is the portable, full-fidelity project format shared by Soundscaper
+- Scape (`.sscape` from Soundscaper, `.fscape` from Framescaper, and either one openable in both) is the portable, full-fidelity project format shared by Soundscaper
   and Framescaper.
 - AUP4 is audio-only interchange with Audacity. It is not a full backup of a
   mixed-media Soundscaper project.

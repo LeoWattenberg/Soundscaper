@@ -9,7 +9,6 @@ import {
 	retiredProductTargetOrigin,
 	retiredWebWorkers,
 	tombstoneConfiguration,
-	tombstoneRedirectUrl,
 	validateTombstoneConfiguration,
 } from '../scripts/lib/offline-tombstone-worker.mjs';
 import { MemoryCacheStorage } from './helpers/offline-shell-fixtures.js';
@@ -34,7 +33,7 @@ const SURVIVING_CACHES = [
 test('the retired worker is inert until a browser registers it', async () => {
 	const worker = await tombstoneWorker();
 
-	assert.deepEqual([...worker.listeners.keys()].sort(), ['activate', 'fetch', 'install']);
+	assert.deepEqual([...worker.listeners.keys()].sort(), ['activate', 'install']);
 	assert.equal(worker.clients.claimed, 0);
 	assert.equal(worker.registration.unregistered, 0);
 	assert.equal(worker.skipWaited, 0);
@@ -62,57 +61,6 @@ test('activation claims its clients, retires only its own caches, and unregister
 	assert.deepEqual(worker.cacheStorage.events, RETIRED_CACHES.map((name) => `delete:${name}`));
 });
 
-test('activation sends every controlled window to the new origin with its locale intact', async () => {
-	const worker = await tombstoneWorker({
-		clientUrls: [
-			`${SERVING_ORIGIN}/framescaper/de/`,
-			`${SERVING_ORIGIN}/framescaper/pt-BR/`,
-			`${SERVING_ORIGIN}/framescaper/embed/de/`,
-			`${SERVING_ORIGIN}/framescaper/`,
-			`${SERVING_ORIGIN}/framescaper/de/?project=demo`,
-		],
-	});
-
-	await worker.dispatch('activate');
-
-	assert.deepEqual(worker.clients.windows.map(({ navigations }) => navigations), [
-		['https://framescaper.org/de/'],
-		['https://framescaper.org/pt-BR/'],
-		['https://framescaper.org/embed/de/'],
-		['https://framescaper.org/'],
-		['https://framescaper.org/de/?project=demo'],
-	]);
-});
-
-test('activation never enumerates uncontrolled clients nor navigates a window outside the retired scope', async () => {
-	const worker = await tombstoneWorker({
-		clientUrls: [
-			`${SERVING_ORIGIN}/en/`,
-			`${SERVING_ORIGIN}/embed/en/`,
-			`${SERVING_ORIGIN}/framescaperish/en/`,
-			'https://example.test/framescaper/en/',
-			`${SERVING_ORIGIN}/framescaper/fr/`,
-		],
-	});
-
-	await worker.dispatch('activate');
-
-	assert.deepEqual(worker.clients.matchAllOptions, [{ type: 'window' }]);
-	assert.deepEqual(worker.clients.windows.map(({ navigations }) => navigations), [
-		[], [], [], [], ['https://framescaper.org/fr/'],
-	]);
-});
-
-test('a window that refuses to be navigated does not stop the retirement', async () => {
-	const worker = await tombstoneWorker({ clientUrls: [`${SERVING_ORIGIN}/framescaper/de/`] });
-	worker.clients.windows[0].navigate = () => Promise.reject(new TypeError('client is not focusable'));
-
-	await worker.dispatch('activate');
-
-	assert.equal(worker.registration.unregistered, 1);
-	assert.deepEqual(await worker.cacheStorage.keys(), SURVIVING_CACHES);
-});
-
 test('a second activation is harmless', async () => {
 	const worker = await tombstoneWorker();
 
@@ -123,7 +71,7 @@ test('a second activation is harmless', async () => {
 	assert.equal(worker.registration.unregistered, 2);
 	assert.deepEqual(await worker.cacheStorage.keys(), SURVIVING_CACHES);
 	assert.deepEqual(worker.cacheStorage.events, RETIRED_CACHES.map((name) => `delete:${name}`));
-	assert.deepEqual(worker.clients.windows.map(({ navigations }) => navigations), [['https://framescaper.org/de/']]);
+	assert.deepEqual(worker.clients.windows.map(({ navigations }) => navigations), [[]]);
 });
 
 test('an activation that cannot retire a cache fails closed and names what survived', async () => {
@@ -137,56 +85,56 @@ test('an activation that cannot retire a cache fails closed and names what survi
 	assert.equal(worker.registration.unregistered, 1, 'the registration is still retired so the network is reachable');
 });
 
-test('a controlled navigation is redirected to the new origin before any 301 exists', async () => {
+test('the retired worker answers nothing, so every request reaches the network', async () => {
 	const worker = await tombstoneWorker();
-	assert.equal(worker.scope.fetch, undefined, 'the retired path must be answered without reaching the network');
 
-	for (const [requested, expected] of [
-		['/framescaper/', 'https://framescaper.org/'],
-		['/framescaper/en/', 'https://framescaper.org/en/'],
-		['/framescaper/de/', 'https://framescaper.org/de/'],
-		['/framescaper/pt-BR/', 'https://framescaper.org/pt-BR/'],
-		['/framescaper/embed/de/', 'https://framescaper.org/embed/de/'],
-		['/framescaper/de/?project=demo', 'https://framescaper.org/de/?project=demo'],
-	]) {
-		const response = await worker.navigateTo(requested);
-		assert.equal(response?.status, 302, `${requested} must be redirected`);
-		assert.equal(response.headers.get('location'), expected);
-	}
+	// A tombstone with no fetch handler is more than inert: a worker that
+	// registers no fetch listener is skipped for navigations altogether, so the
+	// retired path is served by the origin — and by whatever redirect the origin
+	// has deployed there — from the first load after activation. Answering out of
+	// the old cache is what made the retired path unreachable in the first place.
+	assert.deepEqual([...worker.listeners.keys()].sort(), ['activate', 'install']);
+	assert.equal(worker.listeners.has('fetch'), false);
+	assert.equal(worker.scope.fetch, undefined, 'the tombstone never fetches anything itself either');
 });
 
-test('the tombstone leaves subresources, form posts and foreign origins to the network', async () => {
-	const worker = await tombstoneWorker();
+test('activation leaves every controlled window exactly where it is', async () => {
+	// Browser storage is partitioned per origin, so the project an open window is
+	// editing is not readable from the new origin — that partitioning is the whole
+	// reason the cross-origin transfer feature exists. Force-navigating a window
+	// to the new origin takes the user away from their own work and lands them
+	// somewhere that cannot see it, which is strictly worse than leaving them be.
+	// The window keeps running; the next navigation is the user's to make, and it
+	// reaches the network.
+	const worker = await tombstoneWorker({
+		clientUrls: [
+			`${SERVING_ORIGIN}/framescaper/de/`,
+			`${SERVING_ORIGIN}/framescaper/embed/de/?project=demo`,
+			`${SERVING_ORIGIN}/en/`,
+		],
+	});
 
-	assert.equal(await worker.dispatchFetch({
-		method: 'GET', mode: 'no-cors', url: `${SERVING_ORIGIN}/framescaper/en/logo.svg`,
-	}), null);
-	assert.equal(await worker.dispatchFetch({
-		method: 'POST', mode: 'navigate', url: `${SERVING_ORIGIN}/framescaper/en/`,
-	}), null);
-	assert.equal(await worker.dispatchFetch({
-		method: 'GET', mode: 'navigate', url: 'https://example.test/framescaper/en/',
-	}), null);
-	assert.equal(await worker.navigateTo('/en/'), null);
+	await worker.dispatch('activate');
+
+	assert.deepEqual(worker.clients.windows.map(({ url, navigations }) => ({ url, navigations })), [
+		{ url: `${SERVING_ORIGIN}/framescaper/de/`, navigations: [] },
+		{ url: `${SERVING_ORIGIN}/framescaper/embed/de/?project=demo`, navigations: [] },
+		{ url: `${SERVING_ORIGIN}/en/`, navigations: [] },
+	]);
+	assert.deepEqual(worker.clients.matchAllOptions, [], 'a worker that navigates nobody enumerates nobody');
+	assert.equal(worker.registration.unregistered, 1);
+	assert.deepEqual(await worker.cacheStorage.keys(), SURVIVING_CACHES);
 });
 
-test('no retired path can steer a visitor off the new origin', async () => {
-	const worker = await tombstoneWorker();
+test('the emitted worker carries no way to move a window or to answer a request', () => {
+	const source = renderTombstoneServiceWorker(RETIRED);
 
-	for (const requested of ['/framescaper//evil.example/', '/framescaper/..//evil.example/']) {
-		assert.equal(await worker.navigateTo(requested), null, `${requested} must not be redirected`);
+	for (const forbidden of ['.navigate(', 'Response.redirect', 'respondWith', "addEventListener('fetch'", 'matchAll']) {
+		assert.equal(source.includes(forbidden), false, forbidden);
 	}
-	for (const requested of [
-		'/framescaper/embed//evil.example/',
-		'/framescaper/%2F%2Fevil.example/',
-		'/framescaper/en/@evil.example',
-	]) {
-		const location = (await worker.navigateTo(requested))?.headers.get('location');
-		assert.equal(new URL(String(location)).origin, 'https://framescaper.org', requested);
-	}
-	assert.equal(tombstoneRedirectUrl('https://soundscaper.org/framescaper//evil.example/', RETIRED), null);
-	assert.equal(tombstoneRedirectUrl('https://soundscaper.org/framescaper/\\evil.example/', RETIRED), null);
-	assert.equal(tombstoneRedirectUrl('https://framescaper.org/de/', RETIRED), null);
+	// The new origin is still recorded: it is what the deployment audit publishes
+	// as the place the retired product went, and what the retention window is for.
+	assert.ok(source.includes('"targetOrigin":"https://framescaper.org"'));
 });
 
 test('a tombstone may never claim the origin root or an unverified new origin', () => {
@@ -286,20 +234,12 @@ async function tombstoneWorker({
 		registration,
 		location: { origin: SERVING_ORIGIN },
 		URL,
-		Response,
 	};
 	runInNewContext(renderTombstoneServiceWorker(configuration), scope);
 	const dispatch = async (type) => {
 		const pending = [];
 		listeners.get(type)({ waitUntil: (value) => pending.push(value) });
 		await Promise.all(pending);
-	};
-	const dispatchFetch = async (request) => {
-		let responded = null;
-		listeners.get('fetch')({ request, respondWith: (value) => {
-			responded = value;
-		} });
-		return await responded;
 	};
 	return {
 		cacheStorage,
@@ -308,8 +248,6 @@ async function tombstoneWorker({
 		listeners,
 		scope,
 		dispatch,
-		dispatchFetch,
-		navigateTo: (path) => dispatchFetch({ method: 'GET', mode: 'navigate', url: `${SERVING_ORIGIN}${path}` }),
 		get skipWaited() {
 			return scope.skipWaited;
 		},

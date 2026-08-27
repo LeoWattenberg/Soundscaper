@@ -39,7 +39,7 @@ import { registerDesktopCodecProviders } from './desktop-codec-main-integration.
 import { ReadCapabilityStore, throwAfterReadCapabilityRollback } from './file-capabilities.js';
 import {
 	createPendingProjectDelivery, PendingProjectQueue, extractProjectPaths,
-	redispatchPendingProjectsAfterReadRelease,
+	OPENABLE_PROJECT_EXTENSIONS, redispatchPendingProjectsAfterReadRelease,
 } from './file-associations.js';
 import { registerSelectedReadCapability } from './read-selection-service.js';
 import { createProtocolHandler, registerAppScheme } from './protocol.js';
@@ -505,7 +505,7 @@ function reportPendingProjectError(error) {
 }
 
 function enqueueProjectPath(filePath) {
-	if (!filePath || !['.aup3', '.aup4', '.scape'].includes(extname(filePath).toLowerCase())) return;
+	if (!filePath || !OPENABLE_PROJECT_EXTENSIONS.includes(extname(filePath).toLowerCase())) return;
 	const absolutePath = isAbsolute(filePath) ? filePath : resolve(filePath);
 	pendingOpenProjects.enqueue(absolutePath);
 	if (rendererReady) void pendingOpenProjects.dispatch();

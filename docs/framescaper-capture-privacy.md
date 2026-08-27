@@ -72,7 +72,7 @@ becomes exactly one ordinary durable project source with bounded capture
 provenance. Project Bin publication adds one bin item and clip reference per
 source; timeline publication adds one dedicated track, lane, and clip per
 stream; **both** reuses those same sources rather than duplicating media. The
-normal relink, proxy, edit, `.scape`, handoff, and delivery paths apply.
+normal relink, proxy, edit, Scape, handoff, and delivery paths apply.
 
 Only after canonical capture and manifest commit does Framescaper queue
 disposable derivatives without awaiting them. Audio receives ordinary waveform

@@ -57,7 +57,7 @@ budgets close last, over code that already exists.
   deletion (`src/common/editor/storage/derivative-cache-policy.ts:22-26,59-67`),
   its limits taken as constructor options
   (`src/common/editor/storage/media-repository.ts:42-48`).
-- **Capacity preflight and storage pressure are solved surfaces.** The `.scape`
+- **Capacity preflight and storage pressure are solved surfaces.** The Scape
   import preflight adds a fixed ten-percent headroom, refuses a
   known-insufficient estimate, and leaves an unavailable estimate advisory
   (`src/common/editor/scape-import-capacity.ts:44-70,73-103`); pressure is
@@ -108,7 +108,7 @@ budgets close last, over code that already exists.
   (`src/common/editor/controller/framescaper-capture-derivative-scheduler.ts:243-277`)
   while cancellation elsewhere uses named task scopes
   (`src/common/editor/controller/lifecycle.ts:150-183`).
-- **`.scape` cannot carry a six-figure library as media.** The archive admits
+- **Scape cannot carry a six-figure library as media.** The archive admits
   4,096 entries and a 256 MiB `project.json`
   (`src/common/editor/scape-archive-envelope.ts:18-23`); the export planner
   refuses past that (`src/common/editor/scape-export-plan.ts:123-127,248-250`).
@@ -232,7 +232,7 @@ rejected rather than ignored. Evaluation is a pure predicate in
 `src/common/editor/photo-smart-collection.ts` applied page by page, so a live
 smart collection over 100,000 rows holds one page at a time.
 
-### The catalog snapshot through `.scape` is state-only
+### The catalog snapshot through Scape is state-only
 
 Catalog snapshot and restore go through the `photo-catalog-shard` /
 `photo-develop-shard` asset extension L2's WP-L2.5 registers
@@ -240,7 +240,7 @@ Catalog snapshot and restore go through the `photo-catalog-shard` /
 state-only (no media entries) scope, and owns no archive layout decision. A
 snapshot writes catalog state — rows, folders, collections, rule definitions,
 ratings, flags, labels, keywords, develop-stack references — with originals
-recorded by digest and **no media entries**. Media-bearing `.scape` export stays
+recorded by digest and **no media entries**. Media-bearing Scape export stays
 per-collection and entry-count bounded against the envelope
 (`src/common/editor/scape-archive-envelope.ts:18-23`), because a six-figure
 library cannot round-trip as media, and the Optional merge-on-import
@@ -268,7 +268,7 @@ never reach storage run on all three Playwright projects
 | Real 100k-photo timing as an L3 exit gate | Every gate through L8 is CI- or script-provable without real devices (roadmap-lightscaper.md:42-49); the soak is already an L9 row (roadmap-lightscaper.md:503-505). |
 | A second environment descriptor with the same fingerprint | One measurement class, one descriptor; a duplicate splits `first-party-owned-structural-counters` and makes cohort review ambiguous. |
 | A user-authored regular expression in smart-collection rules | An unbounded pattern over six figures of rows is a denial-of-service surface; a closed operator set is expressive enough and provable. |
-| A media-bearing `.scape` catalog snapshot | 4,096 entries and 256 MiB `project.json` (`src/common/editor/scape-archive-envelope.ts:18-23`) — the archive refuses it, so the feature would only fail later and less clearly. |
+| A media-bearing Scape catalog snapshot | 4,096 entries and 256 MiB `project.json` (`src/common/editor/scape-archive-envelope.ts:18-23`) — the archive refuses it, so the feature would only fail later and less clearly. |
 | An L3-private catalog archive layout | L2's WP-L2.5 owns the shard asset kinds and their ceilings; a second layout for one artifact is two incompatible readers. |
 
 ## Phase structure
@@ -450,7 +450,7 @@ pickup, and any packet that grows a slice doc names it here first.
   (`src/common/editor/storage/linked-original-resolver.ts:120,209`); state-only
   snapshot and restore through the WP-L2.5 `photo-catalog-shard` /
   `photo-develop-shard` asset kinds (lightscaper-2-plan.md); the Optional
-  merge-on-import of a catalog `.scape` (roadmap-lightscaper.md:281-282), which
+  merge-on-import of a catalog Scape archive (roadmap-lightscaper.md:281-282), which
   lands only if its conflict rules are closed in this packet.
 - **Invariants:** capture-time edit never rewrites the original; relink refuses
   a mismatch rather than rebinding; a snapshot records originals by digest and

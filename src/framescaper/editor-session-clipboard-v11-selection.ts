@@ -227,7 +227,7 @@ function assertTransportableSourceClosure(
 		if (!source) throw new ReferenceError(`V11 selected graph references missing source ${sourceId}.`);
 		if (!isVisual(source) && !descriptorSources.has(sourceId)) {
 			throw new RangeError(
-				`V11 selected graph cannot transport unselected source ${sourceId}; use .scape preservation.`,
+				`V11 selected graph cannot transport unselected source ${sourceId}; use Scape preservation.`,
 			);
 		}
 	}

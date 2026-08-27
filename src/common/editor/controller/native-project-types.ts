@@ -6,6 +6,7 @@ import type {
 } from './lifecycle.ts';
 import type { EditorTaskProgressCoordinator } from './task-progress.ts';
 import type { ScapeArchiveByteSource } from '../scape-archive-byte-source.ts';
+import type { ProjectFileExtension } from '../../project-file-extensions.ts';
 
 export type NativeAwaitable<Value> = PromiseLike<Value> | Value;
 export type NativeSaveState = 'dirty' | 'saved' | 'saving' | string;
@@ -140,6 +141,12 @@ export interface NativeDirectSave {
 
 export type NativePreparedSave = NativeCancelledSave | NativeBlobSave | NativeDirectSave;
 
+/** One `showSaveFilePicker` file type: a description and its MIME/suffix map. */
+export interface NativeProjectFileType {
+	readonly description: string;
+	readonly accept: Readonly<Record<string, readonly string[]>>;
+}
+
 export interface NativeProjectFileService {
 	readonly isDesktop: boolean;
 	chooseSaveTarget(request: Readonly<{
@@ -152,7 +159,7 @@ export interface NativeProjectFileService {
 		suggestedName: string;
 		mimeType: string;
 		target?: unknown;
-		types: readonly unknown[];
+		types: readonly NativeProjectFileType[];
 		useFileSystemAccess: boolean;
 		signal: AbortSignal;
 	}>): Promise<NativePreparedSave>;
@@ -300,7 +307,9 @@ export interface NativeProjectServiceRuntime {
 	readonly preflightStorage: (requiredBytes: number, operation: 'export' | 'import') => PromiseLike<unknown> | unknown;
 	readonly createStableId: (prefix: string) => string;
 	readonly ensureAup4FileName: (value: unknown) => string;
-	readonly ensureScapeFileName: (value: unknown) => string;
+	/** The project suffix this product writes; every accepted suffix still opens. */
+	readonly projectFileExtension: ProjectFileExtension;
+	readonly ensureProjectFileName: (value: unknown, extension: unknown) => string;
 	readonly sourcePcmBytes: (source: NativeProjectAudioSource) => number;
 	readonly loadStoredSourceChannels: (
 		store: NativeProjectStore,

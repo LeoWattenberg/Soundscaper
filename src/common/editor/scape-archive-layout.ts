@@ -104,7 +104,7 @@ async function validateByteSourceLayout(
 	throwIfScapeAborted(signal);
 	const size = source.size;
 	if (!Number.isSafeInteger(size) || size < END_FIXED_BYTES) {
-		throw new RangeError('The .scape ZIP size is invalid.');
+		throw new RangeError('The Scape ZIP size is invalid.');
 	}
 	const context: LayoutContext = { source, signal, size, witness };
 	const central = await locateCentralDirectory(context);
@@ -127,8 +127,8 @@ export function resolveScapeDataDescriptorLength(
 	if (bytes.byteLength >= signedBytes
 		&& view(bytes).getUint32(0, true) === DATA_DESCRIPTOR_SIGNATURE
 		&& descriptorMatches(bytes, 4, expected)) matches.push(signedBytes);
-	if (matches.length > 1) throw new Error('The .scape data descriptor is ambiguous.');
-	if (!matches.length) throw new Error('The .scape data descriptor does not match its central record.');
+	if (matches.length > 1) throw new Error('The Scape data descriptor is ambiguous.');
+	if (!matches.length) throw new Error('The Scape data descriptor does not match its central record.');
 	return matches[0] as number;
 }
 
@@ -146,7 +146,7 @@ async function locateCentralDirectory(context: LayoutContext): Promise<CentralDi
 		}
 	}
 	if (candidates.length !== 1) {
-		throw new Error(candidates.length ? 'The .scape ZIP end record is ambiguous.' : 'The .scape ZIP end record is missing.');
+		throw new Error(candidates.length ? 'The Scape ZIP end record is ambiguous.' : 'The Scape ZIP end record is missing.');
 	}
 	const endOffset = candidates[0] as number;
 	const end = tailViewAt(tail, tailOffset, endOffset, END_FIXED_BYTES);
@@ -164,24 +164,24 @@ async function locateCentralDirectory(context: LayoutContext): Promise<CentralDi
 		|| classicOffset === UINT32_SENTINEL;
 	if (!zip64) {
 		if (classicDisk !== 0 || classicCentralDisk !== 0 || classicDiskEntries !== classicEntries) {
-			throw new Error('The .scape ZIP must use one exact disk and entry count.');
+			throw new Error('The Scape ZIP must use one exact disk and entry count.');
 		}
 		return checkedCentralLocation(classicEntries, classicOffset, classicSize, endOffset);
 	}
-	if (endOffset < ZIP64_LOCATOR_BYTES) throw new Error('The .scape Zip64 locator is missing.');
+	if (endOffset < ZIP64_LOCATOR_BYTES) throw new Error('The Scape Zip64 locator is missing.');
 	const locatorOffset = endOffset - ZIP64_LOCATOR_BYTES;
 	const locator = view(await readRange(context, locatorOffset, ZIP64_LOCATOR_BYTES));
 	if (locator.getUint32(0, true) !== ZIP64_LOCATOR_SIGNATURE
 		|| locator.getUint32(4, true) !== 0
 		|| locator.getUint32(16, true) !== 1) {
-		throw new Error('The .scape Zip64 locator is invalid.');
+		throw new Error('The Scape Zip64 locator is invalid.');
 	}
 	const zip64Offset = safeUint64(locator, 8, 'Zip64 end offset');
 	const zip64End = view(await readRange(context, zip64Offset, ZIP64_END_BYTES));
 	if (zip64End.getUint32(0, true) !== ZIP64_END_SIGNATURE
 		|| safeUint64(zip64End, 4, 'Zip64 end size') !== 44
 		|| zip64Offset + ZIP64_END_BYTES !== locatorOffset) {
-		throw new Error('The .scape Zip64 end record is not exact.');
+		throw new Error('The Scape Zip64 end record is not exact.');
 	}
 	const disk = zip64End.getUint32(16, true);
 	const centralDisk = zip64End.getUint32(20, true);
@@ -190,7 +190,7 @@ async function locateCentralDirectory(context: LayoutContext): Promise<CentralDi
 	const centralSize = safeUint64(zip64End, 40, 'Zip64 central-directory size');
 	const centralOffset = safeUint64(zip64End, 48, 'Zip64 central-directory offset');
 	if (disk !== 0 || centralDisk !== 0 || diskEntries !== entries) {
-		throw new Error('The .scape Zip64 archive must use one exact disk and entry count.');
+		throw new Error('The Scape Zip64 archive must use one exact disk and entry count.');
 	}
 	assertClassicValue(classicDisk, UINT16_SENTINEL, disk, 'disk number');
 	assertClassicValue(classicCentralDisk, UINT16_SENTINEL, centralDisk, 'central disk number');
@@ -208,13 +208,13 @@ function checkedCentralLocation(
 	exactEnd: number,
 ): CentralDirectoryLocation {
 	if (entryCount > SCAPE_ARCHIVE_LIMITS.maximumEntryCount) {
-		throw new RangeError('The .scape archive contains too many entries.');
+		throw new RangeError('The Scape archive contains too many entries.');
 	}
 	if (size > SCAPE_MAXIMUM_CENTRAL_DIRECTORY_BYTES) {
-		throw new RangeError('The .scape central directory exceeds the portable byte limit.');
+		throw new RangeError('The Scape central directory exceeds the portable byte limit.');
 	}
 	if (size < entryCount * CENTRAL_FIXED_BYTES || offset > exactEnd || size !== exactEnd - offset) {
-		throw new Error('The .scape central-directory boundary is not exact.');
+		throw new Error('The Scape central-directory boundary is not exact.');
 	}
 	return { entryCount, offset, size };
 }
@@ -229,9 +229,9 @@ async function readCentralEntries(
 	const centralEnd = central.offset + central.size;
 	for (let index = 0; index < central.entryCount; index += 1) {
 		throwIfScapeAborted(context.signal);
-		if (cursor > centralEnd - CENTRAL_FIXED_BYTES) throw new Error('The .scape central record is truncated.');
+		if (cursor > centralEnd - CENTRAL_FIXED_BYTES) throw new Error('The Scape central record is truncated.');
 		const fixed = view(await readRange(context, cursor, CENTRAL_FIXED_BYTES));
-		if (fixed.getUint32(0, true) !== CENTRAL_SIGNATURE) throw new Error('The .scape central record is invalid.');
+		if (fixed.getUint32(0, true) !== CENTRAL_SIGNATURE) throw new Error('The Scape central record is invalid.');
 		const flags = fixed.getUint16(8, true);
 		const method = fixed.getUint16(10, true);
 		const crc32 = fixed.getUint32(16, true);
@@ -244,7 +244,7 @@ async function readCentralEntries(
 		const rawLocalOffset = fixed.getUint32(42, true);
 		const variableBytes = nameBytes + extraBytes;
 		const recordBytes = CENTRAL_FIXED_BYTES + variableBytes + commentBytes;
-		if (!nameBytes || recordBytes > centralEnd - cursor) throw new Error('The .scape central record is not exact.');
+		if (!nameBytes || recordBytes > centralEnd - cursor) throw new Error('The Scape central record is not exact.');
 		const variable = await readRange(context, cursor + CENTRAL_FIXED_BYTES, variableBytes);
 		if (commentBytes) {
 			await readRange(context, cursor + CENTRAL_FIXED_BYTES + variableBytes, commentBytes);
@@ -252,12 +252,12 @@ async function readCentralEntries(
 		const fields = parseExtraFields(variable.subarray(nameBytes), `central record ${String(index + 1)}`);
 		const resolved = resolveCentralZip64(fields, rawUncompressed, rawCompressed, rawLocalOffset, rawDisk);
 		if (method !== ZIP_STORE_METHOD || resolved.compressedSize !== resolved.uncompressedSize) {
-			throw new Error('Portable .scape entries must use STORE with exact size equality.');
+			throw new Error('Portable Scape entries must use STORE with exact size equality.');
 		}
-		if ((flags & ~SUPPORTED_FLAGS) !== 0) throw new Error('The .scape central record uses unsupported flags.');
-		if (resolved.disk !== 0) throw new Error('The .scape central record references another disk.');
+		if ((flags & ~SUPPORTED_FLAGS) !== 0) throw new Error('The Scape central record uses unsupported flags.');
+		if (resolved.disk !== 0) throw new Error('The Scape central record references another disk.');
 		if (resolved.uncompressedSize > SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes - expandedBytes) {
-			throw new RangeError('The .scape archive exceeds the declared expansion limit.');
+			throw new RangeError('The Scape archive exceeds the declared expansion limit.');
 		}
 		expandedBytes += resolved.uncompressedSize;
 		entries.push({
@@ -272,7 +272,7 @@ async function readCentralEntries(
 		});
 		cursor += recordBytes;
 	}
-	if (cursor !== centralEnd) throw new Error('The .scape central-directory records are not exact.');
+	if (cursor !== centralEnd) throw new Error('The Scape central-directory records are not exact.');
 	return entries;
 }
 
@@ -282,9 +282,9 @@ async function validateLocalEntry(
 	entry: CentralEntry,
 ): Promise<EntryRange> {
 	const label = `entry ${String(entry.index + 1)}`;
-	if (entry.localOffset > centralOffset - LOCAL_FIXED_BYTES) throw new Error(`The .scape ${label} crosses the central directory.`);
+	if (entry.localOffset > centralOffset - LOCAL_FIXED_BYTES) throw new Error(`The Scape ${label} crosses the central directory.`);
 	const fixed = view(await readRange(context, entry.localOffset, LOCAL_FIXED_BYTES));
-	if (fixed.getUint32(0, true) !== LOCAL_SIGNATURE) throw new Error(`The .scape ${label} local record is invalid.`);
+	if (fixed.getUint32(0, true) !== LOCAL_SIGNATURE) throw new Error(`The Scape ${label} local record is invalid.`);
 	const flags = fixed.getUint16(6, true);
 	const method = fixed.getUint16(8, true);
 	const crc32 = fixed.getUint32(14, true);
@@ -294,33 +294,33 @@ async function validateLocalEntry(
 	const extraBytes = fixed.getUint16(28, true);
 	const variableBytes = nameBytes + extraBytes;
 	const variableOffset = entry.localOffset + LOCAL_FIXED_BYTES;
-	if (variableBytes > centralOffset - variableOffset) throw new Error(`The .scape ${label} local record crosses the central directory.`);
+	if (variableBytes > centralOffset - variableOffset) throw new Error(`The Scape ${label} local record crosses the central directory.`);
 	const variable = await readRange(context, variableOffset, variableBytes);
 	if (flags !== entry.flags || method !== ZIP_STORE_METHOD || !equalBytes(variable.subarray(0, nameBytes), entry.name)) {
-		throw new Error(`The .scape ${label} has an ambiguous archive layout: its local record does not match its central record.`);
+		throw new Error(`The Scape ${label} has an ambiguous archive layout: its local record does not match its central record.`);
 	}
 	const fields = parseExtraFields(variable.subarray(nameBytes), `${label} local record`);
 	const localSizes = resolveLocalZip64(fields, rawUncompressed, rawCompressed);
-	if (localSizes.zip64 !== entry.zip64Sizes) throw new Error(`The .scape ${label} Zip64 size profile is inconsistent.`);
+	if (localSizes.zip64 !== entry.zip64Sizes) throw new Error(`The Scape ${label} Zip64 size profile is inconsistent.`);
 	const hasDescriptor = (flags & DATA_DESCRIPTOR_FLAG) !== 0;
 	if (!hasDescriptor) {
 		if (crc32 !== entry.crc32
 			|| localSizes.compressedSize !== entry.compressedSize
 			|| localSizes.uncompressedSize !== entry.uncompressedSize) {
-			throw new Error(`The .scape ${label} local fields do not exactly match the central record.`);
+			throw new Error(`The Scape ${label} local fields do not exactly match the central record.`);
 		}
 	} else if ((crc32 !== 0 && crc32 !== entry.crc32)
 		|| !descriptorSizePlaceholdersMatch(localSizes, entry)) {
-		throw new Error(`The .scape ${label} descriptor placeholders are inconsistent.`);
+		throw new Error(`The Scape ${label} descriptor placeholders are inconsistent.`);
 	}
 	const dataOffset = variableOffset + variableBytes;
-	if (entry.compressedSize > centralOffset - dataOffset) throw new Error(`The .scape ${label} data crosses the central directory.`);
+	if (entry.compressedSize > centralOffset - dataOffset) throw new Error(`The Scape ${label} data crosses the central directory.`);
 	let end = dataOffset + entry.compressedSize;
 	if (hasDescriptor) {
 		const maximumDescriptorBytes = entry.zip64Sizes ? 24 : 16;
 		const minimumDescriptorBytes = maximumDescriptorBytes - 4;
 		const available = centralOffset - end;
-		if (available < minimumDescriptorBytes) throw new Error(`The .scape ${label} data descriptor crosses the central directory.`);
+		if (available < minimumDescriptorBytes) throw new Error(`The Scape ${label} data descriptor crosses the central directory.`);
 		const descriptor = await readRange(context, end, Math.min(maximumDescriptorBytes, available));
 		end += resolveScapeDataDescriptorLength(descriptor, {
 			compressedSize: entry.compressedSize,
@@ -354,15 +354,15 @@ function resolveCentralZip64(
 ) {
 	const zip64 = fields.get(ZIP64_EXTRA_FIELD);
 	const sizeSentinels = Number(rawUncompressed === UINT32_SENTINEL) + Number(rawCompressed === UINT32_SENTINEL);
-	if (sizeSentinels === 1) throw new Error('The .scape central Zip64 size fields are inconsistent.');
+	if (sizeSentinels === 1) throw new Error('The Scape central Zip64 size fields are inconsistent.');
 	const required = sizeSentinels * 8
 		+ Number(rawLocalOffset === UINT32_SENTINEL) * 8
 		+ Number(rawDisk === UINT16_SENTINEL) * 4;
 	if (!required) {
-		if (zip64) throw new Error('The .scape central record has an unnecessary Zip64 extra field.');
+		if (zip64) throw new Error('The Scape central record has an unnecessary Zip64 extra field.');
 		return { uncompressedSize: rawUncompressed, compressedSize: rawCompressed, localOffset: rawLocalOffset, disk: rawDisk };
 	}
-	if (!zip64 || zip64.byteLength !== required) throw new Error('The .scape central Zip64 extra field is not exact.');
+	if (!zip64 || zip64.byteLength !== required) throw new Error('The Scape central Zip64 extra field is not exact.');
 	let offset = 0;
 	const take64 = (raw: number, label: string) => {
 		if (raw !== UINT32_SENTINEL) return raw;
@@ -385,12 +385,12 @@ function resolveLocalZip64(
 	const zip64 = fields.get(ZIP64_EXTRA_FIELD);
 	const uncompressedSentinel = rawUncompressed === UINT32_SENTINEL;
 	const compressedSentinel = rawCompressed === UINT32_SENTINEL;
-	if (uncompressedSentinel !== compressedSentinel) throw new Error('The .scape local Zip64 size fields are inconsistent.');
+	if (uncompressedSentinel !== compressedSentinel) throw new Error('The Scape local Zip64 size fields are inconsistent.');
 	if (!uncompressedSentinel) {
-		if (zip64) throw new Error('The .scape local record has an unnecessary Zip64 extra field.');
+		if (zip64) throw new Error('The Scape local record has an unnecessary Zip64 extra field.');
 		return { uncompressedSize: rawUncompressed, compressedSize: rawCompressed, zip64: false };
 	}
-	if (!zip64 || zip64.byteLength !== 16) throw new Error('The .scape local Zip64 extra field is not exact.');
+	if (!zip64 || zip64.byteLength !== 16) throw new Error('The Scape local Zip64 extra field is not exact.');
 	return {
 		uncompressedSize: safeUint64(view(zip64), 0, 'local Zip64 uncompressed size'),
 		compressedSize: safeUint64(view(zip64), 8, 'local Zip64 compressed size'),
@@ -403,12 +403,12 @@ function parseExtraFields(bytes: Uint8Array, label: string): ReadonlyMap<number,
 	const bytesView = view(bytes);
 	let offset = 0;
 	while (offset < bytes.byteLength) {
-		if (offset > bytes.byteLength - 4) throw new Error(`The .scape ${label} extra fields are truncated.`);
+		if (offset > bytes.byteLength - 4) throw new Error(`The Scape ${label} extra fields are truncated.`);
 		const id = bytesView.getUint16(offset, true);
 		const size = bytesView.getUint16(offset + 2, true);
 		offset += 4;
-		if (size > bytes.byteLength - offset) throw new Error(`The .scape ${label} extra field is truncated.`);
-		if (fields.has(id)) throw new Error(`The .scape ${label} has duplicate extra fields.`);
+		if (size > bytes.byteLength - offset) throw new Error(`The Scape ${label} extra field is truncated.`);
+		if (fields.has(id)) throw new Error(`The Scape ${label} has duplicate extra fields.`);
 		fields.set(id, bytes.subarray(offset, offset + size));
 		offset += size;
 	}
@@ -419,11 +419,11 @@ function assertExactEntryPartition(ranges: EntryRange[], centralOffset: number):
 	ranges.sort((left, right) => left.start - right.start);
 	let cursor = 0;
 	for (const range of ranges) {
-		if (range.start < cursor) throw new Error('The .scape ZIP has overlapping entry ranges.');
-		if (range.start !== cursor) throw new Error('The .scape ZIP has an unclaimed entry-layout gap.');
+		if (range.start < cursor) throw new Error('The Scape ZIP has overlapping entry ranges.');
+		if (range.start !== cursor) throw new Error('The Scape ZIP has an unclaimed entry-layout gap.');
 		cursor = range.end;
 	}
-	if (cursor !== centralOffset) throw new Error('The .scape entry ranges do not reach the exact central-directory boundary.');
+	if (cursor !== centralOffset) throw new Error('The Scape entry ranges do not reach the exact central-directory boundary.');
 }
 
 function descriptorMatches(bytes: Uint8Array, offset: number, expected: ScapeDataDescriptorExpectation): boolean {
@@ -439,11 +439,11 @@ function descriptorMatches(bytes: Uint8Array, offset: number, expected: ScapeDat
 
 function assertDescriptorExpectation(expected: ScapeDataDescriptorExpectation): void {
 	for (const value of [expected.crc32, expected.compressedSize, expected.uncompressedSize]) {
-		if (!Number.isSafeInteger(value) || value < 0) throw new RangeError('The .scape descriptor expectation is invalid.');
+		if (!Number.isSafeInteger(value) || value < 0) throw new RangeError('The Scape descriptor expectation is invalid.');
 	}
 	if (expected.crc32 > UINT32_SENTINEL
 		|| (!expected.zip64 && (expected.compressedSize > UINT32_SENTINEL || expected.uncompressedSize > UINT32_SENTINEL))) {
-		throw new RangeError('The .scape descriptor expectation exceeds its field width.');
+		throw new RangeError('The Scape descriptor expectation exceeds its field width.');
 	}
 }
 
@@ -451,7 +451,7 @@ async function readRange(context: LayoutContext, offset: number, length: number)
 	throwIfScapeAborted(context.signal);
 	if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(length) || offset < 0 || length < 0
 		|| length > SCAPE_MAXIMUM_LAYOUT_READ_BYTES || offset > context.size - length) {
-		throw new RangeError('The .scape layout requested an invalid or unbounded byte range.');
+		throw new RangeError('The Scape layout requested an invalid or unbounded byte range.');
 	}
 	if (!length) return new Uint8Array();
 	const bytes = await readScapeArchiveByteRange(context.source, {
@@ -460,19 +460,19 @@ async function readRange(context: LayoutContext, offset: number, length: number)
 		...(context.signal ? { signal: context.signal } : {}),
 	});
 	throwIfScapeAborted(context.signal);
-	if (bytes.byteLength !== length) throw new Error('The .scape byte-range read was incomplete.');
+	if (bytes.byteLength !== length) throw new Error('The Scape byte-range read was incomplete.');
 	context.witness?.record(offset, bytes);
 	return bytes;
 }
 
 function safeUint64(bytesView: DataView, offset: number, label: string): number {
 	const value = bytesView.getBigUint64(offset, true);
-	if (value > MAXIMUM_SAFE_BIGINT) throw new RangeError(`The .scape ${label} exceeds the safe integer range.`);
+	if (value > MAXIMUM_SAFE_BIGINT) throw new RangeError(`The Scape ${label} exceeds the safe integer range.`);
 	return Number(value);
 }
 
 function assertClassicValue(classic: number, sentinel: number, zip64: number, label: string): void {
-	if (classic !== sentinel && classic !== zip64) throw new Error(`The .scape classic and Zip64 ${label} disagree.`);
+	if (classic !== sentinel && classic !== zip64) throw new Error(`The Scape classic and Zip64 ${label} disagree.`);
 }
 
 function tailViewAt(bytes: Uint8Array, tailOffset: number, absoluteOffset: number, length: number): DataView {

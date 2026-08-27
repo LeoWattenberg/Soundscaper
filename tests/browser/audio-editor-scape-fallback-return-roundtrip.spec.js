@@ -28,9 +28,9 @@ import {
 } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
-	chooseFileAction,
 	clipByName,
 	collectClientErrors,
+	chooseExportProjectFileAction,
 	importFiles,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
@@ -403,7 +403,7 @@ async function exportScapeArchive(page, editor) {
 			}),
 		});
 	});
-	await chooseFileAction(page, editor, 'Export project file (.scape)');
+	await chooseExportProjectFileAction(page, editor);
 	await expect.poll(
 		() => page.evaluate(() => globalThis.__scapeFallbackReturnSave.closes),
 		{ timeout: 30_000 },

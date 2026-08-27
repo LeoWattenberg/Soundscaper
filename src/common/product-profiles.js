@@ -2,10 +2,12 @@
 
 import { SHARED_CAPABILITIES } from './product-capabilities.js';
 import { PRODUCT_IDENTITIES } from './product-identities.js';
+import { PROJECT_FILE_EXTENSION_BY_PRODUCT } from './project-file-extensions.ts';
 
 export const SOUNDSCAPER_PROFILE = {
 	...PRODUCT_IDENTITIES.soundscaper,
 	description: 'A local-first multitrack audio editor for the web and desktop.',
+	projectFileExtension: PROJECT_FILE_EXTENSION_BY_PRODUCT.soundscaper,
 	enabledCommands: ['project', 'timeline', 'transport', 'audio-mix', 'audio-record', 'audio-generate', 'audio-effects', 'audio-spectral', 'audio-analysis', 'audio-macros', 'video-basic', 'export-audio', 'export-video'],
 	panels: ['project-bin', 'track-list', 'mixer', 'effects', 'analysis', 'recording-meter', 'playback-meter'],
 	importChoices: ['scape', 'audacity-project', 'audio', 'video', 'labels'],
@@ -70,6 +72,7 @@ export const SOUNDSCAPER_PROFILE = {
 export const FRAMESCAPER_PROFILE = {
 	...PRODUCT_IDENTITIES.framescaper,
 	description: 'A local-first video editor for the web and desktop.',
+	projectFileExtension: PROJECT_FILE_EXTENSION_BY_PRODUCT.framescaper,
 	enabledCommands: ['project', 'timeline', 'transport', 'audio-mix', 'video-basic', 'video-effects', 'video-compositing', 'export-audio', 'export-video'],
 	panels: ['project-bin', 'track-list', 'mixer', 'video-preview', 'source-monitor', 'video-effects', 'playback-meter'],
 	importChoices: ['scape', 'audacity-project', 'audio', 'video', 'labels'],

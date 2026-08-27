@@ -8,16 +8,28 @@
  * service worker at scope `/framescaper/` that answers navigations out of Cache
  * Storage without touching the network, so a redirect deployed on
  * soundscaper.org is invisible to exactly the people it is for: the document
- * path never reaches the origin. A 301 alone therefore cannot perform this
- * cutover.
+ * path never reaches the origin. That stale worker, not the redirect, is the
+ * obstacle, and it is the only thing this file removes.
  *
  * The tombstone is a replacement script served at the retired worker's own
  * script URL. Because it is the same registration, the browser fetches it on the
  * next navigation or update check, installs it, and it takes over. It then
- * claims its clients, deletes the caches the retired worker owned, sends the
- * pages it controls to the new origin with their locale intact, and unregisters
- * itself so every later visit reaches the network — where a 301 may or may not
- * yet exist. Nothing here depends on that 301 existing.
+ * claims its clients, deletes the caches the retired worker owned, and
+ * unregisters itself. It registers no fetch handler at all, so from that moment
+ * every request on the retired path reaches the network — and therefore reaches
+ * whatever the origin has deployed there, whether that is still the old document
+ * or the permanent redirect that eventually replaces it.
+ *
+ * It deliberately does not navigate the windows it controls.
+ *
+ * Browser storage is partitioned per origin, so a project an open window is
+ * editing cannot be read from the new origin — that partitioning is the entire
+ * reason the cross-origin project transfer exists. Sending a window to the new
+ * origin therefore takes the user away from their own work and lands them
+ * somewhere that cannot see it. A stale worker is an inconvenience; losing sight
+ * of an open project is not. The window is left running, its storage intact, and
+ * the next navigation is the user's own — by which time the worker is gone and
+ * the network answers.
  *
  * Three invariants keep it safe to serve for a long retention window:
  *
@@ -27,9 +39,11 @@
  *   shell caches. The literal prefix below names caches that already exist in
  *   visitors' browsers; it is deliberately a frozen historical fact and must not
  *   follow later renames of the live shell's cache naming.
- * - Every redirect target is rebuilt against the configured origin and rejected
- *   unless the result still carries that origin, so no request path can steer a
- *   visitor somewhere else.
+ * - It answers no request and moves no window, so there is no path by which it
+ *   can send a visitor anywhere at all.
+ *
+ * `targetOrigin` is recorded rather than acted on: it is what the deployment
+ * audit publishes as the place the retired product went.
  *
  * A browser that never had the retired worker is unharmed: the script is inert
  * until it is registered, and once registered it removes itself.
@@ -41,7 +55,6 @@ const CONFIGURATION_TOKEN = '__SOUNDSCAPER_RETIRED_SHELL_CONFIGURATION__';
 const RETIRED_PRODUCT_IDS = Object.freeze(['framescaper', 'soundscaper']);
 /** The cache-name prefix the deployed shell worker used; a historical fact, not a live constant. */
 const SHELL_CACHE_PREFIX = 'soundscaper-application-shell-v2-';
-const REDIRECT_STATUS = 302;
 
 const TOMBSTONE_VARIABLE = 'FRAMESCAPER_TOMBSTONE';
 const TARGET_SITE_VARIABLE = 'FRAMESCAPER_SITE';
@@ -172,53 +185,6 @@ function retiredShellCachePattern(productId) {
 	return new RegExp(`^${SHELL_CACHE_PREFIX}${productId}-[a-f\\d]{64}$`, 'u');
 }
 
-/**
- * Maps one retired-path URL onto the new origin, preserving the locale and every
- * remaining segment. Returns null rather than guessing whenever the path is not
- * the retired product's, or the rebuilt URL would leave the configured origin.
- */
-function tombstoneRedirectUrl(href, configuration) {
-	let url;
-	try {
-		url = new URL(String(href));
-	} catch {
-		return null;
-	}
-	if (url.origin === configuration.targetOrigin) return null;
-	const scope = configuration.scope;
-	const remainder = url.pathname === scope.slice(0, -1)
-		? ''
-		: url.pathname.startsWith(scope) ? url.pathname.slice(scope.length) : null;
-	if (remainder === null || remainder.startsWith('/') || remainder.includes('\\')) return null;
-	let target;
-	try {
-		target = new URL(`/${remainder}${url.search}`, configuration.targetOrigin);
-	} catch {
-		return null;
-	}
-	return target.origin === configuration.targetOrigin ? target.href : null;
-}
-
-/**
- * Answers a controlled navigation with a temporary redirect to the new origin.
- * This is what reaches a visitor whose browser never asks the network for the
- * retired document, and it works whether or not a 301 has been deployed. The
- * redirect is temporary so no browser caches the mapping past the retention
- * window, and only same-origin GET navigations are answered at all.
- */
-function tombstoneNavigationResponse(request, configuration, origin) {
-	if (request.method !== 'GET' || request.mode !== 'navigate') return null;
-	let url;
-	try {
-		url = new URL(request.url);
-	} catch {
-		return null;
-	}
-	if (url.origin !== origin) return null;
-	const target = tombstoneRedirectUrl(request.url, configuration);
-	return target === null ? null : Response.redirect(target, REDIRECT_STATUS);
-}
-
 export async function installTombstone({ configuration, skipWaiting }) {
 	validateTombstoneConfiguration(configuration);
 	await skipWaiting();
@@ -227,18 +193,17 @@ export async function installTombstone({ configuration, skipWaiting }) {
 /**
  * Retires the worker in the only order that is safe.
  *
- * 1. Claim, so pages loaded under the previous worker are controlled by this one
- *    and can be both redirected and navigated.
+ * 1. Claim, so this worker — and not the one it replaced — is what the already
+ *    open pages are controlled by.
  * 2. Delete the retired product's shell caches, so no stale document can be
  *    served again even if a later step fails.
- * 3. Start navigating the controlled windows while control is certain: a window
- *    client may only be navigated by the worker that controls it.
- * 4. Unregister, so every later visit to the retired path reaches the network.
- * 5. Await the navigations, which are individually allowed to fail — a window
- *    that refuses is still redirected by the fetch handler on its next
- *    navigation, because it stays controlled until it unloads.
+ * 3. Unregister, so every later visit to the retired path reaches the network.
+ *
+ * There is no fourth step. The windows this worker controls are left alone: it
+ * has no fetch handler, so their next navigation goes to the network by itself,
+ * and moving them would strand them on an origin that cannot read their storage.
  */
-export async function activateTombstone({ configuration, cacheStorage, clients, registration, origin }) {
+export async function activateTombstone({ configuration, cacheStorage, clients, registration }) {
 	validateTombstoneConfiguration(configuration);
 	const failures = [];
 	const pattern = retiredShellCachePattern(configuration.productId);
@@ -256,19 +221,11 @@ export async function activateTombstone({ configuration, cacheStorage, clients, 
 	} catch (error) {
 		failures.push(`retire its caches (${retiredFailureReason(error)})`);
 	}
-	let navigations = [];
-	try {
-		const windows = await clients.matchAll({ type: 'window' });
-		navigations = windows.map((client) => navigateRetiredClient(client, configuration, origin));
-	} catch (error) {
-		failures.push(`enumerate its clients (${retiredFailureReason(error)})`);
-	}
 	try {
 		await registration.unregister();
 	} catch (error) {
 		failures.push(`unregister itself (${retiredFailureReason(error)})`);
 	}
-	await Promise.all(navigations);
 	if (failures.length > 0) {
 		throw new Error(`Retired ${configuration.productId} service worker could not ${failures.join('; ')}.`);
 	}
@@ -276,23 +233,6 @@ export async function activateTombstone({ configuration, cacheStorage, clients, 
 
 function retiredFailureReason(error) {
 	return typeof error?.message === 'string' && error.message !== '' ? error.message : String(error);
-}
-
-async function navigateRetiredClient(client, configuration, origin) {
-	let url;
-	try {
-		url = new URL(String(client.url));
-	} catch {
-		return;
-	}
-	if (url.origin !== origin) return;
-	const target = tombstoneRedirectUrl(client.url, configuration);
-	if (target === null) return;
-	try {
-		await client.navigate(target);
-	} catch {
-		// A window may refuse to be navigated; it stays controlled and the fetch handler redirects it instead.
-	}
 }
 
 function attachRetiredServiceWorker(scope, configuration) {
@@ -305,16 +245,14 @@ function attachRetiredServiceWorker(scope, configuration) {
 			cacheStorage: scope.caches,
 			clients: scope.clients,
 			registration: scope.registration,
-			origin: scope.location.origin,
 		}));
 	});
-	scope.addEventListener('fetch', (event) => {
-		const response = tombstoneNavigationResponse(event.request, configuration, scope.location.origin);
-		if (response) event.respondWith(response);
-	});
+	// No fetch listener, deliberately. A service worker that registers none is
+	// bypassed for navigations entirely, which is exactly what retiring the path
+	// means: the origin answers again.
 }
 
-export { attachRetiredServiceWorker, tombstoneNavigationResponse, tombstoneRedirectUrl };
+export { attachRetiredServiceWorker };
 
 function tombstoneServiceWorkerTemplate() {
 	return `/* SPDX-License-Identifier: AGPL-3.0-only */
@@ -322,7 +260,6 @@ function tombstoneServiceWorkerTemplate() {
 const RETIRED_SHELL = ${CONFIGURATION_TOKEN};
 const RETIRED_PRODUCT_IDS = ${JSON.stringify(RETIRED_PRODUCT_IDS)};
 const SHELL_CACHE_PREFIX = ${JSON.stringify(SHELL_CACHE_PREFIX)};
-const REDIRECT_STATUS = ${String(REDIRECT_STATUS)};
 ${[
 	plainObject,
 	exactKeys,
@@ -331,11 +268,8 @@ ${[
 	validTargetOrigin,
 	validateTombstoneConfiguration,
 	retiredShellCachePattern,
-	tombstoneRedirectUrl,
-	tombstoneNavigationResponse,
 	installTombstone,
 	retiredFailureReason,
-	navigateRetiredClient,
 	activateTombstone,
 	attachRetiredServiceWorker,
 ].map((value) => value.toString()).join('\n')}

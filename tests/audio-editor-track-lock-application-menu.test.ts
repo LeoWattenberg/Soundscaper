@@ -63,8 +63,19 @@ test('exact product menus disable cross-product editing until an admitted carrie
 			}),
 			crossProductHandoffAvailable: false,
 		}) as readonly MenuItem[], 'switch-product');
+		const projectExtension = productId === 'framescaper' ? '.fscape' : '.sscape';
 		assert.equal(unavailable.disabled, true);
-		assert.equal(unavailable.disabledReason, 'Cross-product editing is unavailable for this project format. Export a .scape file to preserve a copy.');
+		assert.equal(unavailable.disabledReason, `Cross-product editing is unavailable for this project format. Export a ${projectExtension} file to preserve a copy.`);
+		assert.equal(
+			findMenuItem(createApplicationMenus({
+				...menuInput({
+					productId, type: productId === 'framescaper' ? 'video' : 'audio',
+					locked: false, editBlocked: false, actions: actionPorts({}),
+				}),
+				crossProductHandoffAvailable: false,
+			}) as readonly MenuItem[], 'save-scape').label,
+			`Export project file (${projectExtension})`,
+		);
 
 		const available = findMenuItem(createApplicationMenus({
 			...menuInput({
@@ -217,7 +228,8 @@ function copyValues(): object {
 	return new Proxy({
 		lockTrack: 'Lock track',
 		unlockTrack: 'Unlock track',
-		crossProductHandoffUnavailable: 'Cross-product editing is unavailable for this project format. Export a .scape file to preserve a copy.',
+		crossProductHandoffUnavailable: 'Cross-product editing is unavailable for this project format. Export a {projectExtension} file to preserve a copy.',
+		saveScape: 'Export project file ({projectExtension})',
 	}, {
 		get(target, property, receiver) {
 			return Reflect.has(target, property)

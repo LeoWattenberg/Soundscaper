@@ -69,8 +69,10 @@ const APPLICATION_FEATURE_LABELS = Object.freeze({
 	framescaperWebVcr: 'Web VCR capture',
 });
 
+// The `scape` family ID is one machine-level identity shared by every product;
+// only the suffix each product writes differs, so its label is per-product.
 const FAMILY_LABELS = Object.freeze({
-	scape: '.scape',
+	scape: (product) => product.projectFileExtension,
 	'audacity-project': 'Audacity projects',
 	audio: 'Audio',
 	video: 'Video',
@@ -295,9 +297,16 @@ function renderFeatureRows(products, field, labels, kind) {
 		]);
 }
 
-function familyNames(families) {
+function familyNames(product, families) {
 	if (!Array.isArray(families)) return 'None';
-	return families.map((family) => reviewedLabel(FAMILY_LABELS, family, 'format family')).join(', ');
+	return families.map((family) => {
+		const label = reviewedLabel(FAMILY_LABELS, family, 'format family');
+		const resolved = typeof label === 'function' ? label(product) : label;
+		if (typeof resolved !== 'string' || !resolved) {
+			throw new Error(`No reviewed documentation label exists for format family ${family}.`);
+		}
+		return resolved;
+	}).join(', ');
 }
 
 export function renderCapabilityReference({ products }) {
@@ -311,8 +320,8 @@ export function renderCapabilityReference({ products }) {
 	);
 	const familyRows = products.map((product) => [
 		product.name,
-		familyNames(product.importChoices),
-		familyNames(product.exportChoices),
+		familyNames(product, product.importChoices),
+		familyNames(product, product.exportChoices),
 	]);
 	const featureHeaders = ['Capability', ...products.map(({ name }) => name)];
 	const sections = [

@@ -409,7 +409,7 @@ function readDescriptorMimeType(value) {
 	return mimeType;
 }
 function assertReadDescriptorProfile(readProfile, name, mimeType) {
-	const hasScapeName = /\.scape$/iu.test(name);
+	const hasScapeName = /\.(?:sscape|fscape|liscape|scape)$/iu.test(name);
 	const hasScapeMime = mimeType === SCAPE_PROJECT_MIME_TYPE;
 	if (readProfile === READ_PROFILE_SCAPE_RANGE_V1) {
 		if (!hasScapeName || !hasScapeMime) throw new TypeError('Invalid Scape range read descriptor');

@@ -19,6 +19,16 @@ const ISOLATION = Object.freeze({
 	'x-content-type-options': 'nosniff',
 });
 
+/**
+ * The opener policy each cross-origin transfer document receives, and no other
+ * document may. Both builds emit these two paths: a project crosses between
+ * soundscaper.org and framescaper.org, so each origin serves its own pair.
+ */
+const TRANSFER_OPENER_POLICIES = Object.freeze({
+	'/transfer/send/': 'same-origin-allow-popups',
+	'/transfer/receive/': 'unsafe-none',
+});
+
 test('the Soundscaper build assigns exactly one product- and route-specific document capture policy', async () => {
 	const rules = parseHeaderRules(await productHeaders('soundscaper'));
 	const policyRules = rules.filter(({ headers }) => headers.has('permissions-policy'));
@@ -74,8 +84,39 @@ test('both builds share one unmoved cross-origin isolation rule that no document
 				`${productId} ${path} Cross-Origin-Embedder-Policy`,
 			);
 		}
+		assertTransferDocuments(rules, productId);
 	}
 });
+
+/**
+ * The transfer documents are per-origin, not per-product: both composed files
+ * carry them, each with exactly one relaxed opener policy reached by detaching
+ * the shared one first, and each still credentialless.
+ */
+function assertTransferDocuments(rules, productId) {
+	for (const [path, expected] of Object.entries(TRANSFER_OPENER_POLICIES)) {
+		const own = rules.filter(({ pattern }) => pattern === path);
+		assert.equal(own.length, 1, `${productId} must carry ${path} exactly once`);
+		assert.deepEqual([...own[0].detached], ['cross-origin-opener-policy'], `${productId} ${path} detach`);
+		assert.deepEqual(joinedHeader(rules, path, 'cross-origin-opener-policy'), [expected], `${productId} ${path}`);
+		assert.deepEqual(
+			joinedHeader(rules, path, 'cross-origin-embedder-policy'),
+			['credentialless'],
+			`${productId} ${path} Cross-Origin-Embedder-Policy`,
+		);
+		assert.equal(own[0].headers.has('permissions-policy'), false, `${productId} ${path} capture policy`);
+	}
+	// Only those two documents name an opener policy of their own; every other
+	// rule inherits the wildcard's same-origin by saying nothing.
+	assert.deepEqual(
+		rules
+			.filter(({ headers, pattern }) => pattern !== '/*' && headers.has('cross-origin-opener-policy'))
+			.map(({ pattern }) => pattern)
+			.sort(),
+		Object.keys(TRANSFER_OPENER_POLICIES).sort(),
+		`${productId} opener-policy owners`,
+	);
+}
 
 test('a relaxed Cross-Origin-Opener-Policy is refused unless the shared rule is detached first', async () => {
 	const shared = await readFile('public/_headers', 'utf8');
@@ -129,6 +170,14 @@ function assertExactPolicies(rules, expectations) {
 	}
 	assert.equal(policyRules.some(({ pattern }) => pattern === '/*'), false);
 	assert.equal(policyRules.filter(({ pattern }) => matches(pattern, '/assets/editor.js')).length, 0);
+	// And nothing in either composed file detaches a capture policy on the way
+	// past: the substituted document rules are the only thing that decides what a
+	// document may capture. The two transfer documents detach an opener policy
+	// and nothing else.
+	assert.deepEqual(
+		rules.filter(({ detached }) => detached.has('permissions-policy')).map(({ pattern }) => pattern),
+		[],
+	);
 }
 
 function workerRules(rules) {
@@ -161,10 +210,15 @@ function parseHeaderRules(value) {
 			rules.push(current);
 			continue;
 		}
-		const removal = /^\s+!\s*([^:\s]+)\s*$/u.exec(rawLine);
-		if (removal) {
+		// Cloudflare's detach form, `! Header-Name`, carries no value and no
+		// colon. The two transfer documents use it to drop the wildcard opener
+		// policy before naming their own; nothing else in either composed file
+		// detaches anything, so recording the name is enough to keep this parser
+		// honest about lines it has seen.
+		const detach = /^\s+!\s*([A-Za-z0-9-]+)\s*$/u.exec(rawLine);
+		if (detach) {
 			assert.ok(current, `invalid _headers line: ${rawLine}`);
-			current.detached.add(removal[1].trim().toLowerCase());
+			current.detached.add(detach[1].toLowerCase());
 			continue;
 		}
 		const match = /^\s+([^:]+):\s*(.*)$/u.exec(rawLine);

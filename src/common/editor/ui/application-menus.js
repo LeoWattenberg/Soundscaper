@@ -17,6 +17,7 @@ import { projectTrackFolderMediaStateV12 } from '../track-folder-media-runtime.t
 import { createVisibleVideoTrackPredicate } from '../video-track-visibility.js';
 import { createLocalModelManagerMenuItems } from './local-model-manager-menu.ts';
 import { createLocalAssistanceMenuItems } from './local-assistance-menu.ts';
+import { resolveProjectExtensionCopy } from './project-extension-copy.ts';
 
 /**
  * The video tracks an edit list would describe.
@@ -57,6 +58,9 @@ export default function createApplicationMenus({
 	actions,
 	crossProductHandoffAvailable = false,
 }) {
+	// The File menu names the suffix this product writes, so the catalog's
+	// `{projectExtension}` templates resolve here rather than in the catalog.
+	const projectFileCopy = resolveProjectExtensionCopy(copy, productId);
 	const divider = () => ({ divider: true });
 	const clipSelectionActive = Boolean(selectedClip || project?.selection?.clipIds?.some((clipId) => (
 		project.clips.some((clip) => clip.id === clipId)
@@ -191,7 +195,7 @@ export default function createApplicationMenus({
 				divider(),
 				{ id: 'save-project', label: copy.saveProject, shortcut: 'Ctrl+S', disabled: editBlocked, onClick: actions.saveProject },
 				{
-					id: 'save-scape', label: copy.saveScape, shortcut: 'Ctrl+Shift+S',
+					id: 'save-scape', label: projectFileCopy.saveScape, shortcut: 'Ctrl+Shift+S',
 					resolve: () => ({ disabled: blocked && !snapshot.readOnly }),
 					onClick: actions.saveScape,
 				},
@@ -199,7 +203,9 @@ export default function createApplicationMenus({
 					id: 'switch-product',
 					label: productId === 'framescaper' ? copy.editInSoundscaper : copy.editInFramescaper,
 					disabled: handoffBlocked || !crossProductHandoffAvailable,
-					disabledReason: crossProductHandoffAvailable ? undefined : copy.crossProductHandoffUnavailable,
+					disabledReason: crossProductHandoffAvailable
+						? undefined
+						: projectFileCopy.crossProductHandoffUnavailable,
 					onClick: actions.switchProduct,
 				},
 				divider(),

@@ -187,7 +187,7 @@ Use milestone 8A's bounded fragments, monotonic clock, backpressure, drop/drift
 metrics, storage admission, recovery ownership, and managed-media publication.
 Capture the Recording Setup destination at Record, defaulting to Project Bin
 plus timeline at the record-start playhead. Publish ordinary linked recorded
-video/audio sources through the same relink, proxy, edit, `.scape`, handoff, and
+video/audio sources through the same relink, proxy, edit, Scape, handoff, and
 delivery paths as other Framescaper recordings. Do not return a large generic
 desktop `File` or read descriptor to the renderer.
 

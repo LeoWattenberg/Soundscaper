@@ -152,11 +152,6 @@ export function ensureAup4FileName(value: unknown): string {
 	return /\.aup4$/i.test(base) ? base : `${base}.aup4`;
 }
 
-export function ensureScapeFileName(value: unknown): string {
-	const base = String(value || 'project').trim() || 'project';
-	return /\.scape$/i.test(base) ? base : `${base}.scape`;
-}
-
 export function normalizeAup4CompatibilityReport(report: unknown, direction: unknown): Aup4CompatibilityReport {
 	const value = report && typeof report === 'object'
 		? structuredClone(report) as Record<string, unknown>

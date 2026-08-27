@@ -89,7 +89,7 @@ export async function prepareScapeImportSourceIdentities(
 	for (const value of sources) {
 		throwIfScapeAborted(signal);
 		if (!value || typeof value !== 'object' || Array.isArray(value)) {
-			throw new TypeError('The migrated .scape project contains an invalid source.');
+			throw new TypeError('The migrated Scape project contains an invalid source.');
 		}
 		const source = value as Record<string, unknown>;
 		const sourceId = stableId(source.id, 'migrated source ID');

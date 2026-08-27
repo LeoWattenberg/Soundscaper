@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 /**
- * The checksum manifest of a written `.scape` archive.
+ * The checksum manifest of a written Scape archive.
  *
  * The archive already carries its own manifest, written as the assets streamed
  * out. This is a different document with a different job: it is built by
@@ -88,7 +88,7 @@ async function* memberStreams(
 	for (const entry of entries) {
 		if (entry.directory) continue;
 		const filename = String(entry.filename ?? '');
-		if (!filename) throw new TypeError('A .scape archive entry has no name to record.');
+		if (!filename) throw new TypeError('A Scape archive entry has no name to record.');
 		yield {
 			id: filename,
 			path: filename,
@@ -102,7 +102,7 @@ async function* entryChunks(
 	signal: AbortSignal | undefined,
 ): AsyncGenerator<Uint8Array> {
 	if (typeof entry.getData !== 'function') {
-		throw new TypeError(`.scape archive entry ${entry.filename} cannot be read.`);
+		throw new TypeError(`Scape archive entry ${entry.filename} cannot be read.`);
 	}
 	const pending: Uint8Array[] = [];
 	let notify: (() => void) | null = null;

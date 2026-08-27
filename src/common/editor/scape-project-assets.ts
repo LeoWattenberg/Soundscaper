@@ -60,12 +60,12 @@ export function indexScapeProjectAssets(
 	});
 	const sourceAssets = manifest.assets.filter(({ kind }) => kind === 'audio' || kind === 'video');
 	if (canonicalSources.length !== sourceAssets.length) {
-		throw new Error('The .scape project sources and manifest assets do not form a one-to-one mapping.');
+		throw new Error('The Scape project sources and manifest assets do not form a one-to-one mapping.');
 	}
 	const assetBySourceId = new Map<string, ScapeAssetDescriptor>();
 	for (const asset of sourceAssets) {
 		if (assetBySourceId.has(asset.sourceId)) {
-			throw new Error(`Duplicate .scape source asset: ${asset.sourceId}.`);
+			throw new Error(`Duplicate Scape source asset: ${asset.sourceId}.`);
 		}
 		assetBySourceId.set(asset.sourceId, asset);
 	}
@@ -73,21 +73,21 @@ export function indexScapeProjectAssets(
 	const projectSourceIds = new Set<string>();
 	for (const value of canonicalSources) {
 		if (!value || typeof value !== 'object' || Array.isArray(value)) {
-			throw new TypeError('The migrated .scape project contains an invalid source.');
+			throw new TypeError('The migrated Scape project contains an invalid source.');
 		}
 		const source = value as Record<string, unknown>;
 		if (typeof source.id !== 'string' || !source.id) {
-			throw new TypeError('The migrated .scape project contains an invalid source ID.');
+			throw new TypeError('The migrated Scape project contains an invalid source ID.');
 		}
 		if (source.kind !== 'audio' && source.kind !== 'video') {
 			throw new TypeError(`Source ${source.id} has an unsupported kind.`);
 		}
 		if (projectSourceIds.has(source.id)) {
-			throw new Error(`The migrated .scape project contains duplicate source ${source.id}.`);
+			throw new Error(`The migrated Scape project contains duplicate source ${source.id}.`);
 		}
 		projectSourceIds.add(source.id);
 		const asset = assetBySourceId.get(source.id);
-		if (!asset) throw new Error(`The .scape archive is missing source ${source.id}.`);
+		if (!asset) throw new Error(`The Scape archive is missing source ${source.id}.`);
 		if (source.kind !== asset.kind) {
 			throw new Error(`Source ${source.id} has an incompatible asset kind.`);
 		}
@@ -122,7 +122,7 @@ export function indexScapeProjectTimingAssets(
 ): ReadonlyMap<string, ScapeAssetDescriptor> {
 	const timingAssets = manifest.assets.filter(({ kind }) => kind === 'video-timing');
 	const byStorageKey = new Map(timingAssets.map((asset) => [asset.sourceId, asset]));
-	if (byStorageKey.size !== timingAssets.length) throw new Error('The .scape archive contains duplicate timing assets.');
+	if (byStorageKey.size !== timingAssets.length) throw new Error('The Scape archive contains duplicate timing assets.');
 	const referenced = new Set<string>();
 	for (const value of projectSources(project)) {
 		if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
@@ -136,11 +136,11 @@ export function indexScapeProjectTimingAssets(
 		const asset = byStorageKey.get(storageKey);
 		if (!asset || asset.sha256 !== reference.sha256 || asset.size !== reference.byteLength
 			|| asset.encoding !== reference.encoding) {
-			throw new Error(`The .scape archive is missing the bound timing asset for source ${String(source.id)}.`);
+			throw new Error(`The Scape archive is missing the bound timing asset for source ${String(source.id)}.`);
 		}
 		referenced.add(storageKey);
 	}
-	if (referenced.size !== timingAssets.length) throw new Error('The .scape archive contains an unreferenced timing asset.');
+	if (referenced.size !== timingAssets.length) throw new Error('The Scape archive contains an unreferenced timing asset.');
 	return byStorageKey;
 }
 
@@ -150,7 +150,7 @@ export function snapshotScapeProjectFallbackIntegrity(
 	options: ScapeProjectAssetIndexOptions = {},
 ): ScapeProjectFallbackSnapshot {
 	if (!project || typeof project !== 'object' || Array.isArray(project)) {
-		throw new TypeError('The migrated .scape project must be an object.');
+		throw new TypeError('The migrated Scape project must be an object.');
 	}
 	const candidate = project as ScapeProjectWithSources;
 	if (candidate.schemaVersion !== scapeAssetSchemaVersion(options)) return NO_FALLBACK_SNAPSHOT;
@@ -185,19 +185,19 @@ export function assertScapeProjectFallbackAssets(
 ): void {
 	for (const claim of claims) {
 		const asset = assetBySourceId.get(claim.sourceId);
-		if (!asset) throw new Error(`The .scape archive is missing rendered fallback source ${claim.sourceId}.`);
+		if (!asset) throw new Error(`The Scape archive is missing rendered fallback source ${claim.sourceId}.`);
 		if (claim.kind !== asset.kind) {
-			throw new Error(`Rendered fallback source ${claim.sourceId} kind does not match its .scape asset.`);
+			throw new Error(`Rendered fallback source ${claim.sourceId} kind does not match its Scape asset.`);
 		}
 		if (claim.sha256 !== asset.sha256) {
-			throw new Error(`Rendered fallback source ${claim.sourceId} SHA-256 does not match its .scape asset.`);
+			throw new Error(`Rendered fallback source ${claim.sourceId} SHA-256 does not match its Scape asset.`);
 		}
 	}
 }
 
 function projectSources(project: unknown): readonly unknown[] {
 	if (!project || typeof project !== 'object' || !Array.isArray((project as Partial<ScapeProjectWithSources>).sources)) {
-		throw new TypeError('The migrated .scape project has invalid sources.');
+		throw new TypeError('The migrated Scape project has invalid sources.');
 	}
 	return (project as ScapeProjectWithSources).sources;
 }

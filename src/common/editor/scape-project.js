@@ -54,7 +54,7 @@ import {
 } from './video-timing-asset.ts';
 
 export { SCAPE_FORMAT, SCAPE_FORMAT_VERSION, SCAPE_MIME_TYPE };
-export const SCAPE_FILE_EXTENSION = '.scape';
+export { SCAPE_FILE_EXTENSION } from '../project-file-extensions.ts';
 
 const PROJECT_ENTRY = SCAPE_PROJECT_ENTRY;
 const MANIFEST_ENTRY = SCAPE_MANIFEST_ENTRY;
@@ -238,7 +238,7 @@ export async function importScapeProject(input, store, options = {}) {
 					}
 					const reference = timingReferenceByStorageKey.get(storageKey);
 					if (typeof store.loadMediaAsset !== 'function') {
-						throw new TypeError('A media store with timing-body reads is required for .scape import.');
+						throw new TypeError('A media store with timing-body reads is required for Scape import.');
 					}
 					const loadedTiming = await awaitScapeOperation(store.loadMediaAsset(
 						storageKey,
@@ -256,7 +256,7 @@ export async function importScapeProject(input, store, options = {}) {
 					continue;
 				}
 				const entry = entryByName.get(asset.entry);
-				if (!entry) throw new Error(`The .scape archive is missing ${asset.entry}.`);
+				if (!entry) throw new Error(`The Scape archive is missing ${asset.entry}.`);
 				let timingWriter = null;
 				let timingPublication = null;
 				try {
@@ -294,7 +294,7 @@ export async function importScapeProject(input, store, options = {}) {
 						throw aggregateScapeErrors(
 							error,
 							[cleanupError],
-							'The .scape timing write and cleanup both failed.',
+							'The Scape timing write and cleanup both failed.',
 						);
 					}
 					throw error;
@@ -306,7 +306,7 @@ export async function importScapeProject(input, store, options = {}) {
 			if (!loaded.readOnly && project.schemaVersion === scapeCurrentProjectSchemaVersion(options)) {
 				if (options.rebindProjectSourceIdentities !== undefined) {
 					if (typeof options.rebindProjectSourceIdentities !== 'function') {
-						throw new TypeError('The .scape project source-identity rebinder must be a function.');
+						throw new TypeError('The Scape project source-identity rebinder must be a function.');
 					}
 					options.rebindProjectSourceIdentities(project, sourceIdMap);
 				}
@@ -336,7 +336,7 @@ export async function importScapeProject(input, store, options = {}) {
 				if (!asset) continue;
 				const source = project.sources.find((candidate) => candidate.id === finalSourceId);
 				const entry = entryByName.get(asset.entry);
-				if (!entry) throw new Error(`The .scape archive is missing ${asset.entry}.`);
+				if (!entry) throw new Error(`The Scape archive is missing ${asset.entry}.`);
 				if (source.kind === 'video') {
 					let mediaWriter = null;
 					let mediaPublication = null;
@@ -398,7 +398,7 @@ export async function importScapeProject(input, store, options = {}) {
 						if (abortFailed) throw aggregateScapeErrors(
 							mediaFailure,
 							[abortFailure],
-							'The .scape media write and cleanup both failed.',
+							'The Scape media write and cleanup both failed.',
 						);
 						throw mediaFailure;
 					}
@@ -433,7 +433,7 @@ export async function importScapeProject(input, store, options = {}) {
 						try {
 							await sourceWriter.abort();
 						} catch (abortError) {
-							throw aggregateScapeErrors(error, [abortError], 'The .scape source write and cleanup both failed.');
+							throw aggregateScapeErrors(error, [abortError], 'The Scape source write and cleanup both failed.');
 						}
 						throw error;
 					}
@@ -499,7 +499,7 @@ function captureScapeTimingWriter(writer, chunks) {
 
 function assertOwnedScapeMediaWriter(writer) {
 	if (!writer || typeof writer !== 'object' || typeof writer.commitOwned !== 'function') {
-		throw new TypeError('A .scape media import requires an ownership-aware transactional writer.');
+		throw new TypeError('A Scape media import requires an ownership-aware transactional writer.');
 	}
 }
 
@@ -508,12 +508,12 @@ function joinScapeTimingChunks(chunks, expectedBytes) {
 	let offset = 0;
 	for (const chunk of chunks) {
 		if (!(chunk instanceof Uint8Array) || chunk.byteLength > output.byteLength - offset) {
-			throw new Error('The .scape timing asset exceeded its admitted byte length.');
+			throw new Error('The Scape timing asset exceeded its admitted byte length.');
 		}
 		output.set(chunk, offset);
 		offset += chunk.byteLength;
 	}
-	if (offset !== output.byteLength) throw new Error('The .scape timing asset ended before its admitted byte length.');
+	if (offset !== output.byteLength) throw new Error('The Scape timing asset ended before its admitted byte length.');
 	return output;
 }
 
@@ -579,14 +579,14 @@ export async function inspectScapeProject(input, store = null, options = {}, ret
 function migrateScapeProjectDocument(projectText, options) {
 	const migrateProject = options?.migrateProject ?? migrateAudioEditorProject;
 	if (typeof migrateProject !== 'function') {
-		throw new TypeError('The .scape project migration owner must be a function.');
+		throw new TypeError('The Scape project migration owner must be a function.');
 	}
 	const loaded = migrateProject(parseScapeProjectDocument(projectText));
 	if (!loaded || typeof loaded !== 'object' || !loaded.project || typeof loaded.project !== 'object') {
-		throw new TypeError('The .scape project migration owner returned an invalid result.');
+		throw new TypeError('The Scape project migration owner returned an invalid result.');
 	}
 	if (typeof loaded.readOnly !== 'boolean') {
-		throw new TypeError('The .scape project migration result requires a readOnly decision.');
+		throw new TypeError('The Scape project migration result requires a readOnly decision.');
 	}
 	return loaded;
 }
@@ -594,7 +594,7 @@ function migrateScapeProjectDocument(projectText, options) {
 function scapeCurrentProjectSchemaVersion(options) {
 	const value = options?.currentProjectSchemaVersion ?? AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION;
 	if (!Number.isSafeInteger(value) || value < 1) {
-		throw new TypeError('The .scape current project schema version must be a positive safe integer.');
+		throw new TypeError('The Scape current project schema version must be a positive safe integer.');
 	}
 	return value;
 }

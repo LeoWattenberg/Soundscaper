@@ -15,7 +15,7 @@ interface ComposedValidation {
 }
 
 /**
- * Give independent durable-body owners one `.scape` extension slot without
+ * Give independent durable-body owners one Scape extension slot without
  * allowing either owner to bypass the other's validation or staging work.
  */
 export function composeScapeProjectAssetExtensions(

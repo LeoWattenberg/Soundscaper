@@ -3,7 +3,7 @@
 /**
  * Follow a source identity change into the groups that name it.
  *
- * A .scape import reassigns a source id when it collides with one the recipient
+ * A Scape import reassigns a source id when it collides with one the recipient
  * already holds, and the generic remapper rewrites the references the shared
  * schema owns — clips, bin clips, freeze roots, take groups. A multicamera
  * member's `sourceId` is Framescaper's own, so it has to be rebound here, or the

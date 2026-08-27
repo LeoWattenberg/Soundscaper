@@ -6,6 +6,10 @@ import {
 } from '../../src/common/editor/controller/lifecycle.ts';
 import type { NativeProjectServiceRuntime } from '../../src/common/editor/controller/native-project-service.ts';
 import type { NativeProjectDocument } from '../../src/common/editor/controller/native-project-types.ts';
+import {
+	PROJECT_FILE_EXTENSION_BY_PRODUCT,
+	withProjectFileExtension,
+} from '../../src/common/project-file-extensions.ts';
 
 export function project(id = 'project-a'): NativeProjectDocument {
 	return {
@@ -89,7 +93,8 @@ export function createFixture(overrides: Partial<NativeProjectServiceRuntime> = 
 		estimateStorageForPreflight: async () => ({ usage: 0, quota: 1_000_000 }), preflightStorage: async () => undefined,
 		createStableId: (prefix) => `${prefix}-native`,
 		ensureAup4FileName: (value) => `${String(value)}.aup4`,
-		ensureScapeFileName: (value) => `${String(value)}.scape`,
+		projectFileExtension: PROJECT_FILE_EXTENSION_BY_PRODUCT.soundscaper,
+		ensureProjectFileName: withProjectFileExtension,
 		sourcePcmBytes: (source) => source.frameCount * source.channelCount * 4,
 		loadStoredSourceChannels: async () => [Float32Array.of(0)],
 		requestAup4FileHandle: async () => ({ name: 'project.aup4' }),

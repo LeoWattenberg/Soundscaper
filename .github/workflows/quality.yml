@@ -47,6 +47,20 @@ jobs:
           # before it reports a single rule. The ubuntu-24.04 runner has 16 GiB.
           NODE_OPTIONS: --max-old-space-size=8192
 
+      - name: Measure the built transfer documents against the build just made
+        # The `tests` shards below never build, so the three assertions in this
+        # file that read `dist/` skipped in every CI run - and they are the only
+        # ones that can see the edge that matters: rolldown injects
+        # `vite/preload-helper` into the transfer chunk for its dynamic archive
+        # import, the `$initial` site-entry group owns the helper together with
+        # react-dom, and no source-level model of the import closure can see
+        # that. This is the one job that holds a build, so it is the job that
+        # measures it. The variable makes an absent `dist/` a failure here rather
+        # than a skip, so the guard cannot quietly stand itself down again.
+        run: node --import tsx --import ./scripts/node-style-asset-loader.mjs --test tests/project-transfer-standalone-page-chunks.test.ts
+        env:
+          SOUNDSCAPER_TRANSFER_BUILD_REQUIRED: '1'
+
       - name: Upload the verified website build
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -316,7 +330,10 @@ jobs:
 
       # Both products build into ./dist, so each is built and shipped in turn
       # rather than in parallel. `build:pages` is the gated build: it runs the
-      # same checks as `build` and then audits the live origin.
+      # same checks as `build` and then audits the live origin it is about to
+      # replace. Everything that can fail for a reason unrelated to a live
+      # origin has already run in the jobs this one needs, so the only way the
+      # second product's build fails here is that its own origin is wrong.
       - name: Build Soundscaper
         run: npm run build:pages
         env:
@@ -328,10 +345,28 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
+      # framescaper.org has no deployment until this job makes one, and a
+      # preflight cannot audit an origin that answers nothing. The declaration
+      # below excuses exactly that state and nothing else: the moment anything
+      # answers framescaper.org — a document, a 404, a Cloudflare error page —
+      # the preflight audits it in full, and it fails with a named error saying
+      # to delete this line. Deleting it is therefore part of the first
+      # successful Framescaper deploy, and the gate will insist. It is never
+      # added to the Soundscaper build: that origin is live, and excusing a
+      # silent soundscaper.org would turn an outage into a green deploy.
       - name: Build Framescaper
         run: npm run build:pages
         env:
           SCAPE_PRODUCT: framescaper
+          # framescaper.org is not pointed at the framescaper project yet, and
+          # until it is, that hostname answers with the OTHER product — so the
+          # audit would pass or fail on Soundscaper's content. Audit the
+          # project's own hostname instead; canonicals stay on framescaper.org.
+          # Drop this line once the custom domain is moved across.
+          # No cold-start declaration: framescaper.pages.dev already carries a
+          # deployment, so declaring one would trip the preflight's own guard
+          # against mistaking an origin that vanished for one never deployed.
+          SCAPE_DEPLOY_AUDIT_ORIGIN: https://framescaper.pages.dev
 
       - name: Deploy Framescaper
         run: npx wrangler pages deploy dist --project-name=framescaper --branch=main

@@ -4,11 +4,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	prepareNativeScapeSave,
+	beginNativeScapeSave,
 	publishNativeScape,
 	publishNativeScapeArchiveCopy,
 } from '../src/common/editor/controller/native-scape-save.ts';
 import { createNativeProjectService } from '../src/common/editor/controller/native-project-service.ts';
+import { withProjectFileExtension } from '../src/common/project-file-extensions.ts';
 import type {
 	NativePreparedSave,
 	NativeProjectDocument,
@@ -30,24 +31,53 @@ test('Scape target preparation forwards one early capability-aware request', asy
 	const fileService = {
 		async prepareSave(request: Readonly<Record<string, unknown>>) {
 			captured = request;
-			return { mode: 'cancelled', cancelled: true, fileName: 'project.scape' } as const;
+			return { mode: 'cancelled', cancelled: true, fileName: 'project.sscape' } as const;
 		},
 	} as unknown as NativeProjectFileService;
-	const result = await prepareNativeScapeSave(fileService, {
-		fileName: 'project.scape',
-		mimeType: 'application/vnd.soundscaper.scape+zip',
-		options: { useFileSystemAccess: true },
-		signal: controller.signal,
-	});
+	const { fileName, prepared } = await beginNativeScapeSave({
+		ensureProjectFileName: withProjectFileExtension,
+		fileService,
+		projectFileExtension: '.sscape',
+		scapeMimeType: 'application/vnd.soundscaper.scape+zip',
+	}, { fallbackFileName: 'project', options: { useFileSystemAccess: true }, signal: controller.signal });
 
-	assert.equal(result.mode, 'cancelled');
+	assert.equal(fileName, 'project.sscape');
+	assert.equal(prepared.mode, 'cancelled');
 	assert.equal(captured?.purpose, 'project');
+	assert.equal(captured?.suggestedName, 'project.sscape');
 	assert.equal(captured?.signal, controller.signal);
 	assert.equal(captured?.useFileSystemAccess, true);
 	assert.deepEqual(captured?.types, [{
 		description: 'Scape project',
-		accept: { 'application/vnd.soundscaper.scape+zip': ['.scape'] },
+		accept: { 'application/vnd.soundscaper.scape+zip': ['.sscape'] },
 	}]);
+});
+
+test('a save picker advertises only the suffix the saving product writes', async () => {
+	const captured: Array<Readonly<Record<string, unknown>>> = [];
+	const fileService = {
+		async prepareSave(request: Readonly<Record<string, unknown>>) {
+			captured.push(request);
+			return { mode: 'cancelled', cancelled: true, fileName: 'project' } as const;
+		},
+	} as unknown as NativeProjectFileService;
+	for (const projectFileExtension of ['.sscape', '.fscape'] as const) {
+		await beginNativeScapeSave({
+			ensureProjectFileName: withProjectFileExtension,
+			fileService,
+			projectFileExtension,
+			scapeMimeType: 'application/vnd.soundscaper.scape+zip',
+		}, { fallbackFileName: 'Mix.scape', options: {}, signal: new AbortController().signal });
+	}
+	// A legacy name is renamed by the saving product, not carried through.
+	assert.deepEqual(captured.map((request) => request.suggestedName), ['Mix.sscape', 'Mix.fscape']);
+	assert.deepEqual(
+		captured.map((request) => request.types),
+		[
+			[{ description: 'Scape project', accept: { 'application/vnd.soundscaper.scape+zip': ['.sscape'] } }],
+			[{ description: 'Scape project', accept: { 'application/vnd.soundscaper.scape+zip': ['.fscape'] } }],
+		],
+	);
 });
 
 test('direct Scape publication stages with the admitted maximum and commits after ownership', async () => {
@@ -456,7 +486,7 @@ function directServiceFixture(options: Readonly<{
 			async prepareSave() {
 				events.push('prepare');
 				return options.cancelPicker
-					? { mode: 'cancelled', cancelled: true, fileName: 'project.scape' }
+					? { mode: 'cancelled', cancelled: true, fileName: 'project.sscape' }
 					: prepared;
 			},
 			async saveFile() { events.push('save-blob'); return {}; },
@@ -465,7 +495,8 @@ function directServiceFixture(options: Readonly<{
 		editingBlocked: () => false,
 		async flushProject() { events.push('flush'); },
 		hasMissingTimelineSources: () => false,
-		ensureScapeFileName: () => 'project.scape',
+		projectFileExtension: '.sscape',
+		ensureProjectFileName: () => 'project.sscape',
 		scapeMimeType: 'application/vnd.soundscaper.scape+zip',
 		async exportScapeProject(_project: unknown, _store: unknown, exportOptions: {
 			createWritable?: (maximumBytes: number) => Promise<WritableStream<Uint8Array>>;

@@ -241,7 +241,7 @@ ids and, per id, the parameter subset it carries. That makes full and partial
 presets, copy/paste with a settings picker, sync, auto-sync, and relative
 quick-develop one mechanism with five surfaces. Application resolves to
 ordinary `effectsVideo` commands through `applyEditorCommand`, so history,
-undo, and the `.scape` round trip come free and no batch is a second mutation
+undo, and the Scape round trip come free and no batch is a second mutation
 path. Quick-develop deltas clamp at descriptor bounds rather than throwing,
 because `normalizeVideoEffectParams` refuses an out-of-range value outright
 (`video-effects.js:169-175`).
@@ -447,7 +447,7 @@ pickup, and any packet that grows a slice doc names it here first.
   preset field is rejected, not ignored; quick-develop deltas clamp; no path
   rewrites a stack's `processVersion` implicitly — only a `develop/set-stack`
   command carrying both the old and the new version, journaled with its
-  inverse, may change it; preset application, sync, clipboard paste, `.scape`
+  inverse, may change it; preset application, sync, clipboard paste, Scape
   import, and cross-product handoff all preserve the stack's recorded version;
   every new surface is menu-reached and off by default (AGENTS.md:8-11).
 - **Acceptance:** `npm test -- --shard=common` runs

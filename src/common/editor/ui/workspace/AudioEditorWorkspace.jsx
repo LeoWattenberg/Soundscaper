@@ -30,7 +30,7 @@ import {
 	useSoundscaperNativeServicesMenuRefresh,
 } from './workspace-application-menu-runtime.js';
 import { useTakeCycleRecoverySurface } from '../use-take-cycle-recovery-surface.ts';
-import { partitionWorkspaceFiles } from './workspace-file-routing.js';
+import { isProjectFileName, partitionWorkspaceFiles } from './workspace-file-routing.js';
 import { desktopExternalDestination, formatDateTimeLocalInput, useMediaQuery } from '../workspace-runtime.js';
 import { WEB_VCR_PANEL_ID } from '../web-vcr-ui-model.ts';
 export default function AudioEditorWorkspace({
@@ -222,7 +222,7 @@ export default function AudioEditorWorkspace({
 	const openScapeProjectFile = useCallback((file) => (
 		controller.actions.project.openScapeFile(file, requestScapeOpenDecision)
 	), [controller, requestScapeOpenDecision]);
-	const openProjectFile = useCallback((file) => (/\.scape$/iu.test(file?.name || '')
+	const openProjectFile = useCallback((file) => (isProjectFileName(file?.name || '')
 		? openScapeProjectFile(file)
 		: controller.actions.project.openAudacityProject(file)), [controller, openScapeProjectFile]);
 	const openDesktopProjectDescriptor = useCallback((descriptor) => withDesktopProjectReadDescriptor(

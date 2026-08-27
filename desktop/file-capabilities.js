@@ -3,7 +3,7 @@ import { open } from 'node:fs/promises';
 import { basename, extname } from 'node:path';
 
 import {
-	MAX_READ_CAPABILITIES_PER_OWNER,
+	ACCEPTED_PROJECT_FILE_EXTENSIONS, MAX_READ_CAPABILITIES_PER_OWNER,
 	MAX_READ_CAPABILITY_BYTES_PER_OWNER,
 	MAX_LINKED_VIDEO_PLAYBACK_CAPABILITY_FILE_BYTES,
 	READ_PROFILE_MATERIALIZED_V1,
@@ -99,9 +99,9 @@ export class ReadCapabilityStore {
 	registerScapeRangePath(filePath, { owner } = {}) {
 		try {
 			const selectedPath = String(filePath || '');
-			if (extname(selectedPath).toLowerCase() !== '.scape'
+			if (!ACCEPTED_PROJECT_FILE_EXTENSIONS.includes(extname(selectedPath).toLowerCase())
 				|| mimeTypeForPath(selectedPath) !== SCAPE_PROJECT_MIME_TYPE) {
-				throw new TypeError('Scape range capabilities require a terminal .scape project path');
+				throw new TypeError('Scape range capabilities require a terminal project archive path');
 			}
 			return this.#admitPath(selectedPath, {
 				owner,

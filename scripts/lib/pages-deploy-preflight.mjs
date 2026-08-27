@@ -45,8 +45,45 @@ const RETIRED_PRODUCT_BASE_PATHS = Object.freeze({
 	framescaper: Object.freeze({}),
 });
 
-/** The routes a retired base path kept, relative to that base path. */
-const RETIRED_ROUTE_SUFFIXES = Object.freeze(['/en/', '/embed/en/', '/service-worker.js']);
+/** The documents a retired base path kept, relative to that base path. */
+const RETIRED_DOCUMENT_SUFFIXES = Object.freeze(['/en/', '/embed/en/']);
+
+/**
+ * The retired worker's script path, and the marker proving the tombstone — not
+ * the worker it replaces — is what answers there.
+ *
+ * This path must keep answering 200 for the whole retention window and must
+ * never be redirected. A browser refuses a redirected service-worker script
+ * both at registration and at every update check, so a 301 here would freeze
+ * the retired worker in place: it would go on answering navigations out of its
+ * own Cache Storage and would never fetch the replacement that unregisters it,
+ * which is the exact opposite of retiring it. The documents move; the script
+ * URL belongs to the tombstone until the window closes.
+ */
+const RETIRED_WORKER_SUFFIX = '/service-worker.js';
+const TOMBSTONE_BODY_MARKER = 'const RETIRED_SHELL =';
+
+/** A content-hashed bundle, which is the only kind of object the immutable rule covers. */
+const IMMUTABLE_ASSET_PATTERN = /^\/assets\/[\w.-]+\.(?:css|js)$/u;
+
+/** Names the build's declaration that this origin has never had a deployment. */
+export const COLD_START_VARIABLE = 'SCAPE_PAGES_COLD_START';
+
+/**
+ * Admits the cold-start declaration a deploy job may carry.
+ *
+ * Unset or empty means the origin is expected to be live, which is the only
+ * state a settled product is ever in. The declaration is never inferred from a
+ * failure: see `originAnswers` for why that distinction is the whole point.
+ */
+export function admitPagesColdStart(environment = process.env) {
+	const value = environment[COLD_START_VARIABLE];
+	if (value === undefined || value === '') return false;
+	if (value !== '1') {
+		throw new Error(`${COLD_START_VARIABLE} must be "1" or unset; received ${JSON.stringify(String(value))}.`);
+	}
+	return true;
+}
 
 export async function preflightPagesDeployment({
 	release,
@@ -118,7 +155,7 @@ export function pagesCachePolicyDescriptors({ routing = webBuildRouting(), asset
 		served('/offline-shell.json', 'no-store'),
 		...routing.workers.map(({ scriptUrl, scope }) => served(scriptUrl, 'no-store', scope)),
 		served(assetPath, 'public, max-age=31536000, immutable'),
-		...retiredRedirects(routing),
+		...retiredRoutes(routing),
 	];
 	const paths = new Set(descriptors.map(({ path }) => path));
 	assert(paths.size === descriptors.length, 'Pages cache-policy audit lists a route twice.');
@@ -128,10 +165,22 @@ export function pagesCachePolicyDescriptors({ routing = webBuildRouting(), asset
 export async function verifyLivePagesCachePolicy({
 	routing = webBuildRouting(),
 	origin = routing.site.origin,
-	assetPath,
+	coldStart = false,
 	fetchImpl = fetch,
 }) {
 	const auditOrigin = normalizedOrigin(origin, 'Pages cache-policy origin');
+	if (!await originAnswers(fetchImpl, auditOrigin)) {
+		assert(coldStart,
+			`Pages cache-policy audit found no deployment answering ${auditOrigin.origin}. `
+			+ `If that origin has genuinely never been deployed, set ${COLD_START_VARIABLE}=1 on this build; `
+			+ 'if it has been deployed, then it is down and this deploy must not proceed.');
+		return Object.freeze({ verifiedRouteCount: 0, assetPath: null, coldStart: true });
+	}
+	assert(!coldStart,
+		`${COLD_START_VARIABLE} is set but ${auditOrigin.origin} is already answering. `
+		+ 'Remove it from the deploy job: it exists only for the first deployment an origin ever receives, '
+		+ 'and while it is set an origin that vanished would be mistaken for one that was never deployed.');
+	const assetPath = await liveImmutableAssetPath(fetchImpl, auditOrigin);
 	const descriptors = pagesCachePolicyDescriptors({ routing, assetPath });
 	for (const descriptor of descriptors) {
 		const url = new URL(descriptor.path, auditOrigin);
@@ -139,13 +188,7 @@ export async function verifyLivePagesCachePolicy({
 			await verifyRetiredRedirect(fetchImpl, url, descriptor);
 			continue;
 		}
-		const response = await fetchImpl(url.href, {
-			method: 'GET',
-			cache: 'no-store',
-			credentials: 'omit',
-			redirect: 'error',
-			headers: { 'Cache-Control': 'no-cache', 'Accept-Encoding': 'identity' },
-		});
+		const response = await fetchImpl(url.href, auditRequest());
 		assert(response instanceof Response && response.status === 200,
 			`Pages cache-policy audit received HTTP ${String(response?.status)} for ${descriptor.path}`);
 		assert(response.headers.get('cache-control') === descriptor.cacheControl,
@@ -154,19 +197,97 @@ export async function verifyLivePagesCachePolicy({
 			assert(response.headers.get('service-worker-allowed') === descriptor.serviceWorkerAllowed,
 				`Pages cache-policy Service-Worker-Allowed is invalid for ${descriptor.path}`);
 		}
-		await response.arrayBuffer();
+		const body = await response.text();
+		if (descriptor.bodyIncludes) {
+			assert(body.includes(descriptor.bodyIncludes),
+				`Pages cache-policy audit found that ${descriptor.path} does not carry the retired-product tombstone`);
+		}
 	}
-	return Object.freeze({ verifiedRouteCount: descriptors.length });
+	return Object.freeze({ verifiedRouteCount: descriptors.length, assetPath, coldStart: false });
 }
 
-async function verifyRetiredRedirect(fetchImpl, url, descriptor) {
-	const response = await fetchImpl(url.href, {
+/**
+ * Whether anything at all is serving this origin.
+ *
+ * "Not deployed yet" and "deployed and broken" must never collapse into one
+ * another: waving the second through is how a real outage ships. The only
+ * evidence this audit accepts for "no deployment" is that the origin answers
+ * *nothing* — the HTTP request never completes at all, because the hostname does
+ * not resolve, the connection is refused, or there is no TLS peer. `fetch`
+ * reports exactly that class of failure as a `TypeError`, and it is the one
+ * state a live deployment cannot produce.
+ *
+ * Everything that completes is a server on that hostname and is audited in
+ * full: 200, 404, 500 and a Cloudflare error page are all deployments, and a
+ * deployment with a broken root is precisely what this gate exists to catch. A
+ * redirect counts as an answer too, which is why the probe never follows one.
+ */
+async function originAnswers(fetchImpl, origin) {
+	let response;
+	try {
+		response = await fetchImpl(new URL('/', origin).href, auditRequest());
+	} catch (error) {
+		if (error instanceof TypeError) return false;
+		throw error;
+	}
+	assert(response instanceof Response,
+		`Pages cache-policy audit received no response probing ${origin.origin}`);
+	await response.arrayBuffer();
+	return true;
+}
+
+/**
+ * Names one content-hashed asset the LIVE deployment serves.
+ *
+ * The immutable `/assets/*` rule is what this part of the audit is for, and a
+ * response header can only be observed on an object that exists. The bundle
+ * that was just built cannot be that object: its filename carries the hash of
+ * the build being deployed, and the live origin is by construction the previous
+ * deployment, so it answers 404 for every one of them. Asserting the new hash is
+ * already live fails the gate exactly when the build changed something, which is
+ * nearly every push, and proves nothing when it passes. The live deployment
+ * publishes its own asset inventory at `/offline-shell.json`, so the rule is
+ * audited against an asset that deployment actually has.
+ */
+async function liveImmutableAssetPath(fetchImpl, origin) {
+	const url = new URL('/offline-shell.json', origin);
+	const response = await fetchImpl(url.href, auditRequest());
+	assert(response instanceof Response && response.status === 200,
+		`Pages cache-policy audit received HTTP ${String(response?.status)} for /offline-shell.json`);
+	const text = await response.text();
+	let audit;
+	try {
+		audit = JSON.parse(text);
+	} catch (error) {
+		throw new Error(`Live /offline-shell.json on ${origin.origin} is not JSON: ${error.message}`, { cause: error });
+	}
+	const assetPath = (Array.isArray(audit?.assets) ? audit.assets : [])
+		.map((asset) => asset?.url)
+		.find((candidate) => typeof candidate === 'string' && IMMUTABLE_ASSET_PATTERN.test(candidate));
+	assert(assetPath !== undefined,
+		`Live /offline-shell.json on ${origin.origin} names no content-hashed /assets/ bundle to audit.`);
+	return assetPath;
+}
+
+/**
+ * One audit request.
+ *
+ * Redirects are never followed and never turned into a transport error: an
+ * unexpected redirect must reach the assertions as an HTTP status, so the audit
+ * can name it, and so `originAnswers` can count it as an answer.
+ */
+function auditRequest() {
+	return {
 		method: 'GET',
 		cache: 'no-store',
 		credentials: 'omit',
 		redirect: 'manual',
 		headers: { 'Cache-Control': 'no-cache', 'Accept-Encoding': 'identity' },
-	});
+	};
+}
+
+async function verifyRetiredRedirect(fetchImpl, url, descriptor) {
+	const response = await fetchImpl(url.href, auditRequest());
 	assert(response instanceof Response && response.status === 301,
 		`Pages cache-policy audit requires a permanent redirect for ${descriptor.path}; received HTTP ${String(response?.status)}`);
 	assert(response.headers.get('location') === descriptor.location,
@@ -180,17 +301,26 @@ function served(path, cacheControl, serviceWorkerAllowed) {
 		: { path, expectation: 'served', cacheControl });
 }
 
-function retiredRedirects(routing) {
+function retiredRoutes(routing) {
 	const hosted = new Set(routing.plans.map(({ productId }) => productId));
 	const retired = RETIRED_PRODUCT_BASE_PATHS[routing.productId];
 	assert(retired !== undefined, `Pages cache-policy audit has no retired-route table for ${routing.productId}.`);
 	return Object.entries(retired)
 		.filter(([productId]) => !hosted.has(productId))
-		.flatMap(([productId, basePath]) => RETIRED_ROUTE_SUFFIXES.map((suffix) => Object.freeze({
-			path: `${basePath}${suffix}`,
-			expectation: 'redirected',
-			location: `${productWebOrigin(productId)}${suffix}`,
-		})));
+		.flatMap(([productId, basePath]) => [
+			...RETIRED_DOCUMENT_SUFFIXES.map((suffix) => Object.freeze({
+				path: `${basePath}${suffix}`,
+				expectation: 'redirected',
+				location: `${productWebOrigin(productId)}${suffix}`,
+			})),
+			Object.freeze({
+				path: `${basePath}${RETIRED_WORKER_SUFFIX}`,
+				expectation: 'served',
+				cacheControl: 'no-store',
+				serviceWorkerAllowed: `${basePath}/`,
+				bodyIncludes: TOMBSTONE_BODY_MARKER,
+			}),
+		]);
 }
 
 function normalizedOrigin(origin, label) {

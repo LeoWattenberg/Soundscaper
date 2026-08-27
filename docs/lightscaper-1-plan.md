@@ -266,6 +266,22 @@ start URL), `metaDescriptionKey`, `copyPrefix`, and `workspaces`.
 which retires four web ternaries and two hardcoded lists and makes the third
 product's branding data rather than four coordinated edits.
 
+### The Lightscaper profile declares `.liscape`
+
+`projectFileExtension` is already a required profile field, and
+`src/common/project-file-extensions.ts` already reserves `.liscape` for
+`lightscaper` in `PROJECT_FILE_EXTENSION_BY_PRODUCT`, which is why Soundscaper
+and Framescaper open a `.liscape` file today. The Lightscaper profile therefore
+declares `projectFileExtension: PROJECT_FILE_EXTENSION_BY_PRODUCT.lightscaper`
+rather than introducing a suffix, `tests/project-file-extensions.test.ts` stops
+asserting that `lightscaper` has no runtime profile, and the generated
+capability reference renders the `scape` family as `.liscape` for the new
+product with no change to the family ID. Saving in Lightscaper renames an
+incoming `.sscape` or `.fscape` to `.liscape` through the shared
+`withProjectFileExtension`; nothing about the archive changes. L8 owns the
+desktop side, where the packaged Lightscaper build is the first to claim the
+`.liscape` OS association.
+
 ### Lightscaper copy lands in its own catalog module
 
 New keys go into `src/common/i18n/lightscaper-copy.js` exporting

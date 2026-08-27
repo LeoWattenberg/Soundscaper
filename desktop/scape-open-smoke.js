@@ -236,8 +236,8 @@ export async function runScapeOpenRendererSmoke(scope, plan) {
 
 function archiveFileName(value) {
 	const name = boundedText(value, 'Scape-open smoke archive name', 255);
-	if (/[\\/]/u.test(name) || !/\.scape$/iu.test(name)) {
-		throw new TypeError('Scape-open smoke archive name must be one terminal .scape file name');
+	if (/[\\/]/u.test(name) || !/\.(?:sscape|fscape|liscape|scape)$/iu.test(name)) {
+		throw new TypeError('Scape-open smoke archive name must be one terminal project file name');
 	}
 	return name;
 }

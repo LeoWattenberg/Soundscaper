@@ -42,6 +42,37 @@ test('preload admits a canonical 65 GiB Scape range descriptor from OS associati
 	assert.equal(fixture.removals.length, 1);
 });
 
+test('preload admits every accepted project suffix and no disguised one', async () => {
+	for (const name of ['home.sscape', 'video.FSCAPE', 'reserved.liscape', 'legacy.scape']) {
+		const fixture = await loadPreload();
+		const raw = readDescriptor({
+			readProfile: SCAPE_RANGE_PROFILE,
+			name,
+			size: SCAPE_RANGE_MAXIMUM_BYTES,
+			mimeType: SCAPE_MIME_TYPE,
+		});
+		let received = null;
+		const unsubscribe = fixture.bridge.onOpenProject((descriptor) => { received = descriptor; });
+		fixture.listeners.get('soundscaper:v1:event:project-open')({}, raw);
+		assert.deepEqual({ ...received }, raw, name);
+		unsubscribe();
+	}
+	const disguised = [
+		readDescriptor({
+			readProfile: SCAPE_RANGE_PROFILE, name: 'mix.sscape.zip', mimeType: SCAPE_MIME_TYPE,
+		}),
+		// A project suffix may never be downgraded to bounded materialization.
+		readDescriptor({ name: 'downgraded.fscape', mimeType: 'application/zip' }),
+	];
+	const fixture = await loadPreload(disguised.map((value) => [value]));
+	for (const _candidate of disguised) {
+		await assert.rejects(
+			() => fixture.bridge.chooseFiles({ purpose: 'project' }),
+			/descriptor/iu,
+		);
+	}
+});
+
 test('preload rejects missing, oversized, mismatched, and noncanonical read profiles', async () => {
 	const missingProfile = readDescriptor();
 	delete missingProfile.readProfile;

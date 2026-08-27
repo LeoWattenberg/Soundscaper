@@ -2,7 +2,7 @@
 
 import { remapTakeGroupSourceIds } from './take-group-source-references.ts';
 
-/** Remap every source identity owned by a copied .scape project. */
+/** Remap every source identity owned by a copied Scape project. */
 export function remapScapeProjectSourceReferences(
 	project: unknown,
 	sourceIdMap: ReadonlyMap<string, string>,

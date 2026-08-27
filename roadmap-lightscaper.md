@@ -5,7 +5,7 @@
 Lightscaper is the third product over the shared local-first editor platform: a
 photo library and non-destructive develop editor — broadly the shape of
 Lightroom Classic — served at `/lightscaper/<locale>/` from the same origin,
-IndexedDB/OPFS media library, project locks, and `.scape` project format as
+IndexedDB/OPFS media library, project locks, and Scape project format as
 Soundscaper and Framescaper. Product-unique code lives in `src/lightscaper/`;
 every operation that changes pixels lives in `src/common/` where Framescaper
 can reach it too.
@@ -75,7 +75,9 @@ the [quality budgets](docs/quality-budgets.md), and severity in the
 ## Product boundaries and invariants
 
 - Every main-roadmap boundary holds unchanged: local-first, account-free,
-  offline after install; `.scape` as the lossless portable project format;
+  offline after install; Scape as the lossless portable project format, which
+  Lightscaper writes as `.liscape` while still opening `.sscape`, `.fscape`,
+  and the legacy `.scape`;
   Pages asset and chunk ceilings; Electron hardening; accessibility,
   deterministic history, bounded working sets, interruption recovery, and
   migration safety as release requirements.
@@ -92,7 +94,7 @@ the [quality budgets](docs/quality-budgets.md), and severity in the
 - Develop stacks are versioned like project schemas: a stack authored under an
   old process version keeps rendering identically, and upgrading it to a newer
   process version is an explicit, recorded decision.
-- A photo, its develop stack, and its collections round-trip through `.scape`;
+- A photo, its develop stack, and its collections round-trip through Scape;
   a developed photo opens in Framescaper as a still source with its
   shared-effect stack intact, without copying media; and the reverse handoff
   holds.
@@ -147,7 +149,7 @@ Nothing exists under `src/lightscaper/`. What Lightscaper builds on:
 | Imaging engine | Twelve shared parametric video effects; managed SDR color that renders sRGB/BT.709 sources with linear-light grade math and `.cube` LUT parse/sample, while declared Display-P3/BT.2020 primaries and PQ/HLG transfers are recognized in the schema but refused fail-closed at render admission; a mask graph with vector-shape, vector-path, raster, alpha, feather, invert, and boolean nodes; visual presets; keyframe curves. |
 | Stills | Still source/clip schema, browser `image/*` still import, PNG encode, and native (desktop) PNG/TIFF/EXR sequence decode behind an 8-bit sRGB, no-alpha admission; the Framescaper V30 "Add Images" campaign is in flight on a separate branch. |
 | Pixel interchange | 8-bit straight RGBA end to end; color math is floating-point per sample, but no 16-bit or float interchange buffer exists. |
-| Library and storage | OPFS/IndexedDB media library, id-keyed with recorded SHA-256 content digests, with retained originals and disposable derivatives, capacity preflight, single-writer project locks, Project Bin, `.scape` archive, and revisioned JSON commands with snapshot undo/redo. |
+| Library and storage | OPFS/IndexedDB media library, id-keyed with recorded SHA-256 content digests, with retained originals and disposable derivatives, capacity preflight, single-writer project locks, Project Bin, Scape archive, and revisioned JSON commands with snapshot undo/redo. |
 | UI and platform | Vendored Audacity design system, product-profile-driven workspace/menu/dialog shells, i18n catalogs, offline application shell, and the hardened Electron wrapper. |
 | Gates | Sharded Node suite, three-engine Playwright matrix, coverage-union thresholds, architecture and file-size ceilings, licensing/notice/WASM audits, a machine-audited quality-budget ledger, and the packaged desktop smoke matrix. |
 
@@ -245,7 +247,7 @@ stack, and the pixel interchange — before any surface exists.
 - **Shared — Planned:** develop state as an ordered stack of shared-effect
   instances plus geometry and mask bindings, per photo version, carrying an
   explicit process version; deterministic serialization, validation,
-  migration, clone, undo/redo, clipboard, and `.scape` round trip like every
+  migration, clone, undo/redo, clipboard, and Scape round trip like every
   schema family.
 - **Shared — Planned:** a depth- and gamut-agnostic frame contract: buffers
   declare sample format (`unorm8` now; `unorm16` and `float32` reserved),
@@ -258,7 +260,7 @@ stack, and the pixel interchange — before any surface exists.
 
 - Property and golden tests cover the validate, migrate, clone, serialize, and
   reject paths of every new schema family, including future-schema refusal.
-- A catalog document round-trips through `.scape` and opens read-correctly in
+- A catalog document round-trips through Scape and opens read-correctly in
   Framescaper as project state.
 - Admission tests prove the 8-bit-only limit lives in admission: widening the
   accepted profile set in a test build requires no schema or type change.
@@ -286,12 +288,12 @@ real-library scale.
   with live smart collections.
 - **Web Core — Planned:** a metadata panel over the L2 read model,
   capture-time edit, batch rename, missing-media detection and relink through
-  the existing relink path, and catalog snapshot/backup through `.scape`
+  the existing relink path, and catalog snapshot/backup through Scape
   export.
 - **Shared — Planned:** a pinned synthetic large-library fixture, with its
   import, scroll, filter, and search budgets recorded in the quality-budget
   ledger on a CI-runnable environment class.
-- **Shared — Optional:** merge-on-import of a catalog `.scape` into an open
+- **Shared — Optional:** merge-on-import of a catalog Scape archive into an open
   catalog.
 
 ### Exit gate
@@ -549,7 +551,7 @@ tools, and it adds no product capability.
 - The sidecar schema is Lightscaper-owned, documented, and versioned; its
   presence implies no Adobe-compatibility behavior.
 - Every schema addition defines validation, migration, future-version
-  behavior, clone/serialization, commands/history, `.scape` disposition, and
+  behavior, clone/serialization, commands/history, Scape disposition, and
   retention/deletion behavior.
 
 ## Acceptance matrix

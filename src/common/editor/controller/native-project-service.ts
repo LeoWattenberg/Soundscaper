@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { isProjectFileName } from '../../project-file-extensions.ts';
 import { EditorDisposedError, type EditorProjectToken, type EditorTaskScope } from './lifecycle.ts';
 import { nativeProjectProgressMessage, publishAup4OpenStatus } from './native-project-status.ts';
 import {
+	beginNativeScapeSave,
 	type NativeRetainedScapeArchive,
-	prepareNativeScapeSave,
 	publishNativeScape,
 	saveNativeScapeArchiveCopy,
 } from './native-scape-save.ts';
@@ -93,8 +94,8 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		file: NativeScapeProjectFile,
 		options: OpenScapeOptions = {},
 	): Promise<ScapeImportResult | null> {
-		if (!file || (file instanceof Blob && !/\.scape$/i.test(String(file.name || '')))) {
-			throw new TypeError('Choose a .scape project file.');
+		if (!file || (file instanceof Blob && !isProjectFileName(String(file.name || '')))) {
+			throw new TypeError('Choose a Scape project file.');
 		}
 		if (runtime.editingBlocked()) return null;
 		const operation = beginProjectTask('native-project-open');
@@ -143,9 +144,8 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		if (runtime.hasMissingTimelineSources(projectAtStart)) throw new Error(runtime.copy.missingSourcesPreventSave);
 		const operation = beginProjectTask('native-project-save', projectAtStart.id);
 		try {
-			const fileName = runtime.ensureScapeFileName(options.fileName || projectAtStart.title);
-			const prepared = await prepareNativeScapeSave(runtime.fileService, {
-				fileName, mimeType: runtime.scapeMimeType, options, signal: operation.task.signal,
+			const { fileName, prepared } = await beginNativeScapeSave(runtime, {
+				fallbackFileName: projectAtStart.title, options, signal: operation.task.signal,
 			});
 			if (prepared.mode === 'cancelled') return { cancelled: true };
 			assertOwnership(operation.task, operation.projectToken);

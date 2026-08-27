@@ -28,7 +28,7 @@ const PLAN = Object.freeze({
 	productId: 'soundscaper',
 	token: TOKEN,
 	archive: Object.freeze({
-		name: 'packaged-current-schema.scape',
+		name: 'packaged-current-schema.sscape',
 		byteLength: 12_345,
 	}),
 	project: Object.freeze({

@@ -472,7 +472,7 @@ test('native file filters cover the editor import and export formats', () => {
 	assert.equal(stemArchive.suggestedName, 'stems.7z');
 	assert.equal(stemArchive.filters[0].extensions.includes('7z'), true);
 	assert.equal(mimeTypeForPath('/tmp/stems.7z'), 'application/x-7z-compressed');
-	assert.equal(validateSaveChoice({ purpose: 'project', suggestedName: 'session' }).suggestedName, 'session.scape');
+	assert.equal(validateSaveChoice({ purpose: 'project', suggestedName: 'session' }).suggestedName, 'session.sscape');
 	assert.equal(validateSaveChoice({ purpose: 'aup4', suggestedName: 'session' }).suggestedName, 'session.aup4');
 	assert.equal(validateSaveChoice({ purpose: 'audio', suggestedName: 'custom.caf' }).filters.at(-1).extensions[0], '*');
 	assert.equal(validateSaveChoice({ purpose: 'labels', suggestedName: 'captions.srt' }).suggestedName, 'captions.srt');

@@ -31,14 +31,14 @@ Soundscaper and Framescaper share the library on the same `soundscaper.org`
 origin, but another domain, browser profile, or cleared site store has a
 different library.
 
-If site data was cleared and no `.scape` export exists, the editor has no cloud
+If site data was cleared and no Scape project export exists, the editor has no cloud
 copy to restore.
 
 ## AUP4 omitted part of the project
 
 Read the compatibility report. AUP4 carries compatible audio editing state but
 omits video and can convert or omit effects and Soundscaper-only mixing state.
-Use `.scape` for complete Soundscaper/Framescaper project transfer.
+Use a Scape project file — `.sscape` or `.fscape`, both of which open in either product — for complete project transfer.
 
 ## An export fails or does not play
 

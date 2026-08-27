@@ -27,7 +27,7 @@ test.describe('Framescaper selected-web Scape preservation boundary', () => {
 		await input.setInputFiles(fixedArchive);
 		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'error');
 		await expect(editor.locator('[data-status]')).toContainText(
-			'Unsupported .scape format version: 2.',
+			'Unsupported Scape format version: 2.',
 		);
 		await expect(editor).toHaveAttribute('data-project-id', originalProjectId);
 		await expect(editor.getByRole('tab', { name: expectedArchive.projectTitle, exact: true })).toHaveCount(0);

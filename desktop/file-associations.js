@@ -1,7 +1,14 @@
 import { extname, isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { ACCEPTED_PROJECT_FILE_EXTENSIONS } from './constants.js';
 import { isRetryableReadCapabilityAdmissionError } from './read-capability-admission.js';
+
+// Positional arguments and open-with hand-offs admit every project suffix, not
+// only the one this build writes.
+export const OPENABLE_PROJECT_EXTENSIONS = Object.freeze([
+	...ACCEPTED_PROJECT_FILE_EXTENSIONS, '.aup3', '.aup4',
+]);
 
 export class PendingProjectQueue {
 	#deliver;
@@ -104,7 +111,7 @@ export function extractProjectPaths(argv, workingDirectory = process.cwd()) {
 				continue;
 			}
 		}
-		if (!['.aup3', '.aup4', '.scape'].includes(extname(candidate).toLowerCase())) continue;
+		if (!OPENABLE_PROJECT_EXTENSIONS.includes(extname(candidate).toLowerCase())) continue;
 		const absolutePath = isAbsolute(candidate) ? candidate : resolve(workingDirectory, candidate);
 		if (!paths.includes(absolutePath)) paths.push(absolutePath);
 	}

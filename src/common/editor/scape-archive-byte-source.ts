@@ -43,9 +43,9 @@ export function createScapeArchiveByteSource(
 	options: ScapeArchiveByteSourceOptions,
 ): ScapeArchiveByteSource {
 	if (!options || typeof options !== 'object' || typeof options.read !== 'function') {
-		throw new TypeError('A .scape byte-source read provider is required.');
+		throw new TypeError('A Scape byte-source read provider is required.');
 	}
-	const size = safeNonNegativeInteger(options.size, 'The .scape byte source requires a safe non-negative size.');
+	const size = safeNonNegativeInteger(options.size, 'The Scape byte source requires a safe non-negative size.');
 	const maximumReadBytes = options.maximumReadBytes === undefined
 		? SCAPE_ARCHIVE_BYTE_SOURCE_MAXIMUM_READ_BYTES
 		: safePositiveReadLimit(options.maximumReadBytes);
@@ -70,10 +70,10 @@ export function createScapeArchiveByteSource(
 			throwIfScapeAborted(normalized.signal);
 			const byteLength = nativeUint8ArrayByteLength(value);
 			if (byteLength === null) {
-				throw new TypeError('The .scape byte source returned a non-byte range.');
+				throw new TypeError('The Scape byte source returned a non-byte range.');
 			}
 			if (byteLength !== normalized.length) {
-				throw new Error('The .scape byte source returned an incomplete byte range.');
+				throw new Error('The Scape byte source returned an incomplete byte range.');
 			}
 			const bytes = new UINT8_ARRAY(byteLength);
 			Reflect.apply(UINT8_ARRAY_SET, bytes, [value]);
@@ -117,7 +117,7 @@ export async function readScapeArchiveByteRange(
 }
 
 export function createBlobScapeArchiveByteSource(input: Blob): ScapeArchiveByteSource {
-	if (!(input instanceof Blob)) throw new TypeError('A .scape Blob is required.');
+	if (!(input instanceof Blob)) throw new TypeError('A Scape Blob is required.');
 	if (!BLOB_SIZE_GETTER) throw new Error('The platform Blob size getter is unavailable.');
 	const size = Reflect.apply(BLOB_SIZE_GETTER, input, []) as number;
 	const blob = Reflect.apply(BLOB_SLICE, input, [0, size]) as Blob;
@@ -134,7 +134,7 @@ export function assertScapeArchiveByteSource(
 	value: unknown,
 ): asserts value is ScapeArchiveByteSource {
 	if (!value || typeof value !== 'object' || !SOURCES.has(value)) {
-		throw new TypeError('A trusted .scape archive byte source is required.');
+		throw new TypeError('A trusted Scape archive byte source is required.');
 	}
 }
 
@@ -144,15 +144,15 @@ function normalizeReadRequest(
 	maximumReadBytes: number,
 ): ScapeArchiveByteReadRequest {
 	if (!request || typeof request !== 'object') {
-		throw new TypeError('A .scape byte-range request is required.');
+		throw new TypeError('A Scape byte-range request is required.');
 	}
-	const offset = safeNonNegativeInteger(request.offset, 'The .scape byte range has an invalid offset.');
-	const length = safeNonNegativeInteger(request.length, 'The .scape byte range has an invalid length.');
+	const offset = safeNonNegativeInteger(request.offset, 'The Scape byte range has an invalid offset.');
+	const length = safeNonNegativeInteger(request.length, 'The Scape byte range has an invalid length.');
 	if (length > maximumReadBytes) {
-		throw new RangeError('The .scape byte source requested an unbounded byte range.');
+		throw new RangeError('The Scape byte source requested an unbounded byte range.');
 	}
 	if (offset > size - length) {
-		throw new RangeError('The .scape byte source requested an invalid byte range.');
+		throw new RangeError('The Scape byte source requested an invalid byte range.');
 	}
 	return Object.freeze({
 		offset,
@@ -164,13 +164,13 @@ function normalizeReadRequest(
 function safePositiveReadLimit(value: number): number {
 	const limit = safeNonNegativeInteger(
 		value,
-		'The .scape byte-source maximum read must be a safe positive integer.',
+		'The Scape byte-source maximum read must be a safe positive integer.',
 	);
 	if (limit === 0) {
-		throw new RangeError('The .scape byte-source maximum read must be a safe positive integer.');
+		throw new RangeError('The Scape byte-source maximum read must be a safe positive integer.');
 	}
 	if (limit > SCAPE_ARCHIVE_BYTE_SOURCE_MAXIMUM_READ_BYTES) {
-		throw new RangeError('The .scape byte-source maximum read exceeds its hard limit.');
+		throw new RangeError('The Scape byte-source maximum read exceeds its hard limit.');
 	}
 	return limit;
 }

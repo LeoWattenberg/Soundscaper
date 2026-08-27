@@ -38,7 +38,7 @@ const DEFAULT_CHILD_TIMEOUT_MS = 2 * 60 * 1000;
 const CHILD_TERMINATION_GRACE_MS = 250;
 const CHILD_SETTLEMENT_TIMEOUT_MS = 1_000;
 export const DESKTOP_SCAPE_OPEN_FIXTURE = deepFreeze({
-	archiveName: 'packaged-current-schema.scape',
+	archiveName: 'packaged-current-schema.sscape',
 	project: {
 		id: 'packaged-scape-open-project',
 		title: 'Packaged Scape Open',

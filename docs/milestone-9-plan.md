@@ -70,7 +70,7 @@ parallel per environment.
   Notices are verified against the lockfile by
   `scripts/check-third-party-notices.mjs:12-63`. Fuses are flipped and
   verified at pack time (scripts/desktop-after-pack.mjs:34-41).
-- **Cross-product evidence, partially.** Web↔web `.scape` product
+- **Cross-product evidence, partially.** Web↔web Scape product
   round-trips with frozen workflow IDs
   (tests/browser/audio-editor-scape-product-roundtrip.spec.js:34-42),
   rendered-fallback return

@@ -168,7 +168,7 @@ test('insufficient known capacity throws a stable quota error with frozen exact 
 			assert.ok(error instanceof ScapeImportQuotaError);
 			assert.equal(error.name, 'ScapeImportQuotaError');
 			assert.equal(error.code, 'QUOTA_EXCEEDED');
-			assert.equal(error.message, 'There is not enough storage available to import this .scape project.');
+			assert.equal(error.message, 'There is not enough storage available to import this Scape project.');
 			assert.deepEqual(error.details, {
 				assetBytes: 1_000,
 				headroomBytes: 100,

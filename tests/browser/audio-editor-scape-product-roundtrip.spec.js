@@ -19,7 +19,7 @@ import {
 } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
-	chooseFileAction,
+	chooseExportProjectFileAction,
 	clipByName,
 	collectClientErrors,
 	importFiles,
@@ -43,7 +43,7 @@ test.describe('exact selected-schema cross-product Scape handoffs', () => {
 		await expect(clipByName(origin, toneA.name)).toBeVisible();
 		const projectId = await origin.getAttribute('data-project-id');
 		expect(projectId).toBeTruthy();
-		const outboundArchive = await exportScapeArchive(page, origin);
+		const outboundArchive = await exportScapeArchive(page, origin, 'soundscaper');
 		const outbound = await inspectScapeArchive(outboundArchive);
 		expect(outbound.project.id).toBe(projectId);
 		expect(outbound.project.schemaVersion).toBe(SOUNDSCAPER_PROJECT_V30_SCHEMA_VERSION);
@@ -54,7 +54,7 @@ test.describe('exact selected-schema cross-product Scape handoffs', () => {
 			const recipient = await openProductRuntime(browser, baseURL, 'framescaper');
 			openedRuntimes.push(recipient);
 			const recipientErrors = collectClientErrors(recipient.page);
-			await openScapeArchive(recipient.editor, outboundArchive, 'soundscaper-v30-outbound.scape');
+			await openScapeArchive(recipient.editor, outboundArchive, 'soundscaper-v30-outbound.sscape');
 			await expect(recipient.editor.locator('[data-status]')).toHaveAttribute('data-state', 'error', {
 				timeout: 20_000,
 			});
@@ -68,7 +68,7 @@ test.describe('exact selected-schema cross-product Scape handoffs', () => {
 			const home = await openProductRuntime(browser, baseURL, 'soundscaper');
 			openedRuntimes.push(home);
 			const homeErrors = collectClientErrors(home.page);
-			await openScapeArchive(home.editor, outboundArchive, 'soundscaper-v30-return.scape');
+			await openScapeArchive(home.editor, outboundArchive, 'soundscaper-v30-return.sscape');
 			await expect(home.editor).toHaveAttribute('data-project-id', projectId, { timeout: 20_000 });
 			await expect(home.editor).not.toHaveAttribute('data-edit-block-reason', /.+/u);
 			await expect(clipByName(home.editor, toneA.name)).toBeVisible();
@@ -91,7 +91,7 @@ test.describe('exact selected-schema cross-product Scape handoffs', () => {
 		await importFiles(origin, [toneA]);
 		const projectId = await origin.getAttribute('data-project-id');
 		expect(projectId).toBeTruthy();
-		const outboundArchive = await exportScapeArchive(page, origin);
+		const outboundArchive = await exportScapeArchive(page, origin, 'framescaper');
 		const outbound = await inspectScapeArchive(outboundArchive);
 		expect(outbound.project.id).toBe(projectId);
 		expect(outbound.project.schemaVersion).toBe(FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION);
@@ -102,7 +102,7 @@ test.describe('exact selected-schema cross-product Scape handoffs', () => {
 			const recipient = await openProductRuntime(browser, baseURL, 'soundscaper');
 			openedRuntimes.push(recipient);
 			const recipientErrors = collectClientErrors(recipient.page);
-			await openScapeArchive(recipient.editor, outboundArchive, 'framescaper-f31-outbound.scape');
+			await openScapeArchive(recipient.editor, outboundArchive, 'framescaper-f31-outbound.fscape');
 			await expect(recipient.editor.locator('[data-status]')).toHaveAttribute('data-state', 'error', {
 				timeout: 20_000,
 			});
@@ -116,7 +116,7 @@ test.describe('exact selected-schema cross-product Scape handoffs', () => {
 			const home = await openProductRuntime(browser, baseURL, 'framescaper');
 			openedRuntimes.push(home);
 			const homeErrors = collectClientErrors(home.page);
-			await openScapeArchive(home.editor, outboundArchive, 'framescaper-f31-home.scape');
+			await openScapeArchive(home.editor, outboundArchive, 'framescaper-f31-home.fscape');
 			await expect(home.editor).toHaveAttribute('data-project-id', projectId, { timeout: 20_000 });
 			await expect(home.editor).not.toHaveAttribute('data-edit-block-reason', /.+/u);
 			await expect(clipByName(home.editor, toneA.name)).toBeVisible();
@@ -125,6 +125,38 @@ test.describe('exact selected-schema cross-product Scape handoffs', () => {
 			expect(originErrors).toEqual([]);
 			expect(recipientErrors).toEqual([]);
 			expect(homeErrors).toEqual([]);
+		} finally {
+			for (const runtime of openedRuntimes.reverse()) {
+				if (!runtime.page.isClosed()) await runtime.page.close({ runBeforeUnload: false });
+			}
+		}
+	});
+
+	test('a reserved Lightscaper suffix and the legacy one open in both products', async ({ browser, page }) => {
+		await disableDirectScapeSave(page);
+		const origin = await bootEditor(page, PRODUCT_PATHS.soundscaper);
+		await importFiles(origin, [toneA]);
+		await expect(clipByName(origin, toneA.name)).toBeVisible();
+		const projectId = await origin.getAttribute('data-project-id');
+		const archive = await exportScapeArchive(page, origin, 'soundscaper');
+
+		const baseURL = new URL(page.url()).origin;
+		const openedRuntimes = [];
+		try {
+			// The suffix is only a routing hint, so a Scape archive under the
+			// reserved `.liscape` and under the retired `.scape` is admitted the
+			// same way the product's own suffix is.
+			for (const [productId, name] of [
+				['soundscaper', 'reserved.liscape'],
+				['framescaper', 'legacy.SCAPE'],
+			]) {
+				const runtime = await openProductRuntime(browser, baseURL, productId);
+				openedRuntimes.push(runtime);
+				const errors = collectClientErrors(runtime.page);
+				await openScapeArchive(runtime.editor, archive, name);
+				await expect(runtime.editor).toHaveAttribute('data-project-id', projectId, { timeout: 20_000 });
+				expect(errors).toEqual([]);
+			}
 		} finally {
 			for (const runtime of openedRuntimes.reverse()) {
 				if (!runtime.page.isClosed()) await runtime.page.close({ runBeforeUnload: false });
@@ -153,11 +185,13 @@ async function disableDirectScapeSave(page) {
 	}));
 }
 
-async function exportScapeArchive(page, editor) {
+async function exportScapeArchive(page, editor, productId) {
 	const downloading = page.waitForEvent('download');
-	await chooseFileAction(page, editor, 'Export project file (.scape)');
+	await chooseExportProjectFileAction(page, editor);
 	const download = await downloading;
-	expect(download.suggestedFilename()).toMatch(/\.scape$/iu);
+	// The fallback download always carries the saving product's own suffix.
+	expect(download.suggestedFilename())
+		.toMatch(productId === 'framescaper' ? /\.fscape$/u : /\.sscape$/u);
 	const path = await download.path();
 	expect(path).toBeTruthy();
 	const archive = await readFile(path);

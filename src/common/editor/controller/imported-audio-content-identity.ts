@@ -65,7 +65,7 @@ export async function rollbackImportedAudioContentIdentityWriter(
 
 /**
  * Authenticates an imported source while its canonical planar PCM is already
- * crossing the durable-write boundary. The wire form matches `.scape` audio:
+ * crossing the durable-write boundary. The wire form matches Scape audio:
  * one little-endian frame-count word followed by planar Float32LE per chunk.
  */
 export function createImportedAudioContentIdentityWriter(

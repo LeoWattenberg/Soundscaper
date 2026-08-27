@@ -322,9 +322,11 @@ at pickup, and any packet that later grows one names its filename here first.
 - **Outcome:** `org.lightscaper.desktop`, the `lightscaper-app` scheme, its
   session partition and update tag prefix (`desktop/constants.js:5-10`); a
   Lightscaper entitlements plist with neither camera nor microphone, unlike
-  `desktop/framescaper-entitlements.mac.plist`; a `.scape`-only association,
-  macOS category, and Linux executable name, category, and synopsis
-  (`electron-builder.config.cjs:82-115`); an icon source beside
+  `desktop/framescaper-entitlements.mac.plist`; a `.liscape`-plus-legacy-`.scape`
+  association matching the pattern the two shipping products already use in
+  `electron-builder.config.cjs` — Lightscaper is the first build to claim
+  `.liscape` — a macOS category, and a Linux executable name, category, and
+  synopsis (`electron-builder.config.cjs:82-115`); an icon source beside
   `public/logo/framescaper-icon.svg`; `lightscaper` in
   `DESKTOP_PACKAGED_PRODUCT_IDS` (`scripts/lib/desktop-packaged-products.mjs`,
   landed by L1) with both product-name ternaries

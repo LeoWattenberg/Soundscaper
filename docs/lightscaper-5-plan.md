@@ -96,7 +96,7 @@ sidecar follow, since their report items are what the batch gate counts.
   (`controller/project-admin-service.ts:92-120`); the menu action pairs it with
   `otherProductId` and a locale navigation
   (`ui/workspace/workspace-application-menu-runtime.js:236-240`); a browser
-  spec proves a `.scape` archive crosses products, is held read-only by the
+  spec proves a Scape archive crosses products, is held read-only by the
   recipient, and returns editable
   (`tests/browser/audio-editor-scape-product-roundtrip.spec.js:35-80`).
   Framescaper projects validate `sequences`, `primarySequenceId`, and
@@ -261,7 +261,7 @@ Framescaper test in the same change, never as a Lightscaper-local variant
 
 A developed photo opens in Framescaper as a still source bound to the same
 managed media id and digest — no media copy, the roadmap's own boundary
-(roadmap-lightscaper.md:83-85). Transport is the existing `.scape` archive
+(roadmap-lightscaper.md:83-85). Transport is the existing Scape archive
 (`scape-export-plan.ts:86-95`) over the `prepareProjectHandoff` lock discipline
 (`controller/project-admin-service.ts:92-120`). Pixel identity follows from both
 products evaluating the same `DevelopStackV1` through the same shared code, so
@@ -484,7 +484,7 @@ pickup, and any packet that grows one names it here first.
   collection handed as a Framescaper sequence over the validated `sequences`
   and `primarySequenceId` fields
   (`src/framescaper/editor-project-v28-validation.ts:47-48`); transport over
-  the `.scape` planner (`scape-export-plan.ts:86-95`) and the
+  the Scape planner (`scape-export-plan.ts:86-95`) and the
   `prepareProjectHandoff` lock discipline
   (`controller/project-admin-service.ts:92-120`), driven by L1's
   registry-selected destination, not `otherProductId`
@@ -502,7 +502,7 @@ pickup, and any packet that grows one names it here first.
   every parameter present; no path rewrites a stack's `processVersion`
   implicitly — only a `develop/set-stack` command carrying both the old and the
   new version, journaled with its inverse, may change it; preset application,
-  sync, clipboard paste, `.scape` import, and cross-product handoff all
+  sync, clipboard paste, Scape import, and cross-product handoff all
   preserve the stack's recorded version.
 - **Acceptance:** `npm test -- --shard=common` covering
   `tests/lightscaper-develop-stack-cross-product-render.test.ts`, which renders
