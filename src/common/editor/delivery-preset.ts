@@ -62,10 +62,10 @@ export interface DeliveryPreset {
 
 export interface DeliveryPresetAvailability {
 	readonly available: boolean;
-	readonly status: string;
+	readonly status: 'implemented';
 	readonly licensingRowId: string | null;
-	readonly blocker: string | null;
-	readonly fallbackPresetId: string | null;
+	readonly m9ReleaseReviewStatus: string;
+	readonly m9ReleaseReviewPending: boolean;
 }
 
 export class DeliveryPresetError extends Error {
@@ -160,12 +160,8 @@ export function resolveDeliveryPresetPlanOptions(
 }
 
 /**
- * Whether this preset may deliver, per the licensing matrix.
- *
- * A preset with no licensing row rides the formats the product already ships.
- * One naming a row reports that row's recorded status verbatim — an unknown
- * row is unavailable rather than assumed fine, because a preset that cannot
- * find its gate has no basis to claim it passed.
+ * Whether this preset is implemented, with its human distribution review
+ * reported separately for Milestone 9 release admission.
  */
 export function resolveDeliveryPresetAvailability(
 	preset: DeliveryPreset,
@@ -177,30 +173,30 @@ export function resolveDeliveryPresetAvailability(
 	if (preset.licensingRowId == null) {
 		return Object.freeze({
 			available: true,
-			status: 'shipped',
+			status: 'implemented',
 			licensingRowId: null,
-			blocker: null,
-			fallbackPresetId: null,
+			m9ReleaseReviewStatus: 'not-required',
+			m9ReleaseReviewPending: false,
 		});
 	}
 	const row = findLicensingRow(licensingMatrix, preset.licensingRowId);
 	if (!row) {
 		return Object.freeze({
-			available: false,
-			status: 'unknown-row',
+			available: true,
+			status: 'implemented',
 			licensingRowId: preset.licensingRowId,
-			blocker: `No licensing row ${preset.licensingRowId} is recorded.`,
-			fallbackPresetId: preset.fallbackPresetId,
+			m9ReleaseReviewStatus: 'unrecorded',
+			m9ReleaseReviewPending: true,
 		});
 	}
 	const status = typeof row.status === 'string' ? row.status : 'unknown';
-	const available = status === 'cleared' || status === 'documented';
+	const reviewed = status === 'cleared' || status === 'documented' || status === 'implemented';
 	return Object.freeze({
-		available,
-		status,
+		available: true,
+		status: 'implemented',
 		licensingRowId: preset.licensingRowId,
-		blocker: available ? null : (typeof row.blocker === 'string' ? row.blocker : null),
-		fallbackPresetId: available ? null : preset.fallbackPresetId,
+		m9ReleaseReviewStatus: status,
+		m9ReleaseReviewPending: !reviewed,
 	});
 }
 

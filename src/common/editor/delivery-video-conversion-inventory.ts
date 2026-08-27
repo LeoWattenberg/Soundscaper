@@ -8,10 +8,6 @@ import {
 } from './delivery-report.ts';
 import { type DeliveryConversion } from './delivery-conversion-inventory.ts';
 import { VIDEO_EXPORT_FORMATS } from './video-export.js';
-import {
-	findPlatformDeliveryPreset,
-	resolvePlatformDeliveryAvailability,
-} from './platform-delivery-presets.ts';
 
 /**
  * What a video delivery plan does to the material.
@@ -110,8 +106,6 @@ export function inventoryVideoDeliveryConversions(
 		// asked for could not be. Both belong in the report, because the report is
 		// where a delivery that is not the one requested has to account for itself
 		// after the dialog is gone.
-		const requested = source.degradedFrom ? findPlatformDeliveryPreset(source.degradedFrom) : null;
-		const blocker = requested ? resolvePlatformDeliveryAvailability(requested).blocker : null;
 		conversions.push({
 			code: 'delivery.target',
 			disposition: source.degradedFrom ? 'converted' : 'preserved',
@@ -121,7 +115,7 @@ export function inventoryVideoDeliveryConversions(
 			data: {
 				target: source.deliveryTargetId,
 				...(source.degradedFrom ? { requested: source.degradedFrom } : {}),
-				...(blocker ? { blocker } : {}),
+				...(source.degradedFrom ? { blocker: 'executor-unavailable' } : {}),
 			},
 		});
 	}

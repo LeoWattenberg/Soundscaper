@@ -115,11 +115,12 @@ test('a preset never bypasses plan validation', () => {
 test('a preset with no licensing row rides what the product already ships', () => {
 	const availability = resolveDeliveryPresetAvailability(preset(), {});
 	assert.deepEqual(availability, {
-		available: true, status: 'shipped', licensingRowId: null, blocker: null, fallbackPresetId: null,
+		available: true, status: 'implemented', licensingRowId: null,
+		m9ReleaseReviewStatus: 'not-required', m9ReleaseReviewPending: false,
 	});
 });
 
-test('a preset naming a gated codec reports the real recorded status and its fallback', async () => {
+test('a preset naming a gated codec reports Milestone 9 review without blocking execution', async () => {
 	const matrix = JSON.parse(await readFile(licensingUrl, 'utf8'));
 	const gated = preset({
 		id: 'hevc-master',
@@ -128,21 +129,19 @@ test('a preset naming a gated codec reports the real recorded status and its fal
 		fallbackPresetId: 'cd-master',
 	});
 	const availability = resolveDeliveryPresetAvailability(gated, matrix);
-	assert.equal(availability.available, false, 'every codec row is blocked today');
-	assert.equal(availability.status, 'blocked');
-	assert.equal(availability.fallbackPresetId, 'cd-master', 'an unavailable preset degrades visibly');
-	assert.ok(
-		availability.blocker && availability.blocker.length > 0,
-		'the recorded blocker is shown rather than a generic refusal',
-	);
+	assert.equal(availability.available, true);
+	assert.equal(availability.status, 'implemented');
+	assert.equal(availability.m9ReleaseReviewStatus, 'blocked');
+	assert.equal(availability.m9ReleaseReviewPending, true);
 });
 
-test('a preset whose licensing row does not exist is unavailable, not assumed fine', () => {
+test('a preset whose licensing row does not exist remains testable and flags Milestone 9 review', () => {
 	const orphan = preset({ id: 'orphan', licensingRowId: 'codec-invented', fallbackPresetId: 'cd-master' });
 	const availability = resolveDeliveryPresetAvailability(orphan, { nativeFormatPolicies: [] });
-	assert.equal(availability.available, false);
-	assert.equal(availability.status, 'unknown-row');
-	assert.match(availability.blocker ?? '', /No licensing row codec-invented is recorded/u);
+	assert.equal(availability.available, true);
+	assert.equal(availability.status, 'implemented');
+	assert.equal(availability.m9ReleaseReviewStatus, 'unrecorded');
+	assert.equal(availability.m9ReleaseReviewPending, true);
 });
 
 test('validated presets are frozen data and round-trip through JSON', () => {
