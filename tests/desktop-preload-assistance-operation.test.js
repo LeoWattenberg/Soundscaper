@@ -229,6 +229,77 @@ test('workflow preload closes every Advanced primitive to its exact single-stage
 	}
 });
 
+test('workflow preload admits repeated frame-pack claims only for one input slot', async () => {
+	const stageId = 'run-saliency-detection';
+	const claim = (direction, claimId, slotId) => Object.freeze({ claimVersion: 1,
+		direction, claimId, jobId: JOB_ID, stageId, slotId });
+	const request = Object.freeze({ ...WORKFLOW_REQUEST,
+		workflowId: 'advanced:saliency-detection',
+		settings: { settingsVersion: 1, workflowId: 'advanced:saliency-detection',
+			operationSettings: {} },
+		stageIds: [stageId],
+		models: [{ ...WORKFLOW_REQUEST.models[0], stageId, slotId: 'model' }],
+		inputs: [claim('input', '5'.repeat(40), 'frame-pack'),
+			claim('input', '6'.repeat(40), 'frame-pack')],
+		outputs: [claim('output', '7'.repeat(40), 'saliency-map')],
+	});
+	const unavailable = { contractVersion: 1, jobId: JOB_ID,
+		workflowId: request.workflowId, outcome: 'unavailable', reason: 'stage-unavailable' };
+	const fixture = await loadPreload({ responses: [unavailable] });
+	assert.deepEqual(plain(await fixture.bridge.localAssistance.workflow.run(request)), unavailable);
+	assert.deepEqual(plain(fixture.invocations[0][1].inputs), plain(request.inputs));
+	const duplicate = await loadPreload({ responses: [] });
+	await assert.rejects(duplicate.bridge.localAssistance.workflow.run({ ...request,
+		inputs: [request.inputs[0], { ...request.inputs[1], claimId: request.inputs[0].claimId }],
+	}), /repeat|slot|workflow/iu);
+	assert.equal(duplicate.invocations.length, 0);
+
+	const rejected = await loadPreload({ responses: [] });
+	await assert.rejects(rejected.bridge.localAssistance.workflow.run({ ...request,
+		workflowId: 'advanced:speech-enhancement',
+		settings: { settingsVersion: 1, workflowId: 'advanced:speech-enhancement',
+			operationSettings: {} },
+		stageIds: ['run-speech-enhancement'],
+		models: request.models.map((model) => ({ ...model,
+			stageId: 'run-speech-enhancement' })),
+		inputs: request.inputs.map((input) => ({ ...input,
+			stageId: 'run-speech-enhancement', slotId: 'audio' })),
+		outputs: request.outputs.map((output) => ({ ...output,
+			stageId: 'run-speech-enhancement', slotId: 'enhanced-audio' })),
+	}), /repeat|slot|workflow/iu);
+	assert.equal(rejected.invocations.length, 0);
+});
+
+test('workflow preload keeps Index Video OCR optional end to end', async () => {
+	const claim = (direction, claimId, stageId, slotId) => Object.freeze({ claimVersion: 1,
+		direction, claimId, jobId: JOB_ID, stageId, slotId });
+	const request = Object.freeze({ ...WORKFLOW_REQUEST, workflowId: 'index-video',
+		settings: { settingsVersion: 1, workflowId: 'index-video', shotMode: 'fast', includeOcr: false },
+		stageIds: ['detect-shots', 'sample-shot-frames', 'embed-visuals', 'publish-video-index'],
+		models: [{ ...WORKFLOW_REQUEST.models[0], stageId: 'embed-visuals',
+			slotId: 'visual-embedder' }],
+		inputs: [
+			claim('input', '5'.repeat(40), 'detect-shots', 'video'),
+			claim('input', '6'.repeat(40), 'sample-shot-frames', 'video'),
+			claim('input', '7'.repeat(40), 'sample-shot-frames', 'video-authority'),
+			claim('input', '8'.repeat(40), 'sample-shot-frames', 'shot-boundaries'),
+			claim('input', '9'.repeat(40), 'embed-visuals', 'frame-pack'),
+			claim('input', 'a'.repeat(40), 'publish-video-index', 'visual-embeddings'),
+		],
+		outputs: [
+			claim('output', '8'.repeat(40), 'detect-shots', 'shot-boundaries'),
+			claim('output', '9'.repeat(40), 'sample-shot-frames', 'frame-pack'),
+			claim('output', 'a'.repeat(40), 'embed-visuals', 'visual-embeddings'),
+			claim('output', 'b'.repeat(40), 'publish-video-index', 'video-index'),
+		],
+	});
+	const unavailable = { contractVersion: 1, jobId: JOB_ID,
+		workflowId: request.workflowId, outcome: 'unavailable', reason: 'stage-unavailable' };
+	const fixture = await loadPreload({ responses: [unavailable] });
+	assert.deepEqual(plain(await fixture.bridge.localAssistance.workflow.run(request)), unavailable);
+	assert.equal(fixture.invocations.length, 1);
+});
+
 test('workflow preload requires transcript chunks beside embeddings for index publication', async () => {
 	const claim = (direction, claimId, stageId, slotId) => Object.freeze({ claimVersion: 1,
 		direction, claimId, jobId: JOB_ID, stageId, slotId });

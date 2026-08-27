@@ -8,6 +8,9 @@ import {
 	createLocalAssistanceSelectedVideoPreparation,
 	resolveLocalAssistanceSelectedVideoAuthority,
 } from '../src/common/editor/controller/local-assistance-selected-video.ts';
+import {
+	createLocalAssistanceSelectedVideoModelFramePack,
+} from '../src/common/editor/controller/local-assistance-selected-video-model-preparation.ts';
 import { createLocalAssistanceSelectedVideoSourceTimeDescriptorV1 } from
 	'../src/common/editor/controller/local-assistance-selected-video-source-time.ts';
 import { sequenceFrameBoundarySample } from '../src/common/editor/sequence-frame-navigation.ts';
@@ -31,10 +34,15 @@ test('selected-video Reframe stages share deterministic 2 fps and accepted shot-
 	const requests: VisualRequest[] = [];
 	const preparation = fixture(project, requests);
 	assert.deepEqual((await preparation.listSelectedMedia()).sources[0]?.operations, [
-		'shot-detection', 'subject-detection', 'saliency-detection',
+		'shot-detection', 'image-text-embedding', 'optical-character-recognition',
+		'subject-detection', 'saliency-detection',
 	]);
 
-	for (const [operation, outputRole] of [
+	for (const [operation, outputRole, mediaType] of [
+		['image-text-embedding', 'embeddings',
+			'application/vnd.soundscaper.embedding-matrix-v1'],
+		['optical-character-recognition', 'recognized-text',
+			'application/vnd.soundscaper.recognized-text+json'],
 		['subject-detection', 'subject-tracks'],
 		['saliency-detection', 'saliency-map'],
 	] as const) {
@@ -46,11 +54,11 @@ test('selected-video Reframe stages share deterministic 2 fps and accepted shot-
 			role, mediaType, bytes,
 		})), [{ role: 'frame-pack', mediaType: FRAME_PACK.type, bytes: FRAME_PACK }]);
 		assert.deepEqual(prepared.outputs, [{ role: outputRole,
-			mediaType: `application/vnd.soundscaper.${outputRole}+json`,
+			mediaType: mediaType ?? `application/vnd.soundscaper.${outputRole}+json`,
 			maximumByteLength: 64 * 1024 * 1024 }]);
 	}
 
-	assert.equal(requests.length, 2);
+	assert.equal(requests.length, 4);
 	for (const request of requests) {
 		assert.deepEqual({ sourceWidth: request.sourceWidth, sourceHeight: request.sourceHeight,
 			rasterWidth: request.rasterWidth, rasterHeight: request.rasterHeight }, {
@@ -63,6 +71,25 @@ test('selected-video Reframe stages share deterministic 2 fps and accepted shot-
 			'20', '25', '32', '44', '56', '68', '80', '92', '104', '116',
 		]);
 	}
+});
+
+test('selected-video visual model preparation returns every bounded long-media pack in order', async () => {
+	const requests: VisualRequest[] = [];
+	const timing = { timescale: 24, frames: Array.from({ length: 1_025 }, (_, sourceFrame) => ({
+		sourceFrame, presentationTick: String(sourceFrame + 1), timestampSeconds: sourceFrame / 2,
+	})) };
+	const prepared = await createLocalAssistanceSelectedVideoModelFramePack({
+		createFramePack: (request) => {
+			requests.push(request);
+			return new Blob([new Uint8Array([requests.length])], { type: FRAME_PACK.type });
+		},
+	}, { operation: 'saliency-detection', body: videoBlob(), timing,
+		sourceWidth: 1_920, sourceHeight: 1_080, signal: new AbortController().signal,
+		assertCurrent() {}, maximumInputBytes: 8 * 1024 * 1024 * 1024 });
+	assert.equal(requests.length, 2);
+	assert.deepEqual(requests.map((request) => request.timing.frames.length), [1_024, 1]);
+	assert.deepEqual(prepared.inputs.map(({ bytes }) => bytes.size), [1, 1]);
+	assert.notStrictEqual(prepared.inputs[0]?.bytes, prepared.inputs[1]?.bytes);
 });
 
 test('selected-video Reframe preserves VFR source ticks under deterministic 2 fps sampling', async () => {

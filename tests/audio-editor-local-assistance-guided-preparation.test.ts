@@ -258,9 +258,9 @@ test('Accurate Mark Cuts stages its exact frame pack and never substitutes Fast'
 						sourceId: 'video-source', sourceSha256: SOURCE_SHA256,
 						sourceStartFrame: 0, sourceEndFrame: 120,
 						linkMembershipSha256: '12'.repeat(32), timingAuthoritySha256: '34'.repeat(32),
-					}, inputs: [{ role: 'frame-pack',
+					}, inputs: [1, 2].map((ordinal) => ({ role: 'frame-pack',
 						mediaType: 'application/vnd.soundscaper.frame-pack',
-						bytes: new Blob([new Uint8Array([1, 2, 3])]) }],
+						bytes: new Blob([new Uint8Array([ordinal, 2, 3])]) })),
 					outputs: [{ role: 'shot-boundaries', mediaType: 'application/json',
 						maximumByteLength: MAXIMUM_OUTPUT_BYTES }],
 				};
@@ -274,11 +274,14 @@ test('Accurate Mark Cuts stages its exact frame pack and never substitutes Fast'
 	assert.equal(result.outcome, 'prepared');
 	if (result.outcome !== 'prepared') return;
 	assert.deepEqual(result.workflow.inputs.map(({ stageId, slotId }) => `${stageId}:${slotId}`), [
-		'detect-shots:frame-pack', 'normalize-cuts:shot-boundaries',
+		'detect-shots:frame-pack', 'detect-shots:frame-pack',
+		'normalize-cuts:shot-boundaries',
 	]);
 	assert.deepEqual(modes, ['accurate']);
 	assert.equal(fixture.custodyEvents[0]?.kind, 'input');
 	assert.equal(fixture.custodyEvents[0]?.slotId, 'frame-pack');
+	assert.equal(fixture.custodyEvents[1]?.slotId, 'frame-pack');
+	assert.notEqual(result.workflow.inputs[0]?.claimId, result.workflow.inputs[1]?.claimId);
 });
 
 test('Index Video stages exact selected-video timing authority beside raw decode custody', async () => {
@@ -383,9 +386,10 @@ test('Guided Reframe prepares both visual model stages through selected-video fr
 			prepareSelectedMedia: async ({ operation }) => {
 				operations.push(operation);
 				return { sourceId: 'video-source', operation, selectionFence: videoFence,
-					inputs: [{ role: 'frame-pack', mediaType: 'application/vnd.soundscaper.frame-pack',
-						bytes: new Blob([new Uint8Array([1, 2, 3])], {
-							type: 'application/vnd.soundscaper.frame-pack' }) }], outputs: [] };
+					inputs: [1, 2].map((ordinal) => ({ role: 'frame-pack',
+						mediaType: 'application/vnd.soundscaper.frame-pack',
+						bytes: new Blob([new Uint8Array([ordinal, 2, 3])], {
+							type: 'application/vnd.soundscaper.frame-pack' }) })), outputs: [] };
 			},
 		},
 	});
@@ -399,7 +403,9 @@ test('Guided Reframe prepares both visual model stages through selected-video fr
 	if (result.outcome !== 'prepared') return;
 	assert.deepEqual(operations, ['subject-detection', 'saliency-detection']);
 	assert.deepEqual(result.workflow.inputs.filter(({ slotId }) => slotId === 'frame-pack')
-		.map(({ stageId }) => stageId), ['detect-subjects', 'detect-saliency']);
+		.map(({ stageId }) => stageId), [
+			'detect-subjects', 'detect-subjects', 'detect-saliency', 'detect-saliency',
+		]);
 	assert.deepEqual(result.workflow.stageIds,
 		['detect-subjects', 'detect-saliency', 'track-subjects', 'plan-crops']);
 });

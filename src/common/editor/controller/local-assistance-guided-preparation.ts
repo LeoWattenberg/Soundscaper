@@ -116,6 +116,12 @@ export interface LocalAssistanceGuidedWorkflowPreparation {
 	): Promise<LocalAssistanceGuidedWorkflowPreparationOutcome>;
 }
 
+interface PreparedExternalInput {
+	readonly mediaType: string;
+	readonly bytes: Blob;
+	readonly fence: LocalAssistanceGuidedPrimitiveFence;
+}
+
 export function createLocalAssistanceGuidedWorkflowPreparation(
 	dependencies: LocalAssistanceGuidedPreparationDependencies,
 ): Readonly<LocalAssistanceGuidedWorkflowPreparation> {
@@ -161,7 +167,7 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 				throw new UnavailableError('source-custody-unavailable');
 			}
 			dependencies.assertProject(token);
-			const externalByBinding = new Map<string, Awaited<ReturnType<typeof prepareExternalInput>>>();
+			const externalByBinding = new Map<string, readonly PreparedExternalInput[]>();
 			const producedSlots = new Set<string>();
 			for (const stage of stages) {
 				for (const slot of stage.inputSlots) {
@@ -171,7 +177,7 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 					) !== null;
 					if ((!slot.required && !selectedShotInput && !selectedHighlightInput)
 						|| producedSlots.has(slot.slotId)) continue;
-					const external = await prepareExternalInput(
+					const external = await prepareExternalInputs(
 						dependencies, project, inventory, stage, slot.slotId, settings, request.signal,
 						highlightInputs,
 					);
@@ -181,13 +187,14 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 				}
 				for (const slot of stage.outputSlots) if (slot.required) producedSlots.add(slot.slotId);
 			}
-			const preparedFences = [...externalByBinding.values()].map((external) => external!.fence);
+			const preparedFences = [...externalByBinding.values()].flatMap((externals) =>
+				externals.map(({ fence }) => fence));
 			if (preparedFences.length < 1) throw new UnavailableError('source-custody-unavailable');
 			const settingsBody = serializeAssistanceWorkflowSettingsV1(settings);
 			const fence = createLocalAssistanceGuidedAggregateFenceV1({ project,
 				primitiveFences: preparedFences, stages, settingsBody, models });
 			const outputBySlot = new Map<string, LocalAssistanceAggregateCustodyHandle>();
-			const stagedExternalByBinding = new Map<string, AssistanceWorkflowClaimV1>();
+			const stagedExternalByBinding = new Map<string, readonly AssistanceWorkflowClaimV1[]>();
 			const reviewInputs: Array<Readonly<{
 				stageId: string; slotId: string; claimId: string; mediaType: string; bytes: Blob;
 			}>> = [];
@@ -196,16 +203,20 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 			for (const stage of stages) {
 				for (const slot of stage.inputSlots) {
 					const key = bindingKey(stage.stageId, slot.slotId);
-					const external = externalByBinding.get(key) ?? null;
-					if (external === null) continue;
-					const staged = await request.custody.stageInput({ jobId: request.jobId,
-						workflowId: request.workflowId, stageId: stage.stageId, slotId: slot.slotId,
-						mediaType: external.mediaType, bytes: external.bytes, signal: request.signal });
-					const claim = assertHandle(staged, 'input', request.jobId, stage.stageId, slot.slotId);
-					stagedExternalByBinding.set(key, claim);
-					reviewInputs.push(Object.freeze({ stageId: stage.stageId, slotId: slot.slotId,
-						claimId: claim.claimId, mediaType: external.mediaType, bytes: external.bytes }));
-					dependencies.assertProject(token);
+					const externals = externalByBinding.get(key) ?? null;
+					if (externals === null) continue;
+					const claims: AssistanceWorkflowClaimV1[] = [];
+					for (const external of externals) {
+						const staged = await request.custody.stageInput({ jobId: request.jobId,
+							workflowId: request.workflowId, stageId: stage.stageId, slotId: slot.slotId,
+							mediaType: external.mediaType, bytes: external.bytes, signal: request.signal });
+						const claim = assertHandle(staged, 'input', request.jobId, stage.stageId, slot.slotId);
+						claims.push(claim);
+						reviewInputs.push(Object.freeze({ stageId: stage.stageId, slotId: slot.slotId,
+							claimId: claim.claimId, mediaType: external.mediaType, bytes: external.bytes }));
+						dependencies.assertProject(token);
+					}
+					stagedExternalByBinding.set(key, Object.freeze(claims));
 				}
 			}
 			const reviewAuthority = await deriveLocalAssistanceGuidedReviewAuthority(
@@ -229,7 +240,7 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 					if (!slot.required && !externalByBinding.has(bindingKey(stage.stageId, slot.slotId))) continue;
 					const staged = stagedExternalByBinding.get(bindingKey(stage.stageId, slot.slotId));
 					if (!staged) throw new UnavailableError(externalReason(slot.slotId));
-					inputs.push(staged);
+					inputs.push(...staged);
 				}
 				for (const slot of stage.outputSlots) {
 					if (!slot.required) continue;
@@ -264,7 +275,7 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 
 type PrimitiveFence = LocalAssistanceGuidedPrimitiveFence;
 
-async function prepareExternalInput(
+async function prepareExternalInputs(
 	dependencies: LocalAssistanceGuidedPreparationDependencies,
 	project: Record<string, unknown>,
 	inventory: readonly InventorySource[],
@@ -273,9 +284,9 @@ async function prepareExternalInput(
 	settings: AssistanceWorkflowSettingsV1,
 	signal: AbortSignal,
 	highlightInputs: LocalAssistanceGuidedHighlightPreparedInputsV1 | null,
-): Promise<Readonly<{ mediaType: string; bytes: Blob; fence: PrimitiveFence }> | null> {
+): Promise<readonly PreparedExternalInput[] | null> {
 	const highlight = highlightExternalInput(highlightInputs, stage.stageId, slotId);
-	if (highlight !== null) return highlight;
+	if (highlight !== null) return Object.freeze([highlight]);
 	if (slotId === 'transcript' || slotId === 'editorial-context') {
 		const options = Object.freeze({ project, inventory,
 			fence: primitiveFence(dependencies.currentSelectionFence()),
@@ -284,9 +295,10 @@ async function prepareExternalInput(
 				? { editorialFields: settings.fields }
 				: {}),
 			signal });
-		return slotId === 'transcript'
+		const prepared = await (slotId === 'transcript'
 			? prepareLocalAssistanceGuidedTranscriptInput(options)
-			: prepareLocalAssistanceGuidedEditorialContext(options);
+			: prepareLocalAssistanceGuidedEditorialContext(options));
+		return prepared === null ? null : Object.freeze([prepared]);
 	}
 	if (slotId === 'video-authority') {
 		if (!dependencies.selected.describeSelectedVideoSourceTime) return null;
@@ -302,7 +314,7 @@ async function prepareExternalInput(
 		if (bytes.size < 1 || bytes.size > MAXIMUM_OUTPUT_BYTES) {
 			throw new UnavailableError('timing-authority-unavailable');
 		}
-		return Object.freeze({ mediaType: bytes.type, bytes, fence });
+		return Object.freeze([Object.freeze({ mediaType: bytes.type, bytes, fence })]);
 	}
 	if (slotId !== 'audio' && slotId !== 'video' && slotId !== 'frame-pack') return null;
 	const source = inventory.filter(({ mediaKind }) => mediaKind === (slotId === 'frame-pack' ? 'video' : slotId));
@@ -318,11 +330,12 @@ async function prepareExternalInput(
 	});
 	const prepared = primitivePrepared(value, source[0]!.sourceId, operation, mode);
 	const matches = prepared.inputs.filter((candidate) => candidate.role === slotId);
-	if (matches.length !== 1) {
+	if (matches.length < 1 || matches.length > (slotId === 'frame-pack' ? 64 : 1)) {
 		throw new UnavailableError('aggregate-custody-unavailable');
 	}
-	const input = matches[0]!;
-	return Object.freeze({ mediaType: input.mediaType, bytes: input.bytes, fence: prepared.fence });
+	return Object.freeze(matches.map((input) => Object.freeze({
+		mediaType: input.mediaType, bytes: input.bytes, fence: prepared.fence,
+	})));
 }
 
 function highlightExternalInput(

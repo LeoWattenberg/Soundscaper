@@ -66,6 +66,11 @@ const VIDEO_MEDIA_TYPES = new Set([
 	'video/webm',
 	'video/x-matroska',
 ]);
+const SELECTED_VIDEO_MODEL_OPERATIONS = new Set<LocalAssistanceSelectedVideoModelOperation>([
+	'image-text-embedding', 'optical-character-recognition', 'subject-detection', 'saliency-detection',
+]);
+const SELECTED_VIDEO_OPERATIONS = Object.freeze(
+	['shot-detection', ...SELECTED_VIDEO_MODEL_OPERATIONS] as const);
 
 type DataRecord = Readonly<Record<string, unknown>>;
 
@@ -164,9 +169,7 @@ export interface LocalAssistanceSelectedVideoPreparation {
 		readonly sourceId: string;
 		readonly label: string;
 		readonly mediaKind: 'video';
-		readonly operations: readonly [
-			'shot-detection', 'subject-detection', 'saliency-detection',
-		];
+		readonly operations: typeof SELECTED_VIDEO_OPERATIONS;
 	}>[] }>>;
 	prepareSelectedMedia(request: LocalAssistanceSelectedVideoPreparationRequest):
 		Promise<LocalAssistanceSelectedVideoPrepared>;
@@ -186,9 +189,7 @@ export function createLocalAssistanceSelectedVideoPreparation(
 			sourceId: identifier(selected.source.id, 'source ID'),
 			label: identifier(selected.clip.title ?? selected.source.name, 'selected-video label'),
 			mediaKind: 'video' as const,
-			operations: Object.freeze([
-				'shot-detection', 'subject-detection', 'saliency-detection',
-			] as const),
+			operations: SELECTED_VIDEO_OPERATIONS,
 		})]) });
 	}
 
@@ -196,10 +197,11 @@ export function createLocalAssistanceSelectedVideoPreparation(
 	Promise<LocalAssistanceSelectedVideoPrepared> {
 		const request = preparationRequest(value);
 		request.signal?.throwIfAborted();
-		if (request.operation !== 'shot-detection' && request.operation !== 'subject-detection'
-			&& request.operation !== 'saliency-detection') {
+		if (request.operation !== 'shot-detection'
+			&& !SELECTED_VIDEO_MODEL_OPERATIONS.has(request.operation as LocalAssistanceSelectedVideoModelOperation)) {
 			throw new RangeError('This operation has no exact selected video input preparation.');
 		}
+		const modelOperation = request.operation as LocalAssistanceSelectedVideoModelOperation;
 		const token = dependencies.captureProject();
 		const selected = resolveLocalAssistanceSelectedVideoAuthority(dependencies);
 		if (identifier(selected.source.id, 'source ID') !== request.sourceId) {
@@ -248,7 +250,7 @@ export function createLocalAssistanceSelectedVideoPreparation(
 			const prepared = await createLocalAssistanceSelectedVideoModelFramePack({
 				...(dependencies.createVisualFramePack
 					? { createFramePack: dependencies.createVisualFramePack } : {}),
-			}, { operation: request.operation, body: bytes,
+			}, { operation: modelOperation, body: bytes,
 				timing: createLocalAssistanceSelectedVideoReframeFramePackTiming(
 					state.binding, shotAnchors,
 				),
@@ -256,7 +258,7 @@ export function createLocalAssistanceSelectedVideoPreparation(
 				sourceHeight: integer(selected.source.height, 1, 'source height'),
 				signal, assertCurrent: () => dependencies.assertProject(token), maximumInputBytes,
 			});
-			return Object.freeze({ sourceId: request.sourceId, operation: request.operation,
+			return Object.freeze({ sourceId: request.sourceId, operation: modelOperation,
 				selectionFence: selected.fence, ...prepared });
 		}
 		const inputs = request.inputRole === 'frame-pack'

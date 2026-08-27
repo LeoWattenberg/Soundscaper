@@ -125,6 +125,7 @@ const OPAQUE_JOB_ID = /^[a-f\d]{40}$/u;
 const SLOT_ID = /^[a-z\d](?:[a-z\d.-]{0,62}[a-z\d])?$/u;
 const MODEL_ID = /^[a-z\d](?:[a-z\d.-]{0,126}[a-z\d])?$/u;
 const MAXIMUM_CLAIMS = 256;
+const MAXIMUM_FRAME_PACK_CLAIMS = 64;
 const MAXIMUM_MODELS = 64;
 const MAXIMUM_MODEL_ARTIFACTS = 64;
 
@@ -313,7 +314,7 @@ function validateClaims(
 	jobId: string,
 	selected: ReadonlyMap<string, AssistanceWorkflowStageSpec>,
 ): readonly AssistanceWorkflowClaimV1[] {
-	const seen = new Set<string>();
+	const seen = new Map<string, Set<string>>();
 	const claims = boundedArray(value, 1, MAXIMUM_CLAIMS, `${direction} claims`).map((candidate) => {
 		const record = exactRecord(candidate, CLAIM_KEYS, `assistance workflow ${direction} claim`);
 		if (record.claimVersion !== ASSISTANCE_WORKFLOW_CLAIM_VERSION || record.direction !== direction) {
@@ -330,12 +331,20 @@ function validateClaims(
 			throw new TypeError(`The assistance workflow stage does not admit that ${direction} slot.`);
 		}
 		const key = `${stageId}\0${claimSlotId}`;
-		if (seen.has(key)) throw new TypeError(`An assistance workflow ${direction} slot may be bound only once.`);
-		seen.add(key);
+		const claimId = opaqueClaimId(record.claimId);
+		const claimIds = seen.get(key) ?? new Set<string>();
+		if (claimIds.size > 0 && (direction !== 'input' || claimSlotId !== 'frame-pack')) {
+			throw new TypeError(`An assistance workflow ${direction} slot may be bound only once.`);
+		}
+		if (claimIds.has(claimId) || claimIds.size >= MAXIMUM_FRAME_PACK_CLAIMS) {
+			throw new TypeError('Assistance workflow frame-pack claims must be distinct and bounded.');
+		}
+		claimIds.add(claimId);
+		seen.set(key, claimIds);
 		return Object.freeze({
 			claimVersion: ASSISTANCE_WORKFLOW_CLAIM_VERSION,
 			direction,
-			claimId: opaqueClaimId(record.claimId),
+			claimId,
 			jobId: claimJobId,
 			stageId,
 			slotId: claimSlotId,
@@ -371,7 +380,9 @@ function assertShotModeAuthority(
 	if (mode === null) return;
 	const expectedInput = mode === 'accurate' ? 'frame-pack' : 'video';
 	const shotInputs = inputs.filter(({ stageId }) => stageId === 'detect-shots');
-	if (shotInputs.length !== 1 || shotInputs[0]!.slotId !== expectedInput) {
+	if (shotInputs.length < 1 || shotInputs.length > (mode === 'accurate'
+		? MAXIMUM_FRAME_PACK_CLAIMS : 1)
+		|| shotInputs.some(({ slotId }) => slotId !== expectedInput)) {
 		throw new TypeError('The assistance shot input disagrees with its explicit mode.');
 	}
 	const shotModels = models.filter(({ stageId, slotId }) =>

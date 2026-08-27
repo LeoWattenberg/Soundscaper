@@ -22,6 +22,7 @@ export const LOCAL_ASSISTANCE_FRAME_PACK_MEDIA_TYPE =
 export const LOCAL_ASSISTANCE_VIDEO_FRAMES_PER_PACK = 8_192;
 export const LOCAL_ASSISTANCE_VIDEO_MAXIMUM_FRAME_PACKS = 64;
 export const LOCAL_ASSISTANCE_REFRAME_MAXIMUM_RASTER_DIMENSION = 320;
+export const LOCAL_ASSISTANCE_VISUAL_FRAMES_PER_PACK = 1_024;
 
 export interface LocalAssistanceDecodedVideoFrame {
 	readonly width: number;
@@ -125,8 +126,20 @@ export async function createLocalAssistanceSelectedVideoFramePacksV1(
 /** Emit one bounded visual pack with exact source geometry and a separate model raster. */
 export async function createLocalAssistanceSelectedVideoVisualFramePackV2(
 	request: LocalAssistanceSelectedVideoVisualFramePackRequest,
-	options: Pick<LocalAssistanceSelectedVideoFramePackOptions, 'createDecoder'> = {},
+	options: LocalAssistanceSelectedVideoFramePackOptions = {},
 ): Promise<Blob> {
+	const packs = await createLocalAssistanceSelectedVideoVisualFramePacksV2(request, {
+		...options, framesPerPack: request.timing.frames.length,
+	});
+	if (packs.length !== 1) throw new RangeError('Selected-video visual packing requires one exact pack.');
+	return packs[0]!;
+}
+
+/** Emit ordered bounded visual packs without retaining all decoded long-media frames at once. */
+export async function createLocalAssistanceSelectedVideoVisualFramePacksV2(
+	request: LocalAssistanceSelectedVideoVisualFramePackRequest,
+	options: LocalAssistanceSelectedVideoFramePackOptions = {},
+): Promise<readonly Blob[]> {
 	const normalized = normalizeRequest(request);
 	const sourceWidth = integer(request.sourceWidth, 1, 4_096, 'visual source width');
 	const sourceHeight = integer(request.sourceHeight, 1, 4_096, 'visual source height');
@@ -134,13 +147,18 @@ export async function createLocalAssistanceSelectedVideoVisualFramePackV2(
 		LOCAL_ASSISTANCE_REFRAME_MAXIMUM_RASTER_DIMENSION, 'visual raster width');
 	const rasterHeight = integer(request.rasterHeight, 1,
 		LOCAL_ASSISTANCE_REFRAME_MAXIMUM_RASTER_DIMENSION, 'visual raster height');
-	const estimatedBytes = BigInt(normalized.timing.frames.length)
-		* (BigInt(rasterWidth) * BigInt(rasterHeight) * 4n + 16n) + 128n;
-	if (estimatedBytes > BigInt(ASSISTANCE_BINARY_MAXIMUM_BYTES)) {
-		throw new RangeError('Selected-video visual packing exceeds its exact binary byte bound.');
-	}
 	if (options.createDecoder !== undefined && typeof options.createDecoder !== 'function') {
 		throw new TypeError('Selected-video visual packing needs a decoder factory.');
+	}
+	const frameBytes = BigInt(rasterWidth) * BigInt(rasterHeight) * 4n + 16n;
+	const maximumFramesPerPack = Number((BigInt(ASSISTANCE_BINARY_MAXIMUM_BYTES) - 128n)
+		/ frameBytes);
+	const framesPerPack = integer(options.framesPerPack
+		?? Math.min(LOCAL_ASSISTANCE_VISUAL_FRAMES_PER_PACK, maximumFramesPerPack),
+	1, maximumFramesPerPack, 'visual frames per pack');
+	const packCount = Math.ceil(normalized.timing.frames.length / framesPerPack);
+	if (packCount < 1 || packCount > LOCAL_ASSISTANCE_VIDEO_MAXIMUM_FRAME_PACKS) {
+		throw new RangeError('Selected-video visual packing exceeds its bounded pack inventory.');
 	}
 	assertReady(normalized);
 	const decoder = await (options.createDecoder ?? defaultDecoder)(normalized.body, {
@@ -149,24 +167,30 @@ export async function createLocalAssistanceSelectedVideoVisualFramePackV2(
 	if (!decoder || typeof decoder.capture !== 'function' || typeof decoder.dispose !== 'function') {
 		throw new TypeError('Selected-video visual packing received an invalid decoder.');
 	}
-	const frames = [];
+	const packs: Blob[] = [];
 	try {
-		for (const timing of normalized.timing.frames) {
-			assertReady(normalized);
-			const decoded = reviewedFrame(await decoder.capture(Object.freeze({
-				timestampSeconds: timing.timestampSeconds, signal: normalized.signal,
-			})));
-			assertReady(normalized);
-			frames.push(Object.freeze({ sourceFrame: timing.sourceFrame,
-				presentationTick: timing.presentationTick,
-				rgba: exactGeometry(decoded, rasterWidth, rasterHeight) }));
+		for (let packIndex = 0; packIndex < packCount; packIndex += 1) {
+			const first = packIndex * framesPerPack;
+			const timings = normalized.timing.frames.slice(first, first + framesPerPack);
+			const frames = [];
+			for (const timing of timings) {
+				assertReady(normalized);
+				const decoded = reviewedFrame(await decoder.capture(Object.freeze({
+					timestampSeconds: timing.timestampSeconds, signal: normalized.signal,
+				})));
+				assertReady(normalized);
+				frames.push(Object.freeze({ sourceFrame: timing.sourceFrame,
+					presentationTick: timing.presentationTick,
+					rgba: exactGeometry(decoded, rasterWidth, rasterHeight) }));
+			}
+			const chunks = createAssistanceVisualFramePackV2({ sourceWidth, sourceHeight,
+				rasterWidth, rasterHeight, timescale: normalized.timing.timescale, frames });
+			packs.push(new Blob(chunks.map((chunk) => Uint8Array.from(chunk).buffer), {
+				type: LOCAL_ASSISTANCE_FRAME_PACK_MEDIA_TYPE,
+			}));
 		}
-		const chunks = createAssistanceVisualFramePackV2({ sourceWidth, sourceHeight,
-			rasterWidth, rasterHeight, timescale: normalized.timing.timescale, frames });
 		assertReady(normalized);
-		return new Blob(chunks.map((chunk) => Uint8Array.from(chunk).buffer), {
-			type: LOCAL_ASSISTANCE_FRAME_PACK_MEDIA_TYPE,
-		});
+		return Object.freeze(packs);
 	} finally {
 		await decoder.dispose();
 	}

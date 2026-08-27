@@ -95,6 +95,39 @@ test('executor derives stages, correlates slots canonically, and dispatches prim
 		]);
 });
 
+test('executor forwards every repeated frame-pack claim in aggregate order', async () => {
+	const stageId = 'run-saliency-detection';
+	const request = assistanceWorkflowFixture({
+		workflowId: 'advanced:saliency-detection',
+		settings: { settingsVersion: 1, workflowId: 'advanced:saliency-detection',
+			operationSettings: {} },
+		stageIds: [stageId],
+		models: [{ bindingVersion: 1, stageId, slotId: 'model', modelId: 'u2netp-saliency',
+			version: '1.0.0', artifactSha256s: ['09'.repeat(32)] }],
+		inputs: [
+			workflowClaim('input', stageId, 'frame-pack', 9),
+			workflowClaim('input', stageId, 'frame-pack', 7),
+		],
+		outputs: [workflowClaim('output', stageId, 'saliency-map', 8)],
+	});
+	const observed: string[][] = [];
+	const execute = createAssistanceWorkflowExecutor({
+		resolveCustody: (stage) => Object.freeze({ outcome: 'resolved' as const,
+			custody: createAssistanceWorkflowStageCustodyToken(stage) }),
+		runPrimitiveStage: (stage) => {
+			observed.push(stage.inputs.map(({ claimId }) => claimId));
+			return Object.freeze({ outcome: 'completed' as const });
+		},
+	});
+	const result = await execute(request, { signal: new AbortController().signal,
+		stages: Object.freeze([]), progress: () => undefined });
+	assert.equal(result.outcome, 'completed');
+	assert.deepEqual(observed, [[
+		9..toString(16).padStart(40, '0'),
+		7..toString(16).padStart(40, '0'),
+	]]);
+});
+
 test('executor returns typed unavailable without primitive or deterministic substitution', async () => {
 	const resolver = async (stage: AssistanceWorkflowStageBindingV1) => Object.freeze({
 		outcome: 'resolved' as const,
@@ -254,6 +287,13 @@ function stageCall(kind: string, stage: AssistanceWorkflowStageExecutionV1) {
 		outputs: Object.freeze(stage.outputs.map(({ slotId }) => slotId)),
 		models: Object.freeze(stage.models.map(({ slotId }) => slotId)),
 	});
+}
+
+function workflowClaim(
+	direction: 'input' | 'output', stageId: string, slotId: string, ordinal: number,
+) {
+	return Object.freeze({ claimVersion: 1 as const, direction,
+		claimId: ordinal.toString(16).padStart(40, '0'), jobId: WORKFLOW_JOB_ID, stageId, slotId });
 }
 
 function unavailable(reason: 'stage-unavailable' | 'model-unavailable') {

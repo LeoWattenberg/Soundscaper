@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -112,6 +112,62 @@ test('workflow jobs own one pathless namespace with authenticated external and p
 			/already authenticated/iu);
 		assert.equal(await custody.releaseJob(jobId), true);
 		assert.equal(await custody.releaseJob(jobId), false);
+	});
+});
+
+test('workflow custody keys repeated external frame packs by claim and preserves staged order', async () => {
+	await withTempDirectory('workflow-frame-pack-custody-', async (directory) => {
+		let ordinal = 0;
+		const staging = new AssistanceStagingRegistry({ root: join(directory, 'private'),
+			mintId: () => (++ordinal).toString(16).padStart(40, '0') });
+		const custody = new AssistanceWorkflowCustody({ staging });
+		const { jobId } = await custody.createJob();
+		const stageId = 'run-saliency-detection';
+		const first = await custody.stageInput({ jobId,
+			workflowId: 'advanced:saliency-detection', stageId, slotId: 'frame-pack',
+			mediaType: 'application/vnd.soundscaper.frame-pack', byteLength: 5,
+			bytes: chunks(new TextEncoder().encode('pack1')) });
+		const second = await custody.stageInput({ jobId,
+			workflowId: 'advanced:saliency-detection', stageId, slotId: 'frame-pack',
+			mediaType: 'application/vnd.soundscaper.frame-pack', byteLength: 5,
+			bytes: chunks(new TextEncoder().encode('pack2')) });
+		const output = await custody.reserveOutput({ jobId,
+			workflowId: 'advanced:saliency-detection', stageId, slotId: 'saliency-map',
+			maximumByteLength: 4096 });
+		const request = assistanceWorkflowFixture({ jobId,
+			workflowId: 'advanced:saliency-detection',
+			settings: { settingsVersion: 1, workflowId: 'advanced:saliency-detection',
+				operationSettings: {} },
+			stageIds: [stageId],
+			models: [{ bindingVersion: 1, stageId, slotId: 'model', modelId: 'u2netp-saliency',
+				version: '1.0.0', artifactSha256s: ['09'.repeat(32)] }],
+			inputs: [first.workflowClaim, second.workflowClaim], outputs: [output.workflowClaim],
+		});
+		assert.deepEqual(custody.validateWorkflow(request), request);
+		assert.throws(() => custody.validateWorkflow({ ...request,
+			inputs: [second.workflowClaim, first.workflowClaim],
+		}), /frame-pack.*order|custody.*order|staged.*order/iu);
+		for (const [handle, expected] of [[first, 'pack1'], [second, 'pack2']] as const) {
+			const resolved = await custody.resolveInput(handle.custody);
+			assert.equal(new TextDecoder().decode(await readFile(resolved.path)), expected);
+		}
+		const projected = await Promise.all(request.inputs.map((claim) =>
+			custody.operationInputClaim(claim, 'saliency-detection')));
+		assert.deepEqual(projected.map(({ claimId, role }) => ({ claimId, role })), [
+			{ claimId: first.custody.claimId, role: 'frame-pack' },
+			{ claimId: second.custody.claimId, role: 'frame-pack' },
+		]);
+		await custody.releaseJob(jobId);
+
+		const { jobId: audioJob } = await custody.createJob();
+		const audio = new TextEncoder().encode('RIFF');
+		await custody.stageInput({ jobId: audioJob, workflowId: 'enhance-dialogue',
+			stageId: 'enhance-dialogue', slotId: 'audio', mediaType: 'audio/wav',
+			byteLength: audio.byteLength, bytes: chunks(audio) });
+		await assert.rejects(custody.stageInput({ jobId: audioJob, workflowId: 'enhance-dialogue',
+			stageId: 'enhance-dialogue', slotId: 'audio', mediaType: 'audio/wav',
+			byteLength: audio.byteLength, bytes: chunks(audio) }), /slot|repeat|custody/iu);
+		await custody.releaseJob(audioJob);
 	});
 });
 

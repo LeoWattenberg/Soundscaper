@@ -52,7 +52,8 @@ test('selected CFR video inventory and preparation retain exact occurrence and o
 	const fixture = videoFixture();
 	assert.deepEqual(await fixture.preparation.listSelectedMedia(), { sources: [{
 		sourceId: 'video-source', label: 'Camera A', mediaKind: 'video',
-		operations: ['shot-detection', 'subject-detection', 'saliency-detection'],
+		operations: ['shot-detection', 'image-text-embedding', 'optical-character-recognition',
+			'subject-detection', 'saliency-detection'],
 	}] });
 	assert.deepEqual(fixture.events, []);
 
@@ -84,6 +85,27 @@ test('selected CFR video inventory and preparation retain exact occurrence and o
 	});
 	assert.strictEqual(normalized.inputs[0]?.bytes, prepared.inputs[0]?.bytes);
 	assert.equal(normalized.shotDetectionMode, 'fast');
+});
+
+test('selected CFR video prepares Advanced visual embedding and OCR custody', async () => {
+	const fixture = videoFixture();
+	for (const [operation, role, mediaType] of [
+		['image-text-embedding', 'embeddings', 'application/vnd.soundscaper.embedding-matrix-v1'],
+		['optical-character-recognition', 'recognized-text',
+			'application/vnd.soundscaper.recognized-text+json'],
+	] as const) {
+		const prepared = await fixture.preparation.prepareSelectedMedia({
+			sourceId: 'video-source', operation,
+		});
+		assert.equal(prepared.operation, operation);
+		assert.deepEqual(prepared.inputs.map(({ role: inputRole, mediaType: inputType }) => ({
+			role: inputRole, mediaType: inputType,
+		})), [{ role: 'frame-pack', mediaType: 'application/vnd.soundscaper.frame-pack' }]);
+		assert.deepEqual(prepared.outputs, [{ role, mediaType,
+			maximumByteLength: 64 * 1024 * 1024 }]);
+	}
+	assert.equal(fixture.visualRequests.length, 2);
+	assert.deepEqual(fixture.visualRequests.map(({ timing }) => timing.frames.length), [9, 9]);
 });
 
 test('selected video preparation carries an explicit accurate mode without substituting Fast', async () => {
@@ -424,6 +446,7 @@ function videoFixture(
 		signal: AbortSignal;
 		assertCurrent: () => void;
 	}>> = [];
+	const visualRequests: Array<Readonly<{ timing: Readonly<{ frames: readonly unknown[] }> }>> = [];
 	const resolvedStore: VideoOriginalStoreFixture = store ?? {
 		async loadMediaAsset(storageKey) {
 			events.push(`owned:${storageKey}`);
@@ -447,9 +470,17 @@ function videoFixture(
 				type: 'application/vnd.soundscaper.frame-pack',
 			})]);
 		},
+		createVisualFramePack: async (request) => {
+			visualRequests.push(request);
+			request.signal.throwIfAborted();
+			request.assertCurrent();
+			return new Blob(['reviewed-visual-frame-pack'], {
+				type: 'application/vnd.soundscaper.frame-pack',
+			});
+		},
 		...(maximumInputBytes === undefined ? {} : { maximumInputBytes }),
 	});
-	return { accurateRequests, events, preparation };
+	return { accurateRequests, visualRequests, events, preparation };
 }
 
 function videoProject() {

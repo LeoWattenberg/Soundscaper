@@ -6,6 +6,7 @@ import test from 'node:test';
 import {
 	createLocalAssistanceSelectedVideoFramePacksV1,
 	createLocalAssistanceSelectedVideoVisualFramePackV2,
+	createLocalAssistanceSelectedVideoVisualFramePacksV2,
 } from '../src/common/editor/controller/local-assistance-selected-video-frame-pack.ts';
 import {
 	reviewAssistanceFramePackV1,
@@ -129,4 +130,25 @@ test('visual packing authenticates exact source geometry separately from its bou
 		timescale: 1_000, frameCount: 1,
 	});
 	assert.deepEqual(Array.from(reviewed.frame(0).rgba), [1, 2, 3, 255, 5, 6, 7, 255]);
+});
+
+test('visual packing chunks long timing without retaining one unbounded RGBA inventory', async () => {
+	let disposed = 0;
+	const packs = await createLocalAssistanceSelectedVideoVisualFramePacksV2({
+		body: BODY, sourceWidth: 1_920, sourceHeight: 1_080, rasterWidth: 1, rasterHeight: 1,
+		timing: { timescale: 1_000, frames: [1, 2, 3].map((sourceFrame) => ({ sourceFrame,
+			presentationTick: String(sourceFrame * 10), timestampSeconds: sourceFrame / 10 })) },
+		signal: new AbortController().signal, assertCurrent() {},
+	}, { framesPerPack: 2, createDecoder: async () => ({
+		capture: ({ timestampSeconds }) => ({ width: 1, height: 1,
+			rgba: Uint8Array.of(Math.round(timestampSeconds * 10), 0, 0, 255) }),
+		dispose() { disposed += 1; },
+	}) });
+	assert.equal(disposed, 1);
+	assert.equal(packs.length, 2);
+	const reviewed = await Promise.all(packs.map(async (pack) =>
+		reviewAssistanceVisualFramePackV2(new Uint8Array(await pack.arrayBuffer()))));
+	assert.deepEqual(reviewed.map(({ frameCount }) => frameCount), [2, 1]);
+	assert.deepEqual(reviewed.flatMap((pack) => Array.from({ length: pack.frameCount },
+		(_, index) => pack.frame(index).sourceFrame)), [1, 2, 3]);
 });

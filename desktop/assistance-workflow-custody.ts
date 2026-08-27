@@ -108,6 +108,8 @@ interface JobRecord {
 	readonly outputs: Map<string, OutputRecord>;
 }
 
+const MAXIMUM_FRAME_PACK_INPUTS_PER_SLOT = 64;
+
 export class AssistanceWorkflowCustody {
 	readonly #staging: AssistanceStagingRegistry;
 	readonly #jobs = new Map<string, JobRecord>();
@@ -163,12 +165,19 @@ export class AssistanceWorkflowCustody {
 		request: AssistanceWorkflowStagedInputBindingRequest,
 	): AssistanceWorkflowCustodyHandleV1 {
 		const job = this.#boundJob(request?.jobId, request?.workflowId);
-		const key = bindingKey(request.stageId, request.slotId);
-		if (job.inputs.has(key)) throw new Error('That workflow input slot already has custody.');
 		const spec = assistanceWorkflowCustodySlotSpec(
 			request.workflowId, request.stageId, 'input', request.slotId,
 		);
 		const claim = validateAssistanceStagedInputClaim(request.claim);
+		const existing = inputRecordsForBinding(job.inputs, request.stageId, request.slotId);
+		if (existing.length > 0 && request.slotId !== 'frame-pack') {
+			throw new Error('That workflow input slot already has custody.');
+		}
+		if (existing.length >= MAXIMUM_FRAME_PACK_INPUTS_PER_SLOT) {
+			throw new RangeError('That workflow frame-pack input inventory is exhausted.');
+		}
+		const key = inputBindingKey(request.stageId, request.slotId, claim.claimId);
+		if (job.inputs.has(key)) throw new Error('That workflow input claim already has custody.');
 		if (claim.jobId !== job.jobId || claim.role !== spec.role
 			|| !spec.mediaTypes.includes(claim.mediaType)) {
 			throw new TypeError('The staged workflow input does not match its exact slotted custody.');
@@ -211,8 +220,9 @@ export class AssistanceWorkflowCustody {
 
 	bindProducer(request: AssistanceWorkflowProducerBindingRequest): AssistanceWorkflowCustodyHandleV1 {
 		const job = this.#boundJob(request?.jobId, request?.workflowId);
-		const key = bindingKey(request.stageId, request.slotId);
-		if (job.inputs.has(key)) throw new Error('That workflow input slot already has custody.');
+		if (inputRecordsForBinding(job.inputs, request.stageId, request.slotId).length > 0) {
+			throw new Error('That workflow input slot already has custody.');
+		}
 		const producer = job.outputs.get(bindingKey(request.producerStageId, request.producerSlotId));
 		if (!producer || producer.custody.claimId !== request.producerClaimId) {
 			throw new Error('The workflow producer claim is not exactly reserved in this job.');
@@ -226,7 +236,8 @@ export class AssistanceWorkflowCustody {
 			producer: { stageId: request.producerStageId, slotId: request.producerSlotId,
 				claimId: request.producerClaimId },
 		});
-		job.inputs.set(key, Object.freeze({ custody, claim: null }));
+		job.inputs.set(inputBindingKey(request.stageId, request.slotId, custody.claimId),
+			Object.freeze({ custody, claim: null }));
 		return handle(custody);
 	}
 
@@ -255,7 +266,9 @@ export class AssistanceWorkflowCustody {
 		const custody = validateAssistanceWorkflowCustodyClaimV1(value);
 		if (custody.direction !== 'input') throw new TypeError('Workflow input custody is required.');
 		const job = this.#boundJob(custody.jobId, custody.workflowId);
-		const input = job.inputs.get(bindingKey(custody.stageId, custody.slotId));
+		const input = job.inputs.get(inputBindingKey(
+			custody.stageId, custody.slotId, custody.claimId,
+		));
 		if (!input || !sameCustody(input.custody, custody)) {
 			throw new Error('The workflow input custody is unknown or stale.');
 		}
@@ -287,7 +300,9 @@ export class AssistanceWorkflowCustody {
 			throw new TypeError('The workflow consumer operation does not own that input slot.');
 		}
 		const job = this.#boundJob(custody.jobId, custody.workflowId);
-		const record = job.inputs.get(bindingKey(custody.stageId, custody.slotId));
+		const record = job.inputs.get(inputBindingKey(
+			custody.stageId, custody.slotId, custody.claimId,
+		));
 		if (!record || !sameCustody(record.custody, custody)) {
 			throw new Error('The workflow input claim is unknown or stale.');
 		}
@@ -318,7 +333,9 @@ export class AssistanceWorkflowCustody {
 			throw new TypeError('The workflow claim direction is invalid.');
 		}
 		const records = direction === 'input' ? job.inputs : job.outputs;
-		const record = records.get(bindingKey(row.stageId, row.slotId));
+		const record = records.get(direction === 'input'
+			? inputBindingKey(row.stageId, row.slotId, row.claimId)
+			: bindingKey(row.stageId, row.slotId));
 		if (!record || !sameClaim(row as unknown as AssistanceWorkflowClaimV1,
 			workflowClaimFromCustodyV1(record.custody))) {
 			throw new Error('The workflow claim has no exact main-owned custody.');
@@ -497,9 +514,29 @@ function assertExactBindings(
 		throw new TypeError(`The workflow ${direction} custody inventory is incomplete or unreferenced.`);
 	}
 	for (const claim of claims) {
-		const record = records.get(bindingKey(claim.stageId, claim.slotId));
+		const record = records.get(direction === 'input'
+			? inputBindingKey(claim.stageId, claim.slotId, claim.claimId)
+			: bindingKey(claim.stageId, claim.slotId));
 		if (!record || !sameClaim(claim, workflowClaimFromCustodyV1(record.custody))) {
 			throw new TypeError(`The workflow ${direction} claim has no exact staged custody.`);
+		}
+	}
+	if (direction === 'input') assertRepeatedInputOrder(claims, records);
+}
+
+function assertRepeatedInputOrder(
+	claims: readonly AssistanceWorkflowClaimV1[],
+	records: ReadonlyMap<string, InputRecord | OutputRecord>,
+): void {
+	const bindings = new Set(claims.map(({ stageId, slotId }) => bindingKey(stageId, slotId)));
+	for (const binding of bindings) {
+		const expected = claims.filter(({ stageId, slotId }) => bindingKey(stageId, slotId) === binding);
+		if (expected.length < 2) continue;
+		const actual = [...records.values()].map(({ custody }) => workflowClaimFromCustodyV1(custody))
+			.filter(({ stageId, slotId }) => bindingKey(stageId, slotId) === binding);
+		if (actual.length !== expected.length
+			|| expected.some((claim, index) => !sameClaim(claim, actual[index]!))) {
+			throw new TypeError('The workflow frame-pack claims disagree with staged custody order.');
 		}
 	}
 }
@@ -519,6 +556,18 @@ function bindingKey(stageId: unknown, slotId: unknown): string {
 		throw new TypeError('Workflow custody stage and slot identities are required.');
 	}
 	return `${stageId}\0${slotId}`;
+}
+
+function inputBindingKey(stageId: unknown, slotId: unknown, claimId: unknown): string {
+	return `${bindingKey(stageId, slotId)}\0${opaqueId(claimId)}`;
+}
+
+function inputRecordsForBinding(
+	records: ReadonlyMap<string, InputRecord>, stageId: unknown, slotId: unknown,
+): readonly InputRecord[] {
+	const binding = bindingKey(stageId, slotId);
+	return [...records.entries()].filter(([key]) => key.startsWith(`${binding}\0`))
+		.map(([, record]) => record);
 }
 
 function opaqueId(value: unknown): string {

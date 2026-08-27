@@ -322,6 +322,32 @@ test('shot workflows admit exactly the input and model selected by their explici
 		/shot.*model|mode/iu);
 });
 
+test('only frame-pack input slots admit multiple distinct, ordered custody claims', () => {
+	const accurate = markCutsWorkflow('accurate', 'frame-pack');
+	const secondPack = claim('input', 'detect-shots', 'frame-pack', 9);
+	const admitted = validateAssistanceWorkflow({ ...accurate,
+		inputs: [accurate.inputs[0]!, secondPack, accurate.inputs[1]!],
+	});
+	assert.deepEqual(admitted.inputs.slice(0, 2).map(({ claimId }) => claimId), [
+		accurate.inputs[0]!.claimId,
+		secondPack.claimId,
+	]);
+	assert.throws(() => validateAssistanceWorkflow({ ...accurate,
+		inputs: [accurate.inputs[0]!, { ...secondPack, claimId: accurate.inputs[0]!.claimId },
+			accurate.inputs[1]!],
+	}), /frame-pack|claim.*unique|distinct/iu);
+
+	const transcript = workflow();
+	assert.throws(() => validateAssistanceWorkflow({ ...transcript,
+		inputs: [transcript.inputs[0]!,
+			{ ...transcript.inputs[0]!, claimId: 'f'.repeat(40) }, ...transcript.inputs.slice(1)],
+	}), /input slot.*once|repeat/iu);
+	assert.throws(() => validateAssistanceWorkflow({ ...accurate,
+		outputs: [accurate.outputs[0]!,
+			{ ...accurate.outputs[0]!, claimId: 'e'.repeat(40) }, accurate.outputs[1]!],
+	}), /output slot.*once|repeat/iu);
+});
+
 test('a workflow admits exact stages, slotted claims, model bindings, and aggregate fence', () => {
 	const admitted = validateAssistanceWorkflow(workflow());
 	assert.deepEqual(admitted, workflow());

@@ -272,8 +272,8 @@ function claimsForSlots<Claim extends Readonly<{ stageId: string; slotId: string
 	slots: readonly Readonly<{ slotId: string }>[],
 ): readonly Claim[] {
 	return Object.freeze(slots.flatMap(({ slotId }) => {
-		const claim = claims.find((candidate) => candidate.stageId === stageId && candidate.slotId === slotId);
-		return claim ? [claim] : [];
+		return claims.filter((candidate) => candidate.stageId === stageId
+			&& candidate.slotId === slotId);
 	}));
 }
 
