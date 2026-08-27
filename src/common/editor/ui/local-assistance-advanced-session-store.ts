@@ -7,6 +7,7 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 
 import type { AssistanceOperation } from '../assistance/operation.ts';
 import {
+	ASSISTANCE_WORKFLOW_PROGRESS_PHASES,
 	validateAssistanceWorkflow,
 	type AssistanceAdvancedWorkflowId,
 	type AssistanceWorkflowV1,
@@ -47,6 +48,10 @@ interface Options {
 const EMPTY_SOURCES = Object.freeze([]) as readonly LocalAssistanceSelectedMediaSource[];
 const EMPTY_MODELS = Object.freeze([]) as readonly LocalAssistanceModel[];
 const EMPTY_MODEL_IDS = Object.freeze([]) as readonly string[];
+const ADVANCED_PROJECT_ACCEPTANCE_OPERATIONS: ReadonlySet<AssistanceOperation> = new Set([
+	'voice-activity-detection', 'speech-recognition', 'speaker-diarization',
+	'speech-enhancement', 'source-separation', 'shot-detection',
+]);
 
 export function createLocalAssistanceAdvancedWorkflowSessionStore(
 	options: Options,
@@ -62,6 +67,8 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 	let controller: AbortController | null = null;
 	let progressDisconnect: (() => void) | null = null;
 	let cancelRequested = false;
+	let lastProgressSequence = -1;
+	let lastProgressPhase = -1;
 	let running: Promise<void> | null = null;
 	let disposed = false;
 
@@ -69,6 +76,7 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 	const emit = (): void => listeners.forEach((listener) => listener());
 	const update = (change: Partial<LocalAssistanceSnapshot>): void => {
 		snapshot = freezeSnapshot({ ...snapshot, ...change }, pendingAcceptance !== null
+			&& ADVANCED_PROJECT_ACCEPTANCE_OPERATIONS.has(pendingAcceptance.operation)
 			&& typeof options.preparation?.acceptValidatedResult === 'function');
 		emit();
 	};
@@ -76,6 +84,10 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 		if (!progressDisconnect && workflow) {
 			progressDisconnect = workflow.onProgress((progress) => {
 				if (progress.jobId !== activeJobId || progress.workflowId !== advancedId(activeOperation)) return;
+				const phase = ASSISTANCE_WORKFLOW_PROGRESS_PHASES.indexOf(progress.phase);
+				if (progress.sequence <= lastProgressSequence || phase < lastProgressPhase) return;
+				lastProgressSequence = progress.sequence;
+				lastProgressPhase = phase;
 				update({ progress: workflowProgress(activeOperation!, progress) });
 			});
 		}
@@ -173,6 +185,8 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 		cancelRequested = false;
 		activeOperation = operation;
 		pendingAcceptance = null;
+		lastProgressSequence = -1;
+		lastProgressPhase = -1;
 		update({ phase: 'preparing', progress: null, result: null,
 			unavailableReason: null, error: null, cleanup: null });
 		let completed: LocalAssistanceSnapshot['result'] = null;
