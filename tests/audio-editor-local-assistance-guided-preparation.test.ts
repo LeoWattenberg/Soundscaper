@@ -259,7 +259,7 @@ test('Accurate Mark Cuts stages its exact frame pack and never substitutes Fast'
 	});
 	const result = await preparation.prepareGuidedWorkflow({ jobId: JOB_ID,
 		workflowId: 'mark-cuts', settings: { settingsVersion: 1, workflowId: 'mark-cuts',
-			mode: 'accurate' }, models: [model('transnetv2', '2.0.0', 'shot-detection', 9)],
+			mode: 'accurate' }, models: [model('transnetv2', '1.0.0', 'shot-detection', 9)],
 		custody: fixture.custody, signal: new AbortController().signal });
 	assert.equal(result.outcome, 'prepared');
 	if (result.outcome !== 'prepared') return;
@@ -314,8 +314,8 @@ test('Index Video stages exact selected-video timing authority beside raw decode
 	if (indexSettings.workflowId !== 'index-video') assert.fail('Index settings changed identity.');
 	const result = await preparation.prepareGuidedWorkflow({ jobId: JOB_ID,
 		workflowId: 'index-video', settings: { ...indexSettings, includeOcr: true }, models: [
-			model('siglip2-base-patch16-224', '1.0.0', 'image-text-embedding', 11),
-			model('pp-ocrv4-det', '1.0.0', 'optical-character-recognition', 12),
+			model('siglip2-base-patch16-224', '2.0.0', 'image-text-embedding', 11),
+			model('ppocr-v4-mobile', '4.0.0', 'optical-character-recognition', 12),
 		], custody: fixture.custody, signal: new AbortController().signal });
 	assert.equal(result.outcome, 'prepared');
 	if (result.outcome !== 'prepared') return;
@@ -329,7 +329,7 @@ test('Index Video stages exact selected-video timing authority beside raw decode
 	const noOcrFixture = preparationFixture();
 	const noOcr = await preparation.prepareGuidedWorkflow({ jobId: 'ab'.repeat(20),
 		workflowId: 'index-video', settings: { ...indexSettings, includeOcr: false }, models: [
-			model('siglip2-base-patch16-224', '1.0.0', 'image-text-embedding', 11),
+			model('siglip2-base-patch16-224', '2.0.0', 'image-text-embedding', 11),
 		], custody: noOcrFixture.custody, signal: new AbortController().signal });
 	assert.equal(noOcr.outcome, 'prepared');
 	if (noOcr.outcome !== 'prepared') return;

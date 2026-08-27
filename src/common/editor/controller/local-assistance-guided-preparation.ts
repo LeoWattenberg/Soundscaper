@@ -39,6 +39,7 @@ import {
 	localAssistanceGuidedOutputMaximumByteLength,
 	localAssistanceGuidedStorageReservation,
 } from './local-assistance-guided-output-capacity.ts';
+import { localAssistanceGuidedModelCandidates } from './local-assistance-guided-model-selection.ts';
 
 const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
 const SHA256 = /^[a-f\d]{64}$/u;
@@ -332,9 +333,11 @@ function selectStages(
 		if (stage.stageId === 'align-words') return settings.workflowId === 'transcribe-captions'
 			&& settings.recognizer === 'whisper' && settings.language === 'en'
 			&& settings.englishWhisperAlignment === 'when-installed'
-			&& models.some(({ task }) => task === 'word-alignment');
+			&& localAssistanceGuidedModelCandidates('alignment', models, settings).length > 0;
 		if (stage.stageId === 'recognize-speech') {
-			return models.filter(({ task }) => task === 'speech-recognition').length === 1;
+			return localAssistanceGuidedModelCandidates(
+				'speech-recognizer', models, settings,
+			).length > 0;
 		}
 		if (stage.stageId === 'recognize-text') {
 			return settings.workflowId === 'index-video' && settings.includeOcr;
@@ -342,7 +345,9 @@ function selectStages(
 		if (stage.stageId === 'tag-highlight-reactions') {
 			return settings.workflowId === 'make-highlights'
 				&& inventory.some(({ mediaKind }) => mediaKind === 'audio')
-				&& models.filter(({ task }) => task === 'audio-tagging').length === 1;
+				&& localAssistanceGuidedModelCandidates(
+					'audio-tagger', models, settings,
+				).length > 0;
 		}
 		if (stage.stageId === 'rerank-editorial') return settings.workflowId === 'make-highlights'
 			&& settings.editorialRerank;
@@ -360,7 +365,7 @@ function resolveModelBindings(
 	for (const stage of stages) {
 		for (const slot of stage.modelSlots) {
 			if (!slot.required && !optionalModelEnabled(stage.stageId, settings)) continue;
-			const matches = models.filter((model) => modelMatchesSlot(stage, slot.slotId, model, settings));
+			const matches = localAssistanceGuidedModelCandidates(slot.slotId, models, settings);
 			if (matches.length !== 1) return null;
 			const selected = matches[0]!;
 			result.push(Object.freeze({ bindingVersion: 1, stageId: stage.stageId,
@@ -370,36 +375,6 @@ function resolveModelBindings(
 	}
 	return Object.freeze(result);
 }
-
-function modelMatchesSlot(
-	stage: AssistanceWorkflowStageSpec,
-	slotId: string,
-	model: LocalAssistanceModel,
-	settings: AssistanceWorkflowSettingsV1,
-): boolean {
-	const task = MODEL_SLOT_TASKS[slotId] ?? stage.operation;
-	if (!task || model.task !== task) return false;
-	if (slotId === 'enhancer') return model.modelId === 'deepfilternet3' && model.version === '3.0.0';
-	if (slotId === 'separator') return model.modelId === 'tiger-dnr' && model.version === '1.0.0';
-	if (slotId === 'accurate-shot-detector') return model.modelId === 'transnetv2';
-	if (slotId === 'speech-recognizer' && settings.workflowId === 'transcribe-captions') {
-		return settings.recognizer === 'whisper'
-			? model.modelId.includes('whisper') : model.modelId.includes('parakeet');
-	}
-	return true;
-}
-
-const MODEL_SLOT_TASKS: Readonly<Record<string, string>> = Object.freeze({
-	vad: 'voice-activity-detection', 'speech-recognizer': 'speech-recognition',
-	alignment: 'word-alignment', diarizer: 'speaker-segmentation',
-	'speaker-embedding': 'speaker-embedding', enhancer: 'speech-enhancement',
-	separator: 'source-separation', 'audio-tagger': 'audio-tagging',
-	'beat-tracker': 'beat-tracking', 'text-embedder': 'text-embedding',
-	'accurate-shot-detector': 'shot-detection', 'visual-embedder': 'image-text-embedding',
-	'text-detector': 'optical-character-recognition', 'text-recognizer': 'optical-character-recognition',
-	'face-detector': 'face-detection', 'object-detector': 'object-detection',
-	'saliency-detector': 'saliency-detection', 'editorial-generator': 'editorial-generation',
-});
 
 function primitivePrepared(
 	value: unknown, sourceId: string, operation: AssistanceOperation, mode?: 'fast' | 'accurate',

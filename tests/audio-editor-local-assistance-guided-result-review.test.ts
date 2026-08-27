@@ -53,6 +53,31 @@ test('Guided review rejects malformed terminal proposal bodies before they reach
 	}), /correlated|claims|outputs/iu);
 });
 
+test('Guided beat review exposes only explicitly requested publication choices', async () => {
+	for (const expected of [
+		{ publish: false, apply: false, ids: [] },
+		{ publish: true, apply: false, ids: ['beat-grid:downbeat:0'] },
+		{ publish: false, apply: true, ids: ['beat-grid:tempo-map'] },
+	] as const) {
+		const workflow = beatWorkflow(expected.publish, expected.apply);
+		const values = {
+			'beat-labels': { schemaVersion: 1, kind: 'beat-labels',
+				publicationRequested: expected.publish,
+				points: [{ id: 'beat-grid:downbeat:0', kind: 'downbeat', label: 'Downbeat',
+					sample: 0, confidence: 0.9, selected: false }] },
+			'tempo-map-diff': { schemaVersion: 1, kind: 'tempo-map-diff',
+				applicationRequested: expected.apply,
+				proposal: { kind: 'constant', bpm: 120 } },
+		} as const;
+		const reviewed = await reviewLocalAssistanceGuidedResult({
+			workflow, result: completedResult(workflow),
+			readOutput: async ({ claim }) => jsonBlob(values[claim.slotId as keyof typeof values],
+				claim.slotId),
+		});
+		assert.deepEqual(reviewed.choices.map(({ id }) => id), expected.ids);
+	}
+});
+
 test('Guided enhancement review requires exact adapter-owned WAV geometry authority', async () => {
 	const workflow = enhancementWorkflow();
 	const bytes = encodeWav([
@@ -99,6 +124,21 @@ function enhancementWorkflow(): AssistanceWorkflowV1 {
 	return assistanceWorkflowFixture({
 		workflowId: 'enhance-dialogue', stageIds: [stageId], models: [model],
 		inputs: [input], outputs: [output],
+	});
+}
+
+function beatWorkflow(publishBeatLabels: boolean, applyTempoMap: boolean): AssistanceWorkflowV1 {
+	const first = workflowClaim('input', 'track-beats', 'audio', 1);
+	const beatGrid = workflowClaim('output', 'track-beats', 'beat-grid', 2);
+	return assistanceWorkflowFixture({
+		workflowId: 'detect-beats-tempo', stageIds: ['track-beats', 'propose-tempo-map'],
+		settings: { settingsVersion: 1, workflowId: 'detect-beats-tempo',
+			publishBeatLabels, applyTempoMap },
+		models: [{ bindingVersion: 1, stageId: 'track-beats', slotId: 'beat-tracker',
+			modelId: 'beat-this-small0', version: '1.1.0', artifactSha256s: ['04'.repeat(32)] }],
+		inputs: [first, workflowClaim('input', 'propose-tempo-map', 'beat-grid', 2)],
+		outputs: [beatGrid, workflowClaim('output', 'propose-tempo-map', 'beat-labels', 3),
+			workflowClaim('output', 'propose-tempo-map', 'tempo-map-diff', 4)],
 	});
 }
 

@@ -140,12 +140,12 @@ test('Guided enhancement and complete D/M/E selection reuse geometry-authenticat
 
 test('Guided beats and cuts pass only explicitly selected proposal identities', async () => {
 	const beats = beatWorkflow();
-	const beatLabels = { schemaVersion: 1, kind: 'beat-labels', publicationRequested: false,
+	const beatLabels = { schemaVersion: 1, kind: 'beat-labels', publicationRequested: true,
 		points: [{ id: 'beat-grid:downbeat:0', kind: 'downbeat', label: 'Downbeat', sample: 0,
 			confidence: 0.9, selected: false },
 		{ id: 'beat-grid:beat:11025', kind: 'beat', label: 'Beat', sample: 11_025,
 			confidence: null, selected: false }] };
-	const tempo = { schemaVersion: 1, kind: 'tempo-map-diff', applicationRequested: false,
+	const tempo = { schemaVersion: 1, kind: 'tempo-map-diff', applicationRequested: true,
 		proposal: { kind: 'constant', bpm: 120 } };
 	const beatAccepted: string[][] = [];
 	let beatRequest: unknown;
@@ -202,6 +202,38 @@ test('Guided beats and cuts pass only explicitly selected proposal identities', 
 	assert.deepEqual(cutReview.boundaries, [
 		{ sourceFrame: 120, presentationTick: '450450', score: 0.9 },
 	]);
+});
+
+test('Guided beat publication opt-outs cannot be selected or reach primitive publication', async () => {
+	const workflow = beatWorkflow();
+	const beatLabels = { schemaVersion: 1, kind: 'beat-labels', publicationRequested: false,
+		points: [{ id: 'beat-grid:downbeat:0', kind: 'downbeat', label: 'Downbeat', sample: 0,
+			confidence: 0.9, selected: false }] };
+	const tempo = { schemaVersion: 1, kind: 'tempo-map-diff', applicationRequested: false,
+		proposal: { kind: 'constant', bpm: 120 } };
+	let beatRequest: unknown;
+	const accepted: string[][] = [];
+	const adapter = createLocalAssistanceGuidedResultAcceptance({
+		currentSelectionFence: () => primitiveFence(workflow),
+		createBeatReviewSession: (request) => {
+			beatRequest = request;
+			return fakeBeatSession(accepted);
+		},
+	});
+	const ready = adapter.createAcceptanceSession({ workflow, reviewedResult: reviewed(workflow, [
+		terminalOutput(workflow, 'propose-tempo-map', 'beat-labels', beatLabels),
+		terminalOutput(workflow, 'propose-tempo-map', 'tempo-map-diff', tempo),
+	], []) });
+	assert.equal(ready.outcome, 'ready');
+	if (ready.outcome !== 'ready') return;
+	assert.deepEqual(ready.session.snapshot().choices, []);
+	await assert.rejects(ready.session.accept(['beat-grid:downbeat:0']), /reviewed choices/iu);
+	await ready.session.accept([]);
+	assert.deepEqual(accepted, [[]]);
+	const semantic = ((beatRequest as Record<string, unknown>).outputs as
+		readonly Record<string, unknown>[])[0]!.review as Record<string, unknown>;
+	assert.deepEqual(semantic.points, []);
+	assert.equal(semantic.tempoProposal, null);
 });
 
 test('Guided cleanup passes only explicitly selected reviewed proposals to atomic publication', async () => {
@@ -290,15 +322,17 @@ test('Guided reactions reproduce reviewed merged ranges through the owned reacti
 			claim('output', 'merge-reaction-ranges', 'reaction-ranges', 4)],
 	});
 	const reactions = { schemaVersion: 1, kind: 'reaction-ranges', sampleRate: 32_000,
-		threshold: 0.5, ranges: [{ id: 'reaction:laughter:0:96000', kind: 'reaction',
+		threshold: 0.73, ranges: [{ id: 'reaction:laughter:0:96000', kind: 'reaction',
 			label: 'Laughter', startSample: 0, endSample: 96_000, score: 0.75,
 			selected: false }] };
 	const accepted: string[][] = [];
 	let reactionRequest: unknown;
+	let reactionOptions: unknown;
 	const adapter = createLocalAssistanceGuidedResultAcceptance({
 		currentSelectionFence: () => primitiveFence(workflow),
-		createReactionReviewSession: (request) => {
-			reactionRequest = request;
+		createReactionReviewSession: (...args: unknown[]) => {
+			reactionRequest = args[0];
+			reactionOptions = args[1];
 			return fakeBeatSession(accepted);
 		},
 	});
@@ -313,6 +347,7 @@ test('Guided reactions reproduce reviewed merged ranges through the owned reacti
 	assert.equal(request.operation, 'audio-tagging');
 	assert.deepEqual(request.models, [{ modelId: 'panns-cnn10', version: '1.0.0',
 		task: 'audio-tagging', artifactSha256s: [MODEL_SHA256] }]);
+	assert.deepEqual(reactionOptions, { threshold: 0.73 });
 	const output = (request.outputs as readonly Record<string, unknown>[])[0]!;
 	assert.deepEqual((output.review as Record<string, unknown>).windows, [
 		{ startSample: 0, scores: { laughter: 0.75, applause: 0, cheering: 0 } },

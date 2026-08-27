@@ -83,8 +83,8 @@ export function createLocalAssistancePreparationRuntime(
 		acceptAudioResult: (request, choice) => resultAcceptance.acceptAudioResult(request, choice),
 		acceptCleanupResult: (request) => resultAcceptance.acceptCleanupResult(request),
 		createBeatReviewSession: (request) => resultAcceptance.createBeatReviewSession(request),
-		createReactionReviewSession: (request) =>
-			resultAcceptance.createReactionReviewSession(request),
+		createReactionReviewSession: (request, options) =>
+			resultAcceptance.createReactionReviewSession(request, options),
 		...(assistanceVideoStore ? {
 			acceptReframeResult: (request: LocalAssistanceGuidedReframeAcceptanceRequest) =>
 				acceptFramescaperReframe(request),

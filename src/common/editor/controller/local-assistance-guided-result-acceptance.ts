@@ -124,7 +124,7 @@ export interface LocalAssistanceGuidedResultAcceptanceDependencies
 	/** Existing Beat This proposal-session factory. */
 	readonly createBeatReviewSession?: (request: unknown) => BeatReviewSessionPort;
 	/** Existing owned Reactions label-track proposal-session factory. */
-	readonly createReactionReviewSession?: (request: unknown) => BeatReviewSessionPort;
+	readonly createReactionReviewSession?: (request: unknown, options?: { readonly threshold?: number }) => BeatReviewSessionPort;
 }
 
 export interface LocalAssistanceGuidedResultAcceptance {
@@ -241,7 +241,7 @@ function createSession(
 		)) : workflowId === 'mark-reactions'
 			? dependencies.createReactionReviewSession!(createGuidedReactionAcceptanceRequest(
 				workflow, fence, review.outputs,
-			)) : null;
+			), { threshold: (review.outputs.get('reaction-ranges')!.semantic as AssistanceReactionRangesV1).threshold }) : null;
 	let phase: AcceptancePhase = 'review';
 	let selectedIds: readonly string[] = Object.freeze([]);
 	const snapshot = (): LocalAssistanceGuidedAcceptanceSnapshot => Object.freeze({
@@ -457,8 +457,9 @@ function expectedChoices(
 	}
 	const labels = outputs.get('beat-labels')!.semantic as AssistanceBeatLabelsV1;
 	const diff = outputs.get('tempo-map-diff')!.semantic as AssistanceTempoMapDiffV1;
-	return [...labels.points.map(({ id }) => ({ id, kind: 'beat' })),
-		...(diff.proposal ? [{ id: 'beat-grid:tempo-map', kind: 'tempo-map' }] : [])];
+	return [...(labels.publicationRequested ? labels.points : []).map(({ id }) => ({ id, kind: 'beat' })),
+		...(diff.applicationRequested && diff.proposal
+			? [{ id: 'beat-grid:tempo-map', kind: 'tempo-map' }] : [])];
 }
 
 function normalizeChoices(

@@ -274,9 +274,11 @@ function reviewChoices(
 			'transcript-index', 'index', `${String(array(value('transcript-index').rows).length)} transcript index rows`,
 		)]);
 		case 'detect-beats-tempo': {
-			const points = itemChoices(value('beat-labels').points, 'beat', 'Beat point');
+			const labels = value('beat-labels');
+			const points = labels.publicationRequested === true
+				? itemChoices(labels.points, 'beat', 'Beat point') : Object.freeze([]);
 			const diff = value('tempo-map-diff');
-			return diff.proposal === null ? points : Object.freeze([
+			return diff.applicationRequested !== true || diff.proposal === null ? points : Object.freeze([
 				...points, choice('beat-grid:tempo-map', 'tempo-map', 'Tempo map', true),
 			]);
 		}

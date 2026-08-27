@@ -189,9 +189,9 @@ export function createGuidedBeatAcceptanceRequest(
 	const diff = outputs.get('tempo-map-diff')!.semantic as AssistanceTempoMapDiffV1;
 	const semantic = Object.freeze({ kind: 'beat-grid' as const, schemaVersion: 1,
 		sampleRate: 22_050,
-		points: Object.freeze(labels.points.map(({ sample, kind, confidence }) => Object.freeze({
-			sample, kind, confidence,
-		}))), tempoProposal: diff.proposal });
+		points: Object.freeze((labels.publicationRequested ? labels.points : [])
+			.map(({ sample, kind, confidence }) => Object.freeze({ sample, kind, confidence }))),
+		tempoProposal: diff.applicationRequested ? diff.proposal : null });
 	return Object.freeze({ sourceId: fence.sourceId, operation: 'beat-tracking', selectionFence: fence,
 		models: Object.freeze([primitiveModel(modelBinding(
 			workflow, 'track-beats', 'beat-tracker'), 'beat-tracking',
