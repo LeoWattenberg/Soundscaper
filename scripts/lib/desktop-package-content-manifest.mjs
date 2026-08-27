@@ -188,6 +188,14 @@ function assertRuntimePayloadClosure(runtime, files) {
 			expectedByPrefix.set(prefix, names);
 		}
 	};
+	const admitReportOnlyFiles = (prefix, names) => {
+		const expected = expectedByPrefix.get(prefix) ?? new Set();
+		for (const name of names) {
+			const path = `${prefix}${name}`;
+			if (inventory.has(path)) expected.add(path);
+		}
+		expectedByPrefix.set(prefix, expected);
+	};
 
 	if (Object.hasOwn(runtime, 'ffmpeg')) {
 		throw new Error('The desktop runtime manifest retains a legacy bundled FFmpeg runtime summary.');
@@ -225,28 +233,23 @@ function assertRuntimePayloadClosure(runtime, files) {
 	const professional = runtime.soundscaperProfessionalNative;
 	if (runtime.productId === 'soundscaper') {
 		if (!plainRecord(professional) || professional.target !== native.target
-			|| !plainRecord(professional.payloadManifest)
-			|| !plainRecord(professional.reviewPolicy)
-			|| !Object.hasOwn(professional, 'productionReadiness')) {
+			|| !plainRecord(professional.payloadManifest)) {
 			throw new Error('The desktop runtime manifest has no professional native payload authority.');
 		}
 		const professionalPrefix = `runtime/native/soundscaper-professional-host/${native.target}/`;
 		const professionalManifestPath = `${professionalPrefix}soundscaper-professional-native-payload-manifest.json`;
 		requireFile(professionalManifestPath, professional.payloadManifest,
 			'professional native payload manifest', professionalPrefix);
-		requireFile(`${professionalPrefix}${professional.reviewPolicy.name}`, professional.reviewPolicy,
-			'professional native-isolation review policy', professionalPrefix);
+		admitReportOnlyFiles(professionalPrefix, [
+			'milestone-5-native-isolation-review-policy.json',
+			'soundscaper-professional-native-readiness.json',
+		]);
 		if (professional.status === 'built') {
 			requireFile(`${professionalPrefix}${professional.payload?.name}`, professional.payload,
 				'professional native payload', professionalPrefix);
 			assertProfessionalNativeBuiltClosure({
 				professional, target: native.target, prefix: professionalPrefix, requireFile,
 			});
-			if (professional.productionReadiness !== null) {
-				requireFile(`${professionalPrefix}${professional.productionReadiness?.evidence?.name}`,
-					professional.productionReadiness?.evidence,
-					'professional native production-readiness evidence', professionalPrefix);
-			}
 		} else if (professional.status !== 'pending-external' || professional.payload !== null) {
 			throw new Error('The desktop runtime manifest has invalid professional native target state.');
 		}
@@ -267,35 +270,22 @@ function assertRuntimePayloadClosure(runtime, files) {
 			['openFxHost', `runtime/native/framescaper-openfx-host/${native.target}/`],
 		]) {
 			const host = hosts[key];
-			const label = key === 'mediaHost' ? 'media-host' : 'OpenFX';
 			if (!plainRecord(host) || !Array.isArray(host.payloads)) throw new Error(
 				`The Framescaper ${key} content authority is invalid.`);
-			if (!Object.hasOwn(host, 'reviewPolicy')
-				|| !Object.hasOwn(host, 'productionReadiness')) throw new Error(
-				`Framescaper ${key} content authority omits release-readiness evidence.`);
+			admitReportOnlyFiles(prefix, [
+				'milestone-5-native-isolation-review-policy.json',
+				key === 'mediaHost'
+					? 'framescaper-media-host-production-readiness.json'
+					: 'framescaper-openfx-production-readiness.json',
+			]);
 			if (host.status === 'built') {
-				if (key === 'mediaHost' && (
-					host.productionReadiness === null
-					|| host.productionReadiness?.reference?.target !== native.target
-					|| host.productionReadiness?.verified?.status !== 'authenticated'
-					|| host.productionReadiness?.verified?.evidence?.target !== native.target
-				)) throw new Error(
-					'Built Framescaper mediaHost requires exact authenticated production-readiness evidence.');
 				for (const descriptor of host.payloads) {
 					requireFile(`${prefix}${descriptor.name}`, descriptor,
 						`Framescaper ${key} payload`, prefix);
 				}
-				requireFile(`${prefix}${host.reviewPolicy?.name}`, host.reviewPolicy,
-					`Framescaper ${label} native-isolation review policy`, prefix);
-				if (host.productionReadiness !== null) {
-					requireFile(`${prefix}${host.productionReadiness?.evidence?.name}`,
-						host.productionReadiness?.evidence,
-						`Framescaper ${label} production-readiness evidence`, prefix);
-				}
 			} else if (host.status !== 'pending-external' || host.payloads.length !== 0) {
 				throw new Error(`Invalid Framescaper ${key} content state.`);
-			} else if (host.reviewPolicy !== null || host.productionReadiness !== null) throw new Error(
-				`Pending Framescaper ${key} carries release-readiness evidence.`);
+			}
 		}
 	} else if (runtime.framescaperNativeHosts !== null
 		&& runtime.framescaperNativeHosts !== undefined) {

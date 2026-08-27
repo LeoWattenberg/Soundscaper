@@ -32,25 +32,42 @@ test('Milestone 5 payload audit authenticates all twenty exact target rows', asy
 	assert.equal(isAuditedMilestone5Payloads(structuredClone(audit)), false);
 });
 
-test('professional and Framescaper build bytes are not release-built without authenticated readiness', () => {
+test('professional and Framescaper build bytes are automated-ready without human readiness', () => {
 	for (const product of [
 		'soundscaper-professional', 'framescaper-media', 'framescaper-openfx',
 	]) {
-		assert.deepEqual(createMilestone5PayloadAuditRow({
+		const pendingReview = createMilestone5PayloadAuditRow({
 			product,
 			targetId: 'linux-x64',
 			status: 'built',
 			blockedBy: null,
 			payload: { sha256: 'a'.repeat(64) },
 			productionReadiness: null,
-		}), {
-			identity: `${product}:linux-x64`,
+		});
+		const reviewed = createMilestone5PayloadAuditRow({
 			product,
 			targetId: 'linux-x64',
-			buildStatus: 'built',
-			status: 'pending-external',
-			blockedBy: `The ${product}:linux-x64 payload has no authenticated per-target production-readiness evidence.`,
+			status: 'built',
+			blockedBy: null,
+			payload: { sha256: 'a'.repeat(64) },
+			productionReadiness: { verified: { status: 'authenticated', reviewer: 'Reviewer' } },
+		});
+		assert.equal(pendingReview.automatedReady, true);
+		assert.equal(pendingReview.buildStatus, 'built');
+		assert.equal(pendingReview.status, 'pending-external');
+		assert.equal(reviewed.status, 'built');
+		assert.equal(reviewed.automatedReady, true);
+		assert.equal(reviewed.automatedEvidenceSha256, pendingReview.automatedEvidenceSha256);
+
+		const changedPayload = createMilestone5PayloadAuditRow({
+			product,
+			targetId: 'linux-x64',
+			status: 'built',
+			blockedBy: null,
+			payload: { sha256: 'b'.repeat(64) },
 			productionReadiness: null,
 		});
+		assert.notEqual(changedPayload.automatedEvidenceSha256,
+			pendingReview.automatedEvidenceSha256);
 	}
 });

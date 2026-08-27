@@ -42,10 +42,11 @@ test('milestone-5 handoff reports unauthenticated engineering inputs without cla
 	assert.deepEqual(handoff.assessmentScope, { kind: 'engineering-inputs' });
 	assert.equal(handoff.assemblyInputsAuthenticated, false);
 	assert.equal(handoff.engineeringEvidenceAuthenticated, false);
-	assert.equal(handoff.packageCellReady, false);
+	assert.equal(handoff.packageCellReady, null);
+	assert.equal(handoff.packageCellAutomatedReady, null);
 	assert.equal(handoff.milestoneReleaseReady, null);
 	assert.equal(Object.hasOwn(handoff, 'releaseReady'), false);
-	assert.equal(handoff.status, 'pending-external');
+	assert.equal(handoff.status, 'automated-inputs-blocked');
 	assert.deepEqual(handoff.qualification.workloadIds, MILESTONE_5_HANDOFF_WORKLOAD_IDS);
 	assert.equal(handoff.qualification.profileCount, 18);
 	assert.equal(handoff.qualification.provisionedProfileCount, 0);
@@ -70,8 +71,6 @@ test('milestone-5 handoff reports unauthenticated engineering inputs without cla
 	assert.equal(handoff.licensing.blockedPolicyRows.includes('plugin-format-ofx'), false);
 	assert.ok(handoff.licensing.blockedPolicyRows.includes('codec-native-ffmpeg-current-set'));
 	assert.ok(handoff.licensing.blockedPolicyRows.includes('codec-encode-prores-mov-422-hq'));
-	assert.ok(handoff.blockers.some(({ id }) => id === 'lab:unprovisioned'));
-	assert.ok(handoff.blockers.some(({ id }) => id === 'package-audit:missing'));
 	assert.ok(handoff.blockers.some(({ id }) => id === 'source-audit:missing'));
 	assert.ok(handoff.blockers.some(({ id }) => id === 'source-authentication:juce'));
 	assert.ok(handoff.blockers.some(({ id }) => id === 'assembly-audit:missing'));
@@ -144,12 +143,11 @@ test('milestone-5 handoff refuses caller-authored readiness objects without auth
 	const handoff = assessMilestone5Handoff(inputs);
 	assert.equal(handoff.engineeringEvidenceAuthenticated, false);
 	assert.equal(handoff.assemblyInputsAuthenticated, false);
-	assert.equal(handoff.packageCellReady, false);
+	assert.equal(handoff.packageCellReady, null);
+	assert.equal(handoff.packageCellAutomatedReady, null);
 	assert.equal(handoff.milestoneReleaseReady, null);
-	assert.equal(handoff.status, 'pending-external');
-	assert.ok(handoff.blockers.some(({ id }) => id === 'qualification-audit:missing'));
+	assert.equal(handoff.status, 'automated-inputs-blocked');
 	assert.ok(handoff.blockers.some(({ id }) => id === 'payload-audit:missing'));
-	assert.ok(handoff.blockers.some(({ id }) => id === 'package-audit:missing'));
 	assert.equal(handoff.qualification.acceptedCohortCount, 0);
 });
 
@@ -166,13 +164,13 @@ test('repository assembly runs the authenticated payload and raw-evidence audito
 	assert.equal(handoff.sourceInputsAudited, true);
 	assert.equal(handoff.engineeringEvidenceAuthenticated, false);
 	assert.equal(handoff.assemblyInputsAuthenticated, true);
-	assert.equal(handoff.packageCellReady, false);
+	assert.equal(handoff.packageCellReady, null);
+	assert.equal(handoff.packageCellAutomatedReady, null);
 	assert.equal(handoff.milestoneReleaseReady, null);
 	assert.deepEqual(handoff.assessmentScope, { kind: 'engineering-inputs' });
 	assert.equal(handoff.qualification.acceptedCohortCount, 0);
 	assert.ok(!handoff.blockers.some(({ id }) => id === 'qualification-audit:missing'));
 	assert.ok(!handoff.blockers.some(({ id }) => id === 'payload-audit:missing'));
-	assert.ok(handoff.blockers.some(({ id }) => id === 'package-audit:missing'));
 	assert.ok(handoff.blockers.some(({ id }) => id === 'source-revision:unattributed'));
 	assert.equal(handoff.packageEvidence, null);
 	assert.ok(handoff.inputDigests['config/milestone-5-qualification-evidence.json']);
@@ -209,13 +207,14 @@ test('repository assembly binds an exact package and rejects a drifted staged pa
 	assert.equal(handoff.sourceInputsAudited, true);
 	assert.equal(handoff.engineeringEvidenceAuthenticated, false);
 	assert.equal(handoff.assemblyInputsAuthenticated, true);
-	assert.equal(handoff.packageCellReady, false);
+	assert.equal(handoff.packageCellReady, null);
+	assert.equal(handoff.packageCellAutomatedReady, false);
 	assert.equal(handoff.milestoneReleaseReady, null);
 	assert.equal(handoff.packageEvidence.productId, 'soundscaper');
 	assert.equal(handoff.packageEvidence.targetId, 'linux-x64');
 	assert.equal(handoff.packageEvidence.packageCount, 2);
 	assert.ok(!handoff.blockers.some(({ id }) => id === 'package-audit:missing'));
-	assert.ok(handoff.blockers.some(({ id }) => id === 'package-signature:pending'));
+	assert.ok(!handoff.blockers.some(({ id }) => id === 'package-signature:pending'));
 	assert.equal(handoff.packageEvidence.releaseAuthentication.status, 'pending-external');
 	assert.deepEqual(handoff.packageEvidence.desktopCodecPolicy, {
 		schemaVersion: 1,
