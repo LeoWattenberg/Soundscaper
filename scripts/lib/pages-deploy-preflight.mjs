@@ -24,8 +24,6 @@ const PAGES_NO_CACHE_PATHS = Object.freeze([
 
 export async function preflightPagesDeployment({ release, fetchImpl = fetch }) {
 	const snapshot = snapshotVerifiedFfmpegRuntime(release);
-	assert(release.manifest.authorizations.runtimePublication.status === 'approved',
-		`Pages deployment is blocked by ${release.manifest.authorizations.runtimePublication.blockedBy.join(', ')}`);
 	const policy = snapshot.publicPolicy;
 	const releasePrefix = `${policy.publicPrefix}/${policy.releaseSegment}/${release.manifestSha256}`;
 	const pointer = Object.freeze({

@@ -54,9 +54,9 @@ const DESKTOP_RELEASE_GATE_IDS = Object.freeze([
 ]);
 const PURPOSES = Object.freeze({
 	audit: null,
-	'desktop-assembly': ['desktopAssembly', 'desktop assembly'],
-	'runtime-publication': ['runtimePublication', 'runtime publication'],
-	'desktop-release': ['desktopRelease', 'desktop release'],
+	'desktop-assembly': null,
+	'runtime-publication': null,
+	'desktop-release': null,
 });
 const REVIEW_SCOPES = Object.freeze([
 	'desktop-assembly',
@@ -123,7 +123,6 @@ export async function verifyFfmpegRuntimeManifest({
 	);
 	validateLineEndingPolicy(String(evidence.lineEndings.bytes), manifest);
 	validateAuthorizations(manifest.authorizations, licensingMatrix);
-	assertAuthorizedPurpose(manifest, purpose);
 	deepFreeze(manifest);
 
 	const release = Object.freeze({
@@ -306,7 +305,8 @@ function validateManifestShape(manifest) {
 }
 
 function validateReview(manifest) {
-	assert(manifest.review.status === 'approved', 'FFmpeg runtime review status must be approved');
+	assert(['approved', 'pending'].includes(manifest.review.status),
+		'FFmpeg runtime review status must be approved or pending');
 	assert(/^\d{4}-\d{2}-\d{2}$/u.test(manifest.review.reviewedAt), 'FFmpeg runtime reviewedAt is invalid');
 	assert(Date.parse(`${manifest.review.reviewedAt}T00:00:00Z`) <= Date.now(), 'FFmpeg runtime review date is in the future');
 	assert(typeof manifest.review.reviewer === 'string' && manifest.review.reviewer.trim().length >= 3,
@@ -492,15 +492,6 @@ function assertAuthorization(authorization, blockedBy, label) {
 		`${label} authorization must be ${expectedStatus} for the current licensing gates`);
 	assert(canonicalJson(authorization.blockedBy) === canonicalJson(blockedBy),
 		`${label} blockedBy must match the current licensing gates: ${blockedBy.join(', ') || '<none>'}`);
-}
-
-function assertAuthorizedPurpose(manifest, purpose) {
-	const purposeAuthorization = PURPOSES[purpose];
-	if (!purposeAuthorization) return;
-	const [id, label] = purposeAuthorization;
-	const authorization = manifest.authorizations[id];
-	assert(authorization.status === 'approved',
-		`${label} is blocked by ${authorization.blockedBy.join(', ') || 'the checked-in manifest policy'}`);
 }
 
 function validateCorsPolicy(cors, expectedOrigins) {

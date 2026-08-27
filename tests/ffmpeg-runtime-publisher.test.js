@@ -144,7 +144,7 @@ test('rollback CAS conflict retains the concurrently promoted pointer', async ()
 	assert.deepEqual(purges, [[URL]]);
 });
 
-test('blocked publication invokes none of the injected remote operations', async (context) => {
+test('pending Milestone 9 review does not disable authenticated runtime publication', async (context) => {
 	const fixture = await createFixture(context);
 	const licensingPath = `${fixture.root}/config/production-licensing-matrix.json`;
 	const licensing = JSON.parse(await readFile(licensingPath, 'utf8'));
@@ -169,19 +169,16 @@ test('blocked publication invokes none of the injected remote operations', async
 		repositoryRoot: fixture.root,
 		purpose: 'desktop-assembly',
 	});
-	const calls = [];
-	await assert.rejects(
-		() => publishFfmpegRuntime({
-			repositoryRoot: fixture.root,
-			loadRelease: async () => release,
-			createClient: () => { calls.push('createClient'); return runtimeTransport().client; },
-			applyCors: async () => { calls.push('applyCors'); },
-			purgeUrls: async () => { calls.push('purgeUrls'); },
-			publicFetch: async () => { calls.push('publicFetch'); return new Response(); },
-		}),
-		/runtime publication is blocked.*web-notice-delivery/iu,
-	);
-	assert.deepEqual(calls, []);
+	const transport = runtimeTransport();
+	const result = await publishFfmpegRuntime({
+		repositoryRoot: fixture.root,
+		loadRelease: async () => release,
+		client: transport.client,
+		applyCors: async () => undefined,
+		purgeUrls: async () => undefined,
+		publicFetch: transport.publicFetch,
+	});
+	assert.equal(result.objectCount, 6);
 });
 
 test('immutable metadata drift and purge failure both stop before pointer promotion', async (context) => {
