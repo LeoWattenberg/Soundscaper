@@ -52,6 +52,7 @@ const FRAME_PACK = Object.freeze(['application/vnd.soundscaper.frame-pack']);
 
 const EXTERNAL_INPUT_SPECS = Object.freeze({
 	audio: spec('audio', ['audio/wav', 'audio/x-wav', 'audio/flac']),
+	'voice-activity': spec('voice-activity', JSON('voice-activity')),
 	video: spec('video', ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska']),
 	'video-authority': spec('video-authority', JSON('video-authority')),
 	'frame-pack': spec('frame-pack', FRAME_PACK),
@@ -59,6 +60,10 @@ const EXTERNAL_INPUT_SPECS = Object.freeze({
 	text: spec('text', ['text/plain']),
 	'editorial-context': spec('editorial-context', JSON('editorial-context')),
 	'shot-boundaries': spec('shot-boundaries', JSON('shot-boundaries')),
+	// Recognised text comes from an optional stage that a required one consumes, so a
+	// workflow that skips OCR supplies it from outside - the same reason shot boundaries
+	// appear here as well as among the outputs.
+	'recognized-text': spec('recognized-text', JSON('recognized-text')),
 	'reaction-ranges': spec('reaction-ranges', JSON('reaction-ranges')),
 	embeddings: spec('embeddings', MATRIX),
 });

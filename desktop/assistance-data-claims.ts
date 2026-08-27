@@ -23,6 +23,7 @@ export const ASSISTANCE_INPUT_ROLES = Object.freeze([
 	'text',
 	'editorial-context',
 	'shot-boundaries',
+	'recognized-text',
 	'reaction-ranges',
 	'embeddings',
 	'highlight-video-signals',
@@ -119,6 +120,7 @@ const INPUT_MEDIA_TYPES = Object.freeze({
 		'application/json', 'application/vnd.soundscaper.editorial-context+json',
 	]),
 	'shot-boundaries': jsonTypes('shot-boundaries'),
+	'recognized-text': jsonTypes('recognized-text'),
 	'reaction-ranges': jsonTypes('reaction-ranges'),
 	embeddings: Object.freeze(['application/vnd.soundscaper.embedding-matrix-v1']),
 	'highlight-video-signals': Object.freeze([
