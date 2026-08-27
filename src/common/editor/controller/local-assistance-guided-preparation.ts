@@ -161,9 +161,6 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 			}
 			dependencies.assertProject(token);
 			const externalByBinding = new Map<string, Awaited<ReturnType<typeof prepareExternalInput>>>();
-			const reviewInputs: Array<Readonly<{
-				stageId: string; slotId: string; mediaType: string; bytes: Blob;
-			}>> = [];
 			const producedSlots = new Set<string>();
 			for (const stage of stages) {
 				for (const slot of stage.inputSlots) {
@@ -179,14 +176,37 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 					);
 					if (external === null) throw new UnavailableError(externalReason(slot.slotId));
 					externalByBinding.set(bindingKey(stage.stageId, slot.slotId), external);
-					reviewInputs.push(Object.freeze({ stageId: stage.stageId, slotId: slot.slotId,
-						mediaType: external.mediaType, bytes: external.bytes }));
 					dependencies.assertProject(token);
 				}
 				for (const slot of stage.outputSlots) if (slot.required) producedSlots.add(slot.slotId);
 			}
 			const preparedFences = [...externalByBinding.values()].map((external) => external!.fence);
 			if (preparedFences.length < 1) throw new UnavailableError('source-custody-unavailable');
+			const settingsBody = serializeAssistanceWorkflowSettingsV1(settings);
+			const fence = createLocalAssistanceGuidedAggregateFenceV1({ project,
+				primitiveFences: preparedFences, stages, settingsBody, models });
+			const outputBySlot = new Map<string, LocalAssistanceAggregateCustodyHandle>();
+			const stagedExternalByBinding = new Map<string, AssistanceWorkflowClaimV1>();
+			const reviewInputs: Array<Readonly<{
+				stageId: string; slotId: string; claimId: string; mediaType: string; bytes: Blob;
+			}>> = [];
+			const inputs: AssistanceWorkflowClaimV1[] = [];
+			const outputs: AssistanceWorkflowClaimV1[] = [];
+			for (const stage of stages) {
+				for (const slot of stage.inputSlots) {
+					const key = bindingKey(stage.stageId, slot.slotId);
+					const external = externalByBinding.get(key) ?? null;
+					if (external === null) continue;
+					const staged = await request.custody.stageInput({ jobId: request.jobId,
+						workflowId: request.workflowId, stageId: stage.stageId, slotId: slot.slotId,
+						mediaType: external.mediaType, bytes: external.bytes, signal: request.signal });
+					const claim = assertHandle(staged, 'input', request.jobId, stage.stageId, slot.slotId);
+					stagedExternalByBinding.set(key, claim);
+					reviewInputs.push(Object.freeze({ stageId: stage.stageId, slotId: slot.slotId,
+						claimId: claim.claimId, mediaType: external.mediaType, bytes: external.bytes }));
+					dependencies.assertProject(token);
+				}
+			}
 			const reviewAuthority = await deriveLocalAssistanceGuidedReviewAuthority(
 				request.workflowId, reviewInputs, request.signal,
 			);
@@ -194,12 +214,6 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 				request.workflowId, stages, reviewAuthority,
 			));
 			dependencies.assertProject(token);
-			const settingsBody = serializeAssistanceWorkflowSettingsV1(settings);
-			const fence = createLocalAssistanceGuidedAggregateFenceV1({ project,
-				primitiveFences: preparedFences, stages, settingsBody, models });
-			const outputBySlot = new Map<string, LocalAssistanceAggregateCustodyHandle>();
-			const inputs: AssistanceWorkflowClaimV1[] = [];
-			const outputs: AssistanceWorkflowClaimV1[] = [];
 
 			for (const stage of stages) {
 				for (const slot of stage.inputSlots) {
@@ -212,13 +226,9 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 						continue;
 					}
 					if (!slot.required && !externalByBinding.has(bindingKey(stage.stageId, slot.slotId))) continue;
-					const external = externalByBinding.get(bindingKey(stage.stageId, slot.slotId)) ?? null;
-					if (external === null) throw new UnavailableError(externalReason(slot.slotId));
-					const staged = await request.custody.stageInput({ jobId: request.jobId,
-						workflowId: request.workflowId, stageId: stage.stageId, slotId: slot.slotId,
-						mediaType: external.mediaType, bytes: external.bytes, signal: request.signal });
-					inputs.push(assertHandle(staged, 'input', request.jobId, stage.stageId, slot.slotId));
-					dependencies.assertProject(token);
+					const staged = stagedExternalByBinding.get(bindingKey(stage.stageId, slot.slotId));
+					if (!staged) throw new UnavailableError(externalReason(slot.slotId));
+					inputs.push(staged);
 				}
 				for (const slot of stage.outputSlots) {
 					if (!slot.required) continue;

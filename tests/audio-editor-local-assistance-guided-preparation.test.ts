@@ -45,6 +45,7 @@ test('enhancement preparation binds exact media, model, settings, recipe, and ca
 		editorialCandidateIds: null });
 	assert.equal(media.audio?.stageId, 'enhance-dialogue');
 	assert.equal(media.audio?.slotId, 'audio');
+	assert.equal(media.audio?.claimId, result.workflow.inputs[0]?.claimId);
 	assert.equal(media.audio?.mediaType, 'audio/wav');
 	assert.equal(media.audio?.body.type, 'audio/wav');
 	assert.equal(media.audio?.byteLength, FIXTURE_AUDIO_BYTES);

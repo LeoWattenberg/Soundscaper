@@ -174,7 +174,8 @@ test('completed Guided output remains unchecked until its terminal claim passes 
 				workflowId: request.workflowId, settingsVersion: request.settings.settingsVersion }),
 			reviewAuthority: { reviewAuthorityVersion: 1, audioWave: null,
 				editorialCandidateIds: null, media: { audio: {
-					stageId: 'detect-speech', slotId: 'audio', mediaType: 'audio/wav',
+					stageId: 'detect-speech', slotId: 'audio', claimId: '0'.repeat(39) + '1',
+					mediaType: 'audio/wav',
 					byteLength: audition.size, sha256: auditionSha256, body: audition,
 				}, video: null } } }),
 	});
@@ -210,7 +211,8 @@ test('forged Guided review media is refused before native workflow execution', a
 				workflowId: request.workflowId, settingsVersion: request.settings.settingsVersion }),
 			reviewAuthority: { reviewAuthorityVersion: 1, audioWave: null,
 				editorialCandidateIds: null, media: { audio: {
-					stageId: 'detect-speech', slotId: 'audio', mediaType: 'audio/wav',
+					stageId: 'detect-speech', slotId: 'audio', claimId: '0'.repeat(39) + '1',
+					mediaType: 'audio/wav',
 					byteLength: audition.size, sha256: 'ff'.repeat(32), body: audition,
 				}, video: null } } }),
 	});

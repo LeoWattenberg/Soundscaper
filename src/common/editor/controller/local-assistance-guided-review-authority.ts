@@ -20,6 +20,7 @@ import { inspectWavBlobPcm } from '../wav-import.js';
 interface PreparedExternalInput {
 	readonly stageId: string;
 	readonly slotId: string;
+	readonly claimId: string;
 	readonly mediaType: string;
 	readonly bytes: Blob;
 }
@@ -143,5 +144,6 @@ async function asset(
 		? candidate.bytes : candidate.bytes.slice(0, candidate.bytes.size, mediaType);
 	const sha256 = await digestMediaContent(body, { signal });
 	return Object.freeze({ stageId: candidate.stageId, slotId: candidate.slotId,
+		claimId: candidate.claimId,
 		mediaType, byteLength: body.size, sha256, body });
 }

@@ -22,7 +22,6 @@ import {
 	type AssistanceWorkflowReviewMediaAssetV1,
 	type AssistanceWorkflowReviewAuthorityV1,
 } from '../assistance/workflow-review-authority-v1.ts';
-import { digestMediaContent } from '../storage/media-content-digest.ts';
 import type {
 	LocalAssistanceBridge,
 } from './local-assistance-bridge.ts';
@@ -40,6 +39,8 @@ import {
 	createLocalAssistanceGuidedReframeDraftV1,
 	setLocalAssistanceGuidedReframeCropV1,
 } from '../controller/local-assistance-guided-reframe-edits.ts';
+import { verifyLocalAssistanceGuidedReviewMediaAuthority as verifyReviewMediaAuthority } from
+	'../controller/local-assistance-guided-review-media-verification.ts';
 import {
 	LOCAL_ASSISTANCE_GUIDED_PREPARATION_UNAVAILABLE_REASONS,
 	type LocalAssistanceGuidedPreparationUnavailableReason,
@@ -446,26 +447,6 @@ function auditionAuthority(
 	}
 	return Object.freeze({ sourceStartFrame: ranges[0]!.sourceStartFrame,
 		sourceSampleRate: ranges[0]!.sourceSampleRate });
-}
-
-async function verifyReviewMediaAuthority(
-	workflow: AssistanceWorkflowV1,
-	authority: AssistanceWorkflowReviewAuthorityV1,
-	signal: AbortSignal,
-): Promise<void> {
-	for (const asset of [authority.media.audio, authority.media.video]) {
-		if (asset === null) continue;
-		const claims = workflow.inputs.filter(({ stageId, slotId }) =>
-			stageId === asset.stageId && slotId === asset.slotId);
-		if (claims.length !== 1) {
-			throw new TypeError('Guided review media lost its exact workflow input claim.');
-		}
-		const sha256 = await digestMediaContent(asset.body, { signal });
-		if (asset.byteLength !== asset.body.size || asset.mediaType !== asset.body.type
-			|| sha256 !== asset.sha256) {
-			throw new TypeError('Guided review media changed after aggregate preparation.');
-		}
-	}
 }
 
 function reframeResult(

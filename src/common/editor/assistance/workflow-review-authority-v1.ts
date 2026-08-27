@@ -18,6 +18,8 @@ export interface AssistanceWorkflowReviewMediaV1 {
 export interface AssistanceWorkflowReviewMediaAssetV1 {
 	readonly stageId: string;
 	readonly slotId: string;
+	/** Exact external input-custody claim staged from this body. */
+	readonly claimId: string;
 	readonly mediaType: string;
 	readonly byteLength: number;
 	readonly sha256: string;
@@ -37,10 +39,11 @@ const AUTHORITY_FIELDS = Object.freeze([
 const AUDIO_FIELDS = Object.freeze(['sampleRate', 'channelCount', 'frameCount']);
 const MEDIA_FIELDS = Object.freeze(['audio', 'video']);
 const MEDIA_ASSET_FIELDS = Object.freeze([
-	'stageId', 'slotId', 'mediaType', 'byteLength', 'sha256', 'body',
+	'stageId', 'slotId', 'claimId', 'mediaType', 'byteLength', 'sha256', 'body',
 ]);
 const ID = /^[A-Za-z\d][A-Za-z\d._:-]{0,255}$/u;
 const SLOT_ID = /^[a-z\d](?:[a-z\d.-]{0,62}[a-z\d])?$/u;
+const CLAIM_ID = /^[a-f\d]{40}$/u;
 const SHA256 = /^[a-f\d]{64}$/u;
 
 export function createEmptyAssistanceWorkflowReviewAuthorityV1(): AssistanceWorkflowReviewAuthorityV1 {
@@ -93,6 +96,7 @@ function mediaAsset(
 	const row = exactRecord(value, MEDIA_ASSET_FIELDS, `workflow review ${label} asset`);
 	if (typeof row.stageId !== 'string' || !SLOT_ID.test(row.stageId)
 		|| typeof row.slotId !== 'string' || !SLOT_ID.test(row.slotId)
+		|| typeof row.claimId !== 'string' || !CLAIM_ID.test(row.claimId)
 		|| typeof row.mediaType !== 'string'
 		|| (expectedMediaType.endsWith('/') ? !row.mediaType.startsWith(expectedMediaType)
 			: row.mediaType !== expectedMediaType)
@@ -101,7 +105,8 @@ function mediaAsset(
 		|| typeof row.sha256 !== 'string' || !SHA256.test(row.sha256)) {
 		throw new TypeError(`The workflow review ${label} body is invalid.`);
 	}
-	return Object.freeze({ stageId: row.stageId, slotId: row.slotId, mediaType: row.mediaType,
+	return Object.freeze({ stageId: row.stageId, slotId: row.slotId, claimId: row.claimId,
+		mediaType: row.mediaType,
 		byteLength: Number(row.byteLength), sha256: row.sha256, body: row.body });
 }
 
