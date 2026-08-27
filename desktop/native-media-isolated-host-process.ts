@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Closed media-host invocation through the independently reviewed OS launcher. */
+/** Closed media-host invocation through the machine-authenticated OS launcher. */
 
 import { lstat, realpath } from 'node:fs/promises';
 import { basename, dirname } from 'node:path';
@@ -49,7 +49,7 @@ export async function runIsolatedNativeMediaHostControl(
 		? arguments_ : ['--library-path', dirname(entry.path), descriptor.path, ...arguments_];
 	const launch = await launcher.launch({
 		executable: entry === descriptor ? descriptorArtifact(descriptor) : entry,
-		reviewedPayload: descriptorArtifact(descriptor),
+		workloadPayload: descriptorArtifact(descriptor),
 		arguments: hostArguments,
 		readOnly: [], readExecute: [], writeOnly: [],
 		runtimeClosure,
@@ -110,7 +110,7 @@ function isolatedInvocation(
 			: ['--library-path', dirname(entry.path), descriptor.path, ...hostArguments];
 		const launch = await launcher.launch({
 			executable: entry === descriptor ? descriptorArtifact(descriptor) : entry,
-			reviewedPayload: descriptorArtifact(descriptor),
+			workloadPayload: descriptorArtifact(descriptor),
 			arguments: arguments_,
 			readOnly,
 			readExecute: [],

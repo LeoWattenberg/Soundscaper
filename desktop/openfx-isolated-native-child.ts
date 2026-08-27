@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Launches the actual OpenFX scanner/runtime child through reviewed OS enforcement. */
+/** Launches the actual OpenFX scanner/runtime child through machine-authenticated OS enforcement. */
 
 import type { Writable } from 'node:stream';
 import { basename, dirname } from 'node:path';
@@ -55,7 +55,7 @@ export function createIsolatedOpenFxNativeChildAuthority(
 		},
 	});
 	return Object.freeze({
-		productionReady: () => launcher.productionReady(),
+		machineReady: () => launcher.machineReady(),
 		invoke: ((invocation, authority) => isolatedInvocation(
 			descriptor, launcher, invocation, authority,
 		)) as OpenFxHostProcessInvoker,
@@ -82,7 +82,7 @@ function isolatedInvocation(
 	};
 	const launched = launcher.launch({
 		executable: dispatch.executable,
-		reviewedPayload: dispatch.reviewedPayload,
+		workloadPayload: dispatch.workloadPayload,
 		arguments: dispatch.arguments,
 		readOnly: Object.freeze([...authority.pluginResources, ...authority.readOnly]),
 		readExecute: authority.plugin === null ? []
@@ -132,7 +132,7 @@ function isolatedDispatch(
 	arguments_: readonly string[],
 ) {
 	if (!descriptor.target.startsWith('linux-')) return Object.freeze({
-		executable: host, reviewedPayload: host, arguments: arguments_,
+		executable: host, workloadPayload: host, arguments: arguments_,
 		runtimeClosure: descriptor.isolation.runtimeLibraries,
 	});
 	const loaderName = LINUX_RUNTIME_LOADERS[descriptor.target as keyof typeof LINUX_RUNTIME_LOADERS];
@@ -144,7 +144,7 @@ function isolatedDispatch(
 		throw new Error('The OpenFX Linux runtime closure is not staged in one authenticated library root.');
 	}
 	return Object.freeze({
-		executable: loader, reviewedPayload: host,
+		executable: loader, workloadPayload: host,
 		arguments: Object.freeze(['--library-path', runtimeRoot, host.path, ...arguments_]),
 		runtimeClosure: Object.freeze(descriptor.isolation.runtimeLibraries.filter((entry) => entry !== loader)),
 	});

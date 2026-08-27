@@ -336,8 +336,10 @@ export async function createProfessionalNativeHelperRoleSeams(location, role, po
 			brokerPolicy: descriptor.isolation.brokerPolicy,
 		},
 	});
-	const ready = await launcher.productionReady();
-	if (ready.status !== 'ready') throw new Error(`The professional child launcher is unavailable: ${ready.detail}`);
+	const machineAvailability = await launcher.machineReady();
+	if (machineAvailability.status !== 'ready') {
+		throw new Error(`The professional child launcher is unavailable: ${machineAvailability.detail}`);
+	}
 	const formats = descriptor.target.startsWith('mac-') ? ['vst3', 'clap', 'au']
 		: descriptor.target.startsWith('linux-') ? ['vst3', 'clap', 'lv2'] : ['vst3', 'clap'];
 	const peer = createPeer({

@@ -27,7 +27,7 @@ export interface NativeChildWindowsAuthorityProfileInput {
 	readonly sandboxProfileSha256: string;
 	readonly brokerPolicySha256: string;
 	readonly executable: NativeChildWindowsAuthorityArtifact;
-	readonly reviewedPayload: NativeChildWindowsAuthorityArtifact;
+	readonly workloadPayload: NativeChildWindowsAuthorityArtifact;
 	readonly runtimeClosure: readonly NativeChildWindowsAuthorityArtifact[];
 	readonly readOnly: readonly NativeChildWindowsAuthorityGrant[];
 	readonly readExecute: readonly NativeChildWindowsAuthorityGrant[];
@@ -46,7 +46,7 @@ export function createNativeChildWindowsAuthorityProfile(
 		sandboxProfileSha256: input.sandboxProfileSha256,
 		brokerPolicySha256: input.brokerPolicySha256,
 		executable: artifactBinding(input.executable),
-		reviewedPayload: artifactBinding(input.reviewedPayload),
+		workloadPayload: artifactBinding(input.workloadPayload),
 		runtimeClosure: sortedBindings(input.runtimeClosure.map(artifactBinding)),
 		readOnly: sortedBindings(input.readOnly.map(grantBinding)),
 		readExecute: sortedBindings(input.readExecute.map(grantBinding)),

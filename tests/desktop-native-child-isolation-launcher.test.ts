@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { execFile, spawn as nodeSpawn, type ChildProcess } from 'node:child_process';
-import { createHash, generateKeyPairSync, sign } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { chmod, mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -15,13 +15,23 @@ import {
 	type NativeChildIsolationArtifactDescriptor,
 } from '../desktop/native-child-isolation-launcher.ts';
 import { createSoundscaperProfessionalPluginPeer } from '../desktop/soundscaper-professional-plugin-peer.ts';
-import { verifySoundscaperProfessionalReadiness } from '../desktop/soundscaper-professional-native-readiness.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const NATIVE_ROOT = join(ROOT, 'native/milestone-5-native-isolation-launcher');
 const PROFILE_PATH = join(NATIVE_ROOT, 'profiles/linux-v1.json');
 const BROKER_PATH = join(NATIVE_ROOT, 'profiles/linux-broker-v1.json');
 const execFileAsync = promisify(execFile);
+
+test('human review metadata cannot construct a native-child execution authority', () => {
+	const artifact = Object.freeze({
+		path: '/fixture/native-artifact', byteLength: 1, sha256: 'a'.repeat(64),
+		identity: Object.freeze({ dev: 1, ino: 1 }),
+	});
+	assert.throws(() => createNativeChildIsolationLauncher({
+		target: 'linux-x64', reviewedContract: Object.freeze({ status: 'authenticated' }),
+		artifacts: { launcher: artifact, sandboxProfile: artifact, brokerPolicy: artifact },
+	} as never), /unsupported fields/iu);
+});
 
 test('Linux launches an exact child only after namespaces, Landlock, and seccomp are enforced', {
 	skip: process.platform !== 'linux' || process.arch !== 'x64',
@@ -38,16 +48,16 @@ test('Linux launches an exact child only after namespaces, Landlock, and seccomp
 	]);
 	const launcher = createNativeChildIsolationLauncher({
 		target: 'linux-x64',
-		reviewedContract: await verifiedContract(launcherArtifact, profile, broker, executable),
+		machineWorkload: machineWorkload(executable),
 		artifacts: { launcher: launcherArtifact, sandboxProfile: profile, brokerPolicy: broker },
 	});
-	assert.deepEqual(await launcher.productionReady(), {
+	assert.deepEqual(await launcher.machineReady(), {
 		status: 'ready', target: 'linux-x64', launcherId: 'soundscaper-linux-landlock-seccomp-namespaces-v1',
 	});
 	await assert.rejects(launcher.launch({
-		executable, reviewedPayload: await descriptor(fixture.allowedPath), arguments: [],
+		executable, workloadPayload: await descriptor(fixture.allowedPath), arguments: [],
 		readOnly: [], readExecute: [], writeOnly: [], resourcePolicy: policy(), framedControl: null,
-	}), /payload is outside its signed workload review/iu);
+	}), /payload is outside its machine-authenticated workload/iu);
 	const child = await launcher.launch({
 		executable,
 		arguments: [fixture.allowedPath, fixture.deniedPath],
@@ -140,20 +150,20 @@ test('artifact drift fails closed before a launcher process is spawned', {
 	let spawns = 0;
 	const launcher = createNativeChildIsolationLauncher({
 		target: 'linux-x64',
-		reviewedContract: await verifiedContract(launcherArtifact, profile, broker),
+		machineWorkload: machineWorkload(launcherArtifact),
 		artifacts: {
 			launcher: { ...launcherArtifact, sha256: '0'.repeat(64) },
 			sandboxProfile: profile, brokerPolicy: broker,
 		},
 		spawn: ((..._arguments: never[]) => { spawns += 1; throw new Error('unreachable'); }) as never,
 	});
-	const readiness = await launcher.productionReady();
-	assert.equal(readiness.status, 'unavailable');
-	assert.match(readiness.detail, /launcher.*(?:differs|digest)|contract/iu);
+	const machineAvailability = await launcher.machineReady();
+	assert.equal(machineAvailability.status, 'unavailable');
+	assert.match(machineAvailability.detail, /launcher.*(?:changed|digest)|containment/iu);
 	await assert.rejects(launcher.launch({
 		executable: launcherArtifact, arguments: [], readOnly: [], readExecute: [], writeOnly: [],
 		resourcePolicy: policy(), framedControl: null,
-	}), /not production-ready/iu);
+	}), /machine-containment launcher is unavailable/iu);
 	assert.equal(spawns, 0);
 });
 
@@ -181,7 +191,7 @@ test('the professional plug-in RPC executes only in the attested isolated child'
 		descriptor(launcherPath), descriptor(PROFILE_PATH), descriptor(BROKER_PATH), descriptor(peerPath),
 	]);
 	const launcher = createNativeChildIsolationLauncher({
-		target: 'linux-x64', reviewedContract: await verifiedContract(launcherArtifact, profile, broker, peerExecutable),
+		target: 'linux-x64', machineWorkload: machineWorkload(peerExecutable),
 		artifacts: { launcher: launcherArtifact, sandboxProfile: profile, brokerPolicy: broker },
 	});
 	const plugin = createSoundscaperProfessionalPluginPeer({
@@ -216,7 +226,7 @@ test('the professional plug-in RPC executes only in the attested isolated child'
 	assert.equal(await plugin.closePluginInstance(instance), true);
 });
 
-test('forged readiness and a launcher that never attests cannot mount production execution', {
+test('human review metadata and a launcher that never attests cannot mount execution', {
 	skip: process.platform !== 'linux' || process.arch !== 'x64',
 }, async (context) => {
 	const fixture = await buildFixture(context);
@@ -224,15 +234,15 @@ test('forged readiness and a launcher that never attests cannot mount production
 		descriptor(fixture.executable), descriptor(PROFILE_PATH), descriptor(BROKER_PATH),
 	]);
 	assert.throws(() => createNativeChildIsolationLauncher({
-		target: 'linux-x64', reviewedContract: contract(launcherArtifact, profile, broker),
+		target: 'linux-x64', reviewedContract: Object.freeze({ status: 'authenticated' }),
 		artifacts: { launcher: launcherArtifact, sandboxProfile: profile, brokerPolicy: broker },
-	}), /branded.*Ed25519/iu);
+	} as never), /unsupported fields/iu);
 	let childProcess: ChildProcess | null = null;
 	let killedBySignal = false;
 	let closed!: () => void;
 	const processClosed = new Promise<void>((resolve) => { closed = resolve; });
 	const launcher = createNativeChildIsolationLauncher({
-		target: 'linux-x64', reviewedContract: await verifiedContract(launcherArtifact, profile, broker),
+		target: 'linux-x64', machineWorkload: machineWorkload(launcherArtifact),
 		artifacts: { launcher: launcherArtifact, sandboxProfile: profile, brokerPolicy: broker },
 		enforcementTimeoutMs: 100,
 		spawn: ((_command: string, _arguments: readonly string[], _options: unknown) => {
@@ -252,7 +262,7 @@ test('forged readiness and a launcher that never attests cannot mount production
 	assert.equal(killedBySignal, true);
 });
 
-test('machine-authenticated containment is production-ready without a human release review', {
+test('machine-authenticated containment is available without a human release review', {
 	skip: process.platform !== 'linux' || process.arch !== 'x64',
 }, async (context) => {
 	const fixture = await buildFixture(context);
@@ -270,8 +280,8 @@ test('machine-authenticated containment is production-ready without a human rele
 		artifacts: { launcher: launcherArtifact, sandboxProfile: profile, brokerPolicy: broker },
 		spawn: ((..._arguments: never[]) => { spawns += 1; throw new Error('unreachable'); }) as never,
 	});
-	const readiness = await launcher.productionReady();
-	assert.deepEqual(readiness, {
+	const machineAvailability = await launcher.machineReady();
+	assert.deepEqual(machineAvailability, {
 		status: 'ready', target: 'linux-x64',
 		launcherId: 'soundscaper-linux-landlock-seccomp-namespaces-v1',
 	});
@@ -311,64 +321,14 @@ async function pathGrant(path: string, kind: 'file' | 'directory') {
 		identity: Object.freeze({ dev: Number(metadata.dev), ino: Number(metadata.ino) }) });
 }
 
-function contract(
-	launcher: NativeChildIsolationArtifactDescriptor,
-	profile: NativeChildIsolationArtifactDescriptor,
-	broker: NativeChildIsolationArtifactDescriptor,
+function machineWorkload(
+	payload: NativeChildIsolationArtifactDescriptor,
+	runtimeClosure: readonly NativeChildIsolationArtifactDescriptor[] = [],
 ) {
 	return Object.freeze({
-		status: 'authenticated' as const,
-		launcher: Object.freeze({
-			schemaVersion: 1 as const, target: 'linux-x64' as const,
-			launcherId: 'soundscaper-linux-landlock-seccomp-namespaces-v1',
-			launcherPayloadSha256: launcher.sha256, sandboxProfileSha256: profile.sha256,
-			brokerPolicySha256: broker.sha256, peerPayloadSha256: launcher.sha256,
-			runtimeClosureSha256: createHash('sha256').update('[]').digest('hex'),
-			filesystem: 'broker-grant-only' as const,
-			network: 'denied' as const, childProcesses: 'denied' as const,
-			dynamicCode: 'admitted-plugin-only' as const,
-		}),
-	});
-}
-
-async function verifiedContract(
-	launcher: NativeChildIsolationArtifactDescriptor,
-	profile: NativeChildIsolationArtifactDescriptor,
-	broker: NativeChildIsolationArtifactDescriptor,
-	peer: NativeChildIsolationArtifactDescriptor = launcher,
-) {
-	const sourceAuthentication = Object.freeze({ schemaVersion: 1 });
-	const toolchainIdentity = 'fixture-cc-1';
-	const evidence = Object.freeze({
-		schemaVersion: 1, kind: 'soundscaper-professional-native-production-readiness', target: 'linux-x64',
-		payload: Object.freeze({ byteLength: launcher.byteLength, sha256: launcher.sha256 }),
-		sourceAuthenticationSha256: createHash('sha256')
-			.update(Buffer.from('{"schemaVersion":1}')).digest('hex'),
-		toolchainIdentity,
-		buildProvenance: Object.freeze({
-			sourceRevision: 'a'.repeat(40), buildPlanSha256: 'b'.repeat(64),
-			nativeHostTreeSha256: 'c'.repeat(64), helperAddonTreeSha256: 'd'.repeat(64),
-		}),
-		launcher: Object.freeze({ ...contract(launcher, profile, broker).launcher, peerPayloadSha256: peer.sha256 }),
-		osIsolationAttested: true, hostilePluginDenialAttested: true,
-		realThirdPartyExecutionAttested: true, reviewedAt: '2026-08-24', reviewer: 'Fixture Reviewer',
-	});
-	const bytes = Buffer.from(JSON.stringify(evidence));
-	const { privateKey, publicKey } = generateKeyPairSync('ed25519');
-	const reference = Object.freeze({
-		schemaVersion: 1, status: 'reviewed', target: 'linux-x64',
-		evidence: Object.freeze({
-			path: 'native/soundscaper-professional-host/prebuilt/linux-x64/soundscaper-professional-native-readiness.json',
-			byteLength: bytes.byteLength, sha256: createHash('sha256').update(bytes).digest('hex'),
-		}),
-		signature: Object.freeze({
-			algorithm: 'ed25519', reviewKeyId: 'fixture-review', valueBase64: sign(null, bytes, privateKey).toString('base64'),
-		}),
-	});
-	return verifySoundscaperProfessionalReadiness(reference, {
-		target: 'linux-x64', payload: evidence.payload, sourceAuthentication, toolchainIdentity,
-	}, {
-		readEvidence: async () => Buffer.from(bytes), resolveReviewPublicKey: async () => publicKey,
+		kind: 'soundscaper' as const,
+		payloads: Object.freeze([payload]),
+		runtimeClosure: Object.freeze([...runtimeClosure]),
 	});
 }
 

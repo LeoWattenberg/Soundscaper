@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { createHash, generateKeyPairSync, sign } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { access, chmod, copyFile, mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
@@ -13,10 +13,6 @@ import {
 	createNativeChildIsolationLauncher,
 	type NativeChildIsolationArtifactDescriptor,
 } from '../desktop/native-child-isolation-launcher.ts';
-import {
-	soundscaperProfessionalRuntimeClosureSha256,
-	verifySoundscaperProfessionalReadiness,
-} from '../desktop/soundscaper-professional-native-readiness.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const NATIVE_ROOT = join(ROOT, 'native/milestone-5-native-isolation-launcher');
@@ -31,17 +27,17 @@ test('an authenticated staged loader resolves only its exact runtime closure and
 	context.after(() => rm(root, { recursive: true, force: true }));
 	const runtime = join(root, 'runtime');
 	await mkdir(runtime);
-	const library = join(runtime, 'libreviewed.so');
+	const library = join(runtime, 'libmachine.so');
 	const peer = join(root, 'soundscaper_professional_peer');
 	const sibling = join(root, 'ungranted-sibling.so');
 	const launcherPath = join(root, 'milestone5-native-isolation-launcher');
 	await Promise.all([
-		writeFile(join(root, 'library.c'), 'int reviewed_marker(void) { return 42; }\n'),
+		writeFile(join(root, 'library.c'), 'int machine_marker(void) { return 42; }\n'),
 		writeFile(join(root, 'peer.c'), PEER_SOURCE),
-		writeFile(sibling, 'unreviewed library bytes'),
+		writeFile(sibling, 'ungranted library bytes'),
 	]);
 	await execute('cc', ['-shared', '-fPIC', join(root, 'library.c'), '-o', library]);
-	await execute('cc', [join(root, 'peer.c'), '-L', runtime, '-lreviewed',
+	await execute('cc', [join(root, 'peer.c'), '-L', runtime, '-lmachine',
 		'-Wl,-rpath,$ORIGIN/runtime', '-o', peer]);
 	await execute('cc', ['-std=c17', '-O2', '-Wall', '-Wextra', '-Wpedantic', '-Werror',
 		join(NATIVE_ROOT, 'src/linux_launcher.c'), '-o', launcherPath]);
@@ -52,15 +48,17 @@ test('an authenticated staged loader resolves only its exact runtime closure and
 	const [launcherArtifact, profile, broker, peerArtifact, entryExecutable] = await Promise.all([
 		descriptor(launcherPath), descriptor(PROFILE), descriptor(BROKER), descriptor(peer), descriptor(loader),
 	]);
-	const reviewed = await verifiedContract(
-		launcherArtifact, profile, broker, peerArtifact, runtimeClosure,
-	);
 	const launcher = createNativeChildIsolationLauncher({
-		target: 'linux-x64', reviewedContract: reviewed,
+		target: 'linux-x64',
+		machineWorkload: Object.freeze({
+			kind: 'soundscaper' as const,
+			payloads: Object.freeze([peerArtifact]),
+			runtimeClosure,
+		}),
 		artifacts: { launcher: launcherArtifact, sandboxProfile: profile, brokerPolicy: broker },
 	});
 	const child = await launcher.launch({
-		executable: entryExecutable, reviewedPayload: peerArtifact,
+		executable: entryExecutable, workloadPayload: peerArtifact,
 		arguments: ['--library-path', runtime, peerArtifact.path, sibling],
 		readOnly: [], readExecute: [], writeOnly: [], runtimeClosure,
 		resourcePolicy: { maximumJobDurationMs: 5_000, maximumRssBytes: 128 * 1024 ** 2 },
@@ -106,46 +104,6 @@ async function descriptor(path: string): Promise<NativeChildIsolationArtifactDes
 	});
 }
 
-async function verifiedContract(
-	launcher: NativeChildIsolationArtifactDescriptor,
-	profile: NativeChildIsolationArtifactDescriptor,
-	broker: NativeChildIsolationArtifactDescriptor,
-	peer: NativeChildIsolationArtifactDescriptor,
-	runtimeClosure: readonly NativeChildIsolationArtifactDescriptor[],
-) {
-	const sourceAuthentication = Object.freeze({ schemaVersion: 1 });
-	const evidence = Object.freeze({
-		schemaVersion: 1, kind: 'soundscaper-professional-native-production-readiness', target: 'linux-x64',
-		payload: Object.freeze({ byteLength: peer.byteLength, sha256: peer.sha256 }),
-		sourceAuthenticationSha256: hash(Buffer.from('{"schemaVersion":1}')),
-		toolchainIdentity: 'fixture-cc-1',
-		buildProvenance: Object.freeze({ sourceRevision: 'a'.repeat(40), buildPlanSha256: 'b'.repeat(64),
-			nativeHostTreeSha256: 'c'.repeat(64), helperAddonTreeSha256: 'd'.repeat(64) }),
-		launcher: Object.freeze({
-			schemaVersion: 1, target: 'linux-x64', launcherId: 'soundscaper-linux-landlock-seccomp-namespaces-v1',
-			launcherPayloadSha256: launcher.sha256, sandboxProfileSha256: profile.sha256,
-			brokerPolicySha256: broker.sha256, peerPayloadSha256: peer.sha256,
-			runtimeClosureSha256: soundscaperProfessionalRuntimeClosureSha256(runtimeClosure),
-			filesystem: 'broker-grant-only', network: 'denied', childProcesses: 'denied',
-			dynamicCode: 'admitted-plugin-only',
-		}),
-		osIsolationAttested: true, hostilePluginDenialAttested: true,
-		realThirdPartyExecutionAttested: true, reviewedAt: '2026-08-24', reviewer: 'Fixture Reviewer',
-	});
-	const bytes = Buffer.from(JSON.stringify(evidence));
-	const { privateKey, publicKey } = generateKeyPairSync('ed25519');
-	return verifySoundscaperProfessionalReadiness({
-		schemaVersion: 1, status: 'reviewed', target: 'linux-x64',
-		evidence: { path: 'native/soundscaper-professional-host/prebuilt/linux-x64/soundscaper-professional-native-readiness.json',
-			byteLength: bytes.byteLength, sha256: hash(bytes) },
-		signature: { algorithm: 'ed25519', reviewKeyId: 'fixture-review',
-			valueBase64: sign(null, bytes, privateKey).toString('base64') },
-	}, { target: 'linux-x64', payload: evidence.payload, sourceAuthentication,
-		toolchainIdentity: evidence.toolchainIdentity }, {
-		readEvidence: async () => bytes, resolveReviewPublicKey: async () => publicKey,
-	});
-}
-
 function hash(bytes: Uint8Array): string { return createHash('sha256').update(bytes).digest('hex'); }
 
 const PEER_SOURCE = String.raw`
@@ -153,11 +111,11 @@ const PEER_SOURCE = String.raw`
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
-extern int reviewed_marker(void);
+extern int machine_marker(void);
 int main(int argc, char **argv) {
 	if (argc != 2) return 2;
 	int sibling = open(argv[1], O_RDONLY | O_CLOEXEC);
-	printf("{\"marker\":%d,\"deniedSibling\":%s}\n", reviewed_marker(),
+	printf("{\"marker\":%d,\"deniedSibling\":%s}\n", machine_marker(),
 		sibling < 0 && (errno == EACCES || errno == EPERM) ? "true" : "false");
 	if (sibling >= 0) close(sibling);
 	return 0;
