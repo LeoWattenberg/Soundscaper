@@ -3,6 +3,9 @@
 /** Derives semantic output authority from controller-owned prepared inputs. */
 
 import { inspectWavBlobPcm } from '../wav-import.js';
+import { reviewAssistanceEditorialGenerationPlanV1 } from
+	'../assistance/editorial-generation-v1.ts';
+import { reviewAssistanceVisualFramePack } from '../assistance/visual-frame-pack-v2.ts';
 import type { LocalAssistancePreparedMedia } from './local-assistance-preparation.ts';
 import type { LocalAssistanceReviewAuthority } from './local-assistance-result-review.ts';
 
@@ -14,6 +17,10 @@ const OUTPUT_AUDIO_RATES = Object.freeze({
 export async function deriveLocalAssistanceReviewAuthority(
 	prepared: LocalAssistancePreparedMedia,
 ): Promise<LocalAssistanceReviewAuthority> {
+	if (prepared.operation === 'editorial-generation') return editorialAuthority(prepared);
+	if (prepared.operation === 'optical-character-recognition'
+		|| prepared.operation === 'subject-detection'
+		|| prepared.operation === 'saliency-detection') return visualAuthority(prepared);
 	if (prepared.operation !== 'speech-enhancement' && prepared.operation !== 'source-separation') {
 		return Object.freeze({});
 	}
@@ -36,4 +43,35 @@ export async function deriveLocalAssistanceReviewAuthority(
 		channelCount: descriptor.channelCount,
 		frameCount: descriptor.frameCount,
 	}) });
+}
+
+async function editorialAuthority(
+	prepared: LocalAssistancePreparedMedia,
+): Promise<LocalAssistanceReviewAuthority> {
+	const inputs = prepared.inputs.filter(({ role }) => role === 'editorial-context');
+	if (inputs.length !== 1 || inputs[0]!.bytes.size > 512 * 1024) {
+		throw new TypeError('Editorial review requires one bounded exact context input.');
+	}
+	let value: unknown;
+	try { value = JSON.parse(await inputs[0]!.bytes.text()) as unknown; }
+	catch (error) { throw new TypeError('Editorial context is not valid JSON.', { cause: error }); }
+	const plan = reviewAssistanceEditorialGenerationPlanV1(value);
+	return Object.freeze({ editorialCandidateIds: plan.authorizedCandidateIds });
+}
+
+async function visualAuthority(
+	prepared: LocalAssistancePreparedMedia,
+): Promise<LocalAssistanceReviewAuthority> {
+	const inputs = prepared.inputs.filter(({ role }) => role === 'frame-pack');
+	if (inputs.length !== 1) {
+		throw new TypeError('Visual review requires one exact frame-pack input.');
+	}
+	const pack = reviewAssistanceVisualFramePack(new Uint8Array(await inputs[0]!.bytes.arrayBuffer()));
+	const frames = Object.freeze(Array.from({ length: pack.frameCount }, (_, ordinal) => {
+		const frame = pack.frame(ordinal);
+		return Object.freeze({ sourceFrame: frame.sourceFrame,
+			presentationTick: frame.presentationTick });
+	}));
+	return Object.freeze({ visualFrames: Object.freeze({ width: pack.sourceWidth,
+		height: pack.sourceHeight, timescale: pack.timescale, frames }) });
 }

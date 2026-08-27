@@ -7,7 +7,10 @@ import {
 	normalizeAssistanceOperation,
 	type AssistanceOperation,
 } from '../assistance/operation.ts';
-import type { AssistanceGuidedWorkflowId } from '../assistance/workflow-recipes.ts';
+import type {
+	AssistanceAdvancedWorkflowId,
+	AssistanceGuidedWorkflowId,
+} from '../assistance/workflow-recipes.ts';
 import type { AssistanceWorkflowOutputClaimV1 } from '../assistance/workflow.ts';
 import type { AssistanceWorkflowSettingsV1 } from '../assistance/workflow-settings-v1.ts';
 import {
@@ -90,6 +93,7 @@ export interface LocalAssistanceSelectedMediaPreparationPort {
 		signal?: AbortSignal;
 	}>): Promise<unknown>;
 	prepareGuidedWorkflow?(request: LocalAssistanceGuidedWorkflowPreparationRequest): Promise<unknown>;
+	prepareAdvancedWorkflow?(request: LocalAssistanceAdvancedWorkflowPreparationRequest): Promise<unknown>;
 	acceptGuidedWorkflowResult?(request: LocalAssistanceGuidedWorkflowAcceptanceRequest): Promise<unknown>;
 	acceptValidatedResult?(request: LocalAssistanceValidatedResultAcceptanceRequest): Promise<void>;
 	prepareTranscriptCleanup?(
@@ -115,6 +119,18 @@ export interface LocalAssistanceGuidedWorkflowAcceptanceRequest {
 export interface LocalAssistanceGuidedWorkflowPreparationRequest {
 	readonly jobId: string;
 	readonly workflowId: AssistanceGuidedWorkflowId;
+	readonly settings: AssistanceWorkflowSettingsV1;
+	readonly models: readonly LocalAssistanceModel[];
+	readonly custody: LocalAssistanceWorkflowCustodyBridge;
+	readonly signal: AbortSignal;
+}
+
+export interface LocalAssistanceAdvancedWorkflowPreparationRequest {
+	readonly jobId: string;
+	readonly workflowId: AssistanceAdvancedWorkflowId;
+	readonly sourceId: string;
+	readonly operation: AssistanceOperation;
+	readonly shotDetectionMode?: LocalAssistanceShotDetectionMode;
 	readonly settings: AssistanceWorkflowSettingsV1;
 	readonly models: readonly LocalAssistanceModel[];
 	readonly custody: LocalAssistanceWorkflowCustodyBridge;
@@ -186,6 +202,9 @@ const MEDIA_KINDS = Object.freeze([
 ] as const);
 const INPUT_MEDIA_TYPES = Object.freeze({
 	audio: Object.freeze(['audio/wav', 'audio/x-wav', 'audio/flac']),
+	'voice-activity': Object.freeze([
+		'application/json', 'application/vnd.soundscaper.voice-activity+json',
+	]),
 	video: Object.freeze(['video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska']),
 	'frame-pack': Object.freeze(['application/vnd.soundscaper.frame-pack']),
 	transcript: Object.freeze(['application/json', 'application/vnd.soundscaper.transcript+json']),

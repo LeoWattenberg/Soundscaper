@@ -22,6 +22,9 @@ test('selected-media assistance loads on first dialog operation and caches its r
 				return {
 					listSelectedMedia: async () => ({ sources: ['audio'] }),
 					prepareSelectedMedia: async (...args: unknown[]) => { calls.push(['prepare', ...args]); return 'prepared'; },
+					prepareAdvancedWorkflow: async (...args: unknown[]) => {
+						calls.push(['advanced-prepare', ...args]); return 'advanced-prepared';
+					},
 					prepareGuidedWorkflow: async (...args: unknown[]) => {
 						calls.push(['guided-prepare', ...args]); return 'guided-prepared';
 					},
@@ -44,6 +47,8 @@ test('selected-media assistance loads on first dialog operation and caches its r
 		sourceId: 'source-1',
 		operation: 'speech-recognition',
 	}), 'prepared');
+	assert.equal(await preparation.prepareAdvancedWorkflow({ advanced: true } as never),
+		'advanced-prepared');
 	assert.equal(await preparation.prepareGuidedWorkflow?.({ guided: true } as never), 'guided-prepared');
 	assert.deepEqual(await preparation.acceptGuidedWorkflowResult?.({ accepted: true } as never),
 		{ outcome: 'accepted' });
@@ -56,6 +61,7 @@ test('selected-media assistance loads on first dialog operation and caches its r
 	assert.deepEqual(calls, [
 		['create', dependencies],
 		['prepare', { sourceId: 'source-1', operation: 'speech-recognition' }],
+		['advanced-prepare', { advanced: true }],
 		['guided-prepare', { guided: true }],
 		['guided-accept', { accepted: true }],
 		['accept', { operation: 'speech-recognition' }],

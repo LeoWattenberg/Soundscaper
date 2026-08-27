@@ -181,17 +181,44 @@ const GUIDED_GRAPHS = Object.freeze({
 	]),
 } satisfies Readonly<Record<AssistanceGuidedWorkflowId, readonly AssistanceWorkflowStageSpec[]>>);
 
+const ADVANCED_DECLARATIONS = Object.freeze({
+	'voice-activity-detection': advanced(['audio'], ['voice-activity']),
+	'speech-recognition': advanced(['audio'], ['transcript'], {
+		optionalInputs: ['voice-activity'],
+	}),
+	'word-alignment': advanced(['audio', 'transcript'], ['word-alignment']),
+	'speaker-diarization': advanced(['audio'], ['speaker-turns'], {
+		models: ['diarizer', 'speaker-embedding'],
+	}),
+	'speech-enhancement': advanced(['audio'], ['enhanced-audio']),
+	'source-separation': advanced(['audio'], ['dialogue', 'music', 'effects']),
+	'audio-tagging': advanced(['audio'], ['audio-tags']),
+	'beat-tracking': advanced(['audio'], ['beat-grid']),
+	'text-embedding': advanced([], ['embeddings'], {
+		optionalInputs: ['transcript', 'text'],
+	}),
+	'image-text-embedding': advanced([], ['embeddings'], {
+		optionalInputs: ['frame-pack', 'text'],
+	}),
+	'optical-character-recognition': advanced(['frame-pack'], ['recognized-text']),
+	'shot-detection': advanced([], ['shot-boundaries'], {
+		optionalInputs: ['video', 'frame-pack'], optionalModels: ['model'],
+	}),
+	'subject-detection': advanced(['frame-pack'], ['subject-tracks'], {
+		models: ['face-detector', 'object-detector'],
+	}),
+	'saliency-detection': advanced(['frame-pack'], ['saliency-map']),
+	'editorial-generation': advanced(['editorial-context'], ['editorial-proposal']),
+} satisfies Readonly<Record<AssistanceOperation, Omit<StageDeclaration,
+	'stageId' | 'operation'>>>);
+
 const ADVANCED_GRAPHS = new Map<AssistanceAdvancedWorkflowId, readonly AssistanceWorkflowStageSpec[]>(
 	ASSISTANCE_OPERATIONS.map((operation) => [
 		`advanced:${operation}` as AssistanceAdvancedWorkflowId,
 		graph([stage({
 			stageId: `run-${operation}`,
 			operation,
-			inputs: ['input'],
-			outputs: ['output'],
-			...(operation === 'shot-detection'
-				? { optionalModels: ['model'] }
-				: { models: ['model'] }),
+			...ADVANCED_DECLARATIONS[operation],
 		})]),
 	]),
 );
@@ -224,6 +251,21 @@ function stage(declaration: StageDeclaration): AssistanceWorkflowStageSpec {
 		outputSlots: slots(declaration.outputs, declaration.optionalOutputs),
 		modelSlots: slots(declaration.models ?? [], declaration.optionalModels),
 	});
+}
+
+function advanced(
+	inputs: readonly string[],
+	outputs: readonly string[],
+	options: Readonly<{
+		optionalInputs?: readonly string[];
+		models?: readonly string[];
+		optionalModels?: readonly string[];
+	}> = {},
+): Omit<StageDeclaration, 'stageId' | 'operation'> {
+	return Object.freeze({ inputs: Object.freeze([...inputs]), outputs: Object.freeze([...outputs]),
+		optionalInputs: Object.freeze([...(options.optionalInputs ?? [])]),
+		models: Object.freeze([...(options.models ?? (options.optionalModels ? [] : ['model']))]),
+		optionalModels: Object.freeze([...(options.optionalModels ?? [])]) });
 }
 
 function slots(required: readonly string[], optional: readonly string[] = []): readonly AssistanceWorkflowSlotSpec[] {

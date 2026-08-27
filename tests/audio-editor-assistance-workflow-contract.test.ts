@@ -223,6 +223,28 @@ test('main can derive an immutable permitted graph without trusting renderer-sup
 	assert.deepEqual(assistanceWorkflowStageGraph('advanced:audio-tagging').map(({ operation }) => operation), [
 		'audio-tagging',
 	]);
+	assert.deepEqual(assistanceWorkflowStageGraph('advanced:speech-recognition')[0], {
+		stageId: 'run-speech-recognition', operation: 'speech-recognition', required: true, after: [],
+		inputSlots: [{ slotId: 'audio', required: true },
+			{ slotId: 'voice-activity', required: false }],
+		outputSlots: [{ slotId: 'transcript', required: true }],
+		modelSlots: [{ slotId: 'model', required: true }],
+	});
+	assert.deepEqual(assistanceWorkflowStageGraph('advanced:source-separation')[0]?.outputSlots, [
+		{ slotId: 'dialogue', required: true }, { slotId: 'music', required: true },
+		{ slotId: 'effects', required: true },
+	]);
+	assert.deepEqual(assistanceWorkflowStageGraph('advanced:subject-detection')[0]?.modelSlots, [
+		{ slotId: 'face-detector', required: true },
+		{ slotId: 'object-detector', required: true },
+	]);
+	assert.deepEqual(assistanceWorkflowStageGraph('advanced:shot-detection')[0], {
+		stageId: 'run-shot-detection', operation: 'shot-detection', required: true, after: [],
+		inputSlots: [{ slotId: 'video', required: false },
+			{ slotId: 'frame-pack', required: false }],
+		outputSlots: [{ slotId: 'shot-boundaries', required: true }],
+		modelSlots: [{ slotId: 'model', required: false }],
+	});
 	assert.deepEqual(
 		assistanceWorkflowStageGraph('index-transcript')
 			.find(({ stageId }) => stageId === 'publish-transcript-index')?.inputSlots

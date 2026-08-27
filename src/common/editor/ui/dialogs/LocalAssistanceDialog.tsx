@@ -12,6 +12,8 @@ import LocalAssistanceGuidedPanel from './LocalAssistanceGuidedPanel.tsx';
 import type { LocalAssistanceTranscriptCleanupPreset } from '../local-assistance-cleanup.ts';
 import LocalAssistanceOutputReviewList from './LocalAssistanceOutputReview.tsx';
 import type { LocalAssistanceBridge } from '../local-assistance-bridge.ts';
+import { createLocalAssistanceAdvancedWorkflowSessionStore } from
+	'../local-assistance-advanced-session-store.ts';
 import {
 	createLocalAssistanceGuidedSessionStore,
 	INITIAL_LOCAL_ASSISTANCE_GUIDED_SNAPSHOT,
@@ -21,7 +23,6 @@ import {
 import { localAssistanceModelCompatible, localAssistanceModelTaskSlots,
 	type LocalAssistanceSelectedMediaPreparationPort } from '../local-assistance-preparation.ts';
 import {
-	createLocalAssistanceSessionStore,
 	type LocalAssistanceSnapshot,
 	type LocalAssistanceUiUnavailableReason,
 } from '../local-assistance-session-store.ts';
@@ -75,7 +76,9 @@ export interface LocalAssistanceDialogViewProps {
 export default function LocalAssistanceDialog({
 	bridge, preparation, copy, onClose,
 }: LocalAssistanceDialogProps) {
-	const store = useMemo(() => createLocalAssistanceSessionStore({ bridge, preparation }), [bridge, preparation]);
+	const store = useMemo(() => createLocalAssistanceAdvancedWorkflowSessionStore({
+		bridge, preparation,
+	}), [bridge, preparation]);
 	const guidedStore = useMemo(() => createLocalAssistanceGuidedSessionStore({
 		bridge, preparation,
 	}), [bridge, preparation]);
@@ -143,7 +146,7 @@ export function LocalAssistanceDialogView({
 	onGuidedHighlightCropChange = () => undefined,
 	onSelectSource, onSelectOperation,
 	onShotDetectionModeChange = () => undefined, onSelectModel,
-	onConsentChange, onRun, onCancel, onReview, onAccept,
+	onRun, onCancel, onReview, onAccept,
 	onCleanupSelectionChange = () => undefined,
 	onCleanupPresetChange = () => undefined,
 	onCleanupAccept = () => undefined, onCleanupReject = () => undefined,
@@ -255,11 +258,8 @@ export function LocalAssistanceDialogView({
 				{text(copy, 'localAssistanceNoModelRequired', 'This operation requires no installed model binding.')}
 			</p>}
 		</div>
-		<label className="kw-local-assistance__consent">
-			<input type="checkbox" checked={snapshot.consent} disabled={busy(snapshot)}
-				onChange={(event) => { void onConsentChange(event.currentTarget.checked); }} />
-			{text(copy, 'localAssistanceConsent', 'I consent to local processing of the selected media.')}
-		</label>
+		<p>{text(copy, 'localAssistanceWorkflowConsent',
+			'Run locally opens one consent dialog for this exact operation, model, input, and output selection.')}</p>
 		<div className="kw-local-assistance__run-actions">
 			<button type="button" disabled={!snapshot.canRun} onClick={() => { void onRun(); }}>
 				{text(copy, 'localAssistanceRun', 'Run locally')}

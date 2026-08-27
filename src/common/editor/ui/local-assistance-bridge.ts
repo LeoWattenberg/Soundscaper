@@ -32,7 +32,8 @@ export const LOCAL_ASSISTANCE_UNAVAILABLE_REASONS = Object.freeze([
 export type LocalAssistanceProgressPhase = typeof LOCAL_ASSISTANCE_PROGRESS_PHASES[number];
 export type LocalAssistanceUnavailableReason = typeof LOCAL_ASSISTANCE_UNAVAILABLE_REASONS[number];
 export type LocalAssistanceInputRole =
-	| 'audio' | 'video' | 'frame-pack' | 'transcript' | 'text' | 'editorial-context';
+	| 'audio' | 'voice-activity' | 'video' | 'frame-pack' | 'transcript' | 'text'
+	| 'editorial-context';
 export type LocalAssistanceOutputRole =
 	| 'voice-activity' | 'transcript' | 'word-alignment' | 'speaker-turns'
 	| 'enhanced-audio' | 'separated-audio' | 'audio-tags' | 'beat-grid' | 'embeddings'
@@ -146,7 +147,7 @@ const SHA256 = /^[a-f\d]{64}$/u;
 const MODEL_ID = /^[a-z\d](?:[a-z\d.-]{0,62}[a-z\d])?$/u;
 const MEDIA_TYPE = /^[a-z\d][a-z\d!#$&^_.+-]{0,126}\/[a-z\d][a-z\d!#$&^_.+-]{0,126}$/u;
 const INPUT_ROLES = Object.freeze([
-	'audio', 'video', 'frame-pack', 'transcript', 'text', 'editorial-context',
+	'audio', 'voice-activity', 'video', 'frame-pack', 'transcript', 'text', 'editorial-context',
 ] as const);
 const OUTPUT_ROLES = Object.freeze([
 	'voice-activity', 'transcript', 'word-alignment', 'speaker-turns', 'enhanced-audio',
@@ -155,6 +156,7 @@ const OUTPUT_ROLES = Object.freeze([
 ] as const);
 const INPUT_MEDIA_TYPES: Readonly<Record<LocalAssistanceInputRole, readonly string[]>> = Object.freeze({
 	audio: Object.freeze(['audio/wav', 'audio/x-wav', 'audio/flac']),
+	'voice-activity': jsonTypes('voice-activity'),
 	video: Object.freeze(['video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska']),
 	'frame-pack': Object.freeze(['application/vnd.soundscaper.frame-pack']),
 	transcript: Object.freeze(['application/json', 'application/vnd.soundscaper.transcript+json']),

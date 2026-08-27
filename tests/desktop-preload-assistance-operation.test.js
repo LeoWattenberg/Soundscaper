@@ -198,6 +198,37 @@ test('workflow preload validation rejects renderer stage injection and path-bear
 		/workflow|schema|fields|outcome/iu);
 });
 
+test('workflow preload closes every Advanced primitive to its exact single-stage recipe', async () => {
+	const stageId = 'run-speech-recognition';
+	const advanced = Object.freeze({ ...WORKFLOW_REQUEST,
+		workflowId: 'advanced:speech-recognition',
+		settings: { settingsVersion: 1, workflowId: 'advanced:speech-recognition', operationSettings: {} },
+		stageIds: [stageId],
+		models: [{ ...WORKFLOW_REQUEST.models[0], stageId, slotId: 'model' }],
+		inputs: [{ ...WORKFLOW_REQUEST.inputs[0], stageId, slotId: 'audio' }],
+		outputs: [{ ...WORKFLOW_REQUEST.outputs[0], stageId, slotId: 'transcript' }],
+	});
+	const unavailable = { contractVersion: 1, jobId: JOB_ID,
+		workflowId: advanced.workflowId, outcome: 'unavailable', reason: 'stage-unavailable' };
+	const fixture = await loadPreload({ responses: [unavailable] });
+	assert.deepEqual(plain(await fixture.bridge.localAssistance.workflow.run(advanced)), unavailable);
+	assert.deepEqual(plain(fixture.invocations[0][1]), plain(advanced));
+
+	const invalid = [
+		{ ...advanced, workflowId: 'advanced:not-an-operation' },
+		{ ...advanced, stageIds: ['recognize-speech'] },
+		{ ...advanced, inputs: [{ ...advanced.inputs[0], slotId: 'input' }] },
+		{ ...advanced, models: [{ ...advanced.models[0], slotId: 'embedder' }] },
+		{ ...advanced, outputs: [{ ...advanced.outputs[0], slotId: 'output' }] },
+	];
+	for (const request of invalid) {
+		const rejected = await loadPreload({ responses: [] });
+		await assert.rejects(rejected.bridge.localAssistance.workflow.run(request),
+			/workflow|stage|slot|operation/iu);
+		assert.equal(rejected.invocations.length, 0);
+	}
+});
+
 test('workflow preload requires transcript chunks beside embeddings for index publication', async () => {
 	const claim = (direction, claimId, stageId, slotId) => Object.freeze({ claimVersion: 1,
 		direction, claimId, jobId: JOB_ID, stageId, slotId });

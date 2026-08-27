@@ -14,6 +14,9 @@ import {
 	createLocalAssistanceGuidedWorkflowPreparation,
 } from './local-assistance-guided-preparation.ts';
 import {
+	createLocalAssistanceAdvancedWorkflowPreparation,
+} from './local-assistance-advanced-workflow-preparation.ts';
+import {
 	createLocalAssistanceResultAcceptance,
 	type LocalAssistanceResultAcceptanceStore,
 } from './local-assistance-result-acceptance.ts';
@@ -121,6 +124,13 @@ export function createLocalAssistancePreparationRuntime(
 		...(assistanceVideoStore ? { videoStore: assistanceVideoStore } : {}),
 		...(resultAcceptance ? { acceptValidatedResult: resultAcceptance.acceptValidatedResult } : {}),
 	});
+	const advancedPreparation = createLocalAssistanceAdvancedWorkflowPreparation({
+		getProject: dependencies.getProject,
+		captureProject: dependencies.captureProject,
+		assertProject: dependencies.assertProject,
+		preflightStorage: (bytes) => dependencies.preflightStorage(bytes, 'effect'),
+		selected: selectedPreparation,
+	});
 	const publicationFenceResolver = createLocalAssistanceGuidedPublicationFenceResolver({
 		getProject: dependencies.getProject,
 		captureProject: dependencies.captureProject,
@@ -206,6 +216,7 @@ export function createLocalAssistancePreparationRuntime(
 	}
 	return Object.freeze({
 		...selectedPreparation,
+		prepareAdvancedWorkflow: advancedPreparation.prepareAdvancedWorkflow,
 		prepareGuidedWorkflow: guidedPreparation.prepareGuidedWorkflow,
 		async acceptGuidedWorkflowResult(request: LocalAssistanceGuidedWorkflowAcceptanceRequest) {
 			const workflow = validateAssistanceWorkflow(request.workflow);

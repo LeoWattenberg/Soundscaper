@@ -213,7 +213,8 @@ test('the focused EN/DE catalog and dialog expose all operations without an impl
 	assert.equal(ASSISTANCE_OPERATIONS.length, 15);
 	for (const operation of ASSISTANCE_OPERATIONS) assert.match(markup, new RegExp(operation, 'u'));
 	assert.equal(markup.match(/<option value="" disabled=""[^>]*>Choose<\/option>/gu)?.length, 3);
-	assert.match(markup, /I consent to local processing/u);
+	assert.doesNotMatch(markup, /I consent to local processing/u);
+	assert.match(markup, /one consent dialog for this exact operation, model, input, and output/u);
 	assert.match(markup, /Review result[^<]*<\/button>/u);
 	assert.match(markup, /Accept proposal[^<]*<\/button>/u);
 	assert.match(markup, /disabled=""[^>]*>Review result|>Review result<\/button>/u);

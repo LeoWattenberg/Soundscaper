@@ -69,6 +69,9 @@ export function createDeferredLocalAssistancePreparation(
 		prepareSelectedMedia: (
 			...args: MethodParameters<LocalAssistancePreparation['prepareSelectedMedia']>
 		) => invoke('prepareSelectedMedia', args),
+		prepareAdvancedWorkflow: (
+			...args: MethodParameters<LocalAssistancePreparation['prepareAdvancedWorkflow']>
+		) => invoke('prepareAdvancedWorkflow', args),
 		prepareGuidedWorkflow: (
 			...args: MethodParameters<LocalAssistancePreparation['prepareGuidedWorkflow']>
 		) => invoke('prepareGuidedWorkflow', args),
