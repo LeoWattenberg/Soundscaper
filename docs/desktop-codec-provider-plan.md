@@ -220,6 +220,19 @@ Primary references: [dav1d project and release](https://images.videolan.org/proj
   pass the deterministic canary before it advertises a tuple. Missing Windows
   N components and optional codec packs degrade without affecting bundled
   codecs.
+- Admission is decided by the file, not by what the host says about it. The
+  canary reads the AudioSpecificConfig out of the M4A itself on both targets
+  and holds the media type to agreeing with it, rather than trusting an
+  `audioProfileLevelIndication` an ordinary M4A need not carry, a sample
+  description blob whose layout is not pinned, or the brand the container is
+  written under. A refusal names the layer that produced it so an unattended
+  target reports which rule it applied.
+- MP3 encoding on Windows goes through an ACM codec wrapper, which is optional
+  and absent from the hosted Windows Server images the product is built on. The
+  canary therefore admits either an exact 192 kbps frame chain or a fail-closed
+  refusal that leaves no output behind, since the tuple is served by the
+  bundled reviewed encoder first and what a given machine can do is settled by
+  the runtime capability query rather than at build time.
 - The macOS ARM64 sources use AudioToolbox/Extended Audio File Services for the
   exact MP3/AAC tuples above. macOS has no admitted MP3 encoder. Media
   Foundation video and AVFoundation/VideoToolbox video remain disabled; the
