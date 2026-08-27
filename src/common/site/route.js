@@ -1,25 +1,56 @@
 import { getLocaleDescriptor } from '../i18n/locales.js';
+import { PRODUCT_IDS } from '../product-identities.js';
 
-const DESKTOP_PRODUCT_ID = typeof __SCAPE_PRODUCT__ === 'string' && __SCAPE_PRODUCT__ === 'framescaper'
-	? 'framescaper'
+/**
+ * The product this bundle was built for.
+ *
+ * `__SCAPE_PRODUCT__` is a build-time define, and it is the authority here: each
+ * product is deployed from its own Cloudflare Pages project, so a bundle knows
+ * which product it is before it ever sees a URL. The value is admitted at build
+ * time (`vite.config.mjs`), which is why an absent define — a plain Node import,
+ * a test — falls back to Soundscaper rather than failing at module scope.
+ *
+ * Desktop has always taken its product from here. The web now does too.
+ */
+export const BUILT_PRODUCT_ID = typeof __SCAPE_PRODUCT__ === 'string' && PRODUCT_IDS.includes(__SCAPE_PRODUCT__)
+	? __SCAPE_PRODUCT__
 	: 'soundscaper';
+
+/**
+ * Which product, locale, and embedding a web pathname names.
+ *
+ * The built product wins, and it decides whether the path may name a product at
+ * all. Only the Soundscaper build serves two products from one origin —
+ * soundscaper.org keeps Soundscaper at `/` and Framescaper at `/framescaper/`
+ * unchanged for the whole cutover — so only that build reads a leading
+ * `framescaper` segment as a product. Every other build serves exactly one
+ * product from its origin root, where the first segment is `embed` or the
+ * locale; a product segment there would be a locale, not a product.
+ *
+ * @param {string | undefined} pathname
+ * @param {string} builtProductId
+ */
+export function resolveWebRoute(pathname, builtProductId = BUILT_PRODUCT_ID) {
+	const segments = String(pathname || '/')
+		.split('/')
+		.filter(Boolean);
+	const pathProduct = builtProductId === 'soundscaper' && segments[0] === 'framescaper' ? 'framescaper' : null;
+	if (pathProduct) segments.shift();
+	const embedded = segments[0] === 'embed';
+	if (embedded) segments.shift();
+	return { productId: pathProduct || builtProductId, locale: segments[0] || 'en', embedded };
+}
 
 export async function resolveApplicationRoute(scope = globalThis) {
 	const desktop = scope.scapeDesktop?.v1;
 	if (desktop) {
 		const environment = await desktop.getEnvironment();
-		return createRoute(DESKTOP_PRODUCT_ID, environment?.locale, true, true);
+		return createRoute(BUILT_PRODUCT_ID, environment?.locale, true, true);
 	}
 	if (scope.location?.pathname === '/') scope.location.replace('/en/');
 
-	const segments = String(scope.location?.pathname || '/')
-		.split('/')
-		.filter(Boolean);
-	const productId = segments[0] === 'framescaper' ? 'framescaper' : 'soundscaper';
-	if (productId === 'framescaper') segments.shift();
-	const embedded = segments[0] === 'embed';
-	if (embedded) segments.shift();
-	return createRoute(productId, segments[0] || 'en', embedded, false);
+	const { productId, locale, embedded } = resolveWebRoute(scope.location?.pathname);
+	return createRoute(productId, locale, embedded, false);
 }
 
 function createRoute(productId, locale, embedded, desktop) {

@@ -229,7 +229,7 @@ test('unknown offline navigations preserve embed mode and never cross product bo
 	const configuration = shellConfiguration('7', [
 		asset('/framescaper/en/', 'framescaper shell'),
 		asset('/framescaper/embed/en/', 'framescaper embedded shell'),
-	]);
+	], { foreignScopes: ['/framescaper/'] });
 	const contents = new Map(configuration.assets.map(({ url }) => [
 		url,
 		url === '/framescaper/en/' ? 'framescaper shell'

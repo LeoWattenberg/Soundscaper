@@ -497,3 +497,76 @@ test('tampered standard and embedded navigation fallbacks fail closed while offl
 		assert.equal(await cache.match(fallbackPath), undefined, `${fallbackPath} is deleted after verification fails`);
 	}
 });
+
+test('a Framescaper worker at its own origin root claims every navigation the origin serves', async () => {
+	const configuration = shellConfiguration('7', [], { productId: 'framescaper' });
+	const cacheStorage = new MemoryCacheStorage();
+	await installOfflineShell({ configuration, cacheStorage, fetchImpl: async (url) => shellResponse(url) });
+
+	for (const [path, expected] of [
+		['/en/', 'root shell'],
+		['/de/project', 'root shell'],
+		['/embed/de/project', 'embedded shell'],
+		['/framescaper/de/project', 'root shell'],
+	]) {
+		const result = await handleOfflineShellFetch({
+			configuration,
+			cacheStorage,
+			fetchImpl: async () => { throw new TypeError('offline'); },
+			request: { method: 'GET', mode: 'navigate', url: `https://framescaper.org${path}` },
+			origin: 'https://framescaper.org',
+		});
+		assert.equal(await result.text(), expected, path);
+	}
+});
+
+test('a root worker leaves navigations inside a foreign product scope to that product', async () => {
+	const configuration = shellConfiguration('8', [], { foreignScopes: ['/framescaper/'] });
+	const cacheStorage = new MemoryCacheStorage();
+	await installOfflineShell({ configuration, cacheStorage, fetchImpl: async (url) => shellResponse(url) });
+	const offline = async () => { throw new TypeError('offline'); };
+
+	for (const path of ['/framescaper', '/framescaper/', '/framescaper/en/', '/framescaper/embed/en/']) {
+		await assert.rejects(
+			() => handleOfflineShellFetch({
+				configuration,
+				cacheStorage,
+				fetchImpl: offline,
+				request: { method: 'GET', mode: 'navigate', url: `https://soundscaper.org${path}` },
+				origin: 'https://soundscaper.org',
+			}),
+			/offline/u,
+			`${path} must reach the network rather than this product's shell`,
+		);
+	}
+	const claimed = await handleOfflineShellFetch({
+		configuration,
+		cacheStorage,
+		fetchImpl: offline,
+		request: { method: 'GET', mode: 'navigate', url: 'https://soundscaper.org/framescaperish/en/' },
+		origin: 'https://soundscaper.org',
+	});
+	assert.equal(await claimed.text(), 'root shell');
+});
+
+test('a worker refuses a scope its fallbacks or foreign scopes do not corroborate', () => {
+	for (const overrides of [
+		{ scope: '/framescaper' },
+		{ scope: 'framescaper/' },
+		{ scope: '//' },
+		{ scope: '/../' },
+		{ foreignScopes: ['/framescaper'] },
+		{ foreignScopes: ['/'] },
+		{ foreignScopes: ['/embed/', '/embed/'] },
+		{ foreignScopes: ['/framescaper/', '/embed/'] },
+		{ foreignScopes: '/framescaper/' },
+		{ foreignScopes: ['/en/'] },
+		{ fallbacks: { standard: '/framescaper/en/', embedded: '/embed/en/' } },
+	]) {
+		assert.throws(
+			() => validateOfflineShellConfiguration(shellConfiguration('9', [], overrides)),
+			/Offline shell (configuration|fallback inventory) is invalid\./u,
+			JSON.stringify(overrides),
+		);
+	}
+});

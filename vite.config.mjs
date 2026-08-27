@@ -15,6 +15,7 @@ import scopeAudacityDesignSystemCss, {
 	resetScopedDesignSystemFileCount,
 } from './scripts/postcss-audacity-design-system.mjs';
 import { createPffftNodeModuleBrowserShim } from './scripts/vite-pffft-browser-shim.mjs';
+import { PRODUCT_IDS, normalizeProductId } from './src/common/product-identities.js';
 
 if (Object.hasOwn(process.env, 'PUBLIC_FFMPEG_CORE_BASE_URL')) {
 	throw new Error(
@@ -22,11 +23,36 @@ if (Object.hasOwn(process.env, 'PUBLIC_FFMPEG_CORE_BASE_URL')) {
 	);
 }
 
-const productId = process.env.SCAPE_PRODUCT === 'framescaper' ? 'framescaper' : 'soundscaper';
+const productId = resolveBuiltProductId(process.env.SCAPE_PRODUCT);
 const vendoredDesignSystem = resolve(import.meta.dirname, 'vendor/audacity-design-system');
 const desktopCodecComposition = process.env.SCAPE_DESKTOP_CODEC_RUNTIME === 'main-process';
 const ffmpegRuntimeManifestBytes = readFileSync(resolve(import.meta.dirname, 'config/ffmpeg-runtime-manifest.json'));
 const ffmpegRuntimeManifestSha256 = createHash('sha256').update(ffmpegRuntimeManifestBytes).digest('hex');
+
+/**
+ * The one product this build emits, named by SCAPE_PRODUCT.
+ *
+ * Each product is deployed from its own Cloudflare Pages project built from this
+ * one repository, so the product is a build input rather than a runtime guess. An
+ * unset value still means Soundscaper, because that is what every existing
+ * invocation of `npm run build` means. Anything else that is not a registered
+ * product id fails here: a two-way ternary would answer an unrecognized value by
+ * quietly emitting a Soundscaper bundle and deploying it to the other origin.
+ *
+ * @param {string | undefined} value
+ * @returns {'soundscaper' | 'framescaper'}
+ */
+function resolveBuiltProductId(value) {
+	const requested = value === undefined || value === '' ? 'soundscaper' : value;
+	if (!PRODUCT_IDS.includes(requested)) {
+		throw new Error(
+			`SCAPE_PRODUCT must name a built product (${PRODUCT_IDS.join(', ')}); received ${JSON.stringify(value)}.`,
+		);
+	}
+	// `normalizeProductId` re-admits the id against the shared product table; the
+	// cast only narrows its `string` return to the two ids just checked above.
+	return /** @type {'soundscaper' | 'framescaper'} */ (normalizeProductId(requested));
+}
 
 /** @returns {import('vite').Plugin} */
 function assertDesignSystemCssScoped() {
@@ -62,7 +88,7 @@ export default defineConfig({
 		createPffftNodeModuleBrowserShim(),
 		react(),
 		assertDesignSystemCssScoped(),
-		enforceStartupGraphBudgets(),
+		enforceStartupGraphBudgets(productId),
 	],
 	resolve: {
 		// File-targeted public aliases plus an app-internal deep component alias.

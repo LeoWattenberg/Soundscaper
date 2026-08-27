@@ -10,6 +10,12 @@ import {
 	offlineServiceWorkerTemplateSha256,
 	renderOfflineServiceWorker,
 } from './offline-service-worker.mjs';
+import {
+	renderTombstoneServiceWorker,
+	retiredWebWorkers,
+	tombstoneServiceWorkerTemplateSha256,
+} from './offline-tombstone-worker.mjs';
+import { webBuildRouting } from './product-web-routing.mjs';
 
 const MAXIMUM_ASSET_BYTES = 25 * 1024 * 1024;
 const MAXIMUM_AGGREGATE_BYTES = 256 * 1024 * 1024;
@@ -17,44 +23,52 @@ const MAXIMUM_ASSET_COUNT = 4_096;
 export const MAXIMUM_INSTALL_ASSET_BYTES = 8 * 1024 * 1024;
 export const MAXIMUM_INSTALL_ASSET_COUNT = 128;
 const BUILD_MANIFEST = '.offline-build-manifest.json';
-const CONTROL_FILES = new Set([
+const STATIC_CONTROL_FILES = Object.freeze([
 	BUILD_MANIFEST,
 	'_headers',
 	'_redirects',
-	'framescaper/service-worker.js',
 	'offline-shell.json',
-	'service-worker.js',
 ]);
 const PRODUCT_ENTRIES = Object.freeze({
 	framescaper: 'src/framescaper/ui/FramescaperAudioEditorBootstrapV31.tsx',
 	soundscaper: 'src/soundscaper/ui/SoundscaperAudioEditorBootstrapV30.tsx',
 });
-const PRODUCT_WORKERS = Object.freeze({
+const PRODUCT_INSTALL_ARTIFACTS = Object.freeze({
 	framescaper: Object.freeze({
-		fallbacks: Object.freeze({ standard: '/framescaper/en/', embedded: '/framescaper/embed/en/' }),
-		scope: '/framescaper/',
-		scriptUrl: '/framescaper/service-worker.js',
+		name: 'Framescaper',
+		description: 'Local-first video effects and compositing editor',
+		logos: Object.freeze(['/logo/framescaper-icon.svg']),
+		source: 'public/logo/framescaper-icon.svg',
 	}),
 	soundscaper: Object.freeze({
-		fallbacks: Object.freeze({ standard: '/en/', embedded: '/embed/en/' }),
-		scope: '/',
-		scriptUrl: '/service-worker.js',
+		name: 'Soundscaper',
+		description: 'Local-first multitrack audio editor',
+		logos: Object.freeze(['/logo/logo-klein-schwarz.svg', '/logo/logo-klein-weiß.svg']),
+		source: 'public/logo/logo-klein-schwarz.svg',
 	}),
 });
 
-export async function generateOfflineApplicationShell({ outputRoot, repositoryRoot }) {
+export async function generateOfflineApplicationShell({ outputRoot, repositoryRoot, environment = process.env }) {
 	const root = resolve(outputRoot);
 	const repository = resolve(repositoryRoot);
+	const routing = webBuildRouting(environment);
+	const retired = new Map(retiredWebWorkers(routing, environment).map((entry) => [entry.productId, entry]));
 	const previousAudit = await readJsonIfPresent(resolve(root, 'offline-shell.json'));
 	const buildManifestPath = resolve(root, BUILD_MANIFEST);
 	const buildManifest = await readJsonIfPresent(buildManifestPath);
-	await generateProductArtifacts({ outputRoot: root, repositoryRoot: repository });
-	const assets = await collectShellAssets(root);
+	await generateProductArtifacts({ outputRoot: root, repositoryRoot: repository, routing });
+	const assets = await collectShellAssets(root, controlFiles(routing));
 	const workerSha256 = offlineServiceWorkerTemplateSha256();
 	const workers = {};
 	const releaseIds = {};
-	for (const productId of ['framescaper', 'soundscaper']) {
-		const worker = PRODUCT_WORKERS[productId];
+	for (const worker of routing.workers) {
+		const productId = worker.productId;
+		const tombstone = retired.get(productId);
+		if (tombstone) {
+			workers[productId] = await writeRetiredWorker({ outputRoot: root, tombstone, worker });
+			releaseIds[productId] = workers[productId].releaseId;
+			continue;
+		}
 		const installUrls = buildManifest
 			? productInstallUrls({ assets, buildManifest, productId, worker })
 			: previousInstallUrls({ assets, previousAudit, productId });
@@ -64,6 +78,7 @@ export async function generateOfflineApplicationShell({ outputRoot, repositoryRo
 			schemaVersion: 2,
 			productId,
 			scope: worker.scope,
+			foreignScopes: worker.foreignScopes,
 			workerSha256,
 			fallbacks: worker.fallbacks,
 			assets,
@@ -78,6 +93,7 @@ export async function generateOfflineApplicationShell({ outputRoot, repositoryRo
 		workers[productId] = Object.freeze({
 			scriptUrl: worker.scriptUrl,
 			scope: worker.scope,
+			foreignScopes: worker.foreignScopes,
 			fallbacks: worker.fallbacks,
 			releaseId,
 			workerSha256,
@@ -87,10 +103,36 @@ export async function generateOfflineApplicationShell({ outputRoot, repositoryRo
 		});
 		releaseIds[productId] = releaseId;
 	}
-	const audit = Object.freeze({ schemaVersion: 2, assets, workers });
+	const audit = Object.freeze({
+		schemaVersion: 2,
+		assets,
+		workers: Object.fromEntries(Object.keys(workers).sort().map((productId) => [productId, workers[productId]])),
+	});
 	await writeFile(resolve(root, 'offline-shell.json'), `${JSON.stringify(audit, null, 2)}\n`, 'utf8');
 	if (buildManifest) await unlink(buildManifestPath);
 	return Object.freeze({ releaseIds: Object.freeze(releaseIds), assetCount: assets.length });
+}
+
+/**
+ * Serves the retired product's script URL with a tombstone instead of an offline
+ * shell. The retired product keeps its documents, manifest and icons for the
+ * retention window; only the worker that would answer them from Cache Storage is
+ * replaced, because that worker is what hides the cutover from the visitors it
+ * is for.
+ */
+async function writeRetiredWorker({ outputRoot, tombstone, worker }) {
+	const source = renderTombstoneServiceWorker(tombstone.configuration);
+	const output = resolve(outputRoot, `.${worker.scriptUrl}`);
+	await mkdir(dirname(output), { recursive: true });
+	await writeFile(output, source, 'utf8');
+	return Object.freeze({
+		scriptUrl: worker.scriptUrl,
+		scope: worker.scope,
+		retired: true,
+		targetOrigin: tombstone.configuration.targetOrigin,
+		releaseId: sha256(Buffer.from(source)),
+		workerSha256: tombstoneServiceWorkerTemplateSha256(),
+	});
 }
 
 function productInstallUrls({ assets, buildManifest, productId, worker }) {
@@ -105,10 +147,8 @@ function productInstallUrls({ assets, buildManifest, productId, worker }) {
 		`/offline-icons/${productId}-192.png`,
 		`/offline-icons/${productId}-512.png`,
 	]);
-	if (productId === 'soundscaper') urls.add('/');
-	for (const logo of productId === 'framescaper'
-		? ['/logo/framescaper-icon.svg']
-		: ['/logo/logo-klein-schwarz.svg', '/logo/logo-klein-weiß.svg']) urls.add(logo);
+	if (worker.root) urls.add('/');
+	for (const logo of PRODUCT_INSTALL_ARTIFACTS[productId].logos) urls.add(logo);
 	for (const key of [entryKey, PRODUCT_ENTRIES[productId]]) {
 		for (const url of staticManifestClosure(buildManifest, key)) urls.add(url);
 	}
@@ -195,13 +235,20 @@ function stringArray(value) {
 	return value;
 }
 
-async function collectShellAssets(root) {
+function controlFiles(routing) {
+	return new Set([
+		...STATIC_CONTROL_FILES,
+		...routing.workers.map(({ scriptUrl }) => scriptUrl.replace(/^\/+/, '')),
+	]);
+}
+
+async function collectShellAssets(root, control) {
 	const paths = await walk(root);
 	const descriptors = [];
 	let aggregateBytes = 0;
 	for (const path of paths) {
 		const relativePath = relative(root, path).split(sep).join('/');
-		if (excluded(relativePath)) continue;
+		if (excluded(relativePath, control)) continue;
 		const details = await stat(path);
 		if (!details.isFile()) throw new Error(`Offline shell asset is not a regular file: ${relativePath}`);
 		if (details.size < 1 || details.size > MAXIMUM_ASSET_BYTES) {
@@ -229,25 +276,14 @@ async function collectShellAssets(root) {
 	return Object.freeze(descriptors);
 }
 
-async function generateProductArtifacts({ outputRoot, repositoryRoot }) {
-	const products = [
-		{
-			id: 'soundscaper',
-			name: 'Soundscaper',
-			description: 'Local-first multitrack audio editor',
-			scope: '/',
-			startUrl: '/en/',
-			source: resolve(repositoryRoot, 'public/logo/logo-klein-schwarz.svg'),
-		},
-		{
-			id: 'framescaper',
-			name: 'Framescaper',
-			description: 'Local-first video effects and compositing editor',
-			scope: '/framescaper/',
-			startUrl: '/framescaper/en/',
-			source: resolve(repositoryRoot, 'public/logo/framescaper-icon.svg'),
-		},
-	];
+async function generateProductArtifacts({ outputRoot, repositoryRoot, routing }) {
+	const products = routing.plans.map((plan) => Object.freeze({
+		id: plan.productId,
+		...PRODUCT_INSTALL_ARTIFACTS[plan.productId],
+		scope: plan.scope,
+		startUrl: plan.startUrl,
+		source: resolve(repositoryRoot, PRODUCT_INSTALL_ARTIFACTS[plan.productId].source),
+	}));
 	for (const product of products) {
 		for (const size of [180, 192, 512]) {
 			const output = resolve(outputRoot, `offline-icons/${product.id}-${size}.png`);
@@ -319,9 +355,9 @@ async function walk(directory) {
 	return paths;
 }
 
-function excluded(relativePath) {
+function excluded(relativePath, control) {
 	const name = relativePath.split('/').at(-1);
-	return CONTROL_FILES.has(relativePath) || relativePath.startsWith('.vite/') || name?.endsWith('.map');
+	return control.has(relativePath) || relativePath.startsWith('.vite/') || name?.endsWith('.map');
 }
 
 function publicUrl(relativePath) {

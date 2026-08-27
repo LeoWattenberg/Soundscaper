@@ -22,13 +22,39 @@ export const STARTUP_GRAPH_BUDGETS = Object.freeze({
 	}),
 });
 
-const PRODUCT_BOOTSTRAPS = Object.freeze({
+export const PRODUCT_BOOTSTRAPS = Object.freeze({
 	soundscaper: '/src/soundscaper/ui/SoundscaperAudioEditorBootstrapV30.tsx',
 	framescaper: '/src/framescaper/ui/FramescaperAudioEditorBootstrapV31.tsx',
 });
 
-/** @param {Record<string, import('rollup').OutputAsset | import('rollup').OutputChunk>} bundle */
-export function assertProductionStartupGraphs(bundle) {
+export const BUDGETED_PRODUCT_IDS = Object.freeze(Object.keys(PRODUCT_BOOTSTRAPS));
+
+/**
+ * The product a bundle was built for, admitted strictly.
+ *
+ * There is no default: a caller that cannot name its product cannot be told
+ * which budget the build owes, and the failure mode of guessing is a build that
+ * enforces nothing.
+ *
+ * @param {unknown} product
+ * @returns {keyof typeof PRODUCT_BOOTSTRAPS}
+ */
+export function normalizeBudgetedProduct(product) {
+	if (typeof product !== 'string' || !Object.hasOwn(PRODUCT_BOOTSTRAPS, product)) {
+		throw new RangeError(
+			'Startup graph budgets need the product being built '
+			+ `(${BUDGETED_PRODUCT_IDS.join(', ')}); received ${JSON.stringify(product) ?? String(product)}.`,
+		);
+	}
+	return product;
+}
+
+/**
+ * @param {Record<string, import('rollup').OutputAsset | import('rollup').OutputChunk>} bundle
+ * @param {string} product the product this bundle was built for
+ */
+export function assertProductionStartupGraphs(bundle, product) {
+	const builtProduct = normalizeBudgetedProduct(product);
 	const entry = Object.values(bundle).find((output) => output.type === 'chunk'
 		&& output.isEntry
 		&& (
@@ -50,15 +76,25 @@ export function assertProductionStartupGraphs(bundle) {
 	assertBudget('static entry', initial, STARTUP_GRAPH_BUDGETS.initial);
 	assertStaticEntryOwnership(initial);
 
+	// A per-product build only carries its own bootstrap, so a product that is not
+	// in the bundle cannot be asserted. Skipping is only safe with the closing
+	// check below: without it the obvious "if absent, continue" turns a build that
+	// emits no bootstrap at all into a build that enforces no product budget at all.
 	const graphs = { initial };
-	for (const [product, bootstrapPath] of Object.entries(PRODUCT_BOOTSTRAPS)) {
+	for (const [candidate, bootstrapPath] of Object.entries(PRODUCT_BOOTSTRAPS)) {
 		const bootstrap = Object.values(bundle).find((output) => output.type === 'chunk'
 			&& chunkOwnsModule(output, bootstrapPath));
-		if (!bootstrap) throw new Error(`Startup graph budget could not find ${product} bootstrap ${bootstrapPath}.`);
+		if (!bootstrap) continue;
 		const graph = collectStartupGraph(bundle, [entry.fileName, bootstrap.fileName]);
-		assertBudget(`${product} product-ready`, graph, STARTUP_GRAPH_BUDGETS[product]);
-		assertProductGraphOwnership(product, graph);
-		graphs[product] = graph;
+		assertBudget(`${candidate} product-ready`, graph, STARTUP_GRAPH_BUDGETS[candidate]);
+		assertProductGraphOwnership(candidate, graph);
+		graphs[candidate] = graph;
+	}
+	if (!graphs[builtProduct]) {
+		throw new Error(
+			`Startup graph budget asserted no ${builtProduct} product-ready budget: this build's own bootstrap `
+			+ `${PRODUCT_BOOTSTRAPS[builtProduct]} is not in the bundle.`,
+		);
 	}
 	return Object.freeze(graphs);
 }
@@ -150,15 +186,19 @@ function chunkOwnsModule(chunk, suffix) {
 		|| Object.keys(chunk.modules).some((moduleId) => normalizedModuleId(moduleId).endsWith(suffix));
 }
 
-/** @returns {import('vite').Plugin} */
-export function enforceStartupGraphBudgets() {
+/**
+ * @param {string} product the product this build emits
+ * @returns {import('vite').Plugin}
+ */
+export function enforceStartupGraphBudgets(product) {
+	const builtProduct = normalizeBudgetedProduct(product);
 	return {
 		name: 'kw-enforce-startup-graph-budgets',
 		apply: 'build',
 		generateBundle: {
 			order: 'post',
 			handler(_options, bundle) {
-				assertProductionStartupGraphs(bundle);
+				assertProductionStartupGraphs(bundle, builtProduct);
 			},
 		},
 	};

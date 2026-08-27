@@ -5,6 +5,7 @@ export function offlineShellFunctionSources() {
 		plainObject,
 		exactKeys,
 		validShellPath,
+		validShellScope,
 		validateOfflineShellConfiguration,
 		sha256Hex,
 		shellCacheName,
@@ -19,7 +20,7 @@ export function offlineShellFunctionSources() {
 		installAssetBatches,
 		installOfflineShell,
 		activateOfflineShell,
-		pathBelongsToProduct,
+		pathWithinShellScope,
 		offlineNavigationFallbackPaths,
 		matchOfflineNavigationFallback,
 		cacheVerifiedAssetOnUse,
@@ -42,14 +43,23 @@ function validShellPath(value) {
 	return value.split('/').every((segment) => segment !== '.' && segment !== '..');
 }
 
+/** A worker may only claim a slash-terminated prefix; its script URL bounds it at deploy time. */
+function validShellScope(value) {
+	return validShellPath(value) && value.endsWith('/') && !value.includes('//');
+}
+
 export function validateOfflineShellConfiguration(value) {
 	if (!plainObject(value)
 		|| !exactKeys(value, [
-			'assets', 'fallbacks', 'installUrls', 'productId', 'releaseId', 'schemaVersion', 'scope', 'workerSha256',
+			'assets', 'fallbacks', 'foreignScopes', 'installUrls', 'productId', 'releaseId', 'schemaVersion',
+			'scope', 'workerSha256',
 		])
 		|| value.schemaVersion !== 2
 		|| !['framescaper', 'soundscaper'].includes(value.productId)
-		|| value.scope !== (value.productId === 'framescaper' ? '/framescaper/' : '/')
+		|| !validShellScope(value.scope)
+		|| !Array.isArray(value.foreignScopes) || value.foreignScopes.length > 8
+		|| value.foreignScopes.some((scope, index) => !validShellScope(scope) || !scope.startsWith(value.scope)
+			|| scope === value.scope || (index > 0 && scope <= value.foreignScopes[index - 1]))
 		|| !/^[a-f\d]{64}$/u.test(value.releaseId)
 		|| !/^[a-f\d]{64}$/u.test(value.workerSha256)
 		|| !plainObject(value.fallbacks)
@@ -91,13 +101,13 @@ export function validateOfflineShellConfiguration(value) {
 			throw new Error('Offline shell install byte limit is exceeded.');
 		}
 	}
-	const expectedFallbacks = value.productId === 'framescaper'
-		? { standard: '/framescaper/en/', embedded: '/framescaper/embed/en/' }
-		: { standard: '/en/', embedded: '/embed/en/' };
+	const expectedFallbacks = { standard: `${value.scope}en/`, embedded: `${value.scope}embed/en/` };
 	if (value.fallbacks.standard !== expectedFallbacks.standard
 		|| value.fallbacks.embedded !== expectedFallbacks.embedded
 		|| !value.installUrls.includes(value.fallbacks.standard)
-		|| !value.installUrls.includes(value.fallbacks.embedded)) {
+		|| !value.installUrls.includes(value.fallbacks.embedded)
+		|| value.foreignScopes.some((scope) => value.fallbacks.standard.startsWith(scope)
+			|| value.fallbacks.embedded.startsWith(scope))) {
 		throw new Error('Offline shell fallback inventory is invalid.');
 	}
 	return value;
@@ -248,6 +258,7 @@ export async function installOfflineShell({
 		schemaVersion: 2,
 		productId: configuration.productId,
 		scope: configuration.scope,
+		foreignScopes: configuration.foreignScopes,
 		workerSha256: configuration.workerSha256,
 		fallbacks: configuration.fallbacks,
 		assets: configuration.assets,
@@ -309,20 +320,20 @@ export async function activateOfflineShell({ configuration, cacheStorage, client
 	}
 }
 
-function pathBelongsToProduct(pathname, productId) {
-	const framescaperPath = pathname === '/framescaper' || pathname.startsWith('/framescaper/');
-	return productId === 'framescaper' ? framescaperPath : !framescaperPath;
+function pathWithinShellScope(pathname, configuration) {
+	const within = (path, scope) => path === scope.slice(0, -1) || path.startsWith(scope);
+	if (!within(pathname, configuration.scope)) return false;
+	return !configuration.foreignScopes.some((scope) => within(pathname, scope));
 }
 
 function offlineNavigationFallbackPaths(pathname, configuration, shellPaths) {
-	let segments = String(pathname).split('/').filter(Boolean);
-	if (configuration.productId === 'framescaper') segments = segments.slice(1);
+	const scope = configuration.scope;
+	const path = String(pathname);
+	let segments = (path.startsWith(scope) ? path.slice(scope.length) : '').split('/').filter(Boolean);
 	const embedded = segments[0] === 'embed';
 	if (embedded) segments = segments.slice(1);
 	const locale = /^[A-Za-z\d-]{1,64}$/u.test(segments[0] ?? '') ? segments[0] : 'en';
-	const localized = configuration.productId === 'framescaper'
-		? `/framescaper/${embedded ? 'embed/' : ''}${locale}/`
-		: `/${embedded ? 'embed/' : ''}${locale}/`;
+	const localized = `${scope}${embedded ? 'embed/' : ''}${locale}/`;
 	const defaultPath = embedded ? configuration.fallbacks.embedded : configuration.fallbacks.standard;
 	return shellPaths.has(localized) && localized !== defaultPath ? [localized, defaultPath] : [defaultPath];
 }
@@ -376,7 +387,7 @@ export async function handleApplicationShellFetch({
 	if (request.method !== 'GET') return null;
 	const requestUrl = new URL(request.url);
 	if (requestUrl.origin !== origin) return null;
-	if (request.mode === 'navigate' && !pathBelongsToProduct(requestUrl.pathname, configuration.productId)) return null;
+	if (request.mode === 'navigate' && !pathWithinShellScope(requestUrl.pathname, configuration)) return null;
 	const descriptors = new Map(configuration.assets.map((asset) => [asset.url, asset]));
 	const descriptor = descriptors.get(requestUrl.pathname);
 	const cache = await cacheStorage.open(shellCacheName(configuration.productId, configuration.releaseId));

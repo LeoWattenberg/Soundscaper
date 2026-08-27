@@ -7,25 +7,10 @@
 
 # Cloudflare joins same-name headers from every matching rule. These document
 # path shapes are deliberately disjoint so each response receives one policy.
-/
-	Permissions-Policy: microphone=(self), speaker-selection=(self), display-capture=(self), camera=(), geolocation=()
-	Cache-Control: no-cache
-
-/:locale/
-	Permissions-Policy: microphone=(self), speaker-selection=(self), display-capture=(self), camera=(), geolocation=()
-	Cache-Control: no-cache
-
-/embed/:locale/
-	Permissions-Policy: microphone=(self), speaker-selection=(self), display-capture=(self), camera=(), geolocation=()
-	Cache-Control: no-cache
-
-/framescaper/:locale/
-	Permissions-Policy: microphone=(self), speaker-selection=(self), display-capture=(self), camera=(self), geolocation=()
-	Cache-Control: no-cache
-
-/framescaper/embed/:locale/
-	Permissions-Policy: microphone=(), speaker-selection=(), display-capture=(), camera=(), geolocation=()
-	Cache-Control: no-cache
+# Every product deployment shares the isolation rule above byte for byte. The
+# markers below are where scripts/generate-static-routes.mjs substitutes the
+# document and service-worker rules of the one product a build serves.
+# @product-document-rules@
 
 /assets/*
 	Cache-Control: public, max-age=31536000, immutable
@@ -42,10 +27,4 @@
 /offline-shell.json
 	Cache-Control: no-store
 
-/service-worker.js
-	Cache-Control: no-store
-	Service-Worker-Allowed: /
-
-/framescaper/service-worker.js
-	Cache-Control: no-store
-	Service-Worker-Allowed: /framescaper/
+# @product-worker-rules@

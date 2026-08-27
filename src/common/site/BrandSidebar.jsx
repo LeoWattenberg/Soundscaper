@@ -3,7 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { bundledSiteCopyForLocale } from '../i18n/site-copy.js';
 import { localeLanguage } from '../i18n/locale.js';
 import { DEFAULT_LOCALE_TAGS, getLocaleDescriptor, ROUTE_LOCALES } from '../i18n/locales.js';
-import { otherProductId, productIdentity, productLocalePath } from '../product-identities.js';
+import { otherProductId, productIdentity } from '../product-identities.js';
+import { productHref } from '../product-web-links.js';
 import { createApplicationReadyScheduler } from './application-ready-scheduler.js';
 
 const TRANSLATIONS_BASE_URL = import.meta.env.PUBLIC_TRANSLATIONS_BASE_URL
@@ -102,7 +103,7 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 	};
 	const selectLocale = (event) => {
 		if (ROUTE_LOCALES.some(({ locale: routeLocale }) => routeLocale === event.target.value)) {
-			window.location.assign(productLocalePath(productId, event.target.value));
+			window.location.assign(productHref(productId, event.target.value));
 		}
 	};
 	const requestTranslationManifest = () => { requestTranslationManifestRef.current(); };
@@ -111,7 +112,7 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 
 	return (
 		<aside className="site-sidebar" data-sidebar data-product={productId} data-locale={localeDescriptor.locale} data-collapsed={String(collapsed)} aria-label={copy.label}>
-			<a className="brand" href={productLocalePath(productId, locale)} aria-label={profile.name}>
+			<a className="brand" href={productHref(productId, locale)} aria-label={profile.name}>
 				<img className="logo-wide" src={darkTheme ? '/logo/logo-weiß.svg' : '/logo/logo-schwarz.svg'} alt="kw.media" width="230" height="91" />
 				<img className="logo-small" src={darkTheme ? '/logo/logo-klein-weiß.svg' : '/logo/logo-klein-schwarz.svg'} alt="" width="48" height="48" />
 				<strong>{profile.name}</strong>
@@ -121,8 +122,8 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 			</button>
 			<div className="sidebar-content" data-sidebar-content>
 				<nav className="sidebar-nav" aria-label={copy.label}>
-						<a className="sidebar-link is-active" href={productLocalePath(productId, locale)} aria-current="page">{productId === 'framescaper' ? profile.name : copy.editor}</a>
-						<a className="sidebar-link" href={productLocalePath(otherProduct.id, locale)}>{otherProduct.name}</a>
+						<a className="sidebar-link is-active" href={productHref(productId, locale)} aria-current="page">{productId === 'framescaper' ? profile.name : copy.editor}</a>
+						<a className="sidebar-link" href={productHref(otherProduct.id, locale)}>{otherProduct.name}</a>
 						<a className="sidebar-link" href={`https://kw.media/${chromeLocale}/tools/`}>{copy.tools}</a>
 						<a className="sidebar-link" href={`https://kw.media/${chromeLocale}/audacity/`}>{copy.guides}</a>
 						<a className="sidebar-link" href={`https://kw.media/${chromeLocale}/legal/`}>{copy.legal}</a>

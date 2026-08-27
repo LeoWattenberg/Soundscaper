@@ -4,26 +4,32 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { ROUTE_LOCALES } from '../src/common/i18n/locales.js';
-import { PRODUCT_IDS, productLocalePath } from '../src/common/products.js';
+
+import { auditComposedHeaders, documentRoute, webBuildRouting } from './lib/product-web-routing.mjs';
 
 const outputRoot = resolve('dist');
-const site = new URL(process.env.SOUNDSCAPER_SITE || 'https://soundscaper.org');
+const routing = webBuildRouting();
+const site = routing.site;
 const translationsBaseUrl = new URL(process.env.PUBLIC_TRANSLATIONS_BASE_URL
 	|| 'https://translations.soundscaper.org/runtime/translations/audacity/4/');
 let routeCount = 0;
 
-for (const productId of PRODUCT_IDS) {
+for (const plan of routing.plans) {
 	for (const descriptor of ROUTE_LOCALES) {
-		verifyRoute(productId, descriptor);
+		verifyRoute(plan, descriptor);
 		routeCount += 1;
 	}
 }
 
-verifyTranslationCsp();
-console.log(`Verified ${routeCount} localized routes and the translation CSP.`);
+const headers = readFileSync(resolve(outputRoot, '_headers'), 'utf8');
+auditComposedHeaders(headers, routing);
+verifyTranslationCsp(headers);
+console.log(
+	`Verified ${routeCount} localized ${routing.productId} routes, its Cloudflare rules and the translation CSP.`,
+);
 
-function verifyRoute(productId, descriptor) {
-	const route = productLocalePath(productId, descriptor.locale);
+function verifyRoute(plan, descriptor) {
+	const route = documentRoute(plan, descriptor.locale);
 	const html = readFileSync(resolve(outputRoot, `.${route}index.html`), 'utf8');
 	const htmlTag = html.match(/<html\b[^>]*>/iu)?.[0];
 	assert(htmlTag, `${route} has no html element`);
@@ -32,6 +38,8 @@ function verifyRoute(productId, descriptor) {
 		`${route} has lang=${htmlAttributes.lang || '<missing>'}; expected ${descriptor.locale}`);
 	assert(htmlAttributes.dir === descriptor.direction,
 		`${route} has dir=${htmlAttributes.dir || '<missing>'}; expected ${descriptor.direction}`);
+	assert(htmlAttributes['data-product'] === plan.productId,
+		`${route} has data-product=${htmlAttributes['data-product'] || '<missing>'}; expected ${plan.productId}`);
 
 	const links = Array.from(html.matchAll(/<link\b[^>]*>/giu), ([tag]) => parseAttributes(tag));
 	const canonicals = links.filter((attributes) => attributes.rel === 'canonical');
@@ -42,9 +50,9 @@ function verifyRoute(productId, descriptor) {
 	const alternates = links.filter((attributes) => attributes.rel === 'alternate' && attributes.hreflang);
 	const expectedAlternates = new Map(ROUTE_LOCALES.map(({ locale }) => [
 		locale,
-		new URL(productLocalePath(productId, locale), site).href,
+		new URL(documentRoute(plan, locale), site).href,
 	]));
-	expectedAlternates.set('x-default', new URL(productLocalePath(productId, 'en'), site).href);
+	expectedAlternates.set('x-default', new URL(documentRoute(plan, 'en'), site).href);
 	assert(alternates.length === expectedAlternates.size,
 		`${route} has ${alternates.length} locale alternates; expected ${expectedAlternates.size}`);
 	const seen = new Set();
@@ -59,8 +67,7 @@ function verifyRoute(productId, descriptor) {
 		`${route} is missing one or more committed hreflang alternates`);
 }
 
-function verifyTranslationCsp() {
-	const headers = readFileSync(resolve(outputRoot, '_headers'), 'utf8');
+function verifyTranslationCsp(headers) {
 	const policies = Array.from(headers.matchAll(/^\s*Content-Security-Policy:\s*(.+)$/gimu), ([, policy]) => policy.trim());
 	assert(policies.length === 1, `dist/_headers contains ${policies.length} Content-Security-Policy headers; expected one`);
 	const directives = policies[0].split(';').map((directive) => directive.trim().split(/\s+/u)).filter((parts) => parts[0]);

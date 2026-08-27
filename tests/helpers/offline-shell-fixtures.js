@@ -13,6 +13,7 @@ export function shellConfiguration(seed, extraAssets = [], overrides = {}) {
 		schemaVersion: 2,
 		productId: 'soundscaper',
 		scope: '/',
+		foreignScopes: [],
 		workerSha256: seed.repeat(64),
 		fallbacks: {
 			standard: '/en/',

@@ -1,4 +1,5 @@
-import { otherProductId, productLocalePath } from '../../../products.js';
+import { otherProductId } from '../../../products.js';
+import { productHref } from '../../../product-web-links.js';
 import { documentationUrl } from '../../documentation-links.ts';
 import { framescaperVideoProxyActionRuntimeFor } from '../../framescaper-video-proxy-action-runtime-registry.ts';
 import { isSelectedFramescaperProjectSchema } from '../../project-schema-version.ts';
@@ -242,7 +243,7 @@ export function createWorkspaceApplicationMenus({
 				switchProduct: () => run(async () => {
 					const handoff = await controller.actions.project.prepareHandoff();
 					const destination = otherProductId(productId);
-					globalThis.location.assign(`${productLocalePath(destination, locale)}?project=${encodeURIComponent(handoff.projectId)}`);
+					globalThis.location.assign(`${productHref(destination, locale)}?project=${encodeURIComponent(handoff.projectId)}`);
 				}),
 				executeEdit,
 				openLabels: () => openWorkspacePanel('labels'),

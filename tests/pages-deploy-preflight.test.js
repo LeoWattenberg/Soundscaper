@@ -6,9 +6,11 @@ import test from 'node:test';
 
 import { verifyFfmpegRuntimeManifest } from '../scripts/lib/ffmpeg-runtime-manifest.mjs';
 import {
+	pagesCachePolicyDescriptors,
 	preflightPagesDeployment,
 	verifyLivePagesCachePolicy,
 } from '../scripts/lib/pages-deploy-preflight.mjs';
+import { webBuildRouting } from '../scripts/lib/product-web-routing.mjs';
 import { runtimePointer } from '../scripts/lib/ffmpeg-runtime-publisher.mjs';
 import { createFixture } from './helpers/ffmpeg-runtime-fixture.mjs';
 
@@ -141,6 +143,122 @@ test('live Pages policy preserves checked-in browser TTLs for stable routes and 
 		() => verifyLivePagesCachePolicy({ origin, assetPath, fetchImpl }),
 		/Cache-Control is invalid.*\/en\//u,
 	);
+});
+
+test('a Framescaper deployment audits its own origin and its own root routes', async () => {
+	const routing = webBuildRouting({ SCAPE_PRODUCT: 'framescaper' });
+	const assetPath = '/assets/site-entry-AbCd1234.js';
+	const descriptors = pagesCachePolicyDescriptors({ routing, assetPath });
+	assert.deepEqual(descriptors.map(({ path }) => path).sort(), [
+		'/',
+		'/assets/site-entry-AbCd1234.js',
+		'/embed/en/',
+		'/en/',
+		'/logo/framescaper-icon.svg',
+		'/manifest-framescaper.webmanifest',
+		'/offline-icons/framescaper-180.png',
+		'/offline-shell.json',
+		'/service-worker.js',
+	]);
+	assert.equal(descriptors.every(({ expectation }) => expectation === 'served'), true);
+	assert.deepEqual(
+		descriptors.find(({ path }) => path === '/service-worker.js'),
+		{ path: '/service-worker.js', expectation: 'served', cacheControl: 'no-store', serviceWorkerAllowed: '/' },
+	);
+
+	const requests = [];
+	const fetchImpl = async (url) => {
+		const parsed = new URL(url);
+		requests.push(parsed.href);
+		const descriptor = descriptors.find(({ path }) => path === decodeURIComponent(parsed.pathname));
+		if (!descriptor) return new Response(null, { status: 404 });
+		return new Response('ok', {
+			status: 200,
+			headers: {
+				'cache-control': descriptor.cacheControl,
+				...(descriptor.serviceWorkerAllowed ? { 'service-worker-allowed': descriptor.serviceWorkerAllowed } : {}),
+			},
+		});
+	};
+	assert.deepEqual(await verifyLivePagesCachePolicy({ routing, assetPath, fetchImpl }), {
+		verifiedRouteCount: descriptors.length,
+	});
+	assert.equal(requests.every((href) => href.startsWith('https://framescaper.org/')), true, requests.join(' '));
+});
+
+test('a retired product path is audited as a permanent redirect rather than as a served document', async () => {
+	const full = webBuildRouting({ SCAPE_PRODUCT: 'soundscaper' });
+	const routing = Object.freeze({
+		...full,
+		plans: full.plans.filter(({ root }) => root),
+		workers: full.workers.filter(({ root }) => root),
+	});
+	const assetPath = '/assets/site-entry-AbCd1234.js';
+	const descriptors = pagesCachePolicyDescriptors({ routing, assetPath });
+	assert.deepEqual(descriptors.filter(({ expectation }) => expectation === 'redirected'), [
+		{ path: '/framescaper/en/', expectation: 'redirected', location: 'https://framescaper.org/en/' },
+		{ path: '/framescaper/embed/en/', expectation: 'redirected', location: 'https://framescaper.org/embed/en/' },
+		{
+			path: '/framescaper/service-worker.js',
+			expectation: 'redirected',
+			location: 'https://framescaper.org/service-worker.js',
+		},
+	]);
+
+	const redirects = new Map(descriptors
+		.filter(({ expectation }) => expectation === 'redirected')
+		.map(({ path, location }) => [path, location]));
+	const served = new Map(descriptors
+		.filter(({ expectation }) => expectation === 'served')
+		.map((descriptor) => [descriptor.path, descriptor]));
+	const expectations = new Map(descriptors.map(({ path, expectation }) => [path, expectation]));
+	const fetchImpl = async (url, init) => {
+		const pathname = decodeURIComponent(new URL(url).pathname);
+		assert.equal(init.redirect, expectations.get(pathname) === 'redirected' ? 'manual' : 'error', pathname);
+		if (redirects.has(pathname)) return Response.redirect(redirects.get(pathname), 301);
+		const descriptor = served.get(pathname);
+		if (!descriptor) return new Response(null, { status: 404 });
+		return new Response('ok', {
+			status: 200,
+			headers: {
+				'cache-control': descriptor.cacheControl,
+				...(descriptor.serviceWorkerAllowed ? { 'service-worker-allowed': descriptor.serviceWorkerAllowed } : {}),
+			},
+		});
+	};
+	assert.deepEqual(await verifyLivePagesCachePolicy({ routing, assetPath, fetchImpl }), {
+		verifiedRouteCount: descriptors.length,
+	});
+
+	redirects.set('/framescaper/en/', 'https://soundscaper.org/en/');
+	await assert.rejects(
+		() => verifyLivePagesCachePolicy({ routing, assetPath, fetchImpl }),
+		/redirect target is invalid for \/framescaper\/en\//u,
+	);
+	redirects.delete('/framescaper/en/');
+	served.set('/framescaper/en/', { path: '/framescaper/en/', cacheControl: 'no-cache' });
+	await assert.rejects(
+		() => verifyLivePagesCachePolicy({ routing, assetPath, fetchImpl }),
+		/requires a permanent redirect for \/framescaper\/en\/.*200/u,
+	);
+});
+
+test('the deploy preflight presents the deploying origin to the runtime bucket CORS policy', async (context) => {
+	const fixture = await createFixture(context);
+	const release = await verifyFfmpegRuntimeManifest({
+		repositoryRoot: fixture.root,
+		purpose: 'runtime-publication',
+	});
+	const origins = [];
+	const fetchImpl = async (url, init) => {
+		origins.push(init.headers.Origin);
+		return new Response(new Uint8Array(0), { status: 404 });
+	};
+	await assert.rejects(
+		() => preflightPagesDeployment({ release, fetchImpl, origin: 'https://framescaper.org' }),
+		/received HTTP 404/u,
+	);
+	assert.deepEqual([...new Set(origins)], ['https://framescaper.org']);
 });
 
 function objectResponse(object) {

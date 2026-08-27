@@ -120,6 +120,49 @@ test('offline shell generation inventories exact route URLs and emits installabl
 	assert.deepEqual(second.releaseIds, first.releaseIds, 'identical output produces identical release IDs');
 });
 
+test('a Framescaper build installs one root-scoped worker and manifest for its own origin', async (context) => {
+	const outputRoot = await shellFixture(context, ['en', 'embed/en']);
+	await generateOfflineApplicationShell({
+		outputRoot,
+		repositoryRoot: resolve('.'),
+		environment: { SCAPE_PRODUCT: 'framescaper' },
+	});
+	const audit = JSON.parse(await readFile(join(outputRoot, 'offline-shell.json'), 'utf8'));
+
+	assert.deepEqual(Object.keys(audit.workers), ['framescaper']);
+	const worker = audit.workers.framescaper;
+	assert.equal(worker.scriptUrl, '/service-worker.js');
+	assert.equal(worker.scope, '/');
+	assert.deepEqual(worker.foreignScopes, []);
+	assert.deepEqual(worker.fallbacks, { standard: '/en/', embedded: '/embed/en/' });
+	assert.deepEqual(
+		worker.installUrls.filter((url) => url.endsWith('/')),
+		['/', '/embed/en/', '/en/'],
+	);
+	assert.equal(worker.installUrls.includes('/assets/soundscaper-core.js'), false);
+	assert.equal(worker.installUrls.includes('/manifest-framescaper.webmanifest'), true);
+	assert.equal(await readFile(join(outputRoot, 'framescaper/service-worker.js'), 'utf8').catch(() => null), null);
+	assert.equal(await readFile(join(outputRoot, 'manifest-soundscaper.webmanifest'), 'utf8').catch(() => null), null);
+	assert.match(await readFile(join(outputRoot, 'service-worker.js'), 'utf8'), new RegExp(worker.releaseId, 'u'));
+
+	const manifest = JSON.parse(await readFile(join(outputRoot, 'manifest-framescaper.webmanifest'), 'utf8'));
+	assert.deepEqual(
+		{ id: manifest.id, scope: manifest.scope, startUrl: manifest.start_url },
+		{ id: '/framescaper', scope: '/', startUrl: '/en/' },
+	);
+});
+
+test('the Soundscaper build keeps the root worker from claiming the Framescaper prefix', async (context) => {
+	const outputRoot = await shellFixture(context);
+	await generateOfflineApplicationShell({ outputRoot, repositoryRoot: resolve('.'), environment: {} });
+	const audit = JSON.parse(await readFile(join(outputRoot, 'offline-shell.json'), 'utf8'));
+
+	assert.deepEqual(audit.workers.soundscaper.foreignScopes, ['/framescaper/']);
+	assert.deepEqual(audit.workers.framescaper.foreignScopes, []);
+	assert.equal(audit.workers.soundscaper.scriptUrl, '/service-worker.js');
+	assert.equal(audit.workers.framescaper.scriptUrl, '/framescaper/service-worker.js');
+});
+
 test('one changed shell byte produces a different release without considering control or source-map files', async (context) => {
 	const outputRoot = await shellFixture(context);
 	const first = await generateOfflineApplicationShell({ outputRoot, repositoryRoot: resolve('.') });
@@ -143,15 +186,12 @@ test('generation rejects an install-core descriptor above the in-flight byte cei
 	);
 });
 
-async function shellFixture(context) {
+async function shellFixture(context, routes = ['en', 'embed/en', 'framescaper/en', 'framescaper/embed/en']) {
 	const outputRoot = await mkdtemp(join(tmpdir(), 'soundscaper-offline-shell-test-'));
 	context.after(() => rm(outputRoot, { recursive: true, force: true }));
 	await Promise.all([
 		fixtureFile(outputRoot, 'index.html', '<!doctype html><title>Root</title>'),
-		fixtureFile(outputRoot, 'en/index.html', '<!doctype html><title>Soundscaper</title>'),
-		fixtureFile(outputRoot, 'embed/en/index.html', '<!doctype html><title>Soundscaper embed</title>'),
-		fixtureFile(outputRoot, 'framescaper/en/index.html', '<!doctype html><title>Framescaper</title>'),
-		fixtureFile(outputRoot, 'framescaper/embed/en/index.html', '<!doctype html><title>Framescaper embed</title>'),
+		...routes.map((route) => fixtureFile(outputRoot, `${route}/index.html`, `<!doctype html><title>${route}</title>`)),
 		fixtureFile(outputRoot, 'assets/application-abc.js', 'export const application = 1;'),
 		fixtureFile(outputRoot, 'assets/core-font.woff2', 'font'),
 		fixtureFile(outputRoot, 'assets/core-icon.png', 'image'),

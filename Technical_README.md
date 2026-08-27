@@ -272,6 +272,45 @@ independent translation publisher described below has narrowly scoped S3
 credentials for its dedicated bucket; those credentials are never available to
 the Pages build or the separately authorized FFmpeg asset publisher.
 
+### Two projects, one repository
+
+Two products are built from this one repository, and each is deployed from a
+project of its own: `soundscaper` serves `soundscaper.org` and `framescaper`
+serves `framescaper.org`. They cannot share one deployment. A service worker's
+script URL bounds the maximum scope it may claim, so Framescaper at the root of
+its own origin needs its worker at `/service-worker.js` — the path Soundscaper's
+worker already occupies — and no Cloudflare mechanism serves two different files
+at one path from one deployment. Splitting the deployments also keeps
+`Cross-Origin-Opener-Policy: same-origin` and
+`Cross-Origin-Embedder-Policy: credentialless` on the same plain `/*` rule in
+[`public/_headers`](public/_headers) for both products, which is what gives the
+editor `SharedArrayBuffer`.
+
+Which product a build emits is decided by the `SCAPE_PRODUCT` environment
+variable, and it must be set explicitly on both projects. An unset or empty
+value still means `soundscaper`, so that an existing `npm run build` keeps
+meaning what it meant, but neither deployment should depend on that default: an
+unset `SCAPE_PRODUCT` on the Framescaper project would publish the Soundscaper
+bundle to `framescaper.org`. Any other value — including a case variant such as
+`Framescaper` — is refused before Vite does any work.
+
+| | `soundscaper` | `framescaper` |
+| --- | --- | --- |
+| Build command | `npm run build:pages` | `SCAPE_PRODUCT=framescaper npm run build:pages` |
+| Custom domain | `soundscaper.org` | `framescaper.org` |
+| Editor routes | `/`, `/:locale/`, `/embed/:locale/` | `/`, `/:locale/`, `/embed/:locale/` |
+| Also serves | Framescaper under `/framescaper/…` for the cutover | — |
+| Service worker | `/service-worker.js` scope `/` (plus `/framescaper/service-worker.js` scope `/framescaper/`) | `/service-worker.js` scope `/` |
+| Web app manifest | `manifest-soundscaper.webmanifest`, scope `/` | `manifest-framescaper.webmanifest`, scope `/`, `start_url` `/en/` |
+| Canonical base | `SOUNDSCAPER_SITE` | `FRAMESCAPER_SITE` |
+
+Both products build into `./dist`, so builds and deploys are sequential, never
+concurrent. During the cutover the Soundscaper deployment keeps serving
+Framescaper under `/framescaper/` exactly as it does today; the deploy that
+finally drops those documents is the same deploy that must add their permanent
+redirects to `framescaper.org`, and `scripts/preflight-pages-deploy.mjs` audits
+them as redirects from that point on rather than expecting a document.
+
 ### 1. Publish the FFmpeg runtime to R2
 
 Create an R2 Standard bucket named `soundscaper-assets`. Give it the custom
@@ -338,19 +377,46 @@ variables have already been exported into its process environment.
 	immutable. Both checks run before Pages can publish either a production or preview
 	deployment; do not replace it with the ungated `npm run build`.
 5. Attach `soundscaper.org` under the Pages project's custom domains.
+6. Repeat steps 1–5 for a second Pages project named `framescaper`, connected to
+   the same repository and the same production branch `main`, with build command
+   `SCAPE_PRODUCT=framescaper npm run build:pages`, output directory `dist`, the
+   zone `framescaper.org`, and that apex attached as its custom domain. The
+   checked-in [`wrangler.framescaper.jsonc`](wrangler.framescaper.jsonc)
+   describes the equivalent static-assets deployment for a `wrangler deploy` run
+   from a workstation. Its preflight audits `framescaper.org`'s own routes;
+   nothing in it reaches soundscaper.org's.
 
 Cloudflare will build and deploy every push to `main` and create preview
 deployments for other selected branches.
 
 ### 3. Configure Pages build variables
 
-In the Pages project, open **Settings → Variables and Secrets**. Add these to
-both Production and Preview unless noted otherwise:
+In each Pages project, open **Settings → Variables and Secrets**. Add these to
+both Production and Preview unless noted otherwise.
 
-- `SOUNDSCAPER_SITE` = `https://soundscaper.org`
+Both projects:
+
 - `PUBLIC_TRANSLATIONS_BASE_URL` =
   `https://translations.soundscaper.org/runtime/translations/audacity/4`
 - `NODE_VERSION` = `26.5.0`
+
+The `soundscaper` project:
+
+- `SCAPE_PRODUCT` = `soundscaper`
+- `SOUNDSCAPER_SITE` = `https://soundscaper.org`
+
+The `framescaper` project:
+
+- `SCAPE_PRODUCT` = `framescaper`
+- `FRAMESCAPER_SITE` = `https://framescaper.org`
+
+Set `SCAPE_PRODUCT` on both even though the Soundscaper value is also the
+default: a project that inherits the default is a project that silently changes
+product the day the default changes. Each build reads only its own site
+variable, which supplies the canonical and hreflang base and the origin the
+deploy preflight audits; a value carrying a path, query or fragment is refused
+rather than silently truncated. [`.env.example`](.env.example) lists the same
+variables for local builds.
 
 No registry credentials are required: the Audacity Design System (formerly the
 authenticated GitHub Packages package `@dilsonspickles/components`) is vendored
@@ -374,11 +440,21 @@ equivalent policy can be entered in the R2 dashboard. The publisher's
 object-scoped token deliberately cannot change bucket CORS. This bucket must
 remain separate from `soundscaper-assets`: the automated translation credential
 must not be able to replace executable FFmpeg JavaScript or WebAssembly. If a
-Pages preview uses an origin other than `https://soundscaper.pages.dev`, add that
-exact origin to the CORS policy before testing remote packs from the preview.
-After changing CORS on a bucket that is already serving the custom domain,
-purge cached objects for that hostname so cached responses acquire the new
-headers.
+Pages preview for either project uses an origin that the file does not already
+list, add that exact origin to the CORS policy before testing remote packs from
+the preview. After changing CORS on a bucket that is already serving the custom
+domain, purge cached objects for that hostname so cached responses acquire the
+new headers.
+
+`https://framescaper.org` is listed in that file for the second deployment, and
+the file is applied to the bucket by hand rather than by any automated step. Its
+current contents are therefore not live until someone re-applies it: re-apply
+`r2-translations-cors.json` during bucket administration and then purge cached
+objects for `translations.soundscaper.org`, or Framescaper's own origin will
+keep receiving CORS responses cached from before it was allowed, and locale
+packs will fail to load there while working on soundscaper.org.
+`r2-cors.json` for the FFmpeg runtime bucket already lists
+`https://framescaper.org`, and its publisher applies it.
 
 R2 custom domains do not cache JSON by default. Add a Cache Rule for
 `translations.soundscaper.org` that makes the versioned `/packs/` and
@@ -507,6 +583,14 @@ are isolated by origin, projects previously stored under `https://kw.media`
 cannot be read automatically from `https://soundscaper.org`. Users should export
 important projects before the hosting switch; a future explicit migration bridge
 would need to run code on both origins and transfer user-approved data.
+
+The same isolation applies between the two product origins. While Framescaper is
+served from `soundscaper.org/framescaper/`, the application menu's product switch
+hands the destination a `?project=` id that resolves in the shared origin's
+storage. Once Framescaper is served from `framescaper.org`, that switch becomes a
+cross-origin navigation and the id no longer names anything the destination can
+read, so the handoff needs an explicit transfer between the two origins rather
+than a shared-storage lookup.
 
 ## Audacity interoperability
 

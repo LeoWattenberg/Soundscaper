@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	PRODUCT_BOOTSTRAPS,
 	STARTUP_GRAPH_BUDGETS,
 	assertProductGraphOwnership,
 	assertProductionStartupGraphs,
@@ -32,7 +33,7 @@ test('production startup budgets reject editor ownership in the static entry gra
 		modules: { '/workspace/src/common/editor/ui/AudioEditorApp.jsx': {} },
 	});
 	assert.throws(
-		() => assertProductionStartupGraphs(bundle),
+		() => assertProductionStartupGraphs(bundle, 'soundscaper'),
 		/static entry.*editor-shell|static entry.*src\/common\/editor/iu,
 	);
 });
@@ -42,7 +43,7 @@ test('production startup budgets reject either product tree in the static entry 
 		const bundle = fixtureBundle();
 		bundle['assets/shared.js'].modules[`/workspace/src/${product}/startup-helper.ts`] = {};
 		assert.throws(
-			() => assertProductionStartupGraphs(bundle),
+			() => assertProductionStartupGraphs(bundle, 'soundscaper'),
 			new RegExp(`static entry.*src/${product}/`, 'iu'),
 		);
 	}
@@ -87,10 +88,67 @@ test('approved graph ceilings remain hard limits', () => {
 });
 
 test('production startup budgets inspect Vite final import-analysis output', () => {
-	const plugin = enforceStartupGraphBudgets();
+	const plugin = enforceStartupGraphBudgets('soundscaper');
 	assert.equal(plugin.generateBundle.order, 'post');
 	assert.equal(typeof plugin.generateBundle.handler, 'function');
 });
+
+test('the product being built is admitted strictly, never defaulted', () => {
+	for (const product of [undefined, null, '', 'lightscaper', 'Soundscaper']) {
+		assert.throws(
+			() => assertProductionStartupGraphs(fixtureBundle(), product),
+			/product being built/iu,
+			String(product),
+		);
+	}
+});
+
+test('a build asserts its own product budget rather than silently asserting none', () => {
+	for (const product of ['soundscaper', 'framescaper']) {
+		const bundle = fixtureBundle();
+		addProductBootstrap(bundle, product);
+		const graphs = assertProductionStartupGraphs(bundle, product);
+		assert.ok(graphs[product], `${product} build returned no ${product} product-ready graph`);
+		assert.ok(graphs[product].requests > 0);
+	}
+});
+
+test('a build whose own bootstrap is absent fails instead of asserting nothing', () => {
+	// The wrong fix for a per-product bundle is to skip a product that is not in
+	// it: a build would then pass while enforcing no product budget at all.
+	assert.throws(
+		() => assertProductionStartupGraphs(fixtureBundle(), 'framescaper'),
+		/no framescaper product-ready budget/iu,
+	);
+	const otherProductOnly = fixtureBundle();
+	addProductBootstrap(otherProductOnly, 'soundscaper');
+	assert.throws(
+		() => assertProductionStartupGraphs(otherProductOnly, 'framescaper'),
+		/no framescaper product-ready budget/iu,
+	);
+});
+
+test('the enforcement plugin carries the built product into the assertion', () => {
+	const plugin = enforceStartupGraphBudgets('framescaper');
+	assert.throws(
+		() => plugin.generateBundle.handler({}, fixtureBundle()),
+		/no framescaper product-ready budget/iu,
+	);
+	const bundle = fixtureBundle();
+	addProductBootstrap(bundle, 'framescaper');
+	assert.doesNotThrow(() => plugin.generateBundle.handler({}, bundle));
+});
+
+function addProductBootstrap(bundle, product) {
+	const fileName = `assets/${product}-bootstrap.js`;
+	bundle[fileName] = chunk({
+		fileName,
+		code: `${product}-bootstrap-code`,
+		facadeModuleId: `/workspace${PRODUCT_BOOTSTRAPS[product]}`,
+		modules: { [`/workspace${PRODUCT_BOOTSTRAPS[product]}`]: {} },
+	});
+	return bundle;
+}
 
 function fixtureBundle() {
 	return {

@@ -9,8 +9,9 @@ const repositoryRoot = resolve(import.meta.dirname, '..');
 const outputRoot = resolve(process.argv[2] || 'dist');
 
 generateOfflineApplicationShell({ outputRoot, repositoryRoot }).then(({ assetCount, releaseIds }) => {
+	const shells = Object.entries(releaseIds).map(([productId, releaseId]) => `${productId} ${releaseId}`);
 	console.log(
-		`Generated offline application shells ${releaseIds.soundscaper} and ${releaseIds.framescaper} `
+		`Generated offline application shells ${shells.join(' and ')} `
 		+ `with ${String(assetCount)} verified assets.`,
 	);
 }).catch((error) => {
