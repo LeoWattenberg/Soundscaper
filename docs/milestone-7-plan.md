@@ -838,7 +838,9 @@ result and remains documentary rather than an activation switch.
   fabricated alignment for other languages. Parakeet is admitted today;
   Whisper/alignment remain typed unavailable until their signed catalog/runtime
   payload evidence is admitted.
-  Real-model WER, packaged cancellation, and owner-lab evidence remain open.
+  The word-error-rate and word-timing bounds are registered as
+  `m7-local-assistance-speech-accuracy`; measuring them against a real model,
+  packaged cancellation, and owner-lab evidence remain open.
 - **7A-2 — Filler and silence cleanup proposals.** Outcome: disfluency +
   silence proposal list with audition; accept commits one disjoint-range
   ripple batch. Invariants: proposals are session state; only accepted
@@ -859,8 +861,9 @@ result and remains documentary rather than an activation switch.
   mutation. Mutation-free audition and Conservative/Balanced/Aggressive recipe
   settings are implemented. Balanced retains the established defaults;
   Conservative uses 1.5 s/100 ms/0.8 confidence and Aggressive uses
-  300 ms/30 ms/0 confidence. Planted-fixture and manual qualification remain
-  open.
+  300 ms/30 ms/0 confidence. The planted-fixture precision and recall bounds are
+  registered as `m7-local-assistance-speech-accuracy`; running the fixture and
+  manual qualification remain open.
 - **7A-3 — Diarization and speaker labels.** Outcome: speaker turns as
   labeled regions; transcript segments gain speakers. Invariants: local
   clustering only; speaker names are user-editable labels, never claimed
@@ -872,8 +875,10 @@ result and remains documentary rather than an activation switch.
   embedding bindings execute together independent of UI selection order.
   Authenticated turns are semantically reviewed; explicit acceptance can replace
   the same digest-bound transcript with anonymous speaker attribution and its
-  owned label track in one batch. Cross-project voice identity is absent. DER
-  and owner-lab qualification criteria remain open.
+  owned label track in one batch. Cross-project voice identity is absent. The
+  diarization-error-rate and label-stability criteria are registered as
+  `m7-local-assistance-speech-accuracy`; measuring them and the owner-lab run
+  remain open.
 - **7A-4 — Enhancement and stems as derived sources.** Outcome: denoise
   (DeepFilterNet3/GTCRN) and separation (Spleeter; htdemucs behind its
   legal gate) render derived sources the user swaps in; original media
@@ -1048,6 +1053,18 @@ entries and ONNX Runtime payloads pass release admission.
   ledgers. It writes raw and aggregate development evidence as `pending-external`
   or `failed`; it has no accepted-evidence mode and synthesizes no model or
   platform result.
+- The accuracy each model-backed route owes is registered rather than left in
+  prose: `m7-local-assistance-speech-accuracy` carries the word-error-rate,
+  word-timing, filler precision/recall, diarization-error-rate, label-stability,
+  search-recall, index-rebuild, and beat/downbeat bounds, and
+  `m7-local-assistance-visual-accuracy` carries the accurate and fast
+  cut F-measures, retrieval hit rate, index size per video hour,
+  subject retention, degenerate-fallback, highlight real-time factor and
+  determinism, vertical golden-frame, and byte-stable unchanged-export bounds
+  (config/quality-budgets.json, docs/quality-budgets.md#milestone-7-local-assistance-accuracy-criteria).
+  Both are `planned` with specified rather than provisioned corpora and no
+  collector: registering a criterion states what a route owes, and is never
+  evidence that it is met.
 - The named environment `owner-qualified-windows-x64-rtx3090-01` retains
   historical earlier-workload diagnostics but is currently unprovisioned and
   does not admit `m7-local-assistance-privacy`.

@@ -1277,6 +1277,50 @@
 			]
 		},
 		{
+			"id": "m7-local-assistance-speech-accuracy-v1",
+			"milestones": ["7"],
+			"status": "planned",
+			"kind": "planned-offline-model-accuracy-corpus",
+			"specification": {
+				"language": "en",
+				"durationSeconds": 1800,
+				"speakerCount": 3,
+				"referenceTranscriptWordCount": 4500,
+				"plantedFillerCount": 120,
+				"plantedSilenceCount": 60,
+				"seededSearchPhraseCount": 25,
+				"annotatedBeatCount": 2400,
+				"annotatedDownbeatCount": 600
+			},
+			"limitation": "The corpus is specified, not provisioned. Every threshold it carries is a criterion for the model-backed routes, and none of them can be measured until the converted artifacts, signed catalog entries, and target runtime payloads exist.",
+			"evidence": [
+				"roadmap.md#7-optional-local-assistance",
+				"docs/milestone-7-plan.md#7a-packets-soundscaper-track-slice-docs-at-pickup",
+				"docs/quality-budgets.md#milestone-7-local-assistance-accuracy-criteria"
+			]
+		},
+		{
+			"id": "m7-local-assistance-visual-accuracy-v1",
+			"milestones": ["7"],
+			"status": "planned",
+			"kind": "planned-offline-model-accuracy-corpus",
+			"specification": {
+				"durationSeconds": 3600,
+				"annotatedShotBoundaryCount": 400,
+				"annotatedDissolveCount": 40,
+				"seededVisualQueryCount": 25,
+				"annotatedSubjectShotCount": 120,
+				"subjectlessShotCount": 20,
+				"verticalGoldenFrameCount": 12
+			},
+			"limitation": "The reel is specified, not provisioned. Its accurate-cut, retrieval, reframe, and highlight thresholds cannot be measured until the converted artifacts, signed catalog entries, and target runtime payloads exist; only the model-free fast-cut and unchanged-export rows are measurable without them.",
+			"evidence": [
+				"roadmap.md#7-optional-local-assistance",
+				"docs/milestone-7-plan.md#7b-packets-framescaper-track-slice-docs-at-pickup",
+				"docs/quality-budgets.md#milestone-7-local-assistance-accuracy-criteria"
+			]
+		},
+		{
 			"id": "m8a-capture-30m-all-sources-v1",
 			"milestones": ["8A"],
 			"status": "provisional",
@@ -1666,6 +1710,54 @@
 				"scripts/lib/m7-local-assistance-privacy-metrics.mjs",
 				"scripts/collect-m7-local-assistance-privacy-quality.mjs",
 				"tests/quality-budget-m7-local-assistance-privacy-collector.test.ts"
+			]
+		},
+		{
+			"id": "m7-local-assistance-speech-accuracy",
+			"milestone": "7",
+			"status": "planned",
+			"fixtureIds": ["m7-local-assistance-speech-accuracy-v1"],
+			"environmentIds": ["owner-qualified-windows-x64-rtx3090-01"],
+			"thresholds": [
+				{ "metricId": "assistance.transcriptWordErrorRateRatio", "comparison": "lte", "value": 0.15, "unit": "ratio" },
+				{ "metricId": "assistance.transcriptWordTimingMedianErrorMs", "comparison": "lte", "value": 120, "unit": "ms" },
+				{ "metricId": "assistance.fillerProposalPrecisionRatio", "comparison": "gte", "value": 0.9, "unit": "ratio" },
+				{ "metricId": "assistance.fillerProposalRecallRatio", "comparison": "gte", "value": 0.7, "unit": "ratio" },
+				{ "metricId": "assistance.diarizationErrorRateRatio", "comparison": "lte", "value": 0.2, "unit": "ratio" },
+				{ "metricId": "assistance.diarizationLabelDrifts", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "assistance.transcriptSearchRecallAtFiveRatio", "comparison": "gte", "value": 0.8, "unit": "ratio" },
+				{ "metricId": "assistance.transcriptIndexRebuildDivergences", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "assistance.beatGridMedianErrorMs", "comparison": "lte", "value": 40, "unit": "ms" },
+				{ "metricId": "assistance.downbeatFMeasureRatio", "comparison": "gte", "value": 0.8, "unit": "ratio" }
+			],
+			"evidence": [
+				"roadmap.md#7-optional-local-assistance",
+				"docs/milestone-7-plan.md#7a-packets-soundscaper-track-slice-docs-at-pickup",
+				"docs/quality-budgets.md#milestone-7-local-assistance-accuracy-criteria"
+			]
+		},
+		{
+			"id": "m7-local-assistance-visual-accuracy",
+			"milestone": "7",
+			"status": "planned",
+			"fixtureIds": ["m7-local-assistance-visual-accuracy-v1"],
+			"environmentIds": ["owner-qualified-windows-x64-rtx3090-01"],
+			"thresholds": [
+				{ "metricId": "assistance.accurateShotBoundaryFMeasureRatio", "comparison": "gte", "value": 0.9, "unit": "ratio" },
+				{ "metricId": "assistance.fastShotBoundaryFMeasureRatio", "comparison": "gte", "value": 0.7, "unit": "ratio" },
+				{ "metricId": "assistance.visualRetrievalHitRateRatio", "comparison": "gte", "value": 0.8, "unit": "ratio" },
+				{ "metricId": "assistance.visualIndexBytesPerVideoHour", "comparison": "lte", "value": 67108864, "unit": "bytes" },
+				{ "metricId": "assistance.subjectRetentionRatio", "comparison": "gte", "value": 0.9, "unit": "ratio" },
+				{ "metricId": "assistance.reframeDegenerateFallbackFailures", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "assistance.highlightAssemblyRtf", "comparison": "lte", "value": 0.5, "unit": "RTF" },
+				{ "metricId": "assistance.highlightProposalDivergences", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "assistance.verticalCropGoldenFrameMismatches", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "assistance.unchangedExportByteDivergences", "comparison": "eq", "value": 0, "unit": "count" }
+			],
+			"evidence": [
+				"roadmap.md#7-optional-local-assistance",
+				"docs/milestone-7-plan.md#7b-packets-framescaper-track-slice-docs-at-pickup",
+				"docs/quality-budgets.md#milestone-7-local-assistance-accuracy-criteria"
 			]
 		},
 		{

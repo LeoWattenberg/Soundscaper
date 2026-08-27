@@ -231,6 +231,51 @@ registered Windows x64 owner environment remains unprovisioned and does not
 admit the M7 workload; no five-target packaged canary or owner-lab result is
 claimed by the existence of this collector.
 
+## Milestone 7 local-assistance accuracy criteria
+
+`m7-local-assistance-speech-accuracy` and `m7-local-assistance-visual-accuracy`
+register the numeric quality each model-backed assistance route has to reach.
+They exist because the milestone-7 packets named those bounds in prose — a
+word-error-rate bound, a planted-filler precision and recall bound, a
+diarization-error-rate bound, retrieval recall, a beat-grid tolerance, a
+cut-detection F-measure, an index size per hour of video, subject retention, a
+highlight time budget — and prose is not a gate. Writing them down fixes what
+the routes owe before anyone can measure them and argue the bar downward.
+
+Both workloads are `planned`, and their corpora are specified rather than
+provisioned. Neither has a collector, and that is deliberate: no converted
+artifact, signed catalog entry, or target runtime payload exists yet, so there
+is nothing to measure and nothing to accept. Registering a criterion is not
+evidence that it is met, and the milestone's optional status means neither
+workload blocks any other milestone's gate.
+
+The speech corpus is thirty minutes of English speech with three speakers, a
+reference transcript, planted fillers and silences, seeded search phrases, and
+annotated beats. Transcription must reach a word error rate at or below `0.15`
+with a median word-timing error at or below `120 ms`. Cleanup proposals are held
+to precision at or above `0.9` and recall at or above `0.7`: a proposal the user
+must review costs more when it is wrong than when it is missing, so precision is
+the tighter of the two. Diarization must reach a diarization error rate at or
+below `0.2` and produce zero label drifts across re-runs on unchanged media.
+Semantic transcript search must reach recall-at-5 at or above `0.8` with zero
+index rebuild divergences. Beats must land within a `40 ms` median error with a
+downbeat F-measure at or above `0.8`.
+
+The visual reel is one hour of video with annotated shot boundaries including
+dissolves, seeded visual queries, annotated subject shots, deliberately
+subjectless shots, and vertical golden frames. Accurate TransNetV2 cuts must
+reach an F-measure at or above `0.9`; the model-free fast scene-score path is
+held separately at `0.7`, because its dissolve miss class is a known and
+documented property of that mode rather than a defect. Visual retrieval must
+reach a hit rate at or above `0.8` while the disposable index stays at or below
+`64 MiB` per hour of video. Reframe must retain its subject in at least `0.9` of
+annotated shots and must fall back to saliency and then centre on every
+subjectless shot without a failure. Highlight assembly must complete at a
+real-time factor at or below `0.5` and produce identical proposals on identical
+inputs and settings. Vertical delivery must produce zero crop-correct golden
+frame mismatches, and an export that requests no crop must remain byte-stable.
+
+
 ## Milestone 4B keyed render parity
 
 `m4b2-keyframe-render-parity` is registered only as a provisional correctness
