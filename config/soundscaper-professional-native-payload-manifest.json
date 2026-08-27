@@ -28,7 +28,7 @@
 		{
 			"id": "linux-x64",
 			"status": "pending-external",
-			"blockedBy": "No authenticated JUCE 9.0.1, CLAP 1.2.4, LV2 1.18.10 professional Node-API payload has been built and reviewed on Linux x64.",
+			"blockedBy": "No authenticated Linux x64 professional Node-API payload has been built for the exact target.",
 			"toolchainIdentity": null,
 			"sourceAuthentication": null,
 			"productionReadiness": null,
@@ -39,7 +39,7 @@
 		{
 			"id": "linux-arm64",
 			"status": "pending-external",
-			"blockedBy": "No authenticated professional Node-API payload or Linux ARM64 build-host evidence is available.",
+			"blockedBy": "No authenticated Linux ARM64 professional Node-API payload has been built for the exact target.",
 			"toolchainIdentity": null,
 			"sourceAuthentication": null,
 			"productionReadiness": null,
@@ -50,7 +50,7 @@
 		{
 			"id": "mac-arm64",
 			"status": "pending-external",
-			"blockedBy": "No authenticated professional Node-API payload, macOS SDK build, signing, or notarization evidence is available.",
+			"blockedBy": "No authenticated macOS ARM64 professional Node-API payload has been built for the exact target.",
 			"toolchainIdentity": null,
 			"sourceAuthentication": null,
 			"productionReadiness": null,
@@ -61,7 +61,7 @@
 		{
 			"id": "win-x64",
 			"status": "pending-external",
-			"blockedBy": "No authenticated JUCE, CLAP, VST3, ASIO 2.3.4 professional Node-API payload or Windows signing evidence is available.",
+			"blockedBy": "No authenticated Windows x64 professional Node-API payload has been built for the exact target.",
 			"toolchainIdentity": null,
 			"sourceAuthentication": null,
 			"productionReadiness": null,
@@ -72,7 +72,7 @@
 		{
 			"id": "win-arm64",
 			"status": "pending-external",
-			"blockedBy": "No authenticated professional Node-API payload, Windows ARM64 build-host, or signing evidence is available.",
+			"blockedBy": "No authenticated Windows ARM64 professional Node-API payload has been built for the exact target.",
 			"toolchainIdentity": null,
 			"sourceAuthentication": null,
 			"productionReadiness": null,

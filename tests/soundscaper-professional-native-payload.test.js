@@ -25,6 +25,9 @@ test('professional payload authority is closed for every unbuilt target', async 
 		const release = await verifySoundscaperProfessionalNativePayload({ repositoryRoot: ROOT, target });
 		assert.equal(release.target.status, 'pending-external');
 		assert.equal(release.payload, null);
+		assert.match(release.target.blockedBy, /authenticated.*payload.*built/iu);
+		assert.doesNotMatch(release.target.blockedBy,
+			/licens|review|readiness|signing|notari|qualification|manual|patent|notice/iu);
 	}
 });
 

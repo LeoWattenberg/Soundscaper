@@ -133,7 +133,9 @@ test('a pending-external target stages no payload and reports its named blocker'
 		const summary = await verifyStagedNativeAddonPayload({ release, outputRoot });
 		assert.equal(summary.payload, null);
 		assert.equal(summary.status, 'pending-external');
-		assert.match(summary.blockedBy, /build host is provisioned/u);
+		assert.match(summary.blockedBy, /authenticated.*payload.*built/iu);
+		assert.doesNotMatch(summary.blockedBy,
+			/licens|review|readiness|signing|notari|qualification|manual|patent|notice/iu);
 	} finally {
 		rmSync(root, { recursive: true, force: true });
 	}

@@ -64,6 +64,9 @@ test('both recipes own exactly five pending targets and FFmpeg starts from a clo
 			const row = manifest.targets[target.id];
 			assert.equal(row.status, 'pending-external');
 			assert.equal(row.toolchainIdentity, null);
+			assert.match(row.blockedBy, /authenticated.*payload.*built/iu);
+			assert.doesNotMatch(row.blockedBy,
+				/licens|review|readiness|signing|notari|qualification|manual|patent|notice/iu);
 			if (kind === 'media') assert.equal(row.payload, null);
 			else {
 				assert.equal(row.scannerPayload, null);
