@@ -53,6 +53,13 @@ export interface AssistanceDerivativePayloadV1 {
 	readonly bytes: Uint8Array;
 }
 
+export interface AssistanceDerivativeBatchEntryV1 {
+	readonly kind: AssistanceDerivativeKind;
+	readonly payload: AssistanceDerivativePayloadV1;
+}
+
+export type AssistanceDerivativeBatchGuard = () => PromiseLike<void> | void;
+
 export interface AssistanceDerivativeRecordV1 extends AssistanceDerivativeIdentityV1 {
 	readonly recordVersion: typeof ASSISTANCE_DERIVATIVE_RECORD_VERSION;
 	readonly mediaType: string;
@@ -148,7 +155,17 @@ export class AssistanceDerivativeRepository {
 		kindValue: unknown,
 		payloadValue: AssistanceDerivativePayloadV1,
 	): Promise<AssistanceDerivativeRecordV1> {
-		return this.#serialize(() => this.#save(workflowValue, kindValue, payloadValue));
+		return this.#serialize(async () => (
+			await this.#saveBatch(workflowValue, [{ kind: derivativeKind(kindValue), payload: payloadValue }])
+		)[0]!);
+	}
+
+	saveBatch(
+		workflowValue: unknown,
+		entriesValue: readonly AssistanceDerivativeBatchEntryV1[],
+		guardValue?: AssistanceDerivativeBatchGuard,
+	): Promise<readonly AssistanceDerivativeRecordV1[]> {
+		return this.#serialize(() => this.#saveBatch(workflowValue, entriesValue, guardValue));
 	}
 
 	load(
@@ -174,39 +191,69 @@ export class AssistanceDerivativeRepository {
 		return this.#serialize(() => this.#deleteRows(ASSISTANCE_DERIVATIVE_KEY_PREFIX));
 	}
 
-	async #save(
+	async #saveBatch(
 		workflowValue: unknown,
-		kindValue: unknown,
-		payloadValue: AssistanceDerivativePayloadV1,
-	): Promise<AssistanceDerivativeRecordV1> {
-		const identity = createAssistanceDerivativeIdentityV1(workflowValue, kindValue);
-		const record = createRecord(identity, payloadValue, this.#timestamp());
-		assertFits(record.payloadByteLength, this.#limits);
-		const existingValue = await this.#values.get(identity.key);
-		if (existingValue !== undefined) {
-			const existing = normalizeRecordOrNull(existingValue, identity);
-			if (existing) {
-				if (samePayload(existing, record)) return recordView(existing);
-				throw new Error('A deterministic assistance derivative cache identity disagrees with its payload.');
-			}
-			if (!await this.#values.deleteIfCurrent(identity.key, existingValue)) {
-				throw new Error('The corrupt assistance derivative changed during repair.');
-			}
+		entriesValue: readonly AssistanceDerivativeBatchEntryV1[],
+		guardValue?: AssistanceDerivativeBatchGuard,
+	): Promise<readonly AssistanceDerivativeRecordV1[]> {
+		const workflow = validateAssistanceWorkflow(workflowValue);
+		const entries = batchEntries(entriesValue);
+		if (guardValue !== undefined && typeof guardValue !== 'function') {
+			throw new TypeError('An assistance derivative batch guard must be callable.');
 		}
-		if (!await this.#values.putIfAbsent(identity.key, record)) {
-			const raced = normalizeRecordOrNull(await this.#values.get(identity.key), identity);
-			if (raced && samePayload(raced, record)) return recordView(raced);
-			throw new Error('An assistance derivative cache publication collided with another payload.');
-		}
+		const records = entries.map(({ kind, payload }) => createRecord(
+			createAssistanceDerivativeIdentityV1(workflow, kind), payload, this.#timestamp(),
+		));
+		for (const record of records) assertFits(record.payloadByteLength, this.#limits);
+		const inserted: AssistanceDerivativeRecordV1[] = [];
+		const settled: AssistanceDerivativeRecordV1[] = [];
 		try {
-			if (!await this.#maintain(identity.key)) {
+			for (const record of records) {
+				const existingValue = await this.#values.get(record.key);
+				if (existingValue !== undefined) {
+					const existing = normalizeRecordOrNull(existingValue, record);
+					if (existing) {
+						if (!samePayload(existing, record)) throw new Error(
+							'A deterministic assistance derivative cache identity disagrees with its payload.',
+						);
+						settled.push(existing);
+						continue;
+					}
+					if (!await this.#values.deleteIfCurrent(record.key, existingValue)) {
+						throw new Error('The corrupt assistance derivative changed during repair.');
+					}
+				}
+				if (!await this.#values.putIfAbsent(record.key, record)) {
+					const raced = normalizeRecordOrNull(await this.#values.get(record.key), record);
+					if (!raced || !samePayload(raced, record)) throw new Error(
+						'An assistance derivative cache publication collided with another payload.',
+					);
+					settled.push(raced);
+					continue;
+				}
+				inserted.push(record);
+				settled.push(record);
+			}
+			await guardValue?.();
+			if (!await this.#maintain(new Set(records.map(({ key }) => key)))) {
 				throw new RangeError('The assistance derivative cannot fit within its configured limits.');
 			}
 		} catch (error) {
-			await Promise.resolve(this.#values.deleteIfCurrent(identity.key, record)).catch(() => false);
+			let rollbackFailed = false;
+			for (const record of inserted.reverse()) {
+				try {
+					const deleted = await this.#values.deleteIfCurrent(record.key, record);
+					if (!deleted && await this.#values.get(record.key) !== undefined) rollbackFailed = true;
+				} catch {
+					rollbackFailed = true;
+				}
+			}
+			if (rollbackFailed) throw new AggregateError(
+				[error], 'The assistance derivative batch rollback could not settle every inserted row.',
+			);
 			throw error;
 		}
-		return recordView(record);
+		return Object.freeze(settled.map(recordView));
 	}
 
 	async #load(
@@ -257,7 +304,7 @@ export class AssistanceDerivativeRepository {
 		return Object.freeze(records.filter(({ key }) => current.has(key)).map(recordView));
 	}
 
-	async #maintain(incomingKey?: string): Promise<boolean> {
+	async #maintain(incomingKeys?: ReadonlySet<string>): Promise<boolean> {
 		const rows = await this.#values.listByPrefix(ASSISTANCE_DERIVATIVE_KEY_PREFIX);
 		const valid: Readonly<{ row: Readonly<KeyValuePrefixRecord>; record: AssistanceDerivativeRecordV1 }>[] = [];
 		const discard: Readonly<KeyValuePrefixRecord>[] = [];
@@ -275,7 +322,7 @@ export class AssistanceDerivativeRepository {
 		for (const { row } of valid) {
 			if (removalKeys.has(row.key)) await this.#values.deleteIfCurrent(row.key, row.value);
 		}
-		return incomingKey === undefined || !removalKeys.has(incomingKey);
+		return incomingKeys === undefined || [...incomingKeys].every((key) => !removalKeys.has(key));
 	}
 
 	async #deleteRows(prefix: string): Promise<number> {
@@ -328,6 +375,20 @@ function identityDescriptor(workflow: AssistanceWorkflowV1, kind: AssistanceDeri
 		models: [...workflow.models].sort((left, right) => left.stageId.localeCompare(right.stageId)
 			|| left.slotId.localeCompare(right.slotId)),
 	};
+}
+
+function batchEntries(value: unknown): readonly AssistanceDerivativeBatchEntryV1[] {
+	if (!Array.isArray(value) || value.length < 1 || value.length > ASSISTANCE_DERIVATIVE_KINDS.length) {
+		throw new RangeError('An assistance derivative batch has an invalid entry count.');
+	}
+	const kinds = new Set<AssistanceDerivativeKind>();
+	return Object.freeze(value.map((candidate) => {
+		const entry = closedRecord(candidate, new Set(['kind', 'payload']), 'assistance derivative batch entry');
+		const kind = derivativeKind(entry.kind);
+		if (kinds.has(kind)) throw new TypeError('An assistance derivative batch repeats a kind.');
+		kinds.add(kind);
+		return Object.freeze({ kind, payload: entry.payload as AssistanceDerivativePayloadV1 });
+	}));
 }
 
 function createRecord(

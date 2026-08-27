@@ -13,6 +13,8 @@ import { publishLocalAssistanceGuidedIndex } from
 	'../src/common/editor/controller/local-assistance-guided-index-publication.ts';
 import { AssistanceDerivativeRepository } from
 	'../src/common/editor/storage/assistance-derivative-repository.ts';
+import type { AssistanceDerivativeKeyValuePort } from
+	'../src/common/editor/storage/assistance-derivative-repository.ts';
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';
 import type { StorageRepositoryPort } from '../src/common/editor/storage/repository-port.ts';
 import type { AssistanceWorkflowV1 } from '../src/common/editor/assistance/workflow.ts';
@@ -130,7 +132,7 @@ test('index publication revalidates every aggregate-fence field immediately befo
 	assert.deepEqual(await repository.listProject('project-a'), []);
 });
 
-test('index publication detects an aggregate-fence change after disposable save completion', async () => {
+test('index publication rolls back when its aggregate fence changes after a logical row', async () => {
 	const workflow = transcriptWorkflow();
 	const repository = derivativeRepository();
 	let resolutions = 0;
@@ -145,8 +147,27 @@ test('index publication detects an aggregate-fence change after disposable save 
 		},
 	}), /aggregate fence|stale/iu);
 	assert.equal(resolutions, 3);
-	assert.equal((await repository.listProject('project-a')).length, 1,
-		'the stale post-publication derivative remains disposable and exact-key isolated');
+	assert.deepEqual(await repository.listProject('project-a'), []);
+});
+
+test('video index publication leaves neither batch row after first-row aggregate-fence drift', async () => {
+	const matrix = createAssistanceEmbeddingMatrixV1({ dimensions: 2, vectors: [] });
+	const workflow = videoWorkflow();
+	let currentFence: unknown = workflow.fence;
+	const values = new FirstPutHookPort(() => {
+		currentFence = { ...workflow.fence, revision: workflow.fence.revision + 1 };
+	});
+	const repository = new AssistanceDerivativeRepository(values);
+	await assert.rejects(publishLocalAssistanceGuidedIndex({
+		workflow, review: videoReview(workflow, matrix), selectedChoiceIds: ['video-index'],
+		readOutput: async ({ claim }) => claim.slotId === 'visual-embeddings'
+			? new Blob([matrix], { type: 'application/vnd.soundscaper.embedding-matrix-v1' })
+			: new Blob([JSON.stringify(SHOTS)], {
+				type: 'application/vnd.soundscaper.shot-boundaries+json',
+			}),
+		repository, resolveCurrentFence: () => currentFence,
+	}), /aggregate fence|stale/iu);
+	assert.equal(values.size, 0);
 });
 
 function transcriptWorkflow(): AssistanceWorkflowV1 {
@@ -259,4 +280,30 @@ function derivativeRepository(): AssistanceDerivativeRepository {
 function claim(direction: 'input' | 'output', stageId: string, slotId: string, index: number) {
 	return { claimVersion: 1 as const, direction, claimId: index.toString(16).padStart(40, '0'),
 		jobId: WORKFLOW_JOB_ID, stageId, slotId };
+}
+
+class FirstPutHookPort implements AssistanceDerivativeKeyValuePort {
+	readonly #values = new Map<string, unknown>();
+	readonly #afterFirstPut: () => void;
+	#puts = 0;
+
+	constructor(afterFirstPut: () => void) { this.#afterFirstPut = afterFirstPut; }
+	get size(): number { return this.#values.size; }
+	get(key: string): unknown { return this.#values.get(key); }
+	putIfAbsent(key: string, value: unknown): boolean {
+		if (this.#values.has(key)) return false;
+		this.#values.set(key, value);
+		this.#puts += 1;
+		if (this.#puts === 1) this.#afterFirstPut();
+		return true;
+	}
+	delete(key: string): void { this.#values.delete(key); }
+	deleteIfCurrent(key: string, expected: unknown): boolean {
+		if (this.#values.get(key) !== expected) return false;
+		return this.#values.delete(key);
+	}
+	listByPrefix(prefix: string) {
+		return [...this.#values.entries()].filter(([key]) => key.startsWith(prefix))
+			.map(([key, value]) => ({ key, projectId: '', value }));
+	}
 }

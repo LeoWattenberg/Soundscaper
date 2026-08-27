@@ -6,6 +6,7 @@ import test from 'node:test';
 import {
 	AssistanceDerivativeRepository,
 	createAssistanceDerivativeIdentityV1,
+	type AssistanceDerivativeKeyValuePort,
 } from '../src/common/editor/storage/assistance-derivative-repository.ts';
 import {
 	assistanceWorkflowModelBindingsSha256V1,
@@ -80,6 +81,16 @@ test('assistance derivatives round-trip authenticated bytes without entering pro
 	await assert.rejects(fixture.repository.save(workflow(), 'embeddings', {
 		mediaType: 'application/vnd.soundscaper.embedding-matrix-v1', bytes: Uint8Array.of(4, 3, 2, 1),
 	}), /deterministic|disagree|collision/iu);
+});
+
+test('a second-row publication failure rolls back the complete assistance derivative batch', async () => {
+	const values = new SecondPutFailurePort();
+	const repository = new AssistanceDerivativeRepository(values);
+	await assert.rejects(repository.saveBatch(workflow(), [
+		{ kind: 'embeddings', payload: payload([1]) },
+		{ kind: 'visual-index', payload: payload([2]) },
+	]), /planned second-row failure/u);
+	assert.equal(values.size, 0, 'the first physical row is removed before the failed batch settles');
 });
 
 test('project-scoped derivative listing reopens authenticated records without crossing projects', async () => {
@@ -204,4 +215,28 @@ function workflow() {
 			stageId: 'run-text-embedding', slotId: 'embeddings',
 		}],
 	};
+}
+
+class SecondPutFailurePort implements AssistanceDerivativeKeyValuePort {
+	readonly #values = new Map<string, unknown>();
+	#puts = 0;
+
+	get size(): number { return this.#values.size; }
+	get(key: string): unknown { return this.#values.get(key); }
+	putIfAbsent(key: string, value: unknown): boolean {
+		this.#puts += 1;
+		if (this.#puts === 2) throw new Error('planned second-row failure');
+		if (this.#values.has(key)) return false;
+		this.#values.set(key, value);
+		return true;
+	}
+	delete(key: string): void { this.#values.delete(key); }
+	deleteIfCurrent(key: string, expected: unknown): boolean {
+		if (this.#values.get(key) !== expected) return false;
+		return this.#values.delete(key);
+	}
+	listByPrefix(prefix: string) {
+		return [...this.#values.entries()].filter(([key]) => key.startsWith(prefix))
+			.map(([key, value]) => ({ key, projectId: '', value }));
+	}
 }

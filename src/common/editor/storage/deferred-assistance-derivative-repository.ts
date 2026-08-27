@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type {
+	AssistanceDerivativeBatchEntryV1,
+	AssistanceDerivativeBatchGuard,
 	AssistanceDerivativeKind,
 	AssistanceDerivativeKeyValuePort,
 	AssistanceDerivativePayloadV1,
@@ -15,6 +17,11 @@ export interface AssistanceDerivativeRepositoryPort {
 		kindValue: unknown,
 		payloadValue: AssistanceDerivativePayloadV1,
 	): Promise<AssistanceDerivativeRecordV1>;
+	saveBatch(
+		workflowValue: unknown,
+		entriesValue: readonly AssistanceDerivativeBatchEntryV1[],
+		guardValue?: AssistanceDerivativeBatchGuard,
+	): Promise<readonly AssistanceDerivativeRecordV1[]>;
 	load(workflowValue: unknown, kindValue: unknown): Promise<AssistanceDerivativeRecordV1 | null>;
 	listProject(
 		projectIdValue: string,
@@ -70,6 +77,14 @@ export function createDeferredAssistanceDerivativeRepository(
 		): Promise<AssistanceDerivativeRecordV1> => {
 			const repository = await loadRepository();
 			return await repository.save(workflowValue, kindValue, payloadValue);
+		},
+		saveBatch: async (
+			workflowValue: unknown,
+			entriesValue: readonly AssistanceDerivativeBatchEntryV1[],
+			guardValue?: AssistanceDerivativeBatchGuard,
+		): Promise<readonly AssistanceDerivativeRecordV1[]> => {
+			const repository = await loadRepository();
+			return await repository.saveBatch(workflowValue, entriesValue, guardValue);
 		},
 		load: async (
 			workflowValue: unknown,

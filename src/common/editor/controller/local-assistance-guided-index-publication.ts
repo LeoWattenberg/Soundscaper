@@ -52,7 +52,7 @@ export interface LocalAssistanceGuidedIndexPublicationRequest {
 		readonly workflowId: 'index-transcript' | 'index-video';
 		readonly claim: AssistanceWorkflowOutputClaimV1;
 	}>) => Promise<Blob>;
-	readonly repository: Pick<AssistanceDerivativeRepositoryPort, 'save'>;
+	readonly repository: Pick<AssistanceDerivativeRepositoryPort, 'saveBatch'>;
 	readonly resolveCurrentFence: (
 		workflow: AssistanceWorkflowV1,
 		signal: AbortSignal,
@@ -71,7 +71,7 @@ export async function publishLocalAssistanceGuidedIndex(
 	request: LocalAssistanceGuidedIndexPublicationRequest,
 ): Promise<LocalAssistanceGuidedIndexPublicationOutcome> {
 	if (!request || typeof request !== 'object' || typeof request.readOutput !== 'function'
-		|| typeof request.repository?.save !== 'function'
+		|| typeof request.repository?.saveBatch !== 'function'
 		|| typeof request.resolveCurrentFence !== 'function'
 		|| (request.signal !== undefined && !(request.signal instanceof AbortSignal))) {
 		throw new TypeError('Guided index publication requires exact custody and repository ports.');
@@ -126,17 +126,14 @@ export async function publishLocalAssistanceGuidedIndex(
 		? await loadVideoShotTable(workflow, request.readOutput, signal) : null;
 	await assertCurrentFence(request.resolveCurrentFence, workflow, signal);
 	signal.throwIfAborted();
-	if (shotTable !== null) {
-		await request.repository.save(workflow, 'shot-table', {
-			mediaType: ASSISTANCE_SHOT_TABLE_DERIVATIVE_MEDIA_TYPE, bytes: shotTable,
-		});
-	}
-	const recordValue = await request.repository.save(workflow,
-		workflow.workflowId === 'index-transcript' ? 'embeddings' : 'visual-index', {
-			mediaType: ASSISTANCE_SEMANTIC_DERIVATIVE_MEDIA_TYPE, bytes,
-		});
-	await assertCurrentFence(request.resolveCurrentFence, workflow, signal);
-	signal.throwIfAborted();
+	const records = await request.repository.saveBatch(workflow, [
+		...(shotTable === null ? [] : [{ kind: 'shot-table' as const,
+			payload: { mediaType: ASSISTANCE_SHOT_TABLE_DERIVATIVE_MEDIA_TYPE, bytes: shotTable } }]),
+		{ kind: workflow.workflowId === 'index-transcript' ? 'embeddings' : 'visual-index',
+			payload: { mediaType: ASSISTANCE_SEMANTIC_DERIVATIVE_MEDIA_TYPE, bytes } },
+	], () => assertCurrentFence(request.resolveCurrentFence, workflow, signal));
+	const recordValue = records.at(-1);
+	if (!recordValue) throw new Error('The Guided index batch omitted its terminal derivative.');
 	return Object.freeze({ outcome: 'published', record: recordValue });
 }
 

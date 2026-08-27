@@ -48,7 +48,7 @@ export interface LocalAssistanceGuidedReusableDerivativeRequest {
 		readonly workflowId: AssistanceGuidedWorkflowId;
 		readonly claim: AssistanceWorkflowOutputClaimV1;
 	}>) => Promise<Blob>;
-	readonly repository: Pick<AssistanceDerivativeRepositoryPort, 'save'>;
+	readonly repository: Pick<AssistanceDerivativeRepositoryPort, 'saveBatch'>;
 	readonly resolveCurrentFence: (
 		workflow: AssistanceWorkflowV1,
 		signal: AbortSignal,
@@ -60,7 +60,7 @@ export async function retainLocalAssistanceGuidedReusableDerivatives(
 	request: LocalAssistanceGuidedReusableDerivativeRequest,
 ): Promise<readonly AssistanceDerivativeRecordV1[]> {
 	if (!request || typeof request !== 'object' || typeof request.readOutput !== 'function'
-		|| typeof request.repository?.save !== 'function'
+		|| typeof request.repository?.saveBatch !== 'function'
 		|| typeof request.resolveCurrentFence !== 'function'
 		|| (request.signal !== undefined && !(request.signal instanceof AbortSignal))) {
 		throw new TypeError('Reusable Guided retention requires exact review and custody ports.');
@@ -78,15 +78,9 @@ export async function retainLocalAssistanceGuidedReusableDerivatives(
 			: await rankingPayload(workflow, request.review, request.readOutput, signal);
 	await assertCurrentFence(request.resolveCurrentFence, workflow, signal);
 	signal.throwIfAborted();
-	const records: AssistanceDerivativeRecordV1[] = [];
-	for (const payload of payloads) {
-		records.push(await request.repository.save(workflow, payload.kind, {
-			mediaType: payload.mediaType, bytes: payload.bytes,
-		}));
-	}
-	await assertCurrentFence(request.resolveCurrentFence, workflow, signal);
-	signal.throwIfAborted();
-	return Object.freeze(records);
+	return await request.repository.saveBatch(workflow, payloads.map((payload) => ({
+		kind: payload.kind, payload: { mediaType: payload.mediaType, bytes: payload.bytes },
+	})), () => assertCurrentFence(request.resolveCurrentFence, workflow, signal));
 }
 
 type Payload = Readonly<{
