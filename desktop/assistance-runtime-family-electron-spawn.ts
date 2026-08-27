@@ -270,12 +270,13 @@ async function spawnFamily(
 		if (exited) return Promise.resolve();
 		if (processTermination) return processTermination;
 		processTermination = new Promise<void>((resolveTermination, rejectTermination) => {
-			let waiter: Readonly<{ resolve(): void; reject(error: Error): void }>;
+			// The deadline timer and the waiter reference each other, and the timer can only
+			// fire once both exist, so the waiter is declared after the timer it clears.
 			const timer = setTimeoutImpl(() => {
 				exitWaiters.delete(waiter);
 				rejectTermination(new Error(`The ${familyId} utility process missed its kill deadline.`));
 			}, killWaitMs);
-			waiter = Object.freeze({
+			const waiter: Readonly<{ resolve(): void; reject(error: Error): void }> = Object.freeze({
 				resolve: () => { clearTimeoutImpl(timer); exitWaiters.delete(waiter); resolveTermination(); },
 				reject: (error: Error) => {
 					clearTimeoutImpl(timer); exitWaiters.delete(waiter); rejectTermination(error);
