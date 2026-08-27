@@ -24,10 +24,11 @@ test('target native ABI and Node bridge expose bounded AAC-LC M4A decode', async
 });
 
 test('target native ABI and bridge expose exact bounded AAC-LC M4A encode', async () => {
-	const [header, bridge, windows, mac, unavailable, selfTest] = await Promise.all([
+	const [header, bridge, windowsUnit, windowsBytes, mac, unavailable, selfTest] = await Promise.all([
 		readFile(join(SOURCE, 'src/os_audio_codec.h'), 'utf8'),
 		readFile(join(SOURCE, 'src/node_api_bridge.cpp'), 'utf8'),
 		readFile(join(SOURCE, 'src/os_audio_codec_windows.cpp'), 'utf8'),
+		readFile(join(SOURCE, 'src/os_audio_codec_windows_file_bytes.h'), 'utf8'),
 		readFile(join(SOURCE, 'src/os_audio_codec_mac.mm'), 'utf8'),
 		readFile(join(SOURCE, 'src/os_audio_codec_unavailable.cpp'), 'utf8'),
 		readFile(join(SOURCE, 'tests/os_audio_codec_self_test.cpp'), 'utf8'),
@@ -42,7 +43,7 @@ test('target native ABI and bridge expose exact bounded AAC-LC M4A encode', asyn
 		'MFAudioFormat_AAC', 'MFCreateSinkWriterFromURL', 'MF_MT_AUDIO_AVG_BYTES_PER_SECOND',
 		'MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION', 'MF_MT_AAC_PAYLOAD_TYPE',
 		'exactAacLcM4a',
-	]) assert.match(windows, new RegExp(witness, 'u'), witness);
+	]) assert.match(windowsUnit + windowsBytes, new RegExp(witness, 'u'), witness);
 	for (const witness of [
 		'ExtAudioFileCreateWithURL', 'kAudioFileM4AType', 'kAudioFormatMPEG4AAC',
 		'kAudioConverterEncodeBitRate', 'kExtAudioFileProperty_ConverterConfig', 'exactAacLcM4a',
@@ -170,8 +171,9 @@ test('an admitted M4A is not required to carry an initial object descriptor', as
 });
 
 test('both reviewed targets admit an M4A input from its own authenticated bytes', async () => {
-	const [windows, mac, profile, canary] = await Promise.all([
+	const [windows, windowsBytes, mac, profile, canary] = await Promise.all([
 		readFile(join(SOURCE, 'src/os_audio_codec_windows.cpp'), 'utf8'),
+		readFile(join(SOURCE, 'src/os_audio_codec_windows_file_bytes.h'), 'utf8'),
 		readFile(join(SOURCE, 'src/os_audio_codec_mac.mm'), 'utf8'),
 		readFile(join(SOURCE, 'src/os_aac_m4a_profile.h'), 'utf8'),
 		readFile(join(SOURCE, 'tests/os_audio_codec_self_test.cpp'), 'utf8'),
@@ -180,7 +182,14 @@ test('both reviewed targets admit an M4A input from its own authenticated bytes'
 	assert.match(mac, /exactAacLcM4aFile\(\s*\n?\s*request->input_path_utf8/u);
 	// Windows reads it wide, so an admission never depends on the ANSI code page.
 	assert.match(windows, /exactAacLcInput\(inputPath, request->input_bytes/u);
-	assert.match(windows, /boundedFileBytes\(path, expectedBytes, bytes\)/u);
+	assert.match(windowsBytes, /boundedFileBytes\(path, expectedBytes, bytes\)/u);
+	assert.match(windowsBytes, /const std::wstring &path/u);
+	// Definitions live in a header, so a second translation unit including it
+	// must not collide with the first.
+	for (const definition of ['readAllBytes', 'boundedFileBytes', 'inspectEncodedOutput',
+		'exactAacLcInput']) {
+		assert.match(windowsBytes, new RegExp(`inline [A-Za-z]+ ${definition}\\(`, 'u'), definition);
+	}
 	// And with the config proven, the declared-SBR refusal applies to both.
 	assert.match(canary, /#if defined\(_WIN32\) \|\| defined\(__APPLE__\)\s*\n\tconst std::string heInputText/u);
 });

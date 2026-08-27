@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 /**
- * Bounded whole-file reads for the reviewed Windows codecs.
+ * Bounded whole-file reads for the reviewed Windows codecs, and the byte-level
+ * admission they feed.
  *
  * Every path the codecs touch is a private scratch path the caller owns, and
  * both the admitted input and the completed output are proven from their bytes.
@@ -16,6 +17,8 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+
+#include "os_aac_m4a_profile.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -71,6 +74,52 @@ inline BoundedFileRead boundedFileBytes(
 	const bool read = readAllBytes(input, bytes.data(), bytes.size());
 	const bool closed = CloseHandle(input) != 0;
 	return read && closed ? BoundedFileRead::read : BoundedFileRead::unreadable;
+}
+
+enum class EncodedOutputInspection {
+	exact,
+	invalid,
+	/* The completed file was read whole and is not the exact admitted tuple.
+	 * That is a verdict about the encoder's output, not a failure to encode. */
+	notExact,
+	overLimit,
+};
+
+inline EncodedOutputInspection inspectEncodedOutput(
+	const std::wstring &path,
+	uint64_t maximumBytes,
+	uint64_t &outputBytes,
+	AacLcM4aRefusal &refusal)
+{
+	std::vector<uint8_t> bytes;
+	const BoundedFileRead outcome = boundedFileBytes(path, maximumBytes, bytes);
+	if (outcome == BoundedFileRead::overLimit) return EncodedOutputInspection::overLimit;
+	if (outcome != BoundedFileRead::read) return EncodedOutputInspection::invalid;
+	if (!exactAacLcM4a(bytes, 48000u, 2u, refusal)) {
+		return EncodedOutputInspection::notExact;
+	}
+	outputBytes = bytes.size();
+	return EncodedOutputInspection::exact;
+}
+
+/**
+ * Proves the admitted M4A input is exact AAC-LC from its own bytes. The length
+ * was already authenticated, so a file that is no longer exactly that long is
+ * refused by the bound rather than read in part.
+ */
+inline bool exactAacLcInput(
+	const std::wstring &path,
+	uint64_t expectedBytes,
+	uint32_t sampleRate,
+	uint32_t channelCount,
+	AacLcM4aRefusal &refusal)
+{
+	std::vector<uint8_t> bytes;
+	refusal = AacLcM4aRefusal::bounds;
+	if (expectedBytes == 0u || expectedBytes > 32u * 1024u * 1024u
+		|| boundedFileBytes(path, expectedBytes, bytes) != BoundedFileRead::read
+		|| bytes.size() != expectedBytes) return false;
+	return exactAacLcM4a(bytes, sampleRate, channelCount, refusal);
 }
 
 } // namespace soundscaper::os_audio

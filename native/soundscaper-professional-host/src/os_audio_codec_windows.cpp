@@ -26,21 +26,14 @@ namespace {
 
 using Microsoft::WRL::ComPtr;
 using soundscaper::os_audio::AacLcM4aRefusal;
-using soundscaper::os_audio::BoundedFileRead;
+using soundscaper::os_audio::EncodedOutputInspection;
+using soundscaper::os_audio::exactAacLcInput;
+using soundscaper::os_audio::inspectEncodedOutput;
 using soundscaper::os_audio::MediaFoundationSession;
 
 enum class ReviewedCodec {
 	mp3,
 	aacM4a,
-};
-
-enum class EncodedOutputInspection {
-	exact,
-	invalid,
-	/* The completed file was read whole and is not the exact admitted tuple.
-	 * That is a verdict about the encoder's output, not a failure to encode. */
-	notExact,
-	overLimit,
 };
 
 soundscaper_pro_os_mp3_decode_result answer(
@@ -156,43 +149,6 @@ bool readExactFloatInput(
 	}
 	frameCount = pcm.size() / 2u;
 	return frameCount > 0u;
-}
-
-EncodedOutputInspection inspectEncodedOutput(
-	const std::wstring &path,
-	uint64_t maximumBytes,
-	uint64_t &outputBytes,
-	AacLcM4aRefusal &refusal)
-{
-	std::vector<uint8_t> bytes;
-	const BoundedFileRead outcome = soundscaper::os_audio::boundedFileBytes(path, maximumBytes, bytes);
-	if (outcome == BoundedFileRead::overLimit) return EncodedOutputInspection::overLimit;
-	if (outcome != BoundedFileRead::read) return EncodedOutputInspection::invalid;
-	if (!soundscaper::os_audio::exactAacLcM4a(bytes, 48000u, 2u, refusal)) {
-		return EncodedOutputInspection::notExact;
-	}
-	outputBytes = bytes.size();
-	return EncodedOutputInspection::exact;
-}
-
-/**
- * Proves the admitted M4A input is exact AAC-LC from its own bytes. The length
- * was already authenticated, so a file that is no longer exactly that long is
- * refused by the bound rather than read in part.
- */
-bool exactAacLcInput(
-	const std::wstring &path,
-	uint64_t expectedBytes,
-	uint32_t sampleRate,
-	uint32_t channelCount,
-	AacLcM4aRefusal &refusal)
-{
-	std::vector<uint8_t> bytes;
-	refusal = AacLcM4aRefusal::bounds;
-	if (expectedBytes == 0u || expectedBytes > 32u * 1024u * 1024u
-		|| soundscaper::os_audio::boundedFileBytes(path, expectedBytes, bytes) != BoundedFileRead::read
-		|| bytes.size() != expectedBytes) return false;
-	return soundscaper::os_audio::exactAacLcM4a(bytes, sampleRate, channelCount, refusal);
 }
 
 bool exactUnsigned(IMFMediaType *type, REFGUID key, uint32_t expected)
