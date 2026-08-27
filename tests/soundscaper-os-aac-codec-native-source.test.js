@@ -237,15 +237,17 @@ test('a refused profile names the layer it stopped at, all the way to the canary
 	// reader can always tell which admission produced the number.
 	const windowsUnit = await readFile(join(SOURCE, 'src/os_audio_codec_windows.cpp'), 'utf8');
 	assert.match(windowsUnit, /enum class MediaTypeRefusal : uint32_t/u);
-	const codes = [...windowsUnit.matchAll(/^\t([a-zA-Z]+) = (\d+)u,$/gmu)]
+	const codes = [...windowsUnit.matchAll(/^\t([a-zA-Z][a-zA-Z0-9]*) = (\d+)u,$/gmu)]
 		.map(([, , value]) => Number(value)).filter((value) => value !== 0);
-	assert.ok(codes.length >= 5, 'every media-type refusal names itself');
+	assert.deepEqual([...codes].sort((a, b) => a - b), [100, 101, 102, 103, 107, 108],
+		'every media-type refusal names itself');
 	assert.equal(new Set(codes).size, codes.length, 'two refusals must not share a number');
 	assert.ok(codes.every((value) => value >= 100),
 		'a media-type refusal must not collide with a profile-parser layer');
 
 	// Both results carry it, and neither target drops it on the floor.
-	assert.equal(header.match(/uint32_t refusal_detail;/gu)?.length, 2);
+	// Decode, AAC encode and MP3 encode each carry it.
+	assert.equal(header.match(/uint32_t refusal_detail;/gu)?.length, 3);
 	// macOS reports the admitted input and the encoded output; Windows reports a
 	// third, the host media type it would not admit.
 	for (const [name, source, sites] of [['windows', windows, 3], ['mac', mac, 2]]) {

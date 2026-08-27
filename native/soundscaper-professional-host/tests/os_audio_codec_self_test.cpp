@@ -215,11 +215,13 @@ void reportMp3Encode(
 {
 	std::fprintf(stderr,
 		"  mp3 encode: status=%d native_api_reached=%u exact_tuple_passed=%u sample_rate=%u"
-		" channel_count=%u bitrate_kbps=%u frame_count=%llu output_bytes=%llu file_bytes=%llu\n",
+		" channel_count=%u bitrate_kbps=%u frame_count=%llu output_bytes=%llu file_bytes=%llu"
+		" refusal=%u\n",
 		static_cast<int>(result.status), result.native_api_reached, result.exact_tuple_passed,
 		result.sample_rate, result.channel_count, result.bitrate_kbps,
 		static_cast<unsigned long long>(result.frame_count),
-		static_cast<unsigned long long>(result.output_bytes), fileBytes(outputPath));
+		static_cast<unsigned long long>(result.output_bytes), fileBytes(outputPath),
+		result.refusal_detail);
 }
 #endif
 
