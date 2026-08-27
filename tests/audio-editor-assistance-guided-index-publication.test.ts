@@ -22,6 +22,10 @@ import { assistanceWorkflowFixture, WORKFLOW_JOB_ID } from './helpers/assistance
 
 const MATRIX = createAssistanceEmbeddingMatrixV1({ dimensions: 2, vectors: [[1, 0]] });
 const MATRIX_SHA256 = bytesToHex(sha256(MATRIX));
+const SHOTS = Object.freeze({ schemaVersion: 1, detector: 'ffmpeg-scdet', timescale: 1_000,
+	sourceFrameCount: 96_000, boundaries: Object.freeze([
+		Object.freeze({ sourceFrame: 100, presentationTick: '100', score: 0.9 }),
+	]) });
 
 test('accepting a transcript index atomically publishes its reviewed matrix and rows as disposable custody',
 	async () => {
@@ -34,7 +38,7 @@ test('accepting a transcript index atomically publishes its reviewed matrix and 
 				return new Blob([MATRIX], { type: 'application/vnd.soundscaper.embedding-matrix-v1' });
 			},
 			repository,
-			currentProject: () => ({ projectId: 'project-a', projectRevision: 8 }),
+			resolveCurrentFence: () => workflow.fence,
 		});
 		assert.equal(result.outcome, 'published');
 		assert.equal(result.record.kind, 'embeddings');
@@ -55,14 +59,14 @@ test('index publication is explicit and rejects stale authority or an altered in
 		workflow, review: transcriptReview(workflow), readOutput: async () =>
 			new Blob([MATRIX], { type: 'application/vnd.soundscaper.embedding-matrix-v1' }),
 		repository,
-		currentProject: () => ({ projectId: 'project-a', projectRevision: 8 }),
+		resolveCurrentFence: () => workflow.fence,
 	};
 	assert.deepEqual(await publishLocalAssistanceGuidedIndex({
 		...base, selectedChoiceIds: [],
 	}), { outcome: 'not-selected' });
 	await assert.rejects(publishLocalAssistanceGuidedIndex({
 		...base, selectedChoiceIds: ['transcript-index'],
-		currentProject: () => ({ projectId: 'project-a', projectRevision: 9 }),
+		resolveCurrentFence: () => ({ ...workflow.fence, revision: 9 }),
 	}), /stale|revision|authority/iu);
 	await assert.rejects(publishLocalAssistanceGuidedIndex({
 		...base, selectedChoiceIds: ['transcript-index'], readOutput: async () => new Blob([
@@ -79,11 +83,18 @@ test('accepting a video index publishes its exact visual matrix and normalized O
 	const result = await publishLocalAssistanceGuidedIndex({
 		workflow, review: videoReview(workflow, matrix), selectedChoiceIds: ['video-index'],
 		readOutput: async ({ claim }) => {
-			assert.equal(`${claim.stageId}:${claim.slotId}`, 'embed-visuals:visual-embeddings');
-			return new Blob([matrix], { type: 'application/vnd.soundscaper.embedding-matrix-v1' });
+			if (claim.slotId === 'visual-embeddings') {
+				return new Blob([matrix], {
+					type: 'application/vnd.soundscaper.embedding-matrix-v1',
+				});
+			}
+			assert.equal(`${claim.stageId}:${claim.slotId}`, 'detect-shots:shot-boundaries');
+			return new Blob([JSON.stringify(SHOTS)], {
+				type: 'application/vnd.soundscaper.shot-boundaries+json',
+			});
 		},
 		repository,
-		currentProject: () => ({ projectId: 'project-a', projectRevision: 8 }),
+		resolveCurrentFence: () => workflow.fence,
 	});
 	assert.equal(result.outcome, 'published');
 	assert.equal(result.record.kind, 'visual-index');
@@ -91,6 +102,51 @@ test('accepting a video index publishes its exact visual matrix and normalized O
 	assert.equal(bundle.provider, 'visual');
 	assert.deepEqual(bundle.rows, []);
 	assert.deepEqual(bundle.ocr, []);
+	assert.deepEqual((await repository.listProject('project-a')).map(({ kind }) => kind),
+		['visual-index', 'shot-table']);
+});
+
+test('index publication revalidates every aggregate-fence field immediately before saving', async () => {
+	const workflow = transcriptWorkflow();
+	const repository = derivativeRepository();
+	let resolutions = 0;
+	await assert.rejects(publishLocalAssistanceGuidedIndex({
+		workflow, review: transcriptReview(workflow), selectedChoiceIds: ['transcript-index'],
+		readOutput: async () => new Blob([MATRIX], {
+			type: 'application/vnd.soundscaper.embedding-matrix-v1',
+		}),
+		repository,
+		resolveCurrentFence: () => {
+			resolutions += 1;
+			return resolutions === 1 ? workflow.fence : {
+				...workflow.fence,
+				sourceRanges: workflow.fence.sourceRanges.map((range) => ({
+					...range, timingAuthoritySha256: 'ef'.repeat(32),
+				})),
+			};
+		},
+	}), /aggregate fence|stale|timing/iu);
+	assert.equal(resolutions, 2);
+	assert.deepEqual(await repository.listProject('project-a'), []);
+});
+
+test('index publication detects an aggregate-fence change after disposable save completion', async () => {
+	const workflow = transcriptWorkflow();
+	const repository = derivativeRepository();
+	let resolutions = 0;
+	await assert.rejects(publishLocalAssistanceGuidedIndex({
+		workflow, review: transcriptReview(workflow), selectedChoiceIds: ['transcript-index'],
+		readOutput: async () => new Blob([MATRIX], {
+			type: 'application/vnd.soundscaper.embedding-matrix-v1',
+		}), repository,
+		resolveCurrentFence: () => {
+			resolutions += 1;
+			return resolutions < 3 ? workflow.fence : { ...workflow.fence, revision: 9 };
+		},
+	}), /aggregate fence|stale/iu);
+	assert.equal(resolutions, 3);
+	assert.equal((await repository.listProject('project-a')).length, 1,
+		'the stale post-publication derivative remains disposable and exact-key isolated');
 });
 
 function transcriptWorkflow(): AssistanceWorkflowV1 {
@@ -144,7 +200,7 @@ function videoWorkflow(): AssistanceWorkflowV1 {
 		{ bindingVersion: 1 as const, stageId: 'recognize-text', slotId: 'text-recognizer',
 			modelId: 'pp-ocrv4-rec', version: '4.0.0', artifactSha256s: ['83'.repeat(32)] },
 	];
-	return assistanceWorkflowFixture({ workflowId: 'index-video', stageIds, models,
+	const workflow = assistanceWorkflowFixture({ workflowId: 'index-video', stageIds, models,
 		inputs: [
 			claim('input', 'detect-shots', 'video', 9),
 			claim('input', 'sample-shot-frames', 'video', 10),
@@ -163,6 +219,10 @@ function videoWorkflow(): AssistanceWorkflowV1 {
 			claim('output', 'publish-video-index', 'video-index', 20),
 		],
 	});
+	return { ...workflow, fence: { ...workflow.fence, sourceRanges: [{
+		...workflow.fence.sourceRanges[0]!, slotId: 'primary-video', mediaKind: 'video',
+		sourceSampleRate: null,
+	}] } };
 }
 
 function videoReview(

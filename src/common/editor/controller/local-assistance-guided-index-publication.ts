@@ -17,8 +17,14 @@ import {
 	createAssistanceSemanticDerivativeBundleV1,
 } from '../assistance/semantic-derivative-bundle-v1.ts';
 import {
+	ASSISTANCE_SHOT_TABLE_DERIVATIVE_MEDIA_TYPE,
+	createAssistanceShotTableDerivativeV1,
+} from '../assistance/reusable-derivatives-v1.ts';
+import {
 	validateAssistanceWorkflow,
+	validateAssistanceWorkflowFenceV1,
 	type AssistanceWorkflowOutputClaimV1,
+	type AssistanceWorkflowV1,
 } from '../assistance/workflow.ts';
 import type {
 	AssistanceDerivativeRecordV1,
@@ -32,6 +38,10 @@ import type {
 
 const MATRIX_MEDIA_TYPE = 'application/vnd.soundscaper.embedding-matrix-v1';
 const MAXIMUM_MATRIX_BYTES = 512 * 1024 * 1024;
+const MAXIMUM_JSON_BYTES = 8 * 1024 * 1024;
+const SHOT_MEDIA_TYPES = new Set([
+	'application/json', 'application/vnd.soundscaper.shot-boundaries+json',
+]);
 
 export interface LocalAssistanceGuidedIndexPublicationRequest {
 	readonly workflow: unknown;
@@ -43,7 +53,10 @@ export interface LocalAssistanceGuidedIndexPublicationRequest {
 		readonly claim: AssistanceWorkflowOutputClaimV1;
 	}>) => Promise<Blob>;
 	readonly repository: Pick<AssistanceDerivativeRepositoryPort, 'save'>;
-	readonly currentProject: () => PromiseLike<unknown> | unknown;
+	readonly resolveCurrentFence: (
+		workflow: AssistanceWorkflowV1,
+		signal: AbortSignal,
+	) => PromiseLike<unknown> | unknown;
 	readonly signal?: AbortSignal;
 }
 
@@ -58,7 +71,9 @@ export async function publishLocalAssistanceGuidedIndex(
 	request: LocalAssistanceGuidedIndexPublicationRequest,
 ): Promise<LocalAssistanceGuidedIndexPublicationOutcome> {
 	if (!request || typeof request !== 'object' || typeof request.readOutput !== 'function'
-		|| typeof request.repository?.save !== 'function' || typeof request.currentProject !== 'function') {
+		|| typeof request.repository?.save !== 'function'
+		|| typeof request.resolveCurrentFence !== 'function'
+		|| (request.signal !== undefined && !(request.signal instanceof AbortSignal))) {
 		throw new TypeError('Guided index publication requires exact custody and repository ports.');
 	}
 	const workflow = validateAssistanceWorkflow(request.workflow);
@@ -70,15 +85,16 @@ export async function publishLocalAssistanceGuidedIndex(
 	if (!selections.has(selectionId)) return Object.freeze({ outcome: 'not-selected' });
 	if (selections.size !== 1) throw new TypeError('Guided index publication received a foreign selection.');
 	assertReviewAuthority(workflow, request.review, selectionId);
-	await assertCurrentProject(request.currentProject, workflow.fence.projectId, workflow.fence.revision);
-	request.signal?.throwIfAborted();
+	const signal = request.signal ?? new AbortController().signal;
+	await assertCurrentFence(request.resolveCurrentFence, workflow, signal);
+	signal.throwIfAborted();
 
 	const matrixClaim = exactOutputClaim(workflow.outputs,
 		workflow.workflowId === 'index-transcript' ? 'embed-transcript' : 'embed-visuals',
 		workflow.workflowId === 'index-transcript' ? 'embeddings' : 'visual-embeddings');
 	const body = await request.readOutput({ jobId: workflow.jobId,
 		workflowId: workflow.workflowId, claim: matrixClaim });
-	request.signal?.throwIfAborted();
+	signal.throwIfAborted();
 	if (!(body instanceof Blob) || body.type !== MATRIX_MEDIA_TYPE || body.size < 1
 		|| body.size > MAXIMUM_MATRIX_BYTES) {
 		throw new TypeError('The Guided index embedding body disagrees with its reserved binary slot.');
@@ -106,13 +122,45 @@ export async function publishLocalAssistanceGuidedIndex(
 		projectId: workflow.fence.projectId, projectRevision: workflow.fence.revision,
 		sequenceId: workflow.fence.sequenceId, sourceId, matrix: matrixBytes, rows, ocr,
 	});
-	await assertCurrentProject(request.currentProject, workflow.fence.projectId, workflow.fence.revision);
-	request.signal?.throwIfAborted();
+	const shotTable = workflow.workflowId === 'index-video'
+		? await loadVideoShotTable(workflow, request.readOutput, signal) : null;
+	await assertCurrentFence(request.resolveCurrentFence, workflow, signal);
+	signal.throwIfAborted();
+	if (shotTable !== null) {
+		await request.repository.save(workflow, 'shot-table', {
+			mediaType: ASSISTANCE_SHOT_TABLE_DERIVATIVE_MEDIA_TYPE, bytes: shotTable,
+		});
+	}
 	const recordValue = await request.repository.save(workflow,
 		workflow.workflowId === 'index-transcript' ? 'embeddings' : 'visual-index', {
 			mediaType: ASSISTANCE_SEMANTIC_DERIVATIVE_MEDIA_TYPE, bytes,
 		});
+	await assertCurrentFence(request.resolveCurrentFence, workflow, signal);
+	signal.throwIfAborted();
 	return Object.freeze({ outcome: 'published', record: recordValue });
+}
+
+async function loadVideoShotTable(
+	workflow: AssistanceWorkflowV1,
+	readOutput: LocalAssistanceGuidedIndexPublicationRequest['readOutput'],
+	signal: AbortSignal,
+): Promise<Uint8Array> {
+	const claim = exactOutputClaim(workflow.outputs, 'detect-shots', 'shot-boundaries');
+	const body = await readOutput({ jobId: workflow.jobId, workflowId: 'index-video', claim });
+	signal.throwIfAborted();
+	if (!(body instanceof Blob) || !SHOT_MEDIA_TYPES.has(body.type) || body.size < 1
+		|| body.size > MAXIMUM_JSON_BYTES) {
+		throw new TypeError('The Guided video shot table disagrees with its reserved JSON slot.');
+	}
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(
+			await body.arrayBuffer(),
+		)) as unknown;
+	} catch {
+		throw new TypeError('The Guided video shot table is not valid UTF-8 JSON.');
+	}
+	return createAssistanceShotTableDerivativeV1(workflow, parsed);
 }
 
 function terminalSemantic(
@@ -177,17 +225,15 @@ function selectedIds(
 	return result;
 }
 
-async function assertCurrentProject(
-	currentProject: LocalAssistanceGuidedIndexPublicationRequest['currentProject'],
-	projectId: string,
-	projectRevision: number,
+async function assertCurrentFence(
+	resolve: LocalAssistanceGuidedIndexPublicationRequest['resolveCurrentFence'],
+	workflow: AssistanceWorkflowV1,
+	signal: AbortSignal,
 ): Promise<void> {
-	const value = await currentProject();
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new TypeError('Guided index publication requires current project authority.');
-	}
-	const row = value as Readonly<Record<string, unknown>>;
-	if (row.projectId !== projectId || row.projectRevision !== projectRevision) {
+	signal.throwIfAborted();
+	const current = validateAssistanceWorkflowFenceV1(await resolve(workflow, signal));
+	signal.throwIfAborted();
+	if (JSON.stringify(current) !== JSON.stringify(workflow.fence)) {
 		throw new DOMException('The Guided index aggregate fence is stale.', 'AbortError');
 	}
 }

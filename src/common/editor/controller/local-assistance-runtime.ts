@@ -26,6 +26,12 @@ import {
 	publishLocalAssistanceGuidedIndex,
 } from './local-assistance-guided-index-publication.ts';
 import {
+	createLocalAssistanceGuidedPublicationFenceResolver,
+} from './local-assistance-guided-publication-fence.ts';
+import {
+	retainLocalAssistanceGuidedReusableDerivatives,
+} from './local-assistance-guided-reusable-derivatives.ts';
+import {
 	retainLocalAssistanceGuidedReactionScores,
 } from './local-assistance-guided-reaction-derivative.ts';
 import {
@@ -114,6 +120,22 @@ export function createLocalAssistancePreparationRuntime(
 		...selectedMediaDependencies,
 		...(assistanceVideoStore ? { videoStore: assistanceVideoStore } : {}),
 		...(resultAcceptance ? { acceptValidatedResult: resultAcceptance.acceptValidatedResult } : {}),
+	});
+	const publicationFenceResolver = createLocalAssistanceGuidedPublicationFenceResolver({
+		getProject: dependencies.getProject,
+		captureProject: dependencies.captureProject,
+		assertProject: dependencies.assertProject,
+		currentSelectionFence,
+		...(assistanceVideoStore ? {
+			currentVideoSelectionFence: () => currentVideoAuthority().fence,
+		} : {}),
+		...(assistanceStore ? {
+			loadTranscriptBody: (storageKey: string, signal: AbortSignal) => {
+				signal.throwIfAborted();
+				return assistanceStore.loadMediaAsset(storageKey);
+			},
+		} : {}),
+		selected: selectedPreparation,
 	});
 	const guidedPreparation = createLocalAssistanceGuidedWorkflowPreparation({
 		getProject: dependencies.getProject,
@@ -205,7 +227,7 @@ export function createLocalAssistancePreparationRuntime(
 				const outcome = await publishLocalAssistanceGuidedIndex({ workflow,
 					review: request.reviewedResult, selectedChoiceIds: request.selectedChoiceIds,
 					readOutput: request.readOutput, repository: dependencies.assistanceDerivativeRepository,
-					currentProject,
+					resolveCurrentFence: publicationFenceResolver.resolveCurrentFence,
 				});
 				return outcome.outcome === 'published'
 					? Object.freeze({ outcome: 'accepted' as const,
@@ -227,6 +249,16 @@ export function createLocalAssistancePreparationRuntime(
 				await retainLocalAssistanceGuidedReactionScores({ workflow,
 					readOutput: request.readOutput,
 					repository: dependencies.assistanceDerivativeRepository!, currentProject,
+				});
+			}
+			if (dependencies.assistanceDerivativeRepository
+				&& request.selectedChoiceIds.length > 0
+				&& (workflow.workflowId === 'mark-cuts' || workflow.workflowId === 'reframe'
+					|| workflow.workflowId === 'make-highlights')) {
+				await retainLocalAssistanceGuidedReusableDerivatives({ workflow,
+					review: request.reviewedResult, readOutput: request.readOutput,
+					repository: dependencies.assistanceDerivativeRepository,
+					resolveCurrentFence: publicationFenceResolver.resolveCurrentFence,
 				});
 			}
 			return await availability.session.accept(request.selectedChoiceIds);
