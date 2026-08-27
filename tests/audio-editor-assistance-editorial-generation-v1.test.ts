@@ -26,6 +26,19 @@ const EVIDENCE = Object.freeze([
 	}),
 ]);
 
+// The crop fields are insets from each edge, so a centred vertical slice trims a
+// quarter from either side and keeps the full height.
+const CENTRED_CROP = Object.freeze({ left: 0.25, top: 0, right: 0.25, bottom: 0 });
+
+// Every ranked candidate now carries the crop path its reframe stage authored, bound to
+// both exact source boundaries. The editorial plan must not read it, which is what the
+// timing-authority assertions below prove.
+function centredCrops(sourceStartFrame: number, sourceEndFrame: number) {
+	return Object.freeze([sourceStartFrame, sourceEndFrame - 1].map((sourceFrame) => Object.freeze({
+		sourceFrame, authority: 'center' as const, trackIds: Object.freeze([]), crop: CENTRED_CROP,
+	})));
+}
+
 const HIGHLIGHT_CANDIDATES = Object.freeze({
 	schemaVersion: 1,
 	kind: 'highlight-candidates',
@@ -40,6 +53,7 @@ const HIGHLIGHT_CANDIDATES = Object.freeze({
 			evidenceMode: 'transcript', transcriptExcerpt: EVIDENCE[0].transcriptExcerpt,
 			visualSummary: EVIDENCE[0].visualSummary, selected: false,
 			videoOccurrenceId: 'video-clip', audioOccurrenceId: 'audio-clip',
+			cropKeyframes: centredCrops(0, 450),
 		}),
 		Object.freeze({
 			id: 'highlight-1', startFrame: 720_000, endFrame: 1_440_000,
@@ -47,6 +61,7 @@ const HIGHLIGHT_CANDIDATES = Object.freeze({
 			evidenceMode: 'speechless', transcriptExcerpt: null,
 			visualSummary: EVIDENCE[1].visualSummary, selected: false,
 			videoOccurrenceId: 'video-clip', audioOccurrenceId: 'audio-clip',
+			cropKeyframes: centredCrops(450, 900),
 		}),
 	]),
 });

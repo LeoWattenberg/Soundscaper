@@ -113,6 +113,13 @@ async function fixture(
 }
 
 function highlightCandidatesBody(): string {
+	// The crop fields are insets from each edge, and every ranked candidate now carries the
+	// crop path its reframe stage authored, bound to both exact source boundaries.
+	const crop = { left: 0.25, top: 0, right: 0.25, bottom: 0 };
+	const crops = (sourceStartFrame: number, sourceEndFrame: number) =>
+		[sourceStartFrame, sourceEndFrame - 1].map((sourceFrame) => ({
+			sourceFrame, authority: 'center', trackIds: [], crop,
+		}));
 	return JSON.stringify({
 		schemaVersion: 1, kind: 'highlight-candidates', sourceId: 'video-source',
 		sampleRate: 48_000, sourceSize: { width: 1_920, height: 1_080 },
@@ -123,12 +130,14 @@ function highlightCandidatesBody(): string {
 			evidenceMode: 'transcript', transcriptExcerpt: EVIDENCE[0].transcriptExcerpt,
 			visualSummary: EVIDENCE[0].visualSummary, selected: false,
 			videoOccurrenceId: 'video-clip', audioOccurrenceId: 'audio-clip',
+			cropKeyframes: crops(0, 450),
 		}, {
 			id: 'candidate-b', startFrame: 720_000, endFrame: 1_440_000,
 			sourceStartFrame: 450, sourceEndFrame: 900, score: 0.8,
 			evidenceMode: 'speechless', transcriptExcerpt: null,
 			visualSummary: EVIDENCE[1].visualSummary, selected: false,
 			videoOccurrenceId: 'video-clip', audioOccurrenceId: 'audio-clip',
+			cropKeyframes: crops(450, 900),
 		}],
 	});
 }

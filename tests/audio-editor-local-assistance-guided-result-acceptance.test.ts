@@ -33,6 +33,9 @@ test('Guided caption acceptance starts unchecked, adapts absolute cues, and reva
 			model('recognize-speech', 'speech-recognizer', 'parakeet-tdt-0.6b-v3', '3.0.0')],
 		inputs: [claim('input', 'detect-speech', 'audio', 1),
 			claim('input', 'recognize-speech', 'audio', 2),
+			// Speech recognition consumes the detected voice activity, which the recipe
+			// requires the workflow to claim rather than infer from the producing stage.
+			claim('input', 'recognize-speech', 'voice-activity', 7),
 			claim('input', 'assemble-captions', 'transcript', 3)],
 		outputs: [claim('output', 'detect-speech', 'voice-activity', 4),
 			claim('output', 'recognize-speech', 'transcript', 5),
