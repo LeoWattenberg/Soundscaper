@@ -43,8 +43,11 @@ export type AssistanceWhisperCppSpawn = (
 
 export interface AssistanceWhisperCppWorkerSpawnerOptions {
 	readonly spawn?: AssistanceWhisperCppSpawn;
+	readonly terminationGraceMs?: number;
 }
 
+const DEFAULT_TERMINATION_GRACE_MS = 500;
+const MAXIMUM_TERMINATION_GRACE_MS = 1_000;
 const MAXIMUM_STDERR_BYTES = 64 * 1024;
 const MAXIMUM_TRANSCRIPT_SEGMENTS = 100_000;
 const MAXIMUM_SEGMENT_TEXT_BYTES = 16_384;
@@ -70,6 +73,7 @@ export function createAssistanceWhisperCppWorkerSpawnerV1(
 		throw new TypeError('The whisper.cpp process factory is invalid.');
 	}
 	const spawn = options.spawn ?? (nodeSpawn as unknown as AssistanceWhisperCppSpawn);
+	const terminationGraceMs = boundedTerminationGrace(options.terminationGraceMs);
 	return (job, runOptions) => {
 		if (job?.familyId !== 'whisper-cpp' || job?.task !== 'speech-recognition'
 			|| !runOptions || typeof runOptions.onProgress !== 'function') {
@@ -80,7 +84,7 @@ export function createAssistanceWhisperCppWorkerSpawnerV1(
 			job,
 			signal: controller.signal,
 			onProgress: runOptions.onProgress,
-			execute: (context) => executeWhisperCpp(context, spawn),
+			execute: (context) => executeWhisperCpp(context, spawn, terminationGraceMs),
 		});
 		let termination: Promise<void> | null = null;
 		return Object.freeze({
@@ -98,6 +102,7 @@ export function createAssistanceWhisperCppWorkerSpawnerV1(
 async function executeWhisperCpp(
 	context: AssistanceRuntimeFamilyWorkerExecutionContext,
 	spawn: AssistanceWhisperCppSpawn,
+	terminationGraceMs: number,
 ): Promise<unknown> {
 	context.signal?.throwIfAborted();
 	const grant = context.grant;
@@ -133,11 +138,12 @@ async function executeWhisperCpp(
 	let normalized: Readonly<{ language: string | null; segments: readonly unknown[] }>;
 	if (voiceActivity === undefined) {
 		const stdout = await runWhisperCli(context, spawn, model.path, input.path,
-			output.maximumByteLength);
+			output.maximumByteLength, terminationGraceMs);
 		normalized = normalizeWhisperJson(stdout, 0);
 	} else {
 		normalized = await recognizeVoiceActivityRanges(
 			context, spawn, input.path, voiceActivity.path, model.path, output.maximumByteLength,
+			terminationGraceMs,
 		);
 	}
 	context.signal?.throwIfAborted();
@@ -170,6 +176,7 @@ async function recognizeVoiceActivityRanges(
 	voiceActivityPath: string,
 	modelPath: string,
 	maximumOutputBytes: number,
+	terminationGraceMs: number,
 ): Promise<Readonly<{ language: string | null; segments: readonly unknown[] }>> {
 	const geometry = await inspectAssistanceSpeechWaveV1(audioPath, context.signal);
 	const activity = await readAssistanceVoiceActivityInputV1(
@@ -188,7 +195,7 @@ async function recognizeVoiceActivityRanges(
 			context.signal?.throwIfAborted();
 			await writeSpeechSegmentWave(audioPath, segmentPath, range, context.signal);
 			const stdout = await runWhisperCli(
-				context, spawn, modelPath, segmentPath, maximumOutputBytes,
+				context, spawn, modelPath, segmentPath, maximumOutputBytes, terminationGraceMs,
 			);
 			const normalized = normalizeWhisperJson(
 				stdout, range.startSample / geometry.sampleRate,
@@ -215,6 +222,7 @@ async function runWhisperCli(
 	modelPath: string,
 	audioPath: string,
 	maximumOutputBytes: number,
+	terminationGraceMs: number,
 ): Promise<Uint8Array> {
 	return runCli({
 		spawn,
@@ -226,6 +234,7 @@ async function runWhisperCli(
 			'--language', 'auto', '--threads', '4',
 		]),
 		maximumStdoutBytes: maximumOutputBytes,
+		terminationGraceMs,
 		signal: context.signal,
 	});
 }
@@ -302,6 +311,7 @@ async function runCli(options: Readonly<{
 	executable: string;
 	args: readonly string[];
 	maximumStdoutBytes: number;
+	terminationGraceMs: number;
 	signal?: AbortSignal;
 }>): Promise<Uint8Array> {
 	options.signal?.throwIfAborted();
@@ -319,71 +329,94 @@ async function runCli(options: Readonly<{
 		let stdoutBytes = 0;
 		let stderrBytes = 0;
 		let settled = false;
-		let aborted = false;
+		let terminating = false;
+		let terminalError: Error | null = null;
+		let forceKillTimer: ReturnType<typeof setTimeout> | null = null;
 		const abort = (): void => {
-			if (settled || aborted) return;
-			aborted = true;
-			try { child.kill('SIGTERM'); }
-			catch (error) { fail(new Error('The whisper.cpp CLI could not be terminated.', { cause: error })); }
+			stop(options.signal?.reason instanceof Error
+				? options.signal.reason
+				: new DOMException('The whisper.cpp CLI was cancelled.', 'AbortError'));
 		};
-		const fail = (error: Error): void => {
+		const finish = (error: Error | null, result?: Uint8Array): void => {
 			if (settled) return;
 			settled = true;
+			if (forceKillTimer !== null) clearTimeout(forceKillTimer);
 			options.signal?.removeEventListener('abort', abort);
-			try { if (!aborted) child.kill('SIGTERM'); } catch { /* Preserve the primary failure. */ }
-			reject(error);
+			if (error) reject(error); else resolve(result!);
+		};
+		const forceKill = (): void => {
+			if (settled) return;
+			try { child.kill('SIGKILL'); }
+			catch (error) {
+				terminalError ??= new Error('The whisper.cpp CLI could not be force-terminated.', {
+					cause: error,
+				});
+			}
+			finish(terminalError ?? new Error('The whisper.cpp CLI was force-terminated.'));
+		};
+		const stop = (error: Error): void => {
+			if (settled || terminating) return;
+			terminating = true;
+			terminalError = error;
+			forceKillTimer = setTimeout(forceKill, options.terminationGraceMs);
+			try { child.kill('SIGTERM'); }
+			catch { forceKill(); }
 		};
 		options.signal?.addEventListener('abort', abort, { once: true });
 		child.stdout.on('data', (value) => {
-			if (settled) return;
+			if (settled || terminating) return;
 			let bytes: Uint8Array;
 			try { bytes = bytesFrom(value); }
 			catch (error) {
-				fail(new TypeError('The whisper.cpp stdout stream is invalid.', { cause: error }));
+				stop(new TypeError('The whisper.cpp stdout stream is invalid.', { cause: error }));
 				return;
 			}
 			stdoutBytes += bytes.byteLength;
 			if (stdoutBytes > options.maximumStdoutBytes) {
-				fail(new RangeError('The whisper.cpp stdout exceeded its authenticated output bound.'));
+				stop(new RangeError('The whisper.cpp stdout exceeded its authenticated output bound.'));
 				return;
 			}
 			stdout.push(bytes);
 		});
 		child.stderr.on('data', (value) => {
-			if (settled) return;
+			if (settled || terminating) return;
 			try { stderrBytes += bytesFrom(value).byteLength; }
 			catch (error) {
-				fail(new TypeError('The whisper.cpp diagnostic stream is invalid.', { cause: error }));
+				stop(new TypeError('The whisper.cpp diagnostic stream is invalid.', { cause: error }));
 				return;
 			}
 			if (stderrBytes > MAXIMUM_STDERR_BYTES) {
-				fail(new RangeError('The whisper.cpp diagnostic output exceeded its bound.'));
+				stop(new RangeError('The whisper.cpp diagnostic output exceeded its bound.'));
 			}
 		});
 		child.once('error', (error) => {
-			fail(new Error('The authenticated whisper.cpp CLI failed to execute.', { cause: error }));
+			stop(new Error('The authenticated whisper.cpp CLI failed to execute.', { cause: error }));
 		});
 		child.once('close', (code, processSignal) => {
 			if (settled) return;
-			settled = true;
-			options.signal?.removeEventListener('abort', abort);
-			if (aborted || options.signal?.aborted) {
-				reject(options.signal?.reason instanceof Error
-					? options.signal.reason
-					: new DOMException('The whisper.cpp CLI was cancelled.', 'AbortError'));
+			if (terminating) {
+				finish(terminalError ?? new Error('The whisper.cpp CLI was terminated.'));
 				return;
 			}
 			if (code !== 0 || processSignal !== null) {
-				reject(new Error('The authenticated whisper.cpp CLI did not complete successfully.'));
+				finish(new Error('The authenticated whisper.cpp CLI did not complete successfully.'));
 				return;
 			}
 			const result = new Uint8Array(stdoutBytes);
 			let offset = 0;
 			for (const chunk of stdout) { result.set(chunk, offset); offset += chunk.byteLength; }
-			resolve(result);
+			finish(null, result);
 		});
 		if (options.signal?.aborted) abort();
 	});
+}
+
+function boundedTerminationGrace(value: number | undefined): number {
+	const admitted = value ?? DEFAULT_TERMINATION_GRACE_MS;
+	if (!Number.isSafeInteger(admitted) || admitted < 1 || admitted > MAXIMUM_TERMINATION_GRACE_MS) {
+		throw new RangeError('The whisper.cpp termination grace is invalid.');
+	}
+	return admitted;
 }
 
 function inspectChild(value: AssistanceWhisperCppChild): AssistanceWhisperCppChild {

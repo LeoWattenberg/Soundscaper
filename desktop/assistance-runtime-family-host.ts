@@ -366,12 +366,19 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 	): void {
 		if (expectedTerminations.delete(process)) return;
 		if (slot.process === process) slot.process = null;
-		slot.crashes.record();
 		const active = slot.active;
 		if (active?.process === process) {
+			if (active.cancelling) {
+				settle(slot, active, failure('cancellation-timeout', active.request,
+					`${slot.familyId} exited while its worker cancellation was being contained.`));
+				return;
+			}
+			slot.crashes.record();
 			settle(slot, active, failure('runtime-exit', active.request,
 				`${slot.familyId} exited unexpectedly with code ${String(code)}.`));
+			return;
 		}
+		slot.crashes.record();
 	}
 
 	async function cancelActive(slot: FamilySlot): Promise<void> {
@@ -379,20 +386,25 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 		if (!active || active.settled || active.cancelling) return;
 		active.cancelling = true;
 		let deadline: ReturnType<typeof setTimeout> | null = null;
+		let containment: Promise<boolean> | null = null;
+		const containProcess = (): Promise<boolean> => {
+			containment ??= terminateProcess(slot, active.process);
+			return containment;
+		};
 		const timedOut = new Promise<'timeout'>((resolve) => {
 			deadline = setTimeoutImpl(() => { resolve('timeout'); }, cancellationBudgetMs);
 		});
 		const workerStopped = Promise.resolve().then(() => active.worker.terminate()).then(
 			() => 'worker' as const,
-			async () => { await terminateProcess(slot, active.process); return 'process' as const; },
+			async () => await containProcess() ? 'process' as const : 'timeout' as const,
 		);
 		const outcome = await Promise.race([workerStopped, timedOut]);
 		if (deadline) clearTimeoutImpl(deadline);
 		if (active.settled) return;
 		if (outcome === 'timeout') {
-			await terminateProcess(slot, active.process);
+			void containProcess();
 			settle(slot, active, failure('cancellation-timeout', active.request,
-				'The runtime-family worker missed its cancellation deadline and its process was terminated.'));
+				'The runtime-family worker missed its cancellation deadline and its process kill was issued.'));
 			return;
 		}
 		settle(slot, active, failure('cancelled', active.request,
@@ -424,11 +436,11 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 	async function terminateProcess(
 		slot: FamilySlot,
 		process: AssistanceRuntimeFamilyProcess,
-	): Promise<void> {
+	): Promise<boolean> {
 		expectedTerminations.add(process);
 		if (slot.process === process) slot.process = null;
-		try { await process.terminate(); }
-		catch { /* The caller retains the typed containment failure. */ }
+		try { await process.terminate(); return true; }
+		catch { return false; }
 	}
 
 	function settle(slot: FamilySlot, active: ActiveJob, error: Error | null, value?: unknown): void {

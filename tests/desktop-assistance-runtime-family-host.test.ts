@@ -68,6 +68,7 @@ class FakeProcess implements AssistanceRuntimeFamilyProcess {
 	readonly workers: FakeWorker[] = [];
 	terminations = 0;
 	rss = 0;
+	terminateImpl: () => Promise<void> = () => Promise.resolve();
 	#exit: ((code: number | null) => void) | null = null;
 	constructor(familyId: AssistanceRuntimeFamilyId) {
 		this.familyId = familyId;
@@ -82,7 +83,7 @@ class FakeProcess implements AssistanceRuntimeFamilyProcess {
 	}
 	onExit(listener: (code: number | null) => void): void { this.#exit = listener; }
 	sampleRss(): number | null { return this.rss; }
-	terminate(): Promise<void> { this.terminations += 1; return Promise.resolve(); }
+	terminate(): Promise<void> { this.terminations += 1; return this.terminateImpl(); }
 	exit(code: number | null): void { this.#exit?.(code); }
 }
 
@@ -247,6 +248,20 @@ test('a worker that misses cancellation is contained by family process terminati
 	router.dispose();
 });
 
+test('one cancellation deadline settles even when neither worker nor family process terminates', async () => {
+	const { router, processes } = harness({ cancellationBudgetMs: 10 });
+	const controller = new AbortController();
+	const result = router.run(request(), { signal: controller.signal });
+	await until(() => processes['onnxruntime-node'][0]?.workers.length === 1);
+	const process = processes['onnxruntime-node'][0]!;
+	process.workers[0]!.terminateImpl = () => new Promise(() => undefined);
+	process.terminateImpl = () => new Promise(() => undefined);
+	controller.abort();
+	await assert.rejects(within(result, 100), typed('cancellation-timeout'));
+	assert.equal(process.terminations, 1);
+	router.dispose();
+});
+
 test('RSS violations terminate only that family process', async () => {
 	const { router, processes } = harness({ rssPollIntervalMs: 2 });
 	const result = router.run({ ...request(), maximumRssBytes: 64 * 1024 ** 2 });
@@ -288,4 +303,13 @@ async function until(predicate: () => boolean): Promise<void> {
 		await new Promise((resolve) => { setTimeout(resolve, 1); });
 	}
 	assert.fail('The runtime-family test condition was not reached.');
+}
+
+async function within<T>(promise: Promise<T>, milliseconds: number): Promise<T> {
+	return await Promise.race([
+		promise,
+		new Promise<never>((_resolve, reject) => {
+			setTimeout(() => reject(new Error('The runtime-family cancellation did not settle.')), milliseconds);
+		}),
+	]);
 }

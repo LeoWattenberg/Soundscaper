@@ -130,6 +130,18 @@ test('per-job termination waits for worker-terminated without killing the reusab
 	assert.equal(child.kills, 0);
 });
 
+test('termination kills and settles when a worker never acknowledges and its process never exits', async () => {
+	const rig = harness({ killWaitMs: 5 });
+	const { process, child } = await spawnReady(rig);
+	child.emitExitOnKill = false;
+	const job = process.startWorker({ ...request(), descriptor: descriptor() }, {});
+	await assert.rejects(job.terminate(), /termination|deadline/iu);
+	await assert.rejects(job.completion, /termination|deadline/iu);
+	assert.equal(child.kills, 1, 'the missing worker acknowledgement kills its family process');
+	await assert.rejects(process.terminate(), /kill deadline/iu);
+	assert.equal(child.kills, 2, 'process termination retries the kill before its bounded failure');
+});
+
 test('malformed or stale child messages kill the family process and reject active work', async () => {
 	const rig = harness();
 	const { process, child } = await spawnReady(rig);

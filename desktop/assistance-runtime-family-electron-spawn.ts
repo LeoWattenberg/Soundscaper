@@ -55,6 +55,7 @@ interface ActiveJob {
 	expectedSequence: number;
 	terminating: boolean;
 	termination: Promise<void> | null;
+	terminationTimer: ReturnType<typeof setTimeout> | null;
 	resolveTermination: (() => void) | null;
 	rejectTermination: ((error: Error) => void) | null;
 }
@@ -202,7 +203,8 @@ async function spawnFamily(
 		const job: ActiveJob = {
 			request, onProgress: runOptions?.onProgress, completion, resolve, reject,
 			settled: false, expectedSequence: 0, terminating: false,
-			termination: null, resolveTermination: null, rejectTermination: null,
+			termination: null, terminationTimer: null,
+			resolveTermination: null, rejectTermination: null,
 		};
 		active = job;
 		try {
@@ -225,6 +227,9 @@ async function spawnFamily(
 		job.termination = new Promise<void>((resolve, reject) => {
 			job.resolveTermination = resolve; job.rejectTermination = reject;
 		});
+		job.terminationTimer = setTimeoutImpl(() => {
+			fault(new Error(`The ${familyId} worker missed its termination acknowledgement deadline.`));
+		}, killWaitMs);
 		try {
 			child.postMessage(validateAssistanceRuntimeFamilyHostMessageV1({
 				protocolVersion: 1, type: 'terminate-worker', jobId: job.request.jobId,
@@ -238,6 +243,7 @@ async function spawnFamily(
 	function settleJob(job: ActiveJob, error: Error | null, result?: unknown): void {
 		if (job.settled) return;
 		job.settled = true;
+		clearTerminationTimer(job);
 		if (active === job) active = null;
 		if (error) {
 			job.reject(error);
@@ -248,29 +254,36 @@ async function spawnFamily(
 	function settleTerminated(job: ActiveJob): void {
 		if (job.settled) return;
 		job.settled = true;
+		clearTerminationTimer(job);
 		if (active === job) active = null;
 		job.reject(new DOMException('The runtime-family worker was terminated.', 'AbortError'));
 		job.resolveTermination?.();
+	}
+
+	function clearTerminationTimer(job: ActiveJob): void {
+		if (job.terminationTimer === null) return;
+		clearTimeoutImpl(job.terminationTimer);
+		job.terminationTimer = null;
 	}
 
 	function terminateProcess(): Promise<void> {
 		if (exited) return Promise.resolve();
 		if (processTermination) return processTermination;
 		processTermination = new Promise<void>((resolveTermination, rejectTermination) => {
-			const waiter = Object.freeze({ resolve: resolveTermination, reject: rejectTermination });
-			exitWaiters.add(waiter);
+			let waiter: Readonly<{ resolve(): void; reject(error: Error): void }>;
 			const timer = setTimeoutImpl(() => {
 				exitWaiters.delete(waiter);
 				rejectTermination(new Error(`The ${familyId} utility process missed its kill deadline.`));
 			}, killWaitMs);
-			const wrapped = Object.freeze({
-				resolve: () => { clearTimeoutImpl(timer); resolveTermination(); },
-				reject: (error: Error) => { clearTimeoutImpl(timer); rejectTermination(error); },
+			waiter = Object.freeze({
+				resolve: () => { clearTimeoutImpl(timer); exitWaiters.delete(waiter); resolveTermination(); },
+				reject: (error: Error) => {
+					clearTimeoutImpl(timer); exitWaiters.delete(waiter); rejectTermination(error);
+				},
 			});
-			exitWaiters.delete(waiter);
-			exitWaiters.add(wrapped);
+			exitWaiters.add(waiter);
 			try { child.kill(); }
-			catch (error) { wrapped.reject(new Error(errorMessage(error))); }
+			catch (error) { waiter.reject(new Error(errorMessage(error))); }
 		});
 		return processTermination;
 	}

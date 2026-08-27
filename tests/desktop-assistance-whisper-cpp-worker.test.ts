@@ -32,7 +32,7 @@ class FakeChild extends EventEmitter implements AssistanceWhisperCppChild {
 	readonly stdout = new PassThrough();
 	readonly stderr = new PassThrough();
 	killed = false;
-	kill(): boolean {
+	kill(_signal?: NodeJS.Signals): boolean {
 		this.killed = true;
 		queueMicrotask(() => this.emit('close', null, 'SIGTERM'));
 		return true;
@@ -236,6 +236,41 @@ test('termination kills and quiesces the exact CLI child', async (context) => {
 	assert.equal(child.killed, true);
 	await assert.rejects(worker.completion, /abort|terminated|cancel/iu);
 });
+
+test('termination escalates to SIGKILL when the CLI ignores SIGTERM', async (context) => {
+	const { job } = await fixture(context);
+	const signals: NodeJS.Signals[] = [];
+	let spawned = false;
+	const spawn: AssistanceWhisperCppSpawn = () => {
+		spawned = true;
+		const child = new FakeChild();
+		child.kill = (signal: NodeJS.Signals = 'SIGTERM') => {
+			signals.push(signal);
+			if (signal === 'SIGKILL') queueMicrotask(() => child.emit('close', null, signal));
+			return true;
+		};
+		return child;
+	};
+	const worker = createAssistanceWhisperCppWorkerSpawnerV1({
+		spawn, terminationGraceMs: 5,
+	})(job, { onProgress: () => undefined });
+	for (let attempt = 0; !spawned && attempt < 100; attempt += 1) {
+		await new Promise((resolve) => setTimeout(resolve, 1));
+	}
+	assert.equal(spawned, true);
+	await within(worker.terminate(), 100);
+	await assert.rejects(worker.completion, /abort|terminated|cancel/iu);
+	assert.deepEqual(signals, ['SIGTERM', 'SIGKILL']);
+});
+
+async function within<T>(promise: Promise<T>, milliseconds: number): Promise<T> {
+	return await Promise.race([
+		promise,
+		new Promise<never>((_resolve, reject) => {
+			setTimeout(() => reject(new Error('The whisper.cpp worker did not terminate.')), milliseconds);
+		}),
+	]);
+}
 
 function floatWave(sampleCount: number): Uint8Array {
 	const bytes = new Uint8Array(44 + sampleCount * 4);
