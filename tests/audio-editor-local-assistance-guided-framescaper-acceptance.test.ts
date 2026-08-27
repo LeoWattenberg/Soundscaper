@@ -12,6 +12,10 @@ import {
 	setLocalAssistanceGuidedHighlightTitleV1,
 } from '../src/common/editor/controller/local-assistance-guided-highlight-edits.ts';
 import {
+	createLocalAssistanceGuidedReframeDraftV1,
+	setLocalAssistanceGuidedReframeCropV1,
+} from '../src/common/editor/controller/local-assistance-guided-reframe-edits.ts';
+import {
 	assistanceWorkflowModelBindingsSha256V1,
 	assistanceWorkflowRecipeSha256V1,
 	type AssistanceWorkflowModelBindingV1,
@@ -56,6 +60,33 @@ test('Guided Reframe keeps its path unchecked and revalidates before exact publi
 	current = { ...current, revision: current.revision + 1 };
 	await assert.rejects(stale.session.accept(['reframe-path']), /stale|no longer matches/iu);
 	assert.equal(calls.length, 1);
+});
+
+test('Guided Reframe publishes only bounded transient crop edits', async () => {
+	const workflow = reframeWorkflow();
+	const result = reframeResult();
+	const held = reviewed(workflow, 'plan-crops', 'reframe-path', result,
+		[{ id: 'reframe-path', kind: 'reframe', label: '9:16 crop path' }]);
+	const draft = setLocalAssistanceGuidedReframeCropV1(
+		createLocalAssistanceGuidedReframeDraftV1(result), 0,
+		{ left: 0.2, top: 0, right: 0.48359375, bottom: 0 },
+	);
+	const calls: unknown[] = [];
+	const ready = createLocalAssistanceGuidedResultAcceptance({
+		currentSelectionFence: () => primitiveFence(workflow),
+		acceptReframeResult: async (request) => { calls.push(request); },
+	}).createAcceptanceSession({ workflow, reviewedResult: held, reframeDraft: draft });
+	assert.equal(ready.outcome, 'ready');
+	if (ready.outcome !== 'ready') return;
+	await ready.session.accept(['reframe-path']);
+	assert.deepEqual((calls[0] as { result: ReturnType<typeof reframeResult> }).result
+		.path.keyframes[0]?.crop, draft.path.keyframes[0]?.crop);
+	assert.throws(() => createLocalAssistanceGuidedResultAcceptance({
+		currentSelectionFence: () => primitiveFence(workflow),
+		acceptReframeResult: async () => undefined,
+	}).createAcceptanceSession({ workflow, reviewedResult: held,
+		reframeDraft: { ...draft, authority: { ...draft.authority, timescale: 30 } } }),
+	/authority/iu);
 });
 
 test('Guided Highlights forwards only the explicit initially-unselected proposal subset', async () => {
@@ -241,6 +272,7 @@ function highlight(id: string, startFrame: number, endFrame: number,
 		score: 0.8, evidenceMode: 'transcript', transcriptExcerpt: 'Exact transcript evidence.',
 		visualSummary: 'Exact visual evidence.', selected: false,
 		videoOccurrenceId: 'video-occurrence', audioOccurrenceId: 'audio-occurrence', title: id,
+		hook: null, chapters: [], explanation: null,
 		cropKeyframes: [cropKeyframe(sourceStartFrame, 0.341796875),
 			cropKeyframe(lastSourceFrame, 0.341796875)] };
 }

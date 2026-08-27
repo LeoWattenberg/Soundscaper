@@ -2,21 +2,33 @@
 
 /** Lazy Guided review surface; every admitted choice begins unchecked. */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react';
 
 import type {
 	LocalAssistanceGuidedReviewedResult,
 } from '../local-assistance-guided-result-review.ts';
 import type { AssistanceOwnedHighlightProposalsV1 } from
 	'../../assistance/owned-video-highlight-transform-types-v1.ts';
+import type { AssistanceOwnedReframePathV1 } from
+	'../../assistance/owned-video-highlight-transform-types-v1.ts';
+import { createLocalAssistanceCleanupAuditionWave } from
+	'../local-assistance-cleanup-audition.ts';
 
 type Copy = Readonly<Record<string, string | undefined>>;
+type ReviewCrop = Readonly<{ left: number; top: number; right: number; bottom: number }>;
 
 export interface LocalAssistanceGuidedReviewProps {
 	readonly copy: Copy;
 	readonly review: LocalAssistanceGuidedReviewedResult;
 	readonly selectedChoiceIds: readonly string[];
 	readonly onChoiceChange: (choiceId: string, selected: boolean) => unknown;
+	readonly auditionAudio?: Blob | null;
+	readonly auditionSourceStartFrame?: number | null;
+	readonly auditionSourceSampleRate?: number | null;
+	readonly previewVideo?: Blob | null;
+	readonly reframeDraft?: AssistanceOwnedReframePathV1 | null;
+	readonly onReframeCropChange?: (sourceFrame: number,
+		crop: Readonly<{ left: number; top: number; right: number; bottom: number }>) => unknown;
 	readonly highlightDraft?: AssistanceOwnedHighlightProposalsV1 | null;
 	readonly onHighlightTitleChange?: (proposalId: string, title: string) => unknown;
 	readonly onHighlightTrimChange?: (
@@ -27,7 +39,10 @@ export interface LocalAssistanceGuidedReviewProps {
 }
 
 export default function LocalAssistanceGuidedReview({
-	copy, review, selectedChoiceIds, onChoiceChange, highlightDraft,
+	copy, review, selectedChoiceIds, onChoiceChange, auditionAudio = null, previewVideo = null,
+	auditionSourceStartFrame = null, auditionSourceSampleRate = null,
+	reframeDraft, highlightDraft,
+	onReframeCropChange = () => undefined,
 	onHighlightTitleChange = () => undefined,
 	onHighlightTrimChange = () => undefined,
 	onHighlightCropChange = () => undefined,
@@ -39,10 +54,23 @@ export default function LocalAssistanceGuidedReview({
 		<p>{review.outputs.map(({ slotId, byteLength }) => (
 			`${slotId} · ${String(byteLength)} bytes`
 		)).join(' · ')}</p>
+		{auditionAudio === null ? null : <AudioAudition body={auditionAudio}
+			label={text(copy, 'localAssistanceOriginalSelection', 'Original selection')}
+			skipRanges={cleanupSkipRanges(review, selectedChoiceIds,
+				auditionSourceStartFrame, auditionSourceSampleRate)} />}
+		{review.workflowId === 'clean-filler-silence' && auditionAudio !== null
+			? <p>{text(copy, 'localAssistanceCleanupAudition',
+				'Audition skips checked ranges without changing the project.')}</p> : null}
 		{review.outputs.filter(({ mediaType }) => mediaType === 'audio/wav').map((output) =>
 			<AudioAudition key={output.claim.claimId} body={output.body} label={output.slotId} />)}
+		{review.workflowId === 'make-highlights' && previewVideo !== null
+			? <VideoTransport body={previewVideo}
+				label={text(copy, 'localAssistanceHighlightTransportPreview', 'Transport preview')} />
+			: null}
 		{review.workflowId === 'generate-editorial-text'
 			? <EditorialProposals review={review} /> : null}
+		{review.workflowId === 'reframe' && reframeDraft
+			? <ReframePath copy={copy} draft={reframeDraft} onCrop={onReframeCropChange} /> : null}
 		{review.workflowId === 'make-highlights' && highlightDraft
 			? <HighlightProposals copy={copy} draft={highlightDraft} onTitle={onHighlightTitleChange}
 				onTrim={onHighlightTrimChange} onCrop={onHighlightCropChange} /> : null}
@@ -59,6 +87,124 @@ export default function LocalAssistanceGuidedReview({
 	</section>;
 }
 
+function ReframePath({ copy, draft, onCrop }: Readonly<{
+	copy: Copy;
+	draft: AssistanceOwnedReframePathV1;
+	onCrop: (sourceFrame: number,
+		crop: Readonly<{ left: number; top: number; right: number; bottom: number }>) => unknown;
+}>) {
+	const [keyframeIndex, setKeyframeIndex] = useState(0);
+	const keyframe = draft.path.keyframes[keyframeIndex]!;
+	return <div className="kw-local-assistance__reframe-path">
+		<p>{text(copy, 'localAssistanceReframeTargetAspect', 'Target aspect')}:{' '}
+			{String(draft.path.targetAspect.width)}:{String(draft.path.targetAspect.height)}</p>
+		<p>{text(copy, 'localAssistanceReframeKeyframePosition', 'Keyframe')} {' '}
+			{String(keyframeIndex + 1)} / {String(draft.path.keyframes.length)}</p>
+		<div className="kw-local-assistance__reframe-navigation">
+			<button type="button" disabled={keyframeIndex === 0}
+				onClick={() => setKeyframeIndex((index) => Math.max(0, index - 1))}>
+				{text(copy, 'localAssistancePreviousKeyframe', 'Previous keyframe')}
+			</button>
+			<button type="button" disabled={keyframeIndex === draft.path.keyframes.length - 1}
+				onClick={() => setKeyframeIndex((index) => Math.min(
+					draft.path.keyframes.length - 1, index + 1,
+				))}>{text(copy, 'localAssistanceNextKeyframe', 'Next keyframe')}</button>
+		</div>
+		<fieldset key={keyframe.sourceFrame}>
+			<legend>{text(copy, 'localAssistanceReframeCropKeyframe', 'Crop keyframe')}{' '}
+				{String(keyframe.sourceFrame)}</legend>
+			<DraggableCropOverlay crop={keyframe.crop}
+				label={text(copy, 'localAssistanceReframeCropOverlay', 'Draggable crop overlay')}
+				onCrop={(crop) => onCrop(keyframe.sourceFrame, crop)} />
+			<label>{text(copy, 'localAssistanceReframeHorizontalPosition', 'Horizontal position')}
+				<input type="range" min={0} max={positionMaximum(keyframe.crop, 'horizontal')}
+					step={0.001} value={keyframe.crop.left} onChange={(event) => {
+						const left = Number(event.currentTarget.value);
+						const width = 1 - keyframe.crop.left - keyframe.crop.right;
+						void onCrop(keyframe.sourceFrame, { ...keyframe.crop,
+							left, right: 1 - width - left });
+					}} /></label>
+			<label>{text(copy, 'localAssistanceReframeVerticalPosition', 'Vertical position')}
+				<input type="range" min={0} max={positionMaximum(keyframe.crop, 'vertical')}
+					step={0.001} value={keyframe.crop.top} onChange={(event) => {
+						const top = Number(event.currentTarget.value);
+						const height = 1 - keyframe.crop.top - keyframe.crop.bottom;
+						void onCrop(keyframe.sourceFrame, { ...keyframe.crop,
+							top, bottom: 1 - height - top });
+					}} /></label>
+		</fieldset>
+	</div>;
+}
+
+function positionMaximum(
+	crop: ReviewCrop,
+	direction: 'horizontal' | 'vertical',
+): number {
+	const extent = direction === 'horizontal'
+		? 1 - crop.left - crop.right : 1 - crop.top - crop.bottom;
+	return Math.max(0, Math.floor((1 - extent) * 1_000) / 1_000);
+}
+
+function DraggableCropOverlay({ crop, label, onCrop }: Readonly<{
+	crop: ReviewCrop;
+	label: string;
+	onCrop: (crop: ReviewCrop) => unknown;
+}>) {
+	const move = (event: ReactPointerEvent<HTMLDivElement>): void => {
+		const bounds = event.currentTarget.getBoundingClientRect();
+		if (bounds.width <= 0 || bounds.height <= 0) return;
+		const width = 1 - crop.left - crop.right;
+		const height = 1 - crop.top - crop.bottom;
+		const left = boundedPosition((event.clientX - bounds.left) / bounds.width - width / 2, width);
+		const top = boundedPosition((event.clientY - bounds.top) / bounds.height - height / 2, height);
+		void onCrop({ left, top, right: unit(1 - width - left), bottom: unit(1 - height - top) });
+	};
+	return <div className="kw-local-assistance__crop-overlay" aria-label={label}
+		onPointerDown={(event) => {
+			event.currentTarget.setPointerCapture(event.pointerId);
+			move(event);
+		}}
+		onPointerMove={(event) => {
+			if (event.currentTarget.hasPointerCapture(event.pointerId)) move(event);
+		}}
+		onPointerUp={(event) => event.currentTarget.releasePointerCapture(event.pointerId)}
+		style={{ paddingLeft: `${String(crop.left * 100)}%`,
+			paddingRight: `${String(crop.right * 100)}%`,
+			paddingTop: `${String(crop.top * 100)}%`,
+			paddingBottom: `${String(crop.bottom * 100)}%` }}><span /></div>;
+}
+
+function CropPositionControls({ copy, crop, onCrop }: Readonly<{
+	copy: Copy;
+	crop: ReviewCrop;
+	onCrop: (crop: ReviewCrop) => unknown;
+}>) {
+	return <>
+		<label>{text(copy, 'localAssistanceReframeHorizontalPosition', 'Horizontal position')}
+			<input type="range" min={0} max={positionMaximum(crop, 'horizontal')}
+				step={0.001} value={crop.left} onChange={(event) => {
+					const left = Number(event.currentTarget.value);
+					const width = 1 - crop.left - crop.right;
+					void onCrop({ ...crop, left, right: 1 - width - left });
+				}} /></label>
+		<label>{text(copy, 'localAssistanceReframeVerticalPosition', 'Vertical position')}
+			<input type="range" min={0} max={positionMaximum(crop, 'vertical')}
+				step={0.001} value={crop.top} onChange={(event) => {
+					const top = Number(event.currentTarget.value);
+					const height = 1 - crop.top - crop.bottom;
+					void onCrop({ ...crop, top, bottom: 1 - height - top });
+				}} /></label>
+	</>;
+}
+
+function boundedPosition(value: number, extent: number): number {
+	return unit(Math.min(1 - extent, Math.max(0, value)));
+}
+
+function unit(value: number): number {
+	return Math.round(value * 1_000_000_000) / 1_000_000_000;
+}
+
 function HighlightProposals({ copy, draft, onTitle, onTrim, onCrop }: Readonly<{
 	copy: Copy;
 	draft: AssistanceOwnedHighlightProposalsV1;
@@ -73,6 +219,15 @@ function HighlightProposals({ copy, draft, onTitle, onTrim, onCrop }: Readonly<{
 			<label>{text(copy, 'localAssistanceHighlightTitle', 'Title')}<input type="text"
 				key={proposal.title} defaultValue={proposal.title} minLength={1} maxLength={160} required
 				onBlur={(event) => { void onTitle(proposal.id, event.currentTarget.value); }} /></label>
+			{proposal.hook === null ? null : <p><strong>
+				{text(copy, 'localAssistanceHighlightHook', 'Hook')}:</strong> {proposal.hook}</p>}
+			{proposal.chapters.length === 0 ? null : <div><strong>
+				{text(copy, 'localAssistanceHighlightChapters', 'Chapters')}:</strong><ol>
+				{proposal.chapters.map((chapter) => <li key={chapter}>{chapter}</li>)}
+			</ol></div>}
+			{proposal.explanation === null ? null : <p><strong>
+				{text(copy, 'localAssistanceHighlightExplanation', 'Explanation')}:</strong>{' '}
+				{proposal.explanation}</p>}
 			<div className="kw-local-assistance__highlight-trim">
 				<label>{text(copy, 'localAssistanceHighlightStartFrame', 'Start frame')}
 					<input type="number" key={`start:${String(proposal.startFrame)}`}
@@ -96,20 +251,11 @@ function HighlightProposals({ copy, draft, onTitle, onTrim, onCrop }: Readonly<{
 			{proposal.cropKeyframes.map((keyframe) => <fieldset key={keyframe.sourceFrame}>
 				<legend>{text(copy, 'localAssistanceHighlightCropKeyframe', 'Crop keyframe')}{' '}
 					{String(keyframe.sourceFrame)}</legend>
-				<div className="kw-local-assistance__crop-overlay"
-					aria-label={text(copy, 'localAssistanceHighlightCropOverlay', 'Draggable crop overlay')}
-					style={{ paddingLeft: `${String(keyframe.crop.left * 100)}%`,
-						paddingRight: `${String(keyframe.crop.right * 100)}%`,
-						paddingTop: `${String(keyframe.crop.top * 100)}%`,
-						paddingBottom: `${String(keyframe.crop.bottom * 100)}%` }}><span /></div>
-				{(['left', 'top', 'right', 'bottom'] as const).map((edge) => <label key={edge}>
-					{text(copy, `localAssistanceHighlightCrop${edge}`, edge)}
-					<input type="range" min={0} max={cropMaximum(keyframe.crop, edge)} step={0.001}
-						value={keyframe.crop[edge]} onChange={(event) => { void onCrop(
-							proposal.id, keyframe.sourceFrame,
-							{ ...keyframe.crop, [edge]: Number(event.currentTarget.value) },
-						); }} />
-				</label>)}
+				<DraggableCropOverlay crop={keyframe.crop}
+					label={text(copy, 'localAssistanceHighlightCropOverlay', 'Draggable crop overlay')}
+					onCrop={(crop) => onCrop(proposal.id, keyframe.sourceFrame, crop)} />
+				<CropPositionControls copy={copy} crop={keyframe.crop}
+					onCrop={(crop) => onCrop(proposal.id, keyframe.sourceFrame, crop)} />
 			</fieldset>)}
 		</article>)}
 	</div>;
@@ -120,13 +266,6 @@ function trimStep(proposal: AssistanceOwnedHighlightProposalsV1['proposals'][num
 	const source = proposal.sourceEndFrame - proposal.sourceStartFrame;
 	const value = timeline / source;
 	return Number.isSafeInteger(value) && value > 0 ? value : 1;
-}
-
-function cropMaximum(crop: Readonly<{ left: number; top: number; right: number; bottom: number }>,
-	edge: 'left' | 'top' | 'right' | 'bottom'): number {
-	const opposite = edge === 'left' ? crop.right : edge === 'right' ? crop.left
-		: edge === 'top' ? crop.bottom : crop.top;
-	return Math.max(0, Math.floor((0.999 - opposite) * 1_000) / 1_000);
 }
 
 interface EditorialCandidate {
@@ -172,14 +311,82 @@ function nullableString(value: unknown): value is string | null {
 	return value === null || typeof value === 'string';
 }
 
-function AudioAudition({ body, label }: Readonly<{ body: Blob; label: string }>) {
+function cleanupSkipRanges(
+	review: LocalAssistanceGuidedReviewedResult,
+	selectedIds: readonly string[],
+	sourceStartFrame: number | null,
+	sourceSampleRate: number | null,
+): readonly Readonly<{ startSeconds: number; endSeconds: number }>[] {
+	if (review.workflowId !== 'clean-filler-silence' || sourceStartFrame === null
+		|| sourceSampleRate === null || sourceSampleRate < 1) return [];
+	const semantic = review.outputs.find(({ slotId }) => slotId === 'cleanup-proposals')?.semantic;
+	if (!semantic || typeof semantic !== 'object' || Array.isArray(semantic)) return [];
+	const proposals = (semantic as Readonly<Record<string, unknown>>).proposals;
+	if (!Array.isArray(proposals)) return [];
+	const selected = new Set(selectedIds);
+	return proposals.flatMap((value) => {
+		if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+		const row = value as Readonly<Record<string, unknown>>;
+		if (typeof row.id !== 'string' || !selected.has(row.id)
+			|| !Number.isSafeInteger(row.startFrame) || !Number.isSafeInteger(row.endFrame)
+			|| Number(row.startFrame) < sourceStartFrame || Number(row.endFrame) <= Number(row.startFrame)) {
+			return [];
+		}
+		return [Object.freeze({
+			startSeconds: (Number(row.startFrame) - sourceStartFrame) / sourceSampleRate,
+			endSeconds: (Number(row.endFrame) - sourceStartFrame) / sourceSampleRate,
+		})];
+	});
+}
+
+function AudioAudition({ body, label, skipRanges = [] }: Readonly<{
+	body: Blob;
+	label: string;
+	skipRanges?: readonly Readonly<{ startSeconds: number; endSeconds: number }>[];
+}>) {
+	const [source, setSource] = useState<string>();
+	const serializedSkipRanges = JSON.stringify(skipRanges);
+	useEffect(() => {
+		let active = true;
+		let url: string | null = null;
+		const auditionRanges = parseAuditionRanges(serializedSkipRanges);
+		const audition = auditionRanges.length > 0
+			? createLocalAssistanceCleanupAuditionWave(body, auditionRanges) : Promise.resolve(body);
+		void audition.then((auditionBody) => {
+			if (!active) return;
+			url = URL.createObjectURL(auditionBody);
+			setSource(url);
+		}).catch(() => { if (active) setSource(undefined); });
+		return () => {
+			active = false;
+			if (url !== null) URL.revokeObjectURL(url);
+		};
+	}, [body, serializedSkipRanges]);
+	return <label>{label}<audio controls preload="metadata" src={source}
+		data-skip-range-count={skipRanges.length} /></label>;
+}
+
+function parseAuditionRanges(
+	value: string,
+): readonly Readonly<{ startSeconds: number; endSeconds: number }>[] {
+	const parsed: unknown = JSON.parse(value);
+	if (!Array.isArray(parsed)) return [];
+	return parsed.flatMap((candidate) => {
+		if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return [];
+		const row = candidate as Readonly<Record<string, unknown>>;
+		return typeof row.startSeconds === 'number' && typeof row.endSeconds === 'number'
+			? [Object.freeze({ startSeconds: row.startSeconds, endSeconds: row.endSeconds })] : [];
+	});
+}
+
+function VideoTransport({ body, label }: Readonly<{ body: Blob; label: string }>) {
 	const [source, setSource] = useState<string>();
 	useEffect(() => {
 		const url = URL.createObjectURL(body);
 		setSource(url);
 		return () => URL.revokeObjectURL(url);
 	}, [body]);
-	return <label>{label}<audio controls preload="metadata" src={source} /></label>;
+	return <label>{label}<video controls preload="metadata" src={source} /></label>;
 }
 
 function text(copy: Copy, key: string, fallback: string): string { return copy[key] || fallback; }

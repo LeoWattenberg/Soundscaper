@@ -175,8 +175,11 @@
 	background: var(--kw-editor-stage-raised);
 	border: 1px solid var(--kw-editor-line);
 	box-sizing: border-box;
+	cursor: move;
 	height: 8rem;
 	margin-bottom: 0.5rem;
+	touch-action: none;
+	user-select: none;
 }
 
 .kw-local-assistance__crop-overlay span {

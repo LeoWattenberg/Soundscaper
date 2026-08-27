@@ -232,7 +232,9 @@ export function assembleOwnedHighlightsV1(
 			candidates.sourceSize, candidates.targetAspect);
 		const authored = editorialById.get(candidate.id);
 		return Object.freeze({ ...candidate,
-			title: authored?.title ?? `Highlight ${String(index + 1)}` });
+			title: authored?.title ?? `Highlight ${String(index + 1)}`,
+			hook: authored?.hook ?? null, chapters: authored?.chapters ?? Object.freeze([]),
+			explanation: authored?.explanation ?? null });
 	});
 	return Object.freeze({ schemaVersion: 1, kind: 'highlight-proposals',
 		workflowId: 'make-highlights', targetAspect: Object.freeze({ width: 9, height: 16 }),

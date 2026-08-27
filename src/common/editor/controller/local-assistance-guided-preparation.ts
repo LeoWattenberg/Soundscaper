@@ -40,13 +40,14 @@ import {
 	localAssistanceGuidedStorageReservation,
 } from './local-assistance-guided-output-capacity.ts';
 import { localAssistanceGuidedModelCandidates } from './local-assistance-guided-model-selection.ts';
+import { selectLocalAssistanceGuidedStages } from './local-assistance-guided-stage-selection.ts';
 
 const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
 const SHA256 = /^[a-f\d]{64}$/u;
 const MODEL_ID = /^[a-z\d](?:[a-z\d.-]{0,126}[a-z\d])?$/u;
 const AUDIO_OPERATIONS = new Set<AssistanceOperation>([
 	'voice-activity-detection', 'speech-recognition', 'speaker-diarization',
-	'speech-enhancement', 'source-separation', 'audio-tagging', 'beat-tracking',
+	'word-alignment', 'speech-enhancement', 'source-separation', 'audio-tagging', 'beat-tracking',
 ]);
 export type {
 	LocalAssistanceGuidedPreparationUnavailableReason,
@@ -142,7 +143,7 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 			const graph = assistanceWorkflowStageGraph(request.workflowId);
 			const inventory = normalizeInventory(await dependencies.selected.listSelectedMedia());
 			dependencies.assertProject(token);
-			const stages = selectStages(graph, settings, request.models, inventory);
+			const stages = selectLocalAssistanceGuidedStages(graph, settings, request.models, inventory);
 			if (stages === null) throw new UnavailableError('workflow-disabled');
 			const models = resolveModelBindings(stages, request.models, settings);
 			if (models === null) throw new UnavailableError('model-binding-unavailable');
@@ -160,6 +161,9 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 			}
 			dependencies.assertProject(token);
 			const externalByBinding = new Map<string, Awaited<ReturnType<typeof prepareExternalInput>>>();
+			const reviewInputs: Array<Readonly<{
+				stageId: string; slotId: string; mediaType: string; bytes: Blob;
+			}>> = [];
 			const producedSlots = new Set<string>();
 			for (const stage of stages) {
 				for (const slot of stage.inputSlots) {
@@ -175,6 +179,8 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 					);
 					if (external === null) throw new UnavailableError(externalReason(slot.slotId));
 					externalByBinding.set(bindingKey(stage.stageId, slot.slotId), external);
+					reviewInputs.push(Object.freeze({ stageId: stage.stageId, slotId: slot.slotId,
+						mediaType: external.mediaType, bytes: external.bytes }));
 					dependencies.assertProject(token);
 				}
 				for (const slot of stage.outputSlots) if (slot.required) producedSlots.add(slot.slotId);
@@ -182,7 +188,7 @@ export function createLocalAssistanceGuidedWorkflowPreparation(
 			const preparedFences = [...externalByBinding.values()].map((external) => external!.fence);
 			if (preparedFences.length < 1) throw new UnavailableError('source-custody-unavailable');
 			const reviewAuthority = await deriveLocalAssistanceGuidedReviewAuthority(
-				request.workflowId, [...externalByBinding.values()].filter((value) => value !== null),
+				request.workflowId, reviewInputs, request.signal,
 			);
 			await dependencies.preflightStorage(localAssistanceGuidedStorageReservation(
 				request.workflowId, stages, reviewAuthority,
@@ -319,40 +325,6 @@ function highlightExternalInput(
 	if (slotId === 'transcript') return inputs.transcript;
 	if (slotId === 'embeddings') return inputs.embeddings;
 	return null;
-}
-
-function selectStages(
-	graph: readonly AssistanceWorkflowStageSpec[],
-	settings: AssistanceWorkflowSettingsV1,
-	models: readonly LocalAssistanceModel[],
-	inventory: readonly InventorySource[],
-): readonly AssistanceWorkflowStageSpec[] | null {
-	if (settings.workflowId === 'generate-editorial-text' && !settings.enabled) return null;
-	return Object.freeze(graph.filter((stage) => {
-		if (stage.required) return true;
-		if (stage.stageId === 'align-words') return settings.workflowId === 'transcribe-captions'
-			&& settings.recognizer === 'whisper' && settings.language === 'en'
-			&& settings.englishWhisperAlignment === 'when-installed'
-			&& localAssistanceGuidedModelCandidates('alignment', models, settings).length > 0;
-		if (stage.stageId === 'recognize-speech') {
-			return localAssistanceGuidedModelCandidates(
-				'speech-recognizer', models, settings,
-			).length > 0;
-		}
-		if (stage.stageId === 'recognize-text') {
-			return settings.workflowId === 'index-video' && settings.includeOcr;
-		}
-		if (stage.stageId === 'tag-highlight-reactions') {
-			return settings.workflowId === 'make-highlights'
-				&& inventory.some(({ mediaKind }) => mediaKind === 'audio')
-				&& localAssistanceGuidedModelCandidates(
-					'audio-tagger', models, settings,
-				).length > 0;
-		}
-		if (stage.stageId === 'rerank-editorial') return settings.workflowId === 'make-highlights'
-			&& settings.editorialRerank;
-		return false;
-	}));
 }
 
 function resolveModelBindings(

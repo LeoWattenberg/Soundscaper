@@ -148,11 +148,15 @@ function parseWhisperEnglishTranscript(
 		throw new TypeError('The English Whisper transcript is malformed UTF-8 JSON.', { cause: error });
 	}
 	const root = exactRecord(parsed, ['language', 'segments'], 'English Whisper transcript');
-	if (root.language !== 'en') {
-		throw new TypeError('wav2vec2 alignment requires an explicitly English Whisper transcript.');
-	}
 	if (!Array.isArray(root.segments) || root.segments.length > MAXIMUM_SEGMENTS) {
 		throw new RangeError('The English Whisper transcript segment inventory exceeds its bound.');
+	}
+	if (root.language !== 'en') {
+		if (root.language !== null && (typeof root.language !== 'string'
+			|| !/^[A-Za-z][A-Za-z-]{1,31}$/u.test(root.language))) {
+			throw new TypeError('The detected Whisper transcript language is invalid.');
+		}
+		return Object.freeze([]);
 	}
 	let previousEnd = 0;
 	let totalWords = 0;

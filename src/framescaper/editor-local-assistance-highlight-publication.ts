@@ -351,6 +351,9 @@ function highlightCommands(
 		sourceSequenceId: authority.fence.sequenceId,
 		sourceStartFrame: highlight.proposal.startFrame,
 		sourceEndFrame: highlight.proposal.endFrame,
+		editorial: Object.freeze({ hook: highlight.proposal.hook,
+			chapters: Object.freeze([...highlight.proposal.chapters]),
+			explanation: highlight.proposal.explanation }),
 	});
 	const sequence = Object.freeze({
 		id: sequenceId, name: highlight.proposal.title,

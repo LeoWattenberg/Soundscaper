@@ -255,7 +255,8 @@ test('highlight stages snap evidence, rank deterministically, and assemble safe 
 		{ id: 'b', evidenceMode: 'transcript', selected: false },
 	]);
 	const editorial = { schemaVersion: 1, candidates: [
-		{ candidateId: 'c', title: 'Visual payoff', hook: null, chapters: [], explanation: null },
+		{ candidateId: 'c', title: 'Visual payoff', hook: 'Watch the visual turn.',
+			chapters: ['Setup', 'Payoff'], explanation: 'The selected evidence resolves visually.' },
 		{ candidateId: 'a', title: 'Opening insight', hook: null, chapters: [], explanation: null },
 		{ candidateId: 'b', title: null, hook: null, chapters: [], explanation: null },
 	] };
@@ -268,6 +269,12 @@ test('highlight stages snap evidence, rank deterministically, and assemble safe 
 		{ id: 'a', title: 'Opening insight', selected: false },
 		{ id: 'b', title: 'Highlight 3', selected: false },
 	]);
+	assert.deepEqual({ hook: assembled.proposals[0]?.hook,
+		chapters: assembled.proposals[0]?.chapters,
+		explanation: assembled.proposals[0]?.explanation }, {
+		hook: 'Watch the visual turn.', chapters: ['Setup', 'Payoff'],
+		explanation: 'The selected evidence resolves visually.',
+	});
 	assert.deepEqual(assembled.proposals[0]?.cropKeyframes.map(({ authority, sourceFrame }) =>
 		({ authority, sourceFrame })), [
 		{ authority: 'center', sourceFrame: 90 },

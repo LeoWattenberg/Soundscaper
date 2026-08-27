@@ -120,6 +120,9 @@ function proposal(options: Readonly<{
 		videoOccurrenceId: 'video-clip',
 		audioOccurrenceId: 'audio-clip',
 		title: options.title,
+		hook: 'Open on the exact source evidence.',
+		chapters: ['Opening', 'Payoff'],
+		explanation: 'The selected source evidence is self-contained.',
 		cropKeyframes: [cropKeyframe(options.firstSourceFrame, {
 			left: 0.25, top: 0, right: 0.25, bottom: 0,
 		}), cropKeyframe(options.lastSourceFrame, {
@@ -249,6 +252,11 @@ test('one atomic F31 batch creates an editable linked A/V secondary sequence and
 	const extensions = labelTrack.opaqueExtensions as Readonly<
 		Record<string, Readonly<Record<string, unknown>>>>;
 	assert.equal(extensions['org.soundscaper.assistance-highlights-v1']?.proposalId, 'highlight-a');
+	assert.deepEqual(extensions['org.soundscaper.assistance-highlights-v1']?.editorial, {
+		hook: 'Open on the exact source evidence.',
+		chapters: ['Opening', 'Payoff'],
+		explanation: 'The selected source evidence is self-contained.',
+	});
 
 	const keyframes = video.videoKeyframes as Readonly<{
 		curves: readonly Readonly<{

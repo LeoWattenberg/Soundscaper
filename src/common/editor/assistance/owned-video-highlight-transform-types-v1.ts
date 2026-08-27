@@ -177,6 +177,9 @@ export interface AssistanceOwnedHighlightCropKeyframeV1 {
 export interface AssistanceOwnedHighlightProposalV1
 	extends AssistanceOwnedRankedHighlightCandidateV1 {
 	readonly title: string;
+	readonly hook: string | null;
+	readonly chapters: readonly string[];
+	readonly explanation: string | null;
 	readonly cropKeyframes: readonly AssistanceOwnedHighlightCropKeyframeV1[];
 }
 

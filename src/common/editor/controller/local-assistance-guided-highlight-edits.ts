@@ -191,13 +191,15 @@ function interpolate(left: number, right: number, ratio: number): number {
 }
 
 function cloneProposal(proposal: AssistanceOwnedHighlightProposalsV1['proposals'][number]) {
-	return { ...proposal, cropKeyframes: proposal.cropKeyframes.map((keyframe) => ({ ...keyframe,
+	return { ...proposal, chapters: [...proposal.chapters],
+		cropKeyframes: proposal.cropKeyframes.map((keyframe) => ({ ...keyframe,
 		trackIds: [...keyframe.trackIds], crop: { ...keyframe.crop } })) };
 }
 
 function invariant(proposal: AssistanceOwnedHighlightProposalsV1['proposals'][number]) {
 	return { id: proposal.id, score: proposal.score, evidenceMode: proposal.evidenceMode,
 		transcriptExcerpt: proposal.transcriptExcerpt, visualSummary: proposal.visualSummary,
+		hook: proposal.hook, chapters: proposal.chapters, explanation: proposal.explanation,
 		selected: proposal.selected, videoOccurrenceId: proposal.videoOccurrenceId,
 		audioOccurrenceId: proposal.audioOccurrenceId };
 }

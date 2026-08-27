@@ -141,6 +141,7 @@ export async function reviewLocalAssistanceGuidedResult(
 	request.signal?.throwIfAborted();
 	const authority = validateAssistanceWorkflowReviewAuthorityV1(request.authority ?? {
 		reviewAuthorityVersion: 1, audioWave: null, editorialCandidateIds: null,
+		media: { audio: null, video: null },
 	});
 	const semantics = await reviewSemantics(spec, loaded, authority);
 	assertSemanticSourceAuthority(workflow, semantics);

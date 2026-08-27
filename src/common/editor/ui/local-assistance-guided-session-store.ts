@@ -19,12 +19,16 @@ import {
 } from '../assistance/workflow.ts';
 import {
 	validateAssistanceWorkflowReviewAuthorityV1,
+	type AssistanceWorkflowReviewMediaAssetV1,
 	type AssistanceWorkflowReviewAuthorityV1,
 } from '../assistance/workflow-review-authority-v1.ts';
+import { digestMediaContent } from '../storage/media-content-digest.ts';
 import type {
 	LocalAssistanceBridge,
 } from './local-assistance-bridge.ts';
 import type { AssistanceOwnedHighlightProposalsV1 } from
+	'../assistance/owned-video-highlight-transform-types-v1.ts';
+import type { AssistanceOwnedReframePathV1 } from
 	'../assistance/owned-video-highlight-transform-types-v1.ts';
 import {
 	createLocalAssistanceGuidedHighlightDraftV1,
@@ -32,6 +36,10 @@ import {
 	setLocalAssistanceGuidedHighlightTitleV1,
 	setLocalAssistanceGuidedHighlightTrimV1,
 } from '../controller/local-assistance-guided-highlight-edits.ts';
+import {
+	createLocalAssistanceGuidedReframeDraftV1,
+	setLocalAssistanceGuidedReframeCropV1,
+} from '../controller/local-assistance-guided-reframe-edits.ts';
 import {
 	LOCAL_ASSISTANCE_GUIDED_PREPARATION_UNAVAILABLE_REASONS,
 	type LocalAssistanceGuidedPreparationUnavailableReason,
@@ -67,6 +75,11 @@ export interface LocalAssistanceGuidedSnapshot {
 	readonly progress: AssistanceWorkflowProgressV1 | null;
 	readonly result: LocalAssistanceWorkflowOutcome | null;
 	readonly review: LocalAssistanceGuidedReviewedResult | null;
+	readonly auditionAudio: Blob | null;
+	readonly auditionSourceStartFrame: number | null;
+	readonly auditionSourceSampleRate: number | null;
+	readonly previewVideo: Blob | null;
+	readonly reframeDraft: AssistanceOwnedReframePathV1 | null;
 	readonly highlightDraft: AssistanceOwnedHighlightProposalsV1 | null;
 	readonly selectedChoiceIds: readonly string[];
 	readonly unavailableReason: LocalAssistanceGuidedUnavailableReason | null;
@@ -84,6 +97,8 @@ export interface LocalAssistanceGuidedSessionStore {
 	selectWorkflow(workflowId: AssistanceGuidedWorkflowId): void;
 	setSettings(settings: AssistanceWorkflowSettingsV1): void;
 	setReviewChoiceSelected(choiceId: string, selected: boolean): void;
+	setReframeCrop(sourceFrame: number,
+		crop: Readonly<{ left: number; top: number; right: number; bottom: number }>): void;
 	setHighlightTitle(proposalId: string, title: string): void;
 	setHighlightTrim(proposalId: string, startFrame: number, endFrame: number): void;
 	setHighlightCrop(proposalId: string, sourceFrame: number,
@@ -104,7 +119,9 @@ const GUIDED_IDS = new Set<unknown>(ASSISTANCE_GUIDED_WORKFLOW_IDS);
 export const INITIAL_LOCAL_ASSISTANCE_GUIDED_SNAPSHOT: LocalAssistanceGuidedSnapshot = freezeSnapshot({
 	surface: 'guided', phase: 'selection-required', workflowIds: ASSISTANCE_GUIDED_WORKFLOW_IDS,
 	selectedWorkflowId: null, settings: null, progress: null, result: null,
-	review: null, highlightDraft: null, selectedChoiceIds: Object.freeze([]),
+	review: null, auditionAudio: null, auditionSourceStartFrame: null,
+	auditionSourceSampleRate: null, previewVideo: null, reframeDraft: null, highlightDraft: null,
+	selectedChoiceIds: Object.freeze([]),
 	unavailableReason: null, error: null,
 });
 
@@ -129,6 +146,13 @@ export function createLocalAssistanceGuidedSessionStore(
 		snapshot = freezeSnapshot({ ...snapshot, ...change });
 		emit();
 	};
+	const releaseRetainedJobs = (): void => {
+		const jobIds = [...retainedJobs.keys()];
+		retainedJobs.clear();
+		if (jobIds.length > 0 && workflow?.custody) {
+			void Promise.allSettled(jobIds.map((jobId) => workflow.custody!.release(jobId)));
+		}
+	};
 	const selectSurface = (surface: LocalAssistanceDialogSurface): void => {
 		if (surface !== 'guided' && surface !== 'advanced') {
 			throw new TypeError('The Local Assistance surface is unsupported.');
@@ -144,10 +168,14 @@ export function createLocalAssistanceGuidedSessionStore(
 		const settings = validateAssistanceWorkflowSettingsV1(
 			defaultAssistanceWorkflowSettingsV1(selected), selected,
 		);
+		releaseRetainedJobs();
 		const unavailableReason = availability(options);
 		update({ selectedWorkflowId: selected, settings,
 			phase: unavailableReason ? 'unavailable' : 'ready', unavailableReason,
-			progress: null, result: null, review: null, highlightDraft: null,
+			progress: null, result: null, review: null, auditionAudio: null,
+			auditionSourceStartFrame: null, auditionSourceSampleRate: null, previewVideo: null,
+			reframeDraft: null,
+			highlightDraft: null,
 			selectedChoiceIds: Object.freeze([]), error: null });
 	};
 	const setSettings = (settingsValue: AssistanceWorkflowSettingsV1): void => {
@@ -158,9 +186,13 @@ export function createLocalAssistanceGuidedSessionStore(
 		const settings = validateAssistanceWorkflowSettingsV1(
 			settingsValue, snapshot.selectedWorkflowId,
 		);
+		releaseRetainedJobs();
 		const unavailableReason = availability(options);
 		update({ settings, phase: unavailableReason ? 'unavailable' : 'ready', unavailableReason,
-			progress: null, result: null, review: null, highlightDraft: null,
+			progress: null, result: null, review: null, auditionAudio: null,
+			auditionSourceStartFrame: null, auditionSourceSampleRate: null, previewVideo: null,
+			reframeDraft: null,
+			highlightDraft: null,
 			selectedChoiceIds: Object.freeze([]), error: null });
 	};
 
@@ -172,7 +204,9 @@ export function createLocalAssistanceGuidedSessionStore(
 		const workflowId = snapshot.selectedWorkflowId!;
 		const settings = validateAssistanceWorkflowSettingsV1(snapshot.settings, workflowId);
 		cancelRequested = false;
-		update({ phase: 'preparing', progress: null, result: null, review: null, highlightDraft: null,
+		update({ phase: 'preparing', progress: null, result: null, review: null,
+			auditionAudio: null, auditionSourceStartFrame: null, auditionSourceSampleRate: null,
+			previewVideo: null, reframeDraft: null, highlightDraft: null,
 			selectedChoiceIds: Object.freeze([]),
 			unavailableReason: null, error: null });
 		let outcome: LocalAssistanceWorkflowOutcome | null = null;
@@ -198,6 +232,9 @@ export function createLocalAssistanceGuidedSessionStore(
 				|| request.recipeVersion !== 1 || request.settingsVersion !== settings.settingsVersion) {
 				throw new TypeError('Prepared Guided assistance lost its exact recipe or settings authority.');
 			}
+			await verifyReviewMediaAuthority(
+				request, prepared.reviewAuthority, controller.signal,
+			);
 			if (cancelRequested) throw new GuidedCancelledError();
 			progressDisconnect = workflow.onProgress((progress) => {
 				if (progress.jobId === activeJobId && progress.workflowId === workflowId) {
@@ -217,7 +254,9 @@ export function createLocalAssistanceGuidedSessionStore(
 			controller = null;
 			progressDisconnect?.();
 			if (activeJobId) {
-				try { await workflow.cancel(activeJobId); } catch { /* Original failure remains authoritative. */ }
+				const failedJobId = activeJobId;
+				try { await workflow.cancel(failedJobId); } catch { /* Original failure remains authoritative. */ }
+				try { await workflow.custody.release(failedJobId); } catch { /* Best-effort custody cleanup. */ }
 				activeJobId = null;
 			}
 		}
@@ -255,16 +294,28 @@ export function createLocalAssistanceGuidedSessionStore(
 			|| !workflow?.readOutput) throw new Error('The Guided result is not ready for review.');
 		const retained = retainedJobs.get(snapshot.result.jobId);
 		if (!retained) throw new Error('The Guided result custody has expired.');
-		update({ phase: 'reviewing', review: null, highlightDraft: null, error: null });
+		update({ phase: 'reviewing', review: null, auditionAudio: null,
+			auditionSourceStartFrame: null, auditionSourceSampleRate: null, previewVideo: null,
+			reframeDraft: null, highlightDraft: null, error: null });
 		try {
 			const reviewed = await reviewLocalAssistanceGuidedResult({ workflow: retained.workflow,
 				result: snapshot.result.result, authority: retained.reviewAuthority,
 				readOutput: (request) => workflow.readOutput!(request) });
+			const audition = auditionAuthority(retained.workflow, retained.reviewAuthority.media.audio);
 			if (!disposed) update({ phase: 'review-ready', review: reviewed,
+				auditionAudio: retained.reviewAuthority.media.audio?.body ?? null,
+				auditionSourceStartFrame: audition?.sourceStartFrame ?? null,
+				auditionSourceSampleRate: audition?.sourceSampleRate ?? null,
+				previewVideo: retained.reviewAuthority.media.video?.body ?? null,
+				reframeDraft: reframeResult(reviewed),
 				highlightDraft: highlightResult(reviewed),
 				selectedChoiceIds: Object.freeze([]), error: null });
 		} catch (error) {
-			if (!disposed) update({ phase: 'error', review: null,
+			retainedJobs.delete(snapshot.result.jobId);
+			await workflow.custody?.release(snapshot.result.jobId).catch(() => false);
+			if (!disposed) update({ phase: 'error', review: null, auditionAudio: null,
+				auditionSourceStartFrame: null, auditionSourceSampleRate: null,
+				previewVideo: null, reframeDraft: null,
 				error: error instanceof Error ? error.message : 'The Guided result review failed.' });
 		}
 	};
@@ -282,6 +333,11 @@ export function createLocalAssistanceGuidedSessionStore(
 		} else if (selected) ids.add(choiceId); else ids.delete(choiceId);
 		update({ selectedChoiceIds: Object.freeze(snapshot.review.choices
 			.filter(({ id }) => ids.has(id)).map(({ id }) => id)) });
+	};
+	const setReframeCrop = (sourceFrame: number,
+		crop: Readonly<{ left: number; top: number; right: number; bottom: number }>): void => {
+		const draft = openReframeDraft(snapshot);
+		update({ reframeDraft: setLocalAssistanceGuidedReframeCropV1(draft, sourceFrame, crop) });
 	};
 	const setHighlightTitle = (proposalId: string, title: string): void => {
 		const draft = openHighlightDraft(snapshot);
@@ -312,6 +368,7 @@ export function createLocalAssistanceGuidedSessionStore(
 		try {
 			const outcome = await options.preparation.acceptGuidedWorkflowResult({
 				workflow: retained.workflow, reviewedResult: snapshot.review, selectedChoiceIds,
+				...(snapshot.reframeDraft ? { reframeDraft: snapshot.reframeDraft } : {}),
 				...(snapshot.highlightDraft ? { highlightDraft: snapshot.highlightDraft } : {}),
 				readOutput: (request) => workflow.readOutput!(request),
 			});
@@ -359,9 +416,66 @@ export function createLocalAssistanceGuidedSessionStore(
 		getSnapshot: () => snapshot,
 		subscribe(listener: () => void) { listeners.add(listener); return () => listeners.delete(listener); },
 		selectSurface, selectWorkflow, setSettings, setReviewChoiceSelected,
+		setReframeCrop,
 		setHighlightTitle, setHighlightTrim, setHighlightCrop,
 		run, review, accept, cancel, dispose,
 	});
+}
+
+function auditionAuthority(
+	workflow: AssistanceWorkflowV1,
+	asset: AssistanceWorkflowReviewMediaAssetV1 | null,
+): Readonly<{ sourceStartFrame: number; sourceSampleRate: number }> | null {
+	if (asset === null) return null;
+	const ranges = workflow.fence.sourceRanges.filter(({ mediaKind }) => mediaKind === 'audio');
+	if (ranges.length !== 1 || ranges[0]!.sourceSampleRate === null) {
+		throw new TypeError('Guided audio audition lost its exact source-time authority.');
+	}
+	return Object.freeze({ sourceStartFrame: ranges[0]!.sourceStartFrame,
+		sourceSampleRate: ranges[0]!.sourceSampleRate });
+}
+
+async function verifyReviewMediaAuthority(
+	workflow: AssistanceWorkflowV1,
+	authority: AssistanceWorkflowReviewAuthorityV1,
+	signal: AbortSignal,
+): Promise<void> {
+	for (const asset of [authority.media.audio, authority.media.video]) {
+		if (asset === null) continue;
+		const claims = workflow.inputs.filter(({ stageId, slotId }) =>
+			stageId === asset.stageId && slotId === asset.slotId);
+		if (claims.length !== 1) {
+			throw new TypeError('Guided review media lost its exact workflow input claim.');
+		}
+		const sha256 = await digestMediaContent(asset.body, { signal });
+		if (asset.byteLength !== asset.body.size || asset.mediaType !== asset.body.type
+			|| sha256 !== asset.sha256) {
+			throw new TypeError('Guided review media changed after aggregate preparation.');
+		}
+	}
+}
+
+function reframeResult(
+	review: LocalAssistanceGuidedReviewedResult,
+): AssistanceOwnedReframePathV1 | null {
+	if (review.workflowId !== 'reframe') return null;
+	return createLocalAssistanceGuidedReframeDraftV1(reframeOriginal(review));
+}
+
+function reframeOriginal(review: LocalAssistanceGuidedReviewedResult): unknown {
+	const matches = review.outputs.filter(({ slotId }) => slotId === 'reframe-path');
+	if (matches.length !== 1) {
+		throw new TypeError('The Guided Reframe review lost its exact path terminal.');
+	}
+	return matches[0]!.semantic;
+}
+
+function openReframeDraft(value: LocalAssistanceGuidedSnapshot): AssistanceOwnedReframePathV1 {
+	if (value.phase !== 'review-ready' || value.review?.workflowId !== 'reframe'
+		|| !value.reframeDraft) {
+		throw new Error('The Guided Reframe review is not open.');
+	}
+	return value.reframeDraft;
 }
 
 function highlightResult(

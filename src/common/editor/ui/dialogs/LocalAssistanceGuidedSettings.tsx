@@ -38,8 +38,8 @@ export default function LocalAssistanceGuidedSettings({
 				<option value="auto">{text(copy, 'localAssistanceLanguageAuto', 'Automatic')}</option>
 				<option value="en">{text(copy, 'localAssistanceLanguageEnglish', 'English')}</option>
 			</SelectSetting>
-			<CheckboxSetting disabled={disabled || settings.recognizer !== 'whisper'
-				|| settings.language !== 'en'} checked={settings.englishWhisperAlignment === 'when-installed'}
+			<CheckboxSetting disabled={disabled || settings.recognizer !== 'whisper'}
+				checked={settings.englishWhisperAlignment === 'when-installed'}
 				onChange={(checked) => commit({ ...settings,
 					englishWhisperAlignment: checked ? 'when-installed' : 'off' })}>
 				{text(copy, 'localAssistanceEnglishAlignment',

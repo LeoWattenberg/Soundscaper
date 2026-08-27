@@ -37,7 +37,8 @@ test('Guided highlight edits stay bounded to the authenticated proposal', () => 
 });
 
 test('Guided highlight trims require exact inward source-time mapping', () => {
-	const original = proposals({ sourceEndFrame: 239 });
+	const original = proposals({ sourceEndFrame: 239,
+		cropKeyframes: [crop(0, 0.341796875), crop(238, 0.341796875)] });
 	const draft = createLocalAssistanceGuidedHighlightDraftV1(original);
 	assert.throws(() => setLocalAssistanceGuidedHighlightTrimV1(
 		original, draft, 'highlight-a', 1, 48_000,
@@ -72,7 +73,9 @@ function proposals(overrides: Readonly<Record<string, unknown>> = {}) {
 			evidenceMode: 'transcript' as const, transcriptExcerpt: 'Authenticated cue.',
 			visualSummary: 'Authenticated visual evidence.', selected: false as const,
 			videoOccurrenceId: 'video-occurrence', audioOccurrenceId: 'audio-occurrence',
-			title: 'Highlight 1', cropKeyframes: [crop(0, 0.341796875), crop(95, 0.341796875)],
+			title: 'Highlight 1', hook: 'Authenticated hook.', chapters: ['Opening'],
+			explanation: 'Authenticated explanation.',
+			cropKeyframes: [crop(0, 0.341796875), crop(95, 0.341796875)],
 			...overrides }],
 	};
 }

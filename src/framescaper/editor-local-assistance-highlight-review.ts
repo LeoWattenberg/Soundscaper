@@ -29,6 +29,9 @@ export interface FramescaperAssistanceHighlightProposalV1 {
 	readonly videoOccurrenceId: string;
 	readonly audioOccurrenceId: string | null;
 	readonly title: string;
+	readonly hook: string | null;
+	readonly chapters: readonly string[];
+	readonly explanation: string | null;
 	readonly cropKeyframes: readonly FramescaperAssistanceHighlightCropKeyframeV1[];
 }
 
@@ -44,14 +47,17 @@ const REVIEW_FIELDS = Object.freeze(['kind', 'schemaVersion', 'workflowId', 'fen
 const PROPOSAL_FIELDS = Object.freeze([
 	'id', 'startFrame', 'endFrame', 'sourceStartFrame', 'sourceEndFrame', 'score',
 	'evidenceMode', 'transcriptExcerpt', 'visualSummary', 'selected',
-	'videoOccurrenceId', 'audioOccurrenceId', 'title', 'cropKeyframes',
+	'videoOccurrenceId', 'audioOccurrenceId', 'title', 'hook', 'chapters', 'explanation',
+	'cropKeyframes',
 ]);
 const KEYFRAME_FIELDS = Object.freeze(['sourceFrame', 'authority', 'trackIds', 'crop']);
 const CROP_FIELDS = Object.freeze(['left', 'top', 'right', 'bottom']);
 const ID = /^[A-Za-z\d][A-Za-z\d._:-]{0,255}$/u;
 const INVALID_TEXT = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
+const INVALID_EDITORIAL_TEXT = /(?:[\p{Cc}\p{Cf}\p{Zl}\p{Zp}`{}\\]|<[^>]*>|```|\[[^\]]*\]\([^)]*\)|\b(?:data|file|https?|javascript):|(?:^|\s)(?:\/|\.\.\/|[a-z]:[\\/])|#!|\$\(|\b(?:bash|cmd(?:\.exe)?|powershell|sh)\s+-c\b|(?:^|\s)(?:(?:\d{1,2}:)?\d{1,2}:\d{2}|frame\s+\d+|\d+(?:\.\d+)?\s*(?:frames?|hours?|milliseconds?|minutes?|ms|seconds?))(?=$|[\s,.;)]))/iu;
 const MAXIMUM_PROPOSALS = 20;
 const MAXIMUM_CROP_KEYFRAMES = 4_096;
+const MAXIMUM_EDITORIAL_CHAPTERS = 12;
 
 /** Re-review the deterministic timings and edited crops; every selection starts false. */
 export function reviewFramescaperAssistanceHighlightsV1(
@@ -123,6 +129,12 @@ function reviewProposal(
 		audioOccurrenceId: record.audioOccurrenceId === null ? null
 			: stableId(record.audioOccurrenceId, `${label} audio occurrence`),
 		title: title(record.title, label),
+		hook: nullableEditorialText(record.hook, 512, `${label} hook`),
+		chapters: Object.freeze(boundedArray(record.chapters, 0, MAXIMUM_EDITORIAL_CHAPTERS,
+			`${label} chapters`).map((chapter, chapterIndex) => editorialText(
+				chapter, 160, `${label} chapter ${String(chapterIndex)}`,
+			))),
+		explanation: nullableEditorialText(record.explanation, 2_048, `${label} explanation`),
 		cropKeyframes: Object.freeze(cropKeyframes),
 	});
 }
@@ -187,7 +199,21 @@ function stableId(value: unknown, name: string): string {
 
 function title(value: unknown, name: string): string {
 	if (typeof value !== 'string' || value.length < 1 || value.length > 160
-		|| value !== value.trim() || INVALID_TEXT.test(value)) throw new TypeError(`The ${name} title is invalid.`);
+		|| value !== value.trim() || INVALID_EDITORIAL_TEXT.test(value)) {
+		throw new TypeError(`The ${name} title is invalid.`);
+	}
+	return value;
+}
+
+function nullableEditorialText(value: unknown, maximum: number, name: string): string | null {
+	return value === null ? null : editorialText(value, maximum, name);
+}
+
+function editorialText(value: unknown, maximum: number, name: string): string {
+	if (typeof value !== 'string' || value.length < 1 || value.length > maximum
+		|| value !== value.trim() || INVALID_EDITORIAL_TEXT.test(value)) {
+		throw new TypeError(`The ${name} is invalid.`);
+	}
 	return value;
 }
 

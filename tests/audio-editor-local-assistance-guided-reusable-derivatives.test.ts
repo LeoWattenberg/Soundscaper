@@ -103,8 +103,10 @@ test('accepted Highlights retains its reviewed shot table and ranked proposal li
 	const ranking = { schemaVersion: 1, kind: 'highlight-candidates', sourceId: 'video-source',
 		sampleRate: 48_000, sourceSize: { width: 1_920, height: 1_080 },
 		targetAspect: { width: 9, height: 16 }, candidates: [candidate] };
+	const settings = defaultAssistanceWorkflowSettingsV1('make-highlights');
+	if (settings.workflowId !== 'make-highlights') assert.fail('Highlight settings changed identity.');
 	const proposals = assembleOwnedHighlightsV1({ 'highlight-candidates': ranking, editorial: null },
-		defaultAssistanceWorkflowSettingsV1('make-highlights'));
+		settings);
 	const records = await retainLocalAssistanceGuidedReusableDerivatives({ workflow,
 		review: reviewed(workflow, 'assemble-highlights', 'highlight-proposals', proposals),
 		readOutput: async ({ claim }) => jsonBlob(claim.slotId === 'highlight-candidates'

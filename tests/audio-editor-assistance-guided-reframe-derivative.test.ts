@@ -268,8 +268,8 @@ function model(
 		artifactSha256s: [digest.repeat(32)] };
 }
 
-function claim(
-	direction: 'input' | 'output', stageId: string, slotId: string, index: number,
+function claim<const Direction extends 'input' | 'output'>(
+	direction: Direction, stageId: string, slotId: string, index: number,
 ) {
 	return { claimVersion: 1 as const, direction,
 		claimId: index.toString(16).padStart(40, '0'), jobId: JOB_ID, stageId, slotId };

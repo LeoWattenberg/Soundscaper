@@ -29,6 +29,8 @@ export interface LocalAssistanceGuidedPanelProps {
 	readonly onReview: () => unknown;
 	readonly onAccept: () => unknown;
 	readonly onChoiceChange: (choiceId: string, selected: boolean) => unknown;
+	readonly onReframeCropChange: (sourceFrame: number,
+		crop: Readonly<{ left: number; top: number; right: number; bottom: number }>) => unknown;
 	readonly onHighlightTitleChange: (proposalId: string, title: string) => unknown;
 	readonly onHighlightTrimChange: (
 		proposalId: string, startFrame: number, endFrame: number,
@@ -55,7 +57,8 @@ const LABELS: Readonly<Record<AssistanceGuidedWorkflowId, string>> = Object.free
 
 export default function LocalAssistanceGuidedPanel({
 	copy, snapshot, onSelectWorkflow, onSettingsChange, onRun, onCancel, onReview, onAccept,
-	onChoiceChange, onHighlightTitleChange, onHighlightTrimChange, onHighlightCropChange,
+	onChoiceChange, onReframeCropChange, onHighlightTitleChange, onHighlightTrimChange,
+	onHighlightCropChange,
 }: LocalAssistanceGuidedPanelProps) {
 	const graph = snapshot.selectedWorkflowId
 		? assistanceWorkflowStageGraph(snapshot.selectedWorkflowId) : null;
@@ -108,6 +111,11 @@ export default function LocalAssistanceGuidedPanel({
 			{text(copy, 'localAssistanceReviewLoading', 'Opening review…')}
 		</p>}><LocalAssistanceGuidedReview copy={copy} review={snapshot.review}
 			selectedChoiceIds={snapshot.selectedChoiceIds} onChoiceChange={onChoiceChange}
+			auditionAudio={snapshot.auditionAudio}
+			auditionSourceStartFrame={snapshot.auditionSourceStartFrame}
+			auditionSourceSampleRate={snapshot.auditionSourceSampleRate}
+			previewVideo={snapshot.previewVideo}
+			reframeDraft={snapshot.reframeDraft} onReframeCropChange={onReframeCropChange}
 			highlightDraft={snapshot.highlightDraft}
 			onHighlightTitleChange={onHighlightTitleChange}
 			onHighlightTrimChange={onHighlightTrimChange}

@@ -8,20 +8,44 @@ export interface AssistanceWorkflowAudioReviewAuthorityV1 {
 	readonly frameCount: number;
 }
 
+export interface AssistanceWorkflowReviewMediaV1 {
+	/** Ephemeral adapter-owned input used only for mutation-free audition. */
+	readonly audio: AssistanceWorkflowReviewMediaAssetV1 | null;
+	/** Ephemeral authenticated original used only for transport preview. */
+	readonly video: AssistanceWorkflowReviewMediaAssetV1 | null;
+}
+
+export interface AssistanceWorkflowReviewMediaAssetV1 {
+	readonly stageId: string;
+	readonly slotId: string;
+	readonly mediaType: string;
+	readonly byteLength: number;
+	readonly sha256: string;
+	readonly body: Blob;
+}
+
 export interface AssistanceWorkflowReviewAuthorityV1 {
 	readonly reviewAuthorityVersion: 1;
 	readonly audioWave: AssistanceWorkflowAudioReviewAuthorityV1 | null;
 	readonly editorialCandidateIds: readonly string[] | null;
+	readonly media: AssistanceWorkflowReviewMediaV1;
 }
 
 const AUTHORITY_FIELDS = Object.freeze([
-	'reviewAuthorityVersion', 'audioWave', 'editorialCandidateIds',
+	'reviewAuthorityVersion', 'audioWave', 'editorialCandidateIds', 'media',
 ]);
 const AUDIO_FIELDS = Object.freeze(['sampleRate', 'channelCount', 'frameCount']);
+const MEDIA_FIELDS = Object.freeze(['audio', 'video']);
+const MEDIA_ASSET_FIELDS = Object.freeze([
+	'stageId', 'slotId', 'mediaType', 'byteLength', 'sha256', 'body',
+]);
 const ID = /^[A-Za-z\d][A-Za-z\d._:-]{0,255}$/u;
+const SLOT_ID = /^[a-z\d](?:[a-z\d.-]{0,62}[a-z\d])?$/u;
+const SHA256 = /^[a-f\d]{64}$/u;
 
 export function createEmptyAssistanceWorkflowReviewAuthorityV1(): AssistanceWorkflowReviewAuthorityV1 {
-	return Object.freeze({ reviewAuthorityVersion: 1, audioWave: null, editorialCandidateIds: null });
+	return Object.freeze({ reviewAuthorityVersion: 1, audioWave: null, editorialCandidateIds: null,
+		media: Object.freeze({ audio: null, video: null }) });
 }
 
 export function validateAssistanceWorkflowReviewAuthorityV1(
@@ -48,7 +72,37 @@ export function validateAssistanceWorkflowReviewAuthorityV1(
 		}
 		editorialCandidateIds = Object.freeze(ids);
 	}
-	return Object.freeze({ reviewAuthorityVersion: 1, audioWave, editorialCandidateIds });
+	const media = reviewMedia(row.media);
+	return Object.freeze({ reviewAuthorityVersion: 1, audioWave, editorialCandidateIds, media });
+}
+
+function reviewMedia(value: unknown): AssistanceWorkflowReviewMediaV1 {
+	const row = exactRecord(value, MEDIA_FIELDS, 'workflow review media');
+	return Object.freeze({
+		audio: mediaAsset(row.audio, 'audio/wav', 'audio'),
+		video: mediaAsset(row.video, 'video/', 'video'),
+	});
+}
+
+function mediaAsset(
+	value: unknown,
+	expectedMediaType: string,
+	label: string,
+): AssistanceWorkflowReviewMediaAssetV1 | null {
+	if (value === null) return null;
+	const row = exactRecord(value, MEDIA_ASSET_FIELDS, `workflow review ${label} asset`);
+	if (typeof row.stageId !== 'string' || !SLOT_ID.test(row.stageId)
+		|| typeof row.slotId !== 'string' || !SLOT_ID.test(row.slotId)
+		|| typeof row.mediaType !== 'string'
+		|| (expectedMediaType.endsWith('/') ? !row.mediaType.startsWith(expectedMediaType)
+			: row.mediaType !== expectedMediaType)
+		|| !(row.body instanceof Blob) || row.body.size < 1 || row.body.type !== row.mediaType
+		|| !Number.isSafeInteger(row.byteLength) || row.byteLength !== row.body.size
+		|| typeof row.sha256 !== 'string' || !SHA256.test(row.sha256)) {
+		throw new TypeError(`The workflow review ${label} body is invalid.`);
+	}
+	return Object.freeze({ stageId: row.stageId, slotId: row.slotId, mediaType: row.mediaType,
+		byteLength: Number(row.byteLength), sha256: row.sha256, body: row.body });
 }
 
 function audioAuthority(value: unknown): AssistanceWorkflowAudioReviewAuthorityV1 {

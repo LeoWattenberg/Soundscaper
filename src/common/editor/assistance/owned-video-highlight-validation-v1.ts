@@ -3,6 +3,7 @@
 /** Shared strict re-admission for pathless Framescaper/highlight transform values. */
 
 import type { AssistanceTrackedSubjectResultV1 } from './subject-tracker-v1.ts';
+import { MAXIMUM_ASSISTANCE_EDITORIAL_CHAPTERS } from './m7-semantic-results.ts';
 import { VIDEO_TIMING_ASSET_MAXIMUM_FRAMES } from '../video-timing-asset-reference.ts';
 import type {
 	AssistanceOwnedFramePackPlanV1,
@@ -69,7 +70,9 @@ const RANKED_FIELDS = Object.freeze([
 const PROPOSALS_FIELDS = Object.freeze([
 	'schemaVersion', 'kind', 'workflowId', 'targetAspect', 'proposals',
 ] as const);
-const PROPOSAL_FIELDS = Object.freeze([...RANKED_FIELDS, 'title'] as const);
+const PROPOSAL_FIELDS = Object.freeze([
+	...RANKED_FIELDS, 'title', 'hook', 'chapters', 'explanation',
+] as const);
 const CROP_KEYFRAME_FIELDS = Object.freeze(['sourceFrame', 'authority', 'trackIds', 'crop'] as const);
 const CROP_FIELDS = Object.freeze(['left', 'top', 'right', 'bottom'] as const);
 const ANCHORS = new Set<unknown>([
@@ -279,11 +282,31 @@ export function reviewOwnedHighlightProposalsV1(value: unknown): AssistanceOwned
 			if (title !== title.trim() || INVALID_TITLE.test(title)) {
 				throw new TypeError(`${label} title must be inert, non-executable plain text.`);
 			}
-			return Object.freeze({ ...base, title });
+			const hook = editorialText(item.hook, 512, `${label} hook`);
+			const explanation = editorialText(item.explanation, 2_048, `${label} explanation`);
+			const chapters = ownedArray(item.chapters, MAXIMUM_ASSISTANCE_EDITORIAL_CHAPTERS,
+				`${label} chapters`).map((chapter, chapterIndex) => {
+				const reviewed = ownedText(chapter, 160,
+					`${label} chapter ${String(chapterIndex)}`);
+				if (reviewed !== reviewed.trim() || INVALID_TITLE.test(reviewed)) {
+					throw new TypeError(`${label} chapters must be inert, non-executable plain text.`);
+				}
+				return reviewed;
+			});
+			return Object.freeze({ ...base, title, hook, chapters: Object.freeze(chapters),
+				explanation });
 		});
 	return Object.freeze({ schemaVersion: 1, kind: 'highlight-proposals',
 		workflowId: 'make-highlights', targetAspect: Object.freeze({ width: 9, height: 16 }),
 		proposals: Object.freeze(proposals) });
+}
+
+function editorialText(value: unknown, maximum: number, label: string): string | null {
+	const reviewed = ownedNullableText(value, maximum, label);
+	if (reviewed !== null && (reviewed !== reviewed.trim() || INVALID_TITLE.test(reviewed))) {
+		throw new TypeError(`${label} must be inert, non-executable plain text.`);
+	}
+	return reviewed;
 }
 
 export function ownedSha256(value: unknown, label: string): string {

@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 /** Explicit controller adaptation from reviewed aggregate terminals to owned primitive publishers. */
-
 import {
 	reviewAssistanceOwnedAudioCutTransformResultV1,
 } from '../assistance/owned-audio-cut-transform-results-v1.ts';
@@ -46,7 +45,6 @@ export type {
 	LocalAssistanceGuidedHighlightAcceptanceRequest,
 	LocalAssistanceGuidedReframeAcceptanceRequest,
 } from './local-assistance-guided-framescaper-acceptance.ts';
-
 type Awaitable<Value> = PromiseLike<Value> | Value;
 type SupportedWorkflowId = 'transcribe-captions' | 'clean-filler-silence' | 'identify-speakers'
 	| 'enhance-dialogue' | 'separate-dialogue-music-effects' | 'mark-reactions'
@@ -131,6 +129,7 @@ export interface LocalAssistanceGuidedResultAcceptance {
 	createAcceptanceSession(request: Readonly<{
 		readonly workflow: unknown;
 		readonly reviewedResult: unknown;
+		readonly reframeDraft?: unknown;
 		readonly highlightDraft?: unknown;
 	}>): LocalAssistanceGuidedAcceptanceAvailability;
 }
@@ -201,7 +200,8 @@ export function createLocalAssistanceGuidedResultAcceptance(
 	return Object.freeze({ createAcceptanceSession });
 
 	function createAcceptanceSession(value: Readonly<{
-		readonly workflow: unknown; readonly reviewedResult: unknown; readonly highlightDraft?: unknown;
+		readonly workflow: unknown; readonly reviewedResult: unknown;
+		readonly reframeDraft?: unknown; readonly highlightDraft?: unknown;
 	}>): LocalAssistanceGuidedAcceptanceAvailability {
 		const requestedId = workflowId(value?.workflow);
 		if (!SUPPORTED.has(requestedId)) return unsupported(requestedId,
@@ -221,7 +221,7 @@ export function createLocalAssistanceGuidedResultAcceptance(
 			: range.occurrenceIds);
 		assertCurrentFence(dependencies, fence);
 		const review = normalizeReview(workflow, workflowIdValue, value.reviewedResult,
-			value.highlightDraft);
+			value.highlightDraft, value.reframeDraft);
 		return Object.freeze({ outcome: 'ready' as const,
 			session: createSession(dependencies, workflow, workflowIdValue, fence, review) });
 	}
@@ -342,6 +342,7 @@ function normalizeReview(
 	workflowId: SupportedWorkflowId,
 	value: unknown,
 	highlightDraft?: unknown,
+	reframeDraft?: unknown,
 ): NormalizedReview {
 	const row = exactRecord(value, ['reviewVersion', 'jobId', 'workflowId', 'outputs', 'choices'],
 		'Guided reviewed result');
@@ -360,7 +361,7 @@ function normalizeReview(
 		}
 		bySlot.set(output.slotId, output);
 	}
-	const semantics = reviewSemantics(workflowId, bySlot, highlightDraft);
+	const semantics = reviewSemantics(workflowId, bySlot, highlightDraft, reframeDraft);
 	for (const [slotId, semantic] of semantics) {
 		const output = bySlot.get(slotId)!;
 		bySlot.set(slotId, Object.freeze({ ...output, semantic }));
@@ -399,6 +400,7 @@ function reviewSemantics(
 	workflowId: SupportedWorkflowId,
 	outputs: ReadonlyMap<string, ReviewedOutput>,
 	highlightDraft?: unknown,
+	reframeDraft?: unknown,
 ): ReadonlyMap<string, unknown> {
 	if (workflowId === 'enhance-dialogue' || workflowId === 'separate-dialogue-music-effects') {
 		const expectedRole = workflowId === 'enhance-dialogue' ? 'enhanced-audio' : 'separated-audio';
@@ -413,7 +415,9 @@ function reviewSemantics(
 		}));
 	}
 	if (workflowId === 'reframe' || workflowId === 'make-highlights') {
-		return reviewLocalAssistanceGuidedFramescaperSemantics(workflowId, outputs, highlightDraft);
+		return reviewLocalAssistanceGuidedFramescaperSemantics(
+			workflowId, outputs, highlightDraft, reframeDraft,
+		);
 	}
 	const transformId = workflowId === 'transcribe-captions' ? 'assemble-captions'
 		: workflowId === 'clean-filler-silence' ? 'propose-cleanup'

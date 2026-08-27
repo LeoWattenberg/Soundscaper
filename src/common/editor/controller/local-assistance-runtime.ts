@@ -254,6 +254,7 @@ export function createLocalAssistancePreparationRuntime(
 			});
 			const availability = guidedAcceptance.createAcceptanceSession({ workflow,
 				reviewedResult: request.reviewedResult,
+				...(request.reframeDraft === undefined ? {} : { reframeDraft: request.reframeDraft }),
 				...(request.highlightDraft === undefined ? {} : { highlightDraft: request.highlightDraft }) });
 			if (availability.outcome !== 'ready') return availability;
 			if (workflow.workflowId === 'mark-reactions' && request.selectedChoiceIds.length > 0) {

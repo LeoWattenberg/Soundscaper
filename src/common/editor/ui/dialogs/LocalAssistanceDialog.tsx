@@ -52,6 +52,8 @@ export interface LocalAssistanceDialogViewProps {
 	readonly onReviewGuided?: () => unknown;
 	readonly onAcceptGuided?: () => unknown;
 	readonly onGuidedChoiceChange?: (choiceId: string, selected: boolean) => unknown;
+	readonly onGuidedReframeCropChange?: (sourceFrame: number,
+		crop: Readonly<{ left: number; top: number; right: number; bottom: number }>) => unknown;
 	readonly onGuidedHighlightTitleChange?: (proposalId: string, title: string) => unknown;
 	readonly onGuidedHighlightTrimChange?: (
 		proposalId: string, startFrame: number, endFrame: number,
@@ -109,6 +111,7 @@ export default function LocalAssistanceDialog({
 		onReviewGuided={() => guidedStore.review()}
 		onAcceptGuided={() => guidedStore.accept()}
 		onGuidedChoiceChange={guidedStore.setReviewChoiceSelected}
+		onGuidedReframeCropChange={guidedStore.setReframeCrop}
 		onGuidedHighlightTitleChange={guidedStore.setHighlightTitle}
 		onGuidedHighlightTrimChange={guidedStore.setHighlightTrim}
 		onGuidedHighlightCropChange={guidedStore.setHighlightCrop}
@@ -141,6 +144,7 @@ export function LocalAssistanceDialogView({
 	onRunGuided = () => undefined, onCancelGuided = () => undefined,
 	onReviewGuided = () => undefined, onAcceptGuided = () => undefined,
 	onGuidedChoiceChange = () => undefined,
+	onGuidedReframeCropChange = () => undefined,
 	onGuidedHighlightTitleChange = () => undefined,
 	onGuidedHighlightTrimChange = () => undefined,
 	onGuidedHighlightCropChange = () => undefined,
@@ -199,6 +203,7 @@ export function LocalAssistanceDialogView({
 			onRun={onRunGuided} onCancel={onCancelGuided} onReview={onReviewGuided}
 			onAccept={onAcceptGuided}
 			onChoiceChange={onGuidedChoiceChange}
+			onReframeCropChange={onGuidedReframeCropChange}
 			onHighlightTitleChange={onGuidedHighlightTitleChange}
 			onHighlightTrimChange={onGuidedHighlightTrimChange}
 			onHighlightCropChange={onGuidedHighlightCropChange} />}

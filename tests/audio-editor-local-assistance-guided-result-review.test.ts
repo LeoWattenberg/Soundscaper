@@ -92,7 +92,7 @@ test('Guided enhancement review requires exact adapter-owned WAV geometry author
 		workflow, result: completedResult(workflow), readOutput: async () => body,
 		authority: { reviewAuthorityVersion: 1,
 			audioWave: { sampleRate: 48_000, channelCount: 2, frameCount: 3 },
-			editorialCandidateIds: null },
+			editorialCandidateIds: null, media: { audio: null, video: null } },
 	});
 	assert.deepEqual(reviewed.outputs[0]?.semantic, {
 		kind: 'audio-wave', role: 'enhanced-audio', sampleRate: 48_000,

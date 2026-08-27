@@ -181,7 +181,8 @@ function review(project: FramescaperProjectV31) {
 			evidenceMode: 'speechless', transcriptExcerpt: null,
 			visualSummary: 'Authenticated forward-retime signals.', selected: false,
 			videoOccurrenceId: 'video-clip', audioOccurrenceId: 'audio-clip',
-			title: 'Retimed highlight', cropKeyframes: [crop(1), crop(5)],
+			title: 'Retimed highlight', hook: null, chapters: [], explanation: null,
+			cropKeyframes: [crop(1), crop(5)],
 		}],
 	};
 }

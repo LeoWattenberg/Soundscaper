@@ -15,6 +15,8 @@ import type {
 } from '../assistance/workflow.ts';
 import { validateLocalAssistanceGuidedHighlightDraftV1 } from
 	'./local-assistance-guided-highlight-edits.ts';
+import { validateLocalAssistanceGuidedReframeDraftV1 } from
+	'./local-assistance-guided-reframe-edits.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 export type LocalAssistanceGuidedFramescaperWorkflowId = 'reframe' | 'make-highlights';
@@ -51,6 +53,7 @@ export function reviewLocalAssistanceGuidedFramescaperSemantics(
 	workflowId: LocalAssistanceGuidedFramescaperWorkflowId,
 	outputs: ReadonlyMap<string, ReviewedOutput>,
 	highlightDraft?: unknown,
+	reframeDraft?: unknown,
 ): ReadonlyMap<string, unknown> {
 	const transformId = workflowId === 'reframe' ? 'plan-crops' : 'assemble-highlights';
 	const values = Object.fromEntries([...outputs].map(([slotId, output]) => [
@@ -59,6 +62,14 @@ export function reviewLocalAssistanceGuidedFramescaperSemantics(
 	const reviewed = reviewAssistanceOwnedVideoHighlightTransformResultV1({
 		schemaVersion: 1, transformId, outputs: values,
 	});
+	if (workflowId === 'reframe' && reframeDraft !== undefined) {
+		if (reviewed.transformId !== 'plan-crops') {
+			throw new TypeError('The Guided Reframe review changed transform identity.');
+		}
+		return new Map([['reframe-path', validateLocalAssistanceGuidedReframeDraftV1(
+			reviewed.outputs['reframe-path'], reframeDraft,
+		)]]);
+	}
 	if (workflowId !== 'make-highlights' || highlightDraft === undefined) {
 		return new Map(Object.entries(reviewed.outputs));
 	}

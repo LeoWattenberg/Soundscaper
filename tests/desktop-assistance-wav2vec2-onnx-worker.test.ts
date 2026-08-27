@@ -201,7 +201,7 @@ test('wav2vec2 chunks a long selection by exact ordered Whisper segment authorit
 		assert.deepEqual(progress, [0, 1 / 3, 2 / 3, 1]);
 	});
 
-test('wav2vec2 rejects substitutions, foreign graphs, non-English transcripts, and bad logits',
+test('wav2vec2 rejects substitutions, foreign graphs, and bad logits',
 	async (context) => {
 		const substituted = await fixture(context, { modelId: 'substitute-aligner' });
 		let loaded = false;
@@ -222,11 +222,18 @@ test('wav2vec2 rejects substitutions, foreign graphs, non-English transcripts, a
 		}), /graph|input|output|signature/iu);
 
 		const french = await fixture(context, { transcript: { ...rawTranscript(), language: 'fr' } });
-		await assert.rejects(runAssistanceRuntimeFamilyWorkerJobV1({
+		let alignmentLoaded = false;
+		await runAssistanceRuntimeFamilyWorkerJobV1({
 			job: french.job,
-			execute: createAssistanceOnnxRuntimeWorkerAdapterV1({ loadRuntime: async () =>
-				fakeRuntime([], [], async () => ({})) }),
-		}), /English|language/iu);
+			execute: createAssistanceOnnxRuntimeWorkerAdapterV1({ loadRuntime: async () => {
+				alignmentLoaded = true;
+				return fakeRuntime([], [], async () => ({}));
+			} }),
+		});
+		assert.equal(alignmentLoaded, false);
+		assert.deepEqual(JSON.parse(await readFile(french.paths.output, 'utf8')), {
+			sampleRate: 16_000, schemaVersion: 1, words: [],
+		});
 
 		const malformed = await fixture(context);
 		await assert.rejects(runAssistanceRuntimeFamilyWorkerJobV1({

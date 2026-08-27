@@ -31,6 +31,7 @@ import type {
 	LocalAssistanceSelectedMediaPreparationPort,
 } from '../src/common/editor/ui/local-assistance-preparation.ts';
 import type { LocalAssistanceSnapshot } from '../src/common/editor/ui/local-assistance-session-store.ts';
+import { digestMediaContent } from '../src/common/editor/storage/media-content-digest.ts';
 import { assistanceWorkflowFixture, WORKFLOW_JOB_ID } from './helpers/assistance-workflow-fixture.ts';
 
 test('the menu dialog opens Guided and exposes all 13 recipes before explicit Advanced opt-in', () => {
@@ -135,7 +136,7 @@ test('Guided uses the optional bridge only after preparation returns one exact a
 			return { outcome: 'prepared', workflow: assistanceWorkflowFixture({ jobId: request.jobId,
 				workflowId: request.workflowId, settingsVersion: request.settings.settingsVersion }),
 				reviewAuthority: { reviewAuthorityVersion: 1, audioWave: null,
-					editorialCandidateIds: null } };
+					editorialCandidateIds: null, media: { audio: null, video: null } } };
 		},
 	});
 	const guided = createLocalAssistanceGuidedSessionStore({ bridge: fixture.localBridge, preparation });
@@ -158,6 +159,8 @@ test('Guided uses the optional bridge only after preparation returns one exact a
 });
 
 test('completed Guided output remains unchecked until its terminal claim passes semantic review', async () => {
+	const audition = new Blob(['authenticated audition'], { type: 'audio/wav' });
+	const auditionSha256 = await digestMediaContent(audition);
 	const captions = new Blob([JSON.stringify({
 		schemaVersion: 1, kind: 'captions', sourceId: 'source-a', sampleRate: 48_000,
 		alignmentApplied: false,
@@ -170,7 +173,10 @@ test('completed Guided output remains unchecked until its terminal claim passes 
 			workflow: assistanceWorkflowFixture({ jobId: request.jobId,
 				workflowId: request.workflowId, settingsVersion: request.settings.settingsVersion }),
 			reviewAuthority: { reviewAuthorityVersion: 1, audioWave: null,
-				editorialCandidateIds: null } }),
+				editorialCandidateIds: null, media: { audio: {
+					stageId: 'detect-speech', slotId: 'audio', mediaType: 'audio/wav',
+					byteLength: audition.size, sha256: auditionSha256, body: audition,
+				}, video: null } } }),
 	});
 	const guided = createLocalAssistanceGuidedSessionStore({ bridge: fixture.localBridge, preparation });
 	guided.selectWorkflow('transcribe-captions');
@@ -179,6 +185,9 @@ test('completed Guided output remains unchecked until its terminal claim passes 
 	assert.equal(guided.getSnapshot().canReview, true);
 	await guided.review();
 	assert.equal(guided.getSnapshot().phase, 'review-ready');
+	assert.equal(guided.getSnapshot().auditionAudio, audition);
+	assert.equal(guided.getSnapshot().auditionSourceStartFrame, 0);
+	assert.equal(guided.getSnapshot().auditionSourceSampleRate, 48_000);
 	assert.deepEqual(guided.getSnapshot().selectedChoiceIds, []);
 	assert.deepEqual(guided.getSnapshot().review?.choices.map(({ id, selected }) => ({ id, selected })), [
 		{ id: 'captions', selected: false },
@@ -187,7 +196,31 @@ test('completed Guided output remains unchecked until its terminal claim passes 
 	assert.deepEqual(guided.getSnapshot().selectedChoiceIds, ['captions']);
 	assert.match(renderToStaticMarkup(<LocalAssistanceGuidedReview copy={ENGLISH_COPY}
 		review={guided.getSnapshot().review!} selectedChoiceIds={guided.getSnapshot().selectedChoiceIds}
-		onChoiceChange={() => undefined} />), /type="checkbox" checked=""/u);
+		onChoiceChange={() => undefined} auditionAudio={guided.getSnapshot().auditionAudio} />),
+	/type="checkbox" checked=""/u);
+	await guided.dispose();
+});
+
+test('forged Guided review media is refused before native workflow execution', async () => {
+	const audition = new Blob(['authenticated audition'], { type: 'audio/wav' });
+	const fixture = workflowBridge();
+	const preparation = primitivePreparation({
+		prepareGuidedWorkflow: async (request) => ({ outcome: 'prepared',
+			workflow: assistanceWorkflowFixture({ jobId: request.jobId,
+				workflowId: request.workflowId, settingsVersion: request.settings.settingsVersion }),
+			reviewAuthority: { reviewAuthorityVersion: 1, audioWave: null,
+				editorialCandidateIds: null, media: { audio: {
+					stageId: 'detect-speech', slotId: 'audio', mediaType: 'audio/wav',
+					byteLength: audition.size, sha256: 'ff'.repeat(32), body: audition,
+				}, video: null } } }),
+	});
+	const guided = createLocalAssistanceGuidedSessionStore({ bridge: fixture.localBridge, preparation });
+	guided.selectWorkflow('transcribe-captions');
+	await guided.run();
+	assert.equal(guided.getSnapshot().phase, 'error');
+	assert.match(guided.getSnapshot().error ?? '', /review media changed/iu);
+	assert.deepEqual(fixture.requests, []);
+	assert.equal(fixture.releases, 1);
 	await guided.dispose();
 });
 
@@ -231,6 +264,55 @@ test('Guided editorial review renders admitted text as inert, transient content'
 	assert.doesNotMatch(markup, /contenteditable/iu);
 });
 
+test('Guided Reframe review exposes each authenticated crop keyframe for bounded positioning', () => {
+	const draft = { schemaVersion: 1 as const, kind: 'reframe-path' as const,
+		authority: { width: 1_920, height: 1_080, timescale: 24,
+			frames: [{ sourceFrame: 0, presentationTick: '0' },
+				{ sourceFrame: 23, presentationTick: '23' }] },
+		fallbackChain: ['subject', 'saliency', 'center'] as const,
+		path: { schemaVersion: 1 as const, targetAspect: { width: 9, height: 16 },
+			keyframes: [crop(0), crop(23)] },
+	};
+	const output = { stageId: 'plan-crops', slotId: 'reframe-path',
+		claim: { claimVersion: 1 as const, direction: 'output' as const,
+			claimId: '03'.repeat(20), jobId: WORKFLOW_JOB_ID,
+			stageId: 'plan-crops', slotId: 'reframe-path' },
+		mediaType: 'application/vnd.soundscaper.reframe-path+json', byteLength: 2,
+		sha256: '04'.repeat(32), body: new Blob(['{}'], {
+			type: 'application/vnd.soundscaper.reframe-path+json',
+		}), semantic: draft };
+	const review: LocalAssistanceGuidedReviewedResult = { reviewVersion: 1,
+		jobId: WORKFLOW_JOB_ID, workflowId: 'reframe', outputs: [output],
+		choices: [{ id: 'reframe-path', kind: 'reframe', label: '9:16 crop path',
+			selected: false, enabled: true }] };
+	const markup = renderToStaticMarkup(<LocalAssistanceGuidedReview copy={ENGLISH_COPY}
+		review={review} selectedChoiceIds={[]} onChoiceChange={() => undefined}
+		reframeDraft={draft} />);
+	assert.match(markup, /Target aspect.*9:16/u);
+	assert.equal((markup.match(/Draggable crop overlay/gu) ?? []).length, 1);
+	assert.equal((markup.match(/type="range"/gu) ?? []).length, 2);
+	assert.match(markup, /1 \/ 2/u);
+	assert.match(markup, /Next keyframe/u);
+});
+
+test('Guided Reframe review bounds interactive DOM for a large admitted path', () => {
+	const keyframes = Array.from({ length: 10_000 }, (_, sourceFrame) => crop(sourceFrame));
+	const draft = { schemaVersion: 1 as const, kind: 'reframe-path' as const,
+		authority: { width: 1_920, height: 1_080, timescale: 24,
+			frames: keyframes.map(({ sourceFrame }) => ({ sourceFrame,
+				presentationTick: String(sourceFrame) })) },
+		fallbackChain: ['subject', 'saliency', 'center'] as const,
+		path: { schemaVersion: 1 as const, targetAspect: { width: 9, height: 16 }, keyframes },
+	};
+	const review = reframeReview(draft);
+	const markup = renderToStaticMarkup(<LocalAssistanceGuidedReview copy={ENGLISH_COPY}
+		review={review} selectedChoiceIds={[]} onChoiceChange={() => undefined}
+		reframeDraft={draft} />);
+	assert.equal((markup.match(/Draggable crop overlay/gu) ?? []).length, 1);
+	assert.equal((markup.match(/type="range"/gu) ?? []).length, 2);
+	assert.ok(markup.length < 10_000);
+});
+
 test('Guided highlight review exposes bounded title, trim, transcript, and crop controls', () => {
 	const draft = { schemaVersion: 1 as const, kind: 'highlight-proposals' as const,
 		workflowId: 'make-highlights' as const, targetAspect: { width: 9 as const, height: 16 as const },
@@ -239,7 +321,9 @@ test('Guided highlight review exposes bounded title, trim, transcript, and crop 
 			evidenceMode: 'transcript' as const, transcriptExcerpt: 'Exact transcript cue.',
 			visualSummary: 'Exact visual evidence.', selected: false as const,
 			videoOccurrenceId: 'video-occurrence', audioOccurrenceId: 'audio-occurrence',
-			title: 'Editable title', cropKeyframes: [crop(0), crop(23)] }],
+			title: 'Editable title', hook: 'Open with this exact insight.',
+			chapters: ['Opening', 'Payoff'], explanation: 'The evidence resolves cleanly.',
+			cropKeyframes: [crop(0), crop(23)] }],
 	};
 	const output = { stageId: 'assemble-highlights', slotId: 'highlight-proposals',
 		claim: { claimVersion: 1 as const, direction: 'output' as const,
@@ -255,13 +339,91 @@ test('Guided highlight review exposes bounded title, trim, transcript, and crop 
 			selected: false, enabled: true }] };
 	const markup = renderToStaticMarkup(<LocalAssistanceGuidedReview copy={ENGLISH_COPY}
 		review={review} selectedChoiceIds={[]} onChoiceChange={() => undefined}
-		highlightDraft={draft} />);
+		highlightDraft={draft}
+		previewVideo={new Blob([Uint8Array.of(0, 1, 2)], { type: 'video/mp4' })} />);
 	assert.match(markup, /Editable title/u);
 	assert.match(markup, /Start frame/u);
 	assert.match(markup, /End frame/u);
 	assert.match(markup, /Exact transcript cue/u);
+	assert.match(markup, /Open with this exact insight/u);
+	assert.match(markup, /Opening/u);
+	assert.match(markup, /The evidence resolves cleanly/u);
 	assert.match(markup, /Draggable crop overlay/u);
 	assert.match(markup, /type="range"/u);
+	assert.match(markup, /Transport preview/u);
+	assert.match(markup, /<video controls=""/u);
+});
+
+test('Guided enhancement review exposes the authenticated original beside its result', () => {
+	const output = { stageId: 'enhance-dialogue', slotId: 'enhanced-audio',
+		claim: { claimVersion: 1 as const, direction: 'output' as const,
+			claimId: '03'.repeat(20), jobId: WORKFLOW_JOB_ID,
+			stageId: 'enhance-dialogue', slotId: 'enhanced-audio' },
+		mediaType: 'audio/wav', byteLength: 2, sha256: '04'.repeat(32),
+		body: new Blob(['xx'], { type: 'audio/wav' }), semantic: {
+			kind: 'audio-wave', role: 'enhanced-audio', sampleRate: 48_000,
+			channelCount: 1, frameCount: 1, sampleFormat: 'float32',
+		} };
+	const review: LocalAssistanceGuidedReviewedResult = { reviewVersion: 1,
+		jobId: WORKFLOW_JOB_ID, workflowId: 'enhance-dialogue', outputs: [output],
+		choices: [{ id: 'enhanced-audio', kind: 'audio', label: 'Enhanced Dialogue',
+			selected: false, enabled: true }] };
+	const markup = renderToStaticMarkup(<LocalAssistanceGuidedReview copy={ENGLISH_COPY}
+		review={review} selectedChoiceIds={[]} onChoiceChange={() => undefined}
+		auditionAudio={new Blob(['original'], { type: 'audio/wav' })} />);
+	assert.match(markup, /Original selection/u);
+	assert.match(markup, /enhanced-audio/u);
+	assert.equal((markup.match(/<audio controls=""/gu) ?? []).length, 2);
+});
+
+test('Guided cleanup audition skips checked ranges without mutating its audio body', () => {
+	const semantic = { schemaVersion: 1 as const, kind: 'cleanup-proposals' as const,
+		preset: 'balanced' as const, proposals: [{ id: 'silence:1', kind: 'silence' as const,
+			startFrame: 48_000, endFrame: 72_000, text: '', selected: false as const }] };
+	const output = { stageId: 'propose-cleanup', slotId: 'cleanup-proposals',
+		claim: { claimVersion: 1 as const, direction: 'output' as const,
+			claimId: '03'.repeat(20), jobId: WORKFLOW_JOB_ID,
+			stageId: 'propose-cleanup', slotId: 'cleanup-proposals' },
+		mediaType: 'application/vnd.soundscaper.cleanup-proposals+json', byteLength: 2,
+		sha256: '04'.repeat(32), body: new Blob(['{}'], {
+			type: 'application/vnd.soundscaper.cleanup-proposals+json',
+		}), semantic };
+	const review: LocalAssistanceGuidedReviewedResult = { reviewVersion: 1,
+		jobId: WORKFLOW_JOB_ID, workflowId: 'clean-filler-silence', outputs: [output],
+		choices: [{ id: 'silence:1', kind: 'cleanup', label: 'Measured silence',
+			selected: false, enabled: true }] };
+	const body = new Blob(['immutable original'], { type: 'audio/wav' });
+	const markup = renderToStaticMarkup(<LocalAssistanceGuidedReview copy={ENGLISH_COPY}
+		review={review} selectedChoiceIds={['silence:1']} onChoiceChange={() => undefined}
+		auditionAudio={body} auditionSourceStartFrame={24_000}
+		auditionSourceSampleRate={48_000} />);
+	assert.match(markup, /Audition skips checked ranges without changing the project/u);
+	assert.match(markup, /data-skip-range-count="1"/u);
+	assert.equal(body.size, 18);
+});
+
+test('changing a completed Guided workflow releases discarded native and media custody', async () => {
+	const body = new Blob([JSON.stringify({ schemaVersion: 1, kind: 'captions',
+		sourceId: 'source-a', sampleRate: 48_000, alignmentApplied: false, cues: [],
+	})], { type: 'application/vnd.soundscaper.captions+json' });
+	const fixture = workflowBridge({ completedBody: body });
+	const preparation = primitivePreparation({
+		prepareGuidedWorkflow: async (request) => ({ outcome: 'prepared',
+			workflow: assistanceWorkflowFixture({ jobId: request.jobId,
+				workflowId: request.workflowId, settingsVersion: request.settings.settingsVersion }),
+			reviewAuthority: { reviewAuthorityVersion: 1, audioWave: null,
+				editorialCandidateIds: null, media: { audio: null, video: null } } }),
+	});
+	const guided = createLocalAssistanceGuidedSessionStore({
+		bridge: fixture.localBridge, preparation,
+	});
+	guided.selectWorkflow('transcribe-captions');
+	await guided.run();
+	assert.equal(fixture.releases, 0);
+	guided.selectWorkflow('clean-filler-silence');
+	await Promise.resolve();
+	assert.equal(fixture.releases, 1);
+	await guided.dispose();
 });
 
 test('Guided acceptance publishes only checked choices and releases completed native custody', async () => {
@@ -278,7 +440,7 @@ test('Guided acceptance publishes only checked choices and releases completed na
 			workflow: assistanceWorkflowFixture({ jobId: request.jobId,
 				workflowId: request.workflowId, settingsVersion: request.settings.settingsVersion }),
 			reviewAuthority: { reviewAuthorityVersion: 1, audioWave: null,
-				editorialCandidateIds: null } }),
+				editorialCandidateIds: null, media: { audio: null, video: null } } }),
 		acceptGuidedWorkflowResult: async (request) => {
 			accepted.push(request);
 			return { outcome: 'accepted', selectedIds: request.selectedChoiceIds };
@@ -315,6 +477,19 @@ function primitivePreparation(
 function crop(sourceFrame: number) {
 	return { sourceFrame, authority: 'center' as const, trackIds: [],
 		crop: { left: 0.341796875, top: 0, right: 0.341796875, bottom: 0 } };
+}
+
+function reframeReview(semantic: unknown): LocalAssistanceGuidedReviewedResult {
+	return { reviewVersion: 1, jobId: WORKFLOW_JOB_ID, workflowId: 'reframe', outputs: [{
+		stageId: 'plan-crops', slotId: 'reframe-path', claim: { claimVersion: 1,
+			direction: 'output', claimId: '03'.repeat(20), jobId: WORKFLOW_JOB_ID,
+			stageId: 'plan-crops', slotId: 'reframe-path' },
+		mediaType: 'application/vnd.soundscaper.reframe-path+json', byteLength: 2,
+		sha256: '04'.repeat(32), body: new Blob(['{}'], {
+			type: 'application/vnd.soundscaper.reframe-path+json',
+		}), semantic,
+	}], choices: [{ id: 'reframe-path', kind: 'reframe', label: '9:16 crop path',
+		selected: false, enabled: true }] };
 }
 
 function workflowBridge(options: Readonly<{ completedBody?: Blob }> = {}) {
