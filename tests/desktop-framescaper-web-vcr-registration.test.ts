@@ -12,7 +12,7 @@ const CERTIFICATE_DATA = readFileSync(new URL('fixtures/web-vcr/fixture-cert.pem
 const CERTIFICATE_FINGERPRINT = new X509Certificate(CERTIFICATE_DATA).fingerprint256;
 
 test('disabled raw trusted bridge cannot materialize a guest partition, window, or grant', async () => {
-	const harness = registration(null);
+	const harness = registration({ enabled: false });
 	assert.deepEqual(invoke(harness, FRAMESCAPER_WEB_VCR_CHANNELS.handshake), {
 		version: 1,
 		capability: { status: 'unavailable', reason: 'roadmap-gate', detail: null },
@@ -33,11 +33,36 @@ test('disabled raw trusted bridge cannot materialize a guest partition, window, 
 	harness.value.dispose();
 });
 
-test('dedicated smoke qualification lazily installs exact guest security before opening', async () => {
+test('enabled production Web VCR lazily installs generic guest security without certificate trust', async () => {
+	const harness = registration({ enabled: true });
+	assert.equal(harness.partitionRequests.length, 0, 'registration and handshake stay partition-lazy');
+	assert.equal((invoke(harness, FRAMESCAPER_WEB_VCR_CHANNELS.handshake) as {
+		capability: { status: string };
+	}).capability.status, 'available');
+	assert.equal(harness.partitionRequests.length, 0);
+	const opened = await invoke(harness, FRAMESCAPER_WEB_VCR_CHANNELS.open, { resolution: '1080p' }) as {
+		phase: string;
+	};
+	assert.equal(opened.phase, 'ready');
+	assert.deepEqual(harness.partitionRequests, ['persist:framescaper-web-vcr-v1']);
+	assert.equal(harness.security.permissionCheck?.({}, 'camera', '', {}), false);
+	let requested: boolean | null = null;
+	harness.security.permissionRequest?.({}, 'media', (allowed: boolean) => { requested = allowed; }, {});
+	assert.equal(requested, false);
+	assert.equal(harness.security.devicePermission?.({ deviceType: 'usb' }), false);
+	assert.equal(harness.security.certificate, null, 'production HTTPS keeps Chromium certificate trust');
+	harness.value.dispose();
+	assert.equal(harness.security.permissionCheck, null);
+});
+
+test('optional smoke trust lazily installs its exact certificate trust beside generic security', async () => {
 	const fingerprint = CERTIFICATE_FINGERPRINT;
 	const harness = registration({
-		kind: 'packaged-smoke-v1',
-		certificate: { enabled: true, origin: 'https://127.0.0.1:4443', fingerprint },
+		enabled: true,
+		smokeTrust: {
+			kind: 'packaged-smoke-v1',
+			certificate: { enabled: true, origin: 'https://127.0.0.1:4443', fingerprint },
+		},
 	});
 	assert.equal(harness.partitionRequests.length, 0, 'registration and handshake stay partition-lazy');
 	harness.setFocused(false);
@@ -81,11 +106,37 @@ test('dedicated smoke qualification lazily installs exact guest security before 
 	assert.equal(harness.security.certificate, null);
 });
 
-test('system-picker delivery keeps a smoke-qualified Web VCR unavailable and partition-free', async () => {
+test('smoke trust cannot enable a disabled Web VCR', async () => {
+	const harness = registration({
+		enabled: false,
+		smokeTrust: {
+			kind: 'packaged-smoke-v1',
+			certificate: {
+				enabled: true,
+				origin: 'https://127.0.0.1:4443',
+				fingerprint: CERTIFICATE_FINGERPRINT,
+			},
+		},
+	});
+	assert.deepEqual((invoke(harness, FRAMESCAPER_WEB_VCR_CHANNELS.handshake) as {
+		capability: unknown;
+	}).capability, { status: 'unavailable', reason: 'roadmap-gate', detail: null });
+	await assert.rejects(async () => invoke(harness, FRAMESCAPER_WEB_VCR_CHANNELS.open, {
+		resolution: '1080p',
+	}), /unavailable|gate/iu);
+	assert.equal(harness.partitionRequests.length, 0);
+	assert.equal(harness.security.certificate, null);
+	harness.value.dispose();
+});
+
+test('system-picker delivery keeps an enabled Web VCR unavailable and partition-free', async () => {
 	const fingerprint = CERTIFICATE_FINGERPRINT;
 	const harness = registration({
-		kind: 'packaged-smoke-v1',
-		certificate: { enabled: true, origin: 'https://127.0.0.1:4443', fingerprint },
+		enabled: true,
+		smokeTrust: {
+			kind: 'packaged-smoke-v1',
+			certificate: { enabled: true, origin: 'https://127.0.0.1:4443', fingerprint },
+		},
 	}, 'system-picker');
 	const handshake = invoke(harness, FRAMESCAPER_WEB_VCR_CHANNELS.handshake) as {
 		capability: { status: string; reason?: string };
@@ -100,7 +151,10 @@ test('system-picker delivery keeps a smoke-qualified Web VCR unavailable and par
 });
 
 function registration(
-	qualification: Parameters<typeof registerFramescaperWebVcrDesktopV1>[0]['qualification'],
+	options: Readonly<{
+		readonly enabled: boolean;
+		readonly smokeTrust?: Parameters<typeof registerFramescaperWebVcrDesktopV1>[0]['smokeTrust'];
+	}>,
 	displaySelectionMode: 'owned-callback' | 'system-picker' = 'owned-callback',
 ) {
 	const handlers = new Map<string, (event: never, value?: unknown) => unknown>();
@@ -131,7 +185,8 @@ function registration(
 			registerPreloadScript: (options) => { preloads.push(options); return 'web-vcr-preload'; },
 			unregisterPreloadScript: () => undefined,
 		},
-		qualification,
+		enabled: options.enabled,
+		smokeTrust: options.smokeTrust ?? null,
 		displaySelectionMode,
 		sessionFromPartition: (partition) => { partitionRequests.push(partition); return security; },
 		createWindow: () => { const window = fakeWindow(); windows.push(window); return window; },

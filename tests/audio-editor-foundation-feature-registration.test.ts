@@ -76,7 +76,7 @@ test('foundation registry and both project-capability profiles stay equal', () =
 	assert.deepEqual(Object.keys(PRODUCT_PROFILES.framescaper.capabilities).sort(), registry);
 	assert.equal(PRODUCT_PROFILES.framescaper.applicationFeatures.framescaperCapture, true,
 		'the selected F31 project registry activates the separate capture application route');
-	assert.equal(PRODUCT_PROFILES.framescaper.applicationFeatures.framescaperWebVcr, false);
+	assert.equal(PRODUCT_PROFILES.framescaper.applicationFeatures.framescaperWebVcr, true);
 });
 
 test('V17 audio warp state is native when enabled and otherwise bypass-only', () => {

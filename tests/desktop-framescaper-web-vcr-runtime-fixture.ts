@@ -8,7 +8,7 @@ import type { WebVcrSnapshot } from '../desktop/framescaper-web-vcr-contract.ts'
 import type { FramescaperWebVcrResolvedTargetObservationV1 } from '../desktop/framescaper-web-vcr-target-observer.ts';
 
 export function runtime(options: {
-	readonly qualified?: boolean;
+	readonly enabled?: boolean;
 	readonly clearFailure?: boolean;
 	readonly openFailure?: boolean;
 	readonly fenceFailure?: boolean;
@@ -43,7 +43,7 @@ export function runtime(options: {
 	};
 	const value = createFramescaperWebVcrRuntimeV1({
 		productId: 'framescaper',
-		qualified: options.qualified ?? true,
+		enabled: options.enabled ?? true,
 		now: () => nowMs,
 		createOpaqueId: () => (nextId++).toString(16).padStart(32, '0'),
 		createWindow,

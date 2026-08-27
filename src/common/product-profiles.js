@@ -75,7 +75,7 @@ export const FRAMESCAPER_PROFILE = {
 	importChoices: ['scape', 'audacity-project', 'audio', 'video', 'labels'],
 	exportChoices: ['scape', 'audio', 'video', 'labels'],
 	shortcuts: { disabledCommandIds: ['record', 'generate', 'selection-effect', 'spectral-edit', 'analyze', 'manage-macros', 'nyquist-prompt'] },
-	applicationFeatures: { framescaperCapture: true, framescaperWebVcr: false },
+	applicationFeatures: { framescaperCapture: true, framescaperWebVcr: true },
 	capabilities: {
 		...SHARED_CAPABILITIES,
 		assistanceAssets: true,

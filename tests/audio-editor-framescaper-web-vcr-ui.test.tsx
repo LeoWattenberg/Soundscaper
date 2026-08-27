@@ -28,7 +28,7 @@ import {
 } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
 import { DEFAULT_PANELS } from '../src/common/editor/workspace-layout-defaults.ts';
 
-test('Web VCR is renderable but summon-only, qualification-gated and hidden by default', () => {
+test('Web VCR is renderable but summon-only and hidden by default', () => {
 	assert.ok(WORKSPACE_PANEL_IDS.includes(WEB_VCR_PANEL_ID));
 	assert.ok(!WORKSPACE_DISCOVERABLE_PANEL_IDS.includes(WEB_VCR_PANEL_ID));
 	assert.deepEqual(DEFAULT_PANELS[WEB_VCR_PANEL_ID], {
@@ -58,7 +58,7 @@ test('Web VCR is renderable but summon-only, qualification-gated and hidden by d
 	assert.equal(findMenuItem(filterProductMenus(menus, capabilities, 'framescaper'), 'panel-web-vcr'), null);
 });
 
-test('Record options expose Web VCR only after qualification and activate it with one action', () => {
+test('Record options expose Web VCR only when available and activate it with one action', () => {
 	const unavailable = inspectRecordControl(webVcr({ capability: {
 		status: 'unavailable', reason: 'roadmap-gate',
 	} }));
@@ -84,6 +84,12 @@ test('a stale available Web VCR cannot reveal a Record entry on the selected Fra
 	assert.equal(framescaperCaptureRecordControlVisible({
 		productId: 'soundscaper', capture, webVcr: webVcr(),
 	}, false), false);
+	assert.equal(framescaperCaptureRecordControlVisible({
+		productId: 'framescaper', capture, webVcr: webVcr(),
+	}, true), true, 'the existing Recording Setup opt-in reveals Record');
+	assert.equal(framescaperCaptureRecordControlVisible({
+		productId: 'framescaper', capture: { phase: 'recovery' }, webVcr: webVcr(),
+	}, false), true, 'recovery remains reachable without a surviving local preference');
 });
 
 test('primary Record action follows the active Web VCR lifecycle and never offers pause', () => {
@@ -108,7 +114,7 @@ test('primary Record action follows the active Web VCR lifecycle and never offer
 	assert.equal(loading.menuItems.get('Record web capture')?.disabled, true);
 });
 
-test('Web VCR panel presents qualified defaults, browser controls and capture dimensions', () => {
+test('Web VCR panel presents supported defaults, browser controls and capture dimensions', () => {
 	const markup = render(<WebVcrPanel
 		controller={controller([])}
 		snapshot={{ productId: 'framescaper', webVcr: webVcr({

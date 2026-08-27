@@ -77,14 +77,14 @@ export function parseFramescaperWebVcrSmokeConfiguration(argv) {
 	return deepFreeze({ mode: plan.mode, plan });
 }
 
-/** Main-process activation is packaged-only and yields null for the dormant witness. */
-export function framescaperWebVcrSmokeQualification(argv, options) {
+/** Optional fixture certificate trust is packaged-only and absent for the dormant witness. */
+export function framescaperWebVcrSmokeTrust(argv, options) {
 	const configuration = parseFramescaperWebVcrSmokeConfiguration(argv);
 	if (configuration.mode === 'disabled'
 		|| configuration.mode === FRAMESCAPER_WEB_VCR_DORMANT_SMOKE_MODE) return null;
 	if (!options || typeof options !== 'object' || options.packaged !== true
 		|| options.productId !== 'framescaper') {
-		throw new Error('Framescaper Web VCR smoke qualification requires a packaged Framescaper process.');
+		throw new Error('Framescaper Web VCR smoke trust requires a packaged Framescaper process.');
 	}
 	return deepFreeze({
 		kind: 'packaged-smoke-v1',

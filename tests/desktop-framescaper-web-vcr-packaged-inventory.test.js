@@ -38,6 +38,6 @@ test('desktop assembly inventories the Web VCR runtime and separate sandbox prel
 	assert.match(assembly, /framescaper-web-vcr-sandbox-preload\.ts/u);
 
 	const main = await readFile(resolve(ROOT, 'desktop/main.mjs'), 'utf8');
-	assert.match(main, /framescaperWebVcrSmokeQualification\(process\.argv/u);
+	assert.match(main, /framescaperWebVcrSmokeTrust\(process\.argv/u);
 	assert.doesNotMatch(main, /ignore-certificate-errors|disable-web-security|allow-insecure-localhost/iu);
 });

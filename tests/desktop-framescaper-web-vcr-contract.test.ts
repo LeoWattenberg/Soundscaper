@@ -29,7 +29,7 @@ test('desktop contract reuses and strengthens frozen common Web VCR DTOs', () =>
 	assert.doesNotMatch(JSON.stringify(snapshot), /title|cookie|file|path/iu);
 });
 
-test('desktop contract rejects unqualified capabilities and malformed snapshots', () => {
+test('desktop contract rejects unsupported capabilities and malformed snapshots', () => {
 	assert.throws(() => validateWebVcrHandshakeV1({
 		version: 1,
 		capability: { status: 'available', resolutions: ['4k'] },

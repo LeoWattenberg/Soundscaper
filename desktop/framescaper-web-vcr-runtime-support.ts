@@ -23,7 +23,7 @@ import type {
 
 export interface FramescaperWebVcrRuntimeOptionsV1 {
 	readonly productId: string;
-	readonly qualified: boolean;
+	readonly enabled: boolean;
 	readonly unavailableReason?: WebVcrCapabilityReason;
 	readonly now: () => number;
 	readonly createOpaqueId: () => string;
@@ -90,7 +90,7 @@ export function validateFramescaperWebVcrRuntimeOptionsV1(
 	value: FramescaperWebVcrRuntimeOptionsV1,
 ): FramescaperWebVcrRuntimeOptionsV1 {
 	if (!value || typeof value !== 'object' || typeof value.productId !== 'string'
-		|| typeof value.qualified !== 'boolean' || typeof value.now !== 'function'
+		|| typeof value.enabled !== 'boolean' || typeof value.now !== 'function'
 		|| (value.unavailableReason !== undefined && typeof value.unavailableReason !== 'string')
 		|| typeof value.createOpaqueId !== 'function' || typeof value.createWindow !== 'function'
 		|| !value.browserSession || typeof value.browserSession.clearAuthCache !== 'function'
@@ -133,7 +133,7 @@ export function assertFramescaperWebVcrResolutionAvailable(
 ): void {
 	if (capability.status !== 'available' || resolution === '4k'
 		|| !capability.resolutions.includes(resolution)) {
-		throw new Error('Web VCR resolution is unavailable or unqualified.');
+		throw new Error('Web VCR resolution is unavailable.');
 	}
 }
 

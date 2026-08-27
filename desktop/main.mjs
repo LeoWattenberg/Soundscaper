@@ -18,7 +18,7 @@ import {
 	APP_NAME,
 	APP_ORIGIN,
 	APP_SCHEME,
-	EXTERNAL_DESTINATIONS,
+	EXTERNAL_DESTINATIONS, FRAMESCAPER_WEB_VCR_ENABLED,
 	IPC,
 	PRODUCT_ID,
 	SESSION_PARTITION,
@@ -31,7 +31,7 @@ import { disposeDesktopCaptureSecurity, registerDesktopCaptureSecurity, revokeDe
 import { createFramescaperNativeServicesElectronPorts } from './framescaper-native-services-electron-ports.mjs';
 import { startFramescaperNativeServicesRegistration } from './framescaper-native-services-registration.mjs';
 import { FRAMESCAPER_SELECTED_V28_IMAGE_SEQUENCE_IMPORT_AUTHORITY } from './framescaper-selected-v28-route-authorities.mjs';
-import { framescaperWebVcrSmokeQualification } from './framescaper-web-vcr-smoke-plan.js';
+import { framescaperWebVcrSmokeTrust } from './framescaper-web-vcr-smoke-plan.js';
 import { disposeDesktopNativeTier, registerDesktopNativeTier, revokeDesktopNativeTierOwner } from './native-tier-registration.mjs';
 import { registerHostAffordances } from './host-affordances.mjs';
 import { registerExternalFfmpegPreferences } from './external-ffmpeg-registration.mjs';
@@ -358,8 +358,8 @@ async function registerIpcHandlers(desktopSession) {
 		ownerFor: rendererSaveOwnerFor,
 		currentOwnerFor: (webContents) => rendererSaveOwnership.currentOwnerFor(webContents),
 		observeWebVcrDisplaySecurityWitness: (value) => desktopSmokeProbe.observeWebVcrDisplaySecurityWitness(value),
-		platform: process.platform, productId: PRODUCT_ID,
-		systemVersion: process.getSystemVersion?.() ?? '', webVcrQualification: framescaperWebVcrSmokeQualification(process.argv, { packaged: app.isPackaged, productId: PRODUCT_ID }), windowFor: () => mainWindow,
+		platform: process.platform, productId: PRODUCT_ID, webVcrEnabled: FRAMESCAPER_WEB_VCR_ENABLED,
+		systemVersion: process.getSystemVersion?.() ?? '', webVcrSmokeTrust: framescaperWebVcrSmokeTrust(process.argv, { packaged: app.isPackaged, productId: PRODUCT_ID }), windowFor: () => mainWindow,
 	});
 	projectLibraryIpc = projectLibraryRuntime.registerRendererBridge({
 		desktopRoot: __dirname,

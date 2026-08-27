@@ -20,7 +20,7 @@ import {
 	FRAMESCAPER_WEB_VCR_PACKAGED_SMOKE_MODE,
 	decodeFramescaperWebVcrSmokePlan,
 	encodeFramescaperWebVcrSmokePlan,
-	framescaperWebVcrSmokeQualification,
+	framescaperWebVcrSmokeTrust,
 	parseFramescaperWebVcrSmokeConfiguration,
 } from '../desktop/framescaper-web-vcr-smoke-plan.js';
 
@@ -36,7 +36,7 @@ test('Web VCR packaged smoke plan is closed, canonical, pinned, and packaged-onl
 		mode: FRAMESCAPER_WEB_VCR_PACKAGED_SMOKE_MODE,
 		plan,
 	});
-	assert.deepEqual(framescaperWebVcrSmokeQualification(argv, {
+	assert.deepEqual(framescaperWebVcrSmokeTrust(argv, {
 		packaged: true,
 		productId: 'framescaper',
 	}), {
@@ -48,20 +48,20 @@ test('Web VCR packaged smoke plan is closed, canonical, pinned, and packaged-onl
 		},
 	});
 	assert.throws(
-		() => framescaperWebVcrSmokeQualification(argv, { packaged: false, productId: 'framescaper' }),
+		() => framescaperWebVcrSmokeTrust(argv, { packaged: false, productId: 'framescaper' }),
 		/packaged Framescaper/u,
 	);
 	assert.throws(
-		() => framescaperWebVcrSmokeQualification(argv, { packaged: true, productId: 'soundscaper' }),
+		() => framescaperWebVcrSmokeTrust(argv, { packaged: true, productId: 'soundscaper' }),
 		/packaged Framescaper/u,
 	);
 });
 
-test('Web VCR dormant packaged witness never produces main-process qualification', () => {
+test('Web VCR dormant packaged witness never produces main-process smoke trust', () => {
 	const plan = smokePlan({ mode: FRAMESCAPER_WEB_VCR_DORMANT_SMOKE_MODE });
 	const argv = smokeArgv(plan);
 	assert.deepEqual(parseFramescaperWebVcrSmokeConfiguration(argv), { mode: plan.mode, plan });
-	assert.equal(framescaperWebVcrSmokeQualification(argv, {
+	assert.equal(framescaperWebVcrSmokeTrust(argv, {
 		packaged: true,
 		productId: 'framescaper',
 	}), null);
@@ -188,21 +188,23 @@ test('Web VCR smoke parser rejects partial, duplicate, drifted, and noncanonical
 	assert.throws(() => decodeFramescaperWebVcrSmokePlan(`${encodeFramescaperWebVcrSmokePlan(plan)}=`), /base64url/u);
 });
 
-test('dormant renderer uses only the bounded bridge and proves open is refused', async () => {
+test('production-lazy renderer uses only the bounded bridge and leaves the guest unopened', async () => {
 	const plan = smokePlan({ mode: FRAMESCAPER_WEB_VCR_DORMANT_SMOKE_MODE });
+	let openCalls = 0;
 	const bridge = exactBridge({
 		handshake: async () => ({
 			version: 1,
-			capability: { status: 'unavailable', reason: 'roadmap-gate', detail: null },
+			capability: { status: 'available', resolutions: ['720p', '1080p'] },
 			captureGrantTtlMs: 10_000,
 		}),
-		open: async () => { throw new Error('roadmap gate'); },
+		open: async () => { openCalls += 1; throw new Error('must stay lazy'); },
 	});
 	const injected = vm.runInNewContext(`(${runFramescaperWebVcrDormantRendererSmoke.toString()})`);
 	const result = structuredClone(await injected({ framescaperWebVcr: { v1: bridge } }, plan));
 	assert.doesNotThrow(() => validateFramescaperWebVcrDormantSmokeResult(result, plan));
 	assert.equal(result.qualification, false);
-	assert.equal(result.openRejected, true);
+	assert.equal(result.openAttempted, false);
+	assert.equal(openCalls, 0);
 });
 
 test('packaged renderer exercises persistence, scaled input, exact surfaces, audio energy, and teardown', async () => {
