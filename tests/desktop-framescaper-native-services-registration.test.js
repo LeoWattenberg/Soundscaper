@@ -110,7 +110,7 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 		revalidate: async (_record, _root, rootAuthorized) => ({
 			projectRevisionMatches: true, planFingerprintMatches: true,
 			inputFingerprintsMatch: true, rootGrantAuthorized: rootAuthorized, rootGrantValid: true,
-			licensingCleared: false, helperBuildMatches: false, scratchIdentityMatches: true,
+			helperBuildMatches: false, scratchIdentityMatches: true,
 		}),
 		prepare: async () => prepared,
 		projectState: () => Object.freeze({ open: true, writable: true }),
@@ -249,13 +249,13 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	assert.equal(imageSequenceImportOptions.route.candidateGeneration, 28);
 	assert.equal(imageSequenceImportOptions.project, registrationInput.projectAuthority);
 	assert.equal(imageSequenceImportOptions.controller, controller);
-	assert.equal(imageSequenceImportOptions.policyCleared, true);
+	assert.equal('policyCleared' in imageSequenceImportOptions, false);
 	assert.equal(openFxServiceOptions.policyCleared(), true);
 	assert.equal(await runtimeOptions.nativeQueueExecution.prepare({}, {}), prepared);
 	assert.deepEqual(await runtimeOptions.revalidate({ record: {}, root: {}, rootAuthorized: true }), {
 		projectRevisionMatches: true, planFingerprintMatches: true,
 		inputFingerprintsMatch: true, rootGrantAuthorized: true, rootGrantValid: true,
-		licensingCleared: false, helperBuildMatches: false, scratchIdentityMatches: true,
+		helperBuildMatches: false, scratchIdentityMatches: true,
 	});
 	assert.equal(authorityOptions.project, registrationInput.projectAuthority);
 	assert.equal(selectedV28AuthorityOptions.projectSchemaVersion, 31);
@@ -284,9 +284,6 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	assert.equal(selectedV28AuthorityOptions.watch, projectAuthorityRuntime);
 	assert.equal(selectedV28AuthorityOptions.renderInputs, renderInputStaging);
 	assert.equal(runtimeOptions.checkpointStore, nodePorts.checkpointStore);
-	assert.equal(authorityOptions.licensingCleared({ taskKind: 'encoded-export' }), true);
-	assert.equal(authorityOptions.licensingCleared({ taskKind: 'proxy-generation' }), true);
-	assert.equal(authorityOptions.licensingCleared({ taskKind: 'image-sequence-export' }), true);
 	assert.equal(nodePortOptions.watchLocator, registrationInput.watchImportAuthority.locator);
 	assert.equal(runtimeOptions.nativeMediaEnabled(), false);
 	assert.equal(mediaRuntimeStartOptions.enabled(), false,

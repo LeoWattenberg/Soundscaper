@@ -124,7 +124,6 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 				&& observed.manifestDigest === reservation.manifestDigest
 				&& observed.rootIdentity === reservation.rootIdentity;
 		},
-		licensingCleared: (record) => queueOperationExecutionEnabled(executionPolicy, record),
 	});
 	const projectAuthority = projectBodyAuthority === null ? null
 			: modules.createSelectedV28ProjectAuthority({
@@ -142,7 +141,6 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 				};
 				return Object.freeze({ beforePublication: assert, afterPublication: assert });
 			},
-			licensingCleared: (record) => queueOperationExecutionEnabled(executionPolicy, record),
 				recordProxyOutput: (record, root, receipt) => (
 					proxyOutputBroker.recordPublished(record, root, receipt)
 				),
@@ -286,7 +284,7 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 			userDataPath: options.userDataPath, route: options.imageSequenceImportAuthority,
 			project: options.projectAuthority, controller: runtime.controller, mediaRuntime,
 			executable: () => mediaExecutable(mediaRuntime), createMessageChannel: options.createMessageChannel,
-			mintOpaqueId: nodePorts.mintOpaqueId, runtimeAvailable: () => mediaRuntime.available() && options.settings.snapshot().nativeMediaEnabled === true, policyCleared: executionPolicy.imageSequencesExecutionEnabled === true,
+			mintOpaqueId: nodePorts.mintOpaqueId, runtimeAvailable: () => mediaRuntime.available() && options.settings.snapshot().nativeMediaEnabled === true,
 		});
 	} catch (error) {
 		await runtime.close();
@@ -553,7 +551,6 @@ export function framescaperNativeQueueOperationExecutionEnabled(policy, record) 
 	if (record?.taskKind === 'image-sequence-export') return policy.imageSequencesExecutionEnabled === true;
 	return false;
 }
-const queueOperationExecutionEnabled = framescaperNativeQueueOperationExecutionEnabled;
 /** Compatibility mapper for the existing renderer capability DTO field names. */
 function capabilityReportExecutionPolicy(policy) {
 	return Object.freeze({

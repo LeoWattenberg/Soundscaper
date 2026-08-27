@@ -103,7 +103,6 @@ export interface FramescaperNativeProjectAuthorityOptions {
 	}>) => Promise<void> | void;
 	readonly settleScratch: (jobId: string, outcome: 'succeeded' | 'cancelled' | 'failed') => Promise<void>;
 	readonly scratchMatches: (record: NativeQueueRecordV2, manifestDigest: string) => Promise<boolean> | boolean;
-	readonly licensingCleared: (record: NativeQueueRecordV2) => boolean;
 	readonly checkpointStore?: FramescaperNativeCheckpointStore;
 	readonly checkpointInspectFor?: FramescaperNativeServicesProjectCheckpointInspectFor;
 	readonly onCheckpointError?: (error: unknown, record: NativeQueueRecordV2) => void;
@@ -190,7 +189,6 @@ export class FramescaperNativeProjectAuthority {
 			inputFingerprintsMatch: project !== null && inputsMatch(record, project, plan.plan),
 			rootGrantAuthorized: rootAuthorized,
 			rootGrantValid: rootValid,
-			licensingCleared: this.#options.licensingCleared(record),
 			helperBuildMatches: this.#options.executable() !== null,
 			scratchIdentityMatches: scratchMatches,
 			...checkpoint,
@@ -203,7 +201,6 @@ export class FramescaperNativeProjectAuthority {
 	): Promise<PreparedNativeMediaQueueJob> {
 		const executable = this.#options.executable();
 		if (executable === null) throw new Error('The authenticated native media executable is unavailable.');
-		if (!this.#options.licensingCleared(record)) throw new Error('Native media licensing remains fail-closed.');
 		if (!await this.#rootValid(root)) throw new Error('The native destination root changed identity.');
 		const projectRecord = this.#options.project.projectRecord(record.projectId);
 		if (!projectRecord || projectRecord.projectRevision !== record.projectRevision) {

@@ -111,12 +111,6 @@ function imageSequencePorts() {
 			].map((entry) => ({ ...entry, policyCleared: true, buildSupported: true,
 				probeSucceeded: true, selfTestPassed: true, userEnabled: true })),
 		}),
-		clearedPolicyRowIds: () => [
-			'codec-native-ffmpeg-current-set',
-			'codec-decode-png-image-sequence',
-			'codec-decode-tiff-image-sequence',
-			'codec-decode-openexr-image-sequence',
-		],
 		createSourcePackWriter: () => ({ write: () => undefined, commit: () => undefined,
 			discard: () => undefined }),
 		publishInventory: () => undefined, cleanupInventory: () => undefined,

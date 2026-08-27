@@ -38,12 +38,6 @@ import type {
 } from '../src/framescaper/editor-native-image-sequence-import-v25.ts';
 import type { NativeMediaHelperPoolJobRequest } from '../desktop/native-media-helper-pool.ts';
 
-const POLICY_ROWS = [
-	'codec-native-ffmpeg-current-set',
-	'codec-decode-png-image-sequence',
-	'codec-decode-tiff-image-sequence',
-	'codec-decode-openexr-image-sequence',
-] as const;
 const OWNER = Object.freeze({ id: 'candidate-renderer' });
 
 test('the production candidate ports stream pathless bytes over the negotiated MessagePort', async () => {
@@ -272,7 +266,6 @@ async function authorityFixture(usable: boolean) {
 		mintOpaqueId: () => `${(++id).toString(16).padStart(40, '0')}`,
 		capabilities: () => capabilitySnapshot(usable),
 		runtimeAvailable: () => usable,
-		clearedPolicyRowIds: () => usable ? POLICY_ROWS : [],
 		projectState: (projectId: string) => projectId === 'candidate-project'
 			? { open: true, writable: true, schemaVersion: 25, revision: project.revision }
 			: null,

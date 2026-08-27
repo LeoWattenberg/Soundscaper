@@ -115,7 +115,6 @@ export interface FramescaperNativeSelectedV28ProjectAuthorityOptions {
 		record: NativeQueueRecordV3,
 		root: FramescaperNativeRootGrant,
 	) => FramescaperNativePublicationFence;
-	readonly licensingCleared: (record: NativeQueueRecordV3) => boolean;
 	readonly recordProxyOutput?: (
 		record: NativeQueueRecordV3,
 		root: FramescaperNativeRootGrant,
@@ -140,7 +139,7 @@ export class FramescaperNativeSelectedV28ProjectAuthority {
 			|| typeof options.renderInputs.inspect !== 'function'
 			|| typeof options.renderInputs.settle !== 'function'
 			|| typeof options.probeRoot !== 'function' || typeof options.publicationPortFor !== 'function'
-			|| typeof options.publicationFenceFor !== 'function' || typeof options.licensingCleared !== 'function'
+			|| typeof options.publicationFenceFor !== 'function'
 			|| (options.recordProxyOutput !== undefined && typeof options.recordProxyOutput !== 'function')) {
 			throw new TypeError('Selected-V28 project authority requires exact V14 execution ports.');
 		}
@@ -238,7 +237,6 @@ export class FramescaperNativeSelectedV28ProjectAuthority {
 			planFingerprintMatches: planMatches,
 			inputFingerprintsMatch: inputsMatch,
 			rootGrantAuthorized: rootAuthorized, rootGrantValid: rootValid,
-			licensingCleared: this.#options.licensingCleared(record),
 			helperBuildMatches: this.#options.runtime.available(),
 			scratchIdentityMatches: record.state !== 'running' || !requiresCarrier,
 		});
@@ -250,7 +248,6 @@ export class FramescaperNativeSelectedV28ProjectAuthority {
 	): Promise<PreparedNativeMediaQueueJobV3> {
 		const plan = storedV14Plan(record);
 		const envelope = createNativeMediaPlanEnvelopeV2(plan);
-		if (!this.#options.licensingCleared(record)) throw new Error('Selected V14 media licensing remains fail-closed.');
 		if (!await this.#rootValid(root)) throw new Error('The selected V14 destination root changed identity.');
 		const project = projectRecord(this.#options.project.projectRecord(record.projectId));
 		if (project === null || project.projectRevision !== record.projectRevision) {

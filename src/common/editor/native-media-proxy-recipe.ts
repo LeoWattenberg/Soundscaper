@@ -8,14 +8,12 @@
  * one. The generated body still flows through the established content-addressed
  * staging, claim, attachment, cleanup, and reattestation lifecycle, and the
  * attachment still records the generator and recipe identity that make a stale
- * proxy detectable. What is new here is only the recipe itself and the gate in
- * front of it.
+ * proxy detectable. What is new here is only the recipe itself and the machine
+ * admission in front of it.
  *
- * The gate matters more than the geometry. If the ProRes licensing row is not
- * cleared, proxy generation is *blocked* — it does not quietly fall back to
- * H.264 or VP9. A substituted codec would change decode behaviour, colour
- * handling, and frame boundaries under a user who asked for a proxy and was
- * told they got one.
+ * Pending ProRes licensing review is milestone-9 stable-release metadata. It
+ * never substitutes another codec and never disables this implemented test
+ * path; the recipe remains exact ProRes Proxy in MOV.
  *
  * Timing is preserved exactly: a proxy that resamples to a friendlier frame
  * rate stops being a stand-in for its original, and every edit made against it
@@ -44,7 +42,6 @@ export const NATIVE_MEDIA_PROXY_TIMING_RULE = 'exact-presentation-boundaries-v1'
 export const NATIVE_MEDIA_PROXY_RECOVERY_CLASS = 'atomic-restart';
 
 export const NATIVE_MEDIA_PROXY_REFUSALS = Object.freeze([
-	'prores-gate-blocked',
 	'source-geometry-unreported',
 	'source-geometry-unusable',
 ] as const);
@@ -79,11 +76,15 @@ export interface NativeMediaProxyPlanRequestV1 {
 }
 
 export type NativeMediaProxyPlanV1 =
-	| Readonly<{ readonly blocked: false; readonly recipe: NativeMediaProxyRecipeV1 }>
+	| Readonly<{
+		readonly blocked: false;
+		readonly recipe: NativeMediaProxyRecipeV1;
+		readonly pendingReleasePolicyRowIds: readonly string[];
+	}>
 	| Readonly<{
 		readonly blocked: true;
 		readonly refusals: readonly NativeMediaProxyRefusal[];
-		readonly blockedPolicyRowIds: readonly string[];
+		readonly pendingReleasePolicyRowIds: readonly string[];
 	}>;
 
 export class NativeMediaProxyError extends Error {
@@ -143,20 +144,22 @@ export function planNativeMediaProxy(
 		clearedPolicyRowIds: request.clearedPolicyRowIds ?? [],
 	});
 	const refusals: NativeMediaProxyRefusal[] = [];
-	if (admission.blockedPolicyRowIds.length > 0) refusals.push('prores-gate-blocked');
 	if (request.sourceWidth === null || request.sourceHeight === null) {
 		refusals.push('source-geometry-unreported');
-		return blocked(refusals, admission.blockedPolicyRowIds);
+		return blocked(refusals, admission.pendingReleasePolicyRowIds);
 	}
 	let geometry: NativeMediaProxyGeometryV1;
 	try {
 		geometry = resolveNativeMediaProxyGeometry(request.sourceWidth, request.sourceHeight);
 	} catch {
 		refusals.push('source-geometry-unusable');
-		return blocked(refusals, admission.blockedPolicyRowIds);
+		return blocked(refusals, admission.pendingReleasePolicyRowIds);
 	}
-	if (refusals.length > 0) return blocked(refusals, admission.blockedPolicyRowIds);
-	return Object.freeze({ blocked: false, recipe: recipe(profile, geometry) });
+	return Object.freeze({
+		blocked: false,
+		recipe: recipe(profile, geometry),
+		pendingReleasePolicyRowIds: admission.pendingReleasePolicyRowIds,
+	});
 }
 
 /**
@@ -190,12 +193,12 @@ function recipe(
 
 function blocked(
 	refusals: readonly NativeMediaProxyRefusal[],
-	blockedPolicyRowIds: readonly string[],
+	pendingReleasePolicyRowIds: readonly string[],
 ): NativeMediaProxyPlanV1 {
 	return Object.freeze({
 		blocked: true,
 		refusals: Object.freeze([...refusals]),
-		blockedPolicyRowIds: Object.freeze([...blockedPolicyRowIds]),
+		pendingReleasePolicyRowIds: Object.freeze([...pendingReleasePolicyRowIds]),
 	});
 }
 

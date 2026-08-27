@@ -129,7 +129,6 @@ test('startup recovery revalidates rows before dispatch and keeps verified seque
 		inputFingerprintsMatch: true,
 		rootGrantAuthorized: true,
 		rootGrantValid: true,
-		licensingCleared: true,
 		helperBuildMatches: true,
 		scratchIdentityMatches: true,
 		verifiedFrameCount: 25,

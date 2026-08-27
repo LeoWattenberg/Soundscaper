@@ -204,7 +204,7 @@ test('image-sequence profiles disclose the selected RGBA8 SDR preservation ceili
 	assert.deepEqual(alpha.refusals, ['alpha-not-preserved']);
 });
 
-test('every profile policy row exists in the licensing register and stays fail-closed', async () => {
+test('every profile policy row remains a named stable-1.0 release blocker', async () => {
 	const matrix = JSON.parse(await readFile(
 		new URL('../config/production-licensing-matrix.json', import.meta.url), 'utf8',
 	)) as { nativeFormatPolicies: { id: string; status: string; blocker: string }[] };
@@ -213,20 +213,20 @@ test('every profile policy row exists in the licensing register and stays fail-c
 	for (const rowId of ALL_ROWS) {
 		const row = rows.get(rowId);
 		assert.ok(row, `the licensing register is missing ${rowId}`);
-		assert.equal(row.status, 'blocked', `${rowId} must stay fail-closed`);
+		assert.equal(row.status, 'blocked', `${rowId} must block stable 1.0 release`);
 		assert.ok(row.blocker.length > 0, `${rowId} needs a named blocker`);
 	}
 });
 
-test('no profile is admitted while its licensing row is uncleared', () => {
+test('pending licensing rows are milestone-9 release metadata, not execution refusals', () => {
 	const verdict = evaluateNativeMediaProfileAdmission({
 		profileId: 'encode-mov-prores-4444',
 		source: source({ bitDepth: 12, chromaFormat: '4:4:4', hasAlpha: true, colourTransfer: 'bt709' }),
 	});
 
-	assert.equal(verdict.admitted, false);
-	assert.deepEqual(verdict.refusals, ['policy-row-blocked']);
-	assert.deepEqual(verdict.blockedPolicyRowIds, [
+	assert.equal(verdict.admitted, true);
+	assert.deepEqual(verdict.refusals, []);
+	assert.deepEqual(verdict.pendingReleasePolicyRowIds, [
 		'codec-native-ffmpeg-current-set', 'codec-encode-prores-mov-4444',
 	]);
 });
@@ -296,7 +296,7 @@ test('a profile that can hold every requirement is admitted', () => {
 		profileId: 'encode-mov-prores-4444',
 		refusals: [],
 		disclosures: [],
-		blockedPolicyRowIds: [],
+		pendingReleasePolicyRowIds: [],
 	});
 });
 

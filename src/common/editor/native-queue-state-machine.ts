@@ -12,8 +12,8 @@
  * the downstream exit gate forbids.
  *
  * Recovery never trusts a row. Before a job read back from the database may run
- * again, its project revision, plan, inputs, root grant, licensing, helper
- * build, and scratch identity are all revalidated; anything that no longer
+ * again, its project revision, plan, inputs, root grant, helper build, and
+ * scratch identity are all revalidated; anything that no longer
  * matches becomes a typed blocked or needs-authorization state rather than a
  * job that quietly renders something else.
  */
@@ -45,7 +45,6 @@ export const NATIVE_QUEUE_BLOCK_CODES = Object.freeze([
 	'plan-fingerprint-changed',
 	'input-fingerprint-changed',
 	'root-grant-invalid',
-	'licensing-row-blocked',
 	'helper-build-changed',
 	'scratch-identity-changed',
 ] as const);
@@ -81,7 +80,6 @@ export interface NativeQueueRevalidationV1 {
 	readonly inputFingerprintsMatch: boolean;
 	readonly rootGrantAuthorized: boolean;
 	readonly rootGrantValid: boolean;
-	readonly licensingCleared: boolean;
 	readonly helperBuildMatches: boolean;
 	readonly scratchIdentityMatches: boolean;
 	/** Frames that passed the plan, source, number, size, and digest checks. */
@@ -137,8 +135,8 @@ export function applyNativeQueueTransition(
  * comes back cancelled or failed, and only an explicit retry puts it in line
  * again, because restarting the application is not consent to render work the
  * user stopped. An unauthorized root is `needs-authorization` because the user
- * can fix it; a changed plan, revision, input, licensing row, helper build, or
- * scratch identity is `blocked`, because silently running under the new facts
+ * can fix it; a changed plan, revision, input, helper build, or scratch identity
+ * is `blocked`, because silently running under the new facts
  * would render something the user never asked for.
  */
 export function recoverNativeQueueRecord(
@@ -168,7 +166,6 @@ function firstBlockCode(revalidation: NativeQueueRevalidationV1): NativeQueueBlo
 	if (!revalidation.projectRevisionMatches) return 'project-revision-changed';
 	if (!revalidation.planFingerprintMatches) return 'plan-fingerprint-changed';
 	if (!revalidation.inputFingerprintsMatch) return 'input-fingerprint-changed';
-	if (!revalidation.licensingCleared) return 'licensing-row-blocked';
 	if (!revalidation.helperBuildMatches) return 'helper-build-changed';
 	if (!revalidation.scratchIdentityMatches) return 'scratch-identity-changed';
 	return null;

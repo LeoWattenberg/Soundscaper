@@ -258,8 +258,8 @@ class CandidateActionController {
 			sourceId: stableId(request.sourceId, 'proxy source ID'),
 			clearedPolicyRowIds: policyRows(request.clearedPolicyRowIds),
 		});
-		if (result.status === 'blocked-policy') {
-			throw new Error(`Proxy generation is blocked by policy: ${result.blockedPolicyRowIds.join(', ')}.`);
+		if (result.status === 'unavailable') {
+			throw new Error(`Proxy generation is unavailable: ${result.refusals.join(', ')}.`);
 		}
 	}
 
@@ -478,7 +478,7 @@ function assertImageSequencePorts(
 	value: unknown,
 ): asserts value is FramescaperImageSequenceImportPortsV25 {
 	for (const method of [
-		'capabilities', 'clearedPolicyRowIds', 'createSourcePackWriter',
+		'capabilities', 'createSourcePackWriter',
 		'publishInventory', 'cleanupInventory', 'admit',
 	] as const) {
 		if (!value || typeof value !== 'object'
