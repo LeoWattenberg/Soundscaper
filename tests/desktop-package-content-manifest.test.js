@@ -11,6 +11,7 @@ import {
 	auditExtractedDesktopPackageContent,
 	writeDesktopPackageContentManifest,
 } from '../scripts/lib/desktop-package-content-manifest.mjs';
+import { ASSISTANCE_TARGET_STATUSES } from '../desktop/assistance-native-runtime-payload.mjs';
 import { DESKTOP_CODEC_POLICY } from '../scripts/lib/desktop-codec-policy.mjs';
 
 const REVISION = 'a'.repeat(40);
@@ -516,3 +517,59 @@ async function framescaperPackageTree(context) {
 	await writeFile(fixture.runtimeManifestPath, `${JSON.stringify(runtimeManifest, null, 2)}\n`);
 	return { ...fixture, runtimeManifest };
 }
+
+/**
+ * A target that could not be built carries no payload, and the manifest admits
+ * three ways for that to be true. This gate knew only one of them, so packaging
+ * Windows ARM64 — where the assistance runtime is pending-external because no
+ * upstream build exists for it — failed on a target the manifest itself calls
+ * valid, while Windows x64 packaged from the same run.
+ */
+test('a payload-free assistance target packages under every status the manifest admits', async (context) => {
+	for (const status of ASSISTANCE_TARGET_STATUSES.filter((value) => value !== 'built')) {
+		const fixture = await packageTree(context);
+		fixture.runtimeManifest.assistanceNativeRuntime = {
+			target: fixture.runtimeManifest.assistanceNativeRuntime.target, status, payload: null,
+		};
+		await writeFile(fixture.runtimeManifestPath,
+			`${JSON.stringify(fixture.runtimeManifest, null, 2)}\n`);
+		const written = await writeDesktopPackageContentManifest({
+			resourcesRoot: fixture.resourcesRoot,
+			runtimeManifestPath: fixture.runtimeManifestPath,
+			productId: 'soundscaper',
+			targetId: 'linux-x64',
+		});
+		assert.equal(written.status, 'installed-resource-closure-audited', status);
+	}
+
+	// The reason it could not be built never licenses shipping one anyway.
+	const fixture = await packageTree(context);
+	fixture.runtimeManifest.assistanceNativeRuntime = {
+		target: fixture.runtimeManifest.assistanceNativeRuntime.target,
+		status: 'pending-external',
+		payload: { root: 'assistance/sherpa-onnx/1.13.5', files: {} },
+	};
+	await writeFile(fixture.runtimeManifestPath,
+		`${JSON.stringify(fixture.runtimeManifest, null, 2)}\n`);
+	await assert.rejects(() => writeDesktopPackageContentManifest({
+		resourcesRoot: fixture.resourcesRoot,
+		runtimeManifestPath: fixture.runtimeManifestPath,
+		productId: 'soundscaper',
+		targetId: 'linux-x64',
+	}), /invalid assistance target state/u);
+
+	// And a status the manifest does not admit is still refused.
+	const invented = await packageTree(context);
+	invented.runtimeManifest.assistanceNativeRuntime = {
+		target: invented.runtimeManifest.assistanceNativeRuntime.target,
+		status: 'skipped', payload: null,
+	};
+	await writeFile(invented.runtimeManifestPath,
+		`${JSON.stringify(invented.runtimeManifest, null, 2)}\n`);
+	await assert.rejects(() => writeDesktopPackageContentManifest({
+		resourcesRoot: invented.resourcesRoot,
+		runtimeManifestPath: invented.runtimeManifestPath,
+		productId: 'soundscaper',
+		targetId: 'linux-x64',
+	}), /invalid assistance target state/u);
+});

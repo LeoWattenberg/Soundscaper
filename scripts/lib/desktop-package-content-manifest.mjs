@@ -10,6 +10,7 @@ import {
 	assertDesktopCodecPolicy,
 	isForbiddenDesktopFfmpegPath,
 } from './desktop-codec-policy.mjs';
+import { ASSISTANCE_TARGET_STATUSES } from '../../desktop/assistance-native-runtime-payload.mjs';
 import { assertDesktopPackageOsAudioCodecClosure } from './desktop-package-os-audio-codec-closure.mjs';
 import { assertProfessionalNativeBuiltClosure } from './desktop-package-professional-closure.mjs';
 export const DESKTOP_PACKAGE_CONTENT_MANIFEST_NAME = 'milestone-5-package-content.json';
@@ -266,7 +267,11 @@ function assertRuntimePayloadClosure(runtime, files) {
 			requireFile(`${assistancePrefix}${name}`, descriptor,
 				`assistance runtime file ${name}`, assistancePrefix);
 		}
-	} else if (assistance.status !== 'unsupported' || assistance.payload !== null) {
+	} else if (!ASSISTANCE_TARGET_STATUSES.includes(assistance.status)
+		|| assistance.payload !== null) {
+		// A target that is not built carries no payload, whatever kept it from being
+		// built. Windows ARM64 is pending-external, and naming only one such status
+		// here refused a target the manifest itself considers valid.
 		throw new Error('The desktop runtime manifest has invalid assistance target state.');
 	}
 	if (runtime.productId === 'framescaper') {

@@ -27,6 +27,18 @@ export function assistanceNativeRuntimeTargetId({ platform, arch }) {
 	return targetId;
 }
 
+/**
+ * Every status an assistance target may carry. Only a built target carries a
+ * payload; the others record why one could not be produced. Held here because
+ * more than one gate has to agree about the set, and a gate that knows a
+ * smaller one refuses a target the manifest considers valid.
+ */
+export const ASSISTANCE_TARGET_STATUSES = Object.freeze([
+	'built',
+	'unsupported',
+	'pending-external',
+]);
+
 export function assistanceNativeRuntimeStageSummary(manifestValue, targetId) {
 	const { manifest, target } = validateManifestAndTarget(manifestValue, targetId);
 	const manifestSha256 = digest(Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, 'utf8'));
@@ -162,7 +174,7 @@ function validateManifestAndTarget(value, targetId) {
 	validatePackage(value.commonPackage, value.version, true);
 	if (!TARGET_IDS.includes(targetId)) throw new TypeError('The assistance native runtime target is invalid.');
 	for (const [id, candidate] of Object.entries(value.targets)) {
-		if (!plainRecord(candidate) || !['built', 'unsupported', 'pending-external'].includes(candidate.status)) {
+		if (!plainRecord(candidate) || !ASSISTANCE_TARGET_STATUSES.includes(candidate.status)) {
 			throw new TypeError(`The assistance native runtime target ${id} is invalid.`);
 		}
 		if (candidate.status === 'built') validatePackage(candidate.package, value.version, false);
