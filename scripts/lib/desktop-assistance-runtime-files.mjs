@@ -2,12 +2,14 @@
 
 /** Exact compiled closure owned by desktop local assistance and its model store. */
 export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
+	'desktop/assistance-authenticated-source-snapshot.js',
 	'desktop/assistance-data-claims.js',
 	'desktop/assistance-diarization-runtime.js',
 	'desktop/assistance-external-ffmpeg-shot-runtime.js',
 	'desktop/assistance-external-ffmpeg-video-materializer.js',
 	'desktop/assistance-float32-mono-wave-file-reader.js',
 	'desktop/assistance-helper-runtime.js',
+	'desktop/assistance-held-frame-plan-store.js',
 	'desktop/assistance-job-host.js',
 	'desktop/assistance-job-protocol.js',
 	'desktop/assistance-llama-cpp-worker.js',

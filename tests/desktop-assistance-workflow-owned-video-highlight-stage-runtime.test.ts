@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import test from 'node:test';
 
 import {
@@ -80,6 +80,8 @@ test('the main bridge executes all seven closed transforms through authenticated
 				source: { path: string } }>) => {
 				decodedVideoPath = source.path;
 				assert.notEqual(source.path, originalVideoPath);
+				assert.doesNotMatch(relative(dirname(originalVideoPath), source.path), /^\.\.(?:[/\\]|$)/u,
+					'the disposable snapshot must remain inside staged job custody');
 				await writeFile(originalVideoPath, Uint8Array.of(9, 9, 9, 9, 9, 9, 9, 9));
 				assert.deepEqual([...await readFile(source.path)], [0, 0, 0, 20, 102, 116, 121, 112]);
 				return [createAssistanceFramePackV1({ width: plan.width, height: plan.height,

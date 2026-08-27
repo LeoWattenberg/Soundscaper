@@ -4,8 +4,7 @@
 
 import { createHash } from 'node:crypto';
 import { mkdtemp, open, rmdir, unlink } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { isAbsolute, join } from 'node:path';
+import { dirname, isAbsolute, join } from 'node:path';
 
 export interface AssistanceAuthenticatedSourceIdentityV1 {
 	readonly byteLength: number;
@@ -30,7 +29,7 @@ export async function snapshotAssistanceAuthenticatedSourceV1(
 	if (typeof sourcePath !== 'string' || !isAbsolute(sourcePath) || sourcePath.includes('\0')) {
 		throw new TypeError('Authenticated assistance source paths must be absolute files.');
 	}
-	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-assistance-source-'));
+	const directory = await mkdtemp(join(dirname(sourcePath), '.soundscaper-source-snapshot-'));
 	const snapshotPath = join(directory, 'source.input');
 	try {
 		await copyExactSource(sourcePath, snapshotPath, identity, signal);

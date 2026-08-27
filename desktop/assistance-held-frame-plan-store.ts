@@ -35,7 +35,7 @@ export function createAssistanceHeldFramePlanStoreV1<Plan>(
 	};
 	return Object.freeze({
 		get size() { return entries.size; },
-		reserve(jobId, identity) {
+		reserve(jobId: string, identity: string) {
 			const current = entries.get(jobId);
 			if (current && current.identity !== identity) return null;
 			if (current) remove(jobId, current);
@@ -71,7 +71,7 @@ export function createAssistanceHeldFramePlanStoreV1<Plan>(
 				},
 			});
 		},
-		take(jobId, identity) {
+		take(jobId: string, identity: string) {
 			const entry = entries.get(jobId);
 			if (!entry || entry.identity !== identity || entry.plan === null) return null;
 			remove(jobId, entry);
