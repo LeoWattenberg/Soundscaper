@@ -2,6 +2,11 @@ import js from '@eslint/js';
 import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
+import { readFileSync } from 'node:fs';
+
+const checkedJavascriptFiles = JSON.parse(
+	readFileSync(new URL('./tsconfig.javascript.json', import.meta.url), 'utf8'),
+).files;
 
 const runtimeGlobals = {
 	...globals.browser,
@@ -54,6 +59,23 @@ export default tseslint.config(
 	{
 		files: ['**/*.cjs'],
 		languageOptions: { sourceType: 'commonjs' },
+	},
+	{
+		files: checkedJavascriptFiles,
+		languageOptions: {
+			globals: runtimeGlobals,
+			parser: tseslint.parser,
+			parserOptions: {
+				ecmaFeatures: { jsx: true },
+				project: ['./tsconfig.javascript.json'],
+				tsconfigRootDir: import.meta.dirname,
+			},
+		},
+		plugins: { '@typescript-eslint': tseslint.plugin },
+		rules: {
+			'@typescript-eslint/no-floating-promises': 'error',
+			'@typescript-eslint/no-misused-promises': 'error',
+		},
 	},
 	...tseslint.configs.recommended.map((config) => ({
 		...config,

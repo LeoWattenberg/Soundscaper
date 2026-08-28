@@ -1,3 +1,4 @@
+// @ts-check
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 /** Main-owned media-host readiness trust, separate from package-signing and OpenFX keys. */
@@ -12,6 +13,7 @@ import {
 
 const USAGE = 'framescaper-media-host-production-readiness';
 const POLICY_NAME = 'milestone-5-native-isolation-review-policy.json';
+/** @type {Readonly<Record<string, string>>} */
 const TARGETS = Object.freeze({
 	'linux-x64': 'linux-x64',
 	'linux-arm64': 'linux-arm64',
@@ -20,6 +22,17 @@ const TARGETS = Object.freeze({
 	'win32-arm64': 'win-arm64',
 });
 
+/**
+ * @typedef {Readonly<{
+ *   applicationRoot: string,
+ *   packaged: boolean,
+ *   resourcesPath: string,
+ *   platform: string,
+ *   arch: string,
+ * }>} FramescaperMediaReviewOptions
+ */
+
+/** @param {FramescaperMediaReviewOptions} options */
 export function createFramescaperMediaReviewPayloadPorts(options) {
 	if (!options || typeof options !== 'object' || Array.isArray(options)
 		|| Reflect.ownKeys(options).length !== 5
@@ -42,6 +55,10 @@ export function createFramescaperMediaReviewPayloadPorts(options) {
 		// lstat, not stat: verifyPayload refuses symlinked payloads, and a
 		// following stat can never report one.
 		stat: lstat,
+		/**
+		 * @param {string} target
+		 * @param {string} keyId
+		 */
 		async resolveReviewPublicKey(target, keyId) {
 			let policy;
 			try { policy = JSON.parse(String(await readFile(policyPath))); }

@@ -1,0 +1,21 @@
+{
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		"allowJs": true,
+		"checkJs": false,
+		"incremental": true,
+		"tsBuildInfoFile": "./node_modules/.cache/typescript/javascript.tsbuildinfo",
+		"types": ["node", "vite/client"]
+	},
+	"files": [
+		"desktop/display-capture.js",
+		"desktop/framescaper-media-review-policy.mjs",
+		"desktop/framescaper-openfx-review-policy.mjs",
+		"desktop/plugin-binary-authentication.mjs",
+		"src/common/editor/analysis-worker.js",
+		"src/common/editor/parametric-eq/wasm-loader.js",
+		"src/common/editor/parametric-eq/worker.js",
+		"src/common/editor/pffft-wasm-loader.js",
+		"src/common/editor/spectral-edit-worker.js"
+	]
+}
