@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../common/editor/code-unit-order.ts';
 import {
 	createVideoProxyCleanupTombstone,
 	failVideoProxyCleanupTombstone,
@@ -235,7 +236,8 @@ async function reconcileMetadata(
 		const created: Readonly<VideoProxyCleanupTombstoneRecord>[] = [];
 		const issues: FramescaperProjectSequenceClaimCleanupIssue[] = [];
 		const processedClaims = new Set<string>();
-		for (const claim of [...inventory.claims].filter(select).sort((left, right) => left.key.localeCompare(right.key))) {
+		for (const claim of [...inventory.claims].filter(select)
+			.sort((left, right) => compareCodeUnits(left.key, right.key))) {
 			if (processedClaims.has(claim.key)) continue;
 			const row = await request(stores.mediaAssets.get(claim.bodyKey));
 			const committed = inventory.committedAttachments.get(claim.bodyKey)?.find((root) => (

@@ -1,3 +1,4 @@
+import { compareCodeUnits } from './code-unit-order.ts';
 import {
 	createVisibleVideoTrackPredicate,
 	resolveVideoCompositionIntervals,
@@ -467,7 +468,7 @@ function firstVisibleTimelineVideo(project, options) {
 	candidates.sort((left, right) => (
 		left.clip.timelineStartFrame - right.clip.timelineStartFrame
 		|| left.trackIndex - right.trackIndex
-		|| left.clip.id.localeCompare(right.clip.id)
+		|| compareCodeUnits(left.clip.id, right.clip.id)
 	));
 	return candidates[0] || null;
 }

@@ -81,6 +81,30 @@ test('the Tracks menu creates one bounded zero-offset group from explicit select
 	assert.equal(Object.isFrozen(commands[0]), true);
 });
 
+test('multicamera member assignment uses code-unit source ID order', () => {
+	const commands: FramescaperProjectCommandSequence[] = [];
+	const input = project();
+	const sources = input.sources as Record<string, unknown>[];
+	const videoSource = sources.find(({ kind }) => kind === 'video')!;
+	input.sources = [
+		{ ...videoSource, id: 'alpha-camera' },
+		{ ...videoSource, id: 'output-camera' },
+		{ ...videoSource, id: 'Z-camera' },
+	];
+	(input.clips as Record<string, unknown>[])[0]!.sourceId = 'output-camera';
+	const menu = createFramescaperMulticameraMenuItems({
+		productId: 'framescaper', project: input, editingBlocked: false, copy: COPY,
+	}, { execute: (command) => commands.push(command) });
+	menu?.items[0]?.onClick();
+	const group = (commands[0] as unknown as {
+		group: ReturnType<typeof multicameraGroup>;
+	}).group;
+	assert.deepEqual(
+		group.members.map(({ sourceId }) => sourceId),
+		['output-camera', 'Z-camera', 'alpha-camera'],
+	);
+});
+
 test('the Tracks menu switches, frame-nudges, and removes only the selected group', () => {
 	const commands: FramescaperProjectCommandSequence[] = [];
 	const input = project();

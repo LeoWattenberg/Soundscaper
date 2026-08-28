@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../common/editor/code-unit-order.ts';
 import type { FfmpegOutputSink } from '../common/editor/ffmpeg-output-stream.ts';
 import { assertManagedVideoColorRenderAdmissionV1 } from '../common/editor/video-color-management-v27.ts';
 import {
@@ -528,7 +529,7 @@ function allVideoSourceIds(projectValue: Readonly<Record<string, unknown>>): rea
 	return Object.freeze(records(projectValue.sources, 'finishing browser export timing sources')
 		.filter(({ kind }) => kind === 'video')
 		.map((source) => stableId(source.id, 'finishing browser export timing source'))
-		.sort((left, right) => left.localeCompare(right)));
+		.sort(compareCodeUnits));
 }
 
 function stableId(value: unknown, name: string): string {

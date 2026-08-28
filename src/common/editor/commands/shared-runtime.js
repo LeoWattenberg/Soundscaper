@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	clipEndFrame,
 	findClip,
@@ -277,7 +278,8 @@ export function sortTrack(project, track) {
 	track.clipIds.sort((firstId, secondId) => {
 		const first = requireClip(project, firstId);
 		const second = requireClip(project, secondId);
-		return first.timelineStartFrame - second.timelineStartFrame || first.id.localeCompare(second.id);
+		return first.timelineStartFrame - second.timelineStartFrame
+			|| compareCodeUnits(first.id, second.id);
 	});
 }
 

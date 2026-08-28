@@ -2,6 +2,7 @@
 
 /** Transactional acceptance of selected transcript-cleanup proposals. */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	acceptedProposalRanges,
 	findDisfluencyProposals,
@@ -170,7 +171,7 @@ export function createLocalAssistanceTranscriptCleanupSession(
 		}),
 		...voiceActivityProposals(request.voiceActivity, initial, request.preset),
 	].sort((left, right) => left.startFrame - right.startFrame
-		|| left.endFrame - right.endFrame || left.kind.localeCompare(right.kind));
+		|| left.endFrame - right.endFrame || compareCodeUnits(left.kind, right.kind));
 	if (sourceProposals.length < 1) {
 		throw new RangeError('The reviewed transcript produced no cleanup proposals.');
 	}

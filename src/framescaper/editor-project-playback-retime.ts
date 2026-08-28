@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../common/editor/code-unit-order.ts';
 import type {
 	PlaybackProjectProjection,
 	PlaybackProjectService,
@@ -183,7 +184,7 @@ export function createFramescaperPlaybackProjectServiceRetime(
 }
 
 function frozenSourceIds(...groups: readonly (readonly string[])[]): readonly string[] {
-	return Object.freeze([...new Set(groups.flat())].sort((left, right) => left.localeCompare(right)));
+	return Object.freeze([...new Set(groups.flat())].sort(compareCodeUnits));
 }
 
 function multicameraMemberSourceIds(project: FramescaperProjectRetime): readonly string[] {
@@ -192,7 +193,7 @@ function multicameraMemberSourceIds(project: FramescaperProjectRetime): readonly
 	}>[];
 	return Object.freeze([...new Set(groups.flatMap((group) => (
 		group.members.map(({ sourceId }) => sourceId)
-	)))].sort((left, right) => left.localeCompare(right)));
+	)))].sort(compareCodeUnits));
 }
 
 function snapshotOptions(value: unknown): Readonly<FramescaperPlaybackProjectServiceRetimeOptions> {

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from './code-unit-order.ts';
 import { deriveFolderBusOwnershipV13, reconcileFolderBusesV13 } from './folder-bus-v13.ts';
 import { isSoundscaperProductionProject } from './project-schema-version.ts';
 import { orderByHierarchyPreorderV12 } from './track-hierarchy-mutation-v12.ts';
@@ -63,6 +64,7 @@ function ownershipSignature(project: DataRecord): string {
 	);
 	return JSON.stringify([
 		ownership.busFolderIds,
-		[...ownership.busFolderIdByAudioTrackId.entries()].sort(([left], [right]) => left.localeCompare(right)),
+		[...ownership.busFolderIdByAudioTrackId.entries()]
+			.sort(([left], [right]) => compareCodeUnits(left, right)),
 	]);
 }

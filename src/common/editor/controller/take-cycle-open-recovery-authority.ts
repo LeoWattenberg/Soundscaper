@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import { digestScapeBytes } from '../scape-archive-media.ts';
 import type { TakeCycleRecoveryEnvelope } from '../take-cycle-recovery-envelope.ts';
 import type { TakeCycleCaptureDraft } from './take-cycle-capture-spool.ts';
@@ -59,7 +60,7 @@ export function deriveTakeCycleOpenRecoveryAuthority({
 		projectId,
 		envelope: envelope ? envelopeAuthority(envelope) : null,
 		drafts: [...drafts]
-			.sort((left, right) => left.draftId.localeCompare(right.draftId))
+			.sort((left, right) => compareCodeUnits(left.draftId, right.draftId))
 			.map((draft) => ({
 				draftId: draft.draftId,
 				draftToken: draft.draftToken,
@@ -68,7 +69,7 @@ export function deriveTakeCycleOpenRecoveryAuthority({
 				target: draft.target,
 				sources: draft.sources,
 			})),
-		capturing: [...capturing].sort((left, right) => left.draftId.localeCompare(right.draftId)),
+		capturing: [...capturing].sort((left, right) => compareCodeUnits(left.draftId, right.draftId)),
 	};
 	return Object.freeze({
 		publicationGeneration: [...generations][0]!,

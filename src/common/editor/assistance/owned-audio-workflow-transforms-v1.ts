@@ -5,6 +5,7 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import { scaleSampleFrame } from '../timeline-time.ts';
 import {
 	reviewAssistanceEmbeddingMatrixV1,
@@ -461,7 +462,7 @@ function binaryBytes(value: ArrayBuffer | ArrayBufferView): Uint8Array {
 
 function compareProposals(left: DisfluencyProposal, right: DisfluencyProposal): number {
 	return left.startFrame - right.startFrame || left.endFrame - right.endFrame
-		|| left.kind.localeCompare(right.kind) || left.id.localeCompare(right.id);
+		|| compareCodeUnits(left.kind, right.kind) || compareCodeUnits(left.id, right.id);
 }
 
 function compareSpeakerTurns(

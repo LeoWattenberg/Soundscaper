@@ -2,6 +2,7 @@
 
 /** Reopen current-revision semantic bundles as authenticated menu-search custody. */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import { createAssistanceEmbeddingMatrixV1 } from '../assistance/binary-formats-v1.ts';
 import {
 	ASSISTANCE_SEMANTIC_DERIVATIVE_MEDIA_TYPE,
@@ -115,7 +116,7 @@ function embeddedIndex(candidateValue: Candidate | null, empty: Uint8Array) {
 
 function newestFirst(left: Candidate, right: Candidate): number {
 	return Date.parse(right.record.committedAt) - Date.parse(left.record.committedAt)
-		|| right.record.identitySha256.localeCompare(left.record.identitySha256);
+		|| compareCodeUnits(right.record.identitySha256, left.record.identitySha256);
 }
 
 function projectAuthority(value: unknown): AssistanceSemanticSearchProjectAuthorityV1 {

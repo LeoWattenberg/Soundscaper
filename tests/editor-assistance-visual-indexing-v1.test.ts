@@ -63,6 +63,16 @@ test('reciprocal-rank fusion combines transcript, visual, and OCR without score-
 	assert.ok(fused[0]!.score > fused[1]!.score);
 });
 
+test('reciprocal-rank fusion resolves equal-score positions by code-unit result ID', () => {
+	const fused = fuseAssistanceSearchRanksV1({
+		transcript: [{ resultId: 'alpha', timelineFrame: 10, label: 'spoken' }],
+		visual: [{ resultId: 'Zebra', timelineFrame: 10, label: 'visual' }],
+		ocr: [],
+	});
+
+	assert.deepEqual(fused.map(({ resultId }) => resultId), ['Zebra', 'alpha']);
+});
+
 test('fused search suppresses duplicate provider identities and stale timing disagreements', () => {
 	assert.throws(() => fuseAssistanceSearchRanksV1({
 		transcript: [

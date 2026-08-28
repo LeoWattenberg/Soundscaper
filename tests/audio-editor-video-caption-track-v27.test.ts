@@ -120,3 +120,15 @@ test('caption cue order is canonical and identities cannot collide', () => {
 		cues: [track.cues[0], { ...track.cues[0] }],
 	}), /identity.*duplicated|duplicate/iu);
 });
+
+test('caption cue identity tie-breaks use code-unit order, not host collation', () => {
+	const track = captionTrack();
+	const tied = (id: string) => ({
+		...track.cues[0]!, id, startFrame: 0, endFrame: 24_000, words: [],
+	});
+	const normalized = normalizeVideoCaptionTrackV1({
+		...track,
+		cues: [tied('alpha'), tied('Zebra')],
+	});
+	assert.deepEqual(normalized.cues.map((cue) => cue.id), ['Zebra', 'alpha']);
+});

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	assertFrame,
 	clipEndFrame,
@@ -525,6 +526,7 @@ function insertSpaceOnTrack(
 	project.clips = project.clips.filter((clip) => !deletedIds.has(clip.id));
 	project.clips.push(...replacements);
 	track.clipIds = replacements
-		.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame || left.id.localeCompare(right.id))
+		.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame
+			|| compareCodeUnits(left.id, right.id))
 		.map((clip) => clip.id);
 }

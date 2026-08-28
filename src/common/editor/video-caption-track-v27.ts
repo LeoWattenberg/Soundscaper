@@ -2,6 +2,7 @@
 
 /** Explicit, inert caption state for Framescaper V27. */
 
+import { compareCodeUnits } from './code-unit-order.ts';
 import {
 	readClosedDomainArray,
 	readClosedDomainField,
@@ -145,7 +146,7 @@ export function normalizeVideoCaptionTrackV1(value: unknown): VideoCaptionTrackV
 		field(record, 'cues', name), 'caption cues', VIDEO_CAPTION_TRACK_LIMITS_V1.maximumCues,
 		normalizeCue,
 	).sort((left, right) => left.startFrame - right.startFrame
-		|| left.endFrame - right.endFrame || left.id.localeCompare(right.id));
+		|| left.endFrame - right.endFrame || compareCodeUnits(left.id, right.id));
 	assertReferences(cues, styles, regions, speakers);
 	return Object.freeze({
 		schemaVersion: 1 as const,

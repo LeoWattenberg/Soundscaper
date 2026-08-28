@@ -2,6 +2,8 @@
 
 /** Deterministic, model-independent Milestone 7 highlight ranking. */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
+
 export const HIGHLIGHT_RANKING_V1_WEIGHTS = Object.freeze({
 	hook: 0.25,
 	conversationalStructure: 0.2,
@@ -91,7 +93,7 @@ export function rankAssistanceHighlightsV1(
 		.map((candidate) => Object.freeze({ candidate, score: candidateScore(candidate) }))
 		.sort((left, right) => right.score - left.score
 			|| left.candidate.startFrame - right.candidate.startFrame
-			|| left.candidate.id.localeCompare(right.candidate.id));
+			|| compareCodeUnits(left.candidate.id, right.candidate.id));
 	const accepted: AssistanceHighlightProposalV1[] = [];
 	for (const { candidate, score } of ranked) {
 		if (accepted.some((prior) => overlapRatio(prior, candidate)

@@ -2,6 +2,7 @@
 
 /** Selected V13 finishing authority. This branch deliberately excludes M5 node families. */
 
+import { compareCodeUnits } from './code-unit-order.ts';
 import {
 	assertAutomationLaneIdentitiesUniqueV21,
 	normalizeAutomationLaneV21,
@@ -298,12 +299,12 @@ function uniqueSortedCollection<Item extends Readonly<{ id: string }>>(
 		if (ids.has(item.id)) throw new RangeError(`${name} contains duplicate identity ${item.id}.`);
 		ids.add(item.id);
 	}
-	return values.sort((left, right) => left.id.localeCompare(right.id));
+	return values.sort((left, right) => compareCodeUnits(left.id, right.id));
 }
 
 function sortedIds(value: unknown, name: string): string[] {
 	const result = readClosedDomainArray(value, name, 0, 100_000)
-		.map((item) => stableId(item, name)).sort((left, right) => left.localeCompare(right));
+		.map((item) => stableId(item, name)).sort(compareCodeUnits);
 	if (new Set(result).size !== result.length) throw new RangeError(`${name} must be unique.`);
 	return result;
 }

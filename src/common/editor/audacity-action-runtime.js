@@ -256,7 +256,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 
 	function selectRelativeClip(direction) {
 		const clips = [...(project()?.clips || [])].sort((left, right) => (
-			left.timelineStartFrame - right.timelineStartFrame || left.id.localeCompare(right.id)
+			left.timelineStartFrame - right.timelineStartFrame || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
 		));
 		if (!clips.length) return null;
 		const index = Math.max(0, clips.findIndex((clip) => clip.id === snapshot().selectedClipId));

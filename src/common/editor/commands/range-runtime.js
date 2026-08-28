@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	clipEndFrame,
 	cloneProject,
@@ -200,7 +201,8 @@ export function keepRange(project, command) {
 		project.clips = project.clips.filter((clip) => !deletedIds.has(clip.id));
 		project.clips.push(...replacements);
 		track.clipIds = replacements
-			.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame || left.id.localeCompare(right.id))
+			.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame
+				|| compareCodeUnits(left.id, right.id))
 			.map((clip) => clip.id);
 	}
 }
@@ -464,7 +466,8 @@ export function replaceRange(project, command) {
 		durationFrames: source.frameCount,
 	});
 	const nextTrackClips = [...replacements, replacement]
-		.sort((first, second) => first.timelineStartFrame - second.timelineStartFrame || first.id.localeCompare(second.id));
+		.sort((first, second) => first.timelineStartFrame - second.timelineStartFrame
+			|| compareCodeUnits(first.id, second.id));
 	validateTrackReplacement(project, track, deletedIds, nextTrackClips);
 	project.clips = project.clips.filter((clip) => !deletedIds.has(clip.id));
 	project.clips.push(...nextTrackClips);

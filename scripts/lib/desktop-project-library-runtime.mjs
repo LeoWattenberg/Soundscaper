@@ -146,6 +146,7 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/broadcast-wave.js',
 	'src/common/editor/cart-metadata.js',
 	'src/common/editor/chunk-stream.js',
+	'src/common/editor/code-unit-order.js',
 	'src/common/editor/closed-domain-value.js',
 	'src/common/editor/commands/mastering-sequence.js',
 	'src/common/editor/commands/protocol.js',

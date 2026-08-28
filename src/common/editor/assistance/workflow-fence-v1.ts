@@ -2,6 +2,7 @@
 
 /** Exact source, timing, and project authority for one aggregate assistance workflow. */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	PROJECT_SCHEMA_VERSION,
 	readProjectSchemaIdentity,
@@ -142,7 +143,7 @@ function compareSourceRanges(left: AssistanceWorkflowSourceRangeV1, right: Assis
 		String(left.sourceEndFrame).padStart(16, '0')}`;
 	const rightKey = `${right.slotId}\0${right.sourceId}\0${String(right.sourceStartFrame).padStart(16, '0')}\0${
 		String(right.sourceEndFrame).padStart(16, '0')}`;
-	return leftKey.localeCompare(rightKey);
+	return compareCodeUnits(leftKey, rightKey);
 }
 
 function exactRecord(value: unknown, keys: readonly string[], label: string): Record<string, unknown> {

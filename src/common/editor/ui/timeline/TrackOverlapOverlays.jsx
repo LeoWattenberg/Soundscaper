@@ -1,5 +1,6 @@
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
+import { compareCodeUnits } from '../../code-unit-order.ts';
 import { validateVideoTrackComposition } from '../../video-timeline.js';
 
 export function createVideoOverlapPresentation(
@@ -12,7 +13,8 @@ export function createVideoOverlapPresentation(
 	const ordered = clips
 		.filter((clip) => !clip.isRecordingPreview && Number(clip.durationFrames) > 0)
 		.slice()
-		.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame || String(left.id).localeCompare(String(right.id)));
+		.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame
+			|| compareCodeUnits(String(left.id), String(right.id)));
 	const overlaps = [];
 	const invalidClipIds = new Set();
 	let invalid = false;
@@ -75,7 +77,8 @@ export function createCrossfadeOverlays(clips, overscanStartFrame, pixelsPerSeco
 	const ordered = clips
 		.filter((clip) => !clip.isRecordingPreview && clip.isVisible)
 		.slice()
-		.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame || String(left.id).localeCompare(String(right.id)));
+		.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame
+			|| compareCodeUnits(String(left.id), String(right.id)));
 	const overlays = [];
 	for (let leftIndex = 0; leftIndex < ordered.length; leftIndex += 1) {
 		const left = ordered[leftIndex];

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../common/editor/code-unit-order.ts';
 import {
 	addUnifiedExactLinearCompositionEntryV13,
 	compositeUnifiedExactLinearFrameV13,
@@ -202,7 +203,7 @@ export async function createFramescaperVideoExportVisualExecutionFinishing(
 				width, height, assets.luts, maskInputs, executionSignal);
 		}
 		for (const track of [...exactPlan.tracks].sort((left, right) => (
-			right.sequenceOrder - left.sequenceOrder || compareText(left.trackId, right.trackId)
+			right.sequenceOrder - left.sequenceOrder || compareCodeUnits(left.trackId, right.trackId)
 		))) {
 			for (const { frame: layerFrame, blendMode } of trackEntries.get(track.trackId) ?? []) {
 				compositeUnifiedExactLinearFrameV13(working, layerFrame, blendMode);
@@ -250,7 +251,7 @@ export async function createFramescaperVideoExportVisualExecutionFinishing(
 			captionTrackIds: Object.freeze(finishing.captionTracks.map(({ id }) => id)),
 			audioDisposition: 'shared-v21-delivery' as const,
 			originalSourceIds: Object.freeze(exactPlan.sources.map(({ sourceId }) => sourceId)),
-			unexplainedOmittedNodeIds: Object.freeze([...unexplained].sort(compareText)),
+			unexplainedOmittedNodeIds: Object.freeze([...unexplained].sort(compareCodeUnits)),
 		});
 	}
 
@@ -406,5 +407,3 @@ function assertReady(request: Pick<CreateRequest, 'signal' | 'assertCurrent'>): 
 function throwIfAborted(signal: AbortSignal): void {
 	if (signal.aborted) throw signal.reason ?? new DOMException('finishing visual export was cancelled.', 'AbortError');
 }
-
-function compareText(left: string, right: string): number { return left.localeCompare(right); }

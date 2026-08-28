@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from './code-unit-order.ts';
 import {
 	type DeliveryReport,
 	addDeliveryReportItem,
@@ -153,7 +154,7 @@ export function createOtioExport(request: OtioExportRequest): OtioExportResult {
 				.filter((clip): clip is Readonly<Record<string, unknown>> => Boolean(clip))
 				.sort((left, right) => (
 					Number(left.timelineStartFrame ?? 0) - Number(right.timelineStartFrame ?? 0)
-					|| String(left.id).localeCompare(String(right.id))
+					|| compareCodeUnits(String(left.id), String(right.id))
 				)),
 		});
 	}

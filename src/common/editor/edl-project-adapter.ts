@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from './code-unit-order.ts';
 import {
 	type EdlEvent,
 	type EdlExportResult,
@@ -125,7 +126,7 @@ export function createProjectEdlExport(request: EdlProjectExportRequest): EdlExp
 		.sort((left, right) => (
 			nonNegativeInteger(left.timelineStartFrame, 'clip.timelineStartFrame')
 			- nonNegativeInteger(right.timelineStartFrame, 'clip.timelineStartFrame')
-			|| String(left.id).localeCompare(String(right.id))
+			|| compareCodeUnits(String(left.id), String(right.id))
 		));
 
 	for (const clip of clips) {

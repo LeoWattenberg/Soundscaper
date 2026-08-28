@@ -2,6 +2,8 @@
 
 /** Deterministic shot sampling and cross-modal search fusion for Milestone 7. */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
+
 export const ASSISTANCE_SEARCH_RRF_K = 60;
 
 const SHOT_FIELDS = Object.freeze(['shotId', 'startFrame', 'endFrame'] as const);
@@ -142,7 +144,7 @@ export function fuseAssistanceSearchRanksV1(
 		labels: Object.freeze({ ...value.labels }),
 	})).sort((left, right) => right.score - left.score
 		|| left.timelineFrame - right.timelineFrame
-		|| left.resultId.localeCompare(right.resultId)));
+		|| compareCodeUnits(left.resultId, right.resultId)));
 }
 
 function normalizeProviderHit(

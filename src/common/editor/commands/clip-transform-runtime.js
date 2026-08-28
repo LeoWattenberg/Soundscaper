@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	assertFrame,
 	clipEndFrame,
@@ -189,7 +190,7 @@ export function transformClips(project, command) {
 				? replacementsById.get(clipId)
 				: [requireClip(project, clipId)])
 			.concat(state.filter((item) => item.track.id === track.id).map((item) => item.updated))
-			.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame || left.id.localeCompare(right.id));
+			.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame || compareCodeUnits(left.id, right.id));
 		track.clipIds = clips.map((clip) => clip.id);
 	}
 }
@@ -265,7 +266,7 @@ function validateClipTransformState(project, state, overwrite) {
 }
 
 function assertNonOverlappingClips(trackId, clips) {
-	const ordered = [...clips].sort((left, right) => left.timelineStartFrame - right.timelineStartFrame || left.id.localeCompare(right.id));
+	const ordered = [...clips].sort((left, right) => left.timelineStartFrame - right.timelineStartFrame || compareCodeUnits(left.id, right.id));
 	for (let index = 1; index < ordered.length; index += 1) {
 		if (clipsOverlap(ordered[index - 1], ordered[index])) {
 			throw new RangeError(`Clip overlaps existing material on track ${trackId}.`);

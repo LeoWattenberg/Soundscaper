@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from './code-unit-order.ts';
 import {
 	type DeliveryReport,
 	addDeliveryReportItem,
@@ -150,7 +151,7 @@ export function createFcpxmlExport(request: FcpxmlExportRequest): FcpxmlExportRe
 			.filter((clip): clip is Readonly<Record<string, unknown>> => Boolean(clip))
 			.sort((left, right) => (
 				Number(left.timelineStartFrame ?? 0) - Number(right.timelineStartFrame ?? 0)
-				|| String(left.id).localeCompare(String(right.id))
+				|| compareCodeUnits(String(left.id), String(right.id))
 			));
 		for (const clip of ordered) {
 			const emitted = buildClip(clip, {

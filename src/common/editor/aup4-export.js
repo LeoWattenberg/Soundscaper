@@ -1,4 +1,5 @@
 import { createStreamingWindowedSincResampler } from './resample.js';
+import { compareCodeUnits } from './code-unit-order.ts';
 import { AUP4_REALTIME_EFFECT_PROFILES, canEncodeAup4NativeRealtimeEffect } from './aup4-effects.js';
 import { audioEffectLabel } from './effects.js';
 import { addAup4CompatibilityItem, createAup4CompatibilityReport } from './aup4-profile.js';
@@ -15,8 +16,7 @@ import { projectTrackFolderMediaStateV12 } from './track-folder-media-runtime.ts
 import { scaleSampleFrame } from './timeline-time.ts';
 import { flattenAup4TimelineAnnotations } from './aup4-annotation-interchange.ts';
 import {
-	scaleBoundary,
-	scaledRangeLength,
+	scaleBoundary, scaledRangeLength,
 	positiveRate,
 	positiveChannelCount,
 	finiteNonNegative,
@@ -682,7 +682,7 @@ function automaticAup4CrossfadeRanges(clips) {
 	]));
 	const ordered = clips.slice().sort((left, right) => (
 		Number(left.timelineStartFrame) - Number(right.timelineStartFrame)
-		|| String(left.id).localeCompare(String(right.id))
+		|| compareCodeUnits(String(left.id), String(right.id))
 	));
 	for (let leftIndex = 0; leftIndex < ordered.length; leftIndex += 1) {
 		const left = ordered[leftIndex];
@@ -717,7 +717,7 @@ function assignAup4OverlapLanes(clips) {
 	const laneEnds = [];
 	for (const clip of clips.slice().sort((left, right) => (
 		Number(left.timelineStartFrame) - Number(right.timelineStartFrame)
-		|| String(left.id).localeCompare(String(right.id))
+		|| compareCodeUnits(String(left.id), String(right.id))
 	))) {
 		const start = nonNegativeFrame(clip.timelineStartFrame, `clip ${clip.id} timelineStartFrame`);
 		const end = start + positiveFrame(clip.durationFrames, `clip ${clip.id} durationFrames`);

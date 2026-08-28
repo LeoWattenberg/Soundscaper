@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from './code-unit-order.ts';
+
 interface AudacityShortcutActionDefinition {
 	readonly id: string;
 	readonly label: string;
@@ -162,7 +164,7 @@ export function createAudacityShortcutCommandInventory(
 
 		return [...commands.values()].sort((left, right) => (
 			left.label.localeCompare(right.label, normalizedLocale)
-			|| left.id.localeCompare(right.id)
+			|| compareCodeUnits(left.id, right.id)
 		));
 	};
 

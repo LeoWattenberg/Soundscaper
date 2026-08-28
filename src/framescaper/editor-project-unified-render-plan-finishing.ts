@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../common/editor/code-unit-order.ts';
 import type {
 	UnifiedExactRenderFinishingNode,
 	UnifiedExactRenderPlanV13,
@@ -79,7 +80,7 @@ function effectIds(value: unknown): string[] {
 			throw new TypeError(`finishing render audio effect ${String(index)} requires an identity.`);
 		}
 		return String((effect as Readonly<Record<string, unknown>>).id);
-	}).sort((left, right) => left.localeCompare(right));
+	}).sort(compareCodeUnits);
 }
 
 function record(value: unknown, name: string): Record<string, unknown> {
@@ -98,12 +99,12 @@ function positiveInteger(value: unknown, name: string): number {
 }
 
 function compareIds(left: Readonly<{ id: string }>, right: Readonly<{ id: string }>): number {
-	return left.id.localeCompare(right.id);
+	return compareCodeUnits(left.id, right.id);
 }
 
 function compareSourceIds(
 	left: Readonly<{ sourceId: string }>,
 	right: Readonly<{ sourceId: string }>,
 ): number {
-	return left.sourceId.localeCompare(right.sourceId);
+	return compareCodeUnits(left.sourceId, right.sourceId);
 }

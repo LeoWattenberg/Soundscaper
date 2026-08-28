@@ -1,3 +1,4 @@
+import { compareCodeUnits } from './code-unit-order.ts';
 import {
 	isRuntimeProjectProjection,
 	resolveRuntimeProjectProjection,
@@ -482,7 +483,7 @@ function normalizeClipLookup(value) {
 function compareVideoClips(left, right) {
 	return left.timelineStartFrame - right.timelineStartFrame
 		|| videoClipEndFrame(left) - videoClipEndFrame(right)
-		|| String(left.id).localeCompare(String(right.id));
+		|| compareCodeUnits(String(left.id), String(right.id));
 }
 
 function orderedVideoTrackClips(track, clipById) {

@@ -2,6 +2,7 @@
 
 /** Project-bound transcript/visual/OCR retrieval over disposable reviewed indexes. */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	ASSISTANCE_ASYNC_SEARCH_RESULT_LIMIT,
 	validateAssistanceSemanticSearchSession,
@@ -239,7 +240,7 @@ function rankEmbedded(
 		return { ...row, score };
 	});
 	values.sort((left, right) => right.score - left.score
-		|| left.timelineFrame - right.timelineFrame || left.resultId.localeCompare(right.resultId));
+		|| left.timelineFrame - right.timelineFrame || compareCodeUnits(left.resultId, right.resultId));
 	return Object.freeze(values.slice(0, MAXIMUM_PROVIDER_RANKS).map(providerHit));
 }
 
@@ -261,7 +262,7 @@ function rankOcr(
 		return [{ ...row, score: phrase + matches / tokens.size }];
 	});
 	values.sort((left, right) => right.score - left.score
-		|| left.timelineFrame - right.timelineFrame || left.resultId.localeCompare(right.resultId));
+		|| left.timelineFrame - right.timelineFrame || compareCodeUnits(left.resultId, right.resultId));
 	return Object.freeze(values.slice(0, MAXIMUM_PROVIDER_RANKS).map(providerHit));
 }
 

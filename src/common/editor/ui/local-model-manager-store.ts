@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	localModelByteCount,
 	localModelId,
@@ -108,9 +109,9 @@ export function createLocalModelManagerStore(
 		installingModelIds: Object.freeze([...activeModels]
 			.filter(([, operation]) => operation !== 'remove')
 			.map(([modelId]) => modelId).sort()),
-		cancellingModelIds: Object.freeze([...cancellingModels].sort()),
+		cancellingModelIds: Object.freeze([...cancellingModels].sort(compareCodeUnits)),
 		progress: Object.freeze([...progressByModelId.values()]
-			.sort((left, right) => left.modelId.localeCompare(right.modelId))),
+			.sort((left, right) => compareCodeUnits(left.modelId, right.modelId))),
 		maintenanceOperation,
 		error,
 	});

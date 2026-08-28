@@ -69,6 +69,26 @@ test('a project becomes an EDL whose events are the visible track in timeline or
 	assert.equal(result.fileName, 'Cut-list.edl');
 });
 
+test('simultaneous EDL events use code-unit identity order, not host collation', () => {
+	const clips = [
+		{
+			kind: 'video', id: 'alpha', sourceId: 'src-a', title: 'Lowercase',
+			timelineStartFrame: 0, durationFrames: SAMPLE_RATE, sourceStartFrame: 0, speedRatio: 1,
+		},
+		{
+			kind: 'video', id: 'Zebra', sourceId: 'src-b', title: 'Uppercase',
+			timelineStartFrame: 0, durationFrames: SAMPLE_RATE, sourceStartFrame: 0, speedRatio: 1,
+		},
+	];
+	const result = createProjectEdlExport({
+		project: project({
+			clips,
+			tracks: [{ type: 'video', id: 'v1', name: 'V1', clipIds: ['alpha', 'Zebra'], hidden: false }],
+		}),
+	});
+	assert.deepEqual(eventLines(result.text).map((line) => eventFields(line).reel), ['B_ROLL', 'A_ROLL']);
+});
+
 test('record timecode carries the sequence start timecode rather than starting at zero', () => {
 	const result = createProjectEdlExport({ project: project() });
 	const { recordIn, sourceIn } = eventFields(eventLines(result.text)[0]);

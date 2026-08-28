@@ -9,6 +9,7 @@
  * the preview and the keyed export.
  */
 
+import { compareCodeUnits } from '../common/editor/code-unit-order.ts';
 import {
 	applyManagedSdrGradeStackLinearPixelV1,
 	applyManagedSdrLinearGradeStackPixelV1,
@@ -72,7 +73,7 @@ export function applyVideoPresentationLinear(
 	const content = Object.freeze({
 		width, height, pixels: working.pixels.slice() as Float64Array<ArrayBuffer>,
 	});
-	for (const maskId of [...maskIds].sort(compareText)) {
+	for (const maskId of [...maskIds].sort(compareCodeUnits)) {
 		const mask = masksById.get(maskId);
 		if (!mask) throw new ReferenceError(`finishing video presentation mask ${maskId} is unavailable.`);
 		const alpha = evaluateVideoMaskMatteRgbaV13(mask.graph, width, height, maskInputs);
@@ -326,5 +327,3 @@ function record(value: unknown, name: string): Readonly<Record<string, unknown>>
 function throwIfAborted(signal: AbortSignal): void {
 	if (signal.aborted) throw signal.reason ?? new DOMException('finishing visual export was cancelled.', 'AbortError');
 }
-
-function compareText(left: string, right: string): number { return left.localeCompare(right); }

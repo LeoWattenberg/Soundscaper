@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../common/editor/code-unit-order.ts';
 import type { UnifiedExactRenderFinishingNode, UnifiedExactRenderPlanV14 } from '../common/editor/unified-exact-render-plan.ts';
 import { framescaperSequenceAudioAuthorityScopeV15 } from './editor-project-companion-audio-scope.ts';
 import {
@@ -86,14 +87,18 @@ export function createFramescaperUnifiedRenderFinishingNodeNativeMedia(
 
 function effectIds(value: unknown): string[] {
 	if (!Array.isArray(value)) throw new TypeError('nativeMedia render audio effects must be an array.');
-	return value.map((effect, index) => String(record(effect, `audio effect ${String(index)}`).id)).sort();
+	return value.map((effect, index) => String(record(effect, `audio effect ${String(index)}`).id)).sort(compareCodeUnits);
 }
 function positiveInteger(value: unknown, name: string): number {
 	if (!Number.isSafeInteger(value) || Number(value) < 1) throw new RangeError(`${name} must be positive.`);
 	return Number(value);
 }
-function compareIds(left: Readonly<{ id: string }>, right: Readonly<{ id: string }>): number { return left.id.localeCompare(right.id); }
-function compareSourceIds(left: Readonly<{ sourceId: string }>, right: Readonly<{ sourceId: string }>): number { return left.sourceId.localeCompare(right.sourceId); }
+function compareIds(left: Readonly<{ id: string }>, right: Readonly<{ id: string }>): number {
+	return compareCodeUnits(left.id, right.id);
+}
+function compareSourceIds(left: Readonly<{ sourceId: string }>, right: Readonly<{ sourceId: string }>): number {
+	return compareCodeUnits(left.sourceId, right.sourceId);
+}
 function record(value: unknown, name: string): Record<string, unknown> {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${name} must be an object.`);
 	return value as Record<string, unknown>;

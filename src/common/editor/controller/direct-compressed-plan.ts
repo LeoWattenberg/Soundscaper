@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import { getMediaExportFormat, normalizeMediaExportSettings } from '../media-export.js';
 import { FAST_RENDER_THRESHOLDS } from '../export.js';
 import {
@@ -519,8 +520,9 @@ function safeRecordEnvelope(value: Readonly<Record<string, unknown>>): boolean {
 }
 
 function sameKeys(value: Readonly<Record<string, unknown>>, fields: readonly string[]): boolean {
-	const keys = Reflect.ownKeys(value).sort((left, right) => String(left).localeCompare(String(right)));
-	return keys.length === fields.length && [...fields].sort().every((field, index) => field === keys[index]);
+	const keys = Reflect.ownKeys(value).sort((left, right) => compareCodeUnits(String(left), String(right)));
+	return keys.length === fields.length
+		&& [...fields].sort(compareCodeUnits).every((field, index) => field === keys[index]);
 }
 
 function jsonValue(value: unknown): string {

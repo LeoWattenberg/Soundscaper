@@ -108,6 +108,35 @@ test('a later clip is preceded by a gap rather than silently moved', () => {
 	);
 });
 
+test('simultaneous clips are emitted in code-unit ID order', () => {
+	const clips = [
+		{
+			kind: 'video', id: 'alpha-clip', sourceId: 'src-v', title: 'alpha',
+			timelineStartFrame: 0, durationFrames: SAMPLE_RATE,
+			sourceStartFrame: 0, speedRatio: 1,
+		},
+		{
+			kind: 'video', id: 'Z-clip', sourceId: 'src-v', title: 'Z',
+			timelineStartFrame: 0, durationFrames: SAMPLE_RATE,
+			sourceStartFrame: 0, speedRatio: 1,
+		},
+	];
+	const { document } = exported({
+		clips,
+		tracks: [{
+			type: 'video', id: 'v1', name: 'V1',
+			clipIds: clips.map(({ id }) => id), hidden: false,
+		}],
+	});
+	const children = trackNamed(document, 'V1').children as Array<{
+		metadata: Record<string, { clipId: string }>;
+	}>;
+	assert.deepEqual(
+		children.map(({ metadata }) => metadata[OTIO_METADATA_NAMESPACE]?.clipId),
+		['Z-clip', 'alpha-clip'],
+	);
+});
+
 test('media is addressed by storage key and the conversion is reported', () => {
 	const { document, report } = exported();
 	const clip = trackNamed(document, 'V1').children[0] as {

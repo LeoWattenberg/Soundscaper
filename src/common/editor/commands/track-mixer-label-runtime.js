@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import { deriveFolderBusOwnershipV13 } from '../folder-bus-v13.ts';
 import { insertTrackNodeV12 } from '../track-hierarchy-mutation-v12.ts';
 import {
@@ -217,7 +218,8 @@ function addLabel(project, trackId, value) {
 	const label = createLabel(value);
 	assertUnusedId(track.labels, label.id, 'label');
 	track.labels.push(label);
-	track.labels.sort((left, right) => left.startFrame - right.startFrame || left.endFrame - right.endFrame || left.id.localeCompare(right.id));
+	track.labels.sort((left, right) => left.startFrame - right.startFrame
+		|| left.endFrame - right.endFrame || compareCodeUnits(left.id, right.id));
 }
 
 function updateLabel(project, trackId, labelId, changes = {}) {
@@ -227,7 +229,8 @@ function updateLabel(project, trackId, labelId, changes = {}) {
 	const allowed = new Set(['title', 'startFrame', 'endFrame', 'color', 'opaqueExtensions']);
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Label field cannot be updated: ${key}.`);
 	track.labels[index] = createLabel({ ...track.labels[index], ...changes, id: labelId });
-	track.labels.sort((left, right) => left.startFrame - right.startFrame || left.endFrame - right.endFrame || left.id.localeCompare(right.id));
+	track.labels.sort((left, right) => left.startFrame - right.startFrame
+		|| left.endFrame - right.endFrame || compareCodeUnits(left.id, right.id));
 }
 
 function removeLabel(project, trackId, labelId) {

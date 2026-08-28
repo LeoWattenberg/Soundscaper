@@ -5,6 +5,7 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import type {
 	AssistanceWorkflowFenceV1,
 	AssistanceWorkflowModelBindingV1,
@@ -149,7 +150,7 @@ function sourceRangeInventory(
 	if (new Set(result.map(({ mediaKind }) => mediaKind)).size !== result.length) {
 		unavailable('timing-authority-unavailable');
 	}
-	return Object.freeze(result.sort((left, right) => left.mediaKind.localeCompare(right.mediaKind)));
+	return Object.freeze(result.sort((left, right) => compareCodeUnits(left.mediaKind, right.mediaKind)));
 }
 
 function assertForwardOccurrence(

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import { isCurrentProjectSchemaIdentity } from '../project-schema-identity.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
@@ -132,7 +133,7 @@ function createCommand(
 	if (!projectId || revision === null || !clipId || !sequenceId || !outputSourceId) return null;
 	const sources = records(project.sources)
 		.filter(({ kind, id }) => kind === 'video' && string(id) !== null)
-		.sort((left, right) => String(left.id).localeCompare(String(right.id)));
+		.sort((left, right) => compareCodeUnits(String(left.id), String(right.id)));
 	const outputIndex = sources.findIndex(({ id }) => id === outputSourceId);
 	if (outputIndex < 0 || sources.length < 2) return null;
 	const orderedSources = [sources[outputIndex]!, ...sources.filter((_, index) => index !== outputIndex)].slice(0, 64);

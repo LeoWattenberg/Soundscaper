@@ -2,6 +2,7 @@
 
 /** Semantic re-admission for serialized owned audio/cut transform results. */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	ASSISTANCE_AUDIO_TAG_SAMPLE_RATE,
 	ASSISTANCE_BEAT_SAMPLE_RATE,
@@ -399,5 +400,5 @@ function compareProposalOrder(
 	right: Readonly<{ startFrame: number; endFrame: number; kind: string; id: string }>,
 ): number {
 	return left.startFrame - right.startFrame || left.endFrame - right.endFrame
-		|| left.kind.localeCompare(right.kind) || left.id.localeCompare(right.id);
+		|| compareCodeUnits(left.kind, right.kind) || compareCodeUnits(left.id, right.id);
 }

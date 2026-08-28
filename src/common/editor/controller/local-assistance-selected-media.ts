@@ -5,6 +5,7 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	normalizeAssistanceOperation,
 	type AssistanceOperation,
@@ -278,7 +279,7 @@ export function createLocalAssistanceSelectionFence(
 		avLinkId: candidate.avLinkId ?? null,
 		trackId: project.tracks.find((owner) => Array.isArray(owner.clipIds)
 			&& owner.clipIds.includes(candidate.id))?.id ?? null,
-	})).sort((left, right) => left.id.localeCompare(right.id));
+	})).sort((left, right) => compareCodeUnits(left.id, right.id));
 	const sequenceId = text(clip.sequenceId ?? project.primarySequenceId, 'sequence id');
 	return validateAssistanceSelectionFence({
 		projectId: project.id,

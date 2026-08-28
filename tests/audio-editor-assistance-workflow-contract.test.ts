@@ -439,6 +439,24 @@ test('the aggregate fence binds every source range and refuses ambiguous or unsu
 	assert.equal(aggregate.sourceRanges.length, 2);
 	assert.equal(aggregate.sourceRanges[0]?.sourceSampleRate, 48_000);
 	assert.equal(aggregate.transcriptBodySha256, SHA_A);
+	const upperSource = {
+		...fence().sourceRanges[0], sourceId: 'Z-source', occurrenceIds: ['Z-occurrence'],
+	};
+	const lowerSource = {
+		...fence().sourceRanges[0], sourceId: 'alpha-source', occurrenceIds: ['alpha-occurrence'],
+	};
+	assert.deepEqual(
+		validateAssistanceWorkflowFenceV1(fence({
+			sourceRanges: [upperSource, lowerSource],
+		})).sourceRanges.map(({ sourceId }) => sourceId),
+		['Z-source', 'alpha-source'],
+	);
+	assert.throws(
+		() => validateAssistanceWorkflowFenceV1(fence({
+			sourceRanges: [lowerSource, upperSource],
+		})),
+		/canonical order/iu,
+	);
 	assert.throws(
 		() => validateAssistanceWorkflowFenceV1(fence({ sourceRanges: [
 			second, ...fence().sourceRanges,

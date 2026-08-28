@@ -253,3 +253,29 @@ test('the spine is emitted in timeline order, whatever order the track stores', 
 		.map((match) => match[1]);
 	assert.deepEqual(spineNames, ['Wide', 'Tight'], 'ascending offsets, not array order');
 });
+
+test('simultaneous FCPXML clips use code-unit identity order, not host collation', () => {
+	const result = createFcpxmlExport({
+		project: project({
+			clips: [
+				{
+					kind: 'video', id: 'alpha', sourceId: 'src-v', title: 'Lowercase',
+					timelineStartFrame: 0, durationFrames: SAMPLE_RATE,
+					sourceStartFrame: 0, speedRatio: 1,
+				},
+				{
+					kind: 'video', id: 'Zebra', sourceId: 'src-v', title: 'Uppercase',
+					timelineStartFrame: 0, durationFrames: SAMPLE_RATE,
+					sourceStartFrame: 0, speedRatio: 1,
+				},
+			],
+			tracks: [{
+				type: 'video', id: 'v1', name: 'V1', clipIds: ['alpha', 'Zebra'], hidden: false,
+			}],
+		}),
+		sequenceRate: NTSC,
+	});
+	const names = [...result.text.matchAll(/<asset-clip[^>]*name="([^"]+)"/gu)]
+		.map((match) => match[1]);
+	assert.deepEqual(names, ['Uppercase', 'Lowercase']);
+});

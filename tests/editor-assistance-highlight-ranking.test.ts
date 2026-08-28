@@ -103,6 +103,15 @@ test('ranking applies the fixed duplication penalty before stable tie breaking',
 	assert.equal(ranked[0]?.score, 0.225);
 });
 
+test('ranking resolves overlapping equal-score proposals by code-unit ID order', () => {
+	const ranked = rankAssistanceHighlightsV1([
+		candidate('alpha', 0, { hook: 1 }),
+		candidate('Zebra', 0, { hook: 1 }),
+	], { sampleRate: SAMPLE_RATE, maximumResults: 2 });
+
+	assert.deepEqual(ranked.map(({ id }) => id), ['Zebra']);
+});
+
 test('selection suppresses candidates whose overlap exceeds 25 percent', () => {
 	const ranked = rankAssistanceHighlightsV1([
 		candidate('best', 0, { excitement: 1 }),

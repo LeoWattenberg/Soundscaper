@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../../code-unit-order.ts';
 import type { ProductVideoVisualPreviewFrame } from './product-video-visual-preview-runtime.ts';
 
 type Data = Readonly<Record<string, unknown>>;
@@ -24,7 +25,7 @@ export function collectProductVideoVisualPreviewEffectIds(
 		if (!adjustment.targetTrackIds.some((trackId) => activeTrackIds.has(trackId))) continue;
 		collectEffects(adjustment.effects, result);
 	}
-	return Object.freeze([...result].sort((left, right) => left.localeCompare(right)));
+	return Object.freeze([...result].sort(compareCodeUnits));
 }
 
 function collectEffects(value: unknown, result: Set<string>): void {

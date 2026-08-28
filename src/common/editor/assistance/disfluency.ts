@@ -10,6 +10,7 @@
  * rather than a special path.
  */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import type { AssistanceTranscript, TranscriptWord } from './transcript.ts';
 import { transcriptWords } from './transcript.ts';
 
@@ -136,7 +137,7 @@ export function findDisfluencyProposals(
 
 	proposals.sort((left, right) => left.startFrame - right.startFrame
 		|| left.endFrame - right.endFrame
-		|| left.kind.localeCompare(right.kind));
+		|| compareCodeUnits(left.kind, right.kind));
 	return Object.freeze(proposals);
 }
 

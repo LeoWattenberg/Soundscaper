@@ -2,6 +2,7 @@
 
 import { AUDIO_EDITOR_STORAGE_CHUNK_FRAMES } from '../chunk-stream.js';
 import { buildAudioWarpRuntimeSegments } from '../audio-warp-runtime.ts';
+import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	clipDuration,
 	clipStart,
@@ -155,7 +156,8 @@ export function automaticCrossfadeRanges(clips: readonly EngineClip[]): Map<stri
 	const ordered = clips
 		.filter((clip) => clip && clip.id != null && clipDuration(clip) > 0)
 		.slice()
-		.sort((left, right) => clipStart(left) - clipStart(right) || String(left.id).localeCompare(String(right.id)));
+		.sort((left, right) => clipStart(left) - clipStart(right)
+			|| compareCodeUnits(String(left.id), String(right.id)));
 	for (let leftIndex = 0; leftIndex < ordered.length; leftIndex += 1) {
 		const left = ordered[leftIndex];
 		const leftStart = clipStart(left);

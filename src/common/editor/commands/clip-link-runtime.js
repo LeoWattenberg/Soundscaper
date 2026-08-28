@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	assertFrame,
 	clipEndFrame,
@@ -243,7 +244,8 @@ export function joinClips(project, clipIds) {
 	const ids = normalizeCommandIds(clipIds, 'clipIds');
 	if (ids.length < 2) throw new RangeError('At least two clips are required to join.');
 	const clips = ids.map((clipId) => requireClip(project, clipId))
-		.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame || left.id.localeCompare(right.id));
+		.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame
+			|| compareCodeUnits(left.id, right.id));
 	const clipsByTrack = new Map();
 	for (const clip of clips) {
 		const track = requireClipTrack(project, clip.id);
