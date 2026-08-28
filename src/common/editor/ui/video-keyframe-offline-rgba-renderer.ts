@@ -96,14 +96,14 @@ export function createVideoKeyframeOfflineRgbaRenderer(
 	const plan = planVideoKeyframeOfflineRgba(frameSource.canvas);
 	const canvas = options.canvas;
 	const sourceCache = new VideoKeyframeOfflineSourceCache(options.resolveSource);
-	let compositor: OfflineVideoPreviewCompositor;
+	let compositor: OfflineVideoPreviewCompositor | null;
 	try {
-		compositor = options.createCompositor(canvas);
+		compositor = options.compose ? null : options.createCompositor(canvas);
 	} catch (error) {
 		void sourceCache.dispose().catch(() => undefined);
 		throw error;
 	}
-	const gl = compositor.gl;
+	const gl = compositor?.gl ?? null;
 	const rowScratch = new Uint8Array(plan.width * 4);
 	let active = false;
 	let disposed = false;
@@ -135,6 +135,9 @@ export function createVideoKeyframeOfflineRgbaRenderer(
 					rgba: reusable as Uint8Array<ArrayBuffer>, signal,
 				}));
 				else {
+					if (compositor === null || gl === null) {
+						throw new Error('The generic offline video compositor is unavailable.');
+					}
 					const report = compositor.render([...layers], {
 					referenceWidth: plan.width,
 					referenceHeight: plan.height,
@@ -180,7 +183,7 @@ export function createVideoKeyframeOfflineRgbaRenderer(
 		disposed = true;
 		const operation = (async () => {
 			const failures: unknown[] = [];
-			try { compositor.dispose(); } catch (error) { failures.push(error); }
+			try { compositor?.dispose(); } catch (error) { failures.push(error); }
 			try { await sourceCache.dispose(); } catch (error) { failures.push(error); }
 			rowScratch.fill(0);
 			if (failures.length > 0) {

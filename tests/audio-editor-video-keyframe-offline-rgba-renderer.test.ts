@@ -82,10 +82,14 @@ test('offline renderer delegates resolved source layers to an exact product comp
 	const frame = frameSource.frame(0);
 	const fixture = rendererFixture();
 	const calls: unknown[] = [];
+	let compositorCreations = 0;
 	const renderer = createVideoKeyframeOfflineRgbaRenderer({
 		frameSource, canvas: fixture.canvas,
 		resolveSource: () => presentation().value,
-		createCompositor: fixture.createCompositor,
+		createCompositor: () => {
+			compositorCreations += 1;
+			throw new Error('WebGL2 is unavailable.');
+		},
 		compose(request) {
 			calls.push(request);
 			assert.equal(request.layers[0]!.trackIndex, 0);
@@ -100,7 +104,7 @@ test('offline renderer delegates resolved source layers to an exact product comp
 	await renderer.produce(frame, output, { signal });
 	assert.equal(calls.length, 1);
 	assert.deepEqual([...output], new Array(16).fill(41));
-	assert.equal(fixture.renderedEntries(), 0, 'the generic composite is bypassed exactly once');
+	assert.equal(compositorCreations, 0, 'the exact compositor does not acquire unused WebGL2');
 	await renderer.dispose();
 });
 
