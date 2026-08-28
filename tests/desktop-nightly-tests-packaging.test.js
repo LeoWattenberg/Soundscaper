@@ -69,8 +69,7 @@ test('nightly-with-tests packaging is isolated, portable, and keeps its payload 
 
 test('generated nightly-with-tests packages stay outside version control', async () => {
 	const ignore = await readFile(resolve(ROOT, '.gitignore'), 'utf8');
-	assert.match(ignore, /^release\/desktop-nightly-tests\/$/mu);
-	assert.match(ignore, /^release\/desktop-nightly-products\/$/mu);
+	assert.match(ignore, /^release\/\*$/mu);
 });
 
 test('nightly-with-tests enables RunAsNode without weakening the other desktop fuses', async () => {

@@ -32,7 +32,7 @@ test('desktop package metadata omits the retired cross-family handoff runners', 
 	]);
 	assert.equal(metadata.scripts['desktop:smoke:project-library-handoff'], undefined);
 	assert.equal(metadata.scripts['desktop:smoke:project-library-source-bearing-handoff'], undefined);
-	assert.match(ignore, /^release\/desktop-handoff\/$/mu);
+	assert.match(ignore, /^release\/\*$/mu);
 	for (const path of RETIRED_HANDOFF_PATHS) {
 		await assert.rejects(access(resolve(ROOT, path)), { code: 'ENOENT' });
 	}

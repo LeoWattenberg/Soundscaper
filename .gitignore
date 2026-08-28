@@ -8,16 +8,9 @@ playwright-report/
 coverage/
 .nyc_output/
 .desktop-build/
-# Packaged Electron output: unpacked Chromium and Electron binaries, one entry
-# per build target. A target added without its line here is gigabytes of
-# binaries one `git add -A` away from the history, which is how
-# desktop-lease-matrix came to be missing.
-release/desktop/
-release/desktop-handoff/
-release/desktop-lease-matrix/
-release/desktop-nightly-tests/
-release/desktop-nightly-products/
-release/milestone-5-package/
+# Packaged Electron output includes unpacked binaries and many target-specific
+# smoke roots. Keep the complete generated release namespace out of history.
+release/*
 .env
 .env.*
 !.env.example
