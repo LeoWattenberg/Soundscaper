@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
+import { ParametricEqNumericInput } from './ParametricEqNumericInput.jsx';
 import {
 	ParametricEqWasmRuntime,
 	loadParametricEqWasmModule,
@@ -425,9 +426,9 @@ export function ParametricEqEditor({
 			{selectedBand && (
 				<section className="audio-editor-parametric-eq__inspector" aria-label={copy.eqSelectedBand || 'Selected band'}>
 					<label><span>{copy.eqBandType || 'Type'}</span><select disabled={disabled} value={selectedBand.type} onChange={(event) => setSelectedValue('type', event.currentTarget.value)}>{BAND_TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-					<label><span>{copy.effectParamFrequency || 'Frequency'} (Hz)</span><NumericCommitInput disabled={disabled} min={MIN_FREQUENCY} max={MAX_FREQUENCY} step="1" value={selectedBand.frequency} onCommit={(value) => setSelectedValue('frequency', value)} /></label>
-					{bandUsesGain(selectedBand.type) && <label><span>{copy.eqGain || 'Gain'} (dB)</span><NumericCommitInput disabled={disabled} min={MIN_GAIN} max={MAX_GAIN} step="0.1" value={selectedBand.gain} onCommit={(value) => setSelectedValue('gain', value)} /></label>}
-					{bandUsesQ(selectedBand.type) && <label><span>Q</span><NumericCommitInput disabled={disabled} min={MIN_Q} max={MAX_Q} step="0.01" value={selectedBand.q} onCommit={(value) => setSelectedValue('q', value)} /></label>}
+					<label><span>{copy.effectParamFrequency || 'Frequency'} (Hz)</span><ParametricEqNumericInput disabled={disabled} min={MIN_FREQUENCY} max={MAX_FREQUENCY} step="1" value={selectedBand.frequency} onCommit={(value) => setSelectedValue('frequency', value)} /></label>
+					{bandUsesGain(selectedBand.type) && <label><span>{copy.eqGain || 'Gain'} (dB)</span><ParametricEqNumericInput disabled={disabled} min={MIN_GAIN} max={MAX_GAIN} step="0.1" value={selectedBand.gain} onCommit={(value) => setSelectedValue('gain', value)} /></label>}
+					{bandUsesQ(selectedBand.type) && <label><span>Q</span><ParametricEqNumericInput disabled={disabled} min={MIN_Q} max={MAX_Q} step="0.01" value={selectedBand.q} onCommit={(value) => setSelectedValue('q', value)} /></label>}
 					{bandUsesSlope(selectedBand.type) && <label><span>{copy.eqSlope || 'Slope'}</span><select disabled={disabled} value={selectedBand.slope} onChange={(event) => setSelectedValue('slope', event.currentTarget.value)}>{CUT_SLOPES.map((slope) => <option key={slope} value={slope}>{slope} dB/oct</option>)}</select></label>}
 					<label className="audio-editor-parametric-eq__check"><input disabled={disabled} type="checkbox" checked={selectedBand.enabled} onChange={(event) => setSelectedValue('enabled', event.currentTarget.checked)} /> {copy.eqBandEnabled || 'Band enabled'}</label>
 					<Button variant="secondary" disabled={disabled} onClick={() => {
@@ -465,65 +466,13 @@ export function ParametricEqEditor({
 				}} onKeyUp={(event) => {
 					if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) finishOutputGain();
 				}} onBlur={finishOutputGain} />
-				<NumericCommitInput disabled={disabled} min={MIN_GAIN} max={MAX_GAIN} step="0.1" value={draft.outputGain} onCommit={(value) => {
+				<ParametricEqNumericInput disabled={disabled} min={MIN_GAIN} max={MAX_GAIN} step="0.1" value={draft.outputGain} onCommit={(value) => {
 					const next = normalizeParametricEqParams({ ...draft, outputGain: value }, effectId);
 					setDraft(next);
 					commit(next, true);
 				}} />
 			</label>
 		</div>
-	);
-}
-
-function NumericCommitInput({ value, onCommit, disabled, min, max, step }) {
-	const formattedValue = String(roundForInput(value));
-	const [text, setText] = useState(formattedValue);
-	const editingRef = useRef(false);
-	const cancelRef = useRef(false);
-
-	useEffect(() => {
-		if (!editingRef.current) setText(formattedValue);
-	}, [formattedValue]);
-
-	const finish = () => {
-		editingRef.current = false;
-		if (cancelRef.current) {
-			cancelRef.current = false;
-			setText(formattedValue);
-			return;
-		}
-		const number = Number(text);
-		if (!text.trim() || !Number.isFinite(number)) {
-			setText(formattedValue);
-			return;
-		}
-		onCommit?.(number);
-	};
-
-	return (
-		<input
-			disabled={disabled}
-			type="number"
-			inputMode="decimal"
-			min={min}
-			max={max}
-			step={step}
-			value={text}
-			onFocus={() => { editingRef.current = true; }}
-			onChange={(event) => setText(event.currentTarget.value)}
-			onBlur={finish}
-			onKeyDown={(event) => {
-				if (event.key === 'Enter') {
-					event.preventDefault();
-					event.currentTarget.blur();
-				} else if (event.key === 'Escape') {
-					event.preventDefault();
-					event.stopPropagation();
-					cancelRef.current = true;
-					event.currentTarget.blur();
-				}
-			}}
-		/>
 	);
 }
 
@@ -593,10 +542,6 @@ function drawSpectrumCanvas(canvas, { input, output, sampleRate }) {
 function formatFrequency(value) {
 	const frequency = Number(value) || 0;
 	return frequency >= 1_000 ? `${(frequency / 1_000).toFixed(frequency >= 10_000 ? 1 : 2).replace(/\.0+$/, '')}k` : `${Math.round(frequency)}`;
-}
-
-function roundForInput(value) {
-	return Math.round(Number(value) * 100) / 100;
 }
 
 function clamp(value, minimum, maximum) {

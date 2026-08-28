@@ -70,6 +70,29 @@ test('stream construction failure and idempotent lease close release the request
 	await store.dispose();
 });
 
+test('an invalid stream candidate retires its lease and permits a serialized retry', async () => {
+	const handle = fakeHandle({
+		size: 1,
+		createReadStreamImpl: () => ({
+			once() {},
+			removeListener() {},
+		}),
+	});
+	const store = new ReadCapabilityStore({ openImpl: async () => handle });
+	const descriptor = await store.registerPath('/tmp/invalid-stream.scape', { owner: OWNER });
+	const failed = store.acquireRequest(descriptor.id);
+	assert.ok(failed);
+	assert.throws(
+		() => failed.createReadStream({ start: 0, end: 0, autoClose: false }),
+		/invalid stream/iu,
+	);
+
+	const retry = store.acquireRequest(descriptor.id);
+	assert.ok(retry, 'invalid stream construction must release the per-capability request slot');
+	await retry.close();
+	await store.dispose();
+});
+
 test('stream error keeps retirement pending until stream close is acknowledged', async () => {
 	const stream = controlledStream();
 	const handle = fakeHandle({ size: 1, stream });

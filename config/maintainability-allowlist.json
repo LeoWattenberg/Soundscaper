@@ -3,7 +3,6 @@
 	"defaultMaxLines": 600,
 	"browserSpecMaxLines": 800,
 	"allow": {
-		"desktop/file-capabilities.js": { "maxLines": 619, "reason": "The read-capability store owns every live capability entry, and the main-only helper-grant resolver must read those entries directly; lower this ratchet whenever the file shrinks." },
 		"scripts/audacity-qt-translations.mjs": { "maxLines": 942, "reason": "Legacy translation conversion pipeline with provenance and integrity validation." },
 		"scripts/audit-aup4-interop.mjs": { "maxLines": 863, "reason": "Pinned interoperability audit and fixture evidence pipeline." },
 		"scripts/manage-audacity-translation-release.mjs": { "maxLines": 1144, "reason": "Legacy translation publication workflow; split by command before extending it." },
@@ -22,7 +21,6 @@
 		"src/common/editor/clip-time-pitch-cache.js": { "maxLines": 895, "reason": "Legacy disk-backed pitch-cache pipeline with cancellation and recovery." },
 		"src/common/editor/nyquist/plugins/catalog.js": { "maxLines": 630, "reason": "Reviewed bundled Nyquist plug-in catalog." },
 		"src/common/editor/recording.js": { "maxLines": 674, "reason": "Legacy recording graph and device lifecycle implementation." },
-		"src/common/editor/ui/ParametricEqEditor.jsx": { "maxLines": 604, "reason": "Legacy graph editor just above the limit; extract controls before extending it." },
 		"src/common/i18n/catalogs.js": { "maxLines": 2037, "reason": "Reviewed canonical fallback catalog." },
 		"tests/audio-editor-controller.test.js": { "maxLines": 3338, "reason": "Legacy controller regression suite; place new subsystem tests in focused files." },
 		"tests/audio-editor-disk-backed-sources.test.js": { "maxLines": 740, "reason": "Legacy bounded-storage integration scenarios." },
