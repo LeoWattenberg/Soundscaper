@@ -114,10 +114,13 @@ InvocationResult HostRuntime::invoke(OfxPlugin& plugin, Context context, std::st
 		if (created) if (const auto* mapped = official_action(action); mapped != nullptr) {
 			status = call(plugin, mapped, target, action == "render" ? &render_args : &context_args);
 		}
-		if (backend != Backend::cpu && (status == kOfxStatGPUOutOfMemory || status == kOfxStatGPURenderFailed || !accepted_status(status))) {
+		const bool action_cancelled = !accepted_status(status) && observe_cancellation(target);
+		if (backend != Backend::cpu && !action_cancelled
+			&& (status == kOfxStatGPUOutOfMemory || status == kOfxStatGPURenderFailed || !accepted_status(status))) {
 			throw gpu_runtime_error{"gpu-execution-failed", "The qualified GPU render action failed."};
 		}
-		if (!accepted_status(status) || (action == "render" && !state.effect_record.clips.contains("Output"))) {
+		if ((!accepted_status(status) && !action_cancelled)
+			|| (action == "render" && !state.effect_record.clips.contains("Output"))) {
 			throw std::runtime_error("The OpenFX plug-in failed the admitted action lifecycle.");
 		}
 		if (gpu != nullptr) gpu->complete();

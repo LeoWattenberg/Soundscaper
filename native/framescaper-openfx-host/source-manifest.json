@@ -130,8 +130,8 @@
 		},
 		{
 			"path": "src/host_runtime_invoke.inc",
-			"byteLength": 10045,
-			"sha256": "5471de4b1fec9b6b8c368c4b4f778838f1c352f5038bd2c6b3851cb0936c83de"
+			"byteLength": 10185,
+			"sha256": "31b48c7a0f6c6505aa8903d157896c55666b33d51591ba2d4af3ad0c6150b31a"
 		},
 		{
 			"path": "src/host_scan_inspection.inc",
