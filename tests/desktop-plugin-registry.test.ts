@@ -232,6 +232,7 @@ test('an instrument is recorded and is never materializable', () => {
 	const effect = recorded(mixed.record(observation()));
 	mixed.record(observation({ binarySha256: DIGEST_B, binaryPath: '/opt/x.vst3', classification: 'instrument' }));
 	mixed.select(effect.installationId);
+	assert.equal(entry(mixed, effect.entryId).classification, 'unknown');
 	assert.equal(entry(mixed, effect.entryId).ineligibleReason, 'instrument-not-offered');
 	assert.equal(registryErrorCode(() => mixed.hostGrantFor(effect.installationId)), 'instrument-not-offered');
 });

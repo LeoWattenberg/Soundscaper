@@ -69,8 +69,8 @@ export function parseBundledVorbisStream(value: unknown): BundledVorbisStreamGeo
 			fail();
 		}
 		if (++pageCount > MAXIMUM_PAGE_COUNT || offset + 27 > bytes.byteLength
-			|| !equalsAt(bytes, offset, CAPTURE) || bytes[offset + 4] !== 0) fail();
-		const flags = bytes[offset + 5];
+			|| !equalsAt(bytes, offset, CAPTURE) || readByte(bytes, offset + 4) !== 0) fail();
+		const flags = readByte(bytes, offset + 5);
 		if ((flags & ~7) !== 0) fail();
 		const continued = Boolean(flags & 1);
 		const bos = Boolean(flags & 2);
@@ -86,10 +86,10 @@ export function parseBundledVorbisStream(value: unknown): BundledVorbisStreamGeo
 		if (serial === null) serial = pageSerial;
 		if (pageSerial !== serial) fail();
 		if (pageSequence !== sequence++) fail();
-		const segmentCount = bytes[offset + 26];
+		const segmentCount = readByte(bytes, offset + 26);
 		if (segmentCount === 0 || offset + 27 + segmentCount > bytes.byteLength) fail();
 		let bodyBytes = 0;
-		for (let index = 0; index < segmentCount; index++) bodyBytes += bytes[offset + 27 + index];
+		for (let index = 0; index < segmentCount; index++) bodyBytes += readByte(bytes, offset + 27 + index);
 		const pageEnd = offset + 27 + segmentCount + bodyBytes;
 		if (pageEnd > bytes.byteLength || !eos && pageEnd === bytes.byteLength) fail();
 		if (readU32(bytes, offset + 22) !== oggPageCrc(bytes.subarray(offset, pageEnd))) fail();
@@ -97,7 +97,7 @@ export function parseBundledVorbisStream(value: unknown): BundledVorbisStreamGeo
 		let bodyOffset = offset + 27 + segmentCount;
 		const audioPacketsBeforePage = audioPacketCount;
 		for (let segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++) {
-			const segmentBytes = bytes[offset + 27 + segmentIndex];
+			const segmentBytes = readByte(bytes, offset + 27 + segmentIndex);
 			appendBounded(
 				partial, bytes.subarray(bodyOffset, bodyOffset + segmentBytes),
 				packetLimit(packetIndex), packetIndex,
@@ -113,7 +113,7 @@ export function parseBundledVorbisStream(value: unknown): BundledVorbisStreamGeo
 				} else if (packetIndex === 1) unsupported ??= parseComments(packet);
 				else if (packetIndex === 2) parseSetup(packet);
 				else {
-					if (packet.byteLength === 0 || (packet[0] & 1) !== 0) fail();
+					if (packet.byteLength === 0 || (readByte(packet, 0) & 1) !== 0) fail();
 					audioPacketCount++;
 				}
 				packetIndex++;
@@ -138,8 +138,9 @@ export function parseBundledVorbisStream(value: unknown): BundledVorbisStreamGeo
 		unsupported ??= 'The Ogg Vorbis duration exceeds the reviewed frame bound.';
 	}
 	if (unsupported !== null) throw new BundledVorbisStreamUnsupportedError(unsupported);
+	const reviewedChannelCount = requireReviewedChannelCount(channelCount);
 	return Object.freeze({
-		sampleRate, channelCount: channelCount as 1 | 2,
+		sampleRate, channelCount: reviewedChannelCount,
 		frameCount: Number(finalGranule), audioPacketCount,
 	});
 }
@@ -149,11 +150,11 @@ function parseIdentification(packet: Uint8Array): Readonly<{
 	readonly channelCount: number;
 	readonly unsupported: string | null;
 }> {
-	if (packet.byteLength !== 30 || packet[0] !== 1 || !equalsAt(packet, 1, VORBIS)
-		|| readU32(packet, 7) !== 0 || packet[29] !== 1) fail();
-	const channels = packet[11];
+	if (packet.byteLength !== 30 || readByte(packet, 0) !== 1 || !equalsAt(packet, 1, VORBIS)
+		|| readU32(packet, 7) !== 0 || readByte(packet, 29) !== 1) fail();
+	const channels = readByte(packet, 11);
 	const rate = readU32(packet, 12);
-	const blockSizes = packet[28];
+	const blockSizes = readByte(packet, 28);
 	const smallBlockExponent = blockSizes & 15;
 	const largeBlockExponent = blockSizes >>> 4;
 	if (channels === 0 || rate === 0 || smallBlockExponent < 6 || largeBlockExponent < smallBlockExponent
@@ -167,7 +168,7 @@ function parseIdentification(packet: Uint8Array): Readonly<{
 }
 
 function parseComments(packet: Uint8Array): string | null {
-	if (packet.byteLength < 16 || packet[0] !== 3 || !equalsAt(packet, 1, VORBIS)) fail();
+	if (packet.byteLength < 16 || readByte(packet, 0) !== 3 || !equalsAt(packet, 1, VORBIS)) fail();
 	const vendorBytes = readU32(packet, 7);
 	let offset = 11 + vendorBytes;
 	if (offset + 4 > packet.byteLength) fail();
@@ -186,12 +187,12 @@ function parseComments(packet: Uint8Array): string | null {
 		if (length > MAXIMUM_TAG_STRING_BYTES) unsupported ??= 'A Vorbis comment exceeds the reviewed bound.';
 		offset += length;
 	}
-	if (offset + 1 !== packet.byteLength || packet[offset] !== 1) fail();
+	if (offset + 1 !== packet.byteLength || readByte(packet, offset) !== 1) fail();
 	return unsupported;
 }
 
 function parseSetup(packet: Uint8Array): void {
-	if (packet.byteLength < 8 || packet[0] !== 5 || !equalsAt(packet, 1, VORBIS)) fail();
+	if (packet.byteLength < 8 || readByte(packet, 0) !== 5 || !equalsAt(packet, 1, VORBIS)) fail();
 }
 
 function validateGranule(
@@ -252,9 +253,11 @@ function validateUtf8(value: Uint8Array): void {
 
 function oggPageCrc(page: Uint8Array): number {
 	let crc = 0;
-	for (let index = 0; index < page.byteLength; index++) {
-		const byte = index >= 22 && index < 26 ? 0 : page[index];
-		crc = ((crc << 8) ^ OGG_CRC_TABLE[((crc >>> 24) ^ byte) & 255]) >>> 0;
+	for (const [index, sourceByte] of page.entries()) {
+		const byte = index >= 22 && index < 26 ? 0 : sourceByte;
+		const tableValue = OGG_CRC_TABLE[((crc >>> 24) ^ byte) & 255];
+		if (tableValue === undefined) fail();
+		crc = ((crc << 8) ^ tableValue) >>> 0;
 	}
 	return crc;
 }
@@ -273,15 +276,23 @@ function createOggCrcTable(): Uint32Array {
 
 function equalsAt(bytes: Uint8Array, offset: number, expected: Uint8Array): boolean {
 	if (offset + expected.byteLength > bytes.byteLength) return false;
-	for (let index = 0; index < expected.byteLength; index++) {
-		if (bytes[offset + index] !== expected[index]) return false;
-	}
-	return true;
+	return expected.every((byte, index) => bytes[offset + index] === byte);
+}
+
+function readByte(bytes: Uint8Array, offset: number): number {
+	const value = bytes[offset];
+	if (value === undefined) fail();
+	return value;
+}
+
+function requireReviewedChannelCount(value: number): 1 | 2 {
+	if (value !== 1 && value !== 2) fail();
+	return value;
 }
 
 function readU32(bytes: Uint8Array, offset: number): number {
-	return (bytes[offset] | bytes[offset + 1] << 8 | bytes[offset + 2] << 16
-		| bytes[offset + 3] << 24) >>> 0;
+	return (readByte(bytes, offset) | readByte(bytes, offset + 1) << 8
+		| readByte(bytes, offset + 2) << 16 | readByte(bytes, offset + 3) << 24) >>> 0;
 }
 
 function readU64(bytes: Uint8Array, offset: number): bigint {

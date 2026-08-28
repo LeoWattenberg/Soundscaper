@@ -264,6 +264,7 @@ export function reviewAssistanceFramePackV1(
 		frame(ordinalValue: number): AssistanceFramePackV1Frame {
 			const ordinal = integer(ordinalValue, 0, frameCount - 1, 'frame-pack frame ordinal');
 			const source = frames[ordinal];
+			if (!source) throw new RangeError('The assistance frame-pack frame is unavailable.');
 			return Object.freeze({
 				sourceFrame: source.sourceFrame,
 				presentationTick: source.presentationTick,
@@ -342,6 +343,7 @@ class ChunkCursor {
 		let resultOffset = 0;
 		while (resultOffset < length) {
 			const chunk = this.#chunks[this.#chunkIndex];
+			if (!chunk) throw new RangeError(`The ${label} is truncated.`);
 			const available = chunk.byteLength - this.#chunkOffset;
 			const count = Math.min(available, length - resultOffset);
 			result.set(chunk.subarray(this.#chunkOffset, this.#chunkOffset + count), resultOffset);

@@ -87,7 +87,7 @@ export function resolveTrackNodeSpanV12(
 			`Track node ${nodeId} is not part of the sequence.`,
 		);
 	}
-	const node = nodes[index];
+	const node = requiredTrackNode(nodes, index);
 	if (node.kind === 'folder') return Object.freeze({ start: index, end: subtreeEnd(nodes, index) });
 	const laneGroupId = laneGroups?.laneGroupIdByTrackId.get(nodeId);
 	if (laneGroupId == null) return Object.freeze({ start: index, end: index + 1 });
@@ -111,7 +111,7 @@ export function resolveTrackNodeAncestorsV12(
 			`Track node ${nodeId} is not part of the sequence.`,
 		);
 	}
-	return stacks[index];
+	return requiredAncestorStack(stacks, index);
 }
 
 /** Resolve the outermost folder owning a node, or null when the node sits at the sequence root. */
@@ -156,7 +156,7 @@ export function moveTrackNodeV12(
 	// subtree that is the folder alone, because its descendants point at nodes
 	// inside the block; for a media lane pair it is both lanes, which the
 	// validator requires to share one parent.
-	const headParentFolderId = block[0].parentFolderId;
+	const headParentFolderId = requiredTrackNode(block, 0).parentFolderId;
 	const moved = block.map((node) => (
 		node.parentFolderId === headParentFolderId
 			? { ...node, parentFolderId: request.parentFolderId }
@@ -217,7 +217,7 @@ export function removeTrackNodeV12(
 	const sequence = requireSequence(sequences, request.sequenceId);
 	const nodes = sequence.trackNodes;
 	const span = resolveTrackNodeSpanV12(nodes, request.nodeId, laneGroups);
-	const head = nodes[span.start];
+	const head = requiredTrackNode(nodes, span.start);
 	if (request.disposition === 'promote' && head.kind === 'folder') {
 		const promoted = nodes.slice(span.start + 1, span.end).map((node) => (
 			node.parentFolderId === head.id ? { ...node, parentFolderId: head.parentFolderId } : { ...node }
@@ -279,9 +279,9 @@ export function trackNodeLaneGroupsV12(
 
 function subtreeEnd(nodes: readonly TrackNodeV12[], folderIndex: number): number {
 	const stacks = ancestorStacks(nodes);
-	const folderId = nodes[folderIndex].id;
+	const folderId = requiredTrackNode(nodes, folderIndex).id;
 	for (let index = folderIndex + 1; index < nodes.length; index += 1) {
-		if (!stacks[index].includes(folderId)) return index;
+		if (!requiredAncestorStack(stacks, index).includes(folderId)) return index;
 	}
 	return nodes.length;
 }
@@ -327,9 +327,10 @@ function childInsertionIndex(
 	const scanEnd = parentFolderId === null ? nodes.length : subtreeEnd(nodes, parentIndex);
 	let seen = 0;
 	for (let cursor = scanStart; cursor < scanEnd; cursor += 1) {
+		const stack = requiredAncestorStack(stacks, cursor);
 		const isDirectChild = parentFolderId === null
-			? stacks[cursor].length === 0
-			: stacks[cursor].at(-1) === parentFolderId;
+			? stack.length === 0
+			: stack.at(-1) === parentFolderId;
 		if (!isDirectChild) continue;
 		if (seen === index) return cursor;
 		seen += 1;
@@ -380,13 +381,35 @@ function assertDepthWithinLimit(nodes: readonly TrackNodeV12[]): void {
 	const stacks = ancestorStacks(nodes);
 	for (const [index, node] of nodes.entries()) {
 		if (node.kind !== 'folder') continue;
-		if (stacks[index].length > TRACK_HIERARCHY_V12_LIMITS.maximumFolderDepth) {
+		if (requiredAncestorStack(stacks, index).length > TRACK_HIERARCHY_V12_LIMITS.maximumFolderDepth) {
 			throw new TrackFolderEditError(
 				TRACK_FOLDER_EDIT_CODES.depthExceeded,
 				`Track folder ${node.id} exceeds maximum folder depth ${String(TRACK_HIERARCHY_V12_LIMITS.maximumFolderDepth)}.`,
 			);
 		}
 	}
+}
+
+function requiredTrackNode<T extends TrackNodeV12>(nodes: readonly T[], index: number): T {
+	const node = nodes[index];
+	if (!node) {
+		throw new TrackFolderEditError(
+			TRACK_FOLDER_EDIT_CODES.unknownNode,
+			'The track hierarchy contains an incomplete node span.',
+		);
+	}
+	return node;
+}
+
+function requiredAncestorStack(stacks: readonly (readonly string[])[], index: number): readonly string[] {
+	const stack = stacks[index];
+	if (!stack) {
+		throw new TrackFolderEditError(
+			TRACK_FOLDER_EDIT_CODES.unknownNode,
+			'The track hierarchy contains an incomplete ancestor stack.',
+		);
+	}
+	return stack;
 }
 
 function assertBudgets(

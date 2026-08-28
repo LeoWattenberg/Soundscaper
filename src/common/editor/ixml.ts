@@ -82,7 +82,7 @@ function validatedXmlBytes(xml: string): Uint8Array {
 	return bytes;
 }
 function tag(xml: string, name: string): string { const match = new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`, 'iu').exec(xml); return unescape(match?.[1]?.trim() || ''); }
-function blocks(xml: string, name: string): string[] { return [...xml.matchAll(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`, 'giu'))].map((match) => match[1]); }
+function blocks(xml: string, name: string): string[] { return [...xml.matchAll(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`, 'giu'))].flatMap((match) => match[1] === undefined ? [] : [match[1]]); }
 function escape(value: string): string { return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;'); }
 function unescape(value: string): string { return value.replace(/&lt;/gu, '<').replace(/&gt;/gu, '>').replace(/&amp;/gu, '&'); }
 function string(value: unknown): string { if (value == null) return ''; if (typeof value !== 'string') throw new TypeError('iXML text fields must be strings.'); if (value.includes('\0')) throw new RangeError('iXML text cannot contain NUL.'); return value; }

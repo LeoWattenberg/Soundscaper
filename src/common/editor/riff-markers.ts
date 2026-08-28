@@ -48,8 +48,7 @@ export function createRiffMarkerChunks(input: readonly RiffMarkerInput[] = []): 
 	const cuePayload = new Uint8Array(4 + markers.length * 24);
 	const cueView = new DataView(cuePayload.buffer);
 	cueView.setUint32(0, markers.length, true);
-	for (let index = 0; index < markers.length; index += 1) {
-		const marker = markers[index];
+	for (const [index, marker] of markers.entries()) {
 		const offset = 4 + index * 24;
 		cueView.setUint32(offset, marker.id, true);
 		cueView.setUint32(offset + 4, marker.sampleOffset, true);

@@ -74,13 +74,19 @@ export function encodeVideoTimingAsset(input: VideoTimingAssetInput): Uint8Array
 	}
 	const finalDuration = positiveInt64(input.finalFrameDurationTicks, 'final frame duration');
 	const timestamps = input.presentationTicks.map((value, index) => int64(value, `presentationTicks[${String(index)}]`));
-	if (timestamps[0] !== 0n) throw new RangeError('Canonical presentation ticks must begin at zero.');
+	const firstTimestamp = timestamps[0];
+	if (firstTimestamp !== 0n) throw new RangeError('Canonical presentation ticks must begin at zero.');
 	for (let index = 1; index < timestamps.length; index += 1) {
-		if (timestamps[index] <= timestamps[index - 1]) {
+		const timestamp = timestamps[index];
+		const previous = timestamps[index - 1];
+		if (timestamp === undefined || previous === undefined) throw new RangeError('Presentation ticks are incomplete.');
+		if (timestamp <= previous) {
 			throw new RangeError('Presentation ticks must be strictly increasing.');
 		}
 	}
-	positiveInt64(timestamps.at(-1)! + finalDuration, 'timing end');
+	const finalTimestamp = timestamps.at(-1);
+	if (finalTimestamp === undefined) throw new RangeError('A timing asset requires presentation ticks.');
+	positiveInt64(finalTimestamp + finalDuration, 'timing end');
 	const byteLength = VIDEO_TIMING_ASSET_HEADER_BYTES + frameCount * BigInt64Array.BYTES_PER_ELEMENT;
 	const bytes = new Uint8Array(byteLength);
 	bytes.set(MAGIC, 0);
@@ -91,8 +97,8 @@ export function encodeVideoTimingAsset(input: VideoTimingAssetInput): Uint8Array
 	view.setUint32(12, frameCount, true);
 	view.setBigInt64(16, finalDuration, true);
 	view.setBigUint64(24, 0n, true);
-	for (let index = 0; index < timestamps.length; index += 1) {
-		view.setBigInt64(VIDEO_TIMING_ASSET_HEADER_BYTES + index * 8, timestamps[index], true);
+	for (const [index, timestamp] of timestamps.entries()) {
+		view.setBigInt64(VIDEO_TIMING_ASSET_HEADER_BYTES + index * 8, timestamp, true);
 	}
 	return bytes;
 }
@@ -132,13 +138,19 @@ export function decodeVideoTimingAsset(input: Uint8Array): VideoTimingIndex {
 	for (let index = 0; index < frameCount; index += 1) {
 		presentationTicks.push(view.getBigInt64(VIDEO_TIMING_ASSET_HEADER_BYTES + index * 8, true));
 	}
-	if (presentationTicks[0] !== 0n) throw new RangeError('Canonical presentation ticks must begin at zero.');
+	const firstTimestamp = presentationTicks[0];
+	if (firstTimestamp !== 0n) throw new RangeError('Canonical presentation ticks must begin at zero.');
 	for (let index = 1; index < presentationTicks.length; index += 1) {
-		if (presentationTicks[index] <= presentationTicks[index - 1]) {
+		const timestamp = presentationTicks[index];
+		const previous = presentationTicks[index - 1];
+		if (timestamp === undefined || previous === undefined) throw new RangeError('Presentation ticks are incomplete.');
+		if (timestamp <= previous) {
 			throw new RangeError('Presentation ticks must be strictly increasing.');
 		}
 	}
-	const endTicks = positiveInt64(presentationTicks.at(-1)! + finalFrameDurationTicks, 'timing end');
+	const finalTimestamp = presentationTicks.at(-1);
+	if (finalTimestamp === undefined) throw new RangeError('A timing asset requires presentation ticks.');
+	const endTicks = positiveInt64(finalTimestamp + finalFrameDurationTicks, 'timing end');
 	return Object.freeze({
 		encoding: VIDEO_TIMING_ASSET_ENCODING,
 		timescale,
@@ -262,7 +274,12 @@ export class VideoTimingAssetStore {
 		const record = this.#records.get(key);
 		if (!record) throw new ReferenceError('The timing asset is missing.');
 		const bytes = record.bytes.slice();
-		bytes[offset] ^= 0xff;
+		if (!Number.isSafeInteger(offset) || offset < 0 || offset >= bytes.length) {
+			throw new RangeError('The timing corruption offset is outside the stored asset.');
+		}
+		const current = bytes[offset];
+		if (current === undefined) throw new RangeError('The timing corruption offset is outside the stored asset.');
+		bytes[offset] = current ^ 0xff;
 		this.#records.set(key, Object.freeze({ bytes, generation: record.generation }));
 	}
 }

@@ -273,10 +273,12 @@ function createBluesteinPlan(size: number): BluesteinPlan {
 
 function transformBluestein(real: Float64Array, imaginary: Float64Array, inverse: boolean): void {
 	if (inverse) {
-		for (let index = 0; index < imaginary.length; index += 1) imaginary[index] *= -1;
+		for (let index = 0; index < imaginary.length; index += 1) {
+			imaginary[index] = (imaginary[index] ?? 0) * -1;
+		}
 		transformBluestein(real, imaginary, false);
 		for (let index = 0; index < imaginary.length; index += 1) {
-			real[index] /= FFT_PLAN.size;
+			real[index] = (real[index] ?? 0) / FFT_PLAN.size;
 			imaginary[index] = -imaginary[index]! / FFT_PLAN.size;
 		}
 		return;
@@ -330,8 +332,8 @@ function fftRadixTwo(real: Float64Array, imaginary: Float64Array, inverse: boole
 				const oddImaginary = real[odd]! * factorImaginary + imaginary[odd]! * factorReal;
 				real[odd] = real[even]! - oddReal;
 				imaginary[odd] = imaginary[even]! - oddImaginary;
-				real[even] += oddReal;
-				imaginary[even] += oddImaginary;
+				real[even] = (real[even] ?? 0) + oddReal;
+				imaginary[even] = (imaginary[even] ?? 0) + oddImaginary;
 				const nextReal = factorReal * rootReal - factorImaginary * rootImaginary;
 				factorImaginary = factorReal * rootImaginary + factorImaginary * rootReal;
 				factorReal = nextReal;
@@ -340,8 +342,8 @@ function fftRadixTwo(real: Float64Array, imaginary: Float64Array, inverse: boole
 	}
 	if (inverse) {
 		for (let index = 0; index < real.length; index += 1) {
-			real[index] /= real.length;
-			imaginary[index] /= real.length;
+			real[index] = (real[index] ?? 0) / real.length;
+			imaginary[index] = (imaginary[index] ?? 0) / real.length;
 		}
 	}
 }

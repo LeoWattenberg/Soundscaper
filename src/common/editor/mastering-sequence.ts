@@ -221,11 +221,14 @@ export function validateMasteringSequenceV23(
 	// an error — but it is exactly the thing an operator wants told rather than
 	// discovered, so it is reported and never acted on.
 	for (let index = 1; index < resolvedStarts.length; index += 1) {
-		if (resolvedStarts[index].startFrame >= resolvedStarts[index - 1].startFrame) continue;
+		const current = resolvedStarts[index];
+		const previous = resolvedStarts[index - 1];
+		if (!current || !previous) throw new Error('The mastering sequence order is incomplete.');
+		if (current.startFrame >= previous.startFrame) continue;
 		issues.push(Object.freeze({
 			code: 'mastering-sequence.order-diverges-from-timeline' as const,
 			severity: 'info' as const,
-			entryId: resolvedStarts[index].entryId,
+			entryId: current.entryId,
 			annotationId: null,
 			message: 'This entry starts earlier in the timeline than the one before it. The delivery order is unchanged.',
 		}));

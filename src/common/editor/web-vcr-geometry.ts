@@ -235,13 +235,16 @@ export function selectWebVcrTarget(request: WebVcrTargetSelectionRequest): WebVc
 		return manualSelection(resolveFallbackReason(blockers, sawPlaying, sawMeasurableButInvisible));
 	}
 	eligible.sort((left, right) => right.visibleArea - left.visibleArea);
-	if (eligible.length > 1 && nearlyEqualArea(eligible[0].visibleArea, eligible[1].visibleArea)) {
+	const first = eligible[0];
+	if (!first) return manualSelection(resolveFallbackReason(blockers, sawPlaying, sawMeasurableButInvisible));
+	const second = eligible[1];
+	if (second && nearlyEqualArea(first.visibleArea, second.visibleArea)) {
 		return manualSelection('ambiguous-targets');
 	}
 	return Object.freeze({
 		kind: 'target',
-		target: eligible[0].target,
-		visibleArea: eligible[0].visibleArea,
+		target: first.target,
+		visibleArea: first.visibleArea,
 	});
 }
 

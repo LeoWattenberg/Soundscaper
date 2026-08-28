@@ -45,10 +45,10 @@ export function encodeCartPayload(input: CartMetadataInput = {}): Uint8Array {
 	const view = new DataView(output.buffer);
 	for (const [field, offset] of FIELDS) output.set(new TextEncoder().encode(value[field]), offset);
 	view.setInt32(680, value.levelReference, true);
-	for (let index = 0; index < value.postTimers.length; index += 1) {
+	for (const [index, timer] of value.postTimers.entries()) {
 		const offset = 684 + index * 8;
-		output.set(new TextEncoder().encode(value.postTimers[index].usage), offset);
-		view.setUint32(offset + 4, value.postTimers[index].value, true);
+		output.set(new TextEncoder().encode(timer.usage), offset);
+		view.setUint32(offset + 4, timer.value, true);
 	}
 	output.set(suffix, CART_FIXED_PAYLOAD_BYTES);
 	return output;

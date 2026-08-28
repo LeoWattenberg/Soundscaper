@@ -105,7 +105,8 @@ export function trimAudioWarpMap(mapValue: unknown, rangeValue: AudioWarpTrimRan
 	const end = normalizeAudioWarpRational(readClosedDomainField(range, 'endOuter', 'audio warp trim range'), 'audio warp trim end');
 	if (compareRationals(start, end) >= 0) throw new RangeError('Audio warp trim range must be positive.');
 	const first = map.points[0];
-	const last = map.points.at(-1)!;
+	const last = map.points.at(-1);
+	if (!first || !last) throw new RangeError('Audio warp map requires boundary points.');
 	if (compareRationals(start, first.outer) < 0 || compareRationals(end, last.outer) > 0) {
 		throw new RangeError('Audio warp trim range must remain within the map outer bounds.');
 	}
@@ -157,14 +158,15 @@ export function quantizeAudioWarpTransients(
 			? readClosedDomainField(options, 'grooveStrength', 'audio warp quantize options')
 			: 1, 'audio groove strength')
 		: null;
+	if (groove && grooveStrength === null) throw new RangeError('Audio warp groove strength is unavailable.');
 	if (compareRationals(strength, 0) === 0 || !transients.length) return map;
 	const merged = mergeTransientPoints(map, transients);
 	const candidates = merged.map((point, index) => {
 		if (!point.transient || index === 0 || index === merged.length - 1) return null;
 		const relative = divideRationals(subtractRationals(point.outer, grid.origin), grid.interval);
 		const gridIndex = roundRational(relative.num, relative.den, 'point');
-		const target = groove
-			? applyAudioGrooveTemplate(gridIndex, grid, groove, grooveStrength!)
+		const target = groove && grooveStrength
+			? applyAudioGrooveTemplate(gridIndex, grid, groove, grooveStrength)
 			: addRationals(grid.origin, multiplyRationals(grid.interval, gridIndex));
 		return interpolateAudioWarpRational(point.outer, target, strength);
 	});
@@ -174,16 +176,19 @@ export function quantizeAudioWarpTransients(
 	// the map strictly increasing simply keeps its position. A move is safe
 	// when it stays above the previous resolved outer and below the next
 	// point's lowest possible outer, so one ordered pass resolves every point.
-	let previousOuter = merged[0]!.outer;
+	const firstMerged = merged[0];
+	if (!firstMerged) throw new RangeError('Audio warp quantization requires boundary points.');
+	let previousOuter = firstMerged.outer;
 	const points = merged.map((point, index) => {
 		const candidate = candidates[index];
-		if (candidate === null) {
+		if (candidate == null) {
 			previousOuter = point.outer;
 			return stablePoint(point);
 		}
-		const next = merged[index + 1]!;
+		const next = merged[index + 1];
+		if (!next) throw new RangeError('Audio warp quantization lost its ending boundary.');
 		const nextCandidate = candidates[index + 1];
-		const nextBound = nextCandidate !== null && compareRationals(nextCandidate, next.outer) < 0
+		const nextBound = nextCandidate != null && compareRationals(nextCandidate, next.outer) < 0
 			? nextCandidate
 			: next.outer;
 		if (compareRationals(candidate, previousOuter) <= 0 || compareRationals(candidate, nextBound) >= 0) {
@@ -215,12 +220,18 @@ function normalizeTransientSources(value: unknown, map: Readonly<AudioWarpMap>):
 		normalizeAudioWarpRational(source, `audio warp transient source ${String(index)}`)
 	)));
 	for (let index = 1; index < sources.length; index += 1) {
-		if (compareRationals(sources[index - 1], sources[index]) >= 0) {
+		const previous = sources[index - 1];
+		const current = sources[index];
+		if (!previous || !current) throw new RangeError('Audio warp transient sources are incomplete.');
+		if (compareRationals(previous, current) >= 0) {
 			throw new RangeError('Audio warp transient sources must be strictly increasing.');
 		}
 	}
-	const first = map.points[0].source;
-	const last = map.points.at(-1)!.source;
+	const firstPoint = map.points[0];
+	const lastPoint = map.points.at(-1);
+	if (!firstPoint || !lastPoint) throw new RangeError('Audio warp map requires boundary points.');
+	const first = firstPoint.source;
+	const last = lastPoint.source;
 	if (sources.some((source) => compareRationals(source, first) < 0 || compareRationals(source, last) > 0)) {
 		throw new RangeError('Audio warp transient sources must remain within the map source bounds.');
 	}
@@ -241,6 +252,7 @@ function mergeTransientPoints(map: Readonly<AudioWarpMap>, transients: readonly 
 			continue;
 		}
 		if (!transient || (point && compareRationals(point.source, transient) < 0)) {
+			if (!point) throw new RangeError('Audio warp map points are incomplete.');
 			result.push(Object.freeze({ ...point, transient: false }));
 			pointIndex += 1;
 			continue;

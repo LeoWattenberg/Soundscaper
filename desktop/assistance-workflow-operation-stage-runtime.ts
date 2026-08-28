@@ -109,7 +109,10 @@ export function canonicalizeAssistanceWorkflowOperationModelBindingsV1(
 		return Object.freeze([...projected]);
 	}
 	const [first, second] = projected;
-	if (first?.modelId !== second?.modelId || first.version !== second.version
+	if (!first || !second) {
+		throw new TypeError('The PP-OCR detector and recognizer bindings are incomplete.');
+	}
+	if (first.modelId !== second.modelId || first.version !== second.version
 		|| JSON.stringify(first.artifactSha256s) !== JSON.stringify(second.artifactSha256s)) {
 		throw new TypeError('The PP-OCR detector and recognizer bindings are not exactly identical.');
 	}

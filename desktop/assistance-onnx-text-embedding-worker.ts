@@ -254,7 +254,7 @@ function poolNormalize(
 		for (let token = 0; token < length; token += 1) {
 			const offset = (row * Number(sequence) + token) * ASSISTANCE_NOMIC_EMBEDDING_DIMENSIONS;
 			for (let dimension = 0; dimension < pooled.length; dimension += 1) {
-				pooled[dimension] += value.data[offset + dimension]! / length;
+				pooled[dimension] = (pooled[dimension] ?? 0) + value.data[offset + dimension]! / length;
 			}
 		}
 		vectors.push(layerNormalizeAndL2(pooled));

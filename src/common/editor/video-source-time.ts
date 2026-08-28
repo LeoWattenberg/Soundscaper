@@ -363,6 +363,7 @@ function sourceFrameTimeSeconds(sourceFrame: number, index: RuntimeVideoTimingIn
 	const end = lower + 1 < index.frameCount
 		? index.presentationTicks[lower + 1]
 		: index.endTicks;
+	if (start === undefined || end === undefined) throw new RangeError('The video timing index is incomplete.');
 	return (Number(start) + Number(end - start) * progress) / index.timescale;
 }
 

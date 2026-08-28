@@ -67,7 +67,9 @@ export function parseFfmpegVideoTimingLogs(
 		if (index >= VIDEO_TIMING_ASSET_MAXIMUM_FRAMES) {
 			throw new RangeError('FFmpeg video frame count exceeds the timing-asset bound.');
 		}
-		const pts = BigInt(frame[2]);
+		const ptsValue = frame[2];
+		if (ptsValue === undefined) throw new Error('FFmpeg reported a frame without a presentation timestamp.');
+		const pts = BigInt(ptsValue);
 		const durationValue = DURATION.exec(line)?.[1];
 		const duration = durationValue == null || BigInt(durationValue) <= 0n ? null : BigInt(durationValue);
 		const previous = frames.get(index);
@@ -83,17 +85,27 @@ export function parseFfmpegVideoTimingLogs(
 	for (const [offset, [index]] of ordered.entries()) if (index !== offset) {
 		throw new Error('FFmpeg video timing frames are not contiguous.');
 	}
-	const origin = ordered[0][1].pts;
+	const firstFrame = ordered[0]?.[1];
+	if (!firstFrame) throw new Error('FFmpeg did not report a complete video timing stream.');
+	const origin = firstFrame.pts;
 	const presentationTicks = ordered.map(([, frame]) => (frame.pts - origin) * BigInt(timeBaseNumerator));
 	for (let index = 1; index < presentationTicks.length; index += 1) {
-		if (presentationTicks[index] <= presentationTicks[index - 1]) {
+		const current = presentationTicks[index];
+		const previous = presentationTicks[index - 1];
+		if (current === undefined || previous === undefined) {
+			throw new Error('FFmpeg video presentation timestamps are incomplete.');
+		}
+		if (current <= previous) {
 			throw new Error('FFmpeg video presentation timestamps are not strictly increasing.');
 		}
 	}
-	const finalFrame = ordered.at(-1)![1];
+	const finalFrame = ordered.at(-1)?.[1];
+	if (!finalFrame) throw new Error('FFmpeg did not report a complete video timing stream.');
+	const finalPresentation = presentationTicks.at(-1);
+	const previousPresentation = presentationTicks.at(-2);
 	const finalFrameDurationTicks = finalFrame.duration == null
 		? presentationTicks.length > 1
-			? presentationTicks.at(-1)! - presentationTicks.at(-2)!
+			? requiredTick(finalPresentation, 'final') - requiredTick(previousPresentation, 'previous')
 			: roundedPositiveRatio(
 				BigInt(timescale) * BigInt(nominalRate.den),
 				BigInt(nominalRate.num),
@@ -106,6 +118,11 @@ export function parseFfmpegVideoTimingLogs(
 		finalFrameDurationTicks,
 		nominalRate: Object.freeze(nominalRate),
 	});
+}
+
+function requiredTick(value: bigint | undefined, position: string): bigint {
+	if (value === undefined) throw new Error(`FFmpeg did not report a ${position} video presentation timestamp.`);
+	return value;
 }
 
 function roundedPositiveRatio(numerator: bigint, denominator: bigint): bigint {

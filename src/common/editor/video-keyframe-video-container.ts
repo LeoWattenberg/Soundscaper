@@ -136,7 +136,7 @@ function ebmlVint(
 	isSize: boolean,
 ): Readonly<{ length: number; value: number; unknown: boolean }> {
 	if (offset >= limit) invalidWebm();
-	const first = bytes[offset];
+	const first = readByte(bytes, offset, invalidWebm);
 	let marker = 0x80;
 	let length = 1;
 	while (length <= 8 && (first & marker) === 0) {
@@ -146,7 +146,7 @@ function ebmlVint(
 	if (length > (isSize ? 8 : 4) || offset + length > limit) invalidWebm();
 	let value = BigInt(isSize ? first & (marker - 1) : first);
 	for (let index = 1; index < length; index += 1) {
-		value = (value << 8n) | BigInt(bytes[offset + index]);
+		value = (value << 8n) | BigInt(readByte(bytes, offset + index, invalidWebm));
 	}
 	const unknown = isSize && value === (1n << BigInt(7 * length)) - 1n;
 	if (value > BigInt(Number.MAX_SAFE_INTEGER)) invalidWebm();
@@ -154,10 +154,10 @@ function ebmlVint(
 }
 
 function uint32(bytes: Uint8Array, offset: number): number {
-	return (bytes[offset] * 0x1000000)
-		+ (bytes[offset + 1] * 0x10000)
-		+ (bytes[offset + 2] * 0x100)
-		+ bytes[offset + 3];
+	return (readByte(bytes, offset, invalidMp4) * 0x1000000)
+		+ (readByte(bytes, offset + 1, invalidMp4) * 0x10000)
+		+ (readByte(bytes, offset + 2, invalidMp4) * 0x100)
+		+ readByte(bytes, offset + 3, invalidMp4);
 }
 
 function safeBigEndianInteger(
@@ -168,7 +168,7 @@ function safeBigEndianInteger(
 ): number {
 	let value = 0n;
 	for (let index = 0; index < length; index += 1) {
-		value = (value << 8n) | BigInt(bytes[offset + index]);
+		value = (value << 8n) | BigInt(readByte(bytes, offset + index, invalid));
 	}
 	if (value > BigInt(Number.MAX_SAFE_INTEGER)) invalid();
 	return Number(value);
@@ -178,10 +178,16 @@ function ascii(bytes: Uint8Array, offset: number, length: number): string {
 	let result = '';
 	for (let index = 0; index < length; index += 1) {
 		const value = bytes[offset + index];
-		if (value < 0x20 || value > 0x7e) return '';
+		if (value === undefined || value < 0x20 || value > 0x7e) return '';
 		result += String.fromCharCode(value);
 	}
 	return result;
+}
+
+function readByte(bytes: Uint8Array, offset: number, invalid: () => never): number {
+	const value = bytes[offset];
+	if (value === undefined) invalid();
+	return value;
 }
 
 function invalidMp4(): never {

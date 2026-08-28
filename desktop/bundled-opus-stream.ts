@@ -61,8 +61,8 @@ export function parseBundledOpusStream(value: unknown): BundledOpusStreamGeometr
 
 	while (offset < bytes.byteLength) {
 		if (++pageCount > MAXIMUM_PAGE_COUNT || sawEos || offset + 27 > bytes.byteLength
-			|| !equalsAt(bytes, offset, CAPTURE) || bytes[offset + 4] !== 0) fail();
-		const flags = bytes[offset + 5];
+			|| !equalsAt(bytes, offset, CAPTURE) || readByte(bytes, offset + 4) !== 0) fail();
+		const flags = readByte(bytes, offset + 5);
 		if ((flags & ~7) !== 0) fail();
 		const continued = Boolean(flags & 1);
 		const bos = Boolean(flags & 2);
@@ -73,10 +73,10 @@ export function parseBundledOpusStream(value: unknown): BundledOpusStreamGeometr
 		const pageSequence = readU32(bytes, offset + 18);
 		if (serial === null) serial = pageSerial;
 		if (pageSerial !== serial || pageSequence !== sequence++) fail();
-		const segmentCount = bytes[offset + 26];
+		const segmentCount = readByte(bytes, offset + 26);
 		if (segmentCount === 0 || offset + 27 + segmentCount > bytes.byteLength) fail();
 		let bodyBytes = 0;
-		for (let index = 0; index < segmentCount; index++) bodyBytes += bytes[offset + 27 + index];
+		for (let index = 0; index < segmentCount; index++) bodyBytes += readByte(bytes, offset + 27 + index);
 		const pageEnd = offset + 27 + segmentCount + bodyBytes;
 		if (pageEnd > bytes.byteLength || eos !== (pageEnd === bytes.byteLength)) fail();
 		if (readU32(bytes, offset + 22) !== oggPageCrc(bytes.subarray(offset, pageEnd))) fail();
@@ -85,7 +85,7 @@ export function parseBundledOpusStream(value: unknown): BundledOpusStreamGeometr
 		const audioPacketsBeforePage = audioPacketCount;
 		const audioSamplesBeforePage = totalAudioSamples;
 		for (let segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++) {
-			const segmentBytes = bytes[offset + 27 + segmentIndex];
+			const segmentBytes = readByte(bytes, offset + 27 + segmentIndex);
 			partial = appendBounded(
 				partial, bytes.subarray(bodyOffset, bodyOffset + segmentBytes),
 				packetIndex < 2 ? MAXIMUM_HEADER_PACKET_BYTES : MAXIMUM_AUDIO_PACKET_BYTES,
@@ -135,9 +135,10 @@ export function parseBundledOpusStream(value: unknown): BundledOpusStreamGeometr
 	const frameCountBig = localFinalGranule - BigInt(preSkip);
 	if (frameCountBig <= 0n || frameCountBig > BigInt(MAXIMUM_FRAME_COUNT)) fail();
 	if (unsupported !== null) throw new BundledOpusStreamUnsupportedError(unsupported);
+	const reviewedChannelCount = requireReviewedChannelCount(channelCount);
 	return Object.freeze({
 		sampleRate: 48_000,
-		channelCount: channelCount as 1 | 2,
+		channelCount: reviewedChannelCount,
 		frameCount: Number(frameCountBig),
 		preSkip,
 		audioPacketCount,
@@ -149,12 +150,12 @@ function parseOpusHead(packet: Uint8Array): Readonly<{
 	readonly preSkip: number;
 	readonly unsupported: string | null;
 }> {
-	if (packet.byteLength < 19 || !equalsAt(packet, 0, OPUS_HEAD) || packet[8] > 15) fail();
-	const version = packet[8];
-	const channels = packet[9];
+	if (packet.byteLength < 19 || !equalsAt(packet, 0, OPUS_HEAD) || readByte(packet, 8) > 15) fail();
+	const version = readByte(packet, 8);
+	const channels = readByte(packet, 9);
 	const skip = readU16(packet, 10);
 	const gain = readI16(packet, 16);
-	const mappingFamily = packet[18];
+	const mappingFamily = readByte(packet, 18);
 	if (channels === 0 || channels > 8 || skip > MAXIMUM_PRE_SKIP) fail();
 	let unsupported = version === 1 ? null : 'Only OpusHead version 1 is reviewed.';
 	if (mappingFamily === 0) {
@@ -165,11 +166,11 @@ function parseOpusHead(packet: Uint8Array): Readonly<{
 		});
 	}
 	if (packet.byteLength < 21 + channels || version === 1 && packet.byteLength !== 21 + channels) fail();
-	const streams = packet[19];
-	const coupled = packet[20];
+	const streams = readByte(packet, 19);
+	const coupled = readByte(packet, 20);
 	if (streams === 0 || coupled > streams || streams + coupled !== channels) fail();
 	for (let channel = 0; channel < channels; channel++) {
-		const mapping = packet[21 + channel];
+		const mapping = readByte(packet, 21 + channel);
 		if (mapping !== 255 && mapping >= streams + coupled) fail();
 	}
 	return Object.freeze({
@@ -200,7 +201,7 @@ function parseOpusTags(packet: Uint8Array): string | null {
 
 function opusPacketSamples(packet: Uint8Array): number {
 	if (packet.byteLength === 0 || packet.byteLength > MAXIMUM_AUDIO_PACKET_BYTES) fail();
-	const toc = packet[0];
+	const toc = readByte(packet, 0);
 	const configuration = toc >>> 3;
 	let samplesPerFrame: number;
 	if (configuration >= 16) samplesPerFrame = 120 << (configuration & 3);
@@ -208,7 +209,7 @@ function opusPacketSamples(packet: Uint8Array): number {
 	else if ((configuration & 3) === 3) samplesPerFrame = 2_880;
 	else samplesPerFrame = 480 << (configuration & 3);
 	const code = toc & 3;
-	const frames = code === 0 ? 1 : code < 3 ? 2 : packet.byteLength >= 2 ? packet[1] & 63 : 0;
+	const frames = code === 0 ? 1 : code < 3 ? 2 : packet.byteLength >= 2 ? readByte(packet, 1) & 63 : 0;
 	const total = samplesPerFrame * frames;
 	if (frames === 0 || total > 5_760) fail();
 	return total;
@@ -252,9 +253,11 @@ function appendBounded(left: Uint8Array, right: Uint8Array, maximum: number): Ui
 
 function oggPageCrc(page: Uint8Array): number {
 	let crc = 0;
-	for (let index = 0; index < page.byteLength; index++) {
-		const byte = index >= 22 && index < 26 ? 0 : page[index];
-		crc = ((crc << 8) ^ OGG_CRC_TABLE[((crc >>> 24) ^ byte) & 255]) >>> 0;
+	for (const [index, sourceByte] of page.entries()) {
+		const byte = index >= 22 && index < 26 ? 0 : sourceByte;
+		const tableValue = OGG_CRC_TABLE[((crc >>> 24) ^ byte) & 255];
+		if (tableValue === undefined) fail();
+		crc = ((crc << 8) ^ tableValue) >>> 0;
 	}
 	return crc;
 }
@@ -273,14 +276,22 @@ function createOggCrcTable(): Uint32Array {
 
 function equalsAt(bytes: Uint8Array, offset: number, expected: Uint8Array): boolean {
 	if (offset + expected.byteLength > bytes.byteLength) return false;
-	for (let index = 0; index < expected.byteLength; index++) {
-		if (bytes[offset + index] !== expected[index]) return false;
-	}
-	return true;
+	return expected.every((byte, index) => bytes[offset + index] === byte);
+}
+
+function readByte(bytes: Uint8Array, offset: number): number {
+	const value = bytes[offset];
+	if (value === undefined) fail();
+	return value;
+}
+
+function requireReviewedChannelCount(value: number): 1 | 2 {
+	if (value !== 1 && value !== 2) fail();
+	return value;
 }
 
 function readU16(bytes: Uint8Array, offset: number): number {
-	return bytes[offset] | bytes[offset + 1] << 8;
+	return readByte(bytes, offset) | readByte(bytes, offset + 1) << 8;
 }
 
 function readI16(bytes: Uint8Array, offset: number): number {
@@ -289,8 +300,8 @@ function readI16(bytes: Uint8Array, offset: number): number {
 }
 
 function readU32(bytes: Uint8Array, offset: number): number {
-	return (bytes[offset] | bytes[offset + 1] << 8 | bytes[offset + 2] << 16
-		| bytes[offset + 3] << 24) >>> 0;
+	return (readByte(bytes, offset) | readByte(bytes, offset + 1) << 8
+		| readByte(bytes, offset + 2) << 16 | readByte(bytes, offset + 3) << 24) >>> 0;
 }
 
 function readU64(bytes: Uint8Array, offset: number): bigint {

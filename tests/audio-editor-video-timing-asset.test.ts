@@ -293,6 +293,17 @@ test('missing and corrupt timing assets degrade explicitly without fabricating C
 	assert.equal((await store.load(reference, { sourceSha256: '3'.repeat(64) })).status, 'source-mismatch');
 });
 
+test('test-only timing corruption rejects offsets outside the stored asset', async () => {
+	const store = new VideoTimingAssetStore();
+	const reference = await store.publish(SOURCE_SHA256, {
+		timescale: 1_000,
+		presentationTicks: [0n],
+		finalFrameDurationTicks: 40n,
+	});
+	assert.throws(() => store.testingCorrupt(reference.storageKey, -1), /offset/iu);
+	assert.throws(() => store.testingCorrupt(reference.storageKey, reference.byteLength), /offset/iu);
+});
+
 test('durable timing storage verifies immutable metadata, bytes, source binding, and digest on load', async () => {
 	const records = new Map<string, Readonly<{ blob: Blob; metadata: Readonly<Record<string, unknown>> }>>();
 	const persist = async (

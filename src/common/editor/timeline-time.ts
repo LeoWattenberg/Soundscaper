@@ -1,5 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { requiredArrayEntry } from './required-array-entry.ts';
+import {
+	roundingPolicy,
+	type TimeRoundingDirection,
+	type TimeRoundingPolicy,
+} from './timeline-rounding-policy.ts';
+
+export type { TimeRoundingDirection, TimeRoundingPolicy } from './timeline-rounding-policy.ts';
+
 declare const sampleFrameBrand: unique symbol;
 declare const videoFrameBrand: unique symbol;
 declare const sourceTicksBrand: unique symbol;
@@ -9,8 +18,6 @@ export type VideoFrame = number & { readonly [videoFrameBrand]: 'VideoFrame' };
 export type SourceTicks = number & { readonly [sourceTicksBrand]: 'SourceTicks' };
 export interface Rational { readonly num: number; readonly den: number }
 export type RationalInput = Rational | number;
-export type TimeRoundingPolicy = 'point' | 'enclosingStart' | 'enclosingEnd' | 'directional';
-export type TimeRoundingDirection = 'previous' | 'next';
 export interface RationalRate { readonly num: number; readonly den: number }
 export interface HoldTempoEvent {
 	readonly beat: Rational;
@@ -209,20 +216,22 @@ export function beatToSampleFrame(
 	const events = normalizeTempoEvents(tempoMap);
 	if (tempoMap.mode === 'sampleLocked') return sampleLockedBeatToFrame(target, events, rate, policy);
 	let position: BigFraction = { numerator: 0n, denominator: 1n };
-	let eventBeat = bigFraction(events[0].beat);
-	let tempo = bigFraction(events[0].bpm);
+	const firstEvent = requiredArrayEntry(events, 0, 'tempo map');
+	let eventBeat = bigFraction(firstEvent.beat);
+	let tempo = bigFraction(firstEvent.bpm);
 	if (compareFractions(target, eventBeat) < 0) {
 		return fractionToInteger(tempoSegmentSamples(target, eventBeat, tempo, rate), policy) as SampleFrame;
 	}
 	for (let index = 1; index < events.length; index += 1) {
-		const nextBeat = bigFraction(events[index].beat);
+		const event = requiredArrayEntry(events, index, 'tempo map');
+		const nextBeat = bigFraction(event.beat);
 		if (compareFractions(target, nextBeat) <= 0) {
 			position = addFractions(position, tempoSegmentSamples(target, eventBeat, tempo, rate));
 			return fractionToInteger(position, policy) as SampleFrame;
 		}
 		position = addFractions(position, tempoSegmentSamples(nextBeat, eventBeat, tempo, rate));
 		eventBeat = nextBeat;
-		tempo = bigFraction(events[index].bpm);
+		tempo = bigFraction(event.bpm);
 	}
 	position = addFractions(position, tempoSegmentSamples(target, eventBeat, tempo, rate));
 	return fractionToInteger(position, policy) as SampleFrame;
@@ -259,8 +268,8 @@ export function validateBreakpointMap(map: BreakpointMap): true {
 	}
 	const points = map.points.map((point, index) => normalizeBreakpoint(point, index));
 	for (let index = 0; index < points.length - 1; index += 1) {
-		const point = points[index];
-		const next = points[index + 1];
+		const point = requiredArrayEntry(points, index, 'breakpoint map');
+		const next = requiredArrayEntry(points, index + 1, 'breakpoint map');
 		if (compareFractions(point.outer, next.outer) >= 0) {
 			throw new RangeError('Breakpoint outer positions must be strictly increasing.');
 		}
@@ -283,12 +292,13 @@ export function evaluateBreakpointMap(map: BreakpointMap, outer: RationalInput):
 	validateBreakpointMap(map);
 	const target = bigFraction(outer);
 	const points = map.points.map((point, index) => normalizeBreakpoint(point, index));
-	if (compareFractions(target, points[0].outer) <= 0) return publicRational(points[0].source);
-	const last = points.at(-1)!;
+	const first = requiredArrayEntry(points, 0, 'breakpoint map');
+	if (compareFractions(target, first.outer) <= 0) return publicRational(first.source);
+	const last = requiredArrayEntry(points, points.length - 1, 'breakpoint map');
 	if (compareFractions(target, last.outer) >= 0) return publicRational(last.source);
 	for (let index = 0; index < points.length - 1; index += 1) {
-		const start = points[index];
-		const end = points[index + 1];
+		const start = requiredArrayEntry(points, index, 'breakpoint map');
+		const end = requiredArrayEntry(points, index + 1, 'breakpoint map');
 		if (compareFractions(target, end.outer) > 0) continue;
 		if (start.mode === 'freeze') return publicRational(start.source);
 		const outerOffset = subtractFractions(target, start.outer);
@@ -319,7 +329,7 @@ function normalizeTempoEvents(tempoMap: HoldTempoMap): readonly HoldTempoEvent[]
 		}
 		previous = beat;
 	}
-	if (compareFractions(bigFraction(tempoMap.events[0].beat), { numerator: 0n, denominator: 1n }) !== 0) {
+	if (compareFractions(bigFraction(requiredArrayEntry(tempoMap.events, 0, 'tempo map').beat), { numerator: 0n, denominator: 1n }) !== 0) {
 		throw new RangeError('The first tempo event must begin at beat zero.');
 	}
 	return tempoMap.events;
@@ -330,10 +340,11 @@ function sampleLockedBeatToFrame(
 	sampleRate: number,
 	policy: TimeRoundingPolicy,
 ): SampleFrame {
-	let active = events[0];
+	let active = requiredArrayEntry(events, 0, 'tempo map');
 	for (let index = 1; index < events.length; index += 1) {
-		if (compareFractions(target, bigFraction(events[index].beat)) < 0) break;
-		active = events[index];
+		const event = requiredArrayEntry(events, index, 'tempo map');
+		if (compareFractions(target, bigFraction(event.beat)) < 0) break;
+		active = event;
 	}
 	const relative = tempoSegmentSamples(target, bigFraction(active.beat), bigFraction(active.bpm), sampleRate);
 	const absolute = addFractions(bigFraction(active.samplePosition ?? 0), relative);
@@ -384,15 +395,17 @@ function evaluateIntegerRatio(
 	const numerators = numeratorFactors.map((factor, index) => safeInteger(factor, `numeratorFactors[${String(index)}]`));
 	const denominators = denominatorFactors.map((factor, index) => positiveSafeInteger(factor, `denominatorFactors[${String(index)}]`));
 	let sign = 1;
-	for (let index = 0; index < numerators.length; index += 1) {
-		if (numerators[index] < 0) sign *= -1;
-		numerators[index] = Math.abs(numerators[index]);
+	for (const [index, numerator] of numerators.entries()) {
+		if (numerator < 0) sign *= -1;
+		numerators[index] = Math.abs(numerator);
 	}
 	for (let numeratorIndex = 0; numeratorIndex < numerators.length; numeratorIndex += 1) {
 		for (let denominatorIndex = 0; denominatorIndex < denominators.length; denominatorIndex += 1) {
-			const divisor = gcdNumber(numerators[numeratorIndex], denominators[denominatorIndex]);
-			numerators[numeratorIndex] /= divisor;
-			denominators[denominatorIndex] /= divisor;
+			const numerator = requiredArrayEntry(numerators, numeratorIndex, 'integer-ratio numerator');
+			const denominator = requiredArrayEntry(denominators, denominatorIndex, 'integer-ratio denominator');
+			const divisor = gcdNumber(numerator, denominator);
+			numerators[numeratorIndex] = numerator / divisor;
+			denominators[denominatorIndex] = denominator / divisor;
 		}
 	}
 	const numberNumerator = safeProduct(numerators);
@@ -403,21 +416,6 @@ function evaluateIntegerRatio(
 	const bigNumerator = numerators.reduce((product, factor) => product * BigInt(factor), BigInt(sign));
 	const bigDenominator = denominators.reduce((product, factor) => product * BigInt(factor), 1n);
 	return roundRational(bigNumerator, bigDenominator, policy, direction);
-}
-
-function roundingPolicy(
-	policy: TimeRoundingPolicy,
-	direction?: TimeRoundingDirection,
-): 'point' | 'floor' | 'ceil' {
-	if (policy === 'point') return 'point';
-	if (policy === 'enclosingStart') return 'floor';
-	if (policy === 'enclosingEnd') return 'ceil';
-	if (policy === 'directional') {
-		if (direction === 'previous') return 'floor';
-		if (direction === 'next') return 'ceil';
-		throw new RangeError('Directional rounding requires a previous or next direction.');
-	}
-	throw new RangeError(`Unsupported timeline rounding policy: ${String(policy)}.`);
 }
 
 function roundNumberRatio(

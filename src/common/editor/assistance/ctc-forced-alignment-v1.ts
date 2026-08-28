@@ -221,19 +221,28 @@ function alignedWords(request: NormalizedCtcRequest, path: Uint32Array): Assista
 		const state = path[frame]!;
 		if ((state & 1) === 0) continue;
 		const tokenIndex = (state - 1) / 2;
+		const tokenId = request.tokenIds[tokenIndex];
+		if (tokenId === undefined || firstFrames[tokenIndex] === undefined
+			|| lastFrames[tokenIndex] === undefined || confidenceSums[tokenIndex] === undefined
+			|| confidenceCounts[tokenIndex] === undefined) {
+			throw new RangeError('The CTC alignment path contains an invalid token state.');
+		}
 		if (firstFrames[tokenIndex] === -1) firstFrames[tokenIndex] = frame;
 		lastFrames[tokenIndex] = frame;
-		confidenceSums[tokenIndex] += Math.exp(emission(request, frame, request.tokenIds[tokenIndex]!));
-		confidenceCounts[tokenIndex] += 1;
+		confidenceSums[tokenIndex] = confidenceSums[tokenIndex] + Math.exp(emission(request, frame, tokenId));
+		confidenceCounts[tokenIndex] = confidenceCounts[tokenIndex] + 1;
 	}
 	const words = request.words.map((word, wordOffset) => {
 		const ownedTokens: number[] = [];
 		for (let index = 0; index < request.tokenWords.length; index += 1) {
 			if (request.tokenWords[index] === wordOffset) ownedTokens.push(index);
 		}
-		const firstToken = ownedTokens[0]!;
-		const lastToken = ownedTokens[ownedTokens.length - 1]!;
-		if (firstFrames[firstToken] < 0 || lastFrames[lastToken] < 0) {
+		const firstToken = ownedTokens[0];
+		const lastToken = ownedTokens.at(-1);
+		const firstFrame = firstToken === undefined ? undefined : firstFrames[firstToken];
+		const lastFrame = lastToken === undefined ? undefined : lastFrames[lastToken];
+		if (firstToken === undefined || lastToken === undefined
+			|| firstFrame === undefined || lastFrame === undefined || firstFrame < 0 || lastFrame < 0) {
 			throw new RangeError('The CTC transcript has an unaligned token.');
 		}
 		let confidence = 0;
@@ -247,9 +256,9 @@ function alignedWords(request: NormalizedCtcRequest, path: Uint32Array): Assista
 			segmentIndex: word.segmentIndex,
 			wordIndex: word.wordIndex,
 			text: word.text,
-			startSample: safeProduct(firstFrames[firstToken]!, request.frameStrideSamples,
+		startSample: safeProduct(firstFrame, request.frameStrideSamples,
 				'CTC word start sample'),
-			endSample: safeProduct(lastFrames[lastToken]! + 1, request.frameStrideSamples,
+			endSample: safeProduct(lastFrame + 1, request.frameStrideSamples,
 				'CTC word end sample'),
 			confidence: quantize(confidence / ownedTokens.length),
 		});

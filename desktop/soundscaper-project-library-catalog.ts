@@ -238,7 +238,9 @@ export class SoundscaperDesktopProjectLibraryCatalog {
 			if (pending.length === 0) return freezeRecovery({
 				outcome: 'clean', previousRevision: null, publishedRevision: null,
 			});
-			const journal = validateJournalRow(pending[0]);
+			const journalRow = pending[0];
+			if (!journalRow) throw new Error('Soundscaper desktop baseline recovery journal is missing');
+			const journal = validateJournalRow(journalRow);
 			const current = this.#validatedMetadataRow().row;
 			if (sameMetadataSnapshot(current, journal.next)) {
 				this.#completeRecoveryJournal(journal.transactionId, 'complete');

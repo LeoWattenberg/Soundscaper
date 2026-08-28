@@ -127,10 +127,13 @@ export class VideoProxyClaimRepository {
 			database,
 			MEDIA_ASSET_STAGING_STORE_NAME,
 			'readonly',
-			({ mediaAssetStaging }) => Promise.all([
-				request(mediaAssetStaging.get(requested.proxyClaimKey)),
-				request(mediaAssetStaging.get(requested.timingClaimKey)),
-			]),
+			(stores) => {
+				const staging = requiredStagingStore(stores.mediaAssetStaging);
+				return Promise.all([
+					request(staging.get(requested.proxyClaimKey)),
+					request(staging.get(requested.timingClaimKey)),
+				]);
+			},
 		);
 		if (proxyValue === undefined || timingValue === undefined) {
 			throw new Error('A required video proxy preservation claim is missing.');
@@ -141,10 +144,13 @@ export class VideoProxyClaimRepository {
 			database,
 			MEDIA_ASSET_STAGING_STORE_NAME,
 			'readonly',
-			({ mediaAssetStaging }) => Promise.all([
-				request(mediaAssetStaging.get(videoProxyCleanupTombstoneKey(proxy.bodyKey))),
-				request(mediaAssetStaging.get(videoProxyCleanupTombstoneKey(timing.bodyKey))),
-			]),
+			(stores) => {
+				const staging = requiredStagingStore(stores.mediaAssetStaging);
+				return Promise.all([
+					request(staging.get(videoProxyCleanupTombstoneKey(proxy.bodyKey))),
+					request(staging.get(videoProxyCleanupTombstoneKey(timing.bodyKey))),
+				]);
+			},
 		);
 		if (reservations.some((value) => value !== undefined)) {
 			throw new Error('A video proxy body is reserved for restart cleanup.');
@@ -186,6 +192,11 @@ export class VideoProxyClaimRepository {
 		stagingStore.delete(state.timing.key);
 		return Object.freeze({ proxy: state.proxy, timing: state.timing });
 	}
+}
+
+function requiredStagingStore(store: IDBObjectStore | undefined): IDBObjectStore {
+	if (!store) throw new Error('The media asset staging store is unavailable.');
+	return store;
 }
 
 export function videoProxyClaimKey(

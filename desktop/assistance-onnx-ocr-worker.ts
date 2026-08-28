@@ -39,12 +39,12 @@ import {
 const MODEL_ROLES = Object.freeze([
 	'text_detection', 'text_recognition', 'text_orientation', 'character_dictionary',
 ] as const);
-const DETECTION_INPUTS = Object.freeze(['x']);
-const DETECTION_OUTPUTS = Object.freeze(['sigmoid_0.tmp_0']);
-const ORIENTATION_INPUTS = Object.freeze(['x']);
-const ORIENTATION_OUTPUTS = Object.freeze(['save_infer_model/scale_0.tmp_1']);
-const RECOGNITION_INPUTS = Object.freeze(['x']);
-const RECOGNITION_OUTPUTS = Object.freeze(['softmax_11.tmp_0']);
+const DETECTION_INPUTS = Object.freeze(['x'] as const);
+const DETECTION_OUTPUTS = Object.freeze(['sigmoid_0.tmp_0'] as const);
+const ORIENTATION_INPUTS = Object.freeze(['x'] as const);
+const ORIENTATION_OUTPUTS = Object.freeze(['save_infer_model/scale_0.tmp_1'] as const);
+const RECOGNITION_INPUTS = Object.freeze(['x'] as const);
+const RECOGNITION_OUTPUTS = Object.freeze(['softmax_11.tmp_0'] as const);
 const OUTPUT_MEDIA_TYPES = new Set([
 	'application/json', 'application/vnd.soundscaper.recognized-text+json',
 ]);

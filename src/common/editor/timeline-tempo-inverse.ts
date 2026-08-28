@@ -72,7 +72,7 @@ export function deriveSampleLockedTempoEventBeats(
 		const bpm = normalizeRational(event.bpm, { maximumDenominator: Number.MAX_SAFE_INTEGER });
 		if (bpm.num <= 0) throw new RangeError('Sample-locked tempo values must be positive.');
 		if (index > 0) {
-			const previousBpm = events[index - 1].bpm;
+			const previousBpm = tempoEvent(events, index - 1).bpm;
 			beat = addRationals(beat, multiplyRationals(
 				sample - previousSample,
 				divideRationals(previousBpm, 60 * sampleRate),
@@ -88,7 +88,7 @@ export function deriveSampleLockedTempoEventBeats(
 export function validateSampleLockedTempoBeatAuthority(tempoMap: HoldTempoMap, sampleRate: number): true {
 	const beats = deriveSampleLockedTempoEventBeats(tempoMap.events, sampleRate);
 	for (const [index, event] of tempoMap.events.entries()) {
-		if (compareRationals(event.beat, beats[index]) !== 0) {
+		if (compareRationals(event.beat, rationalAt(beats, index)) !== 0) {
 			throw new RangeError(`tempoMap.events[${String(index)}].beat must equal its exact sample authority.`);
 		}
 	}
@@ -108,12 +108,12 @@ export function sampleFrameToBeat(
 	const eventFrames = tempoEventFrames(events, tempoMap, sampleRate);
 	let activeIndex = 0;
 	for (let index = 1; index < events.length; index += 1) {
-		const candidateFrame = eventFrames[index];
+		const candidateFrame = frameAt(eventFrames, index);
 		if (frame < candidateFrame) break;
 		activeIndex = index;
 	}
-	const active = events[activeIndex];
-	const activeFrame = eventFrames[activeIndex];
+	const active = tempoEvent(events, activeIndex);
+	const activeFrame = frameAt(eventFrames, activeIndex);
 	const sampleOffset = normalizeRational(frame - activeFrame);
 	const beatsPerSample = divideRationals(active.bpm, 60 * sampleRate);
 	return addRationals(active.beat, multiplyRationals(sampleOffset, beatsPerSample));
@@ -124,7 +124,8 @@ function tempoEventFrames(
 	map: HoldTempoMap,
 	sampleRate: number,
 ): readonly number[] {
-	beatToSampleFrame(events[0].beat, map, sampleRate, 'point');
+	const firstEvent = tempoEvent(events, 0);
+	beatToSampleFrame(firstEvent.beat, map, sampleRate, 'point');
 	if (map.mode === 'sampleLocked') {
 		return events.map((event) => {
 			if (!Number.isSafeInteger(event.samplePosition) || Number(event.samplePosition) < 0) {
@@ -135,10 +136,11 @@ function tempoEventFrames(
 	}
 	const frames = [0];
 	let position = reduceBigRational(0n, 1n);
-	let previousBeat = bigRational(events[0].beat);
-	let previousBpm = bigRational(events[0].bpm);
+	let previousBeat = bigRational(firstEvent.beat);
+	let previousBpm = bigRational(firstEvent.bpm);
 	for (let index = 1; index < events.length; index += 1) {
-		const beat = bigRational(events[index].beat);
+		const event = tempoEvent(events, index);
+		const beat = bigRational(event.beat);
 		const span = subtractBigRational(beat, previousBeat);
 		const segment = reduceBigRational(
 			span.numerator * 60n * BigInt(sampleRate) * previousBpm.denominator,
@@ -147,9 +149,27 @@ function tempoEventFrames(
 		position = addBigRational(position, segment);
 		frames.push(roundRational(position.numerator, position.denominator, 'point'));
 		previousBeat = beat;
-		previousBpm = bigRational(events[index].bpm);
+		previousBpm = bigRational(event.bpm);
 	}
 	return frames;
+}
+
+function tempoEvent<T extends HoldTempoEvent | SampleLockedTempoEvent>(events: readonly T[], index: number): T {
+	const event = events[index];
+	if (!event) throw new RangeError('The tempo event list is incomplete.');
+	return event;
+}
+
+function rationalAt(values: readonly Rational[], index: number): Rational {
+	const value = values[index];
+	if (!value) throw new RangeError('The derived tempo beat list is incomplete.');
+	return value;
+}
+
+function frameAt(values: readonly number[], index: number): number {
+	const value = values[index];
+	if (value === undefined) throw new RangeError('The tempo event frame list is incomplete.');
+	return value;
 }
 
 export function orderedBeatRange(start: Rational, end: Rational): true {

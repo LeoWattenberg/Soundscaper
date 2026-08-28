@@ -347,7 +347,7 @@ export class DesktopPluginRegistry {
 	/** The installation an entry would use: the only one, or the selected one. */
 	#active(entry: Entry): Installation | null {
 		if (entry.selected !== null) return entry.installations.get(entry.selected) ?? null;
-		return entry.installations.size === 1 ? [...entry.installations.values()][0] : null;
+		return entry.installations.size === 1 ? (entry.installations.values().next().value ?? null) : null;
 	}
 
 	#ineligibleReason(entry: Entry): PluginIneligibleReason | null {
@@ -376,8 +376,9 @@ export class DesktopPluginRegistry {
 	 * that asks which of the two to keep.
 	 */
 	#label(entry: Entry): PluginScanObservation {
-		const [incumbent] = entry.installations.values();
-		return (this.#active(entry) ?? incumbent).observation;
+		const installation = this.#active(entry) ?? entry.installations.values().next().value;
+		if (!installation) throw new Error('A registered plug-in identity has no installation.');
+		return installation.observation;
 	}
 
 	#describeEntry(entry: Entry): PluginEntryView {
@@ -386,14 +387,13 @@ export class DesktopPluginRegistry {
 		const label = this.#label(entry);
 		const classifications = new Set([...entry.installations.values()]
 			.map(({ observation }) => observation.classification));
+		const [soleClassification] = classifications;
 		return Object.freeze({
 			entryId: entry.entryId,
 			format: entry.format,
 			name: displayText(label.name),
 			vendor: displayText(label.vendor),
-			classification: classifications.size === 1
-				? [...classifications][0]
-				: ('unknown' as PluginClassification),
+			classification: classifications.size === 1 ? (soleClassification ?? 'unknown') : 'unknown',
 			eligible: reason === null,
 			ineligibleReason: reason,
 			installations: Object.freeze([...entry.installations.values()].map(({ installationId, observation, reviewed }) => Object.freeze({

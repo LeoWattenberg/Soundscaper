@@ -39,7 +39,7 @@ export function nativeMediaV14OpenFxCarrierFilter(
 	if (!finishing || finishing.kind !== 'finishing'
 		|| finishing.colorContext.outputSpace !== 'rec709'
 		|| finishing.sourceInterpretations.length !== 1
-		|| interpretation?.sourceId !== foundation.sources[0]?.sourceId
+		|| !interpretation || interpretation.sourceId !== foundation.sources[0]?.sourceId
 		|| interpretation.primaries !== 'bt709' || interpretation.transfer !== 'bt709'
 		|| interpretation.matrix !== 'rgb' || interpretation.range !== 'full'
 		|| interpretation.provenance !== 'user-override') return null;

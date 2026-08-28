@@ -105,7 +105,9 @@ export function validateNativeRealtimeMessage(value: unknown): NativeRealtimeMes
 	}
 	const kind = readNativeRealtimeField(record, 'kind');
 	if (!isMessageKind(kind)) throw nativeRealtimeError('UNKNOWN_KIND', `Unknown message kind ${describeNativeRealtimeValue(kind)}.`, 'kind');
-	assertClosedNativeRealtimeKeySet(record, MESSAGE_KEY_SETS[kind], 'wire message');
+	const allowedKeys = MESSAGE_KEY_SETS[kind];
+	if (!allowedKeys) throw nativeRealtimeError('UNKNOWN_KIND', `Unknown message kind ${describeNativeRealtimeValue(kind)}.`, 'kind');
+	assertClosedNativeRealtimeKeySet(record, allowedKeys, 'wire message');
 	const fields: Record<string, unknown> = { protocolVersion: NATIVE_REALTIME_PROTOCOL_VERSION, kind };
 	// Every schema key is read below, so a missing one is named by its reader
 	// and this pass only has to prove that nothing extra rode along.

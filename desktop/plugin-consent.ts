@@ -355,7 +355,7 @@ export class DesktopPluginConsent {
 	#standardOffers(format: PluginFormat): readonly PluginRoot[] {
 		if (!this.supports(format)) return Object.freeze([]);
 		const key = `${this.#platform}:${format}`;
-		const templates = Object.hasOwn(STANDARD_ROOTS, key) ? STANDARD_ROOTS[key] : [];
+		const templates = Object.hasOwn(STANDARD_ROOTS, key) ? (STANDARD_ROOTS[key] ?? []) : [];
 		const separator = this.#platform === 'win32' ? '\\' : '/';
 		const home = this.#home;
 		const roots: PluginRoot[] = [];

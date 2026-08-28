@@ -63,14 +63,22 @@ export function normalizeAudioGrooveTemplate(value: unknown): Readonly<AudioGroo
 		normalizeAudioWarpRational(offset, `audio groove template offset ${String(index)}`)
 	)));
 	for (let index = 1; index < offsets.length; index += 1) {
-		const previous = addRationals(index - 1, offsets[index - 1]);
-		const current = addRationals(index, offsets[index]);
+		const previousOffset = offsets[index - 1];
+		const currentOffset = offsets[index];
+		if (!previousOffset || !currentOffset) {
+			throw new RangeError('Audio groove template offsets are incomplete.');
+		}
+		const previous = addRationals(index - 1, previousOffset);
+		const current = addRationals(index, currentOffset);
 		if (compareRationals(previous, current) >= 0) {
 			throw new RangeError('Audio groove template positions must be strictly increasing.');
 		}
 	}
-	const last = addRationals(offsets.length - 1, offsets.at(-1)!);
-	const nextCycle = addRationals(offsets.length, offsets[0]);
+	const firstOffset = offsets[0];
+	const lastOffset = offsets.at(-1);
+	if (!firstOffset || !lastOffset) throw new RangeError('Audio groove template requires an offset.');
+	const last = addRationals(offsets.length - 1, lastOffset);
+	const nextCycle = addRationals(offsets.length, firstOffset);
 	if (compareRationals(last, nextCycle) >= 0) {
 		throw new RangeError('Audio groove template positions invert at the cycle boundary.');
 	}
@@ -90,7 +98,9 @@ export function applyAudioGrooveTemplate(
 	const strength = normalizeAudioWarpStrength(strengthValue, 'audio groove strength');
 	const straight = addRationals(grid.origin, multiplyRationals(grid.interval, gridIndex));
 	const phase = ((gridIndex % template.offsets.length) + template.offsets.length) % template.offsets.length;
-	const fullOffset = multiplyRationals(grid.interval, template.offsets[phase]);
+	const phaseOffset = template.offsets[phase];
+	if (!phaseOffset) throw new RangeError('Audio groove template phase is unavailable.');
+	const fullOffset = multiplyRationals(grid.interval, phaseOffset);
 	return addRationals(straight, multiplyRationals(fullOffset, strength));
 }
 

@@ -32,7 +32,7 @@ export function createIndexedBeatFrameProjector(
 	const events = indexTempoEvents(tempoMap, sampleRate);
 	return (beat) => {
 		const target = fraction(beat);
-		const active = events[activeEventIndex(events, target)];
+		const active = indexedTempoEvent(events, activeEventIndex(events, target));
 		const position = add(
 			active.samplePosition,
 			tempoSegmentSamples(target, active.beat, active.bpm, sampleRate),
@@ -48,7 +48,7 @@ function indexTempoEvents(tempoMap: HoldTempoMap, sampleRate: number): readonly 
 		const beat = fraction(event.beat);
 		const bpm = fraction(event.bpm);
 		if (tempoMap.mode === 'musical' && index > 0) {
-			const previous = result[index - 1];
+			const previous = indexedTempoEvent(result, index - 1);
 			musicalPosition = add(
 				musicalPosition,
 				tempoSegmentSamples(beat, previous.beat, previous.bpm, sampleRate),
@@ -70,10 +70,16 @@ function activeEventIndex(events: readonly IndexedTempoEvent[], target: BigFract
 	let upper = events.length;
 	while (lower < upper) {
 		const middle = lower + Math.floor((upper - lower) / 2);
-		if (compare(events[middle].beat, target) <= 0) lower = middle + 1;
+		if (compare(indexedTempoEvent(events, middle).beat, target) <= 0) lower = middle + 1;
 		else upper = middle;
 	}
 	return lower - 1;
+}
+
+function indexedTempoEvent(events: readonly IndexedTempoEvent[], index: number): IndexedTempoEvent {
+	const event = events[index];
+	if (!event) throw new RangeError('The indexed tempo map is incomplete.');
+	return event;
 }
 
 function tempoSegmentSamples(

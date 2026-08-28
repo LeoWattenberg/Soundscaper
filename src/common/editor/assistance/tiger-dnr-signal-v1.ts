@@ -226,7 +226,8 @@ export function tigerDnrIstftV1(value: unknown): readonly Float32Array[] {
 	for (let time = 0; time < spectrum.timeFrameCount; time += 1) {
 		const start = time * spectrum.hopFrames;
 		for (let frame = 0; frame < spectrum.fftSize; frame += 1) {
-			normalization[start + frame] += window[frame]! * window[frame]!;
+			normalization[start + frame] = (normalization[start + frame] ?? 0)
+				+ window[frame]! * window[frame]!;
 		}
 	}
 	const output = spectrum.channels.map((channel) => {
@@ -246,7 +247,8 @@ export function tigerDnrIstftV1(value: unknown): readonly Float32Array[] {
 			fft(real, imaginary, true);
 			const start = time * spectrum.hopFrames;
 			for (let frame = 0; frame < spectrum.fftSize; frame += 1) {
-				accumulator[start + frame] += real[frame]! * window[frame]!;
+				accumulator[start + frame] = (accumulator[start + frame] ?? 0)
+					+ real[frame]! * window[frame]!;
 			}
 		}
 		const result = new Float32Array(sourceFrameCount);
@@ -391,8 +393,8 @@ function fft(real: Float64Array, imaginary: Float64Array, inverse: boolean): voi
 				const oddImaginary = real[odd]! * factorImaginary + imaginary[odd]! * factorReal;
 				real[odd] = real[even]! - oddReal;
 				imaginary[odd] = imaginary[even]! - oddImaginary;
-				real[even] += oddReal;
-				imaginary[even] += oddImaginary;
+				real[even] = (real[even] ?? 0) + oddReal;
+				imaginary[even] = (imaginary[even] ?? 0) + oddImaginary;
 				const nextReal = factorReal * rootReal - factorImaginary * rootImaginary;
 				factorImaginary = factorReal * rootImaginary + factorImaginary * rootReal;
 				factorReal = nextReal;
@@ -401,8 +403,8 @@ function fft(real: Float64Array, imaginary: Float64Array, inverse: boolean): voi
 	}
 	if (inverse) {
 		for (let index = 0; index < size; index += 1) {
-			real[index] /= size;
-			imaginary[index] /= size;
+			real[index] = (real[index] ?? 0) / size;
+			imaginary[index] = (imaginary[index] ?? 0) / size;
 		}
 	}
 }

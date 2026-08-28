@@ -98,8 +98,11 @@ export function parseFfmpegVideoSourceCharacteristics(
 		const stream = INPUT_STREAM.exec(line);
 		if (stream) {
 			bannerLines += 1;
-			if (stream[4] === 'Video') readVideoStream(line, stream[5], reported);
-			else readAudioStream(line, stream, audioStreams, seenAudioIndexes);
+			const codec = stream[5];
+			if (stream[4] === 'Video') {
+				if (codec === undefined) throw new Error('FFmpeg reported a video stream without a codec.');
+				readVideoStream(line, codec, reported);
+			} else readAudioStream(line, stream, audioStreams, seenAudioIndexes);
 			continue;
 		}
 		const rotation = DISPLAY_MATRIX.exec(line);
@@ -134,13 +137,15 @@ function readShowinfoGeometry(line: string, reported: Record<string, unknown>): 
 	const geometry = SHOWINFO_GEOMETRY.exec(line);
 	if (!geometry) return false;
 	const pixelFormat = geometry[1];
+	const fieldOrderCode = geometry[6];
+	if (pixelFormat === undefined || fieldOrderCode === undefined) return false;
 	const aspectNum = Number(geometry[2]);
 	const aspectDen = Number(geometry[3]);
 	reported.codedWidth = Number(geometry[4]);
 	reported.codedHeight = Number(geometry[5]);
 	// FFmpeg reports an undefined sample aspect as 0/1; square pixels are 1/1.
 	if (aspectNum > 0 && aspectDen > 0) reported.pixelAspectRatio = { num: aspectNum, den: aspectDen };
-	const fieldOrder = FIELD_ORDERS[geometry[6]];
+	const fieldOrder = FIELD_ORDERS[fieldOrderCode];
 	if (fieldOrder) reported.fieldOrder = fieldOrder;
 	reported.hasAlpha = ALPHA_PIXEL_FORMAT.test(pixelFormat);
 	return true;
@@ -149,9 +154,10 @@ function readShowinfoGeometry(line: string, reported: Record<string, unknown>): 
 function readVideoStream(line: string, codec: string, reported: Record<string, unknown>): void {
 	if (reported.videoCodec === undefined) reported.videoCodec = codec;
 	const detail = PIXEL_FORMAT_DETAIL.exec(line);
-	if (!detail) return;
+	const detailText = detail?.[1];
+	if (detailText === undefined) return;
 	const colour: Record<string, unknown> = {};
-	for (const part of detail[1].split(',').map((value) => value.trim()).filter(Boolean)) {
+	for (const part of detailText.split(',').map((value) => value.trim()).filter(Boolean)) {
 		const range = COLOUR_RANGES[part];
 		if (range) {
 			colour.range = range;

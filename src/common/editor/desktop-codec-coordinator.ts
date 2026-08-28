@@ -219,9 +219,11 @@ function validateSettings(value: unknown): Readonly<Record<string, number | stri
 	}
 	const descriptors = Object.getOwnPropertyDescriptors(value);
 	const keys = Reflect.ownKeys(descriptors);
-	if (keys.length > 16 || keys.some((key) => typeof key !== 'string'
-		|| !/^[A-Za-z][A-Za-z0-9]{0,63}$/u.test(key)
-		|| !Object.hasOwn(descriptors[key], 'value'))) {
+	if (keys.length > 16 || keys.some((key) => {
+		if (typeof key !== 'string' || !/^[A-Za-z][A-Za-z0-9]{0,63}$/u.test(key)) return true;
+		const descriptor = descriptors[key];
+		return descriptor === undefined || !Object.hasOwn(descriptor, 'value');
+	})) {
 		throw new TypeError('Desktop codec receipt settings are invalid.');
 	}
 	const result: Record<string, number | string> = {};

@@ -496,12 +496,12 @@ function proxyRecipe(
 		sourceId === inputs[0]!.sourceId && contentSha256 === inputs[0]!.sha256
 	));
 	if (!source) throw new Error('The selected V14 proxy source is absent from its immutable plan.');
-	const nodes = envelope.plan.nodes.filter((node) => node.kind === 'professional-media'
-		&& node.sourceNodeId === source.nodeId);
+	const nodes = envelope.plan.nodes.filter((node): node is Extract<typeof node, {
+		readonly kind: 'professional-media';
+	}> => node.kind === 'professional-media' && node.sourceNodeId === source.nodeId);
 	if (nodes.length !== 1) throw new Error('The selected V14 proxy source has no unique professional-media node.');
 	const node = nodes[0];
-	if (node.kind !== 'professional-media' || node.imageSequence !== null
-		|| node.exportAuthority !== 'original') {
+	if (!node || node.imageSequence !== null || node.exportAuthority !== 'original') {
 		throw new Error('Native ProRes proxy generation requires one ordinary original-authoritative source.');
 	}
 	const width = node.characteristics.codedWidth;
