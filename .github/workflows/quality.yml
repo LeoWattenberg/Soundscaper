@@ -195,6 +195,10 @@ jobs:
       - name: Provision interchange conformance reference tools
         run: npm run provision:interchange-conformance
 
+      - name: Provision pinned Boost closure for Framescaper native tests
+        if: matrix.shard == 'framescaper'
+        run: node scripts/ci-provision-framescaper-boost.mjs
+
       - name: Run the ${{ matrix.shard }} Node test shard
         run: xvfb-run --auto-servernum npm run test:shard -- --shard=${{ matrix.shard }} --require-linux-native
         env:

@@ -7,6 +7,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
+import { boostClosureIncludeArguments } from './helpers/framescaper-boost-closure.js';
+
 test('the native exact ordinal source is Boost-backed, bounded, lazy, and has a compile fixture', async () => {
 	const header = await readFile(new URL(
 		'../native/framescaper-media-host/src/exact_retime_ordinal.hpp', import.meta.url,
@@ -40,7 +42,8 @@ test('CMake requires Boost 1.92.0 exactly and compiles the oracle into host and 
 		context.skip('A C++ compiler is not installed on this source-audit host.');
 		return;
 	}
-	const boost = spawnSync('c++', ['-std=c++20', '-E', '-x', 'c++', '-'], {
+	const boostArguments = boostClosureIncludeArguments();
+	const boost = spawnSync('c++', ['-std=c++20', ...boostArguments, '-fsyntax-only', '-x', 'c++', '-'], {
 		encoding: 'utf8', input: '#include <boost/multiprecision/cpp_int.hpp>\n',
 	});
 	if (boost.status !== 0) {
@@ -52,6 +55,7 @@ test('CMake requires Boost 1.92.0 exactly and compiles the oracle into host and 
 		const executable = join(directory, 'exact-retime');
 		const built = spawnSync('c++', [
 			'-std=c++20', '-Wall', '-Wextra', '-Wpedantic', '-Werror',
+			...boostArguments,
 			'-I', new URL('../native/framescaper-media-host/src/', import.meta.url).pathname,
 			new URL('../native/framescaper-media-host/tests/exact_retime_ordinal_fixture.cpp', import.meta.url).pathname,
 			'-o', executable,

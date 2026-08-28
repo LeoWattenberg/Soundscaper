@@ -135,5 +135,15 @@ for (const workflowName of SHARDED_WORKFLOWS) {
 			/npm run test:shard -- --shard=\$\{\{ matrix\.shard \}\} --require-linux-native/u,
 			`${workflowName} must turn native prerequisite skips into failures`,
 		);
+		const boostProvision = 'node scripts/ci-provision-framescaper-boost.mjs';
+		assert.match(
+			job,
+			/if: matrix\.shard == 'framescaper'\s+run: node scripts\/ci-provision-framescaper-boost\.mjs/u,
+			`${workflowName} must provision the pinned Boost closure only for Framescaper`,
+		);
+		assert.ok(
+			job.indexOf(boostProvision) < job.indexOf('npm run test:shard'),
+			`${workflowName} must provision Boost before requiring native tests`,
+		);
 	});
 }
