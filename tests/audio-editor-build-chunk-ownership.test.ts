@@ -17,6 +17,8 @@ import {
 	EDITOR_OPTIONAL_SURFACE_CHUNK_TEST,
 	EDITOR_PFFFT_RUNTIME_CHUNK_TEST,
 	EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST,
+	workerChunkGroups,
+	WORKER_XML_VENDOR_CHUNK_TEST,
 } from '../scripts/lib/build-chunk-groups.mjs';
 import { eagerImportsOfLazyOwners, sourceModules } from './helpers/eager-chunk-group-crossings.ts';
 
@@ -185,6 +187,21 @@ test('the site entry has highest-priority non-recursive ownership', () => {
 	assert.ok(chunkGroups.every((candidate) => (
 		candidate === siteEntry || Number(siteEntry.priority) > Number(candidate.priority)
 	)));
+});
+
+test('worker XML parsing dependencies share one bounded vendor owner', () => {
+	for (const path of [
+		'node_modules/saxes/saxes.js',
+		'node_modules/xmlchars/xml/1.0/ed5.js',
+		'node_modules/xmlchars/xml/1.1/ed2.js',
+		'node_modules/xmlchars/xmlns/1.0/ed3.js',
+	]) assert.ok(WORKER_XML_VENDOR_CHUNK_TEST.test(path), `${path} must stay with the worker XML parser`);
+	assert.equal(WORKER_XML_VENDOR_CHUNK_TEST.test('src/common/editor/ixml.ts'), false);
+	const group = workerChunkGroups.find((candidate) => candidate.name === 'vendor-xml-worker');
+	assert.ok(group);
+	assert.equal(group.test, WORKER_XML_VENDOR_CHUNK_TEST);
+	assert.equal(group.includeDependenciesRecursively, false);
+	assert.equal(group.maxSize, 400_000);
 });
 
 test('optional archive code and its ZIP vendor are placed by dynamic reachability', () => {

@@ -412,6 +412,9 @@ export const chunkGroups = [
 	},
 ];
 
+/** Saxes and the XML character tables it imports inside maintained workers. */
+export const WORKER_XML_VENDOR_CHUNK_TEST = /node_modules[\\/](?:saxes|xmlchars)[\\/]/;
+
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const workerChunkGroups = [
 	{
@@ -419,6 +422,16 @@ export const workerChunkGroups = [
 		test: /node_modules[\\/]@sqlite\.org[\\/]sqlite-wasm[\\/]/,
 		priority: 100,
 		maxSize: 400_000,
+	},
+	{
+		// Keep the parser and its character tables under one explicit owner instead
+		// of placing either by reachability. Non-recursive ownership keeps future
+		// dependency growth from silently broadening this worker vendor surface.
+		name: 'vendor-xml-worker',
+		test: WORKER_XML_VENDOR_CHUNK_TEST,
+		priority: 99,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
 	},
 ];
 
