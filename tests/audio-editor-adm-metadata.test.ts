@@ -135,6 +135,8 @@ test('ADM AXML parser preserves safe unknown XML while rejecting active or unbou
 	const source = generateAdmAxml({ layout: 'mono' });
 	const extended = source.replace('</audioFormatExtended>', '<vendor:extension xmlns:vendor="urn:example">safe</vendor:extension>\n      </audioFormatExtended>');
 	assert.equal(parseAdmAxml(extended).rawXml, extended);
+	const prototypeNamed = source.replace('</audioFormatExtended>', '<constructor />\n      </audioFormatExtended>');
+	assert.equal(parseAdmAxml(prototypeNamed).rawXml, prototypeNamed);
 
 	for (const xml of [
 		'<!DOCTYPE x SYSTEM "https://example.invalid/adm.dtd"><audioFormatExtended/>',

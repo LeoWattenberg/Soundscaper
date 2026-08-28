@@ -23,6 +23,10 @@ import {
 	SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS,
 } from '../desktop/soundscaper-project-library-main-channels.ts'
 import {
+	SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_CHANNELS,
+	registerSoundscaperDesktopProjectLibraryIpc,
+} from '../desktop/soundscaper-project-library-ipc.ts'
+import {
 	validateSoundscaperDesktopProjectLibraryCatalogSnapshot,
 } from '../desktop/soundscaper-project-library-lifecycle-contract.ts'
 import {
@@ -182,6 +186,42 @@ test('Soundscaper baseline IPC is closed under its v1 project-library namespace'
 	})
 	await assert.rejects(() => bridge.listProjects(), /handshake/iu)
 	assert.deepEqual(await bridge.connect(), createSoundscaperDesktopProjectLibraryHandshake())
+})
+
+test('Soundscaper baseline IPC preserves prototype-named data fields for closed-record validation', async () => {
+	const handlers = new Map<string, (event: unknown, value?: unknown) => unknown>()
+	const owner = {}
+	let bodyRead: unknown
+	const registration = registerSoundscaperDesktopProjectLibraryIpc({
+		handle: (channel: string, handler: (event: unknown, value?: unknown) => unknown) => {
+			handlers.set(channel, handler)
+		},
+		ownerFor: () => owner,
+		service: {
+			localHandshake: Object.freeze({ accepted: true }),
+			openSession: () => ({
+				readProjectBundle: () => null,
+				readBodyChunk: (value: unknown) => {
+					bodyRead = value
+					return new Uint8Array()
+				},
+			}),
+		},
+	})
+	const event = {}
+	handlers.get(SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_CHANNELS.handshake)?.(event, {})
+	const request = Object.defineProperty({}, '__proto__', {
+		value: null,
+		enumerable: true,
+		writable: true,
+		configurable: true,
+	})
+	await handlers.get(SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_CHANNELS.readBodyChunk)?.(event, request)
+
+	assert.equal(Object.hasOwn(bodyRead as object, '__proto__'), true)
+	assert.equal(Object.getOwnPropertyDescriptor(bodyRead as object, '__proto__')?.value, null)
+	assert.ok((bodyRead as { signal?: unknown }).signal instanceof AbortSignal)
+	await registration.dispose()
 })
 
 test('Soundscaper baseline lease retry recognizes only current contention', async () => {

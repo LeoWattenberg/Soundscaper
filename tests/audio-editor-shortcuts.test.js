@@ -63,6 +63,18 @@ test('legacy shortcut action IDs migrate to the canonical runtime registry IDs',
 	});
 });
 
+test('prototype-named custom shortcut action IDs remain literal own fields', () => {
+	const shortcuts = JSON.parse('{"constructor":["Alt+C"],"__proto__":["Alt+P"]}');
+	const saved = createAudioEditorPreferencesV1({ shortcuts });
+
+	for (const normalized of [saved.shortcuts, loadAudioEditorPreferencesV1(saved).preferences.shortcuts]) {
+		assert.deepEqual(Object.keys(normalized).sort(), ['__proto__', 'constructor']);
+		assert.deepEqual(Object.getOwnPropertyDescriptor(normalized, 'constructor')?.value, ['Alt+C']);
+		assert.deepEqual(Object.getOwnPropertyDescriptor(normalized, '__proto__')?.value, ['Alt+P']);
+		assert.equal(Object.getPrototypeOf(normalized), Object.prototype);
+	}
+});
+
 test('loading saved shortcuts migrates search reservations and the former zoom binding idempotently', () => {
 	const saved = createAudioEditorPreferencesV1({
 		shortcuts: {

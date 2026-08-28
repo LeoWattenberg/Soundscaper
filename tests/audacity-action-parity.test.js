@@ -350,6 +350,7 @@ test('cloud, installable plugins, OS audio, MIDI tracks, Extra, diagnostics, and
 
 test('legacy UI aliases resolve to stable upstream IDs and share one policy record', () => {
 	assert.equal(resolveAudacityActionId('new-project'), 'file-new');
+	for (const id of ['constructor', '__proto__']) { assert.equal(resolveAudacityActionId(id), id); assert.equal(audacityActionDefinition(id), null); }
 	assert.equal(audacityActionDefinition('new-project'), AUDACITY_ACTION_MANIFEST['file-new']);
 	assert.equal(audacityActionDefinition('ripple-delete'), AUDACITY_ACTION_MANIFEST['delete-per-track-ripple']);
 	assert.equal(audacityActionDefinition('effect-plugin-manager'), AUDACITY_ACTION_MANIFEST['plugin-manager']);

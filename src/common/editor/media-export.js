@@ -353,7 +353,9 @@ export function normalizeMediaMetadata(value = {}) {
 		const text = String(rawValue);
 		if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(text)) throw new RangeError(`Metadata field ${key} contains control characters.`);
 		if (text.length > MAX_METADATA_VALUE_LENGTH) throw new RangeError(`Metadata field ${key} is too long.`);
-		result[key] = text;
+		Object.defineProperty(result, key, {
+			value: text, enumerable: true, writable: true, configurable: true,
+		});
 	}
 	return Object.freeze(result);
 }

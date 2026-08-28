@@ -301,8 +301,10 @@ function readStyle(tag: SaxesTagNS, state: ParseState): VideoCaptionStyleV1 {
 	];
 	if (values.some((value) => value === null)) state.losses.push(captionLoss('style-properties-defaulted', `styles.${id}`, 'Missing IMSC style properties use bounded caption defaults.'));
 	const familyToken = values[0] ?? 'sansSerif';
-	const family = TTML_TO_FONT[familyToken];
-	if (!family) throw interchangeError(`Unsupported IMSC font family: ${familyToken}.`, 'UNSUPPORTED_STYLE');
+	if (!Object.hasOwn(TTML_TO_FONT, familyToken)) {
+		throw interchangeError(`Unsupported IMSC font family: ${familyToken}.`, 'UNSUPPORTED_STYLE');
+	}
+	const family = TTML_TO_FONT[familyToken]!;
 	return Object.freeze({
 		schemaVersion: 1,
 		id,

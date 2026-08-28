@@ -567,7 +567,7 @@ export const AUDACITY_ACTION_ALIASES = deepFreeze({
 });
 
 export function resolveAudacityActionId(id) {
-	return AUDACITY_ACTION_ALIASES[id] || id;
+	return Object.hasOwn(AUDACITY_ACTION_ALIASES, id) ? AUDACITY_ACTION_ALIASES[id] : id;
 }
 
 export function audacityActionDefinition(id) {
@@ -836,7 +836,7 @@ function decorateMenuItem(item, localization, actionRuntime, actionContext, cano
 function matchAudacityAction(id) {
 	if (typeof id !== 'string' || !id) return null;
 	const resolvedId = resolveAudacityActionId(id);
-	const exact = AUDACITY_ACTION_MANIFEST[resolvedId];
+	const exact = Object.hasOwn(AUDACITY_ACTION_MANIFEST, resolvedId) ? AUDACITY_ACTION_MANIFEST[resolvedId] : undefined;
 	if (exact) return { definition: exact, dynamic: exact.id.includes('%1'), template: true, valid: true, parameters: [] };
 
 	for (const definition of Object.values(AUDACITY_ACTION_MANIFEST)) {

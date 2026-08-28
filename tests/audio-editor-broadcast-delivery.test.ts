@@ -16,7 +16,7 @@ test('BWF multichannel headers use WAVE_FORMAT_EXTENSIBLE PCM and a speaker mask
 });
 
 test('RIFF INFO carries common descriptive metadata without flattening unknown fields', () => {
-	const chunk = createRiffInfoChunk({ title: 'Bulletin', artist: 'Newsroom', comments: 'Final', custom: 'ignored' });
+	const chunk = createRiffInfoChunk({ title: 'Bulletin', artist: 'Newsroom', comments: 'Final', custom: 'ignored', constructor: 'ignored' });
 	assert.equal(text(chunk, 0, 4), 'LIST');
 	assert.equal(text(chunk, 8, 4), 'INFO');
 	assert.deepEqual(parseRiffInfo([chunk.subarray(12, 8 + new DataView(chunk.buffer).getUint32(4, true))]), {

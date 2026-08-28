@@ -14,6 +14,7 @@ import {
 	normalizeMediaChannelMapping,
 	normalizeMediaDecodeSampleRate,
 	normalizeMediaExportSettings,
+	normalizeMediaMetadata,
 } from '../src/common/editor/media-export.js';
 import { createAiffStreamEncoder, encodeAiff } from '../src/common/editor/aiff.js';
 import { createExportPlan } from '../src/common/editor/export.js';
@@ -291,6 +292,25 @@ test('native WAV and AIFF embed normalized UTF-8 metadata in bounded ID3 chunks'
 	assert.equal(ascii(aiff, aiffId3 + 8, 3), 'ID3');
 	assert.equal(new DataView(aiff.buffer).getUint32(4, false), aiff.byteLength - 8);
 	assert.ok(findAscii(aiff.subarray(aiffId3), 'COMM') > 0);
+});
+
+test('prototype-named metadata remains a custom ID3 field', () => {
+	const wav = encodeWav([Float32Array.of(0)], {
+		bitDepth: 16,
+		dither: 'none',
+		metadata: { constructor: 'literal custom metadata' },
+	});
+	const wavId3 = findAscii(wav, 'id3 ');
+	assert.ok(wavId3 > 44);
+	assert.ok(findAscii(wav.subarray(wavId3), 'TXXX') > 0);
+	assert.ok(findAscii(wav.subarray(wavId3), 'constructor') > 0);
+});
+
+test('prototype-setter metadata keys remain literal own fields', () => {
+	const metadata = normalizeMediaMetadata(JSON.parse('{"__proto__":"literal custom metadata"}'));
+	assert.equal(Object.hasOwn(metadata, '__proto__'), true);
+	assert.equal(Object.getOwnPropertyDescriptor(metadata, '__proto__')?.value, 'literal custom metadata');
+	assert.equal(Object.getPrototypeOf(metadata), Object.prototype);
 });
 
 test('native dither modes honor none and keep high-pass state per channel', () => {

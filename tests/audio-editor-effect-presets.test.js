@@ -57,6 +57,14 @@ test('effect presets import/export atomically and reject collisions and invalid 
 	assert.throws(() => saveAudioEditorEffectPreset(saved.state, {
 		effectType: 'external-plugin', name: 'No', params: {}, idFactory: () => 'no',
 	}), /Unsupported effect preset type/);
+	for (const effectType of ['constructor', '__proto__']) {
+		const prototypeNamed = JSON.parse(encoded);
+		prototypeNamed.presets[0].effectType = effectType;
+		assert.throws(
+			() => importAudioEditorEffectPresets(createAudioEditorEffectPresets(), prototypeNamed),
+			/Unsupported effect preset type/,
+		);
+	}
 });
 
 test('parametric EQ presets migrate legacy bands and preserve stable node IDs', () => {

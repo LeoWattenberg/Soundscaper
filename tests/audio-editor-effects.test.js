@@ -174,6 +174,27 @@ test('selection-only Audacity effects are rejected by the realtime rack model', 
 	assert.throws(() => updateEffect(live, { type: 'audacity-reverse' }), /Unsupported audio effect/);
 });
 
+test('prototype-named effect types are rejected by shared project and selection normalization', () => {
+	for (const type of ['constructor', '__proto__']) {
+		assert.throws(
+			() => createEffect(type, { id: 'prototype-effect', params: {} }),
+			/Unsupported audio effect/,
+		);
+		assert.throws(
+			() => normalizeEffect({ id: 'prototype-effect', type, enabled: true, params: {} }),
+			/Unsupported audio effect/,
+		);
+		assert.throws(() => audioEffectLabel(type), /Unsupported audio effect/);
+		assert.throws(() => audioSelectionEffectDefaults(type), /Unsupported selection effect/);
+		assert.throws(
+			() => normalizeAudioSelectionEffectParams(type, {}),
+			/Unsupported selection effect/,
+		);
+		assert.equal(audioEffectParamRange('audacity-echo', type), null);
+		assert.equal(audioEffectParamRange('compressor', type), null);
+	}
+});
+
 test('missing rack effects preserve identity but are permanently inert locally', () => {
 	const opaque = {
 		kind: 'node',

@@ -126,12 +126,20 @@ function normalizeShortcuts(value = {}) {
 	const shortcuts = {};
 	for (const [actionId, bindings] of Object.entries(value)) {
 		nonEmptyString(actionId, 'shortcut action ID');
-		const canonicalActionId = LEGACY_SHORTCUT_ACTION_IDS[actionId] || resolveAudacityActionId(actionId);
+		const canonicalActionId = Object.hasOwn(LEGACY_SHORTCUT_ACTION_IDS, actionId)
+			? LEGACY_SHORTCUT_ACTION_IDS[actionId]
+			: resolveAudacityActionId(actionId);
 		const list = Array.isArray(bindings) ? bindings : [bindings];
-		shortcuts[canonicalActionId] = list.map((binding, index) => nonEmptyString(binding, `shortcuts.${actionId}[${index}]`));
-		if (new Set(shortcuts[canonicalActionId]).size !== shortcuts[canonicalActionId].length) {
+		const normalizedBindings = list.map((binding, index) => nonEmptyString(binding, `shortcuts.${actionId}[${index}]`));
+		if (new Set(normalizedBindings).size !== normalizedBindings.length) {
 			throw new RangeError(`shortcuts.${actionId} cannot contain duplicate bindings.`);
 		}
+		Object.defineProperty(shortcuts, canonicalActionId, {
+			value: normalizedBindings,
+			enumerable: true,
+			writable: true,
+			configurable: true,
+		});
 	}
 	return shortcuts;
 }
@@ -458,7 +466,12 @@ function migrateLoadedAudioEditorShortcuts(shortcuts) {
 			seen.add(nextKey);
 			nextBindings.push(nextBinding);
 		}
-		migrated[actionId] = nextBindings;
+		Object.defineProperty(migrated, actionId, {
+			value: nextBindings,
+			enumerable: true,
+			writable: true,
+			configurable: true,
+		});
 	}
 
 	return migrated;

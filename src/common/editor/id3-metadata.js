@@ -30,7 +30,9 @@ export function createAudioMetadataId3Tag(metadata = {}) {
 			)));
 			continue;
 		}
-		const frameId = TEXT_FRAME_IDS[normalizedKey];
+		const frameId = Object.hasOwn(TEXT_FRAME_IDS, normalizedKey)
+			? TEXT_FRAME_IDS[normalizedKey]
+			: undefined;
 		if (frameId) {
 			frames.push(createId3Frame(frameId, concatBytes(Uint8Array.of(3), new TextEncoder().encode(value))));
 			continue;

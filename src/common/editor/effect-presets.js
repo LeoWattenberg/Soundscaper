@@ -97,7 +97,9 @@ function normalizePreset(value) {
 
 function effectTypeValue(value) {
 	const effectType = nonEmptyString(value, 'effectType');
-	if (!AUDIO_SELECTION_EFFECT_DEFINITIONS[effectType]) throw new RangeError(`Unsupported effect preset type: ${effectType}.`);
+	if (!Object.hasOwn(AUDIO_SELECTION_EFFECT_DEFINITIONS, effectType)) {
+		throw new RangeError(`Unsupported effect preset type: ${effectType}.`);
+	}
 	return effectType;
 }
 

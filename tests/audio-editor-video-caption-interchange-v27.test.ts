@@ -348,6 +348,22 @@ test('IMSC word spans resolve relative to their containing cue interval', () => 
 	]);
 });
 
+test('IMSC rejects prototype-named font families as unsupported styles', () => {
+	for (const fontFamily of ['constructor', '__proto__']) {
+		const xml = minimalImsc('', 48_000).replace(
+			'<head/>',
+			'<head><styling><style xmlns:tts="http://www.w3.org/ns/ttml#styling" '
+			+ `xml:id="style-1" tts:fontFamily="${fontFamily}" /></styling></head>`,
+		);
+		assertInterchangeError(
+			() => importVideoCaptionTrackV1(xml, {
+				format: 'imsc1.1', sampleRate: 48_000, ...IMPORT_IDENTITY,
+			}),
+			'UNSUPPORTED_STYLE',
+		);
+	}
+});
+
 test('IMSC rejects external XML, entities, processing instructions, and active or foreign markup', () => {
 	const attacks = [
 		'<!DOCTYPE tt SYSTEM "https://example.invalid/caption.dtd">' + minimalImsc('', 48_000),

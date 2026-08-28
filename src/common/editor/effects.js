@@ -199,30 +199,31 @@ export function audioSelectionEffectTypes() {
 	return Object.keys(AUDIO_SELECTION_EFFECT_DEFINITIONS);
 }
 
+function ownMapValue(record, key) { return Object.hasOwn(record, key) ? record[key] : undefined; }
 export function audioSelectionEffectDefinition(type) {
-	const definition = AUDIO_SELECTION_EFFECT_DEFINITIONS[type];
+	const definition = ownMapValue(AUDIO_SELECTION_EFFECT_DEFINITIONS, type);
 	if (!definition) throw new RangeError(`Unsupported selection effect: ${type}.`);
 	return definition;
 }
 
 export function audioSelectionEffectLabel(type, copyOrLocale = 'en') {
 	if (type === REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE) return REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_LABEL;
-	return AUDACITY_EFFECT_DEFINITIONS[type]
+	return ownMapValue(AUDACITY_EFFECT_DEFINITIONS, type)
 		? audacityEffectLabel(type, copyOrLocale)
 		: audioEffectLabel(type, copyOrLocale);
 }
 
 export function audioSelectionEffectDefaults(type, effectId = null) {
-	if (AUDACITY_EFFECT_DEFINITIONS[type]) return audacityEffectDefaults(type);
-	audioSelectionEffectDefinition(type);
-	return normalizeEffectParams(type, clone(AUDIO_SELECTION_EFFECT_DEFINITIONS[type].defaults), effectId);
+	if (ownMapValue(AUDACITY_EFFECT_DEFINITIONS, type)) return audacityEffectDefaults(type);
+	const definition = audioSelectionEffectDefinition(type);
+	return normalizeEffectParams(type, clone(definition.defaults), effectId);
 }
 
 export function normalizeAudioSelectionEffectParams(type, params = {}, effectId = null) {
-	if (AUDACITY_EFFECT_DEFINITIONS[type]) return normalizeAudacityEffectParams(type, params);
-	audioSelectionEffectDefinition(type);
+	if (ownMapValue(AUDACITY_EFFECT_DEFINITIONS, type)) return normalizeAudacityEffectParams(type, params);
+	const definition = audioSelectionEffectDefinition(type);
 	return normalizeEffectParams(type, {
-		...clone(AUDIO_SELECTION_EFFECT_DEFINITIONS[type].defaults),
+		...clone(definition.defaults),
 		...clone(params),
 	}, effectId);
 }
@@ -233,25 +234,25 @@ export function isAudacityRackEffectType(type) {
 
 export function audioEffectLabel(type, copyOrLocale = 'en') {
 	if (isAudacityRackEffectType(type)) return audacityEffectLabel(type, copyOrLocale);
-	if (!AUDIO_EFFECT_DEFINITIONS[type]) throw new RangeError(`Unsupported audio effect: ${type}.`);
+	if (!ownMapValue(AUDIO_EFFECT_DEFINITIONS, type)) throw new RangeError(`Unsupported audio effect: ${type}.`);
 	return canonicalCopyValue(effectNameCopyKey(type), copyOrLocale);
 }
 
 export function audioEffectParamRange(type, name) {
 	if (isAudacityRackEffectType(type)) {
-		const liveRange = audacityLiveEffectCapability(type).paramRanges?.[name];
+		const liveRange = ownMapValue(audacityLiveEffectCapability(type).paramRanges ?? {}, name);
 		if (liveRange) return [...liveRange];
-		const descriptor = AUDACITY_EFFECT_DEFINITIONS[type]?.params?.[name];
+		const descriptor = ownMapValue(AUDACITY_EFFECT_DEFINITIONS[type].params, name);
 		return descriptor?.kind === 'number' ? [descriptor.minimum, descriptor.maximum] : null;
 	}
-	const range = AUDIO_EFFECT_DEFINITIONS[type]?.ranges?.[name];
+	const range = ownMapValue(ownMapValue(AUDIO_EFFECT_DEFINITIONS, type)?.ranges ?? {}, name);
 	return range ? range.slice(0, 2) : null;
 }
 
 /** @returns {AudioEditorEffect} */
 export function createEffect(type, options = {}) {
 	if (type === MISSING_EFFECT_TYPE) return createMissingEffect(options);
-	const definition = AUDIO_EFFECT_DEFINITIONS[type];
+	const definition = ownMapValue(AUDIO_EFFECT_DEFINITIONS, type);
 	const audacityDefinition = isAudacityRackEffectType(type) ? AUDACITY_EFFECT_DEFINITIONS[type] : null;
 	if (!definition && !audacityDefinition) throw new RangeError(`Unsupported audio effect: ${type}.`);
 	const id = options.id || createStableId('effect');
@@ -439,7 +440,7 @@ function normalizeEffectParams(type, params, effectId = null) {
 		};
 	}
 
-	const definition = AUDIO_EFFECT_DEFINITIONS[type] ?? AUDIO_SELECTION_EFFECT_DEFINITIONS[type];
+	const definition = ownMapValue(AUDIO_EFFECT_DEFINITIONS, type) ?? ownMapValue(AUDIO_SELECTION_EFFECT_DEFINITIONS, type);
 	const output = {};
 	for (const [name, [minimum, maximum]] of Object.entries(definition.ranges)) {
 		output[name] = range(params[name], minimum, maximum, `${type}.${name}`);

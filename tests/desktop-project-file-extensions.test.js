@@ -14,7 +14,7 @@ import {
 } from '../desktop/constants.js';
 import { extractProjectPaths, OPENABLE_PROJECT_EXTENSIONS } from '../desktop/file-associations.js';
 import { readProfileForSelectedPath } from '../desktop/read-selection-service.js';
-import { acceptsFile, mimeTypeForPath, validateSaveChoice } from '../desktop/validation.js';
+import { acceptsFile, mimeTypeForPath, validateFileChoice, validateSaveChoice } from '../desktop/validation.js';
 import {
 	ACCEPTED_PROJECT_FILE_EXTENSIONS,
 	LEGACY_PROJECT_FILE_EXTENSION,
@@ -42,6 +42,20 @@ test('a packaged build opens every project suffix but saves only its own', () =>
 	assert.deepEqual(choice.filters, [{
 		name: 'Scape project', extensions: [PROJECT_FILE_EXTENSION.slice(1)],
 	}]);
+});
+
+test('native file purpose allowlists reject inherited object members', () => {
+	for (const purpose of ['constructor', '__proto__']) {
+		assert.throws(
+			() => validateFileChoice({ purpose }),
+			/unsupported file-open purpose/iu,
+		);
+		assert.equal(acceptsFile(purpose, '/tmp/session.wav'), false);
+		assert.throws(
+			() => validateSaveChoice({ purpose, suggestedName: 'session' }),
+			/unsupported save purpose/iu,
+		);
+	}
 });
 
 test('every project suffix takes the Scape range profile, disguised ones do not', () => {

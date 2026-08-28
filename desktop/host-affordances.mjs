@@ -21,8 +21,9 @@ const TEXT_EDIT_COMMANDS = Object.freeze(['undo', 'redo', 'cut', 'copy', 'paste'
 
 export function registerHostAffordances({ channels, handle, windowFor }) {
 	handle(channels.openExternal, async (_event, destination) => {
-		const url = EXTERNAL_DESTINATIONS[String(destination || '')];
-		if (!url) throw new TypeError('Unsupported external destination');
+		const key = String(destination || '');
+		if (!Object.hasOwn(EXTERNAL_DESTINATIONS, key)) throw new TypeError('Unsupported external destination');
+		const url = EXTERNAL_DESTINATIONS[key];
 		await shell.openExternal(url);
 	});
 	handle(channels.editText, (_event, value) => {

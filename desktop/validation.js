@@ -170,8 +170,8 @@ export function isEditorDocumentUrl(candidate) {
 
 export function validateFileChoice(value) {
 	const purpose = String(value?.purpose || '');
+	if (!Object.hasOwn(FILE_PURPOSES, purpose)) throw new TypeError('Unsupported file-open purpose');
 	const definition = FILE_PURPOSES[purpose];
-	if (!definition) throw new TypeError('Unsupported file-open purpose');
 	return {
 		purpose,
 		multiple: value?.multiple === true,
@@ -181,16 +181,16 @@ export function validateFileChoice(value) {
 }
 
 export function acceptsFile(purpose, filePath) {
+	if (!Object.hasOwn(FILE_PURPOSES, purpose)) return false;
 	const definition = FILE_PURPOSES[purpose];
-	if (!definition) return false;
 	const extension = extname(String(filePath || '')).slice(1).toLowerCase();
 	return definition.extensions.includes(extension);
 }
 
 export function validateSaveChoice(value) {
 	const purpose = String(value?.purpose || '');
+	if (!Object.hasOwn(SAVE_PURPOSES, purpose)) throw new TypeError('Unsupported save purpose');
 	const definition = SAVE_PURPOSES[purpose];
-	if (!definition) throw new TypeError('Unsupported save purpose');
 	const suggestedName = sanitizeSuggestedName(value?.suggestedName, `untitled.${definition.defaultExtension}`);
 	return {
 		purpose,

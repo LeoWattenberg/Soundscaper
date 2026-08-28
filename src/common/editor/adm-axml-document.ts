@@ -199,7 +199,7 @@ export function parseRiffAxmlChunk(input: Uint8Array | ArrayBuffer | ArrayBuffer
 }
 
 function registerElementId(tag: SaxesTagNS, name: string, declaredIds: Map<string, string>): string {
-	const specification = ELEMENT_IDS[name];
+	const specification = Object.hasOwn(ELEMENT_IDS, name) ? ELEMENT_IDS[name] : undefined;
 	if (!specification) return '';
 	const [attributeName, pattern] = specification;
 	const value = attribute(tag, attributeName);

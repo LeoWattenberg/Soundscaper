@@ -124,7 +124,12 @@ function withSignal(value: unknown, signal: AbortSignal): unknown {
 		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
 			throw new TypeError(`Soundscaper desktop baseline body read.${String(key)} must be a data property`);
 		}
-		result[String(key)] = descriptor.value;
+		Object.defineProperty(result, String(key), {
+			value: descriptor.value,
+			enumerable: true,
+			writable: true,
+			configurable: true,
+		});
 	}
 	result.signal = signal;
 	return result;

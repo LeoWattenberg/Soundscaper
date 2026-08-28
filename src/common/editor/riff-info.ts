@@ -10,7 +10,8 @@ export function createRiffInfoChunk(metadata: Readonly<Record<string, unknown>> 
 	const chunks: Uint8Array[] = [];
 	const emitted = new Set<string>();
 	for (const [rawKey, rawValue] of Object.entries(metadata || {})) {
-		const id = FIELD_IDS[rawKey.toLowerCase() as keyof typeof FIELD_IDS];
+		const key = rawKey.toLowerCase() as keyof typeof FIELD_IDS;
+		const id = Object.hasOwn(FIELD_IDS, key) ? FIELD_IDS[key] : undefined;
 		if (!id || emitted.has(id) || rawValue == null || String(rawValue) === '') continue;
 		emitted.add(id);
 		const encoded = new TextEncoder().encode(`${String(rawValue)}\0`);

@@ -60,5 +60,8 @@ test('host affordances retain their closed command and destination sets', async 
 	await handlers.get('external')(null, 'privacy-de');
 	assert.match(electron.opened.at(-1), /soundscaper\.org\/privacy\/de\/$/u);
 	await assert.rejects(() => handlers.get('external')(null, 'unknown'), /unsupported external destination/iu);
+	const opened = electron.opened.length;
+	await assert.rejects(() => handlers.get('external')(null, 'constructor'), /unsupported external destination/iu);
+	assert.equal(electron.opened.length, opened);
 	assert.throws(() => handlers.get('edit')(null, 'executeJavaScript'), /unsupported text edit command/iu);
 });
