@@ -16,7 +16,10 @@ import {
 import { scapeAudioSourceLayout, type ScapeAudioSource } from '../common/editor/scape-archive-media.ts';
 import { parseScapeProjectDocument } from '../common/editor/scape-project-document.ts';
 import { normalizeAudioTrackFreezeV1 } from '../common/editor/audio-track-freeze-v21.ts';
-import { SOUNDSCAPER_PROJECT_SCHEMA_FAMILY } from '../common/editor/project-schema-identity.ts';
+import {
+	PROJECT_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+} from '../common/editor/project-schema-identity.ts';
 import {
 	assertSoundscaperProjectProfile,
 	soundscaperProjectClone,
@@ -70,6 +73,8 @@ export interface SoundscaperDesktopBundleSnapshot {
 }
 
 export interface SoundscaperDesktopProjectSummary {
+	readonly schemaFamily: typeof SOUNDSCAPER_PROJECT_SCHEMA_FAMILY;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly id: string;
 	readonly title: string;
 	readonly revision: number;
@@ -110,7 +115,7 @@ const HANDSHAKE_FIELDS = [
 ] as const;
 const BUNDLE_FIELDS = ['metadataRevision', 'project', 'document', 'bodies'] as const;
 const CATALOG_FIELDS = ['metadataRevision', 'projects'] as const;
-const SUMMARY_FIELDS = ['id', 'title', 'revision', 'updatedAt'] as const;
+const SUMMARY_FIELDS = ['schemaFamily', 'schemaVersion', 'id', 'title', 'revision', 'updatedAt'] as const;
 const DELETE_RESULT_FIELDS = ['projectId', 'metadataRevision', 'deleted'] as const;
 const PROJECT_FIELDS = [
 	'id', 'projectId', 'name', 'metadataFile', 'preferredProduct', 'updatedAtMs',
@@ -394,11 +399,17 @@ function projectRow(
 
 function projectSummary(value: unknown): Readonly<SoundscaperDesktopProjectSummary> {
 	const raw = exactRecord(value, SUMMARY_FIELDS, 'Soundscaper desktop  project summary');
+	if (raw.schemaFamily !== SOUNDSCAPER_PROJECT_SCHEMA_FAMILY
+		|| raw.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new TypeError('The Soundscaper desktop project summary identity is unsupported.');
+	}
 	if (typeof raw.title !== 'string' || !raw.title.trim()
 		|| new TextEncoder().encode(raw.title).byteLength > MAXIMUM_TITLE_BYTES) {
 		throw new TypeError('The Soundscaper desktop  project title is invalid.');
 	}
 	return Object.freeze({
+		schemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 		id: validateSoundscaperDesktopProjectId(raw.id), title: raw.title,
 		revision: nonNegative(raw.revision, 'project revision'), updatedAt: canonicalTimestamp(raw.updatedAt),
 	});

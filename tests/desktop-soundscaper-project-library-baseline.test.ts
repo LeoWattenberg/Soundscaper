@@ -38,6 +38,9 @@ import {
 import { createHash as createSandboxHash } from '../desktop/soundscaper-project-library-sandbox-crypto.ts'
 import { validateSoundscaperDesktopCurrentProject } from '../desktop/soundscaper-project-library-current-project.ts'
 import { SoundscaperDesktopProjectLibraryMain } from '../desktop/soundscaper-project-library-main.ts'
+import {
+	validateSoundscaperDesktopCatalogSnapshot,
+} from '../src/soundscaper/desktop-project-library-renderer-contract.ts'
 import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts'
 
 test('Soundscaper desktop baseline freezes the exact family-qualified v1 identity', () => {
@@ -86,7 +89,7 @@ test('Soundscaper desktop baseline admits only current family v1 documents', () 
 })
 
 test('Soundscaper desktop baseline catalog rows carry the exact schema tuple', () => {
-	assert.deepEqual(validateSoundscaperDesktopProjectLibraryCatalogSnapshot({
+	const mainSnapshot = validateSoundscaperDesktopProjectLibraryCatalogSnapshot({
 		metadataRevision: 0,
 		projects: [{
 			schemaFamily: 'soundscaper',
@@ -96,7 +99,8 @@ test('Soundscaper desktop baseline catalog rows carry the exact schema tuple', (
 			revision: 0,
 			updatedAt: '2026-08-28T00:00:00.000Z',
 		}],
-	}).projects[0], {
+	})
+	assert.deepEqual(mainSnapshot.projects[0], {
 		schemaFamily: 'soundscaper',
 		schemaVersion: 1,
 		id: 'project-one',
@@ -104,6 +108,7 @@ test('Soundscaper desktop baseline catalog rows carry the exact schema tuple', (
 		revision: 0,
 		updatedAt: '2026-08-28T00:00:00.000Z',
 	})
+	assert.deepEqual(validateSoundscaperDesktopCatalogSnapshot(mainSnapshot), mainSnapshot)
 	assert.throws(() => validateSoundscaperDesktopProjectLibraryCatalogSnapshot({
 		metadataRevision: 0,
 		projects: [{
