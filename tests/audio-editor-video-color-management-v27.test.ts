@@ -223,6 +223,28 @@ test('bounded cube LUT parsing is deterministic and digest-bound', () => {
 	assert.throws(() => parseCubeLutV1(`${body}\n0 0 0`), /entry|count/iu);
 });
 
+test('bounded cube LUT parsing admits standard 65-point geometry', () => {
+	const body = `LUT_3D_SIZE 65\n${'0 0 0\n'.repeat(65 ** 3)}`;
+	const parsed = parseCubeLutV1(body);
+	assert.equal(parsed.size, 65);
+	assert.equal(parsed.values.length, 65 ** 3 * 3);
+	assert.throws(
+		() => parseCubeLutV1(body.replace('LUT_3D_SIZE 65', 'LUT_3D_SIZE 66')),
+		/size|bound/iu,
+	);
+});
+
+test('cube LUT comment parsing preserves hashes inside quoted titles', () => {
+	const body = [
+		'TITLE "Kodak #2383" # trailing comment',
+		'LUT_3D_SIZE 2 # trailing comment',
+		'# full-line comment',
+		'0 0 0', '0 0 1', '0 1 0', '0 1 1',
+		'1 0 0', '1 0 1', '1 1 0', '1 1 1',
+	].join('\n');
+	assert.equal(parseCubeLutV1(body).title, 'Kodak #2383');
+});
+
 test('a verified cube LUT body is applied with deterministic trilinear sampling', () => {
 	const body = [
 		'LUT_3D_SIZE 2',

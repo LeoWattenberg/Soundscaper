@@ -14,7 +14,7 @@ type RgbTripletV1 = readonly [number, number, number];
 
 export const VIDEO_COLOR_LIMITS_V1 = Object.freeze({
 	maximumCubeLutBytes: 16 * 1024 * 1024,
-	maximumCubeLutSize: 64,
+	maximumCubeLutSize: 65,
 });
 
 export interface VideoCubeLutReferenceV1 {
@@ -51,7 +51,7 @@ export function parseCubeLutV1(value: string): ParsedCubeLutV1 {
 	let domainMax: RgbTripletV1 = Object.freeze([1, 1, 1]);
 	const values: number[] = [];
 	for (const rawLine of value.split(/\r?\n/u)) {
-		const line = rawLine.replace(/\s*#.*$/u, '').trim();
+		const line = cubeLutLine(rawLine);
 		if (!line) continue;
 		if (/^TITLE\s/u.test(line)) {
 			const match = /^TITLE\s+"([^"\r\n]{1,512})"$/u.exec(line);
@@ -94,6 +94,16 @@ export function parseCubeLutV1(value: string): ParsedCubeLutV1 {
 	});
 	PARSED_CUBE_LUTS.add(parsed);
 	return parsed;
+}
+
+function cubeLutLine(rawLine: string): string {
+	let quoted = false;
+	for (let index = 0; index < rawLine.length; index += 1) {
+		const character = rawLine[index];
+		if (character === '"') quoted = !quoted;
+		else if (character === '#' && !quoted) return rawLine.slice(0, index).trim();
+	}
+	return rawLine.trim();
 }
 
 export function requireCubeLutBody(
