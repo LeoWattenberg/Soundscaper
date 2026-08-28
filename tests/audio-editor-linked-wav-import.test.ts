@@ -210,6 +210,26 @@ test('linked WAV import releases its locator when local admission fails before b
 	}
 });
 
+test('linked PCM import rejects sources above the 32-channel application limit before binding', async () => {
+	const fixture = importFixture();
+
+	await assert.rejects(
+		fixture.importLinkedPcm(
+			fixture.file,
+			{ ...fixture.descriptor, channelCount: 33 },
+			fixture.options,
+			fixture.wavMetadata,
+		),
+		/Audio import supports 1–32 channels; the source declares 33\./u,
+	);
+	assert.equal(fixture.calls.some(([name]) => name === 'bind-audio'), false);
+	assert.deepEqual(fixture.calls.filter(([name]) => name === 'release-locator'), [[
+		'release-locator', {
+			kind: 'audio', locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION,
+		},
+	]]);
+});
+
 test('project import admits and activates a canonical linked BW64 .wav without browser decoding', async () => {
 	const calls: string[] = [];
 	let nextId = 0;

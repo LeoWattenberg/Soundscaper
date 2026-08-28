@@ -3,6 +3,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- This focused seam narrows legacy project-import ports without changing their public JavaScript contract. */
 
 import { scaleSampleFrame } from '../timeline-time.ts';
+import { admitAudioImportChannelCount } from './audio-import-channel-admission.ts';
 import {
 	createImportedAudioContentIdentityWriter,
 	rollbackImportedAudioContentIdentityWriter,
@@ -56,6 +57,7 @@ export function createIncrementalPcmImporter(runtime: IncrementalPcmImportRuntim
 		wavMetadata: any,
 		activationOptions: Readonly<{ requireChunkStream?: boolean }> = {},
 	) {
+		admitAudioImportChannelCount(descriptor?.channelCount);
 		const pcmBytes = sourcePcmBytes(descriptor);
 		await preflightStorage(pcmBytes, 'import');
 		const sourceId = createStableId('source');

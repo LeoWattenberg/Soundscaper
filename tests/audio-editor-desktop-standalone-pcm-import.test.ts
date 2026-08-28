@@ -82,6 +82,23 @@ test('browser small WAV import retains Web Audio before codec fallback', async (
 	assert.deepEqual(fixture.writtenFrameCounts, []);
 });
 
+test('maintained WAV imports reject sources above the 32-channel application limit before decode or storage', async () => {
+	for (const browser of [false, true]) {
+		const input = trackedAudioFile(pcmWav(33), 'too-wide.wav', 'audio/wav');
+		const fixture = importFixture({ browser });
+
+		await assert.rejects(
+			() => fixture.service.importFile(input),
+			/Audio import supports 1–32 channels; the source declares 33\./u,
+		);
+		assert.equal(fixture.brokerCalls, 0);
+		assert.equal(fixture.contextCalls, 0);
+		assert.equal(fixture.webAudioDecodeCalls, 0);
+		assert.equal(input.wholeBodyReads, 0);
+		assert.deepEqual(fixture.writtenFrameCounts, []);
+	}
+});
+
 function importFixture(options: Readonly<{
 	browser?: boolean;
 	canonicalFailure?: Error;
@@ -216,8 +233,7 @@ function aiff(sampleFormat: 'float32' | 'int16'): Uint8Array {
 	return Uint8Array.from(encoded);
 }
 
-function pcmWav(): Uint8Array {
-	const channelCount = 2;
+function pcmWav(channelCount = 2): Uint8Array {
 	const frameCount = 5;
 	const dataByteLength = channelCount * frameCount * Int16Array.BYTES_PER_ELEMENT;
 	const bytes = new Uint8Array(44 + dataByteLength);

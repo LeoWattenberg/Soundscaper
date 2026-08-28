@@ -4,6 +4,7 @@
 
 import { linkedAudioLocatorReferenceFromImportOptions } from './project-import-options.ts';
 import { scaleSampleFrame } from '../timeline-time.ts';
+import { admitAudioImportChannelCount } from './audio-import-channel-admission.ts';
 
 type LegacyPort = (...args: any[]) => any;
 
@@ -273,7 +274,7 @@ function linkedPcmDescriptor(value: unknown): Readonly<{
 	const candidate = value as LinkedPcmDescriptor;
 	return Object.freeze({
 		frameCount: positiveSafeInteger(candidate.frameCount, 'Linked PCM frame count'),
-		channelCount: positiveSafeInteger(candidate.channelCount, 'Linked PCM channel count'),
+		channelCount: admitAudioImportChannelCount(candidate.channelCount),
 		sampleRate: positiveSafeInteger(candidate.sampleRate, 'Linked PCM sample rate'),
 	});
 }

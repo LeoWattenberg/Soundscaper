@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { inspectWavContainerSignature, inspectWavForImport } from './wav-import-routing.ts';
+import { admitAudioImportChannelCount } from './audio-import-channel-admission.ts';
 import {
 	createImportedAdmPassthroughMetadata,
 	prepareImportedWavMetadata,
@@ -352,6 +353,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		const wavDescriptor: RuntimeValue = await inspectWavForImport(
 			file, isWavFile, inspectWavBlobPcm, wavSignature,
 		);
+		if (wavDescriptor) admitAudioImportChannelCount(wavDescriptor.channelCount);
 		const wavMetadata = prepareWavImportMetadata(wavDescriptor, normalizedImportOptions);
 		const requireChunkStream = Boolean(wavDescriptor
 			&& isAudioEditorEngineSupported?.() === false);

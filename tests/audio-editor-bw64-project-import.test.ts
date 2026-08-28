@@ -149,7 +149,6 @@ test('non-reproducible ADM source geometry stays source-scoped with an import wa
 		['sample-rate mismatch', { sampleRate: 96_000 }],
 		['32-bit PCM', { bitDepth: 32 }],
 		['float PCM', { bitDepth: 32, encoding: 'ieee-float' }],
-		['more than 32 channels', { channelCount: 33 }],
 	] as const) {
 		const descriptor = bw64Descriptor(overrides);
 		const fixture = projectImportFixture(descriptor, emptyProject(0));
@@ -161,6 +160,17 @@ test('non-reproducible ADM source geometry stays source-scoped with an import wa
 			|| code === 'adm-passthrough-sample-rate-mismatch'
 		)), name);
 	}
+});
+
+test('BW64 project import rejects sources above the 32-channel application limit before staging PCM', async () => {
+	const fixture = projectImportFixture(bw64Descriptor({ channelCount: 33 }), emptyProject(0));
+
+	await assert.rejects(
+		() => createProjectImportService(fixture.runtime).importFile(bw64File()),
+		/Audio import supports 1–32 channels; the source declares 33\./u,
+	);
+	assert.deepEqual(fixture.commands, []);
+	assert.deepEqual(fixture.writtenChannels, []);
 });
 
 test('non-neutral empty projects keep otherwise eligible ADM source-scoped', async () => {
