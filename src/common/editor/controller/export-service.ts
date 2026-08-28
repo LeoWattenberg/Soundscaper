@@ -77,7 +77,6 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			state.exportGeneration += 1;
 			state.exportAbort?.abort();
 			state.exportAbort = null;
-			ffmpeg.dispose();
 			toggleExport(false);
 			publishDocumentSnapshot();
 			return;

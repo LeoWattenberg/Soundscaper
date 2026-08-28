@@ -74,14 +74,37 @@ test('browser compressed export preflights the complete-file codec before render
 	assert.equal(fixture.preflightBytes.length, 0);
 });
 
-test('export action cancellation and preconditions preserve idle state', async () => {
+test('export action cancellation preserves the reusable codec runtime and idle state', async () => {
 	const fixture = createFixture();
+	let codecDisposed = false;
+	const codec = fixture.runtime.ffmpeg;
+	const runtime = {
+		...fixture.runtime,
+		ffmpeg: {
+			...codec,
+			dispose() {
+				codecDisposed = true;
+				fixture.calls.push('ffmpeg-dispose');
+			},
+			async encodeFile(...args: Parameters<typeof codec.encodeFile>) {
+				if (codecDisposed) throw new Error('The browser-native codec runtime was disposed.');
+				return codec.encodeFile(...args);
+			},
+		},
+	};
 	let aborted = false;
 	fixture.state.exportAbort = { signal: new AbortController().signal, abort: () => { aborted = true; } };
-	await createEditorExportService(fixture.runtime).handleExportAction('cancel');
+	const service = createEditorExportService(runtime);
+	await service.handleExportAction('cancel');
 	assert.equal(aborted, true);
 	assert.equal(fixture.state.exportAbort, null);
-	assert.equal(fixture.calls.includes('ffmpeg-dispose'), true);
+	assert.equal(fixture.calls.includes('ffmpeg-dispose'), false);
+	const compressed = defaultPlan();
+	compressed.format = 'mp3';
+	compressed.mimeType = 'audio/mpeg';
+	compressed.outputs = [{ fileName: 'mix.mp3', trackId: null }];
+	fixture.setPlan(compressed);
+	assert.equal((await service.handleExportAction('export')).fileName, 'mix.mp3');
 
 	const empty = createFixture();
 	empty.setProject({ ...defaultProject(), clips: [] });
