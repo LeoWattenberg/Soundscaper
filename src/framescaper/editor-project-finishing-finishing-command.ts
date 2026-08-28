@@ -198,7 +198,10 @@ export function applyFramescaperOwnedFinishingCommandFinishing(
 	const expected = item[commandSpec.expectedField] ?? null;
 	const replacement = item[commandSpec.valueField] ?? null;
 	if (!same(current, expected)) throw new Error(`The expected finishing ${commandSpec.label} is stale.`);
-	if (replacement === null) values.splice(index, 1);
+	if (replacement === null) {
+		if (index < 0) throw new ReferenceError(`The finishing ${commandSpec.label} ${identity} is missing.`);
+		values.splice(index, 1);
+	}
 	else if (index < 0) values.push(replacement as Record<string, unknown>);
 	else values[index] = replacement as Record<string, unknown>;
 	project[commandSpec.projectField] = values;

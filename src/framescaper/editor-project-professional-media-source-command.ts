@@ -86,6 +86,9 @@ export function applyFramescaperProfessionalSourceCollectionCommandProfessionalM
 		if (JSON.stringify(current) !== JSON.stringify(command.expectedSource)) {
 			throw new Error('The expected professionalMedia professional source is stale.');
 		}
+		if (index < 0) {
+			throw new ReferenceError(`The professionalMedia professional source ${command.sourceId} is missing.`);
+		}
 		sources.splice(index, 1);
 	}
 	project.sources = sources;

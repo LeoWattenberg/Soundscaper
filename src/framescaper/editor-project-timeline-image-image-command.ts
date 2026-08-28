@@ -86,7 +86,10 @@ function applySource(project: Record<string, unknown>, command: FramescaperImage
 	const index = sources.findIndex(({ id, kind }) => id === command.sourceId && kind === 'image');
 	const current = index < 0 ? null : sources[index]!;
 	if (!same(current, command.expectedSource)) throw new Error('The expected timelineImage image source is stale.');
-	if (command.source === null) sources.splice(index, 1);
+	if (command.source === null) {
+		if (index < 0) throw new ReferenceError(`The timelineImage image source ${command.sourceId} is missing.`);
+		sources.splice(index, 1);
+	}
 	else if (index < 0) sources.push(command.source as unknown as Record<string, unknown>);
 	else sources[index] = command.source as unknown as Record<string, unknown>;
 	project.sources = sources;

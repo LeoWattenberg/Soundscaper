@@ -268,7 +268,10 @@ function applyOpenFx(
 	const draft = structuredClone(project) as unknown as Record<string, unknown>;
 	const effects = draft.ofxEffects as OfxEffectStateV26[];
 	const index = effects.findIndex(({ instanceId }) => instanceId === command.instanceId);
-	if (command.effect === null) effects.splice(index, 1);
+	if (command.effect === null) {
+		if (index < 0) throw new ReferenceError(`The nativeMedia OpenFX effect ${command.instanceId} is missing.`);
+		effects.splice(index, 1);
+	}
 	else if (index < 0) effects.push(command.effect);
 	else effects[index] = command.effect;
 	return finalize(profile, project, draft, options);

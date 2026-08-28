@@ -194,11 +194,14 @@ function freezeCommand(value: unknown): FramescaperVideoFreezeFallbackSetCommand
 
 function applySource(project: Record<string, unknown>, command: FramescaperVideoVisualSourceSetCommandVisual): void {
 	const sources = records(project.sources, 'sources');
-	const current = sources.find(({ id, kind }) => id === command.sourceId
-		&& (kind === 'still' || kind === 'generator')) ?? null;
+	const index = sources.findIndex(({ id, kind }) => id === command.sourceId
+		&& (kind === 'still' || kind === 'generator'));
+	const current = index < 0 ? null : sources[index]!;
 	if (!same(current, command.expectedSource)) throw new Error('The expected visual visual source is stale.');
-	const index = sources.indexOf(current as Record<string, unknown>);
-	if (command.source === null) sources.splice(index, 1);
+	if (command.source === null) {
+		if (index < 0) throw new ReferenceError(`The visual visual source ${command.sourceId} is missing.`);
+		sources.splice(index, 1);
+	}
 	else if (index < 0) sources.push(command.source as unknown as Record<string, unknown>);
 	else sources[index] = command.source as unknown as Record<string, unknown>;
 	project.sources = sources;
@@ -252,7 +255,10 @@ function replaceById(
 	const index = values.findIndex((item) => item[idName] === id);
 	const current = index < 0 ? null : values[index]!;
 	if (!same(current, expected)) throw new Error(`The expected ${label} is stale.`);
-	if (replacement === null) values.splice(index, 1);
+	if (replacement === null) {
+		if (index < 0) throw new ReferenceError(`The ${label} ${id} is missing.`);
+		values.splice(index, 1);
+	}
 	else if (index < 0) values.push(replacement as Record<string, unknown>);
 	else values[index] = replacement as Record<string, unknown>;
 	project[fieldName] = values;
