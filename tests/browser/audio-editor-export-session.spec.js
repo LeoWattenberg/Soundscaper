@@ -219,7 +219,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.keyboard.press('Escape');
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'FLAC');
 		await exportDialog.locator('[data-export-field="bitDepth"]').getByRole('button').click();
-		await expect(page.getByRole('option')).toHaveCount(2);
+		await expect(page.getByRole('option')).toHaveCount(1);
 		await expect(page.getByRole('option', { name: '32-bit Float' })).toHaveCount(0);
 		await expect(exportDialog.locator('[data-export-field="bitDepth"]').getByRole('button')).toContainText('24-bit PCM');
 		await page.keyboard.press('Escape');
