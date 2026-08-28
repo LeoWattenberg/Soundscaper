@@ -8,6 +8,9 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 import {
 	prepareLocalAssistanceGuidedHighlightInputsV1,
 } from '../src/common/editor/controller/local-assistance-guided-highlight-preparation.ts';
+import {
+	prepareLocalAssistanceGuidedHighlightVisualEvidenceV1,
+} from '../src/common/editor/controller/local-assistance-guided-highlight-visual-evidence.ts';
 import { defaultAssistanceWorkflowSettingsV1 } from
 	'../src/common/editor/assistance/workflow-settings-v1.ts';
 import { createAssistanceEmbeddingMatrixV1 } from
@@ -219,6 +222,41 @@ test('guided highlight visual evidence derives semantic interest and duplication
 		{ visualInterest: 0, duplication: 1, speechlessAvailableWeight: 0.4,
 			audioOccurrenceId: null },
 	]);
+});
+
+test('guided highlight visual evidence rejects a Float32-scale cancelling centroid', () => {
+	const matrix = createAssistanceEmbeddingMatrixV1({ dimensions: 2, vectors: [
+		[1, 0], [-1, 2 ** -24],
+	] });
+	const bytes = createAssistanceSemanticDerivativeBundleV1({
+		provider: 'visual', schemaFamily: 'framescaper', schemaVersion: 1,
+		projectId: 'project-a', projectRevision: 7,
+		sequenceId: 'sequence-a', sourceId: 'video-source', matrix,
+		rows: [1, 2].map((timelineFrame, index) => ({
+			resultId: `cancelling-visual-${String(index)}`, timelineFrame,
+			label: 'Cancelling visual sample',
+		})), ocr: [],
+	});
+	const video = {
+		schemaVersion: 1 as const, kind: 'highlight-video-signals' as const,
+		sourceId: 'video-source', sampleRate: 1_000, timescale: 1_000,
+		sourceSize: { width: 1_920, height: 1_080 },
+		videoOccurrenceId: 'video-clip', audioOccurrenceId: null,
+		selectionStartFrame: 0, selectionEndFrame: 10,
+		reframeEvidence: null, sourceTimeAuthority: [],
+		windows: [{ id: 'window-a', startFrame: 0, endFrame: 10,
+			shotStructure: 0 as const, visualInterest: 0 }],
+	};
+	const visualFence = fence('video-source', VIDEO_SHA256, 0, 10, '78'.repeat(32));
+	const record = { recordVersion: 1, derivativeVersion: 1,
+		schemaFamily: 'framescaper', schemaVersion: 1,
+		kind: 'visual-index', projectId: 'project-a',
+		mediaType: ASSISTANCE_SEMANTIC_DERIVATIVE_MEDIA_TYPE,
+		payloadByteLength: bytes.byteLength, payloadSha256: bytesToHex(sha256(bytes)), bytes };
+
+	assert.equal(prepareLocalAssistanceGuidedHighlightVisualEvidenceV1({
+		video, fence: visualFence, records: [record], signal: new AbortController().signal,
+	}), null);
 });
 
 test('guided highlight preparation refuses stale audio geometry and cancellation', async () => {

@@ -18,6 +18,7 @@ import { readProjectSchemaIdentity } from '../project-schema-identity.ts';
 
 const MAXIMUM_INDEX_RECORDS = 64;
 const MAXIMUM_MULTIPLY_ADDS = 10_000_000;
+const FLOAT32_EPSILON = 2 ** -23;
 const SHA256 = /^[a-f\d]{64}$/u;
 
 export interface LocalAssistanceGuidedHighlightVisualEvidenceV1 {
@@ -113,18 +114,25 @@ function deriveWindowEvidence(
 }
 
 function centroid(vectors: readonly Float32Array[]): Float32Array | null {
-	const result = new Float32Array(vectors[0]!.length);
+	const sum = new Float64Array(vectors[0]!.length);
+	let inputMagnitude = 0;
 	for (const vector of vectors) {
-		for (let index = 0; index < result.length; index += 1) {
-			result[index] = Math.fround(result[index]! + vector[index]!);
+		let magnitudeSquared = 0;
+		for (let index = 0; index < sum.length; index += 1) {
+			const value = vector[index]!;
+			sum[index] += value;
+			magnitudeSquared += value * value;
 		}
+		inputMagnitude += Math.sqrt(magnitudeSquared);
 	}
 	let normSquared = 0;
-	for (const value of result) normSquared += value * value;
-	if (!Number.isFinite(normSquared) || normSquared <= Number.EPSILON) return null;
+	for (const value of sum) normSquared += value * value;
 	const norm = Math.sqrt(normSquared);
-	for (let index = 0; index < result.length; index += 1) {
-		result[index] = Math.fround(result[index]! / norm);
+	if (!Number.isFinite(norm)
+		|| norm <= inputMagnitude * FLOAT32_EPSILON) return null;
+	const result = new Float32Array(sum.length);
+	for (let index = 0; index < sum.length; index += 1) {
+		result[index] = Math.fround(sum[index]! / norm);
 	}
 	return result;
 }
