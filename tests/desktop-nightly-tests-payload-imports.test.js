@@ -139,14 +139,21 @@ test('the nightly launcher ASAR satisfies every local import it reaches', async 
 	});
 	const { default: config } = await import('../electron-builder.nightly-tests.config.cjs');
 	const included = config.files.filter((pattern) => !pattern.startsWith('!'));
-	const missing = Object.keys(result.metafile.inputs)
+	const failures = Object.keys(result.metafile.inputs)
 		.map((input) => relative(REPOSITORY_ROOT, resolve(REPOSITORY_ROOT, input)))
-		.filter((input) => !included.some((pattern) => matchesGlob(input, pattern)))
+		.flatMap((input) => {
+			const packaged = packagedPathOf(input);
+			if (packaged === null) return [`NIGHTLY_TEST_PAYLOAD_INPUTS is missing ${input}`];
+			if (!included.some((pattern) => matchesGlob(packaged, pattern))) {
+				return [`the nightly launcher ASAR drops ${packaged}`];
+			}
+			return [];
+		})
 		.sort();
 	assert.deepEqual(
-		missing,
+		failures,
 		[],
-		`The packaged launcher would fail before writing results:\n  ${missing.join('\n  ')}`,
+		`The packaged launcher would fail before writing results:\n  ${failures.join('\n  ')}`,
 	);
 });
 
