@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 
 import { readFileSync, readdirSync } from 'node:fs';
-import { extname, join, relative, resolve, sep } from 'node:path';
+import { join, relative, resolve, sep } from 'node:path';
 
+import {
+	MAINTAINED_SOURCE_ROOTS,
+	isMaintainedSourceFile,
+} from './lib/maintained-source-policy.mjs';
 import { sourceLineCount } from './lib/source-line-count.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const configPath = join(root, 'config', 'maintainability-allowlist.json');
 const config = JSON.parse(readFileSync(configPath, 'utf8'));
-const checkedExtensions = new Set(['.cjs', '.css', '.cts', '.js', '.jsx', '.mjs', '.mts', '.ts', '.tsx']);
-const checkedRoots = ['desktop', 'scripts', 'src', 'tests'];
 const ignoredSegments = new Set(['native', 'node_modules', 'test-results']);
 const browserSpecPattern = /^tests\/browser\/.*\.spec\.[cm]?[jt]sx?$/u;
 
@@ -24,7 +26,7 @@ if (config.schemaVersion !== 1
 	throw new Error('Unsupported maintainability allowlist schema.');
 }
 
-const files = checkedRoots.flatMap((directory) => walk(join(root, directory))).sort();
+const files = MAINTAINED_SOURCE_ROOTS.flatMap((directory) => walk(join(root, directory))).sort();
 const observed = new Set();
 const findings = [];
 
@@ -63,6 +65,6 @@ function walk(directory) {
 		if (entry.isDirectory() && ignoredSegments.has(entry.name)) return [];
 		const path = join(directory, entry.name);
 		if (entry.isDirectory()) return walk(path);
-		return entry.isFile() && checkedExtensions.has(extname(entry.name)) ? [path] : [];
+		return entry.isFile() && isMaintainedSourceFile(entry.name) ? [path] : [];
 	});
 }

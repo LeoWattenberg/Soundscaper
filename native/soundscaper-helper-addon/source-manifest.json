@@ -38,8 +38,28 @@
 	"sourceFiles": [
 		{
 			"path": "addon.c",
-			"byteLength": 41785,
-			"sha256": "28449caaa210586218c3f8a49a3afe82244285406960d38da6eaa676a2429436"
+			"byteLength": 25149,
+			"sha256": "97df358baf9cdabcbb65dba43521a23380deedddf4981436c96897d9f3956842"
+		},
+		{
+			"path": "addon_napi.c",
+			"byteLength": 3646,
+			"sha256": "0cb67e03474cc5653b97b423c41700417e068f727e26880184d349d6e3141bf7"
+		},
+		{
+			"path": "addon_napi.h",
+			"byteLength": 1120,
+			"sha256": "63c0292338ac33a92734e7bbe07d936d68c70b9159367b7b8ab491b66ad8c86f"
+		},
+		{
+			"path": "addon_plugin.c",
+			"byteLength": 12808,
+			"sha256": "913e8c3e0c8956e1103f1d3c37253231aeae624fe4529549dc0cadaff1a48db2"
+		},
+		{
+			"path": "addon_plugin.h",
+			"byteLength": 655,
+			"sha256": "0de608288bf87f6a854bf484207618c4a6af2a44205edd8bd5f9b47fd5e3a9a4"
 		},
 		{
 			"path": "audio_backends.c",
@@ -134,8 +154,8 @@
 			"toolchainIdentity": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
 			"payload": {
 				"name": "soundscaper_helper.node",
-				"byteLength": 89488,
-				"sha256": "826c2ac16e7aceb3fcd5997cc111c02a4a02e77b64cf4821f845c1bd38a9e5a9"
+				"byteLength": 89600,
+				"sha256": "d5f10c7d133ad4f02f8e62adc038d553a4e78b7f330204b93480d6a6b1665b30"
 			}
 		},
 		"linux-arm64": {
