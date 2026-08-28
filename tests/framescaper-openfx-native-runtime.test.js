@@ -263,6 +263,7 @@ test('the native V12 seam reparses and correlates the exact invocation, graph, n
 		assert.equal(result.offscreenPixelsTouched, 5);
 			const gpu = structuredClone(wire.grant);
 			gpu.invocation.requestedBackend = 'cuda';
+			gpu.output.path = join(wire.directory, `output-${gpu.invocation.invocationId}-cuda.rgba`);
 			const gpuInvoked = invokeV12Grant(build.runtime, wire.directory, gpu);
 			assert.equal(gpuInvoked.status, 0, gpuInvoked.stderr);
 			assert.equal(JSON.parse(gpuInvoked.stdout).backend, 'cuda');
