@@ -24,6 +24,8 @@ const NUMERIC_CONTROL_TYPES = new Set([
 	"time",
 ]);
 
+const MAXIMUM_HEADER_EXPRESSION_DEPTH = 128;
+
 function scanExpressionState(text, initial = { depth: 0, inString: false, escaped: false }) {
 	const state = { ...initial };
 	let inComment = false;
@@ -204,7 +206,7 @@ function tokenize(payload) {
 function parseTokens(tokens) {
 	let index = 0;
 
-	function parseValue() {
+	function parseValue(depth = 0) {
 		const token = tokens[index];
 		if (!token) {
 			throw new SyntaxError("Unexpected end of Nyquist plug-in header expression");
@@ -216,10 +218,13 @@ function parseTokens(tokens) {
 		if (token.type === ")") {
 			throw new SyntaxError("Unexpected ')' in Nyquist plug-in header expression");
 		}
+		if (depth >= MAXIMUM_HEADER_EXPRESSION_DEPTH) {
+			throw new SyntaxError(`Nyquist plug-in header expression exceeds the maximum nesting depth of ${MAXIMUM_HEADER_EXPRESSION_DEPTH}`);
+		}
 
 		const values = [];
 		while (tokens[index]?.type !== ")") {
-			values.push(parseValue());
+			values.push(parseValue(depth + 1));
 			if (index >= tokens.length) {
 				throw new SyntaxError("Unclosed list in Nyquist plug-in header expression");
 			}

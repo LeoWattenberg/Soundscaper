@@ -154,3 +154,14 @@ $control AMOUNT (_ "Amount") float (_ "dB") -3 -12 nil
 	assert.equal(getNyquistPlugin('missing'), null);
 	await assert.rejects(() => loadNyquistPlugin('missing'), /Unknown bundled Nyquist plug-in/);
 });
+
+test('header expressions have a bounded nesting depth', () => {
+	const nestedName = (depth) => `${'('.repeat(depth)}"Deep"${')'.repeat(depth)}`;
+	const assertDepthFailure = (depth) => assert.throws(
+		() => parseNyquistPluginHeader(`$nyquist plug-in\n$name ${nestedName(depth)}\n`),
+		(error) => error instanceof SyntaxError && /nesting depth/u.test(error.message),
+	);
+	assert.equal(parseNyquistPluginHeader(`$nyquist plug-in\n$name ${nestedName(128)}\n`).name, 'Deep');
+	assertDepthFailure(129);
+	assertDepthFailure(20_000);
+});
