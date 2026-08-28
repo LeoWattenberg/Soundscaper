@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	TAKE_CYCLE_CAPTURE_MAXIMUM_SPANS,
 	planExactTakeCycleCapture,
@@ -247,7 +248,7 @@ export function createTakeCycleCaptureSourceSpool(
 			}
 		}
 		return Object.freeze({
-			drafts: Object.freeze(drafts.sort((left, right) => left.draftId.localeCompare(right.draftId))),
+			drafts: Object.freeze(drafts.sort((left, right) => compareCodeUnits(left.draftId, right.draftId))),
 			capturing: inventory.capturing,
 			capturingCount: inventory.capturingCount,
 		});

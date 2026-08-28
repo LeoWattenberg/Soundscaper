@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import type { LinkedOriginalLifecycleCoordinator } from './linked-original-lifecycle-coordinator.ts';
 import type {
 	LinkedOriginalProjectBindingPruneResult,
@@ -165,5 +166,5 @@ function compareReferences(
 	left: LinkedOriginalProjectSourceReference,
 	right: LinkedOriginalProjectSourceReference,
 ): number {
-	return left.kind.localeCompare(right.kind) || left.sourceId.localeCompare(right.sourceId);
+	return compareCodeUnits(left.kind, right.kind) || compareCodeUnits(left.sourceId, right.sourceId);
 }

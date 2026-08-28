@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import { validateCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../project-current.ts';
 import { collectProjectSourceIds } from '../retention.js';
 import { request, transact } from './indexeddb-backend.ts';
@@ -434,7 +435,7 @@ function canonicalOwnedTransientBindings(
 		}
 	} catch { return null; }
 	return Object.freeze([...references.values()].sort((left, right) => (
-		left.kind.localeCompare(right.kind) || left.sourceId.localeCompare(right.sourceId)
+		compareCodeUnits(left.kind, right.kind) || compareCodeUnits(left.sourceId, right.sourceId)
 	)));
 }
 
@@ -444,11 +445,11 @@ function frozenResult(
 ): LinkedOriginalProjectBindingPruneResult {
 	const durableSourceReferences = Object.freeze([...durable.values()]
 		.sort((left, right) => (
-			left.kind.localeCompare(right.kind) || left.sourceId.localeCompare(right.sourceId)
+			compareCodeUnits(left.kind, right.kind) || compareCodeUnits(left.sourceId, right.sourceId)
 		)));
 	const removedLocatorReferences = Object.freeze([...plan.removedReferences.values()]
 		.sort((left, right) => (
-			left.kind.localeCompare(right.kind) || left.locatorId.localeCompare(right.locatorId)
+			compareCodeUnits(left.kind, right.kind) || compareCodeUnits(left.locatorId, right.locatorId)
 		)));
 	return Object.freeze({
 		durableSourceReferences,

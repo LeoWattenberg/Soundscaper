@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	mediaAssetChunkKey,
 	mediaAssetChunkRecord,
@@ -215,7 +216,7 @@ export class EncodedCaptureSpoolRepository {
 			records.push(record);
 		}
 		return Object.freeze(records.sort((left, right) => (
-			left.projectId.localeCompare(right.projectId) || left.spoolId.localeCompare(right.spoolId)
+			compareCodeUnits(left.projectId, right.projectId) || compareCodeUnits(left.spoolId, right.spoolId)
 		)));
 	}
 

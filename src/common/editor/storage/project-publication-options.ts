@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	assertProjectRevisionPublicationCapacity,
 	estimateProjectRevisionPublication,
@@ -88,7 +89,7 @@ export function projectProtectedLinkedOriginalSourceReferences(
 		throw new RangeError('Protected linked-original source references exceed their aggregate limit.');
 	}
 	return Object.freeze([...references.values()].sort((left, right) => (
-		left.kind.localeCompare(right.kind) || left.sourceId.localeCompare(right.sourceId)
+		compareCodeUnits(left.kind, right.kind) || compareCodeUnits(left.sourceId, right.sourceId)
 	)));
 }
 

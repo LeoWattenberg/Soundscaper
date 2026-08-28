@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import type {
 	LinkedOriginalLocatorReference,
 } from './linked-original-repository.ts';
@@ -505,7 +506,7 @@ function compareTransientBindings(
 	left: LinkedOriginalTransientBindingReference,
 	right: LinkedOriginalTransientBindingReference,
 ): number {
-	return left.kind.localeCompare(right.kind) || left.sourceId.localeCompare(right.sourceId);
+	return compareCodeUnits(left.kind, right.kind) || compareCodeUnits(left.sourceId, right.sourceId);
 }
 
 function normalizeProjectBindingPruneResult(

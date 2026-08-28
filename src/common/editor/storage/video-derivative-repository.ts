@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import { estimateEncodedDerivativePublication } from '../publication-byte-estimates.ts';
 import {
 	DERIVATIVE_CACHE_ENTRY_STORE_NAME,
@@ -319,7 +320,7 @@ export class VideoDerivativeRepository {
 		return records
 			.filter((record) => matchesVideoDerivativeRecordBinding(record, id, original, recipe))
 			.sort((left, right) => Number(left.timestamp) - Number(right.timestamp)
-				|| String(left.type).localeCompare(String(right.type)))
+				|| compareCodeUnits(String(left.type), String(right.type)))
 			.map(videoDerivativeMetadata);
 	}
 

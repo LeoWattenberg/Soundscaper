@@ -2,6 +2,7 @@
 
 /** Record shapes and all-or-nothing memory mutation helpers shared by the project repositories. */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import type { ProjectDocument } from './project-repository.ts';
 
 export interface ProjectRevisionRecord {
@@ -115,5 +116,5 @@ export function nonNegativeInteger(value: unknown, fallback: number): number {
 }
 
 export function sortProjects(left: ProjectDocument, right: ProjectDocument): number {
-	return String(right.updatedAt || '').localeCompare(String(left.updatedAt || ''));
+	return compareCodeUnits(String(right.updatedAt || ''), String(left.updatedAt || ''));
 }

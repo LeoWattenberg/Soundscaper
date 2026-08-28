@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	legacyLinkedVideoOriginalBindingFromLinkedOriginal,
 	LINKED_ORIGINAL_BINDING_SCHEMA_VERSION,
@@ -258,7 +259,7 @@ export class LinkedOriginalProjectAliasRepository {
 		}
 		const sourceBindings = inventory.bindings
 			.filter((binding) => binding.projectId === sourceProjectId && sources.has(binding.sourceId))
-			.sort((left, right) => left.sourceId.localeCompare(right.sourceId));
+			.sort((left, right) => compareCodeUnits(left.sourceId, right.sourceId));
 		if (sourceBindings.some((binding) => inventory.bindingKeys.has(
 			linkedOriginalBindingKey(destinationProjectId, binding.sourceId),
 		))) {

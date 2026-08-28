@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
+
 export interface DerivativeCacheRecord {
 	readonly key?: unknown;
 	readonly size?: unknown;
@@ -136,7 +138,7 @@ function account(records: readonly Readonly<DerivativeCacheRecord>[]): Accounted
 function compareOldestFirst(left: AccountedRecord, right: AccountedRecord): number {
 	const leftTime = Number.isFinite(left.committedAt) ? left.committedAt : Number.NEGATIVE_INFINITY;
 	const rightTime = Number.isFinite(right.committedAt) ? right.committedAt : Number.NEGATIVE_INFINITY;
-	return leftTime - rightTime || left.key.localeCompare(right.key);
+	return leftTime - rightTime || compareCodeUnits(left.key, right.key);
 }
 
 function totals(bytes: number, entries: number): Readonly<DerivativeCacheTotals> {

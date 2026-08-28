@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	normalizeLinkedOriginalBinding,
 	type LegacyLinkedVideoOriginalBinding,
@@ -191,7 +192,7 @@ export async function reconcileStoredLinkedVideoLocatorReferences(
 			if (!cursor) {
 				const liveReferences = Object.freeze([...references]
 					.filter(([, reference]) => reference.reachable)
-					.sort(([left], [right]) => left.localeCompare(right))
+					.sort(([left], [right]) => compareCodeUnits(left, right))
 					.map(([locatorId, reference]) => Object.freeze({
 						kind: 'video' as const,
 						locatorId,
@@ -367,13 +368,13 @@ function frozenLocatorReferences(
 ): readonly LinkedOriginalLocatorReference[] {
 	return Object.freeze([...references.values()]
 		.sort((left, right) => (
-			left.kind.localeCompare(right.kind) || left.locatorId.localeCompare(right.locatorId)
+			compareCodeUnits(left.kind, right.kind) || compareCodeUnits(left.locatorId, right.locatorId)
 		)));
 }
 
 function exactStorageAliases(bindings: LinkedOriginalBinding[]): readonly LinkedOriginalBinding[] {
 	bindings.sort((left, right) => (
-		left.projectId.localeCompare(right.projectId) || left.sourceId.localeCompare(right.sourceId)
+		compareCodeUnits(left.projectId, right.projectId) || compareCodeUnits(left.sourceId, right.sourceId)
 	));
 	const expected = bindings[0];
 	if (expected) {

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	normalizeFramescaperCaptureSessionManifest,
 	type FramescaperCaptureSessionManifestV1,
@@ -111,7 +112,7 @@ export class FramescaperCaptureSessionCreationRepository {
 			}
 			return creation;
 		});
-		return Object.freeze(creations.sort((left, right) => left.sessionId.localeCompare(right.sessionId)));
+		return Object.freeze(creations.sort((left, right) => compareCodeUnits(left.sessionId, right.sessionId)));
 	}
 
 	async listCreations(): Promise<readonly FramescaperCaptureSessionCreationV1[]> {
@@ -139,8 +140,8 @@ export class FramescaperCaptureSessionCreationRepository {
 			sessionId: creation.sessionId,
 		})));
 		return Object.freeze(creations.sort((left, right) => (
-			left.projectFence.projectId.localeCompare(right.projectFence.projectId)
-				|| left.sessionId.localeCompare(right.sessionId)
+			compareCodeUnits(left.projectFence.projectId, right.projectFence.projectId)
+				|| compareCodeUnits(left.sessionId, right.sessionId)
 		)));
 	}
 

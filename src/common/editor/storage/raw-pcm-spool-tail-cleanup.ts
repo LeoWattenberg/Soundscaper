@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	prepareCaptureSpoolTailCleanup,
 	recoverCaptureSpoolTailCleanup,
@@ -42,7 +43,7 @@ export async function prepareRawPcmSpoolTail(
 		const replacement = Object.freeze({
 			version: 1 as const,
 			projectId: current.projectId,
-			records: Object.freeze(records.sort((left, right) => left.spoolId.localeCompare(right.spoolId))),
+			records: Object.freeze(records.sort((left, right) => compareCodeUnits(left.spoolId, right.spoolId))),
 		});
 		if (await prepareCaptureSpoolTailCleanup(
 			values, identity(acknowledged), registryKey, registry.value, replacement,

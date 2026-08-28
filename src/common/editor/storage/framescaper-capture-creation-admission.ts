@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
+
 const CREATION_KEY_PREFIX = 'framescaper-capture-session-creation-v1:';
 const CREATION_ADMISSION_KEY = 'framescaper-capture-session-creation-admission-v1';
 const MAXIMUM_CAPTURE_CREATIONS = 4_096;
@@ -170,7 +172,7 @@ function freezeInventory(entries: readonly CaptureCreationAdmissionIdentity[]): 
 	return Object.freeze({
 		version: 1,
 		entries: Object.freeze([...entries].sort((left, right) => (
-			left.projectId.localeCompare(right.projectId) || left.sessionId.localeCompare(right.sessionId)
+			compareCodeUnits(left.projectId, right.projectId) || compareCodeUnits(left.sessionId, right.sessionId)
 		))),
 	});
 }

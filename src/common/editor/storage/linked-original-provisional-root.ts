@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	normalizeLegacyLinkedVideoOriginalBinding,
 	normalizeLinkedOriginalBinding,
@@ -263,8 +264,8 @@ function frozenInventory(
 	pairs: LinkedOriginalProvisionalRootPair[],
 	orphanRootKeys: string[],
 ): LinkedOriginalProvisionalRootInventory {
-	pairs.sort((left, right) => left.root.key.localeCompare(right.root.key));
-	orphanRootKeys.sort((left, right) => left.localeCompare(right));
+	pairs.sort((left, right) => compareCodeUnits(left.root.key, right.root.key));
+	orphanRootKeys.sort(compareCodeUnits);
 	return Object.freeze({
 		pairs: Object.freeze(pairs),
 		orphanRootKeys: Object.freeze(orphanRootKeys),

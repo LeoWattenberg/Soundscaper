@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	normalizeFramescaperCaptureSessionManifest,
 	type FramescaperCaptureSessionManifestV1,
@@ -64,7 +65,7 @@ export class FramescaperCaptureSessionManifestRepository {
 			}
 			return [manifest];
 		});
-		return Object.freeze(manifests.sort((left, right) => left.sessionId.localeCompare(right.sessionId)));
+		return Object.freeze(manifests.sort((left, right) => compareCodeUnits(left.sessionId, right.sessionId)));
 	}
 
 	async create(value: unknown): Promise<FramescaperCaptureSessionManifestV1> {

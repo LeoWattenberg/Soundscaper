@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import type { ProjectLinkedOriginalSourceReference } from '../storage/project-publication-options.ts';
 import {
 	collectTakeGroupSourceIds,
@@ -232,7 +233,7 @@ export function createProjectRetentionService<
 		}
 		for (const sourceId of transientAudioIds) add('audio', sourceId);
 		return Object.freeze([...references.values()].sort((left, right) => (
-			left.kind.localeCompare(right.kind) || left.sourceId.localeCompare(right.sourceId)
+			compareCodeUnits(left.kind, right.kind) || compareCodeUnits(left.sourceId, right.sourceId)
 		)));
 	}
 

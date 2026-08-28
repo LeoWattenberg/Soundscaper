@@ -5,6 +5,7 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	validateAssistanceWorkflow,
 	type AssistanceWorkflowV1,
@@ -310,7 +311,7 @@ export class AssistanceDerivativeRepository {
 		const current = new Set((await this.#values.listByPrefix(prefix)).map(({ key }) => key));
 		records.sort((left, right) => ASSISTANCE_DERIVATIVE_KINDS.indexOf(left.kind)
 			- ASSISTANCE_DERIVATIVE_KINDS.indexOf(right.kind)
-			|| left.identitySha256.localeCompare(right.identitySha256));
+			|| compareCodeUnits(left.identitySha256, right.identitySha256));
 		return Object.freeze(records.filter(({ key }) => current.has(key)).map(recordView));
 	}
 
@@ -383,8 +384,8 @@ function identityDescriptor(workflow: AssistanceWorkflowV1, kind: AssistanceDeri
 		recipeSha256: fence.recipeSha256,
 		settingsSha256: fence.settingsSha256,
 		modelBindingsSha256: fence.modelBindingsSha256,
-		models: [...workflow.models].sort((left, right) => left.stageId.localeCompare(right.stageId)
-			|| left.slotId.localeCompare(right.slotId)),
+		models: [...workflow.models].sort((left, right) => compareCodeUnits(left.stageId, right.stageId)
+			|| compareCodeUnits(left.slotId, right.slotId)),
 	};
 }
 

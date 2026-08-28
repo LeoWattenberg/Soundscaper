@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../code-unit-order.ts';
 import type { RawPcmSpoolRecord } from './raw-pcm-spool-record.ts';
 
 export const RAW_PCM_MAXIMUM_GLOBAL_ACTIVE_SPOOLS = 4_096;
@@ -37,7 +38,7 @@ export function freezeRawPcmSpoolGlobalInventory(
 	entries: RawPcmSpoolGlobalInventory['entries'],
 ): RawPcmSpoolGlobalInventory {
 	return Object.freeze({ version: 1,
-		entries: Object.freeze([...entries].sort((left, right) => left.spoolToken.localeCompare(right.spoolToken))) });
+		entries: Object.freeze([...entries].sort((left, right) => compareCodeUnits(left.spoolToken, right.spoolToken))) });
 }
 
 export function rawPcmSpoolGlobalEntry(
