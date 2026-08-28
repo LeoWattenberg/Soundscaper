@@ -55,6 +55,19 @@ test('target native ABI and bridge expose exact bounded AAC-LC M4A encode', asyn
 	assert.match(selfTest, /exactAacLcM4a/u);
 });
 
+test('Windows AAC PCM blocks locally pin the admitted stereo layout', async () => {
+	const source = await readFile(join(SOURCE, 'src/os_audio_codec_windows.cpp'), 'utf8');
+	const encode = source.slice(source.indexOf('encodeOperatingSystemAacM4a'));
+	assert.match(
+		encode,
+		/constexpr UINT32 pcmChannelCount = 2u;\s*constexpr UINT32 pcmBlockAlignment = pcmChannelCount \* sizeof\(int16_t\);\s*assert\(request->channel_count == pcmChannelCount\);/u,
+	);
+	assert.match(
+		encode,
+		/std::memcpy\(destination, pcm\.data\(\) \+ frameOffset \* pcmChannelCount, bufferBytes\);/u,
+	);
+});
+
 test('Windows AAC decoder proves the exact tuple from the file, then decodes float PCM', async () => {
 	const source = await readFile(join(SOURCE, 'src/os_audio_codec_windows.cpp'), 'utf8');
 	for (const witness of [

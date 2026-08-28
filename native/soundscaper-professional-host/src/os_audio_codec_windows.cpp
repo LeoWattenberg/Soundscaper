@@ -14,6 +14,7 @@
 #include <wrl/client.h>
 
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <cmath>
 #include <cstring>
@@ -437,7 +438,9 @@ soundscaper_pro_os_aac_m4a_encode_result encodeOperatingSystemAacM4a(
 		return finish(encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED, true));
 	}
 	ComPtr<IMFMediaType> inputType;
-	constexpr UINT32 pcmBlockAlignment = 2u * sizeof(int16_t);
+	constexpr UINT32 pcmChannelCount = 2u;
+	constexpr UINT32 pcmBlockAlignment = pcmChannelCount * sizeof(int16_t);
+	assert(request->channel_count == pcmChannelCount);
 	if (FAILED(MFCreateMediaType(&inputType))
 		|| FAILED(inputType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio))
 		|| FAILED(inputType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM))
@@ -473,7 +476,7 @@ soundscaper_pro_os_aac_m4a_encode_result encodeOperatingSystemAacM4a(
 			(void)buffer->Unlock();
 			return finish(encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_ENCODE_FAILED, true));
 		}
-		std::memcpy(destination, pcm.data() + frameOffset * request->channel_count, bufferBytes);
+		std::memcpy(destination, pcm.data() + frameOffset * pcmChannelCount, bufferBytes);
 		if (FAILED(buffer->Unlock()) || FAILED(buffer->SetCurrentLength(bufferBytes))) {
 			return finish(encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_ENCODE_FAILED, true));
 		}
