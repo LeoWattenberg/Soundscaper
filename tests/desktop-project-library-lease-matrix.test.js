@@ -14,6 +14,8 @@ import {
 	DESKTOP_PROJECT_LIBRARY_HISTORICAL_LEASE_WORKFLOWS,
 	DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS,
 	formatDesktopProjectLibraryLeaseMatrix,
+	isDesktopProjectLibraryWriterLeaseBusy,
+	removeDesktopProjectLibraryLeaseMatrixSmokeRoot,
 	runDesktopProjectLibraryLeaseMatrixCase,
 } from '../scripts/lib/desktop-project-library-lease-matrix.mjs';
 import { createDesktopSmokeProbe } from '../desktop/desktop-smoke.js';
@@ -166,6 +168,43 @@ test('a second instance is refused rather than admitted beside the lease holder'
 		driver: leaseInstances(), workflowId: 'same-project-simultaneous-open', order: ORDER,
 	});
 	assert.equal(record.refusedInstances, 1);
+});
+
+test('packaged baseline writer-lease refusals are recognized exactly', () => {
+	assert.equal(isDesktopProjectLibraryWriterLeaseBusy(
+		'Soundscaper desktop failed to start: Soundscaper desktop baseline writer lease is busy',
+	), true);
+	assert.equal(isDesktopProjectLibraryWriterLeaseBusy(
+		'Framescaper desktop failed to start: Framescaper desktop 1.0 writer lease is busy',
+	), true);
+	assert.equal(isDesktopProjectLibraryWriterLeaseBusy(
+		'Soundscaper desktop failed to start: Soundscaper desktop baseline writer lease expired before renewal',
+	), false);
+	assert.equal(isDesktopProjectLibraryWriterLeaseBusy(
+		'Framescaper desktop failed to start: Framescaper desktop 1.0 writer is fenced',
+	), false);
+	assert.equal(isDesktopProjectLibraryWriterLeaseBusy(
+		'Soundscaper desktop failed to start: Soundscaper desktop 1.0 writer lease is busy',
+	), false);
+	assert.equal(isDesktopProjectLibraryWriterLeaseBusy(
+		'Framescaper desktop failed to start: Framescaper desktop baseline writer lease is busy',
+	), false);
+});
+
+test('packaged lease cleanup gives Windows profile locks a bounded release window', async () => {
+	let call = null;
+	await removeDesktopProjectLibraryLeaseMatrixSmokeRoot(resolve('lease-smoke-root'), async (path, options) => {
+		call = { path, options };
+	});
+	assert.deepEqual(call, {
+		path: resolve('lease-smoke-root'),
+		options: {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		},
+	});
 });
 
 test('the losing canonical contender must lose main compare-and-swap, not merely fail', async () => {

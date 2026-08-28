@@ -45,8 +45,18 @@ const LEASE_EXPIRY_MARGIN_MS = 500;
 const CHILD_TIMEOUT_MS = 90_000;
 const MAXIMUM_OUTPUT_BYTES = 1024 * 1024;
 const MAXIMUM_EVIDENCE_CHARACTERS = 2_000;
-/** Both catalogs raise a lease another live instance holds under this exact wording. */
-const WRITER_LEASE_BUSY = /desktop (?:V11|V20) writer lease is busy/u;
+/** Both catalogs raise a lease another live instance holds under these exact wordings. */
+const WRITER_LEASE_BUSY = /(?:Soundscaper desktop baseline|Framescaper desktop 1\.0) writer lease is busy/u;
+
+export function isDesktopProjectLibraryWriterLeaseBusy(output) {
+	return WRITER_LEASE_BUSY.test(output);
+}
+
+export function removeDesktopProjectLibraryLeaseMatrixSmokeRoot(smokeRoot, remove = rm) {
+	return remove(smokeRoot, {
+		recursive: true, force: true, maxRetries: 10, retryDelay: 100,
+	});
+}
 
 export function createDesktopProjectLibraryLeaseMatrixPlan({ action, control, productId, projectId, request }) {
 	return deepFreeze({
@@ -91,7 +101,7 @@ export async function runDesktopProjectLibraryLeaseMatrix({
 			cases,
 		});
 	} finally {
-		await rm(smokeRoot, { recursive: true, force: true });
+		await removeDesktopProjectLibraryLeaseMatrixSmokeRoot(smokeRoot);
 	}
 }
 
@@ -294,7 +304,7 @@ async function expectRefusal(scope, productId, action, projectId, commitRequest)
 	if (exit.code === 0 && !exit.signal) {
 		throw new Error('Lease matrix second instance was admitted while the writer lease was held');
 	}
-	if (!WRITER_LEASE_BUSY.test(exit.output)) {
+	if (!isDesktopProjectLibraryWriterLeaseBusy(exit.output)) {
 		throw new Error(`Lease matrix second instance failed for another reason: ${exit.output}`);
 	}
 	return { refused: 'writer-lease-busy' };
